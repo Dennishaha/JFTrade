@@ -30,6 +30,12 @@ func (s *routeTestDesignStore) SaveDefinition(input srv.Definition) (srv.Definit
 func (s *routeTestDesignStore) DeleteDefinition(string) (srv.Definition, error) {
 	return srv.Definition{}, nil
 }
+func (s *routeTestDesignStore) ListDefinitionVersions(string) ([]srv.DefinitionVersionSummary, bool, error) {
+	return nil, false, s.err
+}
+func (s *routeTestDesignStore) GetDefinitionVersion(string, string) (srv.DefinitionVersion, bool, error) {
+	return srv.DefinitionVersion{}, false, s.err
+}
 
 func TestWriteStrategyErrorMapsBusinessErrors(t *testing.T) {
 	gin.SetMode(gin.TestMode)

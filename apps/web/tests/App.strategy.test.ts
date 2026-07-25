@@ -193,11 +193,16 @@ describe("Strategy page Pine v6 workflow", () => {
     const { wrapper } = await mountStrategyPage("/strategy/design")
     await settleStrategyWorkspace()
 
-    expect(wrapper.text()).toContain("源码是运行权威")
+    expect(wrapper.text()).toContain("运行时以源码为准")
     expect(wrapper.text()).not.toContain("源码为运行权威；匹配项可编辑，Raw Pine 保留原文。")
     expect(wrapper.text()).not.toContain("源码结构块")
     expect(wrapper.text()).toContain("图块生成")
     expect(wrapper.find('[data-testid="pine-source-node-strategy"]').exists()).toBe(true)
+    const supportBoundaryButton = wrapper.get('button[aria-label="Pine v6 支持边界"]')
+    expect(supportBoundaryButton.attributes("aria-expanded")).toBe("false")
+    await supportBoundaryButton.trigger("click")
+    expect(supportBoundaryButton.attributes("aria-expanded")).toBe("true")
+    expect(wrapper.text()).toContain("OCA、部分成交、tick 级重算")
 
     await wrapper.get('[data-testid="strategy-source-override-toggle"]').setValue(true)
     await flushRequests()

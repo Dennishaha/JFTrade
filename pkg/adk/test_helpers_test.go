@@ -162,7 +162,7 @@ func newWorkflowApprovalRuntime(t *testing.T, mode string) (*Runtime, *atomic.In
 
 func waitForRunStatus(t *testing.T, runtime *Runtime, runID string, status string) Run {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(10 * time.Second)
 	for {
 		run, ok, err := runtime.Store().Run(context.Background(), runID)
 		if err != nil {

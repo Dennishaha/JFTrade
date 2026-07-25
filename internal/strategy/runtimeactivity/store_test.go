@@ -15,7 +15,7 @@ import (
 func TestNewStoreCreatesExpectedSchema(t *testing.T) {
 	store := newStoreForTest(t)
 
-	for _, tableName := range []string{LogTable, AuditTable, ObservationTable} {
+	for _, tableName := range []string{LogTable, AuditTable, ObservationTable, DesignDefinitionVersionTable} {
 		var count int
 		if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&count); err != nil {
 			t.Fatalf("check %s table: %v", tableName, err)
@@ -23,6 +23,38 @@ func TestNewStoreCreatesExpectedSchema(t *testing.T) {
 		if count != 1 {
 			t.Fatalf("expected %s table to exist once, got %d", tableName, count)
 		}
+	}
+}
+
+func TestStrategySchemaHelpersIncludeImmutableDefinitionVersions(t *testing.T) {
+	store := newStoreForTest(t)
+	if err := ValidateDatabase(t.Context(), store.DB()); err != nil {
+		t.Fatalf("ValidateDatabase: %v", err)
+	}
+
+	statements := strings.Join(DatabaseStatements(), "\n")
+	for _, required := range []string{
+		"CREATE TABLE " + DesignDefinitionVersionTable,
+		"idx_strategy_definition_versions_saved_at",
+		"trg_strategy_definition_versions_immutable",
+	} {
+		if !strings.Contains(statements, required) {
+			t.Fatalf("schema statements do not contain %q", required)
+		}
+	}
+
+	if len(ExpectedLogSchemaColumns()) == 0 || len(ExpectedAuditSchemaColumns()) == 0 || len(ExpectedObservationSchemaColumns()) == 0 {
+		t.Fatal("expected runtime schema columns to be documented")
+	}
+
+	if _, err := store.DB().ExecContext(t.Context(), `INSERT INTO `+DesignDefinitionTable+` (id) VALUES ('def-1')`); err != nil {
+		t.Fatalf("insert definition: %v", err)
+	}
+	if _, err := store.DB().ExecContext(t.Context(), `INSERT INTO `+DesignDefinitionVersionTable+` (definition_id, version) VALUES ('def-1', '0.1.0')`); err != nil {
+		t.Fatalf("insert definition version: %v", err)
+	}
+	if _, err := store.DB().ExecContext(t.Context(), `UPDATE `+DesignDefinitionVersionTable+` SET name = 'changed' WHERE definition_id = 'def-1' AND version = '0.1.0'`); err == nil || !strings.Contains(err.Error(), "immutable") {
+		t.Fatalf("definition version update error = %v", err)
 	}
 }
 

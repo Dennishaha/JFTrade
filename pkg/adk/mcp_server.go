@@ -71,6 +71,8 @@ var LocalMCPReadOnlyToolNames = []string{
 	"risk.state",
 	"risk.events",
 	"strategy.definitions",
+	"strategy.definition_versions.list",
+	"strategy.definition_versions.get",
 	"strategy.pine_spec",
 	"strategy.validate_pine",
 	"backtest.runs",

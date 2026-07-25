@@ -34,6 +34,13 @@ type BuildFetchMockOptions = {
   systemStatus?: SystemStatusResponse;
   brokerRuntime?: BrokerRuntimeResponse;
   definitions?: StrategyDefinitionDocument[];
+  versionsByDefinitionId?: Record<string, Array<{
+    version: string;
+    name?: string;
+    savedAt?: string;
+    isCurrent?: boolean;
+    snapshot?: Partial<StrategyDefinitionDocument>;
+  }>>;
   strategies?: Array<{
     id: string;
     pluginId?: string;
@@ -93,6 +100,7 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
   const brokerRuntime = options.brokerRuntime ?? emptyBrokerRuntime
   setCurrentStrategySystemStatus(systemStatus)
   const definitions = options.definitions ?? []
+  const versionsByDefinitionId = options.versionsByDefinitionId ?? {}
   const strategies = options.strategies ?? []
   const logsById = options.logsById ?? {}
   const auditById = options.auditById ?? {}
@@ -483,6 +491,8 @@ function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefini
     const instantiateMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)\/instantiate/)
     const applyLinkedInstancesMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)\/apply-linked-instances$/)
     const definitionMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)$/)
+    const definitionVersionsMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)\/versions$/)
+    const definitionVersionMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)\/versions\/([^/]+)$/)
     const lifecycleMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/(start|pause|stop)/)
     const runtimeRiskMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/runtime-risk$/)
     const refreshDefinitionMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/refresh-definition$/)
@@ -659,6 +669,57 @@ function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefini
       }
       runtimeState.definitions.unshift(saved)
       return createResponse(saved)
+    }
+    if (definitionVersionsMatch && method === "GET") {
+      const definitionId = decodeURIComponent(definitionVersionsMatch[1])
+      const definition = runtimeState.definitions.find((item) => item.id === definitionId)
+      const configuredVersions = versionsByDefinitionId[definitionId]
+      if (configuredVersions !== undefined) {
+        return createResponse(configuredVersions.map((version) => ({
+          definitionId,
+          version: version.version,
+          name: version.name ?? definition?.name ?? "",
+          savedAt: version.savedAt ?? definition?.updatedAt ?? mutationTimestamp,
+          isCurrent: version.isCurrent ?? version.version === definition?.version,
+        })))
+      }
+      if (definition === undefined) {
+        return createErrorResponse("Unknown strategy definition", 404, "NOT_FOUND")
+      }
+      return createResponse([{
+        definitionId,
+        version: definition.version,
+        name: definition.name,
+        savedAt: definition.updatedAt,
+        isCurrent: true,
+      }])
+    }
+    if (definitionVersionMatch && method === "GET") {
+      const definitionId = decodeURIComponent(definitionVersionMatch[1])
+      const versionValue = decodeURIComponent(definitionVersionMatch[2])
+      const definition = runtimeState.definitions.find((item) => item.id === definitionId)
+      const configuredVersion = versionsByDefinitionId[definitionId]?.find((item) => item.version === versionValue)
+      if (configuredVersion !== undefined) {
+        return createResponse({
+          ...(definition == null ? {} : cloneDefinition(definition)),
+          ...(configuredVersion.snapshot ?? {}),
+          id: definitionId,
+          definitionId,
+          version: configuredVersion.version,
+          name: configuredVersion.name ?? definition?.name ?? "",
+          savedAt: configuredVersion.savedAt ?? definition?.updatedAt ?? mutationTimestamp,
+          isCurrent: configuredVersion.isCurrent ?? configuredVersion.version === definition?.version,
+        })
+      }
+      if (definition !== undefined && definition.version === versionValue) {
+        return createResponse({
+          ...cloneDefinition(definition),
+          definitionId,
+          savedAt: definition.updatedAt,
+          isCurrent: true,
+        })
+      }
+      return createErrorResponse("Unknown strategy definition version", 404, "NOT_FOUND")
     }
     if (definitionMatch && method === "PUT") {
       const definitionId = decodeURIComponent(definitionMatch[1])

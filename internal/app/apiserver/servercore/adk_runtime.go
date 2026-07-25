@@ -9,6 +9,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -21,46 +22,48 @@ type RuntimeDeps struct {
 }
 
 type ToolDeps struct {
-	Workflows                  WorkflowToolManager
-	SystemStatus               func() map[string]any
-	ADKEnabled                 func() bool
-	FutuOpenDHealth            func(context.Context) (any, error)
-	PluginCatalog              func() any
-	MarketSubscriptions        func(context.Context) (subscriptions any, activeInstruments any, err error)
-	MarketSnapshot             func(context.Context, string, string) (any, error)
-	MarketCandles              func(context.Context, string, string, string, int) (any, error)
-	WatchlistList              func(context.Context, WatchlistListInput) (any, error)
-	ManagedAccounts            func() any
-	BrokerEnabled              func() bool
-	DefaultTradeMarket         func() string
-	BrokerFunds                func(context.Context, broker.ReadQuery, time.Duration) any
-	BrokerPositions            func(context.Context, broker.ReadQuery, time.Duration) any
-	ExecutionOrders            func() any
-	ExecutionOrderEvents       func(string) any
-	BrokerOrders               func(context.Context, BrokerReadInput) (any, error)
-	BrokerFills                func(context.Context, BrokerReadInput) (any, error)
-	BrokerCashFlows            func(context.Context, BrokerReadInput) (any, error)
-	BrokerFees                 func(context.Context, BrokerReadInput) (any, error)
-	BrokerMarginRatios         func(context.Context, BrokerReadInput) (any, error)
-	MarketDepth                func(context.Context, string, string, int) (any, error)
-	RiskState                  func() any
-	RiskEvents                 func() any
-	ListStrategyDefinitions    func() []StrategyDefinitionSummary
-	ListStrategyInstances      func() []StrategyInstanceSummary
-	SaveStrategyDraft          func(StrategyDraftInput) (any, error)
-	SaveStrategyDefinition     func(StrategyDefinitionInput) (any, error)
-	UpdateStrategyInstanceMode func(instanceID string, executionMode string) (any, error)
-	ListBacktestRuns           func() []BacktestRunSummary
-	EnsureBacktestData         func([]string, BacktestStartInput) (BacktestDataReadiness, error)
-	EnsureResearchBacktestData func(ResearchBacktestInput) (BacktestDataReadiness, error)
-	BacktestKLineSyncProgress  func(string) (*backtest.SyncProgress, bool)
-	EnqueueBacktest            func(BacktestStartInput) (BacktestRunRef, error)
-	StartResearchBacktest      func(ResearchBacktestInput) (BacktestRunSummary, error)
-	BacktestResultView         func(BacktestResultViewInput) (any, error)
-	CancelBacktest             func(string)
-	RecordAudit                func(context.Context, string, string, string, map[string]any)
-	ProductTool                func(context.Context, string, map[string]any) (any, error)
-	ExecutionTool              func(context.Context, string, map[string]any) (any, error)
+	Workflows                      WorkflowToolManager
+	SystemStatus                   func() map[string]any
+	ADKEnabled                     func() bool
+	FutuOpenDHealth                func(context.Context) (any, error)
+	PluginCatalog                  func() any
+	MarketSubscriptions            func(context.Context) (subscriptions any, activeInstruments any, err error)
+	MarketSnapshot                 func(context.Context, string, string) (any, error)
+	MarketCandles                  func(context.Context, string, string, string, int) (any, error)
+	WatchlistList                  func(context.Context, WatchlistListInput) (any, error)
+	ManagedAccounts                func() any
+	BrokerEnabled                  func() bool
+	DefaultTradeMarket             func() string
+	BrokerFunds                    func(context.Context, broker.ReadQuery, time.Duration) any
+	BrokerPositions                func(context.Context, broker.ReadQuery, time.Duration) any
+	ExecutionOrders                func() any
+	ExecutionOrderEvents           func(string) any
+	BrokerOrders                   func(context.Context, BrokerReadInput) (any, error)
+	BrokerFills                    func(context.Context, BrokerReadInput) (any, error)
+	BrokerCashFlows                func(context.Context, BrokerReadInput) (any, error)
+	BrokerFees                     func(context.Context, BrokerReadInput) (any, error)
+	BrokerMarginRatios             func(context.Context, BrokerReadInput) (any, error)
+	MarketDepth                    func(context.Context, string, string, int) (any, error)
+	RiskState                      func() any
+	RiskEvents                     func() any
+	ListStrategyDefinitions        func() []StrategyDefinitionSummary
+	ListStrategyDefinitionVersions func(string) ([]stratsrv.DefinitionVersionSummary, bool, error)
+	GetStrategyDefinitionVersion   func(string, string) (stratsrv.DefinitionVersion, bool, error)
+	ListStrategyInstances          func() []StrategyInstanceSummary
+	SaveStrategyDraft              func(StrategyDraftInput) (any, error)
+	SaveStrategyDefinition         func(StrategyDefinitionInput) (any, error)
+	UpdateStrategyInstanceMode     func(instanceID string, executionMode string) (any, error)
+	ListBacktestRuns               func() []BacktestRunSummary
+	EnsureBacktestData             func([]string, BacktestStartInput) (BacktestDataReadiness, error)
+	EnsureResearchBacktestData     func(ResearchBacktestInput) (BacktestDataReadiness, error)
+	BacktestKLineSyncProgress      func(string) (*backtest.SyncProgress, bool)
+	EnqueueBacktest                func(BacktestStartInput) (BacktestRunRef, error)
+	StartResearchBacktest          func(ResearchBacktestInput) (BacktestRunSummary, error)
+	BacktestResultView             func(BacktestResultViewInput) (any, error)
+	CancelBacktest                 func(string)
+	RecordAudit                    func(context.Context, string, string, string, map[string]any)
+	ProductTool                    func(context.Context, string, map[string]any) (any, error)
+	ExecutionTool                  func(context.Context, string, map[string]any) (any, error)
 }
 
 // WatchlistListInput is the broker-neutral query surface exposed to the
@@ -278,6 +281,45 @@ func registerADKStrategyDefinitionTools(registry *jfadk.ToolRegistry, deps ToolD
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.definitions", DisplayName: "策略定义", Description: "读取当前策略定义和策略实例摘要。", Category: "strategy", Permission: "read_internal", OutputSummary: "策略定义、运行实例和数量摘要。"}, func(context.Context, map[string]any) (any, error) {
 		return SummarizeADKStrategyDefinitions(deps.ListStrategyDefinitions(), deps.ListStrategyInstances()), nil
 	})
+	versionSkills := []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.definition_versions.list", DisplayName: "策略版本历史", Description: "按策略定义 ID 列出不可变版本快照摘要，按保存时间倒序返回。", Category: "strategy", Permission: "read_internal", RiskLevel: "low", OutputSummary: "策略定义 ID、版本摘要列表和版本数量。", RequiredSkills: versionSkills}, func(_ context.Context, input map[string]any) (any, error) {
+		definitionID := strings.TrimSpace(stringValue(input, "definitionId"))
+		if definitionID == "" {
+			return nil, fmt.Errorf("definitionId is required")
+		}
+		if deps.ListStrategyDefinitionVersions == nil {
+			return nil, fmt.Errorf("strategy definition version history is unavailable")
+		}
+		versions, ok, err := deps.ListStrategyDefinitionVersions(definitionID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, fmt.Errorf("strategy definition %q not found or has no version history", definitionID)
+		}
+		return map[string]any{"definitionId": definitionID, "versions": versions, "versionCount": len(versions)}, nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.definition_versions.get", DisplayName: "读取策略版本", Description: "按策略定义 ID 和版本号读取完整的不可变策略定义快照。", Category: "strategy", Permission: "read_internal", RiskLevel: "low", OutputSummary: "指定版本的完整策略定义、源码、Visual Model、保存时间和当前版本标记。", RequiredSkills: versionSkills}, func(_ context.Context, input map[string]any) (any, error) {
+		definitionID := strings.TrimSpace(stringValue(input, "definitionId"))
+		if definitionID == "" {
+			return nil, fmt.Errorf("definitionId is required")
+		}
+		version := strings.TrimSpace(stringValue(input, "version"))
+		if version == "" {
+			return nil, fmt.Errorf("version is required")
+		}
+		if deps.GetStrategyDefinitionVersion == nil {
+			return nil, fmt.Errorf("strategy definition version snapshots are unavailable")
+		}
+		snapshot, ok, err := deps.GetStrategyDefinitionVersion(definitionID, version)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, fmt.Errorf("strategy definition %q version %q not found", definitionID, version)
+		}
+		return snapshot, nil
+	})
 	registry.Register(jfadk.ToolDescriptor{Name: strategypinespec.ToolName, DisplayName: "Pine 定义", Description: "读取当前 JFTrade Pine Script v6 的结构化定义、最小骨架、支持清单和示例。", Category: "strategy", Permission: "read_internal", OutputSummary: "JFTrade Pine Script v6 的章节摘要、支持语法与可选示例。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName}}, func(_ context.Context, input map[string]any) (any, error) {
 		return StrategyPineSpecToolPayload(input)
 	})
@@ -413,8 +455,20 @@ func registerADKStrategyWriteTools(registry *jfadk.ToolRegistry, deps ToolDeps) 
 }
 
 func registerADKBacktestReadTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
-	registry.Register(jfadk.ToolDescriptor{Name: "backtest.runs", DisplayName: "回测结果", Description: "读取最近回测运行结果。", Category: "strategy", Permission: "read_internal", OutputSummary: "最近回测运行和数量。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}}, func(context.Context, map[string]any) (any, error) {
-		return SummarizeADKBacktestRuns(deps.ListBacktestRuns()), nil
+	registry.Register(jfadk.ToolDescriptor{Name: "backtest.runs", DisplayName: "回测结果", Description: "读取最近回测运行结果；可按策略定义、定义版本和状态过滤。", Category: "strategy", Permission: "read_internal", OutputSummary: "最近回测运行和数量。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}}, func(_ context.Context, input map[string]any) (any, error) {
+		runs := deps.ListBacktestRuns()
+		definitionID := strings.TrimSpace(stringValue(input, "definitionId"))
+		definitionVersion := strings.TrimSpace(stringValue(input, "definitionVersion"))
+		status := strings.TrimSpace(stringValue(input, "status"))
+		limit := intValue(input, "limit", 0)
+		if definitionID == "" && definitionVersion == "" && status == "" && limit <= 0 {
+			return SummarizeADKBacktestRuns(runs), nil
+		}
+		filtered, totalMatched := FilterADKBacktestRuns(runs, definitionID, definitionVersion, status, limit)
+		payload := SummarizeADKBacktestRuns(filtered)
+		payload["totalMatched"] = totalMatched
+		payload["truncated"] = len(filtered) < totalMatched
+		return payload, nil
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "backtest.result_view", DisplayName: "回测结果视图", Description: "按 runId 同步读取回测摘要、图表窗口、订单、日志或错误；支持按时间范围、精度和 limit 多次查询。", Category: "strategy", Permission: "read_internal", OutputSummary: "指定回测 run 的轻量摘要或窗口化结果序列。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName}}, func(_ context.Context, input map[string]any) (any, error) {
 		if deps.BacktestResultView == nil {

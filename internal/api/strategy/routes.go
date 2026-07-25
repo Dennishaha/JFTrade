@@ -44,6 +44,8 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	// Strategy Definitions
 	api.GET("/strategy-definitions", handleListDefinitions(svc))
 	api.POST("/strategy-definitions", handleCreateDefinition(svc))
+	api.GET("/strategy-definitions/:definitionId/versions", handleListDefinitionVersions(svc))
+	api.GET("/strategy-definitions/:definitionId/versions/:version", handleGetDefinitionVersion(svc))
 	api.GET("/strategy-definitions/:definitionId", handleGetDefinition(svc))
 	api.PUT("/strategy-definitions/:definitionId", handleUpdateDefinition(svc))
 	api.DELETE("/strategy-definitions/:definitionId", handleDeleteDefinition(svc))
@@ -117,6 +119,70 @@ func handleAnalyzePine(svc *srv.Service) gin.HandlerFunc {
 func handleListDefinitions(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.ListDefinitions())
+	}
+}
+
+// handleListDefinitionVersions godoc
+// @Summary 读取策略定义历史版本
+// @Tags strategy
+// @Produce json
+// @Param definitionId path string true "策略定义 ID"
+// @Success 200 {object} httpserver.Envelope{data=[]StrategyDefinitionVersionSummary}
+// @Failure 400 {object} httpserver.Envelope
+// @Failure 404 {object} httpserver.Envelope
+// @Router /api/v1/strategy-definitions/{definitionId}/versions [get]
+func handleListDefinitionVersions(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var uri struct {
+			DefinitionID string `uri:"definitionId" binding:"required"`
+		}
+		if err := httpserver.BindURI(c, &uri); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid definition id")
+			return
+		}
+		items, ok, err := svc.ListDefinitionVersions(uri.DefinitionID)
+		if err != nil {
+			httpserver.WriteError(c, http.StatusInternalServerError, "STRATEGY_FAILED", err.Error())
+			return
+		}
+		if !ok {
+			httpserver.WriteNotFound(c)
+			return
+		}
+		httpserver.WriteOK(c, items)
+	}
+}
+
+// handleGetDefinitionVersion godoc
+// @Summary 读取策略定义历史版本快照
+// @Tags strategy
+// @Produce json
+// @Param definitionId path string true "策略定义 ID"
+// @Param version path string true "策略版本号"
+// @Success 200 {object} httpserver.Envelope{data=StrategyDefinitionVersion}
+// @Failure 400 {object} httpserver.Envelope
+// @Failure 404 {object} httpserver.Envelope
+// @Router /api/v1/strategy-definitions/{definitionId}/versions/{version} [get]
+func handleGetDefinitionVersion(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var uri struct {
+			DefinitionID string `uri:"definitionId" binding:"required"`
+			Version      string `uri:"version" binding:"required"`
+		}
+		if err := httpserver.BindURI(c, &uri); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid definition version")
+			return
+		}
+		item, ok, err := svc.GetDefinitionVersion(uri.DefinitionID, uri.Version)
+		if err != nil {
+			httpserver.WriteError(c, http.StatusInternalServerError, "STRATEGY_FAILED", err.Error())
+			return
+		}
+		if !ok {
+			httpserver.WriteNotFound(c)
+			return
+		}
+		httpserver.WriteOK(c, item)
 	}
 }
 

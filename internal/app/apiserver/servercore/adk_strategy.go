@@ -213,6 +213,30 @@ func SummarizeADKBacktestRuns(runs []BacktestRunSummary) map[string]any {
 	return map[string]any{"runs": items, "runCount": len(items)}
 }
 
+func FilterADKBacktestRuns(runs []BacktestRunSummary, definitionID string, definitionVersion string, status string, limit int) ([]BacktestRunSummary, int) {
+	definitionID = strings.TrimSpace(definitionID)
+	definitionVersion = strings.TrimSpace(definitionVersion)
+	status = strings.TrimSpace(status)
+	filtered := make([]BacktestRunSummary, 0, len(runs))
+	for _, run := range runs {
+		if definitionID != "" && strings.TrimSpace(run.DefinitionID) != definitionID {
+			continue
+		}
+		if definitionVersion != "" && strings.TrimSpace(run.DefinitionVersion) != definitionVersion {
+			continue
+		}
+		if status != "" && !strings.EqualFold(strings.TrimSpace(run.Status), status) {
+			continue
+		}
+		filtered = append(filtered, run)
+	}
+	totalMatched := len(filtered)
+	if limit > 0 && len(filtered) > min(limit, 200) {
+		filtered = filtered[:min(limit, 200)]
+	}
+	return filtered, totalMatched
+}
+
 func summarizeADKBacktestRun(run BacktestRunSummary) map[string]any {
 	summary := map[string]any{"id": run.ID, "status": run.Status, "definitionId": run.DefinitionID, "definitionVersion": run.DefinitionVersion, "market": run.Market, "code": run.Code, "symbol": run.Symbol, "interval": run.Interval, "startDate": run.StartDate, "endDate": run.EndDate, "startTime": run.StartTime, "endTime": run.EndTime, "marketTimezone": run.MarketTimezone, "initialBalance": run.InitialBalance, "rehabType": run.RehabType, "createdAt": run.CreatedAt, "updatedAt": run.UpdatedAt}
 	if run.UseExtendedHours != nil {

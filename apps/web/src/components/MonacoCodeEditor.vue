@@ -44,6 +44,7 @@ interface Props {
   language?: string;
   height?: number | string;
   minHeight?: number | string;
+  fontSize?: number;
   placeholder?: string;
   testId?: string;
   resizable?: boolean;
@@ -58,6 +59,7 @@ const props = withDefaults(defineProps<Props>(), {
   language: "javascript",
   height: "360px",
   minHeight: "220px",
+  fontSize: 13,
   placeholder: "",
   testId: "",
   resizable: false,
@@ -212,6 +214,13 @@ watch(
       cursorStyle: nextReadOnly ? "line-thin" : "line",
       occurrencesHighlight: nextReadOnly ? "off" : "singleFile",
     });
+  },
+);
+
+watch(
+  () => props.fontSize,
+  (nextFontSize) => {
+    editor?.updateOptions({ fontSize: nextFontSize });
   },
 );
 
@@ -855,7 +864,7 @@ async function initializeMonaco(): Promise<void> {
       quickSuggestions: true,
       suggestOnTriggerCharacters: true,
       wordWrap: "on",
-      fontSize: 13,
+      fontSize: props.fontSize,
       tabSize: 2,
       padding: {
         top: 16,
@@ -922,6 +931,7 @@ async function initializeMonaco(): Promise<void> {
       :data-testid="testId || undefined"
       :placeholder="placeholder"
       :readonly="readOnly"
+      :style="{ fontSize: `${fontSize}px` }"
       class="monaco-code-editor-fallback"
       spellcheck="false"
       @blur="handleFallbackBlur"

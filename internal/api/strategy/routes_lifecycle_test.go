@@ -25,6 +25,11 @@ type routeLifecycleDesignStore struct {
 	saveErr    error
 	deleteID   string
 	deleteErr  error
+	versions   []srv.DefinitionVersionSummary
+	versionsOK bool
+	version    srv.DefinitionVersion
+	versionOK  bool
+	versionErr error
 }
 
 func (s *routeLifecycleDesignStore) ListDefinitions() []srv.Definition { return s.list }
@@ -44,6 +49,18 @@ func (s *routeLifecycleDesignStore) SaveDefinition(input srv.Definition) (srv.De
 func (s *routeLifecycleDesignStore) DeleteDefinition(id string) (srv.Definition, error) {
 	s.deleteID = id
 	return s.definition, s.deleteErr
+}
+func (s *routeLifecycleDesignStore) ListDefinitionVersions(string) ([]srv.DefinitionVersionSummary, bool, error) {
+	if s.versionErr != nil {
+		return nil, false, s.versionErr
+	}
+	return s.versions, s.versionsOK, nil
+}
+func (s *routeLifecycleDesignStore) GetDefinitionVersion(string, string) (srv.DefinitionVersion, bool, error) {
+	if s.versionErr != nil {
+		return srv.DefinitionVersion{}, false, s.versionErr
+	}
+	return s.version, s.versionOK, nil
 }
 
 type routeLifecycleCatalogStore struct {
@@ -226,6 +243,73 @@ func TestDefinitionRoutesNormalizeCreateUpdateAndDeleteGuards(t *testing.T) {
 	router.ServeHTTP(deleteRec, deleteReq)
 	if deleteRec.Code != http.StatusOK || design.deleteID != "def-1" {
 		t.Fatalf("delete status=%d deleteID=%q body=%s", deleteRec.Code, design.deleteID, deleteRec.Body.String())
+	}
+}
+
+func TestDefinitionVersionRoutesExposeHistoryAndSnapshots(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	design := &routeLifecycleDesignStore{
+		versionsOK: true,
+		versions: []srv.DefinitionVersionSummary{
+			{DefinitionID: "def-1", Version: "0.1.1", Name: "Current", SavedAt: "2026-07-25T09:00:00Z", IsCurrent: true},
+			{DefinitionID: "def-1", Version: "0.1.0", Name: "Initial", SavedAt: "2026-07-25T08:00:00Z", IsCurrent: false},
+		},
+		versionOK: true,
+		version: srv.DefinitionVersion{
+			Definition: srv.Definition{
+				ID:           "def-1",
+				Name:         "Initial",
+				Version:      "0.1.0",
+				Description:  "first snapshot",
+				Runtime:      "pinets",
+				SourceFormat: "pine-v6",
+				Script:       "//@version=6\nstrategy(\"Initial\")",
+				CreatedAt:    "2026-07-25T08:00:00Z",
+				UpdatedAt:    "2026-07-25T08:00:00Z",
+			},
+			DefinitionID: "def-1",
+			SavedAt:      "2026-07-25T08:00:00Z",
+		},
+	}
+	router := strategyRouter(design, &routeLifecycleCatalogStore{})
+
+	list := strategyRequest(t, router, http.MethodGet, "/api/v1/strategy-definitions/def-1/versions", "")
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"definitionId":"def-1"`) || !strings.Contains(list.Body.String(), `"isCurrent":true`) || !strings.Contains(list.Body.String(), `"savedAt":"2026-07-25T09:00:00Z"`) {
+		t.Fatalf("version list response = %d %s", list.Code, list.Body.String())
+	}
+
+	detail := strategyRequest(t, router, http.MethodGet, "/api/v1/strategy-definitions/def-1/versions/0.1.0", "")
+	if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), `"description":"first snapshot"`) || !strings.Contains(detail.Body.String(), `"script":"//@version=6\nstrategy(\"Initial\")"`) {
+		t.Fatalf("version detail response = %d %s", detail.Code, detail.Body.String())
+	}
+
+	missing := strategyRequest(t, strategyRouter(&routeLifecycleDesignStore{}, &routeLifecycleCatalogStore{}), http.MethodGet, "/api/v1/strategy-definitions/missing/versions", "")
+	assertStrategyResponse(t, missing, http.StatusNotFound, "NOT_FOUND")
+
+	failure := strategyRequest(t, strategyRouter(&routeLifecycleDesignStore{versionErr: errors.New("history unavailable")}, &routeLifecycleCatalogStore{}), http.MethodGet, "/api/v1/strategy-definitions/def-1/versions", "")
+	assertStrategyResponse(t, failure, http.StatusInternalServerError, "STRATEGY_FAILED")
+
+	detailMissing := strategyRequest(t, strategyRouter(&routeLifecycleDesignStore{}, &routeLifecycleCatalogStore{}), http.MethodGet, "/api/v1/strategy-definitions/def-1/versions/0.0.1", "")
+	assertStrategyResponse(t, detailMissing, http.StatusNotFound, "NOT_FOUND")
+
+	detailFailure := strategyRequest(t, strategyRouter(&routeLifecycleDesignStore{versionErr: errors.New("snapshot unavailable")}, &routeLifecycleCatalogStore{}), http.MethodGet, "/api/v1/strategy-definitions/def-1/versions/0.0.1", "")
+	assertStrategyResponse(t, detailFailure, http.StatusInternalServerError, "STRATEGY_FAILED")
+
+	service := srv.NewService(&routeLifecycleDesignStore{}, &routeLifecycleCatalogStore{}, &routeLifecycleRuntime{})
+	for _, test := range []struct {
+		name    string
+		handler gin.HandlerFunc
+	}{
+		{name: "list", handler: handleListDefinitionVersions(service)},
+		{name: "detail", handler: handleGetDefinitionVersion(service)},
+	} {
+		t.Run(test.name+" rejects missing URI parameters", func(t *testing.T) {
+			response := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(response)
+			context.Request = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
+			test.handler(context)
+			assertStrategyResponse(t, response, http.StatusBadRequest, "BAD_REQUEST")
+		})
 	}
 }
 

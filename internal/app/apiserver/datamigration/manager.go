@@ -97,7 +97,7 @@ func NewManager(settingsPath string, backtestDBPath string) *Manager {
 		descriptors: []Descriptor{
 			currentDescriptor(DatabaseBacktest, "行情回测数据", strings.TrimSpace(backtestDBPath), "历史 K 线、覆盖范围与行情同步数据。", "回测行情", "K 线同步"),
 			currentDescriptor(DatabaseBacktestRuns, "回测运行历史", apiruntime.DeriveBacktestRunDBPath(settingsPath), "回测请求、状态和结果。", "回测历史", "研究回测结果"),
-			currentDescriptor(DatabaseStrategy, "策略数据", apiruntime.DeriveStrategyRuntimeDBPath(settingsPath), "策略定义、插件目录、运行日志、审计和观察状态。", "策略定义", "策略插件", "策略运行"),
+			currentDescriptor(DatabaseStrategy, "策略数据", apiruntime.DeriveStrategyRuntimeDBPath(settingsPath), "策略定义、历史版本、插件目录、运行日志、审计和观察状态。", "策略定义", "版本历史", "策略插件", "策略运行"),
 			currentDescriptor(DatabaseExecution, "执行订单", apiruntime.DeriveExecutionOrderDBPath(settingsPath), "执行订单、状态事件、成交去重和序列。", "订单执行", "成交同步"),
 			currentDescriptor(DatabaseADK, "ADK 数据", apiruntime.DeriveADKDBPath(settingsPath), "模型、智能体、技能、会话运行、任务、审批和记忆。", "智能体配置", "ADK 工作流"),
 			currentDescriptor(DatabaseADKSession, "ADK 会话", apiruntime.DeriveADKSessionDBPath(settingsPath), "ADK 原始会话事件和状态。", "对话上下文", "工具事件"),

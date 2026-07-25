@@ -92,7 +92,338 @@ async function settleWithFakeTimers(): Promise<void> {
   }
 }
 
+function readStrategySetupValue<T>(value: unknown): T {
+  if (value !== null && typeof value === "object" && "value" in value) {
+    return (value as { value: T }).value;
+  }
+  return value as T;
+}
+
+function writeStrategySetupValue(
+  setup: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): void {
+  const current = setup[key];
+  if (current !== null && typeof current === "object" && "value" in current) {
+    (current as { value: unknown }).value = value;
+    return;
+  }
+  setup[key] = value;
+}
+
 describe("StrategyDesignStage business flows", () => {
+  it("auto-collapses metadata at medium widths and closes the drawer with Escape", async () => {
+    let mediaChangeListener: ((event: MediaQueryListEvent) => void) | undefined;
+    const removeEventListener = vi.fn();
+    const mediaQuery = {
+      matches: true,
+      media: "(min-width: 769px) and (max-width: 1180px)",
+      onchange: null,
+      addEventListener: vi.fn(
+        (_type: string, listener: (event: MediaQueryListEvent) => void) => {
+          mediaChangeListener = listener;
+        },
+      ),
+      removeEventListener,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    } as unknown as MediaQueryList;
+    vi.stubGlobal("matchMedia", vi.fn(() => mediaQuery));
+    vi.stubGlobal("fetch", buildFetchMock({ definitions: [], strategies: [] }));
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { wrapper } = await mountStrategyPage("/strategy/design");
+    await settleStrategyWorkspace();
+
+    const stage = wrapper.get('[data-testid="strategy-design-stage"]');
+    const toggle = wrapper.get('[data-testid="strategy-metadata-toggle"]');
+    expect(stage.classes()).toContain("strategy-native-page--medium");
+    expect(stage.classes()).toContain("strategy-native-page--metadata-closed");
+    expect(toggle.attributes("aria-expanded")).toBe("false");
+    expect(
+      wrapper.get('[data-testid="strategy-side-panel-definition-title"]').attributes("draggable"),
+    ).toBe("false");
+    expect(wrapper.find('[data-testid="strategy-metadata-backdrop"]').exists()).toBe(false);
+
+    await toggle.trigger("click");
+    expect(stage.classes()).toContain("strategy-native-page--metadata-open");
+    expect(toggle.attributes("aria-expanded")).toBe("true");
+    expect(wrapper.find('[data-testid="strategy-metadata-backdrop"]').exists()).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await nextTick();
+    expect(stage.classes()).toContain("strategy-native-page--metadata-closed");
+    expect(wrapper.find('[data-testid="strategy-metadata-backdrop"]').exists()).toBe(false);
+
+    mediaChangeListener?.({ matches: false } as MediaQueryListEvent);
+    await nextTick();
+    expect(stage.classes()).not.toContain("strategy-native-page--medium");
+    expect(stage.classes()).toContain("strategy-native-page--metadata-open");
+
+    wrapper.unmount();
+    expect(removeEventListener).toHaveBeenCalledWith("change", expect.any(Function));
+  });
+
+  it("reorders desktop side panels by drag without changing the expanded panel", async () => {
+    vi.stubGlobal("fetch", buildFetchMock({ definitions: [], strategies: [] }));
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { wrapper } = await mountStrategyPage("/strategy/design");
+    await settleStrategyWorkspace();
+
+    const definitionPanel = wrapper.get('[data-testid="strategy-side-panel-definition"]');
+    const historyPanel = wrapper.get('[data-testid="strategy-side-panel-history"]');
+    const definitionTitle = wrapper.get('[data-testid="strategy-side-panel-definition-title"]');
+    const historyTitle = wrapper.get('[data-testid="strategy-side-panel-history-title"]');
+
+    expect(definitionTitle.attributes("draggable")).toBe("true");
+    expect((definitionPanel.element as HTMLElement).style.order).toBe("0");
+    expect((historyPanel.element as HTMLElement).style.order).toBe("1");
+
+    const dataTransfer = {
+      dropEffect: "none",
+      effectAllowed: "none",
+      setData: vi.fn(),
+    };
+    await definitionTitle.trigger("dragstart", { dataTransfer });
+    await historyTitle.trigger("dragover", { clientY: 1, dataTransfer });
+    await historyTitle.trigger("drop", { dataTransfer });
+
+    expect(dataTransfer.setData).toHaveBeenCalledWith("text/plain", "definition");
+    expect((definitionPanel.element as HTMLElement).style.order).toBe("1");
+    expect((historyPanel.element as HTMLElement).style.order).toBe("0");
+    expect(historyPanel.classes()).toContain("is-first-panel");
+    expect(definitionPanel.classes()).not.toContain("is-first-panel");
+    expect(definitionPanel.classes()).toContain("is-fill-panel");
+
+    const setup = wrapper.getComponent(StrategyDesignStage).vm.$.setupState as Record<string, unknown>;
+    setup.expandedStrategySidePanels = ["definition", "history", "declaration"];
+    await nextTick();
+    expect(wrapper.get(".strategy-native-side-panels").classes()).toContain(
+      "is-space-constrained",
+    );
+    setup.expandedStrategySidePanels = ["definition", "history"];
+    await nextTick();
+    expect(wrapper.get(".strategy-native-side-panels").classes()).not.toContain(
+      "is-space-constrained",
+    );
+  });
+
+  it("shows immutable strategy history and opens a two-version comparison URL", async () => {
+    const workflow = createDefaultPineV6Workflow("Versioned strategy");
+    const baseFetch = buildFetchMock({
+      definitions: [{
+        id: "versioned",
+        name: "Versioned strategy",
+        version: "0.1.1",
+        description: "Version history",
+        runtime: "pine-pinets",
+        sourceFormat: "pine-v6",
+        script: buildPineV6WorkflowScript(workflow),
+        visualModel: workflow,
+        createdAt: "2026-07-01T00:00:00.000Z",
+        updatedAt: "2026-07-03T00:00:00.000Z",
+      }],
+      versionsByDefinitionId: {
+        versioned: [
+          {
+            version: "0.1.1",
+            savedAt: "2026-07-03T00:00:00.000Z",
+            isCurrent: true,
+          },
+          {
+            version: "0.1.0",
+            savedAt: "2026-07-01T00:00:00.000Z",
+            snapshot: { script: '//@version=6\nstrategy("Versioned strategy")' },
+          },
+        ],
+      },
+      strategies: [],
+    });
+    vi.stubGlobal("fetch", baseFetch);
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { router, wrapper } = await mountStrategyPage("/strategy/design");
+    await settleStrategyWorkspace();
+
+    const versionInput = findFieldByLabel(wrapper, "版本");
+    expect(versionInput.attributes("readonly")).toBeDefined();
+    expect(wrapper.text()).toContain("版本历史");
+    expect(wrapper.text()).toContain("v0.1.0");
+    expect(wrapper.text()).toContain("v0.1.1");
+
+    const latestEntry = wrapper.get('[data-testid="strategy-version-entry-0.1.1"]');
+    const baselineEntry = wrapper.get('[data-testid="strategy-version-entry-0.1.0"]');
+    await latestEntry.get('input[type="checkbox"]').setValue(true);
+    await baselineEntry.get('input[type="checkbox"]').setValue(true);
+    await settleStrategyWorkspace();
+
+    const compareButton = wrapper.get('[data-testid="strategy-open-version-comparison"]');
+    expect(compareButton.attributes("disabled")).toBeUndefined();
+    await compareButton.trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(router.currentRoute.value.path).toBe("/backtest");
+    expect(router.currentRoute.value.query).toMatchObject({
+      mode: "compare",
+      definitionId: "versioned",
+      leftVersion: "0.1.0",
+      rightVersion: "0.1.1",
+    });
+  });
+
+  it("reloads version history after saving a changed strategy", async () => {
+    const workflow = createDefaultPineV6Workflow("Fresh history");
+    const baseFetch = buildFetchMock({
+      definitions: [{
+        id: "fresh-history",
+        name: "Fresh history",
+        version: "0.1.0",
+        description: "before save",
+        runtime: "pine-pinets",
+        sourceFormat: "pine-v6",
+        script: buildPineV6WorkflowScript(workflow),
+        visualModel: workflow,
+        createdAt: "2026-07-01T00:00:00.000Z",
+        updatedAt: "2026-07-01T00:00:00.000Z",
+      }],
+      strategies: [],
+    });
+    let historyRequests = 0;
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (
+        url.endsWith("/api/v1/strategy-definitions/fresh-history/versions")
+        && requestMethod(input, init) === "GET"
+      ) {
+        historyRequests += 1;
+      }
+      return baseFetch(input, init);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { wrapper } = await mountStrategyPage("/strategy/design");
+    await settleStrategyWorkspace();
+    expect(wrapper.text()).toContain("v0.1.0");
+    expect(historyRequests).toBeGreaterThanOrEqual(1);
+
+    await findFieldByLabel(wrapper, "说明", "textarea").setValue("after save");
+    await findButtonByLabels(wrapper, ["保存", "保存中", "已保存"]).trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(historyRequests).toBeGreaterThanOrEqual(2);
+    expect(wrapper.text()).toContain("v0.1.1");
+  });
+
+  it("handles version-history failures, snapshot boundaries, and panel drag guards", async () => {
+    const workflow = createDefaultPineV6Workflow("History boundaries");
+    const baseFetch = buildFetchMock({
+      definitions: [{
+        id: "history-boundaries",
+        name: "History boundaries",
+        version: "0.2.0",
+        runtime: "pine-pinets",
+        sourceFormat: "pine-v6",
+        script: buildPineV6WorkflowScript(workflow),
+        visualModel: workflow,
+        createdAt: "2026-07-01T00:00:00.000Z",
+        updatedAt: "2026-07-03T00:00:00.000Z",
+      }],
+      versionsByDefinitionId: {
+        "history-boundaries": [
+          { version: "0.2.0", savedAt: "invalid", isCurrent: true, snapshot: { script: "strategy('current')" } },
+          { version: "0.1.0", savedAt: "2026-07-01T00:00:00.000Z", snapshot: { script: "strategy('initial')" } },
+        ],
+      },
+      strategies: [],
+    });
+    let historyFailure: unknown = null;
+    let snapshotFailure: unknown = null;
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (historyFailure != null && url.endsWith("/history-boundaries/versions")) {
+        throw historyFailure;
+      }
+      if (snapshotFailure != null && url.includes("/history-boundaries/versions/broken")) {
+        throw snapshotFailure;
+      }
+      return baseFetch(input, init);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { router, wrapper } = await mountStrategyPage("/strategy/design");
+    await settleStrategyWorkspace();
+    const stage = wrapper.getComponent(StrategyDesignStage);
+    const setup = stage.vm.$.setupState as Record<string, unknown>;
+    const call = <T>(name: string, ...args: unknown[]) =>
+      (setup[name] as (...values: unknown[]) => T)(...args);
+
+    expect(call("formatVersionSavedAt", "")).toBe("保存时间未知");
+    expect(call<string>("formatVersionSavedAt", "2026-07-01T00:00:00.000Z")).not.toBe("保存时间未知");
+    expect(call("isVersionSelectedForComparison", "0.1.0")).toBe(false);
+    expect(call("versionSelectionDisabled", "0.1.0")).toBe(false);
+    call("toggleVersionForComparison", " ");
+    call("toggleVersionForComparison", "0.1.0");
+    expect(call("isVersionSelectedForComparison", "0.1.0")).toBe(true);
+    call("toggleVersionForComparison", "0.1.0");
+    expect(call("isVersionSelectedForComparison", "0.1.0")).toBe(false);
+    writeStrategySetupValue(setup, "comparisonVersionSelection", ["0.1.0", "0.2.0"]);
+    expect(call("versionSelectionDisabled", "0.3.0")).toBe(true);
+    expect(call("versionSelectionDisabled", "0.1.0")).toBe(false);
+    call("toggleVersionForComparison", "0.3.0");
+    expect(readStrategySetupValue<string[]>(setup.comparisonVersionSelection)).toEqual(["0.1.0", "0.2.0"]);
+
+    await call<Promise<void>>("showVersionSnapshot", "0.1.0");
+    expect(readStrategySetupValue<Record<string, unknown> | null>(setup.selectedVersionSnapshot)).toMatchObject({
+      version: "0.1.0",
+      script: "strategy('initial')",
+    });
+    expect(wrapper.text()).toContain("strategy('initial')");
+
+    await call<Promise<void>>("showVersionSnapshot", " ");
+    snapshotFailure = new Error("snapshot unavailable");
+    await call<Promise<void>>("showVersionSnapshot", "broken");
+    expect(readStrategySetupValue<string>(setup.versionSnapshotError)).toContain("snapshot unavailable");
+    expect(readStrategySetupValue(setup.selectedVersionSnapshot)).toBeNull();
+    snapshotFailure = "snapshot rejected";
+    await call<Promise<void>>("showVersionSnapshot", "broken-string");
+    expect(readStrategySetupValue<string>(setup.versionSnapshotError)).toContain("snapshot rejected");
+
+    historyFailure = new Error("history unavailable");
+    await call<Promise<void>>("loadDefinitionVersions", "history-boundaries");
+    expect(readStrategySetupValue<unknown[]>(setup.definitionVersions)).toEqual([]);
+    expect(readStrategySetupValue<string>(setup.definitionVersionsError)).toContain("history unavailable");
+    historyFailure = "history rejected";
+    await call<Promise<void>>("loadDefinitionVersions", "history-boundaries");
+    expect(readStrategySetupValue<string>(setup.definitionVersionsError)).toContain("history rejected");
+
+    writeStrategySetupValue(setup, "selectedDefinitionId", "");
+    await call<Promise<void>>("loadDefinitionVersions", " ");
+    expect(readStrategySetupValue<unknown[]>(setup.definitionVersions)).toEqual([]);
+    call("openVersionComparison");
+    expect(router.currentRoute.value.path).toBe("/strategy/design");
+
+    call("moveStrategySidePanel", "missing-panel", 2);
+    writeStrategySetupValue(setup, "isWideWorkbench", false);
+    const preventDefault = vi.fn();
+    call("handleStrategySidePanelDragStart", { preventDefault, dataTransfer: null }, "definition");
+    expect(preventDefault).toHaveBeenCalled();
+    writeStrategySetupValue(setup, "isWideWorkbench", true);
+    call("handleStrategySidePanelDragOver", { currentTarget: document.createElement("div"), clientY: 0, dataTransfer: null }, "definition");
+    expect(readStrategySetupValue(setup.strategySidePanelDropTarget)).toBeNull();
+    call("handleStrategySidePanelDrop", { preventDefault });
+    call("addSourceBlock", "invalid-kind");
+    call("changeSourceBlockKind", { id: "missing" }, "invalid-kind");
+    call("rememberSourceSnapshot", readStrategySetupValue<string>(setup.activeScript));
+    call("commitSourceChange", readStrategySetupValue<string>(setup.activeScript));
+
+    wrapper.unmount();
+  });
+
   it("edits declarations, manages analyze/save feedback, and refreshes strategy instances", async () => {
     const alphaWorkflow = createDefaultPineV6Workflow("Alpha Existing");
     const betaWorkflow = createDefaultPineV6Workflow("Beta Definition");

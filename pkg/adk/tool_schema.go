@@ -9,6 +9,9 @@ func defaultToolInputSchema(name string) map[string]any {
 	if schema, ok := workflowManagementToolInputSchema(name); ok {
 		return schema
 	}
+	if schema, ok := strategyToolInputSchema(name); ok {
+		return schema
+	}
 	switch name {
 	case "http.fetch":
 		return httpFetchToolInputSchema()
@@ -46,24 +49,6 @@ func defaultToolInputSchema(name string) map[string]any {
 		return watchlistListInputSchema()
 	case "portfolio.summary":
 		return portfolioSummaryInputSchema()
-	case "strategy.optimize":
-		return strategyOptimizeInputSchema()
-	case "strategy.research_backtest":
-		return strategyResearchBacktestInputSchema()
-	case "backtest.result_view":
-		return backtestResultViewInputSchema()
-	case "backtest.kline_sync_status":
-		return backtestKLineSyncStatusInputSchema()
-	case "strategy.pine_spec":
-		return strategyPineSpecInputSchema()
-	case "strategy.validate_pine":
-		return strategyValidatePineInputSchema()
-	case "strategy.save_draft":
-		return strategySaveDraftInputSchema()
-	case "strategy.save_definition":
-		return strategySaveDefinitionInputSchema()
-	case "strategy.update_instance_mode":
-		return strategyUpdateInstanceModeInputSchema()
 	default:
 		return defaultQueryInputSchema()
 	}
@@ -372,6 +357,42 @@ func strategyResearchBacktestInputSchema() map[string]any {
 			"resultView":          backtestResultViewOptionsSchema(),
 		},
 		"required":             []string{"script", "market", "startTime", "endTime"},
+		"additionalProperties": false,
+	}
+}
+
+func strategyDefinitionVersionsListInputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"definitionId": map[string]any{"type": "string", "description": "策略定义 ID。"},
+		},
+		"required":             []string{"definitionId"},
+		"additionalProperties": false,
+	}
+}
+
+func strategyDefinitionVersionsGetInputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"definitionId": map[string]any{"type": "string", "description": "策略定义 ID。"},
+			"version":      map[string]any{"type": "string", "description": "不可变策略版本号，例如 0.1.0。"},
+		},
+		"required":             []string{"definitionId", "version"},
+		"additionalProperties": false,
+	}
+}
+
+func backtestRunsInputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"definitionId":      map[string]any{"type": "string", "description": "可选策略定义 ID 过滤。"},
+			"definitionVersion": map[string]any{"type": "string", "description": "可选不可变策略版本号过滤。"},
+			"status":            map[string]any{"type": "string", "description": "可选回测状态过滤，不区分大小写。"},
+			"limit":             map[string]any{"type": "integer", "minimum": 1, "maximum": 200, "description": "最多返回的匹配运行数。"},
+		},
 		"additionalProperties": false,
 	}
 }

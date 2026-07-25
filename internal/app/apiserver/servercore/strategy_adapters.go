@@ -51,6 +51,14 @@ func (a *strategyDesignStoreAdapter) DeleteDefinition(id string) (stratsrv.Defin
 	return result, nil
 }
 
+func (a *strategyDesignStoreAdapter) ListDefinitionVersions(definitionID string) ([]stratsrv.DefinitionVersionSummary, bool, error) {
+	return a.store.listDefinitionVersions(definitionID)
+}
+
+func (a *strategyDesignStoreAdapter) GetDefinitionVersion(definitionID string, version string) (stratsrv.DefinitionVersion, bool, error) {
+	return a.store.definitionVersion(definitionID, version)
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // strategyCatalogStoreAdapter 适配 strategyCatalogStore → stratsrv.CatalogStore
 // ──────────────────────────────────────────────────────────────────────────────

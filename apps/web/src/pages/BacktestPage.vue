@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SplitpanesResizedPayload } from "splitpanes";
 import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 import {
   KLINE_CHART_TYPES,
@@ -9,6 +10,7 @@ import {
   type ChartType,
 } from "../charting/kline";
 import BacktestChart from "../components/BacktestChart.vue";
+import StrategySourceDiff from "../components/StrategySourceDiff.vue";
 import InstrumentIdentity from "../components/domain/market-data/InstrumentIdentity.vue";
 import InstrumentSearchBox from "../components/domain/market-data/InstrumentSearchBox.vue";
 import ActionConfirmDialog from "../components/shared/ActionConfirmDialog.vue";
@@ -26,6 +28,14 @@ import {
 } from "../composables/instrumentPresentation";
 import { useMarketProfiles } from "../composables/marketProfiles";
 import { queryClient, queryKeys } from "../composables/serverState";
+import {
+  fetchStrategyDefinitionVersion,
+  fetchStrategyDefinitionVersions,
+  strategyDefinitionVersionQueryKey,
+  strategyDefinitionVersionsQueryKey,
+  type StrategyDefinitionVersionDocument,
+  type StrategyDefinitionVersionSummary,
+} from "../composables/strategyDefinitionVersions";
 import {
   useBacktestRuns,
   type BacktestFormState,
@@ -77,6 +87,21 @@ const emptyStateClass =
   "rounded-lg border bt-border bt-bg-surface bt-text-muted";
 const statCardClass = "rounded-lg bt-bg-muted";
 const cardBorderClass = "rounded-lg border bt-border";
+const route = useRoute();
+const router = useRouter();
+
+type BacktestReportMode = "single" | "compare";
+
+function firstQueryValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0].trim() : "";
+  }
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function reportModeFromQuery(value: unknown): BacktestReportMode {
+  return firstQueryValue(value) === "compare" ? "compare" : "single";
+}
 
 // ── Backtest run DTOs ──
 interface StrategyDefinition {
@@ -245,6 +270,23 @@ const resultsStatusFilter = ref("all");
 const resultsStrategyFilter = ref("all");
 const pendingDeleteRunId = ref("");
 const deletingRunId = ref("");
+const reportMode = ref<BacktestReportMode>(reportModeFromQuery(route.query.mode));
+const comparisonDefinitionId = ref(firstQueryValue(route.query.definitionId));
+const leftComparisonVersion = ref(firstQueryValue(route.query.leftVersion));
+const rightComparisonVersion = ref(firstQueryValue(route.query.rightVersion));
+const leftComparisonRunId = ref(firstQueryValue(route.query.leftRunId));
+const rightComparisonRunId = ref(firstQueryValue(route.query.rightRunId));
+const comparisonVersions = ref<StrategyDefinitionVersionSummary[]>([]);
+const isLoadingComparisonVersions = ref(false);
+const comparisonVersionsError = ref("");
+const leftComparisonSnapshot = ref<StrategyDefinitionVersionDocument | null>(null);
+const rightComparisonSnapshot = ref<StrategyDefinitionVersionDocument | null>(null);
+const comparisonSnapshotErrors = ref({ left: "", right: "" });
+const comparisonSnapshotLoading = ref({ left: false, right: false });
+let comparisonVersionsRequestId = 0;
+let leftComparisonSnapshotRequestId = 0;
+let rightComparisonSnapshotRequestId = 0;
+let applyingComparisonRoute = false;
 
 // Form state
 const selectedDefinitionId = ref(
@@ -716,6 +758,469 @@ const resultsPageSummary = computed(() => {
 
 type BacktestRunView = (typeof sortedRuns.value)[number];
 
+type ComparisonSide = "left" | "right";
+
+interface ComparisonMetric {
+  label: string;
+  kind: "currency" | "number" | "percent";
+  left: number | undefined;
+  right: number | undefined;
+}
+
+interface ComparisonConfigRow {
+  label: string;
+  left: string;
+  right: string;
+  same: boolean;
+}
+
+const comparisonDefinitionOptions = computed(() => {
+  const items = definitions.value.map((definition) => ({
+    value: definition.id,
+    title: `${definition.name || definition.id} / ${formatStrategyVersion(definition.version)}`,
+  }));
+  if (
+    comparisonDefinitionId.value !== "" &&
+    !items.some((item) => item.value === comparisonDefinitionId.value)
+  ) {
+    items.unshift({
+      value: comparisonDefinitionId.value,
+      title: comparisonDefinitionId.value,
+    });
+  }
+  return items;
+});
+
+const leftComparisonVersionOptions = computed(() =>
+  comparisonVersions.value.filter(
+    (version) => version.version !== rightComparisonVersion.value,
+  ),
+);
+const rightComparisonVersionOptions = computed(() =>
+  comparisonVersions.value.filter(
+    (version) => version.version !== leftComparisonVersion.value,
+  ),
+);
+const leftComparisonVersionSelectOptions = computed(() =>
+  leftComparisonVersionOptions.value.map((version) => ({
+    value: version.version,
+    title: versionOptionTitle(version),
+  })),
+);
+const rightComparisonVersionSelectOptions = computed(() =>
+  rightComparisonVersionOptions.value.map((version) => ({
+    value: version.version,
+    title: versionOptionTitle(version),
+  })),
+);
+
+function comparisonRunTimestamp(run: BacktestRunView): number {
+  const updated = Date.parse(run.updatedAt);
+  if (Number.isFinite(updated)) {
+    return updated;
+  }
+  const created = Date.parse(run.createdAt);
+  return Number.isFinite(created) ? created : 0;
+}
+
+function completedRunsForComparisonVersion(version: string): BacktestRunView[] {
+  const normalizedVersion = version.trim();
+  const definitionId = comparisonDefinitionId.value.trim();
+  if (definitionId === "" || normalizedVersion === "") {
+    return [];
+  }
+  return runs.value
+    .filter(
+      (run) =>
+        run.status === "completed" &&
+        run.request.definitionId === definitionId &&
+        (run.request.definitionVersion ?? "").trim() === normalizedVersion,
+    )
+    .sort((left, right) => comparisonRunTimestamp(right) - comparisonRunTimestamp(left));
+}
+
+const leftComparisonRuns = computed(() =>
+  completedRunsForComparisonVersion(leftComparisonVersion.value),
+);
+const rightComparisonRuns = computed(() =>
+  completedRunsForComparisonVersion(rightComparisonVersion.value),
+);
+const leftComparisonRunOptions = computed(() =>
+  leftComparisonRuns.value.map((run) => ({ value: run.id, title: comparisonRunOptionTitle(run) })),
+);
+const rightComparisonRunOptions = computed(() =>
+  rightComparisonRuns.value.map((run) => ({ value: run.id, title: comparisonRunOptionTitle(run) })),
+);
+const leftComparisonRun = computed(() =>
+  leftComparisonRuns.value.find((run) => run.id === leftComparisonRunId.value),
+);
+const rightComparisonRun = computed(() =>
+  rightComparisonRuns.value.find((run) => run.id === rightComparisonRunId.value),
+);
+const comparisonRunsReady = computed(
+  () => leftComparisonRun.value?.result != null && rightComparisonRun.value?.result != null,
+);
+const comparisonSourcesReady = computed(
+  () => leftComparisonSnapshot.value != null && rightComparisonSnapshot.value != null,
+);
+
+function versionOptionTitle(version: StrategyDefinitionVersionSummary): string {
+  const currentSuffix = version.isCurrent ? "（当前）" : "";
+  return `v${version.version}${currentSuffix}`;
+}
+
+function comparisonRunOptionTitle(run: BacktestRunView): string {
+  return `${run.id} · ${formatBacktestTimestamp(run.updatedAt)} · ${run.request.symbol}`;
+}
+
+function clearComparisonSnapshots(): void {
+  leftComparisonSnapshotRequestId += 1;
+  rightComparisonSnapshotRequestId += 1;
+  leftComparisonSnapshot.value = null;
+  rightComparisonSnapshot.value = null;
+  comparisonSnapshotErrors.value = { left: "", right: "" };
+  comparisonSnapshotLoading.value = { left: false, right: false };
+}
+
+function clearComparisonSelection(): void {
+  comparisonVersionsRequestId += 1;
+  comparisonVersions.value = [];
+  comparisonVersionsError.value = "";
+  isLoadingComparisonVersions.value = false;
+  leftComparisonVersion.value = "";
+  rightComparisonVersion.value = "";
+  leftComparisonRunId.value = "";
+  rightComparisonRunId.value = "";
+  clearComparisonSnapshots();
+}
+
+function comparisonVersionExists(version: string): boolean {
+  return comparisonVersions.value.some((candidate) => candidate.version === version);
+}
+
+function applyComparisonVersionDefaults(): void {
+  const latest = comparisonVersions.value[0]?.version ?? "";
+  const previous = comparisonVersions.value[1]?.version ?? "";
+  let left = comparisonVersionExists(leftComparisonVersion.value)
+    ? leftComparisonVersion.value
+    : "";
+  let right = comparisonVersionExists(rightComparisonVersion.value)
+    ? rightComparisonVersion.value
+    : "";
+
+  if (left === "" && right === "" && previous !== "" && latest !== "") {
+    left = previous;
+    right = latest;
+  } else if (left === "") {
+    left = comparisonVersions.value.find((version) => version.version !== right)?.version ?? "";
+  } else if (right === "") {
+    right = comparisonVersions.value.find((version) => version.version !== left)?.version ?? "";
+  }
+  if (left === right) {
+    right = comparisonVersions.value.find((version) => version.version !== left)?.version ?? "";
+  }
+
+  leftComparisonVersion.value = left;
+  rightComparisonVersion.value = right;
+  if (!leftComparisonRuns.value.some((run) => run.id === leftComparisonRunId.value)) {
+    leftComparisonRunId.value = leftComparisonRuns.value[0]?.id ?? "";
+  }
+  if (!rightComparisonRuns.value.some((run) => run.id === rightComparisonRunId.value)) {
+    rightComparisonRunId.value = rightComparisonRuns.value[0]?.id ?? "";
+  }
+  void loadComparisonSnapshot("left", left);
+  void loadComparisonSnapshot("right", right);
+}
+
+async function loadComparisonVersions(
+  definitionId = comparisonDefinitionId.value,
+): Promise<void> {
+  const normalizedDefinitionId = definitionId.trim();
+  const requestId = ++comparisonVersionsRequestId;
+  if (normalizedDefinitionId === "") {
+    clearComparisonSelection();
+    return;
+  }
+  isLoadingComparisonVersions.value = true;
+  comparisonVersionsError.value = "";
+  clearComparisonSnapshots();
+  try {
+    // A strategy can be saved in the design workspace immediately before this
+    // view opens.  Always fetch the version list here so the compare selector
+    // does not remain pinned to a fresh-but-outdated cache entry.
+    const versions = await queryClient.fetchQuery({
+      queryKey: strategyDefinitionVersionsQueryKey(normalizedDefinitionId),
+      queryFn: () => fetchStrategyDefinitionVersions(normalizedDefinitionId),
+      staleTime: 0,
+    });
+    if (requestId !== comparisonVersionsRequestId || normalizedDefinitionId !== comparisonDefinitionId.value) {
+      return;
+    }
+    comparisonVersions.value = versions;
+    applyComparisonVersionDefaults();
+  } catch (cause) {
+    if (requestId !== comparisonVersionsRequestId || normalizedDefinitionId !== comparisonDefinitionId.value) {
+      return;
+    }
+    comparisonVersions.value = [];
+    comparisonVersionsError.value = cause instanceof Error ? cause.message : String(cause);
+    leftComparisonVersion.value = "";
+    rightComparisonVersion.value = "";
+    leftComparisonRunId.value = "";
+    rightComparisonRunId.value = "";
+  } finally {
+    if (requestId === comparisonVersionsRequestId) {
+      isLoadingComparisonVersions.value = false;
+    }
+  }
+}
+
+async function loadComparisonSnapshot(
+  side: ComparisonSide,
+  version: string,
+): Promise<void> {
+  const definitionId = comparisonDefinitionId.value.trim();
+  const normalizedVersion = version.trim();
+  const requestId = side === "left"
+    ? ++leftComparisonSnapshotRequestId
+    : ++rightComparisonSnapshotRequestId;
+  const setSnapshot = (snapshot: StrategyDefinitionVersionDocument | null) => {
+    if (side === "left") leftComparisonSnapshot.value = snapshot;
+    else rightComparisonSnapshot.value = snapshot;
+  };
+  const currentRequestId = () => side === "left"
+    ? leftComparisonSnapshotRequestId
+    : rightComparisonSnapshotRequestId;
+  if (definitionId === "" || normalizedVersion === "") {
+    setSnapshot(null);
+    comparisonSnapshotErrors.value = { ...comparisonSnapshotErrors.value, [side]: "" };
+    comparisonSnapshotLoading.value = { ...comparisonSnapshotLoading.value, [side]: false };
+    return;
+  }
+  comparisonSnapshotLoading.value = { ...comparisonSnapshotLoading.value, [side]: true };
+  comparisonSnapshotErrors.value = { ...comparisonSnapshotErrors.value, [side]: "" };
+  try {
+    const snapshot = await queryClient.ensureQueryData({
+      queryKey: strategyDefinitionVersionQueryKey(definitionId, normalizedVersion),
+      queryFn: () => fetchStrategyDefinitionVersion(definitionId, normalizedVersion),
+    });
+    const selectedVersion = side === "left"
+      ? leftComparisonVersion.value
+      : rightComparisonVersion.value;
+    if (
+      requestId !== currentRequestId() ||
+      definitionId !== comparisonDefinitionId.value ||
+      normalizedVersion !== selectedVersion
+    ) {
+      return;
+    }
+    setSnapshot(snapshot);
+  } catch (cause) {
+    const selectedVersion = side === "left"
+      ? leftComparisonVersion.value
+      : rightComparisonVersion.value;
+    if (
+      requestId !== currentRequestId() ||
+      definitionId !== comparisonDefinitionId.value ||
+      normalizedVersion !== selectedVersion
+    ) {
+      return;
+    }
+    setSnapshot(null);
+    comparisonSnapshotErrors.value = {
+      ...comparisonSnapshotErrors.value,
+      [side]: cause instanceof Error ? cause.message : String(cause),
+    };
+  } finally {
+    if (requestId === currentRequestId()) {
+      comparisonSnapshotLoading.value = { ...comparisonSnapshotLoading.value, [side]: false };
+    }
+  }
+}
+
+function changeComparisonDefinition(value: unknown): void {
+  const nextDefinitionId = typeof value === "string" ? value.trim() : "";
+  if (nextDefinitionId === comparisonDefinitionId.value) {
+    return;
+  }
+  comparisonDefinitionId.value = nextDefinitionId;
+  clearComparisonSelection();
+  void loadComparisonVersions(nextDefinitionId);
+}
+
+function changeComparisonVersion(side: ComparisonSide, value: unknown): void {
+  const nextVersion = typeof value === "string" ? value.trim() : "";
+  const otherVersion = side === "left"
+    ? rightComparisonVersion.value
+    : leftComparisonVersion.value;
+  if (nextVersion === otherVersion) {
+    return;
+  }
+  if (side === "left") {
+    leftComparisonVersion.value = nextVersion;
+    leftComparisonRunId.value = "";
+  } else {
+    rightComparisonVersion.value = nextVersion;
+    rightComparisonRunId.value = "";
+  }
+  void loadComparisonSnapshot(side, nextVersion);
+}
+
+function changeComparisonRun(side: ComparisonSide, value: unknown): void {
+  const runId = typeof value === "string" ? value : "";
+  if (side === "left") leftComparisonRunId.value = runId;
+  else rightComparisonRunId.value = runId;
+}
+
+function activateComparisonMode(): void {
+  reportMode.value = "compare";
+  const definitionId = comparisonDefinitionId.value || selectedDefinitionId.value || definitions.value[0]?.id || "";
+  if (definitionId !== comparisonDefinitionId.value) {
+    comparisonDefinitionId.value = definitionId;
+    clearComparisonSelection();
+  }
+  if (definitionId !== "") {
+    void loadComparisonVersions(definitionId);
+  }
+  backtestMobileSection.value = "report";
+}
+
+function activateSingleReportMode(): void {
+  reportMode.value = "single";
+  if (focusedRun.value != null) {
+    backtestMobileSection.value = "report";
+  }
+}
+
+function comparisonQueryMatchesRoute(): boolean {
+  return (
+    reportMode.value === reportModeFromQuery(route.query.mode) &&
+    comparisonDefinitionId.value === firstQueryValue(route.query.definitionId) &&
+    leftComparisonVersion.value === firstQueryValue(route.query.leftVersion) &&
+    rightComparisonVersion.value === firstQueryValue(route.query.rightVersion) &&
+    leftComparisonRunId.value === firstQueryValue(route.query.leftRunId) &&
+    rightComparisonRunId.value === firstQueryValue(route.query.rightRunId)
+  );
+}
+
+function syncComparisonRoute(): void {
+  if (applyingComparisonRoute || comparisonQueryMatchesRoute()) {
+    return;
+  }
+  const query = { ...route.query } as Record<string, string | string[] | undefined>;
+  for (const key of ["mode", "definitionId", "leftVersion", "rightVersion", "leftRunId", "rightRunId"]) {
+    delete query[key];
+  }
+  if (reportMode.value === "compare") {
+    query.mode = "compare";
+    if (comparisonDefinitionId.value !== "") query.definitionId = comparisonDefinitionId.value;
+    if (leftComparisonVersion.value !== "") query.leftVersion = leftComparisonVersion.value;
+    if (rightComparisonVersion.value !== "") query.rightVersion = rightComparisonVersion.value;
+    if (leftComparisonRunId.value !== "") query.leftRunId = leftComparisonRunId.value;
+    if (rightComparisonRunId.value !== "") query.rightRunId = rightComparisonRunId.value;
+  }
+  void router.replace({ path: route.path, query });
+}
+
+function formatComparisonCurrency(value: number | undefined, currency: string): string {
+  if (value == null || !Number.isFinite(value)) {
+    return "--";
+  }
+  const rendered = value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return currency === "" ? rendered : `${rendered} ${currency}`;
+}
+
+function formatComparisonMetric(value: number | undefined, kind: ComparisonMetric["kind"], currency = ""): string {
+  if (value == null || !Number.isFinite(value)) {
+    return "--";
+  }
+  if (kind === "percent") {
+    return `${(value * 100).toFixed(2)}%`;
+  }
+  if (kind === "currency") {
+    return formatComparisonCurrency(value, currency);
+  }
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function comparisonMetricDelta(metric: ComparisonMetric): string {
+  if (metric.left == null || metric.right == null || !Number.isFinite(metric.left) || !Number.isFinite(metric.right)) {
+    return "--";
+  }
+  const leftCurrency = leftComparisonRun.value == null ? "" : resolveRunQuoteCurrency(leftComparisonRun.value);
+  const rightCurrency = rightComparisonRun.value == null ? "" : resolveRunQuoteCurrency(rightComparisonRun.value);
+  if (metric.kind === "currency" && leftCurrency !== rightCurrency) {
+    return "币种不同";
+  }
+  const delta = metric.right - metric.left;
+  const prefix = delta > 0 ? "+" : "";
+  return `${prefix}${formatComparisonMetric(delta, metric.kind, rightCurrency)}`;
+}
+
+const comparisonMetrics = computed<ComparisonMetric[]>(() => {
+  const left = leftComparisonRun.value?.result;
+  const right = rightComparisonRun.value?.result;
+  return [
+    { label: "最终资金", kind: "currency", left: left?.finalBalance, right: right?.finalBalance },
+    { label: "收益", kind: "currency", left: left?.pnl, right: right?.pnl },
+    { label: "最大回撤", kind: "percent", left: left?.maxDrawdown, right: right?.maxDrawdown },
+    { label: "当前回撤", kind: "percent", left: left?.currentDrawdown, right: right?.currentDrawdown },
+    { label: "交易数", kind: "number", left: left?.totalTrades, right: right?.totalTrades },
+    { label: "胜率", kind: "percent", left: left?.winRate, right: right?.winRate },
+    { label: "总费用", kind: "currency", left: left?.totalFees, right: right?.totalFees },
+  ];
+});
+
+function compareConfigValue(left: string, right: string): ComparisonConfigRow {
+  return { label: "", left, right, same: left === right };
+}
+
+function comparisonFeeConfig(run: BacktestRunView): string {
+  const costs = run.result?.tradingCosts ?? run.request.tradingCosts;
+  const broker = costs?.brokerFees;
+  const market = costs?.marketFees;
+  const schedule = (entry: typeof broker) => {
+    if (entry == null) return "market_preset";
+    const mode = entry.mode ?? "market_preset";
+    return entry.presetId ? `${mode}:${entry.presetId}` : mode;
+  };
+  return `券商 ${schedule(broker)} / 市场 ${schedule(market)}`;
+}
+
+function comparisonChartType(run: BacktestRunView): string {
+  return (run.result?.chartType ?? run.request.chartType) === "heikinashi" ? "Heikin Ashi" : "标准K线";
+}
+
+const comparisonConfigRows = computed<ComparisonConfigRow[]>(() => {
+  const left = leftComparisonRun.value;
+  const right = rightComparisonRun.value;
+  if (left == null || right == null) {
+    return [];
+  }
+  const rows: Array<[string, string, string]> = [
+    ["标的", left.request.symbol, right.request.symbol],
+    ["周期", left.request.interval, right.request.interval],
+    ["日期", `${formatBacktestRunDate(left.request.startDate)} → ${formatBacktestRunDate(left.request.endDate)}`, `${formatBacktestRunDate(right.request.startDate)} → ${formatBacktestRunDate(right.request.endDate)}`],
+    ["初始资金", formatComparisonCurrency(left.request.initialBalance, resolveRunQuoteCurrency(left)), formatComparisonCurrency(right.request.initialBalance, resolveRunQuoteCurrency(right))],
+    ["复权", formatBacktestRehabType(left.request.rehabType), formatBacktestRehabType(right.request.rehabType)],
+    ["交易时段", resolveRunSessionMode(left), resolveRunSessionMode(right)],
+    ["图表类型", comparisonChartType(left), comparisonChartType(right)],
+    ["费用规则", comparisonFeeConfig(left), comparisonFeeConfig(right)],
+    ["执行模型", left.result?.executionModel ?? left.request.executionModel ?? "默认", right.result?.executionModel ?? right.request.executionModel ?? "默认"],
+  ];
+  return rows.map(([label, leftValue, rightValue]) => ({
+    ...compareConfigValue(leftValue, rightValue),
+    label,
+  }));
+});
+
+const comparisonConditionsMatch = computed(() =>
+  comparisonConfigRows.value.length > 0 && comparisonConfigRows.value.every((row) => row.same),
+);
+
 const pendingDeleteRun = computed(() =>
   sortedRuns.value.find((run) => run.id === pendingDeleteRunId.value),
 );
@@ -757,7 +1262,7 @@ const focusedRunResultReady = computed(() => {
 });
 
 watch(focusedRun, (run) => {
-  if (run == null && backtestMobileSection.value === "report") {
+  if (run == null && backtestMobileSection.value === "report" && reportMode.value !== "compare") {
     backtestMobileSection.value = "setup";
   }
 });
@@ -768,6 +1273,7 @@ const focusedRunHasChartData = computed(() => {
 });
 
 function selectFocusedRun(runId: string) {
+  reportMode.value = "single";
   selectedRunId.value = runId;
   activeReportTab.value = "chart";
   backtestMobileSection.value = "report";
@@ -782,7 +1288,7 @@ function toggleNewBacktestForm() {
 }
 
 function selectBacktestMobileSection(section: BacktestMobileSection): void {
-  if (section === "report" && focusedRun.value == null) {
+  if (section === "report" && focusedRun.value == null && reportMode.value !== "compare") {
     backtestMobileSection.value = "setup";
     return;
   }
@@ -969,6 +1475,79 @@ watch(
   { immediate: true },
 );
 
+function ensureComparisonRunDefaults(): void {
+  if (!leftComparisonRuns.value.some((run) => run.id === leftComparisonRunId.value)) {
+    leftComparisonRunId.value = leftComparisonRuns.value[0]?.id ?? "";
+  }
+  if (!rightComparisonRuns.value.some((run) => run.id === rightComparisonRunId.value)) {
+    rightComparisonRunId.value = rightComparisonRuns.value[0]?.id ?? "";
+  }
+}
+
+function applyComparisonRouteState(): void {
+  const nextMode = reportModeFromQuery(route.query.mode);
+  const nextDefinitionId = firstQueryValue(route.query.definitionId);
+  const definitionChanged = nextDefinitionId !== comparisonDefinitionId.value;
+  applyingComparisonRoute = true;
+  reportMode.value = nextMode;
+  comparisonDefinitionId.value = nextDefinitionId;
+  leftComparisonVersion.value = firstQueryValue(route.query.leftVersion);
+  rightComparisonVersion.value = firstQueryValue(route.query.rightVersion);
+  leftComparisonRunId.value = firstQueryValue(route.query.leftRunId);
+  rightComparisonRunId.value = firstQueryValue(route.query.rightRunId);
+  applyingComparisonRoute = false;
+  if (nextMode === "compare" && nextDefinitionId !== "" && (definitionChanged || comparisonVersions.value.length === 0)) {
+    void loadComparisonVersions(nextDefinitionId);
+  }
+}
+
+watch(
+  () => [
+    route.query.mode,
+    route.query.definitionId,
+    route.query.leftVersion,
+    route.query.rightVersion,
+    route.query.leftRunId,
+    route.query.rightRunId,
+  ] as const,
+  () => applyComparisonRouteState(),
+);
+
+watch(
+  [
+    reportMode,
+    comparisonDefinitionId,
+    leftComparisonVersion,
+    rightComparisonVersion,
+    leftComparisonRunId,
+    rightComparisonRunId,
+  ],
+  () => syncComparisonRoute(),
+);
+
+watch(
+  () => [
+    leftComparisonVersion.value,
+    rightComparisonVersion.value,
+    runs.value,
+  ] as const,
+  () => ensureComparisonRunDefaults(),
+  { deep: true },
+);
+
+watch(
+  () => [leftComparisonRunId.value, rightComparisonRunId.value] as const,
+  ([leftRunId, rightRunId]) => {
+    if (leftRunId !== "") {
+      void toggleRun(leftRunId);
+    }
+    if (rightRunId !== "") {
+      void toggleRun(rightRunId);
+    }
+  },
+  { immediate: true },
+);
+
 // ── Loaders ──
 function ensureSelectedMarketProfile() {
   const categoryMarket = categoryMarketForUser(selectedMarket.value);
@@ -986,6 +1565,13 @@ onMounted(async () => {
     loadRuns(),
   ]);
   ensureSelectedMarketProfile();
+  if (reportMode.value === "compare") {
+    const definitionId = comparisonDefinitionId.value || selectedDefinitionId.value || definitions.value[0]?.id || "";
+    if (definitionId !== "") {
+      comparisonDefinitionId.value = definitionId;
+      void loadComparisonVersions(definitionId);
+    }
+  }
 });
 
 async function loadDefinitions() {
@@ -1332,7 +1918,7 @@ watch(
         class="backtest-page__mobile-switch-button"
         :class="{ 'is-active': backtestMobileSection === 'report' }"
         data-testid="backtest-mobile-section-report"
-        :disabled="focusedRun == null"
+        :disabled="focusedRun == null && reportMode !== 'compare'"
         type="button"
         @click="selectBacktestMobileSection('report')"
       >
@@ -1349,10 +1935,22 @@ watch(
                 <div class="text-sm font-semibold bt-text-strong">历史回测</div>
                 <div class="text-xs bt-text-muted">{{ resultsPageSummary || "回测结果由服务端提供。" }}</div>
               </div>
-              <v-btn class="bt-accent-action bt-sidebar-create-action" size="small" variant="tonal" @click="toggleNewBacktestForm">
-                <v-icon size="14" class="mr-1">fa-solid fa-plus</v-icon>
-                新建回测
-              </v-btn>
+              <div class="flex shrink-0 items-center gap-1">
+                <v-btn
+                  class="bt-sidebar-create-action"
+                  size="small"
+                  variant="text"
+                  data-testid="backtest-open-version-comparison"
+                  @click="activateComparisonMode"
+                >
+                  <v-icon size="13" class="mr-1">fa-solid fa-code-compare</v-icon>
+                  版本对比
+                </v-btn>
+                <v-btn class="bt-accent-action bt-sidebar-create-action" size="small" variant="tonal" @click="toggleNewBacktestForm">
+                  <v-icon size="14" class="mr-1">fa-solid fa-plus</v-icon>
+                  新建回测
+                </v-btn>
+              </div>
             </div>
 
             <div class="min-h-0 flex-1 overflow-auto p-3">
@@ -1631,7 +2229,188 @@ watch(
       <SplitPaneItem :size="backtestPaneSizes[1]" :min-size="45">
         <main class="backtest-page__pane">
           <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div v-if="!focusedRun" :class="[emptyStateClass, 'p-8 text-center text-sm']">
+          <template v-if="reportMode === 'compare'">
+            <section :class="[controlPanelClass, 'bt-version-comparison flex min-h-0 flex-1 flex-col overflow-auto']">
+              <header class="bt-version-comparison__header">
+                <div>
+                  <div class="text-xs uppercase tracking-[0.16em] bt-text-muted">版本对比</div>
+                  <div class="mt-1 text-lg font-semibold bt-text-strong">策略历史版本与回测报告</div>
+                  <div class="mt-1 text-xs bt-text-muted">基线在左，候选在右；只使用两个版本各自已完成的回测。</div>
+                </div>
+                <v-btn size="small" variant="text" @click="activateSingleReportMode">
+                  <v-icon size="13" class="mr-1">fa-solid fa-chart-line</v-icon>
+                  单次报告
+                </v-btn>
+              </header>
+
+              <div class="bt-version-comparison__body">
+                <div class="bt-version-compare-definition">
+                  <label class="text-xs font-semibold bt-text-strong">策略定义</label>
+                  <v-select
+                    :model-value="comparisonDefinitionId"
+                    :items="comparisonDefinitionOptions"
+                    item-title="title"
+                    item-value="value"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    placeholder="选择策略"
+                    data-testid="backtest-comparison-definition"
+                    @update:model-value="changeComparisonDefinition"
+                  />
+                </div>
+
+                <div v-if="isLoadingComparisonVersions" :class="[emptyStateClass, 'p-5 text-center text-sm']">
+                  正在加载版本历史…
+                </div>
+                <div v-else-if="comparisonVersionsError" class="bt-version-compare-notice bt-version-compare-notice--warning">
+                  版本历史暂不可用：{{ comparisonVersionsError }}
+                </div>
+                <div v-else-if="comparisonDefinitionId === ''" :class="[emptyStateClass, 'p-5 text-center text-sm']">
+                  请选择拥有版本历史的策略。
+                </div>
+                <div v-else-if="comparisonVersions.length < 2" :class="[emptyStateClass, 'p-5 text-center text-sm']">
+                  至少需要两个已保存策略版本才能比较。
+                </div>
+                <template v-else>
+                  <div class="bt-version-compare-selectors">
+                    <section class="bt-version-compare-selector" data-testid="backtest-comparison-left">
+                      <div class="bt-version-compare-selector__eyebrow">基线（较早版本）</div>
+                      <v-select
+                        :model-value="leftComparisonVersion"
+                        :items="leftComparisonVersionSelectOptions"
+                        item-title="title"
+                        item-value="value"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        placeholder="选择基线版本"
+                        data-testid="backtest-comparison-left-version"
+                        @update:model-value="changeComparisonVersion('left', $event)"
+                      />
+                      <div v-if="leftComparisonRuns.length === 0" class="bt-version-compare-selector__empty">
+                        该版本暂无已完成回测。
+                      </div>
+                      <v-select
+                        v-else
+                        :model-value="leftComparisonRunId"
+                        :items="leftComparisonRunOptions"
+                        item-title="title"
+                        item-value="value"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        label="关联回测"
+                        data-testid="backtest-comparison-left-run"
+                        @update:model-value="changeComparisonRun('left', $event)"
+                      />
+                    </section>
+                    <section class="bt-version-compare-selector" data-testid="backtest-comparison-right">
+                      <div class="bt-version-compare-selector__eyebrow">候选（较新版本）</div>
+                      <v-select
+                        :model-value="rightComparisonVersion"
+                        :items="rightComparisonVersionSelectOptions"
+                        item-title="title"
+                        item-value="value"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        placeholder="选择候选版本"
+                        data-testid="backtest-comparison-right-version"
+                        @update:model-value="changeComparisonVersion('right', $event)"
+                      />
+                      <div v-if="rightComparisonRuns.length === 0" class="bt-version-compare-selector__empty">
+                        该版本暂无已完成回测。
+                      </div>
+                      <v-select
+                        v-else
+                        :model-value="rightComparisonRunId"
+                        :items="rightComparisonRunOptions"
+                        item-title="title"
+                        item-value="value"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        label="关联回测"
+                        data-testid="backtest-comparison-right-run"
+                        @update:model-value="changeComparisonRun('right', $event)"
+                      />
+                    </section>
+                  </div>
+
+                  <div v-if="comparisonRunsReady && leftComparisonRun && rightComparisonRun" class="bt-version-compare-results">
+                    <div
+                      class="bt-version-compare-notice"
+                      :class="comparisonConditionsMatch ? 'bt-version-compare-notice--ok' : 'bt-version-compare-notice--warning'"
+                    >
+                      <template v-if="comparisonConditionsMatch">
+                        两次回测的配置一致，可将指标差异作为策略版本变化的参考。
+                      </template>
+                      <template v-else>
+                        两次回测存在配置差异，结果不可直接归因于策略代码。请结合下方配置表评估。
+                      </template>
+                    </div>
+
+                    <section class="bt-version-compare-section">
+                      <div class="bt-version-compare-section__title">绩效指标</div>
+                      <div class="bt-version-compare-metrics">
+                        <div class="bt-version-compare-metrics__head">指标</div>
+                        <div class="bt-version-compare-metrics__head">基线 v{{ leftComparisonVersion }}</div>
+                        <div class="bt-version-compare-metrics__head">候选 v{{ rightComparisonVersion }}</div>
+                        <div class="bt-version-compare-metrics__head">候选 − 基线</div>
+                        <template v-for="metric in comparisonMetrics" :key="metric.label">
+                          <div class="bt-version-compare-metrics__label">{{ metric.label }}</div>
+                          <div>{{ formatComparisonMetric(metric.left, metric.kind, resolveRunQuoteCurrency(leftComparisonRun)) }}</div>
+                          <div>{{ formatComparisonMetric(metric.right, metric.kind, resolveRunQuoteCurrency(rightComparisonRun)) }}</div>
+                          <div>{{ comparisonMetricDelta(metric) }}</div>
+                        </template>
+                      </div>
+                    </section>
+
+                    <section class="bt-version-compare-section">
+                      <div class="bt-version-compare-section__title">回测配置</div>
+                      <div class="bt-version-compare-config">
+                        <div class="bt-version-compare-config__head">字段</div>
+                        <div class="bt-version-compare-config__head">基线</div>
+                        <div class="bt-version-compare-config__head">候选</div>
+                        <template v-for="row in comparisonConfigRows" :key="row.label">
+                          <div class="bt-version-compare-config__label" :class="{ 'is-different': !row.same }">{{ row.label }}</div>
+                          <div :class="{ 'is-different': !row.same }">{{ row.left }}</div>
+                          <div :class="{ 'is-different': !row.same }">{{ row.right }}</div>
+                        </template>
+                      </div>
+                    </section>
+                  </div>
+                  <div v-else class="bt-version-compare-notice bt-version-compare-notice--warning">
+                    请选择两个版本各自的已完成回测后查看指标与配置对比。
+                  </div>
+
+                  <section class="bt-version-compare-section">
+                    <div class="bt-version-compare-section__title">Pine 源码差异</div>
+                    <StrategySourceDiff
+                      v-if="comparisonSourcesReady && leftComparisonSnapshot && rightComparisonSnapshot"
+                      :left-label="`基线 v${leftComparisonVersion}`"
+                      :right-label="`候选 v${rightComparisonVersion}`"
+                      :left-source="leftComparisonSnapshot.script || ''"
+                      :right-source="rightComparisonSnapshot.script || ''"
+                    />
+                    <div v-else class="bt-version-compare-notice bt-version-compare-notice--warning">
+                      <template v-if="comparisonSnapshotLoading.left || comparisonSnapshotLoading.right">
+                        正在加载历史源码快照…
+                      </template>
+                      <template v-else-if="comparisonSnapshotErrors.left || comparisonSnapshotErrors.right">
+                        策略版本快照不可用：{{ comparisonSnapshotErrors.left || comparisonSnapshotErrors.right }}。升级前回测可能只保留指标和配置，无法伪造源码差异。
+                      </template>
+                      <template v-else>
+                        选择两个不同版本后可查看只读源码差异。
+                      </template>
+                    </div>
+                  </section>
+                </template>
+              </div>
+            </section>
+          </template>
+          <div v-else-if="!focusedRun" :class="[emptyStateClass, 'p-8 text-center text-sm']">
             {{ emptyResultsMessage }}
           </div>
 
@@ -2161,6 +2940,156 @@ watch(
   min-width: 48rem;
 }
 
+.bt-version-comparison {
+  min-width: 0;
+}
+
+.bt-version-comparison__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--tv-border);
+  padding: 1rem;
+}
+
+.bt-version-comparison__body {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.bt-version-compare-definition {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 32rem;
+}
+
+.bt-version-compare-selectors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.bt-version-compare-selector {
+  display: grid;
+  align-content: start;
+  gap: 0.6rem;
+  min-width: 0;
+  border: 1px solid var(--tv-border);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 62%, transparent);
+  padding: 0.85rem;
+}
+
+.bt-version-compare-selector__eyebrow,
+.bt-version-compare-section__title {
+  color: var(--tv-text-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bt-version-compare-selector__empty {
+  border: 1px dashed var(--tv-border);
+  border-radius: 0.4rem;
+  color: var(--tv-text-muted);
+  padding: 0.6rem;
+  font-size: 0.78rem;
+}
+
+.bt-version-compare-results,
+.bt-version-compare-section {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.bt-version-compare-notice {
+  border: 1px solid var(--tv-border);
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 70%, transparent);
+  color: var(--tv-text-muted);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.bt-version-compare-notice--warning {
+  border-color: color-mix(in srgb, #f59e0b 46%, var(--tv-border));
+  background: color-mix(in srgb, #f59e0b 10%, var(--tv-bg-surface));
+  color: color-mix(in srgb, #fbbf24 72%, var(--tv-text));
+}
+
+.bt-version-compare-notice--ok {
+  border-color: color-mix(in srgb, #22c55e 48%, var(--tv-border));
+  background: color-mix(in srgb, #22c55e 10%, var(--tv-bg-surface));
+  color: color-mix(in srgb, #86efac 72%, var(--tv-text));
+}
+
+.bt-version-compare-metrics {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) repeat(3, minmax(8rem, 1fr));
+  overflow: auto;
+  border: 1px solid var(--tv-border);
+  border-radius: 0.5rem;
+  background: var(--tv-bg-surface);
+  font-size: 0.82rem;
+}
+
+.bt-version-compare-metrics > div {
+  min-width: 0;
+  border-bottom: 1px solid var(--tv-border);
+  padding: 0.65rem 0.7rem;
+  overflow-wrap: anywhere;
+}
+
+.bt-version-compare-metrics > div:nth-last-child(-n + 4) {
+  border-bottom: 0;
+}
+
+.bt-version-compare-metrics__head,
+.bt-version-compare-config__head {
+  background: var(--tv-bg-surface-2);
+  color: var(--tv-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.bt-version-compare-metrics__label,
+.bt-version-compare-config__label {
+  color: var(--tv-text);
+  font-weight: 700;
+}
+
+.bt-version-compare-config {
+  display: grid;
+  grid-template-columns: minmax(6rem, 0.7fr) repeat(2, minmax(10rem, 1fr));
+  overflow: auto;
+  border: 1px solid var(--tv-border);
+  border-radius: 0.5rem;
+  background: var(--tv-bg-surface);
+  font-size: 0.8rem;
+}
+
+.bt-version-compare-config > div {
+  min-width: 0;
+  border-bottom: 1px solid var(--tv-border);
+  padding: 0.65rem 0.7rem;
+  overflow-wrap: anywhere;
+}
+
+.bt-version-compare-config > div:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.bt-version-compare-config .is-different {
+  background: color-mix(in srgb, #f59e0b 8%, var(--tv-bg-surface));
+  color: var(--tv-text);
+}
+
 @container (max-width: 360px) {
   .backtest-page__pane--sidebar .grid-cols-2 {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -2317,6 +3246,24 @@ watch(
 
   .bt-order-table {
     min-width: 42rem;
+  }
+
+  .bt-version-comparison__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bt-version-compare-selectors {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bt-version-compare-metrics {
+    grid-template-columns: minmax(6.5rem, 1fr) repeat(3, minmax(7rem, 1fr));
+  }
+
+  .bt-version-comparison__body,
+  .bt-version-comparison__header {
+    padding: 0.75rem;
   }
 
   .backtest-page :deep(.v-chip) {

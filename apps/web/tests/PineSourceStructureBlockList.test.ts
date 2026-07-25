@@ -80,6 +80,9 @@ describe("PineSourceStructureBlockList", () => {
     expect(wrapper.find("[data-testid='pine-source-node-library']").classes()).toContain(
       "is-selected",
     );
+    expect(wrapper.find("[data-testid='pine-source-node-input']").attributes("style")).toContain(
+      "margin-left: 0.75rem",
+    );
 
     await wrapper
       .find("[data-testid='pine-source-node-library'] > button")
@@ -94,6 +97,12 @@ describe("PineSourceStructureBlockList", () => {
     ]);
 
     const moveButtons = wrapper.findAll(".pine-block__actions button");
+    expect(moveButtons.map((button) => button.attributes("aria-label"))).toEqual([
+      "上移结构块",
+      "下移结构块",
+      "复制结构块",
+      "删除结构块",
+    ]);
     await moveButtons[0]!.trigger("click");
     await moveButtons[1]!.trigger("click");
     await moveButtons[2]!.trigger("click");

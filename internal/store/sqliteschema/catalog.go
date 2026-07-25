@@ -29,7 +29,7 @@ const (
 const (
 	BacktestVersion     = 2
 	BacktestRunsVersion = 1
-	StrategyVersion     = 1
+	StrategyVersion     = 2
 	ExecutionVersion    = 5
 	ADKVersion          = 2
 	ADKSessionVersion   = 4

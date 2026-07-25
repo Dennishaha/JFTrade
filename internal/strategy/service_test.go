@@ -25,6 +25,12 @@ func (s *fakeDesignStore) SaveDefinition(input Definition) (Definition, error) {
 func (s *fakeDesignStore) DeleteDefinition(id string) (Definition, error) {
 	return Definition{ID: id}, nil
 }
+func (s *fakeDesignStore) ListDefinitionVersions(string) ([]DefinitionVersionSummary, bool, error) {
+	return nil, false, nil
+}
+func (s *fakeDesignStore) GetDefinitionVersion(string, string) (DefinitionVersion, bool, error) {
+	return DefinitionVersion{}, false, nil
+}
 
 type fakeCatalogStore struct {
 	closed         bool

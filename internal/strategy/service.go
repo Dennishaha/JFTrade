@@ -35,6 +35,13 @@ type DesignStore interface {
 
 	// DeleteDefinition 软删除策略定义（设置 deleted_at 时间戳）。
 	DeleteDefinition(id string) (Definition, error)
+
+	// ListDefinitionVersions 返回策略定义的不可变历史快照（按保存时间倒序）。
+	// 软删除的策略定义仍可读取其历史快照。
+	ListDefinitionVersions(definitionID string) ([]DefinitionVersionSummary, bool, error)
+
+	// GetDefinitionVersion 返回一个不可变的策略定义历史快照。
+	GetDefinitionVersion(definitionID string, version string) (DefinitionVersion, bool, error)
 }
 
 // CatalogStore 策略目录/实例管理接口。
@@ -203,6 +210,16 @@ func (s *Service) SaveDefinition(input Definition) (Definition, error) {
 // DeleteDefinition 删除策略定义。
 func (s *Service) DeleteDefinition(id string) (Definition, error) {
 	return s.design.DeleteDefinition(id)
+}
+
+// ListDefinitionVersions 返回策略定义的历史版本。
+func (s *Service) ListDefinitionVersions(definitionID string) ([]DefinitionVersionSummary, bool, error) {
+	return s.design.ListDefinitionVersions(definitionID)
+}
+
+// GetDefinitionVersion 返回策略定义的一个历史版本快照。
+func (s *Service) GetDefinitionVersion(definitionID string, version string) (DefinitionVersion, bool, error) {
+	return s.design.GetDefinitionVersion(definitionID, version)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

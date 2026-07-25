@@ -46,6 +46,27 @@ type Definition struct {
 	UpdatedAt    string       `json:"updatedAt"`
 }
 
+// DefinitionVersionSummary describes one immutable saved strategy definition
+// snapshot. It is intentionally smaller than DefinitionVersion so callers can
+// render a version history without loading every script body.
+type DefinitionVersionSummary struct {
+	DefinitionID string `json:"definitionId"`
+	Version      string `json:"version"`
+	Name         string `json:"name"`
+	SavedAt      string `json:"savedAt"`
+	IsCurrent    bool   `json:"isCurrent"`
+}
+
+// DefinitionVersion is an immutable strategy definition snapshot. Definition
+// remains embedded to keep the source, visual model, and configuration shape
+// identical to the active definition response.
+type DefinitionVersion struct {
+	Definition
+	DefinitionID string `json:"definitionId"`
+	SavedAt      string `json:"savedAt"`
+	IsCurrent    bool   `json:"isCurrent"`
+}
+
 type DefinitionView struct {
 	Definition
 	DerivedWarmupBars     int    `json:"derivedWarmupBars"`

@@ -213,6 +213,7 @@ async function mountBrowserEditor() {
   const props = {
     value: ref("const initial = true;"),
     language: ref("pine-v6"),
+    fontSize: ref(12),
     readOnly: ref(false),
     markers: ref([
       { severity: "error" as const, message: "syntax", line: 0, column: 0, endLine: 0, endColumn: 0 },
@@ -232,6 +233,7 @@ async function mountBrowserEditor() {
         ref="editor"
         v-model="value"
         :language="language"
+        :font-size="fontSize"
         :read-only="readOnly"
         :diagnostic-markers="markers"
         :height="320"
@@ -336,7 +338,7 @@ describe("MonacoCodeEditor", () => {
     );
     expect(monacoMocks.create).toHaveBeenCalledWith(
       expect.any(HTMLElement),
-      expect.objectContaining({ language: "pine-v6", theme: "vs-dark", readOnly: false }),
+      expect.objectContaining({ language: "pine-v6", theme: "vs-dark", readOnly: false, fontSize: 12 }),
     );
     expect(monacoMocks.setModelMarkers).toHaveBeenLastCalledWith(
       monacoMocks.model,
@@ -350,6 +352,7 @@ describe("MonacoCodeEditor", () => {
 
     props.value.value = "const next = false;";
     props.language.value = "javascript";
+    props.fontSize.value = 11;
     props.readOnly.value = true;
     props.markers.value = [];
     themeStore().set("light");
@@ -365,6 +368,7 @@ describe("MonacoCodeEditor", () => {
       cursorStyle: "line-thin",
       occurrencesHighlight: "off",
     });
+    expect(monacoMocks.editorInstance.updateOptions).toHaveBeenCalledWith({ fontSize: 11 });
     expect(monacoMocks.setTheme).toHaveBeenCalledWith("vs");
     expect(monacoMocks.setModelMarkers).toHaveBeenLastCalledWith(monacoMocks.model, "jftrade-pine", []);
 

@@ -84,6 +84,23 @@ func strategyDefinition() Definition {
 			updated_at TEXT NOT NULL DEFAULT '',
 			deleted_at TEXT
 		)`,
+		`CREATE TABLE strategy_definition_versions (
+			definition_id TEXT NOT NULL,
+			version TEXT NOT NULL,
+			name TEXT NOT NULL DEFAULT '',
+			description TEXT NOT NULL DEFAULT '',
+			runtime TEXT NOT NULL DEFAULT '',
+			source_format TEXT NOT NULL DEFAULT '',
+			symbol TEXT NOT NULL DEFAULT '',
+			interval TEXT NOT NULL DEFAULT '',
+			script TEXT NOT NULL DEFAULT '',
+			visual_model_json TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL DEFAULT '',
+			updated_at TEXT NOT NULL DEFAULT '',
+			saved_at TEXT NOT NULL DEFAULT '',
+			PRIMARY KEY (definition_id, version),
+			FOREIGN KEY (definition_id) REFERENCES strategy_design_definitions(id) ON DELETE CASCADE
+		)`,
 		`CREATE INDEX idx_strategy_log_events_instance_at ON strategy_log_events (instance_id, at_ms DESC, id DESC)`,
 		`CREATE INDEX idx_strategy_log_events_level ON strategy_log_events (level)`,
 		`CREATE INDEX idx_strategy_audit_events_instance_at ON strategy_audit_events (instance_id, at_ms DESC, id DESC)`,
@@ -92,6 +109,12 @@ func strategyDefinition() Definition {
 		`CREATE INDEX idx_strategy_catalog_operations_updated_at ON strategy_catalog_operations (updated_at DESC, operation_id ASC)`,
 		`CREATE INDEX idx_strategy_design_definitions_updated_at ON strategy_design_definitions (updated_at DESC, id ASC)`,
 		`CREATE INDEX idx_strategy_design_definitions_deleted_at ON strategy_design_definitions (deleted_at)`,
+		`CREATE INDEX idx_strategy_definition_versions_saved_at ON strategy_definition_versions (definition_id, saved_at DESC, version DESC)`,
+		`CREATE TRIGGER trg_strategy_definition_versions_immutable
+			BEFORE UPDATE ON strategy_definition_versions
+			BEGIN
+				SELECT RAISE(ABORT, 'strategy definition versions are immutable');
+			END`,
 	}}
 }
 

@@ -25,18 +25,24 @@ func TestPineSpecSkillMetadataAndResources(t *testing.T) {
 	if !strings.Contains(ResearchSkillInstructions(), "load_skill(jftrade-strategy-publish)") {
 		t.Fatal("research skill metadata missing publish handoff guidance")
 	}
+	if !strings.Contains(ResearchSkillInstructions(), "strategy.definition_versions.list") || !strings.Contains(ResearchSkillInstructions(), "definitionVersion") {
+		t.Fatal("research skill metadata missing immutable version comparison guidance")
+	}
 	if PublishSkillDescription() == "" || !strings.Contains(PublishSkillInstructions(), "strategy.save_definition") {
 		t.Fatalf("publish skill metadata missing save guidance")
 	}
 	if !strings.Contains(PublishSkillInstructions(), "load_skill(jftrade-strategy-research)") {
 		t.Fatal("publish skill metadata missing research handoff guidance")
 	}
+	if !strings.Contains(PublishSkillInstructions(), "strategy.definition_versions.get") || !strings.Contains(PublishSkillInstructions(), "创建新的当前版本") {
+		t.Fatal("publish skill metadata missing immutable version restore guidance")
+	}
 	if researchWorkflow := BuildResearchWorkflowMarkdown(); !strings.Contains(researchWorkflow, "load_skill(jftrade-strategy-publish)") ||
-		!strings.Contains(researchWorkflow, "未完成时只报告进度") {
+		!strings.Contains(researchWorkflow, "未完成时只报告进度") || !strings.Contains(researchWorkflow, "strategy.definition_versions.list") {
 		t.Fatalf("research workflow markdown missing handoff/reporting guidance: %s", researchWorkflow)
 	}
 	if publishChecklist := BuildPublishChecklistMarkdown(); !strings.Contains(publishChecklist, "load_skill(jftrade-strategy-research)") ||
-		!strings.Contains(publishChecklist, "实际写入/优化对象") {
+		!strings.Contains(publishChecklist, "实际写入/优化对象") || !strings.Contains(publishChecklist, "不能修改历史快照") {
 		t.Fatalf("publish checklist markdown missing research handoff/reporting guidance: %s", publishChecklist)
 	}
 	if tools := ResearchSkillAllowedTools(); len(tools) == 0 || tools[0] != ToolName {
@@ -44,6 +50,11 @@ func TestPineSpecSkillMetadataAndResources(t *testing.T) {
 	}
 	if tools := PublishSkillAllowedTools(); len(tools) == 0 || tools[0] != "strategy.validate_pine" {
 		t.Fatalf("publish allowed tools = %#v", tools)
+	}
+	for _, tool := range []string{"strategy.definition_versions.list", "strategy.definition_versions.get"} {
+		if !containsString(ResearchSkillAllowedTools(), tool) || !containsString(PublishSkillAllowedTools(), tool) {
+			t.Fatalf("shared version tool %q missing from strategy skills", tool)
+		}
 	}
 	resources := SkillResourceFiles()
 	for _, key := range []string{

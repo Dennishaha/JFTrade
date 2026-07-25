@@ -285,6 +285,8 @@ func (s *Server) populateADKStrategyToolDeps(deps *ToolDeps) {
 		return
 	}
 	deps.ListStrategyDefinitions = s.adkStrategyDefinitionSummaries
+	deps.ListStrategyDefinitionVersions = s.adkListStrategyDefinitionVersions
+	deps.GetStrategyDefinitionVersion = s.adkGetStrategyDefinitionVersion
 	deps.ListStrategyInstances = s.adkStrategyInstanceSummaries
 	deps.SaveStrategyDraft = s.adkSaveStrategyDraft
 	deps.SaveStrategyDefinition = s.adkSaveStrategyDefinition
@@ -559,6 +561,20 @@ func (s *Server) adkStrategyDefinitionSummaries() []StrategyDefinitionSummary {
 		out = append(out, summary)
 	}
 	return out
+}
+
+func (s *Server) adkListStrategyDefinitionVersions(definitionID string) ([]stratsrv.DefinitionVersionSummary, bool, error) {
+	if s == nil || s.strategySvc == nil {
+		return nil, false, fmt.Errorf("策略定义存储不可用")
+	}
+	return s.strategySvc.ListDefinitionVersions(definitionID)
+}
+
+func (s *Server) adkGetStrategyDefinitionVersion(definitionID string, version string) (stratsrv.DefinitionVersion, bool, error) {
+	if s == nil || s.strategySvc == nil {
+		return stratsrv.DefinitionVersion{}, false, fmt.Errorf("策略定义存储不可用")
+	}
+	return s.strategySvc.GetDefinitionVersion(definitionID, version)
 }
 
 func (s *Server) adkStrategyInstanceSummaries() []StrategyInstanceSummary {

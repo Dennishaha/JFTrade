@@ -291,6 +291,9 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 		"portfolio.summary",
 		"strategy.optimize",
 		"strategy.research_backtest",
+		"strategy.definition_versions.list",
+		"strategy.definition_versions.get",
+		"backtest.runs",
 		"backtest.result_view",
 		"backtest.kline_sync_status",
 		"strategy.pine_spec",
@@ -331,6 +334,8 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 		{name: "market.candles", required: []string{"market", "symbol"}},
 		{name: "strategy.optimize", required: []string{"definitionIds", "market", "symbol", "startTime", "endTime"}},
 		{name: "strategy.research_backtest", required: []string{"script", "market", "startTime", "endTime"}},
+		{name: "strategy.definition_versions.list", required: []string{"definitionId"}},
+		{name: "strategy.definition_versions.get", required: []string{"definitionId", "version"}},
 		{name: "backtest.result_view", required: []string{"runId"}},
 		{name: "backtest.kline_sync_status", required: []string{"taskId"}},
 		{name: "strategy.validate_pine", required: []string{"script"}},
@@ -373,6 +378,16 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 	}
 	if waitForCompletion := research["waitForCompletionMs"].(map[string]any); waitForCompletion["maximum"] != 25000 {
 		t.Fatalf("research waitForCompletionMs schema = %#v, want max 25000", waitForCompletion)
+	}
+
+	backtestRuns := schemaPropertiesForBoundaryTest(t, defaultToolInputSchema("backtest.runs"))
+	for _, key := range []string{"definitionId", "definitionVersion", "status", "limit"} {
+		if _, ok := backtestRuns[key]; !ok {
+			t.Fatalf("backtest.runs missing %s: %#v", key, backtestRuns)
+		}
+	}
+	if limit := backtestRuns["limit"].(map[string]any); limit["maximum"] != 200 {
+		t.Fatalf("backtest.runs limit schema = %#v, want maximum 200", limit)
 	}
 
 	modelsList := fmt.Sprint(defaultToolInputSchema("models.list"))

@@ -27,12 +27,14 @@ func BuildResearchWorkflowMarkdown() string {
 		"",
 		"1. 明确标的、周期、时间范围和初始资金；不完整时先用行情工具补齐上下文。",
 		"2. 只做语法/兼容性检查时调用 `strategy.validate_pine`。",
-		"3. 需要验证收益、回撤、成交或曲线时调用 `strategy.research_backtest`，输入临时脚本和回测参数。",
-		"4. 返回 `syncing_data` 时调用 `workflow.wait` 和 `backtest.kline_sync_status`；同步 completed 后以完全相同参数重试 `strategy.research_backtest`。",
-		"5. 同步 failed、cancelled 或 insufficient_after_sync 时停止自动重试并说明原因；回测未完成时短等后用 `backtest.result_view` 查询。",
-		"6. 查看结果先用 `view=summary`；查看图表用 `view=chart`、`resolution=auto`、`limit<=1000`，并按需 include candles/trades/pnlCurve/drawdownCurve。",
-		"7. 仅使用当前已声明且已获授权的工具。不要在研究阶段调用保存或优化工具；只有用户明确要求持久化、发布、实例模式调整或优化已保存定义时，先 `load_skill(jftrade-strategy-publish)` 再交接。",
-		"8. 汇报时说明回测范围、参数、状态和数据限制；未完成时只报告进度。",
+		"3. 比较已保存版本时，先调用 `strategy.definition_versions.list`，再用 `strategy.definition_versions.get` 读取两个完整快照；用 `definitionId` 和 `definitionVersion` 过滤 `backtest.runs`。",
+		"4. 版本回测只在标的、周期、时间范围、初始资金、复权、时段和费用配置一致且状态 completed 时比较。",
+		"5. 需要验证收益、回撤、成交或曲线时调用 `strategy.research_backtest`，输入临时脚本和回测参数。",
+		"6. 返回 `syncing_data` 时调用 `workflow.wait` 和 `backtest.kline_sync_status`；同步 completed 后以完全相同参数重试 `strategy.research_backtest`。",
+		"7. 同步 failed、cancelled 或 insufficient_after_sync 时停止自动重试并说明原因；回测未完成时短等后用 `backtest.result_view` 查询。",
+		"8. 查看结果先用 `view=summary`；查看图表用 `view=chart`、`resolution=auto`、`limit<=1000`，并按需 include candles/trades/pnlCurve/drawdownCurve。",
+		"9. 仅使用当前已声明且已获授权的工具。不要在研究阶段调用保存或优化工具；只有用户明确要求持久化、发布、实例模式调整或优化已保存定义时，先 `load_skill(jftrade-strategy-publish)` 再交接。",
+		"10. 汇报时说明回测范围、参数、状态和数据限制；未完成时只报告进度。",
 	}, "\n")
 }
 
@@ -44,6 +46,7 @@ func BuildPublishChecklistMarkdown() string {
 		"- 仅使用当前已声明且已获授权的工具。若仍需验证策略想法或进行临时回测，先 `load_skill(jftrade-strategy-research)`，不要用写入或优化替代研究。",
 		"- 保存前必须调用 `strategy.validate_pine` 并确认校验成功。",
 		"- `strategy.save_definition` 用于明确保存为策略定义；`strategy.save_draft` 只用于明确草稿保存。",
+		"- 只有用户明确要求恢复历史版本时，才先用 `strategy.definition_versions.list/get` 读取完整旧快照并重新校验，再把旧快照的 `name`、`description`、`symbol`、`interval`、`script` 和 `visualModel` 映射到相同 `definitionId` 的 `strategy.save_definition` 调用；恢复必须创建新版本，不能修改历史快照。",
 		"- `strategy.update_instance_mode` 只用于用户点名的具体实例。",
 		"- `strategy.optimize` 只针对已保存定义创建真实异步回测任务，结果用 `backtest.runs` 查看。",
 		"- `strategy.optimize` 返回 `syncing_data` 时用 `backtest.kline_sync_status` 等待，completed 后以相同参数重试；失败或覆盖仍不足时停止。",

@@ -151,7 +151,7 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
         'is-selected': props.selectedId === node.id,
         'is-raw': node.match.type === 'raw',
       }"
-      :style="{ marginLeft: `${node.depth * 1.35}rem` }"
+      :style="{ marginLeft: `${Math.min(node.depth, 4) * 0.75}rem` }"
       :data-testid="`pine-source-node-${node.kind}`"
     >
       <button class="strategy-native-source-node__summary pine-block__summary" type="button" @click="emit('toggle-block', node)">
@@ -181,10 +181,18 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
             </option>
           </select>
           <div class="pine-block__actions">
-            <button type="button" title="上移" @click.stop="emit('move-block', node, -1)">↑</button>
-            <button type="button" title="下移" @click.stop="emit('move-block', node, 1)">↓</button>
-            <button type="button" title="复制" @click.stop="emit('duplicate-block', node)">⧉</button>
-            <button type="button" title="删除" @click.stop="emit('delete-block', node)">×</button>
+            <button type="button" title="上移" aria-label="上移结构块" @click.stop="emit('move-block', node, -1)">
+              <v-icon size="12">fa-solid fa-arrow-up</v-icon>
+            </button>
+            <button type="button" title="下移" aria-label="下移结构块" @click.stop="emit('move-block', node, 1)">
+              <v-icon size="12">fa-solid fa-arrow-down</v-icon>
+            </button>
+            <button type="button" title="复制" aria-label="复制结构块" @click.stop="emit('duplicate-block', node)">
+              <v-icon size="12">fa-regular fa-copy</v-icon>
+            </button>
+            <button type="button" title="删除" aria-label="删除结构块" @click.stop="emit('delete-block', node)">
+              <v-icon size="12">fa-solid fa-trash-can</v-icon>
+            </button>
           </div>
         </div>
         <div v-if="sourceBlockIsEditable(node)" class="strategy-native-source-node__fields pine-block__params">
@@ -229,7 +237,7 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: stretch;
-  gap: 0.65rem;
+  gap: 0.25rem;
   width: 100%;
   min-width: 0;
 }
@@ -250,7 +258,7 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   max-width: none !important;
   overflow: hidden;
   border: 1px solid var(--tv-border);
-  border-radius: 0.5rem;
+  border-radius: 0.32rem;
   background: color-mix(in srgb, var(--tv-bg-surface) 96%, transparent);
   color: var(--tv-text);
 }
@@ -265,10 +273,10 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   width: 100% !important;
   inline-size: 100% !important;
   max-width: none !important;
-  min-height: 2rem;
+  min-height: 2.25rem;
   display: grid !important;
-  grid-template-columns: 0.35rem minmax(0, 1fr);
-  gap: 0.65rem;
+  grid-template-columns: 0.2rem minmax(0, 1fr);
+  gap: 0.5rem;
   align-items: stretch;
   border: 0;
   background: transparent;
@@ -283,7 +291,7 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
 }
 
 .pine-block__rail {
-  width: 0.35rem;
+  width: 0.2rem;
   align-self: stretch;
   background: color-mix(in srgb, var(--tv-accent) 70%, #14b8a6);
 }
@@ -292,19 +300,19 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   flex-shrink: 0;
   color: var(--tv-text-muted);
   font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
 .strategy-native-source-node__main {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(11rem, max-content) minmax(12rem, 1fr);
+  grid-template-columns: minmax(9rem, max-content) minmax(8rem, 1fr);
   align-content: center;
   align-items: center;
-  column-gap: 1rem;
+  column-gap: 0.65rem;
   row-gap: 0.08rem;
-  padding: 0.3rem 0.55rem 0.3rem 0;
+  padding: 0.22rem 0.5rem 0.22rem 0;
 }
 
 .pine-block__summary-heading {
@@ -312,7 +320,7 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
 .pine-block__summary-heading strong {
@@ -320,16 +328,16 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.9rem;
+  font-size: 0.83rem;
 }
 
 .pine-block__kind-badge {
   flex-shrink: 0;
   border: 1px solid var(--tv-border);
   border-radius: 999px;
-  padding: 0.12rem 0.45rem;
+  padding: 0.08rem 0.35rem;
   color: var(--tv-text-muted);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 800;
 }
 
@@ -340,21 +348,22 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--tv-text-muted);
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   line-height: 1.35;
 }
 
 .pine-block__body {
   min-width: 0;
   display: grid;
-  gap: 0.42rem;
-  padding: 0.45rem 0.6rem;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  border-top: 1px solid var(--tv-border);
 }
 
 .pine-block__header {
   display: grid;
-  grid-template-columns: minmax(9rem, 12rem) auto;
-  gap: 0.5rem;
+  grid-template-columns: minmax(8rem, 12rem) auto;
+  gap: 0.4rem;
   align-items: center;
   justify-content: space-between;
 }
@@ -364,29 +373,32 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   width: 100%;
   min-width: 0;
   border: 1px solid var(--tv-border);
-  border-radius: 0.45rem;
+  min-height: 2rem;
+  border-radius: 0.32rem;
   background: var(--tv-bg-surface);
   color: var(--tv-text);
-  padding: 0.32rem 0.45rem;
-  font-size: 0.82rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.8rem;
   outline: none;
 }
 
 .pine-block__actions {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
 .pine-block__actions button {
-  width: 1.65rem;
-  height: 1.65rem;
+  display: inline-grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
   border: 1px solid var(--tv-border);
-  border-radius: 0.45rem;
+  border-radius: 0.32rem;
   background: var(--tv-bg-surface);
   color: var(--tv-text);
   padding: 0;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
@@ -396,10 +408,18 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   padding-right: 0.45rem;
 }
 
+.pine-block-list__add {
+  position: sticky;
+  z-index: 3;
+  bottom: 0;
+  padding-top: 0.3rem;
+  background: linear-gradient(180deg, transparent, var(--tv-bg-app) 30%);
+}
+
 .strategy-native-source-node__fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 0.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(8.75rem, 1fr));
+  gap: 0.35rem;
 }
 
 .strategy-native-source-node__fields label {
@@ -418,11 +438,12 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   width: 100%;
   min-width: 0;
   border: 1px solid var(--tv-border);
-  border-radius: 0.45rem;
+  min-height: 2rem;
+  border-radius: 0.32rem;
   background: var(--tv-bg-surface);
   color: var(--tv-text);
-  padding: 0.32rem 0.45rem;
-  font-size: 0.82rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.8rem;
   line-height: 1.35;
   outline: none;
 }
@@ -434,7 +455,7 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   white-space: nowrap;
   color: var(--tv-muted);
   font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.72rem;
+  font-size: 0.77rem;
 }
 
 @container (max-width: 34rem) {
@@ -444,6 +465,25 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
 
   .pine-block__summary-description {
     text-align: left;
+  }
+}
+
+@media (max-width: 768px) {
+  .strategy-native-source-node__summary {
+    min-height: 2.5rem;
+  }
+
+  .pine-block__actions button,
+  .pine-block__kind,
+  .pine-block-list__add select,
+  .strategy-native-source-node__fields input,
+  .strategy-native-source-node__fields select {
+    min-height: 2.5rem;
+  }
+
+  .pine-block__actions button {
+    width: 2.5rem;
+    height: 2.5rem;
   }
 }
 </style>

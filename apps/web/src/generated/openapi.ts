@@ -726,6 +726,30 @@ export interface components {
     runtimeRisk?: components["schemas"]["strategy.RuntimeRiskSettings"];
     symbols?: Array<string>;
   };
+    "strategy.StrategyDefinitionVersion": {
+    createdAt?: string;
+    definitionId?: string;
+    description?: string;
+    id?: string;
+    interval?: string;
+    isCurrent?: boolean;
+    name?: string;
+    runtime?: string;
+    savedAt?: string;
+    script?: string;
+    sourceFormat?: string;
+    symbol?: string;
+    updatedAt?: string;
+    version?: string;
+    visualModel?: components["schemas"]["strategy.StrategyVisualModel"];
+  };
+    "strategy.StrategyDefinitionVersionSummary": {
+    definitionId?: string;
+    isCurrent?: boolean;
+    name?: string;
+    savedAt?: string;
+    version?: string;
+  };
     "strategy.StrategyDesignDefinition": {
     createdAt?: string;
     description?: string;
@@ -6459,6 +6483,69 @@ export interface paths {
           description: "OK";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/strategy-definitions/{definitionId}/versions": {
+    get: {
+      parameters: {
+        path: {
+        definitionId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: Array<components["schemas"]["strategy.StrategyDefinitionVersionSummary"]>;
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/strategy-definitions/{definitionId}/versions/{version}": {
+    get: {
+      parameters: {
+        path: {
+        definitionId: string;
+        version: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.StrategyDefinitionVersion"];
+  };
           };
         };
         "400": {

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
@@ -299,6 +300,138 @@ fast =`}); err == nil || !strings.Contains(err.Error(), "Pine Script v6") {
 	}
 	if _, err := klineStatusTool.Handler(context.Background(), map[string]any{"taskId": "sync-missing"}); err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("backtest.kline_sync_status missing task error = %v, want not found", err)
+	}
+}
+
+func TestADKStrategyDefinitionVersionToolsExposeImmutableSnapshotsAndFailures(t *testing.T) {
+	versions := []stratsrv.DefinitionVersionSummary{
+		{DefinitionID: "def-1", Version: "0.1.1", Name: "Versioned", SavedAt: "2026-07-26T02:00:00Z", IsCurrent: true},
+		{DefinitionID: "def-1", Version: "0.1.0", Name: "Versioned", SavedAt: "2026-07-26T01:00:00Z"},
+	}
+	snapshot := stratsrv.DefinitionVersion{
+		Definition: stratsrv.Definition{
+			ID: "def-1", Name: "Versioned", Version: "0.1.0", Description: "first",
+			Runtime: "pine-pinets", SourceFormat: "pine-v6", Script: "//@version=6\nstrategy(\"Versioned\")\nlog.info(\"first\")",
+			VisualModel: &stratsrv.VisualModel{Engine: "pine-v6", Version: 1, Nodes: []stratsrv.VisualNode{{ID: "node-1", Type: "condition"}}},
+		},
+		DefinitionID: "def-1",
+		SavedAt:      "2026-07-26T01:00:00Z",
+	}
+	dependencyFailure := errors.New("version store unavailable")
+	registry := jfadk.NewToolRegistry()
+	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{
+		ListStrategyDefinitionVersions: func(definitionID string) ([]stratsrv.DefinitionVersionSummary, bool, error) {
+			switch definitionID {
+			case "def-1":
+				return versions, true, nil
+			case "broken":
+				return nil, false, dependencyFailure
+			default:
+				return nil, false, nil
+			}
+		},
+		GetStrategyDefinitionVersion: func(definitionID string, version string) (stratsrv.DefinitionVersion, bool, error) {
+			if definitionID == "broken" {
+				return stratsrv.DefinitionVersion{}, false, dependencyFailure
+			}
+			if definitionID == "def-1" && version == "0.1.0" {
+				return snapshot, true, nil
+			}
+			return stratsrv.DefinitionVersion{}, false, nil
+		},
+	})
+
+	listTool, _ := registry.Get("strategy.definition_versions.list")
+	listOutput, err := listTool.Handler(context.Background(), map[string]any{"definitionId": " def-1 "})
+	if err != nil {
+		t.Fatalf("strategy.definition_versions.list: %v", err)
+	}
+	listPayload := listOutput.(map[string]any)
+	listed := listPayload["versions"].([]stratsrv.DefinitionVersionSummary)
+	if listPayload["definitionId"] != "def-1" || listPayload["versionCount"] != 2 || len(listed) != 2 || listed[0].Version != "0.1.1" || !listed[0].IsCurrent {
+		t.Fatalf("version list payload = %#v", listPayload)
+	}
+	if _, err := listTool.Handler(context.Background(), map[string]any{}); err == nil || !strings.Contains(err.Error(), "definitionId") {
+		t.Fatalf("version list missing definitionId error = %v", err)
+	}
+	if _, err := listTool.Handler(context.Background(), map[string]any{"definitionId": "missing"}); err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("version list missing definition error = %v", err)
+	}
+	if _, err := listTool.Handler(context.Background(), map[string]any{"definitionId": "broken"}); !errors.Is(err, dependencyFailure) {
+		t.Fatalf("version list dependency error = %v", err)
+	}
+
+	getTool, _ := registry.Get("strategy.definition_versions.get")
+	getOutput, err := getTool.Handler(context.Background(), map[string]any{"definitionId": "def-1", "version": "0.1.0"})
+	if err != nil {
+		t.Fatalf("strategy.definition_versions.get: %v", err)
+	}
+	gotSnapshot := getOutput.(stratsrv.DefinitionVersion)
+	if gotSnapshot.DefinitionID != "def-1" || gotSnapshot.Script != snapshot.Script || gotSnapshot.VisualModel == nil || len(gotSnapshot.VisualModel.Nodes) != 1 || gotSnapshot.IsCurrent {
+		t.Fatalf("version snapshot = %#v", gotSnapshot)
+	}
+	if _, err := getTool.Handler(context.Background(), map[string]any{"definitionId": "def-1"}); err == nil || !strings.Contains(err.Error(), "version") {
+		t.Fatalf("version get missing version error = %v", err)
+	}
+	if _, err := getTool.Handler(context.Background(), map[string]any{"definitionId": "def-1", "version": "9.9.9"}); err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("version get missing snapshot error = %v", err)
+	}
+	if _, err := getTool.Handler(context.Background(), map[string]any{"definitionId": "broken", "version": "0.1.0"}); !errors.Is(err, dependencyFailure) {
+		t.Fatalf("version get dependency error = %v", err)
+	}
+
+	unavailable := jfadk.NewToolRegistry()
+	registerJFTradeADKStrategyTools(nil, unavailable, ToolDeps{})
+	unavailableList, _ := unavailable.Get("strategy.definition_versions.list")
+	if _, err := unavailableList.Handler(context.Background(), map[string]any{"definitionId": "def-1"}); err == nil || !strings.Contains(err.Error(), "unavailable") {
+		t.Fatalf("unavailable version list error = %v", err)
+	}
+	unavailableGet, _ := unavailable.Get("strategy.definition_versions.get")
+	if _, err := unavailableGet.Handler(context.Background(), map[string]any{"definitionId": "def-1", "version": "0.1.0"}); err == nil || !strings.Contains(err.Error(), "unavailable") {
+		t.Fatalf("unavailable version get error = %v", err)
+	}
+}
+
+func TestADKBacktestRunsFiltersByDefinitionVersionStatusAndLimit(t *testing.T) {
+	runs := []BacktestRunSummary{
+		{ID: "run-newest", DefinitionID: "def-1", DefinitionVersion: "0.1.1", Status: "COMPLETED"},
+		{ID: "run-older", DefinitionID: "def-1", DefinitionVersion: "0.1.1", Status: "completed"},
+		{ID: "run-baseline", DefinitionID: "def-1", DefinitionVersion: "0.1.0", Status: "COMPLETED"},
+		{ID: "run-other", DefinitionID: "def-2", DefinitionVersion: "0.1.1", Status: "FAILED"},
+	}
+	registry := jfadk.NewToolRegistry()
+	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{ListBacktestRuns: func() []BacktestRunSummary { return runs }})
+	tool, _ := registry.Get("backtest.runs")
+
+	unfilteredOutput, err := tool.Handler(context.Background(), map[string]any{})
+	if err != nil {
+		t.Fatalf("backtest.runs unfiltered: %v", err)
+	}
+	unfiltered := unfilteredOutput.(map[string]any)
+	if len(unfiltered) != 2 || unfiltered["runCount"] != 4 {
+		t.Fatalf("unfiltered backtest.runs = %#v, want legacy output shape", unfiltered)
+	}
+
+	filteredOutput, err := tool.Handler(context.Background(), map[string]any{
+		"definitionId": "def-1", "definitionVersion": "0.1.1", "status": "completed", "limit": 1,
+	})
+	if err != nil {
+		t.Fatalf("backtest.runs filtered: %v", err)
+	}
+	filtered := filteredOutput.(map[string]any)
+	items := filtered["runs"].([]map[string]any)
+	if filtered["runCount"] != 1 || filtered["totalMatched"] != 2 || filtered["truncated"] != true || len(items) != 1 || items[0]["id"] != "run-newest" {
+		t.Fatalf("filtered backtest.runs = %#v", filtered)
+	}
+
+	baselineOutput, err := tool.Handler(context.Background(), map[string]any{"definitionVersion": "0.1.0"})
+	if err != nil {
+		t.Fatalf("backtest.runs version-only: %v", err)
+	}
+	baseline := baselineOutput.(map[string]any)
+	baselineItems := baseline["runs"].([]map[string]any)
+	if baseline["runCount"] != 1 || baseline["totalMatched"] != 1 || baseline["truncated"] != false || baselineItems[0]["id"] != "run-baseline" {
+		t.Fatalf("version-only backtest.runs = %#v", baseline)
 	}
 }
 

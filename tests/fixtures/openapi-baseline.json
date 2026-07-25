@@ -2448,6 +2448,76 @@
       },
       "type": "object"
     },
+    "strategy.StrategyDefinitionVersion": {
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "definitionId": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "isCurrent": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        },
+        "savedAt": {
+          "type": "string"
+        },
+        "script": {
+          "type": "string"
+        },
+        "sourceFormat": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "visualModel": {
+          "$ref": "#/definitions/strategy.StrategyVisualModel"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.StrategyDefinitionVersionSummary": {
+      "properties": {
+        "definitionId": {
+          "type": "string"
+        },
+        "isCurrent": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "savedAt": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "strategy.StrategyDesignDefinition": {
       "properties": {
         "createdAt": {
@@ -13599,6 +13669,120 @@
           }
         },
         "summary": "从策略定义创建实例",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategy-definitions/{definitionId}/versions": {
+      "get": {
+        "parameters": [
+          {
+            "description": "策略定义 ID",
+            "in": "path",
+            "name": "definitionId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/definitions/strategy.StrategyDefinitionVersionSummary"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取策略定义历史版本",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategy-definitions/{definitionId}/versions/{version}": {
+      "get": {
+        "parameters": [
+          {
+            "description": "策略定义 ID",
+            "in": "path",
+            "name": "definitionId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "策略版本号",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/strategy.StrategyDefinitionVersion"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取策略定义历史版本快照",
         "tags": [
           "strategy"
         ]

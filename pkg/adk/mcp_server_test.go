@@ -20,6 +20,16 @@ func TestLocalMCPHandlerExposesOnlyReviewedReadTools(t *testing.T) {
 		return map[string]any{"healthy": true}, nil
 	})
 	registry.Register(ToolDescriptor{
+		Name: "strategy.definition_versions.list", DisplayName: "Strategy Versions", Description: "versions", Permission: "read_internal",
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"definitionId": "def-1", "versionCount": 2}, nil
+	})
+	registry.Register(ToolDescriptor{
+		Name: "strategy.definition_versions.get", DisplayName: "Strategy Version", Description: "version", Permission: "read_internal",
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"definitionId": "def-1", "version": "0.1.0", "script": "strategy(\"v1\")"}, nil
+	})
+	registry.Register(ToolDescriptor{
 		Name: "strategy.save_definition", DisplayName: "Save Strategy", Description: "write", Permission: "write_strategy",
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"saved": true}, nil
@@ -55,6 +65,11 @@ func TestLocalMCPHandlerExposesOnlyReviewedReadTools(t *testing.T) {
 	if !slices.Contains(names, "system.status") {
 		t.Fatalf("tools/list missing reviewed tool: %v", names)
 	}
+	for _, name := range []string{"strategy.definition_versions.list", "strategy.definition_versions.get"} {
+		if !slices.Contains(names, name) {
+			t.Fatalf("tools/list missing reviewed strategy version tool %q: %v", name, names)
+		}
+	}
 	if slices.Contains(names, "strategy.save_definition") || slices.Contains(names, "http.fetch") || slices.Contains(names, "tasks.create") {
 		t.Fatalf("tools/list exposed a non-reviewed tool: %v", names)
 	}
@@ -84,6 +99,18 @@ func TestLocalMCPHandlerExposesOnlyReviewedReadTools(t *testing.T) {
 	structured, ok := result.StructuredContent.(map[string]any)
 	if !ok || structured["healthy"] != true {
 		t.Fatalf("tools/call structured result = %#v", result.StructuredContent)
+	}
+
+	versionResult, err := session.CallTool(t.Context(), &mcp.CallToolParams{
+		Name:      "strategy.definition_versions.get",
+		Arguments: map[string]any{"definitionId": "def-1", "version": "0.1.0"},
+	})
+	if err != nil {
+		t.Fatalf("strategy version tools/call: %v", err)
+	}
+	versionStructured, ok := versionResult.StructuredContent.(map[string]any)
+	if versionResult.IsError || !ok || versionStructured["version"] != "0.1.0" || versionStructured["script"] == "" {
+		t.Fatalf("strategy version tools/call result = %#v", versionResult)
 	}
 }
 

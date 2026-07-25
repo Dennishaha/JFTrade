@@ -19,6 +19,7 @@ func TestNewStrategyRuntimeStoreCreatesExpectedSchema(t *testing.T) {
 		strategyRuntimeLogTable,
 		strategyRuntimeAuditTable,
 		strategyRuntimeObservationTable,
+		runtimeactivity.DesignDefinitionVersionTable,
 	} {
 		var count int
 		if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&count); err != nil {

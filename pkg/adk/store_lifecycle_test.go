@@ -834,6 +834,8 @@ func TestSkillRegistryReportsMetadataAndAllowedTools(t *testing.T) {
 	for _, toolName := range []string{
 		strategypinespec.ToolName,
 		"strategy.validate_pine",
+		"strategy.definition_versions.list",
+		"strategy.definition_versions.get",
 		"strategy.research_backtest",
 		"backtest.runs",
 		"backtest.result_view",
@@ -860,7 +862,7 @@ func TestSkillRegistryReportsMetadataAndAllowedTools(t *testing.T) {
 	if !publish.Builtin || publish.Source != "builtin" || publish.ValidationStatus != "VALID" || publish.ContentHash == "" {
 		t.Fatalf("publish skill metadata = %+v", publish)
 	}
-	for _, toolName := range []string{"strategy.validate_pine", "strategy.save_draft", "strategy.save_definition", "strategy.update_instance_mode", "strategy.optimize", "backtest.runs"} {
+	for _, toolName := range []string{"strategy.validate_pine", "strategy.definition_versions.list", "strategy.definition_versions.get", "strategy.save_draft", "strategy.save_definition", "strategy.update_instance_mode", "strategy.optimize", "backtest.runs"} {
 		if !containsString(publish.Tools, toolName) {
 			t.Fatalf("publish skill tools = %+v, want %s", publish.Tools, toolName)
 		}

@@ -57,6 +57,7 @@ export async function mountStrategyPage(path = "/strategy") {
       { path: "/strategy", redirect: "/strategy/runtime" },
       { path: "/strategy/runtime", component: StrategyRuntimePage as never },
       { path: "/strategy/design", component: StrategyDesignPage as never },
+      { path: "/backtest", component: RouteLeaveTargetPage as never },
       { path: "/route-leave-target", component: RouteLeaveTargetPage as never },
     ],
   })

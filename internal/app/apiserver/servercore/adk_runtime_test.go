@@ -60,16 +60,18 @@ func TestADKStrategyToolCatalogRequiresExpectedSkills(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	expected := map[string][]string{
-		strategypinespec.ToolName:       {strategypinespec.ResearchBuiltinSkillName},
-		"strategy.validate_pine":        {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
-		"strategy.research_backtest":    {strategypinespec.ResearchBuiltinSkillName},
-		"backtest.result_view":          {strategypinespec.ResearchBuiltinSkillName},
-		"strategy.save_draft":           {strategypinespec.PublishBuiltinSkillName},
-		"strategy.save_definition":      {strategypinespec.PublishBuiltinSkillName},
-		"strategy.update_instance_mode": {strategypinespec.PublishBuiltinSkillName},
-		"strategy.optimize":             {strategypinespec.PublishBuiltinSkillName},
-		"backtest.runs":                 {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
-		"backtest.kline_sync_status":    {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
+		strategypinespec.ToolName:           {strategypinespec.ResearchBuiltinSkillName},
+		"strategy.validate_pine":            {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
+		"strategy.definition_versions.list": {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
+		"strategy.definition_versions.get":  {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
+		"strategy.research_backtest":        {strategypinespec.ResearchBuiltinSkillName},
+		"backtest.result_view":              {strategypinespec.ResearchBuiltinSkillName},
+		"strategy.save_draft":               {strategypinespec.PublishBuiltinSkillName},
+		"strategy.save_definition":          {strategypinespec.PublishBuiltinSkillName},
+		"strategy.update_instance_mode":     {strategypinespec.PublishBuiltinSkillName},
+		"strategy.optimize":                 {strategypinespec.PublishBuiltinSkillName},
+		"backtest.runs":                     {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
+		"backtest.kline_sync_status":        {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
 	}
 	for name, want := range expected {
 		tool, ok := server.adkRuntime.Tools().Get(name)
@@ -83,6 +85,15 @@ func TestADKStrategyToolCatalogRequiresExpectedSkills(t *testing.T) {
 	definitions, ok := server.adkRuntime.Tools().Get("strategy.definitions")
 	if !ok || len(jfadk.ToolRequiredSkillNames(definitions.Descriptor)) != 0 {
 		t.Fatalf("strategy.definitions descriptor = %+v, want ungated", definitions.Descriptor)
+	}
+	for _, name := range []string{"strategy.definition_versions.list", "strategy.definition_versions.get"} {
+		tool, ok := server.adkRuntime.Tools().Get(name)
+		if !ok || tool.Descriptor.Category != "strategy" || tool.Descriptor.Permission != "read_internal" || tool.Descriptor.RiskLevel != "low" {
+			t.Fatalf("version tool %q descriptor = %+v", name, tool.Descriptor)
+		}
+		if !slices.Contains(jfadk.LocalMCPReadOnlyToolNames, name) {
+			t.Fatalf("version tool %q is absent from local read-only MCP", name)
+		}
 	}
 }
 

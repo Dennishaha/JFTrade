@@ -171,6 +171,12 @@ func TestADKAdapterRemainingInputBoundaries(t *testing.T) {
 	if _, err := nilServer.adkSaveStrategyDefinition(StrategyDefinitionInput{}); err == nil {
 		t.Fatal("nil strategy definition error = nil")
 	}
+	if _, _, err := nilServer.adkListStrategyDefinitionVersions("definition"); err == nil {
+		t.Fatal("nil strategy definition versions error = nil")
+	}
+	if _, _, err := nilServer.adkGetStrategyDefinitionVersion("definition", "0.1.0"); err == nil {
+		t.Fatal("nil strategy definition version error = nil")
+	}
 	if _, err := server.adkSaveStrategyDefinition(StrategyDefinitionInput{DefinitionID: "missing"}); err == nil {
 		t.Fatal("missing strategy definition error = nil")
 	}

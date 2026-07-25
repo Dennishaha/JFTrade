@@ -226,6 +226,41 @@ log.info("ready")`)
 	if definition.ID == "" || definition.Name != "ADK Closure Definition" {
 		t.Fatalf("definition = %#v, want persisted definition", definition)
 	}
+	originalScript := definition.Script
+	updatedValidation, err := ValidateADKStrategyScript("test", `//@version=6
+strategy("ADK Closure Strategy", overlay=true)
+log.info("updated")`)
+	if err != nil {
+		t.Fatalf("ValidateADKStrategyScript(updated): %v", err)
+	}
+	updatedDefinitionAny, err := deps.SaveStrategyDefinition(StrategyDefinitionInput{
+		DefinitionID: definition.ID,
+		Name:         definition.Name,
+		Description:  "updated via adapter closure",
+		Validation:   updatedValidation,
+	})
+	if err != nil {
+		t.Fatalf("SaveStrategyDefinition(update): %v", err)
+	}
+	definition = updatedDefinitionAny.(stratsrv.Definition)
+	if definition.Version != "0.1.1" || definition.Script == originalScript {
+		t.Fatalf("updated definition = %#v, want new immutable version", definition)
+	}
+	versions, ok, err := deps.ListStrategyDefinitionVersions(definition.ID)
+	if err != nil || !ok || len(versions) != 2 || versions[0].Version != "0.1.1" || !versions[0].IsCurrent || versions[1].Version != "0.1.0" || versions[1].IsCurrent {
+		t.Fatalf("ListStrategyDefinitionVersions = (%+v, %t, %v)", versions, ok, err)
+	}
+	firstVersion, ok, err := deps.GetStrategyDefinitionVersion(definition.ID, "0.1.0")
+	if err != nil || !ok || firstVersion.Script != originalScript || firstVersion.IsCurrent || firstVersion.SavedAt == "" {
+		t.Fatalf("GetStrategyDefinitionVersion(0.1.0) = (%+v, %t, %v)", firstVersion, ok, err)
+	}
+	currentVersion, ok, err := deps.GetStrategyDefinitionVersion(definition.ID, "0.1.1")
+	if err != nil || !ok || currentVersion.Script != definition.Script || !currentVersion.IsCurrent {
+		t.Fatalf("GetStrategyDefinitionVersion(0.1.1) = (%+v, %t, %v)", currentVersion, ok, err)
+	}
+	if _, ok, err := deps.GetStrategyDefinitionVersion(definition.ID, "9.9.9"); err != nil || ok {
+		t.Fatalf("GetStrategyDefinitionVersion(missing) = (%t, %v), want (false, nil)", ok, err)
+	}
 	if _, err := deps.SaveStrategyDefinition(StrategyDefinitionInput{
 		DefinitionID: "missing-definition",
 		Name:         "Missing",

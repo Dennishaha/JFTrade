@@ -72,7 +72,7 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 - 工作流定义：`workflows.list/get/create/update/delete/run`
 - 工作流触发器：`workflow_triggers.list/get/create/update/delete/run`
 - 工作流运行：`workflow_runs.list/get`
-- 策略：`strategy.definitions`、`strategy.pine_spec`、`strategy.validate_pine`、`strategy.research_backtest`、`strategy.save_draft`、`strategy.save_definition`、`strategy.update_instance_mode`、`strategy.optimize`
+- 策略：`strategy.definitions`、`strategy.definition_versions.list/get`、`strategy.pine_spec`、`strategy.validate_pine`、`strategy.research_backtest`、`strategy.save_draft`、`strategy.save_definition`、`strategy.update_instance_mode`、`strategy.optimize`
 - 回测：`backtest.runs`、`backtest.result_view`、`backtest.kline_sync_status`
 - 外部：`http.fetch`
 
@@ -90,7 +90,7 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 
 Webhook secret 不进入模型上下文或 ADK 工具记录。tools 可以查看、启停和编辑已有 Webhook 触发器的非密钥元数据，但不能创建 Webhook 触发器、重置或读取 secret；这些操作仍只通过工作流 Studio/API 完成。
 
-策略内置 skill 已拆分为 `jftrade-strategy-research` 和 `jftrade-strategy-publish`。前者用于临时研究回测与结果查看，不写入策略定义；后者用于用户明确要求的保存、发布、实例模式调整和已保存定义优化。策略专属 tools 与工作流管理 tools 一样必须先在当前 invocation `load_skill` 后才会声明、可搜索或调用；设置页工具目录仍显示 descriptor。`strategy.validate_pine`、`backtest.runs` 和 `backtest.kline_sync_status` 是两条流程的共享工具，加载任一策略 skill 即可解锁；研究或发布专属工具仍只随各自 skill 出现。旧的 `jftrade-strategy` 不再作为内置 skill 同步。
+策略内置 skill 已拆分为 `jftrade-strategy-research` 和 `jftrade-strategy-publish`。前者用于临时研究回测、不可变历史版本比较与结果查看，不写入策略定义；后者用于用户明确要求的保存、发布、历史版本恢复、实例模式调整和已保存定义优化。策略专属 tools 与工作流管理 tools 一样必须先在当前 invocation `load_skill` 后才会声明、可搜索或调用；设置页工具目录仍显示 descriptor。`strategy.validate_pine`、`strategy.definition_versions.list/get`、`backtest.runs` 和 `backtest.kline_sync_status` 是两条流程的共享工具，加载任一策略 skill 即可解锁；研究或发布专属工具仍只随各自 skill 出现。历史版本读取只返回不可变快照；恢复必须由用户明确要求，重新校验后通过受审批的 `strategy.save_definition` 以相同 definitionId 创建新版本，不能原地修改历史。旧的 `jftrade-strategy` 不再作为内置 skill 同步。
 
 ADK 发起研究回测或策略优化前会先检查本地 K 线覆盖，并把指标 warmup 纳入检查范围。覆盖不足时自动启动历史数据同步，工具返回 `syncing_data` 和同步 `taskId`，不会提前创建回测 run；skill 使用 `backtest.kline_sync_status` 等待完成后，以相同参数重试原回测工具。同步失败、取消或完成后覆盖仍不足时停止自动重试并返回原因。
 

@@ -302,11 +302,11 @@ func TestSkillResourcesContainSpecAndExamples(t *testing.T) {
 		t.Fatalf("cheatsheet resource missing heading: %q", cheatsheet)
 	}
 	researchFiles := ResearchSkillResourceFiles()
-	if workflow := researchFiles["references/strategy-research-workflow.md"]; !strings.Contains(workflow, "strategy.research_backtest") || !strings.Contains(workflow, "backtest.result_view") || !strings.Contains(workflow, "backtest.kline_sync_status") {
+	if workflow := researchFiles["references/strategy-research-workflow.md"]; !strings.Contains(workflow, "strategy.research_backtest") || !strings.Contains(workflow, "backtest.result_view") || !strings.Contains(workflow, "backtest.kline_sync_status") || !strings.Contains(workflow, "strategy.definition_versions.get") {
 		t.Fatalf("research workflow missing research tool routing: %q", workflow)
 	}
 	publishFiles := PublishSkillResourceFiles()
-	if checklist := publishFiles["references/strategy-publish-checklist.md"]; !strings.Contains(checklist, "strategy.save_definition") || !strings.Contains(checklist, "strategy.validate_pine") {
+	if checklist := publishFiles["references/strategy-publish-checklist.md"]; !strings.Contains(checklist, "strategy.save_definition") || !strings.Contains(checklist, "strategy.validate_pine") || !strings.Contains(checklist, "strategy.definition_versions.list/get") {
 		t.Fatalf("publish checklist missing save validation flow: %q", checklist)
 	}
 	if containsString(ResearchSkillAllowedTools(), "strategy.save_definition") {
@@ -317,6 +317,11 @@ func TestSkillResourcesContainSpecAndExamples(t *testing.T) {
 	}
 	if !containsString(ResearchSkillAllowedTools(), "backtest.kline_sync_status") || !containsString(PublishSkillAllowedTools(), "backtest.kline_sync_status") {
 		t.Fatal("research and publish skills must expose K-line sync status")
+	}
+	for _, tool := range []string{"strategy.definition_versions.list", "strategy.definition_versions.get"} {
+		if !containsString(ResearchSkillAllowedTools(), tool) || !containsString(PublishSkillAllowedTools(), tool) {
+			t.Fatalf("research and publish skills must expose %s", tool)
+		}
 	}
 }
 

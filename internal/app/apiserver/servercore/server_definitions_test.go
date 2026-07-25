@@ -194,6 +194,44 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if updateEnvelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
 		t.Fatalf("updated definition sourceFormat = %q, want %q", updateEnvelope.Data.SourceFormat, strategydefinition.SourceFormatPineV6)
 	}
+
+	historyResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategy-definitions/"+createEnvelope.Data.ID+"/versions")
+	if err != nil {
+		t.Fatalf("GET strategy definition versions: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, historyResp.Body.Close()) }()
+	if historyResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET strategy definition versions status = %d", historyResp.StatusCode)
+	}
+	var historyEnvelope struct {
+		OK   bool                                `json:"ok"`
+		Data []stratsrv.DefinitionVersionSummary `json:"data"`
+	}
+	if err := json.NewDecoder(historyResp.Body).Decode(&historyEnvelope); err != nil {
+		t.Fatalf("decode strategy definition versions: %v", err)
+	}
+	if len(historyEnvelope.Data) != 2 || historyEnvelope.Data[0].Version != "0.1.1" || !historyEnvelope.Data[0].IsCurrent || historyEnvelope.Data[1].Version != "0.1.0" || historyEnvelope.Data[1].IsCurrent || historyEnvelope.Data[0].SavedAt == "" {
+		t.Fatalf("unexpected strategy definition versions: %+v", historyEnvelope.Data)
+	}
+
+	snapshotResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategy-definitions/"+createEnvelope.Data.ID+"/versions/0.1.0")
+	if err != nil {
+		t.Fatalf("GET strategy definition version snapshot: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, snapshotResp.Body.Close()) }()
+	if snapshotResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET strategy definition version snapshot status = %d", snapshotResp.StatusCode)
+	}
+	var snapshotEnvelope struct {
+		OK   bool                       `json:"ok"`
+		Data stratsrv.DefinitionVersion `json:"data"`
+	}
+	if err := json.NewDecoder(snapshotResp.Body).Decode(&snapshotEnvelope); err != nil {
+		t.Fatalf("decode strategy definition version snapshot: %v", err)
+	}
+	if snapshotEnvelope.Data.DefinitionID != createEnvelope.Data.ID || snapshotEnvelope.Data.ID != createEnvelope.Data.ID || snapshotEnvelope.Data.Version != "0.1.0" || snapshotEnvelope.Data.Description != "pine strategy" || snapshotEnvelope.Data.IsCurrent {
+		t.Fatalf("unexpected strategy definition snapshot: %+v", snapshotEnvelope.Data)
+	}
 }
 
 func TestStrategyDefinitionCreateGeneratesUUIDWhenIDMissing(t *testing.T) {
@@ -363,5 +401,22 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	definitions := server.designStore.listDefinitions()
 	if len(definitions) != 0 {
 		t.Fatalf("expected no active definitions after delete, got %+v", definitions)
+	}
+	historyResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategy-definitions/"+definition.ID+"/versions")
+	if err != nil {
+		t.Fatalf("GET soft-deleted strategy definition versions: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, historyResp.Body.Close()) }()
+	if historyResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET soft-deleted strategy definition versions status = %d", historyResp.StatusCode)
+	}
+	var historyEnvelope struct {
+		Data []stratsrv.DefinitionVersionSummary `json:"data"`
+	}
+	if err := json.NewDecoder(historyResp.Body).Decode(&historyEnvelope); err != nil {
+		t.Fatalf("decode soft-deleted strategy definition versions: %v", err)
+	}
+	if len(historyEnvelope.Data) != 1 || historyEnvelope.Data[0].IsCurrent {
+		t.Fatalf("soft-deleted strategy version history = %+v", historyEnvelope.Data)
 	}
 }
