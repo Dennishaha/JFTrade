@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/chart"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb"
 )
 
@@ -21,6 +22,7 @@ func requestToProto(request RunScriptRequest) *pineworkerpb.RunScriptRequest {
 		Source:           request.Source,
 		Symbol:           request.Symbol,
 		Timeframe:        request.Timeframe,
+		ChartType:        string(chart.NormalizeChartType(request.ChartType)),
 		Mode:             request.Mode,
 		Candles:          candlesToProto(request.Candles),
 		Params:           copyStringMap(request.Params),

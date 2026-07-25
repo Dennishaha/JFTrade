@@ -1,25 +1,30 @@
 package runmodel
 
-import "time"
+import (
+	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/chart"
+)
 
 // RunConfig describes a single backtest run.
 type RunConfig struct {
-	DBPath           string       `json:"dbPath"`
-	Market           string       `json:"market,omitempty"`
-	Symbol           string       `json:"symbol"`
-	Interval         string       `json:"interval"`
-	SourceFormat     string       `json:"sourceFormat"`
-	StartTime        time.Time    `json:"startTime"`
-	EndTime          time.Time    `json:"endTime"`
-	StrategyScript   string       `json:"strategyScript"`
-	InitialBalance   float64      `json:"initialBalance"`
-	WarmupCandles    int          `json:"warmupCandles"`
-	QuoteCurrency    string       `json:"quoteCurrency"`
-	RehabType        string       `json:"rehabType"`
-	UseExtendedHours *bool        `json:"useExtendedHours,omitempty"`
-	InstrumentType   string       `json:"instrumentType,omitempty"`
-	TradingCosts     TradingCosts `json:"tradingCosts"`
-	ExecutionModel   string       `json:"executionModel,omitempty"`
+	DBPath           string          `json:"dbPath"`
+	Market           string          `json:"market,omitempty"`
+	Symbol           string          `json:"symbol"`
+	Interval         string          `json:"interval"`
+	SourceFormat     string          `json:"sourceFormat"`
+	StartTime        time.Time       `json:"startTime"`
+	EndTime          time.Time       `json:"endTime"`
+	StrategyScript   string          `json:"strategyScript"`
+	InitialBalance   float64         `json:"initialBalance"`
+	WarmupCandles    int             `json:"warmupCandles"`
+	QuoteCurrency    string          `json:"quoteCurrency"`
+	RehabType        string          `json:"rehabType"`
+	UseExtendedHours *bool           `json:"useExtendedHours,omitempty"`
+	InstrumentType   string          `json:"instrumentType,omitempty"`
+	TradingCosts     TradingCosts    `json:"tradingCosts"`
+	ExecutionModel   string          `json:"executionModel,omitempty"`
+	ChartType        chart.ChartType `json:"chartType"`
 }
 
 // TradingCosts describes broker-side and market-side costs for a backtest run.

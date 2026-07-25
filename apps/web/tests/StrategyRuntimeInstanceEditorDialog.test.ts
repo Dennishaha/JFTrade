@@ -71,6 +71,34 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
     expect(wrapper.emitted("symbol-draft-paste")).toHaveLength(1);
   });
 
+  it("surfaces definition failures and requires a selected instance in edit mode", () => {
+    const errorWrapper = mount(StrategyRuntimeInstanceEditorDialog, {
+      props: buildProps({
+        mode: "create",
+        definitionsError: "无法加载策略定义",
+      }),
+      global: {
+        stubs: {
+          "v-dialog": dialogStub,
+        },
+      },
+    });
+    const unselectedEditWrapper = mount(StrategyRuntimeInstanceEditorDialog, {
+      props: buildProps({
+        mode: "edit",
+        selectedStrategy: null,
+      }),
+      global: {
+        stubs: {
+          "v-dialog": dialogStub,
+        },
+      },
+    });
+
+    expect(errorWrapper.text()).toContain("无法加载策略定义");
+    expect(unselectedEditWrapper.text()).toContain("请先选择策略实例");
+  });
+
   it("renders edit-mode helpers and emits binding, broker, and runtime-risk interactions", async () => {
     vi.stubGlobal(
       "fetch",
@@ -150,6 +178,7 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
     await flushPromises();
     await wrapper.get(".strategy-tag-chip").trigger("click");
     await wrapper.get('[data-testid="strategy-edit-interval"]').setValue("15m");
+    await wrapper.get('[data-testid="strategy-edit-chart-type"]').setValue("heikinashi");
     await wrapper.get('[data-testid="strategy-edit-execution-mode"]').setValue("live");
     await wrapper.get('[data-testid="strategy-edit-account"]').trigger("click");
     await wrapper.get('[data-testid="strategy-edit-account-search"]').setValue("REAL");
@@ -173,6 +202,7 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
     });
     expect(wrapper.emitted("remove-symbol")).toEqual([["SH.600519"]]);
     expect(wrapper.emitted("update:interval")).toEqual([["15m"]]);
+    expect(wrapper.emitted("update:chart-type")).toEqual([["heikinashi"]]);
     expect(wrapper.emitted("update:execution-mode")).toEqual([["live"]]);
     expect(wrapper.emitted("toggle-broker-picker")).toHaveLength(1);
     expect(wrapper.emitted("update:broker-query")).toEqual([["REAL"]]);
@@ -245,6 +275,7 @@ function buildProps(overrides: Record<string, unknown> = {}) {
     symbolDraft: "",
     symbolValidationMessage: "",
     intervalValue: "5m",
+    chartType: "standard",
     executionMode: "live",
     runtimeRisk: {
       mode: "off",

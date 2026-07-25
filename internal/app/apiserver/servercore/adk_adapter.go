@@ -15,6 +15,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/watchlist"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -410,6 +411,7 @@ func (s *Server) adkEnsureBacktestData(definitionIDs []string, input BacktestSta
 		Market: input.Market, Symbol: input.Symbol, Code: input.Code, Interval: input.Interval,
 		StartDate: input.StartDate, EndDate: input.EndDate, StartTime: input.StartTime, EndTime: input.EndTime,
 		InitialBalance: input.InitialBalance, RehabType: input.RehabType,
+		ChartType: chart.ChartType(input.ChartType),
 	}, definitionIDs)
 	return backtestDataReadinessFromService(readiness), err
 }
@@ -419,6 +421,7 @@ func (s *Server) adkEnsureResearchBacktestData(input ResearchBacktestInput) (Bac
 		Script: input.Script, Market: input.Market, Symbol: input.Symbol, Code: input.Code, Interval: input.Interval,
 		StartDate: input.StartDate, EndDate: input.EndDate, StartTime: input.StartTime, EndTime: input.EndTime,
 		InitialBalance: input.InitialBalance, RehabType: input.RehabType, UseExtendedHours: input.UseExtendedHours,
+		ChartType: chart.ChartType(input.ChartType),
 	})
 	return backtestDataReadinessFromService(readiness), err
 }
@@ -436,6 +439,7 @@ func (s *Server) adkEnqueueBacktest(input BacktestStartInput) (BacktestRunRef, e
 		EndTime:        input.EndTime,
 		InitialBalance: input.InitialBalance,
 		RehabType:      input.RehabType,
+		ChartType:      chart.ChartType(input.ChartType),
 	})
 	if err != nil {
 		return BacktestRunRef{}, err
@@ -457,6 +461,7 @@ func (s *Server) adkStartResearchBacktest(input ResearchBacktestInput) (Backtest
 		InitialBalance:   input.InitialBalance,
 		RehabType:        input.RehabType,
 		UseExtendedHours: input.UseExtendedHours,
+		ChartType:        chart.ChartType(input.ChartType),
 	})
 	if err != nil {
 		return BacktestRunSummary{}, err
@@ -668,6 +673,7 @@ func backtestRunSummaryFromSrvRun(run *btsrv.RunState) BacktestRunSummary {
 		MarketTimezone:    run.Request.MarketTimezone,
 		InitialBalance:    run.Request.InitialBalance,
 		RehabType:         run.Request.RehabType,
+		ChartType:         string(run.Request.ChartType),
 		UseExtendedHours:  run.Request.UseExtendedHours,
 		Result:            run.Result,
 		CreatedAt:         run.CreatedAt,

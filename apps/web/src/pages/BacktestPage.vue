@@ -2,7 +2,12 @@
 import type { SplitpanesResizedPayload } from "splitpanes";
 import { computed, onMounted, ref, watch } from "vue";
 
-import { KLINE_PERIODS } from "../charting/kline";
+import {
+  KLINE_CHART_TYPES,
+  KLINE_PERIODS,
+  normalizeChartType,
+  type ChartType,
+} from "../charting/kline";
 import BacktestChart from "../components/BacktestChart.vue";
 import InstrumentIdentity from "../components/domain/market-data/InstrumentIdentity.vue";
 import InstrumentSearchBox from "../components/domain/market-data/InstrumentSearchBox.vue";
@@ -88,6 +93,7 @@ interface StoredBacktestFormPreferences {
   selectedMarket: string;
   codeInput: string;
   interval: string;
+  chartType: ChartType;
   startDate: string;
   endDate: string;
   initialBalance: number;
@@ -108,6 +114,7 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
     selectedMarket: "HK",
     codeInput: "00700",
     interval: "5m",
+    chartType: "standard",
     startDate: defaultStartDate,
     endDate: defaultEndDate,
     initialBalance: 1000000,
@@ -169,6 +176,7 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
           validIntervals.has(parsed.interval.trim())
           ? parsed.interval.trim()
           : defaults.interval,
+      chartType: normalizeChartType(parsed.chartType),
       startDate: normalizeDate(parsed.startDate, defaults.startDate),
       endDate: normalizeDate(parsed.endDate, defaults.endDate),
       initialBalance:
@@ -251,6 +259,7 @@ const instrumentSearchQuery = ref(
   ),
 );
 const interval = ref(storedBacktestFormPreferences.interval);
+const chartType = ref<ChartType>(storedBacktestFormPreferences.chartType);
 const startDate = ref(storedBacktestFormPreferences.startDate);
 const endDate = ref(storedBacktestFormPreferences.endDate);
 const initialBalance = ref(storedBacktestFormPreferences.initialBalance);
@@ -529,6 +538,7 @@ const backtestFormState = computed<BacktestFormState>(() => ({
       : "",
   instrumentType: instrumentType.value,
   interval: interval.value,
+  chartType: interval.value === "tick" ? "standard" : chartType.value,
   startDate: startDate.value,
   endDate: endDate.value,
   initialBalance: initialBalance.value,
@@ -545,6 +555,16 @@ watch(
   (supported) => {
     if (!supported) {
       useExtendedHours.value = false;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  interval,
+  (value) => {
+    if (value === "tick") {
+      chartType.value = "standard";
     }
   },
   { immediate: true },
@@ -840,6 +860,7 @@ watch(
     selectedMarket,
     codeInput,
     interval,
+    chartType,
     startDate,
     endDate,
     initialBalance,
@@ -856,6 +877,7 @@ watch(
     nextMarket,
     nextCodeInput,
     nextInterval,
+    nextChartType,
     nextStartDate,
     nextEndDate,
     nextInitialBalance,
@@ -875,6 +897,7 @@ watch(
       selectedMarket: nextMarket.trim().toUpperCase(),
       codeInput: nextCodeInput.trim().toUpperCase(),
       interval: nextInterval.trim(),
+      chartType: normalizeChartType(nextChartType),
       startDate: nextStartDate,
       endDate: nextEndDate,
       initialBalance: nextInitialBalance,
@@ -1390,6 +1413,12 @@ watch(
                   density="compact" variant="outlined"
                   :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
               </div>
+              <div class="grid gap-0.5">
+                <label class="text-xs font-semibold bt-text-strong">图表类型</label>
+                <v-select v-model="chartType" :items="KLINE_CHART_TYPES" item-title="label" item-value="value"
+                  density="compact" variant="outlined" :disabled="interval === 'tick'"
+                  :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
+              </div>
               <div class="grid grid-cols-2 gap-2">
                 <div class="grid gap-0.5">
                   <label class="text-xs font-semibold bt-text-strong">起始日期</label>
@@ -1753,6 +1782,8 @@ watch(
                         :trades="focusedRun.result.trades ?? []" :pnl-curve="focusedRun.result.pnlCurve ?? []"
                         :drawdown-curve="focusedRun.result.drawdownCurve ?? []"
                         :initial-balance="focusedRun.request.initialBalance" :min-height="560"
+                        :chart-type="focusedRun.result.chartType ?? focusedRun.request.chartType"
+                        :heikin-ashi-seed="focusedRun.result.heikinAshiSeed"
                         :currency-unit="resolveRunQuoteCurrency(focusedRun)" fit-container
                         empty-text="暂无权益曲线数据" />
                       <div v-else :class="[emptyStateClass, 'flex h-full min-h-[220px] items-center justify-center p-8 text-center text-sm']">

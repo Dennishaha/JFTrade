@@ -233,7 +233,7 @@ func externalEngine() map[string]any {
 		"enabled":           payload.Enabled,
 		"status":            payload.Status,
 		"license":           "AGPL-3.0-only",
-		"package":           "pinets@0.9.28",
+		"package":           "pinets@0.9.29",
 		"repository":        "https://github.com/LuxAlgo/PineTS",
 		"worker":            "scripts/pinets-worker.mjs",
 		"authority":         "pine-pinets production runtime remains authoritative",
@@ -309,6 +309,7 @@ func reservedVariables() []map[string]any {
 		{"name": "session.ismarket/ispremarket/ispostmarket", "description": "当前 K 线所属 regular/pre/after session。"},
 		{"name": "dayofweek.* / month.* / color.*", "description": "TradingView 常见常量；dayofweek 与 month lower 为数值，color 常量主要用于兼容默认参数和视觉模板。"},
 		{"name": "syminfo.tickerid/syminfo.prefix", "description": "当前策略标的与前缀信息。"},
+		{"name": "chart.is_standard/chart.is_heikinashi", "description": "当前主图是否为标准 K 线或 Heikin Ashi；由实例或回测的图表类型绑定决定。"},
 		{"name": "timeframe.period/timeframe.is*", "description": "当前策略周期及 intraday/minutes/daily/weekly/monthly 布尔状态。"},
 	}
 }
@@ -316,6 +317,7 @@ func reservedVariables() []map[string]any {
 func indicatorFunctions() []map[string]any {
 	return []map[string]any{
 		{"name": "input.*", "signature": "input(defval) / input.int/float/bool/string/source/time/timeframe/color(defval, title?)", "notes": "只取默认值；input.source 第一版应使用 open/high/low/close/volume/hl2/hlc3/ohlc4；input.timeframe 可用于受支持的 request.security timeframe。"},
+		{"name": "ticker.heikinashi/standard/inherit", "signature": "ticker.heikinashi(syminfo.tickerid) / ticker.standard(syminfo.tickerid?) / ticker.inherit(from_tickerid, syminfo.tickerid)", "notes": "仅支持当前基础标的的静态 extended ticker；可在 request.security 中读取 HA 或标准 OHLC。"},
 		{"name": "math.*", "signature": "math.abs/min/max/avg/round/round_to_mintick/floor/ceil/sqrt/pow/log/sign", "notes": "由 PineTS worker 执行同名 helper；round_to_mintick 按当前市场 tick size 四舍五入，缺省 tick 为 0.01。"},
 		{"name": "timestamp", "signature": "timestamp(year, month, day[, hour, minute])", "notes": "按当前标的交易所时区解释并返回 Unix milliseconds；第一版不支持显式 timezone 参数。"},
 		{"name": "ta.ema", "signature": "ta.ema(source, period)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4；close 保持 legacy key。"},
@@ -576,6 +578,7 @@ func indicatorsSectionDetails() []string {
 		"compiler 当前识别常用 MA、RSI/MACD/ATR、rolling/window、Bollinger、DMI/Supertrend/SAR，v1.2 的 linreg/OBV/pivot/Keltner/ALMA，v1.3 的 CMO/TSI/correlation/dev/median/percentile/percentrank/SWMA，v1.4 的窗口/动量、状态事件和 TR，v1.5 的 MTF common TA，v1.6 的 MTF tuple 白名单，以及 v2.1 的 BBW/COG/锚定 VWAP。",
 		"request.security 支持同标的 timeframe：\"1\"/\"5\"/\"15\"/\"30\"/\"45\"/\"60\"/\"120\"/\"240\"、\"D\"/\"1D\"、\"W\"/\"1W\"、\"M\"/\"1M\"。",
 		"request.security(syminfo.tickerid, timeframe, source) 支持 OHLCV/hl2/hlc3/ohlc4 和 source[n]；支持 source-aware MTF 均线、静态 intraday 受支持高级指标、v1.4 纯表达式 source/history/MA/math/bool/nz 组合、v1.5 RSI/MACD/ATR/Bollinger/Supertrend common TA 组合、v1.6 source/TA/纯表达式 tuple 白名单、v2.2 2-8 元纯表达式 tuple、v2.3 纯 collection/object 表达式，以及 v2.4 MTF stoch。",
+		"request.security 的 ticker 参数也可使用 ticker.heikinashi(syminfo.tickerid)、ticker.standard()、ticker.standard(syminfo.tickerid) 或 ticker.inherit(..., syminfo.tickerid)；只允许当前标的，外部和动态标的返回诊断。",
 		"ta.macd 支持 [macdLine, signalLine, histLine] 三元组赋值。",
 		"source-aware 指标第一版 source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。",
 		"历史引用支持 close[2]、hlc3[3]、emaFast[5]、bands.upper[2] 等简单 identifier/member；超过 500 bar 会返回诊断。",

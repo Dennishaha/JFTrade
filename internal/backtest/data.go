@@ -9,6 +9,7 @@ import (
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 )
 
 // EnsureScriptData checks local K-line coverage for a transient research script
@@ -23,6 +24,7 @@ func (s *Service) EnsureScriptData(ctx context.Context, req ScriptStartRequest) 
 		StartDate: req.StartDate, EndDate: req.EndDate, StartTime: req.StartTime, EndTime: req.EndTime,
 		InitialBalance: req.InitialBalance, RehabType: req.RehabType, UseExtendedHours: req.UseExtendedHours,
 		InstrumentType: req.InstrumentType, TradingCosts: req.TradingCosts, ExecutionModel: req.ExecutionModel,
+		ChartType: chart.NormalizeChartType(string(req.ChartType)),
 	}, transientStrategyDefinition(script))
 	if err != nil {
 		return nil, err

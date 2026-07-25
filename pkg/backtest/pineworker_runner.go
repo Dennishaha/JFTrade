@@ -15,6 +15,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/service"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
@@ -77,7 +78,9 @@ func normalizePineWorkerRunConfig(cfg RunConfig, runner PineWorkerRunner, result
 		return cfg, false
 	}
 	cfg.ExecutionModel = executionModel
+	cfg.ChartType = chart.NormalizeChartType(string(cfg.ChartType))
 	result.ExecutionModel = executionModel
+	result.ChartType = cfg.ChartType
 	if runner == nil {
 		result.Error = "pine worker runner is required"
 		return cfg, false
@@ -195,6 +198,7 @@ func setupPineWorkerBacktestExecution(ctx context.Context, runner PineWorkerRunn
 		Source:    prep.cfg.StrategyScript,
 		Symbol:    prep.cfg.Symbol,
 		Timeframe: prep.cfg.Interval,
+		ChartType: prep.cfg.ChartType,
 	}, replayKLines)
 	if err != nil {
 		prep.result.Error = fmt.Sprintf("plan pine worker replay: %v", err)
@@ -357,6 +361,7 @@ func newRunResult(cfg RunConfig) *RunResult {
 		StartTime:      cfg.StartTime.UTC().Format(time.RFC3339Nano),
 		EndTime:        cfg.EndTime.UTC().Format(time.RFC3339Nano),
 		ExecutionModel: executionModel,
+		ChartType:      chart.NormalizeChartType(string(cfg.ChartType)),
 	}
 }
 

@@ -50,6 +50,7 @@ message RunScriptRequest {
   string session_id = 10;
   string session_operation = 11;
   uint64 expected_revision = 12;
+  string chart_type = 13;
 }
 
 message RunScriptResponse {

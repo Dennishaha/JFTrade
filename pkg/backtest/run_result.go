@@ -8,6 +8,7 @@ type OrderBookEntry = internalrunmodel.OrderBookEntry
 type PnLPoint = internalrunmodel.PnLPoint
 type DrawdownPoint = internalrunmodel.DrawdownPoint
 type Candle = internalrunmodel.Candle
+type HeikinAshiSeed = internalrunmodel.HeikinAshiSeed
 type RunResult = internalrunmodel.RunResult
 type TradingCosts = internalrunmodel.TradingCosts
 type FeeSchedule = internalrunmodel.FeeSchedule

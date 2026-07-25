@@ -1,13 +1,23 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 
 import KlineChart from "../KlineChart.vue";
 import KlineIndicatorSelector from "../KlineIndicatorSelector.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import {
+  KLINE_CHART_TYPES,
   KLINE_PERIODS,
+  normalizeChartType,
   normalizeKlinePeriod,
   overlayRealtimeTickCandle,
+  type ChartType,
   type KlineCandle,
   type KlineIndicatorKey,
 } from "../../charting/kline";
@@ -73,6 +83,13 @@ const {
 
 const controlled = computed(() => props.target !== undefined);
 const selectedIndicators = ref<KlineIndicatorKey[]>(["volume"]);
+const chartTypeTriggerRef = ref<HTMLElement | null>(null);
+const chartTypePanelRef = ref<HTMLElement | null>(null);
+const chartTypeOptionRefs = ref<Array<HTMLButtonElement | null>>([]);
+const isChartTypeMenuOpen = ref(false);
+const chartTypePanelTop = ref(0);
+const chartTypePanelLeft = ref(0);
+const controlledChartType = ref<ChartType>("standard");
 const targetMarket = computed(() =>
   (controlled.value ? props.target?.market : prefs.value.market)
     ?.trim()
@@ -118,6 +135,23 @@ const hasResolvedPeriodCapabilities = computed(
     supportedPeriodValues.value != null,
 );
 const hasSupportedChartPeriod = computed(() => periods.value.length > 0);
+const isTickChartPeriod = computed(
+  () => normalizedSelectedPeriod() === "tick",
+);
+const activeChartType = computed<ChartType>(() => {
+  if (isTickChartPeriod.value) return "standard";
+  return controlled.value
+    ? controlledChartType.value
+    : normalizeChartType(prefs.value.chartType);
+});
+const activeChartTypeLabel = computed(
+  () =>
+    KLINE_CHART_TYPES.find((option) => option.value === activeChartType.value)
+      ?.label ?? "标准 K 线",
+);
+
+const CHART_TYPE_PANEL_GAP = 4;
+const CHART_TYPE_VIEWPORT_GAP = 8;
 
 function normalizedRenderablePeriod(value: string): RenderableKlinePeriod | "" {
   try {
@@ -407,6 +441,134 @@ function setPeriod(period: RenderableKlinePeriod): void {
   commitPeriod(period);
 }
 
+function syncChartTypePanelPosition(): void {
+  const trigger = chartTypeTriggerRef.value;
+  const panel = chartTypePanelRef.value;
+  if (trigger == null || panel == null || typeof window === "undefined") {
+    return;
+  }
+
+  const triggerRect = trigger.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const maxLeft = Math.max(
+    CHART_TYPE_VIEWPORT_GAP,
+    window.innerWidth - panelRect.width - CHART_TYPE_VIEWPORT_GAP,
+  );
+  chartTypePanelLeft.value = Math.min(
+    Math.max(triggerRect.left, CHART_TYPE_VIEWPORT_GAP),
+    maxLeft,
+  );
+
+  const below = triggerRect.bottom + CHART_TYPE_PANEL_GAP;
+  const above = triggerRect.top - panelRect.height - CHART_TYPE_PANEL_GAP;
+  const maxTop = Math.max(
+    CHART_TYPE_VIEWPORT_GAP,
+    window.innerHeight - panelRect.height - CHART_TYPE_VIEWPORT_GAP,
+  );
+  chartTypePanelTop.value =
+    below + panelRect.height <= window.innerHeight - CHART_TYPE_VIEWPORT_GAP
+      ? below
+      : above >= CHART_TYPE_VIEWPORT_GAP
+        ? above
+        : Math.min(Math.max(below, CHART_TYPE_VIEWPORT_GAP), maxTop);
+}
+
+async function toggleChartTypeMenu(): Promise<void> {
+  isChartTypeMenuOpen.value = !isChartTypeMenuOpen.value;
+  if (!isChartTypeMenuOpen.value) return;
+  await nextTick();
+  syncChartTypePanelPosition();
+  focusChartTypeOption(activeChartType.value);
+}
+
+function closeChartTypeMenu(options?: { restoreTriggerFocus?: boolean }): void {
+  isChartTypeMenuOpen.value = false;
+  if (options?.restoreTriggerFocus) {
+    chartTypeTriggerRef.value?.focus();
+  }
+}
+
+function setChartTypeOptionRef(index: number, element: unknown): void {
+  chartTypeOptionRefs.value[index] =
+    element instanceof HTMLButtonElement ? element : null;
+}
+
+function enabledChartTypeOptions(): HTMLButtonElement[] {
+  return chartTypeOptionRefs.value.filter(
+    (option): option is HTMLButtonElement => option != null && !option.disabled,
+  );
+}
+
+function focusChartTypeOption(chartType: ChartType): void {
+  const options = enabledChartTypeOptions();
+  const selected = options.find(
+    (option) => option.dataset.chartType === chartType,
+  );
+  (selected ?? options[0])?.focus();
+}
+
+function selectChartType(chartType: ChartType): void {
+  if (chartType === "heikinashi" && isTickChartPeriod.value) {
+    return;
+  }
+  if (controlled.value) {
+    controlledChartType.value = chartType;
+  } else {
+    update({ chartType });
+  }
+  closeChartTypeMenu({ restoreTriggerFocus: true });
+}
+
+function handleChartTypeDocumentPointerDown(event: PointerEvent): void {
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  if (
+    !(chartTypeTriggerRef.value?.contains(target) ?? false) &&
+    !(chartTypePanelRef.value?.contains(target) ?? false)
+  ) {
+    closeChartTypeMenu();
+  }
+}
+
+function handleChartTypeDocumentKeydown(event: KeyboardEvent): void {
+  if (!isChartTypeMenuOpen.value) return;
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeChartTypeMenu({ restoreTriggerFocus: true });
+    return;
+  }
+
+  if (
+    event.key !== "ArrowDown" &&
+    event.key !== "ArrowUp" &&
+    event.key !== "Home" &&
+    event.key !== "End"
+  ) {
+    return;
+  }
+
+  const options = enabledChartTypeOptions();
+  if (options.length === 0) return;
+  event.preventDefault();
+
+  const activeIndex = options.findIndex(
+    (option) => option === document.activeElement,
+  );
+  let nextIndex = 0;
+  if (event.key === "ArrowDown") {
+    nextIndex = activeIndex < 0 ? 0 : (activeIndex + 1) % options.length;
+  } else if (event.key === "ArrowUp") {
+    nextIndex =
+      activeIndex < 0
+        ? options.length - 1
+        : (activeIndex - 1 + options.length) % options.length;
+  } else if (event.key === "End") {
+    nextIndex = options.length - 1;
+  }
+  options[nextIndex]?.focus();
+}
+
 function handleCompactPeriodChange(event: Event): void {
   const value = (event.currentTarget as HTMLSelectElement).value;
   const period = normalizedRenderablePeriod(value);
@@ -437,7 +599,11 @@ async function retryBrokerCapabilities(): Promise<void> {
 
 onMounted(() => {
   document.addEventListener("visibilitychange", handleChartVisibilityChange);
+  document.addEventListener("pointerdown", handleChartTypeDocumentPointerDown);
+  document.addEventListener("keydown", handleChartTypeDocumentKeydown);
   window.addEventListener("online", handleChartOnline);
+  window.addEventListener("resize", syncChartTypePanelPosition);
+  window.addEventListener("scroll", syncChartTypePanelPosition, true);
   void loadBrokerProviders().then(() => {
     reconcileSelectedPeriod();
     void reload();
@@ -450,7 +616,11 @@ onMounted(() => {
 onBeforeUnmount(() => {
   chartReloadSeq += 1;
   document.removeEventListener("visibilitychange", handleChartVisibilityChange);
+  document.removeEventListener("pointerdown", handleChartTypeDocumentPointerDown);
+  document.removeEventListener("keydown", handleChartTypeDocumentKeydown);
   window.removeEventListener("online", handleChartOnline);
+  window.removeEventListener("resize", syncChartTypePanelPosition);
+  window.removeEventListener("scroll", syncChartTypePanelPosition, true);
   window.clearInterval(heartbeatTimer);
   if (heldChartSubscription != null) {
     void releaseMarketDataSubscription({
@@ -500,6 +670,21 @@ watch(
     reconcileSelectedPeriod();
   },
 );
+watch(
+  () => normalizedSelectedPeriod(),
+  (period) => {
+    if (period !== "tick") return;
+    closeChartTypeMenu();
+    if (controlled.value) {
+      controlledChartType.value = "standard";
+      return;
+    }
+    if (normalizeChartType(prefs.value.chartType) !== "standard") {
+      update({ chartType: "standard" });
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -539,6 +724,62 @@ watch(
             aria-hidden="true"
           />
         </label>
+        <div class="kline-chart-type-selector">
+          <button
+            ref="chartTypeTriggerRef"
+            class="kline-chart-type-selector__trigger"
+            type="button"
+            :class="{ 'is-open': isChartTypeMenuOpen }"
+            :title="`图表类型：${activeChartTypeLabel}`"
+            aria-label="选择图表类型"
+            aria-haspopup="menu"
+            :aria-expanded="isChartTypeMenuOpen"
+            @click="toggleChartTypeMenu"
+          >
+            <span class="fa-solid fa-chart-column" aria-hidden="true" />
+          </button>
+          <Teleport to="body">
+            <div
+              v-if="isChartTypeMenuOpen"
+              ref="chartTypePanelRef"
+              class="kline-chart-type-selector__panel"
+              role="menu"
+              aria-label="图表类型"
+              :style="{
+                top: `${chartTypePanelTop}px`,
+                left: `${chartTypePanelLeft}px`,
+              }"
+            >
+              <button
+                v-for="(option, index) in KLINE_CHART_TYPES"
+                :key="option.value"
+                :ref="(element) => setChartTypeOptionRef(index, element)"
+                class="kline-chart-type-selector__option"
+                type="button"
+                role="menuitemradio"
+                :data-chart-type="option.value"
+                :aria-checked="activeChartType === option.value"
+                :class="{ 'is-active': activeChartType === option.value }"
+                :disabled="
+                  option.value === 'heikinashi' && isTickChartPeriod
+                "
+                :title="
+                  option.value === 'heikinashi' && isTickChartPeriod
+                    ? 'Tick 周期不支持平均K线图'
+                    : option.label
+                "
+                @click="selectChartType(option.value)"
+              >
+                <span>{{ option.label }}</span>
+                <span
+                  v-if="activeChartType === option.value"
+                  class="fa-solid fa-check"
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
+          </Teleport>
+        </div>
         <KlineIndicatorSelector
           v-model="selectedIndicators"
           storage-key="jftrade.workspace-chart.indicators"
@@ -584,6 +825,7 @@ watch(
       <div class="tv-chart-host">
         <KlineChart
           :candles="chartCandles"
+          :chart-type="activeChartType"
           :min-height="minHeight"
           :indicators="selectedIndicators"
           empty-text="暂无 K 线数据；确认 OpenD 行情权限后点击刷新。"
@@ -680,6 +922,73 @@ watch(
   color: var(--tv-text-muted);
   font-size: 9px;
   pointer-events: none;
+}
+
+.kline-chart-type-selector {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.kline-chart-type-selector__trigger {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid var(--tv-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tv-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.kline-chart-type-selector__trigger:hover,
+.kline-chart-type-selector__trigger.is-open,
+.kline-chart-type-selector__trigger:focus-visible {
+  border-color: var(--tv-border-strong);
+  background: var(--tv-bg-elevated);
+  color: var(--tv-text);
+}
+
+.kline-chart-type-selector__panel {
+  position: fixed;
+  z-index: 9999;
+  display: grid;
+  width: min(188px, calc(100vw - 16px));
+  padding: 4px;
+  border: 1px solid var(--tv-border-strong);
+  border-radius: 6px;
+  background: var(--tv-bg-surface);
+  box-shadow: 0 14px 36px rgb(0 0 0 / 36%);
+}
+
+.kline-chart-type-selector__option {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tv-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+}
+
+.kline-chart-type-selector__option:hover,
+.kline-chart-type-selector__option:focus-visible,
+.kline-chart-type-selector__option.is-active {
+  background: var(--tv-bg-elevated);
+  color: var(--tv-text);
+}
+
+.kline-chart-type-selector__option:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .lightweight-chart-head__spacer {

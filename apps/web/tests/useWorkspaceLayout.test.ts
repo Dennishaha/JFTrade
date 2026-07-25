@@ -149,6 +149,7 @@ describe("useWorkspaceLayout", () => {
     expect(store.prefs.value.market).toBe("HK");
     expect(store.prefs.value.symbol).toBe("00700");
     expect(store.prefs.value.period).toBe("1m");
+    expect(store.prefs.value.chartType).toBe("standard");
     expect(store.prefs.value.rightDockOpen).toBe(false);
     expect(store.prefs.value.watchlistSidebarOpen).toBe(true);
     expect(store.prefs.value.watchlistSidebarWidth).toBe(280);
@@ -230,6 +231,7 @@ describe("useWorkspaceLayout", () => {
         market: " us ",
         symbol: " aapl ",
         period: "60MIN",
+        chartType: "heikinashi",
         selectedBrokerAccountKey: " account-a ",
         favoriteBrokerAccountKeys: [" account-a ", "", "account-a", 3, "account-b"],
       }),
@@ -244,6 +246,7 @@ describe("useWorkspaceLayout", () => {
     expect(store.prefs.value.market).toBe("US");
     expect(store.prefs.value.symbol).toBe("AAPL");
     expect(store.prefs.value.period).toBe("1h");
+    expect(store.prefs.value.chartType).toBe("heikinashi");
     expect(store.prefs.value.selectedBrokerAccountKey).toBe("account-a");
     expect(store.prefs.value.favoriteBrokerAccountKeys).toEqual(["account-a", "account-b"]);
     wrapper.unmount();
@@ -256,6 +259,7 @@ describe("useWorkspaceLayout", () => {
     expect(store.prefs.value.market).toBe("HK");
     expect(store.prefs.value.symbol).toBe("00700");
     expect(store.prefs.value.period).toBe("1m");
+    expect(store.prefs.value.chartType).toBe("standard");
     expect(store.prefs.value.rightDockTab).toBe("notifications");
     expect(store.prefs.value.rightDockSize).toBe(28);
     expect(store.prefs.value.watchlistSidebarWidth).toBe(280);
@@ -287,6 +291,33 @@ describe("useWorkspaceLayout", () => {
     expect(store.prefs.value.watchlistSidebarWidth).toBe(280);
     expect(store.prefs.value.favoriteBrokerAccountKeys).toEqual([]);
     expect(store.prefs.value.symbol).toBe("AAPL");
+    wrapper.unmount();
+  });
+
+  it("normalizes and persists the workspace chart type", async () => {
+    window.sessionStorage.setItem(
+      TRADING_STORAGE_KEY,
+      JSON.stringify({
+        market: "US",
+        symbol: "AAPL",
+        period: "5m",
+        chartType: "unsupported",
+      }),
+    );
+
+    const { store, wrapper } = mountLayoutStore();
+    expect(store.prefs.value.chartType).toBe("standard");
+
+    store.update({ chartType: "heikinashi" });
+    await nextTick();
+
+    expect(store.prefs.value.chartType).toBe("heikinashi");
+    expect(
+      JSON.parse(window.sessionStorage.getItem(TRADING_STORAGE_KEY) ?? "{}"),
+    ).toMatchObject({ chartType: "heikinashi" });
+    expect(
+      JSON.parse(window.localStorage.getItem(TRADING_STORAGE_KEY) ?? "{}"),
+    ).toMatchObject({ chartType: "heikinashi" });
     wrapper.unmount();
   });
 

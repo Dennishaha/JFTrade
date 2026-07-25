@@ -4,6 +4,12 @@ export const workerVersion = "0.1.0";
 
 export type RunMode = "backtest" | "live" | "analyze";
 
+export type ChartType = "standard" | "heikinashi";
+
+export function normalizeChartType(value: unknown): ChartType {
+  return String(value ?? "").trim().toLowerCase() === "heikinashi" ? "heikinashi" : "standard";
+}
+
 export type Candle = {
   openTime: number;
   closeTime?: number;
@@ -20,6 +26,7 @@ export type RunScriptRequest = {
   source: string;
   symbol: string;
   timeframe: string;
+  chartType?: ChartType | string;
   mode?: RunMode | string;
   candles: Candle[];
   params?: Record<string, string>;

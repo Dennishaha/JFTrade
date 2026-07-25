@@ -41,6 +41,7 @@ func toSrvRunState(r *backtestRunState) *btsrv.RunState {
 			UseExtendedHours:  r.Request.UseExtendedHours,
 			TradingCosts:      r.Request.TradingCosts,
 			ExecutionModel:    r.Request.ExecutionModel,
+			ChartType:         r.Request.ChartType,
 		},
 		Result:    r.Result, // 相同类型 *bt.RunResult
 		CreatedAt: r.CreatedAt,
@@ -73,6 +74,7 @@ func toBacktestRunState(r *btsrv.RunState) *backtestRunState {
 			UseExtendedHours:  r.Request.UseExtendedHours,
 			TradingCosts:      r.Request.TradingCosts,
 			ExecutionModel:    r.Request.ExecutionModel,
+			ChartType:         r.Request.ChartType,
 		},
 		Result:    r.Result, // 相同类型 *bt.RunResult
 		CreatedAt: r.CreatedAt,

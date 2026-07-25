@@ -10,6 +10,11 @@ import type {
 } from "@/contracts";
 import type { components } from "@/generated/openapi";
 
+import {
+  normalizeChartType,
+  type ChartType,
+  type HeikinAshiSeed,
+} from "../charting/kline";
 import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCandle } from "../components/BacktestChart.vue";
 import { apiGet, fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 import { queryClient, queryKeys } from "./serverState";
@@ -74,6 +79,7 @@ interface BacktestFeeBreakdownEntry {
 interface BacktestRunResult {
   symbol: string;
   interval: string;
+  chartType?: ChartType | undefined;
   startTime: string;
   endTime: string;
   quoteCurrency?: string | undefined;
@@ -95,6 +101,7 @@ interface BacktestRunResult {
   pnlCurve?: BacktestPnlPoint[] | undefined;
   drawdownCurve?: BacktestDrawdownPoint[] | undefined;
   candles?: BacktestCandleView[] | undefined;
+  heikinAshiSeed?: HeikinAshiSeed | undefined;
   logs?: string[] | undefined;
   warnings?: string[] | undefined;
   warningTotal?: number | undefined;
@@ -121,6 +128,7 @@ interface BacktestRun {
     symbol: string;
     instrumentType?: string;
     interval: string;
+    chartType: ChartType;
     startDate?: string;
     endDate?: string;
     startTime: string;
@@ -147,6 +155,7 @@ export interface BacktestFormState {
   instrumentId: string;
   instrumentType: string;
   interval: string;
+  chartType: ChartType;
   startDate: string;
   endDate: string;
   initialBalance: number;
@@ -195,6 +204,7 @@ export function buildBacktestStartRequestPayload(
     symbol: instrument.symbol,
     instrumentType: normalizeBacktestInstrumentType(formState.instrumentType),
     interval: formState.interval,
+    chartType: normalizeChartType(formState.chartType),
     startDate: formState.startDate,
     endDate: formState.endDate,
     initialBalance: formState.initialBalance,
@@ -393,6 +403,27 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     };
   }
 
+  function normalizeHeikinAshiSeed(value: unknown): HeikinAshiSeed | undefined {
+    if (value == null || typeof value !== "object" || Array.isArray(value)) {
+      return undefined;
+    }
+    const raw = value as { open?: unknown; close?: unknown };
+    const open = normalizeDecimalTransport(
+      typeof raw.open === "string" || typeof raw.open === "number"
+        ? raw.open
+        : undefined,
+    );
+    const close = normalizeDecimalTransport(
+      typeof raw.close === "string" || typeof raw.close === "number"
+        ? raw.close
+        : undefined,
+    );
+    if (open.value === undefined || close.value === undefined) {
+      return undefined;
+    }
+    return { open: open.value, close: close.value };
+  }
+
   function normalizeOrderBookEntry(entry: BacktestOrderBookEntryTransport): BacktestOrderBookEntry {
     const quantity = normalizeDecimalTransport(entry.quantity);
     const orderPrice = normalizeDecimalTransport(entry.orderPrice);
@@ -522,6 +553,14 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   }
 
   function normalizeRunResult(result: BacktestRunResultTransport): BacktestRunResult {
+    const rawResult = result as {
+      chartType?: unknown;
+      heikinAshiSeed?: unknown;
+    };
+    const hasResultChartType = Object.prototype.hasOwnProperty.call(
+      rawResult,
+      "chartType",
+    );
     const trades = result.trades?.map(normalizeTrade);
     const orderBook = result.orderBook?.map(normalizeOrderBookEntry);
     const candles = result.candles?.map(normalizeCandle);
@@ -543,9 +582,14 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
       drawdown: point.drawdown ?? 0,
     }));
     const tradingCosts = normalizeTradingCosts(result.tradingCosts);
+    const heikinAshiSeed = normalizeHeikinAshiSeed(rawResult.heikinAshiSeed);
     return {
       symbol: result.symbol ?? "",
       interval: result.interval ?? "",
+      ...(hasResultChartType
+        ? { chartType: normalizeChartType(rawResult.chartType) }
+        : {}),
+      ...(heikinAshiSeed == null ? {} : { heikinAshiSeed }),
       startTime: result.startTime ?? "",
       endTime: result.endTime ?? "",
       quoteCurrency: result.quoteCurrency,
@@ -602,6 +646,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
           ? {}
           : { instrumentType: request.instrumentType }),
         interval: request.interval ?? "",
+        chartType: normalizeChartType((request as { chartType?: unknown }).chartType),
         ...(request.startDate == null ? {} : { startDate: request.startDate }),
         ...(request.endDate == null ? {} : { endDate: request.endDate }),
         startTime: request.startTime ?? "",

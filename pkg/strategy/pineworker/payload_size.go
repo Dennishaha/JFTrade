@@ -14,6 +14,7 @@ var runScriptRequestJSONFields = struct {
 	Source           int
 	Symbol           int
 	Timeframe        int
+	ChartType        int
 	Mode             int
 	Candles          int
 	Params           int
@@ -26,6 +27,7 @@ var runScriptRequestJSONFields = struct {
 	Source:           jsonFieldNameBytes("Source"),
 	Symbol:           jsonFieldNameBytes("Symbol"),
 	Timeframe:        jsonFieldNameBytes("Timeframe"),
+	ChartType:        jsonFieldNameBytes("ChartType"),
 	Mode:             jsonFieldNameBytes("Mode"),
 	Candles:          jsonFieldNameBytes("Candles"),
 	Params:           jsonFieldNameBytes("Params"),
@@ -86,6 +88,7 @@ func estimateRunScriptRequestJSONSize(request RunScriptRequest) (int, error) {
 		{nameBytes: runScriptRequestJSONFields.Source, valueBytes: jsonStringValueBytes(request.Source)},
 		{nameBytes: runScriptRequestJSONFields.Symbol, valueBytes: jsonStringValueBytes(request.Symbol)},
 		{nameBytes: runScriptRequestJSONFields.Timeframe, valueBytes: jsonStringValueBytes(request.Timeframe)},
+		{nameBytes: runScriptRequestJSONFields.ChartType, valueBytes: jsonStringValueBytes(request.ChartType)},
 		{nameBytes: runScriptRequestJSONFields.Mode, valueBytes: jsonStringValueBytes(request.Mode)},
 		{nameBytes: runScriptRequestJSONFields.Candles, valueBytes: candlesBytes},
 		{nameBytes: runScriptRequestJSONFields.Params, valueBytes: paramsBytes},
@@ -122,6 +125,7 @@ func validateAndMeasureRunScriptRequest(request RunScriptRequest, config WorkerC
 		{nameBytes: runScriptRequestJSONFields.Source, valueBytes: jsonStringValueBytes(request.Source)},
 		{nameBytes: runScriptRequestJSONFields.Symbol, valueBytes: jsonStringValueBytes(request.Symbol)},
 		{nameBytes: runScriptRequestJSONFields.Timeframe, valueBytes: jsonStringValueBytes(request.Timeframe)},
+		{nameBytes: runScriptRequestJSONFields.ChartType, valueBytes: jsonStringValueBytes(request.ChartType)},
 		{nameBytes: runScriptRequestJSONFields.Mode, valueBytes: jsonStringValueBytes(request.Mode)},
 		{nameBytes: runScriptRequestJSONFields.Candles, valueBytes: candlesBytes},
 		{nameBytes: runScriptRequestJSONFields.Params, valueBytes: paramsBytes},

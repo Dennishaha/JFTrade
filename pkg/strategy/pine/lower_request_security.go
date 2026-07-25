@@ -33,7 +33,7 @@ func replaceSupportedRequestSecurity(expression string) string {
 }
 
 func lowerSupportedRequestSecurity(args []string) (string, bool) {
-	if len(args) < 3 || strings.TrimSpace(args[0]) != "syminfo.tickerid" {
+	if len(args) < 3 || !supportedRequestSecurityTicker(args[0]) {
 		return "", false
 	}
 	timeUnit, ok := pineTimeframeUnit(unquote(strings.TrimSpace(args[1])))
@@ -56,7 +56,7 @@ func lowerSupportedRequestSecurityTuple(args []string) ([]string, bool) {
 }
 
 func lowerSupportedRequestSecurityTupleGeneral(args []string) ([]string, bool) {
-	if len(args) < 3 || strings.TrimSpace(args[0]) != "syminfo.tickerid" {
+	if len(args) < 3 || !supportedRequestSecurityTicker(args[0]) {
 		return nil, false
 	}
 	timeUnit, ok := pineTimeframeUnit(unquote(strings.TrimSpace(args[1])))
@@ -86,6 +86,33 @@ func lowerSupportedRequestSecurityTupleGeneral(args []string) ([]string, bool) {
 		lowered = append(lowered, expression)
 	}
 	return lowered, true
+}
+
+// supportedRequestSecurityTicker intentionally admits only static ticker
+// expressions rooted at the chart's own symbol. PineTS performs the actual
+// extended-ticker resolution in the worker; this compiler path only needs to
+// preserve valid Pine syntax while deriving requirements and warmup data.
+func supportedRequestSecurityTicker(expression string) bool {
+	trimmed := strings.TrimSpace(expression)
+	if trimmed == "syminfo.tickerid" {
+		return true
+	}
+	name, args, ok := parseFunctionCallText(trimmed)
+	if !ok {
+		return false
+	}
+	switch name {
+	case "ticker.heikinashi":
+		return len(args) == 1 && strings.TrimSpace(args[0]) == "syminfo.tickerid"
+	case "ticker.standard":
+		return len(args) == 0 || (len(args) == 1 && strings.TrimSpace(args[0]) == "syminfo.tickerid")
+	case "ticker.inherit":
+		return len(args) == 2 &&
+			supportedRequestSecurityTicker(args[0]) &&
+			strings.TrimSpace(args[1]) == "syminfo.tickerid"
+	default:
+		return false
+	}
 }
 
 func lowerSupportedRequestSecurityInner(inner string, timeUnit string) (string, bool) {

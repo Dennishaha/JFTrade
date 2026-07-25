@@ -10,6 +10,7 @@ export interface components {
   };
     "backtest.RunResult": {
     candles?: Array<components["schemas"]["runmodel.Candle"]>;
+    chartType?: components["schemas"]["chart.ChartType"];
     currentDrawdown?: number;
     drawdownCurve?: Array<components["schemas"]["runmodel.DrawdownPoint"]>;
     endTime?: string;
@@ -17,6 +18,7 @@ export interface components {
     executionModel?: string;
     feeBreakdown?: Array<components["schemas"]["runmodel.FeeBreakdownEntry"]>;
     finalBalance?: number;
+    heikinAshiSeed?: components["schemas"]["runmodel.HeikinAshiSeed"];
     ignoredOrders?: number;
     interval?: string;
     logs?: Array<string>;
@@ -53,6 +55,7 @@ export interface components {
     updatedAt?: string;
   };
     "backtest.StartRequest": {
+    chartType?: components["schemas"]["chart.ChartType"];
     code?: string;
     definitionId?: string;
     definitionVersion?: string;
@@ -339,6 +342,7 @@ export interface components {
     factor?: components["schemas"]["broker.FactorRef"];
     sortId?: string;
   };
+    "chart.ChartType": "standard" | "heikinashi";
     "datamanagement.BackupRequest": {
     confirmation?: string;
     databaseId?: string;
@@ -590,6 +594,10 @@ export interface components {
     presetId?: string;
     rules?: Array<components["schemas"]["runmodel.FeeRule"]>;
   };
+    "runmodel.HeikinAshiSeed": {
+    close?: number;
+    open?: number;
+  };
     "runmodel.OrderBookEntry": {
     brokerFee?: number;
     clientOrderId?: string;
@@ -711,6 +719,7 @@ export interface components {
   };
     "strategy.StrategyBindingRequest": {
     brokerAccount?: components["schemas"]["strategy.BrokerAccountBinding"];
+    chartType?: components["schemas"]["chart.ChartType"];
     executionMode?: string;
     instruments?: Array<components["schemas"]["strategy.BindingInstrument"]>;
     interval?: string;

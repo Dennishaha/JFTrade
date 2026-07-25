@@ -1,12 +1,28 @@
 import { PineTS } from "pinets";
-import type { Candle, PineTSExecutor, PineTSPlot, PineTSRunResult, PreparedRunScriptRequest } from "./types";
+import { splitTickerModifier } from "pinets";
+import { chartTicker, ExtendedTickerProvider } from "./extendedTickerProvider";
+import {
+  normalizeChartType,
+  type Candle,
+  type PineTSExecutor,
+  type PineTSPlot,
+  type PineTSRunResult,
+  type PreparedRunScriptRequest,
+} from "./types";
 
 type PineTSModule = {
-  PineTS: new (candles: unknown[], symbol?: string, timeframe?: string, periods?: number) => PineTSRuntime;
+  PineTS: new (source: any, symbol?: string, timeframe?: string, periods?: number) => PineTSRuntime;
 };
 
 type PineTSExecutionContext = {
   idx?: number;
+  length?: number;
+  dataVersion?: number;
+  cache?: Record<string, unknown>;
+  data?: {
+    openTime?: { data?: unknown[] };
+  };
+  params?: Record<string, unknown>;
   strategy?: {
     pending_orders?: unknown[];
     opentrades?: unknown[];
@@ -26,6 +42,7 @@ type PineTSRuntime = {
     endIdx: number,
   ) => Promise<void>;
   _appendCandle?: (candle: Candle) => void;
+  updateTail?: (context: PineTSExecutionContext) => Promise<boolean>;
   _transpiledCode?: PineTSIteration;
 };
 
@@ -49,6 +66,8 @@ type NativeLiveSession = {
   transpiled: PineTSIteration;
   capture: OrderIntentCapture;
   request: PreparedRunScriptRequest;
+  provider: ExtendedTickerProvider;
+  mainTicker: string;
   revision: number;
   queue: Promise<void>;
   failed: boolean;
@@ -87,6 +106,8 @@ const pendingOrderSemanticFields = [
   "disable_alert",
   "immediately",
 ] as const;
+
+const secondaryRefreshPatched = Symbol("secondaryRefreshPatched");
 
 export class NativePineTSExecutor implements PineTSExecutor {
   private readonly liveSessions = new Map<string, NativeLiveSession>();
@@ -159,23 +180,29 @@ export class NativePineTSExecutor implements PineTSExecutor {
       }
 
       const marker = resultMarker(session.context, session.capture);
-      const startIndex = session.request.candles.length;
       try {
         for (const candle of request.candles) {
-          const requestLength = session.request.candles.length;
-          session.runtime._appendCandle!(candle);
-          // PineTS currently retains the input array as its data array. Keep
-          // this fallback for versions that copy input data instead.
-          if (session.request.candles.length === requestLength) {
-            session.request.candles.push(candle);
+          const startIndex = session.context.length ?? session.request.candles.length;
+          session.provider.append(candle);
+          const mainCandles = session.provider.candlesFor(session.mainTicker, session.request.timeframe);
+          const appendedCandles = mainCandles.slice(startIndex);
+          if (appendedCandles.length === 0) {
+            throw new Error("Pineworker could not derive a new primary candle from the appended standard candle");
           }
+          for (const mainCandle of appendedCandles) {
+            session.runtime._appendCandle!(mainCandle);
+          }
+          session.request.candles.push({ ...candle });
+          session.context.length = startIndex + appendedCandles.length;
+          session.context.dataVersion = (session.context.dataVersion ?? 0) + 1;
+          await session.runtime._executeIterations!(
+            session.context,
+            session.transpiled,
+            startIndex,
+            session.context.length,
+          );
+          stabilizeSecondaryContexts(session.context);
         }
-        await session.runtime._executeIterations!(
-          session.context,
-          session.transpiled,
-          startIndex,
-          session.request.candles.length,
-        );
       } catch (error) {
         session.failed = true;
         this.liveSessions.delete(sessionId);
@@ -215,17 +242,25 @@ export class NativePineTSExecutor implements PineTSExecutor {
     context: PineTSExecutionContext & PineTSRunResult;
     capture: OrderIntentCapture;
     request: PreparedRunScriptRequest;
+    provider: ExtendedTickerProvider;
+    mainTicker: string;
   }> {
     const periods = Math.max(1, request.candles.length);
+    const provider = new ExtendedTickerProvider(request.symbol, request.timeframe, request.candles);
+    const mainTicker = chartTicker(request.symbol, normalizeChartType(request.chartType));
+    provider.assertCanServe(mainTicker, request.timeframe);
+    preflightStaticRequestSecurityRoutes(request.source, request.timeframe, mainTicker, provider);
     const pineTS = new this.module.PineTS(
-      request.candles as Record<string, number>[],
-      request.symbol,
+      provider,
+      mainTicker,
       request.timeframe,
       periods,
     );
     pineTS.setAlertMode?.("all");
     const orderCapture = installOrderIntentCapture(pineTS, request);
     const result = await pineTS.run(normalizePineSourceForPineTS(request.source), periods);
+    initializeContextDataVersion(result as PineTSExecutionContext);
+    stabilizeSecondaryContexts(result as PineTSExecutionContext);
     if (result.strategy !== undefined) {
       if (!orderCapture.supported) {
         throw new Error("PineTS runtime does not expose the per-bar execution hook required for safe strategy order capture");
@@ -239,6 +274,8 @@ export class NativePineTSExecutor implements PineTSExecutor {
       context: result as PineTSExecutionContext & PineTSRunResult,
       capture: orderCapture,
       request,
+      provider,
+      mainTicker,
     };
   }
 
@@ -253,6 +290,528 @@ export class NativePineTSExecutor implements PineTSExecutor {
       return await operation();
     } finally {
       release();
+    }
+  }
+}
+
+type StaticPineNamespaceCall = {
+  argumentsText: string;
+  start: number;
+};
+
+type StaticPineFunctionCall = {
+  name: string;
+  args: string[];
+};
+
+type PineLexState = "code" | "line_comment" | "block_comment" | "single_quote" | "double_quote";
+
+// PineTS constructs secondary runtimes asynchronously. A rejected provider
+// request at that point is not surfaced through run(), so reject unsupported
+// static routes before constructing the primary runtime.
+function preflightStaticRequestSecurityRoutes(
+  source: string,
+  sourceTimeframe: string,
+  mainTicker: string,
+  provider: ExtendedTickerProvider,
+): void {
+  const timeframeAliases = staticInputTimeframeAliases(source);
+  for (const call of staticRequestSecurityCalls(source)) {
+    const args = splitStaticPineArguments(call.argumentsText);
+    if (args.length < 3) {
+      throw requestSecurityPreflightError("request.security() requires symbol, timeframe, and expression arguments");
+    }
+    const tickerId = resolveStaticSecurityTicker(args[0]!, mainTicker, (candidate) => {
+      try {
+        provider.assertCanServeTicker(candidate);
+      } catch (error) {
+        throw requestSecurityPreflightError(errorMessage(error));
+      }
+    });
+    const timeframe = resolveStaticSecurityTimeframe(args[1]!, sourceTimeframe, timeframeAliases);
+    try {
+      provider.assertCanServe(tickerId, timeframe);
+    } catch (error) {
+      throw requestSecurityPreflightError(errorMessage(error));
+    }
+  }
+}
+
+function staticRequestSecurityCalls(source: string): StaticPineNamespaceCall[] {
+  return staticPineNamespaceCalls(source, "request.security");
+}
+
+function staticInputTimeframeAliases(source: string): ReadonlyMap<string, string> {
+  const aliases = new Map<string, string>();
+  for (const call of staticPineNamespaceCalls(source, "input.timeframe")) {
+    const alias = staticInputTimeframeAlias(source, call.start);
+    if (alias === undefined) {
+      continue;
+    }
+    const timeframe = staticInputTimeframeDefault(splitStaticPineArguments(call.argumentsText));
+    if (timeframe === undefined) {
+      aliases.delete(alias);
+      continue;
+    }
+    aliases.set(alias, timeframe);
+  }
+  return aliases;
+}
+
+function staticPineNamespaceCalls(source: string, name: string): StaticPineNamespaceCall[] {
+  const calls: StaticPineNamespaceCall[] = [];
+  let state: PineLexState = "code";
+  for (let index = 0; index < source.length;) {
+    const char = source[index]!;
+    const next = source[index + 1];
+    if (state === "code") {
+      if (char === "/" && next === "/") {
+        state = "line_comment";
+        index += 2;
+        continue;
+      }
+      if (char === "/" && next === "*") {
+        state = "block_comment";
+        index += 2;
+        continue;
+      }
+      if (char === "'") {
+        state = "single_quote";
+        index++;
+        continue;
+      }
+      if (char === "\"") {
+        state = "double_quote";
+        index++;
+        continue;
+      }
+      if (source.startsWith(name, index) && isPineIdentifierBoundary(source, index, name.length)) {
+        let open = index + name.length;
+        while (isPineWhitespace(source[open])) {
+          open++;
+        }
+        if (source[open] === "(") {
+          const close = findStaticPineCallClose(source, open);
+          if (close < 0) {
+            throw requestSecurityPreflightError("could not parse request.security() call");
+          }
+          calls.push({ argumentsText: source.slice(open + 1, close), start: index });
+        }
+        // Continue after the identifier rather than after the complete call so
+        // nested request.security() calls are preflighted too.
+        index += name.length;
+        continue;
+      }
+      index++;
+      continue;
+    }
+    if (state === "line_comment") {
+      if (char === "\n") {
+        state = "code";
+      }
+      index++;
+      continue;
+    }
+    if (state === "block_comment") {
+      if (char === "*" && next === "/") {
+        state = "code";
+        index += 2;
+        continue;
+      }
+      index++;
+      continue;
+    }
+    if (char === "\\") {
+      index += 2;
+      continue;
+    }
+    if ((state === "single_quote" && char === "'") || (state === "double_quote" && char === "\"")) {
+      state = "code";
+    }
+    index++;
+  }
+  return calls;
+}
+
+function staticInputTimeframeAlias(source: string, inputStart: number): string | undefined {
+  const prefix = source.slice(0, inputStart);
+  const match = /(?:^|\n)\s*(?:(?:var|varip)\s+)?(?:(?:bool|int|float|string|color)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*$/i.exec(prefix);
+  return match?.[1];
+}
+
+function staticInputTimeframeDefault(args: string[]): string | undefined {
+  let defaultExpression = args[0];
+  for (const arg of args) {
+    const named = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([\s\S]+)$/.exec(arg);
+    if (named !== null && named[1]!.toLowerCase() === "defval") {
+      defaultExpression = named[2]!;
+      break;
+    }
+  }
+  return defaultExpression === undefined ? undefined : staticPineString(stripStaticPineOuterParens(defaultExpression));
+}
+
+function splitStaticPineArguments(argumentsText: string): string[] {
+  const args: string[] = [];
+  let current = "";
+  let state: PineLexState = "code";
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+  for (let index = 0; index < argumentsText.length;) {
+    const char = argumentsText[index]!;
+    const next = argumentsText[index + 1];
+    if (state === "code") {
+      if (char === "/" && next === "/") {
+        current += " ";
+        state = "line_comment";
+        index += 2;
+        continue;
+      }
+      if (char === "/" && next === "*") {
+        current += " ";
+        state = "block_comment";
+        index += 2;
+        continue;
+      }
+      if (char === "'") {
+        current += char;
+        state = "single_quote";
+        index++;
+        continue;
+      }
+      if (char === "\"") {
+        current += char;
+        state = "double_quote";
+        index++;
+        continue;
+      }
+      if (char === "(") parenDepth++;
+      if (char === ")") parenDepth--;
+      if (char === "[") bracketDepth++;
+      if (char === "]") bracketDepth--;
+      if (char === "{") braceDepth++;
+      if (char === "}") braceDepth--;
+      if (char === "," && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+        args.push(current.trim());
+        current = "";
+        index++;
+        continue;
+      }
+      current += char;
+      index++;
+      continue;
+    }
+    if (state === "line_comment") {
+      if (char === "\n") {
+        current += char;
+        state = "code";
+      }
+      index++;
+      continue;
+    }
+    if (state === "block_comment") {
+      if (char === "*" && next === "/") {
+        state = "code";
+        index += 2;
+        continue;
+      }
+      index++;
+      continue;
+    }
+    current += char;
+    if (char === "\\" && next !== undefined) {
+      current += next;
+      index += 2;
+      continue;
+    }
+    if ((state === "single_quote" && char === "'") || (state === "double_quote" && char === "\"")) {
+      state = "code";
+    }
+    index++;
+  }
+  args.push(current.trim());
+  return args;
+}
+
+function resolveStaticSecurityTicker(
+  expression: string,
+  mainTicker: string,
+  validateTicker?: (tickerId: string) => void,
+): string {
+  const value = stripStaticPineOuterParens(expression);
+  const stringValue = staticPineString(value);
+  if (stringValue !== undefined) {
+    return validatedStaticTicker(stringValue === "" ? mainTicker : stringValue, validateTicker);
+  }
+  if (value.toLowerCase() === "syminfo.tickerid") {
+    return validatedStaticTicker(mainTicker, validateTicker);
+  }
+  const call = staticPineFunctionCall(value);
+  if (call === undefined) {
+    throw requestSecurityPreflightError(
+      `requires a static current-symbol ticker expression; received ${JSON.stringify(value)}`,
+    );
+  }
+  switch (call.name) {
+    case "ticker.heikinashi":
+      if (call.args.length !== 1) {
+        throw requestSecurityPreflightError("ticker.heikinashi() requires one static symbol argument");
+      }
+      return validatedStaticTicker(
+        chartTicker(resolveStaticSecurityTicker(call.args[0]!, mainTicker, validateTicker), "heikinashi"),
+        validateTicker,
+      );
+    case "ticker.standard":
+      if (call.args.length > 1) {
+        throw requestSecurityPreflightError("ticker.standard() accepts at most one static symbol argument");
+      }
+      return validatedStaticTicker(chartTicker(
+        call.args.length === 0 ? mainTicker : resolveStaticSecurityTicker(call.args[0]!, mainTicker, validateTicker),
+        "standard",
+      ), validateTicker);
+    case "ticker.inherit": {
+      if (call.args.length !== 2) {
+        throw requestSecurityPreflightError("ticker.inherit() requires static source and symbol arguments");
+      }
+      const fromTicker = resolveStaticSecurityTicker(call.args[0]!, mainTicker, validateTicker);
+      const symbol = resolveStaticSecurityTicker(call.args[1]!, mainTicker, validateTicker);
+      return validatedStaticTicker(
+        chartTicker(symbol, splitTickerModifier(fromTicker).modifier === "heikinashi" ? "heikinashi" : "standard"),
+        validateTicker,
+      );
+    }
+    default:
+      throw requestSecurityPreflightError(
+        `requires a supported static ticker expression; received ${JSON.stringify(value)}`,
+      );
+  }
+}
+
+function validatedStaticTicker(tickerId: string, validateTicker?: (tickerId: string) => void): string {
+  validateTicker?.(tickerId);
+  return tickerId;
+}
+
+function resolveStaticSecurityTimeframe(
+  expression: string,
+  sourceTimeframe: string,
+  aliases: ReadonlyMap<string, string>,
+): string {
+  const value = stripStaticPineOuterParens(expression);
+  const literal = staticPineString(value);
+  if (literal !== undefined) {
+    return literal === "" ? sourceTimeframe : literal;
+  }
+  if (aliases.has(value)) {
+    const alias = aliases.get(value)!;
+    return alias === "" ? sourceTimeframe : alias;
+  }
+  const inputCall = staticPineFunctionCall(value);
+  if (inputCall?.name === "input.timeframe") {
+    const defaultValue = staticInputTimeframeDefault(inputCall.args);
+    if (defaultValue !== undefined) {
+      return defaultValue === "" ? sourceTimeframe : defaultValue;
+    }
+  }
+  {
+    throw requestSecurityPreflightError(
+      `requires a static timeframe string; received ${JSON.stringify(expression.trim())}`,
+    );
+  }
+}
+
+function staticPineFunctionCall(expression: string): StaticPineFunctionCall | undefined {
+  const match = /^([A-Za-z_][A-Za-z0-9_.]*)\s*\(/.exec(expression);
+  if (match === null) {
+    return undefined;
+  }
+  const open = expression.indexOf("(", match[1]!.length);
+  const close = findStaticPineCallClose(expression, open);
+  if (close < 0 || expression.slice(close + 1).trim() !== "") {
+    return undefined;
+  }
+  const argumentsText = expression.slice(open + 1, close);
+  return {
+    name: match[1]!.toLowerCase(),
+    args: argumentsText.trim() === "" ? [] : splitStaticPineArguments(argumentsText),
+  };
+}
+
+function stripStaticPineOuterParens(expression: string): string {
+  let value = expression.trim();
+  while (value.startsWith("(")) {
+    const close = findStaticPineCallClose(value, 0);
+    if (close !== value.length - 1) {
+      break;
+    }
+    value = value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+function staticPineString(expression: string): string | undefined {
+  if (expression.length < 2) {
+    return undefined;
+  }
+  const quote = expression[0]!;
+  if ((quote !== "\"" && quote !== "'") || expression.at(-1) !== quote) {
+    return undefined;
+  }
+  let value = "";
+  for (let index = 1; index < expression.length - 1; index++) {
+    const char = expression[index]!;
+    if (char !== "\\" || index === expression.length - 2) {
+      value += char;
+      continue;
+    }
+    index++;
+    const escaped = expression[index]!;
+    switch (escaped) {
+      case "n": value += "\n"; break;
+      case "r": value += "\r"; break;
+      case "t": value += "\t"; break;
+      default: value += escaped;
+    }
+  }
+  return value;
+}
+
+function findStaticPineCallClose(source: string, open: number): number {
+  let depth = 0;
+  let state: PineLexState = "code";
+  for (let index = open; index < source.length;) {
+    const char = source[index]!;
+    const next = source[index + 1];
+    if (state === "code") {
+      if (char === "/" && next === "/") {
+        state = "line_comment";
+        index += 2;
+        continue;
+      }
+      if (char === "/" && next === "*") {
+        state = "block_comment";
+        index += 2;
+        continue;
+      }
+      if (char === "'") {
+        state = "single_quote";
+        index++;
+        continue;
+      }
+      if (char === "\"") {
+        state = "double_quote";
+        index++;
+        continue;
+      }
+      if (char === "(") depth++;
+      if (char === ")") {
+        depth--;
+        if (depth === 0) {
+          return index;
+        }
+      }
+      index++;
+      continue;
+    }
+    if (state === "line_comment") {
+      if (char === "\n") state = "code";
+      index++;
+      continue;
+    }
+    if (state === "block_comment") {
+      if (char === "*" && next === "/") {
+        state = "code";
+        index += 2;
+        continue;
+      }
+      index++;
+      continue;
+    }
+    if (char === "\\") {
+      index += 2;
+      continue;
+    }
+    if ((state === "single_quote" && char === "'") || (state === "double_quote" && char === "\"")) {
+      state = "code";
+    }
+    index++;
+  }
+  return -1;
+}
+
+function isPineIdentifierBoundary(source: string, start: number, length: number): boolean {
+  return !isPineIdentifierChar(source[start - 1]) && !isPineIdentifierChar(source[start + length]);
+}
+
+function isPineIdentifierChar(value: string | undefined): boolean {
+  return value !== undefined && /[A-Za-z0-9_]/.test(value);
+}
+
+function isPineWhitespace(value: string | undefined): boolean {
+  return value !== undefined && /\s/.test(value);
+}
+
+function requestSecurityPreflightError(message: string): Error {
+  return new Error(`Pineworker request.security preflight: ${message}`);
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function initializeContextDataVersion(context: PineTSExecutionContext): void {
+  context.dataVersion ??= 0;
+  for (const cached of Object.values(context.cache ?? {})) {
+    if (typeof cached !== "object" || cached === null) {
+      continue;
+    }
+    const entry = cached as { pineTS?: unknown; context?: unknown; dataVersion?: unknown };
+    if (entry.pineTS !== undefined && entry.context !== undefined && entry.dataVersion === undefined) {
+      entry.dataVersion = context.dataVersion;
+    }
+  }
+}
+
+function stabilizeSecondaryContexts(context: PineTSExecutionContext): void {
+  for (const cached of Object.values(context.cache ?? {})) {
+    if (typeof cached !== "object" || cached === null) {
+      continue;
+    }
+    const entry = cached as { pineTS?: PineTSRuntime; context?: PineTSExecutionContext };
+    const runtime = entry.pineTS;
+    const secondaryContext = entry.context;
+    if (runtime === undefined || secondaryContext === undefined) {
+      continue;
+    }
+    alignSecondaryParams(secondaryContext);
+    const markedRuntime = runtime as PineTSRuntime & { [secondaryRefreshPatched]?: boolean };
+    if (markedRuntime[secondaryRefreshPatched] || runtime.updateTail === undefined) {
+      continue;
+    }
+    const updateTail = runtime.updateTail;
+    runtime.updateTail = async (updatedContext) => {
+      const changed = await updateTail.call(runtime, updatedContext);
+      if (changed) {
+        alignSecondaryParams(updatedContext);
+      }
+      return changed;
+    };
+    markedRuntime[secondaryRefreshPatched] = true;
+  }
+}
+
+// PineTS restores a tail snapshot when it refreshes a secondary context. Its
+// request parameter arrays remain cumulative, while its timestamp arrays are
+// tail-aligned. Keep those indices aligned for request.security lookups.
+function alignSecondaryParams(context: PineTSExecutionContext): void {
+  const dataLength = context.data?.openTime?.data?.length ?? 0;
+  if (dataLength === 0) {
+    return;
+  }
+  for (const value of Object.values(context.params ?? {})) {
+    if (Array.isArray(value) && value.length > dataLength) {
+      value.splice(0, value.length - dataLength);
     }
   }
 }
@@ -325,9 +884,10 @@ function assertSameLiveSessionDefinition(
     opened.scriptId !== appended.scriptId ||
     opened.symbol !== appended.symbol ||
     opened.timeframe !== appended.timeframe ||
+    normalizeChartType(opened.chartType) !== normalizeChartType(appended.chartType) ||
     !equalParams
   ) {
-    throw new Error("PineTS live session append cannot change script, symbol, timeframe, or params");
+    throw new Error("PineTS live session append cannot change script, symbol, timeframe, chart type, or params");
   }
 }
 

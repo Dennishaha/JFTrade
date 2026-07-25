@@ -1,4 +1,5 @@
 export * from "./adapter";
+export * from "./extendedTickerProvider";
 export * from "./grpcServer";
 export * from "./mockExecutor";
 export * from "./pinetsExecutor";

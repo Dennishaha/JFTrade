@@ -10,6 +10,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -21,6 +22,7 @@ func TestBuildPineWorkerBacktestRequestFromKLines(t *testing.T) {
 		Source:    `//@version=6 strategy("x")`,
 		Symbol:    "US.AAPL",
 		Timeframe: "1",
+		ChartType: chart.ChartTypeHeikinAshi,
 		Params:    params,
 		KLines:    []types.KLine{testReplayKLine(start, 10, 12, 9, 11)},
 	})
@@ -29,6 +31,9 @@ func TestBuildPineWorkerBacktestRequestFromKLines(t *testing.T) {
 	}
 	if request.JobID != "backtest:US.AAPL:1" || request.Mode != pineworker.ModeBacktest {
 		t.Fatalf("request identity = %#v", request)
+	}
+	if request.ChartType != string(chart.ChartTypeHeikinAshi) {
+		t.Fatalf("request chart type = %q, want %q", request.ChartType, chart.ChartTypeHeikinAshi)
 	}
 	if request.Candles[0].OpenTime != start.UnixMilli() || request.Candles[0].Close != 11 {
 		t.Fatalf("candle = %#v", request.Candles[0])

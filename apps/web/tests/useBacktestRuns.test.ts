@@ -54,6 +54,7 @@ const baseForm: BacktestFormState = {
   instrumentId: "US.AAPL",
   instrumentType: "stock",
   interval: "5m",
+  chartType: "standard",
   startDate: "2026-06-01",
   endDate: "2026-06-30",
   initialBalance: 100000,
@@ -131,6 +132,8 @@ describe("useBacktestRuns", () => {
         result: {
           symbol: "US.AAPL",
           interval: "5m",
+          chartType: " HEIKINASHI ",
+          heikinAshiSeed: { open: 121.25, close: 122.5 },
           startTime: "2026-06-01T00:00:00Z",
           endTime: "2026-06-30T00:00:00Z",
           finalBalance: 100010,
@@ -197,7 +200,13 @@ describe("useBacktestRuns", () => {
 
     expect(state.runs.value).toHaveLength(1);
     const result = state.runs.value[0]?.result;
-    expect(result).toMatchObject({ tradeStatsVersion: 2, totalFills: 2, totalTrades: 1 });
+    expect(result).toMatchObject({
+      chartType: "heikinashi",
+      heikinAshiSeed: { open: 121.25, close: 122.5 },
+      tradeStatsVersion: 2,
+      totalFills: 2,
+      totalTrades: 1,
+    });
     expect(result?.trades?.[0]).toMatchObject({
       price: 123.45,
       priceText: "123.4500",
@@ -227,6 +236,64 @@ describe("useBacktestRuns", () => {
       close: 123.45,
       volume: 1000,
     });
+  });
+
+  it("normalizes or drops malformed Heikin Ashi seed transport metadata", async () => {
+    const resultBase = {
+      symbol: "US.AAPL",
+      interval: "5m",
+      startTime: "2026-06-01T00:00:00Z",
+      endTime: "2026-06-30T00:00:00Z",
+      finalBalance: 100000,
+      pnl: 0,
+      totalTrades: 0,
+      winRate: 0,
+    };
+    apiGet.mockResolvedValue({
+      runs: [
+        makeRun("ha-malformed", {
+          request: {
+            definitionId: "def-1",
+            symbol: "US.AAPL",
+            interval: "5m",
+            chartType: " HEIKINASHI ",
+            startTime: "2026-06-01T00:00:00Z",
+            endTime: "2026-06-30T00:00:00Z",
+            initialBalance: 100000,
+          },
+          result: {
+            ...resultBase,
+            chartType: null,
+            heikinAshiSeed: { open: null, close: 12 },
+          },
+        }),
+        makeRun("ha-string-seed", {
+          result: {
+            ...resultBase,
+            heikinAshiSeed: { open: "11.25", close: "12.50" },
+          },
+        }),
+        makeRun("ha-array-seed", {
+          result: { ...resultBase, heikinAshiSeed: [] },
+        }),
+      ],
+    });
+    const { state } = mountBacktestRuns();
+
+    await state.loadRuns();
+
+    const malformed = state.runs.value.find((run) => run.id === "ha-malformed");
+    expect(malformed?.request.chartType).toBe("heikinashi");
+    expect(malformed?.result?.chartType).toBe("standard");
+    expect(malformed?.result?.heikinAshiSeed).toBeUndefined();
+    expect(
+      state.runs.value.find((run) => run.id === "ha-string-seed")?.result
+        ?.heikinAshiSeed,
+    ).toEqual({ open: 11.25, close: 12.5 });
+    expect(
+      state.runs.value.find((run) => run.id === "ha-array-seed")?.result
+        ?.heikinAshiSeed,
+    ).toBeUndefined();
   });
 
   it("normalizes optional OpenAPI transport fields and complete fee schedules", async () => {
@@ -335,6 +402,7 @@ describe("useBacktestRuns", () => {
     });
     expect(empty?.result?.tradingCosts?.brokerFees?.rules).toHaveLength(5);
     expect(empty?.result?.executionModel).toBe("conservative-bar-v1");
+    expect(empty?.result?.chartType).toBeUndefined();
 
     const complete = state.runs.value.find((run) => run.id === "run-fees");
     expect(complete?.request).toMatchObject({

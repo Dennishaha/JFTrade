@@ -10,6 +10,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
+	"github.com/jftrade/jftrade-main/pkg/chart"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
@@ -127,6 +128,7 @@ func TestRunWithPineWorkerReportsWarmupFillsThatAffectEquity(t *testing.T) {
 		StartTime:        klines[2].StartTime.Time(),
 		EndTime:          klines[len(klines)-1].EndTime.Time(),
 		WarmupCandles:    2,
+		ChartType:        chart.ChartTypeHeikinAshi,
 		UseExtendedHours: new(true),
 		StrategyScript: `//@version=6
 strategy("worker warmup fills")`,
@@ -139,6 +141,12 @@ strategy("worker warmup fills")`,
 	}
 	if len(runner.request.Candles) != len(klines) {
 		t.Fatalf("worker candles = %d, want warmup plus formal bars %d", len(runner.request.Candles), len(klines))
+	}
+	if runner.request.ChartType != string(chart.ChartTypeHeikinAshi) {
+		t.Fatalf("worker chart type = %q, want heikinashi", runner.request.ChartType)
+	}
+	if result.HeikinAshiSeed == nil || result.HeikinAshiSeed.Open != 100 || result.HeikinAshiSeed.Close != 101 {
+		t.Fatalf("HeikinAshiSeed = %#v, want warmup state", result.HeikinAshiSeed)
 	}
 	if result.TotalFills != 2 || result.TotalTrades != 1 || result.WinRate != 1 || result.PnL != 10 {
 		t.Fatalf("warmup-accounted stats fills=%d trades=%d winRate=%f pnl=%f", result.TotalFills, result.TotalTrades, result.WinRate, result.PnL)

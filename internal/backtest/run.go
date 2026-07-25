@@ -14,6 +14,7 @@ import (
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
@@ -68,6 +69,7 @@ func (s *Service) StartScript(ctx context.Context, req ScriptStartRequest) (*Run
 		UseExtendedHours:  req.UseExtendedHours,
 		TradingCosts:      req.TradingCosts,
 		ExecutionModel:    req.ExecutionModel,
+		ChartType:         req.ChartType,
 	}, def)
 }
 
@@ -142,6 +144,7 @@ func prepareResolvedBacktest(req StartRequest, def StrategyDef) (preparedBacktes
 	req.Code = instrument.Code
 	req.Symbol = instrument.Symbol
 	req.InstrumentType = normalizeBacktestInstrumentType(req.InstrumentType)
+	req.ChartType = chart.NormalizeChartType(string(req.ChartType))
 	executionModel, err := bt.NormalizeExecutionModelName(req.ExecutionModel)
 	if err != nil {
 		return preparedBacktest{}, requestErrorf("%v", err)
@@ -243,6 +246,7 @@ func (s *Service) executeBacktest(
 		InstrumentType:   req.InstrumentType,
 		TradingCosts:     req.TradingCosts,
 		ExecutionModel:   req.ExecutionModel,
+		ChartType:        req.ChartType,
 	})
 	result = ensureBacktestResult(req, result)
 	status := backtestResultStatus(ctx, result)
@@ -270,6 +274,11 @@ func (s *Service) markBacktestRunning(ctx context.Context, runID string) {
 
 func ensureBacktestResult(req StartRequest, result *bt.RunResult) *bt.RunResult {
 	if result != nil {
+		if strings.TrimSpace(string(result.ChartType)) == "" {
+			result.ChartType = chart.NormalizeChartType(string(req.ChartType))
+		} else {
+			result.ChartType = chart.NormalizeChartType(string(result.ChartType))
+		}
 		return result
 	}
 	return failureResult(req, "backtest returned no result")
@@ -301,7 +310,7 @@ func (s *Service) runBacktest(ctx context.Context, config bt.RunConfig) *bt.RunR
 	runner := s.pineWorkerRunner
 	s.pineWorkerMu.RUnlock()
 	if runner == nil {
-		return failureResult(StartRequest{Symbol: config.Symbol, Interval: config.Interval}, "pine worker runner is not configured")
+		return failureResult(StartRequest{Symbol: config.Symbol, Interval: config.Interval, ChartType: config.ChartType}, "pine worker runner is not configured")
 	}
 	return bt.RunWithPineWorker(ctx, config, runner)
 }
@@ -329,6 +338,7 @@ func failureResult(req StartRequest, message string) *bt.RunResult {
 		FinalBalance:   req.InitialBalance,
 		TradingCosts:   req.TradingCosts,
 		ExecutionModel: req.ExecutionModel,
+		ChartType:      chart.NormalizeChartType(string(req.ChartType)),
 		Error:          message,
 	}
 }

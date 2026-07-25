@@ -20,6 +20,9 @@
           },
           "type": "array"
         },
+        "chartType": {
+          "$ref": "#/definitions/chart.ChartType"
+        },
         "currentDrawdown": {
           "type": "number"
         },
@@ -46,6 +49,9 @@
         },
         "finalBalance": {
           "type": "number"
+        },
+        "heikinAshiSeed": {
+          "$ref": "#/definitions/runmodel.HeikinAshiSeed"
         },
         "ignoredOrders": {
           "type": "integer"
@@ -175,6 +181,9 @@
     },
     "backtest.StartRequest": {
       "properties": {
+        "chartType": {
+          "$ref": "#/definitions/chart.ChartType"
+        },
         "code": {
           "type": "string"
         },
@@ -1229,6 +1238,17 @@
       },
       "type": "object"
     },
+    "chart.ChartType": {
+      "enum": [
+        "standard",
+        "heikinashi"
+      ],
+      "type": "string",
+      "x-enum-varnames": [
+        "ChartTypeStandard",
+        "ChartTypeHeikinAshi"
+      ]
+    },
     "datamanagement.BackupRequest": {
       "properties": {
         "confirmation": {
@@ -2044,6 +2064,17 @@
       },
       "type": "object"
     },
+    "runmodel.HeikinAshiSeed": {
+      "properties": {
+        "close": {
+          "type": "number"
+        },
+        "open": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
     "runmodel.OrderBookEntry": {
       "properties": {
         "brokerFee": {
@@ -2389,6 +2420,9 @@
       "properties": {
         "brokerAccount": {
           "$ref": "#/definitions/strategy.BrokerAccountBinding"
+        },
+        "chartType": {
+          "$ref": "#/definitions/chart.ChartType"
         },
         "executionMode": {
           "type": "string"

@@ -8,7 +8,11 @@ import {
   watch,
 } from "vue";
 
-import { normalizeKlinePeriod } from "../charting/kline";
+import {
+  normalizeChartType,
+  normalizeKlinePeriod,
+  type ChartType,
+} from "../charting/kline";
 
 const VIEW_STORAGE_KEY = "jftrade.workspace.view.v1";
 const TRADING_STORAGE_KEY = "jftrade.workspace.trading.v1";
@@ -56,6 +60,7 @@ export interface WorkspaceTradingPreferences {
     | "plate"
     | "unknown";
   period: string;
+  chartType: ChartType;
   selectedBrokerAccountKey: string | null;
   favoriteBrokerAccountKeys: string[];
 }
@@ -86,6 +91,7 @@ const defaultTradingPreferences: WorkspaceTradingPreferences = {
   marketSegment: "securities",
   productClass: "unknown",
   period: "1m",
+  chartType: "standard",
   selectedBrokerAccountKey: null,
   favoriteBrokerAccountKeys: [],
 };
@@ -249,6 +255,7 @@ function normalizeTradingPreferences(
       ? merged.productClass
       : "unknown",
     period: normalizeKlinePeriod(merged.period),
+    chartType: normalizeChartType(merged.chartType),
     selectedBrokerAccountKey:
       typeof merged.selectedBrokerAccountKey === "string" &&
       merged.selectedBrokerAccountKey.trim() !== ""

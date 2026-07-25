@@ -62,6 +62,8 @@ func applyExpressionNamespaceRewrites(expression string) string {
 		{"strategy.equity", "equity"},
 		{"syminfo.tickerid", "syminfo_tickerid"},
 		{"syminfo.prefix", "syminfo_prefix"},
+		{"chart.is_heikinashi", "chart_is_heikinashi"},
+		{"chart.is_standard", "chart_is_standard"},
 		{"timeframe.period", "timeframe_period"},
 		{"timeframe.multiplier", "timeframe_multiplier"},
 		{"timeframe.isintraday", "timeframe_isintraday"},

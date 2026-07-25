@@ -9,6 +9,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 )
 
 type orderBookEntryState struct {
@@ -55,6 +56,7 @@ type resultCollector struct {
 
 	pnlCurve            []PnLPoint
 	candles             []Candle
+	heikinAshiSeed      *HeikinAshiSeed
 	warnedBadClose      bool
 	lastCashTotal       fixedpoint.Value
 	hasLastCashTotal    bool
@@ -419,6 +421,7 @@ func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQue
 	}
 	endAt := kline.EndTime.Time()
 	if endAt.Before(c.warmupUntil) {
+		c.recordHeikinAshiWarmupSeed(kline)
 		return
 	}
 	timestamp := endAt.UTC().Format(time.RFC3339Nano)
@@ -460,6 +463,25 @@ func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQue
 		Time:   timestamp,
 		Equity: total.Float64(),
 	})
+}
+
+func (c *resultCollector) recordHeikinAshiWarmupSeed(kline types.KLine) {
+	if kline.Interval != c.strategyInterval ||
+		chart.NormalizeChartType(string(c.result.ChartType)) != chart.ChartTypeHeikinAshi {
+		return
+	}
+
+	open := kline.Open.Float64()
+	close := kline.Close.Float64()
+	heikinAshiClose := (open + kline.High.Float64() + kline.Low.Float64() + close) / 4
+	heikinAshiOpen := (open + close) / 2
+	if c.heikinAshiSeed != nil {
+		heikinAshiOpen = (c.heikinAshiSeed.Open + c.heikinAshiSeed.Close) / 2
+	}
+	c.heikinAshiSeed = &HeikinAshiSeed{
+		Open:  heikinAshiOpen,
+		Close: heikinAshiClose,
+	}
 }
 
 func buildDrawdownMetrics(pnlCurve []PnLPoint) (float64, float64, []DrawdownPoint) {
@@ -531,6 +553,12 @@ func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier,
 	c.result.PnLCurve = c.pnlCurve
 	c.result.MaxDrawdown, c.result.CurrentDrawdown, c.result.DrawdownCurve = buildDrawdownMetrics(c.pnlCurve)
 	c.result.Candles = c.candles
+	if c.heikinAshiSeed != nil {
+		seed := *c.heikinAshiSeed
+		c.result.HeikinAshiSeed = &seed
+	} else {
+		c.result.HeikinAshiSeed = nil
+	}
 	c.result.PnL = c.result.FinalBalance - initialBalance
 	c.result.TradeStatsVersion = closedTradeStatsVersion
 	c.result.TotalFills = len(c.result.Trades)

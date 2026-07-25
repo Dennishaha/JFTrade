@@ -5,6 +5,8 @@ import (
 	"maps"
 	"strings"
 	"sync"
+
+	"github.com/jftrade/jftrade-main/pkg/chart"
 )
 
 // TradeEvent is a single filled trade for chart rendering.
@@ -70,6 +72,18 @@ type Candle struct {
 	Volume string `json:"volume"`
 }
 
+// HeikinAshiSeed is the transformed state immediately before the first
+// result candle. Backtests intentionally omit warmup candles from their
+// rendered result, while a Heikin Ashi series must continue its recursive
+// open calculation across that hidden warmup window.
+//
+// It is display metadata only: market data, fills, PnL and risk controls keep
+// using the standard OHLC candles in RunResult.Candles.
+type HeikinAshiSeed struct {
+	Open  float64 `json:"open"`
+	Close float64 `json:"close"`
+}
+
 // FeeBreakdownEntry is an aggregated fee amount for one configured fee rule.
 type FeeBreakdownEntry struct {
 	RuleID   string  `json:"ruleId"`
@@ -106,12 +120,14 @@ type RunResult struct {
 	PnLCurve          []PnLPoint          `json:"pnlCurve,omitempty"`
 	DrawdownCurve     []DrawdownPoint     `json:"drawdownCurve,omitempty"`
 	Candles           []Candle            `json:"candles,omitempty"`
+	HeikinAshiSeed    *HeikinAshiSeed     `json:"heikinAshiSeed,omitempty"`
 	Logs              []string            `json:"logs"`
 	Warnings          []string            `json:"warnings,omitempty"`
 	WarningTotal      int                 `json:"warningTotal,omitempty"`
 	WarningsTruncated bool                `json:"warningsTruncated,omitempty"`
 	IgnoredOrders     int                 `json:"ignoredOrders,omitempty"`
 	ExecutionModel    string              `json:"executionModel,omitempty"`
+	ChartType         chart.ChartType     `json:"chartType"`
 	Error             string              `json:"error,omitempty"`
 
 	mu                     sync.Mutex
@@ -134,35 +150,43 @@ func (r *RunResult) Snapshot() *RunResult {
 	defer r.mu.Unlock()
 
 	return &RunResult{
-		Symbol:                 r.Symbol,
-		Interval:               r.Interval,
-		StartTime:              r.StartTime,
-		EndTime:                r.EndTime,
-		QuoteCurrency:          r.QuoteCurrency,
-		FinalBalance:           r.FinalBalance,
-		PnL:                    r.PnL,
-		TotalBrokerFees:        r.TotalBrokerFees,
-		TotalMarketFees:        r.TotalMarketFees,
-		TotalFees:              r.TotalFees,
-		FeeBreakdown:           append([]FeeBreakdownEntry(nil), r.FeeBreakdown...),
-		TradingCosts:           cloneTradingCosts(r.TradingCosts),
-		MaxDrawdown:            r.MaxDrawdown,
-		CurrentDrawdown:        r.CurrentDrawdown,
-		TradeStatsVersion:      r.TradeStatsVersion,
-		TotalFills:             r.TotalFills,
-		TotalTrades:            r.TotalTrades,
-		WinRate:                r.WinRate,
-		Trades:                 append([]TradeEvent(nil), r.Trades...),
-		OrderBook:              append([]OrderBookEntry(nil), r.OrderBook...),
-		PnLCurve:               append([]PnLPoint(nil), r.PnLCurve...),
-		DrawdownCurve:          append([]DrawdownPoint(nil), r.DrawdownCurve...),
-		Candles:                append([]Candle(nil), r.Candles...),
+		Symbol:            r.Symbol,
+		Interval:          r.Interval,
+		StartTime:         r.StartTime,
+		EndTime:           r.EndTime,
+		QuoteCurrency:     r.QuoteCurrency,
+		FinalBalance:      r.FinalBalance,
+		PnL:               r.PnL,
+		TotalBrokerFees:   r.TotalBrokerFees,
+		TotalMarketFees:   r.TotalMarketFees,
+		TotalFees:         r.TotalFees,
+		FeeBreakdown:      append([]FeeBreakdownEntry(nil), r.FeeBreakdown...),
+		TradingCosts:      cloneTradingCosts(r.TradingCosts),
+		MaxDrawdown:       r.MaxDrawdown,
+		CurrentDrawdown:   r.CurrentDrawdown,
+		TradeStatsVersion: r.TradeStatsVersion,
+		TotalFills:        r.TotalFills,
+		TotalTrades:       r.TotalTrades,
+		WinRate:           r.WinRate,
+		Trades:            append([]TradeEvent(nil), r.Trades...),
+		OrderBook:         append([]OrderBookEntry(nil), r.OrderBook...),
+		PnLCurve:          append([]PnLPoint(nil), r.PnLCurve...),
+		DrawdownCurve:     append([]DrawdownPoint(nil), r.DrawdownCurve...),
+		Candles:           append([]Candle(nil), r.Candles...),
+		HeikinAshiSeed: func() *HeikinAshiSeed {
+			if r.HeikinAshiSeed == nil {
+				return nil
+			}
+			seed := *r.HeikinAshiSeed
+			return &seed
+		}(),
 		Logs:                   append([]string(nil), r.Logs...),
 		Warnings:               append([]string(nil), r.Warnings...),
 		WarningTotal:           r.WarningTotal,
 		WarningsTruncated:      r.WarningsTruncated,
 		IgnoredOrders:          r.IgnoredOrders,
 		ExecutionModel:         r.ExecutionModel,
+		ChartType:              chart.NormalizeChartType(string(r.ChartType)),
 		Error:                  r.Error,
 		RuntimeErrors:          append([]string(nil), r.RuntimeErrors...),
 		RuntimeErrorTotal:      r.RuntimeErrorTotal,

@@ -14,7 +14,7 @@ describe("createServiceHandlers", () => {
     expect(health).toMatchObject({
       ok: true,
       worker_id: "worker-1",
-      capabilities: expect.arrayContaining(["health", "analyze", "run", "atomic-order-intent-v1"]),
+      capabilities: expect.arrayContaining(["health", "analyze", "run", "atomic-order-intent-v1", "extended-ticker-heikinashi-v1"]),
     });
 
     const response = await unary(handlers.RunScript, {

@@ -1,6 +1,10 @@
 package strategy
 
-import "time"
+import (
+	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/chart"
+)
 
 type VisualNode struct {
 	ID         string         `json:"id"`
@@ -70,6 +74,7 @@ type InstanceBinding struct {
 	Instruments   []BindingInstrument   `json:"instruments,omitempty"`
 	Symbols       []string              `json:"symbols"`
 	Interval      string                `json:"interval"`
+	ChartType     chart.ChartType       `json:"chartType"`
 	ExecutionMode string                `json:"executionMode"`
 	BrokerAccount *BrokerAccountBinding `json:"brokerAccount,omitempty"`
 	RuntimeRisk   RuntimeRiskSettings   `json:"runtimeRisk"`

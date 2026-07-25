@@ -90,6 +90,7 @@ type RunScriptRequest struct {
 	Source           string
 	Symbol           string
 	Timeframe        string
+	ChartType        string
 	Mode             string
 	Candles          []Candle
 	Params           map[string]string

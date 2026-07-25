@@ -1450,6 +1450,7 @@ export interface StrategyInstanceBindingDocument {
   instruments?: StrategyBindingInstrumentDocument[];
   symbols: string[];
   interval: string;
+  chartType?: "standard" | "heikinashi";
   executionMode: StrategyExecutionMode;
   brokerAccount?: StrategyBrokerAccountBinding | null;
   runtimeRisk: StrategyRuntimeRiskSettings;
@@ -1785,6 +1786,7 @@ export interface BacktestStartRequestPayload {
   symbol?: string;
   instrumentType?: string;
   interval: string;
+  chartType?: "standard" | "heikinashi";
   startDate: string;
   endDate: string;
   startTime?: string;

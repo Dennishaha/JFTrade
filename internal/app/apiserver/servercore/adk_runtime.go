@@ -117,14 +117,14 @@ type StrategyDefinitionInput struct {
 }
 
 type BacktestStartInput struct {
-	DefinitionID, Market, Symbol, Code, Interval, StartDate, EndDate, StartTime, EndTime, RehabType string
-	InitialBalance                                                                                  float64
+	DefinitionID, Market, Symbol, Code, Interval, StartDate, EndDate, StartTime, EndTime, RehabType, ChartType string
+	InitialBalance                                                                                             float64
 }
 
 type ResearchBacktestInput struct {
-	Script, Market, Symbol, Code, Interval, StartDate, EndDate, StartTime, EndTime, RehabType string
-	InitialBalance                                                                            float64
-	UseExtendedHours                                                                          *bool
+	Script, Market, Symbol, Code, Interval, StartDate, EndDate, StartTime, EndTime, RehabType, ChartType string
+	InitialBalance                                                                                       float64
+	UseExtendedHours                                                                                     *bool
 }
 
 type BacktestResultViewInput struct {
@@ -151,7 +151,7 @@ type BacktestDataSync struct {
 }
 
 type BacktestRunSummary struct {
-	ID, Status, DefinitionID, DefinitionVersion, Market, Code, Symbol, Interval             string
+	ID, Status, DefinitionID, DefinitionVersion, Market, Code, Symbol, Interval, ChartType  string
 	StartDate, EndDate, StartTime, EndTime, MarketTimezone, RehabType, CreatedAt, UpdatedAt string
 	InitialBalance                                                                          float64
 	UseExtendedHours                                                                        *bool
@@ -308,6 +308,7 @@ func registerADKStrategyResearchTools(registry *jfadk.ToolRegistry, deps ToolDep
 			EndTime:          stringValue(input, "endTime"),
 			InitialBalance:   floatValue(input, "initialBalance", 0),
 			RehabType:        stringOrDefault(stringValue(input, "rehabType"), "forward"),
+			ChartType:        stringValue(input, "chartType"),
 			UseExtendedHours: optionalBoolInput(input, "useExtendedHours"),
 		}
 		if deps.EnsureResearchBacktestData != nil {
@@ -456,7 +457,7 @@ func registerADKStrategyOptimizationTools(store *jfadk.Store, registry *jfadk.To
 		if len(definitionIDs) > 12 {
 			return nil, fmt.Errorf("at most 12 optimization candidates are allowed")
 		}
-		startInput := BacktestStartInput{Market: stringValue(input, "market"), Symbol: stringValue(input, "symbol"), Code: stringValue(input, "code"), Interval: stringOrDefault(stringValue(input, "interval"), "1m"), StartDate: stringValue(input, "startDate"), EndDate: stringValue(input, "endDate"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), InitialBalance: floatValue(input, "initialBalance", 0), RehabType: stringOrDefault(stringValue(input, "rehabType"), "forward")}
+		startInput := BacktestStartInput{Market: stringValue(input, "market"), Symbol: stringValue(input, "symbol"), Code: stringValue(input, "code"), Interval: stringOrDefault(stringValue(input, "interval"), "1m"), StartDate: stringValue(input, "startDate"), EndDate: stringValue(input, "endDate"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), InitialBalance: floatValue(input, "initialBalance", 0), RehabType: stringOrDefault(stringValue(input, "rehabType"), "forward"), ChartType: stringValue(input, "chartType")}
 		if deps.EnsureBacktestData != nil {
 			readiness, ensureErr := deps.EnsureBacktestData(definitionIDs, startInput)
 			if ensureErr != nil {

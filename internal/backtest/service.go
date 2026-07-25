@@ -15,6 +15,7 @@ import (
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
@@ -37,6 +38,7 @@ type StartRequest struct {
 	UseExtendedHours  *bool           `json:"useExtendedHours,omitempty"`
 	TradingCosts      bt.TradingCosts `json:"tradingCosts"`
 	ExecutionModel    string          `json:"executionModel,omitempty"`
+	ChartType         chart.ChartType `json:"chartType"`
 }
 
 // ScriptStartRequest starts a transient research backtest from an inline Pine
@@ -57,6 +59,7 @@ type ScriptStartRequest struct {
 	UseExtendedHours *bool           `json:"useExtendedHours,omitempty"`
 	TradingCosts     bt.TradingCosts `json:"tradingCosts"`
 	ExecutionModel   string          `json:"executionModel,omitempty"`
+	ChartType        chart.ChartType `json:"chartType"`
 }
 
 // RunState 是回测运行状态的纯数据结构。

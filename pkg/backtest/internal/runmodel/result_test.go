@@ -30,6 +30,7 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 		PnLCurve:               []PnLPoint{{Time: "2026-06-23T13:31:00Z", Equity: 101000}},
 		DrawdownCurve:          []DrawdownPoint{{Time: "2026-06-23T13:32:00Z", Drawdown: 0.02}},
 		Candles:                []Candle{{Time: "2026-06-23T13:31:00Z", Close: "100.5"}},
+		HeikinAshiSeed:         &HeikinAshiSeed{Open: 99.5, Close: 100.25},
 		Logs:                   []string{"warmup complete"},
 		Warnings:               []string{"ignored close"},
 		WarningTotal:           1,
@@ -67,6 +68,7 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 	snapshot.PnLCurve[0].Equity = 5
 	snapshot.DrawdownCurve[0].Drawdown = 0.9
 	snapshot.Candles[0].Close = "1"
+	snapshot.HeikinAshiSeed.Open = 1
 	snapshot.Logs[0] = "changed"
 	snapshot.Warnings[0] = "changed"
 	snapshot.RuntimeErrors[0] = "changed"
@@ -88,6 +90,9 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 	}
 	if original.Candles[0].Close != "100.5" {
 		t.Fatalf("original candles mutated: %#v", original.Candles)
+	}
+	if original.HeikinAshiSeed.Open != 99.5 || original.HeikinAshiSeed.Close != 100.25 {
+		t.Fatalf("original Heikin Ashi seed mutated: %#v", original.HeikinAshiSeed)
 	}
 	if original.Logs[0] != "warmup complete" {
 		t.Fatalf("original logs mutated: %#v", original.Logs)

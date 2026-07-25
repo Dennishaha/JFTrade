@@ -20,7 +20,7 @@
 | --- | ---: | ---: | ---: | ---: | --- |
 | `language` | 0.12 | 98.86 | 424.60 | 429.50 | `syntax.recursive_nested_udf` |
 | `indicators` | 0.30 | 96.44 | 132.70 | 137.60 | `indicator.full_ta_surface`<br>`indicator.visual_only_plot_stack` |
-| `mtf` | 0.48 | 99.02 | 243.40 | 245.80 | `request.security.dynamic_symbol_timeframe`<br>`request.security.lookahead_gaps_on` |
+| `mtf` | 0.48 | 99.03 | 244.40 | 246.80 | `request.security.dynamic_symbol_timeframe`<br>`request.security.lookahead_gaps_on` |
 | `orders` | 0.00 | 77.94 | 21.90 | 28.10 | `order.oca_partial_fill`<br>`order.intrabar_tick_recalc`<br>`order.full_tv_broker_emulator` |
 | `tooling` | 0.10 | 99.71 | 558.00 | 559.60 |  |
 
@@ -132,6 +132,7 @@
 | `request.security.htf_history` | `mtf` | `supported` | 1.00 | parser, planner, runtime, backtest, spec | `TestGoldenExamplesAnalyzeAndPlan` |  |
 | `request.security.mtf_v12_advanced` | `mtf` | `supported` | 1.00 | parser, planner, runtime, backtest, frontend, spec | `TestCompileSupportsV12AdvancedIndicatorsInStaticIntradaySecurity`<br>`TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes` |  |
 | `request.security.mtf_v13_advanced` | `mtf` | `supported` | 1.00 | parser, planner, runtime, backtest, frontend, spec | `TestCompileSupportsV13IndicatorsInStaticIntradaySecurity`<br>`TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes` |  |
+| `request.security.extended_ticker_heikinashi` | `mtf` | `supported` | 1.00 | parser, planner, runtime, backtest, frontend, spec | `TestExtendedTickerRequestSecuritySupportsCurrentSymbolOnly`<br>`TestCompileAcceptsExtendedTickerAndChartFlags` |  |
 | `request.security.pure_expression` | `mtf` | `supported` | 8.00 | parser, planner, runtime, backtest, frontend, spec | `TestCompileSupportsV14RequestSecurityPureExpression` |  |
 | `request.security.pure_expression_diagnostics` | `mtf` | `supported` | 2.00 | parser, planner, runtime, backtest, frontend, spec | `TestValidateScriptRejectsUnsupportedPineRuntimeFeature` |  |
 | `request.security.v15_common_ta_expression` | `mtf` | `supported` | 28.00 | parser, planner, runtime, backtest, frontend, spec | `TestCompileSupportsV15RequestSecurityCommonTAExpression` |  |

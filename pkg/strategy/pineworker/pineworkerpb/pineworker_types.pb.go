@@ -318,6 +318,7 @@ type RunScriptRequest struct {
 	SessionId        string `protobuf:"bytes,10,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	SessionOperation string `protobuf:"bytes,11,opt,name=session_operation,json=sessionOperation,proto3" json:"session_operation,omitempty"`
 	ExpectedRevision uint64 `protobuf:"varint,12,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	ChartType        string `protobuf:"bytes,13,opt,name=chart_type,json=chartType,proto3" json:"chart_type,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -434,6 +435,13 @@ func (x *RunScriptRequest) GetExpectedRevision() uint64 {
 		return x.ExpectedRevision
 	}
 	return 0
+}
+
+func (x *RunScriptRequest) GetChartType() string {
+	if x != nil {
+		return x.ChartType
+	}
+	return ""
 }
 
 type RunScriptResponse struct {
@@ -607,7 +615,7 @@ const file_proto_pineworker_types_proto_rawDesc = "" +
 	"\x05error\x18\b \x01(\tR\x05error\x1aA\n" +
 	"\x13StrategyConfigEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9e\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbd\x04\n" +
 	"\x10RunScriptRequest\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1b\n" +
 	"\tscript_id\x18\x02 \x01(\tR\bscriptId\x12\x16\n" +
@@ -622,7 +630,9 @@ const file_proto_pineworker_types_proto_rawDesc = "" +
 	"session_id\x18\n" +
 	" \x01(\tR\tsessionId\x12+\n" +
 	"\x11session_operation\x18\v \x01(\tR\x10sessionOperation\x12+\n" +
-	"\x11expected_revision\x18\f \x01(\x04R\x10expectedRevision\x1a9\n" +
+	"\x11expected_revision\x18\f \x01(\x04R\x10expectedRevision\x12\x1d\n" +
+	"\n" +
+	"chart_type\x18\r \x01(\tR\tchartType\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdd\x05\n" +

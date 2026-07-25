@@ -10,6 +10,115 @@ export interface KlineCandle {
   session?: string | null;
 }
 
+/**
+ * Chart rendering mode. Keep these values aligned with PineTS extended ticker
+ * suffixes and the persisted workspace/backtest configuration contract.
+ */
+export type ChartType = "standard" | "heikinashi";
+
+/**
+ * Recursive state immediately before a rendered Heikin Ashi candle range.
+ * Backtest results use it to continue from hidden warmup data without ever
+ * exposing or mutating the underlying standard OHLC cache.
+ */
+export interface HeikinAshiSeed {
+  open: number;
+  close: number;
+}
+
+export const KLINE_CHART_TYPES = [
+  { value: "standard", label: "标准 K 线" },
+  { value: "heikinashi", label: "平均K线图" },
+] as const satisfies readonly { value: ChartType; label: string }[];
+
+export function normalizeChartType(value: unknown): ChartType {
+  return typeof value === "string" && value.trim().toLowerCase() === "heikinashi"
+    ? "heikinashi"
+    : "standard";
+}
+
+/**
+ * Builds a display-only Heikin Ashi series from standard market candles.
+ *
+ * The source candles are never mutated.  We deliberately calculate from the
+ * earliest available candle each time: HA open values are recursive, so this
+ * also makes a historical-page prepend correct without touching raw cache
+ * entries.
+ */
+export function toHeikinAshiCandles(
+  candles: readonly KlineCandle[],
+  seed?: HeikinAshiSeed | null,
+): KlineCandle[] {
+  let previousOpen: number | null =
+    seed != null && Number.isFinite(seed.open) && Number.isFinite(seed.close)
+      ? seed.open
+      : null;
+  let previousClose: number | null =
+    seed != null && Number.isFinite(seed.open) && Number.isFinite(seed.close)
+      ? seed.close
+      : null;
+
+  const chronologicalCandles = candles
+    .map((candle, index) => ({
+      candle,
+      index,
+      timestamp: new Date(candle.at).getTime(),
+    }))
+    .sort((left, right) => {
+      const leftValid = Number.isFinite(left.timestamp);
+      const rightValid = Number.isFinite(right.timestamp);
+      if (!leftValid && !rightValid) return left.index - right.index;
+      if (!leftValid) return 1;
+      if (!rightValid) return -1;
+      return left.timestamp - right.timestamp || left.index - right.index;
+    });
+
+  return chronologicalCandles.map(({ candle }) => {
+    if (
+      !Number.isFinite(candle.open) ||
+      !Number.isFinite(candle.high) ||
+      !Number.isFinite(candle.low) ||
+      !Number.isFinite(candle.close)
+    ) {
+      return { ...candle };
+    }
+
+    const close = (candle.open + candle.high + candle.low + candle.close) / 4;
+    const open =
+      previousOpen == null || previousClose == null
+        ? (candle.open + candle.close) / 2
+        : (previousOpen + previousClose) / 2;
+    const high = Math.max(candle.high, open, close);
+    const low = Math.min(candle.low, open, close);
+
+    previousOpen = open;
+    previousClose = close;
+
+    return {
+      ...candle,
+      open,
+      high,
+      low,
+      close,
+    };
+  });
+}
+
+/**
+ * Returns isolated display candles for the requested chart type. Standard
+ * charts are cloned too so consumers can safely treat the result as derived
+ * chart data and never mutate the market-data cache by accident.
+ */
+export function transformKlineCandles(
+  candles: readonly KlineCandle[],
+  chartType: ChartType | string | null | undefined,
+  heikinAshiSeed?: HeikinAshiSeed | null,
+): KlineCandle[] {
+  return normalizeChartType(chartType) === "heikinashi"
+    ? toHeikinAshiCandles(candles, heikinAshiSeed)
+    : candles.map((candle) => ({ ...candle }));
+}
+
 export interface KlineChartPalette {
   bg: string;
   text: string;

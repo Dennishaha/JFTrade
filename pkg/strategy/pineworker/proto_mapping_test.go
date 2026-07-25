@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/chart"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb"
 )
 
@@ -16,6 +17,7 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 	request.SessionID = "live-1"
 	request.SessionOperation = SessionOperationAppend
 	request.ExpectedRevision = 7
+	request.ChartType = string(chart.ChartTypeHeikinAshi)
 	protoRequest := requestToProto(request)
 	if protoRequest.GetJobId() != request.JobID || protoRequest.GetParams()["threshold"] != "10" {
 		t.Fatalf("unexpected proto request: %#v", protoRequest)
@@ -25,6 +27,13 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 	}
 	if protoRequest.GetSessionId() != "live-1" || protoRequest.GetSessionOperation() != SessionOperationAppend || protoRequest.GetExpectedRevision() != 7 {
 		t.Fatalf("unexpected session request mapping: %#v", protoRequest)
+	}
+	if protoRequest.GetChartType() != string(chart.ChartTypeHeikinAshi) {
+		t.Fatalf("unexpected chart type mapping: %q", protoRequest.GetChartType())
+	}
+	request.ChartType = "renko"
+	if got := requestToProto(request).GetChartType(); got != string(chart.ChartTypeStandard) {
+		t.Fatalf("unknown chart type mapped to %q, want %q", got, chart.ChartTypeStandard)
 	}
 	batch := protoRequest.GetCandles()
 	if batch.GetEncodingVersion() != candleBatchEncodingVersion || len(batch.GetPayload()) != candleBatchRecordBytes {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	strategy "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 )
 
 func TestNormalizeBindingPrefersExplicitInstruments(t *testing.T) {
@@ -50,6 +51,9 @@ func TestNormalizeBindingBackfillsLegacyParams(t *testing.T) {
 	if got.Interval != "1m" || got.ExecutionMode != ExecutionModeNotifyOnly {
 		t.Fatalf("interval/mode = %q/%q", got.Interval, got.ExecutionMode)
 	}
+	if got.ChartType != chart.ChartTypeStandard {
+		t.Fatalf("legacy chart type = %q, want %q", got.ChartType, chart.ChartTypeStandard)
+	}
 	if got.BrokerAccount == nil || got.BrokerAccount.BrokerID != "futu" || got.BrokerAccount.TradingEnvironment != "SIMULATE" || got.BrokerAccount.Market != "US" {
 		t.Fatalf("broker account = %+v", got.BrokerAccount)
 	}
@@ -76,6 +80,9 @@ func TestApplyParamsWritesCanonicalBindingFields(t *testing.T) {
 	if got := instance.Params["executionMode"]; got != ExecutionModeLive {
 		t.Fatalf("executionMode param = %#v", got)
 	}
+	if got := instance.Params["chartType"]; got != string(chart.ChartTypeStandard) {
+		t.Fatalf("chartType param = %#v", got)
+	}
 	account, ok := instance.Params["brokerAccount"].(map[string]any)
 	if !ok || account["brokerId"] != "futu" || account["tradingEnvironment"] != "REAL" || account["market"] != "HK" {
 		t.Fatalf("brokerAccount param = %#v", instance.Params["brokerAccount"])
@@ -83,6 +90,16 @@ func TestApplyParamsWritesCanonicalBindingFields(t *testing.T) {
 	instruments, ok := instance.Params["instruments"].([]map[string]any)
 	if !ok || len(instruments) != 1 || instruments[0]["market"] != "HK" || instruments[0]["code"] != "00700" {
 		t.Fatalf("instruments param = %#v", instance.Params["instruments"])
+	}
+}
+
+func TestNormalizeBindingPreservesSupportedChartType(t *testing.T) {
+	got := NormalizeBinding(strategy.InstanceBinding{ChartType: chart.ChartTypeHeikinAshi}, nil)
+	if got.ChartType != chart.ChartTypeHeikinAshi {
+		t.Fatalf("ChartType = %q, want %q", got.ChartType, chart.ChartTypeHeikinAshi)
+	}
+	if unknown := NormalizeBinding(strategy.InstanceBinding{ChartType: "renko"}, nil); unknown.ChartType != chart.ChartTypeStandard {
+		t.Fatalf("unknown ChartType = %q, want %q", unknown.ChartType, chart.ChartTypeStandard)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 
 	strategy "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/strategy/runtimecontrol"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -149,9 +150,19 @@ func seenBindingSymbol(symbol string, seenSymbols map[string]struct{}) bool {
 
 func applyBindingDefaults(input *strategy.InstanceBinding, params map[string]any) {
 	input.Interval = bindingInterval(input.Interval, params["interval"])
+	input.ChartType = bindingChartType(input.ChartType, params["chartType"])
 	input.BrokerAccount = bindingBrokerAccount(input.BrokerAccount, params["brokerAccount"])
 	input.ExecutionMode = bindingExecutionMode(input.ExecutionMode, params["executionMode"])
 	input.RuntimeRisk = bindingRuntimeRisk(input.RuntimeRisk, params["runtimeRisk"])
+}
+
+func bindingChartType(current chart.ChartType, value any) chart.ChartType {
+	if strings.TrimSpace(string(current)) == "" {
+		if chartType, ok := value.(string); ok {
+			current = chart.ChartType(chartType)
+		}
+	}
+	return chart.NormalizeChartType(string(current))
 }
 
 func bindingInterval(interval string, value any) string {
@@ -206,6 +217,7 @@ func ApplyParams(input *strategy.ManagedInstance) {
 		delete(input.Params, "symbol")
 	}
 	input.Params["interval"] = input.Binding.Interval
+	input.Params["chartType"] = string(input.Binding.ChartType)
 	input.Params["executionMode"] = input.Binding.ExecutionMode
 	input.Params["runtimeRisk"] = RiskSettingsToParams(input.Binding.RuntimeRisk)
 	if input.Binding.BrokerAccount != nil {
@@ -328,6 +340,7 @@ func BindingAuditDetail(definitionID string, binding strategy.InstanceBinding) s
 		parts = append(parts, "symbols="+strings.Join(binding.Symbols, ","))
 	}
 	parts = append(parts, "interval="+binding.Interval)
+	parts = append(parts, "chartType="+string(chart.NormalizeChartType(string(binding.ChartType))))
 	parts = append(parts, "mode="+binding.ExecutionMode)
 	if binding.BrokerAccount != nil {
 		parts = append(parts, fmt.Sprintf("account=%s/%s/%s/%s", binding.BrokerAccount.BrokerID, binding.BrokerAccount.TradingEnvironment, binding.BrokerAccount.AccountID, binding.BrokerAccount.Market))

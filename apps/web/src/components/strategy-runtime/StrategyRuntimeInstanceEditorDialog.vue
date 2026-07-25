@@ -8,6 +8,7 @@ import type {
     StrategyRuntimeRiskSettings,
 } from "@/contracts";
 
+import { KLINE_CHART_TYPES, type ChartType } from "../../charting/kline";
 import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import InstrumentSearchBox from "../domain/market-data/InstrumentSearchBox.vue";
@@ -30,6 +31,7 @@ const props = defineProps<{
     symbolDraft: string;
     symbolValidationMessage: string;
     intervalValue: string;
+    chartType: ChartType;
     executionMode: StrategyExecutionMode;
     runtimeRisk: StrategyRuntimeRiskSettings;
     selectedBrokerAccountOption: BrokerAccountSelectionOption | null;
@@ -60,6 +62,7 @@ const emit = defineEmits<{
     "symbol-draft-keydown": [event: KeyboardEvent];
     "symbol-draft-paste": [event: ClipboardEvent];
     "update:interval": [value: string];
+    "update:chart-type": [value: string];
     "update:execution-mode": [value: string];
     "update:runtime-risk-mode": [value: string];
     "update:runtime-risk-close-only": [value: boolean];
@@ -94,6 +97,9 @@ const symbolValidationTestId = computed(() =>
 );
 const intervalInputTestId = computed(() =>
     isCreate.value ? "strategy-instance-interval" : "strategy-edit-interval",
+);
+const chartTypeTestId = computed(() =>
+    isCreate.value ? "strategy-instance-chart-type" : "strategy-edit-chart-type",
 );
 const executionModeTestId = computed(() =>
     isCreate.value ? "strategy-instance-execution-mode" : "strategy-edit-execution-mode",
@@ -149,6 +155,7 @@ const runtimeRiskModeLabel = computed(() => {
             return "关闭";
     }
 });
+const isTickInterval = computed(() => props.intervalValue.trim().toLowerCase() === "tick");
 
 function closeDialog(): void {
     emit("update:open", false);
@@ -190,6 +197,10 @@ watch(
 
 function handleIntervalInput(event: Event): void {
     emit("update:interval", (event.target as HTMLInputElement).value);
+}
+
+function handleChartTypeChange(event: Event): void {
+    emit("update:chart-type", (event.target as HTMLSelectElement).value);
 }
 
 function handleExecutionModeChange(event: Event): void {
@@ -343,6 +354,20 @@ function handleBrokerQueryInput(event: Event): void {
                                 type="text"
                                 @input="handleIntervalInput"
                             >
+                        </label>
+                        <label class="grid gap-1.5 text-sm text-slate-600">
+                            <span class="font-medium text-slate-700">图表类型</span>
+                            <select
+                                :value="chartType"
+                                :data-testid="chartTypeTestId"
+                                :disabled="isTickInterval"
+                                class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                @change="handleChartTypeChange"
+                            >
+                                <option v-for="option in KLINE_CHART_TYPES" :key="option.value" :value="option.value">
+                                    {{ option.label }}
+                                </option>
+                            </select>
                         </label>
                         <label class="grid gap-1.5 text-sm text-slate-600">
                             <span class="font-medium text-slate-700">执行模式</span>

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { ExtendedTickerProvider } from "./extendedTickerProvider";
 import { createNativePineTSExecutor, NativePineTSExecutor, normalizePineSourceForPineTS } from "./pinetsExecutor";
 import { prepareCandleBatch, prepareRunScriptRequest } from "./preparedRequest";
 import type { PineTSPlot, PineTSRunResult, PreparedRunScriptRequest, RunScriptRequest } from "./types";
@@ -8,8 +9,8 @@ describe("NativePineTSExecutor", () => {
     const calls: unknown[] = [];
     const executor = new NativePineTSExecutor({
       PineTS: class {
-        constructor(candles: unknown[], symbol?: string, timeframe?: string, periods?: number) {
-          calls.push({ candles, symbol, timeframe, periods });
+        constructor(source: unknown, symbol?: string, timeframe?: string, periods?: number) {
+          calls.push({ source, symbol, timeframe, periods });
         }
 
         setAlertMode(mode: string) {
@@ -33,7 +34,7 @@ describe("NativePineTSExecutor", () => {
 
     expect(executor.version()).toBe("pinets-test");
     expect(calls[0]).toEqual({
-      candles: [{ openTime: 1, closeTime: 1, open: 10, high: 12, low: 9, close: 11, volume: 100 }],
+      source: expect.any(ExtendedTickerProvider),
       symbol: "US.AAPL",
       timeframe: "1",
       periods: 1,
@@ -43,13 +44,13 @@ describe("NativePineTSExecutor", () => {
     expect(result.plots?.close).toEqual([11]);
   });
 
-  test("reuses compatible candle arrays without remapping", async () => {
+  test("passes a request-scoped provider instead of request-owned candle arrays", async () => {
     const candles = [{ openTime: 1, closeTime: 2, open: 10, high: 12, low: 9, close: 11, volume: 100 }];
-    let receivedCandles: unknown[] | undefined;
+    let receivedSource: unknown;
     const executor = new NativePineTSExecutor({
       PineTS: class {
-        constructor(candles: unknown[]) {
-          receivedCandles = candles;
+        constructor(source: unknown) {
+          receivedSource = source;
         }
 
         async run() {
@@ -67,16 +68,18 @@ describe("NativePineTSExecutor", () => {
     });
     await executor.run(request);
 
-    expect(receivedCandles).toBe(request.candles);
+    expect(receivedSource).toBeInstanceOf(ExtendedTickerProvider);
+    const provider = receivedSource as ExtendedTickerProvider;
+    await expect(provider.getMarketData("US.AAPL", "1")).resolves.toMatchObject(candles);
   });
 
-  test("remaps candles with extra runtime fields before passing to PineTS", async () => {
+  test("normalizes candles into the provider without leaking extra runtime fields", async () => {
     const candles = [{ openTime: 1, closeTime: 2, open: 10, high: 12, low: 9, close: 11, volume: 100, extra: 1 }];
-    let receivedCandles: unknown[] | undefined;
+    let receivedSource: unknown;
     const executor = new NativePineTSExecutor({
       PineTS: class {
-        constructor(candles: unknown[]) {
-          receivedCandles = candles;
+        constructor(source: unknown) {
+          receivedSource = source;
         }
 
         async run() {
@@ -93,8 +96,11 @@ describe("NativePineTSExecutor", () => {
       candles,
     }));
 
-    expect(receivedCandles).not.toBe(candles);
-    expect(receivedCandles).toEqual([{ openTime: 1, closeTime: 2, open: 10, high: 12, low: 9, close: 11, volume: 100 }]);
+    expect(receivedSource).toBeInstanceOf(ExtendedTickerProvider);
+    const provider = receivedSource as ExtendedTickerProvider;
+    await expect(provider.getMarketData("US.AAPL", "1")).resolves.toEqual([expect.objectContaining({
+      openTime: 1, closeTime: 2, open: 10, high: 12, low: 9, close: 11, volume: 100,
+    })]);
   });
 
   test("does not let native PineTS mutate reused request candles", async () => {
@@ -152,6 +158,153 @@ describe("NativePineTSExecutor", () => {
       candles: [candles[3]!],
     }))).rejects.toThrow("revision mismatch");
     await expect(executor.closeLiveSession("session-1", 2)).resolves.toBe(2);
+  });
+
+  test("serves HA chart data while ticker.standard reads standard OHLC", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles();
+    const result = await executor.run(preparedRequest({
+      jobId: "extended-ticker",
+      source: [
+        `//@version=6`,
+        `indicator("extended ticker")`,
+        `standardClose = request.security(ticker.standard(syminfo.tickerid), "1", close)`,
+        `inheritedClose = request.security(ticker.inherit(syminfo.tickerid, syminfo.tickerid), "1", close)`,
+        `plot(close, "chart")`,
+        `plot(standardClose, "standard")`,
+        `plot(inheritedClose, "inherited")`,
+        `plot(chart.is_heikinashi ? 1 : 0, "isHa")`,
+        `plot(chart.is_standard ? 1 : 0, "isStandard")`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      chartType: "heikinashi",
+      candles,
+    }));
+
+    expect(plotValues(result, "chart")).toEqual([100, 102.5, 106, 107.75]);
+    expect(plotValues(result, "standard")).toEqual(candles.map((candle) => candle.close));
+    expect(plotValues(result, "inherited")).toEqual([100, 102.5, 106, 107.75]);
+    expect(plotValues(result, "isHa")).toEqual([1, 1, 1, 1]);
+    expect(plotValues(result, "isStandard")).toEqual([0, 0, 0, 0]);
+  });
+
+  test("preflights non-derivable request.security timeframes before PineTS creates a secondary runtime", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+
+    await expect(executor.run(preparedRequest({
+      jobId: "unsupported-security-timeframe",
+      source: [
+        `//@version=6`,
+        `indicator("unsupported security timeframe")`,
+        `// request.security("US.MSFT", "1", close) remains a comment.`,
+        `value = request.security(syminfo.tickerid, "1", close)`,
+        `plot(value)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "5",
+      candles: conditionalOrderCandles(),
+    }))).rejects.toThrow(
+      'Pineworker request.security preflight: Pineworker cannot derive "1" from "5" candles',
+    );
+  });
+
+  test("preflights external and dynamic extended ticker routes with stable errors", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const externalSource = [
+      `//@version=6`,
+      `indicator("external inherit")`,
+      `value = request.security(ticker.inherit(ticker.heikinashi("US.MSFT"), syminfo.tickerid), "1", close)`,
+      `plot(value)`,
+    ].join("\n");
+    const dynamicSource = [
+      `//@version=6`,
+      `indicator("dynamic ticker")`,
+      `value = request.security(requestedTicker, "1", close)`,
+      `plot(value)`,
+    ].join("\n");
+
+    await expect(executor.run(preparedRequest({
+      jobId: "external-security-ticker",
+      source: externalSource,
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: conditionalOrderCandles(),
+    }))).rejects.toThrow(
+      'Pineworker request.security preflight: Pineworker extended tickers only support the current symbol "US.AAPL"; received "US.MSFT"',
+    );
+    await expect(executor.run(preparedRequest({
+      jobId: "dynamic-security-ticker",
+      source: dynamicSource,
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: conditionalOrderCandles(),
+    }))).rejects.toThrow(
+      "Pineworker request.security preflight: requires a static current-symbol ticker expression",
+    );
+  });
+
+  test("resolves static input.timeframe defaults and rejects unsupported modifiers before runtime construction", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles();
+    const aliasSource = [
+      `//@version=6`,
+      `indicator("static timeframe alias")`,
+      `tf = input.timeframe("3", "MTF")`,
+      `value = request.security(ticker.heikinashi(syminfo.tickerid), tf, close)`,
+      `plot(value, "security")`,
+    ].join("\n");
+    const unsupportedModifierSource = [
+      `//@version=6`,
+      `indicator("unsupported modifier")`,
+      `value = request.security("US.AAPL;renko", "1", close)`,
+      `plot(value)`,
+    ].join("\n");
+
+    const result = await executor.run(preparedRequest({
+      jobId: "static-timeframe-alias",
+      source: aliasSource,
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles,
+    }));
+    expect(plotValues(result, "security")).toHaveLength(candles.length);
+    await expect(executor.run(preparedRequest({
+      jobId: "unsupported-security-modifier",
+      source: unsupportedModifierSource,
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles,
+    }))).rejects.toThrow(
+      'Pineworker request.security preflight: Pineworker extended ticker modifier "renko" is not supported',
+    );
+  });
+
+  test("appends derived HA main candles and refreshes standard secondary contexts", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles();
+    const source = [
+      `//@version=6`,
+      `indicator("live extended ticker")`,
+      `standardClose = request.security(ticker.standard(syminfo.tickerid), "1", close)`,
+      `plot(close, "chart")`,
+      `plot(standardClose, "secondary")`,
+    ].join("\n");
+
+    await executor.openLiveSession("extended-session", preparedRequest({
+      jobId: "extended-open", source, symbol: "US.AAPL", timeframe: "1", chartType: "heikinashi", mode: "live",
+      sessionId: "extended-session", sessionOperation: "open", expectedRevision: 0,
+      candles: candles.slice(0, 2),
+    }));
+    const appended = await executor.appendLiveSession("extended-session", 1, preparedRequest({
+      jobId: "extended-append", source, symbol: "US.AAPL", timeframe: "1", chartType: "heikinashi", mode: "live",
+      sessionId: "extended-session", sessionOperation: "append", expectedRevision: 1,
+      candles: [candles[2]!],
+    }));
+
+    expect(plotValues(appended.result, "chart")).toEqual([106]);
+    expect(plotValues(appended.result, "secondary")).toEqual([109]);
+    await expect(executor.closeLiveSession("extended-session", 2)).resolves.toBe(2);
   });
 
   test("captures a filled stop entry at placement without reconstructing it from the trade", async () => {

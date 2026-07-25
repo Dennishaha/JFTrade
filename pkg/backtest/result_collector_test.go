@@ -8,11 +8,55 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 )
 
 type stubAccountQuerier struct {
 	account *types.Account
 	err     error
+}
+
+func TestResultCollectorPersistsHeikinAshiWarmupSeed(t *testing.T) {
+	warmupUntil := time.Date(2026, time.May, 25, 9, 0, 0, 0, time.UTC)
+	result := &RunResult{ChartType: chart.ChartTypeHeikinAshi}
+	collector := newResultCollector("BTCUSDT", types.Interval("1m"), "USDT", warmupUntil, result)
+	account := types.NewAccount()
+	account.SetBalance("USDT", types.Balance{Currency: "USDT", Available: fixedpoint.NewFromFloat(1_000)})
+	querier := stubAccountQuerier{account: account}
+
+	for _, kline := range []types.KLine{
+		{
+			Symbol: "BTCUSDT", Interval: types.Interval("1m"),
+			EndTime: types.Time(warmupUntil.Add(-2 * time.Minute)),
+			Open:    fixedpoint.NewFromFloat(10), High: fixedpoint.NewFromFloat(14),
+			Low: fixedpoint.NewFromFloat(8), Close: fixedpoint.NewFromFloat(12),
+		},
+		{
+			Symbol: "BTCUSDT", Interval: types.Interval("1m"),
+			EndTime: types.Time(warmupUntil.Add(-time.Minute)),
+			Open:    fixedpoint.NewFromFloat(12), High: fixedpoint.NewFromFloat(18),
+			Low: fixedpoint.NewFromFloat(10), Close: fixedpoint.NewFromFloat(16),
+		},
+		{
+			Symbol: "BTCUSDT", Interval: types.Interval("1m"),
+			EndTime: types.Time(warmupUntil.Add(time.Minute)),
+			Open:    fixedpoint.NewFromFloat(15), High: fixedpoint.NewFromFloat(21),
+			Low: fixedpoint.NewFromFloat(13), Close: fixedpoint.NewFromFloat(19),
+		},
+	} {
+		collector.onKLineClosed(context.Background(), querier, kline)
+	}
+
+	collector.finalize(context.Background(), querier, 0)
+	if result.HeikinAshiSeed == nil {
+		t.Fatal("HeikinAshiSeed = nil, want warmup state")
+	}
+	if result.HeikinAshiSeed.Open != 11 || result.HeikinAshiSeed.Close != 14 {
+		t.Fatalf("HeikinAshiSeed = %#v, want open=11 close=14", result.HeikinAshiSeed)
+	}
+	if len(result.Candles) != 1 {
+		t.Fatalf("Candles len = %d, want formal candle only", len(result.Candles))
+	}
 }
 
 func (s stubAccountQuerier) QueryAccount(context.Context) (*types.Account, error) {

@@ -94,8 +94,8 @@ func requestSecurityUnsupportedDiagnostic(line parsedLine) (Diagnostic, bool) {
 			return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_CALC_BARS_COUNT", "request.security() calc_bars_count is not supported by JFTrade", line), true
 		}
 	}
-	if strings.TrimSpace(args[0]) != "syminfo.tickerid" {
-		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL", "request.security() currently supports only syminfo.tickerid; dynamic or external symbols are not supported", line), true
+	if !supportedRequestSecurityTicker(args[0]) {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL", "request.security() currently supports only syminfo.tickerid and static ticker.heikinashi/standard/inherit expressions rooted at it; dynamic or external symbols are not supported", line), true
 	}
 	if requestSecurityUsesTimeframeAlias(trimmed) {
 		return Diagnostic{}, false

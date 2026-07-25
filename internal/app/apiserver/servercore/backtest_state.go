@@ -16,6 +16,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 )
 
 const (
@@ -47,6 +48,7 @@ func cloneBacktestRunState(run *backtestRunState) *backtestRunState {
 	}
 
 	snapshot := *run
+	snapshot.Request.ChartType = chart.NormalizeChartType(string(snapshot.Request.ChartType))
 	snapshot.Result = run.Result.Snapshot()
 	return &snapshot
 }
@@ -198,6 +200,7 @@ func backtestRunStateFromRow(row backtestRunStateRow) (*backtestRunState, error)
 	if err := json.Unmarshal([]byte(row.RequestJSON), &request); err != nil {
 		return nil, fmt.Errorf("decode backtest request %s: %w", row.ID, err)
 	}
+	request.ChartType = chart.NormalizeChartType(string(request.ChartType))
 
 	result, err := decodeBacktestResultJSON(row.ID, row.ResultJSON)
 	if err != nil {
@@ -220,6 +223,7 @@ func decodeBacktestResultJSON(runID string, resultJSON string) (*backtest.RunRes
 		if err := json.Unmarshal([]byte(trimmed), decoded); err != nil {
 			return nil, fmt.Errorf("decode backtest result %s: %w", runID, err)
 		}
+		decoded.ChartType = chart.NormalizeChartType(string(decoded.ChartType))
 		return decoded, nil
 	}
 	return nil, nil
@@ -249,6 +253,11 @@ func markRecoveredBacktestRun(run *backtestRunState, recoveredAt string) bool {
 	}
 	if strings.TrimSpace(run.Result.EndTime) == "" {
 		run.Result.EndTime = run.Request.EndTime
+	}
+	if strings.TrimSpace(string(run.Result.ChartType)) == "" {
+		run.Result.ChartType = chart.NormalizeChartType(string(run.Request.ChartType))
+	} else {
+		run.Result.ChartType = chart.NormalizeChartType(string(run.Result.ChartType))
 	}
 	if strings.TrimSpace(run.Result.Error) == "" {
 		run.Result.Error = recoveredBacktestRunErrorText

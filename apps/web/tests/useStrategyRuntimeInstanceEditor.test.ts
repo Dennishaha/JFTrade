@@ -72,6 +72,7 @@ const selectedBinding: StrategyInstanceBindingDocument = {
   instruments: [{ market: "HK", code: "00700" }],
   symbols: ["HK.00700"],
   interval: "15m",
+  chartType: "heikinashi",
   executionMode: "notify_only",
   brokerAccount: {
     brokerId: "futu",
@@ -325,6 +326,30 @@ describe("strategy runtime instance editor", () => {
     editor.clearActiveBrokerAccountSelection();
     expect(editor.activeSelectedBrokerAccountKey.value).toBe("");
     expect(editor.activeInstanceEditorBrokerAccountSummary.value).toBe("暂不绑定账号");
+  });
+
+  it("keeps chart type scoped to each editor mode and resets it for Tick intervals", () => {
+    const { editor } = createEditor({
+      selected: selectedStrategy,
+      binding: selectedBinding,
+    });
+
+    editor.openCreateInstanceForm();
+    editor.updateActiveChartType("heikinashi");
+    expect(editor.createChartType.value).toBe("heikinashi");
+    expect(editor.activeChartType.value).toBe("heikinashi");
+
+    editor.updateActiveIntervalValue(" tick ");
+    expect(editor.createChartType.value).toBe("standard");
+
+    editor.openEditInstanceForm();
+    expect(editor.activeChartType.value).toBe("heikinashi");
+    editor.updateActiveChartType("standard");
+    expect(editor.editChartType.value).toBe("standard");
+
+    editor.updateActiveChartType("heikinashi");
+    editor.updateActiveIntervalValue("tick");
+    expect(editor.editChartType.value).toBe("standard");
   });
 
   it("loads and edits an existing binding, then resets when selection disappears", async () => {

@@ -440,6 +440,94 @@ describe("KlineChart", () => {
     wrapper.unmount();
   });
 
+  it("derives Heikin Ashi display candles before rendering and indicator updates", async () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    const candles = ref([
+      {
+        period: "1m",
+        at: "2026-05-17T01:30:00.000Z",
+        open: 10,
+        high: 14,
+        low: 9,
+        close: 13,
+        volume: 100,
+      },
+      {
+        period: "1m",
+        at: "2026-05-17T01:31:00.000Z",
+        open: 13,
+        high: 16,
+        low: 12,
+        close: 15,
+        volume: 120,
+      },
+    ]);
+    const chartType = ref<"standard" | "heikinashi">("standard");
+    const source = candles.value.map((candle) => ({ ...candle }));
+    const Host = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles, chartType };
+      },
+      template:
+        '<KlineChart :candles="candles" :chart-type="chartType" :min-height="320" :indicators="[\'volume\', \'ma5\']" />',
+    });
+
+    const wrapper = mount(Host);
+    await nextTick();
+    await nextTick();
+    chartMocks.candlestickSetData.mockClear();
+    chartMocks.volumeSetData.mockClear();
+    chartMocks.setVisibleLogicalRange.mockClear();
+
+    chartType.value = "heikinashi";
+    await nextTick();
+    await nextTick();
+
+    expect(chartMocks.candlestickSetData).toHaveBeenLastCalledWith([
+      {
+        time: 1778981460,
+        open: 11.5,
+        high: 14,
+        low: 9,
+        close: 11.5,
+      },
+      {
+        time: 1778981520,
+        open: 11.5,
+        high: 16,
+        low: 11.5,
+        close: 14,
+      },
+    ]);
+    expect(chartMocks.volumeSetData).toHaveBeenLastCalledWith([
+      expect.objectContaining({ time: 1778981460, value: 100 }),
+      expect.objectContaining({ time: 1778981520, value: 120 }),
+    ]);
+    expect(chartMocks.overlayLineSetDataByTitle.MA5).toHaveBeenCalled();
+    expect(chartMocks.setVisibleLogicalRange).not.toHaveBeenCalled();
+    expect(candles.value).toEqual(source);
+    wrapper.unmount();
+  });
+
   it("emits load-more near the left edge and anchors the viewport after prepending candles", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("ResizeObserver", MockResizeObserver);

@@ -14,6 +14,7 @@ const formState: BacktestFormState = {
   instrumentId: "US.AAPL",
   instrumentType: "stock",
   interval: "5m",
+  chartType: "standard",
   startDate: "2026-03-08",
   endDate: "2026-03-09",
   initialBalance: 100000,
@@ -44,6 +45,7 @@ describe("backtest request payloads", () => {
     expect(payload.tradingCosts?.marketFees?.mode).toBe("market_preset");
     expect(payload.tradingCosts?.marketFees?.presetId).toBe("us_stock_market_fees_2026_06_30");
     expect(payload.executionModel).toBe("conservative-bar-v1");
+    expect(payload.chartType).toBe("standard");
   });
 
   it("uses the same date labels for K-line synchronization", () => {
@@ -94,5 +96,12 @@ describe("backtest request payloads", () => {
 
   it("uses regular session scope when extended hours are disabled", () => {
     expect(buildBacktestSyncRequestPayload({ ...formState, useExtendedHours: false }, instrument).sessionScope).toBe("regular");
+  });
+
+  it("preserves the selected Heikin Ashi chart type in the run request", () => {
+    expect(buildBacktestStartRequestPayload({
+      ...formState,
+      chartType: "heikinashi",
+    }, instrument).chartType).toBe("heikinashi");
   });
 });

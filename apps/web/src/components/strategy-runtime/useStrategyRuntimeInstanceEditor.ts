@@ -12,6 +12,7 @@ import type {
     StrategyRuntimeRiskSettings,
 } from "@/contracts";
 
+import type { ChartType } from "../../charting/kline";
 import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
 import {
     bindingInstrumentsToSymbols,
@@ -19,6 +20,7 @@ import {
     defaultStrategyRuntimeRiskSettings,
     filterBrokerAccountOptions,
     normalizeBindingInstruments,
+    normalizeStrategyChartType,
     normalizeStrategyRuntimeRiskSettings,
     normalizeText,
     resolveBrokerAccountOption,
@@ -73,6 +75,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     const createSymbolDraft = ref("");
     const createSymbolValidationMessage = ref("");
     const createInterval = ref("5m");
+    const createChartType = ref<ChartType>("standard");
     const createExecutionMode = ref<StrategyExecutionMode>("live");
     const createRuntimeRisk = ref<StrategyRuntimeRiskSettings>(defaultStrategyRuntimeRiskSettings());
     const createBrokerAccountKey = ref("");
@@ -81,6 +84,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     const editSymbolDraft = ref("");
     const editSymbolValidationMessage = ref("");
     const editInterval = ref("5m");
+    const editChartType = ref<ChartType>("standard");
     const editExecutionMode = ref<StrategyExecutionMode>("live");
     const editRuntimeRisk = ref<StrategyRuntimeRiskSettings>(defaultStrategyRuntimeRiskSettings());
     const editBrokerAccountKey = ref("");
@@ -111,6 +115,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     const activeSymbolDraft = computed(() => symbolDraftFor(activeInstanceEditorMode.value));
     const activeSymbolValidationMessage = computed(() => symbolValidationMessageFor(activeInstanceEditorMode.value));
     const activeIntervalValue = computed(() => intervalValueFor(activeInstanceEditorMode.value));
+    const activeChartType = computed(() => chartTypeFor(activeInstanceEditorMode.value));
     const activeExecutionMode = computed(() => executionModeFor(activeInstanceEditorMode.value));
     const activeRuntimeRisk = computed(() => runtimeRiskFor(activeInstanceEditorMode.value));
     const activeSelectedBrokerAccountOption = computed(() => selectedBrokerAccountOptionFor(activeInstanceEditorMode.value));
@@ -224,6 +229,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
                 editSymbolDraft.value = "";
                 editSymbolValidationMessage.value = "";
                 editInterval.value = "5m";
+                editChartType.value = "standard";
                 editExecutionMode.value = "live";
                 editRuntimeRisk.value = defaultStrategyRuntimeRiskSettings();
                 editBrokerAccountKey.value = options.defaultBrokerAccountSelectionKey.value;
@@ -233,6 +239,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
             editSymbolDraft.value = "";
             editSymbolValidationMessage.value = "";
             editInterval.value = binding.interval;
+            editChartType.value = normalizeStrategyChartType(binding.chartType, binding.interval);
             editExecutionMode.value = binding.executionMode;
             editRuntimeRisk.value = normalizeStrategyRuntimeRiskSettings(binding.runtimeRisk);
             editBrokerAccountKey.value =
@@ -398,9 +405,25 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     function setIntervalValue(mode: StrategySymbolEditorMode, value: string): void {
         if (mode === "create") {
             createInterval.value = value;
+        } else {
+            editInterval.value = value;
+        }
+        if (normalizeText(value).toLowerCase() === "tick") {
+            setChartType(mode, "standard");
+        }
+    }
+
+    function chartTypeFor(mode: StrategySymbolEditorMode): ChartType {
+        return mode === "create" ? createChartType.value : editChartType.value;
+    }
+
+    function setChartType(mode: StrategySymbolEditorMode, value: unknown): void {
+        const chartType = normalizeStrategyChartType(value, intervalValueFor(mode));
+        if (mode === "create") {
+            createChartType.value = chartType;
             return;
         }
-        editInterval.value = value;
+        editChartType.value = chartType;
     }
 
     function executionModeFor(mode: StrategySymbolEditorMode): StrategyExecutionMode {
@@ -545,6 +568,10 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         setIntervalValue(activeInstanceEditorMode.value, value);
     }
 
+    function updateActiveChartType(value: string): void {
+        setChartType(activeInstanceEditorMode.value, value);
+    }
+
     function updateActiveExecutionMode(value: string): void {
         setExecutionMode(activeInstanceEditorMode.value, value);
     }
@@ -593,6 +620,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         instanceEditorMode.value = "create";
         createSymbolDraft.value = "";
         createSymbolValidationMessage.value = "";
+        createChartType.value = "standard";
         createRuntimeRisk.value = defaultStrategyRuntimeRiskSettings();
         closeBrokerAccountPicker();
     }
@@ -624,12 +652,14 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         createBindingInstruments,
         createSymbolValidationMessage,
         createInterval,
+        createChartType,
         createExecutionMode,
         createRuntimeRisk,
         createBrokerAccountKey,
         editBindingInstruments,
         editSymbolValidationMessage,
         editInterval,
+        editChartType,
         editExecutionMode,
         editRuntimeRisk,
         editBrokerAccountKey,
@@ -639,6 +669,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         activeSymbolDraft,
         activeSymbolValidationMessage,
         activeIntervalValue,
+        activeChartType,
         activeExecutionMode,
         activeRuntimeRisk,
         activeSelectedBrokerAccountOption,
@@ -659,6 +690,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         handleActiveSymbolDraftKeydown,
         handleActiveSymbolDraftPaste,
         updateActiveIntervalValue,
+        updateActiveChartType,
         updateActiveExecutionMode,
         updateActiveRuntimeRiskMode,
         updateActiveRuntimeRiskCloseOnly,

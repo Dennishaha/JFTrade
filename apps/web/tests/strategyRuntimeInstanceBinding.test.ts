@@ -127,6 +127,7 @@ describe("strategyRuntimeInstanceBinding", () => {
         ],
         symbols: ["US.TSLA"],
         interval: " 15m ",
+        chartType: "heikinashi",
         executionMode: "notify_only",
         brokerAccount: {
           brokerId: " FUTU ",
@@ -156,6 +157,7 @@ describe("strategyRuntimeInstanceBinding", () => {
       instruments: [{ market: "HK", code: "00700" }],
       symbols: ["HK.00700"],
       interval: "15m",
+      chartType: "heikinashi",
       executionMode: "notify_only",
       brokerAccount: {
         brokerId: "futu",
@@ -191,6 +193,7 @@ describe("strategyRuntimeInstanceBinding", () => {
           { market: "", code: "bad" },
         ],
         interval: "",
+        chartType: "unknown",
         brokerAccount: {
           brokerId: " ib ",
           accountId: " DU123 ",
@@ -224,6 +227,7 @@ describe("strategyRuntimeInstanceBinding", () => {
       instruments: [{ market: "US", code: "MSFT" }],
       symbols: ["US.MSFT"],
       interval: "5m",
+      chartType: "standard",
       executionMode: "live",
       brokerAccount: {
         brokerId: "ib",
@@ -376,6 +380,7 @@ describe("strategyRuntimeInstanceBinding", () => {
       instruments: [{ market: "US", code: "AAPL" }],
       symbols: ["US.AAPL"],
       interval: "5m",
+      chartType: "standard",
       executionMode: "notify_only",
       brokerAccount: {
         brokerId: "futu",
@@ -420,10 +425,33 @@ describe("strategyRuntimeInstanceBinding", () => {
       instruments: [],
       symbols: [],
       interval: "30m",
+      chartType: "standard",
       executionMode: "live",
       brokerAccount: fallbackBrokerAccount,
       runtimeRisk: normalizeStrategyRuntimeRiskSettings(null),
     });
+  });
+
+  it("preserves Heikin Ashi for supported intervals and falls back on Tick", () => {
+    const heikinAshi = buildStrategyBindingPayload({
+      brokerAccountOptions: [],
+      instruments: [{ market: "US", code: "AAPL" }],
+      interval: "5m",
+      chartType: "heikinashi",
+      executionMode: "live",
+      brokerAccountKey: "",
+    });
+    expect(heikinAshi.chartType).toBe("heikinashi");
+
+    const tick = buildStrategyBindingPayload({
+      brokerAccountOptions: [],
+      instruments: [{ market: "US", code: "AAPL" }],
+      interval: "tick",
+      chartType: "heikinashi",
+      executionMode: "live",
+      brokerAccountKey: "",
+    });
+    expect(tick.chartType).toBe("standard");
   });
 
   it("keeps persisted malformed bindings from becoming executable instruments or accounts", () => {

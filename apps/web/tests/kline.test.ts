@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   KLINE_PERIODS,
   formatKlinePeriodLabel,
+  normalizeChartType,
   overlayRealtimeTickCandle,
   normalizeKlinePeriod,
   normalizeKlineIndicators,
@@ -10,7 +11,216 @@ import {
   resolveKlineCandleDisplayAt,
   resolveKlinePeriodDurationMs,
   resolveRealtimeBucketStart,
+  toHeikinAshiCandles,
+  transformKlineCandles,
 } from "../src/charting/kline";
+
+describe("Kline chart types", () => {
+  it("normalizes legacy chart types and derives immutable Heikin Ashi candles", () => {
+    const candles = [
+      {
+        period: "1m",
+        at: "2026-05-20T10:00:00.000Z",
+        displayAt: "2026-05-20T10:01:00.000Z",
+        open: 10,
+        high: 14,
+        low: 9,
+        close: 13,
+        volume: 100,
+        session: "regular",
+      },
+      {
+        period: "1m",
+        at: "2026-05-20T10:01:00.000Z",
+        displayAt: "2026-05-20T10:02:00.000Z",
+        open: 13,
+        high: 16,
+        low: 12,
+        close: 15,
+        volume: 120,
+        session: "regular",
+      },
+      {
+        period: "1m",
+        at: "2026-05-20T10:02:00.000Z",
+        displayAt: "2026-05-20T10:03:00.000Z",
+        open: 15,
+        high: 18,
+        low: 14,
+        close: 16,
+        volume: 140,
+        session: "regular",
+      },
+    ];
+    const source = candles.map((candle) => ({ ...candle }));
+
+    const heikinAshi = toHeikinAshiCandles(candles);
+
+    expect(heikinAshi).toEqual([
+      expect.objectContaining({
+        open: 11.5,
+        high: 14,
+        low: 9,
+        close: 11.5,
+        volume: 100,
+        at: "2026-05-20T10:00:00.000Z",
+        displayAt: "2026-05-20T10:01:00.000Z",
+        session: "regular",
+      }),
+      expect.objectContaining({
+        open: 11.5,
+        high: 16,
+        low: 11.5,
+        close: 14,
+        volume: 120,
+        at: "2026-05-20T10:01:00.000Z",
+      }),
+      expect.objectContaining({
+        open: 12.75,
+        high: 18,
+        low: 12.75,
+        close: 15.75,
+        volume: 140,
+        at: "2026-05-20T10:02:00.000Z",
+      }),
+    ]);
+    expect(candles).toEqual(source);
+    expect(heikinAshi[0]).not.toBe(candles[0]);
+    expect(transformKlineCandles(candles, "standard")[0]).not.toBe(candles[0]);
+    expect(normalizeChartType("heikinashi")).toBe("heikinashi");
+    expect(normalizeChartType(" HEIKINASHI ")).toBe("heikinashi");
+    expect(normalizeChartType("legacy")).toBe("standard");
+    expect(normalizeChartType(null)).toBe("standard");
+  });
+
+  it("recomputes the recursive HA open after older candles are prepended", () => {
+    const initial = [
+      {
+        at: "2026-05-20T10:01:00.000Z",
+        open: 13,
+        high: 16,
+        low: 12,
+        close: 15,
+        volume: 120,
+      },
+      {
+        at: "2026-05-20T10:02:00.000Z",
+        open: 15,
+        high: 18,
+        low: 14,
+        close: 16,
+        volume: 140,
+      },
+    ];
+    const earlier = {
+      at: "2026-05-20T10:00:00.000Z",
+      open: 10,
+      high: 14,
+      low: 9,
+      close: 13,
+      volume: 100,
+    };
+
+    const beforePrepend = toHeikinAshiCandles(initial);
+    const afterPrepend = toHeikinAshiCandles([earlier, ...initial]);
+
+    expect(afterPrepend.slice(1).map((candle) => candle.open)).not.toEqual(
+      beforePrepend.map((candle) => candle.open),
+    );
+    expect(afterPrepend.map((candle) => candle.at)).toEqual([
+      earlier.at,
+      ...initial.map((candle) => candle.at),
+    ]);
+  });
+
+  it("continues a backtest HA series from its hidden warmup seed", () => {
+    const candles = [{
+      at: "2026-05-20T10:02:00.000Z",
+      open: 15,
+      high: 21,
+      low: 13,
+      close: 19,
+      volume: 140,
+    }];
+
+    const transformed = transformKlineCandles(candles, "heikinashi", {
+      open: 11,
+      close: 14,
+    });
+
+    expect(transformed[0]).toMatchObject({
+      open: 12.5,
+      high: 21,
+      low: 12.5,
+      close: 17,
+      volume: 140,
+    });
+    expect(transformKlineCandles(candles, "standard", { open: 11, close: 14 }))
+      .toEqual(candles);
+  });
+
+  it("defensively handles invalid HA seeds, timestamps, and source candles", () => {
+    const candle = (
+      at: string,
+      overrides: Partial<{
+        open: number;
+        high: number;
+        low: number;
+        close: number;
+      }> = {},
+    ) => ({
+      at,
+      open: 10,
+      high: 14,
+      low: 9,
+      close: 13,
+      volume: 100,
+      ...overrides,
+    });
+    const validAt = "2026-05-20T10:00:00.000Z";
+
+    expect(
+      toHeikinAshiCandles([candle(validAt), candle("invalid-time")]).map(
+        (item) => item.at,
+      ),
+    ).toEqual([validAt, "invalid-time"]);
+    expect(
+      toHeikinAshiCandles([candle("invalid-time"), candle(validAt)]).map(
+        (item) => item.at,
+      ),
+    ).toEqual([validAt, "invalid-time"]);
+    expect(
+      toHeikinAshiCandles([
+        candle("invalid-first"),
+        candle("invalid-second"),
+      ]).map((item) => item.at),
+    ).toEqual(["invalid-first", "invalid-second"]);
+    expect(
+      toHeikinAshiCandles([
+        candle(validAt),
+        candle(validAt, { open: 11, close: 12 }),
+      ]).map((item) => item.open),
+    ).toEqual([11.5, 11.5]);
+
+    const malformedCandle = candle(validAt, { open: Number.NaN });
+    const derivedMalformed = toHeikinAshiCandles([malformedCandle]);
+    expect(derivedMalformed[0]).toEqual(malformedCandle);
+    expect(derivedMalformed[0]).not.toBe(malformedCandle);
+
+    expect(
+      toHeikinAshiCandles([candle(validAt)], {
+        open: Number.POSITIVE_INFINITY,
+        close: 10,
+      })[0]?.open,
+    ).toBe(11.5);
+    expect(
+      toHeikinAshiCandles([candle(validAt)], {
+        open: 10,
+        close: Number.POSITIVE_INFINITY,
+      })[0]?.open,
+    ).toBe(11.5);
+  });
+});
 
 describe("kline realtime bucket resolution", () => {
   it("displays intraday candles at the bucket end without changing the bucket key", () => {

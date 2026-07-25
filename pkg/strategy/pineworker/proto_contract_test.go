@@ -56,10 +56,13 @@ func TestPineWorkerProtoCompilesAndExposesContract(t *testing.T) {
 		}
 	}
 	runRequest := findMessage(t, typesFile, "RunScriptRequest")
-	for _, field := range []string{"job_id", "script_id", "source", "symbol", "timeframe", "mode", "candles", "params", "include_plots"} {
+	for _, field := range []string{"job_id", "script_id", "source", "symbol", "timeframe", "mode", "candles", "params", "include_plots", "chart_type"} {
 		if !messageHasField(runRequest, field) {
 			t.Fatalf("RunScriptRequest missing field %s", field)
 		}
+	}
+	if number := messageFieldNumber(runRequest, "chart_type"); number != 13 {
+		t.Fatalf("RunScriptRequest chart_type field number = %d, want 13", number)
 	}
 	runResponse := findMessage(t, typesFile, "RunScriptResponse")
 	if messageHasField(runResponse, "outputs") {
@@ -136,10 +139,14 @@ func findMessage(t *testing.T, file *descriptorpb.FileDescriptorProto, name stri
 }
 
 func messageHasField(message *descriptorpb.DescriptorProto, name string) bool {
+	return messageFieldNumber(message, name) != 0
+}
+
+func messageFieldNumber(message *descriptorpb.DescriptorProto, name string) int32 {
 	for _, field := range message.GetField() {
 		if field.GetName() == name {
-			return true
+			return field.GetNumber()
 		}
 	}
-	return false
+	return 0
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -18,6 +19,7 @@ type PineWorkerReplayPlanRequest struct {
 	Source    string
 	Symbol    string
 	Timeframe string
+	ChartType chart.ChartType
 	Params    map[string]string
 	KLines    []types.KLine
 }
@@ -83,6 +85,7 @@ func buildPineWorkerBacktestRequest(request PineWorkerReplayPlanRequest, candles
 		Source:    request.Source,
 		Symbol:    request.Symbol,
 		Timeframe: request.Timeframe,
+		ChartType: string(chart.NormalizeChartType(string(request.ChartType))),
 		Mode:      pineworker.ModeBacktest,
 		Candles:   candles,
 		Params:    copyReplayParams(request.Params),

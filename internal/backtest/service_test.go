@@ -8,6 +8,7 @@ import (
 	"time"
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
@@ -54,6 +55,7 @@ func TestStartQueuesRunAndExecutesWithInjectedRunner(t *testing.T) {
 		StartDate:    "2024-01-02",
 		EndDate:      "2024-01-03",
 		RehabType:    "forward",
+		ChartType:    chart.ChartTypeHeikinAshi,
 	})
 	if err != nil {
 		t.Fatalf("Start() error = %v", err)
@@ -72,6 +74,9 @@ func TestStartQueuesRunAndExecutesWithInjectedRunner(t *testing.T) {
 	}
 	if started.Request.InitialBalance != 25000 {
 		t.Fatalf("initial balance = %v, want script metadata 25000", started.Request.InitialBalance)
+	}
+	if started.Request.ChartType != chart.ChartTypeHeikinAshi {
+		t.Fatalf("chart type = %q, want %q", started.Request.ChartType, chart.ChartTypeHeikinAshi)
 	}
 	if started.Request.StartDate != "2024-01-02" || started.Request.EndDate != "2024-01-03" {
 		t.Fatalf("market date labels = %q..%q", started.Request.StartDate, started.Request.EndDate)
@@ -110,6 +115,9 @@ func TestStartQueuesRunAndExecutesWithInjectedRunner(t *testing.T) {
 	}
 	if gotConfig.ExecutionModel != bt.ExecutionModelConservativeBarV1 || started.Request.ExecutionModel != bt.ExecutionModelConservativeBarV1 {
 		t.Fatalf("execution model config/request = %q/%q, want %q", gotConfig.ExecutionModel, started.Request.ExecutionModel, bt.ExecutionModelConservativeBarV1)
+	}
+	if gotConfig.ChartType != chart.ChartTypeHeikinAshi || completed.Result.ChartType != chart.ChartTypeHeikinAshi {
+		t.Fatalf("chart type config/result = %q/%q, want %q", gotConfig.ChartType, completed.Result.ChartType, chart.ChartTypeHeikinAshi)
 	}
 	if gotFields.RequestID != "request-backtest-1" || gotFields.RunID != started.ID || gotFields.InstrumentID != "US.AAPL" || gotFields.Source != "backtest" {
 		t.Fatalf("backtest observability fields = %#v", gotFields)
@@ -165,9 +173,37 @@ func TestStartScriptQueuesResearchRunWithoutStrategyProvider(t *testing.T) {
 	if gotConfig.DBPath != "/tmp/research.db" {
 		t.Fatalf("DBPath = %q, want /tmp/research.db", gotConfig.DBPath)
 	}
+	if gotConfig.ChartType != chart.ChartTypeStandard || started.Request.ChartType != chart.ChartTypeStandard {
+		t.Fatalf("default chart type config/request = %q/%q, want %q", gotConfig.ChartType, started.Request.ChartType, chart.ChartTypeStandard)
+	}
 	completed := waitForRunStatus(t, runs, started.ID, "completed")
 	if completed.Result == nil || completed.Result.FinalBalance != 25250 {
 		t.Fatalf("completed result = %#v, want final balance 25250", completed.Result)
+	}
+}
+
+func TestPrepareResolvedBacktestNormalizesChartType(t *testing.T) {
+	definition := StrategyDef{ID: "def-1", Version: "v1", SourceFormat: strategydefinition.SourceFormatPineV6, Script: testPineScript}
+	for _, test := range []struct {
+		name  string
+		value chart.ChartType
+		want  chart.ChartType
+	}{
+		{name: "empty", want: chart.ChartTypeStandard},
+		{name: "unknown", value: "renko", want: chart.ChartTypeStandard},
+		{name: "heikin ashi", value: chart.ChartTypeHeikinAshi, want: chart.ChartTypeHeikinAshi},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := validStartRequest()
+			req.ChartType = test.value
+			prepared, err := prepareResolvedBacktest(req, definition)
+			if err != nil {
+				t.Fatalf("prepareResolvedBacktest() error = %v", err)
+			}
+			if prepared.request.ChartType != test.want {
+				t.Fatalf("chart type = %q, want %q", prepared.request.ChartType, test.want)
+			}
+		})
 	}
 }
 

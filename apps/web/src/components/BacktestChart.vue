@@ -23,6 +23,12 @@ import {
   watch,
 } from "vue";
 import { resolveBacktestChartPaneHeights } from "./backtestChartPaneHeights";
+import {
+  normalizeChartType,
+  transformKlineCandles,
+  type ChartType,
+  type HeikinAshiSeed,
+} from "../charting/kline";
 import { useTheme } from "../composables/useTheme";
 import { formatLocalDateTime } from "../utils/dateTime";
 
@@ -66,6 +72,8 @@ const props = withDefaults(
     pnlCurve: readonly BacktestPnlPoint[];
     drawdownCurve: readonly BacktestDrawdownPoint[];
     initialBalance: number;
+    chartType?: ChartType | string;
+    heikinAshiSeed?: HeikinAshiSeed | null | undefined;
     currencyUnit?: string;
     minHeight?: number;
     fitContainer?: boolean;
@@ -75,6 +83,7 @@ const props = withDefaults(
     minHeight: 560,
     fitContainer: false,
     emptyText: "暂无回测数据",
+    chartType: "standard",
   },
 );
 
@@ -124,7 +133,24 @@ const palette = computed(() =>
       },
 );
 
-const hasCandles = computed(() => props.candles.length > 0);
+const displayCandles = computed<BacktestCandle[]>(() =>
+  transformKlineCandles(
+    props.candles.map((candle) => ({
+      ...candle,
+      at: candle.time,
+    })),
+    normalizeChartType(props.chartType),
+    props.heikinAshiSeed,
+  ).map((candle) => ({
+    time: candle.at,
+    open: candle.open,
+    high: candle.high,
+    low: candle.low,
+    close: candle.close,
+    volume: candle.volume,
+  })),
+);
+const hasCandles = computed(() => displayCandles.value.length > 0);
 const hasTrades = computed(() => props.trades.length > 0);
 const hasPnl = computed(() => props.pnlCurve.length > 0);
 const hasDrawdown = computed(() => props.drawdownCurve.length > 0);
@@ -267,8 +293,8 @@ function rebuildPaletteDependentData() {
   const p = palette.value;
   const firstReferenceTime = referenceTimesCache[0];
 
-  volumeDataCache = props.candles.map((candle, index) => {
-    const prevClose = index > 0 ? props.candles[index - 1]!.close : candle.open;
+  volumeDataCache = displayCandles.value.map((candle, index) => {
+    const prevClose = index > 0 ? displayCandles.value[index - 1]!.close : candle.open;
     return {
       time: toTimestamp(candle.time),
       value: candle.volume,
@@ -298,7 +324,7 @@ function rebuildPaletteDependentData() {
 }
 
 function rebuildAllData() {
-  candleDataCache = props.candles.map((candle) => ({
+  candleDataCache = displayCandles.value.map((candle) => ({
     time: toTimestamp(candle.time),
     open: candle.open,
     high: candle.high,
@@ -677,7 +703,7 @@ function applyPalette() {
 
 // Shallow watch — parent passes new array references on data change, no need for deep
 watch(
-  () => [props.candles, props.pnlCurve, props.drawdownCurve, props.trades] as const,
+  () => [props.candles, props.chartType, props.heikinAshiSeed, props.pnlCurve, props.drawdownCurve, props.trades] as const,
   () => rebuildAllData(),
 );
 watch(displayCurrencyUnit, () => applyPalette());
@@ -693,7 +719,7 @@ watch(palette, () => applyPalette());
     >
       <div class="flex items-center gap-1.5">
         <span class="font-semibold text-slate-600">K线</span>
-        <span class="text-slate-400">{{ candles.length }} 根 · {{ displayCurrencyUnit }}</span>
+        <span class="text-slate-400">{{ displayCandles.length }} 根 · {{ displayCurrencyUnit }}</span>
       </div>
       <div v-if="hasTrades" class="flex items-center gap-1.5">
         <span class="text-sm" :style="{ color: palette.buyMarker }">▲</span>

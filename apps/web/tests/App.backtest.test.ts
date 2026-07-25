@@ -21,6 +21,14 @@ import BacktestPage from "../src/pages/BacktestPage.vue";
 
 const backtestFormStorageKey = "jftrade.backtest.form.v1";
 
+vi.mock("../src/components/BacktestChart.vue", () => ({
+  default: {
+    props: ["chartType", "heikinAshiSeed"],
+    template:
+      '<div data-testid="backtest-chart" :data-chart-type="chartType" :data-ha-open="heikinAshiSeed?.open" />',
+  },
+}));
+
 afterEach(() => {
   vi.unstubAllGlobals();
   MockWebSocket.instances = [];
@@ -183,6 +191,75 @@ describe("Backtest page", () => {
     wrapper.unmount();
   });
 
+  it("normalizes persisted chart type and forces Tick backtests to standard candles", async () => {
+    window.localStorage.setItem(
+      backtestFormStorageKey,
+      JSON.stringify({
+        selectedDefinitionId: "",
+        selectedMarket: "US",
+        codeInput: "AAPL",
+        interval: "5m",
+        chartType: " HEIKINASHI ",
+        startDate: "2026-01-01",
+        endDate: "2026-01-02",
+        initialBalance: 1000000,
+        rehabType: "forward",
+        useExtendedHours: false,
+      }),
+    );
+    installBacktestPageFetch({ runs: [] });
+
+    const { wrapper } = await mountApp("/backtest");
+    await flushRequests();
+    const page = wrapper.getComponent(BacktestPage);
+    const setup = page.vm.$.setupState as Record<string, unknown>;
+    expect(readSetupValue<string>(setup.chartType)).toBe("heikinashi");
+
+    writeSetupValue(setup, "interval", "tick");
+    await nextTick();
+    await nextTick();
+
+    expect(readSetupValue<string>(setup.chartType)).toBe("standard");
+    expect(
+      page.findAll("select")[2]?.element.hasAttribute("disabled"),
+    ).toBe(true);
+    expect(
+      JSON.parse(window.localStorage.getItem(backtestFormStorageKey) ?? "{}"),
+    ).toMatchObject({ interval: "tick", chartType: "standard" });
+    wrapper.unmount();
+  });
+
+  it("uses the request chart type when an older result has no chart type", async () => {
+    const fallbackRun = buildDetailedBacktestRun();
+    fallbackRun.request.chartType = "standard";
+    delete fallbackRun.result.chartType;
+    installBacktestPageFetch({ runs: [fallbackRun] });
+
+    const { wrapper } = await mountApp("/backtest");
+    await flushRequests();
+    await flushRequests();
+    const page = wrapper.getComponent(BacktestPage);
+
+    expect(
+      page.get('[data-testid="backtest-chart"]').attributes("data-chart-type"),
+    ).toBe("standard");
+    wrapper.unmount();
+  });
+
+  it("shows the chart empty state when a completed result has no equity samples", async () => {
+    const noChartRun = buildDetailedBacktestRun();
+    noChartRun.result.pnlCurve = [];
+    installBacktestPageFetch({ runs: [noChartRun] });
+
+    const { wrapper } = await mountApp("/backtest");
+    await flushRequests();
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("暂无权益曲线数据。");
+    expect(wrapper.find('[data-testid="backtest-chart"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it("formats and bounds a detailed business result across fees, orders, errors and logs", async () => {
     const richRun = buildDetailedBacktestRun();
     installBacktestPageFetch({
@@ -249,6 +326,16 @@ describe("Backtest page", () => {
     call("selectFocusedRun", richRun.id);
     await nextTick();
     expect(readSetupValue<[number, number]>(setup.backtestPaneSizes)).toEqual([30, 70]);
+    writeSetupValue(setup, "activeReportTab", "chart");
+    await nextTick();
+    expect(
+      page.get('[data-testid="backtest-chart"]').attributes("data-chart-type"),
+    ).toBe(
+      "heikinashi",
+    );
+    expect(
+      page.get('[data-testid="backtest-chart"]').attributes("data-ha-open"),
+    ).toBe("99.5");
     call("handleBacktestPaneResized", { panes: [{ size: 34 }, { size: 66 }] });
     expect(readSetupValue<[number, number]>(setup.backtestPaneSizes)).toEqual([34, 66]);
     call("handleBacktestPaneResized", { panes: [{ size: -1 }, { size: 101 }] });
@@ -391,12 +478,13 @@ describe("Backtest page", () => {
     expect(readSetupValue<boolean>(setup.running)).toBe(false);
 
     const formSelects = page.findAll("select");
-    expect(formSelects.length).toBeGreaterThanOrEqual(7);
+    expect(formSelects.length).toBeGreaterThanOrEqual(8);
     await formSelects[0]!.setValue("strategy-1");
     await formSelects[1]!.setValue("1d");
-    await formSelects[2]!.setValue("backward");
-    await formSelects[3]!.setValue("custom");
+    await formSelects[2]!.setValue("heikinashi");
+    await formSelects[3]!.setValue("backward");
     await formSelects[4]!.setValue("custom");
+    await formSelects[5]!.setValue("custom");
     await nextTick();
     const formTextareas = page.findAll("textarea");
     expect(formTextareas).toHaveLength(2);
@@ -707,11 +795,14 @@ function buildDetailedBacktestRun(): any {
     market: "US",
     code: "AAPL",
     interval: "5m",
+    chartType: "standard",
     rehabType: "none",
     useExtendedHours: true,
     definitionVersion: "v1",
   };
   run.result = {
+    chartType: "heikinashi",
+    heikinAshiSeed: { open: 99.5, close: 100.25 },
     quoteCurrency: "USD",
     pnl: 1250.5,
     pnlPct: 0.0125,
@@ -727,7 +818,7 @@ function buildDetailedBacktestRun(): any {
     totalFees: 21,
     tradingCosts: {},
     trades: [],
-    pnlCurve: [],
+    pnlCurve: [{ time: "2026-06-01T00:00:00.000Z", equity: 100_000 }],
     drawdownCurve: [],
     error: "",
     runtimeErrorTotal: 150,

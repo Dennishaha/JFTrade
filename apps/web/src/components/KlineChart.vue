@@ -10,7 +10,9 @@ import {
 
 import {
   isKlinePaneIndicator,
+  transformKlineCandles,
   normalizeKlineIndicators,
+  type ChartType,
   type KlineCandle,
   type KlineChartAdapter,
   type KlineIndicatorKey,
@@ -29,6 +31,7 @@ const props = withDefaults(
     candles: readonly KlineCandle[];
     minHeight?: number;
     emptyText?: string;
+    chartType?: ChartType | string;
     showIndicatorSelector?: boolean;
     indicatorStorageKey?: string;
     defaultIndicators?: readonly KlineIndicatorKey[];
@@ -37,6 +40,7 @@ const props = withDefaults(
   {
     minHeight: 220,
     emptyText: "暂无 K 线数据",
+    chartType: "standard",
     showIndicatorSelector: false,
     defaultIndicators: () => ["volume"] as KlineIndicatorKey[],
   },
@@ -56,6 +60,9 @@ const selectedIndicators = ref<KlineIndicatorKey[]>(
 );
 const activeIndicators = computed(() =>
   normalizeKlineIndicators(props.indicators ?? selectedIndicators.value),
+);
+const displayCandles = computed(() =>
+  transformKlineCandles(props.candles, props.chartType),
 );
 
 let adapter: KlineChartAdapter | null = null;
@@ -124,7 +131,7 @@ function setSelectedIndicators(indicators: readonly KlineIndicatorKey[]): void {
 }
 
 function refreshChartData(): void {
-  adapter?.setCandles(props.candles);
+  adapter?.setCandles(displayCandles.value);
   scheduleChartSync();
 }
 
@@ -278,7 +285,7 @@ onBeforeUnmount(() => {
   adapter = null;
 });
 
-watch(() => props.candles, refreshChartData, { deep: true });
+watch(displayCandles, refreshChartData, { deep: true });
 watch(
   activeIndicators,
   (indicators) => {

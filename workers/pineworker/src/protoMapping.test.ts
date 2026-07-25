@@ -10,6 +10,7 @@ describe("proto mapping", () => {
       source: `//@version=6\nstrategy("x")`,
       symbol: "US.AAPL",
       timeframe: "1",
+      chart_type: "heikinashi",
       mode: "backtest",
       candles: {
         encoding_version: candleBatchEncodingVersion,
@@ -24,6 +25,7 @@ describe("proto mapping", () => {
     expect(request.candles[0]).toEqual({ openTime: 1, closeTime: 2, open: 10, high: 12, low: 9, close: 11, volume: 100 });
     expect(request.params).toEqual({ threshold: "10" });
     expect(request.includePlots).toBe(false);
+    expect(request.chartType).toBe("heikinashi");
     expect(preparationOf(request).dataHash).toHaveLength(64);
   });
 

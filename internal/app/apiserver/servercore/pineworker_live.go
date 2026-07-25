@@ -14,6 +14,7 @@ import (
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 	strategyindicatorruntime "github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -171,6 +172,7 @@ func (live *strategyRuntimePineWorkerLive) requestLocked() pineworker.RunScriptR
 		Source:    live.source,
 		Symbol:    live.symbol,
 		Timeframe: string(live.interval),
+		ChartType: string(chart.NormalizeChartType(string(live.instance.Binding.ChartType))),
 		Mode:      pineworker.ModeLive,
 		Candles:   append([]pineworker.Candle(nil), live.candles...),
 		Params:    strategyRuntimePineWorkerParams(live.instance),

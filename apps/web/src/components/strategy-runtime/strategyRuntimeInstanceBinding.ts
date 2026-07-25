@@ -8,6 +8,7 @@ import type {
     StrategyRuntimeRiskSettings,
 } from "@/contracts";
 
+import { normalizeChartType, type ChartType } from "../../charting/kline";
 import {
     buildBrokerAccountSelectionKey,
     type BrokerAccountSelectionOption,
@@ -16,6 +17,16 @@ import { formatUserMarketLabel } from "../../composables/instrumentPresentation"
 
 export function normalizeText(value: unknown): string {
     return typeof value === "string" ? value.trim() : "";
+}
+
+export function normalizeStrategyChartType(
+    value: unknown,
+    interval?: unknown,
+): ChartType {
+    if (normalizeText(interval).toLowerCase() === "tick") {
+        return "standard";
+    }
+    return normalizeChartType(value);
 }
 
 function normalizeInstrumentId(value: string): string {
@@ -298,10 +309,12 @@ export function readStrategyBinding(strategy: StrategyInstanceItem): StrategyIns
     const executionModeSource =
         normalizeText(strategy.binding?.executionMode)
         || normalizeText(params?.executionMode);
+    const interval = normalizeText(strategy.binding?.interval) || normalizeText(params?.interval) || "5m";
     return {
         instruments: bindingInstruments.length > 0 ? bindingInstruments : symbolsToBindingInstruments(bindingSymbols),
         symbols: bindingSymbols,
-        interval: normalizeText(strategy.binding?.interval) || normalizeText(params?.interval) || "5m",
+        interval,
+        chartType: normalizeStrategyChartType(strategy.binding?.chartType ?? params?.chartType, interval),
         executionMode: executionModeSource === "notify_only" ? "notify_only" : "live",
         brokerAccount: normalizeBrokerAccountBinding(strategy.binding?.brokerAccount)
             ?? readStrategyBrokerAccount(params),
@@ -396,6 +409,7 @@ export function buildStrategyBindingPayload(input: {
     brokerAccountOptions: BrokerAccountSelectionOption[];
     instruments: StrategyBindingInstrumentDocument[];
     interval: string;
+    chartType?: ChartType | string | null;
     executionMode: StrategyExecutionMode;
     brokerAccountKey: string;
     fallbackBrokerAccount?: StrategyBrokerAccountBinding | null;
@@ -408,6 +422,7 @@ export function buildStrategyBindingPayload(input: {
         instruments,
         symbols,
         interval: normalizeText(input.interval) || "5m",
+        chartType: normalizeStrategyChartType(input.chartType, input.interval),
         executionMode: input.executionMode === "notify_only" ? "notify_only" : "live",
         brokerAccount: selectedAccount == null
             ? input.fallbackBrokerAccount ?? null

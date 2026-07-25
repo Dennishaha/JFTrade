@@ -101,6 +101,14 @@ const executableUtilityCompletionLabels = [
   "timeframe.in_seconds",
 ];
 
+const extendedTickerCompletionLabels = [
+  "ticker.heikinashi",
+  "ticker.standard",
+  "ticker.inherit",
+  "chart.is_heikinashi",
+  "chart.is_standard",
+];
+
 const pineTSVisualCompletionLabels = [
   "plot",
   "plotshape",
@@ -134,6 +142,16 @@ describe("strategyPineEditorIntelliSense", () => {
     const hoverTargets = new Set(strategyPineEditorHoverItems.map((item) => item.target));
 
     for (const label of executableUtilityCompletionLabels) {
+      expect(labels.has(label), `${label} should be suggested`).toBe(true);
+      expect(hoverTargets.has(label), `${label} should have hover documentation`).toBe(true);
+    }
+  });
+
+  it("suggests and documents supported current-symbol extended tickers", () => {
+    const labels = new Set(strategyPineEditorCompletions.map((completion) => completion.label));
+    const hoverTargets = new Set(strategyPineEditorHoverItems.map((item) => item.target));
+
+    for (const label of extendedTickerCompletionLabels) {
       expect(labels.has(label), `${label} should be suggested`).toBe(true);
       expect(hoverTargets.has(label), `${label} should have hover documentation`).toBe(true);
     }

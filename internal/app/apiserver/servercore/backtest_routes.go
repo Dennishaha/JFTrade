@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 )
 
 type backtestStartRequest struct {
@@ -22,6 +23,7 @@ type backtestStartRequest struct {
 	UseExtendedHours  *bool                 `json:"useExtendedHours,omitempty"`
 	TradingCosts      backtest.TradingCosts `json:"tradingCosts"`
 	ExecutionModel    string                `json:"executionModel,omitempty"`
+	ChartType         chart.ChartType       `json:"chartType"`
 }
 
 type backtestRunState struct {

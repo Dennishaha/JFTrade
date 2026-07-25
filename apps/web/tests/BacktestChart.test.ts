@@ -10,6 +10,7 @@ import BacktestChart, {
   type BacktestPnlPoint,
   type BacktestTrade,
 } from "../src/components/BacktestChart.vue";
+import type { ChartType, HeikinAshiSeed } from "../src/charting/kline";
 import { provideThemeStore, type ThemeStore } from "../src/composables/useTheme";
 
 const chartMocks = vi.hoisted(() => {
@@ -203,6 +204,8 @@ function mountChart(options: {
   pnlCurve?: BacktestPnlPoint[];
   drawdownCurve?: BacktestDrawdownPoint[];
   currency?: string;
+  chartType?: ChartType;
+  heikinAshiSeed?: HeikinAshiSeed;
 } = {}) {
   const state = {
     candles: ref(options.candles ?? candles),
@@ -211,6 +214,8 @@ function mountChart(options: {
     drawdownCurve: ref(options.drawdownCurve ?? drawdownCurve),
     currency: ref(options.currency ?? "hkd"),
     fitContainer: ref(options.fitContainer ?? false),
+    chartType: ref(options.chartType ?? "standard"),
+    heikinAshiSeed: ref(options.heikinAshiSeed),
   };
   let themeStore: ThemeStore | null = null;
   const Host = defineComponent({
@@ -226,6 +231,8 @@ function mountChart(options: {
         :pnl-curve="pnlCurve"
         :drawdown-curve="drawdownCurve"
         :initial-balance="100000"
+        :chart-type="chartType"
+        :heikin-ashi-seed="heikinAshiSeed"
         :currency-unit="currency"
         :min-height="480"
         :fit-container="fitContainer"
@@ -313,6 +320,45 @@ describe("BacktestChart", () => {
       priceRange: { minValue: 0, maxValue: 1 },
     });
 
+    wrapper.unmount();
+  });
+
+  it("continues Heikin Ashi rendering from a hidden warmup seed", async () => {
+    const { wrapper } = mountChart({
+      chartType: "heikinashi",
+      heikinAshiSeed: { open: 98, close: 100 },
+    });
+    await nextTick();
+
+    expect(chartMocks.series[0]!.setData).toHaveBeenLastCalledWith([
+      { time: 1780277400, open: 99, high: 103, low: 99, close: 101 },
+      { time: 1780277460, open: 100, high: 103, low: 97, close: 100 },
+    ]);
+    wrapper.unmount();
+  });
+
+  it("rebuilds displayed candles when the chart type or HA seed changes", async () => {
+    const { state, wrapper } = mountChart();
+    await nextTick();
+    chartMocks.createChart.mockClear();
+
+    state.chartType.value = "heikinashi";
+    state.heikinAshiSeed.value = { open: 98, close: 100 };
+    await nextTick();
+
+    expect(chartMocks.createChart).not.toHaveBeenCalled();
+    expect(chartMocks.series[0]!.setData).toHaveBeenLastCalledWith([
+      { time: 1780277400, open: 99, high: 103, low: 99, close: 101 },
+      { time: 1780277460, open: 100, high: 103, low: 97, close: 100 },
+    ]);
+
+    state.heikinAshiSeed.value = { open: 100, close: 102 };
+    await nextTick();
+
+    expect(chartMocks.series[0]!.setData).toHaveBeenLastCalledWith([
+      { time: 1780277400, open: 101, high: 103, low: 99, close: 101 },
+      { time: 1780277460, open: 101, high: 103, low: 97, close: 100 },
+    ]);
     wrapper.unmount();
   });
 

@@ -39,6 +39,10 @@ export function runScriptRequestFromProto(value: Record<string, unknown>): Prepa
   if (mode !== undefined) {
     request.mode = mode;
   }
+  const chartType = optionalStringField(value, "chart_type", "chartType");
+  if (chartType !== undefined) {
+    request.chartType = chartType;
+  }
   const includePlots = optionalBooleanField(value, "include_plots", "includePlots");
   if (includePlots !== undefined) {
     request.includePlots = includePlots;

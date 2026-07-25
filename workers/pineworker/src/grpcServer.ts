@@ -103,7 +103,7 @@ export function createServiceHandlers(options: RunAdapterOptions): Record<string
 }
 
 function healthStatus(options: RunAdapterOptions): HealthStatus {
-  const capabilities = ["health", "analyze", "run", "atomic-order-intent-v1"];
+  const capabilities = ["health", "analyze", "run", "atomic-order-intent-v1", "extended-ticker-heikinashi-v1"];
   if (
     options.executor.openLiveSession !== undefined &&
     options.executor.appendLiveSession !== undefined &&
