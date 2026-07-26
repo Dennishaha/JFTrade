@@ -636,7 +636,7 @@ describe("Backtest page", () => {
 
     expect(wrapper.text()).toContain("历史回测");
     expect(wrapper.text()).toContain("新建回测");
-    expect(wrapper.text()).toContain("回测报告");
+    expect(wrapper.text()).toContain("回测工作台");
     expect(wrapper.text()).toContain("图表");
     expect(wrapper.text()).toContain("订单");
     expect(wrapper.text()).toContain("属性");
@@ -654,8 +654,13 @@ describe("Backtest page", () => {
     expect(page.get(".bt-report-chart-tab").classes()).toEqual(
       expect.arrayContaining(["h-full", "min-h-0", "flex-col"]),
     );
+    expect(page.get(".bt-report-workspace").exists()).toBe(true);
     expect(page.get(".bt-report-window-item--chart").classes()).toContain("bt-report-window-item");
+    expect(page.findAll(".bt-report-stat")).toHaveLength(9);
+    expect(page.findAll('[data-testid^="backtest-kpi-"]')).toHaveLength(9);
     expect(readSetupValue<boolean>(setup.showNewBacktestForm)).toBe(false);
+    expect(readSetupValue<boolean>(setup.backtestSidebarOpen)).toBe(true);
+    expect(readSetupValue<string[]>(setup.expandedBacktestPanels)).toEqual(["history"]);
     expect(readSetupValue<string>(setup.activeReportTab)).toBe("chart");
     expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("setup");
     expect(wrapper.get('[data-testid="backtest-mobile-section-setup"]').classes()).toContain("is-active");
@@ -704,6 +709,9 @@ describe("Backtest page", () => {
     call("toggleNewBacktestForm");
     await nextTick();
     expect(readSetupValue<boolean>(setup.showNewBacktestForm)).toBe(true);
+    expect(readSetupValue<string[]>(setup.expandedBacktestPanels)).toEqual(
+      expect.arrayContaining(["setup", "history"]),
+    );
     expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("setup");
     expect(wrapper.text()).toContain("策略与标的");
     expect(wrapper.text()).toContain("数据范围");
@@ -857,9 +865,10 @@ describe("Backtest page", () => {
 
     writeSetupValue(setup, "error", "temporary request error");
     await nextTick();
-    const closeErrorButton = page.findAll("button").find((button) => button.text() === "关闭");
-    expect(closeErrorButton).toBeDefined();
-    await closeErrorButton!.trigger("click");
+    const errorBanner = page.get(".backtest-error-banner__content");
+    await errorBanner.trigger("click");
+    expect(readSetupValue<boolean>(setup.errorExpanded)).toBe(true);
+    await page.get('button[aria-label="关闭错误提示"]').trigger("click");
     expect(readSetupValue<string>(setup.error)).toBe("");
 
     const resultSearch = page.findAll("input").find((input) =>
@@ -970,6 +979,68 @@ describe("Backtest page", () => {
     await nextTick();
     expect(readSetupValue<number>(setup.resultsPage)).toBe(1);
     wrapper.unmount();
+  });
+
+  it("uses a closed overlay sidebar at medium widths and supports toggle, backdrop, and Escape", async () => {
+    const mediumQuery = "(min-width: 769px) and (max-width: 1180px)";
+    let mediumChangeListener: ((event: MediaQueryListEvent) => void) | null = null;
+    const addEventListener = vi.fn(
+      (eventName: string, listener: EventListenerOrEventListenerObject) => {
+        if (eventName === "change" && typeof listener === "function") {
+          mediumChangeListener = listener as (event: MediaQueryListEvent) => void;
+        }
+      },
+    );
+    const removeEventListener = vi.fn();
+    const matchMedia = vi.fn((query: string) => ({
+      matches: query === mediumQuery,
+      media: query,
+      onchange: null,
+      addEventListener: query === mediumQuery ? addEventListener : vi.fn(),
+      removeEventListener: query === mediumQuery ? removeEventListener : vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    }));
+    vi.stubGlobal("matchMedia", matchMedia);
+
+    installBacktestPageFetch({
+      runs: [buildDetailedBacktestRun()],
+      definitions: [{ id: "strategy-1", name: "EMA Reversal", version: "v2", symbol: "US.AAPL" }],
+    });
+
+    const { wrapper } = await mountApp("/backtest");
+    await flushRequests();
+    await flushRequests();
+    const page = wrapper.getComponent(BacktestPage);
+    const setup = page.vm.$.setupState as Record<string, unknown>;
+
+    expect(matchMedia).toHaveBeenCalledWith(mediumQuery);
+    expect(readSetupValue<boolean>(setup.isMediumBacktestWorkbench)).toBe(true);
+    expect(readSetupValue<boolean>(setup.backtestSidebarOpen)).toBe(false);
+    expect(page.classes()).toContain("backtest-page--sidebar-closed");
+
+    await page.get('[data-testid="backtest-sidebar-toggle"]').trigger("click");
+    expect(readSetupValue<boolean>(setup.backtestSidebarOpen)).toBe(true);
+    expect(page.get('[data-testid="backtest-sidebar-backdrop"]').exists()).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await nextTick();
+    expect(readSetupValue<boolean>(setup.backtestSidebarOpen)).toBe(false);
+
+    await page.get('[data-testid="backtest-sidebar-toggle"]').trigger("click");
+    await page.get('[data-testid="backtest-sidebar-backdrop"]').trigger("click");
+    expect(readSetupValue<boolean>(setup.backtestSidebarOpen)).toBe(false);
+
+    const listener = mediumChangeListener;
+    expect(listener).not.toBeNull();
+    listener?.({ matches: false } as MediaQueryListEvent);
+    await nextTick();
+    expect(readSetupValue<boolean>(setup.isMediumBacktestWorkbench)).toBe(false);
+    expect(readSetupValue<boolean>(setup.backtestSidebarOpen)).toBe(true);
+
+    wrapper.unmount();
+    expect(removeEventListener).toHaveBeenCalledWith("change", expect.any(Function));
   });
 });
 

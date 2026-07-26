@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SplitpanesResizedPayload } from "splitpanes";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import {
@@ -82,10 +82,8 @@ const {
   normalizeInstrumentRefWithMarketApi,
 } = useMarketProfiles();
 
-const controlPanelClass = "rounded-lg border bt-border bt-bg-surface";
 const emptyStateClass =
   "rounded-lg border bt-border bt-bg-surface bt-text-muted";
-const statCardClass = "rounded-lg bt-bg-muted";
 const cardBorderClass = "rounded-lg border bt-border";
 const route = useRoute();
 const router = useRouter();
@@ -175,7 +173,7 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
     };
     const storedMarket =
       typeof parsed.selectedMarket === "string" &&
-      parsed.selectedMarket.trim() !== ""
+        parsed.selectedMarket.trim() !== ""
         ? parsed.selectedMarket.trim().toUpperCase()
         : defaults.selectedMarket;
     let storedCode =
@@ -575,7 +573,7 @@ const backtestFormState = computed<BacktestFormState>(() => ({
     : "",
   instrumentId:
     instrumentSelectionResolved.value &&
-    (codeInput.value.includes(".") || codeInput.value.includes(":"))
+      (codeInput.value.includes(".") || codeInput.value.includes(":"))
       ? codeInput.value.trim().toUpperCase()
       : "",
   instrumentType: instrumentType.value,
@@ -635,9 +633,9 @@ const {
       candidate.includes(".") || candidate.includes(":")
         ? { instrumentId: candidate }
         : {
-            market: input.market,
-            code: input.code,
-          };
+          market: input.market,
+          code: input.code,
+        };
     const normalized = await normalizeInstrumentRefWithMarketApi(request);
     return {
       market: normalized.market,
@@ -650,6 +648,10 @@ const {
 
 type BacktestReportTab = "chart" | "orders" | "properties";
 type BacktestMobileSection = "setup" | "report";
+type BacktestSidePanelId = "setup" | "history";
+
+const BACKTEST_MEDIUM_WORKBENCH_QUERY = "(min-width: 769px) and (max-width: 1180px)";
+let backtestMediumWorkbenchMediaQuery: MediaQueryList | null = null;
 
 const activeReportTab = ref<BacktestReportTab>("chart");
 const selectedRunId = ref("");
@@ -657,6 +659,10 @@ const showNewBacktestForm = ref(false);
 const newBacktestFormTouched = ref(false);
 const backtestPaneSizes = ref<[number, number]>([30, 70]);
 const backtestMobileSection = ref<BacktestMobileSection>("setup");
+const backtestSidebarOpen = ref(true);
+const isMediumBacktestWorkbench = ref(false);
+const errorExpanded = ref(false);
+const expandedBacktestPanels = ref<BacktestSidePanelId[]>(["history"]);
 
 const resultStrategyOptions = computed(() => {
   const options = [{ value: "all", title: "全部策略" }];
@@ -1038,6 +1044,10 @@ async function loadComparisonSnapshot(
   }
 }
 
+function nativeSelectValue(event: Event): string {
+  return event.target instanceof HTMLSelectElement ? event.target.value : "";
+}
+
 function changeComparisonDefinition(value: unknown): void {
   const nextDefinitionId = typeof value === "string" ? value.trim() : "";
   if (nextDefinitionId === comparisonDefinitionId.value) {
@@ -1279,12 +1289,110 @@ function selectFocusedRun(runId: string) {
   backtestMobileSection.value = "report";
 }
 
+function setBacktestSetupPanelOpen(open: boolean): void {
+  const nextPanels: BacktestSidePanelId[] = expandedBacktestPanels.value.filter(
+    (panel) => panel !== "setup",
+  );
+  if (open) {
+    nextPanels.unshift("setup");
+  }
+  if (!nextPanels.includes("history")) {
+    nextPanels.push("history");
+  }
+  expandedBacktestPanels.value = nextPanels;
+  showNewBacktestForm.value = open;
+}
+
+function handleBacktestPanelsUpdate(value: unknown): void {
+  const panels = Array.isArray(value)
+    ? value.filter((panel): panel is BacktestSidePanelId => panel === "setup" || panel === "history")
+    : [];
+  expandedBacktestPanels.value = panels;
+  const setupOpen = panels.includes("setup");
+  if (setupOpen !== showNewBacktestForm.value) {
+    newBacktestFormTouched.value = true;
+    showNewBacktestForm.value = setupOpen;
+  }
+}
+
+function toggleBacktestPanel(panel: BacktestSidePanelId): void {
+  const nextPanels = expandedBacktestPanels.value.includes(panel)
+    ? expandedBacktestPanels.value.filter((item) => item !== panel)
+    : [...expandedBacktestPanels.value, panel];
+  handleBacktestPanelsUpdate(nextPanels);
+}
+
+function openNewBacktestForm(): void {
+  newBacktestFormTouched.value = true;
+  setBacktestSetupPanelOpen(true);
+  backtestSidebarOpen.value = true;
+  backtestMobileSection.value = "setup";
+}
+
 function toggleNewBacktestForm() {
   newBacktestFormTouched.value = true;
-  showNewBacktestForm.value = !showNewBacktestForm.value;
-  if (showNewBacktestForm.value) {
+  setBacktestSetupPanelOpen(!showNewBacktestForm.value);
+  backtestSidebarOpen.value = true;
+  backtestMobileSection.value = "setup";
+}
+
+function toggleBacktestSidebar(): void {
+  if (typeof window !== "undefined" && window.innerWidth <= 768) {
     backtestMobileSection.value = "setup";
+    return;
   }
+  backtestSidebarOpen.value = !backtestSidebarOpen.value;
+}
+
+function closeBacktestSidebar(): void {
+  backtestSidebarOpen.value = false;
+}
+
+function syncMediumBacktestWorkbench(event: MediaQueryListEvent | MediaQueryList): void {
+  const wasMedium = isMediumBacktestWorkbench.value;
+  isMediumBacktestWorkbench.value = event.matches;
+  if (event.matches) {
+    backtestSidebarOpen.value = false;
+    return;
+  }
+  if (wasMedium) {
+    backtestSidebarOpen.value = true;
+  }
+}
+
+function handleBacktestWorkbenchKeydown(event: KeyboardEvent): void {
+  if (event.key === "Escape" && isMediumBacktestWorkbench.value && backtestSidebarOpen.value) {
+    closeBacktestSidebar();
+  }
+}
+
+function installBacktestWorkbenchMediaQuery(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.addEventListener("keydown", handleBacktestWorkbenchKeydown);
+  if (typeof window.matchMedia !== "function") {
+    return;
+  }
+  backtestMediumWorkbenchMediaQuery = window.matchMedia(BACKTEST_MEDIUM_WORKBENCH_QUERY);
+  syncMediumBacktestWorkbench(backtestMediumWorkbenchMediaQuery);
+  if (typeof backtestMediumWorkbenchMediaQuery.addEventListener === "function") {
+    backtestMediumWorkbenchMediaQuery.addEventListener("change", syncMediumBacktestWorkbench);
+  } else {
+    backtestMediumWorkbenchMediaQuery.addListener(syncMediumBacktestWorkbench);
+  }
+}
+
+function disposeBacktestWorkbenchMediaQuery(): void {
+  if (typeof window !== "undefined") {
+    window.removeEventListener("keydown", handleBacktestWorkbenchKeydown);
+  }
+  if (typeof backtestMediumWorkbenchMediaQuery?.removeEventListener === "function") {
+    backtestMediumWorkbenchMediaQuery.removeEventListener("change", syncMediumBacktestWorkbench);
+  } else {
+    backtestMediumWorkbenchMediaQuery?.removeListener(syncMediumBacktestWorkbench);
+  }
+  backtestMediumWorkbenchMediaQuery = null;
 }
 
 function selectBacktestMobileSection(section: BacktestMobileSection): void {
@@ -1330,7 +1438,7 @@ function hiddenBacktestRuntimeErrorCount(run: BacktestRunView): number {
   return Math.max(
     0,
     (run.result?.runtimeErrors?.length ?? 0) -
-      BACKTEST_RUNTIME_ERROR_RENDER_WINDOW,
+    BACKTEST_RUNTIME_ERROR_RENDER_WINDOW,
   );
 }
 
@@ -1460,7 +1568,9 @@ watch(
     if (newBacktestFormTouched.value) {
       return;
     }
-    showNewBacktestForm.value = nextRuns.length === 0;
+    const hasRuns = nextRuns.length > 0;
+    showNewBacktestForm.value = !hasRuns;
+    expandedBacktestPanels.value = hasRuns ? ["history"] : ["setup"];
   },
   { immediate: true },
 );
@@ -1559,6 +1669,7 @@ function ensureSelectedMarketProfile() {
 }
 
 onMounted(async () => {
+  installBacktestWorkbenchMediaQuery();
   await Promise.all([
     loadMarketProfiles(),
     loadDefinitions(),
@@ -1572,6 +1683,10 @@ onMounted(async () => {
       void loadComparisonVersions(definitionId);
     }
   }
+});
+
+onBeforeUnmount(() => {
+  disposeBacktestWorkbenchMediaQuery();
 });
 
 async function loadDefinitions() {
@@ -1892,863 +2007,1092 @@ watch(
 </script>
 
 <template>
-  <div
-    class="backtest-page grid"
-    :class="`backtest-page--mobile-${backtestMobileSection}`"
-  >
-    <!-- Error banner -->
-    <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-      {{ error }}
-      <button class="ml-3 underline" type="button" @click="error = ''">
-        关闭
+  <div class="backtest-page" :class="[
+    `backtest-page--mobile-${backtestMobileSection}`,
+    backtestSidebarOpen ? 'backtest-page--sidebar-open' : 'backtest-page--sidebar-closed',
+    { 'backtest-page--medium': isMediumBacktestWorkbench },
+  ]">
+    <header class="backtest-workbench-header">
+      <div class="backtest-workbench-header__identity">
+        <button type="button" class="backtest-sidebar-toggle"
+          :class="{ 'is-active': backtestSidebarOpen || backtestMobileSection === 'setup' }"
+          :aria-expanded="backtestSidebarOpen" aria-controls="backtest-sidebar" data-testid="backtest-sidebar-toggle"
+          title="显示或隐藏回测配置与历史" @click="toggleBacktestSidebar">
+          <v-icon size="14">fa-solid fa-table-columns</v-icon>
+          <span>配置与历史</span>
+        </button>
+        <div class="backtest-workbench-title">
+          <h1>回测工作台</h1>
+        </div>
+      </div>
+      <div class="backtest-workbench-header__actions">
+        <div class="backtest-report-mode-switch" aria-label="回测报告视图">
+          <button type="button" class="backtest-report-mode-switch__button"
+            :class="{ 'is-active': reportMode === 'single' }" data-testid="backtest-report-mode-single"
+            @click="activateSingleReportMode">
+            单次报告
+          </button>
+          <button type="button" class="backtest-report-mode-switch__button"
+            :class="{ 'is-active': reportMode === 'compare' }" data-testid="backtest-open-version-comparison"
+            @click="activateComparisonMode">
+            版本对比
+          </button>
+        </div>
+        <button v-if="reportMode === 'single' && focusedRun && isTerminalBacktestStatus(focusedRun.status)"
+          type="button" class="backtest-header-icon-button backtest-header-icon-button--danger" title="删除回测结果"
+          aria-label="删除当前回测结果" @click="requestDeleteRun(focusedRun.id)">
+          <v-icon size="13">fa-solid fa-trash</v-icon>
+        </button>
+        <button type="button" class="backtest-header-action backtest-header-action--primary"
+          data-testid="backtest-open-new-form" @click="openNewBacktestForm">
+          <v-icon size="13">fa-solid fa-plus</v-icon>
+          新建回测
+        </button>
+      </div>
+    </header>
+
+    <div v-if="error" class="backtest-error-banner" :class="{ 'is-expanded': errorExpanded }" :title="error">
+      <button type="button" class="backtest-error-banner__content" :aria-expanded="errorExpanded"
+        @click="errorExpanded = !errorExpanded">
+        <v-icon size="13">fa-solid fa-triangle-exclamation</v-icon>
+        <span>{{ error }}</span>
+        <v-icon size="12">{{ errorExpanded ? "fa-solid fa-chevron-up" : "fa-solid fa-chevron-down" }}</v-icon>
+      </button>
+      <button type="button" class="backtest-error-banner__close" aria-label="关闭错误提示" @click="error = ''">
+        <v-icon size="12">fa-solid fa-xmark</v-icon>
       </button>
     </div>
 
     <nav class="backtest-page__mobile-switch" aria-label="回测移动端工作区">
-      <button
-        class="backtest-page__mobile-switch-button"
-        :class="{ 'is-active': backtestMobileSection === 'setup' }"
-        data-testid="backtest-mobile-section-setup"
-        type="button"
-        @click="selectBacktestMobileSection('setup')"
-      >
-        历史/配置
+      <button class="backtest-page__mobile-switch-button" :class="{ 'is-active': backtestMobileSection === 'setup' }"
+        data-testid="backtest-mobile-section-setup" type="button" @click="selectBacktestMobileSection('setup')">
+        配置与历史
       </button>
-      <button
-        class="backtest-page__mobile-switch-button"
-        :class="{ 'is-active': backtestMobileSection === 'report' }"
-        data-testid="backtest-mobile-section-report"
-        :disabled="focusedRun == null && reportMode !== 'compare'"
-        type="button"
-        @click="selectBacktestMobileSection('report')"
-      >
+      <button class="backtest-page__mobile-switch-button" :class="{ 'is-active': backtestMobileSection === 'report' }"
+        data-testid="backtest-mobile-section-report" :disabled="focusedRun == null && reportMode !== 'compare'"
+        type="button" @click="selectBacktestMobileSection('report')">
         报告
       </button>
     </nav>
 
+    <button v-if="isMediumBacktestWorkbench && backtestSidebarOpen" type="button" class="backtest-sidebar-backdrop"
+      aria-label="关闭回测配置与历史" data-testid="backtest-sidebar-backdrop" @click="closeBacktestSidebar" />
+
     <SplitPane class="backtest-page__split" :pane-min-size="18" @resized="handleBacktestPaneResized">
       <SplitPaneItem :size="backtestPaneSizes[0]" :min-size="22" :max-size="55">
-        <aside class="backtest-page__pane backtest-page__pane--sidebar">
-          <div :class="[controlPanelClass, 'flex min-h-0 flex-1 flex-col overflow-hidden']">
-            <div class="bt-sidebar-header flex items-center justify-between gap-3 border-b bt-border px-3 py-3">
-              <div class="min-w-0">
-                <div class="text-sm font-semibold bt-text-strong">历史回测</div>
-                <div class="text-xs bt-text-muted">{{ resultsPageSummary || "回测结果由服务端提供。" }}</div>
+        <aside id="backtest-sidebar" class="backtest-page__pane backtest-page__pane--sidebar">
+          <div class="bt-sidebar-shell">
+            <div class="bt-sidebar-drawer-head">
+              <div>
+                <strong>配置与历史</strong>
+                <span>{{ resultsPageSummary || "回测结果由服务端提供。" }}</span>
               </div>
-              <div class="flex shrink-0 items-center gap-1">
-                <v-btn
-                  class="bt-sidebar-create-action"
-                  size="small"
-                  variant="text"
-                  data-testid="backtest-open-version-comparison"
-                  @click="activateComparisonMode"
-                >
-                  <v-icon size="13" class="mr-1">fa-solid fa-code-compare</v-icon>
-                  版本对比
-                </v-btn>
-                <v-btn class="bt-accent-action bt-sidebar-create-action" size="small" variant="tonal" @click="toggleNewBacktestForm">
-                  <v-icon size="14" class="mr-1">fa-solid fa-plus</v-icon>
-                  新建回测
-                </v-btn>
-              </div>
+              <button type="button" aria-label="关闭回测配置与历史" @click="closeBacktestSidebar">
+                <v-icon size="14">fa-solid fa-xmark</v-icon>
+              </button>
             </div>
 
-            <div class="min-h-0 flex-1 overflow-auto p-3">
-              <div v-if="showNewBacktestForm" class="bt-new-backtest-form space-y-4 rounded-lg border bt-border bt-bg-muted p-3">
-                <div class="flex items-center justify-between gap-3">
-                  <div>
-                    <div class="text-sm font-semibold bt-text-strong">新建回测</div>
-                    <div class="text-xs bt-text-muted">配置策略、标的、数据和成本后运行。</div>
-                  </div>
-                  <v-btn icon="fa-solid fa-chevron-up" size="x-small" variant="text" title="收起新建回测"
-                    @click="toggleNewBacktestForm" />
-                </div>
-            <section class="grid gap-2">
-              <div class="flex items-center justify-between gap-2">
-                <div class="text-sm font-semibold bt-text-strong">策略与标的</div>
-                <div class="truncate text-xs bt-text-muted">
-                  <InstrumentIdentity
-                    v-if="displayInstrumentId"
-                    :instrument-id="displayInstrumentId"
-                    compact
-                  />
-                  <template v-else>等待标的</template>
-                </div>
-              </div>
-              <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">策略定义</label>
-                <v-select v-model="selectedDefinitionId" :items="definitions" item-title="name" item-value="id"
-                  density="compact" variant="outlined" placeholder="选择策略"
-                  :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
-              </div>
-              <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">代码或名称</label>
-                <InstrumentSearchBox
-                  v-model="instrumentSearchQuery"
-                  action-label="查询"
-                  input-test-id="backtest-instrument-code"
-                  placeholder="输入代码或名称"
-                  root-test-id="backtest-instrument-search"
-                  submit-test-id="backtest-instrument-submit"
-                  variant="backtest"
-                  @select="handleResolvedBacktestInstrument"
-                />
-              </div>
-              <div
-                v-if="!instrumentSelectionResolved"
-                class="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-600"
-                data-testid="backtest-instrument-unresolved"
-              >
-                当前输入尚未解析。请查询并选择标的后再同步或运行；未解析内容不会覆盖已保存标的。
-              </div>
-            </section>
-
-            <section class="grid gap-2 border-t bt-border pt-3">
-              <div class="text-sm font-semibold bt-text-strong">数据范围</div>
-              <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">K线周期</label>
-                <v-select v-model="interval" :items="KLINE_PERIODS" item-title="label" item-value="value"
-                  density="compact" variant="outlined"
-                  :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
-              </div>
-              <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">图表类型</label>
-                <v-select v-model="chartType" :items="KLINE_CHART_TYPES" item-title="label" item-value="value"
-                  density="compact" variant="outlined" :disabled="interval === 'tick'"
-                  :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
-              </div>
-              <div class="grid grid-cols-2 gap-2">
-                <div class="grid gap-0.5">
-                  <label class="text-xs font-semibold bt-text-strong">起始日期</label>
-                  <v-text-field v-model="startDate" type="date" density="compact" variant="outlined" />
-                </div>
-                <div class="grid gap-0.5">
-                  <label class="text-xs font-semibold bt-text-strong">结束日期</label>
-                  <v-text-field v-model="endDate" type="date" density="compact" variant="outlined" />
-                </div>
-              </div>
-              <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">复权方式</label>
-                <v-select v-model="rehabType" :items="[
-                  { value: 'forward', title: '前复权' },
-                  { value: 'backward', title: '后复权' },
-                  { value: 'none', title: '不复权' },
-                ]" item-title="title" item-value="value" density="compact" variant="outlined"
-                  :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
-              </div>
-              <div v-if="extendedHoursSupported" class="bt-extended-hours flex items-start gap-3 rounded-lg border bt-border px-3 py-2">
-                <v-switch v-model="useExtendedHours" color="teal" density="compact" hide-details
-                  class="bt-extended-hours__switch self-center" />
-                <div class="min-w-0 flex-1">
-                  <div class="text-xs font-semibold bt-text-strong">扩展交易时段</div>
-                  <div class="text-xs bt-text-dim">{{ extendedHoursHint }}</div>
-                </div>
-              </div>
-              <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">预热K线</label>
-                <div class="min-h-[40px] rounded-md border bt-border bt-bg-muted px-3 py-2 text-sm bt-text">
-                  {{ warmupPreviewValue }}
-                </div>
-                <div class="text-xs bt-text-dim">{{ warmupPreviewNote }}</div>
-              </div>
-            </section>
-
-            <section class="grid gap-2 border-t bt-border pt-3">
-              <div class="flex items-center justify-between gap-2">
-                <div class="text-sm font-semibold bt-text-strong">资金与成本</div>
-                <div class="text-xs bt-text-muted">{{ costModeSummary }}</div>
-              </div>
-              <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">初始资金</label>
-                <v-text-field v-model.number="initialBalance" type="number" :min="1000" density="compact"
-                  variant="outlined" />
-                <div class="text-xs bt-text-dim">{{ quoteCurrency }}</div>
-              </div>
-              <div class="grid grid-cols-2 gap-2">
-                <div class="grid gap-0.5">
-                  <label class="text-xs font-semibold bt-text-strong">券商费用</label>
-                  <v-select v-model="brokerFeeMode" :items="BACKTEST_BROKER_FEE_MODE_OPTIONS" item-title="title"
-                    item-value="value" density="compact" variant="outlined"
-                    :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
-                </div>
-                <div class="grid gap-0.5">
-                  <label class="text-xs font-semibold bt-text-strong">市场费用</label>
-                  <v-select v-model="marketFeeMode" :items="BACKTEST_MARKET_FEE_MODE_OPTIONS" item-title="title"
-                    item-value="value" density="compact" variant="outlined"
-                    :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
-                </div>
-              </div>
-              <v-textarea v-if="brokerFeeMode === 'custom'" v-model="brokerFeeRulesText" label="券商费用规则 JSON"
-                density="compact" variant="outlined" rows="3" auto-grow hide-details />
-              <v-textarea v-if="marketFeeMode === 'custom'" v-model="marketFeeRulesText" label="市场费用规则 JSON"
-                density="compact" variant="outlined" rows="3" auto-grow hide-details />
-            </section>
-
-            <section class="grid gap-2 border-t bt-border pt-3">
-              <div class="text-sm font-semibold bt-text-strong">运行</div>
-
-            <!-- Sync section -->
-            <div v-if="syncing && !syncProgress"
-              class="rounded-xl border border-teal-200 bg-teal-50/50 px-3 py-3 text-center">
-              <span class="text-sm text-teal-700">正在启动同步…</span>
-            </div>
-            <div v-else-if="syncing && syncProgress"
-              class="rounded-xl border border-teal-200 bg-teal-50/50 px-3 py-3 space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-teal-800">
-                  同步中 · {{ syncProgress.currentInterval || "准备" }}
-                </span>
-                <button
-                  class="rounded-full border border-red-200 px-2 py-0.5 text-xs text-red-600 hover:bg-red-50 transition"
-                  type="button" @click="cancelSync">
-                  取消
+            <div class="bt-sidebar-panels">
+              <section class="bt-sidebar-panel bt-sidebar-panel--setup"
+                :class="{ 'is-expanded': expandedBacktestPanels.includes('setup') }">
+                <button type="button" class="bt-sidebar-panel__title" data-testid="backtest-side-panel-setup-title"
+                  :aria-expanded="expandedBacktestPanels.includes('setup')" @click="toggleBacktestPanel('setup')">
+                  <v-icon size="11">fa-solid fa-chevron-right</v-icon>
+                  <span>回测配置</span>
+                  <em>{{ selectedDefinitionId ? "已选择策略" : "等待策略" }}</em>
                 </button>
-              </div>
-              <div class="h-2 rounded-full bg-teal-200 overflow-hidden">
-                <div class="h-full rounded-full bg-teal-500 transition-all duration-500" :style="{
-                  width:
-                    syncProgress.totalIntervals > 0
-                      ? (syncProgress.completedIntervals /
-                        syncProgress.totalIntervals) *
-                      100 +
-                      '%'
-                      : '10%',
-                }" />
-              </div>
-              <div class="flex items-center justify-between text-xs text-teal-700">
-                <span>{{ syncProgress.completedBatches }} 批</span>
-                <span v-if="syncProgress.retries > 0" class="text-amber-600">重试 {{ syncProgress.retries }}</span>
-              </div>
-            </div>
-            <div v-else-if="syncProgress?.status === 'cancelled'"
-              class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              同步已取消 · {{ syncProgress.completedBatches }} 批已完成
-            </div>
-            <!-- Sync button -->
-            <button v-else
-              class="flex w-full items-center justify-center gap-2 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 shadow-sm transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
-              :disabled="running || !instrumentSelectionResolved" type="button" @click="syncKlines">
-              <v-icon size="13">fa-solid fa-cloud-arrow-down</v-icon>
-              同步K线
-            </button>
-
-            <!-- Run button -->
-            <button
-              class="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed"
-              :class="{ 'bt-disabled-bg': running || !selectedDefinitionId || !instrumentSelectionResolved }"
-              :disabled="running || !selectedDefinitionId || !instrumentSelectionResolved" type="button" @click="startBacktest">
-              <v-progress-circular v-if="running" indeterminate :size="16" :width="2" color="white" />
-              <v-icon v-else size="13">fa-solid fa-play</v-icon>
-              {{ running ? "启动中..." : "开始回测" }}
-            </button>
-
-            </section>
-              </div>
-
-              <section class="mt-3 grid gap-3">
-                <div class="bt-backtest-results-filters grid gap-2">
-                  <v-text-field v-model="resultsSearchQuery" density="compact" variant="outlined" hide-details clearable
-                    placeholder="搜索策略、标的、回测 ID" />
-                  <div class="grid grid-cols-2 gap-2">
-                    <v-select v-model="resultsStatusFilter" :items="BACKTEST_RESULT_STATUS_OPTIONS" item-title="title"
-                      item-value="value" density="compact" variant="outlined" hide-details
-                      :menu-props="{ contentClass: 'bt-backtest-field-menu' }" />
-                    <v-select v-model="resultsStrategyFilter" :items="resultStrategyOptions" item-title="title"
-                      item-value="value" density="compact" variant="outlined" hide-details
-                      :menu-props="{ contentClass: 'bt-backtest-field-menu' }" />
-                  </div>
-                  <div class="flex justify-end">
-                    <v-btn variant="text" density="comfortable" :disabled="!hasResultsFilters" @click="resetResultsFilters">
-                      清空筛选
-                    </v-btn>
-                  </div>
-                </div>
-
-                <div v-if="filteredRuns.length === 0" :class="[emptyStateClass, 'p-6 text-center text-sm']">
-                  {{ emptyResultsMessage }}
-                </div>
-                <div v-else class="grid gap-2">
-                  <div v-for="run in pagedRuns" :key="run.id"
-                    class="bt-history-run cursor-pointer rounded-lg border px-3 py-3 transition"
-                    :class="focusedRun && focusedRun.id === run.id
-                      ? 'bt-history-run--selected'
-                      : 'bt-history-run--idle bt-border bt-bg-surface'"
-                    role="button" tabindex="0" @click="selectFocusedRun(run.id)"
-                    @keydown.enter.prevent="selectFocusedRun(run.id)"
-                    @keydown.space.prevent="selectFocusedRun(run.id)">
-                    <div class="flex items-start gap-3">
-                      <v-chip :color="statusChip(run.status).color" size="small" variant="outlined" class="shrink-0">
-                        {{ statusChip(run.status).label }}
-                      </v-chip>
-                      <div class="min-w-0 flex-1">
-                        <div class="truncate text-sm font-semibold bt-text-strong">
-                          {{ resolveStrategyName(run.request.definitionId) }} ·
-                          <InstrumentIdentity :instrument-id="run.request.symbol" compact />
+                <div v-if="showNewBacktestForm" class="bt-sidebar-panel__body bt-sidebar-panel__body--setup">
+                  <div class="bt-new-backtest-form">
+                    <div class="bt-new-backtest-fields">
+                      <section class="grid gap-1.5">
+                        <div class="flex items-center justify-between gap-2">
+                          <div class="text-sm font-semibold bt-text-strong">策略与标的</div>
+                          <div class="truncate text-xs bt-text-muted">
+                            <InstrumentIdentity v-if="displayInstrumentId" :instrument-id="displayInstrumentId"
+                              compact />
+                            <template v-else>等待标的</template>
+                          </div>
                         </div>
-                        <div class="mt-1 flex flex-wrap items-center gap-2 text-xs bt-text-muted">
-                          <span>{{ run.id }}</span>
-                          <span>{{ run.request.interval }}</span>
-                          <span>{{ formatBacktestRunDate(run.request.startDate) }} → {{ formatBacktestRunDate(run.request.endDate) }}</span>
-                          <span>{{ resolveRunSessionMode(run) }}</span>
-                          <span>{{ formatBacktestRehabType(run.request.rehabType) }}</span>
-                          <span>{{ run.request.initialBalance.toLocaleString() }} {{ resolveRunQuoteCurrency(run) }}</span>
-                          <span v-if="run.request.definitionVersion">{{ formatStrategyVersion(run.request.definitionVersion) }}</span>
+                        <div class="bt-form-row">
+                          <label class="bt-form-row__label" for="bt-field-definition">策略定义</label>
+                          <select id="bt-field-definition" v-model="selectedDefinitionId" class="bt-native-select">
+                            <option value="" disabled>选择策略</option>
+                            <option v-for="definition in definitions" :key="definition.id" :value="definition.id">
+                              {{ definition.name }}
+                            </option>
+                          </select>
                         </div>
-                        <div v-if="run.status === 'running' || run.status === 'queued'" class="mt-2 flex items-center gap-3">
-                          <v-progress-linear :color="run.status === 'running' ? 'teal' : 'warning'" indeterminate rounded
-                            :height="6" class="flex-1" />
-                          <span class="text-xs whitespace-nowrap shrink-0" :class="run.status === 'running'
-                            ? 'text-teal-600'
-                            : 'text-amber-600'">
-                            {{ run.status === "running" ? "回测运行中…" : "排队等待中…" }}
+                        <div class="bt-form-row">
+                          <label class="bt-form-row__label">代码或名称</label>
+                          <InstrumentSearchBox v-model="instrumentSearchQuery" action-label="查询"
+                            input-test-id="backtest-instrument-code" placeholder="输入代码或名称"
+                            root-test-id="backtest-instrument-search" submit-test-id="backtest-instrument-submit"
+                            variant="backtest" @select="handleResolvedBacktestInstrument" />
+                        </div>
+                        <div v-if="!instrumentSelectionResolved" class="bt-inline-warning"
+                          data-testid="backtest-instrument-unresolved">
+                          当前输入尚未解析。请查询并选择标的后再同步或运行；未解析内容不会覆盖已保存标的。
+                        </div>
+                      </section>
+
+                      <section class="grid gap-1.5 border-t bt-border pt-2">
+                        <div class="text-sm font-semibold bt-text-strong">数据范围</div>
+                        <div class="bt-form-row">
+                          <label class="bt-form-row__label" for="bt-field-interval">K线周期</label>
+                          <select id="bt-field-interval" v-model="interval" class="bt-native-select">
+                            <option v-for="period in KLINE_PERIODS" :key="period.value" :value="period.value">
+                              {{ period.label }}
+                            </option>
+                          </select>
+                        </div>
+                        <div class="bt-form-row">
+                          <label class="bt-form-row__label" for="bt-field-chart-type">图表类型</label>
+                          <select id="bt-field-chart-type" v-model="chartType" class="bt-native-select"
+                            :disabled="interval === 'tick'">
+                            <option v-for="type in KLINE_CHART_TYPES" :key="type.value" :value="type.value">
+                              {{ type.label }}
+                            </option>
+                          </select>
+                        </div>
+                        <div class="bt-form-row">
+                          <label class="bt-form-row__label" for="bt-field-start-date">起始日期</label>
+                          <input id="bt-field-start-date" v-model="startDate" type="date" class="bt-native-input" />
+                        </div>
+                        <div class="bt-form-row">
+                          <label class="bt-form-row__label" for="bt-field-end-date">结束日期</label>
+                          <input id="bt-field-end-date" v-model="endDate" type="date" class="bt-native-input" />
+                        </div>
+                        <div class="bt-form-row">
+                          <label class="bt-form-row__label" for="bt-field-rehab">复权方式</label>
+                          <select id="bt-field-rehab" v-model="rehabType" class="bt-native-select">
+                            <option value="forward">前复权</option>
+                            <option value="backward">后复权</option>
+                            <option value="none">不复权</option>
+                          </select>
+                        </div>
+                        <div v-if="extendedHoursSupported"
+                          class="bt-extended-hours rounded-md border bt-border px-2 py-1.5">
+                          <label class="bt-form-check">
+                            <input v-model="useExtendedHours" type="checkbox" class="bt-form-check__input" />
+                            <span class="min-w-0 flex-1">
+                              <span class="bt-form-check__title">扩展交易时段</span>
+                              <span class="bt-form-check__hint">{{ extendedHoursHint }}</span>
+                            </span>
+                          </label>
+                        </div>
+                        <div class="bt-form-row">
+                          <label class="bt-form-row__label">预热K线</label>
+                          <div class="bt-warmup-preview" :title="warmupPreviewNote">
+                            <span class="bt-warmup-preview__value">{{ warmupPreviewValue }}</span>
+                            <span class="bt-warmup-preview__note">{{ warmupPreviewNote }}</span>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section class="grid gap-1.5 border-t bt-border pt-2">
+                        <div class="flex items-center justify-between gap-2">
+                          <div class="text-sm font-semibold bt-text-strong">资金与成本</div>
+                          <div class="text-xs bt-text-muted">{{ costModeSummary }}</div>
+                        </div>
+                        <div class="bt-form-row">
+                          <label class="bt-form-row__label" for="bt-field-initial-balance">初始资金</label>
+                          <span class="bt-input-suffix">
+                            <input id="bt-field-initial-balance" v-model.number="initialBalance" type="number"
+                              :min="1000" class="bt-native-input" />
+                            <span class="bt-input-suffix__text">{{ quoteCurrency }}</span>
                           </span>
                         </div>
-                      </div>
-                      <v-btn v-if="isTerminalBacktestStatus(run.status)" icon="fa-solid fa-trash"
-                        size="small" variant="text" color="error" title="删除回测结果"
-                        @click.stop="requestDeleteRun(run.id)" />
+                        <div class="grid grid-cols-2 gap-2">
+                          <div class="bt-form-row bt-form-row--compact">
+                            <label class="bt-form-row__label" for="bt-field-broker-fee">券商费用</label>
+                            <select id="bt-field-broker-fee" v-model="brokerFeeMode" class="bt-native-select">
+                              <option v-for="option in BACKTEST_BROKER_FEE_MODE_OPTIONS" :key="option.value"
+                                :value="option.value">
+                                {{ option.title }}
+                              </option>
+                            </select>
+                          </div>
+                          <div class="bt-form-row bt-form-row--compact">
+                            <label class="bt-form-row__label" for="bt-field-market-fee">市场费用</label>
+                            <select id="bt-field-market-fee" v-model="marketFeeMode" class="bt-native-select">
+                              <option v-for="option in BACKTEST_MARKET_FEE_MODE_OPTIONS" :key="option.value"
+                                :value="option.value">
+                                {{ option.title }}
+                              </option>
+                            </select>
+                          </div>
+                        </div>
+                        <div v-if="brokerFeeMode === 'custom'" class="grid gap-1">
+                          <label class="bt-form-row__label" for="bt-field-broker-rules">券商费用规则 JSON</label>
+                          <textarea id="bt-field-broker-rules" v-model="brokerFeeRulesText" class="bt-native-textarea"
+                            rows="3" />
+                        </div>
+                        <div v-if="marketFeeMode === 'custom'" class="grid gap-1">
+                          <label class="bt-form-row__label" for="bt-field-market-rules">市场费用规则 JSON</label>
+                          <textarea id="bt-field-market-rules" v-model="marketFeeRulesText" class="bt-native-textarea"
+                            rows="3" />
+                        </div>
+                      </section>
                     </div>
+
+                    <section class="bt-new-backtest-run grid gap-1.5">
+                      <div class="bt-run-actions">
+
+                        <!-- Sync section -->
+                        <div v-if="syncing && !syncProgress" class="bt-sync-block bt-sync-block--pending">
+                          <span>正在启动同步…</span>
+                        </div>
+                        <div v-else-if="syncing && syncProgress" class="bt-sync-block">
+                          <div class="bt-sync-block__head">
+                            <span class="bt-sync-block__title">
+                              同步中 · {{ syncProgress.currentInterval || "准备" }}
+                            </span>
+                            <button class="bt-sync-block__cancel" type="button" @click="cancelSync">
+                              取消
+                            </button>
+                          </div>
+                          <div class="bt-sync-block__bar">
+                            <div class="bt-sync-block__bar-fill" :style="{
+                              width:
+                                syncProgress.totalIntervals > 0
+                                  ? (syncProgress.completedIntervals /
+                                    syncProgress.totalIntervals) *
+                                  100 +
+                                  '%'
+                                  : '10%',
+                            }" />
+                          </div>
+                          <div class="bt-sync-block__meta">
+                            <span>{{ syncProgress.completedBatches }} 批</span>
+                            <span v-if="syncProgress.retries > 0" class="bt-text-queued">重试 {{ syncProgress.retries
+                              }}</span>
+                          </div>
+                        </div>
+                        <div v-else-if="syncProgress?.status === 'cancelled'"
+                          class="bt-sync-block bt-sync-block--cancelled">
+                          同步已取消 · {{ syncProgress.completedBatches }} 批已完成
+                        </div>
+                        <!-- Sync button -->
+                        <button v-else class="bt-run-btn" :disabled="running || !instrumentSelectionResolved"
+                          type="button" @click="syncKlines">
+                          <v-icon size="13">fa-solid fa-cloud-arrow-down</v-icon>
+                          同步K线
+                        </button>
+
+                        <!-- Run button -->
+                        <button class="bt-run-btn bt-run-btn--primary"
+                          :disabled="running || !selectedDefinitionId || !instrumentSelectionResolved" type="button"
+                          @click="startBacktest">
+                          <v-progress-circular v-if="running" indeterminate :size="16" :width="2" color="white" />
+                          <v-icon v-else size="13">fa-solid fa-play</v-icon>
+                          {{ running ? "启动中..." : "开始回测" }}
+                        </button>
+                      </div>
+
+                    </section>
                   </div>
                 </div>
+              </section>
 
-                <div v-if="resultsPageCount > 1" class="flex justify-center pt-2">
-                  <v-pagination
-                    v-model="resultsPage"
-                    class="bt-sidebar-pagination"
-                    :length="resultsPageCount"
-                    :total-visible="3"
-                    density="comfortable"
-                  />
+              <section class="bt-sidebar-panel bt-sidebar-panel--history"
+                :class="{ 'is-expanded': expandedBacktestPanels.includes('history') }">
+                <button type="button" class="bt-sidebar-panel__title" data-testid="backtest-side-panel-history-title"
+                  :aria-expanded="expandedBacktestPanels.includes('history')" @click="toggleBacktestPanel('history')">
+                  <v-icon size="11">fa-solid fa-chevron-right</v-icon>
+                  <span>历史回测</span>
+                  <em>{{ resultsPageSummary || `${filteredRuns.length} 条` }}</em>
+                </button>
+                <div v-if="expandedBacktestPanels.includes('history')"
+                  class="bt-sidebar-panel__body bt-sidebar-panel__body--history">
+                  <div class="bt-backtest-results-filters">
+                    <input v-model="resultsSearchQuery" type="search" class="bt-native-input"
+                      placeholder="搜索策略、标的、回测 ID" aria-label="搜索回测记录" />
+                    <div class="grid grid-cols-2 gap-2">
+                      <select v-model="resultsStatusFilter" class="bt-native-select" aria-label="按状态筛选">
+                        <option v-for="option in BACKTEST_RESULT_STATUS_OPTIONS" :key="option.value"
+                          :value="option.value">
+                          {{ option.title }}
+                        </option>
+                      </select>
+                      <select v-model="resultsStrategyFilter" class="bt-native-select" aria-label="按策略筛选">
+                        <option v-for="option in resultStrategyOptions" :key="option.value" :value="option.value">
+                          {{ option.title }}
+                        </option>
+                      </select>
+                    </div>
+                    <button type="button" class="bt-filter-reset" :disabled="!hasResultsFilters"
+                      @click="resetResultsFilters">
+                      清空筛选
+                    </button>
+                  </div>
+
+                  <div v-if="filteredRuns.length === 0" :class="[emptyStateClass, 'p-6 text-center text-sm']">
+                    {{ emptyResultsMessage }}
+                  </div>
+                  <div v-else class="bt-history-list">
+                    <div v-for="run in pagedRuns" :key="run.id" class="bt-history-run cursor-pointer transition" :class="focusedRun && focusedRun.id === run.id
+                      ? 'bt-history-run--selected'
+                      : 'bt-history-run--idle bt-border bt-bg-surface'" role="button" tabindex="0"
+                      @click="selectFocusedRun(run.id)" @keydown.enter.prevent="selectFocusedRun(run.id)"
+                      @keydown.space.prevent="selectFocusedRun(run.id)">
+                      <div class="flex items-start gap-2">
+                        <div class="min-w-0 flex-1">
+                          <div class="bt-history-run__title">
+                            <span class="truncate">
+                              {{ resolveStrategyName(run.request.definitionId) }} ·
+                              <InstrumentIdentity :instrument-id="run.request.symbol" compact />
+                            </span>
+                            <span class="bt-history-run__status" :class="`is-${run.status}`">
+                              {{ statusChip(run.status).label }}
+                            </span>
+                          </div>
+                          <div class="bt-history-run__meta">
+                            <span>{{ run.request.interval }}</span>
+                            <span>{{ formatBacktestRunDate(run.request.startDate) }} → {{
+                              formatBacktestRunDate(run.request.endDate)
+                              }}</span>
+                            <span v-if="run.request.definitionVersion">{{
+                              formatStrategyVersion(run.request.definitionVersion)
+                              }}</span>
+                          </div>
+                          <div class="bt-history-run__id" :title="run.id">
+                            {{ run.id }} · {{ resolveRunSessionMode(run) }} · {{
+                              formatBacktestRehabType(run.request.rehabType) }}
+                          </div>
+                          <div v-if="run.status === 'running' || run.status === 'queued'"
+                            class="mt-2 flex items-center gap-3">
+                            <v-progress-linear :color="run.status === 'running' ? 'teal' : 'warning'" indeterminate
+                              rounded :height="6" class="flex-1" />
+                            <span class="text-xs whitespace-nowrap shrink-0" :class="run.status === 'running'
+                              ? 'bt-text-running'
+                              : 'bt-text-queued'">
+                              {{ run.status === "running" ? "回测运行中…" : "排队等待中…" }}
+                            </span>
+                          </div>
+                        </div>
+                        <v-btn v-if="isTerminalBacktestStatus(run.status)" icon="fa-solid fa-trash"
+                          class="bt-history-run__delete" size="x-small" variant="text" color="error" title="删除回测结果"
+                          @click.stop="requestDeleteRun(run.id)" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="resultsPageCount > 1" class="flex justify-center p-2">
+                    <v-pagination v-model="resultsPage" class="bt-sidebar-pagination" :length="resultsPageCount"
+                      :total-visible="3" density="comfortable" />
+                  </div>
                 </div>
               </section>
+            </div>
           </div>
-        </div>
         </aside>
       </SplitPaneItem>
 
       <SplitPaneItem :size="backtestPaneSizes[1]" :min-size="45">
         <main class="backtest-page__pane">
           <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <template v-if="reportMode === 'compare'">
-            <section :class="[controlPanelClass, 'bt-version-comparison flex min-h-0 flex-1 flex-col overflow-auto']">
-              <header class="bt-version-comparison__header">
-                <div>
-                  <div class="text-xs uppercase tracking-[0.16em] bt-text-muted">版本对比</div>
-                  <div class="mt-1 text-lg font-semibold bt-text-strong">策略历史版本与回测报告</div>
-                  <div class="mt-1 text-xs bt-text-muted">基线在左，候选在右；只使用两个版本各自已完成的回测。</div>
+            <template v-if="reportMode === 'compare'">
+              <section class="bt-version-comparison">
+                <div class="bt-report-topbar">
+                  <span class="bt-report-topbar__title">策略版本对比</span>
                 </div>
-                <v-btn size="small" variant="text" @click="activateSingleReportMode">
-                  <v-icon size="13" class="mr-1">fa-solid fa-chart-line</v-icon>
-                  单次报告
-                </v-btn>
-              </header>
-
-              <div class="bt-version-comparison__body">
-                <div class="bt-version-compare-definition">
-                  <label class="text-xs font-semibold bt-text-strong">策略定义</label>
-                  <v-select
-                    :model-value="comparisonDefinitionId"
-                    :items="comparisonDefinitionOptions"
-                    item-title="title"
-                    item-value="value"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                    placeholder="选择策略"
-                    data-testid="backtest-comparison-definition"
-                    @update:model-value="changeComparisonDefinition"
-                  />
-                </div>
-
-                <div v-if="isLoadingComparisonVersions" :class="[emptyStateClass, 'p-5 text-center text-sm']">
-                  正在加载版本历史…
-                </div>
-                <div v-else-if="comparisonVersionsError" class="bt-version-compare-notice bt-version-compare-notice--warning">
-                  版本历史暂不可用：{{ comparisonVersionsError }}
-                </div>
-                <div v-else-if="comparisonDefinitionId === ''" :class="[emptyStateClass, 'p-5 text-center text-sm']">
-                  请选择拥有版本历史的策略。
-                </div>
-                <div v-else-if="comparisonVersions.length < 2" :class="[emptyStateClass, 'p-5 text-center text-sm']">
-                  至少需要两个已保存策略版本才能比较。
-                </div>
-                <template v-else>
-                  <div class="bt-version-compare-selectors">
-                    <section class="bt-version-compare-selector" data-testid="backtest-comparison-left">
-                      <div class="bt-version-compare-selector__eyebrow">基线（较早版本）</div>
-                      <v-select
-                        :model-value="leftComparisonVersion"
-                        :items="leftComparisonVersionSelectOptions"
-                        item-title="title"
-                        item-value="value"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
-                        placeholder="选择基线版本"
-                        data-testid="backtest-comparison-left-version"
-                        @update:model-value="changeComparisonVersion('left', $event)"
-                      />
-                      <div v-if="leftComparisonRuns.length === 0" class="bt-version-compare-selector__empty">
-                        该版本暂无已完成回测。
-                      </div>
-                      <v-select
-                        v-else
-                        :model-value="leftComparisonRunId"
-                        :items="leftComparisonRunOptions"
-                        item-title="title"
-                        item-value="value"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
-                        label="关联回测"
-                        data-testid="backtest-comparison-left-run"
-                        @update:model-value="changeComparisonRun('left', $event)"
-                      />
-                    </section>
-                    <section class="bt-version-compare-selector" data-testid="backtest-comparison-right">
-                      <div class="bt-version-compare-selector__eyebrow">候选（较新版本）</div>
-                      <v-select
-                        :model-value="rightComparisonVersion"
-                        :items="rightComparisonVersionSelectOptions"
-                        item-title="title"
-                        item-value="value"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
-                        placeholder="选择候选版本"
-                        data-testid="backtest-comparison-right-version"
-                        @update:model-value="changeComparisonVersion('right', $event)"
-                      />
-                      <div v-if="rightComparisonRuns.length === 0" class="bt-version-compare-selector__empty">
-                        该版本暂无已完成回测。
-                      </div>
-                      <v-select
-                        v-else
-                        :model-value="rightComparisonRunId"
-                        :items="rightComparisonRunOptions"
-                        item-title="title"
-                        item-value="value"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
-                        label="关联回测"
-                        data-testid="backtest-comparison-right-run"
-                        @update:model-value="changeComparisonRun('right', $event)"
-                      />
-                    </section>
+                <div class="bt-version-comparison__body">
+                  <div class="bt-version-compare-definition">
+                    <div>
+                      <label class="text-xs font-semibold bt-text-strong">策略定义</label>
+                      <span>基线在左，候选在右；只使用各版本已完成的回测。</span>
+                    </div>
+                    <select :value="comparisonDefinitionId" class="bt-native-select"
+                      data-testid="backtest-comparison-definition" aria-label="对比策略定义"
+                      @change="changeComparisonDefinition(nativeSelectValue($event))">
+                      <option value="" disabled>选择策略</option>
+                      <option v-for="option in comparisonDefinitionOptions" :key="option.value" :value="option.value">
+                        {{ option.title }}
+                      </option>
+                    </select>
                   </div>
 
-                  <div v-if="comparisonRunsReady && leftComparisonRun && rightComparisonRun" class="bt-version-compare-results">
-                    <div
-                      class="bt-version-compare-notice"
-                      :class="comparisonConditionsMatch ? 'bt-version-compare-notice--ok' : 'bt-version-compare-notice--warning'"
-                    >
-                      <template v-if="comparisonConditionsMatch">
-                        两次回测的配置一致，可将指标差异作为策略版本变化的参考。
-                      </template>
-                      <template v-else>
-                        两次回测存在配置差异，结果不可直接归因于策略代码。请结合下方配置表评估。
-                      </template>
+                  <div v-if="isLoadingComparisonVersions" :class="[emptyStateClass, 'p-5 text-center text-sm']">
+                    正在加载版本历史…
+                  </div>
+                  <div v-else-if="comparisonVersionsError"
+                    class="bt-version-compare-notice bt-version-compare-notice--warning">
+                    版本历史暂不可用：{{ comparisonVersionsError }}
+                  </div>
+                  <div v-else-if="comparisonDefinitionId === ''" :class="[emptyStateClass, 'p-5 text-center text-sm']">
+                    请选择拥有版本历史的策略。
+                  </div>
+                  <div v-else-if="comparisonVersions.length < 2" :class="[emptyStateClass, 'p-5 text-center text-sm']">
+                    至少需要两个已保存策略版本才能比较。
+                  </div>
+                  <template v-else>
+                    <div class="bt-version-compare-selectors">
+                      <section class="bt-version-compare-selector" data-testid="backtest-comparison-left">
+                        <div class="bt-version-compare-selector__eyebrow">基线（较早版本）</div>
+                        <select :value="leftComparisonVersion" class="bt-native-select"
+                          data-testid="backtest-comparison-left-version" aria-label="选择基线版本"
+                          @change="changeComparisonVersion('left', nativeSelectValue($event))">
+                          <option value="" disabled>选择基线版本</option>
+                          <option v-for="option in leftComparisonVersionSelectOptions" :key="option.value"
+                            :value="option.value">
+                            {{ option.title }}
+                          </option>
+                        </select>
+                        <div v-if="leftComparisonRuns.length === 0" class="bt-version-compare-selector__empty">
+                          该版本暂无已完成回测。
+                        </div>
+                        <select v-else :value="leftComparisonRunId" class="bt-native-select"
+                          data-testid="backtest-comparison-left-run" aria-label="关联回测"
+                          @change="changeComparisonRun('left', nativeSelectValue($event))">
+                          <option value="" disabled>关联回测</option>
+                          <option v-for="option in leftComparisonRunOptions" :key="option.value" :value="option.value">
+                            {{ option.title }}
+                          </option>
+                        </select>
+                      </section>
+                      <section class="bt-version-compare-selector" data-testid="backtest-comparison-right">
+                        <div class="bt-version-compare-selector__eyebrow">候选（较新版本）</div>
+                        <select :value="rightComparisonVersion" class="bt-native-select"
+                          data-testid="backtest-comparison-right-version" aria-label="选择候选版本"
+                          @change="changeComparisonVersion('right', nativeSelectValue($event))">
+                          <option value="" disabled>选择候选版本</option>
+                          <option v-for="option in rightComparisonVersionSelectOptions" :key="option.value"
+                            :value="option.value">
+                            {{ option.title }}
+                          </option>
+                        </select>
+                        <div v-if="rightComparisonRuns.length === 0" class="bt-version-compare-selector__empty">
+                          该版本暂无已完成回测。
+                        </div>
+                        <select v-else :value="rightComparisonRunId" class="bt-native-select"
+                          data-testid="backtest-comparison-right-run" aria-label="关联回测"
+                          @change="changeComparisonRun('right', nativeSelectValue($event))">
+                          <option value="" disabled>关联回测</option>
+                          <option v-for="option in rightComparisonRunOptions" :key="option.value" :value="option.value">
+                            {{ option.title }}
+                          </option>
+                        </select>
+                      </section>
                     </div>
 
-                    <section class="bt-version-compare-section">
-                      <div class="bt-version-compare-section__title">绩效指标</div>
-                      <div class="bt-version-compare-metrics">
-                        <div class="bt-version-compare-metrics__head">指标</div>
-                        <div class="bt-version-compare-metrics__head">基线 v{{ leftComparisonVersion }}</div>
-                        <div class="bt-version-compare-metrics__head">候选 v{{ rightComparisonVersion }}</div>
-                        <div class="bt-version-compare-metrics__head">候选 − 基线</div>
-                        <template v-for="metric in comparisonMetrics" :key="metric.label">
-                          <div class="bt-version-compare-metrics__label">{{ metric.label }}</div>
-                          <div>{{ formatComparisonMetric(metric.left, metric.kind, resolveRunQuoteCurrency(leftComparisonRun)) }}</div>
-                          <div>{{ formatComparisonMetric(metric.right, metric.kind, resolveRunQuoteCurrency(rightComparisonRun)) }}</div>
-                          <div>{{ comparisonMetricDelta(metric) }}</div>
+                    <div v-if="comparisonRunsReady && leftComparisonRun && rightComparisonRun"
+                      class="bt-version-compare-results">
+                      <div class="bt-version-compare-notice"
+                        :class="comparisonConditionsMatch ? 'bt-version-compare-notice--ok' : 'bt-version-compare-notice--warning'">
+                        <template v-if="comparisonConditionsMatch">
+                          两次回测的配置一致，可将指标差异作为策略版本变化的参考。
+                        </template>
+                        <template v-else>
+                          两次回测存在配置差异，结果不可直接归因于策略代码。请结合下方配置表评估。
                         </template>
                       </div>
-                    </section>
 
-                    <section class="bt-version-compare-section">
-                      <div class="bt-version-compare-section__title">回测配置</div>
-                      <div class="bt-version-compare-config">
-                        <div class="bt-version-compare-config__head">字段</div>
-                        <div class="bt-version-compare-config__head">基线</div>
-                        <div class="bt-version-compare-config__head">候选</div>
-                        <template v-for="row in comparisonConfigRows" :key="row.label">
-                          <div class="bt-version-compare-config__label" :class="{ 'is-different': !row.same }">{{ row.label }}</div>
-                          <div :class="{ 'is-different': !row.same }">{{ row.left }}</div>
-                          <div :class="{ 'is-different': !row.same }">{{ row.right }}</div>
-                        </template>
-                      </div>
-                    </section>
-                  </div>
-                  <div v-else class="bt-version-compare-notice bt-version-compare-notice--warning">
-                    请选择两个版本各自的已完成回测后查看指标与配置对比。
-                  </div>
+                      <section class="bt-version-compare-section">
+                        <div class="bt-version-compare-section__title">绩效指标</div>
+                        <div class="bt-version-compare-metrics">
+                          <div class="bt-version-compare-metrics__head">指标</div>
+                          <div class="bt-version-compare-metrics__head">基线 v{{ leftComparisonVersion }}</div>
+                          <div class="bt-version-compare-metrics__head">候选 v{{ rightComparisonVersion }}</div>
+                          <div class="bt-version-compare-metrics__head">候选 − 基线</div>
+                          <template v-for="metric in comparisonMetrics" :key="metric.label">
+                            <div class="bt-version-compare-metrics__label">{{ metric.label }}</div>
+                            <div>{{ formatComparisonMetric(metric.left, metric.kind,
+                              resolveRunQuoteCurrency(leftComparisonRun)) }}</div>
+                            <div>{{ formatComparisonMetric(metric.right, metric.kind,
+                              resolveRunQuoteCurrency(rightComparisonRun)) }}</div>
+                            <div>{{ comparisonMetricDelta(metric) }}</div>
+                          </template>
+                        </div>
+                      </section>
 
-                  <section class="bt-version-compare-section">
-                    <div class="bt-version-compare-section__title">Pine 源码差异</div>
-                    <StrategySourceDiff
-                      v-if="comparisonSourcesReady && leftComparisonSnapshot && rightComparisonSnapshot"
-                      :left-label="`基线 v${leftComparisonVersion}`"
-                      :right-label="`候选 v${rightComparisonVersion}`"
-                      :left-source="leftComparisonSnapshot.script || ''"
-                      :right-source="rightComparisonSnapshot.script || ''"
-                    />
+                      <section class="bt-version-compare-section">
+                        <div class="bt-version-compare-section__title">回测配置</div>
+                        <div class="bt-version-compare-config">
+                          <div class="bt-version-compare-config__head">字段</div>
+                          <div class="bt-version-compare-config__head">基线</div>
+                          <div class="bt-version-compare-config__head">候选</div>
+                          <template v-for="row in comparisonConfigRows" :key="row.label">
+                            <div class="bt-version-compare-config__label" :class="{ 'is-different': !row.same }">{{
+                              row.label }}</div>
+                            <div :class="{ 'is-different': !row.same }">{{ row.left }}</div>
+                            <div :class="{ 'is-different': !row.same }">{{ row.right }}</div>
+                          </template>
+                        </div>
+                      </section>
+                    </div>
                     <div v-else class="bt-version-compare-notice bt-version-compare-notice--warning">
-                      <template v-if="comparisonSnapshotLoading.left || comparisonSnapshotLoading.right">
-                        正在加载历史源码快照…
-                      </template>
-                      <template v-else-if="comparisonSnapshotErrors.left || comparisonSnapshotErrors.right">
-                        策略版本快照不可用：{{ comparisonSnapshotErrors.left || comparisonSnapshotErrors.right }}。升级前回测可能只保留指标和配置，无法伪造源码差异。
-                      </template>
-                      <template v-else>
-                        选择两个不同版本后可查看只读源码差异。
-                      </template>
+                      请选择两个版本各自的已完成回测后查看指标与配置对比。
                     </div>
-                  </section>
-                </template>
-              </div>
-            </section>
-          </template>
-          <div v-else-if="!focusedRun" :class="[emptyStateClass, 'p-8 text-center text-sm']">
-            {{ emptyResultsMessage }}
-          </div>
 
-          <template v-else>
-            <section v-if="focusedRun" :class="[controlPanelClass, 'flex min-h-0 flex-1 flex-col overflow-hidden']">
-              <div class="grid shrink-0 gap-3 border-b bt-border px-4 py-3">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <div class="text-xs uppercase tracking-[0.16em] bt-text-muted">回测报告</div>
-                    <div class="mt-1 text-lg font-semibold bt-text-strong">
-                      {{ resolveStrategyName(focusedRun.request.definitionId) }} ·
-                      <InstrumentIdentity :instrument-id="focusedRun.request.symbol" compact />
-                    </div>
-                    <div class="mt-1 flex flex-wrap items-center gap-2 text-xs bt-text-muted">
-                      <span>{{ focusedRun.id }}</span>
-                      <span>{{ focusedRun.request.interval }}</span>
-                      <span>{{ formatBacktestRunDate(focusedRun.request.startDate) }} → {{ formatBacktestRunDate(focusedRun.request.endDate) }}</span>
-                      <span>{{ resolveRunSessionMode(focusedRun) }}</span>
-                      <span>{{ formatBacktestRehabType(focusedRun.request.rehabType) }}</span>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <v-chip :color="statusChip(focusedRun.status).color" size="small" variant="outlined">
-                      {{ statusChip(focusedRun.status).label }}
-                    </v-chip>
-                    <v-btn v-if="isTerminalBacktestStatus(focusedRun.status)" icon="fa-solid fa-trash"
-                      size="small" variant="text" color="error" title="删除回测结果"
-                      @click="requestDeleteRun(focusedRun.id)" />
-                  </div>
+                    <section class="bt-version-compare-section">
+                      <div class="bt-version-compare-section__title">Pine 源码差异</div>
+                      <StrategySourceDiff
+                        v-if="comparisonSourcesReady && leftComparisonSnapshot && rightComparisonSnapshot"
+                        :left-label="`基线 v${leftComparisonVersion}`" :right-label="`候选 v${rightComparisonVersion}`"
+                        :left-source="leftComparisonSnapshot.script || ''"
+                        :right-source="rightComparisonSnapshot.script || ''" />
+                      <div v-else class="bt-version-compare-notice bt-version-compare-notice--warning">
+                        <template v-if="comparisonSnapshotLoading.left || comparisonSnapshotLoading.right">
+                          正在加载历史源码快照…
+                        </template>
+                        <template v-else-if="comparisonSnapshotErrors.left || comparisonSnapshotErrors.right">
+                          策略版本快照不可用：{{ comparisonSnapshotErrors.left || comparisonSnapshotErrors.right
+                          }}。升级前回测可能只保留指标和配置，无法伪造源码差异。
+                        </template>
+                        <template v-else>
+                          选择两个不同版本后可查看只读源码差异。
+                        </template>
+                      </div>
+                    </section>
+                  </template>
                 </div>
-                <div v-if="focusedRun.status === 'running' || focusedRun.status === 'queued'"
-                  class="flex items-center gap-3">
-                  <v-progress-linear :color="focusedRun.status === 'running' ? 'teal' : 'warning'" indeterminate rounded
-                    :height="6" class="flex-1" />
-                  <span class="text-xs whitespace-nowrap shrink-0" :class="focusedRun.status === 'running'
-                    ? 'text-teal-600'
-                    : 'text-amber-600'">
-                    {{ focusedRun.status === "running" ? "回测运行中…" : "排队等待中…" }}
+              </section>
+            </template>
+            <div v-else-if="!focusedRun" :class="[emptyStateClass, 'p-6 text-center text-sm']">
+              {{ emptyResultsMessage }}
+            </div>
+
+            <template v-else>
+              <section v-if="focusedRun" class="bt-report-workspace">
+                <div class="bt-report-topbar">
+                  <span class="bt-report-topbar__title">
+                    {{ resolveStrategyName(focusedRun.request.definitionId) }} ·
+                    <InstrumentIdentity :instrument-id="focusedRun.request.symbol" compact />
+                  </span>
+                  <span v-if="focusedRun.request.definitionVersion" class="bt-report-topbar__chip">
+                    {{ formatStrategyVersion(focusedRun.request.definitionVersion) }}
+                  </span>
+                  <span class="bt-report-topbar__chip">{{ focusedRun.request.interval }}</span>
+                  <span class="bt-report-topbar__chip bt-report-topbar__chip--status"
+                    :class="`is-${focusedRun.status}`">
+                    {{ statusChip(focusedRun.status).label }}
                   </span>
                 </div>
-                <div v-if="resolveBacktestStrategyVersionNotice(focusedRun)"
-                  class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  {{ resolveBacktestStrategyVersionNotice(focusedRun) }}
+                <div class="bt-report-context-bar">
+                  <span class="bt-report-context-bar__id" :title="focusedRun.id">{{ focusedRun.id }}</span>
+                  <span>{{ formatBacktestRunDate(focusedRun.request.startDate) }} → {{
+                    formatBacktestRunDate(focusedRun.request.endDate) }}</span>
+                  <span>{{ resolveRunSessionMode(focusedRun) }}</span>
+                  <span>{{ formatBacktestRehabType(focusedRun.request.rehabType) }}</span>
+                  <span>{{ focusedRun.request.initialBalance.toLocaleString() }} {{ resolveRunQuoteCurrency(focusedRun)
+                    }}</span>
                 </div>
-                <div v-if="detailLoading[focusedRun.id]"
-                  class="rounded-lg border bt-border bt-bg-muted px-3 py-2 text-xs bt-text-muted">
-                  正在加载完整回测详情…
-                </div>
-                <div v-if="detailErrors[focusedRun.id]"
-                  class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {{ detailErrors[focusedRun.id] }}
-                </div>
-              </div>
 
-              <div class="grid shrink-0 gap-3 border-b bt-border px-4 py-4">
-                <div v-if="focusedRunResultReady && focusedRun.result" class="bt-report-stats-grid">
-                  <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">最终资金</div>
-                    <div class="mt-1 text-lg font-semibold bt-text">
-                      {{ focusedRun.result.finalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
-                    </div>
-                    <div class="text-xs bt-text-muted">{{ resolveRunQuoteCurrency(focusedRun) }}</div>
+                <div v-if="
+                  focusedRun.status === 'running' ||
+                  focusedRun.status === 'queued' ||
+                  resolveBacktestStrategyVersionNotice(focusedRun) ||
+                  detailLoading[focusedRun.id] ||
+                  detailErrors[focusedRun.id]
+                " class="bt-report-notices">
+                  <div v-if="focusedRun.status === 'running' || focusedRun.status === 'queued'"
+                    class="bt-report-notice flex items-center gap-3">
+                    <v-progress-linear :color="focusedRun.status === 'running' ? 'teal' : 'warning'" indeterminate
+                      rounded :height="4" class="flex-1" />
+                    <span class="text-xs whitespace-nowrap shrink-0" :class="focusedRun.status === 'running'
+                      ? 'bt-text-running'
+                      : 'bt-text-queued'">
+                      {{ focusedRun.status === "running" ? "回测运行中…" : "排队等待中…" }}
+                    </span>
                   </div>
-                  <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">收益</div>
-                    <div class="mt-1 text-lg font-semibold" :class="pnlColor(focusedRun.result.pnl)">
-                      {{ pnlPrefix(focusedRun.result.pnl) }}{{ focusedRun.result.pnl.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
-                    </div>
-                    <div class="text-xs bt-text-muted">{{ resolveRunQuoteCurrency(focusedRun) }}</div>
+                  <div v-if="resolveBacktestStrategyVersionNotice(focusedRun)"
+                    class="bt-report-notice bt-report-notice--warning">
+                    {{ resolveBacktestStrategyVersionNotice(focusedRun) }}
                   </div>
-                  <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                      {{ usesClosedTradeStats(focusedRun.result) ? "已平仓交易" : "历史成交数" }}
-                    </div>
-                    <div class="mt-1 text-lg font-semibold bt-text">{{ focusedRun.result.totalTrades }}</div>
-                    <div v-if="usesClosedTradeStats(focusedRun.result)" class="text-xs bt-text-muted">
-                      成交 {{ backtestFillCount(focusedRun.result) }} 笔
-                    </div>
+                  <div v-if="detailLoading[focusedRun.id]" class="bt-report-notice">
+                    正在加载完整回测详情…
                   </div>
-                  <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                      {{ usesClosedTradeStats(focusedRun.result) ? "已平仓胜率" : "历史胜率" }}
-                    </div>
-                    <div class="mt-1 text-lg font-semibold bt-text">
-                      {{ usesClosedTradeStats(focusedRun.result) ? `${(focusedRun.result.winRate * 100).toFixed(1)}%` : "--" }}
-                    </div>
-                  </div>
-                  <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">最大回撤</div>
-                    <div class="mt-1 text-lg font-semibold" :class="drawdownColor(focusedRun.result.maxDrawdown)">
-                      {{ formatPercentMetric(focusedRun.result.maxDrawdown) }}
-                    </div>
-                  </div>
-                  <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">当前回撤</div>
-                    <div class="mt-1 text-lg font-semibold" :class="drawdownColor(focusedRun.result.currentDrawdown)">
-                      {{ formatPercentMetric(focusedRun.result.currentDrawdown) }}
-                    </div>
-                  </div>
-                  <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">券商费用</div>
-                    <div class="mt-1 text-lg font-semibold bt-text">
-                      {{ formatBacktestFee(focusedRun.result.totalBrokerFees, resolveRunQuoteCurrency(focusedRun)) }}
-                    </div>
-                  </div>
-                  <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">市场费用</div>
-                    <div class="mt-1 text-lg font-semibold bt-text">
-                      {{ formatBacktestFee(focusedRun.result.totalMarketFees, resolveRunQuoteCurrency(focusedRun)) }}
-                    </div>
-                  </div>
-                  <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">总费用</div>
-                    <div class="mt-1 text-lg font-semibold bt-text">
-                      {{ formatBacktestFee(focusedRun.result.totalFees, resolveRunQuoteCurrency(focusedRun)) }}
-                    </div>
+                  <div v-if="detailErrors[focusedRun.id]" class="bt-report-notice bt-report-notice--error">
+                    {{ detailErrors[focusedRun.id] }}
                   </div>
                 </div>
-                <div v-else :class="[emptyStateClass, 'p-6 text-center text-sm']">
-                  当前回测尚未生成完整报告。
-                </div>
-                <div v-if="focusedRun.result && backtestFillCount(focusedRun.result) === 0 && !focusedRun.result.error"
-                  class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  未产生任何交易。可能原因：策略未调用 placeOrder()，或订阅的K线周期未同步。
-                </div>
-              </div>
 
-              <v-tabs v-model="activeReportTab" bg-color="transparent" density="compact" class="bt-report-tabs shrink-0">
-                <v-tab value="chart">
-                  <v-icon size="13" class="mr-1">fa-solid fa-chart-line</v-icon>
-                  图表
-                </v-tab>
-                <v-tab value="orders">
-                  <v-icon size="13" class="mr-1">fa-solid fa-list-check</v-icon>
-                  订单
-                </v-tab>
-                <v-tab value="properties">
-                  <v-icon size="13" class="mr-1">fa-solid fa-sliders</v-icon>
-                  属性
-                </v-tab>
-              </v-tabs>
-
-              <v-window v-model="activeReportTab" class="bt-report-window min-h-0 flex-1 overflow-hidden">
-                <v-window-item value="chart" class="bt-report-window-item bt-report-window-item--chart">
-                  <div class="bt-report-chart-tab flex h-full min-h-0 flex-col p-4">
-                    <div v-if="focusedRunResultReady && focusedRun.result" class="bt-report-chart-stage min-h-0 flex-1">
-                      <BacktestChart v-if="focusedRunHasChartData" :candles="focusedRun.result.candles ?? []"
-                        :trades="focusedRun.result.trades ?? []" :pnl-curve="focusedRun.result.pnlCurve ?? []"
-                        :drawdown-curve="focusedRun.result.drawdownCurve ?? []"
-                        :initial-balance="focusedRun.request.initialBalance" :min-height="560"
-                        :chart-type="focusedRun.result.chartType ?? focusedRun.request.chartType"
-                        :heikin-ashi-seed="focusedRun.result.heikinAshiSeed"
-                        :currency-unit="resolveRunQuoteCurrency(focusedRun)" fit-container
-                        empty-text="暂无权益曲线数据" />
-                      <div v-else :class="[emptyStateClass, 'flex h-full min-h-[220px] items-center justify-center p-8 text-center text-sm']">
-                        暂无权益曲线数据。
+                <div class="bt-report-summary">
+                  <div v-if="focusedRunResultReady && focusedRun.result" class="bt-report-stats-grid">
+                    <div class="bt-report-stat" data-testid="backtest-kpi-final-balance">
+                      <div class="bt-report-stat__label">最终资金</div>
+                      <div class="bt-report-stat__value bt-text">
+                        {{ focusedRun.result.finalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                      </div>
+                      <div class="bt-report-stat__meta">{{ resolveRunQuoteCurrency(focusedRun) }}</div>
+                    </div>
+                    <div class="bt-report-stat" data-testid="backtest-kpi-pnl">
+                      <div class="bt-report-stat__label">收益</div>
+                      <div class="bt-report-stat__value" :class="pnlColor(focusedRun.result.pnl)">
+                        {{ pnlPrefix(focusedRun.result.pnl) }}{{ focusedRun.result.pnl.toLocaleString(undefined, {
+                        minimumFractionDigits: 2 }) }}
+                      </div>
+                      <div class="bt-report-stat__meta">{{ resolveRunQuoteCurrency(focusedRun) }}</div>
+                    </div>
+                    <div class="bt-report-stat" data-testid="backtest-kpi-trades">
+                      <div class="bt-report-stat__label">
+                        {{ usesClosedTradeStats(focusedRun.result) ? "已平仓交易" : "历史成交数" }}
+                      </div>
+                      <div class="bt-report-stat__value bt-text">{{ focusedRun.result.totalTrades }}</div>
+                      <div v-if="usesClosedTradeStats(focusedRun.result)" class="bt-report-stat__meta">
+                        成交 {{ backtestFillCount(focusedRun.result) }} 笔
                       </div>
                     </div>
-                    <div v-else :class="[emptyStateClass, 'flex h-full min-h-[220px] items-center justify-center p-8 text-center text-sm']">
-                      当前回测尚未生成完整报告。
-                    </div>
-                  </div>
-                </v-window-item>
-
-                <v-window-item value="orders" class="bt-report-window-item">
-                  <div class="h-full min-h-0 overflow-auto p-4">
-                    <div v-if="focusedRun.result?.orderBook?.length" :class="[cardBorderClass, 'overflow-hidden']">
-                      <div class="flex items-center justify-between border-b bt-border px-4 py-3 text-sm font-semibold bt-text">
-                        <span>订单</span>
-                        <span class="text-xs font-medium bt-text-muted">
-                          {{ focusedRun.result.orderBook.length }} 笔
-                        </span>
+                    <div class="bt-report-stat" data-testid="backtest-kpi-win-rate">
+                      <div class="bt-report-stat__label">
+                        {{ usesClosedTradeStats(focusedRun.result) ? "已平仓胜率" : "历史胜率" }}
                       </div>
-                      <div class="bt-order-table-scroll max-h-[520px] overflow-auto">
-                        <table class="bt-order-table min-w-full divide-y bt-divide text-sm">
-                          <thead class="sticky top-0 bt-bg-muted text-left text-xs uppercase tracking-[0.14em] bt-text-muted">
-                            <tr>
-                              <th class="px-4 py-3 font-medium">下单</th>
-                              <th class="px-4 py-3 font-medium">成交</th>
-                              <th class="px-4 py-3 font-medium">方向</th>
-                              <th class="px-4 py-3 font-medium">数量</th>
-                              <th class="px-4 py-3 font-medium">委托价</th>
-                              <th class="px-4 py-3 font-medium">成交价</th>
-                              <th class="px-4 py-3 font-medium">费用</th>
-                              <th class="px-4 py-3 font-medium">状态</th>
-                            </tr>
-                          </thead>
-                          <tbody class="divide-y bt-divide-soft bt-bg-surface">
-                            <tr v-for="(entry, index) in visibleBacktestOrderBook(focusedRun)"
-                              :key="`${entry.orderId || index}-${entry.filledAt ?? entry.submittedAt ?? ''}`">
-                              <td class="px-4 py-3 align-top bt-text-strong">
-                                <div>{{ formatBacktestTimestamp(entry.submittedAt) }}</div>
-                                <div class="mt-1 text-xs bt-text-dim">
-                                  #{{ entry.orderId }}<span v-if="entry.clientOrderId"> · {{ entry.clientOrderId }}</span>
-                                </div>
-                              </td>
-                              <td class="px-4 py-3 align-top bt-text-strong">{{ formatBacktestTimestamp(entry.filledAt) }}</td>
-                              <td class="px-4 py-3 align-top bt-text-strong">{{ formatBacktestOrderSide(entry.side) }}</td>
-                              <td class="px-4 py-3 align-top bt-text-strong">
-                                <div>{{ formatBacktestQuantity(entry.quantity, entry.quantityText) }}</div>
-                                <div v-if="entry.filledQuantity !== undefined" class="mt-1 text-xs bt-text-dim">
-                                  成交 {{ formatBacktestQuantity(entry.filledQuantity, entry.filledQuantityText) }}
-                                </div>
-                              </td>
-                              <td class="px-4 py-3 align-top bt-text-strong">
-                                {{ formatBacktestOrderPrice(entry.orderPrice, entry.orderType, entry.orderPriceText) }}
-                              </td>
-                              <td class="px-4 py-3 align-top bt-text-strong">
-                                {{ formatBacktestOrderPrice(entry.filledPrice, undefined, entry.filledPriceText) }}
-                              </td>
-                              <td class="px-4 py-3 align-top bt-text-strong">
-                                <div>{{ formatBacktestFee(entry.totalFee, entry.feeCurrency) }}</div>
-                                <div v-if="entry.totalFee" class="mt-1 text-xs bt-text-dim">
-                                  券商 {{ formatBacktestFee(entry.brokerFee, entry.feeCurrency) }} ｜ 市场
-                                  {{ formatBacktestFee(entry.marketFee, entry.feeCurrency) }}
-                                </div>
-                              </td>
-                              <td class="px-4 py-3 align-top bt-text-strong">
-                                {{ formatBacktestOrderStatus(entry.status) }}
-                                <span v-if="entry.warmup" class="bt-warmup-label ml-1 text-xs font-medium text-amber-600">
-                                  预热
-                                </span>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                      <div v-if="hiddenBacktestOrderBookCount(focusedRun) > 0"
-                        class="border-t bt-border px-4 py-2 text-xs bt-text-muted">
-                        另有 {{ hiddenBacktestOrderBookCount(focusedRun) }} 笔订单。
+                      <div class="bt-report-stat__value bt-text">
+                        {{ usesClosedTradeStats(focusedRun.result) ? `${(focusedRun.result.winRate * 100).toFixed(1)}%`
+                        : "--" }}
                       </div>
                     </div>
-                    <div v-else :class="[emptyStateClass, 'p-8 text-center text-sm']">
-                      暂无订单记录。
+                    <div class="bt-report-stat" data-testid="backtest-kpi-max-drawdown">
+                      <div class="bt-report-stat__label">最大回撤</div>
+                      <div class="bt-report-stat__value" :class="drawdownColor(focusedRun.result.maxDrawdown)">
+                        {{ formatPercentMetric(focusedRun.result.maxDrawdown) }}
+                      </div>
+                    </div>
+                    <div class="bt-report-stat" data-testid="backtest-kpi-current-drawdown">
+                      <div class="bt-report-stat__label">当前回撤</div>
+                      <div class="bt-report-stat__value" :class="drawdownColor(focusedRun.result.currentDrawdown)">
+                        {{ formatPercentMetric(focusedRun.result.currentDrawdown) }}
+                      </div>
+                    </div>
+                    <div class="bt-report-stat" data-testid="backtest-kpi-broker-fees">
+                      <div class="bt-report-stat__label">券商费用</div>
+                      <div class="bt-report-stat__value bt-text">
+                        {{ formatBacktestFee(focusedRun.result.totalBrokerFees, resolveRunQuoteCurrency(focusedRun)) }}
+                      </div>
+                    </div>
+                    <div class="bt-report-stat" data-testid="backtest-kpi-market-fees">
+                      <div class="bt-report-stat__label">市场费用</div>
+                      <div class="bt-report-stat__value bt-text">
+                        {{ formatBacktestFee(focusedRun.result.totalMarketFees, resolveRunQuoteCurrency(focusedRun)) }}
+                      </div>
+                    </div>
+                    <div class="bt-report-stat" data-testid="backtest-kpi-total-fees">
+                      <div class="bt-report-stat__label">总费用</div>
+                      <div class="bt-report-stat__value bt-text">
+                        {{ formatBacktestFee(focusedRun.result.totalFees, resolveRunQuoteCurrency(focusedRun)) }}
+                      </div>
                     </div>
                   </div>
-                </v-window-item>
+                  <div v-else class="bt-report-summary__empty">
+                    当前回测尚未生成完整报告。
+                  </div>
+                  <div
+                    v-if="focusedRun.result && backtestFillCount(focusedRun.result) === 0 && !focusedRun.result.error"
+                    class="bt-report-zero-trades">
+                    未产生任何交易。可能原因：策略未调用 placeOrder()，或订阅的K线周期未同步。
+                  </div>
+                </div>
 
-                <v-window-item value="properties" class="bt-report-window-item">
-                  <div class="grid h-full min-h-0 gap-3 overflow-auto p-4">
-                    <div v-if="focusedRun.result" class="rounded-lg border bt-border bt-bg-muted px-3 py-2 text-xs bt-text">
-                      <div>{{ resolveBacktestPriceBasisNote(focusedRun) }}</div>
-                      <div class="mt-1">
-                        费用口径：券商 {{ focusedRun.result.tradingCosts?.brokerFees?.mode ?? "market_preset" }} ｜ 市场
-                        {{ focusedRun.result.tradingCosts?.marketFees?.mode ?? "market_preset" }}
+                <v-tabs v-model="activeReportTab" bg-color="transparent" density="compact"
+                  class="bt-report-tabs shrink-0">
+                  <v-tab value="chart">
+                    <v-icon size="13" class="mr-1">fa-solid fa-chart-line</v-icon>
+                    图表
+                  </v-tab>
+                  <v-tab value="orders">
+                    <v-icon size="13" class="mr-1">fa-solid fa-list-check</v-icon>
+                    订单
+                  </v-tab>
+                  <v-tab value="properties">
+                    <v-icon size="13" class="mr-1">fa-solid fa-sliders</v-icon>
+                    属性
+                  </v-tab>
+                </v-tabs>
+
+                <v-window v-model="activeReportTab" class="bt-report-window min-h-0 flex-1 overflow-hidden">
+                  <v-window-item value="chart" class="bt-report-window-item bt-report-window-item--chart">
+                    <div class="bt-report-chart-tab flex h-full min-h-0 flex-col">
+                      <div v-if="focusedRunResultReady && focusedRun.result"
+                        class="bt-report-chart-stage min-h-0 flex-1">
+                        <BacktestChart v-if="focusedRunHasChartData" :candles="focusedRun.result.candles ?? []"
+                          :trades="focusedRun.result.trades ?? []" :pnl-curve="focusedRun.result.pnlCurve ?? []"
+                          :drawdown-curve="focusedRun.result.drawdownCurve ?? []"
+                          :initial-balance="focusedRun.request.initialBalance"
+                          :chart-type="focusedRun.result.chartType ?? focusedRun.request.chartType"
+                          :heikin-ashi-seed="focusedRun.result.heikinAshiSeed"
+                          :currency-unit="resolveRunQuoteCurrency(focusedRun)" fit-container empty-text="暂无权益曲线数据" />
+                        <div v-else
+                          :class="[emptyStateClass, 'flex h-full min-h-[220px] items-center justify-center p-6 text-center text-sm']">
+                          暂无权益曲线数据。
+                        </div>
                       </div>
-                      <div v-if="resolveQueriedCandleBounds(focusedRun.result?.candles)" class="mt-1">
-                        查询到的周期边界：左边界
-                        {{ resolveQueriedCandleBounds(focusedRun.result?.candles)?.left }} ｜
-                        右边界 {{ resolveQueriedCandleBounds(focusedRun.result?.candles)?.right }} ｜
-                        共 {{ resolveQueriedCandleBounds(focusedRun.result?.candles)?.count }} 根
+                      <div v-else
+                        :class="[emptyStateClass, 'flex h-full min-h-[220px] items-center justify-center p-6 text-center text-sm']">
+                        当前回测尚未生成完整报告。
                       </div>
                     </div>
+                  </v-window-item>
 
-                    <details v-if="focusedRun.result?.runtimeErrors && focusedRun.result.runtimeErrors.length > 0"
-                      class="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                      <summary class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-red-700 select-none">
-                        <v-icon size="13">fa-solid fa-circle-exclamation</v-icon>
-                        {{ runtimeErrorSummary(focusedRun.result) }}
-                      </summary>
-                      <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
-                        <div v-for="(err, i) in visibleBacktestRuntimeErrors(focusedRun)" :key="i"
-                          class="rounded border border-red-100 bt-bg-surface px-2 py-1 text-xs text-red-800 font-mono leading-relaxed">
-                          <span v-if="runtimeErrorRepeatCount(focusedRun.result, err) > 1" class="font-semibold">
-                            x{{ runtimeErrorRepeatCount(focusedRun.result, err) }}
+                  <v-window-item value="orders" class="bt-report-window-item">
+                    <div class="h-full min-h-0 overflow-auto p-2">
+                      <div v-if="focusedRun.result?.orderBook?.length" :class="[cardBorderClass, 'overflow-hidden']">
+                        <div
+                          class="flex items-center justify-between border-b bt-border px-3 py-2 text-sm font-semibold bt-text">
+                          <span>订单</span>
+                          <span class="text-xs font-medium bt-text-muted">
+                            {{ focusedRun.result.orderBook.length }} 笔
                           </span>
-                          {{ err }}
                         </div>
-                        <div v-if="hiddenBacktestRuntimeErrorCount(focusedRun) > 0" class="text-xs text-red-700">
-                          另有 {{ hiddenBacktestRuntimeErrorCount(focusedRun) }} 条错误。
+                        <div class="bt-order-table-scroll max-h-[520px] overflow-auto">
+                          <table class="bt-order-table min-w-full divide-y bt-divide text-sm">
+                            <thead
+                              class="sticky top-0 bt-bg-muted text-left text-xs uppercase tracking-[0.14em] bt-text-muted">
+                              <tr>
+                                <th class="px-3 py-1.5 font-medium">下单</th>
+                                <th class="px-3 py-1.5 font-medium">成交</th>
+                                <th class="px-3 py-1.5 font-medium">方向</th>
+                                <th class="px-3 py-1.5 font-medium">数量</th>
+                                <th class="px-3 py-1.5 font-medium">委托价</th>
+                                <th class="px-3 py-1.5 font-medium">成交价</th>
+                                <th class="px-3 py-1.5 font-medium">费用</th>
+                                <th class="px-3 py-1.5 font-medium">状态</th>
+                              </tr>
+                            </thead>
+                            <tbody class="divide-y bt-divide-soft bt-bg-surface">
+                              <tr v-for="(entry, index) in visibleBacktestOrderBook(focusedRun)"
+                                :key="`${entry.orderId || index}-${entry.filledAt ?? entry.submittedAt ?? ''}`">
+                                <td class="px-3 py-1.5 align-top bt-text-strong">
+                                  <div>{{ formatBacktestTimestamp(entry.submittedAt) }}</div>
+                                  <div class="mt-0.5 text-xs bt-text-dim">
+                                    #{{ entry.orderId }}<span v-if="entry.clientOrderId"> · {{ entry.clientOrderId
+                                      }}</span>
+                                  </div>
+                                </td>
+                                <td class="px-3 py-1.5 align-top bt-text-strong">{{
+                                  formatBacktestTimestamp(entry.filledAt) }}</td>
+                                <td class="px-3 py-1.5 align-top bt-text-strong">{{ formatBacktestOrderSide(entry.side)
+                                  }}</td>
+                                <td class="px-3 py-1.5 align-top bt-text-strong">
+                                  <div>{{ formatBacktestQuantity(entry.quantity, entry.quantityText) }}</div>
+                                  <div v-if="entry.filledQuantity !== undefined" class="mt-0.5 text-xs bt-text-dim">
+                                    成交 {{ formatBacktestQuantity(entry.filledQuantity, entry.filledQuantityText) }}
+                                  </div>
+                                </td>
+                                <td class="px-3 py-1.5 align-top bt-text-strong">
+                                  {{ formatBacktestOrderPrice(entry.orderPrice, entry.orderType, entry.orderPriceText)
+                                  }}
+                                </td>
+                                <td class="px-3 py-1.5 align-top bt-text-strong">
+                                  {{ formatBacktestOrderPrice(entry.filledPrice, undefined, entry.filledPriceText) }}
+                                </td>
+                                <td class="px-3 py-1.5 align-top bt-text-strong">
+                                  <div>{{ formatBacktestFee(entry.totalFee, entry.feeCurrency) }}</div>
+                                  <div v-if="entry.totalFee" class="mt-0.5 text-xs bt-text-dim">
+                                    券商 {{ formatBacktestFee(entry.brokerFee, entry.feeCurrency) }} ｜ 市场
+                                    {{ formatBacktestFee(entry.marketFee, entry.feeCurrency) }}
+                                  </div>
+                                </td>
+                                <td class="px-3 py-1.5 align-top bt-text-strong">
+                                  {{ formatBacktestOrderStatus(entry.status) }}
+                                  <span v-if="entry.warmup" class="bt-warmup-label">
+                                    预热
+                                  </span>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div v-if="hiddenBacktestOrderBookCount(focusedRun) > 0"
+                          class="border-t bt-border px-4 py-2 text-xs bt-text-muted">
+                          另有 {{ hiddenBacktestOrderBookCount(focusedRun) }} 笔订单。
                         </div>
                       </div>
-                    </details>
-
-                    <details v-if="focusedRun.result?.warnings && focusedRun.result.warnings.length > 0"
-                      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                      <summary class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-amber-700 select-none">
-                        <v-icon size="13">fa-solid fa-triangle-exclamation</v-icon>
-                        {{ warningSummary(focusedRun.result) }}
-                      </summary>
-                      <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
-                        <div v-for="(warning, i) in visibleBacktestWarnings(focusedRun)" :key="i"
-                          class="rounded border border-amber-100 bt-bg-surface px-2 py-1 text-xs text-amber-800 font-mono leading-relaxed">
-                          {{ warning }}
-                        </div>
-                        <div v-if="hiddenBacktestWarningCount(focusedRun) > 0" class="text-xs text-amber-700">
-                          另有 {{ hiddenBacktestWarningCount(focusedRun) }} 条警告。
-                        </div>
-                      </div>
-                    </details>
-
-                    <div v-if="focusedRun.result?.logs && focusedRun.result.logs.length > 0"
-                      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-1">
-                      <div v-for="(log, i) in visibleBacktestLogs(focusedRun)" :key="i" class="flex gap-2">
-                        <v-icon size="12" class="mt-0.5">fa-solid fa-circle-info</v-icon>
-                        <span>{{ log }}</span>
-                      </div>
-                      <div v-if="hiddenBacktestLogCount(focusedRun) > 0">
-                        另有 {{ hiddenBacktestLogCount(focusedRun) }} 条日志。
+                      <div v-else :class="[emptyStateClass, 'p-6 text-center text-sm']">
+                        暂无订单记录。
                       </div>
                     </div>
+                  </v-window-item>
 
-                    <div v-if="focusedRun.result?.error"
-                      class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 whitespace-pre-wrap">
-                      {{ focusedRun.result.error }}
+                  <v-window-item value="properties" class="bt-report-window-item">
+                    <div class="grid h-full min-h-0 gap-2 overflow-auto p-2">
+                      <div v-if="focusedRun.result"
+                        class="rounded-lg border bt-border bt-bg-muted px-2.5 py-1.5 text-xs bt-text">
+                        <div>{{ resolveBacktestPriceBasisNote(focusedRun) }}</div>
+                        <div class="mt-1">
+                          费用口径：券商 {{ focusedRun.result.tradingCosts?.brokerFees?.mode ?? "market_preset" }} ｜ 市场
+                          {{ focusedRun.result.tradingCosts?.marketFees?.mode ?? "market_preset" }}
+                        </div>
+                        <div v-if="resolveQueriedCandleBounds(focusedRun.result?.candles)" class="mt-1">
+                          查询到的周期边界：左边界
+                          {{ resolveQueriedCandleBounds(focusedRun.result?.candles)?.left }} ｜
+                          右边界 {{ resolveQueriedCandleBounds(focusedRun.result?.candles)?.right }} ｜
+                          共 {{ resolveQueriedCandleBounds(focusedRun.result?.candles)?.count }} 根
+                        </div>
+                      </div>
+
+                      <details v-if="focusedRun.result?.runtimeErrors && focusedRun.result.runtimeErrors.length > 0"
+                        class="bt-prop-block bt-prop-block--error">
+                        <summary class="bt-prop-block__summary">
+                          <v-icon size="13">fa-solid fa-circle-exclamation</v-icon>
+                          {{ runtimeErrorSummary(focusedRun.result) }}
+                        </summary>
+                        <div class="mt-1.5 space-y-1 max-h-48 overflow-y-auto">
+                          <div v-for="(err, i) in visibleBacktestRuntimeErrors(focusedRun)" :key="i"
+                            class="bt-prop-block__item">
+                            <span v-if="runtimeErrorRepeatCount(focusedRun.result, err) > 1" class="font-semibold">
+                              x{{ runtimeErrorRepeatCount(focusedRun.result, err) }}
+                            </span>
+                            {{ err }}
+                          </div>
+                          <div v-if="hiddenBacktestRuntimeErrorCount(focusedRun) > 0" class="bt-prop-block__more">
+                            另有 {{ hiddenBacktestRuntimeErrorCount(focusedRun) }} 条错误。
+                          </div>
+                        </div>
+                      </details>
+
+                      <details v-if="focusedRun.result?.warnings && focusedRun.result.warnings.length > 0"
+                        class="bt-prop-block bt-prop-block--warning">
+                        <summary class="bt-prop-block__summary">
+                          <v-icon size="13">fa-solid fa-triangle-exclamation</v-icon>
+                          {{ warningSummary(focusedRun.result) }}
+                        </summary>
+                        <div class="mt-1.5 space-y-1 max-h-48 overflow-y-auto">
+                          <div v-for="(warning, i) in visibleBacktestWarnings(focusedRun)" :key="i"
+                            class="bt-prop-block__item">
+                            {{ warning }}
+                          </div>
+                          <div v-if="hiddenBacktestWarningCount(focusedRun) > 0" class="bt-prop-block__more">
+                            另有 {{ hiddenBacktestWarningCount(focusedRun) }} 条警告。
+                          </div>
+                        </div>
+                      </details>
+
+                      <div v-if="focusedRun.result?.logs && focusedRun.result.logs.length > 0"
+                        class="bt-prop-block bt-prop-block--warning space-y-1">
+                        <div v-for="(log, i) in visibleBacktestLogs(focusedRun)" :key="i" class="flex gap-2">
+                          <v-icon size="12" class="mt-0.5">fa-solid fa-circle-info</v-icon>
+                          <span>{{ log }}</span>
+                        </div>
+                        <div v-if="hiddenBacktestLogCount(focusedRun) > 0">
+                          另有 {{ hiddenBacktestLogCount(focusedRun) }} 条日志。
+                        </div>
+                      </div>
+
+                      <div v-if="focusedRun.result?.error"
+                        class="bt-prop-block bt-prop-block--error whitespace-pre-wrap">
+                        {{ focusedRun.result.error }}
+                      </div>
+
+                      <div v-if="!focusedRun.result" :class="[emptyStateClass, 'p-6 text-center text-sm']">
+                        暂无属性。
+                      </div>
                     </div>
+                  </v-window-item>
+                </v-window>
+              </section>
 
-                    <div v-if="!focusedRun.result" :class="[emptyStateClass, 'p-8 text-center text-sm']">
-                      暂无属性。
-                    </div>
-                  </div>
-                </v-window-item>
-              </v-window>
-            </section>
-
-          </template>
-        </div>
+            </template>
+          </div>
         </main>
       </SplitPaneItem>
     </SplitPane>
-    <ActionConfirmDialog
-      :open="pendingDeleteRun != null"
-      title="删除回测记录"
-      :message="pendingDeleteMessage"
-      confirm-label="确认删除"
-      :busy="deletingRunId !== ''"
-      @close="pendingDeleteRunId = ''"
-      @confirm="confirmDeleteRun"
-    />
+    <ActionConfirmDialog :open="pendingDeleteRun != null" title="删除回测记录" :message="pendingDeleteMessage"
+      confirm-label="确认删除" :busy="deletingRunId !== ''" @close="pendingDeleteRunId = ''" @confirm="confirmDeleteRun" />
   </div>
 </template>
 
 <style scoped>
 .backtest-page {
+  position: relative;
+  display: flex;
+  width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
+  flex-direction: column;
+  gap: 0;
   overflow: hidden;
+  background: var(--tv-bg-app);
+  color: var(--tv-text);
+}
+
+.backtest-workbench-header {
+  display: flex;
+  min-width: 0;
+  min-height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface);
+}
+
+.backtest-workbench-header__identity,
+.backtest-workbench-title,
+.backtest-workbench-header__actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.backtest-workbench-header__identity {
+  flex: 1 1 auto;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.backtest-workbench-title {
+  flex: 0 1 auto;
+  gap: 7px;
+  overflow: hidden;
+}
+
+.backtest-workbench-title h1 {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.backtest-workbench-header__actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.backtest-sidebar-toggle,
+.backtest-header-action,
+.backtest-header-icon-button,
+.backtest-report-mode-switch__button {
+  min-height: 30px;
+  height: 30px;
+  border: 1px solid var(--tv-border);
+  border-radius: 5px;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text);
+  font-size: 0.77rem;
+  font-weight: 750;
+}
+
+.backtest-sidebar-toggle,
+.backtest-header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+}
+
+.backtest-sidebar-toggle {
+  border-color: transparent;
+  background: transparent;
+  color: var(--tv-text-muted);
+}
+
+.backtest-sidebar-toggle:is(:hover, .is-active) {
+  border-color: var(--tv-border);
+  background: var(--tv-bg-elevated);
+  color: var(--tv-text);
+}
+
+.backtest-header-action--primary {
+  border-color: color-mix(in srgb, var(--tv-accent) 55%, var(--tv-border));
+  background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-surface));
+  color: var(--tv-accent);
+}
+
+.backtest-header-icon-button {
+  display: inline-grid;
+  width: 30px;
+  place-items: center;
+  padding: 0;
+}
+
+.backtest-header-icon-button--danger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--tv-status-error-fg);
+}
+
+.backtest-report-mode-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(4rem, 1fr));
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 72%, transparent);
+  padding: 2px;
+}
+
+.backtest-report-mode-switch__button {
+  min-width: 4rem;
+  min-height: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0 7px;
+  color: var(--tv-text-muted);
+}
+
+.backtest-report-mode-switch__button.is-active {
+  background: color-mix(in srgb, var(--tv-accent) 22%, var(--tv-bg-surface));
+  color: var(--tv-text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tv-accent) 36%, transparent);
+}
+
+.backtest-error-banner {
+  display: flex;
+  min-width: 0;
+  min-height: 30px;
+  flex: 0 0 30px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, #ef4444 42%, var(--tv-border));
+  border-radius: 0;
+  background: color-mix(in srgb, #ef4444 9%, var(--tv-bg-surface));
+  padding: 0 4px 0 8px;
+  color: color-mix(in srgb, #fca5a5 78%, var(--tv-text));
+  font-size: 0.76rem;
+  text-align: left;
+}
+
+.backtest-error-banner__content {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 7px;
+  align-self: stretch;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 5px 0;
+  font-size: inherit;
+  text-align: left;
+}
+
+.backtest-error-banner__content>span {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backtest-error-banner.is-expanded {
+  min-height: 30px;
+  flex-basis: auto;
+}
+
+.backtest-error-banner.is-expanded .backtest-error-banner__content>span {
+  overflow: visible;
+  white-space: normal;
+}
+
+.backtest-error-banner__close {
+  display: inline-grid;
+  width: 24px;
+  min-height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
 }
 
 .backtest-page__mobile-switch {
@@ -2756,7 +3100,10 @@ watch(
 }
 
 .backtest-page__split {
-  min-height: 300px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .backtest-page__split :deep(.splitpanes__pane) {
@@ -2772,38 +3119,409 @@ watch(
   overflow: hidden;
 }
 
-.backtest-page__pane > * {
+.backtest-page__pane>* {
   min-width: 0;
 }
 
 .backtest-page__pane--sidebar {
   container-type: inline-size;
+  background: var(--tv-bg-surface);
 }
 
-.backtest-page__pane--sidebar :deep(.v-input),
-.backtest-page__pane--sidebar :deep(.v-field),
-.backtest-page__pane--sidebar :deep(.v-field__field),
-.backtest-page__pane--sidebar :deep(.v-field__input),
-.backtest-page__pane--sidebar :deep(.v-select__selection),
-.backtest-page__pane--sidebar :deep(.v-select__selection-text),
-.backtest-page__pane--sidebar :deep(.v-selection-control),
-.backtest-page__pane--sidebar :deep(.v-selection-control__wrapper) {
-  min-width: 0;
-}
-
-.backtest-page__pane--sidebar :deep(.v-input),
-.backtest-page__pane--sidebar :deep(.v-field) {
+.bt-sidebar-shell,
+.bt-sidebar-panels {
+  display: flex;
   width: 100%;
-  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.backtest-page__pane--sidebar :deep(.v-field__input),
-.backtest-page__pane--sidebar :deep(.v-select__selection),
-.backtest-page__pane--sidebar :deep(.v-select__selection-text) {
-  max-width: 100%;
+.bt-sidebar-drawer-head {
+  display: none;
+  min-height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--tv-border);
+}
+
+.bt-sidebar-drawer-head>div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.bt-sidebar-drawer-head strong {
+  color: var(--tv-text);
+  font-size: 0.8rem;
+}
+
+.bt-sidebar-drawer-head span {
   overflow: hidden;
+  color: var(--tv-text-muted);
+  font-size: 0.68rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.bt-sidebar-drawer-head button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border: 1px solid var(--tv-border);
+  border-radius: 5px;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text-muted);
+}
+
+.bt-sidebar-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 34px;
+  flex: 0 0 34px;
+  flex-direction: column;
+  overflow: hidden;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface);
+}
+
+.bt-sidebar-panel.is-expanded {
+  min-height: 96px;
+  flex: 1 1 0;
+}
+
+.bt-sidebar-panel--setup.is-expanded+.bt-sidebar-panel--history.is-expanded {
+  flex-grow: 1.25;
+}
+
+.bt-sidebar-panel__title {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  flex: 0 0 34px;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  background: var(--tv-bg-surface);
+  padding: 0 8px;
+  color: var(--tv-text-muted);
+  text-align: left;
+}
+
+.bt-sidebar-panel__title:hover {
+  background: var(--tv-bg-elevated);
+}
+
+.bt-sidebar-panel__title>.v-icon {
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+
+.bt-sidebar-panel.is-expanded>.bt-sidebar-panel__title>.v-icon {
+  transform: rotate(90deg);
+}
+
+.bt-sidebar-panel__title span {
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.bt-sidebar-panel__title em {
+  max-width: 12rem;
+  overflow: hidden;
+  font-size: 0.67rem;
+  font-style: normal;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bt-sidebar-panel__body {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.bt-sidebar-panel__body--setup {
+  overflow: hidden;
+}
+
+.bt-new-backtest-form {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bt-new-backtest-fields {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.bt-new-backtest-fields>section,
+.bt-new-backtest-run {
+  gap: 6px !important;
+  padding: 8px;
+}
+
+.bt-new-backtest-fields>section+section,
+.bt-new-backtest-run {
+  border-top: 1px solid var(--tv-border);
+}
+
+.bt-new-backtest-fields>section> :is(.text-sm, .flex:first-child) {
+  min-height: 24px;
+}
+
+.bt-new-backtest-run {
+  flex: 0 0 auto;
+  background: var(--tv-bg-surface);
+  box-shadow: 0 -8px 18px color-mix(in srgb, var(--tv-bg-app) 42%, transparent);
+}
+
+.bt-run-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.bt-run-actions>div {
+  grid-column: 1 / -1;
+}
+
+.bt-run-actions>div+button:last-child {
+  grid-column: 1 / -1;
+}
+
+.bt-run-btn {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, #14b8a6 45%, var(--tv-border));
+  border-radius: 5px;
+  background: color-mix(in srgb, #14b8a6 12%, var(--tv-bg-surface));
+  color: #2dd4bf;
+  padding: 0 10px;
+  font-size: 0.75rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.bt-run-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, #14b8a6 62%, var(--tv-border));
+  background: color-mix(in srgb, #14b8a6 18%, var(--tv-bg-surface));
+}
+
+.bt-run-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.bt-run-btn--primary {
+  border-color: color-mix(in srgb, #14b8a6 62%, var(--tv-border));
+  background: color-mix(in srgb, #14b8a6 68%, var(--tv-bg-surface));
+  color: #f0fdfa;
+}
+
+.bt-run-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, #14b8a6 78%, var(--tv-bg-surface));
+}
+
+.bt-run-btn--primary:disabled {
+  border-color: var(--tv-border);
+  background: color-mix(in srgb, var(--tv-bg-elevated) 60%, var(--tv-border) 40%);
+  color: var(--tv-text-dim);
+  opacity: 1;
+}
+
+.bt-sync-block {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, #14b8a6 40%, var(--tv-border));
+  border-radius: 6px;
+  background: color-mix(in srgb, #14b8a6 8%, var(--tv-bg-surface));
+  padding: 6px 8px;
+  color: #2dd4bf;
+  font-size: 0.72rem;
+}
+
+.bt-sync-block--pending {
+  place-items: center;
+  text-align: center;
+}
+
+.bt-sync-block__head,
+.bt-sync-block__meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bt-sync-block__title {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bt-sync-block__cancel {
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, #ef4444 45%, var(--tv-border));
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in srgb, #fca5a5 78%, var(--tv-text));
+  padding: 1px 8px;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.bt-sync-block__cancel:hover {
+  background: color-mix(in srgb, #ef4444 10%, var(--tv-bg-surface));
+}
+
+.bt-sync-block__bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, #14b8a6 22%, var(--tv-bg-surface));
+}
+
+.bt-sync-block__bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #14b8a6;
+  transition: width 500ms ease;
+}
+
+.bt-sync-block--cancelled {
+  border-color: color-mix(in srgb, #f59e0b 44%, var(--tv-border));
+  background: color-mix(in srgb, #f59e0b 10%, var(--tv-bg-surface));
+  color: color-mix(in srgb, #fbbf24 72%, var(--tv-text));
+}
+
+.bt-backtest-results-filters {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--tv-border);
+}
+
+.bt-filter-reset {
+  justify-self: end;
+  min-height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--tv-accent);
+  padding: 0 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.bt-filter-reset:disabled {
+  color: var(--tv-text-dim);
+  opacity: 0.5;
+}
+
+.bt-history-list {
+  display: grid;
+  gap: 0;
+}
+
+.bt-history-run {
+  min-width: 0;
+  border-width: 0 0 1px;
+  border-style: solid;
+  border-radius: 0;
+  padding: 8px;
+}
+
+.bt-history-run__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--tv-text);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.bt-history-run__status {
+  display: inline-flex;
+  min-height: 18px;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--tv-bg-elevated);
+  padding: 0 6px;
+  color: var(--tv-text-muted);
+  font-size: 0.64rem;
+  font-weight: 750;
+}
+
+.bt-history-run__status.is-running {
+  color: #2dd4bf;
+}
+
+.bt-history-run__status.is-failed,
+.bt-history-run__status.is-cancelled {
+  color: #f87171;
+}
+
+.bt-history-run__meta,
+.bt-history-run__id {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tv-text-muted);
+  font-size: 0.67rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bt-history-run__meta {
+  display: flex;
+  gap: 7px;
+  margin-top: 3px;
+}
+
+.bt-history-run__id {
+  margin-top: 2px;
+  color: var(--tv-text-dim);
+}
+
+.bt-history-run__delete {
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.bt-history-run:is(:hover, :focus-within) .bt-history-run__delete {
+  opacity: 1;
 }
 
 .backtest-page__pane--sidebar input {
@@ -2815,37 +3533,157 @@ watch(
   min-width: 0;
 }
 
-.backtest-page__pane--sidebar .grid > *,
-.backtest-page__pane--sidebar .flex > * {
+.backtest-page__pane--sidebar .grid>*,
+.backtest-page__pane--sidebar .flex>* {
   min-width: 0;
 }
 
-.bt-new-backtest-form :deep(.v-field__input),
-.bt-new-backtest-form :deep(.v-select__selection-text),
-.bt-new-backtest-form :deep(input),
-.bt-new-backtest-form :deep(textarea) {
-  font-size: 0.875rem;
+.bt-form-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
 }
 
-.bt-backtest-results-filters :deep(.v-field__input),
-.bt-backtest-results-filters :deep(.v-select__selection-text),
-.bt-backtest-results-filters :deep(input) {
-  font-size: 0.875rem;
+.bt-form-row--compact {
+  grid-template-columns: auto minmax(0, 1fr);
 }
 
-:global(.bt-new-backtest-field-menu .v-list-item-title),
-:global(.bt-backtest-field-menu .v-list-item-title) {
-  font-size: 0.875rem;
+.bt-form-row__label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tv-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.bt-extended-hours__switch {
-  flex: 0 0 auto !important;
-  width: auto !important;
-  max-width: none !important;
+.bt-native-input,
+.bt-native-select,
+.bt-native-textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid var(--tv-border);
+  border-radius: 5px;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text);
+  padding: 5px 8px;
+  font-size: 0.83rem;
+  line-height: 1.25;
+  outline: none;
 }
 
-.bt-extended-hours__switch :deep(.v-input__control) {
+.bt-native-input:focus,
+.bt-native-select:focus,
+.bt-native-textarea:focus {
+  border-color: color-mix(in srgb, var(--tv-accent) 55%, var(--tv-border));
+}
+
+.bt-native-input:disabled,
+.bt-native-select:disabled,
+.bt-native-textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.bt-native-textarea {
+  min-height: 56px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
+}
+
+.bt-input-suffix {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.bt-input-suffix__text {
+  flex: 0 0 auto;
+  color: var(--tv-text-dim);
+  font-size: 0.7rem;
+}
+
+.bt-inline-warning {
+  border: 1px solid color-mix(in srgb, #f59e0b 44%, var(--tv-border));
+  border-radius: 4px;
+  background: color-mix(in srgb, #f59e0b 10%, var(--tv-bg-surface));
+  color: color-mix(in srgb, #fbbf24 72%, var(--tv-text));
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.bt-form-check {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.bt-form-check__input {
   width: auto;
+  min-height: 0;
+  margin-top: 2px;
+  accent-color: #14b8a6;
+  cursor: pointer;
+}
+
+.bt-form-check__title {
+  display: block;
+  color: var(--tv-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.bt-form-check__hint {
+  display: block;
+  color: var(--tv-text-dim);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.bt-warmup-preview {
+  display: flex;
+  min-width: 0;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 5px;
+  background: var(--tv-bg-surface-2);
+  padding: 4px 8px;
+}
+
+.bt-warmup-preview__value {
+  flex: 0 0 auto;
+  color: var(--tv-text);
+  font-size: 0.78rem;
+}
+
+.bt-warmup-preview__note {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tv-text-dim);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bt-text-running {
+  color: #2dd4bf;
+}
+
+.bt-text-queued {
+  color: #fbbf24;
 }
 
 .bt-sidebar-header {
@@ -2885,6 +3723,199 @@ watch(
   overflow-wrap: anywhere;
 }
 
+.bt-report-workspace {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--tv-bg-app);
+  container-type: inline-size;
+}
+
+.bt-report-topbar {
+  display: flex;
+  min-width: 0;
+  min-height: 34px;
+  flex: 0 0 34px;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface);
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.bt-report-topbar__title {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: var(--tv-text);
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+}
+
+.bt-report-topbar__chip {
+  display: inline-flex;
+  min-height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid var(--tv-border);
+  border-radius: 999px;
+  padding: 1px 6px;
+  color: var(--tv-text-muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.bt-report-topbar__chip--status.is-running {
+  border-color: color-mix(in srgb, #14b8a6 52%, var(--tv-border));
+  color: #2dd4bf;
+}
+
+.bt-report-topbar__chip--status.is-failed,
+.bt-report-topbar__chip--status.is-cancelled {
+  border-color: color-mix(in srgb, #ef4444 52%, var(--tv-border));
+  color: #f87171;
+}
+
+.bt-report-context-bar {
+  display: flex;
+  min-width: 0;
+  min-height: 30px;
+  flex: 0 0 30px;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface);
+  padding: 0 8px;
+  color: var(--tv-text-muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.bt-report-context-bar__id {
+  max-width: 15rem;
+  overflow: hidden;
+  color: var(--tv-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-overflow: ellipsis;
+}
+
+.bt-report-notices {
+  display: grid;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--tv-border);
+}
+
+.bt-report-notice {
+  min-width: 0;
+  min-height: 28px;
+  padding: 5px 8px;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.bt-report-notice+.bt-report-notice {
+  border-top: 1px solid var(--tv-border);
+}
+
+.bt-report-notice--warning,
+.bt-report-zero-trades {
+  background: color-mix(in srgb, #f59e0b 8%, var(--tv-bg-surface));
+  color: color-mix(in srgb, #fbbf24 72%, var(--tv-text));
+}
+
+.bt-report-notice--error {
+  background: color-mix(in srgb, #ef4444 8%, var(--tv-bg-surface));
+  color: color-mix(in srgb, #fca5a5 76%, var(--tv-text));
+}
+
+.bt-prop-block {
+  min-width: 0;
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.bt-prop-block--error {
+  border-color: color-mix(in srgb, #ef4444 42%, var(--tv-border));
+  background: color-mix(in srgb, #ef4444 8%, var(--tv-bg-surface));
+  color: color-mix(in srgb, #fca5a5 78%, var(--tv-text));
+}
+
+.bt-prop-block--warning {
+  border-color: color-mix(in srgb, #f59e0b 42%, var(--tv-border));
+  background: color-mix(in srgb, #f59e0b 8%, var(--tv-bg-surface));
+  color: color-mix(in srgb, #fbbf24 74%, var(--tv-text));
+}
+
+.bt-prop-block__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bt-prop-block__item {
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 4px;
+  background: var(--tv-bg-surface);
+  padding: 4px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.bt-prop-block__more {
+  font-size: 0.7rem;
+}
+
+.bt-warmup-label {
+  margin-left: 4px;
+  color: #fbbf24;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.bt-report-summary {
+  flex: 0 0 auto;
+  min-width: 0;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface);
+}
+
+.bt-report-summary__empty {
+  min-height: 52px;
+  padding: 16px;
+  color: var(--tv-text-muted);
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.bt-report-zero-trades {
+  min-height: 28px;
+  border-top: 1px solid color-mix(in srgb, #f59e0b 30%, var(--tv-border));
+  padding: 5px 8px;
+  font-size: 0.7rem;
+}
+
 .bt-report-window,
 .bt-report-window-item,
 .bt-report-chart-tab {
@@ -2893,23 +3924,123 @@ watch(
 }
 
 .bt-report-chart-tab {
-  --bt-report-chart-min-height: 520px;
+  height: 100%;
+  padding: 4px;
 }
 
 .bt-report-chart-stage {
   min-width: 0;
-  min-height: var(--bt-report-chart-min-height);
+  min-height: 0;
 }
 
 .bt-report-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
   min-width: 0;
 }
 
-.bt-report-stats-grid > * {
+.bt-report-stat {
+  display: grid;
   min-width: 0;
+  min-height: 50px;
+  align-content: center;
+  gap: 2px;
+  border-right: 1px solid var(--tv-border);
+  padding: 4px 8px;
+}
+
+.bt-report-stat:last-child {
+  border-right: 0;
+}
+
+.bt-report-stat__label {
+  overflow: hidden;
+  color: var(--tv-text-muted);
+  font-size: 0.61rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bt-report-stat__value {
+  overflow: hidden;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bt-report-stat__meta {
+  overflow: hidden;
+  color: var(--tv-text-dim);
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container (max-width: 900px) {
+  .bt-report-stats-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .bt-report-stat {
+    border-bottom: 1px solid var(--tv-border);
+  }
+
+  .bt-report-stat:nth-child(5n) {
+    border-right: 0;
+  }
+
+  .bt-report-stat:nth-child(n + 6) {
+    border-bottom: 0;
+  }
+}
+
+@container (max-width: 560px) {
+  .bt-report-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .bt-report-stat:nth-child(5n) {
+    border-right: 1px solid var(--tv-border);
+  }
+
+  .bt-report-stat:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .bt-report-stat:nth-child(n + 6) {
+    border-bottom: 1px solid var(--tv-border);
+  }
+
+  .bt-report-stat:nth-child(n + 7) {
+    border-bottom: 0;
+  }
+}
+
+@container (max-width: 360px) {
+  .bt-report-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bt-report-stat:nth-child(3n) {
+    border-right: 1px solid var(--tv-border);
+  }
+
+  .bt-report-stat:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .bt-report-stat:nth-child(n + 7) {
+    border-bottom: 1px solid var(--tv-border);
+  }
+
+  .bt-report-stat:nth-child(n + 9) {
+    border-bottom: 0;
+  }
 }
 
 .bt-report-window :deep(.v-window__container),
@@ -2921,8 +4052,23 @@ watch(
 }
 
 .bt-report-tabs {
+  min-height: 32px;
+  height: 32px;
   max-width: 100%;
   min-width: 0;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface);
+}
+
+.bt-report-tabs :deep(.v-slide-group__content) {
+  height: 32px;
+}
+
+.bt-report-tabs :deep(.v-tab) {
+  min-height: 32px;
+  height: 32px;
+  padding-inline: 10px;
+  font-size: 0.73rem;
 }
 
 .bt-report-tabs :deep(.v-slide-group__container) {
@@ -2941,28 +4087,39 @@ watch(
 }
 
 .bt-version-comparison {
-  min-width: 0;
-}
-
-.bt-version-comparison__header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  border-bottom: 1px solid var(--tv-border);
-  padding: 1rem;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  overflow: auto;
+  background: var(--tv-bg-app);
 }
 
 .bt-version-comparison__body {
   display: grid;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 8px;
+  padding: 8px;
 }
 
 .bt-version-compare-definition {
   display: grid;
-  gap: 0.35rem;
-  max-width: 32rem;
+  grid-template-columns: minmax(14rem, 1fr) minmax(16rem, 24rem);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border-bottom: 1px solid var(--tv-border);
+  padding-bottom: 8px;
+}
+
+.bt-version-compare-definition>div {
+  display: grid;
+  gap: 2px;
+}
+
+.bt-version-compare-definition>div>span {
+  color: var(--tv-text-muted);
+  font-size: 0.68rem;
 }
 
 .bt-version-compare-selectors {
@@ -2974,12 +4131,12 @@ watch(
 .bt-version-compare-selector {
   display: grid;
   align-content: start;
-  gap: 0.6rem;
+  gap: 6px;
   min-width: 0;
   border: 1px solid var(--tv-border);
-  border-radius: 0.5rem;
+  border-radius: 4px;
   background: color-mix(in srgb, var(--tv-bg-elevated) 62%, transparent);
-  padding: 0.85rem;
+  padding: 8px;
 }
 
 .bt-version-compare-selector__eyebrow,
@@ -3002,17 +4159,17 @@ watch(
 .bt-version-compare-results,
 .bt-version-compare-section {
   display: grid;
-  gap: 0.75rem;
+  gap: 6px;
   min-width: 0;
 }
 
 .bt-version-compare-notice {
   border: 1px solid var(--tv-border);
-  border-radius: 0.45rem;
+  border-radius: 4px;
   background: color-mix(in srgb, var(--tv-bg-elevated) 70%, transparent);
   color: var(--tv-text-muted);
-  padding: 0.65rem 0.75rem;
-  font-size: 0.8rem;
+  padding: 6px 8px;
+  font-size: 0.73rem;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -3034,19 +4191,19 @@ watch(
   grid-template-columns: minmax(7rem, 1fr) repeat(3, minmax(8rem, 1fr));
   overflow: auto;
   border: 1px solid var(--tv-border);
-  border-radius: 0.5rem;
+  border-radius: 4px;
   background: var(--tv-bg-surface);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
 }
 
-.bt-version-compare-metrics > div {
+.bt-version-compare-metrics>div {
   min-width: 0;
   border-bottom: 1px solid var(--tv-border);
-  padding: 0.65rem 0.7rem;
+  padding: 4px 6px;
   overflow-wrap: anywhere;
 }
 
-.bt-version-compare-metrics > div:nth-last-child(-n + 4) {
+.bt-version-compare-metrics>div:nth-last-child(-n + 4) {
   border-bottom: 0;
 }
 
@@ -3069,19 +4226,19 @@ watch(
   grid-template-columns: minmax(6rem, 0.7fr) repeat(2, minmax(10rem, 1fr));
   overflow: auto;
   border: 1px solid var(--tv-border);
-  border-radius: 0.5rem;
+  border-radius: 4px;
   background: var(--tv-bg-surface);
-  font-size: 0.8rem;
+  font-size: 0.74rem;
 }
 
-.bt-version-compare-config > div {
+.bt-version-compare-config>div {
   min-width: 0;
   border-bottom: 1px solid var(--tv-border);
-  padding: 0.65rem 0.7rem;
+  padding: 4px 6px;
   overflow-wrap: anywhere;
 }
 
-.bt-version-compare-config > div:nth-last-child(-n + 3) {
+.bt-version-compare-config>div:nth-last-child(-n + 3) {
   border-bottom: 0;
 }
 
@@ -3113,83 +4270,129 @@ watch(
   }
 }
 
-@media (max-width: 1180px) {
-  .backtest-page {
-    align-content: start;
-    gap: 0.75rem;
-    overflow: auto;
-    scrollbar-gutter: stable both-edges;
+@media (min-width: 1181px) {
+
+  .backtest-page--sidebar-closed .backtest-page__split> :deep(.splitpanes__pane:first-of-type),
+  .backtest-page--sidebar-closed .backtest-page__split> :deep(.splitpanes__splitter:first-of-type) {
+    display: none;
   }
 
-  .backtest-page__split.tv-splitpanes {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.75rem;
-    height: auto;
-    min-height: 0;
-    overflow: visible;
+  .backtest-page--sidebar-closed .backtest-page__split> :deep(.splitpanes__pane:last-of-type) {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+  }
+}
+
+.backtest-sidebar-backdrop {
+  position: absolute;
+  z-index: 20;
+  inset: 44px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: rgba(2, 6, 23, 0.38);
+  padding: 0;
+}
+
+@media (min-width: 769px) and (max-width: 1180px) {
+  .backtest-workbench-header {
+    gap: 4px;
+    padding-inline: 6px;
   }
 
-  .backtest-page__split :deep(.splitpanes__pane) {
-    display: contents !important;
-    width: auto !important;
-    min-width: 0 !important;
-    height: auto !important;
-    min-height: 0 !important;
-    transform: none !important;
+  .backtest-page__split> :deep(.splitpanes__pane:first-of-type) {
+    position: absolute !important;
+    z-index: 30;
+    inset: 0 auto 0 0;
+    width: min(380px, calc(100% - 48px)) !important;
+    max-width: min(380px, calc(100% - 48px)) !important;
+    min-width: min(300px, calc(100% - 48px)) !important;
+    flex: 0 0 min(380px, calc(100% - 48px)) !important;
+    transform: translateX(0);
+    transition: transform 160ms ease;
+    box-shadow: 16px 0 36px rgba(2, 6, 23, 0.3);
   }
 
-  .backtest-page__split :deep(.splitpanes__splitter) {
-    display: none !important;
+  .backtest-page__split> :deep(.splitpanes__splitter) {
+    display: none;
   }
 
-  .backtest-page__pane {
-    height: auto;
-    min-height: min(42rem, 78vh);
+  .backtest-page__split> :deep(.splitpanes__pane:last-of-type) {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
   }
 
-  .backtest-page__pane--sidebar {
-    min-height: min(38rem, 72vh);
+  .backtest-page--sidebar-closed .backtest-page__split> :deep(.splitpanes__pane:first-of-type) {
+    pointer-events: none;
+    transform: translateX(-105%);
+    box-shadow: none;
   }
 
-  .backtest-page .grid-cols-2 {
-    grid-template-columns: minmax(0, 1fr) !important;
+  .bt-sidebar-drawer-head {
+    display: flex;
   }
+}
 
-  .bt-report-chart-tab {
-    --bt-report-chart-min-height: 440px;
-    padding: 0.75rem;
+@media (max-width: 920px) and (min-width: 769px) {
+  .backtest-sidebar-toggle span {
+    display: none;
   }
 }
 
 @media (max-width: 768px) {
-  .backtest-page {
-    gap: 0.5rem;
-    overflow: hidden;
+  .backtest-workbench-header {
+    min-height: 44px;
+    height: auto;
+    flex: 0 0 auto;
+    flex-flow: row wrap;
+    gap: 4px 8px;
+    padding: 5px 6px;
+  }
+
+  .backtest-workbench-header__identity {
+    flex-basis: 100%;
+  }
+
+  .backtest-sidebar-toggle span {
+    display: none;
+  }
+
+  .backtest-workbench-title {
+    flex: 1 1 auto;
+  }
+
+  .backtest-workbench-header__actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .backtest-page__mobile-switch {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.375rem;
+    min-height: 40px;
+    flex: 0 0 40px;
+    gap: 1px;
     min-width: 0;
+    border-bottom: 1px solid var(--tv-border);
+    background: var(--tv-bg-surface);
+    padding: 3px 6px;
   }
 
   .backtest-page__mobile-switch-button {
     min-width: 0;
-    min-height: 2.2rem;
-    border-radius: 8px;
-    border: 1px solid var(--tv-border);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 82%, transparent);
+    min-height: 34px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
     color: var(--tv-text-muted);
-    font-size: 0.82rem;
-    font-weight: 750;
+    font-size: 0.77rem;
+    font-weight: 800;
     line-height: 1.2;
   }
 
   .backtest-page__mobile-switch-button.is-active {
-    border-color: color-mix(in srgb, var(--tv-accent) 58%, var(--tv-border));
-    background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-elevated));
+    background: color-mix(in srgb, var(--tv-accent) 18%, var(--tv-bg-surface));
     color: var(--tv-text);
   }
 
@@ -3199,30 +4402,41 @@ watch(
   }
 
   .backtest-page__split.tv-splitpanes {
-    gap: 0;
+    display: block !important;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
     overflow: hidden;
   }
 
-  .backtest-page__pane {
-    min-height: min(36rem, calc(100dvh - 12rem));
+  .backtest-page__split :deep(.splitpanes__splitter) {
+    display: none !important;
   }
 
-  .backtest-page--mobile-setup .backtest-page__pane:not(.backtest-page__pane--sidebar),
-  .backtest-page--mobile-report .backtest-page__pane--sidebar {
+  .backtest-page__split> :deep(.splitpanes__pane) {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    flex: none !important;
+    transform: none !important;
+  }
+
+  .backtest-page--mobile-setup .backtest-page__split> :deep(.splitpanes__pane:last-of-type),
+  .backtest-page--mobile-report .backtest-page__split> :deep(.splitpanes__pane:first-of-type) {
+    display: none !important;
+  }
+
+  .bt-sidebar-drawer-head {
     display: none;
   }
 
-  .bt-sidebar-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .bt-sidebar-create-action {
-    width: 100%;
-  }
-
-  .bt-report-stats-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .bt-report-topbar,
+  .bt-report-context-bar {
+    gap: 7px;
+    overflow-x: auto;
   }
 
   .bt-report-window {
@@ -3237,20 +4451,11 @@ watch(
 
   .bt-report-tabs :deep(.v-tab) {
     min-width: 0;
-    padding-inline: 0.75rem;
-  }
-
-  .bt-report-chart-tab {
-    --bt-report-chart-min-height: 360px;
+    padding-inline: 10px;
   }
 
   .bt-order-table {
     min-width: 42rem;
-  }
-
-  .bt-version-comparison__header {
-    align-items: stretch;
-    flex-direction: column;
   }
 
   .bt-version-compare-selectors {
@@ -3261,9 +4466,8 @@ watch(
     grid-template-columns: minmax(6.5rem, 1fr) repeat(3, minmax(7rem, 1fr));
   }
 
-  .bt-version-comparison__body,
-  .bt-version-comparison__header {
-    padding: 0.75rem;
+  .bt-version-compare-definition {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .backtest-page :deep(.v-chip) {
@@ -3277,28 +4481,9 @@ watch(
   }
 }
 
-.backtest-page :deep(.v-field) {
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--tv-bg-elevated) 88%, transparent);
-}
-
-.backtest-page :deep(.v-field--variant-outlined .v-field__outline) {
-  --v-field-border-opacity: 1;
-  color: var(--tv-border);
-}
-
 .backtest-page :deep(.v-card) {
   background: var(--tv-bg-surface);
   border-color: var(--tv-border);
-}
-
-.backtest-page :deep(.v-select .v-field__input),
-.backtest-page :deep(.v-text-field .v-field__input) {
-  color: var(--tv-text);
-}
-
-.backtest-page :deep(.v-input__details) {
-  color: var(--tv-text-dim);
 }
 
 .backtest-page :deep(.v-chip) {
@@ -3368,12 +4553,6 @@ watch(
 
 .backtest-page .bt-text-dim {
   color: var(--tv-text-dim);
-}
-
-.backtest-page .bt-disabled-bg {
-  background: color-mix(in srgb,
-      var(--tv-bg-elevated) 60%,
-      var(--tv-border) 40%);
 }
 
 .backtest-page .bt-divide> :not([hidden])~ :not([hidden]) {
