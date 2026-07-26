@@ -365,6 +365,7 @@ describe("useResearchFeature", () => {
         mergeComparator: (left, right) =>
           String(left.name ?? left.title).localeCompare(
             String(right.name ?? right.title),
+            "en",
           ),
       },
     );
