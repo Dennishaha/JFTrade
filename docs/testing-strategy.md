@@ -29,30 +29,32 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 | L0 静态与契约 | lint、vet、typecheck、架构依赖、OpenAPI/API types/Wails 生成一致性、许可证和测试命名 | 每个 PR、main |
 | L1 单元与组件 | Go、Web、worker 的确定性测试及覆盖率/增量覆盖率 | 每个 PR、main |
 | L2 隔离集成 | 临时 SQLite、`httptest`、mock OpenD/broker/Pine worker；禁止调用真实外部服务 | 每个 PR、main |
-| L3 系统回归 | 完整确定性回归、release assets、真实 PineTS 进程 smoke；PR 只构建 Linux desktop，main 额外构建 Linux/macOS/Windows | PR / main |
-| L4 重型验证 | race、并发重复、真实 PineTS backtest smoke；性能基线与真实 OpenD | nightly / manual |
+| L3 系统回归 | release assets、并发重复；PR 构建 Linux desktop，main 额外执行完整 Go 回归、真实 PineTS backtest smoke 和三平台 desktop build | PR / main |
+| L4 手动重型验证 | race、性能基线与真实 OpenD | manual |
 
-`.github/workflows/ci.yml` 是 PR 与 main 的主门禁。PR 的 desktop lane 只做 Linux 原生 smoke build；main 的 desktop matrix 验证 Linux x64、macOS ARM64 和 Windows x64。nightly 在每天 02:00 Asia/Shanghai（GitHub cron 的前一日 18:00 UTC）运行 race、并发重复和真实 PineTS smoke。
+`.github/workflows/ci.yml` 是 PR 与 main 的主门禁。合同和参考文档由独立 job 统一生成并检查一次；Go 覆盖率、主线完整回归、Web 质量、Web 资产和 Pine worker 并行执行。PR 的 desktop lane 只做 Linux 原生 smoke build；main 的 desktop matrix 验证 Linux x64、macOS ARM64 和 Windows x64。桌面 job 只有在对应基础门禁全部通过后才启动，最终仍由稳定的 `Build & Test` required check 汇总。
 
 每个覆盖 lane 会把命令输出及 Go/Web/worker 的 coverage 报告保存为 CI artifact（保留 7 天），并在对应 job summary 摘出总量和增量结果，便于定位门禁失败而不依赖本地复现。
 
-真实 Futu/OpenD 不属于普通 PR 或 nightly：只能通过 `futu-live.yml` 手动触发，并调度到带 `self-hosted`、`futu`、`opend` 标签的 runner。该 workflow 显式设置 `JFTRADE_FUTU_LIVE_TEST=1`，并在未连通 OpenD 或权限不足时失败，绝不把跳过当作通过。性能基准保留手动触发；每周在同一 self-hosted runner 上把当前 main 与其上一提交比较。
+真实 Futu/OpenD 不属于普通 PR 或 main CI：只能通过 `futu-live.yml` 手动触发，并调度到带 `self-hosted`、`futu`、`opend` 标签的 runner。该 workflow 显式设置 `JFTRADE_FUTU_LIVE_TEST=1`，并在未连通 OpenD 或权限不足时失败，绝不把跳过当作通过。性能基准保留手动触发；每周在同一 self-hosted runner 上把当前 main 与其上一提交比较。手动性能测试未填写 `compare_ref` 时同样比较上一提交，填写后才使用指定基线。
 
 ## 本地入口
 
 ```bash
-# PR 的确定性 L0-L2 门禁
-pnpm run test:pr
+# 快速的本地提交前检查；test:pr 是兼容别名
+pnpm run test:preflight
 
-# 本机可执行的 main 回归（当前平台 desktop + 真实 PineTS smoke）
+# 单机可执行的 Linux CI 核心门禁，不包含 GitHub 三操作系统矩阵
+pnpm run test:ci-local
+
+# 在 ci-local 之上执行完整 Go、当前平台 desktop 和真实 PineTS smoke
 pnpm run test:main
-
-# race、并发重复与真实 PineTS backtest smoke
-pnpm run test:nightly
 
 # 单独运行三套覆盖率门禁
 pnpm run test:coverage
 ```
+
+已有自动化或个人习惯可以继续调用 `pnpm run test:pr`；它与 `test:preflight` 等价。跨平台 proto 与桌面构建仍以 GitHub Actions 为准，本地入口不伪装成完整的多平台 CI。
 
 本地分支若要启用增量覆盖，设置 base ref；CI 会自动提供它：
 

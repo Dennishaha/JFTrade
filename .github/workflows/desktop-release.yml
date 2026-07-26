@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_ref:
-        description: Git ref/SHA for a dry run, or an exact vX.Y.Z tag to publish
+        description: Main-validated Git ref/SHA for a dry run, or an exact vX.Y.Z tag to publish
         required: true
         default: main
         type: string
@@ -51,31 +51,32 @@ jobs:
         run: |
           set -euo pipefail
           head_commit="$(git rev-parse HEAD)"
-          if [[ "$JFTRADE_DESKTOP_PUBLISH" != "true" ]]; then
+          if [[ "$JFTRADE_DESKTOP_PUBLISH" == "true" ]]; then
+            if [[ ! "$JFTRADE_DESKTOP_RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || [[ "$JFTRADE_DESKTOP_RELEASE_TAG" = "v0.0.0" ]]; then
+              echo "Invalid release tag: $JFTRADE_DESKTOP_RELEASE_TAG" >&2
+              exit 1
+            fi
+            if ! git show-ref --verify --quiet "refs/tags/$JFTRADE_DESKTOP_RELEASE_TAG"; then
+              echo "Publishing requires an existing tag: $JFTRADE_DESKTOP_RELEASE_TAG" >&2
+              exit 1
+            fi
+            tag_commit="$(git rev-parse "refs/tags/$JFTRADE_DESKTOP_RELEASE_TAG^{commit}")"
+            if [[ "$tag_commit" != "$head_commit" ]]; then
+              echo "Checked out $head_commit, expected tag commit $tag_commit" >&2
+              exit 1
+            fi
+          else
             echo "Dry run will build $JFTRADE_DESKTOP_BUILD_REF at $head_commit as $JFTRADE_DESKTOP_RELEASE_TAG."
-            exit 0
           fi
-          if [[ ! "$JFTRADE_DESKTOP_RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || [[ "$JFTRADE_DESKTOP_RELEASE_TAG" = "v0.0.0" ]]; then
-            echo "Invalid release tag: $JFTRADE_DESKTOP_RELEASE_TAG" >&2
-            exit 1
-          fi
-          if ! git show-ref --verify --quiet "refs/tags/$JFTRADE_DESKTOP_RELEASE_TAG"; then
-            echo "Publishing requires an existing tag: $JFTRADE_DESKTOP_RELEASE_TAG" >&2
-            exit 1
-          fi
-          tag_commit="$(git rev-parse "refs/tags/$JFTRADE_DESKTOP_RELEASE_TAG^{commit}")"
-          if [[ "$tag_commit" != "$head_commit" ]]; then
-            echo "Checked out $head_commit, expected tag commit $tag_commit" >&2
-            exit 1
-          fi
+
           git fetch --no-tags origin main:refs/remotes/origin/main
-          if ! git merge-base --is-ancestor "$tag_commit" refs/remotes/origin/main; then
-            echo "Release tag $JFTRADE_DESKTOP_RELEASE_TAG does not belong to main" >&2
+          if ! git merge-base --is-ancestor "$head_commit" refs/remotes/origin/main; then
+            echo "Desktop release inputs must belong to main: $head_commit" >&2
             exit 1
           fi
           ci_url="$(
             gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
-              -f head_sha="$tag_commit" \
+              -f head_sha="$head_commit" \
               -f branch=main \
               -f event=push \
               -f status=success \
@@ -83,7 +84,7 @@ jobs:
               --jq '.workflow_runs[0].html_url // ""'
           )"
           if [[ -z "$ci_url" ]]; then
-            echo "No successful main CI run found for $tag_commit" >&2
+            echo "No successful main CI run found for $head_commit" >&2
             exit 1
           fi
           echo "Verified required CI run: $ci_url"
@@ -109,26 +110,29 @@ jobs:
       - name: Audit locked pnpm dependencies
         run: pnpm run audit:dependencies
 
+      - name: OSS license compliance
+        run: |
+          pnpm run check:oss-license
+          pnpm run check:pinets-compliance
+
       - name: Verify Wails host
         env:
           GOFLAGS: "-tags=gtk3"
         run: pnpm run desktop:doctor
 
-      - name: Generate release inputs
+      - name: Build release inputs
         run: |
-          pnpm run build:frontend-assets
+          pnpm run build:frontend-assets:generated
           pnpm run build:pineworker
-          git diff --exit-code -- docs/reference/generated/pine-v6-support.md
+          git diff --check
 
-      - name: Verify PineTS release acceptance
-        run: pnpm run check:pinets-release
+      - name: Verify built PineTS worker with a real backtest
+        env:
+          JFTRADE_PINEWORKER_BUNDLE: ${{ github.workspace }}/internal/pineworkerassets/assets/bin/worker.mjs
+        run: pnpm run smoke:pinets-backtest
 
       - name: Verify shared desktop source
-        env:
-          GOFLAGS: "-tags=gtk3"
         run: |
-          pnpm run check:wails-bindings
-          pnpm run typecheck:web
           pnpm run test:desktop-release-metadata
           pnpm run test:desktop-release-artifacts
           pnpm run test:desktop-linux-artifacts

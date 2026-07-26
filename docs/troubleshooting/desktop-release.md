@@ -41,14 +41,14 @@ JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 pnpm run desktop:release:darwin
 
 `dev`、`v0.0.0`、分支名和其他 tag 都会被 release 脚本拒绝。版本、提交号和构建时间会同时注入 Go buildinfo、macOS Info.plist 和 Windows version resource。
 
-推送 tag 会启动 `.github/workflows/desktop-release.yml`。工作流先集中生成一次 Swagger、前端压缩包和 Pineworker bundle，再把同一组输入交给四个平台构建；平台任务不再重复安装前端依赖或生成平台无关资产。`publish` 会等待四个平台任务结束，macOS、Windows x64 和 Linux 全部通过后创建或更新同名 GitHub Release，并上传二进制、SBOM 和 `SHA256SUMS`。Windows ARM64 是预览构建，失败不会阻塞这三套正式资产：
+推送 tag 会启动 `.github/workflows/desktop-release.yml`。正式发布先确认该 tag 的准确提交已经通过 main CI，再使用 CI 验证过的已提交 Swagger/契约集中构建一次前端压缩包和 Pineworker bundle，并对实际 bundle 运行非 mock 回测 smoke；平台任务复用同一组输入，不重复安装前端依赖或生成平台无关资产，也不重复执行完整 Web、Go 和 Pine 测试。`publish` 会等待四个平台任务结束，macOS、Windows x64 和 Linux 全部通过后创建或更新同名 GitHub Release，并上传二进制、SBOM 和 `SHA256SUMS`。Windows ARM64 是预览构建，失败不会阻塞这三套正式资产：
 
 ```bash
 git tag v1.2.3
 git push origin v1.2.3
 ```
 
-也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `vX.Y.Z` tag；手动路径默认与 tag 推送一样发布 Release。勾选 `dry_run` 时仍会完成四个平台构建并保留 workflow artifacts，但不会写入 provenance 或修改 GitHub Release。相同 tag 的发布会串行执行，重跑时使用本次构建结果覆盖同名 assets，并清理旧命名 Linux 包、裸二进制和 Arch 包，无论 Release 当前是 draft 还是已发布状态。直接在 Releases 页面创建或发布 Release 不会触发构建。
+也可以从 Actions 的 `Desktop Release` 工作流手动输入已通过同 SHA main CI 的提交或已有 `vX.Y.Z` tag；手动路径默认与 tag 推送一样发布 Release。勾选 `dry_run` 时仍会完成四个平台构建并保留 workflow artifacts，但不会写入 provenance 或修改 GitHub Release；dry run 同样拒绝未进入 main 或没有成功 CI 记录的提交。相同 tag 的发布会串行执行，重跑时使用本次构建结果覆盖同名 assets，并清理旧命名 Linux 包、裸二进制和 Arch 包，无论 Release 当前是 draft 还是已发布状态。直接在 Releases 页面创建或发布 Release 不会触发构建。
 
 开发构建与 bindings：
 

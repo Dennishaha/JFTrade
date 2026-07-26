@@ -7,9 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       compare_ref:
-        description: Git ref used as the same-runner performance baseline
-        required: true
-        default: main
+        description: Optional Git ref used as the same-runner baseline; empty compares HEAD^
+        required: false
         type: string
 
 jobs:
@@ -60,11 +59,15 @@ jobs:
           MANUAL_COMPARE_REF: ${{ inputs.compare_ref }}
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+          if [[ -n "$MANUAL_COMPARE_REF" ]]; then
             git fetch --no-tags origin "$MANUAL_COMPARE_REF"
             baseline="$(git rev-parse FETCH_HEAD)"
           else
             baseline="$(git rev-parse HEAD^)"
+          fi
+          if [[ "$baseline" == "$(git rev-parse HEAD)" ]]; then
+            echo "Comparison baseline resolves to the current revision; choose an older ref or leave compare_ref empty." >&2
+            exit 1
           fi
           echo "sha=$baseline" >> "$GITHUB_OUTPUT"
           echo "Comparing ${GITHUB_SHA} against $baseline"

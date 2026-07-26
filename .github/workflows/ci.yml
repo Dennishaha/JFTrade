@@ -14,8 +14,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  contracts:
+    name: Contracts & Docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
+        with:
+          cache: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate contracts and reference docs
+        run: pnpm run generate:docs
+
+      - name: Verify tracked contract artifacts are up to date
+        run: git diff --exit-code -- docs/swagger apps/web/src/generated/openapi.ts tests/fixtures/openapi-baseline.json docs/reference/generated
+
   go-quality:
-    name: Go Quality & Contracts
+    name: Go Quality
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -46,25 +74,13 @@ jobs:
           go install github.com/mgechev/revive@v1.15.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - name: Wails doctor
-        run: pnpm run desktop:doctor
-
-      - name: Generate contracts and reference docs
-        run: pnpm run generate:docs
-
-      - name: Verify tracked contract artifacts are up to date
-        run: git diff --exit-code -- docs/swagger apps/web/src/generated/openapi.ts tests/fixtures/openapi-baseline.json docs/reference/generated
-
       - name: Test filename policy
         run: |
           pnpm run test:test-policy
           pnpm run check:test-names
 
-      - name: Lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.12.0
-          args: --timeout=5m --build-tags=gtk3 --max-issues-per-linter=0 --max-same-issues=0
+      - name: Architecture dependency check
+        run: bash scripts/check-arch-deps.sh
 
       - name: Go production file length gate
         shell: bash
@@ -128,14 +144,17 @@ jobs:
 
           revive -config .revive-file-length-test.toml -set_exit_status "${files[@]}"
 
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.0
+          args: --timeout=5m --build-tags=gtk3 --max-issues-per-linter=0 --max-same-issues=0
+
       - name: Vet
         run: go vet ./...
 
       - name: Build
         run: go build ./...
-
-      - name: Go vulnerability check
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
       - name: Test command packages
         run: go test ./cmd/... -count=1 -timeout 300s
@@ -143,8 +162,11 @@ jobs:
       - name: Wails bindings are current
         run: pnpm run check:wails-bindings
 
-      - name: Architecture dependency check
-        run: bash scripts/check-arch-deps.sh
+      - name: Wails doctor
+        run: pnpm run desktop:doctor
+
+      - name: Go vulnerability check
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
   proto-generation:
     name: Proto Generation (${{ matrix.os }})
@@ -202,9 +224,6 @@ jobs:
       - name: Install PineTS integration dependency
         run: pnpm --filter @jftrade/pineworker install --prod --frozen-lockfile
 
-      - name: Generate contract test dependencies
-        run: pnpm run generate:contracts
-
       - name: Go coverage gate
         shell: bash
         run: |
@@ -212,27 +231,6 @@ jobs:
           mkdir -p artifacts/coverage
           pnpm run test:coverage:go -- -package ./cmd/jftrade-api -package ./internal/... -package ./pkg/... -package ./scripts 2>&1 | tee artifacts/coverage/go.txt
           go test ./internal/marketdata ./internal/integration/futu -run Concurrent -count=20 -timeout=120s 2>&1 | tee artifacts/coverage/go-concurrency.txt
-
-      - name: Full deterministic Go regression (main)
-        if: ${{ github.event_name == 'push' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          # This job intentionally runs without cgo. The Wails desktop command
-          # requires GTK/cgo on Linux and is covered by the dedicated desktop lanes.
-          package_list="$(mktemp)"
-          trap 'rm -f "$package_list"' EXIT
-          go list ./... >"$package_list"
-          packages=()
-          while IFS= read -r package; do
-            case "$package" in
-              */cmd/jftrade-desktop)
-                continue
-                ;;
-            esac
-            packages+=("$package")
-          done <"$package_list"
-          go test "${packages[@]}" -count=1 -timeout=300s
 
       - name: Summarize Go coverage
         if: ${{ always() }}
@@ -257,8 +255,53 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  web:
-    name: Web
+  go-regression:
+    name: Go Regression (main)
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
+        with:
+          cache: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install PineTS integration dependency
+        run: pnpm --filter @jftrade/pineworker install --prod --frozen-lockfile
+
+      - name: Full deterministic Go regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This job intentionally runs without cgo. The Wails desktop command
+          # requires GTK/cgo on Linux and is covered by the dedicated desktop lanes.
+          package_list="$(mktemp)"
+          trap 'rm -f "$package_list"' EXIT
+          go list ./... >"$package_list"
+          packages=()
+          while IFS= read -r package; do
+            case "$package" in
+              */cmd/jftrade-desktop)
+                continue
+                ;;
+            esac
+            packages+=("$package")
+          done <"$package_list"
+          go test "${packages[@]}" -count=1 -timeout=300s
+
+  web-quality:
+    name: Web Quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -273,12 +316,6 @@ jobs:
         uses: ./.github/actions/setup-pnpm
         with:
           cache: true
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: false
 
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
@@ -324,12 +361,6 @@ jobs:
       - name: Frontend typecheck
         run: pnpm run typecheck:web
 
-      - name: Frontend embedded asset build
-        run: pnpm run build:frontend-assets
-
-      - name: Frontend release asset test
-        run: go test -tags release_assets ./internal/frontendassets -run TestFileSystem
-
       - name: Desktop release script tests
         run: |
           pnpm run test:desktop-release-metadata
@@ -340,6 +371,34 @@ jobs:
           pnpm run test:desktop-signing
           pnpm run test:desktop-linux-package-config
           node scripts/dev-desktop.test.mjs
+
+  web-assets:
+    name: Web Assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
+        with:
+          cache: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend assets from tracked contracts
+        run: pnpm run build:frontend-assets:generated
+
+      - name: Frontend release asset test
+        run: go test -tags release_assets ./internal/frontendassets -run TestFileSystem
 
       - name: Upload frontend build input
         uses: actions/upload-artifact@v7
@@ -406,11 +465,6 @@ jobs:
       - name: PineTS worker typecheck
         run: pnpm run typecheck:pineworker
 
-      - name: Generate Pine contract
-        run: |
-          go run ./cmd/generate-pine-spec-docs -out docs/reference/generated
-          git diff --exit-code -- docs/reference/generated/pine-v6-support.md
-
       - name: PineTS release check script test
         run: pnpm run test:pinets-release-check
 
@@ -443,6 +497,8 @@ jobs:
 
       - name: Real PineTS backtest smoke (main)
         if: ${{ github.event_name == 'push' }}
+        env:
+          JFTRADE_PINEWORKER_BUNDLE: ${{ github.workspace }}/internal/pineworkerassets/assets/bin/worker.mjs
         run: pnpm run smoke:pinets-backtest
 
       - name: Upload PineTS worker build input
@@ -456,7 +512,7 @@ jobs:
   desktop-linux-smoke:
     name: Desktop Linux Smoke (PR)
     if: ${{ github.event_name == 'pull_request' }}
-    needs: [web, pine]
+    needs: [contracts, go-quality, proto-generation, go-coverage, web-quality, web-assets, pine]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -489,9 +545,6 @@ jobs:
       - name: Install Linux desktop dependencies
         run: bash scripts/install-linux-desktop-dependencies.sh
 
-      - name: Generate contract build inputs
-        run: pnpm run generate:contracts
-
       - name: Test desktop release profile
         run: go test -tags production,release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
 
@@ -519,7 +572,7 @@ jobs:
   desktop-build:
     name: Desktop Build (${{ matrix.label }})
     if: ${{ github.event_name == 'push' }}
-    needs: [web, pine]
+    needs: [contracts, go-quality, proto-generation, go-coverage, go-regression, web-quality, web-assets, pine]
     strategy:
       fail-fast: false
       matrix:
@@ -589,9 +642,6 @@ jobs:
           if ((go env GOARCH) -ne "amd64") {
             throw "Windows x64 runner is required"
           }
-
-      - name: Generate contract build inputs
-        run: pnpm run generate:contracts
 
       - name: Test desktop release profile
         run: go test -tags "${{ matrix.test_tags }}" ./cmd/jftrade-desktop ./internal/desktop -count=1
@@ -684,25 +734,57 @@ jobs:
   build-and-test:
     name: Build & Test
     if: ${{ always() }}
-    needs: [go-quality, proto-generation, go-coverage, web, pine, desktop-linux-smoke, desktop-build]
+    needs: [contracts, go-quality, proto-generation, go-coverage, go-regression, web-quality, web-assets, pine, desktop-linux-smoke, desktop-build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require all CI lanes
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          CONTRACTS_RESULT: ${{ needs.contracts.result }}
           GO_QUALITY_RESULT: ${{ needs.go-quality.result }}
           PROTO_GENERATION_RESULT: ${{ needs.proto-generation.result }}
           GO_COVERAGE_RESULT: ${{ needs.go-coverage.result }}
-          WEB_RESULT: ${{ needs.web.result }}
+          GO_REGRESSION_RESULT: ${{ needs.go-regression.result }}
+          WEB_QUALITY_RESULT: ${{ needs.web-quality.result }}
+          WEB_ASSETS_RESULT: ${{ needs.web-assets.result }}
           PINE_RESULT: ${{ needs.pine.result }}
           DESKTOP_LINUX_SMOKE_RESULT: ${{ needs.desktop-linux-smoke.result }}
           DESKTOP_BUILD_RESULT: ${{ needs.desktop-build.result }}
         run: |
-          if [[ "$GO_QUALITY_RESULT" != "success" || "$PROTO_GENERATION_RESULT" != "success" || "$GO_COVERAGE_RESULT" != "success" || "$WEB_RESULT" != "success" || "$PINE_RESULT" != "success" || ( "$DESKTOP_LINUX_SMOKE_RESULT" != "success" && "$DESKTOP_LINUX_SMOKE_RESULT" != "skipped" ) || ( "$DESKTOP_BUILD_RESULT" != "success" && "$DESKTOP_BUILD_RESULT" != "skipped" ) ]]; then
-            echo "Go Quality & Contracts: $GO_QUALITY_RESULT"
+          set -euo pipefail
+          failed=0
+          for result in \
+            "$CONTRACTS_RESULT" \
+            "$GO_QUALITY_RESULT" \
+            "$PROTO_GENERATION_RESULT" \
+            "$GO_COVERAGE_RESULT" \
+            "$WEB_QUALITY_RESULT" \
+            "$WEB_ASSETS_RESULT" \
+            "$PINE_RESULT"; do
+            if [[ "$result" != "success" ]]; then
+              failed=1
+            fi
+          done
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            [[ "$GO_REGRESSION_RESULT" == "success" ]] || failed=1
+            [[ "$DESKTOP_BUILD_RESULT" == "success" ]] || failed=1
+            [[ "$DESKTOP_LINUX_SMOKE_RESULT" == "skipped" ]] || failed=1
+          else
+            [[ "$GO_REGRESSION_RESULT" == "skipped" ]] || failed=1
+            [[ "$DESKTOP_BUILD_RESULT" == "skipped" ]] || failed=1
+            [[ "$DESKTOP_LINUX_SMOKE_RESULT" == "success" ]] || failed=1
+          fi
+
+          if [[ "$failed" -ne 0 ]]; then
+            echo "Contracts & Docs: $CONTRACTS_RESULT"
+            echo "Go Quality: $GO_QUALITY_RESULT"
             echo "Proto Generation: $PROTO_GENERATION_RESULT"
             echo "Go Coverage: $GO_COVERAGE_RESULT"
-            echo "Web: $WEB_RESULT"
+            echo "Go Regression: $GO_REGRESSION_RESULT"
+            echo "Web Quality: $WEB_QUALITY_RESULT"
+            echo "Web Assets: $WEB_ASSETS_RESULT"
             echo "Pine & Workers: $PINE_RESULT"
             echo "Desktop Linux Smoke: $DESKTOP_LINUX_SMOKE_RESULT"
             echo "Desktop Build Matrix: $DESKTOP_BUILD_RESULT"
