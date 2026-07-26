@@ -1672,35 +1672,6 @@ button:disabled {
   overflow: hidden;
 }
 
-.strategy-native-shell > :deep(.splitpanes__splitter),
-.strategy-native-instruction > :deep(.splitpanes__splitter) {
-  width: 5px;
-  min-width: 5px;
-  border: 0;
-  background: transparent;
-  cursor: col-resize;
-}
-
-.strategy-native-shell > :deep(.splitpanes__splitter::before),
-.strategy-native-instruction > :deep(.splitpanes__splitter::before) {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-  height: auto;
-  border-radius: 0;
-  background: var(--tv-border);
-  content: "";
-  transform: translateX(-50%);
-}
-
-.strategy-native-shell > :deep(.splitpanes__splitter:is(:hover, :focus-visible, :active)::before),
-.strategy-native-instruction > :deep(.splitpanes__splitter:is(:hover, :focus-visible, :active)::before) {
-  width: 2px;
-  background: var(--tv-accent);
-}
-
 .strategy-native-instruction {
   position: relative;
   width: 100%;

@@ -545,7 +545,7 @@ body {
   position: relative;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .tv-rightdock-resizer {
@@ -696,78 +696,93 @@ body {
 
 .tv-splitpanes .splitpanes__splitter,
 .tv-resizer--vertical {
-  background: var(--tv-bg-surface-2);
-  border-color: var(--tv-border);
-  transition: background 120ms ease;
+  box-sizing: border-box;
+  overflow: visible;
+  border: 0;
+  background: transparent;
 }
 
 .tv-splitpanes .splitpanes__splitter {
   position: relative;
-}
-
-.tv-splitpanes .splitpanes__splitter:hover,
-.tv-resizer--vertical:is(:hover, :focus-visible, :active) {
-  background: var(--tv-bg-elevated);
+  z-index: 1;
 }
 
 /* Horizontal splitter (vertical layout → row-resize cursor) */
 .tv-splitpanes--horizontal > .splitpanes__splitter {
-  min-height: 6px;
-  border-top: 1px solid var(--tv-border);
-  border-bottom: 1px solid var(--tv-border);
+  height: 1px;
+  min-height: 1px;
+  cursor: row-resize;
 }
 
 .tv-splitpanes--horizontal > .splitpanes__splitter::before {
   content: "";
   position: absolute;
   top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 32px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--tv-border-strong);
-  transition: background 120ms ease;
+  right: 0;
+  left: 0;
+  height: 5px;
+  background: transparent;
+  transform: translateY(-50%);
 }
 
-.tv-splitpanes--horizontal > .splitpanes__splitter:hover::before {
-  background: var(--tv-text-dim);
+.tv-splitpanes--horizontal > .splitpanes__splitter::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--tv-border-strong);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.tv-splitpanes--horizontal > .splitpanes__splitter:is(:hover, :focus-visible, :active)::after {
+  height: 2px;
+  background: var(--tv-accent);
 }
 
 /* Vertical splitter (horizontal layout → col-resize cursor) */
 .tv-splitpanes--vertical > .splitpanes__splitter,
 .tv-resizer--vertical {
-  min-width: 6px;
-  border-left: 1px solid var(--tv-border);
-  border-right: 1px solid var(--tv-border);
+  width: 1px;
+  min-width: 1px;
+  cursor: col-resize;
 }
 
 .tv-resizer--vertical {
-  box-sizing: border-box;
-  width: 6px;
-  border-top: 0;
-  border-bottom: 0;
   padding: 0;
-  cursor: col-resize;
 }
 
 .tv-splitpanes--vertical > .splitpanes__splitter::before,
 .tv-resizer--vertical::before {
   content: "";
   position: absolute;
-  top: 50%;
+  top: 0;
+  bottom: 0;
   left: 50%;
-  transform: translate(-50%, -50%);
-  width: 3px;
-  height: 32px;
-  border-radius: 2px;
-  background: var(--tv-border-strong);
-  transition: background 120ms ease;
+  width: 5px;
+  background: transparent;
+  transform: translateX(-50%);
 }
 
-.tv-splitpanes--vertical > .splitpanes__splitter:hover::before,
-.tv-resizer--vertical:is(:hover, :focus-visible, :active)::before {
-  background: var(--tv-text-dim);
+.tv-splitpanes--vertical > .splitpanes__splitter::after,
+.tv-resizer--vertical::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--tv-border-strong);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.tv-splitpanes--vertical > .splitpanes__splitter:is(:hover, :focus-visible, :active)::after,
+.tv-resizer--vertical:is(:hover, :focus-visible, :active)::after {
+  width: 2px;
+  background: var(--tv-accent);
 }
 
 .tv-panel {
@@ -2579,13 +2594,36 @@ body {
   }
 
   .tv-splitpanes--vertical > .splitpanes__splitter {
+    height: 1px;
     width: auto !important;
-    min-height: 6px;
-    border-top: 1px solid var(--tv-border);
-    border-bottom: 1px solid var(--tv-border);
-    border-left: none;
-    border-right: none;
+    min-width: 0;
+    min-height: 1px;
     cursor: row-resize;
+  }
+
+  .tv-splitpanes--vertical > .splitpanes__splitter::before {
+    top: 50%;
+    right: 0;
+    bottom: auto;
+    left: 0;
+    width: auto;
+    height: 5px;
+    transform: translateY(-50%);
+  }
+
+  .tv-splitpanes--vertical > .splitpanes__splitter::after {
+    top: 50%;
+    right: 0;
+    bottom: auto;
+    left: 0;
+    width: auto;
+    height: 1px;
+    transform: translateY(-50%);
+  }
+
+  .tv-splitpanes--vertical > .splitpanes__splitter:is(:hover, :focus-visible, :active)::after {
+    width: auto;
+    height: 2px;
   }
 
   .tv-pane {

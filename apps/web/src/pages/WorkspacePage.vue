@@ -341,7 +341,7 @@ onUnmounted(() => {
 .tv-workspace__watchlist-resizer {
   position: absolute;
   top: 0;
-  right: -3px;
+  right: 0;
   bottom: 0;
   z-index: 4;
   cursor: col-resize;
