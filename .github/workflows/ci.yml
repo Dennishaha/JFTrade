@@ -39,11 +39,42 @@ jobs:
       - name: Generate contracts and reference docs
         run: pnpm run generate:docs
 
-      - name: Verify tracked contract artifacts are up to date
-        run: git diff --exit-code -- docs/swagger apps/web/src/generated/openapi.ts tests/fixtures/openapi-baseline.json docs/reference/generated
+      - name: Verify generated contract inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            docs/swagger/docs.go \
+            docs/swagger/swagger.json \
+            docs/swagger/swagger.yaml \
+            apps/web/src/generated/openapi.ts \
+            tests/fixtures/openapi-baseline.json \
+            docs/reference/generated/api.md \
+            docs/reference/generated/types.md \
+            docs/reference/generated/pine-v6-support.md; do
+            test -s "$file"
+          done
+          git diff --exit-code -- \
+            apps/web/src/generated/openapi.ts \
+            tests/fixtures/openapi-baseline.json \
+            docs/reference/generated/pine-v6-support.md
+
+      - name: Upload generated contracts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-contracts-${{ github.run_id }}
+          path: |
+            docs/swagger
+            apps/web/src/generated/openapi.ts
+            tests/fixtures/openapi-baseline.json
+            docs/reference/generated
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 1
 
   go-quality:
     name: Go Quality
+    needs: contracts
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -54,6 +85,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Download generated contracts
+        uses: ./.github/actions/download-contracts
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -199,6 +233,7 @@ jobs:
 
   go-coverage:
     name: Go Coverage
+    needs: contracts
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -209,6 +244,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Download generated contracts
+        uses: ./.github/actions/download-contracts
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -258,6 +296,7 @@ jobs:
   go-regression:
     name: Go Regression (main)
     if: ${{ github.event_name == 'push' }}
+    needs: contracts
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -265,6 +304,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Download generated contracts
+        uses: ./.github/actions/download-contracts
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -374,11 +416,15 @@ jobs:
 
   web-assets:
     name: Web Assets
+    needs: contracts
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Download generated contracts
+        uses: ./.github/actions/download-contracts
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -394,7 +440,7 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build frontend assets from tracked contracts
+      - name: Build frontend assets from generated contracts
         run: pnpm run build:frontend-assets:generated
 
       - name: Frontend release asset test
@@ -530,6 +576,9 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
+      - name: Download generated contracts
+        uses: ./.github/actions/download-contracts
+
       - name: Download frontend build input
         uses: actions/download-artifact@v8
         with:
@@ -614,6 +663,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
+
+      - name: Download generated contracts
+        uses: ./.github/actions/download-contracts
 
       - name: Download frontend build input
         uses: actions/download-artifact@v8

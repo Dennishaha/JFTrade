@@ -32,7 +32,7 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 | L3 系统回归 | release assets、并发重复；PR 构建 Linux desktop，main 额外执行完整 Go 回归、真实 PineTS backtest smoke 和三平台 desktop build | PR / main |
 | L4 手动重型验证 | race、性能基线与真实 OpenD | manual |
 
-`.github/workflows/ci.yml` 是 PR 与 main 的主门禁。合同和参考文档由独立 job 统一生成并检查一次；Go 覆盖率、主线完整回归、Web 质量、Web 资产和 Pine worker 并行执行。PR 的 desktop lane 只做 Linux 原生 smoke build；main 的 desktop matrix 验证 Linux x64、macOS ARM64 和 Windows x64。桌面 job 只有在对应基础门禁全部通过后才启动，最终仍由稳定的 `Build & Test` required check 汇总。
+`.github/workflows/ci.yml` 是 PR 与 main 的主门禁。合同和参考文档由独立 job 统一生成并检查一次，再通过 workflow artifact 交给 Go、Web 资产和 desktop 消费；不依赖合同的 Web 质量、Pine 与 proto job 可立即并行。PR 的 desktop lane 只做 Linux 原生 smoke build；main 的 desktop matrix 验证 Linux x64、macOS ARM64 和 Windows x64。桌面 job 只有在对应基础门禁全部通过后才启动，最终仍由稳定的 `Build & Test` required check 汇总。
 
 每个覆盖 lane 会把命令输出及 Go/Web/worker 的 coverage 报告保存为 CI artifact（保留 7 天），并在对应 job summary 摘出总量和增量结果，便于定位门禁失败而不依赖本地复现。
 

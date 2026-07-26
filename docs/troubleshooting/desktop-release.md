@@ -41,7 +41,7 @@ JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 pnpm run desktop:release:darwin
 
 `dev`、`v0.0.0`、分支名和其他 tag 都会被 release 脚本拒绝。版本、提交号和构建时间会同时注入 Go buildinfo、macOS Info.plist 和 Windows version resource。
 
-推送 tag 会启动 `.github/workflows/desktop-release.yml`。正式发布先确认该 tag 的准确提交已经通过 main CI，再使用 CI 验证过的已提交 Swagger/契约集中构建一次前端压缩包和 Pineworker bundle，并对实际 bundle 运行非 mock 回测 smoke；平台任务复用同一组输入，不重复安装前端依赖或生成平台无关资产，也不重复执行完整 Web、Go 和 Pine 测试。`publish` 会等待四个平台任务结束，macOS、Windows x64 和 Linux 全部通过后创建或更新同名 GitHub Release，并上传二进制、SBOM 和 `SHA256SUMS`。Windows ARM64 是预览构建，失败不会阻塞这三套正式资产：
+推送 tag 会启动 `.github/workflows/desktop-release.yml`。正式发布先确认该 tag 的准确提交已经通过 main CI，再从同一提交集中生成一次 Swagger/契约、前端压缩包和 Pineworker bundle，并对实际 bundle 运行非 mock 回测 smoke；平台任务复用同一组输入，不重复安装前端依赖或生成平台无关资产，也不重复执行完整 Web、Go 和 Pine 测试。`publish` 会等待四个平台任务结束，macOS、Windows x64 和 Linux 全部通过后创建或更新同名 GitHub Release，并上传二进制、SBOM 和 `SHA256SUMS`。Windows ARM64 是预览构建，失败不会阻塞这三套正式资产：
 
 ```bash
 git tag v1.2.3

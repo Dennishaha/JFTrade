@@ -1,0 +1,11 @@
+name: Download generated contracts
+description: Restore the contracts and reference docs produced by the CI contracts job
+
+runs:
+  using: composite
+  steps:
+    - name: Download generated contracts
+      uses: actions/download-artifact@v8
+      with:
+        name: ci-contracts-${{ github.run_id }}
+        path: ${{ github.workspace }}
