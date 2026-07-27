@@ -34,6 +34,11 @@ func SourceFormatFromParams(params map[string]any) string {
 	return strategydefinition.SourceFormatPineV6
 }
 
+func DefinitionIDFromParams(params map[string]any) string {
+	definitionID, _ := params["definitionId"].(string)
+	return strings.TrimSpace(definitionID)
+}
+
 func Startable(instance strategy.ManagedInstance) bool {
 	sourceFormat := SourceFormatFromParams(instance.Params)
 	runtime := RuntimeFromParams(instance.Params)

@@ -5,7 +5,7 @@ import { defineComponent, h, nextTick, ref } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ADKProvider, ADKSession } from "@/contracts";
+import type { ADKProvider, ADKSession } from "@/types";
 
 import { flushRequests } from "./helpers";
 

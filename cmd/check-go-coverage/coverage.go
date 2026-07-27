@@ -86,11 +86,12 @@ var requiredCriticalScopes = []scopeCoverage{
 type exclusionCategory string
 
 const (
-	exclusionGenerated exclusionCategory = "generated"
-	exclusionVendored  exclusionCategory = "vendored"
-	exclusionTooling   exclusionCategory = "tooling"
-	exclusionDesktop   exclusionCategory = "desktop"
-	exclusionContract  exclusionCategory = "contract"
+	exclusionGenerated   exclusionCategory = "generated"
+	exclusionVendored    exclusionCategory = "vendored"
+	exclusionTooling     exclusionCategory = "tooling"
+	exclusionDesktop     exclusionCategory = "desktop"
+	exclusionContract    exclusionCategory = "contract"
+	exclusionTestSupport exclusionCategory = "test-support"
 )
 
 type exclusionRule struct {
@@ -118,6 +119,10 @@ var exclusionRules = []exclusionRule{
 	{
 		scope: "internal/api/watchlist/openapi.go", category: exclusionContract,
 		reason: "declarative Swaggo-only route documentation",
+	},
+	{
+		scope: "internal/integration/futu/testkit", category: exclusionTestSupport,
+		reason: "cross-package OpenD test fixtures",
 	},
 }
 

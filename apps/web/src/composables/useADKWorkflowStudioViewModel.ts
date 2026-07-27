@@ -6,7 +6,7 @@ import type {
   ADKWorkflowDefinition,
   ADKWorkflowTrigger,
   ADKWorkflowTriggerLog,
-} from "@/contracts";
+} from "@/types";
 import type {
   TriggerFormModel,
   WorkflowFormModel,

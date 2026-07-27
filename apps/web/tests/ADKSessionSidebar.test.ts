@@ -3,7 +3,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ADKSession } from "@/contracts";
+import type { ADKSession } from "@/types";
 import type { ADKSessionGroup } from "@/composables/useADKPageSessionState";
 
 import ADKSessionSidebar from "../src/components/adk-page/ADKSessionSidebar.vue";

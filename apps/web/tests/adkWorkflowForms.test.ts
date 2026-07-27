@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ADKWorkflowDefinition, ADKWorkflowTrigger } from "@/contracts";
+import type { ADKWorkflowDefinition, ADKWorkflowTrigger } from "@/types";
 import {
   canvasGraphToWorkflowPayload,
   defaultWorkflowCanvasGraph,

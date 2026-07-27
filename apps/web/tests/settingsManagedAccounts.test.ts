@@ -1,8 +1,8 @@
-import { emptyBrokerRuntime, emptyBrokerSettings } from "@/contracts";
+import { emptyBrokerRuntime, emptyBrokerSettings } from "@/types";
 import type {
   BrokerRuntimeResponse,
   BrokerSettingsResponse,
-} from "@/contracts";
+} from "@/types";
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 

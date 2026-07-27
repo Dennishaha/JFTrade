@@ -11,7 +11,8 @@ import type {
   MarketSecurityRef,
   MarketSecurityTrustDetails,
   MarketSecurityWarrantDetails,
-} from "@/contracts";
+} from "@/types";
+import type { components } from "@/generated/openapi";
 
 const extendedQuoteNumberKeys = [
   "price",
@@ -268,10 +269,12 @@ function normalizeSecurityDetails(value: unknown): MarketSecurityDetails | null 
 }
 
 export function normalizeMarketSecurityDetailsQueryResult(
-  result: MarketSecurityDetailsQueryResult,
+  result:
+    | MarketSecurityDetailsQueryResult
+    | components["schemas"]["marketdata.SecurityDetailsData"],
 ): MarketSecurityDetailsQueryResult {
   return {
     ...result,
     security: normalizeSecurityDetails(result.security),
-  };
+  } as MarketSecurityDetailsQueryResult;
 }

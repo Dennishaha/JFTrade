@@ -1,7 +1,6 @@
 import type { Ref } from "vue";
 
 import {
-  type BrokerRuntimeResponse,
   type BrokerSettingsResponse,
   type ExecutionOrderEventsResponse,
   type ExecutionOrdersResponse,
@@ -9,13 +8,6 @@ import {
   type FutuOpenDInstallGuideResponse,
   type OnboardingStateResponse,
   type PluginCatalogResponse,
-  type RealTradeApprovalsResponse,
-  type RealTradeHardStopEventsResponse,
-  type RealTradeHardStopsResponse,
-  type RealTradeKillSwitchEventsResponse,
-  type RealTradeKillSwitchStateResponse,
-  type RealTradeRiskEventsResponse,
-  type RealTradeRiskStateResponse,
   type SystemStatusResponse,
   emptyBrokerOrderFees,
   emptyBrokerRuntime,
@@ -30,43 +22,39 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptySystemStatus,
+} from "@/types";
+import type {
+  BrokerRuntimeResponse,
+  RealTradeApprovalsResponse,
+  RealTradeHardStopEventsResponse,
+  RealTradeHardStopsResponse,
+  RealTradeKillSwitchEventsResponse,
+  RealTradeKillSwitchStateResponse,
+  RealTradeRiskEventsResponse,
+  RealTradeRiskStateResponse,
 } from "@/contracts";
 
-import { apiGet, apiGetPath, fetchEnvelope } from "./apiClient";
+import { apiGet, apiGetPath } from "./apiClient";
+import { mapBrokerSettings } from "./brokerSettingsContract";
 import type { BrokerAccountSelectionOption } from "./consoleDataBrokerSettings";
 import {
   resolveConsoleDataBrokerLiveSelection,
   resolveConsoleDataExecutionSelection,
 } from "./consoleDataSystemStateDecisions";
+import {
+  mapFutuOpenDHealth,
+  mapFutuOpenDInstallGuide,
+} from "./futuOpenDContract";
+import {
+  type MarketInstrumentReference,
+  type MarketInstrumentReferenceResponse,
+  mapMarketInstrumentReferenceResponse,
+} from "./marketDataContract";
+import { mapOnboardingState } from "./onboardingContract";
+import { mapSystemStatus } from "./systemStatusContract";
 import type { WorkspaceTradingPreferences } from "./useWorkspaceLayout";
 
-export interface MarketInstrumentReference {
-  market: string;
-  symbol: string;
-  instrumentId: string;
-  name: string | null;
-  securityType: string | null;
-  lotSize: number | null;
-  exchange: string | null;
-  status: string | null;
-  source: string;
-  updatedAt: string;
-  brokerMappings?: Array<{
-    brokerId: string;
-    brokerMarket: string;
-    brokerSymbol: string;
-    brokerInstrumentId: string;
-    displayName: string | null;
-    source: string;
-    updatedAt: string;
-  }>;
-}
-
-export interface MarketInstrumentReferenceResponse {
-  query: string;
-  totalReturned: number;
-  entries: MarketInstrumentReference[];
-}
+export type { MarketInstrumentReference, MarketInstrumentReferenceResponse };
 
 function arrayOrEmpty<T>(items: T[] | null | undefined): T[] {
   return Array.isArray(items) ? items : [];
@@ -287,6 +275,7 @@ export function createConsoleDataSystemStateController(
     }
 
     try {
+      let systemStatusError: unknown = null;
       const referenceMarket = options.prefs.value.market.trim().toUpperCase();
       const referenceSymbol = options.prefs.value.symbol.trim().toUpperCase();
       const referenceParams = new URLSearchParams({
@@ -309,14 +298,17 @@ export function createConsoleDataSystemStateController(
         opendInstallGuide,
         instrumentReferenceSnapshot,
       ] = await Promise.all([
-        fetchEnvelope<OnboardingStateResponse>(
-          "/api/v1/settings/onboarding",
-        ).catch(() => emptyOnboardingState),
-        fetchEnvelope<SystemStatusResponse>("/api/v1/system/status"),
-        fetchEnvelope<BrokerSettingsResponse>("/api/v1/settings/brokers"),
-        fetchEnvelope<RealTradeApprovalsResponse>(
-          "/api/v1/system/real-trade-approvals",
-        ),
+        apiGet("/api/v1/settings/onboarding")
+          .then(mapOnboardingState)
+          .catch(() => emptyOnboardingState),
+        apiGet("/api/v1/system/status")
+          .then(mapSystemStatus)
+          .catch((error: unknown) => {
+            systemStatusError = error;
+            return emptySystemStatus;
+          }),
+        apiGet("/api/v1/settings/brokers").then(mapBrokerSettings),
+        apiGet("/api/v1/system/real-trade-approvals"),
         apiGet("/api/v1/system/real-trade-hard-stops"),
         apiGet("/api/v1/system/real-trade-hard-stop-events"),
         apiGet("/api/v1/system/real-trade-kill-switch"),
@@ -324,16 +316,19 @@ export function createConsoleDataSystemStateController(
         apiGet("/api/v1/system/real-trade-risk-limits"),
         apiGet("/api/v1/system/real-trade-risk-events"),
         options.fetchPluginCatalog(),
-        fetchEnvelope<FutuOpenDInstallGuideResponse>(
-          "/api/v1/system/futu-opend/install-guide",
-        ).catch(() => emptyFutuOpenDInstallGuide),
-        fetchEnvelope<MarketInstrumentReferenceResponse>(
+        apiGet("/api/v1/system/futu-opend/install-guide")
+          .then(mapFutuOpenDInstallGuide)
+          .catch(() => emptyFutuOpenDInstallGuide),
+        apiGetPath(
+          "/api/v1/market-data/instruments",
           `/api/v1/market-data/instruments?${referenceParams.toString()}`,
-        ).catch(() => ({
-          query: `${referenceMarket}.${referenceSymbol}`,
-          totalReturned: 0,
-          entries: [],
-        })),
+        )
+          .then(mapMarketInstrumentReferenceResponse)
+          .catch(() => ({
+            query: `${referenceMarket}.${referenceSymbol}`,
+            totalReturned: 0,
+            entries: [],
+          })),
       ]);
       const status = normalizeSystemStatus(statusPayload);
       const savedFutuIntegration =
@@ -346,9 +341,9 @@ export function createConsoleDataSystemStateController(
       });
       const shouldProbeFutu = savedFutuIntegration?.enabled === true;
       const opendHealth = shouldProbeFutu
-        ? await fetchEnvelope<FutuOpenDHealthResponse>(
-            "/api/v1/system/futu-opend",
-          ).catch(() => emptyFutuOpenDHealth)
+        ? await apiGet("/api/v1/system/futu-opend")
+            .then(mapFutuOpenDHealth)
+            .catch(() => emptyFutuOpenDHealth)
         : emptyFutuOpenDHealth;
       const broker =
         shouldProbeFutu && activeBrokerId === "futu"
@@ -436,7 +431,17 @@ export function createConsoleDataSystemStateController(
       }
       options.selectedExecutionOrderId.value =
         executionSelection.nextSelectedExecutionOrderId;
-      if (background) {
+      if (systemStatusError != null) {
+        const message =
+          systemStatusError instanceof Error
+            ? systemStatusError.message
+            : "系统状态加载失败。";
+        if (background) {
+          options.consoleRefreshError.value = message;
+        } else {
+          options.loadError.value = message;
+        }
+      } else if (background) {
         options.consoleRefreshError.value = "";
       }
     } catch (error) {

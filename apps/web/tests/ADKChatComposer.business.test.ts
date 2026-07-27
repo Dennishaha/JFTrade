@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick } from "vue";
 
 import ADKChatComposer from "../src/components/adk-page/ADKChatComposer.vue";
-import type { ADKProvider } from "../src/contracts";
+import type { ADKProvider } from "../src/types";
 
 const menuStub = defineComponent({
   props: ["modelValue"],

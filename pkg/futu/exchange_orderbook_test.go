@@ -24,10 +24,24 @@ func TestSubscribeOrderBookRequestConstruction(t *testing.T) {
 	}
 	securities := []*qotcommonpb.Security{security}
 
-	// Verify security construction for order book operations doesn't panic.
-	// Actual subscription calls use client.SubscribeQuotes via the opend layer.
-	_ = securities
-	_ = context.Background()
+	if len(securities) != 1 {
+		t.Fatalf("securities length = %d, want 1", len(securities))
+	}
+	if security.Market == nil {
+		t.Fatal("Security.Market is nil; order-book subscription would omit the market")
+	}
+	if got := qotcommonpb.QotMarket(*security.Market); got != qotcommonpb.QotMarket_QotMarket_HK_Security {
+		t.Errorf("Security.Market = %v, want %v", got, qotcommonpb.QotMarket_QotMarket_HK_Security)
+	}
+	if security.Code == nil {
+		t.Fatal("Security.Code is nil; order-book subscription would omit the code")
+	}
+	if *security.Code != "00700" {
+		t.Errorf("Security.Code = %q, want %q", *security.Code, "00700")
+	}
+	if !isHKMarket(securities) {
+		t.Error("isHKMarket = false; HK security must route to the detail-enabled batch")
+	}
 }
 
 func TestIsHKMarket(t *testing.T) {

@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
-import type { WatchlistItem } from "@/contracts";
+import type { WatchlistItem } from "@/types";
 
 import {
   useWatchlistGroups,

@@ -8,8 +8,11 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	appstores "github.com/jftrade/jftrade-main/internal/app/apiserver/stores"
+	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 func TestBacktestRunMaintenanceKeepsMemoryAndDatabaseInSync(t *testing.T) {
@@ -20,29 +23,36 @@ func TestBacktestRunMaintenanceKeepsMemoryAndDatabaseInSync(t *testing.T) {
 	defer func() { _ = store.Close() }()
 	completed := &backtestRunState{ID: "completed", Status: "completed", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"}
 	running := &backtestRunState{ID: "running", Status: "running", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"}
-	if err := store.add(completed); err != nil {
+	if err := store.Add(completed); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.add(running); err != nil {
+	if err := store.Add(running); err != nil {
 		t.Fatal(err)
 	}
 
-	deleted, err := store.purgeTerminalRuns(t.Context(), []string{completed.ID})
+	deleted, err := store.PurgeMaintenanceCandidates(
+		t.Context(),
+		[]dmsrv.CleanupCandidate{{ID: completed.ID}},
+	)
 	if err != nil || deleted != 1 {
 		t.Fatalf("purge = %d, %v", deleted, err)
 	}
-	if _, ok := store.get(completed.ID); ok {
+	if _, ok := store.Get(completed.ID); ok {
 		t.Fatal("completed run remains in memory")
 	}
-	var count int
-	if err := store.db.Get(&count, `SELECT COUNT(*) FROM backtest_runs WHERE id = ?`, completed.ID); err != nil || count != 0 {
-		t.Fatalf("database count = %d err=%v", count, err)
-	}
-	if _, err := store.purgeTerminalRuns(t.Context(), []string{running.ID}); !errors.Is(err, datamigration.ErrPreviewStale) {
+	if _, err := store.PurgeMaintenanceCandidates(
+		t.Context(),
+		[]dmsrv.CleanupCandidate{{ID: running.ID}},
+	); !errors.Is(err, dmsrv.ErrCleanupCandidatesChanged) {
 		t.Fatalf("running purge err = %v", err)
 	}
-	server := &Server{serverStores: serverStores{backtestRuns: store, backtestSyncTasks: newBacktestSyncTaskStore()}}
-	if reason := server.databaseMaintenanceBusyReason(datamigration.DatabaseBacktestRuns); reason == "" {
+	server := &Server{serverApplication: serverApplication{
+		stores: appstores.Handle{
+			BacktestRuns:  store,
+			BacktestTasks: newBacktestSyncTaskStore(),
+		},
+	}}
+	if reason := server.newMaintenanceRegistry().BusyReason(t.Context(), datamigration.DatabaseBacktestRuns); reason == "" {
 		t.Fatal("running backtest did not block maintenance")
 	}
 }
@@ -56,7 +66,15 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	if _, err := server.designStore.db.Exec(`INSERT INTO strategy_design_definitions (id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at) VALUES ('cleanup-strategy', 'Cleanup', '0.1.0', '', 'pinets', 'pine-v6', 'US.AAPL', '1d', '//@version=6', '{}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z')`); err != nil {
+	created, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
+		ID: "cleanup-strategy", Name: "Cleanup", Runtime: strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Cleanup\")",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.stores.Design.DeleteDefinition(created.ID); err != nil {
 		t.Fatal(err)
 	}
 	previewValue, err := server.dataManagementSvc.PreviewCleanup(t.Context(), dmsrv.CleanupPreviewRequest{Kind: datamigration.CleanupSoftDeleted, DatabaseID: datamigration.DatabaseStrategy})
@@ -72,11 +90,12 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 		t.Fatalf("strategy cleanup = %+v", resultValue)
 	}
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{ID: "cleanup-agent", Name: "Cleanup Agent", Status: jfadk.AgentStatusEnabled})
+	adkStore := serverADKTestStore(t, server)
+	agent, err := adkStore.SaveAgent(t.Context(), assistant.AgentWriteRequest{ID: "cleanup-agent", Name: "Cleanup Agent", Status: assistant.AgentStatusEnabled})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := server.adkRuntime.Store().DeleteAgent(t.Context(), agent.ID); err != nil {
+	if err := adkStore.DeleteAgent(t.Context(), agent.ID); err != nil {
 		t.Fatal(err)
 	}
 	previewValue, err = server.dataManagementSvc.PreviewCleanup(t.Context(), dmsrv.CleanupPreviewRequest{Kind: datamigration.CleanupSoftDeleted, DatabaseID: datamigration.DatabaseADK})
@@ -90,7 +109,7 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 
 	old := time.Now().UTC().Add(-48 * time.Hour).Format(time.RFC3339Nano)
 	for _, id := range []string{"old-a", "old-b"} {
-		if err := server.backtestRuns.add(&backtestRunState{ID: id, Status: "completed", CreatedAt: old, UpdatedAt: old}); err != nil {
+		if err := server.stores.BacktestRuns.Add(&backtestRunState{ID: id, Status: "completed", CreatedAt: old, UpdatedAt: old}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -120,6 +139,73 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 		if _, err := server.dataManagementSvc.Compact(t.Context(), databaseID, dmsrv.CompactRequest{Confirmation: "COMPACT " + databaseID}); err != nil {
 			t.Fatalf("compact %s: %v", databaseID, err)
 		}
+	}
+}
+
+func TestDataManagementAdaptersRejectBusyRuntimeAndMapStalePreview(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("JFTRADE_BACKTEST_DB", filepath.Join(root, "backtest.db"))
+	settings, err := NewSettingsStore(filepath.Join(root, "settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := newTestServer(t, settings)
+
+	server.runtimes.SetStrategyRuntime(nil, dmsrv.BusyCheckerFunc(func(context.Context) string {
+		return "存在活动策略运行实例"
+	}))
+	server.configureDataManagement()
+	if _, err := server.dataManagementSvc.Compact(
+		t.Context(),
+		datamigration.DatabaseStrategy,
+		dmsrv.CompactRequest{Confirmation: "COMPACT " + datamigration.DatabaseStrategy},
+	); !errors.Is(err, dmsrv.ErrDatabaseMaintenanceConflict) {
+		t.Fatalf("busy compact error = %v", err)
+	}
+	server.runtimes.SetStrategyRuntime(
+		server.runtimes.StrategyRuntime(),
+		server.runtimes.StrategyRuntime(),
+	)
+	server.configureDataManagement()
+
+	created, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
+		ID:           "stale-strategy",
+		Name:         "Stale",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Stale\")",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.stores.Design.DeleteDefinition(created.ID); err != nil {
+		t.Fatal(err)
+	}
+	previewValue, err := server.dataManagementSvc.PreviewCleanup(
+		t.Context(),
+		dmsrv.CleanupPreviewRequest{
+			Kind:       datamigration.CleanupSoftDeleted,
+			DatabaseID: datamigration.DatabaseStrategy,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preview := previewValue.(datamigration.CleanupPreview)
+	if _, err := server.stores.Design.PurgeMaintenanceCandidates(
+		t.Context(),
+		[]dmsrv.CleanupCandidate{{ID: created.ID}},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.dataManagementSvc.ExecuteCleanup(
+		t.Context(),
+		dmsrv.CleanupExecuteRequest{
+			PreviewID:    preview.PreviewID,
+			Confirmation: preview.ConfirmationText,
+		},
+	); !errors.Is(err, dmsrv.ErrCleanupPreviewStale) {
+		t.Fatalf("stale cleanup error = %v", err)
 	}
 }
 

@@ -1,0 +1,9 @@
+{
+  "exemptions": [
+    {
+      "path": "internal/app/apiserver/servercore/strategy_runtime_nil_boundaries_test.go",
+      "test": "TestStrategyRuntimeNilBoundariesIgnoreMarketTicks",
+      "reason": "The boundary contract is that an invalid tick is ignored without panicking."
+    }
+  ]
+}

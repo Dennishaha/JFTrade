@@ -1,77 +1,117 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 
-const coverageNumberName = /(?:^|[._-])(?:coverage|c)[_-]?\d{2,3}(?=$|[._-])/i;
+const coverageName = /coverage/i;
+const coverageNumberShorthand = /(?:^|[._-])c[_-]?\d{2,3}(?=$|[._-])/i;
+const defaultAllowlist = "scripts/test-name-allowlist.txt";
 
 export function isTestFile(path) {
   return /(?:_test\.go|\.(?:test|spec)\.[cm]?[jt]sx?)$/i.test(path);
 }
 
-export function hasCoverageNumberName(path) {
+export function hasManagedCoverageName(path) {
   const basename = path.replace(/^.*[\\/]/, "");
-  return coverageNumberName.test(basename);
+  return coverageName.test(basename) || coverageNumberShorthand.test(basename);
 }
 
-export function parseAddedPaths(output) {
-  const fields = output.split("\0");
-  const paths = [];
+export function parseAllowlist(contents) {
+  const entries = contents
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  return new Set(entries);
+}
 
-  for (let index = 0; index < fields.length - 1;) {
-    const status = fields[index++];
-    if (!status) {
-      continue;
-    }
-
-    const kind = status[0];
-    if (kind === "R" || kind === "C") {
-      index += 1; // old path
-      const newPath = fields[index++];
-      if (newPath) {
-        paths.push(newPath);
-      }
-      continue;
-    }
-
-    const path = fields[index++];
-    if (path) {
-      paths.push(path);
-    }
-  }
-
-  return paths;
+export function comparePolicyState(violations, allowlist, baseAllowlist) {
+  const violationSet = new Set(violations);
+  return {
+    unallowlisted: violations.filter((path) => !allowlist.has(path)),
+    stale: [...allowlist].filter((path) => !violationSet.has(path)).sort(),
+    growth: baseAllowlist ? [...allowlist].filter((path) => !baseAllowlist.has(path)).sort() : [],
+  };
 }
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const repoRoot = resolve(options.repoRoot);
+  const allowlistPath = resolve(repoRoot, options.allowlist);
   const base = options.base || process.env.JFTRADE_DIFF_BASE || defaultBase(repoRoot);
 
   if (!base || /^0+$/.test(base)) {
     throw new Error("unable to determine a diff base; pass --base <git-ref> or set JFTRADE_DIFF_BASE");
   }
+  if (!existsSync(allowlistPath)) {
+    throw new Error(`test filename allowlist not found: ${relative(repoRoot, allowlistPath)}`);
+  }
 
-  const output = git(repoRoot, ["diff", "--name-status", "-z", "--find-renames", "--diff-filter=ACR", "--merge-base", base]);
-  const untracked = git(repoRoot, ["ls-files", "--others", "--exclude-standard", "-z"]).split("\0").filter(Boolean);
-  const candidates = [...new Set([...parseAddedPaths(output), ...untracked])];
-  const violations = candidates.filter((path) => isTestFile(path) && hasCoverageNumberName(path));
+  const candidates = trackedAndUntrackedFiles(repoRoot);
+  const violations = candidates.filter((path) => isTestFile(path) && hasManagedCoverageName(path)).sort();
+  const allowlist = parseAllowlist(readFileSync(allowlistPath, "utf8"));
+  const baseViolations = readBaseViolations(repoRoot, base);
+  const result = comparePolicyState(violations, allowlist, baseViolations);
 
-  if (violations.length === 0) {
-    console.log(`Test filename policy passed against ${base}.`);
+  if (result.unallowlisted.length > 0) {
+    printPaths("Test filenames must describe business behavior, not a coverage target:", result.unallowlisted);
+  }
+  if (result.stale.length > 0) {
+    printPaths("Remove resolved entries from the test filename allowlist:", result.stale);
+  }
+  if (result.growth.length > 0) {
+    printPaths(`The test filename allowlist may only shrink relative to ${base}:`, result.growth);
+  }
+  if (result.unallowlisted.length > 0 || result.stale.length > 0 || result.growth.length > 0) {
+    process.exitCode = 1;
     return;
   }
 
-  console.error("New test filenames must describe business behavior, not a coverage percentage:");
-  for (const path of violations) {
+  console.log(
+    `Test filename policy passed across the repository `
+    + `(${violations.length} allowlisted legacy files; baseline derived from the ${base} tree).`,
+  );
+}
+
+function trackedAndUntrackedFiles(repoRoot) {
+  const output = git(repoRoot, ["ls-files", "--cached", "--others", "--exclude-standard", "-z"]);
+  return [...new Set(output.split("\0").filter(Boolean))]
+    .filter((path) => existsSync(resolve(repoRoot, path)));
+}
+
+function readBaseViolations(repoRoot, base) {
+  let mergeBase;
+  try {
+    mergeBase = git(repoRoot, ["merge-base", base, "HEAD"]).trim();
+  } catch (error) {
+    throw new Error(`unable to resolve merge base for ${base}: ${gitErrorMessage(error)}`);
+  }
+  return violationsFromTree(repoRoot, mergeBase);
+}
+
+function violationsFromTree(repoRoot, mergeBase) {
+  let output;
+  try {
+    output = git(repoRoot, ["ls-tree", "-r", "--name-only", "-z", mergeBase]);
+  } catch (error) {
+    throw new Error(`unable to derive the test filename baseline from ${mergeBase}: ${gitErrorMessage(error)}`);
+  }
+  return new Set(
+    output
+      .split("\0")
+      .filter((path) => path && isTestFile(path) && hasManagedCoverageName(path)),
+  );
+}
+
+function printPaths(message, paths) {
+  console.error(message);
+  for (const path of paths) {
     console.error(`- ${path}`);
   }
-  console.error("Rename files such as coverage_98_test.go or c95.spec.ts to the behavior they verify.");
-  process.exitCode = 1;
 }
 
 function parseArgs(args) {
-  const options = { base: "", repoRoot: process.cwd() };
+  const options = { allowlist: defaultAllowlist, base: "", repoRoot: process.cwd() };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--base") {
@@ -82,8 +122,12 @@ function parseArgs(args) {
       options.repoRoot = requireValue(args[++index], "--repo-root");
     } else if (arg.startsWith("--repo-root=")) {
       options.repoRoot = requireValue(arg.slice("--repo-root=".length), "--repo-root");
+    } else if (arg === "--allowlist") {
+      options.allowlist = requireValue(args[++index], "--allowlist");
+    } else if (arg.startsWith("--allowlist=")) {
+      options.allowlist = requireValue(arg.slice("--allowlist=".length), "--allowlist");
     } else if (arg === "--help" || arg === "-h") {
-      console.log("Usage: node scripts/check-test-names.mjs [--base <git-ref>] [--repo-root <path>]");
+      console.log("Usage: node scripts/check-test-names.mjs [--base <git-ref>] [--repo-root <path>] [--allowlist <path>]");
       process.exit(0);
     } else {
       throw new Error(`unknown argument: ${arg}`);
@@ -105,7 +149,14 @@ function defaultBase(repoRoot) {
 }
 
 function git(cwd, args) {
-  return execFileSync("git", args, { cwd, encoding: "utf8" });
+  return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+}
+
+function gitErrorMessage(error) {
+  const stderr = error && typeof error === "object" && "stderr" in error
+    ? String(error.stderr).trim()
+    : "";
+  return stderr || (error instanceof Error ? error.message : String(error));
 }
 
 function requireValue(value, flag) {

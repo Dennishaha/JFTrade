@@ -26,11 +26,7 @@ func TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls(t *testing.T) {
 	}}
 	installStrategyRuntimeTestExchange(server, stub)
 
-	originalInterval := strategyRuntimeClosedKLineSyncInterval
-	strategyRuntimeClosedKLineSyncInterval = 10 * time.Millisecond
-	defer func() {
-		strategyRuntimeClosedKLineSyncInterval = originalInterval
-	}()
+	server.runtimes.StrategyRuntime().SetClosedKLineSyncInterval(10 * time.Millisecond)
 
 	definition := stratsrv.Definition{
 		ID:           "runtime-poll-kline-test",
@@ -40,7 +36,7 @@ func TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls(t *testing.T) {
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Poll KLine Test\", overlay=true)\nstrategy.close(\"Long\")",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
@@ -49,17 +45,17 @@ func TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
-	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instance.ID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instance.ID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+	defer server.runtimes.StrategyRuntime().Stop(instance.ID)
 
 	stub.appendHistory(
 		"US.AAPL",
@@ -79,7 +75,7 @@ func TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls(t *testing.T) {
 	if got := stub.placedOrderCount(); got != 3 {
 		t.Fatalf("expected 3 broker orders from polled closed klines, got %d", got)
 	}
-	observation, ok := server.strategyRuntimeManager.runtimeObservation(instance.ID)
+	observation, ok := server.runtimes.StrategyRuntime().GetObservation(instance.ID)
 	if !ok {
 		t.Fatalf("expected runtime observation for %s", instance.ID)
 	}

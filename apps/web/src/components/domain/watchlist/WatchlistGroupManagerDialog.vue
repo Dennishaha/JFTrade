@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { WatchlistGroup } from "@/contracts";
+import type { WatchlistGroup } from "@/types";
 
 import {
   useCreateWatchlistGroup,

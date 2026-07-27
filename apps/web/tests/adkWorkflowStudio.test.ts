@@ -1,7 +1,7 @@
 import { reactive, ref } from "vue";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ADKWorkflowCanvasGraph, ADKWorkflowTriggerLog } from "@/contracts";
+import type { ADKWorkflowCanvasGraph, ADKWorkflowTriggerLog } from "@/types";
 import {
   addDraftTriggerFlowNode,
   addAgentFlowNode,

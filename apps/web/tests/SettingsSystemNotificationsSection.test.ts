@@ -157,4 +157,32 @@ describe("SettingsSystemNotificationsSection", () => {
     await flushRequests();
     expect(wrapper.text()).toContain("保存系统通知设置失败");
   });
+
+  it("normalizes nullable fields and an unsupported notification mode to safe defaults", async () => {
+    const fetchMock = vi.fn(async () =>
+      createResponse({
+        enabled: null,
+        mode: "unsupported",
+        levels: null,
+        categories: null,
+        soundEnabled: null,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(SettingsSystemNotificationsSection);
+    await flushRequests();
+
+    const checkboxes = wrapper.findAll("input[type='checkbox']");
+    expect((checkboxes[0]!.element as HTMLInputElement).checked).toBe(true);
+    expect(
+      (
+        wrapper.get("input[type='radio'][value='important']")
+          .element as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+    expect((checkboxes[3]!.element as HTMLInputElement).checked).toBe(true);
+    expect((checkboxes[4]!.element as HTMLInputElement).checked).toBe(true);
+    expect((checkboxes.at(-1)!.element as HTMLInputElement).checked).toBe(true);
+  });
 });

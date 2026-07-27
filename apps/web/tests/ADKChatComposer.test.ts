@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h } from "vue";
 
 import ADKChatComposer from "../src/components/adk-page/ADKChatComposer.vue";
-import type { ADKProvider } from "../src/contracts";
+import type { ADKProvider } from "../src/types";
 import { inputStub, selectStub } from "./helpers";
 
 afterEach(() => {

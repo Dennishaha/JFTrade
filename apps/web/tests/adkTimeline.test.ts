@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ADKApproval, ADKRun, ADKTimelineEntry } from "../src/contracts";
+import type { ADKApproval, ADKRun, ADKTimelineEntry } from "../src/types";
 import {
   applyApprovalResolutions,
   buildTimelineRun,

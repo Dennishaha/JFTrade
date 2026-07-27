@@ -1,5 +1,5 @@
-import { emptyBrokerRuntime } from "@/contracts"
-import type { BrokerRuntimeResponse } from "@/contracts"
+import { emptyBrokerRuntime } from "@/types"
+import type { BrokerRuntimeResponse } from "@/types"
 
 export function buildPineScript(
   name: string,

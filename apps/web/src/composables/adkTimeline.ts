@@ -4,7 +4,7 @@ import type {
   ADKChatResponse,
   ADKRun,
   ADKTimelineEntry,
-} from "@/contracts";
+} from "@/types";
 
 import { uniqueADKApprovalsById } from "./adkApprovalResolution";
 import { normalizeADKChatResponse } from "./adkNormalization";

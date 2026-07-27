@@ -8,18 +8,15 @@ import (
 	"strings"
 	"testing"
 
+	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             new(uint64(1001)),
-		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+	opendServer.setAccounts([]fututestkit.Account{{
+		Environment: "SIMULATE", ID: 1001, Markets: []string{"HK"}, Type: "CASH",
 	}})
 	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
 	defer opendServer.stop()

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MarketSecurityDetails } from "../src/contracts";
+import type { MarketSecurityDetails } from "../src/types";
 import {
   isWorkspaceProductTab,
   resolveWorkspaceProductClass,

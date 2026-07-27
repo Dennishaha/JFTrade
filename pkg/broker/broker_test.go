@@ -64,6 +64,24 @@ func TestRegistryReplaceUpdatesActiveBroker(t *testing.T) {
 	}
 }
 
+func TestRegistryRemoveDeletesOnlySelectedBroker(t *testing.T) {
+	r := broker.NewRegistry()
+	removed := &mockBroker{id: "removed"}
+	retained := &mockBroker{id: "retained"}
+	r.Register(removed)
+	r.Register(retained)
+
+	r.Remove(removed.ID())
+	r.Remove("missing")
+
+	if got := r.Lookup(removed.ID()); got != nil {
+		t.Fatalf("Lookup(%q) = %T, want nil", removed.ID(), got)
+	}
+	if got := r.Lookup(retained.ID()); got != retained {
+		t.Fatalf("Lookup(%q) = %T, want retained broker", retained.ID(), got)
+	}
+}
+
 func TestRegistryDuplicatePanics(t *testing.T) {
 	r := broker.NewRegistry()
 	r.Register(&mockBroker{id: "dup"})

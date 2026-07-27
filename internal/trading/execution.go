@@ -20,21 +20,21 @@ type ExecutionPlaceRequest struct {
 	Side               string                  `json:"side"`
 	OrderType          string                  `json:"orderType"`
 	TimeInForce        string                  `json:"timeInForce"`
-	Session            string                  `json:"session"`
+	Session            string                  `json:"session,omitempty"`
 	Quantity           float64                 `json:"quantity"`
-	Price              *float64                `json:"price"`
-	StopPrice          *float64                `json:"stopPrice"`
-	Amount             *float64                `json:"amount"`
-	PredictionSide     string                  `json:"predictionSide"`
+	Price              *float64                `json:"price,omitempty" extensions:"x-nullable"`
+	StopPrice          *float64                `json:"stopPrice,omitempty" extensions:"x-nullable"`
+	Amount             *float64                `json:"amount,omitempty" extensions:"x-nullable"`
+	PredictionSide     string                  `json:"predictionSide,omitempty"`
 	ProductClass       broker.ProductClass     `json:"productClass"`
 	OrderKind          broker.OrderKind        `json:"orderKind"`
 	QuantityMode       broker.QuantityMode     `json:"quantityMode"`
-	PreviewID          string                  `json:"previewId"`
-	RFQID              string                  `json:"rfqId"`
-	QuoteExpiresAt     *time.Time              `json:"quoteExpiresAt"`
-	Legs               []broker.OrderLegIntent `json:"legs"`
+	PreviewID          string                  `json:"previewId,omitempty"`
+	RFQID              string                  `json:"rfqId,omitempty"`
+	QuoteExpiresAt     *time.Time              `json:"quoteExpiresAt,omitempty" extensions:"x-nullable"`
+	Legs               []broker.OrderLegIntent `json:"legs,omitempty"`
 	ClientOrderID      string                  `json:"clientOrderId"`
-	Remark             string                  `json:"remark"`
+	Remark             string                  `json:"remark,omitempty"`
 }
 
 type ExecutionOrderCommand struct {
@@ -65,8 +65,8 @@ type ExecutionOrderFilter struct {
 type ExecutionOrder struct {
 	InternalOrderID    string              `json:"internalOrderId"`
 	BrokerID           string              `json:"brokerId"`
-	BrokerOrderID      *string             `json:"brokerOrderId"`
-	BrokerOrderIDEx    *string             `json:"brokerOrderIdEx"`
+	BrokerOrderID      *string             `json:"brokerOrderId" extensions:"x-nullable"`
+	BrokerOrderIDEx    *string             `json:"brokerOrderIdEx" extensions:"x-nullable"`
 	Source             string              `json:"source"`
 	SourceDetail       string              `json:"sourceDetail"`
 	TradingEnvironment string              `json:"tradingEnvironment"`
@@ -75,27 +75,27 @@ type ExecutionOrder struct {
 	OrderKind          broker.OrderKind    `json:"orderKind"`
 	ProductClass       broker.ProductClass `json:"productClass"`
 	QuantityMode       broker.QuantityMode `json:"quantityMode"`
-	ClientOrderID      *string             `json:"clientOrderId"`
-	PreviewID          *string             `json:"previewId"`
+	ClientOrderID      *string             `json:"clientOrderId" extensions:"x-nullable"`
+	PreviewID          *string             `json:"previewId" extensions:"x-nullable"`
 	NormalizedRequest  string              `json:"normalizedRequest,omitempty"`
-	RequestedAmount    *float64            `json:"requestedAmount"`
-	Fees               *float64            `json:"fees"`
-	Payout             *float64            `json:"payout"`
+	RequestedAmount    *float64            `json:"requestedAmount" extensions:"x-nullable"`
+	Fees               *float64            `json:"fees" extensions:"x-nullable"`
+	Payout             *float64            `json:"payout" extensions:"x-nullable"`
 	Legs               []ExecutionOrderLeg `json:"legs,omitempty"`
-	Symbol             *string             `json:"symbol"`
-	Side               *string             `json:"side"`
-	OrderType          *string             `json:"orderType"`
+	Symbol             *string             `json:"symbol" extensions:"x-nullable"`
+	Side               *string             `json:"side" extensions:"x-nullable"`
+	OrderType          *string             `json:"orderType" extensions:"x-nullable"`
 	Status             string              `json:"status"`
-	RawBrokerStatus    *string             `json:"rawBrokerStatus"`
-	RequestedQuantity  *float64            `json:"requestedQuantity"`
-	RequestedPrice     *float64            `json:"requestedPrice"`
-	FilledQuantity     *float64            `json:"filledQuantity"`
-	FilledAveragePrice *float64            `json:"filledAveragePrice"`
-	Remark             *string             `json:"remark"`
-	LastError          *string             `json:"lastError"`
-	LastErrorCode      *string             `json:"lastErrorCode"`
-	LastErrorSource    *string             `json:"lastErrorSource"`
-	SubmittedAt        *string             `json:"submittedAt"`
+	RawBrokerStatus    *string             `json:"rawBrokerStatus" extensions:"x-nullable"`
+	RequestedQuantity  *float64            `json:"requestedQuantity" extensions:"x-nullable"`
+	RequestedPrice     *float64            `json:"requestedPrice" extensions:"x-nullable"`
+	FilledQuantity     *float64            `json:"filledQuantity" extensions:"x-nullable"`
+	FilledAveragePrice *float64            `json:"filledAveragePrice" extensions:"x-nullable"`
+	Remark             *string             `json:"remark" extensions:"x-nullable"`
+	LastError          *string             `json:"lastError" extensions:"x-nullable"`
+	LastErrorCode      *string             `json:"lastErrorCode" extensions:"x-nullable"`
+	LastErrorSource    *string             `json:"lastErrorSource" extensions:"x-nullable"`
+	SubmittedAt        *string             `json:"submittedAt" extensions:"x-nullable"`
 	UpdatedAt          string              `json:"updatedAt"`
 	CreatedAt          string              `json:"createdAt"`
 }
@@ -127,7 +127,7 @@ type ExecutionOrderEvent struct {
 	ID              string  `json:"id"`
 	InternalOrderID string  `json:"internalOrderId"`
 	EventType       string  `json:"eventType"`
-	PreviousStatus  *string `json:"previousStatus"`
+	PreviousStatus  *string `json:"previousStatus" extensions:"x-nullable"`
 	NextStatus      string  `json:"nextStatus"`
 	PayloadJSON     string  `json:"payloadJson"`
 	CreatedAt       string  `json:"createdAt"`
@@ -181,11 +181,11 @@ type ExecutionPlacedOrderRecord struct {
 type ExecutionCommandResponse struct {
 	Accepted        bool    `json:"accepted"`
 	Operation       string  `json:"operation"`
-	InternalOrderID *string `json:"internalOrderId"`
-	BrokerOrderID   *string `json:"brokerOrderId"`
-	BrokerOrderIDEx *string `json:"brokerOrderIdEx"`
-	OrderStatus     *string `json:"orderStatus"`
-	BrokerErrorCode *string `json:"brokerErrorCode"`
+	InternalOrderID *string `json:"internalOrderId" extensions:"x-nullable"`
+	BrokerOrderID   *string `json:"brokerOrderId" extensions:"x-nullable"`
+	BrokerOrderIDEx *string `json:"brokerOrderIdEx" extensions:"x-nullable"`
+	OrderStatus     *string `json:"orderStatus" extensions:"x-nullable"`
+	BrokerErrorCode *string `json:"brokerErrorCode" extensions:"x-nullable"`
 	Message         string  `json:"message"`
 	CheckedAt       string  `json:"checkedAt"`
 }
@@ -200,8 +200,8 @@ type ExecutionPreview struct {
 	Side               string              `json:"side"`
 	OrderType          string              `json:"orderType"`
 	Quantity           float64             `json:"quantity"`
-	Price              *float64            `json:"price"`
-	Amount             *float64            `json:"amount"`
+	Price              *float64            `json:"price" extensions:"x-nullable"`
+	Amount             *float64            `json:"amount" extensions:"x-nullable"`
 	PredictionSide     string              `json:"predictionSide,omitempty"`
 	ProductClass       broker.ProductClass `json:"productClass"`
 	OrderKind          broker.OrderKind    `json:"orderKind"`

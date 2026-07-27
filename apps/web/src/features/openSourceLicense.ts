@@ -1,4 +1,4 @@
-import type { SystemBuildInformation } from "../contracts";
+import type { SystemBuildInformation } from "@/contracts";
 
 export const JFTRADE_SOURCE_REPOSITORY_URL =
   "https://github.com/Dennishaha/jftrade";

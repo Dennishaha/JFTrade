@@ -1,13 +1,6 @@
 import type { Ref } from "vue";
 
 import {
-  type BrokerCashFlowsResponse,
-  type BrokerFillsResponse,
-  type BrokerFundsResponse,
-  type BrokerMarginRatiosResponse,
-  type BrokerMaxTradeQuantityResponse,
-  type BrokerOrdersResponse,
-  type BrokerPositionsResponse,
   type BrokerReadFeatureKey,
   type ExecutionOrdersResponse,
   type SystemStatusResponse,
@@ -19,9 +12,19 @@ import {
   emptyBrokerOrders,
   emptyBrokerPositions,
   emptyExecutionOrders,
+} from "@/types";
+import type {
+  BrokerCashFlowsResponse,
+  BrokerFillsResponse,
+  BrokerFundsResponse,
+  BrokerMarginRatiosResponse,
+  BrokerMaxTradeQuantityResponse,
+  BrokerOrdersResponse,
+  BrokerPositionsResponse,
 } from "@/contracts";
 
-import { apiGetPath, fetchEnvelope } from "./apiClient";
+import { apiGetPath } from "./apiClient";
+import { mapExecutionOrders } from "./tradingApiMappers";
 
 const marketTimeZones: Record<string, string> = {
   AU: "Australia/Sydney",
@@ -424,16 +427,19 @@ export function createConsoleDataBrokerLiveQueryController(
     options.historicalOrdersError.value = "";
 
     try {
-      const allOrders = await fetchEnvelope<ExecutionOrdersResponse>(
-        executionOrdersUrl(input),
+      const allOrders = mapExecutionOrders(
+        await apiGetPath(
+          "/api/v1/execution/orders",
+          executionOrdersUrl(input),
+        ),
       );
       if (requestToken !== historicalRequestToken) {
         return;
       }
 
-	  options.historicalExecutionOrders.value = {
-		orders: allOrders.orders,
-	  };
+      options.historicalExecutionOrders.value = {
+        orders: allOrders.orders,
+      };
     } catch (error) {
       if (requestToken !== historicalRequestToken) {
         return;
@@ -499,9 +505,12 @@ export function createConsoleDataBrokerLiveQueryController(
         brokerId: input.brokerId,
         brokerQuery: input.brokerQuery,
       }),
-      fetchEnvelope<ExecutionOrdersResponse>(
+      apiGetPath(
+        "/api/v1/execution/orders",
         executionOrdersUrl({ ...input, scope: "active" }),
-      ).catch(() => emptyExecutionOrders),
+      )
+        .then(mapExecutionOrders)
+        .catch(() => emptyExecutionOrders),
     ]);
 
     funds = nextFunds;

@@ -3,9 +3,10 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import type {
   MarketDataDepthResponse,
-} from "@/contracts";
+} from "@/types";
 
-import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import { apiGetPath } from "../../composables/apiClient";
+import { mapMarketDataDepthResponse } from "../../composables/marketDataContract";
 import { pricePrecisionForMarket } from "../../composables/marketProfiles";
 import {
   useBrokerProviderSelection,
@@ -243,9 +244,13 @@ async function fetchDepth(): Promise<void> {
   isLoadingDepth.value = true;
   depthError.value = "";
   try {
-    const data = await fetchEnvelopeWithInit<MarketDataDepthResponse>(url, {
-      signal: controller.signal,
-    });
+    const data = mapMarketDataDepthResponse(
+      await apiGetPath(
+        "/api/v1/market-data/depth/{market}/{symbol}",
+        url,
+        { signal: controller.signal },
+      ),
+    );
     if (requestSeq !== depthRequestSeq) return;
     if (data.meta.instrumentId.trim().toUpperCase() !== currentInstrumentId.value) {
       return;

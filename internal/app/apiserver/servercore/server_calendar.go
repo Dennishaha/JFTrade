@@ -14,19 +14,21 @@ func exchangeCalendarOperationContext(parent context.Context) (context.Context, 
 	return context.WithTimeout(context.WithoutCancel(parent), exchangeCalendarOperationTimeout)
 }
 
-func (s *Server) systemCalendarOptions() []system.Option {
+func (s *serverApplication) systemCalendarOptions() []system.Option {
 	return []system.Option{
 		system.WithExchangeCalendarStatus(func() map[string]any {
-			if s.exchangeCalendars == nil {
+			calendars := s.runtimes.ExchangeCalendars()
+			if calendars == nil {
 				return map[string]any{}
 			}
-			return s.exchangeCalendars.Status()
+			return calendars.Status()
 		}),
 		system.WithExchangeCalendarSources(func() []map[string]any {
-			if s.exchangeCalendars == nil {
+			calendars := s.runtimes.ExchangeCalendars()
+			if calendars == nil {
 				return nil
 			}
-			return s.exchangeCalendars.Sources()
+			return calendars.Sources()
 		}),
 		system.WithRefreshExchangeCalendars(func(ctx context.Context, market string) map[string]any {
 			return s.handleExchangeCalendarOperation(ctx, market, true)
@@ -37,20 +39,21 @@ func (s *Server) systemCalendarOptions() []system.Option {
 	}
 }
 
-func (s *Server) handleExchangeCalendarOperation(ctx context.Context, market string, refresh bool) map[string]any {
-	if s.exchangeCalendars == nil {
+func (s *serverApplication) handleExchangeCalendarOperation(ctx context.Context, market string, refresh bool) map[string]any {
+	calendars := s.runtimes.ExchangeCalendars()
+	if calendars == nil {
 		return map[string]any{"accepted": false}
 	}
 	operationCtx, cancel := exchangeCalendarOperationContext(ctx)
 	defer cancel()
 	if strings.TrimSpace(market) == "" {
 		if refresh {
-			return s.exchangeCalendars.RefreshAll(operationCtx)
+			return calendars.RefreshAll(operationCtx)
 		}
-		return s.exchangeCalendars.ProbeAll(operationCtx)
+		return calendars.ProbeAll(operationCtx)
 	}
 	if refresh {
-		return s.exchangeCalendars.RefreshMarket(operationCtx, market)
+		return calendars.RefreshMarket(operationCtx, market)
 	}
-	return s.exchangeCalendars.ProbeMarket(operationCtx, market)
+	return calendars.ProbeMarket(operationCtx, market)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/internal/marketdata"
@@ -77,6 +79,84 @@ func TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive(t *testing.T) {
 	}
 }
 
+func TestMarketDataRuntimeCloseReturnsActiveExchangeFailureIdempotently(t *testing.T) {
+	closeFailure := errors.New("OpenD shutdown failed")
+	var closeCalls atomic.Int64
+	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{
+		ConfigSource: func() MarketDataConfig {
+			return MarketDataConfig{Enabled: true, Host: "127.0.0.1", APIPort: 11110}
+		},
+		NewExchange: func(MarketDataConfig) *pkgfutu.Exchange {
+			return pkgfutu.NewExchange("127.0.0.1:1")
+		},
+		CloseExchange: func(*pkgfutu.Exchange) error {
+			closeCalls.Add(1)
+			return closeFailure
+		},
+	})
+	if runtime.Ensure() == nil {
+		t.Fatal("Ensure() = nil")
+	}
+
+	for attempt := 0; attempt < 2; attempt++ {
+		err := runtime.Close()
+		if !errors.Is(err, closeFailure) ||
+			!strings.Contains(err.Error(), "active Futu exchange close") {
+			t.Fatalf("Close() attempt %d = %v, want named close failure", attempt+1, err)
+		}
+	}
+	if got := closeCalls.Load(); got != 1 {
+		t.Fatalf("exchange close calls = %d, want 1", got)
+	}
+}
+
+func TestMarketDataRuntimeCloseReturnsInflightExchangeFailure(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	closeFailure := errors.New("stale OpenD shutdown failed")
+	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{
+		ConfigSource: func() MarketDataConfig {
+			return MarketDataConfig{Enabled: true, Host: "127.0.0.1", APIPort: 11110}
+		},
+		NewExchange: func(MarketDataConfig) *pkgfutu.Exchange {
+			close(started)
+			<-release
+			return pkgfutu.NewExchange("127.0.0.1:1")
+		},
+		CloseExchange: func(*pkgfutu.Exchange) error {
+			return closeFailure
+		},
+	})
+
+	ensureResult := make(chan *pkgfutu.Exchange, 1)
+	go func() { ensureResult <- runtime.Ensure() }()
+	<-started
+	closeResult := make(chan error, 1)
+	go func() { closeResult <- runtime.Close() }()
+	for {
+		runtime.mu.Lock()
+		closed := runtime.closed
+		runtime.mu.Unlock()
+		if closed {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	close(release)
+
+	if exchange := <-ensureResult; exchange != nil {
+		t.Fatalf("in-flight Ensure() = %#v after close, want nil", exchange)
+	}
+	err := <-closeResult
+	if !errors.Is(err, closeFailure) ||
+		!strings.Contains(err.Error(), "in-flight Futu exchange close") {
+		t.Fatalf("Close() = %v, want named in-flight close failure", err)
+	}
+	if second := runtime.Close(); !errors.Is(second, closeFailure) {
+		t.Fatalf("second Close() = %v, want original failure", second)
+	}
+}
+
 func TestMarketDataRuntimeDoesNotPublishExchangeWhenConfigChangesDuringCreate(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -118,6 +198,9 @@ func TestMarketDataRuntimeNilAndClosedLifecycleBoundaries(t *testing.T) {
 	}
 	if exchange := nilRuntime.Ensure(); exchange != nil {
 		t.Fatalf("nil Ensure() = %#v", exchange)
+	}
+	if nilRuntime.OwnsBroker(nil) {
+		t.Fatal("nil runtime reported ownership of a broker")
 	}
 
 	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{})
@@ -368,8 +451,45 @@ func TestMarketDataRuntimeExchangeResetAndStreamLifecycle(t *testing.T) {
 	if runtime.Ensure() != first {
 		t.Fatal("Ensure() did not reuse exchange from Exchange()")
 	}
+	if runtime.BBGOExchange() == nil || runtime.Broker() == nil {
+		t.Fatal("enabled runtime did not expose neutral exchange and broker ports")
+	}
+	firstBroker := runtime.Broker()
+	if firstBroker == nil || runtime.Broker() != firstBroker {
+		t.Fatal("Broker() did not reuse the adapter for the active exchange")
+	}
+	if !runtime.OwnsBroker(firstBroker) {
+		t.Fatal("runtime did not report ownership of its active broker")
+	}
 	if created.Load() != 1 || onExchangeCalls.Load() != 1 {
 		t.Fatalf("creations/onExchange = %d/%d", created.Load(), onExchangeCalls.Load())
+	}
+	_, _ = runtime.ResolveKLineSession(bbgotypes.KLine{
+		Symbol:   "US.AAPL",
+		Interval: bbgotypes.Interval("1m"),
+	})
+	stopOrderBook := runtime.OnOrderBookUpdate(func(string) {})
+	stopOrderBook()
+	orderUpdates, err := runtime.SubscribeOrderUpdates(context.Background(), nil, nil)
+	if err != nil || orderUpdates == nil {
+		t.Fatalf("SubscribeOrderUpdates(nil handler) = %#v, %v", orderUpdates, err)
+	}
+	if err := orderUpdates.Stop(); err != nil {
+		t.Fatalf("order update no-op stop = %v", err)
+	}
+	if err := runtime.EnsureSystemNotifications(context.Background()); err == nil {
+		t.Fatal("unreachable notification session error = nil")
+	}
+	if _, err := runtime.QuerySecurityDetails(context.Background(), "US.AAPL"); err == nil {
+		t.Fatal("unreachable security-details query error = nil")
+	}
+	if _, err := runtime.QueryKLines(
+		context.Background(),
+		"US.AAPL",
+		bbgotypes.Interval("1m"),
+		bbgotypes.KLineQueryOptions{},
+	); !errors.Is(err, marketdata.ErrSubscriptionRequired) {
+		t.Fatalf("K-line subscription error = %v", err)
 	}
 
 	stream, err := runtime.NewStream([]string{"HK.00700", "US.AAPL"}, nil)
@@ -429,6 +549,11 @@ func TestMarketDataRuntimeExchangeResetAndStreamLifecycle(t *testing.T) {
 	if second == first {
 		t.Fatal("Reset() should force a fresh exchange")
 	}
+	if secondBroker := runtime.Broker(); secondBroker == nil || secondBroker == firstBroker {
+		t.Fatal("Reset() should force a fresh broker adapter")
+	} else if !runtime.OwnsBroker(secondBroker) || runtime.OwnsBroker(firstBroker) {
+		t.Fatal("broker ownership did not advance with the exchange generation")
+	}
 	if created.Load() != 2 || onExchangeCalls.Load() != 2 {
 		t.Fatalf("creations/onExchange after reset = %d/%d", created.Load(), onExchangeCalls.Load())
 	}
@@ -463,6 +588,40 @@ func TestMarketDataRuntimeUnavailableQueryHelpers(t *testing.T) {
 
 	if exchange := runtime.Exchange(); exchange != nil {
 		t.Fatalf("Exchange() = %#v, want nil when config disabled", exchange)
+	}
+	if exchange := runtime.BBGOExchange(); exchange != nil {
+		t.Fatalf("BBGOExchange() = %#v, want nil interface when config disabled", exchange)
+	}
+	if active := runtime.Broker(); active != nil {
+		t.Fatalf("Broker() = %#v, want nil when config disabled", active)
+	}
+	if _, err := runtime.QueryOrderBook(context.Background(), broker.OrderBookQuery{Symbol: "HK.00700"}); err == nil {
+		t.Fatal("QueryOrderBook() error = nil when config disabled")
+	}
+	if _, err := runtime.QuerySecurityDetails(context.Background(), "HK.00700"); err == nil {
+		t.Fatal("QuerySecurityDetails() error = nil when config disabled")
+	}
+	if _, err := runtime.QueryKLines(
+		context.Background(),
+		"HK.00700",
+		bbgotypes.Interval("1m"),
+		bbgotypes.KLineQueryOptions{},
+	); err == nil {
+		t.Fatal("QueryKLines() error = nil when config disabled")
+	}
+	if session, ok := runtime.ResolveKLineSession(bbgotypes.KLine{}); ok || session != market.SessionUnknown {
+		t.Fatalf("ResolveKLineSession() = %q/%v when config disabled", session, ok)
+	}
+	runtime.OnOrderBookUpdate(func(string) {})()
+	if err := runtime.EnsureSystemNotifications(context.Background()); err == nil {
+		t.Fatal("EnsureSystemNotifications() error = nil when config disabled")
+	}
+	orderUpdates, err := runtime.SubscribeOrderUpdates(context.Background(), nil, nil)
+	if err != nil || orderUpdates == nil {
+		t.Fatalf("SubscribeOrderUpdates() = %#v, %v when config disabled", orderUpdates, err)
+	}
+	if err := orderUpdates.Stop(); err != nil {
+		t.Fatalf("disabled order update no-op stop = %v", err)
 	}
 	if _, err := runtime.QueryTicker(context.Background(), "HK.00700"); err == nil {
 		t.Fatal("QueryTicker() error = nil")

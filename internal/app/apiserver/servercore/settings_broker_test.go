@@ -14,13 +14,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jftrade/jftrade-main/pkg/futu"
-	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestBrokerIntegrationSavePersistsWithoutMutatingRuntimeEnv(t *testing.T) {
-	t.Setenv(futu.EnvOpenDAddr, "")
+	t.Setenv(apiruntime.FutuOpenDAddrEnv, "")
 	t.Setenv("FUTU_OPEND_WEBSOCKET_KEY", "")
 	t.Setenv("JFTRADE_FUTU_WEBSOCKET_KEY", "")
 
@@ -62,8 +62,8 @@ func TestBrokerIntegrationSavePersistsWithoutMutatingRuntimeEnv(t *testing.T) {
 		t.Fatalf("PUT status = %d", resp.StatusCode)
 	}
 
-	if got := os.Getenv(futu.EnvOpenDAddr); got != "" {
-		t.Fatalf("%s = %q", futu.EnvOpenDAddr, got)
+	if got := os.Getenv(apiruntime.FutuOpenDAddrEnv); got != "" {
+		t.Fatalf("%s = %q", apiruntime.FutuOpenDAddrEnv, got)
 	}
 	if got := os.Getenv("JFTRADE_FUTU_WEBSOCKET_KEY"); got != "" {
 		t.Fatalf("JFTRADE_FUTU_WEBSOCKET_KEY = %q", got)
@@ -99,7 +99,7 @@ func TestBrokerIntegrationSavePersistsWithoutMutatingRuntimeEnv(t *testing.T) {
 }
 
 func TestSettingsStoreDirectSaveDoesNotMutateRuntimeEnv(t *testing.T) {
-	t.Setenv(futu.EnvOpenDAddr, "before")
+	t.Setenv(apiruntime.FutuOpenDAddrEnv, "before")
 	t.Setenv("JFTRADE_FUTU_API_PORT", "before")
 
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
@@ -115,8 +115,8 @@ func TestSettingsStoreDirectSaveDoesNotMutateRuntimeEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveIntegration: %v", err)
 	}
-	if got := os.Getenv(futu.EnvOpenDAddr); got != "before" {
-		t.Fatalf("%s = %q", futu.EnvOpenDAddr, got)
+	if got := os.Getenv(apiruntime.FutuOpenDAddrEnv); got != "before" {
+		t.Fatalf("%s = %q", apiruntime.FutuOpenDAddrEnv, got)
 	}
 	if got := os.Getenv("JFTRADE_FUTU_API_PORT"); got != "before" {
 		t.Fatalf("JFTRADE_FUTU_API_PORT = %q", got)
@@ -309,13 +309,13 @@ func TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD(t *testing.T) {
 	}
 	api := newTestServer(t, store)
 
-	guide := api.futuOpenDInstallGuide()
+	guide := api.futuCoordinator().OpenDInstallGuide()
 	settings := guide["settings"].(map[string]any)
 	if settings["apiPort"] != 1 || settings["websocketKeyRequired"] != true || settings["marketDataTransport"] != liveQuoteTransportMode {
 		t.Fatalf("install guide settings = %#v", settings)
 	}
 
-	runtime := api.brokerRuntime(context.Background())
+	runtime := api.futuCoordinator().BrokerRuntime(context.Background())
 	session := runtime.Session
 	if session.Connectivity != "disconnected" || session.AccountsDiscovered != 0 || session.Connection.APIPort != 1 {
 		t.Fatalf("runtime session = %#v", session)
@@ -324,7 +324,7 @@ func TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD(t *testing.T) {
 		t.Fatalf("unreachable runtime globalState = %#v", session.GlobalState)
 	}
 
-	health := api.futuOpenDHealth(context.Background())
+	health := api.futuCoordinator().OpenDHealth(context.Background())
 	diagnosis := health["diagnosis"].(map[string]any)
 	healthRuntime := health["runtime"].(map[string]any)
 	if health["status"] != "offline" || healthRuntime["connectivity"] != "disconnected" {
@@ -363,7 +363,7 @@ func TestFutuOpenDHealthRejectsOldBuildAndGuidesUpgrade(t *testing.T) {
 	}
 	api := newTestServer(t, store)
 
-	health := api.futuOpenDHealth(t.Context())
+	health := api.futuCoordinator().OpenDHealth(t.Context())
 	diagnosis := health["diagnosis"].(map[string]any)
 	runtime := health["runtime"].(map[string]any)
 	if health["status"] != "degraded" || diagnosis["code"] != "OPEND_VERSION_UNSUPPORTED" {
@@ -373,10 +373,10 @@ func TestFutuOpenDHealthRejectsOldBuildAndGuidesUpgrade(t *testing.T) {
 		t.Fatalf("diagnosis = %#v", diagnosis)
 	}
 	serverVersion, ok := runtime["serverVersion"].(*string)
-	if !ok || serverVersion == nil || *serverVersion != "10.8.6708" || runtime["minimumVersion"] != opend.MinimumOpenDVersion {
+	if !ok || serverVersion == nil || *serverVersion != "10.8.6708" || runtime["minimumVersion"] != futuintegration.MinimumOpenDVersion {
 		t.Fatalf("runtime = %#v", runtime)
 	}
-	if summary, _ := diagnosis["summary"].(string); !strings.Contains(summary, opend.MinimumOpenDVersion) {
+	if summary, _ := diagnosis["summary"].(string); !strings.Contains(summary, futuintegration.MinimumOpenDVersion) {
 		t.Fatalf("summary = %q", summary)
 	}
 }

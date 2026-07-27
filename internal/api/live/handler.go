@@ -111,6 +111,15 @@ func checkWebSocketOrigin(r *http.Request) bool {
 	return middleware.IsRequestOriginValidated(r)
 }
 
+// ServeHTTP godoc
+// @Summary 实时行情 WebSocket
+// @Tags market-data
+// @x-error-produces ["application/json"]
+// @Success 101 {string} string "Switching Protocols"
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/ws/live [get]
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h == nil || h.backend == nil {
 		http.NotFound(w, r)

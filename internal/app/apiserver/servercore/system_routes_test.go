@@ -16,18 +16,6 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if err := server.strategyStore.saveStrategy(stratsrv.ManagedInstance{
-		ID:       "instance-running",
-		PluginID: "demo-plugin",
-		Definition: stratsrv.DefinitionSummary{
-			StrategyID: "demo-plugin",
-			Name:       "Demo Plugin",
-			Version:    "1.0.0",
-		},
-		Status: strategyStatusRunning,
-	}); err != nil {
-		t.Fatalf("saveStrategy: %v", err)
-	}
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -138,18 +126,14 @@ func TestNewServerReconcilesPersistedActiveStrategyStates(t *testing.T) {
 		t.Fatalf("NewSettingsStore initial: %v", err)
 	}
 	initialServer := newTestServer(t, initialStore)
-	if err := initialServer.strategyStore.saveStrategy(stratsrv.ManagedInstance{
-		ID:       "instance-running",
-		PluginID: "demo-plugin",
+	instanceID := createCatalogInstanceForTest(t, initialServer, stratsrv.ManagedInstance{
 		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "demo-plugin",
 			Name:       "Demo Plugin",
 			Version:    "1.0.0",
 		},
 		Status: strategyStatusRunning,
-	}); err != nil {
-		t.Fatalf("saveStrategy: %v", err)
-	}
+	})
 
 	reloadedStore, err := NewSettingsStore(settingsPath)
 	if err != nil {
@@ -157,18 +141,18 @@ func TestNewServerReconcilesPersistedActiveStrategyStates(t *testing.T) {
 	}
 	reloadedServer := newTestServer(t, reloadedStore)
 
-	strategy, ok := reloadedServer.strategyStore.strategy("instance-running")
+	strategy, ok := reloadedServer.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatal("expected reconciled strategy to exist")
 	}
 	if strategy.Status != strategyStatusStopped {
 		t.Fatalf("reconciled status = %s, want %s", strategy.Status, strategyStatusStopped)
 	}
-	logs, ok := reloadedServer.strategyStore.strategyLogs("instance-running")
+	logs, ok := reloadedServer.stores.StrategyCatalog.GetLogs(instanceID, stratsrv.LogQuery{})
 	if !ok || len(logs.Logs) == 0 || !strings.Contains(logs.Logs[0], "reconciled strategy state") {
 		t.Fatalf("expected reconciliation log, got %+v", logs)
 	}
-	audit, ok := reloadedServer.strategyStore.strategyAudit("instance-running")
+	audit, ok := reloadedServer.stores.StrategyCatalog.GetAudit(instanceID, stratsrv.AuditQuery{})
 	if !ok {
 		t.Fatal("expected reconciled strategy audit to exist")
 	}

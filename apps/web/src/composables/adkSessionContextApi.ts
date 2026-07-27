@@ -1,12 +1,16 @@
-import type { ADKSessionContextSnapshot } from "@/contracts";
+import type { ADKSessionContextSnapshot } from "@/types";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { apiGetPath, apiPostPath } from "./apiClient";
+import { requireADKContextSnapshot } from "./adkApiMappers";
 
 export async function fetchADKSessionContext(
   sessionId: string,
 ): Promise<ADKSessionContextSnapshot> {
-  return fetchEnvelope<ADKSessionContextSnapshot>(
-    `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}/context`,
+  return requireADKContextSnapshot(
+    await apiGetPath(
+      "/api/v1/adk/sessions/{sessionId}/context",
+      `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}/context`,
+    ),
   );
 }
 
@@ -14,12 +18,11 @@ export async function compactADKSessionContext(
   sessionId: string,
   mode: "normal" | "aggressive",
 ): Promise<ADKSessionContextSnapshot> {
-  return fetchEnvelopeWithInit<ADKSessionContextSnapshot>(
-    `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}/context/compact`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode }),
-    },
+  return requireADKContextSnapshot(
+    await apiPostPath(
+      "/api/v1/adk/sessions/{sessionId}/context/compact",
+      `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}/context/compact`,
+      { mode },
+    ),
   );
 }

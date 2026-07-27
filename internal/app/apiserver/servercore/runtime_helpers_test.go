@@ -10,6 +10,7 @@ import (
 	"time"
 
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
@@ -31,6 +32,9 @@ type strategyRuntimeStubExchange struct {
 	queryMarketsErr   error
 	queryKLinesErr    error
 	panicOnPlaceOrder bool
+	queryMarketsOnce  sync.Once
+	queryMarketsStart chan struct{}
+	queryMarketsWait  <-chan struct{}
 }
 
 type strategyRuntimeTestBroker struct {
@@ -78,8 +82,8 @@ func (b *strategyRuntimeTestBroker) CancelOrders(
 }
 
 func installStrategyRuntimeTestExchange(server *Server, exchange *strategyRuntimeStubExchange) {
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return exchange }
-	server.brokers.Replace(&strategyRuntimeTestBroker{exchange: exchange})
+	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return exchange })
+	server.runtimes.Brokers().Replace(&strategyRuntimeTestBroker{exchange: exchange})
 }
 
 func newStrategyRuntimeStubExchange() *strategyRuntimeStubExchange {
@@ -139,6 +143,14 @@ func (e *strategyRuntimeStubExchange) NewStream() bbgotypes.Stream {
 }
 
 func (e *strategyRuntimeStubExchange) QueryMarkets(context.Context) (bbgotypes.MarketMap, error) {
+	e.queryMarketsOnce.Do(func() {
+		if e.queryMarketsStart != nil {
+			close(e.queryMarketsStart)
+		}
+	})
+	if e.queryMarketsWait != nil {
+		<-e.queryMarketsWait
+	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.queryMarketsErr != nil {
@@ -289,7 +301,7 @@ func (e *strategyRuntimeStubExchange) PlaceBrokerOrder(_ context.Context, query 
 	e.placedOrders = append(e.placedOrders, submitOrder)
 	market := strings.ToUpper(strings.TrimSpace(query.Market))
 	if market == "" {
-		market = strategyRuntimeMarketFromSymbol(query.Symbol, "")
+		market = strategyRuntimeTestMarketFromSymbol(query.Symbol)
 	}
 	return &broker.PlaceOrderResult{
 		AccountID:          "123456",
@@ -333,7 +345,7 @@ func instantiateStrategyRuntimeTestInstanceWithDefinitionID(t *testing.T, server
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Test\", overlay=true)\nstrategy.entry(\"Long\", strategy.long, qty=10)",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, binding)
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, binding)
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
@@ -395,7 +407,25 @@ func (worker *fakeStrategyRuntimePineWorker) lastRequest() (pineworker.RunScript
 }
 
 func useFakeStrategyRuntimePineWorker(server *Server, worker *fakeStrategyRuntimePineWorker) {
-	server.strategyRuntimeManager.pineWorkerRunner = worker
+	server.runtimes.StrategyRuntime().SetPineWorkerRunner(worker)
+}
+
+func strategyRuntimeTestMarketFromSymbol(symbol string) string {
+	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+	if market, _, ok := strings.Cut(symbol, "."); ok {
+		return market
+	}
+	if market, _, ok := strings.Cut(symbol, ":"); ok {
+		return market
+	}
+	return ""
+}
+
+func strategyRuntimeTestAudit(
+	server *Server,
+	instanceID string,
+) (stratsrv.AuditResult, bool) {
+	return server.stores.StrategyCatalog.GetAudit(instanceID, stratsrv.AuditQuery{})
 }
 
 func strategyRuntimeHistoricalKLine(symbol string, interval bbgotypes.Interval, closePrice float64, start time.Time) bbgotypes.KLine {

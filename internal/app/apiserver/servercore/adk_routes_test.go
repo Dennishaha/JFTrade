@@ -19,7 +19,7 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -29,29 +29,31 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+	if err := assistantRuntime(server).RegisterTool(asst.ToolDescriptor{
 		Name:               "approval.required",
 		Permission:         "write_strategy",
-		AllowedModes:       []string{jfadk.PermissionModeApproval},
-		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+		AllowedModes:       []string{asst.PermissionModeApproval},
+		RequiresApprovalIn: []string{asst.PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"saved": true}, nil
-	})
+	}); err != nil {
+		t.Fatalf("RegisterTool: %v", err)
+	}
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), asst.AgentWriteRequest{
 		ID:             "session-approval-agent",
 		Name:           "Session Approval Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"approval.required"},
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: asst.PermissionModeApproval,
+		Status:         asst.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	session, err := server.adkRuntime.Store().CreateSession(t.Context(), agent.ID, "approval cleanup")
+	session, err := serverADKTestStore(t, server).CreateSession(t.Context(), agent.ID, "approval cleanup")
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -67,8 +69,8 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 	var chatEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Run              jfadk.Run        `json:"run"`
-			PendingApprovals []jfadk.Approval `json:"pendingApprovals"`
+			Run              asst.Run        `json:"run"`
+			PendingApprovals []asst.Approval `json:"pendingApprovals"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(chatResp.Body).Decode(&chatEnvelope); err != nil {
@@ -91,18 +93,18 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 	deadline := time.Now().Add(2 * time.Second)
 	terminal := false
 	for time.Now().Before(deadline) {
-		run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+		run, ok, err := serverADKTestStore(t, server).Run(t.Context(), chatEnvelope.Data.Run.ID)
 		if err != nil || !ok {
 			t.Fatalf("Run lookup err=%v ok=%v", err, ok)
 		}
-		if run.Status != jfadk.RunStatusPending && run.Status != jfadk.RunStatusRunning {
+		if run.Status != asst.RunStatusPending && run.Status != asst.RunStatusRunning {
 			terminal = true
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	if !terminal {
-		run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+		run, ok, err := serverADKTestStore(t, server).Run(t.Context(), chatEnvelope.Data.Run.ID)
 		t.Fatalf("run did not reach terminal status after approval: run=%+v ok=%v err=%v", run, ok, err)
 	}
 
@@ -117,8 +119,8 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 	var getEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Session  jfadk.Session         `json:"session"`
-			Timeline []jfadk.TimelineEntry `json:"timeline"`
+			Session  asst.Session         `json:"session"`
+			Timeline []asst.TimelineEntry `json:"timeline"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(getResp.Body).Decode(&getEnvelope); err != nil {
@@ -128,7 +130,7 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 		t.Fatalf("session detail envelope = %+v", getEnvelope)
 	}
 	for _, entry := range getEnvelope.Data.Timeline {
-		if entry.Kind == jfadk.TimelineKindApprovalGroup {
+		if entry.Kind == asst.TimelineKindApprovalGroup {
 			t.Fatalf("timeline approval group = %+v, want resolved approval omitted", entry)
 		}
 	}
@@ -144,7 +146,7 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 	var listEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Approvals []jfadk.Approval `json:"approvals"`
+			Approvals []asst.Approval `json:"approvals"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(listResp.Body).Decode(&listEnvelope); err != nil {
@@ -166,20 +168,22 @@ func TestADKAuditRouteFiltersByKindAndSubjectID(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+	if err := assistantRuntime(server).RegisterTool(asst.ToolDescriptor{
 		Name:               "approval.required",
 		Permission:         "write_strategy",
-		AllowedModes:       []string{jfadk.PermissionModeApproval},
-		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+		AllowedModes:       []string{asst.PermissionModeApproval},
+		RequiresApprovalIn: []string{asst.PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"saved": true}, nil
-	})
+	}); err != nil {
+		t.Fatalf("RegisterTool: %v", err)
+	}
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	server.adkRuntime.RecordAudit(t.Context(), "agent.saved", "agent-audit", "saved", map[string]any{"idx": 1})
-	server.adkRuntime.RecordAudit(t.Context(), "agent.saved", "agent-audit", "saved-again", map[string]any{"idx": 2})
-	server.adkRuntime.RecordAudit(t.Context(), "provider.saved", "provider-audit", "provider", map[string]any{"idx": 3})
+	assistantRuntime(server).RecordAudit(t.Context(), "agent.saved", "agent-audit", "saved", map[string]any{"idx": 1})
+	assistantRuntime(server).RecordAudit(t.Context(), "agent.saved", "agent-audit", "saved-again", map[string]any{"idx": 2})
+	assistantRuntime(server).RecordAudit(t.Context(), "provider.saved", "provider-audit", "provider", map[string]any{"idx": 3})
 
 	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/audit?kind=agent.saved&subjectId=agent-audit&limit=1")
 	if err != nil {
@@ -189,7 +193,7 @@ func TestADKAuditRouteFiltersByKindAndSubjectID(t *testing.T) {
 	var envelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Events []jfadk.AuditEvent `json:"events"`
+			Events []asst.AuditEvent `json:"events"`
 			Page   struct {
 				Total    int `json:"total"`
 				Returned int `json:"returned"`
@@ -216,8 +220,8 @@ func TestADKAuditRouteDefaultPagination(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	server.adkRuntime.RecordAudit(t.Context(), "agent.saved", "agent-audit-1", "saved", nil)
-	server.adkRuntime.RecordAudit(t.Context(), "agent.saved", "agent-audit-2", "saved", nil)
+	assistantRuntime(server).RecordAudit(t.Context(), "agent.saved", "agent-audit-1", "saved", nil)
+	assistantRuntime(server).RecordAudit(t.Context(), "agent.saved", "agent-audit-2", "saved", nil)
 
 	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/audit?limit=oops&offset=-10")
 	if err != nil {
@@ -230,7 +234,7 @@ func TestADKAuditRouteDefaultPagination(t *testing.T) {
 	var envelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Events []jfadk.AuditEvent `json:"events"`
+			Events []asst.AuditEvent `json:"events"`
 			Page   struct {
 				Limit    int  `json:"limit"`
 				Offset   int  `json:"offset"`
@@ -261,12 +265,12 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 		t.Fatalf("saveADKSettings: %v", err)
 	}
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), asst.AgentWriteRequest{
 		ID:             "stream-agent",
 		Name:           "Stream Agent",
 		ProviderID:     testADKProviderID,
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: asst.PermissionModeApproval,
+		Status:         asst.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -344,13 +348,13 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		runs, listErr := server.adkRuntime.Store().ListRuns(t.Context())
+		runs, listErr := serverADKTestStore(t, server).ListRuns(t.Context())
 		if listErr != nil {
 			t.Fatalf("ListRuns after detached stream: %v", listErr)
 		}
 		completed := false
 		for _, run := range runs {
-			if run.UserMessage == "detached execution" && run.Status == jfadk.RunStatusCompleted {
+			if run.UserMessage == "detached execution" && run.Status == asst.RunStatusCompleted {
 				completed = true
 				break
 			}
@@ -371,20 +375,22 @@ func TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+	if err := assistantRuntime(server).RegisterTool(asst.ToolDescriptor{
 		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeLessApproval},
+		AllowedModes: []string{asst.PermissionModeApproval, asst.PermissionModeLessApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return nil, errors.New("disk full")
-	})
+	}); err != nil {
+		t.Fatalf("RegisterTool: %v", err)
+	}
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), asst.AgentWriteRequest{
 		ID:             "chat-failed-run-agent",
 		Name:           "Failed Run Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
-		PermissionMode: jfadk.PermissionModeLessApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: asst.PermissionModeLessApproval,
+		Status:         asst.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -398,8 +404,8 @@ func TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure(t *testing.T) {
 		t.Fatalf("chat status = %d body=%q", rec.Code, rec.Body.String())
 	}
 	var envelope struct {
-		OK   bool               `json:"ok"`
-		Data jfadk.ChatResponse `json:"data"`
+		OK   bool              `json:"ok"`
+		Data asst.ChatResponse `json:"data"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
 		t.Fatalf("decode chat envelope: %v body=%q", err, rec.Body.String())
@@ -407,8 +413,8 @@ func TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure(t *testing.T) {
 	if !envelope.OK {
 		t.Fatalf("chat envelope = %+v, want ok=true", envelope)
 	}
-	if envelope.Data.Run.Status != jfadk.RunStatusCompleted {
-		t.Fatalf("run status = %q, want %q", envelope.Data.Run.Status, jfadk.RunStatusCompleted)
+	if envelope.Data.Run.Status != asst.RunStatusCompleted {
+		t.Fatalf("run status = %q, want %q", envelope.Data.Run.Status, asst.RunStatusCompleted)
 	}
 	if envelope.Data.Run.FailureReason != "" {
 		t.Fatalf("failureReason = %q, want empty", envelope.Data.Run.FailureReason)
@@ -430,20 +436,22 @@ func TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure(t *testing
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+	if err := assistantRuntime(server).RegisterTool(asst.ToolDescriptor{
 		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeLessApproval},
+		AllowedModes: []string{asst.PermissionModeApproval, asst.PermissionModeLessApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return nil, errors.New("disk full")
-	})
+	}); err != nil {
+		t.Fatalf("RegisterTool: %v", err)
+	}
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), asst.AgentWriteRequest{
 		ID:             "stream-failed-run-agent",
 		Name:           "Stream Failed Run Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
-		PermissionMode: jfadk.PermissionModeLessApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: asst.PermissionModeLessApproval,
+		Status:         asst.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -464,7 +472,7 @@ func TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure(t *testing
 	if last.Type != "final" || last.Response == nil {
 		t.Fatalf("last event = %+v, want final response", last)
 	}
-	if last.Response.Run.Status != jfadk.RunStatusCompleted {
+	if last.Response.Run.Status != asst.RunStatusCompleted {
 		t.Fatalf("run status = %q, want completed", last.Response.Run.Status)
 	}
 	if last.Response.Run.FailureReason != "" {
@@ -493,30 +501,31 @@ func TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFail
 		base:     adksession.InMemoryService(),
 		failText: "问题摘要：attach final failure",
 	}
-	if err := server.adkRuntime.CloseSessionServices(); err != nil {
-		t.Fatalf("CloseSessionServices: %v", err)
-	}
-	server.adkRuntime = jfadk.NewRuntimeWithSessionService(server.adkRuntime.Store(), server.adkRuntime.Tools(), failingService)
-	server.assistantSvc = asst.NewService(server.adkRuntime)
+	testRuntime := assistanttestkit.NewRuntimeWithSessionService(
+		serverADKTestStore(t, server),
+		assistanttestkit.NewToolRegistry(),
+		failingService,
+	)
+	server.assistantSvc = asst.NewService(testRuntime)
 	server.router = server.buildRouter()
 	t.Cleanup(func() {
-		jftradeErr1 := server.adkRuntime.Close()
+		jftradeErr1 := testRuntime.Close()
 		jftradeCheckTestError(t, jftradeErr1)
 	})
-	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+	testRuntime.Tools().Register(asst.ToolDescriptor{
 		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeLessApproval},
+		AllowedModes: []string{asst.PermissionModeApproval, asst.PermissionModeLessApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return nil, errors.New("disk full")
 	})
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), asst.AgentWriteRequest{
 		ID:             "stream-recover-failed-run-agent",
 		Name:           "Stream Recover Failed Run Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
-		PermissionMode: jfadk.PermissionModeLessApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: asst.PermissionModeLessApproval,
+		Status:         asst.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -537,7 +546,7 @@ func TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFail
 	if last.Type != "final" || last.Response == nil {
 		t.Fatalf("last event = %+v, want recovered final response", last)
 	}
-	if last.Response.Run.Status != jfadk.RunStatusCompleted {
+	if last.Response.Run.Status != asst.RunStatusCompleted {
 		t.Fatalf("run status = %q, want completed", last.Response.Run.Status)
 	}
 	if last.Response.Run.FailureReason != "" {
@@ -620,8 +629,8 @@ func TestADKProviderSaveReturnsRequestTimeoutMs(t *testing.T) {
 		t.Fatalf("POST provider status = %d", resp.StatusCode)
 	}
 	var envelope struct {
-		OK   bool           `json:"ok"`
-		Data jfadk.Provider `json:"data"`
+		OK   bool          `json:"ok"`
+		Data asst.Provider `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode provider save: %v", err)
@@ -640,7 +649,7 @@ func TestADKAgentSaveValidationFailures(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	disabledProvider, err := server.adkRuntime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
+	disabledProvider, err := serverADKTestStore(t, server).SaveProvider(t.Context(), asst.ProviderWriteRequest{
 		ID:          "provider-disabled",
 		DisplayName: "Disabled Provider",
 		BaseURL:     "https://api.openai.com/v1",
@@ -651,7 +660,7 @@ func TestADKAgentSaveValidationFailures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveProvider disabled: %v", err)
 	}
-	if _, err := server.adkRuntime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
+	if _, err := serverADKTestStore(t, server).SaveProvider(t.Context(), asst.ProviderWriteRequest{
 		ID:          "provider-no-key",
 		DisplayName: "No Key Provider",
 		BaseURL:     "https://api.openai.com/v1",
@@ -747,7 +756,7 @@ func TestADKBindAgentWithPreinstalledNeodataFinancialSearch(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	skillDir := filepath.Join(server.adkRuntime.Store().SkillsPath(), "neodata-financial-search")
+	skillDir := filepath.Join(serverADKTestStore(t, server).SkillsPath(), "neodata-financial-search")
 	if err := os.MkdirAll(skillDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll skill dir: %v", err)
 	}
@@ -773,8 +782,8 @@ Use NeoData search results as reference material and cite the source URL.`), 0o6
 		t.Fatalf("POST create agent status = %d", createResp.StatusCode)
 	}
 	var agentEnvelope struct {
-		OK   bool        `json:"ok"`
-		Data jfadk.Agent `json:"data"`
+		OK   bool       `json:"ok"`
+		Data asst.Agent `json:"data"`
 	}
 	if err := json.NewDecoder(createResp.Body).Decode(&agentEnvelope); err != nil {
 		t.Fatalf("decode agent envelope: %v", err)
@@ -825,16 +834,16 @@ func TestADKSessionNegativeRoutes(t *testing.T) {
 		t.Fatalf("session missing error = %d/%s/%q", status, code, message)
 	}
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), asst.AgentWriteRequest{
 		ID:             "session-negative-agent",
 		Name:           "Session Negative Agent",
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: asst.PermissionModeApproval,
+		Status:         asst.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	session, err := server.adkRuntime.Store().CreateSession(t.Context(), agent.ID, "valid")
+	session, err := serverADKTestStore(t, server).CreateSession(t.Context(), agent.ID, "valid")
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -914,14 +923,16 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+	if err := assistantRuntime(server).RegisterTool(asst.ToolDescriptor{
 		Name:               "approval.required",
 		Permission:         "write_strategy",
-		AllowedModes:       []string{jfadk.PermissionModeApproval},
-		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+		AllowedModes:       []string{asst.PermissionModeApproval},
+		RequiresApprovalIn: []string{asst.PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"saved": true}, nil
-	})
+	}); err != nil {
+		t.Fatalf("RegisterTool: %v", err)
+	}
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -946,8 +957,8 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 		t.Fatalf("missing approval status = %d, want 200", missingResp.StatusCode)
 	}
 	var missingEnvelope struct {
-		OK   bool                     `json:"ok"`
-		Data jfadk.ApprovalResolution `json:"data"`
+		OK   bool                    `json:"ok"`
+		Data asst.ApprovalResolution `json:"data"`
 	}
 	if err := json.NewDecoder(missingResp.Body).Decode(&missingEnvelope); err != nil {
 		t.Fatalf("decode missing approval envelope: %v", err)
@@ -956,13 +967,13 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 		t.Fatalf("missing approval envelope = %+v, want idempotent empty success result", missingEnvelope)
 	}
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), asst.AgentWriteRequest{
 		ID:             "approval-idempotent-agent",
 		Name:           "Approval Idempotent Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"approval.required"},
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: asst.PermissionModeApproval,
+		Status:         asst.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -975,7 +986,7 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 	var chatEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			PendingApprovals []jfadk.Approval `json:"pendingApprovals"`
+			PendingApprovals []asst.Approval `json:"pendingApprovals"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(chatResp.Body).Decode(&chatEnvelope); err != nil {
@@ -1004,13 +1015,13 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 		t.Fatalf("second approval status = %d", secondResp.StatusCode)
 	}
 	var secondEnvelope struct {
-		OK   bool                     `json:"ok"`
-		Data jfadk.ApprovalResolution `json:"data"`
+		OK   bool                    `json:"ok"`
+		Data asst.ApprovalResolution `json:"data"`
 	}
 	if err := json.NewDecoder(secondResp.Body).Decode(&secondEnvelope); err != nil {
 		t.Fatalf("decode second approval envelope: %v", err)
 	}
-	if !secondEnvelope.OK || secondEnvelope.Data.Approval.Status != jfadk.ApprovalStatusApproved {
+	if !secondEnvelope.OK || secondEnvelope.Data.Approval.Status != asst.ApprovalStatusApproved {
 		t.Fatalf("second approval envelope = %+v, want idempotent approved result", secondEnvelope)
 	}
 }

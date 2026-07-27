@@ -1,4 +1,4 @@
-import type { StrategyVisualModelDocument } from "@/contracts";
+import type { StrategyVisualModelDocument } from "@/types";
 
 import { buildStrategyVisualControlEdgeProperties } from "./strategyVisualBuilderEdges";
 

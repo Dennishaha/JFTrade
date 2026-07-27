@@ -1,6 +1,8 @@
 import { computed, ref } from "vue";
 
-import { fetchEnvelope } from "./apiClient";
+import type { components } from "@/generated/openapi";
+
+import { apiGet } from "./apiClient";
 import { readLocalStorage, writeLocalStorage } from "./safeStorage";
 
 export type BrokerCapabilityState = "available" | "degraded" | "unavailable";
@@ -45,11 +47,6 @@ export interface BrokerRuntimeCapabilityStatus {
   evaluation?: BrokerRuntimeCapabilityEvaluation;
 }
 
-interface BrokerCapabilitiesResponse {
-  brokers: BrokerCapabilityDescriptor[];
-  runtime?: BrokerRuntimeCapabilityStatus[];
-}
-
 export type BrokerFeatureSelector = string | readonly string[];
 
 export interface BrokerCapabilitySummary {
@@ -77,6 +74,94 @@ const loadError = ref("");
 const preferredAccountBrokerId = ref("");
 const serverDefaultBrokerId = ref("");
 let loadPromise: Promise<BrokerCapabilityDescriptor[]> | null = null;
+
+type BrokerCapabilitiesWire =
+  components["schemas"]["productfeatures.BrokerCapabilitiesData"];
+
+function mapCapabilityState(value: string): BrokerCapabilityState {
+  switch (value) {
+    case "available":
+    case "degraded":
+    case "unavailable":
+      return value;
+    default:
+      return "unavailable";
+  }
+}
+
+function mapFeatureCapability(
+  value: components["schemas"]["broker.FeatureCapability"],
+): BrokerFeatureCapability {
+  return {
+    id: value.id,
+    state: mapCapabilityState(value.state),
+    ...(Array.isArray(value.markets) ? { markets: [...value.markets] } : {}),
+    ...(value.supportedPeriods == null
+      ? {}
+      : { supportedPeriods: [...value.supportedPeriods] }),
+    ...(value.reasonCode == null ? {} : { reasonCode: value.reasonCode }),
+    ...(value.reason == null ? {} : { reason: value.reason }),
+  };
+}
+
+function mapBrokerDescriptor(
+  value: components["schemas"]["broker.Descriptor"],
+): BrokerCapabilityDescriptor {
+  const capabilityVersion = value.capabilityVersion?.trim();
+  return {
+    id: value.id,
+    displayName: value.displayName,
+    capabilities: (value.capabilities ?? []).map((capability) => ({
+      market: capability.market,
+      supportsQuote: capability.supportsQuote,
+      supportsTrade: capability.supportsTrade,
+      ...(capability.features == null
+        ? {}
+        : {
+            features: capability.features.map(mapFeatureCapability),
+          }),
+    })),
+    ...(value.securityFirm == null
+      ? {}
+      : { securityFirm: value.securityFirm }),
+    ...(capabilityVersion ? { capabilityVersion } : {}),
+  };
+}
+
+function mapRuntimeCapability(
+  value: components["schemas"]["productfeatures.RuntimeCapabilityStatus"],
+): BrokerRuntimeCapabilityStatus {
+  const checkedAt = value.evaluation.checkedAt?.trim();
+  return {
+    brokerId: value.brokerId,
+    market: value.market,
+    featureId: value.featureId,
+    capability: mapFeatureCapability(value.capability),
+    evaluation: {
+      state: mapCapabilityState(value.evaluation.state),
+      ...(checkedAt ? { checkedAt } : {}),
+      ...(value.evaluation.code == null
+        ? {}
+        : { code: value.evaluation.code }),
+      ...(value.evaluation.reason == null
+        ? {}
+        : { reason: value.evaluation.reason }),
+    },
+    ...(value.securityFirm == null
+      ? {}
+      : { securityFirm: value.securityFirm }),
+  };
+}
+
+function mapBrokerCapabilities(response: BrokerCapabilitiesWire): {
+  brokers: BrokerCapabilityDescriptor[];
+  runtime: BrokerRuntimeCapabilityStatus[];
+} {
+  return {
+    brokers: (response.brokers ?? []).map(mapBrokerDescriptor),
+    runtime: (response.runtime ?? []).map(mapRuntimeCapability),
+  };
+}
 
 function normalizedID(value: string | null | undefined): string {
   return value?.trim().toLowerCase() ?? "";
@@ -453,16 +538,15 @@ async function loadBrokerProviders(
 
   loading.value = true;
   loadError.value = "";
-  loadPromise = fetchEnvelope<BrokerCapabilitiesResponse>(
-    "/api/v1/brokers/capabilities",
-  )
+  loadPromise = apiGet("/api/v1/brokers/capabilities")
     .then((response) => {
-      brokerDescriptors.value = (response.brokers ?? [])
+      const mapped = mapBrokerCapabilities(response);
+      brokerDescriptors.value = mapped.brokers
         .filter((broker) => normalizedID(broker.id))
         .sort((left, right) =>
           left.displayName.localeCompare(right.displayName, "zh-CN"),
         );
-      brokerRuntimeCapabilities.value = (response.runtime ?? []).filter(
+      brokerRuntimeCapabilities.value = mapped.runtime.filter(
         (status) =>
           normalizedID(status.brokerId) &&
           status.featureId.trim() &&

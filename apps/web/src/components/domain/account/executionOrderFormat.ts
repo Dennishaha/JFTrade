@@ -1,4 +1,4 @@
-import type { ExecutionOrdersResponse } from "@/contracts";
+import type { ExecutionOrdersResponse } from "@/types";
 
 import {
   formatExecutionOrderStatusLabel,

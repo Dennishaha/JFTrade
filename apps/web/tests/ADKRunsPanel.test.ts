@@ -11,7 +11,7 @@ import type {
   ADKOptimizationTask,
   ADKProvider,
   ADKRun,
-} from "@/contracts";
+} from "@/types";
 
 import type {
   ADKMetricsResponse,

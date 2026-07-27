@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type {
-    StrategyBrokerAccountBinding,
     StrategyDefinitionSyncStatus,
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
-} from "@/contracts";
+} from "@/types";
+import type { StrategyBrokerAccountBinding } from "@/contracts";
 
 import RuntimeWorkbenchAlert from "./RuntimeWorkbenchAlert.vue";
 import StrategyInstanceCard from "../domain/strategy/StrategyInstanceCard.vue";

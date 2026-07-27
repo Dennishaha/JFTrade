@@ -1,15 +1,16 @@
 import { computed, type Ref } from "vue";
 
 import {
-  type BrokerOrderFeesResponse,
   type BrokerReadFeatureKey,
   type ExecutionOrderEventsResponse,
   type ExecutionOrdersResponse,
   emptyBrokerOrderFees,
   emptyExecutionOrderEvents,
-} from "@/contracts";
+} from "@/types";
+import type { BrokerOrderFeesResponse } from "@/contracts";
 
-import { fetchEnvelope } from "./apiClient";
+import { apiGetPath } from "./apiClient";
+import { mapExecutionOrderEvents } from "./tradingApiMappers";
 
 interface CreateConsoleDataExecutionOrdersControllerOptions {
   activeExecutionOrders: Ref<ExecutionOrdersResponse>;
@@ -81,10 +82,12 @@ export function createConsoleDataExecutionOrdersController(
     options.isLoadingExecutionEvents.value = true;
 
     try {
-      options.executionOrderEvents.value =
-        await fetchEnvelope<ExecutionOrderEventsResponse>(
+      options.executionOrderEvents.value = mapExecutionOrderEvents(
+        await apiGetPath(
+          "/api/v1/execution/orders/{internalOrderId}/events",
           `/api/v1/execution/orders/${encodeURIComponent(internalOrderId)}/events`,
-        );
+        ),
+      );
     } catch (error) {
       options.executionEventsError.value =
         error instanceof Error
@@ -145,7 +148,8 @@ export function createConsoleDataExecutionOrdersController(
     options.isLoadingOrderFees.value = true;
 
     try {
-      options.brokerOrderFees.value = await fetchEnvelope<BrokerOrderFeesResponse>(
+      options.brokerOrderFees.value = await apiGetPath(
+        "/api/v1/brokers/{brokerId}/order-fees",
         `/api/v1/brokers/${encodeURIComponent(order.brokerId)}/order-fees?tradingEnvironment=${encodeURIComponent(order.tradingEnvironment)}&accountId=${encodeURIComponent(order.accountId)}&market=${encodeURIComponent(order.market)}&orderIdEx=${encodeURIComponent(brokerOrderIdEx)}`,
       );
     } catch (error) {

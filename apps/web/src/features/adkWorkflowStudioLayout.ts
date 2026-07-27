@@ -1,4 +1,4 @@
-import type { ADKWorkflowCanvasGraph } from "@/contracts";
+import type { ADKWorkflowCanvasGraph } from "@/types";
 
 export type FlowNodeData = Record<string, unknown>;
 export type FlowNodeSnapshot = {

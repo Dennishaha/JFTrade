@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import {
+  apiDeletePath,
+  apiPostPath,
+} from "../../composables/apiClient";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
@@ -124,9 +127,9 @@ async function release(): Promise<void> {
   lease.value = null;
   if (current == null) return;
   try {
-    await fetchEnvelopeWithInit(
+    await apiDeletePath(
+      "/api/v1/market-data/prediction/contracts/{code}/subscriptions/{leaseId}",
       `/api/v1/market-data/prediction/contracts/${encodeURIComponent(current.instrumentId)}/subscriptions/${encodeURIComponent(current.leaseId)}`,
-      { method: "DELETE" },
     );
   } catch {
     // Disconnecting OpenD releases its server-side subscriptions as well.
@@ -137,16 +140,10 @@ async function synchronizeSubscription(): Promise<void> {
   const currentGeneration = ++generation;
   await release();
   if (!visible.value || !code.value || !subscriptionType.value) return;
-  const acquired = await fetchEnvelopeWithInit<{
-    leaseId: string;
-    instrumentId: string;
-  }>(
+  const acquired = await apiPostPath(
+    "/api/v1/market-data/prediction/contracts/{code}/subscriptions",
     `/api/v1/market-data/prediction/contracts/${encodeURIComponent(code.value)}/subscriptions${accountQuery()}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dataTypes: [subscriptionType.value] }),
-    },
+    { dataTypes: [subscriptionType.value] },
   );
   if (currentGeneration !== generation) {
     lease.value = acquired;

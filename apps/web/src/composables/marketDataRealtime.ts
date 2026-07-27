@@ -11,7 +11,8 @@ import type {
   MarketSecurityRef,
   MarketSecurityTrustDetails,
   MarketSecurityWarrantDetails,
-} from "@/contracts";
+} from "@/types";
+import type { components } from "@/generated/openapi";
 
 import {
   finalizeMarketDataRealtimeCandleDisplayAt,
@@ -196,16 +197,20 @@ function normalizeMarketDataCandle(
 }
 
 export function normalizeMarketDataSnapshotQueryResult(
-  result: MarketDataSnapshotQueryResult,
+  result:
+    | MarketDataSnapshotQueryResult
+    | components["schemas"]["marketdata.SnapshotData"],
 ): MarketDataSnapshotQueryResult {
   return {
     ...result,
     snapshot: normalizeMarketDataSnapshotValue(result.snapshot),
-  };
+  } as MarketDataSnapshotQueryResult;
 }
 
 export function normalizeMarketDataCandlesQueryResult(
-  result: MarketDataCandlesQueryResult,
+  result:
+    | MarketDataCandlesQueryResult
+    | components["schemas"]["marketdata.CandlesData"],
 ): MarketDataCandlesQueryResult {
   return {
     ...result,
@@ -217,7 +222,7 @@ export function normalizeMarketDataCandlesQueryResult(
               candle != null,
           )
       : [],
-  };
+  } as MarketDataCandlesQueryResult;
 }
 
 export interface MarketDataSnapshotQueryResult {

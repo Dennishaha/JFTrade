@@ -1,16 +1,17 @@
 import type { Ref } from "vue";
 
-import { type MarketDataSubscriptionsResponse } from "@/contracts";
+import { type MarketDataSubscriptionsResponse } from "@/types";
 
 import { normalizeKlinePeriod } from "../charting/kline";
-import {
-  fetchEnvelope,
-  fetchEnvelopeWithInit,
-} from "./apiClient";
+import { apiDelete, apiGetPath, apiPost } from "./apiClient";
 import type {
   MarketInstrumentReference,
   MarketInstrumentReferenceResponse,
-} from "./consoleDataSystemState";
+} from "./marketDataContract";
+import {
+  mapMarketDataSubscriptions,
+  mapMarketInstrumentReferenceResponse,
+} from "./marketDataContract";
 
 type MarketDataChannel = "SNAPSHOT" | "KLINE" | "TICK" | "ORDER_BOOK";
 
@@ -106,8 +107,11 @@ export function createConsoleDataMarketSubscriptionsController(
     });
     params.set("query", normalizedQuery);
 
-    const response = await fetchEnvelope<MarketInstrumentReferenceResponse>(
-      `/api/v1/market-data/instruments?${params.toString()}`,
+    const response = mapMarketInstrumentReferenceResponse(
+      await apiGetPath(
+        "/api/v1/market-data/instruments",
+        `/api/v1/market-data/instruments?${params.toString()}`,
+      ),
     );
     const merged = new Map(
       options.marketInstrumentReferences.value.map((entry) => [
@@ -149,16 +153,12 @@ export function createConsoleDataMarketSubscriptionsController(
 
     try {
       options.marketDataSubscriptions.value =
-        await fetchEnvelopeWithInit<MarketDataSubscriptionsResponse>(
-          "/api/v1/market-data/subscriptions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+        mapMarketDataSubscriptions(
+          await apiPost("/api/v1/market-data/subscriptions", {
               consumerId: input.consumerId,
-              providerBrokerId: input.brokerId?.trim().toLowerCase() || undefined,
+              ...(input.brokerId?.trim()
+                ? { providerBrokerId: input.brokerId.trim().toLowerCase() }
+                : {}),
               instruments: [
                 createMarketDataSubscriptionInstrument(
                   market,
@@ -167,8 +167,7 @@ export function createConsoleDataMarketSubscriptionsController(
                   input.interval,
                 ),
               ],
-            }),
-          },
+          }),
         );
       return true;
     } catch (error) {
@@ -204,16 +203,14 @@ export function createConsoleDataMarketSubscriptionsController(
 
     try {
       options.marketDataSubscriptions.value =
-        await fetchEnvelopeWithInit<MarketDataSubscriptionsResponse>(
-          "/api/v1/market-data/subscriptions/release",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+        mapMarketDataSubscriptions(
+          await apiPost(
+            "/api/v1/market-data/subscriptions/release",
+            {
               consumerId: input.consumerId,
-              providerBrokerId: input.brokerId?.trim().toLowerCase() || undefined,
+              ...(input.brokerId?.trim()
+                ? { providerBrokerId: input.brokerId.trim().toLowerCase() }
+                : {}),
               instruments: [
                 createMarketDataSubscriptionInstrument(
                   market,
@@ -222,9 +219,9 @@ export function createConsoleDataMarketSubscriptionsController(
                   input.interval,
                 ),
               ],
-            }),
-            keepalive: input.keepalive ?? false,
-          },
+            },
+            { keepalive: input.keepalive ?? false },
+          ),
         );
     } catch (error) {
       options.marketDataError.value =
@@ -244,18 +241,13 @@ export function createConsoleDataMarketSubscriptionsController(
 
     try {
       options.marketDataSubscriptions.value =
-        await fetchEnvelopeWithInit<MarketDataSubscriptionsResponse>(
-          "/api/v1/market-data/subscriptions/heartbeat",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+        mapMarketDataSubscriptions(
+          await apiPost("/api/v1/market-data/subscriptions/heartbeat", {
               consumerId,
-              providerBrokerId: brokerId.trim().toLowerCase() || undefined,
-            }),
-          },
+              ...(brokerId.trim()
+                ? { providerBrokerId: brokerId.trim().toLowerCase() }
+                : {}),
+          }),
         );
     } catch (error) {
       options.marketDataError.value =
@@ -277,11 +269,8 @@ export function createConsoleDataMarketSubscriptionsController(
 
     try {
       options.marketDataSubscriptions.value =
-        await fetchEnvelopeWithInit<MarketDataSubscriptionsResponse>(
-          "/api/v1/market-data/subscriptions",
-          {
-            method: "DELETE",
-          },
+        mapMarketDataSubscriptions(
+          await apiDelete("/api/v1/market-data/subscriptions"),
         );
     } catch (error) {
       options.marketDataError.value =

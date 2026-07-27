@@ -71,4 +71,38 @@ func TestPredictionPushSubscribersIgnoreNilHandlers(t *testing.T) {
 	client.SubscribeEventContractOrderBook(nil)
 	client.SubscribeEventContractKline(nil)
 	client.SubscribeEventContractTicker(nil)
+
+	// A well-formed push must be dropped rather than dispatched into a nil handler.
+	body, err := proto.Marshal(&updateorderbookpb.Response{
+		RetType: new(int32(0)), S2C: &updateorderbookpb.S2C{},
+	})
+	if err != nil {
+		t.Fatalf("marshal prediction order-book push: %v", err)
+	}
+	frame := codec.Frame{
+		Header: codec.Header{ProtoID: ProtoQotUpdateEventContractOrderBook},
+		Body:   body,
+	}
+	func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				t.Fatalf("dispatch with nil prediction handler panicked: %v", recovered)
+			}
+		}()
+		client.dispatch(frame)
+	}()
+
+	// Registering a real handler after the nil registrations must still receive pushes,
+	// proving the nil handler did not leave the subscriber slot in a broken state.
+	calls := 0
+	client.SubscribeEventContractOrderBook(func(value *updateorderbookpb.S2C) {
+		if value == nil {
+			t.Error("nil prediction order-book update delivered to handler")
+		}
+		calls++
+	})
+	client.dispatch(frame)
+	if calls != 1 {
+		t.Fatalf("order-book handler calls after nil-then-valid subscription = %d, want 1", calls)
+	}
 }

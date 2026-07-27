@@ -13,9 +13,13 @@ import type {
   InstrumentResolutionFailure,
   InstrumentResolutionResponse,
   InstrumentResolutionStatus,
-} from "@/contracts";
+} from "@/types";
 
-import { fetchEnvelopeWithInit } from "./apiClient";
+import { apiGetPath } from "./apiClient";
+import type {
+  MarketInstrumentCandidate,
+  MarketInstrumentResolution,
+} from "./marketDataContract";
 import {
   categoryMarketForUser,
   normalizeInstrumentMarket,
@@ -27,7 +31,7 @@ export type {
   InstrumentResolutionFailure,
   InstrumentResolutionResponse,
   InstrumentResolutionStatus,
-} from "@/contracts";
+} from "@/types";
 
 export interface ResolveMarketInstrumentInput {
   market: string;
@@ -43,34 +47,6 @@ export interface UseInstrumentResolverOptions {
   onError?: (error: Error) => void;
 }
 
-interface RawInstrumentResolutionCandidate {
-  market?: string | null;
-  resolvedMarket?: string | null;
-  instrumentId?: string | null;
-  code?: string | null;
-  symbol?: string | null;
-  name?: string | null;
-  securityType?: string | null;
-  lotSize?: number | null;
-  source?: string | null;
-  isWatched?: boolean | null;
-  selectable?: boolean | null;
-  unavailableReason?: string | null;
-}
-
-interface RawInstrumentResolutionResponse {
-  requestedMarket?: string | null;
-  query?: string | null;
-  resolutionStatus?: string | null;
-  totalReturned?: number | null;
-  entries?: RawInstrumentResolutionCandidate[] | null;
-  failures?: Array<{
-    market?: string | null;
-    code?: string | null;
-    message?: string | null;
-  }> | null;
-}
-
 const RESOLUTION_STATUSES = new Set<InstrumentResolutionStatus>([
   "resolved",
   "ambiguous",
@@ -84,7 +60,7 @@ function normalizedText(value: string | null | undefined): string {
 }
 
 function normalizeCandidate(
-  entry: RawInstrumentResolutionCandidate,
+  entry: MarketInstrumentCandidate,
 ): InstrumentResolutionCandidate | null {
   const rawInstrumentId = normalizedText(entry.instrumentId).toUpperCase();
   const parsedInstrumentId = parseInstrumentId(rawInstrumentId);
@@ -124,7 +100,7 @@ function normalizeCandidate(
 }
 
 function normalizeFailures(
-  failures: RawInstrumentResolutionResponse["failures"],
+  failures: MarketInstrumentResolution["failures"],
 ): InstrumentResolutionFailure[] {
   if (!Array.isArray(failures)) {
     return [];
@@ -177,13 +153,10 @@ export async function resolveMarketInstrumentCandidates(
   if (requestedMarket !== "") {
     params.set("market", requestedMarket);
   }
-  const init: RequestInit = { method: "GET" };
-  if (input.signal != null) {
-    init.signal = input.signal;
-  }
-  const raw = await fetchEnvelopeWithInit<RawInstrumentResolutionResponse>(
+  const raw = await apiGetPath(
+    "/api/v1/market-data/instruments",
     `/api/v1/market-data/instruments?${params.toString()}`,
-    init,
+    input.signal == null ? undefined : { signal: input.signal },
   );
   const byInstrumentId = new Map<string, InstrumentResolutionCandidate>();
   for (const rawEntry of Array.isArray(raw.entries) ? raw.entries : []) {

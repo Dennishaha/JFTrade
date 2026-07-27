@@ -34,6 +34,7 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, dataManagementServic
 	// System Notifications
 	settings.GET("/system-notifications", handleSystemNotificationSettings(svc))
 	settings.PUT("/system-notifications", handleSaveSystemNotificationSettings(svc))
+	settings.POST("/system-notifications/test", handleSystemNotificationTest(svc))
 
 	// ADK
 	settings.GET("/adk", handleADKRuntimeSettings(svc))

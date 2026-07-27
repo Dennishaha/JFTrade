@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { StrategyVisualEdgeDocument } from "../src/contracts";
+import type { StrategyVisualEdgeDocument } from "../src/types";
 import {
   buildStrategyVisualControlEdgeProperties,
   buildStrategyVisualDataEdgeProperties,

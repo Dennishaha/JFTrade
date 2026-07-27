@@ -88,11 +88,33 @@ async function generateTypeDocs() {
   const exportedDeclarations = [];
 
   for (const statement of sourceFile.statements) {
-    if (!hasExportModifier(statement)) {
+    if (
+      !ts.isExportDeclaration(statement) ||
+      statement.moduleSpecifier == null ||
+      !ts.isStringLiteral(statement.moduleSpecifier)
+    ) {
       continue;
     }
-    if (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement) || ts.isEnumDeclaration(statement)) {
-      exportedDeclarations.push(statement);
+    const modulePath = path.resolve(
+      path.dirname(contractsPath),
+      `${statement.moduleSpecifier.text}.ts`,
+    );
+    const moduleSourceText = await fs.readFile(modulePath, "utf8");
+    const moduleSource = ts.createSourceFile(
+      modulePath,
+      moduleSourceText,
+      ts.ScriptTarget.Latest,
+      true,
+    );
+    for (const declaration of moduleSource.statements) {
+      if (
+        hasExportModifier(declaration) &&
+        (ts.isInterfaceDeclaration(declaration) ||
+          ts.isTypeAliasDeclaration(declaration) ||
+          ts.isEnumDeclaration(declaration))
+      ) {
+        exportedDeclarations.push({ declaration, sourceFile: moduleSource });
+      }
     }
   }
 
@@ -103,9 +125,16 @@ async function generateTypeDocs() {
     "",
   ];
 
-  for (const declaration of exportedDeclarations) {
+  for (const { declaration, sourceFile: declarationSource } of exportedDeclarations) {
     const name = declaration.name?.text ?? "anonymous";
-    lines.push(`## \`${name}\``, "", "```ts", declaration.getText(sourceFile), "```", "");
+    lines.push(
+      `## \`${name}\``,
+      "",
+      "```ts",
+      declaration.getText(declarationSource),
+      "```",
+      "",
+    );
   }
 
   await fs.writeFile(path.join(generatedDir, "types.md"), `${lines.join("\n").trimEnd()}\n`, "utf8");

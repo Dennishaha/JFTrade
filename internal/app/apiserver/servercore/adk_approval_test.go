@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 )
 
 func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
@@ -21,10 +21,10 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 	server := newTestServer(t, store)
 	releaseTool := make(chan struct{})
 	toolStarted := make(chan struct{}, 1)
-	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+	if err := assistantRuntime(server).RegisterTool(assistant.ToolDescriptor{
 		Name: "approval.required", Permission: "write_strategy",
-		AllowedModes:       []string{jfadk.PermissionModeApproval},
-		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+		AllowedModes:       []string{assistant.PermissionModeApproval},
+		RequiresApprovalIn: []string{assistant.PermissionModeApproval},
 	}, func(ctx context.Context, _ map[string]any) (any, error) {
 		select {
 		case toolStarted <- struct{}{}:
@@ -36,17 +36,19 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 			return nil, ctx.Err()
 		}
 		return map[string]any{"saved": true}, nil
-	})
+	}); err != nil {
+		t.Fatalf("RegisterTool: %v", err)
+	}
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), assistant.AgentWriteRequest{
 		ID:             "approval-agent-running",
 		Name:           "Approval Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"approval.required"},
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: assistant.PermissionModeApproval,
+		Status:         assistant.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -64,14 +66,14 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 	var chatEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Run              jfadk.Run        `json:"run"`
-			PendingApprovals []jfadk.Approval `json:"pendingApprovals"`
+			Run              assistant.Run        `json:"run"`
+			PendingApprovals []assistant.Approval `json:"pendingApprovals"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(chatResp.Body).Decode(&chatEnvelope); err != nil {
 		t.Fatalf("decode chat envelope: %v", err)
 	}
-	if !chatEnvelope.OK || chatEnvelope.Data.Run.Status != jfadk.RunStatusPending || len(chatEnvelope.Data.PendingApprovals) != 1 {
+	if !chatEnvelope.OK || chatEnvelope.Data.Run.Status != assistant.RunStatusPending || len(chatEnvelope.Data.PendingApprovals) != 1 {
 		t.Fatalf("chat envelope = %+v, want pending approval", chatEnvelope)
 	}
 
@@ -85,8 +87,8 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 		t.Fatalf("POST approve approval status = %d", approveResp.StatusCode)
 	}
 	var approveEnvelope struct {
-		OK   bool                     `json:"ok"`
-		Data jfadk.ApprovalResolution `json:"data"`
+		OK   bool                         `json:"ok"`
+		Data assistant.ApprovalResolution `json:"data"`
 	}
 	if err := json.NewDecoder(approveResp.Body).Decode(&approveEnvelope); err != nil {
 		t.Fatalf("decode approve envelope: %v", err)
@@ -94,10 +96,10 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 	if !approveEnvelope.OK {
 		t.Fatal("expected approve envelope ok=true")
 	}
-	if approveEnvelope.Data.Approval.Status != jfadk.ApprovalStatusApproved {
+	if approveEnvelope.Data.Approval.Status != assistant.ApprovalStatusApproved {
 		t.Fatalf("approval status = %q, want approved", approveEnvelope.Data.Approval.Status)
 	}
-	if approveEnvelope.Data.Run == nil || approveEnvelope.Data.Run.Status != jfadk.RunStatusRunning || approveEnvelope.Data.Run.ResumeState != "approval_resuming" {
+	if approveEnvelope.Data.Run == nil || approveEnvelope.Data.Run.Status != assistant.RunStatusRunning || approveEnvelope.Data.Run.ResumeState != "approval_resuming" {
 		t.Fatalf("resolution run = %+v, want running background continuation", approveEnvelope.Data.Run)
 	}
 	if len(approveEnvelope.Data.Run.ToolCalls) != 1 || approveEnvelope.Data.Run.ToolCalls[0].Status != "RUNNING" {
@@ -119,13 +121,13 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 		t.Fatalf("GET run status = %d", runResp.StatusCode)
 	}
 	var runEnvelope struct {
-		OK   bool      `json:"ok"`
-		Data jfadk.Run `json:"data"`
+		OK   bool          `json:"ok"`
+		Data assistant.Run `json:"data"`
 	}
 	if err := json.NewDecoder(runResp.Body).Decode(&runEnvelope); err != nil {
 		t.Fatalf("decode run envelope: %v", err)
 	}
-	if !runEnvelope.OK || runEnvelope.Data.Status != jfadk.RunStatusRunning {
+	if !runEnvelope.OK || runEnvelope.Data.Status != assistant.RunStatusRunning {
 		t.Fatalf("run envelope = %+v, want running", runEnvelope)
 	}
 
@@ -140,7 +142,7 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 	var sessionEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Timeline []jfadk.TimelineEntry `json:"timeline"`
+			Timeline []assistant.TimelineEntry `json:"timeline"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(sessionResp.Body).Decode(&sessionEnvelope); err != nil {
@@ -148,10 +150,10 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 	}
 	toolGroupSeen := false
 	for _, entry := range sessionEnvelope.Data.Timeline {
-		if entry.Kind == jfadk.TimelineKindApprovalGroup {
+		if entry.Kind == assistant.TimelineKindApprovalGroup {
 			t.Fatalf("timeline approval group = %+v, want resolved approval omitted", entry)
 		}
-		if entry.Kind == jfadk.TimelineKindToolGroup && entry.RunID == chatEnvelope.Data.Run.ID {
+		if entry.Kind == assistant.TimelineKindToolGroup && entry.RunID == chatEnvelope.Data.Run.ID {
 			if len(entry.ToolCalls) == 1 && entry.ToolCalls[0].Status == "RUNNING" {
 				toolGroupSeen = true
 			}
@@ -165,16 +167,16 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+		run, ok, err := serverADKTestStore(t, server).Run(t.Context(), chatEnvelope.Data.Run.ID)
 		if err != nil || !ok {
 			t.Fatalf("stored run ok=%v err=%v", ok, err)
 		}
-		if run.Status == jfadk.RunStatusCompleted {
+		if run.Status == assistant.RunStatusCompleted {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+	run, ok, err := serverADKTestStore(t, server).Run(t.Context(), chatEnvelope.Data.Run.ID)
 	t.Fatalf("stored run after async approval = %+v ok=%v err=%v, want completed", run, ok, err)
 }
 
@@ -184,24 +186,26 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+	if err := assistantRuntime(server).RegisterTool(assistant.ToolDescriptor{
 		Name:               "approval.required",
 		Permission:         "write_strategy",
-		AllowedModes:       []string{jfadk.PermissionModeApproval},
-		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+		AllowedModes:       []string{assistant.PermissionModeApproval},
+		RequiresApprovalIn: []string{assistant.PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"saved": true}, nil
-	})
+	}); err != nil {
+		t.Fatalf("RegisterTool: %v", err)
+	}
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), assistant.AgentWriteRequest{
 		ID:             "approval-agent",
 		Name:           "Approval Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"approval.required"},
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: assistant.PermissionModeApproval,
+		Status:         assistant.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -219,14 +223,14 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 	var chatEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Run              jfadk.Run        `json:"run"`
-			PendingApprovals []jfadk.Approval `json:"pendingApprovals"`
+			Run              assistant.Run        `json:"run"`
+			PendingApprovals []assistant.Approval `json:"pendingApprovals"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(chatResp.Body).Decode(&chatEnvelope); err != nil {
 		t.Fatalf("decode chat envelope: %v", err)
 	}
-	if !chatEnvelope.OK || chatEnvelope.Data.Run.Status != jfadk.RunStatusPending || len(chatEnvelope.Data.PendingApprovals) != 1 {
+	if !chatEnvelope.OK || chatEnvelope.Data.Run.Status != assistant.RunStatusPending || len(chatEnvelope.Data.PendingApprovals) != 1 {
 		t.Fatalf("chat envelope = %+v, want pending approval", chatEnvelope)
 	}
 
@@ -240,8 +244,8 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 		t.Fatalf("POST deny approval status = %d", denyResp.StatusCode)
 	}
 	var denyEnvelope struct {
-		OK   bool                     `json:"ok"`
-		Data jfadk.ApprovalResolution `json:"data"`
+		OK   bool                         `json:"ok"`
+		Data assistant.ApprovalResolution `json:"data"`
 	}
 	if err := json.NewDecoder(denyResp.Body).Decode(&denyEnvelope); err != nil {
 		t.Fatalf("decode deny envelope: %v", err)
@@ -249,10 +253,10 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 	if !denyEnvelope.OK {
 		t.Fatal("expected deny envelope ok=true")
 	}
-	if denyEnvelope.Data.Approval.Status != jfadk.ApprovalStatusDenied {
+	if denyEnvelope.Data.Approval.Status != assistant.ApprovalStatusDenied {
 		t.Fatalf("approval status = %q, want denied", denyEnvelope.Data.Approval.Status)
 	}
-	if denyEnvelope.Data.Run == nil || denyEnvelope.Data.Run.Status != jfadk.RunStatusRunning || denyEnvelope.Data.Run.ResumeState != "approval_resuming" {
+	if denyEnvelope.Data.Run == nil || denyEnvelope.Data.Run.Status != assistant.RunStatusRunning || denyEnvelope.Data.Run.ResumeState != "approval_resuming" {
 		t.Fatalf("resolution run = %+v, want running background continuation", denyEnvelope.Data.Run)
 	}
 	if denyEnvelope.Data.Message != nil {
@@ -260,17 +264,17 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 	}
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+		run, ok, err := serverADKTestStore(t, server).Run(t.Context(), chatEnvelope.Data.Run.ID)
 		if err != nil || !ok {
 			t.Fatalf("stored run ok=%v err=%v", ok, err)
 		}
-		if run.Status == jfadk.RunStatusDenied {
+		if run.Status == assistant.RunStatusDenied {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
-	if err != nil || !ok || run.Status != jfadk.RunStatusDenied {
+	run, ok, err := serverADKTestStore(t, server).Run(t.Context(), chatEnvelope.Data.Run.ID)
+	if err != nil || !ok || run.Status != assistant.RunStatusDenied {
 		t.Fatalf("stored run after async denial = %+v ok=%v err=%v, want denied", run, ok, err)
 	}
 }
@@ -281,18 +285,20 @@ func TestADKProviderDeleteRejectsReferencedProvider(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+	if err := assistantRuntime(server).RegisterTool(assistant.ToolDescriptor{
 		Name:               "approval.required",
 		Permission:         "write_strategy",
-		AllowedModes:       []string{jfadk.PermissionModeApproval},
-		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+		AllowedModes:       []string{assistant.PermissionModeApproval},
+		RequiresApprovalIn: []string{assistant.PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"saved": true}, nil
-	})
+	}); err != nil {
+		t.Fatalf("RegisterTool: %v", err)
+	}
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	provider, err := server.adkRuntime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
+	provider, err := serverADKTestStore(t, server).SaveProvider(t.Context(), assistant.ProviderWriteRequest{
 		ID:          "openai",
 		DisplayName: "OpenAI",
 		BaseURL:     "https://api.openai.com/v1",
@@ -302,12 +308,12 @@ func TestADKProviderDeleteRejectsReferencedProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveProvider: %v", err)
 	}
-	if _, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	if _, err := serverADKTestStore(t, server).SaveAgent(t.Context(), assistant.AgentWriteRequest{
 		ID:             "agent",
 		Name:           "Agent",
 		ProviderID:     provider.ID,
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: assistant.PermissionModeApproval,
+		Status:         assistant.AgentStatusEnabled,
 	}); err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
@@ -335,11 +341,11 @@ func TestADKRunCancelAndFilteredList(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	run := jfadk.Run{
+	run := assistant.Run{
 		ID: "run-cancel", SessionID: "session-1", AgentID: "agent-1",
-		Status: jfadk.RunStatusPending, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		Status: assistant.RunStatusPending, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
-	if err := server.adkRuntime.Store().SaveRun(t.Context(), run); err != nil {
+	if err := serverADKTestStore(t, server).SaveRun(t.Context(), run); err != nil {
 		t.Fatalf("SaveRun: %v", err)
 	}
 	cancelResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/runs/"+run.ID+"/cancel", "application/json", nil)
@@ -359,7 +365,7 @@ func TestADKRunCancelAndFilteredList(t *testing.T) {
 	var envelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Runs []jfadk.Run `json:"runs"`
+			Runs []assistant.Run `json:"runs"`
 			Page struct {
 				Total int `json:"total"`
 			} `json:"page"`
@@ -368,7 +374,7 @@ func TestADKRunCancelAndFilteredList(t *testing.T) {
 	if err := json.NewDecoder(listResp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode runs: %v", err)
 	}
-	if !envelope.OK || envelope.Data.Page.Total != 1 || len(envelope.Data.Runs) != 1 || envelope.Data.Runs[0].Status != jfadk.RunStatusCancelled {
+	if !envelope.OK || envelope.Data.Page.Total != 1 || len(envelope.Data.Runs) != 1 || envelope.Data.Runs[0].Status != assistant.RunStatusCancelled {
 		t.Fatalf("filtered runs envelope = %+v", envelope)
 	}
 }
@@ -383,13 +389,13 @@ func TestADKRunPauseAndResumeRoutes(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	run := jfadk.Run{
+	run := assistant.Run{
 		ID: "run-goal-pause", SessionID: "session-1", AgentID: "agent-1",
-		Status: jfadk.RunStatusRunning, Message: "goal running", WorkMode: jfadk.WorkModeLoop,
+		Status: assistant.RunStatusRunning, Message: "goal running", WorkMode: assistant.WorkModeLoop,
 		WorkflowStatus: "RUNNING", CreatedAt: now, UpdatedAt: now,
-		ToolCalls: []jfadk.ToolCall{}, PendingApprovals: []jfadk.Approval{},
+		ToolCalls: []assistant.ToolCall{}, PendingApprovals: []assistant.Approval{},
 	}
-	if err := server.adkRuntime.Store().SaveRun(t.Context(), run); err != nil {
+	if err := serverADKTestStore(t, server).SaveRun(t.Context(), run); err != nil {
 		t.Fatalf("SaveRun: %v", err)
 	}
 	pauseResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/runs/"+run.ID+"/pause", "application/json", nil)
@@ -401,8 +407,8 @@ func TestADKRunPauseAndResumeRoutes(t *testing.T) {
 		t.Fatalf("pause status = %d", pauseResp.StatusCode)
 	}
 	var pauseEnvelope struct {
-		OK   bool      `json:"ok"`
-		Data jfadk.Run `json:"data"`
+		OK   bool          `json:"ok"`
+		Data assistant.Run `json:"data"`
 	}
 	if err := json.NewDecoder(pauseResp.Body).Decode(&pauseEnvelope); err != nil {
 		t.Fatalf("decode pause: %v", err)
@@ -413,12 +419,12 @@ func TestADKRunPauseAndResumeRoutes(t *testing.T) {
 
 	pausedAt := time.Now().UTC().Format(time.RFC3339Nano)
 	paused := pauseEnvelope.Data
-	paused.Status = jfadk.RunStatusPaused
+	paused.Status = assistant.RunStatusPaused
 	paused.WorkflowStatus = "PAUSED"
 	paused.PausedAt = &pausedAt
 	paused.PausedReason = "user"
 	paused.ResumeState = "user_paused"
-	if err := server.adkRuntime.Store().SaveRun(t.Context(), paused); err != nil {
+	if err := serverADKTestStore(t, server).SaveRun(t.Context(), paused); err != nil {
 		t.Fatalf("Save paused run: %v", err)
 	}
 	resumeResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/runs/"+run.ID+"/resume", "application/json", nil)
@@ -430,13 +436,13 @@ func TestADKRunPauseAndResumeRoutes(t *testing.T) {
 		t.Fatalf("resume status = %d", resumeResp.StatusCode)
 	}
 	var resumeEnvelope struct {
-		OK   bool      `json:"ok"`
-		Data jfadk.Run `json:"data"`
+		OK   bool          `json:"ok"`
+		Data assistant.Run `json:"data"`
 	}
 	if err := json.NewDecoder(resumeResp.Body).Decode(&resumeEnvelope); err != nil {
 		t.Fatalf("decode resume: %v", err)
 	}
-	if !resumeEnvelope.OK || resumeEnvelope.Data.Status != jfadk.RunStatusRunning || resumeEnvelope.Data.PauseRequestedAt != nil || resumeEnvelope.Data.PausedAt != nil {
+	if !resumeEnvelope.OK || resumeEnvelope.Data.Status != assistant.RunStatusRunning || resumeEnvelope.Data.PauseRequestedAt != nil || resumeEnvelope.Data.PausedAt != nil {
 		t.Fatalf("resume envelope = %+v, want running with pause fields cleared", resumeEnvelope)
 	}
 }
@@ -451,13 +457,13 @@ func TestADKRunPauseResumeRoutesRejectInvalidRuns(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	child := jfadk.Run{
+	child := assistant.Run{
 		ID: "run-child-pause", SessionID: "session-1", AgentID: "agent-1",
-		Status: jfadk.RunStatusRunning, WorkMode: jfadk.WorkModeLoop, ParentRunID: "run-parent",
+		Status: assistant.RunStatusRunning, WorkMode: assistant.WorkModeLoop, ParentRunID: "run-parent",
 		WorkflowStatus: "RUNNING", CreatedAt: now, UpdatedAt: now,
-		ToolCalls: []jfadk.ToolCall{}, PendingApprovals: []jfadk.Approval{},
+		ToolCalls: []assistant.ToolCall{}, PendingApprovals: []assistant.Approval{},
 	}
-	if err := server.adkRuntime.Store().SaveRun(t.Context(), child); err != nil {
+	if err := serverADKTestStore(t, server).SaveRun(t.Context(), child); err != nil {
 		t.Fatalf("SaveRun child: %v", err)
 	}
 	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/runs/"+child.ID+"/pause", "application/json", nil)

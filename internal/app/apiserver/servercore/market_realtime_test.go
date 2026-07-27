@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -21,10 +21,10 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 
 	historyLabelAt := time.Now().UTC().Add(2 * time.Hour).Truncate(time.Minute)
 	currentLabelAt := historyLabelAt.Add(time.Minute)
-	quoteServer.setHistoryPages([][]*qotcommonpb.KLine{{
+	quoteServer.setHistoryPages([][]fututestkit.KLine{{
 		testMarketDataProtoKLine(historyLabelAt, 100, 101, 99, 100.5, 1000),
 	}})
-	quoteServer.setCurrentKLines([]*qotcommonpb.KLine{
+	quoteServer.setCurrentKLines([]fututestkit.KLine{
 		testMarketDataProtoKLine(currentLabelAt, 101, 106, 99, 103, 500),
 	})
 

@@ -6,6 +6,12 @@ const layers = {
   preflight: [
     ["pnpm", ["run", "test:test-policy"]],
     ["pnpm", ["run", "check:test-names"]],
+    ["pnpm", ["run", "check:test-quality"]],
+    ["pnpm", ["run", "check:servercore-budget"]],
+    ["pnpm", ["run", "check:openapi-quality"]],
+    ["pnpm", ["run", "check:web-api-boundary"]],
+    ["pnpm", ["run", "check:web-contract-index"]],
+    ["pnpm", ["run", "check:web-contract-audit"]],
     ["pnpm", ["run", "lint:go"]],
     ["pnpm", ["run", "vet:go"]],
     ["pnpm", ["run", "test:coverage"]],

@@ -183,7 +183,7 @@ func TestBindHelpersRejectMalformedAndIPv6Binds(t *testing.T) {
 }
 
 func TestIntegrationWithEnvDefaults(t *testing.T) {
-	t.Setenv(futuOpenDAddrEnv, "127.0.0.6:26666")
+	t.Setenv(FutuOpenDAddrEnv, "127.0.0.6:26666")
 	t.Setenv(jftradeFutuWebSocketPortEnv, "26667")
 	t.Setenv(jftradeFutuWebSocketKeyEnv, "runtime-key")
 

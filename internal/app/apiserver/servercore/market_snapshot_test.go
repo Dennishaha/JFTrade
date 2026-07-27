@@ -190,10 +190,10 @@ func acquireMarketDataTestSubscription(t *testing.T, server *Server, ref mdsrv.I
 	if err != nil {
 		t.Fatalf("AcquireSubscription(%#v): %v", ref, err)
 	}
-	if err := server.marketdataRuntime.ReconcileSubscriptions(t.Context(), []mdsrv.InstrumentRef{ref}); err != nil {
+	if err := server.runtimes.MarketData().ReconcileSubscriptions(t.Context(), []mdsrv.InstrumentRef{ref}); err != nil {
 		t.Fatalf("ReconcileSubscriptions(%#v): %v", ref, err)
 	}
-	if state := server.marketdataRuntime.SubscriptionState(); state["ownActiveCount"] != 1 {
+	if state := server.runtimes.MarketData().SubscriptionState(); state["ownActiveCount"] != 1 {
 		t.Fatalf("ReconcileSubscriptions(%#v) did not establish the physical lease: %#v", ref, state)
 	}
 }

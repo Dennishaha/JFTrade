@@ -15,7 +15,8 @@ import (
 // @Summary 读取交易日历设置
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=ExchangeCalendarSettingsResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/exchange-calendars [get]
 func handleExchangeCalendarSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -29,8 +30,9 @@ func handleExchangeCalendarSettings(svc *srv.Service) gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Param request body ExchangeCalendarSettingsWriteRequest true "交易日历设置"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=ExchangeCalendarSettingsResponse}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/exchange-calendars [put]
 func handleSaveExchangeCalendarSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {

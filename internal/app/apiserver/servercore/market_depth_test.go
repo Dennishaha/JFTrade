@@ -8,15 +8,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
 	livecore "github.com/jftrade/jftrade-main/internal/live"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
-	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func acquireTestDepthSubscription(t *testing.T, server *Server, market, symbol string) {
 	t.Helper()
-	server.marketdataSvc.SetSubscriptionReconciler(server.marketdataRuntime)
+	server.marketdataSvc.SetSubscriptionReconciler(server.runtimes.MarketData())
 	if _, err := server.marketdataSvc.AcquireSubscription(t.Context(), "test-depth", []mdsrv.InstrumentRef{{
 		Channel: "ORDER_BOOK",
 		Market:  market,
@@ -105,11 +105,11 @@ func TestMarketDepthResponseWithMockOpenD(t *testing.T) {
 	defer quoteServer.stop()
 
 	quoteServer.setOrderBook(
-		[]*qotcommonpb.OrderBook{
+		[]fututestkit.OrderBookEntry{
 			marketDataDepthOrderBookFixture(155.0, 1000, 5),
 			marketDataDepthOrderBookFixture(154.5, 500, 3),
 		},
-		[]*qotcommonpb.OrderBook{
+		[]fututestkit.OrderBookEntry{
 			marketDataDepthOrderBookFixture(155.5, 800, 4),
 			marketDataDepthOrderBookFixture(156.0, 1200, 6),
 		},
@@ -245,10 +245,10 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 	defer quoteServer.stop()
 
 	quoteServer.setOrderBook(
-		[]*qotcommonpb.OrderBook{
+		[]fututestkit.OrderBookEntry{
 			marketDataDepthOrderBookFixture(154.9, 900, 4),
 		},
-		[]*qotcommonpb.OrderBook{
+		[]fututestkit.OrderBookEntry{
 			marketDataDepthOrderBookFixture(155.1, 850, 5),
 		},
 	)
@@ -331,8 +331,8 @@ func TestMarketDepthNumClamping(t *testing.T) {
 	defer quoteServer.stop()
 
 	quoteServer.setOrderBook(
-		[]*qotcommonpb.OrderBook{marketDataDepthOrderBookFixture(100, 10, 1)},
-		[]*qotcommonpb.OrderBook{marketDataDepthOrderBookFixture(101, 10, 1)},
+		[]fututestkit.OrderBookEntry{marketDataDepthOrderBookFixture(100, 10, 1)},
+		[]fututestkit.OrderBookEntry{marketDataDepthOrderBookFixture(101, 10, 1)},
 	)
 
 	host, port := splitHostPort(t, quoteServer.addr)
@@ -427,8 +427,8 @@ func TestMarketDepthSymbolCasing(t *testing.T) {
 	defer quoteServer.stop()
 
 	quoteServer.setOrderBook(
-		[]*qotcommonpb.OrderBook{marketDataDepthOrderBookFixture(100, 10, 1)},
-		[]*qotcommonpb.OrderBook{marketDataDepthOrderBookFixture(101, 10, 1)},
+		[]fututestkit.OrderBookEntry{marketDataDepthOrderBookFixture(100, 10, 1)},
+		[]fututestkit.OrderBookEntry{marketDataDepthOrderBookFixture(101, 10, 1)},
 	)
 
 	host, port := splitHostPort(t, quoteServer.addr)
@@ -504,11 +504,11 @@ func TestMarketDepthHKMarket(t *testing.T) {
 	defer quoteServer.stop()
 
 	quoteServer.setOrderBook(
-		[]*qotcommonpb.OrderBook{
+		[]fututestkit.OrderBookEntry{
 			marketDataDepthOrderBookFixture(320.0, 5000, 10),
 			marketDataDepthOrderBookFixture(319.8, 3000, 8),
 		},
-		[]*qotcommonpb.OrderBook{
+		[]fututestkit.OrderBookEntry{
 			marketDataDepthOrderBookFixture(320.2, 4000, 6),
 			marketDataDepthOrderBookFixture(320.4, 2000, 3),
 		},

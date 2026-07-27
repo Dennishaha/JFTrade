@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { MCPServerAuthMode, MCPServerStatus } from "@/contracts";
+import type { MCPServerStatus } from "@/contracts";
+import type { MCPServerAuthMode } from "@/types";
 
 const props = defineProps<{
   form: {

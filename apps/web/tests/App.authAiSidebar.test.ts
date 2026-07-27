@@ -21,7 +21,7 @@ import {
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
   emptySystemStatus,
-} from "@/contracts";
+} from "@/types";
 
 
 import {

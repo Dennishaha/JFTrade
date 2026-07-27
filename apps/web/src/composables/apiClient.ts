@@ -1,4 +1,5 @@
-import { type ApiErrorEnvelope, type ApiSuccessEnvelope } from "@/contracts";
+import type { ApiErrorEnvelope, ApiSuccessEnvelope } from "@/types";
+import type { WebSession } from "@/contracts";
 import type { paths } from "@/generated/openapi";
 
 import { buildRuntimeApiUrl, resolveDesktopApiToken } from "../runtimeConfig";
@@ -7,11 +8,7 @@ export function buildApiUrl(path: string): string {
   return buildRuntimeApiUrl(path);
 }
 
-export interface WebSession {
-  authenticated: boolean;
-  csrfToken?: string;
-  expiresAt?: string;
-}
+export type { WebSession } from "@/contracts";
 
 export const WEB_AUTH_REQUIRED_EVENT = "jftrade:web-auth-required";
 
@@ -45,19 +42,38 @@ type OperationFor<
   TPath extends ApiPath,
   TMethod extends HttpMethod,
 > = TMethod extends keyof paths[TPath] ? paths[TPath][TMethod] : never;
-type JsonRequestBody<TPath extends ApiPath, TMethod extends HttpMethod> =
+export type RequestBodyFor<
+  TPath extends ApiPath,
+  TMethod extends HttpMethod,
+> =
   OperationFor<TPath, TMethod> extends {
-    requestBody: { content: { "application/json": infer TBody } };
+    requestBody?: { content: { "application/json": infer TBody } };
   }
     ? TBody
     : never;
 
-// ResponseDataFor 从生成类型中推导某个路径 200 响应 envelope 的 data。
+type SuccessResponse<TResponses> = {
+  [TStatus in keyof TResponses]: TStatus extends `${2}${number}${number}`
+    ? TResponses[TStatus]
+    : never;
+}[keyof TResponses];
+
+type JsonBodyFromResponse<TResponse> = TResponse extends {
+  content: { "application/json": infer TBody };
+}
+  ? TBody
+  : never;
+
+type JsonSuccessBody<TOperation> = TOperation extends {
+  responses: infer TResponses;
+}
+  ? JsonBodyFromResponse<SuccessResponse<TResponses>>
+  : never;
+
+// ResponseDataFor 从生成类型中推导某个路径任意 JSON 2xx 响应 envelope 的 data。
 // 未 typed 的端点（envelope.data 为 unknown）安全退化为 unknown。
 export type ResponseDataFor<TPath extends ApiPath, TMethod extends HttpMethod> =
-  OperationFor<TPath, TMethod> extends {
-    responses: { "200": { content: { "application/json": infer TBody } } };
-  }
+  JsonSuccessBody<OperationFor<TPath, TMethod>> extends infer TBody
     ? TBody extends { data?: infer TData }
       ? unknown extends TData
         ? unknown
@@ -155,11 +171,7 @@ function responseRetryAfterMs(response: Response): number | undefined {
 }
 
 function notifyWebAuthRequired(error: ApiClientError): void {
-  const webAccessBoundary =
-    error.code === "WEB_AUTH_REQUIRED" ||
-    error.code === "WEB_ACCESS_DISABLED" ||
-    error.code === "REMOTE_WEB_ACCESS_DISABLED";
-  if (!webAccessBoundary || resolveDesktopApiToken() != null) {
+  if (!isWebAuthBoundaryCode(error.code) || resolveDesktopApiToken() != null) {
     return;
   }
   csrfToken = "";
@@ -168,26 +180,90 @@ function notifyWebAuthRequired(error: ApiClientError): void {
   }
 }
 
-export async function webSession(): Promise<WebSession> {
-  const response = await fetch(buildApiUrl("/api/v1/auth/session"), {
+function isWebAuthBoundaryCode(code: string): boolean {
+  return (
+    code === "WEB_AUTH_REQUIRED" ||
+    code === "WEB_ACCESS_DISABLED" ||
+    code === "REMOTE_WEB_ACCESS_DISABLED"
+  );
+}
+
+async function notifyRawWebAuthRequired(response: Response): Promise<void> {
+  if (!response.clone || resolveDesktopApiToken() != null) {
+    return;
+  }
+
+  try {
+    const body = (await response.clone().json()) as Partial<ApiErrorEnvelope>;
+    const code =
+      body != null &&
+      typeof body === "object" &&
+      body.ok === false &&
+      body.error != null &&
+      typeof body.error.code === "string"
+        ? body.error.code
+        : "";
+    if (isWebAuthBoundaryCode(code)) {
+      notifyWebAuthRequired(
+        new ApiClientError(
+          body.error?.message || "Web authentication required",
+          code,
+          response.status,
+          responseRetryAfterMs(response),
+        ),
+      );
+    }
+  } catch {
+    // Non-envelope failures remain available to the protocol-specific caller.
+  }
+}
+
+async function performApiRequest(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const headers = {
+    ...authHeaders(init.method ?? "GET"),
+    ...(init.headers as Record<string, string> | undefined),
+  };
+  return fetch(buildApiUrl(path), {
+    ...init,
     credentials: "include",
-    headers: authHeaders("GET"),
+    headers,
   });
+}
+
+// apiRawRequest is the single authenticated boundary for non-envelope
+// protocols such as SSE. JSON API consumers must use the typed api* helpers.
+export async function apiRawRequest(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const response = await performApiRequest(path, init);
+  if (!response.ok) {
+    await notifyRawWebAuthRequired(response);
+  }
+  return response;
+}
+
+export async function webSession(): Promise<WebSession> {
+  const response = await performApiRequest("/api/v1/auth/session");
   return parseEnvelope<WebSession>(response);
 }
 
 export async function webLogin(password: string): Promise<WebSession> {
-  const response = await fetch(buildApiUrl("/api/v1/auth/login"), {
+  const body: RequestBodyFor<"/api/v1/auth/login", "post"> = { password };
+  const response = await performApiRequest("/api/v1/auth/login", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json", ...authHeaders("POST") },
-    body: JSON.stringify({ password }),
+    body: JSON.stringify(body),
   });
   return parseEnvelope<WebSession>(response);
 }
 
 export async function webLogout(): Promise<WebSession> {
-  const response = await fetch(buildApiUrl("/api/v1/auth/logout"), {
+  const response = await performApiRequest("/api/v1/auth/logout", {
     method: "POST",
     credentials: "include",
     headers: authHeaders("POST"),
@@ -200,27 +276,11 @@ export async function webLogout(): Promise<WebSession> {
   return session;
 }
 
-export async function fetchEnvelope<T>(path: string): Promise<T> {
-  const response = await fetch(buildApiUrl(path), {
-    credentials: "include",
-    headers: authHeaders("GET"),
-  });
-  return parseEnvelope<T>(response);
-}
-
-export async function fetchEnvelopeWithInit<T>(
+async function requestEnvelopeWithInit<T>(
   path: string,
   init: RequestInit,
 ): Promise<T> {
-  const headers = {
-    ...authHeaders(init.method ?? "GET"),
-    ...(init.headers as Record<string, string> | undefined),
-  };
-  const response = await fetch(buildApiUrl(path), {
-    ...init,
-    credentials: "include",
-    headers,
-  });
+  const response = await performApiRequest(path, init);
   return parseEnvelope<T>(response);
 }
 
@@ -240,6 +300,14 @@ function withJsonBody<TBody>(
   };
 }
 
+export function apiRawPost<TPath extends PathWithMethod<"post">>(
+  path: TPath,
+  body: RequestBodyFor<TPath, "post">,
+  init?: ApiRequestOptions,
+): Promise<Response> {
+  return apiRawRequest(path, withJsonBody("POST", body, init));
+}
+
 export function apiGet<TPath extends PathWithMethod<"get">>(
   path: TPath,
   init?: ApiRequestOptions,
@@ -248,12 +316,12 @@ export async function apiGet(
   path: string,
   init?: ApiRequestOptions,
 ): Promise<unknown> {
-  return fetchEnvelopeWithInit(path, { ...init, method: "GET" });
+  return requestEnvelopeWithInit(path, { ...init, method: "GET" });
 }
 
 export function apiPost<TPath extends PathWithMethod<"post">>(
   path: TPath,
-  body: JsonRequestBody<TPath, "post">,
+  body: RequestBodyFor<TPath, "post">,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "post">>;
 export async function apiPost(
@@ -261,12 +329,23 @@ export async function apiPost(
   body: unknown,
   init?: ApiRequestOptions,
 ): Promise<unknown> {
-  return fetchEnvelopeWithInit(path, withJsonBody("POST", body, init));
+  return requestEnvelopeWithInit(path, withJsonBody("POST", body, init));
+}
+
+export function apiPostAction<TPath extends PathWithMethod<"post">>(
+  path: TPath,
+  init?: ApiRequestOptions,
+): Promise<ResponseDataFor<TPath, "post">>;
+export async function apiPostAction(
+  path: string,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return requestEnvelopeWithInit(path, { ...init, method: "POST" });
 }
 
 export function apiPut<TPath extends PathWithMethod<"put">>(
   path: TPath,
-  body: JsonRequestBody<TPath, "put">,
+  body: RequestBodyFor<TPath, "put">,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "put">>;
 export async function apiPut(
@@ -274,7 +353,7 @@ export async function apiPut(
   body: unknown,
   init?: ApiRequestOptions,
 ): Promise<unknown> {
-  return fetchEnvelopeWithInit(path, withJsonBody("PUT", body, init));
+  return requestEnvelopeWithInit(path, withJsonBody("PUT", body, init));
 }
 
 export function apiDelete<TPath extends PathWithMethod<"delete">>(
@@ -285,7 +364,20 @@ export async function apiDelete(
   path: string,
   init?: ApiRequestOptions,
 ): Promise<unknown> {
-  return fetchEnvelopeWithInit(path, { ...init, method: "DELETE" });
+  return requestEnvelopeWithInit(path, { ...init, method: "DELETE" });
+}
+
+export function apiDeleteBody<TPath extends PathWithMethod<"delete">>(
+  path: TPath,
+  body: RequestBodyFor<TPath, "delete">,
+  init?: ApiRequestOptions,
+): Promise<ResponseDataFor<TPath, "delete">>;
+export async function apiDeleteBody(
+  path: string,
+  body: unknown,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return requestEnvelopeWithInit(path, withJsonBody("DELETE", body, init));
 }
 
 export function apiGetPath<TPath extends PathWithMethod<"get">>(
@@ -298,13 +390,13 @@ export async function apiGetPath(
   path: string,
   init?: ApiRequestOptions,
 ): Promise<unknown> {
-  return fetchEnvelopeWithInit(path, { ...init, method: "GET" });
+  return requestEnvelopeWithInit(path, { ...init, method: "GET" });
 }
 
 export function apiPutPath<TPath extends PathWithMethod<"put">>(
   _template: TPath,
   path: string,
-  body: JsonRequestBody<TPath, "put">,
+  body: RequestBodyFor<TPath, "put">,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "put">>;
 export async function apiPutPath(
@@ -313,13 +405,13 @@ export async function apiPutPath(
   body: unknown,
   init?: ApiRequestOptions,
 ): Promise<unknown> {
-  return fetchEnvelopeWithInit(path, withJsonBody("PUT", body, init));
+  return requestEnvelopeWithInit(path, withJsonBody("PUT", body, init));
 }
 
 export function apiPostPath<TPath extends PathWithMethod<"post">>(
   _template: TPath,
   path: string,
-  body: JsonRequestBody<TPath, "post">,
+  body: RequestBodyFor<TPath, "post">,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "post">>;
 export async function apiPostPath(
@@ -328,13 +420,26 @@ export async function apiPostPath(
   body: unknown,
   init?: ApiRequestOptions,
 ): Promise<unknown> {
-  return fetchEnvelopeWithInit(path, withJsonBody("POST", body, init));
+  return requestEnvelopeWithInit(path, withJsonBody("POST", body, init));
+}
+
+export function apiPostPathAction<TPath extends PathWithMethod<"post">>(
+  _template: TPath,
+  path: string,
+  init?: ApiRequestOptions,
+): Promise<ResponseDataFor<TPath, "post">>;
+export async function apiPostPathAction(
+  _template: string,
+  path: string,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return requestEnvelopeWithInit(path, { ...init, method: "POST" });
 }
 
 export function apiPatchPath<TPath extends PathWithMethod<"patch">>(
   _template: TPath,
   path: string,
-  body: JsonRequestBody<TPath, "patch">,
+  body: RequestBodyFor<TPath, "patch">,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "patch">>;
 export async function apiPatchPath(
@@ -343,7 +448,7 @@ export async function apiPatchPath(
   body: unknown,
   init?: ApiRequestOptions,
 ): Promise<unknown> {
-  return fetchEnvelopeWithInit(path, withJsonBody("PATCH", body, init));
+  return requestEnvelopeWithInit(path, withJsonBody("PATCH", body, init));
 }
 
 export function apiDeletePath<TPath extends PathWithMethod<"delete">>(
@@ -356,5 +461,5 @@ export async function apiDeletePath(
   path: string,
   init?: ApiRequestOptions,
 ): Promise<unknown> {
-  return fetchEnvelopeWithInit(path, { ...init, method: "DELETE" });
+  return requestEnvelopeWithInit(path, { ...init, method: "DELETE" });
 }

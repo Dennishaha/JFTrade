@@ -4,7 +4,7 @@ import type {
   ADKApproval,
   ADKRun,
   ADKWorkflowStepState,
-} from "@/contracts";
+} from "@/types";
 
 import { uniqueADKApprovalsById } from "./adkApprovalResolution";
 import {
@@ -19,7 +19,8 @@ import {
   sortTimelineEntries,
   type ADKTimelineEntryState,
 } from "./adkTimeline";
-import { fetchEnvelope } from "./apiClient";
+import { apiGetPath } from "./apiClient";
+import { requireADKRun } from "./adkApiMappers";
 
 export interface ADKChildRunQueueItem {
   id: string;
@@ -289,8 +290,11 @@ export function useADKWorkflowQueueState(options: {
       ids.map(async (id) => {
         try {
           const latest = normalizeADKRun(
-            await fetchEnvelope<ADKRun>(
-              `/api/v1/adk/runs/${encodeURIComponent(id)}`,
+            requireADKRun(
+              await apiGetPath(
+                "/api/v1/adk/runs/{runId}",
+                `/api/v1/adk/runs/${encodeURIComponent(id)}`,
+              ),
             ),
           );
           if (latest.id !== id) return;

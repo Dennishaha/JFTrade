@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 )
 
 const (
@@ -38,29 +38,29 @@ func TestRealADKChatStreamWithSavedProvider(t *testing.T) {
 			t.Fatalf("server.Close: %v", err)
 		}
 	})
-	if server.adkRuntime == nil {
+	if assistantRuntime(server) == nil {
 		t.Fatal("expected adk runtime to be available")
 	}
 
-	agent, ok, err := server.adkRuntime.Store().Agent(context.Background(), realADKIntegrationAgent)
+	agent, ok, err := serverADKTestStore(t, server).Agent(context.Background(), realADKIntegrationAgent)
 	if err != nil {
 		t.Fatalf("load agent: %v", err)
 	}
 	if !ok {
 		t.Fatalf("agent %q not found", realADKIntegrationAgent)
 	}
-	if agent.Status != jfadk.AgentStatusEnabled {
-		t.Fatalf("agent %q status = %s, want %s", realADKIntegrationAgent, agent.Status, jfadk.AgentStatusEnabled)
+	if agent.Status != assistant.AgentStatusEnabled {
+		t.Fatalf("agent %q status = %s, want %s", realADKIntegrationAgent, agent.Status, assistant.AgentStatusEnabled)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	var deltas []jfadk.ChatDelta
-	response, err := server.adkRuntime.ChatStream(ctx, jfadk.ChatRequest{
+	var deltas []assistant.ChatDelta
+	response, err := server.assistantSvc.ChatStream(ctx, assistant.ChatRequest{
 		AgentID: realADKIntegrationAgent,
 		Message: realADKIntegrationPrompt,
-	}, func(delta jfadk.ChatDelta) error {
+	}, func(delta assistant.ChatDelta) error {
 		deltas = append(deltas, delta)
 		return nil
 	})
@@ -80,8 +80,8 @@ func TestRealADKChatStreamWithSavedProvider(t *testing.T) {
 		}
 	}
 
-	if response.Run.Status != jfadk.RunStatusCompleted {
-		t.Fatalf("run status = %s, want %s; message=%s failure=%s", response.Run.Status, jfadk.RunStatusCompleted, response.Run.Message, response.Run.FailureReason)
+	if response.Run.Status != assistant.RunStatusCompleted {
+		t.Fatalf("run status = %s, want %s; message=%s failure=%s", response.Run.Status, assistant.RunStatusCompleted, response.Run.Message, response.Run.FailureReason)
 	}
 	if strings.TrimSpace(response.Reply) == "" {
 		t.Fatal("expected non-empty assistant reply")

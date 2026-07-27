@@ -15,6 +15,15 @@ type Envelope struct {
 	Timestamp string    `json:"timestamp"`
 }
 
+// ErrorEnvelope documents the stable wire shape of failed API responses.
+// Runtime responses continue to use Envelope; this type exists so OpenAPI
+// clients do not infer a meaningless success data field for failures.
+type ErrorEnvelope struct {
+	OK        bool     `json:"ok"`
+	Error     APIError `json:"error"`
+	Timestamp string   `json:"timestamp"`
+}
+
 // APIError 机器可读 API 错误。
 type APIError struct {
 	Code    string `json:"code"`

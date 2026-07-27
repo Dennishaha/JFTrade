@@ -56,7 +56,7 @@ type nodeRuntimeResolution struct {
 	err            error
 }
 
-func (s *Server) runtimeDependencies(ctx context.Context) map[string]any {
+func (s *serverApplication) runtimeDependencies(ctx context.Context) map[string]any {
 	node := checkNodeRuntimeDependency(ctx, s.pineWorkerSettings())
 	dependencies := []map[string]any{node}
 	allRequiredSatisfied := true

@@ -22,21 +22,34 @@ import {
     resolveBrokerAccountSelectionKey,
 } from "./strategy-runtime/strategyRuntimeInstanceBinding";
 import type {
-    StrategyAuditEntryDocument,
-    StrategyAuditListResponse,
-    StrategyBrokerAccountBinding,
     StrategyDefinitionDocument,
     StrategyDefinitionSyncStatus,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
     StrategyRuntimeRiskSettings,
-    StrategyLogListResponse,
     StrategyRuntimeObservation,
+} from "@/types";
+import type {
+    StrategyAuditEntryDocument,
+    StrategyBrokerAccountBinding,
 } from "@/contracts";
 
-import { ApiClientError, apiGet, fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import {
+    ApiClientError,
+    apiDeletePath,
+    apiGet,
+    apiGetPath,
+    apiPostPath,
+    apiPostPathAction,
+    apiPutPath,
+} from "../composables/apiClient";
 import { useMarketProfiles } from "../composables/marketProfiles";
 import { queryClient, queryKeys } from "../composables/serverState";
+import { mapStrategyInstance, mapStrategyInstances } from "../composables/strategyContract";
+import {
+    mapStrategyBindingRequest,
+    mapStrategyRuntimeRiskRequest,
+} from "../composables/strategyApiRequests";
 import { useConsoleData } from "../composables/useConsoleData";
 import { formatLocalDateTime } from "../utils/dateTime";
 import {
@@ -47,14 +60,18 @@ import {
 } from "./strategy-runtime/strategyRuntimeIdentity";
 import { useStrategyRuntimeInstanceEditor } from "./strategy-runtime/useStrategyRuntimeInstanceEditor";
 
-type StrategyLogsResponse = StrategyLogListResponse;
 type StrategyAuditEntry = StrategyAuditEntryDocument;
-type StrategyAuditResponse = StrategyAuditListResponse;
 
 const STRATEGY_RUNTIME_ACTIVE_REFRESH_MS = 1_000;
 const STRATEGY_RUNTIME_IDLE_REFRESH_MS = 3_000;
 const STRATEGY_RUNTIME_COMPACT_MEDIA_QUERY = "(max-width: 1180px)";
 const STRATEGY_RUNTIME_MOBILE_MEDIA_QUERY = "(max-width: 768px)";
+
+const strategyActionTemplates = {
+    start: "/api/v1/strategies/{instanceId}/start",
+    pause: "/api/v1/strategies/{instanceId}/pause",
+    stop: "/api/v1/strategies/{instanceId}/stop",
+} as const;
 
 type StrategyAction = "start" | "pause" | "stop";
 type StrategyRuntimeWorkbenchLayout = "desktop" | "compact" | "mobile";
@@ -714,7 +731,7 @@ async function loadStrategies(preferredId = selectedStrategyId.value): Promise<v
     listError.value = "";
 
     try {
-        const items = await fetchEnvelope<StrategyInstanceItem[]>("/api/v1/strategies");
+        const items = mapStrategyInstances(await apiGet("/api/v1/strategies"));
         strategies.value = items;
 
         if (items.length === 0) {
@@ -753,10 +770,12 @@ async function loadStrategyDetails(instanceId: string): Promise<void> {
 
     try {
         const [logs, audit] = await Promise.all([
-            fetchEnvelope<StrategyLogsResponse>(
+            apiGetPath(
+                "/api/v1/strategies/{instanceId}/logs",
                 `${logsUrl.pathname}${logsUrl.search}`,
             ),
-            fetchEnvelope<StrategyAuditResponse>(
+            apiGetPath(
+                "/api/v1/strategies/{instanceId}/audit",
                 `${auditUrl.pathname}${auditUrl.search}`,
             ),
         ]);
@@ -810,14 +829,10 @@ async function createStrategyInstance(): Promise<void> {
     isCreatingStrategyInstance.value = true;
 
     try {
-        const instance = await fetchEnvelopeWithInit<StrategyInstanceItem>(
+        const instance = mapStrategyInstance(await apiPostPath(
+            "/api/v1/strategy-definitions/{definitionId}/instantiate",
             `/api/v1/strategy-definitions/${encodeURIComponent(createDefinitionId.value)}/instantiate`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(buildStrategyBindingPayload({
+            mapStrategyBindingRequest(buildStrategyBindingPayload({
                     brokerAccountOptions: brokerAccountOptions.value,
                     instruments: createBindingInstruments.value,
                     interval: createInterval.value,
@@ -825,9 +840,8 @@ async function createStrategyInstance(): Promise<void> {
                     executionMode: createExecutionMode.value,
                     runtimeRisk: createRuntimeRisk.value,
                     brokerAccountKey: createBrokerAccountKey.value,
-                })),
-            },
-        );
+            })),
+        ));
 
         instanceMutationNotice.value = `已创建实例：${instance.definition.name}。`;
         await loadStrategies(instance.id);
@@ -891,14 +905,10 @@ async function updateSelectedStrategyBinding(): Promise<void> {
     isUpdatingStrategyBinding.value = true;
 
     try {
-        const updated = await fetchEnvelopeWithInit<StrategyInstanceItem>(
+        const updated = mapStrategyInstance(await apiPutPath(
+            "/api/v1/strategies/{instanceId}",
             `/api/v1/strategies/${encodeURIComponent(selectedStrategy.value.id)}`,
-            {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(buildStrategyBindingPayload({
+            mapStrategyBindingRequest(buildStrategyBindingPayload({
                     brokerAccountOptions: brokerAccountOptions.value,
                     instruments: editBindingInstruments.value,
                     interval: editInterval.value,
@@ -907,9 +917,8 @@ async function updateSelectedStrategyBinding(): Promise<void> {
                     runtimeRisk: editRuntimeRisk.value,
                     brokerAccountKey: editBrokerAccountKey.value,
                     fallbackBrokerAccount: selectedStrategyBinding.value?.brokerAccount ?? null,
-                })),
-            },
-        );
+            })),
+        ));
 
         instanceMutationNotice.value = `已更新实例绑定：${updated.definition.name}。`;
         await loadStrategies(updated.id);
@@ -934,14 +943,11 @@ async function updateSelectedStrategyRuntimeRisk(patch: Partial<StrategyRuntimeR
     });
     isUpdatingStrategyRuntimeRisk.value = true;
     try {
-        const updated = await fetchEnvelopeWithInit<StrategyInstanceItem>(
+        const updated = mapStrategyInstance(await apiPutPath(
+            "/api/v1/strategies/{instanceId}/runtime-risk",
             `/api/v1/strategies/${encodeURIComponent(selectedStrategy.value.id)}/runtime-risk`,
-            {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(runtimeRisk),
-            },
-        );
+            mapStrategyRuntimeRiskRequest(runtimeRisk),
+        ));
         instanceMutationNotice.value = `已更新动态风控：${formatStrategyRuntimeRiskSummary(runtimeRisk)}。`;
         await loadStrategies(updated.id);
     } catch (error) {
@@ -974,12 +980,10 @@ async function deleteSelectedStrategy(): Promise<void> {
     isDeletingStrategy.value = true;
 
     try {
-        const removed = await fetchEnvelopeWithInit<StrategyInstanceItem>(
+        const removed = mapStrategyInstance(await apiDeletePath(
+            "/api/v1/strategies/{instanceId}",
             `/api/v1/strategies/${encodeURIComponent(selectedStrategy.value.id)}`,
-            {
-                method: "DELETE",
-            },
-        );
+        ));
 
         instanceMutationNotice.value = `已删除实例：${removed.definition.name}。`;
         closeInstanceEditorDialog();
@@ -1002,13 +1006,9 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
     isLoadingDetails.value = true;
 
     try {
-        await fetchEnvelopeWithInit<StrategyInstanceItem>(
+        await apiPostPathAction(
+            strategyActionTemplates[action],
             `/api/v1/strategies/${encodeURIComponent(selectedStrategy.value.id)}/${action}`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({}),
-            },
         );
         await loadStrategies(selectedStrategy.value.id);
     } catch (error) {
@@ -1038,14 +1038,10 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
     isRefreshingStrategyDefinition.value = true;
 
     try {
-        const updated = await fetchEnvelopeWithInit<StrategyInstanceItem>(
+        const updated = mapStrategyInstance(await apiPostPathAction(
+            "/api/v1/strategies/{instanceId}/refresh-definition",
             `/api/v1/strategies/${encodeURIComponent(selectedStrategy.value.id)}/refresh-definition`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({}),
-            },
-        );
+        ));
         instanceMutationNotice.value = `已刷新实例策略到最新版本：${updated.definition.name} / v${updated.definition.version}。`;
         await loadStrategies(updated.id);
     } catch (error) {

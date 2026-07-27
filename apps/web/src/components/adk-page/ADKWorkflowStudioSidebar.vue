@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKWorkflowDefinition } from "@/contracts";
+import type { ADKWorkflowDefinition } from "@/types";
 import type { PageEnvelope } from "@/composables/adkWorkflowsApi";
 import type { WorkflowTemplate } from "@/features/adkWorkflowStudio";
 

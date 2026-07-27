@@ -76,7 +76,7 @@ func referenceOpenAPIDocumentation() {
 // @Tags watchlist
 // @Produce json
 // @Success 200 {object} httpserver.Envelope{data=WatchlistGroupsData}
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/groups [get]
 func documentListGroups() { _ = httpserver.Envelope{} }
 
@@ -87,9 +87,9 @@ func documentListGroups() { _ = httpserver.Envelope{} }
 // @Produce json
 // @Param input body domain.CreateGroupInput true "分组"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistGroup}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/groups [post]
 func documentCreateGroup() { _ = httpserver.Envelope{} }
 
@@ -101,10 +101,10 @@ func documentCreateGroup() { _ = httpserver.Envelope{} }
 // @Param groupId path string true "分组 ID"
 // @Param input body domain.UpdateGroupInput true "分组变更"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistGroup}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/groups/{groupId} [patch]
 func documentUpdateGroup() { _ = httpserver.Envelope{} }
 
@@ -114,9 +114,9 @@ func documentUpdateGroup() { _ = httpserver.Envelope{} }
 // @Produce json
 // @Param groupId path string true "分组 ID"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistDeleteData}
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/groups/{groupId} [delete]
 func documentDeleteGroup() { _ = httpserver.Envelope{} }
 
@@ -130,8 +130,8 @@ func documentDeleteGroup() { _ = httpserver.Envelope{} }
 // @Param query query string false "代码或名称"
 // @Param market query string false "市场"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistItemsData}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/items [get]
 func documentListItems() { _ = httpserver.Envelope{} }
 
@@ -142,8 +142,8 @@ func documentListItems() { _ = httpserver.Envelope{} }
 // @Param market path string true "市场"
 // @Param symbol path string true "代码"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistMemberships}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/instruments/{market}/{symbol}/memberships [get]
 func documentGetMemberships() { _ = httpserver.Envelope{} }
 
@@ -156,10 +156,10 @@ func documentGetMemberships() { _ = httpserver.Envelope{} }
 // @Param symbol path string true "代码"
 // @Param input body domain.ReplaceMembershipsInput true "目标分组与 revision"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistMemberships}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/instruments/{market}/{symbol}/memberships [put]
 func documentReplaceMemberships() { _ = httpserver.Envelope{} }
 
@@ -170,8 +170,8 @@ func documentReplaceMemberships() { _ = httpserver.Envelope{} }
 // @Produce json
 // @Param input body WatchlistQuoteBatchRequest true "可见标的"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistQuotesData}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/quotes/batch [post]
 func documentBatchQuotes() { _ = httpserver.Envelope{} }
 
@@ -180,7 +180,7 @@ func documentBatchQuotes() { _ = httpserver.Envelope{} }
 // @Tags watchlist
 // @Produce json
 // @Success 200 {object} httpserver.Envelope{data=WatchlistSourcesData}
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/sources [get]
 func documentListSources() { _ = httpserver.Envelope{} }
 
@@ -190,8 +190,8 @@ func documentListSources() { _ = httpserver.Envelope{} }
 // @Produce json
 // @Param sourceId path string true "来源 ID"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistRemoteGroupsData}
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/sources/{sourceId}/groups [get]
 func documentListSourceGroups() { _ = httpserver.Envelope{} }
 
@@ -201,7 +201,7 @@ func documentListSourceGroups() { _ = httpserver.Envelope{} }
 // @Produce json
 // @Param sourceId query string false "来源 ID"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistBindingsData}
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/bindings [get]
 func documentListBindings() { _ = httpserver.Envelope{} }
 
@@ -211,8 +211,8 @@ func documentListBindings() { _ = httpserver.Envelope{} }
 // @Produce json
 // @Param bindingId query string true "绑定 ID"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistDeleteData}
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/bindings [delete]
 func documentDeleteBinding() { _ = httpserver.Envelope{} }
 
@@ -223,10 +223,10 @@ func documentDeleteBinding() { _ = httpserver.Envelope{} }
 // @Produce json
 // @Param input body domain.ImportPreviewRequest true "导入目标"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistImportPreview}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/imports/preview [post]
 func documentPreviewImport() { _ = httpserver.Envelope{} }
 
@@ -238,10 +238,10 @@ func documentPreviewImport() { _ = httpserver.Envelope{} }
 // @Param previewId path string true "预览 ID"
 // @Param input body domain.CommitImportInput false "选择性删除的本地独有标的"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistImportRun}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/imports/{previewId}/commit [post]
 func documentCommitImport() { _ = httpserver.Envelope{} }
 
@@ -253,7 +253,7 @@ func documentCommitImport() { _ = httpserver.Envelope{} }
 // @Param cursor query string false "游标"
 // @Param limit query int false "页大小"
 // @Success 200 {object} httpserver.Envelope{data=WatchlistImportRunsData}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/watchlist/import-runs [get]
 func documentListImportRuns() { _ = httpserver.Envelope{} }

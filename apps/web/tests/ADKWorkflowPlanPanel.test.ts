@@ -3,7 +3,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
-import type { ADKRun } from "@/contracts";
+import type { ADKRun } from "@/types";
 
 import ADKWorkflowPlanPanel from "../src/components/adk-page/ADKWorkflowPlanPanel.vue";
 

@@ -47,6 +47,53 @@ type ExecutionPreviewStore interface {
 	ConsumePreview(previewID, brokerID, accountID, requestHash, clientOrderID string) error
 }
 
+// ExecutionSubmissionStore owns the durable state transitions around broker
+// placement and cancellation. The trading application service consumes this
+// port without knowing the storage implementation.
+type ExecutionSubmissionStore interface {
+	Order(internalOrderID string) (ExecutionOrder, bool)
+	PrepareSubmission(ExecutionPlacedOrderRecord) (ExecutionOrder, bool, error)
+	MarkSubmissionUnknown(internalOrderID string, submitErr error) ExecutionOrder
+	RecordPlacedOrder(ExecutionPlacedOrderRecord) ExecutionOrder
+	MarkCancelRequested(internalOrderID string, payload any) (ExecutionOrder, bool)
+}
+
+// ExecutionReconciliationStore applies broker-owned order, fill and fee
+// snapshots to the neutral execution ledger.
+type ExecutionReconciliationStore interface {
+	ApplyBrokerOrder(
+		brokerID string,
+		snapshot broker.OrderSnapshot,
+		discoveredEventType string,
+		updatedEventType string,
+		source string,
+		sourceDetail string,
+	) (ExecutionOrder, *ExecutionOrderEvent, bool)
+	ApplyBrokerFill(
+		brokerID string,
+		fill broker.OrderFillSnapshot,
+	) (ExecutionOrder, *ExecutionOrderEvent, bool)
+	ApplyBrokerFee(
+		brokerID string,
+		fee broker.OrderFeeSnapshot,
+	) (ExecutionOrder, *ExecutionOrderEvent, bool)
+}
+
+// ExecutionLedgerView exposes cloned in-process views used by application
+// adapters and diagnostics.
+type ExecutionLedgerView interface {
+	AllOrders() ExecutionOrders
+	FilteredOrders(ExecutionOrderFilter) ExecutionOrders
+	Events(internalOrderID string) ExecutionOrderEvents
+}
+
+// ExecutionRetentionStore owns bounded broker-fill deduplication retention.
+type ExecutionRetentionStore interface {
+	ConfigureSeenFillRetention(days int)
+	SeenFillRetentionDays() int
+	HasSeenFill(fillKey string) bool
+}
+
 // BrokerRuntimeProvider resolves the active broker and its runtime state.
 type BrokerRuntimeProvider interface {
 	ActiveBroker() broker.Broker

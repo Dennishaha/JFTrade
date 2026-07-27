@@ -45,17 +45,25 @@ describe("ADK settings API business contracts", () => {
   it("loads the settings dashboard in parallel and applies safe timeout defaults", async () => {
     const fetchMock = installRouteFetch({
       "/api/v1/adk": {
-        providers: [{ id: "provider-1" }],
-        agents: [{ id: "agent-1" }],
-        tools: [{ name: "market.quote" }],
-        skills: [{ id: "skill-1" }],
+        providers: [buildProvider({ id: "provider-1" })],
+        agents: [buildAgent({ id: "agent-1" })],
+        tools: [buildTool({ name: "market.quote" })],
+        skills: [buildSkill({ id: "skill-1" })],
         runtimeSettings: undefined,
       },
-      "/api/v1/adk/optimization-tasks?limit=20": { tasks: [{ id: "opt-1" }] },
-      "/api/v1/adk/tasks?limit=20": { tasks: [{ id: "task-1" }] },
-      "/api/v1/adk/memory": { entries: [{ id: "memory-1" }] },
-      "/api/v1/adk/agent-templates": { templates: [{ id: "template-1" }] },
-      "/api/v1/adk/metrics": { runs: { total: 3 } },
+      "/api/v1/adk/optimization-tasks?limit=20": {
+        tasks: [buildOptimizationTask({ id: "opt-1" })],
+      },
+      "/api/v1/adk/tasks?limit=20": {
+        tasks: [buildTask({ id: "task-1" })],
+      },
+      "/api/v1/adk/memory": {
+        entries: [buildMemory({ id: "memory-1" })],
+      },
+      "/api/v1/adk/agent-templates": {
+        templates: [buildAgentTemplate({ id: "template-1" })],
+      },
+      "/api/v1/adk/metrics": buildMetrics(3),
     });
 
     const result = await fetchADKSettingsSnapshot();
@@ -105,11 +113,11 @@ describe("ADK settings API business contracts", () => {
   it("queries tasks and memory with only meaningful filters", async () => {
     const fetchMock = installRouteFetch({
       "/api/v1/adk/tasks?limit=50&offset=20&status=RUNNING&agentId=agent%2Fone&runId=run%3F1": {
-        tasks: [{ id: "task-filtered" }],
+        tasks: [buildTask({ id: "task-filtered" })],
       },
       "/api/v1/adk/tasks?limit=20": { tasks: [] },
       "/api/v1/adk/memory?scope=project&agentId=agent%2Fone&key=risk%3Alimit": {
-        entries: [{ id: "memory-filtered" }],
+        entries: [buildMemory({ id: "memory-filtered" })],
       },
       "/api/v1/adk/memory": { entries: [] },
     });
@@ -122,7 +130,7 @@ describe("ADK settings API business contracts", () => {
         agentId: "agent/one",
         runId: "run?1",
       }),
-    ).toEqual([{ id: "task-filtered" }]);
+    ).toEqual([buildTask({ id: "task-filtered" })]);
     expect(await fetchADKTasks()).toEqual([]);
     expect(
       await fetchADKMemory({
@@ -130,15 +138,18 @@ describe("ADK settings API business contracts", () => {
         agentId: "agent/one",
         key: "risk:limit",
       }),
-    ).toEqual([{ id: "memory-filtered" }]);
+    ).toEqual([buildMemory({ id: "memory-filtered" })]);
     expect(await fetchADKMemory()).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("preserves task dependency and planning metadata in create and update payloads", async () => {
     const fetchMock = installRouteFetch({
-      "/api/v1/adk/tasks": { id: "task-1" },
-      "/api/v1/adk/tasks/task%2F1": { id: "task/1", status: "DONE" },
+      "/api/v1/adk/tasks": buildTask({ id: "task-1" }),
+      "/api/v1/adk/tasks/task%2F1": buildTask({
+        id: "task/1",
+        status: "DONE",
+      }),
     });
     const task = {
       title: "Validate strategy",
@@ -169,7 +180,7 @@ describe("ADK settings API business contracts", () => {
 
   it("saves and removes scoped memory using encoded resource identifiers", async () => {
     const fetchMock = installRouteFetch({
-      "/api/v1/adk/memory": { id: "memory-1" },
+      "/api/v1/adk/memory": buildMemory({ id: "memory-1" }),
       "/api/v1/adk/memory/project%2Frisk": undefined,
     });
     const entry = {
@@ -217,9 +228,9 @@ describe("ADK settings API business contracts", () => {
       status: "ENABLED",
     };
     const fetchMock = installRouteFetch({
-      "/api/v1/adk/providers": provider,
+      "/api/v1/adk/providers": buildProvider(provider),
       "/api/v1/settings/adk": runtime,
-      "/api/v1/adk/agents": agent,
+      "/api/v1/adk/agents": buildAgent(agent),
     });
 
     await saveADKProvider(provider);
@@ -228,7 +239,7 @@ describe("ADK settings API business contracts", () => {
     await saveADKAgent(agent);
 
     expect(JSON.parse(String(requestInit(fetchMock, 0).body))).toEqual(provider);
-    expect(requestInit(fetchMock, 1).method).toBeUndefined();
+    expect(requestInit(fetchMock, 1).method).toBe("GET");
     expect(requestInit(fetchMock, 2).method).toBe("PUT");
     expect(JSON.parse(String(requestInit(fetchMock, 3).body))).toMatchObject({
       workMode: "loop",
@@ -240,7 +251,9 @@ describe("ADK settings API business contracts", () => {
   it("encodes provider and agent lifecycle actions", async () => {
     const fetchMock = installRouteFetch({
       "/api/v1/adk/providers/provider%2Fone/test": { reply: "ready" },
-      "/api/v1/adk/providers/provider%2Fone/default": { id: "provider/one" },
+      "/api/v1/adk/providers/provider%2Fone/default": buildProvider({
+        id: "provider/one",
+      }),
       "/api/v1/adk/providers/provider%2Fone": undefined,
       "/api/v1/adk/agents/agent%2Fone": undefined,
     });
@@ -265,17 +278,17 @@ describe("ADK settings API business contracts", () => {
   });
 
   it("normalizes run control responses and handles skill and optimization actions", async () => {
-    const run = {
+    const run = buildRun({
       id: "run/1",
       status: "RUNNING",
-      createdAt: "2026-01-01T00:00:00Z",
-      updatedAt: "2026-01-01T00:00:01Z",
-    };
+    });
     const fetchMock = installRouteFetch({
       "/api/v1/adk/runs/run%2F1/cancel": run,
       "/api/v1/adk/runs/run%2F1/resume": run,
-      "/api/v1/adk/optimization-tasks/opt%2F1/cancel": { id: "opt/1" },
-      "/api/v1/adk/skills": { id: "skill-1" },
+      "/api/v1/adk/optimization-tasks/opt%2F1/cancel": buildOptimizationTask({
+        id: "opt/1",
+      }),
+      "/api/v1/adk/skills": buildSkill({ id: "skill-1" }),
       "/api/v1/adk/skills/skill%2F1": undefined,
     });
 
@@ -299,14 +312,21 @@ describe("ADK settings API business contracts", () => {
 
   it("returns focused list endpoints without leaking response wrappers", async () => {
     installRouteFetch({
-      "/api/v1/adk/skills": { skills: [{ id: "skill-1" }] },
-      "/api/v1/adk/optimization-tasks?limit=20": { tasks: [{ id: "opt-1" }] },
-      "/api/v1/adk/metrics": { approvals: { pending: 2 } },
+      "/api/v1/adk/skills": { skills: [buildSkill({ id: "skill-1" })] },
+      "/api/v1/adk/optimization-tasks?limit=20": {
+        tasks: [buildOptimizationTask({ id: "opt-1" })],
+      },
+      "/api/v1/adk/metrics": {
+        ...buildMetrics(),
+        approvals: { ...buildMetrics().approvals, pending: 2 },
+      },
     });
 
-    expect(await fetchADKSkills()).toEqual([{ id: "skill-1" }]);
-    expect(await fetchADKOptimizationTasks()).toEqual([{ id: "opt-1" }]);
-    expect(await fetchADKMetrics()).toEqual({ approvals: { pending: 2 } });
+    expect(await fetchADKSkills()).toEqual([buildSkill({ id: "skill-1" })]);
+    expect(await fetchADKOptimizationTasks()).toEqual([
+      buildOptimizationTask({ id: "opt-1" }),
+    ]);
+    expect(await fetchADKMetrics()).toMatchObject({ approvals: { pending: 2 } });
   });
 
   it("keeps pagination within server-reported boundaries", () => {
@@ -357,4 +377,159 @@ function requestInit(fetchMock: FetchMock, index: number): RequestInit {
 
 function requestMethod(init: unknown): string | undefined {
   return (init as RequestInit | undefined)?.method;
+}
+
+function buildProvider(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "provider-1",
+    displayName: "Provider",
+    baseUrl: "https://llm.example/v1",
+    model: "model-a",
+    requestTimeoutMs: 120_000,
+    enabled: true,
+    default: false,
+    hasApiKey: true,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function buildAgent(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "agent-1",
+    name: "Agent",
+    instruction: "Help the user.",
+    providerId: "provider-1",
+    model: "model-a",
+    tools: [],
+    skills: [],
+    permissionMode: "approval",
+    memoryEnabled: true,
+    recentUserWindow: 6,
+    workMode: "chat",
+    loopMaxIterations: 4,
+    status: "ENABLED",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function buildAgentTemplate(overrides: Record<string, unknown> = {}) {
+  const { createdAt: _createdAt, updatedAt: _updatedAt, ...template } =
+    buildAgent(overrides);
+  return template;
+}
+
+function buildTool(overrides: Record<string, unknown> = {}) {
+  return {
+    name: "market.quote",
+    displayName: "Quote",
+    description: "Read a quote",
+    category: "market",
+    permission: "read",
+    allowedModes: ["approval", "less_approval", "all"],
+    requiresApprovalIn: [],
+    ...overrides,
+  };
+}
+
+function buildSkill(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "skill-1",
+    displayName: "Risk review",
+    description: "Review trading risk",
+    source: "builtin",
+    installPath: "/skills/risk-review",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function buildTask(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "task-1",
+    title: "Task",
+    status: "PENDING",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function buildMemory(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "memory-1",
+    key: "risk-limit",
+    value: "2%",
+    scope: "project",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function buildRun(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "run-1",
+    sessionId: "session-1",
+    agentId: "agent-1",
+    status: "RUNNING",
+    message: "working",
+    toolCalls: [],
+    pendingApprovals: [],
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:01Z",
+    ...overrides,
+  };
+}
+
+function buildOptimizationTask(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "opt-1",
+    status: "RUNNING",
+    objective: "Improve the strategy",
+    runs: [],
+    progress: { total: 0, running: 0, completed: 0, failed: 0, cancelled: 0 },
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function buildMetrics(total = 0) {
+  return {
+    runs: {
+      total,
+      byStatus: {},
+      byAgent: {},
+      byProvider: {},
+      lifecycle: { failed: 0, timedOut: 0, cancelled: 0, resumed: 0, orphaned: 0 },
+    },
+    tools: {
+      total: 0,
+      successful: 0,
+      averageDurationMs: 0,
+      byName: {},
+      byStatus: {},
+    },
+    approvals: {
+      pending: 0,
+      total: 0,
+      approved: 0,
+      denied: 0,
+      recoverablePending: 0,
+      pendingWaitMs: { average: 0, max: 0 },
+      resolutionWaitMs: { average: 0, max: 0, count: 0 },
+    },
+    usage: {
+      samples: 0,
+      tokensInTotal: null,
+      tokensOutTotal: null,
+      tokensInAverage: null,
+      tokensOutAverage: null,
+    },
+  };
 }

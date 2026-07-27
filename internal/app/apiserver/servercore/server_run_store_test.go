@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jftrade/jftrade-main/pkg/backtest"
+	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 )
 
 func TestNewServerReloadsPersistedBacktestRuns(t *testing.T) {
@@ -30,7 +30,7 @@ func TestNewServerReloadsPersistedBacktestRuns(t *testing.T) {
 			StartTime:    "2026-05-01T00:00:00Z",
 			EndTime:      "2026-05-02T00:00:00Z",
 		},
-		Result: &backtest.RunResult{
+		Result: &btsrv.RunResult{
 			Symbol:       "US.AAPL",
 			Interval:     "5m",
 			StartTime:    "2026-05-01T00:00:00Z",
@@ -53,10 +53,10 @@ func TestNewServerReloadsPersistedBacktestRuns(t *testing.T) {
 		CreatedAt: "2026-05-30T00:00:02Z",
 		UpdatedAt: "2026-05-30T00:00:03Z",
 	}
-	if err := server.backtestRuns.add(completedRun); err != nil {
+	if err := server.stores.BacktestRuns.Add(completedRun); err != nil {
 		t.Fatalf("persist completed run: %v", err)
 	}
-	if err := server.backtestRuns.add(runningRun); err != nil {
+	if err := server.stores.BacktestRuns.Add(runningRun); err != nil {
 		t.Fatalf("persist running run: %v", err)
 	}
 
@@ -70,7 +70,7 @@ func TestNewServerReloadsPersistedBacktestRuns(t *testing.T) {
 	}
 	reloadedServer := newTestServer(t, reloadedStore)
 
-	runs := reloadedServer.backtestRuns.list()
+	runs := reloadedServer.stores.BacktestRuns.List()
 	if len(runs) != 2 {
 		t.Fatalf("expected 2 reloaded runs, got %+v", runs)
 	}
@@ -122,10 +122,10 @@ func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
-	if err := server.backtestRuns.add(completedRun); err != nil {
+	if err := server.stores.BacktestRuns.Add(completedRun); err != nil {
 		t.Fatalf("persist completed run: %v", err)
 	}
-	if err := server.backtestRuns.add(runningRun); err != nil {
+	if err := server.stores.BacktestRuns.Add(runningRun); err != nil {
 		t.Fatalf("persist running run: %v", err)
 	}
 
@@ -158,7 +158,7 @@ func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
 	if !deleteEnvelope.Data.Deleted || deleteEnvelope.Data.ID != completedRun.ID {
 		t.Fatalf("unexpected delete backtest response: %+v", deleteEnvelope.Data)
 	}
-	if _, ok := server.backtestRuns.get(completedRun.ID); ok {
+	if _, ok := server.stores.BacktestRuns.Get(completedRun.ID); ok {
 		t.Fatal("expected completed backtest run to be removed")
 	}
 
@@ -174,7 +174,7 @@ func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
 	if blockedResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("DELETE running backtest status = %d, want %d", blockedResp.StatusCode, http.StatusBadRequest)
 	}
-	if _, ok := server.backtestRuns.get(runningRun.ID); !ok {
+	if _, ok := server.stores.BacktestRuns.Get(runningRun.ID); !ok {
 		t.Fatal("running backtest run should not be deleted")
 	}
 }
@@ -197,17 +197,17 @@ func TestBacktestListReturnsLightweightRunsAndResultReturnsDetail(t *testing.T) 
 			Interval:       "5m",
 			InitialBalance: 10000,
 		},
-		Result: &backtest.RunResult{
+		Result: &btsrv.RunResult{
 			Symbol:       "US.NVDA",
 			Interval:     "5m",
 			FinalBalance: 10001,
-			PnLCurve:     []backtest.PnLPoint{{Time: "2026-01-01T00:00:00Z", Equity: 10001}},
-			Candles:      []backtest.Candle{{Time: "2026-01-01T00:00:00Z", Open: "1", High: "2", Low: "1", Close: "2", Volume: "100"}},
+			PnLCurve:     []btsrv.PnLPoint{{Time: "2026-01-01T00:00:00Z", Equity: 10001}},
+			Candles:      []btsrv.Candle{{Time: "2026-01-01T00:00:00Z", Open: "1", High: "2", Low: "1", Close: "2", Volume: "100"}},
 		},
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
-	if err := server.backtestRuns.add(run); err != nil {
+	if err := server.stores.BacktestRuns.Add(run); err != nil {
 		t.Fatalf("persist run: %v", err)
 	}
 

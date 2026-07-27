@@ -1,7 +1,7 @@
 import type {
   StrategyVisualModelDocument,
   StrategyVisualNodeDocument,
-} from "@/contracts";
+} from "@/types";
 
 import {
   getStrategyBlockKind,

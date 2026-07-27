@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -24,7 +24,7 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	if _, err := server.adkRuntime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
+	if _, err := serverADKTestStore(t, server).SaveProvider(t.Context(), assistant.ProviderWriteRequest{
 		ID:          "provider-metrics",
 		DisplayName: "Metrics Provider",
 		BaseURL:     "https://api.openai.com/v1",
@@ -34,23 +34,23 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SaveProvider: %v", err)
 	}
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), assistant.AgentWriteRequest{
 		ID:             "metrics-agent",
 		Name:           "Metrics Agent",
 		ProviderID:     "provider-metrics",
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: assistant.PermissionModeApproval,
+		Status:         assistant.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 	now := time.Now().UTC()
 	completedAt := now.Format(time.RFC3339Nano)
-	run := jfadk.Run{
+	run := assistant.Run{
 		ID:            "run-metrics",
 		SessionID:     "session-1",
 		AgentID:       agent.ID,
-		Status:        jfadk.RunStatusFailed,
+		Status:        assistant.RunStatusFailed,
 		Message:       "failed",
 		FailureReason: "boom",
 		ErrorCode:     "MODEL_CALL_FAILED",
@@ -59,7 +59,7 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 		StartedAt:     now.Add(-2 * time.Minute).Format(time.RFC3339Nano),
 		UpdatedAt:     completedAt,
 		CompletedAt:   &completedAt,
-		ToolCalls: []jfadk.ToolCall{{
+		ToolCalls: []assistant.ToolCall{{
 			ID:         "tool-1",
 			RunID:      "run-metrics",
 			ToolName:   "strategy.save_draft",
@@ -69,27 +69,27 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 			UpdatedAt:  completedAt,
 			DurationMs: 1500,
 		}},
-		Usage: &jfadk.RunUsage{TokensIn: 120, TokensOut: 45},
+		Usage: &assistant.RunUsage{TokensIn: 120, TokensOut: 45},
 	}
-	if err := server.adkRuntime.Store().SaveRun(t.Context(), run); err != nil {
+	if err := serverADKTestStore(t, server).SaveRun(t.Context(), run); err != nil {
 		t.Fatalf("SaveRun: %v", err)
 	}
-	if err := server.adkRuntime.Store().DeleteAgent(t.Context(), agent.ID); err != nil {
+	if err := serverADKTestStore(t, server).DeleteAgent(t.Context(), agent.ID); err != nil {
 		t.Fatalf("DeleteAgent: %v", err)
 	}
-	approval := jfadk.Approval{
+	approval := assistant.Approval{
 		ID:                 "approval-metrics",
 		RunID:              run.ID,
 		AgentID:            agent.ID,
 		ToolName:           "strategy.save_draft",
-		Status:             jfadk.ApprovalStatusPending,
+		Status:             assistant.ApprovalStatusPending,
 		Reason:             "needs approval",
 		FunctionCallID:     "fn-1",
 		ConfirmationCallID: "cf-1",
 		CreatedAt:          now.Add(-30 * time.Second).Format(time.RFC3339Nano),
 		UpdatedAt:          now.Add(-30 * time.Second).Format(time.RFC3339Nano),
 	}
-	if err := server.adkRuntime.Store().SaveApproval(t.Context(), approval); err != nil {
+	if err := serverADKTestStore(t, server).SaveApproval(t.Context(), approval); err != nil {
 		t.Fatalf("SaveApproval: %v", err)
 	}
 
@@ -195,9 +195,9 @@ func TestADKOptimizationTaskCanBeQueriedAndCancelled(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	task, err := server.adkRuntime.Store().SaveOptimizationTask(t.Context(), jfadk.OptimizationTask{
+	task, err := serverADKTestStore(t, server).SaveOptimizationTask(t.Context(), assistant.OptimizationTask{
 		ID: "opt-test", Status: "queued", Objective: "return",
-		Runs: []jfadk.OptimizationRunRef{{DefinitionID: "definition-1", RunID: "missing-run"}},
+		Runs: []assistant.OptimizationRunRef{{DefinitionID: "definition-1", RunID: "missing-run"}},
 	})
 	if err != nil {
 		t.Fatalf("SaveOptimizationTask: %v", err)
@@ -219,7 +219,7 @@ func TestADKOptimizationTaskCanBeQueriedAndCancelled(t *testing.T) {
 	if cancelResp.StatusCode != http.StatusOK {
 		t.Fatalf("optimization cancel status = %d", cancelResp.StatusCode)
 	}
-	stored, ok, err := server.adkRuntime.Store().OptimizationTask(t.Context(), task.ID)
+	stored, ok, err := serverADKTestStore(t, server).OptimizationTask(t.Context(), task.ID)
 	if err != nil || !ok || stored.Status != "cancelled" {
 		t.Fatalf("cancelled task = %+v ok=%v err=%v", stored, ok, err)
 	}
@@ -234,7 +234,7 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{ID: "workflow-agent", Name: "Workflow", ProviderID: testADKProviderID, Status: jfadk.AgentStatusEnabled})
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), assistant.AgentWriteRequest{ID: "workflow-agent", Name: "Workflow", ProviderID: testADKProviderID, Status: assistant.AgentStatusEnabled})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
@@ -260,8 +260,8 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 		t.Fatalf("PUT task status = %d", patchResp.StatusCode)
 	}
 	var patchEnvelope struct {
-		OK   bool       `json:"ok"`
-		Data jfadk.Task `json:"data"`
+		OK   bool           `json:"ok"`
+		Data assistant.Task `json:"data"`
 	}
 	if err := json.NewDecoder(patchResp.Body).Decode(&patchEnvelope); err != nil {
 		t.Fatalf("decode patch task: %v", err)
@@ -305,8 +305,8 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 		t.Fatalf("POST memory status = %d", memoryResp.StatusCode)
 	}
 	var memoryEnvelope struct {
-		OK   bool              `json:"ok"`
-		Data jfadk.MemoryEntry `json:"data"`
+		OK   bool                  `json:"ok"`
+		Data assistant.MemoryEntry `json:"data"`
 	}
 	if err := json.NewDecoder(memoryResp.Body).Decode(&memoryEnvelope); err != nil {
 		t.Fatalf("decode memory: %v", err)
@@ -416,7 +416,7 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	provider, err := server.adkRuntime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
+	provider, err := serverADKTestStore(t, server).SaveProvider(t.Context(), assistant.ProviderWriteRequest{
 		ID:               "provider-snapshot",
 		DisplayName:      "Snapshot Provider",
 		BaseURL:          "https://api.openai.com/v1",
@@ -431,12 +431,12 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	if _, err := server.store.SaveADKSettings(jfsettings.ADKRuntimeSettings{RunTimeoutMs: 660_000, StreamIdleTimeoutMs: 420_000}); err != nil {
 		t.Fatalf("saveADKSettings: %v", err)
 	}
-	if _, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	if _, err := serverADKTestStore(t, server).SaveAgent(t.Context(), assistant.AgentWriteRequest{
 		ID:             "agent-snapshot",
 		Name:           "Snapshot Agent",
 		ProviderID:     provider.ID,
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: assistant.PermissionModeApproval,
+		Status:         assistant.AgentStatusEnabled,
 	}); err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
@@ -449,10 +449,10 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	var snapshotEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Providers       []jfadk.Provider              `json:"providers"`
-			Agents          []jfadk.Agent                 `json:"agents"`
-			Skills          []jfadk.Skill                 `json:"skills"`
-			Tools           []jfadk.ToolDescriptor        `json:"tools"`
+			Providers       []assistant.Provider          `json:"providers"`
+			Agents          []assistant.Agent             `json:"agents"`
+			Skills          []assistant.Skill             `json:"skills"`
+			Tools           []assistant.ToolDescriptor    `json:"tools"`
 			RuntimeSettings jfsettings.ADKRuntimeSettings `json:"runtimeSettings"`
 		} `json:"data"`
 	}
@@ -465,7 +465,7 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	if len(snapshotEnvelope.Data.Providers) == 0 || len(snapshotEnvelope.Data.Agents) == 0 || len(snapshotEnvelope.Data.Skills) == 0 || len(snapshotEnvelope.Data.Tools) == 0 {
 		t.Fatalf("snapshot data incomplete: %+v", snapshotEnvelope.Data)
 	}
-	var snapshotProvider jfadk.Provider
+	var snapshotProvider assistant.Provider
 	for _, item := range snapshotEnvelope.Data.Providers {
 		if item.ID == provider.ID {
 			snapshotProvider = item
@@ -490,7 +490,7 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	var toolsEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Tools []jfadk.ToolDescriptor `json:"tools"`
+			Tools []assistant.ToolDescriptor `json:"tools"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(toolsResp.Body).Decode(&toolsEnvelope); err != nil {

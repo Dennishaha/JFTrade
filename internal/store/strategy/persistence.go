@@ -1,0 +1,110 @@
+package strategy
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+)
+
+func DerivePath(settingsPath string) string {
+	directory := filepath.Dir(strings.TrimSpace(settingsPath))
+	if directory == "" || directory == "." {
+		return defaultStrategyDesignFilename
+	}
+	return filepath.Join(directory, defaultStrategyDesignFilename)
+}
+
+func DeriveDBPath(legacyPath string) string {
+	if envPath := strings.TrimSpace(os.Getenv("JFTRADE_STRATEGY_RUNTIME_DB")); envPath != "" {
+		return envPath
+	}
+	directory := filepath.Dir(strings.TrimSpace(legacyPath))
+	if directory == "" || directory == "." {
+		return defaultStrategyRuntimeDBFilename
+	}
+	return filepath.Join(directory, defaultStrategyRuntimeDBFilename)
+}
+
+func (s *Store) openDB() error {
+	trimmedPath := strings.TrimSpace(s.dbPath)
+	if trimmedPath == "" {
+		return fmt.Errorf("strategy design db path is required")
+	}
+	directory := filepath.Dir(trimmedPath)
+	if directory != "" && directory != "." {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			return fmt.Errorf("create strategy design db directory: %w", err)
+		}
+	}
+	db, err := sqliteconn.OpenX(trimmedPath)
+	if err != nil {
+		return fmt.Errorf("open strategy design sqlite store: %w", err)
+	}
+	s.db = db
+	if err := initializeStrategyDatabase(db, trimmedPath); err != nil {
+		_ = db.Close()
+		s.db = nil
+		return fmt.Errorf("initialize strategy design sqlite store: %w", err)
+	}
+	return nil
+}
+
+// Available reports whether the SQLite store opened successfully.
+func (s *Store) Available() bool {
+	return s != nil && s.db != nil
+}
+
+func strategyDesignDefinitionFromRow(row strategyDesignDefinitionRow) (stratsrv.Definition, error) {
+	var visualModel *stratsrv.VisualModel
+	if strings.TrimSpace(row.VisualModelJSON) != "" {
+		var parsed stratsrv.VisualModel
+		if err := json.Unmarshal([]byte(row.VisualModelJSON), &parsed); err != nil {
+			return stratsrv.Definition{}, err
+		}
+		visualModel = &parsed
+	}
+	return normalizeStrategyDesignDefinition(stratsrv.Definition{
+		ID:           row.ID,
+		Name:         row.Name,
+		Version:      row.Version,
+		Description:  row.Description,
+		Runtime:      row.Runtime,
+		SourceFormat: row.SourceFormat,
+		Symbol:       row.Symbol,
+		Interval:     row.Interval,
+		Script:       row.Script,
+		VisualModel:  visualModel,
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
+	})
+}
+
+func strategyDesignDefinitionRowFromDefinition(definition stratsrv.Definition) (strategyDesignDefinitionRow, error) {
+	visualModelJSON := ""
+	if definition.VisualModel != nil {
+		data, err := json.Marshal(definition.VisualModel)
+		if err != nil {
+			return strategyDesignDefinitionRow{}, err
+		}
+		visualModelJSON = string(data)
+	}
+	return strategyDesignDefinitionRow{
+		ID:              definition.ID,
+		Name:            definition.Name,
+		Version:         definition.Version,
+		Description:     definition.Description,
+		Runtime:         definition.Runtime,
+		SourceFormat:    definition.SourceFormat,
+		Symbol:          definition.Symbol,
+		Interval:        definition.Interval,
+		Script:          definition.Script,
+		VisualModelJSON: visualModelJSON,
+		CreatedAt:       definition.CreatedAt,
+		UpdatedAt:       definition.UpdatedAt,
+	}, nil
+}

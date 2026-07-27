@@ -75,8 +75,8 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 // @Accept json
 // @Produce json
 // @Param request body AnalyzePineRequest true "Pine 脚本"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=AnalyzePineData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-pine/analyze [post]
 func handleAnalyzePine(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -115,6 +115,8 @@ func handleAnalyzePine(svc *srv.Service) gin.HandlerFunc {
 // @Tags strategy
 // @Produce json
 // @Success 200 {object} httpserver.Envelope{data=[]srv.Definition}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-definitions [get]
 func handleListDefinitions(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -128,8 +130,9 @@ func handleListDefinitions(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Param definitionId path string true "策略定义 ID"
 // @Success 200 {object} httpserver.Envelope{data=[]StrategyDefinitionVersionSummary}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-definitions/{definitionId}/versions [get]
 func handleListDefinitionVersions(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -160,8 +163,9 @@ func handleListDefinitionVersions(svc *srv.Service) gin.HandlerFunc {
 // @Param definitionId path string true "策略定义 ID"
 // @Param version path string true "策略版本号"
 // @Success 200 {object} httpserver.Envelope{data=StrategyDefinitionVersion}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-definitions/{definitionId}/versions/{version} [get]
 func handleGetDefinitionVersion(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -195,8 +199,9 @@ func handleGetDefinitionVersion(svc *srv.Service) gin.HandlerFunc {
 // @Param symbol query string false "预览标的"
 // @Param useExtendedHours query bool false "是否包含盘前盘后"
 // @Success 200 {object} httpserver.Envelope{data=srv.DefinitionView}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-definitions/{definitionId} [get]
 func handleGetDefinition(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -286,7 +291,8 @@ func fallbackIfEmpty(value string, fallback string) string {
 // @Produce json
 // @Param request body StrategyDesignDefinition true "策略定义"
 // @Success 200 {object} httpserver.Envelope{data=srv.Definition}
-// @Failure 400 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-definitions [post]
 func handleCreateDefinition(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -314,8 +320,9 @@ func handleCreateDefinition(svc *srv.Service) gin.HandlerFunc {
 // @Param definitionId path string true "策略定义 ID"
 // @Param request body StrategyDesignDefinition true "策略定义"
 // @Success 200 {object} httpserver.Envelope{data=srv.Definition}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-definitions/{definitionId} [put]
 func handleUpdateDefinition(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -347,8 +354,9 @@ func handleUpdateDefinition(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Param definitionId path string true "策略定义 ID"
 // @Success 200 {object} httpserver.Envelope{data=srv.Definition}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-definitions/{definitionId} [delete]
 func handleDeleteDefinition(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -383,9 +391,10 @@ func handleDeleteDefinition(svc *srv.Service) gin.HandlerFunc {
 // @Tags strategy
 // @Produce json
 // @Param definitionId path string true "策略定义 ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.ApplyLinkedInstancesResult}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-definitions/{definitionId}/apply-linked-instances [post]
 func handleApplyLinked(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -421,9 +430,10 @@ func handleApplyLinked(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Param definitionId path string true "策略定义 ID"
 // @Param request body StrategyBindingRequest false "实例绑定参数"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.InstanceView}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-definitions/{definitionId}/instantiate [post]
 func handleInstantiate(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -469,7 +479,9 @@ func handleInstantiate(svc *srv.Service) gin.HandlerFunc {
 // @Summary 读取策略实例列表
 // @Tags strategy
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=[]srv.InstanceView}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategies [get]
 func handleListInstances(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -484,9 +496,10 @@ func handleListInstances(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Param instanceId path string true "策略实例 ID"
 // @Param request body StrategyBindingRequest true "实例绑定参数"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.InstanceView}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategies/{instanceId} [put]
 func handleUpdateInstance(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -518,9 +531,10 @@ func handleUpdateInstance(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Param instanceId path string true "策略实例 ID"
 // @Param request body srv.RuntimeRiskSettings true "动态风控设置"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.InstanceView}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategies/{instanceId}/runtime-risk [put]
 func handleUpdateInstanceRuntimeRisk(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -550,9 +564,10 @@ func handleUpdateInstanceRuntimeRisk(svc *srv.Service) gin.HandlerFunc {
 // @Tags strategy
 // @Produce json
 // @Param instanceId path string true "策略实例 ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.InstanceView}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategies/{instanceId} [delete]
 func handleDeleteInstance(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -581,10 +596,10 @@ func handleDeleteInstance(svc *srv.Service) gin.HandlerFunc {
 // @Tags strategy
 // @Produce json
 // @Param instanceId path string true "策略实例 ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.InstanceView}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategies/{instanceId}/start [post]
 func handleStartInstance(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -609,9 +624,10 @@ func handleStartInstance(svc *srv.Service) gin.HandlerFunc {
 // @Tags strategy
 // @Produce json
 // @Param instanceId path string true "策略实例 ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.InstanceView}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategies/{instanceId}/refresh-definition [post]
 func handleRefreshDefinition(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -636,9 +652,10 @@ func handleRefreshDefinition(svc *srv.Service) gin.HandlerFunc {
 // @Tags strategy
 // @Produce json
 // @Param instanceId path string true "策略实例 ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.InstanceView}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategies/{instanceId}/pause [post]
 func handlePauseInstance(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -664,9 +681,10 @@ func handlePauseInstance(svc *srv.Service) gin.HandlerFunc {
 // @Tags strategy
 // @Produce json
 // @Param instanceId path string true "策略实例 ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.InstanceView}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategies/{instanceId}/stop [post]
 func handleStopInstance(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -701,9 +719,9 @@ func handleStopInstance(svc *srv.Service) gin.HandlerFunc {
 // @Param level query string false "日志级别"
 // @Param fromTime query string false "起始时间"
 // @Param toTime query string false "结束时间"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.LogsResult}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategies/{instanceId}/logs [get]
 func handleGetLogs(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -745,9 +763,9 @@ func handleGetLogs(svc *srv.Service) gin.HandlerFunc {
 // @Param kind query string false "审计类型"
 // @Param fromTime query string false "起始时间"
 // @Param toTime query string false "结束时间"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.AuditResult}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategies/{instanceId}/audit [get]
 func handleGetAudit(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {

@@ -115,7 +115,7 @@ func emptyBrokerRuntimeResponse() *BrokerRuntimeResponse {
 type BrokerReadStatus struct {
 	CheckedAt    string  `json:"checkedAt" binding:"required"`
 	Connectivity string  `json:"connectivity" binding:"required"`
-	LastError    *string `json:"lastError"`
+	LastError    *string `json:"lastError" extensions:"x-nullable"`
 }
 
 func connectedReadStatus() BrokerReadStatus {
@@ -133,40 +133,40 @@ type BrokerFundsSummary struct {
 	AccountID               string   `json:"accountId" binding:"required"`
 	TradingEnvironment      string   `json:"tradingEnvironment" binding:"required"`
 	Market                  string   `json:"market" binding:"required"`
-	Currency                *string  `json:"currency"`
-	TotalAssets             *float64 `json:"totalAssets"`
-	SecuritiesAssets        *float64 `json:"securitiesAssets"`
-	FundAssets              *float64 `json:"fundAssets"`
-	BondAssets              *float64 `json:"bondAssets"`
-	Cash                    *float64 `json:"cash"`
-	MarketValue             *float64 `json:"marketValue"`
-	LongMarketValue         *float64 `json:"longMarketValue"`
-	ShortMarketValue        *float64 `json:"shortMarketValue"`
-	PurchasingPower         *float64 `json:"purchasingPower"`
-	ShortSellingPower       *float64 `json:"shortSellingPower"`
-	NetCashPower            *float64 `json:"netCashPower"`
-	AvailableWithdrawalCash *float64 `json:"availableWithdrawalCash"`
-	MaxWithdrawal           *float64 `json:"maxWithdrawal"`
-	AvailableFunds          *float64 `json:"availableFunds"`
-	FrozenCash              *float64 `json:"frozenCash"`
-	PendingAsset            *float64 `json:"pendingAsset"`
-	UnrealizedPnl           *float64 `json:"unrealizedPnl"`
-	RealizedPnl             *float64 `json:"realizedPnl"`
-	InitialMargin           *float64 `json:"initialMargin"`
-	MaintenanceMargin       *float64 `json:"maintenanceMargin"`
-	MarginCallMargin        *float64 `json:"marginCallMargin"`
-	RiskStatus              *string  `json:"riskStatus"`
-	DebtCash                *float64 `json:"debtCash"`
-	IsPDT                   *bool    `json:"isPdt"`
-	PDTSeq                  *string  `json:"pdtSeq"`
-	BeginningDTBP           *float64 `json:"beginningDTBP"`
-	RemainingDTBP           *float64 `json:"remainingDTBP"`
-	DTCallAmount            *float64 `json:"dtCallAmount"`
-	DTStatus                *string  `json:"dtStatus"`
-	ExposureLevel           *string  `json:"exposureLevel"`
-	ExposureLimit           *float64 `json:"exposureLimit"`
-	UsedLimit               *float64 `json:"usedLimit"`
-	RemainingLimit          *float64 `json:"remainingLimit"`
+	Currency                *string  `json:"currency" extensions:"x-nullable"`
+	TotalAssets             *float64 `json:"totalAssets" extensions:"x-nullable"`
+	SecuritiesAssets        *float64 `json:"securitiesAssets" extensions:"x-nullable"`
+	FundAssets              *float64 `json:"fundAssets" extensions:"x-nullable"`
+	BondAssets              *float64 `json:"bondAssets" extensions:"x-nullable"`
+	Cash                    *float64 `json:"cash" extensions:"x-nullable"`
+	MarketValue             *float64 `json:"marketValue" extensions:"x-nullable"`
+	LongMarketValue         *float64 `json:"longMarketValue" extensions:"x-nullable"`
+	ShortMarketValue        *float64 `json:"shortMarketValue" extensions:"x-nullable"`
+	PurchasingPower         *float64 `json:"purchasingPower" extensions:"x-nullable"`
+	ShortSellingPower       *float64 `json:"shortSellingPower" extensions:"x-nullable"`
+	NetCashPower            *float64 `json:"netCashPower" extensions:"x-nullable"`
+	AvailableWithdrawalCash *float64 `json:"availableWithdrawalCash" extensions:"x-nullable"`
+	MaxWithdrawal           *float64 `json:"maxWithdrawal" extensions:"x-nullable"`
+	AvailableFunds          *float64 `json:"availableFunds" extensions:"x-nullable"`
+	FrozenCash              *float64 `json:"frozenCash" extensions:"x-nullable"`
+	PendingAsset            *float64 `json:"pendingAsset" extensions:"x-nullable"`
+	UnrealizedPnl           *float64 `json:"unrealizedPnl" extensions:"x-nullable"`
+	RealizedPnl             *float64 `json:"realizedPnl" extensions:"x-nullable"`
+	InitialMargin           *float64 `json:"initialMargin" extensions:"x-nullable"`
+	MaintenanceMargin       *float64 `json:"maintenanceMargin" extensions:"x-nullable"`
+	MarginCallMargin        *float64 `json:"marginCallMargin" extensions:"x-nullable"`
+	RiskStatus              *string  `json:"riskStatus" extensions:"x-nullable"`
+	DebtCash                *float64 `json:"debtCash" extensions:"x-nullable"`
+	IsPDT                   *bool    `json:"isPdt" extensions:"x-nullable"`
+	PDTSeq                  *string  `json:"pdtSeq" extensions:"x-nullable"`
+	BeginningDTBP           *float64 `json:"beginningDTBP" extensions:"x-nullable"`
+	RemainingDTBP           *float64 `json:"remainingDTBP" extensions:"x-nullable"`
+	DTCallAmount            *float64 `json:"dtCallAmount" extensions:"x-nullable"`
+	DTStatus                *string  `json:"dtStatus" extensions:"x-nullable"`
+	ExposureLevel           *string  `json:"exposureLevel" extensions:"x-nullable"`
+	ExposureLimit           *float64 `json:"exposureLimit" extensions:"x-nullable"`
+	UsedLimit               *float64 `json:"usedLimit" extensions:"x-nullable"`
+	RemainingLimit          *float64 `json:"remainingLimit" extensions:"x-nullable"`
 }
 
 // BrokerCurrencyBalance 单币种资金余额。
@@ -174,9 +174,9 @@ type BrokerCurrencyBalance struct {
 	AccountID               string   `json:"accountId" binding:"required"`
 	TradingEnvironment      string   `json:"tradingEnvironment" binding:"required"`
 	Currency                string   `json:"currency" binding:"required"`
-	Cash                    *float64 `json:"cash"`
-	AvailableWithdrawalCash *float64 `json:"availableWithdrawalCash"`
-	NetCashPower            *float64 `json:"netCashPower"`
+	Cash                    *float64 `json:"cash" extensions:"x-nullable"`
+	AvailableWithdrawalCash *float64 `json:"availableWithdrawalCash" extensions:"x-nullable"`
+	NetCashPower            *float64 `json:"netCashPower" extensions:"x-nullable"`
 }
 
 // BrokerMarketAsset 单市场资产。
@@ -184,13 +184,13 @@ type BrokerMarketAsset struct {
 	AccountID          string   `json:"accountId" binding:"required"`
 	TradingEnvironment string   `json:"tradingEnvironment" binding:"required"`
 	Market             string   `json:"market" binding:"required"`
-	Assets             *float64 `json:"assets"`
+	Assets             *float64 `json:"assets" extensions:"x-nullable"`
 }
 
 // BrokerFundsResponse GET /brokers/{id}/funds 响应。
 type BrokerFundsResponse struct {
 	BrokerReadStatus
-	Summary          *BrokerFundsSummary     `json:"summary"`
+	Summary          *BrokerFundsSummary     `json:"summary" extensions:"x-nullable"`
 	CurrencyBalances []BrokerCurrencyBalance `json:"currencyBalances" binding:"required"`
 	MarketAssets     []BrokerMarketAsset     `json:"marketAssets" binding:"required"`
 }
@@ -209,17 +209,17 @@ type BrokerPosition struct {
 	TradingEnvironment string   `json:"tradingEnvironment" binding:"required"`
 	Market             string   `json:"market" binding:"required"`
 	Symbol             string   `json:"symbol" binding:"required"`
-	SymbolName         *string  `json:"symbolName"`
+	SymbolName         *string  `json:"symbolName" extensions:"x-nullable"`
 	Quantity           float64  `json:"quantity" binding:"required"`
 	SellableQuantity   float64  `json:"sellableQuantity" binding:"required"`
 	LastPrice          float64  `json:"lastPrice" binding:"required"`
-	CostPrice          *float64 `json:"costPrice"`
-	AverageCostPrice   *float64 `json:"averageCostPrice"`
+	CostPrice          *float64 `json:"costPrice" extensions:"x-nullable"`
+	AverageCostPrice   *float64 `json:"averageCostPrice" extensions:"x-nullable"`
 	MarketValue        float64  `json:"marketValue" binding:"required"`
-	UnrealizedPnl      *float64 `json:"unrealizedPnl"`
-	RealizedPnl        *float64 `json:"realizedPnl"`
-	PnlRatio           *float64 `json:"pnlRatio"`
-	Currency           *string  `json:"currency"`
+	UnrealizedPnl      *float64 `json:"unrealizedPnl" extensions:"x-nullable"`
+	RealizedPnl        *float64 `json:"realizedPnl" extensions:"x-nullable"`
+	PnlRatio           *float64 `json:"pnlRatio" extensions:"x-nullable"`
+	Currency           *string  `json:"currency" extensions:"x-nullable"`
 }
 
 // BrokerPositionsResponse GET /brokers/{id}/positions 响应。
@@ -241,22 +241,22 @@ type BrokerOrder struct {
 	TradingEnvironment string   `json:"tradingEnvironment" binding:"required"`
 	Market             string   `json:"market" binding:"required"`
 	BrokerOrderID      string   `json:"brokerOrderId" binding:"required"`
-	BrokerOrderIDEx    *string  `json:"brokerOrderIdEx"`
+	BrokerOrderIDEx    *string  `json:"brokerOrderIdEx" extensions:"x-nullable"`
 	Symbol             string   `json:"symbol" binding:"required"`
-	SymbolName         *string  `json:"symbolName"`
+	SymbolName         *string  `json:"symbolName" extensions:"x-nullable"`
 	Side               string   `json:"side" binding:"required"`
 	OrderType          string   `json:"orderType" binding:"required"`
 	Status             string   `json:"status" binding:"required"`
 	Quantity           float64  `json:"quantity" binding:"required"`
-	FilledQuantity     *float64 `json:"filledQuantity"`
-	Price              *float64 `json:"price"`
-	FilledAveragePrice *float64 `json:"filledAveragePrice"`
+	FilledQuantity     *float64 `json:"filledQuantity" extensions:"x-nullable"`
+	Price              *float64 `json:"price" extensions:"x-nullable"`
+	FilledAveragePrice *float64 `json:"filledAveragePrice" extensions:"x-nullable"`
 	SubmittedAt        string   `json:"submittedAt" binding:"required"`
 	UpdatedAt          string   `json:"updatedAt" binding:"required"`
-	Remark             *string  `json:"remark"`
-	LastError          *string  `json:"lastError"`
-	TimeInForce        *string  `json:"timeInForce"`
-	Currency           *string  `json:"currency"`
+	Remark             *string  `json:"remark" extensions:"x-nullable"`
+	LastError          *string  `json:"lastError" extensions:"x-nullable"`
+	TimeInForce        *string  `json:"timeInForce" extensions:"x-nullable"`
+	Currency           *string  `json:"currency" extensions:"x-nullable"`
 }
 
 // BrokerOrdersResponse GET /brokers/{id}/orders 响应。
@@ -278,16 +278,16 @@ type BrokerFill struct {
 	TradingEnvironment string   `json:"tradingEnvironment" binding:"required"`
 	Market             string   `json:"market" binding:"required"`
 	BrokerOrderID      string   `json:"brokerOrderId" binding:"required"`
-	BrokerOrderIDEx    *string  `json:"brokerOrderIdEx"`
+	BrokerOrderIDEx    *string  `json:"brokerOrderIdEx" extensions:"x-nullable"`
 	BrokerFillID       string   `json:"brokerFillId" binding:"required"`
-	BrokerFillIDEx     *string  `json:"brokerFillIdEx"`
+	BrokerFillIDEx     *string  `json:"brokerFillIdEx" extensions:"x-nullable"`
 	Symbol             string   `json:"symbol" binding:"required"`
-	SymbolName         *string  `json:"symbolName"`
+	SymbolName         *string  `json:"symbolName" extensions:"x-nullable"`
 	Side               string   `json:"side" binding:"required"`
 	FilledQuantity     float64  `json:"filledQuantity" binding:"required"`
-	FillPrice          *float64 `json:"fillPrice"`
+	FillPrice          *float64 `json:"fillPrice" extensions:"x-nullable"`
 	FilledAt           string   `json:"filledAt" binding:"required"`
-	Status             *string  `json:"status"`
+	Status             *string  `json:"status" extensions:"x-nullable"`
 }
 
 // BrokerFillsResponse GET /brokers/{id}/fills 响应。
@@ -345,7 +345,7 @@ func marginRatiosReadError(err error) *BrokerMarginRatiosResponse {
 // BrokerMaxTradeQuantityResponse GET /brokers/{id}/max-trade-qtys 响应。
 type BrokerMaxTradeQuantityResponse struct {
 	BrokerReadStatus
-	MaxTradeQuantity *broker.MaxTradeQuantitySnapshot `json:"maxTradeQuantity"`
+	MaxTradeQuantity *broker.MaxTradeQuantitySnapshot `json:"maxTradeQuantity" extensions:"x-nullable"`
 }
 
 func maxTradeQuantityReadError(err error) *BrokerMaxTradeQuantityResponse {
@@ -398,7 +398,7 @@ func securitiesReadError(err error) *BrokerSecuritiesResponse {
 // BrokerPlaceOrderResponse POST /brokers/{id}/orders 响应。
 type BrokerPlaceOrderResponse struct {
 	PlacedAt string                   `json:"placedAt" binding:"required"`
-	Order    *broker.PlaceOrderResult `json:"order" binding:"required"`
+	Order    *broker.PlaceOrderResult `json:"order" binding:"required" extensions:"x-nullable"`
 }
 
 // BrokerCancelOrdersResponse DELETE /brokers/{id}/orders 响应。

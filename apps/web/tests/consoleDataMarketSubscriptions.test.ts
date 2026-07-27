@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
-import type { MarketDataSubscriptionsResponse } from "../src/contracts";
+import type { MarketDataSubscriptionsResponse } from "../src/types";
 import type { MarketInstrumentReference } from "../src/composables/consoleDataSystemState";
 
 const storageKey = "jftrade.market-data.consumer.market-page";

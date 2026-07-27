@@ -39,6 +39,11 @@ jobs:
       - name: Generate contracts and reference docs
         run: pnpm run generate:docs
 
+      - name: Verify OpenAPI contract quality
+        run: |
+          pnpm run check:openapi-quality
+          pnpm run check:web-contract-audit
+
       - name: Verify generated contract inputs
         shell: bash
         run: |
@@ -108,10 +113,15 @@ jobs:
           go install github.com/mgechev/revive@v1.15.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - name: Test filename policy
+      - name: Test and migration policies
         run: |
           pnpm run test:test-policy
           pnpm run check:test-names
+          pnpm run check:test-quality
+          pnpm run check:servercore-budget
+          pnpm run check:web-api-boundary
+          pnpm run check:web-contract-index
+          pnpm run check:web-contract-audit
 
       - name: Architecture dependency check
         run: bash scripts/check-arch-deps.sh

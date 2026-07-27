@@ -60,7 +60,7 @@ func TestLiveWebSocketBackendProviderAndNilBoundaries(t *testing.T) {
 	if _, err := nilBackend.Depth(t.Context(), "ibkr", "US", "AAPL", 10); err == nil {
 		t.Fatal("nil backend read broker depth")
 	}
-	if count, limit, atLimit := (*Server)(nil).liveStreamStats(); count != 0 || limit != defaultMaxWebSocketClients || atLimit {
+	if count, limit, atLimit := (*serverApplication)(nil).liveStreamStats(); count != 0 || limit != defaultMaxWebSocketClients || atLimit {
 		t.Fatalf("nil live stats = %d/%d/%v", count, limit, atLimit)
 	}
 
@@ -123,7 +123,8 @@ func TestLiveWebSocketBackendPollsExplicitBrokerSnapshots(t *testing.T) {
 	}}
 	registry := broker.NewRegistry()
 	registry.Register(liveSnapshotBroker{reader: reader})
-	server := &Server{serverRuntimes: serverRuntimes{brokers: registry}}
+	server := &Server{}
+	server.runtimes.SetBrokerRegistry(registry)
 	server.productFeaturesSvc = productsrv.NewService(registry, "ibkr", nil, nil)
 	backend := liveWebSocketBackend{server: server}
 

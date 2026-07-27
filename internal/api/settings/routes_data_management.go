@@ -10,6 +10,16 @@ import (
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 )
 
+// handleDataMigrationDatabases godoc
+// @Summary Database storage usage and cleanup opportunities
+// @Tags settings
+// @Produce json
+// @Param summaryOnly query bool false "Return only database status without SQLite storage or cleanup statistics"
+// @Param databaseId query string false "Return one database overview for incremental loading"
+// @Success 200 {object} httpserver.Envelope{data=DataManagementOverviewResponse}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/settings/data-management/databases [get]
 func handleDataMigrationDatabases(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		request := dmsrv.OverviewRequest{
@@ -29,6 +39,15 @@ func handleDataMigrationDatabases(svc *dmsrv.Service) gin.HandlerFunc {
 	}
 }
 
+// handleDataMigrationRebuild godoc
+// @Summary Schedule a database rebuild on next startup
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body datamanagement.RebuildRequest true "Database rebuild request"
+// @Success 200 {object} httpserver.Envelope{data=DatabaseRebuildResponse}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/settings/data-management/databases/rebuild [post]
 func handleDataMigrationRebuild(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input dmsrv.RebuildRequest
@@ -45,6 +64,15 @@ func handleDataMigrationRebuild(svc *dmsrv.Service) gin.HandlerFunc {
 	}
 }
 
+// handleDataCleanupPreview godoc
+// @Summary Preview an exact database cleanup candidate set
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body datamanagement.CleanupPreviewRequest true "Cleanup preview request"
+// @Success 200 {object} httpserver.Envelope{data=DataCleanupPreviewResponse}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/settings/data-management/cleanup/preview [post]
 func handleDataCleanupPreview(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input dmsrv.CleanupPreviewRequest
@@ -61,6 +89,17 @@ func handleDataCleanupPreview(svc *dmsrv.Service) gin.HandlerFunc {
 	}
 }
 
+// handleDataCleanupExecute godoc
+// @Summary Execute a previously previewed database cleanup
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body datamanagement.CleanupExecuteRequest true "Cleanup execution request"
+// @Success 200 {object} httpserver.Envelope{data=DataCleanupResult}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/settings/data-management/cleanup/execute [post]
 func handleDataCleanupExecute(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input dmsrv.CleanupExecuteRequest
@@ -77,6 +116,17 @@ func handleDataCleanupExecute(svc *dmsrv.Service) gin.HandlerFunc {
 	}
 }
 
+// handleDatabaseCompact godoc
+// @Summary Checkpoint and compact one database
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param databaseId path string true "Database ID"
+// @Param request body datamanagement.CompactRequest true "Compaction confirmation"
+// @Success 200 {object} httpserver.Envelope{data=DatabaseCompactResponse}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/settings/data-management/databases/{databaseId}/compact [post]
 func handleDatabaseCompact(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input dmsrv.CompactRequest
@@ -101,8 +151,10 @@ func handleDatabaseCompact(svc *dmsrv.Service) gin.HandlerFunc {
 // @Param databaseId path string true "数据库 ID"
 // @Param request body datamanagement.BackupRequest true "备份确认"
 // @Success 200 {object} httpserver.Envelope{data=datamanagement.BackupResult}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 507 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/data-management/databases/{databaseId}/backup [post]
 func handleDatabaseBackup(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {

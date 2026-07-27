@@ -7,7 +7,7 @@ import type {
   ADKSkill,
   ADKToolDescriptor,
   ADKWorkMode,
-} from "@/contracts";
+} from "@/types";
 
 import { deleteADKAgent, saveADKAgent } from "./adkSettingsApi";
 

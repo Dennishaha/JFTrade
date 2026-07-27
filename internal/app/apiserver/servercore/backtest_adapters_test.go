@@ -6,13 +6,13 @@ import (
 	"time"
 
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	strategystore "github.com/jftrade/jftrade-main/internal/store/strategy"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
-	"github.com/jftrade/jftrade-main/pkg/backtest"
 )
 
-func TestBacktestRunStoreAdapterRoundTripsAndDelegatesLifecycle(t *testing.T) {
+func TestBacktestRunStoreDirectlyImplementsDomainLifecycle(t *testing.T) {
 	store := newBacktestRunStore()
-	adapter := &backtestRunStoreAdapter{store: store}
+	adapter := store
 	useExtendedHours := true
 	run := &btsrv.RunState{
 		ID:     "run-1",
@@ -30,17 +30,11 @@ func TestBacktestRunStoreAdapterRoundTripsAndDelegatesLifecycle(t *testing.T) {
 			RehabType:         "forward",
 			UseExtendedHours:  &useExtendedHours,
 		},
-		Result:    &backtest.RunResult{PnL: 12, Logs: []string{"queued"}},
+		Result:    &btsrv.RunResult{PnL: 12, Logs: []string{"queued"}},
 		CreatedAt: "2025-01-01T09:30:00Z",
 		UpdatedAt: "2025-01-01T09:30:00Z",
 	}
 
-	if got := toSrvRunState(nil); got != nil {
-		t.Fatalf("toSrvRunState(nil) = %#v, want nil", got)
-	}
-	if got := toBacktestRunState(nil); got != nil {
-		t.Fatalf("toBacktestRunState(nil) = %#v, want nil", got)
-	}
 	if err := adapter.Add(run); err != nil {
 		t.Fatalf("Add: %v", err)
 	}
@@ -80,7 +74,7 @@ func TestBacktestRunStoreAdapterRoundTripsAndDelegatesLifecycle(t *testing.T) {
 
 	if updated := adapter.UpdateMemoryOnly("run-1", func(state *btsrv.RunState) {
 		state.Status = "completed"
-		state.Result = &backtest.RunResult{PnL: 25}
+		state.Result = &btsrv.RunResult{PnL: 25}
 	}); !updated {
 		t.Fatal("UpdateMemoryOnly(run-1) = false, want true")
 	}
@@ -114,9 +108,9 @@ func TestBacktestRunStoreAdapterRoundTripsAndDelegatesLifecycle(t *testing.T) {
 
 func TestBacktestSyncTaskStoreAndStrategyProviderAdapters(t *testing.T) {
 	syncStore := newBacktestSyncTaskStore()
-	syncAdapter := &backtestSyncTaskStoreAdapter{store: syncStore}
+	syncAdapter := syncStore
 	cancelled := false
-	progress := backtest.NewSyncProgress("sync-1", "US.AAPL", time.Now())
+	progress := btsrv.NewSyncProgress("sync-1", "US.AAPL", time.Now())
 	syncAdapter.Add("sync-1", progress, func() { cancelled = true })
 
 	got, ok := syncAdapter.Get("sync-1")
@@ -131,22 +125,22 @@ func TestBacktestSyncTaskStoreAndStrategyProviderAdapters(t *testing.T) {
 		t.Fatal("Cancel(missing) = true, want false")
 	}
 
-	syncAdapter.Add("sync-2", backtest.NewSyncProgress("sync-2", "US.TSLA", time.Now()), func() {})
+	syncAdapter.Add("sync-2", btsrv.NewSyncProgress("sync-2", "US.TSLA", time.Now()), func() {})
 	syncAdapter.Finish("sync-2")
 	if _, ok := syncAdapter.Cancel("sync-2", time.Now()); ok {
 		t.Fatal("Cancel(sync-2 after Finish) = true, want false")
 	}
 
-	defStore, err := NewStrategyDesignStore(filepath.Join(t.TempDir(), "strategy-definitions.json"))
+	defStore, err := strategystore.New(filepath.Join(t.TempDir(), "strategy-definitions.json"))
 	if err != nil {
-		t.Fatalf("NewStrategyDesignStore: %v", err)
+		t.Fatalf("strategystore.New: %v", err)
 	}
 	t.Cleanup(func() {
 		if closeErr := defStore.Close(); closeErr != nil {
 			t.Fatalf("defStore.Close: %v", closeErr)
 		}
 	})
-	definition, err := defStore.saveDefinition(stratsrv.Definition{
+	definition, err := defStore.SaveDefinition(stratsrv.Definition{
 		Name:         "Adapter Strategy",
 		Runtime:      strategyRuntimePinePlan,
 		SourceFormat: SourceFormatPineV6(),
@@ -167,54 +161,6 @@ log.info("ok")`,
 	if got, ok, err := provider.Definition("missing"); err != nil || ok || got != (btsrv.StrategyDef{}) {
 		t.Fatalf("Definition(missing) = %#v ok=%v err=%v, want zero,false,nil", got, ok, err)
 	}
-}
-
-func TestNewADKRuntimeCoversSuccessAndDegradedPaths(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		settingsPath := filepath.Join(t.TempDir(), "settings.json")
-		runtime := NewADKRuntime(settingsPath, RuntimeDeps{})
-		if runtime == nil || runtime.Store() == nil || runtime.Tools() == nil {
-			t.Fatalf("NewADKRuntime(success) = %#v, want initialized runtime", runtime)
-		}
-		if closeErr := runtime.Close(); closeErr != nil {
-			t.Fatalf("runtime.Close: %v", closeErr)
-		}
-	})
-
-	t.Run("store failure returns nil", func(t *testing.T) {
-		settingsPath := filepath.Join(t.TempDir(), "settings.json")
-		t.Setenv("JFTRADE_ADK_DB", t.TempDir())
-		if runtime := NewADKRuntime(settingsPath, RuntimeDeps{}); runtime != nil {
-			t.Fatalf("NewADKRuntime(store failure) = %#v, want nil", runtime)
-		}
-	})
-
-	t.Run("session failure returns nil", func(t *testing.T) {
-		settingsPath := filepath.Join(t.TempDir(), "settings.json")
-		t.Setenv("JFTRADE_ADK_DB", filepath.Join(t.TempDir(), "adk.db"))
-		t.Setenv("JFTRADE_ADK_SESSION_DB", t.TempDir())
-		if runtime := NewADKRuntime(settingsPath, RuntimeDeps{}); runtime != nil {
-			if closeErr := runtime.Close(); closeErr != nil {
-				t.Fatalf("runtime.Close after unexpected success: %v", closeErr)
-			}
-			t.Fatalf("NewADKRuntime(session failure) = %#v, want nil", runtime)
-		}
-	})
-
-	t.Run("server wrapper", func(t *testing.T) {
-		store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
-		if err != nil {
-			t.Fatalf("NewSettingsStore: %v", err)
-		}
-		server := newTestServer(t, store)
-		runtime := newADKRuntime(server, filepath.Join(t.TempDir(), "settings.json"))
-		if runtime == nil || runtime.Tools() == nil {
-			t.Fatalf("newADKRuntime(server) = %#v, want initialized runtime", runtime)
-		}
-		if closeErr := runtime.Close(); closeErr != nil {
-			t.Fatalf("wrapped runtime.Close: %v", closeErr)
-		}
-	})
 }
 
 func TestADKAdapterSaveHelpersAndVisualModelValidation(t *testing.T) {

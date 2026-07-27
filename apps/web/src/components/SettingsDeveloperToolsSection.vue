@@ -2,7 +2,7 @@
 import type {
   ObservabilityEvent,
   RequestObservabilitySummary,
-} from "../contracts";
+} from "../types";
 import { formatDateTime } from "../composables/consoleDataFormatting";
 
 defineProps<{

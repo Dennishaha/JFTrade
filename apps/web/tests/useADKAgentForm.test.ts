@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
-import type { ADKAgent, ADKSkill, ADKToolDescriptor } from "../src/contracts";
+import type { ADKAgent, ADKSkill, ADKToolDescriptor } from "../src/types";
 import { deleteADKAgent, saveADKAgent } from "../src/composables/adkSettingsApi";
 import { useADKAgentForm } from "../src/composables/useADKAgentForm";
 

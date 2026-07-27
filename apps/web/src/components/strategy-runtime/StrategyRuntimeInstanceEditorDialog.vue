@@ -6,7 +6,7 @@ import type {
     StrategyExecutionMode,
     StrategyInstanceItem,
     StrategyRuntimeRiskSettings,
-} from "@/contracts";
+} from "@/types";
 
 import { KLINE_CHART_TYPES, type ChartType } from "../../charting/kline";
 import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";

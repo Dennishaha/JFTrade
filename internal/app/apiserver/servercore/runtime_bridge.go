@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	"github.com/jftrade/jftrade-main/pkg/futu"
 )
 
-// strategyRuntimeBrokerBridge adapts a futu.Exchange with the broker.Broker abstraction.
+// strategyRuntimeBrokerBridge adapts the runtime exchange with broker reads.
 type strategyRuntimeBrokerBridge struct {
-	*futu.Exchange
+	futuintegration.RuntimeExchange
 	broker broker.Broker
 }
 

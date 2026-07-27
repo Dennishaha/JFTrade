@@ -11,7 +11,7 @@ import type {
   PortfolioCashBalancesResponse,
   PortfolioPositionsResponse,
   SystemStatusResponse,
-} from "@/contracts";
+} from "@/types";
 import {
   emptyBrokerFunds,
   emptyBrokerOrders,
@@ -22,7 +22,7 @@ import {
   emptyPortfolioPositions,
   emptyRealTradeApprovals,
   emptySystemStatus,
-} from "@/contracts";
+} from "@/types";
 import { formatLocalDateTime } from "@/utils/dateTime";
 
 import {

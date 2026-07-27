@@ -26,15 +26,18 @@ flowchart LR
     Web -->|SSE /api/v1/stream/live| LiveAPI[internal/api/live]
     API --> Services[internal business services]
     LiveAPI --> MarketData[internal/marketdata\ncollector + cache]
-    Services --> ServerCore[internal/app/apiserver/servercore\nassembly + strategy runtime state]
-    ServerCore --> FutuIntegration[internal/integration/futu\nmarketdata runtime]
+    App --> Services
+    App --> Stores[internal/store/*\ndomain persistence]
+    App --> AssistantAssembly[internal/assistant/assembly\nADK + MCP lifecycle]
+    App --> PineRuntime[internal/strategy/pineruntime\nworker lifecycle]
+    Services --> FutuIntegration[internal/integration/futu\nOpenD adapters]
     FutuIntegration --> Futu[pkg/futu\nFutu Exchange]
     Futu --> OpenD[Futu OpenD\nAPI TCP 11110]
 
     CLI[cmd/jftrade-api] --> App[internal/app/apiserver]
     Desktop[cmd/jftrade-desktop\nWails v3] --> App
     Desktop --> Web
-    ServerCore -->|bbgo types / sessions / notify| BBGOPrimitives[bbgo public packages]
+    Services -->|bbgo types / sessions / notify| BBGOPrimitives[bbgo public packages]
 ```
 
 ## 运行模式
@@ -72,7 +75,21 @@ flowchart LR
 
 - `lifecycle`：API sidecar 生命周期。
 - `runtime`：运行时路径、环境变量和 OpenD 配置注入。
-- `servercore`：当前仍承载旧 Server 聚合体、store/runtime 适配和路由装配，是后续继续收口的重点区域。
+- `application`：按成功启动顺序登记资源，启动中途失败时逆序回滚；关闭可重复、并发安全，并聚合带资源名的错误。
+- `stores`：持久化 store 的单一应用句柄；保持降级启动语义，并在句柄内部按打开顺序逆序关闭。
+- `runtimes`：应用 runtime 的单一句柄；按生命周期分组引用，线性化 Pine runner 切换，并在句柄内部按成功登记顺序逆序关闭。
+- `futuapp`：Futu broker 选择、reset 顺序和控制台投影；OpenD 协议与连接实现仍归 `internal/integration/futu`。
+- `servercore`：HTTP/security/frontend shell 与兼容入口；业务路由直接注册 `internal/api/*` handler，领域状态和生命周期由应用依赖入口持有。
+
+运行时按生命周期明确分成三类：
+
+| 类别 | 运行时 | 设置变更与关闭规则 |
+| --- | --- | --- |
+| 启动根 | 通知 publisher、broker registry、exchange calendar manager、实盘控制面 | 应用启动时建立；为后续可缺省 runtime 提供稳定依赖 |
+| 可缺省/延后装配 | Live WebSocket、策略 runtime manager、Assistant assembly | 允许降级启动或窄测试装配；存在时由 `runtimes.Handle` 统一登记和关闭 |
+| 可重置 | Futu market-data runtime/coordinator、Pine worker manager 与 runner | 只响应本领域设置；新 runner 发布后释放旧 runner，关闭后拒绝重新创建 |
+
+应用资源先停 trading updates、market-data/backtest service，再关闭 runtime handle，最后关闭 stores；runtime handle 内部继续按实际成功登记的反序关闭 Assistant、实时入口、策略 runtime、Pine/Futu 与启动根。所有关闭错误保留资源名并聚合返回。
 
 ### 3. `internal/api/*`
 
@@ -97,7 +114,9 @@ Handler 只做参数绑定、校验、调用 service、错误映射和响应转�
 
 ### 5. `internal/integration/*` 与 `pkg/*`
 
-`internal/integration/futu` 是 sidecar 内部使用的 Futu/OpenD 适配层，负责 exchange 创建、stream/query 调用和协议到业务 DTO 的转换。
+`internal/integration/futu` 是 sidecar 内部使用的 Futu/OpenD 适配层，负责 client 生命周期、exchange 创建、stream/query 调用、探测和协议到 broker-neutral DTO/事件的转换。
+
+持久化按领域位于 `internal/store/{strategy,backtest,trading,watchlist,research,...}`。数据维护只通过 `internal/datamanagement` 的 busy、purge、compact 窄端口访问这些资源，不读取 store 的锁、map 或数据库连接。
 
 `pkg/futu` 仍是 Futu exchange adapter，保留 bbgo `types.Exchange` 兼容面以服务 sidecar、回测和策略 runtime。`pkg/strategy`、`pkg/backtest`、`pkg/adk` 等仍保留稳定或迁移中的可复用能力；是否继续内移以外部复用需求为准。
 
@@ -114,7 +133,7 @@ apps/web
   -> /api/v1/settings/* 或 /api/v1/system/*
   -> internal/api/settings 或 internal/api/system
   -> internal/settings.Service 或 internal/system.Service
-  -> internal/app/apiserver/servercore 装配的 store/runtime provider
+  -> internal/app/apiserver 装配的 service ports
 ```
 
 `/api/v1/system/status` 现在同时返回基础状态和轻量观测摘要，包括 API uptime、实时连接统计、行情 collector 状态、broker descriptor 与 strategy runtime summary。
@@ -126,7 +145,8 @@ apps/web
   -> /api/v1/strategy-definitions/* 或 /api/v1/strategies/*
   -> internal/api/strategy
   -> internal/strategy.Service
-  -> servercore strategy design/catalog/runtime adapters
+  -> internal/store/strategy + strategy catalog/runtime ports
+  -> internal/strategy/pineruntime
   -> pkg/strategy Pine parser / spec / PineTS worker runtime
 ```
 
@@ -180,16 +200,18 @@ apps/web
   -> /api/v1/adk/* JSON/SSE
   -> internal/api/assistant
   -> internal/assistant.Service
-  -> pkg/adk.Runtime
+  -> internal/assistant/assembly
+  -> pkg/adk runtime（assembly 私有）
 ```
 
-HTTP transport 不依赖 Futu、protobuf 或旧 sidecar 门面。ADK runtime 装配目前仍在 `servercore`，后续可继续内移到更窄的 assembly 包。
+HTTP transport 不依赖 Futu、protobuf、ADK runtime 或旧 sidecar 门面。`internal/assistant/assembly.Handle` 负责 ADK store/session、工具装配、workflow bridge、MCP listener 和幂等关闭；`ApplicationAdapter` 从各业务 service 形成 Assistant 所需投影，且不得反向依赖 `internal/app`、具体 store 或 integration。应用层只持有 `assistant/assembly.Runtime` 接口。
 
 ### 通知链路
 
 ```text
 Futu OpenD protocol 1003 / bbgo.Notify(...)
-  -> servercore notification bridge
+  -> internal/integration/futu broker-neutral event
+  -> live/assistant business publisher
   -> internal/live ReplayPublisher
   -> /api/v1/stream/live
   -> apps/web Notification Center

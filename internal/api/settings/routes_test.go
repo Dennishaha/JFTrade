@@ -17,6 +17,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	apisettings "github.com/jftrade/jftrade-main/internal/api/settings"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
+	"github.com/jftrade/jftrade-main/internal/live"
 	srvsettings "github.com/jftrade/jftrade-main/internal/settings"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
@@ -893,5 +894,55 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 	compactRejected := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/adk/compact", `{"confirmation":"bad"}`)
 	if compactRejected.Code != http.StatusBadRequest || !strings.Contains(compactRejected.Body.String(), `DATABASE_COMPACT_FAILED`) {
 		t.Fatalf("compact rejected = %d %s", compactRejected.Code, compactRejected.Body.String())
+	}
+}
+
+func TestSystemNotificationTestRouteUsesSettingsServicePort(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	service := srvsettings.NewService(
+		&routeStore{},
+		srvsettings.WithSystemNotificationTester(func() (*live.Event, live.NotificationDelivery) {
+			return &live.Event{
+				Sequence: 3,
+				At:       "2026-07-26T12:00:00Z",
+				Level:    "warn",
+				Title:    "JFTrade 系统通知测试",
+				Message:  "系统通知通道已连接。",
+				Source:   "desktop",
+				Category: "system.notification.test",
+			}, live.NotificationDelivered("sent")
+		}),
+	)
+	router := gin.New()
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+
+	success := performSettingsRequest(
+		t,
+		router,
+		http.MethodPost,
+		"/api/v1/settings/system-notifications/test",
+		"",
+	)
+	if success.Code != http.StatusOK ||
+		!strings.Contains(success.Body.String(), `"id":"system-notification-3"`) ||
+		!strings.Contains(success.Body.String(), `"status":"delivered"`) {
+		t.Fatalf("notification test = %d %s", success.Code, success.Body.String())
+	}
+
+	unavailableRouter := gin.New()
+	apisettings.RegisterRoutes(
+		unavailableRouter.Group("/api/v1"),
+		srvsettings.NewService(&routeStore{}),
+	)
+	unavailable := performSettingsRequest(
+		t,
+		unavailableRouter,
+		http.MethodPost,
+		"/api/v1/settings/system-notifications/test",
+		"",
+	)
+	if unavailable.Code != http.StatusInternalServerError ||
+		!strings.Contains(unavailable.Body.String(), `"code":"SYSTEM_NOTIFICATION_TEST_FAILED"`) {
+		t.Fatalf("unavailable notification test = %d %s", unavailable.Code, unavailable.Body.String())
 	}
 }

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick } from "vue";
 
 import ADKAgentsPanel from "../src/components/adk-settings/ADKAgentsPanel.vue";
-import type { ADKAgent, ADKToolDescriptor } from "../src/contracts";
+import type { ADKAgent, ADKToolDescriptor } from "../src/types";
 import { dialogStub, selectStub } from "./helpers";
 
 const singleSlotStub = {

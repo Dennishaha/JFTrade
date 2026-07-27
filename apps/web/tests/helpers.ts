@@ -16,7 +16,7 @@ import {
   emptyPluginCatalog,
   emptyPortfolioCashBalances,
   emptyPortfolioPositions,
-} from "@/contracts";
+} from "@/types";
 
 import App from "../src/App.vue";
 import type { LiveEventEnvelope, LiveEventSource } from "../src/composables/liveEventBus";

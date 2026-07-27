@@ -18,7 +18,8 @@ import (
 // @Summary 读取 ADK 运行时设置
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.ADKRuntimeSettings}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/adk [get]
 func handleADKRuntimeSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -31,18 +32,19 @@ func handleADKRuntimeSettings(svc *srv.Service) gin.HandlerFunc {
 // @Tags settings
 // @Accept json
 // @Produce json
-// @Param request body jfsettings.ADKRuntimeSettings true "ADK 运行时设置"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Param request body ADKRuntimeSettingsWriteRequest true "ADK 运行时设置"
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.ADKRuntimeSettings}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/adk [put]
 func handleSaveADKRuntimeSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var input jfsettings.ADKRuntimeSettings
+		var input ADKRuntimeSettingsWriteRequest
 		if err := c.ShouldBindJSON(&input); err != nil {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid adk payload")
 			return
 		}
-		result, err := svc.SaveADKRuntimeSettings(input)
+		result, err := svc.SaveADKRuntimeSettings(input.settings())
 		if err != nil {
 			httpserver.WriteError(c, 500, "SETTINGS_SAVE_FAILED", err.Error())
 			return
@@ -57,7 +59,8 @@ func handleSaveADKRuntimeSettings(svc *srv.Service) gin.HandlerFunc {
 // @Summary 读取本机 MCP Server 设置
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.MCPServerSettingsSnapshot}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/adk/mcp [get]
 func handleMCPServerSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -71,8 +74,9 @@ func handleMCPServerSettings(svc *srv.Service) gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Param request body jfsettings.MCPServerSettingsUpdate true "本机 MCP Server 设置"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.MCPServerSettingsSnapshot}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/adk/mcp [put]
 func handleSaveMCPServerSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -105,7 +109,8 @@ func handleSaveMCPServerSettings(svc *srv.Service) gin.HandlerFunc {
 // @Summary 重置本机 MCP Server Bearer Token
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.MCPServerTokenResetResult}
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/adk/mcp/token/reset [post]
 func handleResetMCPServerToken(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {

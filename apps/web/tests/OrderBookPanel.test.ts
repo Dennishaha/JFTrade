@@ -30,6 +30,8 @@ const releaseMarketDataSubscriptionMock = vi.fn();
 vi.mock("../src/composables/apiClient", () => ({
   fetchEnvelope: (...args: unknown[]) => fetchEnvelopeMock(...args),
   fetchEnvelopeWithInit: (...args: unknown[]) => fetchEnvelopeWithInitMock(...args),
+  apiGetPath: (_template: string, path: string, init?: RequestInit) =>
+    fetchEnvelopeWithInitMock(path, init ?? {}),
 }));
 
 vi.mock("../src/composables/useConsoleData", () => ({

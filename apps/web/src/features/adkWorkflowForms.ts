@@ -4,7 +4,7 @@ import type {
   ADKWorkflowTrigger,
   ADKWorkflowTriggerType,
   ADKWorkflowTriggerWriteRequest,
-} from "@/contracts";
+} from "@/types";
 
 export type WorkflowInputType = "string" | "number" | "boolean";
 export type ScheduleFrequency = "daily" | "weekdays" | "weekly" | "custom";

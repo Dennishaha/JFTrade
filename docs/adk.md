@@ -8,7 +8,9 @@ JFTrade 的 ADK 集成在现有 sidecar 内提供 Agent 控制面，不嵌入 Go
 - `internal/api/assistant`：对外提供 `/api/v1/adk/*` 的 JSON/SSE transport。
 - `internal/assistant.Service`：封装 session、run、approval、provider、agent、
   skill、observability 与 optimization 业务门面。
-- `internal/app/apiserver/servercore/adk_runtime.go`：把 JFTrade 内部资源注册为 ADK tools，避免通过 HTTP 回环调用自身。
+- `internal/assistant/assembly`：构造并持有 ADK store/session、工具目录、workflow bridge 与本机 MCP listener；跨领域能力由应用装配以窄 callback 注入，避免通过 HTTP 回环调用自身。
+
+`assembly.Handle` 不向应用层暴露 ADK Runtime、Store、ToolRegistry 或 MCP server 实例；应用层只使用 Assistant service、状态/配置动作、broker-neutral workflow 事件、数据库维护端口和幂等 `Close`。
 
 实际执行链使用 ADK Go v2：
 

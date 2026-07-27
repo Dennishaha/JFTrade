@@ -459,10 +459,11 @@ func TestStartForRunArgsStartsAPIOnlyAndShutsDown(t *testing.T) {
 
 func TestStartForRunArgsClosesHandlerWhenDatabaseRebuildFinalizeFails(t *testing.T) {
 	wantErr := errors.New("rebuild failed")
+	closeErr := errors.New("handler rollback failed")
 	store := &lifecycleTestStore{
 		interfaceSettings: jfsettings.InterfaceSettings{APIBind: "127.0.0.1:0"},
 	}
-	handler := &lifecycleTestHandler{}
+	handler := &lifecycleTestHandler{closeErr: closeErr}
 
 	_, err := StartForRunArgs(t.Context(), []string{"api"}, Dependencies{
 		ShouldStartForArgs: func([]string) bool { return true },
@@ -478,8 +479,11 @@ func TestStartForRunArgsClosesHandlerWhenDatabaseRebuildFinalizeFails(t *testing
 		APIBaseURLForBind:       func(bind string) string { return "http://" + bind },
 		PortFromBind:            func(string, int) int { return 3000 },
 	})
-	if !errors.Is(err, wantErr) {
-		t.Fatalf("StartForRunArgs error = %v, want %v", err, wantErr)
+	if !errors.Is(err, wantErr) || !errors.Is(err, closeErr) {
+		t.Fatalf("StartForRunArgs error = %v, want startup and rollback failures", err)
+	}
+	if !strings.Contains(err.Error(), "close API handler") {
+		t.Fatalf("StartForRunArgs rollback error lacks resource name: %v", err)
 	}
 	waitForClose(t, handler, 1)
 }
@@ -498,12 +502,55 @@ func TestStartForRunArgsReportsAPIPortConflictAndClosesHandler(t *testing.T) {
 	store := &lifecycleTestStore{
 		interfaceSettings: jfsettings.InterfaceSettings{APIBind: listener.Addr().String()},
 	}
-	handler := &lifecycleTestHandler{}
+	closeErr := errors.New("handler close failed")
+	handler := &lifecycleTestHandler{closeErr: closeErr}
 	_, err = StartForRunArgs(t.Context(), []string{"api"}, lifecycleDependencies(store, handler, nil))
 	if err == nil || !strings.Contains(err.Error(), "JFTrade API port conflict") {
 		t.Fatalf("StartForRunArgs error = %v, want API port conflict", err)
 	}
+	if !errors.Is(err, closeErr) || !strings.Contains(err.Error(), "close API handler") {
+		t.Fatalf("StartForRunArgs error = %v, want named handler rollback failure", err)
+	}
 	waitForClose(t, handler, 1)
+}
+
+func TestStartForRunArgsRollsBackWebListenerBeforeHandlerOnAPIPortConflict(t *testing.T) {
+	apiListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve API port: %v", err)
+	}
+	defer func() {
+		if closeErr := apiListener.Close(); closeErr != nil {
+			t.Errorf("close reserved API listener: %v", closeErr)
+		}
+	}()
+
+	webPort := availableTCPPort(t)
+	store := &lifecycleTestStore{
+		interfaceSettings: jfsettings.InterfaceSettings{APIBind: apiListener.Addr().String()},
+		securitySettings: jfsettings.SecuritySettings{
+			WebAccessEnabled:   true,
+			PasswordConfigured: true,
+			WebPort:            webPort,
+		},
+	}
+	handler := &lifecycleTestHandler{}
+	deps := lifecycleDependencies(store, handler, nil)
+	deps.SeparateWebListener = true
+
+	_, err = StartForRunArgs(t.Context(), []string{"api"}, deps)
+	if err == nil || !strings.Contains(err.Error(), "JFTrade API port conflict") {
+		t.Fatalf("StartForRunArgs error = %v, want API port conflict", err)
+	}
+	waitForClose(t, handler, 1)
+
+	reopened, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", webPort))
+	if err != nil {
+		t.Fatalf("Web listener was not released during rollback: %v", err)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Fatalf("close reopened Web listener: %v", err)
+	}
 }
 
 func TestStartForRunArgsWithEmbeddedFrontendDoesNotBindAPIPort(t *testing.T) {

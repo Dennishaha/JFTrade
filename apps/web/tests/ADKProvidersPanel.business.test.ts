@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 
 import ADKProvidersPanel from "../src/components/adk-settings/ADKProvidersPanel.vue";
-import type { ADKProvider } from "../src/contracts";
+import type { ADKProvider } from "../src/types";
 import { dialogStub } from "./helpers";
 
 const singleSlotStub = {

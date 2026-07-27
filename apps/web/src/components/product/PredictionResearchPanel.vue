@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import type { components } from "@/generated/openapi";
+
+import {
+  apiDeletePath,
+  apiPost,
+  apiPostPath,
+  apiPostPathAction,
+} from "../../composables/apiClient";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
@@ -36,18 +43,10 @@ interface ComboPreview {
   buyingPowerImpact?: number;
   warnings?: string[];
 }
-interface ExecutionResponse {
-  accepted: boolean;
-  internalOrderId?: string;
-  brokerOrderId?: string;
-  orderStatus?: string;
-  message?: string;
-}
-interface PredictionSubscriptionLease {
-  leaseId: string;
-  instrumentId: string;
-  dataTypes: string[];
-}
+type ExecutionResponse =
+  components["schemas"]["trading.ExecutionCommandResponse"];
+type ExecutionComboRequest =
+  components["schemas"]["trading.ExecutionComboRequest"];
 
 const props = withDefaults(
   defineProps<{
@@ -375,9 +374,9 @@ function subscriptionQuery(): string {
 async function releaseContractSubscription(
   subscription: NonNullable<typeof activeSubscription.value>,
 ): Promise<void> {
-  await fetchEnvelopeWithInit(
+  await apiDeletePath(
+    "/api/v1/market-data/prediction/contracts/{code}/subscriptions/{leaseId}",
     `/api/v1/market-data/prediction/contracts/${encodeURIComponent(subscription.code)}/subscriptions/${encodeURIComponent(subscription.leaseId)}`,
-    { method: "DELETE" },
   );
 }
 
@@ -406,13 +405,10 @@ async function syncContractSubscription(): Promise<void> {
     return;
   }
   try {
-    const lease = await fetchEnvelopeWithInit<PredictionSubscriptionLease>(
+    const lease = await apiPostPath(
+      "/api/v1/market-data/prediction/contracts/{code}/subscriptions",
       `/api/v1/market-data/prediction/contracts/${encodeURIComponent(code)}/subscriptions${subscriptionQuery()}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataTypes: [dataType] }),
-      },
+      { dataTypes: [dataType] },
     );
     const acquired = { leaseId: lease.leaseId, code, dataType };
     if (generation !== subscriptionGeneration) {
@@ -554,7 +550,7 @@ async function loadEligible(): Promise<void> {
   }
 }
 
-function comboLegs() {
+function comboLegs(): ExecutionComboRequest["legs"] {
   return Object.entries(selectedLegs.value).map(([code, side]) => ({
     instrumentId: code.toUpperCase().startsWith("US.") ? code : `US.${code}`,
     productClass: "event_contract",
@@ -574,20 +570,16 @@ async function requestRFQ(): Promise<void> {
       selectedBrokerId.value ||
       selectedBrokerAccount.value?.brokerId ||
       systemStatus.value.defaultBroker;
-    quote.value = await fetchEnvelopeWithInit<ProductFeatureResult>(
+    quote.value = await apiPost(
       "/api/v1/market-data/prediction/combos/quotes",
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brokerId,
-          accountId: selectedBrokerAccount.value?.accountId ?? "",
-          tradingEnvironment:
-            selectedBrokerAccount.value?.tradingEnvironment ??
-            systemStatus.value.defaultTradingEnvironment,
-          mvc: mvc.value,
-          legs: comboLegs(),
-        }),
+        brokerId,
+        accountId: selectedBrokerAccount.value?.accountId ?? "",
+        tradingEnvironment:
+          selectedBrokerAccount.value?.tradingEnvironment ??
+          systemStatus.value.defaultTradingEnvironment,
+        mvc: mvc.value,
+        legs: comboLegs(),
       },
     );
     confirmed.value = false;
@@ -610,7 +602,7 @@ function clientOrderID(): string {
   return `jftrade-parlay-${suffix}`;
 }
 
-function parlayPayload() {
+function parlayPayload(previewId = ""): ExecutionComboRequest {
   return {
     brokerId:
       selectedBrokerAccount.value?.brokerId ??
@@ -625,8 +617,16 @@ function parlayPayload() {
     orderKind: "event_parlay",
     productClass: "event_contract",
     rfqId: quoteID.value,
+    quoteExpiresAt: quoteExpiresAt.value || null,
     mvc: mvc.value,
     amount: amount.value,
+    price: null,
+    spread: null,
+    previewId,
+    underlyingInstrumentId: "",
+    optionStrategy: "",
+    nearExpiry: "",
+    farExpiry: "",
     legs: comboLegs(),
   };
 }
@@ -645,13 +645,9 @@ async function previewParlay(): Promise<void> {
     if (!parlayClientOrderID.value) {
       parlayClientOrderID.value = clientOrderID();
     }
-    preview.value = await fetchEnvelopeWithInit<ComboPreview>(
+    preview.value = await apiPost(
       "/api/v1/execution/combos/previews",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parlayPayload()),
-      },
+      parlayPayload(),
     );
     confirmed.value = false;
   } catch (cause) {
@@ -675,16 +671,9 @@ async function placeParlay(): Promise<void> {
   submitting.value = true;
   error.value = "";
   try {
-    execution.value = await fetchEnvelopeWithInit<ExecutionResponse>(
+    execution.value = await apiPost(
       "/api/v1/execution/combos",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...parlayPayload(),
-          previewId: preview.value.previewId,
-        }),
-      },
+      parlayPayload(preview.value.previewId),
     );
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause);
@@ -704,9 +693,9 @@ async function cancelParlay(): Promise<void> {
   if (!id) return;
   submitting.value = true;
   try {
-    execution.value = await fetchEnvelopeWithInit<ExecutionResponse>(
+    execution.value = await apiPostPathAction(
+      "/api/v1/execution/combos/{internalOrderId}/cancel",
       `/api/v1/execution/combos/${encodeURIComponent(id)}/cancel`,
-      { method: "POST" },
     );
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause);

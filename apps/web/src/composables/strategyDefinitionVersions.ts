@@ -1,6 +1,6 @@
-import type { StrategyDefinitionDocument } from "@/contracts";
+import type { StrategyDefinitionDocument } from "@/types";
 
-import { fetchEnvelope } from "./apiClient";
+import { apiGetPath } from "./apiClient";
 
 /**
  * A saved, immutable snapshot of a strategy definition.  These types are
@@ -112,7 +112,8 @@ export async function fetchStrategyDefinitionVersions(
   if (normalizedDefinitionId === "") {
     return [];
   }
-  const payload = await fetchEnvelope<unknown>(
+  const payload = await apiGetPath(
+    "/api/v1/strategy-definitions/{definitionId}/versions",
     `/api/v1/strategy-definitions/${encodeURIComponent(normalizedDefinitionId)}/versions`,
   );
   return sortStrategyDefinitionVersions(
@@ -133,7 +134,8 @@ export async function fetchStrategyDefinitionVersion(
   if (normalizedDefinitionId === "" || normalizedVersion === "") {
     throw new Error("策略版本标识不能为空");
   }
-  const payload = await fetchEnvelope<unknown>(
+  const payload = await apiGetPath(
+    "/api/v1/strategy-definitions/{definitionId}/versions/{version}",
     `/api/v1/strategy-definitions/${encodeURIComponent(normalizedDefinitionId)}/versions/${encodeURIComponent(normalizedVersion)}`,
   );
   const normalized = normalizeStrategyDefinitionVersionDocument(

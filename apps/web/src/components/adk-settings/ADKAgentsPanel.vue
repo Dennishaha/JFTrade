@@ -6,7 +6,7 @@ import type {
   ADKPermissionMode,
   ADKToolDescriptor,
   ADKWorkMode,
-} from "@/contracts";
+} from "@/types";
 
 const props = defineProps<{
   agentForm: {

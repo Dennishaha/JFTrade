@@ -3,7 +3,7 @@ package broker
 import "sync"
 
 // Registry manages the set of available broker adapters.
-// It is safe for concurrent use after initial registration.
+// It is safe for concurrent use.
 type Registry struct {
 	mu      sync.RWMutex
 	brokers map[string]Broker
@@ -28,6 +28,13 @@ func (r *Registry) Register(b Broker) {
 func (r *Registry) Replace(b Broker) {
 	r.mu.Lock()
 	r.brokers[b.ID()] = b
+	r.mu.Unlock()
+}
+
+// Remove deletes the broker with the given ID.
+func (r *Registry) Remove(id string) {
+	r.mu.Lock()
+	delete(r.brokers, id)
 	r.mu.Unlock()
 }
 

@@ -18,16 +18,9 @@ func (b *serverBootstrap) loadResearchStore() *researchstore.Store {
 	return store
 }
 
-func (s *Server) initializeResearchService() {
-	if s == nil || s.researchStore == nil {
+func (s *serverApplication) initializeResearchService() {
+	if s == nil || s.stores.Research == nil {
 		return
 	}
-	s.researchSvc = research.NewService(s.researchStore)
-}
-
-func (s *Server) closeResearchStore() error {
-	if s == nil || s.researchStore == nil {
-		return nil
-	}
-	return s.researchStore.Close()
+	s.researchSvc = research.NewService(s.stores.Research)
 }

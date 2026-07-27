@@ -3,7 +3,7 @@ import type {
   PineV6WorkflowBlockKind,
   PineV6WorkflowDocument,
   PineV6WorkflowInput,
-} from "@/contracts";
+} from "@/types";
 
 import { createPineV6WorkflowBlock, createWorkflowId } from "./pineV6Workflow";
 import { SOURCE_EXTRA_ARGS_KEY, splitCallArgs, unquote } from "./pineSourceStructureText";

@@ -7,18 +7,13 @@ import (
 	"testing"
 	"time"
 
-	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
-	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
+	tradingstore "github.com/jftrade/jftrade-main/internal/store/trading"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
-	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	"github.com/jftrade/jftrade-main/pkg/futu"
-	"github.com/shopspring/decimal"
 )
 
 func TestProductLifecycleOrderUpdateSourceAggregatesBrokersAndFees(t *testing.T) {
-	server := newTradingAdapterCoverageServer(t)
+	server := newTradingCancellationTestServer(t)
 	reader := &lifecycleMarketDataReader{
 		orders: []broker.OrderSnapshot{{
 			BrokerOrderID: "order-1", AccountID: "account-1", Market: "US",
@@ -28,11 +23,11 @@ func TestProductLifecycleOrderUpdateSourceAggregatesBrokersAndFees(t *testing.T)
 		}},
 		fees: []broker.OrderFeeSnapshot{{BrokerOrderIDEx: "order-ex-1"}},
 	}
-	server.brokers.Replace(&lifecycleBroker{
+	server.runtimes.Brokers().Replace(&lifecycleBroker{
 		id: "partial", reader: reader,
 		accounts: []broker.Account{{ID: "account-1", TradingEnvironment: "SIMULATE"}},
 	})
-	server.brokers.Replace(&lifecycleBroker{id: "failed", discoverErr: errors.New("accounts failed")})
+	server.runtimes.Brokers().Replace(&lifecycleBroker{id: "failed", discoverErr: errors.New("accounts failed")})
 	source := &tradingOrderUpdateSource{server: server}
 
 	accounts, err := source.DiscoverAccounts(t.Context())
@@ -90,8 +85,8 @@ func TestProductLifecycleOrderUpdateSourceAggregatesBrokersAndFees(t *testing.T)
 		t.Fatalf("missing broker fees = %#v, %v", fees, err)
 	}
 
-	onlyFailures := newTradingAdapterCoverageServer(t)
-	onlyFailures.brokers.Replace(&lifecycleBroker{
+	onlyFailures := newTradingCancellationTestServer(t)
+	onlyFailures.runtimes.Brokers().Replace(&lifecycleBroker{
 		id: "failed", discoverErr: errors.New("only failure"),
 	})
 	if _, err := (&tradingOrderUpdateSource{server: onlyFailures}).DiscoverAccounts(
@@ -102,8 +97,8 @@ func TestProductLifecycleOrderUpdateSourceAggregatesBrokersAndFees(t *testing.T)
 }
 
 func TestProductLifecycleOrderUpdateSourceSkipsFundOnlyAccounts(t *testing.T) {
-	server := newTradingAdapterCoverageServer(t)
-	server.brokers.Replace(&lifecycleBroker{
+	server := newTradingCancellationTestServer(t)
+	server.runtimes.Brokers().Replace(&lifecycleBroker{
 		id: "futu",
 		accounts: []broker.Account{
 			{ID: "generic", MarketAuthorities: []string{"HK"}},
@@ -132,8 +127,8 @@ func TestProductLifecycleOrderUpdateSourceSkipsFundOnlyAccounts(t *testing.T) {
 		t.Fatalf("mixed account = %#v", accounts[1])
 	}
 
-	fundOnlyServer := newTradingAdapterCoverageServer(t)
-	fundOnlyServer.brokers.Replace(&lifecycleBroker{
+	fundOnlyServer := newTradingCancellationTestServer(t)
+	fundOnlyServer.runtimes.Brokers().Replace(&lifecycleBroker{
 		id: "futu",
 		accounts: []broker.Account{{
 			ID: "fund-only", MarketAuthorities: []string{"US"},
@@ -158,8 +153,8 @@ func TestProductLifecycleFeeUpdatesPersistOnlyOnLiveOrderLedger(t *testing.T) {
 		[]broker.OrderFeeSnapshot{{BrokerOrderIDEx: "order-ex-1"}},
 	)
 
-	server := newTradingAdapterCoverageServer(t)
-	order := server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	server := newTradingCancellationTestServer(t)
+	order := server.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID: "partial", BrokerOrderID: "order-1", BrokerOrderIDEx: "order-ex-1",
 		AccountID: "account-1", TradingEnvironment: "SIMULATE", Market: "US",
 		Status: "SUBMITTED", EventType: "COMMAND_PLACE_ACCEPTED",
@@ -170,19 +165,18 @@ func TestProductLifecycleFeeUpdatesPersistOnlyOnLiveOrderLedger(t *testing.T) {
 		BrokerOrderIDEx: "order-ex-1", AccountID: "account-1",
 		TradingEnvironment: "SIMULATE", Market: "US", FeeAmount: &fee,
 	}})
-	updated, ok := server.executionOrders.order(order.InternalOrderID)
+	updated, ok := server.stores.ExecutionOrders.Order(order.InternalOrderID)
 	if !ok || updated.Fees == nil || *updated.Fees != fee {
 		t.Fatalf("persisted parent fee = %#v", updated)
 	}
 }
 
 func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing.T) {
-	persistence, err := newExecutionOrderSQLiteStore(t.TempDir() + "/closure.db")
+	store, err := newExecutionOrderStoreWithDB(t.TempDir() + "/closure.db")
 	if err != nil {
-		t.Fatalf("newExecutionOrderSQLiteStore: %v", err)
+		t.Fatalf("newExecutionOrderStoreWithDB: %v", err)
 	}
-	defer func() { jftradeCheckTestError(t, persistence.Close()) }()
-	store := &serverTradingOrderStore{store: &executionOrderStore{persistence: persistence}}
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 	now := time.Now().UTC()
 
 	preview := trdsrv.ExecutionPreviewRecord{
@@ -202,10 +196,10 @@ func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing
 	); err != nil {
 		t.Fatalf("consume preview: %v", err)
 	}
-	if err := persistence.consumePreview("", "", "", "", " "); err == nil {
+	if err := store.ConsumePreview("", "", "", "", " "); err == nil {
 		t.Fatal("blank clientOrderId succeeded")
 	}
-	if err := persistence.consumePreview(
+	if err := store.ConsumePreview(
 		"missing",
 		"partial",
 		"account-1",
@@ -217,10 +211,10 @@ func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing
 
 	wrongBroker := preview
 	wrongBroker.PreviewID = "preview-wrong-broker"
-	if err := persistence.savePreview(wrongBroker); err != nil {
+	if err := store.SavePreview(wrongBroker); err != nil {
 		t.Fatal(err)
 	}
-	if err := persistence.consumePreview(
+	if err := store.ConsumePreview(
 		wrongBroker.PreviewID,
 		"other",
 		"account-1",
@@ -232,10 +226,10 @@ func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing
 	wrongVersion := preview
 	wrongVersion.PreviewID = "preview-wrong-version"
 	wrongVersion.CapabilityVersion = "old"
-	if err := persistence.savePreview(wrongVersion); err != nil {
+	if err := store.SavePreview(wrongVersion); err != nil {
 		t.Fatal(err)
 	}
-	if err := persistence.consumePreview(
+	if err := store.ConsumePreview(
 		wrongVersion.PreviewID,
 		"partial",
 		"account-1",
@@ -247,10 +241,10 @@ func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing
 	badExpiry := preview
 	badExpiry.PreviewID = "preview-bad-expiry"
 	badExpiry.ExpiresAt = "invalid"
-	if err := persistence.savePreview(badExpiry); err != nil {
+	if err := store.SavePreview(badExpiry); err != nil {
 		t.Fatal(err)
 	}
-	if err := persistence.consumePreview(
+	if err := store.ConsumePreview(
 		badExpiry.PreviewID,
 		"partial",
 		"account-1",
@@ -262,10 +256,10 @@ func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing
 	badQuoteExpiry := preview
 	badQuoteExpiry.PreviewID = "preview-bad-quote-expiry"
 	badQuoteExpiry.QuoteExpiresAt = "invalid"
-	if err := persistence.savePreview(badQuoteExpiry); err != nil {
+	if err := store.SavePreview(badQuoteExpiry); err != nil {
 		t.Fatal(err)
 	}
-	if err := persistence.consumePreview(
+	if err := store.ConsumePreview(
 		badQuoteExpiry.PreviewID,
 		"partial",
 		"account-1",
@@ -275,7 +269,7 @@ func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing
 		t.Fatalf("invalid quote expiry error = %v", err)
 	}
 
-	var nilStore *serverTradingOrderStore
+	var nilStore *tradingstore.Store
 	if err := nilStore.SavePredictionQuote(
 		t.Context(),
 		broker.PredictionQuoteRecord{},
@@ -306,7 +300,7 @@ func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing
 	); err == nil {
 		t.Fatal("nil quote persistence consume succeeded")
 	}
-	if _, err := persistence.predictionQuote(
+	if _, err := store.ValidatePredictionQuote(t.Context(),
 		"missing",
 		"partial",
 		"account-1",
@@ -322,10 +316,10 @@ func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing
 		ReceivedAt: now.Add(-time.Minute), ExpiresAt: now.Add(-time.Second),
 		ExpirySource: "jftrade_policy", Status: "active",
 	}
-	if err := persistence.savePredictionQuote(expired); err != nil {
+	if err := store.SavePredictionQuote(t.Context(), expired); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := persistence.predictionQuote(
+	if _, err := store.ValidatePredictionQuote(t.Context(),
 		"expired",
 		"partial",
 		"account-1",
@@ -338,178 +332,14 @@ func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing
 }
 
 func TestProductLifecycleSnapshotIdentityAndRuntimeHelpers(t *testing.T) {
-	summary := trdsrv.ExecutionOrder{
-		ProductClass: broker.ProductClassUnknown,
-		QuantityMode: broker.QuantityModeUnits,
-	}
-	amount := 25.0
-	price := 0.42
-	filled := 2.0
-	average := 0.4
-	if !applyBrokerOrderSnapshotIdentity(&summary, broker.OrderSnapshot{
-		OrderKind: broker.OrderKindEventParlay, ProductClass: broker.ProductClassEventContract,
-		QuantityMode: broker.QuantityModeAmount, Market: "US", AccountID: "account-1",
-		TradingEnvironment: "SIMULATE", Symbol: "US.EVENT", Side: "BUY", OrderType: "LIMIT",
-	}) {
-		t.Fatal("broker identity update was ignored")
-	}
-	if summary.OrderKind != broker.OrderKindEventParlay ||
-		summary.ProductClass != broker.ProductClassEventContract ||
-		summary.QuantityMode != broker.QuantityModeAmount {
-		t.Fatalf("normalized broker identity = %#v", summary)
-	}
-	if !applyBrokerOrderSnapshotQuantities(&summary, broker.OrderSnapshot{
-		Quantity: 2, Price: &price, Amount: &amount,
-		FilledQuantity: &filled, FilledAveragePrice: &average,
-	}) {
-		t.Fatal("broker quantity update was ignored")
-	}
-	if summary.RequestedAmount == nil || *summary.RequestedAmount != amount ||
-		summary.FilledAveragePrice == nil || *summary.FilledAveragePrice != average {
-		t.Fatalf("normalized broker quantities = %#v", summary)
-	}
-
-	if got := strategyRuntimeBrokerPlaceOrderQuery(stratsrv.InstanceBinding{}, "US.AAPL"); got.Market != "US" {
-		t.Fatalf("fallback order market = %#v", got)
-	}
-	if got := strategyRuntimeDisplayName(stratsrv.ManagedInstance{ID: "instance-only"}, nil); got != "instance-only" {
-		t.Fatalf("instance display name = %q", got)
-	}
-	trade := bbgotypes.Trade{
-		ID: 1, Side: bbgotypes.SideTypeBuy,
-		Price: fixedpoint.NewFromFloat(10), Quantity: fixedpoint.NewFromFloat(2),
-	}
-	kline := strategyRuntimeTradeKLine(
-		"test",
-		"US.AAPL",
-		bbgotypes.Interval1m,
-		trade,
-		time.Now(),
-		time.Now().Add(time.Minute),
-	)
-	if kline.QuoteVolume.Float64() != 20 || kline.LastTradeID != 1 {
-		t.Fatalf("trade kline = %#v", kline)
-	}
-	if cloneStrategyRuntimeFundsSnapshot(nil) != nil {
-		t.Fatal("nil funds clone was non-nil")
-	}
-	currency := "USD"
-	available := 100.0
-	account := buildStrategyRuntimeAccount(
-		&broker.FundsSnapshot{Currency: &currency, AvailableFunds: &available},
-		nil,
-		bbgotypes.Market{},
-		"US.AAPL",
-	)
-	if _, ok := account.Balance("USD"); !ok {
-		t.Fatalf("fallback currency balance missing: %#v", account)
-	}
-
-	value := decimal.NewFromFloat(1.2)
-	if extendedMarketQuoteSecurityMap(&futu.ExtendedMarketQuote{Price: &value})["price"] != "1.2" {
-		t.Fatal("extended market quote normalization failed")
-	}
 	boolValue := true
 	if optionalBool(&boolValue) != true || optionalBool(nil) != nil {
 		t.Fatal("optional bool normalization failed")
 	}
 }
 
-func TestProductLifecycleRuntimeRejectsBeforeAnyBrokerSubmission(t *testing.T) {
-	var kinds []string
-	manager := &strategyRuntimeManager{
-		runtimes: map[string]*managedStrategyRuntime{},
-		deps: strategyRuntimeManagerDeps{
-			appendRuntimeEvent: func(_ string, _ string, kind string, _ string) error {
-				kinds = append(kinds, kind)
-				return nil
-			},
-			upsertObservation: func(
-				context.Context,
-				runtimeactivity.ObservationSnapshot,
-			) error {
-				return errors.New("persistence degraded")
-			},
-		},
-	}
-	executor := &strategyLiveOrderExecutor{
-		manager: manager,
-		instance: stratsrv.ManagedInstance{
-			ID: "risk-instance",
-			Binding: stratsrv.InstanceBinding{RuntimeRisk: stratsrv.RuntimeRiskSettings{
-				Mode: "enforce", CloseOnly: true,
-			}},
-		},
-		runner: &strategySymbolRuntime{lastClosedPrice: 10},
-	}
-	orders, err := executor.SubmitOrders(t.Context(), bbgotypes.SubmitOrder{
-		Symbol: "US.AAPL", Side: bbgotypes.SideTypeBuy, Type: bbgotypes.OrderTypeLimit,
-		Quantity: fixedpoint.NewFromFloat(1), Price: fixedpoint.NewFromFloat(10),
-	})
-	if err == nil || !strings.Contains(err.Error(), "runtime risk rejected") || len(orders) != 0 {
-		t.Fatalf("risk-rejected submission = %#v, %v", orders, err)
-	}
-	if len(kinds) != 1 || kinds[0] != "risk_rejected" {
-		t.Fatalf("risk lifecycle events = %#v", kinds)
-	}
-	manager.persistObservationSnapshot(runtimeactivity.ObservationSnapshot{InstanceID: "risk-instance"})
-}
-
-func TestProductLifecycleRuntimePropagatesGatewayFailureAndSortsObservations(t *testing.T) {
-	gatewayErr := errors.New("gateway failed")
-	var kinds []string
-	manager := &strategyRuntimeManager{
-		runtimes: map[string]*managedStrategyRuntime{
-			"z-runtime": {
-				instanceID: "z-runtime",
-				symbols:    map[string]*strategySymbolRuntime{},
-			},
-			"a-runtime": {
-				instanceID: "a-runtime",
-				symbols:    map[string]*strategySymbolRuntime{},
-			},
-		},
-		deps: strategyRuntimeManagerDeps{
-			placeExecutionOrder: func(
-				context.Context,
-				trdsrv.ExecutionOrderCommand,
-			) (trdsrv.ExecutionOrder, error) {
-				return trdsrv.ExecutionOrder{}, gatewayErr
-			},
-			appendRuntimeEvent: func(_ string, _ string, kind string, _ string) error {
-				kinds = append(kinds, kind)
-				return nil
-			},
-		},
-	}
-	executor := &strategyLiveOrderExecutor{
-		manager: manager,
-		instance: stratsrv.ManagedInstance{
-			ID:      "gateway-instance",
-			Binding: stratsrv.InstanceBinding{RuntimeRisk: stratsrv.RuntimeRiskSettings{Mode: "off"}},
-		},
-		runner: &strategySymbolRuntime{lastClosedPrice: 10},
-	}
-	orders, err := executor.SubmitOrders(t.Context(), bbgotypes.SubmitOrder{
-		Symbol: "US.AAPL", Side: bbgotypes.SideTypeBuy, Type: bbgotypes.OrderTypeLimit,
-		Quantity: fixedpoint.NewFromFloat(1), Price: fixedpoint.NewFromFloat(10),
-	})
-	if !errors.Is(err, gatewayErr) || len(orders) != 0 {
-		t.Fatalf("gateway-failed submission = %#v, %v", orders, err)
-	}
-	if len(kinds) != 1 || kinds[0] != "order_submit_failed" {
-		t.Fatalf("gateway lifecycle events = %#v", kinds)
-	}
-	summary := manager.typedRuntimeSummary()
-	if len(summary.ActiveInstances) != 2 ||
-		summary.ActiveInstances[0].InstanceID != "a-runtime" ||
-		summary.ActiveInstances[1].InstanceID != "z-runtime" {
-		t.Fatalf("sorted runtime summary = %#v", summary)
-	}
-}
-
 func TestProductLifecycleExecutionGatewayGuardsAndSubscriptionFallback(t *testing.T) {
-	server := newTradingAdapterCoverageServer(t)
+	server := newTradingCancellationTestServer(t)
 	if _, err := server.placeExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{
 		BrokerID: "first",
 		Query: broker.PlaceOrderQuery{
@@ -538,7 +368,7 @@ func TestProductLifecycleExecutionGatewayGuardsAndSubscriptionFallback(t *testin
 	if err != nil || replayed.Status != trdsrv.OrderStatusSubmissionUnknown {
 		t.Fatalf("unknown submission replay = %#v, %v", replayed, err)
 	}
-	if missing := server.executionOrders.markSubmissionUnknown("missing-order", errors.New("late")); missing.InternalOrderID != "" {
+	if missing := server.stores.ExecutionOrders.MarkSubmissionUnknown("missing-order", errors.New("late")); missing.InternalOrderID != "" {
 		t.Fatalf("missing submission update = %#v", missing)
 	}
 
@@ -557,7 +387,7 @@ func TestProductLifecycleExecutionGatewayGuardsAndSubscriptionFallback(t *testin
 	}
 }
 
-func TestProductLifecycleStartupAndBlankBalanceBoundaries(t *testing.T) {
+func TestProductLifecycleStartupBoundaries(t *testing.T) {
 	t.Setenv("JFTRADE_API_DISABLED", "1")
 	if shouldStartForArgs([]string{"api"}) {
 		t.Fatal("disabled API startup was accepted")
@@ -565,17 +395,6 @@ func TestProductLifecycleStartupAndBlankBalanceBoundaries(t *testing.T) {
 	t.Setenv("JFTRADE_API_DISABLED", "")
 	if shouldStartForArgs([]string{"--help", "api"}) {
 		t.Fatal("help startup was accepted")
-	}
-	account := buildStrategyRuntimeAccount(
-		&broker.FundsSnapshot{CurrencyBalances: []broker.CurrencyBalanceSnapshot{
-			{Currency: " "},
-		}},
-		nil,
-		bbgotypes.Market{},
-		"US.AAPL",
-	)
-	if account == nil {
-		t.Fatal("account with blank currency was nil")
 	}
 }
 

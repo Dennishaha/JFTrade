@@ -3,7 +3,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
-import type { RequestObservabilitySummary } from "../src/contracts";
+import type { RequestObservabilitySummary } from "../src/types";
 import SettingsDeveloperToolsSection from "../src/components/SettingsDeveloperToolsSection.vue";
 
 const passthroughStub = { template: "<div><slot /></div>" };

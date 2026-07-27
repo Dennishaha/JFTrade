@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
-import type { RuntimeDependenciesResponse } from "@/contracts";
+import type { RuntimeDependenciesResponse } from "@/types";
 import RuntimeDependenciesSection from "./RuntimeDependenciesSection.vue";
 import SettingsAccountDiscoverySection from "./SettingsAccountDiscoverySection.vue";
 import SettingsManagedAccountsSection from "./SettingsManagedAccountsSection.vue";

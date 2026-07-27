@@ -96,10 +96,10 @@ func TestRecordLiveNotificationCallsSink(t *testing.T) {
 	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
 
 	var got live.Event
-	server.liveNotificationSink = func(event live.Event) live.NotificationDelivery {
+	server.runtimes.SetLiveNotificationSink(func(event live.Event) live.NotificationDelivery {
 		got = event
 		return live.NotificationDelivered("sent")
-	}
+	})
 
 	event := server.recordLiveNotification(live.Notification{Level: "warn", Title: "Risk", Message: "blocked", Category: "execution.order"})
 	if event == nil {
@@ -120,9 +120,9 @@ func TestSystemNotificationTestRouteReturnsDeliveryStatus(t *testing.T) {
 	server := NewServer(store)
 	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
 	server.auth.enabled = false
-	server.liveNotificationSink = func(live.Event) live.NotificationDelivery {
+	server.runtimes.SetLiveNotificationSink(func(live.Event) live.NotificationDelivery {
 		return live.NotificationDelivered("sent to operating system")
-	}
+	})
 
 	recorder := httptest.NewRecorder()
 	server.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/v1/settings/system-notifications/test", nil))
@@ -147,9 +147,9 @@ func TestRecordLiveNotificationSinkPanicDoesNotDropEvent(t *testing.T) {
 	server := NewServer(store)
 	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
 
-	server.liveNotificationSink = func(live.Event) live.NotificationDelivery {
+	server.runtimes.SetLiveNotificationSink(func(live.Event) live.NotificationDelivery {
 		panic("desktop notification failed")
-	}
+	})
 
 	event := server.recordLiveNotification(live.Notification{Level: "error", Title: "OpenD"})
 	if event == nil {

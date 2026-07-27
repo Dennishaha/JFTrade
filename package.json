@@ -60,6 +60,7 @@
     "test:coverage:worker": "pnpm --filter @jftrade/pineworker run test:coverage",
     "test:pineworker": "pnpm --filter @jftrade/pineworker run test",
     "typecheck:web": "pnpm --filter @jftrade/web run typecheck",
+    "typecheck:web-contracts": "pnpm --filter @jftrade/web run typecheck:contracts",
     "typecheck:pineworker": "pnpm --filter @jftrade/pineworker run typecheck",
     "generate:openapi": "go generate ./cmd/jftrade-api",
     "generate:contracts": "node scripts/generate-contracts.mjs",
@@ -80,7 +81,14 @@
     "check:desktop": "pnpm run desktop:doctor && pnpm run test:desktop",
     "check:oss-license": "node scripts/check-oss-license.mjs",
     "check:test-names": "node scripts/check-test-names.mjs",
-    "test:test-policy": "node --test scripts/check-test-names.test.mjs scripts/run-go-coverage.test.mjs",
+    "check:test-quality": "node scripts/report-go-test-quality.mjs",
+    "report:test-quality": "node scripts/report-go-test-quality.mjs",
+    "check:servercore-budget": "node scripts/check-servercore-budget.mjs",
+    "check:openapi-quality": "node scripts/check-openapi-quality.mjs",
+    "check:web-api-boundary": "node scripts/check-web-api-boundary.mjs",
+    "check:web-contract-index": "node scripts/check-web-contract-index.mjs",
+    "check:web-contract-audit": "node scripts/check-web-contract-audit.mjs",
+    "test:test-policy": "go test ./scripts/go-test-quality -count=1 && node --test scripts/check-arch-deps.test.mjs scripts/check-test-names.test.mjs scripts/report-go-test-quality.test.mjs scripts/check-servercore-budget.test.mjs scripts/check-openapi-quality.test.mjs scripts/generate-api-types.test.mjs scripts/check-web-api-boundary.test.mjs scripts/check-web-contract-index.test.mjs scripts/check-web-contract-audit.test.mjs scripts/run-go-argument-forwarding.test.mjs",
     "test:preflight": "node scripts/run-test-layer.mjs preflight",
     "test:pr": "pnpm run test:preflight",
     "test:ci-local": "node scripts/run-test-layer.mjs ci-local",
@@ -88,7 +96,7 @@
     "stage:docs": "node scripts/stage-docs.mjs",
     "check:pinets-compliance": "node scripts/check-pinets-compliance.mjs",
     "check:pinets-license": "node scripts/check-pinets-license.mjs",
-    "typecheck": "pnpm run typecheck:web && pnpm run typecheck:pineworker"
+    "typecheck": "pnpm run typecheck:web && pnpm run typecheck:web-contracts && pnpm run typecheck:pineworker"
   },
   "devDependencies": {
     "mermaid": "^11.16.0",

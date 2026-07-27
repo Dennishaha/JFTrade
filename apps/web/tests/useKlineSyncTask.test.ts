@@ -2,7 +2,10 @@ import { effectScope } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getLiveEventBus, resetLiveEventBusForTests } from "../src/composables/liveEventBus";
-import { useKlineSyncTask } from "../src/composables/useKlineSyncTask";
+import {
+  toBacktestSyncRequestWire,
+  useKlineSyncTask,
+} from "../src/composables/useKlineSyncTask";
 
 afterEach(() => {
   resetLiveEventBusForTests();
@@ -11,6 +14,44 @@ afterEach(() => {
 });
 
 describe("useKlineSyncTask", () => {
+  it("maps sparse and complete sync requests to the generated wire contract", () => {
+    expect(toBacktestSyncRequestWire({
+      intervals: ["1d"],
+      startDate: "",
+      endDate: "",
+    })).toEqual({
+      market: "",
+      code: "",
+      symbol: "",
+      intervals: ["1d"],
+      rehabType: "",
+    });
+
+    expect(toBacktestSyncRequestWire({
+      market: "US",
+      code: "AAPL",
+      symbol: "US.AAPL",
+      intervals: ["1m", "5m"],
+      startDate: "2026-01-01",
+      endDate: "2026-02-01",
+      since: "2026-01-01T00:00:00Z",
+      until: "2026-02-01T00:00:00Z",
+      rehabType: "forward",
+      sessionScope: "extended",
+    })).toEqual({
+      market: "US",
+      code: "AAPL",
+      symbol: "US.AAPL",
+      intervals: ["1m", "5m"],
+      startDate: "2026-01-01",
+      endDate: "2026-02-01",
+      since: "2026-01-01T00:00:00Z",
+      until: "2026-02-01T00:00:00Z",
+      rehabType: "forward",
+      sessionScope: "extended",
+    });
+  });
+
   it("tracks a completed sync task", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn()

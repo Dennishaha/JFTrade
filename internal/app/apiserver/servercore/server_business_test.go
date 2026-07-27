@@ -12,9 +12,10 @@ import (
 	"time"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	strategystore "github.com/jftrade/jftrade-main/internal/store/strategy"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 	"github.com/shopspring/decimal"
@@ -53,7 +54,7 @@ func TestRuntimeDefaultsAndLayoutBoundaries(t *testing.T) {
 }
 
 func TestWorkflowAndMarketRuntimeBoundaryHelpers(t *testing.T) {
-	if _, err := (*Server)(nil).workflowMarketSnapshot(context.Background(), "US.AAPL"); err == nil || !strings.Contains(err.Error(), "market data service is unavailable") {
+	if _, err := (*serverApplication)(nil).workflowMarketSnapshot(context.Background(), "US.AAPL"); err == nil || !strings.Contains(err.Error(), "market data service is unavailable") {
 		t.Fatalf("nil workflowMarketSnapshot error = %v", err)
 	}
 	if _, err := (&Server{}).workflowMarketSnapshot(context.Background(), "bad-instrument"); err == nil || !strings.Contains(err.Error(), "market data service is unavailable") {
@@ -70,24 +71,7 @@ func TestWorkflowAndMarketRuntimeBoundaryHelpers(t *testing.T) {
 		}
 	}
 
-	if got := strategyRuntimeMarketFromSymbol("hk.00700", "US"); got != "HK" {
-		t.Fatalf("strategyRuntimeMarketFromSymbol dotted = %q", got)
-	}
-	if got := strategyRuntimeMarketFromSymbol("us:aapl", "HK"); got != "US" {
-		t.Fatalf("strategyRuntimeMarketFromSymbol colon = %q", got)
-	}
-	if got := strategyRuntimeMarketFromSymbol("AAPL", " us "); got != "US" {
-		t.Fatalf("strategyRuntimeMarketFromSymbol fallback = %q", got)
-	}
-
-	if code, label := strategyRuntimeStartError(errors.New("missing provider")); code != 400 || label != "BAD_REQUEST" {
-		t.Fatalf("missing provider start error = %d/%s", code, label)
-	}
-	if code, label := strategyRuntimeStartError(errors.New("broker gateway down")); code != 502 || label != "STRATEGY_RUNTIME_START_FAILED" {
-		t.Fatalf("gateway start error = %d/%s", code, label)
-	}
-
-	(*Server)(nil).handlePushMarketdataTick(mdsrv.Tick{Kind: mdsrv.TickKindTrade})
+	(*serverApplication)(nil).handlePushMarketdataTick(mdsrv.Tick{Kind: mdsrv.TickKindTrade})
 	(&Server{}).handlePushMarketdataTick(mdsrv.Tick{Kind: "quote"})
 	(&Server{}).handlePushMarketdataTick(mdsrv.Tick{Kind: mdsrv.TickKindTrade, InstrumentID: "US.AAPL", Price: decimal.NewFromFloat(101.5), Volume: 2})
 }
@@ -208,30 +192,7 @@ func TestTimeStatusAndDefaultScriptBoundaries(t *testing.T) {
 		t.Fatalf("invalid httpTime should be zero")
 	}
 
-	cutoff := time.Date(2026, time.June, 20, 0, 0, 0, 0, time.UTC)
-	if !executionTimestampBefore("2026-06-19T23:59:59Z", cutoff) {
-		t.Fatalf("timestamp before cutoff not detected")
-	}
-	if executionTimestampBefore("", cutoff) || executionTimestampBefore("bad", cutoff) || executionTimestampBefore("2026-06-20T00:00:00Z", cutoff) {
-		t.Fatalf("executionTimestampBefore accepted empty/bad/equal timestamp")
-	}
-
-	if boolValue(nil) {
-		t.Fatalf("nil boolValue = true")
-	}
-	if value := true; !boolValue(&value) {
-		t.Fatalf("true boolValue = false")
-	}
-	if got := programStatusString(nil); got != "Unavailable" {
-		t.Fatalf("nil programStatusString = %q", got)
-	}
-	statusType := commonpb.ProgramStatusType_ProgramStatusType_NeedPhoneVerifyCode
-	status := &commonpb.ProgramStatus{Type: &statusType, StrExtDesc: new("scan QR code")}
-	if got := programStatusString(status); !strings.Contains(got, "NeedPhoneVerifyCode: scan QR code") {
-		t.Fatalf("programStatusString = %q", got)
-	}
-
-	script := defaultStrategyDesignScript(`Quote "Name"`, "pine")
+	script := strategystore.DefaultPine(`Quote "Name"`)
 	if !strings.Contains(script, `strategy("Quote \"Name\""`) || !strings.Contains(script, "ta.crossover") {
 		t.Fatalf("default strategy script = %q", script)
 	}
@@ -438,12 +399,8 @@ func TestServerCloseAggregatesPineWorkerRunnerErrorsOnce(t *testing.T) {
 	instanceErr := errors.New("instance runner transport close failed")
 	backtestRunner := &errorClosingPineWorkerRunner{err: backtestErr}
 	instanceRunner := &errorClosingPineWorkerRunner{err: instanceErr}
-	server := &Server{
-		serverRuntimes: serverRuntimes{
-			backtestPineWorkerRunner: backtestRunner,
-			instancePineWorkerRunner: instanceRunner,
-		},
-	}
+	server := &Server{}
+	server.runtimes.SetPineWorkerRunners(backtestRunner, instanceRunner)
 
 	err := server.Close()
 	if err == nil {
@@ -508,18 +465,23 @@ func TestBrokerExecutionExchangePrefersRuntimeProviderAndRespectsDisabledIntegra
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := &Server{serverStores: serverStores{store: store}}
+	server := &Server{serverApplication: serverApplication{
+		store: store,
+	}}
 	if got := server.brokerExecutionExchange(); got != nil {
 		t.Fatalf("brokerExecutionExchange disabled integration = %#v, want nil", got)
 	}
 
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager = &strategyRuntimeManager{exchangeProvider: func() strategyRuntimeExchange { return stub }}
+	runtime := liveruntime.NewManager(liveruntime.Dependencies{
+		ExchangeProvider: func() liveruntime.Exchange { return stub },
+	})
+	server.runtimes.SetStrategyRuntime(runtime, runtime)
 	if got := server.brokerExecutionExchange(); got != stub {
 		t.Fatalf("brokerExecutionExchange should prefer runtime provider, got %#v", got)
 	}
 
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return nil }
+	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return nil })
 	if got := server.brokerExecutionExchange(); got != nil {
 		t.Fatalf("brokerExecutionExchange nil provider with disabled integration = %#v, want nil", got)
 	}

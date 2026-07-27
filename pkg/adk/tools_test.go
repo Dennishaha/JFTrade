@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +18,25 @@ type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
+}
+
+func TestToolRegistrySerializesEmptyApprovalModesAsArray(t *testing.T) {
+	tool, ok := NewToolRegistry().Get("workflow.wait")
+	if !ok {
+		t.Fatal("workflow.wait not registered")
+	}
+
+	payload, err := json.Marshal(tool.Descriptor)
+	if err != nil {
+		t.Fatalf("marshal tool descriptor: %v", err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &fields); err != nil {
+		t.Fatalf("decode tool descriptor: %v", err)
+	}
+	if got := string(fields["requiresApprovalIn"]); got != "[]" {
+		t.Fatalf("requiresApprovalIn = %s, want []", got)
+	}
 }
 
 func TestDefaultTaskToolSchemaIncludesPlannerProjectionFields(t *testing.T) {

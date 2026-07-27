@@ -5,7 +5,7 @@ import type {
   ADKWorkflowDefinition,
   ADKWorkflowDefinitionWriteRequest,
   ADKWorkflowTrigger,
-} from "@/contracts";
+} from "@/types";
 
 import {
   workflowFormToPayload,

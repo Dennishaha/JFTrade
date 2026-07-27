@@ -4,7 +4,7 @@ import { computed, reactive, ref, watch } from "vue";
 
 import type { components } from "@/generated/openapi";
 
-import { fetchEnvelopeWithInit } from "../composables/apiClient";
+import { apiGet, apiPut } from "../composables/apiClient";
 import { queryClient, queryKeys } from "../composables/serverState";
 import { resolveDesktopMode } from "../runtimeConfig";
 
@@ -24,6 +24,19 @@ const defaultSettings: WebAccessSettings = {
   webPort: 6688,
   passwordConfigured: false,
 };
+
+function mapWebAccessSettings(
+  value: components["schemas"]["jftsettings.SecuritySettings"],
+): WebAccessSettings {
+  return {
+    webAccessEnabled: value.webAccessEnabled ?? defaultSettings.webAccessEnabled,
+    publicAccessEnabled:
+      value.publicAccessEnabled ?? defaultSettings.publicAccessEnabled,
+    webPort: value.webPort ?? defaultSettings.webPort,
+    passwordConfigured:
+      value.passwordConfigured ?? defaultSettings.passwordConfigured,
+  };
+}
 const form = reactive({
   webAccessEnabled: false,
   publicAccessEnabled: false,
@@ -39,18 +52,12 @@ const settingsQueryKey = queryKeys.settings("security");
 const settingsQuery = useQuery({
   queryKey: settingsQueryKey,
   retry: false,
-  queryFn: () =>
-    fetchEnvelopeWithInit<WebAccessSettings>("/api/v1/settings/security", {
-      method: "GET",
-    }),
+  queryFn: async () =>
+    mapWebAccessSettings(await apiGet("/api/v1/settings/security")),
 }, queryClient);
 const saveSettingsMutation = useMutation({
-  mutationFn: (next: WebAccessSettingsUpdate) =>
-    fetchEnvelopeWithInit<WebAccessSettings>("/api/v1/settings/security", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next),
-    }),
+  mutationFn: async (next: WebAccessSettingsUpdate) =>
+    mapWebAccessSettings(await apiPut("/api/v1/settings/security", next)),
   onSuccess: async (saved) => {
     queryClient.setQueryData(settingsQueryKey, saved);
     await queryClient.invalidateQueries({

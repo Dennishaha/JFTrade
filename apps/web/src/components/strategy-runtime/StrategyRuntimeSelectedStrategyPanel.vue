@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type {
-    StrategyAuditEntryDocument,
-    StrategyBrokerAccountBinding,
     StrategyDefinitionSyncStatus,
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
     StrategyRuntimeRiskSettings,
     StrategyRuntimeObservation,
+} from "@/types";
+import type {
+    StrategyAuditEntryDocument,
+    StrategyBrokerAccountBinding,
 } from "@/contracts";
 
 import StrategyRuntimeActivityPanel from "./StrategyRuntimeActivityPanel.vue";

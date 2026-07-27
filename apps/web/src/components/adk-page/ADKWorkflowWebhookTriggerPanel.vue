@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKWorkflowTrigger, ADKWorkflowTriggerLog } from "@/contracts";
+import type { ADKWorkflowTrigger, ADKWorkflowTriggerLog } from "@/types";
 import type { TriggerFormModel } from "@/features/adkWorkflowForms";
 import { statusLabel } from "@/features/adkWorkflowStudio";
 

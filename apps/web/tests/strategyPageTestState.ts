@@ -1,5 +1,5 @@
-import type { SystemStatusResponse } from "@/contracts"
-import { emptySystemStatus } from "@/contracts"
+import type { SystemStatusResponse } from "@/types"
+import { emptySystemStatus } from "@/types"
 
 import type { provideConsoleDataStore } from "../src/composables/useConsoleData"
 

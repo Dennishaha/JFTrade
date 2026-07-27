@@ -7,7 +7,7 @@ import type {
   BacktestStartRequestPayload,
   BacktestSyncRequestPayload,
   BacktestTradingCostsPayload,
-} from "@/contracts";
+} from "@/types";
 import type { components } from "@/generated/openapi";
 
 import {
@@ -16,11 +16,13 @@ import {
   type HeikinAshiSeed,
 } from "../charting/kline";
 import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCandle } from "../components/BacktestChart.vue";
-import { apiGet, fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { apiDeletePath, apiGet, apiGetPath, apiPost } from "./apiClient";
 import { queryClient, queryKeys } from "./serverState";
 import { useKlineSyncTask } from "./useKlineSyncTask";
 
 type BacktestDecimalTransport = string | number;
+type BacktestStartRequestWire = components["schemas"]["backtest.StartRequest"];
+type BacktestFeeScheduleWire = components["schemas"]["runmodel.FeeSchedule"];
 
 interface BacktestTradeView extends BacktestTrade {
   priceText?: string | undefined;
@@ -275,6 +277,54 @@ export function buildBacktestSyncRequestPayload(
   };
 }
 
+function mapBacktestFeeScheduleRequest(
+  value: BacktestFeeSchedulePayload | undefined,
+): BacktestFeeScheduleWire {
+  return {
+    ...(value?.mode == null ? {} : { mode: value.mode }),
+    ...(value?.presetId == null ? {} : { presetId: value.presetId }),
+    ...(value?.rules == null
+      ? {}
+      : {
+          rules: value.rules.map((rule) => ({
+            ...rule,
+            label: rule.label ?? "",
+          })),
+        }),
+  };
+}
+
+export function toBacktestStartRequestWire(
+  value: BacktestStartRequestPayload,
+): BacktestStartRequestWire {
+  return {
+    definitionId: value.definitionId,
+    market: value.market ?? "",
+    code: value.code ?? "",
+    symbol: value.symbol ?? "",
+    interval: value.interval,
+    chartType: value.chartType ?? "standard",
+    initialBalance: value.initialBalance,
+    rehabType: value.rehabType ?? "",
+    tradingCosts: {
+      brokerFees: mapBacktestFeeScheduleRequest(value.tradingCosts?.brokerFees),
+      marketFees: mapBacktestFeeScheduleRequest(value.tradingCosts?.marketFees),
+    },
+    ...(value.definitionVersion == null
+      ? {}
+      : { definitionVersion: value.definitionVersion }),
+    ...(value.instrumentType == null ? {} : { instrumentType: value.instrumentType }),
+    ...(value.startDate === "" ? {} : { startDate: value.startDate }),
+    ...(value.endDate === "" ? {} : { endDate: value.endDate }),
+    ...(value.startTime == null ? {} : { startTime: value.startTime }),
+    ...(value.endTime == null ? {} : { endTime: value.endTime }),
+    ...(value.useExtendedHours == null
+      ? {}
+      : { useExtendedHours: value.useExtendedHours }),
+    ...(value.executionModel == null ? {} : { executionModel: value.executionModel }),
+  };
+}
+
 export function useBacktestRuns(options: UseBacktestRunsOptions) {
   const running = ref(false);
   const polling = ref<ReturnType<typeof setTimeout> | null>(null);
@@ -325,7 +375,8 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     detailLoading[runId] = true;
     detailErrors[runId] = "";
     try {
-      const detail = await fetchEnvelope<BacktestRunTransport>(
+      const detail = await apiGetPath(
+        "/api/v1/backtests/{runId}",
         `/api/v1/backtests/${encodeURIComponent(runId)}`,
       );
       const normalized = normalizeRun(detail);
@@ -763,11 +814,9 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
 
     error.value = "";
     try {
-      const result = await fetchEnvelopeWithInit<{ deleted: boolean; id: string }>(
+      const result = await apiDeletePath(
+        "/api/v1/backtests/{runId}",
         `/api/v1/backtests/${encodeURIComponent(normalizedRunID)}`,
-        {
-          method: "DELETE",
-        },
       );
       if (!result.deleted) {
         throw new Error("服务端未确认删除");
@@ -831,13 +880,9 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
         return;
       }
       const payload = buildBacktestStartRequestPayload(formState, instrument);
-      const data = await fetchEnvelopeWithInit<{ id: string; status: string }>(
+      const data = await apiPost(
         "/api/v1/backtests",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
+        toBacktestStartRequestWire(payload),
       );
       startPolling(data.id);
       await queryClient.invalidateQueries({ queryKey: backtestRunsQueryKey });
@@ -862,7 +907,8 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
         return;
       }
       try {
-        const data = await fetchEnvelope<{ id: string; status: string }>(
+        const data = await apiGetPath(
+          "/api/v1/backtests/{runId}/status",
           `/api/v1/backtests/${runId}/status`,
         );
         if (disposed || generation !== pollingGeneration) {

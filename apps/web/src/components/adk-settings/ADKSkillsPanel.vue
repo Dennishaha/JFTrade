@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKSkill } from "@/contracts";
+import type { ADKSkill } from "@/types";
 
 defineProps<{
   skillUrl: string;

@@ -9,6 +9,28 @@ type AnalyzePineRequest struct {
 	IncludeAST   bool   `json:"includeAst,omitempty"`
 }
 
+// AnalyzePineData documents the stable top-level Pine analysis response. The
+// compiler-owned nested projections intentionally remain open objects.
+type AnalyzePineData struct {
+	OK                   bool           `json:"ok"`
+	SourceFormat         string         `json:"sourceFormat"`
+	Runtime              string         `json:"runtime"`
+	NormalizedScript     string         `json:"normalizedScript"`
+	Diagnostics          []any          `json:"diagnostics"`
+	Warnings             []any          `json:"warnings"`
+	ExternalEngine       map[string]any `json:"externalEngine"`
+	Metadata             map[string]any `json:"metadata"`
+	Hooks                []string       `json:"hooks"`
+	Requirements         map[string]any `json:"requirements"`
+	Features             []string       `json:"features"`
+	Visuals              []any          `json:"visuals,omitempty"`
+	Declarations         []any          `json:"declarations,omitempty"`
+	CollectionOperations []any          `json:"collectionOperations,omitempty"`
+	ObjectOperations     []any          `json:"objectOperations,omitempty"`
+	AST                  any            `json:"ast,omitempty"`
+	Semantic             any            `json:"semantic,omitempty"`
+}
+
 // StrategyDesignDefinition documents the strategy definition write contract.
 type StrategyDesignDefinition struct {
 	ID           string               `json:"id,omitempty"`

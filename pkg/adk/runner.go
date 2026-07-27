@@ -151,6 +151,24 @@ func (r *Runtime) HasDatabaseActivity(ctx context.Context) (bool, error) {
 	return r.store.HasDatabaseActivity(ctx)
 }
 
+// PurgeDeletedConfigs delegates configuration maintenance through the runtime
+// boundary so application assembly never needs the concrete Store handle.
+func (r *Runtime) PurgeDeletedConfigs(ctx context.Context, ids DeletedConfigIDs) (int, error) {
+	if r == nil || r.store == nil {
+		return 0, fmt.Errorf("adk runtime is unavailable")
+	}
+	return r.store.PurgeDeletedConfigs(ctx, ids)
+}
+
+// CompactDatabase compacts the ADK configuration database through the runtime
+// boundary so callers do not reach into Runtime.Store().
+func (r *Runtime) CompactDatabase(ctx context.Context) error {
+	if r == nil || r.store == nil {
+		return fmt.Errorf("adk runtime is unavailable")
+	}
+	return r.store.CompactDatabase(ctx)
+}
+
 func (r *Runtime) CompactSessionDatabase(ctx context.Context) error {
 	if r == nil {
 		return fmt.Errorf("adk runtime is unavailable")

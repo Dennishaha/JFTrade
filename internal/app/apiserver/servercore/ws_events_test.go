@@ -15,8 +15,6 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	livecore "github.com/jftrade/jftrade-main/internal/live"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
-	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
-	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
 
 func TestLiveWebSocketSendsHeartbeat(t *testing.T) {
@@ -50,17 +48,9 @@ func TestLiveWebSocketSendsSystemNotification(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.handleFutuSystemNotify(&notifypb.Response{
-		RetType: new(int32(0)),
-		S2C: &notifypb.S2C{
-			Type: new(int32(notifypb.NotifyType_NotifyType_ProgramStatus)),
-			ProgramStatus: &notifypb.ProgramStatus{
-				ProgramStatus: &commonpb.ProgramStatus{
-					Type:       commonpb.ProgramStatusType_ProgramStatusType_Ready.Enum(),
-					StrExtDesc: new("OpenD ready for requests"),
-				},
-			},
-		},
+	server.handleFutuSystemNotification(livecore.Notification{
+		Level: "success", Title: "OpenD 已就绪", Message: "已就绪：OpenD ready for requests",
+		At: time.Now().UTC().Format(time.RFC3339Nano), Source: "futu-opend", BrokerID: "futu", Category: "broker.program",
 	})
 
 	srv := httptest.NewServer(server)

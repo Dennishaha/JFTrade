@@ -47,7 +47,8 @@ func RegisterRoutes(api *gin.RouterGroup, svc *sys.Service) {
 // @Summary OpenD 健康检查
 // @Tags system
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=FutuOpenDHealthResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/futu-opend [get]
 func handleFutuOpenDHealth(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -59,7 +60,8 @@ func handleFutuOpenDHealth(svc *sys.Service) gin.HandlerFunc {
 // @Summary 手动重置 OpenD 运行时
 // @Tags system
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=AcceptedResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/futu-opend/manual-retry [post]
 func handleFutuOpenDManualRetry(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -72,7 +74,8 @@ func handleFutuOpenDManualRetry(svc *sys.Service) gin.HandlerFunc {
 // @Summary 读取 OpenD 安装指南
 // @Tags system
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=FutuOpenDInstallGuideResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/futu-opend/install-guide [get]
 func handleFutuOpenDInstallGuide(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -84,7 +87,8 @@ func handleFutuOpenDInstallGuide(svc *sys.Service) gin.HandlerFunc {
 // @Summary 读取运行时依赖检查结果
 // @Tags system
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=RuntimeDependenciesResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/runtime-dependencies [get]
 func handleRuntimeDependencies(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -97,7 +101,8 @@ func handleRuntimeDependencies(svc *sys.Service) gin.HandlerFunc {
 // @Description 返回 API、broker 与实时流状态摘要。
 // @Tags system
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=SystemStatusResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/status [get]
 func handleSystemStatus(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -109,7 +114,8 @@ func handleSystemStatus(svc *sys.Service) gin.HandlerFunc {
 // @Summary 读取交易日历源状态
 // @Tags system
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=ExchangeCalendarStatusResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/exchange-calendars/status [get]
 func handleExchangeCalendarStatus(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -121,7 +127,8 @@ func handleExchangeCalendarStatus(svc *sys.Service) gin.HandlerFunc {
 // @Summary 列出交易日历数据源
 // @Tags system
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=ExchangeCalendarSourcesResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/exchange-calendars/sources [get]
 func handleExchangeCalendarSources(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -133,7 +140,8 @@ func handleExchangeCalendarSources(svc *sys.Service) gin.HandlerFunc {
 // @Summary 刷新所有交易日历
 // @Tags system
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=ExchangeCalendarRefreshResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/exchange-calendars/refresh [post]
 func handleExchangeCalendarRefresh(svc *sys.Service, market string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -146,7 +154,8 @@ func handleExchangeCalendarRefresh(svc *sys.Service, market string) gin.HandlerF
 // @Tags system
 // @Produce json
 // @Param market path string true "市场代码"
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=ExchangeCalendarRefreshResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/exchange-calendars/refresh/{market} [post]
 func handleExchangeCalendarRefreshPath(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -158,7 +167,8 @@ func handleExchangeCalendarRefreshPath(svc *sys.Service) gin.HandlerFunc {
 // @Summary 探测所有交易日历源
 // @Tags system
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=ExchangeCalendarProbeResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/exchange-calendars/probe [post]
 func handleExchangeCalendarProbe(svc *sys.Service, market string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -171,7 +181,8 @@ func handleExchangeCalendarProbe(svc *sys.Service, market string) gin.HandlerFun
 // @Tags system
 // @Produce json
 // @Param market path string true "市场代码"
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=ExchangeCalendarProbeResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/exchange-calendars/probe/{market} [post]
 func handleExchangeCalendarProbePath(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -179,32 +190,63 @@ func handleExchangeCalendarProbePath(svc *sys.Service) gin.HandlerFunc {
 	}
 }
 
+// handleStorageOverview godoc
+// @Summary 读取系统存储概览
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=StorageOverviewResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/storage/overview [get]
 func handleStorageOverview(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.StorageOverview())
 	}
 }
 
+// handleRealTradeApprovals godoc
+// @Summary 读取实盘审批状态
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=sys.RealTradeApprovalsResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-approvals [get]
 func handleRealTradeApprovals(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeApprovals())
 	}
 }
 
+// handleRealTradeHardStops godoc
+// @Summary 读取实盘硬停止列表
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=sys.RealTradeHardStopsResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-hard-stops [get]
 func handleRealTradeHardStops(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeHardStops())
 	}
 }
 
+// handleActivateRealTradeHardStop godoc
+// @Summary 创建实盘硬停止
+// @Tags system
+// @Accept json
+// @Produce json
+// @Param request body RealTradeHardStopRequest true "硬停止创建请求"
+// @Success 200 {object} httpserver.Envelope{data=trading.RealTradeRiskSnapshot}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-hard-stops [post]
 func handleActivateRealTradeHardStop(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var command sys.RealTradeHardStopCommand
-		if err := c.ShouldBindJSON(&command); err != nil {
+		var request RealTradeHardStopRequest
+		if err := c.ShouldBindJSON(&request); err != nil {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid real-trade hard stop payload")
 			return
 		}
-		result, err := svc.ActivateRealTradeHardStop(c.Request.Context(), command)
+		result, err := svc.ActivateRealTradeHardStop(c.Request.Context(), request.command())
 		if err != nil {
 			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
 			return
@@ -213,6 +255,17 @@ func handleActivateRealTradeHardStop(svc *sys.Service) gin.HandlerFunc {
 	}
 }
 
+// handleReleaseRealTradeHardStop godoc
+// @Summary 解除实盘硬停止
+// @Tags system
+// @Accept json
+// @Produce json
+// @Param hardStopId path string true "硬停止 ID"
+// @Param request body RealTradeHardStopRequest false "硬停止解除请求"
+// @Success 200 {object} httpserver.Envelope{data=trading.RealTradeRiskSnapshot}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-hard-stops/{hardStopId}/release [post]
 func handleReleaseRealTradeHardStop(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		hardStopID := strings.TrimSpace(c.Param("hardStopId"))
@@ -220,11 +273,11 @@ func handleReleaseRealTradeHardStop(svc *sys.Service) gin.HandlerFunc {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "hard stop id is required")
 			return
 		}
-		var command sys.RealTradeHardStopCommand
+		var request RealTradeHardStopRequest
 		if c.Request.Body != nil {
-			_ = c.ShouldBindJSON(&command)
+			_ = c.ShouldBindJSON(&request)
 		}
-		result, err := svc.ReleaseRealTradeHardStop(c.Request.Context(), hardStopID, command)
+		result, err := svc.ReleaseRealTradeHardStop(c.Request.Context(), hardStopID, request.command())
 		if err != nil {
 			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
 			return
@@ -233,26 +286,50 @@ func handleReleaseRealTradeHardStop(svc *sys.Service) gin.HandlerFunc {
 	}
 }
 
+// handleRealTradeHardStopEvents godoc
+// @Summary 读取实盘硬停止事件
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=sys.RealTradeHardStopEventsResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-hard-stop-events [get]
 func handleRealTradeHardStopEvents(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeHardStopEvents())
 	}
 }
 
+// handleRealTradeKillSwitch godoc
+// @Summary 读取实盘熔断状态
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=sys.RealTradeKillSwitchStateResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-kill-switch [get]
 func handleRealTradeKillSwitch(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeKillSwitch())
 	}
 }
 
+// handleActivateRealTradeKillSwitch godoc
+// @Summary 激活实盘熔断
+// @Tags system
+// @Accept json
+// @Produce json
+// @Param request body RealTradeKillSwitchRequest true "熔断激活请求"
+// @Success 200 {object} httpserver.Envelope{data=trading.RealTradeRiskSnapshot}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-kill-switch/activate [post]
 func handleActivateRealTradeKillSwitch(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var command sys.RealTradeKillSwitchCommand
-		if err := c.ShouldBindJSON(&command); err != nil {
+		var request RealTradeKillSwitchRequest
+		if err := c.ShouldBindJSON(&request); err != nil {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid real-trade kill switch payload")
 			return
 		}
-		result, err := svc.ActivateRealTradeKillSwitch(c.Request.Context(), command)
+		result, err := svc.ActivateRealTradeKillSwitch(c.Request.Context(), request.command())
 		if err != nil {
 			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
 			return
@@ -261,13 +338,22 @@ func handleActivateRealTradeKillSwitch(svc *sys.Service) gin.HandlerFunc {
 	}
 }
 
+// handleReleaseRealTradeKillSwitch godoc
+// @Summary 解除实盘熔断
+// @Tags system
+// @Accept json
+// @Produce json
+// @Param request body RealTradeKillSwitchRequest false "熔断解除请求"
+// @Success 200 {object} httpserver.Envelope{data=trading.RealTradeRiskSnapshot}
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-kill-switch/release [post]
 func handleReleaseRealTradeKillSwitch(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var command sys.RealTradeKillSwitchCommand
+		var request RealTradeKillSwitchRequest
 		if c.Request.Body != nil {
-			_ = c.ShouldBindJSON(&command)
+			_ = c.ShouldBindJSON(&request)
 		}
-		result, err := svc.ReleaseRealTradeKillSwitch(c.Request.Context(), command)
+		result, err := svc.ReleaseRealTradeKillSwitch(c.Request.Context(), request.command())
 		if err != nil {
 			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
 			return
@@ -276,25 +362,50 @@ func handleReleaseRealTradeKillSwitch(svc *sys.Service) gin.HandlerFunc {
 	}
 }
 
+// handleRealTradeKillSwitchEvents godoc
+// @Summary 读取实盘熔断事件
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=sys.RealTradeKillSwitchEventsResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-kill-switch-events [get]
 func handleRealTradeKillSwitchEvents(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeKillSwitchEvents())
 	}
 }
 
+// handleRealTradeRiskLimits godoc
+// @Summary 读取实盘运行时风控限额
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=sys.RealTradeRiskLimitsResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-risk-limits [get]
 func handleRealTradeRiskLimits(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeRiskLimits())
 	}
 }
 
+// handleUpdateRealTradeRiskLimits godoc
+// @Summary 更新实盘运行时风控限额
+// @Tags system
+// @Accept json
+// @Produce json
+// @Param request body RealTradeRuntimeRiskRequest true "运行时风控配置"
+// @Success 200 {object} httpserver.Envelope{data=trading.RealTradeRiskSnapshot}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-risk-limits [put]
 func handleUpdateRealTradeRiskLimits(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var command sys.RealTradeRuntimeRiskCommand
-		if err := c.ShouldBindJSON(&command); err != nil {
+		var request RealTradeRuntimeRiskRequest
+		if err := c.ShouldBindJSON(&request); err != nil {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid real-trade runtime risk payload")
 			return
 		}
+		command := request.command()
 		if err := validateRealTradeRuntimeRiskCommand(command); err != nil {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 			return
@@ -308,13 +419,22 @@ func handleUpdateRealTradeRiskLimits(svc *sys.Service) gin.HandlerFunc {
 	}
 }
 
+// handleDisableRealTradeRiskLimits godoc
+// @Summary 禁用实盘运行时风控限额
+// @Tags system
+// @Accept json
+// @Produce json
+// @Param request body RealTradeRuntimeRiskRequest false "禁用请求"
+// @Success 200 {object} httpserver.Envelope{data=trading.RealTradeRiskSnapshot}
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-risk-limits [delete]
 func handleDisableRealTradeRiskLimits(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var command sys.RealTradeRuntimeRiskCommand
+		var request RealTradeRuntimeRiskRequest
 		if c.Request.Body != nil {
-			_ = c.ShouldBindJSON(&command)
+			_ = c.ShouldBindJSON(&request)
 		}
-		result, err := svc.DisableRealTradeRuntimeRisk(c.Request.Context(), command)
+		result, err := svc.DisableRealTradeRuntimeRisk(c.Request.Context(), request.command())
 		if err != nil {
 			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
 			return
@@ -323,6 +443,13 @@ func handleDisableRealTradeRiskLimits(svc *sys.Service) gin.HandlerFunc {
 	}
 }
 
+// handleRealTradeRiskEvents godoc
+// @Summary 读取实盘运行时风控事件
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=sys.RealTradeRiskEventsResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/real-trade-risk-events [get]
 func handleRealTradeRiskEvents(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeRiskEvents())
@@ -346,6 +473,13 @@ func validateRealTradeRuntimeRiskCommand(command sys.RealTradeRuntimeRiskCommand
 	return nil
 }
 
+// handleBrokerOrderUpdatesWorker godoc
+// @Summary 读取 broker 订单更新 Worker 状态
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=BrokerOrderUpdatesResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/system/worker/broker-order-updates [get]
 func handleBrokerOrderUpdatesWorker(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.BrokerOrderUpdatesSnapshot())

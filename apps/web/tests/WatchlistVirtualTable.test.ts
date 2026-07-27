@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 
-import type { WatchlistItem, WatchlistQuote } from "../src/contracts";
+import type { WatchlistItem, WatchlistQuote } from "../src/types";
 import WatchlistVirtualTable from "../src/components/domain/watchlist/WatchlistVirtualTable.vue";
 
 afterEach(() => {

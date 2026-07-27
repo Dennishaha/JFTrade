@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   InstrumentResolutionCandidate,
   InstrumentResolutionResponse,
-} from "../src/contracts";
+} from "../src/types";
 import {
   resolveMarketInstrumentCandidates,
   useInstrumentResolver,

@@ -1,6 +1,6 @@
 import { computed, type ComputedRef, type InjectionKey, type Ref, inject, provide, ref, watch } from "vue";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { apiGet, apiPut } from "./apiClient";
 import type { ThemeMode } from "./useTheme";
 
 export interface UIColorPreferences {
@@ -90,21 +90,15 @@ export function provideUIColorPreferencesStore(
   });
 
   async function persist(next: UIColorPreferences): Promise<void> {
-    await fetchEnvelopeWithInit("/api/v1/settings/ui", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        appearance: next,
-      }),
+    await apiPut("/api/v1/settings/ui", {
+      appearance: next,
     });
   }
 
   async function hydrate(): Promise<void> {
     try {
-      const response = await fetchEnvelope<{ appearance: UIColorPreferences }>("/api/v1/settings/ui");
-      const serverAppearance = response.appearance;
+      const response = await apiGet("/api/v1/settings/ui");
+      const serverAppearance = response.appearance ?? {};
       const next = {
         upColor: normalizeHexColor(serverAppearance.upColor, fallbackPreferences.upColor),
         downColor: normalizeHexColor(serverAppearance.downColor, fallbackPreferences.downColor),

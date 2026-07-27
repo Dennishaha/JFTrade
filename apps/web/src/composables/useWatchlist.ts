@@ -17,7 +17,7 @@ import type {
   WatchlistMembershipUpdate,
   WatchlistQuote,
   WatchlistQuoteError,
-} from "@/contracts";
+} from "@/types";
 
 import { queryClient, queryKeys } from "./serverState";
 import {

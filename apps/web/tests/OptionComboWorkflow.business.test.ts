@@ -23,6 +23,14 @@ const consoleState = {
 
 vi.mock("../src/composables/apiClient", () => ({
   fetchEnvelopeWithInit: api.fetchWithInit,
+  apiPost: (path: string, body: unknown) =>
+    api.fetchWithInit(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  apiPostPathAction: (_template: string, path: string) =>
+    api.fetchWithInit(path, { method: "POST" }),
 }));
 vi.mock("../src/composables/useConsoleData", () => ({
   useConsoleData: () => consoleState,
@@ -396,6 +404,52 @@ describe("option combo workflow", () => {
     expect(wrapper.text()).toContain(
       "当前期权链没有足够的合约生成该策略",
     );
+  });
+
+  it("normalizes a custom combo payload and accepts execution without an order id", async () => {
+    api.fetchWithInit.mockImplementation(async (path: string) => {
+      if (path.endsWith("/previews")) {
+        return {
+          previewId: "preview-custom",
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        };
+      }
+      return {
+        accepted: true,
+        orderStatus: "SUBMITTED",
+      };
+    });
+    vi.stubGlobal("crypto", { randomUUID: () => "custom-id" });
+    const wrapper = mount(OptionComboBuilder, {
+      props: { instrumentId: "US.BABA", market: "US", contracts },
+    });
+    const state = setupState<{
+      draft: OptionComboDraftStore;
+      execution: { accepted: boolean; internalOrderId?: string } | null;
+      comboPayload: (previewId?: string) => Record<string, unknown>;
+      previewCombo: () => Promise<void>;
+      placeCombo: () => Promise<void>;
+    }>(wrapper);
+
+    expect(state.comboPayload()).toMatchObject({
+      optionStrategy: "",
+      spread: null,
+      legs: [],
+    });
+
+    state.draft.replaceLegs([
+      { ...contracts[0]!, side: "BUY", ratio: 1 },
+      { ...contracts[1]!, side: "SELL", ratio: 1 },
+    ]);
+    await nextTick();
+    await state.previewCombo();
+    await state.placeCombo();
+
+    expect(state.execution).toMatchObject({
+      accepted: true,
+      orderStatus: "SUBMITTED",
+    });
+    expect(wrapper.emitted("submitted")).toBeUndefined();
   });
 
   it("surfaces preview, place, and cancel failures without enabling duplicate submission", async () => {

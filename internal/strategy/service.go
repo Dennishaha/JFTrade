@@ -3,8 +3,8 @@ package strategy
 // Package strategy 提供策略业务逻辑门面，将策略定义、目录和运行时能力
 // 收敛为统一的 Service。
 //
-// DesignStore、CatalogStore 和 RuntimeManager 由应用装配层通过适配器实现。
-// Service 负责稳定业务入口，具体存储与运行时实现保留在 servercore。
+// DesignStore、CatalogStore 和 RuntimeManager 由应用装配层注入。
+// Service 负责稳定业务入口，策略定义持久化实现在 internal/store/strategy。
 //
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 // ──────────────────────────────────────────────────────────────────────────────
 
 // DesignStore 策略定义持久化接口。
-// 由应用装配层的策略定义存储适配器实现。
+// 由 internal/store/strategy 实现。
 type DesignStore interface {
 	// ListDefinitions 返回所有未删除的策略定义（按 updated_at 倒序）。
 	ListDefinitions() []Definition
@@ -45,7 +45,8 @@ type DesignStore interface {
 }
 
 // CatalogStore 策略目录/实例管理接口。
-// 由应用装配层的策略目录存储适配器实现。
+// 由 internal/strategy/catalog 实现；资源关闭由应用装配层持有的
+// internal/store/strategy.CatalogResource 负责。
 type CatalogStore interface {
 	// ── 实例 CRUD ──
 
@@ -116,9 +117,6 @@ type CatalogStore interface {
 
 	// UninstallPlugin 卸载插件元数据。
 	UninstallPlugin(id string) (PluginOperation, error)
-
-	// Close 关闭 catalog 存储（含 runtime store）。
-	Close() error
 }
 
 // RuntimeManager 策略运行时控制接口。
@@ -382,14 +380,6 @@ func (s *Service) InstallPlugin(id string) (PluginOperation, error) {
 // UninstallPlugin 卸载插件。
 func (s *Service) UninstallPlugin(id string) (PluginOperation, error) {
 	return s.catalog.UninstallPlugin(id)
-}
-
-// Close 关闭 catalog 存储。DesignStore 的生命周期由调用方管理。
-func (s *Service) Close() error {
-	if s.catalog != nil {
-		return s.catalog.Close()
-	}
-	return nil
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

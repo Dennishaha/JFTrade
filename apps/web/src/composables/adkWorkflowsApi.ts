@@ -6,9 +6,25 @@ import type {
   ADKWorkflowTriggerLog,
   ADKWorkflowTriggerSaveResult,
   ADKWorkflowTriggerWriteRequest,
-} from "@/contracts";
+} from "@/types";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import {
+  apiDeletePath,
+  apiGetPath,
+  apiPost,
+  apiPostPath,
+  apiPutPath,
+} from "./apiClient";
+import {
+  requireADKPage,
+  requireADKWorkflowDefinition,
+  requireADKWorkflowDefinitions,
+  requireADKWorkflowInvocation,
+  requireADKWorkflowTrigger,
+  requireADKWorkflowTriggerLogs,
+  requireADKWorkflowTriggers,
+  requireADKWorkflowTriggerSave,
+} from "./adkApiMappers";
 
 export interface PageEnvelope {
   limit: number;
@@ -21,10 +37,6 @@ export interface PageEnvelope {
 interface WorkflowsResponse {
   workflows: ADKWorkflowDefinition[];
   page?: PageEnvelope;
-}
-
-interface WorkflowTriggersResponse {
-  triggers: ADKWorkflowTrigger[];
 }
 
 interface WorkflowTriggerLogsResponse {
@@ -43,59 +55,69 @@ export async function fetchADKWorkflows(
   if (statusFilter.trim() !== "") {
     params.set("status", statusFilter.trim());
   }
-  return fetchEnvelope<WorkflowsResponse>(
+  const response = await apiGetPath(
+    "/api/v1/adk/workflows",
     `/api/v1/adk/workflows?${params.toString()}`,
   );
+  return {
+    workflows: requireADKWorkflowDefinitions(response.workflows),
+    ...(response.page === undefined
+      ? {}
+      : { page: requireADKPage(response.page) }),
+  };
 }
 
 export async function saveADKWorkflow(
   workflow: ADKWorkflowDefinitionWriteRequest,
 ): Promise<ADKWorkflowDefinition> {
   const id = workflow.id?.trim() ?? "";
-  const path =
-    id === ""
-      ? "/api/v1/adk/workflows"
-      : `/api/v1/adk/workflows/${encodeURIComponent(id)}`;
-  return fetchEnvelopeWithInit<ADKWorkflowDefinition>(path, {
-    method: id === "" ? "POST" : "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(workflow),
-  });
+  if (id === "") {
+    return requireADKWorkflowDefinition(
+      await apiPost("/api/v1/adk/workflows", workflow),
+    );
+  }
+  return requireADKWorkflowDefinition(
+    await apiPutPath(
+      "/api/v1/adk/workflows/{workflowId}",
+      `/api/v1/adk/workflows/${encodeURIComponent(id)}`,
+      workflow,
+    ),
+  );
 }
 
 export async function deleteADKWorkflow(
   workflowId: string,
 ): Promise<ADKWorkflowDefinition> {
-  const response = await fetchEnvelopeWithInit<{
-    deleted: boolean;
-    workflow: ADKWorkflowDefinition;
-  }>(`/api/v1/adk/workflows/${encodeURIComponent(workflowId)}`, {
-    method: "DELETE",
-  });
-  return response.workflow;
+  const response = await apiDeletePath(
+    "/api/v1/adk/workflows/{workflowId}",
+    `/api/v1/adk/workflows/${encodeURIComponent(workflowId)}`,
+  );
+  return requireADKWorkflowDefinition(response.workflow);
 }
 
 export async function runADKWorkflow(
   workflowId: string,
   inputs: Record<string, unknown> = {},
 ): Promise<ADKWorkflowInvocationResult> {
-  return fetchEnvelopeWithInit<ADKWorkflowInvocationResult>(
-    `/api/v1/adk/workflows/${encodeURIComponent(workflowId)}/run`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inputs }),
-    },
+  return requireADKWorkflowInvocation(
+    await apiPostPath(
+      "/api/v1/adk/workflows/{workflowId}/run",
+      `/api/v1/adk/workflows/${encodeURIComponent(workflowId)}/run`,
+      { inputs },
+    ),
   );
 }
 
 export async function fetchADKWorkflowTriggers(
   workflowId: string,
 ): Promise<ADKWorkflowTrigger[]> {
-  const response = await fetchEnvelope<WorkflowTriggersResponse>(
+  const response = await apiGetPath(
+    "/api/v1/adk/workflows/{workflowId}/triggers",
     `/api/v1/adk/workflows/${encodeURIComponent(workflowId)}/triggers`,
   );
-  return response.triggers ?? [];
+  return response.triggers === undefined
+    ? []
+    : requireADKWorkflowTriggers(response.triggers);
 }
 
 export async function saveADKWorkflowTrigger(
@@ -103,42 +125,45 @@ export async function saveADKWorkflowTrigger(
   trigger: ADKWorkflowTriggerWriteRequest,
 ): Promise<ADKWorkflowTriggerSaveResult> {
   const id = trigger.id?.trim() ?? "";
-  const path =
-    id === ""
-      ? `/api/v1/adk/workflows/${encodeURIComponent(workflowId)}/triggers`
-      : `/api/v1/adk/workflows/${encodeURIComponent(workflowId)}/triggers/${encodeURIComponent(id)}`;
-  return fetchEnvelopeWithInit<ADKWorkflowTriggerSaveResult>(path, {
-    method: id === "" ? "POST" : "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(trigger),
-  });
+  if (id === "") {
+    return requireADKWorkflowTriggerSave(
+      await apiPostPath(
+        "/api/v1/adk/workflows/{workflowId}/triggers",
+        `/api/v1/adk/workflows/${encodeURIComponent(workflowId)}/triggers`,
+        trigger,
+      ),
+    );
+  }
+  return requireADKWorkflowTriggerSave(
+    await apiPutPath(
+      "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}",
+      `/api/v1/adk/workflows/${encodeURIComponent(workflowId)}/triggers/${encodeURIComponent(id)}`,
+      trigger,
+    ),
+  );
 }
 
 export async function deleteADKWorkflowTrigger(
   workflowId: string,
   triggerId: string,
 ): Promise<ADKWorkflowTrigger> {
-  const response = await fetchEnvelopeWithInit<{
-    deleted: boolean;
-    trigger: ADKWorkflowTrigger;
-  }>(
+  const response = await apiDeletePath(
+    "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}",
     `/api/v1/adk/workflows/${encodeURIComponent(workflowId)}/triggers/${encodeURIComponent(triggerId)}`,
-    { method: "DELETE" },
   );
-  return response.trigger;
+  return requireADKWorkflowTrigger(response.trigger);
 }
 
 export async function runADKWorkflowTrigger(
   triggerId: string,
   inputs: Record<string, unknown> = {},
 ): Promise<ADKWorkflowInvocationResult> {
-  return fetchEnvelopeWithInit<ADKWorkflowInvocationResult>(
-    `/api/v1/adk/workflow-triggers/${encodeURIComponent(triggerId)}/run`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inputs }),
-    },
+  return requireADKWorkflowInvocation(
+    await apiPostPath(
+      "/api/v1/adk/workflow-triggers/{triggerId}/run",
+      `/api/v1/adk/workflow-triggers/${encodeURIComponent(triggerId)}/run`,
+      { inputs },
+    ),
   );
 }
 
@@ -153,9 +178,16 @@ export async function fetchADKWorkflowTriggerLogs(
   if (filters.workflowId) params.set("workflowId", filters.workflowId);
   if (filters.triggerId) params.set("triggerId", filters.triggerId);
   if (filters.status) params.set("status", filters.status);
-  return fetchEnvelope<WorkflowTriggerLogsResponse>(
+  const response = await apiGetPath(
+    "/api/v1/adk/workflow-trigger-logs",
     `/api/v1/adk/workflow-trigger-logs?${params.toString()}`,
   );
+  return {
+    logs: requireADKWorkflowTriggerLogs(response.logs),
+    ...(response.page === undefined
+      ? {}
+      : { page: requireADKPage(response.page) }),
+  };
 }
 
 export function fallbackPage(

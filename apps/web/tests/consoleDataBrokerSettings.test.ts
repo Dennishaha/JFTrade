@@ -8,7 +8,7 @@ import {
   emptyBrokerSettings,
   emptySystemStatus,
   type BrokerSettingsResponse,
-} from "../src/contracts";
+} from "../src/types";
 import { buildBrokerAccountSelectionKey } from "../src/composables/consoleDataBrokerAccountSelection";
 import { createConsoleDataBrokerSettingsController } from "../src/composables/consoleDataBrokerSettings";
 import type { WorkspaceTradingPreferences } from "../src/composables/useWorkspaceLayout";
@@ -48,7 +48,7 @@ describe("createConsoleDataBrokerSettingsController", () => {
 
     expect(requestPath(fetchMock, 1)).toBe("/api/v1/system/futu-opend/manual-retry");
     expect(requestInit(fetchMock, 1)).toMatchObject({ method: "POST" });
-    expect(JSON.parse(String(requestInit(fetchMock, 1).body))).toEqual({ brokerId: "futu" });
+    expect(requestInit(fetchMock, 1).body).toBeUndefined();
     expect(harness.reloadSystemState).toHaveBeenCalledWith();
   });
 

@@ -5,7 +5,7 @@ import type {
   ADKWorkflowDefinition,
   ADKWorkflowTrigger,
   ADKWorkflowTriggerType,
-} from "@/contracts";
+} from "@/types";
 import {
   workflowToCanvasGraph,
 } from "@/features/adkWorkflowCanvasGraph";

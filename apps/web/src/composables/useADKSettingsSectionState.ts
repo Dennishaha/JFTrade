@@ -12,8 +12,8 @@ import type {
   ADKTask,
   ADKToolDescriptor,
   MCPServerSettings,
-  MCPServerStatus,
-} from "@/contracts";
+} from "@/types";
+import type { MCPServerStatus } from "@/contracts";
 
 import {
   cancelADKOptimizationTask,

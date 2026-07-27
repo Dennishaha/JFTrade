@@ -19,8 +19,8 @@ import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
 import type {
   BacktestFeeRulePayload,
   InstrumentResolutionCandidate,
-} from "../contracts";
-import { apiGet, fetchEnvelope } from "../composables/apiClient";
+} from "../types";
+import { apiGet, apiGetPath } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
 import {
   backtestInstrumentTypeForSecurityType,
@@ -1738,7 +1738,8 @@ async function loadWarmupPreview() {
         symbol: requestedSymbol,
         useExtendedHours: extendedHoursSupported.value && useExtendedHours.value,
       }),
-      queryFn: () => fetchEnvelope<StrategyDefinition>(
+      queryFn: () => apiGetPath(
+        "/api/v1/strategy-definitions/{definitionId}",
         `/api/v1/strategy-definitions/${encodeURIComponent(definitionId)}?${params.toString()}`,
       ),
     });

@@ -7,7 +7,7 @@ import (
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 )
 
-func (s *Server) systemRiskOptions() []system.Option {
+func (s *serverApplication) systemRiskOptions() []system.Option {
 	return []system.Option{
 		system.WithRealTradeRuntimeRiskControls(s.updateRuntimeRiskConfig, s.disableRuntimeRiskConfig),
 		system.WithRealTradeKillSwitchControls(s.activateKillSwitch, s.releaseKillSwitch),
@@ -15,8 +15,8 @@ func (s *Server) systemRiskOptions() []system.Option {
 	}
 }
 
-func (s *Server) updateRuntimeRiskConfig(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
-	return s.realTradeControlPlane.UpdateRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
+func (s *serverApplication) updateRuntimeRiskConfig(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+	return s.runtimes.RealTradeControl().UpdateRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
 		TradingEnvironment: command.TradingEnvironment,
 		RealTradingEnabled: command.RealTradingEnabled,
 		MaxOrderQuantity:   command.MaxOrderQuantity,
@@ -26,32 +26,32 @@ func (s *Server) updateRuntimeRiskConfig(ctx context.Context, command system.Rea
 	})
 }
 
-func (s *Server) disableRuntimeRiskConfig(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
-	return s.realTradeControlPlane.DisableRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
+func (s *serverApplication) disableRuntimeRiskConfig(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+	return s.runtimes.RealTradeControl().DisableRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
 		TradingEnvironment: command.TradingEnvironment,
 		OperatorID:         command.OperatorID,
 		Reason:             command.Reason,
 	})
 }
 
-func (s *Server) activateKillSwitch(ctx context.Context, command system.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
-	return s.realTradeControlPlane.ActivateKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
+func (s *serverApplication) activateKillSwitch(ctx context.Context, command system.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+	return s.runtimes.RealTradeControl().ActivateKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
 		TradingEnvironment: command.TradingEnvironment,
 		OperatorID:         command.OperatorID,
 		Reason:             command.Reason,
 	})
 }
 
-func (s *Server) releaseKillSwitch(ctx context.Context, command system.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
-	return s.realTradeControlPlane.ReleaseKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
+func (s *serverApplication) releaseKillSwitch(ctx context.Context, command system.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+	return s.runtimes.RealTradeControl().ReleaseKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
 		TradingEnvironment: command.TradingEnvironment,
 		OperatorID:         command.OperatorID,
 		Reason:             command.Reason,
 	})
 }
 
-func (s *Server) activateHardStop(ctx context.Context, command system.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
-	return s.realTradeControlPlane.ActivateHardStop(ctx, trdsrv.RealTradeHardStopCommand{
+func (s *serverApplication) activateHardStop(ctx context.Context, command system.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+	return s.runtimes.RealTradeControl().ActivateHardStop(ctx, trdsrv.RealTradeHardStopCommand{
 		BrokerID:           command.BrokerID,
 		TradingEnvironment: command.TradingEnvironment,
 		AccountID:          command.AccountID,
@@ -63,8 +63,8 @@ func (s *Server) activateHardStop(ctx context.Context, command system.RealTradeH
 	})
 }
 
-func (s *Server) releaseHardStop(ctx context.Context, id string, command system.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
-	return s.realTradeControlPlane.ReleaseHardStop(ctx, id, trdsrv.RealTradeHardStopCommand{
+func (s *serverApplication) releaseHardStop(ctx context.Context, id string, command system.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+	return s.runtimes.RealTradeControl().ReleaseHardStop(ctx, id, trdsrv.RealTradeHardStopCommand{
 		OperatorID: command.OperatorID,
 		Reason:     command.Reason,
 	})

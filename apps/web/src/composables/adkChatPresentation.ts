@@ -1,4 +1,4 @@
-import type { ADKRun } from "@/contracts";
+import type { ADKRun } from "@/types";
 
 export interface ADKRunErrorSummary {
   title: string;

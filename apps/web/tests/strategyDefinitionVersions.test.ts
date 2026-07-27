@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiMocks = vi.hoisted(() => ({
-  fetchEnvelope: vi.fn(),
+  apiGetPath: vi.fn(),
 }));
 
 vi.mock("../src/composables/apiClient", () => ({
-  fetchEnvelope: (...args: unknown[]) => apiMocks.fetchEnvelope(...args),
+  apiGetPath: (...args: unknown[]) => apiMocks.apiGetPath(...args),
 }));
 
 import {
@@ -20,7 +20,7 @@ import {
 
 describe("strategy definition versions", () => {
   beforeEach(() => {
-    apiMocks.fetchEnvelope.mockReset();
+    apiMocks.apiGetPath.mockReset();
   });
 
   it("normalizes summaries, documents, and stable newest-first ordering", () => {
@@ -69,9 +69,9 @@ describe("strategy definition versions", () => {
 
   it("fetches list payload variants and filters malformed entries", async () => {
     expect(await fetchStrategyDefinitionVersions("  ")).toEqual([]);
-    expect(apiMocks.fetchEnvelope).not.toHaveBeenCalled();
+    expect(apiMocks.apiGetPath).not.toHaveBeenCalled();
 
-    apiMocks.fetchEnvelope.mockResolvedValueOnce({
+    apiMocks.apiGetPath.mockResolvedValueOnce({
       versions: [
         { version: "0.1.0", savedAt: "2026-07-01T00:00:00Z" },
         null,
@@ -83,11 +83,12 @@ describe("strategy definition versions", () => {
       expect.objectContaining({ definitionId: "definition/one", version: "0.2.0" }),
       expect.objectContaining({ definitionId: "definition/one", version: "0.1.0" }),
     ]);
-    expect(apiMocks.fetchEnvelope).toHaveBeenLastCalledWith(
+    expect(apiMocks.apiGetPath).toHaveBeenLastCalledWith(
+      "/api/v1/strategy-definitions/{definitionId}/versions",
       "/api/v1/strategy-definitions/definition%2Fone/versions",
     );
 
-    apiMocks.fetchEnvelope.mockResolvedValueOnce("not-a-list");
+    apiMocks.apiGetPath.mockResolvedValueOnce("not-a-list");
     await expect(fetchStrategyDefinitionVersions("definition-2")).resolves.toEqual([]);
   });
 
@@ -95,7 +96,7 @@ describe("strategy definition versions", () => {
     await expect(fetchStrategyDefinitionVersion("", "v1")).rejects.toThrow("策略版本标识不能为空");
     await expect(fetchStrategyDefinitionVersion("definition-1", " ")).rejects.toThrow("策略版本标识不能为空");
 
-    apiMocks.fetchEnvelope.mockResolvedValueOnce({
+    apiMocks.apiGetPath.mockResolvedValueOnce({
       version: "v 1",
       name: "Snapshot",
       script: "strategy('snapshot')",
@@ -106,11 +107,12 @@ describe("strategy definition versions", () => {
       version: "v 1",
       script: "strategy('snapshot')",
     });
-    expect(apiMocks.fetchEnvelope).toHaveBeenLastCalledWith(
+    expect(apiMocks.apiGetPath).toHaveBeenLastCalledWith(
+      "/api/v1/strategy-definitions/{definitionId}/versions/{version}",
       "/api/v1/strategy-definitions/definition%2F1/versions/v%201",
     );
 
-    apiMocks.fetchEnvelope.mockResolvedValueOnce({ name: "missing version" });
+    apiMocks.apiGetPath.mockResolvedValueOnce({ name: "missing version" });
     await expect(fetchStrategyDefinitionVersion("definition-1", "v2")).rejects.toThrow("策略版本快照格式无效");
   });
 });

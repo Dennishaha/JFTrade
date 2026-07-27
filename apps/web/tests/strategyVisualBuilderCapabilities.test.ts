@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { StrategyVisualNodeDocument } from "../src/contracts";
+import type { StrategyVisualNodeDocument } from "../src/types";
 import {
   assessPineBlockSupport,
   getVisualBlockCapabilities,

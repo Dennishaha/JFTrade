@@ -1,4 +1,8 @@
-import { buildApiUrl, csrfHeaders } from "./apiClient";
+import {
+  apiRawPost,
+  apiRawRequest,
+  type RequestBodyFor,
+} from "./apiClient";
 import { isTerminalRunStatus } from "./adkChatPresentation";
 import {
   normalizeADKChatResponse,
@@ -12,8 +16,7 @@ import type {
   ADKSession,
   ADKSessionContextSnapshot,
   ADKTimelineEntry,
-  ADKPermissionMode,
-} from "@/contracts";
+} from "@/types";
 
 export interface ADKChatStreamResponse {
   reply: string;
@@ -39,34 +42,21 @@ export interface ADKChatStreamEvent {
   message?: string;
 }
 
+export type ADKChatStreamRequest = RequestBodyFor<
+  "/api/v1/adk/chat/stream",
+  "post"
+>;
+
 export async function streamADKChat(
-  payload: {
-    agentId?: string;
-    sessionId?: string;
-    message: string;
-    providerId?: string;
-    model?: string;
-    workModeOverride?: string;
-    permissionModeOverride?: ADKPermissionMode | string;
-    objective?: string;
-    runOptions?: {
-      loopMaxIterations?: number;
-    };
-  },
+  payload: ADKChatStreamRequest,
   onEvent: (event: ADKChatStreamEvent) => void | Promise<void>,
   options: { signal?: AbortSignal } = {},
 ): Promise<ADKChatStreamResponse> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...csrfHeaders("POST"),
-  };
-  const response = await fetch(buildApiUrl("/api/v1/adk/chat/stream"), {
-    method: "POST",
-    credentials: "include",
-    headers,
-    body: JSON.stringify(payload),
-    ...(options.signal ? { signal: options.signal } : {}),
-  });
+  const response = await apiRawPost(
+    "/api/v1/adk/chat/stream",
+    payload,
+    options.signal ? { signal: options.signal } : undefined,
+  );
   if (!response.ok) {
     throw new Error((await response.text()) || "Agents chat failed");
   }
@@ -97,14 +87,12 @@ export async function resumeADKChatStream(
   }
   const init: RequestInit = {
     method: "GET",
-    credentials: "include",
-    headers: csrfHeaders("GET"),
   };
   if (cursor.signal) {
     init.signal = cursor.signal;
   }
-  const response = await fetch(
-    buildApiUrl(`${path}${params.size > 0 ? `?${params.toString()}` : ""}`),
+  const response = await apiRawRequest(
+    `${path}${params.size > 0 ? `?${params.toString()}` : ""}`,
     init,
   );
   if (response.status === 404) {

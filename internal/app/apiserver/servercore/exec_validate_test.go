@@ -9,18 +9,14 @@ import (
 	"strings"
 	"testing"
 
-	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
-	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             new(uint64(1001)),
-		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
-		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+	opendServer.setAccounts([]fututestkit.Account{{
+		Environment: "SIMULATE", ID: 1001, Markets: []string{"US"}, Type: "MARGIN",
 	}})
 	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
 	defer opendServer.stop()
@@ -70,30 +66,27 @@ func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 		t.Fatal("expected place order request to be captured")
 		return
 	}
-	if diff := math.Abs(request.GetPrice() - 10.12); diff > 1e-9 {
-		t.Fatalf("price = %f, want 10.12", request.GetPrice())
+	if diff := math.Abs(request.Price - 10.12); diff > 1e-9 {
+		t.Fatalf("price = %f, want 10.12", request.Price)
 	}
-	if got := request.GetCode(); got != "TME" {
+	if got := request.Code; got != "TME" {
 		t.Fatalf("Code = %q, want TME", got)
 	}
-	if got := request.GetSession(); got != int32(commonpb.Session_Session_RTH) {
-		t.Fatalf("session = %d, want RTH", got)
+	if got := request.Session; got != "RTH" {
+		t.Fatalf("session = %q, want RTH", got)
 	}
 	if request.FillOutsideRTH == nil {
 		t.Fatal("expected fillOutsideRTH to be set for US limit order")
 	}
-	if request.GetFillOutsideRTH() {
+	if *request.FillOutsideRTH {
 		t.Fatal("fillOutsideRTH = true, want false for default RTH session")
 	}
 }
 
 func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             new(uint64(1001)),
-		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
-		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+	opendServer.setAccounts([]fututestkit.Account{{
+		Environment: "SIMULATE", ID: 1001, Markets: []string{"US"}, Type: "MARGIN",
 	}})
 	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
 	defer opendServer.stop()
@@ -144,24 +137,21 @@ func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 		t.Fatal("expected place order request to be captured")
 		return
 	}
-	if got := request.GetSession(); got != int32(commonpb.Session_Session_ETH) {
-		t.Fatalf("session = %d, want ETH", got)
+	if got := request.Session; got != "ETH" {
+		t.Fatalf("session = %q, want ETH", got)
 	}
 	if request.FillOutsideRTH == nil {
 		t.Fatal("expected fillOutsideRTH to be set for extended-hours limit order")
 	}
-	if !request.GetFillOutsideRTH() {
+	if !*request.FillOutsideRTH {
 		t.Fatal("fillOutsideRTH = false, want true for ETH session")
 	}
 }
 
 func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             new(uint64(1001)),
-		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
-		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+	opendServer.setAccounts([]fututestkit.Account{{
+		Environment: "SIMULATE", ID: 1001, Markets: []string{"US"}, Type: "MARGIN",
 	}})
 	opendServer.setPlacedOrderResponse(9002, "EXT-9002")
 	defer opendServer.stop()
@@ -211,18 +201,15 @@ func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 		t.Fatal("expected place order request to be captured")
 		return
 	}
-	if got := request.GetCode(); got != "TME" {
+	if got := request.Code; got != "TME" {
 		t.Fatalf("Code = %q, want TME", got)
 	}
 }
 
 func TestExecutionOrderRoutesRejectBareSymbolWithoutMarket(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             new(uint64(1001)),
-		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
-		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+	opendServer.setAccounts([]fututestkit.Account{{
+		Environment: "SIMULATE", ID: 1001, Markets: []string{"US"}, Type: "MARGIN",
 	}})
 	defer opendServer.stop()
 

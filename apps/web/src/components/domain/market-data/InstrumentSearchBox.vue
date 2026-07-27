@@ -8,7 +8,7 @@ import {
   type CSSProperties,
 } from "vue";
 
-import type { InstrumentResolutionCandidate } from "@/contracts";
+import type { InstrumentResolutionCandidate } from "@/types";
 import {
   categoryMarketForUser,
   formatInstrumentExchangeTag,

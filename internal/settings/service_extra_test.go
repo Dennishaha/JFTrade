@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/internal/live"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -51,6 +52,32 @@ func TestServiceNotificationAndMCPStatusAccessors(t *testing.T) {
 	snapshot := svc.GetMCPServerSettingsSnapshot()
 	if snapshot.Settings.Port != 7788 || snapshot.Status != status {
 		t.Fatalf("MCP snapshot = %#v", snapshot)
+	}
+}
+
+func TestServiceSystemNotificationTestUsesNarrowPublisherAndFailsClosed(t *testing.T) {
+	event := &live.Event{Sequence: 7, Title: "JFTrade", Category: "system.notification.test"}
+	delivery := live.NotificationDelivered("sent")
+	svc := NewService(&fakeStore{}, WithSystemNotificationTester(
+		func() (*live.Event, live.NotificationDelivery) {
+			return event, delivery
+		},
+	))
+
+	result, err := svc.TestSystemNotification()
+	if err != nil {
+		t.Fatalf("TestSystemNotification: %v", err)
+	}
+	if result.Event != *event || result.Delivery != delivery {
+		t.Fatalf("notification result = %#v", result)
+	}
+	if _, err := NewService(&fakeStore{}).TestSystemNotification(); !errors.Is(err, ErrNotificationUnavailable) {
+		t.Fatalf("missing publisher error = %v", err)
+	}
+	if _, err := NewService(&fakeStore{}, WithSystemNotificationTester(
+		func() (*live.Event, live.NotificationDelivery) { return nil, live.NotificationDelivery{} },
+	)).TestSystemNotification(); !errors.Is(err, ErrNotificationUnavailable) {
+		t.Fatalf("nil event error = %v", err)
 	}
 }
 

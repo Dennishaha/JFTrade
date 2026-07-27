@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ADKApproval, ADKApprovalResolution } from "@/contracts";
+import type { ADKApproval, ADKApprovalResolution } from "@/types";
 
 import {
   resetADKApprovalInFlightForTest,

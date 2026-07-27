@@ -58,8 +58,8 @@ type RealTradeRuntimeRiskEntry struct {
 	ID                 string   `json:"id" binding:"required"`
 	TradingEnvironment string   `json:"tradingEnvironment" binding:"required"`
 	RealTradingEnabled bool     `json:"realTradingEnabled" binding:"required"`
-	MaxOrderQuantity   *float64 `json:"maxOrderQuantity"`
-	MaxOrderNotional   *float64 `json:"maxOrderNotional"`
+	MaxOrderQuantity   *float64 `json:"maxOrderQuantity" extensions:"x-nullable"`
+	MaxOrderNotional   *float64 `json:"maxOrderNotional" extensions:"x-nullable"`
 	OperatorID         string   `json:"operatorId" binding:"required"`
 	Reason             string   `json:"reason" binding:"required"`
 	ActivatedAt        string   `json:"activatedAt" binding:"required"`
@@ -80,8 +80,8 @@ type RealTradeHardStopEntry struct {
 	BrokerID           string  `json:"brokerId" binding:"required"`
 	TradingEnvironment string  `json:"tradingEnvironment" binding:"required"`
 	AccountID          string  `json:"accountId" binding:"required"`
-	Market             *string `json:"market"`
-	Symbol             *string `json:"symbol"`
+	Market             *string `json:"market" extensions:"x-nullable"`
+	Symbol             *string `json:"symbol" extensions:"x-nullable"`
 	HardStopScope      string  `json:"hardStopScope" binding:"required"`
 	OperatorID         string  `json:"operatorId" binding:"required"`
 	Reason             string  `json:"reason" binding:"required"`
@@ -94,24 +94,24 @@ type RealTradeControlEvent struct {
 	EventType                  string   `json:"eventType" binding:"required"`
 	Action                     string   `json:"action" binding:"required"`
 	BrokerID                   string   `json:"brokerId" binding:"required"`
-	Operation                  *string  `json:"operation"`
-	TradingEnvironment         *string  `json:"tradingEnvironment"`
-	AccountID                  *string  `json:"accountId"`
-	Market                     *string  `json:"market"`
-	Symbol                     *string  `json:"symbol"`
-	OrderID                    *string  `json:"orderId"`
-	Quantity                   *float64 `json:"quantity"`
-	Price                      *float64 `json:"price"`
-	KillSwitchSource           *string  `json:"killSwitchSource"`
-	HardStopScope              *string  `json:"hardStopScope"`
-	OperatorID                 *string  `json:"operatorId"`
-	Reason                     *string  `json:"reason"`
-	ErrorCode                  *string  `json:"errorCode"`
-	HardStopID                 *string  `json:"hardStopId"`
-	RealTradingEnabled         *bool    `json:"realTradingEnabled"`
-	ConfiguredMaxOrderQuantity *float64 `json:"configuredMaxOrderQuantity"`
-	ConfiguredMaxOrderNotional *float64 `json:"configuredMaxOrderNotional"`
-	ActivatedAt                *string  `json:"activatedAt"`
+	Operation                  *string  `json:"operation" extensions:"x-nullable"`
+	TradingEnvironment         *string  `json:"tradingEnvironment" extensions:"x-nullable"`
+	AccountID                  *string  `json:"accountId" extensions:"x-nullable"`
+	Market                     *string  `json:"market" extensions:"x-nullable"`
+	Symbol                     *string  `json:"symbol" extensions:"x-nullable"`
+	OrderID                    *string  `json:"orderId" extensions:"x-nullable"`
+	Quantity                   *float64 `json:"quantity" extensions:"x-nullable"`
+	Price                      *float64 `json:"price" extensions:"x-nullable"`
+	KillSwitchSource           *string  `json:"killSwitchSource" extensions:"x-nullable"`
+	HardStopScope              *string  `json:"hardStopScope" extensions:"x-nullable"`
+	OperatorID                 *string  `json:"operatorId" extensions:"x-nullable"`
+	Reason                     *string  `json:"reason" extensions:"x-nullable"`
+	ErrorCode                  *string  `json:"errorCode" extensions:"x-nullable"`
+	HardStopID                 *string  `json:"hardStopId" extensions:"x-nullable"`
+	RealTradingEnabled         *bool    `json:"realTradingEnabled" extensions:"x-nullable"`
+	ConfiguredMaxOrderQuantity *float64 `json:"configuredMaxOrderQuantity" extensions:"x-nullable"`
+	ConfiguredMaxOrderNotional *float64 `json:"configuredMaxOrderNotional" extensions:"x-nullable"`
+	ActivatedAt                *string  `json:"activatedAt" extensions:"x-nullable"`
 	CreatedAt                  string   `json:"createdAt" binding:"required"`
 }
 

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
-import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import type { components } from "@/generated/openapi";
+
+import { apiPost, apiPostPathAction } from "../../composables/apiClient";
 import { useBrokerProviderSelection } from "../../composables/brokerProviderSelection";
 import {
   type OptionComboPriceSource,
@@ -57,13 +59,10 @@ interface ComboPreview {
   optionAnalysis?: ComboAnalysis | null;
 }
 
-interface ExecutionResponse {
-  accepted: boolean;
-  internalOrderId?: string;
-  brokerOrderId?: string;
-  orderStatus?: string;
-  message?: string;
-}
+type ExecutionResponse =
+  components["schemas"]["trading.ExecutionCommandResponse"];
+type ExecutionComboRequest =
+  components["schemas"]["trading.ExecutionComboRequest"];
 
 const props = withDefaults(
   defineProps<{
@@ -258,7 +257,7 @@ function clientOrderId(): string {
   return stableClientOrderId.value;
 }
 
-function executionLegs(): Array<Record<string, unknown>> {
+function executionLegs(): ExecutionComboRequest["legs"] {
   return legs.value.map((leg) => ({
     instrumentId: leg.instrumentId,
     productClass: "option",
@@ -268,21 +267,26 @@ function executionLegs(): Array<Record<string, unknown>> {
   }));
 }
 
-function comboPayload(): Record<string, unknown> {
+function comboPayload(previewId = ""): ExecutionComboRequest {
   return {
     brokerId: brokerId.value,
     tradingEnvironment: environment.value,
     accountId: accountId.value,
+    amount: null,
     market: market.value,
     clientOrderId: clientOrderId(),
     orderKind: "option_combo",
     productClass: "option",
     underlyingInstrumentId: instrumentId.value,
-    optionStrategy: recognizedStrategy.value,
+    optionStrategy: recognizedStrategy.value ?? "",
     nearExpiry: nearExpiry.value,
-    farExpiry: farExpiry.value || undefined,
-    spread: spread.value,
+    farExpiry: farExpiry.value,
+    spread: spread.value ?? null,
     price: comboPrice.value,
+    mvc: "",
+    previewId,
+    quoteExpiresAt: null,
+    rfqId: "",
     legs: executionLegs(),
   };
 }
@@ -292,13 +296,9 @@ async function previewCombo(): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    preview.value = await fetchEnvelopeWithInit<ComboPreview>(
+    preview.value = await apiPost(
       "/api/v1/execution/combos/previews",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(comboPayload()),
-      },
+      comboPayload(),
     );
     execution.value = null;
     now.value = Date.now();
@@ -321,16 +321,9 @@ async function placeCombo(): Promise<void> {
   confirmationMode.value = null;
   error.value = "";
   try {
-    execution.value = await fetchEnvelopeWithInit<ExecutionResponse>(
+    execution.value = await apiPost(
       "/api/v1/execution/combos",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...comboPayload(),
-          previewId: preview.value.previewId,
-        }),
-      },
+      comboPayload(preview.value.previewId),
     );
     const internalOrderId = execution.value.internalOrderId ?? "";
     if (internalOrderId) {
@@ -352,9 +345,9 @@ async function cancelCombo(): Promise<void> {
   confirmationMode.value = null;
   error.value = "";
   try {
-    execution.value = await fetchEnvelopeWithInit<ExecutionResponse>(
+    execution.value = await apiPostPathAction(
+      "/api/v1/execution/combos/{internalOrderId}/cancel",
       `/api/v1/execution/combos/${encodeURIComponent(internalOrderId)}/cancel`,
-      { method: "POST" },
     );
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause);

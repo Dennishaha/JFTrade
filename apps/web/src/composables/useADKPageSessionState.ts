@@ -7,7 +7,7 @@ import type {
   ADKProvider,
   ADKSession,
   ADKToolDescriptor,
-} from "@/contracts";
+} from "@/types";
 
 import {
   createADKPageSession,

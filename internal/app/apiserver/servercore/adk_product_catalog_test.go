@@ -2,7 +2,6 @@ package servercore
 
 import (
 	"encoding/json"
-	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,7 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	assistant "github.com/jftrade/jftrade-main/internal/assistant"
+	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
+	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -39,9 +40,9 @@ func loadCapabilityUISurfaceManifest(t *testing.T) capabilityUISurfaceManifest {
 }
 
 func TestCapabilityCatalogSurfacesAreRegisteredAndMCPBounded(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	RegisterJFTradeADKTools(nil, registry, ToolDeps{})
-	mcpNames := append([]string(nil), jfadk.LocalMCPReadOnlyToolNames...)
+	mcpNames := append([]string(nil), assistant.LocalMCPReadOnlyToolNames...)
 	slices.Sort(mcpNames)
 
 	for _, capability := range broker.BuiltinCapabilityCatalog.Features {
@@ -86,17 +87,6 @@ func TestCapabilityCatalogSurfacesAreRegisteredAndMCPBounded(t *testing.T) {
 	}
 }
 
-func TestCustomizationToolsMapToOpenDOperations(t *testing.T) {
-	want := map[string]string{
-		"alerts.price.set":        "set",
-		"alerts.option_event.set": "set",
-		"watchlist.remote.modify": "modify",
-	}
-	if !maps.Equal(customizationToolActions, want) {
-		t.Fatalf("customization tool actions = %v, want %v", customizationToolActions, want)
-	}
-}
-
 func TestCapabilityOperationContracts(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
@@ -109,9 +99,9 @@ func TestCapabilityOperationContracts(t *testing.T) {
 	}
 	placeholder := regexp.MustCompile(`\{([^{}]+)\}`)
 	uiSurfaces := loadCapabilityUISurfaceManifest(t)
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	RegisterJFTradeADKTools(nil, registry, ToolDeps{})
-	mcpNames := append([]string(nil), jfadk.LocalMCPReadOnlyToolNames...)
+	mcpNames := append([]string(nil), assistant.LocalMCPReadOnlyToolNames...)
 	slices.Sort(mcpNames)
 
 	for _, feature := range broker.BuiltinCapabilityCatalog.Features {
@@ -164,14 +154,14 @@ func TestCapabilityOperationContracts(t *testing.T) {
 
 func TestProductToolRegistryAndOperationSchemasAreCatalogBacked(t *testing.T) {
 	productTools := map[string]struct{}{}
-	for _, definition := range productReadTools {
-		productTools[definition.name] = struct{}{}
+	for _, definition := range assistantassembly.ProductReadToolDefinitions() {
+		productTools[definition.Name] = struct{}{}
 	}
-	for _, definition := range productTradeTools {
-		productTools[definition.name] = struct{}{}
+	for _, definition := range assistantassembly.ProductTradeToolDefinitions() {
+		productTools[definition.Name] = struct{}{}
 	}
-	for _, definition := range productWriteTools {
-		productTools[definition.name] = struct{}{}
+	for _, definition := range assistantassembly.ProductWriteToolDefinitions() {
+		productTools[definition.Name] = struct{}{}
 	}
 
 	catalogOperations := map[string][]string{}
@@ -196,7 +186,7 @@ func TestProductToolRegistryAndOperationSchemasAreCatalogBacked(t *testing.T) {
 			t.Errorf("registered product tool %q has no CapabilityCatalog operation", tool)
 		}
 	}
-	for tool, schemaOperations := range productToolOperations {
+	for tool, schemaOperations := range assistantassembly.ProductToolOperations() {
 		if _, ok := productTools[tool]; !ok {
 			t.Errorf("operation schema exists for unregistered product tool %q", tool)
 			continue
@@ -209,9 +199,9 @@ func TestProductToolRegistryAndOperationSchemasAreCatalogBacked(t *testing.T) {
 		}
 	}
 
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	RegisterJFTradeADKTools(nil, registry, ToolDeps{})
-	for _, tool := range jfadk.LocalMCPReadOnlyToolNames {
+	for _, tool := range assistant.LocalMCPReadOnlyToolNames {
 		registered, ok := registry.Get(tool)
 		if !ok {
 			t.Errorf("local MCP tool %q is not registered", tool)

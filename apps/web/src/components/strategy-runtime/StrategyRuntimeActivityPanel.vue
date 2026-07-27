@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import type {
-    StrategyAuditEntryDocument,
-} from "@/contracts";
+import type { StrategyAuditEntryDocument } from "@/contracts";
 
 import MonacoCodeEditor from "../MonacoCodeEditor.vue";
 import { formatLocalDateTime } from "../../utils/dateTime";

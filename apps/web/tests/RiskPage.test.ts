@@ -10,12 +10,13 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
-} from "@/contracts";
+} from "@/types";
 
 const testState = vi.hoisted(() => ({
   store: null as null | Record<string, any>,
-  fetchEnvelopeMock: vi.fn(),
-  fetchEnvelopeWithInitMock: vi.fn(),
+  apiDeleteBodyMock: vi.fn(),
+  apiGetMock: vi.fn(),
+  apiPutMock: vi.fn(),
 }));
 
 vi.mock("../src/composables/useConsoleData", () => ({
@@ -23,11 +24,11 @@ vi.mock("../src/composables/useConsoleData", () => ({
 }));
 
 vi.mock("../src/composables/apiClient", () => ({
+  apiDeleteBody: (...args: unknown[]) => testState.apiDeleteBodyMock(...args),
+  apiGet: (...args: unknown[]) => testState.apiGetMock(...args),
   apiPost: vi.fn(async () => ({})),
   apiPostPath: vi.fn(async () => ({})),
-  fetchEnvelope: (...args: unknown[]) => testState.fetchEnvelopeMock(...args),
-  fetchEnvelopeWithInit: (...args: unknown[]) =>
-    testState.fetchEnvelopeWithInitMock(...args),
+  apiPut: (...args: unknown[]) => testState.apiPutMock(...args),
 }));
 
 import RiskPage from "../src/pages/RiskPage.vue";
@@ -108,7 +109,7 @@ describe("RiskPage", () => {
   it("colors status blocks by real-trade safety state", async () => {
     const store = createRiskStore();
     testState.store = store;
-    testState.fetchEnvelopeMock.mockResolvedValue([]);
+    testState.apiGetMock.mockResolvedValue([]);
 
     const wrapper = mountRiskPage();
     await flushPromises();
@@ -194,7 +195,7 @@ describe("RiskPage", () => {
   it("derives an overall risk posture badge from the safety state", async () => {
     const store = createRiskStore();
     testState.store = store;
-    testState.fetchEnvelopeMock.mockResolvedValue([]);
+    testState.apiGetMock.mockResolvedValue([]);
 
     const wrapper = mountRiskPage();
     await flushPromises();
@@ -243,7 +244,7 @@ describe("RiskPage", () => {
 
   it("uses terminal-style native controls for the hard-stop form", async () => {
     testState.store = createRiskStore();
-    testState.fetchEnvelopeMock.mockResolvedValue([]);
+    testState.apiGetMock.mockResolvedValue([]);
 
     const wrapper = mountRiskPage();
     await flushPromises();
@@ -268,7 +269,7 @@ describe("RiskPage", () => {
 
   it("fills market, symbol, and scope from the instrument search selector", async () => {
     testState.store = createRiskStore();
-    testState.fetchEnvelopeMock.mockResolvedValue([]);
+    testState.apiGetMock.mockResolvedValue([]);
 
     const wrapper = mountRiskPage();
     await flushPromises();
@@ -317,7 +318,7 @@ describe("RiskPage", () => {
       market: "HK",
     };
     testState.store = store;
-    testState.fetchEnvelopeMock.mockResolvedValue([]);
+    testState.apiGetMock.mockResolvedValue([]);
 
     const wrapper = mountRiskPage();
     await flushPromises();
@@ -347,12 +348,13 @@ describe("RiskPage", () => {
 
   it("edits runtime risk config behind a confirmation dialog", async () => {
     testState.store = createRiskStore();
-    testState.fetchEnvelopeMock.mockResolvedValue([]);
-    testState.fetchEnvelopeWithInitMock.mockResolvedValue({
+    testState.apiGetMock.mockResolvedValue([]);
+    testState.apiPutMock.mockResolvedValue({
       ...emptyRealTradeRiskState,
       realTradingEnabled: true,
       riskEnabled: true,
     });
+    testState.apiDeleteBodyMock.mockResolvedValue(emptyRealTradeRiskState);
 
     const wrapper = mountRiskPage();
     await flushPromises();
@@ -376,16 +378,16 @@ describe("RiskPage", () => {
 
     // 开放实盘属于危险操作：先弹确认框，确认后才写入。
     expect(wrapper.text()).toContain("本次变更会开放实盘交易或放宽单笔限额");
-    expect(testState.fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
+    expect(testState.apiPutMock).not.toHaveBeenCalled();
     await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await flushPromises();
 
-    expect(testState.fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
+    expect(testState.apiPutMock).toHaveBeenCalledWith(
       "/api/v1/system/real-trade-risk-limits",
-      expect.objectContaining({ method: "PUT" }),
+      expect.objectContaining({ realTradingEnabled: true }),
     );
-    const putInit = testState.fetchEnvelopeWithInitMock.mock.calls[0][1] as RequestInit;
-    expect(JSON.parse(String(putInit.body))).toEqual(
+    const putPayload = testState.apiPutMock.mock.calls[0][1];
+    expect(putPayload).toEqual(
       expect.objectContaining({
         realTradingEnabled: true,
         maxOrderQuantity: 10,
@@ -399,9 +401,9 @@ describe("RiskPage", () => {
       .find((button) => button.text() === "关闭实盘配置")!
       .trigger("click");
     await flushPromises();
-    expect(testState.fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
+    expect(testState.apiDeleteBodyMock).toHaveBeenCalledWith(
       "/api/v1/system/real-trade-risk-limits",
-      expect.objectContaining({ method: "DELETE" }),
+      expect.objectContaining({ operatorId: "local" }),
     );
   });
 
@@ -417,8 +419,9 @@ describe("RiskPage", () => {
       effectiveMaxOrderNotional: 4000,
     });
     testState.store = store;
-    testState.fetchEnvelopeMock.mockResolvedValue([]);
-    testState.fetchEnvelopeWithInitMock.mockResolvedValue({});
+    testState.apiGetMock.mockResolvedValue([]);
+    testState.apiPutMock.mockResolvedValue({});
+    testState.apiDeleteBodyMock.mockResolvedValue({});
 
     const wrapper = mountRiskPage();
     await flushPromises();
@@ -443,12 +446,12 @@ describe("RiskPage", () => {
     await flushPromises();
 
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
-    expect(testState.fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
+    expect(testState.apiPutMock).toHaveBeenCalledWith(
       "/api/v1/system/real-trade-risk-limits",
-      expect.objectContaining({ method: "PUT" }),
+      expect.objectContaining({ maxOrderQuantity: 10 }),
     );
 
-    testState.fetchEnvelopeWithInitMock.mockRejectedValueOnce("offline");
+    testState.apiDeleteBodyMock.mockRejectedValueOnce("offline");
     await switchToTab(wrapper, "运行时限额");
     await wrapper
       .findAll("button")
@@ -472,7 +475,7 @@ describe("RiskPage", () => {
     };
     const store = createRiskStore(persistedRiskState);
     testState.store = store;
-    testState.fetchEnvelopeMock.mockResolvedValue([]);
+    testState.apiGetMock.mockResolvedValue([]);
 
     const wrapper = mountRiskPage();
     await flushPromises();

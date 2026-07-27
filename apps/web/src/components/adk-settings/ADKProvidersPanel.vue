@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-import type { ADKProvider } from "@/contracts";
+import type { ADKProvider } from "@/types";
 
 const props = defineProps<{
   providerForm: {

@@ -23,13 +23,6 @@ func (h *Handler) handleADKAgentTemplates(c *gin.Context) {
 	h.writeOK(c, map[string]any{"templates": templates})
 }
 
-// handleADKSnapshot godoc
-// @Summary 读取 ADK 快照
-// @Tags adk
-// @Produce json
-// @Success 200 {object} httpserver.Envelope
-// @Failure 500 {object} httpserver.Envelope
-// @Router /api/v1/adk [get]
 func (h *Handler) handleADKSnapshot(c *gin.Context) {
 	snapshot, err := h.service.Snapshot(c.Request.Context())
 	if err != nil {
@@ -93,12 +86,12 @@ func (h *Handler) handleADKSaveTask(c *gin.Context) {
 		h.handleADKPatchTask(c)
 		return
 	}
-	var payload jfadk.TaskWriteRequest
+	var payload ADKTaskWriteRequest
 	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid task payload")
 		return
 	}
-	task, err := h.service.SaveTask(c.Request.Context(), payload)
+	task, err := h.service.SaveTask(c.Request.Context(), jfadk.TaskWriteRequest(payload))
 	if err != nil {
 		h.writeError(c, http.StatusBadRequest, "ADK_TASK_SAVE_FAILED", err.Error())
 		return
@@ -112,12 +105,12 @@ func (h *Handler) handleADKPatchTask(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "taskId is invalid")
 		return
 	}
-	var payload jfadk.TaskPatchRequest
+	var payload ADKTaskPatchRequest
 	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid task payload")
 		return
 	}
-	task, err := h.service.UpdateTask(c.Request.Context(), uri.TaskID, payload)
+	task, err := h.service.UpdateTask(c.Request.Context(), uri.TaskID, jfadk.TaskPatchRequest(payload))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			h.writeError(c, http.StatusNotFound, "ADK_TASK_NOT_FOUND", "task not found")
@@ -163,12 +156,12 @@ func (h *Handler) handleADKMemory(c *gin.Context) {
 }
 
 func (h *Handler) handleADKSaveMemory(c *gin.Context) {
-	var payload jfadk.MemoryWriteRequest
+	var payload ADKMemoryWriteRequest
 	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid memory payload")
 		return
 	}
-	entry, err := h.service.SaveMemory(c.Request.Context(), payload)
+	entry, err := h.service.SaveMemory(c.Request.Context(), jfadk.MemoryWriteRequest(payload))
 	if err != nil {
 		h.writeError(c, http.StatusBadRequest, "ADK_MEMORY_SAVE_FAILED", err.Error())
 		return
@@ -193,13 +186,6 @@ func (h *Handler) handleADKDeleteMemory(c *gin.Context) {
 	h.writeOK(c, map[string]any{"deleted": true, "id": uri.MemoryID})
 }
 
-// handleADKProviders godoc
-// @Summary 读取 ADK Provider 列表
-// @Tags adk
-// @Produce json
-// @Success 200 {object} httpserver.Envelope
-// @Failure 500 {object} httpserver.Envelope
-// @Router /api/v1/adk/providers [get]
 func (h *Handler) handleADKProviders(c *gin.Context) {
 	result, err := h.service.ListProviders(c.Request.Context())
 	if err != nil {
@@ -258,15 +244,6 @@ func (h *Handler) handleADKDeleteProvider(c *gin.Context) {
 	h.writeOK(c, map[string]any{"deleted": true, "id": uri.ProviderID})
 }
 
-// handleADKAgents godoc
-// @Summary 读取 ADK Agent 列表
-// @Tags adk
-// @Produce json
-// @Param status query string false "Agent 状态过滤"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 500 {object} httpserver.Envelope
-// @Router /api/v1/adk/agents [get]
 func (h *Handler) handleADKAgents(c *gin.Context) {
 	var query adkAgentsQuery
 	if err := bindADKQuery(c, &query); err != nil {
@@ -314,9 +291,7 @@ func (h *Handler) handleADKSkills(c *gin.Context) {
 }
 
 func (h *Handler) handleADKInstallSkill(c *gin.Context) {
-	var payload struct {
-		URL string `json:"url"`
-	}
+	var payload ADKInstallSkillRequest
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid skill install payload")
 		return
@@ -343,7 +318,7 @@ func (h *Handler) handleADKDeleteSkill(c *gin.Context) {
 }
 
 func (h *Handler) handleADKSaveProvider(c *gin.Context) {
-	var payload jfadk.ProviderWriteRequest
+	var payload ADKProviderWriteRequest
 	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid provider payload")
 		return
@@ -356,7 +331,7 @@ func (h *Handler) handleADKSaveProvider(c *gin.Context) {
 		}
 		payload.ID = uri.ProviderID
 	}
-	provider, err := h.service.SaveProvider(c.Request.Context(), payload)
+	provider, err := h.service.SaveProvider(c.Request.Context(), jfadk.ProviderWriteRequest(payload))
 	if err != nil {
 		h.writeError(c, http.StatusInternalServerError, "ADK_PROVIDER_SAVE_FAILED", err.Error())
 		return
@@ -365,7 +340,7 @@ func (h *Handler) handleADKSaveProvider(c *gin.Context) {
 }
 
 func (h *Handler) handleADKSaveAgent(c *gin.Context) {
-	var payload jfadk.AgentWriteRequest
+	var payload ADKAgentWriteRequest
 	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid agent payload")
 		return
@@ -378,7 +353,7 @@ func (h *Handler) handleADKSaveAgent(c *gin.Context) {
 		}
 		payload.ID = uri.AgentID
 	}
-	agent, err := h.service.SaveAgent(c.Request.Context(), payload)
+	agent, err := h.service.SaveAgent(c.Request.Context(), jfadk.AgentWriteRequest(payload))
 	if err != nil {
 		if errors.Is(err, jfadk.ErrBuiltinAgentProtected) {
 			h.writeError(c, http.StatusConflict, "ADK_AGENT_PROTECTED", err.Error())

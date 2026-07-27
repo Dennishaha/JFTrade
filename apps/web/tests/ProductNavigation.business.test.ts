@@ -11,7 +11,7 @@ import ResearchPage from "../src/pages/ResearchPage.vue";
 import type {
   MarketSecurityDetails,
   MarketSecurityDetailsQueryResult,
-} from "../src/contracts";
+} from "../src/types";
 import {
   provideWorkspaceTradingPreferencesStore,
   type WorkspaceTradingPreferencesStore,

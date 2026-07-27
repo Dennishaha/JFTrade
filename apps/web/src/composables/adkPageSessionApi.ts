@@ -5,15 +5,25 @@ import type {
   ADKSession,
   ADKSessionComposerState,
   ADKToolDescriptor,
-} from "@/contracts";
+} from "@/types";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
-
-interface AgentsResponse { agents: ADKAgent[] }
-interface ProvidersResponse { providers: ADKProvider[] }
-interface SessionsResponse { sessions: ADKSession[] }
-interface ApprovalsResponse { approvals: ADKApproval[] }
-interface ToolsResponse { tools: ADKToolDescriptor[] }
+import {
+  apiDeletePath,
+  apiGet,
+  apiPatchPath,
+  apiPost,
+  apiPutPath,
+} from "./apiClient";
+import {
+  requireADKAgent,
+  requireADKAgents,
+  requireADKApprovals,
+  requireADKComposerState,
+  requireADKProviders,
+  requireADKSession,
+  requireADKSessions,
+  requireADKToolDescriptors,
+} from "./adkApiMappers";
 
 export async function fetchADKPageSessionData(): Promise<{
   agents: ADKAgent[];
@@ -23,44 +33,43 @@ export async function fetchADKPageSessionData(): Promise<{
   tools: ADKToolDescriptor[];
 }> {
   const [agents, providers, sessions, approvals, tools] = await Promise.all([
-    fetchEnvelope<AgentsResponse>("/api/v1/adk/agents"),
-    fetchEnvelope<ProvidersResponse>("/api/v1/adk/providers"),
-    fetchEnvelope<SessionsResponse>("/api/v1/adk/sessions"),
-    fetchEnvelope<ApprovalsResponse>("/api/v1/adk/approvals"),
-    fetchEnvelope<ToolsResponse>("/api/v1/adk/tools"),
+    apiGet("/api/v1/adk/agents"),
+    apiGet("/api/v1/adk/providers"),
+    apiGet("/api/v1/adk/sessions"),
+    apiGet("/api/v1/adk/approvals"),
+    apiGet("/api/v1/adk/tools"),
   ]);
 
   return {
-    agents: agents.agents,
-    approvals: approvals.approvals,
-    providers: providers.providers,
-    sessions: sessions.sessions,
-    tools: tools.tools ?? [],
+    agents: requireADKAgents(agents.agents),
+    approvals: requireADKApprovals(approvals.approvals),
+    providers: requireADKProviders(providers.providers),
+    sessions: requireADKSessions(sessions.sessions),
+    tools:
+      tools.tools === undefined ? [] : requireADKToolDescriptors(tools.tools),
   };
 }
 
 export async function createADKPageSession(agentId: string): Promise<ADKSession> {
-  return fetchEnvelopeWithInit<ADKSession>("/api/v1/adk/sessions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ agentId, title: "新会话" }),
-  });
+  return requireADKSession(
+    await apiPost("/api/v1/adk/sessions", { agentId, title: "新会话" }),
+  );
 }
 
 export async function deleteADKPageSession(sessionId: string): Promise<void> {
-  await fetchEnvelopeWithInit(`/api/v1/adk/sessions/${encodeURIComponent(sessionId)}`, {
-    method: "DELETE",
-  });
+  await apiDeletePath(
+    "/api/v1/adk/sessions/{sessionId}",
+    `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}`,
+  );
 }
 
 export async function renameADKPageSession(sessionId: string, title: string): Promise<ADKSession> {
-  return fetchEnvelopeWithInit<ADKSession>(
-    `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title }),
-    },
+  return requireADKSession(
+    await apiPutPath(
+      "/api/v1/adk/sessions/{sessionId}",
+      `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}`,
+      { title },
+    ),
   );
 }
 
@@ -80,22 +89,19 @@ export async function saveADKSessionComposerState(
   >,
   options: { keepalive?: boolean } = {},
 ): Promise<ADKSessionComposerState> {
-  return fetchEnvelopeWithInit<ADKSessionComposerState>(
-    `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}/composer-state`,
-    {
-      method: "PATCH",
-      keepalive: options.keepalive === true,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(state),
-    },
+  return requireADKComposerState(
+    await apiPatchPath(
+      "/api/v1/adk/sessions/{sessionId}/composer-state",
+      `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}/composer-state`,
+      state,
+      { keepalive: options.keepalive === true },
+    ),
   );
 }
 
 export async function updateADKPageAgentProvider(agent: ADKAgent, providerId: string): Promise<ADKAgent> {
-  return fetchEnvelopeWithInit<ADKAgent>("/api/v1/adk/agents", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  return requireADKAgent(
+    await apiPost("/api/v1/adk/agents", {
       id: agent.id,
       name: agent.name,
       instruction: agent.instruction,
@@ -107,5 +113,5 @@ export async function updateADKPageAgentProvider(agent: ADKAgent, providerId: st
       memoryEnabled: agent.memoryEnabled,
       status: agent.status,
     }),
-  });
+  );
 }

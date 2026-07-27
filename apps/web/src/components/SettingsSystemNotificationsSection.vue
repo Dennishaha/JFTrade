@@ -2,7 +2,9 @@
 import { useMutation, useQuery } from "@tanstack/vue-query";
 import { computed, ref } from "vue";
 
-import { fetchEnvelopeWithInit } from "../composables/apiClient";
+import type { components } from "@/generated/openapi";
+
+import { apiGet, apiPostAction, apiPut } from "../composables/apiClient";
 import { queryClient, queryKeys } from "../composables/serverState";
 
 type NotificationMode = "important" | "all" | "custom";
@@ -10,21 +12,13 @@ type NotificationMode = "important" | "all" | "custom";
 interface SystemNotificationSettings {
   enabled: boolean;
   mode: NotificationMode;
-  levels?: string[];
-  categories?: string[];
+  levels: string[];
+  categories: string[];
   soundEnabled: boolean;
 }
 
-interface SystemNotificationDelivery {
-  delivered: boolean;
-  status: string;
-  message?: string;
-}
-
-interface SystemNotificationTestResponse {
-  event?: Record<string, unknown>;
-  delivery?: SystemNotificationDelivery;
-}
+type SystemNotificationSettingsWire =
+  components["schemas"]["jftsettings.SystemNotificationSettings"];
 
 const defaultSettings: SystemNotificationSettings = {
   enabled: true,
@@ -51,6 +45,22 @@ const categoryOptions = [
   { value: "system.notification.test", label: "测试通知" },
 ] as const;
 
+function mapSystemNotificationSettings(
+  value: SystemNotificationSettingsWire,
+): SystemNotificationSettings {
+  const mode = value.mode;
+  return {
+    enabled: value.enabled ?? defaultSettings.enabled,
+    mode:
+      mode === "all" || mode === "custom" || mode === "important"
+        ? mode
+        : defaultSettings.mode,
+    levels: value.levels ?? defaultSettings.levels,
+    categories: value.categories ?? defaultSettings.categories,
+    soundEnabled: value.soundEnabled ?? defaultSettings.soundEnabled,
+  };
+}
+
 const modeOptions = [
   { value: "important", label: "重要通知" },
   { value: "all", label: "全部通知" },
@@ -63,22 +73,16 @@ const statusMessage = ref("");
 
 const settingsQuery = useQuery({
   queryKey: settingsQueryKey,
-  queryFn: () =>
-    fetchEnvelopeWithInit<SystemNotificationSettings>(
-      "/api/v1/settings/system-notifications",
-      { method: "GET" },
+  queryFn: async () =>
+    mapSystemNotificationSettings(
+      await apiGet("/api/v1/settings/system-notifications"),
     ),
 }, queryClient);
 
 const saveSettingsMutation = useMutation({
-  mutationFn: (next: SystemNotificationSettings) =>
-    fetchEnvelopeWithInit<SystemNotificationSettings>(
-      "/api/v1/settings/system-notifications",
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      },
+  mutationFn: async (next: SystemNotificationSettings) =>
+    mapSystemNotificationSettings(
+      await apiPut("/api/v1/settings/system-notifications", next),
     ),
   onSuccess: async (saved) => {
     queryClient.setQueryData(settingsQueryKey, saved);
@@ -88,10 +92,7 @@ const saveSettingsMutation = useMutation({
 
 const testNotificationMutation = useMutation({
   mutationFn: () =>
-    fetchEnvelopeWithInit<SystemNotificationTestResponse>(
-      "/api/v1/settings/system-notifications/test",
-      { method: "POST" },
-    ),
+    apiPostAction("/api/v1/settings/system-notifications/test"),
 }, queryClient);
 
 const settings = computed(() => settingsQuery.data.value ?? defaultSettings);

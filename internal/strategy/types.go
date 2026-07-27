@@ -104,9 +104,9 @@ type InstanceBinding struct {
 type RuntimeRiskSettings struct {
 	Mode             string   `json:"mode"`
 	CloseOnly        bool     `json:"closeOnly"`
-	MaxOrderQuantity *float64 `json:"maxOrderQuantity,omitempty"`
-	MaxOrderNotional *float64 `json:"maxOrderNotional,omitempty"`
-	DailyMaxOrders   *int     `json:"dailyMaxOrders,omitempty"`
+	MaxOrderQuantity *float64 `json:"maxOrderQuantity,omitempty" extensions:"x-nullable"`
+	MaxOrderNotional *float64 `json:"maxOrderNotional,omitempty" extensions:"x-nullable"`
+	DailyMaxOrders   *int     `json:"dailyMaxOrders,omitempty" extensions:"x-nullable"`
 	PauseOnReject    bool     `json:"pauseOnReject"`
 }
 
@@ -268,8 +268,8 @@ type PluginOperation struct {
 	InstallPath string  `json:"installPath"`
 	StartedAt   string  `json:"startedAt"`
 	UpdatedAt   string  `json:"updatedAt"`
-	CompletedAt *string `json:"completedAt"`
-	Error       *string `json:"error"`
+	CompletedAt *string `json:"completedAt" extensions:"x-nullable"`
+	Error       *string `json:"error" extensions:"x-nullable"`
 }
 
 type PluginUninstallCommands struct {
@@ -290,8 +290,8 @@ type PluginInstallation struct {
 	InstallPath       string                  `json:"installPath"`
 	TargetDir         string                  `json:"targetDir"`
 	MarkerPath        string                  `json:"markerPath"`
-	CurrentOperation  *PluginOperation        `json:"currentOperation"`
-	LastOperation     *PluginOperation        `json:"lastOperation"`
+	CurrentOperation  *PluginOperation        `json:"currentOperation" extensions:"x-nullable"`
+	LastOperation     *PluginOperation        `json:"lastOperation" extensions:"x-nullable"`
 	UninstallGuidance PluginUninstallGuidance `json:"uninstallGuidance"`
 }
 

@@ -4,13 +4,20 @@ import {
   type PluginCatalogResponse,
   type PluginInstallResponse,
   type PluginOperationDto,
-  type PluginUninstallGuidanceDto,
-} from "@/contracts";
+} from "@/types";
+import type { PluginUninstallGuidanceDto } from "@/contracts";
 
 import {
-  fetchEnvelope,
-  fetchEnvelopeWithInit,
+  apiGet,
+  apiGetPath,
+  apiPostPathAction,
 } from "./apiClient";
+import {
+  mapPluginCatalog,
+  mapPluginMutation,
+  mapPluginOperation,
+  mapPluginUninstallGuidance,
+} from "./pluginContract";
 
 interface CreateConsoleDataPluginControllerOptions {
   pluginCatalog: Ref<PluginCatalogResponse>;
@@ -35,7 +42,7 @@ export function createConsoleDataPluginController(
   options: CreateConsoleDataPluginControllerOptions,
 ) {
   async function fetchPluginCatalog(): Promise<PluginCatalogResponse> {
-    return fetchEnvelope<PluginCatalogResponse>("/api/v1/plugins");
+    return mapPluginCatalog(await apiGet("/api/v1/plugins"));
   }
 
   async function loadPlugins(): Promise<void> {
@@ -53,9 +60,10 @@ export function createConsoleDataPluginController(
     operationId: string,
   ): Promise<PluginOperationDto> {
     for (let attempt = 0; attempt < 30; attempt += 1) {
-      const operation = await fetchEnvelope<PluginOperationDto>(
+      const operation = mapPluginOperation(await apiGetPath(
+        "/api/v1/plugins/operations/{operationId}",
         `/api/v1/plugins/operations/${encodeURIComponent(operationId)}`,
-      );
+      ));
 
       if (operation.status === "SUCCEEDED" || operation.status === "FAILED") {
         if (operation.status === "FAILED") {
@@ -79,16 +87,10 @@ export function createConsoleDataPluginController(
     );
 
     try {
-      const response = await fetchEnvelopeWithInit<PluginInstallResponse>(
+      const response = mapPluginMutation(await apiPostPathAction(
+        "/api/v1/plugins/{pluginId}/install",
         `/api/v1/plugins/${encodeURIComponent(pluginId)}/install`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({}),
-        },
-      );
+      ));
 
       await pollPluginOperation(response.operation.operationId);
       await loadPlugins();
@@ -111,16 +113,10 @@ export function createConsoleDataPluginController(
     );
 
     try {
-      const response = await fetchEnvelopeWithInit<PluginInstallResponse>(
+      const response = mapPluginMutation(await apiPostPathAction(
+        "/api/v1/plugins/{pluginId}/uninstall",
         `/api/v1/plugins/${encodeURIComponent(pluginId)}/uninstall`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({}),
-        },
-      );
+      ));
 
       await pollPluginOperation(response.operation.operationId);
       await loadPlugins();
@@ -143,9 +139,10 @@ export function createConsoleDataPluginController(
     options.pluginError.value = "";
 
     try {
-      return await fetchEnvelope<PluginUninstallGuidanceDto>(
+      return mapPluginUninstallGuidance(await apiGetPath(
+        "/api/v1/plugins/{pluginId}/uninstall-guidance",
         `/api/v1/plugins/${encodeURIComponent(pluginId)}/uninstall-guidance`,
-      );
+      ));
     } catch (error) {
       options.pluginError.value =
         error instanceof Error

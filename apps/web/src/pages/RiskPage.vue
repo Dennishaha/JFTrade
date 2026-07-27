@@ -9,20 +9,26 @@ import StrategyRuntimeRiskSection from "../components/risk/StrategyRuntimeRiskSe
 import ActionConfirmDialog from "../components/shared/ActionConfirmDialog.vue";
 import { normalizeStrategyRuntimeRiskSettings } from "../components/strategy-runtime/strategyRuntimeInstanceBinding";
 import {
+  apiGet,
   apiPost,
   apiPostPath,
-  fetchEnvelope,
-  fetchEnvelopeWithInit,
+  apiPutPath,
 } from "../composables/apiClient";
+import {
+  mapStrategyInstance,
+  mapStrategyInstances,
+} from "../composables/strategyContract";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useRuntimeRiskConfig } from "../composables/useRuntimeRiskConfig";
 import type {
-  RealTradeHardStopCommandPayload,
-  RealTradeHardStopsResponse,
   StrategyInstanceItem,
   StrategyRuntimeRiskMode,
   StrategyRuntimeRiskSettings,
-} from "../contracts";
+} from "../types";
+import type {
+  RealTradeHardStopCommandPayload,
+  RealTradeHardStopsResponse,
+} from "@/contracts";
 
 const {
   loadSystemState,
@@ -264,8 +270,8 @@ onMounted(() => {
 
 async function loadStrategyInstances(): Promise<void> {
   try {
-    strategyInstances.value = await fetchEnvelope<StrategyInstanceItem[]>(
-      "/api/v1/strategies",
+    strategyInstances.value = mapStrategyInstances(
+      await apiGet("/api/v1/strategies"),
     );
     strategyRuntimeRiskError.value = "";
   } catch (error) {
@@ -299,13 +305,12 @@ async function updateStrategyRuntimeRiskMode(
     instanceId,
   ];
   try {
-    const updated = await fetchEnvelopeWithInit<StrategyInstanceItem>(
+    const updated = mapStrategyInstance(
+      await apiPutPath(
+        "/api/v1/strategies/{instanceId}/runtime-risk",
       `/api/v1/strategies/${encodeURIComponent(instanceId)}/runtime-risk`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(runtimeRisk),
-      },
+        runtimeRisk,
+      ),
     );
     strategyInstances.value = strategyInstances.value.map((item) =>
       item.id === updated.id ? updated : item,

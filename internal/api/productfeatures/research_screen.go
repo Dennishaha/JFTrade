@@ -21,9 +21,9 @@ import (
 // @Produce json
 // @Param brokerId query string false "券商 ID"
 // @Param market query string false "市场"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=researchscreen.Catalog}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/research/screens/catalog [get]
 func handleResearchScreenCatalog() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -52,11 +52,11 @@ func handleResearchScreenCatalog() gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Param request body broker.ScreenQueryV2 true "股票筛选请求"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 429 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=broker.ResearchScreenResult}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/research/screens [post]
 func handleResearchScreenQuery(svc *service.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {

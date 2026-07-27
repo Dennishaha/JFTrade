@@ -7,12 +7,16 @@ import (
 	"time"
 )
 
-func (s *Server) liveStatsSummary() map[string]any {
-	if s == nil || s.liveWebSocket == nil {
+func (s *serverApplication) liveStatsSummary() map[string]any {
+	if s == nil {
 		return map[string]any{"connected": 0, "limit": 0, "atLimit": false, "activeInstruments": []string{}}
 	}
-	stats := s.liveWebSocket.Stats()
-	activeInstruments := s.liveWebSocket.ActiveInstrumentIDs()
+	liveWebSocket := s.runtimes.LiveWebSocket()
+	if liveWebSocket == nil {
+		return map[string]any{"connected": 0, "limit": 0, "atLimit": false, "activeInstruments": []string{}}
+	}
+	stats := liveWebSocket.Stats()
+	activeInstruments := liveWebSocket.ActiveInstrumentIDs()
 	sort.Strings(activeInstruments)
 	return map[string]any{
 		"connected":         stats.Connected,
@@ -22,7 +26,7 @@ func (s *Server) liveStatsSummary() map[string]any {
 	}
 }
 
-func (s *Server) marketdataRuntimeSummary() map[string]any {
+func (s *serverApplication) marketdataRuntimeSummary() map[string]any {
 	if s == nil || s.marketdataSvc == nil {
 		return map[string]any{"status": "unavailable"}
 	}
@@ -54,8 +58,9 @@ func (s *Server) marketdataRuntimeSummary() map[string]any {
 	}
 }
 
-func (s *Server) strategyRuntimeSummary() map[string]any {
-	if s.strategyRuntimeManager == nil {
+func (s *serverApplication) strategyRuntimeSummary() map[string]any {
+	strategyRuntime := s.runtimes.StrategyRuntime()
+	if strategyRuntime == nil {
 		return map[string]any{
 			"status":                 "idle",
 			"activeStrategies":       0,
@@ -63,7 +68,7 @@ func (s *Server) strategyRuntimeSummary() map[string]any {
 			"activeInstances":        []stratsrv.RuntimeActiveInstanceSummary{},
 		}
 	}
-	return s.strategyRuntimeManager.runtimeSummary()
+	return strategyRuntime.SummaryMap()
 }
 
 func optionalTimeString(value time.Time) *string {

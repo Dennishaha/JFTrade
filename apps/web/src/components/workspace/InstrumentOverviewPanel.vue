@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import {
-  type BrokerMarginRatiosResponse,
-  emptyBrokerMarginRatios,
-} from "@/contracts";
+import type { BrokerMarginRatiosResponse } from "@/contracts";
+import { emptyBrokerMarginRatios } from "@/types";
 
 import { formatDateTime } from "../../composables/consoleDataFormatting";
 import { formatInstrumentIdentityText } from "../../composables/instrumentPresentation";
 import type { MarketSecurityDetails } from "../../composables/marketDataRealtime";
-import { fetchEnvelope } from "../../composables/apiClient";
+import { apiGetPath } from "../../composables/apiClient";
 import { resolveBrokerQuery } from "../../composables/consoleDataBrokerAccountSelection";
 import { useMarketProfiles } from "../../composables/marketProfiles";
 import { resolveMarketSnapshotDisplay } from "../../composables/marketSessionDisplay";
@@ -135,7 +133,8 @@ async function fetchCurrentMarginRatio(): Promise<void> {
   isLoadingCurrentMarginRatio.value = true;
 
   try {
-    const result = await fetchEnvelope<BrokerMarginRatiosResponse>(
+    const result = await apiGetPath(
+      "/api/v1/brokers/{brokerId}/margin-ratios",
       `/api/v1/brokers/${encodeURIComponent(account.brokerId)}/margin-ratios?${brokerQuery.toString()}`,
     );
     if (token === marginRatioFetchToken) {

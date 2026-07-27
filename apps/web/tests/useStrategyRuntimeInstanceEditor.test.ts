@@ -6,7 +6,7 @@ import type {
   StrategyDefinitionDocument,
   StrategyInstanceBindingDocument,
   StrategyInstanceItem,
-} from "../src/contracts";
+} from "../src/types";
 import type { BrokerAccountSelectionOption } from "../src/composables/consoleDataBrokerAccountSelection";
 import { useStrategyRuntimeInstanceEditor } from "../src/components/strategy-runtime/useStrategyRuntimeInstanceEditor";
 

@@ -14,8 +14,8 @@ let consoleDataState: ReturnType<typeof createConsoleDataState>;
 let notificationsState: { push: typeof mocks.pushNotification };
 
 vi.mock("../src/composables/apiClient", () => ({
-  fetchEnvelopeWithInit: (...args: unknown[]) =>
-    mocks.fetchEnvelopeWithInit(...args),
+  apiPostPathAction: (_template: string, path: string) =>
+    mocks.fetchEnvelopeWithInit(path, { method: "POST" }),
 }));
 
 vi.mock("../src/composables/useConsoleData", () => ({

@@ -10,10 +10,6 @@ func newOptionalIntValue(value int) httpserver.OptionalIntValue {
 	return httpserver.OptionalIntValue{Value: value, Set: true, Valid: true}
 }
 
-func newOptionalBoolValue(value bool) httpserver.OptionalBoolValue {
-	return httpserver.OptionalBoolValue{Value: value, Set: true}
-}
-
 func newOptionalTimeValue(value time.Time) httpserver.OptionalTimeValue {
 	return httpserver.OptionalTimeValue{Time: value}
 }

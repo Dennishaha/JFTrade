@@ -1,0 +1,258 @@
+package testkit
+
+import (
+	"strconv"
+	"strings"
+
+	"google.golang.org/protobuf/proto"
+
+	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
+	trdgetmarginratiopb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmarginratio"
+)
+
+func normalizeBrokerRouteHeader(header *trdcommonpb.TrdHeader) *trdcommonpb.TrdHeader {
+	if header == nil {
+		header = &trdcommonpb.TrdHeader{}
+	}
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.TrdHeader](proto.Clone(header))
+	if clone.TrdEnv == nil {
+		clone.TrdEnv = new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate))
+	}
+	if clone.AccID == nil {
+		clone.AccID = new(uint64(1001))
+	}
+	if clone.TrdMarket == nil {
+		clone.TrdMarket = new(int32(trdcommonpb.TrdMarket_TrdMarket_HK))
+	}
+	return clone
+}
+
+func normalizeBrokerRouteFunds(funds *trdcommonpb.Funds) *trdcommonpb.Funds {
+	if funds == nil {
+		funds = &trdcommonpb.Funds{}
+	}
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.Funds](proto.Clone(funds))
+	if clone.Power == nil {
+		clone.Power = new(float64(0))
+	}
+	if clone.TotalAssets == nil {
+		clone.TotalAssets = new(float64(0))
+	}
+	if clone.Cash == nil {
+		clone.Cash = new(float64(0))
+	}
+	if clone.MarketVal == nil {
+		clone.MarketVal = new(float64(0))
+	}
+	if clone.FrozenCash == nil {
+		clone.FrozenCash = new(float64(0))
+	}
+	if clone.DebtCash == nil {
+		clone.DebtCash = new(float64(0))
+	}
+	if clone.AvlWithdrawalCash == nil {
+		clone.AvlWithdrawalCash = new(float64(0))
+	}
+	return clone
+}
+
+func normalizeBrokerRoutePosition(position *trdcommonpb.Position) *trdcommonpb.Position {
+	if position == nil {
+		position = &trdcommonpb.Position{}
+	}
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.Position](proto.Clone(position))
+	if clone.PositionID == nil {
+		clone.PositionID = new(uint64(1))
+	}
+	if clone.PositionSide == nil {
+		clone.PositionSide = new(int32(1))
+	}
+	if clone.Code == nil {
+		clone.Code = new("HK.00700")
+	}
+	if clone.Name == nil {
+		clone.Name = new(clone.GetCode())
+	}
+	if clone.Qty == nil {
+		clone.Qty = new(float64(0))
+	}
+	if clone.CanSellQty == nil {
+		clone.CanSellQty = new(float64(0))
+	}
+	if clone.Price == nil {
+		clone.Price = new(float64(0))
+	}
+	if clone.Val == nil {
+		clone.Val = new(float64(0))
+	}
+	if clone.PlVal == nil {
+		clone.PlVal = new(float64(0))
+	}
+	return clone
+}
+
+func normalizeBrokerRouteOrder(order *trdcommonpb.Order) *trdcommonpb.Order {
+	if order == nil {
+		order = &trdcommonpb.Order{}
+	}
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.Order](proto.Clone(order))
+	if clone.TrdSide == nil {
+		clone.TrdSide = new(int32(trdcommonpb.TrdSide_TrdSide_Buy))
+	}
+	if clone.OrderType == nil {
+		clone.OrderType = new(int32(trdcommonpb.OrderType_OrderType_Normal))
+	}
+	if clone.OrderStatus == nil {
+		clone.OrderStatus = new(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted))
+	}
+	if clone.OrderID == nil {
+		clone.OrderID = new(uint64(1))
+	}
+	if clone.OrderIDEx == nil {
+		clone.OrderIDEx = new(strconv.FormatUint(clone.GetOrderID(), 10))
+	}
+	if clone.Code == nil {
+		clone.Code = new("HK.00700")
+	}
+	if clone.Name == nil {
+		clone.Name = new(clone.GetCode())
+	}
+	if clone.Qty == nil {
+		clone.Qty = new(float64(0))
+	}
+	if clone.CreateTime == nil {
+		clone.CreateTime = new("2026-05-20 09:30:00")
+	}
+	if clone.UpdateTime == nil {
+		clone.UpdateTime = new(clone.GetCreateTime())
+	}
+	return clone
+}
+
+func normalizeBrokerRouteOrderFill(fill *trdcommonpb.OrderFill) *trdcommonpb.OrderFill {
+	if fill == nil {
+		fill = &trdcommonpb.OrderFill{}
+	}
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.OrderFill](proto.Clone(fill))
+	if clone.OrderID == nil {
+		clone.OrderID = new(uint64(1))
+	}
+	if clone.OrderIDEx == nil {
+		clone.OrderIDEx = new(strconv.FormatUint(clone.GetOrderID(), 10))
+	}
+	if clone.FillID == nil {
+		clone.FillID = new(uint64(1))
+	}
+	if clone.FillIDEx == nil {
+		clone.FillIDEx = new(strconv.FormatUint(clone.GetFillID(), 10))
+	}
+	if clone.Code == nil {
+		clone.Code = new("HK.00700")
+	}
+	if clone.Name == nil {
+		clone.Name = new(clone.GetCode())
+	}
+	if clone.TrdSide == nil {
+		clone.TrdSide = new(int32(trdcommonpb.TrdSide_TrdSide_Buy))
+	}
+	if clone.Qty == nil {
+		clone.Qty = new(float64(0))
+	}
+	if clone.CreateTime == nil {
+		clone.CreateTime = new("2026-05-20 09:30:00")
+	}
+	return clone
+}
+
+func normalizeBrokerRouteOrderFee(fee *trdcommonpb.OrderFee) *trdcommonpb.OrderFee {
+	if fee == nil {
+		fee = &trdcommonpb.OrderFee{}
+	}
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.OrderFee](proto.Clone(fee))
+	if clone.OrderIDEx == nil {
+		clone.OrderIDEx = new("")
+	}
+	if clone.FeeAmount == nil {
+		clone.FeeAmount = new(float64(0))
+	}
+	return clone
+}
+
+func normalizeBrokerRouteMarginRatio(ratio *trdgetmarginratiopb.MarginRatioInfo) *trdgetmarginratiopb.MarginRatioInfo {
+	if ratio == nil {
+		ratio = &trdgetmarginratiopb.MarginRatioInfo{}
+	}
+	clone := jftradeCheckedTypeAssertion[*trdgetmarginratiopb.MarginRatioInfo](proto.Clone(ratio))
+	if clone.Security == nil {
+		clone.Security = &qotcommonpb.Security{Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: new("00700")}
+	}
+	return clone
+}
+
+func normalizeBrokerRouteCashFlow(flow *trdflowsummarypb.FlowSummaryInfo) *trdflowsummarypb.FlowSummaryInfo {
+	if flow == nil {
+		flow = &trdflowsummarypb.FlowSummaryInfo{}
+	}
+	clone := jftradeCheckedTypeAssertion[*trdflowsummarypb.FlowSummaryInfo](proto.Clone(flow))
+	if clone.CashFlowID == nil {
+		clone.CashFlowID = new(uint64(1))
+	}
+	if clone.ClearingDate == nil {
+		clone.ClearingDate = new("2026-05-20")
+	}
+	return clone
+}
+
+func normalizeBrokerRouteMaxTrdQtys(maxQtys *trdcommonpb.MaxTrdQtys) *trdcommonpb.MaxTrdQtys {
+	if maxQtys == nil {
+		maxQtys = &trdcommonpb.MaxTrdQtys{}
+	}
+	return jftradeCheckedTypeAssertion[*trdcommonpb.MaxTrdQtys](proto.Clone(maxQtys))
+}
+
+func filterBrokerRouteOrders(input []*trdcommonpb.Order, filter *trdcommonpb.TrdFilterConditions, statuses []int32) []*trdcommonpb.Order {
+	orders := make([]*trdcommonpb.Order, 0, len(input))
+	codeSet := make(map[string]struct{}, len(filter.GetCodeList()))
+	for _, code := range filter.GetCodeList() {
+		codeSet[strings.ToUpper(strings.TrimSpace(code))] = struct{}{}
+	}
+	statusSet := make(map[int32]struct{}, len(statuses))
+	for _, status := range statuses {
+		statusSet[status] = struct{}{}
+	}
+	for _, order := range input {
+		normalized := normalizeBrokerRouteOrder(order)
+		if len(codeSet) > 0 {
+			if _, ok := codeSet[strings.ToUpper(strings.TrimSpace(normalized.GetCode()))]; !ok {
+				continue
+			}
+		}
+		if len(statusSet) > 0 {
+			if _, ok := statusSet[normalized.GetOrderStatus()]; !ok {
+				continue
+			}
+		}
+		orders = append(orders, normalized)
+	}
+	return orders
+}
+
+func filterBrokerRouteFills(input []*trdcommonpb.OrderFill, filter *trdcommonpb.TrdFilterConditions) []*trdcommonpb.OrderFill {
+	fills := make([]*trdcommonpb.OrderFill, 0, len(input))
+	codeSet := make(map[string]struct{}, len(filter.GetCodeList()))
+	for _, code := range filter.GetCodeList() {
+		codeSet[strings.ToUpper(strings.TrimSpace(code))] = struct{}{}
+	}
+	for _, fill := range input {
+		normalized := normalizeBrokerRouteOrderFill(fill)
+		if len(codeSet) > 0 {
+			if _, ok := codeSet[strings.ToUpper(strings.TrimSpace(normalized.GetCode()))]; !ok {
+				continue
+			}
+		}
+		fills = append(fills, normalized)
+	}
+	return fills
+}

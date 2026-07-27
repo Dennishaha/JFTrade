@@ -1,71 +1,34 @@
 package servercore
 
 import (
-	apilive "github.com/jftrade/jftrade-main/internal/api/live"
+	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	appruntimes "github.com/jftrade/jftrade-main/internal/app/apiserver/runtimes"
+	appstores "github.com/jftrade/jftrade-main/internal/app/apiserver/stores"
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
-	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
-	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
-	"github.com/jftrade/jftrade-main/internal/live"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
 	"github.com/jftrade/jftrade-main/internal/research"
 	"github.com/jftrade/jftrade-main/internal/settings"
-	researchstore "github.com/jftrade/jftrade-main/internal/store/research"
-	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
-	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/internal/watchlist"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	"github.com/jftrade/jftrade-main/pkg/broker"
-	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
+	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
-// serverStores groups the persistent stores owned by Server. Every field is
-// a database- or file-backed store opened during bootstrap from paths derived
-// from the sidecar settings file; stores outlive individual requests and are
-// closed with the server.
-type serverStores struct {
-	store                SidecarSettingsStore
-	strategyStore        *strategyCatalogStore
-	strategyRuntimeStore *runtimeactivity.Store
-	designStore          *strategyDesignStore
-	backtestRuns         *backtestRunStore
-	backtestSyncTasks    *backtestSyncTaskStore
-	executionOrders      *executionOrderStore
-	watchlistStore       *watchliststore.Store
-	researchStore        *researchstore.Store
-}
+// serverApplication is the single application dependency entry owned by
+// Server. It holds domain stores, runtimes, facades, maintenance state and the
+// resource lifecycle; HTTP, security and frontend plumbing remain on Server.
+// The zero value is intentionally usable so narrow Server literals in tests
+// retain their nil-safe behavior.
+type serverApplication struct {
+	store    SidecarSettingsStore
+	stores   appstores.Handle
+	runtimes appruntimes.Handle
 
-// serverRuntimes groups the in-process runtimes and integrations owned by
-// Server: the broker registry, market data runtime, live event fan-out,
-// ADK/MCP runtimes, exchange calendars, pine worker runners and the
-// real-trade control plane. Unlike serverStores these hold live connections
-// and background goroutines rather than persisted state.
-type serverRuntimes struct {
-	strategyRuntimeManager   *strategyRuntimeManager
-	liveWebSocket            *apilive.Handler
-	liveNotifications        *live.ReplayPublisher
-	liveNotificationSink     func(live.Event) live.NotificationDelivery
-	marketdataRuntime        *futuintegration.MarketDataRuntime
-	brokers                  *broker.Registry // Unified broker registry for multi-broker support
-	adkRuntime               *jfadk.Runtime
-	mcpServer                *mcpServerManager
-	exchangeCalendars        *exchangecalendar.Manager
-	previousCalendarResolver marketcalendar.Resolver
-	backtestPineWorkerRunner pineWorkerRunner
-	instancePineWorkerRunner pineWorkerRunner
-	realTradeControlPlane    *trdsrv.RealTradeControlPlane
-	preTradeRiskGateway      trdsrv.PreTradeRiskGateway
-}
-
-// serverFacades groups the business facade services shared by the HTTP, ADK
-// and MCP surfaces. Facades are assembled after the stores and runtimes and
-// expose the stable service API that handlers delegate to.
-type serverFacades struct {
 	assistantSvc       *asst.Service
 	sysSvc             *system.Service
 	settingsSvc        *settings.Service
@@ -77,4 +40,9 @@ type serverFacades struct {
 	watchlistSvc       *watchlist.Service
 	researchSvc        *research.Service
 	tradingSvc         *trdsrv.Service
+
+	dataMigration        *datamigration.Manager
+	unavailableDatabases map[string]error
+	observability        *observability.Recorder
+	lifecycle            appcomposition.Lifecycle
 }

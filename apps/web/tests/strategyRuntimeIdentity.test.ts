@@ -10,7 +10,7 @@ import {
   isSupportedPineRuntime,
 } from "../src/components/strategy-runtime/strategyRuntimeIdentity";
 import { buildPineStrategyDefinitionPayload } from "../src/components/strategy-runtime/strategyDefinitionPayload";
-import type { StrategyInstanceItem } from "../src/contracts";
+import type { StrategyInstanceItem } from "../src/types";
 
 describe("strategy runtime identity", () => {
   it("keeps legacy Go Pine IDs as migration aliases instead of supported runtimes", () => {

@@ -3,7 +3,7 @@ import type {
   ADKWorkflowNodeRun,
   ADKWorkflowTrigger,
   ADKWorkflowTriggerLog,
-} from "@/contracts";
+} from "@/types";
 import type { TriggerFormModel } from "@/features/adkWorkflowForms";
 import {
   triggerStatusOptions,

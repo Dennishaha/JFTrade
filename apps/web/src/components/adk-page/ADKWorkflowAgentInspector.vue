@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ADKWorkflowNodeRun } from "@/contracts";
+import type { ADKWorkflowNodeRun } from "@/types";
 import type { WorkflowFormModel } from "@/features/adkWorkflowForms";
 import type { FlowNodeData } from "@/features/adkWorkflowStudio";
 import {

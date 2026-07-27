@@ -35,10 +35,10 @@ func (s *Server) newTradingService() *trdsrv.Service {
 		}),
 		trdsrv.WithDefaultTradingEnvironment(s.defaultTradingEnvironment),
 		trdsrv.WithOrderUpdates(orderUpdates),
-		trdsrv.WithPreTradeRiskGateway(s.preTradeRiskGateway),
-		trdsrv.WithOrderStore(&serverTradingOrderStore{store: s.executionOrders}),
-		trdsrv.WithExecutionPreviewStore(&serverTradingOrderStore{store: s.executionOrders}),
-		trdsrv.WithPredictionQuoteStore(&serverTradingOrderStore{store: s.executionOrders}),
+		trdsrv.WithPreTradeRiskGateway(s.runtimes.PreTradeRisk()),
+		trdsrv.WithOrderStore(s.stores.ExecutionOrders),
+		trdsrv.WithExecutionPreviewStore(s.stores.ExecutionOrders),
+		trdsrv.WithPredictionQuoteStore(s.stores.ExecutionOrders),
 		trdsrv.WithOrderGateway(&serverTradingOrderGateway{server: s}),
 		trdsrv.WithComboOrderGateway(&serverTradingOrderGateway{server: s}),
 	)
@@ -57,69 +57,7 @@ func (p *serverTradingBrokerRuntimeProvider) ResolveBroker(id string) broker.Bro
 }
 
 func (p *serverTradingBrokerRuntimeProvider) Runtime(ctx context.Context) *trdsrv.BrokerRuntimeResponse {
-	return p.server.brokerRuntime(ctx)
-}
-
-type serverTradingOrderStore struct {
-	store *executionOrderStore
-}
-
-func (p *serverTradingOrderStore) ListOrders(_ context.Context, filter trdsrv.ExecutionOrderFilter) (trdsrv.ExecutionOrders, error) {
-	return p.store.listOrdersFiltered(filter), nil
-}
-
-func (p *serverTradingOrderStore) OrderEvents(_ context.Context, internalOrderID string) (trdsrv.ExecutionOrderEvents, error) {
-	return p.store.orderEvents(strings.TrimSpace(internalOrderID)), nil
-}
-
-func (p *serverTradingOrderStore) SavePreview(record trdsrv.ExecutionPreviewRecord) error {
-	if p == nil || p.store == nil || p.store.persistence == nil {
-		return nil
-	}
-	return p.store.persistence.savePreview(record)
-}
-
-func (p *serverTradingOrderStore) ConsumePreview(
-	previewID, brokerID, accountID, requestHash, clientOrderID string,
-) error {
-	if p == nil || p.store == nil || p.store.persistence == nil {
-		return nil
-	}
-	return p.store.persistence.consumePreview(previewID, brokerID, accountID, requestHash, clientOrderID)
-}
-
-func (p *serverTradingOrderStore) SavePredictionQuote(
-	_ context.Context,
-	record broker.PredictionQuoteRecord,
-) error {
-	if p == nil || p.store == nil || p.store.persistence == nil {
-		return fmt.Errorf("prediction quote persistence is unavailable")
-	}
-	return p.store.persistence.savePredictionQuote(record)
-}
-
-func (p *serverTradingOrderStore) ValidatePredictionQuote(
-	_ context.Context,
-	quoteID, brokerID, accountID, environment, mvc, legsHash string,
-) (broker.PredictionQuoteRecord, error) {
-	if p == nil || p.store == nil || p.store.persistence == nil {
-		return broker.PredictionQuoteRecord{}, fmt.Errorf("prediction quote persistence is unavailable")
-	}
-	return p.store.persistence.predictionQuote(
-		quoteID, brokerID, accountID, environment, mvc, legsHash,
-	)
-}
-
-func (p *serverTradingOrderStore) ConsumePredictionQuote(
-	_ context.Context,
-	quoteID, brokerID, accountID, environment, mvc, legsHash, previewID, clientOrderID string,
-) error {
-	if p == nil || p.store == nil || p.store.persistence == nil {
-		return fmt.Errorf("prediction quote persistence is unavailable")
-	}
-	return p.store.persistence.consumePredictionQuote(
-		quoteID, brokerID, accountID, environment, mvc, legsHash, previewID, clientOrderID,
-	)
+	return p.server.futuCoordinator().BrokerRuntime(ctx)
 }
 
 type serverTradingOrderGateway struct {
@@ -136,9 +74,6 @@ func (p *serverTradingOrderGateway) CancelOrder(ctx context.Context, internalOrd
 
 var (
 	_ trdsrv.BrokerRuntimeProvider = (*serverTradingBrokerRuntimeProvider)(nil)
-	_ trdsrv.OrderStore            = (*serverTradingOrderStore)(nil)
-	_ trdsrv.ExecutionPreviewStore = (*serverTradingOrderStore)(nil)
-	_ broker.PredictionQuoteStore  = (*serverTradingOrderStore)(nil)
 	_ trdsrv.OrderGateway          = (*serverTradingOrderGateway)(nil)
 	_ trdsrv.ComboOrderGateway     = (*serverTradingOrderGateway)(nil)
 )
@@ -159,7 +94,7 @@ func (p *serverTradingOrderGateway) PlaceCombo(ctx context.Context, intent broke
 			quantity = *intent.Legs[0].Quantity
 		}
 	}
-	prepared, fresh, err := p.server.executionOrders.prepareSubmission(trdsrv.ExecutionPlacedOrderRecord{
+	prepared, fresh, err := p.server.stores.ExecutionOrders.PrepareSubmission(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID: intent.BrokerID, TradingEnvironment: intent.TradingEnvironment,
 		AccountID: intent.AccountID, Market: intent.Market, Symbol: symbol, Side: side,
 		OrderType: "COMBO", RequestedQuantity: quantity, RequestedPrice: intent.Price,
@@ -175,11 +110,11 @@ func (p *serverTradingOrderGateway) PlaceCombo(ctx context.Context, intent broke
 	}
 	placed, err := service.PlaceComboOrder(ctx, intent)
 	if err != nil {
-		p.server.executionOrders.markSubmissionUnknown(prepared.InternalOrderID, err)
+		p.server.stores.ExecutionOrders.MarkSubmissionUnknown(prepared.InternalOrderID, err)
 		return trdsrv.ExecutionOrder{}, err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	record := p.server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	record := p.server.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		InternalOrderID: prepared.InternalOrderID, BrokerID: intent.BrokerID, BrokerOrderID: placed.BrokerOrderID,
 		BrokerOrderIDEx:    placed.BrokerOrderID,
 		TradingEnvironment: intent.TradingEnvironment, AccountID: intent.AccountID,
@@ -200,7 +135,7 @@ func (p *serverTradingOrderGateway) PlaceCombo(ctx context.Context, intent broke
 }
 
 func (p *serverTradingOrderGateway) CancelCombo(ctx context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
-	order, ok := p.server.executionOrders.order(strings.TrimSpace(internalOrderID))
+	order, ok := p.server.stores.ExecutionOrders.Order(strings.TrimSpace(internalOrderID))
 	if !ok {
 		return trdsrv.ExecutionOrder{}, fmt.Errorf("execution order not found")
 	}
@@ -222,7 +157,7 @@ func (p *serverTradingOrderGateway) CancelCombo(ctx context.Context, internalOrd
 	}, brokerOrderID); err != nil {
 		return trdsrv.ExecutionOrder{}, err
 	}
-	updated, _ := p.server.executionOrders.markCancelRequested(internalOrderID, map[string]any{
+	updated, _ := p.server.stores.ExecutionOrders.MarkCancelRequested(internalOrderID, map[string]any{
 		"operation": "CANCEL_COMBO", "brokerOrderId": brokerOrderID,
 	})
 	return updated, nil
@@ -250,7 +185,7 @@ func (s *Server) defaultTradingEnvironment() string {
 	return s.store.ExecutionSettings().DefaultTradingEnvironment
 }
 
-func (s *Server) placeExecutionOrder(ctx context.Context, request trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
+func (s *serverApplication) placeExecutionOrder(ctx context.Context, request trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
 	requestBrokerID := strings.TrimSpace(request.BrokerID)
 	queryBrokerID := strings.TrimSpace(request.Query.BrokerID)
 	if requestBrokerID != "" && queryBrokerID != "" && !strings.EqualFold(requestBrokerID, queryBrokerID) {
@@ -265,7 +200,7 @@ func (s *Server) placeExecutionOrder(ctx context.Context, request trdsrv.Executi
 	selected := s.resolveBroker(request.BrokerID)
 	var placed *broker.PlaceOrderResult
 	var err error
-	prepared, fresh, err := s.executionOrders.prepareSubmission(trdsrv.ExecutionPlacedOrderRecord{
+	prepared, fresh, err := s.stores.ExecutionOrders.PrepareSubmission(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID: request.BrokerID, TradingEnvironment: request.Query.TradingEnvironment,
 		AccountID: request.Query.AccountID, Market: request.Query.Market, Symbol: request.Symbol,
 		Side: request.Side, OrderType: request.OrderType, RequestedQuantity: request.Query.Quantity,
@@ -286,7 +221,7 @@ func (s *Server) placeExecutionOrder(ctx context.Context, request trdsrv.Executi
 		err = fmt.Errorf("broker %q trading service is unavailable", request.BrokerID)
 	}
 	if err != nil {
-		s.executionOrders.markSubmissionUnknown(prepared.InternalOrderID, err)
+		s.stores.ExecutionOrders.MarkSubmissionUnknown(prepared.InternalOrderID, err)
 		return trdsrv.ExecutionOrder{}, err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
@@ -303,7 +238,7 @@ func (s *Server) placeExecutionOrder(ctx context.Context, request trdsrv.Executi
 	if request.Session != "" {
 		payloadData["session"] = request.Session
 	}
-	record := s.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	record := s.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		InternalOrderID: prepared.InternalOrderID, BrokerID: request.BrokerID, BrokerOrderID: placed.BrokerOrderID,
 		BrokerOrderIDEx:    derefString(placed.BrokerOrderIDEx),
 		TradingEnvironment: placed.TradingEnvironment, AccountID: placed.AccountID,
@@ -321,9 +256,9 @@ func (s *Server) placeExecutionOrder(ctx context.Context, request trdsrv.Executi
 	return record, nil
 }
 
-func (s *Server) cancelExecutionOrder(ctx context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
+func (s *serverApplication) cancelExecutionOrder(ctx context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
 	internalOrderID = strings.TrimSpace(internalOrderID)
-	order, ok := s.executionOrders.order(internalOrderID)
+	order, ok := s.stores.ExecutionOrders.Order(internalOrderID)
 	if !ok {
 		return trdsrv.ExecutionOrder{}, fmt.Errorf("execution order not found")
 	}
@@ -363,7 +298,7 @@ func (s *Server) cancelExecutionOrder(ctx context.Context, internalOrderID strin
 		return trdsrv.ExecutionOrder{}, err
 	}
 
-	updatedOrder, _ := s.executionOrders.markCancelRequested(internalOrderID, map[string]any{
+	updatedOrder, _ := s.stores.ExecutionOrders.MarkCancelRequested(internalOrderID, map[string]any{
 		"operation":       "CANCEL",
 		"brokerOrderId":   *order.BrokerOrderID,
 		"brokerOrderIdEx": order.BrokerOrderIDEx,

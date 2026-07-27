@@ -1,6 +1,6 @@
 import { ref, watch, type Ref } from "vue";
 
-import type { MarketDataDepthResponse } from "@/contracts";
+import type { MarketDataDepthResponse } from "@/types";
 
 import {
   buildRuntimeLiveSocketUrl,

@@ -9,8 +9,9 @@ import { queryClient, queryKeys } from "../src/composables/serverState";
 
 const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
-  fetchEnvelope: vi.fn(),
-  fetchEnvelopeWithInit: vi.fn(),
+  apiGetPath: vi.fn(),
+  apiDeletePath: vi.fn(),
+  apiPost: vi.fn(),
   startSync: vi.fn(),
   cancelKlineSync: vi.fn(),
   syncing: { value: false },
@@ -19,8 +20,9 @@ const mocks = vi.hoisted(() => ({
 }));
 const {
   apiGet,
-  fetchEnvelope,
-  fetchEnvelopeWithInit,
+  apiGetPath,
+  apiDeletePath,
+  apiPost,
   startSync,
   cancelKlineSync,
   syncing,
@@ -30,8 +32,9 @@ const {
 
 vi.mock("../src/composables/apiClient", () => ({
   apiGet: mocks.apiGet,
-  fetchEnvelope: mocks.fetchEnvelope,
-  fetchEnvelopeWithInit: mocks.fetchEnvelopeWithInit,
+  apiGetPath: mocks.apiGetPath,
+  apiDeletePath: mocks.apiDeletePath,
+  apiPost: mocks.apiPost,
 }));
 
 vi.mock("../src/composables/useKlineSyncTask", () => ({
@@ -44,7 +47,10 @@ vi.mock("../src/composables/useKlineSyncTask", () => ({
   }),
 }));
 
-import { useBacktestRuns } from "../src/composables/useBacktestRuns";
+import {
+  toBacktestStartRequestWire,
+  useBacktestRuns,
+} from "../src/composables/useBacktestRuns";
 
 const baseForm: BacktestFormState = {
   definitionId: "def-1",
@@ -126,6 +132,94 @@ afterEach(() => {
 });
 
 describe("useBacktestRuns", () => {
+  it("maps sparse and complete backtest requests to the generated wire contract", () => {
+    expect(toBacktestStartRequestWire({
+      definitionId: "def-sparse",
+      interval: "1d",
+      startDate: "",
+      endDate: "",
+      initialBalance: 10_000,
+    })).toEqual({
+      definitionId: "def-sparse",
+      market: "",
+      code: "",
+      symbol: "",
+      interval: "1d",
+      chartType: "standard",
+      initialBalance: 10_000,
+      rehabType: "",
+      tradingCosts: {
+        brokerFees: {},
+        marketFees: {},
+      },
+    });
+
+    expect(toBacktestStartRequestWire({
+      definitionId: "def-full",
+      definitionVersion: "2.0.0",
+      market: "US",
+      code: "AAPL",
+      symbol: "US.AAPL",
+      instrumentType: "stock",
+      interval: "5m",
+      chartType: "heikinashi",
+      startDate: "2026-01-01",
+      endDate: "2026-02-01",
+      startTime: "2026-01-01T00:00:00Z",
+      endTime: "2026-02-01T00:00:00Z",
+      initialBalance: 100_000,
+      rehabType: "forward",
+      useExtendedHours: true,
+      executionModel: "conservative-bar-v1",
+      tradingCosts: {
+        brokerFees: {
+          mode: "custom",
+          presetId: "broker-preset",
+          rules: [{
+            id: "commission",
+            category: "broker",
+            basis: "notional",
+            rate: 0.001,
+          }],
+        },
+        marketFees: {
+          mode: "market_preset",
+          presetId: "market-preset",
+          rules: [{
+            id: "exchange",
+            label: "交易所费用",
+            category: "exchange",
+            basis: "order",
+            fixedAmount: 1,
+          }],
+        },
+      },
+    })).toMatchObject({
+      definitionVersion: "2.0.0",
+      market: "US",
+      code: "AAPL",
+      symbol: "US.AAPL",
+      instrumentType: "stock",
+      chartType: "heikinashi",
+      startDate: "2026-01-01",
+      endDate: "2026-02-01",
+      startTime: "2026-01-01T00:00:00Z",
+      endTime: "2026-02-01T00:00:00Z",
+      useExtendedHours: true,
+      executionModel: "conservative-bar-v1",
+      tradingCosts: {
+        brokerFees: {
+          mode: "custom",
+          presetId: "broker-preset",
+          rules: [expect.objectContaining({ label: "" })],
+        },
+        marketFees: {
+          rules: [expect.objectContaining({ label: "交易所费用" })],
+        },
+      },
+    });
+  });
+
   it("loads and normalizes full decimal transport results", async () => {
     apiGet.mockResolvedValue({
       runs: [makeRun("run-1", {
@@ -469,7 +563,7 @@ describe("useBacktestRuns", () => {
     const { state } = mountBacktestRuns();
     queryClient.setQueryData(queryKeys.backtestRuns(), [makeRun("run-1", { status: "running" })]);
     await nextTick();
-    fetchEnvelope.mockResolvedValueOnce(makeRun("run-1", {
+    apiGetPath.mockResolvedValueOnce(makeRun("run-1", {
       status: "completed",
       updatedAt: "2026-07-02T00:00:00Z",
       result: { symbol: "US.AAPL", interval: "5m", startTime: "", endTime: "", finalBalance: 1, pnl: 0, totalTrades: 0, winRate: 0 },
@@ -481,16 +575,16 @@ describe("useBacktestRuns", () => {
     expect(state.runs.value[0]?.result).toBeDefined();
 
     await state.toggleRun("run-1");
-    expect(fetchEnvelope).toHaveBeenCalledTimes(1);
+    expect(apiGetPath).toHaveBeenCalledTimes(1);
 
     queryClient.setQueryData(queryKeys.backtestRuns(), [makeRun("run-2", { status: "running" })]);
-    fetchEnvelope.mockRejectedValueOnce(new Error("detail unavailable"));
+    apiGetPath.mockRejectedValueOnce(new Error("detail unavailable"));
     await state.toggleRun("run-2");
     expect(state.detailErrors["run-2"]).toContain("detail unavailable");
 
     state.detailLoading["run-2"] = true;
     await state.toggleRun("run-2");
-    expect(fetchEnvelope).toHaveBeenCalledTimes(2);
+    expect(apiGetPath).toHaveBeenCalledTimes(2);
   });
 
   it("removes terminal runs only after the server confirms deletion", async () => {
@@ -501,21 +595,24 @@ describe("useBacktestRuns", () => {
       makeRun("failed", { status: "failed" }),
     ]);
     state.expandedRuns.done = true;
-    fetchEnvelopeWithInit.mockResolvedValue({ deleted: true, id: "done" });
+    apiDeletePath.mockResolvedValue({ deleted: true, id: "done" });
 
     await expect(state.deleteRun(" ")).resolves.toBe(false);
     await expect(state.deleteRun("running")).resolves.toBe(false);
-    expect(fetchEnvelopeWithInit).not.toHaveBeenCalled();
+    expect(apiDeletePath).not.toHaveBeenCalled();
     await expect(state.deleteRun("done")).resolves.toBe(true);
-    expect(fetchEnvelopeWithInit).toHaveBeenCalledWith("/api/v1/backtests/done", { method: "DELETE" });
+    expect(apiDeletePath).toHaveBeenCalledWith(
+      "/api/v1/backtests/{runId}",
+      "/api/v1/backtests/done",
+    );
     expect(state.expandedRuns.done).toBeUndefined();
 
-    fetchEnvelopeWithInit.mockRejectedValueOnce(new Error("delete unsupported"));
+    apiDeletePath.mockRejectedValueOnce(new Error("delete unsupported"));
     await expect(state.deleteRun("failed")).resolves.toBe(false);
     expect(state.runs.value.map((run) => run.id)).toEqual(["running", "failed"]);
     expect(state.error.value).toContain("delete unsupported");
 
-    fetchEnvelopeWithInit.mockResolvedValueOnce({ deleted: false, id: "failed" });
+    apiDeletePath.mockResolvedValueOnce({ deleted: false, id: "failed" });
     await expect(state.deleteRun("failed")).resolves.toBe(false);
     expect(state.runs.value.map((run) => run.id)).toEqual(["running", "failed"]);
     expect(state.error.value).toContain("服务端未确认删除");
@@ -555,11 +652,11 @@ describe("useBacktestRuns", () => {
   it("starts a backtest, patches polled status, and preserves unrelated runs", async () => {
     vi.useFakeTimers();
     vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue(undefined);
-    fetchEnvelopeWithInit.mockResolvedValue({ id: "run-new", status: "queued" });
+    apiPost.mockResolvedValue({ id: "run-new", status: "queued" });
     apiGet
       .mockResolvedValueOnce({ runs: [makeRun("run-new", { status: "queued" }), makeRun("other")] })
       .mockResolvedValueOnce({ runs: [makeRun("run-new", { status: "completed" }), makeRun("other")] });
-    fetchEnvelope
+    apiGetPath
       .mockResolvedValueOnce({ id: "run-new", status: "running" })
       .mockResolvedValueOnce({ id: "run-new", status: "completed" });
     const { state } = mountBacktestRuns();
@@ -567,14 +664,20 @@ describe("useBacktestRuns", () => {
     const start = state.startBacktest();
     await vi.runAllTicks();
     await start;
-    expect(fetchEnvelopeWithInit).toHaveBeenCalledWith("/api/v1/backtests", expect.objectContaining({ method: "POST" }));
+    expect(apiPost).toHaveBeenCalledWith(
+      "/api/v1/backtests",
+      expect.objectContaining({ definitionId: "def-1", symbol: "US.AAPL" }),
+    );
     expect(state.running.value).toBe(false);
 
     await vi.advanceTimersByTimeAsync(4000);
     for (let index = 0; index < 5; index += 1) await Promise.resolve();
     await vi.advanceTimersByTimeAsync(0);
     await nextTick();
-    expect(fetchEnvelope).toHaveBeenCalledWith("/api/v1/backtests/run-new/status");
+    expect(apiGetPath).toHaveBeenCalledWith(
+      "/api/v1/backtests/{runId}/status",
+      "/api/v1/backtests/run-new/status",
+    );
     expect(apiGet).toHaveBeenCalledTimes(2);
     const cachedRuns = queryClient.getQueryData<Array<{ id: string; status: string }>>(queryKeys.backtestRuns());
     expect(cachedRuns?.find((run) => run.id === "run-new")?.status).toBe("completed");
@@ -584,7 +687,7 @@ describe("useBacktestRuns", () => {
   it("handles missing definitions, invalid instruments, start errors, and polling exhaustion", async () => {
     const missingDefinition = mountBacktestRuns({ form: { definitionId: "" } });
     await missingDefinition.state.startBacktest();
-    expect(fetchEnvelopeWithInit).not.toHaveBeenCalled();
+    expect(apiPost).not.toHaveBeenCalled();
 
     const invalid = mountBacktestRuns({
       normalizeInstrument: vi.fn(async () => ({ market: "US", prefix: "", code: "", instrumentId: "" })),
@@ -594,33 +697,33 @@ describe("useBacktestRuns", () => {
     expect(invalid.state.running.value).toBe(false);
 
     const failed = mountBacktestRuns();
-    fetchEnvelopeWithInit.mockRejectedValueOnce("start unavailable");
+    apiPost.mockRejectedValueOnce("start unavailable");
     await failed.state.startBacktest();
     expect(failed.state.error.value).toContain("start unavailable");
 
     vi.useFakeTimers();
     vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue(undefined);
-    fetchEnvelopeWithInit.mockResolvedValueOnce({ id: "run-failing", status: "queued" });
+    apiPost.mockResolvedValueOnce({ id: "run-failing", status: "queued" });
     apiGet.mockResolvedValue({ runs: [makeRun("run-failing", { status: "queued" })] });
-    fetchEnvelope.mockRejectedValue(new Error("status unavailable"));
+    apiGetPath.mockRejectedValue(new Error("status unavailable"));
     const polling = mountBacktestRuns();
     await polling.state.startBacktest();
     await vi.advanceTimersByTimeAsync(6000);
     expect(polling.state.error.value).toContain("status unavailable");
-    expect(fetchEnvelope).toHaveBeenCalledTimes(3);
+    expect(apiGetPath).toHaveBeenCalledTimes(3);
   });
 
   it("clears a pending status poll when its component unmounts", async () => {
     vi.useFakeTimers();
-    fetchEnvelopeWithInit.mockResolvedValueOnce({ id: "run-unmounted", status: "queued" });
+    apiPost.mockResolvedValueOnce({ id: "run-unmounted", status: "queued" });
     apiGet.mockResolvedValue({ runs: [makeRun("run-unmounted", { status: "queued" })] });
-    fetchEnvelope.mockResolvedValue({ id: "run-unmounted", status: "running" });
+    apiGetPath.mockResolvedValue({ id: "run-unmounted", status: "running" });
     const mounted = mountBacktestRuns();
 
     await mounted.state.startBacktest();
     mounted.wrapper.unmount();
     await vi.advanceTimersByTimeAsync(10_000);
 
-    expect(fetchEnvelope).not.toHaveBeenCalled();
+    expect(apiGetPath).not.toHaveBeenCalled();
   });
 });

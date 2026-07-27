@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import { apiPostPath } from "../../composables/apiClient";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
@@ -223,32 +223,30 @@ async function openDrilldown(entry: Entry): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    const response = await fetchEnvelopeWithInit<ProductFeatureResult>(
+    const response = await apiPostPath(
+      "/api/v1/market-data/options/events/zero-dte-contracts",
       withBrokerProvider(
         "/api/v1/market-data/options/events/zero-dte-contracts",
         selectedBrokerId.value,
       ),
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brokerId: selectedBrokerId.value,
-          accountId:
-            selectedBrokerAccount.value?.brokerId === selectedBrokerId.value
-              ? selectedBrokerAccount.value.accountId
-              : "",
-          tradingEnvironment:
-            selectedBrokerAccount.value?.brokerId === selectedBrokerId.value
-              ? selectedBrokerAccount.value.tradingEnvironment
-              : "",
-          market: normalizedMarket.value,
-          underlyingInstrumentId: context.underlyingInstrumentId,
-          underlyingProductClass: props.underlyingProductClass,
-          expiryTimestamp: context.expiryTimestamp,
-          chain: context.chain,
-          sort: "volume",
-          optionType: "all",
-        }),
+        brokerId: selectedBrokerId.value,
+        accountId:
+          selectedBrokerAccount.value?.brokerId === selectedBrokerId.value
+            ? selectedBrokerAccount.value.accountId
+            : "",
+        tradingEnvironment:
+          selectedBrokerAccount.value?.brokerId === selectedBrokerId.value
+            ? selectedBrokerAccount.value.tradingEnvironment
+            : "",
+        market: "US",
+        underlyingInstrumentId: context.underlyingInstrumentId,
+        underlyingProductClass:
+          props.underlyingProductClass === "option" ? "option" : "equity",
+        expiryTimestamp: context.expiryTimestamp,
+        chain: context.chain,
+        sort: "volume",
+        optionType: "all",
       },
     );
     if (token === requestToken) drilldownResult.value = response;

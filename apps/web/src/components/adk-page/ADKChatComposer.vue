@@ -7,7 +7,7 @@ import type {
   ADKProvider,
   ADKSessionContextSnapshot,
   ADKWorkMode,
-} from "@/contracts";
+} from "@/types";
 
 import type { QueuedChatMessage } from "../../composables/adkChatRuntime";
 

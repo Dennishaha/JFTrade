@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { ADKApproval, ADKToolDescriptor } from "@/contracts";
+import type { ADKApproval, ADKToolDescriptor } from "@/types";
 
 import {
   type ADKApprovalQueueItem,

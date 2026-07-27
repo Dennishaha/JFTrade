@@ -24,6 +24,13 @@ vi.mock("../../src/composables/apiClient", async (importOriginal) => {
     ...actual,
     fetchEnvelope: mocks.fetchEnvelope,
     fetchEnvelopeWithInit: mocks.fetchEnvelopeWithInit,
+    apiGetPath: (_template: string, path: string) => mocks.fetchEnvelope(path),
+    apiPostPath: (_template: string, path: string, body: unknown) =>
+      mocks.fetchEnvelopeWithInit(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
   };
 });
 
@@ -978,7 +985,9 @@ describe("QuoteDetailRail", () => {
     });
     const emptyWrapper = mountRail({ target, entry: null });
     await flushPromises();
-    expect(emptyWrapper.text()).toContain("暂无成分股");
+    await vi.waitFor(() => {
+      expect(emptyWrapper.text()).toContain("暂无成分股");
+    });
     emptyWrapper.unmount();
   });
 

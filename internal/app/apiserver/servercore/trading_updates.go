@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
@@ -19,10 +18,14 @@ var _ trdsrv.OrderUpdateSource = (*tradingOrderUpdateSource)(nil)
 var _ trdsrv.OrderFeeSource = (*tradingOrderUpdateSource)(nil)
 
 func (s *tradingOrderUpdateSource) DiscoverAccounts(ctx context.Context) ([]trdsrv.Account, error) {
-	brokers := s.server.brokers.All()
+	registry := s.server.runtimes.Brokers()
+	if registry == nil {
+		return nil, trdsrv.ErrOrderUpdateSourceInactive
+	}
+	brokers := registry.All()
 	if len(brokers) == 0 {
 		_ = s.server.activeBroker()
-		brokers = s.server.brokers.All()
+		brokers = registry.All()
 	}
 	if len(brokers) == 0 {
 		return nil, trdsrv.ErrOrderUpdateSourceInactive
@@ -117,11 +120,11 @@ func (s *tradingOrderUpdateSource) Subscribe(ctx context.Context, accounts []trd
 	if len(futuAccounts) == 0 {
 		return noOpTradingOrderUpdateSubscription{}, nil
 	}
-	exchange := s.server.futuExchange()
-	if exchange == nil {
+	marketDataRuntime := s.server.runtimes.MarketData()
+	if marketDataRuntime == nil {
 		return noOpTradingOrderUpdateSubscription{}, nil
 	}
-	return futuintegration.NewOrderUpdatesAdapter(exchange).Subscribe(ctx, futuAccounts, handler)
+	return marketDataRuntime.SubscribeOrderUpdates(ctx, futuAccounts, handler)
 }
 
 type noOpTradingOrderUpdateSubscription struct{}
@@ -136,10 +139,10 @@ var _ trdsrv.ExecutionOrderUpdates = (*tradingExecutionOrderUpdates)(nil)
 var _ trdsrv.ExecutionOrderFeeUpdates = (*tradingExecutionOrderUpdates)(nil)
 
 func (a *tradingExecutionOrderUpdates) ApplyOrder(ctx context.Context, brokerID string, order trdsrv.Order, metadata trdsrv.OrderWriteMetadata) {
-	if a == nil || a.server == nil || a.server.executionOrders == nil {
+	if a == nil || a.server == nil || a.server.stores.ExecutionOrders == nil {
 		return
 	}
-	updated, event, changed := a.server.executionOrders.upsertBrokerOrderWithSource(
+	updated, event, changed := a.server.stores.ExecutionOrders.ApplyBrokerOrder(
 		brokerID, brokerOrderFromTrading(order), metadata.DiscoveredEventType, metadata.UpdatedEventType,
 		metadata.Source, metadata.SourceDetail,
 	)
@@ -149,10 +152,10 @@ func (a *tradingExecutionOrderUpdates) ApplyOrder(ctx context.Context, brokerID 
 }
 
 func (a *tradingExecutionOrderUpdates) ApplyFill(ctx context.Context, brokerID string, fill trdsrv.Fill) {
-	if a == nil || a.server == nil || a.server.executionOrders == nil {
+	if a == nil || a.server == nil || a.server.stores.ExecutionOrders == nil {
 		return
 	}
-	updated, event, changed := a.server.executionOrders.recordBrokerOrderFill(brokerID, brokerFillFromTrading(fill))
+	updated, event, changed := a.server.stores.ExecutionOrders.ApplyBrokerFill(brokerID, brokerFillFromTrading(fill))
 	if changed {
 		a.server.notifyExecutionOrderLifecycle(updated, event)
 	}
@@ -163,11 +166,11 @@ func (a *tradingExecutionOrderUpdates) ApplyFees(
 	brokerID string,
 	fees []broker.OrderFeeSnapshot,
 ) {
-	if a == nil || a.server == nil || a.server.executionOrders == nil {
+	if a == nil || a.server == nil || a.server.stores.ExecutionOrders == nil {
 		return
 	}
 	for _, fee := range fees {
-		a.server.executionOrders.recordBrokerOrderFee(brokerID, fee)
+		a.server.stores.ExecutionOrders.ApplyBrokerFee(brokerID, fee)
 	}
 }
 

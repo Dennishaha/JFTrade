@@ -64,8 +64,8 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, brokerReaders ...Bro
 // @Summary 查询行情 Provider 能力与运行状态
 // @Tags market-data
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.ProviderStatusResponse}
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/provider [get]
 func handleProvider(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -78,7 +78,13 @@ func handleProvider(svc *srv.Service) gin.HandlerFunc {
 	}
 }
 
-// handleMarkets 返回可用市场列表。
+// handleMarkets godoc
+// @Summary 返回可用市场列表
+// @Tags market-data
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=MarketsData}
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/market-data/markets [get]
 func handleMarkets(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		markets, err := svc.GetMarkets(c.Request.Context())
@@ -100,9 +106,11 @@ func handleMarkets(svc *srv.Service) gin.HandlerFunc {
 // @Param market path string true "市场"
 // @Param symbol path string true "标的"
 // @Param brokerId query string false "行情提供者；省略时使用服务端默认"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 429 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=SecurityDetailsData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/securities/{market}/{symbol} [get]
 func handleSecurityDetails(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
 	brokerReader := firstBrokerMarketDataReader(brokerReaders)
@@ -144,10 +152,11 @@ func handleSecurityDetails(svc *srv.Service, brokerReaders ...BrokerMarketDataRe
 // @Param symbol path string true "证券代码"
 // @Param refresh query bool false "是否绕过缓存强制刷新"
 // @Param brokerId query string false "行情提供者；省略时使用服务端默认"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=SnapshotData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/snapshots/{market}/{symbol} [get]
 func handleSnapshot(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
 	brokerReader := firstBrokerMarketDataReader(brokerReaders)
@@ -200,8 +209,11 @@ func handleSnapshot(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) g
 // @Param toTime query string false "结束时间"
 // @Param before query string false "严格早于该 RFC3339 时间的历史分页游标"
 // @Param brokerId query string false "行情提供者；省略时使用服务端默认"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=CandlesData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/candles/{market}/{symbol} [get]
 func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
 	brokerReader := firstBrokerMarketDataReader(brokerReaders)
@@ -364,10 +376,11 @@ func normalizeOptionalQueryTime(value string) string {
 // @Param symbol path string true "证券代码"
 // @Param num query int false "档数，默认 10，最大 50"
 // @Param brokerId query string false "行情提供者；省略时使用服务端默认"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=DepthData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/depth/{market}/{symbol} [get]
 func handleDepth(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
 	brokerReader := firstBrokerMarketDataReader(brokerReaders)
@@ -410,7 +423,13 @@ func handleDepth(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.
 	}
 }
 
-// handleGetSubscriptions 查询当前订阅。
+// handleGetSubscriptions godoc
+// @Summary 查询当前行情订阅
+// @Tags market-data
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=SubscriptionsData}
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/market-data/subscriptions [get]
 func handleGetSubscriptions(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result, err := svc.GetSubscriptions(c.Request.Context())
@@ -428,8 +447,9 @@ func handleGetSubscriptions(svc *srv.Service) gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Param request body SubscriptionRequest true "订阅请求"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=SubscriptionsData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/subscriptions [post]
 //
 // 请求格式：
@@ -473,8 +493,9 @@ func handleAcquireSubscription(svc *srv.Service) gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Param request body SubscriptionRequest true "释放请求"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=SubscriptionsData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/subscriptions/release [post]
 //
 // 请求格式：
@@ -535,8 +556,8 @@ func handleReleaseSubscription(svc *srv.Service) gin.HandlerFunc {
 // @Tags market-data
 // @Produce json
 // @Param consumerId query string false "消费者 ID；为空时清空全部"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=SubscriptionsData}
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/subscriptions [delete]
 func handleClearSubscriptions(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -585,8 +606,9 @@ func subscriptionReleaseTarget(req subscriptionRequest) (srv.InstrumentRef, bool
 // @Accept json
 // @Produce json
 // @Param request body SubscriptionHeartbeatRequest true "心跳请求"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=SubscriptionsData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/subscriptions/heartbeat [post]
 func handleHeartbeat(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -658,8 +680,8 @@ func brokerPollingSubscriptionResponse(
 // @Param query query string true "证券代码、名称或完整 MARKET.CODE"
 // @Param limit query int false "返回数量，默认 20，范围 1..100"
 // @Success 200 {object} httpserver.Envelope{data=marketdata.InstrumentResolution}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/instruments [get]
 func handleInstrumentSearch(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -690,7 +712,15 @@ func handleInstrumentSearch(svc *srv.Service) gin.HandlerFunc {
 	}
 }
 
-// handleNormalizeInstrument 规范化为标的。
+// handleNormalizeInstrument godoc
+// @Summary 规范化行情标的
+// @Tags market-data
+// @Accept json
+// @Produce json
+// @Param request body NormalizeInstrumentRequest true "标的别名"
+// @Success 200 {object} httpserver.Envelope{data=NormalizeInstrumentData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/market-data/instruments/normalize [post]
 func handleNormalizeInstrument(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req map[string]any

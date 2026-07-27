@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { ADKToolDescriptor } from "@/contracts";
+import type { ADKToolDescriptor } from "@/types";
 import { useOptionalTheme } from "@/composables/useTheme";
 
 defineProps<{

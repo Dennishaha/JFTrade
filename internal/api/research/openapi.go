@@ -30,7 +30,7 @@ func referenceOpenAPIDocumentation() {
 // @Tags research
 // @Produce json
 // @Success 200 {object} httpserver.Envelope{data=ResearchScreenPresetsData}
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/research/screens/presets [get]
 func documentListScreenPresets() { _ = httpserver.Envelope{} }
 
@@ -41,9 +41,9 @@ func documentListScreenPresets() { _ = httpserver.Envelope{} }
 // @Produce json
 // @Param input body domain.CreateScreenPresetInput true "筛选预设"
 // @Success 200 {object} httpserver.Envelope{data=ResearchScreenPreset}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/research/screens/presets [post]
 func documentCreateScreenPreset() { _ = httpserver.Envelope{} }
 
@@ -53,8 +53,8 @@ func documentCreateScreenPreset() { _ = httpserver.Envelope{} }
 // @Produce json
 // @Param presetId path string true "预设 ID"
 // @Success 200 {object} httpserver.Envelope{data=ResearchScreenPreset}
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/research/screens/presets/{presetId} [get]
 func documentGetScreenPreset() { _ = httpserver.Envelope{} }
 
@@ -66,10 +66,10 @@ func documentGetScreenPreset() { _ = httpserver.Envelope{} }
 // @Param presetId path string true "预设 ID"
 // @Param input body domain.UpdateScreenPresetInput true "筛选预设变更"
 // @Success 200 {object} httpserver.Envelope{data=ResearchScreenPreset}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/research/screens/presets/{presetId} [patch]
 func documentUpdateScreenPreset() { _ = httpserver.Envelope{} }
 
@@ -79,7 +79,7 @@ func documentUpdateScreenPreset() { _ = httpserver.Envelope{} }
 // @Produce json
 // @Param presetId path string true "预设 ID"
 // @Success 200 {object} httpserver.Envelope{data=ResearchScreenPresetDeleteData}
-// @Failure 404 {object} httpserver.Envelope
-// @Failure 503 {object} httpserver.Envelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/research/screens/presets/{presetId} [delete]
 func documentDeleteScreenPreset() { _ = httpserver.Envelope{} }

@@ -6,9 +6,11 @@ import (
 	"testing"
 	"time"
 
+	appstores "github.com/jftrade/jftrade-main/internal/app/apiserver/stores"
+	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
+	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -227,9 +229,11 @@ func newCompleteADKProductServer(t *testing.T) (*Server, *completeADKProductBrok
 	registry := broker.NewRegistry()
 	registry.Register(adapter)
 	server := &Server{
-		serverRuntimes: serverRuntimes{brokers: registry},
-		serverStores:   serverStores{executionOrders: newExecutionOrderStore()},
+		serverApplication: serverApplication{
+			stores: appstores.Handle{ExecutionOrders: newExecutionOrderStore()},
+		},
 	}
+	server.runtimes.SetBrokerRegistry(registry)
 	server.productFeaturesSvc = productsrv.NewService(registry, adapter.id, nil, nil)
 	runtime := &serverTradingBrokerRuntimeProvider{server: server}
 	gateway := &serverTradingOrderGateway{server: server}
@@ -244,6 +248,7 @@ func newCompleteADKProductServer(t *testing.T) (*Server, *completeADKProductBrok
 
 func TestADKProductToolCompleteDispatchThroughBrokerNeutralService(t *testing.T) {
 	server, _ := newCompleteADKProductServer(t)
+	toolAdapter := assistantassembly.NewProductExecutionAdapter(server.productFeaturesSvc, server.tradingSvc)
 	ctx := t.Context()
 	cases := []struct {
 		name  string
@@ -280,7 +285,7 @@ func TestADKProductToolCompleteDispatchThroughBrokerNeutralService(t *testing.T)
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := server.invokeADKProductTool(ctx, test.name, test.input)
+			result, err := toolAdapter.InvokeProductTool(ctx, test.name, test.input)
 			if err != nil || result == nil {
 				t.Fatalf("%s = %#v, %v", test.name, result, err)
 			}
@@ -290,6 +295,7 @@ func TestADKProductToolCompleteDispatchThroughBrokerNeutralService(t *testing.T)
 
 func TestADKExecutionToolsCompleteOrderAndComboLifecycle(t *testing.T) {
 	server, adapter := newCompleteADKProductServer(t)
+	toolAdapter := assistantassembly.NewProductExecutionAdapter(server.productFeaturesSvc, server.tradingSvc)
 	ctx := t.Context()
 	price := 200.0
 	orderInput := map[string]any{
@@ -298,10 +304,10 @@ func TestADKExecutionToolsCompleteOrderAndComboLifecycle(t *testing.T) {
 		"side": "BUY", "orderType": "LIMIT", "quantity": 1,
 		"price": price, "clientOrderId": "stock-client-1",
 	}
-	if _, err := server.invokeADKExecutionTool(ctx, "execution.order_preview", orderInput); err != nil {
+	if _, err := toolAdapter.InvokeExecutionTool(ctx, "execution.order_preview", orderInput); err != nil {
 		t.Fatalf("order preview: %v", err)
 	}
-	placedValue, err := server.invokeADKExecutionTool(ctx, "execution.order_place", orderInput)
+	placedValue, err := toolAdapter.InvokeExecutionTool(ctx, "execution.order_place", orderInput)
 	if err != nil {
 		t.Fatalf("order place: %v", err)
 	}
@@ -309,7 +315,7 @@ func TestADKExecutionToolsCompleteOrderAndComboLifecycle(t *testing.T) {
 	if placed.InternalOrderID == nil {
 		t.Fatalf("placed order = %#v", placed)
 	}
-	if _, err := server.invokeADKExecutionTool(ctx, "execution.order_cancel", map[string]any{
+	if _, err := toolAdapter.InvokeExecutionTool(ctx, "execution.order_cancel", map[string]any{
 		"internalOrderId": *placed.InternalOrderID,
 	}); err != nil {
 		t.Fatalf("order cancel: %v", err)
@@ -333,13 +339,13 @@ func TestADKExecutionToolsCompleteOrderAndComboLifecycle(t *testing.T) {
 			},
 		},
 	}
-	previewValue, err := server.invokeADKExecutionTool(ctx, "execution.combo_preview", comboInput)
+	previewValue, err := toolAdapter.InvokeExecutionTool(ctx, "execution.combo_preview", comboInput)
 	if err != nil {
 		t.Fatalf("combo preview: %v", err)
 	}
 	preview := previewValue.(trdsrv.ExecutionComboPreview)
 	comboInput["previewId"] = preview.PreviewID
-	comboValue, err := server.invokeADKExecutionTool(ctx, "execution.combo_place", comboInput)
+	comboValue, err := toolAdapter.InvokeExecutionTool(ctx, "execution.combo_place", comboInput)
 	if err != nil {
 		t.Fatalf("combo place: %v", err)
 	}
@@ -347,12 +353,12 @@ func TestADKExecutionToolsCompleteOrderAndComboLifecycle(t *testing.T) {
 	if combo.InternalOrderID == nil || adapter.placedCombos != 1 {
 		t.Fatalf("combo response = %#v, calls=%d", combo, adapter.placedCombos)
 	}
-	replayed, err := server.invokeADKExecutionTool(ctx, "execution.combo_place", comboInput)
+	replayed, err := toolAdapter.InvokeExecutionTool(ctx, "execution.combo_place", comboInput)
 	if err != nil || replayed.(trdsrv.ExecutionCommandResponse).InternalOrderID == nil ||
 		adapter.placedCombos != 1 {
 		t.Fatalf("combo replay = %#v, calls=%d, err=%v", replayed, adapter.placedCombos, err)
 	}
-	if _, err := server.invokeADKExecutionTool(ctx, "execution.combo_cancel", map[string]any{
+	if _, err := toolAdapter.InvokeExecutionTool(ctx, "execution.combo_cancel", map[string]any{
 		"internalOrderId": *combo.InternalOrderID,
 	}); err != nil {
 		t.Fatalf("combo cancel: %v", err)
@@ -379,7 +385,11 @@ func TestServerComboGatewayFailureAndCancelBoundaries(t *testing.T) {
 	if _, err := gateway.PlaceCombo(t.Context(), intent); !errors.Is(err, adapter.placeComboErr) {
 		t.Fatalf("combo place error = %v", err)
 	}
-	unknown := server.executionOrders.listOrders().Orders[0]
+	unknownOrders, err := server.stores.ExecutionOrders.ListOrders(t.Context(), trdsrv.ExecutionOrderFilter{})
+	if err != nil || len(unknownOrders.Orders) == 0 {
+		t.Fatalf("list unknown combo orders = %#v, err=%v", unknownOrders, err)
+	}
+	unknown := unknownOrders.Orders[0]
 	if unknown.Status != trdsrv.OrderStatusSubmissionUnknown {
 		t.Fatalf("unknown combo state = %#v", unknown)
 	}
@@ -391,7 +401,7 @@ func TestServerComboGatewayFailureAndCancelBoundaries(t *testing.T) {
 	if _, err := gateway.CancelCombo(t.Context(), "missing"); err == nil {
 		t.Fatal("missing combo cancel succeeded")
 	}
-	missingBrokerID := server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	missingBrokerID := server.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID: adapter.id, AccountID: "account-us", Market: "US",
 		OrderKind: broker.OrderKindOptionCombo, ProductClass: broker.ProductClassOption,
 		ClientOrderID: "missing-broker-id", Status: "SUBMITTED",
@@ -414,16 +424,18 @@ func TestServerComboGatewayFailureAndCancelBoundaries(t *testing.T) {
 	unsupportedRegistry := broker.NewRegistry()
 	unsupportedRegistry.Register(servercoreFakeBroker{})
 	unsupported := &serverTradingOrderGateway{server: &Server{
-		serverRuntimes: serverRuntimes{brokers: unsupportedRegistry},
-		serverStores:   serverStores{executionOrders: newExecutionOrderStore()},
+		serverApplication: serverApplication{
+			stores: appstores.Handle{ExecutionOrders: newExecutionOrderStore()},
+		},
 	}}
+	unsupported.server.runtimes.SetBrokerRegistry(unsupportedRegistry)
 	intent.BrokerID = "fake"
 	intent.ClientOrderID = "unsupported-combo"
 	if _, err := unsupported.PlaceCombo(t.Context(), intent); err == nil {
 		t.Fatal("unsupported combo broker succeeded")
 	}
 
-	unsupportedOrder := unsupported.server.executionOrders.recordPlacedOrder(
+	unsupportedOrder := unsupported.server.stores.ExecutionOrders.RecordPlacedOrder(
 		trdsrv.ExecutionPlacedOrderRecord{
 			BrokerID: "fake", BrokerOrderID: "unsupported-order", Status: "SUBMITTED",
 			OrderKind: broker.OrderKindOptionCombo, ProductClass: broker.ProductClassOption,
@@ -462,7 +474,7 @@ func TestServerComboGatewayFailureAndCancelBoundaries(t *testing.T) {
 
 func TestProductToolRegistryHandlersAndSwaggerMarkersStayLinked(t *testing.T) {
 	ctx := t.Context()
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	registerJFTradeProductTools(registry, ToolDeps{})
 	for _, name := range []string{
 		"market.search", "execution.order_place", "alerts.price.set",
@@ -478,7 +490,7 @@ func TestProductToolRegistryHandlersAndSwaggerMarkersStayLinked(t *testing.T) {
 
 	productCalls := 0
 	executionCalls := 0
-	registry = jfadk.NewToolRegistry()
+	registry = assistanttestkit.NewToolRegistry()
 	registerJFTradeProductTools(registry, ToolDeps{
 		ProductTool: func(_ context.Context, name string, _ map[string]any) (any, error) {
 			productCalls++
@@ -501,56 +513,6 @@ func TestProductToolRegistryHandlersAndSwaggerMarkersStayLinked(t *testing.T) {
 		t.Fatalf("product/execution calls = %d/%d", productCalls, executionCalls)
 	}
 
-	documentationMarkers := []func() string{
-		documentDataManagementOverview,
-		documentDataCleanupPreview,
-		documentDataCleanupExecute,
-		documentDatabaseCompact,
-		documentDatabaseRebuild,
-		documentAssistantCatalogRoutes,
-		documentAssistantTaskMemoryRoutes,
-		documentAssistantSessionRunRoutes,
-		documentAssistantChatApprovalSkillRoutes,
-		documentAssistantOptimizationRoutes,
-		documentAssistantWorkflowRoutes,
-		documentBacktestSyncTaskRoutes,
-		documentMarketUtilityRoutes,
-		documentPluginRoutes,
-		documentPortfolioCashBalancesRoute,
-		documentPortfolioPositionsRoute,
-		documentBrokerFundsRoute,
-		documentBrokerPositionsRoute,
-		documentBrokerOrdersRoute,
-		documentBrokerFillsRoute,
-		documentBrokerCashFlowsRoute,
-		documentBrokerOrderFeesRoute,
-		documentBrokerMarginRatiosRoute,
-		documentBrokerMaxTradeQuantityRoute,
-		documentBrokerQuoteRoute,
-		documentBrokerKLinesRoute,
-		documentBrokerSecuritiesRoute,
-		documentBrokerRuntimeRoute,
-		documentBrokerPlaceOrderRoute,
-		documentBrokerCancelOrdersRoute,
-		documentBrokerUnlockTradeRoute,
-		documentExecutionOrdersRoute,
-		documentExecutionOrderDetailsRoute,
-		documentExecutionPlaceRoute,
-		documentExecutionCancelRoute,
-		documentExecutionEventsRoute,
-		documentSystemOperationalRoutes,
-	}
-	seenMarkers := map[string]struct{}{}
-	for _, marker := range documentationMarkers {
-		name := marker()
-		if name == "" {
-			t.Fatal("empty OpenAPI documentation marker")
-		}
-		if _, duplicate := seenMarkers[name]; duplicate {
-			t.Fatalf("duplicate OpenAPI documentation marker %q", name)
-		}
-		seenMarkers[name] = struct{}{}
-	}
 }
 
 func TestBrokerRuntimeResolutionAndCancelBridgeCompleteBranches(t *testing.T) {

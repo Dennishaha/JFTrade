@@ -27,8 +27,9 @@ let consoleDataState: Record<string, unknown>;
 let notificationsState: { push: typeof mocks.pushNotification };
 
 vi.mock("../src/composables/apiClient", () => ({
-  fetchEnvelope: (...args: unknown[]) => mocks.fetchEnvelope(...args),
-  fetchEnvelopeWithInit: (...args: unknown[]) => mocks.fetchEnvelopeWithInit(...args),
+  apiGetPath: (_template: string, path: string) => mocks.fetchEnvelope(path),
+  apiPostPathAction: (_template: string, path: string) =>
+    mocks.fetchEnvelopeWithInit(path, { method: "POST" }),
 }));
 
 vi.mock("../src/composables/useConsoleData", () => ({
@@ -705,6 +706,21 @@ describe("AccountPage business flows", () => {
       }),
     );
     expect(call<boolean>("isCancellingOrder", "order/cancel")).toBe(false);
+
+    const eventParlayOrder = makeExecutionOrder({
+      internalOrderId: "parlay/cancel",
+      orderKind: "event_parlay",
+    });
+    mocks.fetchEnvelopeWithInit.mockClear();
+    mocks.fetchEnvelopeWithInit.mockResolvedValueOnce({
+      message: "组合撤单已提交",
+    });
+    mocks.fetchEnvelope.mockResolvedValueOnce({ orders: [eventParlayOrder] });
+    await call<Promise<void>>("cancelOrder", eventParlayOrder);
+    expect(mocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(
+      "/api/v1/execution/combos/parlay%2Fcancel/cancel",
+      { method: "POST" },
+    );
 
     mocks.fetchEnvelopeWithInit.mockClear();
     await call<Promise<void>>(

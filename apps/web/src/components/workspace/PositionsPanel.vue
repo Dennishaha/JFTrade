@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { ExecutionOrdersResponse } from "@/contracts";
+import type { ExecutionOrdersResponse } from "@/types";
 
-import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import { apiPostPathAction } from "../../composables/apiClient";
 import {
   formatDateTime,
   formatExecutionEventTypeLabel,
@@ -31,18 +31,6 @@ import ActionConfirmDialog from "../shared/ActionConfirmDialog.vue";
 type Tab = "positions" | "active" | "historical" | "fills";
 
 type ExecutionOrder = ExecutionOrdersResponse["orders"][number];
-
-interface ExecutionOrderCommandResult {
-  accepted: boolean;
-  operation: string;
-  internalOrderId?: string | null;
-  brokerOrderId?: string | null;
-  brokerOrderIdEx?: string | null;
-  orderStatus?: string | null;
-  brokerErrorCode?: string | null;
-  message: string;
-  checkedAt: string;
-}
 
 const props = defineProps<{
   view?: Tab;
@@ -296,10 +284,15 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
       order.orderKind === "option_combo"
         ? `/api/v1/execution/combos/${encodeURIComponent(order.internalOrderId)}/cancel`
         : `/api/v1/execution/orders/${encodeURIComponent(order.internalOrderId)}/cancel`;
-    const result = await fetchEnvelopeWithInit<ExecutionOrderCommandResult>(
-      cancelPath,
-      { method: "POST" },
-    );
+    const result = order.orderKind === "option_combo"
+      ? await apiPostPathAction(
+          "/api/v1/execution/combos/{internalOrderId}/cancel",
+          cancelPath,
+        )
+      : await apiPostPathAction(
+          "/api/v1/execution/orders/{internalOrderId}/cancel",
+          cancelPath,
+        );
     notifications.push({
       level: "success",
       title: `已提交撤单 ${

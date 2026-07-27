@@ -55,12 +55,12 @@ func (h *Handler) handleADKSaveWorkflow(c *gin.Context) {
 		}
 		workflowID = uri.WorkflowID
 	}
-	var payload jfadk.WorkflowDefinitionWriteRequest
+	var payload ADKWorkflowDefinitionWriteRequest
 	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid workflow payload")
 		return
 	}
-	workflow, err := h.service.SaveWorkflow(c.Request.Context(), workflowID, payload)
+	workflow, err := h.service.SaveWorkflow(c.Request.Context(), workflowID, jfadk.WorkflowDefinitionWriteRequest(payload))
 	if err != nil {
 		h.writeWorkflowError(c, err, "ADK_WORKFLOW_SAVE_FAILED")
 		return
@@ -130,12 +130,12 @@ func (h *Handler) handleADKSaveWorkflowTrigger(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "workflowId is invalid")
 		return
 	}
-	var payload jfadk.WorkflowTriggerWriteRequest
+	var payload ADKWorkflowTriggerWriteRequest
 	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid workflow trigger payload")
 		return
 	}
-	result, err := h.service.SaveWorkflowTrigger(c.Request.Context(), workflowID, triggerID, payload)
+	result, err := h.service.SaveWorkflowTrigger(c.Request.Context(), workflowID, triggerID, jfadk.WorkflowTriggerWriteRequest(payload))
 	if err != nil {
 		h.writeWorkflowError(c, err, "ADK_WORKFLOW_TRIGGER_SAVE_FAILED")
 		return

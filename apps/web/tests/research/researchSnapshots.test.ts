@@ -10,6 +10,12 @@ vi.mock("../../src/composables/apiClient", async (importOriginal) => {
   return {
     ...actual,
     fetchEnvelopeWithInit: mocks.fetchEnvelopeWithInit,
+    apiPostPath: (_template: string, path: string, body: unknown) =>
+      mocks.fetchEnvelopeWithInit(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
   };
 });
 

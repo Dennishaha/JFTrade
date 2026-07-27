@@ -11,7 +11,7 @@ import {
   type MarketSecurityDetails,
   emptyBrokerMaxTradeQuantity,
   emptySystemStatus,
-} from "@/contracts";
+} from "@/types";
 
 const marketProfilesState = vi.hoisted(() => ({
   extendedHoursMarkets: new Set<string>(),
@@ -203,6 +203,7 @@ describe("OrderEntryPanel", () => {
     expect(orderCall).toBeTruthy();
     const payload = JSON.parse(String((orderCall?.[1] as RequestInit).body));
     expect(payload.tradingEnvironment).toBe("REAL");
+    await vi.waitFor(() => expect(wrapper.text()).toContain("io-real"));
     expect(wrapper.text()).toContain("io-real");
   });
 
@@ -233,6 +234,7 @@ describe("OrderEntryPanel", () => {
     await nextTick();
     await nextTick();
 
+    await vi.waitFor(() => expect(wrapper.text()).toContain("bo-ex-2"));
     expect(wrapper.text()).toContain("bo-ex-2");
     expect(wrapper.text()).toContain("已成交");
     expect(wrapper.text()).toContain("不可提交");
@@ -361,6 +363,9 @@ describe("OrderEntryPanel", () => {
     await nextTick();
     await nextTick();
 
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain("下单失败：券商未接受该订单。"),
+    );
     expect(wrapper.text()).toContain("下单失败：券商未接受该订单。");
   });
 
@@ -400,6 +405,7 @@ describe("OrderEntryPanel", () => {
     await findSubmitButton(wrapper).trigger("click");
     await nextTick();
     await nextTick();
+    await vi.waitFor(() => expect(wrapper.text()).toContain("first rejected"));
     expect(wrapper.text()).toContain("first rejected");
 
     await findSubmitButton(wrapper).trigger("click");
@@ -788,6 +794,11 @@ describe("OrderEntryPanel", () => {
     await findSubmitButton(wrapper).trigger("click");
     await nextTick();
     await nextTick();
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain(
+        "下单成功：已提交订单，内部单号 io-9",
+      ),
+    );
     expect(wrapper.text()).toContain("下单成功：已提交订单，内部单号 io-9");
     expect(notifications.items.value[0]?.level).toBe("success");
 
@@ -795,6 +806,9 @@ describe("OrderEntryPanel", () => {
     await findSubmitButton(wrapper).trigger("click");
     await nextTick();
     await nextTick();
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain("下单失败：BROKER_REJECT"),
+    );
     expect(wrapper.text()).toContain("下单失败：BROKER_REJECT");
     expect(notifications.items.value[0]?.level).toBe("error");
 
@@ -802,6 +816,9 @@ describe("OrderEntryPanel", () => {
     await findSubmitButton(wrapper).trigger("click");
     await nextTick();
     await nextTick();
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain("下单失败：下单请求失败，请稍后重试。"),
+    );
     expect(wrapper.text()).toContain("下单失败：下单请求失败，请稍后重试。");
     expect(notifications.items.value[0]?.level).toBe("error");
   });

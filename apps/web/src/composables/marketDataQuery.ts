@@ -56,7 +56,11 @@ interface MarketDataQueryStateRefs {
 
 interface MarketDataQueryControllerOptions {
   state: MarketDataQueryStateRefs;
-  fetchEnvelope: <T>(path: string) => Promise<T>;
+  requestSnapshot: (path: string) => Promise<MarketDataSnapshotQueryResult>;
+  requestSecurityDetails: (
+    path: string,
+  ) => Promise<MarketSecurityDetailsQueryResult>;
+  requestCandles: (path: string) => Promise<MarketDataCandlesQueryResult>;
   normalizeInstrumentParts: NormalizeInstrumentParts;
   resolveBrokerId?: () => string;
 }
@@ -338,13 +342,13 @@ export function createMarketDataQueryController(
     const encodedMarket = encodeURIComponent(target.market);
     const encodedSymbol = encodeURIComponent(target.symbol);
     const [snapshotResult, securityDetailsResult] = await Promise.allSettled([
-      options.fetchEnvelope<MarketDataSnapshotQueryResult>(
+      options.requestSnapshot(
         withBrokerProvider(
           `/api/v1/market-data/snapshots/${encodedMarket}/${encodedSymbol}?refresh=true`,
           brokerId,
         ),
       ),
-      options.fetchEnvelope<MarketSecurityDetailsQueryResult>(
+      options.requestSecurityDetails(
         withBrokerProvider(
           `/api/v1/market-data/securities/${encodedMarket}/${encodedSymbol}`,
           brokerId,
@@ -464,7 +468,7 @@ export function createMarketDataQueryController(
             limit: String(effectiveLimit),
             before,
           });
-          const result = await options.fetchEnvelope<MarketDataCandlesQueryResult>(
+          const result = await options.requestCandles(
             withBrokerProvider(
               `/api/v1/market-data/candles/${encodeURIComponent(market)}/${encodeURIComponent(symbol)}?${candleParams.toString()}`,
               brokerId,
@@ -574,21 +578,21 @@ export function createMarketDataQueryController(
           marketDataQueryError.value = earlyErrors.join(" / ");
         };
         const snapshotQuery =
-          options.fetchEnvelope<MarketDataSnapshotQueryResult>(
+          options.requestSnapshot(
             withBrokerProvider(
               `/api/v1/market-data/snapshots/${encodedMarket}/${encodedSymbol}?refresh=true`,
               brokerId,
             ),
           );
         const securityDetailsQuery =
-          options.fetchEnvelope<MarketSecurityDetailsQueryResult>(
+          options.requestSecurityDetails(
             withBrokerProvider(
               `/api/v1/market-data/securities/${encodedMarket}/${encodedSymbol}`,
               brokerId,
             ),
           );
         const candlesQuery =
-          options.fetchEnvelope<MarketDataCandlesQueryResult>(
+          options.requestCandles(
             withBrokerProvider(
               `/api/v1/market-data/candles/${encodedMarket}/${encodedSymbol}?${candleParams.toString()}`,
               brokerId,

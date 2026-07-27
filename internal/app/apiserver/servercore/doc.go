@@ -57,7 +57,8 @@
 //   - strategy_routes.go: strategy route dispatch
 //   - strategy_catalog_store.go: strategy definition catalog (SQLite)
 //   - strategy_catalog_store_*_helpers.go: catalog store aspect modules
-//   - strategy_design_store.go: strategy visual design store (SQLite)
+//
+// Strategy design persistence lives in internal/store/strategy.
 //   - strategy_definition_view.go: definition view model
 //   - strategy_runtime_manager.go: strategy lifecycle orchestrator
 //   - strategy_runtime_store.go: runtime state store (SQLite)

@@ -13,7 +13,7 @@ import type {
   WatchlistQuoteBatch,
   WatchlistRemoteGroup,
   WatchlistSource,
-} from "@/contracts";
+} from "@/types";
 import type { components } from "@/generated/openapi";
 
 import {

@@ -8,7 +8,7 @@ import type {
   BrokerPositionsResponse,
   BrokerReadFeatureKey,
   ExecutionOrdersResponse,
-} from "@/contracts";
+} from "@/types";
 
 import {
   emptyBrokerCashFlows,
@@ -20,7 +20,7 @@ import {
   emptyBrokerPositions,
   emptyExecutionOrders,
   emptySystemStatus,
-} from "@/contracts";
+} from "@/types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
@@ -870,5 +870,11 @@ describe("createConsoleDataBrokerLiveQueryController", () => {
       brokerId: "futu", brokerQuery: "market=US", futuBrokerReadsPaused: false,
     });
     expect(state.isLoadingBrokerOrders.value).toBe(false);
+
+    mocks.fetchEnvelope.mockRejectedValue(new Error("all broker reads offline"));
+    await controller.loadBrokerLiveData({
+      brokerId: "futu", brokerQuery: "market=US", futuBrokerReadsPaused: false,
+    });
+    expect(state.activeExecutionOrders.value).toEqual(emptyExecutionOrders);
   });
 });

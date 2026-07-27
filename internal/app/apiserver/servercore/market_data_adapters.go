@@ -10,7 +10,6 @@ import (
 	httpserver "github.com/jftrade/jftrade-main/internal/api/httpserver"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -28,11 +27,11 @@ func newMarketdataProvider(s *Server) mdsrv.Provider {
 		searchInstruments: s.marketdataProviderSearchInstruments,
 
 		querySnapshot: func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {
-			return s.marketdataRuntime.QuerySnapshot(ctx, instrumentID)
+			return s.runtimes.MarketData().QuerySnapshot(ctx, instrumentID)
 		},
 
 		queryTicker: func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {
-			return s.marketdataRuntime.QueryTicker(ctx, instrumentID)
+			return s.runtimes.MarketData().QueryTicker(ctx, instrumentID)
 		},
 		getHistoricalCandles: s.marketdataProviderHistoricalCandles,
 		getDepth: func(ctx context.Context, market, symbol string, num int) (mdsrv.DepthResponse, error) {
@@ -109,7 +108,7 @@ func marketdataProviderMarkets(context.Context) ([]mdsrv.MarketProfile, error) {
 	return profiles, nil
 }
 
-func (s *Server) marketdataProviderLookupInstrument(ctx context.Context, marketCode, code string) ([]mdsrv.InstrumentCandidate, error) {
+func (s *serverApplication) marketdataProviderLookupInstrument(ctx context.Context, marketCode, code string) ([]mdsrv.InstrumentCandidate, error) {
 	instrument, err := market.ParseInstrument(market.InstrumentInput{Market: marketCode, Code: code})
 	if err != nil {
 		return nil, err
@@ -162,7 +161,7 @@ func (s *Server) marketdataProviderLookupInstrument(ctx context.Context, marketC
 	return candidates, nil
 }
 
-func (s *Server) marketdataProviderSearchInstruments(ctx context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error) {
+func (s *serverApplication) marketdataProviderSearchInstruments(ctx context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error) {
 	b, err := s.futuBrokerOrError()
 	if err != nil {
 		return nil, err
@@ -280,7 +279,7 @@ func marketdataProviderNormalizeInstrument(_ context.Context, input map[string]a
 	}, nil
 }
 
-func (s *Server) marketdataProviderHistoricalCandles(ctx context.Context, market string, symbol string, period string, limit int, fromTime string, toTime string) (mdsrv.CandlesResponse, error) {
+func (s *serverApplication) marketdataProviderHistoricalCandles(ctx context.Context, market string, symbol string, period string, limit int, fromTime string, toTime string) (mdsrv.CandlesResponse, error) {
 	query := marketdataProviderCandlesQuery(period, limit, fromTime, toTime)
 	normalizedPeriod := query.normalizedPeriod()
 	if normalizedPeriod == "tick" {
@@ -291,7 +290,7 @@ func (s *Server) marketdataProviderHistoricalCandles(ctx context.Context, market
 	instrumentID := resolvedMarket + "." + resolvedSymbol
 	resp, err := s.buildKLineCandlesResponse(ctx, resolvedMarket, resolvedSymbol, instrumentID, normalizedPeriod, query.limitOrDefault(200, 1000), query)
 	if err != nil {
-		if errors.Is(err, futu.ErrSubscriptionRequired) {
+		if errors.Is(err, mdsrv.ErrSubscriptionRequired) {
 			return nil, mdsrv.NewSubscriptionRequiredError("KLINE", resolvedMarket, resolvedSymbol, normalizedPeriod)
 		}
 		return nil, err
@@ -385,7 +384,7 @@ func (p *marketdataProvider) GetHistoricalCandles(ctx context.Context, market, s
 func (p *marketdataProvider) GetDepth(ctx context.Context, market, symbol string, num int) (mdsrv.DepthResponse, error) {
 	result, err := p.getDepth(ctx, market, symbol, num)
 	if err != nil {
-		if errors.Is(err, futu.ErrSubscriptionRequired) {
+		if errors.Is(err, mdsrv.ErrSubscriptionRequired) {
 			return nil, mdsrv.NewSubscriptionRequiredError("ORDER_BOOK", market, symbol, "")
 		}
 		return nil, err

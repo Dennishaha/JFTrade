@@ -9,7 +9,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import InstrumentSearchBox from "../src/components/domain/market-data/InstrumentSearchBox.vue";
-import type { InstrumentResolutionCandidate } from "../src/contracts";
+import type { InstrumentResolutionCandidate } from "../src/types";
 import { createResponse } from "./helpers";
 
 afterEach(() => {

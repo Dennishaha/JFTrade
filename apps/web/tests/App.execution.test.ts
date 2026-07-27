@@ -21,13 +21,13 @@ import {
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
   emptySystemStatus,
-} from "@/contracts";
+} from "@/types";
 import type {
   BrokerOrderFeesResponse,
   ExecutionOrderEventsResponse,
   ExecutionOrderSummaryResponse,
   ExecutionOrdersResponse,
-} from "@/contracts";
+} from "@/types";
 
 import { MockWebSocket, createResponse, flushRequests, mountApp } from "./helpers";
 

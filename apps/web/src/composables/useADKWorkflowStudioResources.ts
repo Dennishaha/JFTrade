@@ -4,7 +4,7 @@ import type {
   ADKWorkflowDefinition,
   ADKWorkflowTrigger,
   ADKWorkflowTriggerLog,
-} from "@/contracts";
+} from "@/types";
 import { triggerNodeId } from "@/features/adkWorkflowCanvasGraph";
 import {
   fallbackPage,

@@ -7,11 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
+	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -24,7 +23,7 @@ func TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope(t *testing.T
 	if err := server.unavailableDatabases["execution-orders"]; err != nil {
 		t.Fatalf("execution-orders database unavailable: %v", err)
 	}
-	server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	server.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "1001",
 		TradingEnvironment: "SIMULATE",
@@ -37,7 +36,7 @@ func TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope(t *testing.T
 		RequestedQuantity:  100,
 		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})
-	server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	server.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "2001",
 		TradingEnvironment: "REAL",
@@ -84,7 +83,7 @@ func TestExecutionOrdersEndpointDefaultTradingEnvironmentFromSettings(t *testing
 		t.Fatalf("saveExecutionSettings: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	server.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "1001",
 		TradingEnvironment: "SIMULATE",
@@ -97,7 +96,7 @@ func TestExecutionOrdersEndpointDefaultTradingEnvironmentFromSettings(t *testing
 		RequestedQuantity:  100,
 		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})
-	server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	server.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "2001",
 		TradingEnvironment: "REAL",
@@ -123,7 +122,7 @@ func TestExecutionOrdersEndpointDefaultTradingEnvironmentFromSettings(t *testing
 func TestExecutionOrderStorePromotesBrokerSourceToSystemOnPlacedMerge(t *testing.T) {
 	store := newExecutionOrderStore()
 	brokerOrderIDEx := "EXT-7001"
-	store.upsertBrokerOrderWithSource("futu", broker.OrderSnapshot{
+	store.ApplyBrokerOrder("futu", broker.OrderSnapshot{
 		AccountID:          "SIM-001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",
@@ -136,7 +135,7 @@ func TestExecutionOrderStorePromotesBrokerSourceToSystemOnPlacedMerge(t *testing
 		Quantity:           100,
 	}, "BROKER_SYNC_DISCOVERED", "BROKER_SYNC_UPDATED", "broker", "broker.current")
 
-	order := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	order := store.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "7001",
 		BrokerOrderIDEx:    brokerOrderIDEx,
@@ -153,7 +152,7 @@ func TestExecutionOrderStorePromotesBrokerSourceToSystemOnPlacedMerge(t *testing
 	if order.Source != "system" || order.SourceDetail != "command.place" {
 		t.Fatalf("source = %s/%s, want system/command.place", order.Source, order.SourceDetail)
 	}
-	if got := len(store.listOrders().Orders); got != 1 {
+	if got := len(store.AllOrders().Orders); got != 1 {
 		t.Fatalf("orders = %d, want merged single order", got)
 	}
 }
@@ -164,7 +163,7 @@ func TestExecutionOrderStorePersistsOrdersEventsAndFillKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newExecutionOrderStoreWithDB: %v", err)
 	}
-	order := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	order := store.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "7001",
 		BrokerOrderIDEx:    "EXT-7001",
@@ -195,7 +194,7 @@ func TestExecutionOrderStorePersistsOrdersEventsAndFillKeys(t *testing.T) {
 		},
 	})
 	fillIDEx := "FILL-7001"
-	store.recordBrokerOrderFill("futu", broker.OrderFillSnapshot{
+	store.ApplyBrokerFill("futu", broker.OrderFillSnapshot{
 		AccountID:          "SIM-001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",
@@ -218,7 +217,7 @@ func TestExecutionOrderStorePersistsOrdersEventsAndFillKeys(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, reloaded.Close()) }()
 
-	reloadedOrder, ok := reloaded.order(order.InternalOrderID)
+	reloadedOrder, ok := reloaded.Order(order.InternalOrderID)
 	if !ok {
 		t.Fatalf("expected persisted order %s", order.InternalOrderID)
 	}
@@ -231,12 +230,12 @@ func TestExecutionOrderStorePersistsOrdersEventsAndFillKeys(t *testing.T) {
 		reloadedOrder.Legs[1].InstrumentID != "US.AAPL260717C00210000" {
 		t.Fatalf("persisted combo parent/legs = %#v", reloadedOrder)
 	}
-	events := reloaded.orderEvents(order.InternalOrderID)
+	events := reloaded.Events(order.InternalOrderID)
 	if len(events.Events) != 2 {
 		t.Fatalf("persisted events = %#v, want 2 events", events.Events)
 	}
 	fillKey := executionFillLookupKey("futu", "SIM-001", "SIMULATE", "HK", "90001", &fillIDEx)
-	if _, ok := reloaded.seenFillKeys[fillKey]; !ok {
+	if !reloaded.HasSeenFill(fillKey) {
 		t.Fatalf("expected persisted fill key %s", fillKey)
 	}
 }
@@ -266,46 +265,21 @@ func getExecutionOrdersForTest(t *testing.T, url string) trdsrv.ExecutionOrders 
 
 func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             new(uint64(1001)),
-		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+	opendServer.setAccounts([]fututestkit.Account{{
+		Environment: "SIMULATE", ID: 1001, Markets: []string{"HK"}, Type: "CASH",
 	}})
-	opendServer.setOrders([]*trdcommonpb.Order{{
-		TrdSide:     new(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
-		OrderType:   new(int32(trdcommonpb.OrderType_OrderType_Normal)),
-		OrderStatus: new(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
-		OrderID:     new(uint64(3001)),
-		OrderIDEx:   new("EXT-3001"),
-		Code:        new("HK.00700"),
-		Name:        new("Tencent"),
-		Qty:         new(float64(200)),
-		Price:       new(321.1),
-		FillQty:     new(float64(0)),
-		CreateTime:  new("2026-05-20 09:30:00"),
-		UpdateTime:  new("2026-05-20 09:31:00"),
-		TimeInForce: new(int32(trdcommonpb.TimeInForce_TimeInForce_DAY)),
-		Currency:    new(int32(trdcommonpb.Currency_Currency_HKD)),
-		TrdMarket:   new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+	opendServer.setOrders([]fututestkit.Order{{
+		Side: "BUY", Type: "NORMAL", Status: "SUBMITTED", ID: 3001, ExternalID: "EXT-3001",
+		Code: "HK.00700", Name: "Tencent", Quantity: 200, Price: 321.1,
+		CreatedAt: "2026-05-20 09:30:00", UpdatedAt: "2026-05-20 09:31:00",
+		TimeInForce: "DAY", Currency: "HKD", Market: "HK",
 	}})
-	opendServer.setHistoryOrders([]*trdcommonpb.Order{{
-		TrdSide:      new(int32(trdcommonpb.TrdSide_TrdSide_Sell)),
-		OrderType:    new(int32(trdcommonpb.OrderType_OrderType_Normal)),
-		OrderStatus:  new(int32(trdcommonpb.OrderStatus_OrderStatus_Filled_All)),
-		OrderID:      new(uint64(3002)),
-		OrderIDEx:    new("EXT-3002"),
-		Code:         new("HK.00700"),
-		Name:         new("Tencent"),
-		Qty:          new(float64(100)),
-		Price:        new(322.2),
-		FillQty:      new(float64(100)),
-		FillAvgPrice: new(322.2),
-		CreateTime:   new("2026-05-19 09:30:00"),
-		UpdateTime:   new("2026-05-19 09:31:00"),
-		TimeInForce:  new(int32(trdcommonpb.TimeInForce_TimeInForce_DAY)),
-		Currency:     new(int32(trdcommonpb.Currency_Currency_HKD)),
-		TrdMarket:    new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+	opendServer.setHistoryOrders([]fututestkit.Order{{
+		Side: "SELL", Type: "NORMAL", Status: "FILLED", ID: 3002, ExternalID: "EXT-3002",
+		Code: "HK.00700", Name: "Tencent", Quantity: 100, Price: 322.2,
+		FilledQuantity: 100, AverageFillPrice: 322.2,
+		CreatedAt: "2026-05-19 09:30:00", UpdatedAt: "2026-05-19 09:31:00",
+		TimeInForce: "DAY", Currency: "HKD", Market: "HK",
 	}})
 	defer opendServer.stop()
 
@@ -416,7 +390,7 @@ func TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication(t *testing.T) 
 	initialFilled := 10.0
 	initialAverage := 100.0
 	remark := "submitted by broker"
-	summary, event, changed := store.upsertBrokerOrderWithSource("futu", broker.OrderSnapshot{
+	summary, event, changed := store.ApplyBrokerOrder("futu", broker.OrderSnapshot{
 		AccountID:          "SIM-001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",
@@ -441,7 +415,7 @@ func TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication(t *testing.T) 
 		t.Fatalf("initial sync source = %+v", summary)
 	}
 
-	_, noEvent, changed := store.upsertBrokerOrderWithSource("futu", broker.OrderSnapshot{
+	_, noEvent, changed := store.ApplyBrokerOrder("futu", broker.OrderSnapshot{
 		AccountID:          "SIM-001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",
@@ -467,7 +441,7 @@ func TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication(t *testing.T) 
 	updatedFilled := 20.0
 	updatedAverage := 100.5
 	lastError := "partial fill warning"
-	updated, updateEvent, changed := store.upsertBrokerOrderWithSource("futu", broker.OrderSnapshot{
+	updated, updateEvent, changed := store.ApplyBrokerOrder("futu", broker.OrderSnapshot{
 		AccountID:          "SIM-001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",
@@ -497,7 +471,7 @@ func TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication(t *testing.T) 
 
 	fillPrice := 101.0
 	fillIDEx := "FILL-1"
-	filled, fillEvent, changed := store.recordBrokerOrderFill("futu", broker.OrderFillSnapshot{
+	filled, fillEvent, changed := store.ApplyBrokerFill("futu", broker.OrderFillSnapshot{
 		AccountID:          "SIM-001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",
@@ -520,7 +494,7 @@ func TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication(t *testing.T) 
 	if filled.FilledAveragePrice == nil || *filled.FilledAveragePrice != 100.8 {
 		t.Fatalf("filled average after first fill = %#v, want 100.8", filled.FilledAveragePrice)
 	}
-	if _, duplicateEvent, duplicateChanged := store.recordBrokerOrderFill("futu", broker.OrderFillSnapshot{
+	if _, duplicateEvent, duplicateChanged := store.ApplyBrokerFill("futu", broker.OrderFillSnapshot{
 		AccountID:          "SIM-001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",
@@ -539,7 +513,7 @@ func TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication(t *testing.T) 
 
 	finalFillPrice := 102.0
 	finalStatus, finalFillIDEx := "FILLED_ALL", "FILL-2"
-	completed, finalEvent, changed := store.recordBrokerOrderFill("futu", broker.OrderFillSnapshot{
+	completed, finalEvent, changed := store.ApplyBrokerFill("futu", broker.OrderFillSnapshot{
 		AccountID:          "SIM-001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",
@@ -563,16 +537,16 @@ func TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication(t *testing.T) 
 	if completed.LastError != nil || completed.LastErrorSource != nil {
 		t.Fatalf("fills should clear broker sync errors, got %+v", completed)
 	}
-	events := store.orderEvents(completed.InternalOrderID)
+	events := store.Events(completed.InternalOrderID)
 	if len(events.Events) != 4 {
 		t.Fatalf("events len = %d, want discovery/update/two fills: %+v", len(events.Events), events.Events)
 	}
 }
 
-func TestExecutionOrderStorePlacedMergeCancelFilteringAndRetention(t *testing.T) {
+func TestExecutionOrderStorePlacedMergeCancelAndFiltering(t *testing.T) {
 	store := newExecutionOrderStore()
 	price := 88.5
-	first := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	first := store.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           " futu ",
 		BrokerOrderIDEx:    "EXT-MERGE",
 		TradingEnvironment: "SIMULATE",
@@ -590,7 +564,7 @@ func TestExecutionOrderStorePlacedMergeCancelFilteringAndRetention(t *testing.T)
 		t.Fatalf("initial placed order = %+v", first)
 	}
 
-	merged := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	merged := store.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "MERGED-ORDER",
 		BrokerOrderIDEx:    "EXT-MERGE",
@@ -614,58 +588,36 @@ func TestExecutionOrderStorePlacedMergeCancelFilteringAndRetention(t *testing.T)
 		t.Fatalf("merged order economics = %+v", merged)
 	}
 
-	if _, ok := store.markCancelRequested("missing-order", map[string]string{"reason": "user"}); ok {
+	if _, ok := store.MarkCancelRequested("missing-order", map[string]string{"reason": "user"}); ok {
 		t.Fatal("cancel missing order returned ok")
 	}
-	cancelled, ok := store.markCancelRequested(first.InternalOrderID, map[string]string{"reason": "user"})
+	cancelled, ok := store.MarkCancelRequested(first.InternalOrderID, map[string]string{"reason": "user"})
 	if !ok || cancelled.Status != "CANCEL_REQUESTED" {
 		t.Fatalf("cancelled order = %+v ok=%v", cancelled, ok)
 	}
-	events := store.orderEvents(first.InternalOrderID)
+	events := store.Events(first.InternalOrderID)
 	if len(events.Events) != 3 || events.Events[2].EventType != "COMMAND_CANCEL_ACCEPTED" {
 		t.Fatalf("events after cancel = %+v", events.Events)
 	}
 
-	filtered := store.listOrdersFiltered(trdsrv.ExecutionOrderFilter{
+	filtered := store.FilteredOrders(trdsrv.ExecutionOrderFilter{
 		BrokerID: "FUTU", TradingEnvironment: "simulate", AccountID: "SIM-001", Market: "hk",
 	})
 	if len(filtered.Orders) != 1 || filtered.Orders[0].InternalOrderID != first.InternalOrderID {
 		t.Fatalf("case-insensitive filtered orders = %+v", filtered.Orders)
 	}
-	if mismatch := store.listOrdersFiltered(trdsrv.ExecutionOrderFilter{AccountID: "REAL-001"}); len(mismatch.Orders) != 0 {
+	if mismatch := store.FilteredOrders(trdsrv.ExecutionOrderFilter{AccountID: "REAL-001"}); len(mismatch.Orders) != 0 {
 		t.Fatalf("mismatched account filter returned %+v", mismatch.Orders)
 	}
 
-	cloned, ok := store.order(first.InternalOrderID)
+	cloned, ok := store.Order(first.InternalOrderID)
 	if !ok || cloned.Symbol == nil {
 		t.Fatalf("order clone missing: %+v ok=%v", cloned, ok)
 	}
 	*cloned.Symbol = "MUTATED"
-	reloaded, _ := store.order(first.InternalOrderID)
+	reloaded, _ := store.Order(first.InternalOrderID)
 	if reloaded.Symbol == nil || *reloaded.Symbol == "MUTATED" {
 		t.Fatalf("order() leaked mutable pointer, got %+v", reloaded)
 	}
 
-	old := time.Now().UTC().Add(-120 * 24 * time.Hour).Format(time.RFC3339Nano)
-	recent := time.Now().UTC().Format(time.RFC3339Nano)
-	store.seenFillKeys["old-fill"] = old
-	store.seenFillKeys["recent-fill"] = recent
-	store.seenFillKeys["invalid-fill"] = "not-a-time"
-	store.configureSeenFillRetention(0)
-	if store.seenFillRetentionDays != 90 {
-		t.Fatalf("default retention days = %d, want 90", store.seenFillRetentionDays)
-	}
-	if _, ok := store.seenFillKeys["old-fill"]; ok {
-		t.Fatal("old fill key was not pruned")
-	}
-	if _, ok := store.seenFillKeys["recent-fill"]; !ok {
-		t.Fatal("recent fill key was unexpectedly pruned")
-	}
-	if _, ok := store.seenFillKeys["invalid-fill"]; !ok {
-		t.Fatal("invalid fill timestamp should be preserved for manual inspection")
-	}
-	store.configureSeenFillRetention(5000)
-	if store.seenFillRetentionDays != 3650 {
-		t.Fatalf("max retention days = %d, want 3650", store.seenFillRetentionDays)
-	}
 }

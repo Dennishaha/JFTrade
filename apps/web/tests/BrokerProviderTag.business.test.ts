@@ -8,7 +8,7 @@ const apiMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/composables/apiClient", () => ({
-  fetchEnvelope: apiMocks.fetchEnvelope,
+  apiGet: apiMocks.fetchEnvelope,
 }));
 
 import BrokerProviderTag from "../src/components/shared/BrokerProviderTag.vue";
@@ -266,6 +266,106 @@ describe("broker provider tag", () => {
       "原因：尚未完成当前 OpenD 行情权限核验",
     ]);
     expect(tag.attributes("title")).not.toContain("explicit");
+  });
+
+  it("normalizes optional and forward-compatible generated capability fields", async () => {
+    apiMocks.fetchEnvelope.mockResolvedValueOnce({
+      brokers: [
+        {
+          id: "future",
+          displayName: "Future Broker",
+          securityFirm: "Future Securities",
+          capabilityVersion: " 2026-07 ",
+          capabilities: [
+            {
+              market: "US",
+              supportsQuote: true,
+              supportsTrade: false,
+            },
+            {
+              market: "HK",
+              supportsQuote: true,
+              supportsTrade: false,
+              features: [
+                {
+                  id: "research.news",
+                  state: "future-state",
+                  markets: ["HK"],
+                  supportedPeriods: ["1d"],
+                  reasonCode: "FUTURE_STATE",
+                  reason: "等待适配",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "sparse",
+          displayName: "Sparse Broker",
+        },
+      ],
+      runtime: [
+        {
+          brokerId: "future",
+          securityFirm: "Future Securities",
+          market: "HK",
+          featureId: "research.news",
+          capability: {
+            id: "research.news",
+            state: "future-state",
+            reasonCode: "RUNTIME_FUTURE",
+          },
+          evaluation: {
+            state: "future-state",
+            checkedAt: " 2026-07-26T00:00:00Z ",
+            code: "UNKNOWN_STATE",
+            reason: "尚未识别",
+          },
+        },
+      ],
+    });
+
+    const selection = useBrokerProviderSelection();
+    await selection.loadBrokerProviders();
+
+    expect(selection.brokerDescriptors.value).toEqual([
+      expect.objectContaining({
+        id: "future",
+        capabilityVersion: "2026-07",
+        capabilities: [
+          expect.objectContaining({ market: "US" }),
+          expect.objectContaining({
+            market: "HK",
+            features: [
+              expect.objectContaining({
+                state: "unavailable",
+                reasonCode: "FUTURE_STATE",
+                supportedPeriods: ["1d"],
+              }),
+            ],
+          }),
+        ],
+      }),
+      expect.objectContaining({ id: "sparse", capabilities: [] }),
+    ]);
+    expect(selection.brokerRuntimeCapabilities.value[0]).toMatchObject({
+      securityFirm: "Future Securities",
+      capability: {
+        state: "unavailable",
+        reasonCode: "RUNTIME_FUTURE",
+      },
+      evaluation: {
+        state: "unavailable",
+        checkedAt: "2026-07-26T00:00:00Z",
+        code: "UNKNOWN_STATE",
+      },
+    });
+
+    resetBrokerProviderSelectionForTests();
+    apiMocks.fetchEnvelope.mockResolvedValueOnce({ runtime: [] });
+    const empty = useBrokerProviderSelection();
+    await empty.loadBrokerProviders();
+    expect(empty.brokerDescriptors.value).toEqual([]);
   });
 
   it("adds or replaces brokerId without disturbing the existing query or hash", () => {

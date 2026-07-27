@@ -252,14 +252,14 @@ func executionCommandError(err error) (int, string) {
 }
 
 // executionProductRoutesDocs godoc
-// @Summary 全产品组合交易、预检和购买力
+// @Summary 预检执行订单
+// @Description 校验订单输入、能力与风险上下文，不提交订单。
 // @Tags execution
 // @Accept json
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Param request body srv.ExecutionPlaceRequest true "订单预检请求"
+// @Success 200 {object} httpserver.Envelope{data=srv.ExecutionPreview}
+// @Failure 400 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/execution/previews [post]
 func executionProductRoutesDocs() {}
 
@@ -271,9 +271,9 @@ func executionProductRoutesDocs() {}
 // @Produce json
 // @Param request body srv.ExecutionComboRequest true "组合预检请求"
 // @Success 200 {object} httpserver.Envelope{data=srv.ExecutionComboPreview}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/execution/combos/previews [post]
 func executionComboPreviewDocs() {}
 
@@ -285,9 +285,9 @@ func executionComboPreviewDocs() {}
 // @Produce json
 // @Param request body srv.ExecutionComboRequest true "组合下单请求"
 // @Success 200 {object} httpserver.Envelope{data=srv.ExecutionCommandResponse}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/execution/combos [post]
 func executionComboPlaceDocs() {}
 
@@ -297,9 +297,9 @@ func executionComboPlaceDocs() {}
 // @Produce json
 // @Param internalOrderId path string true "父组合订单内部编号"
 // @Success 200 {object} httpserver.Envelope{data=srv.ExecutionCommandResponse}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/execution/combos/{internalOrderId}/cancel [post]
 func executionComboCancelDocs() {}
 
@@ -310,8 +310,8 @@ func executionComboCancelDocs() {}
 // @Produce json
 // @Param request body broker.ProductRuleQuery true "购买力查询"
 // @Success 200 {object} httpserver.Envelope{data=broker.ProductRuleResult}
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/execution/buying-power [post]
 func executionBuyingPowerDocs() {}

@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ADKProvidersPanel from "../src/components/adk-settings/ADKProvidersPanel.vue";
-import type { ADKProvider } from "../src/contracts";
+import type { ADKProvider } from "../src/types";
 import { buttonStub, dialogStub, passthroughStub } from "./helpers";
 
 afterEach(() => {

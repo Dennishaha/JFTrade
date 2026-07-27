@@ -1,4 +1,4 @@
-import type { ADKChatResponse, ADKRun } from "@/contracts";
+import type { ADKChatResponse, ADKRun } from "@/types";
 
 import {
   isActiveRunStatus,

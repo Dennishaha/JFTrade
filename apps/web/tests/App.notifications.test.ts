@@ -11,8 +11,8 @@ import {
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
   emptySystemStatus,
-} from "@/contracts";
-import type { SystemStatusResponse } from "@/contracts";
+} from "@/types";
+import type { SystemStatusResponse } from "@/types";
 
 import {
   MockWebSocket,

@@ -20,15 +20,35 @@ type pluginOperationURI struct {
 }
 
 func RegisterPluginRoutes(api *gin.RouterGroup, service *srv.Service) {
-	api.GET("/plugins", func(c *gin.Context) {
-		httpserver.WriteOK(c, service.PluginCatalog())
-	})
+	api.GET("/plugins", handlePluginCatalog(service))
 	api.GET("/plugins/operations/:operationId", handlePluginOperation(service))
 	api.POST("/plugins/:pluginId/install", handlePluginInstall(service))
 	api.POST("/plugins/:pluginId/uninstall", handlePluginUninstall(service))
 	api.GET("/plugins/:pluginId/uninstall-guidance", handlePluginUninstallGuidance(service))
 }
 
+// handlePluginCatalog godoc
+// @Summary 读取策略插件目录
+// @Tags plugins
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=srv.PluginCatalog}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/plugins [get]
+func handlePluginCatalog(service *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, service.PluginCatalog())
+	}
+}
+
+// handlePluginOperation godoc
+// @Summary 读取策略插件操作状态
+// @Tags plugins
+// @Produce json
+// @Param operationId path string true "插件操作 ID"
+// @Success 200 {object} httpserver.Envelope{data=srv.PluginOperation}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/plugins/operations/{operationId} [get]
 func handlePluginOperation(service *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var uri pluginOperationURI
@@ -53,6 +73,17 @@ func handlePluginUninstall(service *srv.Service) gin.HandlerFunc {
 	return handlePluginMutation(service, "uninstall")
 }
 
+// handlePluginMutation godoc
+// @Summary 安装或卸载策略插件
+// @Tags plugins
+// @Produce json
+// @Param pluginId path string true "插件 ID"
+// @Success 200 {object} httpserver.Envelope{data=PluginMutationData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/plugins/{pluginId}/install [post]
+// @Router /api/v1/plugins/{pluginId}/uninstall [post]
 func handlePluginMutation(service *srv.Service, operationName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var uri pluginURI
@@ -82,6 +113,15 @@ func handlePluginMutation(service *srv.Service, operationName string) gin.Handle
 	}
 }
 
+// handlePluginUninstallGuidance godoc
+// @Summary 读取策略插件卸载指引
+// @Tags plugins
+// @Produce json
+// @Param pluginId path string true "插件 ID"
+// @Success 200 {object} httpserver.Envelope{data=srv.PluginUninstallGuidance}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/plugins/{pluginId}/uninstall-guidance [get]
 func handlePluginUninstallGuidance(service *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var uri pluginURI

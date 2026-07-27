@@ -6,8 +6,10 @@ import type {
   PineV6WorkflowDocument,
   StrategyDefinitionDocument,
   StrategyInstanceItem,
-} from "@/contracts";
-import { apiGet, apiPost, apiPutPath, fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+} from "@/types";
+import type { components } from "@/generated/openapi";
+import { apiGet, apiPost, apiPutPath } from "../composables/apiClient";
+import { mapStrategyInstances } from "../composables/strategyContract";
 import {
   fetchStrategyDefinitionVersion,
   fetchStrategyDefinitionVersions,
@@ -82,6 +84,49 @@ interface StrategyPineAnalyzeResponse {
   ok: boolean;
   diagnostics?: StrategyPineAnalyzeDiagnostic[];
   features?: string[];
+}
+
+type StrategyPineAnalyzeWire =
+  components["schemas"]["strategy.AnalyzePineData"];
+
+function mapStrategyPineAnalyzeDiagnostic(
+  value: unknown,
+): StrategyPineAnalyzeDiagnostic | null {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const severity =
+    record.severity === "error" ||
+    record.severity === "warning" ||
+    record.severity === "info"
+      ? record.severity
+      : "info";
+  const numberOrZero = (field: string): number =>
+    typeof record[field] === "number" && Number.isFinite(record[field])
+      ? record[field]
+      : 0;
+  return {
+    severity,
+    ...(typeof record.code === "string" ? { code: record.code } : {}),
+    message: typeof record.message === "string" ? record.message : "",
+    line: numberOrZero("line"),
+    column: numberOrZero("column"),
+    endLine: numberOrZero("endLine"),
+    endColumn: numberOrZero("endColumn"),
+  };
+}
+
+function mapStrategyPineAnalyzeResponse(
+  value: StrategyPineAnalyzeWire,
+): StrategyPineAnalyzeResponse {
+  return {
+    ok: value.ok,
+    diagnostics: (value.diagnostics ?? [])
+      .map(mapStrategyPineAnalyzeDiagnostic)
+      .filter((entry): entry is StrategyPineAnalyzeDiagnostic => entry != null),
+    features: value.features ?? [],
+  };
 }
 
 type StrategyMobileSection = "definition" | "instruction" | "code";
@@ -674,8 +719,7 @@ async function loadStrategyDefinitions(
 async function loadStrategies(): Promise<void> {
   isLoadingStrategies.value = true;
   try {
-    const items = await fetchEnvelope<StrategyInstanceItem[]>("/api/v1/strategies");
-    strategies.value = items;
+    strategies.value = mapStrategyInstances(await apiGet("/api/v1/strategies"));
   } catch {
     strategies.value = [];
   } finally {
@@ -745,18 +789,14 @@ async function analyzeCurrentScript(): Promise<boolean> {
   actionFeedback.value = "";
   error.value = "";
   try {
-    const result = await fetchEnvelopeWithInit<StrategyPineAnalyzeResponse>(
+    const result = mapStrategyPineAnalyzeResponse(await apiPost(
       "/api/v1/strategy-pine/analyze",
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          script: activeScript.value,
-          sourceFormat: "pine-v6",
-          includeAst: false,
-        }),
+        script: activeScript.value,
+        sourceFormat: "pine-v6",
+        includeAst: false,
       },
-    );
+    ));
     analyzeResult.value = result;
     if (!result.ok || (result.diagnostics ?? []).some((diagnostic) => diagnostic.severity === "error")) {
       error.value = "Pine v6 分析未通过，请先处理错误诊断。";

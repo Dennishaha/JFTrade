@@ -18,12 +18,12 @@ import {
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
   emptySystemStatus,
-} from "@/contracts"
+} from "@/types"
 import type {
   BrokerRuntimeResponse,
   StrategyDefinitionDocument,
   SystemStatusResponse,
-} from "@/contracts"
+} from "@/types"
 import { PINE_WORKER_RUNTIME } from "../src/components/strategy-runtime/strategyRuntimeIdentity"
 
 import { createResponse, MockWebSocket, flushRequests } from "./helpers"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import { apiPostPath } from "../../composables/apiClient";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
@@ -459,16 +459,13 @@ async function loadVisibleSnapshots(): Promise<void> {
   snapshotRequestInFlight = true;
   snapshotRefreshPending = false;
   try {
-    const response = await fetchEnvelopeWithInit<ProductFeatureResult>(
+    const response = await apiPostPath(
+      "/api/v1/market-data/snapshots",
       withBrokerProvider(
         `/api/v1/market-data/snapshots?market=${encodeURIComponent(props.market)}`,
         selectedBrokerId.value,
       ),
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instrumentIds: unique }),
-      },
+      { instrumentIds: unique },
     );
     if (
       token !== snapshotRequestToken ||

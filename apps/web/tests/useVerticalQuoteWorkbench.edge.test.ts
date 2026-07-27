@@ -12,7 +12,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../src/composables/apiClient", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("../src/composables/apiClient")>();
-  return { ...actual, fetchEnvelope: mocks.fetchEnvelope };
+  return {
+    ...actual,
+    fetchEnvelope: mocks.fetchEnvelope,
+    apiGetPath: (_template: string, path: string) => mocks.fetchEnvelope(path),
+  };
 });
 
 vi.mock("../src/composables/watchlistApi", async (importOriginal) => {

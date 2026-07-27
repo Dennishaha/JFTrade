@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick } from "vue";
 
-import type { ADKTimelineEntry } from "@/contracts";
+import type { ADKTimelineEntry } from "@/types";
 
 import ADKChatThread from "../src/components/adk-page/ADKChatThread.vue";
 import { createTimelineEntryState } from "../src/composables/adkTimeline";

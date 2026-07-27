@@ -1,8 +1,8 @@
 import type {
-  BrokerRuntimeResponse,
   ExecutionOrdersResponse,
   FutuOpenDHealthResponse,
-} from "@/contracts";
+} from "@/types";
+import type { BrokerRuntimeResponse } from "@/contracts";
 
 import type { BrokerAccountSelectionOption } from "./consoleDataBrokerAccountSelection";
 

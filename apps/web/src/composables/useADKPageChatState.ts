@@ -7,13 +7,12 @@ import type {
   ADKChatResponse,
   ADKInputAnswer,
   ADKInputRequest,
-  ADKInputResolution,
   ADKProvider,
   ADKRun,
   ADKSession,
   ADKSessionComposerState,
   ADKSessionContextSnapshot,
-} from "@/contracts";
+} from "@/types";
 
 import {
   resolveADKApprovalBatchOnce,
@@ -78,7 +77,16 @@ import {
   compactADKSessionContext,
   fetchADKSessionContext,
 } from "./adkSessionContextApi";
-import { fetchEnvelopeWithInit } from "./apiClient";
+import {
+  apiPatchPath,
+  apiPostPath,
+  apiPostPathAction,
+} from "./apiClient";
+import {
+  requireADKApprovalResolution,
+  requireADKInputResolution,
+  requireADKRun,
+} from "./adkApiMappers";
 import { useADKWorkflowQueueState } from "./useADKWorkflowQueueState";
 
 interface SessionState {
@@ -757,9 +765,11 @@ export function useADKPageChatState(
     if (!runId) return;
     try {
       const run = normalizeADKRun(
-        await fetchEnvelopeWithInit<ADKRun>(
-          `/api/v1/adk/runs/${encodeURIComponent(runId)}/cancel`,
-          { method: "POST" },
+        requireADKRun(
+          await apiPostPathAction(
+            "/api/v1/adk/runs/{runId}/cancel",
+            `/api/v1/adk/runs/${encodeURIComponent(runId)}/cancel`,
+          ),
         ),
       );
       syncActiveRun(run, !isTerminalRunStatus(run.status));
@@ -787,9 +797,11 @@ export function useADKPageChatState(
     goalLifecycleBusy.value = true;
     try {
       const run = normalizeADKRun(
-        await fetchEnvelopeWithInit<ADKRun>(
-          `/api/v1/adk/runs/${encodeURIComponent(runId)}/pause`,
-          { method: "POST" },
+        requireADKRun(
+          await apiPostPathAction(
+            "/api/v1/adk/runs/{runId}/pause",
+            `/api/v1/adk/runs/${encodeURIComponent(runId)}/pause`,
+          ),
         ),
       );
       abortActiveChatStream("goal_pause");
@@ -819,9 +831,11 @@ export function useADKPageChatState(
     goalLifecycleBusy.value = true;
     try {
       const run = normalizeADKRun(
-        await fetchEnvelopeWithInit<ADKRun>(
-          `/api/v1/adk/runs/${encodeURIComponent(runId)}/resume`,
-          { method: "POST" },
+        requireADKRun(
+          await apiPostPathAction(
+            "/api/v1/adk/runs/{runId}/resume",
+            `/api/v1/adk/runs/${encodeURIComponent(runId)}/resume`,
+          ),
         ),
       );
       syncActiveRun(run, true);
@@ -861,13 +875,12 @@ export function useADKPageChatState(
     if (inputRequestBusy(request.id)) return;
     resolvingInputIds.value = new Set([...resolvingInputIds.value, request.id]);
     try {
-      const resolution = await fetchEnvelopeWithInit<ADKInputResolution>(
-        `/api/v1/adk/runs/${encodeURIComponent(request.runId)}/input-response`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ requestId: request.id, answers }),
-        },
+      const resolution = requireADKInputResolution(
+        await apiPostPath(
+          "/api/v1/adk/runs/{runId}/input-response",
+          `/api/v1/adk/runs/${encodeURIComponent(request.runId)}/input-response`,
+          { requestId: request.id, answers },
+        ),
       );
       const run = resolution.parentRun ?? resolution.run;
       if (resolution.run) void workflowQueues.syncWorkflowRun(resolution.run);
@@ -1107,9 +1120,13 @@ export function useADKPageChatState(
     action: ADKApprovalAction,
   ): Promise<ADKApprovalResolution> {
     return normalizeADKApprovalResolution(
-      await fetchEnvelopeWithInit<ADKApprovalResolution>(
-        `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
-        { method: "POST" },
+      requireADKApprovalResolution(
+        await apiPostPathAction(
+          action === "approve"
+            ? "/api/v1/adk/approvals/{approvalId}/approve"
+            : "/api/v1/adk/approvals/{approvalId}/deny",
+          `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
+        ),
       ),
     );
   }
@@ -1469,13 +1486,12 @@ export function useADKPageChatState(
     goalObjectiveError.value = "";
     try {
       const updated = normalizeADKRun(
-        await fetchEnvelopeWithInit<ADKRun>(
-          `/api/v1/adk/runs/${encodeURIComponent(run.id)}/objective`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ objective }),
-          },
+        requireADKRun(
+          await apiPatchPath(
+            "/api/v1/adk/runs/{runId}/objective",
+            `/api/v1/adk/runs/${encodeURIComponent(run.id)}/objective`,
+            { objective },
+          ),
         ),
       );
       syncActiveRun(updated, !isTerminalRunStatus(updated.status));

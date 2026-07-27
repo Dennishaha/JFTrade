@@ -14,7 +14,7 @@ import type {
   ADKRun,
   ADKSession,
   ADKSessionContextSnapshot,
-} from "../src/contracts";
+} from "../src/types";
 import { compactADKSessionContext, fetchADKSessionContext } from "../src/composables/adkSessionContextApi";
 import { streamADKChat } from "../src/composables/adkChatStream";
 import { fetchEnvelopeWithInit } from "../src/composables/apiClient";
@@ -39,7 +39,25 @@ vi.mock("../src/composables/apiClient", async () => {
   const actual = await vi.importActual<typeof import("../src/composables/apiClient")>(
     "../src/composables/apiClient",
   );
-  return { ...actual, fetchEnvelopeWithInit: vi.fn() };
+  const fetchEnvelopeWithInit = vi.fn();
+  return {
+    ...actual,
+    fetchEnvelopeWithInit,
+    apiPatchPath: (_template: string, path: string, body: unknown) =>
+      fetchEnvelopeWithInit(path, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    apiPostPath: (_template: string, path: string, body: unknown) =>
+      fetchEnvelopeWithInit(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    apiPostPathAction: (_template: string, path: string) =>
+      fetchEnvelopeWithInit(path, { method: "POST" }),
+  };
 });
 
 vi.mock("../src/composables/adkPageRunHistory", async () => {
@@ -812,7 +830,6 @@ describe("useADKPageChatState boundaries", () => {
 
   it("submits input answers once, refreshes authoritative state and clears busy state", async () => {
     const run = buildRun({ id: "run-input", status: "RUNNING" });
-    vi.mocked(fetchEnvelopeWithInit).mockResolvedValueOnce({ run });
     const harness = mountHarness();
     const request: ADKInputRequest = {
       id: "request/1",
@@ -824,6 +841,10 @@ describe("useADKPageChatState boundaries", () => {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     };
+    vi.mocked(fetchEnvelopeWithInit).mockResolvedValueOnce({
+      request: { ...request, status: "ANSWERED" },
+      run,
+    });
     const answers: ADKInputAnswer[] = [{ questionId: "risk", optionId: "low" }];
 
     const submitting = harness.state.submitInputResponse(request, answers);

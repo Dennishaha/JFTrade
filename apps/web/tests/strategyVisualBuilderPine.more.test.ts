@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { StrategyVisualModelDocument, StrategyVisualNodeDocument } from "@/contracts";
+import type { StrategyVisualModelDocument, StrategyVisualNodeDocument } from "@/types";
 
 import { buildStrategyPineFromVisualModel } from "../src/features/strategyVisualBuilderPine";
 

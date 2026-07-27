@@ -172,7 +172,9 @@ function createController(resolveBrokerId: () => string = () => "") {
   const fetchEnvelope = vi.fn();
   const controller = createMarketDataQueryController({
     state,
-    fetchEnvelope,
+    requestSnapshot: (path) => fetchEnvelope(path),
+    requestSecurityDetails: (path) => fetchEnvelope(path),
+    requestCandles: (path) => fetchEnvelope(path),
     normalizeInstrumentParts: (input, fallbackMarket) => {
       const market = (input.market ?? fallbackMarket ?? "").trim().toUpperCase();
       const symbol = (input.symbol ?? "").trim().toUpperCase();

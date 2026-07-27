@@ -42,6 +42,23 @@ func TestStructuredLogIncludesCanonicalCorrelationFields(t *testing.T) {
 	}
 }
 
+func TestRecorderSnapshotSerializesEmptyCollectionsAsArrays(t *testing.T) {
+	payload, err := json.Marshal(NewRecorder(5, time.Second).Snapshot())
+	if err != nil {
+		t.Fatalf("marshal empty recorder snapshot: %v", err)
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &fields); err != nil {
+		t.Fatalf("decode empty recorder snapshot: %v", err)
+	}
+	for _, field := range []string{"recentErrors", "recentSlowRequests"} {
+		if got := string(fields[field]); got != "[]" {
+			t.Fatalf("%s = %s, want []", field, got)
+		}
+	}
+}
+
 func TestImportanceThresholdSuppressesLowerImportanceLogs(t *testing.T) {
 	var output bytes.Buffer
 	previous := slog.Default()

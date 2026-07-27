@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKWorkflowTrigger } from "@/contracts";
+import type { ADKWorkflowTrigger } from "@/types";
 import type { TriggerFormModel } from "@/features/adkWorkflowForms";
 import {
   formatJson,

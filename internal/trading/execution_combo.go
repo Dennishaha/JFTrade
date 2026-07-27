@@ -27,10 +27,10 @@ type ExecutionComboRequest struct {
 	OptionStrategy     string                  `json:"optionStrategy"`
 	NearExpiry         string                  `json:"nearExpiry"`
 	FarExpiry          string                  `json:"farExpiry"`
-	Spread             *float64                `json:"spread"`
-	QuoteExpiresAt     *time.Time              `json:"quoteExpiresAt"`
-	Amount             *float64                `json:"amount"`
-	Price              *float64                `json:"price"`
+	Spread             *float64                `json:"spread" extensions:"x-nullable"`
+	QuoteExpiresAt     *time.Time              `json:"quoteExpiresAt" extensions:"x-nullable"`
+	Amount             *float64                `json:"amount" extensions:"x-nullable"`
+	Price              *float64                `json:"price" extensions:"x-nullable"`
 	Legs               []broker.OrderLegIntent `json:"legs"`
 }
 

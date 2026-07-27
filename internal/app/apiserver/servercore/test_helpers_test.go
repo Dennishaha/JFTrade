@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
+	assistant "github.com/jftrade/jftrade-main/internal/assistant"
+	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 )
 
 const testADKProviderID = "test-provider"
@@ -28,7 +30,7 @@ func newTestServer(t *testing.T, store *SettingsStore) *Server {
 	if server.auth != nil {
 		server.auth.enabled = false
 	}
-	if server.strategyRuntimeManager != nil {
+	if server.runtimes.StrategyRuntime() != nil {
 		useFakeStrategyRuntimePineWorker(server, newFakeStrategyRuntimePineWorker())
 	}
 	configureTestADKProvider(t, server)
@@ -85,11 +87,30 @@ func disableTestExchangeCalendarAutoRefresh(t *testing.T, store *SettingsStore) 
 	}
 }
 
+func serverADKTestStore(t *testing.T, server *Server) *assistanttestkit.Store {
+	t.Helper()
+	if server == nil || server.store == nil {
+		t.Fatal("assistant test store requires an initialized server")
+	}
+	paths := appcomposition.AssistantPaths(server.store.Path())
+	store, err := assistanttestkit.NewStore(paths.Database, paths.Secrets, paths.Skills)
+	if err != nil {
+		t.Fatalf("open assistant test store: %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := store.Close(); closeErr != nil {
+			t.Errorf("close assistant test store: %v", closeErr)
+		}
+	})
+	return store
+}
+
 func configureTestADKProvider(t *testing.T, server *Server) {
 	t.Helper()
-	if server == nil || server.adkRuntime == nil {
+	if assistantRuntime(server) == nil {
 		return
 	}
+	adkStore := serverADKTestStore(t, server)
 	providerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() { jftradeCheckTestError(t, r.Body.Close()) }()
 		var payload struct {
@@ -123,14 +144,14 @@ func configureTestADKProvider(t *testing.T, server *Server) {
 		jftradeCheckTestError(t, jftradeErr2)
 	}))
 	t.Cleanup(providerServer.Close)
-	if _, err := server.adkRuntime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
+	if _, err := adkStore.SaveProvider(t.Context(), assistant.ProviderWriteRequest{
 		ID: testADKProviderID, DisplayName: "Test Provider", BaseURL: providerServer.URL, Model: "test-model", APIKey: "sk-test", Enabled: true,
 	}); err != nil {
 		t.Fatalf("SaveProvider test: %v", err)
 	}
-	agent, err := server.adkRuntime.Store().DefaultAgent(t.Context())
+	agent, err := adkStore.DefaultAgent(t.Context())
 	if err == nil {
-		_, jftradeErr3 := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+		_, jftradeErr3 := adkStore.SaveAgent(t.Context(), assistant.AgentWriteRequest{
 			ID: agent.ID, Name: agent.Name, ProviderID: testADKProviderID, Model: agent.Model, Instruction: agent.Instruction,
 			Tools: agent.Tools, PermissionMode: agent.PermissionMode, Status: agent.Status, WorkMode: agent.WorkMode,
 			LoopMaxIterations: agent.LoopMaxIterations, RecentUserWindow: agent.RecentUserWindow, MemoryEnabled: agent.MemoryEnabled,

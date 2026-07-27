@@ -1,4 +1,4 @@
-import type { StrategyVisualNodeDocument } from "@/contracts";
+import type { StrategyVisualNodeDocument } from "@/types";
 
 import {
   literalExpression,

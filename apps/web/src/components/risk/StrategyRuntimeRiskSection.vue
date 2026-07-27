@@ -3,7 +3,7 @@ import type {
   StrategyInstanceItem,
   StrategyRuntimeRiskMode,
   StrategyRuntimeRiskSettings,
-} from "@/contracts";
+} from "@/types";
 import { formatStrategyRuntimeRiskSummary } from "@/components/strategy-runtime/strategyRuntimeInstanceBinding";
 import { formatStrategyRuntimeStatus } from "@/composables/consoleDataFormatting";
 

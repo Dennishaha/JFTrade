@@ -1,8 +1,6 @@
 import { computed, ref, watch } from "vue";
 
-import {
-  fetchEnvelope,
-} from "./apiClient";
+import { apiGetPath } from "./apiClient";
 import {
   normalizeInstrumentParts,
 } from "./consoleDataMarketInstruments";
@@ -15,7 +13,10 @@ import {
   type MarketDataCandlesQueryResult,
   type MarketSecurityDetailsQueryResult,
   type MarketDataSnapshotQueryResult,
+  normalizeMarketDataCandlesQueryResult,
+  normalizeMarketDataSnapshotQueryResult,
 } from "./marketDataRealtime";
+import { normalizeMarketSecurityDetailsQueryResult } from "./marketSecurityNormalization";
 
 export function createConsoleDataMarketDataQuerySlice() {
   const { selectedBrokerId } = useBrokerProviderSelection();
@@ -60,7 +61,27 @@ export function createConsoleDataMarketDataQuerySlice() {
       marketDataQueryError,
       lastDataRefreshedAt,
     },
-    fetchEnvelope,
+    requestSnapshot: async (path) =>
+      normalizeMarketDataSnapshotQueryResult(
+        await apiGetPath(
+          "/api/v1/market-data/snapshots/{market}/{symbol}",
+          path,
+        ),
+      ),
+    requestSecurityDetails: async (path) =>
+      normalizeMarketSecurityDetailsQueryResult(
+        await apiGetPath(
+          "/api/v1/market-data/securities/{market}/{symbol}",
+          path,
+        ),
+      ),
+    requestCandles: async (path) =>
+      normalizeMarketDataCandlesQueryResult(
+        await apiGetPath(
+          "/api/v1/market-data/candles/{market}/{symbol}",
+          path,
+        ),
+      ),
     normalizeInstrumentParts,
     resolveBrokerId: () => selectedBrokerId.value,
   });

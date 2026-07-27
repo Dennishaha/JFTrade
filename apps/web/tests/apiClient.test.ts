@@ -5,14 +5,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiClientError,
   WEB_AUTH_REQUIRED_EVENT,
-  apiDelete,
-  fetchEnvelope,
-  fetchEnvelopeWithInit,
+  apiDeleteBody,
+  apiDeletePath,
+  apiGet,
+  apiGetPath,
+  apiPostPathAction,
+  apiRawRequest,
+  setCSRFToken,
   webLogin,
   webLogout,
+  webSession,
 } from "../src/composables/apiClient";
 
 afterEach(() => {
+  setCSRFToken("");
   vi.unstubAllGlobals();
   delete window.__JFTRADE_RUNTIME_CONFIG__;
 });
@@ -34,9 +40,7 @@ describe("apiClient", () => {
     );
 
     await expect(
-      fetchEnvelopeWithInit("/api/v1/settings/brokers/futu/integration", {
-        method: "PUT",
-      }),
+      apiGet("/api/v1/system/status"),
     ).rejects.toThrow("404 Not Found: The server returned 404 Not Found");
   });
 
@@ -54,7 +58,7 @@ describe("apiClient", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await fetchEnvelopeWithInit("/api/v1/system/status", { method: "GET" });
+    await apiGet("/api/v1/system/status");
 
     expect(fetchMock).toHaveBeenCalledWith(
       "http://127.0.0.1:6699/api/v1/system/status",
@@ -89,9 +93,10 @@ describe("apiClient", () => {
     );
 
     await expect(
-      fetchEnvelopeWithInit("/api/v1/strategies/instance-a/start", {
-        method: "POST",
-      }),
+      apiPostPathAction(
+        "/api/v1/strategies/{instanceId}/start",
+        "/api/v1/strategies/instance-a/start",
+      ),
     ).rejects.toMatchObject({
       name: "ApiClientError",
       code: "BAD_REQUEST",
@@ -123,7 +128,10 @@ describe("apiClient", () => {
     );
 
     await expect(
-      fetchEnvelope("/api/v1/market-data/snapshots/US/AAPL"),
+      apiGetPath(
+        "/api/v1/market-data/snapshots/{market}/{code}",
+        "/api/v1/market-data/snapshots/US/AAPL",
+      ),
     ).rejects.toMatchObject({
       name: "ApiClientError",
       code: "MARKET_SNAPSHOT_RATE_LIMITED",
@@ -206,7 +214,7 @@ describe("apiClient", () => {
     );
 
     await expect(
-      fetchEnvelopeWithInit("/api/v1/system/status", { method: "GET" }),
+      apiGet("/api/v1/system/status"),
     ).rejects.toMatchObject({ code: "WEB_AUTH_REQUIRED", status: 401 });
     expect(listener).toHaveBeenCalledTimes(1);
 
@@ -225,10 +233,10 @@ describe("apiClient", () => {
       }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(fetchEnvelope("/api/v1/system/status")).rejects.toThrow(
+    await expect(apiGet("/api/v1/system/status")).rejects.toThrow(
       "API response is not valid JSON",
     );
-    await expect(fetchEnvelope("/api/v1/system/status")).rejects.toThrow(
+    await expect(apiGet("/api/v1/system/status")).rejects.toThrow(
       "API response body is empty",
     );
   });
@@ -242,7 +250,7 @@ describe("apiClient", () => {
       })),
     );
 
-    await expect(fetchEnvelope("/api/v1/system/status")).rejects.toThrow(
+    await expect(apiGet("/api/v1/system/status")).rejects.toThrow(
       "503 Service Unavailable",
     );
   });
@@ -265,7 +273,7 @@ describe("apiClient", () => {
       )),
     );
 
-    await expect(fetchEnvelope("/api/v1/system/status")).rejects.toMatchObject({
+    await expect(apiGet("/api/v1/system/status")).rejects.toMatchObject({
       name: "ApiClientError",
       code: "WEB_ACCESS_DISABLED",
       status: 200,
@@ -282,8 +290,9 @@ describe("apiClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      apiDelete<unknown, "/api/v1/adk/sessions/{sessionId}">(
-        "/api/v1/adk/sessions/session-1" as "/api/v1/adk/sessions/{sessionId}",
+      apiDeletePath(
+        "/api/v1/adk/sessions/{sessionId}",
+        "/api/v1/adk/sessions/session-1",
       ),
     ).resolves.toEqual({ deleted: true });
 
@@ -291,5 +300,111 @@ describe("apiClient", () => {
       "/api/v1/adk/sessions/session-1",
       expect.objectContaining({ method: "DELETE", credentials: "include" }),
     );
+  });
+
+  it("serializes typed DELETE request bodies through the common pipeline", async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ ok: true, data: { realTradingEnabled: false } }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      apiDeleteBody("/api/v1/system/real-trade-risk-limits", {
+        operatorId: "risk-operator",
+        reason: "end of trading session",
+      }),
+    ).resolves.toEqual({ realTradingEnabled: false });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/system/real-trade-risk-limits",
+      expect.objectContaining({
+        method: "DELETE",
+        credentials: "include",
+        body: JSON.stringify({
+          operatorId: "risk-operator",
+          reason: "end of trading session",
+        }),
+      }),
+    );
+  });
+
+  it("uses the authenticated raw boundary for SSE and reports expired sessions", async () => {
+    setCSRFToken("csrf-stream");
+    const listener = vi.fn();
+    window.addEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({
+        ok: false,
+        error: {
+          code: "WEB_AUTH_REQUIRED",
+          message: "Web authentication required",
+        },
+        timestamp: "2026-07-27T00:00:00Z",
+      }),
+      { status: 401, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await apiRawRequest("/api/v1/adk/chat/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "hello" }),
+    });
+
+    expect(response.status).toBe(401);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/adk/chat/stream",
+      expect.objectContaining({
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": "csrf-stream",
+        },
+      }),
+    );
+    expect(listener).toHaveBeenCalledOnce();
+    window.removeEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
+  });
+
+  it("does not emit authentication expiry for healthy, unrelated, or desktop raw responses", async () => {
+    const listener = vi.fn();
+    window.addEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("", { status: 200 }))
+      .mockResolvedValueOnce(new Response("", { status: 500 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        ok: false,
+        error: { code: "CSRF_FAILED", message: "CSRF token rejected" },
+        timestamp: "2026-07-27T00:00:00Z",
+      }), { status: 403, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        ok: false,
+        error: { code: "ORIGIN_FORBIDDEN", message: "Origin rejected" },
+        timestamp: "2026-07-27T00:00:00Z",
+      }), { status: 403, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response("", { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        ok: false,
+        error: { code: "WEB_AUTH_REQUIRED", message: "Web authentication required" },
+        timestamp: "2026-07-27T00:00:00Z",
+      }), { status: 401, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ ok: true, data: { authenticated: true } }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiRawRequest("/api/v1/adk/chat/stream");
+    await apiRawRequest("/api/v1/adk/chat/stream");
+    await apiRawRequest("/api/v1/adk/chat/stream");
+    await apiRawRequest("/api/v1/adk/chat/stream");
+    await apiRawRequest("/api/v1/adk/chat/stream");
+    window.__JFTRADE_RUNTIME_CONFIG__ = { desktopApiToken: "desktop-token" };
+    await apiRawRequest("/api/v1/adk/chat/stream");
+    await expect(webSession()).resolves.toEqual({ authenticated: true });
+
+    expect(listener).not.toHaveBeenCalled();
+    window.removeEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
   });
 });

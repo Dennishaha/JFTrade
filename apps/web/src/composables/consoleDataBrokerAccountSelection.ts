@@ -1,8 +1,8 @@
 import {
-  type BrokerRuntimeResponse,
   type BrokerSettingsResponse,
   type SystemStatusResponse,
-} from "@/contracts";
+} from "@/types";
+import type { BrokerRuntimeResponse } from "@/contracts";
 
 export interface BrokerAccountSelectionOption {
   selectionKey: string;

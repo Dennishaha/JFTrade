@@ -48,6 +48,25 @@ describe("streamADKChat", () => {
     expect(delays).toContain(123000);
   });
 
+  it("forwards the caller abort signal through the authenticated POST boundary", async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn(async () => new Response(finalFrame("ok")));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await streamADKChat(
+      { message: "hello" },
+      vi.fn(),
+      { signal: controller.signal },
+    );
+
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      credentials: "include",
+      signal: controller.signal,
+    });
+    expect(response.reply).toBe("ok");
+  });
+
   it("resolves failed terminal runs from final events", async () => {
     const body = [
       'data: {"type":"final","response":{"reply":"fallback","session":{"id":"session-1","agentId":"agent-1","title":"Test","createdAt":"2026-06-08T00:00:00Z","updatedAt":"2026-06-08T00:00:00Z"},"run":{"id":"run-1","sessionId":"session-1","agentId":"agent-1","status":"FAILED","message":"disk full","failureReason":"disk full","errorCode":"TOOL_EXECUTION_FAILED","toolCalls":[{"id":"tool-1","runId":"run-1","toolName":"strategy.save_draft","permission":"write_strategy","status":"FAILED","error":"disk full","requiresUser":false,"createdAt":"2026-06-08T00:00:00Z","updatedAt":"2026-06-08T00:00:00Z"}],"pendingApprovals":[],"createdAt":"2026-06-08T00:00:00Z","updatedAt":"2026-06-08T00:00:00Z"},"pendingApprovals":[],"timeline":[]}}',

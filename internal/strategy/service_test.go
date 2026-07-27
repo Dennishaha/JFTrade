@@ -159,9 +159,6 @@ func TestServiceDelegatesStoresAndRuntime(t *testing.T) {
 	if got := service.ActiveInstrumentIDs(); len(got) != 1 || got[0] != "US.AAPL" {
 		t.Fatalf("ActiveInstrumentIDs() = %#v", got)
 	}
-	if err := service.Close(); err != nil || !catalog.closed {
-		t.Fatalf("Close() closed %v err %v", catalog.closed, err)
-	}
 }
 
 func TestServicePineAnalyzerOption(t *testing.T) {
@@ -369,12 +366,5 @@ func TestServiceDelegatesCatalogRuntimeAndLifecycleEntryPoints(t *testing.T) {
 	}
 	if got, err := service.UninstallPlugin("plugin-a"); err != nil || got.Phase != "uninstalled" {
 		t.Fatalf("UninstallPlugin() = %#v, %v", got, err)
-	}
-}
-
-func TestServiceCloseWithoutCatalogIsSafe(t *testing.T) {
-	service := &Service{}
-	if err := service.Close(); err != nil {
-		t.Fatalf("Close() error = %v", err)
 	}
 }

@@ -1,138 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import type { components } from "../generated/openapi";
+import {
+  apiGet,
+  apiPostPathAction,
+  apiPut,
+} from "../composables/apiClient";
 import { formatDateTime as formatSharedDateTime } from "../utils/dateTime";
 
-type ExchangeCalendarSessionWindow = {
-  kind: string;
-  startMinute: number;
-  endMinute: number;
-};
-
-type ExchangeCalendarManualOverride = {
-  market: string;
-  date: string;
-  status: string;
-  sessions?: ExchangeCalendarSessionWindow[];
-  reason?: string;
-  observed?: boolean;
-};
-
-type ExchangeCalendarSourcePolicy = {
-  market: string;
-  preferredSourceIds?: string[];
-  enabledSourceIds?: string[];
-  fallbackToBuiltin: boolean;
-  requireOfficial?: boolean;
-  staleAfterHours?: number;
-};
-
-type ExchangeCalendarSettings = {
-  autoRefreshEnabled: boolean;
-  errorNotificationsEnabled: boolean;
-  refreshIntervalHours: number;
-  warmupMarkets?: string[];
-  sourcePolicies?: ExchangeCalendarSourcePolicy[];
-  manualOverrides?: ExchangeCalendarManualOverride[];
-};
-
-type ExchangeCalendarSettingsResponse = { exchangeCalendars: ExchangeCalendarSettings };
-
-type CalendarMarketStatus = {
-  market: string;
-  effectiveSource: string;
-  effectiveMode: string;
-  effectiveReason: string;
-  fallbackChain: string[];
-  checkedAt: string;
-};
-
-type CalendarSourceStatus = {
-  id: string;
-  kind: string;
-  authority: string;
-  markets: string[];
-  enabled: boolean;
-  availabilityNote?: string;
-  lastSuccessAt?: string;
-  lastFailureAt?: string;
-  lastError?: string;
-  consecutiveFailures?: number;
-  nextRefreshAt?: string;
-  lastSnapshotFetchedAt?: string;
-  lastProbeAt?: string;
-  lastProbeSuccessAt?: string;
-  lastProbeFailureAt?: string;
-  lastProbeStatus?: string;
-  lastProbeError?: string;
-  lastProbeMarket?: string;
-  lastProbeSchedules?: number;
-  healthState?: string;
-  lastAlertAt?: string;
-  lastAlertStatus?: string;
-};
-
-type CalendarSampleSchedule = {
-  market: string;
-  date: string;
-  status: string;
-  reason?: string;
-  sourceId?: string;
-  observed?: boolean;
-  sessions?: ExchangeCalendarSessionWindow[];
-};
-
-type CalendarSnapshotSummary = {
-  market: string;
-  sourceId: string;
-  from: string;
-  to: string;
-  fetchedAt: string;
-  validUntil?: string;
-  schedulesParsed: number;
-  checksum?: string;
-  sampleSchedules?: CalendarSampleSchedule[];
-};
-
-type CalendarStatusResponse = {
-  autoRefreshEnabled: boolean;
-  refreshIntervalHours: number;
-  warmupMarkets?: string[];
-  markets?: CalendarMarketStatus[];
-  sources?: CalendarSourceStatus[];
-  snapshots?: CalendarSnapshotSummary[];
-};
-
-type CalendarProbeResult = {
-  sourceId: string;
-  market: string;
-  status: "healthy" | "unhealthy" | string;
-  error?: string;
-  fetchedAt?: string;
-  validUntil?: string;
-  schedulesParsed?: number;
-  checksum?: string;
-};
-
-type CalendarProbeResponse = {
-  accepted: boolean;
-  market?: string;
-  checkedAt?: string;
-  healthy?: number;
-  failures?: number;
-  probeScope?: string[];
-  results?: CalendarProbeResult[];
-};
-
-type CalendarRefreshResponse = {
-  accepted: boolean;
-  market?: string;
-  updated?: number;
-  failures?: number;
-  requestedAt?: string;
-  warmupMarkets?: string[];
-};
+type ExchangeCalendarSettings = components["schemas"]["jftsettings.ExchangeCalendarSettings"];
+type CalendarMarketStatus = components["schemas"]["system.ExchangeCalendarMarket"];
+type CalendarSourceStatus = components["schemas"]["system.ExchangeCalendarSource"];
+type CalendarStatusResponse = components["schemas"]["system.ExchangeCalendarStatusResponse"];
+type CalendarProbeResult = components["schemas"]["system.ExchangeCalendarProbeItem"];
+type CalendarProbeResponse = components["schemas"]["system.ExchangeCalendarProbeResponse"];
+type CalendarRefreshResponse = components["schemas"]["system.ExchangeCalendarRefreshResponse"];
 
 const settings = ref<ExchangeCalendarSettings | null>(null);
 const status = ref<CalendarStatusResponse | null>(null);
@@ -195,8 +78,8 @@ async function loadAll(): Promise<void> {
   errorMessage.value = "";
   try {
     const [settingsResponse, statusResponse] = await Promise.all([
-      fetchEnvelope<ExchangeCalendarSettingsResponse>("/api/v1/settings/exchange-calendars"),
-      fetchEnvelope<CalendarStatusResponse>("/api/v1/system/exchange-calendars/status"),
+      apiGet("/api/v1/settings/exchange-calendars"),
+      apiGet("/api/v1/system/exchange-calendars/status"),
     ]);
     settings.value = settingsResponse.exchangeCalendars;
     status.value = statusResponse;
@@ -211,7 +94,7 @@ async function loadAll(): Promise<void> {
 async function reloadStatus(): Promise<void> {
   errorMessage.value = "";
   try {
-    status.value = await fetchEnvelope<CalendarStatusResponse>("/api/v1/system/exchange-calendars/status");
+    status.value = await apiGet("/api/v1/system/exchange-calendars/status");
     ensureSelectedSource();
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "刷新交易所日历状态失败";
@@ -242,13 +125,9 @@ async function updateErrorNotifications(event: Event): Promise<void> {
   statusMessage.value = "";
   errorMessage.value = "";
   try {
-    const response = await fetchEnvelopeWithInit<ExchangeCalendarSettingsResponse>(
+    const response = await apiPut(
       "/api/v1/settings/exchange-calendars",
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ exchangeCalendars: next }),
-      },
+      { exchangeCalendars: next },
     );
     settings.value = response.exchangeCalendars;
     statusMessage.value = response.exchangeCalendars.errorNotificationsEnabled ? "错误推送已开启。" : "错误推送已关闭。";
@@ -285,9 +164,9 @@ async function refreshSelectedSource(): Promise<void> {
     refreshResults.value = [];
     for (const market of selectedNetworkMarkets.value) {
       refreshResults.value.push(
-        await fetchEnvelopeWithInit<CalendarRefreshResponse>(
+        await apiPostPathAction(
+          "/api/v1/system/exchange-calendars/refresh/{market}",
           `/api/v1/system/exchange-calendars/refresh/${encodeURIComponent(market)}`,
-          { method: "POST" },
         ),
       );
     }
@@ -306,9 +185,9 @@ async function runMarketProbe(targetMarkets: string[]): Promise<CalendarProbeRes
   let failures = 0;
   let checkedAt = "";
   for (const market of targetMarkets) {
-    const response = await fetchEnvelopeWithInit<CalendarProbeResponse>(
+    const response = await apiPostPathAction(
+      "/api/v1/system/exchange-calendars/probe/{market}",
       `/api/v1/system/exchange-calendars/probe/${encodeURIComponent(market)}`,
-      { method: "POST" },
     );
     results.push(...(response.results ?? []));
     healthy += response.healthy ?? 0;

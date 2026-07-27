@@ -9,15 +9,14 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
-	apilive "github.com/jftrade/jftrade-main/internal/api/live"
+	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
-	asst "github.com/jftrade/jftrade-main/internal/assistant"
+	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
@@ -25,17 +24,13 @@ import (
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
 	"github.com/jftrade/jftrade-main/internal/settings"
+	backteststore "github.com/jftrade/jftrade-main/internal/store/backtest"
 	exchangecalendarstore "github.com/jftrade/jftrade-main/internal/store/exchangecalendar"
-	researchstore "github.com/jftrade/jftrade-main/internal/store/research"
-	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
-	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
+	strategycatalog "github.com/jftrade/jftrade-main/internal/strategy/catalog"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	"github.com/jftrade/jftrade-main/pkg/futu"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 	"github.com/jftrade/jftrade-main/pkg/observability"
@@ -49,36 +44,26 @@ const (
 	defaultFutuAPIPort               = 11110
 	defaultFutuWebSocketPort         = 11111
 	defaultMaxWebSocketClients       = 20
-	strategyListLogsTailSize         = 20
 	exchangeCalendarOperationTimeout = 75 * time.Second
 	observabilityMinImportanceEnv    = "JFTRADE_OBSERVABILITY_MIN_IMPORTANCE"
 )
 
 var errFutuIntegrationNotEnabled = errors.New("futu integration is not enabled")
 
-// Server is the API sidecar's root assembly. Its dependencies are organized
-// into four explicit groups: the embedded serverStores, serverRuntimes and
-// serverFacades (see server_assembly.go) plus the top-level infrastructure
-// fields below covering HTTP plumbing, security and lifecycle. Embedded field
-// promotion keeps existing s.field access intact.
+// Server is the API sidecar's HTTP and security shell. Domain dependencies and
+// their lifecycle are exposed through the single embedded serverApplication
+// entry; the remaining fields only cover transport, frontend and access
+// control concerns.
 type Server struct {
-	serverStores
-	serverRuntimes
-	serverFacades
+	serverApplication
 
 	frontend             *frontendServer
 	apiPort              int
 	auth                 *webAuth
 	router               *gin.Engine
 	desktopMode          bool
-	dataMigration        *datamigration.Manager
-	unavailableDatabases map[string]error
-	observability        *observability.Recorder
 	desktopAPIToken      string
 	webAccessReconfigure func(jfsettings.SecuritySettings) error
-	pineWorkerMu         sync.RWMutex
-	closeOnce            sync.Once
-	closeErr             error
 }
 
 // SidecarHandler is the minimal server surface required by API sidecar assembly.
@@ -109,19 +94,7 @@ type SidecarSettingsStore interface {
 	settings.Store
 }
 
-type opendProbe struct {
-	CheckedAt        string
-	Connectivity     string
-	Status           string
-	IssueCode        string
-	LastError        *string
-	QuoteLoggedIn    *bool
-	TradeLoggedIn    *bool
-	ServerVersion    *string
-	ProgramStatus    *string
-	ProgramTimestamp *string
-	Markets          []trdsrv.BrokerRuntimeMarketState
-}
+type opendProbe = futuintegration.Probe
 
 // StartForRunArgs,
 // shouldStartForArgs, and envOrDefault are defined in server_startup.go.
@@ -149,7 +122,7 @@ func NewSidecarHandlerWithOptions(store SidecarSettingsStore, options SidecarOpt
 		store = startupIntegrationSettingsStore{SidecarSettingsStore: store, startupIntegration: *options.StartupIntegration}
 	}
 	server := newServerWithFrontend(store, newFrontendServerWithOptions(options.FrontendFS, options.RuntimeAPIBaseURL, options.FrontendDevURL))
-	server.liveNotificationSink = options.NotificationSink
+	server.runtimes.SetLiveNotificationSink(options.NotificationSink)
 	server.desktopMode = options.DesktopMode
 	server.desktopAPIToken = strings.TrimSpace(options.DesktopAPIToken)
 	if server.auth != nil {
@@ -218,22 +191,13 @@ type serverBootstrap struct {
 	unavailableDatabases map[string]error
 }
 
-type serverPersistentState struct {
-	strategyStore       *strategyCatalogStore
-	runtimeStore        *runtimeactivity.Store
-	designStore         *strategyDesignStore
-	backtestRunStore    *backtestRunStore
-	executionOrderStore *executionOrderStore
-	watchlistStore      *watchliststore.Store
-	researchStore       *researchstore.Store
-	auth                *webAuth
-}
-
 func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer) *Server {
 	bootstrap := newServerBootstrap(store)
 	state := bootstrap.loadPersistentState(store)
 	server := newBootstrapServer(store, frontend, bootstrap, state)
 	server.initializeBootstrapState(store, bootstrap, state)
+	server.registerResource("runtime consumers", server.runtimes.CloseConsumers)
+	server.registerOwnedResources()
 	server.router = server.buildRouter()
 	return server
 }
@@ -262,7 +226,7 @@ func (b *serverBootstrap) recordUnavailable(id string, err error) {
 }
 
 func (b *serverBootstrap) probeBacktestDatabase() {
-	backtestStore, err := bt.NewFutuKLineStore(b.backtestDBPath)
+	backtestStore, err := backteststore.OpenKLineDatabase(b.backtestDBPath)
 	if err != nil {
 		b.recordUnavailable(datamigration.DatabaseBacktest, err)
 		return
@@ -272,116 +236,51 @@ func (b *serverBootstrap) probeBacktestDatabase() {
 	}
 }
 
-func (b serverBootstrap) loadPersistentState(store SidecarSettingsStore) serverPersistentState {
-	state := serverPersistentState{
-		strategyStore:       b.loadStrategyStore(),
-		designStore:         b.loadDesignStore(),
-		backtestRunStore:    b.loadBacktestRunStore(),
-		executionOrderStore: b.loadExecutionOrderStore(store.ExecutionSettings()),
-		watchlistStore:      b.loadWatchlistStore(),
-		researchStore:       b.loadResearchStore(),
-		auth:                newWebAuth(store.SecuritySettings()),
-	}
-	if state.strategyStore != nil {
-		state.runtimeStore = state.strategyStore.runtimeStore
-	} else {
-		state.strategyStore = b.newFallbackStrategyStore()
-	}
-	return state
-}
-
-func (b *serverBootstrap) loadStrategyStore() *strategyCatalogStore {
-	store, err := NewStrategyCatalogStore(deriveStrategyCatalogPath(b.settingsPath), deriveStrategyPluginTargetDir(b.settingsPath))
-	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseStrategy, err)
-	}
-	return store
-}
-
-func (b serverBootstrap) newFallbackStrategyStore() *strategyCatalogStore {
-	path := deriveStrategyCatalogPath(b.settingsPath)
-	return &strategyCatalogStore{
-		path:      path,
-		dbPath:    deriveStrategyCatalogDBPath(path),
-		targetDir: deriveStrategyPluginTargetDir(b.settingsPath),
-		data:      strategyCatalogFile{TargetDir: deriveStrategyPluginTargetDir(b.settingsPath)},
-	}
-}
-
-func (b *serverBootstrap) loadDesignStore() *strategyDesignStore {
-	path := deriveStrategyDesignPath(b.settingsPath)
-	store, err := NewStrategyDesignStore(path)
-	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseStrategy, err)
-		return &strategyDesignStore{path: path, dbPath: deriveStrategyDesignDBPath(path)}
-	}
-	return store
-}
-
-func (b *serverBootstrap) loadBacktestRunStore() *backtestRunStore {
-	store, err := newBacktestRunStoreWithDB(deriveBacktestRunDBPath(b.settingsPath))
-	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseBacktestRuns, err)
-		return newBacktestRunStore()
-	}
-	return store
-}
-
-func (b *serverBootstrap) loadExecutionOrderStore(settings jfsettings.ExecutionSettings) *executionOrderStore {
-	store, err := newExecutionOrderStoreWithDB(deriveExecutionOrderDBPath(b.settingsPath))
-	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseExecution, err)
-		store = newExecutionOrderStore()
-	}
-	store.configureSeenFillRetention(settings.SeenFillRetentionDays)
-	return store
-}
-
 func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bootstrap serverBootstrap, state serverPersistentState) *Server {
 	minimumImportance := observability.NormalizeMinimumImportance(os.Getenv(observabilityMinImportanceEnv))
 	observability.SetMinimumImportance(minimumImportance)
-	server := &Server{
-		serverStores: serverStores{
-			store:         store,
-			strategyStore: state.strategyStore, strategyRuntimeStore: state.runtimeStore, designStore: state.designStore,
-			backtestRuns:      state.backtestRunStore,
-			backtestSyncTasks: newBacktestSyncTaskStore(),
-			executionOrders:   state.executionOrderStore,
-			watchlistStore:    state.watchlistStore,
-			researchStore:     state.researchStore,
-		},
-		serverRuntimes: serverRuntimes{
-			liveNotifications: live.NewReplayPublisher(),
-			brokers:           broker.NewRegistry(),
-		},
-		apiPort:              portFromBind(defaultDevelopmentAPIBind, 3000),
-		frontend:             frontend,
-		auth:                 state.auth,
-		dataMigration:        bootstrap.dataMigration,
-		unavailableDatabases: bootstrap.unavailableDatabases,
-		observability: observability.NewRecorderWithConfig(observability.RecorderConfig{
-			EventLimit:        20,
-			SlowThreshold:     750 * time.Millisecond,
-			MinimumImportance: minimumImportance,
-		}),
+	ownedResources := state.resources
+	if ownedResources == nil {
+		ownedResources = &appcomposition.Resources{}
 	}
-	server.liveWebSocket = apilive.NewHandler(liveWebSocketBackend{server: server}, apilive.Options{
-		DataInterval:            liveTickDispatchInterval,
-		SecurityDetailsInterval: marketSecurityDetailsStreamInterval,
-		DepthRefreshInterval:    marketDepthStreamRefreshInterval,
-	})
-	server.productFeaturesSvc = productsrv.NewService(server.brokers, string(futu.Name), nil, func() {
+	server := &Server{
+		serverApplication: serverApplication{
+			store:                store,
+			stores:               state.stores,
+			dataMigration:        bootstrap.dataMigration,
+			unavailableDatabases: bootstrap.unavailableDatabases,
+			lifecycle: appcomposition.NewLifecycle(
+				ownedResources,
+				state.resourceSetupErr,
+				true,
+				true,
+			),
+			observability: observability.NewRecorderWithConfig(observability.RecorderConfig{
+				EventLimit:        20,
+				SlowThreshold:     750 * time.Millisecond,
+				MinimumImportance: minimumImportance,
+			}),
+		},
+		apiPort:  portFromBind(defaultDevelopmentAPIBind, 3000),
+		frontend: frontend,
+		auth:     state.auth,
+	}
+	server.runtimes.SetLiveNotifications(live.NewReplayPublisher(), nil)
+	server.runtimes.SetBrokerRegistry(broker.NewRegistry())
+	server.runtimes.SetFutuCoordinator(newFutuRuntimeCoordinator(&server.serverApplication))
+	server.registerResource("runtime providers", server.runtimes.CloseProviders)
+	server.productFeaturesSvc = productsrv.NewService(server.runtimes.Brokers(), futuintegration.BrokerID, nil, func() {
 		_ = server.activeBroker()
 	})
 	server.productFeaturesSvc.SetPredictionQuoteStore(
-		&serverTradingOrderStore{store: server.executionOrders},
+		server.stores.ExecutionOrders,
 	)
 	return server
 }
 
 func (s *Server) initializeSecurityAndCalendars(store SidecarSettingsStore, settingsPath string) {
 	s.applySecuritySettings(store.SecuritySettings())
-	s.exchangeCalendars = exchangecalendar.NewManager(
+	manager := exchangecalendar.NewManager(
 		exchangecalendarstore.New(apiruntime.DeriveExchangeCalendarDir(settingsPath)),
 		func() jfsettings.ExchangeCalendarSettings {
 			return persistenceOnlySettingsStore(store).ExchangeCalendarSettings()
@@ -390,8 +289,9 @@ func (s *Server) initializeSecurityAndCalendars(store SidecarSettingsStore, sett
 			s.recordExchangeCalendarAlert(alert)
 		}),
 	)
-	s.previousCalendarResolver = marketpkg.SwapCalendarResolver(s.exchangeCalendars)
-	s.exchangeCalendars.Start()
+	previousResolver := marketpkg.SwapCalendarResolver(manager)
+	s.runtimes.SetExchangeCalendars(manager, previousResolver)
+	manager.Start()
 }
 
 func (s *Server) initializeADKRuntime(bootstrap serverBootstrap) {
@@ -399,34 +299,47 @@ func (s *Server) initializeADKRuntime(bootstrap serverBootstrap) {
 	bootstrap.probeADKSessionDatabase()
 	if bootstrap.unavailableDatabases[datamigration.DatabaseADK] == nil &&
 		bootstrap.unavailableDatabases[datamigration.DatabaseADKSession] == nil {
-		s.adkRuntime = newADKRuntime(s, bootstrap.settingsPath)
+		assembly, err := appcomposition.OpenAssistant(appcomposition.AssistantOptions{
+			SettingsPath:    bootstrap.settingsPath,
+			Settings:        s.store,
+			Health:          s.futuCoordinator(),
+			System:          s.sysSvc,
+			MarketData:      s.marketdataSvc,
+			Strategy:        s.strategySvc,
+			Trading:         s.tradingSvc,
+			Backtest:        s.backtestSvc,
+			ProductFeatures: s.productFeaturesSvc,
+			Watchlist:       s.watchlistSvc,
+		})
+		if err != nil {
+			log.Printf("JFTrade assistant runtime degraded: %v", err)
+		} else {
+			s.runtimes.SetAssistant(assembly)
+			s.assistantSvc = assembly.Service()
+		}
 	}
 	s.refreshUnavailableDatabaseStatuses()
 }
 
 func (b *serverBootstrap) probeADKDatabase() {
-	adkStore, err := jfadk.NewStore(
-		apiruntime.DeriveADKDBPath(b.settingsPath),
-		apiruntime.DeriveADKSecretsPath(b.settingsPath),
-		apiruntime.DeriveADKSkillsDir(b.settingsPath),
-	)
-	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseADK, err)
+	probe := appcomposition.InspectAssistantRuntimeDatabase(b.settingsPath)
+	if probe.OpenError != nil {
+		b.recordUnavailable(datamigration.DatabaseADK, probe.OpenError)
 		return
 	}
-	if err := adkStore.Close(); err != nil {
-		log.Printf("JFTrade ADK database close failed: %v", err)
+	if probe.CloseError != nil {
+		log.Printf("JFTrade ADK database close failed: %v", probe.CloseError)
 	}
 }
 
 func (b *serverBootstrap) probeADKSessionDatabase() {
-	sessionService, err := jfadk.NewSQLiteSessionService(apiruntime.DeriveADKSessionDBPath(b.settingsPath))
-	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseADKSession, err)
+	probe := appcomposition.InspectAssistantSessionDatabase(b.settingsPath)
+	if probe.OpenError != nil {
+		b.recordUnavailable(datamigration.DatabaseADKSession, probe.OpenError)
 		return
 	}
-	if err := jfadk.CloseSessionService(sessionService); err != nil {
-		log.Printf("JFTrade ADK session database close failed: %v", err)
+	if probe.CloseError != nil {
+		log.Printf("JFTrade ADK session database close failed: %v", probe.CloseError)
 	}
 }
 
@@ -448,25 +361,15 @@ func (s *Server) refreshUnavailableDatabaseStatuses() {
 	}
 }
 
-func (s *Server) initializeAssistantService() {
-	s.assistantSvc = asst.NewService(
-		s.adkRuntime,
-		asst.WithRuntimeSettings(func() any { return s.store.ADKSettings() }),
-		asst.WithStreamIdleTimeout(func() int { return s.store.ADKSettings().StreamIdleTimeoutMs }),
-		asst.WithOptimizationRuns(assistantOptimizationRuns{server: s}),
-		asst.WithWorkflowMarketSnapshot(func(ctx context.Context, instrumentID string) (map[string]any, error) {
-			return s.workflowMarketSnapshot(ctx, instrumentID)
-		}),
-	)
-}
-
 func (s *Server) initializeMarketdataRuntime() {
-	s.marketdataRuntime = futuintegration.NewMarketDataRuntime(futuintegration.MarketDataRuntimeOptions{
+	coordinator := s.runtimes.FutuCoordinator()
+	if coordinator == nil {
+		coordinator = newFutuRuntimeCoordinator(&s.serverApplication)
+		s.runtimes.SetFutuCoordinator(coordinator)
+	}
+	runtime := futuintegration.NewMarketDataRuntime(futuintegration.MarketDataRuntimeOptions{
 		ConfigSource: func() futuintegration.MarketDataConfig {
-			integration := s.store.SavedIntegration()
-			if integration == nil {
-				return futuintegration.MarketDataConfig{}
-			}
+			integration := s.store.Integration()
 			return futuintegration.MarketDataConfig{
 				Enabled:      integration.Enabled,
 				Host:         integration.Config.Host,
@@ -474,20 +377,21 @@ func (s *Server) initializeMarketdataRuntime() {
 				WebSocketKey: integration.Config.WebSocketKey,
 			}
 		},
-		OnExchange: func(exchange *futu.Exchange) {
-			exchange.OnSystemNotify(s.handleFutuSystemNotify)
-			if s.brokers != nil {
-				s.brokers.Replace(futu.NewBrokerAdapter(exchange))
-			}
+		OnBroker: func(active broker.Broker) {
+			coordinator.AcceptRuntimeBroker(active)
+		},
+		OnSystemNotification: func(note live.Notification) {
+			s.handleFutuSystemNotification(note)
 		},
 	})
+	s.runtimes.SetMarketData(runtime)
 }
 
 func (s *Server) reconcileStrategyRuntimeStates() {
 	if _, unavailable := s.unavailableDatabases[datamigration.DatabaseStrategy]; unavailable {
 		return
 	}
-	reconciled, err := s.strategyStore.reconcileRuntimeStatesOnStartup()
+	reconciled, err := s.stores.StrategyCatalog.ReconcileOnStartup()
 	if err != nil {
 		log.Printf("JFTrade strategy runtime state reconciliation failed: %v", err)
 		return
@@ -498,7 +402,7 @@ func (s *Server) reconcileStrategyRuntimeStates() {
 }
 
 func (s *Server) startLiveNotifications() {
-	if err := s.liveNotifications.Start(bbgoNotificationSource{}); err != nil {
+	if err := s.runtimes.LiveNotifications().Start(bbgoNotificationSource{}); err != nil {
 		log.Printf("JFTrade BBGO notification source unavailable: %v", err)
 	}
 }
@@ -508,8 +412,7 @@ func (s *Server) initializeRealTradeControl(bootstrap serverBootstrap) {
 	if err != nil {
 		bootstrap.recordUnavailable("real-trade-control", err)
 	}
-	s.realTradeControlPlane = controlPlane
-	s.preTradeRiskGateway = controlPlane
+	s.runtimes.SetRealTradeControl(controlPlane, controlPlane)
 }
 
 func (s *Server) initializeSystemService(bootstrap serverBootstrap) {
@@ -524,7 +427,7 @@ func (s *Server) systemCoreOptions(settingsPath string, backtestDBPath string) [
 		system.WithAPIPortFunc(func() int { return s.apiPort }),
 		system.WithSettingsPath(settingsPath),
 		system.WithDefaultTradingEnvironmentFunc(func() string { return s.defaultTradingEnvironment() }),
-		system.WithBrokerDescriptor(func() map[string]any { return s.descriptor() }),
+		system.WithBrokerDescriptor(func() map[string]any { return s.futuCoordinator().Descriptor() }),
 		system.WithStrategyRuntimeSummary(func() map[string]any { return s.strategyRuntimeSummary() }),
 		system.WithLiveStats(func() map[string]any { return s.liveStatsSummary() }),
 		system.WithMarketdataRuntimeSummary(func() map[string]any { return s.marketdataRuntimeSummary() }),
@@ -542,16 +445,17 @@ func (s *Server) systemCoreOptions(settingsPath string, backtestDBPath string) [
 
 func (s *Server) systemRuntimeOptions() []system.Option {
 	return []system.Option{
-		system.WithFutuOpenDHealth(func(ctx context.Context) map[string]any { return s.futuOpenDHealth(ctx) }),
-		system.WithFutuOpenDInstallGuide(func() map[string]any { return s.futuOpenDInstallGuide() }),
-		system.WithResetFutuRuntime(func() { s.resetFutuRuntime() }),
+		system.WithFutuOpenDHealth(func(ctx context.Context) map[string]any { return s.futuCoordinator().OpenDHealth(ctx) }),
+		system.WithFutuOpenDInstallGuide(func() map[string]any { return s.futuCoordinator().OpenDInstallGuide() }),
+		system.WithResetFutuRuntime(func() { s.futuCoordinator().Reset() }),
 		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any { return s.runtimeDependencies(ctx) }),
 		system.WithRequestObservability(func() any { return s.observability.Snapshot() }),
 		system.WithRealTradeRiskState(func() *trdsrv.RealTradeRiskSnapshot {
-			if s.preTradeRiskGateway == nil {
+			riskGateway := s.runtimes.PreTradeRisk()
+			if riskGateway == nil {
 				return nil
 			}
-			snapshot := s.preTradeRiskGateway.Snapshot()
+			snapshot := riskGateway.Snapshot()
 			return &snapshot
 		}),
 	}
@@ -559,19 +463,18 @@ func (s *Server) systemRuntimeOptions() []system.Option {
 
 func (s *Server) initializeBacktestService(state serverPersistentState) {
 	backtestRunner, instanceRunner := s.startPineWorkerManagers()
-	s.backtestPineWorkerRunner = backtestRunner
-	s.instancePineWorkerRunner = instanceRunner
-	if instanceRunner != nil && s.strategyRuntimeManager != nil {
-		s.strategyRuntimeManager.pineWorkerRunner = instanceRunner
-	}
+	s.runtimes.SetPineWorkerRunners(backtestRunner, instanceRunner)
 	s.backtestSvc = btsrv.NewService(s.backtestServiceOptions(state, backtestRunner)...)
+	s.registerResource("backtest service", func() error {
+		return closeApplicationResource(s.backtestSvc)
+	})
 }
 
 func (s *Server) backtestServiceOptions(state serverPersistentState, runner pineWorkerRunner) []btsrv.Option {
 	opts := []btsrv.Option{
-		btsrv.WithRunStore(&backtestRunStoreAdapter{store: state.backtestRunStore}),
-		btsrv.WithSyncTaskStore(&backtestSyncTaskStoreAdapter{store: s.backtestSyncTasks}),
-		btsrv.WithStrategyProvider(&strategyProviderAdapter{store: state.designStore}),
+		btsrv.WithRunStore(state.stores.BacktestRuns),
+		btsrv.WithSyncTaskStore(s.stores.BacktestTasks),
+		btsrv.WithStrategyProvider(&strategyProviderAdapter{store: state.stores.Design}),
 		btsrv.WithDBPathFn(func() string { return deriveBacktestDBPath() }),
 		btsrv.WithNewKLineSyncerFn(futuintegration.NewKLineSyncer),
 	}
@@ -582,10 +485,17 @@ func (s *Server) backtestServiceOptions(state serverPersistentState, runner pine
 }
 
 func (s *Server) initializeStrategyService(state serverPersistentState) {
+	state.stores.StrategyCatalog.SetDefinitionStore(state.stores.Design)
+	strategyRuntime := s.runtimes.StrategyRuntime()
+	if strategyRuntime != nil {
+		state.stores.StrategyCatalog.SetObservationSource(
+			strategycatalog.ObservationSourceFunc(strategyRuntime.GetObservation),
+		)
+	}
 	s.strategySvc = stratsrv.NewService(
-		&strategyDesignStoreAdapter{store: state.designStore},
-		&strategyCatalogStoreAdapter{store: state.strategyStore, designStore: state.designStore, runtimeMgr: s.strategyRuntimeManager},
-		&strategyRuntimeManagerAdapter{mgr: s.strategyRuntimeManager},
+		state.stores.Design,
+		state.stores.StrategyCatalog,
+		strategyRuntime,
 		stratsrv.WithPineAnalyzer(s.analyzePineScript),
 		stratsrv.WithLiveMarketStreamRefresher(func(ctx context.Context) {
 			s.ensureLiveMarketStream(ctx, s.activeLiveStreamInstrumentIDs(nil))
@@ -603,7 +513,7 @@ func (s *Server) analyzePineScript(input stratsrv.PineAnalyzeInput) (stratsrv.Pi
 		"diagnostics":      analysis.Diagnostics,
 		"warnings":         analysis.Warnings,
 		"externalEngine":   pineengine.PayloadMap(pineengine.ShadowPayloadForScript(input.Script)),
-		"metadata":         strategyMetadataPayload(analysis.Program),
+		"metadata":         assistantassembly.StrategyMetadataPayload(analysis.Program),
 		"hooks":            buildCompiledHookKinds(analysis.Program),
 		"requirements":     buildCompiledRequirementsPayload(analysis.Requirements),
 		"features":         analysis.Features,
@@ -629,64 +539,81 @@ func (s *Server) analyzePineScript(input stratsrv.PineAnalyzeInput) (stratsrv.Pi
 
 func (s *Server) initializeMarketdataService() {
 	s.marketdataSvc = mdsrv.NewService(newMarketdataProvider(s))
-	s.marketdataSvc.SetSubscriptionReconciler(s.marketdataRuntime)
+	s.registerResource("market data service", func() error {
+		return closeApplicationResource(s.marketdataSvc)
+	})
+	s.marketdataSvc.SetSubscriptionReconciler(s.runtimes.MarketData())
+}
+
+func (s *Server) liveWebSocketDemand() []string {
+	liveWebSocket := s.runtimes.LiveWebSocket()
+	if liveWebSocket == nil {
+		return nil
+	}
+	return liveWebSocket.ActiveInstrumentIDs()
+}
+
+func (s *Server) strategyRuntimeDemand() []string {
+	strategyRuntime := s.runtimes.StrategyRuntime()
+	if strategyRuntime == nil {
+		return nil
+	}
+	return strategyRuntime.ActiveInstrumentIDs()
+}
+
+func (s *Server) startAssistantWorkflowScheduler() {
+	if assistantRuntime := s.runtimes.Assistant(); assistantRuntime != nil {
+		assistantRuntime.StartWorkflowScheduler(context.Background())
+	}
+}
+
+func (s *Server) initializeRuntimeServices(store SidecarSettingsStore) {
+	s.configureDataManagement()
+	s.dataManagementSvc = s.newDataManagementService()
+	persistenceStore := persistenceOnlySettingsStore(store)
+	s.settingsSvc = settings.NewService(persistenceStore, s.settingsServiceOptions()...)
+	if mcpStore, ok := persistenceStore.(settings.MCPServerStore); ok {
+		assistantRuntime := s.runtimes.Assistant()
+		if assistantRuntime == nil {
+			log.Printf("JFTrade local MCP server unavailable: ADK runtime is unavailable")
+		} else if err := assistantRuntime.ReconfigureMCP(mcpStore.MCPServerSettings()); err != nil {
+			log.Printf("JFTrade local MCP server unavailable: %v", err)
+		}
+	} else {
+		log.Printf("JFTrade local MCP server settings unavailable")
+	}
+	marketDataRuntime := s.runtimes.MarketData()
 	s.marketdataSvc.StartCollector(
-		s.marketdataRuntime,
-		s.marketdataRuntime,
+		marketDataRuntime,
+		marketDataRuntime,
 		s.handlePushMarketdataTick,
 		mdsrv.DemandSourceFunc(s.liveWebSocketDemand),
 		mdsrv.DemandSourceFunc(func() []string { return s.workflowWatchedInstruments() }),
 	)
 }
 
-func (s *Server) liveWebSocketDemand() []string {
-	if s.liveWebSocket == nil {
-		return nil
-	}
-	return s.liveWebSocket.ActiveInstrumentIDs()
-}
-
-func (s *Server) strategyRuntimeDemand() []string {
-	if s.strategyRuntimeManager == nil {
-		return nil
-	}
-	return s.strategyRuntimeManager.activeInstrumentIDs()
-}
-
-func (s *Server) startAssistantWorkflowScheduler() {
-	if s.assistantSvc != nil {
-		s.assistantSvc.StartWorkflowScheduler(context.Background())
-	}
-}
-
-func (s *Server) initializeRuntimeServices(store SidecarSettingsStore) {
-	s.tradingSvc = s.newTradingService()
-	s.configureDataManagement()
-	s.dataManagementSvc = s.newDataManagementService()
-	s.mcpServer = newMCPServerManager(s.adkRuntime)
-	persistenceStore := persistenceOnlySettingsStore(store)
-	s.settingsSvc = settings.NewService(persistenceStore, s.settingsServiceOptions()...)
-	if mcpStore, ok := persistenceStore.(settings.MCPServerStore); ok {
-		if err := s.mcpServer.Reconfigure(mcpStore.MCPServerSettings()); err != nil {
-			log.Printf("JFTrade local MCP server unavailable: %v", err)
-		}
-	} else {
-		log.Printf("JFTrade local MCP server settings unavailable")
-	}
-}
-
 func (s *Server) settingsServiceOptions() []settings.Option {
 	return []settings.Option{
 		settings.WithSideEffects(s.settingsSideEffects()),
-		settings.WithBrokerDescriptor(func() map[string]any { return s.descriptor() }),
-		settings.WithBrokerSettings(func() map[string]any { return s.brokerSettings() }),
-		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return s.onboardingState(ctx) }),
+		settings.WithBrokerDescriptor(func() map[string]any { return s.futuCoordinator().Descriptor() }),
+		settings.WithBrokerSettings(func() map[string]any { return s.futuCoordinator().BrokerSettings() }),
+		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return s.futuCoordinator().OnboardingState(ctx) }),
 		settings.WithDefaultTradingEnvironment(s.defaultTradingEnvironment()),
 		settings.WithMCPServerStatus(func() jfsettings.MCPServerStatus {
-			if s.mcpServer == nil {
+			assistantRuntime := s.runtimes.Assistant()
+			if assistantRuntime == nil {
 				return jfsettings.MCPServerStatus{}
 			}
-			return s.mcpServer.Status()
+			return assistantRuntime.MCPStatus()
+		}),
+		settings.WithSystemNotificationTester(func() (*live.Event, live.NotificationDelivery) {
+			return s.recordLiveNotificationWithDelivery(live.Notification{
+				Level:    "warn",
+				Title:    "JFTrade 系统通知测试",
+				Message:  "系统通知通道已连接。",
+				Source:   "desktop",
+				Category: "system.notification.test",
+			})
 		}),
 	}
 }
@@ -694,11 +621,11 @@ func (s *Server) settingsServiceOptions() []settings.Option {
 func (s *Server) settingsSideEffects() settings.SideEffects {
 	return settings.SideEffects{
 		OnIntegrationChanged: func(_ jfsettings.BrokerIntegration) {
-			s.resetFutuRuntime()
+			s.futuCoordinator().Reset()
 		},
 		OnExecutionChanged: func(exec jfsettings.ExecutionSettings) {
-			if s.executionOrders != nil {
-				s.executionOrders.configureSeenFillRetention(exec.SeenFillRetentionDays)
+			if s.stores.ExecutionOrders != nil {
+				s.stores.ExecutionOrders.ConfigureSeenFillRetention(exec.SeenFillRetentionDays)
 			}
 		},
 		OnSecurityChanged: func(sec jfsettings.SecuritySettings) error {
@@ -709,18 +636,19 @@ func (s *Server) settingsSideEffects() settings.SideEffects {
 			return nil
 		},
 		OnExchangeCalendarsChanged: func(settings jfsettings.ExchangeCalendarSettings) {
-			if s.exchangeCalendars != nil {
-				s.exchangeCalendars.NotifySettingsChanged()
+			if calendars := s.runtimes.ExchangeCalendars(); calendars != nil {
+				calendars.NotifySettingsChanged()
 			}
 		},
 		OnPineWorkerChanged: func(settings jfsettings.PineWorkerSettings) {
 			s.applyPineWorkerSettings(settings)
 		},
 		OnMCPServerChanged: func(settings jfsettings.MCPServerSettings) error {
-			if s.mcpServer == nil {
+			assistantRuntime := s.runtimes.Assistant()
+			if assistantRuntime == nil {
 				return errors.New("MCP server manager is unavailable")
 			}
-			return s.mcpServer.Reconfigure(settings)
+			return assistantRuntime.ReconfigureMCP(settings)
 		},
 	}
 }

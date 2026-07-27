@@ -15,7 +15,14 @@ type liveHeartbeatSampleSummary struct {
 	latestObservedAtText any
 }
 
-func (s *Server) liveHeartbeatEvent(heartbeatInterval time.Duration, clients apilive.ClientStats, webSocketInstrumentIDs []string) map[string]any {
+func retryState(retryAfter time.Time) (any, bool) {
+	if retryAfter.IsZero() {
+		return nil, false
+	}
+	return retryAfter.UTC().Format(time.RFC3339Nano), time.Now().UTC().Before(retryAfter)
+}
+
+func (s *serverApplication) liveHeartbeatEvent(heartbeatInterval time.Duration, clients apilive.ClientStats, webSocketInstrumentIDs []string) map[string]any {
 	now := time.Now().UTC()
 	activeInstrumentIDs := s.activeLiveStreamInstrumentIDs(webSocketInstrumentIDs)
 	sampleSummary := s.summarizeLiveHeartbeatSamples(now, activeInstrumentIDs)
@@ -60,7 +67,7 @@ func (s *Server) liveHeartbeatEvent(heartbeatInterval time.Duration, clients api
 	}
 }
 
-func (s *Server) summarizeLiveHeartbeatSamples(now time.Time, instrumentIDs []string) liveHeartbeatSampleSummary {
+func (s *serverApplication) summarizeLiveHeartbeatSamples(now time.Time, instrumentIDs []string) liveHeartbeatSampleSummary {
 	summary := liveHeartbeatSampleSummary{}
 	var latestObservedAt time.Time
 	for _, instrumentID := range instrumentIDs {
@@ -82,7 +89,7 @@ func (s *Server) summarizeLiveHeartbeatSamples(now time.Time, instrumentIDs []st
 	return summary
 }
 
-func (s *Server) liveHeartbeatObservedAt(instrumentID string) (time.Time, bool) {
+func (s *serverApplication) liveHeartbeatObservedAt(instrumentID string) (time.Time, bool) {
 	sample := s.marketdataSvc.Latest(instrumentID, tickCacheRetention)
 	if sample == nil {
 		return time.Time{}, false
@@ -128,7 +135,7 @@ func liveHeartbeatTransportMode(activeCount int, liveStreamConnected bool) strin
 	return "idle"
 }
 
-func (s *Server) activeMarketInstrumentIDs() []string {
+func (s *serverApplication) activeMarketInstrumentIDs() []string {
 	if s.marketdataSvc == nil {
 		return nil
 	}
@@ -139,7 +146,7 @@ func (s *Server) activeMarketInstrumentIDs() []string {
 	return instrumentIDs
 }
 
-func (s *Server) activeLiveStreamInstrumentIDs(webSocketInstrumentIDs []string) []string {
+func (s *serverApplication) activeLiveStreamInstrumentIDs(webSocketInstrumentIDs []string) []string {
 	seen := map[string]struct{}{}
 	result := make([]string, 0)
 	for _, instrumentID := range s.activeMarketInstrumentIDs() {
@@ -149,8 +156,8 @@ func (s *Server) activeLiveStreamInstrumentIDs(webSocketInstrumentIDs []string) 
 		seen[instrumentID] = struct{}{}
 		result = append(result, instrumentID)
 	}
-	if s.strategyRuntimeManager != nil {
-		for _, instrumentID := range s.strategyRuntimeManager.activeInstrumentIDs() {
+	if s.strategySvc != nil {
+		for _, instrumentID := range s.strategySvc.ActiveInstrumentIDs() {
 			if _, exists := seen[instrumentID]; exists {
 				continue
 			}
@@ -158,8 +165,8 @@ func (s *Server) activeLiveStreamInstrumentIDs(webSocketInstrumentIDs []string) 
 			result = append(result, instrumentID)
 		}
 	}
-	if webSocketInstrumentIDs == nil && s.liveWebSocket != nil {
-		webSocketInstrumentIDs = s.liveWebSocket.ActiveInstrumentIDs()
+	if liveWebSocket := s.runtimes.LiveWebSocket(); webSocketInstrumentIDs == nil && liveWebSocket != nil {
+		webSocketInstrumentIDs = liveWebSocket.ActiveInstrumentIDs()
 	}
 	for _, instrumentID := range webSocketInstrumentIDs {
 		if _, exists := seen[instrumentID]; exists {

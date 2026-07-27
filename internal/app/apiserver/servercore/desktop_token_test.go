@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -111,7 +112,7 @@ func TestDesktopDevelopmentWebListenerStillRequiresPasswordSession(t *testing.T)
 	router := gin.New()
 	router.Use(server.desktopTokenMiddleware())
 	router.Use(server.webAccessMiddleware())
-	router.Use(server.authMiddleware())
+	router.Use(middleware.Auth(server.auth, server.auth, server, server.auth))
 	router.GET("/api/v1/status", func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	server.router = router
 

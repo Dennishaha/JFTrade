@@ -1,11 +1,12 @@
 package servercore
 
 import (
-	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
-	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 )
 
 func TestADKStrategyInstanceSummariesIncludeFallbackDefinitionAndRuntimeState(t *testing.T) {
@@ -29,27 +30,23 @@ func TestADKStrategyInstanceSummariesIncludeFallbackDefinitionAndRuntimeState(t 
 		ExecutionMode: strategyExecutionModeNotifyOnly,
 	})
 
-	observed, ok := server.strategyStore.strategy(observedID)
-	if !ok {
-		t.Fatalf("strategy(%s) not found", observedID)
+	if got := strategySummaryDefinitionID(stratsrv.InstanceView{
+		Params: map[string]any{"definitionId": "fallback-definition"},
+	}); got != "fallback-definition" {
+		t.Fatalf("fallback definition id = %q", got)
 	}
-	observed.Definition.StrategyID = " "
-	observed.Params["definitionId"] = "fallback-definition"
-	if err := server.strategyStore.saveStrategy(observed); err != nil {
-		t.Fatalf("saveStrategy observed: %v", err)
-	}
-	if _, err := server.strategyStore.transitionStrategy(observedID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(observedID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy: %v", err)
 	}
-	if err := server.strategyStore.appendStrategyRuntimeEvent(observedID, "strategy started", "runtime.started", "boot"); err != nil {
+	if err := server.stores.StrategyCatalog.AppendRuntimeEvent(observedID, "strategy started", "runtime.started", "boot"); err != nil {
 		t.Fatalf("appendStrategyRuntimeEvent(start): %v", err)
 	}
-	if err := server.strategyStore.appendStrategyRuntimeEvent(observedID, "broker rejected order", "runtime.error", "reject"); err != nil {
+	if err := server.stores.StrategyCatalog.AppendRuntimeEvent(observedID, "broker rejected order", "runtime.error", "reject"); err != nil {
 		t.Fatalf("appendStrategyRuntimeEvent(error): %v", err)
 	}
 
 	now := strategyRuntimeTestTime(10, 5, 0)
-	if err := server.strategyRuntimeStore.UpsertObservation(t.Context(), runtimeactivity.ObservationSnapshot{
+	if err := server.stores.StrategyCatalog.UpsertObservation(t.Context(), runtimeactivity.ObservationSnapshot{
 		InstanceID:    observedID,
 		ActualStatus:  "running",
 		ActiveSymbols: []string{"US.AAPL", "US.MSFT"},
@@ -76,8 +73,8 @@ func TestADKStrategyInstanceSummariesIncludeFallbackDefinitionAndRuntimeState(t 
 		}
 	}
 
-	if observedSummary.DefinitionID != "fallback-definition" || observedSummary.ActualStatus != strategyStatusRunning {
-		t.Fatalf("observed summary=%+v want fallback definition id and running actual status", observedSummary)
+	if observedSummary.DefinitionID != "runtime-test" || observedSummary.ActualStatus != strategyStatusRunning {
+		t.Fatalf("observed summary=%+v want persisted definition id and running actual status", observedSummary)
 	}
 	if observedSummary.Market != "US" || observedSummary.AccountID != "123456" {
 		t.Fatalf("observed broker summary=%+v want US/123456", observedSummary)

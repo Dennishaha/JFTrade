@@ -4,7 +4,7 @@ import type {
   ADKTimelineEntry,
   ADKToolCall,
   ADKWorkflowStepState,
-} from "@/contracts";
+} from "@/types";
 
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../src/composables/apiClient", () => ({
   fetchEnvelope: (...args: unknown[]) => mocks.fetchEnvelope(...args),
+  apiGetPath: (_template: string, path: string) => mocks.fetchEnvelope(path),
 }));
 
 import { createTimelineEntryState } from "../src/composables/adkTimeline";

@@ -25,18 +25,68 @@ check_no_import() {
   fi
 }
 
-warn_direct_import() {
+check_no_test_import() {
   local from="$1"
   local forbidden="$2"
   local label="$3"
   local imports
 
+  # TestImports and XTestImports contain only imports declared directly by the
+  # package's internal and external tests, so transitive dependencies stay out.
+  if ! imports="$(go list -f '{{range .TestImports}}{{.}}{{"\n"}}{{end}}{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
+    echo "  ❌ $label: unable to inspect test imports for $from"
+    FAIL=$((FAIL + 1))
+  elif rg -F -x -q "$forbidden" <<<"$imports"; then
+    echo "  ❌ $label: tests in $from directly import $forbidden"
+    FAIL=$((FAIL + 1))
+  else
+    echo "  ✅ $label"
+    PASS=$((PASS + 1))
+  fi
+}
+
+imports_contain_family() {
+  local imports="$1"
+  local forbidden="$2"
+  local imported
+
+  while IFS= read -r imported; do
+    if [[ "$imported" == "$forbidden" || "$imported" == "$forbidden/"* ]]; then
+      return 0
+    fi
+  done <<<"$imports"
+  return 1
+}
+
+check_no_import_family() {
+  local from="$1"
+  local forbidden="$2"
+  local label="$3"
+  local imports
   if ! imports="$(go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
     echo "  ❌ $label: unable to inspect $from"
     FAIL=$((FAIL + 1))
-  elif rg -F -x -q "$forbidden" <<<"$imports"; then
-    echo "  ⚠️  $label: $from still imports $forbidden"
-    WARN=$((WARN + 1))
+  elif imports_contain_family "$imports" "$forbidden"; then
+    echo "  ❌ $label: $from imports package family $forbidden"
+    FAIL=$((FAIL + 1))
+  else
+    echo "  ✅ $label"
+    PASS=$((PASS + 1))
+  fi
+}
+
+check_no_test_import_family() {
+  local from="$1"
+  local forbidden="$2"
+  local label="$3"
+  local imports
+
+  if ! imports="$(go list -f '{{range .TestImports}}{{.}}{{"\n"}}{{end}}{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
+    echo "  ❌ $label: unable to inspect test imports for $from"
+    FAIL=$((FAIL + 1))
+  elif imports_contain_family "$imports" "$forbidden"; then
+    echo "  ❌ $label: tests in $from directly import package family $forbidden"
+    FAIL=$((FAIL + 1))
   else
     echo "  ✅ $label"
     PASS=$((PASS + 1))
@@ -127,6 +177,7 @@ check_only_standard_library() {
   fi
 }
 
+arch_deps_main() {
 echo "=== JFTrade Architecture Dependency Check ==="
 echo ""
 
@@ -243,6 +294,31 @@ do
 done
 echo ""
 
+# Rule 6h: the live strategy runtime owns its state machine and consumes only
+# broker-neutral/domain ports. Application assembly may import the owner, but
+# the owner must never flow back into transport, composition, stores, or Futu.
+echo "Rule 6h: live strategy runtime ownership boundary"
+for forbidden in \
+  "github.com/jftrade/jftrade-main/internal/api" \
+  "github.com/jftrade/jftrade-main/internal/app" \
+  "github.com/jftrade/jftrade-main/internal/store" \
+  "github.com/jftrade/jftrade-main/internal/integration" \
+  "github.com/jftrade/jftrade-main/pkg/futu" \
+  "github.com/gin-gonic/gin" \
+  "google.golang.org/protobuf"
+do
+  check_package_set_no_import \
+    "./internal/strategy/liveruntime/..." \
+    "$forbidden" \
+    "live strategy runtime owner boundary"
+done
+check_source_no_match \
+  "internal/app/apiserver/servercore" \
+  "*.go" \
+  'type (strategyRuntimeManager|managedStrategyRuntime|strategySymbolRuntime) struct|func \([^)]*\) (startStrategy|stopStrategy|handleMarketTrade|syncClosedKLinesLoop)\(' \
+  "servercore must not regain the live strategy state machine"
+echo ""
+
 # Rule 10: settings persistence must not depend on concrete broker integrations.
 echo "Rule 10: settings persistence must stay broker-integration free"
 check_package_set_no_import "./internal/store/settingsfile" "github.com/jftrade/jftrade-main/pkg/futu" "settingsfile must not depend on Futu"
@@ -323,19 +399,47 @@ do
 done
 echo ""
 
-# Transitional inventory: these imports are known migration work and become
-# hard failures after their internal adapters own the implementation boundary.
-echo "Rule 16: servercore concrete implementation imports (migration warnings)"
+# These implementation packages now have explicit internal owners. Keep the
+# composition root from regaining concrete protocol/runtime dependencies.
+echo "Rule 16: servercore concrete implementation imports"
 for forbidden in \
   "github.com/jftrade/jftrade-main/pkg/futu" \
   "github.com/jftrade/jftrade-main/pkg/adk" \
   "github.com/jftrade/jftrade-main/pkg/backtest"
 do
-  warn_direct_import \
+  check_no_import_family \
     "github.com/jftrade/jftrade-main/internal/app/apiserver/servercore" \
     "$forbidden" \
     "servercore concrete implementation boundary"
 done
+echo ""
+
+# Keep servercore tests on the same internal boundaries as production code.
+echo "Rule 16a: servercore direct test imports"
+for forbidden in \
+  "github.com/jftrade/jftrade-main/pkg/futu" \
+  "github.com/jftrade/jftrade-main/pkg/adk" \
+  "github.com/jftrade/jftrade-main/pkg/backtest"
+do
+  check_no_test_import_family \
+    "github.com/jftrade/jftrade-main/internal/app/apiserver/servercore" \
+    "$forbidden" \
+    "servercore test-only implementation dependency"
+done
+echo ""
+
+# Pine process lifecycle is infrastructure for the strategy domain. Live order
+# semantics belong to internal/strategy, while replay and matching remain
+# behind internal/backtest; the runtime package must not bridge those domains.
+echo "Rule 17: Pine runtime must stay backtest-independent"
+check_no_import \
+  "github.com/jftrade/jftrade-main/internal/strategy/pineruntime" \
+  "github.com/jftrade/jftrade-main/pkg/backtest" \
+  "Pine runtime → pkg/backtest"
+check_no_import \
+  "github.com/jftrade/jftrade-main/internal/strategy/pineruntime" \
+  "github.com/jftrade/jftrade-main/internal/backtest" \
+  "Pine runtime → internal/backtest"
 echo ""
 
 echo "=== Results: $PASS passed, $WARN warnings, $FAIL failed ==="
@@ -343,4 +447,9 @@ echo "=== Results: $PASS passed, $WARN warnings, $FAIL failed ==="
 if [ "$FAIL" -gt 0 ]; then
   echo "ERROR: $FAIL forbidden dependency(s) detected."
   exit 1
+fi
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  arch_deps_main "$@"
 fi

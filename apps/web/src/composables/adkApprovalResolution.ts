@@ -1,4 +1,4 @@
-import type { ADKApproval, ADKApprovalResolution } from "@/contracts";
+import type { ADKApproval, ADKApprovalResolution } from "@/types";
 
 export type ADKApprovalAction = "approve" | "deny";
 

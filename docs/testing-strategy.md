@@ -62,11 +62,14 @@ pnpm run test:coverage
 JFTRADE_DIFF_BASE=origin/main pnpm run test:coverage
 ```
 
-测试文件名必须描述被验证的业务行为。新建或重命名的测试文件不得使用 `coverage_98`、`c95` 等覆盖率数字名称；`pnpm run check:test-names` 只检查相对 base 新增的测试文件，不要求为历史文件做无意义改名。
+测试文件名必须描述被验证的业务行为，不得包含任意大小写或分隔形式的 `coverage`，也不得使用 `c95`、`c_98` 等覆盖率数字缩写。`pnpm run check:test-names` 扫描当前全仓文件；历史违规文件已经全部改为行为名称，`scripts/test-name-allowlist.txt` 当前没有豁免项。检查器仍从 merge-base Git 文件树按当前规则推导历史上限，不信任基准提交里的旧清单，因此规则扩展后可纳管此前遗漏的文件，也不能通过“新增违规文件并写入清单”绕过门禁。
+
+`pnpm run check:test-quality` 使用 Go AST 识别 `testing.T` 失败调用、testify 断言和仓内断言 helper 调用。它会报告全仓所有未识别到断言的 `Test*`，但只对相对 merge-base 新增的缺口硬失败；普通函数调用、`Sleep`、`Skip` 或启动 goroutine 不再被当作断言。确实以“不 panic”、helper process 退出等效果作为契约的测试，必须在 `scripts/go-test-quality-exemptions.json` 中按文件、测试函数和具体理由登记；重复、理由过短或已经失效的条目都会失败。`report:test-quality` 保留为兼容入口，但执行同一硬门禁。
 
 ## 编写测试
 
 - Handler 断言参数绑定、状态码、错误码和 response envelope；service 通过 fake 覆盖业务规则与失败语义。
-- Store 使用临时数据库，覆盖 migration、旧数据归一、并发与重载；集成测试使用 mock server 或协议 fixture。
+- Store 使用临时数据库，覆盖 migration、旧数据归一、并发与重载；集成测试使用 mock server 或协议 fixture。跨出 Futu integration 边界的测试只能依赖 `internal/integration/futu/testkit` 的语义 fixture，不得直接 import OpenD codec 或生成 protobuf 包。
 - 用例必须断言业务结果、状态迁移或可观察副作用，而不只执行代码行。复杂 UI 和策略运行优先覆盖分支、拒绝路径和恢复路径。
+- 无法用值或状态表达、只能以“不 panic”等执行效果验证的 Go 用例必须登记带理由的测试质量例外，不得依赖任意函数调用骗过检查。
 - 真实网络、账户、交易和行情权限只出现在显式 live workflow；没有该环境时，不得以 `skip` 充当生产验证结论。

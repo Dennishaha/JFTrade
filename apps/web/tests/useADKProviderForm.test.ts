@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
-import type { ADKProvider } from "../src/contracts";
+import type { ADKProvider } from "../src/types";
 import {
   deleteADKProvider,
   saveADKProvider,

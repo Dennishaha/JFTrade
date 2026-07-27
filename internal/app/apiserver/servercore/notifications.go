@@ -13,9 +13,8 @@ import (
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 
+	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	"github.com/jftrade/jftrade-main/internal/live"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
 
 var (
@@ -98,40 +97,40 @@ func dispatchBBGONotification(note live.Notification) {
 	}
 }
 
-func (s *Server) ensureLiveNotificationBridge(ctx context.Context) {
-	exchange := s.futuExchange()
-	if exchange == nil {
+func (s *serverApplication) ensureLiveNotificationBridge(ctx context.Context) {
+	marketDataRuntime := s.runtimes.MarketData()
+	if marketDataRuntime == nil || !s.futuIntegrationEnabled() {
 		return
 	}
 	go func() {
 		bridgeCtx, cancel := context.WithTimeout(ctx, liveStreamConnectTimeout)
 		defer cancel()
-		jftradeErr1 := exchange.EnsureSystemNotifications(bridgeCtx)
+		jftradeErr1 := marketDataRuntime.EnsureSystemNotifications(bridgeCtx)
 		besteffort.LogError(jftradeErr1)
 	}()
 }
 
-func (s *Server) handleFutuSystemNotify(response *notifypb.Response) {
-	note := liveNotificationFromFutuResponse(response)
-	if note == nil {
-		return
-	}
-	s.recordLiveNotification(*note)
-	if shouldForwardNotificationToBBGO(*note) {
-		bbgo.Notify(forwardedBBGONotification{note: *note})
+func (s *serverApplication) handleFutuSystemNotification(note live.Notification) {
+	s.recordLiveNotification(note)
+	if shouldForwardNotificationToBBGO(note) {
+		bbgo.Notify(forwardedBBGONotification{note: note})
 	}
 }
 
-func (s *Server) recordLiveNotification(note live.Notification) *live.Event {
+func (s *serverApplication) recordLiveNotification(note live.Notification) *live.Event {
 	event, _ := s.recordLiveNotificationWithDelivery(note)
 	return event
 }
 
-func (s *Server) recordLiveNotificationWithDelivery(note live.Notification) (*live.Event, live.NotificationDelivery) {
-	event := s.liveNotifications.Publish(note)
+func (s *serverApplication) recordLiveNotificationWithDelivery(note live.Notification) (*live.Event, live.NotificationDelivery) {
+	publisher := s.runtimes.LiveNotifications()
+	if publisher == nil {
+		return nil, live.NotificationNotDelivered(live.NotificationDeliveryUnavailable, "live notification publisher is unavailable")
+	}
+	event := publisher.Publish(note)
 	delivery := live.NotificationNotDelivered(live.NotificationDeliveryUnavailable, "desktop system notifications are not configured")
 	if event != nil {
-		s.emitWorkflowEvent(jfadk.WorkflowEvent{
+		s.emitWorkflowEvent(assistantassembly.WorkflowEvent{
 			ID:       fmt.Sprintf("system-notification-%d", event.Sequence),
 			Type:     "system.notification",
 			Source:   "notification",
@@ -154,9 +153,13 @@ func (s *Server) recordLiveNotificationWithDelivery(note live.Notification) (*li
 	return event, delivery
 }
 
-func (s *Server) emitLiveNotificationSink(event live.Event) (delivery live.NotificationDelivery) {
+func (s *serverApplication) emitLiveNotificationSink(event live.Event) (delivery live.NotificationDelivery) {
 	delivery = live.NotificationNotDelivered(live.NotificationDeliveryUnavailable, "desktop system notifications are not configured")
-	if s == nil || s.liveNotificationSink == nil {
+	if s == nil {
+		return delivery
+	}
+	sink := s.runtimes.LiveNotificationSink()
+	if sink == nil {
 		return delivery
 	}
 	defer func() {
@@ -165,11 +168,15 @@ func (s *Server) emitLiveNotificationSink(event live.Event) (delivery live.Notif
 			delivery = live.NotificationNotDelivered(live.NotificationDeliveryFailed, fmt.Sprintf("desktop notification sink failed: %v", recovered))
 		}
 	}()
-	return s.liveNotificationSink(event)
+	return sink(event)
 }
 
-func (s *Server) liveNotificationsAfter(sequence uint64) []live.Event {
-	return s.liveNotifications.After(sequence)
+func (s *serverApplication) liveNotificationsAfter(sequence uint64) []live.Event {
+	publisher := s.runtimes.LiveNotifications()
+	if publisher == nil {
+		return nil
+	}
+	return publisher.After(sequence)
 }
 
 func liveNotificationText(note live.Notification) string {

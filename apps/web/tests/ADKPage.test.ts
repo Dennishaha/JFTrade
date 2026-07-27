@@ -12,7 +12,7 @@ import type {
   ADKSessionComposerState,
   ADKSessionContextSnapshot,
   ADKTimelineEntry,
-} from "@/contracts";
+} from "@/types";
 
 import { resetADKApprovalInFlightForTest } from "../src/composables/adkApprovalResolution";
 import ADKPage from "../src/pages/ADKPage.vue";
@@ -3855,6 +3855,7 @@ function buildProviderBase(hasApiKey: boolean) {
     displayName: "OpenAI",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
+    requestTimeoutMs: 180_000,
     enabled: true,
     default: true,
     hasApiKey,

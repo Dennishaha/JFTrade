@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ADKAgentsPanel from "../src/components/adk-settings/ADKAgentsPanel.vue";
-import type { ADKAgent } from "../src/contracts";
+import type { ADKAgent } from "../src/types";
 import {
   buttonStub,
   dialogStub,

@@ -6,7 +6,7 @@ import {
   watch,
 } from "vue";
 
-import { fetchEnvelope } from "../../../composables/apiClient";
+import { apiGetPath } from "../../../composables/apiClient";
 import { withBrokerProvider } from "../../../composables/brokerProviderSelection";
 import {
   normalizeMarketDataSnapshotQueryResult,
@@ -14,11 +14,12 @@ import {
 } from "../../../composables/marketDataRealtime";
 import { normalizeMarketSecurityDetailsQueryResult } from "../../../composables/marketSecurityNormalization";
 import { resolveMarketSnapshotDisplay } from "../../../composables/marketSessionDisplay";
+import { fetchProductFeature } from "../../../composables/productFeatures";
 import { getWatchlistMembership } from "../../../composables/watchlistApi";
 import type {
   MarketSecurityDetailsQueryResult,
   WatchlistMembership,
-} from "../../../contracts";
+} from "../../../types";
 import {
   normalizeResearchQuoteTarget,
   parseResearchInstrumentId,
@@ -27,11 +28,6 @@ import {
   type ResearchQuoteTarget,
 } from "../../research/researchQuote";
 import { fetchResearchSnapshots } from "../../research/researchSnapshots";
-
-interface FeatureResult {
-  entries?: Record<string, unknown>[];
-  total?: number;
-}
 
 interface MetricItem {
   label: string;
@@ -347,7 +343,10 @@ export function useVerticalQuoteWorkbench(
     if (path === "") return;
     if (!polling) snapshotLoading.value = true;
     try {
-      const response = await fetchEnvelope<MarketDataSnapshotQueryResult>(path);
+      const response = await apiGetPath(
+        "/api/v1/market-data/snapshots/{market}/{symbol}",
+        path,
+      );
       if (token !== requestToken || localToken !== snapshotToken) return;
       snapshotResult.value = normalizeMarketDataSnapshotQueryResult(response);
       snapshotError.value = "";
@@ -365,7 +364,10 @@ export function useVerticalQuoteWorkbench(
     if (path === "") return;
     securityLoading.value = true;
     try {
-      const response = await fetchEnvelope<MarketSecurityDetailsQueryResult>(path);
+      const response = await apiGetPath(
+        "/api/v1/market-data/securities/{market}/{symbol}",
+        path,
+      );
       if (token !== requestToken) return;
       securityResult.value = normalizeMarketSecurityDetailsQueryResult(response);
       securityError.value = "";
@@ -394,7 +396,7 @@ export function useVerticalQuoteWorkbench(
       normalizedBrokerId.value,
     );
     try {
-      const response = await fetchEnvelope<FeatureResult>(path);
+      const response = await fetchProductFeature(path);
       if (token !== requestToken) return;
       const seen = new Set<string>();
       const members = (response.entries ?? [])

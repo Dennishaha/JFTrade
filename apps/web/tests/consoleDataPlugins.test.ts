@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { emptyPluginCatalog } from "@/contracts";
+import { emptyPluginCatalog } from "@/types";
 import { createConsoleDataPluginController } from "../src/composables/consoleDataPlugins";
 import { createResponse } from "./helpers";
 
@@ -38,7 +38,10 @@ describe("console plugin operations", () => {
       if (url.endsWith("/api/v1/plugins")) {
         return createResponse({
           ...emptyPluginCatalog,
-          entries: [{ id: "demo", name: "Demo" }],
+          plugins: [{
+            descriptor: { id: "demo", displayName: "Demo" },
+            installation: { status: "NOT_INSTALLED" },
+          }],
         });
       }
       throw new Error(`unexpected ${url}`);
@@ -46,7 +49,7 @@ describe("console plugin operations", () => {
     const { controller, state } = createController();
 
     await controller.loadPlugins();
-    expect(state.pluginCatalog.value.entries).toHaveLength(1);
+    expect(state.pluginCatalog.value.plugins).toHaveLength(1);
     await controller.installPlugin("demo");
     expect(state.installingPluginIds.value).toEqual([]);
     await controller.uninstallPlugin("demo");
@@ -82,11 +85,19 @@ describe("console plugin operations", () => {
     let fail = false;
     vi.stubGlobal("fetch", vi.fn(async () => {
       if (fail) throw "offline";
-      return createResponse({ pluginId: "demo", canUninstall: false, blockers: ["active strategy"] });
+      return createResponse({
+        pluginId: "demo",
+        path: "/plugins/demo.so",
+        exists: true,
+        commands: { posix: "rm demo.so", powershell: "Remove-Item demo.so" },
+      });
     }));
     const { controller, state } = createController();
 
-    await expect(controller.loadPluginUninstallGuidance("demo")).resolves.toMatchObject({ canUninstall: false });
+    await expect(controller.loadPluginUninstallGuidance("demo")).resolves.toMatchObject({
+      pluginId: "demo",
+      exists: true,
+    });
     fail = true;
     await expect(controller.loadPluginUninstallGuidance("demo")).resolves.toBeNull();
     expect(state.pluginError.value).toBe("插件卸载指引加载失败。");

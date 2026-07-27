@@ -1,6 +1,6 @@
 import type {
   PineV6WorkflowDocument,
-} from "@/contracts";
+} from "@/types";
 import type { components } from "@/generated/openapi";
 
 import { PINE_WORKER_RUNTIME, PINE_V6_SOURCE_FORMAT } from "./strategyRuntimeIdentity";

@@ -11,7 +11,7 @@ import type {
   ADKWorkflowTrigger,
   ADKWorkflowTriggerLog,
   ADKWorkflowTriggerType,
-} from "@/contracts";
+} from "@/types";
 import {
   canvasGraphToWorkflowPayload,
   defaultWorkflowCanvasGraph,

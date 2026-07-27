@@ -4,7 +4,7 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import type {
   WatchlistImportCommitRequest,
   WatchlistImportPreviewRequest,
-} from "@/contracts";
+} from "@/types";
 
 import { queryClient, queryKeys } from "./serverState";
 import {

@@ -3,7 +3,7 @@ import type {
   ADKWorkflowNodeRun,
   ADKWorkflowTrigger,
   ADKWorkflowTriggerLog,
-} from "@/contracts";
+} from "@/types";
 import type { FlowNodeData } from "@/features/adkWorkflowStudio";
 import type { PageEnvelope } from "@/composables/adkWorkflowsApi";
 import type {

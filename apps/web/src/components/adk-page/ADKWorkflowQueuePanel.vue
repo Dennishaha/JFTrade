@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { ADKRun, ADKWorkflowStepState } from "@/contracts";
+import type { ADKRun, ADKWorkflowStepState } from "@/types";
 
 import { formatGenericStatusLabel } from "../../composables/consoleDataFormatting";
 import { workflowQueueTone } from "../../composables/useADKWorkflowQueueState";

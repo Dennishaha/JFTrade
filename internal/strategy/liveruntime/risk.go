@@ -1,0 +1,112 @@
+package liveruntime
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/internal/strategy/instancebinding"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
+	"github.com/jftrade/jftrade-main/internal/strategy/runtimecontrol"
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
+)
+
+func (e *strategyLiveOrderExecutor) evaluateRuntimeRisk(command trdsrv.ExecutionOrderCommand) runtimecontrol.RiskDecision {
+	settings := e.currentRuntimeRiskSettings()
+	context := runtimecontrol.RiskContext{}
+	if e != nil && e.manager != nil {
+		context.TodaySubmittedOrderCount = e.manager.todaySubmittedOrderCount(e.instance.ID, command.Symbol, time.Now().UTC())
+	}
+	if e != nil && e.runner != nil {
+		context.CurrentPrice = e.runner.currentPrice()
+		context.SellableQuantity = e.runner.sellableQuantity(command.Symbol)
+	}
+	return runtimecontrol.EvaluateRisk(
+		strategyRuntimeRiskSettingsToControl(settings),
+		strategyRuntimeOrderIntentFromCommand(command),
+		context,
+	)
+}
+
+func strategyRuntimeOrderIntentFromCommand(command trdsrv.ExecutionOrderCommand) runtimecontrol.OrderIntent {
+	return runtimecontrol.OrderIntent{
+		Symbol:   command.Symbol,
+		Side:     command.Side,
+		Quantity: command.Query.Quantity,
+		Price:    command.Query.Price,
+	}
+}
+
+func strategyRuntimeRiskSettingsToControl(input stratsrv.RuntimeRiskSettings) runtimecontrol.RiskSettings {
+	return runtimecontrol.RiskSettings{
+		Mode:             input.Mode,
+		CloseOnly:        input.CloseOnly,
+		MaxOrderQuantity: input.MaxOrderQuantity,
+		MaxOrderNotional: input.MaxOrderNotional,
+		DailyMaxOrders:   input.DailyMaxOrders,
+		PauseOnReject:    input.PauseOnReject,
+	}
+}
+
+func (e *strategyLiveOrderExecutor) currentRuntimeRiskSettings() stratsrv.RuntimeRiskSettings {
+	if e == nil {
+		return instancebinding.NormalizeRiskSettings(stratsrv.RuntimeRiskSettings{})
+	}
+	if e.manager != nil {
+		if instance, ok := e.manager.currentInstance(e.instance.ID); ok {
+			return instancebinding.NormalizeRiskSettings(instance.Binding.RuntimeRisk)
+		}
+	}
+	return instancebinding.NormalizeRiskSettings(e.instance.Binding.RuntimeRisk)
+}
+
+func (e *strategyLiveOrderExecutor) recordRuntimeRiskDecision(decision runtimecontrol.RiskDecision, command trdsrv.ExecutionOrderCommand) {
+	if !decision.Matched || e == nil || e.manager == nil {
+		return
+	}
+	if decision.Rejected {
+		message := fmt.Sprintf("runtime risk rejected %s %s %s: %s", command.Symbol, command.Side, strategyRuntimeFormatNumber(command.Query.Quantity), decision.Reason)
+		e.manager.recordError(e.instance.ID, message, time.Now().UTC())
+		jftradeErr2 := e.manager.appendRuntimeEvent(e.instance.ID, message, "risk_rejected", decision.Detail)
+		besteffort.LogError(jftradeErr2)
+		if decision.PauseOnReject {
+			e.manager.stopStrategy(e.instance.ID)
+			jftradeErr3 := e.manager.transitionInstance(e.instance.ID, strategyStatusPaused, "paused", "runtime risk rejected order with pauseOnReject")
+			besteffort.LogError(jftradeErr3)
+		}
+		return
+	}
+	message := fmt.Sprintf("runtime risk monitor matched %s %s %s: %s", command.Symbol, command.Side, strategyRuntimeFormatNumber(command.Query.Quantity), decision.Reason)
+	jftradeErr1 := e.manager.appendRuntimeEvent(e.instance.ID, message, "risk_monitor", decision.Detail)
+	besteffort.LogError(jftradeErr1)
+}
+
+func (r *symbolRuntime) sellableQuantity(symbol string) float64 {
+	if r == nil {
+		return 0
+	}
+	return runtimecontrol.SellableQuantity(strategyRuntimePositionsToControl(r.brokerPositionsSnapshot()), symbol)
+}
+
+func (m *Manager) todaySubmittedOrderCount(instanceID string, symbol string, now time.Time) int {
+	if m == nil || m.deps.CountRuntimeAudit == nil {
+		return 0
+	}
+	fromAt := marketDayStartUTC(symbol, now)
+	count, err := m.deps.CountRuntimeAudit(context.Background(), runtimeactivity.AuditQuery{
+		InstanceID: strings.TrimSpace(instanceID),
+		Kind:       "order_submitted",
+		FromAt:     &fromAt,
+	})
+	if err != nil {
+		return 0
+	}
+	return count
+}
+
+func marketDayStartUTC(symbol string, now time.Time) time.Time {
+	return runtimecontrol.MarketDayStartUTC(symbol, now)
+}

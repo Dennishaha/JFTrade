@@ -1,4 +1,4 @@
-import type { ADKWorkflowTriggerType } from "@/contracts";
+import type { ADKWorkflowTriggerType } from "@/types";
 
 export type WorkflowTemplate = "blank" | "schedule" | "risk" | "webhook" | "market";
 export type InspectorNodeKind = "start" | "agent" | "trigger" | "monitor" | "workflow";

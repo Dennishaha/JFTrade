@@ -35,7 +35,7 @@ import {
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
   emptySystemStatus,
-} from "@/contracts";
+} from "@/types";
 
 import { provideConsoleDataStore, useConsoleData } from "../src/composables/useConsoleData";
 import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
@@ -266,7 +266,11 @@ function createSystemFetchMock(
         defaultTradingEnvironment: "REAL",
         broker: runtime.descriptor,
       };
-      return createResponse(transformSystemStatus?.(status) ?? status);
+      return createResponse(
+        transformSystemStatus === undefined
+          ? status
+          : transformSystemStatus(status),
+      );
     }
     if (url.includes("/api/v1/settings/brokers")) {
       return createResponse({
@@ -413,6 +417,45 @@ describe("console data broker readFeatures consumption", () => {
     expect(store.systemStatus.value.observability.requests).toEqual(
       emptySystemStatus.observability.requests,
     );
+    expect(store.loadError.value).toBe("");
+    expect(store.brokerRuntime.value.accounts).toHaveLength(1);
+    expect(store.availableBrokerAccounts.value).toHaveLength(1);
+    expect(
+      requestedUrls(fetchMock).some((url) =>
+        url.includes("/api/v1/brokers/futu/runtime"),
+      ),
+    ).toBe(true);
+  });
+
+  it("loads runtime accounts when system status mapping fails", async () => {
+    const store = createConsoleStore();
+    const fetchMock = createSystemFetchMock({}, () => null);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await store.loadSystemState({ bypassCooldown: true });
+
+    expect(store.loadError.value).not.toBe("");
+    expect(store.brokerRuntime.value.accounts).toHaveLength(1);
+    expect(store.availableBrokerAccounts.value).toHaveLength(1);
+    expect(
+      requestedUrls(fetchMock).some((url) =>
+        url.includes("/api/v1/brokers/futu/runtime"),
+      ),
+    ).toBe(true);
+  });
+
+  it("reports system status mapping failures through the background refresh channel", async () => {
+    const store = createConsoleStore();
+    const fetchMock = createSystemFetchMock({}, () => {
+      throw "status payload rejected";
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await store.loadSystemState({ background: true, bypassCooldown: true });
+
+    expect(store.consoleRefreshError.value).toBe("系统状态加载失败。");
+    expect(store.loadError.value).toBe("");
+    expect(store.brokerRuntime.value.accounts).toHaveLength(1);
   });
 
   it("uses history fill parameters when fills capability supports history", async () => {

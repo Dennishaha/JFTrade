@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { StrategyVisualModelDocument } from "@/contracts";
+import type { StrategyVisualModelDocument } from "@/types";
 
 import {
   createStrategyPaletteItems,

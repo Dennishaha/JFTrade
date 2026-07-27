@@ -1,8 +1,7 @@
 import { computed, isRef, ref, watch, type Ref } from "vue";
 
-import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import { apiPostPath } from "../../composables/apiClient";
 import { withBrokerProvider } from "../../composables/brokerProviderSelection";
-import type { ProductFeatureResult } from "../../composables/productFeatures";
 
 export type ResearchInstrumentIdsSource = Ref<string[]> | (() => string[]);
 
@@ -50,11 +49,11 @@ export async function fetchResearchSnapshots(
   let path = withBrokerProvider("/api/v1/market-data/snapshots", brokerId.trim());
   if (refresh) path += `${path.includes("?") ? "&" : "?"}refresh=true`;
   if (ids.length <= RESEARCH_SNAPSHOT_BATCH_SIZE) {
-    const response = await fetchEnvelopeWithInit<ProductFeatureResult>(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ instrumentIds: ids }),
-    });
+    const response = await apiPostPath(
+      "/api/v1/market-data/snapshots",
+      path,
+      { instrumentIds: ids },
+    );
     return response.entries ?? [];
   }
   const batches: string[][] = [];
@@ -68,11 +67,11 @@ export async function fetchResearchSnapshots(
     while (nextBatch < batches.length) {
       const batchIndex = nextBatch++;
       const instrumentIds = batches[batchIndex]!;
-      const response = await fetchEnvelopeWithInit<ProductFeatureResult>(path, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instrumentIds }),
-      });
+      const response = await apiPostPath(
+        "/api/v1/market-data/snapshots",
+        path,
+        { instrumentIds },
+      );
       results[batchIndex] = response.entries ?? [];
     }
   }

@@ -9,7 +9,7 @@ import (
 	live "github.com/jftrade/jftrade-main/internal/live"
 )
 
-func (s *Server) recordExchangeCalendarAlert(alert exchangecalendar.SourceAlert) {
+func (s *serverApplication) recordExchangeCalendarAlert(alert exchangecalendar.SourceAlert) {
 	if s == nil || s.store == nil {
 		return
 	}

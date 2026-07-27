@@ -19,7 +19,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	definition, err := server.designStore.saveDefinition(stratsrv.Definition{
+	definition, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		ID:           "dsl-versioned",
 		Name:         "Versioned Strategy",
 		Description:  "first save",
@@ -30,7 +30,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveDefinition(create): %v", err)
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
@@ -38,7 +38,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
-	definition, err = server.designStore.saveDefinition(stratsrv.Definition{
+	definition, err = server.stores.Design.SaveDefinition(stratsrv.Definition{
 		ID:           definition.ID,
 		Name:         definition.Name,
 		Description:  "second save",

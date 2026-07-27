@@ -9,7 +9,7 @@ import {
   emptyOnboardingState,
   emptyPluginCatalog,
   emptySystemStatus,
-} from "@/contracts";
+} from "@/types";
 
 import {
   MockWebSocket,

@@ -89,16 +89,22 @@ func RegisterRoutes(api *gin.RouterGroup, svc *service.Service) {
 
 func registerSwaggerDocs() {
 	for _, register := range []func() string{
-		marketProductDocs,
+		marketInstrumentProductDocs,
+		marketCatalogProductDocs,
+		marketProductPostDocs,
 		batchSnapshotDocs,
 		zeroDteContractDocs,
-		researchDocs,
-		predictionReadDocs,
+		researchInstrumentDocs,
+		researchMarketDocs,
+		predictionCatalogDocs,
+		predictionEventDocs,
+		predictionContractDocs,
 		predictionSubscriptionAcquireDocs,
 		predictionSubscriptionReleaseDocs,
 		predictionQuoteDocs,
 		brokerCapabilityDocs,
-		customizationDocs,
+		customizationReadDocs,
+		customizationWriteDocs,
 	} {
 		if register() == "" {
 			panic("product feature Swagger documentation marker is empty")
@@ -109,6 +115,10 @@ func registerSwaggerDocs() {
 type predictionSubscriptionRequest struct {
 	DataTypes []string `json:"dataTypes"`
 }
+
+type productFeatureQueryRequest ProductFeatureQueryRequest
+
+type customizationRequest CustomizationRequest
 
 func handlePredictionComboQuote(svc *service.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -247,14 +257,14 @@ func handleBatchSnapshots(svc *service.Service) gin.HandlerFunc {
 
 func handleCustomization(svc *service.Service, featureID broker.FeatureID, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var body map[string]any
+		var body customizationRequest
 		if err := c.ShouldBindJSON(&body); err != nil {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid request body")
 			return
 		}
 		result, err := svc.ApplyCustomization(c.Request.Context(), broker.CustomizationAction{
 			FeatureID: featureID, BrokerID: c.Query("brokerId"), AccountID: c.Query("accountId"),
-			Action: action, Payload: body,
+			Action: action, Payload: map[string]any(body),
 		})
 		if err != nil {
 			writeQueryError(c, err)
@@ -302,7 +312,7 @@ func handleQuery(svc *service.Service, route queryRoute) gin.HandlerFunc {
 func handlePostQuery(svc *service.Service, route queryRoute) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		query := routeQuery(c, route)
-		var body map[string]any
+		var body productFeatureQueryRequest
 		if err := c.ShouldBindJSON(&body); err != nil {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid request body")
 			return
@@ -475,13 +485,18 @@ func writeQueryError(c *gin.Context, err error) {
 	}
 }
 
-// marketProductDocs godoc
-// @Summary 查询全产品行情、衍生品和资讯
+// marketInstrumentProductDocs godoc
+// @Summary 按标的查询全产品行情与衍生品数据
 // @Tags market-data-products
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Param instrumentId path string true "标的 ID"
+// @Param brokerId query string false "券商 ID"
+// @Param accountId query string false "账户 ID"
+// @Param tradingEnvironment query string false "交易环境"
+// @Param market query string false "市场代码"
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/instruments/{instrumentId}/profile [get]
 // @Router /api/v1/market-data/intraday/{instrumentId} [get]
 // @Router /api/v1/market-data/ticks/{instrumentId} [get]
@@ -489,16 +504,46 @@ func writeQueryError(c *gin.Context, err error) {
 // @Router /api/v1/market-data/capital-flow/{instrumentId} [get]
 // @Router /api/v1/market-data/options/chains/{instrumentId} [get]
 // @Router /api/v1/market-data/options/expirations/{instrumentId} [get]
-// @Router /api/v1/market-data/options/screens [get]
 // @Router /api/v1/market-data/options/analysis/{instrumentId} [get]
-// @Router /api/v1/market-data/options/analysis/{instrumentId} [post]
+//
+//go:noinline
+func marketInstrumentProductDocs() string { return "market-instrument-products" }
+
+// marketCatalogProductDocs godoc
+// @Summary 查询衍生品目录与市场资讯
+// @Tags market-data-products
+// @Produce json
+// @Param brokerId query string false "券商 ID"
+// @Param accountId query string false "账户 ID"
+// @Param tradingEnvironment query string false "交易环境"
+// @Param market query string false "市场代码"
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/market-data/options/screens [get]
 // @Router /api/v1/market-data/options/events [get]
 // @Router /api/v1/market-data/warrants [get]
 // @Router /api/v1/market-data/futures [get]
 // @Router /api/v1/market-data/news [get]
 //
 //go:noinline
-func marketProductDocs() string { return "market-products" }
+func marketCatalogProductDocs() string { return "market-catalog-products" }
+
+// marketProductPostDocs godoc
+// @Summary 提交标的期权分析参数
+// @Tags market-data-products
+// @Accept json
+// @Produce json
+// @Param instrumentId path string true "标的 ID"
+// @Param request body ProductFeatureQueryRequest true "期权分析参数"
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/market-data/options/analysis/{instrumentId} [post]
+//
+//go:noinline
+func marketProductPostDocs() string { return "market-product-post" }
 
 // batchSnapshotDocs godoc
 // @Summary 批量查询非订阅证券快照
@@ -506,11 +551,11 @@ func marketProductDocs() string { return "market-products" }
 // @Accept json
 // @Produce json
 // @Param request body batchSnapshotsRequest true "批量标的"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 429 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/snapshots [post]
 //
 //go:noinline
@@ -522,23 +567,27 @@ func batchSnapshotDocs() string { return "batch-snapshots" }
 // @Accept json
 // @Produce json
 // @Param request body zeroDteContractsRequest true "0DTE 标的与期权链上下文"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 422 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 422 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/options/events/zero-dte-contracts [post]
 //
 //go:noinline
 func zeroDteContractDocs() string { return "zero-dte-contracts" }
 
-// researchDocs godoc
-// @Summary 查询公司、市场和宏观研究
+// researchInstrumentDocs godoc
+// @Summary 按标的查询公司研究与技术指标
 // @Tags research
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Param instrumentId path string true "标的 ID"
+// @Param brokerId query string false "券商 ID"
+// @Param accountId query string false "账户 ID"
+// @Param market query string false "市场代码"
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/research/instruments/{instrumentId} [get]
 // @Router /api/v1/research/financials/{instrumentId} [get]
 // @Router /api/v1/research/valuation/{instrumentId} [get]
@@ -546,40 +595,80 @@ func zeroDteContractDocs() string { return "zero-dte-contracts" }
 // @Router /api/v1/research/ownership/{instrumentId} [get]
 // @Router /api/v1/research/corporate-actions/{instrumentId} [get]
 // @Router /api/v1/research/short-interest/{instrumentId} [get]
+// @Router /api/v1/research/technical-indicators/{instrumentId} [get]
+//
+//go:noinline
+func researchInstrumentDocs() string { return "research-instrument" }
+
+// researchMarketDocs godoc
+// @Summary 查询市场与宏观研究
+// @Tags research
+// @Produce json
+// @Param brokerId query string false "券商 ID"
+// @Param accountId query string false "账户 ID"
+// @Param market query string false "市场代码"
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/research/screens [get]
 // @Router /api/v1/research/calendars [get]
 // @Router /api/v1/research/macro [get]
 // @Router /api/v1/research/rankings [get]
 // @Router /api/v1/research/institutions [get]
 // @Router /api/v1/research/industries [get]
-// @Router /api/v1/research/technical-indicators/{instrumentId} [get]
 //
 //go:noinline
-func researchDocs() string { return "research" }
+func researchMarketDocs() string { return "research-market" }
 
-// predictionReadDocs godoc
-// @Summary 查询预测市场目录、合约和 Parlay 资格
+// predictionCatalogDocs godoc
+// @Summary 查询预测市场目录和 Parlay 资格
 // @Tags prediction-market
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
-// @Failure 403 {object} httpserver.Envelope
-// @Failure 409 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/prediction/categories [get]
 // @Router /api/v1/market-data/prediction/competitions [get]
 // @Router /api/v1/market-data/prediction/series [get]
 // @Router /api/v1/market-data/prediction/events [get]
+// @Router /api/v1/market-data/prediction/combos/eligible-events [get]
+//
+//go:noinline
+func predictionCatalogDocs() string { return "prediction-catalog" }
+
+// predictionEventDocs godoc
+// @Summary 查询预测事件合约
+// @Tags prediction-market
+// @Produce json
+// @Param eventId path string true "预测事件 ID"
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/prediction/events/{eventId}/contracts [get]
+//
+//go:noinline
+func predictionEventDocs() string { return "prediction-event" }
+
+// predictionContractDocs godoc
+// @Summary 查询预测合约行情与里程碑
+// @Tags prediction-market
+// @Produce json
+// @Param code path string true "预测合约代码"
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/prediction/contracts/{code}/snapshot [get]
 // @Router /api/v1/market-data/prediction/contracts/{code}/order-book [get]
 // @Router /api/v1/market-data/prediction/contracts/{code}/candles [get]
 // @Router /api/v1/market-data/prediction/contracts/{code}/candles/history [get]
 // @Router /api/v1/market-data/prediction/contracts/{code}/ticks [get]
 // @Router /api/v1/market-data/prediction/contracts/{code}/milestones [get]
-// @Router /api/v1/market-data/prediction/combos/eligible-events [get]
 //
 //go:noinline
-func predictionReadDocs() string { return "prediction-read" }
+func predictionContractDocs() string { return "prediction-contract" }
 
 // predictionSubscriptionAcquireDocs godoc
 // @Summary 为可见预测合约申请实时数据订阅租约
@@ -588,9 +677,11 @@ func predictionReadDocs() string { return "prediction-read" }
 // @Produce json
 // @Param code path string true "预测合约代码"
 // @Param request body predictionSubscriptionRequest true "盘口、K 线或逐笔类型"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 403 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=service.PredictionSubscriptionLease}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/prediction/contracts/{code}/subscriptions [post]
 //
 //go:noinline
@@ -602,7 +693,10 @@ func predictionSubscriptionAcquireDocs() string { return "prediction-subscriptio
 // @Produce json
 // @Param code path string true "预测合约代码"
 // @Param leaseId path string true "订阅租约 ID"
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=PredictionSubscriptionReleaseData}
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/prediction/contracts/{code}/subscriptions/{leaseId} [delete]
 //
 //go:noinline
@@ -613,10 +707,12 @@ func predictionSubscriptionReleaseDocs() string { return "prediction-subscriptio
 // @Tags prediction-market
 // @Accept json
 // @Produce json
-// @Param request body map[string]any true "Parlay legs and MVC"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 403 {object} httpserver.Envelope
+// @Param request body service.PredictionComboQuoteRequest true "Parlay legs and MVC"
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/prediction/combos/quotes [post]
 //
 //go:noinline
@@ -626,26 +722,40 @@ func predictionQuoteDocs() string { return "prediction-quote" }
 // @Summary 查询机器可检查的券商能力目录
 // @Tags brokers
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=BrokerCapabilitiesData}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/brokers/capabilities [get]
 //
 //go:noinline
 func brokerCapabilityDocs() string { return "broker-capabilities" }
 
-// customizationDocs godoc
-// @Summary 查询或修改券商提醒与远程自选
+// customizationReadDocs godoc
+// @Summary 查询券商提醒与远程自选
+// @Tags customization
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=broker.FeatureResult}
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/alerts/price [get]
+// @Router /api/v1/alerts/option-events [get]
+// @Router /api/v1/watchlists/remote [get]
+//
+//go:noinline
+func customizationReadDocs() string { return "customization-read" }
+
+// customizationWriteDocs godoc
+// @Summary 修改券商提醒与远程自选
 // @Tags customization
 // @Accept json
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 502 {object} httpserver.Envelope
-// @Router /api/v1/alerts/price [get]
+// @Param request body CustomizationRequest true "自定义操作参数"
+// @Success 200 {object} httpserver.Envelope{data=broker.CustomizationResult}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/alerts/price [post]
-// @Router /api/v1/alerts/option-events [get]
 // @Router /api/v1/alerts/option-events [post]
-// @Router /api/v1/watchlists/remote [get]
 // @Router /api/v1/watchlists/remote [post]
 //
 //go:noinline
-func customizationDocs() string { return "customization" }
+func customizationWriteDocs() string { return "customization-write" }

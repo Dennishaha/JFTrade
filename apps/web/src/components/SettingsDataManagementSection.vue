@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import type { components } from "../generated/openapi";
+import {
+  apiGetPath,
+  apiPost,
+  apiPostPath,
+} from "../composables/apiClient";
 
 type StorageStats = {
   mainBytes: number;
@@ -51,27 +56,8 @@ type StatusResponse = {
   checkedAt?: string;
 };
 
-type RebuildResult = { databaseIds: string[]; restartRequired: boolean; scheduled: boolean };
-type CleanupPreview = {
-  previewId: string;
-  expiresAt: string;
-  kind: string;
-  databaseId: string;
-  candidateCount: number;
-  estimatedBytes: number;
-  items: CleanableItem[];
-  confirmationText: string;
-  willCompact: boolean;
-};
-type CleanupResult = {
-  databaseId: string;
-  deletedCount: number;
-  reclaimedBytes: number;
-  compacted: boolean;
-  warning?: string;
-};
-type CompactResult = { databaseId: string; reclaimedBytes: number; compacted: boolean };
-type BackupResult = { databaseId: string; backupPath: string; sizeBytes: number; createdAt: string };
+type WireOverview = components["schemas"]["settings.DataManagementOverviewResponse"];
+type CleanupPreview = components["schemas"]["settings.DataCleanupPreviewResponse"];
 
 const emptyStorage: StorageStats = {
   mainBytes: 0,
@@ -153,7 +139,10 @@ async function loadStatuses(): Promise<void> {
   summaryLoading.value = true;
   errorMessage.value = "";
   try {
-    const response = await fetchEnvelope<StatusResponse>("/api/v1/settings/data-management/databases?summaryOnly=true");
+    const response = mapStatusResponse(await apiGetPath(
+      "/api/v1/settings/data-management/databases",
+      "/api/v1/settings/data-management/databases?summaryOnly=true",
+    ));
     if (generation !== loadGeneration) return;
     databases.value = response.databases;
     loadedDatabaseIds.value = [];
@@ -178,9 +167,10 @@ async function loadStatuses(): Promise<void> {
 async function refreshDatabase(databaseId: string, generation = loadGeneration): Promise<void> {
   markDatabaseLoading(databaseId, true);
   try {
-    const response = await fetchEnvelope<StatusResponse>(
+    const response = mapStatusResponse(await apiGetPath(
+      "/api/v1/settings/data-management/databases",
       `/api/v1/settings/data-management/databases?databaseId=${encodeURIComponent(databaseId)}`,
-    );
+    ));
     if (generation !== loadGeneration) return;
     const database = response.databases[0];
     if (database != null) replaceDatabase(database);
@@ -246,6 +236,24 @@ function loadErrorFor(databaseId: string): string {
 
 function storageOf(database: DatabaseStatus): StorageStats {
   return database.storage ?? emptyStorage;
+}
+
+function mapStatusResponse(response: WireOverview): StatusResponse {
+  return {
+    checkedAt: response.checkedAt,
+    totals: response.totals,
+    databases: response.databases.map((database) => ({
+      ...database,
+      status: normalizeDatabaseStatus(database.status),
+    })),
+  };
+}
+
+function normalizeDatabaseStatus(status: string): DatabaseStatus["status"] {
+  return status === "ready" || status === "missing" ||
+    status === "incompatible" || status === "unavailable"
+    ? status
+    : "unavailable";
 }
 
 function cleanableCount(database: DatabaseStatus, kind: string): number {
@@ -316,9 +324,9 @@ async function submitRebuild(): Promise<void> {
     const body = selectedDatabase.value == null
       ? { mode: "incompatible", confirmation: confirmation.value }
       : { mode: "single", databaseId: selectedDatabase.value.id, confirmation: confirmation.value };
-    const result = await fetchEnvelopeWithInit<RebuildResult>(
+    const result = await apiPost(
       "/api/v1/settings/data-management/databases/rebuild",
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+      body,
     );
     noticeMessage.value = result.restartRequired
       ? "已安排重建，请重启 JFTrade。重启完成前相关功能仍不可用。"
@@ -343,9 +351,9 @@ async function previewCleanup(kind: "soft-deleted" | "backtest-history", databas
     const body = kind === "backtest-history"
       ? { kind, databaseId, olderThanDays: olderThanDays.value, keepLatest: keepLatest.value }
       : { kind, databaseId };
-    cleanupPreview.value = await fetchEnvelopeWithInit<CleanupPreview>(
+    cleanupPreview.value = await apiPost(
       "/api/v1/settings/data-management/cleanup/preview",
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+      body,
     );
     confirmation.value = "";
     showDialog("database-cleanup-dialog");
@@ -368,13 +376,9 @@ async function executeCleanup(): Promise<void> {
   submitting.value = true;
   errorMessage.value = "";
   try {
-    const result = await fetchEnvelopeWithInit<CleanupResult>(
+    const result = await apiPost(
       "/api/v1/settings/data-management/cleanup/execute",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ previewId: preview.previewId, confirmation: confirmation.value }),
-      },
+      { previewId: preview.previewId, confirmation: confirmation.value },
     );
     noticeMessage.value = result.warning || `已永久清理 ${result.deletedCount} 项，释放 ${formatBytes(result.reclaimedBytes)}。`;
     closeCleanupDialog();
@@ -404,13 +408,10 @@ async function executeCompact(): Promise<void> {
   submitting.value = true;
   errorMessage.value = "";
   try {
-    const result = await fetchEnvelopeWithInit<CompactResult>(
+    const result = await apiPostPath(
+      "/api/v1/settings/data-management/databases/{databaseId}/compact",
       `/api/v1/settings/data-management/databases/${encodeURIComponent(database.id)}/compact`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmation: confirmation.value }),
-      },
+      { confirmation: confirmation.value },
     );
     noticeMessage.value = `数据库整理完成，释放 ${formatBytes(result.reclaimedBytes)}。`;
     closeCompactDialog();
@@ -429,13 +430,10 @@ async function backupDatabase(database: DatabaseStatus): Promise<void> {
   submitting.value = true;
   errorMessage.value = "";
   try {
-    const result = await fetchEnvelopeWithInit<BackupResult>(
+    const result = await apiPostPath(
+      "/api/v1/settings/data-management/databases/{databaseId}/backup",
       `/api/v1/settings/data-management/databases/${encodeURIComponent(database.id)}/backup`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmation }),
-      },
+      { confirmation },
     );
     noticeMessage.value = `已备份 ${database.name}（${formatBytes(result.sizeBytes)}）：${result.backupPath}`;
   } catch (error) {

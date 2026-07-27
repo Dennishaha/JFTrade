@@ -18,7 +18,8 @@ import (
 // @Summary 读取 broker 设置
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=BrokerSettingsResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/brokers [get]
 func handleBrokerSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -33,8 +34,9 @@ func handleBrokerSettings(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Param brokerId path string true "Broker 标识"
 // @Param request body BrokerIntegrationSaveRequest true "Broker 集成配置"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.BrokerIntegration}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/brokers/{brokerId}/integration [put]
 func handleSaveBrokerIntegration(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -68,8 +70,9 @@ func handleSaveBrokerIntegration(svc *srv.Service) gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Param request body ManagedBrokerAccountWriteRequest true "托管账户"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.ManagedBrokerAccount}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/broker-accounts [post]
 func handleCreateManagedBrokerAccount(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -98,9 +101,10 @@ func handleCreateManagedBrokerAccount(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Param accountRecordId path string true "托管账户记录 ID"
 // @Param request body ManagedBrokerAccountWriteRequest true "托管账户"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.ManagedBrokerAccount}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/broker-accounts/{accountRecordId} [put]
 func handleUpdateManagedBrokerAccount(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -134,9 +138,10 @@ func handleUpdateManagedBrokerAccount(svc *srv.Service) gin.HandlerFunc {
 // @Tags settings
 // @Produce json
 // @Param accountRecordId path string true "托管账户记录 ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=DeletedResourceResponse}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/broker-accounts/{accountRecordId} [delete]
 func handleDeleteManagedBrokerAccount(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {

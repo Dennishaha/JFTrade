@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 )
 
 func TestADKRoutesSerializeEmptySlicesAsArrays(t *testing.T) {
@@ -21,20 +21,20 @@ func TestADKRoutesSerializeEmptySlicesAsArrays(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	session, err := server.adkRuntime.Store().CreateSession(t.Context(), "agent-default", "normalize")
+	session, err := serverADKTestStore(t, server).CreateSession(t.Context(), "agent-default", "normalize")
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
-	run := jfadk.Run{
+	run := assistant.Run{
 		ID:        "run-json-normalize",
 		SessionID: session.ID,
 		AgentID:   "agent-default",
-		Status:    jfadk.RunStatusCompleted,
+		Status:    assistant.RunStatusCompleted,
 		Message:   "completed",
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
-	if err := server.adkRuntime.Store().SaveRun(t.Context(), run); err != nil {
+	if err := serverADKTestStore(t, server).SaveRun(t.Context(), run); err != nil {
 		t.Fatalf("SaveRun: %v", err)
 	}
 
@@ -77,29 +77,29 @@ func TestADKRoutesSerializeEmptySlicesAsArrays(t *testing.T) {
 		t.Fatalf("timeline = %#v, want JSON array", sessionData["timeline"])
 	}
 
-	approval := jfadk.Approval{
+	approval := assistant.Approval{
 		ID:        "approval-json-normalize",
 		RunID:     "run-approval-normalize",
 		AgentID:   "agent-default",
 		ToolName:  "strategy.save_draft",
-		Status:    jfadk.ApprovalStatusPending,
+		Status:    assistant.ApprovalStatusPending,
 		Reason:    "review",
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
-	if err := server.adkRuntime.Store().SaveRun(t.Context(), jfadk.Run{
+	if err := serverADKTestStore(t, server).SaveRun(t.Context(), assistant.Run{
 		ID:               approval.RunID,
 		SessionID:        session.ID,
 		AgentID:          approval.AgentID,
-		Status:           jfadk.RunStatusPending,
+		Status:           assistant.RunStatusPending,
 		Message:          "waiting approval",
-		PendingApprovals: []jfadk.Approval{approval},
+		PendingApprovals: []assistant.Approval{approval},
 		CreatedAt:        time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt:        time.Now().UTC().Format(time.RFC3339Nano),
 	}); err != nil {
 		t.Fatalf("SaveRun approval: %v", err)
 	}
-	if err := server.adkRuntime.Store().SaveApproval(t.Context(), approval); err != nil {
+	if err := serverADKTestStore(t, server).SaveApproval(t.Context(), approval); err != nil {
 		t.Fatalf("SaveApproval: %v", err)
 	}
 

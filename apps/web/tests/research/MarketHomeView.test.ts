@@ -17,7 +17,16 @@ vi.mock("../../src/composables/productFeatures", async (importOriginal) => {
 vi.mock("../../src/composables/apiClient", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("../../src/composables/apiClient")>();
-  return { ...actual, fetchEnvelopeWithInit: mocks.fetchWithInit };
+  return {
+    ...actual,
+    fetchEnvelopeWithInit: mocks.fetchWithInit,
+    apiPostPath: (_template: string, path: string, body: unknown) =>
+      mocks.fetchWithInit(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+  };
 });
 
 import MarketHomeView from "../../src/components/research/MarketHomeView.vue";

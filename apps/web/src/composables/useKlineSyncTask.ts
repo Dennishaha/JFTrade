@@ -1,8 +1,9 @@
 import { onScopeDispose, ref } from "vue";
 
-import type { BacktestSyncRequestPayload } from "@/contracts";
+import type { BacktestSyncRequestPayload } from "@/types";
+import type { components } from "@/generated/openapi";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { apiDeletePath, apiGetPath, apiPost } from "./apiClient";
 import { createBacktestLiveReducer } from "./liveEventReducers";
 import { getLiveEventBus } from "./liveEventBus";
 
@@ -29,6 +30,25 @@ export interface KlineSyncProgress {
   error?: string;
   startedAt: string;
   updatedAt: string;
+}
+
+type BacktestSyncRequestWire = components["schemas"]["backtest.SyncRequest"];
+
+export function toBacktestSyncRequestWire(
+  payload: BacktestSyncRequestPayload,
+): BacktestSyncRequestWire {
+  return {
+    market: payload.market ?? "",
+    code: payload.code ?? "",
+    symbol: payload.symbol ?? "",
+    intervals: payload.intervals,
+    rehabType: payload.rehabType ?? "",
+    ...(payload.startDate === "" ? {} : { startDate: payload.startDate }),
+    ...(payload.endDate === "" ? {} : { endDate: payload.endDate }),
+    ...(payload.since == null ? {} : { since: payload.since }),
+    ...(payload.until == null ? {} : { until: payload.until }),
+    ...(payload.sessionScope == null ? {} : { sessionScope: payload.sessionScope }),
+  };
 }
 
 export function useKlineSyncTask() {
@@ -68,13 +88,9 @@ export function useKlineSyncTask() {
     syncError.value = "";
 
     try {
-      const started = await fetchEnvelopeWithInit<{ taskId: string; message: string }>(
+      const started = await apiPost(
         "/api/v1/backtests/sync",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
+        toBacktestSyncRequestWire(payload),
       );
       if (disposed || generation !== syncRequestGeneration) {
         return null;
@@ -177,7 +193,8 @@ export function useKlineSyncTask() {
     const requestGeneration = syncRequestGeneration;
     const pollingGeneration = refreshPollingGeneration;
     try {
-      const progress = await fetchEnvelope<KlineSyncProgress>(
+      const progress = await apiGetPath(
+        "/api/v1/backtests/sync/{taskId}",
         `/api/v1/backtests/sync/${encodeURIComponent(taskId)}`,
       );
       if (
@@ -203,9 +220,10 @@ export function useKlineSyncTask() {
       return;
     }
     try {
-      await fetchEnvelopeWithInit(`/api/v1/backtests/sync/${encodeURIComponent(taskId)}`, {
-        method: "DELETE",
-      });
+      await apiDeletePath(
+        "/api/v1/backtests/sync/{taskId}",
+        `/api/v1/backtests/sync/${encodeURIComponent(taskId)}`,
+      );
     } catch {
       // best effort
     }

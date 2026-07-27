@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-import type { ADKAgent, ADKSession } from "@/contracts";
+import type { ADKAgent, ADKSession } from "@/types";
 import type { ADKSessionGroup } from "@/composables/useADKPageSessionState";
 
 defineProps<{

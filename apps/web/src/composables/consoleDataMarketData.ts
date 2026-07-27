@@ -1,12 +1,14 @@
 import { ref, type Ref } from "vue";
 
 import {
-  type BrokerOrdersResponse,
-  type BrokerPositionsResponse,
   type ExecutionOrdersResponse,
   type MarketDataSubscriptionsResponse,
-  type PortfolioPositionsResponse,
   emptyMarketDataSubscriptions,
+} from "@/types";
+import type {
+  BrokerOrdersResponse,
+  BrokerPositionsResponse,
+  PortfolioPositionsResponse,
 } from "@/contracts";
 
 import {

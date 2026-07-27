@@ -1,4 +1,4 @@
-import type { MarketSecurityDetails } from "../contracts";
+import type { MarketSecurityDetails } from "../types";
 import {
   capabilitySurfaceID,
   type CapabilitySurfaceID,

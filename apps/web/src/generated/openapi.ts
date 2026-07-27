@@ -5,81 +5,967 @@
 
 export interface components {
   schemas: {
+    "adk.Agent": {
+    builtin?: boolean;
+    createdAt: string;
+    deletedAt?: string;
+    id: string;
+    instruction: string;
+    loopMaxIterations: number;
+    memoryEnabled: boolean;
+    model: string;
+    name: string;
+    permissionMode: string;
+    providerId: string;
+    recentUserWindow: number;
+    skills: Array<string>;
+    status: string;
+    tools: Array<string>;
+    updatedAt: string;
+    workMode: string;
+  };
+    "adk.AgentWriteRequest": {
+    id?: string;
+    instruction: string;
+    loopMaxIterations?: number;
+    memoryEnabled: boolean;
+    model?: string;
+    name: string;
+    permissionMode: string;
+    providerId: string;
+    recentUserWindow?: number;
+    skills?: Array<string>;
+    status: string;
+    tools?: Array<string>;
+    workMode?: string;
+  };
+    "adk.Approval": {
+    agentId: string;
+    confirmationCallId?: string;
+    createdAt: string;
+    functionCallId?: string;
+    id: string;
+    input?: Record<string, unknown>;
+    reason: string;
+    runId: string;
+    status: string;
+    toolName: string;
+    updatedAt: string;
+  };
+    "adk.ApprovalResolution": {
+    approval: components["schemas"]["adk.Approval"];
+    message?: components["schemas"]["adk.TranscriptEntry"];
+    parentRun?: components["schemas"]["adk.Run"];
+    run?: components["schemas"]["adk.Run"];
+  };
+    "adk.AuditEvent": {
+    createdAt: string;
+    detail: string;
+    id: string;
+    kind: string;
+    metadata?: Record<string, unknown>;
+    subjectId?: string;
+  };
+    "adk.ChatResponse": {
+    context?: components["schemas"]["adk.SessionContextSnapshot"];
+    inputRequest?: components["schemas"]["adk.InputRequest"];
+    pendingApprovals: Array<components["schemas"]["adk.Approval"]>;
+    reasoningContent?: string;
+    reply: string;
+    run: components["schemas"]["adk.Run"];
+    session: components["schemas"]["adk.Session"];
+    timeline: Array<components["schemas"]["adk.TimelineEntry"]>;
+  };
+    "adk.InputAnswer": {
+    optionId?: string;
+    otherText?: string;
+    questionId: string;
+  };
+    "adk.InputOption": {
+    description?: string;
+    id: string;
+    label: string;
+    recommended?: boolean;
+  };
+    "adk.InputQuestion": {
+    allowOther: boolean;
+    id: string;
+    options: Array<components["schemas"]["adk.InputOption"]>;
+    question: string;
+  };
+    "adk.InputRequest": {
+    agentId: string;
+    answeredAt?: string;
+    answers?: Array<components["schemas"]["adk.InputAnswer"]>;
+    createdAt: string;
+    functionCallId: string;
+    id: string;
+    questions: Array<components["schemas"]["adk.InputQuestion"]>;
+    runId: string;
+    status: string;
+    title?: string;
+    updatedAt: string;
+  };
+    "adk.InputResolution": {
+    message?: components["schemas"]["adk.TranscriptEntry"];
+    parentRun?: components["schemas"]["adk.Run"];
+    request: components["schemas"]["adk.InputRequest"];
+    run?: components["schemas"]["adk.Run"];
+  };
+    "adk.MemoryEntry": {
+    agentId?: string;
+    createdAt: string;
+    id: string;
+    key: string;
+    scope: string;
+    updatedAt: string;
+    value: string;
+  };
+    "adk.Provider": {
+    baseUrl: string;
+    capabilities?: Record<string, boolean>;
+    contextWindowTokens?: number;
+    createdAt: string;
+    default: boolean;
+    defaultHeaders?: Record<string, string>;
+    displayName: string;
+    enabled: boolean;
+    hasApiKey: boolean;
+    id: string;
+    model: string;
+    requestTimeoutMs: number;
+    updatedAt: string;
+  };
+    "adk.Run": {
+    agentId: string;
+    cancelledAt?: string;
+    childRunIds?: Array<string>;
+    completedAt?: string;
+    createdAt: string;
+    degraded?: boolean;
+    errorCode?: string;
+    failureReason?: string;
+    finalMessageId?: string;
+    id: string;
+    inputRequest?: components["schemas"]["adk.InputRequest"];
+    inputRequests?: Array<components["schemas"]["adk.InputRequest"]>;
+    iteration?: number;
+    maxDurationMs: number;
+    message: string;
+    model?: string;
+    objective?: string;
+    optimizationTaskId?: string;
+    parentRunId?: string;
+    pauseRequestedAt?: string;
+    pausedAt?: string;
+    pausedReason?: string;
+    pendingApprovals: Array<components["schemas"]["adk.Approval"]>;
+    permissionMode?: string;
+    preToolContent?: string;
+    preToolReasoning?: string;
+    providerId?: string;
+    providerName?: string;
+    resumeState?: string;
+    sessionId: string;
+    startedAt?: string;
+    status: string;
+    toolCalls: Array<components["schemas"]["adk.ToolCall"]>;
+    toolSummaries?: Array<string>;
+    updatedAt: string;
+    usage?: components["schemas"]["adk.RunUsage"];
+    userMessage?: string;
+    workMode?: string;
+    workflowCursor?: number;
+    workflowEngine?: string;
+    workflowPlan?: Array<components["schemas"]["adk.WorkflowStepState"]>;
+    workflowStatus?: string;
+  };
+    "adk.RunOptions": {
+    loopMaxIterations?: number;
+  };
+    "adk.RunUsage": {
+    durationMs?: number;
+    modelCalls: number;
+    tokensIn?: number;
+    tokensOut?: number;
+    toolCallsTotal: number;
+  };
+    "adk.Session": {
+    agentId: string;
+    createdAt: string;
+    id: string;
+    title: string;
+    updatedAt: string;
+    workflowId?: string;
+    workflowName?: string;
+  };
+    "adk.SessionComposerState": {
+    chatDraft: string;
+    goalObjectiveDraft: string;
+    goalObjectiveTouched: boolean;
+    modelOverride: string;
+    permissionModeOverride: string;
+    providerIdOverride: string;
+    sessionId: string;
+    updatedAt: string;
+    workModeOverride: string;
+  };
+    "adk.SessionContextBreakdown": {
+    handoffTokens: number;
+    instructionTokens: number;
+    otherVisibleTokens: number;
+    pendingUserTokens: number;
+    protectedTailTokens: number;
+    recentUserTokens: number;
+    toolDeclarationTokens: number;
+  };
+    "adk.SessionContextSnapshot": {
+    activeHandoffCount: number;
+    autoCompacted: boolean;
+    breakdown: components["schemas"]["adk.SessionContextBreakdown"];
+    compactedEventCount?: number;
+    contextRevisionCreatedAt?: string;
+    contextRevisionId?: string;
+    contextWindowTokens: number;
+    currentInputTokens: number;
+    degradedSummary: boolean;
+    estimatedInputTokens?: number;
+    lastCompactedAt?: string;
+    lastCompactionMode?: string;
+    lastCompactionReason?: string;
+    latestHandoffPreview?: string;
+    previousContextRevisionId?: string;
+    projectedNextTurnTokens: number;
+    protectedRecentCount?: number;
+    rawBreakdown: components["schemas"]["adk.SessionContextBreakdown"];
+    rawCurrentInputTokens?: number;
+    rawEventCount?: number;
+    rawProjectedNextTurnTokens?: number;
+    recentUserWindow: number;
+    retainedRecentUserCount: number;
+    sessionId: string;
+    status: string;
+    summaryBoundaryEventIndex?: number;
+    summaryPreview?: string;
+    trimmedToolResponseCount?: number;
+    usageRatio: number;
+  };
+    "adk.SessionsResponse": {
+    composerState: components["schemas"]["adk.SessionComposerState"];
+    runs?: Array<components["schemas"]["adk.Run"]>;
+    session: components["schemas"]["adk.Session"];
+    timeline: Array<components["schemas"]["adk.TimelineEntry"]>;
+  };
+    "adk.Skill": {
+    builtin: boolean;
+    contentHash?: string;
+    createdAt: string;
+    description: string;
+    displayName: string;
+    enabled: boolean;
+    id: string;
+    installPath: string;
+    source: string;
+    tools: Array<string>;
+    updatedAt: string;
+    validationError?: string;
+    validationStatus?: string;
+    version?: string;
+  };
+    "adk.Task": {
+    agentId?: string;
+    agentRole?: string;
+    childAgentId?: string;
+    childModel?: string;
+    childPermissionMode?: string;
+    childProviderId?: string;
+    createdAt: string;
+    dependsOn?: Array<string>;
+    description?: string;
+    executor?: string;
+    id: string;
+    message?: string;
+    modeHint?: string;
+    objective?: string;
+    order?: number;
+    planSource?: string;
+    plannerStepId?: string;
+    plannerWarnings?: Array<string>;
+    resultSummary?: string;
+    runId?: string;
+    status: string;
+    title: string;
+    updatedAt: string;
+    workflowMode?: string;
+  };
+    "adk.TimelineEntry": {
+    approvals?: Array<components["schemas"]["adk.Approval"]>;
+    createdAt: string;
+    id: string;
+    inputRequest?: components["schemas"]["adk.InputRequest"];
+    kind: string;
+    originalText?: string;
+    processedText?: string;
+    runId?: string;
+    sequence: number;
+    sessionId: string;
+    status?: string;
+    text?: string;
+    toolCalls?: Array<components["schemas"]["adk.ToolCall"]>;
+    updatedAt?: string;
+  };
+    "adk.ToolCall": {
+    completedAt?: string;
+    createdAt: string;
+    durationMs?: number;
+    error?: string;
+    id: string;
+    idempotencyKey?: string;
+    input?: Record<string, unknown>;
+    output?: unknown;
+    permission: string;
+    requiresUser: boolean;
+    runId: string;
+    startedAt?: string;
+    status: string;
+    toolName: string;
+    updatedAt: string;
+  };
+    "adk.ToolDescriptor": {
+    allowedModes: Array<string>;
+    category: string;
+    description: string;
+    displayName: string;
+    idempotencyMode?: string;
+    inputSchema?: Record<string, unknown>;
+    name: string;
+    outputSummary?: string;
+    permission: string;
+    requiredSkills?: Array<string>;
+    requiresApprovalIn: Array<string>;
+    riskLevel?: string;
+  };
+    "adk.TranscriptEntry": {
+    content: string;
+    createdAt: string;
+    id: string;
+    kind: string;
+    reasoningContent?: string;
+    role: string;
+    runId?: string;
+    sessionId: string;
+  };
+    "adk.WorkflowCanvasEdge": {
+    data?: Record<string, unknown>;
+    id: string;
+    source: string;
+    sourceHandle?: string;
+    target: string;
+    targetHandle?: string;
+    type?: string;
+  };
+    "adk.WorkflowCanvasGraph": {
+    edges?: Array<components["schemas"]["adk.WorkflowCanvasEdge"]>;
+    nodes?: Array<components["schemas"]["adk.WorkflowCanvasNode"]>;
+    version?: string;
+    viewport?: Record<string, unknown>;
+  };
+    "adk.WorkflowCanvasNode": {
+    data?: Record<string, unknown>;
+    id: string;
+    position: components["schemas"]["adk.WorkflowCanvasPoint"];
+    type: string;
+  };
+    "adk.WorkflowCanvasPoint": {
+    x: number;
+    y: number;
+  };
+    "adk.WorkflowDefinition": {
+    agentId: string;
+    builtinTemplate?: boolean;
+    canvasGraph?: components["schemas"]["adk.WorkflowCanvasGraph"];
+    createdAt: string;
+    defaultInputs?: Record<string, unknown>;
+    deletedAt?: string;
+    description?: string;
+    id: string;
+    model?: string;
+    name: string;
+    objectiveTemplate?: string;
+    permissionMode?: string;
+    promptTemplate: string;
+    providerId?: string;
+    status: string;
+    tags?: Array<string>;
+    updatedAt: string;
+    workMode: string;
+  };
+    "adk.WorkflowNodeRun": {
+    error?: string;
+    finishedAt?: string;
+    inputs?: Record<string, unknown>;
+    nodeId: string;
+    nodeType: string;
+    outputs?: Record<string, unknown>;
+    startedAt?: string;
+    status: string;
+    title?: string;
+  };
+    "adk.WorkflowResult": {
+    format?: string;
+    json?: Record<string, unknown>;
+    markdown?: string;
+    rawResponse?: components["schemas"]["adk.ChatResponse"];
+  };
+    "adk.WorkflowStepState": {
+    agentRole?: string;
+    childAgentId?: string;
+    childModel?: string;
+    childPermissionMode?: string;
+    childProviderId?: string;
+    childRunId?: string;
+    dependsOn?: Array<string>;
+    description?: string;
+    executor?: string;
+    iteration?: number;
+    message?: string;
+    modeHint?: string;
+    nodeName?: string;
+    nodeStatus?: string;
+    objective?: string;
+    order?: number;
+    outputSummary?: string;
+    planSource?: string;
+    plannerStepId?: string;
+    plannerWarnings?: Array<string>;
+    resultSummary?: string;
+    routes?: Array<string>;
+    status: string;
+    taskId?: string;
+    title: string;
+    workflowMode?: string;
+  };
+    "adk.WorkflowTrigger": {
+    config?: Record<string, unknown>;
+    createdAt: string;
+    deletedAt?: string;
+    hasSecret?: boolean;
+    id: string;
+    lastError?: string;
+    lastRunAt?: string;
+    lastRunId?: string;
+    nextRunAt?: string;
+    secretHash?: string;
+    status: string;
+    title: string;
+    type: string;
+    updatedAt: string;
+    workflowId: string;
+  };
+    "adk.WorkflowTriggerLog": {
+    createdAt: string;
+    error?: string;
+    finishedAt?: string;
+    id: string;
+    inputs?: Record<string, unknown>;
+    matchedEvent?: Record<string, unknown>;
+    nodeRuns?: Array<components["schemas"]["adk.WorkflowNodeRun"]>;
+    result?: components["schemas"]["adk.WorkflowResult"];
+    runId?: string;
+    sessionId?: string;
+    startedAt?: string;
+    status: string;
+    triggerId?: string;
+    triggerType: string;
+    updatedAt: string;
+    workflowId: string;
+  };
+    "assistant.ADKAgentsData": {
+    agents: Array<components["schemas"]["adk.Agent"]>;
+    page: components["schemas"]["assistant.ADKPageData"];
+  };
+    "assistant.ADKAgentTemplatesData": {
+    templates: Array<components["schemas"]["adk.AgentWriteRequest"]>;
+  };
+    "assistant.ADKAgentWriteRequest": {
+    id?: string;
+    instruction: string;
+    loopMaxIterations?: number;
+    memoryEnabled: boolean;
+    model?: string;
+    name: string;
+    permissionMode: string;
+    providerId: string;
+    recentUserWindow?: number;
+    skills?: Array<string>;
+    status: string;
+    tools?: Array<string>;
+    workMode?: string;
+  };
+    "assistant.ADKApprovalMetricsData": {
+    approved: number;
+    denied: number;
+    pending: number;
+    pendingWaitMs: components["schemas"]["assistant.ADKWaitMetricsData"];
+    recoverablePending: number;
+    resolutionWaitMs: components["schemas"]["assistant.ADKWaitMetricsData"];
+    total: number;
+  };
+    "assistant.ADKApprovalsData": {
+    approvals: Array<components["schemas"]["adk.Approval"]>;
+    page: components["schemas"]["assistant.ADKPageData"];
+  };
+    "assistant.ADKAuditData": {
+    events: Array<components["schemas"]["adk.AuditEvent"]>;
+    page: components["schemas"]["assistant.ADKPageData"];
+  };
+    "assistant.ADKChatRequest": {
+    agentId?: string;
+    message: string;
+    model?: string;
+    objective?: string;
+    permissionModeOverride?: string;
+    providerId?: string;
+    runOptions?: components["schemas"]["adk.RunOptions"];
+    sessionId?: string;
+    workModeOverride?: string;
+  };
+    "assistant.ADKCompactContextRequest": {
+    mode: string;
+    reason?: string;
+  };
+    "assistant.ADKCreateSessionRequest": {
+    agentId: string;
+    title: string;
+  };
+    "assistant.ADKDeletedIDData": {
+    deleted: boolean;
+    id: string;
+  };
+    "assistant.ADKInputResponseRequest": {
+    answers: Array<components["schemas"]["adk.InputAnswer"]>;
+    requestId: string;
+  };
+    "assistant.ADKInstallSkillRequest": {
+    url: string;
+  };
+    "assistant.ADKMemoryData": {
+    entries: Array<components["schemas"]["adk.MemoryEntry"]>;
+  };
+    "assistant.ADKMemoryWriteRequest": {
+    agentId?: string;
+    key: string;
+    scope?: string;
+    value: string;
+  };
+    "assistant.ADKMetricsData": {
+    approvals: components["schemas"]["assistant.ADKApprovalMetricsData"];
+    checkedAt: string;
+    runs: components["schemas"]["assistant.ADKRunMetricsData"];
+    tools: components["schemas"]["assistant.ADKToolMetricsData"];
+    usage: components["schemas"]["assistant.ADKUsageMetricsData"];
+  };
+    "assistant.ADKOptimizationProgress": {
+    cancelled: number;
+    completed: number;
+    failed: number;
+    running: number;
+    total: number;
+  };
+    "assistant.ADKOptimizationRunData": {
+    definitionId: string;
+    result?: unknown;
+    runId: string;
+    status: string;
+  };
+    "assistant.ADKOptimizationTaskData": {
+    createdAt: string;
+    id: string;
+    objective: string;
+    progress: components["schemas"]["assistant.ADKOptimizationProgress"];
+    runs: Array<components["schemas"]["assistant.ADKOptimizationRunData"]>;
+    status: string;
+    updatedAt: string;
+  };
+    "assistant.ADKOptimizationTasksData": {
+    page: components["schemas"]["assistant.ADKPageData"];
+    tasks: Array<components["schemas"]["assistant.ADKOptimizationTaskData"]>;
+  };
+    "assistant.ADKPageData": {
+    hasMore: boolean;
+    limit: number;
+    offset: number;
+    returned: number;
+    total: number;
+  };
+    "assistant.ADKProvidersData": {
+    providers: Array<components["schemas"]["adk.Provider"]>;
+  };
+    "assistant.ADKProviderTestData": {
+    capabilities: Record<string, boolean>;
+    checkedAt: string;
+    ok: boolean;
+    reply: string;
+  };
+    "assistant.ADKProviderWriteRequest": {
+    apiKey?: string;
+    baseUrl: string;
+    contextWindowTokens?: number;
+    defaultHeaders?: Record<string, string>;
+    displayName: string;
+    enabled: boolean;
+    id?: string;
+    model: string;
+    requestTimeoutMs?: number;
+  };
+    "assistant.ADKRenameSessionRequest": {
+    title: string;
+  };
+    "assistant.ADKRunMetricsData": {
+    byAgent: Record<string, number>;
+    byProvider: Record<string, number>;
+    byStatus: Record<string, number>;
+    lifecycle: Record<string, number>;
+    total: number;
+  };
+    "assistant.ADKRunsData": {
+    page: components["schemas"]["assistant.ADKPageData"];
+    runs: Array<components["schemas"]["adk.Run"]>;
+  };
+    "assistant.ADKSessionComposerStatePatch": {
+    chatDraft?: string;
+    goalObjectiveDraft?: string;
+    goalObjectiveTouched?: boolean;
+    modelOverride?: string;
+    permissionModeOverride?: string;
+    providerIdOverride?: string;
+    workModeOverride?: string;
+  };
+    "assistant.ADKSessionsData": {
+    page: components["schemas"]["assistant.ADKPageData"];
+    sessions: Array<components["schemas"]["adk.Session"]>;
+  };
+    "assistant.ADKSkillsData": {
+    skills: Array<components["schemas"]["adk.Skill"]>;
+  };
+    "assistant.ADKSnapshotData": {
+    agents: Array<components["schemas"]["adk.Agent"]>;
+    providers: Array<components["schemas"]["adk.Provider"]>;
+    runtimeSettings?: components["schemas"]["jftsettings.ADKRuntimeSettings"];
+    skills: Array<components["schemas"]["adk.Skill"]>;
+    tools: Array<components["schemas"]["adk.ToolDescriptor"]>;
+  };
+    "assistant.ADKTaskPatchRequest": {
+    agentId?: string;
+    agentRole?: string;
+    childAgentId?: string;
+    childModel?: string;
+    childPermissionMode?: string;
+    childProviderId?: string;
+    dependsOn?: Array<string>;
+    description?: string;
+    executor?: string;
+    message?: string;
+    modeHint?: string;
+    objective?: string;
+    order?: number;
+    planSource?: string;
+    plannerStepId?: string;
+    plannerWarnings?: Array<string>;
+    resultSummary?: string;
+    runId?: string;
+    status?: string;
+    title?: string;
+    workflowMode?: string;
+  };
+    "assistant.ADKTasksData": {
+    page: components["schemas"]["assistant.ADKPageData"];
+    tasks: Array<components["schemas"]["adk.Task"]>;
+  };
+    "assistant.ADKTaskWriteRequest": {
+    agentId?: string;
+    agentRole?: string;
+    childAgentId?: string;
+    childModel?: string;
+    childPermissionMode?: string;
+    childProviderId?: string;
+    dependsOn?: Array<string>;
+    description?: string;
+    executor?: string;
+    id?: string;
+    message?: string;
+    modeHint?: string;
+    objective?: string;
+    order?: number;
+    planSource?: string;
+    plannerStepId?: string;
+    plannerWarnings?: Array<string>;
+    resultSummary?: string;
+    runId?: string;
+    status?: string;
+    title: string;
+    workflowMode?: string;
+  };
+    "assistant.ADKToolMetricsData": {
+    averageDurationMs: number;
+    byName: Record<string, number>;
+    byStatus: Record<string, number>;
+    successful: number;
+    total: number;
+  };
+    "assistant.ADKToolsData": {
+    tools: Array<components["schemas"]["adk.ToolDescriptor"]>;
+  };
+    "assistant.ADKUpdateRunObjectiveRequest": {
+    objective: string;
+  };
+    "assistant.ADKUsageMetricsData": {
+    samples: number;
+    tokensInAverage: number;
+    tokensInTotal: number;
+    tokensOutAverage: number;
+    tokensOutTotal: number;
+  };
+    "assistant.ADKWaitMetricsData": {
+    average: number;
+    count?: number;
+    max: number;
+  };
+    "assistant.ADKWorkflowDefinitionWriteRequest": {
+    agentId: string;
+    canvasGraph?: components["schemas"]["adk.WorkflowCanvasGraph"];
+    defaultInputs?: Record<string, unknown>;
+    description?: string;
+    id?: string;
+    model?: string;
+    name: string;
+    objectiveTemplate?: string;
+    permissionMode?: string;
+    promptTemplate: string;
+    providerId?: string;
+    status?: string;
+    tags?: Array<string>;
+    workMode?: string;
+  };
+    "assistant.ADKWorkflowDeleteData": {
+    deleted: boolean;
+    workflow: components["schemas"]["adk.WorkflowDefinition"];
+  };
+    "assistant.ADKWorkflowInputsRequest": {
+    inputs?: Record<string, unknown>;
+  };
+    "assistant.ADKWorkflowInvocationData": {
+    log: components["schemas"]["adk.WorkflowTriggerLog"];
+    response?: components["schemas"]["adk.ChatResponse"];
+    trigger?: components["schemas"]["adk.WorkflowTrigger"];
+    workflow: components["schemas"]["adk.WorkflowDefinition"];
+  };
+    "assistant.ADKWorkflowsData": {
+    page: components["schemas"]["assistant.ADKPageData"];
+    workflows: Array<components["schemas"]["adk.WorkflowDefinition"]>;
+  };
+    "assistant.ADKWorkflowTriggerDeleteData": {
+    deleted: boolean;
+    trigger: components["schemas"]["adk.WorkflowTrigger"];
+  };
+    "assistant.ADKWorkflowTriggerLogsData": {
+    logs: Array<components["schemas"]["adk.WorkflowTriggerLog"]>;
+    page: components["schemas"]["assistant.ADKPageData"];
+  };
+    "assistant.ADKWorkflowTriggerSaveData": {
+    secret?: string;
+    trigger: components["schemas"]["adk.WorkflowTrigger"];
+  };
+    "assistant.ADKWorkflowTriggersData": {
+    triggers: Array<components["schemas"]["adk.WorkflowTrigger"]>;
+  };
+    "assistant.ADKWorkflowTriggerWriteRequest": {
+    config?: Record<string, unknown>;
+    id?: string;
+    resetSecret?: boolean;
+    status?: string;
+    title?: string;
+    type: string;
+  };
+    "backtest.BacktestDeleteData": {
+    deleted: boolean;
+    id: string;
+  };
+    "backtest.BacktestQueuedData": {
+    id: string;
+    message: string;
+    status: string;
+  };
     "backtest.BacktestRunsData": {
-    runs?: Array<components["schemas"]["backtest.RunState"]>;
+    runs: Array<components["schemas"]["backtest.RunState"]>;
+  };
+    "backtest.BacktestStatusData": {
+    id: string;
+    status: string;
+  };
+    "backtest.BacktestSyncCancelData": {
+    status: string;
+    taskId: string;
+  };
+    "backtest.BacktestSyncProgress": {
+    completedBatches: number;
+    completedIntervals: number;
+    currentInterval: string;
+    error?: string;
+    retries: number;
+    startedAt: string;
+    status: string;
+    symbol: string;
+    taskId: string;
+    totalBatches: number;
+    totalIntervals: number;
+    updatedAt: string;
   };
     "backtest.RunResult": {
     candles?: Array<components["schemas"]["runmodel.Candle"]>;
-    chartType?: components["schemas"]["chart.ChartType"];
-    currentDrawdown?: number;
+    chartType: components["schemas"]["chart.ChartType"];
+    currentDrawdown: number;
     drawdownCurve?: Array<components["schemas"]["runmodel.DrawdownPoint"]>;
-    endTime?: string;
+    endTime: string;
     error?: string;
     executionModel?: string;
     feeBreakdown?: Array<components["schemas"]["runmodel.FeeBreakdownEntry"]>;
-    finalBalance?: number;
+    finalBalance: number;
     heikinAshiSeed?: components["schemas"]["runmodel.HeikinAshiSeed"];
     ignoredOrders?: number;
-    interval?: string;
-    logs?: Array<string>;
-    maxDrawdown?: number;
+    interval: string;
+    logs: Array<string>;
+    maxDrawdown: number;
     orderBook?: Array<components["schemas"]["runmodel.OrderBookEntry"]>;
-    pnl?: number;
+    pnl: number;
     pnlCurve?: Array<components["schemas"]["runmodel.PnLPoint"]>;
-    quoteCurrency?: string;
+    quoteCurrency: string;
     runtimeErrorCounts?: Record<string, number>;
     runtimeErrorTotal?: number;
     runtimeErrors?: Array<string>;
     runtimeErrorsTruncated?: boolean;
-    startTime?: string;
-    symbol?: string;
+    startTime: string;
+    symbol: string;
     totalBrokerFees?: number;
     totalFees?: number;
     totalFills?: number;
     totalMarketFees?: number;
-    totalTrades?: number;
+    totalTrades: number;
     tradeStatsVersion?: number;
     trades?: Array<components["schemas"]["runmodel.TradeEvent"]>;
-    tradingCosts?: components["schemas"]["runmodel.TradingCosts"];
+    tradingCosts: components["schemas"]["runmodel.TradingCosts"];
     warningTotal?: number;
     warnings?: Array<string>;
     warningsTruncated?: boolean;
-    winRate?: number;
+    winRate: number;
   };
     "backtest.RunState": {
-    createdAt?: string;
-    id?: string;
-    request?: components["schemas"]["backtest.StartRequest"];
+    createdAt: string;
+    id: string;
+    request: components["schemas"]["backtest.StartRequest"];
     result?: components["schemas"]["backtest.RunResult"];
-    status?: string;
-    updatedAt?: string;
+    status: string;
+    updatedAt: string;
   };
     "backtest.StartRequest": {
-    chartType?: components["schemas"]["chart.ChartType"];
-    code?: string;
-    definitionId?: string;
+    chartType: components["schemas"]["chart.ChartType"];
+    code: string;
+    definitionId: string;
     definitionVersion?: string;
     endDate?: string;
     endTime?: string;
     executionModel?: string;
-    initialBalance?: number;
+    initialBalance: number;
     instrumentType?: string;
-    interval?: string;
-    market?: string;
+    interval: string;
+    market: string;
     marketTimezone?: string;
-    rehabType?: string;
+    rehabType: string;
     startDate?: string;
     startTime?: string;
-    symbol?: string;
-    tradingCosts?: components["schemas"]["backtest.TradingCosts"];
+    symbol: string;
+    tradingCosts: components["schemas"]["backtest.TradingCosts"];
     useExtendedHours?: boolean;
   };
+    "backtest.SyncRequest": {
+    code: string;
+    endDate?: string;
+    intervals: Array<string>;
+    market: string;
+    rehabType: string;
+    sessionScope?: string;
+    since?: string;
+    startDate?: string;
+    symbol: string;
+    until?: string;
+  };
+    "backtest.SyncStarted": {
+    intervals: Array<string>;
+    message: string;
+    sessionScope: string;
+    since: string;
+    symbol: string;
+    taskId: string;
+    until: string;
+  };
     "backtest.TradingCosts": {
-    brokerFees?: components["schemas"]["runmodel.FeeSchedule"];
-    marketFees?: components["schemas"]["runmodel.FeeSchedule"];
+    brokerFees: components["schemas"]["runmodel.FeeSchedule"];
+    marketFees: components["schemas"]["runmodel.FeeSchedule"];
+  };
+    "broker.ApprovalLevel": "none" | "high" | "critical";
+    "broker.CapabilityCatalog": {
+    features: Array<components["schemas"]["broker.CapabilityDefinition"]>;
+    version: string;
+  };
+    "broker.CapabilityCheck": {
+    checkedAt: string;
+    code?: string;
+    reason?: string;
+    state: components["schemas"]["broker.CapabilityState"];
+  };
+    "broker.CapabilityDefinition": {
+    access: components["schemas"]["broker.FeatureAccess"];
+    adapterInterface: string;
+    approval: components["schemas"]["broker.ApprovalLevel"];
+    id: components["schemas"]["broker.FeatureID"];
+    operations: Array<components["schemas"]["broker.CapabilityOperation"]>;
+    permission: components["schemas"]["broker.PermissionClass"];
+    surface: components["schemas"]["broker.CapabilitySurface"];
+    testMapping: string;
+  };
+    "broker.CapabilityEvaluation": {
+    account: components["schemas"]["broker.CapabilityCheck"];
+    checkedAt: string;
+    code?: string;
+    connection: components["schemas"]["broker.CapabilityCheck"];
+    quoteRight: components["schemas"]["broker.CapabilityCheck"];
+    reason?: string;
+    state: components["schemas"]["broker.CapabilityState"];
+  };
+    "broker.CapabilityOperation": {
+    api: string;
+    httpMethod: string;
+    id: string;
+    protocols?: Array<components["schemas"]["broker.CapabilityProtocol"]>;
+    testId: string;
+    tool?: string;
+    uiSurfaceId: string;
+  };
+    "broker.CapabilityProtocol": {
+    brokerId: string;
+    id: number;
+    key: string;
+    kind: string;
+  };
+    "broker.CapabilityState": "available" | "degraded" | "unavailable";
+    "broker.CapabilitySurface": {
+    api?: string;
+    readOnlyMcp?: boolean;
+    tool?: string;
+    ui?: string;
   };
     "broker.CashFlowSnapshot": {
-    accountId?: string;
+    accountId: string;
     cashFlowAmount?: number;
     cashFlowDirection?: string;
     cashFlowId?: string;
@@ -87,9 +973,22 @@ export interface components {
     cashFlowType?: string;
     clearingDate?: string;
     currency?: string;
-    market?: string;
+    market: string;
     settlementDate?: string;
-    tradingEnvironment?: string;
+    tradingEnvironment: string;
+  };
+    "broker.CustomizationResult": {
+    entries?: Array<Record<string, unknown>>;
+    provider: components["schemas"]["broker.ProviderAttribution"];
+  };
+    "broker.Descriptor": {
+    capabilities: Array<components["schemas"]["broker.MarketCapability"]>;
+    capabilityVersion: string;
+    displayName: string;
+    environments: Array<string>;
+    id: string;
+    notes?: Array<string>;
+    securityFirm?: string;
   };
     "broker.EventProduct": {
     categoryId?: string;
@@ -103,32 +1002,65 @@ export interface components {
     status?: string;
   };
     "broker.FactorRef": {
-    factorKey?: string;
-    instanceId?: string;
-    params?: components["schemas"]["broker.ResearchScreenFactorParams"];
+    factorKey: string;
+    instanceId: string;
+    params: components["schemas"]["broker.ResearchScreenFactorParams"];
+  };
+    "broker.FeatureAccess": "read" | "write" | "trade";
+    "broker.FeatureCapability": {
+    access: components["schemas"]["broker.FeatureAccess"];
+    id: components["schemas"]["broker.FeatureID"];
+    limits?: Record<string, unknown>;
+    marketSegments?: Array<components["schemas"]["broker.MarketSegment"]>;
+    markets: Array<string>;
+    productClasses?: Array<components["schemas"]["broker.ProductClass"]>;
+    reason?: string;
+    reasonCode?: string;
+    requiresAccount?: boolean;
+    requiresConnection?: boolean;
+    requiresQuoteRight?: boolean;
+    state: components["schemas"]["broker.CapabilityState"];
+    supportedPeriods?: Array<string>;
   };
     "broker.FeatureID": "market.search" | "market.instrument_profile" | "market.snapshot" | "market.snapshots" | "market.candles" | "market.intraday" | "market.ticks" | "market.depth" | "market.broker_queue" | "market.capital_flow" | "derivatives.option_chain" | "derivatives.option_screen" | "derivatives.option_analysis" | "derivatives.option_events" | "derivatives.warrants" | "derivatives.futures" | "research.instrument" | "research.financials" | "research.valuation" | "research.analyst" | "research.ownership" | "research.corporate_actions" | "research.short_interest" | "research.news" | "research.screen" | "research.calendar" | "research.macro" | "research.rankings" | "research.institutions" | "research.industry" | "research.technical_indicators" | "prediction.discover" | "prediction.snapshot" | "prediction.depth" | "prediction.history" | "prediction.combo_eligible" | "prediction.combo_quote" | "execution.order_preview" | "execution.order_place" | "execution.order_cancel" | "execution.combo_preview" | "execution.combo_place" | "execution.combo_cancel" | "execution.buying_power" | "alerts.price.list" | "alerts.price.set" | "alerts.option_event.list" | "alerts.option_event.set" | "watchlist.remote.list" | "watchlist.remote.modify";
+    "broker.FeaturePartialError": {
+    code: string;
+    message: string;
+    scope: string;
+  };
+    "broker.FeatureResult": {
+    asOf: string;
+    entries: Array<Record<string, unknown>>;
+    hasMore?: boolean;
+    metadata?: Record<string, unknown>;
+    nextCursor?: string;
+    partialErrors?: Array<components["schemas"]["broker.FeaturePartialError"]>;
+    provider: components["schemas"]["broker.ProviderAttribution"];
+    resolvedInstrument?: components["schemas"]["broker.Instrument"];
+    total?: number;
+    warnings?: Array<string>;
+  };
     "broker.Instrument": {
-    code?: string;
+    code: string;
     contractSize?: number;
     currency?: string;
     event?: components["schemas"]["broker.EventProduct"];
     expiryDate?: string;
-    instrumentId?: string;
-    marketSegment?: components["schemas"]["broker.MarketSegment"];
+    instrumentId: string;
+    marketSegment: components["schemas"]["broker.MarketSegment"];
     name?: string;
     optionType?: string;
     priceTick?: number;
-    productClass?: components["schemas"]["broker.ProductClass"];
-    quantityMode?: components["schemas"]["broker.QuantityMode"];
-    quoteMarket?: string;
+    productClass: components["schemas"]["broker.ProductClass"];
+    quantityMode: components["schemas"]["broker.QuantityMode"];
+    quoteMarket: string;
     strikePrice?: number;
     tradeMarket?: string;
     underlyingCode?: string;
     venue?: string;
   };
     "broker.MarginRatioSnapshot": {
-    accountId?: string;
+    accountId: string;
     alertLongRatio?: number;
     alertShortRatio?: number;
     initialMarginLongRatio?: number;
@@ -139,28 +1071,35 @@ export interface components {
     maintenanceShortRatio?: number;
     marginCallLongRatio?: number;
     marginCallShortRatio?: number;
-    market?: string;
+    market: string;
     shortFeeRate?: number;
     shortPoolRemain?: number;
-    symbol?: string;
-    tradingEnvironment?: string;
+    symbol: string;
+    tradingEnvironment: string;
+  };
+    "broker.MarketCapability": {
+    features?: Array<components["schemas"]["broker.FeatureCapability"]>;
+    market: string;
+    readFeatures?: Record<string, unknown>;
+    supportsQuote: boolean;
+    supportsTrade: boolean;
   };
     "broker.MarketSegment": "securities" | "derivatives" | "prediction";
     "broker.MaxTradeQuantitySnapshot": {
-    accountId?: string;
+    accountId: string;
     longRequiredIm?: number;
-    market?: string;
+    market: string;
     maxBuyBack?: number;
     maxCashAndMarginBuy?: number;
-    maxCashBuy?: number;
-    maxPositionSell?: number;
+    maxCashBuy: number;
+    maxPositionSell: number;
     maxSellShort?: number;
-    orderType?: string;
-    price?: number;
+    orderType: string;
+    price: number;
     session?: string;
     shortRequiredIm?: number;
-    symbol?: string;
-    tradingEnvironment?: string;
+    symbol: string;
+    tradingEnvironment: string;
   };
     "broker.OptionComboAccountImpact": {
     buyingPowerDecrease?: number;
@@ -187,58 +1126,59 @@ export interface components {
     contractSize?: number;
     expirationType?: number;
     multiplier?: number;
-    productCode?: string;
+    productCode: string;
   };
     "broker.OrderFeeItemSnapshot": {
-    title?: string;
-    value?: number;
+    title: string;
+    value: number;
   };
     "broker.OrderFeeSnapshot": {
-    accountId?: string;
-    brokerOrderIdEx?: string;
+    accountId: string;
+    brokerOrderIdEx: string;
     feeAmount?: number;
     feeItems?: Array<components["schemas"]["broker.OrderFeeItemSnapshot"]>;
-    market?: string;
-    tradingEnvironment?: string;
+    market: string;
+    tradingEnvironment: string;
   };
     "broker.OrderKind": "single" | "option_combo" | "event_single" | "event_parlay";
     "broker.OrderLegIntent": {
     amount?: number;
-    instrumentId?: string;
+    instrumentId: string;
     predictionSide?: string;
     price?: number;
-    productClass?: components["schemas"]["broker.ProductClass"];
+    productClass: components["schemas"]["broker.ProductClass"];
     quantity?: number;
-    ratio?: number;
-    side?: string;
+    ratio: number;
+    side: string;
   };
+    "broker.PermissionClass": "read_only" | "write_external" | "live_trading";
     "broker.PlaceOrderResult": {
-    accountId?: string;
-    brokerOrderId?: string;
+    accountId: string;
+    brokerOrderId: string;
     brokerOrderIdEx?: string;
-    market?: string;
-    status?: string;
-    tradingEnvironment?: string;
+    market: string;
+    status: string;
+    tradingEnvironment: string;
   };
     "broker.ProductClass": "equity" | "fund" | "option" | "warrant" | "cbbc" | "future" | "event_contract" | "index" | "bond" | "plate" | "unknown";
     "broker.ProductRuleQuery": {
-    accountId?: string;
+    accountId: string;
     amount?: number;
     brokerId?: string;
-    featureId?: components["schemas"]["broker.FeatureID"];
-    instrument?: components["schemas"]["broker.Instrument"];
+    featureId: components["schemas"]["broker.FeatureID"];
+    instrument: components["schemas"]["broker.Instrument"];
     legs?: Array<components["schemas"]["broker.OrderLegIntent"]>;
-    market?: string;
-    orderKind?: components["schemas"]["broker.OrderKind"];
+    market: string;
+    orderKind: components["schemas"]["broker.OrderKind"];
     orderType?: string;
     price?: number;
     quantity?: number;
     session?: string;
-    tradingEnvironment?: string;
+    tradingEnvironment: string;
   };
     "broker.ProductRuleResult": {
     accountImpact?: components["schemas"]["broker.OptionComboAccountImpact"];
-    allowed?: boolean;
+    allowed: boolean;
     buyingPowerImpact?: number;
     normalizedRequest?: Array<number>;
     optionAnalysis?: components["schemas"]["broker.OptionComboAnalysis"];
@@ -246,30 +1186,39 @@ export interface components {
     reasonCode?: string;
     warnings?: Array<string>;
   };
+    "broker.ProviderAttribution": {
+    asOf: string;
+    brokerId: string;
+    capability: components["schemas"]["broker.CapabilityState"];
+    featureId: components["schemas"]["broker.FeatureID"];
+    resolvedAt: string;
+    securityFirm?: string;
+    selectionReason: string;
+  };
     "broker.QuantityMode": "units" | "contracts" | "amount";
     "broker.QuoteItem": {
     highPrice?: number;
-    lastPrice?: number;
+    lastPrice: number;
     lowPrice?: number;
     openPrice?: number;
-    symbol?: string;
+    symbol: string;
     symbolName?: string;
     turnover?: number;
-    volume?: number;
+    volume: number;
   };
     "broker.QuoteSnapshot": {
-    accountId?: string;
+    accountId: string;
     highPrice?: number;
     lastClose?: number;
-    lastPrice?: number;
+    lastPrice: number;
     lowPrice?: number;
     openPrice?: number;
     quoteAt?: string;
     quotes?: Array<components["schemas"]["broker.QuoteItem"]>;
-    symbol?: string;
+    symbol: string;
     symbolName?: string;
     turnover?: number;
-    volume?: number;
+    volume: number;
   };
     "broker.ResearchScreenFactorParams": {
     brokerParam?: string;
@@ -295,224 +1244,573 @@ export interface components {
   };
     "broker.ResearchScreenPlate": {
     parentPlateId?: string;
-    plateIds?: Array<string>;
+    plateIds: Array<string>;
   };
     "broker.ResearchScreenPool": {
     plates?: Array<components["schemas"]["broker.ResearchScreenPlate"]>;
     watchlistStockIds?: Array<string>;
   };
+    "broker.ResearchScreenResult": {
+    asOf: string;
+    catalogVersion?: string;
+    columns?: Array<components["schemas"]["broker.ScreenResultColumn"]>;
+    entries: Array<components["schemas"]["broker.ResearchScreenRow"]>;
+    hasMore: boolean;
+    nextOffset?: number;
+    partialErrors?: Array<components["schemas"]["broker.FeaturePartialError"]>;
+    provider: components["schemas"]["broker.ProviderAttribution"];
+    total?: number;
+    warnings?: Array<string>;
+  };
+    "broker.ResearchScreenRow": {
+    cells: Record<string, components["schemas"]["broker.ScreenResultCell"]>;
+    industry?: string;
+    instrumentId?: string;
+    market?: string;
+    name?: string;
+    productClass: components["schemas"]["broker.ProductClass"];
+    quoteCurrency?: string;
+    stockId: string;
+    symbol?: string;
+  };
+    "broker.ResearchScreenValue": {
+    endTime?: number;
+    enumName?: string;
+    enumType?: string;
+    integer?: number;
+    integers?: Array<number>;
+    number?: number;
+    string?: string;
+    type: "string" | "integer" | "integer_array" | "number" | "missing";
+    unit?: string;
+  };
     "broker.ScreenColumn": {
-    columnId?: string;
-    factor?: components["schemas"]["broker.FactorRef"];
+    columnId: string;
+    factor: components["schemas"]["broker.FactorRef"];
     label?: string;
   };
     "broker.ScreenCondition": {
-    factor?: components["schemas"]["broker.FactorRef"];
-    id?: string;
-    operator?: string;
+    factor: components["schemas"]["broker.FactorRef"];
+    id: string;
+    operator: string;
     secondFactor?: components["schemas"]["broker.FactorRef"];
     value?: unknown;
   };
     "broker.ScreenDefinitionV2": {
     brokerId?: string;
-    catalogVersion?: string;
+    catalogVersion: string;
     columns?: Array<components["schemas"]["broker.ScreenColumn"]>;
     conditions?: Array<components["schemas"]["broker.ScreenCondition"]>;
-    market?: string;
-    pool?: components["schemas"]["broker.ResearchScreenPool"];
-    querySchemaVersion?: number;
+    market: string;
+    pool: components["schemas"]["broker.ResearchScreenPool"];
+    querySchemaVersion: number;
     sorts?: Array<components["schemas"]["broker.ScreenSort"]>;
   };
     "broker.ScreenQueryV2": {
     accountId?: string;
     brokerId?: string;
-    catalogVersion?: string;
+    catalogVersion: string;
     columns?: Array<components["schemas"]["broker.ScreenColumn"]>;
     conditions?: Array<components["schemas"]["broker.ScreenCondition"]>;
-    market?: string;
-    page?: components["schemas"]["broker.ResearchScreenPagination"];
-    pool?: components["schemas"]["broker.ResearchScreenPool"];
-    querySchemaVersion?: number;
+    market: string;
+    page: components["schemas"]["broker.ResearchScreenPagination"];
+    pool: components["schemas"]["broker.ResearchScreenPool"];
+    querySchemaVersion: number;
     sorts?: Array<components["schemas"]["broker.ScreenSort"]>;
     tradingEnvironment?: string;
   };
+    "broker.ScreenResultCell": {
+    columnId: string;
+    factorKey?: string;
+    instanceId: string;
+    value: components["schemas"]["broker.ResearchScreenValue"];
+  };
+    "broker.ScreenResultColumn": {
+    columnId: string;
+    factorKey: string;
+    instanceId: string;
+    label?: string;
+    unit?: string;
+  };
     "broker.ScreenSort": {
     columnId?: string;
-    direction?: "asc" | "desc" | "abs_asc" | "abs_desc";
-    factor?: components["schemas"]["broker.FactorRef"];
+    direction: "asc" | "desc" | "abs_asc" | "abs_desc";
+    factor: components["schemas"]["broker.FactorRef"];
     sortId?: string;
   };
     "chart.ChartType": "standard" | "heikinashi";
     "datamanagement.BackupRequest": {
-    confirmation?: string;
+    confirmation: string;
     databaseId?: string;
   };
     "datamanagement.BackupResult": {
-    backupPath?: string;
-    createdAt?: string;
-    databaseId?: string;
-    sizeBytes?: number;
+    backupPath: string;
+    createdAt: string;
+    databaseId: string;
+    sizeBytes: number;
   };
     "datamanagement.CleanupExecuteRequest": {
-    confirmation?: string;
-    previewId?: string;
+    confirmation: string;
+    previewId: string;
   };
     "datamanagement.CleanupPreviewRequest": {
-    databaseId?: string;
+    databaseId: string;
     keepLatest?: number;
-    kind?: string;
+    kind: string;
     olderThanDays?: number;
   };
     "datamanagement.CompactRequest": {
-    confirmation?: string;
+    confirmation: string;
   };
     "datamanagement.RebuildRequest": {
-    confirmation?: string;
+    confirmation: string;
     databaseId?: string;
     databaseIds?: Array<string>;
-    mode?: string;
+    mode: string;
   };
     "httpserver.APIError": {
-    code?: string;
-    message?: string;
+    code: string;
+    message: string;
   };
     "httpserver.Envelope": {
     data?: unknown;
     error?: components["schemas"]["httpserver.APIError"];
-    ok?: boolean;
-    timestamp?: string;
+    ok: boolean;
+    timestamp: string;
+  };
+    "httpserver.ErrorEnvelope": {
+    error: components["schemas"]["httpserver.APIError"];
+    ok: boolean;
+    timestamp: string;
   };
     "jftsettings.ADKRuntimeSettings": {
-    runTimeoutMs?: number;
-    streamIdleTimeoutMs?: number;
+    runTimeoutMs: number;
+    streamIdleTimeoutMs: number;
+  };
+    "jftsettings.BrokerIntegration": {
+    brokerId: string;
+    config: components["schemas"]["jftsettings.FutuIntegrationConfig"];
+    createdAt: string;
+    enabled: boolean;
+    updatedAt: string;
   };
     "jftsettings.ExchangeCalendarManualOverride": {
-    date?: string;
-    market?: string;
+    date: string;
+    market: string;
     observed?: boolean;
     reason?: string;
     sessions?: Array<components["schemas"]["jftsettings.ExchangeCalendarSessionWindow"]>;
-    status?: string;
+    status: string;
   };
     "jftsettings.ExchangeCalendarSessionWindow": {
-    endMinute?: number;
-    kind?: string;
-    startMinute?: number;
+    endMinute: number;
+    kind: string;
+    startMinute: number;
   };
     "jftsettings.ExchangeCalendarSettings": {
-    autoRefreshEnabled?: boolean;
-    errorNotificationsEnabled?: boolean;
+    autoRefreshEnabled: boolean;
+    errorNotificationsEnabled: boolean;
     manualOverrides?: Array<components["schemas"]["jftsettings.ExchangeCalendarManualOverride"]>;
-    refreshIntervalHours?: number;
+    refreshIntervalHours: number;
     sourcePolicies?: Array<components["schemas"]["jftsettings.ExchangeCalendarSourcePolicy"]>;
     warmupMarkets?: Array<string>;
   };
     "jftsettings.ExchangeCalendarSourcePolicy": {
     enabledSourceIds?: Array<string>;
-    fallbackToBuiltin?: boolean;
-    market?: string;
+    fallbackToBuiltin: boolean;
+    market: string;
     preferredSourceIds?: Array<string>;
     requireOfficial?: boolean;
     staleAfterHours?: number;
   };
     "jftsettings.ExecutionSettings": {
-    brokerOrderHistoryLookbackDays?: number;
-    defaultTradingEnvironment?: string;
-    seenFillRetentionDays?: number;
+    brokerOrderHistoryLookbackDays: number;
+    defaultTradingEnvironment: string;
+    seenFillRetentionDays: number;
   };
     "jftsettings.FutuIntegrationConfig": {
-    apiPort?: number;
-    host?: string;
-    maxWebSocketConnections?: number;
-    securityFirm?: string;
-    tradeMarket?: string;
-    type?: string;
-    useEncryption?: boolean;
-    websocketKey?: string;
-    websocketPort?: number;
+    apiPort: number;
+    host: string;
+    maxWebSocketConnections: number;
+    securityFirm: string;
+    tradeMarket: string;
+    type: string;
+    useEncryption: boolean;
+    websocketKey: string;
+    websocketPort: number;
+  };
+    "jftsettings.ManagedBrokerAccount": {
+    accountId: string;
+    brokerId: string;
+    createdAt: string;
+    displayName: string;
+    enabled: boolean;
+    id: string;
+    market: string;
+    securityFirm: string;
+    tradingEnvironment: string;
+    updatedAt: string;
+  };
+    "jftsettings.MCPServerSettings": {
+    authMode: string;
+    enabled: boolean;
+    port: number;
+    tokenConfigured: boolean;
+  };
+    "jftsettings.MCPServerSettingsSnapshot": {
+    settings: components["schemas"]["jftsettings.MCPServerSettings"];
+    status: components["schemas"]["jftsettings.MCPServerStatus"];
   };
     "jftsettings.MCPServerSettingsUpdate": {
-    authMode?: string;
-    enabled?: boolean;
-    port?: number;
+    authMode: string;
+    enabled: boolean;
+    port: number;
+  };
+    "jftsettings.MCPServerStatus": {
+    endpoint: string;
+    lastError?: string;
+    running: boolean;
+  };
+    "jftsettings.MCPServerTokenResetResult": {
+    settings: components["schemas"]["jftsettings.MCPServerSettings"];
+    status: components["schemas"]["jftsettings.MCPServerStatus"];
+    token: string;
+  };
+    "jftsettings.OnboardingSettings": {
+    completed: boolean;
+    completedAt?: string;
+    dismissedAt?: string;
+    lastBrokerId: string;
   };
     "jftsettings.PineWorkerSettings": {
-    backtestWorkerLimit?: number;
-    instanceWorkerLimit?: number;
-    nodeBinaryPath?: string;
+    backtestWorkerLimit: number;
+    instanceWorkerLimit: number;
+    nodeBinaryPath: string;
   };
     "jftsettings.SecuritySettings": {
-    passwordConfigured?: boolean;
-    publicAccessEnabled?: boolean;
-    webAccessEnabled?: boolean;
-    webPort?: number;
+    passwordConfigured: boolean;
+    publicAccessEnabled: boolean;
+    webAccessEnabled: boolean;
+    webPort: number;
   };
     "jftsettings.SecuritySettingsUpdate": {
     newPassword?: string;
-    publicAccessEnabled?: boolean;
-    webAccessEnabled?: boolean;
-    webPort?: number;
+    publicAccessEnabled: boolean;
+    webAccessEnabled: boolean;
+    webPort: number;
   };
     "jftsettings.SystemNotificationSettings": {
     categories?: Array<string>;
-    enabled?: boolean;
+    enabled: boolean;
     levels?: Array<string>;
-    mode?: string;
-    soundEnabled?: boolean;
+    mode: string;
+    soundEnabled: boolean;
   };
     "jftsettings.UIAppearanceSettings": {
-    downColor?: string;
-    upColor?: string;
+    downColor: string;
+    upColor: string;
+  };
+    "live.NotificationDelivery": {
+    delivered: boolean;
+    message?: string;
+    status: string;
+  };
+    "marketdata.CandlePaginationData": {
+    hasMore: boolean;
+    nextBefore?: string;
+  };
+    "marketdata.CandleRequestData": {
+    instrument: components["schemas"]["marketdata.MarketInstrumentData"];
+    limit: number;
+    period: string;
+  };
+    "marketdata.CandlesData": {
+    candles: Array<Record<string, unknown>>;
+    meta: components["schemas"]["marketdata.MarketQueryMeta"];
+    pagination?: components["schemas"]["marketdata.CandlePaginationData"];
+    request: components["schemas"]["marketdata.CandleRequestData"];
+    totalReturned: number;
+  };
+    "marketdata.DepthData": {
+    depth: Record<string, unknown>;
+    meta: components["schemas"]["marketdata.MarketQueryMeta"];
+    request: components["schemas"]["marketdata.DepthRequestData"];
+  };
+    "marketdata.DepthRequestData": {
+    instrumentId: string;
+    market: string;
+    num: number;
+    symbol: string;
+  };
+    "marketdata.HealthStatus": {
+    activeCount: number;
+    connected: boolean;
+    streamMode: string;
   };
     "marketdata.InstrumentCandidate": {
-    code?: string;
-    instrumentId?: string;
+    code: string;
+    instrumentId: string;
     isWatched?: boolean;
     lotSize?: number;
-    market?: string;
+    market: string;
     name?: string;
-    resolvedMarket?: string;
+    resolvedMarket: string;
     securityType?: string;
-    selectable?: boolean;
+    selectable: boolean;
     source?: string;
-    symbol?: string;
+    symbol: string;
     unavailableReason?: string;
   };
+    "marketdata.InstrumentRef": {
+    channel?: string;
+    interval?: string;
+    market: string;
+    symbol: string;
+  };
     "marketdata.InstrumentResolution": {
-    entries?: Array<components["schemas"]["marketdata.InstrumentCandidate"]>;
-    failures?: Array<components["schemas"]["marketdata.InstrumentResolutionFailure"]>;
-    query?: string;
-    requestedMarket?: string;
-    resolutionStatus?: components["schemas"]["marketdata.InstrumentResolutionStatus"];
-    totalReturned?: number;
+    entries: Array<components["schemas"]["marketdata.InstrumentCandidate"]>;
+    failures: Array<components["schemas"]["marketdata.InstrumentResolutionFailure"]>;
+    query: string;
+    requestedMarket: string;
+    resolutionStatus: components["schemas"]["marketdata.InstrumentResolutionStatus"];
+    totalReturned: number;
   };
     "marketdata.InstrumentResolutionFailure": {
-    code?: string;
-    market?: string;
-    message?: string;
+    code: string;
+    market: string;
+    message: string;
   };
     "marketdata.InstrumentResolutionStatus": "resolved" | "ambiguous" | "not_found" | "incomplete" | "unavailable";
+    "marketdata.MarketInstrumentData": {
+    instrumentId: string;
+    market: string;
+    symbol: string;
+  };
+    "marketdata.MarketQueryMeta": {
+    brokerId?: string;
+    extendedHours?: boolean;
+    fromCache: boolean;
+    instrumentId: string;
+    resolvedAt: string;
+    session?: string;
+    source: string;
+  };
+    "marketdata.MarketsData": {
+    defaultMarket: string;
+    markets: Array<Record<string, unknown>>;
+  };
+    "marketdata.NormalizeInstrumentData": {
+    code: string;
+    instrumentId: string;
+    market: string;
+    prefix: string;
+    resolvedMarket: string;
+    symbol: string;
+  };
+    "marketdata.NormalizeInstrumentRequest": {
+    code?: string;
+    instrumentId?: string;
+    market?: string;
+    symbol?: string;
+  };
+    "marketdata.ProviderCapabilities": {
+    candleIntervals: Array<string>;
+    extendedHours: boolean;
+    historicalCandles: boolean;
+    instrumentSearch: boolean;
+    orderBookDepth: boolean;
+    orderBookLevels: Array<number>;
+    sessions: Array<string>;
+    snapshots: boolean;
+    streamingDepth: boolean;
+    streamingQuotes: boolean;
+    tickCandles: boolean;
+  };
+    "marketdata.ProviderConstraints": {
+    requiresMarketDataRight: boolean;
+    requiresOpenD: boolean;
+    usesSubscriptionQuota: boolean;
+  };
+    "marketdata.ProviderDescriptor": {
+    brokerId?: string;
+    capabilities: components["schemas"]["marketdata.ProviderCapabilities"];
+    constraints: components["schemas"]["marketdata.ProviderConstraints"];
+    defaultMarket: string;
+    displayName: string;
+    notes?: Array<string>;
+    providerId: string;
+    source: string;
+    supportedMarkets: Array<string>;
+    transports: Array<string>;
+  };
+    "marketdata.ProviderStatusResponse": {
+    checkedAt: string;
+    descriptor: components["schemas"]["marketdata.ProviderDescriptor"];
+    health: components["schemas"]["marketdata.HealthStatus"];
+    runtime: components["schemas"]["marketdata.RuntimeState"];
+    subscriptions: components["schemas"]["marketdata.SubscriptionsSnapshot"];
+  };
+    "marketdata.RuntimeState": {
+    activeCount?: number;
+    closed?: boolean;
+    connected?: boolean;
+    generation?: number;
+    lastRefreshAt?: string;
+    quoteFailures?: number;
+    quoteLastError?: string;
+    quoteRetryAt?: string;
+    streamFailures?: number;
+    streamLastError?: string;
+    streamRetryAt?: string;
+  };
+    "marketdata.SecurityDetailsData": {
+    meta: components["schemas"]["marketdata.MarketQueryMeta"];
+    request: components["schemas"]["marketdata.MarketInstrumentData"];
+    security: Record<string, unknown>;
+  };
+    "marketdata.SnapshotData": {
+    meta: components["schemas"]["marketdata.MarketQueryMeta"];
+    request: components["schemas"]["marketdata.MarketInstrumentData"];
+    snapshot: Record<string, unknown>;
+  };
+    "marketdata.SubscriptionEntryData": {
+    brokerState?: string;
+    channel: string;
+    consumers: Array<string>;
+    createdAt: string;
+    depthLevel: number | null;
+    instrumentId: string;
+    interval: string | null;
+    key: string;
+    lastError?: string;
+    market: string;
+    refCount: number;
+    subscribedAt?: string;
+    symbol: string;
+    unsubscribeEligibleAt?: string;
+    updatedAt: string;
+  };
     "marketdata.SubscriptionHeartbeatRequest": {
-    consumerId?: string;
+    consumerId: string;
     providerBrokerId?: string;
   };
     "marketdata.SubscriptionInstrument": {
     channel?: string;
     interval?: string;
-    market?: string;
-    symbol?: string;
+    market: string;
+    symbol: string;
+  };
+    "marketdata.SubscriptionQuotaBucketData": {
+    limit: number | null;
+    market: string;
+    remaining: number | null;
+    used: number;
+  };
+    "marketdata.SubscriptionQuotaData": {
+    byMarket: Array<components["schemas"]["marketdata.SubscriptionQuotaBucketData"]>;
+    totalLimit: number | null;
+    totalRemaining: number | null;
+    totalUsed: number;
   };
     "marketdata.SubscriptionRequest": {
-    consumerId?: string;
+    consumerId: string;
     instruments?: Array<components["schemas"]["marketdata.SubscriptionInstrument"]>;
     providerBrokerId?: string;
   };
+    "marketdata.SubscriptionsData": {
+    action?: string;
+    brokerState?: Record<string, unknown>;
+    cleared?: boolean;
+    consumerId?: string;
+    desiredCount?: number;
+    entries: Array<components["schemas"]["marketdata.SubscriptionEntryData"]>;
+    instruments?: Array<components["schemas"]["marketdata.InstrumentRef"]>;
+    ownActiveCount?: number;
+    pendingReleaseCount?: number;
+    providerBrokerId?: string;
+    quota: components["schemas"]["marketdata.SubscriptionQuotaData"];
+    released?: boolean;
+    remainQuota?: number;
+    totalActiveSubscriptions: number;
+    totalUsedQuota?: number;
+    transport?: Record<string, unknown>;
+  };
+    "marketdata.SubscriptionsSnapshot": Record<string, unknown>;
+    "observability.Event": {
+    accountId?: string;
+    at: string;
+    brokerId?: string;
+    error?: string;
+    importance: string;
+    instrumentId?: string;
+    latencyMs?: number;
+    level: string;
+    message: string;
+    method?: string;
+    operation?: string;
+    path?: string;
+    providerId?: string;
+    requestId?: string;
+    runId?: string;
+    sessionId?: string;
+    source?: string;
+    status?: number;
+    taskId?: string;
+  };
+    "observability.OpenDHealth": {
+    failedCalls: number;
+    lastCallAt?: string;
+    lastError?: string;
+    lastErrorAt?: string;
+    lastOperation?: string;
+    lastRequestId?: string;
+    lastSuccessAt?: string;
+    totalCalls: number;
+  };
+    "observability.Snapshot": {
+    minimumImportance: string;
+    openD: components["schemas"]["observability.OpenDHealth"];
+    recentErrors: Array<components["schemas"]["observability.Event"]>;
+    recentSlowRequests: Array<components["schemas"]["observability.Event"]>;
+    slowThresholdMs: number;
+  };
     "productfeatures.batchSnapshotsRequest": {
-    instrumentIds?: Array<string>;
+    instrumentIds: Array<string>;
     symbols?: Array<string>;
   };
+    "productfeatures.BrokerCapabilitiesData": {
+    brokers: Array<components["schemas"]["broker.Descriptor"]>;
+    catalog: components["schemas"]["broker.CapabilityCatalog"];
+    runtime: Array<components["schemas"]["productfeatures.RuntimeCapabilityStatus"]>;
+  };
+    "productfeatures.CustomizationRequest": Record<string, unknown>;
+    "productfeatures.PredictionComboQuoteRequest": {
+    accountId: string;
+    brokerId: string;
+    legs: Array<components["schemas"]["broker.OrderLegIntent"]>;
+    mvc: string;
+    tradingEnvironment: string;
+  };
+    "productfeatures.PredictionSubscriptionLease": {
+    dataTypes: Array<string>;
+    instrumentId: string;
+    leaseId: string;
+    provider: components["schemas"]["broker.ProviderAttribution"];
+  };
+    "productfeatures.PredictionSubscriptionReleaseData": {
+    released: boolean;
+  };
     "productfeatures.predictionSubscriptionRequest": {
-    dataTypes?: Array<string>;
+    dataTypes: Array<string>;
+  };
+    "productfeatures.ProductFeatureQueryRequest": Record<string, unknown>;
+    "productfeatures.RuntimeCapabilityStatus": {
+    brokerId: string;
+    capability: components["schemas"]["broker.FeatureCapability"];
+    evaluation: components["schemas"]["broker.CapabilityEvaluation"];
+    featureId: components["schemas"]["broker.FeatureID"];
+    market: string;
+    securityFirm?: string;
   };
     "productfeatures.zeroDteContractsRequest": {
     accountId?: string;
@@ -531,56 +1829,120 @@ export interface components {
     name: string;
   };
     "research.ResearchScreenPreset": {
-    createdAt?: string;
-    definition?: components["schemas"]["broker.ScreenDefinitionV2"];
-    name?: string;
-    presetId?: string;
-    querySchemaVersion?: number;
-    revision?: number;
-    updatedAt?: string;
+    createdAt: string;
+    definition: components["schemas"]["broker.ScreenDefinitionV2"];
+    name: string;
+    presetId: string;
+    querySchemaVersion: number;
+    revision: number;
+    updatedAt: string;
   };
     "research.ResearchScreenPresetDeleteData": {
-    deleted?: boolean;
+    deleted: boolean;
   };
     "research.ResearchScreenPresetsData": {
-    presets?: Array<components["schemas"]["research.ResearchScreenPreset"]>;
+    presets: Array<components["schemas"]["research.ResearchScreenPreset"]>;
   };
     "research.UpdateScreenPresetInput": {
     definition?: components["schemas"]["broker.ScreenDefinitionV2"];
     expectedRevision: number;
     name?: string;
   };
+    "researchscreen.Catalog": {
+    categories: Array<components["schemas"]["researchscreen.Category"]>;
+    enums: Record<string, Array<components["schemas"]["researchscreen.EnumOption"]>>;
+    factors: Array<components["schemas"]["researchscreen.FactorDescriptor"]>;
+    market?: string;
+    markets: Array<string>;
+    provider: string;
+    providerVersion: string;
+    querySchemaVersion: number;
+    rateLimit: components["schemas"]["researchscreen.RateLimit"];
+    schemaVersion: number;
+    version: string;
+  };
+    "researchscreen.Category": {
+    count: number;
+    key: string;
+    label: string;
+  };
+    "researchscreen.EnumOption": {
+    key: string;
+    label: string;
+    value: number;
+  };
+    "researchscreen.FactorDescriptor": {
+    availability: "available" | "experimental" | "unsupported";
+    category: string;
+    conditionEditor?: string;
+    currencyBasis?: "quote" | "reporting";
+    displayFormat?: "price" | "compact_amount" | "percent" | "integer" | "timestamp" | "number";
+    filter: boolean;
+    filterKind?: string;
+    help?: string;
+    key: string;
+    label: string;
+    markets?: Array<string>;
+    operators?: Array<string>;
+    parameters?: Array<components["schemas"]["researchscreen.ParameterDescriptor"]>;
+    reason?: string;
+    retrieve: boolean;
+    roles?: Array<string>;
+    searchKeywords?: Array<string>;
+    sort: boolean;
+    unit?: string;
+    valueEnum?: string;
+    valueType: string;
+  };
+    "researchscreen.ParameterDescriptor": {
+    default: unknown;
+    editorType?: string;
+    enum?: string;
+    help?: string;
+    maximum?: number;
+    minimum?: number;
+    name: string;
+    required: boolean;
+    step?: number;
+    type: string;
+    unit?: string;
+    visibleWhen?: Record<string, unknown>;
+  };
+    "researchscreen.RateLimit": {
+    requests: number;
+    windowSeconds: number;
+  };
     "runmodel.Candle": {
-    close?: string;
-    high?: string;
-    low?: string;
-    open?: string;
-    time?: string;
-    volume?: string;
+    close: string;
+    high: string;
+    low: string;
+    open: string;
+    time: string;
+    volume: string;
   };
     "runmodel.DrawdownPoint": {
-    drawdown?: number;
-    time?: string;
+    drawdown: number;
+    time: string;
   };
     "runmodel.FeeBreakdownEntry": {
-    amount?: number;
-    category?: string;
-    count?: number;
-    currency?: string;
-    group?: string;
-    label?: string;
-    ruleId?: string;
+    amount: number;
+    category: string;
+    count: number;
+    currency: string;
+    group: string;
+    label: string;
+    ruleId: string;
   };
     "runmodel.FeeRule": {
     appliesTo?: Array<string>;
-    basis?: string;
-    category?: string;
+    basis: string;
+    category: string;
     currency?: string;
     effectiveFrom?: string;
     effectiveTo?: string;
     fixedAmount?: number;
-    id?: string;
-    label?: string;
+    id: string;
+    label: string;
     maxAmount?: number;
     maxRate?: number;
     minAmount?: number;
@@ -595,8 +1957,8 @@ export interface components {
     rules?: Array<components["schemas"]["runmodel.FeeRule"]>;
   };
     "runmodel.HeikinAshiSeed": {
-    close?: number;
-    open?: number;
+    close: number;
+    open: number;
   };
     "runmodel.OrderBookEntry": {
     brokerFee?: number;
@@ -606,149 +1968,488 @@ export interface components {
     filledPrice?: string;
     filledQuantity?: string;
     marketFee?: number;
-    orderId?: string;
+    orderId: string;
     orderPrice?: string;
     orderType?: string;
-    quantity?: string;
-    side?: string;
-    status?: string;
+    quantity: string;
+    side: string;
+    status: string;
     submittedAt?: string;
-    symbol?: string;
+    symbol: string;
     totalFee?: number;
     warmup?: boolean;
   };
     "runmodel.PnLPoint": {
-    equity?: number;
-    time?: string;
+    equity: number;
+    time: string;
   };
     "runmodel.TradeEvent": {
     brokerFee?: number;
     feeCurrency?: string;
     marketFee?: number;
     pnl?: number;
-    price?: string;
-    qty?: string;
-    side?: string;
-    time?: string;
+    price: string;
+    qty: string;
+    side: string;
+    time: string;
     totalFee?: number;
     warmup?: boolean;
   };
     "runmodel.TradingCosts": {
-    brokerFees?: components["schemas"]["runmodel.FeeSchedule"];
-    marketFees?: components["schemas"]["runmodel.FeeSchedule"];
+    brokerFees: components["schemas"]["runmodel.FeeSchedule"];
+    marketFees: components["schemas"]["runmodel.FeeSchedule"];
   };
     "servercore.webLoginRequest": {
-    password?: string;
+    password: string;
+  };
+    "servercore.WebSessionData": {
+    authenticated: boolean;
+    csrfToken?: string;
+    expiresAt?: string;
+  };
+    "settings.ADKRuntimeSettingsWriteRequest": {
+    runTimeoutMs: number;
+    streamIdleTimeoutMs: number;
   };
     "settings.BrokerIntegrationSaveRequest": {
-    config?: components["schemas"]["jftsettings.FutuIntegrationConfig"];
-    enabled?: boolean;
+    config: components["schemas"]["jftsettings.FutuIntegrationConfig"];
+    enabled: boolean;
+  };
+    "settings.BrokerSettingsBroker": {
+    defaults: components["schemas"]["jftsettings.FutuIntegrationConfig"];
+    descriptor: Record<string, unknown>;
+    integration: components["schemas"]["jftsettings.BrokerIntegration"] | null;
+  };
+    "settings.BrokerSettingsResponse": {
+    accounts: Array<components["schemas"]["jftsettings.ManagedBrokerAccount"]>;
+    brokers: Array<components["schemas"]["settings.BrokerSettingsBroker"]>;
+  };
+    "settings.DatabaseCompactResponse": {
+    afterBytes: number;
+    beforeBytes: number;
+    compacted: boolean;
+    databaseId: string;
+    reclaimedBytes: number;
+  };
+    "settings.DatabaseRebuildResponse": {
+    databaseIds: Array<string>;
+    restartRequired: boolean;
+    scheduled: boolean;
+  };
+    "settings.DataCleanupPreviewResponse": {
+    candidateCount: number;
+    confirmationText: string;
+    databaseId: string;
+    estimatedBytes: number;
+    expiresAt: string;
+    items: Array<components["schemas"]["settings.DataManagementCleanableItem"]>;
+    kind: string;
+    previewId: string;
+    willCompact: boolean;
+  };
+    "settings.DataCleanupResult": {
+    afterBytes: number;
+    beforeBytes: number;
+    compacted: boolean;
+    databaseId: string;
+    deletedCount: number;
+    estimatedBytes: number;
+    reclaimedBytes: number;
+    warning?: string;
+  };
+    "settings.DataManagementCleanableItem": {
+    count: number;
+    estimatedBytes: number;
+    kind: string;
+    label: string;
+  };
+    "settings.DataManagementDatabaseOverview": {
+    cleanable: Array<components["schemas"]["settings.DataManagementCleanableItem"]>;
+    confirmationText: string;
+    currentVersion: number | null;
+    description: string;
+    error?: string;
+    expectedVersion: number;
+    features: Array<string>;
+    id: string;
+    name: string;
+    path: string;
+    rebuildScheduled: boolean;
+    restartRequired: boolean;
+    status: string;
+    storage: components["schemas"]["settings.DataManagementStorageStats"];
+  };
+    "settings.DataManagementOverviewResponse": {
+    checkedAt: string;
+    databases: Array<components["schemas"]["settings.DataManagementDatabaseOverview"]>;
+    totals: components["schemas"]["settings.DataManagementOverviewTotals"];
+  };
+    "settings.DataManagementOverviewTotals": {
+    mainBytes: number;
+    reclaimableBytes: number;
+    shmBytes: number;
+    totalBytes: number;
+    walBytes: number;
+  };
+    "settings.DataManagementStorageStats": {
+    error?: string;
+    freePageBytes: number;
+    mainBytes: number;
+    reclaimableBytes: number;
+    shmBytes: number;
+    totalBytes: number;
+    walBytes: number;
+  };
+    "settings.DeletedResourceResponse": {
+    deleted: boolean;
+    id: string;
+  };
+    "settings.ExchangeCalendarSettingsResponse": {
+    exchangeCalendars: components["schemas"]["jftsettings.ExchangeCalendarSettings"];
   };
     "settings.ExchangeCalendarSettingsWriteRequest": {
-    exchangeCalendars?: components["schemas"]["jftsettings.ExchangeCalendarSettings"];
+    exchangeCalendars: components["schemas"]["jftsettings.ExchangeCalendarSettings"];
+  };
+    "settings.ExecutionSettingsWriteRequest": {
+    brokerOrderHistoryLookbackDays: number;
+    defaultTradingEnvironment: string;
+    seenFillRetentionDays: number;
   };
     "settings.ManagedBrokerAccountWriteRequest": {
-    accountId?: string;
-    brokerId?: string;
-    displayName?: string;
-    enabled?: boolean;
-    market?: string;
+    accountId: string;
+    brokerId: string;
+    displayName: string;
+    enabled: boolean;
+    market: string;
     securityFirm?: string;
-    tradingEnvironment?: string;
+    tradingEnvironment: string;
+  };
+    "settings.OnboardingBroker": {
+    available: boolean;
+    configured: boolean;
+    descriptor: Record<string, unknown>;
+    enabled: boolean;
+  };
+    "settings.OnboardingReason": {
+    code: string;
+    message: string;
+    severity: string;
+  };
+    "settings.OnboardingStateResponse": {
+    brokers: Array<components["schemas"]["settings.OnboardingBroker"]>;
+    reasons: Array<components["schemas"]["settings.OnboardingReason"]>;
+    recommendedBrokerId: string;
+    shouldShowOobe: boolean;
+    state: components["schemas"]["jftsettings.OnboardingSettings"];
   };
     "settings.OnboardingWriteRequest": {
-    completed?: boolean;
+    completed: boolean;
     dismissed?: boolean;
     lastBrokerId?: string;
   };
+    "settings.PineWorkerSettingsWriteRequest": {
+    backtestWorkerLimit: number;
+    instanceWorkerLimit: number;
+    nodeBinaryPath: string;
+  };
+    "settings.SystemNotificationEvent": {
+    at: string;
+    brokerId: string;
+    category: string;
+    id: string;
+    level: string;
+    message?: string;
+    source: string;
+    title: string;
+    type: string;
+  };
+    "settings.SystemNotificationSettingsWriteRequest": {
+    categories?: Array<string>;
+    enabled: boolean;
+    levels?: Array<string>;
+    mode: string;
+    soundEnabled: boolean;
+  };
+    "settings.SystemNotificationTestResponse": {
+    delivery: components["schemas"]["live.NotificationDelivery"];
+    event: components["schemas"]["settings.SystemNotificationEvent"];
+  };
+    "settings.UIAppearanceResponse": {
+    appearance: components["schemas"]["jftsettings.UIAppearanceSettings"];
+  };
     "settings.UIAppearanceSettingsWriteRequest": {
-    appearance?: components["schemas"]["jftsettings.UIAppearanceSettings"];
+    appearance: components["schemas"]["jftsettings.UIAppearanceSettings"];
+  };
+    "strategy.ActivityPage": {
+    hasMore: boolean;
+    limit: number;
+    offset: number;
+    returned: number;
+    total: number;
+  };
+    "strategy.AnalyzePineData": {
+    ast?: unknown;
+    collectionOperations?: Array<unknown>;
+    declarations?: Array<unknown>;
+    diagnostics: Array<unknown>;
+    externalEngine: Record<string, unknown>;
+    features: Array<string>;
+    hooks: Array<string>;
+    metadata: Record<string, unknown>;
+    normalizedScript: string;
+    objectOperations?: Array<unknown>;
+    ok: boolean;
+    requirements: Record<string, unknown>;
+    runtime: string;
+    semantic?: unknown;
+    sourceFormat: string;
+    visuals?: Array<unknown>;
+    warnings: Array<unknown>;
   };
     "strategy.AnalyzePineRequest": {
     includeAst?: boolean;
-    script?: string;
+    script: string;
     sourceFormat?: string;
+  };
+    "strategy.ApplyLinkedInstancesResult": {
+    alreadyLatest: Array<string>;
+    applied: Array<string>;
+    definitionId: string;
+    latestVersion: string;
+    skippedBusy: Array<string>;
+    totalLinked: number;
+  };
+    "strategy.AuditEntry": {
+    at: string;
+    detail?: string;
+    instanceId: string;
+    kind: string;
+  };
+    "strategy.AuditResult": {
+    entries: Array<components["schemas"]["strategy.AuditEntry"]>;
+    instanceId: string;
+    page: components["schemas"]["strategy.ActivityPage"];
   };
     "strategy.BindingInstrument": {
-    code?: string;
-    market?: string;
+    code: string;
+    market: string;
   };
     "strategy.BrokerAccountBinding": {
-    accountId?: string;
-    brokerId?: string;
-    market?: string;
-    tradingEnvironment?: string;
+    accountId: string;
+    brokerId: string;
+    market: string;
+    tradingEnvironment: string;
   };
     "strategy.Definition": {
-    createdAt?: string;
-    description?: string;
-    id?: string;
+    createdAt: string;
+    description: string;
+    id: string;
     interval?: string;
-    name?: string;
-    runtime?: string;
-    script?: string;
-    sourceFormat?: string;
+    name: string;
+    runtime: string;
+    script: string;
+    sourceFormat: string;
     symbol?: string;
-    updatedAt?: string;
-    version?: string;
+    updatedAt: string;
+    version: string;
     visualModel?: components["schemas"]["strategy.VisualModel"];
+  };
+    "strategy.DefinitionSummary": {
+    name: string;
+    strategyId: string;
+    version: string;
+  };
+    "strategy.DefinitionSyncStatus": {
+    appliedVersion: string;
+    blockedReason?: string;
+    canApplyLatest: boolean;
+    definitionId: string;
+    isLatest: boolean;
+    latestVersion: string;
   };
     "strategy.DefinitionView": {
-    createdAt?: string;
-    derivedWarmupBars?: number;
-    derivedWarmupInterval?: string;
-    description?: string;
-    id?: string;
+    createdAt: string;
+    derivedWarmupBars: number;
+    derivedWarmupInterval: string;
+    description: string;
+    id: string;
     interval?: string;
-    name?: string;
-    runtime?: string;
-    script?: string;
-    sourceFormat?: string;
+    name: string;
+    runtime: string;
+    script: string;
+    sourceFormat: string;
     symbol?: string;
-    updatedAt?: string;
-    version?: string;
+    updatedAt: string;
+    version: string;
     visualModel?: components["schemas"]["strategy.VisualModel"];
   };
+    "strategy.InstanceBinding": {
+    brokerAccount?: components["schemas"]["strategy.BrokerAccountBinding"];
+    chartType: components["schemas"]["chart.ChartType"];
+    executionMode: string;
+    instruments?: Array<components["schemas"]["strategy.BindingInstrument"]>;
+    interval: string;
+    runtimeRisk: components["schemas"]["strategy.RuntimeRiskSettings"];
+    symbols: Array<string>;
+  };
+    "strategy.InstanceView": {
+    binding: components["schemas"]["strategy.InstanceBinding"];
+    createdAt: string;
+    definition: components["schemas"]["strategy.DefinitionSummary"];
+    definitionSync?: components["schemas"]["strategy.DefinitionSyncStatus"];
+    id: string;
+    logs: Array<string>;
+    params: Record<string, unknown>;
+    pluginId?: string;
+    runtime: string;
+    runtimeObservation?: components["schemas"]["strategy.RuntimeObservation"];
+    sourceFormat: string;
+    startable: boolean;
+    status: string;
+  };
+    "strategy.LogsResult": {
+    instanceId: string;
+    logs: Array<string>;
+    page: components["schemas"]["strategy.ActivityPage"];
+  };
+    "strategy.PluginBuildTuple": {
+    buildMode: string;
+    buildTags?: Array<string>;
+    goVersion: string;
+    goarch: string;
+    goos: string;
+    jftradeVersion: string;
+  };
+    "strategy.PluginCatalog": {
+    plugins: Array<components["schemas"]["strategy.PluginCatalogItem"]>;
+    targetDir: string;
+  };
+    "strategy.PluginCatalogItem": {
+    compatibility: components["schemas"]["strategy.PluginCompatibility"];
+    descriptor: components["schemas"]["strategy.PluginDescriptor"];
+    installation: components["schemas"]["strategy.PluginInstallation"];
+  };
+    "strategy.PluginCompatibility": {
+    artifact?: components["schemas"]["strategy.PluginBuildTuple"];
+    host: components["schemas"]["strategy.PluginBuildTuple"];
+    mode: string;
+    reason?: string;
+    requiresRebuild: boolean;
+    supported: boolean;
+  };
+    "strategy.PluginDescriptor": {
+    description: string;
+    displayName: string;
+    id: string;
+    keywords: Array<string>;
+    type: string;
+    version: string;
+  };
+    "strategy.PluginInstallation": {
+    currentOperation: components["schemas"]["strategy.PluginOperation"] | null;
+    installPath: string;
+    installed: boolean;
+    lastOperation: components["schemas"]["strategy.PluginOperation"] | null;
+    markerPath: string;
+    status: string;
+    targetDir: string;
+    uninstallGuidance: components["schemas"]["strategy.PluginUninstallGuidance"];
+  };
+    "strategy.PluginMutationData": {
+    operation: components["schemas"]["strategy.PluginOperation"];
+  };
+    "strategy.PluginOperation": {
+    completedAt: string | null;
+    error: string | null;
+    installPath: string;
+    message: string;
+    operationId: string;
+    phase: string;
+    pluginId: string;
+    progress: number;
+    startedAt: string;
+    status: string;
+    targetDir: string;
+    updatedAt: string;
+  };
+    "strategy.PluginUninstallCommands": {
+    posix: string;
+    powershell: string;
+  };
+    "strategy.PluginUninstallGuidance": {
+    commands: components["schemas"]["strategy.PluginUninstallCommands"];
+    exists: boolean;
+    path: string;
+    pluginId: string;
+  };
+    "strategy.RuntimeActiveInstanceSummary": {
+    activeSymbols: Array<string>;
+    actualStatus: string;
+    definitionName: string;
+    instanceId: string;
+    lastClosedKlineAt?: string;
+    lastError?: string;
+    lastErrorAt?: string;
+    lastOrderAt?: string;
+    lastSignalAt?: string;
+    updatedAt?: string;
+  };
+    "strategy.RuntimeObservation": {
+    activeSymbols: Array<string>;
+    actualStatus: string;
+    lastClosedKlineAt?: string;
+    lastError?: string;
+    lastErrorAt?: string;
+    lastOrderAt?: string;
+    lastSignalAt?: string;
+    updatedAt?: string;
+  };
     "strategy.RuntimeRiskSettings": {
-    closeOnly?: boolean;
-    dailyMaxOrders?: number;
-    maxOrderNotional?: number;
-    maxOrderQuantity?: number;
-    mode?: string;
-    pauseOnReject?: boolean;
+    closeOnly: boolean;
+    dailyMaxOrders?: number | null;
+    maxOrderNotional?: number | null;
+    maxOrderQuantity?: number | null;
+    mode: string;
+    pauseOnReject: boolean;
+  };
+    "strategy.RuntimeSummary": {
+    activeInstances: Array<components["schemas"]["strategy.RuntimeActiveInstanceSummary"]>;
+    activeStrategies: number;
+    status: string;
+    supportsBacktestParity: boolean;
   };
     "strategy.StrategyBindingRequest": {
     brokerAccount?: components["schemas"]["strategy.BrokerAccountBinding"];
-    chartType?: components["schemas"]["chart.ChartType"];
-    executionMode?: string;
+    chartType: components["schemas"]["chart.ChartType"];
+    executionMode: string;
     instruments?: Array<components["schemas"]["strategy.BindingInstrument"]>;
-    interval?: string;
-    runtimeRisk?: components["schemas"]["strategy.RuntimeRiskSettings"];
-    symbols?: Array<string>;
+    interval: string;
+    runtimeRisk: components["schemas"]["strategy.RuntimeRiskSettings"];
+    symbols: Array<string>;
   };
     "strategy.StrategyDefinitionVersion": {
-    createdAt?: string;
-    definitionId?: string;
-    description?: string;
-    id?: string;
+    createdAt: string;
+    definitionId: string;
+    description: string;
+    id: string;
     interval?: string;
-    isCurrent?: boolean;
-    name?: string;
-    runtime?: string;
-    savedAt?: string;
-    script?: string;
-    sourceFormat?: string;
+    isCurrent: boolean;
+    name: string;
+    runtime: string;
+    savedAt: string;
+    script: string;
+    sourceFormat: string;
     symbol?: string;
-    updatedAt?: string;
-    version?: string;
+    updatedAt: string;
+    version: string;
     visualModel?: components["schemas"]["strategy.StrategyVisualModel"];
   };
     "strategy.StrategyDefinitionVersionSummary": {
-    definitionId?: string;
-    isCurrent?: boolean;
-    name?: string;
-    savedAt?: string;
-    version?: string;
+    definitionId: string;
+    isCurrent: boolean;
+    name: string;
+    savedAt: string;
+    version: string;
   };
     "strategy.StrategyDesignDefinition": {
     createdAt?: string;
@@ -789,8 +2490,8 @@ export interface components {
     "strategy.VisualEdge": {
     id?: string;
     properties?: Record<string, unknown>;
-    sourceNodeId?: string;
-    targetNodeId?: string;
+    sourceNodeId: string;
+    targetNodeId: string;
     text?: string;
     type?: string;
   };
@@ -801,19 +2502,228 @@ export interface components {
     version?: number;
   };
     "strategy.VisualNode": {
-    id?: string;
+    id: string;
     properties?: Record<string, unknown>;
     text?: string;
-    type?: string;
-    x?: number;
-    y?: number;
+    type: string;
+    x: number;
+    y: number;
+  };
+    "system.AcceptedResponse": {
+    accepted: boolean;
+  };
+    "system.BrokerOrderUpdatesResponse": {
+    brokers: Array<Record<string, unknown>>;
+    recentInvalidations: Array<Record<string, unknown>>;
+    runtime: Record<string, unknown>;
+    subscriptions: Array<Record<string, unknown>>;
+  };
+    "system.ExchangeCalendarMarket": {
+    checkedAt: string;
+    effectiveMode: string;
+    effectiveReason: string;
+    effectiveSource: string;
+    fallbackChain: Array<string>;
+    market: string;
+  };
+    "system.ExchangeCalendarProbeItem": {
+    checksum?: string;
+    error?: string;
+    fetchedAt?: string;
+    market: string;
+    schedulesParsed?: number;
+    sourceId: string;
+    status: string;
+    validUntil?: string;
+  };
+    "system.ExchangeCalendarProbeResponse": {
+    accepted: boolean;
+    checkedAt?: string;
+    failures?: number;
+    healthy?: number;
+    market?: string;
+    probeScope?: Array<string>;
+    reason?: string;
+    results?: Array<components["schemas"]["system.ExchangeCalendarProbeItem"]>;
+  };
+    "system.ExchangeCalendarRefreshResponse": {
+    accepted: boolean;
+    failures?: number;
+    market?: string;
+    reason?: string;
+    requestedAt?: string;
+    updated?: number;
+    warmupMarkets?: Array<string>;
+  };
+    "system.ExchangeCalendarSampleSchedule": {
+    date: string;
+    market: string;
+    observed: boolean;
+    reason: string;
+    sessions: Array<components["schemas"]["system.ExchangeCalendarSessionWindow"]>;
+    sourceId: string;
+    status: string;
+  };
+    "system.ExchangeCalendarSessionWindow": {
+    endMinute: number;
+    kind: string;
+    startMinute: number;
+  };
+    "system.ExchangeCalendarSnapshot": {
+    checksum: string;
+    fetchedAt: string;
+    from: string;
+    market: string;
+    sampleSchedules: Array<components["schemas"]["system.ExchangeCalendarSampleSchedule"]>;
+    schedulesParsed: number;
+    sourceId: string;
+    to: string;
+    validUntil: string;
+  };
+    "system.ExchangeCalendarSource": {
+    authority: string;
+    availabilityNote: string;
+    consecutiveFailures: number;
+    enabled: boolean;
+    healthFingerprint: string;
+    healthState: string;
+    id: string;
+    kind: string;
+    lastAlertAt: string;
+    lastAlertFingerprint: string;
+    lastAlertStatus: string;
+    lastError: string;
+    lastFailureAt: string;
+    lastProbeAt: string;
+    lastProbeError: string;
+    lastProbeFailureAt: string;
+    lastProbeMarket: string;
+    lastProbeSchedules: number;
+    lastProbeStatus: string;
+    lastProbeSuccessAt: string;
+    lastSnapshotFetchedAt: string;
+    lastSuccessAt: string;
+    markets: Array<string>;
+    nextRefreshAt: string;
+  };
+    "system.ExchangeCalendarSourcesResponse": {
+    sources: Array<components["schemas"]["system.ExchangeCalendarSource"]>;
+  };
+    "system.ExchangeCalendarStatusResponse": {
+    autoRefreshEnabled?: boolean;
+    markets?: Array<components["schemas"]["system.ExchangeCalendarMarket"]>;
+    refreshIntervalHours?: number;
+    snapshots?: Array<components["schemas"]["system.ExchangeCalendarSnapshot"]>;
+    sources?: Array<components["schemas"]["system.ExchangeCalendarSource"]>;
+    warmupMarkets?: Array<string>;
+  };
+    "system.FutuOpenDClientProcess": {
+    establishedConnections: number;
+    pid: number;
+    processName: string;
+  };
+    "system.FutuOpenDDiagnosis": {
+    code: string;
+    manualRetryRequired: boolean;
+    restartOpenDRecommended: boolean;
+    summary: string | null;
+  };
+    "system.FutuOpenDHealthResponse": {
+    checkedAt: string;
+    diagnosis: components["schemas"]["system.FutuOpenDDiagnosis"];
+    latestVersion: components["schemas"]["system.FutuOpenDLatestVersion"];
+    localInstallation: components["schemas"]["system.FutuOpenDLocalInstallation"];
+    localSocketDiagnostics: components["schemas"]["system.FutuOpenDSocketDiagnostics"];
+    recommendations: Array<string>;
+    runtime: components["schemas"]["system.FutuOpenDRuntime"];
+    status: "healthy" | "degraded" | "offline";
+  };
+    "system.FutuOpenDInstallGuideResponse": {
+    brokerId: string;
+    description: string;
+    nextSteps: Array<string>;
+    options: Array<components["schemas"]["system.FutuOpenDInstallOption"]>;
+    settings: components["schemas"]["system.FutuOpenDInstallSettings"];
+    title: string;
+  };
+    "system.FutuOpenDInstallOption": {
+    description: string;
+    id: "gui" | "command-line";
+    label: string;
+    recommended: boolean;
+    url: string;
+  };
+    "system.FutuOpenDInstallSettings": {
+    apiPort: number;
+    host: string;
+    marketDataTransport: string;
+    maxWebSocketConnections: number;
+    minimumVersion: string;
+    useEncryption: boolean;
+    websocketKeyRequired: boolean;
+    websocketPort: number;
+  };
+    "system.FutuOpenDLatestVersion": {
+    checkedAt: string | null;
+    error: string | null;
+    sourceUrl: string | null;
+    status: "unknown" | "not_installed" | "up_to_date" | "outdated" | "ahead_of_latest";
+    value: string | null;
+  };
+    "system.FutuOpenDLocalInstallation": {
+    guiDetected: boolean;
+    installPath: string | null;
+    installed: boolean;
+    platform: string;
+    process: components["schemas"]["system.FutuOpenDLocalProcessDetails"];
+    version: string | null;
+  };
+    "system.FutuOpenDLocalProcessDetails": {
+    executablePath: string | null;
+    pid: number | null;
+    running: boolean;
+  };
+    "system.FutuOpenDRuntime": {
+    apiPort: number;
+    connectivity: "connected" | "degraded" | "disconnected";
+    host: string;
+    lastError: string | null;
+    marketDataTransport: string;
+    minimumVersion: string;
+    programStatus: string | null;
+    quoteLoggedIn: boolean | null;
+    serverVersion: string | null;
+    tradeLoggedIn: boolean | null;
+    useEncryption: boolean;
+    websocketKeyConfigured: boolean;
+    websocketPort: number;
+  };
+    "system.FutuOpenDSocketDiagnostics": {
+    configuredOpenDWebSocketLimit: number;
+    configuredOpenDWebSocketLimitActive: boolean;
+    configuredOpenDWebSocketLimitScope: string;
+    jftradeLiveWebSocketAtLimit: boolean;
+    jftradeLiveWebSocketLimit: number;
+    likelyConnectionSaturation: boolean;
+    liveQuoteBackoffActive: boolean;
+    liveQuoteFailureCount: number;
+    liveQuoteLastError: string | null;
+    liveQuoteRetryAfter: string | null;
+    liveStreamBackoffActive: boolean;
+    liveStreamFailureCount: number;
+    liveStreamLastError: string | null;
+    liveStreamRetryAfter: string | null;
+    openDWebSocketPoolLikelySaturation: boolean;
+    topClientProcesses: Array<components["schemas"]["system.FutuOpenDClientProcess"]>;
+    transportMode: string;
+    websocketEstablishedConnections: number;
   };
     "system.RealTradeApprovalPolicy": {
     approvalMode: string;
     approvalWorkflowAvailable: boolean;
     approverAllowlistEnabled: boolean;
     approverCount: number;
-    largeOrderNotional?: number;
+    largeOrderNotional: number | null;
   };
     "system.RealTradeApprovalsResponse": {
     approvalPolicy: components["schemas"]["system.RealTradeApprovalPolicy"];
@@ -825,7 +2735,13 @@ export interface components {
     realTradingEnabled: boolean;
     requiredConfirmationText: string;
   };
-    "system.RealTradeHardStopCommand": {
+    "system.RealTradeHardStopEventsResponse": {
+    allowsCancel: boolean;
+    blockedOperations: Array<string>;
+    entries: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
+    realTradingEnabled: boolean;
+  };
+    "system.RealTradeHardStopRequest": {
     accountId?: string;
     brokerId?: string;
     hardStopScope?: string;
@@ -835,21 +2751,10 @@ export interface components {
     symbol?: string;
     tradingEnvironment?: string;
   };
-    "system.RealTradeHardStopEventsResponse": {
-    allowsCancel: boolean;
-    blockedOperations: Array<string>;
-    entries: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
-    realTradingEnabled: boolean;
-  };
     "system.RealTradeHardStopsResponse": {
     allowsCancel: boolean;
     blockedOperations: Array<string>;
     entries: Array<components["schemas"]["trading.RealTradeHardStopEntry"]>;
-  };
-    "system.RealTradeKillSwitchCommand": {
-    operatorId?: string;
-    reason?: string;
-    tradingEnvironment?: string;
   };
     "system.RealTradeKillSwitchEventsResponse": {
     allowsCancel: boolean;
@@ -859,44 +2764,154 @@ export interface components {
     realTradingEnabled: boolean;
     runtimeActive: boolean;
   };
+    "system.RealTradeKillSwitchRequest": {
+    operatorId?: string;
+    reason?: string;
+    tradingEnvironment?: string;
+  };
     "system.RealTradeKillSwitchStateResponse": {
     allowsCancel: boolean;
     blockedOperations: Array<string>;
-    entry?: components["schemas"]["trading.RealTradeKillSwitchEntry"];
+    entry: components["schemas"]["trading.RealTradeKillSwitchEntry"] | null;
     killSwitchActive: boolean;
-    killSwitchSource?: string;
+    killSwitchSource: string | null;
     realTradingEnabled: boolean;
     runtimeActive: boolean;
   };
     "system.RealTradeRiskEventsResponse": {
-    effectiveMaxOrderNotional?: number;
-    effectiveMaxOrderQuantity?: number;
+    effectiveMaxOrderNotional: number | null;
+    effectiveMaxOrderQuantity: number | null;
     entries: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
-    maxOrderNotional?: number;
-    maxOrderQuantity?: number;
+    maxOrderNotional: number | null;
+    maxOrderQuantity: number | null;
     realTradingEnabled: boolean;
     riskEnabled: boolean;
-    runtimeConfiguredMaxOrderNotional?: number;
-    runtimeConfiguredMaxOrderQuantity?: number;
+    runtimeConfiguredMaxOrderNotional: number | null;
+    runtimeConfiguredMaxOrderQuantity: number | null;
     runtimeRiskConfigured: boolean;
   };
     "system.RealTradeRiskLimitsResponse": {
-    effectiveMaxOrderNotional?: number;
-    effectiveMaxOrderQuantity?: number;
-    entry?: components["schemas"]["trading.RealTradeRuntimeRiskEntry"];
+    effectiveMaxOrderNotional: number | null;
+    effectiveMaxOrderQuantity: number | null;
+    entry: components["schemas"]["trading.RealTradeRuntimeRiskEntry"] | null;
     realTradingEnabled: boolean;
     riskEnabled: boolean;
-    runtimeConfiguredMaxOrderNotional?: number;
-    runtimeConfiguredMaxOrderQuantity?: number;
+    runtimeConfiguredMaxOrderNotional: number | null;
+    runtimeConfiguredMaxOrderQuantity: number | null;
     runtimeRiskConfigured: boolean;
   };
-    "system.RealTradeRuntimeRiskCommand": {
-    maxOrderNotional?: number;
-    maxOrderQuantity?: number;
+    "system.RealTradeRuntimeRiskRequest": {
+    maxOrderNotional?: number | null;
+    maxOrderQuantity?: number | null;
     operatorId?: string;
     realTradingEnabled?: boolean;
     reason?: string;
     tradingEnvironment?: string;
+  };
+    "system.RuntimeDependenciesResponse": {
+    allRequiredSatisfied: boolean;
+    checkedAt: string;
+    dependencies: Array<components["schemas"]["system.RuntimeDependencyItem"]>;
+  };
+    "system.RuntimeDependencyItem": {
+    attemptedPaths: Array<string>;
+    configuredPath: string;
+    detectedVersion: string;
+    displayName: string;
+    effectivePath: string;
+    homepageUrl: string;
+    id: string;
+    message: string;
+    minimumVersion: string;
+    required: boolean;
+    resolvedPath: string;
+    source: string;
+    status: string;
+  };
+    "system.StorageOverviewResponse": {
+    pendingOutbox: Array<unknown>;
+    recentAuditLogs: Array<unknown>;
+    recentExecutionCommands: Array<unknown>;
+    recentJobs: Array<unknown>;
+  };
+    "system.SystemBuildInformation": {
+    buildTime: string;
+    commit: string;
+    goarch: string;
+    goos: string;
+    version: string;
+  };
+    "system.SystemObservability": {
+    api: Record<string, unknown>;
+    broker: Record<string, unknown>;
+    exchangeCalendars: Record<string, unknown>;
+    live: Record<string, unknown>;
+    marketdata: Record<string, unknown>;
+    requests: components["schemas"]["observability.Snapshot"];
+    strategyRuntime: Record<string, unknown>;
+  };
+    "system.SystemPersistence": {
+    checkedAt: string;
+    databasePath: string;
+    engine: string;
+    migrated: boolean;
+    pendingMigrations: Array<string>;
+    status: string;
+    tables: Array<string>;
+  };
+    "system.SystemRealTradeAccess": {
+    adminAllowlistEnabled: boolean;
+    adminCount: number;
+    approverAllowlistEnabled: boolean;
+    approverCount: number;
+  };
+    "system.SystemRealTradingKillSwitch": {
+    active: boolean;
+    allowsCancel: boolean;
+    blockedOperations: Array<string>;
+    runtimeActive: boolean;
+  };
+    "system.SystemRealTradingRisk": {
+    enabled: boolean;
+    maxOrderNotional: number | null;
+    maxOrderQuantity: number | null;
+    runtimeConfiguredMaxOrderNotional: number | null;
+    runtimeConfiguredMaxOrderQuantity: number | null;
+    runtimeRiskConfigured: boolean;
+  };
+    "system.SystemRuntimeResourceDescriptor": {
+    closeOwner: string;
+    critical: boolean;
+    environmentOverride?: string;
+    healthProvider: string;
+    id: string;
+    initializedBy: string;
+    kind: string;
+    owner: string;
+    path: string;
+    schemaOwner: string;
+  };
+    "system.SystemRuntimeResources": {
+    checkedAt: string;
+    count: number;
+    items: Array<components["schemas"]["system.SystemRuntimeResourceDescriptor"]>;
+  };
+    "system.SystemStatusResponse": {
+    apiPort: number;
+    broker?: components["schemas"]["trading.BrokerRuntimeDescriptor"];
+    build: components["schemas"]["system.SystemBuildInformation"];
+    defaultBroker: string;
+    defaultTradingEnvironment: string;
+    message: string;
+    name: string;
+    observability: components["schemas"]["system.SystemObservability"];
+    persistence: components["schemas"]["system.SystemPersistence"];
+    realTradeAccess: components["schemas"]["system.SystemRealTradeAccess"];
+    realTradingEnabled: boolean;
+    realTradingKillSwitch: components["schemas"]["system.SystemRealTradingKillSwitch"];
+    realTradingRisk: components["schemas"]["system.SystemRealTradingRisk"];
+    runtimeResources: components["schemas"]["system.SystemRuntimeResources"];
+    strategyRuntime?: components["schemas"]["strategy.RuntimeSummary"];
   };
     "trading.BrokerCancelOrdersResponse": {
     cancelled: number;
@@ -906,100 +2921,100 @@ export interface components {
     cashFlows: Array<components["schemas"]["broker.CashFlowSnapshot"]>;
     checkedAt: string;
     connectivity: string;
-    lastError?: string;
+    lastError: string | null;
   };
     "trading.BrokerCurrencyBalance": {
     accountId: string;
-    availableWithdrawalCash?: number;
-    cash?: number;
+    availableWithdrawalCash: number | null;
+    cash: number | null;
     currency: string;
-    netCashPower?: number;
+    netCashPower: number | null;
     tradingEnvironment: string;
   };
     "trading.BrokerFill": {
     accountId: string;
     brokerFillId: string;
-    brokerFillIdEx?: string;
+    brokerFillIdEx: string | null;
     brokerOrderId: string;
-    brokerOrderIdEx?: string;
-    fillPrice?: number;
+    brokerOrderIdEx: string | null;
+    fillPrice: number | null;
     filledAt: string;
     filledQuantity: number;
     market: string;
     side: string;
-    status?: string;
+    status: string | null;
     symbol: string;
-    symbolName?: string;
+    symbolName: string | null;
     tradingEnvironment: string;
   };
     "trading.BrokerFillsResponse": {
     checkedAt: string;
     connectivity: string;
     fills: Array<components["schemas"]["trading.BrokerFill"]>;
-    lastError?: string;
+    lastError: string | null;
   };
     "trading.BrokerFundsResponse": {
     checkedAt: string;
     connectivity: string;
     currencyBalances: Array<components["schemas"]["trading.BrokerCurrencyBalance"]>;
-    lastError?: string;
+    lastError: string | null;
     marketAssets: Array<components["schemas"]["trading.BrokerMarketAsset"]>;
-    summary?: components["schemas"]["trading.BrokerFundsSummary"];
+    summary: components["schemas"]["trading.BrokerFundsSummary"] | null;
   };
     "trading.BrokerFundsSummary": {
     accountId: string;
-    availableFunds?: number;
-    availableWithdrawalCash?: number;
-    beginningDTBP?: number;
-    bondAssets?: number;
-    cash?: number;
-    currency?: string;
-    debtCash?: number;
-    dtCallAmount?: number;
-    dtStatus?: string;
-    exposureLevel?: string;
-    exposureLimit?: number;
-    frozenCash?: number;
-    fundAssets?: number;
-    initialMargin?: number;
-    isPdt?: boolean;
-    longMarketValue?: number;
-    maintenanceMargin?: number;
-    marginCallMargin?: number;
+    availableFunds: number | null;
+    availableWithdrawalCash: number | null;
+    beginningDTBP: number | null;
+    bondAssets: number | null;
+    cash: number | null;
+    currency: string | null;
+    debtCash: number | null;
+    dtCallAmount: number | null;
+    dtStatus: string | null;
+    exposureLevel: string | null;
+    exposureLimit: number | null;
+    frozenCash: number | null;
+    fundAssets: number | null;
+    initialMargin: number | null;
+    isPdt: boolean | null;
+    longMarketValue: number | null;
+    maintenanceMargin: number | null;
+    marginCallMargin: number | null;
     market: string;
-    marketValue?: number;
-    maxWithdrawal?: number;
-    netCashPower?: number;
-    pdtSeq?: string;
-    pendingAsset?: number;
-    purchasingPower?: number;
-    realizedPnl?: number;
-    remainingDTBP?: number;
-    remainingLimit?: number;
-    riskStatus?: string;
-    securitiesAssets?: number;
-    shortMarketValue?: number;
-    shortSellingPower?: number;
-    totalAssets?: number;
+    marketValue: number | null;
+    maxWithdrawal: number | null;
+    netCashPower: number | null;
+    pdtSeq: string | null;
+    pendingAsset: number | null;
+    purchasingPower: number | null;
+    realizedPnl: number | null;
+    remainingDTBP: number | null;
+    remainingLimit: number | null;
+    riskStatus: string | null;
+    securitiesAssets: number | null;
+    shortMarketValue: number | null;
+    shortSellingPower: number | null;
+    totalAssets: number | null;
     tradingEnvironment: string;
-    unrealizedPnl?: number;
-    usedLimit?: number;
+    unrealizedPnl: number | null;
+    usedLimit: number | null;
   };
     "trading.BrokerKLinesResponse": {
     checkedAt: string;
     connectivity: string;
     klines: unknown;
-    lastError?: string;
+    lastError: string | null;
   };
     "trading.BrokerMarginRatiosResponse": {
     checkedAt: string;
     connectivity: string;
-    lastError?: string;
+    lastError: string | null;
     marginRatios: Array<components["schemas"]["broker.MarginRatioSnapshot"]>;
   };
     "trading.BrokerMarketAsset": {
     accountId: string;
-    assets?: number;
+    assets: number | null;
     market: string;
     tradingEnvironment: string;
   };
@@ -1012,28 +3027,28 @@ export interface components {
     "trading.BrokerMaxTradeQuantityResponse": {
     checkedAt: string;
     connectivity: string;
-    lastError?: string;
-    maxTradeQuantity?: components["schemas"]["broker.MaxTradeQuantitySnapshot"];
+    lastError: string | null;
+    maxTradeQuantity: components["schemas"]["broker.MaxTradeQuantitySnapshot"] | null;
   };
     "trading.BrokerOrder": {
     accountId: string;
     brokerOrderId: string;
-    brokerOrderIdEx?: string;
-    currency?: string;
-    filledAveragePrice?: number;
-    filledQuantity?: number;
-    lastError?: string;
+    brokerOrderIdEx: string | null;
+    currency: string | null;
+    filledAveragePrice: number | null;
+    filledQuantity: number | null;
+    lastError: string | null;
     market: string;
     orderType: string;
-    price?: number;
+    price: number | null;
     quantity: number;
-    remark?: string;
+    remark: string | null;
     side: string;
     status: string;
     submittedAt: string;
     symbol: string;
-    symbolName?: string;
-    timeInForce?: string;
+    symbolName: string | null;
+    timeInForce: string | null;
     tradingEnvironment: string;
     updatedAt: string;
   };
@@ -1041,45 +3056,45 @@ export interface components {
     checkedAt: string;
     connectivity: string;
     fees: Array<components["schemas"]["broker.OrderFeeSnapshot"]>;
-    lastError?: string;
+    lastError: string | null;
   };
     "trading.BrokerOrdersResponse": {
     checkedAt: string;
     connectivity: string;
-    lastError?: string;
+    lastError: string | null;
     orders: Array<components["schemas"]["trading.BrokerOrder"]>;
   };
     "trading.BrokerPlaceOrderResponse": {
-    order: components["schemas"]["broker.PlaceOrderResult"];
+    order: components["schemas"]["broker.PlaceOrderResult"] | null;
     placedAt: string;
   };
     "trading.BrokerPosition": {
     accountId: string;
-    averageCostPrice?: number;
-    costPrice?: number;
-    currency?: string;
+    averageCostPrice: number | null;
+    costPrice: number | null;
+    currency: string | null;
     lastPrice: number;
     market: string;
     marketValue: number;
-    pnlRatio?: number;
+    pnlRatio: number | null;
     quantity: number;
-    realizedPnl?: number;
+    realizedPnl: number | null;
     sellableQuantity: number;
     symbol: string;
-    symbolName?: string;
+    symbolName: string | null;
     tradingEnvironment: string;
-    unrealizedPnl?: number;
+    unrealizedPnl: number | null;
   };
     "trading.BrokerPositionsResponse": {
     checkedAt: string;
     connectivity: string;
-    lastError?: string;
+    lastError: string | null;
     positions: Array<components["schemas"]["trading.BrokerPosition"]>;
   };
     "trading.BrokerQuoteResponse": {
     checkedAt: string;
     connectivity: string;
-    lastError?: string;
+    lastError: string | null;
     quote?: components["schemas"]["broker.QuoteSnapshot"];
     quotes?: unknown;
   };
@@ -1156,7 +3171,7 @@ export interface components {
     "trading.BrokerSecuritiesResponse": {
     checkedAt: string;
     connectivity: string;
-    lastError?: string;
+    lastError: string | null;
     securities: unknown;
   };
     "trading.BrokerUnlockTradeResponse": {
@@ -1164,181 +3179,203 @@ export interface components {
     unlockedAt: string;
   };
     "trading.CancelOrderItem": {
-    brokerOrderId?: string;
-    orderId?: number;
-    symbol?: string;
+    brokerOrderId: string;
+    orderId: number;
+    symbol: string;
   };
     "trading.CancelOrdersRequest": {
-    orders?: Array<components["schemas"]["trading.CancelOrderItem"]>;
+    orders: Array<components["schemas"]["trading.CancelOrderItem"]>;
   };
     "trading.ExecutionComboPreview": {
-    accountId?: string;
+    accountId: string;
     accountImpact?: components["schemas"]["broker.OptionComboAccountImpact"];
-    allowed?: boolean;
-    brokerId?: string;
+    allowed: boolean;
+    brokerId: string;
     buyingPowerImpact?: number;
-    capabilityVersion?: string;
-    expiresAt?: string;
-    legs?: Array<components["schemas"]["broker.OrderLegIntent"]>;
-    market?: string;
+    capabilityVersion: string;
+    expiresAt: string;
+    legs: Array<components["schemas"]["broker.OrderLegIntent"]>;
+    market: string;
     optionAnalysis?: components["schemas"]["broker.OptionComboAnalysis"];
-    orderKind?: components["schemas"]["broker.OrderKind"];
-    previewAt?: string;
-    previewId?: string;
-    productClass?: components["schemas"]["broker.ProductClass"];
-    requestHash?: string;
+    orderKind: components["schemas"]["broker.OrderKind"];
+    previewAt: string;
+    previewId: string;
+    productClass: components["schemas"]["broker.ProductClass"];
+    requestHash: string;
     warnings?: Array<string>;
   };
     "trading.ExecutionComboRequest": {
-    accountId?: string;
-    amount?: number;
-    brokerId?: string;
-    clientOrderId?: string;
-    farExpiry?: string;
-    legs?: Array<components["schemas"]["broker.OrderLegIntent"]>;
-    market?: string;
-    mvc?: string;
-    nearExpiry?: string;
-    optionStrategy?: string;
-    orderKind?: components["schemas"]["broker.OrderKind"];
-    previewId?: string;
-    price?: number;
-    productClass?: components["schemas"]["broker.ProductClass"];
-    quoteExpiresAt?: string;
-    rfqId?: string;
-    spread?: number;
-    tradingEnvironment?: string;
-    underlyingInstrumentId?: string;
+    accountId: string;
+    amount: number | null;
+    brokerId: string;
+    clientOrderId: string;
+    farExpiry: string;
+    legs: Array<components["schemas"]["broker.OrderLegIntent"]>;
+    market: string;
+    mvc: string;
+    nearExpiry: string;
+    optionStrategy: string;
+    orderKind: components["schemas"]["broker.OrderKind"];
+    previewId: string;
+    price: number | null;
+    productClass: components["schemas"]["broker.ProductClass"];
+    quoteExpiresAt: string | null;
+    rfqId: string;
+    spread: number | null;
+    tradingEnvironment: string;
+    underlyingInstrumentId: string;
   };
     "trading.ExecutionCommandResponse": {
-    accepted?: boolean;
-    brokerErrorCode?: string;
-    brokerOrderId?: string;
-    brokerOrderIdEx?: string;
-    checkedAt?: string;
-    internalOrderId?: string;
-    message?: string;
-    operation?: string;
-    orderStatus?: string;
+    accepted: boolean;
+    brokerErrorCode: string | null;
+    brokerOrderId: string | null;
+    brokerOrderIdEx: string | null;
+    checkedAt: string;
+    internalOrderId: string | null;
+    message: string;
+    operation: string;
+    orderStatus: string | null;
   };
     "trading.ExecutionOrder": {
-    accountId?: string;
-    brokerId?: string;
-    brokerOrderId?: string;
-    brokerOrderIdEx?: string;
-    clientOrderId?: string;
-    createdAt?: string;
-    fees?: number;
-    filledAveragePrice?: number;
-    filledQuantity?: number;
-    internalOrderId?: string;
-    lastError?: string;
-    lastErrorCode?: string;
-    lastErrorSource?: string;
+    accountId: string;
+    brokerId: string;
+    brokerOrderId: string | null;
+    brokerOrderIdEx: string | null;
+    clientOrderId: string | null;
+    createdAt: string;
+    fees: number | null;
+    filledAveragePrice: number | null;
+    filledQuantity: number | null;
+    internalOrderId: string;
+    lastError: string | null;
+    lastErrorCode: string | null;
+    lastErrorSource: string | null;
     legs?: Array<components["schemas"]["trading.ExecutionOrderLeg"]>;
-    market?: string;
+    market: string;
     normalizedRequest?: string;
-    orderKind?: components["schemas"]["broker.OrderKind"];
-    orderType?: string;
-    payout?: number;
-    previewId?: string;
-    productClass?: components["schemas"]["broker.ProductClass"];
-    quantityMode?: components["schemas"]["broker.QuantityMode"];
-    rawBrokerStatus?: string;
-    remark?: string;
-    requestedAmount?: number;
-    requestedPrice?: number;
-    requestedQuantity?: number;
-    side?: string;
-    source?: string;
-    sourceDetail?: string;
-    status?: string;
-    submittedAt?: string;
-    symbol?: string;
-    tradingEnvironment?: string;
-    updatedAt?: string;
+    orderKind: components["schemas"]["broker.OrderKind"];
+    orderType: string | null;
+    payout: number | null;
+    previewId: string | null;
+    productClass: components["schemas"]["broker.ProductClass"];
+    quantityMode: components["schemas"]["broker.QuantityMode"];
+    rawBrokerStatus: string | null;
+    remark: string | null;
+    requestedAmount: number | null;
+    requestedPrice: number | null;
+    requestedQuantity: number | null;
+    side: string | null;
+    source: string;
+    sourceDetail: string;
+    status: string;
+    submittedAt: string | null;
+    symbol: string | null;
+    tradingEnvironment: string;
+    updatedAt: string;
   };
     "trading.ExecutionOrderDetails": {
-    checkedAt?: string;
-    order?: components["schemas"]["trading.ExecutionOrder"];
-    recentEvents?: Array<components["schemas"]["trading.ExecutionOrderEvent"]>;
+    checkedAt: string;
+    order: components["schemas"]["trading.ExecutionOrder"];
+    recentEvents: Array<components["schemas"]["trading.ExecutionOrderEvent"]>;
   };
     "trading.ExecutionOrderEvent": {
-    createdAt?: string;
-    eventType?: string;
-    id?: string;
-    internalOrderId?: string;
-    nextStatus?: string;
-    payloadJson?: string;
-    previousStatus?: string;
+    createdAt: string;
+    eventType: string;
+    id: string;
+    internalOrderId: string;
+    nextStatus: string;
+    payloadJson: string;
+    previousStatus: string | null;
   };
     "trading.ExecutionOrderEvents": {
-    events?: Array<components["schemas"]["trading.ExecutionOrderEvent"]>;
-    internalOrderId?: string;
+    events: Array<components["schemas"]["trading.ExecutionOrderEvent"]>;
+    internalOrderId: string;
   };
     "trading.ExecutionOrderLeg": {
     averagePrice?: number;
     brokerLegId?: string;
-    createdAt?: string;
+    createdAt: string;
     fees?: number;
     filledAmount?: number;
     filledQuantity?: number;
-    id?: string;
-    index?: number;
-    instrumentId?: string;
-    internalOrderId?: string;
+    id: string;
+    index: number;
+    instrumentId: string;
+    internalOrderId: string;
     payout?: number;
     predictionSide?: string;
-    productClass?: components["schemas"]["broker.ProductClass"];
-    ratio?: number;
+    productClass: components["schemas"]["broker.ProductClass"];
+    ratio: number;
     requestedAmount?: number;
     requestedPrice?: number;
     requestedQuantity?: number;
-    side?: string;
-    status?: string;
-    updatedAt?: string;
+    side: string;
+    status: string;
+    updatedAt: string;
   };
     "trading.ExecutionOrders": {
-    orders?: Array<components["schemas"]["trading.ExecutionOrder"]>;
+    orders: Array<components["schemas"]["trading.ExecutionOrder"]>;
   };
     "trading.ExecutionPlaceRequest": {
-    accountId?: string;
-    amount?: number;
-    brokerId?: string;
-    clientOrderId?: string;
-    code?: string;
-    env?: string;
+    accountId: string;
+    amount?: number | null;
+    brokerId: string;
+    clientOrderId: string;
+    code: string;
+    env: string;
     legs?: Array<components["schemas"]["broker.OrderLegIntent"]>;
-    market?: string;
-    orderKind?: components["schemas"]["broker.OrderKind"];
-    orderType?: string;
+    market: string;
+    orderKind: components["schemas"]["broker.OrderKind"];
+    orderType: string;
     predictionSide?: string;
     previewId?: string;
-    price?: number;
-    productClass?: components["schemas"]["broker.ProductClass"];
-    quantity?: number;
-    quantityMode?: components["schemas"]["broker.QuantityMode"];
-    quoteExpiresAt?: string;
+    price?: number | null;
+    productClass: components["schemas"]["broker.ProductClass"];
+    quantity: number;
+    quantityMode: components["schemas"]["broker.QuantityMode"];
+    quoteExpiresAt?: string | null;
     remark?: string;
     rfqId?: string;
     session?: string;
-    side?: string;
-    stopPrice?: number;
-    symbol?: string;
-    timeInForce?: string;
-    tradingEnvironment?: string;
+    side: string;
+    stopPrice?: number | null;
+    symbol: string;
+    timeInForce: string;
+    tradingEnvironment: string;
+  };
+    "trading.ExecutionPreview": {
+    accountId: string;
+    amount: number | null;
+    brokerId: string;
+    capabilityVersion: string;
+    expiresAt: string;
+    market: string;
+    orderKind: components["schemas"]["broker.OrderKind"];
+    orderType: string;
+    predictionSide?: string;
+    previewAt: string;
+    previewId: string;
+    previewValid: boolean;
+    price: number | null;
+    productClass: components["schemas"]["broker.ProductClass"];
+    quantity: number;
+    quantityMode: components["schemas"]["broker.QuantityMode"];
+    requestHash: string;
+    side: string;
+    symbol: string;
+    tradingEnvironment: string;
   };
     "trading.PlaceOrderRequest": {
     clientOrderId?: string;
     fillOutsideRTH?: boolean;
-    orderType?: string;
+    orderType: string;
     price?: number;
-    quantity?: number;
+    quantity: number;
     remark?: string;
     session?: string;
-    side?: string;
+    side: string;
     stopPrice?: number;
-    symbol?: string;
+    symbol: string;
     timeInForce?: string;
   };
     "trading.PortfolioCashBalance": {
@@ -1369,29 +3406,29 @@ export interface components {
     positions: Array<components["schemas"]["trading.PortfolioPosition"]>;
   };
     "trading.RealTradeControlEvent": {
-    accountId?: string;
+    accountId: string | null;
     action: string;
-    activatedAt?: string;
+    activatedAt: string | null;
     brokerId: string;
-    configuredMaxOrderNotional?: number;
-    configuredMaxOrderQuantity?: number;
+    configuredMaxOrderNotional: number | null;
+    configuredMaxOrderQuantity: number | null;
     createdAt: string;
-    errorCode?: string;
+    errorCode: string | null;
     eventType: string;
-    hardStopId?: string;
-    hardStopScope?: string;
+    hardStopId: string | null;
+    hardStopScope: string | null;
     id: string;
-    killSwitchSource?: string;
-    market?: string;
-    operation?: string;
-    operatorId?: string;
-    orderId?: string;
-    price?: number;
-    quantity?: number;
-    realTradingEnabled?: boolean;
-    reason?: string;
-    symbol?: string;
-    tradingEnvironment?: string;
+    killSwitchSource: string | null;
+    market: string | null;
+    operation: string | null;
+    operatorId: string | null;
+    orderId: string | null;
+    price: number | null;
+    quantity: number | null;
+    realTradingEnabled: boolean | null;
+    reason: string | null;
+    symbol: string | null;
+    tradingEnvironment: string | null;
   };
     "trading.RealTradeHardStopEntry": {
     accountId: string;
@@ -1399,10 +3436,10 @@ export interface components {
     brokerId: string;
     hardStopScope: string;
     id: string;
-    market?: string;
+    market: string | null;
     operatorId: string;
     reason: string;
-    symbol?: string;
+    symbol: string | null;
     tradingEnvironment: string;
     updatedAt: string;
   };
@@ -1418,31 +3455,31 @@ export interface components {
     allowsCancel: boolean;
     blockedOperations: Array<string>;
     controlPlaneAvailable: boolean;
-    controlPlaneError?: string;
-    effectiveMaxOrderNotional?: number;
-    effectiveMaxOrderQuantity?: number;
+    controlPlaneError: string | null;
+    effectiveMaxOrderNotional: number | null;
+    effectiveMaxOrderQuantity: number | null;
     hardStopEntries: Array<components["schemas"]["trading.RealTradeHardStopEntry"]>;
     hardStopEvents: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
     hardStopsActive: boolean;
     killSwitchActive: boolean;
-    killSwitchEntry?: components["schemas"]["trading.RealTradeKillSwitchEntry"];
+    killSwitchEntry: components["schemas"]["trading.RealTradeKillSwitchEntry"] | null;
     killSwitchEvents: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
-    killSwitchSource?: string;
+    killSwitchSource: string | null;
     matchedHardStop?: components["schemas"]["trading.RealTradeHardStopEntry"];
     realTradingEnabled: boolean;
     riskEnabled: boolean;
-    riskEntry?: components["schemas"]["trading.RealTradeRuntimeRiskEntry"];
+    riskEntry: components["schemas"]["trading.RealTradeRuntimeRiskEntry"] | null;
     riskEvents: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
-    runtimeConfiguredMaxOrderNotional?: number;
-    runtimeConfiguredMaxOrderQuantity?: number;
+    runtimeConfiguredMaxOrderNotional: number | null;
+    runtimeConfiguredMaxOrderQuantity: number | null;
     runtimeKillSwitchActive: boolean;
     runtimeRiskConfigured: boolean;
   };
     "trading.RealTradeRuntimeRiskEntry": {
     activatedAt: string;
     id: string;
-    maxOrderNotional?: number;
-    maxOrderQuantity?: number;
+    maxOrderNotional: number | null;
+    maxOrderQuantity: number | null;
     operatorId: string;
     realTradingEnabled: boolean;
     reason: string;
@@ -1451,10 +3488,10 @@ export interface components {
   };
     "trading.UnlockTradeRequest": {
     passwordMd5?: string;
-    unlock?: boolean;
+    unlock: boolean;
   };
     "watchlist.CommitImportInput": {
-    deleteInstrumentIds?: Array<string>;
+    deleteInstrumentIds: Array<string>;
   };
     "watchlist.CreateGroupInput": {
     name: string;
@@ -1465,13 +3502,13 @@ export interface components {
     pre?: components["schemas"]["watchlist.QuoteBlock"];
   };
     "watchlist.GroupRef": {
-    groupId?: string;
-    name?: string;
+    groupId: string;
+    name: string;
   };
     "watchlist.ImportDiffItem": {
-    instrumentId?: string;
+    instrumentId: string;
     name?: string;
-    selected?: boolean;
+    selected: boolean;
     type?: string;
   };
     "watchlist.ImportPreviewRequest": {
@@ -1483,109 +3520,109 @@ export interface components {
     "watchlist.QuoteBlock": {
     change?: number;
     changePercent?: number;
-    observedAt?: string;
+    observedAt: string;
     price?: number;
     updateTime?: string;
   };
     "watchlist.ReplaceMembershipsInput": {
-    expectedRevision?: number;
-    groupIds?: Array<string>;
-    newGroupNames?: Array<string>;
+    expectedRevision: number;
+    groupIds: Array<string>;
+    newGroupNames: Array<string>;
   };
     "watchlist.UpdateGroupInput": {
     expectedRevision: number;
     name: string;
   };
     "watchlist.WatchlistBinding": {
-    bindingId?: string;
-    createdAt?: string;
-    localGroupId?: string;
-    remoteGroupId?: string;
-    remoteName?: string;
-    sourceId?: string;
-    updatedAt?: string;
+    bindingId: string;
+    createdAt: string;
+    localGroupId: string;
+    remoteGroupId: string;
+    remoteName: string;
+    sourceId: string;
+    updatedAt: string;
   };
     "watchlist.WatchlistBindingsData": {
-    bindings?: Array<components["schemas"]["watchlist.WatchlistBinding"]>;
+    bindings: Array<components["schemas"]["watchlist.WatchlistBinding"]>;
   };
     "watchlist.WatchlistDeleteData": {
-    deleted?: boolean;
+    deleted: boolean;
   };
     "watchlist.WatchlistGroup": {
-    createdAt?: string;
-    groupId?: string;
-    isDefault?: boolean;
-    itemCount?: number;
-    name?: string;
-    protected?: boolean;
-    revision?: number;
-    updatedAt?: string;
+    createdAt: string;
+    groupId: string;
+    isDefault: boolean;
+    itemCount: number;
+    name: string;
+    protected: boolean;
+    revision: number;
+    updatedAt: string;
   };
     "watchlist.WatchlistGroupsData": {
-    groups?: Array<components["schemas"]["watchlist.WatchlistGroup"]>;
+    groups: Array<components["schemas"]["watchlist.WatchlistGroup"]>;
   };
     "watchlist.WatchlistImportPreview": {
-    added?: Array<components["schemas"]["watchlist.ImportDiffItem"]>;
-    createdAt?: string;
-    expiresAt?: string;
+    added: Array<components["schemas"]["watchlist.ImportDiffItem"]>;
+    createdAt: string;
+    expiresAt: string;
     localGroupId?: string;
-    localGroupRevision?: number;
-    localOnly?: Array<components["schemas"]["watchlist.ImportDiffItem"]>;
+    localGroupRevision: number;
+    localOnly: Array<components["schemas"]["watchlist.ImportDiffItem"]>;
     newGroupName?: string;
-    previewId?: string;
-    remoteGroupId?: string;
-    remoteGroupName?: string;
-    remoteHash?: string;
-    sourceId?: string;
-    unchanged?: Array<components["schemas"]["watchlist.ImportDiffItem"]>;
+    previewId: string;
+    remoteGroupId: string;
+    remoteGroupName: string;
+    remoteHash: string;
+    sourceId: string;
+    unchanged: Array<components["schemas"]["watchlist.ImportDiffItem"]>;
   };
     "watchlist.WatchlistImportRun": {
-    addedCount?: number;
-    completedAt?: string;
-    createdAt?: string;
-    localGroupId?: string;
-    previewId?: string;
-    remoteGroupId?: string;
-    remoteGroupName?: string;
-    remoteHash?: string;
-    removedCount?: number;
-    runId?: string;
-    sourceId?: string;
-    status?: string;
-    unchangedCount?: number;
+    addedCount: number;
+    completedAt: string;
+    createdAt: string;
+    localGroupId: string;
+    previewId: string;
+    remoteGroupId: string;
+    remoteGroupName: string;
+    remoteHash: string;
+    removedCount: number;
+    runId: string;
+    sourceId: string;
+    status: string;
+    unchangedCount: number;
   };
     "watchlist.WatchlistImportRunsData": {
-    items?: Array<components["schemas"]["watchlist.WatchlistImportRun"]>;
+    items: Array<components["schemas"]["watchlist.WatchlistImportRun"]>;
     nextCursor?: string;
   };
     "watchlist.WatchlistItem": {
-    groupIds?: Array<string>;
-    groups?: Array<components["schemas"]["watchlist.GroupRef"]>;
-    instrumentId?: string;
+    groupIds: Array<string>;
+    groups: Array<components["schemas"]["watchlist.GroupRef"]>;
+    instrumentId: string;
     lastImportedAt?: string;
-    market?: string;
+    market: string;
     name?: string;
-    revision?: number;
+    revision: number;
     sourceIds?: Array<string>;
-    symbol?: string;
+    symbol: string;
     type?: string;
   };
     "watchlist.WatchlistItemsData": {
-    items?: Array<components["schemas"]["watchlist.WatchlistItem"]>;
+    items: Array<components["schemas"]["watchlist.WatchlistItem"]>;
     nextCursor?: string;
   };
     "watchlist.WatchlistMemberships": {
-    groups?: Array<components["schemas"]["watchlist.GroupRef"]>;
-    instrumentId?: string;
-    revision?: number;
+    groups: Array<components["schemas"]["watchlist.GroupRef"]>;
+    instrumentId: string;
+    revision: number;
   };
     "watchlist.WatchlistQuote": {
     change?: number;
     changePercent?: number;
     extended?: components["schemas"]["watchlist.ExtendedQuote"];
-    instrumentId?: string;
+    instrumentId: string;
     name?: string;
-    observedAt?: string;
+    observedAt: string;
     previousClose?: number;
     price?: number;
     session?: string;
@@ -1594,41 +3631,41 @@ export interface components {
     updateTime?: string;
   };
     "watchlist.WatchlistQuoteBatchRequest": {
-    instrumentIds?: Array<string>;
+    instrumentIds: Array<string>;
   };
     "watchlist.WatchlistQuoteError": {
-    code?: string;
-    instrumentId?: string;
-    message?: string;
+    code: string;
+    instrumentId: string;
+    message: string;
   };
     "watchlist.WatchlistQuotesData": {
-    errors?: Array<components["schemas"]["watchlist.WatchlistQuoteError"]>;
-    observedAt?: string;
-    quotes?: Array<components["schemas"]["watchlist.WatchlistQuote"]>;
+    errors: Array<components["schemas"]["watchlist.WatchlistQuoteError"]>;
+    observedAt: string;
+    quotes: Array<components["schemas"]["watchlist.WatchlistQuote"]>;
   };
     "watchlist.WatchlistRemoteGroup": {
-    ambiguous?: boolean;
-    memberCount?: number;
-    name?: string;
-    observedAt?: string;
-    remoteGroupId?: string;
+    ambiguous: boolean;
+    memberCount: number;
+    name: string;
+    observedAt: string;
+    remoteGroupId: string;
     remoteHash?: string;
-    sourceId?: string;
-    type?: string;
+    sourceId: string;
+    type: string;
   };
     "watchlist.WatchlistRemoteGroupsData": {
-    groups?: Array<components["schemas"]["watchlist.WatchlistRemoteGroup"]>;
+    groups: Array<components["schemas"]["watchlist.WatchlistRemoteGroup"]>;
   };
     "watchlist.WatchlistSource": {
-    broker?: string;
-    displayName?: string;
+    broker: string;
+    displayName: string;
     error?: string;
-    sourceId?: string;
-    status?: string;
-    updatedAt?: string;
+    sourceId: string;
+    status: string;
+    updatedAt: string;
   };
     "watchlist.WatchlistSourcesData": {
-    sources?: Array<components["schemas"]["watchlist.WatchlistSource"]>;
+    sources: Array<components["schemas"]["watchlist.WatchlistSource"]>;
   };
   };
 }
@@ -1640,13 +3677,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKSnapshotData"];
+  };
           };
         };
         "500": {
           description: "Internal Server Error";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1658,7 +3697,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKAgentTemplatesData"];
+  };
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1669,35 +3716,64 @@ export interface paths {
       parameters: {
         query: {
         status?: string;
+        limit?: number;
+        offset?: number;
       };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKAgentsData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "500": {
           description: "Internal Server Error";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKAgentWriteRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Agent"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1705,21 +3781,76 @@ export interface paths {
   };
   "/api/v1/adk/agents/{agentId}": {
     put: {
+      parameters: {
+        path: {
+        agentId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKAgentWriteRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Agent"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     delete: {
+      parameters: {
+        path: {
+        agentId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKDeletedIDData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1727,11 +3858,33 @@ export interface paths {
   };
   "/api/v1/adk/approvals": {
     get: {
+      parameters: {
+        query: {
+        limit?: number;
+        offset?: number;
+        status?: string;
+        agentId?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKApprovalsData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1739,11 +3892,30 @@ export interface paths {
   };
   "/api/v1/adk/approvals/{approvalId}/approve": {
     post: {
+      parameters: {
+        path: {
+        approvalId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.ApprovalResolution"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1751,11 +3923,30 @@ export interface paths {
   };
   "/api/v1/adk/approvals/{approvalId}/deny": {
     post: {
+      parameters: {
+        path: {
+        approvalId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.ApprovalResolution"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1763,11 +3954,33 @@ export interface paths {
   };
   "/api/v1/adk/audit": {
     get: {
+      parameters: {
+        query: {
+        kind?: string;
+        subjectId?: string;
+        limit?: number;
+        offset?: number;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKAuditData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1775,11 +3988,24 @@ export interface paths {
   };
   "/api/v1/adk/chat": {
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKChatRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.ChatResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1787,11 +4013,34 @@ export interface paths {
   };
   "/api/v1/adk/chat/stream": {
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKChatRequest"];
+        };
+      };
       responses: {
         "200": {
-          description: "OK";
+          description: "Server-Sent Events stream";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "text/event-stream": string;
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1799,21 +4048,49 @@ export interface paths {
   };
   "/api/v1/adk/memory": {
     get: {
+      parameters: {
+        query: {
+        scope?: string;
+        agentId?: string;
+        key?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKMemoryData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKMemoryWriteRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.MemoryEntry"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1821,11 +4098,36 @@ export interface paths {
   };
   "/api/v1/adk/memory/{memoryId}": {
     delete: {
+      parameters: {
+        path: {
+        memoryId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKDeletedIDData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1837,7 +4139,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKMetricsData"];
+  };
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1845,11 +4155,31 @@ export interface paths {
   };
   "/api/v1/adk/optimization-tasks": {
     get: {
+      parameters: {
+        query: {
+        limit?: number;
+        offset?: number;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKOptimizationTasksData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1857,11 +4187,36 @@ export interface paths {
   };
   "/api/v1/adk/optimization-tasks/{taskId}": {
     get: {
+      parameters: {
+        path: {
+        taskId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKOptimizationTaskData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1869,11 +4224,36 @@ export interface paths {
   };
   "/api/v1/adk/optimization-tasks/{taskId}/cancel": {
     post: {
+      parameters: {
+        path: {
+        taskId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKOptimizationTaskData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1885,23 +4265,44 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKProvidersData"];
+  };
           };
         };
         "500": {
           description: "Internal Server Error";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKProviderWriteRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Provider"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1909,21 +4310,70 @@ export interface paths {
   };
   "/api/v1/adk/providers/{providerId}": {
     put: {
+      parameters: {
+        path: {
+        providerId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKProviderWriteRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Provider"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     delete: {
+      parameters: {
+        path: {
+        providerId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKDeletedIDData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1931,11 +4381,36 @@ export interface paths {
   };
   "/api/v1/adk/providers/{providerId}/default": {
     post: {
+      parameters: {
+        path: {
+        providerId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Provider"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1943,11 +4418,30 @@ export interface paths {
   };
   "/api/v1/adk/providers/{providerId}/test": {
     post: {
+      parameters: {
+        path: {
+        providerId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKProviderTestData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1968,19 +4462,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKRunsData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "500": {
           description: "Internal Server Error";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -1988,11 +4484,36 @@ export interface paths {
   };
   "/api/v1/adk/runs/{runId}": {
     get: {
+      parameters: {
+        path: {
+        runId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Run"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2000,11 +4521,30 @@ export interface paths {
   };
   "/api/v1/adk/runs/{runId}/cancel": {
     post: {
+      parameters: {
+        path: {
+        runId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Run"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2012,11 +4552,47 @@ export interface paths {
   };
   "/api/v1/adk/runs/{runId}/input-response": {
     post: {
+      parameters: {
+        path: {
+        runId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKInputResponseRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.InputResolution"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2024,11 +4600,35 @@ export interface paths {
   };
   "/api/v1/adk/runs/{runId}/objective": {
     patch: {
+      parameters: {
+        path: {
+        runId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKUpdateRunObjectiveRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Run"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2036,11 +4636,30 @@ export interface paths {
   };
   "/api/v1/adk/runs/{runId}/pause": {
     post: {
+      parameters: {
+        path: {
+        runId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Run"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2048,11 +4667,30 @@ export interface paths {
   };
   "/api/v1/adk/runs/{runId}/resume": {
     post: {
+      parameters: {
+        path: {
+        runId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Run"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2060,11 +4698,49 @@ export interface paths {
   };
   "/api/v1/adk/runs/{runId}/stream": {
     get: {
+      parameters: {
+        path: {
+        runId: string;
+      };
+        query: {
+        after?: number;
+      };
+      };
       responses: {
         "200": {
-          description: "OK";
+          description: "Server-Sent Events stream";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "text/event-stream": string;
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2084,29 +4760,50 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKSessionsData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "500": {
           description: "Internal Server Error";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKCreateSessionRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Session"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2114,31 +4811,93 @@ export interface paths {
   };
   "/api/v1/adk/sessions/{sessionId}": {
     get: {
+      parameters: {
+        path: {
+        sessionId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.SessionsResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     put: {
+      parameters: {
+        path: {
+        sessionId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKRenameSessionRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Session"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     delete: {
+      parameters: {
+        path: {
+        sessionId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKDeletedIDData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2146,11 +4905,35 @@ export interface paths {
   };
   "/api/v1/adk/sessions/{sessionId}/composer-state": {
     patch: {
+      parameters: {
+        path: {
+        sessionId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKSessionComposerStatePatch"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.SessionComposerState"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2158,11 +4941,36 @@ export interface paths {
   };
   "/api/v1/adk/sessions/{sessionId}/context": {
     get: {
+      parameters: {
+        path: {
+        sessionId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.SessionContextSnapshot"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2170,11 +4978,47 @@ export interface paths {
   };
   "/api/v1/adk/sessions/{sessionId}/context/compact": {
     post: {
+      parameters: {
+        path: {
+        sessionId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKCompactContextRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.SessionContextSnapshot"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2186,17 +5030,38 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKSkillsData"];
+  };
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKInstallSkillRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Skill"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2204,11 +5069,30 @@ export interface paths {
   };
   "/api/v1/adk/skills/{skillId}": {
     delete: {
+      parameters: {
+        path: {
+        skillId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKDeletedIDData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2216,11 +5100,49 @@ export interface paths {
   };
   "/api/v1/adk/streams/{streamId}": {
     get: {
+      parameters: {
+        path: {
+        streamId: string;
+      };
+        query: {
+        after?: number;
+      };
+      };
       responses: {
         "200": {
-          description: "OK";
+          description: "Server-Sent Events stream";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "text/event-stream": string;
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2228,21 +5150,57 @@ export interface paths {
   };
   "/api/v1/adk/tasks": {
     get: {
+      parameters: {
+        query: {
+        limit?: number;
+        offset?: number;
+        status?: string;
+        agentId?: string;
+        runId?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKTasksData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKTaskWriteRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Task"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2250,31 +5208,105 @@ export interface paths {
   };
   "/api/v1/adk/tasks/{taskId}": {
     get: {
+      parameters: {
+        path: {
+        taskId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Task"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     put: {
+      parameters: {
+        path: {
+        taskId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKTaskPatchRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.Task"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     delete: {
+      parameters: {
+        path: {
+        taskId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKDeletedIDData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2286,7 +5318,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKToolsData"];
+  };
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2294,11 +5334,34 @@ export interface paths {
   };
   "/api/v1/adk/workflow-trigger-logs": {
     get: {
+      parameters: {
+        query: {
+        limit?: number;
+        offset?: number;
+        workflowId?: string;
+        triggerId?: string;
+        status?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKWorkflowTriggerLogsData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2306,11 +5369,41 @@ export interface paths {
   };
   "/api/v1/adk/workflow-triggers/{triggerId}/run": {
     post: {
+      parameters: {
+        path: {
+        triggerId: string;
+      };
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKWorkflowInputsRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKWorkflowInvocationData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2318,11 +5411,39 @@ export interface paths {
   };
   "/api/v1/adk/workflow-webhooks/{triggerId}": {
     post: {
+      parameters: {
+        path: {
+        triggerId: string;
+      };
+        header: {
+        Authorization?: string;
+        "X-JFTrade-Workflow-Secret"?: string;
+      };
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKWorkflowInputsRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKWorkflowInvocationData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2330,21 +5451,67 @@ export interface paths {
   };
   "/api/v1/adk/workflows": {
     get: {
+      parameters: {
+        query: {
+        limit?: number;
+        offset?: number;
+        status?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKWorkflowsData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKWorkflowDefinitionWriteRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.WorkflowDefinition"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2352,31 +5519,111 @@ export interface paths {
   };
   "/api/v1/adk/workflows/{workflowId}": {
     get: {
+      parameters: {
+        path: {
+        workflowId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.WorkflowDefinition"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     put: {
+      parameters: {
+        path: {
+        workflowId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKWorkflowDefinitionWriteRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["adk.WorkflowDefinition"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     delete: {
+      parameters: {
+        path: {
+        workflowId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKWorkflowDeleteData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2384,11 +5631,41 @@ export interface paths {
   };
   "/api/v1/adk/workflows/{workflowId}/run": {
     post: {
+      parameters: {
+        path: {
+        workflowId: string;
+      };
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKWorkflowInputsRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKWorkflowInvocationData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2396,21 +5673,76 @@ export interface paths {
   };
   "/api/v1/adk/workflows/{workflowId}/triggers": {
     get: {
+      parameters: {
+        path: {
+        workflowId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKWorkflowTriggersData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      parameters: {
+        path: {
+        workflowId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKWorkflowTriggerWriteRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKWorkflowTriggerSaveData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2418,21 +5750,78 @@ export interface paths {
   };
   "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}": {
     put: {
+      parameters: {
+        path: {
+        workflowId: string;
+        triggerId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKWorkflowTriggerWriteRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKWorkflowTriggerSaveData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     delete: {
+      parameters: {
+        path: {
+        workflowId: string;
+        triggerId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["assistant.ADKWorkflowTriggerDeleteData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2444,41 +5833,56 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
-        "400": {
-          description: "Bad Request";
+        "409": {
+          description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["productfeatures.CustomizationRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.CustomizationResult"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2490,41 +5894,56 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
-        "400": {
-          description: "Bad Request";
+        "409": {
+          description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["productfeatures.CustomizationRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.CustomizationResult"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2541,25 +5960,57 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["servercore.WebSessionData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "401": {
           description: "Unauthorized";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "408": {
+          description: "Request Timeout";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "429": {
           description: "Too Many Requests";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2571,7 +6022,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["servercore.WebSessionData"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2583,7 +6048,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["servercore.WebSessionData"];
+  };
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2600,26 +6073,51 @@ export interface paths {
   };
           };
         };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["backtest.StartRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["backtest.BacktestQueuedData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2636,19 +6134,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["backtest.RunState"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2663,19 +6169,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["backtest.BacktestDeleteData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2692,19 +6206,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["backtest.BacktestStatusData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2712,17 +6228,30 @@ export interface paths {
   };
   "/api/v1/backtests/sync": {
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["backtest.SyncRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["backtest.SyncStarted"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2730,21 +6259,59 @@ export interface paths {
   };
   "/api/v1/backtests/sync/{taskId}": {
     get: {
+      parameters: {
+        path: {
+        taskId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["backtest.BacktestSyncProgress"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     delete: {
+      parameters: {
+        path: {
+        taskId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["backtest.BacktestSyncCancelData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2776,7 +6343,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2810,7 +6377,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2840,7 +6407,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2875,7 +6442,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2907,7 +6474,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2944,7 +6511,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -2976,7 +6543,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3012,7 +6579,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3045,7 +6612,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3078,7 +6645,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3108,7 +6675,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3140,7 +6707,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3165,7 +6732,7 @@ export interface paths {
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3197,7 +6764,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3232,7 +6799,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3244,7 +6811,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["productfeatures.BrokerCapabilitiesData"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3269,19 +6844,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3306,19 +6881,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3343,19 +6918,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3380,19 +6955,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3421,7 +6996,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3444,19 +7019,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "500": {
           description: "Internal Server Error";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3481,7 +7056,7 @@ export interface paths {
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3506,13 +7081,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3537,7 +7112,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3545,29 +7120,24 @@ export interface paths {
   };
   "/api/v1/execution/previews": {
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["trading.ExecutionPlaceRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["trading.ExecutionPreview"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
-          };
-        };
-        "409": {
-          description: "Conflict";
-          content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
-          };
-        };
-        "502": {
-          description: "Bad Gateway";
-          content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3575,23 +7145,36 @@ export interface paths {
   };
   "/api/v1/market-data/broker-queue/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3617,13 +7200,33 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.CandlesData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "429": {
+          description: "Too Many Requests";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3631,23 +7234,36 @@ export interface paths {
   };
   "/api/v1/market-data/capital-flow/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3669,25 +7285,33 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.DepthData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "429": {
+          description: "Too Many Requests";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3695,23 +7319,33 @@ export interface paths {
   };
   "/api/v1/market-data/futures": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3738,13 +7372,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3752,23 +7386,36 @@ export interface paths {
   };
   "/api/v1/market-data/instruments/{instrumentId}/profile": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3776,11 +7423,24 @@ export interface paths {
   };
   "/api/v1/market-data/instruments/normalize": {
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["marketdata.NormalizeInstrumentRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.NormalizeInstrumentData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3788,23 +7448,36 @@ export interface paths {
   };
   "/api/v1/market-data/intraday/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3816,7 +7489,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.MarketsData"];
+  };
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3824,23 +7505,33 @@ export interface paths {
   };
   "/api/v1/market-data/news": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3848,45 +7539,76 @@ export interface paths {
   };
   "/api/v1/market-data/options/analysis/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["productfeatures.ProductFeatureQueryRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3894,23 +7616,36 @@ export interface paths {
   };
   "/api/v1/market-data/options/chains/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3918,23 +7653,33 @@ export interface paths {
   };
   "/api/v1/market-data/options/events": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3951,31 +7696,33 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "422": {
           description: "Unprocessable Entity";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -3983,23 +7730,36 @@ export interface paths {
   };
   "/api/v1/market-data/options/expirations/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4007,23 +7767,33 @@ export interface paths {
   };
   "/api/v1/market-data/options/screens": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4035,25 +7805,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4065,25 +7837,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4093,26 +7867,40 @@ export interface paths {
     post: {
       requestBody: {
         content: {
-          "application/json": Record<string, unknown>;
+          "application/json": components["schemas"]["productfeatures.PredictionComboQuoteRequest"];
         };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4124,25 +7912,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4150,29 +7940,36 @@ export interface paths {
   };
   "/api/v1/market-data/prediction/contracts/{code}/candles": {
     get: {
+      parameters: {
+        path: {
+        code: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4180,29 +7977,36 @@ export interface paths {
   };
   "/api/v1/market-data/prediction/contracts/{code}/candles/history": {
     get: {
+      parameters: {
+        path: {
+        code: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4210,29 +8014,36 @@ export interface paths {
   };
   "/api/v1/market-data/prediction/contracts/{code}/milestones": {
     get: {
+      parameters: {
+        path: {
+        code: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4240,29 +8051,36 @@ export interface paths {
   };
   "/api/v1/market-data/prediction/contracts/{code}/order-book": {
     get: {
+      parameters: {
+        path: {
+        code: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4270,29 +8088,36 @@ export interface paths {
   };
   "/api/v1/market-data/prediction/contracts/{code}/snapshot": {
     get: {
+      parameters: {
+        path: {
+        code: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4314,19 +8139,33 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["productfeatures.PredictionSubscriptionLease"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4344,7 +8183,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["productfeatures.PredictionSubscriptionReleaseData"];
+  };
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4352,29 +8211,36 @@ export interface paths {
   };
   "/api/v1/market-data/prediction/contracts/{code}/ticks": {
     get: {
+      parameters: {
+        path: {
+        code: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4386,25 +8252,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4412,29 +8280,36 @@ export interface paths {
   };
   "/api/v1/market-data/prediction/events/{eventId}/contracts": {
     get: {
+      parameters: {
+        path: {
+        eventId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4446,25 +8321,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "403": {
           description: "Forbidden";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4476,13 +8353,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.ProviderStatusResponse"];
+  };
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4503,19 +8382,33 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.SecurityDetailsData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "429": {
           description: "Too Many Requests";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4532,31 +8425,33 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "429": {
           description: "Too Many Requests";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4578,25 +8473,33 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.SnapshotData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "429": {
+          description: "Too Many Requests";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4608,7 +8511,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.SubscriptionsData"];
+  };
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4623,13 +8534,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.SubscriptionsData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4644,13 +8563,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.SubscriptionsData"];
+  };
           };
         };
-        "400": {
-          description: "Bad Request";
+        "500": {
+          description: "Internal Server Error";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4667,13 +8588,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.SubscriptionsData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4690,13 +8619,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.SubscriptionsData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4704,23 +8641,36 @@ export interface paths {
   };
   "/api/v1/market-data/ticks/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4728,23 +8678,33 @@ export interface paths {
   };
   "/api/v1/market-data/warrants": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        tradingEnvironment?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4756,7 +8716,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.PluginCatalog"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4764,11 +8732,36 @@ export interface paths {
   };
   "/api/v1/plugins/{pluginId}/install": {
     post: {
+      parameters: {
+        path: {
+        pluginId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.PluginMutationData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4776,11 +8769,36 @@ export interface paths {
   };
   "/api/v1/plugins/{pluginId}/uninstall": {
     post: {
+      parameters: {
+        path: {
+        pluginId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.PluginMutationData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4788,11 +8806,30 @@ export interface paths {
   };
   "/api/v1/plugins/{pluginId}/uninstall-guidance": {
     get: {
+      parameters: {
+        path: {
+        pluginId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.PluginUninstallGuidance"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4800,11 +8837,30 @@ export interface paths {
   };
   "/api/v1/plugins/operations/{operationId}": {
     get: {
+      parameters: {
+        path: {
+        operationId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.PluginOperation"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4826,6 +8882,12 @@ export interface paths {
   };
           };
         };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
   };
@@ -4845,28 +8907,46 @@ export interface paths {
   };
           };
         };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
   };
   "/api/v1/research/analyst/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4874,23 +8954,32 @@ export interface paths {
   };
   "/api/v1/research/calendars": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4898,23 +8987,35 @@ export interface paths {
   };
   "/api/v1/research/corporate-actions/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4922,23 +9023,35 @@ export interface paths {
   };
   "/api/v1/research/financials/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4946,23 +9059,32 @@ export interface paths {
   };
   "/api/v1/research/industries": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4970,23 +9092,32 @@ export interface paths {
   };
   "/api/v1/research/institutions": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -4994,23 +9125,35 @@ export interface paths {
   };
   "/api/v1/research/instruments/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5018,23 +9161,32 @@ export interface paths {
   };
   "/api/v1/research/macro": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5042,23 +9194,35 @@ export interface paths {
   };
   "/api/v1/research/ownership/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5066,23 +9230,32 @@ export interface paths {
   };
   "/api/v1/research/rankings": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5090,23 +9263,32 @@ export interface paths {
   };
   "/api/v1/research/screens": {
     get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5121,31 +9303,33 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.ResearchScreenResult"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "429": {
           description: "Too Many Requests";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5163,19 +9347,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["researchscreen.Catalog"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5195,7 +9381,7 @@ export interface paths {
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5218,19 +9404,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5255,13 +9441,13 @@ export interface paths {
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5289,25 +9475,25 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5330,13 +9516,13 @@ export interface paths {
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5344,23 +9530,35 @@ export interface paths {
   };
   "/api/v1/research/short-interest/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5368,23 +9566,35 @@ export interface paths {
   };
   "/api/v1/research/technical-indicators/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5392,23 +9602,35 @@ export interface paths {
   };
   "/api/v1/research/valuation/{instrumentId}": {
     get: {
+      parameters: {
+        path: {
+        instrumentId: string;
+      };
+        query: {
+        brokerId?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5420,7 +9642,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.ADKRuntimeSettings"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5428,20 +9658,28 @@ export interface paths {
     put: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["jftsettings.ADKRuntimeSettings"];
+          "application/json": components["schemas"]["settings.ADKRuntimeSettingsWriteRequest"];
         };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.ADKRuntimeSettings"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5453,7 +9691,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.MCPServerSettingsSnapshot"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5468,13 +9714,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.MCPServerSettingsSnapshot"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5486,7 +9740,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.MCPServerTokenResetResult"];
+  };
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5503,13 +9765,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.ManagedBrokerAccount"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5531,19 +9801,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.ManagedBrokerAccount"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5558,19 +9836,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.DeletedResourceResponse"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5582,7 +9868,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.BrokerSettingsResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5604,13 +9898,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.BrokerIntegration"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5627,7 +9929,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.DataCleanupResult"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5644,7 +9966,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.DataCleanupPreviewResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5662,7 +9992,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.DataManagementOverviewResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5692,13 +10036,25 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "429": {
+          description: "Too Many Requests";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "507": {
+          description: "Insufficient Storage";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5720,7 +10076,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.DatabaseCompactResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5737,7 +10107,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.DatabaseRebuildResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5749,7 +10127,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.ExchangeCalendarSettingsResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5764,13 +10150,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.ExchangeCalendarSettingsResponse"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5782,7 +10176,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.ExecutionSettings"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5790,20 +10192,28 @@ export interface paths {
     put: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["jftsettings.ExecutionSettings"];
+          "application/json": components["schemas"]["settings.ExecutionSettingsWriteRequest"];
         };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.ExecutionSettings"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5815,7 +10225,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.OnboardingStateResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5830,13 +10248,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.OnboardingStateResponse"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5853,12 +10279,18 @@ export interface paths {
   };
           };
         };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
     put: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["jftsettings.PineWorkerSettings"];
+          "application/json": components["schemas"]["settings.PineWorkerSettingsWriteRequest"];
         };
       };
       responses: {
@@ -5873,7 +10305,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5888,6 +10326,12 @@ export interface paths {
             "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["jftsettings.SecuritySettings"];
   };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5910,7 +10354,25 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5922,7 +10384,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.SystemNotificationSettings"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5930,20 +10400,28 @@ export interface paths {
     put: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["jftsettings.SystemNotificationSettings"];
+          "application/json": components["schemas"]["settings.SystemNotificationSettingsWriteRequest"];
         };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.SystemNotificationSettings"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5955,13 +10433,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.SystemNotificationTestResponse"];
+  };
           };
         };
         "500": {
           description: "Internal Server Error";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5973,7 +10453,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.UIAppearanceResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -5988,13 +10476,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.UIAppearanceResponse"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6006,7 +10502,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: Array<components["schemas"]["strategy.InstanceView"]>;
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6028,19 +10538,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.InstanceView"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6055,19 +10573,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.InstanceView"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6091,19 +10617,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.AuditResult"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6127,19 +10655,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.LogsResult"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6156,19 +10686,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.InstanceView"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6185,19 +10723,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.InstanceView"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6219,19 +10765,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.InstanceView"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6248,25 +10802,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.InstanceView"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6283,19 +10839,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.InstanceView"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6310,6 +10874,18 @@ export interface paths {
             "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: Array<components["schemas"]["strategy.Definition"]>;
   };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6332,7 +10908,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6362,13 +10944,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6396,13 +10984,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6425,13 +11019,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6448,19 +11048,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.ApplyLinkedInstancesResult"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6473,7 +11081,7 @@ export interface paths {
         definitionId: string;
       };
       };
-      requestBody: {
+      requestBody?: {
         content: {
           "application/json": components["schemas"]["strategy.StrategyBindingRequest"];
         };
@@ -6482,19 +11090,27 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.InstanceView"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6519,13 +11135,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6551,13 +11173,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6574,13 +11202,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.AnalyzePineData"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6592,7 +11222,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.ExchangeCalendarProbeResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6609,7 +11247,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.ExchangeCalendarProbeResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6621,7 +11267,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.ExchangeCalendarRefreshResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6638,7 +11292,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.ExchangeCalendarRefreshResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6650,7 +11312,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.ExchangeCalendarSourcesResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6662,7 +11332,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.ExchangeCalendarStatusResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6674,7 +11352,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.FutuOpenDHealthResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6686,7 +11372,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.FutuOpenDInstallGuideResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6698,7 +11392,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.AcceptedResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6715,6 +11417,12 @@ export interface paths {
   };
           };
         };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
   };
@@ -6727,6 +11435,12 @@ export interface paths {
             "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["system.RealTradeHardStopEventsResponse"];
   };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6743,12 +11457,18 @@ export interface paths {
   };
           };
         };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
     post: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["system.RealTradeHardStopCommand"];
+          "application/json": components["schemas"]["system.RealTradeHardStopRequest"];
         };
       };
       responses: {
@@ -6763,13 +11483,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6782,9 +11502,9 @@ export interface paths {
         hardStopId: string;
       };
       };
-      requestBody: {
+      requestBody?: {
         content: {
-          "application/json": components["schemas"]["system.RealTradeHardStopCommand"];
+          "application/json": components["schemas"]["system.RealTradeHardStopRequest"];
         };
       };
       responses: {
@@ -6799,13 +11519,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6822,6 +11542,12 @@ export interface paths {
   };
           };
         };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
   };
@@ -6836,6 +11562,12 @@ export interface paths {
   };
           };
         };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
   };
@@ -6843,7 +11575,7 @@ export interface paths {
     post: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["system.RealTradeKillSwitchCommand"];
+          "application/json": components["schemas"]["system.RealTradeKillSwitchRequest"];
         };
       };
       responses: {
@@ -6858,13 +11590,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6872,9 +11604,9 @@ export interface paths {
   };
   "/api/v1/system/real-trade-kill-switch/release": {
     post: {
-      requestBody: {
+      requestBody?: {
         content: {
-          "application/json": components["schemas"]["system.RealTradeKillSwitchCommand"];
+          "application/json": components["schemas"]["system.RealTradeKillSwitchRequest"];
         };
       };
       responses: {
@@ -6886,16 +11618,10 @@ export interface paths {
   };
           };
         };
-        "400": {
-          description: "Bad Request";
-          content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
-          };
-        };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6912,6 +11638,12 @@ export interface paths {
   };
           };
         };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
   };
@@ -6926,12 +11658,18 @@ export interface paths {
   };
           };
         };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
     put: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["system.RealTradeRuntimeRiskCommand"];
+          "application/json": components["schemas"]["system.RealTradeRuntimeRiskRequest"];
         };
       };
       responses: {
@@ -6946,21 +11684,21 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     delete: {
-      requestBody: {
+      requestBody?: {
         content: {
-          "application/json": components["schemas"]["system.RealTradeRuntimeRiskCommand"];
+          "application/json": components["schemas"]["system.RealTradeRuntimeRiskRequest"];
         };
       };
       responses: {
@@ -6975,7 +11713,7 @@ export interface paths {
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6987,7 +11725,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.RuntimeDependenciesResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -6999,7 +11745,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.SystemStatusResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7011,7 +11765,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.StorageOverviewResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7023,7 +11785,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["system.BrokerOrderUpdatesResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7048,7 +11818,7 @@ export interface paths {
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7071,13 +11841,13 @@ export interface paths {
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7097,7 +11867,7 @@ export interface paths {
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7120,19 +11890,19 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7162,25 +11932,25 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7203,19 +11973,19 @@ export interface paths {
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7242,13 +12012,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7261,7 +12031,7 @@ export interface paths {
         previewId: string;
       };
       };
-      requestBody: {
+      requestBody?: {
         content: {
           "application/json": components["schemas"]["watchlist.CommitImportInput"];
         };
@@ -7278,25 +12048,25 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7321,25 +12091,25 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7365,13 +12135,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7400,25 +12170,25 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7447,13 +12217,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7478,13 +12248,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7504,7 +12274,7 @@ export interface paths {
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7529,13 +12299,13 @@ export interface paths {
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "503": {
           description: "Service Unavailable";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7547,41 +12317,56 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.FeatureResult"];
+  };
           };
         };
-        "400": {
-          description: "Bad Request";
+        "409": {
+          description: "Conflict";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["productfeatures.CustomizationRequest"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.CustomizationResult"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "502": {
           description: "Bad Gateway";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };
@@ -7592,8 +12377,23 @@ export interface paths {
       responses: {
         "101": {
           description: "Switching Protocols";
+        };
+        "401": {
+          description: "Unauthorized";
           content: {
-            "application/json": string;
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
       };

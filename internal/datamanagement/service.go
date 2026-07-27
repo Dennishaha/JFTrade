@@ -35,7 +35,7 @@ type CompactRequest struct {
 }
 
 type BackupRequest struct {
-	DatabaseID   string `json:"databaseId"`
+	DatabaseID   string `json:"databaseId,omitempty"`
 	Confirmation string `json:"confirmation"`
 }
 
@@ -47,8 +47,8 @@ type BackupResult struct {
 }
 
 type RebuildRequest struct {
-	DatabaseIDs  []string `json:"databaseIds"`
-	DatabaseID   string   `json:"databaseId"`
+	DatabaseIDs  []string `json:"databaseIds,omitempty"`
+	DatabaseID   string   `json:"databaseId,omitempty"`
 	Mode         string   `json:"mode"`
 	Confirmation string   `json:"confirmation"`
 }

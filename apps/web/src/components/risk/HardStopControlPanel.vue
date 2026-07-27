@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
 
-import type {
-  InstrumentResolutionCandidate,
-  RealTradeHardStopsResponse,
-} from "@/contracts";
+import type { RealTradeHardStopsResponse } from "@/contracts";
+import type { InstrumentResolutionCandidate } from "@/types";
 import InstrumentSearchBox from "@/components/domain/market-data/InstrumentSearchBox.vue";
 import {
   formatTradingEnvironment,

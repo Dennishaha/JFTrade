@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StrategyInstanceItem, SystemStatusResponse } from "@/contracts";
+import type { StrategyInstanceItem, SystemStatusResponse } from "@/types";
 
 defineProps<{
     activeStrategyCount: number;

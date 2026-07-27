@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from "vue";
 
-import type { ExecutionOrderDetailsResponse, ExecutionOrderEventResponse } from "../../contracts";
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
+import type { ExecutionOrderEventResponse } from "@/contracts";
+import { apiGetPath, apiPost } from "../../composables/apiClient";
 import {
   formatExecutionEventTypeLabel,
   formatExecutionOrderStatusLabel,
@@ -21,6 +21,7 @@ import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
 import { usePolling } from "../../composables/usePolling";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import { mapExecutionOrderDetails } from "../../composables/tradingApiMappers";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import RealTradeConfirmationDialog from "./RealTradeConfirmationDialog.vue";
 
@@ -629,8 +630,11 @@ async function refreshOrderFeedbackOnce(
   if (isRefreshingOrderFeedback.value) return true;
   isRefreshingOrderFeedback.value = true;
   try {
-    const details = await fetchEnvelope<ExecutionOrderDetailsResponse>(
-      `/api/v1/execution/orders/${encodeURIComponent(internalOrderId)}`,
+    const details = mapExecutionOrderDetails(
+      await apiGetPath(
+        "/api/v1/execution/orders/{internalOrderId}",
+        `/api/v1/execution/orders/${encodeURIComponent(internalOrderId)}`,
+      ),
     );
     const feedback = lastOrderFeedback.value;
     if (feedback == null || feedback.internalOrderId !== internalOrderId) {
@@ -832,33 +836,16 @@ async function executeOrderSubmission(
     let feedbackMessage = `下单成功：已提交订单（${formatOrderTypeLabel(orderType.value)}，${formatTimeInForceLabel(tif.value)}${supportsOrderSessionSelection.value ? `，${formatOrderSession(orderSession.value)}` : ""}）`;
     try {
       if (["option", "future", "event_contract"].includes(payload.productClass)) {
-        const preview = await fetchEnvelopeWithInit<{ previewId: string }>(
+        const preview = await apiPost(
           "/api/v1/execution/previews",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          },
+          payload,
         );
         if (!preview.previewId) {
           throw new Error("订单预检未返回 previewId");
         }
         payload.previewId = preview.previewId;
       }
-      const body = await fetchEnvelopeWithInit<{
-        accepted?: boolean;
-        internalOrderId?: string | null;
-        brokerOrderId?: string | null;
-        brokerOrderIdEx?: string | null;
-        orderStatus?: string | null;
-        brokerErrorCode?: string | null;
-        message?: string | null;
-        checkedAt?: string | null;
-      }>("/api/v1/execution/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const body = await apiPost("/api/v1/execution/orders", payload);
       if (body.accepted !== true) {
         const reason = body.message?.trim() || body.brokerErrorCode?.trim() || "券商未接受该订单。";
         feedbackLevel = "error";

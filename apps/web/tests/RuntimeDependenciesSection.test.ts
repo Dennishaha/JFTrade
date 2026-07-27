@@ -218,4 +218,71 @@ describe("RuntimeDependenciesSection", () => {
     expect(wrapper.text()).toContain("检查运行时依赖失败");
   });
 
+  it("normalizes sparse runtime dependency payloads before exposing status", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/v1/settings/pine-worker")) {
+        return createResponse({
+          backtestWorkerLimit: 2,
+          instanceWorkerLimit: 10,
+          nodeBinaryPath: "",
+        });
+      }
+      if (url.includes("/api/v1/system/runtime-dependencies")) {
+        return createResponse({
+          dependencies: [
+            { id: "node" },
+            {},
+          ],
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(RuntimeDependenciesSection, {
+      props: { mode: "settings" },
+    });
+    await flushRequests();
+
+    expect(wrapper.emitted("status-change")?.[0]).toEqual([
+      {
+        checkedAt: "",
+        allRequiredSatisfied: false,
+        dependencies: [
+          {
+            id: "node",
+            displayName: "node",
+            required: false,
+            status: "error",
+            minimumVersion: "",
+            detectedVersion: "",
+            configuredPath: "",
+            effectivePath: "",
+            resolvedPath: "",
+            source: "",
+            homepageUrl: "",
+            message: "",
+          },
+          {
+            id: "",
+            displayName: "",
+            required: false,
+            status: "error",
+            minimumVersion: "",
+            detectedVersion: "",
+            configuredPath: "",
+            effectivePath: "",
+            resolvedPath: "",
+            source: "",
+            homepageUrl: "",
+            message: "",
+          },
+        ],
+      },
+    ]);
+    expect(wrapper.text()).toContain("尚未检查");
+    expect(wrapper.text()).toContain("node");
+  });
+
 });

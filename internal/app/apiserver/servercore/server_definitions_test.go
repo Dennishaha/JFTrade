@@ -324,7 +324,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	definition, err := server.designStore.saveDefinition(stratsrv.Definition{
+	definition, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		ID:           "pine-delete-guard",
 		Name:         "Delete Guard",
 		Description:  "delete guard",
@@ -335,7 +335,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "5m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
@@ -366,7 +366,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if blockedEnvelope.Error == nil || !strings.Contains(blockedEnvelope.Error.Message, "请先删除对应实例再删除") {
 		t.Fatalf("unexpected blocked delete response: %+v", blockedEnvelope)
 	}
-	if _, ok, err := server.designStore.definition(definition.ID); err != nil || !ok {
+	if _, ok, err := server.stores.Design.GetDefinition(definition.ID); err != nil || !ok {
 		t.Fatal("definition should still exist after blocked delete")
 	}
 
@@ -395,10 +395,10 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if deleteResp.StatusCode != http.StatusOK {
 		t.Fatalf("delete definition after removing instances status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
 	}
-	if _, ok, err := server.designStore.definition(definition.ID); err != nil || ok {
+	if _, ok, err := server.stores.Design.GetDefinition(definition.ID); err != nil || ok {
 		t.Fatal("definition should be hidden after soft delete")
 	}
-	definitions := server.designStore.listDefinitions()
+	definitions := server.stores.Design.ListDefinitions()
 	if len(definitions) != 0 {
 		t.Fatalf("expected no active definitions after delete, got %+v", definitions)
 	}

@@ -8,7 +8,7 @@ import {
   emptyBrokerRuntime,
   emptyBrokerSettings,
   emptySystemStatus,
-} from "@/contracts";
+} from "@/types";
 
 import TradingScopeBar from "../src/components/TradingScopeBar.vue";
 import { provideConsoleDataStore } from "../src/composables/useConsoleData";

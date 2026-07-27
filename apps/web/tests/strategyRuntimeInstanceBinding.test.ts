@@ -1,7 +1,7 @@
 import type {
   StrategyBrokerAccountBinding,
   StrategyInstanceItem,
-} from "@/contracts";
+} from "@/types";
 
 import { describe, expect, it } from "vitest";
 

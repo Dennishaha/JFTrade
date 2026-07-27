@@ -43,13 +43,13 @@ JFTrade 的策略设计面是 Pine v6 原生源码工作台。当前 UI 不再�
 - [pineSourceStructureIndex.ts](../../apps/web/src/features/pineSourceStructureIndex.ts)：源码结构索引与 snapshot 构建入口。
 - [pineV6Workflow.ts](../../apps/web/src/features/pineV6Workflow.ts)：workflow block registry、默认策略、归一化和诊断。
 - [strategyPineEditorIntelliSense.ts](../../apps/web/src/features/strategyPineEditorIntelliSense.ts)：Monaco completion、snippet 与 hover 元数据。
-- [contracts/index.ts](../../apps/web/src/contracts/index.ts)：`PineV6WorkflowDocument`、策略定义和实例 DTO。
+- [types/view-models/strategy.ts](../../apps/web/src/types/view-models/strategy.ts)：前端归一化后的 `PineV6WorkflowDocument`、策略定义和实例 view model；线上 wire contract 由 [contracts/generated/strategy.ts](../../apps/web/src/contracts/generated/strategy.ts) 从 OpenAPI 导出。
 
 ## 后端代码入口
 
 - [routes.go](../../internal/api/strategy/routes.go)：策略定义、实例生命周期与 Pine analyze HTTP 路由。
 - [service.go](../../internal/strategy/service.go)：稳定业务门面和 DesignStore/CatalogStore/RuntimeManager 端口。
-- [design_store.go](../../internal/app/apiserver/servercore/design_store.go)：当前定义持久化实现。
+- [store.go](../../internal/store/strategy/store.go)：策略定义与版本的领域持久化实现。
 - [catalog_store.go](../../internal/app/apiserver/servercore/catalog_store.go)：当前实例目录持久化实现。
 - [strategy_adapters.go](../../internal/app/apiserver/servercore/strategy_adapters.go)：store/runtime 实现到 `internal/strategy` 端口的装配适配。
 - [pine](../../pkg/strategy/pine)：Pine 解析、语义诊断与 lowering。

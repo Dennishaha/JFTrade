@@ -4,7 +4,7 @@ import type {
   PineV6WorkflowDocument,
   PineV6WorkflowInput,
   PineV6WorkflowRuntimeBindingDraft,
-} from "@/contracts";
+} from "@/types";
 
 import {
   PINE_V6_WORKFLOW_ENGINE,

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type {
-    StrategyBrokerAccountBinding,
     StrategyDefinitionSyncStatus,
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
     StrategyRuntimeRiskSettings,
-} from "@/contracts";
+} from "@/types";
+import type { StrategyBrokerAccountBinding } from "@/contracts";
 
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import { parseStrategyInstrumentIdsText } from "./strategyRuntimeInstanceBinding";

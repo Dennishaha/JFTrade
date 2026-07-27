@@ -2,22 +2,20 @@ import type {
   ADKRun,
   ADKSession,
   ADKSessionComposerState,
-  ADKTimelineEntry,
-} from "@/contracts";
+} from "@/types";
 
-import { fetchEnvelope } from "./apiClient";
+import { apiGetPath } from "./apiClient";
+import {
+  requireADKComposerState,
+  requireADKRuns,
+  requireADKSession,
+  requireADKTimeline,
+} from "./adkApiMappers";
 import { normalizeADKTimelineEntries } from "./adkNormalization";
 import {
   replaceTimelineEntries,
   type ADKTimelineEntryState,
 } from "./adkTimeline";
-
-interface SessionDetailResponse {
-  session: ADKSession;
-  timeline: ADKTimelineEntry[];
-  runs?: ADKRun[];
-  composerState?: ADKSessionComposerState;
-}
 
 export async function loadSessionChatHistory(sessionId: string): Promise<{
   session: ADKSession;
@@ -25,20 +23,24 @@ export async function loadSessionChatHistory(sessionId: string): Promise<{
   runs: ADKRun[];
   composerState: ADKSessionComposerState;
 }> {
-  const detail = await fetchEnvelope<SessionDetailResponse>(
+  const detail = await apiGetPath(
+    "/api/v1/adk/sessions/{sessionId}",
     `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}`,
   );
+  const runs = detail.runs === undefined ? [] : requireADKRuns(detail.runs);
   return {
-    session: detail.session,
+    session: requireADKSession(detail.session),
     composerState: normalizeSessionComposerState(
       sessionId,
-      detail.composerState,
+      detail.composerState === undefined
+        ? undefined
+        : requireADKComposerState(detail.composerState),
     ),
-    runs: detail.runs ?? [],
+    runs,
     timelineEntries: replaceTimelineEntries(
-      normalizeADKTimelineEntries(detail.timeline),
+      normalizeADKTimelineEntries(requireADKTimeline(detail.timeline)),
       [],
-      runsById(detail.runs ?? []),
+      runsById(runs),
     ),
   };
 }

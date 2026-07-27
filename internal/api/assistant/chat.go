@@ -48,7 +48,7 @@ func (h *Handler) handleADKChat(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid chat payload")
 		return
 	}
-	result, err := h.service.Chat(c.Request.Context(), payload)
+	result, err := h.service.Chat(c.Request.Context(), jfadk.ChatRequest(payload))
 	if err != nil {
 		h.writeError(c, http.StatusBadRequest, "ADK_CHAT_FAILED", err.Error())
 		return
@@ -56,6 +56,18 @@ func (h *Handler) handleADKChat(c *gin.Context) {
 	h.writeOK(c, jfadk.NormalizeChatResponse(result))
 }
 
+// handleADKChatStream godoc
+// @Summary 启动 ADK 对话流
+// @Tags adk
+// @Accept json
+// @Produce event-stream
+// @x-error-produces ["application/json"]
+// @Param request body ADKChatRequest true "ADK chat request"
+// @Success 200 {string} string "Server-Sent Events stream"
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/adk/chat/stream [post]
 func (h *Handler) handleADKChatStream(c *gin.Context) {
 	c.Header("X-ADK-Stream-Idle-Timeout-Ms", strconv.Itoa(h.service.StreamIdleTimeoutMillis()))
 	payload, err := decodeADKChatRequest(c.Request.Body)
@@ -77,7 +89,7 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 		h.writeError(c, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming is unavailable")
 		return
 	}
-	record := h.startADKChatStream(payload)
+	record := h.startADKChatStream(jfadk.ChatRequest(payload))
 	c.Header("X-ADK-Stream-ID", record.id)
 	if err := writer.WriteRetryDirective(); err != nil {
 		return
@@ -85,6 +97,20 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 	h.streamADKChatRecord(c, writer, record, 0, false)
 }
 
+// handleADKChatStreamReconnect godoc
+// @Summary 重连 ADK 对话流
+// @Tags adk
+// @Produce event-stream
+// @x-error-produces ["application/json"]
+// @Param streamId path string true "Stream ID"
+// @Param after query int false "Last received event sequence"
+// @Success 200 {string} string "Server-Sent Events stream"
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/adk/streams/{streamId} [get]
 func (h *Handler) handleADKChatStreamReconnect(c *gin.Context) {
 	var uri streamURI
 	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.StreamID) == "" {
@@ -114,6 +140,20 @@ func (h *Handler) handleADKChatStreamReconnect(c *gin.Context) {
 	h.streamADKChatRecord(c, writer, record, after, true)
 }
 
+// handleADKRunStreamReconnect godoc
+// @Summary 按 Run 重连 ADK 对话流
+// @Tags adk
+// @Produce event-stream
+// @x-error-produces ["application/json"]
+// @Param runId path string true "Run ID"
+// @Param after query int false "Last received event sequence"
+// @Success 200 {string} string "Server-Sent Events stream"
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/adk/runs/{runId}/stream [get]
 func (h *Handler) handleADKRunStreamReconnect(c *gin.Context) {
 	var uri runURI
 	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {
@@ -143,10 +183,10 @@ func (h *Handler) handleADKRunStreamReconnect(c *gin.Context) {
 	h.streamADKChatRecord(c, writer, record, after, true)
 }
 
-func decodeADKChatRequest(body io.Reader) (jfadk.ChatRequest, error) {
-	var payload jfadk.ChatRequest
+func decodeADKChatRequest(body io.Reader) (ADKChatRequest, error) {
+	var payload ADKChatRequest
 	if err := json.NewDecoder(body).Decode(&payload); err != nil {
-		return jfadk.ChatRequest{}, err
+		return ADKChatRequest{}, err
 	}
 	return payload, nil
 }

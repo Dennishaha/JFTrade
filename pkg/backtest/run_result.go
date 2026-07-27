@@ -9,7 +9,9 @@ type PnLPoint = internalrunmodel.PnLPoint
 type DrawdownPoint = internalrunmodel.DrawdownPoint
 type Candle = internalrunmodel.Candle
 type HeikinAshiSeed = internalrunmodel.HeikinAshiSeed
-type RunResult = internalrunmodel.RunResult
+
+// RunResult is the stable public backtest result contract.
+type RunResult = internalrunmodel.RunResult // @name backtest.RunResult
 type TradingCosts = internalrunmodel.TradingCosts
 type FeeSchedule = internalrunmodel.FeeSchedule
 type FeeRule = internalrunmodel.FeeRule

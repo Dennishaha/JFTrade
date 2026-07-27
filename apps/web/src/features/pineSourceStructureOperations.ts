@@ -1,4 +1,4 @@
-import type { PineV6WorkflowBlockKind } from "@/contracts";
+import type { PineV6WorkflowBlockKind } from "@/types";
 
 import type { PineSourceBlock, PineSourceEditResult } from "./pineSourceStructureIndex";
 import { renderDefaultSourceBlock } from "./pineSourceStructureRender";

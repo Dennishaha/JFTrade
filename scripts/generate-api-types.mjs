@@ -2,7 +2,8 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import process from "node:process";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
@@ -23,13 +24,25 @@ function schemaRefName(ref) {
   return ref.slice(prefix.length);
 }
 
-function schemaToType(schema, context = "") {
+export function schemaToType(schema, context = "") {
   if (schema == null) {
     return "unknown";
   }
-  if (schema["x-nullable"] === true) {
+  const declaredTypes = Array.isArray(schema.type) ? schema.type : [];
+  if (
+    schema["x-nullable"] === true ||
+    schema.nullable === true ||
+    declaredTypes.includes("null")
+  ) {
     const nonNullableSchema = { ...schema };
     delete nonNullableSchema["x-nullable"];
+    delete nonNullableSchema.nullable;
+    if (declaredTypes.length > 0) {
+      nonNullableSchema.type = declaredTypes.filter((type) => type !== "null");
+      if (nonNullableSchema.type.length === 1) {
+        nonNullableSchema.type = nonNullableSchema.type[0];
+      }
+    }
     return `${schemaToType(nonNullableSchema, context)} | null`;
   }
   if (schema.$ref) {
@@ -103,25 +116,102 @@ function parametersType(parameters, location) {
   return lines.join("\n");
 }
 
-function requestBodyType(parameters) {
-  const body = (parameters ?? []).find((parameter) => parameter.in === "body");
-  if (body == null) {
+function mergeParameters(pathParameters, operationParameters) {
+  const merged = [...(pathParameters ?? [])];
+  for (const parameter of operationParameters ?? []) {
+    const index = merged.findIndex(
+      (candidate) =>
+        candidate.in === parameter.in && candidate.name === parameter.name,
+    );
+    if (index === -1) {
+      merged.push(parameter);
+    } else {
+      merged[index] = parameter;
+    }
+  }
+  return merged;
+}
+
+function formDataBodyType(parameters) {
+  const formParameters = (parameters ?? []).filter(
+    (parameter) => parameter.in === "formData",
+  );
+  if (formParameters.length === 0) {
     return null;
   }
-  return schemaToType(body.schema, `body.${body.name ?? "request"}`);
+  const required = new Set(
+    formParameters
+      .filter((parameter) => parameter.required)
+      .map((parameter) => parameter.name),
+  );
+  const lines = ["{"];
+  for (const parameter of formParameters) {
+    const optional = required.has(parameter.name) ? "" : "?";
+    lines.push(
+      `            ${propertyKey(parameter.name)}${optional}: ${schemaToType(parameter, `formData.${parameter.name}`)};`,
+    );
+  }
+  lines.push("          }");
+  return lines.join("\n");
+}
+
+function requestBody(parameters) {
+  const body = (parameters ?? []).find((parameter) => parameter.in === "body");
+  if (body != null) {
+    return {
+      required: body.required === true,
+      type: schemaToType(body.schema, `body.${body.name ?? "request"}`),
+    };
+  }
+  const formData = formDataBodyType(parameters);
+  if (formData == null) {
+    return null;
+  }
+  return {
+    required: (parameters ?? []).some(
+      (parameter) =>
+        parameter.in === "formData" && parameter.required === true,
+    ),
+    type: formData,
+  };
 }
 
 function responseType(response) {
   return schemaToType(response?.schema);
 }
 
-function operationToType(operation) {
-  const lines = ["{"];
-  const pathParameters = parametersType(operation.parameters, "path");
-  const queryParameters = parametersType(operation.parameters, "query");
-  const body = requestBodyType(operation.parameters);
+function mediaTypes(operationValues, globalValues) {
+  const values = operationValues ?? globalValues ?? [];
+  return [
+    ...new Set(
+      values.filter(
+        (value) => typeof value === "string" && value.length > 0,
+      ),
+    ),
+  ];
+}
 
-  if (pathParameters != null || queryParameters != null) {
+function contentType(media, value, indent) {
+  const lines = [`${indent}content: {`];
+  for (const mediaType of media) {
+    lines.push(`${indent}  ${JSON.stringify(mediaType)}: ${value};`);
+  }
+  lines.push(`${indent}};`);
+  return lines;
+}
+
+function operationToType(spec, pathItem, operation) {
+  const lines = ["{"];
+  const parameters = mergeParameters(pathItem.parameters, operation.parameters);
+  const pathParameters = parametersType(parameters, "path");
+  const queryParameters = parametersType(parameters, "query");
+  const headerParameters = parametersType(parameters, "header");
+  const body = requestBody(parameters);
+  const consumes = mediaTypes(operation.consumes, spec.consumes);
+  const produces = mediaTypes(operation.produces, spec.produces);
+  const errorProduces = mediaTypes(operation["x-error-produces"], []);
+
+  if (pathParameters != null || queryParameters != null || headerParameters != null) {
     lines.push("      parameters: {");
     if (pathParameters != null) {
       lines.push("        path: " + pathParameters + ";");
@@ -129,22 +219,27 @@ function operationToType(operation) {
     if (queryParameters != null) {
       lines.push("        query: " + queryParameters + ";");
     }
+    if (headerParameters != null) {
+      lines.push("        header: " + headerParameters + ";");
+    }
     lines.push("      };");
   }
   if (body != null) {
-    lines.push("      requestBody: {");
-    lines.push("        content: {");
-    lines.push(`          "application/json": ${body};`);
-    lines.push("        };");
+    lines.push(`      requestBody${body.required ? "" : "?"}: {`);
+    lines.push(...contentType(consumes, body.type, "        "));
     lines.push("      };");
   }
   lines.push("      responses: {");
   for (const [status, response] of Object.entries(operation.responses ?? {})) {
+    const responseProduces =
+      /^[45]\d\d$/.test(status) && errorProduces.length > 0
+        ? errorProduces
+        : produces;
     lines.push(`        ${JSON.stringify(status)}: {`);
     lines.push(`          description: ${JSON.stringify(response.description ?? "")};`);
-    lines.push("          content: {");
-    lines.push(`            "application/json": ${responseType(response)};`);
-    lines.push("          };");
+    if (responseProduces.length > 0 && response.schema != null) {
+      lines.push(...contentType(responseProduces, responseType(response), "          "));
+    }
     lines.push("        };");
   }
   lines.push("      };");
@@ -152,9 +247,7 @@ function operationToType(operation) {
   return lines.join("\n");
 }
 
-async function main() {
-  const raw = await readFile(inputPath, "utf8");
-  const spec = JSON.parse(raw);
+export function generateAPITypes(spec) {
   const definitions = spec.definitions ?? {};
   const paths = spec.paths ?? {};
   const lines = [
@@ -167,7 +260,9 @@ async function main() {
     "  schemas: {",
   ];
 
-  for (const [name, schema] of Object.entries(definitions).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [name, schema] of Object.entries(definitions).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
     lines.push(`    ${JSON.stringify(name)}: ${schemaToType(schema, `definitions.${name}`)};`);
   }
   lines.push("  };");
@@ -175,13 +270,15 @@ async function main() {
   lines.push("");
   lines.push("export interface paths {");
 
-  for (const [route, pathItem] of Object.entries(paths).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [route, pathItem] of Object.entries(paths).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
     lines.push(`  ${JSON.stringify(route)}: {`);
     for (const method of httpMethods) {
       if (pathItem[method] == null) {
         continue;
       }
-      lines.push(`    ${method}: ${operationToType(pathItem[method])};`);
+      lines.push(`    ${method}: ${operationToType(spec, pathItem, pathItem[method])};`);
     }
     lines.push("  };");
   }
@@ -189,12 +286,28 @@ async function main() {
   lines.push("}");
   lines.push("");
 
-  await mkdir(path.dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, `${lines.join("\n")}\n`);
-  console.log(`Generated ${path.relative(repoRoot, outputPath)} from ${path.relative(repoRoot, inputPath)}`);
+  return `${lines.join("\n")}\n`;
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+async function main() {
+  const raw = await readFile(inputPath, "utf8");
+  const spec = JSON.parse(raw);
+  const output = generateAPITypes(spec);
+
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, output);
+  console.log(
+    `Generated ${path.relative(repoRoot, outputPath)} from ${path.relative(repoRoot, inputPath)}`,
+  );
+}
+
+const invokedPath =
+  process.argv[1] == null
+    ? null
+    : pathToFileURL(path.resolve(process.argv[1])).href;
+if (invokedPath === import.meta.url) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}

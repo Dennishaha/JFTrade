@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKWorkflowTriggerLog } from "@/contracts";
+import type { ADKWorkflowTriggerLog } from "@/types";
 import type { PageEnvelope } from "@/composables/adkWorkflowsApi";
 import {
   formatDurationMs,

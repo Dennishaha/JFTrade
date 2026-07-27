@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
   StrategyVisualModelDocument,
   StrategyVisualNodeDocument,
-} from "../src/contracts";
+} from "../src/types";
 import { buildStrategyPineFromVisualModel } from "../src/features/strategyVisualBuilderPine";
 
 function node(

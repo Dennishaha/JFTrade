@@ -1,11 +1,13 @@
 import { computed, type Ref } from "vue";
 
 import {
-  type BrokerOrdersResponse,
-  type BrokerPositionsResponse,
   type ExecutionOrdersResponse,
   type MarketDataSubscriptionsResponse,
-  type PortfolioPositionsResponse,
+} from "@/types";
+import type {
+  BrokerOrdersResponse,
+  BrokerPositionsResponse,
+  PortfolioPositionsResponse,
 } from "@/contracts";
 
 import type { MarketInstrumentReference } from "./consoleDataSystemState";

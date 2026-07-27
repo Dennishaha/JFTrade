@@ -32,6 +32,8 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 // @Tags backtest
 // @Produce json
 // @Success 200 {object} httpserver.Envelope{data=BacktestRunsData}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/backtests [get]
 func handleList(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -45,9 +47,11 @@ func handleList(svc *srv.Service) gin.HandlerFunc {
 // @Tags backtest
 // @Accept json
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Param request body srv.StartRequest true "回测启动请求"
+// @Success 200 {object} httpserver.Envelope{data=BacktestQueuedData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/backtests [post]
 func handleStart(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -87,8 +91,10 @@ func handleStart(svc *srv.Service) gin.HandlerFunc {
 // @Tags backtest
 // @Accept json
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Param request body srv.SyncRequest true "历史数据同步请求"
+// @Success 200 {object} httpserver.Envelope{data=srv.SyncStarted}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/backtests/sync [post]
 func handleSync(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -110,7 +116,15 @@ func handleSync(svc *srv.Service) gin.HandlerFunc {
 	}
 }
 
-// handleSyncProgress 查询 K 线同步进度。
+// handleSyncProgress godoc
+// @Summary 查询历史数据同步进度
+// @Tags backtest
+// @Produce json
+// @Param taskId path string true "同步任务 ID"
+// @Success 200 {object} httpserver.Envelope{data=BacktestSyncProgress}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/backtests/sync/{taskId} [get]
 func handleSyncProgress(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var uri struct {
@@ -134,7 +148,15 @@ func handleSyncProgress(svc *srv.Service) gin.HandlerFunc {
 	}
 }
 
-// handleSyncCancel 取消正在进行的 K 线同步任务。
+// handleSyncCancel godoc
+// @Summary 取消历史数据同步任务
+// @Tags backtest
+// @Produce json
+// @Param taskId path string true "同步任务 ID"
+// @Success 200 {object} httpserver.Envelope{data=BacktestSyncCancelData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/backtests/sync/{taskId} [delete]
 func handleSyncCancel(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var uri struct {
@@ -159,9 +181,9 @@ func handleSyncCancel(svc *srv.Service) gin.HandlerFunc {
 // @Tags backtest
 // @Produce json
 // @Param runId path string true "回测运行 ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=BacktestStatusData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/backtests/{runId}/status [get]
 func handleStatus(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -190,9 +212,10 @@ func handleStatus(svc *srv.Service) gin.HandlerFunc {
 // @Tags backtest
 // @Produce json
 // @Param runId path string true "回测运行 ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.RunState}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/backtests/{runId} [get]
 func handleResult(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -222,9 +245,10 @@ func handleResult(svc *srv.Service) gin.HandlerFunc {
 // @Tags backtest
 // @Produce json
 // @Param runId path string true "回测运行 ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 404 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=BacktestDeleteData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 404 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/backtests/{runId} [delete]
 func handleDelete(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {

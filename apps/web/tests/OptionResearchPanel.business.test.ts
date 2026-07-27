@@ -15,6 +15,12 @@ vi.mock("../src/composables/productFeatures", async (importOriginal) => {
 });
 vi.mock("../src/composables/apiClient", () => ({
   fetchEnvelopeWithInit: apiMocks.fetchWithInit,
+  apiPostPath: (_template: string, path: string, body: unknown) =>
+    apiMocks.fetchWithInit(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
 }));
 vi.mock("../src/composables/useConsoleData", () => ({
   useConsoleData: () => ({
@@ -135,6 +141,55 @@ describe("option research panel", () => {
       chain: { productCode: "BABA", contractSize: 100 },
     });
     expect(wrapper.text()).toContain("US.BABA260724C180000");
+  });
+
+  it("keeps an option drilldown account-neutral when the selected provider differs", async () => {
+    useBrokerProviderSelection().selectBrokerProvider("ibkr");
+    apiMocks.fetchFeature.mockResolvedValue(
+      feature([
+        {
+          owner: { instrumentId: "US.BABA260724C180000" },
+          drilldownContext: {
+            underlyingInstrumentId: "US.BABA260724C180000",
+            expiryTimestamp: 1784332800,
+            chain: {
+              productCode: "BABA",
+              multiplier: 100,
+              contractSize: 100,
+              expirationType: 2,
+            },
+          },
+        },
+      ]),
+    );
+    apiMocks.fetchWithInit.mockResolvedValue(feature([]));
+
+    const wrapper = mount(OptionResearchPanel, {
+      props: {
+        market: "US",
+        operation: "zero_dte",
+        scope: "underlying",
+        underlyingInstrumentId: "US.BABA260724C180000",
+        underlyingProductClass: "option",
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text().includes("查看合约"))!
+      .trigger("click");
+    await flushPromises();
+
+    const [, init] = apiMocks.fetchWithInit.mock.calls[0]!;
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      brokerId: "ibkr",
+      accountId: "",
+      tradingEnvironment: "",
+      market: "US",
+      underlyingProductClass: "option",
+    });
   });
 
   it("keeps research market-wide and translates both seller strategies", async () => {

@@ -4,7 +4,7 @@ import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick, ref } from "vue";
 
-import type { MarketSecurityDetails } from "@/contracts";
+import type { MarketSecurityDetails } from "@/types";
 
 const mocks = vi.hoisted(() => ({
   fetchEnvelope: vi.fn(),
@@ -20,7 +20,25 @@ let consoleDataState: ReturnType<typeof createConsoleDataState>;
 let workspacePrefsState: { prefs: ReturnType<typeof ref<{ market: string; symbol: string }>> };
 
 vi.mock("../src/composables/apiClient", () => ({
-  fetchEnvelope: (...args: unknown[]) => mocks.fetchEnvelope(...args),
+  apiGet: () => Promise.resolve({ groups: [] }),
+  apiGetPath: (template: string, path: string) => {
+    if (template === "/api/v1/brokers/{brokerId}/margin-ratios") {
+      return mocks.fetchEnvelope(path);
+    }
+    if (
+      template ===
+      "/api/v1/watchlist/instruments/{market}/{symbol}/memberships"
+    ) {
+      return Promise.resolve({
+        instrumentId: "",
+        revision: 0,
+        groups: [],
+      });
+    }
+    return Promise.reject(new Error(`Unexpected apiGetPath call: ${path}`));
+  },
+  apiPutPath: () =>
+    Promise.resolve({ instrumentId: "", revision: 0, groups: [] }),
 }));
 
 vi.mock("../src/composables/consoleDataBrokerAccountSelection", () => ({

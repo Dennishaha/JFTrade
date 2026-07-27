@@ -5,8 +5,9 @@ import { computed, onMounted, ref, watch } from "vue";
 import type {
   RuntimeDependenciesResponse,
   RuntimeDependencyItem,
-} from "@/contracts";
-import { fetchEnvelope } from "../composables/apiClient";
+} from "@/types";
+import type { components } from "@/generated/openapi";
+import { apiGet } from "../composables/apiClient";
 import { useExternalLink } from "../composables/externalLink";
 import {
   defaultPineWorkerSettings,
@@ -41,6 +42,35 @@ const panelLoading = ref(true);
 const refreshing = ref(false);
 const errorMessage = ref("");
 const noticeMessage = ref("");
+
+function mapRuntimeDependency(
+  value: components["schemas"]["system.RuntimeDependencyItem"],
+): RuntimeDependencyItem {
+  return {
+    id: value.id ?? "",
+    displayName: value.displayName ?? value.id ?? "",
+    required: value.required ?? false,
+    status: value.status ?? "error",
+    minimumVersion: value.minimumVersion ?? "",
+    detectedVersion: value.detectedVersion ?? "",
+    configuredPath: value.configuredPath ?? "",
+    effectivePath: value.effectivePath ?? "",
+    resolvedPath: value.resolvedPath ?? "",
+    source: value.source ?? "",
+    homepageUrl: value.homepageUrl ?? "",
+    message: value.message ?? "",
+  };
+}
+
+function mapRuntimeDependencies(
+  value: components["schemas"]["system.RuntimeDependenciesResponse"],
+): RuntimeDependenciesResponse {
+  return {
+    checkedAt: value.checkedAt ?? "",
+    allRequiredSatisfied: value.allRequiredSatisfied ?? false,
+    dependencies: (value.dependencies ?? []).map(mapRuntimeDependency),
+  };
+}
 
 const pineWorkerSettingsQueryKey = queryKeys.settings("pine-worker");
 const pineWorkerSettingsQuery = useQuery({
@@ -129,8 +159,8 @@ async function refreshDependencies(): Promise<void> {
   refreshing.value = true;
   errorMessage.value = "";
   try {
-    const response = await fetchEnvelope<RuntimeDependenciesResponse>(
-      "/api/v1/system/runtime-dependencies",
+    const response = mapRuntimeDependencies(
+      await apiGet("/api/v1/system/runtime-dependencies"),
     );
     runtimeDependencies.value = response;
     emit("status-change", response);

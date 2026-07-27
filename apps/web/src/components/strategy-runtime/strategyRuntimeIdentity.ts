@@ -1,7 +1,7 @@
 import type {
   StrategyInstanceItem,
   StrategySourceFormat,
-} from "@/contracts";
+} from "@/types";
 
 import { normalizeText } from "./strategyRuntimeInstanceBinding";
 

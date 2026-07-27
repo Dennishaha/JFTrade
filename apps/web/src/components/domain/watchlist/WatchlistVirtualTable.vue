@@ -5,7 +5,7 @@ import type {
   WatchlistItem,
   WatchlistQuote,
   WatchlistQuoteError,
-} from "@/contracts";
+} from "@/types";
 
 import { formatDateTime } from "../../../composables/consoleDataFormatting";
 import { formatUserMarketLabel } from "../../../composables/instrumentPresentation";

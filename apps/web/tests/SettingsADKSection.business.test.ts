@@ -6,7 +6,7 @@ import { defineComponent, ref } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 
 import SettingsADKSection from "../src/components/SettingsADKSection.vue";
-import type { ADKAgent } from "../src/contracts";
+import type { ADKAgent } from "../src/types";
 import {
   buttonStub,
   flushRequests,

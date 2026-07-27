@@ -3,13 +3,16 @@ import { computed, ref } from "vue";
 import type {
   MarketProfileDto,
   MarketProfilesResponse,
+} from "@/types";
+import type {
   NormalizeInstrumentRequest,
   NormalizeInstrumentResponse,
 } from "@/contracts";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { apiGet, apiPost } from "./apiClient";
 import { formatMarketLabel } from "./consoleDataFormatting";
 import { formatUserMarketLabel } from "./instrumentPresentation";
+import type { MarketProfilesWire } from "./marketDataContract";
 import { marketPricePrecision } from "../utils/numberFormat";
 
 const marketProfiles = ref<MarketProfileDto[]>([]);
@@ -17,6 +20,67 @@ const defaultMarket = ref("HK");
 const isLoadingMarketProfiles = ref(false);
 const marketProfilesError = ref("");
 let marketProfilesLoadPromise: Promise<void> | null = null;
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string")
+    : [];
+}
+
+function tradingWindows(value: unknown): MarketProfileDto["regularSessions"] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    const entry = recordValue(raw);
+    if (
+      typeof entry.startMinute !== "number" ||
+      typeof entry.endMinute !== "number"
+    ) {
+      return [];
+    }
+    return [{
+      startMinute: entry.startMinute,
+      endMinute: entry.endMinute,
+      label: typeof entry.label === "string" ? entry.label : "",
+    }];
+  });
+}
+
+function mapMarketProfiles(response: MarketProfilesWire): MarketProfilesResponse {
+  const markets = response.markets.flatMap((raw) => {
+    const entry = recordValue(raw);
+    const code = String(entry.code ?? "").trim();
+    if (code === "") return [];
+    const precision = recordValue(entry.precision);
+    return [{
+      code,
+      resolvedMarket: String(entry.resolvedMarket ?? code),
+      preferredPrefix: String(entry.preferredPrefix ?? ""),
+      displayName: String(entry.displayName ?? code),
+      quoteCurrency: String(entry.quoteCurrency ?? ""),
+      timezone: String(entry.timezone ?? ""),
+      supportsExtendedHours: entry.supportsExtendedHours === true,
+      requiresExchangePrefix: entry.requiresExchangePrefix === true,
+      aliases: stringArray(entry.aliases),
+      regularSessions: tradingWindows(entry.regularSessions),
+      precision: {
+        price: Number(precision.price ?? 0),
+        quote: Number(precision.quote ?? 0),
+      },
+      tickSize: Number(entry.tickSize ?? 0),
+    }];
+  });
+  return {
+    markets,
+    defaultMarket: response.defaultMarket,
+    updatedAt: "",
+  };
+}
 
 function normalizeMarketCode(value: string | null | undefined): string {
   return (value ?? "").trim().toUpperCase();
@@ -122,8 +186,8 @@ export async function loadMarketProfiles(): Promise<void> {
   marketProfilesError.value = "";
   marketProfilesLoadPromise = (async () => {
     try {
-      const response = await fetchEnvelope<MarketProfilesResponse>(
-        "/api/v1/market-data/markets",
+      const response = mapMarketProfiles(
+        await apiGet("/api/v1/market-data/markets"),
       );
       if (Array.isArray(response.markets) && response.markets.length > 0) {
         marketProfiles.value = response.markets;
@@ -176,13 +240,9 @@ export function supportsExtendedHoursForMarket(
 export async function normalizeInstrumentRefWithMarketApi(
   input: NormalizeInstrumentRequest,
 ): Promise<NormalizeInstrumentResponse> {
-  return fetchEnvelopeWithInit<NormalizeInstrumentResponse>(
+  return apiPost(
     "/api/v1/market-data/instruments/normalize",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    },
+    input,
   );
 }
 

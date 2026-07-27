@@ -2,6 +2,7 @@ package settings
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -21,7 +22,8 @@ import (
 // @Summary 读取 UI 颜色配置
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=UIAppearanceResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/ui [get]
 func handleUIAppearance(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -35,8 +37,9 @@ func handleUIAppearance(svc *srv.Service) gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Param request body UIAppearanceSettingsWriteRequest true "UI 配置"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=UIAppearanceResponse}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/ui [put]
 func handleSaveUIAppearance(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -62,7 +65,8 @@ func handleSaveUIAppearance(svc *srv.Service) gin.HandlerFunc {
 // @Summary 读取新手引导状态
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=OnboardingStateResponse}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/onboarding [get]
 func handleOnboardingState(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -76,8 +80,9 @@ func handleOnboardingState(svc *srv.Service) gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Param request body OnboardingWriteRequest true "引导状态"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=OnboardingStateResponse}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/onboarding [put]
 func handleSaveOnboarding(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -127,7 +132,8 @@ func handleSaveOnboarding(svc *srv.Service) gin.HandlerFunc {
 // @Summary 读取执行设置
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.ExecutionSettings}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/execution [get]
 func handleExecutionSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -140,18 +146,19 @@ func handleExecutionSettings(svc *srv.Service) gin.HandlerFunc {
 // @Tags settings
 // @Accept json
 // @Produce json
-// @Param request body jfsettings.ExecutionSettings true "执行设置"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Param request body ExecutionSettingsWriteRequest true "执行设置"
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.ExecutionSettings}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/execution [put]
 func handleSaveExecutionSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var input jfsettings.ExecutionSettings
+		var input ExecutionSettingsWriteRequest
 		if err := c.ShouldBindJSON(&input); err != nil {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid execution payload")
 			return
 		}
-		result, err := svc.SaveExecutionSettings(input)
+		result, err := svc.SaveExecutionSettings(input.settings())
 		if err != nil {
 			httpserver.WriteError(c, 500, "SETTINGS_SAVE_FAILED", err.Error())
 			return
@@ -167,6 +174,7 @@ func handleSaveExecutionSettings(svc *srv.Service) gin.HandlerFunc {
 // @Tags settings
 // @Produce json
 // @Success 200 {object} httpserver.Envelope{data=jfsettings.SecuritySettings}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/security [get]
 func handleSecuritySettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -181,7 +189,10 @@ func handleSecuritySettings(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Param request body jfsettings.SecuritySettingsUpdate true "Web 访问设置（新密码仅写入）"
 // @Success 200 {object} httpserver.Envelope{data=jfsettings.SecuritySettings}
-// @Failure 400 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/security [put]
 func handleSaveSecuritySettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -223,7 +234,8 @@ func handleSaveSecuritySettings(svc *srv.Service) gin.HandlerFunc {
 // @Summary 读取系统通知设置
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.SystemNotificationSettings}
+// @Failure 401 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/system-notifications [get]
 func handleSystemNotificationSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -236,22 +248,55 @@ func handleSystemNotificationSettings(svc *srv.Service) gin.HandlerFunc {
 // @Tags settings
 // @Accept json
 // @Produce json
-// @Param request body jfsettings.SystemNotificationSettings true "系统通知设置"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
+// @Param request body SystemNotificationSettingsWriteRequest true "系统通知设置"
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.SystemNotificationSettings}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/settings/system-notifications [put]
 func handleSaveSystemNotificationSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var input jfsettings.SystemNotificationSettings
+		var input SystemNotificationSettingsWriteRequest
 		if err := c.ShouldBindJSON(&input); err != nil {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid system notification payload")
 			return
 		}
-		result, err := svc.SaveSystemNotificationSettings(input)
+		result, err := svc.SaveSystemNotificationSettings(input.settings())
 		if err != nil {
 			httpserver.WriteError(c, 500, "SETTINGS_SAVE_FAILED", err.Error())
 			return
 		}
 		httpserver.WriteOK(c, result)
+	}
+}
+
+// handleSystemNotificationTest godoc
+// @Summary 发送系统通知测试事件
+// @Tags settings
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=SystemNotificationTestResponse}
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/settings/system-notifications/test [post]
+func handleSystemNotificationTest(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		result, err := svc.TestSystemNotification()
+		if err != nil {
+			httpserver.WriteError(c, 500, "SYSTEM_NOTIFICATION_TEST_FAILED", err.Error())
+			return
+		}
+		event := result.Event
+		httpserver.WriteOK(c, SystemNotificationTestResponse{
+			Event: SystemNotificationEvent{
+				Type:     "system.notification",
+				ID:       fmt.Sprintf("system-notification-%d", event.Sequence),
+				At:       event.At,
+				Level:    event.Level,
+				Title:    event.Title,
+				Message:  event.Message,
+				Source:   event.Source,
+				BrokerID: event.BrokerID,
+				Category: event.Category,
+			},
+			Delivery: result.Delivery,
+		})
 	}
 }

@@ -4,7 +4,7 @@ import {
   emptyBrokerRuntime,
   emptyBrokerSettings,
   emptySystemStatus,
-} from "@/contracts";
+} from "@/types";
 
 import {
   buildBrokerAccountSelectionKey,

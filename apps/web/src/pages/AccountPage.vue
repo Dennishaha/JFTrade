@@ -2,8 +2,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import type { ExecutionOrdersResponse } from "@/contracts";
-
 import AccountAssetStrip from "../components/domain/account/AccountAssetStrip.vue";
 import AccountMoreSection from "../components/domain/account/AccountMoreSection.vue";
 import AccountSummarySidebar from "../components/domain/account/AccountSummarySidebar.vue";
@@ -15,11 +13,12 @@ import PositionsTable, {
   type AccountPositionRow,
 } from "../components/domain/account/PositionsTable.vue";
 import ActionConfirmDialog from "../components/shared/ActionConfirmDialog.vue";
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import { apiGetPath, apiPostPathAction } from "../composables/apiClient";
 import { isFinalExecutionOrderStatus } from "../composables/consoleDataFormatting";
 import { formatInstrumentIdentityText } from "../composables/instrumentPresentation";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useNotifications } from "../composables/useNotifications";
+import { mapExecutionOrders } from "../composables/tradingApiMappers";
 
 type AccountTab = "positions" | "orders" | "history" | "funds";
 
@@ -77,18 +76,6 @@ const pendingCancelMessage = computed(() => {
     : "订单";
   return `确认撤销${kind} ${instrument}？撤单请求提交后仍以券商最终处理结果为准。`;
 });
-
-interface ExecutionOrderCommandResult {
-  accepted: boolean;
-  operation: string;
-  internalOrderId?: string | null;
-  brokerOrderId?: string | null;
-  brokerOrderIdEx?: string | null;
-  orderStatus?: string | null;
-  brokerErrorCode?: string | null;
-  message: string;
-  checkedAt: string;
-}
 
 function initialExecutionOrderIdFromLocation(): string {
   if (typeof window === "undefined") {
@@ -429,8 +416,11 @@ function executionOrdersUrl(): string {
 }
 
 async function refreshExecutionOrders(): Promise<void> {
-  activeExecutionOrders.value = await fetchEnvelope<ExecutionOrdersResponse>(
-    executionOrdersUrl(),
+  activeExecutionOrders.value = mapExecutionOrders(
+    await apiGetPath(
+      "/api/v1/execution/orders",
+      executionOrdersUrl(),
+    ),
   );
 }
 
@@ -507,12 +497,15 @@ async function cancelOrder(order: AccountExecutionOrder): Promise<void> {
       order.orderKind === "option_combo" || order.orderKind === "event_parlay"
         ? `/api/v1/execution/combos/${encodeURIComponent(order.internalOrderId)}/cancel`
         : `/api/v1/execution/orders/${encodeURIComponent(order.internalOrderId)}/cancel`;
-    const result = await fetchEnvelopeWithInit<ExecutionOrderCommandResult>(
-      cancelPath,
-      {
-        method: "POST",
-      },
-    );
+    const result = order.orderKind === "option_combo" || order.orderKind === "event_parlay"
+      ? await apiPostPathAction(
+          "/api/v1/execution/combos/{internalOrderId}/cancel",
+          cancelPath,
+        )
+      : await apiPostPathAction(
+          "/api/v1/execution/orders/{internalOrderId}/cancel",
+          cancelPath,
+        );
 
     await refreshExecutionOrders();
     await loadExecutionOrderDetails(order.internalOrderId);

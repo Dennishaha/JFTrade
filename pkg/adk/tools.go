@@ -250,6 +250,9 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 	descriptor.Permission = strings.TrimSpace(descriptor.Permission)
 	descriptor.IdempotencyMode = normalizeToolIdempotencyMode(descriptor.IdempotencyMode, descriptor.Permission)
 	descriptor.RequiredSkills = normalizeStringSlice(descriptor.RequiredSkills)
+	if descriptor.RequiresApprovalIn == nil {
+		descriptor.RequiresApprovalIn = []string{}
+	}
 	if len(descriptor.AllowedModes) == 0 {
 		if descriptor.Permission == "live_trading" {
 			descriptor.AllowedModes = []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll}

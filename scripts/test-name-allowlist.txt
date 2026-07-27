@@ -1,0 +1,1 @@
+# No historical coverage-target test filenames remain; new exemptions are forbidden.

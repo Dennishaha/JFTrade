@@ -27,6 +27,14 @@ const consoleState = {
 
 vi.mock("../src/composables/apiClient", () => ({
   fetchEnvelopeWithInit: predictionWorkspaceMocks.fetchWithInit,
+  apiDeletePath: (_template: string, path: string) =>
+    predictionWorkspaceMocks.fetchWithInit(path, { method: "DELETE" }),
+  apiPostPath: (_template: string, path: string, body: unknown) =>
+    predictionWorkspaceMocks.fetchWithInit(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
 }));
 vi.mock("../src/composables/productFeatures", async (importOriginal) => {
   const actual =

@@ -9,7 +9,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jmoiron/sqlx"
+	_ "modernc.org/sqlite"
+
 	httpserver "github.com/jftrade/jftrade-main/internal/api/httpserver"
+	strategystore "github.com/jftrade/jftrade-main/internal/store/strategy"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
@@ -33,12 +37,18 @@ func TestInstantiateStoredDefinitionRejectsLegacySourceFormat(t *testing.T) {
 		CreatedAt:    "2026-06-13T00:00:00Z",
 		UpdatedAt:    "2026-06-13T00:00:00Z",
 	}
-	server.designStore.mu.Lock()
-	if err := server.designStore.upsertDefinitionLocked(legacyDefinition, nil); err != nil {
-		server.designStore.mu.Unlock()
+	db, err := sqlx.Open("sqlite", strategystore.DeriveDBPath(strategystore.DerivePath(store.Path())))
+	if err != nil {
+		t.Fatalf("open strategy database: %v", err)
+	}
+	t.Cleanup(func() { jftradeCheckTestError(t, db.Close()) })
+	if _, err := db.Exec(`INSERT INTO strategy_design_definitions (id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, '', ?, ?, NULL)`,
+		legacyDefinition.ID, legacyDefinition.Name, legacyDefinition.Version, legacyDefinition.Runtime,
+		legacyDefinition.SourceFormat, legacyDefinition.Symbol, legacyDefinition.Interval, legacyDefinition.Script,
+		legacyDefinition.CreatedAt, legacyDefinition.UpdatedAt,
+	); err != nil {
 		t.Fatalf("upsert legacy definition: %v", err)
 	}
-	server.designStore.mu.Unlock()
 
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
@@ -66,7 +76,7 @@ func TestStrategyDefinitionPreviewUsesRequestedSymbolAndExtendedHours(t *testing
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
+	if _, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		ID:           "dsl-preview-day-window",
 		Name:         "Pine Preview Window",
 		Version:      "0.1.0",

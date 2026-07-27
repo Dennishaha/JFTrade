@@ -1,9 +1,9 @@
 import { computed, reactive, ref, watch, type Ref } from "vue";
 
 import {
-  type BrokerRuntimeResponse,
   type BrokerSettingsResponse,
-} from "@/contracts";
+} from "@/types";
+import type { BrokerRuntimeResponse } from "@/contracts";
 
 export interface SettingsManagedAccountForm {
   brokerId: string;

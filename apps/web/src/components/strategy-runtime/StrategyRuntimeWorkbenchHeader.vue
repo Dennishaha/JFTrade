@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { StrategyInstanceItem } from "@/contracts";
+import type { StrategyInstanceItem } from "@/types";
 
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import RuntimeHealthBadge from "../domain/runtime/RuntimeHealthBadge.vue";

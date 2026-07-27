@@ -26,6 +26,22 @@ const consoleState = {
 
 vi.mock("../src/composables/apiClient", () => ({
   fetchEnvelopeWithInit: predictionMocks.fetchWithInit,
+  apiDeletePath: (_template: string, path: string) =>
+    predictionMocks.fetchWithInit(path, { method: "DELETE" }),
+  apiPost: (path: string, body: unknown) =>
+    predictionMocks.fetchWithInit(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  apiPostPath: (_template: string, path: string, body: unknown) =>
+    predictionMocks.fetchWithInit(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  apiPostPathAction: (_template: string, path: string) =>
+    predictionMocks.fetchWithInit(path, { method: "POST" }),
 }));
 vi.mock("../src/composables/productFeatures", async (importOriginal) => {
   const actual =
@@ -475,6 +491,50 @@ describe("prediction research and Parlay lifecycle", () => {
         String(path).includes("/subscriptions/"),
       ),
     ).toBe(true);
+  });
+
+  it("falls back to system quote scope and preserves a missing RFQ expiry as null", async () => {
+    consoleState.selectedBrokerAccount.value = null;
+    predictionMocks.fetchFeature.mockResolvedValue(feature([]));
+    predictionMocks.fetchWithInit.mockResolvedValue(
+      feature([], {
+        quoteId: "quote-without-expiry",
+      }),
+    );
+    vi.stubGlobal("crypto", { randomUUID: () => "fallback-id" });
+    const wrapper = mount(PredictionResearchPanel, {
+      global: {
+        stubs: {
+          ...productGlobalStubs,
+          PredictionContractDataView: { template: "<div />" },
+        },
+      },
+    });
+    await flushPromises();
+    const state = setupState<{
+      eligible: ReturnType<typeof feature> | null;
+      selectedLegs: Record<string, "YES" | "NO">;
+      requestRFQ: () => Promise<void>;
+      parlayPayload: (previewId?: string) => Record<string, unknown>;
+    }>(wrapper);
+    state.eligible = feature([], { mvc: "mvc-default-scope" });
+    state.selectedLegs = { "EC.A": "YES", "EC.B": "NO" };
+
+    await state.requestRFQ();
+
+    const quoteCall = predictionMocks.fetchWithInit.mock.calls.find(
+      ([path]) => path === "/api/v1/market-data/prediction/combos/quotes",
+    );
+    expect(JSON.parse(String(quoteCall?.[1]?.body))).toMatchObject({
+      brokerId: "futu",
+      accountId: "",
+      tradingEnvironment: "SIMULATE",
+      mvc: "mvc-default-scope",
+    });
+    expect(state.parlayPayload()).toMatchObject({
+      quoteExpiresAt: null,
+      rfqId: "quote-without-expiry",
+    });
   });
 
   it("reports eligibility, RFQ, subscription, execution, and cancellation failures", async () => {

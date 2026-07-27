@@ -5,20 +5,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
 const riskMocks = vi.hoisted(() => ({
+  apiGet: vi.fn(),
   apiPost: vi.fn(),
   apiPostPath: vi.fn(),
+  apiPutPath: vi.fn(),
   disableRuntimeRiskConfig: vi.fn(),
-  fetchEnvelope: vi.fn(),
-  fetchEnvelopeWithInit: vi.fn(),
   saveRuntimeRiskConfig: vi.fn(),
   store: null as null | Record<string, unknown>,
 }));
 
 vi.mock("../src/composables/apiClient", () => ({
+  apiGet: (...args: unknown[]) => riskMocks.apiGet(...args),
   apiPost: (...args: unknown[]) => riskMocks.apiPost(...args),
   apiPostPath: (...args: unknown[]) => riskMocks.apiPostPath(...args),
-  fetchEnvelope: (...args: unknown[]) => riskMocks.fetchEnvelope(...args),
-  fetchEnvelopeWithInit: (...args: unknown[]) => riskMocks.fetchEnvelopeWithInit(...args),
+  apiPutPath: (...args: unknown[]) => riskMocks.apiPutPath(...args),
 }));
 
 vi.mock("../src/composables/useConsoleData", () => ({
@@ -134,8 +134,8 @@ beforeEach(() => {
   riskMocks.apiPostPath.mockResolvedValue({});
   riskMocks.disableRuntimeRiskConfig.mockResolvedValue(undefined);
   riskMocks.saveRuntimeRiskConfig.mockResolvedValue(undefined);
-  riskMocks.fetchEnvelope.mockResolvedValue([strategyInstance()]);
-  riskMocks.fetchEnvelopeWithInit.mockImplementation(async (path: string) => {
+  riskMocks.apiGet.mockResolvedValue([strategyInstance()]);
+  riskMocks.apiPutPath.mockImplementation(async (_template: string, path: string) => {
     if (path.includes("/runtime-risk")) {
       return {
         ...strategyInstance(),
@@ -235,9 +235,10 @@ describe("RiskPage control actions", () => {
         reason: "manual release from risk page",
       }),
     );
-    expect(riskMocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(
+    expect(riskMocks.apiPutPath).toHaveBeenCalledWith(
+      "/api/v1/strategies/{instanceId}/runtime-risk",
       "/api/v1/strategies/strategy%2Fa/runtime-risk",
-      expect.objectContaining({ method: "PUT" }),
+      expect.objectContaining({ mode: "enforce" }),
     );
     expect(store.loadSystemState).toHaveBeenCalledWith({ bypassCooldown: true });
   });
@@ -258,7 +259,7 @@ describe("RiskPage control actions", () => {
     expect(riskMocks.saveRuntimeRiskConfig).not.toHaveBeenCalled();
     expect(riskMocks.apiPost).not.toHaveBeenCalled();
     expect(riskMocks.apiPostPath).not.toHaveBeenCalled();
-    expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
+    expect(riskMocks.apiPutPath).not.toHaveBeenCalled();
 
     await wrapper.find(".activate-hard-stop").trigger("click");
     await cancelOpenDialog(wrapper);
@@ -288,18 +289,18 @@ describe("RiskPage control actions", () => {
     ).confirmPendingAction();
     expect(riskMocks.apiPost).not.toHaveBeenCalled();
     expect(riskMocks.apiPostPath).not.toHaveBeenCalled();
-    expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
+    expect(riskMocks.apiPutPath).not.toHaveBeenCalled();
   });
 
   it("shows strategy loading and update failures from the corresponding contract calls", async () => {
-    riskMocks.fetchEnvelope.mockRejectedValueOnce(new Error("策略列表不可用"));
+    riskMocks.apiGet.mockRejectedValueOnce(new Error("策略列表不可用"));
     const wrapper = mount(RiskPage, { global: { stubs } });
     await flushPromises();
     await switchToTab(wrapper, "策略实例");
     expect(wrapper.find(".strategy-risk-error").text()).toContain("策略列表不可用");
 
-    riskMocks.fetchEnvelope.mockResolvedValue([strategyInstance()]);
-    riskMocks.fetchEnvelopeWithInit.mockRejectedValueOnce(new Error("模式更新被拒绝"));
+    riskMocks.apiGet.mockResolvedValue([strategyInstance()]);
+    riskMocks.apiPutPath.mockRejectedValueOnce(new Error("模式更新被拒绝"));
     await wrapper.find(".update-strategy-risk").trigger("click");
     await flushPromises();
     expect(wrapper.find(".strategy-risk-error").text()).toContain("模式更新被拒绝");

@@ -469,16 +469,23 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 		},
 		"internal/app/apiserver/servercore/pineworker_runtime.go": {
 			"pnpm run dev:api:pineworker",
-			"JFTRADE_PINEWORKER_BUNDLE",
-			"JFTRADE_PINEWORKER_RUNTIME",
+			"pineruntime.EnvBundle",
+			"pineruntime.EnvRuntime",
 			"/absolute/path/to/worker.mjs",
 			"settingsfile.DefaultPineWorkerSettings",
+			"mode=ephemeral",
+		},
+		"internal/strategy/pineruntime/config.go": {
+			"JFTRADE_PINEWORKER_BUNDLE",
+			"JFTRADE_PINEWORKER_RUNTIME",
 			"BacktestWorkerLimit",
 			"InstanceWorkerLimit",
 			"envIntInRange",
 			"1000",
-			"newEphemeralPineWorkerRunner",
-			"mode=ephemeral",
+		},
+		"internal/strategy/pineruntime/runner.go": {
+			"newEphemeralRunner",
+			"ephemeralRunner",
 		},
 		"pkg/jftsettings/types.go": {
 			"PineWorkerSettings",

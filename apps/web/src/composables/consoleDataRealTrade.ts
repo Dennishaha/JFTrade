@@ -1,13 +1,6 @@
 import { ref } from "vue";
 
 import {
-  type RealTradeApprovalsResponse,
-  type RealTradeHardStopEventsResponse,
-  type RealTradeHardStopsResponse,
-  type RealTradeKillSwitchEventsResponse,
-  type RealTradeKillSwitchStateResponse,
-  type RealTradeRiskEventsResponse,
-  type RealTradeRiskStateResponse,
   emptyRealTradeApprovals,
   emptyRealTradeHardStopEvents,
   emptyRealTradeHardStops,
@@ -15,6 +8,15 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
+} from "@/types";
+import type {
+  RealTradeApprovalsResponse,
+  RealTradeHardStopEventsResponse,
+  RealTradeHardStopsResponse,
+  RealTradeKillSwitchEventsResponse,
+  RealTradeKillSwitchStateResponse,
+  RealTradeRiskEventsResponse,
+  RealTradeRiskStateResponse,
 } from "@/contracts";
 
 export function createConsoleDataRealTradeController() {

@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
 func TestADKWorkflowDefinitionTriggerAndRunRoutes(t *testing.T) {
@@ -22,9 +21,9 @@ func TestADKWorkflowDefinitionTriggerAndRunRoutes(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), asst.AgentWriteRequest{
 		ID: "workflow-route-agent", Name: "Workflow Route", ProviderID: testADKProviderID,
-		Status: jfadk.AgentStatusEnabled, WorkMode: jfadk.WorkModeChat,
+		Status: asst.AgentStatusEnabled, WorkMode: asst.WorkModeChat,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -34,9 +33,9 @@ func TestADKWorkflowDefinitionTriggerAndRunRoutes(t *testing.T) {
 		"id":             "workflow-route",
 		"name":           "Route Workflow",
 		"description":    "route coverage",
-		"status":         jfadk.WorkflowStatusEnabled,
+		"status":         asst.WorkflowStatusEnabled,
 		"agentId":        agent.ID,
-		"workMode":       jfadk.WorkModeChat,
+		"workMode":       asst.WorkModeChat,
 		"promptTemplate": "Review {{ .symbol }} from {{ .source }}",
 		"defaultInputs":  map[string]any{"symbol": "US.AAPL", "source": "default"},
 		"canvasGraph": map[string]any{
@@ -75,8 +74,8 @@ func TestADKWorkflowDefinitionTriggerAndRunRoutes(t *testing.T) {
 		t.Fatalf("POST workflow status = %d", createResp.StatusCode)
 	}
 	var createEnvelope struct {
-		OK   bool                     `json:"ok"`
-		Data jfadk.WorkflowDefinition `json:"data"`
+		OK   bool                    `json:"ok"`
+		Data asst.WorkflowDefinition `json:"data"`
 	}
 	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
 		t.Fatalf("decode workflow create: %v", err)
@@ -96,7 +95,7 @@ func TestADKWorkflowDefinitionTriggerAndRunRoutes(t *testing.T) {
 	var listEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Workflows []jfadk.WorkflowDefinition `json:"workflows"`
+			Workflows []asst.WorkflowDefinition `json:"workflows"`
 			Page      struct {
 				Returned int  `json:"returned"`
 				HasMore  bool `json:"hasMore"`
@@ -223,7 +222,7 @@ func TestADKWorkflowDefinitionTriggerAndRunRoutes(t *testing.T) {
 	var logsEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Logs []jfadk.WorkflowTriggerLog `json:"logs"`
+			Logs []asst.WorkflowTriggerLog `json:"logs"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(logsResp.Body).Decode(&logsEnvelope); err != nil {

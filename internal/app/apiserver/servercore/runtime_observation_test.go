@@ -25,20 +25,20 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 		ExecutionMode: strategyExecutionModeNotifyOnly,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
@@ -127,22 +127,22 @@ func TestStrategyRuntimeObservationPersistsAcrossServerRestart(t *testing.T) {
 		ExecutionMode: strategyExecutionModeNotifyOnly,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusStopped, "stopped", "test stop"); err != nil {
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusStopped, "stopped", "test stop"); err != nil {
 		t.Fatalf("transitionStrategy stop: %v", err)
 	}
-	server.strategyRuntimeManager.stopStrategy(instanceID)
+	server.runtimes.StrategyRuntime().Stop(instanceID)
 
 	reloadedStore, err := NewSettingsStore(settingsPath)
 	if err != nil {
@@ -189,28 +189,28 @@ func TestStrategyRuntimePanicAutoReconcilesToStopped(t *testing.T) {
 		ExecutionMode: strategyExecutionModeLive,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
-	strategy, ok := server.strategyStore.strategy(instanceID)
+	strategy, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found after panic reconciliation", instanceID)
 	}
 	if strategy.Status != strategyStatusStopped {
 		t.Fatalf("strategy status after panic = %s, want %s", strategy.Status, strategyStatusStopped)
 	}
-	if got := len(server.strategyRuntimeManager.activeInstrumentIDs()); got != 0 {
+	if got := len(server.runtimes.StrategyRuntime().ActiveInstrumentIDs()); got != 0 {
 		t.Fatalf("expected runtime manager to remove failed runtime, got %d active instruments", got)
 	}
 
@@ -226,7 +226,7 @@ func TestStrategyRuntimePanicAutoReconcilesToStopped(t *testing.T) {
 		t.Fatalf("expected runtime exit notification, got %+v", notifications)
 	}
 
-	audit, ok := server.strategyStore.strategyAudit(instanceID)
+	audit, ok := strategyRuntimeTestAudit(server, instanceID)
 	if !ok {
 		t.Fatalf("strategyAudit(%s) not found", instanceID)
 	}

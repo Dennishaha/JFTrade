@@ -54,7 +54,7 @@ func TestLiveStreamDiagnosticsUseConfiguredLimit(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
-	diagnostics := server.liveSocketDiagnostics(store.Integration().Config)
+	diagnostics := server.futuCoordinator().SocketDiagnostics(store.Integration().Config)
 	if got := diagnostics["configuredOpenDWebSocketLimit"]; got != 2 {
 		t.Fatalf("configuredOpenDWebSocketLimit = %#v", got)
 	}

@@ -17,7 +17,7 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if err := server.strategyStore.savePlugin(managedStrategyPlugin{
+	if err := server.stores.StrategyCatalog.RegisterPlugin(managedStrategyPlugin{
 		Descriptor: stratsrv.PluginDescriptor{
 			ID:          "demo-plugin",
 			Type:        pluginTypeGoStrategy,

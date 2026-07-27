@@ -7,7 +7,7 @@ import type {
   PineV6WorkflowRuntimeBindingDraft,
   StrategyExecutionMode,
   StrategyRuntimeRiskSettings,
-} from "@/contracts";
+} from "@/types";
 
 export interface PineV6WorkflowDiagnostic {
   blockId?: string;

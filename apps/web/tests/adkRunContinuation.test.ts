@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ADKRun } from "@/contracts";
+import type { ADKRun } from "@/types";
 
 import { monitorADKRunContinuation } from "../src/composables/adkRunContinuation";
 

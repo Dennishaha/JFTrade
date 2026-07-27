@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InstrumentResolutionCandidate } from "@/contracts";
+import type { InstrumentResolutionCandidate } from "@/types";
 import { computed, ref, watch } from "vue";
 
 import InstrumentSearchBox from "../domain/market-data/InstrumentSearchBox.vue";

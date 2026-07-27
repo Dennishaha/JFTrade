@@ -15,7 +15,7 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	price := 320.5
-	placed := server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	placed := server.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "9001",
 		BrokerOrderIDEx:    "EXT-9001",
@@ -47,14 +47,14 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 		FilledAt:           "2026-05-20T09:32:00Z",
 	})
 
-	filledOrder, ok := server.executionOrders.order(placed.InternalOrderID)
+	filledOrder, ok := server.stores.ExecutionOrders.Order(placed.InternalOrderID)
 	if !ok {
 		t.Fatal("expected placed order to remain in execution store")
 	}
 	if got := filledOrder.Status; got != "FILLED" {
 		t.Fatalf("filled order status = %q, want FILLED", got)
 	}
-	events := server.executionOrders.orderEvents(placed.InternalOrderID)
+	events := server.stores.ExecutionOrders.Events(placed.InternalOrderID)
 	if len(events.Events) != 2 {
 		t.Fatalf("expected place and fill events, got %#v", events.Events)
 	}
@@ -69,7 +69,7 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 		t.Fatalf("expected broker fill notification, got %#v", server.liveNotificationsAfter(0))
 	}
 
-	placedCancel := server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	placedCancel := server.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "9002",
 		TradingEnvironment: "SIMULATE",
@@ -105,7 +105,7 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 		SourceDetail:        "broker.push",
 	})
 
-	cancelledOrder, ok := server.executionOrders.order(placedCancel.InternalOrderID)
+	cancelledOrder, ok := server.stores.ExecutionOrders.Order(placedCancel.InternalOrderID)
 	if !ok {
 		t.Fatal("expected cancelled order to remain in execution store")
 	}
@@ -152,12 +152,12 @@ func TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder(t *testing.T) {
 		SourceDetail:        "broker.push",
 	})
 
-	ordersBefore := server.executionOrders.listOrders()
+	ordersBefore := server.stores.ExecutionOrders.AllOrders()
 	if len(ordersBefore.Orders) != 1 {
 		t.Fatalf("expected one discovered order, got %#v", ordersBefore.Orders)
 	}
 	discovered := ordersBefore.Orders[0]
-	placed := server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
+	placed := server.stores.ExecutionOrders.RecordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "9001",
 		BrokerOrderIDEx:    "EXT-9001",
@@ -177,11 +177,11 @@ func TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder(t *testing.T) {
 	if placed.InternalOrderID != discovered.InternalOrderID {
 		t.Fatalf("internalOrderId = %q, want %q", placed.InternalOrderID, discovered.InternalOrderID)
 	}
-	ordersAfter := server.executionOrders.listOrders()
+	ordersAfter := server.stores.ExecutionOrders.AllOrders()
 	if len(ordersAfter.Orders) != 1 {
 		t.Fatalf("expected one order after command acceptance, got %#v", ordersAfter.Orders)
 	}
-	events := server.executionOrders.orderEvents(placed.InternalOrderID)
+	events := server.stores.ExecutionOrders.Events(placed.InternalOrderID)
 	if len(events.Events) != 2 {
 		t.Fatalf("expected push + command events, got %#v", events.Events)
 	}

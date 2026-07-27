@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
+	assistant "github.com/jftrade/jftrade-main/internal/assistant"
+	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
+	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	"github.com/jftrade/jftrade-main/pkg/backtest"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
@@ -74,24 +75,24 @@ func TestADKStrategyToolCatalogRequiresExpectedSkills(t *testing.T) {
 		"backtest.kline_sync_status":        {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
 	}
 	for name, want := range expected {
-		tool, ok := server.adkRuntime.Tools().Get(name)
+		tool, ok := assistantRuntime(server).Tool(name)
 		if !ok {
 			t.Fatalf("tool %q not registered", name)
 		}
-		if got := jfadk.ToolRequiredSkillNames(tool.Descriptor); !slices.Equal(got, want) {
+		if got := assistant.ToolRequiredSkillNames(tool.Descriptor); !slices.Equal(got, want) {
 			t.Fatalf("tool %q required skills = %q, want %q", name, got, want)
 		}
 	}
-	definitions, ok := server.adkRuntime.Tools().Get("strategy.definitions")
-	if !ok || len(jfadk.ToolRequiredSkillNames(definitions.Descriptor)) != 0 {
+	definitions, ok := assistantRuntime(server).Tool("strategy.definitions")
+	if !ok || len(assistant.ToolRequiredSkillNames(definitions.Descriptor)) != 0 {
 		t.Fatalf("strategy.definitions descriptor = %+v, want ungated", definitions.Descriptor)
 	}
 	for _, name := range []string{"strategy.definition_versions.list", "strategy.definition_versions.get"} {
-		tool, ok := server.adkRuntime.Tools().Get(name)
+		tool, ok := assistantRuntime(server).Tool(name)
 		if !ok || tool.Descriptor.Category != "strategy" || tool.Descriptor.Permission != "read_internal" || tool.Descriptor.RiskLevel != "low" {
 			t.Fatalf("version tool %q descriptor = %+v", name, tool.Descriptor)
 		}
-		if !slices.Contains(jfadk.LocalMCPReadOnlyToolNames, name) {
+		if !slices.Contains(assistant.LocalMCPReadOnlyToolNames, name) {
 			t.Fatalf("version tool %q is absent from local read-only MCP", name)
 		}
 	}
@@ -104,7 +105,7 @@ func TestADKStrategyPineSpecToolReturnsStructuredPayload(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	tool, ok := server.adkRuntime.Tools().Get(strategypinespec.ToolName)
+	tool, ok := assistantRuntime(server).Tool(strategypinespec.ToolName)
 	if !ok {
 		t.Fatalf("%s tool not registered", strategypinespec.ToolName)
 	}
@@ -186,7 +187,7 @@ func TestADKStrategyValidateDSLToolReturnsValidationPayload(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	tool, ok := server.adkRuntime.Tools().Get("strategy.validate_pine")
+	tool, ok := assistantRuntime(server).Tool("strategy.validate_pine")
 	if !ok {
 		t.Fatal("strategy.validate_pine tool not registered")
 	}
@@ -286,7 +287,7 @@ func TestADKStrategySaveDefinitionToolCreateAndUpdate(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	tool, ok := server.adkRuntime.Tools().Get("strategy.save_definition")
+	tool, ok := assistantRuntime(server).Tool("strategy.save_definition")
 	if !ok {
 		t.Fatal("strategy.save_definition tool not registered")
 	}
@@ -378,7 +379,7 @@ func TestADKStrategyUpdateInstanceModeToolUpdatesStoppedInstance(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	definition, err := server.designStore.saveDefinition(stratsrv.Definition{
+	definition, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		Name:         "Mode Test",
 		Description:  "mode update test",
 		Runtime:      strategyRuntimePinePlan,
@@ -392,7 +393,7 @@ log.info("ready")`,
 	if err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.TME"},
 		Interval:      "5m",
 		ExecutionMode: strategyExecutionModeLive,
@@ -401,7 +402,7 @@ log.info("ready")`,
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
 
-	tool, ok := server.adkRuntime.Tools().Get("strategy.update_instance_mode")
+	tool, ok := assistantRuntime(server).Tool("strategy.update_instance_mode")
 	if !ok {
 		t.Fatal("strategy.update_instance_mode tool not registered")
 	}
@@ -428,13 +429,13 @@ log.info("ready")`,
 		t.Fatalf("updatedFields = %#v, want [executionMode]", payload["updatedFields"])
 	}
 
-	stored, exists := server.strategyStore.strategy(instance.ID)
-	if !exists {
-		t.Fatalf("strategyStore.strategy(%q) not found after update", instance.ID)
-	}
-	stored.Status = strategyStatusRunning
-	if err := server.strategyStore.saveStrategy(stored); err != nil {
-		t.Fatalf("saveStrategy(running): %v", err)
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(
+		instance.ID,
+		strategyStatusRunning,
+		"test.running",
+		"test setup",
+	); err != nil {
+		t.Fatalf("TransitionRuntime(running): %v", err)
 	}
 	if _, err := tool.Handler(context.Background(), map[string]any{
 		"instanceId":    instance.ID,
@@ -451,7 +452,7 @@ func TestADKStrategyDefinitionsToolReturnsCompactSummaries(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	definition, err := server.designStore.saveDefinition(stratsrv.Definition{
+	definition, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		Name:         "TME Demo",
 		Version:      "0.1.1",
 		Description:  "ADK summary test definition",
@@ -470,7 +471,7 @@ log.info("demo")`,
 	if err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
-	_, err = server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	_, err = server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.TME"},
 		Interval:      "1d",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
@@ -478,7 +479,7 @@ log.info("demo")`,
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
-	tool, ok := server.adkRuntime.Tools().Get("strategy.definitions")
+	tool, ok := assistantRuntime(server).Tool("strategy.definitions")
 	if !ok {
 		t.Fatal("strategy.definitions tool not registered")
 	}
@@ -541,7 +542,7 @@ func TestADKBacktestRunsToolReturnsSeriesCountsInsteadOfFullArrays(t *testing.T)
 			InitialBalance: 100000,
 			RehabType:      "forward",
 		},
-		Result: &backtest.RunResult{
+		Result: &btsrv.RunResult{
 			QuoteCurrency:   "USD",
 			FinalBalance:    101500,
 			PnL:             1500,
@@ -549,22 +550,22 @@ func TestADKBacktestRunsToolReturnsSeriesCountsInsteadOfFullArrays(t *testing.T)
 			CurrentDrawdown: 0.02,
 			TotalTrades:     3,
 			WinRate:         0.66,
-			Trades:          []backtest.TradeEvent{{Time: "2025-03-01T00:00:00Z", Side: "BUY", Price: "10", Qty: "1"}},
-			OrderBook:       []backtest.OrderBookEntry{{OrderID: "o1", Symbol: "US.TME", Side: "BUY", Quantity: "1", Status: "FILLED"}},
-			PnLCurve:        []backtest.PnLPoint{{Time: "2025-03-01T00:00:00Z", Equity: 100500}},
-			DrawdownCurve:   []backtest.DrawdownPoint{{Time: "2025-03-01T00:00:00Z", Drawdown: 0.03}},
-			Candles:         []backtest.Candle{{Time: "2025-03-01T00:00:00Z", Open: "10", High: "11", Low: "9", Close: "10.5", Volume: "100"}},
+			Trades:          []btsrv.TradeEvent{{Time: "2025-03-01T00:00:00Z", Side: "BUY", Price: "10", Qty: "1"}},
+			OrderBook:       []btsrv.OrderBookEntry{{OrderID: "o1", Symbol: "US.TME", Side: "BUY", Quantity: "1", Status: "FILLED"}},
+			PnLCurve:        []btsrv.PnLPoint{{Time: "2025-03-01T00:00:00Z", Equity: 100500}},
+			DrawdownCurve:   []btsrv.DrawdownPoint{{Time: "2025-03-01T00:00:00Z", Drawdown: 0.03}},
+			Candles:         []btsrv.Candle{{Time: "2025-03-01T00:00:00Z", Open: "10", High: "11", Low: "9", Close: "10.5", Volume: "100"}},
 			Logs:            []string{"line 1", "line 2"},
 			RuntimeErrors:   []string{"warn"},
 		},
 		CreatedAt: "2025-01-01T00:00:00Z",
 		UpdatedAt: "2025-01-02T00:00:00Z",
 	}
-	if err := server.backtestRuns.add(run); err != nil {
+	if err := server.stores.BacktestRuns.Add(run); err != nil {
 		t.Fatalf("backtestRuns.add: %v", err)
 	}
 
-	tool, ok := server.adkRuntime.Tools().Get("backtest.runs")
+	tool, ok := assistantRuntime(server).Tool("backtest.runs")
 	if !ok {
 		t.Fatal("backtest.runs tool not registered")
 	}
@@ -605,7 +606,7 @@ func TestADKStrategyResearchBacktestToolStartsKLineSyncBeforeTransientRun(t *tes
 	}
 	server := newTestServer(t, store)
 
-	tool, ok := server.adkRuntime.Tools().Get("strategy.research_backtest")
+	tool, ok := assistantRuntime(server).Tool("strategy.research_backtest")
 	if !ok {
 		t.Fatal("strategy.research_backtest tool not registered")
 	}
@@ -615,10 +616,10 @@ func TestADKStrategyResearchBacktestToolStartsKLineSyncBeforeTransientRun(t *tes
 	if tool.Descriptor.RiskLevel != "low" {
 		t.Fatalf("descriptor risk level = %q, want low", tool.Descriptor.RiskLevel)
 	}
-	if jfadk.ToolRequiresApproval(tool.Descriptor, jfadk.PermissionModeApproval) {
+	if assistant.ToolRequiresApproval(tool.Descriptor, assistant.PermissionModeApproval) {
 		t.Fatal("strategy.research_backtest unexpectedly requires approval")
 	}
-	before := len(server.designStore.listDefinitions())
+	before := len(server.stores.Design.ListDefinitions())
 	output, err := tool.Handler(context.Background(), map[string]any{
 		"script":     strategypinespec.Skeleton(),
 		"market":     "US",
@@ -648,16 +649,16 @@ func TestADKStrategyResearchBacktestToolStartsKLineSyncBeforeTransientRun(t *tes
 	if !ok || !strings.HasPrefix(jftradeCheckedTypeAssertion[string](dataSync["taskId"]), "sync-") {
 		t.Fatalf("dataSync = %#v, want sync task", payload["dataSync"])
 	}
-	if after := len(server.designStore.listDefinitions()); after != before {
+	if after := len(server.stores.Design.ListDefinitions()); after != before {
 		t.Fatalf("strategy definitions count = %d, want unchanged %d", after, before)
 	}
-	if len(server.backtestRuns.list()) != 0 {
+	if len(server.stores.BacktestRuns.List()) != 0 {
 		t.Fatal("backtest run was created before K-line sync completed")
 	}
 }
 
 func TestADKStrategyResearchBacktestStartsRunWhenKLinesAreReady(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	started := false
 	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{
 		EnsureResearchBacktestData: func(ResearchBacktestInput) (BacktestDataReadiness, error) {
@@ -686,11 +687,11 @@ func TestADKStrategyResearchBacktestStartsRunWhenKLinesAreReady(t *testing.T) {
 }
 
 func TestADKKLineSyncStatusToolReportsRetryReadiness(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
-	progress := backtest.NewSyncProgress("sync-ready", "US.AAPL", time.Now())
+	registry := assistanttestkit.NewToolRegistry()
+	progress := btsrv.NewSyncProgress("sync-ready", "US.AAPL", time.Now())
 	progress.MarkCompleted(1, time.Now())
 	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{
-		BacktestKLineSyncProgress: func(taskID string) (*backtest.SyncProgress, bool) {
+		BacktestKLineSyncProgress: func(taskID string) (*btsrv.SyncProgress, bool) {
 			return progress.Snapshot(), taskID == "sync-ready"
 		},
 	})
@@ -698,7 +699,7 @@ func TestADKKLineSyncStatusToolReportsRetryReadiness(t *testing.T) {
 	if !ok {
 		t.Fatal("backtest.kline_sync_status tool not registered")
 	}
-	if jfadk.ToolRequiresApproval(tool.Descriptor, jfadk.PermissionModeApproval) {
+	if assistant.ToolRequiresApproval(tool.Descriptor, assistant.PermissionModeApproval) {
 		t.Fatal("K-line sync status unexpectedly requires approval")
 	}
 	output, err := tool.Handler(context.Background(), map[string]any{"taskId": "sync-ready"})
@@ -712,7 +713,7 @@ func TestADKKLineSyncStatusToolReportsRetryReadiness(t *testing.T) {
 }
 
 func TestADKStrategyOptimizeDoesNotCreateRunsWhileKLinesSync(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	enqueueCalls := 0
 	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{
 		EnsureBacktestData: func(ids []string, _ BacktestStartInput) (BacktestDataReadiness, error) {
@@ -770,25 +771,25 @@ func TestADKBacktestResultViewToolReturnsBoundedChartWindow(t *testing.T) {
 			InitialBalance: 100000,
 			RehabType:      "forward",
 		},
-		Result: &backtest.RunResult{
+		Result: &btsrv.RunResult{
 			QuoteCurrency: "USD",
 			FinalBalance:  100200,
 			PnL:           200,
-			Candles: []backtest.Candle{
+			Candles: []btsrv.Candle{
 				{Time: "2025-01-01T00:00:00Z", Open: "10", High: "11", Low: "9", Close: "10.5", Volume: "100"},
 				{Time: "2025-01-01T00:01:00Z", Open: "10.5", High: "12", Low: "10", Close: "11.5", Volume: "200"},
 				{Time: "2025-01-01T00:02:00Z", Open: "11.5", High: "13", Low: "11", Close: "12.5", Volume: "300"},
 			},
-			Trades: []backtest.TradeEvent{{Time: "2025-01-01T00:01:00Z", Side: "BUY", Price: "11", Qty: "1"}},
+			Trades: []btsrv.TradeEvent{{Time: "2025-01-01T00:01:00Z", Side: "BUY", Price: "11", Qty: "1"}},
 		},
 		CreatedAt: "2025-01-01T00:00:00Z",
 		UpdatedAt: "2025-01-01T00:10:00Z",
 	}
-	if err := server.backtestRuns.add(run); err != nil {
+	if err := server.stores.BacktestRuns.Add(run); err != nil {
 		t.Fatalf("backtestRuns.add: %v", err)
 	}
 
-	tool, ok := server.adkRuntime.Tools().Get("backtest.result_view")
+	tool, ok := assistantRuntime(server).Tool("backtest.result_view")
 	if !ok {
 		t.Fatal("backtest.result_view tool not registered")
 	}
@@ -811,11 +812,11 @@ func TestADKBacktestResultViewToolReturnsBoundedChartWindow(t *testing.T) {
 		t.Fatalf("window = %#v, want 2m truncated next cursor", window)
 	}
 	series := jftradeCheckedTypeAssertion[map[string]any](payload["series"])
-	candles := jftradeCheckedTypeAssertion[[]backtest.Candle](series["candles"])
+	candles := jftradeCheckedTypeAssertion[[]btsrv.Candle](series["candles"])
 	if len(candles) != 1 || candles[0].Open != "10" || candles[0].High != "12" || candles[0].Low != "9" || candles[0].Close != "11.5" {
 		t.Fatalf("candles = %#v, want first 2m aggregate", candles)
 	}
-	trades := jftradeCheckedTypeAssertion[[]backtest.TradeEvent](series["trades"])
+	trades := jftradeCheckedTypeAssertion[[]btsrv.TradeEvent](series["trades"])
 	if len(trades) != 1 || trades[0].Side != "BUY" {
 		t.Fatalf("trades = %#v, want bounded BUY trade", trades)
 	}

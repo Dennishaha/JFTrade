@@ -310,4 +310,55 @@ describe("marketProfiles", () => {
       { value: "X", title: "X" },
     ]);
   });
+
+  it("normalizes sparse and forward-compatible market metadata safely", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        createResponse({
+          defaultMarket: "JP",
+          markets: [
+            null,
+            {
+              code: "JP",
+              aliases: ["TSE", 7, null],
+              regularSessions: [
+                null,
+                { startMinute: 540 },
+                { startMinute: 540, endMinute: 900, label: 12 },
+              ],
+              precision: null,
+            },
+            {
+              code: "SG",
+              aliases: "SGX",
+              regularSessions: null,
+              precision: {},
+            },
+          ],
+        }),
+      ),
+    );
+
+    const module = await loadFreshMarketProfilesModule();
+    const profiles = module.useMarketProfiles();
+    await profiles.loadMarketProfiles();
+
+    expect(profiles.marketProfiles.value).toEqual([
+      expect.objectContaining({
+        code: "JP",
+        resolvedMarket: "JP",
+        displayName: "JP",
+        aliases: ["TSE"],
+        regularSessions: [{ startMinute: 540, endMinute: 900, label: "" }],
+        precision: { price: 0, quote: 0 },
+        supportsExtendedHours: false,
+      }),
+      expect.objectContaining({
+        code: "SG",
+        aliases: [],
+        regularSessions: [],
+      }),
+    ]);
+  });
 });

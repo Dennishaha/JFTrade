@@ -4,22 +4,21 @@ import (
 	"testing"
 	"time"
 
-	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
-	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
 )
 
 func TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday(t *testing.T) {
 	quoteServer := startMarketDataQuoteOpenDServer(t)
 	defer quoteServer.stop()
 
-	quoteServer.setHistoryPagesBySession(map[int32][][]*qotcommonpb.KLine{
-		int32(commonpb.Session_Session_RTH): {
+	quoteServer.setHistoryPagesBySession(map[string][][]fututestkit.KLine{
+		"RTH": {
 			{testMarketDataProtoKLine(time.Date(2026, time.May, 20, 10, 0, 0, 0, time.UTC), 110, 111, 109, 110.5, 1000)},
 		},
-		int32(commonpb.Session_Session_ETH): {
+		"ETH": {
 			{testMarketDataProtoKLine(time.Date(2026, time.May, 20, 21, 0, 0, 0, time.UTC), 120, 121, 119, 120.5, 1000)},
 		},
-		int32(commonpb.Session_Session_ALL): {
+		"ALL": {
 			{testMarketDataProtoKLine(time.Date(2026, time.May, 20, 2, 0, 0, 0, time.UTC), 90, 91, 89, 90.5, 1000)},
 		},
 	})
@@ -86,7 +85,7 @@ func TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles(t *testing.T) 
 	defer quoteServer.stop()
 
 	labelAt := time.Date(2026, time.May, 20, 0, 0, 0, 0, time.UTC)
-	quoteServer.setHistoryPages([][]*qotcommonpb.KLine{{
+	quoteServer.setHistoryPages([][]fututestkit.KLine{{
 		testMarketDataProtoKLine(labelAt, 100, 101, 99, 100.5, 1000),
 	}})
 

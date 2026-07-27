@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { computed, defineComponent, h, nextTick, ref } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 
-import type { ADKAgent, ADKInputRequest, ADKProvider, ADKTimelineEntry } from "@/contracts";
+import type { ADKAgent, ADKInputRequest, ADKProvider, ADKTimelineEntry } from "@/types";
 
 import ADKWorkspaceShell from "../src/components/adk-page/ADKWorkspaceShell.vue";
 import { flushRequests } from "./helpers";

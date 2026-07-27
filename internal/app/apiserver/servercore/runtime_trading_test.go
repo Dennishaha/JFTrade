@@ -6,15 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
-	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
-	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -31,9 +27,9 @@ func TestStrategyRuntimeOrderUsesSharedPreTradeRiskGateway(t *testing.T) {
 			return trdsrv.ExecutionOrder{}, nil
 		}),
 	)
-	deps := newStrategyRuntimeManagerDeps(server)
+	deps := newStrategyRuntimeDependencies(server)
 	price := 100.0
-	_, err := deps.placeExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{
+	_, err := deps.PlaceExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{
 		Symbol: "US.AAPL",
 		Query: broker.PlaceOrderQuery{
 			ReadQuery: broker.ReadQuery{TradingEnvironment: "REAL", Market: "US"},
@@ -65,20 +61,20 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 		ExecutionMode: strategyExecutionModeLive,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	if got := stub.placedOrderCount(); got != 1 {
 		t.Fatalf("expected 1 broker order, got %d", got)
@@ -90,7 +86,7 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	if placedOrder.TimeInForce != "DAY" {
 		t.Fatalf("expected live strategy order timeInForce DAY, got %q", placedOrder.TimeInForce)
 	}
-	orders := server.executionOrders.listOrders().Orders
+	orders := server.stores.ExecutionOrders.AllOrders().Orders
 	if len(orders) != 1 {
 		t.Fatalf("expected 1 execution order, got %+v", orders)
 	}
@@ -108,7 +104,7 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	if !found {
 		t.Fatalf("expected execution placed notification, got %+v", notifications)
 	}
-	audit, ok := server.strategyStore.strategyAudit(instanceID)
+	audit, ok := strategyRuntimeTestAudit(server, instanceID)
 	if !ok {
 		t.Fatalf("strategyAudit(%s) not found", instanceID)
 	}
@@ -121,55 +117,6 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	}
 	if !foundSubmitted {
 		t.Fatalf("expected order_submitted audit entry, got %+v", audit.Entries)
-	}
-}
-
-func TestStrategyRuntimeLiveOrderPassesStopPriceToExecutionGateway(t *testing.T) {
-	var captured trdsrv.ExecutionOrderCommand
-	manager := &strategyRuntimeManager{
-		runtimes: map[string]*managedStrategyRuntime{},
-		deps: strategyRuntimeManagerDeps{
-			placeExecutionOrder: func(_ context.Context, command trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
-				captured = command
-				return trdsrv.ExecutionOrder{InternalOrderID: "internal-stop"}, nil
-			},
-			appendRuntimeEvent: func(string, string, string, string) error { return nil },
-		},
-	}
-	executor := &strategyLiveOrderExecutor{
-		manager: manager,
-		instance: stratsrv.ManagedInstance{
-			ID: "stop-instance",
-			Binding: stratsrv.InstanceBinding{
-				RuntimeRisk: stratsrv.RuntimeRiskSettings{Mode: "off"},
-			},
-		},
-		runner: &strategySymbolRuntime{lastClosedPrice: 100},
-	}
-	stopPrice := fixedpoint.NewFromFloat(95.25)
-	orders, err := executor.SubmitOrders(t.Context(), bbgotypes.SubmitOrder{
-		ClientOrderID: "stop-order",
-		Symbol:        "US.AAPL",
-		Side:          bbgotypes.SideTypeSell,
-		Type:          bbgotypes.OrderTypeStopMarket,
-		Quantity:      fixedpoint.NewFromFloat(1),
-		StopPrice:     stopPrice,
-		ReduceOnly:    true,
-	})
-	if err != nil || len(orders) != 1 {
-		t.Fatalf("SubmitOrders = %#v, %v", orders, err)
-	}
-	if captured.OrderType != string(bbgotypes.OrderTypeStopMarket) || captured.Query.OrderType != string(bbgotypes.OrderTypeStopMarket) {
-		t.Fatalf("execution order types = %q/%q", captured.OrderType, captured.Query.OrderType)
-	}
-	if captured.Query.StopPrice == nil || *captured.Query.StopPrice != stopPrice.Float64() {
-		t.Fatalf("execution stop price = %#v, want %v", captured.Query.StopPrice, stopPrice.Float64())
-	}
-	if captured.Query.Price != nil {
-		t.Fatalf("stop-market limit price = %#v, want nil", captured.Query.Price)
-	}
-	if !captured.Query.ReduceOnly {
-		t.Fatal("execution reduce-only flag = false, want true")
 	}
 }
 
@@ -188,34 +135,34 @@ func TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder(t *testing.T) {
 		ExecutionMode: strategyExecutionModeLive,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
-	if _, err := server.strategyStore.updateStrategyRuntimeRisk(instanceID, stratsrv.RuntimeRiskSettings{
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
+	if _, err := server.stores.StrategyCatalog.UpdateInstanceRuntimeRisk(instanceID, stratsrv.RuntimeRiskSettings{
 		Mode:      "enforce",
 		CloseOnly: true,
 	}); err != nil {
 		t.Fatalf("updateStrategyRuntimeRisk: %v", err)
 	}
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	if got := stub.placedOrderCount(); got != 0 {
 		t.Fatalf("expected runtime risk to reject broker order, got %d", got)
 	}
-	if orders := server.executionOrders.listOrders().Orders; len(orders) != 0 {
+	if orders := server.stores.ExecutionOrders.AllOrders().Orders; len(orders) != 0 {
 		t.Fatalf("expected no execution order after risk rejection, got %+v", orders)
 	}
-	audit, ok := server.strategyStore.strategyAudit(instanceID)
+	audit, ok := strategyRuntimeTestAudit(server, instanceID)
 	if !ok {
 		t.Fatalf("strategyAudit(%s) not found", instanceID)
 	}
@@ -228,74 +175,6 @@ func TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder(t *testing.T) {
 	}
 	if !foundRejected {
 		t.Fatalf("expected risk_rejected audit entry, got %+v", audit.Entries)
-	}
-}
-
-func TestStrategyRuntimeRiskEvaluatesOrderLimits(t *testing.T) {
-	executor := &strategyLiveOrderExecutor{
-		instance: stratsrv.ManagedInstance{
-			Binding: stratsrv.InstanceBinding{
-				RuntimeRisk: stratsrv.RuntimeRiskSettings{
-					Mode:             "enforce",
-					CloseOnly:        true,
-					MaxOrderQuantity: new(5.0),
-					MaxOrderNotional: new(500.0),
-				},
-			},
-		},
-		runner: &strategySymbolRuntime{
-			lastClosedPrice: 100,
-			cachedPositions: []broker.PositionSnapshot{{
-				Market:           "US",
-				Symbol:           "AAPL",
-				Quantity:         4,
-				SellableQuantity: 4,
-			}},
-		},
-	}
-
-	tests := []struct {
-		name     string
-		side     string
-		quantity float64
-		price    *float64
-		want     string
-	}{
-		{name: "buy blocked by close only", side: "BUY", quantity: 1, want: "close_only"},
-		{name: "sell exceeds position", side: "SELL", quantity: 5, want: "close_only_insufficient_position"},
-		{name: "sell exceeds quantity", side: "SELL", quantity: 6, want: "close_only_insufficient_position"},
-		{name: "sell exceeds notional", side: "SELL", quantity: 4, price: new(float64(130)), want: "max_order_notional"},
-		{name: "sell allowed", side: "SELL", quantity: 4, want: ""},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			decision := executor.evaluateRuntimeRisk(trdsrv.ExecutionOrderCommand{
-				Symbol: "US.AAPL",
-				Side:   test.side,
-				Query: broker.PlaceOrderQuery{
-					Symbol:   "US.AAPL",
-					Side:     test.side,
-					Quantity: test.quantity,
-					Price:    test.price,
-				},
-			})
-			if decision.Reason != test.want {
-				t.Fatalf("reason = %q, want %q", decision.Reason, test.want)
-			}
-		})
-	}
-	executor.instance.Binding.RuntimeRisk.CloseOnly = false
-	quantityDecision := executor.evaluateRuntimeRisk(trdsrv.ExecutionOrderCommand{
-		Symbol: "US.AAPL",
-		Side:   "BUY",
-		Query: broker.PlaceOrderQuery{
-			Symbol:   "US.AAPL",
-			Side:     "BUY",
-			Quantity: 6,
-		},
-	})
-	if quantityDecision.Reason != "max_order_quantity" {
-		t.Fatalf("quantity decision reason = %q, want max_order_quantity", quantityDecision.Reason)
 	}
 }
 
@@ -324,7 +203,7 @@ func TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity(t *testing.T) {
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Default Qty Test\", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)\nstrategy.entry(\"Long\", strategy.long)",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
@@ -333,20 +212,20 @@ func TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
-	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instance.ID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instance.ID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+	defer server.runtimes.StrategyRuntime().Stop(instance.ID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 500, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 501, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 500, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 501, strategyRuntimeTestTime(10, 1, 0)))
 
 	placedOrder, ok := stub.lastPlacedOrder()
 	if !ok {
@@ -380,20 +259,20 @@ func TestStrategyRuntimeLiveUsesExplicitQuantityBeforeQuantityPct(t *testing.T) 
 		ExecutionMode: strategyExecutionModeLive,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 500, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 501, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 500, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 501, strategyRuntimeTestTime(10, 1, 0)))
 
 	placedOrder, ok := stub.lastPlacedOrder()
 	if !ok {
@@ -427,21 +306,21 @@ func TestStrategyRuntimeLiveSizesCloseQuantityPctFromPosition(t *testing.T) {
 		ExecutionMode: strategyExecutionModeLive,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
 	stub.positions = []broker.PositionSnapshot{{Market: "US", Symbol: "AAPL", Quantity: 20, SellableQuantity: 20}}
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	placedOrder, ok := stub.lastPlacedOrder()
 	if !ok {
@@ -475,21 +354,21 @@ func TestStrategyRuntimeLiveDefaultsCloseToFullPosition(t *testing.T) {
 		ExecutionMode: strategyExecutionModeLive,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
 	stub.positions = []broker.PositionSnapshot{{Market: "US", Symbol: "AAPL", Quantity: 7, SellableQuantity: 7}}
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	placedOrder, ok := stub.lastPlacedOrder()
 	if !ok {
@@ -527,25 +406,25 @@ func TestStrategyRuntimeLiveIgnoredOrderRecordsRuntimeEvidence(t *testing.T) {
 		ExecutionMode: strategyExecutionModeLive,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 1000, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 1001, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 1000, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 1001, strategyRuntimeTestTime(10, 1, 0)))
 
 	if got := stub.placedOrderCount(); got != 0 {
 		t.Fatalf("expected tiny order to be ignored, got %d broker orders", got)
 	}
-	audit, ok := server.strategyStore.strategyAudit(instanceID)
+	audit, ok := strategyRuntimeTestAudit(server, instanceID)
 	if !ok {
 		t.Fatalf("strategyAudit(%s) not found", instanceID)
 	}
@@ -586,29 +465,29 @@ func TestStrategyRuntimeLiveCancelsTrackedOrderFromWorkerCommand(t *testing.T) {
 		ExecutionMode: strategyExecutionModeLive,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
-	orders := server.executionOrders.listOrders().Orders
+	orders := server.stores.ExecutionOrders.AllOrders().Orders
 	if len(orders) != 1 {
 		t.Fatalf("expected one tracked execution order, got %+v", orders)
 	}
 	if orders[0].Status != "CANCEL_REQUESTED" {
 		t.Fatalf("order status = %q, want CANCEL_REQUESTED", orders[0].Status)
 	}
-	audit, ok := server.strategyStore.strategyAudit(instanceID)
+	audit, ok := strategyRuntimeTestAudit(server, instanceID)
 	if !ok {
 		t.Fatalf("strategyAudit(%s) not found", instanceID)
 	}
@@ -622,97 +501,6 @@ func TestStrategyRuntimeLiveCancelsTrackedOrderFromWorkerCommand(t *testing.T) {
 	if !foundCancel {
 		t.Fatalf("expected order_cancel_requested audit entry, got %+v", audit.Entries)
 	}
-}
-
-func TestStrategyRuntimeLiveCancelAllCancelsOnlyTrackedOrders(t *testing.T) {
-	cancelled := []string{}
-	manager := &strategyRuntimeManager{
-		runtimes: map[string]*managedStrategyRuntime{},
-		deps: strategyRuntimeManagerDeps{
-			cancelExecutionOrder: func(_ context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
-				cancelled = append(cancelled, internalOrderID)
-				return trdsrv.ExecutionOrder{InternalOrderID: internalOrderID}, nil
-			},
-			appendRuntimeEvent: func(string, string, string, string) error { return nil },
-		},
-	}
-	executor := &strategyLiveOrderExecutor{
-		manager:  manager,
-		instance: stratsrv.ManagedInstance{ID: "instance-a"},
-	}
-	executor.trackOrder("owned-1", "internal-1")
-	executor.trackOrder("owned-2", "internal-2")
-
-	err := executor.CancelOrders(context.Background(),
-		bbgoOrderForCancel("owned-1"),
-		bbgoOrderForCancel("untracked"),
-		bbgoOrderForCancel("owned-2"),
-	)
-	if err != nil {
-		t.Fatalf("CancelOrders: %v", err)
-	}
-	if strings.Join(cancelled, ",") != "internal-1,internal-2" {
-		t.Fatalf("cancelled = %#v, want only tracked orders", cancelled)
-	}
-	if _, ok := executor.trackedInternalOrderID("owned-1"); ok {
-		t.Fatal("owned-1 remained tracked after successful cancel")
-	}
-	if _, ok := executor.trackedInternalOrderID("owned-2"); ok {
-		t.Fatal("owned-2 remained tracked after successful cancel")
-	}
-}
-
-func TestStrategyRuntimeLiveCancelFailureKeepsTrackedOrder(t *testing.T) {
-	cancelErr := errors.New("cancel failed")
-	manager := &strategyRuntimeManager{
-		runtimes: map[string]*managedStrategyRuntime{},
-		deps: strategyRuntimeManagerDeps{
-			cancelExecutionOrder: func(context.Context, string) (trdsrv.ExecutionOrder, error) {
-				return trdsrv.ExecutionOrder{}, cancelErr
-			},
-			appendRuntimeEvent: func(string, string, string, string) error { return nil },
-		},
-	}
-	executor := &strategyLiveOrderExecutor{
-		manager:  manager,
-		instance: stratsrv.ManagedInstance{ID: "instance-a"},
-	}
-	executor.trackOrder("owned", "internal-1")
-
-	if err := executor.CancelOrders(context.Background(), bbgoOrderForCancel("owned")); !errors.Is(err, cancelErr) {
-		t.Fatalf("CancelOrders error = %v, want %v", err, cancelErr)
-	}
-	if got, ok := executor.trackedInternalOrderID("owned"); !ok || got != "internal-1" {
-		t.Fatalf("tracked order after failed cancel = %q/%v, want preserved", got, ok)
-	}
-}
-
-func TestStrategyRuntimeLiveCancelMissingOrderIsNoop(t *testing.T) {
-	cancelled := false
-	manager := &strategyRuntimeManager{
-		runtimes: map[string]*managedStrategyRuntime{},
-		deps: strategyRuntimeManagerDeps{
-			cancelExecutionOrder: func(context.Context, string) (trdsrv.ExecutionOrder, error) {
-				cancelled = true
-				return trdsrv.ExecutionOrder{}, nil
-			},
-			appendRuntimeEvent: func(string, string, string, string) error { return nil },
-		},
-	}
-	executor := &strategyLiveOrderExecutor{
-		manager:  manager,
-		instance: stratsrv.ManagedInstance{ID: "instance-a"},
-	}
-	if err := executor.CancelOrders(context.Background(), bbgoOrderForCancel("missing")); err != nil {
-		t.Fatalf("CancelOrders missing: %v", err)
-	}
-	if cancelled {
-		t.Fatal("missing cancel reached execution gateway")
-	}
-}
-
-func bbgoOrderForCancel(clientOrderID string) bbgotypes.Order {
-	return bbgotypes.Order{SubmitOrder: bbgotypes.SubmitOrder{ClientOrderID: clientOrderID}}
 }
 
 func TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent(t *testing.T) {
@@ -747,7 +535,7 @@ func TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent(t *testing.T) {
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Pyramiding Test\", overlay=true, pyramiding=2)\nstrategy.entry(\"Long\", strategy.long, qty=1)",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
@@ -756,21 +544,21 @@ func TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
-	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instance.ID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instance.ID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+	defer server.runtimes.StrategyRuntime().Stop(instance.ID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 102, strategyRuntimeTestTime(10, 2, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 102, strategyRuntimeTestTime(10, 2, 0)))
 
 	if got := stub.placedOrderCount(); got != 2 {
 		t.Fatalf("expected one worker current-bar order per closed bar, got %d orders", got)
@@ -815,7 +603,7 @@ func TestStrategyRuntimeSkipsWhenWorkerReturnsNoCurrentBarIntent(t *testing.T) {
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Default Pyramiding Test\", overlay=true)\nstrategy.entry(\"Long\", strategy.long, qty=1)",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
@@ -824,20 +612,20 @@ func TestStrategyRuntimeSkipsWhenWorkerReturnsNoCurrentBarIntent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
-	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instance.ID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instance.ID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+	defer server.runtimes.StrategyRuntime().Stop(instance.ID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	if got := stub.placedOrderCount(); got != 0 {
 		t.Fatalf("expected stale worker intents to be skipped, got %d orders", got)
@@ -869,7 +657,7 @@ func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testin
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Sell Test\", overlay=true)\nstrategy.close(\"Long\")",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
@@ -878,17 +666,17 @@ func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testin
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
-	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instance.ID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instance.ID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+	defer server.runtimes.StrategyRuntime().Stop(instance.ID)
 
 	stub.positions = []broker.PositionSnapshot{{
 		Market:           "US",
@@ -897,13 +685,13 @@ func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testin
 		SellableQuantity: 1,
 	}}
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	if got := stub.placedOrderCount(); got != 1 {
 		t.Fatalf("expected 1 broker order after runtime position refresh, got %d", got)
 	}
-	orders := server.executionOrders.listOrders().Orders
+	orders := server.stores.ExecutionOrders.AllOrders().Orders
 	if len(orders) != 1 {
 		t.Fatalf("expected 1 execution order, got %+v", orders)
 	}
@@ -913,10 +701,10 @@ func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testin
 	if orders[0].RequestedQuantity == nil || *orders[0].RequestedQuantity != 1 {
 		t.Fatalf("expected quantity 1 execution order, got %+v", orders[0])
 	}
-	if runtime := server.strategyRuntimeManager.runtime(instance.ID); runtime == nil {
-		t.Fatalf("expected active runtime for %s", instance.ID)
+	if _, ok := server.runtimes.StrategyRuntime().GetObservation(instance.ID); !ok {
+		t.Fatalf("expected active runtime observation for %s", instance.ID)
 	}
-	audit, ok := server.strategyStore.strategyAudit(instance.ID)
+	audit, ok := strategyRuntimeTestAudit(server, instance.ID)
 	if !ok {
 		t.Fatalf("strategyAudit(%s) not found", instance.ID)
 	}
@@ -954,7 +742,7 @@ func TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState(t *testing.T) 
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Disconnected Refresh Test\", overlay=true)\nstrategy.close(\"Long\")",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
@@ -963,28 +751,28 @@ func TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState(t *testing.T) 
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
-	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instance.ID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instance.ID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+	defer server.runtimes.StrategyRuntime().Stop(instance.ID)
 
-	stub.queryFundsErr = opend.ErrClosed
-	stub.queryPositionsErr = opend.ErrClosed
+	stub.queryFundsErr = errors.New("client closed")
+	stub.queryPositionsErr = errors.New("client closed")
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	if got := stub.placedOrderCount(); got != 1 {
 		t.Fatalf("expected cached position to allow 1 broker order, got %d", got)
 	}
-	audit, ok := server.strategyStore.strategyAudit(instance.ID)
+	audit, ok := strategyRuntimeTestAudit(server, instance.ID)
 	if !ok {
 		t.Fatalf("strategyAudit(%s) not found", instance.ID)
 	}
@@ -993,61 +781,11 @@ func TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState(t *testing.T) 
 			t.Fatalf("expected disconnected refresh to avoid runtime_error audit entry, got %+v", audit.Entries)
 		}
 	}
-	observation, ok := server.strategyRuntimeManager.runtimeObservation(instance.ID)
+	observation, ok := server.runtimes.StrategyRuntime().GetObservation(instance.ID)
 	if !ok {
 		t.Fatalf("expected runtime observation for %s", instance.ID)
 	}
 	if observation.LastError != nil {
 		t.Fatalf("expected runtime observation without lastError after disconnected refresh, got %+v", observation)
-	}
-}
-
-func TestMarketDayStartUTCUsesOrderSymbolTimezone(t *testing.T) {
-	now := time.Date(2026, time.January, 1, 2, 0, 0, 0, time.UTC)
-	if got, want := marketDayStartUTC("US.AAPL", now), time.Date(2025, time.December, 31, 5, 0, 0, 0, time.UTC); !got.Equal(want) {
-		t.Fatalf("US day start = %s, want %s", got, want)
-	}
-	if got, want := marketDayStartUTC("HK.00700", now), time.Date(2025, time.December, 31, 16, 0, 0, 0, time.UTC); !got.Equal(want) {
-		t.Fatalf("HK day start = %s, want %s", got, want)
-	}
-
-	ny, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		t.Fatal(err)
-	}
-	overnight := time.Date(2026, time.June, 14, 20, 30, 0, 0, ny)
-	if got, want := marketDayStartUTC("US.AAPL", overnight), time.Date(2026, time.June, 15, 0, 0, 0, 0, time.UTC); !got.Equal(want) {
-		t.Fatalf("US overnight day start = %s, want %s", got, want)
-	}
-}
-
-func TestTodaySubmittedOrderCountKeepsInstanceScopeWithinOrderMarketDay(t *testing.T) {
-	runtimeStore, err := NewStrategyRuntimeStore(filepath.Join(t.TempDir(), "strategy-runtime.db"))
-	if err != nil {
-		t.Fatalf("NewStrategyRuntimeStore: %v", err)
-	}
-	t.Cleanup(func() { jftradeCheckTestError(t, runtimeStore.Close()) })
-	manager := &strategyRuntimeManager{deps: strategyRuntimeManagerDeps{
-		countRuntimeAudit: runtimeStore.CountAudit,
-	}}
-	instanceID := "multi-market-instance"
-	for _, at := range []time.Time{
-		time.Date(2025, time.December, 31, 6, 0, 0, 0, time.UTC),
-		time.Date(2025, time.December, 31, 17, 0, 0, 0, time.UTC),
-	} {
-		if err := runtimeStore.AppendAudit(t.Context(), runtimeactivity.AuditEvent{
-			InstanceID: instanceID,
-			Kind:       "order_submitted",
-			At:         at,
-		}); err != nil {
-			t.Fatalf("AppendAudit(%s): %v", at, err)
-		}
-	}
-	now := time.Date(2026, time.January, 1, 2, 0, 0, 0, time.UTC)
-	if got := manager.todaySubmittedOrderCount(instanceID, "US.AAPL", now); got != 2 {
-		t.Fatalf("US market-day instance order count = %d, want 2", got)
-	}
-	if got := manager.todaySubmittedOrderCount(instanceID, "HK.00700", now); got != 1 {
-		t.Fatalf("HK market-day instance order count = %d, want 1", got)
 	}
 }

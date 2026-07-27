@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ADKAgent } from "@/contracts";
+import type { ADKAgent } from "@/types";
 import {
   renameADKPageSession,
   updateADKPageAgentProvider,
@@ -14,10 +14,15 @@ afterEach(() => {
 
 describe("ADK session and agent API contracts", () => {
   it("encodes session identifiers when renaming a conversation", async () => {
-    const fetchMock = vi.fn(async () => createResponse({
-      id: "session/a b",
-      title: "复盘会话",
-    }));
+    const fetchMock = vi.fn(async () =>
+      createResponse({
+        id: "session/a b",
+        agentId: "agent-1",
+        title: "复盘会话",
+        createdAt: "2026-07-16T00:00:00Z",
+        updatedAt: "2026-07-16T00:00:00Z",
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
@@ -82,7 +87,7 @@ describe("ADK session and agent API contracts", () => {
   });
 
   it("sends the requested compaction mode to the session-context boundary", async () => {
-    const fetchMock = vi.fn(async () => createResponse({}));
+    const fetchMock = vi.fn(async () => createResponse(buildContext()));
     vi.stubGlobal("fetch", fetchMock);
 
     await compactADKSessionContext("session/a b", "aggressive");
@@ -96,3 +101,28 @@ describe("ADK session and agent API contracts", () => {
     );
   });
 });
+
+function buildContext() {
+  return {
+    sessionId: "session/a b",
+    currentInputTokens: 100,
+    projectedNextTurnTokens: 120,
+    contextWindowTokens: 4_096,
+    usageRatio: 0.03,
+    status: "healthy",
+    recentUserWindow: 8,
+    retainedRecentUserCount: 2,
+    activeHandoffCount: 0,
+    breakdown: {
+      instructionTokens: 20,
+      handoffTokens: 0,
+      recentUserTokens: 50,
+      protectedTailTokens: 0,
+      otherVisibleTokens: 20,
+      pendingUserTokens: 10,
+      toolDeclarationTokens: 0,
+    },
+    autoCompacted: false,
+    degradedSummary: false,
+  };
+}

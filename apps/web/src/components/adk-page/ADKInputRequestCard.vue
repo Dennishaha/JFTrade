@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 
-import type { ADKInputAnswer, ADKInputRequest } from "@/contracts";
+import type { ADKInputAnswer, ADKInputRequest } from "@/types";
 
 const props = defineProps<{
   request: ADKInputRequest;

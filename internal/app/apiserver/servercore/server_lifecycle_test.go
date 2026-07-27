@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -18,8 +19,8 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return newStrategyRuntimeStubExchange() }
-	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
+	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return newStrategyRuntimeStubExchange() })
+	if _, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		ID:           "pine-breakout",
 		Name:         "Pine Breakout",
 		Version:      "0.1.0",
@@ -170,11 +171,11 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	}
 
 	assertTransition("start", strategyStatusRunning)
-	if _, ok := server.strategyRuntimeManager.runtimeObservation(instanceID); !ok {
+	if _, ok := server.runtimes.StrategyRuntime().GetObservation(instanceID); !ok {
 		t.Fatalf("expected runtime observation after start")
 	}
 	assertTransition("pause", strategyStatusPaused)
-	if _, ok := server.strategyRuntimeManager.runtimeObservation(instanceID); ok {
+	if _, ok := server.runtimes.StrategyRuntime().GetObservation(instanceID); ok {
 		t.Fatalf("expected pause to stop active runtime for %s", instanceID)
 	}
 	assertTransition("stop", strategyStatusStopped)
@@ -224,7 +225,7 @@ func TestInstantiateStrategyDefinitionRejectsMalformedJSON(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
+	if _, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		ID:           "pine-malformed-binding",
 		Name:         "Malformed Binding",
 		Version:      "0.1.0",

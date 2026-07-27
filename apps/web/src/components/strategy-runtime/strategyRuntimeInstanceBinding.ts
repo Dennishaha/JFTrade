@@ -1,11 +1,13 @@
 import type {
-    StrategyBindingInstrumentDocument,
-    StrategyBrokerAccountBinding,
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
     StrategyRuntimeRiskMode,
     StrategyRuntimeRiskSettings,
+} from "@/types";
+import type {
+    StrategyBindingInstrumentDocument,
+    StrategyBrokerAccountBinding,
 } from "@/contracts";
 
 import { normalizeChartType, type ChartType } from "../../charting/kline";

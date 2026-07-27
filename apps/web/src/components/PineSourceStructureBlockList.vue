@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PineV6WorkflowDocument } from "@/contracts";
+import type { PineV6WorkflowDocument } from "@/types";
 
 import {
   readSourceBlockField,

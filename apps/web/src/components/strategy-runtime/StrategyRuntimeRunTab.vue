@@ -5,7 +5,7 @@ import type {
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
     StrategyRuntimeObservation,
-} from "@/contracts";
+} from "@/types";
 
 import RuntimeHealthBadge from "../domain/runtime/RuntimeHealthBadge.vue";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";

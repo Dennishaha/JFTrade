@@ -8,8 +8,8 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
+	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
 const (
@@ -22,19 +22,19 @@ const (
 	defaultSSEClientRetry        = 5 * time.Second
 )
 
-func (s *Server) ensureLiveMarketStream(context.Context, []string) {
+func (s *serverApplication) ensureLiveMarketStream(context.Context, []string) {
 	if s != nil && s.marketdataSvc != nil {
 		s.marketdataSvc.WakeCollector()
 	}
 }
 
-func (s *Server) handlePushMarketdataTick(tick mdsrv.Tick) {
+func (s *serverApplication) handlePushMarketdataTick(tick mdsrv.Tick) {
 	if s == nil || tick.Kind != mdsrv.TickKindTrade {
 		return
 	}
 	if s.marketdataSvc != nil {
 		payload := s.marketdataSvc.LiveTick(&tick, "")
-		s.emitWorkflowEvent(jfadk.WorkflowEvent{
+		s.emitWorkflowEvent(assistantassembly.WorkflowEvent{
 			ID:       "market-data.tick|" + tick.InstrumentID + "|" + tick.ObservedAt,
 			Type:     "market-data.tick",
 			Source:   "market-data",
@@ -43,14 +43,15 @@ func (s *Server) handlePushMarketdataTick(tick mdsrv.Tick) {
 			Payload:  payload,
 		})
 	}
-	if s.strategyRuntimeManager == nil {
+	strategyRuntime := s.runtimes.StrategyRuntime()
+	if strategyRuntime == nil {
 		return
 	}
 	trade, ok := marketTradeFromTick(tick)
 	if !ok {
 		return
 	}
-	s.strategyRuntimeManager.handleMarketTrade(trade)
+	strategyRuntime.HandleMarketTrade(trade)
 }
 
 func marketTradeFromTick(tick mdsrv.Tick) (bbgotypes.Trade, bool) {

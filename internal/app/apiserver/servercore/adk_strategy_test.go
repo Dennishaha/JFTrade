@@ -7,15 +7,16 @@ import (
 	"strings"
 	"testing"
 
+	assistant "github.com/jftrade/jftrade-main/internal/assistant"
+	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
+	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	"github.com/jftrade/jftrade-main/pkg/backtest"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 func TestADKCoreToolHandlersSurfaceSubscriptionErrors(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	RegisterJFTradeADKTools(nil, registry, ToolDeps{
 		MarketSubscriptions: func(context.Context) (any, any, error) {
 			return nil, nil, errors.New("feed unavailable")
@@ -73,8 +74,8 @@ func TestADKWorkflowAuditAndAdapterHelpers(t *testing.T) {
 }
 
 func TestADKSystemAndWorkflowToolHandlersReflectBusinessState(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
-	store, err := jfadk.NewStore(
+	registry := assistanttestkit.NewToolRegistry()
+	store, err := assistanttestkit.NewStore(
 		filepath.Join(t.TempDir(), "adk.db"),
 		filepath.Join(t.TempDir(), "secrets"),
 		filepath.Join(t.TempDir(), "skills"),
@@ -117,7 +118,7 @@ func TestADKSystemAndWorkflowToolHandlersReflectBusinessState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("tasks.create Handler: %v", err)
 	}
-	createdTask := createOutput.(jfadk.Task)
+	createdTask := createOutput.(assistant.Task)
 	if createdTask.Title != "Review market-open checklist" || createdTask.Status != "TODO" {
 		t.Fatalf("createdTask = %#v, want saved task with normalized TODO status", createdTask)
 	}
@@ -130,7 +131,7 @@ func TestADKSystemAndWorkflowToolHandlersReflectBusinessState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("tasks.update Handler: %v", err)
 	}
-	updatedTask := updateOutput.(jfadk.Task)
+	updatedTask := updateOutput.(assistant.Task)
 	if updatedTask.Status != "DONE" {
 		t.Fatalf("updatedTask = %#v, want normalized DONE status", updatedTask)
 	}
@@ -164,7 +165,7 @@ func TestADKSystemAndWorkflowToolHandlersReflectBusinessState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("memory.remember Handler: %v", err)
 	}
-	entry := memoryOutput.(jfadk.MemoryEntry)
+	entry := memoryOutput.(assistant.MemoryEntry)
 	if entry.Key != "preferred_market" || entry.Value != "US" {
 		t.Fatalf("memory entry = %#v, want remembered workspace preference", entry)
 	}
@@ -174,7 +175,7 @@ func TestADKSystemAndWorkflowToolHandlersReflectBusinessState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("memory.list Handler: %v", err)
 	}
-	entries := memoryListOutput.(map[string]any)["entries"].([]jfadk.MemoryEntry)
+	entries := memoryListOutput.(map[string]any)["entries"].([]assistant.MemoryEntry)
 	if len(entries) != 1 || entries[0].ID != entry.ID {
 		t.Fatalf("memory.list entries = %#v, want remembered entry", entries)
 	}
@@ -190,7 +191,7 @@ func TestADKSystemAndWorkflowToolHandlersReflectBusinessState(t *testing.T) {
 }
 
 func TestADKStrategyToolsHandleNegativeAndFallbackScenarios(t *testing.T) {
-	store, err := jfadk.NewStore(
+	store, err := assistanttestkit.NewStore(
 		filepath.Join(t.TempDir(), "adk.db"),
 		filepath.Join(t.TempDir(), "secrets"),
 		filepath.Join(t.TempDir(), "skills"),
@@ -204,7 +205,7 @@ func TestADKStrategyToolsHandleNegativeAndFallbackScenarios(t *testing.T) {
 		}
 	})
 
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	var savedDraft StrategyDraftInput
 	viewCalls := 0
 	registerJFTradeADKStrategyTools(store, registry, ToolDeps{
@@ -228,7 +229,7 @@ func TestADKStrategyToolsHandleNegativeAndFallbackScenarios(t *testing.T) {
 			}
 			return nil, errors.New("view unavailable")
 		},
-		BacktestKLineSyncProgress: func(string) (*backtest.SyncProgress, bool) {
+		BacktestKLineSyncProgress: func(string) (*btsrv.SyncProgress, bool) {
 			return nil, false
 		},
 	})
@@ -318,7 +319,7 @@ func TestADKStrategyDefinitionVersionToolsExposeImmutableSnapshotsAndFailures(t 
 		SavedAt:      "2026-07-26T01:00:00Z",
 	}
 	dependencyFailure := errors.New("version store unavailable")
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{
 		ListStrategyDefinitionVersions: func(definitionID string) ([]stratsrv.DefinitionVersionSummary, bool, error) {
 			switch definitionID {
@@ -380,7 +381,7 @@ func TestADKStrategyDefinitionVersionToolsExposeImmutableSnapshotsAndFailures(t 
 		t.Fatalf("version get dependency error = %v", err)
 	}
 
-	unavailable := jfadk.NewToolRegistry()
+	unavailable := assistanttestkit.NewToolRegistry()
 	registerJFTradeADKStrategyTools(nil, unavailable, ToolDeps{})
 	unavailableList, _ := unavailable.Get("strategy.definition_versions.list")
 	if _, err := unavailableList.Handler(context.Background(), map[string]any{"definitionId": "def-1"}); err == nil || !strings.Contains(err.Error(), "unavailable") {
@@ -399,7 +400,7 @@ func TestADKBacktestRunsFiltersByDefinitionVersionStatusAndLimit(t *testing.T) {
 		{ID: "run-baseline", DefinitionID: "def-1", DefinitionVersion: "0.1.0", Status: "COMPLETED"},
 		{ID: "run-other", DefinitionID: "def-2", DefinitionVersion: "0.1.1", Status: "FAILED"},
 	}
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{ListBacktestRuns: func() []BacktestRunSummary { return runs }})
 	tool, _ := registry.Get("backtest.runs")
 
@@ -436,7 +437,7 @@ func TestADKBacktestRunsFiltersByDefinitionVersionStatusAndLimit(t *testing.T) {
 }
 
 func TestADKStrategyToolContractsCoverUnavailableAndSuccessfulViewScenarios(t *testing.T) {
-	store, err := jfadk.NewStore(
+	store, err := assistanttestkit.NewStore(
 		filepath.Join(t.TempDir(), "adk.db"),
 		filepath.Join(t.TempDir(), "secrets"),
 		filepath.Join(t.TempDir(), "skills"),
@@ -450,7 +451,7 @@ func TestADKStrategyToolContractsCoverUnavailableAndSuccessfulViewScenarios(t *t
 		}
 	})
 
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	registerJFTradeADKStrategyTools(store, registry, ToolDeps{})
 
 	researchTool, _ := registry.Get("strategy.research_backtest")
@@ -468,7 +469,7 @@ func TestADKStrategyToolContractsCoverUnavailableAndSuccessfulViewScenarios(t *t
 		t.Fatalf("backtest.kline_sync_status unavailable error = %v, want unavailable", err)
 	}
 
-	registry = jfadk.NewToolRegistry()
+	registry = assistanttestkit.NewToolRegistry()
 	var researchViewInput BacktestResultViewInput
 	var resultViewInput BacktestResultViewInput
 	registerJFTradeADKStrategyTools(store, registry, ToolDeps{
@@ -486,8 +487,8 @@ func TestADKStrategyToolContractsCoverUnavailableAndSuccessfulViewScenarios(t *t
 			resultViewInput = input
 			return map[string]any{"run": map[string]any{"status": "completed"}, "window": map[string]any{"limit": input.Limit}}, nil
 		},
-		BacktestKLineSyncProgress: func(taskID string) (*backtest.SyncProgress, bool) {
-			return &backtest.SyncProgress{TaskID: taskID, Status: "completed", Symbol: "US.AAPL"}, taskID == "sync-ready"
+		BacktestKLineSyncProgress: func(taskID string) (*btsrv.SyncProgress, bool) {
+			return &btsrv.SyncProgress{TaskID: taskID, Status: "completed", Symbol: "US.AAPL"}, taskID == "sync-ready"
 		},
 	})
 
@@ -592,7 +593,7 @@ fast =`,
 }
 
 func TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure(t *testing.T) {
-	store, err := jfadk.NewStore(
+	store, err := assistanttestkit.NewStore(
 		filepath.Join(t.TempDir(), "adk.db"),
 		filepath.Join(t.TempDir(), "secrets"),
 		filepath.Join(t.TempDir(), "skills"),
@@ -606,7 +607,7 @@ func TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure(t *testin
 		}
 	})
 
-	registry := jfadk.NewToolRegistry()
+	registry := assistanttestkit.NewToolRegistry()
 	var enqueued []string
 	var cancelled []string
 	registerJFTradeADKStrategyTools(store, registry, ToolDeps{
@@ -651,7 +652,7 @@ func TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure(t *testin
 		t.Fatalf("cancelled = %#v, want no cancellation on success", cancelled)
 	}
 
-	registry = jfadk.NewToolRegistry()
+	registry = assistanttestkit.NewToolRegistry()
 	enqueued = nil
 	cancelled = nil
 	registerJFTradeADKStrategyTools(store, registry, ToolDeps{

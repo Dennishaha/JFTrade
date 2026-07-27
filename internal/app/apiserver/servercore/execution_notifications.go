@@ -10,7 +10,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 )
 
-func (s *Server) notifyExecutionOrderPlaced(order trdsrv.ExecutionOrder) {
+func (s *serverApplication) notifyExecutionOrderPlaced(order trdsrv.ExecutionOrder) {
 	note := baseExecutionNotification(order, "broker.order.place")
 	note.Level = "success"
 	note.Title = executionBrokerLabel(order) + " 订单已提交"
@@ -18,7 +18,7 @@ func (s *Server) notifyExecutionOrderPlaced(order trdsrv.ExecutionOrder) {
 	s.emitExecutionNotification(note)
 }
 
-func (s *Server) notifyExecutionOrderLifecycle(order trdsrv.ExecutionOrder, event *trdsrv.ExecutionOrderEvent) {
+func (s *serverApplication) notifyExecutionOrderLifecycle(order trdsrv.ExecutionOrder, event *trdsrv.ExecutionOrderEvent) {
 	if event == nil {
 		return
 	}
@@ -29,7 +29,7 @@ func (s *Server) notifyExecutionOrderLifecycle(order trdsrv.ExecutionOrder, even
 	s.emitExecutionNotification(note)
 }
 
-func (s *Server) emitExecutionNotification(note live.Notification) {
+func (s *serverApplication) emitExecutionNotification(note live.Notification) {
 	s.recordLiveNotification(note)
 	bbgo.Notify(forwardedBBGONotification{note: note})
 }

@@ -16,7 +16,7 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if err := server.strategyStore.saveStrategy(stratsrv.ManagedInstance{
+	instanceID := createCatalogInstanceForTest(t, server, stratsrv.ManagedInstance{
 		ID:       "instance-1",
 		PluginID: "mean-revert",
 		Definition: stratsrv.DefinitionSummary{
@@ -27,10 +27,8 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 		Params:    map[string]any{"window": 20},
 		Status:    strategyStatusRunning,
 		CreatedAt: "2026-05-22T00:00:00Z",
-	}); err != nil {
-		t.Fatalf("saveStrategy: %v", err)
-	}
-	if err := server.strategyStore.appendStrategyRuntimeEvent("instance-1", "started", "started", "mean-revert"); err != nil {
+	})
+	if err := server.stores.StrategyCatalog.AppendRuntimeEvent(instanceID, "started", "started", "mean-revert"); err != nil {
 		t.Fatalf("appendStrategyRuntimeEvent: %v", err)
 	}
 	srv := httptest.NewServer(server)
@@ -58,7 +56,7 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 		t.Fatalf("expected 1 strategy, got %d", len(envelope.Data))
 	}
 
-	logsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-1/logs")
+	logsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/"+instanceID+"/logs")
 	if err != nil {
 		t.Fatalf("GET logs: %v", err)
 	}
@@ -73,11 +71,18 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 	if err := json.NewDecoder(logsResp.Body).Decode(&logsEnvelope); err != nil {
 		t.Fatalf("decode logs: %v", err)
 	}
-	if len(logsEnvelope.Data.Logs) != 1 || !strings.Contains(logsEnvelope.Data.Logs[0], "started") {
+	foundStartedLog := false
+	for _, entry := range logsEnvelope.Data.Logs {
+		if strings.Contains(entry, "started") {
+			foundStartedLog = true
+			break
+		}
+	}
+	if !foundStartedLog {
 		t.Fatalf("unexpected logs response: %+v", logsEnvelope.Data)
 	}
 
-	auditResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-1/audit")
+	auditResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/"+instanceID+"/audit")
 	if err != nil {
 		t.Fatalf("GET audit: %v", err)
 	}
@@ -92,7 +97,14 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 	if err := json.NewDecoder(auditResp.Body).Decode(&auditEnvelope); err != nil {
 		t.Fatalf("decode audit: %v", err)
 	}
-	if len(auditEnvelope.Data.Entries) != 1 || auditEnvelope.Data.Entries[0].Kind != "started" {
+	foundStartedAudit := false
+	for _, entry := range auditEnvelope.Data.Entries {
+		if entry.Kind == "started" {
+			foundStartedAudit = true
+			break
+		}
+	}
+	if !foundStartedAudit {
 		t.Fatalf("unexpected audit response: %+v", auditEnvelope.Data)
 	}
 }
@@ -103,7 +115,7 @@ func TestStrategiesEndpointIncludesPersistedRuntimeLogTail(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if err := server.strategyStore.saveStrategy(stratsrv.ManagedInstance{
+	instanceID := createCatalogInstanceForTest(t, server, stratsrv.ManagedInstance{
 		ID: "instance-tail",
 		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "mean-revert",
@@ -113,10 +125,8 @@ func TestStrategiesEndpointIncludesPersistedRuntimeLogTail(t *testing.T) {
 		Params:    map[string]any{"window": 20},
 		Status:    strategyStatusStopped,
 		CreatedAt: "2026-05-22T00:00:00Z",
-	}); err != nil {
-		t.Fatalf("saveStrategy: %v", err)
-	}
-	if err := server.strategyStore.appendStrategyRuntimeEvent("instance-tail", "runtime error US.AAPL: boom", "runtime_error", "boom"); err != nil {
+	})
+	if err := server.stores.StrategyCatalog.AppendRuntimeEvent(instanceID, "runtime error US.AAPL: boom", "runtime_error", "boom"); err != nil {
 		t.Fatalf("appendStrategyRuntimeEvent: %v", err)
 	}
 
@@ -149,7 +159,7 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if err := server.strategyStore.saveStrategy(stratsrv.ManagedInstance{
+	instanceID := createCatalogInstanceForTest(t, server, stratsrv.ManagedInstance{
 		ID: "instance-logs",
 		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "mean-revert",
@@ -159,8 +169,10 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 		Params:    map[string]any{"window": 20},
 		Status:    strategyStatusStopped,
 		CreatedAt: "2026-05-22T00:00:00Z",
-	}); err != nil {
-		t.Fatalf("saveStrategy: %v", err)
+	})
+	initialLogs, ok := server.stores.StrategyCatalog.GetLogs(instanceID, stratsrv.LogQuery{})
+	if !ok {
+		t.Fatalf("strategy logs for %q not found", instanceID)
 	}
 	for _, event := range []struct {
 		message string
@@ -171,7 +183,7 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 		{message: "runtime error US.AAPL: boom", kind: "runtime_error", detail: "boom"},
 		{message: "live order submitted US.AAPL BUY 10", kind: "order_submitted", detail: "internalOrderId=1"},
 	} {
-		if err := server.strategyStore.appendStrategyRuntimeEvent("instance-logs", event.message, event.kind, event.detail); err != nil {
+		if err := server.stores.StrategyCatalog.AppendRuntimeEvent(instanceID, event.message, event.kind, event.detail); err != nil {
 			t.Fatalf("appendStrategyRuntimeEvent(%s): %v", event.kind, err)
 		}
 	}
@@ -179,7 +191,7 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	logsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-logs/logs?limit=1&offset=1")
+	logsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/"+instanceID+"/logs?limit=1&offset=1")
 	if err != nil {
 		t.Fatalf("GET paged logs: %v", err)
 	}
@@ -191,11 +203,13 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 	if err := json.NewDecoder(logsResp.Body).Decode(&logsEnvelope); err != nil {
 		t.Fatalf("decode paged logs: %v", err)
 	}
-	if logsEnvelope.Data.Page.Total != 3 || logsEnvelope.Data.Page.Returned != 1 || !logsEnvelope.Data.Page.HasMore {
+	if logsEnvelope.Data.Page.Total != initialLogs.Page.Total+3 ||
+		logsEnvelope.Data.Page.Returned != 1 ||
+		!logsEnvelope.Data.Page.HasMore {
 		t.Fatalf("unexpected logs page: %+v", logsEnvelope.Data.Page)
 	}
 
-	legacyQueryResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-logs/logs?limit=bogus&fromTime=2026-05-22")
+	legacyQueryResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/"+instanceID+"/logs?limit=bogus&fromTime=2026-05-22")
 	if err != nil {
 		t.Fatalf("GET logs with legacy query parsing: %v", err)
 	}
@@ -204,7 +218,7 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 		t.Fatalf("GET logs with legacy query parsing status = %d", legacyQueryResp.StatusCode)
 	}
 
-	filteredLogsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-logs/logs?level=error")
+	filteredLogsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/"+instanceID+"/logs?level=error")
 	if err != nil {
 		t.Fatalf("GET filtered logs: %v", err)
 	}
@@ -216,7 +230,7 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 		t.Fatalf("unexpected filtered logs response: %+v", logsEnvelope.Data)
 	}
 
-	auditResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-logs/audit?kind=runtime_error")
+	auditResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/"+instanceID+"/audit?kind=runtime_error")
 	if err != nil {
 		t.Fatalf("GET filtered audit: %v", err)
 	}

@@ -358,4 +358,26 @@ describe("SettingsSecuritySection", () => {
     expect(wrapper.text()).toContain("Web 访问设置已保存");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("uses safe local-only defaults when the security payload omits optional fields", async () => {
+    const fetchMock = vi.fn(async () => createResponse({}));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(SettingsSecuritySection);
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("未开启");
+    expect(
+      (wrapper.get("[data-testid='web-access-port']").element as HTMLInputElement)
+        .value,
+    ).toBe("6688");
+    expect(
+      (wrapper.get("[data-testid='web-access-enabled-toggle']").element as HTMLInputElement)
+        .checked,
+    ).toBe(false);
+    expect(
+      (wrapper.get("[data-testid='public-access-enabled-toggle']").element as HTMLInputElement)
+        .checked,
+    ).toBe(false);
+  });
 });

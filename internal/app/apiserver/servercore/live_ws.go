@@ -196,19 +196,26 @@ func stringMapValue(values map[string]any, key string) string {
 }
 
 func (b liveWebSocketBackend) SubscribeDepthUpdates(onUpdate func(string)) func() {
-	exchange := b.server.futuExchange()
-	if exchange == nil {
+	if b.server == nil || !b.server.futuIntegrationEnabled() {
 		return func() {}
 	}
-	return exchange.OnOrderBookUpdate(func(updatedSymbol string) {
+	marketDataRuntime := b.server.runtimes.MarketData()
+	if marketDataRuntime == nil {
+		return func() {}
+	}
+	return marketDataRuntime.OnOrderBookUpdate(func(updatedSymbol string) {
 		onUpdate(strings.ToUpper(strings.TrimSpace(updatedSymbol)))
 	})
 }
 
-func (s *Server) liveStreamStats() (count int, limit int, atLimit bool) {
-	if s == nil || s.liveWebSocket == nil {
+func (s *serverApplication) liveStreamStats() (count int, limit int, atLimit bool) {
+	if s == nil {
 		return 0, defaultMaxWebSocketClients, false
 	}
-	stats := s.liveWebSocket.Stats()
+	liveWebSocket := s.runtimes.LiveWebSocket()
+	if liveWebSocket == nil {
+		return 0, defaultMaxWebSocketClients, false
+	}
+	stats := liveWebSocket.Stats()
 	return stats.Connected, stats.Limit, stats.AtLimit
 }

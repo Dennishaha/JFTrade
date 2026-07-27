@@ -10,6 +10,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	"github.com/jftrade/jftrade-main/internal/live"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
@@ -31,6 +32,7 @@ var (
 	ErrMCPServerTokenRequired    = errors.New("an MCP server token is required before token authentication can be enabled")
 	ErrMCPServerRuntimeUpdate    = errors.New("could not apply MCP server listener settings")
 	ErrMCPServerStoreUnavailable = errors.New("MCP server settings store is unavailable")
+	ErrNotificationUnavailable   = errors.New("notification publisher is unavailable")
 )
 
 // Store 是 settings 持久化层接口，由应用装配层注入具体实现。
@@ -97,14 +99,15 @@ type SideEffects struct {
 
 // Service 提供 settings 业务逻辑：读取、持久化、副作用编排。
 type Service struct {
-	store        Store
-	mcpStore     MCPServerStore
-	sideEffects  SideEffects
-	securityMu   sync.Mutex
-	mcpServerMu  sync.Mutex
-	hashPassword func(string) (string, error)
-	newMCPToken  func() (string, error)
-	mcpStatus    func() jfsettings.MCPServerStatus
+	store                  Store
+	mcpStore               MCPServerStore
+	sideEffects            SideEffects
+	securityMu             sync.Mutex
+	mcpServerMu            sync.Mutex
+	hashPassword           func(string) (string, error)
+	newMCPToken            func() (string, error)
+	mcpStatus              func() jfsettings.MCPServerStatus
+	testSystemNotification func() (*live.Event, live.NotificationDelivery)
 
 	// 来自 Server 的委托（不在 Store 中的聚合信息）
 	brokerDescriptor  func() map[string]any
@@ -154,6 +157,14 @@ func WithDefaultTradingEnvironment(env string) Option {
 // WithMCPServerStatus supplies listener state owned by application assembly.
 func WithMCPServerStatus(fn func() jfsettings.MCPServerStatus) Option {
 	return func(s *Service) { s.mcpStatus = fn }
+}
+
+// WithSystemNotificationTester supplies the application-owned publisher and
+// host-delivery boundary without exposing it to HTTP transport.
+func WithSystemNotificationTester(
+	fn func() (*live.Event, live.NotificationDelivery),
+) Option {
+	return func(s *Service) { s.testSystemNotification = fn }
 }
 
 // ── UI Appearance ──
@@ -294,6 +305,25 @@ func (s *Service) GetSystemNotificationSettings() jfsettings.SystemNotificationS
 // SaveSystemNotificationSettings 保存系统通知设置。
 func (s *Service) SaveSystemNotificationSettings(input jfsettings.SystemNotificationSettings) (jfsettings.SystemNotificationSettings, error) {
 	return s.store.SaveSystemNotificationSettings(input)
+}
+
+// SystemNotificationTestResult is the transport-neutral result of emitting a
+// retained notification and forwarding it to the host notification center.
+type SystemNotificationTestResult struct {
+	Event    live.Event
+	Delivery live.NotificationDelivery
+}
+
+// TestSystemNotification emits one application-owned test notification.
+func (s *Service) TestSystemNotification() (SystemNotificationTestResult, error) {
+	if s == nil || s.testSystemNotification == nil {
+		return SystemNotificationTestResult{}, ErrNotificationUnavailable
+	}
+	event, delivery := s.testSystemNotification()
+	if event == nil {
+		return SystemNotificationTestResult{}, ErrNotificationUnavailable
+	}
+	return SystemNotificationTestResult{Event: *event, Delivery: delivery}, nil
 }
 
 // ── ADK ──

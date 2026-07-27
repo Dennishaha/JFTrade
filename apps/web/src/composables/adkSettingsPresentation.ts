@@ -1,4 +1,4 @@
-import type { ADKPermissionMode, ADKSkill } from "@/contracts";
+import type { ADKPermissionMode, ADKSkill } from "@/types";
 
 import { runStatusTone } from "./adkChatPresentation";
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { SystemBuildInformation } from "../contracts";
+import type { SystemBuildInformation } from "@/contracts";
 import { useDocsLink } from "../composables/useDocsLink";
 import { useExternalLink } from "../composables/externalLink";
 import { resolveCorrespondingSourceUrl } from "../features/openSourceLicense";

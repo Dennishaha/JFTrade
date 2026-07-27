@@ -12,13 +12,26 @@ import (
 
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/shopspring/decimal"
 
+	"github.com/jftrade/jftrade-main/internal/live"
 	"github.com/jftrade/jftrade-main/internal/marketdata"
+	"github.com/jftrade/jftrade-main/internal/trading"
 	pkgfutu "github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
+
+const BrokerID = "futu"
+
+// RuntimeExchange is the broker-neutral execution surface needed by strategy
+// sessions. Futu-only protocol and push methods remain behind MarketDataRuntime.
+type RuntimeExchange interface {
+	bbgotypes.Exchange
+	EnsureMarket(string)
+}
 
 type MarketDataConfig struct {
 	Enabled      bool
@@ -35,22 +48,29 @@ func (c MarketDataConfig) key() string {
 }
 
 type MarketDataRuntimeOptions struct {
-	ConfigSource func() MarketDataConfig
-	NewExchange  func(MarketDataConfig) *pkgfutu.Exchange
-	OnExchange   func(*pkgfutu.Exchange)
-	Now          func() time.Time
+	ConfigSource         func() MarketDataConfig
+	NewExchange          func(MarketDataConfig) *pkgfutu.Exchange
+	CloseExchange        func(*pkgfutu.Exchange) error
+	OnExchange           func(*pkgfutu.Exchange)
+	OnBroker             func(broker.Broker)
+	OnSystemNotification func(live.Notification)
+	Now                  func() time.Time
 }
 
 // MarketDataRuntime owns the broker-specific exchange lifecycle and protocol
 // conversion. Freshness, demand, cache, polling, and backoff stay in marketdata.
 type MarketDataRuntime struct {
-	configSource func() MarketDataConfig
-	newExchange  func(MarketDataConfig) *pkgfutu.Exchange
-	onExchange   func(*pkgfutu.Exchange)
-	now          func() time.Time
+	configSource  func() MarketDataConfig
+	newExchange   func(MarketDataConfig) *pkgfutu.Exchange
+	closeExchange func(*pkgfutu.Exchange) error
+	onExchange    func(*pkgfutu.Exchange)
+	onBroker      func(broker.Broker)
+	onSystemNote  func(live.Notification)
+	now           func() time.Time
 
 	mu                     sync.Mutex
 	exchange               *pkgfutu.Exchange
+	brokerAdapter          broker.Broker
 	key                    string
 	generation             uint64
 	closed                 bool
@@ -58,14 +78,20 @@ type MarketDataRuntime struct {
 	createDone             chan struct{}
 	wg                     sync.WaitGroup
 	subscriptionReconciler *marketDataSubscriptionReconciler
+	inflightCloseErr       error
+	closeOnce              sync.Once
+	closeErr               error
 }
 
 func NewMarketDataRuntime(options MarketDataRuntimeOptions) *MarketDataRuntime {
 	r := &MarketDataRuntime{
-		configSource: options.ConfigSource,
-		newExchange:  options.NewExchange,
-		onExchange:   options.OnExchange,
-		now:          options.Now,
+		configSource:  options.ConfigSource,
+		newExchange:   options.NewExchange,
+		closeExchange: options.CloseExchange,
+		onExchange:    options.OnExchange,
+		onBroker:      options.OnBroker,
+		onSystemNote:  options.OnSystemNotification,
+		now:           options.Now,
 	}
 	if r.newExchange == nil {
 		r.newExchange = func(config MarketDataConfig) *pkgfutu.Exchange {
@@ -75,6 +101,11 @@ func NewMarketDataRuntime(options MarketDataRuntimeOptions) *MarketDataRuntime {
 				HandshakeTimeout: 3 * time.Second,
 				RequestTimeout:   8 * time.Second,
 			})
+		}
+	}
+	if r.closeExchange == nil {
+		r.closeExchange = func(exchange *pkgfutu.Exchange) error {
+			return exchange.Close()
 		}
 	}
 	if r.now == nil {
@@ -126,40 +157,208 @@ func (r *MarketDataRuntime) Ensure() *pkgfutu.Exchange {
 		r.mu.Unlock()
 
 		candidate := r.newExchange(config)
-
-		r.mu.Lock()
-		valid := !r.closed && r.generation == generation && r.configSource().key() == key
-		var previous *pkgfutu.Exchange
-		if valid {
-			previous = r.exchange
-			if candidate != nil && r.onExchange != nil {
-				r.onExchange(candidate)
-			}
-			r.exchange = candidate
-			r.key = key
-		}
-		r.creating = false
-		close(done)
-		r.wg.Done()
-		r.mu.Unlock()
-
-		if !valid {
-			if candidate != nil {
-				jftradeErr4 := candidate.Close()
-				besteffort.LogError(jftradeErr4)
-			}
-			return nil
-		}
-		if previous != nil && previous != candidate {
-			jftradeErr2 := previous.Close()
-			besteffort.LogError(jftradeErr2)
-		}
-		return candidate
+		return r.finishExchangeCreation(candidate, key, generation, done)
 	}
+}
+
+func (r *MarketDataRuntime) finishExchangeCreation(
+	candidate *pkgfutu.Exchange,
+	key string,
+	generation uint64,
+	done chan struct{},
+) *pkgfutu.Exchange {
+	r.mu.Lock()
+	closed := r.closed
+	valid := !closed && r.generation == generation && r.configSource().key() == key
+	var previous *pkgfutu.Exchange
+	if valid {
+		previous = r.exchange
+		if candidate != nil && r.onSystemNote != nil {
+			candidate.OnSystemNotify(func(response *notifypb.Response) {
+				if note := LiveNotificationFromResponse(response); note != nil {
+					r.onSystemNote(*note)
+				}
+			})
+		}
+		if candidate != nil && r.onExchange != nil {
+			r.onExchange(candidate)
+		}
+		var activeBroker broker.Broker
+		if candidate != nil {
+			activeBroker = pkgfutu.NewBrokerAdapter(candidate)
+		}
+		r.exchange = candidate
+		r.brokerAdapter = activeBroker
+		r.key = key
+		if activeBroker != nil && r.onBroker != nil {
+			r.onBroker(activeBroker)
+		}
+	}
+	r.creating = false
+	close(done)
+	r.mu.Unlock()
+
+	if !valid {
+		r.closeDiscardedExchange(candidate, closed)
+		r.wg.Done()
+		return nil
+	}
+	if previous != nil && previous != candidate {
+		besteffort.LogError(r.closeExchange(previous))
+	}
+	r.wg.Done()
+	return candidate
+}
+
+func (r *MarketDataRuntime) closeDiscardedExchange(candidate *pkgfutu.Exchange, closing bool) {
+	if candidate == nil {
+		return
+	}
+	closeErr := r.closeExchange(candidate)
+	if closeErr == nil {
+		return
+	}
+	if !closing {
+		besteffort.LogError(closeErr)
+		return
+	}
+	r.mu.Lock()
+	r.inflightCloseErr = errors.Join(
+		r.inflightCloseErr,
+		fmt.Errorf("in-flight Futu exchange close: %w", closeErr),
+	)
+	r.mu.Unlock()
 }
 
 func (r *MarketDataRuntime) Exchange() *pkgfutu.Exchange {
 	return r.Ensure()
+}
+
+// BBGOExchange exposes only the stable exchange contract needed by strategy
+// execution; callers never receive the concrete Futu implementation type.
+func (r *MarketDataRuntime) BBGOExchange() RuntimeExchange {
+	exchange := r.Ensure()
+	if exchange == nil {
+		return nil
+	}
+	return exchange
+}
+
+// Broker returns the broker-neutral adapter for the active exchange.
+func (r *MarketDataRuntime) Broker() broker.Broker {
+	exchange := r.Ensure()
+	if exchange == nil {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.exchange != exchange {
+		return nil
+	}
+	return r.brokerAdapter
+}
+
+// OwnsBroker reports whether the adapter belongs to the current exchange
+// generation.
+func (r *MarketDataRuntime) OwnsBroker(candidate broker.Broker) bool {
+	if r == nil || candidate == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.brokerAdapter != nil && r.brokerAdapter == candidate
+}
+
+// QueryOrderBook keeps the Futu subscription sentinel behind the integration
+// boundary so marketdata callers only observe the domain-level lease error.
+func (r *MarketDataRuntime) QueryOrderBook(
+	ctx context.Context,
+	query broker.OrderBookQuery,
+) (*broker.OrderBookSnapshot, error) {
+	active := r.Broker()
+	if active == nil {
+		return nil, fmt.Errorf("futu marketdata runtime unavailable")
+	}
+	reader := active.MarketData()
+	if reader == nil {
+		return nil, fmt.Errorf("broker market data not available")
+	}
+	snapshot, err := reader.QueryOrderBook(ctx, query)
+	if err != nil {
+		return nil, translateSubscriptionRequiredError(err, "ORDER_BOOK", "")
+	}
+	return snapshot, nil
+}
+
+// QuerySecurityDetails returns the stable JSON-ready security representation.
+func (r *MarketDataRuntime) QuerySecurityDetails(ctx context.Context, instrumentID string) (map[string]any, error) {
+	exchange := r.Ensure()
+	if exchange == nil {
+		return nil, fmt.Errorf("futu marketdata runtime unavailable")
+	}
+	details, err := exchange.QuerySecurityDetails(ctx, instrumentID)
+	if err != nil {
+		return nil, err
+	}
+	return SecurityDetailsMap(details), nil
+}
+
+// QueryKLines keeps Futu protocol/session conversion inside the integration.
+func (r *MarketDataRuntime) QueryKLines(
+	ctx context.Context,
+	instrumentID string,
+	interval bbgotypes.Interval,
+	options bbgotypes.KLineQueryOptions,
+) ([]bbgotypes.KLine, error) {
+	exchange := r.Ensure()
+	if exchange == nil {
+		return nil, fmt.Errorf("futu marketdata runtime unavailable")
+	}
+	klines, err := exchange.QueryKLines(ctx, instrumentID, interval, options)
+	if err != nil {
+		return nil, translateSubscriptionRequiredError(err, "KLINE", string(interval))
+	}
+	return klines, nil
+}
+
+func (r *MarketDataRuntime) ResolveKLineSession(kline bbgotypes.KLine) (market.Session, bool) {
+	exchange := r.Ensure()
+	if exchange == nil {
+		return market.SessionUnknown, false
+	}
+	return exchange.ResolveKLineSession(kline)
+}
+
+// OnOrderBookUpdate registers a neutral symbol callback for depth pushes.
+func (r *MarketDataRuntime) OnOrderBookUpdate(handler func(string)) func() {
+	exchange := r.Ensure()
+	if exchange == nil {
+		return func() {}
+	}
+	return exchange.OnOrderBookUpdate(handler)
+}
+
+// EnsureSystemNotifications connects the integration-owned OpenD session and
+// activates the notification converter installed during exchange creation.
+func (r *MarketDataRuntime) EnsureSystemNotifications(ctx context.Context) error {
+	exchange := r.Ensure()
+	if exchange == nil {
+		return fmt.Errorf("futu marketdata runtime unavailable")
+	}
+	return exchange.EnsureSystemNotifications(ctx)
+}
+
+// SubscribeOrderUpdates hides Futu protobuf callbacks behind trading's port.
+func (r *MarketDataRuntime) SubscribeOrderUpdates(
+	ctx context.Context,
+	accounts []trading.Account,
+	handler trading.OrderUpdateHandler,
+) (trading.OrderUpdateSubscription, error) {
+	exchange := r.Ensure()
+	if exchange == nil {
+		return noOpOrderUpdateSubscription{}, nil
+	}
+	return NewOrderUpdatesAdapter(exchange).Subscribe(ctx, accounts, handler)
 }
 
 func (r *MarketDataRuntime) Reset() {
@@ -174,10 +373,11 @@ func (r *MarketDataRuntime) Reset() {
 	r.generation++
 	exchange := r.exchange
 	r.exchange = nil
+	r.brokerAdapter = nil
 	r.key = ""
 	r.mu.Unlock()
 	if exchange != nil {
-		jftradeErr3 := exchange.Close()
+		jftradeErr3 := r.closeExchange(exchange)
 		besteffort.LogError(jftradeErr3)
 	}
 	if r.subscriptionReconciler != nil {
@@ -189,26 +389,32 @@ func (r *MarketDataRuntime) Close() error {
 	if r == nil {
 		return nil
 	}
-	r.mu.Lock()
-	if r.closed {
+	r.closeOnce.Do(func() {
+		r.mu.Lock()
+		r.closed = true
+		r.generation++
+		exchange := r.exchange
+		r.exchange = nil
+		r.brokerAdapter = nil
+		r.key = ""
 		r.mu.Unlock()
-		return nil
-	}
-	r.closed = true
-	r.generation++
-	exchange := r.exchange
-	r.exchange = nil
-	r.key = ""
-	r.mu.Unlock()
-	if exchange != nil {
-		jftradeErr1 := exchange.Close()
-		besteffort.LogError(jftradeErr1)
-	}
-	r.wg.Wait()
-	if r.subscriptionReconciler != nil {
-		r.subscriptionReconciler.ResetPhysicalSubscriptions()
-	}
-	return nil
+
+		var closeErr error
+		if exchange != nil {
+			if err := r.closeExchange(exchange); err != nil {
+				closeErr = errors.Join(closeErr, fmt.Errorf("active Futu exchange close: %w", err))
+			}
+		}
+		r.wg.Wait()
+		r.mu.Lock()
+		closeErr = errors.Join(closeErr, r.inflightCloseErr)
+		r.mu.Unlock()
+		if r.subscriptionReconciler != nil {
+			r.subscriptionReconciler.ResetPhysicalSubscriptions()
+		}
+		r.closeErr = closeErr
+	})
+	return r.closeErr
 }
 
 func (r *MarketDataRuntime) ReconcileSubscriptions(ctx context.Context, desired []marketdata.InstrumentRef) error {

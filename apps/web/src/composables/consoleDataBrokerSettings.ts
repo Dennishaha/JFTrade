@@ -1,15 +1,19 @@
 import { computed, type Ref } from "vue";
 
 import {
-  type BrokerRuntimeResponse,
   type BrokerSettingsResponse,
   type SystemStatusResponse,
-} from "@/contracts";
+} from "@/types";
+import type { BrokerRuntimeResponse } from "@/contracts";
 
 import {
-  fetchEnvelope,
-  fetchEnvelopeWithInit,
+  apiDeletePath,
+  apiGet,
+  apiPost,
+  apiPostAction,
+  apiPutPath,
 } from "./apiClient";
+import { mapBrokerSettings } from "./brokerSettingsContract";
 import {
   buildBrokerAccountSelectionKey,
   resolveActiveBrokerId as resolveActiveBrokerIdFromSelection,
@@ -100,23 +104,15 @@ export function createConsoleDataBrokerSettingsController(
   }
 
   async function loadBrokerSettings(): Promise<BrokerSettingsResponse> {
-    const response = await fetchEnvelope<BrokerSettingsResponse>(
-      "/api/v1/settings/brokers",
+    const response = mapBrokerSettings(
+      await apiGet("/api/v1/settings/brokers"),
     );
     options.brokerSettings.value = response;
     return response;
   }
 
   async function requestFutuOpenDManualRetry(): Promise<void> {
-    await fetchEnvelopeWithInit("/api/v1/system/futu-opend/manual-retry", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        brokerId: "futu",
-      }),
-    });
+    await apiPostAction("/api/v1/system/futu-opend/manual-retry");
 
     await options.reloadSystemState();
   }
@@ -130,15 +126,10 @@ export function createConsoleDataBrokerSettingsController(
       >;
     },
   ): Promise<void> {
-    await fetchEnvelopeWithInit(
+    await apiPutPath(
+      "/api/v1/settings/brokers/{brokerId}/integration",
       `/api/v1/settings/brokers/${encodeURIComponent(brokerId)}/integration`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      },
+      payload,
     );
 
     await options.reloadSystemState({ bypassCooldown: true });
@@ -153,13 +144,7 @@ export function createConsoleDataBrokerSettingsController(
     securityFirm?: string;
     enabled: boolean;
   }): Promise<void> {
-    await fetchEnvelopeWithInit("/api/v1/settings/broker-accounts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    await apiPost("/api/v1/settings/broker-accounts", payload);
 
     await options.reloadSystemState();
   }
@@ -176,15 +161,10 @@ export function createConsoleDataBrokerSettingsController(
       enabled: boolean;
     },
   ): Promise<void> {
-    await fetchEnvelopeWithInit(
+    await apiPutPath(
+      "/api/v1/settings/broker-accounts/{accountRecordId}",
       `/api/v1/settings/broker-accounts/${encodeURIComponent(accountRecordId)}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      },
+      payload,
     );
 
     await options.reloadSystemState();
@@ -193,11 +173,9 @@ export function createConsoleDataBrokerSettingsController(
   async function deleteManagedBrokerAccount(
     accountRecordId: string,
   ): Promise<void> {
-    await fetchEnvelopeWithInit(
+    await apiDeletePath(
+      "/api/v1/settings/broker-accounts/{accountRecordId}",
       `/api/v1/settings/broker-accounts/${encodeURIComponent(accountRecordId)}`,
-      {
-        method: "DELETE",
-      },
     );
 
     if (options.prefs.value.selectedBrokerAccountKey != null) {

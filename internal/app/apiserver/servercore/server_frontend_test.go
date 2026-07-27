@@ -13,7 +13,9 @@ import (
 	"testing"
 	"time"
 
+	apruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/frontendassets"
+	strategystore "github.com/jftrade/jftrade-main/internal/store/strategy"
 )
 
 func TestServerServesFrontendAssetsAndSPAFallback(t *testing.T) {
@@ -322,8 +324,8 @@ func TestStartForRunArgsInitializesRuntimeLayout(t *testing.T) {
 	for _, path := range []string{
 		runtimeDir,
 		settingsPath,
-		deriveStrategyPluginTargetDir(settingsPath),
-		deriveStrategyRuntimeDBPath(settingsPath),
+		apruntime.DeriveStrategyPluginTargetDir(settingsPath),
+		apruntime.DeriveStrategyRuntimeDBPath(settingsPath),
 	} {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("expected %s to exist: %v", path, err)
@@ -333,7 +335,7 @@ func TestStartForRunArgsInitializesRuntimeLayout(t *testing.T) {
 	if _, err := os.Stat(filepath.Dir(backtestDBPath)); err != nil {
 		t.Fatalf("expected backtest directory to exist: %v", err)
 	}
-	if _, err := os.Stat(deriveStrategyDesignPath(settingsPath)); err == nil {
+	if _, err := os.Stat(strategystore.DerivePath(settingsPath)); err == nil {
 		t.Fatalf("strategy design definition file should not be eagerly created")
 	}
 }

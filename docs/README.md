@@ -57,6 +57,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口。
 - [watchlist.md](watchlist.md)：自选系统的使用方式、数据主权、Futu 导入、快照行情、API、ADK 和扩展边界。
 - [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：策略定义、结构指令、Pine 编辑与 visual model 投影。
+- [frontend/api-contracts.md](frontend/api-contracts.md)：OpenAPI 生成类型、前端 view model/mapper、typed API 与原生请求边界。
 - [backtest-execution-model.md](backtest-execution-model.md)：`conservative-bar-v1` 的成交规则、职责边界和实盘差异。
 - [pinets-contract-audit.md](pinets-contract-audit.md)：PineTS 切换后的 Go/API/worker/前端契约矩阵和 visual output 边界。
 - [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)：PineTS worker 发布、运行配置、embedded asset 和非 mock smoke 放行清单。
@@ -76,6 +77,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - 改启动方式、端口、运行时目录：先看 [architecture.md](architecture.md) 和 [troubleshooting/startup-ports.md](troubleshooting/startup-ports.md)
 - 改 Wails profile、bindings、菜单、窗口状态或桌面发布：先看 [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md) 和 `cmd/jftrade-desktop`
 - 改前端默认接口、系统状态、设置：先看 [architecture.md](architecture.md)、[configuration.md](configuration.md)、[troubleshooting.md](troubleshooting.md)
+- 改 HTTP wire contract、前端 API 类型或请求封装：先看 [frontend/api-contracts.md](frontend/api-contracts.md)
 - 改 ADK、agent、approval、provider、tools：先看 [adk.md](adk.md)
 - 改实时行情、K 线、SSE、WS：先看 [frontend-kline.md](frontend-kline.md) 和 [troubleshooting/live-stream-connection.md](troubleshooting/live-stream-connection.md)
 - 改自选分组、星标、券商导入或自选快照：先看 [watchlist.md](watchlist.md)

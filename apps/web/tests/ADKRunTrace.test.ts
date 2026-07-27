@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { describe, expect, it } from "vitest";
 
-import type { ADKRun } from "@/contracts";
+import type { ADKRun } from "@/types";
 
 import ADKRunTrace from "../src/components/shared/ADKRunTrace.vue";
 import { runErrorDisplayMessage } from "../src/composables/adkChatPresentation";

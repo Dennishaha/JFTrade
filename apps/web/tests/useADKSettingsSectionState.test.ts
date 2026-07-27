@@ -15,7 +15,7 @@ import type {
   ADKSkill,
   ADKTask,
   ADKToolDescriptor,
-} from "@/contracts";
+} from "@/types";
 
 import type {
   ADKMetricsResponse,

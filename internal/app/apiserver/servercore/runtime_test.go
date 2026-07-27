@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -19,7 +20,7 @@ func TestStrategyRuntimeNotifyOnlyEmitsSignalNotification(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return stub })
 
 	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
@@ -27,20 +28,20 @@ func TestStrategyRuntimeNotifyOnlyEmitsSignalNotification(t *testing.T) {
 		ExecutionMode: strategyExecutionModeNotifyOnly,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+	if _, err := server.stores.StrategyCatalog.TransitionRuntime(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	notifications := server.liveNotificationsAfter(0)
 	if len(notifications) == 0 {
@@ -59,10 +60,10 @@ func TestStrategyRuntimeNotifyOnlyEmitsSignalNotification(t *testing.T) {
 	if !found {
 		t.Fatalf("expected 策略下单信号 notification, got %+v", notifications)
 	}
-	if got := len(server.executionOrders.listOrders().Orders); got != 0 {
+	if got := len(server.stores.ExecutionOrders.AllOrders().Orders); got != 0 {
 		t.Fatalf("notify_only should not place execution orders, got %d", got)
 	}
-	audit, ok := server.strategyStore.strategyAudit(instanceID)
+	audit, ok := strategyRuntimeTestAudit(server, instanceID)
 	if !ok {
 		t.Fatalf("strategyAudit(%s) not found", instanceID)
 	}
@@ -85,7 +86,7 @@ func TestStrategyRuntimeStartEnsuresMissingMarketMetadata(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return stub })
 
 	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.TME"},
@@ -93,17 +94,17 @@ func TestStrategyRuntimeStartEnsuresMissingMarketMetadata(t *testing.T) {
 		ExecutionMode: strategyExecutionModeNotifyOnly,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
 
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy should inject missing market metadata: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
-	observation, ok := server.strategyRuntimeManager.runtimeObservation(instanceID)
+	observation, ok := server.runtimes.StrategyRuntime().GetObservation(instanceID)
 	if !ok {
 		t.Fatalf("expected runtime observation after start")
 	}
@@ -124,7 +125,7 @@ func TestStrategyRuntimeStartRejectsWhenInstanceWorkerLimitReached(t *testing.T)
 		t.Fatalf("SavePineWorkerSettings: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return newStrategyRuntimeStubExchange() }
+	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return newStrategyRuntimeStubExchange() })
 	useFakeStrategyRuntimePineWorker(server, newFakeStrategyRuntimePineWorker())
 
 	firstID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
@@ -133,14 +134,14 @@ func TestStrategyRuntimeStartRejectsWhenInstanceWorkerLimitReached(t *testing.T)
 		ExecutionMode: strategyExecutionModeNotifyOnly,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	firstRecord, ok := server.strategyStore.strategy(firstID)
+	firstRecord, ok := server.stores.StrategyCatalog.GetInstance(firstID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", firstID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), firstRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), firstRecord); err != nil {
 		t.Fatalf("first startStrategy: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(firstID)
+	defer server.runtimes.StrategyRuntime().Stop(firstID)
 
 	secondID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.MSFT"},
@@ -148,11 +149,11 @@ func TestStrategyRuntimeStartRejectsWhenInstanceWorkerLimitReached(t *testing.T)
 		ExecutionMode: strategyExecutionModeNotifyOnly,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	secondRecord, ok := server.strategyStore.strategy(secondID)
+	secondRecord, ok := server.stores.StrategyCatalog.GetInstance(secondID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", secondID)
 	}
-	err = server.strategyRuntimeManager.startStrategy(context.Background(), secondRecord)
+	err = server.runtimes.StrategyRuntime().Start(context.Background(), secondRecord)
 	if !errors.Is(err, pineworker.ErrCapacityExceeded) {
 		t.Fatalf("second startStrategy error = %v, want ErrCapacityExceeded", err)
 	}
@@ -169,7 +170,7 @@ func TestStrategyRuntimeLiveWorkerRequestIncludesModeCandlesAndParams(t *testing
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return stub })
 	worker := newFakeStrategyRuntimePineWorker()
 	useFakeStrategyRuntimePineWorker(server, worker)
 
@@ -179,19 +180,19 @@ func TestStrategyRuntimeLiveWorkerRequestIncludesModeCandlesAndParams(t *testing
 		ExecutionMode: strategyExecutionModeNotifyOnly,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
 	instanceRecord.Params["threshold"] = "100"
 	instanceRecord.Params["enabled"] = true
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	request, ok := worker.lastRequest()
 	if !ok {
@@ -215,7 +216,7 @@ func TestStrategyRuntimeLiveWorkerErrorRecordsRuntimeError(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return stub })
 	worker := newFakeStrategyRuntimePineWorker()
 	worker.err = errors.New("worker crashed")
 	useFakeStrategyRuntimePineWorker(server, worker)
@@ -226,19 +227,19 @@ func TestStrategyRuntimeLiveWorkerErrorRecordsRuntimeError(t *testing.T) {
 		ExecutionMode: strategyExecutionModeNotifyOnly,
 		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
-	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	instanceRecord, ok := server.stores.StrategyCatalog.GetInstance(instanceID)
 	if !ok {
 		t.Fatalf("strategy(%s) not found", instanceID)
 	}
-	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+	if err := server.runtimes.StrategyRuntime().Start(context.Background(), instanceRecord); err != nil {
 		t.Fatalf("startStrategy: %v", err)
 	}
-	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+	defer server.runtimes.StrategyRuntime().Stop(instanceID)
 
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
-	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.runtimes.StrategyRuntime().HandleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
-	observation, ok := server.strategyRuntimeManager.runtimeObservation(instanceID)
+	observation, ok := server.runtimes.StrategyRuntime().GetObservation(instanceID)
 	if !ok {
 		t.Fatalf("expected runtime observation for %s", instanceID)
 	}

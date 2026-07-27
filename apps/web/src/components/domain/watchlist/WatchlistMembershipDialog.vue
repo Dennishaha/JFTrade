@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { WatchlistItem, WatchlistMembership } from "@/contracts";
+import type { WatchlistItem, WatchlistMembership } from "@/types";
 
 import { ApiClientError } from "../../../composables/apiClient";
 import {

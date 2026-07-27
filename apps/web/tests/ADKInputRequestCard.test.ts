@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 
 import ADKInputRequestCard from "@/components/adk-page/ADKInputRequestCard.vue";
-import type { ADKInputRequest } from "@/contracts";
+import type { ADKInputRequest } from "@/types";
 
 function request(status = "PENDING"): ADKInputRequest {
   return {

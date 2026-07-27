@@ -51,6 +51,15 @@ type webLoginRequest struct {
 	Password string `json:"password"`
 }
 
+// WebSessionData is the public response contract shared by login, logout and
+// session inspection. CSRF and expiry are absent for trusted desktop requests
+// and unauthenticated browser sessions.
+type WebSessionData struct {
+	Authenticated bool   `json:"authenticated"`
+	CSRFToken     string `json:"csrfToken,omitempty"`
+	ExpiresAt     string `json:"expiresAt,omitempty"`
+}
+
 type webLoginConfig struct {
 	enabled        bool
 	unavailable    bool
@@ -379,10 +388,15 @@ func constantTimeEqual(left string, right string) bool {
 // @Accept json
 // @Produce json
 // @Param request body webLoginRequest true "Web 访问密码"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 401 {object} httpserver.Envelope
-// @Failure 429 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=WebSessionData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Failure 403 {object} httpserver.ErrorEnvelope
+// @Failure 408 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/auth/login [post]
 func (a *webAuth) login(c *gin.Context) {
 	r := c.Request
@@ -516,7 +530,9 @@ func (a *webAuth) createSession(generation uint64, passwordHash string) (string,
 // @Summary 注销 JFTrade Web 会话
 // @Tags auth
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=WebSessionData}
+// @Failure 401 {object} httpserver.ErrorEnvelope
+// @Failure 403 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/auth/logout [post]
 func (a *webAuth) logout(c *gin.Context) {
 	r := c.Request
@@ -542,7 +558,8 @@ func (a *webAuth) logout(c *gin.Context) {
 // @Summary 读取 JFTrade Web 会话
 // @Tags auth
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=WebSessionData}
+// @Failure 403 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/auth/session [get]
 func (a *webAuth) status(c *gin.Context) {
 	if !a.requestOriginAllowed(c.Request) {

@@ -2,14 +2,16 @@ import { computed, ref, watch, type Ref } from "vue";
 
 import type {
     InstrumentResolutionCandidate,
-    NormalizeInstrumentRequest,
-    NormalizeInstrumentResponse,
-    StrategyBindingInstrumentDocument,
     StrategyDefinitionDocument,
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
     StrategyRuntimeRiskSettings,
+} from "@/types";
+import type {
+    NormalizeInstrumentRequest,
+    NormalizeInstrumentResponse,
+    StrategyBindingInstrumentDocument,
 } from "@/contracts";
 
 import type { ChartType } from "../../charting/kline";

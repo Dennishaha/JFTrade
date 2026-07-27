@@ -1,4 +1,4 @@
-import type { MarketDataExtendedQuote, MarketDataExtendedQuoteBlocks } from "@/contracts";
+import type { MarketDataExtendedQuote, MarketDataExtendedQuoteBlocks } from "@/types";
 
 type MarketSnapshotLike = {
   price?: number | null;

@@ -3,12 +3,14 @@ package servercore
 import (
 	"context"
 	"encoding/json"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	apruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestShouldStartForAPIOnlyArgs(t *testing.T) {
@@ -138,14 +140,14 @@ func TestNewServerUsesStrategyRuntimeDBEnvOverride(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if server.strategyRuntimeStore == nil {
+	if server.stores.StrategyCatalog == nil {
 		t.Fatal("expected strategy runtime store to be initialized with env override")
 	}
 	if _, err := os.Stat(customRuntimeDBPath); err != nil {
 		t.Fatalf("expected runtime db file at env override path, got error: %v", err)
 	}
-	if got := deriveStrategyRuntimeDBPath(store.path); got != customRuntimeDBPath {
-		t.Fatalf("deriveStrategyRuntimeDBPath() = %s, want %s", got, customRuntimeDBPath)
+	if got := apruntime.DeriveStrategyRuntimeDBPath(store.path); got != customRuntimeDBPath {
+		t.Fatalf("DeriveStrategyRuntimeDBPath() = %s, want %s", got, customRuntimeDBPath)
 	}
 }
 
@@ -182,7 +184,7 @@ func TestServerCloseStopsMarketdataAndPreventsExchangeRevival(t *testing.T) {
 	if state := server.marketdataSvc.RuntimeState(); !state.Closed || state.Connected {
 		t.Fatalf("marketdata state after Close = %#v", state)
 	}
-	if exchange := server.marketdataRuntime.Ensure(); exchange != nil {
+	if exchange := server.runtimes.MarketData().Ensure(); exchange != nil {
 		t.Fatal("Futu exchange revived after Server.Close")
 	}
 }

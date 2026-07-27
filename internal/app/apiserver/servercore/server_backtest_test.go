@@ -25,7 +25,7 @@ func TestBacktestRouteAcceptsExplicitMarketAndCode(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
+	if _, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		ID:           "dsl-market-code-route",
 		Name:         "Pine Market Code Route",
 		Version:      "0.1.0",
@@ -64,7 +64,7 @@ strategy.entry("Long", strategy.long, qty=1)`,
 		t.Fatalf("POST backtest status = %d", createResp.StatusCode)
 	}
 
-	runs := server.backtestRuns.list()
+	runs := server.stores.BacktestRuns.List()
 	if len(runs) != 1 {
 		t.Fatalf("expected 1 backtest run, got %+v", runs)
 	}
@@ -99,7 +99,7 @@ func TestEnqueueBacktestUsesPineInitialCapitalWhenRequestOmitsBalance(t *testing
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
+	if _, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		ID:           "pine-initial-capital",
 		Name:         "Pine Initial Capital",
 		Version:      "0.1.0",

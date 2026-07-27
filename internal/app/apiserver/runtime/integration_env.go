@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	futuOpenDAddrEnv            = "FUTU_OPEND_ADDR"
+	FutuOpenDAddrEnv            = "FUTU_OPEND_ADDR"
 	futuOpenDWebSocketKeyEnv    = "FUTU_OPEND_WEBSOCKET_KEY"
 	jftradeFutuWebSocketKeyEnv  = "JFTRADE_FUTU_WEBSOCKET_KEY"
 	jftradeFutuAPIPortEnv       = "JFTRADE_FUTU_API_PORT"
@@ -27,7 +27,7 @@ func IntegrationWithEnvDefaults(integration jfsettings.BrokerIntegration) jfsett
 	config := integration.Config
 	host := config.Host
 	apiPort := config.APIPort
-	if rawAddr := strings.TrimSpace(os.Getenv(futuOpenDAddrEnv)); rawAddr != "" {
+	if rawAddr := strings.TrimSpace(os.Getenv(FutuOpenDAddrEnv)); rawAddr != "" {
 		if parsedHost, parsedPort, err := net.SplitHostPort(rawAddr); err == nil {
 			host = parsedHost
 			if value, convErr := strconv.Atoi(parsedPort); convErr == nil && value > 0 {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ADKRun } from "@/contracts";
+import type { ADKRun } from "@/types";
 
 import {
   resolveGoalAwareChatResponse,

@@ -24,7 +24,7 @@ type RealTradeApprovalsResponse struct {
 type RealTradeApprovalPolicy struct {
 	ApproverAllowlistEnabled  bool     `json:"approverAllowlistEnabled" binding:"required"`
 	ApproverCount             int      `json:"approverCount" binding:"required"`
-	LargeOrderNotional        *float64 `json:"largeOrderNotional"`
+	LargeOrderNotional        *float64 `json:"largeOrderNotional" extensions:"x-nullable"`
 	ApprovalWorkflowAvailable bool     `json:"approvalWorkflowAvailable" binding:"required"`
 	ApprovalMode              string   `json:"approvalMode" binding:"required"`
 }
@@ -48,11 +48,11 @@ type RealTradeHardStopEventsResponse struct {
 type RealTradeKillSwitchStateResponse struct {
 	RealTradingEnabled bool                              `json:"realTradingEnabled" binding:"required"`
 	KillSwitchActive   bool                              `json:"killSwitchActive" binding:"required"`
-	KillSwitchSource   *string                           `json:"killSwitchSource"`
+	KillSwitchSource   *string                           `json:"killSwitchSource" extensions:"x-nullable"`
 	RuntimeActive      bool                              `json:"runtimeActive" binding:"required"`
 	BlockedOperations  []string                          `json:"blockedOperations" binding:"required"`
 	AllowsCancel       bool                              `json:"allowsCancel" binding:"required"`
-	Entry              *trading.RealTradeKillSwitchEntry `json:"entry"`
+	Entry              *trading.RealTradeKillSwitchEntry `json:"entry" extensions:"x-nullable"`
 }
 
 // RealTradeKillSwitchEventsResponse GET /system/real-trade-kill-switch-events 响应。
@@ -70,11 +70,11 @@ type RealTradeRiskLimitsResponse struct {
 	RealTradingEnabled                bool                               `json:"realTradingEnabled" binding:"required"`
 	RiskEnabled                       bool                               `json:"riskEnabled" binding:"required"`
 	RuntimeRiskConfigured             bool                               `json:"runtimeRiskConfigured" binding:"required"`
-	RuntimeConfiguredMaxOrderQuantity *float64                           `json:"runtimeConfiguredMaxOrderQuantity"`
-	RuntimeConfiguredMaxOrderNotional *float64                           `json:"runtimeConfiguredMaxOrderNotional"`
-	EffectiveMaxOrderQuantity         *float64                           `json:"effectiveMaxOrderQuantity"`
-	EffectiveMaxOrderNotional         *float64                           `json:"effectiveMaxOrderNotional"`
-	Entry                             *trading.RealTradeRuntimeRiskEntry `json:"entry"`
+	RuntimeConfiguredMaxOrderQuantity *float64                           `json:"runtimeConfiguredMaxOrderQuantity" extensions:"x-nullable"`
+	RuntimeConfiguredMaxOrderNotional *float64                           `json:"runtimeConfiguredMaxOrderNotional" extensions:"x-nullable"`
+	EffectiveMaxOrderQuantity         *float64                           `json:"effectiveMaxOrderQuantity" extensions:"x-nullable"`
+	EffectiveMaxOrderNotional         *float64                           `json:"effectiveMaxOrderNotional" extensions:"x-nullable"`
+	Entry                             *trading.RealTradeRuntimeRiskEntry `json:"entry" extensions:"x-nullable"`
 }
 
 // RealTradeRiskEventsResponse GET /system/real-trade-risk-events 响应。
@@ -82,12 +82,12 @@ type RealTradeRiskEventsResponse struct {
 	RealTradingEnabled                bool                            `json:"realTradingEnabled" binding:"required"`
 	RiskEnabled                       bool                            `json:"riskEnabled" binding:"required"`
 	RuntimeRiskConfigured             bool                            `json:"runtimeRiskConfigured" binding:"required"`
-	RuntimeConfiguredMaxOrderQuantity *float64                        `json:"runtimeConfiguredMaxOrderQuantity"`
-	RuntimeConfiguredMaxOrderNotional *float64                        `json:"runtimeConfiguredMaxOrderNotional"`
-	EffectiveMaxOrderQuantity         *float64                        `json:"effectiveMaxOrderQuantity"`
-	EffectiveMaxOrderNotional         *float64                        `json:"effectiveMaxOrderNotional"`
-	MaxOrderQuantity                  *float64                        `json:"maxOrderQuantity"`
-	MaxOrderNotional                  *float64                        `json:"maxOrderNotional"`
+	RuntimeConfiguredMaxOrderQuantity *float64                        `json:"runtimeConfiguredMaxOrderQuantity" extensions:"x-nullable"`
+	RuntimeConfiguredMaxOrderNotional *float64                        `json:"runtimeConfiguredMaxOrderNotional" extensions:"x-nullable"`
+	EffectiveMaxOrderQuantity         *float64                        `json:"effectiveMaxOrderQuantity" extensions:"x-nullable"`
+	EffectiveMaxOrderNotional         *float64                        `json:"effectiveMaxOrderNotional" extensions:"x-nullable"`
+	MaxOrderQuantity                  *float64                        `json:"maxOrderQuantity" extensions:"x-nullable"`
+	MaxOrderNotional                  *float64                        `json:"maxOrderNotional" extensions:"x-nullable"`
 	Entries                           []trading.RealTradeControlEvent `json:"entries" binding:"required"`
 }
 

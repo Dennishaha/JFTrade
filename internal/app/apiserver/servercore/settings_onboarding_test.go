@@ -153,7 +153,7 @@ func TestOnboardingReopensWhenRuntimeDependencyFailsAfterCompletion(t *testing.T
 		t.Fatalf("SaveOnboarding: %v", err)
 	}
 	api := newTestServer(t, store)
-	state := api.onboardingState(t.Context())
+	state := api.futuCoordinator().OnboardingState(t.Context())
 	if state["shouldShowOobe"] != true {
 		t.Fatalf("shouldShowOobe = %#v, want true; state = %#v", state["shouldShowOobe"], state)
 	}

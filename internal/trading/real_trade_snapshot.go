@@ -10,11 +10,11 @@ import "strings"
 type RealTradeRiskSnapshot struct {
 	RealTradingEnabled                bool                       `json:"realTradingEnabled" binding:"required"`
 	KillSwitchActive                  bool                       `json:"killSwitchActive" binding:"required"`
-	KillSwitchSource                  *string                    `json:"killSwitchSource"`
+	KillSwitchSource                  *string                    `json:"killSwitchSource" extensions:"x-nullable"`
 	RuntimeKillSwitchActive           bool                       `json:"runtimeKillSwitchActive" binding:"required"`
 	ControlPlaneAvailable             bool                       `json:"controlPlaneAvailable" binding:"required"`
-	ControlPlaneError                 *string                    `json:"controlPlaneError"`
-	KillSwitchEntry                   *RealTradeKillSwitchEntry  `json:"killSwitchEntry"`
+	ControlPlaneError                 *string                    `json:"controlPlaneError" extensions:"x-nullable"`
+	KillSwitchEntry                   *RealTradeKillSwitchEntry  `json:"killSwitchEntry" extensions:"x-nullable"`
 	KillSwitchEvents                  []RealTradeControlEvent    `json:"killSwitchEvents" binding:"required"`
 	BlockedOperations                 []string                   `json:"blockedOperations" binding:"required"`
 	AllowsCancel                      bool                       `json:"allowsCancel" binding:"required"`
@@ -23,11 +23,11 @@ type RealTradeRiskSnapshot struct {
 	HardStopEvents                    []RealTradeControlEvent    `json:"hardStopEvents" binding:"required"`
 	RiskEnabled                       bool                       `json:"riskEnabled" binding:"required"`
 	RuntimeRiskConfigured             bool                       `json:"runtimeRiskConfigured" binding:"required"`
-	RuntimeConfiguredMaxOrderQuantity *float64                   `json:"runtimeConfiguredMaxOrderQuantity"`
-	RuntimeConfiguredMaxOrderNotional *float64                   `json:"runtimeConfiguredMaxOrderNotional"`
-	EffectiveMaxOrderQuantity         *float64                   `json:"effectiveMaxOrderQuantity"`
-	EffectiveMaxOrderNotional         *float64                   `json:"effectiveMaxOrderNotional"`
-	RiskEntry                         *RealTradeRuntimeRiskEntry `json:"riskEntry"`
+	RuntimeConfiguredMaxOrderQuantity *float64                   `json:"runtimeConfiguredMaxOrderQuantity" extensions:"x-nullable"`
+	RuntimeConfiguredMaxOrderNotional *float64                   `json:"runtimeConfiguredMaxOrderNotional" extensions:"x-nullable"`
+	EffectiveMaxOrderQuantity         *float64                   `json:"effectiveMaxOrderQuantity" extensions:"x-nullable"`
+	EffectiveMaxOrderNotional         *float64                   `json:"effectiveMaxOrderNotional" extensions:"x-nullable"`
+	RiskEntry                         *RealTradeRuntimeRiskEntry `json:"riskEntry" extensions:"x-nullable"`
 	RiskEvents                        []RealTradeControlEvent    `json:"riskEvents" binding:"required"`
 	// MatchedHardStop 仅在下单评估命中硬停止时填充，HTTP 状态响应中缺省。
 	MatchedHardStop *RealTradeHardStopEntry `json:"matchedHardStop,omitempty"`

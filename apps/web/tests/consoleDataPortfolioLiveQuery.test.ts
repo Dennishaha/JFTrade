@@ -6,7 +6,7 @@ import {
   type PortfolioPositionsResponse,
   emptyPortfolioCashBalances,
   emptyPortfolioPositions,
-} from "@/contracts";
+} from "@/types";
 
 const mocks = vi.hoisted(() => ({
   apiGetPath: vi.fn(),

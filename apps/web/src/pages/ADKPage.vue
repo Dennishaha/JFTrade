@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import type { ADKAgent, ADKProvider } from "@/contracts";
+import type { ADKAgent, ADKProvider } from "@/types";
 
 import ADKWorkspaceShell from "../components/adk-page/ADKWorkspaceShell.vue";
 import { fetchADKPageSessionData } from "../composables/adkPageSessionApi";

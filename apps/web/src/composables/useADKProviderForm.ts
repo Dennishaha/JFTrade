@@ -1,6 +1,6 @@
 import { ref } from "vue";
 
-import type { ADKProvider } from "@/contracts";
+import type { ADKProvider } from "@/types";
 
 import {
   deleteADKProvider,

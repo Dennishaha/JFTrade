@@ -170,8 +170,8 @@ func (r *Recorder) Snapshot() Snapshot {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return Snapshot{
-		RecentErrors:       append([]Event(nil), r.errors...),
-		RecentSlowRequests: append([]Event(nil), r.slowRequests...),
+		RecentErrors:       append([]Event{}, r.errors...),
+		RecentSlowRequests: append([]Event{}, r.slowRequests...),
 		OpenD:              r.openD,
 		SlowThresholdMS:    r.slowThreshold.Milliseconds(),
 		MinimumImportance:  r.minimumImportance.String(),

@@ -16,6 +16,7 @@ import {
   resetStrategyPageTestState,
   settleStrategyWorkspace,
 } from "./strategyPageTestUtils";
+import { createResponse } from "./helpers";
 
 afterEach(() => {
   queryClient.setDefaultOptions({
@@ -800,5 +801,108 @@ describe("StrategyDesignStage business flows", () => {
     await expect(
       call<Promise<unknown>>("saveDefinition", { requireAnalysis: true }),
     ).resolves.toBeNull();
+  });
+
+  it("normalizes sparse and malformed analyzer diagnostics at the API boundary", async () => {
+    const baseFetch = buildFetchMock({ definitions: [], strategies: [] });
+    let analyzeCalls = 0;
+    vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).includes("/api/v1/strategy-pine/analyze")) {
+        analyzeCalls += 1;
+        if (analyzeCalls === 1) {
+          return createResponse({
+            ok: true,
+            diagnostics: [
+              null,
+              "not-an-object",
+              [],
+              {
+                severity: "error",
+                code: "PINE_ERROR",
+                message: "invalid order",
+                line: 3,
+                column: 4,
+                endLine: 3,
+                endColumn: 8,
+              },
+              {
+                severity: "warning",
+                code: 42,
+                message: 17,
+                line: "unknown",
+                column: null,
+                endLine: false,
+                endColumn: {},
+              },
+              {
+                severity: "info",
+                message: "analysis note",
+              },
+              {
+                severity: "unsupported",
+                message: "unknown severity",
+              },
+            ],
+            features: ["strategy"],
+          });
+        }
+        return createResponse({ ok: true });
+      }
+      return baseFetch(input, init);
+    });
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { wrapper } = await mountStrategyPage("/strategy/design");
+    await settleStrategyWorkspace();
+    const setup = wrapper.getComponent(StrategyDesignStage).vm.$.setupState as Record<string, unknown>;
+    const analyze = setup.analyzeCurrentScript as () => Promise<boolean>;
+
+    await expect(analyze()).resolves.toBe(false);
+    expect(readStrategySetupValue<unknown>(setup.analyzeResult)).toEqual({
+      ok: true,
+      diagnostics: [
+        {
+          severity: "error",
+          code: "PINE_ERROR",
+          message: "invalid order",
+          line: 3,
+          column: 4,
+          endLine: 3,
+          endColumn: 8,
+        },
+        {
+          severity: "warning",
+          message: "",
+          line: 0,
+          column: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+        {
+          severity: "info",
+          message: "analysis note",
+          line: 0,
+          column: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+        {
+          severity: "info",
+          message: "unknown severity",
+          line: 0,
+          column: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      ],
+      features: ["strategy"],
+    });
+
+    await expect(analyze()).resolves.toBe(true);
+    expect(readStrategySetupValue<unknown>(setup.analyzeResult)).toEqual({
+      ok: true,
+      diagnostics: [],
+      features: [],
+    });
   });
 });

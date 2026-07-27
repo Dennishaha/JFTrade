@@ -1,4 +1,4 @@
-import type { MarketSecurityDetails, MarketSecurityRef } from "../contracts";
+import type { MarketSecurityDetails, MarketSecurityRef } from "../types";
 import type { WorkspaceProductClass } from "./workspaceProductTabs";
 
 export interface ProductUnderlyingResolution {

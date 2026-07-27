@@ -13,7 +13,6 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
-	"github.com/jftrade/jftrade-main/pkg/backtest"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -31,7 +30,7 @@ func TestBacktestRouteUsesDerivedStrategyWarmup(t *testing.T) {
 	server := newTestServer(t, store)
 	worker := newFakeStrategyRuntimePineWorker()
 	server.backtestSvc.SetPineWorkerRunner(worker)
-	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
+	if _, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		ID:           "dsl-auto-warmup-route",
 		Name:         "Pine Auto Warmup Route",
 		Version:      "0.1.0",
@@ -48,10 +47,7 @@ strategy.entry("Long", strategy.long, qty=1)`,
 		t.Fatalf("saveDefinition: %v", err)
 	}
 
-	klineStore, err := backtest.NewFutuKLineStore(dbPath)
-	if err != nil {
-		t.Fatalf("NewFutuKLineStore: %v", err)
-	}
+	klineStore := openServerKLineSeedStore(t, dbPath)
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	klines := make([]bbgotypes.KLine, 0, 25)
 	for index := range 25 {

@@ -1,22 +1,31 @@
 package servercore
 
 import (
-	"strings"
-
+	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
+	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	"github.com/jftrade/jftrade-main/pkg/futu"
 )
 
 func persistenceOnlySettingsStore(store SidecarSettingsStore) SidecarSettingsStore {
-	if compatibilityStore, ok := store.(*SettingsStore); ok && compatibilityStore.Store != nil {
-		return compatibilityStore.Store
+	switch current := store.(type) {
+	case startupIntegrationSettingsStore:
+		return persistenceOnlySettingsStore(current.SidecarSettingsStore)
+	case *startupIntegrationSettingsStore:
+		if current == nil {
+			return nil
+		}
+		return persistenceOnlySettingsStore(current.SidecarSettingsStore)
+	case *SettingsStore:
+		if current != nil && current.Store != nil {
+			return persistenceOnlySettingsStore(current.Store)
+		}
 	}
 	return store
 }
 
-func (s *Server) brokerExecutionExchange() strategyRuntimeExchange {
-	if s.strategyRuntimeManager != nil && s.strategyRuntimeManager.exchangeProvider != nil {
-		if exchange := s.strategyRuntimeManager.exchangeProvider(); exchange != nil {
+func (s *serverApplication) brokerExecutionExchange() liveruntime.Exchange {
+	if strategyRuntime := s.runtimes.StrategyRuntime(); strategyRuntime != nil {
+		if exchange := strategyRuntime.CurrentExchange(); exchange != nil {
 			return exchange
 		}
 	}
@@ -24,17 +33,16 @@ func (s *Server) brokerExecutionExchange() strategyRuntimeExchange {
 		return nil
 	}
 	return &strategyRuntimeBrokerBridge{
-		Exchange: s.futuExchange(),
-		broker:   s.activeBroker(),
+		RuntimeExchange: s.futuExchange(),
+		broker:          s.activeBroker(),
 	}
 }
 
-func (s *Server) futuIntegrationEnabled() bool {
-	integration := s.store.SavedIntegration()
-	return integration != nil && integration.Enabled
+func (s *serverApplication) futuIntegrationEnabled() bool {
+	return s.futuCoordinator().Enabled()
 }
 
-func (s *Server) futuExchangeOrError() (*futu.Exchange, error) {
+func (s *serverApplication) futuExchangeOrError() (futuintegration.RuntimeExchange, error) {
 	exchange := s.futuExchange()
 	if exchange == nil {
 		return nil, errFutuIntegrationNotEnabled
@@ -42,7 +50,7 @@ func (s *Server) futuExchangeOrError() (*futu.Exchange, error) {
 	return exchange, nil
 }
 
-func (s *Server) futuBrokerOrError() (broker.Broker, error) {
+func (s *serverApplication) futuBrokerOrError() (broker.Broker, error) {
 	b := s.futuBroker()
 	if b == nil {
 		return nil, errFutuIntegrationNotEnabled
@@ -51,31 +59,16 @@ func (s *Server) futuBrokerOrError() (broker.Broker, error) {
 }
 
 // activeBroker returns the currently active broker.Broker from the registry.
-// If no broker is registered yet, it triggers futuExchange() which lazily
-// creates and registers the default Futu broker.
+// If no broker is registered yet, it restores the adapter from the Futu
+// runtime, creating the exchange lazily when needed.
 // This is the recommended entry point for all new broker-facing code.
-func (s *Server) activeBroker() broker.Broker {
-	if b := s.brokers.ActiveBroker(); b != nil {
-		return b
-	}
-	if !s.futuIntegrationEnabled() {
-		return nil
-	}
-	s.futuExchange()
-	return s.brokers.ActiveBroker()
+func (s *serverApplication) activeBroker() broker.Broker {
+	return s.futuCoordinator().ActiveBroker()
 }
 
 // resolveBroker resolves an explicitly selected broker without falling back to
-// another provider. Calling activeBroker once preserves lazy registration of
-// the configured default integration, but the final lookup always uses id.
-func (s *Server) resolveBroker(id string) broker.Broker {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return s.activeBroker()
-	}
-	if selected := s.brokers.Lookup(id); selected != nil {
-		return selected
-	}
-	_ = s.activeBroker()
-	return s.brokers.Lookup(id)
+// another provider. Futu is restored lazily by ID even when other providers
+// are already registered.
+func (s *serverApplication) resolveBroker(id string) broker.Broker {
+	return s.futuCoordinator().ResolveBroker(id)
 }

@@ -7,7 +7,7 @@ import type {
 import {
   emptyPortfolioCashBalances,
   emptyPortfolioPositions,
-} from "@/contracts";
+} from "@/types";
 
 import { apiGetPath } from "./apiClient";
 

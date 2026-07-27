@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
@@ -61,6 +62,46 @@ type lifecycleStartup struct {
 	backtestDBPath string
 }
 
+// lifecycleResources owns every successfully opened startup resource. Close
+// functions read the shutdown context only when cleanup begins, so the same
+// registry can serve startup rollback and caller-driven graceful shutdown.
+type lifecycleResources struct {
+	mu          sync.RWMutex
+	shutdownCtx context.Context
+	resources   appcomposition.Resources
+}
+
+func (r *lifecycleResources) context() context.Context {
+	r.mu.RLock()
+	ctx := r.shutdownCtx
+	r.mu.RUnlock()
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
+func (r *lifecycleResources) rollback(startupErr error) error {
+	r.setContext(context.Background())
+	return r.resources.Rollback(startupErr)
+}
+
+func (r *lifecycleResources) shutdown(ctx context.Context) error {
+	r.setContext(ctx)
+	return r.resources.Close()
+}
+
+func (r *lifecycleResources) setContext(ctx context.Context) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	r.mu.Lock()
+	if r.shutdownCtx == nil {
+		r.shutdownCtx = ctx
+	}
+	r.mu.Unlock()
+}
+
 // StartForRunArgs boots the JFTrade API sidecar as HTTP servers.
 func StartForRunArgs(ctx context.Context, args []string, deps Dependencies) (func(context.Context) error, error) {
 	if !deps.ShouldStartForArgs(args) {
@@ -82,16 +123,20 @@ func StartForRunArgs(ctx context.Context, args []string, deps Dependencies) (fun
 	if deps.SeparateWebListener {
 		apiBind = loopbackBind(configuredAPIBind)
 	}
-	apiHandler, err := newLifecycleHandler(deps, startup, store, runtimeIntegration)
+	owned := &lifecycleResources{}
+	apiHandler, err := openLifecycleHandler(owned, deps, store, runtimeIntegration)
 	if err != nil {
 		return nil, err
 	}
-	servers, webManager, err := startLifecycleServers(deps, startup, store, interfaceSettings, apiBind, apiHandler)
-	if err != nil {
-		_ = apiHandler.Close()
+	if deps.CompleteDatabaseRebuild != nil {
+		if err := deps.CompleteDatabaseRebuild(startup.settingsPath, startup.backtestDBPath); err != nil {
+			return nil, owned.rollback(err)
+		}
+	}
+	if err := startLifecycleServers(owned, deps, startup, store, interfaceSettings, apiBind, apiHandler); err != nil {
 		return nil, err
 	}
-	shutdownAll := onceShutdown(servers, webManager, apiHandler)
+	shutdownAll := owned.shutdown
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -139,51 +184,94 @@ func resolveLifecycleIntegrationRuntime(deps Dependencies, store SettingsStore) 
 	return integration
 }
 
-func newLifecycleHandler(deps Dependencies, startup lifecycleStartup, store SettingsStore, integration jfsettings.BrokerIntegration) (Handler, error) {
-	apiHandler, err := deps.NewHandler(store, integration)
-	if err != nil {
-		return nil, err
-	}
-	if deps.CompleteDatabaseRebuild == nil {
-		return apiHandler, nil
-	}
-	if err := deps.CompleteDatabaseRebuild(startup.settingsPath, startup.backtestDBPath); err != nil {
-		_ = apiHandler.Close()
-		return nil, err
-	}
-	return apiHandler, nil
+func openLifecycleHandler(
+	owned *lifecycleResources,
+	deps Dependencies,
+	store SettingsStore,
+	integration jfsettings.BrokerIntegration,
+) (Handler, error) {
+	return appcomposition.Open(
+		&owned.resources,
+		"API handler",
+		func() (Handler, error) { return deps.NewHandler(store, integration) },
+		func(handler Handler) error { return handler.Close() },
+	)
 }
 
-func startLifecycleServers(deps Dependencies, startup lifecycleStartup, store SettingsStore, interfaceSettings jfsettings.InterfaceSettings, apiBind string, apiHandler Handler) ([]*http.Server, *webAccessServerManager, error) {
+func startLifecycleServers(
+	owned *lifecycleResources,
+	deps Dependencies,
+	startup lifecycleStartup,
+	store SettingsStore,
+	interfaceSettings jfsettings.InterfaceSettings,
+	apiBind string,
+	apiHandler Handler,
+) error {
 	if deps.SeparateWebListener {
-		webManager := newWebAccessServerManager(deps, apiHandler)
-		if err := webManager.Reconfigure(store.SecuritySettings()); err != nil {
-			return nil, nil, err
+		webManager, err := appcomposition.Open(
+			&owned.resources,
+			"Web access listener",
+			func() (*webAccessServerManager, error) {
+				manager := newWebAccessServerManager(deps, apiHandler)
+				if err := manager.Reconfigure(store.SecuritySettings()); err != nil {
+					return nil, err
+				}
+				return manager, nil
+			},
+			func(manager *webAccessServerManager) error {
+				return ignoreServerClosed(manager.Shutdown(owned.context()))
+			},
+		)
+		if err != nil {
+			return err
 		}
 		apiHandler.SetWebAccessReconfigure(webManager.Reconfigure)
-		apiServer, err := startLifecycleAPIServer(deps, startup.defaults, apiBind, apiHandler)
-		if err != nil {
-			_ = webManager.Shutdown(context.Background())
-			return nil, nil, err
-		}
-		return []*http.Server{apiServer}, webManager, nil
+		_, err = openLifecycleHTTPServer(
+			owned,
+			"API HTTP server",
+			func() (*http.Server, error) {
+				return startLifecycleAPIServer(deps, startup.defaults, apiBind, apiHandler)
+			},
+		)
+		return err
 	}
 	if startup.frontendFS != nil {
 		guiBind := webAccessBind(deps.EnvOrDefault("JFTRADE_GUI_BIND", interfaceSettings.GUIBind), store.SecuritySettings())
 		if guiBind != "" {
-			server, err := startLifecycleIntegratedServer(deps, startup, store, guiBind, apiHandler)
-			if err != nil {
-				return nil, nil, err
-			}
-			return []*http.Server{server}, nil, nil
+			_, err := openLifecycleHTTPServer(
+				owned,
+				"integrated HTTP server",
+				func() (*http.Server, error) {
+					return startLifecycleIntegratedServer(deps, startup, store, guiBind, apiHandler)
+				},
+			)
+			return err
 		}
 	}
 
-	apiServer, err := startLifecycleAPIServer(deps, startup.defaults, apiBind, apiHandler)
-	if err != nil {
-		return nil, nil, err
-	}
-	return []*http.Server{apiServer}, nil, nil
+	_, err := openLifecycleHTTPServer(
+		owned,
+		"API HTTP server",
+		func() (*http.Server, error) {
+			return startLifecycleAPIServer(deps, startup.defaults, apiBind, apiHandler)
+		},
+	)
+	return err
+}
+
+func openLifecycleHTTPServer(
+	owned *lifecycleResources,
+	name string,
+	openFn func() (*http.Server, error),
+) (*http.Server, error) {
+	return appcomposition.Open(
+		&owned.resources,
+		name,
+		openFn,
+		func(server *http.Server) error {
+			return ignoreServerClosed(server.Shutdown(owned.context()))
+		},
+	)
 }
 
 func loopbackBind(configured string) string {
@@ -420,18 +508,28 @@ func onceShutdown(servers []*http.Server, webManager *webAccessServerManager, ha
 	var shutdownErr error
 	return func(shutdownCtx context.Context) error {
 		shutdownOnce.Do(func() {
-			if err := webManager.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) && shutdownErr == nil {
-				shutdownErr = err
+			var resources appcomposition.Resources
+			_ = resources.Register("API handler", handler.Close)
+			if webManager != nil {
+				_ = resources.Register("Web access listener", func() error {
+					return ignoreServerClosed(webManager.Shutdown(shutdownCtx))
+				})
 			}
-			for _, server := range servers {
-				if err := server.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) && shutdownErr == nil {
-					shutdownErr = err
-				}
+			for index, server := range servers {
+				name := fmt.Sprintf("HTTP server %d", index+1)
+				_ = resources.Register(name, func() error {
+					return ignoreServerClosed(server.Shutdown(shutdownCtx))
+				})
 			}
-			if err := handler.Close(); err != nil && shutdownErr == nil {
-				shutdownErr = err
-			}
+			shutdownErr = resources.Close()
 		})
 		return shutdownErr
 	}
+}
+
+func ignoreServerClosed(err error) error {
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
 }

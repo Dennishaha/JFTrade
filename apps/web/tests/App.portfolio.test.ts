@@ -16,11 +16,11 @@ import {
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
   emptySystemStatus,
-} from "@/contracts";
+} from "@/types";
 import type {
   PortfolioCashBalancesResponse,
   PortfolioPositionsResponse,
-} from "@/contracts";
+} from "@/types";
 
 import {
   MockWebSocket,

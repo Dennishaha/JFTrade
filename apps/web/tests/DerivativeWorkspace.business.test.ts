@@ -26,6 +26,18 @@ const consoleState = {
 
 vi.mock("../src/composables/apiClient", () => ({
   fetchEnvelopeWithInit: apiMocks.fetchWithInit,
+  apiPostPath: (
+    _template: string,
+    path: string,
+    body: unknown,
+    init: RequestInit = {},
+  ) =>
+    apiMocks.fetchWithInit(path, {
+      ...init,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
 }));
 vi.mock("../src/composables/productFeatures", async (importOriginal) => {
   const actual =

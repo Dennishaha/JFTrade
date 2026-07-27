@@ -2,14 +2,13 @@ package servercore
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
+	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	"github.com/jftrade/jftrade-main/pkg/futu"
 	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -20,41 +19,41 @@ func marketSecurityDetailsPathTail(path string) (string, string) {
 	return pathTail(path, "/api/v1/market-data/securities/")
 }
 
-func (s *Server) marketSecurityDetailsResponse(ctx context.Context, path string) (map[string]any, error) {
+func (s *serverApplication) marketSecurityDetailsResponse(ctx context.Context, path string) (map[string]any, error) {
 	market, symbol := marketSecurityDetailsPathTail(path)
 	return s.marketSecurityDetailsResponseForInstrument(ctx, market, symbol)
 }
 
-func (s *Server) marketSecurityDetailsResponseForInstrument(ctx context.Context, market string, symbol string) (map[string]any, error) {
+func (s *serverApplication) marketSecurityDetailsResponseForInstrument(ctx context.Context, market string, symbol string) (map[string]any, error) {
 	market = strings.ToUpper(strings.TrimSpace(market))
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
 	instrumentID := market + "." + symbol
-	exchange, err := s.futuExchangeOrError()
-	if err != nil {
-		return nil, err
+	marketDataRuntime := s.runtimes.MarketData()
+	if marketDataRuntime == nil || !s.futuIntegrationEnabled() {
+		return nil, errFutuIntegrationNotEnabled
 	}
-	details, err := exchange.QuerySecurityDetails(ctx, instrumentID)
+	details, err := marketDataRuntime.QuerySecurityDetails(ctx, instrumentID)
 	if err != nil {
 		return nil, err
 	}
 	return map[string]any{
 		"request":  map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID},
-		"security": securityDetailsMap(details),
+		"security": details,
 		"meta":     map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": time.Now().UTC().Format(time.RFC3339Nano), "fromCache": false},
 	}, nil
 }
 
-func (s *Server) marketSnapshotResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
+func (s *serverApplication) marketSnapshotResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
 	market, symbol := pathTail(path, "/api/v1/market-data/snapshots/")
 	return s.marketSnapshotResponseForInstrument(ctx, market, symbol, decodeMarketSnapshotQuery(query))
 }
 
-func (s *Server) marketSnapshotResponseForInstrument(ctx context.Context, market string, symbol string, query marketSnapshotQuery) (map[string]any, error) {
+func (s *serverApplication) marketSnapshotResponseForInstrument(ctx context.Context, market string, symbol string, query marketSnapshotQuery) (map[string]any, error) {
 	response, err := s.marketdataSvc.GetSnapshot(ctx, market, symbol, query.forceRefresh())
 	return map[string]any(response), err
 }
 
-func (s *Server) marketCandlesResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
+func (s *serverApplication) marketCandlesResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
 	market, symbol := pathTail(path, "/api/v1/market-data/candles/")
 	decoded, err := decodeMarketCandlesQuery(query)
 	if err != nil {
@@ -63,7 +62,7 @@ func (s *Server) marketCandlesResponse(ctx context.Context, path string, query m
 	return s.marketCandlesResponseForInstrument(ctx, market, symbol, decoded)
 }
 
-func (s *Server) marketCandlesResponseForInstrument(ctx context.Context, market string, symbol string, query marketCandlesQuery) (map[string]any, error) {
+func (s *serverApplication) marketCandlesResponseForInstrument(ctx context.Context, market string, symbol string, query marketCandlesQuery) (map[string]any, error) {
 	period := query.normalizedPeriod()
 	limit := query.limitOrDefault(200, 1000)
 	fromTime := ""
@@ -84,15 +83,15 @@ func (s *Server) marketCandlesResponseForInstrument(ctx context.Context, market 
 	return map[string]any(response), err
 }
 
-func (s *Server) buildKLineCandlesResponse(ctx context.Context, market string, symbol string, instrumentID string, period string, limit int, query marketCandlesQuery) (map[string]any, error) {
+func (s *serverApplication) buildKLineCandlesResponse(ctx context.Context, market string, symbol string, instrumentID string, period string, limit int, query marketCandlesQuery) (map[string]any, error) {
 	interval := bbgotypes.Interval(period)
 	includeSession := shouldAnnotateHistoricalKLineSession(market, interval)
 	beginAt, endAt := kLineQueryWindow(query, interval.Duration(), limit)
-	exchange, err := s.futuExchangeOrError()
-	if err != nil {
-		return nil, err
+	marketDataRuntime := s.runtimes.MarketData()
+	if marketDataRuntime == nil || !s.futuIntegrationEnabled() {
+		return nil, errFutuIntegrationNotEnabled
 	}
-	klines, err := exchange.QueryKLines(ctx, instrumentID, interval, bbgotypes.KLineQueryOptions{Limit: limit, StartTime: &beginAt, EndTime: &endAt})
+	klines, err := marketDataRuntime.QueryKLines(ctx, instrumentID, interval, bbgotypes.KLineQueryOptions{Limit: limit, StartTime: &beginAt, EndTime: &endAt})
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +107,7 @@ func (s *Server) buildKLineCandlesResponse(ctx context.Context, market string, s
 			"at":     kline.StartTime.Time().UTC().Format(time.RFC3339Nano),
 		}
 		if includeSession {
-			session, ok := exchange.ResolveKLineSession(kline)
+			session, ok := marketDataRuntime.ResolveKLineSession(kline)
 			if !ok {
 				session = marketpkg.ClassifySession(instrumentID, kline.StartTime.Time().UTC())
 			}
@@ -163,31 +162,24 @@ func shouldAnnotateHistoricalKLineSession(market string, interval bbgotypes.Inte
 	return err == nil && resolvedMarket == "US" && preferredPrefix == "US" && interval.Duration() > 0 && interval.Duration() <= time.Hour
 }
 
-func (s *Server) futuExchange() *futu.Exchange {
-	if s == nil || s.marketdataRuntime == nil {
-		return nil
-	}
-	return s.marketdataRuntime.Exchange()
+func (s *serverApplication) futuExchange() futuintegration.RuntimeExchange {
+	return s.futuCoordinator().Exchange()
 }
 
 // --- Depth (Order Book) ---
 
-func (s *Server) marketDepthResponseForInstrument(ctx context.Context, market string, symbol string, query marketDepthQuery) (map[string]any, error) {
+func (s *serverApplication) marketDepthResponseForInstrument(ctx context.Context, market string, symbol string, query marketDepthQuery) (map[string]any, error) {
 	market = strings.ToUpper(strings.TrimSpace(market))
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
 	instrumentID := market + "." + symbol
 	num := query.numOrDefault(10, 50)
 
-	b, err := s.futuBrokerOrError()
-	if err != nil {
-		return nil, err
-	}
-	reader := b.MarketData()
-	if reader == nil {
-		return nil, fmt.Errorf("broker market data not available")
+	marketDataRuntime := s.runtimes.MarketData()
+	if marketDataRuntime == nil || !s.futuIntegrationEnabled() {
+		return nil, errFutuIntegrationNotEnabled
 	}
 
-	brokerResult, err := reader.QueryOrderBook(ctx, broker.OrderBookQuery{
+	brokerResult, err := marketDataRuntime.QueryOrderBook(ctx, broker.OrderBookQuery{
 		ReadQuery: brokerReadQuery(instrumentID),
 		Symbol:    instrumentID,
 		Num:       num,
@@ -208,20 +200,8 @@ func (s *Server) marketDepthResponseForInstrument(ctx context.Context, market st
 	}, nil
 }
 
-func (s *Server) futuBroker() broker.Broker {
-	if !s.futuIntegrationEnabled() {
-		return nil
-	}
-	if s.brokers != nil {
-		if b := s.brokers.Lookup(string(futu.Name)); b != nil {
-			return b
-		}
-	}
-	exchange := s.futuExchange()
-	if exchange == nil {
-		return nil
-	}
-	return futu.NewBrokerAdapter(exchange)
+func (s *serverApplication) futuBroker() broker.Broker {
+	return s.futuCoordinator().Broker()
 }
 
 func brokerReadQuery(instrumentID string) broker.ReadQuery {

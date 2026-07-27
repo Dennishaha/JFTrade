@@ -1,6 +1,7 @@
-import type { ADKRun } from "@/contracts";
+import type { ADKRun } from "@/types";
 
-import { fetchEnvelope } from "./apiClient";
+import { apiGetPath } from "./apiClient";
+import { requireADKRun } from "./adkApiMappers";
 import {
   buildRunObservationSignature,
   hasPendingRunApproval,
@@ -102,8 +103,11 @@ function delay(ms: number): Promise<void> {
 
 async function fetchLatestRun(runId: string): Promise<ADKRun> {
   return normalizeADKRun(
-    await fetchEnvelope<ADKRun>(
-      `/api/v1/adk/runs/${encodeURIComponent(runId)}`,
+    requireADKRun(
+      await apiGetPath(
+        "/api/v1/adk/runs/{runId}",
+        `/api/v1/adk/runs/${encodeURIComponent(runId)}`,
+      ),
     ),
   );
 }

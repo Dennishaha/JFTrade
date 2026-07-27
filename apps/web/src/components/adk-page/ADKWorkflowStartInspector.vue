@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKWorkflowNodeRun } from "@/contracts";
+import type { ADKWorkflowNodeRun } from "@/types";
 import type { WorkflowFormModel } from "@/features/adkWorkflowForms";
 import {
   inputTypeOptions,

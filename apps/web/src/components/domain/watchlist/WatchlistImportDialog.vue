@@ -4,7 +4,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import type {
   WatchlistBinding,
   WatchlistRemoteGroup,
-} from "@/contracts";
+} from "@/types";
 
 import { useWatchlistGroups } from "../../../composables/useWatchlist";
 import { useWatchlistImport } from "../../../composables/useWatchlistImport";

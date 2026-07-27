@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { ADKApproval, ADKRun, ADKToolDescriptor } from "@/contracts";
+import type { ADKApproval, ADKRun, ADKToolDescriptor } from "@/types";
 
 import {
   buildTimelineRun,

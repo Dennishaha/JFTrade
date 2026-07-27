@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -24,13 +24,13 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := serverADKTestStore(t, server).SaveAgent(t.Context(), assistant.AgentWriteRequest{
 		ID:             "session-agent",
 		Name:           "Session Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: assistant.PermissionModeApproval,
+		Status:         assistant.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -43,8 +43,8 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	var createEnvelope struct {
-		OK   bool          `json:"ok"`
-		Data jfadk.Session `json:"data"`
+		OK   bool              `json:"ok"`
+		Data assistant.Session `json:"data"`
 	}
 	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
 		t.Fatalf("decode create session: %v", err)
@@ -52,7 +52,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	if !createEnvelope.OK || createEnvelope.Data.AgentID != agent.ID {
 		t.Fatalf("create session envelope = %+v", createEnvelope)
 	}
-	workflowSession, err := server.adkRuntime.Store().CreateSessionWithSource(
+	workflowSession, err := serverADKTestStore(t, server).CreateSessionWithSource(
 		t.Context(),
 		agent.ID,
 		"工作流来源会话",
@@ -78,13 +78,13 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, composerResp.Body.Close()) }()
 	var composerEnvelope struct {
-		OK   bool                       `json:"ok"`
-		Data jfadk.SessionComposerState `json:"data"`
+		OK   bool                           `json:"ok"`
+		Data assistant.SessionComposerState `json:"data"`
 	}
 	if err := json.NewDecoder(composerResp.Body).Decode(&composerEnvelope); err != nil {
 		t.Fatalf("decode composer state: %v", err)
 	}
-	if !composerEnvelope.OK || composerEnvelope.Data.ChatDraft != "未发送草稿" || composerEnvelope.Data.WorkModeOverride != jfadk.WorkModeLoop || composerEnvelope.Data.PermissionModeOverride != jfadk.PermissionModeLessApproval {
+	if !composerEnvelope.OK || composerEnvelope.Data.ChatDraft != "未发送草稿" || composerEnvelope.Data.WorkModeOverride != assistant.WorkModeLoop || composerEnvelope.Data.PermissionModeOverride != assistant.PermissionModeLessApproval {
 		t.Fatalf("composer state envelope = %+v", composerEnvelope)
 	}
 
@@ -141,7 +141,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	var listEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Sessions []jfadk.Session `json:"sessions"`
+			Sessions []assistant.Session `json:"sessions"`
 			Page     struct {
 				Total    int  `json:"total"`
 				Returned int  `json:"returned"`
@@ -170,7 +170,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	var workflowListEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Sessions []jfadk.Session `json:"sessions"`
+			Sessions []assistant.Session `json:"sessions"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(workflowListResp.Body).Decode(&workflowListEnvelope); err != nil {
@@ -191,9 +191,9 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	var getEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Session       jfadk.Session              `json:"session"`
-			Timeline      []jfadk.TimelineEntry      `json:"timeline"`
-			ComposerState jfadk.SessionComposerState `json:"composerState"`
+			Session       assistant.Session              `json:"session"`
+			Timeline      []assistant.TimelineEntry      `json:"timeline"`
+			ComposerState assistant.SessionComposerState `json:"composerState"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(getResp.Body).Decode(&getEnvelope); err != nil {
@@ -217,8 +217,8 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, renameResp.Body.Close()) }()
 	var renameEnvelope struct {
-		OK   bool          `json:"ok"`
-		Data jfadk.Session `json:"data"`
+		OK   bool              `json:"ok"`
+		Data assistant.Session `json:"data"`
 	}
 	if err := json.NewDecoder(renameResp.Body).Decode(&renameEnvelope); err != nil {
 		t.Fatalf("decode rename session: %v", err)

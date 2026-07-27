@@ -8,17 +8,8 @@ import {
 } from "vue";
 
 import {
-  type BrokerCashFlowsResponse,
-  type BrokerFillsResponse,
-  type BrokerFundsResponse,
-  type BrokerMarginRatiosResponse,
-  type BrokerMaxTradeQuantityResponse,
-  type BrokerOrderFeesResponse,
-  type BrokerOrdersResponse,
-  type BrokerPositionsResponse,
   type BrokerReadFeatureCapability,
   type BrokerReadFeatureKey,
-  type BrokerRuntimeResponse,
   type BrokerSettingsResponse,
   type ExecutionOrderEventsResponse,
   type ExecutionOrdersResponse,
@@ -27,8 +18,6 @@ import {
   type MarketDataSubscriptionsResponse,
   type OnboardingStateResponse,
   type PluginCatalogResponse,
-  type PortfolioCashBalancesResponse,
-  type PortfolioPositionsResponse,
   type SystemStatusResponse,
   emptyBrokerCashFlows,
   emptyBrokerFills,
@@ -50,9 +39,23 @@ import {
   emptyPortfolioCashBalances,
   emptyPortfolioPositions,
   emptySystemStatus,
+} from "@/types";
+import type {
+  BrokerCashFlowsResponse,
+  BrokerFillsResponse,
+  BrokerFundsResponse,
+  BrokerMarginRatiosResponse,
+  BrokerMaxTradeQuantityResponse,
+  BrokerOrderFeesResponse,
+  BrokerOrdersResponse,
+  BrokerPositionsResponse,
+  BrokerRuntimeResponse,
+  PortfolioCashBalancesResponse,
+  PortfolioPositionsResponse,
 } from "@/contracts";
 
-import { fetchEnvelopeWithInit } from "./apiClient";
+import { apiGet, apiPut } from "./apiClient";
+import { mapOnboardingState } from "./onboardingContract";
 import {
   createConsoleDataBrokerSettingsController,
 } from "./consoleDataBrokerSettings";
@@ -439,9 +442,8 @@ function createConsoleDataStore(
   });
   const { loadSystemState } = systemStateController;
   async function loadOnboardingState(): Promise<OnboardingStateResponse> {
-    const response = await fetchEnvelopeWithInit<OnboardingStateResponse>(
-      "/api/v1/settings/onboarding",
-      { method: "GET" },
+    const response = mapOnboardingState(
+      await apiGet("/api/v1/settings/onboarding"),
     );
     onboardingState.value = response;
     return response;
@@ -452,15 +454,8 @@ function createConsoleDataStore(
     dismissed?: boolean;
     lastBrokerId?: string;
   }): Promise<void> {
-    const response = await fetchEnvelopeWithInit<OnboardingStateResponse>(
-      "/api/v1/settings/onboarding",
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      },
+    const response = mapOnboardingState(
+      await apiPut("/api/v1/settings/onboarding", payload),
     );
     onboardingState.value = response;
   }

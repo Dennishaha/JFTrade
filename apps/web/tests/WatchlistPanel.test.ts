@@ -4,7 +4,7 @@ import type {
   MarketProfileDto,
   MarketSecurityDetails,
   MarketSecurityDetailsQueryResult,
-} from "@/contracts";
+} from "@/types";
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import { defineComponent, h } from "vue";

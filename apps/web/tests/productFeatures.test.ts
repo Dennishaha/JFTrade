@@ -22,7 +22,9 @@ describe("productFeatures", () => {
         text: async () => JSON.stringify({ ok: true, data }),
       }),
     );
-    await expect(fetchProductFeature("/api/product")).resolves.toEqual(data);
+    await expect(
+      fetchProductFeature("/api/v1/research/rankings?market=US"),
+    ).resolves.toEqual(data);
 
     expect(instrumentIDFromFeatureEntry({ instrumentId: "us.aapl" })).toBe(
       "US.AAPL",
@@ -41,5 +43,28 @@ describe("productFeatures", () => {
     expect(featureEntryTitle({ instrumentId: "US.AAPL" }, 0)).toBe("US.AAPL");
     expect(featureEntryTitle({ name: "  ", code: "AAPL" }, 0)).toBe("AAPL");
     expect(featureEntryTitle({}, 4)).toBe("结果 5");
+  });
+
+  it("routes dynamic product endpoints through their generated operation template", async () => {
+    const data = { entries: [], asOf: "now" };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ ok: true, data }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchProductFeature(
+        "/api/v1/market-data/instruments/US.AAPL/profile?brokerId=futu",
+      ),
+    ).resolves.toEqual(data);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/market-data/instruments/US.AAPL/profile?brokerId=futu",
+      expect.objectContaining({ method: "GET" }),
+    );
+
+    await expect(
+      fetchProductFeature("/api/v1/system/status"),
+    ).rejects.toThrow("Unsupported product feature endpoint");
   });
 });

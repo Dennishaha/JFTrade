@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKRun } from "@/contracts";
+import type { ADKRun } from "@/types";
 
 import ADKWorkflowQueuePanel from "./ADKWorkflowQueuePanel.vue";
 

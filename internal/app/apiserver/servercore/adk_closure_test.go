@@ -8,11 +8,11 @@ import (
 	"time"
 
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
+	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"github.com/shopspring/decimal"
@@ -269,7 +269,7 @@ log.info("updated")`)
 		t.Fatalf("SaveStrategyDefinition(missing) error = %v, want not found", err)
 	}
 
-	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
+	instance, err := server.stores.StrategyCatalog.CreateInstance(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.TME"},
 		Interval:      "5m",
 		ExecutionMode: strategyExecutionModeLive,
@@ -322,7 +322,7 @@ log.info("updated")`)
 			RehabType:         "forward",
 			UseExtendedHours:  &useExtendedHours,
 		},
-		Result: &backtest.RunResult{
+		Result: &btsrv.RunResult{
 			QuoteCurrency: "USD",
 			FinalBalance:  101500,
 			PnL:           1500,
@@ -331,7 +331,7 @@ log.info("updated")`)
 		CreatedAt: "2025-01-01T09:30:00Z",
 		UpdatedAt: "2025-01-01T10:00:00Z",
 	}
-	if err := server.backtestRuns.add(run); err != nil {
+	if err := server.stores.BacktestRuns.Add(run); err != nil {
 		t.Fatalf("backtestRuns.add: %v", err)
 	}
 
@@ -366,14 +366,14 @@ log.info("updated")`)
 	}
 
 	cancelled := false
-	server.backtestRuns.setCancel("bt-adk-closure", func() { cancelled = true })
+	server.stores.BacktestRuns.SetCancel("bt-adk-closure", func() { cancelled = true })
 	deps.CancelBacktest("bt-adk-closure")
 	if !cancelled {
 		t.Fatal("CancelBacktest() did not delegate to run store cancel function")
 	}
 
 	deps.RecordAudit(context.Background(), "adapter.test", "subject-1", "adapter audit recorded", map[string]any{"source": "test"})
-	events, err := server.adkRuntime.Store().ListAuditEvents(context.Background())
+	events, err := serverADKTestStore(t, server).ListAuditEvents(context.Background())
 	if err != nil {
 		t.Fatalf("ListAuditEvents: %v", err)
 	}
@@ -417,11 +417,11 @@ func TestADKAdapterHelpersAndOptimizationRuns(t *testing.T) {
 			Interval:       "1m",
 			InitialBalance: 10000,
 		},
-		Result:    &backtest.RunResult{PnL: 10},
+		Result:    &btsrv.RunResult{PnL: 10},
 		CreatedAt: "2025-01-01T00:00:00Z",
 		UpdatedAt: "2025-01-01T00:01:00Z",
 	}
-	if err := server.backtestRuns.add(run); err != nil {
+	if err := server.stores.BacktestRuns.Add(run); err != nil {
 		t.Fatalf("backtestRuns.add: %v", err)
 	}
 
@@ -430,13 +430,13 @@ func TestADKAdapterHelpersAndOptimizationRuns(t *testing.T) {
 		t.Fatal("OptimizationRuns.Get(missing) = true, want false")
 	}
 	got, ok := optRuns.Get("bt-opt")
-	result, resultOK := got.Result.(*backtest.RunResult)
+	result, resultOK := got.Result.(*btsrv.RunResult)
 	if !ok || got.Status != "completed" || !resultOK || result == nil || result.PnL != 10 {
 		t.Fatalf("OptimizationRuns.Get(bt-opt) = %#v ok=%v, want completed result", got, ok)
 	}
 
 	cancelled := false
-	server.backtestRuns.setCancel("bt-opt", func() { cancelled = true })
+	server.stores.BacktestRuns.SetCancel("bt-opt", func() { cancelled = true })
 	optRuns.Cancel("bt-opt")
 	if !cancelled {
 		t.Fatal("OptimizationRuns.Cancel() did not delegate to backtest cancellation")

@@ -13,18 +13,6 @@ import (
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
-// handleADKSessions godoc
-// @Summary 读取 ADK Session 列表
-// @Tags adk
-// @Produce json
-// @Param limit query int false "分页大小"
-// @Param offset query int false "分页偏移"
-// @Param agentId query string false "Agent ID"
-// @Param query query string false "搜索关键字"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 500 {object} httpserver.Envelope
-// @Router /api/v1/adk/sessions [get]
 func (h *Handler) handleADKSessions(c *gin.Context) {
 	var query adkSessionsQuery
 	if err := bindADKQuery(c, &query); err != nil {
@@ -46,10 +34,7 @@ func (h *Handler) handleADKSessions(c *gin.Context) {
 }
 
 func (h *Handler) handleADKCreateSession(c *gin.Context) {
-	var payload struct {
-		AgentID string `json:"agentId"`
-		Title   string `json:"title"`
-	}
+	var payload ADKCreateSessionRequest
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid session payload")
 		return
@@ -116,10 +101,7 @@ func (h *Handler) handleADKCompactSessionContext(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
 		return
 	}
-	var payload struct {
-		Mode   string `json:"mode"`
-		Reason string `json:"reason"`
-	}
+	var payload ADKCompactContextRequest
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid context compaction payload")
 		return
@@ -152,9 +134,7 @@ func (h *Handler) handleADKRenameSession(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
 		return
 	}
-	var payload struct {
-		Title string `json:"title"`
-	}
+	var payload ADKRenameSessionRequest
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid session payload")
 		return
@@ -173,12 +153,12 @@ func (h *Handler) handleADKUpdateSessionComposerState(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
 		return
 	}
-	var payload jfadk.SessionComposerStatePatch
+	var payload ADKSessionComposerStatePatch
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid composer state payload")
 		return
 	}
-	state, err := h.service.UpdateSessionComposerState(c.Request.Context(), uri.SessionID, payload)
+	state, err := h.service.UpdateSessionComposerState(c.Request.Context(), uri.SessionID, jfadk.SessionComposerStatePatch(payload))
 	if err != nil {
 		lower := strings.ToLower(err.Error())
 		if strings.Contains(lower, "not exist") || strings.Contains(lower, "not found") {
@@ -204,19 +184,6 @@ func (h *Handler) handleADKDeleteSession(c *gin.Context) {
 	h.writeOK(c, map[string]any{"deleted": true, "id": uri.SessionID})
 }
 
-// handleADKRuns godoc
-// @Summary 读取 ADK Run 列表
-// @Tags adk
-// @Produce json
-// @Param limit query int false "分页大小"
-// @Param offset query int false "分页偏移"
-// @Param status query string false "Run 状态"
-// @Param agentId query string false "Agent ID"
-// @Param sessionId query string false "Session ID"
-// @Success 200 {object} httpserver.Envelope
-// @Failure 400 {object} httpserver.Envelope
-// @Failure 500 {object} httpserver.Envelope
-// @Router /api/v1/adk/runs [get]
 func (h *Handler) handleADKRuns(c *gin.Context) {
 	if err := h.service.ReconcileExpiredRuns(c.Request.Context()); err != nil {
 		h.writeError(c, http.StatusInternalServerError, "ADK_RUN_RECONCILE_FAILED", err.Error())
@@ -301,9 +268,7 @@ func (h *Handler) handleADKUpdateRunObjective(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
 		return
 	}
-	var payload struct {
-		Objective string `json:"objective"`
-	}
+	var payload ADKUpdateRunObjectiveRequest
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid objective payload")
 		return
@@ -385,12 +350,12 @@ func (h *Handler) handleADKInputResponse(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
 		return
 	}
-	var payload jfadk.InputResponseRequest
+	var payload ADKInputResponseRequest
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "input response payload is invalid")
 		return
 	}
-	resolution, err := h.service.ResolveInputAsync(context.WithoutCancel(c.Request.Context()), uri.RunID, payload)
+	resolution, err := h.service.ResolveInputAsync(context.WithoutCancel(c.Request.Context()), uri.RunID, jfadk.InputResponseRequest(payload))
 	if err != nil {
 		switch jfadk.InputRequestErrorKind(err) {
 		case "invalid":

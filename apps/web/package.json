@@ -15,7 +15,8 @@
     "test:ci": "vitest run --fileParallelism --maxWorkers=2",
     "test:coverage": "vitest run --coverage --fileParallelism --maxWorkers=2",
     "test:watch": "vitest",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "typecheck:contracts": "tsc --noEmit -p tsconfig.type-tests.json"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",

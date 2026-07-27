@@ -114,11 +114,13 @@ func TestOpenAPICoversRegisteredAPIRoutes(t *testing.T) {
 	}
 
 	undocumented := make([]string, 0)
+	registered := make(map[string]struct{}, len(server.router.Routes()))
 	for _, route := range server.router.Routes() {
 		if !strings.HasPrefix(route.Path, "/api/v1/") {
 			continue
 		}
 		path := openAPIPathFromGinPath(route.Path)
+		registered[route.Method+" "+path] = struct{}{}
 		methods, ok := spec.Paths[path]
 		if !ok {
 			undocumented = append(undocumented, route.Method+" "+path)
@@ -131,6 +133,72 @@ func TestOpenAPICoversRegisteredAPIRoutes(t *testing.T) {
 	sort.Strings(undocumented)
 	if len(undocumented) > 0 {
 		t.Fatalf("registered API routes missing from OpenAPI:\n%s", strings.Join(undocumented, "\n"))
+	}
+
+	unregistered := make([]string, 0)
+	for path, methods := range spec.Paths {
+		if !strings.HasPrefix(path, "/api/v1/") {
+			continue
+		}
+		for method := range methods {
+			operation := strings.ToUpper(method) + " " + path
+			if _, ok := registered[operation]; !ok {
+				unregistered = append(unregistered, operation)
+			}
+		}
+	}
+	sort.Strings(unregistered)
+	if len(unregistered) > 0 {
+		t.Fatalf("OpenAPI operations missing from registered API routes:\n%s", strings.Join(unregistered, "\n"))
+	}
+}
+
+func TestOpenAPIDocumentsExplicitErrorResponses(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/swagger/doc.json")
+	if err != nil {
+		t.Fatalf("GET /swagger/doc.json: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
+	var spec openAPIContractSpec
+	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
+		t.Fatalf("parse /swagger/doc.json: %v", err)
+	}
+
+	const errorEnvelopeRef = "#/definitions/httpserver.ErrorEnvelope"
+	var operationCount int
+	missing := make([]string, 0)
+	for path, methods := range spec.Paths {
+		for method, operation := range methods {
+			operationCount++
+			hasError := false
+			for status, response := range operation.Responses {
+				if len(status) != 3 || (status[0] != '4' && status[0] != '5') {
+					continue
+				}
+				hasError = true
+				if response.Schema.Ref != errorEnvelopeRef {
+					t.Fatalf("%s %s error response %s schema = %q, want %q", strings.ToUpper(method), path, status, response.Schema.Ref, errorEnvelopeRef)
+				}
+			}
+			if !hasError {
+				missing = append(missing, strings.ToUpper(method)+" "+path)
+			}
+		}
+	}
+	if operationCount != 272 {
+		t.Fatalf("OpenAPI operation count = %d, want 272", operationCount)
+	}
+	sort.Strings(missing)
+	if len(missing) > 0 {
+		t.Fatalf("OpenAPI operations missing explicit error responses:\n%s", strings.Join(missing, "\n"))
 	}
 }
 
@@ -195,8 +263,10 @@ func TestOpenAPIDocumentsWritableRequestBodies(t *testing.T) {
 		{path: "/api/v1/market-data/subscriptions", method: "post", refSuffix: "marketdata.SubscriptionRequest", properties: []string{"consumerId", "instruments"}, forbidden: []string{"channel", "market", "symbol", "interval"}},
 		{path: "/api/v1/market-data/subscriptions/release", method: "post", refSuffix: "marketdata.SubscriptionRequest", properties: []string{"consumerId", "instruments"}, forbidden: []string{"channel", "market", "symbol", "interval"}},
 		{path: "/api/v1/market-data/subscriptions/heartbeat", method: "post", refSuffix: "marketdata.SubscriptionHeartbeatRequest", properties: []string{"consumerId"}},
-		{path: "/api/v1/settings/adk", method: "put", refSuffix: "jftsettings.ADKRuntimeSettings", properties: []string{"runTimeoutMs", "streamIdleTimeoutMs"}},
-		{path: "/api/v1/settings/pine-worker", method: "put", refSuffix: "jftsettings.PineWorkerSettings", properties: []string{"backtestWorkerLimit", "instanceWorkerLimit", "nodeBinaryPath"}},
+		{path: "/api/v1/settings/adk", method: "put", refSuffix: "settings.ADKRuntimeSettingsWriteRequest", properties: []string{"runTimeoutMs", "streamIdleTimeoutMs"}},
+		{path: "/api/v1/settings/execution", method: "put", refSuffix: "settings.ExecutionSettingsWriteRequest", properties: []string{"defaultTradingEnvironment", "brokerOrderHistoryLookbackDays", "seenFillRetentionDays"}},
+		{path: "/api/v1/settings/pine-worker", method: "put", refSuffix: "settings.PineWorkerSettingsWriteRequest", properties: []string{"backtestWorkerLimit", "instanceWorkerLimit", "nodeBinaryPath"}},
+		{path: "/api/v1/settings/system-notifications", method: "put", refSuffix: "settings.SystemNotificationSettingsWriteRequest", properties: []string{"enabled", "mode", "levels", "categories", "soundEnabled"}},
 		{path: "/api/v1/settings/security", method: "put", refSuffix: "jftsettings.SecuritySettingsUpdate", properties: []string{"newPassword", "publicAccessEnabled", "webAccessEnabled", "webPort"}, forbidden: []string{"passwordConfigured", "passwordHash"}},
 		{path: "/api/v1/settings/brokers/{brokerId}/integration", method: "put", refSuffix: "settings.BrokerIntegrationSaveRequest", properties: []string{"enabled", "config"}, forbidden: []string{"brokerId", "createdAt", "updatedAt"}},
 		{path: "/api/v1/settings/broker-accounts", method: "post", refSuffix: "settings.ManagedBrokerAccountWriteRequest", properties: []string{"brokerId", "accountId", "enabled"}, forbidden: []string{"id", "createdAt", "updatedAt"}},
