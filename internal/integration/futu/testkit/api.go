@@ -171,8 +171,8 @@ func (s *BrokerServer) SetAccounts(accounts []Account) {
 			markets = append(markets, int32(tradingMarket(market)))
 		}
 		values = append(values, &trdcommonpb.TrdAcc{
-			TrdEnv: ptr(int32(tradingEnvironment(account.Environment))), AccID: ptr(account.ID),
-			TrdMarketAuthList: markets, AccType: ptr(int32(accountType(account.Type))),
+			TrdEnv: new(int32(tradingEnvironment(account.Environment))), AccID: new(account.ID),
+			TrdMarketAuthList: markets, AccType: new(int32(accountType(account.Type))),
 		})
 	}
 	s.inner.setAccounts(values)
@@ -182,20 +182,20 @@ func (s *BrokerServer) SetFunds(funds Funds) {
 	cashEntries := make([]*trdcommonpb.AccCashInfo, 0, len(funds.CashEntries))
 	for _, entry := range funds.CashEntries {
 		cashEntries = append(cashEntries, &trdcommonpb.AccCashInfo{
-			Currency: ptr(int32(currency(entry.Currency))), Cash: ptr(entry.Cash),
-			AvailableBalance: ptr(entry.AvailableBalance), NetCashPower: ptr(entry.NetCashPower),
+			Currency: new(int32(currency(entry.Currency))), Cash: new(entry.Cash),
+			AvailableBalance: new(entry.AvailableBalance), NetCashPower: new(entry.NetCashPower),
 		})
 	}
 	marketEntries := make([]*trdcommonpb.AccMarketInfo, 0, len(funds.MarketEntries))
 	for _, entry := range funds.MarketEntries {
 		marketEntries = append(marketEntries, &trdcommonpb.AccMarketInfo{
-			TrdMarket: ptr(int32(tradingMarket(entry.Market))), Assets: ptr(entry.Assets),
+			TrdMarket: new(int32(tradingMarket(entry.Market))), Assets: new(entry.Assets),
 		})
 	}
 	s.inner.setFunds(&trdcommonpb.Funds{
-		Power: ptr(funds.Power), TotalAssets: ptr(funds.TotalAssets), Cash: ptr(funds.Cash),
-		MarketVal: ptr(funds.MarketValue), FrozenCash: ptr(funds.FrozenCash), DebtCash: ptr(funds.DebtCash),
-		AvlWithdrawalCash: ptr(funds.AvailableToWithdraw), Currency: ptr(int32(currency(funds.Currency))),
+		Power: new(funds.Power), TotalAssets: new(funds.TotalAssets), Cash: new(funds.Cash),
+		MarketVal: new(funds.MarketValue), FrozenCash: new(funds.FrozenCash), DebtCash: new(funds.DebtCash),
+		AvlWithdrawalCash: new(funds.AvailableToWithdraw), Currency: new(int32(currency(funds.Currency))),
 		CashInfoList: cashEntries, MarketInfoList: marketEntries,
 	})
 }
@@ -204,11 +204,11 @@ func (s *BrokerServer) SetPositions(positions []Position) {
 	values := make([]*trdcommonpb.Position, 0, len(positions))
 	for _, position := range positions {
 		values = append(values, &trdcommonpb.Position{
-			PositionID: ptr(position.ID), PositionSide: ptr(position.Side), Code: ptr(position.Code), Name: ptr(position.Name),
-			Qty: ptr(position.Quantity), CanSellQty: ptr(position.SellableQuantity), Price: ptr(position.Price),
-			CostPrice: ptr(position.CostPrice), AverageCostPrice: ptr(position.AverageCostPrice), Val: ptr(position.Value),
-			PlVal: ptr(position.ProfitLoss), PlRatio: ptr(position.ProfitLossRatio),
-			TrdMarket: ptr(int32(tradingMarket(position.Market))), Currency: ptr(int32(currency(position.Currency))),
+			PositionID: new(position.ID), PositionSide: new(position.Side), Code: new(position.Code), Name: new(position.Name),
+			Qty: new(position.Quantity), CanSellQty: new(position.SellableQuantity), Price: new(position.Price),
+			CostPrice: new(position.CostPrice), AverageCostPrice: new(position.AverageCostPrice), Val: new(position.Value),
+			PlVal: new(position.ProfitLoss), PlRatio: new(position.ProfitLossRatio),
+			TrdMarket: new(int32(tradingMarket(position.Market))), Currency: new(int32(currency(position.Currency))),
 		})
 	}
 	s.inner.setPositions(values)
@@ -223,12 +223,12 @@ func protocolOrders(orders []Order) []*trdcommonpb.Order {
 	values := make([]*trdcommonpb.Order, 0, len(orders))
 	for _, order := range orders {
 		values = append(values, &trdcommonpb.Order{
-			TrdSide: ptr(int32(tradingSide(order.Side))), OrderType: ptr(int32(orderType(order.Type))),
-			OrderStatus: ptr(int32(orderStatus(order.Status))), OrderID: ptr(order.ID), OrderIDEx: ptr(order.ExternalID),
-			Code: ptr(order.Code), Name: ptr(order.Name), Qty: ptr(order.Quantity), Price: ptr(order.Price),
-			CreateTime: ptr(order.CreatedAt), UpdateTime: ptr(order.UpdatedAt), FillQty: ptr(order.FilledQuantity),
-			FillAvgPrice: ptr(order.AverageFillPrice), TimeInForce: ptr(int32(timeInForce(order.TimeInForce))),
-			Currency: ptr(int32(currency(order.Currency))), TrdMarket: ptr(int32(tradingMarket(order.Market))),
+			TrdSide: new(int32(tradingSide(order.Side))), OrderType: new(int32(orderType(order.Type))),
+			OrderStatus: new(int32(orderStatus(order.Status))), OrderID: new(order.ID), OrderIDEx: new(order.ExternalID),
+			Code: new(order.Code), Name: new(order.Name), Qty: new(order.Quantity), Price: new(order.Price),
+			CreateTime: new(order.CreatedAt), UpdateTime: new(order.UpdatedAt), FillQty: new(order.FilledQuantity),
+			FillAvgPrice: new(order.AverageFillPrice), TimeInForce: new(int32(timeInForce(order.TimeInForce))),
+			Currency: new(int32(currency(order.Currency))), TrdMarket: new(int32(tradingMarket(order.Market))),
 		})
 	}
 	return values
@@ -245,10 +245,10 @@ func protocolOrderFills(fills []OrderFill) []*trdcommonpb.OrderFill {
 	values := make([]*trdcommonpb.OrderFill, 0, len(fills))
 	for _, fill := range fills {
 		values = append(values, &trdcommonpb.OrderFill{
-			OrderID: ptr(fill.OrderID), OrderIDEx: ptr(fill.OrderIDEx), FillID: ptr(fill.FillID), FillIDEx: ptr(fill.FillIDEx),
-			Code: ptr(fill.Code), Name: ptr(fill.Name), TrdSide: ptr(int32(tradingSide(fill.Side))), Qty: ptr(fill.Quantity),
-			Price: ptr(fill.Price), CreateTime: ptr(fill.CreatedAt), Status: ptr(int32(orderFillStatus(fill.Status))),
-			TrdMarket: ptr(int32(tradingMarket(fill.Market))),
+			OrderID: new(fill.OrderID), OrderIDEx: new(fill.OrderIDEx), FillID: new(fill.FillID), FillIDEx: new(fill.FillIDEx),
+			Code: new(fill.Code), Name: new(fill.Name), TrdSide: new(int32(tradingSide(fill.Side))), Qty: new(fill.Quantity),
+			Price: new(fill.Price), CreateTime: new(fill.CreatedAt), Status: new(int32(orderFillStatus(fill.Status))),
+			TrdMarket: new(int32(tradingMarket(fill.Market))),
 		})
 	}
 	return values
@@ -259,9 +259,9 @@ func (s *BrokerServer) SetOrderFees(fees []OrderFee) {
 	for _, fee := range fees {
 		items := make([]*trdcommonpb.OrderFeeItem, 0, len(fee.Items))
 		for _, item := range fee.Items {
-			items = append(items, &trdcommonpb.OrderFeeItem{Title: ptr(item.Title), Value: ptr(item.Value)})
+			items = append(items, &trdcommonpb.OrderFeeItem{Title: new(item.Title), Value: new(item.Value)})
 		}
-		values = append(values, &trdcommonpb.OrderFee{OrderIDEx: ptr(fee.OrderIDEx), FeeAmount: ptr(fee.Amount), FeeList: items})
+		values = append(values, &trdcommonpb.OrderFee{OrderIDEx: new(fee.OrderIDEx), FeeAmount: new(fee.Amount), FeeList: items})
 	}
 	s.inner.setOrderFees(values)
 }
@@ -270,10 +270,10 @@ func (s *BrokerServer) SetCashFlows(flows []CashFlow) {
 	values := make([]*trdflowsummarypb.FlowSummaryInfo, 0, len(flows))
 	for _, flow := range flows {
 		values = append(values, &trdflowsummarypb.FlowSummaryInfo{
-			CashFlowID: ptr(flow.ID), ClearingDate: ptr(flow.ClearingDate), SettlementDate: ptr(flow.SettlementDate),
-			Currency: ptr(int32(currency(flow.Currency))), CashFlowType: ptr(flow.Type),
-			CashFlowDirection: ptr(int32(cashFlowDirection(flow.Direction))), CashFlowAmount: ptr(flow.Amount),
-			CashFlowRemark: ptr(flow.Remark),
+			CashFlowID: new(flow.ID), ClearingDate: new(flow.ClearingDate), SettlementDate: new(flow.SettlementDate),
+			Currency: new(int32(currency(flow.Currency))), CashFlowType: new(flow.Type),
+			CashFlowDirection: new(int32(cashFlowDirection(flow.Direction))), CashFlowAmount: new(flow.Amount),
+			CashFlowRemark: new(flow.Remark),
 		})
 	}
 	s.inner.setCashFlows(values)
@@ -283,9 +283,9 @@ func (s *BrokerServer) SetMarginRatios(ratios []MarginRatio) {
 	values := make([]*trdgetmarginratiopb.MarginRatioInfo, 0, len(ratios))
 	for _, ratio := range ratios {
 		values = append(values, &trdgetmarginratiopb.MarginRatioInfo{
-			Security:     &qotcommonpb.Security{Market: ptr(int32(quoteMarket(ratio.Market))), Code: ptr(ratio.Code)},
-			IsLongPermit: ptr(ratio.LongPermitted), IsShortPermit: ptr(ratio.ShortPermitted),
-			ShortFeeRate: ptr(ratio.ShortFeeRate), AlertLongRatio: ptr(ratio.AlertLongRatio),
+			Security:     &qotcommonpb.Security{Market: new(int32(quoteMarket(ratio.Market))), Code: new(ratio.Code)},
+			IsLongPermit: new(ratio.LongPermitted), IsShortPermit: new(ratio.ShortPermitted),
+			ShortFeeRate: new(ratio.ShortFeeRate), AlertLongRatio: new(ratio.AlertLongRatio),
 		})
 	}
 	s.inner.setMarginRatios(values)
@@ -293,10 +293,10 @@ func (s *BrokerServer) SetMarginRatios(ratios []MarginRatio) {
 
 func (s *BrokerServer) SetMaxTradeQuantities(value MaxTradeQuantities) {
 	s.inner.setMaxTrdQtys(&trdcommonpb.MaxTrdQtys{
-		MaxCashBuy: ptr(value.CashBuy), MaxCashAndMarginBuy: ptr(value.CashAndMarginBuy),
-		MaxPositionSell: ptr(value.PositionSell), MaxSellShort: ptr(value.SellShort), MaxBuyBack: ptr(value.BuyBack),
-		LongRequiredIM: ptr(value.LongRequiredIM), ShortRequiredIM: ptr(value.ShortRequiredIM),
-		Session: ptr(int32(session(value.Session))),
+		MaxCashBuy: new(value.CashBuy), MaxCashAndMarginBuy: new(value.CashAndMarginBuy),
+		MaxPositionSell: new(value.PositionSell), MaxSellShort: new(value.SellShort), MaxBuyBack: new(value.BuyBack),
+		LongRequiredIM: new(value.LongRequiredIM), ShortRequiredIM: new(value.ShortRequiredIM),
+		Session: new(int32(session(value.Session))),
 	})
 }
 
@@ -397,7 +397,6 @@ func protocolKLines(lines []KLine) []*qotcommonpb.KLine {
 	return values
 }
 
-func ptr[T any](value T) *T { return &value }
 
 func tradingEnvironment(value string) trdcommonpb.TrdEnv {
 	if strings.EqualFold(value, "REAL") {

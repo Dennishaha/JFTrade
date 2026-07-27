@@ -98,7 +98,7 @@ func TestMarketDataRuntimeCloseReturnsActiveExchangeFailureIdempotently(t *testi
 		t.Fatal("Ensure() = nil")
 	}
 
-	for attempt := 0; attempt < 2; attempt++ {
+	for attempt := range 2 {
 		err := runtime.Close()
 		if !errors.Is(err, closeFailure) ||
 			!strings.Contains(err.Error(), "active Futu exchange close") {

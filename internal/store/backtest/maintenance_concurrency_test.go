@@ -62,11 +62,9 @@ func TestStoreConcurrentReadersAndWritersKeepIndependentState(t *testing.T) {
 	t.Cleanup(func() { _ = store.Close() })
 	const runs = 24
 	var writers sync.WaitGroup
-	for index := 0; index < runs; index++ {
+	for index := range runs {
 		index := index
-		writers.Add(1)
-		go func() {
-			defer writers.Done()
+		writers.Go(func() {
 			id := fmt.Sprintf("run-%02d", index)
 			if addErr := store.Add(&btsrv.RunState{ID: id, Status: "queued"}); addErr != nil {
 				t.Errorf("Add %s: %v", id, addErr)
@@ -75,14 +73,12 @@ func TestStoreConcurrentReadersAndWritersKeepIndependentState(t *testing.T) {
 			if _, updateErr := store.Update(id, func(run *btsrv.RunState) { run.Status = "completed" }); updateErr != nil {
 				t.Errorf("Update %s: %v", id, updateErr)
 			}
-		}()
+		})
 	}
-	for index := 0; index < runs; index++ {
-		writers.Add(1)
-		go func() {
-			defer writers.Done()
+	for range runs {
+		writers.Go(func() {
 			_ = store.ListLightweight()
-		}()
+		})
 	}
 	writers.Wait()
 	if got := len(store.List()); got != runs {

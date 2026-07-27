@@ -257,7 +257,7 @@ func currentTestSources(repoRoot string) ([]sourceFile, error) {
 	}
 	seen := make(map[string]struct{})
 	var sources []sourceFile
-	for _, rawPath := range bytes.Split(output, []byte{0}) {
+	for rawPath := range bytes.SplitSeq(output, []byte{0}) {
 		filePath := string(rawPath)
 		if !strings.HasSuffix(filePath, "_test.go") {
 			continue
@@ -285,7 +285,7 @@ func treeTestSources(repoRoot, revision string) ([]sourceFile, error) {
 		return nil, fmt.Errorf("list Go tests at %s: %w", revision, err)
 	}
 	var paths []string
-	for _, rawPath := range bytes.Split(output, []byte{0}) {
+	for rawPath := range bytes.SplitSeq(output, []byte{0}) {
 		filePath := string(rawPath)
 		if strings.HasSuffix(filePath, "_test.go") {
 			paths = append(paths, filePath)

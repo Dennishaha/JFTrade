@@ -310,3 +310,93 @@ func TestGoalResumeFailsClosedWhenExecutionLeaseCannotBeClaimed(t *testing.T) {
 		}
 	})
 }
+
+func TestGoBackgroundNilGuardsAndClosingState(t *testing.T) {
+	var nilRuntime *Runtime
+	if nilRuntime.goBackground(func(ctx context.Context) {}) {
+		t.Fatal("nil runtime accepted background work")
+	}
+
+	runtime := newTestRuntime(t)
+	if runtime.goBackground(nil) {
+		t.Fatal("runtime accepted nil function")
+	}
+
+	executed := make(chan bool, 1)
+	if !runtime.goBackground(func(ctx context.Context) {
+		executed <- true
+	}) {
+		t.Fatal("valid background work was rejected")
+	}
+	select {
+	case <-executed:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("background work did not execute")
+	}
+
+	runtime.approvalMu.Lock()
+	runtime.closing = true
+	runtime.approvalMu.Unlock()
+	if runtime.goBackground(func(ctx context.Context) {
+		t.Fatal("closing runtime executed background work")
+	}) {
+		t.Fatal("closing runtime accepted background work")
+	}
+}
+
+func TestGoBackgroundUsesBackgroundCtxOrFallback(t *testing.T) {
+	runtime := newTestRuntime(t)
+	runtime.backgroundCtx = nil
+
+	receivedCtx := make(chan context.Context, 1)
+	if !runtime.goBackground(func(ctx context.Context) {
+		receivedCtx <- ctx
+	}) {
+		t.Fatal("runtime rejected background work with nil backgroundCtx")
+	}
+
+	select {
+	case ctx := <-receivedCtx:
+		if ctx == nil {
+			t.Fatal("background work received nil context")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("background work did not execute")
+	}
+}
+
+func TestGoalResumeExecutionErrorPaths(t *testing.T) {
+	t.Run("workflowResumeContext session not found marks run as failed", func(t *testing.T) {
+		runtime := newTestRuntime(t)
+		run := mustSaveRun(t, runtime, Run{
+			ID: "goal-resume-no-session", SessionID: "session-does-not-exist", AgentID: "agent-no-session",
+			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+			CreatedAt: nowString(), StartedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+		})
+		runtime.resumeUserPausedGoalRun(run)
+		failed := waitForRunStatus(t, runtime, run.ID, RunStatusFailed)
+		if !strings.Contains(failed.FailureReason, "session not found") {
+			t.Fatalf("workflowResumeContext failure reason = %q, want containing %q", failed.FailureReason, "session not found")
+		}
+	})
+
+	t.Run("resumeADKGoalWorkflow save failure marks run as failed", func(t *testing.T) {
+		runtime := newTestRuntime(t)
+		ensureTestProvider(t, runtime)
+		agent := mustSaveAgent(t, runtime, AgentWriteRequest{ID: "agent-goal-wf-fail", Name: "Agent Goal WF Fail"})
+		session := mustCreateSession(t, runtime, agent.ID, "goal-wf-fail")
+		run := mustSaveRun(t, runtime, Run{
+			ID: "goal-resume-wf-save-fail", SessionID: session.ID, AgentID: agent.ID,
+			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+			CreatedAt: nowString(), StartedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+		})
+		if _, err := runtime.Store().db.ExecContext(t.Context(), `CREATE TRIGGER reject_wf_resume BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = 'goal-resume-wf-save-fail' AND json_extract(NEW.payload_json, '$.resumeState') = 'user_resuming' BEGIN SELECT RAISE(FAIL, 'forced workflow save failure'); END`); err != nil {
+			t.Fatalf("create workflow trigger: %v", err)
+		}
+		runtime.resumeUserPausedGoalRun(run)
+		failed := waitForRunStatus(t, runtime, run.ID, RunStatusFailed)
+		if !strings.Contains(failed.FailureReason, "forced workflow save failure") {
+			t.Fatalf("resumeADKGoalWorkflow failure reason = %q, want containing %q", failed.FailureReason, "forced workflow save failure")
+		}
+	})
+}

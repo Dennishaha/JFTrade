@@ -60,7 +60,7 @@ func newStrategyRuntimeStubExchange() *strategyRuntimeStubExchange {
 		},
 		history: map[string][]bbgotypes.KLine{},
 		funds: &broker.FundsSnapshot{
-			Currency:       stringPointer("USD"),
+			Currency:       new("USD"),
 			AvailableFunds: &availableFunds,
 		},
 	}
@@ -182,9 +182,6 @@ func (e *strategyRuntimeStubExchange) appendHistory(symbol string, klines ...bbg
 	e.history[symbol] = append(e.history[symbol], klines...)
 }
 
-func stringPointer(value string) *string {
-	return &value
-}
 
 func strategyRuntimeHistoricalKLine(
 	symbol string,
