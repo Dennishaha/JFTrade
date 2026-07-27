@@ -300,6 +300,31 @@ func (r *Runtime) applySessionComposerModelOverride(ctx context.Context, session
 	return agent, overridden
 }
 
+// goBackground 启动一个被 Close 等待的后台 goroutine，并把 runtime 的
+// backgroundCtx 传给它。关闭中（closing）时直接丢弃任务，避免在 store 关闭后
+// 仍有写入落到已关闭的 SQLite 连接上。返回值表示任务是否真的被启动。
+func (r *Runtime) goBackground(fn func(ctx context.Context)) bool {
+	if r == nil || fn == nil {
+		return false
+	}
+	r.approvalMu.Lock()
+	if r.closing {
+		r.approvalMu.Unlock()
+		return false
+	}
+	r.approvalWG.Add(1)
+	ctx := r.backgroundCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	r.approvalMu.Unlock()
+	go func() {
+		defer r.approvalWG.Done()
+		fn(ctx)
+	}()
+	return true
+}
+
 func (r *Runtime) Close() error {
 	if r == nil {
 		return nil

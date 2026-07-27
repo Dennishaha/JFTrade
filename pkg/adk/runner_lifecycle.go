@@ -672,7 +672,7 @@ func (r *Runtime) ResumeGoalRun(ctx context.Context, runID string) (Run, error) 
 	r.audit(ctx, "run.goal.resumed", run.ID, "Goal resumed by user.", map[string]any{
 		"runId": run.ID, "sessionId": run.SessionID, "agentId": run.AgentID,
 	})
-	r.resumeUserPausedGoalRun(context.WithoutCancel(ctx), run)
+	r.resumeUserPausedGoalRun(run)
 	return run, nil
 }
 

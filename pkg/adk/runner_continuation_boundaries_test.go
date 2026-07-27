@@ -285,7 +285,7 @@ func TestGoalResumeFailsClosedWhenExecutionLeaseCannotBeClaimed(t *testing.T) {
 			t.Fatalf("claim foreign goal lease: %v", err)
 		}
 		defer func() { _ = runtime.Store().ReleaseRunLease(context.Background(), lease) }()
-		runtime.resumeUserPausedGoalRun(t.Context(), run)
+		runtime.resumeUserPausedGoalRun(run)
 		time.Sleep(50 * time.Millisecond)
 		stored, ok, err := runtime.Store().Run(t.Context(), run.ID)
 		if err != nil || !ok || stored.Status != RunStatusRunning {
@@ -303,7 +303,7 @@ func TestGoalResumeFailsClosedWhenExecutionLeaseCannotBeClaimed(t *testing.T) {
 		if _, err := runtime.Store().db.ExecContext(t.Context(), `CREATE TRIGGER reject_goal_resume_lease BEFORE INSERT ON `+tableRunLeases+` BEGIN SELECT RAISE(FAIL, 'forced goal resume lease failure'); END`); err != nil {
 			t.Fatalf("create goal lease trigger: %v", err)
 		}
-		runtime.resumeUserPausedGoalRun(t.Context(), run)
+		runtime.resumeUserPausedGoalRun(run)
 		failed := waitForRunStatus(t, runtime, run.ID, RunStatusFailed)
 		if !strings.Contains(failed.FailureReason, "forced goal resume lease failure") {
 			t.Fatalf("goal lease failure = %+v", failed)
