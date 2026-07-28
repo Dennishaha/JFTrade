@@ -83,7 +83,7 @@ func TestStartForRunArgsDisabledReturnsNoop(t *testing.T) {
 }
 
 func TestStartDesktopDoesNotMutatePersistedWebAccessSettings(t *testing.T) {
-	apiBind := freeTCPAddr(t)
+	apiBind, webPort := freeDistinctTCPBindings(t)
 	settingsPath := filepath.Join(t.TempDir(), "settings.json")
 	backtestDBPath := filepath.Join(t.TempDir(), "backtest.db")
 	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
@@ -100,7 +100,7 @@ func TestStartDesktopDoesNotMutatePersistedWebAccessSettings(t *testing.T) {
 	}
 	if _, err := store.SaveSecuritySettings(jfsettings.SecuritySettings{
 		WebAccessEnabled: true,
-		WebPort:          freeTCPPort(t),
+		WebPort:          webPort,
 		PasswordHash:     passwordHash,
 	}); err != nil {
 		t.Fatalf("SaveSecuritySettings: %v", err)
@@ -401,13 +401,29 @@ func freeTCPAddr(t *testing.T) string {
 	return addr
 }
 
-func freeTCPPort(t *testing.T) int {
+func freeDistinctTCPBindings(t *testing.T) (string, int) {
 	t.Helper()
-	addr, err := net.ResolveTCPAddr("tcp", freeTCPAddr(t))
+	apiListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("ResolveTCPAddr: %v", err)
+		t.Fatalf("Listen for API bind: %v", err)
 	}
-	return addr.Port
+	webListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		_ = apiListener.Close()
+		t.Fatalf("Listen for Web port: %v", err)
+	}
+
+	apiBind := apiListener.Addr().String()
+	webPort := webListener.Addr().(*net.TCPAddr).Port
+	apiCloseErr := apiListener.Close()
+	webCloseErr := webListener.Close()
+	if apiCloseErr != nil {
+		t.Fatalf("Close API listener: %v", apiCloseErr)
+	}
+	if webCloseErr != nil {
+		t.Fatalf("Close Web listener: %v", webCloseErr)
+	}
+	return apiBind, webPort
 }
 
 func waitForHTTPStatus(t *testing.T, url string, wantStatus int) {
