@@ -25,6 +25,24 @@ func TestRuntimeAndSourceFormatFromParams(t *testing.T) {
 	}
 }
 
+func TestDefinitionIDFromParamsTrimsStringValues(t *testing.T) {
+	for name, test := range map[string]struct {
+		params map[string]any
+		want   string
+	}{
+		"missing":    {params: nil, want: ""},
+		"non-string": {params: map[string]any{"definitionId": 42}, want: ""},
+		"blank":      {params: map[string]any{"definitionId": " \t "}, want: ""},
+		"trimmed":    {params: map[string]any{"definitionId": " definition-1 \n"}, want: "definition-1"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := DefinitionIDFromParams(test.params); got != test.want {
+				t.Fatalf("DefinitionIDFromParams(%#v) = %q, want %q", test.params, got, test.want)
+			}
+		})
+	}
+}
+
 func TestStartableRequiresPineV6AndPineRuntime(t *testing.T) {
 	startable := strategy.ManagedInstance{Params: map[string]any{
 		"runtime":      pineworker.RuntimeID,
