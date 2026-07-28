@@ -1,40 +1,47 @@
 #!/usr/bin/env node
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { spawnChecked } from "./lib/spawn.mjs";
 
-const layer = process.argv[2];
-const layers = {
-  preflight: [
-    ["pnpm", ["run", "test:test-policy"]],
-    ["pnpm", ["run", "check:test-names"]],
-    ["pnpm", ["run", "check:test-quality"]],
-    ["pnpm", ["run", "check:servercore-budget"]],
-    ["pnpm", ["run", "check:openapi-quality"]],
-    ["pnpm", ["run", "check:web-api-boundary"]],
-    ["pnpm", ["run", "check:web-contract-index"]],
-    ["pnpm", ["run", "check:web-contract-audit"]],
-    ["pnpm", ["run", "lint:go"]],
-    ["pnpm", ["run", "vet:go"]],
-    ["pnpm", ["run", "test:coverage"]],
-    ["pnpm", ["run", "typecheck"]],
-    ["pnpm", ["run", "check:arch-deps"]],
+export const preflightChecks = [
+  ["pnpm", ["run", "test:test-policy"]],
+  ["pnpm", ["run", "check:test-names"]],
+  ["pnpm", ["run", "check:test-quality"]],
+  ["pnpm", ["run", "check:servercore-budget"]],
+  ["pnpm", ["run", "check:openapi-quality"]],
+  ["pnpm", ["run", "check:web-api-boundary"]],
+  ["pnpm", ["run", "check:web-contract-index"]],
+  ["pnpm", ["run", "check:web-contract-audit"]],
+  ["pnpm", ["run", "lint:go"]],
+  ["pnpm", ["run", "vet:go"]],
+  ["pnpm", ["run", "test:coverage"]],
+  ["pnpm", ["run", "typecheck"]],
+  ["pnpm", ["run", "check:arch-deps"]],
+];
+
+const generateDocs = ["pnpm", ["run", "generate:docs"]];
+const contractDriftCheck = [
+  "git",
+  [
+    "diff",
+    "--exit-code",
+    "--",
+    "docs/swagger",
+    "apps/web/src/generated/openapi.ts",
+    "tests/fixtures/openapi-baseline.json",
+    "docs/reference/generated",
   ],
+];
+
+const layers = {
+  preflight: [generateDocs, ...preflightChecks],
   "ci-local": [
-    ["pnpm", ["run", "generate:docs"]],
-    [
-      "git",
-      [
-        "diff",
-        "--exit-code",
-        "--",
-        "docs/swagger",
-        "apps/web/src/generated/openapi.ts",
-        "tests/fixtures/openapi-baseline.json",
-        "docs/reference/generated",
-      ],
-    ],
+    generateDocs,
+    contractDriftCheck,
     ["pnpm", ["run", "audit:dependencies"]],
     ["pnpm", ["run", "check:oss-license"]],
-    ["pnpm", ["run", "test:preflight"]],
+    ...preflightChecks,
     ["go", ["build", "./..."]],
     ["go", ["test", "./cmd/...", "-count=1", "-timeout=300s"]],
     ["pnpm", ["run", "check:wails-bindings"]],
@@ -63,15 +70,31 @@ const layers = {
   ],
 };
 
-if (!Object.hasOwn(layers, layer) || process.argv.length !== 3) {
-  console.error("Usage: node scripts/run-test-layer.mjs <preflight|ci-local|main>");
-  process.exit(2);
+export function commandsForLayer(layer) {
+  if (!Object.hasOwn(layers, layer)) {
+    throw new Error(`unknown test layer: ${String(layer)}`);
+  }
+  return layers[layer];
 }
 
-for (const [command, args] of layers[layer]) {
-  console.log(`\n> ${command} ${args.join(" ")}`);
-  const status = spawnChecked(command, args);
-  if (status !== 0) {
-    process.exit(status);
+function main() {
+  const layer = process.argv[2];
+  if (process.argv.length !== 3 || !Object.hasOwn(layers, layer)) {
+    console.error("Usage: node scripts/run-test-layer.mjs <preflight|ci-local|main>");
+    process.exitCode = 2;
+    return;
   }
+
+  for (const [command, args] of commandsForLayer(layer)) {
+    console.log(`\n> ${command} ${args.join(" ")}`);
+    const status = spawnChecked(command, args);
+    if (status !== 0) {
+      process.exitCode = status;
+      return;
+    }
+  }
+}
+
+if (resolve(process.argv[1] || "") === fileURLToPath(import.meta.url)) {
+  main();
 }

@@ -2,16 +2,18 @@ package servercore
 
 import (
 	"fmt"
-	livecore "github.com/jftrade/jftrade-main/internal/live"
 	"net/http/httptest"
 	"testing"
+
+	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
+	livecore "github.com/jftrade/jftrade-main/internal/live"
 )
 
 func TestMarketSecurityDetailsResponseQueriesSecuritySnapshot(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
 	response, err := server.marketSecurityDetailsResponse(
 		t.Context(),
 		"/api/v1/market-data/securities/HK/00700",
@@ -54,19 +56,19 @@ func TestMarketSecurityDetailsResponseQueriesSecuritySnapshot(t *testing.T) {
 	if got := meta["fromCache"]; got != false {
 		t.Fatalf("fromCache = %v", got)
 	}
-	if got := quoteServer.securitySnapshotCallCount(); got != 1 {
+	if got := quoteServer.SecuritySnapshotCallCount(); got != 1 {
 		t.Fatalf("expected one GetSecuritySnapshot call, got %d", got)
 	}
-	if got := quoteServer.staticInfoCallCount(); got != 1 {
+	if got := quoteServer.StaticInfoCallCount(); got != 1 {
 		t.Fatalf("expected one GetStaticInfo call, got %d", got)
 	}
 }
 
 func TestMarketSecurityDetailsWebSocketSendsInitialPayload(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -232,10 +234,10 @@ func assertSecurityProductIdentity(
 
 func marketSecurityDetailsResponseForPath(t *testing.T, path string) map[string]any {
 	t.Helper()
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
 	response, err := server.marketSecurityDetailsResponse(t.Context(), path)
 	if err != nil {
 		t.Fatalf("marketSecurityDetailsResponse(%s): %v", path, err)

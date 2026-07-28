@@ -1,4 +1,4 @@
-package servercore
+package assistant
 
 import (
 	"context"
@@ -26,7 +26,7 @@ func TestRealADKChatStreamWithSavedProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Getwd: %v", err)
 	}
-	settingsPath := filepath.Clean(filepath.Join(wd, "..", "..", "var", "jftrade-api", "settings.json"))
+	settingsPath := filepath.Clean(filepath.Join(wd, "..", "..", "..", "var", "jftrade-api", "settings.json"))
 	store, err := NewSettingsStore(settingsPath)
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)

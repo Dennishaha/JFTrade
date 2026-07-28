@@ -5,7 +5,7 @@ import { compareBudget, inspectServercore } from "./check-servercore-budget.mjs"
 
 const futu = "github.com/jftrade/jftrade-main/pkg/futu";
 
-test("counts production lines, shell/application methods, and direct-import files", () => {
+test("counts production/test lines, shell/application methods, and direct-import files", () => {
   const actual = inspectServercore([
     {
       name: "server.go",
@@ -15,9 +15,12 @@ test("counts production lines, shell/application methods, and direct-import file
         "func (a serverApplication) Configure() {}\n",
     },
     { name: "other.go", contents: "package sample\n" },
-  ], [futu]);
+  ], [futu], [
+    { name: "server_test.go", contents: "package sample\n\nfunc TestStart(t *testing.T) {}\n" },
+  ]);
   assert.deepEqual(actual, {
     productionLines: 5,
+    testLines: 3,
     serverMethods: 1,
     applicationMethods: 1,
     effectiveServerMethods: 2,
@@ -55,6 +58,7 @@ type serverApplication struct {
 test("allows every budget dimension to shrink", () => {
   const actual = {
     productionLines: 9,
+    testLines: 8,
     serverMethods: 1,
     applicationMethods: 2,
     effectiveServerMethods: 3,
@@ -63,6 +67,7 @@ test("allows every budget dimension to shrink", () => {
   };
   const budget = {
     productionLinesMax: 10,
+    testLinesMax: 10,
     serverMethodsMax: 2,
     applicationMethodsMax: 3,
     effectiveServerMethodsMax: 5,
@@ -75,6 +80,7 @@ test("allows every budget dimension to shrink", () => {
 test("reports line, shell/application method, and direct-import file-set growth", () => {
   const actual = {
     productionLines: 11,
+    testLines: 12,
     serverMethods: 3,
     applicationMethods: 4,
     effectiveServerMethods: 7,
@@ -83,6 +89,7 @@ test("reports line, shell/application method, and direct-import file-set growth"
   };
   const budget = {
     productionLinesMax: 10,
+    testLinesMax: 11,
     serverMethodsMax: 2,
     applicationMethodsMax: 3,
     effectiveServerMethodsMax: 6,
@@ -91,6 +98,7 @@ test("reports line, shell/application method, and direct-import file-set growth"
   };
   assert.deepEqual(compareBudget(actual, budget), [
     "production lines 11 exceed budget 10",
+    "test lines 12 exceed budget 11",
     "*Server methods 3 exceed budget 2",
     "serverApplication methods 4 exceed budget 3",
     "effective *Server method surface 7 exceed budget 6",
@@ -102,6 +110,7 @@ test("reports line, shell/application method, and direct-import file-set growth"
 test("fails closed when a required budget dimension is missing", () => {
   const actual = {
     productionLines: 0,
+    testLines: 0,
     serverMethods: 0,
     applicationMethods: 0,
     effectiveServerMethods: 0,
@@ -116,6 +125,33 @@ test("fails closed when a required budget dimension is missing", () => {
     directImportFiles: {},
   };
   assert.deepEqual(compareBudget(actual, budget), [
+    "testLinesMax must be a non-negative integer",
     "effectiveServerMethodsMax must be a non-negative integer",
   ]);
+});
+
+test("rejects invalid test-line budgets", () => {
+  const actual = {
+    productionLines: 0,
+    testLines: 0,
+    serverMethods: 0,
+    applicationMethods: 0,
+    effectiveServerMethods: 0,
+    aggregateFields: 0,
+    directImportFiles: {},
+  };
+  const baseBudget = {
+    productionLinesMax: 0,
+    serverMethodsMax: 0,
+    applicationMethodsMax: 0,
+    effectiveServerMethodsMax: 0,
+    aggregateFieldsMax: 0,
+    directImportFiles: {},
+  };
+
+  for (const testLinesMax of [-1, 1.5, "10"]) {
+    assert.deepEqual(compareBudget(actual, { ...baseBudget, testLinesMax }), [
+      "testLinesMax must be a non-negative integer",
+    ]);
+  }
 });

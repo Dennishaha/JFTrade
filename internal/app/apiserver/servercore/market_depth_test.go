@@ -14,6 +14,10 @@ import (
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
+func marketDataDepthOrderBookFixture(price float64, volume int64, orderCount int32) fututestkit.OrderBookEntry {
+	return fututestkit.OrderBookEntry{Price: price, Volume: volume, OrderCount: orderCount}
+}
+
 func acquireTestDepthSubscription(t *testing.T, server *Server, market, symbol string) {
 	t.Helper()
 	server.marketdataSvc.SetSubscriptionReconciler(server.runtimes.MarketData())
@@ -101,10 +105,10 @@ func TestMarketDepthEndpointPutNotAllowed(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMarketDepthResponseWithMockOpenD(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	quoteServer.setOrderBook(
+	quoteServer.SetOrderBook(
 		[]fututestkit.OrderBookEntry{
 			marketDataDepthOrderBookFixture(155.0, 1000, 5),
 			marketDataDepthOrderBookFixture(154.5, 500, 3),
@@ -115,7 +119,7 @@ func TestMarketDepthResponseWithMockOpenD(t *testing.T) {
 		},
 	)
 
-	host, port := splitHostPort(t, quoteServer.addr)
+	host, port := splitHostPort(t, quoteServer.Addr())
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -235,16 +239,16 @@ func TestMarketDepthResponseWithMockOpenD(t *testing.T) {
 		t.Error("meta fromCache should be false for direct depth query")
 	}
 
-	if got := quoteServer.orderBookCallCount(); got != 1 {
+	if got := quoteServer.OrderBookCallCount(); got != 1 {
 		t.Errorf("orderBook OpenD calls = %d, want 1", got)
 	}
 }
 
 func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	quoteServer.setOrderBook(
+	quoteServer.SetOrderBook(
 		[]fututestkit.OrderBookEntry{
 			marketDataDepthOrderBookFixture(154.9, 900, 4),
 		},
@@ -253,7 +257,7 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 		},
 	)
 
-	host, port := splitHostPort(t, quoteServer.addr)
+	host, port := splitHostPort(t, quoteServer.Addr())
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -327,15 +331,15 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMarketDepthNumClamping(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	quoteServer.setOrderBook(
+	quoteServer.SetOrderBook(
 		[]fututestkit.OrderBookEntry{marketDataDepthOrderBookFixture(100, 10, 1)},
 		[]fututestkit.OrderBookEntry{marketDataDepthOrderBookFixture(101, 10, 1)},
 	)
 
-	host, port := splitHostPort(t, quoteServer.addr)
+	host, port := splitHostPort(t, quoteServer.Addr())
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -411,7 +415,7 @@ func TestMarketDepthNumClamping(t *testing.T) {
 			if envelope.Data.Request.Num != tt.expectNum {
 				t.Errorf("response request.num = %d, want %d", envelope.Data.Request.Num, tt.expectNum)
 			}
-			if got := quoteServer.orderBookLastNum(); got != int32(tt.expectNum) {
+			if got := quoteServer.OrderBookLastNum(); got != int32(tt.expectNum) {
 				t.Errorf("OpenD order book num = %d, want %d", got, tt.expectNum)
 			}
 		})
@@ -423,15 +427,15 @@ func TestMarketDepthNumClamping(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMarketDepthSymbolCasing(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	quoteServer.setOrderBook(
+	quoteServer.SetOrderBook(
 		[]fututestkit.OrderBookEntry{marketDataDepthOrderBookFixture(100, 10, 1)},
 		[]fututestkit.OrderBookEntry{marketDataDepthOrderBookFixture(101, 10, 1)},
 	)
 
-	host, port := splitHostPort(t, quoteServer.addr)
+	host, port := splitHostPort(t, quoteServer.Addr())
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -500,10 +504,10 @@ func TestMarketDepthSymbolCasing(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMarketDepthHKMarket(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	quoteServer.setOrderBook(
+	quoteServer.SetOrderBook(
 		[]fututestkit.OrderBookEntry{
 			marketDataDepthOrderBookFixture(320.0, 5000, 10),
 			marketDataDepthOrderBookFixture(319.8, 3000, 8),
@@ -514,7 +518,7 @@ func TestMarketDepthHKMarket(t *testing.T) {
 		},
 	)
 
-	host, port := splitHostPort(t, quoteServer.addr)
+	host, port := splitHostPort(t, quoteServer.Addr())
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -596,13 +600,13 @@ func TestMarketDepthHKMarket(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMarketDepthEmptyOrderBook(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
 	// Empty order book
-	quoteServer.setOrderBook(nil, nil)
+	quoteServer.SetOrderBook(nil, nil)
 
-	host, port := splitHostPort(t, quoteServer.addr)
+	host, port := splitHostPort(t, quoteServer.Addr())
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -670,12 +674,12 @@ func TestMarketDepthEmptyOrderBook(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMarketDepthOpenDError(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	quoteServer.setOrderBookErr(fmt.Errorf("opend simulated error"))
+	quoteServer.SetOrderBookError(fmt.Errorf("opend simulated error"))
 
-	host, port := splitHostPort(t, quoteServer.addr)
+	host, port := splitHostPort(t, quoteServer.Addr())
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)

@@ -1,5 +1,6 @@
 {
   "productionLinesMax": 6560,
+  "testLinesMax": 18000,
   "serverMethodsMax": 46,
   "applicationMethodsMax": 73,
   "effectiveServerMethodsMax": 119,

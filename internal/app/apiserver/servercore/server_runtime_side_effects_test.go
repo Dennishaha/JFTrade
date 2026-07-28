@@ -17,7 +17,30 @@ import (
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
+
+type closeTrackingPineWorkerRunner struct {
+	closed int
+}
+
+func (runner *closeTrackingPineWorkerRunner) RunScript(context.Context, pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
+	return pineworker.RunScriptResponse{}, nil
+}
+
+func (runner *closeTrackingPineWorkerRunner) Close(context.Context) error {
+	runner.closed++
+	return nil
+}
+
+func restorePineWorkerAssetSelector(t *testing.T, asset pineworkerassets.Asset, ok bool, err error) {
+	t.Helper()
+	previous := selectPineWorkerAsset
+	selectPineWorkerAsset = func() (pineworkerassets.Asset, bool, error) {
+		return asset, ok, err
+	}
+	t.Cleanup(func() { selectPineWorkerAsset = previous })
+}
 
 func TestServerRuntimeRiskControlsDelegateToControlPlane(t *testing.T) {
 	plane, err := trdsrv.NewRealTradeControlPlane(filepath.Join(t.TempDir(), "real-trade-control.json"))

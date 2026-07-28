@@ -62,6 +62,8 @@ pnpm run test:coverage
 JFTRADE_DIFF_BASE=origin/main pnpm run test:coverage
 ```
 
+`test:preflight` 会先运行 `pnpm run generate:docs`，自动补齐或刷新 Swagger、前端 OpenAPI 类型、契约基线和参考文档，然后执行契约与质量门禁。因此它可以直接在干净检出上运行；生成物可能更新当前工作树。`test:ci-local` 在同一生成步骤后立即运行 tracked 生成物漂移检查，未提交的契约差异仍会硬失败。
+
 测试文件名必须描述被验证的业务行为，不得包含任意大小写或分隔形式的 `coverage`，也不得使用 `c95`、`c_98` 等覆盖率数字缩写。`pnpm run check:test-names` 扫描当前全仓文件；历史违规文件已经全部改为行为名称，`scripts/test-name-allowlist.txt` 当前没有豁免项。检查器仍从 merge-base Git 文件树按当前规则推导历史上限，不信任基准提交里的旧清单，因此规则扩展后可纳管此前遗漏的文件，也不能通过“新增违规文件并写入清单”绕过门禁。
 
 `pnpm run check:test-quality` 使用 Go AST 识别 `testing.T` 失败调用、testify 断言和仓内断言 helper 调用。它会报告全仓所有未识别到断言的 `Test*`，但只对相对 merge-base 新增的缺口硬失败；普通函数调用、`Sleep`、`Skip` 或启动 goroutine 不再被当作断言。确实以“不 panic”、helper process 退出等效果作为契约的测试，必须在 `scripts/go-test-quality-exemptions.json` 中按文件、测试函数和具体理由登记；重复、理由过短或已经失效的条目都会失败。`report:test-quality` 保留为兼容入口，但执行同一硬门禁。

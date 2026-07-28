@@ -16,6 +16,7 @@ import (
 
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
+	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -339,10 +340,10 @@ func TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD(t *testing.T) {
 }
 
 func TestFutuOpenDHealthRejectsOldBuildAndGuidesUpgrade(t *testing.T) {
-	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setServerVersion(1008, 6708)
-	defer opendServer.stop()
-	host, portText, err := net.SplitHostPort(opendServer.addr)
+	opendServer := fututestkit.StartBrokerServer(t)
+	opendServer.SetServerVersion(1008, 6708)
+	defer opendServer.Close()
+	host, portText, err := net.SplitHostPort(opendServer.Addr())
 	if err != nil {
 		t.Fatalf("SplitHostPort: %v", err)
 	}

@@ -88,7 +88,7 @@
     "check:web-api-boundary": "node scripts/check-web-api-boundary.mjs",
     "check:web-contract-index": "node scripts/check-web-contract-index.mjs",
     "check:web-contract-audit": "node scripts/check-web-contract-audit.mjs",
-    "test:test-policy": "go test ./scripts/go-test-quality -count=1 && node --test scripts/check-arch-deps.test.mjs scripts/check-test-names.test.mjs scripts/report-go-test-quality.test.mjs scripts/check-servercore-budget.test.mjs scripts/check-openapi-quality.test.mjs scripts/generate-api-types.test.mjs scripts/check-web-api-boundary.test.mjs scripts/check-web-contract-index.test.mjs scripts/check-web-contract-audit.test.mjs scripts/run-go-argument-forwarding.test.mjs",
+    "test:test-policy": "go test ./scripts/go-test-quality -count=1 && node --test scripts/check-arch-deps.test.mjs scripts/check-test-names.test.mjs scripts/report-go-test-quality.test.mjs scripts/check-servercore-budget.test.mjs scripts/check-openapi-quality.test.mjs scripts/generate-api-types.test.mjs scripts/check-web-api-boundary.test.mjs scripts/check-web-contract-index.test.mjs scripts/check-web-contract-audit.test.mjs scripts/run-go-argument-forwarding.test.mjs scripts/run-test-layer.test.mjs",
     "test:preflight": "node scripts/run-test-layer.mjs preflight",
     "test:pr": "pnpm run test:preflight",
     "test:ci-local": "node scripts/run-test-layer.mjs ci-local",

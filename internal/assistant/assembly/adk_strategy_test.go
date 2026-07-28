@@ -1,4 +1,4 @@
-package servercore
+package assembly
 
 import (
 	"context"
@@ -48,7 +48,7 @@ func TestADKWorkflowAuditAndAdapterHelpers(t *testing.T) {
 	}
 	recordADKWorkflowAudit(context.Background(), ToolDeps{}, "noop", "noop", "noop", nil)
 
-	query := brokerReadQueryFromADK(&trdsrv.Service{}, BrokerReadInput{
+	query := brokerReadQuery(&trdsrv.Service{}, BrokerReadInput{
 		TradingEnvironment: "SIMULATE",
 		AccountID:          "acct-1",
 		Market:             "",
@@ -67,7 +67,7 @@ func TestADKWorkflowAuditAndAdapterHelpers(t *testing.T) {
 		t.Fatal("normalizeTradingBrokerScope(invalid) error = nil, want validation error")
 	}
 
-	merged := mergeADKBrokerValues([]string{" submitted , filled", "FILLED"}, []string{"cancelled", "Submitted"})
+	merged := mergeBrokerValues([]string{" submitted , filled", "FILLED"}, []string{"cancelled", "Submitted"})
 	if len(merged) != 3 || merged[0] != "submitted" || merged[1] != "filled" || merged[2] != "cancelled" {
 		t.Fatalf("mergeADKBrokerValues() = %#v, want deduplicated broker values", merged)
 	}

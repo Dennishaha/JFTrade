@@ -72,9 +72,6 @@ func TestProductInfrastructureRemainingNilAndFallbackBoundaries(t *testing.T) {
 	if summary := server.strategyRuntimeSummary(); summary["status"] != "idle" {
 		t.Fatalf("nil strategy runtime summary = %#v", summary)
 	}
-	if _, err := server.workflowMarketSnapshot(t.Context(), "US.AAPL"); err == nil {
-		t.Fatal("workflow snapshot without market service succeeded")
-	}
 	if watched := server.workflowWatchedInstruments(); watched != nil {
 		t.Fatalf("nil assistant watched instruments = %#v", watched)
 	}

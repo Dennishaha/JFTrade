@@ -34,18 +34,22 @@ func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
 
 	failedInspection := &Server{
 		serverApplication: serverApplication{
-			dataMigration:        bootstrap.dataMigration,
+			dataMigration:        datamigration.NewManager(filepath.Join(root, "failed-settings.json"), filepath.Join(root, "failed-backtest.db")),
 			unavailableDatabases: map[string]error{},
 		},
+	}
+	if err := os.WriteFile(filepath.Join(root, datamigration.RebuildMarkerFilename), []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
 	}
 	failedInspection.refreshUnavailableDatabaseStatuses()
 	if len(failedInspection.unavailableDatabases) != 0 {
 		t.Fatalf("failed status inspection must not manufacture database states: %#v", failedInspection.unavailableDatabases)
 	}
 
+	missingRoot := t.TempDir()
 	missingData := &Server{
 		serverApplication: serverApplication{
-			dataMigration:        datamigration.NewManager(filepath.Join(root, "settings.json"), filepath.Join(root, "backtest.db")),
+			dataMigration:        datamigration.NewManager(filepath.Join(missingRoot, "settings.json"), filepath.Join(missingRoot, "backtest.db")),
 			unavailableDatabases: map[string]error{},
 		},
 	}

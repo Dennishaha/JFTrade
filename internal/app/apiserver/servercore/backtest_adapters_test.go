@@ -8,6 +8,7 @@ import (
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	strategystore "github.com/jftrade/jftrade-main/internal/store/strategy"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 func TestBacktestRunStoreDirectlyImplementsDomainLifecycle(t *testing.T) {
@@ -143,7 +144,7 @@ func TestBacktestSyncTaskStoreAndStrategyProviderAdapters(t *testing.T) {
 	definition, err := defStore.SaveDefinition(stratsrv.Definition{
 		Name:         "Adapter Strategy",
 		Runtime:      strategyRuntimePinePlan,
-		SourceFormat: SourceFormatPineV6(),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Symbol:       "US.AAPL",
 		Interval:     "5m",
 		Script: `//@version=6
@@ -160,67 +161,5 @@ log.info("ok")`,
 	}
 	if got, ok, err := provider.Definition("missing"); err != nil || ok || got != (btsrv.StrategyDef{}) {
 		t.Fatalf("Definition(missing) = %#v ok=%v err=%v, want zero,false,nil", got, ok, err)
-	}
-}
-
-func TestADKAdapterSaveHelpersAndVisualModelValidation(t *testing.T) {
-	var nilServer *Server
-	validation, err := ValidateADKStrategyScript("test", `//@version=6
-strategy("Adapter Save Helper", overlay=true)
-log.info("ok")`)
-	if err != nil {
-		t.Fatalf("ValidateADKStrategyScript: %v", err)
-	}
-
-	if _, err := nilServer.adkSaveStrategyDraft(StrategyDraftInput{Validation: validation}); err == nil {
-		t.Fatal("nilServer.adkSaveStrategyDraft error = nil, want unavailable store error")
-	}
-	if _, err := nilServer.adkSaveStrategyDefinition(StrategyDefinitionInput{Name: "x", Validation: validation}); err == nil {
-		t.Fatal("nilServer.adkSaveStrategyDefinition error = nil, want unavailable store error")
-	}
-
-	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
-	if err != nil {
-		t.Fatalf("NewSettingsStore: %v", err)
-	}
-	server := newTestServer(t, store)
-
-	draftAny, err := server.adkSaveStrategyDraft(StrategyDraftInput{Validation: validation})
-	if err != nil {
-		t.Fatalf("adkSaveStrategyDraft(default name): %v", err)
-	}
-	draft := draftAny.(stratsrv.Definition)
-	if draft.Name != "ADK 策略草稿" || draft.SourceFormat != SourceFormatPineV6() || draft.Runtime != strategyRuntimePinePlan {
-		t.Fatalf("draft = %#v, want default draft naming plus Pine runtime defaults", draft)
-	}
-
-	model, err := strategyVisualModelFromInput(map[string]any{
-		"nodes": []map[string]any{{"id": "n1", "type": "note"}},
-	})
-	if err != nil {
-		t.Fatalf("strategyVisualModelFromInput(valid): %v", err)
-	}
-	if model == nil || model.Engine != "logic-flow" || model.Version != 1 || len(model.Edges) != 0 || model.Nodes[0].Properties == nil {
-		t.Fatalf("strategyVisualModelFromInput(valid) = %#v, want normalized model defaults", model)
-	}
-	if _, err := strategyVisualModelFromInput("not-an-object"); err == nil {
-		t.Fatal("strategyVisualModelFromInput(string) error = nil, want validation error")
-	}
-	if _, err := strategyVisualModelFromInput(map[string]any{
-		"nodes": []map[string]any{{
-			"id":         "n1",
-			"type":       "note",
-			"properties": map[string]any{"blockKind": "codeBlock"},
-		}},
-	}); err == nil {
-		t.Fatal("strategyVisualModelFromInput(legacy block) error = nil, want unsupported legacy block error")
-	}
-
-	if _, err := server.adkSaveStrategyDefinition(StrategyDefinitionInput{
-		Name:        "Invalid Visual Strategy",
-		Validation:  validation,
-		VisualModel: "bad-shape",
-	}); err == nil {
-		t.Fatal("adkSaveStrategyDefinition(invalid visual model) error = nil, want validation error")
 	}
 }

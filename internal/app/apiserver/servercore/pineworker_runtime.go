@@ -20,7 +20,6 @@ const (
 )
 
 type pineWorkerRunner = pineruntime.Runner
-type pineWorkerRuntimeConfig = pineruntime.Config
 
 var (
 	newPineWorkerLauncher pineruntime.LauncherFactory = pineruntime.NewNodeLauncher

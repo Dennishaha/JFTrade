@@ -4,6 +4,12 @@ import { schemaToType } from "../generate-api-types.mjs";
 
 const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
 
+// Classification manifests use POSIX separators so their keys stay stable
+// across CI and local Windows runs, where path.relative() returns backslashes.
+export function normalizeRelativePath(file) {
+  return file.replaceAll("\\", "/");
+}
+
 export function generatedSchemaViolations(
   spec,
   generatedSource,
@@ -161,21 +167,42 @@ export function viewModelClassificationViolations({
   adapterSources,
   testFiles,
 }) {
+  const normalizedClassification = new Map(
+    Object.entries(classification).map(([file, entry]) => [
+      normalizeRelativePath(file),
+      entry,
+    ]),
+  );
+  const normalizedSources = new Map(
+    [...sources.entries()].map(([file, source]) => [
+      normalizeRelativePath(file),
+      source,
+    ]),
+  );
+  const normalizedAdapterSources = new Map(
+    [...adapterSources.entries()].map(([file, source]) => [
+      normalizeRelativePath(file),
+      source,
+    ]),
+  );
+  const normalizedTestFiles = new Set(
+    [...testFiles].map((file) => normalizeRelativePath(file)),
+  );
   const violations = [];
-  const classified = new Set(Object.keys(classification));
-  for (const file of [...sources.keys()].sort()) {
+  const classified = new Set(normalizedClassification.keys());
+  for (const file of [...normalizedSources.keys()].sort()) {
     if (!classified.has(file)) {
       violations.push(`${file}: missing type classification`);
     }
   }
   for (const file of [...classified].sort()) {
-    if (!sources.has(file)) {
+    if (!normalizedSources.has(file)) {
       violations.push(`${file}: classification points to a missing source file`);
     }
   }
 
-  for (const [file, entry] of Object.entries(classification).sort()) {
-    const source = sources.get(file);
+  for (const [file, entry] of [...normalizedClassification.entries()].sort()) {
+    const source = normalizedSources.get(file);
     if (source == null) continue;
     const sourceFile = parseSource(source, file);
     violations.push(...diagnosticsFor(sourceFile));
@@ -195,7 +222,9 @@ export function viewModelClassificationViolations({
         violations.push(`${file}: normalized API models require boundary tests`);
       }
       for (const adapter of entry.adapters ?? []) {
-        const adapterSource = adapterSources.get(adapter);
+        const adapterSource = normalizedAdapterSources.get(
+          normalizeRelativePath(adapter),
+        );
         if (adapterSource == null) {
           violations.push(`${file}: adapter ${adapter} does not exist`);
           continue;
@@ -208,7 +237,7 @@ export function viewModelClassificationViolations({
         }
       }
       for (const testFile of entry.tests ?? []) {
-        if (!testFiles.has(testFile)) {
+        if (!normalizedTestFiles.has(normalizeRelativePath(testFile))) {
           violations.push(`${file}: boundary test ${testFile} does not exist`);
         }
       }
@@ -223,8 +252,14 @@ export function classifiedDeclarationCounts(classification, sources) {
     "ui-view-model": 0,
     "client-infrastructure": 0,
   };
+  const normalizedSources = new Map(
+    [...sources.entries()].map(([file, source]) => [
+      normalizeRelativePath(file),
+      source,
+    ]),
+  );
   for (const [file, entry] of Object.entries(classification)) {
-    const source = sources.get(file);
+    const source = normalizedSources.get(normalizeRelativePath(file));
     if (source == null || !(entry.kind in counts)) continue;
     counts[entry.kind] += exportedDeclarations(parseSource(source, file)).length;
   }

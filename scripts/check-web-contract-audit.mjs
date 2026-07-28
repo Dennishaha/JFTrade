@@ -13,6 +13,7 @@ import {
   classifiedDeclarationCounts,
   generatedContractViolations,
   generatedSchemaViolations,
+  normalizeRelativePath,
   viewModelClassificationViolations,
 } from "./lib/web-contract-audit.mjs";
 
@@ -69,7 +70,7 @@ for (const file of [
   join(webSourceRoot, "types/client-api.ts"),
   ...walkTypeScriptFiles(join(webSourceRoot, "types/view-models")),
 ]) {
-  const key = relative(webSourceRoot, file);
+  const key = normalizeRelativePath(relative(webSourceRoot, file));
   classifiedSources.set(key, readFileSync(file, "utf8"));
 }
 const adapterNames = new Set(
@@ -82,7 +83,7 @@ for (const name of adapterNames) {
 }
 const testFiles = new Set(
   walkTypeScriptFiles(join(repoRoot, "apps/web/tests")).map((file) =>
-    relative(join(repoRoot, "apps/web"), file),
+    normalizeRelativePath(relative(join(repoRoot, "apps/web"), file)),
   ),
 );
 violations.push(

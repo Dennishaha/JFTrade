@@ -1,4 +1,4 @@
-package servercore
+package assembly
 
 import (
 	"strings"

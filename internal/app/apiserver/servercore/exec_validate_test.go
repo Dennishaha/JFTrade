@@ -14,12 +14,12 @@ import (
 )
 
 func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
-	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]fututestkit.Account{{
+	opendServer := fututestkit.StartBrokerServer(t)
+	opendServer.SetAccounts([]fututestkit.Account{{
 		Environment: "SIMULATE", ID: 1001, Markets: []string{"US"}, Type: "MARGIN",
 	}})
-	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
-	defer opendServer.stop()
+	opendServer.SetPlacedOrderResponse(9001, "EXT-9001")
+	defer opendServer.Close()
 
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
@@ -27,8 +27,8 @@ func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 	}
 	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
-		Host:          strings.Split(opendServer.addr, ":")[0],
-		APIPort:       portFromAddr(t, opendServer.addr),
+		Host:          strings.Split(opendServer.Addr(), ":")[0],
+		APIPort:       portFromAddr(t, opendServer.Addr()),
 		WebSocketPort: 11111,
 		TradeMarket:   "US",
 	})})
@@ -61,7 +61,7 @@ func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 		t.Fatalf("POST execution orders status = %d", resp.StatusCode)
 	}
 
-	request := opendServer.lastPlaceOrderRequest()
+	request := opendServer.LastPlaceOrderRequest()
 	if request == nil {
 		t.Fatal("expected place order request to be captured")
 		return
@@ -84,12 +84,12 @@ func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 }
 
 func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
-	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]fututestkit.Account{{
+	opendServer := fututestkit.StartBrokerServer(t)
+	opendServer.SetAccounts([]fututestkit.Account{{
 		Environment: "SIMULATE", ID: 1001, Markets: []string{"US"}, Type: "MARGIN",
 	}})
-	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
-	defer opendServer.stop()
+	opendServer.SetPlacedOrderResponse(9001, "EXT-9001")
+	defer opendServer.Close()
 
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
@@ -97,8 +97,8 @@ func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 	}
 	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
-		Host:          strings.Split(opendServer.addr, ":")[0],
-		APIPort:       portFromAddr(t, opendServer.addr),
+		Host:          strings.Split(opendServer.Addr(), ":")[0],
+		APIPort:       portFromAddr(t, opendServer.Addr()),
 		WebSocketPort: 11111,
 		TradeMarket:   "US",
 	})})
@@ -132,7 +132,7 @@ func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 		t.Fatalf("POST execution orders status = %d", resp.StatusCode)
 	}
 
-	request := opendServer.lastPlaceOrderRequest()
+	request := opendServer.LastPlaceOrderRequest()
 	if request == nil {
 		t.Fatal("expected place order request to be captured")
 		return
@@ -149,12 +149,12 @@ func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 }
 
 func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
-	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]fututestkit.Account{{
+	opendServer := fututestkit.StartBrokerServer(t)
+	opendServer.SetAccounts([]fututestkit.Account{{
 		Environment: "SIMULATE", ID: 1001, Markets: []string{"US"}, Type: "MARGIN",
 	}})
-	opendServer.setPlacedOrderResponse(9002, "EXT-9002")
-	defer opendServer.stop()
+	opendServer.SetPlacedOrderResponse(9002, "EXT-9002")
+	defer opendServer.Close()
 
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
@@ -162,8 +162,8 @@ func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 	}
 	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
-		Host:          strings.Split(opendServer.addr, ":")[0],
-		APIPort:       portFromAddr(t, opendServer.addr),
+		Host:          strings.Split(opendServer.Addr(), ":")[0],
+		APIPort:       portFromAddr(t, opendServer.Addr()),
 		WebSocketPort: 11111,
 		TradeMarket:   "US",
 	})})
@@ -196,7 +196,7 @@ func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 		t.Fatalf("POST execution orders status = %d", resp.StatusCode)
 	}
 
-	request := opendServer.lastPlaceOrderRequest()
+	request := opendServer.LastPlaceOrderRequest()
 	if request == nil {
 		t.Fatal("expected place order request to be captured")
 		return
@@ -207,11 +207,11 @@ func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 }
 
 func TestExecutionOrderRoutesRejectBareSymbolWithoutMarket(t *testing.T) {
-	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]fututestkit.Account{{
+	opendServer := fututestkit.StartBrokerServer(t)
+	opendServer.SetAccounts([]fututestkit.Account{{
 		Environment: "SIMULATE", ID: 1001, Markets: []string{"US"}, Type: "MARGIN",
 	}})
-	defer opendServer.stop()
+	defer opendServer.Close()
 
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
@@ -219,8 +219,8 @@ func TestExecutionOrderRoutesRejectBareSymbolWithoutMarket(t *testing.T) {
 	}
 	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
-		Host:          strings.Split(opendServer.addr, ":")[0],
-		APIPort:       portFromAddr(t, opendServer.addr),
+		Host:          strings.Split(opendServer.Addr(), ":")[0],
+		APIPort:       portFromAddr(t, opendServer.Addr()),
 		WebSocketPort: 11111,
 		TradeMarket:   "US",
 	})})
@@ -251,7 +251,7 @@ func TestExecutionOrderRoutesRejectBareSymbolWithoutMarket(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("POST execution preview status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
 	}
-	if got := opendServer.placeOrderCallCount(); got != 0 {
+	if got := opendServer.PlaceOrderCallCount(); got != 0 {
 		t.Fatalf("expected no place order call, got %d", got)
 	}
 }

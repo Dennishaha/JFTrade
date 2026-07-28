@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/shopspring/decimal"
 )
@@ -61,10 +62,10 @@ func decimalPointer(v *float64) *decimal.Decimal {
 }
 
 func TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
 	acquireMarketDataTestSubscription(t, server, mdsrv.InstrumentRef{Channel: "SNAPSHOT", Market: "HK", Symbol: "00700"})
 	response, err := server.marketSnapshotResponse(
 		t.Context(),
@@ -76,7 +77,7 @@ func TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss(t *testing.T) {
 	}
 
 	assertSnapshotResponse(t, response, "HK.00700", false, "bbgo:futu")
-	if got := quoteServer.basicQotCallCount(); got != 1 {
+	if got := quoteServer.BasicQuoteCallCount(); got != 1 {
 		t.Fatalf("expected one GetBasicQot call, got %d", got)
 	}
 	if got := jftradeCheckedTypeAssertion[map[string]any](response["snapshot"])["price"]; got != "321.4" {
@@ -85,10 +86,10 @@ func TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss(t *testing.T) {
 }
 
 func TestMarketSnapshotResponseForceRefreshBypassesCache(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
 	acquireMarketDataTestSubscription(t, server, mdsrv.InstrumentRef{Channel: "SNAPSHOT", Market: "HK", Symbol: "00700"})
 	seedCachedTickSample(server, mdsrv.Tick{
 		InstrumentID: "HK.00700",
@@ -114,7 +115,7 @@ func TestMarketSnapshotResponseForceRefreshBypassesCache(t *testing.T) {
 	}
 
 	assertSnapshotResponse(t, response, "HK.00700", false, "bbgo:futu")
-	if got := quoteServer.basicQotCallCount(); got != 1 {
+	if got := quoteServer.BasicQuoteCallCount(); got != 1 {
 		t.Fatalf("expected one forced GetBasicQot call, got %d", got)
 	}
 	if got := jftradeCheckedTypeAssertion[map[string]any](response["snapshot"])["price"]; got != "321.4" {
@@ -161,10 +162,10 @@ func TestMarketCandlesTickResponseUsesFreshCache(t *testing.T) {
 }
 
 func TestMarketCandlesTickResponseQueriesTickerOnCacheMiss(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
 	acquireMarketDataTestSubscription(t, server, mdsrv.InstrumentRef{Channel: "TICK", Market: "HK", Symbol: "00700"})
 	response, err := server.marketCandlesResponse(
 		t.Context(),
@@ -176,7 +177,7 @@ func TestMarketCandlesTickResponseQueriesTickerOnCacheMiss(t *testing.T) {
 	}
 
 	assertTickCandlesResponse(t, response, "HK.00700", false, 1)
-	if got := quoteServer.basicQotCallCount(); got != 1 {
+	if got := quoteServer.BasicQuoteCallCount(); got != 1 {
 		t.Fatalf("expected one GetBasicQot call, got %d", got)
 	}
 	if got := jftradeCheckedTypeAssertion[[]map[string]any](response["candles"])[0]["period"]; got != "tick" {

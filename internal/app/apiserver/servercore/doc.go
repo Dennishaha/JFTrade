@@ -71,7 +71,7 @@
 //
 // # Futu Runtime (OpenD bridge)
 //
-//   - futu_runtime.go: OpenD probe, broker descriptor, system status
+//   - futu_coordinator.go: OpenD probe, broker descriptor, system status
 //
 // # OpenAPI / Swagger
 //

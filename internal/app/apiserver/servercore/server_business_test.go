@@ -54,26 +54,20 @@ func TestRuntimeDefaultsAndLayoutBoundaries(t *testing.T) {
 }
 
 func TestWorkflowAndMarketRuntimeBoundaryHelpers(t *testing.T) {
-	if _, err := (*serverApplication)(nil).workflowMarketSnapshot(context.Background(), "US.AAPL"); err == nil || !strings.Contains(err.Error(), "market data service is unavailable") {
-		t.Fatalf("nil workflowMarketSnapshot error = %v", err)
+	panicked := false
+	func() {
+		defer func() {
+			if recover() != nil {
+				panicked = true
+			}
+		}()
+		(*serverApplication)(nil).handlePushMarketdataTick(mdsrv.Tick{Kind: mdsrv.TickKindTrade})
+		(&Server{}).handlePushMarketdataTick(mdsrv.Tick{Kind: "quote"})
+		(&Server{}).handlePushMarketdataTick(mdsrv.Tick{Kind: mdsrv.TickKindTrade, InstrumentID: "US.AAPL", Price: decimal.NewFromFloat(101.5), Volume: 2})
+	}()
+	if panicked {
+		t.Fatal("nil market tick boundary panicked")
 	}
-	if _, err := (&Server{}).workflowMarketSnapshot(context.Background(), "bad-instrument"); err == nil || !strings.Contains(err.Error(), "market data service is unavailable") {
-		t.Fatalf("unavailable workflowMarketSnapshot error = %v", err)
-	}
-
-	market, symbol, ok := splitWorkflowInstrumentID(" us.aapl ")
-	if !ok || market != "US" || symbol != "AAPL" {
-		t.Fatalf("splitWorkflowInstrumentID = %q/%q/%v", market, symbol, ok)
-	}
-	for _, raw := range []string{"", "US", ".AAPL", "US."} {
-		if market, symbol, ok := splitWorkflowInstrumentID(raw); ok {
-			t.Fatalf("splitWorkflowInstrumentID(%q) = %q/%q/true, want invalid", raw, market, symbol)
-		}
-	}
-
-	(*serverApplication)(nil).handlePushMarketdataTick(mdsrv.Tick{Kind: mdsrv.TickKindTrade})
-	(&Server{}).handlePushMarketdataTick(mdsrv.Tick{Kind: "quote"})
-	(&Server{}).handlePushMarketdataTick(mdsrv.Tick{Kind: mdsrv.TickKindTrade, InstrumentID: "US.AAPL", Price: decimal.NewFromFloat(101.5), Volume: 2})
 }
 
 func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {

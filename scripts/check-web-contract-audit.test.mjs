@@ -5,8 +5,16 @@ import { generateAPITypes } from "./generate-api-types.mjs";
 import {
   generatedContractViolations,
   generatedSchemaViolations,
+  normalizeRelativePath,
   viewModelClassificationViolations,
 } from "./lib/web-contract-audit.mjs";
+
+test("normalizes Windows relative paths for contract classification keys", () => {
+  assert.equal(
+    normalizeRelativePath("types\\view-models\\assistant.ts"),
+    "types/view-models/assistant.ts",
+  );
+});
 
 const fixtureSpec = {
   definitions: {
@@ -84,6 +92,36 @@ test("requires every normalized model module to declare real adapters and tests"
   });
   assert.ok(violations.some((message) => message.includes("does not exist")));
   assert.ok(violations.some((message) => message.includes("does not exist")));
+});
+
+test("matches canonical classification paths against Windows source and test paths", () => {
+  const violations = viewModelClassificationViolations({
+    classification: {
+      "types/view-models/item.ts": {
+        kind: "normalized-api",
+        adapters: ["composables/itemMapper.ts"],
+        tests: ["tests/itemMapper.test.ts"],
+      },
+    },
+    sources: new Map([
+      [
+        "types\\view-models\\item.ts",
+        'export interface ItemView { id: string }\n',
+      ],
+    ]),
+    adapterSources: new Map([
+      [
+        "composables\\itemMapper.ts",
+        [
+          'import type { ItemView } from "@/types/view-models/item";',
+          "export function mapItem(value: ItemView) { return value; }",
+          "",
+        ].join("\n"),
+      ],
+    ]),
+    testFiles: new Set(["tests\\itemMapper.test.ts"]),
+  });
+  assert.deepEqual(violations, []);
 });
 
 test("rejects unclassified handwritten type modules", () => {

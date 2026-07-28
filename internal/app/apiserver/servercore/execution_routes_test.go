@@ -264,24 +264,24 @@ func getExecutionOrdersForTest(t *testing.T, url string) trdsrv.ExecutionOrders 
 }
 
 func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
-	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]fututestkit.Account{{
+	opendServer := fututestkit.StartBrokerServer(t)
+	opendServer.SetAccounts([]fututestkit.Account{{
 		Environment: "SIMULATE", ID: 1001, Markets: []string{"HK"}, Type: "CASH",
 	}})
-	opendServer.setOrders([]fututestkit.Order{{
+	opendServer.SetOrders([]fututestkit.Order{{
 		Side: "BUY", Type: "NORMAL", Status: "SUBMITTED", ID: 3001, ExternalID: "EXT-3001",
 		Code: "HK.00700", Name: "Tencent", Quantity: 200, Price: 321.1,
 		CreatedAt: "2026-05-20 09:30:00", UpdatedAt: "2026-05-20 09:31:00",
 		TimeInForce: "DAY", Currency: "HKD", Market: "HK",
 	}})
-	opendServer.setHistoryOrders([]fututestkit.Order{{
+	opendServer.SetHistoryOrders([]fututestkit.Order{{
 		Side: "SELL", Type: "NORMAL", Status: "FILLED", ID: 3002, ExternalID: "EXT-3002",
 		Code: "HK.00700", Name: "Tencent", Quantity: 100, Price: 322.2,
 		FilledQuantity: 100, AverageFillPrice: 322.2,
 		CreatedAt: "2026-05-19 09:30:00", UpdatedAt: "2026-05-19 09:31:00",
 		TimeInForce: "DAY", Currency: "HKD", Market: "HK",
 	}})
-	defer opendServer.stop()
+	defer opendServer.Close()
 
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
@@ -289,8 +289,8 @@ func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	}
 	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
-		Host:          strings.Split(opendServer.addr, ":")[0],
-		APIPort:       portFromAddr(t, opendServer.addr),
+		Host:          strings.Split(opendServer.Addr(), ":")[0],
+		APIPort:       portFromAddr(t, opendServer.Addr()),
 		WebSocketPort: 11111,
 		TradeMarket:   "HK",
 	})})
@@ -342,7 +342,7 @@ func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	if historyOrder.Source != "broker" || historyOrder.SourceDetail != "broker.history" {
 		t.Fatalf("history source = %s/%s, want broker/broker.history", historyOrder.Source, historyOrder.SourceDetail)
 	}
-	if got := opendServer.subAccPushCallCount(); got != 1 {
+	if got := opendServer.SubAccountPushCallCount(); got != 1 {
 		t.Fatalf("expected one Trd_SubAccPush call, got %d", got)
 	}
 

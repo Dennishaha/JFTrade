@@ -2,7 +2,6 @@ package servercore
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	appstores "github.com/jftrade/jftrade-main/internal/app/apiserver/stores"
-	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	backteststore "github.com/jftrade/jftrade-main/internal/store/backtest"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
@@ -90,18 +88,6 @@ func TestDatabaseMaintenanceRemainingBusyReasons(t *testing.T) {
 		t.Fatalf("execution busy reason = %q", reason)
 	}
 
-	root := t.TempDir()
-	settings, err := NewSettingsStore(filepath.Join(root, "settings.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := newTestServer(t, settings)
-	if err := serverADKTestStore(t, server).SaveRun(t.Context(), assistant.Run{ID: "active-run", Status: assistant.RunStatusRunning}); err != nil {
-		t.Fatalf("SaveRun: %v", err)
-	}
-	if reason := server.newMaintenanceRegistry().BusyReason(t.Context(), datamigration.DatabaseADK); !strings.Contains(reason, "ADK") {
-		t.Fatalf("ADK busy reason = %q", reason)
-	}
 }
 
 func TestDataManagementRemainingPurgeAndCompactBoundaries(t *testing.T) {
@@ -110,9 +96,6 @@ func TestDataManagementRemainingPurgeAndCompactBoundaries(t *testing.T) {
 	maintenance := bare.newMaintenanceRegistry()
 	if _, err := maintenance.Purge(ctx, datamigration.DatabaseStrategy, []dmsrv.CleanupCandidate{{ID: "missing"}}); err == nil {
 		t.Fatal("nil strategy store purge error = nil")
-	}
-	if _, err := maintenance.Purge(ctx, datamigration.DatabaseADK, nil); err == nil {
-		t.Fatal("nil ADK store purge error = nil")
 	}
 	if _, err := maintenance.Purge(ctx, datamigration.DatabaseBacktestRuns, []dmsrv.CleanupCandidate{{ID: "missing"}}); err == nil {
 		t.Fatal("nil backtest run store purge error = nil")
@@ -125,9 +108,6 @@ func TestDataManagementRemainingPurgeAndCompactBoundaries(t *testing.T) {
 		datamigration.DatabaseBacktestRuns,
 		datamigration.DatabaseStrategy,
 		datamigration.DatabaseExecution,
-		datamigration.DatabaseADK,
-		datamigration.DatabaseADKSession,
-		datamigration.DatabaseADKArtifact,
 		datamigration.DatabaseWatchlist,
 		datamigration.DatabaseResearch,
 		"unknown",
@@ -155,30 +135,6 @@ func TestDataManagementRemainingPurgeAndCompactBoundaries(t *testing.T) {
 	}
 	if err := db.Compact(ctx); err == nil {
 		t.Fatal("closed compact database error = nil")
-	}
-}
-
-func TestDataManagementRemainingADKPurgeMappingsAndErrors(t *testing.T) {
-	root := t.TempDir()
-	settings, err := NewSettingsStore(filepath.Join(root, "settings.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := newTestServer(t, settings)
-	candidates := []dmsrv.CleanupCandidate{
-		{ID: "missing-agent", Category: "智能体"},
-		{ID: "missing-workflow", Category: "工作流"},
-		{ID: "missing-trigger", Category: "触发器"},
-	}
-	maintenance := server.newMaintenanceRegistry()
-	if _, err := maintenance.Purge(t.Context(), datamigration.DatabaseADK, candidates); !errors.Is(err, dmsrv.ErrCleanupCandidatesChanged) {
-		t.Fatalf("changed ADK candidates error = %v", err)
-	}
-
-	canceled, cancel := context.WithCancel(context.Background())
-	cancel()
-	if _, err := maintenance.Purge(canceled, datamigration.DatabaseADK, []dmsrv.CleanupCandidate{{ID: "missing-agent", Category: "智能体"}}); !errors.Is(err, context.Canceled) {
-		t.Fatalf("canceled ADK purge error = %v", err)
 	}
 }
 

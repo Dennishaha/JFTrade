@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import { readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { basename, resolve } from "node:path";
 
 const defaultPackagePath = "internal/app/apiserver/servercore";
 const defaultBudgetPath = "scripts/servercore-budget.json";
 
-export function inspectServercore(sources, dependencies) {
+export function inspectServercore(sources, dependencies, testSources = []) {
   let productionLines = 0;
+  let testLines = 0;
   let serverMethods = 0;
   let applicationMethods = 0;
   let serverFields = 0;
@@ -26,9 +27,13 @@ export function inspectServercore(sources, dependencies) {
       }
     }
   }
+  for (const source of testSources) {
+    testLines += countLines(source.contents);
+  }
   for (const files of Object.values(directImportFiles)) files.sort();
   return {
     productionLines,
+    testLines,
     serverMethods,
     applicationMethods,
     effectiveServerMethods: serverMethods + applicationMethods,
@@ -43,6 +48,7 @@ export function compareBudget(actual, budget) {
   const failures = [];
   const dimensions = [
     ["productionLines", "productionLinesMax", "production lines"],
+    ["testLines", "testLinesMax", "test lines"],
     ["serverMethods", "serverMethodsMax", "*Server methods"],
     ["applicationMethods", "applicationMethodsMax", "serverApplication methods"],
     ["effectiveServerMethods", "effectiveServerMethodsMax", "effective *Server method surface"],
@@ -68,10 +74,22 @@ function main() {
   const repoRoot = resolve(options.repoRoot);
   const packagePath = resolve(repoRoot, options.packagePath);
   const budget = JSON.parse(readFileSync(resolve(repoRoot, options.budgetPath), "utf8"));
-  const sources = readdirSync(packagePath, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".go") && !entry.name.endsWith("_test.go"))
-    .map((entry) => ({ name: entry.name, contents: readFileSync(resolve(packagePath, entry.name), "utf8") }));
-  const actual = inspectServercore(sources, Object.keys(budget.directImportFiles));
+  const entries = readdirSync(packagePath, { withFileTypes: true });
+  const readSources = (predicate) => entries
+    .filter((entry) => entry.isFile() && predicate(entry.name))
+    .map((entry) => ({
+      name: entry.name,
+      contents: readFileSync(resolve(packagePath, entry.name), "utf8"),
+    }));
+  const sources = readSources(
+    (name) => name.endsWith(".go") && !name.endsWith("_test.go"),
+  );
+  const testSources = readSources((name) => name.endsWith("_test.go"));
+  const actual = inspectServercore(
+    sources,
+    Object.keys(budget.directImportFiles),
+    testSources,
+  );
   const failures = compareBudget(actual, budget);
   if (failures.length > 0) {
     console.error("servercore temporary budget regressed:");
@@ -81,6 +99,7 @@ function main() {
   }
   console.log(
     `servercore budget passed: ${actual.productionLines}/${budget.productionLinesMax} production lines, ` +
+    `${actual.testLines}/${budget.testLinesMax} test lines, ` +
     `${actual.serverMethods}/${budget.serverMethodsMax} *Server methods, ` +
     `${actual.applicationMethods}/${budget.applicationMethodsMax} serverApplication methods, ` +
     `${actual.effectiveServerMethods}/${budget.effectiveServerMethodsMax} effective methods, ` +

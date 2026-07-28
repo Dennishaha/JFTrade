@@ -1,4 +1,4 @@
-package servercore
+package assistant
 
 import (
 	"encoding/json"

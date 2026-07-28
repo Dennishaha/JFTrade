@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
@@ -28,10 +29,10 @@ func TestBrokerSearchInstrumentPartsPreservesDottedCodes(t *testing.T) {
 }
 
 func TestMarketInstrumentResolverEndpointUsesSearchWithoutQuoteSubscription(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
 	httpServer := httptest.NewServer(server)
 	t.Cleanup(httpServer.Close)
 
@@ -62,28 +63,28 @@ func TestMarketInstrumentResolverEndpointUsesSearchWithoutQuoteSubscription(t *t
 			t.Fatalf("search candidate = %+v", entry)
 		}
 	}
-	if got := quoteServer.searchQuoteCallCount(); got != 1 {
+	if got := quoteServer.SearchQuoteCallCount(); got != 1 {
 		t.Fatalf("GetSearchQuote calls = %d, want 1", got)
 	}
-	if got := quoteServer.staticInfoCallCount(); got != 0 {
+	if got := quoteServer.StaticInfoCallCount(); got != 0 {
 		t.Fatalf("GetStaticInfo calls = %d, unqualified input must use search", got)
 	}
-	if got := quoteServer.qotSubCallCount(); got != 0 {
+	if got := quoteServer.SubscribeCallCount(); got != 0 {
 		t.Fatalf("QotSub calls = %d, search must not request a subscription", got)
 	}
-	if got := quoteServer.basicQotCallCount(); got != 0 {
+	if got := quoteServer.BasicQuoteCallCount(); got != 0 {
 		t.Fatalf("GetBasicQot calls = %d, search must not request quote data", got)
 	}
-	if got := quoteServer.securitySnapshotCallCount(); got != 0 {
+	if got := quoteServer.SecuritySnapshotCallCount(); got != 0 {
 		t.Fatalf("GetSecuritySnapshot calls = %d, search must not request snapshots", got)
 	}
 }
 
 func TestMarketInstrumentResolverQualifiedInputOnlyQueriesSelectedLeaf(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
 	result, err := server.marketdataSvc.ResolveInstrument(t.Context(), "CN", "SH.600519", 20)
 	if err != nil {
 		t.Fatalf("ResolveInstrument: %v", err)
@@ -91,13 +92,13 @@ func TestMarketInstrumentResolverQualifiedInputOnlyQueriesSelectedLeaf(t *testin
 	if result.ResolutionStatus != mdsrv.InstrumentResolutionResolved || result.TotalReturned != 1 || result.Entries[0].InstrumentID != "SH.600519" {
 		t.Fatalf("qualified resolution = %+v", result)
 	}
-	if got := quoteServer.staticInfoCallCount(); got != 1 {
+	if got := quoteServer.StaticInfoCallCount(); got != 1 {
 		t.Fatalf("GetStaticInfo calls = %d, want one qualified leaf lookup", got)
 	}
-	if quoteServer.searchQuoteCallCount() != 0 || quoteServer.qotSubCallCount() != 0 {
+	if quoteServer.SearchQuoteCallCount() != 0 || quoteServer.SubscribeCallCount() != 0 {
 		t.Fatal("qualified static lookup unexpectedly used search or quote subscription APIs")
 	}
-	if quoteServer.basicQotCallCount() != 0 || quoteServer.securitySnapshotCallCount() != 0 {
+	if quoteServer.BasicQuoteCallCount() != 0 || quoteServer.SecuritySnapshotCallCount() != 0 {
 		t.Fatal("qualified static lookup unexpectedly used a quote or snapshot API")
 	}
 }

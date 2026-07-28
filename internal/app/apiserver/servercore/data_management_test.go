@@ -9,7 +9,6 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	appstores "github.com/jftrade/jftrade-main/internal/app/apiserver/stores"
-	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
@@ -90,23 +89,6 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 		t.Fatalf("strategy cleanup = %+v", resultValue)
 	}
 
-	adkStore := serverADKTestStore(t, server)
-	agent, err := adkStore.SaveAgent(t.Context(), assistant.AgentWriteRequest{ID: "cleanup-agent", Name: "Cleanup Agent", Status: assistant.AgentStatusEnabled})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := adkStore.DeleteAgent(t.Context(), agent.ID); err != nil {
-		t.Fatal(err)
-	}
-	previewValue, err = server.dataManagementSvc.PreviewCleanup(t.Context(), dmsrv.CleanupPreviewRequest{Kind: datamigration.CleanupSoftDeleted, DatabaseID: datamigration.DatabaseADK})
-	if err != nil {
-		t.Fatal(err)
-	}
-	preview = previewValue.(datamigration.CleanupPreview)
-	if _, err := server.dataManagementSvc.ExecuteCleanup(t.Context(), dmsrv.CleanupExecuteRequest{PreviewID: preview.PreviewID, Confirmation: preview.ConfirmationText}); err != nil {
-		t.Fatal(err)
-	}
-
 	old := time.Now().UTC().Add(-48 * time.Hour).Format(time.RFC3339Nano)
 	for _, id := range []string{"old-a", "old-b"} {
 		if err := server.stores.BacktestRuns.Add(&backtestRunState{ID: id, Status: "completed", CreatedAt: old, UpdatedAt: old}); err != nil {
@@ -130,9 +112,6 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 		datamigration.DatabaseBacktestRuns,
 		datamigration.DatabaseStrategy,
 		datamigration.DatabaseExecution,
-		datamigration.DatabaseADK,
-		datamigration.DatabaseADKSession,
-		datamigration.DatabaseADKArtifact,
 		datamigration.DatabaseWatchlist,
 		datamigration.DatabaseResearch,
 	} {

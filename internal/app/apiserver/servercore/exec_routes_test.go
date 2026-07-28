@@ -14,12 +14,12 @@ import (
 )
 
 func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
-	opendServer := startBrokerRouteOpenDServer(t)
-	opendServer.setAccounts([]fututestkit.Account{{
+	opendServer := fututestkit.StartBrokerServer(t)
+	opendServer.SetAccounts([]fututestkit.Account{{
 		Environment: "SIMULATE", ID: 1001, Markets: []string{"HK"}, Type: "CASH",
 	}})
-	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
-	defer opendServer.stop()
+	opendServer.SetPlacedOrderResponse(9001, "EXT-9001")
+	defer opendServer.Close()
 
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
@@ -27,8 +27,8 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	}
 	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
-		Host:          strings.Split(opendServer.addr, ":")[0],
-		APIPort:       portFromAddr(t, opendServer.addr),
+		Host:          strings.Split(opendServer.Addr(), ":")[0],
+		APIPort:       portFromAddr(t, opendServer.Addr()),
 		WebSocketPort: 11111,
 		TradeMarket:   "HK",
 	})})
@@ -114,7 +114,7 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	if order.RawBrokerStatus == nil || *order.RawBrokerStatus != "SUBMITTED" {
 		t.Fatalf("rawBrokerStatus = %#v, want SUBMITTED", order.RawBrokerStatus)
 	}
-	if got := opendServer.placeOrderCallCount(); got != 1 {
+	if got := opendServer.PlaceOrderCallCount(); got != 1 {
 		t.Fatalf("expected one place order call, got %d", got)
 	}
 
@@ -173,7 +173,7 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	if cancelEnvelope.Data.OrderStatus == nil || *cancelEnvelope.Data.OrderStatus != "CANCEL_REQUESTED" {
 		t.Fatalf("cancel order status = %#v, want CANCEL_REQUESTED", cancelEnvelope.Data.OrderStatus)
 	}
-	if got := opendServer.modifyOrderCallCount(); got != 1 {
+	if got := opendServer.ModifyOrderCallCount(); got != 1 {
 		t.Fatalf("expected one modify order call, got %d", got)
 	}
 

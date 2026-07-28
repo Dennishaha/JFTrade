@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -134,37 +135,18 @@ func TestRealTradeControlPathPrefersExplicitOverride(t *testing.T) {
 	if got := deriveRealTradeControlPath("settings.json"); got != defaultRealTradeControlFilename {
 		t.Fatalf("relative settings control path = %q", got)
 	}
-	if got := deriveRealTradeControlPath("/var/lib/jftrade/settings.json"); got != "/var/lib/jftrade/"+defaultRealTradeControlFilename {
+	if got := deriveRealTradeControlPath("/var/lib/jftrade/settings.json"); got != filepath.Join("/var/lib/jftrade", defaultRealTradeControlFilename) {
 		t.Fatalf("derived control path = %q", got)
 	}
 }
 
 func TestWorkflowMarketAdaptersRejectInvalidInputsAndPreserveMetadata(t *testing.T) {
-	market, symbol, ok := splitWorkflowInstrumentID(" us.aapl ")
-	if !ok || market != "US" || symbol != "AAPL" {
-		t.Fatalf("split workflow instrument = %q, %q, %v", market, symbol, ok)
-	}
-	for _, value := range []string{"", "AAPL", "US.", ".AAPL"} {
-		if _, _, valid := splitWorkflowInstrumentID(value); valid {
-			t.Fatalf("invalid workflow instrument %q was accepted", value)
-		}
-	}
-	if market, symbol, ok := splitWorkflowInstrumentID("US.AAPL.EXTRA"); !ok || market != "US" || symbol != "AAPL.EXTRA" {
-		t.Fatalf("canonical workflow symbol with suffix = %q, %q, %v", market, symbol, ok)
-	}
+	adapter := assistantassembly.NewApplicationAdapter(assistantassembly.ApplicationPorts{})
 	var nilServer *serverApplication
-	if _, err := nilServer.workflowMarketSnapshot(t.Context(), "US.AAPL"); err == nil {
-		t.Fatal("nil server should not provide a market snapshot")
-	}
-	if got := nilServer.workflowWatchedInstruments(); got != nil {
-		t.Fatalf("nil server watched instruments = %#v", got)
-	}
-	nilServer.emitWorkflowEvent(assistantassembly.WorkflowEvent{})
 	server := &Server{}
-	if _, err := server.workflowMarketSnapshot(t.Context(), "invalid"); err == nil {
-		t.Fatal("server without market service should reject snapshots")
+	if _, err := adapter.WorkflowMarketSnapshot(t.Context(), "US.AAPL"); err == nil {
+		t.Fatal("workflow adapter without market service should fail closed")
 	}
-	server.emitWorkflowEvent(assistantassembly.WorkflowEvent{})
 
 	request := marketCandlesRequest("US", "AAPL", "US.AAPL", "1h", 200)
 	if request["period"] != "1h" || request["limit"] != 200 {

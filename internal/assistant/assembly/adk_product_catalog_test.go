@@ -1,43 +1,13 @@
-package servercore
+package assembly
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"regexp"
-	"runtime"
 	"slices"
-	"strings"
 	"testing"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
-
-type capabilityUISurfaceManifest map[string]map[string]string
-
-func loadCapabilityUISurfaceManifest(t *testing.T) capabilityUISurfaceManifest {
-	t.Helper()
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve capability catalog test source path")
-	}
-	path := filepath.Join(
-		filepath.Dir(sourceFile),
-		"../../../../apps/web/src/features/capability-surfaces.json",
-	)
-	content, err := os.ReadFile(filepath.Clean(path))
-	if err != nil {
-		t.Fatalf("read UI capability surface manifest: %v", err)
-	}
-	var manifest capabilityUISurfaceManifest
-	if err := json.Unmarshal(content, &manifest); err != nil {
-		t.Fatalf("parse UI capability surface manifest: %v", err)
-	}
-	return manifest
-}
 
 func TestCapabilityCatalogSurfacesAreRegisteredAndMCPBounded(t *testing.T) {
 	registry := assistanttestkit.NewToolRegistry()
@@ -87,80 +57,15 @@ func TestCapabilityCatalogSurfacesAreRegisteredAndMCPBounded(t *testing.T) {
 	}
 }
 
-func TestCapabilityOperationContracts(t *testing.T) {
-	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
-	if err != nil {
-		t.Fatalf("NewSettingsStore: %v", err)
-	}
-	server := newTestServer(t, store)
-	routes := make(map[string]struct{}, len(server.router.Routes()))
-	for _, route := range server.router.Routes() {
-		routes[strings.ToUpper(route.Method)+" "+route.Path] = struct{}{}
-	}
-	placeholder := regexp.MustCompile(`\{([^{}]+)\}`)
-	uiSurfaces := loadCapabilityUISurfaceManifest(t)
-	registry := assistanttestkit.NewToolRegistry()
-	RegisterJFTradeADKTools(nil, registry, ToolDeps{})
-	mcpNames := append([]string(nil), assistant.LocalMCPReadOnlyToolNames...)
-	slices.Sort(mcpNames)
-
-	for _, feature := range broker.BuiltinCapabilityCatalog.Features {
-		t.Run(string(feature.ID), func(t *testing.T) {
-			for _, operation := range feature.Operations {
-				t.Run(operation.ID, func(t *testing.T) {
-					if operation.TestID != t.Name() {
-						t.Fatalf("test mapping = %q, want current behavior test %q", operation.TestID, t.Name())
-					}
-					path := strings.SplitN(operation.API, "?", 2)[0]
-					path = placeholder.ReplaceAllString(path, `:$1`)
-					routeKey := strings.ToUpper(operation.HTTPMethod) + " " + path
-					if _, ok := routes[routeKey]; !ok {
-						t.Errorf("API operation is not registered: %s", routeKey)
-					}
-					if operation.UISurfaceID != "" {
-						if _, ok := uiSurfaces[operation.UISurfaceID]; !ok {
-							t.Errorf("UI surface %q is absent from shared frontend manifest", operation.UISurfaceID)
-						}
-					}
-					if operation.Tool == "" {
-						return
-					}
-					registered, ok := registry.Get(operation.Tool)
-					if !ok {
-						t.Fatalf("tool %q is not registered", operation.Tool)
-					}
-					schema := registered.Descriptor.InputSchema
-					if schema["type"] != "object" || schema["additionalProperties"] != false {
-						t.Errorf("tool %q does not have a closed business JSON schema: %#v", operation.Tool, schema)
-					}
-					inMCP := slices.Contains(mcpNames, operation.Tool)
-					if feature.Access == broker.FeatureAccessRead && !inMCP {
-						t.Errorf("reviewed read tool %q is absent from local read-only MCP", operation.Tool)
-					}
-					if feature.Access != broker.FeatureAccessRead && inMCP {
-						t.Errorf("write-capable tool %q leaked into local read-only MCP", operation.Tool)
-					}
-					for _, protocol := range operation.Protocols {
-						if protocol.BrokerID == "" || protocol.Key == "" || protocol.ID == 0 ||
-							(protocol.Kind != "request" && protocol.Kind != "push") {
-							t.Errorf("invalid OpenD protocol mapping: %#v", protocol)
-						}
-					}
-				})
-			}
-		})
-	}
-}
-
 func TestProductToolRegistryAndOperationSchemasAreCatalogBacked(t *testing.T) {
 	productTools := map[string]struct{}{}
-	for _, definition := range assistantassembly.ProductReadToolDefinitions() {
+	for _, definition := range ProductReadToolDefinitions() {
 		productTools[definition.Name] = struct{}{}
 	}
-	for _, definition := range assistantassembly.ProductTradeToolDefinitions() {
+	for _, definition := range ProductTradeToolDefinitions() {
 		productTools[definition.Name] = struct{}{}
 	}
-	for _, definition := range assistantassembly.ProductWriteToolDefinitions() {
+	for _, definition := range ProductWriteToolDefinitions() {
 		productTools[definition.Name] = struct{}{}
 	}
 
@@ -186,7 +91,7 @@ func TestProductToolRegistryAndOperationSchemasAreCatalogBacked(t *testing.T) {
 			t.Errorf("registered product tool %q has no CapabilityCatalog operation", tool)
 		}
 	}
-	for tool, schemaOperations := range assistantassembly.ProductToolOperations() {
+	for tool, schemaOperations := range ProductToolOperations() {
 		if _, ok := productTools[tool]; !ok {
 			t.Errorf("operation schema exists for unregistered product tool %q", tool)
 			continue

@@ -8,10 +8,10 @@ import (
 )
 
 func TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
-	quoteServer.setHistoryPagesBySession(map[string][][]fututestkit.KLine{
+	quoteServer.SetHistoryPagesBySession(map[string][][]fututestkit.KLine{
 		"RTH": {
 			{testMarketDataProtoKLine(time.Date(2026, time.May, 20, 10, 0, 0, 0, time.UTC), 110, 111, 109, 110.5, 1000)},
 		},
@@ -23,7 +23,7 @@ func TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday(t *testi
 		},
 	})
 
-	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
 	start := time.Date(2026, time.May, 20, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2026, time.May, 20, 23, 0, 0, 0, time.UTC)
 	response, err := server.marketCandlesResponse(
@@ -81,15 +81,15 @@ func TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday(t *testi
 }
 
 func TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
 	labelAt := time.Date(2026, time.May, 20, 0, 0, 0, 0, time.UTC)
-	quoteServer.setHistoryPages([][]fututestkit.KLine{{
+	quoteServer.SetHistoryPages([][]fututestkit.KLine{{
 		testMarketDataProtoKLine(labelAt, 100, 101, 99, 100.5, 1000),
 	}})
 
-	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
 	response, err := server.marketCandlesResponse(
 		t.Context(),
 		"/api/v1/market-data/candles/US/NVDA",
@@ -124,4 +124,8 @@ func TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles(t *testing.T) 
 	if got := meta["extendedHours"]; got != false {
 		t.Fatalf("extendedHours = %v, want false", got)
 	}
+}
+
+func testMarketDataProtoKLine(at time.Time, open, high, low, close float64, volume int64) fututestkit.KLine {
+	return fututestkit.KLine{At: at, Open: open, High: high, Low: low, Close: close, Volume: volume}
 }

@@ -16,19 +16,19 @@ import (
 )
 
 func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
-	quoteServer := startMarketDataQuoteOpenDServer(t)
-	defer quoteServer.stop()
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
 
 	historyLabelAt := time.Now().UTC().Add(2 * time.Hour).Truncate(time.Minute)
 	currentLabelAt := historyLabelAt.Add(time.Minute)
-	quoteServer.setHistoryPages([][]fututestkit.KLine{{
+	quoteServer.SetHistoryPages([][]fututestkit.KLine{{
 		testMarketDataProtoKLine(historyLabelAt, 100, 101, 99, 100.5, 1000),
 	}})
-	quoteServer.setCurrentKLines([]fututestkit.KLine{
+	quoteServer.SetCurrentKLines([]fututestkit.KLine{
 		testMarketDataProtoKLine(currentLabelAt, 101, 106, 99, 103, 500),
 	})
 
-	host, port := splitHostPort(t, quoteServer.addr)
+	host, port := splitHostPort(t, quoteServer.Addr())
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -114,7 +114,7 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 	if !envelope.OK {
 		t.Fatal("expected ok=true")
 	}
-	if got := quoteServer.currentKLCallCount(); got != 1 {
+	if got := quoteServer.CurrentKLineCallCount(); got != 1 {
 		t.Fatalf("expected one GetKL call, got %d", got)
 	}
 	if got := len(envelope.Data.Candles); got != 2 {
