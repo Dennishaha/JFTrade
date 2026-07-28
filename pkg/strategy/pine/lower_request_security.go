@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	exprast "github.com/expr-lang/expr/ast"
-
-	strategyexpression "github.com/jftrade/jftrade-main/pkg/strategy/expression"
 )
 
 func replaceSupportedRequestSecurity(expression string) string {
@@ -206,7 +204,7 @@ func lowerPureRequestSecurityExpression(expression string, timeUnit string) (str
 }
 
 func requestSecurityLoweredASTIsPure(expression string) bool {
-	node, err := strategyexpression.ParseExpression(expression)
+	node, err := parseExpression(expression)
 	if err != nil {
 		return false
 	}

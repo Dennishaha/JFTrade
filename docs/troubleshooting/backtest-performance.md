@@ -93,13 +93,13 @@ go test ./pkg/strategy/pineworker \
 
 - SQLite 同一 symbol/interval/rehabType 下只区分 `regular` / `extended` 两套 session scope；历史未分 scope 表必须在运行新代码前离线归一为 `regular`，运行时不再读取 `legacy` scope。
 - `useExtendedHours` 不只影响 replay 数据版本，也会影响 `1d/1w/1mo` 与 `2h/4h/6h/12h` 的聚合边界。
-- indicatorruntime 的 `day/week/month` window 改为按 `TradingPeriodLabelStart` 和 trading profile 来算，US extended 口径下一个 trading day 当前就是 24 小时连续交易日。
+- Go 侧行情准备与 PineTS 输入的 `day/week/month` 聚合边界按 `TradingPeriodLabelStart` 和 trading profile 计算；US extended 口径下一个 trading day 当前就是 24 小时连续交易日。
 
 性能下降主要来自三层叠加：
 
 - store 侧按 session scope 精确选表，避免 regular/extended 数据串读；不存在跨 scope probe 或读取 fallback。
 - higher-period 查询多了 session-aware / trading-period aggregation，不能再把 `2h`、`1d`、`1w` 简化成“读现成表”或“固定 bar 数凑够”。
-- indicatorruntime 的 `day/week/month` snapshot 不再是固定长度 rolling window；extended warmup 也会同步放大。例如 US `5m` 上 `20 day`，旧 regular 口径只要约 `1560` 根 bar，当前 extended 口径会扩大到约 `5760` 根 bar。
+- `indicatorwarmup` 会按交易市场与 session scope 放大 `day/week/month` 的预热量。例如 US `5m` 上 `20 day`，旧 regular 口径只要约 `1560` 根 bar，当前 extended 口径会扩大到约 `5760` 根 bar。
 
 所以这里面有一部分是语义正确性必须支付的成本，不能简单回滚；另一部分才是实现上的额外损耗，值得继续压。
 
@@ -107,7 +107,7 @@ go test ./pkg/strategy/pineworker \
 
 硬切 PineTS worker 之前，US.TME 真实 replay 曾验证过一类高概率热点：
 
-- `pkg/strategy/indicatorruntime` 的 trading-window moving-average path
+- 已删除的 Go 指标计算引擎中的 trading-window moving-average path
 - 具体表现是每根 bar 反复构造 day/week/month window 的 indices/values/volumes
 - 如果 period key 走字符串格式化，也会放大 `time.Time.Format` 分配
 

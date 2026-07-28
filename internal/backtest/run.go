@@ -17,7 +17,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/chart"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
-	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
+	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorwarmup"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
@@ -201,11 +201,11 @@ func normalizeInitialBalance(balance float64, compiled float64) float64 {
 
 func deriveWarmupQueryStart(compilation strategypine.Compilation, req StartRequest, startTime time.Time) (time.Time, error) {
 	interval := bbgotypes.Interval(req.Interval)
-	warmup, err := indicatorruntime.WarmupBarsFromPlanForSymbolWithOptions(
+	warmup, err := indicatorwarmup.WarmupBarsFromPlanForSymbolWithOptions(
 		compilation.Requirements,
 		interval,
 		req.Symbol,
-		indicatorruntime.RuntimeOptions{IncludeExtendedHours: req.UseExtendedHours != nil && *req.UseExtendedHours},
+		indicatorwarmup.RuntimeOptions{IncludeExtendedHours: req.UseExtendedHours != nil && *req.UseExtendedHours},
 	)
 	if err != nil {
 		return time.Time{}, requestErrorf("derive strategy warmup: %v", err)

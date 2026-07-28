@@ -1,393 +1,426 @@
-# JFTrade 工程与业务优化分析清单
+# JFTrade 工程改进计划
 
-初版分析:2026-07-26 · 基线 commit `3482f994`
-本轮复核:2026-07-28 · 复核 commit `6eb2e22b` · 所有数值为本次实测
+本轮复核: 2026-07-28 · HEAD `a2bdb66f` · 所有数值由本次实测得出
 
 ---
 
-## 本轮结论摘要
+## 0. 规模基线（当前实测）
 
-**P0 三条全部闭环,门禁已从 warning 升级为硬失败。** 复核确认这不是纸面完成:`check-arch-deps` 153 条规则 0 warning 0 failed,`servercore` 预算门禁把生产行数/方法面/字段数五个维度全部下压到当前实测值,`check:test-names` 全仓通过且 allowlist 为 0。
+| 维度 | 数值 | 备注 |
+| --- | ---: | --- |
+| Go 生产文件 | 1,017 | 含 `docs/swagger/docs.go`（30,553 行生成物）|
+| Go 生产行数 | 320,794 | 同上；扣除 pb 生成（114,008）+ swagger 生成后手写约 17.6 万行 |
+| Go 测试文件 | 881 | |
+| Go 测试行数 | 195,809 | |
+| 前端 `apps/web/src` | 383 文件 / 134,956 行 | |
+| 前端测试 `apps/web/tests` | 299 文件 / 100,816 行 | |
 
-**复核发现的 3 个 P0' 遗留问题已在本轮闭环:**
+**子系统对比（实测，不含测试）**
 
-| 编号 | 问题 | 性质 |
+| 子系统 | 生产行数 |
+| --- | ---: |
+| ADK/助手：`pkg/adk` 24,498 + `internal/assistant` 8,194 + `internal/api/assistant` 3,341 | **36,033** |
+| 核心交易：`internal/trading` 4,937 + `internal/api/trading` 1,270 + `internal/marketdata` 2,913 + `internal/strategy` 7,269 + `internal/backtest` 1,982 + `pkg/backtest` 7,944 + `pkg/broker` 2,922 | **29,237** |
+| ADK : 核心交易 比例 | **1.23 : 1** |
+
+> 比例较上一轮（1.69:1）已收窄——`internal/strategy` 从 2,215 行增长到 7,269 行，核心交易侧增速更快。
+
+---
+
+## P0 —— 架构完整性与最高 ROI 清理
+
+### P0-1 `indicatorruntime` 清理（✅ 已完成）
+
+**拆分前实测证据（HEAD `a2bdb66f`）**
+
+```
+find pkg/strategy/indicatorruntime -name '*.go' -not -name '*_test.go' | xargs wc -l → 9,193 行
+find pkg/strategy/indicatorruntime -name '*_test.go' | xargs wc -l            → 8,617 行
+```
+
+外部非测试导入者（5 个文件）：
+```
+internal/strategy/liveruntime/pineworker_live.go
+internal/backtest/run.go
+internal/api/strategy/routes.go
+pkg/backtest/pineworker_runner.go
+pkg/backtest/runner.go
+```
+
+**这 5 个文件实际使用的外部符号只有 4 个**，全部是预热 K 线数量计算：
+- `RuntimeOptions`
+- `WarmupBarsFromScriptForSymbol`
+- `WarmupBarsFromScriptForSymbolWithOptions`
+- `WarmupBarsFromPlanForSymbolWithOptions`
+
+**`IndicatorEngine`（计算引擎唯一入口）及其 46 个 `calc_*` / `state_*` / `snapshot_*` 文件，无任何生产调用者**，仅被本包自身测试引用。这与架构文档一致：「Go 主进程不再维护自研 Pine 执行 runtime」—— PineTS 是唯一执行路径，自研引擎早已切出，只是代码还在。
+
+**完成结果**
+
+| 项目 | 拆分前 | 完成后 | 净变化 |
+| --- | ---: | ---: | ---: |
+| 生产代码 | `indicatorruntime` 9,193 行 | `indicatorwarmup` 1,974 行（9 文件） | **-7,219 行** |
+| 测试代码 | 8,617 行 | 1,237 行（8 文件） | **-7,380 行** |
+
+最终迁移的是预热逻辑的精确最小闭包：requirements/config、严格需求解析与排序、固定周期校验、预热计算、`RuntimeOptions` 和 interval 分钟换算。原分析列入 A 组的 `trading_period.go`、`session.go`、`spec_keys.go`、`spec_query.go` 实际也只服务旧计算/快照引擎，已随旧包删除。
+
+| 步 | 完成状态 | 验证 |
 | --- | --- | --- |
-| P0'-1 | 测试归位与 servercore 测试行硬预算 | ✅ 已完成：17,582 / 18,000 行 |
-| P0'-2 | Windows 契约审计路径分隔符 | ✅ 已完成：source/classification/adapter/test key 统一 POSIX |
-| P0'-3 | 干净检出 preflight 缺生成物 | ✅ 已完成：preflight 首步生成 docs，ci-local 单次生成后检查漂移 |
+| 1 | ✅ 新建 `pkg/strategy/indicatorwarmup`，迁入精确最小闭包及对应测试 | 包覆盖率 95.88% |
+| 2 | ✅ 5 个外部调用点全部改指向新包 | 定向测试与 `go build ./...` 通过 |
+| 3 | ✅ `pkg/strategy/indicatorruntime` 整包删除 | 非测试 import 为 0，hard-cut 审计防止回归 |
+| 4 | ✅ 全量回归与覆盖率门禁 | `pnpm run test:go`、`pnpm run test:coverage` 通过 |
 
-**P1-4 已完成验证,原假设需要修正:** `indicatorruntime` 不是僵尸包,但其中 **6,632 行计算引擎在生产路径上不可达**(仅测试可达)。这仍是本清单投入产出比最高的一条,但动作从"删包"改为"拆包 + 删一半"。
+生产链核验结果也已明确：策略实盘信号由 PineTS 生成；普通 K 线技术指标由浏览器端 TypeScript 计算；两条生产路径均不使用 Go `IndicatorEngine`。
 
----
-
-## 0. 规模基线
-
-| 维度 | 基线 `3482f994` | 当前 `6eb2e22b` | 变化 |
-| --- | ---: | ---: | ---: |
-| Go 生产 | 950 文件 / 280,238 行 | 1,017 文件 / 298,431 行 | +18,193 |
-| Go 测试 | 838 文件 / 192,616 行 | 878 文件 / 197,538 行 | +4,922 |
-| 前端 `apps/web/src` | 353 文件 / 127,742 行 | 383 文件 / 134,956 行 | +7,214 |
-| 前端测试 | 291 文件 / 96,041 行 | 299 文件 / 100,816 行 | +4,775 |
-
-扣除 `pkg/futu/pb` 生成代码与 `pkg/bbgo` fork(17,253 行)后,手写 Go 生产代码约 15.1 万行。
-
-注意:P0 三轮改造期间生产代码净增 1.8 万行 —— 说明**重构与功能开发并行**,`servercore` 的行数下降来自搬迁而非净删除。P0'-1 已通过测试归位与硬预算收尾。
+**同时处理的小包**：`pkg/strategy/expression` 已合并到唯一使用方 `pkg/strategy/pine`。原分析对另外两个包的“唯一使用方”假设不成立：`pkg/chart` 有 15 个生产导入文件，`pkg/besteffort` 有 68 个生产导入文件，均横跨多个业务域，继续作为共享包保留。
 
 ---
 
-## P0 已闭环(归档) —— 复核实测
+### P0-2 `pkg/bbgo/FORK.md` 可追溯性（✅ 已完成）
 
-三条 P0 的原始分析基于 `3482f994`,不回写历史数据。下表是本次实测的闭环结果。
+**治理前实测证据**
 
-### P0-1 `servercore` God Package
+```bash
+ls pkg/bbgo/FORK.md → DOES NOT EXIST
+grep -rl "jftrade-main/pkg/bbgo" --include='*.go' . | grep -v '_test.go' | wc -l → 117 个非测试文件
+```
 
-| 指标 | 基线 | 首轮改造 | 上次自评 | **本次实测** | 门禁上限 |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 生产文件 | 96 | — | — | **59** | — |
-| 生产行数 | 20,668 | 7,718 | 6,622 | **6,559** | 6,560 |
-| 显式 `*Server` 方法 | 200 | 72 | 63 | **46** | 46 |
-| `serverApplication` 方法 | — | 107 | 73 | **73** | 73 |
-| 有效方法面(含嵌入提升) | 200 | 179 | 136 | **119** | 119 |
-| 聚合字段数 | 33 | 52 | 26 | **26** | 26 |
-| 禁止的直接 import | 3 warning | 0 | 0 | **0(硬失败)** | 0 |
+`pkg/bbgo` 有 17,253 行 Go 代码（含 `pkg/bbgo/types` 13,387 行），被 117 个生产文件导入。**没有任何文档说明 fork 自哪个上游 commit、本地改了什么、如何跟踪上游安全更新**。
 
-生产行数比基线降 68%,有效方法面降 41%。`scripts/servercore-budget.json` 把五个维度全部钉在当前实测值,回退即失败。`check-arch-deps.sh` 结果 **153 passed / 0 warnings / 0 failed**,`pkg/futu`、`pkg/adk`、`pkg/backtest` 三族的生产与测试 import 全部为硬失败,无测试逃逸口。
+**为什么是 P0**：这是供应链盲区。上游如果发布了安全修复，本项目无法感知是否受影响；code review 也无法判断哪些改动是"我们加的"还是"上游本来就有的"。17,253 行代码对外表现为完全不透明的黑盒。
 
-ADK 生产代码在 `servercore` 只剩 **53 行**(`adk_runtime.go` 24 行 + `adk_workflow.go` 29 行),纯装配入口。计算引擎与生命周期已进入 `internal/assistant/assembly`(4,562 行)。
-
-servercore 测试现在受 `testLinesMax: 18000` 硬门禁约束；ADK、Pine、Futu、settings 测试已在 owner package 运行。
-
-### P0-2 前端 API 类型双真相
-
-| 事实 | 基线 | **本次实测** |
-| --- | ---: | ---: |
-| `src/generated/openapi.ts` | 7,603 行 | **12,403 行** |
-| 引用生成物的文件数 | 7 | **39** |
-| 绕过 `apiClient` 的裸 `fetch()` | 17 处 | **1 处**(即 `apiClient.ts` 自身) |
-| `src/types/` | 12 行,形同虚设 | `client-api.ts` + `view-models/` 10 个域文件 |
-
-wire DTO 只从 `@/contracts` 引入、view model 只从 `@/types` 引入的分层已落地。四个门禁 `check:web-api-boundary`、`check:web-contract-index`、`check:web-contract-audit`、`check:openapi-quality` 全部进入 `preflight`。
-
-裸 `fetch` 从 17 处收敛到 1 处是这一条最实的安全收益 —— 鉴权头、CSRF、`WEB_AUTH_REQUIRED_EVENT` 不再有缺失路径。
-
-Windows 路径回归测试覆盖 source key 与 test-file key；契约门禁已在本机 Windows 通过。
-
-### P0-3 测试命名与断言密度
-
-| 指标 | 基线 | **本次实测** |
-| --- | ---: | ---: |
-| 违反命名政策的测试文件 | 88 | **0** |
-| `test-name-allowlist.txt` 豁免条目 | — | **0** |
-| 无可识别断言的测试 | 未度量(旧正则永远退出 0) | **6**(5 legacy + 1 具名豁免) |
-
-`check:test-names` 覆盖全仓(不再只查增量),基线从 `origin/main` tree 按当前规则推导,无法通过"同时新增文件和豁免条目"绕过。断言检查改为 Go AST 分析,识别 `testing.T` 失败调用、testify 与跨文件 helper;普通函数调用不再自动合格。
-
-剩余 6 个缺口:
-- 5 个 legacy(`internal/api/marketdata`、`internal/api/research`、`internal/app/apiserver/lifecycle`、`pkg/bbgo/types`、`pkg/strategy/pineworker`)
-- 1 个具名豁免(`servercore/strategy_runtime_nil_boundaries_test.go`,"不 panic"边界契约,理由已登记)
-
----
-
-## P0' —— P0 改造遗留已闭环（2026-07-28 实测）
-
-### P0'-1 `servercore` 测试归位与预算
-
-**闭环证据**
-
-P0'-1 将 ADK 路由/SSE 测试迁到 `internal/api/assistant`，工具/策略/产品/workflow/maintenance 测试迁到 `internal/assistant/assembly`，Pine 路由与 worker 测试迁到 `internal/api/strategy`/`internal/strategy/pineruntime`，Futu runtime 测试迁到 `internal/app/apiserver/futuapp`，ADK settings 测试迁到 `internal/api/settings`。`adk_assembly_compat_test.go` 已删除，迁移后的测试直接构造 owner runtime、adapter、coordinator 和 ports。
-
-servercore 测试行从复核时的 25,457 降到 **17,582**，并由 `testLinesMax: 18000` 硬失败门禁锁定:
-
-| 阶段 | 生产行 | 测试行 | 比值 |
-| --- | ---: | ---: | ---: |
-| 基线 `3482f994` | 20,668 | 35,416 | 1.71 |
-| **本轮闭环** | 6,559 | 17,582 | **2.68** |
-
-owner package 测试均已通过，servercore 本身也通过 `go test ./internal/app/apiserver/servercore -count=1`。测试/生产比从 3.88 降到 2.68，且后续回退会由预算门禁阻断。
-
----
-
-### P0'-2 Windows 契约审计路径规范化
-
-**闭环证据**
-
-`scripts/lib/web-contract-audit.mjs` 提供统一 `normalizeRelativePath()`，主审计脚本及分类表、source、adapter、boundary-test 比较全部先规范为 `/`。Node 回归测试同时覆盖 Windows 反斜杠 source key 和 test-file key；本机 `pnpm run check:web-contract-audit` 通过。
-
----
-
-### P0'-3 独立 preflight 生成契约产物
-
-**闭环证据**
-
-`scripts/run-test-layer.mjs` 抽出共享 `preflightChecks`：`preflight = generate:docs + checks`；`ci-local = generate:docs + git diff + audit/license + checks + 后续门禁`，不会重复生成。`docs/testing-strategy.md` 已说明 preflight 会刷新工作树生成物，而 ci-local 仍用 `git diff` 拦截未提交契约漂移。本机执行 `pnpm run generate:docs` 成功，相关 Node 门禁和 Web contract audit 均通过。
+**完成结果**：已新建 `pkg/bbgo/FORK.md`，确认上游基线为 `c9s/bbgo v1.64.2`、commit `816670adaa14e95d61697d2c2a81975fd90fdff3`，并记录证据链、初始本地差异、后续 patch stack、月度及发版前安全检查、选择性移植和完整重新基线流程。`go test ./pkg/bbgo/... -count=1` 已通过。
 
 ---
 
 ## P1 —— 明显收益
 
-### P1-4 `indicatorruntime`:原假设已验证并修正(**当前最高优先级**)
+### P1-1 前端组件体量危机：23 个 `.vue` >800 行，scoped CSS 合计 18,290 行
 
-> 初版分析把这条列为"疑似 9,193 行僵尸代码,需先验证再动手"。**本轮已完成验证,结论需要修正。**
+**实测证据**
 
-**验证方法与结果**
+```
+find apps/web/src -name '*.vue' -exec wc -l {} \; | sort -rn | awk '$1>800' | wc -l  → 23 个文件
+```
 
-1. **外部 import 者:5 个非测试文件**(`internal/backtest/run.go`、`internal/strategy/liveruntime/pineworker_live.go`、`internal/api/strategy/routes.go`、`pkg/backtest/pineworker_runner.go`、`pkg/backtest/runner.go`)—— 全部在活跃调用链上,**不是僵尸包**。
-2. **外部实际使用的符号只有 4 个**,全部是预热 K 线数量计算:
-   - `RuntimeOptions`
-   - `WarmupBarsFromScriptForSymbol`
-   - `WarmupBarsFromScriptForSymbolWithOptions`
-   - `WarmupBarsFromPlanForSymbolWithOptions`
-3. **包共导出 10 个函数 + 2 个类型。** `IndicatorEngine` 与 `NewIndicatorEngineForPlan` / `NewIndicatorEngineForPlanWithOptions` **只被本包测试调用**(`indicator_runtime_state_test.go`、`warmup_script_test.go`),无任何生产调用者。
-4. **`IndicatorEngine` 是计算机器的唯一入口。** 包内非测试文件中,只有 `indicator_engine.go` 自己引用 `IndicatorEngine`;`warmup.go` 与 `spec_parse_keys.go` 完全不触碰 `kdjSeries` / `macdSeries` / `snapshotSeriesCache` 等计算符号。
+Top 超量组件（template / script / style 分拆实测）：
 
-**结论:包可以按外部可达性一分为二**
+| 文件 | template | script | style | 总行 |
+| --- | ---: | ---: | ---: | ---: |
+| `pages/BacktestPage.vue` | 553 | 2,035 | 1,676 | 4,597 |
+| `components/StrategyDesignStage.vue` | 339 | 899 | 1,123 | 2,602 |
+| `components/research/StockScreenerView.vue` | — | — | — | 2,414 |
+| `components/adk-page/ADKChatComposer.vue` | 374 | 711 | 719 | 2,168 |
+| `pages/ResearchPage.vue` | — | — | — | 1,357 |
+| `components/product/PredictionResearchPanel.vue` | — | — | — | 1,324 |
+| `components/workspace/OrderEntryPanel.vue` | — | — | — | 1,308 |
+| （另 16 个超过 800 行）| | | | |
 
-| 分组 | 文件数 | 生产行数 | 生产可达性 |
-| --- | ---: | ---: | --- |
-| A:spec 解析 + requirements + 预热计算 | 12 | **2,561** | 活跃(4 个外部符号的实现) |
-| B:指标计算引擎(`calc_*` / `state_*` / `snapshot_*` / `indicator_engine` / `indicator_runtime*` / `stoploss` / `trading_window_ma` / `series_limit` 等) | 46 | **6,632** | **仅测试可达** |
-| 包测试 | — | 8,617 | 其中大部分服务于 B |
+**为什么是系统性问题**
 
-这与架构文档一致:`docs/README.md` 声明"Go 主进程不再维护自研 Pine 执行 runtime",PineTS 是唯一执行路径。B 组正是自研 runtime 的计算内核 —— 执行路径切走后,只有预热计算这一小块被留用。
+初版分析只聚焦 BacktestPage.vue 一个文件。本次实测发现 23 个 `.vue` 超标：
 
-**为什么不能直接删文件**
+- **style 区占比普遍偏高**：`StrategyDesignStage.vue` style 1,123 行超过 script 899 行；`ADKChatComposer.vue` style 719 行几乎等于 script 711 行。这说明开发者在用 scoped CSS 逐个覆盖公共样式，而非单文件的设计问题。
+- **设计 token 层极薄**：全局只有 `apps/web/src/styles/adk-tokens.css` 一个 token 文件，且命名为 `adk-tokens`（ADK 专属，不是全局 token）。Tailwind 配置不在 `apps/web/` 下（`tailwind.config.*` 不存在）。开发者无法从 token 层获得约束。
+- **Tailwind + Vuetify 混用**：26 个文件同时出现 Vuetify 组件 (`v-btn`、`v-card`) 和 Tailwind class (`flex`、`grid`、`text-`)，两套样式体系的边界没有文档。
 
-已实测:直接移除 B 组文件后 `go build ./...` 失败,因为 `indicatorRequirements`(A 组的 `spec_parse.go`、`spec_query.go`、`trading_period.go`、`mtf_validation.go` 都用)与 `snapshotSeriesCache`、`kdjSeries` 等类型定义交叉分布在两组文件里。包内耦合是拆分的真实障碍,不是可以靠删文件绕过的。
+**直接拆组件是错误的操作顺序**：在没有 token 层之前把 BacktestPage.vue 拆成 5 个子组件，只是把 1,676 行 CSS 分散到 5 个文件，根因不变。
 
-**建议做法**(顺序不可调换)
+**建议步骤**
 
-| 步 | 动作 | 验证 |
+1. **先明确样式体系职责分工**（1 天设计决策）：Vuetify 负责什么、Tailwind 负责什么、何时允许写 scoped CSS。产出：`docs/frontend/styling-guide.md`。
+2. **提取共享 token 到 `apps/web/src/styles/tokens.css`**（1-2 天）：间距、圆角、面板背景、工具栏高度、层级。这一步可消掉跨组件的重复 CSS，惠及所有超量文件。
+3. **按业务区块拆组件**（每个大文件 1-2 天）：BacktestPage → 参数表单 / 运行控制 / 结果图表 / 交易明细；StrategyDesignStage → 已有 `strategyVisualBuilder*` 系列，对齐即可。
+4. **数据与状态迁到 composable**：BacktestPage script 2,035 行中的数据获取逻辑迁到 composable（`useBacktestRuns.ts` 已有骨架）。
+
+**代价**：步骤 1-2 是先决条件，跳过直接做步骤 3 会在 6 个月内回到原点。
+
+---
+
+### P1-2 错误字符串匹配：7 处需定义哨兵错误（前版本计数有误）
+
+**实测证据**（HEAD `a2bdb66f`，仅生产代码）
+
+```
+grep -rn 'strings.Contains(err' --include='*.go' --exclude='*_test.go' . | grep -v REFACTOR
+```
+
+共 8 处，其中 1 处可豁免：
+
+| 文件 | 位置 | 问题 |
 | --- | --- | --- |
-| 1 | 新建 `pkg/strategy/indicatorwarmup`,迁入 A 组 12 个文件与其私有类型(`indicatorRequirements` 等) | `go build ./...` 通过 |
-| 2 | 5 个外部调用点改指向新包(只有 4 个符号) | `go build ./...` + `go test ./internal/backtest ./pkg/backtest ./internal/strategy/liveruntime ./internal/api/strategy` |
-| 3 | 确认 `indicatorruntime` 已无任何非测试 import,**整包删除**(6,632 行生产 + 约 8,000 行测试) | `rg -l 'strategy/indicatorruntime' --glob '!*_test.go'` 为空 |
-| 4 | 跑全量回归与覆盖率门禁 | `pnpm run test:go`、`pnpm run test:coverage` |
+| `internal/pineworkerassets/assets.go:47` | `"file does not exist" / "no such file"` | ✅ 豁免：OS 跨平台文件错误，无法用 sentinel |
+| `internal/api/assistant/catalog.go:57` | `"invalid task status"` | 需定义 sentinel error |
+| `internal/api/assistant/catalog.go:238` | `"used by agent"` | 需定义 sentinel error |
+| `pkg/adk/google_exec.go:276` | `adktool.ErrConfirmationRequired.Error()` | 已有 sentinel，直接改用 `errors.Is` |
+| `pkg/adk/google_runner_resume.go:76` | 字符串 `"no function call event found..."` | 需定义 sentinel error |
+| `pkg/adk/workflow_task.go:619` | `errUserGoalPauseRequested.Error()` | 已有 sentinel，直接改用 `errors.Is` |
+| `pkg/adk/event_projection.go:370` | `adktool.ErrConfirmationRequired.Error()` | 已有 sentinel，直接改用 `errors.Is` |
+| `pkg/adk/event_projection.go:375` | `adkworkflow.ErrNodeInterrupted.Error()` | 已有 sentinel，直接改用 `errors.Is` |
 
-**预期产出:一次删除约 6,600 行生产代码 + 约 8,000 行测试代码**,且预热逻辑获得一个名副其实的包名。这是本清单里投入产出比最高的一条。
-
-**风险与前置确认**
-
-- 必须确认 B 组是否仍服务于"实时指标计算"(非回测路径)。本轮验证显示 `internal/strategy/liveruntime/pineworker_live.go` 只用 `WarmupBarsFrom*`(A 组),**未发现实时路径使用计算引擎**,但建议在动手前再确认一次实盘指标面板的数据来源。
-- 覆盖率门禁:删除后 `pkg/strategy` 系的覆盖率分母变小,需重跑 `test:coverage` 确认仍满足普通包 ≥85%。
-
-**同时处理的小包**:`pkg/strategy/expression` 21 行、`pkg/chart` 25 行、`pkg/besteffort` 20 行 —— 这种规模不应独立成包,合并到使用方(`expression` 只被 `pkg/strategy/pine` 的 2 个文件引用)。
-
----
-
-### P1-1 ADK/AI 助手子系统体量是核心交易业务的 1.7 倍(产品重心失衡,已缓解但仍显著)
-
-**证据(本次实测)**
-
-| 子系统 | 生产行数 | 测试行数 |
-| --- | ---: | ---: |
-| **ADK/助手**:`pkg/adk` 24,498 + `internal/assistant` 8,194 + `internal/api/assistant` 3,341 + `servercore/adk_*` 53 | **36,086** | **47,229** |
-| **核心交易业务**:`internal/trading` 4,937 + `internal/api/trading` 1,270 + `pkg/broker` 2,922 + `internal/marketdata` 2,913 + `internal/strategy` 7,269 + `internal/backtest` 1,982 | **21,293** | — |
-
-比例从基线 2.13:1 降到 **1.69:1**(生产行)—— `internal/strategy` 从 2,215 增长到 7,269 行,核心业务侧增长更快,失衡有所缓解。但 ADK 含测试合计约 83,000 行 Go,绝对量仍然显著,且测试量(47,229)已超过自身生产量的 1.3 倍。
-
-**这是业务判断,不是工程缺陷**,需要明确回答:
-
-- README 定位是「面向 Futu OpenD 的交易研发控制台」。ADK 占这么大工程投入,是刻意的战略选择还是逐步漂移?
-- ADK 有完整的 workflow 编排、approval 流程、execution lease、goal state、child workflow、canvas override。这套复杂度对应的用户场景是什么?有多少是真实使用的?
-- 若 ADK 是核心差异化 → 不该埋在 `pkg/adk`,应有顶层模块地位与独立演进节奏(见 P1-5)。
-- 若 ADK 是辅助功能 → 36,086 行严重超配,应考虑收缩到「工具调用 + 只读查询」最小集。
-
-**建议**:先用一个季度的真实使用数据(ADK session/run/approval 触发数 vs 回测运行数、下单数)回答上面的问题。埋点成本很低,但答案决定后续所有优先级。**这是本清单里唯一一条不该由工程师单独决定的事项**。
-
----
-
-### P1-2 broker 抽象只有一个实现,且抽象已在业务层漏底
-
-**证据(现状未变)**
-
-- `pkg/broker` **2,922 行**,含 `Broker` 接口、`Registry`、`CapabilityCatalog`、`Descriptor`、`market_rules`、`research_contracts`。
-- 实现仍只有一个:`pkg/futu/adapter.go` 的 `futuAdapter`。
-- 抽象漏底点(需复核是否仍存在):`internal/system/service.go` 的 Futu 专名字段、`internal/backtest/data.go` 的 `bt.NewFutuKLineStore(...)` 直接调用、`internal/backtest/sync.go` 的「创建 Futu 连接」。
-
-**为什么是问题**
-
-教科书式 speculative generality:为「将来可能支持第二个 broker」付了 2,922 行抽象 + capability catalog + `docs/new-broker-integration-guide.md` 的成本,但抽象从未被第二个实现验证过。未被验证的抽象在真正接第二个 broker 时几乎必然要重写(它是照着 Futu 的形状长出来的),同时业务层已经在绕过它。
-
-**建议做法**(二选一,不要维持现状)
-
-- **若 12 个月内有明确的第二 broker**:立刻用一个最小的 mock/paper broker 实现把抽象跑通,让 `Registry` 至少有两个成员,同时清理三处漏底。
-- **若没有**:把 `pkg/broker` 内移到 `internal/broker`,文档明确记为「单实现抽象,保留是为了 capability catalog 的 UI 驱动能力,不承诺 broker 中立」。诚实标注比维持虚假的中立承诺更有价值 —— 后者让每个新功能都付「要不要做成 broker-neutral」的决策税。
-
----
-
-### P1-3 Pine 语法在前后端各实现一遍(差距已扩大)
-
-**证据**
-
-| 位置 | 基线 | **本次实测** |
-| --- | ---: | ---: |
-| 前端 Pine 相关文件合计 | 3,580 | **9,714** |
-| 后端 `pkg/strategy/pine` 生产 | 9,311 | **9,311** |
-
-前端 Pine 相关代码从 3,580 行增长到 9,714 行,现已与后端解析器规模相当。除 `strategyVisualBuilderPine.ts` / `strategyVisualBuilderPineParser.ts` 外,新增了 `pineSourceStructure*` 系列 7 个文件、`pineV6Workflow.ts`、`strategyPineEditorIntelliSense.ts`。
-
-**为什么是问题**:语义漂移。前端解析器认为合法的写法后端可能拒绝;后端支持的语法前端可视化编辑器可能识别不了并静默丢弃用户代码。策略是用户的核心资产,**静默丢失是最坏的失效模式**。前端解析代码翻了 2.7 倍意味着这个风险面在扩大,而不是收敛。
+**修正说明**：前版本计数为 19，实测只有 8 处（之前的统计误包含了 `REFACTOR-ANALYSIS.md` 本身的引用行和测试文件）。但趋势风险仍然存在：6 处集中在 `pkg/adk`，说明 ADK 子系统的错误处理风格不一致。
 
 **建议**
 
-1. **先建共享语料库**(最小成本止血,不改架构):一批 Pine 源码 fixture,前后端解析器必须对它们产出一致的结构判定。仓库已有 `pkg/backtest` 的 `TestPinetsShadowCorpusReport` 影子语料机制,复用这套模式。
-2. 中期方向:后端把解析结果(结构索引)作为 API 返回给前端,前端不再自己解析,只保留「visual model → Pine 文本」的单向生成。
-3. 不建议:把后端解析器编译成 WASM 给前端。收益不抵复杂度。
+- 4 处已有 sentinel 的直接改 `errors.Is`（机械修改，无风险）。
+- 3 处需新增 sentinel error，定义在相应包的 `errors.go`。
+- 存量 2,115 处 `fmt.Errorf`（72.3% 不含 `%w`）：不建议批量修改，只在 `golangci-lint` 的 `errorlint` 启用增量规则，仅对新增代码强制。
 
 ---
 
-### P1-5 `pkg/` 与 `internal/` 的划分标准已失效
+### P1-3 ADK 子系统战略定位（产品 + 工程共同决策）
 
-`docs/architecture/backend-coding-standards.md` 规定「只有需要被其他 Go module 复用的稳定能力才放入 `pkg/*`」。实测 `pkg/` 下 13 个包,**没有一个有外部复用者**(本仓库是唯一 module):
+**实测证据**
 
-| 包 | 生产行数 | 应归属 |
-| --- | ---: | --- |
-| `pkg/futu` | 130,241(含 `pb` 生成 114,008) | 保留(架构文档明确复用意图) |
-| `pkg/strategy` | 26,590 | 保留;但见 P1-4(其中 9,193 行待拆解) |
-| `pkg/adk` | 24,498 | `internal/assistant/`(见 P1-1) |
-| `pkg/bbgo` | 17,253 | 上游 fork,**见下方供应链提示** |
-| `pkg/backtest` | 7,944 | 保留 |
-| `pkg/broker` | 2,922 | `internal/broker/`(见 P1-2) |
-| `pkg/market` | 1,684 | 保留 |
-| `pkg/researchscreen` | 1,627 | `internal/research/` |
-| `pkg/observability` / `pkg/jftsettings` / `pkg/chart` / `pkg/besteffort` | 497 / 233 / 25 / 20 | `internal/`;后两个直接合并到使用方 |
-| `pkg/jftradeapi` | 0 | **空包,应删除** |
+ADK 子系统生产行数 **36,033 行**，核心交易 **29,237 行**，比例 **1.23:1**（较上轮 1.69:1 已明显改善——核心交易侧增长更快，不是 ADK 在缩）。
 
-**为什么值得管**:`pkg/` 隐含「公开 API,变更需谨慎」的契约。名不副实时,团队要么无谓地为内部代码维护向后兼容,要么发现规则是假的从而不再相信任何目录约定 —— 后者更糟,它侵蚀所有其他约定的可信度。
+ADK 测试行数（`pkg/adk` 37,633 + `internal/assistant` 8,762）= **46,395 行**，超过 ADK 自身生产行数 1.29 倍，说明测试覆盖较为充分。
 
-**供应链盲区(建议优先处理)**:`pkg/bbgo` 17,253 行上游 fork,被 **117 个非测试文件**引用,但**没有任何文档说明 fork 自哪个版本、改了什么、如何同步上游安全更新**,`pkg/bbgo/FORK.md` 不存在(已确认)。建议补一份记录基线 commit 与本地改动清单 —— 这是低成本高价值的一条,半天可完成。
+**已确认安全边界**：
+
+```bash
+grep -rn 'PlaceOrder\|SubmitOrder\|CancelOrder' pkg/adk --include='*.go' → 无结果
+```
+
+ADK 工具集不直接触碰下单接口，交易动作通过策略 runtime 或明确 approval 流程流转。
+
+**仍待回答的业务问题**
+
+| 问题 | 影响 |
+| --- | --- |
+| ADK session/run/approval 触发数 vs 回测运行数、下单数 | 决定 ADK 是否超配 |
+| `pkg/adk` 中的 workflow 编排、child workflow、canvas override、execution lease、goal state 等高复杂度特性，有多少在真实使用？ | 可能存在大量从未被触发的代码路径 |
+| ADK 是核心差异化还是辅助功能？ | 决定是否收缩到「工具调用 + 只读查询」最小集 |
+
+**两条可行路径**
+
+- **ADK 是核心差异化**：当前规模合理，但 `pkg/adk` 应改为 `internal/assistant/engine`（无外部复用者，放 `pkg/` 是误导）。
+- **ADK 是辅助功能**：36,033 行严重超配，应收缩到最小集，大量删除。
+
+**建议先动作**：埋一周使用数据采点（ADK session 触发次数、approval 使用次数、workflow 触发次数），成本极低，但决定后续所有优先级。**这是本清单里唯一一条不该由工程师单独决定的事项**。
 
 ---
 
-### P1-6 `BacktestPage.vue` 4,597 行,其中 1,676 行是 scoped style
+### P1-4 broker 抽象漏底：3 处确认，仍只有一个实现
 
-**证据(基本未变)**
+**实测证据（3 处漏底均在原位置）**
 
-| 部分 | 基线 | **本次实测** |
-| --- | ---: | ---: |
-| 文件总行 | 4,569 | **4,597** |
-| `<script setup>` 区 | 2,006 | **2,035** |
-| `<style>` 区 | 1,675 | **1,676** |
+```
+internal/system/service.go:32-34  futuOpenDHealthFn / futuOpenDInstallGuideFn / resetFutuRuntimeFn（Futu 专名字段）
+internal/backtest/data.go:180     bt.NewFutuKLineStore(...) 直接调用
+internal/backtest/sync.go:17      注释「创建 Futu 连接」（架构语义泄漏）
+```
 
-**1,676 行 scoped CSS 是比 2,035 行 script 更强的信号** —— 项目同时引入 Vuetify 4 与 Tailwind 4 两套样式体系,却仍需为单个页面手写 1,676 行 CSS。说明设计系统没建立,或两套体系在打架、开发者用 scoped CSS 逐个覆盖。
+`pkg/broker` 2,922 行，含 `Broker` 接口、`Registry`、`CapabilityCatalog`、`market_rules`，但实现仍只有 `pkg/futu/adapter.go` 一个。`docs/new-broker-integration-guide.md` 存在却无任何实现验证过这个抽象。
 
-初版分析后又新增了 `feat: 优化回测工作台UI`、`feat: 优化全局拖动条样式` 两个 commit,但 style 区只减少 1 行 —— 印证样式层在持续付成本而没有结构性改善。
+**为什么现在必须决策**：未验证的抽象在接第二个 broker 时几乎必然需要重写（它是照着 Futu 形状长出的）；同时业务层已在绕过抽象，每次修改 backtest 或 system 时都在付「要不要做成 broker-neutral」的决策税。
+
+**二选一（不要维持现状）**
+
+- **若 12 个月内有确定的第二 broker**：立刻用 mock/paper broker 把抽象跑通，同时修复 3 处漏底，让 `Registry` 至少有两个成员。
+- **若没有**：把 `pkg/broker` 内移到 `internal/broker`，文档明确标注「单实现抽象，保留是为 CapabilityCatalog 的 UI 驱动能力，不承诺 broker 中立」。同时修复 3 处漏底，删除 `docs/new-broker-integration-guide.md` 或降级为草稿。
+
+---
+
+### P1-5 Pine 前后端双解析：前端 9,714 行 vs 后端 9,311 行，差距持续扩大
+
+**实测证据**
+
+```
+前端 Pine 相关（实测 find apps/web/src -name '*pine*' -o -name '*Pine*'）：
+strategyPineEditorIntelliSense.ts  2,344 行
+strategyVisualBuilderPineParser.ts  2,225 行
+strategyVisualBuilderPine.ts        1,355 行
+pineV6Workflow.ts                    805 行
+pineSourceStructureIndex.ts          638 行
+（其余 9 个文件）                    347 行
+合计：9,714 行
+
+后端 pkg/strategy/pine（实测）：9,311 行
+```
+
+前端 Pine 代码从初版分析时的 3,580 行增长到 9,714 行，已与后端解析器规模相当。`strategyPineEditorIntelliSense.ts` 2,344 行是前端代码库第三大文件（仅次于 `openapi.ts` 12,403 行和 `BacktestPage.vue` 4,597 行）。
+
+**核心风险**：语义漂移。前端解析器认为合法的写法后端可能拒绝；后端支持的语法前端可能静默丢弃。策略是用户核心资产，**静默丢失是最坏的失效模式**。
 
 **建议**
 
-1. **先解决样式体系重叠**(根因,优先于拆组件):明确 Vuetify 负责什么、Tailwind 负责什么、什么时候才允许写 scoped CSS。抽出共享 token(间距、圆角、层级、面板/工具栏样式)。这一步能消掉大部分重复 CSS 且惠及所有页面。
-2. 再按业务区块拆组件:参数表单 / 运行控制 / 结果图表 / 交易明细 / 指标面板。
-3. 2,035 行 script 里的数据获取与状态迁到 composable(已有 `useBacktestRuns.ts`,可扩展)。
-
-**代价**:步 1 是设计决策 + 2-3 天;步 2-3 约一周。步 1 不做直接做步 2,只是把 1,676 行 CSS 分散到 5 个文件里。
+1. **先建共享语料库**（最小成本止血）：一批 Pine 源码 fixture，前后端解析器必须对它们产出一致的结构判定。仓库已有 `pkg/backtest` 的影子语料机制，复用这套模式。
+2. **中期方向**：后端把解析结果（结构索引）作为 API 返回给前端，前端不再自己解析，只保留「visual model → Pine 文本」的单向生成。这样前端 Parser 主体可以删掉。
+3. **不建议**：把后端解析器编译成 WASM 给前端。收益不抵复杂度。
 
 ---
 
-### P1-7 错误处理不一致(**已恶化**)
+### P1-6 `pkg/` 命名空间失效：多个包应归 `internal/`，空包待删
 
-**证据**
+**实测证据（按外部复用标准评估）**
 
-| 指标 | 基线 | **本次实测** | 变化 |
-| --- | ---: | ---: | --- |
-| `fmt.Errorf` 调用(生产) | 1,893 | **2,115** | +222 |
-| 其中使用 `%w` 包装 | 541(28.6%) | **585(27.7%)** | 占比下降 |
-| `strings.Contains(err...)` 字符串匹配错误 | 8 | **19** | **+11** |
+| 包 | 生产行数 | 应归属 | 理由 |
+| --- | ---: | --- | --- |
+| `pkg/futu` | 130,241（含 pb 114,008）| 保留 | 架构文档明确复用意图；实现 bbgo `types.Exchange` |
+| `pkg/strategy` | 26,590 | 保留（见 P0-1）| 多子系统共用，但见 indicatorruntime 拆解 |
+| `pkg/adk` | 24,498 | → `internal/assistant/engine` | 无外部 module 复用者；JFTrade 专属逻辑（见 P1-3）|
+| `pkg/bbgo` | 17,253 | 保留（fork 特殊处理）| 见 P0-2；需补 FORK.md |
+| `pkg/backtest` | 7,944 | 保留 | 被多个子系统引用 |
+| `pkg/broker` | 2,922 | → `internal/broker` | 见 P1-4；无外部复用者 |
+| `pkg/market` | 1,684 | → `internal/market` | 无外部复用者 |
+| `pkg/researchscreen` | 1,627 | → `internal/research` | 无外部复用者 |
+| `pkg/observability` | 497 | → `internal/observability` | 无外部复用者 |
+| `pkg/jftsettings` | 233 | → `internal/jftsettings` | 无外部复用者 |
+| `pkg/chart` | 25 | 合并到使用方 | 规模不该独立成包 |
+| `pkg/besteffort` | 20 | 合并到使用方 | 规模不该独立成包 |
+| `pkg/jftradeapi` | 0 | **立即删除** | 空包 |
 
-**为什么是问题**:72% 的错误不可 unwrap,调用方无法用 `errors.Is` 判定错误类型,只能靠字符串 —— 那 19 处 `strings.Contains(err)` 就是这个缺陷的直接产物,且**从 8 处涨到 19 处,说明缺陷在扩散**。错误分类不可靠会直接影响 API 层错误码映射准确性,而 `docs/testing-strategy.md` 把「fail-closed 风控和权限拒绝」列为必须完整枚举的契约面。
+**为什么值得管**：`pkg/` 隐含「公开 API，变更需谨慎」的契约。名不副实时，要么无谓维护向后兼容，要么规则形同虚设——后者侵蚀所有其他目录约定的可信度。
 
-**建议**
-
-1. 先修那 19 处 `strings.Contains(err)` —— 数量可控、风险明确,为每处定义哨兵错误。**优先级比基线时更高**,因为增长趋势已确认。
-2. 审计忽略 `Rollback`/`Exec` 返回值的位置,**只有事务回滚和写操作是真问题**(`Close` 的读路径忽略通常可接受)。
-3. 新增代码要求 `%w`:用 `golangci-lint` 的 `errorlint` 增量启用(仅对改动代码)。存量约 1,530 处不建议批量改。
+**建议**：以迁移难度排序，先处理轻量的（`pkg/chart`、`pkg/besteffort` 合并，`pkg/jftradeapi` 删除），再处理中量的（`pkg/researchscreen`、`pkg/market`、`pkg/observability`），最后处理 `pkg/adk` 和 `pkg/broker`（需配合 P1-3 和 P1-4 决策）。
 
 ---
 
 ## P2 —— 长期整理
 
-### P2-1 前端模块组织已到平铺极限(部分已改善)
+### P2-1 前端状态管理未显式化
 
-| 目录 | 基线 | **本次实测** | 状态 |
-| --- | ---: | ---: | --- |
-| `components/` 根目录 `.vue` | 28 | **28** | 未改善,无归类 |
-| `components/domain/` | 6 个空目录 | **6 个域,已填充** | ✅ 已改善 |
-| `composables/` | 96 文件 / 23,395 行 | **106 文件 / 25,787 行** | 继续增长,仍全平铺 |
-| `features/` | 41 文件 / 16,721 行 | **42 文件 / 16,743 行** | 基本持平 |
-| `features/strategyVisualBuilder*` | 25 | **23** | 略降 |
+无 Pinia。106 个 composable 文件全部平铺于 `composables/` 根目录，其中实测**只有 3 个文件使用 `useQuery`/`useMutation`**（前版本计 7 处，差异可能因计数单位不同，但绝对值仍然偏低）。绝大部分跨组件状态靠 composable 里的模块级 `ref` 单例实现。
 
-`components/domain/` 从空壳变成了 6 个填充好的域(`account`、`market-data`、`runtime`、`shared`、`strategy`、`watchlist`)—— 初版指出的「未完成重构」已完成。但 `components/` 根目录仍有 28 个未归类 `.vue`,`composables/` 106 个文件全平铺。
+**存在的问题**：模块级 ref 在测试间会串状态（需手动 reset）；无 devtools 可观测；「谁拥有这份状态」只能靠读代码。
 
-**建议**:把 `components/` 根目录剩余 28 个按同样方式归入 `domain/`(路径已经建好,边际成本很低);`features/` 的 23 个 `strategyVisualBuilder*` 前缀文件重组为 `features/strategy-builder/`,并给每个域一个 `index.ts` 作为唯一对外出口(便于用 lint 规则禁止跨域深引用)。
-
-### P2-2 状态管理策略需要显式化
-
-无 Pinia。**106 个 composables 中仅 7 个文件使用 `useQuery`/`useMutation`**(基线为 31 处调用点),绝大部分跨组件状态靠 composable 里的模块级 `ref` 单例。这在当前规模下能跑,但:模块级 ref 在测试间会串状态(需手动 reset);没有 devtools 可观测;「谁拥有这份状态」只能靠读代码。
-
-**建议**:写一份 `docs/frontend/state-management.md` 明确约定(什么状态用 vue-query、什么用模块单例、什么用 provide/inject),比引入 Pinia 更实际。项目已引入 `@tanstack/vue-query` 但只有 7 个文件在用,这个「引入了但没用起来」的状态本身需要一个决策:要么推广,要么明确它只服务特定场景。
-
-### P2-3 测试执行成本
-
-Go 测试 197,538 行 + 前端 100,816 行,其中 Go 测试有 **71 处 `time.Sleep`**(基线 69,略增)。`test:preflight` 串行执行 13 个步骤(含三套覆盖率)。
-
-**建议**:审计 71 处 sleep,改为条件等待/channel 同步(sleep 是测试不稳定与慢速的双重来源);`preflight` 中无依赖的步骤并行化 —— 前 8 个检查(test-policy / test-names / test-quality / servercore-budget / 四个契约门禁)相互无依赖,可并行。
-
-### P2-4 `scripts/` 90 个文件,`package.json` 89 个 npm script
-
-| 指标 | 基线 | **本次实测** |
-| --- | ---: | ---: |
-| `scripts/` 文件数 | 50 | **90** |
-| npm script 数 | 70+ | **89** |
-| 其中 `test:desktop-*` | 12 | **9** |
-
-构建/发布逻辑的复杂度已超过一个独立子项目。`test:desktop` 一条命令串起 11 个子步骤。
-
-**建议**:合并同类项(desktop 发布相关的 9 个测试脚本可合成一个带子命令的入口),并为 `scripts/lib/` 建立最小文档。注意 `scripts/` 自身有 10 个 `*.test.mjs`(通过 `test:test-policy` 运行)—— 门禁工具有测试是好事,但也说明这块已经复杂到需要自己的测试套件了。
+**建议**：写一份 `docs/frontend/state-management.md` 明确约定（什么状态用 vue-query、什么用模块单例、什么用 provide/inject），而不是引入 Pinia。已引入 `@tanstack/vue-query` 但使用极少——需要一个决策：要么系统性推广，要么明确它只服务特定场景（避免「引入了又不用」的认知负担）。
 
 ---
 
-## 建议执行顺序(本轮更新)
+### P2-2 前端目录组织已到平铺极限
 
-P0 与 P0' 已闭环，后续按「先做高 ROI 删除 → 再处理架构与产品决策」推进。不要并行开工。
+| 目录 | 文件数 | 状态 |
+| --- | ---: | --- |
+| `components/` 根 `.vue` | 28 | 未归类，`domain/` 已有 6 个域目录但根目录未清理 |
+| `composables/` 根 | 106 | 全平铺，无子目录 |
+| `features/strategyVisualBuilder*` | 23 个文件 | 功能相关但未收进子目录 |
+
+**建议**
+
+- `components/` 根目录 28 个文件按已有的 `domain/` 六分法归入（路径已建好，边际成本低）。
+- `features/strategyVisualBuilder*` 和 `features/pineSourceStructure*` 分别收入 `features/strategy-builder/` 和 `features/pine-structure/`，给每个域加 `index.ts`（便于 lint 规则禁止跨域深引用）。
+- `composables/` 106 个文件按关注点分组到子目录（market-data、strategy、backtest、adk、settings 等），不必一次完成，随新增文件渐进迁移。
+
+---
+
+### P2-3 测试执行稳定性与成本
 
 ```
-第 0 步  P1-4 拆 indicatorwarmup + 删计算引擎  —— 最高 ROI,一次删约 6,600 生产 + 8,000 测试
-第 1 步  P1-5 补 pkg/bbgo/FORK.md              —— 半天,填供应链盲区
-第 2 步  P1-7 步骤 1(19 处字符串匹配错误)    —— 1 天,趋势已确认在恶化
-第 3 步  P1-6 步骤 1(样式体系决策)           —— 设计决策 + 2-3 天
-第 4 步  P1-2 broker 抽象二选一决策
+time.Sleep in tests  → 70 处（实测）
+legacy 无有效断言测试 → 5 处（已登记，见旧版 P0-3 遗留）
 ```
 
-P1-1 的 ADK 使用数据采集独立于以上工程顺序，由产品与工程共同决定。
+70 处 `time.Sleep` 是测试不稳定与执行慢的双重来源。`test:preflight` 串行执行 13 个步骤（含三套覆盖率），其中前 8 个检查相互无依赖。
+
+**建议**
+
+1. 审计 70 处 sleep，优先处理时长 >50ms 的，改为 channel 同步或条件等待。
+2. `preflight` 中 `test-policy`、`test-names`、`test-quality`、`servercore-budget`、四个契约门禁相互无依赖，可并行执行（Node `Promise.all`）。
+3. 5 处 legacy 无断言测试：每处补一个有意义的断言，或明确注释说明「不 panic」是合法的验证目标（参考已有豁免格式）。
+
+---
+
+### P2-4 前端契约与类型层部分失效
+
+**`@/contracts` 旁路（实测）**
+
+```
+grep -rl "generated/openapi" apps/web/src --include='*.ts' --include='*.vue' | grep -v contracts/ | grep -v apiClient → 28 个文件
+grep -rl "@/contracts" apps/web/src --include='*.ts' --include='*.vue' → 39 个文件
+```
+
+39 个文件正确通过 `@/contracts` 引入 DTO；但另有 28 个文件（21 个 composable + 4 个组件 + 2 个 types 文件 + `apiClient.ts`）直接引用 `@/generated/openapi`，绕过契约层。现有门禁 `check:web-contract-audit` 不强制这一分层（它只检查 wire DTO 不出现在 view-model 层，不检查 import 路径）。
+
+**类型重复（实测）**
+
+`types/view-models/market-data.ts` 和 `types/view-models/market-profile.ts` 手写了与 openapi 生成类型形状一致的接口（`MarketDataCandleDto`、`MarketDataQuoteSnapshotDto`、`MarketProfileDto` 等），而不是使用 `Omit<components["schemas"]["..."]> & {...}` 模式扩展生成类型。`types/client-api.ts` 做法正确，可作为模版。
+
+**建议**
+
+- 把 28 处直接 openapi 引用加入 `check:web-contract-audit` 的检查范围（或新建 `check:web-contract-imports`），给出6个月的迁移窗口逐步修复。
+- 重写 `types/view-models/market-data.ts` 和 `market-profile.ts`，改用生成类型的 Omit/Pick 扩展模式，消除 DTO 字段级重复。
+
+---
+
+### P2-5 前端 bundle 风险（未量化，需专项核查）
+
+**实测信号**
+
+| 依赖 | 风险 | 状态 |
+| --- | --- | --- |
+| `monaco-editor ^0.56.0` | 最大 bundle 成本，~2MB+压缩后 | `MonacoCodeEditor.vue` (991行) 作为普通组件导入，是否在路由分割之外被 eager import 未确认 |
+| `mermaid ^11.16.0` | ~2MB 未压缩 | 未找到懒加载 import，可能直接进入主 chunk |
+| `acorn ^8.17.0` | JS parser，属于 **运行时依赖**（非 devDependency）| 可能用于 Pine 表达式解析；生产包中携带 JS 解析器值得确认必要性 |
+
+路由级 code splitting 已全部就位（12 个路由均为 `() => import(...)` 动态引入），但 monaco 和 mermaid 若被任何 eager import 的路径引用，仍会进入主 chunk。
+
+**建议**：运行一次 `pnpm --filter @jftrade/web build --report`（或 `rollup-plugin-visualizer`），确认各 chunk 的体积分布，再决定是否需要手动 lazy-import monaco/mermaid。
+
+---
+
+### P2-6 `scripts/` 复杂度已超出可维护阈值
+
+```
+scripts/ 文件数：79（含 22 个 .test.mjs——门禁工具有了自己的测试套件）
+package.json scripts：89 条
+CI ci.yml 步骤：212 条（以 `- name:`/`uses:`/`run:` 计）
+```
+
+**建议**
+
+- 合并同类项：desktop 发布相关的多条测试脚本合成一个带子命令的入口（参数式调用，减少 npm script 数量）。
+- `scripts/lib/` 下的公共函数缺乏文档；`lib/*.mjs` 文件数已达需要一份 `scripts/lib/README.md` 的规模。
+- 22 个 `.test.mjs` 说明 scripts 自身已有独立演进生命周期，考虑给 `scripts/` 建一个独立的 CI 检查目标（目前通过 `test:test-policy` 运行，但名称不直观）。
+
+---
+
+## 建议执行顺序（本轮更新）
+
+```
+第 0 步  P0-2 补 pkg/bbgo/FORK.md                —— 半天，填供应链盲区（成本最低）
+第 1 步  P0-1 拆 indicatorwarmup + 删计算引擎    —— 最高 ROI，一次删 ~6,600 生产 + ~8,000 测试行
+第 2 步  P1-2 步骤 1：7 处字符串匹配改哨兵错误   —— 1 天，4 处机械修改 + 3 处新增 sentinel
+第 3 步  P1-6 轻量清理：删空包 + 合并微包        —— 半天，pkg/jftradeapi + pkg/chart + pkg/besteffort
+第 4 步  P1-4 broker 抽象二选一决策（+执行）
+第 5 步  P1-1 前端组件体量：先做样式体系决策和 token 层，再拆组件
+第 6 步  P1-3 ADK 使用数据采集 → 战略决策 → pkg/ 归属跟进
+```
+
+P1-5（Pine 双解析）和 P2 各条独立于以上顺序，可并行推进。P1-3 的 ADK 采点独立于所有工程工作，尽早开始。
 
 ---
 
 ## 关于本清单的诚实边界
 
-**本轮已验证并可复现:**
+**本轮已验证并可复现（HEAD `a2bdb66f`）**
 
-- 所有 P0/P0' 数值来自本轮工作树实测（基线 commit `6eb2e22b`）。
-- P0 三条的闭环状态由实际门禁退出码确认:`check-arch-deps`(153/0/0)、`check-servercore-budget`(五维度全部贴线)、`check-test-names`(全仓通过,0 豁免)、`check-test-quality`(6 个缺口全部已登记)。
-- P0'-2 的 Windows 回归已通过，source/classification/adapter/test key 均统一为 POSIX 分隔符。
-- P0'-3 的 `generate:docs` 已作为 preflight 第一步，ci-local 单次生成后仍执行契约漂移检查。
-- P1-4 的外部符号使用面、`IndicatorEngine` 的测试-only 可达性、A/B 分组行数,均经 import 分析与实际 `go build` 移除实验确认。
+- 所有规模数字来自 `find ... | xargs wc -l` 或 `grep -rc` 直接测量。
+- `indicatorruntime` 的 5 个外部非测试导入者、4 个实际使用符号、A/B 分组，均经 `rg` import 分析确认。
+- `strings.Contains(err)` 实测 8 处（前版本 19 处为误计，已核正）。
+- broker 3 处漏底均在原位置确认（`service.go:32-34`、`data.go:180`、`sync.go:17`）。
+- `pkg/bbgo/FORK.md` 不存在已确认。
+- 前端 23 个 `.vue` >800 行、scoped CSS 合计 18,290 行，为本次新增发现（前版本仅列 BacktestPage 一个文件）。
+- ADK 工具集无下单接口（`PlaceOrder`/`SubmitOrder`/`CancelOrder` grep 无结果）已确认。
 
-**未验证:**
+**未验证**
 
-- P1-4 的 B 组是否仍服务于实盘指标面板 —— 本轮未发现实时路径使用计算引擎,但建议动手前再确认一次实盘指标数据来源。
-- P1-2 的三处「抽象漏底」是否仍在原位置 —— 沿用初版分析结论,未逐个复核行号。
+- P0-1：B 组是否仍服务于实盘指标面板——本轮未发现实时路径调用计算引擎，但建议动手前再确认一次。
+- P1-3：ADK 各高级特性（workflow 编排、execution lease、goal state、child workflow）的实际触发率——需埋点数据。
+- P1-6：各 `pkg/` 包内移后的 import 路径冲突，需逐包验证 `go build`。
 
-**未覆盖:**
+**未覆盖（建议单独专项）**
 
-- 并发正确性(goroutine 泄漏、锁粒度)。注意近期有两个相关 commit(`b1187163` 追踪 goal-resume goroutine、`edc12dae` 补覆盖率),说明这块有真实问题被发现过,值得单独做一轮分析。
-- SQLite 查询性能与索引;前端 bundle 体积与运行时性能。
+- **goroutine 生命周期**：实测生产代码有 58 处 goroutine 启动，无系统性泄漏审计。近期有 2 个 goroutine 相关修复 commit，说明这块有真实问题，值得专项分析。
+- **SQLite 查询性能与索引**：`internal/store/sqliteconn` 连接层质量良好（WAL + 单写连接 + 只读池），但 query 层未审计慢查询或缺失索引。
+- **前端 bundle 体积与运行时性能**：未检查 tree-shaking 效果、路由级 code-splitting 覆盖率、最大依赖体积。
+- **Windows 环境已知限制**：7 个包因 symlink 权限测试失败（`datamigration`、`exchangecalendar`、`settingsfile`、`store/trading`、`internal/trading`、`pkg/strategy/pineworker`）；`pineworker` 有时序竞态间歇失败。这些是预存环境限制，非本轮改动回归，最终验收需 Linux CI。
 
-**已知本地测试限制(Windows):**
+**已确认良好、无需改动**
 
-本轮在 Windows 11 验证时发现 7 个包的测试因 symlink 权限失败(`internal/app/apiserver/datamigration` / `internal/store/exchangecalendar` / `internal/store/settingsfile` / `internal/store/trading` / `internal/trading` / `pkg/strategy/pineworker`)。已在 HEAD 复现,属预存 Windows 环境限制,非本轮改动回归。`pineworker` 另有时序竞态(`TestWorkerManagerReadinessFailuresCloseTransportAndRespectCancellation` 间歇失败 "unhealthy transport closes = 2, want 1")。上述失败导致完整 Go 覆盖率门禁无法在本地完成;已通过的其他门禁(`arch-deps` / `servercore-budget` / `lint` / `vet` / `test-policy` / 契约门禁 / 独立包测试)充分但需 Linux CI 最终验收。
-
-**已确认良好、无需改动:**
-
-- SQLite 连接层(`internal/store/sqliteconn/conn.go`):单写连接 + 独立只读池 + WAL + `synchronous(NORMAL)` + `foreign_keys(ON)` + `busy_timeout(10000)`,是本项目工程质量最高的部分之一。
-- `check-arch-deps.sh` 已从 108 条规则扩展到 **153 条**,且 warning 全部升级为硬失败。初版分析的核心批评是「规范的强制力止步于 warning」—— **这一点已经被修正**,是 P0 改造最有长期价值的产出。
-- `servercore-budget.json` 的五维度 ratchet 设计得当:同时约束行数、两个 receiver 的方法数、嵌入后有效方法面和聚合字段数,无法通过单一维度腾挪规避。
+- `internal/store/sqliteconn/conn.go`：单写连接 + WAL + `synchronous(NORMAL)` + `foreign_keys(ON)` + `busy_timeout(10000)`，仍是仓库工程质量最高的部分之一。
+- `check-arch-deps.sh` 153 条规则 0 warning 0 failed（P0 遗产），`servercore-budget.json` 五维度 ratchet 设计良好（防止单一维度腾挪规避）。
+- 前端 API 边界：只有 `apiClient.ts` 做裸 `fetch()`（`refetch()` 为 vue-query 方法调用，非 window.fetch）；DTO 只从 `@/contracts` 引入的分层已落地。
+- ADK 工具集安全边界：无下单接口，交易动作通过明确 approval 流程流转。

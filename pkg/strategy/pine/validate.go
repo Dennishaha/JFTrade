@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	strategyexpression "github.com/jftrade/jftrade-main/pkg/strategy/expression"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
@@ -256,7 +255,7 @@ func unsupportedCallHistoryReference(expression string) bool {
 }
 
 func validateExpression(lineNumber int, label string, expression string) error {
-	if _, err := strategyexpression.ParseExpression(expression); err != nil {
+	if _, err := parseExpression(expression); err != nil {
 		return fmt.Errorf("pine line %d: invalid %s %q: %w", lineNumber, label, strings.TrimSpace(expression), err)
 	}
 	return nil

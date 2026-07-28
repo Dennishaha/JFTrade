@@ -20,7 +20,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
-	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
+	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorwarmup"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
@@ -156,11 +156,11 @@ func preparePineWorkerStrategy(ctx context.Context, cfg RunConfig, result *RunRe
 	}
 	cfg.InitialBalance = resolvePineInitialBalance(cfg.InitialBalance, compilation.Program.Metadata)
 	strategyInterval := types.Interval(cfg.Interval)
-	derivedWarmupCandles, err := indicatorruntime.WarmupBarsFromPlanForSymbolWithOptions(
+	derivedWarmupCandles, err := indicatorwarmup.WarmupBarsFromPlanForSymbolWithOptions(
 		compilation.Requirements,
 		strategyInterval,
 		cfg.Symbol,
-		indicatorruntime.RuntimeOptions{IncludeExtendedHours: cfg.UseExtendedHours != nil && *cfg.UseExtendedHours},
+		indicatorwarmup.RuntimeOptions{IncludeExtendedHours: cfg.UseExtendedHours != nil && *cfg.UseExtendedHours},
 	)
 	if err != nil {
 		result.Error = fmt.Sprintf("derive strategy warmup: %v", err)

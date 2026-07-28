@@ -15,7 +15,7 @@ import (
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	"github.com/jftrade/jftrade-main/pkg/chart"
-	strategyindicatorruntime "github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
+	strategyindicatorwarmup "github.com/jftrade/jftrade-main/pkg/strategy/indicatorwarmup"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
@@ -80,7 +80,7 @@ func newStrategyRuntimePineWorkerLive(
 }
 
 func (live *pineWorkerLive) loadWarmup(ctx context.Context, exchange Exchange) ([]bbgotypes.KLine, error) {
-	warmupBars, err := strategyindicatorruntime.WarmupBarsFromScriptForSymbol(live.source, live.interval, live.symbol)
+	warmupBars, err := strategyindicatorwarmup.WarmupBarsFromScriptForSymbol(live.source, live.interval, live.symbol)
 	if err != nil {
 		return nil, fmt.Errorf("analyze strategy warmup for %s: %w", live.symbol, err)
 	}

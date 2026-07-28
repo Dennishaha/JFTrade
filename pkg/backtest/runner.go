@@ -9,7 +9,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
-	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
+	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorwarmup"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
@@ -44,11 +44,11 @@ func resolvePineInitialBalance(requested float64, metadata strategyir.StrategyMe
 }
 
 func deriveStrategyWarmupCandles(script string, interval types.Interval, symbol string, useExtendedHours *bool) (int, error) {
-	return indicatorruntime.WarmupBarsFromScriptForSymbolWithOptions(
+	return indicatorwarmup.WarmupBarsFromScriptForSymbolWithOptions(
 		script,
 		interval,
 		symbol,
-		indicatorruntime.RuntimeOptions{IncludeExtendedHours: useExtendedHours != nil && *useExtendedHours},
+		indicatorwarmup.RuntimeOptions{IncludeExtendedHours: useExtendedHours != nil && *useExtendedHours},
 	)
 }
 

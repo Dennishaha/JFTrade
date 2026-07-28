@@ -17,7 +17,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	srv "github.com/jftrade/jftrade-main/internal/strategy"
-	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
+	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorwarmup"
 )
 
 // logPageQuery 是日志/审计分页查询参数。
@@ -245,11 +245,11 @@ func enrichDefinitionResponse(definition srv.Definition, query definitionPreview
 	}
 
 	derivedWarmupBars := 0
-	if warmupBars, err := indicatorruntime.WarmupBarsFromScriptForSymbolWithOptions(
+	if warmupBars, err := indicatorwarmup.WarmupBarsFromScriptForSymbolWithOptions(
 		definition.Script,
 		types.Interval(interval),
 		symbol,
-		indicatorruntime.RuntimeOptions{IncludeExtendedHours: query.UseExtendedHours},
+		indicatorwarmup.RuntimeOptions{IncludeExtendedHours: query.UseExtendedHours},
 	); err == nil {
 		derivedWarmupBars = warmupBars
 	}

@@ -54,7 +54,7 @@ JFTrade 的策略设计面是 Pine v6 原生源码工作台。当前 UI 不再�
 - [strategy_adapters.go](../../internal/app/apiserver/servercore/strategy_adapters.go)：store/runtime 实现到 `internal/strategy` 端口的装配适配。
 - [pine](../../pkg/strategy/pine)：Pine 解析、语义诊断与 lowering。
 - [pineworker](../../pkg/strategy/pineworker)：PineTS gRPC client、worker manager 与执行契约。
-- [indicatorruntime](../../pkg/strategy/indicatorruntime)：Go 侧需求计算和指标序列能力。
+- [indicatorwarmup](../../pkg/strategy/indicatorwarmup)：Pine 需求解析、固定周期校验与预热 K 线估算。
 
 ## 编辑与保存约束
 

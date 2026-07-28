@@ -16,6 +16,7 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertNoLegacyRuntimeInFrontendSurfaces(t, root)
 	assertLegacyRuntimeIDOnlyInMigrationShims(t, root)
 	assertLegacyRuntimePackageRemoved(t, root)
+	assertLegacyIndicatorRuntimePackageRemoved(t, root)
 	assertNoUnexpectedPineRuntimeImports(t, root)
 	assertNoStalePineRuntimePerformanceGate(t, root)
 	assertReleaseFrontendAssetsAreAudited(t, root)
@@ -193,6 +194,16 @@ func assertLegacyRuntimePackageRemoved(t *testing.T, root string) {
 	rel := "pkg/strategy/pineruntime"
 	if _, err := os.Stat(filepath.Join(root, rel)); err == nil {
 		t.Fatalf("legacy Go Pine runtime package still exists: %s", rel)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat %s: %v", rel, err)
+	}
+}
+
+func assertLegacyIndicatorRuntimePackageRemoved(t *testing.T, root string) {
+	t.Helper()
+	rel := "pkg/strategy/indicatorruntime"
+	if _, err := os.Stat(filepath.Join(root, rel)); err == nil {
+		t.Fatalf("legacy Go indicator runtime package still exists: %s", rel)
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("stat %s: %v", rel, err)
 	}
