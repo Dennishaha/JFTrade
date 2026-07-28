@@ -130,6 +130,35 @@ function rejectWarmupInterval(
 }
 
 describe("BacktestPage warmup preview race handling", () => {
+  it("does not start warmup preview while strategy definitions are not ready", async () => {
+    const pending = installBacktestFetch();
+    const { wrapper } = await mountApp("/backtest");
+    try {
+      await nextTick();
+      settleWarmupInterval(pending, "5m", {
+        derivedWarmupBars: 12,
+        derivedWarmupInterval: "5m",
+      });
+      await flushRequests();
+
+      const page = wrapper.getComponent(BacktestPage);
+      const setup = page.vm.$.setupState as Record<string, unknown>;
+      const loadWarmupPreview = setup.loadWarmupPreview as () => Promise<void>;
+
+      writeSetup(setup, "strategyDefinitionsReady", false);
+      writeSetup(setup, "interval", "17m");
+      await nextTick();
+      await loadWarmupPreview();
+
+      expect(readSetup<number | null>(setup.warmupPreviewBars)).toBeNull();
+      expect(readSetup<string>(setup.warmupPreviewInterval)).toBe("17m");
+      expect(readSetup<boolean>(setup.warmupPreviewPending)).toBe(false);
+      expect(pending.some((request) => request.interval === "17m")).toBe(false);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   it("never lets an earlier preview response or failure replace the latest backtest interval", async () => {
     const defaultOptions = queryClient.getDefaultOptions();
     queryClient.setDefaultOptions({
