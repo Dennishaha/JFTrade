@@ -20,7 +20,7 @@ import type {
   BacktestFeeRulePayload,
   InstrumentResolutionCandidate,
 } from "../types";
-import { apiGet, apiGetPath } from "../composables/apiClient";
+import { ApiClientError, apiGet, apiGetPath } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
 import {
   backtestInstrumentTypeForSecurityType,
@@ -258,6 +258,7 @@ function canonicalBacktestInstrumentInput(market: string, code: string): string 
 
 // ── Reactive state ──
 const definitions = ref<StrategyDefinition[]>([]);
+const strategyDefinitionsReady = ref(false);
 const warmupPreviewBars = ref<number | null>(null);
 const warmupPreviewPending = ref(false);
 const warmupPreviewInterval = ref("");
@@ -1690,20 +1691,29 @@ onBeforeUnmount(() => {
 });
 
 async function loadDefinitions() {
+  strategyDefinitionsReady.value = false;
   try {
-    const items = await queryClient.ensureQueryData({
+    const items = await queryClient.fetchQuery({
       queryKey: queryKeys.strategyDefinitions(),
       queryFn: () => apiGet("/api/v1/strategy-definitions"),
+      retry: false,
+      staleTime: 0,
     });
-    definitions.value = items.map((item) => ({
+    const nextDefinitions = items.map((item) => ({
       id: item.id ?? "",
       name: item.name ?? "",
       version: item.version ?? "",
       ...(item.symbol == null ? {} : { symbol: item.symbol }),
-    }));
-    if (definitions.value.length > 0 && !selectedDefinitionId.value) {
-      selectedDefinitionId.value = definitions.value[0]!.id;
+    })).filter((definition) => definition.id.trim() !== "");
+    definitions.value = nextDefinitions;
+    const selectedId = selectedDefinitionId.value.trim();
+    if (nextDefinitions.length === 0) {
+      selectedDefinitionId.value = "";
+    } else if (!nextDefinitions.some((definition) => definition.id === selectedId)) {
+      selectedDefinitionId.value = nextDefinitions[0]!.id;
     }
+    strategyDefinitionsReady.value = true;
+    void loadWarmupPreview();
   } catch {
     // definitions not critical for sync
   }
@@ -1714,6 +1724,13 @@ async function loadWarmupPreview() {
   const requestedInterval = (interval.value || "5m").trim();
   const requestedSymbol = warmupPreviewSymbol.value.trim();
   const requestId = ++warmupPreviewRequestId;
+
+  if (!strategyDefinitionsReady.value) {
+    warmupPreviewBars.value = null;
+    warmupPreviewInterval.value = requestedInterval;
+    warmupPreviewPending.value = false;
+    return;
+  }
 
   if (!definitionId) {
     warmupPreviewBars.value = null;
@@ -1742,6 +1759,7 @@ async function loadWarmupPreview() {
         "/api/v1/strategy-definitions/{definitionId}",
         `/api/v1/strategy-definitions/${encodeURIComponent(definitionId)}?${params.toString()}`,
       ),
+      retry: false,
     });
     if (requestId !== warmupPreviewRequestId) {
       return;
@@ -1751,9 +1769,16 @@ async function loadWarmupPreview() {
       : null;
     warmupPreviewInterval.value =
       detail.derivedWarmupInterval?.trim() || requestedInterval;
-  } catch {
+  } catch (error) {
     if (requestId !== warmupPreviewRequestId) {
       return;
+    }
+    const errorStatus =
+      error instanceof ApiClientError
+        ? error.status
+        : (error as { status?: unknown } | null)?.status;
+    if (errorStatus === 404 && selectedDefinitionId.value.trim() === definitionId) {
+      selectedDefinitionId.value = "";
     }
     warmupPreviewBars.value = null;
     warmupPreviewInterval.value = requestedInterval;
@@ -2001,9 +2026,11 @@ function resolveQueriedCandleBounds(
 watch(
   [selectedDefinitionId, interval],
   () => {
+    if (!strategyDefinitionsReady.value) {
+      return;
+    }
     void loadWarmupPreview();
   },
-  { immediate: true },
 );
 </script>
 

@@ -18,6 +18,7 @@ import {
   mountApp,
 } from "./helpers";
 import BacktestPage from "../src/pages/BacktestPage.vue";
+import { queryClient, queryKeys } from "../src/composables/serverState";
 
 const backtestFormStorageKey = "jftrade.backtest.form.v1";
 
@@ -37,6 +38,95 @@ afterEach(() => {
 });
 
 describe("Backtest page", () => {
+  it("clears a persisted strategy selection when the rebuilt database is empty", async () => {
+    window.localStorage.setItem(
+      backtestFormStorageKey,
+      JSON.stringify({ selectedDefinitionId: "stale-definition" }),
+    );
+    const fetchMock = installBacktestPageFetch({ runs: [], definitions: [] });
+
+    const { wrapper } = await mountApp("/backtest");
+    await flushRequests();
+
+    const requestedURLs = fetchMock.mock.calls.map(([input]) => String(input));
+    expect(requestedURLs.some((url) => url.includes("/strategy-definitions/stale-definition"))).toBe(false);
+    const page = wrapper.getComponent(BacktestPage);
+    const setup = page.vm.$.setupState as Record<string, unknown>;
+    expect(readSetupValue<string>(setup.selectedDefinitionId)).toBe("");
+    expect(JSON.parse(window.localStorage.getItem(backtestFormStorageKey) ?? "{}")).toMatchObject({
+      selectedDefinitionId: "",
+    });
+
+    wrapper.unmount();
+  });
+
+  it("refreshes definitions and replaces a persisted ID that is no longer present", async () => {
+    window.localStorage.setItem(
+      backtestFormStorageKey,
+      JSON.stringify({ selectedDefinitionId: "stale-definition" }),
+    );
+    queryClient.setQueryData(queryKeys.strategyDefinitions(), [{
+      id: "stale-definition",
+      name: "Cached strategy",
+      version: "v1",
+    }]);
+    const fetchMock = installBacktestPageFetch({
+      runs: [],
+      definitions: [{
+        id: "current-definition",
+        name: "Current strategy",
+        version: "v2",
+        symbol: "HK.00700",
+      }],
+    });
+
+    const { wrapper } = await mountApp("/backtest");
+    await flushRequests();
+
+    const page = wrapper.getComponent(BacktestPage);
+    const setup = page.vm.$.setupState as Record<string, unknown>;
+    expect(readSetupValue<string>(setup.selectedDefinitionId)).toBe("current-definition");
+    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/api/v1/strategy-definitions"))).toBe(true);
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/strategy-definitions/current-definition?"))).toBe(true);
+
+    wrapper.unmount();
+    queryClient.removeQueries({ queryKey: queryKeys.strategyDefinitions() });
+  });
+
+  it("clears a selected definition after a not-found warmup response without retrying", async () => {
+    const definitionId = "deleted-definition";
+    window.localStorage.setItem(
+      backtestFormStorageKey,
+      JSON.stringify({ selectedDefinitionId: definitionId }),
+    );
+    const fetchMock = installBacktestPageFetch({
+      runs: [],
+      definitions: [{
+        id: definitionId,
+        name: "Deleted strategy",
+        version: "v1",
+        symbol: "HK.00700",
+      }],
+      missingDefinitionIds: [definitionId],
+    });
+
+    const { wrapper } = await mountApp("/backtest");
+    await flushRequests();
+
+    const detailRequests = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes(`/strategy-definitions/${definitionId}?`),
+    );
+    expect(detailRequests).toHaveLength(1);
+    const page = wrapper.getComponent(BacktestPage);
+    const setup = page.vm.$.setupState as Record<string, unknown>;
+    expect(readSetupValue<string>(setup.selectedDefinitionId)).toBe("");
+    expect(JSON.parse(window.localStorage.getItem(backtestFormStorageKey) ?? "{}")).toMatchObject({
+      selectedDefinitionId: "",
+    });
+
+    wrapper.unmount();
+  });
+
   it("restores version comparison from the URL with completed runs and source snapshots", async () => {
     const baseline = buildDetailedBacktestRun();
     baseline.id = "run-baseline";
@@ -1048,6 +1138,7 @@ function installBacktestPageFetch(options: {
   runs: unknown[];
   listRuns?: unknown[];
   definitions?: unknown[];
+  missingDefinitionIds?: string[];
   versionsByDefinitionId?: Record<string, Array<{
     version: string;
     name?: string;
@@ -1197,6 +1288,20 @@ function installBacktestPageFetch(options: {
         });
       }
       if (url.includes("/api/v1/strategy-definitions/")) {
+        const definitionId = decodeURIComponent(
+          url.match(/\/api\/v1\/strategy-definitions\/([^/?#]+)/)?.[1] ?? "",
+        );
+        if (options.missingDefinitionIds?.includes(definitionId)) {
+          return {
+            ok: false,
+            status: 404,
+            statusText: "Not Found",
+            json: async () => ({
+              ok: false,
+              error: { code: "NOT_FOUND", message: "strategy definition not found" },
+            }),
+          } as Response;
+        }
         const definition = options.definitions?.[0] ?? {};
         return createResponse(definition);
       }
