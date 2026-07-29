@@ -7,7 +7,7 @@ import type {
   StrategyInstanceBindingDocument,
   StrategyInstanceItem,
 } from "../src/types";
-import type { BrokerAccountSelectionOption } from "../src/composables/consoleDataBrokerAccountSelection";
+import type { BrokerAccountSelectionOption } from "@/composables/trading/consoleDataBrokerAccountSelection";
 import { useStrategyRuntimeInstanceEditor } from "../src/components/strategy-runtime/useStrategyRuntimeInstanceEditor";
 
 const definitions: StrategyDefinitionDocument[] = [

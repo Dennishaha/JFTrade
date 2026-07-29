@@ -6,7 +6,7 @@ import {
   getVisualBlockCapabilities,
   getVisualBlockCapability,
   summarizePineBlockSupport,
-} from "../src/features/strategyVisualBuilderCapabilities";
+} from "@/features/strategy-builder";
 
 function node(kind: string, properties: Record<string, unknown> = {}): StrategyVisualNodeDocument {
   return {

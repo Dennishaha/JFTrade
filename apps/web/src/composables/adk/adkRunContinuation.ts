@@ -1,0 +1,137 @@
+import type { ADKRun } from "@/types";
+
+import { apiGetPath } from "@/composables/shared/apiClient";
+import { requireADKRun } from "@/composables/adk/adkApiMappers";
+import {
+  buildRunObservationSignature,
+  hasPendingRunApproval,
+} from "@/composables/adk/adkChatRuntime";
+import {
+  isTerminalRunStatus,
+  isUserPausedGoalRun,
+} from "@/composables/adk/adkChatPresentation";
+import { normalizeADKRun } from "@/composables/adk/adkNormalization";
+
+const DEFAULT_CONTINUATION_TIMEOUT_MS = 300_000;
+
+export interface ADKRunContinuationOptions {
+  pollIntervalMs?: number;
+  timeoutMs?: number;
+  onProgress?: (latestRun: ADKRun, previousRun: ADKRun) => void | Promise<void>;
+  onTerminal?: (latestRun: ADKRun) => void | Promise<void>;
+}
+
+export async function monitorADKRunContinuation(
+  run: ADKRun | undefined,
+  options: ADKRunContinuationOptions = {},
+): Promise<ADKRun | undefined> {
+  if (!run || isTerminalRunStatus(run.status) || isUserPausedGoalRun(run)) {
+    return run;
+  }
+  const pollIntervalMs = options.pollIntervalMs ?? 900;
+  const timeoutMs = continuationTimeoutMs(run, options);
+  const deadline = Date.now() + timeoutMs;
+  let previousRun = run;
+  let previousSignature = buildRunObservationSignature(run);
+
+  while (Date.now() < deadline) {
+    await delay(pollIntervalMs);
+    const latestRun = await fetchLatestRun(run.id);
+    const changed = await publishProgressIfChanged(
+      latestRun,
+      options,
+      previousRun,
+      previousSignature,
+    );
+    if (changed) {
+      previousRun = latestRun;
+      previousSignature = buildRunObservationSignature(latestRun);
+    }
+    if (isTerminalRunStatus(latestRun.status)) {
+      await options.onTerminal?.(latestRun);
+      return latestRun;
+    }
+    if (hasPendingRunApproval(latestRun)) {
+      return latestRun;
+    }
+    if (isUserPausedGoalRun(latestRun)) {
+      return latestRun;
+    }
+  }
+
+  const latestRun = await fetchLatestRun(run.id);
+  const changed = await publishProgressIfChanged(
+    latestRun,
+    options,
+    previousRun,
+    previousSignature,
+  );
+  if (changed) {
+    previousRun = latestRun;
+  }
+  if (isTerminalRunStatus(latestRun.status)) {
+    await options.onTerminal?.(latestRun);
+    return latestRun;
+  }
+  if (hasPendingRunApproval(latestRun)) {
+    return latestRun;
+  }
+  if (isUserPausedGoalRun(latestRun)) {
+    return latestRun;
+  }
+  if (hasFailedToolSnapshot(latestRun)) {
+    return latestRun;
+  }
+  return previousRun;
+}
+
+function continuationTimeoutMs(
+  run: ADKRun,
+  options: ADKRunContinuationOptions,
+): number {
+  if (options.timeoutMs !== undefined) {
+    return options.timeoutMs;
+  }
+  return Number.isFinite(run.maxDurationMs) && (run.maxDurationMs ?? 0) > 0
+    ? run.maxDurationMs!
+    : DEFAULT_CONTINUATION_TIMEOUT_MS;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function fetchLatestRun(runId: string): Promise<ADKRun> {
+  return normalizeADKRun(
+    requireADKRun(
+      await apiGetPath(
+        "/api/v1/adk/runs/{runId}",
+        `/api/v1/adk/runs/${encodeURIComponent(runId)}`,
+      ),
+    ),
+  );
+}
+
+async function publishProgressIfChanged(
+  latestRun: ADKRun,
+  options: ADKRunContinuationOptions,
+  previousRun: ADKRun,
+  previousSignature: string,
+): Promise<boolean> {
+  const latestSignature = buildRunObservationSignature(latestRun);
+  const changed =
+    latestRun.status !== previousRun.status ||
+    latestSignature !== previousSignature;
+  if (changed) {
+    await options.onProgress?.(latestRun, previousRun);
+  }
+  return changed;
+}
+
+function hasFailedToolSnapshot(run: ADKRun | undefined): boolean {
+  if (!run) return false;
+  return (run.toolCalls ?? []).some(
+    (toolCall) =>
+      toolCall.status === "FAILED" || toolCall.status === "TIMED_OUT",
+  );
+}

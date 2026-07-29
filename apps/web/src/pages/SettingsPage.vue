@@ -2,25 +2,25 @@
 import { computed, defineAsyncComponent, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import FutuIntegrationSection from "../components/FutuIntegrationSection.vue";
-import RuntimeDependenciesSection from "../components/RuntimeDependenciesSection.vue";
-import SettingsAccountDiscoverySection from "../components/SettingsAccountDiscoverySection.vue";
-import SettingsAppearanceSection from "../components/SettingsAppearanceSection.vue";
-import SettingsDeveloperToolsSection from "../components/SettingsDeveloperToolsSection.vue";
-import SettingsExchangeCalendarSection from "../components/SettingsExchangeCalendarSection.vue";
-import SettingsManagedAccountsSection from "../components/SettingsManagedAccountsSection.vue";
-import SettingsOpenSourceSection from "../components/SettingsOpenSourceSection.vue";
-import SettingsPineWorkerSection from "../components/SettingsPineWorkerSection.vue";
-import SettingsSecuritySection from "../components/SettingsSecuritySection.vue";
-import SettingsSystemNotificationsSection from "../components/SettingsSystemNotificationsSection.vue";
-import { createSettingsManagedAccountsController } from "../composables/settingsManagedAccounts";
-import { readLocalStorage, writeLocalStorage } from "../composables/safeStorage";
-import { useConsoleData } from "../composables/useConsoleData";
+import FutuIntegrationSection from "@/components/settings/FutuIntegrationSection.vue";
+import RuntimeDependenciesSection from "@/components/settings/RuntimeDependenciesSection.vue";
+import SettingsAccountDiscoverySection from "@/components/settings/SettingsAccountDiscoverySection.vue";
+import SettingsAppearanceSection from "@/components/settings/SettingsAppearanceSection.vue";
+import SettingsDeveloperToolsSection from "@/components/settings/SettingsDeveloperToolsSection.vue";
+import SettingsExchangeCalendarSection from "@/components/settings/SettingsExchangeCalendarSection.vue";
+import SettingsManagedAccountsSection from "@/components/settings/SettingsManagedAccountsSection.vue";
+import SettingsOpenSourceSection from "@/components/settings/SettingsOpenSourceSection.vue";
+import SettingsPineWorkerSection from "@/components/settings/SettingsPineWorkerSection.vue";
+import SettingsSecuritySection from "@/components/settings/SettingsSecuritySection.vue";
+import SettingsSystemNotificationsSection from "@/components/settings/SettingsSystemNotificationsSection.vue";
+import { createSettingsManagedAccountsController } from "@/composables/settings/settingsManagedAccounts";
+import { readLocalStorage, writeLocalStorage } from "@/composables/shared/safeStorage";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
 
 const route = useRoute();
 const router = useRouter();
-const SettingsADKSection = defineAsyncComponent(() => import("../components/SettingsADKSection.vue"));
-const SettingsDataManagementSection = defineAsyncComponent(() => import("../components/SettingsDataManagementSection.vue"));
+const SettingsADKSection = defineAsyncComponent(() => import("@/components/settings/SettingsADKSection.vue"));
+const SettingsDataManagementSection = defineAsyncComponent(() => import("@/components/settings/SettingsDataManagementSection.vue"));
 
 const SETTINGS_LAST_KEY = "jft.settings.section";
 

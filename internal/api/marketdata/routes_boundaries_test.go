@@ -14,7 +14,6 @@ import (
 
 	srv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/internal/productfeatures"
-	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -304,8 +303,4 @@ func TestReleaseAndClearMapSnapshotCancellationAfterLogicalCleanup(t *testing.T)
 			}
 		})
 	}
-}
-
-func TestBestEffortLoggingAcceptsErrorsAndNonErrors(t *testing.T) {
-	besteffort.LogError(errors.New("expected test error"))
 }

@@ -18,7 +18,7 @@ import {
   previewWatchlistImport,
   replaceWatchlistMembership,
   updateWatchlistGroup,
-} from "../src/composables/watchlistApi";
+} from "@/composables/watchlist/watchlistApi";
 
 function ok(data: unknown): Response {
   return new Response(

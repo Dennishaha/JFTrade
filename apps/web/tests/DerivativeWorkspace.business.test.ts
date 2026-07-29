@@ -24,7 +24,7 @@ const consoleState = {
   }),
 };
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   fetchEnvelopeWithInit: apiMocks.fetchWithInit,
   apiPostPath: (
     _template: string,
@@ -39,19 +39,19 @@ vi.mock("../src/composables/apiClient", () => ({
       body: JSON.stringify(body),
     }),
 }));
-vi.mock("../src/composables/productFeatures", async (importOriginal) => {
+vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../src/composables/productFeatures")>();
+    await importOriginal<typeof import("@/composables/product/productFeatures")>();
   return { ...actual, fetchProductFeature: apiMocks.fetchFeature };
 });
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => consoleState,
 }));
 
 import OptionChainTable from "../src/components/product/OptionChainTable.vue";
 import OptionWorkspacePanel from "../src/components/product/OptionWorkspacePanel.vue";
-import { buildOptionComboTemplate } from "../src/composables/optionComboStrategies";
-import type { OptionContractChoice } from "../src/composables/optionComboDraft";
+import { buildOptionComboTemplate } from "@/composables/product/optionComboStrategies";
+import type { OptionContractChoice } from "@/composables/product/optionComboDraft";
 import {
   buildOptionChainRows,
   formatOptionMetric,
@@ -59,7 +59,7 @@ import {
   optionCode,
   optionInstrumentId,
   optionStrike,
-} from "../src/composables/optionChainModel";
+} from "@/composables/product/optionChainModel";
 import {
   flushPromises,
   productGlobalStubs,

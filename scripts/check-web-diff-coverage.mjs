@@ -133,21 +133,22 @@ function gitRepositoryRoot(cwd) {
   return runGit(cwd, ["rev-parse", "--show-toplevel"]).trim();
 }
 
-function changedWebSourceLines(repoRoot, baseRef) {
+export function changedWebSourceLines(repoRoot, baseRef) {
   runGit(repoRoot, ["rev-parse", "--verify", `${baseRef}^{commit}`]);
   // Compare the PR merge-base to the working tree rather than to HEAD. This
   // makes the local command gate staged and unstaged changes too, while a CI
   // checkout still naturally evaluates the checked-out commit.
   const comparisonBase = runGit(repoRoot, ["merge-base", baseRef, "HEAD"]).trim();
-  const names = runGit(repoRoot, [
+  const trackedChanges = changedWebSourceEntries(runGit(repoRoot, [
     "diff",
-    "--name-only",
+    "--name-status",
+    "-z",
     "--diff-filter=ACMR",
     "--find-renames",
     comparisonBase,
     "--",
     webSourcePrefix,
-  ]).split("\n").filter((path) => isWebSourceFile(path));
+  ]));
   const untrackedNames = new Set(runGit(repoRoot, [
     "ls-files",
     "--others",
@@ -155,11 +156,21 @@ function changedWebSourceLines(repoRoot, baseRef) {
     "--",
     webSourcePrefix,
   ]).split("\n").filter((path) => isWebSourceFile(path)));
-  const sourceNames = new Set([...names, ...untrackedNames]);
+  const sourceNames = new Set([...trackedChanges.keys(), ...untrackedNames]);
   const changed = new Map();
 
   for (const path of sourceNames) {
-    const diff = runGit(repoRoot, ["diff", "--no-ext-diff", "--unified=0", "--find-renames", comparisonBase, "--", path]);
+    const previousPath = trackedChanges.get(path)?.previousPath;
+    const pathspecs = previousPath && previousPath !== path ? [previousPath, path] : [path];
+    const diff = runGit(repoRoot, [
+      "diff",
+      "--no-ext-diff",
+      "--unified=0",
+      "--find-renames",
+      comparisonBase,
+      "--",
+      ...pathspecs,
+    ]);
     const lines = untrackedNames.has(path)
       ? allLineNumbers(repoRoot, path)
       : addedLineNumbers(diff);
@@ -168,6 +179,21 @@ function changedWebSourceLines(repoRoot, baseRef) {
     }
   }
   return changed;
+}
+
+function changedWebSourceEntries(nameStatusOutput) {
+  const fields = nameStatusOutput.split("\0");
+  const entries = new Map();
+  for (let index = 0; index < fields.length;) {
+    const status = fields[index++];
+    if (!status) continue;
+    const renamed = status.startsWith("R");
+    const previousPath = renamed ? fields[index++] : undefined;
+    const path = fields[index++];
+    if (!path || !isWebSourceFile(path)) continue;
+    entries.set(path, { previousPath });
+  }
+  return entries;
 }
 
 function allLineNumbers(repoRoot, path) {

@@ -8,7 +8,7 @@ import {
   emptyExecutionOrderEvents,
   emptyExecutionOrders,
 } from "@/types";
-import { createConsoleDataExecutionOrdersController } from "../src/composables/consoleDataExecutionOrders";
+import { createConsoleDataExecutionOrdersController } from "@/composables/trading/consoleDataExecutionOrders";
 import { createResponse } from "./helpers";
 
 afterEach(() => {
@@ -79,6 +79,26 @@ function createController(options: {
 }
 
 describe("execution-order detail fallbacks", () => {
+  it("resolves the selected order across active and historical collections", () => {
+    const historicalOrder = {
+      ...buildOrder(),
+      internalOrderId: "historical-order",
+    };
+    const { controller, state } = createController();
+
+    expect(controller.selectedExecutionOrder.value).toBeNull();
+
+    state.historicalExecutionOrders.value = {
+      ...emptyExecutionOrders,
+      orders: [historicalOrder],
+    };
+    state.selectedExecutionOrderId.value = "historical-order";
+    expect(controller.selectedExecutionOrder.value).toEqual(historicalOrder);
+
+    state.selectedExecutionOrderId.value = "missing-order";
+    expect(controller.selectedExecutionOrder.value).toBeNull();
+  });
+
   it("clears stale event data when an unknown order's event endpoint fails", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => {
       throw "network disconnected";

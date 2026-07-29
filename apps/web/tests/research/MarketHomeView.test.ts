@@ -8,15 +8,15 @@ const mocks = vi.hoisted(() => ({
   fetchWithInit: vi.fn(),
 }));
 
-vi.mock("../../src/composables/productFeatures", async (importOriginal) => {
+vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../src/composables/productFeatures")>();
+    await importOriginal<typeof import("@/composables/product/productFeatures")>();
   return { ...actual, fetchProductFeature: mocks.fetch };
 });
 
-vi.mock("../../src/composables/apiClient", async (importOriginal) => {
+vi.mock("@/composables/shared/apiClient", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../src/composables/apiClient")>();
+    await importOriginal<typeof import("@/composables/shared/apiClient")>();
   return {
     ...actual,
     fetchEnvelopeWithInit: mocks.fetchWithInit,

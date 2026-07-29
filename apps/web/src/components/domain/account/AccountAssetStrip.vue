@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { useConsoleData } from "../../../composables/useConsoleData";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import { formatMoney } from "../../../utils/numberFormat";
 
 interface MetricItem {

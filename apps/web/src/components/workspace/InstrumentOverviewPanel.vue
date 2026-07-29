@@ -4,17 +4,17 @@ import { computed, ref, watch } from "vue";
 import type { BrokerMarginRatiosResponse } from "@/contracts";
 import { emptyBrokerMarginRatios } from "@/types";
 
-import { formatDateTime } from "../../composables/consoleDataFormatting";
-import { formatInstrumentIdentityText } from "../../composables/instrumentPresentation";
-import type { MarketSecurityDetails } from "../../composables/marketDataRealtime";
-import { apiGetPath } from "../../composables/apiClient";
-import { resolveBrokerQuery } from "../../composables/consoleDataBrokerAccountSelection";
-import { useMarketProfiles } from "../../composables/marketProfiles";
-import { resolveMarketSnapshotDisplay } from "../../composables/marketSessionDisplay";
-import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
-import { useConsoleData } from "../../composables/useConsoleData";
-import { useWatchlistMembership } from "../../composables/useWatchlist";
-import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import { formatDateTime } from "@/composables/shared/consoleDataFormatting";
+import { formatInstrumentIdentityText } from "@/composables/market-data/instrumentPresentation";
+import type { MarketSecurityDetails } from "@/composables/market-data/marketDataRealtime";
+import { apiGetPath } from "@/composables/shared/apiClient";
+import { resolveBrokerQuery } from "@/composables/trading/consoleDataBrokerAccountSelection";
+import { useMarketProfiles } from "@/composables/market-data/marketProfiles";
+import { resolveMarketSnapshotDisplay } from "@/composables/market-data/marketSessionDisplay";
+import { getSharedLiveSocketHub } from "@/composables/market-data/sharedLiveSocket";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
+import { useWatchlistMembership } from "@/composables/watchlist/useWatchlist";
+import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
 import {
   formatCompactNumber as formatSharedCompactNumber,
   formatMarketPrice,

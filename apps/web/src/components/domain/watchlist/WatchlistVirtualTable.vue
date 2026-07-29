@@ -7,10 +7,10 @@ import type {
   WatchlistQuoteError,
 } from "@/types";
 
-import { formatDateTime } from "../../../composables/consoleDataFormatting";
-import { formatUserMarketLabel } from "../../../composables/instrumentPresentation";
-import { pricePrecisionForMarket } from "../../../composables/marketProfiles";
-import { formatMarketSessionLabel } from "../../../composables/marketSessionDisplay";
+import { formatDateTime } from "@/composables/shared/consoleDataFormatting";
+import { formatUserMarketLabel } from "@/composables/market-data/instrumentPresentation";
+import { pricePrecisionForMarket } from "@/composables/market-data/marketProfiles";
+import { formatMarketSessionLabel } from "@/composables/market-data/marketSessionDisplay";
 import { formatMarketPrice, formatPercent } from "../../../utils/numberFormat";
 import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
 

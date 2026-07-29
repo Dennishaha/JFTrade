@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import { useResearchFeature } from "../../composables/useResearchFeature";
+import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import {
   formatCompactNumber,
   pickNumber,

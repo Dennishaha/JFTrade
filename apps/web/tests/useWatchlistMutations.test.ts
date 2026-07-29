@@ -15,7 +15,7 @@ const apiMocks = vi.hoisted(() => ({
   updateGroup: vi.fn(),
 }));
 
-vi.mock("../src/composables/watchlistApi", () => ({
+vi.mock("@/composables/watchlist/watchlistApi", () => ({
   createWatchlistGroup: apiMocks.createGroup,
   deleteWatchlistGroup: apiMocks.deleteGroup,
   getWatchlistMembership: apiMocks.getMembership,
@@ -26,7 +26,7 @@ vi.mock("../src/composables/watchlistApi", () => ({
   updateWatchlistGroup: apiMocks.updateGroup,
 }));
 
-import { queryClient } from "../src/composables/serverState";
+import { queryClient } from "@/composables/settings/serverState";
 import {
   useCreateWatchlistGroup,
   useDeleteWatchlistGroup,
@@ -34,7 +34,7 @@ import {
   useWatchlistItems,
   useWatchlistMembership,
   useWatchlistQuotes,
-} from "../src/composables/useWatchlist";
+} from "@/composables/watchlist/useWatchlist";
 
 let wrappers: ReturnType<typeof mount>[] = [];
 

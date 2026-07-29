@@ -6,8 +6,8 @@ import type { ADKApproval, ADKRun, ADKToolDescriptor } from "@/types";
 import {
   buildTimelineRun,
   type ADKTimelineEntryState,
-} from "../../composables/adkTimeline";
-import { useExternalLink } from "../../composables/externalLink";
+} from "@/composables/adk/adkTimeline";
+import { useExternalLink } from "@/composables/shared/externalLink";
 import ADKChildRunTrace from "../shared/ADKChildRunTrace.vue";
 import ADKRunTrace from "../shared/ADKRunTrace.vue";
 

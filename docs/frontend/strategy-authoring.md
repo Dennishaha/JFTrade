@@ -42,11 +42,11 @@ Go `pkg/strategy/pine` 是完整语法、语义诊断和 lowering 的权威实�
 
 - [StrategyDesignPage.vue](../../apps/web/src/pages/StrategyDesignPage.vue)：设计路由包装器，解析新建/已有入口并返回运行页。
 - [StrategyRuntimePage.vue](../../apps/web/src/pages/StrategyRuntimePage.vue)：运行路由包装器，装配实例面板并进入设计页。
-- [StrategyDesignStage.vue](../../apps/web/src/components/StrategyDesignStage.vue)：定义加载、结构指令、Pine 编辑、分析、保存和实例摘要的主工作台。
-- [StrategyRuntimePanel.vue](../../apps/web/src/components/StrategyRuntimePanel.vue)：实例列表、绑定、启停、日志和审计入口。
-- [PineSourceCodePane.vue](../../apps/web/src/components/PineSourceCodePane.vue)：Pine 源码编辑器与诊断 marker。
-- [PineSourceStructureBlockList.vue](../../apps/web/src/components/PineSourceStructureBlockList.vue)：结构指令列表及块操作。
-- [pineSourceStructureIndex.ts](../../apps/web/src/features/pineSourceStructureIndex.ts)：源码结构索引与 snapshot 构建入口。
+- [StrategyDesignStage.vue](../../apps/web/src/components/strategy-design/StrategyDesignStage.vue)：定义加载、结构指令、Pine 编辑、分析、保存和实例摘要的主工作台。
+- [StrategyRuntimePanel.vue](../../apps/web/src/components/strategy-runtime/StrategyRuntimePanel.vue)：实例列表、绑定、启停、日志和审计入口。
+- [PineSourceCodePane.vue](../../apps/web/src/components/strategy-design/PineSourceCodePane.vue)：Pine 源码编辑器与诊断 marker。
+- [PineSourceStructureBlockList.vue](../../apps/web/src/components/strategy-design/PineSourceStructureBlockList.vue)：结构指令列表及块操作。
+- [pine-structure/index.ts](../../apps/web/src/features/pine-structure/index.ts)：源码结构索引与 snapshot 构建入口。
 - [pineV6Workflow.ts](../../apps/web/src/features/pineV6Workflow.ts)：workflow block registry、默认策略、归一化和诊断。
 - [strategyPineEditorIntelliSense.ts](../../apps/web/src/features/strategyPineEditorIntelliSense.ts)：Monaco completion、snippet 与 hover 元数据。
 - [types/view-models/strategy.ts](../../apps/web/src/types/view-models/strategy.ts)：前端归一化后的 `PineV6WorkflowDocument`、策略定义和实例 view model；线上 wire contract 由 [contracts/generated/strategy.ts](../../apps/web/src/contracts/generated/strategy.ts) 从 OpenAPI 导出。

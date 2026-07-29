@@ -7,11 +7,11 @@ import InstrumentSearchBox from "@/components/domain/market-data/InstrumentSearc
 import {
   formatTradingEnvironment,
   resolveRealTradeHardStopScopeTagType,
-} from "@/composables/consoleDataFormatting";
+} from "@/composables/shared/consoleDataFormatting";
 import {
   formatInstrumentIdentityText,
   formatUserMarketLabel,
-} from "@/composables/instrumentPresentation";
+} from "@/composables/market-data/instrumentPresentation";
 
 const props = withDefaults(
   defineProps<{

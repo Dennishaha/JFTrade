@@ -4,8 +4,8 @@ import type { ADKAgent } from "@/types";
 import {
   renameADKPageSession,
   updateADKPageAgentProvider,
-} from "../src/composables/adkPageSessionApi";
-import { compactADKSessionContext } from "../src/composables/adkSessionContextApi";
+} from "@/composables/adk/adkPageSessionApi";
+import { compactADKSessionContext } from "@/composables/adk/adkSessionContextApi";
 import { createResponse } from "./helpers";
 
 afterEach(() => {

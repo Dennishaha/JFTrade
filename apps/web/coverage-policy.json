@@ -12,14 +12,15 @@
     "lines": 95
   },
   "viteCriticalGlobs": [
-    "src/components/BacktestChart.vue",
+    "src/components/backtest/BacktestChart.vue",
     "src/components/risk/**",
     "src/components/{domain/account/{ActiveOrdersTable.vue,OrderHistoryPanel.vue,executionOrderFormat.ts},workspace/{OrderBookPanel.vue,OrderEntryPanel.vue,PositionsPanel.vue,RealTradeConfirmationDialog.vue}}",
-    "src/composables/{consoleDataExecutionOrders.ts,consoleDataRealTrade.ts,liveEvent*.ts,marketDataRealtime*.ts,sharedLiveSocket.ts,useLiveStream.ts,useSharedLiveStream.ts}",
+    "src/composables/trading/{consoleDataExecutionOrders.ts,consoleDataRealTrade.ts}",
+    "src/composables/market-data/{liveEvent*.ts,marketDataRealtime*.ts,sharedLiveSocket.ts,useLiveStream.ts,useSharedLiveStream.ts}",
     "src/pages/RiskPage.vue"
   ],
   "criticalExactPaths": [
-    "apps/web/src/components/BacktestChart.vue",
+    "apps/web/src/components/backtest/BacktestChart.vue",
     "apps/web/src/components/domain/account/ActiveOrdersTable.vue",
     "apps/web/src/components/domain/account/OrderHistoryPanel.vue",
     "apps/web/src/components/domain/account/executionOrderFormat.ts",
@@ -27,21 +28,21 @@
     "apps/web/src/components/workspace/OrderEntryPanel.vue",
     "apps/web/src/components/workspace/PositionsPanel.vue",
     "apps/web/src/components/workspace/RealTradeConfirmationDialog.vue",
-    "apps/web/src/composables/consoleDataExecutionOrders.ts",
-    "apps/web/src/composables/consoleDataRealTrade.ts",
-    "apps/web/src/composables/liveEventBus.ts",
-    "apps/web/src/composables/liveEventReducers.ts",
-    "apps/web/src/composables/sharedLiveSocket.ts",
-    "apps/web/src/composables/useLiveStream.ts",
-    "apps/web/src/composables/useSharedLiveStream.ts",
+    "apps/web/src/composables/trading/consoleDataExecutionOrders.ts",
+    "apps/web/src/composables/trading/consoleDataRealTrade.ts",
+    "apps/web/src/composables/market-data/liveEventBus.ts",
+    "apps/web/src/composables/market-data/liveEventReducers.ts",
+    "apps/web/src/composables/market-data/sharedLiveSocket.ts",
+    "apps/web/src/composables/market-data/useLiveStream.ts",
+    "apps/web/src/composables/market-data/useSharedLiveStream.ts",
     "apps/web/src/pages/RiskPage.vue"
   ],
   "diffOnlyCriticalExactPaths": [
-    "apps/web/src/composables/useBacktestRuns.ts",
+    "apps/web/src/composables/backtest/useBacktestRuns.ts",
     "apps/web/src/pages/BacktestPage.vue"
   ],
   "criticalPrefixes": [
     "apps/web/src/components/risk/",
-    "apps/web/src/composables/marketDataRealtime"
+    "apps/web/src/composables/market-data/marketDataRealtime"
   ]
 }

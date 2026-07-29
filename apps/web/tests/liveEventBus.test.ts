@@ -4,7 +4,7 @@ import {
   getLiveEventBus,
   parseLiveEventEnvelope,
   resetLiveEventBusForTests,
-} from "../src/composables/liveEventBus";
+} from "@/composables/market-data/liveEventBus";
 
 afterEach(() => {
   resetLiveEventBusForTests();

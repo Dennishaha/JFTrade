@@ -3,8 +3,8 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import SettingsSystemNotificationsSection from "../src/components/SettingsSystemNotificationsSection.vue";
-import { queryClient } from "../src/composables/serverState";
+import SettingsSystemNotificationsSection from "@/components/settings/SettingsSystemNotificationsSection.vue";
+import { queryClient } from "@/composables/settings/serverState";
 import { createResponse, flushRequests } from "./helpers";
 
 type Settings = {

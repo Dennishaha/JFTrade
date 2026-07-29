@@ -8,7 +8,7 @@ import {
   parsePineExpressionToVisualExpression,
   renderVisualExpressionToPine,
   sourceExpression,
-} from "../src/features/strategyVisualBuilderExpressions";
+} from "@/features/strategy-builder";
 
 describe("strategyVisualBuilderExpressions business boundaries", () => {
   it("normalizes malformed payloads without inventing trading intent", () => {

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
-	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 type lifecycleTestStore struct {
@@ -721,10 +720,6 @@ func TestOnceShutdownReturnsStableHandlerError(t *testing.T) {
 		t.Fatalf("second shutdown error = %v, want stable %v", err, wantErr)
 	}
 	waitForClose(t, handler, 1)
-}
-
-func TestBestEffortLoggingIgnoresNonErrors(t *testing.T) {
-	besteffort.LogError(errors.New("expected close error"))
 }
 
 func lifecycleDependencies(store SettingsStore, handler Handler, frontendFS fs.FS) Dependencies {

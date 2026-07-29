@@ -5,18 +5,18 @@ import InstrumentSearchBox from "../components/domain/market-data/InstrumentSear
 import AppNavigationControls from "./AppNavigationControls.vue";
 import TopBarBrokerAccountPicker from "./TopBarBrokerAccountPicker.vue";
 
-import { formatUserMarketLabel } from "../composables/instrumentPresentation";
-import { useMarketProfiles } from "../composables/marketProfiles";
-import { useCommandPalette } from "../composables/useCommandPalette";
-import { useConsoleData } from "../composables/useConsoleData";
-import { useNotifications } from "../composables/useNotifications";
-import { useTheme } from "../composables/useTheme";
-import { webLogout } from "../composables/apiClient";
+import { formatUserMarketLabel } from "@/composables/market-data/instrumentPresentation";
+import { useMarketProfiles } from "@/composables/market-data/marketProfiles";
+import { useCommandPalette } from "@/composables/workspace/useCommandPalette";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
+import { useNotifications } from "@/composables/shared/useNotifications";
+import { useTheme } from "@/composables/settings/useTheme";
+import { webLogout } from "@/composables/shared/apiClient";
 import { resolveDesktopMode } from "../runtimeConfig";
 import {
   useWorkspaceTradingPrefs,
   useWorkspaceViewState,
-} from "../composables/useWorkspaceLayout";
+} from "@/composables/workspace/useWorkspaceLayout";
 
 const props = defineProps<{
   compact?: boolean;

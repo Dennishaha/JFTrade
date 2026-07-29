@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   compareBudgetToMergeBase,
   compareWebComponentBudget,
+  inspectWebModuleLayout,
   inspectVueSource,
 } from "./check-web-component-budget.mjs";
 
@@ -80,4 +81,42 @@ test("rejects exception and style budget growth relative to merge-base", () => {
     "legacy.vue exception grew from 900 to 901",
     "new.vue is a new component budget exception relative to merge-base",
   ]);
+});
+
+test("rejects flat modules and deep feature imports", () => {
+  assert.deepEqual(
+    inspectWebModuleLayout([
+      { name: "apps/web/src/components/Legacy.vue" },
+      { name: "apps/web/src/composables/useLegacy.ts" },
+      { name: "apps/web/src/features/strategyVisualBuilderLegacy.ts" },
+      {
+        name: "apps/web/src/pages/StrategyPage.vue",
+        contents: 'import { parse } from "@/features/pine-structure/parser";',
+      },
+      { name: "apps/web/src/features/strategy-builder/index.ts" },
+      { name: "apps/web/src/features/pine-structure/index.ts" },
+    ]),
+    [
+      "apps/web/src/components/Legacy.vue: root Vue components must be assigned to a feature directory",
+      "apps/web/src/composables/useLegacy.ts: root composables must be assigned to an owner directory",
+      "apps/web/src/features/strategyVisualBuilderLegacy.ts: legacy flat feature path is forbidden",
+      "apps/web/src/pages/StrategyPage.vue: import @/features/pine-structure/parser through the feature index",
+    ],
+  );
+});
+
+test("accepts categorized modules and feature index imports", () => {
+  assert.deepEqual(
+    inspectWebModuleLayout([
+      { name: "apps/web/src/components/backtest/BacktestPanel.vue" },
+      { name: "apps/web/src/composables/backtest/useBacktest.ts" },
+      { name: "apps/web/src/features/strategy-builder/index.ts" },
+      { name: "apps/web/src/features/pine-structure/index.ts" },
+      {
+        name: "apps/web/src/pages/StrategyPage.vue",
+        contents: 'import { parse } from "@/features/pine-structure";',
+      },
+    ]),
+    [],
+  );
 });

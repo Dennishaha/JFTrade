@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { defineComponent, nextTick } from "vue";
 
 import NotificationCenter from "../src/layout/NotificationCenter.vue";
-import { provideNotificationsStore } from "../src/composables/useNotifications";
+import { provideNotificationsStore } from "@/composables/shared/useNotifications";
 
 const NotificationCenterHarness = defineComponent({
   components: { NotificationCenter },

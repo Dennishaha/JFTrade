@@ -7,9 +7,9 @@ const featureMocks = vi.hoisted(() => ({
   fetch: vi.fn(),
 }));
 
-vi.mock("../src/composables/productFeatures", async (importOriginal) => {
+vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../src/composables/productFeatures")>();
+    await importOriginal<typeof import("@/composables/product/productFeatures")>();
   return { ...actual, fetchProductFeature: featureMocks.fetch };
 });
 
@@ -17,11 +17,11 @@ import ProductFeaturePanel from "../src/components/product/ProductFeaturePanel.v
 import {
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
-} from "../src/composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 import {
   featureEntryTitle,
   instrumentIDFromFeatureEntry,
-} from "../src/composables/productFeatures";
+} from "@/composables/product/productFeatures";
 import {
   flushPromises,
   productGlobalStubs,

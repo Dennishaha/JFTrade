@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { MarketSecurityDetails } from "../src/types";
-import { resolveProductUnderlying } from "../src/composables/productUnderlying";
+import { resolveProductUnderlying } from "@/composables/product/productUnderlying";
 
 function details(
   value: Partial<MarketSecurityDetails>,

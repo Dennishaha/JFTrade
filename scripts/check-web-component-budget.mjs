@@ -99,6 +99,43 @@ export function compareBudgetToMergeBase(budget, baseBudget) {
   return failures;
 }
 
+export function inspectWebModuleLayout(files) {
+  const failures = [];
+  const normalized = files.map(({ name, contents = "" }) => ({
+    name: name.replaceAll("\\", "/"),
+    contents,
+  }));
+  for (const file of normalized) {
+    if (/^apps\/web\/src\/components\/[^/]+\.vue$/.test(file.name)) {
+      failures.push(`${file.name}: root Vue components must be assigned to a feature directory`);
+    }
+    if (/^apps\/web\/src\/composables\/[^/]+\.ts$/.test(file.name)) {
+      failures.push(`${file.name}: root composables must be assigned to an owner directory`);
+    }
+    if (
+      /^apps\/web\/src\/features\/(?:strategyVisualBuilder|pineSourceStructure)/.test(
+        file.name,
+      )
+    ) {
+      failures.push(`${file.name}: legacy flat feature path is forbidden`);
+    }
+    for (const match of file.contents.matchAll(
+      /(?:from\s*|import\s*)["'](@\/features\/(?:strategy-builder|pine-structure)\/[^"']+)["']/g,
+    )) {
+      failures.push(`${file.name}: import ${match[1]} through the feature index`);
+    }
+  }
+  for (const entry of [
+    "apps/web/src/features/strategy-builder/index.ts",
+    "apps/web/src/features/pine-structure/index.ts",
+  ]) {
+    if (!normalized.some((file) => file.name === entry)) {
+      failures.push(`${entry}: required feature index is missing`);
+    }
+  }
+  return failures;
+}
+
 function countLines(contents) {
   return contents ? contents.split("\n").length - (contents.endsWith("\n") ? 1 : 0) : 0;
 }
@@ -113,7 +150,8 @@ function walk(directory) {
 function main() {
   const root = resolve(process.cwd());
   const budget = JSON.parse(readFileSync(resolve(root, "scripts/web-component-budget.json"), "utf8"));
-  const components = walk(resolve(root, "apps/web/src"))
+  const sourceFiles = walk(resolve(root, "apps/web/src"));
+  const components = sourceFiles
     .filter((path) => path.endsWith(".vue"))
     .map((path) => ({
       name: relative(root, path).split(sep).join("/"),
@@ -123,6 +161,16 @@ function main() {
       }),
     }));
   const result = compareWebComponentBudget(components, budget, readMergeBaseBudget(root));
+  result.failures.push(
+    ...inspectWebModuleLayout(
+      sourceFiles
+        .filter((path) => /\.(?:ts|vue)$/.test(path))
+        .map((path) => ({
+          name: relative(root, path).split(sep).join("/"),
+          contents: readFileSync(path, "utf8"),
+        })),
+    ),
+  );
   if (result.failures.length) {
     console.error("web component budget regressed:");
     result.failures.forEach((failure) => console.error(`- ${failure}`));
@@ -130,7 +178,7 @@ function main() {
     return;
   }
   const oversized = components.filter((item) => item.effectiveLines > budget.defaultMaxLines).length;
-  console.log(`web component budget passed: ${components.length} components, ${oversized} frozen exceptions, ${result.scopedStyleLines}/${budget.scopedStyleLinesMax} scoped style lines.`);
+  console.log(`web component and module layout budget passed: ${components.length} components, ${oversized} frozen exceptions, ${result.scopedStyleLines}/${budget.scopedStyleLinesMax} scoped style lines.`);
 }
 
 function readMergeBaseBudget(root) {

@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import type {
   MarketDataCandlesQueryResult,
   MarketDataTickLiveEvent,
-} from "../src/composables/marketDataRealtime";
+} from "@/composables/market-data/marketDataRealtime";
 import {
   createMarketDataRealtimeController,
   normalizeMarketDataCandlesQueryResult,
   normalizeMarketDataSnapshotQueryResult,
   normalizeMarketDataTickLiveEvent,
-} from "../src/composables/marketDataRealtime";
+} from "@/composables/market-data/marketDataRealtime";
 
 function buildTickEvent(
   overrides: Partial<MarketDataTickLiveEvent> = {},

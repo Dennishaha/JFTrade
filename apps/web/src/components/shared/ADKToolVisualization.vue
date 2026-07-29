@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKToolVisualization } from "../../composables/adkToolVisualizations";
+import type { ADKToolVisualization } from "@/composables/adk/adkToolVisualizations";
 
 defineProps<{
   visualization: ADKToolVisualization;

@@ -7,11 +7,11 @@ const externalLinks = vi.hoisted(() => ({
   handleExternalLinkClick: vi.fn(),
 }));
 
-vi.mock("../src/composables/externalLink", () => ({
+vi.mock("@/composables/shared/externalLink", () => ({
   useExternalLink: () => externalLinks,
 }));
 
-import SettingsOpenSourceSection from "../src/components/SettingsOpenSourceSection.vue";
+import SettingsOpenSourceSection from "@/components/settings/SettingsOpenSourceSection.vue";
 import {
   JFTRADE_SOURCE_REPOSITORY_URL,
   resolveCorrespondingSourceUrl,

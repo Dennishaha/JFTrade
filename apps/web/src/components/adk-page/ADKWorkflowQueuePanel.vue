@@ -3,8 +3,8 @@ import { computed } from "vue";
 
 import type { ADKRun, ADKWorkflowStepState } from "@/types";
 
-import { formatGenericStatusLabel } from "../../composables/consoleDataFormatting";
-import { workflowQueueTone } from "../../composables/useADKWorkflowQueueState";
+import { formatGenericStatusLabel } from "@/composables/shared/consoleDataFormatting";
+import { workflowQueueTone } from "@/composables/adk/useADKWorkflowQueueState";
 import ADKQueuePanel from "./ADKQueuePanel.vue";
 
 const props = defineProps<{

@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
 import type { RequestObservabilitySummary } from "../src/types";
-import SettingsDeveloperToolsSection from "../src/components/SettingsDeveloperToolsSection.vue";
+import SettingsDeveloperToolsSection from "@/components/settings/SettingsDeveloperToolsSection.vue";
 
 const passthroughStub = { template: "<div><slot /></div>" };
 const buttonStub = {

@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick, ref } from "vue";
 
-import { ApiClientError } from "../src/composables/apiClient";
+import { ApiClientError } from "@/composables/shared/apiClient";
 
 const watchlistMocks = vi.hoisted(() => ({
   groupsData: null as unknown as ReturnType<typeof ref>,
@@ -16,7 +16,7 @@ const watchlistMocks = vi.hoisted(() => ({
   replace: vi.fn(),
 }));
 
-vi.mock("../src/composables/useWatchlist", () => ({
+vi.mock("@/composables/watchlist/useWatchlist", () => ({
   useWatchlistGroups: () => ({
     data: watchlistMocks.groupsData,
     error: watchlistMocks.groupsError,

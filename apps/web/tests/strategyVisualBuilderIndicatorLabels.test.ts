@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   nextTechnicalIndicatorConditionNodeText,
   patternTypeLabel,
-} from "../src/features/strategyVisualBuilderIndicatorBlock";
+} from "@/features/strategy-builder";
 
 describe("strategy visual indicator condition labels", () => {
   it("keeps the displayed condition labels aligned with executable indicator patterns", () => {

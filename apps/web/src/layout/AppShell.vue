@@ -5,23 +5,23 @@ import { RouterView, useRoute, useRouter } from "vue-router";
 import {
   provideCommandPaletteStore,
   useCommandPalette,
-} from "../composables/useCommandPalette";
-import { provideConsoleDataStore } from "../composables/useConsoleData";
-import { useDocsLink } from "../composables/useDocsLink";
+} from "@/composables/workspace/useCommandPalette";
+import { provideConsoleDataStore } from "@/composables/workspace/useConsoleData";
+import { useDocsLink } from "@/composables/shared/useDocsLink";
 import {
   createMarketDataLiveReducer,
   createNotificationLiveReducer,
   formatLiveEventTypeLabel,
-} from "../composables/liveEventReducers";
-import { getLiveEventBus } from "../composables/liveEventBus";
-import { provideNotificationsStore } from "../composables/useNotifications";
-import { provideOptionComboDraftStore } from "../composables/optionComboDraft";
-import { provideLiveStreamStore } from "../composables/useSharedLiveStream";
-import { provideThemeStore } from "../composables/useTheme";
-import { provideUIColorPreferencesStore } from "../composables/useUIColorPreferences";
-import { provideWorkspaceLayoutStore } from "../composables/useWorkspaceLayout";
+} from "@/composables/market-data/liveEventReducers";
+import { getLiveEventBus } from "@/composables/market-data/liveEventBus";
+import { provideNotificationsStore } from "@/composables/shared/useNotifications";
+import { provideOptionComboDraftStore } from "@/composables/product/optionComboDraft";
+import { provideLiveStreamStore } from "@/composables/market-data/useSharedLiveStream";
+import { provideThemeStore } from "@/composables/settings/useTheme";
+import { provideUIColorPreferencesStore } from "@/composables/settings/useUIColorPreferences";
+import { provideWorkspaceLayoutStore } from "@/composables/workspace/useWorkspaceLayout";
 import CommandPalette from "./CommandPalette.vue";
-import DesktopUpdateBanner from "../components/DesktopUpdateBanner.vue";
+import DesktopUpdateBanner from "@/components/app-shell/DesktopUpdateBanner.vue";
 import IconRail from "./IconRail.vue";
 import RightDock from "./RightDock.vue";
 import StatusBar from "./StatusBar.vue";

@@ -59,6 +59,9 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - [watchlist.md](watchlist.md)：自选系统的使用方式、数据主权、Futu 导入、快照行情、API、ADK 和扩展边界。
 - [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：策略定义、结构指令、Pine 编辑与 visual model 投影。
 - [frontend/api-contracts.md](frontend/api-contracts.md)：OpenAPI 生成类型、前端 view model/mapper、typed API 与原生请求边界。
+- [frontend/state-management.md](frontend/state-management.md)：Vue Query、页面 composable、context 与受控 singleton 的状态归属规则。
+- [frontend/bundle-budget.md](frontend/bundle-budget.md)：首屏与异步 chunk 的 gzip 基线、重依赖懒加载约束和本地报告命令。
+- [frontend/styling-guide.md](frontend/styling-guide.md)：Vuetify、Tailwind、全局 primitive 与 scoped CSS 的职责边界。
 - [backtest-execution-model.md](backtest-execution-model.md)：`conservative-bar-v1` 的成交规则、职责边界和实盘差异。
 - [pinets-contract-audit.md](pinets-contract-audit.md)：PineTS 切换后的 Go/API/worker/前端契约矩阵和 visual output 边界。
 - [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)：PineTS worker 发布、运行配置、embedded asset 和非 mock smoke 放行清单。

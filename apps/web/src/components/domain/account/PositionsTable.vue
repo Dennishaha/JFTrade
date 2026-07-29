@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
-import { formatUserMarketLabel } from "../../../composables/instrumentPresentation";
-import { pricePrecisionForMarket } from "../../../composables/marketProfiles";
+import { formatUserMarketLabel } from "@/composables/market-data/instrumentPresentation";
+import { pricePrecisionForMarket } from "@/composables/market-data/marketProfiles";
 import {
   formatMarketPrice,
   formatMoney,

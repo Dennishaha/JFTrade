@@ -4,15 +4,15 @@ import { computed, ref, watch } from "vue";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
-} from "../../composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 import {
   formatOptionMetric,
   type OptionChainSideModel,
-} from "../../composables/optionChainModel";
+} from "@/composables/product/optionChainModel";
 import {
   fetchProductFeature,
   type ProductFeatureResult,
-} from "../../composables/productFeatures";
+} from "@/composables/product/productFeatures";
 
 type Entry = Record<string, unknown>;
 type AnalysisOperation = "quote" | "volatility" | "exercise_probability";

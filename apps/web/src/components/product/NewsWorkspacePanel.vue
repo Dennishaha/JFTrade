@@ -5,16 +5,16 @@ import {
   buildNewsItem,
   filterNewsItems,
   type NewsCategory,
-} from "../../composables/newsPresentation";
+} from "@/composables/research/newsPresentation";
 import {
   fetchProductFeature,
   type ProductFeatureResult,
-} from "../../composables/productFeatures";
+} from "@/composables/product/productFeatures";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
-} from "../../composables/brokerProviderSelection";
-import { useExternalLink } from "../../composables/externalLink";
+} from "@/composables/trading/brokerProviderSelection";
+import { useExternalLink } from "@/composables/shared/externalLink";
 import ProductPanelToolbar from "./ProductPanelToolbar.vue";
 import ProductToolbarRefreshButton from "./ProductToolbarRefreshButton.vue";
 

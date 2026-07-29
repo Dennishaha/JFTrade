@@ -28,3 +28,6 @@ export type BacktestOrderBookEntryDto =
 
 export type RunModelTradingCostsDto =
   components["schemas"]["runmodel.TradingCosts"];
+
+export type BacktestSyncRequestDto =
+  components["schemas"]["backtest.SyncRequest"];

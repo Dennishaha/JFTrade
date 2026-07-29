@@ -4,8 +4,8 @@ import {
   mergeMarketDataCandles,
   upsertMarketDataRealtimeCandle,
   upsertMarketDataTickCandle,
-} from "../src/composables/marketDataRealtimeCandles";
-import type { MarketDataCandlesQueryResult } from "../src/composables/marketDataRealtime";
+} from "@/composables/market-data/marketDataRealtimeCandles";
+import type { MarketDataCandlesQueryResult } from "@/composables/market-data/marketDataRealtime";
 
 describe("marketDataRealtimeCandles", () => {
   it("uses the first snapshot unchanged when no current series exists", () => {

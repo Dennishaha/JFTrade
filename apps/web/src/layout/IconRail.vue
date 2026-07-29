@@ -2,8 +2,8 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import { useDocsLink } from "../composables/useDocsLink";
-import { useExternalLink } from "../composables/externalLink";
+import { useDocsLink } from "@/composables/shared/useDocsLink";
+import { useExternalLink } from "@/composables/shared/externalLink";
 
 interface InternalNavItem {
   type: "route";

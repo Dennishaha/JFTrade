@@ -6,8 +6,8 @@ import type {
   WatchlistRemoteGroup,
 } from "@/types";
 
-import { useWatchlistGroups } from "../../../composables/useWatchlist";
-import { useWatchlistImport } from "../../../composables/useWatchlistImport";
+import { useWatchlistGroups } from "@/composables/watchlist/useWatchlist";
+import { useWatchlistImport } from "@/composables/watchlist/useWatchlistImport";
 import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
 
 const props = defineProps<{ modelValue: boolean }>();

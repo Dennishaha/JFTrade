@@ -77,3 +77,12 @@ export type PortfolioCashBalancesResponse =
 
 export type ExecutionOrderEventResponse =
   components["schemas"]["trading.ExecutionOrderEvent"];
+
+export type ExecutionOrdersDto =
+  components["schemas"]["trading.ExecutionOrders"];
+
+export type ExecutionOrderDetailsDto =
+  components["schemas"]["trading.ExecutionOrderDetails"];
+
+export type ExecutionOrderEventsDto =
+  components["schemas"]["trading.ExecutionOrderEvents"];

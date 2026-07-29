@@ -6,15 +6,15 @@ import {
   mapPluginMutation,
   mapPluginOperation,
   mapPluginUninstallGuidance,
-} from "../src/composables/pluginContract";
+} from "@/composables/settings/pluginContract";
 import {
   mapStrategyBindingRequest,
   mapStrategyRuntimeRiskRequest,
-} from "../src/composables/strategyApiRequests";
+} from "@/composables/strategy/strategyApiRequests";
 import {
   mapStrategyInstance,
   mapStrategyInstances,
-} from "../src/composables/strategyContract";
+} from "@/composables/strategy/strategyContract";
 
 describe("strategy and plugin API contract mappers", () => {
   it("preserves nullable runtime limits while omitting an unbound broker account", () => {

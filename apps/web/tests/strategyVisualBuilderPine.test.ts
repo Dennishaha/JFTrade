@@ -5,7 +5,7 @@ import type { StrategyVisualModelDocument } from "@/types";
 import {
   createStrategyPaletteItems,
   getStrategyBlockCatalog,
-} from "../src/features/strategyVisualBuilderCatalog";
+} from "@/features/strategy-builder";
 import {
   assessPineBlockSupport,
   getVisualBlockCapabilities,
@@ -13,13 +13,13 @@ import {
   parsePineExpressionToVisualExpression,
   renderVisualExpressionToPine,
   summarizePineBlockSupport,
-} from "../src/features/strategyVisualBuilder";
+} from "@/features/strategy-builder";
 import {
   buildStrategyPineFromVisualModel,
-} from "../src/features/strategyVisualBuilderPine";
+} from "@/features/strategy-builder";
 import {
   buildStrategyVisualModelFromPine,
-} from "../src/features/strategyVisualBuilderPineParser";
+} from "@/features/strategy-builder";
 
 function createLinearVisualModel(
   nodes: Array<{

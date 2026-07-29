@@ -121,6 +121,10 @@ var exclusionRules = []exclusionRule{
 		reason: "declarative Swaggo-only route documentation",
 	},
 	{
+		scope: "internal/api/research/openapi.go", category: exclusionContract,
+		reason: "declarative Swaggo-only route documentation",
+	},
+	{
 		scope: "internal/integration/futu/testkit", category: exclusionTestSupport,
 		reason: "cross-package OpenD test fixtures",
 	},

@@ -68,10 +68,10 @@ import {
   runADKWorkflowTrigger,
   saveADKWorkflow,
   saveADKWorkflowTrigger,
-} from "../../composables/adkWorkflowsApi";
-import { useADKWorkflowStudioCanvas } from "../../composables/useADKWorkflowStudioCanvas";
-import { useADKWorkflowStudioResources } from "../../composables/useADKWorkflowStudioResources";
-import { useADKWorkflowStudioViewModel } from "../../composables/useADKWorkflowStudioViewModel";
+} from "@/composables/adk/adkWorkflowsApi";
+import { useADKWorkflowStudioCanvas } from "@/composables/adk/useADKWorkflowStudioCanvas";
+import { useADKWorkflowStudioResources } from "@/composables/adk/useADKWorkflowStudioResources";
+import { useADKWorkflowStudioViewModel } from "@/composables/adk/useADKWorkflowStudioViewModel";
 
 const props = withDefaults(
   defineProps<{

@@ -10,9 +10,9 @@ import {
   emptySystemStatus,
 } from "@/types";
 
-import TradingScopeBar from "../src/components/TradingScopeBar.vue";
-import { provideConsoleDataStore } from "../src/composables/useConsoleData";
-import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
+import TradingScopeBar from "@/components/domain/trading/TradingScopeBar.vue";
+import { provideConsoleDataStore } from "@/composables/workspace/useConsoleData";
+import { provideWorkspaceTradingPreferencesStore } from "@/composables/workspace/useWorkspaceLayout";
 
 afterEach(() => {
   window.localStorage?.clear();

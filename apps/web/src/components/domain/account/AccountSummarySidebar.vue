@@ -5,9 +5,9 @@ import {
   formatAccountTypeLabel,
   formatConnectivityLabel,
   formatTradingEnvironment,
-} from "../../../composables/consoleDataFormatting";
-import { formatUserMarketLabel } from "../../../composables/instrumentPresentation";
-import { useConsoleData } from "../../../composables/useConsoleData";
+} from "@/composables/shared/consoleDataFormatting";
+import { formatUserMarketLabel } from "@/composables/market-data/instrumentPresentation";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import { formatMoney } from "../../../utils/numberFormat";
 
 const {

@@ -12,7 +12,7 @@ const workspaceMocks = vi.hoisted(() => ({
   tradingPrefs: null as null | ReturnType<typeof ref>,
 }));
 
-vi.mock("../src/composables/useWorkspaceLayout", () => ({
+vi.mock("@/composables/workspace/useWorkspaceLayout", () => ({
   useWorkspaceViewState: () => workspaceMocks.store,
   useWorkspaceTradingPrefs: () => ({
     prefs: workspaceMocks.tradingPrefs,

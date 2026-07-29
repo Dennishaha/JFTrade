@@ -6,14 +6,14 @@ import type {
   ExecutionCommandResponse as ExecutionResponse,
 } from "@/contracts";
 
-import { apiPost, apiPostPathAction } from "../../composables/apiClient";
-import { useBrokerProviderSelection } from "../../composables/brokerProviderSelection";
+import { apiPost, apiPostPathAction } from "@/composables/shared/apiClient";
+import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
 import {
   type OptionComboPriceSource,
   type OptionComboStrategy,
   type OptionContractChoice,
   useOptionComboDraftStore,
-} from "../../composables/optionComboDraft";
+} from "@/composables/product/optionComboDraft";
 import {
   buildOptionComboTemplate,
   optionComboLocalQuote,
@@ -21,8 +21,8 @@ import {
   optionComboStrategyLabel,
   optionComboValidationMessage,
   recognizeOptionComboStrategy,
-} from "../../composables/optionComboStrategies";
-import { useConsoleData } from "../../composables/useConsoleData";
+} from "@/composables/product/optionComboStrategies";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import {
   buildOptionComboExecutionLegs,
   createOptionComboClientOrderId,
@@ -34,7 +34,7 @@ import OptionComboLegEditor from "./OptionComboLegEditor.vue";
 import OptionComboPreviewResult from "./OptionComboPreviewResult.vue";
 import OptionComboRiskStrip from "./OptionComboRiskStrip.vue";
 
-export type { OptionContractChoice } from "../../composables/optionComboDraft";
+export type { OptionContractChoice } from "@/composables/product/optionComboDraft";
 
 const props = withDefaults(
   defineProps<{

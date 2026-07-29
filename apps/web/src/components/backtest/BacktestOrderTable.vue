@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BacktestOrderBookEntry } from "@/composables/useBacktestRuns";
+import type { BacktestOrderBookEntry } from "@/composables/backtest/useBacktestRuns";
 
 import {
   formatBacktestFee,

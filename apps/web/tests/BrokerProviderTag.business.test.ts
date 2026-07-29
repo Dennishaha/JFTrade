@@ -7,7 +7,7 @@ const apiMocks = vi.hoisted(() => ({
   fetchEnvelope: vi.fn(),
 }));
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   apiGet: apiMocks.fetchEnvelope,
 }));
 
@@ -21,7 +21,7 @@ import {
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
   withBrokerProvider,
-} from "../src/composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 import { flushPromises, productGlobalStubs } from "./productTestUtils";
 
 const capabilities = {

@@ -21,10 +21,10 @@ const {
   renameADKPageSessionMock: vi.fn(),
 }));
 
-vi.mock("../src/composables/adkPageSessionApi", async () => {
+vi.mock("@/composables/adk/adkPageSessionApi", async () => {
   const actual = await vi.importActual<
-    typeof import("../src/composables/adkPageSessionApi")
-  >("../src/composables/adkPageSessionApi");
+    typeof import("@/composables/adk/adkPageSessionApi")
+  >("@/composables/adk/adkPageSessionApi");
   return {
     ...actual,
     createADKPageSession: createADKPageSessionMock,
@@ -34,7 +34,7 @@ vi.mock("../src/composables/adkPageSessionApi", async () => {
   };
 });
 
-import { useADKPageSessionState } from "../src/composables/useADKPageSessionState";
+import { useADKPageSessionState } from "@/composables/adk/useADKPageSessionState";
 
 beforeEach(() => {
   createADKPageSessionMock.mockReset();

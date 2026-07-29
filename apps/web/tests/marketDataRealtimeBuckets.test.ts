@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   finalizeMarketDataRealtimeCandleDisplayAt,
   resolveMarketDataRealtimeBucketStart,
-} from "../src/composables/marketDataRealtimeBuckets";
+} from "@/composables/market-data/marketDataRealtimeBuckets";
 
 describe("market data realtime bucket boundaries", () => {
   it("does not fabricate a chart bucket for tick-only updates", () => {

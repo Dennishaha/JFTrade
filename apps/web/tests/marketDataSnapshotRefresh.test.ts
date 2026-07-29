@@ -6,8 +6,8 @@ import { nextTick, ref } from "vue";
 import {
   getSharedLiveSocketHub,
   resetSharedLiveSocketHubForTests,
-} from "../src/composables/sharedLiveSocket";
-import { createMarketDataSnapshotRefresher } from "../src/composables/marketDataSnapshotRefresh";
+} from "@/composables/market-data/sharedLiveSocket";
+import { createMarketDataSnapshotRefresher } from "@/composables/market-data/marketDataSnapshotRefresh";
 import { createLiveEnvelope, MockWebSocket } from "./helpers";
 
 function createSecurityDetails(market: string, symbol: string, name: string) {

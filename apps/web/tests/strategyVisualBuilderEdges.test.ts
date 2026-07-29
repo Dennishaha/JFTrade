@@ -9,7 +9,7 @@ import {
   normalizeStrategyVisualEdgeProperties,
   readStrategyVisualEdgeBranch,
   readStrategyVisualEdgeInputSlot,
-} from "../src/features/strategyVisualBuilderEdges";
+} from "@/features/strategy-builder";
 
 function edge(properties?: Record<string, unknown>): StrategyVisualEdgeDocument {
   return {

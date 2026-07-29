@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChartType, KlineIndicatorKey } from "../../charting/kline";
-import type { LiveSocketConnectionState } from "../../composables/sharedLiveSocket";
-import KlineIndicatorSelector from "../KlineIndicatorSelector.vue";
+import type { LiveSocketConnectionState } from "@/composables/market-data/sharedLiveSocket";
+import KlineIndicatorSelector from "@/components/domain/market-data/KlineIndicatorSelector.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import LightweightChartTypeSelector from "./LightweightChartTypeSelector.vue";
 

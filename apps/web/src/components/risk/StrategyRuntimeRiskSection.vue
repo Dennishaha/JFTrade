@@ -5,7 +5,7 @@ import type {
   StrategyRuntimeRiskSettings,
 } from "@/types";
 import { formatStrategyRuntimeRiskSummary } from "@/components/strategy-runtime/strategyRuntimeInstanceBinding";
-import { formatStrategyRuntimeStatus } from "@/composables/consoleDataFormatting";
+import { formatStrategyRuntimeStatus } from "@/composables/shared/consoleDataFormatting";
 
 defineProps<{
   error: string;

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ useResearchFeature: vi.fn() }));
 
-vi.mock("../../src/composables/useResearchFeature", () => ({
+vi.mock("@/composables/research/useResearchFeature", () => ({
   useResearchFeature: mocks.useResearchFeature,
 }));
 

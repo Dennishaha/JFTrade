@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   createConsoleDataMarketInstrumentsController,
   normalizeInstrumentParts,
-} from "../src/composables/consoleDataMarketInstruments";
+} from "@/composables/market-data/consoleDataMarketInstruments";
 
 describe("console-data market instrument search", () => {
   it("normalizes embedded exchange prefixes and rejects incomplete identifiers", () => {

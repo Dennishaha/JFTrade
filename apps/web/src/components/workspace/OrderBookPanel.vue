@@ -5,19 +5,19 @@ import type {
   MarketDataDepthResponse,
 } from "@/types";
 
-import { apiGetPath } from "../../composables/apiClient";
-import { mapMarketDataDepthResponse } from "../../composables/marketDataContract";
-import { pricePrecisionForMarket } from "../../composables/marketProfiles";
+import { apiGetPath } from "@/composables/shared/apiClient";
+import { mapMarketDataDepthResponse } from "@/composables/market-data/marketDataContract";
+import { pricePrecisionForMarket } from "@/composables/market-data/marketProfiles";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
-} from "../../composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 import {
   getSharedLiveSocketHub,
   type MarketDepthLiveStreamEvent,
-} from "../../composables/sharedLiveSocket";
-import { useConsoleData } from "../../composables/useConsoleData";
-import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+} from "@/composables/market-data/sharedLiveSocket";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
+import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
 import {
   formatCompactNumber,
   formatMarketPrice,

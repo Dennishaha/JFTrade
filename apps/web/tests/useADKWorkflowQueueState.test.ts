@@ -13,16 +13,16 @@ const mocks = vi.hoisted(() => ({
   fetchEnvelope: vi.fn(),
 }));
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   fetchEnvelope: (...args: unknown[]) => mocks.fetchEnvelope(...args),
   apiGetPath: (_template: string, path: string) => mocks.fetchEnvelope(path),
 }));
 
-import { createTimelineEntryState } from "../src/composables/adkTimeline";
+import { createTimelineEntryState } from "@/composables/adk/adkTimeline";
 import {
   useADKWorkflowQueueState,
   workflowQueueTone,
-} from "../src/composables/useADKWorkflowQueueState";
+} from "@/composables/adk/useADKWorkflowQueueState";
 
 function buildApproval(
   overrides: Partial<ADKApproval> & { id: string; runId: string },

@@ -7,7 +7,7 @@ import {
   watch,
 } from "vue";
 
-import KlineChart from "../KlineChart.vue";
+import KlineChart from "@/components/domain/market-data/KlineChart.vue";
 import LightweightChartHeader from "./LightweightChartHeader.vue";
 import {
   KLINE_CHART_TYPES,
@@ -22,10 +22,10 @@ import {
 import {
   brokerSupportedChartPeriods,
   useBrokerProviderSelection,
-} from "../../composables/brokerProviderSelection";
-import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
-import { useConsoleData } from "../../composables/useConsoleData";
-import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+} from "@/composables/trading/brokerProviderSelection";
+import { getSharedLiveSocketHub } from "@/composables/market-data/sharedLiveSocket";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
+import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
 
 type RenderableKlinePeriod = (typeof KLINE_PERIODS)[number]["value"];
 

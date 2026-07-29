@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const pageApi = vi.hoisted(() => ({ fetchADKPageSessionData: vi.fn() }));
 
-vi.mock("../src/composables/adkPageSessionApi", () => ({
+vi.mock("@/composables/adk/adkPageSessionApi", () => ({
   fetchADKPageSessionData: pageApi.fetchADKPageSessionData,
 }));
 

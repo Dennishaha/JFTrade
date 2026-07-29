@@ -10,10 +10,10 @@ const openExternalUrl = vi.hoisted(() => vi.fn());
 vi.mock("../src/runtimeConfig", () => ({
   resolveDesktopMode: () => desktopState.enabled,
 }));
-vi.mock("../src/composables/externalLink", () => ({ openExternalUrl }));
+vi.mock("@/composables/shared/externalLink", () => ({ openExternalUrl }));
 vi.mock("@wailsio/runtime", () => ({ Events: { On: eventsOn } }));
 
-import DesktopUpdateBanner from "../src/components/DesktopUpdateBanner.vue";
+import DesktopUpdateBanner from "@/components/app-shell/DesktopUpdateBanner.vue";
 
 afterEach(() => {
   desktopState.enabled = false;

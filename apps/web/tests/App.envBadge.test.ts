@@ -3,7 +3,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
-import TradingEnvironmentBadge from "../src/components/TradingEnvironmentBadge.vue";
+import TradingEnvironmentBadge from "@/components/domain/trading/TradingEnvironmentBadge.vue";
 
 describe("TradingEnvironmentBadge", () => {
   it("renders red badge with Chinese real-trading text for REAL env", () => {

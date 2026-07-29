@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
+import type { BrokerAccountSelectionOption } from "@/composables/trading/consoleDataBrokerAccountSelection";
 import { brokerAccountOptionSubtitle } from "./strategyRuntimeInstanceBinding";
 
 defineProps<{

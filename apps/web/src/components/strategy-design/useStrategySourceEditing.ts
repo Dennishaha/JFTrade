@@ -1,6 +1,6 @@
 import { computed, ref, type Ref } from "vue";
 
-import type PineSourceCodePane from "../PineSourceCodePane.vue";
+import type PineSourceCodePane from "@/components/strategy-design/PineSourceCodePane.vue";
 import {
   deleteSourceBlock,
   duplicateSourceBlock,
@@ -14,7 +14,7 @@ import {
   updateInstructionBlockParam,
   type PineSourceBlock,
   type PineSourceEditResult,
-} from "../../features/pineSourceStructureIndex";
+} from "@/features/pine-structure";
 
 export function useStrategySourceEditing(
   activeScript: Readonly<Ref<string>>,

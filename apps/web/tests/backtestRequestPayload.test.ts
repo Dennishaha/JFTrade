@@ -4,7 +4,7 @@ import {
   buildBacktestStartRequestPayload,
   buildBacktestSyncRequestPayload,
   type BacktestFormState,
-} from "../src/composables/useBacktestRuns";
+} from "@/composables/backtest/useBacktestRuns";
 
 const formState: BacktestFormState = {
   definitionId: "strategy-1",

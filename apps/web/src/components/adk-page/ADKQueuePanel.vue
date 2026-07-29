@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 
-import { workflowQueueTone } from "../../composables/useADKWorkflowQueueState";
+import { workflowQueueTone } from "@/composables/adk/useADKWorkflowQueueState";
 
 const props = withDefaults(
   defineProps<{

@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout";
+import { provideWorkspaceLayoutStore } from "@/composables/workspace/useWorkspaceLayout";
 
 describe("workspace layout server rendering", () => {
   it("initializes the default workspace safely without browser storage", () => {

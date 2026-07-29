@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { ADKRun } from "@/types";
 
 import ADKRunTrace from "../src/components/shared/ADKRunTrace.vue";
-import { runErrorDisplayMessage } from "../src/composables/adkChatPresentation";
+import { runErrorDisplayMessage } from "@/composables/adk/adkChatPresentation";
 
 describe("ADKRunTrace", () => {
   it("shows a collapsed summary for completed multi-tool runs", () => {

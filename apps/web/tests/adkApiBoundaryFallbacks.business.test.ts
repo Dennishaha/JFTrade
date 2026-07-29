@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { loadSessionChatHistory } from "../src/composables/adkPageRunHistory";
-import { fetchADKPageSessionData } from "../src/composables/adkPageSessionApi";
+import { loadSessionChatHistory } from "@/composables/adk/adkPageRunHistory";
+import { fetchADKPageSessionData } from "@/composables/adk/adkPageSessionApi";
 import {
   fetchADKWorkflowTriggerLogs,
   fetchADKWorkflows,
-} from "../src/composables/adkWorkflowsApi";
+} from "@/composables/adk/adkWorkflowsApi";
 import { createResponse } from "./helpers";
 
 afterEach(() => {

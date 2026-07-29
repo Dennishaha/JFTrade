@@ -6,16 +6,16 @@ import {
   watch,
 } from "vue";
 
-import { apiGetPath } from "../../../composables/apiClient";
-import { withBrokerProvider } from "../../../composables/brokerProviderSelection";
+import { apiGetPath } from "@/composables/shared/apiClient";
+import { withBrokerProvider } from "@/composables/trading/brokerProviderSelection";
 import {
   normalizeMarketDataSnapshotQueryResult,
   type MarketDataSnapshotQueryResult,
-} from "../../../composables/marketDataRealtime";
-import { normalizeMarketSecurityDetailsQueryResult } from "../../../composables/marketSecurityNormalization";
-import { resolveMarketSnapshotDisplay } from "../../../composables/marketSessionDisplay";
-import { fetchProductFeature } from "../../../composables/productFeatures";
-import { getWatchlistMembership } from "../../../composables/watchlistApi";
+} from "@/composables/market-data/marketDataRealtime";
+import { normalizeMarketSecurityDetailsQueryResult } from "@/composables/market-data/marketSecurityNormalization";
+import { resolveMarketSnapshotDisplay } from "@/composables/market-data/marketSessionDisplay";
+import { fetchProductFeature } from "@/composables/product/productFeatures";
+import { getWatchlistMembership } from "@/composables/watchlist/watchlistApi";
 import type {
   MarketSecurityDetailsQueryResult,
   WatchlistMembership,

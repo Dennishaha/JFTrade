@@ -8,12 +8,12 @@ const apiMocks = vi.hoisted(() => ({
   fetchWithInit: vi.fn(),
 }));
 
-vi.mock("../src/composables/productFeatures", async (importOriginal) => {
+vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../src/composables/productFeatures")>();
+    await importOriginal<typeof import("@/composables/product/productFeatures")>();
   return { ...actual, fetchProductFeature: apiMocks.fetchFeature };
 });
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   fetchEnvelopeWithInit: apiMocks.fetchWithInit,
   apiPostPath: (_template: string, path: string, body: unknown) =>
     apiMocks.fetchWithInit(path, {
@@ -22,7 +22,7 @@ vi.mock("../src/composables/apiClient", () => ({
       body: JSON.stringify(body),
     }),
 }));
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => ({
     selectedBrokerAccount: {
       value: {
@@ -41,7 +41,7 @@ import OptionResearchPanel from "../src/components/product/OptionResearchPanel.v
 import {
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
-} from "../src/composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 import {
   flushPromises,
   productGlobalStubs,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { MarketSnapshotDisplayCard } from "../../../composables/marketSessionDisplay";
+import type { MarketSnapshotDisplayCard } from "@/composables/market-data/marketSessionDisplay";
 import {
   formatMarketPrice,
   formatNumber,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { useSharedLiveStream } from "../src/composables/useSharedLiveStream";
+import { useSharedLiveStream } from "@/composables/market-data/useSharedLiveStream";
 
 describe("useSharedLiveStream", () => {
   it("fails fast when the app-shell provider is missing", () => {

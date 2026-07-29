@@ -55,9 +55,6 @@ importers:
       '@wailsio/runtime':
         specifier: 3.0.0-alpha.97
         version: 3.0.0-alpha.97
-      acorn:
-        specifier: ^8.17.0
-        version: 8.17.0
       dayjs:
         specifier: 1.11.21
         version: 1.11.21

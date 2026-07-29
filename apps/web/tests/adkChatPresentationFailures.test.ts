@@ -5,7 +5,7 @@ import {
   firstFailedToolCall,
   runErrorSummary,
   toolCallErrorSummary,
-} from "../src/composables/adkChatPresentation";
+} from "@/composables/adk/adkChatPresentation";
 
 describe("adkChatPresentation failure presentation", () => {
   it("keeps tool-level timeout, cancellation, and generic failures distinguishable", () => {

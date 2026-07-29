@@ -26,3 +26,21 @@ export type StrategyAuditEntryDocument =
 
 export type StrategyAuditListResponse =
   components["schemas"]["strategy.AuditResult"];
+
+export type StrategyAnalyzePineData =
+  components["schemas"]["strategy.AnalyzePineData"];
+
+export type StrategyDesignDefinitionDto =
+  components["schemas"]["strategy.StrategyDesignDefinition"];
+
+export type StrategyBindingRequestDto =
+  components["schemas"]["strategy.StrategyBindingRequest"];
+
+export type StrategyRuntimeRiskSettingsDto =
+  components["schemas"]["strategy.RuntimeRiskSettings"];
+
+export type StrategyDefinitionDto =
+  components["schemas"]["strategy.Definition"];
+
+export type StrategyVisualModelDto =
+  components["schemas"]["strategy.VisualModel"];

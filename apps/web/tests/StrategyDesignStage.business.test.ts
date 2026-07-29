@@ -8,8 +8,8 @@ import {
   buildPineV6WorkflowScript,
   createDefaultPineV6Workflow,
 } from "../src/features/pineV6Workflow";
-import { queryClient } from "../src/composables/serverState";
-import StrategyDesignStage from "../src/components/StrategyDesignStage.vue";
+import { queryClient } from "@/composables/settings/serverState";
+import StrategyDesignStage from "@/components/strategy-design/StrategyDesignStage.vue";
 import { useStrategyDesignContext } from "../src/components/strategy-design/strategyDesignContext";
 import {
   MockWebSocket,

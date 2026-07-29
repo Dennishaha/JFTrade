@@ -3,8 +3,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
-import { createConsoleDataConsoleStreamController } from "../src/composables/consoleDataConsoleStream";
-import { resetSharedLiveSocketHubForTests } from "../src/composables/sharedLiveSocket";
+import { createConsoleDataConsoleStreamController } from "@/composables/market-data/consoleDataConsoleStream";
+import { resetSharedLiveSocketHubForTests } from "@/composables/market-data/sharedLiveSocket";
 
 afterEach(() => {
   resetSharedLiveSocketHubForTests();

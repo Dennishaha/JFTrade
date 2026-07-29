@@ -132,7 +132,7 @@ describe("split pane theme contract", () => {
   });
 
   it("keeps the strategy designer on the shared theme without local visual overrides", () => {
-    const strategyDesigner = source("components/StrategyDesignStage.vue");
+    const strategyDesigner = source("components/strategy-design/StrategyDesignStage.vue");
 
     expect(strategyDesigner).not.toContain("splitpanes__splitter::before");
     expect(strategyDesigner).not.toContain(

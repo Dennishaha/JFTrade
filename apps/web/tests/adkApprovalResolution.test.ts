@@ -6,7 +6,7 @@ import {
   resetADKApprovalInFlightForTest,
   resolveADKApprovalBatchOnce,
   uniqueADKApprovalsById,
-} from "../src/composables/adkApprovalResolution";
+} from "@/composables/adk/adkApprovalResolution";
 
 afterEach(() => {
   resetADKApprovalInFlightForTest();

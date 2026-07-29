@@ -2,7 +2,7 @@
 import { ref } from "vue";
 
 import type { ADKAgent, ADKSession } from "@/types";
-import type { ADKSessionGroup } from "@/composables/useADKPageSessionState";
+import type { ADKSessionGroup } from "@/composables/adk/useADKPageSessionState";
 
 defineProps<{
   selectedAgentId: string;

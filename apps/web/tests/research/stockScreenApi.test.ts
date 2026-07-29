@@ -5,8 +5,8 @@ const mocks = vi.hoisted(() => ({
   fetchEnvelopeWithInit: vi.fn(),
 }));
 
-vi.mock("../../src/composables/apiClient", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/composables/apiClient")>();
+vi.mock("@/composables/shared/apiClient", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/composables/shared/apiClient")>();
   return {
     ...actual,
     fetchEnvelope: mocks.fetchEnvelope,
@@ -30,7 +30,7 @@ vi.mock("../../src/composables/apiClient", async (importOriginal) => {
   };
 });
 
-import { ApiClientError } from "../../src/composables/apiClient";
+import { ApiClientError } from "@/composables/shared/apiClient";
 import {
   createStockScreenPreset,
   deleteStockScreenPreset,

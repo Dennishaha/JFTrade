@@ -7,7 +7,7 @@ import {
   insertSourceBlock,
   moveSourceBlock,
   replaceSourceBlockKind,
-} from "../src/features/pineSourceStructureIndex";
+} from "@/features/pine-structure";
 
 describe("Pine source structure edit boundaries", () => {
   it("keeps a source unchanged when an edit names a block that no longer exists", () => {

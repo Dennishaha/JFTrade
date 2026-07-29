@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import StrategyRuntimePage from "../src/pages/StrategyRuntimePage.vue"
-import { queryClient, queryKeys } from "../src/composables/serverState"
+import { queryClient, queryKeys } from "@/composables/settings/serverState"
 
 import {
   MockWebSocket,

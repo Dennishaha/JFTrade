@@ -1,11 +1,11 @@
 import { effectScope } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getLiveEventBus, resetLiveEventBusForTests } from "../src/composables/liveEventBus";
+import { getLiveEventBus, resetLiveEventBusForTests } from "@/composables/market-data/liveEventBus";
 import {
   toBacktestSyncRequestWire,
   useKlineSyncTask,
-} from "../src/composables/useKlineSyncTask";
+} from "@/composables/market-data/useKlineSyncTask";
 
 afterEach(() => {
   resetLiveEventBusForTests();

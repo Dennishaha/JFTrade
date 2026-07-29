@@ -3,7 +3,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
-import PineSourceStructureBlockList from "../src/components/PineSourceStructureBlockList.vue";
+import PineSourceStructureBlockList from "@/components/strategy-design/PineSourceStructureBlockList.vue";
 
 function buildNode(overrides: Record<string, unknown>) {
   return {

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveMarketDataBarPriceUpdate,
   type MarketDataRealtimeBarPriceState,
-} from "../src/composables/marketDataRealtimeBarPriceState";
+} from "@/composables/market-data/marketDataRealtimeBarPriceState";
 
 describe("marketDataRealtimeBarPriceState", () => {
   it("resets to null when there is no active bucket", () => {

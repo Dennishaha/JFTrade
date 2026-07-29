@@ -12,7 +12,7 @@ import {
   resolveBrokerAccountOptions,
   resolveBrokerQuery,
   resolveSelectedBrokerAccountOption,
-} from "../src/composables/consoleDataBrokerAccountSelection";
+} from "@/composables/trading/consoleDataBrokerAccountSelection";
 
 describe("consoleDataBrokerAccountSelection", () => {
   it("deduplicates runtime accounts that match enabled managed accounts", () => {

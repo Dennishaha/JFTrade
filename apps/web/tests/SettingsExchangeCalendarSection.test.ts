@@ -3,7 +3,7 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import SettingsExchangeCalendarSection from "../src/components/SettingsExchangeCalendarSection.vue";
+import SettingsExchangeCalendarSection from "@/components/settings/SettingsExchangeCalendarSection.vue";
 import { createResponse, flushRequests } from "./helpers";
 
 afterEach(() => {

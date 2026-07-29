@@ -2,9 +2,9 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useLiveStream } from "../src/composables/useLiveStream";
-import { getLiveEventBus } from "../src/composables/liveEventBus";
-import { resetSharedLiveSocketHubForTests } from "../src/composables/sharedLiveSocket";
+import { useLiveStream } from "@/composables/market-data/useLiveStream";
+import { getLiveEventBus } from "@/composables/market-data/liveEventBus";
+import { resetSharedLiveSocketHubForTests } from "@/composables/market-data/sharedLiveSocket";
 import { createLiveEnvelope, MockWebSocket } from "./helpers";
 
 afterEach(() => {

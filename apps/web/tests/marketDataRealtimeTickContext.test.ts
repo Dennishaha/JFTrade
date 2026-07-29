@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveMarketDataRealtimeTickBucketAt,
   resolveMarketDataRealtimeTickObservedAt,
-} from "../src/composables/marketDataRealtimeTickContext";
+} from "@/composables/market-data/marketDataRealtimeTickContext";
 
 describe("marketDataRealtimeTickContext", () => {
   it("prefers snapshot observedAt over websocket event time", () => {

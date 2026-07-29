@@ -17,9 +17,9 @@ const mocks = vi.hoisted(() => ({
   getWatchlistMembership: vi.fn(),
 }));
 
-vi.mock("../../src/composables/apiClient", async (importOriginal) => {
+vi.mock("@/composables/shared/apiClient", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../src/composables/apiClient")>();
+    await importOriginal<typeof import("@/composables/shared/apiClient")>();
   return {
     ...actual,
     fetchEnvelope: mocks.fetchEnvelope,
@@ -34,9 +34,9 @@ vi.mock("../../src/composables/apiClient", async (importOriginal) => {
   };
 });
 
-vi.mock("../../src/composables/watchlistApi", async (importOriginal) => {
+vi.mock("@/composables/watchlist/watchlistApi", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../src/composables/watchlistApi")>();
+    await importOriginal<typeof import("@/composables/watchlist/watchlistApi")>();
   return {
     ...actual,
     getWatchlistMembership: mocks.getWatchlistMembership,

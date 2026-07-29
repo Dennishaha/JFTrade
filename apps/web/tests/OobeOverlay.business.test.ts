@@ -27,11 +27,11 @@ vi.mock("vue-router", () => ({
   }),
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => consoleDataState,
 }));
 
-vi.mock("../src/composables/settingsManagedAccounts", () => ({
+vi.mock("@/composables/settings/settingsManagedAccounts", () => ({
   createSettingsManagedAccountsController: () => ({
     accountForm: ref({
       brokerId: "",
@@ -48,13 +48,13 @@ vi.mock("../src/composables/settingsManagedAccounts", () => ({
   }),
 }));
 
-vi.mock("../src/components/FutuIntegrationSection.vue", () => ({
+vi.mock("@/components/settings/FutuIntegrationSection.vue", () => ({
   default: defineComponent({
     template: "<div data-testid='futu-integration'>futu integration</div>",
   }),
 }));
 
-import OobeOverlay from "../src/components/OobeOverlay.vue";
+import OobeOverlay from "@/components/app-shell/OobeOverlay.vue";
 
 type SetupState = Record<string, unknown>;
 

@@ -12,7 +12,7 @@ import {
   resolveStrategyIndicatorGetterLabel,
   suggestStrategyIndicatorVariableName,
   listStrategyIndicatorGetterOptions,
-} from "../src/features/strategyVisualBuilderIndicatorReferences";
+} from "@/features/strategy-builder";
 import {
   nextRiskRuleNodeText,
   normalizeRiskAmountType,
@@ -21,14 +21,14 @@ import {
   normalizeRiskRuleType,
   riskAmountTypeLabel,
   riskRuleTypeLabel,
-} from "../src/features/strategyVisualBuilderRiskBlock";
+} from "@/features/strategy-builder";
 import {
   buildStrategyFlowNodeAnnotation,
   buildStrategyFlowNodeJsDoc,
   cloneStrategyVisualModel,
   parseStrategyFlowNodeAnnotationLines,
   parseStrategyFlowNodeJsDocComment,
-} from "../src/features/strategyVisualBuilderShared";
+} from "@/features/strategy-builder";
 
 function createNode(
   id: string,

@@ -10,7 +10,7 @@ import type {
 import {
   resolveMarketInstrumentCandidates,
   useInstrumentResolver,
-} from "../src/composables/instrumentResolver";
+} from "@/composables/market-data/instrumentResolver";
 import { createResponse } from "./helpers";
 
 afterEach(() => {

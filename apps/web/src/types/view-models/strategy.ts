@@ -1,9 +1,10 @@
-import type { components } from "@/generated/openapi";
 import type { PluginOperationDto } from "./plugins";
 import type {
   StrategyBindingInstrumentDocument,
   StrategyBrokerAccountBinding,
+  StrategyDefinitionDto,
   StrategyDefinitionSummaryDocument,
+  StrategyVisualModelDto,
 } from "../../contracts/generated/strategy";
 
 export interface StrategyVisualNodeDocument {
@@ -172,11 +173,11 @@ export interface StrategyInstanceItem {
 }
 
 export type StrategyDefinitionDocument = Omit<
-  components["schemas"]["strategy.Definition"],
+  StrategyDefinitionDto,
   "visualModel"
 > & {
   visualModel?:
-    | components["schemas"]["strategy.VisualModel"]
+    | StrategyVisualModelDto
     | PineV6WorkflowDocument
     | StrategyVisualModelDocument
     | null;

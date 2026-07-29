@@ -15,29 +15,29 @@ import type {
   ADKSession,
   ADKSessionContextSnapshot,
 } from "../src/types";
-import { compactADKSessionContext, fetchADKSessionContext } from "../src/composables/adkSessionContextApi";
-import { streamADKChat } from "../src/composables/adkChatStream";
-import { fetchEnvelopeWithInit } from "../src/composables/apiClient";
-import { PROVISIONAL_SESSION_KEY } from "../src/composables/adkChatRuntime";
-import { loadSessionChatHistory } from "../src/composables/adkPageRunHistory";
-import { saveADKSessionComposerState } from "../src/composables/adkPageSessionApi";
-import { useADKPageChatState } from "../src/composables/useADKPageChatState";
+import { compactADKSessionContext, fetchADKSessionContext } from "@/composables/adk/adkSessionContextApi";
+import { streamADKChat } from "@/composables/adk/adkChatStream";
+import { fetchEnvelopeWithInit } from "@/composables/shared/apiClient";
+import { PROVISIONAL_SESSION_KEY } from "@/composables/adk/adkChatRuntime";
+import { loadSessionChatHistory } from "@/composables/adk/adkPageRunHistory";
+import { saveADKSessionComposerState } from "@/composables/adk/adkPageSessionApi";
+import { useADKPageChatState } from "@/composables/adk/useADKPageChatState";
 
-vi.mock("../src/composables/adkChatStream", async () => {
-  const actual = await vi.importActual<typeof import("../src/composables/adkChatStream")>(
-    "../src/composables/adkChatStream",
+vi.mock("@/composables/adk/adkChatStream", async () => {
+  const actual = await vi.importActual<typeof import("@/composables/adk/adkChatStream")>(
+    "@/composables/adk/adkChatStream",
   );
   return { ...actual, resumeADKChatStream: vi.fn(), streamADKChat: vi.fn() };
 });
 
-vi.mock("../src/composables/adkSessionContextApi", () => ({
+vi.mock("@/composables/adk/adkSessionContextApi", () => ({
   compactADKSessionContext: vi.fn(),
   fetchADKSessionContext: vi.fn(),
 }));
 
-vi.mock("../src/composables/apiClient", async () => {
-  const actual = await vi.importActual<typeof import("../src/composables/apiClient")>(
-    "../src/composables/apiClient",
+vi.mock("@/composables/shared/apiClient", async () => {
+  const actual = await vi.importActual<typeof import("@/composables/shared/apiClient")>(
+    "@/composables/shared/apiClient",
   );
   const fetchEnvelopeWithInit = vi.fn();
   return {
@@ -60,21 +60,21 @@ vi.mock("../src/composables/apiClient", async () => {
   };
 });
 
-vi.mock("../src/composables/adkPageRunHistory", async () => {
-  const actual = await vi.importActual<typeof import("../src/composables/adkPageRunHistory")>(
-    "../src/composables/adkPageRunHistory",
+vi.mock("@/composables/adk/adkPageRunHistory", async () => {
+  const actual = await vi.importActual<typeof import("@/composables/adk/adkPageRunHistory")>(
+    "@/composables/adk/adkPageRunHistory",
   );
   return { ...actual, loadSessionChatHistory: vi.fn() };
 });
 
-vi.mock("../src/composables/adkPageSessionApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/composables/adkPageSessionApi")>(
-    "../src/composables/adkPageSessionApi",
+vi.mock("@/composables/adk/adkPageSessionApi", async () => {
+  const actual = await vi.importActual<typeof import("@/composables/adk/adkPageSessionApi")>(
+    "@/composables/adk/adkPageSessionApi",
   );
   return { ...actual, saveADKSessionComposerState: vi.fn() };
 });
 
-vi.mock("../src/composables/adkRunContinuation", () => ({
+vi.mock("@/composables/adk/adkRunContinuation", () => ({
   monitorADKRunContinuation: vi.fn(async (run: ADKRun) => ({
     ...run,
     status: "COMPLETED",

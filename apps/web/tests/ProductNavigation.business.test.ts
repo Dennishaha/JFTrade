@@ -15,9 +15,9 @@ import type {
 import {
   provideWorkspaceTradingPreferencesStore,
   type WorkspaceTradingPreferencesStore,
-} from "../src/composables/useWorkspaceLayout";
-import { provideConsoleDataStore } from "../src/composables/useConsoleData";
-import type { MarketInstrumentReference } from "../src/composables/consoleDataSystemState";
+} from "@/composables/workspace/useWorkspaceLayout";
+import { provideConsoleDataStore } from "@/composables/workspace/useConsoleData";
+import type { MarketInstrumentReference } from "@/composables/settings/consoleDataSystemState";
 import {
   flushPromises,
   productGlobalStubs,

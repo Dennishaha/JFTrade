@@ -5,7 +5,7 @@ import type { ADKApproval, ADKToolDescriptor } from "@/types";
 
 import {
   type ADKApprovalQueueItem,
-} from "../../composables/useADKWorkflowQueueState";
+} from "@/composables/adk/useADKWorkflowQueueState";
 import ADKQueuePanel from "./ADKQueuePanel.vue";
 
 const props = defineProps<{

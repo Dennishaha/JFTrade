@@ -5,8 +5,12 @@ import {
   apiGetPath,
   apiPatchPath,
   apiPost,
-} from "../../composables/apiClient";
-import type { components } from "../../generated/openapi";
+} from "@/composables/shared/apiClient";
+import type {
+  BrokerScreenDefinitionV2Dto,
+  BrokerScreenQueryV2Dto,
+  ResearchScreenPresetDto,
+} from "@/contracts";
 import type {
   StockScreenCatalog,
   StockScreenDefinitionV2,
@@ -21,9 +25,9 @@ function brokerQuery(brokerId?: string): string {
   return brokerId ? `&brokerId=${encodeURIComponent(brokerId)}` : "";
 }
 
-type ScreenQueryWire = components["schemas"]["broker.ScreenQueryV2"];
-type ScreenDefinitionWire = components["schemas"]["broker.ScreenDefinitionV2"];
-type ScreenPresetWire = components["schemas"]["research.ResearchScreenPreset"];
+type ScreenQueryWire = BrokerScreenQueryV2Dto;
+type ScreenDefinitionWire = BrokerScreenDefinitionV2Dto;
+type ScreenPresetWire = ResearchScreenPresetDto;
 
 function screenPool(pool: StockScreenDefinitionV2["pool"]): ScreenDefinitionWire["pool"] {
   return {

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   provideNotificationsStore,
   useNotifications,
-} from "../src/composables/useNotifications";
+} from "@/composables/shared/useNotifications";
 
 afterEach(() => {
   vi.unstubAllGlobals();

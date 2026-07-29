@@ -4,8 +4,8 @@ import { computed } from "vue";
 import {
   type OptionComboDockTab,
   useOptionComboDraftStore,
-} from "../../composables/optionComboDraft";
-import { useConsoleData } from "../../composables/useConsoleData";
+} from "@/composables/product/optionComboDraft";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import PositionsPanel from "../workspace/PositionsPanel.vue";
 import OptionComboBuilder from "./OptionComboBuilder.vue";
 

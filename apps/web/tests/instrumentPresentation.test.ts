@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 
 import InstrumentIdentity from "../src/components/domain/market-data/InstrumentIdentity.vue";
-import { formatMarketLabel } from "../src/composables/consoleDataFormatting";
+import { formatMarketLabel } from "@/composables/shared/consoleDataFormatting";
 import {
   backtestInstrumentTypeForSecurityType,
   bareInstrumentCode,
@@ -15,7 +15,7 @@ import {
   formatUserMarketLabel,
   parseInstrumentId,
   presentInstrument,
-} from "../src/composables/instrumentPresentation";
+} from "@/composables/market-data/instrumentPresentation";
 
 describe("instrumentPresentation", () => {
   it("groups mainland exchange aliases under A shares without changing diagnostics", () => {

@@ -5,7 +5,7 @@ import {
   watch,
 } from "vue";
 
-import { useResearchFeature } from "../../composables/useResearchFeature";
+import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import EarningsCalendarFilterDrawer from "./EarningsCalendarFilterDrawer.vue";
 import EarningsCalendarToolbar from "./EarningsCalendarToolbar.vue";
 import {

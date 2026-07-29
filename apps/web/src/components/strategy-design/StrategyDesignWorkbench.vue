@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Ref } from "vue";
 
-import type PineSourceCodePaneType from "../PineSourceCodePane.vue";
-import PineSourceCodePane from "../PineSourceCodePane.vue";
+import type PineSourceCodePaneType from "@/components/strategy-design/PineSourceCodePane.vue";
+import PineSourceCodePane from "@/components/strategy-design/PineSourceCodePane.vue";
 import SplitPane from "../shared/SplitPane.vue";
 import SplitPaneItem from "../shared/SplitPaneItem.vue";
 import StrategyDesignHeader from "./StrategyDesignHeader.vue";

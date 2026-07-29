@@ -9,13 +9,16 @@ const manualEnvelope = /\bfetchEnvelope(?:WithInit)?\b/g;
 const publicManualEnvelope = /\bexport\b[^\n]*\bfetchEnvelope(?:WithInit)?\b/g;
 const sourceExtensions = new Set([".ts", ".tsx", ".vue", ".js", ".jsx"]);
 
-export function directFetchViolations(sourceRoot, allowedRelativePaths = ["composables/apiClient.ts"]) {
+export function directFetchViolations(
+  sourceRoot,
+  allowedRelativePaths = ["composables/shared/apiClient.ts"],
+) {
   return identifierViolations(sourceRoot, directFetch, allowedRelativePaths);
 }
 
 export function manualEnvelopeViolations(
   sourceRoot,
-  allowedRelativePaths = ["composables/apiClient.ts"],
+  allowedRelativePaths = ["composables/shared/apiClient.ts"],
 ) {
   return identifierViolations(sourceRoot, manualEnvelope, allowedRelativePaths);
 }

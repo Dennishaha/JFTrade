@@ -14,7 +14,7 @@ const pageMocks = vi.hoisted(() => ({
   workspace: null as unknown as Record<string, unknown>,
 }));
 
-vi.mock("../src/composables/useWatchlist", () => ({
+vi.mock("@/composables/watchlist/useWatchlist", () => ({
   useWatchlistGroups: () => pageMocks.groupsQuery,
   useWatchlistItems: (filters: unknown) => {
     pageMocks.filters = filters as typeof pageMocks.filters;
@@ -26,7 +26,7 @@ vi.mock("../src/composables/useWatchlist", () => ({
   },
 }));
 
-vi.mock("../src/composables/useWorkspaceLayout", () => ({
+vi.mock("@/composables/workspace/useWorkspaceLayout", () => ({
   useWorkspaceTradingPrefs: () => pageMocks.workspace,
 }));
 

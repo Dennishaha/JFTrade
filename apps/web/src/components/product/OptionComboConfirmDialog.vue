@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { OptionComboLegDraft } from "../../composables/optionComboDraft";
+import type { OptionComboLegDraft } from "@/composables/product/optionComboDraft";
 
 const props = defineProps<{
   open: boolean;

@@ -20,7 +20,7 @@ const consoleState = {
   systemStatus: ref({ defaultTradingEnvironment: "SIMULATE" }),
 };
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => consoleState,
 }));
 
@@ -28,7 +28,7 @@ import OptionTradingDock from "../src/components/product/OptionTradingDock.vue";
 import {
   provideOptionComboDraftStore,
   type OptionComboDraftStore,
-} from "../src/composables/optionComboDraft";
+} from "@/composables/product/optionComboDraft";
 
 const PositionsStub = defineComponent({
   name: "PositionsPanel",

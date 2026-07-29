@@ -1,3 +1,10 @@
+import type {
+  MarketDataInstrumentCandidateDto,
+  MarketDataInstrumentResolutionDto,
+  MarketDataInstrumentResolutionFailureDto,
+  MarketDataInstrumentResolutionStatus,
+} from "@/contracts";
+
 export interface MarketTradingWindowDto {
   startMinute: number;
   endMinute: number;
@@ -30,39 +37,32 @@ export interface MarketProfilesResponse {
   updatedAt: string;
 }
 
-export type InstrumentResolutionStatus =
-  | "resolved"
-  | "ambiguous"
-  | "not_found"
-  | "incomplete"
-  | "unavailable";
+export type InstrumentResolutionStatus = MarketDataInstrumentResolutionStatus;
 
-export interface InstrumentResolutionFailure {
-  market: string;
-  code: string;
-  message: string;
-}
+export type InstrumentResolutionFailure =
+  MarketDataInstrumentResolutionFailureDto;
 
-export interface InstrumentResolutionCandidate {
-  market: string;
-  resolvedMarket: string;
-  instrumentId: string;
-  code: string;
-  symbol: string;
+export type InstrumentResolutionCandidate = Omit<
+  MarketDataInstrumentCandidateDto,
+  | "isWatched"
+  | "lotSize"
+  | "name"
+  | "securityType"
+  | "source"
+  | "unavailableReason"
+> & {
   name: string | null;
   securityType: string | null;
   lotSize: number | null;
   source: string;
   isWatched: boolean;
-  selectable: boolean;
   unavailableReason: string | null;
-}
+};
 
-export interface InstrumentResolutionResponse {
-  requestedMarket: string;
-  query: string;
-  resolutionStatus: InstrumentResolutionStatus;
-  totalReturned: number;
+export type InstrumentResolutionResponse = Omit<
+  MarketDataInstrumentResolutionDto,
+  "entries" | "failures"
+> & {
   entries: InstrumentResolutionCandidate[];
   failures: InstrumentResolutionFailure[];
-}
+};

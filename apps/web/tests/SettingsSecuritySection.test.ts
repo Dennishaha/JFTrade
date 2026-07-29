@@ -3,8 +3,8 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import SettingsSecuritySection from "../src/components/SettingsSecuritySection.vue";
-import { queryClient } from "../src/composables/serverState";
+import SettingsSecuritySection from "@/components/settings/SettingsSecuritySection.vue";
+import { queryClient } from "@/composables/settings/serverState";
 import { createResponse, flushRequests } from "./helpers";
 
 beforeEach(() => {

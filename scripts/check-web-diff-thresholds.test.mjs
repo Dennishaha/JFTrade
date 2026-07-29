@@ -4,7 +4,13 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkWebDiffCoverage, formatWebDiffCoverageReport, isCriticalWebPath, parseArguments } from "./check-web-diff-coverage.mjs";
+import {
+  changedWebSourceLines,
+  checkWebDiffCoverage,
+  formatWebDiffCoverageReport,
+  isCriticalWebPath,
+  parseArguments,
+} from "./check-web-diff-coverage.mjs";
 
 const tempRoot = mkdtempSync(join(tmpdir(), "jftrade-web-diff-coverage-"));
 try {
@@ -18,7 +24,7 @@ try {
   assert.equal(passing.reports.length, 2);
   assert.equal(passing.reports.find((report) => report.kind === "critical")?.branches.percentage, (20 / 22) * 100);
   assert.equal(isCriticalWebPath("apps/web/src/components/risk/HardStopControlPanel.vue"), true);
-  assert.equal(isCriticalWebPath("apps/web/src/components/SettingsAppearanceSection.vue"), false);
+  assert.equal(isCriticalWebPath("apps/web/src/components/settings/SettingsAppearanceSection.vue"), false);
 
   writeCoverage(tempRoot, { ordinaryStatementHits: 8, criticalStatementHits: 19 });
   const ordinaryFailure = checkWebDiffCoverage({ baseRef, repoRoot: tempRoot });
@@ -45,6 +51,43 @@ try {
   assert.throws(() => parseArguments(["--base"]), /requires a value/);
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
+}
+
+assertStagedRenameDiff();
+
+function assertStagedRenameDiff() {
+  const root = mkdtempSync(join(tmpdir(), "jftrade-web-diff-rename-"));
+  const oldPath = "apps/web/src/legacy/moved.ts";
+  const newPath = "apps/web/src/composables/moved.ts";
+  const originalLines = Array.from(
+    { length: 10 },
+    (_value, index) => `export const value${index + 1} = ${index + 1};`,
+  );
+  try {
+    mkdirSync(join(root, "apps/web/src/legacy"), { recursive: true });
+    mkdirSync(join(root, "apps/web/src/composables"), { recursive: true });
+    writeFileSync(join(root, oldPath), `${originalLines.join("\n")}\n`);
+    git(root, ["init"]);
+    git(root, ["config", "user.email", "coverage@example.test"]);
+    git(root, ["config", "user.name", "Coverage Test"]);
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "base"]);
+    const baseRef = git(root, ["rev-parse", "HEAD"]);
+
+    git(root, ["mv", oldPath, newPath]);
+    assert.deepEqual([...changedWebSourceLines(root, baseRef)], []);
+
+    const changedLines = [...originalLines];
+    changedLines[3] = "export const value4 = 40;";
+    writeFileSync(join(root, newPath), `${changedLines.join("\n")}\n`);
+    git(root, ["add", newPath]);
+    assert.deepEqual(
+      [...changedWebSourceLines(root, baseRef)],
+      [[newPath, new Set([4])]],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 }
 
 function setupRepository(root) {

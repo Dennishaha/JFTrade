@@ -9,11 +9,11 @@ const mocks = vi.hoisted(() => ({
   liveStream: null as Record<string, unknown> | null,
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => mocks.consoleData,
 }));
 
-vi.mock("../src/composables/useSharedLiveStream", () => ({
+vi.mock("@/composables/market-data/useSharedLiveStream", () => ({
   useSharedLiveStream: () => mocks.liveStream,
 }));
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { useResearchFeature } from "../../composables/useResearchFeature";
+import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import { dayKeyOf, pickString } from "./researchEntry";
 import type { ResearchTableColumn } from "./researchTable";

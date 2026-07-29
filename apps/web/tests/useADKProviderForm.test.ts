@@ -9,10 +9,10 @@ import {
   saveADKProvider,
   setADKDefaultProvider,
   testADKProvider,
-} from "../src/composables/adkSettingsApi";
-import { useADKProviderForm } from "../src/composables/useADKProviderForm";
+} from "@/composables/adk/adkSettingsApi";
+import { useADKProviderForm } from "@/composables/adk/useADKProviderForm";
 
-vi.mock("../src/composables/adkSettingsApi", () => ({
+vi.mock("@/composables/adk/adkSettingsApi", () => ({
   deleteADKProvider: vi.fn(),
   saveADKProvider: vi.fn(),
   setADKDefaultProvider: vi.fn(),

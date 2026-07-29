@@ -54,8 +54,8 @@
 
 ## 相关实现
 
-- [marketDataRealtime.ts](../../apps/web/src/composables/marketDataRealtime.ts)
-- [marketDataQuery.ts](../../apps/web/src/composables/marketDataQuery.ts)
+- [marketDataRealtime.ts](../../apps/web/src/composables/market-data/marketDataRealtime.ts)
+- [marketDataQuery.ts](../../apps/web/src/composables/market-data/marketDataQuery.ts)
 - [kline.ts](../../apps/web/src/charting/kline.ts)
 - [routes.go](../../internal/api/marketdata/routes.go)
 - [service.go](../../internal/marketdata/service.go)

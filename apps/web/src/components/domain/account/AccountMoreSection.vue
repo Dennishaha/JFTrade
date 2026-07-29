@@ -6,8 +6,8 @@ import {
   formatBooleanLabel,
   formatConnectivityLabel,
   formatDateTime,
-} from "../../../composables/consoleDataFormatting";
-import { useConsoleData } from "../../../composables/useConsoleData";
+} from "@/composables/shared/consoleDataFormatting";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import { formatMoney, formatNumber } from "../../../utils/numberFormat";
 
 const props = defineProps<{

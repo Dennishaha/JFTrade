@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import StrategyDesignStage from "../components/StrategyDesignStage.vue";
+import StrategyDesignStage from "@/components/strategy-design/StrategyDesignStage.vue";
 
 type StrategyDesignEntryMode = "existing" | "new";
 

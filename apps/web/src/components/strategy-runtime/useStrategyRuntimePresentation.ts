@@ -1,6 +1,6 @@
 import { computed, type Ref } from "vue";
 
-import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
+import type { BrokerAccountSelectionOption } from "@/composables/trading/consoleDataBrokerAccountSelection";
 import type {
   StrategyDefinitionDocument,
   StrategyDefinitionSyncStatus,

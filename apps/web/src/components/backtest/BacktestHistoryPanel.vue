@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
-import { useBacktestPageContext } from "../../composables/useBacktestPage";
+import { useBacktestPageContext } from "@/composables/backtest/useBacktestPage";
 
 const {
   BACKTEST_RESULT_STATUS_OPTIONS,

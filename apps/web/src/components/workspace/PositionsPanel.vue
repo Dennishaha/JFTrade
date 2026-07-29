@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue";
 
 import type { ExecutionOrdersResponse } from "@/types";
 
-import { apiPostPathAction } from "../../composables/apiClient";
+import { apiPostPathAction } from "@/composables/shared/apiClient";
 import {
   formatDateTime,
   formatExecutionEventTypeLabel,
@@ -11,14 +11,14 @@ import {
   formatOrderSideLabel,
   formatTradingEnvironment,
   isFinalExecutionOrderStatus,
-} from "../../composables/consoleDataFormatting";
+} from "@/composables/shared/consoleDataFormatting";
 import {
   formatInstrumentIdentityText,
   formatUserMarketLabel,
-} from "../../composables/instrumentPresentation";
-import { pricePrecisionForMarket } from "../../composables/marketProfiles";
-import { useConsoleData } from "../../composables/useConsoleData";
-import { useNotifications } from "../../composables/useNotifications";
+} from "@/composables/market-data/instrumentPresentation";
+import { pricePrecisionForMarket } from "@/composables/market-data/marketProfiles";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
+import { useNotifications } from "@/composables/shared/useNotifications";
 import {
   formatMarketPrice,
   formatNumber,

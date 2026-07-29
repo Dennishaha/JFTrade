@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useADKChatComposerContext } from "../../composables/useADKChatComposer";
+import { useADKChatComposerContext } from "@/composables/adk/useADKChatComposer";
 
 const {
   canRevokeQueueItem,

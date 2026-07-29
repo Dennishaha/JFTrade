@@ -6,11 +6,11 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import { defineComponent, h, nextTick } from "vue";
 
 import WorkspaceWatchlistSidebar from "../src/components/domain/watchlist/WorkspaceWatchlistSidebar.vue";
-import { queryClient } from "../src/composables/serverState";
+import { queryClient } from "@/composables/settings/serverState";
 import {
   provideWorkspaceLayoutStore,
   type WorkspaceLayoutStore,
-} from "../src/composables/useWorkspaceLayout";
+} from "@/composables/workspace/useWorkspaceLayout";
 
 function ok(data: unknown): Response {
   return new Response(

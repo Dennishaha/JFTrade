@@ -4,8 +4,8 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick } from "vue";
 
-import KlineChart from "../src/components/KlineChart.vue";
-import { provideThemeStore } from "../src/composables/useTheme";
+import KlineChart from "@/components/domain/market-data/KlineChart.vue";
+import { provideThemeStore } from "@/composables/settings/useTheme";
 
 vi.mock("lightweight-charts", () => ({
   CandlestickSeries: { type: "Candlestick" },

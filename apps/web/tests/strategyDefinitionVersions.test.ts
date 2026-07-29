@@ -4,7 +4,7 @@ const apiMocks = vi.hoisted(() => ({
   apiGetPath: vi.fn(),
 }));
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   apiGetPath: (...args: unknown[]) => apiMocks.apiGetPath(...args),
 }));
 
@@ -16,7 +16,7 @@ import {
   sortStrategyDefinitionVersions,
   strategyDefinitionVersionQueryKey,
   strategyDefinitionVersionsQueryKey,
-} from "../src/composables/strategyDefinitionVersions";
+} from "@/composables/strategy/strategyDefinitionVersions";
 
 describe("strategy definition versions", () => {
   beforeEach(() => {

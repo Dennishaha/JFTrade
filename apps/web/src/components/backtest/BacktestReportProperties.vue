@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { BacktestRun } from "@/composables/useBacktestRuns";
+import type { BacktestRun } from "@/composables/backtest/useBacktestRuns";
 
 import {
   resolveBacktestPriceBasisNote,

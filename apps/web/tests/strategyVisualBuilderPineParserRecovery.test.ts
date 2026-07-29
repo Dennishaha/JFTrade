@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildStrategyVisualModelFromPine } from "../src/features/strategyVisualBuilderPineParser";
+import { buildStrategyVisualModelFromPine } from "@/features/strategy-builder";
 
 describe("strategy visual Pine parser recovery", () => {
   it("recognizes complete KDJ and time-series conditions as structured strategy blocks", () => {

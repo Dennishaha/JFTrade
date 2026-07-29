@@ -4,7 +4,7 @@ import type {
   StrategyInstanceItem,
 } from "@/types";
 
-import { ApiClientError } from "../../composables/apiClient";
+import { ApiClientError } from "@/composables/shared/apiClient";
 import { formatLocalDateTime } from "../../utils/dateTime";
 import { normalizeText } from "./strategyRuntimeInstanceBinding";
 

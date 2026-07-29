@@ -7,7 +7,7 @@ import {
   newsCategory,
   normalizeRelatedInstrument,
   stripMarkup,
-} from "../src/composables/newsPresentation";
+} from "@/composables/research/newsPresentation";
 
 describe("news presentation", () => {
   it("normalizes broker-neutral news fields and safe related instruments", () => {

@@ -4,7 +4,7 @@ import { createResponse } from "./helpers";
 
 async function loadFreshMarketProfilesModule() {
   vi.resetModules();
-  return import("../src/composables/marketProfiles");
+  return import("@/composables/market-data/marketProfiles");
 }
 
 afterEach(() => {
@@ -360,5 +360,62 @@ describe("marketProfiles", () => {
         regularSessions: [],
       }),
     ]);
+  });
+
+  it("resets singleton state without allowing an older request to restore it", async () => {
+    let resolveFetch!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveFetch = resolve;
+          }),
+      ),
+    );
+
+    const module = await loadFreshMarketProfilesModule();
+    const profiles = module.useMarketProfiles();
+    const pending = profiles.loadMarketProfiles();
+
+    module.resetMarketProfilesForTests();
+    resolveFetch(
+      createResponse({
+        defaultMarket: "US",
+        markets: [{ code: "US", resolvedMarket: "US" }],
+      }),
+    );
+    await pending;
+
+    expect(profiles.marketProfiles.value).toEqual([]);
+    expect(profiles.defaultMarket.value).toBe("HK");
+    expect(profiles.marketProfilesError.value).toBe("");
+    expect(profiles.isLoadingMarketProfiles.value).toBe(false);
+  });
+
+  it("ignores a stale request failure after singleton state is reset", async () => {
+    let rejectFetch!: (reason?: unknown) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((_resolve, reject) => {
+            rejectFetch = reject;
+          }),
+      ),
+    );
+
+    const module = await loadFreshMarketProfilesModule();
+    const profiles = module.useMarketProfiles();
+    const pending = profiles.loadMarketProfiles();
+
+    module.resetMarketProfilesForTests();
+    rejectFetch(new Error("stale request failed"));
+    await pending;
+
+    expect(profiles.marketProfiles.value).toEqual([]);
+    expect(profiles.defaultMarket.value).toBe("HK");
+    expect(profiles.marketProfilesError.value).toBe("");
+    expect(profiles.isLoadingMarketProfiles.value).toBe(false);
   });
 });

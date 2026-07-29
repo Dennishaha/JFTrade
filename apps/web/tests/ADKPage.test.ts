@@ -14,7 +14,7 @@ import type {
   ADKTimelineEntry,
 } from "@/types";
 
-import { resetADKApprovalInFlightForTest } from "../src/composables/adkApprovalResolution";
+import { resetADKApprovalInFlightForTest } from "@/composables/adk/adkApprovalResolution";
 import ADKPage from "../src/pages/ADKPage.vue";
 import { createResponse, flushRequests } from "./helpers";
 
@@ -35,10 +35,10 @@ vi.mock("mermaid", () => ({
   },
 }));
 
-vi.mock("../src/composables/adkChatStream", async () => {
+vi.mock("@/composables/adk/adkChatStream", async () => {
   const actual = await vi.importActual<
-    typeof import("../src/composables/adkChatStream")
-  >("../src/composables/adkChatStream");
+    typeof import("@/composables/adk/adkChatStream")
+  >("@/composables/adk/adkChatStream");
   return {
     ...actual,
     resumeADKChatStream: resumeADKChatStreamMock,
@@ -46,10 +46,10 @@ vi.mock("../src/composables/adkChatStream", async () => {
   };
 });
 
-vi.mock("../src/composables/adkRunContinuation", async () => {
+vi.mock("@/composables/adk/adkRunContinuation", async () => {
   const actual = await vi.importActual<
-    typeof import("../src/composables/adkRunContinuation")
-  >("../src/composables/adkRunContinuation");
+    typeof import("@/composables/adk/adkRunContinuation")
+  >("@/composables/adk/adkRunContinuation");
   return {
     ...actual,
     monitorADKRunContinuation: monitorADKRunContinuationMock,

@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 
-import SettingsADKSection from "../src/components/SettingsADKSection.vue";
+import SettingsADKSection from "@/components/settings/SettingsADKSection.vue";
 import {
   buttonStub,
   dialogStub,

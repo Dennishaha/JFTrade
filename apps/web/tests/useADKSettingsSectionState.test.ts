@@ -20,8 +20,8 @@ import type {
 import type {
   ADKMetricsResponse,
   PageEnvelope,
-} from "../src/composables/adkSettingsApi";
-import { useADKSettingsSectionState } from "../src/composables/useADKSettingsSectionState";
+} from "@/composables/adk/adkSettingsApi";
+import { useADKSettingsSectionState } from "@/composables/adk/useADKSettingsSectionState";
 import { flushRequests } from "./helpers";
 
 const {
@@ -76,10 +76,10 @@ const {
   uninstallADKSkillMock: vi.fn(),
 }));
 
-vi.mock("../src/composables/adkSettingsApi", async () => {
+vi.mock("@/composables/adk/adkSettingsApi", async () => {
   const actual = await vi.importActual<
-    typeof import("../src/composables/adkSettingsApi")
-  >("../src/composables/adkSettingsApi");
+    typeof import("@/composables/adk/adkSettingsApi")
+  >("@/composables/adk/adkSettingsApi");
   return {
     ...actual,
     cancelADKOptimizationTask: cancelADKOptimizationTaskMock,

@@ -1,0 +1,573 @@
+import { ref, watch, type Ref } from "vue";
+
+import type { MarketDataDepthResponse } from "@/types";
+
+import {
+  buildRuntimeLiveSocketUrl,
+  resolveDesktopApiToken,
+} from "@/runtimeConfig";
+import {
+  getLiveEventBus,
+  parseLiveEventEnvelope,
+  resetLiveEventBusForTests,
+  type LiveEventEnvelope,
+} from "@/composables/market-data/liveEventBus";
+import {
+  normalizeMarketDataTickLiveEvent,
+  type MarketDataTickLiveEvent,
+  type MarketSecurityDetailsQueryResult,
+} from "@/composables/market-data/marketDataRealtime";
+
+export type { MarketDataTickLiveEvent };
+
+const MAX_BUFFERED_EVENTS = 20;
+const INITIAL_RECONNECT_DELAY_MS = 500;
+const MAX_RECONNECT_DELAY_MS = 5000;
+const MAX_RECONNECT_BACKOFF_STEP = 4;
+
+export type LiveSocketConnectionState =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "error"
+  | "unsupported";
+
+export type SystemNotificationLiveStreamEvent = {
+  type: "system.notification";
+  id: string;
+  at: string;
+  level: "info" | "success" | "warn" | "error";
+  title: string;
+  message?: string;
+  source?: string;
+  brokerId?: string;
+  category?: string;
+};
+
+export type ConsoleRefreshLiveStreamEvent = {
+  type: "console.refresh";
+  at: string;
+  checkedAt?: string;
+};
+
+export type LiveHeartbeatEvent = {
+  type: "heartbeat";
+  at: string;
+  providerBrokerId?: string;
+  stale?: boolean;
+  staleReasons?: string[];
+  transport?: {
+    mode?: "idle" | "push-stream" | "snapshot-poll-fallback" | string;
+    activeInstruments?: number;
+    freshInstruments?: number;
+    staleInstruments?: number;
+    sampleFreshnessMs?: number;
+    latestObservedAt?: string | null;
+  };
+  liveStream?: {
+    connected?: boolean;
+    backoffActive?: boolean;
+    retryAfter?: string | null;
+    failureCount?: number;
+    lastError?: string | null;
+  };
+};
+
+export type MarketSecurityDetailsLiveStreamEvent =
+  MarketSecurityDetailsQueryResult & {
+    type: "market.security-details";
+    at: string;
+    brokerId?: string;
+  };
+
+export type MarketDepthLiveStreamEvent = MarketDataDepthResponse & {
+  type: "market.depth";
+  at: string;
+  brokerId?: string;
+};
+
+export type LiveStreamEvent =
+  | LiveHeartbeatEvent
+  | SystemNotificationLiveStreamEvent
+  | MarketDataTickLiveEvent
+  | ConsoleRefreshLiveStreamEvent
+  | MarketSecurityDetailsLiveStreamEvent
+  | MarketDepthLiveStreamEvent
+  | {
+      type: string;
+      at: string;
+    };
+
+export interface LiveSocketSubscriptionSnapshot {
+  providerBrokerId: string;
+  activeInstruments: string[];
+  securityDetails: Array<{
+    market: string;
+    symbol: string;
+    instrumentId: string;
+  }>;
+  depth: Array<{
+    market: string;
+    symbol: string;
+    instrumentId: string;
+    num: number;
+  }>;
+  consoleRefresh: boolean;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeInstrumentId(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function liveStreamPayloadFromEnvelope(
+  envelope: LiveEventEnvelope,
+): LiveStreamEvent | null {
+  if (!isRecord(envelope.payload) || envelope.payload.type !== envelope.type) {
+    return null;
+  }
+  return (
+    normalizeMarketDataTickLiveEvent(envelope.payload) ??
+    (envelope.payload as LiveStreamEvent)
+  );
+}
+
+function normalizeTarget<
+  T extends { market: string; symbol: string; instrumentId: string },
+>(target: T): T {
+  return {
+    ...target,
+    market: target.market.trim().toUpperCase(),
+    symbol: target.symbol.trim().toUpperCase(),
+    instrumentId: normalizeInstrumentId(target.instrumentId),
+  };
+}
+
+class SharedLiveSocketHub {
+  readonly connectionState = ref<LiveSocketConnectionState>("idle");
+  readonly lastHeartbeat = ref<string | null>(null);
+  readonly lastHeartbeatEvent = ref<LiveHeartbeatEvent | null>(null);
+  readonly events = ref<LiveStreamEvent[]>([]);
+
+  private socket: WebSocket | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectBackoffStep = 0;
+  private shouldReconnect = false;
+  private currentAttemptConnected = false;
+  private activeUrl: string | null = null;
+  private lastSentSubscriptionPayload = "";
+  private eventListeners = new Set<(event: LiveStreamEvent) => void>();
+  private activeInstrumentOwners = new Map<string, string>();
+  private securityDetailsOwners = new Map<
+    string,
+    { market: string; symbol: string; instrumentId: string }
+  >();
+  private depthOwners = new Map<
+    string,
+    { market: string; symbol: string; instrumentId: string; num: number }
+  >();
+  private consoleRefreshOwners = new Set<string>();
+  private providerBrokerOwners = new Map<string, string>();
+  private ownerSeq = 0;
+
+  connect(
+    url = buildRuntimeLiveSocketUrl("/api/v1/ws/live"),
+  ): WebSocket | null {
+    if (typeof WebSocket === "undefined") {
+      this.connectionState.value = "unsupported";
+      return null;
+    }
+
+    this.shouldReconnect = true;
+    this.activeUrl = url;
+    this.clearReconnectTimer();
+    this.closeActiveSocket(false);
+    this.connectionState.value = "connecting";
+    this.currentAttemptConnected = false;
+
+    const desktopApiToken = resolveDesktopApiToken();
+    const nextSocket = desktopApiToken
+      ? new WebSocket(url, ["jftrade.desktop.v1", desktopApiToken])
+      : new WebSocket(url);
+    this.socket = nextSocket;
+
+    nextSocket.addEventListener("open", () => {
+      if (this.socket !== nextSocket) {
+        return;
+      }
+      this.connectionState.value = "connected";
+      this.currentAttemptConnected = true;
+      this.reconnectBackoffStep = 0;
+      this.sendSubscriptionSnapshot(true);
+    });
+
+    nextSocket.addEventListener("message", (event) => {
+      if (this.socket !== nextSocket || typeof event.data !== "string") {
+        return;
+      }
+      try {
+        const envelope = parseLiveEventEnvelope(
+          JSON.parse(event.data) as unknown,
+        );
+        if (envelope == null) {
+          this.connectionState.value = "error";
+          return;
+        }
+        const payload = liveStreamPayloadFromEnvelope(envelope);
+        if (payload == null) {
+          this.connectionState.value = "error";
+          return;
+        }
+        if (!this.acceptsProviderEvent(payload)) {
+          return;
+        }
+        this.events.value = [
+          ...this.events.value.slice(-(MAX_BUFFERED_EVENTS - 1)),
+          payload,
+        ];
+        if (payload.type === "heartbeat") {
+          this.lastHeartbeat.value = payload.at || envelope.serverTime;
+          this.lastHeartbeatEvent.value = payload as LiveHeartbeatEvent;
+        }
+        getLiveEventBus().publish(envelope);
+        for (const listener of this.eventListeners) {
+          listener(payload);
+        }
+      } catch {
+        this.connectionState.value = "error";
+      }
+    });
+
+    nextSocket.addEventListener("error", () => {
+      if (this.socket !== nextSocket) {
+        return;
+      }
+      this.connectionState.value = this.currentAttemptConnected
+        ? "error"
+        : "disconnected";
+      nextSocket.close();
+    });
+
+    nextSocket.addEventListener("close", () => {
+      if (this.socket !== nextSocket) {
+        return;
+      }
+      this.socket = null;
+      if (this.connectionState.value !== "unsupported") {
+        this.connectionState.value =
+          this.connectionState.value === "error" ? "error" : "disconnected";
+      }
+      this.scheduleReconnect();
+    });
+
+    return nextSocket;
+  }
+
+  disconnect(): void {
+    this.shouldReconnect = false;
+    this.activeUrl = null;
+    this.reconnectBackoffStep = 0;
+    this.clearReconnectTimer();
+    this.closeActiveSocket(true);
+  }
+
+  reset(): void {
+    this.disconnect();
+    this.connectionState.value = "idle";
+    this.lastHeartbeat.value = null;
+    this.lastHeartbeatEvent.value = null;
+    this.events.value = [];
+    this.lastSentSubscriptionPayload = "";
+    this.eventListeners.clear();
+    this.activeInstrumentOwners.clear();
+    this.securityDetailsOwners.clear();
+    this.depthOwners.clear();
+    this.consoleRefreshOwners.clear();
+    this.providerBrokerOwners.clear();
+  }
+
+  reconnect(): WebSocket | null {
+    if (this.activeUrl == null) {
+      return null;
+    }
+    if (
+      this.socket != null &&
+      ((this.connectionState.value === "connecting" &&
+        this.socket.readyState === WebSocket.CONNECTING) ||
+        (this.connectionState.value === "connected" &&
+          this.socket.readyState === WebSocket.OPEN))
+    ) {
+      return this.socket;
+    }
+    return this.connect(this.activeUrl);
+  }
+
+  addEventListener(listener: (event: LiveStreamEvent) => void): () => void {
+    this.eventListeners.add(listener);
+    return () => {
+      this.eventListeners.delete(listener);
+    };
+  }
+
+  createOwnerId(prefix: string): string {
+    this.ownerSeq += 1;
+    return `${prefix}:${this.ownerSeq}`;
+  }
+
+  setActiveInstrument(ownerId: string, instrumentId: string | null): void {
+    if (instrumentId == null || normalizeInstrumentId(instrumentId) === "") {
+      this.activeInstrumentOwners.delete(ownerId);
+    } else {
+      this.activeInstrumentOwners.set(
+        ownerId,
+        normalizeInstrumentId(instrumentId),
+      );
+    }
+    this.sendSubscriptionSnapshot();
+  }
+
+  setSecurityDetailsTarget(
+    ownerId: string,
+    target: { market: string; symbol: string; instrumentId: string } | null,
+  ): void {
+    if (target == null || normalizeInstrumentId(target.instrumentId) === "") {
+      this.securityDetailsOwners.delete(ownerId);
+    } else {
+      this.securityDetailsOwners.set(ownerId, normalizeTarget(target));
+    }
+    this.sendSubscriptionSnapshot();
+  }
+
+  setDepthTarget(
+    ownerId: string,
+    target: {
+      market: string;
+      symbol: string;
+      instrumentId: string;
+      num: number;
+    } | null,
+  ): void {
+    if (target == null || normalizeInstrumentId(target.instrumentId) === "") {
+      this.depthOwners.delete(ownerId);
+    } else {
+      this.depthOwners.set(ownerId, {
+        ...normalizeTarget(target),
+        num: Math.max(1, Math.min(50, Math.trunc(target.num))),
+      });
+    }
+    this.sendSubscriptionSnapshot();
+  }
+
+  setConsoleRefreshEnabled(ownerId: string, enabled: boolean): void {
+    if (enabled) {
+      this.consoleRefreshOwners.add(ownerId);
+    } else {
+      this.consoleRefreshOwners.delete(ownerId);
+    }
+    this.sendSubscriptionSnapshot();
+  }
+
+  setProviderBrokerId(ownerId: string, brokerId: string | null): void {
+    const normalized = brokerId?.trim().toLowerCase() ?? "";
+    if (normalized === "") {
+      this.providerBrokerOwners.delete(ownerId);
+    } else {
+      this.providerBrokerOwners.set(ownerId, normalized);
+    }
+    this.sendSubscriptionSnapshot();
+  }
+
+  snapshotSubscriptions(): LiveSocketSubscriptionSnapshot {
+    const activeInstruments = Array.from(
+      new Set(this.activeInstrumentOwners.values()),
+    ).sort();
+
+    const securityDetails = Array.from(
+      this.securityDetailsOwners.values(),
+    ).sort((left, right) =>
+      left.instrumentId.localeCompare(right.instrumentId),
+    );
+
+    const depth = Array.from(this.depthOwners.values()).sort((left, right) => {
+      if (left.instrumentId === right.instrumentId) {
+        return left.num - right.num;
+      }
+      return left.instrumentId.localeCompare(right.instrumentId);
+    });
+
+    const providerBrokerId = Array.from(
+      new Set(this.providerBrokerOwners.values()),
+    ).sort()[0];
+
+    return {
+      providerBrokerId: providerBrokerId ?? "",
+      activeInstruments,
+      securityDetails,
+      depth,
+      consoleRefresh: this.consoleRefreshOwners.size > 0,
+    };
+  }
+
+  private acceptsProviderEvent(payload: LiveStreamEvent): boolean {
+    if (
+      payload.type !== "market-data.tick" &&
+      payload.type !== "market.security-details" &&
+      payload.type !== "market.depth" &&
+      payload.type !== "heartbeat"
+    ) {
+      return true;
+    }
+    const expected = this.snapshotSubscriptions().providerBrokerId;
+    const actual =
+      payload.type === "heartbeat"
+        ? "providerBrokerId" in payload &&
+          typeof payload.providerBrokerId === "string"
+          ? payload.providerBrokerId.trim().toLowerCase()
+          : ""
+        : "brokerId" in payload && typeof payload.brokerId === "string"
+          ? payload.brokerId.trim().toLowerCase()
+          : "";
+    return !expected || !actual || expected === actual;
+  }
+
+  /**
+   * Wait for the WebSocket to reach "connected" state.
+   * Resolves `true` if connected within `timeoutMs`, `false` on timeout.
+   * Useful in visibility-change handlers to avoid acting on stale state
+   * while a reconnect is still in progress.
+   */
+  waitForConnection(timeoutMs = 3_000): Promise<boolean> {
+    if (this.connectionState.value === "connected") {
+      return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result: boolean): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        stopWatch();
+        resolve(result);
+      };
+
+      const stopWatch = watch(
+        this.connectionState,
+        (state) => {
+          if (state === "connected") {
+            finish(true);
+          }
+        },
+        { immediate: false },
+      );
+
+      const timer = setTimeout(() => finish(false), timeoutMs);
+    });
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer == null) {
+      return;
+    }
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+  }
+
+  private closeActiveSocket(markDisconnected: boolean): void {
+    const activeSocket = this.socket;
+    this.socket = null;
+    activeSocket?.close();
+    if (markDisconnected && this.connectionState.value !== "unsupported") {
+      this.connectionState.value = "disconnected";
+    }
+  }
+
+  private scheduleReconnect(): void {
+    if (
+      !this.shouldReconnect ||
+      this.activeUrl == null ||
+      this.socket != null ||
+      this.reconnectTimer != null
+    ) {
+      return;
+    }
+    const delay = Math.min(
+      INITIAL_RECONNECT_DELAY_MS * 2 ** this.reconnectBackoffStep,
+      MAX_RECONNECT_DELAY_MS,
+    );
+    this.reconnectBackoffStep = Math.min(
+      this.reconnectBackoffStep + 1,
+      MAX_RECONNECT_BACKOFF_STEP,
+    );
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.shouldReconnect && this.activeUrl != null) {
+        this.connect(this.activeUrl);
+      }
+    }, delay);
+  }
+
+  private sendSubscriptionSnapshot(force = false): void {
+    if (this.socket == null || this.socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    const subscriptions = this.snapshotSubscriptions();
+    if (subscriptions.providerBrokerId === "") {
+      return;
+    }
+    const payload = JSON.stringify({
+      type: "subscribe",
+      subscriptions,
+    });
+    if (!force && payload === this.lastSentSubscriptionPayload) {
+      return;
+    }
+    this.socket.send(payload);
+    this.lastSentSubscriptionPayload = payload;
+  }
+}
+
+let sharedLiveSocketHub: SharedLiveSocketHub | null = null;
+
+export function getSharedLiveSocketHub(): SharedLiveSocketHub {
+  sharedLiveSocketHub ??= new SharedLiveSocketHub();
+  return sharedLiveSocketHub;
+}
+
+export function resetSharedLiveSocketHubForTests(): void {
+  sharedLiveSocketHub?.reset();
+  resetLiveEventBusForTests();
+}
+
+export type SharedLiveSocketHubStore = {
+  connectionState: Ref<LiveSocketConnectionState>;
+  lastHeartbeat: Ref<string | null>;
+  events: Ref<LiveStreamEvent[]>;
+  connect: (url?: string) => WebSocket | null;
+  disconnect: () => void;
+  reconnect: () => WebSocket | null;
+  waitForConnection: (timeoutMs?: number) => Promise<boolean>;
+  addEventListener: (listener: (event: LiveStreamEvent) => void) => () => void;
+  createOwnerId: (prefix: string) => string;
+  setActiveInstrument: (ownerId: string, instrumentId: string | null) => void;
+  setSecurityDetailsTarget: (
+    ownerId: string,
+    target: { market: string; symbol: string; instrumentId: string } | null,
+  ) => void;
+  setDepthTarget: (
+    ownerId: string,
+    target: {
+      market: string;
+      symbol: string;
+      instrumentId: string;
+      num: number;
+    } | null,
+  ) => void;
+  setConsoleRefreshEnabled: (ownerId: string, enabled: boolean) => void;
+  setProviderBrokerId: (ownerId: string, brokerId: string | null) => void;
+  snapshotSubscriptions: () => LiveSocketSubscriptionSnapshot;
+};

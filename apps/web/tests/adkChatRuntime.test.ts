@@ -13,7 +13,7 @@ import {
   mergeADKRunLifecycleSnapshot,
   syncGoalAwareActiveRun,
   waitForGoalAwareRunContinuation,
-} from "../src/composables/adkChatRuntime";
+} from "@/composables/adk/adkChatRuntime";
 
 describe("mergeADKRunLifecycleSnapshot", () => {
   it("keeps a user-paused goal over a stale completed snapshot", () => {

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Ref } from "vue";
 
-import type { PineSourceBlock } from "../../features/pineSourceStructureIndex";
-import PineSourceStructureBlockList from "../PineSourceStructureBlockList.vue";
+import type { PineSourceBlock } from "@/features/pine-structure";
+import PineSourceStructureBlockList from "@/components/strategy-design/PineSourceStructureBlockList.vue";
 import { useStrategyDesignContext } from "./strategyDesignContext";
 
 interface InstructionContext {

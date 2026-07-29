@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useBacktestPageContext } from "../../composables/useBacktestPage";
+import { useBacktestPageContext } from "@/composables/backtest/useBacktestPage";
 import BacktestHistoryPanel from "./BacktestHistoryPanel.vue";
 import BacktestSetupPanel from "./BacktestSetupPanel.vue";
 

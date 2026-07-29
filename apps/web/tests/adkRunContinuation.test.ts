@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ADKRun } from "@/types";
 
-import { monitorADKRunContinuation } from "../src/composables/adkRunContinuation";
+import { monitorADKRunContinuation } from "@/composables/adk/adkRunContinuation";
 
 afterEach(() => {
   vi.useRealTimers();

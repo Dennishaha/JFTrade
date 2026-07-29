@@ -1,6 +1,6 @@
 # JFTrade 工程改进计划
 
-本轮复核: 2026-07-29 · 治理前基线 HEAD `a2bdb66f`；P1 完成事实按当前工作区复测并记录在各治理项中
+本轮复核: 2026-07-29 · 治理前基线 HEAD `a2bdb66f`；P0/P1 已提交至 `9330a0a0`，P2 完成事实按当前工作区复测并记录在各治理项中
 
 ---
 
@@ -269,107 +269,148 @@ pineSourceStructureIndex.ts          638 行
 
 ## P2 —— 长期整理
 
-### P2-1 前端状态管理未显式化
+### P2-1 前端状态管理显式化（✅ 已完成）
 
-无 Pinia。106 个 composable 文件全部平铺于 `composables/` 根目录，其中实测**只有 3 个文件使用 `useQuery`/`useMutation`**（前版本计 7 处，差异可能因计数单位不同，但绝对值仍然偏低）。绝大部分跨组件状态靠 composable 里的模块级 `ref` 单例实现。
+**P2 治理前实测**：无 Pinia；112 个 composable 文件全部平铺于 `composables/` 根目录（更早基线 106，P1 组件拆分后净增 6 个），其中 7 个文件使用 `useQuery`/`useMutation`/`useInfiniteQuery`。状态 owner 和模块 singleton 的准入规则尚未显式记录。
 
-**存在的问题**：模块级 ref 在测试间会串状态（需手动 reset）；无 devtools 可观测；「谁拥有这份状态」只能靠读代码。
+**完成决策**：不引入 Pinia。`docs/frontend/state-management.md` 已明确六类 owner：后端资源归 Vue Query，页面交互归 feature composable，组件树协作归 typed provide/inject，可分享导航状态归 router，跨路由纯客户端协调才允许受控 singleton，单组件临时状态保持局部。
 
-**建议**：写一份 `docs/frontend/state-management.md` 明确约定（什么状态用 vue-query、什么用模块单例、什么用 provide/inject），而不是引入 Pinia。已引入 `@tanstack/vue-query` 但使用极少——需要一个决策：要么系统性推广，要么明确它只服务特定场景（避免「引入了又不用」的认知负担）。
+**完成实现**
+
+- 明确 Vue Query 只管理服务器状态，统一 query key、mutation invalidation、SSE/WS cache 更新和轮询边界；不把它扩张为所有 composable 的替代品。
+- 当前真正的模块级共享状态收口为 `brokerProviderSelection` 与 `marketProfiles` 两个受控 singleton；前者已有测试 reset，后者新增 `resetMarketProfilesForTests` 和 generation guard，reset 后旧异步请求不能回写状态。
+- 文档明确 singleton 必须有 owner、reset/dispose、陈旧请求保护和 readonly/action 边界；页面 composable 在函数内建状态，不因少传一层 prop 升级为全局状态。
+- Query 测试、singleton reset、typed context 隔离和 timer/并发测试约定已形成可审查规则。
+
+**验证**：market profile reset/旧请求隔离测试、Web typecheck 及前端全量测试通过。
 
 ---
 
-### P2-2 前端目录组织已到平铺极限
+### P2-2 前端目录按 owner 收口（✅ 已完成）
 
-| 目录 | 文件数 | 状态 |
+| 治理前目录 | 文件数 | 状态 |
 | --- | ---: | --- |
 | `components/` 根 `.vue` | 28 | 未归类，`domain/` 已有 6 个域目录但根目录未清理 |
-| `composables/` 根 | 106 | 全平铺，无子目录 |
-| `features/strategyVisualBuilder*` | 23 个文件 | 功能相关但未收进子目录 |
+| `composables/` 根 | 112 | 全平铺，无子目录（治理前基线 106） |
+| `features/strategyVisualBuilder*` | 22 个文件 | 功能相关但未收进子目录 |
+| `features/pineSourceStructure*` | 7 个文件 | 同上，与视觉构建器并列平铺 |
 
-**建议**
+**完成结果**
 
-- `components/` 根目录 28 个文件按已有的 `domain/` 六分法归入（路径已建好，边际成本低）。
-- `features/strategyVisualBuilder*` 和 `features/pineSourceStructure*` 分别收入 `features/strategy-builder/` 和 `features/pine-structure/`，给每个域加 `index.ts`（便于 lint 规则禁止跨域深引用）。
-- `composables/` 106 个文件按关注点分组到子目录（market-data、strategy、backtest、adk、settings 等），不必一次完成，随新增文件渐进迁移。
+| 目录 | 完成后 | 约束 |
+| --- | ---: | --- |
+| `components/` 根 `.vue` | **0** | 归入 auth、app-shell、settings、backtest、shared、strategy-design、strategy-runtime 及既有 domain 目录 |
+| `composables/` 根 `.ts` | **0** | 112 个实现归入 11 个 owner 域，另有 11 个域级 `index.ts` |
+| `features/strategy-builder/` | 23 个文件 | 域外只允许从 `index.ts` 导入 |
+| `features/pine-structure/` | 7 个文件 | 域外只允许从 `index.ts` 导入 |
 
----
+- 全仓 import 与测试路径同批迁移，不保留旧路径转发壳；旧 feature 路径与两个 feature 的域外深引均为 0。
+- `check:web-component-budget` 已扩展为组件体量 + 模块布局门禁：阻止根组件、根 composable、旧平铺 feature 和跨域深引回归，并要求两个 feature 入口始终存在。
+- composable 使用显式 `@/composables/<domain>/<module>` 路径，使 owner 与依赖对象可见；域级 index 记录审查后的公共目录，不建立根级兼容出口。
 
-### P2-3 测试执行稳定性与成本
-
-```
-time.Sleep in tests  → 70 处（实测）
-legacy 无有效断言测试 → 5 处（已登记，见旧版 P0-3 遗留）
-```
-
-70 处 `time.Sleep` 是测试不稳定与执行慢的双重来源。`test:preflight` 串行执行 13 个步骤（含三套覆盖率），其中前 8 个检查相互无依赖。
-
-**建议**
-
-1. 审计 70 处 sleep，优先处理时长 >50ms 的，改为 channel 同步或条件等待。
-2. `preflight` 中 `test-policy`、`test-names`、`test-quality`、`servercore-budget`、四个契约门禁相互无依赖，可并行执行（Node `Promise.all`）。
-3. 5 处 legacy 无断言测试：每处补一个有意义的断言，或明确注释说明「不 panic」是合法的验证目标（参考已有豁免格式）。
+**验证**：Web typecheck 通过；共享 Pine/策略 feature 18 个测试文件、128 项测试通过；组件迁移定向测试通过；模块布局门禁实测 211 个组件、0 例外。
 
 ---
 
-### P2-4 前端契约与类型层：直引已冻结，历史债务待迁移
+### P2-3 测试执行稳定性与成本（✅ 已完成）
 
-**`@/contracts` 旁路（复核后实测）**
+```
+time.Sleep in tests  → 63 处（P2 治理前实测；更早基线 70，P1 期间减少 7 处）
+legacy 无有效断言测试 → 未发现明确登记的 5 处（原有 grep 模式未匹配到，建议重新核查）
+```
+
+**时长分布（P2 治理前复核）**
+
+| 时长 | 出现次数 | 备注 |
+| --- | ---: | --- |
+| 10ms | 29 | 大多是 ADK engine 并发等待，时长极短 |
+| 20ms | 11 | ADK engine input/store 测试 |
+| 5ms / 2ms / 25ms | 6 | 辅助等待 |
+| 50ms | 3 | 边界 |
+| **100ms** | **2** | `internal/assistant/engine/input_continuation_failure_recovery_test.go:192`；`pkg/strategy/pineworker/process_smoke_test.go:151`——两处均属进程启动/恢复路径，可评估换 channel 等待 |
+| **2s** | **1** | `pkg/futu/opend/client_test.go:222`——OpenD 客户端重连等待，是真实网络协议行为，建议豁免 |
+
+`test:preflight` 治理前串行执行 **17 个步骤**（run-test-layer.mjs 中 preflightChecks 数组实测）。前 10 个静态检查（test-policy / test-names / test-quality / servercore-budget / openapi-quality / web-api-boundary / web-contract-index / web-contract-audit / web-openapi-imports / web-component-budget）相互无依赖，并行化节省空间最大。
+
+**完成结果**
+
+1. 两处目标 100ms sleep 已清零。ADK 恢复测试同步验证 foreign lease 与本地 continuation claim；Pine worker 在 `Start` 健康检查后直接执行带 10 秒 deadline 的请求，不再轮询猜测进程就绪。非 bbgo fork 的 `time.Sleep` 从 63 降至 61；OpenD 2s 真实重连行为与 bbgo fork 测试保持不动。
+2. preflight 前 10 个静态检查改为并行 stage，输出按声明顺序缓冲展示，汇总所有失败与 stderr；后续 lint/vet/coverage/typecheck/arch-deps 保持串行。测试验证任一并行失败都会阻止后续阶段，且不会丢失其他失败。
+3. 原登记的 5 个无有效断言测试已逐一核查：3 个无业务价值空桩删除，Connectivity 补真实状态/channel 断言，剩余 2 个合法 effect-only 契约以具体原因登记豁免。质量门禁当前 0 legacy、2 个有效豁免。
+
+**验证**：ADK lease 恢复测试连续 10 次通过；Pine worker mock 进程 smoke、相关 Go 包与 scripts policy 通过；并行调度/失败传播测试通过。
+
+---
+
+### P2-4 前端契约与类型层（✅ 已完成）
+
+**`@/contracts` 旁路（P2 治理前实测）**
 
 ```
 origin/main：直引 42 个文件；扣除 contract/client/test 基础设施后，生产消费者 30 个
-当前工作区：直引 37 个文件；基础设施仍为 12 个，生产消费者降至 25 个
+P1 收口工作区：直引 37 个文件；基础设施仍为 12 个，生产消费者降至 25 个
 rg -l "@/contracts" apps/web/src --glob '*.ts' --glob '*.vue' → 41 个文件
 ```
 
-附件所称“28 → 30”不是相同口径的 Git 对比；相对 `origin/main`，P1 改造前后均为 42 个总直引、30 个生产消费者，并没有净新增。本次仍主动把 ADK、回测、client envelope、两个 mapper 测试、期权组合与预测研究迁到 `@/contracts`，当前生产债务降至 25 个。
+**完成结果**
 
-新增 `check:web-openapi-imports`：`contracts/generated/*`、`apiClient.ts` 和契约等价性测试是明确基础设施，其余 25 个历史消费者进入 shrink-only allowlist。新直引、allowlist 相对 merge-base 增长或已迁移后的 stale 条目都会失败；门禁已接入 test-policy、preflight、ci-local 和 GitHub CI。
+- 25 个历史生产消费者及 1 个相对路径旁路全部改为从 `@/contracts` 获取具体领域 alias；legacy allowlist 已清空。
+- `contracts/generated` 扩展为 broker、market-data、observability、research、settings、strategy、system、trading、watchlist 等窄 alias 模块；不向业务代码暴露完整 `components["schemas"]`。
+- `apiClient` 是唯一保留的 `paths` 基础设施边界；checker 已同步其新路径。门禁实测 **0 legacy consumer、16 个受控基础设施文件**，新增直引或 stale allowlist 都会失败。
+- `types/view-models/market-data.ts` 与 `market-profile.ts` 已用生成类型的 `Omit`/领域 alias 扩展，只重写 nullability、精确业务对象等真实 view-model 差异，不再逐字段复制 wire DTO。
+- contract classification 中 15 个 adapter 路径已同步 P2-2 新目录；OpenAPI 字段等价、contract index 和 normalized adapter 审计继续有效。
 
-**类型重复（实测）**
-
-`types/view-models/market-data.ts` 和 `types/view-models/market-profile.ts` 手写了与 openapi 生成类型形状一致的接口（`MarketDataCandleDto`、`MarketDataQuoteSnapshotDto`、`MarketProfileDto` 等），而不是使用 `Omit<components["schemas"]["..."]> & {...}` 模式扩展生成类型。`types/client-api.ts` 做法正确，可作为模版。
-
-**剩余建议**
-
-- 在门禁保护下继续把 27 处历史直引逐域迁入 `@/contracts`，每次迁移同步删除 allowlist 条目。
-- 重写 `types/view-models/market-data.ts` 和 `market-profile.ts`，改用生成类型的 Omit/Pick 扩展模式，消除 DTO 字段级重复。
+**验证**：OpenAPI checker、checker 5 项单测、Web 与 contract typecheck、19 个契约测试文件 / 114 项测试、447 个 Swagger schema 字段审计均通过。
 
 ---
 
-### P2-5 前端 bundle 风险（未量化，需专项核查）
+### P2-5 前端 bundle 量化与预算（✅ 已完成）
 
-**实测信号**
+**当前实测状态**
 
-| 依赖 | 风险 | 状态 |
+| 依赖 | 原评估风险 | 当前实测状态 |
 | --- | --- | --- |
-| `monaco-editor ^0.56.0` | 最大 bundle 成本，~2MB+压缩后 | `MonacoCodeEditor.vue` (991行) 作为普通组件导入，是否在路由分割之外被 eager import 未确认 |
-| `mermaid ^11.16.0` | ~2MB 未压缩 | 未找到懒加载 import，可能直接进入主 chunk |
-| `acorn ^8.17.0` | JS parser，属于 **运行时依赖**（非 devDependency）| 可能用于 Pine 表达式解析；生产包中携带 JS 解析器值得确认必要性 |
+| `monaco-editor ^0.56.0` | 可能 eager import 进入主 chunk | ✅ 已确认安全：`MonacoCodeEditor.vue` 顶层全为 `import type`（不产生运行时依赖）；`monaco-editor` 模块由 `await import("monaco-editor")` 动态加载；组件本身随策略设计路由 chunk 懒加载，不进入主 chunk |
+| `mermaid ^11.16.0` | 可能直接进入主 chunk | ✅ 已确认安全：`useADKWorkspacePresentation.ts` 使用 `import("mermaid")` 动态加载，仅在 ADK 工作区首次渲染时触发 |
+| `acorn ^8.17.0` | 运行时 JS parser 依赖 | ✅ 已从 `@jftrade/web` 直接依赖移除；源码直接 import 为 0。lockfile 中同版本仅由 `vue-router -> mlly` 间接使用 |
 
-路由级 code splitting 已全部就位（12 个路由均为 `() => import(...)` 动态引入），但 monaco 和 mermaid 若被任何 eager import 的路径引用，仍会进入主 chunk。
+路由级 code splitting：12 个路由均为 `() => import(...)` 动态引入 ✓。
 
-**建议**：运行一次 `pnpm --filter @jftrade/web build --report`（或 `rollup-plugin-visualizer`），确认各 chunk 的体积分布，再决定是否需要手动 lazy-import monaco/mermaid。
+**完成结果**
 
----
+- 新增 `pnpm run build:web:report` / `check:web-bundle`，按 gzip level 9 量化 `index.html` 初始依赖图、初始 CSS、最大异步 JS 与控制台全部 JS；`ci-local` 复用既有 release asset 构建，不重复 build。
+- P2 基线：首屏 JS 403.8 KiB gzip、首屏 CSS 115.0 KiB、最大异步 JS 1,448.8 KiB、全部控制台 JS 5,030.6 KiB；预算保留约 8–11% headroom 并阻止无解释增长。
+- Monaco `editor.api`/worker、Mermaid core 和 Cytoscape 被显式禁止进入初始图；当前最大异步文件为 Monaco TypeScript worker，保持按需加载。
+- `docs/frontend/bundle-budget.md` 记录命令、基线、预算升级规则和依赖结论；报告脚本有合成资产单测并已纳入 scripts 完整性测试。
 
-### P2-6 `scripts/` 复杂度已超出可维护阈值
-
-```
-scripts/ 文件数：79（含 22 个 .test.mjs——门禁工具有了自己的测试套件）
-package.json scripts：89 条
-CI ci.yml 步骤：212 条（以 `- name:`/`uses:`/`run:` 计）
-```
-
-**建议**
-
-- 合并同类项：desktop 发布相关的多条测试脚本合成一个带子命令的入口（参数式调用，减少 npm script 数量）。
-- `scripts/lib/` 下的公共函数缺乏文档；`lib/*.mjs` 文件数已达需要一份 `scripts/lib/README.md` 的规模。
-- 22 个 `.test.mjs` 说明 scripts 自身已有独立演进生命周期，考虑给 `scripts/` 建一个独立的 CI 检查目标（目前通过 `test:test-policy` 运行，但名称不直观）。
+**验证**：当前 release asset 报告通过全部预算和重依赖初始图检查。
 
 ---
 
-## P0/P1 完成记录
+### P2-6 `scripts/` 测试入口与维护边界（✅ 已完成）
+
+**P2 治理前实测（相较更早基线）**
+
+```
+scripts/ 文件数：87（治理前 79，净增 8 个；含 25 个 .test.mjs，治理前 22）
+package.json scripts：93 条（治理前 89，净增 4 条）
+CI ci.yml 步骤：214 条（治理前 212，净增 2 条；以 `- name:`/`uses:`/`run:` 计）
+scripts/lib/ 文件数：13（5 个 .mjs + 3 对 .test.mjs + 其他），仍无 README
+```
+
+**完成结果**
+
+- 新增参数式统一入口 `pnpm run test:scripts [-- <suite>]`，当前提供 all、policy、desktop、api-release、pinets-release、pineworker-assets、pineworker-dev、pine-benchmark、web-bundle 九组命名 suite。
+- desktop suite 聚合原 8 个 release metadata/artifact/input、Linux、Wails、签名与 dev desktop 测试；删除 7 个 granular package aliases，并同步 ci-local、GitHub CI 与 desktop-release workflow。加入 bundle 报告命令后根 package scripts 仍由 93 降至 **89**。
+- 注册完整性测试扫描所有 `scripts/**/*.test.mjs`，任何新增但未进入 `all`/命名 suite 的脚本测试都会失败；当前根 `scripts/` 有 89 个文件、27 个 `.test.mjs`，测试增长不再意味着 CI 静默漏跑。
+- 新增 `scripts/lib/README.md`，记录 13 个 `.mjs` 模块的职责、稳定 exports、调用方和测试约定；公共 helper 修改不再只靠文件名猜测影响面。
+- `test:test-policy` 通过 `test:scripts -- policy` 表达脚本自身门禁，desktop 与 release workflow 使用同一个受测入口。
+
+**验证**：`test:scripts` 全量 84 项、desktop 8 项、test-policy 67 项及统一入口的 fail-closed/去重/完整注册测试均通过。
+
+---
+
+## P0/P1/P2 完成记录
 
 ```
 ✅ P0-2  pkg/bbgo/FORK.md 供应链可追溯
@@ -380,15 +421,19 @@ CI ci.yml 步骤：212 条（以 `- name:`/`uses:`/`run:` 计）
 ✅ P1-4  broker 3 处漏底修复 + 单实现边界文档化
 ✅ P1-5  Pine 前后端共享结构语料与 preflight 门禁
 ✅ P1-6  pkg/adk、pkg/jftsettings 内移 + 保留包重审 + namespace 硬切门禁
+✅ P2-1  状态 owner 规则 + Vue Query/singleton/context 边界
+✅ P2-2  components/composables/features 按域归档 + 模块布局门禁
+✅ P2-3  固定等待清理 + preflight 静态检查并行 + 无断言测试清零
+✅ P2-4  OpenAPI 历史直引清零 + view-model 基于生成类型扩展
+✅ P2-5  bundle gzip 基线 + 重依赖懒加载预算 + acorn 直接依赖移除
+✅ P2-6  scripts 统一测试入口 + 完整注册门禁 + lib 维护文档
 ```
-
-除修复附件指出的 P2-4 OpenAPI 直引退步风险、加入收缩型门禁外，其余 P2 项保持独立，本次未扩大处理。
 
 ---
 
 ## 关于本清单的诚实边界
 
-**本轮已验证并可复现（P0 基线 + P1 工作区）**
+**本轮已验证并可复现（P0 基线 + P1 提交 + P2 工作区）**
 
 - 所有规模数字来自 `find ... | xargs wc -l` 或 `grep -rc` 直接测量。
 - `indicatorruntime` 的 5 个外部非测试导入者、4 个实际使用符号、A/B 分组，均经 `rg` import 分析确认。
@@ -397,9 +442,10 @@ CI ci.yml 步骤：212 条（以 `- name:`/`uses:`/`run:` 计）
 - `pkg/bbgo/FORK.md` 治理前不存在、当前已补齐并通过 bbgo 包回归。
 - 前端组件预算实测 211 个 SFC，所有 effective lines 均不超过 800；冻结例外为 0，本地 `<style src>` 一并计入后的 effective scoped CSS 为 18,100 行。
 - ADK 工具集无下单接口（`PlaceOrder`/`SubmitOrder`/`CancelOrder` grep 无结果）已确认。
-- ADK 运行指标、broker-neutral 注入、8 场景 Pine 共享语料、旧 package import 归零、顶层公开包集合、OpenAPI 直引和前端体量均有自动化测试/结构门禁。
+- ADK 运行指标、broker-neutral 注入、8 场景 Pine 共享语料、旧 package import 归零、顶层公开包集合、OpenAPI 直引、前端体量和目录布局均有自动化测试/结构门禁。
+- P2 的 OpenAPI 历史消费者为 0；根 Vue/composable 文件为 0；bundle 四项 gzip 指标、重依赖初始图和 scripts 测试注册均有可复现门禁。
 
-**待持续观测（不阻塞 P1 收口）**
+**待持续观测（不阻塞 P2 收口）**
 
 - ADK 高级特性的真实采用率需要随后续本地 7 日窗口累积；当前已有可量化数据面，不再是无采点状态。
 - 前端体量存量债务已清零；后续不得新增 >800 effective lines 的 SFC、预算例外或提高 scoped CSS 基线。
@@ -408,12 +454,12 @@ CI ci.yml 步骤：212 条（以 `- name:`/`uses:`/`run:` 计）
 
 - **goroutine 生命周期**：实测生产代码有 58 处 goroutine 启动，无系统性泄漏审计。近期有 2 个 goroutine 相关修复 commit，说明这块有真实问题，值得专项分析。
 - **SQLite 查询性能与索引**：`internal/store/sqliteconn` 连接层质量良好（WAL + 单写连接 + 只读池），但 query 层未审计慢查询或缺失索引。
-- **前端 bundle 体积与运行时性能**：未检查 tree-shaking 效果、路由级 code-splitting 覆盖率、最大依赖体积。
+- **前端运行时性能**：bundle 与路由 code splitting 已建立静态基线，但尚未用真实桌面会话量化首屏解析、长任务、内存和交互延迟。
 - **Windows 环境已知限制**：7 个包因 symlink 权限测试失败（`datamigration`、`exchangecalendar`、`settingsfile`、`store/trading`、`internal/trading`、`pkg/strategy/pineworker`）；`pineworker` 有时序竞态间歇失败。这些是预存环境限制，非本轮改动回归，最终验收需 Linux CI。
 
 **已确认良好、无需改动**
 
 - `internal/store/sqliteconn/conn.go`：单写连接 + WAL + `synchronous(NORMAL)` + `foreign_keys(ON)` + `busy_timeout(10000)`，仍是仓库工程质量最高的部分之一。
 - `check-arch-deps.sh` 168 项检查 0 warning 0 failed，`servercore-budget.json` 五维度 ratchet 设计良好（防止单一维度腾挪规避）。
-- 前端 API 边界：只有 `apiClient.ts` 做裸 `fetch()`（`refetch()` 为 vue-query 方法调用，非 window.fetch）；OpenAPI 直引生产债务已从 30 降至 25 并由 shrink-only allowlist 冻结，新增代码必须经 `@/contracts`。
+- 前端 API 边界：只有 `composables/shared/apiClient.ts` 做裸 `fetch()`（`refetch()` 为 vue-query 方法调用，非 window.fetch）；OpenAPI 历史生产直引债务已从 30 清零，新增代码必须经 `@/contracts`。
 - ADK 工具集安全边界：无下单接口，交易动作通过明确 approval 流程流转。

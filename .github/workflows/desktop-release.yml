@@ -137,15 +137,7 @@ jobs:
         run: pnpm run smoke:pinets-backtest
 
       - name: Verify shared desktop source
-        run: |
-          pnpm run test:desktop-release-metadata
-          pnpm run test:desktop-release-artifacts
-          pnpm run test:desktop-linux-artifacts
-          pnpm run test:desktop-release-inputs
-          pnpm run test:desktop-wails-tasks
-          pnpm run test:desktop-signing
-          pnpm run test:desktop-linux-package-config
-          node scripts/dev-desktop.test.mjs
+        run: pnpm run test:scripts -- desktop
 
       - name: Verify embedded release inputs
         run: go test -tags release_assets ./internal/frontendassets ./internal/pineworkerassets -count=1

@@ -5,7 +5,7 @@
   "types/view-models/assistant.ts": {
     "kind": "normalized-api",
     "adapters": [
-      "composables/adkApiMappers.ts"
+      "composables/adk/adkApiMappers.ts"
     ],
     "tests": [
       "tests/adkApiMappers.test.ts",
@@ -15,7 +15,7 @@
   "types/view-models/futu-opend.ts": {
     "kind": "normalized-api",
     "adapters": [
-      "composables/futuOpenDContract.ts"
+      "composables/market-data/futuOpenDContract.ts"
     ],
     "tests": [
       "tests/systemContractsMappers.test.ts"
@@ -24,8 +24,8 @@
   "types/view-models/market-data.ts": {
     "kind": "normalized-api",
     "adapters": [
-      "composables/marketDataContract.ts",
-      "composables/marketSecurityNormalization.ts"
+      "composables/market-data/marketDataContract.ts",
+      "composables/market-data/marketSecurityNormalization.ts"
     ],
     "tests": [
       "tests/marketDataContract.test.ts"
@@ -34,8 +34,8 @@
   "types/view-models/market-profile.ts": {
     "kind": "normalized-api",
     "adapters": [
-      "composables/marketProfiles.ts",
-      "composables/instrumentResolver.ts"
+      "composables/market-data/marketProfiles.ts",
+      "composables/market-data/instrumentResolver.ts"
     ],
     "tests": [
       "tests/marketProfiles.test.ts"
@@ -44,7 +44,7 @@
   "types/view-models/plugins.ts": {
     "kind": "normalized-api",
     "adapters": [
-      "composables/pluginContract.ts"
+      "composables/settings/pluginContract.ts"
     ],
     "tests": [
       "tests/strategyPluginContractMappers.test.ts"
@@ -53,8 +53,8 @@
   "types/view-models/strategy.ts": {
     "kind": "normalized-api",
     "adapters": [
-      "composables/strategyContract.ts",
-      "composables/strategyApiRequests.ts"
+      "composables/strategy/strategyContract.ts",
+      "composables/strategy/strategyApiRequests.ts"
     ],
     "tests": [
       "tests/strategyPluginContractMappers.test.ts"
@@ -63,9 +63,9 @@
   "types/view-models/system.ts": {
     "kind": "normalized-api",
     "adapters": [
-      "composables/systemStatusContract.ts",
-      "composables/brokerSettingsContract.ts",
-      "composables/onboardingContract.ts"
+      "composables/settings/systemStatusContract.ts",
+      "composables/settings/brokerSettingsContract.ts",
+      "composables/settings/onboardingContract.ts"
     ],
     "tests": [
       "tests/systemContractsMappers.test.ts"
@@ -74,8 +74,8 @@
   "types/view-models/trading.ts": {
     "kind": "normalized-api",
     "adapters": [
-      "composables/tradingApiMappers.ts",
-      "composables/useBacktestRuns.ts"
+      "composables/trading/tradingApiMappers.ts",
+      "composables/backtest/useBacktestRuns.ts"
     ],
     "tests": [
       "tests/tradingApiMappers.test.ts",
@@ -85,7 +85,7 @@
   "types/view-models/watchlist.ts": {
     "kind": "normalized-api",
     "adapters": [
-      "composables/watchlistApi.ts"
+      "composables/watchlist/watchlistApi.ts"
     ],
     "tests": [
       "tests/watchlistApi.test.ts"

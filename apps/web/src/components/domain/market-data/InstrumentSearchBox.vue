@@ -15,8 +15,8 @@ import {
   formatInstrumentSecurityTypeLabel,
   formatUserMarketLabel,
   normalizeInstrumentSecurityType,
-} from "@/composables/instrumentPresentation";
-import { useInstrumentResolver } from "@/composables/instrumentResolver";
+} from "@/composables/market-data/instrumentPresentation";
+import { useInstrumentResolver } from "@/composables/market-data/instrumentResolver";
 
 import InstrumentIdentity from "./InstrumentIdentity.vue";
 

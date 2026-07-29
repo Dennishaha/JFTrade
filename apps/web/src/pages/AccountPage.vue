@@ -13,12 +13,12 @@ import PositionsTable, {
   type AccountPositionRow,
 } from "../components/domain/account/PositionsTable.vue";
 import ActionConfirmDialog from "../components/shared/ActionConfirmDialog.vue";
-import { apiGetPath, apiPostPathAction } from "../composables/apiClient";
-import { isFinalExecutionOrderStatus } from "../composables/consoleDataFormatting";
-import { formatInstrumentIdentityText } from "../composables/instrumentPresentation";
-import { useConsoleData } from "../composables/useConsoleData";
-import { useNotifications } from "../composables/useNotifications";
-import { mapExecutionOrders } from "../composables/tradingApiMappers";
+import { apiGetPath, apiPostPathAction } from "@/composables/shared/apiClient";
+import { isFinalExecutionOrderStatus } from "@/composables/shared/consoleDataFormatting";
+import { formatInstrumentIdentityText } from "@/composables/market-data/instrumentPresentation";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
+import { useNotifications } from "@/composables/shared/useNotifications";
+import { mapExecutionOrders } from "@/composables/trading/tradingApiMappers";
 import {
   ACCOUNT_TABS,
   dedupeExecutionOrders,

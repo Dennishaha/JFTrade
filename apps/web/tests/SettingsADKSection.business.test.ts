@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, ref } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 
-import SettingsADKSection from "../src/components/SettingsADKSection.vue";
+import SettingsADKSection from "@/components/settings/SettingsADKSection.vue";
 import type { ADKAgent } from "../src/types";
 import {
   buttonStub,
@@ -20,7 +20,7 @@ import {
 
 let currentState: ReturnType<typeof buildState>;
 
-vi.mock("../src/composables/useADKSettingsSectionState", () => ({
+vi.mock("@/composables/adk/useADKSettingsSectionState", () => ({
   useADKSettingsSectionState: () => currentState,
 }));
 

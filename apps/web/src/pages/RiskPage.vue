@@ -15,13 +15,13 @@ import {
   apiPost,
   apiPostPath,
   apiPutPath,
-} from "../composables/apiClient";
+} from "@/composables/shared/apiClient";
 import {
   mapStrategyInstance,
   mapStrategyInstances,
-} from "../composables/strategyContract";
-import { useConsoleData } from "../composables/useConsoleData";
-import { useRuntimeRiskConfig } from "../composables/useRuntimeRiskConfig";
+} from "@/composables/strategy/strategyContract";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
+import { useRuntimeRiskConfig } from "@/composables/trading/useRuntimeRiskConfig";
 import type {
   StrategyInstanceItem,
   StrategyRuntimeRiskMode,

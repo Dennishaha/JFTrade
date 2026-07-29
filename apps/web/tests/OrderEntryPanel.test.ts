@@ -17,7 +17,7 @@ const marketProfilesState = vi.hoisted(() => ({
   extendedHoursMarkets: new Set<string>(),
 }));
 
-vi.mock("../src/composables/marketProfiles", () => ({
+vi.mock("@/composables/market-data/marketProfiles", () => ({
   useMarketProfiles: () => ({
     supportsExtendedHoursForMarket: (market: string | null | undefined) =>
       marketProfilesState.extendedHoursMarkets.has(
@@ -30,11 +30,11 @@ import OrderEntryPanel from "../src/components/workspace/OrderEntryPanel.vue";
 import type {
   MarketDataSnapshotQueryResult,
   MarketSecurityDetailsQueryResult,
-} from "../src/composables/marketDataRealtime";
-import { provideConsoleDataStore } from "../src/composables/useConsoleData";
-import { provideNotificationsStore } from "../src/composables/useNotifications";
-import { provideUIColorPreferencesStore } from "../src/composables/useUIColorPreferences";
-import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
+} from "@/composables/market-data/marketDataRealtime";
+import { provideConsoleDataStore } from "@/composables/workspace/useConsoleData";
+import { provideNotificationsStore } from "@/composables/shared/useNotifications";
+import { provideUIColorPreferencesStore } from "@/composables/settings/useUIColorPreferences";
+import { provideWorkspaceTradingPreferencesStore } from "@/composables/workspace/useWorkspaceLayout";
 
 afterEach(() => {
   window.localStorage?.clear();

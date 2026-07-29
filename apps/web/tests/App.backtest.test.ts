@@ -19,11 +19,11 @@ import {
 } from "./helpers";
 import BacktestPage from "../src/pages/BacktestPage.vue";
 import * as backtestPresentation from "../src/components/backtest/backtestRunPresentation";
-import { queryClient, queryKeys } from "../src/composables/serverState";
+import { queryClient, queryKeys } from "@/composables/settings/serverState";
 
 const backtestFormStorageKey = "jftrade.backtest.form.v1";
 
-vi.mock("../src/components/BacktestChart.vue", () => ({
+vi.mock("@/components/backtest/BacktestChart.vue", () => ({
   default: {
     props: ["chartType", "heikinAshiSeed"],
     template:

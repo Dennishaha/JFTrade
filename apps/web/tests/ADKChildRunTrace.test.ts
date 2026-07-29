@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { ADKRun } from "@/types";
 
 import ADKChildRunTrace from "../src/components/shared/ADKChildRunTrace.vue";
-import type { ADKChildRunQueueItem } from "../src/composables/useADKWorkflowQueueState";
+import type { ADKChildRunQueueItem } from "@/composables/adk/useADKWorkflowQueueState";
 
 describe("ADKChildRunTrace", () => {
   it("renders collapsed child run state", () => {

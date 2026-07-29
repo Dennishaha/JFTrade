@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { useADKMarkdownRenderer } from "../src/composables/useADKMarkdownRenderer";
+import { useADKMarkdownRenderer } from "@/composables/adk/useADKMarkdownRenderer";
 
 describe("ADK markdown renderer", () => {
   it("escapes raw HTML while preserving safe links and line breaks", () => {

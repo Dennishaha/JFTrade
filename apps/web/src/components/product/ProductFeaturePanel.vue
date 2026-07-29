@@ -6,11 +6,11 @@ import {
   fetchProductFeature,
   instrumentIDFromFeatureEntry,
   type ProductFeatureResult,
-} from "../../composables/productFeatures";
+} from "@/composables/product/productFeatures";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
-} from "../../composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 import ProductPanelToolbar from "./ProductPanelToolbar.vue";
 import ProductToolbarRefreshButton from "./ProductToolbarRefreshButton.vue";
 

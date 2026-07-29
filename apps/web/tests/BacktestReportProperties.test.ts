@@ -8,7 +8,7 @@ import BacktestReportProperties from "../src/components/backtest/BacktestReportP
 import type {
   BacktestRun,
   BacktestRunResult,
-} from "../src/composables/useBacktestRuns";
+} from "@/composables/backtest/useBacktestRuns";
 
 function runWithResult(result?: BacktestRunResult): BacktestRun {
   return {

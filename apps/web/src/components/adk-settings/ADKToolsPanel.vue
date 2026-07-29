@@ -2,7 +2,7 @@
 import { computed } from "vue";
 
 import type { ADKToolDescriptor } from "@/types";
-import { useOptionalTheme } from "@/composables/useTheme";
+import { useOptionalTheme } from "@/composables/settings/useTheme";
 
 defineProps<{
   tools: ADKToolDescriptor[];

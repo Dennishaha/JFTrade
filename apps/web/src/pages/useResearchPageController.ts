@@ -26,15 +26,15 @@ import {
   type QuoteSeed,
   type ResearchQuoteTarget,
 } from "../components/research/researchQuote";
-import { useBrokerProviderSelection } from "../composables/brokerProviderSelection";
-import { useConsoleData } from "../composables/useConsoleData";
+import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import {
   clampResearchPaneSizesForWidth,
   readResearchViewState,
   researchPaneBoundsForWidth,
   writeResearchViewState,
-} from "../composables/useResearchViewState";
-import { useWorkspaceTradingPrefs } from "../composables/useWorkspaceLayout";
+} from "@/composables/research/useResearchViewState";
+import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
 
 export function useResearchPageController() {
   const sections = RESEARCH_SECTIONS;

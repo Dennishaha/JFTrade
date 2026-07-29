@@ -37,8 +37,8 @@ import {
   emptySystemStatus,
 } from "@/types";
 
-import { provideConsoleDataStore, useConsoleData } from "../src/composables/useConsoleData";
-import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
+import { provideConsoleDataStore, useConsoleData } from "@/composables/workspace/useConsoleData";
+import { provideWorkspaceTradingPreferencesStore } from "@/composables/workspace/useWorkspaceLayout";
 import { createResponse } from "./helpers";
 
 function createConsoleStore() {

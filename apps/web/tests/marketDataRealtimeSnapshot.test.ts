@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { MarketDataRealtimeBarPriceState } from "../src/composables/marketDataRealtimeBarPriceState";
-import type { MarketDataRealtimeBarVolumeState } from "../src/composables/marketDataRealtimeBarVolumeState";
+import type { MarketDataRealtimeBarPriceState } from "@/composables/market-data/marketDataRealtimeBarPriceState";
+import type { MarketDataRealtimeBarVolumeState } from "@/composables/market-data/marketDataRealtimeBarVolumeState";
 import type {
   MarketDataCandlesQueryResult,
   MarketDataSnapshotQueryResult,
-} from "../src/composables/marketDataRealtime";
-import { mergeMarketDataSnapshot } from "../src/composables/marketDataRealtimeSnapshot";
+} from "@/composables/market-data/marketDataRealtime";
+import { mergeMarketDataSnapshot } from "@/composables/market-data/marketDataRealtimeSnapshot";
 
 describe("marketDataRealtimeSnapshot", () => {
   it("merges historical candle values and matching realtime bar state into the snapshot", () => {

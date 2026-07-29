@@ -5,7 +5,7 @@ import {
   formatExecutionOrderSourceLabel,
   formatExecutionOrderStatusLabel,
   formatOrderSideLabel,
-} from "../../../composables/consoleDataFormatting";
+} from "@/composables/shared/consoleDataFormatting";
 import { formatNumber } from "../../../utils/numberFormat";
 import {
   type AccountExecutionOrder,

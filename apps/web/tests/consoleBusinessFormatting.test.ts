@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import * as formatting from "../src/composables/consoleDataFormatting";
+import * as formatting from "@/composables/shared/consoleDataFormatting";
 
 describe("console business formatting", () => {
   it("maps broker, order and connectivity enums while preserving unknown backend values", () => {

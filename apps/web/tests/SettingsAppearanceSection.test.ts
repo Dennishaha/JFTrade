@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { computed, ref } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import SettingsAppearanceSection from "../src/components/SettingsAppearanceSection.vue";
+import SettingsAppearanceSection from "@/components/settings/SettingsAppearanceSection.vue";
 
 const state = vi.hoisted(() => ({
   prefs: { upColor: "#15803d", downColor: "#b91c1c" },
@@ -12,7 +12,7 @@ const state = vi.hoisted(() => ({
   reset: vi.fn(),
 }));
 
-vi.mock("../src/composables/useUIColorPreferences", () => ({
+vi.mock("@/composables/settings/useUIColorPreferences", () => ({
   useUIColorPreferences: () => ({
     prefs: ref(state.prefs),
     resolved: computed(() => state.prefs),

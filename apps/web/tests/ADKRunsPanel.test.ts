@@ -16,7 +16,7 @@ import type {
 import type {
   ADKMetricsResponse,
   PageEnvelope,
-} from "../src/composables/adkSettingsApi";
+} from "@/composables/adk/adkSettingsApi";
 
 import ADKRunsPanel from "../src/components/adk-settings/ADKRunsPanel.vue";
 import { buttonStub, inputStub, passthroughStub, selectStub } from "./helpers";

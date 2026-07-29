@@ -2,12 +2,12 @@
 import type {
   OptionChainRowModel,
   OptionChainSideModel,
-} from "../../composables/optionChainModel";
-import { formatOptionMetric } from "../../composables/optionChainModel";
+} from "@/composables/product/optionChainModel";
+import { formatOptionMetric } from "@/composables/product/optionChainModel";
 import type {
   OptionComboLegDraft,
   OptionComboSide,
-} from "../../composables/optionComboDraft";
+} from "@/composables/product/optionComboDraft";
 
 const props = defineProps<{
   rows: OptionChainRowModel[];

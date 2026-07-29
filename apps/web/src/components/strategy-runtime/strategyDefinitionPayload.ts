@@ -1,7 +1,7 @@
 import type {
   PineV6WorkflowDocument,
 } from "@/types";
-import type { components } from "@/generated/openapi";
+import type { StrategyDesignDefinitionDto } from "@/contracts";
 
 import { PINE_WORKER_RUNTIME, PINE_V6_SOURCE_FORMAT } from "./strategyRuntimeIdentity";
 
@@ -18,7 +18,7 @@ export interface BuildPineStrategyDefinitionPayloadInput {
 
 export function buildPineStrategyDefinitionPayload(
   input: BuildPineStrategyDefinitionPayloadInput,
-): components["schemas"]["strategy.StrategyDesignDefinition"] {
+): StrategyDesignDefinitionDto {
   return {
     id: input.id,
     name: input.name,

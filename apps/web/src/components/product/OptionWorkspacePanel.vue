@@ -7,7 +7,7 @@ import ProductPanelToolbar from "./ProductPanelToolbar.vue";
 import {
   useOptionWorkspace,
   type OptionWorkspaceProps,
-} from "../../composables/useOptionWorkspace";
+} from "@/composables/product/useOptionWorkspace";
 
 const props = withDefaults(defineProps<OptionWorkspaceProps>(), {
   displayInstrumentId: "",

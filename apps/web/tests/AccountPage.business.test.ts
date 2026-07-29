@@ -26,17 +26,17 @@ const mocks = vi.hoisted(() => ({
 let consoleDataState: Record<string, unknown>;
 let notificationsState: { push: typeof mocks.pushNotification };
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   apiGetPath: (_template: string, path: string) => mocks.fetchEnvelope(path),
   apiPostPathAction: (_template: string, path: string) =>
     mocks.fetchEnvelopeWithInit(path, { method: "POST" }),
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => consoleDataState,
 }));
 
-vi.mock("../src/composables/useNotifications", () => ({
+vi.mock("@/composables/shared/useNotifications", () => ({
   useNotifications: () => notificationsState,
 }));
 

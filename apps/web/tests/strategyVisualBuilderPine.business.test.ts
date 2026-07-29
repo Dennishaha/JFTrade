@@ -9,7 +9,7 @@ import type {
 import {
   buildStrategyVisualControlEdgeProperties,
   buildStrategyVisualDataEdgeProperties,
-} from "../src/features/strategyVisualBuilderEdges";
+} from "@/features/strategy-builder";
 import {
   getPatternOptions,
   getTechnicalIndicatorConditionModeOptions,
@@ -26,9 +26,9 @@ import {
   patternTypeLabel,
   supportsNumericCondition,
   supportsPatternCondition,
-} from "../src/features/strategyVisualBuilderIndicatorBlock";
-import { buildStrategyPineFromVisualModel } from "../src/features/strategyVisualBuilderPine";
-import { buildStrategyVisualModelFromPine } from "../src/features/strategyVisualBuilderPineParser";
+} from "@/features/strategy-builder";
+import { buildStrategyPineFromVisualModel } from "@/features/strategy-builder";
+import { buildStrategyVisualModelFromPine } from "@/features/strategy-builder";
 
 describe("strategy visual builder business coverage", () => {
   it("normalizes advanced technical indicator blocks and operator-facing labels", () => {

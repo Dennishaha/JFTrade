@@ -4,7 +4,7 @@ import {
   resolveMarketDataTickVolumeUpdate,
   type MarketDataRealtimeTickVolumeState,
   type MarketDataRealtimeTickVolumeUpdateInput,
-} from "../src/composables/marketDataRealtimeTickState";
+} from "@/composables/market-data/marketDataRealtimeTickState";
 
 function update(
   previousState: MarketDataRealtimeTickVolumeState | null,

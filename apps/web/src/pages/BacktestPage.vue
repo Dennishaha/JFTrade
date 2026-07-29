@@ -11,7 +11,7 @@ import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
 import {
   backtestPageContextKey,
   useBacktestPage,
-} from "../composables/useBacktestPage";
+} from "@/composables/backtest/useBacktestPage";
 
 const backtestPage = useBacktestPage();
 provide(backtestPageContextKey, backtestPage);

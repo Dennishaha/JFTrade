@@ -11,7 +11,7 @@ import {
   emptySystemStatus,
 } from "@/types";
 import BacktestPage from "../src/pages/BacktestPage.vue";
-import { queryClient, queryKeys } from "../src/composables/serverState";
+import { queryClient, queryKeys } from "@/composables/settings/serverState";
 import { createResponse, flushRequests, mountApp } from "./helpers";
 
 interface PendingWarmupRequest {

@@ -4,8 +4,8 @@ import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick, ref } from "vue";
 
-import MonacoCodeEditor from "../src/components/MonacoCodeEditor.vue";
-import { provideThemeStore, type ThemeStore } from "../src/composables/useTheme";
+import MonacoCodeEditor from "@/components/shared/MonacoCodeEditor.vue";
+import { provideThemeStore, type ThemeStore } from "@/composables/settings/useTheme";
 
 const monacoMocks = vi.hoisted(() => {
   const dispose = vi.fn();

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { StrategyVisualModelDocument } from "@/types";
 
-import { buildStrategyVisualModelFromPine } from "../src/features/strategyVisualBuilderPineParser";
+import { buildStrategyVisualModelFromPine } from "@/features/strategy-builder";
 
 describe("strategyVisualBuilderPineParser business boundaries", () => {
   it("reuses persisted layout while deduplicating annotated node ids", () => {

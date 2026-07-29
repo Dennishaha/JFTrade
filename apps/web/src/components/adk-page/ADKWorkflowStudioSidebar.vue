@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ADKWorkflowDefinition } from "@/types";
-import type { PageEnvelope } from "@/composables/adkWorkflowsApi";
+import type { PageEnvelope } from "@/composables/adk/adkWorkflowsApi";
 import type { WorkflowTemplate } from "@/features/adkWorkflowStudio";
 
 defineProps<{

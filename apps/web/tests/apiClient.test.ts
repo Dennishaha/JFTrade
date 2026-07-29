@@ -15,7 +15,7 @@ import {
   webLogin,
   webLogout,
   webSession,
-} from "../src/composables/apiClient";
+} from "@/composables/shared/apiClient";
 
 afterEach(() => {
   setCSRFToken("");

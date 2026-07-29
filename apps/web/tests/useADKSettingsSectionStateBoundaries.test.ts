@@ -14,9 +14,9 @@ const api = vi.hoisted(() => ({
   resetMCPToken: vi.fn(),
 }));
 
-vi.mock("../src/composables/adkSettingsApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/composables/adkSettingsApi")>(
-    "../src/composables/adkSettingsApi",
+vi.mock("@/composables/adk/adkSettingsApi", async () => {
+  const actual = await vi.importActual<typeof import("@/composables/adk/adkSettingsApi")>(
+    "@/composables/adk/adkSettingsApi",
   );
   return {
     ...actual,
@@ -30,7 +30,7 @@ vi.mock("../src/composables/adkSettingsApi", async () => {
   };
 });
 
-vi.mock("../src/composables/useADKProviderForm", async () => {
+vi.mock("@/composables/adk/useADKProviderForm", async () => {
   const { ref } = await import("vue");
   return {
     useADKProviderForm: () => ({
@@ -45,7 +45,7 @@ vi.mock("../src/composables/useADKProviderForm", async () => {
   };
 });
 
-vi.mock("../src/composables/useADKAgentForm", async () => {
+vi.mock("@/composables/adk/useADKAgentForm", async () => {
   const { ref } = await import("vue");
   return {
     useADKAgentForm: () => ({
@@ -59,7 +59,7 @@ vi.mock("../src/composables/useADKAgentForm", async () => {
   };
 });
 
-import { useADKSettingsSectionState } from "../src/composables/useADKSettingsSectionState";
+import { useADKSettingsSectionState } from "@/composables/adk/useADKSettingsSectionState";
 
 function mcpSnapshot(port = 6697) {
   return {

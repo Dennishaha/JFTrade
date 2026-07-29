@@ -15,7 +15,7 @@ import type {
 } from "@/contracts";
 
 import type { ChartType } from "../../charting/kline";
-import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
+import type { BrokerAccountSelectionOption } from "@/composables/trading/consoleDataBrokerAccountSelection";
 import {
     bindingInstrumentsToSymbols,
     brokerAccountOptionSubtitle,

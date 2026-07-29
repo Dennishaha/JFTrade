@@ -9,7 +9,7 @@ import "vuetify/styles";
 
 import App from "./App.vue";
 import { fontAwesomeIcons } from "./fontAwesomeIcons";
-import { queryClient } from "./composables/serverState";
+import { queryClient } from "@/composables/settings/serverState";
 import { createConsoleRouter } from "./router";
 import "./styles/tokens.css";
 import "./styles/adk-tokens.css";

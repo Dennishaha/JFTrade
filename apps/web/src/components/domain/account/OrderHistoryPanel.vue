@@ -8,9 +8,9 @@ import {
   formatExecutionOrderSourceLabel,
   formatExecutionOrderStatusLabel,
   formatOrderSideLabel,
-} from "../../../composables/consoleDataFormatting";
-import { pricePrecisionForMarket } from "../../../composables/marketProfiles";
-import { useConsoleData } from "../../../composables/useConsoleData";
+} from "@/composables/shared/consoleDataFormatting";
+import { pricePrecisionForMarket } from "@/composables/market-data/marketProfiles";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import {
   formatMarketPrice,
   formatMoney,

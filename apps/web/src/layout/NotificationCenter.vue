@@ -4,11 +4,11 @@ import { computed, ref } from "vue";
 import {
   type NotificationItem,
   useNotifications,
-} from "../composables/useNotifications";
+} from "@/composables/shared/useNotifications";
 import {
   formatDateTime,
   formatNotificationLevelLabel,
-} from "../composables/consoleDataFormatting";
+} from "@/composables/shared/consoleDataFormatting";
 
 const { items, markAllRead, clear, remove } = useNotifications();
 

@@ -7,7 +7,7 @@ import {
   riskColor,
   riskLabel,
   toolCallStatusColor,
-} from "../src/composables/adkSettingsPresentation";
+} from "@/composables/adk/adkSettingsPresentation";
 
 describe("adkSettingsPresentation", () => {
   it("maps permission, tool status, and risk labels for real ADK states", () => {

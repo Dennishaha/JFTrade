@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick, ref } from "vue";
 
-import KlineIndicatorSelector from "../src/components/KlineIndicatorSelector.vue";
+import KlineIndicatorSelector from "@/components/domain/market-data/KlineIndicatorSelector.vue";
 import type { KlineIndicatorKey } from "../src/charting/kline";
 
 afterEach(() => {

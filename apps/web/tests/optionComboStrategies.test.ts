@@ -4,14 +4,14 @@ import {
   createOptionComboDraftStore,
   type OptionComboLegDraft,
   type OptionContractChoice,
-} from "../src/composables/optionComboDraft";
+} from "@/composables/product/optionComboDraft";
 import {
   buildOptionComboTemplate,
   optionComboLocalQuote,
   optionComboSpread,
   optionComboValidationMessage,
   recognizeOptionComboStrategy,
-} from "../src/composables/optionComboStrategies";
+} from "@/composables/product/optionComboStrategies";
 
 function contract(
   code: string,

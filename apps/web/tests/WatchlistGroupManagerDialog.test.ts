@@ -19,7 +19,7 @@ const groupMocks = vi.hoisted(() => ({
   update: vi.fn(),
 }));
 
-vi.mock("../src/composables/useWatchlist", () => ({
+vi.mock("@/composables/watchlist/useWatchlist", () => ({
   useWatchlistGroups: () => ({
     data: ref(groupMocks.groups),
     refetch: groupMocks.refetch,

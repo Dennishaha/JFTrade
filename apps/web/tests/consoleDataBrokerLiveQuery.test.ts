@@ -28,13 +28,13 @@ const mocks = vi.hoisted(() => ({
   fetchEnvelope: vi.fn(),
 }));
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   fetchEnvelope: (...args: unknown[]) => mocks.fetchEnvelope(...args),
   apiGetPath: (_template: string, path: string, ...rest: unknown[]) =>
     mocks.fetchEnvelope(path, ...rest),
 }));
 
-import { createConsoleDataBrokerLiveQueryController } from "../src/composables/consoleDataBrokerLiveQuery";
+import { createConsoleDataBrokerLiveQueryController } from "@/composables/market-data/consoleDataBrokerLiveQuery";
 
 interface FeatureRequirements {
   supported: boolean;

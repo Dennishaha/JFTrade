@@ -9,7 +9,7 @@ const { fetchADKPageSessionDataMock } = vi.hoisted(() => ({
   fetchADKPageSessionDataMock: vi.fn(),
 }));
 
-vi.mock("../src/composables/adkPageSessionApi", () => ({
+vi.mock("@/composables/adk/adkPageSessionApi", () => ({
   fetchADKPageSessionData: (...args: unknown[]) =>
     fetchADKPageSessionDataMock(...args),
 }));

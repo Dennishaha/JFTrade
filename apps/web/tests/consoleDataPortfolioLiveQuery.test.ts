@@ -12,11 +12,11 @@ const mocks = vi.hoisted(() => ({
   apiGetPath: vi.fn(),
 }));
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   apiGetPath: (...args: unknown[]) => mocks.apiGetPath(...args),
 }));
 
-import { createConsoleDataPortfolioLiveQueryController } from "../src/composables/consoleDataPortfolioLiveQuery";
+import { createConsoleDataPortfolioLiveQueryController } from "@/composables/trading/consoleDataPortfolioLiveQuery";
 
 afterEach(() => {
   vi.clearAllMocks();

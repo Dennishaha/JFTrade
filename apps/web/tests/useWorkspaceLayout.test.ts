@@ -9,7 +9,7 @@ import {
   useWorkspaceTradingPrefs,
   useWorkspaceViewState,
   type WorkspaceLayoutStore,
-} from "../src/composables/useWorkspaceLayout";
+} from "@/composables/workspace/useWorkspaceLayout";
 
 const VIEW_STORAGE_KEY = "jftrade.workspace.view.v1";
 const TRADING_STORAGE_KEY = "jftrade.workspace.trading.v1";

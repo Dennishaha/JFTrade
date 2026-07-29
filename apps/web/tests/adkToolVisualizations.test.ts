@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildADKToolVisualization } from "../src/composables/adkToolVisualizations";
+import { buildADKToolVisualization } from "@/composables/adk/adkToolVisualizations";
 
 describe("buildADKToolVisualization", () => {
   it("builds portfolio summary cards from known fields", () => {

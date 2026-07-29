@@ -24,7 +24,7 @@ import {
 import BacktestPage from "../src/pages/BacktestPage.vue";
 import * as backtestPresentation from "../src/components/backtest/backtestRunPresentation";
 
-vi.mock("../src/components/BacktestChart.vue", () => ({
+vi.mock("@/components/backtest/BacktestChart.vue", () => ({
   default: {
     props: ["chartType", "heikinAshiSeed"],
     template:

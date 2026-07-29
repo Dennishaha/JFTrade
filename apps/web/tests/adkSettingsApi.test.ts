@@ -34,7 +34,7 @@ import {
   testADKProvider,
   uninstallADKSkill,
   updateADKTask,
-} from "../src/composables/adkSettingsApi";
+} from "@/composables/adk/adkSettingsApi";
 import { createResponse } from "./helpers";
 
 afterEach(() => {

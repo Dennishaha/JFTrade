@@ -7,7 +7,7 @@ import { defineComponent, nextTick } from "vue";
 import type { ADKTimelineEntry } from "@/types";
 
 import ADKChatThread from "../src/components/adk-page/ADKChatThread.vue";
-import { createTimelineEntryState } from "../src/composables/adkTimeline";
+import { createTimelineEntryState } from "@/composables/adk/adkTimeline";
 
 function mountThread(
   entries: ADKTimelineEntry[],

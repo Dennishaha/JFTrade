@@ -6,7 +6,7 @@ import {
   featureEntryTitle,
   fetchProductFeature,
   instrumentIDFromFeatureEntry,
-} from "../src/composables/productFeatures";
+} from "@/composables/product/productFeatures";
 
 afterEach(() => {
   vi.unstubAllGlobals();

@@ -9,9 +9,9 @@ import BacktestChart, {
   type BacktestDrawdownPoint,
   type BacktestPnlPoint,
   type BacktestTrade,
-} from "../src/components/BacktestChart.vue";
+} from "@/components/backtest/BacktestChart.vue";
 import type { ChartType, HeikinAshiSeed } from "../src/charting/kline";
-import { provideThemeStore, type ThemeStore } from "../src/composables/useTheme";
+import { provideThemeStore, type ThemeStore } from "@/composables/settings/useTheme";
 
 const chartMocks = vi.hoisted(() => {
   const series = Array.from({ length: 6 }, () => ({

@@ -3,8 +3,8 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import SettingsPineWorkerSection from "../src/components/SettingsPineWorkerSection.vue";
-import { queryClient } from "../src/composables/serverState";
+import SettingsPineWorkerSection from "@/components/settings/SettingsPineWorkerSection.vue";
+import { queryClient } from "@/composables/settings/serverState";
 import { createResponse, flushRequests } from "./helpers";
 
 beforeEach(() => {

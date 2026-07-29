@@ -5,7 +5,7 @@ import {
   isWorkspaceProductTab,
   resolveWorkspaceProductClass,
   workspaceTabsForProduct,
-} from "../src/composables/workspaceProductTabs";
+} from "@/composables/workspace/workspaceProductTabs";
 import {
   capabilitySurfaceManifest,
   isCapabilitySurfaceID,

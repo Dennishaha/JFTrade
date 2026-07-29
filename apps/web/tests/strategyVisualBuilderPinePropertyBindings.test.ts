@@ -4,7 +4,7 @@ import type {
   StrategyVisualModelDocument,
   StrategyVisualNodeDocument,
 } from "../src/types";
-import { buildStrategyPineFromVisualModel } from "../src/features/strategyVisualBuilderPine";
+import { buildStrategyPineFromVisualModel } from "@/features/strategy-builder";
 
 function node(
   id: string,

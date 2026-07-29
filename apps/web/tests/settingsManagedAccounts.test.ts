@@ -6,7 +6,7 @@ import type {
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
-import { createSettingsManagedAccountsController } from "../src/composables/settingsManagedAccounts";
+import { createSettingsManagedAccountsController } from "@/composables/settings/settingsManagedAccounts";
 
 function createBrokerSettings(
   accounts: BrokerSettingsResponse["accounts"] = [],

@@ -9,7 +9,7 @@ import type {
 } from "@/types";
 
 import { KLINE_CHART_TYPES, type ChartType } from "../../charting/kline";
-import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
+import type { BrokerAccountSelectionOption } from "@/composables/trading/consoleDataBrokerAccountSelection";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import InstrumentSearchBox from "../domain/market-data/InstrumentSearchBox.vue";
 import StrategyRuntimeBrokerAccountPicker from "./StrategyRuntimeBrokerAccountPicker.vue";

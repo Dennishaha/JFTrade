@@ -5,7 +5,7 @@ import {
   resolveMarketDataFeedQuality,
   type MarketDataFeedQualityInput,
   type MarketDataFeedQualityState,
-} from "../src/composables/marketDataFeedQuality";
+} from "@/composables/market-data/marketDataFeedQuality";
 
 function qualityInput(
   patch: Partial<MarketDataFeedQualityInput> = {},

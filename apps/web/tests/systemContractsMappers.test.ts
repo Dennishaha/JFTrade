@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { emptySystemStatus } from "../src/types";
-import { mapBrokerSettings } from "../src/composables/brokerSettingsContract";
+import { mapBrokerSettings } from "@/composables/settings/brokerSettingsContract";
 import {
   mapFutuOpenDHealth,
   mapFutuOpenDInstallGuide,
-} from "../src/composables/futuOpenDContract";
-import { mapSystemStatus } from "../src/composables/systemStatusContract";
+} from "@/composables/market-data/futuOpenDContract";
+import { mapSystemStatus } from "@/composables/settings/systemStatusContract";
 import {
   isBrokerDescriptor,
   mapOnboardingState,
-} from "../src/composables/onboardingContract";
+} from "@/composables/settings/onboardingContract";
 
 function futuHealthWire() {
   return {

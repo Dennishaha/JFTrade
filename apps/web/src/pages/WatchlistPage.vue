@@ -12,8 +12,8 @@ import {
   useWatchlistGroups,
   useWatchlistItems,
   useWatchlistQuotes,
-} from "../composables/useWatchlist";
-import { useWorkspaceTradingPrefs } from "../composables/useWorkspaceLayout";
+} from "@/composables/watchlist/useWatchlist";
+import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
 
 const router = useRouter();
 const { prefs: tradingPrefs, update: updateTradingPrefs } =

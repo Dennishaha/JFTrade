@@ -7,7 +7,7 @@ import {
   replaceTimelineEntries,
   sortTimelineEntries,
   upsertTimelineEntry,
-} from "../src/composables/adkTimeline";
+} from "@/composables/adk/adkTimeline";
 
 describe("adkTimeline", () => {
   it("uses session history run snapshots when rebuilding timeline runs", () => {

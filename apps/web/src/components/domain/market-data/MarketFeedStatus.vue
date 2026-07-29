@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 
-import { resolveMarketDataFeedQuality } from "../../../composables/marketDataFeedQuality";
-import type { LiveSocketConnectionState } from "../../../composables/sharedLiveSocket";
+import { resolveMarketDataFeedQuality } from "@/composables/market-data/marketDataFeedQuality";
+import type { LiveSocketConnectionState } from "@/composables/market-data/sharedLiveSocket";
 import MarketStatusBadge from "./MarketStatusBadge.vue";
 
 const props = withDefaults(defineProps<{

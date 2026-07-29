@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   resumeADKChatStream,
   streamADKChat,
-} from "../src/composables/adkChatStream";
+} from "@/composables/adk/adkChatStream";
 
 afterEach(() => {
   vi.restoreAllMocks();

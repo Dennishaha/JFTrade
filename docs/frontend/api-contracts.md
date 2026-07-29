@@ -17,7 +17,7 @@
 
 - JSON 业务请求统一使用 `apiGet/apiPost/apiPut/...`；响应类型从生成的 operation 自动推导，调用方不能传入自选 `<T>`。
 - SSE 等非 envelope 协议统一使用 `apiRawRequest`，以共享鉴权、CSRF 和认证失效事件。
-- `fetch` 只允许出现在 `apps/web/src/composables/apiClient.ts`。
+- `fetch` 只允许出现在 `apps/web/src/composables/shared/apiClient.ts`。
 
 ## 生成与门禁
 

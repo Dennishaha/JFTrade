@@ -1,0 +1,293 @@
+import type { Ref } from "vue";
+
+import { type MarketDataSubscriptionsResponse } from "@/types";
+
+import { normalizeKlinePeriod } from "@/charting/kline";
+import { apiDelete, apiGetPath, apiPost } from "@/composables/shared/apiClient";
+import type {
+  MarketInstrumentReference,
+  MarketInstrumentReferenceResponse,
+} from "@/composables/market-data/marketDataContract";
+import {
+  mapMarketDataSubscriptions,
+  mapMarketInstrumentReferenceResponse,
+} from "@/composables/market-data/marketDataContract";
+
+type MarketDataChannel = "SNAPSHOT" | "KLINE" | "TICK" | "ORDER_BOOK";
+
+function createMarketDataSubscriptionInstrument(
+  market: string,
+  symbol: string,
+  channel: MarketDataChannel | undefined,
+  interval: string | undefined,
+) {
+  return {
+    market,
+    symbol,
+    channel: channel ?? "SNAPSHOT",
+    ...(interval == null
+      ? {}
+      : { interval: normalizeKlinePeriod(interval) }),
+  };
+}
+
+interface CreateConsoleDataMarketSubscriptionsControllerOptions {
+  marketDataSubscriptions: Ref<MarketDataSubscriptionsResponse>;
+  marketInstrumentReferences: Ref<MarketInstrumentReference[]>;
+  marketDataQueryMarket: Ref<string>;
+  marketDataQuerySymbol: Ref<string>;
+  isLoadingMarketData: Ref<boolean>;
+  marketDataError: Ref<string>;
+}
+
+function createRandomConsumerSuffix(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return Math.random().toString(36).slice(2);
+}
+
+const consumerWindowSegment = "window";
+const pageConsumerInstanceSuffix = createRandomConsumerSuffix();
+
+function normalizeStoredConsumerBase(scope: string, value: string | null): string {
+  const trimmed = value?.trim() ?? "";
+  if (trimmed === "") {
+    return `web:${scope}:${createRandomConsumerSuffix()}`;
+  }
+
+  const windowSegmentIndex = trimmed.indexOf(`:${consumerWindowSegment}:`);
+  if (windowSegmentIndex >= 0) {
+    return trimmed.slice(0, windowSegmentIndex);
+  }
+
+  return trimmed;
+}
+
+export function createStableWebConsumerId(scope: string): string {
+  const storageKey = `jftrade.market-data.consumer.${scope}`;
+
+  if (typeof window === "undefined" || window.sessionStorage == null) {
+    const fallback = normalizeStoredConsumerBase(scope, null);
+    return `${fallback}:${consumerWindowSegment}:${pageConsumerInstanceSuffix}`;
+  }
+
+  const consumerBase = normalizeStoredConsumerBase(
+    scope,
+    window.sessionStorage.getItem(storageKey),
+  );
+  if (window.sessionStorage.getItem(storageKey) !== consumerBase) {
+    window.sessionStorage.setItem(storageKey, consumerBase);
+  }
+
+  return `${consumerBase}:${consumerWindowSegment}:${pageConsumerInstanceSuffix}`;
+}
+
+export function createConsoleDataMarketSubscriptionsController(
+  options: CreateConsoleDataMarketSubscriptionsControllerOptions,
+) {
+  async function loadMarketInstrumentReferences(
+    query = "",
+  ): Promise<MarketInstrumentReferenceResponse> {
+    const normalizedQuery = query.trim();
+    if (normalizedQuery === "") {
+      return {
+        query: "",
+        totalReturned: options.marketInstrumentReferences.value.length,
+        entries: [...options.marketInstrumentReferences.value],
+      };
+    }
+    const params = new URLSearchParams({
+      limit: "50",
+      market: options.marketDataQueryMarket.value.trim().toUpperCase() || "HK",
+    });
+    params.set("query", normalizedQuery);
+
+    const response = mapMarketInstrumentReferenceResponse(
+      await apiGetPath(
+        "/api/v1/market-data/instruments",
+        `/api/v1/market-data/instruments?${params.toString()}`,
+      ),
+    );
+    const merged = new Map(
+      options.marketInstrumentReferences.value.map((entry) => [
+        entry.instrumentId,
+        entry,
+      ]),
+    );
+    for (const entry of response.entries) {
+      merged.set(entry.instrumentId, entry);
+    }
+    options.marketInstrumentReferences.value = [...merged.values()];
+    return response;
+  }
+
+  async function acquireMarketDataSubscription(input: {
+    consumerId: string;
+    brokerId?: string;
+    market?: string;
+    symbol?: string;
+    channel?: MarketDataChannel;
+    interval?: string;
+  }): Promise<boolean> {
+    const market = (input.market ?? options.marketDataQueryMarket.value)
+      .trim()
+      .toUpperCase();
+    const symbol = (input.symbol ?? options.marketDataQuerySymbol.value)
+      .trim()
+      .toUpperCase();
+
+    options.marketDataError.value = "";
+
+    if (market === "" || symbol === "") {
+      options.marketDataError.value =
+        "申请实时订阅前请填写市场和标的。";
+      return false;
+    }
+
+    options.isLoadingMarketData.value = true;
+
+    try {
+      options.marketDataSubscriptions.value =
+        mapMarketDataSubscriptions(
+          await apiPost("/api/v1/market-data/subscriptions", {
+              consumerId: input.consumerId,
+              ...(input.brokerId?.trim()
+                ? { providerBrokerId: input.brokerId.trim().toLowerCase() }
+                : {}),
+              instruments: [
+                createMarketDataSubscriptionInstrument(
+                  market,
+                  symbol,
+                  input.channel,
+                  input.interval,
+                ),
+              ],
+          }),
+        );
+      return true;
+    } catch (error) {
+      options.marketDataError.value =
+        error instanceof Error
+          ? error.message
+          : "行情订阅申请失败。";
+      return false;
+    } finally {
+      options.isLoadingMarketData.value = false;
+    }
+  }
+
+  async function releaseMarketDataSubscription(input: {
+    consumerId: string;
+    brokerId?: string;
+    market?: string;
+    symbol?: string;
+    channel?: MarketDataChannel;
+    interval?: string;
+    keepalive?: boolean;
+  }): Promise<void> {
+    const market = (input.market ?? options.marketDataQueryMarket.value)
+      .trim()
+      .toUpperCase();
+    const symbol = (input.symbol ?? options.marketDataQuerySymbol.value)
+      .trim()
+      .toUpperCase();
+
+    if (market === "" || symbol === "") {
+      return;
+    }
+
+    try {
+      options.marketDataSubscriptions.value =
+        mapMarketDataSubscriptions(
+          await apiPost(
+            "/api/v1/market-data/subscriptions/release",
+            {
+              consumerId: input.consumerId,
+              ...(input.brokerId?.trim()
+                ? { providerBrokerId: input.brokerId.trim().toLowerCase() }
+                : {}),
+              instruments: [
+                createMarketDataSubscriptionInstrument(
+                  market,
+                  symbol,
+                  input.channel,
+                  input.interval,
+                ),
+              ],
+            },
+            { keepalive: input.keepalive ?? false },
+          ),
+        );
+    } catch (error) {
+      options.marketDataError.value =
+        error instanceof Error
+          ? error.message
+          : "行情订阅释放失败。";
+    }
+  }
+
+  async function heartbeatMarketDataConsumer(
+    consumerId: string,
+    brokerId = "",
+  ): Promise<void> {
+    if (consumerId.trim() === "") {
+      return;
+    }
+
+    try {
+      options.marketDataSubscriptions.value =
+        mapMarketDataSubscriptions(
+          await apiPost("/api/v1/market-data/subscriptions/heartbeat", {
+              consumerId,
+              ...(brokerId.trim()
+                ? { providerBrokerId: brokerId.trim().toLowerCase() }
+                : {}),
+          }),
+        );
+    } catch (error) {
+      options.marketDataError.value =
+        error instanceof Error
+          ? error.message
+          : "行情订阅心跳失败。";
+    }
+  }
+
+  async function subscribeCurrentMarketData(): Promise<void> {
+    await acquireMarketDataSubscription({
+      consumerId: "web:manual-market-data",
+    });
+  }
+
+  async function unsubscribeAllMarketData(): Promise<void> {
+    options.marketDataError.value = "";
+    options.isLoadingMarketData.value = true;
+
+    try {
+      options.marketDataSubscriptions.value =
+        mapMarketDataSubscriptions(
+          await apiDelete("/api/v1/market-data/subscriptions"),
+        );
+    } catch (error) {
+      options.marketDataError.value =
+        error instanceof Error
+          ? error.message
+          : "清理闲置网页订阅失败。";
+    } finally {
+      options.isLoadingMarketData.value = false;
+    }
+  }
+
+  return {
+    acquireMarketDataSubscription,
+    heartbeatMarketDataConsumer,
+    loadMarketInstrumentReferences,
+    releaseMarketDataSubscription,
+    subscribeCurrentMarketData,
+    unsubscribeAllMarketData,
+  };
+}

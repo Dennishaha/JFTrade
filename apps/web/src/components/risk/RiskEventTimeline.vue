@@ -10,7 +10,7 @@ import {
   formatRealTradeEventTypeLabel,
   resolveRealTradeKillSwitchEventTagType,
   resolveRealTradeRiskEventTagType,
-} from "@/composables/consoleDataFormatting";
+} from "@/composables/shared/consoleDataFormatting";
 
 defineProps<{
   killSwitchEvents: RealTradeKillSwitchEventsResponse["entries"];

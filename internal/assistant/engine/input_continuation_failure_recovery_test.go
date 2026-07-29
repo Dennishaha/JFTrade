@@ -189,7 +189,6 @@ func TestAnsweredInputCrashRecoveryHonorsDurableRunLease(t *testing.T) {
 		defer func() { _ = runtime.Store().ReleaseRunLease(context.Background(), lease) }()
 
 		restarted := newRuntimeWithRegistry(t, runtime.Store(), NewToolRegistry())
-		time.Sleep(100 * time.Millisecond)
 		stored, ok, err := restarted.Store().Run(t.Context(), response.Run.ID)
 		if err != nil || !ok || !runHasRecoverableAnsweredInputContext(stored) {
 			t.Fatalf("foreign-owned answered run = %+v, ok=%v err=%v", stored, ok, err)
@@ -199,6 +198,10 @@ func TestAnsweredInputCrashRecoveryHonorsDurableRunLease(t *testing.T) {
 		restarted.approvalMu.Unlock()
 		if queued != 0 {
 			t.Fatalf("foreign-owned input continuation queued locally: %d", queued)
+		}
+		currentLease, active, err := restarted.Store().RunLease(t.Context(), response.Run.ID)
+		if err != nil || !active || currentLease.OwnerID != lease.OwnerID || currentLease.FencingToken != lease.FencingToken {
+			t.Fatalf("foreign continuation lease = %+v, active=%v err=%v", currentLease, active, err)
 		}
 	})
 }

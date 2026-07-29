@@ -11,3 +11,12 @@ export type PluginUninstallGuidanceDto =
 
 export type PluginBuildTupleDto =
   components["schemas"]["strategy.PluginBuildTuple"];
+
+export type PluginCompatibilityDto =
+  components["schemas"]["strategy.PluginCompatibility"];
+
+export type PluginMutationDto =
+  components["schemas"]["strategy.PluginMutationData"];
+
+export type PluginOperationDto =
+  components["schemas"]["strategy.PluginOperation"];

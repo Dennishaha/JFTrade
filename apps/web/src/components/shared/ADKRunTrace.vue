@@ -3,9 +3,9 @@ import { computed, ref, watch } from "vue";
 
 import type { ADKRun } from "@/types";
 
-import type { ADKToolVisualization as ADKToolVisualizationModel } from "../../composables/adkToolVisualizations";
-import { buildADKToolVisualization } from "../../composables/adkToolVisualizations";
-import { formatGenericStatusLabel } from "../../composables/consoleDataFormatting";
+import type { ADKToolVisualization as ADKToolVisualizationModel } from "@/composables/adk/adkToolVisualizations";
+import { buildADKToolVisualization } from "@/composables/adk/adkToolVisualizations";
+import { formatGenericStatusLabel } from "@/composables/shared/consoleDataFormatting";
 import {
   firstFailedToolCall,
   isActiveRunStatus,
@@ -14,7 +14,7 @@ import {
   runStatusTone,
   runTerminalMessage,
   toolCallErrorSummary,
-} from "../../composables/adkChatPresentation";
+} from "@/composables/adk/adkChatPresentation";
 import ADKToolVisualization from "./ADKToolVisualization.vue";
 
 const TOOL_CALL_RENDER_WINDOW = 80;

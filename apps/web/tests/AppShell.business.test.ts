@@ -54,27 +54,27 @@ const testState = vi.hoisted(() => ({
   notificationReducerDispose: vi.fn(),
 }));
 
-vi.mock("../src/composables/useNotifications", () => ({
+vi.mock("@/composables/shared/useNotifications", () => ({
   provideNotificationsStore: () => testState.notificationsStore,
 }));
 
-vi.mock("../src/composables/useWorkspaceLayout", () => ({
+vi.mock("@/composables/workspace/useWorkspaceLayout", () => ({
   provideWorkspaceLayoutStore: () => testState.workspaceLayoutStore,
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   provideConsoleDataStore: () => testState.consoleStore,
 }));
 
-vi.mock("../src/composables/useSharedLiveStream", () => ({
+vi.mock("@/composables/market-data/useSharedLiveStream", () => ({
   provideLiveStreamStore: () => testState.liveStore,
 }));
 
-vi.mock("../src/composables/useDocsLink", () => ({
+vi.mock("@/composables/shared/useDocsLink", () => ({
   useDocsLink: () => testState.docsLink,
 }));
 
-vi.mock("../src/composables/liveEventBus", () => ({
+vi.mock("@/composables/market-data/liveEventBus", () => ({
   getLiveEventBus: () => ({
     subscribe: (handler: (event: any) => void) => {
       testState.liveEventHandler = handler;
@@ -83,7 +83,7 @@ vi.mock("../src/composables/liveEventBus", () => ({
   }),
 }));
 
-vi.mock("../src/composables/liveEventReducers", () => ({
+vi.mock("@/composables/market-data/liveEventReducers", () => ({
   createMarketDataLiveReducer: () => ({
     handle: () => false,
     dispose: testState.marketReducerDispose,
@@ -95,11 +95,11 @@ vi.mock("../src/composables/liveEventReducers", () => ({
   formatLiveEventTypeLabel: (type: string) => `label:${type}`,
 }));
 
-vi.mock("../src/composables/useTheme", () => ({
+vi.mock("@/composables/settings/useTheme", () => ({
   provideThemeStore: () => ({ theme: ref("light") }),
 }));
 
-vi.mock("../src/composables/useUIColorPreferences", () => ({
+vi.mock("@/composables/settings/useUIColorPreferences", () => ({
   provideUIColorPreferencesStore: () => undefined,
 }));
 

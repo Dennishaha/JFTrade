@@ -12,12 +12,12 @@ import PositionsPanel from "../components/workspace/PositionsPanel.vue";
 import SplitPane from "../components/shared/SplitPane.vue";
 import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
 import InstrumentOverviewPanel from "../components/workspace/InstrumentOverviewPanel.vue";
-import { useOptionComboDraftStore } from "../composables/optionComboDraft";
+import { useOptionComboDraftStore } from "@/composables/product/optionComboDraft";
 import {
   useWorkspaceTradingPrefs,
   useWorkspaceViewState,
   type WorkspacePaneSizeKey,
-} from "../composables/useWorkspaceLayout";
+} from "@/composables/workspace/useWorkspaceLayout";
 
 const { prefs, update } = useWorkspaceViewState();
 const { prefs: tradingPrefs } = useWorkspaceTradingPrefs();

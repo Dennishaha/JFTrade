@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useWorkspaceViewState } from "../composables/useWorkspaceLayout";
+import { useWorkspaceViewState } from "@/composables/workspace/useWorkspaceLayout";
 import AiAssistantPanel from "./AiAssistantPanel.vue";
 import NotificationCenter from "./NotificationCenter.vue";
 

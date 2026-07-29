@@ -5,7 +5,7 @@ import type {
   OptionComboLegDraft,
   OptionComboSide,
   OptionContractChoice,
-} from "../../composables/optionComboDraft";
+} from "@/composables/product/optionComboDraft";
 
 defineProps<{
   legs: OptionComboLegDraft[];

@@ -8,9 +8,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn() }));
-vi.mock("../../src/composables/productFeatures", async (importOriginal) => {
+vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../src/composables/productFeatures")>();
+    await importOriginal<typeof import("@/composables/product/productFeatures")>();
   return { ...actual, fetchProductFeature: mocks.fetch };
 });
 

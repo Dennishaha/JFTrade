@@ -36,7 +36,7 @@ test("sanctions only the generated contract boundary and exact client infrastruc
     true,
   );
   assert.equal(
-    isOpenAPIImportInfrastructure("apps/web/src/composables/apiClient.ts"),
+    isOpenAPIImportInfrastructure("apps/web/src/composables/shared/apiClient.ts"),
     true,
   );
   assert.equal(
@@ -45,6 +45,10 @@ test("sanctions only the generated contract boundary and exact client infrastruc
   );
   assert.equal(
     isOpenAPIImportInfrastructure("apps/web/src/components/apiClient.ts"),
+    false,
+  );
+  assert.equal(
+    isOpenAPIImportInfrastructure("apps/web/src/composables/apiClient.ts"),
     false,
   );
 });
@@ -93,4 +97,14 @@ test("requires normalized debt entries with concrete migration reasons", () => {
   assert.ok(parsed.failures.some((failure) => failure.includes("normalized")));
   assert.ok(parsed.failures.some((failure) => failure.includes("concrete migration reason")));
   assert.ok(parsed.failures.some((failure) => failure.includes("must not be allowlisted")));
+});
+
+test("accepts an empty legacy manifest after all consumers migrate", () => {
+  const parsed = parseOpenAPIImportAllowlist({
+    version: 1,
+    legacyDirectImports: {},
+  });
+
+  assert.deepEqual([...parsed.entries], []);
+  assert.deepEqual(parsed.failures, []);
 });

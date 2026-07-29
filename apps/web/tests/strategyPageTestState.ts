@@ -1,7 +1,7 @@
 import type { SystemStatusResponse } from "@/types"
 import { emptySystemStatus } from "@/types"
 
-import type { provideConsoleDataStore } from "../src/composables/useConsoleData"
+import type { provideConsoleDataStore } from "@/composables/workspace/useConsoleData"
 
 let currentStrategySystemStatus: SystemStatusResponse = emptySystemStatus
 let currentConsoleDataStore: ReturnType<typeof provideConsoleDataStore> | null = null

@@ -20,7 +20,7 @@ argument-hint: '说明要做的架构决策或要拆分的模块（如“新增 
 
 ## 五条核心准则（先记这些）
 
-1. **核心层零 UI、零资源、零本地化依赖。** StockSharp 的 `Messages`→`BusinessEntities`→`Algo` 严格不依赖 UI/Media/Localization；这些横切关注点各自独立成包。对应 JFTrade：`pkg/futu`、回测、策略 runtime 不得 import 任何前端/展示逻辑；中文标签转换只允许待在 `apps/web/src/composables/consoleDataFormatting.ts`。
+1. **核心层零 UI、零资源、零本地化依赖。** StockSharp 的 `Messages`→`BusinessEntities`→`Algo` 严格不依赖 UI/Media/Localization；这些横切关注点各自独立成包。对应 JFTrade：`pkg/futu`、回测、策略 runtime 不得 import 任何前端/展示逻辑；中文标签转换只允许待在 `apps/web/src/composables/shared/consoleDataFormatting.ts`。
 2. **适配器只做协议翻译，业务逻辑由统一外壳层托管。** StockSharp 的 `XxxMessageAdapter` 只把消息翻译成交易所 API；风控/滑点/订阅生命周期/重连恢复/多券商聚合由上层 `Connector` + `BasketMessageAdapter` 统一托管——**外壳层只有一份，适配器有 N 份**。对应 JFTrade：`pkg/futu` 只负责 OpenD 协议映射；订阅调度、实时/HTTP 混合采样、通知收束等控制逻辑属于 `pkg/jftradeapi` sidecar。**JFTrade 将走向多适配器，必须从现在起把"外壳层"与"适配器"显式分开**，详见 [统一外壳层模式](./references/adapter-shell-pattern.md)。
 3. **能力显式声明，不支持就显式暴露，绝不伪实现。** StockSharp 用 `AddMarketDataSupport()` / `RemoveSupportedMessage()` / `NotSupportedResultMessages` 声明能力。对应 JFTrade 已有原则：不支持的交易所能力返回 `ErrNotSupported`，而非假装成功。新增能力时同步更新声明，别让调用方靠试错发现。
 4. **回测与实盘共享同一套接口，回测专属件清晰隔离。** StockSharp 让 `HistoryMessageAdapter`/`EmulationMessageAdapter` 实现与实盘相同的 `MessageAdapter` 契约，策略代码零改动即可在两种模式跑。对应 JFTrade：回测走 bbgo `backtest.Exchange`，与实盘 `futu.Exchange` 复用同一策略 runtime；回测专属（SQLite 存储、同步、撮合假设）集中在 `pkg/futu/backtest`，不要渗进实盘路径。

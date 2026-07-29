@@ -10,10 +10,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { defineComponent, h } from "vue";
 
 import WatchlistPanel from "../src/components/workspace/InstrumentOverviewPanel.vue";
-import type { MarketDataSnapshotQueryResult } from "../src/composables/marketDataRealtime";
-import { useMarketProfiles } from "../src/composables/marketProfiles";
-import { provideConsoleDataStore } from "../src/composables/useConsoleData";
-import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout";
+import type { MarketDataSnapshotQueryResult } from "@/composables/market-data/marketDataRealtime";
+import { useMarketProfiles } from "@/composables/market-data/marketProfiles";
+import { provideConsoleDataStore } from "@/composables/workspace/useConsoleData";
+import { provideWorkspaceLayoutStore } from "@/composables/workspace/useWorkspaceLayout";
 
 afterEach(() => {
   window.localStorage?.clear();

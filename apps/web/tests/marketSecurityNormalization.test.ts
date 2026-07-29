@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeMarketSecurityDetailsQueryResult } from "../src/composables/marketSecurityNormalization";
+import { normalizeMarketSecurityDetailsQueryResult } from "@/composables/market-data/marketSecurityNormalization";
 
 describe("normalizeMarketSecurityDetailsQueryResult", () => {
   it("normalizes nested market security number fields across detail blocks", () => {

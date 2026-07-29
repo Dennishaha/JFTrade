@@ -2,8 +2,8 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { RouterView, useRoute } from "vue-router";
 
-import AuthGate from "./components/AuthGate.vue";
-import { WEB_AUTH_REQUIRED_EVENT } from "./composables/apiClient";
+import AuthGate from "@/components/auth/AuthGate.vue";
+import { WEB_AUTH_REQUIRED_EVENT } from "@/composables/shared/apiClient";
 import AppShell from "./layout/AppShell.vue";
 import { resolveAuthRequired, resolveDesktopMode } from "./runtimeConfig";
 

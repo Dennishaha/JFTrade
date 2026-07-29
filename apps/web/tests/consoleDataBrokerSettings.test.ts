@@ -9,9 +9,9 @@ import {
   emptySystemStatus,
   type BrokerSettingsResponse,
 } from "../src/types";
-import { buildBrokerAccountSelectionKey } from "../src/composables/consoleDataBrokerAccountSelection";
-import { createConsoleDataBrokerSettingsController } from "../src/composables/consoleDataBrokerSettings";
-import type { WorkspaceTradingPreferences } from "../src/composables/useWorkspaceLayout";
+import { buildBrokerAccountSelectionKey } from "@/composables/trading/consoleDataBrokerAccountSelection";
+import { createConsoleDataBrokerSettingsController } from "@/composables/settings/consoleDataBrokerSettings";
+import type { WorkspaceTradingPreferences } from "@/composables/workspace/useWorkspaceLayout";
 import { createResponse } from "./helpers";
 
 afterEach(() => {

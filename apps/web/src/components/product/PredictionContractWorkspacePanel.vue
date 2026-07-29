@@ -4,16 +4,16 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import {
   apiDeletePath,
   apiPostPath,
-} from "../../composables/apiClient";
+} from "@/composables/shared/apiClient";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
-} from "../../composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 import {
   fetchProductFeature,
   type ProductFeatureResult,
-} from "../../composables/productFeatures";
-import { useConsoleData } from "../../composables/useConsoleData";
+} from "@/composables/product/productFeatures";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
 
 type PredictionView = "contract" | "depth" | "chart" | "ticks" | "rules";
 type Entry = Record<string, unknown>;

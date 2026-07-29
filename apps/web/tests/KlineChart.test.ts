@@ -4,11 +4,11 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick, ref } from "vue";
 
-import KlineChart from "../src/components/KlineChart.vue";
+import KlineChart from "@/components/domain/market-data/KlineChart.vue";
 import type { KlineIndicatorKey } from "../src/charting/kline";
 import { lightweightChartsKlineFactory } from "../src/charting/lightweightChartsKline";
-import { provideUIColorPreferencesStore } from "../src/composables/useUIColorPreferences";
-import { provideThemeStore } from "../src/composables/useTheme";
+import { provideUIColorPreferencesStore } from "@/composables/settings/useUIColorPreferences";
+import { provideThemeStore } from "@/composables/settings/useTheme";
 
 const chartMocks = vi.hoisted(() => {
   // Persistent per-role setData spies, shared across series recreations.

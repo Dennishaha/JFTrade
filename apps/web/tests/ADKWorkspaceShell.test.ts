@@ -24,13 +24,13 @@ vi.mock("mermaid", () => ({
 
 let currentControllerState: ReturnType<typeof buildControllerState>;
 
-vi.mock("../src/composables/useADKMarkdownRenderer", () => ({
+vi.mock("@/composables/adk/useADKMarkdownRenderer", () => ({
   useADKMarkdownRenderer: () => ({
     renderMarkdown: (value: string) => value,
   }),
 }));
 
-vi.mock("../src/composables/useADKPageController", () => ({
+vi.mock("@/composables/adk/useADKPageController", () => ({
   useADKPageController: () => currentControllerState,
 }));
 

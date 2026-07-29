@@ -1,7 +1,7 @@
 import { computed, isRef, ref, watch, type Ref } from "vue";
 
-import { apiPostPath } from "../../composables/apiClient";
-import { withBrokerProvider } from "../../composables/brokerProviderSelection";
+import { apiPostPath } from "@/composables/shared/apiClient";
+import { withBrokerProvider } from "@/composables/trading/brokerProviderSelection";
 
 export type ResearchInstrumentIdsSource = Ref<string[]> | (() => string[]);
 

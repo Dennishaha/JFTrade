@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { formatGenericStatusLabel } from "../../composables/consoleDataFormatting";
+import { formatGenericStatusLabel } from "@/composables/shared/consoleDataFormatting";
 import {
   type ADKChildRunQueueItem,
-} from "../../composables/useADKWorkflowQueueState";
+} from "@/composables/adk/useADKWorkflowQueueState";
 import ADKChildRunTrace from "../shared/ADKChildRunTrace.vue";
 import ADKQueuePanel from "./ADKQueuePanel.vue";
 

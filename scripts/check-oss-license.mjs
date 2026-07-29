@@ -78,7 +78,7 @@ for (const needle of [
   requireText(licenseDoc, needle, "docs/legal/license.md");
 }
 
-const legalUI = read("apps/web/src/components/SettingsOpenSourceSection.vue");
+const legalUI = read("apps/web/src/components/settings/SettingsOpenSourceSection.vue");
 for (const needle of [
   COPYRIGHT_NOTICE,
   PROJECT_LICENSE,

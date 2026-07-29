@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   apiPut: vi.fn(),
 }));
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   apiGet: mocks.apiGet,
   apiPut: mocks.apiPut,
 }));
@@ -14,7 +14,7 @@ import {
   defaultPineWorkerSettings,
   getPineWorkerSettings,
   putPineWorkerSettings,
-} from "../src/composables/pineWorkerSettings";
+} from "@/composables/settings/pineWorkerSettings";
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -101,16 +101,12 @@ func TestScreenPresetRoutesValidatePayloadAndUnavailableStore(t *testing.T) {
 	if v1.Code != http.StatusBadRequest {
 		t.Fatalf("V1 payload status=%d body=%s", v1.Code, v1.Body.String())
 	}
-}
-
-func TestResearchOpenAPIDocumentationStubs(t *testing.T) {
-	t.Parallel()
-
-	documentListScreenPresets()
-	documentCreateScreenPreset()
-	documentGetScreenPreset()
-	documentUpdateScreenPreset()
-	documentDeleteScreenPreset()
+	invalidUpdate := performRequest(
+		t, router, http.MethodPatch, "/api/v1/research/screens/presets/missing", `{"name":`,
+	)
+	if invalidUpdate.Code != http.StatusBadRequest {
+		t.Fatalf("invalid PATCH status=%d body=%s", invalidUpdate.Code, invalidUpdate.Body.String())
+	}
 }
 
 func performRequest(t *testing.T, router http.Handler, method, path, body string) *httptest.ResponseRecorder {

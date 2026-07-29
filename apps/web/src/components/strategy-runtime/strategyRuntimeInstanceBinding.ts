@@ -14,8 +14,8 @@ import { normalizeChartType, type ChartType } from "../../charting/kline";
 import {
     buildBrokerAccountSelectionKey,
     type BrokerAccountSelectionOption,
-} from "../../composables/consoleDataBrokerAccountSelection";
-import { formatUserMarketLabel } from "../../composables/instrumentPresentation";
+} from "@/composables/trading/consoleDataBrokerAccountSelection";
+import { formatUserMarketLabel } from "@/composables/market-data/instrumentPresentation";
 
 export function normalizeText(value: unknown): string {
     return typeof value === "string" ? value.trim() : "";

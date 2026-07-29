@@ -41,7 +41,7 @@ import {
   stopLossRuleLabel,
   stopLossTimeUnitLabel,
   stopLossWindowPolicyLabel,
-} from "../src/features/strategyVisualBuilderCatalog";
+} from "@/features/strategy-builder";
 import {
   buildAtrIndicatorKey,
   buildBollingerIndicatorKey,
@@ -74,7 +74,7 @@ import {
   toConsoleLogArgument,
   toScriptMessage,
   type StrategyScriptRuntimeFlags,
-} from "../src/features/strategyVisualBuilderScriptSupport";
+} from "@/features/strategy-builder";
 
 const noRuntimeFlags: StrategyScriptRuntimeFlags = {
   usesMovingAverageRuntime: false,

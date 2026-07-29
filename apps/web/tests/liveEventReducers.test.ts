@@ -5,8 +5,8 @@ import {
   createMarketDataLiveReducer,
   createNotificationLiveReducer,
   formatLiveEventTypeLabel,
-} from "../src/composables/liveEventReducers";
-import { getLiveEventBus, resetLiveEventBusForTests } from "../src/composables/liveEventBus";
+} from "@/composables/market-data/liveEventReducers";
+import { getLiveEventBus, resetLiveEventBusForTests } from "@/composables/market-data/liveEventBus";
 import { createLiveEnvelope } from "./helpers";
 
 afterEach(() => {

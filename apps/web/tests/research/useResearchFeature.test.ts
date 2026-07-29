@@ -7,16 +7,16 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
 }));
 
-vi.mock("../../src/composables/productFeatures", async (importOriginal) => {
+vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../src/composables/productFeatures")>();
+    await importOriginal<typeof import("@/composables/product/productFeatures")>();
   return { ...actual, fetchProductFeature: mocks.fetch };
 });
 
 import {
   researchFeaturePaths,
   useResearchFeature,
-} from "../../src/composables/useResearchFeature";
+} from "@/composables/research/useResearchFeature";
 import { flushPromises } from "../productTestUtils";
 
 function featureResult(

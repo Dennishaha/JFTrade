@@ -5,7 +5,7 @@ import {
   createWebHistory,
 } from "vue-router";
 
-import OobeOverlay from "./components/OobeOverlay.vue";
+import OobeOverlay from "@/components/app-shell/OobeOverlay.vue";
 
 export function createConsoleRouter(
   history: RouterHistory = createWebHistory(),

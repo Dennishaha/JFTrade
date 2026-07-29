@@ -19,7 +19,7 @@ const marketProfilesState = vi.hoisted(() => ({
 let consoleDataState: ReturnType<typeof createConsoleDataState>;
 let workspacePrefsState: { prefs: ReturnType<typeof ref<{ market: string; symbol: string }>> };
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   apiGet: () => Promise.resolve({ groups: [] }),
   apiGetPath: (template: string, path: string) => {
     if (template === "/api/v1/brokers/{brokerId}/margin-ratios") {
@@ -41,11 +41,11 @@ vi.mock("../src/composables/apiClient", () => ({
     Promise.resolve({ instrumentId: "", revision: 0, groups: [] }),
 }));
 
-vi.mock("../src/composables/consoleDataBrokerAccountSelection", () => ({
+vi.mock("@/composables/trading/consoleDataBrokerAccountSelection", () => ({
   resolveBrokerQuery: (...args: unknown[]) => mocks.resolveBrokerQuery(...args),
 }));
 
-vi.mock("../src/composables/marketProfiles", () => ({
+vi.mock("@/composables/market-data/marketProfiles", () => ({
   useMarketProfiles: () => ({
     marketProfiles: ref([]),
     pricePrecisionForMarket: (market: string | null | undefined) =>
@@ -57,11 +57,11 @@ vi.mock("../src/composables/marketProfiles", () => ({
   }),
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => consoleDataState,
 }));
 
-vi.mock("../src/composables/useWorkspaceLayout", () => ({
+vi.mock("@/composables/workspace/useWorkspaceLayout", () => ({
   useWorkspaceTradingPrefs: () => workspacePrefsState,
 }));
 

@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { StrategyDefinitionDocument } from "@/types";
-import StrategyRuntimePanel from "../src/components/StrategyRuntimePanel.vue";
+import StrategyRuntimePanel from "@/components/strategy-runtime/StrategyRuntimePanel.vue";
 import { PINE_WORKER_RUNTIME } from "../src/components/strategy-runtime/strategyRuntimeIdentity";
 import {
   MockWebSocket,

@@ -8,7 +8,7 @@ import {
   readResearchViewState,
   researchPaneBoundsForWidth,
   writeResearchViewState,
-} from "../../src/composables/useResearchViewState";
+} from "@/composables/research/useResearchViewState";
 
 afterEach(() => {
   window.localStorage.clear();

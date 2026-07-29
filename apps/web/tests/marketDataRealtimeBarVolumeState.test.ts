@@ -5,7 +5,7 @@ import {
   resolveMarketDataBarVolumeUpdate,
   type MarketDataRealtimeBarVolumeState,
   type MarketDataRealtimeBarVolumeUpdateInput,
-} from "../src/composables/marketDataRealtimeBarVolumeState";
+} from "@/composables/market-data/marketDataRealtimeBarVolumeState";
 
 function update(
   previousState: MarketDataRealtimeBarVolumeState | null,

@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent, reactive } from "vue";
 import { describe, expect, it, vi } from "vitest";
 
-import SettingsManagedAccountsSection from "../src/components/SettingsManagedAccountsSection.vue";
+import SettingsManagedAccountsSection from "@/components/settings/SettingsManagedAccountsSection.vue";
 
 const sectionHeaderStub = defineComponent({
   props: ["title", "description"],

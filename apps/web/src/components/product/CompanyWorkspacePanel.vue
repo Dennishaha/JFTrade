@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import { productCompactMenuProps } from "../../composables/productControlDensity";
+import { productCompactMenuProps } from "@/composables/product/productControlDensity";
 import ProductFeaturePanel from "./ProductFeaturePanel.vue";
 
 type CompanySection =

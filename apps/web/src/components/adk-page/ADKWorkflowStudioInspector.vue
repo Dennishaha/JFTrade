@@ -5,7 +5,7 @@ import type {
   ADKWorkflowTriggerLog,
 } from "@/types";
 import type { FlowNodeData } from "@/features/adkWorkflowStudio";
-import type { PageEnvelope } from "@/composables/adkWorkflowsApi";
+import type { PageEnvelope } from "@/composables/adk/adkWorkflowsApi";
 import type {
   TriggerFormModel,
   WorkflowFormModel,

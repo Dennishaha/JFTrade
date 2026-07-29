@@ -4,8 +4,8 @@ import { computed, defineComponent, h, nextTick, ref } from "vue";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { BacktestFormState } from "../src/composables/useBacktestRuns";
-import { queryClient, queryKeys } from "../src/composables/serverState";
+import type { BacktestFormState } from "@/composables/backtest/useBacktestRuns";
+import { queryClient, queryKeys } from "@/composables/settings/serverState";
 
 const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
@@ -30,14 +30,14 @@ const {
   syncError,
 } = mocks;
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   apiGet: mocks.apiGet,
   apiGetPath: mocks.apiGetPath,
   apiDeletePath: mocks.apiDeletePath,
   apiPost: mocks.apiPost,
 }));
 
-vi.mock("../src/composables/useKlineSyncTask", () => ({
+vi.mock("@/composables/market-data/useKlineSyncTask", () => ({
   useKlineSyncTask: () => ({
     syncing: mocks.syncing,
     syncProgress: mocks.syncProgress,
@@ -50,7 +50,7 @@ vi.mock("../src/composables/useKlineSyncTask", () => ({
 import {
   toBacktestStartRequestWire,
   useBacktestRuns,
-} from "../src/composables/useBacktestRuns";
+} from "@/composables/backtest/useBacktestRuns";
 
 const baseForm: BacktestFormState = {
   definitionId: "def-1",

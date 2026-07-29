@@ -4,7 +4,7 @@ import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick } from "vue";
 
-import { provideCommandPaletteStore } from "../src/composables/useCommandPalette";
+import { provideCommandPaletteStore } from "@/composables/workspace/useCommandPalette";
 import CommandPalette from "../src/layout/CommandPalette.vue";
 
 const wrappers: VueWrapper[] = [];

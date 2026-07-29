@@ -4,7 +4,7 @@ import {
   usePredictionResearch,
   type PredictionResearchEmit,
   type PredictionResearchProps,
-} from "../../composables/usePredictionResearch";
+} from "@/composables/research/usePredictionResearch";
 
 const props = withDefaults(defineProps<PredictionResearchProps>(), {
   presentation: "workspace",

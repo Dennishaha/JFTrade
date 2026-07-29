@@ -16,14 +16,14 @@ import ADKSessionSidebar from "./ADKSessionSidebar.vue";
 import ADKWorkflowPlanPanel from "./ADKWorkflowPlanPanel.vue";
 import SplitPane from "../shared/SplitPane.vue";
 import SplitPaneItem from "../shared/SplitPaneItem.vue";
-import { useADKMarkdownRenderer } from "../../composables/useADKMarkdownRenderer";
-import { useADKPageController } from "../../composables/useADKPageController";
+import { useADKMarkdownRenderer } from "@/composables/adk/useADKMarkdownRenderer";
+import { useADKPageController } from "@/composables/adk/useADKPageController";
 import {
   useADKMermaidRenderer,
   useADKResponsiveLayout,
   useADKTimelineWindow,
   resolveADKWorkspacePaneSizes,
-} from "../../composables/useADKWorkspacePresentation";
+} from "@/composables/adk/useADKWorkspacePresentation";
 import type { SplitpanesResizedPayload } from "splitpanes";
 
 const props = withDefaults(

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { useCommandPalette } from "../composables/useCommandPalette";
+import { useCommandPalette } from "@/composables/workspace/useCommandPalette";
 
 const { open, actions, hide } = useCommandPalette();
 

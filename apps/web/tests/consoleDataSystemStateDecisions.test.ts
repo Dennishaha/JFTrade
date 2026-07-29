@@ -9,7 +9,7 @@ import {
 import {
   resolveConsoleDataBrokerLiveSelection,
   resolveConsoleDataExecutionSelection,
-} from "../src/composables/consoleDataSystemStateDecisions";
+} from "@/composables/settings/consoleDataSystemStateDecisions";
 
 describe("consoleDataSystemStateDecisions", () => {
   it("uses the selected account broker and pauses futu reads when runtime is degraded", () => {

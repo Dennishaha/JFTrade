@@ -11,7 +11,7 @@ const defaultAllowlist = "scripts/web-openapi-import-allowlist.json";
 const sourceRoots = ["apps/web/src", "apps/web/tests"];
 const sourceExtensions = new Set([".js", ".jsx", ".ts", ".tsx", ".vue"]);
 const exactInfrastructureFiles = new Set([
-  "apps/web/src/composables/apiClient.ts",
+  "apps/web/src/composables/shared/apiClient.ts",
   "apps/web/tests/contractsModularization.test.ts",
 ]);
 
@@ -140,7 +140,7 @@ function main() {
 
   const infrastructureCount = directImports.length - result.currentDebt.length;
   console.log(
-    `Web OpenAPI import boundary passed: ${result.currentDebt.length} frozen legacy consumer(s), ` +
+    `Web OpenAPI import boundary passed: ${result.currentDebt.length} legacy consumer(s), ` +
       `${infrastructureCount} sanctioned infrastructure file(s); baseline ${base}.`,
   );
 }

@@ -14,18 +14,18 @@ const riskMocks = vi.hoisted(() => ({
   store: null as null | Record<string, unknown>,
 }));
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   apiGet: (...args: unknown[]) => riskMocks.apiGet(...args),
   apiPost: (...args: unknown[]) => riskMocks.apiPost(...args),
   apiPostPath: (...args: unknown[]) => riskMocks.apiPostPath(...args),
   apiPutPath: (...args: unknown[]) => riskMocks.apiPutPath(...args),
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => riskMocks.store,
 }));
 
-vi.mock("../src/composables/useRuntimeRiskConfig", () => ({
+vi.mock("@/composables/trading/useRuntimeRiskConfig", () => ({
   useRuntimeRiskConfig: () => ({
     disableRuntimeRiskConfig: riskMocks.disableRuntimeRiskConfig,
     saveRuntimeRiskConfig: riskMocks.saveRuntimeRiskConfig,

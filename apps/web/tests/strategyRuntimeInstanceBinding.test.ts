@@ -5,8 +5,8 @@ import type {
 
 import { describe, expect, it } from "vitest";
 
-import type { BrokerAccountSelectionOption } from "../src/composables/consoleDataBrokerAccountSelection";
-import { buildBrokerAccountSelectionKey } from "../src/composables/consoleDataBrokerAccountSelection";
+import type { BrokerAccountSelectionOption } from "@/composables/trading/consoleDataBrokerAccountSelection";
+import { buildBrokerAccountSelectionKey } from "@/composables/trading/consoleDataBrokerAccountSelection";
 import {
   bindingInstrumentsToSymbols,
   brokerAccountOptionSubtitle,

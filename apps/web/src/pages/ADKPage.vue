@@ -5,7 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import type { ADKAgent, ADKProvider } from "@/types";
 
 import ADKWorkspaceShell from "../components/adk-page/ADKWorkspaceShell.vue";
-import { fetchADKPageSessionData } from "../composables/adkPageSessionApi";
+import { fetchADKPageSessionData } from "@/composables/adk/adkPageSessionApi";
 import { formatLocalDateTime } from "../utils/dateTime";
 
 type ADKPageView = "agents" | "workflows";

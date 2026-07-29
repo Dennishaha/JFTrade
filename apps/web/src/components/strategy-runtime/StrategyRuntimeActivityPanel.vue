@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import type { StrategyAuditEntryDocument } from "@/contracts";
 
-import MonacoCodeEditor from "../MonacoCodeEditor.vue";
+import MonacoCodeEditor from "@/components/shared/MonacoCodeEditor.vue";
 import {
     buildAuditActivityDetail,
     buildLogActivityDetail,

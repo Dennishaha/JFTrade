@@ -2,17 +2,17 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import { useConsoleData } from "../../composables/useConsoleData";
-import { useBrokerProviderSelection } from "../../composables/brokerProviderSelection";
-import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
-import { resolveProductUnderlying } from "../../composables/productUnderlying";
-import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
+import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
+import { getSharedLiveSocketHub } from "@/composables/market-data/sharedLiveSocket";
+import { resolveProductUnderlying } from "@/composables/product/productUnderlying";
+import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
 import {
   isWorkspaceProductTab,
   resolveWorkspaceProductClass,
   workspaceTabsForProduct,
   type WorkspaceProductTab,
-} from "../../composables/workspaceProductTabs";
+} from "@/composables/workspace/workspaceProductTabs";
 import CompanyWorkspacePanel from "../product/CompanyWorkspacePanel.vue";
 import BrokerProviderTag from "../shared/BrokerProviderTag.vue";
 import NewsWorkspacePanel from "../product/NewsWorkspacePanel.vue";

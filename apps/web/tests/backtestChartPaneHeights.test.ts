@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveBacktestChartPaneHeights } from "../src/components/backtestChartPaneHeights";
+import { resolveBacktestChartPaneHeights } from "@/components/backtest/backtestChartPaneHeights";
 
 describe("resolveBacktestChartPaneHeights", () => {
   it("distributes normal chart height across four panes without drift", () => {

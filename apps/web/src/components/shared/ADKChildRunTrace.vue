@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { formatGenericStatusLabel } from "../../composables/consoleDataFormatting";
+import { formatGenericStatusLabel } from "@/composables/shared/consoleDataFormatting";
 import {
   runErrorSummary,
-} from "../../composables/adkChatPresentation";
+} from "@/composables/adk/adkChatPresentation";
 import {
   type ADKChildRunQueueItem,
   workflowQueueTone,
-} from "../../composables/useADKWorkflowQueueState";
+} from "@/composables/adk/useADKWorkflowQueueState";
 
 const props = withDefaults(
   defineProps<{

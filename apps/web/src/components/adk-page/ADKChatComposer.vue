@@ -6,7 +6,7 @@ import {
   useADKChatComposer,
   type ADKChatComposerEmit,
   type ADKChatComposerProps,
-} from "../../composables/useADKChatComposer";
+} from "@/composables/adk/useADKChatComposer";
 import ADKComposerControls from "./ADKComposerControls.vue";
 import ADKComposerGoalEditor from "./ADKComposerGoalEditor.vue";
 import ADKComposerInput from "./ADKComposerInput.vue";

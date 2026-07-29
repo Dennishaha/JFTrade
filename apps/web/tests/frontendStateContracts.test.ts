@@ -7,13 +7,13 @@ import { defineComponent, h, nextTick } from "vue";
 import {
   provideCommandPaletteStore,
   useCommandPalette,
-} from "../src/composables/useCommandPalette";
-import { queryKeys } from "../src/composables/serverState";
+} from "@/composables/workspace/useCommandPalette";
+import { queryKeys } from "@/composables/settings/serverState";
 import {
   provideThemeStore,
   useTheme,
-} from "../src/composables/useTheme";
-import { readLocalStorage } from "../src/composables/safeStorage";
+} from "@/composables/settings/useTheme";
+import { readLocalStorage } from "@/composables/shared/safeStorage";
 
 afterEach(() => {
   vi.restoreAllMocks();

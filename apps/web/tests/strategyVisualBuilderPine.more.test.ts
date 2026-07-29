@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { StrategyVisualModelDocument, StrategyVisualNodeDocument } from "@/types";
 
-import { buildStrategyPineFromVisualModel } from "../src/features/strategyVisualBuilderPine";
+import { buildStrategyPineFromVisualModel } from "@/features/strategy-builder";
 
 function node(
   id: string,

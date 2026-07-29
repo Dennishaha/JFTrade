@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useBacktestPageContext } from "../../composables/useBacktestPage";
+import { useBacktestPageContext } from "@/composables/backtest/useBacktestPage";
 
 const {
   activateComparisonMode,

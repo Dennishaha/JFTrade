@@ -6,8 +6,8 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import { defineComponent, h, nextTick } from "vue";
 
 import ResearchPage from "../../src/pages/ResearchPage.vue";
-import { provideWorkspaceTradingPreferencesStore } from "../../src/composables/useWorkspaceLayout";
-import { provideConsoleDataStore } from "../../src/composables/useConsoleData";
+import { provideWorkspaceTradingPreferencesStore } from "@/composables/workspace/useWorkspaceLayout";
+import { provideConsoleDataStore } from "@/composables/workspace/useConsoleData";
 import { flushPromises, productGlobalStubs } from "../productTestUtils";
 
 const viewStub = (name: string) =>

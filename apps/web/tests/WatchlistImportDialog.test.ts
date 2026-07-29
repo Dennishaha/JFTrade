@@ -4,7 +4,7 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, ref } from "vue";
 
-import { queryClient } from "../src/composables/serverState";
+import { queryClient } from "@/composables/settings/serverState";
 
 const importMocks = vi.hoisted(() => ({
   listSources: vi.fn(),
@@ -15,7 +15,7 @@ const importMocks = vi.hoisted(() => ({
   commit: vi.fn(),
 }));
 
-vi.mock("../src/composables/useWatchlist", () => ({
+vi.mock("@/composables/watchlist/useWatchlist", () => ({
   useWatchlistGroups: () => ({
     data: ref([
       { id: "g-default", name: "自选股", isDefault: true, revision: 1, itemCount: 2 },
@@ -25,7 +25,7 @@ vi.mock("../src/composables/useWatchlist", () => ({
   }),
 }));
 
-vi.mock("../src/composables/watchlistApi", () => ({
+vi.mock("@/composables/watchlist/watchlistApi", () => ({
   listWatchlistSources: importMocks.listSources,
   listWatchlistSourceGroups: importMocks.listSourceGroups,
   listWatchlistBindings: importMocks.listBindings,

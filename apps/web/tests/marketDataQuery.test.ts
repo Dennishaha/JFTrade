@@ -2,7 +2,7 @@ import type {
   MarketDataCandlesQueryResult,
   MarketDataSnapshotQueryResult,
   MarketSecurityDetailsQueryResult,
-} from "../src/composables/marketDataRealtime";
+} from "@/composables/market-data/marketDataRealtime";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   stopMarketSnapshotBackgroundRefresh: vi.fn(),
 }));
 
-vi.mock("../src/composables/marketDataSnapshotRefresh", () => ({
+vi.mock("@/composables/market-data/marketDataSnapshotRefresh", () => ({
   createMarketDataSnapshotRefresher: (options: {
     fallbackRefresh: (...args: unknown[]) => Promise<unknown>;
   }) => {
@@ -27,7 +27,7 @@ vi.mock("../src/composables/marketDataSnapshotRefresh", () => ({
   },
 }));
 
-import { createMarketDataQueryController } from "../src/composables/marketDataQuery";
+import { createMarketDataQueryController } from "@/composables/market-data/marketDataQuery";
 
 function createSnapshotResult(
   market: string,

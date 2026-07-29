@@ -19,9 +19,9 @@ import {
 } from "@/types";
 
 import App from "../src/App.vue";
-import type { LiveEventEnvelope, LiveEventSource } from "../src/composables/liveEventBus";
-import { queryClient } from "../src/composables/serverState";
-import { resetSharedLiveSocketHubForTests } from "../src/composables/sharedLiveSocket";
+import type { LiveEventEnvelope, LiveEventSource } from "@/composables/market-data/liveEventBus";
+import { queryClient } from "@/composables/settings/serverState";
+import { resetSharedLiveSocketHubForTests } from "@/composables/market-data/sharedLiveSocket";
 import { createConsoleRouter } from "../src/router";
 
 export const passthroughStub = {

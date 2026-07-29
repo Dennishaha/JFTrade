@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import StrategySourceDiff from "../StrategySourceDiff.vue";
-import { useBacktestPageContext } from "../../composables/useBacktestPage";
+import StrategySourceDiff from "@/components/strategy-design/StrategySourceDiff.vue";
+import { useBacktestPageContext } from "@/composables/backtest/useBacktestPage";
 
 const {
   changeComparisonDefinition,

@@ -11,15 +11,15 @@ const externalLinks = vi.hoisted(() => ({
   handleExternalLinkClick: vi.fn(),
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => stores.consoleData,
 }));
 
-vi.mock("../src/composables/externalLink", () => ({
+vi.mock("@/composables/shared/externalLink", () => ({
   useExternalLink: () => externalLinks,
 }));
 
-import FutuIntegrationSection from "../src/components/FutuIntegrationSection.vue";
+import FutuIntegrationSection from "@/components/settings/FutuIntegrationSection.vue";
 
 const sectionHeaderStub = defineComponent({
   props: ["title", "description"],

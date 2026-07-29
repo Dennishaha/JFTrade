@@ -7,12 +7,12 @@ import { defineComponent, h, nextTick, ref } from "vue";
 import {
   getSharedLiveSocketHub,
   resetSharedLiveSocketHubForTests,
-} from "../src/composables/sharedLiveSocket";
+} from "@/composables/market-data/sharedLiveSocket";
 import {
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
-} from "../src/composables/brokerProviderSelection";
-import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
+} from "@/composables/trading/brokerProviderSelection";
+import { provideWorkspaceTradingPreferencesStore } from "@/composables/workspace/useWorkspaceLayout";
 import { createLiveEnvelope, MockWebSocket } from "./helpers";
 
 const marketDataSnapshot = ref<any>(null);
@@ -27,14 +27,14 @@ const acquireMarketDataSubscriptionMock = vi.fn();
 const heartbeatMarketDataConsumerMock = vi.fn();
 const releaseMarketDataSubscriptionMock = vi.fn();
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   fetchEnvelope: (...args: unknown[]) => fetchEnvelopeMock(...args),
   fetchEnvelopeWithInit: (...args: unknown[]) => fetchEnvelopeWithInitMock(...args),
   apiGetPath: (_template: string, path: string, init?: RequestInit) =>
     fetchEnvelopeWithInitMock(path, init ?? {}),
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => ({
     currentMarketDataSnapshot: marketDataSnapshot,
     currentMarketSecurityDetails: marketSecurityDetails,

@@ -5,7 +5,7 @@ import {
   mapExecutionOrderDetails,
   mapExecutionOrderEvents,
   mapExecutionOrders,
-} from "../src/composables/tradingApiMappers";
+} from "@/composables/trading/tradingApiMappers";
 
 type ExecutionOrderWire = ExecutionOrderDto;
 

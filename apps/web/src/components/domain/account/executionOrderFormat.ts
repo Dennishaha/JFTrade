@@ -4,7 +4,7 @@ import {
   formatExecutionOrderStatusLabel,
   formatOrderTypeLabel,
   isFinalExecutionOrderStatus,
-} from "../../../composables/consoleDataFormatting";
+} from "@/composables/shared/consoleDataFormatting";
 
 export type AccountExecutionOrder = ExecutionOrdersResponse["orders"][number];
 

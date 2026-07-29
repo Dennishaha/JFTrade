@@ -4,12 +4,12 @@ import { mount } from "@vue/test-utils";
 import { defineComponent, ref } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ThemeMode } from "../src/composables/useTheme";
+import type { ThemeMode } from "@/composables/settings/useTheme";
 import {
   type UIColorPreferencesStore,
   provideUIColorPreferencesStore,
   useUIColorPreferences,
-} from "../src/composables/useUIColorPreferences";
+} from "@/composables/settings/useUIColorPreferences";
 import { createResponse, flushRequests } from "./helpers";
 
 afterEach(() => {

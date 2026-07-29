@@ -22,7 +22,7 @@ func TestWorkerManagerProcessSmokeWithNodeWorker(t *testing.T) {
 		t.Skip(processSmokeEnv + "=1 is required for process-level Pine worker smoke")
 	}
 	manager := startNodeWorkerProcessSmokeManager(t, true, "smoke-mock")
-	response := waitForProcessSmokeRunScript(t, manager)
+	response := runProcessSmokeScript(t, manager)
 	if response.JobID != "job-1" || len(response.OrderIntents) == 0 || response.Metadata.WorkerID != "pineworker-1" {
 		t.Fatalf("unexpected worker response: %#v", response)
 	}
@@ -40,7 +40,7 @@ func TestWorkerManagerRealPineTSProcessSmoke(t *testing.T) {
 		t.Fatalf("pinets package is not installed; real PineTS process smoke cannot run")
 	}
 	manager := startNodeWorkerProcessSmokeManager(t, false, "real-pinets-smoke")
-	response := waitForProcessSmokeRunScript(t, manager)
+	response := runProcessSmokeScript(t, manager)
 	if response.JobID != "job-1" || response.Metadata.WorkerID != "pineworker-1" {
 		t.Fatalf("unexpected real PineTS worker response: %#v", response)
 	}
@@ -138,30 +138,37 @@ func startNodeWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion s
 	return manager
 }
 
-func waitForProcessSmokeRunScript(t *testing.T, manager *WorkerManager) RunScriptResponse {
+func runProcessSmokeScript(t *testing.T, manager *WorkerManager) RunScriptResponse {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
-	var lastErr error
-	for time.Now().Before(deadline) {
-		response, err := manager.RunScript(context.Background(), validClientRequest())
-		if err == nil {
-			return response
-		}
-		lastErr = err
-		time.Sleep(100 * time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	response, err := manager.RunScript(ctx, validClientRequest())
+	if err != nil {
+		t.Fatalf("RunScript through ready worker process: %v", err)
 	}
-	t.Fatalf("RunScript through worker process did not become ready: %v", lastErr)
-	return RunScriptResponse{}
+	return response
 }
 
 func missingWorkerRuntimeDeps(root string) []string {
 	missing := []string{}
 	for _, module := range []string{"@grpc/grpc-js", "@grpc/proto-loader", "rolldown"} {
-		if _, err := os.Stat(filepath.Join(root, "node_modules", filepath.FromSlash(module))); err != nil {
+		if !workerRuntimeDependencyInstalled(root, module) {
 			missing = append(missing, module)
 		}
 	}
 	return missing
+}
+
+func workerRuntimeDependencyInstalled(root, module string) bool {
+	for _, modulesDir := range []string{
+		filepath.Join(root, "node_modules"),
+		filepath.Join(root, "workers", "pineworker", "node_modules"),
+	} {
+		if _, err := os.Stat(filepath.Join(modulesDir, filepath.FromSlash(module))); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func pinetsInstalled(root string) bool {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveMarketSnapshotDisplay } from "../src/composables/marketSessionDisplay";
+import { resolveMarketSnapshotDisplay } from "@/composables/market-data/marketSessionDisplay";
 
 describe("marketSessionDisplay", () => {
   it("keeps BABA Thursday regular close when the session advances to after-hours", () => {

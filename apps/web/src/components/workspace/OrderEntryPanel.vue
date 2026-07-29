@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useOrderEntryPanel } from "../../composables/useOrderEntryPanel";
+import { useOrderEntryPanel } from "@/composables/trading/useOrderEntryPanel";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import RealTradeConfirmationDialog from "./RealTradeConfirmationDialog.vue";
 

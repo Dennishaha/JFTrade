@@ -4,7 +4,7 @@ import type { Ref } from "vue";
 import type {
   StrategyDefinitionVersionDocument,
   StrategyDefinitionVersionSummary,
-} from "../../composables/strategyDefinitionVersions";
+} from "@/composables/strategy/strategyDefinitionVersions";
 import { useStrategyDesignContext } from "./strategyDesignContext";
 import type { StrategySidePanelId } from "./useStrategySidePanelLayout";
 

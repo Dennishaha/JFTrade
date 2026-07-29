@@ -3,7 +3,7 @@ import type { ExecutionComboRequest } from "@/contracts";
 import type {
   OptionComboLegDraft,
   OptionComboStrategy,
-} from "../composables/optionComboDraft";
+} from "@/composables/product/optionComboDraft";
 
 interface ComboAccountImpact {
   nlvChange?: number | null;

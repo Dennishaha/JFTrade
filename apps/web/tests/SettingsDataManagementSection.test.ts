@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 
-import SettingsDataManagementSection from "../src/components/SettingsDataManagementSection.vue";
+import SettingsDataManagementSection from "@/components/settings/SettingsDataManagementSection.vue";
 import { createResponse, flushRequests } from "./helpers";
 
 afterEach(() => {

@@ -7,8 +7,8 @@ import { defineComponent, h, nextTick, ref } from "vue";
 import {
   getSharedLiveSocketHub,
   resetSharedLiveSocketHubForTests,
-} from "../src/composables/sharedLiveSocket";
-import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
+} from "@/composables/market-data/sharedLiveSocket";
+import { provideWorkspaceTradingPreferencesStore } from "@/composables/workspace/useWorkspaceLayout";
 
 const marketDataSnapshot = ref<any>(null);
 const marketSecurityDetails = ref<any>(null);
@@ -20,14 +20,14 @@ const mocks = vi.hoisted(() => ({
   release: vi.fn(),
 }));
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   fetchEnvelope: (...args: unknown[]) => mocks.fetchEnvelope(...args),
   fetchEnvelopeWithInit: (...args: unknown[]) => mocks.fetchEnvelopeWithInit(...args),
   apiGetPath: (_template: string, path: string, init?: RequestInit) =>
     mocks.fetchEnvelopeWithInit(path, init ?? {}),
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => ({
     currentMarketDataSnapshot: marketDataSnapshot,
     currentMarketSecurityDetails: marketSecurityDetails,

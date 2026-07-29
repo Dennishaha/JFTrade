@@ -39,7 +39,7 @@ import {
   requireADKWorkflowTriggers,
   requireMCPSettingsSnapshot,
   requireMCPTokenResetResult,
-} from "../src/composables/adkApiMappers";
+} from "@/composables/adk/adkApiMappers";
 
 describe("ADK API wire mappers", () => {
   it("accepts a complete agent and preserves supported enum values", () => {

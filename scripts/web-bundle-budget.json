@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "maxInitialJavaScriptGzipBytes": 455000,
+  "maxInitialCssGzipBytes": 130000,
+  "maxLargestAsyncJavaScriptGzipBytes": 1650000,
+  "maxTotalJavaScriptGzipBytes": 5600000,
+  "forbiddenInitialAssetPatterns": [
+    "(^|/)editor\\.api-",
+    "\\.worker-",
+    "(^|/)mermaid\\.core-",
+    "(^|/)cytoscape\\.esm-"
+  ]
+}

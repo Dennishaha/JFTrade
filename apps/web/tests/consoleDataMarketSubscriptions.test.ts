@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
 import type { MarketDataSubscriptionsResponse } from "../src/types";
-import type { MarketInstrumentReference } from "../src/composables/consoleDataSystemState";
+import type { MarketInstrumentReference } from "@/composables/settings/consoleDataSystemState";
 
 const storageKey = "jftrade.market-data.consumer.market-page";
 
@@ -19,7 +19,7 @@ describe("createStableWebConsumerId", () => {
 		vi.stubGlobal("window", undefined);
 		vi.stubGlobal("crypto", { randomUUID: vi.fn(() => "fallback") });
 		const module = await import(
-			"../src/composables/consoleDataMarketSubscriptions"
+			"@/composables/market-data/consoleDataMarketSubscriptions"
 		);
 
 		expect(module.createStableWebConsumerId("server-render")).toBe(
@@ -34,7 +34,7 @@ describe("createStableWebConsumerId", () => {
       randomUUID: vi.fn(() => "window-a"),
     });
     const firstModule = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const firstId = firstModule.createStableWebConsumerId("market-page");
 
@@ -43,7 +43,7 @@ describe("createStableWebConsumerId", () => {
       randomUUID: vi.fn(() => "window-b"),
     });
     const secondModule = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const secondId = secondModule.createStableWebConsumerId("market-page");
 
@@ -63,7 +63,7 @@ describe("createStableWebConsumerId", () => {
         .mockReturnValueOnce("base-a"),
     });
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
 
     expect(module.createStableWebConsumerId("market-page")).toBe(
@@ -84,7 +84,7 @@ describe("createStableWebConsumerId", () => {
       .mockReturnValueOnce(0.25)
       .mockReturnValueOnce(0.5);
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
 
     const consumerId = module.createStableWebConsumerId("market-page");
@@ -123,7 +123,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const controller = module.createConsoleDataMarketSubscriptionsController({
       marketDataSubscriptions: ref({
@@ -195,7 +195,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const harness = createControllerHarness(module);
     harness.marketInstrumentReferences.value = [
@@ -217,7 +217,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const harness = createControllerHarness(module, { market: " " });
     harness.marketInstrumentReferences.value = [
@@ -245,7 +245,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const harness = createControllerHarness(module, { market: " " });
 
@@ -261,7 +261,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const harness = createControllerHarness(module, { market: " ", symbol: " " });
 
@@ -275,7 +275,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     const fetchMock = vi.fn(async () => successResponse(emptySubscriptions()));
     vi.stubGlobal("fetch", fetchMock);
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const harness = createControllerHarness(module, { market: "us", symbol: "aapl" });
 
@@ -296,7 +296,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     const fetchMock = vi.fn(async () => successResponse(emptySubscriptions()));
     vi.stubGlobal("fetch", fetchMock);
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const harness = createControllerHarness(module);
 
@@ -324,7 +324,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const harness = createControllerHarness(module);
 
@@ -348,7 +348,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     const fetchMock = vi.fn(async () => failure());
     vi.stubGlobal("fetch", fetchMock);
     const module = await import(
-      "../src/composables/consoleDataMarketSubscriptions"
+      "@/composables/market-data/consoleDataMarketSubscriptions"
     );
     const harness = createControllerHarness(module);
 
@@ -369,7 +369,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
 		});
 		vi.stubGlobal("fetch", fetchMock);
 		const module = await import(
-			"../src/composables/consoleDataMarketSubscriptions"
+			"@/composables/market-data/consoleDataMarketSubscriptions"
 		);
 		const harness = createControllerHarness(module);
 
@@ -412,7 +412,7 @@ function successResponse(data: unknown): Response {
 }
 
 function createControllerHarness(
-  module: typeof import("../src/composables/consoleDataMarketSubscriptions"),
+  module: typeof import("@/composables/market-data/consoleDataMarketSubscriptions"),
   query: { market?: string; symbol?: string } = {},
 ) {
   const marketDataSubscriptions = ref(emptySubscriptions());

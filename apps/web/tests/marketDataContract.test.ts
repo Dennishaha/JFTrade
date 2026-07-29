@@ -6,7 +6,7 @@ import {
   mapMarketInstrumentReferenceResponse,
   type MarketInstrumentResolution,
   type MarketSubscriptionsWire,
-} from "../src/composables/marketDataContract";
+} from "@/composables/market-data/marketDataContract";
 
 describe("market data wire mappers", () => {
   it("maps the generated instrument resolution without inventing legacy fields", () => {

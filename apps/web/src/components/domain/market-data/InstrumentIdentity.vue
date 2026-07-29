@@ -4,7 +4,7 @@ import { computed } from "vue";
 import {
   formatUserMarketLabel,
   presentInstrument,
-} from "@/composables/instrumentPresentation";
+} from "@/composables/market-data/instrumentPresentation";
 
 const props = withDefaults(
   defineProps<{

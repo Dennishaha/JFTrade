@@ -6,8 +6,8 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import { defineComponent, h } from "vue";
 
 import WatchlistPage from "../src/pages/WatchlistPage.vue";
-import { queryClient } from "../src/composables/serverState";
-import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout";
+import { queryClient } from "@/composables/settings/serverState";
+import { provideWorkspaceLayoutStore } from "@/composables/workspace/useWorkspaceLayout";
 
 function ok(data: unknown): Response {
   return new Response(

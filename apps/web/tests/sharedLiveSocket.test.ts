@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getSharedLiveSocketHub,
   resetSharedLiveSocketHubForTests,
-} from "../src/composables/sharedLiveSocket";
+} from "@/composables/market-data/sharedLiveSocket";
 import { createLiveEnvelope, MockWebSocket } from "./helpers";
 
 afterEach(() => {

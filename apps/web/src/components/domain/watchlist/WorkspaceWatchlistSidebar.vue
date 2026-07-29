@@ -8,11 +8,11 @@ import {
   useWatchlistGroups,
   useWatchlistItems,
   useWatchlistQuotes,
-} from "../../../composables/useWatchlist";
+} from "@/composables/watchlist/useWatchlist";
 import {
   useWorkspaceTradingPrefs,
   useWorkspaceViewState,
-} from "../../../composables/useWorkspaceLayout";
+} from "@/composables/workspace/useWorkspaceLayout";
 import WatchlistMembershipDialog from "./WatchlistMembershipDialog.vue";
 import WatchlistVirtualTable from "./WatchlistVirtualTable.vue";
 

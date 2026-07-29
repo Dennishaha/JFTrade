@@ -5,13 +5,13 @@ import {
   buildWorkflowSnapshotFromSource,
   readSourceBlockField,
   sourceBlockEditableFields,
-} from "../src/features/pineSourceStructureIndex";
-import { readLogicalLine, splitSourceLines } from "../src/features/pineSourceStructureLines";
+} from "@/features/pine-structure";
+import { readLogicalLine, splitSourceLines } from "@/features/pine-structure";
 import {
   classifyIndexedRawCall,
   classifyIndexedRawDeclaration,
   classifyIndexedRawObject,
-} from "../src/features/pineSourceStructureRules";
+} from "@/features/pine-structure";
 
 describe("Pine source structure lexer recovery", () => {
   it("keeps escaped quotes inside a multiline call instead of ending the logical line early", () => {

@@ -7,9 +7,9 @@ const apiMocks = vi.hoisted(() => ({
   fetchFeature: vi.fn(),
 }));
 
-vi.mock("../src/composables/productFeatures", async (importOriginal) => {
+vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../src/composables/productFeatures")>();
+    await importOriginal<typeof import("@/composables/product/productFeatures")>();
   return { ...actual, fetchProductFeature: apiMocks.fetchFeature };
 });
 
@@ -17,8 +17,8 @@ import OptionContractAnalysisDrawer from "../src/components/product/OptionContra
 import {
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
-} from "../src/composables/brokerProviderSelection";
-import type { OptionChainSideModel } from "../src/composables/optionChainModel";
+} from "@/composables/trading/brokerProviderSelection";
+import type { OptionChainSideModel } from "@/composables/product/optionChainModel";
 import {
   flushPromises,
   productGlobalStubs,

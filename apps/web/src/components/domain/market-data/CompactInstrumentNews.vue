@@ -5,13 +5,13 @@ import {
   buildNewsItem,
   filterNewsItems,
   type NewsCategory,
-} from "../../../composables/newsPresentation";
+} from "@/composables/research/newsPresentation";
 import {
   fetchProductFeature,
   type ProductFeatureResult,
-} from "../../../composables/productFeatures";
-import { withBrokerProvider } from "../../../composables/brokerProviderSelection";
-import { useExternalLink } from "../../../composables/externalLink";
+} from "@/composables/product/productFeatures";
+import { withBrokerProvider } from "@/composables/trading/brokerProviderSelection";
+import { useExternalLink } from "@/composables/shared/externalLink";
 import type { QuoteWorkbenchTarget } from "./quoteWorkbench";
 
 const props = withDefaults(

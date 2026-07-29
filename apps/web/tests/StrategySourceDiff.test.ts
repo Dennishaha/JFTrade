@@ -4,8 +4,8 @@ import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick, ref } from "vue";
 
-import StrategySourceDiff from "../src/components/StrategySourceDiff.vue";
-import { provideThemeStore, type ThemeStore } from "../src/composables/useTheme";
+import StrategySourceDiff from "@/components/strategy-design/StrategySourceDiff.vue";
+import { provideThemeStore, type ThemeStore } from "@/composables/settings/useTheme";
 
 const monacoMocks = vi.hoisted(() => {
   const editorDispose = vi.fn();

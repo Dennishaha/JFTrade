@@ -8,7 +8,7 @@ import {
   useDeleteWatchlistGroup,
   useUpdateWatchlistGroup,
   useWatchlistGroups,
-} from "../../../composables/useWatchlist";
+} from "@/composables/watchlist/useWatchlist";
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();

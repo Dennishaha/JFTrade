@@ -13,8 +13,8 @@ import {
   handleExternalLinkClick,
   openExternalUrl,
   useExternalLink,
-} from "../src/composables/externalLink";
-import { useDocsLink } from "../src/composables/useDocsLink";
+} from "@/composables/shared/externalLink";
+import { useDocsLink } from "@/composables/shared/useDocsLink";
 
 afterEach(() => {
   delete window.__JFTRADE_RUNTIME_CONFIG__;
@@ -60,7 +60,7 @@ describe("externalLink", () => {
     vi.resetModules();
     vi.stubGlobal("window", desktopWindow);
     try {
-      const desktopLinks = await import("../src/composables/externalLink");
+      const desktopLinks = await import("@/composables/shared/externalLink");
       await desktopLinks.openExternalUrl("/docs/reference/index.html");
       expect(open).toHaveBeenCalledWith(
         "/docs/reference/index.html",
@@ -77,7 +77,7 @@ describe("externalLink", () => {
     vi.resetModules();
     vi.stubGlobal("window", undefined);
     try {
-      const serverLinks = await import("../src/composables/externalLink");
+      const serverLinks = await import("@/composables/shared/externalLink");
       await expect(
         serverLinks.openExternalUrl("https://example.com/docs"),
       ).resolves.toBeUndefined();

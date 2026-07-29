@@ -4,10 +4,10 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import {
   formatGenericStatusLabel,
   formatTradingEnvironment,
-} from "../composables/consoleDataFormatting";
+} from "@/composables/shared/consoleDataFormatting";
 import MarketStatusBadge from "../components/domain/market-data/MarketStatusBadge.vue";
-import { useConsoleData } from "../composables/useConsoleData";
-import { useSharedLiveStream } from "../composables/useSharedLiveStream";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
+import { useSharedLiveStream } from "@/composables/market-data/useSharedLiveStream";
 import { formatLocalDateTime } from "../utils/dateTime";
 
 const {

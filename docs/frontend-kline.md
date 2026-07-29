@@ -54,8 +54,8 @@ apps/web
 ## 代码锚点
 
 - [../apps/web/src/layout/AppShell.vue](../apps/web/src/layout/AppShell.vue)
-- [../apps/web/src/composables/marketDataQuery.ts](../apps/web/src/composables/marketDataQuery.ts)
-- [../apps/web/src/composables/marketDataRealtime.ts](../apps/web/src/composables/marketDataRealtime.ts)
+- [../apps/web/src/composables/market-data/marketDataQuery.ts](../apps/web/src/composables/market-data/marketDataQuery.ts)
+- [../apps/web/src/composables/market-data/marketDataRealtime.ts](../apps/web/src/composables/market-data/marketDataRealtime.ts)
 - [../apps/web/src/charting/kline.ts](../apps/web/src/charting/kline.ts)
 - [../internal/api/marketdata/routes.go](../internal/api/marketdata/routes.go)
 - [../internal/marketdata/collector.go](../internal/marketdata/collector.go)
@@ -81,7 +81,7 @@ apps/web
 ## 相关实现文件
 
 - `apps/web/src/charting/kline.ts`
-- `apps/web/src/composables/useConsoleData.ts`
+- `apps/web/src/composables/workspace/useConsoleData.ts`
 - `apps/web/src/pages/WorkspacePage.vue`
 - `apps/web/src/components/workspace/LightweightChart.vue`
 - `apps/web/src/components/domain/market-data/VerticalQuoteWorkbench.vue`

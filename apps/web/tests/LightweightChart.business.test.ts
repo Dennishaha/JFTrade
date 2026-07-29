@@ -14,15 +14,15 @@ const stores = vi.hoisted(() => ({
   } | null,
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => stores.consoleData,
 }));
 
-vi.mock("../src/composables/useWorkspaceLayout", () => ({
+vi.mock("@/composables/workspace/useWorkspaceLayout", () => ({
   useWorkspaceTradingPrefs: () => stores.workspace,
 }));
 
-vi.mock("../src/composables/sharedLiveSocket", () => ({
+vi.mock("@/composables/market-data/sharedLiveSocket", () => ({
   getSharedLiveSocketHub: () => stores.liveHub,
 }));
 
@@ -30,7 +30,7 @@ import LightweightChart from "../src/components/workspace/LightweightChart.vue";
 import {
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
-} from "../src/composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 
 function createCandlesResult(session = "all", extendedHours = true) {
   return {

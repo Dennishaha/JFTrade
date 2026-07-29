@@ -5,7 +5,7 @@ import {
   normalizeMtfSeriesBlockProperties,
   normalizeSeriesConditionBlockProperties,
   normalizeTimeFilterBlockProperties,
-} from "../src/features/strategyVisualBuilderCatalog";
+} from "@/features/strategy-builder";
 
 describe("strategy visual block persisted-number normalization", () => {
   it("normalizes string-backed numeric controls from persisted visual strategy documents", () => {

@@ -517,12 +517,12 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"handlePineWorkerSettings",
 			"handleSavePineWorkerSettings",
 		},
-		"apps/web/src/components/SettingsPineWorkerSection.vue": {
+		"apps/web/src/components/settings/SettingsPineWorkerSection.vue": {
 			"backtestWorkerLimit",
 			"instanceWorkerLimit",
 			"MAX_WORKER_LIMIT = 1000",
 		},
-		"apps/web/src/composables/pineWorkerSettings.ts": {
+		"apps/web/src/composables/settings/pineWorkerSettings.ts": {
 			"/api/v1/settings/pine-worker",
 		},
 	}

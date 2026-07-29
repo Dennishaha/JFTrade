@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BacktestRunResult } from "@/composables/useBacktestRuns";
+import type { BacktestRunResult } from "@/composables/backtest/useBacktestRuns";
 
 import {
   backtestFillCount,

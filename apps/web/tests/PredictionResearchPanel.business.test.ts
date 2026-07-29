@@ -24,7 +24,7 @@ const consoleState = {
   }),
 };
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   fetchEnvelopeWithInit: predictionMocks.fetchWithInit,
   apiDeletePath: (_template: string, path: string) =>
     predictionMocks.fetchWithInit(path, { method: "DELETE" }),
@@ -43,12 +43,12 @@ vi.mock("../src/composables/apiClient", () => ({
   apiPostPathAction: (_template: string, path: string) =>
     predictionMocks.fetchWithInit(path, { method: "POST" }),
 }));
-vi.mock("../src/composables/productFeatures", async (importOriginal) => {
+vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../src/composables/productFeatures")>();
+    await importOriginal<typeof import("@/composables/product/productFeatures")>();
   return { ...actual, fetchProductFeature: predictionMocks.fetchFeature };
 });
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => consoleState,
 }));
 
@@ -56,7 +56,7 @@ import PredictionResearchPanel from "../src/components/product/PredictionResearc
 import {
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
-} from "../src/composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 import {
   flushPromises,
   productGlobalStubs,

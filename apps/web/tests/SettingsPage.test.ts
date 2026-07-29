@@ -36,7 +36,7 @@ const consoleState = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => ({
     brokerRuntime: consoleState.brokerRuntime,
     brokerSettings: consoleState.brokerSettings,
@@ -47,7 +47,7 @@ vi.mock("../src/composables/useConsoleData", () => ({
   }),
 }));
 
-vi.mock("../src/composables/settingsManagedAccounts", async () => {
+vi.mock("@/composables/settings/settingsManagedAccounts", async () => {
   const { ref } = await import("vue");
   return {
     createSettingsManagedAccountsController: () => ({

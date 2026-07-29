@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { BrokerAccountSelectionOption } from "../composables/consoleDataBrokerAccountSelection";
-import { formatTradingEnvironment } from "../composables/consoleDataFormatting";
-import { formatUserMarketLabel } from "../composables/instrumentPresentation";
+import type { BrokerAccountSelectionOption } from "@/composables/trading/consoleDataBrokerAccountSelection";
+import { formatTradingEnvironment } from "@/composables/shared/consoleDataFormatting";
+import { formatUserMarketLabel } from "@/composables/market-data/instrumentPresentation";
 
 type TradingEnvironment = "REAL" | "SIMULATE";
 

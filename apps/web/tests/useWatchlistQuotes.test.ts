@@ -4,8 +4,8 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, ref } from "vue";
 
-import { queryClient } from "../src/composables/serverState";
-import { useWatchlistQuotes } from "../src/composables/useWatchlist";
+import { queryClient } from "@/composables/settings/serverState";
+import { useWatchlistQuotes } from "@/composables/watchlist/useWatchlist";
 
 afterEach(() => {
   queryClient.clear();

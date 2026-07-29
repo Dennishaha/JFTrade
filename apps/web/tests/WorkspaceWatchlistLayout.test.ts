@@ -12,7 +12,7 @@ import WorkspacePage from "../src/pages/WorkspacePage.vue";
 import {
   provideWorkspaceLayoutStore,
   type WorkspaceLayoutStore,
-} from "../src/composables/useWorkspaceLayout";
+} from "@/composables/workspace/useWorkspaceLayout";
 
 afterEach(() => {
   window.localStorage.clear();

@@ -9,13 +9,24 @@ import {
   type BrokerReadFeatureKey,
 } from "@/types";
 import type {
+  BacktestSyncRequestDto,
+  BrokerDescriptorDto,
+  DataManagementOverviewResponse,
   ExecutionSettingsResponse,
+  ExecutionOrdersDto,
+  MarketDataDepthDto,
   NormalizeInstrumentRequest,
+  ObservabilityEventDto,
+  PluginCatalogDto,
   RealTradeRiskSnapshot,
+  ResearchScreenPresetDto,
+  StrategyDefinitionDto,
+  SystemStatusResponseDto,
+  WatchlistGroupDto,
   WebSession,
 } from "@/contracts";
 import type { components } from "@/generated/openapi";
-import type { RequestBodyFor } from "@/composables/apiClient";
+import type { RequestBodyFor } from "@/composables/shared/apiClient";
 
 describe("contract and view-model boundaries", () => {
   it("keeps runtime view-model exports available through @/types", () => {
@@ -63,6 +74,39 @@ describe("contract and view-model boundaries", () => {
     >();
     expectTypeOf<WebSession>().toEqualTypeOf<
       components["schemas"]["servercore.WebSessionData"]
+    >();
+    expectTypeOf<BacktestSyncRequestDto>().toEqualTypeOf<
+      components["schemas"]["backtest.SyncRequest"]
+    >();
+    expectTypeOf<BrokerDescriptorDto>().toEqualTypeOf<
+      components["schemas"]["broker.Descriptor"]
+    >();
+    expectTypeOf<DataManagementOverviewResponse>().toEqualTypeOf<
+      components["schemas"]["settings.DataManagementOverviewResponse"]
+    >();
+    expectTypeOf<ExecutionOrdersDto>().toEqualTypeOf<
+      components["schemas"]["trading.ExecutionOrders"]
+    >();
+    expectTypeOf<MarketDataDepthDto>().toEqualTypeOf<
+      components["schemas"]["marketdata.DepthData"]
+    >();
+    expectTypeOf<ObservabilityEventDto>().toEqualTypeOf<
+      components["schemas"]["observability.Event"]
+    >();
+    expectTypeOf<PluginCatalogDto>().toEqualTypeOf<
+      components["schemas"]["strategy.PluginCatalog"]
+    >();
+    expectTypeOf<ResearchScreenPresetDto>().toEqualTypeOf<
+      components["schemas"]["research.ResearchScreenPreset"]
+    >();
+    expectTypeOf<StrategyDefinitionDto>().toEqualTypeOf<
+      components["schemas"]["strategy.Definition"]
+    >();
+    expectTypeOf<SystemStatusResponseDto>().toEqualTypeOf<
+      components["schemas"]["system.SystemStatusResponse"]
+    >();
+    expectTypeOf<WatchlistGroupDto>().toEqualTypeOf<
+      components["schemas"]["watchlist.WatchlistGroup"]
     >();
     expectTypeOf<
       RequestBodyFor<"/api/v1/adk/chat/stream", "post">

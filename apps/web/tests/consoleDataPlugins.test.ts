@@ -2,7 +2,7 @@ import { ref } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { emptyPluginCatalog } from "@/types";
-import { createConsoleDataPluginController } from "../src/composables/consoleDataPlugins";
+import { createConsoleDataPluginController } from "@/composables/workspace/consoleDataPlugins";
 import { createResponse } from "./helpers";
 
 afterEach(() => {

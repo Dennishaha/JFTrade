@@ -4,10 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
 import type { ADKAgent, ADKSkill, ADKToolDescriptor } from "../src/types";
-import { deleteADKAgent, saveADKAgent } from "../src/composables/adkSettingsApi";
-import { useADKAgentForm } from "../src/composables/useADKAgentForm";
+import { deleteADKAgent, saveADKAgent } from "@/composables/adk/adkSettingsApi";
+import { useADKAgentForm } from "@/composables/adk/useADKAgentForm";
 
-vi.mock("../src/composables/adkSettingsApi", () => ({
+vi.mock("@/composables/adk/adkSettingsApi", () => ({
   deleteADKAgent: vi.fn(),
   saveADKAgent: vi.fn(),
 }));

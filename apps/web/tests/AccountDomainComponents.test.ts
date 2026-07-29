@@ -20,7 +20,7 @@ const assetStripState = vi.hoisted(() => ({
   store: null as null | Record<string, unknown>,
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => assetStripState.store,
 }));
 

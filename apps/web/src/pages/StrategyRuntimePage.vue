@@ -2,9 +2,9 @@
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import StrategyRuntimePanel from "../components/StrategyRuntimePanel.vue";
-import { apiGet } from "../composables/apiClient";
-import { queryClient, queryKeys } from "../composables/serverState";
+import StrategyRuntimePanel from "@/components/strategy-runtime/StrategyRuntimePanel.vue";
+import { apiGet } from "@/composables/shared/apiClient";
+import { queryClient, queryKeys } from "@/composables/settings/serverState";
 
 type StrategyDesignEntryMode = "existing" | "new";
 

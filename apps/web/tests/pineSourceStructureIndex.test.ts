@@ -17,13 +17,13 @@ import {
   sourceBlockEditableFields,
   isPineV6WorkflowBlockKind,
   updateInstructionBlockParam,
-} from "../src/features/pineSourceStructureIndex";
+} from "@/features/pine-structure";
 import {
   classifyIndexedRawCall,
   classifyIndexedRawDeclaration,
   classifyIndexedRawDefinition,
   classifyIndexedRawObject,
-} from "../src/features/pineSourceStructureRules";
+} from "@/features/pine-structure";
 
 describe("pineSourceStructureIndex", () => {
   it("classifies Pine source into visual structure nodes and raw anchors", () => {

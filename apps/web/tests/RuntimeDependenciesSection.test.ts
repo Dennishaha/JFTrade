@@ -3,8 +3,8 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import RuntimeDependenciesSection from "../src/components/RuntimeDependenciesSection.vue";
-import { queryClient } from "../src/composables/serverState";
+import RuntimeDependenciesSection from "@/components/settings/RuntimeDependenciesSection.vue";
+import { queryClient } from "@/composables/settings/serverState";
 import { createResponse, flushRequests } from "./helpers";
 
 beforeEach(() => {

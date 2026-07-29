@@ -7,8 +7,8 @@ import { defineComponent } from "vue";
 import { overlayRealtimeTickCandle } from "../src/charting/kline";
 import {
   provideConsoleDataStore,
-} from "../src/composables/useConsoleData";
-import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout";
+} from "@/composables/workspace/useConsoleData";
+import { provideWorkspaceLayoutStore } from "@/composables/workspace/useWorkspaceLayout";
 import { createResponse, flushRequests } from "./helpers";
 
 function createConsoleStore() {

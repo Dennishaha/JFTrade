@@ -1,8 +1,15 @@
 import type {
+  MarketDataDepthDto as MarketDataDepthWire,
+  MarketDataInstrumentDto,
   MarketDataProviderDescriptor,
   MarketDataProviderHealth,
+  MarketDataProviderStatusDto as MarketDataProviderStatusWire,
+  MarketDataQueryMeta,
+  MarketDataSecurityDetailsDto as MarketDataSecurityDetailsWire,
+  MarketDataSubscriptionEntryDto as MarketDataSubscriptionEntryWire,
   MarketDataSubscriptionQuotaBucketDto,
-} from "../../contracts/generated/market-data";
+  MarketDataSubscriptionsDto as MarketDataSubscriptionsWire,
+} from "@/contracts";
 
 export interface MarketDataQuoteSnapshotDto {
   lastPrice: number | null;
@@ -41,13 +48,13 @@ export interface MarketDataTradeTickDto {
   tradeId: string | null;
 }
 
-export interface MarketDataQueryMetaDto {
-  instrumentId: string;
+export type MarketDataQueryMetaDto = Omit<
+  MarketDataQueryMeta,
+  "brokerId" | "source"
+> & {
   source: string | null;
   brokerId?: string | null;
-  resolvedAt: string;
-  fromCache: boolean;
-}
+};
 
 export interface MarketDataExtendedQuote {
   price?: number | null;
@@ -67,11 +74,7 @@ export interface MarketDataExtendedQuoteBlocks {
   overnight?: MarketDataExtendedQuote | null;
 }
 
-export interface MarketSecurityRef {
-  instrumentId: string;
-  market: string;
-  symbol: string;
-}
+export type MarketSecurityRef = MarketDataInstrumentDto;
 
 export interface MarketSecurityEquityDetails {
   issuedShares: number;
@@ -228,15 +231,13 @@ export interface MarketSecurityDetails {
   trust?: MarketSecurityTrustDetails | null;
 }
 
-export interface MarketSecurityDetailsQueryResult {
-  request: {
-    market: string;
-    symbol: string;
-    instrumentId: string;
-  };
+export type MarketSecurityDetailsQueryResult = Omit<
+  MarketDataSecurityDetailsWire,
+  "meta" | "security"
+> & {
   security: MarketSecurityDetails | null;
   meta: MarketDataQueryMetaDto;
-}
+};
 
 export interface MarketDataSnapshotResponse {
   ok: boolean;
@@ -297,16 +298,13 @@ export interface OrderBookSnapshotDto {
   asks: OrderBookLevelDto[];
 }
 
-export interface MarketDataDepthResponse {
-  request: {
-    market: string;
-    symbol: string;
-    instrumentId: string;
-    num: number;
-  };
+export type MarketDataDepthResponse = Omit<
+  MarketDataDepthWire,
+  "depth" | "meta"
+> & {
   depth: OrderBookSnapshotDto;
   meta: MarketDataQueryMetaDto;
-}
+};
 
 export interface OrderBookDepthPreset {
   num: number;
@@ -335,36 +333,36 @@ export interface MarketDataRuntimeState {
   Closed: boolean;
 }
 
-export interface MarketDataProviderStatusResponse {
+export type MarketDataProviderStatusResponse = Omit<
+  MarketDataProviderStatusWire,
+  "runtime" | "subscriptions"
+> & {
   descriptor: MarketDataProviderDescriptor;
   health: MarketDataProviderHealth;
   runtime: MarketDataRuntimeState;
   subscriptions: MarketDataSubscriptionsResponse;
-  checkedAt: string;
-}
+};
 
-export interface MarketDataSubscriptionEntryDto {
-  key: string;
-  channel: string;
-  market: string;
-  symbol: string;
-  instrumentId: string;
-  interval: string | null;
-  depthLevel: number | null;
-  consumers: string[];
-  refCount: number;
-  createdAt: string;
-  updatedAt: string;
+export type MarketDataSubscriptionEntryDto = Omit<
+  MarketDataSubscriptionEntryWire,
+  "brokerState" | "lastError" | "subscribedAt" | "unsubscribeEligibleAt"
+> & {
   brokerState?: "active" | "pending_subscribe" | "pending_unsubscribe" | "retrying" | "unmanaged";
   subscribedAt?: string | null;
   unsubscribeEligibleAt?: string | null;
   lastError?: string | null;
-}
+};
 
-export interface MarketDataSubscriptionsResponse {
-  totalActiveSubscriptions: number;
-  consumerId?: string;
-  providerBrokerId?: string;
+export type MarketDataSubscriptionsResponse = Omit<
+  MarketDataSubscriptionsWire,
+  | "brokerState"
+  | "entries"
+  | "instruments"
+  | "quota"
+  | "remainQuota"
+  | "totalUsedQuota"
+  | "transport"
+> & {
   action?: "acquired" | "released" | "heartbeat" | string;
   instruments?: Array<{
     channel?: string;
@@ -408,7 +406,7 @@ export interface MarketDataSubscriptionsResponse {
       lastError: string | null;
     }>;
   };
-}
+};
 
 export const emptyMarketDataSubscriptions: MarketDataSubscriptionsResponse = {
   totalActiveSubscriptions: 0,

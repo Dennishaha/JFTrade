@@ -7,7 +7,7 @@ import {
   normalizeADKRunList,
   normalizeADKTimelineEntries,
   normalizeADKTimelineEntry,
-} from "../src/composables/adkNormalization";
+} from "@/composables/adk/adkNormalization";
 
 describe("ADK normalization", () => {
   it("clones optional run data without retaining mutable API payload arrays", () => {

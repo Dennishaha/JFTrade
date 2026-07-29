@@ -19,11 +19,11 @@ const testState = vi.hoisted(() => ({
   apiPutMock: vi.fn(),
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => testState.store,
 }));
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   apiDeleteBody: (...args: unknown[]) => testState.apiDeleteBodyMock(...args),
   apiGet: (...args: unknown[]) => testState.apiGetMock(...args),
   apiPost: vi.fn(async () => ({})),

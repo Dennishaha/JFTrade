@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import BacktestChart from "@/components/BacktestChart.vue";
+import BacktestChart from "@/components/backtest/BacktestChart.vue";
 import InstrumentIdentity from "@/components/domain/market-data/InstrumentIdentity.vue";
-import type { BacktestRun } from "@/composables/useBacktestRuns";
+import type { BacktestRun } from "@/composables/backtest/useBacktestRuns";
 
 import {
   formatBacktestRunDate,

@@ -53,9 +53,9 @@ import {
   workModeOptions,
   workModeLabel,
 } from "../src/features/adkWorkflowStudio";
-import { useADKWorkflowStudioCanvas } from "../src/composables/useADKWorkflowStudioCanvas";
-import { useADKWorkflowStudioResources } from "../src/composables/useADKWorkflowStudioResources";
-import { useADKWorkflowStudioViewModel } from "../src/composables/useADKWorkflowStudioViewModel";
+import { useADKWorkflowStudioCanvas } from "@/composables/adk/useADKWorkflowStudioCanvas";
+import { useADKWorkflowStudioResources } from "@/composables/adk/useADKWorkflowStudioResources";
+import { useADKWorkflowStudioViewModel } from "@/composables/adk/useADKWorkflowStudioViewModel";
 import {
   createTriggerForm,
   createWorkflowForm,

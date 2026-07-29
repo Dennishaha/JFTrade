@@ -9,7 +9,7 @@ const authMocks = vi.hoisted(() => ({
   webSession: vi.fn(),
 }));
 
-vi.mock("../src/composables/apiClient", () => {
+vi.mock("@/composables/shared/apiClient", () => {
   class ApiClientError extends Error {
     constructor(
       message: string,
@@ -27,8 +27,8 @@ vi.mock("../src/composables/apiClient", () => {
   };
 });
 
-import AuthGate from "../src/components/AuthGate.vue";
-import { ApiClientError } from "../src/composables/apiClient";
+import AuthGate from "@/components/auth/AuthGate.vue";
+import { ApiClientError } from "@/composables/shared/apiClient";
 
 beforeEach(() => {
   authMocks.webSession.mockResolvedValue({ authenticated: false });

@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { nextTick } from "vue";
 
-import { createConsoleDataMarketDataQuerySlice } from "../src/composables/consoleDataMarketDataQuery";
+import { createConsoleDataMarketDataQuerySlice } from "@/composables/market-data/consoleDataMarketDataQuery";
 import {
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
-} from "../src/composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 
 afterEach(() => {
   resetBrokerProviderSelectionForTests();

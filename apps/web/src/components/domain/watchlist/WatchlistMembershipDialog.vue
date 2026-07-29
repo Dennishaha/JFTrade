@@ -3,11 +3,11 @@ import { computed, ref, watch } from "vue";
 
 import type { WatchlistItem, WatchlistMembership } from "@/types";
 
-import { ApiClientError } from "../../../composables/apiClient";
+import { ApiClientError } from "@/composables/shared/apiClient";
 import {
   useWatchlistGroups,
   useWatchlistMembership,
-} from "../../../composables/useWatchlist";
+} from "@/composables/watchlist/useWatchlist";
 import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
 
 const props = withDefaults(

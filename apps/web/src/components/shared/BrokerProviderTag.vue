@@ -7,13 +7,13 @@ import {
   type BrokerCapabilityState,
   type BrokerProviderOption,
   useBrokerProviderSelection,
-} from "../../composables/brokerProviderSelection";
+} from "@/composables/trading/brokerProviderSelection";
 import {
   marketDataFeedQualityLabel,
   resolveMarketDataFeedQuality,
-} from "../../composables/marketDataFeedQuality";
-import type { LiveSocketConnectionState } from "../../composables/sharedLiveSocket";
-import type { ProductFeatureProvider } from "../../composables/productFeatures";
+} from "@/composables/market-data/marketDataFeedQuality";
+import type { LiveSocketConnectionState } from "@/composables/market-data/sharedLiveSocket";
+import type { ProductFeatureProvider } from "@/composables/product/productFeatures";
 
 const props = withDefaults(
   defineProps<{

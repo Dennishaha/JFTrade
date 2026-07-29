@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { buildStrategyPineFromVisualModel } from "../src/features/strategyVisualBuilderPine";
-import { buildStrategyVisualModelFromPine } from "../src/features/strategyVisualBuilderPineParser";
+import { buildStrategyPineFromVisualModel } from "@/features/strategy-builder";
+import { buildStrategyVisualModelFromPine } from "@/features/strategy-builder";
 
 interface SharedStructureCorpusCase {
   id: string;

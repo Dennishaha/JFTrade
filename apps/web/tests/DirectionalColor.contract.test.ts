@@ -33,7 +33,7 @@ describe("directional color contract", () => {
       /^\s*--tv-price-(?:up|down)\s*:/m,
     );
 
-    const preferences = source("composables/useUIColorPreferences.ts");
+    const preferences = source("composables/settings/useUIColorPreferences.ts");
     expect(preferences).toContain(
       'setProperty("--tv-price-up", colors.upColor)',
     );
@@ -44,7 +44,6 @@ describe("directional color contract", () => {
 
   it("limits price-direction tokens to directional market and trading surfaces", () => {
     expect(matchingFiles(/--tv-price-(?:up|down)\b/)).toEqual([
-      "components/SettingsAppearanceSection.vue",
       "components/backtest/BacktestReportSummary.vue",
       "components/domain/market-data/OrderBookDepthTable.vue",
       "components/domain/shared/DenseMetricStrip.vue",
@@ -56,14 +55,14 @@ describe("directional color contract", () => {
       "components/research/InstrumentResearchView.vue",
       "components/research/SectorHeatmap.vue",
       "components/research/SparklineChart.vue",
+      "components/settings/SettingsAppearanceSection.vue",
       "components/workspace/InstrumentOverviewPanel.vue",
       "components/workspace/OrderBookPanel.vue",
-      "composables/useUIColorPreferences.ts",
+      "composables/settings/useUIColorPreferences.ts",
       "style.css",
     ]);
 
     expect(matchingFiles(/\btv-(?:up|down)\b/)).toEqual([
-      "components/SettingsAppearanceSection.vue",
       "components/backtest/backtestRunPresentation.ts",
       "components/domain/account/AccountAssetStrip.vue",
       "components/domain/account/AccountSummarySidebar.vue",
@@ -74,6 +73,7 @@ describe("directional color contract", () => {
       "components/research/InstrumentResearchView.vue",
       "components/research/RankListPanel.vue",
       "components/research/researchEntry.ts",
+      "components/settings/SettingsAppearanceSection.vue",
       "components/workspace/OrderBookPanel.vue",
       "components/workspace/PositionsPanel.vue",
       "style.css",

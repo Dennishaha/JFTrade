@@ -25,7 +25,7 @@ vi.mock("@tanstack/vue-query", () => ({ VueQueryPlugin: { kind: "query-plugin" }
 vi.mock("../src/App.vue", () => ({ default: { name: "JFTradeConsole" } }));
 vi.mock("../src/router", () => ({ createConsoleRouter: bootstrap.createRouter }));
 vi.mock("../src/fontAwesomeIcons", () => ({ fontAwesomeIcons: { defaultSet: "fa" } }));
-vi.mock("../src/composables/serverState", () => ({ queryClient: { kind: "query-client" } }));
+vi.mock("@/composables/settings/serverState", () => ({ queryClient: { kind: "query-client" } }));
 
 describe("application bootstrap", () => {
   beforeEach(() => {

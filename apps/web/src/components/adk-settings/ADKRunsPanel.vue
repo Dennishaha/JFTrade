@@ -2,7 +2,7 @@
 import { ref } from "vue";
 
 import type { ADKAgent, ADKApproval, ADKAuditEvent, ADKOptimizationTask, ADKProvider, ADKRun } from "@/types";
-import type { PageEnvelope, ADKMetricsResponse } from "../../composables/adkSettingsApi";
+import type { PageEnvelope, ADKMetricsResponse } from "@/composables/adk/adkSettingsApi";
 
 import ADKRunTrace from "../shared/ADKRunTrace.vue";
 

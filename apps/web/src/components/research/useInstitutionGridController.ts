@@ -1,6 +1,6 @@
 import { computed, ref, watch } from "vue";
 
-import { useResearchFeature } from "../../composables/useResearchFeature";
+import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import { pickNumber, pickString } from "./researchEntry";
 import { isResearchQuoteEntry } from "./researchQuote";
 

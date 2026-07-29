@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import { apiPostPath } from "../../composables/apiClient";
+import { apiPostPath } from "@/composables/shared/apiClient";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
-} from "../../composables/brokerProviderSelection";
-import { productCompactMenuProps } from "../../composables/productControlDensity";
+} from "@/composables/trading/brokerProviderSelection";
+import { productCompactMenuProps } from "@/composables/product/productControlDensity";
 import {
   fetchProductFeature,
   type ProductFeatureResult,
-} from "../../composables/productFeatures";
-import { useConsoleData } from "../../composables/useConsoleData";
+} from "@/composables/product/productFeatures";
+import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import {
   formatOptionResearchCell as formatCell,
   optionEntryInstrumentId as entryInstrumentId,

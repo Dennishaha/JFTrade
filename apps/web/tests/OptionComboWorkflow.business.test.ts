@@ -21,7 +21,7 @@ const consoleState = {
   }),
 };
 
-vi.mock("../src/composables/apiClient", () => ({
+vi.mock("@/composables/shared/apiClient", () => ({
   fetchEnvelopeWithInit: api.fetchWithInit,
   apiPost: (path: string, body: unknown) =>
     api.fetchWithInit(path, {
@@ -32,7 +32,7 @@ vi.mock("../src/composables/apiClient", () => ({
   apiPostPathAction: (_template: string, path: string) =>
     api.fetchWithInit(path, { method: "POST" }),
 }));
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => consoleState,
 }));
 
@@ -43,8 +43,8 @@ import OptionComboLegEditor from "../src/components/product/OptionComboLegEditor
 import type {
   OptionComboDraftStore,
   OptionContractChoice,
-} from "../src/composables/optionComboDraft";
-import type { OptionChainRowModel } from "../src/composables/optionChainModel";
+} from "@/composables/product/optionComboDraft";
+import type { OptionChainRowModel } from "@/composables/product/optionChainModel";
 import { setupState } from "./productTestUtils";
 
 function choice(

@@ -14,26 +14,26 @@ const state = vi.hoisted(() => ({
   loadMarketProfiles: vi.fn(),
 }));
 
-vi.mock("../src/composables/useConsoleData", () => ({
+vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => state.console,
 }));
-vi.mock("../src/composables/useNotifications", () => ({
+vi.mock("@/composables/shared/useNotifications", () => ({
   useNotifications: () => state.notifications,
 }));
-vi.mock("../src/composables/useCommandPalette", () => ({
+vi.mock("@/composables/workspace/useCommandPalette", () => ({
   useCommandPalette: () => state.palette,
 }));
-vi.mock("../src/composables/useWorkspaceLayout", () => ({
+vi.mock("@/composables/workspace/useWorkspaceLayout", () => ({
   useWorkspaceTradingPrefs: () => state.workspace,
   useWorkspaceViewState: () => state.workspace,
 }));
-vi.mock("../src/composables/useTheme", () => ({
+vi.mock("@/composables/settings/useTheme", () => ({
   useTheme: () => state.theme,
 }));
-vi.mock("../src/composables/marketProfiles", () => ({
+vi.mock("@/composables/market-data/marketProfiles", () => ({
   useMarketProfiles: () => ({ loadMarketProfiles: state.loadMarketProfiles }),
 }));
-vi.mock("../src/composables/apiClient", () => ({ webLogout: () => state.webLogout() }));
+vi.mock("@/composables/shared/apiClient", () => ({ webLogout: () => state.webLogout() }));
 vi.mock("../src/runtimeConfig", () => ({ resolveDesktopMode: () => false }));
 
 import TopBar from "../src/layout/TopBar.vue";
