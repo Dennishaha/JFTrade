@@ -115,6 +115,7 @@ type Client struct {
 	done          chan struct{}
 	doneOnce      sync.Once
 	keepAliveOnce sync.Once
+	workerWG      sync.WaitGroup
 }
 
 // New creates a Client; Connect must be called to dial.
@@ -143,14 +144,17 @@ func (c *Client) Connect(ctx context.Context) error {
 		return ErrClosed
 	}
 	c.conn = conn
+	c.workerWG.Add(1)
 	c.mu.Unlock()
-	go c.readLoop(conn)
+	go c.runReadLoop(conn)
 	return nil
 }
 
 // Close terminates the connection.
 func (c *Client) Close() error {
-	return c.closeConn(true)
+	closeErr := c.closeConn(true)
+	c.workerWG.Wait()
+	return closeErr
 }
 
 // Done is closed when the underlying OpenD session is closed or lost.
@@ -187,7 +191,17 @@ func (c *Client) StartKeepAlive(interval time.Duration) {
 		return
 	}
 	c.keepAliveOnce.Do(func() {
-		go c.keepAliveLoop(interval)
+		c.mu.Lock()
+		if c.closed {
+			c.mu.Unlock()
+			return
+		}
+		c.workerWG.Add(1)
+		c.mu.Unlock()
+		go func() {
+			defer c.workerWG.Done()
+			c.keepAliveLoop(interval)
+		}()
 	})
 }
 
@@ -214,7 +228,7 @@ func (c *Client) keepAliveLoop(interval time.Duration) {
 			err := c.Call(ctx, ProtoKeepAlive, request, &response)
 			cancel()
 			if err != nil || response.GetRetType() != 0 {
-				jftradeErr1 := c.Close()
+				jftradeErr1 := c.closeConn(true)
 				besteffort.LogError(jftradeErr1)
 				return
 			}
@@ -336,6 +350,11 @@ func (c *Client) callFrame(ctx context.Context, protoID uint32, req proto.Messag
 		}
 		return f, nil
 	}
+}
+
+func (c *Client) runReadLoop(conn net.Conn) {
+	defer c.workerWG.Done()
+	c.readLoop(conn)
 }
 
 func (c *Client) readLoop(conn net.Conn) {

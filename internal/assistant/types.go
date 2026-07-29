@@ -57,6 +57,8 @@ type ApprovalQuery struct {
 type AuditQuery struct {
 	Kind      string
 	SubjectID string
+	Limit     int
+	Offset    int
 }
 
 type OptimizationTasks struct {

@@ -233,6 +233,38 @@ func TestPinetsWorkerClientCapturesBoundedStderr(t *testing.T) {
 	}
 }
 
+func TestPinetsWorkerClientCloseWaitsForOwnedWorkers(t *testing.T) {
+	client := &PinetsWorkerClient{}
+	workerStarted := make(chan struct{})
+	releaseWorker := make(chan struct{})
+	client.workerWG.Add(1)
+	go func() {
+		close(workerStarted)
+		<-releaseWorker
+		client.workerWG.Done()
+	}()
+	<-workerStarted
+
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- client.Close()
+	}()
+	select {
+	case err := <-closeDone:
+		t.Fatalf("Close returned before worker exit: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(releaseWorker)
+	select {
+	case err := <-closeDone:
+		if err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close did not return after worker exit")
+	}
+}
+
 func testPinetsClientWithReader(stdout string) (*PinetsWorkerClient, *testWriteCloser) {
 	writer := &testWriteCloser{}
 	return &PinetsWorkerClient{

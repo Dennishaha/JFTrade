@@ -6,7 +6,7 @@
 
 ## 当前版本快照
 
-更新时间：2026-07-22。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
+更新时间：2026-07-29。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
 
 JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。它以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、Futu/OpenD 接入、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
 
@@ -47,6 +47,8 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - [architecture.md](architecture.md)：当前系统架构、单一 API 入口、请求链路和职责边界。
 - [architecture-mermaid.md](architecture-mermaid.md)：项目架构、主要运行链路和开发/发布链路的 Mermaid 图。
 - [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层约束、依赖方向和常见禁区。
+- [architecture/goroutine-lifecycle-audit.md](architecture/goroutine-lifecycle-audit.md)：61 个异步启动面的 owner、取消、join、风险与修复账本。
+- [architecture/sqlite-query-plan-audit.md](architecture/sqlite-query-plan-audit.md)：9 个 SQLite 数据库的生产查询计划、索引决策与迁移阻断项。
 - [architecture/public-package-policy.md](architecture/public-package-policy.md)：`pkg/*` 的公开契约、保留/内移标准和当前决策。
 - [testing-strategy.md](testing-strategy.md)：覆盖率分层、PR/main 门禁和真实外部依赖的运行边界。
 - [roadmap.md](roadmap.md)：唯一活动计划入口，只记录尚未完成的高价值事项与验收标准。

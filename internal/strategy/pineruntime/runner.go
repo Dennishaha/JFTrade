@@ -48,6 +48,7 @@ type ephemeralRunner struct {
 	nextID         atomic.Uint64
 	mu             sync.Mutex
 	sessions       map[*liveSession]struct{}
+	sessionWatchWG sync.WaitGroup
 	closed         bool
 }
 
@@ -130,13 +131,20 @@ func (runner *ephemeralRunner) OpenLiveSession(
 		runner.release()
 		return nil, response, err
 	}
-	session := &liveSession{runner: runner, manager: manager, sessionID: request.SessionID, revision: response.SessionRevision}
-	if err := runner.registerSession(session); err != nil {
+	session := &liveSession{
+		runner: runner, manager: manager, sessionID: request.SessionID,
+		revision: response.SessionRevision, done: make(chan struct{}),
+	}
+	watchContext := ctx.Done() != nil
+	if err := runner.registerSessionWithWatcher(session, watchContext); err != nil {
 		_ = session.Close(context.Background())
 		return nil, pineworker.RunScriptResponse{}, err
 	}
-	if ctx.Done() != nil {
-		go session.closeWhenDone(ctx)
+	if watchContext {
+		go func() {
+			defer runner.sessionWatchWG.Done()
+			session.closeWhenDone(ctx)
+		}()
 	}
 	return session, response, nil
 }
@@ -156,6 +164,7 @@ func (runner *ephemeralRunner) Close(ctx context.Context) error {
 	for _, session := range sessions {
 		closeErr = errors.Join(closeErr, session.Close(ctx))
 	}
+	runner.sessionWatchWG.Wait()
 	return closeErr
 }
 
@@ -185,12 +194,19 @@ func (runner *ephemeralRunner) isClosed() bool {
 }
 
 func (runner *ephemeralRunner) registerSession(session *liveSession) error {
+	return runner.registerSessionWithWatcher(session, false)
+}
+
+func (runner *ephemeralRunner) registerSessionWithWatcher(session *liveSession, watchContext bool) error {
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
 	if runner.closed {
 		return fmt.Errorf("pine worker runner is closed")
 	}
 	runner.sessions[session] = struct{}{}
+	if watchContext {
+		runner.sessionWatchWG.Add(1)
+	}
 	return nil
 }
 
@@ -275,6 +291,7 @@ type liveSession struct {
 	mu        sync.Mutex
 	revision  uint64
 	closed    bool
+	done      chan struct{}
 }
 
 func (session *liveSession) Append(ctx context.Context, request pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
@@ -307,6 +324,10 @@ func (session *liveSession) Close(ctx context.Context) error {
 		return nil
 	}
 	session.closed = true
+	if session.done == nil {
+		session.done = make(chan struct{})
+	}
+	close(session.done)
 	revision := session.revision
 	session.mu.Unlock()
 	var closeErr error
@@ -329,8 +350,22 @@ func (session *liveSession) Close(ctx context.Context) error {
 }
 
 func (session *liveSession) closeWhenDone(ctx context.Context) {
-	<-ctx.Done()
-	stopCtx, cancel := context.WithTimeout(context.Background(), session.runner.stopTimeout())
+	session.mu.Lock()
+	if session.done == nil {
+		session.done = make(chan struct{})
+	}
+	done := session.done
+	runner := session.runner
+	session.mu.Unlock()
+	select {
+	case <-ctx.Done():
+	case <-done:
+		return
+	}
+	if runner == nil {
+		return
+	}
+	stopCtx, cancel := context.WithTimeout(context.Background(), runner.stopTimeout())
 	defer cancel()
 	_ = session.Close(stopCtx)
 }

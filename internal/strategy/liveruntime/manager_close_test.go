@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/strategy/pineruntime"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
@@ -36,6 +37,50 @@ type closeTestLease struct {
 
 func (lease *closeTestLease) Release() {
 	lease.count.Add(1)
+}
+
+type blockingCloseExchange struct {
+	*strategyRuntimeStubExchange
+	started     chan struct{}
+	release     chan struct{}
+	exited      chan struct{}
+	startedOnce sync.Once
+	exitedOnce  sync.Once
+}
+
+func (exchange *blockingCloseExchange) QueryKLines(
+	context.Context,
+	string,
+	bbgotypes.Interval,
+	bbgotypes.KLineQueryOptions,
+) ([]bbgotypes.KLine, error) {
+	exchange.startedOnce.Do(func() { close(exchange.started) })
+	<-exchange.release
+	exchange.exitedOnce.Do(func() { close(exchange.exited) })
+	return nil, nil
+}
+
+type orderedCloseSession struct {
+	loopExited <-chan struct{}
+	called     chan struct{}
+	early      atomic.Bool
+}
+
+func (session *orderedCloseSession) Append(
+	context.Context,
+	pineworker.RunScriptRequest,
+) (pineworker.RunScriptResponse, error) {
+	return pineworker.RunScriptResponse{}, nil
+}
+
+func (session *orderedCloseSession) Close(context.Context) error {
+	select {
+	case <-session.loopExited:
+	default:
+		session.early.Store(true)
+	}
+	close(session.called)
+	return nil
 }
 
 func TestManagerCloseAggregatesNamedSessionErrorsOnce(t *testing.T) {
@@ -137,6 +182,67 @@ func TestManagerCloseWaitsForInFlightStartAndCollectsItsCloseError(t *testing.T)
 	}
 	if got := session.count.Load(); got != 1 {
 		t.Fatalf("racing session close count = %d, want 1", got)
+	}
+}
+
+func TestManagerCloseJoinsBackgroundSyncBeforeClosingPineSession(t *testing.T) {
+	t.Parallel()
+
+	runtimeCtx, cancel := context.WithCancel(context.Background())
+	exchange := &blockingCloseExchange{
+		strategyRuntimeStubExchange: newStrategyRuntimeStubExchange(),
+		started:                     make(chan struct{}),
+		release:                     make(chan struct{}),
+		exited:                      make(chan struct{}),
+	}
+	session := &orderedCloseSession{
+		loopExited: exchange.exited,
+		called:     make(chan struct{}),
+	}
+	runtime := &managedRuntime{
+		instanceID: "instance-background-close",
+		cancel:     cancel,
+		symbols: map[string]*symbolRuntime{
+			"US.AAPL": {
+				symbol:                  "US.AAPL",
+				interval:                bbgotypes.Interval1m,
+				ctx:                     runtimeCtx,
+				runtimeExchange:         exchange,
+				closedKLineSyncInterval: time.Nanosecond,
+				pineWorkerLive:          &pineWorkerLive{session: session},
+			},
+		},
+	}
+	manager := NewManager(Dependencies{})
+	if err := manager.activateStrategyRuntime(runtime.instanceID, runtime); err != nil {
+		t.Fatalf("activateStrategyRuntime() error = %v", err)
+	}
+
+	select {
+	case <-exchange.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("background sync did not enter QueryKLines")
+	}
+
+	closeResult := make(chan error, 1)
+	go func() { closeResult <- manager.Close() }()
+	select {
+	case <-session.called:
+		t.Fatal("pine session closed before background sync exited")
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	close(exchange.release)
+	select {
+	case err := <-closeResult:
+		if err != nil {
+			t.Fatalf("Close() error = %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Close() did not finish after background sync exited")
+	}
+	if session.early.Load() {
+		t.Fatal("pine session observed a running background sync during Close")
 	}
 }
 

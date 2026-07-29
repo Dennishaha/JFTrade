@@ -243,7 +243,8 @@ func (h *Handle) WatchedWorkflowInstruments(ctx context.Context) []string {
 	return h.service.WatchedWorkflowInstruments(ctx)
 }
 
-// HandleWorkflowEvent forwards one broker-neutral event to workflow triggers.
+// HandleWorkflowEvent admits one broker-neutral event for service-owned
+// background dispatch and returns without waiting for matching workflows.
 func (h *Handle) HandleWorkflowEvent(ctx context.Context, event WorkflowEvent) {
 	if h == nil || h.service == nil {
 		return

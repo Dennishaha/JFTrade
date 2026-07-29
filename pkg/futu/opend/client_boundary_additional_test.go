@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -48,6 +49,23 @@ func (c closeFailureConn) Close() error {
 	return c.err
 }
 
+type closeDelayedReadConn struct {
+	net.Conn
+	readRelease chan struct{}
+	closeCalled chan struct{}
+	closeOnce   sync.Once
+}
+
+func (c *closeDelayedReadConn) Read([]byte) (int, error) {
+	<-c.readRelease
+	return 0, io.EOF
+}
+
+func (c *closeDelayedReadConn) Close() error {
+	c.closeOnce.Do(func() { close(c.closeCalled) })
+	return nil
+}
+
 func TestConnectSurfacesInvalidAddressAndClosedClient(t *testing.T) {
 	t.Run("invalid address", func(t *testing.T) {
 		client := New(Config{HandshakeTimeout: time.Second})
@@ -86,6 +104,42 @@ func TestConnectSurfacesInvalidAddressAndClosedClient(t *testing.T) {
 	})
 }
 
+func TestClientCloseWaitsForReadWorkerAfterClosingTransport(t *testing.T) {
+	conn := &closeDelayedReadConn{
+		readRelease: make(chan struct{}),
+		closeCalled: make(chan struct{}),
+	}
+	client := New(Config{})
+	client.mu.Lock()
+	client.conn = conn
+	client.workerWG.Add(1)
+	client.mu.Unlock()
+	go client.runReadLoop(conn)
+
+	closeResult := make(chan error, 1)
+	go func() { closeResult <- client.Close() }()
+	select {
+	case <-conn.closeCalled:
+	case <-time.After(time.Second):
+		t.Fatal("Close() did not close the transport")
+	}
+	select {
+	case err := <-closeResult:
+		t.Fatalf("Close() returned before read worker exited: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	close(conn.readRelease)
+	select {
+	case err := <-closeResult:
+		if err != nil {
+			t.Fatalf("Close() error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close() did not join the read worker")
+	}
+}
+
 func TestClientCloseDrainsPendingRequestsAfterBestEffortCloseFailure(t *testing.T) {
 	clientConn, peerConn := net.Pipe()
 	defer func() { jftradeCheckTestError(t, clientConn.Close()) }()
@@ -122,6 +176,26 @@ func TestKeepAliveLoopHalvesLongIntervalsAndStopsForClosedClient(t *testing.T) {
 	case <-finished:
 	case <-time.After(time.Second):
 		t.Fatal("keepAliveLoop did not stop after client close")
+	}
+}
+
+func TestStartKeepAliveRejectsClosedClientWithoutOwningWorker(t *testing.T) {
+	client := New(Config{})
+	client.mu.Lock()
+	client.closed = true
+	client.mu.Unlock()
+
+	client.StartKeepAlive(time.Hour)
+
+	waited := make(chan struct{})
+	go func() {
+		client.workerWG.Wait()
+		close(waited)
+	}()
+	select {
+	case <-waited:
+	case <-time.After(time.Second):
+		t.Fatal("StartKeepAlive registered a worker after the client closed")
 	}
 }
 

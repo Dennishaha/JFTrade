@@ -171,3 +171,113 @@ func TestRunExecutionLeaseUsesSafeDefaults(t *testing.T) {
 	cancel()
 	wait()
 }
+
+func TestRuntimeCloseCancelsAndWaitsForInFlightRunLease(t *testing.T) {
+	runtimeStore, observerStore := newExecutionClaimTestStores(t)
+	runtime := NewRuntime(runtimeStore, NewToolRegistry())
+	runtime.runLeaseTTL = time.Hour
+	runtime.runLeaseHeartbeat = time.Minute
+	leaseCtx, cancel, wait, err := runtime.beginRunExecutionLease(context.Background(), "run-close-in-flight")
+	if err != nil {
+		t.Fatalf("begin run lease: %v", err)
+	}
+	blocker, err := observerStore.db.BeginWrite(t.Context(), nil)
+	if err != nil {
+		cancel()
+		wait()
+		t.Fatalf("hold lease release write queue: %v", err)
+	}
+
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- runtime.Close()
+	}()
+
+	canceledBeforeTimeout := false
+	select {
+	case <-leaseCtx.Done():
+		canceledBeforeTimeout = true
+	case <-time.After(time.Second):
+	}
+	closeReturnedWhileReleaseBlocked := false
+	var closeErr error
+	select {
+	case closeErr = <-closeDone:
+		closeReturnedWhileReleaseBlocked = true
+	default:
+	}
+	if err := blocker.Rollback(); err != nil {
+		t.Fatalf("release lease write queue: %v", err)
+	}
+	cancel()
+	wait()
+	if !closeReturnedWhileReleaseBlocked {
+		closeErr = <-closeDone
+	}
+
+	if !canceledBeforeTimeout {
+		t.Fatal("Close did not cancel the in-flight run lease")
+	}
+	if closeReturnedWhileReleaseBlocked {
+		t.Fatal("Close returned before the run lease release completed")
+	}
+	if closeErr != nil {
+		t.Fatalf("close runtime: %v", closeErr)
+	}
+	stored, ok, err := observerStore.RunLease(t.Context(), "run-close-in-flight")
+	if err != nil || !ok || stored.OwnerID != "" {
+		t.Fatalf("released lease = %#v, ok=%v, err=%v", stored, ok, err)
+	}
+}
+
+func TestRuntimeCloseRejectsRunLeaseWorkAfterClosingStarts(t *testing.T) {
+	runtimeStore, observerStore := newExecutionClaimTestStores(t)
+	runtime := NewRuntime(runtimeStore, NewToolRegistry())
+	backgroundCanceled := make(chan struct{})
+	releaseBackground := make(chan struct{})
+	if !runtime.goBackground(func(ctx context.Context) {
+		<-ctx.Done()
+		close(backgroundCanceled)
+		<-releaseBackground
+	}) {
+		t.Fatal("runtime rejected background close barrier")
+	}
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- runtime.Close()
+	}()
+	select {
+	case <-backgroundCanceled:
+	case <-time.After(time.Second):
+		close(releaseBackground)
+		t.Fatal("Close did not enter closing state")
+	}
+
+	_, cancel, wait, admissionErr := runtime.beginRunExecutionLease(
+		context.Background(),
+		"run-after-closing",
+	)
+	if cancel != nil {
+		cancel()
+	}
+	if wait != nil {
+		wait()
+	}
+	close(releaseBackground)
+	closeErr := <-closeDone
+	_, exists, lookupErr := observerStore.RunLease(t.Context(), "run-after-closing")
+	_, _, _, afterCloseErr := runtime.beginRunExecutionLease(context.Background(), "run-after-close")
+
+	if !errors.Is(admissionErr, errRuntimeClosing) {
+		t.Fatalf("lease admission while closing error = %v, want errRuntimeClosing", admissionErr)
+	}
+	if closeErr != nil {
+		t.Fatalf("close runtime: %v", closeErr)
+	}
+	if lookupErr != nil || exists {
+		t.Fatalf("closing lease admission persisted a row: exists=%v err=%v", exists, lookupErr)
+	}
+	if !errors.Is(afterCloseErr, errRuntimeClosing) {
+		t.Fatalf("lease admission after Close error = %v, want errRuntimeClosing", afterCloseErr)
+	}
+}

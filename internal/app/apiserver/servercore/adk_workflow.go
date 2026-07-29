@@ -25,5 +25,5 @@ func (s *serverApplication) emitWorkflowEvent(event assistantassembly.WorkflowEv
 	if assistantRuntime == nil {
 		return
 	}
-	go assistantRuntime.HandleWorkflowEvent(context.Background(), event)
+	assistantRuntime.HandleWorkflowEvent(context.Background(), event)
 }

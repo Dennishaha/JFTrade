@@ -37,35 +37,7 @@ func (s *Store) ListItems(ctx context.Context, options domain.ListItemsOptions) 
 	if err := s.available(); err != nil {
 		return domain.ItemPage{}, err
 	}
-	query := `SELECT i.instrument_id, i.market, i.symbol, i.name, i.instrument_type, i.membership_revision,
-		(SELECT MAX(o.last_imported_at) FROM watchlist_membership_origins o WHERE o.instrument_id = i.instrument_id) AS last_imported_at
-		FROM watchlist_instruments i WHERE EXISTS (
-			SELECT 1 FROM watchlist_memberships member WHERE member.instrument_id = i.instrument_id`
-	args := make([]any, 0, 6)
-	if options.GroupID != "" {
-		query += ` AND member.group_id = ?`
-		args = append(args, options.GroupID)
-	}
-	query += `)`
-	if options.Cursor != "" {
-		query += ` AND i.instrument_id > ?`
-		args = append(args, options.Cursor)
-	}
-	if options.Query != "" {
-		query += ` AND (UPPER(i.instrument_id) LIKE UPPER(?) OR UPPER(i.name) LIKE UPPER(?))`
-		pattern := "%" + options.Query + "%"
-		args = append(args, pattern, pattern)
-	}
-	if options.Market != "" {
-		if options.Market == "CN" {
-			query += ` AND i.market IN ('SH', 'SZ')`
-		} else {
-			query += ` AND i.market = ?`
-			args = append(args, options.Market)
-		}
-	}
-	query += ` ORDER BY i.instrument_id LIMIT ?`
-	args = append(args, options.Limit+1)
+	query, args := buildListItemsQuery(options)
 	rows := []instrumentRow{}
 	if err := s.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return domain.ItemPage{}, err
@@ -81,6 +53,43 @@ func (s *Store) ListItems(ctx context.Context, options domain.ListItemsOptions) 
 	}
 	page.Items = items
 	return page, nil
+}
+
+func buildListItemsQuery(options domain.ListItemsOptions) (string, []any) {
+	query := `SELECT i.instrument_id, i.market, i.symbol, i.name, i.instrument_type, i.membership_revision,
+		(SELECT MAX(o.last_imported_at) FROM watchlist_membership_origins o WHERE o.instrument_id = i.instrument_id) AS last_imported_at`
+	args := make([]any, 0, 7)
+	orderColumn := "i.instrument_id"
+	if options.GroupID != "" {
+		query += ` FROM watchlist_memberships member
+			JOIN watchlist_instruments i ON i.instrument_id = member.instrument_id
+			WHERE member.group_id = ?`
+		args = append(args, options.GroupID)
+		orderColumn = "member.instrument_id"
+	} else {
+		query += ` FROM watchlist_instruments i WHERE EXISTS (
+			SELECT 1 FROM watchlist_memberships member WHERE member.instrument_id = i.instrument_id)`
+	}
+	if options.Cursor != "" {
+		query += ` AND ` + orderColumn + ` > ?`
+		args = append(args, options.Cursor)
+	}
+	if options.Query != "" {
+		query += ` AND (UPPER(i.instrument_id) LIKE UPPER(?) OR UPPER(i.name) LIKE UPPER(?))`
+		pattern := "%" + options.Query + "%"
+		args = append(args, pattern, pattern)
+	}
+	if options.Market != "" {
+		if options.Market == "CN" {
+			query += ` AND i.market IN ('SH', 'SZ')`
+		} else {
+			query += ` AND i.market = ?`
+			args = append(args, options.Market)
+		}
+	}
+	query += ` ORDER BY ` + orderColumn + ` LIMIT ?`
+	args = append(args, options.Limit+1)
+	return query, args
 }
 
 func (s *Store) hydrateItems(ctx context.Context, rows []instrumentRow) ([]domain.Item, error) {

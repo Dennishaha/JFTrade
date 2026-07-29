@@ -149,8 +149,8 @@ func TestChatStreamHubRetentionRunLookupAndCloneBoundaries(t *testing.T) {
 }
 
 func TestStreamHelpersRunIDAndBestEffortLogging(t *testing.T) {
-	(*Handler)(nil).cleanupADKChatStreams()
-	(&Handler{}).cleanupADKChatStreams()
+	(*Handler)(nil).cleanupADKChatStreams(t.Context())
+	(&Handler{}).cleanupADKChatStreams(t.Context())
 
 	if got := streamEventRunID(adkChatStreamEvent{Response: &jfadk.ChatResponse{Run: jfadk.Run{ID: " response-run "}}}); got != "response-run" {
 		t.Fatalf("streamEventRunID(response) = %q", got)
@@ -230,7 +230,7 @@ func TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest(t *testing.
 		streams: newADKChatStreamHub(),
 	}
 	record := handler.streams.create()
-	handler.executeADKChatStream(record, jfadk.ChatRequest{})
+	handler.executeADKChatStream(t.Context(), record, jfadk.ChatRequest{})
 
 	events, terminal, _ := record.snapshot(0)
 	if !terminal || len(events) == 0 {

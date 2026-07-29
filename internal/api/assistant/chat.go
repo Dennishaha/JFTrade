@@ -122,7 +122,7 @@ func (h *Handler) handleADKChatStreamReconnect(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
-	h.cleanupADKChatStreams()
+	h.cleanupADKChatStreams(c.Request.Context())
 	record, ok := h.streams.get(uri.StreamID)
 	if !ok {
 		h.writeError(c, http.StatusNotFound, "NOT_FOUND", "stream not found")
@@ -165,7 +165,7 @@ func (h *Handler) handleADKRunStreamReconnect(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
-	h.cleanupADKChatStreams()
+	h.cleanupADKChatStreams(c.Request.Context())
 	record, ok := h.streams.getByRunID(uri.RunID)
 	if !ok {
 		h.writeError(c, http.StatusNotFound, "NOT_FOUND", "stream not found")

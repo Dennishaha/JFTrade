@@ -344,6 +344,65 @@ func TestGoBackgroundNilGuardsAndClosingState(t *testing.T) {
 	}
 }
 
+func TestRuntimeCloseWaitsForInFlightBackgroundWorkAndRejectsNewWork(t *testing.T) {
+	runtime := newTestRuntime(t)
+	started := make(chan struct{})
+	canceled := make(chan struct{})
+	release := make(chan struct{})
+	finished := make(chan struct{})
+	if !runtime.goBackground(func(ctx context.Context) {
+		close(started)
+		<-ctx.Done()
+		close(canceled)
+		<-release
+		close(finished)
+	}) {
+		t.Fatal("runtime rejected background work before closing")
+	}
+	<-started
+
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- runtime.Close()
+	}()
+
+	canceledBeforeTimeout := false
+	select {
+	case <-canceled:
+		canceledBeforeTimeout = true
+	case <-time.After(time.Second):
+	}
+	closeReturnedEarly := false
+	select {
+	case <-closeDone:
+		closeReturnedEarly = true
+	default:
+	}
+	acceptedWhileClosing := runtime.goBackground(func(ctx context.Context) {
+		t.Error("closing runtime executed newly admitted background work")
+	})
+	close(release)
+	<-finished
+	if !closeReturnedEarly {
+		if err := <-closeDone; err != nil {
+			t.Fatalf("close runtime: %v", err)
+		}
+	}
+
+	if !canceledBeforeTimeout {
+		t.Fatal("Close did not cancel in-flight background work")
+	}
+	if closeReturnedEarly {
+		t.Fatal("Close returned before in-flight background work finished")
+	}
+	if acceptedWhileClosing {
+		t.Fatal("closing runtime accepted new background work")
+	}
+	if runtime.goBackground(func(ctx context.Context) {}) {
+		t.Fatal("closed runtime accepted new background work")
+	}
+}
+
 func TestGoBackgroundUsesBackgroundCtxOrFallback(t *testing.T) {
 	runtime := newTestRuntime(t)
 	runtime.backgroundCtx = nil

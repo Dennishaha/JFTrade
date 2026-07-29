@@ -145,6 +145,33 @@ func TestGoogleADKExecutionRunAndEventErrorBoundaries(t *testing.T) {
 	}
 }
 
+func TestExecuteRegisteredToolCancellationJoinsHandler(t *testing.T) {
+	started := make(chan struct{})
+	exited := make(chan struct{})
+	registered := RegisteredTool{Handler: func(ctx context.Context, _ map[string]any) (any, error) {
+		close(started)
+		<-ctx.Done()
+		close(exited)
+		return nil, ctx.Err()
+	}}
+	ctx, cancel := context.WithCancel(t.Context())
+	result := make(chan error, 1)
+	go func() {
+		_, err := executeRegisteredTool(ctx, registered, nil)
+		result <- err
+	}()
+	<-started
+	cancel()
+	if err := <-result; !errors.Is(err, context.Canceled) {
+		t.Fatalf("executeRegisteredTool error = %v, want context.Canceled", err)
+	}
+	select {
+	case <-exited:
+	default:
+		t.Fatal("executeRegisteredTool returned before its handler exited")
+	}
+}
+
 func TestGoogleADKExecutionPauseAndBufferedErrorBoundaries(t *testing.T) {
 	pausedAt := nowString()
 	for _, tc := range []struct {

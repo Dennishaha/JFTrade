@@ -29,6 +29,7 @@ type mcpServerManager struct {
 	settings jfsettings.MCPServerSettings
 	lastErr  string
 	closed   bool
+	serveWG  sync.WaitGroup
 }
 
 func newMCPServerManager(runtime *jfadk.Runtime) *mcpServerManager {
@@ -97,7 +98,11 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 	m.listener = listener
 	m.settings = settings
 	m.lastErr = ""
-	go m.serve(server, listener)
+	m.serveWG.Add(1)
+	go func() {
+		defer m.serveWG.Done()
+		m.serve(server, listener)
+	}()
 	if oldServer != nil {
 		if err := closeMCPHTTPServer(oldServer); err != nil {
 			// The new listener is already serving the requested configuration. Keep
@@ -126,9 +131,11 @@ func (m *mcpServerManager) Close() error {
 		return nil
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.closed = true
-	return m.stopLocked()
+	closeErr := m.stopLocked()
+	m.mu.Unlock()
+	m.serveWG.Wait()
+	return closeErr
 }
 
 func (m *mcpServerManager) serve(server *http.Server, listener net.Listener) {

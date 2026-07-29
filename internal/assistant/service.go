@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
@@ -37,6 +38,14 @@ type Service struct {
 	marketSnapshot    WorkflowMarketSnapshot
 	workflowInterval  time.Duration
 	workflowScheduler *WorkflowScheduler
+
+	workflowMu     sync.Mutex
+	workflowCtx    context.Context
+	workflowCancel context.CancelFunc
+	workflowWG     sync.WaitGroup
+	workflowClosed bool
+	closeOnce      sync.Once
+	closeErr       error
 }
 
 // OptimizationRun is the assistant-facing projection of a backtest run.
@@ -397,24 +406,23 @@ func (s *Service) GetAudit(ctx context.Context, query AuditQuery) ([]jfadk.Audit
 	if s.runtime == nil || s.runtime.Store() == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
 	}
-	events, err := s.runtime.Store().ListAuditEvents(ctx)
+	return s.runtime.Store().ListAuditEventsFiltered(ctx, query.Kind, query.SubjectID)
+}
+
+// GetAuditPage 分页列出审计事件，过滤、计数和分页均由持久化层执行。
+func (s *Service) GetAuditPage(ctx context.Context, query AuditQuery) (Page[jfadk.AuditEvent], error) {
+	if s.runtime == nil || s.runtime.Store() == nil {
+		return Page[jfadk.AuditEvent]{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	events, total, err := s.runtime.Store().ListAuditEventsPage(
+		ctx, query.Kind, query.SubjectID, query.Limit, query.Offset,
+	)
 	if err != nil {
-		return nil, err
+		return Page[jfadk.AuditEvent]{}, err
 	}
-	if query.Kind != "" || query.SubjectID != "" {
-		filtered := make([]jfadk.AuditEvent, 0, len(events))
-		for _, e := range events {
-			if query.Kind != "" && e.Kind != query.Kind {
-				continue
-			}
-			if query.SubjectID != "" && e.SubjectID != query.SubjectID {
-				continue
-			}
-			filtered = append(filtered, e)
-		}
-		events = filtered
-	}
-	return events, nil
+	return Page[jfadk.AuditEvent]{
+		Items: events, Total: total, Limit: query.Limit, Offset: min(max(query.Offset, 0), total),
+	}, nil
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -548,14 +556,20 @@ func (s *Service) optimizationTaskResponse(ctx context.Context, task jfadk.Optim
 
 // Close 关闭 ADK 运行时，释放资源。
 func (s *Service) Close() error {
-	if s.workflowScheduler != nil {
-		s.workflowScheduler.Stop()
-		s.workflowScheduler = nil
+	if s == nil {
+		return nil
 	}
-	if s.runtime != nil {
-		return s.runtime.Close()
-	}
-	return nil
+	s.closeOnce.Do(func() {
+		scheduler := s.beginWorkflowShutdown()
+		if scheduler != nil {
+			scheduler.Stop()
+		}
+		s.workflowWG.Wait()
+		if s.runtime != nil {
+			s.closeErr = s.runtime.Close()
+		}
+	})
+	return s.closeErr
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

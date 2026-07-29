@@ -1,8 +1,10 @@
 package assistant
 
 import (
+	"context"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -14,11 +16,18 @@ import (
 type Handler struct {
 	service *assistantservice.Service
 	streams *adkChatStreamHub
+
+	backgroundMu     sync.Mutex
+	backgroundCtx    context.Context
+	backgroundCancel context.CancelFunc
+	backgroundWG     sync.WaitGroup
+	closing          bool
 }
 
-// RegisterRoutes registers the stable /api/v1/adk contract.
-func RegisterRoutes(api *gin.RouterGroup, service *assistantservice.Service) {
-	handler := &Handler{service: service, streams: newADKChatStreamHub()}
+// RegisterRoutes registers the stable /api/v1/adk contract. The caller owns the
+// returned transport and must close it before closing the Assistant service.
+func RegisterRoutes(api *gin.RouterGroup, service *assistantservice.Service) *Handler {
+	handler := newHandler(service)
 	adk := api.Group("/adk", handler.requireAvailable())
 	handler.registerCatalogRoutes(adk)
 	handler.registerWorkflowRoutes(adk)
@@ -30,6 +39,60 @@ func RegisterRoutes(api *gin.RouterGroup, service *assistantservice.Service) {
 	handler.registerChatAndRunRoutes(adk)
 	handler.registerApprovalRoutes(adk)
 	handler.registerSkillRoutes(adk)
+	return handler
+}
+
+func newHandler(service *assistantservice.Service) *Handler {
+	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
+	return &Handler{
+		service:          service,
+		streams:          newADKChatStreamHub(),
+		backgroundCtx:    backgroundCtx,
+		backgroundCancel: backgroundCancel,
+	}
+}
+
+func (h *Handler) startBackground(run func(context.Context)) bool {
+	if h == nil || run == nil {
+		return false
+	}
+	h.backgroundMu.Lock()
+	if h.closing {
+		h.backgroundMu.Unlock()
+		return false
+	}
+	h.ensureBackgroundContextLocked()
+	ctx := h.backgroundCtx
+	h.backgroundWG.Add(1)
+	go func() {
+		defer h.backgroundWG.Done()
+		run(ctx)
+	}()
+	h.backgroundMu.Unlock()
+	return true
+}
+
+func (h *Handler) ensureBackgroundContextLocked() {
+	if h.backgroundCtx != nil && h.backgroundCancel != nil {
+		return
+	}
+	h.backgroundCtx, h.backgroundCancel = context.WithCancel(context.Background())
+}
+
+// Close cancels and joins every detached chat execution owned by this transport.
+func (h *Handler) Close() error {
+	if h == nil {
+		return nil
+	}
+	h.backgroundMu.Lock()
+	h.closing = true
+	cancel := h.backgroundCancel
+	h.backgroundMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	h.backgroundWG.Wait()
+	return nil
 }
 
 func (h *Handler) registerCatalogRoutes(adk *gin.RouterGroup) {

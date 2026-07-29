@@ -54,10 +54,12 @@ func coverage98SSEContext(t *testing.T, writer http.ResponseWriter, method strin
 
 func TestCoverage98ChatStreamTransportHandlesDisconnectedClients(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	handler := &Handler{
-		service: assistantservice.NewService(nil),
-		streams: newADKChatStreamHub(),
-	}
+	handler := newHandler(assistantservice.NewService(nil))
+	t.Cleanup(func() {
+		if err := handler.Close(); err != nil {
+			t.Errorf("close chat handler: %v", err)
+		}
+	})
 
 	t.Run("invalid payload stops after failed retry handshake", func(t *testing.T) {
 		writer := newCoverage98FailingSSEWriter()

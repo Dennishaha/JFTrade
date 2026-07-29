@@ -16,22 +16,17 @@ func (h *Handler) handleADKAudit(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid audit query")
 		return
 	}
-	events, err := h.service.GetAudit(c.Request.Context(), asstsvc.AuditQuery{
-		Kind: query.Kind, SubjectID: query.SubjectID,
+	limit, offset := adkPageBounds(adkPageQuery{Limit: query.Limit, Offset: query.Offset})
+	page, err := h.service.GetAuditPage(c.Request.Context(), asstsvc.AuditQuery{
+		Kind: query.Kind, SubjectID: query.SubjectID, Limit: limit, Offset: offset,
 	})
 	if err != nil {
 		h.writeError(c, http.StatusInternalServerError, "ADK_AUDIT_LIST_FAILED", err.Error())
 		return
 	}
-	limit, offset := adkPageBounds(adkPageQuery{Limit: query.Limit, Offset: query.Offset})
-	total := len(events)
-	if offset > total {
-		offset = total
-	}
-	end := min(offset+limit, total)
 	h.writeOK(c, map[string]any{
-		"events": events[offset:end],
-		"page":   pageEnvelope(limit, offset, total, end-offset),
+		"events": page.Items,
+		"page":   pageEnvelope(page.Limit, page.Offset, page.Total, len(page.Items)),
 	})
 }
 

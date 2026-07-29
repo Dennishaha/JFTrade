@@ -55,23 +55,37 @@ type WorkflowStartResult struct {
 type WorkflowScheduler struct {
 	service  *Service
 	interval time.Duration
+	mu       sync.Mutex
 	cancel   context.CancelFunc
 	wg       sync.WaitGroup
+	started  bool
+	stopped  bool
 }
 
 func (s *Service) StartWorkflowScheduler(ctx context.Context) {
-	if s == nil || !s.Available() || s.workflowScheduler != nil {
+	if s == nil || !s.Available() {
 		return
-	}
-	if err := s.EnsureBuiltinWorkflowTemplates(ctx); err != nil {
-		log.Printf("JFTrade ADK workflow template initialization failed: %v", err)
 	}
 	interval := s.workflowInterval
 	if interval <= 0 {
 		interval = defaultWorkflowSchedulerInterval
 	}
-	s.workflowScheduler = &WorkflowScheduler{service: s, interval: interval}
-	s.workflowScheduler.Start(ctx)
+	scheduler, ownerCtx, release, admitted := s.reserveWorkflowScheduler(interval)
+	if !admitted {
+		return
+	}
+	defer release()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	initCtx, cancelInit := context.WithCancel(ctx)
+	stopOwnerCancel := context.AfterFunc(ownerCtx, cancelInit)
+	if err := s.EnsureBuiltinWorkflowTemplates(initCtx); err != nil {
+		log.Printf("JFTrade ADK workflow template initialization failed: %v", err)
+	}
+	stopOwnerCancel()
+	cancelInit()
+	scheduler.Start(ctx)
 }
 
 func (s *Service) EnsureBuiltinWorkflowTemplates(ctx context.Context) error {
@@ -448,6 +462,16 @@ func (s *Service) WatchedWorkflowInstruments(ctx context.Context) []string {
 }
 
 func (s *Service) HandleWorkflowEvent(ctx context.Context, event jfadk.WorkflowEvent) {
+	if s == nil {
+		return
+	}
+	event.Payload = cloneMap(event.Payload)
+	s.goWorkflowBackground(ctx, func(runCtx context.Context) {
+		s.handleWorkflowEvent(runCtx, event)
+	})
+}
+
+func (s *Service) handleWorkflowEvent(ctx context.Context, event jfadk.WorkflowEvent) {
 	if s == nil || s.runtime == nil || s.runtime.Store() == nil {
 		return
 	}
@@ -468,7 +492,7 @@ func (s *Service) HandleWorkflowEvent(ctx context.Context, event jfadk.WorkflowE
 					if wfErr != nil {
 						continue
 					}
-					go s.invokeWorkflowBackground(workflow, trigger, matched)
+					s.launchWorkflowInvocation(ctx, workflow, trigger, matched)
 				}
 			}
 		}
@@ -493,7 +517,7 @@ func (s *Service) HandleWorkflowEvent(ctx context.Context, event jfadk.WorkflowE
 		if wfErr != nil {
 			continue
 		}
-		go s.invokeWorkflowBackground(workflow, trigger, eventAsMap(event))
+		s.launchWorkflowInvocation(ctx, workflow, trigger, eventAsMap(event))
 	}
 }
 
@@ -520,6 +544,16 @@ func (s *Service) invokeWorkflowWithStore(ctx context.Context, store workflowInv
 }
 
 func (s *Service) startWorkflowAsync(ctx context.Context, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, triggerType string, inputs map[string]any, matchedEvent map[string]any) (WorkflowStartResult, error) {
+	runCtx, release, admitted := s.reserveWorkflowBackground(ctx)
+	if !admitted {
+		return WorkflowStartResult{}, errAssistantServiceClosing
+	}
+	releaseOnReturn := true
+	defer func() {
+		if releaseOnReturn {
+			release()
+		}
+	}()
 	store, err := s.workflowStore()
 	if err != nil {
 		return WorkflowStartResult{}, err
@@ -541,7 +575,11 @@ func (s *Service) startWorkflowAsync(ctx context.Context, workflow jfadk.Workflo
 		copyValue := *trigger
 		triggerCopy = &copyValue
 	}
-	go s.executeQueuedWorkflowBackground(context.WithoutCancel(ctx), store, workflow, triggerCopy, workflowInputs, matched, prepared.Log)
+	releaseOnReturn = false
+	go func() {
+		defer release()
+		s.executeQueuedWorkflowBackground(runCtx, store, workflow, triggerCopy, workflowInputs, matched, prepared.Log)
+	}()
 	return result, nil
 }
 

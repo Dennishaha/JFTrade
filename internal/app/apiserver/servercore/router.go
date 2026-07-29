@@ -55,7 +55,7 @@ func (s *Server) buildRouter() *gin.Engine {
 	apiresearch.RegisterRoutes(api, s.researchSvc)
 	apiset.RegisterRoutes(api, s.settingsSvc, s.dataManagementSvc)
 	apiroutes.RegisterRoutes(api, s.sysSvc)
-	apiassistant.RegisterRoutes(api, s.assistantSvc)
+	s.registerResource("assistant HTTP transport", apiassistant.RegisterRoutes(api, s.assistantSvc).Close)
 	apistrat.RegisterPluginRoutes(api, s.strategySvc)
 	apistrat.RegisterRoutes(api, s.strategySvc)
 	apibacktest.RegisterRoutes(api, s.backtestSvc)

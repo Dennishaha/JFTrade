@@ -13,6 +13,9 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 )
 
+// ToolFunc implementations must stop promptly when the supplied context is
+// cancelled. Tool execution stays synchronous so timeout paths never abandon
+// an unjoined handler that can continue performing side effects.
 type ToolFunc func(context.Context, map[string]any) (any, error)
 
 type toolContextKey string
@@ -422,33 +425,20 @@ func executeRegisteredTool(ctx context.Context, registered RegisteredTool, input
 	ctx = contextWithToolInvocationMetadata(ctx)
 	toolCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	type result struct {
-		output any
-		err    error
+	if ctxErr := toolCtx.Err(); ctxErr != nil {
+		return nil, ctxErr
 	}
-	done := make(chan result, 1)
-	go func() {
-		defer func() {
-			if recovered := recover(); recovered != nil {
-				select {
-				case done <- result{err: fmt.Errorf("tool panic: %v", recovered)}:
-				default:
-				}
-			}
-		}()
-		value, callErr := registered.Handler(toolCtx, input)
-		select {
-		case done <- result{output: value, err: callErr}:
-		default:
-			// Context already timed out; discard result to avoid goroutine leak.
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			output = nil
+			err = fmt.Errorf("tool panic: %v", recovered)
 		}
 	}()
-	select {
-	case <-toolCtx.Done():
-		return nil, toolCtx.Err()
-	case result := <-done:
-		return result.output, result.err
+	output, err = registered.Handler(toolCtx, input)
+	if ctxErr := toolCtx.Err(); ctxErr != nil {
+		return nil, ctxErr
 	}
+	return output, err
 }
 
 func limitToolOutputWithMetadata(output any) (any, bool) {

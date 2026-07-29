@@ -198,18 +198,33 @@ func streamEventRunID(event adkChatStreamEvent) string {
 }
 
 func (h *Handler) startADKChatStream(payload jfadk.ChatRequest) *adkChatStreamRecord {
-	h.cleanupADKChatStreams()
 	record := h.streams.create()
-	go h.executeADKChatStream(record, payload)
+	// Execution belongs to the transport, not one SSE request: disconnecting a
+	// client leaves the run available for replay, while Handler.Close cancels it.
+	if !h.startBackground(func(ctx context.Context) {
+		h.cleanupADKChatStreams(ctx)
+		h.executeADKChatStream(ctx, record, payload)
+	}) {
+		h.streams.publish(record, adkChatStreamEvent{
+			Type:    "error",
+			Message: "assistant transport is shutting down",
+		})
+	}
 	return record
 }
 
-func (h *Handler) cleanupADKChatStreams() {
+func (h *Handler) cleanupADKChatStreams(ctx context.Context) {
 	if h == nil || h.streams == nil {
 		return
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	h.streams.cleanupWithRunLookup(func(runID string) (jfadk.Run, bool) {
-		run, err := h.service.GetRun(context.Background(), runID)
+		if h.service == nil {
+			return jfadk.Run{}, false
+		}
+		run, err := h.service.GetRun(ctx, runID)
 		if err != nil {
 			return jfadk.Run{}, false
 		}
@@ -217,8 +232,11 @@ func (h *Handler) cleanupADKChatStreams() {
 	})
 }
 
-func (h *Handler) executeADKChatStream(record *adkChatStreamRecord, payload jfadk.ChatRequest) {
+func (h *Handler) executeADKChatStream(ctx context.Context, record *adkChatStreamRecord, payload jfadk.ChatRequest) {
 	execution := newADKChatStreamExecution(h, record, payload)
+	if ctx != nil {
+		execution.ctx = ctx
+	}
 	execution.previewSession()
 	result, err := h.service.ChatStream(execution.ctx, payload, execution.handleDelta)
 	if err != nil {

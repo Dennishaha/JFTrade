@@ -10,9 +10,27 @@ import (
 )
 
 func (scheduler *WorkflowScheduler) Start(parent context.Context) {
+	if scheduler == nil {
+		return
+	}
+	if parent == nil {
+		parent = context.Background()
+	}
+	scheduler.mu.Lock()
+	if scheduler.started || scheduler.stopped {
+		scheduler.mu.Unlock()
+		return
+	}
 	ctx, cancel := context.WithCancel(parent)
 	scheduler.cancel = cancel
-	scheduler.wg.Go(func() {
+	scheduler.started = true
+	scheduler.wg.Add(1)
+	scheduler.mu.Unlock()
+	go func() {
+		defer scheduler.wg.Done()
+		if ctx.Err() != nil {
+			return
+		}
 		scheduler.tick(ctx)
 		ticker := time.NewTicker(scheduler.interval)
 		defer ticker.Stop()
@@ -24,15 +42,19 @@ func (scheduler *WorkflowScheduler) Start(parent context.Context) {
 				scheduler.tick(ctx)
 			}
 		}
-	})
+	}()
 }
 
 func (scheduler *WorkflowScheduler) Stop() {
 	if scheduler == nil {
 		return
 	}
-	if scheduler.cancel != nil {
-		scheduler.cancel()
+	scheduler.mu.Lock()
+	scheduler.stopped = true
+	cancel := scheduler.cancel
+	scheduler.mu.Unlock()
+	if cancel != nil {
+		cancel()
 	}
 	scheduler.wg.Wait()
 }
@@ -62,8 +84,11 @@ func (scheduler *WorkflowScheduler) tick(ctx context.Context) {
 			if saveErr == nil {
 				trigger = updated
 			}
-			go service.invokeWorkflowBackground(workflow, trigger, map[string]any{"scheduledAt": now.Format(time.RFC3339Nano)})
+			service.launchWorkflowInvocation(ctx, workflow, trigger, map[string]any{"scheduledAt": now.Format(time.RFC3339Nano)})
 		}
+	}
+	if ctx.Err() != nil {
+		return
 	}
 	scheduler.pollMarketThresholds(ctx, now)
 }
@@ -107,13 +132,23 @@ func (scheduler *WorkflowScheduler) pollMarketThresholds(ctx context.Context, no
 			if wfErr != nil || workflow.Status != jfadk.WorkflowStatusEnabled {
 				continue
 			}
-			go service.invokeWorkflowBackground(workflow, trigger, matched)
+			service.launchWorkflowInvocation(ctx, workflow, trigger, matched)
 		}
 	}
 }
 
 func (s *Service) invokeWorkflowBackground(workflow jfadk.WorkflowDefinition, trigger jfadk.WorkflowTrigger, matchedEvent map[string]any) {
-	ctx, cancel := context.WithTimeout(context.Background(), jfadk.DefaultRunTimeout+time.Minute)
+	s.invokeWorkflowBackgroundContext(context.Background(), workflow, trigger, matchedEvent)
+}
+
+func (s *Service) launchWorkflowInvocation(ctx context.Context, workflow jfadk.WorkflowDefinition, trigger jfadk.WorkflowTrigger, matchedEvent map[string]any) bool {
+	return s.goWorkflowBackground(ctx, func(runCtx context.Context) {
+		s.invokeWorkflowBackgroundContext(runCtx, workflow, trigger, matchedEvent)
+	})
+}
+
+func (s *Service) invokeWorkflowBackgroundContext(ctx context.Context, workflow jfadk.WorkflowDefinition, trigger jfadk.WorkflowTrigger, matchedEvent map[string]any) {
+	ctx, cancel := context.WithTimeout(ctx, jfadk.DefaultRunTimeout+time.Minute)
 	defer cancel()
 	_, _ = s.invokeWorkflow(ctx, workflow, &trigger, trigger.Type, map[string]any{"event": matchedEvent}, matchedEvent)
 }

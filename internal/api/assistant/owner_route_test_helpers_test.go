@@ -77,6 +77,7 @@ type assistantRouteServer struct {
 	runtime      *assistanttestkit.Runtime
 	assistantSvc *assistantservice.Service
 	originalSvc  *assistantservice.Service
+	handler      *Handler
 	store        *SettingsStore
 	router       *gin.Engine
 	openErr      error
@@ -185,7 +186,7 @@ func openAssistantRouteServer(settings *SettingsStore) *assistantRouteServer {
 func (s *assistantRouteServer) buildRouter() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	RegisterRoutes(router.Group("/api/v1"), s.assistantSvc)
+	s.handler = RegisterRoutes(router.Group("/api/v1"), s.assistantSvc)
 	return router
 }
 
@@ -201,7 +202,13 @@ func (s *assistantRouteServer) Close() error {
 	if s == nil || s.assistantSvc == nil {
 		return nil
 	}
-	err := s.assistantSvc.Close()
+	var err error
+	if s.handler != nil {
+		err = s.handler.Close()
+	}
+	if closeErr := s.assistantSvc.Close(); err == nil {
+		err = closeErr
+	}
 	if s.originalSvc != nil && s.originalSvc != s.assistantSvc {
 		if closeErr := s.originalSvc.Close(); err == nil {
 			err = closeErr

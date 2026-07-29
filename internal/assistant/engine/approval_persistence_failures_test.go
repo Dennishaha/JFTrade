@@ -101,7 +101,10 @@ func TestWorkflowApprovalReconcilerRestagesPersistedResolution(t *testing.T) {
 	// The reconciler should stage the durable resolution and synchronize the
 	// parent immediately.  Disable only the later goroutine; the parent/child
 	// state transition itself remains synchronous and observable here.
-	runtime.closing = true
+	if !runtime.claimApprovalContinuation(child.ID) {
+		t.Fatal("claim approval continuation barrier")
+	}
+	defer runtime.releaseApprovalContinuation(child.ID)
 	runtime.reconcileWorkflowParent(ctx, parent)
 
 	storedChild, ok, err := runtime.Store().Run(ctx, child.ID)

@@ -176,6 +176,7 @@ type managedRuntime struct {
 	definition        stratsrv.DefinitionSummary
 	cancel            context.CancelFunc
 	symbols           map[string]*symbolRuntime
+	backgroundWG      sync.WaitGroup
 	mu                sync.RWMutex
 	lastClosedKLineAt time.Time
 	lastSignalAt      time.Time
@@ -489,12 +490,10 @@ func (m *Manager) activateStrategyRuntime(instanceID string, managed *managedRun
 		closeErr := managed.close(context.Background())
 		return errors.Join(fmt.Errorf("strategy instance is already running"), closeErr)
 	}
+	managed.startBackgroundLoops()
 	m.runtimes[instanceID] = managed
 	m.mu.Unlock()
 	m.persistObservationSnapshot(managed.snapshot(strategyStatusRunning))
-	for _, runner := range managed.symbols {
-		go runner.syncClosedKLinesLoop()
-	}
 	m.wakeMarketDataCollector()
 	return nil
 }
@@ -615,6 +614,7 @@ func (runtime *managedRuntime) close(ctx context.Context) error {
 		if runtime.cancel != nil {
 			runtime.cancel()
 		}
+		runtime.backgroundWG.Wait()
 		symbols := strategyRuntimeSortedSymbols(runtime.symbols)
 		closeErrors := make([]error, 0, len(symbols))
 		for _, symbol := range symbols {
@@ -637,6 +637,25 @@ func (runtime *managedRuntime) close(ctx context.Context) error {
 		runtime.closeErr = errors.Join(closeErrors...)
 	})
 	return runtime.closeErr
+}
+
+func (runtime *managedRuntime) startBackgroundLoops() {
+	if runtime == nil {
+		return
+	}
+	runners := make([]*symbolRuntime, 0, len(runtime.symbols))
+	for _, runner := range runtime.symbols {
+		if runner != nil && runner.closedKLineSyncInterval > 0 {
+			runners = append(runners, runner)
+		}
+	}
+	runtime.backgroundWG.Add(len(runners))
+	for _, runner := range runners {
+		go func() {
+			defer runtime.backgroundWG.Done()
+			runner.syncClosedKLinesLoop()
+		}()
+	}
 }
 
 func strategyKLineSubscriptionRefs(symbols []string, interval bbgotypes.Interval) []mdsrv.InstrumentRef {

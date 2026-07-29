@@ -2,6 +2,7 @@ package futu
 
 import (
 	"context"
+	"errors"
 	"math"
 	"testing"
 	"time"
@@ -17,6 +18,62 @@ import (
 	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
+
+func TestStreamCloseCancelsAndJoinsOwnedWorkers(t *testing.T) {
+	stream := NewStream(NewExchange(""))
+	streamCtx, cancel := context.WithCancel(context.Background())
+	stream.mu.Lock()
+	stream.ctx = streamCtx
+	stream.cancel = cancel
+	stream.generation = 1
+	stream.mu.Unlock()
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	disconnectConnectErr := make(chan error, 1)
+	stream.OnDisconnect(func() {
+		disconnectConnectErr <- stream.Connect(t.Context())
+	})
+	if !stream.startWorker(1, func() {
+		close(started)
+		<-streamCtx.Done()
+		<-release
+	}) {
+		t.Fatal("startWorker() rejected an active stream generation")
+	}
+	<-started
+
+	closeResult := make(chan error, 1)
+	go func() { closeResult <- stream.Close() }()
+	select {
+	case <-streamCtx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("Close() did not cancel the stream context")
+	}
+	select {
+	case err := <-closeResult:
+		t.Fatalf("Close() returned before its worker exited: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	close(release)
+	select {
+	case err := <-closeResult:
+		if err != nil {
+			t.Fatalf("Close() error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close() did not join its worker")
+	}
+	select {
+	case err := <-disconnectConnectErr:
+		if !errors.Is(err, opend.ErrClosed) {
+			t.Fatalf("Connect() from disconnect callback error = %v, want ErrClosed", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("disconnect callback deadlocked while checking closed stream")
+	}
+}
 
 func TestStreamConnectionAndSubscriptionBoundaries(t *testing.T) {
 	dead := NewExchangeWithConfig(opend.Config{Addr: "127.0.0.1:1", RequestTimeout: 30 * time.Millisecond})

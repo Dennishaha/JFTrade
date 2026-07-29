@@ -16,6 +16,8 @@ const (
 	defaultADKToolClaimTTL      = 30 * time.Second
 )
 
+var errRuntimeClosing = errors.New("ADK runtime is closing")
+
 type runExecutionLeaseContextKey struct{}
 
 type contextWithoutRunExecutionLease struct {
@@ -55,8 +57,12 @@ func (r *Runtime) beginRunExecutionLease(
 	if r == nil || runID == "" {
 		return nil, nil, nil, fmt.Errorf("ADK run execution lease requires a runtime and run id")
 	}
-	leaseBaseCtx, cancel := context.WithCancel(ctx)
+	leaseBaseCtx, cancel, finishLifecycle, err := r.reserveRunExecutionLeaseLifecycle(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	if r.store == nil {
+		finishLifecycle()
 		return leaseBaseCtx, cancel, func() {}, nil
 	}
 	ttl := r.runLeaseTTL
@@ -73,6 +79,7 @@ func (r *Runtime) beginRunExecutionLease(
 	lease, err := r.store.ClaimRunLease(leaseBaseCtx, runID, r.executorID, time.Now().UTC(), ttl)
 	if err != nil {
 		cancel()
+		finishLifecycle()
 		return nil, nil, nil, err
 	}
 	leasedCtx := context.WithValue(leaseBaseCtx, runExecutionLeaseContextKey{}, lease)
@@ -83,7 +90,8 @@ func (r *Runtime) beginRunExecutionLease(
 	r.runLeases[runID] = lease
 	r.activeMu.Unlock()
 	done := make(chan struct{})
-	r.runLeaseWG.Go(func() {
+	go func() {
+		defer finishLifecycle()
 		defer close(done)
 		defer func() {
 			releaseCtx, releaseCancel := context.WithTimeout(context.Background(), min(ttl, 5*time.Second))
@@ -115,12 +123,39 @@ func (r *Runtime) beginRunExecutionLease(
 				r.activeMu.Unlock()
 			}
 		}
-	})
+	}()
 	wait := func() {
 		cancel()
 		<-done
 	}
 	return leasedCtx, cancel, wait, nil
+}
+
+// reserveRunExecutionLeaseLifecycle closes the Add/Wait admission race:
+// Close flips closing while holding approvalMu before it calls Wait, while an
+// admitted lease reserves its WaitGroup slot under the same mutex.
+func (r *Runtime) reserveRunExecutionLeaseLifecycle(
+	ctx context.Context,
+) (context.Context, context.CancelFunc, func(), error) {
+	leaseCtx, cancel := context.WithCancel(ctx)
+	r.approvalMu.Lock()
+	if r.closing {
+		r.approvalMu.Unlock()
+		cancel()
+		return nil, nil, nil, errRuntimeClosing
+	}
+	runtimeCtx := r.backgroundCtx
+	if runtimeCtx == nil {
+		runtimeCtx = context.Background()
+	}
+	stopRuntimeCancel := context.AfterFunc(runtimeCtx, cancel)
+	r.runLeaseWG.Add(1)
+	r.approvalMu.Unlock()
+	finish := func() {
+		stopRuntimeCancel()
+		r.runLeaseWG.Done()
+	}
+	return leaseCtx, cancel, finish, nil
 }
 
 func (r *Runtime) refreshRunExecutionLease(lease RunLease, ttl time.Duration) (RunLease, error) {

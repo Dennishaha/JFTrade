@@ -25,6 +25,7 @@ func (s *Stream) connectOpenDOrderBook(ctx context.Context) error {
 		client.SubscribeOrderBook(s.handleOrderBookPush)
 	}
 	streamCtx := s.ctx
+	generation := s.generation
 	s.mu.Unlock()
 
 	requests, err := orderBookRequestsFromSubscriptions(s.GetSubscriptions())
@@ -38,7 +39,7 @@ func (s *Stream) connectOpenDOrderBook(ctx context.Context) error {
 		return err
 	}
 	if streamCtx != nil {
-		go s.watchClientLoop(streamCtx, client)
+		s.startWorker(generation, func() { s.watchClientLoop(streamCtx, client) })
 	}
 	return nil
 }

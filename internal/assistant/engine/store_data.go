@@ -222,13 +222,19 @@ func (s *Store) ApprovalByConfirmationCallID(ctx context.Context, confirmationID
 	return s.approvalByConfirmationCallID(ctx, strings.TrimSpace(confirmationID))
 }
 
+const approvalByConfirmationCallIDQuery = `SELECT payload_json FROM ` + tableApprovals + `
+	WHERE COALESCE(json_extract(payload_json, '$.confirmationCallId'), '') <> ''
+		AND json_extract(payload_json, '$.confirmationCallId') = ?
+	ORDER BY created_at ASC, id ASC
+	LIMIT 1`
+
 func (s *Store) approvalByConfirmationCallID(ctx context.Context, confirmationID string) (Approval, bool, error) {
 	var approval Approval
 	if confirmationID == "" {
 		return approval, false, nil
 	}
 	var payload string
-	err := s.db.QueryRowxContext(ctx, `SELECT payload_json FROM `+tableApprovals+` WHERE json_extract(payload_json, '$.confirmationCallId') = ? ORDER BY created_at ASC, id ASC LIMIT 1`, confirmationID).Scan(&payload)
+	err := s.db.QueryRowxContext(ctx, approvalByConfirmationCallIDQuery, confirmationID).Scan(&payload)
 	if errors.Is(err, sql.ErrNoRows) {
 		return approval, false, nil
 	}
@@ -408,39 +414,6 @@ func (s *Store) DeleteSkill(ctx context.Context, id string) error {
 		return err
 	}
 	return nil
-}
-
-func (s *Store) AddAuditEvent(ctx context.Context, event AuditEvent) error {
-	if strings.TrimSpace(event.ID) == "" {
-		event.ID = "audit-" + uuid.NewString()
-	}
-	if strings.TrimSpace(event.CreatedAt) == "" {
-		event.CreatedAt = nowString()
-	}
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return err
-	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO `+tableAudit+` (id, kind, subject_id, payload_json, created_at) VALUES (?, ?, ?, ?, ?)`, event.ID, event.Kind, event.SubjectID, string(payload), event.CreatedAt)
-	return err
-}
-
-func (s *Store) ListAuditEvents(ctx context.Context) ([]AuditEvent, error) {
-	rows := []struct {
-		PayloadJSON string `db:"payload_json"`
-	}{}
-	if err := s.db.SelectContext(ctx, &rows, `SELECT payload_json FROM `+tableAudit+` ORDER BY created_at DESC, id ASC`); err != nil {
-		return nil, err
-	}
-	events := make([]AuditEvent, 0, len(rows))
-	for _, row := range rows {
-		var event AuditEvent
-		if err := json.Unmarshal([]byte(row.PayloadJSON), &event); err != nil {
-			return nil, err
-		}
-		events = append(events, event)
-	}
-	return events, nil
 }
 
 func (s *Store) SaveOptimizationTask(ctx context.Context, task OptimizationTask) (OptimizationTask, error) {

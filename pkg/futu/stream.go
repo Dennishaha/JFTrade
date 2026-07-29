@@ -26,11 +26,15 @@ type Stream struct {
 	types.StandardStream
 
 	exchange       *Exchange
+	connectMu      sync.Mutex
 	mu             sync.Mutex
 	ctx            context.Context
 	cancel         context.CancelFunc
 	callbackClient *opend.Client
+	generation     uint64
+	closed         bool
 	closeOnce      sync.Once
+	workerWG       sync.WaitGroup
 	tradeVolumes   map[string]streamTradeVolume
 }
 
@@ -48,12 +52,22 @@ func NewStream(ex *Exchange) *Stream {
 }
 
 func (s *Stream) Connect(ctx context.Context) error {
+	s.connectMu.Lock()
+	defer s.connectMu.Unlock()
+
 	streamCtx, cancel := context.WithCancel(context.Background())
 
 	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		cancel()
+		return opend.ErrClosed
+	}
 	if s.cancel != nil {
 		s.cancel()
 	}
+	s.generation++
+	generation := s.generation
 	s.ctx = streamCtx
 	s.cancel = cancel
 	s.mu.Unlock()
@@ -69,22 +83,33 @@ func (s *Stream) Connect(ctx context.Context) error {
 		log.Printf("futu stream: order book push connection skipped: %v (continuing)", err)
 	}
 
-	go s.reconnectLoop(streamCtx)
+	s.startWorker(generation, func() { s.reconnectLoop(streamCtx) })
 	s.EmitStart()
 	return nil
 }
 
 func (s *Stream) Close() error {
-	s.mu.Lock()
-	if s.cancel != nil {
-		s.cancel()
-		s.cancel = nil
+	s.connectMu.Lock()
+	emitDisconnect := false
+	s.closeOnce.Do(func() {
+		s.mu.Lock()
+		s.closed = true
+		s.generation++
+		if s.cancel != nil {
+			s.cancel()
+			s.cancel = nil
+		}
+		s.ctx = nil
+		s.callbackClient = nil
+		s.mu.Unlock()
+		close(s.CloseC)
+		s.workerWG.Wait()
+		emitDisconnect = true
+	})
+	s.connectMu.Unlock()
+	if emitDisconnect {
+		s.EmitDisconnect()
 	}
-	s.ctx = nil
-	s.callbackClient = nil
-	s.mu.Unlock()
-	s.closeOnce.Do(func() { close(s.CloseC) })
-	s.EmitDisconnect()
 	return nil
 }
 
@@ -142,6 +167,7 @@ func (s *Stream) connectOpenDBasicQot(ctx context.Context) error {
 		s.callbackClient = client
 	}
 	streamCtx := s.ctx
+	generation := s.generation
 	s.mu.Unlock()
 
 	requests, err := basicQotRequestsFromSubscriptions(s.GetSubscriptions())
@@ -152,10 +178,28 @@ func (s *Stream) connectOpenDBasicQot(ctx context.Context) error {
 		return err
 	}
 	if streamCtx != nil {
-		go s.watchClientLoop(streamCtx, client)
+		s.startWorker(generation, func() { s.watchClientLoop(streamCtx, client) })
 	}
 	s.EmitConnect()
 	return nil
+}
+
+func (s *Stream) startWorker(generation uint64, worker func()) bool {
+	if worker == nil {
+		return false
+	}
+	s.mu.Lock()
+	if s.closed || s.generation != generation {
+		s.mu.Unlock()
+		return false
+	}
+	s.workerWG.Add(1)
+	s.mu.Unlock()
+	go func() {
+		defer s.workerWG.Done()
+		worker()
+	}()
+	return true
 }
 
 func basicQotRequestsFromSubscriptions(subscriptions []types.Subscription) ([]basicQotRequest, error) {

@@ -12,6 +12,10 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
+const loadExecutionOrderEventsQuery = `SELECT id, internal_order_id, event_type, previous_status, next_status, payload_json, created_at
+	FROM execution_order_events
+	ORDER BY internal_order_id ASC, created_at ASC, id ASC`
+
 func (s *Store) loadFromDB() error {
 	if s == nil || s.persistence == nil {
 		return nil
@@ -98,9 +102,7 @@ func (s *sqliteStore) loadOrderLegs() (map[string][]trdsrv.ExecutionOrderLeg, er
 
 func (s *sqliteStore) loadEvents() ([]trdsrv.ExecutionOrderEvent, error) {
 	rows := []executionOrderEventRow{}
-	if err := s.db.Select(&rows,
-		`SELECT id, internal_order_id, event_type, previous_status, next_status, payload_json, created_at FROM `+
-			executionOrderEventTable+` ORDER BY created_at ASC, id ASC`); err != nil {
+	if err := s.db.Select(&rows, loadExecutionOrderEventsQuery); err != nil {
 		return nil, err
 	}
 	events := make([]trdsrv.ExecutionOrderEvent, 0, len(rows))

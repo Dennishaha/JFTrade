@@ -25,7 +25,10 @@ type PinetsWorkerClient struct {
 	cmd     *exec.Cmd
 	stdin   io.WriteCloser
 	reader  *bufio.Reader
-	stderr  strings.Builder
+
+	stderrMu sync.Mutex
+	stderr   strings.Builder
+	workerWG sync.WaitGroup
 }
 
 func NewPinetsWorkerClient(nodePath string, workerPath string) *PinetsWorkerClient {
@@ -139,14 +142,24 @@ func (c *PinetsWorkerClient) ensureStartedLocked(ctx context.Context) error {
 		return err
 	}
 	if err := cmd.Start(); err != nil {
+		_ = stdin.Close()
+		_ = stdout.Close()
+		_ = stderr.Close()
 		return fmt.Errorf("start pinets worker: %w", err)
 	}
 	c.cmd = cmd
 	c.stdin = stdin
 	c.reader = bufio.NewReader(stdout)
+	c.stderrMu.Lock()
 	c.stderr.Reset()
-	go c.captureStderr(stderr)
+	c.stderrMu.Unlock()
+	c.workerWG.Add(2)
 	go func() {
+		defer c.workerWG.Done()
+		c.captureStderr(stderr)
+	}()
+	go func() {
+		defer c.workerWG.Done()
 		_ = cmd.Wait()
 	}()
 	return nil
@@ -155,12 +168,12 @@ func (c *PinetsWorkerClient) ensureStartedLocked(ctx context.Context) error {
 func (c *PinetsWorkerClient) captureStderr(reader io.Reader) {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		c.mu.Lock()
+		c.stderrMu.Lock()
 		if c.stderr.Len() < 4096 {
 			c.stderr.WriteString(scanner.Text())
 			c.stderr.WriteByte('\n')
 		}
-		c.mu.Unlock()
+		c.stderrMu.Unlock()
 	}
 }
 
@@ -172,6 +185,7 @@ func (c *PinetsWorkerClient) closeLocked() error {
 	if c.cmd != nil && c.cmd.Process != nil {
 		joined = errors.Join(joined, c.cmd.Process.Kill())
 	}
+	c.workerWG.Wait()
 	c.cmd = nil
 	c.stdin = nil
 	c.reader = nil
@@ -179,6 +193,8 @@ func (c *PinetsWorkerClient) closeLocked() error {
 }
 
 func (c *PinetsWorkerClient) stderrSuffix() string {
+	c.stderrMu.Lock()
+	defer c.stderrMu.Unlock()
 	if c.stderr.Len() == 0 {
 		return ""
 	}
