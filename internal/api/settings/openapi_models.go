@@ -1,8 +1,8 @@
 package settings
 
 import (
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type UIAppearanceResponse struct {

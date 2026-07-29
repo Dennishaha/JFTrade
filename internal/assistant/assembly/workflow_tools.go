@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 // RegisterWorkflowManagementTools installs workflow CRUD and run tools.

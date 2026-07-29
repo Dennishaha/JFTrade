@@ -2,13 +2,10 @@
 import {
   computed,
   nextTick,
-  onBeforeUnmount,
-  onMounted,
   ref,
   watch,
 } from "vue";
 import { useRouter } from "vue-router";
-import type { SplitpanesResizedPayload } from "splitpanes";
 
 import ADKApprovalQueuePanel from "./ADKApprovalQueuePanel.vue";
 import ADKChatComposer from "./ADKChatComposer.vue";
@@ -21,8 +18,13 @@ import SplitPane from "../shared/SplitPane.vue";
 import SplitPaneItem from "../shared/SplitPaneItem.vue";
 import { useADKMarkdownRenderer } from "../../composables/useADKMarkdownRenderer";
 import { useADKPageController } from "../../composables/useADKPageController";
-
-type MermaidApi = typeof import("mermaid")["default"];
+import {
+  useADKMermaidRenderer,
+  useADKResponsiveLayout,
+  useADKTimelineWindow,
+  resolveADKWorkspacePaneSizes,
+} from "../../composables/useADKWorkspacePresentation";
+import type { SplitpanesResizedPayload } from "splitpanes";
 
 const props = withDefaults(
   defineProps<{
@@ -42,15 +44,7 @@ const threadRef = ref<HTMLElement | null>(null);
 const childHeaderRef = ref<HTMLElement | null>(null);
 const showChildStickyBar = ref(false);
 const mobileSessionPanelOpen = ref(false);
-const isNarrowViewport = ref(false);
-const timelineRenderOffset = ref(0);
 const workspacePaneSizes = ref<[number, number]>([24, 76]);
-let mermaidRenderFrame: number | null = null;
-let mermaidModule: MermaidApi | null = null;
-let mermaidModulePromise: Promise<MermaidApi> | null = null;
-let narrowViewportMediaQuery: MediaQueryList | null = null;
-
-const TIMELINE_RENDER_WINDOW = 240;
 
 const {
   activeRunId,
@@ -141,35 +135,19 @@ const {
   openContextDetails,
 } = useADKPageController(router, threadRef);
 
-const mermaidRenderSignature = computed(() =>
-  renderTimelineEntries.value
-    .filter((entry) => String(entry.text ?? "").includes("```mermaid"))
-    .map((entry) =>
-      [entry.id, entry.runId ?? "", entry.status ?? "", entry.text ?? ""].join(
-        "\u0000",
-      ),
-    )
-    .join("\u0001"),
-);
-const timelineWindowEnd = computed(() =>
-  Math.max(
-    0,
-    Math.min(
-      visibleTimelineEntries.value.length,
-      visibleTimelineEntries.value.length - timelineRenderOffset.value,
-    ),
-  ),
-);
-const timelineWindowStart = computed(() =>
-  Math.max(0, timelineWindowEnd.value - TIMELINE_RENDER_WINDOW),
-);
-const renderTimelineEntries = computed(() =>
-  visibleTimelineEntries.value.slice(
-    timelineWindowStart.value,
-    timelineWindowEnd.value,
-  ),
-);
-const timelineAtLatest = computed(() => timelineRenderOffset.value === 0);
+const { effectiveLayout } = useADKResponsiveLayout(() => props.layout);
+const {
+  clampTimelineRenderOffset,
+  renderTimelineEntries,
+  showLatestTimelineWindow,
+  showNewerTimelineWindow,
+  showOlderTimelineWindow,
+  timelineAtLatest,
+  timelineRenderOffset,
+  timelineWindowEnd,
+  timelineWindowStart,
+} = useADKTimelineWindow(visibleTimelineEntries);
+useADKMermaidRenderer(threadRef, renderTimelineEntries);
 
 const emptyStateProviderHint = computed(() =>
   providers.value.length === 0
@@ -178,10 +156,6 @@ const emptyStateProviderHint = computed(() =>
       ? `当前模型提供商：${selectedProvider.value.displayName} · ${selectedProvider.value.model}`
       : "",
 );
-const effectiveLayout = computed<"desktop" | "mobile">(() =>
-  props.layout === "mobile" || isNarrowViewport.value ? "mobile" : "desktop",
-);
-
 const selectedSession = computed(
   () =>
     sessions.value.find((session) => session.id === selectedSessionId.value) ??
@@ -195,52 +169,6 @@ const mobileAgentLabel = computed(() => {
   if (!agent) return "请选择 Agent";
   return `${agent.name} · ${formatPermission(agent.permissionMode)}`;
 });
-
-onMounted(() => {
-  if (mermaidRenderSignature.value !== "") {
-    scheduleMermaidRender();
-  }
-  if (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function"
-  ) {
-    narrowViewportMediaQuery = window.matchMedia("(max-width: 768px)");
-    isNarrowViewport.value = narrowViewportMediaQuery.matches;
-    if (typeof narrowViewportMediaQuery.addEventListener === "function") {
-      narrowViewportMediaQuery.addEventListener("change", syncNarrowViewport);
-    } else {
-      narrowViewportMediaQuery.addListener(syncNarrowViewport);
-    }
-  }
-});
-
-onBeforeUnmount(() => {
-  if (mermaidRenderFrame !== null) {
-    window.cancelAnimationFrame(mermaidRenderFrame);
-    mermaidRenderFrame = null;
-  }
-  if (narrowViewportMediaQuery) {
-    if (typeof narrowViewportMediaQuery.removeEventListener === "function") {
-      narrowViewportMediaQuery.removeEventListener(
-        "change",
-        syncNarrowViewport,
-      );
-    } else {
-      narrowViewportMediaQuery.removeListener(syncNarrowViewport);
-    }
-  }
-  narrowViewportMediaQuery = null;
-});
-
-watch(
-  mermaidRenderSignature,
-  (signature) => {
-    if (signature !== "") {
-      scheduleMermaidRender();
-    }
-  },
-  { flush: "post" },
-);
 
 watch(
   () => visibleTimelineEntries.value.length,
@@ -267,46 +195,8 @@ watch(selectedSessionId, () => {
   }
 });
 
-async function loadMermaid(): Promise<MermaidApi> {
-  if (mermaidModule) return mermaidModule;
-  mermaidModulePromise ??= import("mermaid").then((module) => {
-    const nextMermaid = module.default;
-    nextMermaid.initialize({
-      startOnLoad: false,
-      securityLevel: "strict",
-    });
-    mermaidModule = nextMermaid;
-    return nextMermaid;
-  });
-  return mermaidModulePromise;
-}
-
-function scheduleMermaidRender(): void {
-  if (typeof window === "undefined" || mermaidRenderFrame !== null) return;
-  mermaidRenderFrame = window.requestAnimationFrame(() => {
-    mermaidRenderFrame = null;
-    void renderMermaidDiagrams();
-  });
-}
-
-async function renderMermaidDiagrams(): Promise<void> {
-  const mermaidBlocks =
-    threadRef.value?.querySelectorAll<HTMLElement>(".mermaid");
-  if (!mermaidBlocks || mermaidBlocks.length === 0) return;
-  try {
-    const mermaid = await loadMermaid();
-    await mermaid.run({ nodes: mermaidBlocks, suppressErrors: true });
-  } catch (error) {
-    console.warn("Failed to render mermaid diagrams", error);
-  }
-}
-
 function clearErrorMessage(): void {
   errorMessage.value = "";
-}
-
-function syncNarrowViewport(event: MediaQueryListEvent | MediaQueryList): void {
-  isNarrowViewport.value = event.matches;
 }
 
 function updateChildStickyBar(): void {
@@ -318,31 +208,6 @@ function updateChildStickyBar(): void {
   }
   showChildStickyBar.value =
     host.scrollTop > header.offsetTop + header.offsetHeight - 8;
-}
-
-function clampTimelineRenderOffset(): void {
-  const maxOffset = Math.max(0, visibleTimelineEntries.value.length - TIMELINE_RENDER_WINDOW);
-  if (timelineRenderOffset.value > maxOffset) {
-    timelineRenderOffset.value = maxOffset;
-  }
-}
-
-function showOlderTimelineWindow(): void {
-  timelineRenderOffset.value = Math.min(
-    Math.max(0, visibleTimelineEntries.value.length - TIMELINE_RENDER_WINDOW),
-    timelineRenderOffset.value + TIMELINE_RENDER_WINDOW,
-  );
-}
-
-function showNewerTimelineWindow(): void {
-  timelineRenderOffset.value = Math.max(
-    0,
-    timelineRenderOffset.value - TIMELINE_RENDER_WINDOW,
-  );
-}
-
-function showLatestTimelineWindow(): void {
-  timelineRenderOffset.value = 0;
 }
 
 function leaveChildView(): void {
@@ -365,15 +230,8 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
 }
 
 function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
-  const sizes = payload.panes?.map((pane) => pane.size);
-  if (
-    sizes == null ||
-    sizes.length !== 2 ||
-    !sizes.every((size) => Number.isFinite(size) && size > 0 && size <= 100)
-  ) {
-    return;
-  }
-  workspacePaneSizes.value = [sizes[0]!, sizes[1]!];
+  workspacePaneSizes.value =
+    resolveADKWorkspacePaneSizes(payload) ?? workspacePaneSizes.value;
 }
 </script>
 

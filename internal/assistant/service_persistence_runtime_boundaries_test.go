@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jftrade/jftrade-main/pkg/adk"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 func TestServicePropagatesCancelledPersistenceContextAcrossAssistantResources(t *testing.T) {

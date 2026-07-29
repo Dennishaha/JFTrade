@@ -7,6 +7,7 @@ import (
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
@@ -14,7 +15,6 @@ import (
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/internal/watchlist"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 // ApplicationPorts are the domain services and application projections used

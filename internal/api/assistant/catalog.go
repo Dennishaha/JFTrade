@@ -11,7 +11,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	asstsvc "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 func (h *Handler) handleADKAgentTemplates(c *gin.Context) {
@@ -54,7 +54,7 @@ func (h *Handler) handleADKTasks(c *gin.Context) {
 	})
 	if err != nil {
 		status := http.StatusInternalServerError
-		if strings.Contains(err.Error(), "invalid task status") {
+		if errors.Is(err, jfadk.ErrInvalidTaskStatus) {
 			status = http.StatusBadRequest
 		}
 		h.writeError(c, status, "ADK_TASK_LIST_FAILED", err.Error())
@@ -235,7 +235,7 @@ func (h *Handler) handleADKDeleteProvider(c *gin.Context) {
 	}
 	if err := h.service.DeleteProvider(c.Request.Context(), uri.ProviderID); err != nil {
 		status := http.StatusInternalServerError
-		if strings.Contains(err.Error(), "used by agent") {
+		if errors.Is(err, jfadk.ErrProviderInUse) {
 			status = http.StatusConflict
 		}
 		h.writeError(c, status, "ADK_PROVIDER_DELETE_FAILED", err.Error())

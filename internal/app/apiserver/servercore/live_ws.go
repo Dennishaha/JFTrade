@@ -7,8 +7,8 @@ import (
 	"time"
 
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
+	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	livecore "github.com/jftrade/jftrade-main/internal/live"
-	"github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type liveWebSocketBackend struct {

@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/watchlist"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type futuWatchlistBoundaryBroker struct {

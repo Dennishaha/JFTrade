@@ -1025,6 +1025,7 @@ function parsePineExit(trimmed: string): Record<string, unknown> | null {
   if (args.length < 1) {
     return null;
   }
+  const exitId = readPineLiteral(args[0] ?? "");
   let orderArgs = args.slice(1);
   const fromEntryArg = parseNamedArgs(orderArgs).get("from_entry");
   const firstOrderArg = orderArgs[0] ?? "";
@@ -1040,6 +1041,10 @@ function parsePineExit(trimmed: string): Record<string, unknown> | null {
   const fromEntryLower = fromEntry.toLowerCase();
   const direction = fromEntry === "" ? "auto" : fromEntryLower.includes("short") ? "short" : "long";
   const fromEntryMode = fromEntry === "" ? "auto" : "explicit";
+  const identity = {
+    exitId,
+    ...(fromEntry === "" ? {} : { fromEntryId: fromEntry }),
+  };
   const namedArgs = parseNamedArgs(orderArgs);
   const quantityPercentage = readAnyNumber(namedArgs.get("qty_percent"), 100);
   const metadata = parsePineExitMetadata(namedArgs);
@@ -1070,6 +1075,7 @@ function parsePineExit(trimmed: string): Record<string, unknown> | null {
     );
     return {
       ...properties,
+      ...identity,
       fromEntryMode,
       ...metadata,
       ...(profit === undefined ? {} : { profitTicks: readAnyNumber(profit, 50) }),
@@ -1102,6 +1108,7 @@ function parsePineExit(trimmed: string): Record<string, unknown> | null {
     );
     return {
       ...properties,
+      ...identity,
       fromEntryMode,
       ...metadata,
       trailingPriceMode: trailPrice === undefined ? "points" : "price",

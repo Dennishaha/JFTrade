@@ -1,7 +1,7 @@
 package servercore
 
 import (
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"testing"
 )
 

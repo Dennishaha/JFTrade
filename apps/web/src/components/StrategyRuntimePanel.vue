@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { SplitpanesResizedPayload } from "splitpanes";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import RuntimeWorkbenchAlert from "./strategy-runtime/RuntimeWorkbenchAlert.vue";
 import StrategyRuntimeEmptyWorkbench from "./strategy-runtime/StrategyRuntimeEmptyWorkbench.vue";
@@ -23,11 +22,8 @@ import {
 } from "./strategy-runtime/strategyRuntimeInstanceBinding";
 import type {
     StrategyDefinitionDocument,
-    StrategyDefinitionSyncStatus,
-    StrategyInstanceBindingDocument,
     StrategyInstanceItem,
     StrategyRuntimeRiskSettings,
-    StrategyRuntimeObservation,
 } from "@/types";
 import type {
     StrategyAuditEntryDocument,
@@ -35,7 +31,6 @@ import type {
 } from "@/contracts";
 
 import {
-    ApiClientError,
     apiDeletePath,
     apiGet,
     apiGetPath,
@@ -51,36 +46,34 @@ import {
     mapStrategyRuntimeRiskRequest,
 } from "../composables/strategyApiRequests";
 import { useConsoleData } from "../composables/useConsoleData";
-import { formatLocalDateTime } from "../utils/dateTime";
 import {
     formatSourceFormat,
     formatStrategyEligibility,
     formatStrategyRuntime,
-    isPineWorkerRuntime,
 } from "./strategy-runtime/strategyRuntimeIdentity";
 import { useStrategyRuntimeInstanceEditor } from "./strategy-runtime/useStrategyRuntimeInstanceEditor";
+import { useStrategyRuntimeLayout } from "./strategy-runtime/useStrategyRuntimeLayout";
+import { useStrategyRuntimeRefresh } from "./strategy-runtime/useStrategyRuntimeRefresh";
+import {
+    useStrategyRuntimeDetailPresentation,
+    useStrategyRuntimeSelection,
+} from "./strategy-runtime/useStrategyRuntimePresentation";
+import {
+    formatStrategyActionError,
+    formatStrategyDefinitionSyncSummary,
+    formatStrategyExecutionMode,
+    formatStrategyStatus,
+    formatTimestamp,
+    formatTimestampTooltip,
+    type StrategyAction,
+} from "./strategy-runtime/strategyRuntimePresentation";
 
 type StrategyAuditEntry = StrategyAuditEntryDocument;
-
-const STRATEGY_RUNTIME_ACTIVE_REFRESH_MS = 1_000;
-const STRATEGY_RUNTIME_IDLE_REFRESH_MS = 3_000;
-const STRATEGY_RUNTIME_COMPACT_MEDIA_QUERY = "(max-width: 1180px)";
-const STRATEGY_RUNTIME_MOBILE_MEDIA_QUERY = "(max-width: 768px)";
-
 const strategyActionTemplates = {
     start: "/api/v1/strategies/{instanceId}/start",
     pause: "/api/v1/strategies/{instanceId}/pause",
     stop: "/api/v1/strategies/{instanceId}/stop",
 } as const;
-
-type StrategyAction = "start" | "pause" | "stop";
-type StrategyRuntimeWorkbenchLayout = "desktop" | "compact" | "mobile";
-type StrategyRuntimeMobileSection = "instances" | "workbench";
-
-interface StrategyTimestampParts {
-    display: string;
-    timestampMs: number | null;
-}
 
 const props = defineProps<{
     /** 设计阶段当前选中的定义数量，供头部统计展示 */
@@ -117,130 +110,68 @@ const detailsError = ref("");
 const instanceMutationNotice = ref("");
 const instanceMutationError = ref("");
 const isCreateMenuOpen = ref(false);
-const runtimePaneSizes = ref<[number, number]>([30, 70]);
-const isCompactStrategyRuntime = ref(false);
-const isMobileStrategyRuntime = ref(false);
-const strategyRuntimeMobileSection = ref<StrategyRuntimeMobileSection>("instances");
-let strategyRuntimeRefreshTimer: number | null = null;
-let compactStrategyRuntimeMediaQuery: MediaQueryList | null = null;
-let mobileStrategyRuntimeMediaQuery: MediaQueryList | null = null;
-
-const selectedStrategy = computed(
-    () => strategies.value.find((item) => item.id === selectedStrategyId.value) ?? null,
-);
-
-const selectedStrategyBinding = computed<StrategyInstanceBindingDocument | null>(() => {
-    if (selectedStrategy.value === null) {
-        return null;
-    }
-    return readStrategyBinding(selectedStrategy.value);
-});
-
-const selectedStrategyDefinitionSync = computed<StrategyDefinitionSyncStatus | null>(
-    () => selectedStrategy.value?.definitionSync ?? null,
-);
-
-const selectedStrategyDefinitionDocument = computed<StrategyDefinitionDocument | null>(() => {
-    if (selectedStrategy.value === null) {
-        return null;
-    }
-    const definitionId = selectedStrategy.value.definition.strategyId;
-    return strategyDefinitions.value.find((definition) => definition.id === definitionId) ?? null;
-});
-
-const selectedStrategyRuntimeObservation = computed<StrategyRuntimeObservation | null>(
-    () => selectedStrategy.value?.runtimeObservation ?? null,
-);
-
-const brokerAccountOptions = computed(() => availableBrokerAccounts.value);
-
-const activeStrategyCount = computed(
-    () => strategies.value.filter((item) => item.runtimeObservation?.actualStatus === "RUNNING").length,
-);
-
-const runtimeRealTradingLabel = computed(() =>
-    systemStatus.value.realTradingEnabled ? "已开启" : "已关闭",
-);
-
-const runtimeKillSwitchLabel = computed(() =>
-    systemStatus.value.realTradingKillSwitch.active ? "已启用" : "未启用",
-);
-
-const isRefreshingStrategyContent = computed(
-    () => isLoadingStrategies.value || isLoadingDetails.value,
-);
-
-const strategyRuntimeWorkbenchLayout = computed<StrategyRuntimeWorkbenchLayout>(() => {
-    if (isMobileStrategyRuntime.value) {
-        return "mobile";
-    }
-    return isCompactStrategyRuntime.value ? "compact" : "desktop";
-});
-
-const defaultBrokerAccountSelectionKey = computed(
-    () => selectedBrokerAccount.value?.selectionKey ?? brokerAccountOptions.value[0]?.selectionKey ?? "",
-);
-
-const currentBrokerAccountSelectionKey = computed(
-    () => selectedBrokerAccount.value?.selectionKey ?? "",
-);
-
-const effectiveCurrentBrokerAccountSelectionKey = computed(
-    () => currentBrokerAccountSelectionKey.value || defaultBrokerAccountSelectionKey.value,
-);
 
 const {
-    createDefinitionId,
-    createDefinition,
-    createBindingInstruments,
-    createSymbolValidationMessage,
-    createInterval,
-    createChartType,
-    createExecutionMode,
-    createRuntimeRisk,
-    createBrokerAccountKey,
-    editBindingInstruments,
-    editSymbolValidationMessage,
-    editInterval,
-    editChartType,
-    editExecutionMode,
-    editRuntimeRisk,
-    editBrokerAccountKey,
-    activeInstanceEditorMode,
-    instanceEditorOpen,
-    activeSymbolTags,
-    activeSymbolDraft,
-    activeSymbolValidationMessage,
-    activeIntervalValue,
-    activeChartType,
-    activeExecutionMode,
-    activeRuntimeRisk,
-    activeSelectedBrokerAccountOption,
-    activeSelectedBrokerAccountKey,
-    activeBrokerAccountQuery,
-    activeIsBrokerAccountPickerOpen,
-    activeFilteredBrokerAccountOptions,
-    activeInstanceEditorSymbolsSummary,
-    activeInstanceEditorBrokerAccountSummary,
-    instanceEditorPreviewDefinitionLabel,
-    instanceEditorTitle,
-    instanceEditorHint,
-    acceptActiveResolvedInstrument,
-    removeActiveSymbol,
-    updateActiveSymbolDraft,
-    handleActiveSymbolDraftKeydown,
-    handleActiveSymbolDraftPaste,
-    updateActiveIntervalValue,
-    updateActiveChartType,
-    updateActiveExecutionMode,
-    updateActiveRuntimeRiskMode,
-    updateActiveRuntimeRiskCloseOnly,
-    updateActiveRuntimeRiskPauseOnReject,
-    updateActiveRuntimeRiskNumber,
-    toggleActiveBrokerAccountPicker,
-    updateActiveBrokerAccountQuery,
-    clearActiveBrokerAccountSelection,
-    selectActiveBrokerAccount,
+    selectedStrategy, selectedStrategyBinding, selectedStrategyDefinitionSync,
+    selectedStrategyDefinitionDocument, selectedStrategyRuntimeObservation,
+    brokerAccountOptions, activeStrategyCount, runtimeRealTradingLabel,
+    runtimeKillSwitchLabel, isRefreshingStrategyContent,
+    defaultBrokerAccountSelectionKey,
+    effectiveCurrentBrokerAccountSelectionKey,
+} = useStrategyRuntimeSelection({
+    strategies,
+    selectedStrategyId,
+    strategyDefinitions,
+    availableBrokerAccounts,
+    selectedBrokerAccount,
+    systemStatus,
+    isLoadingStrategies,
+    isLoadingDetails,
+});
+const {
+    runtimePaneSizes, isCompactStrategyRuntime, isMobileStrategyRuntime,
+    strategyRuntimeMobileSection, strategyRuntimeWorkbenchLayout,
+    setupStrategyRuntimeMediaQueries, teardownStrategyRuntimeMediaQueries,
+    selectStrategyRuntimeMobileSection, handleRuntimePaneResized,
+} = useStrategyRuntimeLayout(selectedStrategy);
+const {
+    clearStrategyRuntimeRefreshTimer, shouldDeferStrategyRuntimeRefresh,
+    scheduleStrategyRuntimeRefresh,
+    handleStrategyRuntimeVisibilityChange,
+} = useStrategyRuntimeRefresh({
+    selectedStrategy,
+    activeStrategyCount,
+    busyStates: [
+        isLoadingStrategies,
+        isLoadingDetails,
+        isCreatingStrategyInstance,
+        isUpdatingStrategyBinding,
+        isUpdatingStrategyRuntimeRisk,
+        isDeletingStrategy,
+        isRefreshingStrategyDefinition,
+    ],
+    refresh: () => refreshStrategyRuntimeContent(),
+});
+const {
+    createDefinitionId, createDefinition, createBindingInstruments,
+    createSymbolValidationMessage, createInterval, createChartType,
+    createExecutionMode, createRuntimeRisk, createBrokerAccountKey,
+    editBindingInstruments, editSymbolValidationMessage, editInterval, editChartType,
+    editExecutionMode, editRuntimeRisk, editBrokerAccountKey,
+    activeInstanceEditorMode, instanceEditorOpen, activeSymbolTags, activeSymbolDraft,
+    activeSymbolValidationMessage, activeIntervalValue, activeChartType,
+    activeExecutionMode, activeRuntimeRisk, activeSelectedBrokerAccountOption,
+    activeSelectedBrokerAccountKey, activeBrokerAccountQuery,
+    activeIsBrokerAccountPickerOpen, activeFilteredBrokerAccountOptions,
+    activeInstanceEditorSymbolsSummary, activeInstanceEditorBrokerAccountSummary,
+    instanceEditorPreviewDefinitionLabel, instanceEditorTitle, instanceEditorHint,
+    acceptActiveResolvedInstrument, removeActiveSymbol, updateActiveSymbolDraft,
+    handleActiveSymbolDraftKeydown, handleActiveSymbolDraftPaste,
+    updateActiveIntervalValue, updateActiveChartType, updateActiveExecutionMode,
+    updateActiveRuntimeRiskMode, updateActiveRuntimeRiskCloseOnly,
+    updateActiveRuntimeRiskPauseOnReject, updateActiveRuntimeRiskNumber,
+    toggleActiveBrokerAccountPicker, updateActiveBrokerAccountQuery,
+    clearActiveBrokerAccountSelection, selectActiveBrokerAccount,
     openCreateInstanceForm: openCreateInstanceEditorForm,
     openEditInstanceForm: openEditInstanceEditorForm,
     closeInstanceEditorDialog: closeInstanceEditorState,
@@ -258,118 +189,33 @@ const {
     normalizeInstrumentRefWithMarketApi,
 });
 
-const selectedStrategyParamsJson = computed(() => {
-    if (selectedStrategy.value === null) return "";
-    return JSON.stringify(selectedStrategy.value.params, null, 2);
+const {
+    selectedStrategyParamsJson,
+    selectedStrategyRuntimeLabel,
+    selectedStrategySourceFormatLabel,
+    selectedStrategyStartHint,
+    selectedStrategyCompiledSummary,
+    canRefreshSelectedStrategyDefinition,
+    selectedStrategyDefinitionRefreshHint,
+    canStartSelectedStrategy,
+    canPauseSelectedStrategy,
+    canStopSelectedStrategy,
+    canCreateStrategyInstance,
+    canUpdateSelectedStrategyBinding,
+    canDeleteSelectedStrategy,
+} = useStrategyRuntimeDetailPresentation({
+    selectedStrategy,
+    selectedStrategyBinding,
+    selectedStrategyDefinitionSync,
+    createDefinitionId,
+    createInterval,
+    isLoadingDefinitions,
+    isCreatingStrategyInstance,
+    isLoadingDetails,
+    isRefreshingStrategyDefinition,
+    isUpdatingStrategyBinding,
+    isDeletingStrategy,
 });
-
-const selectedStrategyRuntimeLabel = computed(() => {
-    if (selectedStrategy.value === null) return "暂无";
-    return formatStrategyRuntime(selectedStrategy.value.runtime);
-});
-
-const selectedStrategySourceFormatLabel = computed(() => {
-    if (selectedStrategy.value === null) return "暂无";
-    return formatSourceFormat(selectedStrategy.value.sourceFormat);
-});
-
-const selectedStrategyStartHint = computed(() => {
-    if (selectedStrategy.value === null) return "请选择策略实例。";
-    if (selectedStrategyBinding.value?.executionMode === "notify_only") {
-        return "当前实例为仅通知模式：触发信号只发送准备下单通知，不自动下单。";
-    }
-    if (selectedStrategy.value.startable) {
-        return "当前实例已接入策略控制面生命周期，可启动、暂停、停止。";
-    }
-    if (isPineWorkerRuntime(selectedStrategy.value.runtime)) {
-        return "当前实例已完成 Pine 编译与 requirements 规划，但暂不可启动。";
-    }
-    return "当前实例暂不可启动。";
-});
-
-const selectedStrategyCompiledSummary = computed(() => {
-    if (selectedStrategy.value === null || !isPineWorkerRuntime(selectedStrategy.value.runtime)) {
-        return "";
-    }
-    const hookCount = readCompiledHookCount(selectedStrategy.value);
-    const indicatorCount = readCompiledIndicatorCount(selectedStrategy.value);
-    const parts: string[] = [];
-    if (hookCount !== null) parts.push(`${hookCount} 个 hook`);
-    if (indicatorCount !== null) parts.push(`${indicatorCount} 项依赖`);
-    if (parts.length === 0) return "已完成 Pine v6 主路径编译规划。";
-    return `已完成 Pine v6 主路径编译规划，包含 ${parts.join(" / ")}。`;
-});
-
-const canRefreshSelectedStrategyDefinition = computed(
-    () =>
-        selectedStrategy.value !== null
-        && selectedStrategyDefinitionSync.value !== null
-        && !selectedStrategyDefinitionSync.value.isLatest
-        && selectedStrategyDefinitionSync.value.canApplyLatest
-        && !isLoadingDetails.value
-        && !isRefreshingStrategyDefinition.value,
-);
-
-const selectedStrategyDefinitionRefreshHint = computed(() => {
-    if (selectedStrategyDefinitionSync.value === null) {
-        return "";
-    }
-    if (selectedStrategyDefinitionSync.value.isLatest) {
-        return "当前实例已采用最新保存版本。";
-    }
-    if (selectedStrategyDefinitionSync.value.canApplyLatest) {
-        return `当前实例版本为 v${selectedStrategyDefinitionSync.value.appliedVersion}，可刷新到最新设计 v${selectedStrategyDefinitionSync.value.latestVersion}。`;
-    }
-    return selectedStrategyDefinitionSync.value.blockedReason ?? "当前实例需要先停止后再刷新。";
-});
-
-const canStartSelectedStrategy = computed(
-    () =>
-        selectedStrategy.value !== null
-        && !isLoadingDetails.value
-        && selectedStrategy.value.startable
-        && selectedStrategy.value.status !== "RUNNING",
-);
-
-const canPauseSelectedStrategy = computed(
-    () =>
-        selectedStrategy.value !== null
-        && !isLoadingDetails.value
-        && selectedStrategy.value.startable
-        && selectedStrategy.value.status === "RUNNING",
-);
-
-const canStopSelectedStrategy = computed(
-    () =>
-        selectedStrategy.value !== null
-        && !isLoadingDetails.value
-        && selectedStrategy.value.startable
-        && selectedStrategy.value.status !== "STOPPED",
-);
-
-const canCreateStrategyInstance = computed(
-    () =>
-        !isLoadingDefinitions.value
-        && !isCreatingStrategyInstance.value
-        && createDefinitionId.value.trim() !== ""
-        && createInterval.value.trim() !== "",
-);
-
-const canUpdateSelectedStrategyBinding = computed(
-    () =>
-        selectedStrategy.value !== null
-        && selectedStrategy.value.status === "STOPPED"
-        && !isLoadingDetails.value
-        && !isUpdatingStrategyBinding.value,
-);
-
-const canDeleteSelectedStrategy = computed(
-    () =>
-        selectedStrategy.value !== null
-        && selectedStrategy.value.status === "STOPPED"
-        && !isLoadingDetails.value
-        && !isDeletingStrategy.value,
-);
 
 const instanceEditorDialogProps = computed(() => ({
     mode: activeInstanceEditorMode.value,
@@ -450,131 +296,8 @@ onUnmounted(() => {
     }
 });
 
-function syncCompactStrategyRuntime(event: MediaQueryListEvent | MediaQueryList): void {
-    isCompactStrategyRuntime.value = event.matches;
-}
-
-function syncMobileStrategyRuntime(event: MediaQueryListEvent | MediaQueryList): void {
-    isMobileStrategyRuntime.value = event.matches;
-    if (!event.matches && strategyRuntimeMobileSection.value !== "instances") {
-        strategyRuntimeMobileSection.value = "instances";
-    }
-}
-
-function setupStrategyRuntimeMediaQueries(): void {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-        return;
-    }
-    compactStrategyRuntimeMediaQuery = window.matchMedia(STRATEGY_RUNTIME_COMPACT_MEDIA_QUERY);
-    mobileStrategyRuntimeMediaQuery = window.matchMedia(STRATEGY_RUNTIME_MOBILE_MEDIA_QUERY);
-    isCompactStrategyRuntime.value = compactStrategyRuntimeMediaQuery.matches;
-    isMobileStrategyRuntime.value = mobileStrategyRuntimeMediaQuery.matches;
-
-    if (typeof compactStrategyRuntimeMediaQuery.addEventListener === "function") {
-        compactStrategyRuntimeMediaQuery.addEventListener("change", syncCompactStrategyRuntime);
-        mobileStrategyRuntimeMediaQuery.addEventListener("change", syncMobileStrategyRuntime);
-    } else {
-        compactStrategyRuntimeMediaQuery.addListener(syncCompactStrategyRuntime);
-        mobileStrategyRuntimeMediaQuery.addListener(syncMobileStrategyRuntime);
-    }
-}
-
-function teardownStrategyRuntimeMediaQueries(): void {
-    if (compactStrategyRuntimeMediaQuery !== null) {
-        if (typeof compactStrategyRuntimeMediaQuery.removeEventListener === "function") {
-            compactStrategyRuntimeMediaQuery.removeEventListener("change", syncCompactStrategyRuntime);
-        } else {
-            compactStrategyRuntimeMediaQuery.removeListener(syncCompactStrategyRuntime);
-        }
-    }
-    if (mobileStrategyRuntimeMediaQuery !== null) {
-        if (typeof mobileStrategyRuntimeMediaQuery.removeEventListener === "function") {
-            mobileStrategyRuntimeMediaQuery.removeEventListener("change", syncMobileStrategyRuntime);
-        } else {
-            mobileStrategyRuntimeMediaQuery.removeListener(syncMobileStrategyRuntime);
-        }
-    }
-    compactStrategyRuntimeMediaQuery = null;
-    mobileStrategyRuntimeMediaQuery = null;
-}
-
-function selectStrategyRuntimeMobileSection(section: StrategyRuntimeMobileSection): void {
-    if (section === "workbench" && selectedStrategy.value === null) {
-        strategyRuntimeMobileSection.value = "instances";
-        return;
-    }
-    strategyRuntimeMobileSection.value = section;
-}
-
 function isCurrentBrokerAccountSelectionKey(selectionKey: string | null | undefined): boolean {
     return selectionKey != null && selectionKey !== "" && selectionKey === effectiveCurrentBrokerAccountSelectionKey.value;
-}
-
-function formatTimestampParts(value: unknown): StrategyTimestampParts {
-    const normalized = normalizeText(value);
-    if (normalized === "") {
-        return {
-            display: "暂无",
-            timestampMs: null,
-        };
-    }
-
-    const parsed = new Date(normalized);
-    if (Number.isNaN(parsed.getTime())) {
-        const fallback = normalized.replace("T", " ").replace(".000Z", "Z");
-        return {
-            display: fallback,
-            timestampMs: null,
-        };
-    }
-
-    return {
-        display: formatLocalDateTime(parsed, normalized),
-        timestampMs: parsed.getTime(),
-    };
-}
-
-function formatTimestamp(value: unknown): string {
-    return formatTimestampParts(value).display;
-}
-
-function formatTimestampTooltip(value: unknown): string {
-    return formatTimestampParts(value).display;
-}
-
-function formatStrategyStatus(status: StrategyInstanceItem["status"] | string): string {
-    switch (status) {
-        case "RUNNING":
-            return "运行中";
-        case "PAUSED":
-            return "已暂停";
-        case "STOPPED":
-            return "已停止";
-        default:
-            return normalizeText(status) || "未知";
-    }
-}
-
-function displayStrategyStatus(strategy: StrategyInstanceItem): StrategyInstanceItem["status"] {
-    return strategy.runtimeObservation?.actualStatus ?? strategy.status;
-}
-
-function formatStrategyDefinitionSyncSummary(
-    sync: StrategyDefinitionSyncStatus | null | undefined,
-): string {
-    if (sync == null) {
-        return "";
-    }
-    if (sync.isLatest) {
-        return `已同步至 v${sync.latestVersion}`;
-    }
-    return `待刷新 v${sync.appliedVersion} -> v${sync.latestVersion}`;
-}
-
-function formatStrategyExecutionMode(
-    mode: StrategyInstanceBindingDocument["executionMode"] | string | null | undefined,
-): string {
-    return normalizeText(mode) === "notify_only" ? "仅通知" : "确认执行";
 }
 
 function isCurrentBrokerAccountBinding(
@@ -583,52 +306,6 @@ function isCurrentBrokerAccountBinding(
     return isCurrentBrokerAccountSelectionKey(
         resolveBrokerAccountSelectionKey(brokerAccountOptions.value, brokerAccount),
     );
-}
-
-function readCompiledIndicatorCount(strategy: StrategyInstanceItem): number | null {
-    const compiledRequirements = asRecord(strategy.params.compiledRequirements);
-    if (compiledRequirements === null) return null;
-    return Array.isArray(compiledRequirements.indicators)
-        ? compiledRequirements.indicators.length
-        : null;
-}
-
-function readCompiledHookCount(strategy: StrategyInstanceItem): number | null {
-    return Array.isArray(strategy.params.compiledHooks)
-        ? strategy.params.compiledHooks.length
-        : null;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-    if (value === null || typeof value !== "object" || Array.isArray(value)) {
-        return null;
-    }
-    return value as Record<string, unknown>;
-}
-
-function formatActionLabel(action: StrategyAction): string {
-    switch (action) {
-        case "start":
-            return "启动";
-        case "pause":
-            return "暂停";
-        case "stop":
-            return "停止";
-        default:
-            return action;
-    }
-}
-
-function formatStrategyActionError(action: StrategyAction, error: unknown): string {
-    if (
-        action === "start"
-        && error instanceof ApiClientError
-        && error.code === "BAD_REQUEST"
-        && error.message.includes("运行实例 PineTS Worker 已达到上限")
-    ) {
-        return "运行实例 PineTS Worker 已达到上限。请停止其他运行实例，或打开“设置 > PineTS Worker”调高“运行实例 Worker 最大值”后再启动。";
-    }
-    return error instanceof Error ? error.message : `执行${formatActionLabel(action)}失败。`;
 }
 
 function clearRuntimeDetails(): void {
@@ -647,65 +324,6 @@ function closeInstanceMutationNotice(): void {
 
 function closeInstanceMutationError(): void {
     instanceMutationError.value = "";
-}
-
-function clearStrategyRuntimeRefreshTimer(): void {
-    if (strategyRuntimeRefreshTimer != null) {
-        window.clearTimeout(strategyRuntimeRefreshTimer);
-        strategyRuntimeRefreshTimer = null;
-    }
-}
-
-function resolveStrategyRuntimeRefreshMs(): number {
-    const selectedStatus = selectedStrategy.value == null ? "" : displayStrategyStatus(selectedStrategy.value);
-    if (activeStrategyCount.value > 0 || selectedStatus === "RUNNING" || selectedStatus === "PAUSED") {
-        return STRATEGY_RUNTIME_ACTIVE_REFRESH_MS;
-    }
-    return STRATEGY_RUNTIME_IDLE_REFRESH_MS;
-}
-
-function shouldDeferStrategyRuntimeRefresh(): boolean {
-    return isLoadingStrategies.value
-        || isLoadingDetails.value
-        || isCreatingStrategyInstance.value
-        || isUpdatingStrategyBinding.value
-        || isUpdatingStrategyRuntimeRisk.value
-        || isDeletingStrategy.value
-        || isRefreshingStrategyDefinition.value;
-}
-
-function scheduleStrategyRuntimeRefresh(): void {
-    if (typeof window === "undefined") {
-        return;
-    }
-    clearStrategyRuntimeRefreshTimer();
-    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
-        return;
-    }
-    strategyRuntimeRefreshTimer = window.setTimeout(() => {
-        void refreshStrategyRuntimeContent();
-    }, resolveStrategyRuntimeRefreshMs());
-}
-
-function handleStrategyRuntimeVisibilityChange(): void {
-    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
-        clearStrategyRuntimeRefreshTimer();
-        return;
-    }
-    void refreshStrategyRuntimeContent();
-}
-
-function handleRuntimePaneResized(payload: SplitpanesResizedPayload): void {
-    const sizes = payload.panes?.map((pane) => pane.size);
-    if (
-        sizes == null
-        || sizes.length !== 2
-        || !sizes.every((size) => Number.isFinite(size) && size > 0 && size <= 100)
-    ) {
-        return;
-    }
-
-    runtimePaneSizes.value = [sizes[0]!, sizes[1]!];
 }
 
 async function loadStrategyDefinitions(): Promise<void> {

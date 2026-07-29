@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { components } from "@/generated/openapi";
+import type { ExecutionOrderDto } from "@/contracts";
 import {
   mapExecutionOrderDetails,
   mapExecutionOrderEvents,
   mapExecutionOrders,
 } from "../src/composables/tradingApiMappers";
 
-type ExecutionOrderWire = components["schemas"]["trading.ExecutionOrder"];
+type ExecutionOrderWire = ExecutionOrderDto;
 
 function wireOrder(
   overrides: Partial<ExecutionOrderWire> = {},

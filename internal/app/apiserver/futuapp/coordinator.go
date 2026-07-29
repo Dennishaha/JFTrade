@@ -10,10 +10,10 @@ import (
 	"sync"
 
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 // Settings is the persisted settings surface used by Futu application

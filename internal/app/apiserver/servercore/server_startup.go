@@ -9,7 +9,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/lifecycle"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 // StartForRunArgs boots the JFTrade API sidecar as HTTP servers (API + optional GUI).

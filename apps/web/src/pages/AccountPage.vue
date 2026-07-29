@@ -19,15 +19,14 @@ import { formatInstrumentIdentityText } from "../composables/instrumentPresentat
 import { useConsoleData } from "../composables/useConsoleData";
 import { useNotifications } from "../composables/useNotifications";
 import { mapExecutionOrders } from "../composables/tradingApiMappers";
-
-type AccountTab = "positions" | "orders" | "history" | "funds";
-
-const ACCOUNT_TABS: ReadonlyArray<{ value: AccountTab; label: string }> = [
-  { value: "positions", label: "持仓" },
-  { value: "orders", label: "订单" },
-  { value: "history", label: "历史" },
-  { value: "funds", label: "资金" },
-];
+import {
+  ACCOUNT_TABS,
+  dedupeExecutionOrders,
+  initialAccountTabFromLocation,
+  initialExecutionOrderIdFromLocation,
+  normalizeAccountTab,
+} from "../features/accountPage";
+import type { AccountTab } from "../features/accountPage";
 
 const {
   activeExecutionOrders,
@@ -76,38 +75,6 @@ const pendingCancelMessage = computed(() => {
     : "订单";
   return `确认撤销${kind} ${instrument}？撤单请求提交后仍以券商最终处理结果为准。`;
 });
-
-function initialExecutionOrderIdFromLocation(): string {
-  if (typeof window === "undefined") {
-    return "";
-  }
-  return new URLSearchParams(window.location.search).get("orderId")?.trim() ?? "";
-}
-
-function normalizeAccountTab(raw: string | null | undefined): AccountTab | null {
-  switch (raw) {
-    case "positions":
-    case "orders":
-    case "history":
-    case "funds":
-      return raw;
-    default:
-      return null;
-  }
-}
-
-function initialAccountTabFromLocation(orderId: string): AccountTab {
-  if (typeof window === "undefined") {
-    return "positions";
-  }
-  const requestedTab = normalizeAccountTab(
-    new URLSearchParams(window.location.search).get("tab")?.trim(),
-  );
-  if (requestedTab != null) {
-    return requestedTab;
-  }
-  return orderId === "" ? "positions" : "history";
-}
 
 const selectedRuntimeAccount = computed(() => {
   const selected = selectedBrokerAccount.value;
@@ -335,36 +302,6 @@ const supportsBrokerMarginRatios = computed(() =>
       activeBrokerReadContext.value?.tradingEnvironment ?? activeTradingEnvironment.value,
   }),
 );
-
-function executionOrderDisplayKey(order: AccountExecutionOrder): string {
-  const brokerOrderIdentity =
-    order.brokerOrderId?.trim() ||
-    order.brokerOrderIdEx?.trim() ||
-    order.internalOrderId;
-  return [
-    order.brokerId,
-    order.accountId,
-    order.tradingEnvironment,
-    order.market,
-    brokerOrderIdentity,
-  ].join("|");
-}
-
-function dedupeExecutionOrders(
-  orders: AccountExecutionOrder[],
-): AccountExecutionOrder[] {
-  const seen = new Set<string>();
-  const deduped: AccountExecutionOrder[] = [];
-  for (const order of orders) {
-    const key = executionOrderDisplayKey(order);
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    deduped.push(order);
-  }
-  return deduped;
-}
 
 function selectOrder(internalOrderId: string): void {
   void loadExecutionOrderDetails(internalOrderId);

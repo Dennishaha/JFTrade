@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestServerBootstrapRemainingFailureAndFallbackPaths(t *testing.T) {

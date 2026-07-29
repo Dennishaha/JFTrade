@@ -1,5 +1,8 @@
 import type { components } from "@/generated/openapi";
 
+export type PluginCatalogDto =
+  components["schemas"]["strategy.PluginCatalog"];
+
 export type PluginDescriptorDto =
   components["schemas"]["strategy.PluginDescriptor"];
 

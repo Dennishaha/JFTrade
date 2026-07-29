@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/fs"
 	"testing"
 	"testing/fstest"
@@ -67,7 +68,9 @@ func TestIsMissingAssetRecognizesOnlyNotFoundErrors(t *testing.T) {
 	}{
 		{name: "nil", err: nil},
 		{name: "fs not exist", err: fs.ErrNotExist, want: true},
+		{name: "wrapped fs not exist", err: fmt.Errorf("read bundle: %w", fs.ErrNotExist), want: true},
 		{name: "platform no such file", err: errors.New("no such file or directory"), want: true},
+		{name: "platform file does not exist", err: errors.New("file does not exist"), want: true},
 		{name: "other error", err: errors.New("permission denied")},
 	} {
 		t.Run(test.name, func(t *testing.T) {

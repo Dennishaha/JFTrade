@@ -10,7 +10,7 @@ import type {
   StockScreenFactor,
   StockScreenPreset,
 } from "../../src/components/research/stockScreenTypes";
-import { flushPromises, setupState } from "../productTestUtils";
+import { flushPromises } from "../productTestUtils";
 
 const mocks = vi.hoisted(() => ({
   catalog: vi.fn(),
@@ -116,6 +116,11 @@ type ScreenerState = {
   queryError: string;
   loading: boolean;
   savingPreset: boolean;
+  queryMarket: string;
+  mobilePane: string;
+  factorDialogOpen: boolean;
+  catalogSearch: string;
+  canScrollCategoriesRight: boolean;
   filters: StockScreenEditorFilter[];
   columns: Array<Record<string, unknown>>;
   sorts: Array<Record<string, unknown>>;
@@ -181,7 +186,7 @@ async function mountScreener(props: Record<string, unknown> = {}) {
     global: { stubs: { teleport: true } },
   });
   await flushPromises();
-  return { wrapper, state: setupState<ScreenerState>(wrapper) };
+  return { wrapper, state: wrapper.vm as unknown as ScreenerState };
 }
 
 beforeEach(() => {
@@ -508,5 +513,55 @@ describe("StockScreenerView controller boundaries", () => {
     await flushPromises();
     expect(state.selectedPresetId).toBe("preset-1");
     wrapper.unmount();
+  });
+
+  it("routes both saved and unsaved toolbar preset selections", async () => {
+    const { wrapper, state } = await mountScreener();
+    const select = wrapper.get(".stock-screener-view__preset-select");
+
+    await select.setValue("preset-1");
+    await flushPromises();
+    expect(state.selectedPresetId).toBe("preset-1");
+
+    await select.setValue("");
+    await flushPromises();
+    expect(state.selectedPresetId).toBe("");
+  });
+
+  it("renders live toolbar and dialog state after controller transitions", async () => {
+    const { wrapper, state } = await mountScreener();
+
+    state.queryMarket = "HK";
+    state.presetName = "界面策略";
+    state.catalogError = "目录需要刷新";
+    state.mobilePane = "results";
+    state.pendingDraftAction = { kind: "new" };
+    state.factorDialogOpen = true;
+    state.catalogSearch = "价格";
+    state.canScrollCategoriesRight = true;
+    await nextTick();
+
+    expect(wrapper.get('[aria-label="筛选市场"]').element).toHaveProperty(
+      "value",
+      "HK",
+    );
+    expect(wrapper.get('[aria-label="预设名称"]').element).toHaveProperty(
+      "value",
+      "界面策略",
+    );
+    expect(wrapper.text()).toContain("目录需要刷新");
+    expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toContain(
+      "结果",
+    );
+    expect(wrapper.get(".stock-screener-view__draft-dialog").text()).toContain(
+      "新建策略",
+    );
+    expect(wrapper.get('[aria-label="搜索因子"]').element).toHaveProperty(
+      "value",
+      "价格",
+    );
+    expect(
+      wrapper.get('[aria-label="向右滚动因子分类"]').attributes("disabled"),
+    ).toBeUndefined();
   });
 });

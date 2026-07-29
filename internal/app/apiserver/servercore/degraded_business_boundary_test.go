@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestExecutionNotificationHandlesUnrelatedAndPartialFillEvents(t *testing.T) {

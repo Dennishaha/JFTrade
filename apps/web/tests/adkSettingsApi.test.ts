@@ -503,6 +503,7 @@ function buildMetrics(total = 0) {
   return {
     runs: {
       total,
+      last7Days: total,
       byStatus: {},
       byAgent: {},
       byProvider: {},
@@ -518,6 +519,7 @@ function buildMetrics(total = 0) {
     approvals: {
       pending: 0,
       total: 0,
+      last7Days: 0,
       approved: 0,
       denied: 0,
       recoverablePending: 0,
@@ -531,5 +533,17 @@ function buildMetrics(total = 0) {
       tokensInAverage: null,
       tokensOutAverage: null,
     },
+    sessions: { total: 0, last7Days: 0 },
+    workflows: {
+      definitions: 0,
+      enabledDefinitions: 0,
+      triggers: 0,
+      enabledTriggers: 0,
+      invocations: 0,
+      invocationsLast7Days: 0,
+      byStatus: {},
+      byTriggerType: {},
+    },
+    measurementWindow: { days: 7, since: "2026-07-19T00:00:00Z" },
   };
 }

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	workflowrules "github.com/jftrade/jftrade-main/internal/assistant/workflow"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
 const (

@@ -1,6 +1,6 @@
 package assistant
 
-import jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+import jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 
 // Assistant-facing models are re-exported by the business boundary so
 // application and transport tests do not depend on runtime assembly details.
@@ -34,31 +34,34 @@ type (
 	WorkflowCanvasNode             = jfadk.WorkflowCanvasNode
 	WorkflowDefinition             = jfadk.WorkflowDefinition
 	WorkflowDefinitionWriteRequest = jfadk.WorkflowDefinitionWriteRequest
+	WorkflowTrigger                = jfadk.WorkflowTrigger
 	WorkflowTriggerLog             = jfadk.WorkflowTriggerLog
 	WorkflowTriggerWriteRequest    = jfadk.WorkflowTriggerWriteRequest
 )
 
 const (
-	AgentStatusEnabled           = jfadk.AgentStatusEnabled
-	ApprovalStatusApproved       = jfadk.ApprovalStatusApproved
-	ApprovalStatusDenied         = jfadk.ApprovalStatusDenied
-	ApprovalStatusPending        = jfadk.ApprovalStatusPending
-	PermissionModeApproval       = jfadk.PermissionModeApproval
-	PermissionModeLessApproval   = jfadk.PermissionModeLessApproval
-	RunStatusCancelled           = jfadk.RunStatusCancelled
-	RunStatusCompleted           = jfadk.RunStatusCompleted
-	RunStatusDenied              = jfadk.RunStatusDenied
-	RunStatusFailed              = jfadk.RunStatusFailed
-	RunStatusPaused              = jfadk.RunStatusPaused
-	RunStatusPending             = jfadk.RunStatusPending
-	RunStatusRunning             = jfadk.RunStatusRunning
-	TimelineKindApprovalGroup    = jfadk.TimelineKindApprovalGroup
-	TimelineKindToolGroup        = jfadk.TimelineKindToolGroup
-	WorkflowStatusEnabled        = jfadk.WorkflowStatusEnabled
-	WorkflowTriggerStatusEnabled = jfadk.WorkflowTriggerStatusEnabled
-	WorkflowTriggerTypeWebhook   = jfadk.WorkflowTriggerTypeWebhook
-	WorkModeChat                 = jfadk.WorkModeChat
-	WorkModeLoop                 = jfadk.WorkModeLoop
+	AgentStatusEnabled                = jfadk.AgentStatusEnabled
+	ApprovalStatusApproved            = jfadk.ApprovalStatusApproved
+	ApprovalStatusDenied              = jfadk.ApprovalStatusDenied
+	ApprovalStatusPending             = jfadk.ApprovalStatusPending
+	PermissionModeApproval            = jfadk.PermissionModeApproval
+	PermissionModeLessApproval        = jfadk.PermissionModeLessApproval
+	RunStatusCancelled                = jfadk.RunStatusCancelled
+	RunStatusCompleted                = jfadk.RunStatusCompleted
+	RunStatusDenied                   = jfadk.RunStatusDenied
+	RunStatusFailed                   = jfadk.RunStatusFailed
+	RunStatusPaused                   = jfadk.RunStatusPaused
+	RunStatusPending                  = jfadk.RunStatusPending
+	RunStatusRunning                  = jfadk.RunStatusRunning
+	TimelineKindApprovalGroup         = jfadk.TimelineKindApprovalGroup
+	TimelineKindToolGroup             = jfadk.TimelineKindToolGroup
+	WorkflowStatusEnabled             = jfadk.WorkflowStatusEnabled
+	WorkflowTriggerStatusEnabled      = jfadk.WorkflowTriggerStatusEnabled
+	WorkflowTriggerLogStatusSucceeded = jfadk.WorkflowTriggerLogStatusSucceeded
+	WorkflowTriggerTypeManual         = jfadk.WorkflowTriggerTypeManual
+	WorkflowTriggerTypeWebhook        = jfadk.WorkflowTriggerTypeWebhook
+	WorkModeChat                      = jfadk.WorkModeChat
+	WorkModeLoop                      = jfadk.WorkModeLoop
 )
 
 var LocalMCPReadOnlyToolNames = jfadk.LocalMCPReadOnlyToolNames

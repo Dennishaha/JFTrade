@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

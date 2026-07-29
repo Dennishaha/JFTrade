@@ -3,41 +3,25 @@ import { computed, ref, watch } from "vue";
 import type { StrategyAuditEntryDocument } from "@/contracts";
 
 import MonacoCodeEditor from "../MonacoCodeEditor.vue";
-import { formatLocalDateTime } from "../../utils/dateTime";
-
-type StrategyActivityTab = "logs" | "audit";
-type StrategyActivityLevel = "all" | "error" | "warning" | "info";
-
-interface StrategyTimestampParts {
-    display: string;
-    timestampMs: number | null;
-}
-
-interface StrategyLogViewEntry {
-    raw: string;
-    message: string;
-    at: string;
-    timestampMs: number | null;
-    level: Exclude<StrategyActivityLevel, "all">;
-}
-
-interface StrategyAuditViewEntry extends StrategyAuditEntryDocument {
-    detailText: string;
-    label: string;
-    level: Exclude<StrategyActivityLevel, "all">;
-    timestampMs: number | null;
-}
-
-interface StrategyActivityDetailView {
-    title: string;
-    kindLabel: string;
-    summary: string;
-    detail: string;
-    at: string;
-    tooltip: string;
-    level: Exclude<StrategyActivityLevel, "all">;
-    rawKind?: string;
-}
+import {
+    buildAuditActivityDetail,
+    buildLogActivityDetail,
+    classifyStrategyAuditLevel,
+    formatAuditKind,
+    formatStrategyActivityLevel,
+    formatTimestamp,
+    formatTimestampParts,
+    formatTimestampTooltip,
+    parseStrategyLogEntry,
+    sortActivityEntriesByTime,
+} from "../../features/strategyRuntimeActivity";
+import type {
+    StrategyActivityDetailView,
+    StrategyActivityLevel,
+    StrategyActivityTab,
+    StrategyAuditViewEntry,
+    StrategyLogViewEntry,
+} from "../../features/strategyRuntimeActivity";
 
 const props = defineProps<{
     isLoadingDetails: boolean;
@@ -153,141 +137,6 @@ watch(
     { immediate: true },
 );
 
-function normalizeText(value: unknown): string {
-    return typeof value === "string" ? value.trim() : "";
-}
-
-function formatTimestampParts(value: unknown): StrategyTimestampParts {
-    const normalized = normalizeText(value);
-    if (normalized === "") {
-        return {
-            display: "暂无",
-            timestampMs: null,
-        };
-    }
-
-    const parsed = new Date(normalized);
-    if (Number.isNaN(parsed.getTime())) {
-        const fallback = normalized.replace("T", " ").replace(".000Z", "Z");
-        return {
-            display: fallback,
-            timestampMs: null,
-        };
-    }
-
-    return {
-        display: formatLocalDateTime(parsed, normalized),
-        timestampMs: parsed.getTime(),
-    };
-}
-
-function formatTimestamp(value: unknown): string {
-    return formatTimestampParts(value).display;
-}
-
-function formatTimestampTooltip(value: unknown): string {
-    return formatTimestampParts(value).display;
-}
-
-function sortActivityEntriesByTime<T extends { timestampMs: number | null }>(items: T[]): T[] {
-    return items
-        .map((item, index) => ({ item, index }))
-        .sort((left, right) => {
-            const leftTime = left.item.timestampMs ?? Number.NEGATIVE_INFINITY;
-            const rightTime = right.item.timestampMs ?? Number.NEGATIVE_INFINITY;
-            if (rightTime !== leftTime) {
-                return rightTime - leftTime;
-            }
-            return right.index - left.index;
-        })
-        .map(({ item }) => item);
-}
-
-function formatAuditKind(kind: unknown): string {
-    switch (normalizeText(kind).toLowerCase()) {
-        case "instantiated":
-            return "已实例化";
-        case "binding.updated":
-            return "已更新绑定";
-        case "created":
-            return "已创建";
-        case "started":
-            return "已启动";
-        case "running":
-            return "运行中";
-        case "paused":
-            return "已暂停";
-        case "stopped":
-            return "已停止";
-        case "failed":
-            return "执行失败";
-        case "risk_rejected":
-            return "风控拒单";
-        case "risk_monitor":
-            return "风控观察";
-        default:
-            return normalizeText(kind) || "未知";
-    }
-}
-
-function formatStrategyActivityLevel(level: StrategyActivityLevel): string {
-    switch (level) {
-        case "error":
-            return "高优先";
-        case "warning":
-            return "需关注";
-        case "info":
-            return "常规";
-        default:
-            return "全部";
-    }
-}
-
-function classifyStrategyLogLevel(message: string): Exclude<StrategyActivityLevel, "all"> {
-    const normalized = normalizeText(message).toLowerCase();
-    if (["panic", "fatal", "error", "failed", "exception", "reject", "denied", "timeout"].some(
-        (keyword) => normalized.includes(keyword),
-    )) {
-        return "error";
-    }
-    if (["warn", "warning", "paused", "pause", "stopped", "stop", "retry", "skip", "throttle"].some(
-        (keyword) => normalized.includes(keyword),
-    )) {
-        return "warning";
-    }
-    return "info";
-}
-
-function classifyStrategyAuditLevel(entry: StrategyAuditEntryDocument): Exclude<StrategyActivityLevel, "all"> {
-    const signal = `${normalizeText(entry.kind)} ${normalizeText(entry.detail)}`.toLowerCase();
-    if (["failed", "panic", "error", "exception", "reject", "denied", "timeout"].some(
-        (keyword) => signal.includes(keyword),
-    )) {
-        return "error";
-    }
-    if (["paused", "pause", "stopped", "stop", "retry", "warning", "warn"].some(
-        (keyword) => signal.includes(keyword),
-    )) {
-        return "warning";
-    }
-    return "info";
-}
-
-function parseStrategyLogEntry(entry: string): StrategyLogViewEntry {
-    const raw = normalizeText(entry);
-    const matched = raw.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s*(.*)$/);
-    const at = matched?.[1] ?? "";
-    const message = normalizeText(matched?.[2]) || raw;
-    const timestampMs = at === "" ? null : formatTimestampParts(at).timestampMs;
-    return {
-        raw: entry,
-        message,
-        at,
-        timestampMs,
-        level: classifyStrategyLogLevel(message || raw),
-    };
-}
-
 function openStrategyActivityDetail(detail: StrategyActivityDetailView): void {
     selectedStrategyActivityDetail.value = detail;
     strategyActivityDetailDialogOpen.value = true;
@@ -298,35 +147,6 @@ function closeStrategyActivityDetailDialog(): void {
     selectedStrategyActivityDetail.value = null;
 }
 
-function buildLogActivityDetail(entry: StrategyLogViewEntry): StrategyActivityDetailView {
-    return {
-        title: "运行日志",
-        kindLabel: "日志详情",
-        summary: entry.message,
-        detail: entry.raw,
-        at: formatTimestamp(entry.at),
-        tooltip: formatTimestampTooltip(entry.at),
-        level: entry.level,
-    };
-}
-
-function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivityDetailView {
-    return {
-        title: entry.label,
-        kindLabel: "审计详情",
-        summary: entry.detailText,
-        detail: [
-            `instanceId: ${entry.instanceId}`,
-            `kind: ${entry.kind}`,
-            `detail: ${entry.detailText}`,
-            `at: ${entry.at}`,
-        ].join("\n"),
-        at: formatTimestamp(entry.at),
-        tooltip: formatTimestampTooltip(entry.at),
-        level: entry.level,
-        rawKind: entry.kind,
-    };
-}
 </script>
 
 <template>

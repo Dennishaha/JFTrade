@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 )
 

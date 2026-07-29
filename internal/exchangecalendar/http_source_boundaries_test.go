@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 )
 

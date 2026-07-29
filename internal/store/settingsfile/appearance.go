@@ -3,7 +3,7 @@ package settingsfile
 import (
 	"strings"
 
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func (s *Store) Appearance() jfsettings.UIAppearanceSettings {

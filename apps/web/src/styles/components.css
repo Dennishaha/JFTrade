@@ -1,0 +1,45 @@
+/* Reusable structural primitives. Domain components keep only unique CSS. */
+.jf-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: var(--jf-radius-lg);
+  background: var(--tv-bg-surface);
+}
+
+.jf-panel__header {
+  display: flex;
+  min-height: var(--jf-control-height-md);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--jf-space-2);
+  padding: var(--jf-space-2) var(--jf-space-3);
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface-2);
+}
+
+.jf-panel__title {
+  color: var(--tv-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.jf-panel__description {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+  color: var(--tv-text-dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jf-panel__body {
+  display: grid;
+  gap: var(--jf-space-3);
+  padding: var(--jf-space-3);
+}

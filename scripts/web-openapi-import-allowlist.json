@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "legacyDirectImports": {
+    "apps/web/src/components/RuntimeDependenciesSection.vue": "历史组件仍直接消费 OpenAPI DTO，后续按领域补齐 @/contracts 别名。",
+    "apps/web/src/components/SettingsDataManagementSection.vue": "历史组件仍直接消费 OpenAPI DTO，后续按领域补齐 @/contracts 别名。",
+    "apps/web/src/components/SettingsExchangeCalendarSection.vue": "历史组件仍直接消费 OpenAPI DTO，后续按领域补齐 @/contracts 别名。",
+    "apps/web/src/components/SettingsSecuritySection.vue": "历史组件仍直接消费 OpenAPI DTO，后续按领域补齐 @/contracts 别名。",
+    "apps/web/src/components/SettingsSystemNotificationsSection.vue": "历史组件仍直接消费 OpenAPI DTO，后续按领域补齐 @/contracts 别名。",
+    "apps/web/src/components/StrategyDesignStage.vue": "历史组件仍直接消费 OpenAPI DTO，后续按领域补齐 @/contracts 别名。",
+    "apps/web/src/components/research/stockScreenApi.ts": "历史组件 API 边界仍直接消费 OpenAPI DTO，后续补齐 @/contracts 别名。",
+    "apps/web/src/components/strategy-runtime/strategyDefinitionPayload.ts": "历史组件 API 边界仍直接消费 OpenAPI DTO，后续补齐 @/contracts 别名。",
+    "apps/web/src/composables/brokerProviderSelection.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/brokerSettingsContract.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/futuOpenDContract.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/marketDataContract.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/marketDataRealtime.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/marketSecurityNormalization.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/onboardingContract.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/pineWorkerSettings.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/pluginContract.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/productFeatures.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/strategyApiRequests.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/strategyContract.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/systemStatusContract.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/tradingApiMappers.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/useKlineSyncTask.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/composables/watchlistApi.ts": "历史适配器仍解析原始 DTO，后续补齐领域 @/contracts 别名。",
+    "apps/web/src/types/view-models/strategy.ts": "历史策略 view model 仍复用原始 wire 类型，待与 mapper 边界一起迁移。"
+  }
+}

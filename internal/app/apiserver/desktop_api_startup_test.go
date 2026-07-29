@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/lifecycle"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 type incompatibleLifecycleSettingsStore struct{}

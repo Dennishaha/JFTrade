@@ -1,5 +1,8 @@
 import type { components } from "@/generated/openapi";
 
+export type StrategyInstanceViewDto =
+  components["schemas"]["strategy.InstanceView"];
+
 export type StrategyDefinitionSummaryDocument =
   components["schemas"]["strategy.DefinitionSummary"];
 

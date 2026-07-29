@@ -7,8 +7,8 @@ import (
 	"time"
 
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 // LiveQuoteTransportMode identifies the active market-data transport.

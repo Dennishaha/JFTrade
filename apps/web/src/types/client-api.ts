@@ -1,8 +1,7 @@
-import type { components } from "@/generated/openapi";
+import type { ApiEnvelopeDto, ApiErrorEnvelopeDto } from "@/contracts";
 
-type GeneratedEnvelope = components["schemas"]["httpserver.Envelope"];
-type GeneratedErrorEnvelope =
-  components["schemas"]["httpserver.ErrorEnvelope"];
+type GeneratedEnvelope = ApiEnvelopeDto;
+type GeneratedErrorEnvelope = ApiErrorEnvelopeDto;
 
 export type ApiSuccessEnvelope<T> = Omit<
   GeneratedEnvelope,

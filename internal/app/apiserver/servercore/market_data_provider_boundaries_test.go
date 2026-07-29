@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type marketDataBoundaryBroker struct{ reader broker.MarketDataReader }

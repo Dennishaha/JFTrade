@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 func TestAssistantRoutesReturnUnavailableWhenRuntimeMissing(t *testing.T) {

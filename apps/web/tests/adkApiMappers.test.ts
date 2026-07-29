@@ -405,6 +405,7 @@ describe("ADK API wire mappers", () => {
     expect(requireADKMetrics({
       runs: {
         total: 10,
+        last7Days: 4,
         byStatus: { completed: 8, failed: 2 },
         byAgent: { "agent-1": 10 },
         byProvider: { "provider-1": 10 },
@@ -426,6 +427,7 @@ describe("ADK API wire mappers", () => {
       approvals: {
         pending: 1,
         total: 5,
+        last7Days: 2,
         approved: 3,
         denied: 1,
         recoverablePending: 1,
@@ -439,6 +441,18 @@ describe("ADK API wire mappers", () => {
         tokensInAverage: 500,
         tokensOutAverage: null,
       },
+      sessions: { total: 6, last7Days: 3 },
+      workflows: {
+        definitions: 2,
+        enabledDefinitions: 1,
+        triggers: 3,
+        enabledTriggers: 2,
+        invocations: 8,
+        invocationsLast7Days: 5,
+        byStatus: { SUCCEEDED: 7, FAILED: 1 },
+        byTriggerType: { manual: 8 },
+      },
+      measurementWindow: { days: 7, since: "2026-07-21T00:00:00Z" },
     })).toMatchObject({
       runs: { total: 10 },
       approvals: { recoverablePending: 1 },
@@ -501,6 +515,9 @@ describe("ADK API wire mappers", () => {
       tools: {},
       approvals: {},
       usage: {},
+      sessions: {},
+      workflows: {},
+      measurementWindow: {},
     })).toThrow("ADK API response is invalid: metrics");
   });
 });

@@ -60,6 +60,19 @@ export function cloneInputRows(rows: WorkflowInputRow[]): WorkflowInputRow[] {
   return rows.map((row) => ({ ...row }));
 }
 
+export function draftTriggerFromForm(form: TriggerFormModel): ADKWorkflowTrigger {
+  return {
+    id: "draft",
+    workflowId: "",
+    type: form.type,
+    title: form.title,
+    status: form.status,
+    config: {},
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
 export function inputRowsToInputs(rows: WorkflowInputRow[]): Record<string, unknown> {
   const inputs: Record<string, unknown> = {};
   for (const row of rows) {

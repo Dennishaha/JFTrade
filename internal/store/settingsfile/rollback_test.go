@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestFailedSettingSavesRollbackAllRuntimeState(t *testing.T) {

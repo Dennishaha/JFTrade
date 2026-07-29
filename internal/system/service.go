@@ -29,9 +29,9 @@ type Service struct {
 	exchangeCalendarSourcesFn   func() []map[string]any
 	refreshExchangeCalendarsFn  func(ctx context.Context, market string) map[string]any
 	probeExchangeCalendarsFn    func(ctx context.Context, market string) map[string]any
-	futuOpenDHealthFn           func(ctx context.Context) map[string]any
-	futuOpenDInstallGuideFn     func() map[string]any
-	resetFutuRuntimeFn          func()
+	brokerRuntimeHealthFn       func(ctx context.Context) map[string]any
+	brokerInstallGuideFn        func() map[string]any
+	resetBrokerRuntimeFn        func()
 	runtimeDependenciesFn       func(ctx context.Context) map[string]any
 	requestObservabilityFn      func() any
 	realTradeRiskStateFn        func() *trading.RealTradeRiskSnapshot
@@ -130,19 +130,19 @@ func WithProbeExchangeCalendars(fn func(ctx context.Context, market string) map[
 	return func(s *Service) { s.probeExchangeCalendarsFn = fn }
 }
 
-// WithFutuOpenDHealth 设置 Futu/OpenD 健康检查提供者。
-func WithFutuOpenDHealth(fn func(ctx context.Context) map[string]any) Option {
-	return func(s *Service) { s.futuOpenDHealthFn = fn }
+// WithBrokerRuntimeHealth sets the active broker runtime health provider.
+func WithBrokerRuntimeHealth(fn func(ctx context.Context) map[string]any) Option {
+	return func(s *Service) { s.brokerRuntimeHealthFn = fn }
 }
 
-// WithFutuOpenDInstallGuide 设置 OpenD 安装指南提供者。
-func WithFutuOpenDInstallGuide(fn func() map[string]any) Option {
-	return func(s *Service) { s.futuOpenDInstallGuideFn = fn }
+// WithBrokerInstallGuide sets the active broker installation guide provider.
+func WithBrokerInstallGuide(fn func() map[string]any) Option {
+	return func(s *Service) { s.brokerInstallGuideFn = fn }
 }
 
-// WithResetFutuRuntime 设置 Futu 运行时重置回调。
-func WithResetFutuRuntime(fn func()) Option {
-	return func(s *Service) { s.resetFutuRuntimeFn = fn }
+// WithResetBrokerRuntime sets the active broker runtime reset callback.
+func WithResetBrokerRuntime(fn func()) Option {
+	return func(s *Service) { s.resetBrokerRuntimeFn = fn }
 }
 
 // WithRuntimeDependencies 设置运行时依赖检查提供者。
@@ -511,24 +511,24 @@ func (s *Service) realTradeRiskState() *trading.RealTradeRiskSnapshot {
 
 // FutuOpenDHealth 返回 Futu/OpenD 健康信息（委托给注入的提供者）。
 func (s *Service) FutuOpenDHealth(ctx context.Context) map[string]any {
-	if s.futuOpenDHealthFn == nil {
-		return map[string]any{"status": "unavailable", "reason": "futu integration not enabled"}
+	if s.brokerRuntimeHealthFn == nil {
+		return map[string]any{"status": "unavailable", "reason": "broker integration not enabled"}
 	}
-	return s.futuOpenDHealthFn(ctx)
+	return s.brokerRuntimeHealthFn(ctx)
 }
 
 // FutuOpenDInstallGuide 返回 OpenD 安装指南。
 func (s *Service) FutuOpenDInstallGuide() map[string]any {
-	if s.futuOpenDInstallGuideFn == nil {
+	if s.brokerInstallGuideFn == nil {
 		return map[string]any{}
 	}
-	return s.futuOpenDInstallGuideFn()
+	return s.brokerInstallGuideFn()
 }
 
 // ResetFutuRuntime 重置 Futu 运行时状态。
 func (s *Service) ResetFutuRuntime() {
-	if s.resetFutuRuntimeFn != nil {
-		s.resetFutuRuntimeFn()
+	if s.resetBrokerRuntimeFn != nil {
+		s.resetBrokerRuntimeFn()
 	}
 }
 

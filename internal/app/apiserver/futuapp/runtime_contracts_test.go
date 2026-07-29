@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestCoordinatorProjectsConnectedRuntimeAndDiscoveredAccounts(t *testing.T) {

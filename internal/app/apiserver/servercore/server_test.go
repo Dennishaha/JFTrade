@@ -10,7 +10,7 @@ import (
 	"time"
 
 	apruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestShouldStartForAPIOnlyArgs(t *testing.T) {

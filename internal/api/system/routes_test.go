@@ -350,13 +350,13 @@ func newSystemRouteTestRouter() (*gin.Engine, *bool) {
 		sysservice.WithProbeExchangeCalendars(func(context.Context, string) map[string]any {
 			return map[string]any{"accepted": true, "healthy": 1}
 		}),
-		sysservice.WithFutuOpenDHealth(func(context.Context) map[string]any {
+		sysservice.WithBrokerRuntimeHealth(func(context.Context) map[string]any {
 			return map[string]any{"status": "ok"}
 		}),
-		sysservice.WithFutuOpenDInstallGuide(func() map[string]any {
+		sysservice.WithBrokerInstallGuide(func() map[string]any {
 			return map[string]any{"downloadUrl": "https://example.test/opend"}
 		}),
-		sysservice.WithResetFutuRuntime(func() {
+		sysservice.WithResetBrokerRuntime(func() {
 			resetCalled = true
 		}),
 		sysservice.WithBrokerOrderSnapshot(func() map[string]any {

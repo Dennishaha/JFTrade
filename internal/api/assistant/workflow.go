@@ -11,7 +11,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	asstsvc "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 func (h *Handler) handleADKWorkflows(c *gin.Context) {

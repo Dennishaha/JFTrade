@@ -11,7 +11,9 @@ import App from "./App.vue";
 import { fontAwesomeIcons } from "./fontAwesomeIcons";
 import { queryClient } from "./composables/serverState";
 import { createConsoleRouter } from "./router";
+import "./styles/tokens.css";
 import "./styles/adk-tokens.css";
+import "./styles/components.css";
 import "./styles/product-controls.css";
 import "./style.css";
 

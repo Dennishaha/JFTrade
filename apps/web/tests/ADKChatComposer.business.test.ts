@@ -452,7 +452,9 @@ describe("ADKChatComposer business flows", () => {
       },
     );
 
-    await wrapper.find(".adk-slash-menu__item").trigger("click");
+    const slashItem = wrapper.find(".adk-slash-menu__item");
+    await slashItem.trigger("mousedown");
+    await slashItem.trigger("click");
     expect(runSlashCommand).toHaveBeenCalledWith("context");
     expect(wrapper.emitted("update:chatDraft")?.at(-1)).toEqual([""]);
 

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	httpserver "github.com/jftrade/jftrade-main/internal/api/httpserver"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"

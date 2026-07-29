@@ -20,7 +20,7 @@ import (
 
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {

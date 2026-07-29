@@ -17,9 +17,9 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	apisettings "github.com/jftrade/jftrade-main/internal/api/settings"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
 	srvsettings "github.com/jftrade/jftrade-main/internal/settings"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type routeStore struct {

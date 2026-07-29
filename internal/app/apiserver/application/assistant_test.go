@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/internal/watchlist"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type assistantSettingsStub struct {

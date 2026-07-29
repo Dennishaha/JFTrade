@@ -21,8 +21,8 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	"github.com/jftrade/jftrade-main/internal/api/origin"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 const (

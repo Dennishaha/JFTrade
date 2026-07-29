@@ -49,7 +49,7 @@ flowchart TB
         PineWorkerGo["pkg/strategy/pineworker<br/>Go gRPC client / worker manager"]
         PineWorkerNode["workers/pineworker<br/>Node ESM + PineTS executor"]
         BacktestPkg["pkg/backtest<br/>回测引擎与历史存储能力"]
-        ADKPkg["pkg/adk<br/>ADK runtime"]
+        ADKPkg["internal/assistant/engine<br/>ADK runtime"]
         BBGO["pkg/bbgo/*<br/>公共 types / stream / backtest primitives"]
     end
 

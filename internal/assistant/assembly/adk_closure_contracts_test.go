@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
 func TestADKToolDependencyClosuresForwardNormalizedOwnerPorts(t *testing.T) {

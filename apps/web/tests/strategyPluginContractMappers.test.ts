@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { components } from "@/generated/openapi";
+import type { PluginCatalogDto, StrategyInstanceViewDto } from "@/contracts";
 import {
   mapPluginCatalog,
   mapPluginMutation,
@@ -151,7 +151,7 @@ describe("strategy and plugin API contract mappers", () => {
           },
         },
       }],
-    } satisfies components["schemas"]["strategy.PluginCatalog"];
+    } satisfies PluginCatalogDto;
 
     const mapped = mapPluginCatalog(wire);
     expect(mapped.plugins[0]?.installation.status).toBe("NOT_INSTALLED");
@@ -334,7 +334,7 @@ describe("strategy and plugin API contract mappers", () => {
       status: "SYNCING",
       createdAt: "2026-07-26T00:00:00Z",
       logs: [],
-    } satisfies components["schemas"]["strategy.InstanceView"];
+    } satisfies StrategyInstanceViewDto;
 
     expect(mapStrategyInstance(wire).status).toBe("SYNCING");
   });

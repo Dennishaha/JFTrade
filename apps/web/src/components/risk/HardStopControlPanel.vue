@@ -109,9 +109,9 @@ function activate() {
 </script>
 
 <template>
-  <section class="hardstop-panel" aria-label="硬停止">
-    <header class="hardstop-panel__head">
-      <span class="hardstop-panel__title">硬停止</span>
+  <section class="hardstop-panel jf-panel" aria-label="硬停止">
+    <header class="hardstop-panel__head jf-panel__header">
+      <span class="hardstop-panel__title jf-panel__title">硬停止</span>
       <span
         class="hardstop-panel__state"
         :class="entries.length ? 'tv-status--error' : 'tv-status--success'"
@@ -121,7 +121,7 @@ function activate() {
       </span>
     </header>
 
-    <div class="hardstop-panel__body">
+    <div class="hardstop-panel__body jf-panel__body">
       <div class="hardstop-panel__form">
         <div class="hardstop-panel__form-grid">
           <input
@@ -210,33 +210,9 @@ function activate() {
 </template>
 
 <style scoped>
-.hardstop-panel {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--tv-border);
-  border-radius: 8px;
-  background: var(--tv-bg-surface);
-}
-
 .hardstop-panel__head {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
   justify-content: space-between;
-  gap: 8px;
   padding: 9px 12px;
-  border-bottom: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface-2);
-}
-
-.hardstop-panel__title {
-  color: var(--tv-text-muted);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .hardstop-panel__state {
@@ -248,9 +224,7 @@ function activate() {
 }
 
 .hardstop-panel__body {
-  display: grid;
   gap: 10px;
-  padding: 12px;
 }
 
 .hardstop-panel__form {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 func TestServiceCatalogCRUDRecordsBusinessAudit(t *testing.T) {
@@ -50,7 +50,7 @@ func TestServiceCatalogCRUDRecordsBusinessAudit(t *testing.T) {
 	if !assistantAgentIDs(enabledAgents)[agent.ID] {
 		t.Fatalf("enabled agents missing %q: %#v", agent.ID, enabledAgents)
 	}
-	if err := service.DeleteProvider(ctx, backup.ID); err == nil || !strings.Contains(err.Error(), "used by agent") {
+	if err := service.DeleteProvider(ctx, backup.ID); !errors.Is(err, jfadk.ErrProviderInUse) || !strings.Contains(err.Error(), "used by agent") {
 		t.Fatalf("DeleteProvider in use err = %v", err)
 	}
 

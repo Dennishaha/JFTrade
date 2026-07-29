@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {

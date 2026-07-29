@@ -1,5 +1,14 @@
 import type { components } from "@/generated/openapi";
 
+export type ExecutionOrderDto =
+  components["schemas"]["trading.ExecutionOrder"];
+
+export type ExecutionCommandResponse =
+  components["schemas"]["trading.ExecutionCommandResponse"];
+
+export type ExecutionComboRequest =
+  components["schemas"]["trading.ExecutionComboRequest"];
+
 export type RealTradeApprovalsResponse =
   components["schemas"]["system.RealTradeApprovalsResponse"];
 

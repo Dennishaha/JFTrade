@@ -16,8 +16,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 const testWebPassword = "correct horse battery staple"

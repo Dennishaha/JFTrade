@@ -10,9 +10,9 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 const (

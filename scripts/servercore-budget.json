@@ -7,7 +7,7 @@
   "aggregateFieldsMax": 26,
   "directImportFiles": {
     "github.com/jftrade/jftrade-main/pkg/futu": [],
-    "github.com/jftrade/jftrade-main/pkg/adk": [],
+    "github.com/jftrade/jftrade-main/internal/assistant/engine": [],
     "github.com/jftrade/jftrade-main/pkg/backtest": []
   }
 }

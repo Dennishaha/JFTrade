@@ -480,6 +480,10 @@ export interface components {
     updatedAt: string;
     workflowId: string;
   };
+    "assistant.ADKActivityCountData": {
+    last7Days: number;
+    total: number;
+  };
     "assistant.ADKAgentsData": {
     agents: Array<components["schemas"]["adk.Agent"]>;
     page: components["schemas"]["assistant.ADKPageData"];
@@ -505,6 +509,7 @@ export interface components {
     "assistant.ADKApprovalMetricsData": {
     approved: number;
     denied: number;
+    last7Days: number;
     pending: number;
     pendingWaitMs: components["schemas"]["assistant.ADKWaitMetricsData"];
     recoverablePending: number;
@@ -549,6 +554,10 @@ export interface components {
     "assistant.ADKInstallSkillRequest": {
     url: string;
   };
+    "assistant.ADKMeasurementWindowData": {
+    days: number;
+    since: string;
+  };
     "assistant.ADKMemoryData": {
     entries: Array<components["schemas"]["adk.MemoryEntry"]>;
   };
@@ -561,9 +570,12 @@ export interface components {
     "assistant.ADKMetricsData": {
     approvals: components["schemas"]["assistant.ADKApprovalMetricsData"];
     checkedAt: string;
+    measurementWindow: components["schemas"]["assistant.ADKMeasurementWindowData"];
     runs: components["schemas"]["assistant.ADKRunMetricsData"];
+    sessions: components["schemas"]["assistant.ADKActivityCountData"];
     tools: components["schemas"]["assistant.ADKToolMetricsData"];
     usage: components["schemas"]["assistant.ADKUsageMetricsData"];
+    workflows: components["schemas"]["assistant.ADKWorkflowMetricsData"];
   };
     "assistant.ADKOptimizationProgress": {
     cancelled: number;
@@ -625,6 +637,7 @@ export interface components {
     byAgent: Record<string, number>;
     byProvider: Record<string, number>;
     byStatus: Record<string, number>;
+    last7Days: number;
     lifecycle: Record<string, number>;
     total: number;
   };
@@ -759,6 +772,16 @@ export interface components {
     response?: components["schemas"]["adk.ChatResponse"];
     trigger?: components["schemas"]["adk.WorkflowTrigger"];
     workflow: components["schemas"]["adk.WorkflowDefinition"];
+  };
+    "assistant.ADKWorkflowMetricsData": {
+    byStatus: Record<string, number>;
+    byTriggerType: Record<string, number>;
+    definitions: number;
+    enabledDefinitions: number;
+    enabledTriggers: number;
+    invocations: number;
+    invocationsLast7Days: number;
+    triggers: number;
   };
     "assistant.ADKWorkflowsData": {
     page: components["schemas"]["assistant.ADKPageData"];

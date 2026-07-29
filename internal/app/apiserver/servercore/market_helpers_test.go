@@ -1,8 +1,8 @@
 package servercore
 
 import (
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"net"
 	"path/filepath"
 	"strconv"

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
-import type { components } from "@/generated/openapi";
+import type {
+  ExecutionComboRequest,
+  ExecutionCommandResponse as ExecutionResponse,
+} from "@/contracts";
 
 import { apiPost, apiPostPathAction } from "../../composables/apiClient";
 import { useBrokerProviderSelection } from "../../composables/brokerProviderSelection";
@@ -20,49 +23,18 @@ import {
   recognizeOptionComboStrategy,
 } from "../../composables/optionComboStrategies";
 import { useConsoleData } from "../../composables/useConsoleData";
+import {
+  buildOptionComboExecutionLegs,
+  createOptionComboClientOrderId,
+  optionComboStrategyItems,
+} from "../../features/optionComboBuilder";
+import type { ComboPreview } from "../../features/optionComboBuilder";
 import OptionComboConfirmDialog from "./OptionComboConfirmDialog.vue";
 import OptionComboLegEditor from "./OptionComboLegEditor.vue";
 import OptionComboPreviewResult from "./OptionComboPreviewResult.vue";
 import OptionComboRiskStrip from "./OptionComboRiskStrip.vue";
 
 export type { OptionContractChoice } from "../../composables/optionComboDraft";
-
-interface ComboAccountImpact {
-  nlvChange?: number | null;
-  initialMarginChange?: number | null;
-  maintenanceMarginChange?: number | null;
-  optionBuyingPower?: number | null;
-  maxWithdrawalChange?: number | null;
-  buyingPowerDecrease?: number | null;
-}
-
-interface ComboAnalysis {
-  bid?: number | null;
-  ask?: number | null;
-  maxProfit?: number | null;
-  maxLoss?: number | null;
-  maxProfitUnlimited?: boolean;
-  maxLossUnlimited?: boolean;
-  breakevenPoints?: number[];
-  probability?: number | null;
-  delta?: number | null;
-  theta?: number | null;
-}
-
-interface ComboPreview {
-  previewId: string;
-  allowed?: boolean;
-  buyingPowerImpact?: number | null;
-  accountImpact?: ComboAccountImpact | null;
-  warnings?: string[];
-  expiresAt?: string;
-  optionAnalysis?: ComboAnalysis | null;
-}
-
-type ExecutionResponse =
-  components["schemas"]["trading.ExecutionCommandResponse"];
-type ExecutionComboRequest =
-  components["schemas"]["trading.ExecutionComboRequest"];
 
 const props = withDefaults(
   defineProps<{
@@ -195,13 +167,7 @@ const canPlace = computed(
     execution.value == null &&
     !submissionStarted,
 );
-const strategyItems: Array<{ value: OptionComboStrategy; label: string }> = [
-  { value: "vertical", label: "垂直价差" },
-  { value: "straddle", label: "跨式" },
-  { value: "strangle", label: "宽跨式" },
-  { value: "calendar", label: "日历价差" },
-  { value: "butterfly", label: "蝶式" },
-];
+const strategyItems = optionComboStrategyItems;
 
 function invalidatePreview(resetClientOrderId = true): void {
   preview.value = null;
@@ -249,22 +215,8 @@ function applyTemplate(): void {
 
 function clientOrderId(): string {
   if (stableClientOrderId.value) return stableClientOrderId.value;
-  const suffix =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  stableClientOrderId.value = `jftrade-option-combo-${suffix}`;
+  stableClientOrderId.value = createOptionComboClientOrderId();
   return stableClientOrderId.value;
-}
-
-function executionLegs(): ExecutionComboRequest["legs"] {
-  return legs.value.map((leg) => ({
-    instrumentId: leg.instrumentId,
-    productClass: "option",
-    side: leg.side,
-    ratio: leg.ratio,
-    quantity: quantity.value * leg.ratio,
-  }));
 }
 
 function comboPayload(previewId = ""): ExecutionComboRequest {
@@ -287,7 +239,7 @@ function comboPayload(previewId = ""): ExecutionComboRequest {
     previewId,
     quoteExpiresAt: null,
     rfqId: "",
-    legs: executionLegs(),
+    legs: buildOptionComboExecutionLegs(legs.value, quantity.value),
   };
 }
 

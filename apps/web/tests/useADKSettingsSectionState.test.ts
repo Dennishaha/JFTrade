@@ -782,6 +782,7 @@ function buildMetrics(overrides: Partial<ADKMetricsResponse> = {}): ADKMetricsRe
   return {
     runs: {
       total: 4,
+      last7Days: 3,
       byStatus: {},
       byAgent: {},
       byProvider: {},
@@ -803,6 +804,7 @@ function buildMetrics(overrides: Partial<ADKMetricsResponse> = {}): ADKMetricsRe
     approvals: {
       pending: 1,
       total: 2,
+      last7Days: 2,
       approved: 1,
       denied: 0,
       recoverablePending: 1,
@@ -816,6 +818,18 @@ function buildMetrics(overrides: Partial<ADKMetricsResponse> = {}): ADKMetricsRe
       tokensInAverage: 50,
       tokensOutAverage: 100,
     },
+    sessions: { total: 3, last7Days: 2 },
+    workflows: {
+      definitions: 1,
+      enabledDefinitions: 1,
+      triggers: 1,
+      enabledTriggers: 1,
+      invocations: 2,
+      invocationsLast7Days: 2,
+      byStatus: { SUCCEEDED: 2 },
+      byTriggerType: { manual: 2 },
+    },
+    measurementWindow: { days: 7, since: "2026-07-19T00:00:00Z" },
     ...overrides,
   };
 }

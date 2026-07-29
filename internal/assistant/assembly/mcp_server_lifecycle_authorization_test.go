@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 type failingMCPListener struct{ err error }

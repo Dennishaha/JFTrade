@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 

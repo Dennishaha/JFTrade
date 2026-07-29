@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/pineworkerassets"
-	"github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 

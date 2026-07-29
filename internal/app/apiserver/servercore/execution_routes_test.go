@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope(t *testing.T) {

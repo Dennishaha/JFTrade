@@ -14,7 +14,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
-// Sync 启动 K 线历史数据同步。打开 SQLite 存储 → 创建 Futu 连接 → 启动异步同步 goroutine。
+// Sync 启动 K 线历史数据同步。打开 SQLite 存储 → 创建 broker 同步器 → 启动异步同步 goroutine。
 func (s *Service) Sync(ctx context.Context, req SyncRequest) (*SyncStarted, error) {
 	prepared, err := prepareSyncRequest(req)
 	if err != nil {

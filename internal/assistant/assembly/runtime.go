@@ -11,8 +11,8 @@ import (
 	"time"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 // WorkflowEvent is the broker-neutral event consumed by assistant workflows.

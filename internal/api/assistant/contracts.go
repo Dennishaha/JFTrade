@@ -1,8 +1,8 @@
 package assistant
 
 import (
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	"github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	"github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 type ADKPageData struct {
@@ -84,15 +84,19 @@ type ADKAuditData struct {
 }
 
 type ADKMetricsData struct {
-	Runs      ADKRunMetricsData      `json:"runs"`
-	Tools     ADKToolMetricsData     `json:"tools"`
-	Approvals ADKApprovalMetricsData `json:"approvals"`
-	Usage     ADKUsageMetricsData    `json:"usage"`
-	CheckedAt string                 `json:"checkedAt"`
+	Runs              ADKRunMetricsData        `json:"runs"`
+	Tools             ADKToolMetricsData       `json:"tools"`
+	Approvals         ADKApprovalMetricsData   `json:"approvals"`
+	Usage             ADKUsageMetricsData      `json:"usage"`
+	Sessions          ADKActivityCountData     `json:"sessions"`
+	Workflows         ADKWorkflowMetricsData   `json:"workflows"`
+	MeasurementWindow ADKMeasurementWindowData `json:"measurementWindow"`
+	CheckedAt         string                   `json:"checkedAt"`
 }
 
 type ADKRunMetricsData struct {
 	Total      int            `json:"total"`
+	Last7Days  int            `json:"last7Days"`
 	ByStatus   map[string]int `json:"byStatus"`
 	ByAgent    map[string]int `json:"byAgent"`
 	ByProvider map[string]int `json:"byProvider"`
@@ -116,11 +120,33 @@ type ADKWaitMetricsData struct {
 type ADKApprovalMetricsData struct {
 	Pending            int                `json:"pending"`
 	Total              int                `json:"total"`
+	Last7Days          int                `json:"last7Days"`
 	Approved           int                `json:"approved"`
 	Denied             int                `json:"denied"`
 	RecoverablePending int                `json:"recoverablePending"`
 	PendingWaitMs      ADKWaitMetricsData `json:"pendingWaitMs"`
 	ResolutionWaitMs   ADKWaitMetricsData `json:"resolutionWaitMs"`
+}
+
+type ADKActivityCountData struct {
+	Total     int `json:"total"`
+	Last7Days int `json:"last7Days"`
+}
+
+type ADKWorkflowMetricsData struct {
+	Definitions          int            `json:"definitions"`
+	EnabledDefinitions   int            `json:"enabledDefinitions"`
+	Triggers             int            `json:"triggers"`
+	EnabledTriggers      int            `json:"enabledTriggers"`
+	Invocations          int            `json:"invocations"`
+	InvocationsLast7Days int            `json:"invocationsLast7Days"`
+	ByStatus             map[string]int `json:"byStatus"`
+	ByTriggerType        map[string]int `json:"byTriggerType"`
+}
+
+type ADKMeasurementWindowData struct {
+	Days  int    `json:"days"`
+	Since string `json:"since"`
 }
 
 type ADKUsageMetricsData struct {

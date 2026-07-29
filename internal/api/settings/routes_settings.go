@@ -13,7 +13,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	srv "github.com/jftrade/jftrade-main/internal/settings"
 
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 // ── UI Appearance ──

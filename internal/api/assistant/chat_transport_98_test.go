@@ -13,7 +13,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 // coverage98FailingSSEWriter models a client that disconnects while the

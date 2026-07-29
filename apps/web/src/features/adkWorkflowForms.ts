@@ -2,6 +2,7 @@ import type {
   ADKWorkflowDefinition,
   ADKWorkflowDefinitionWriteRequest,
   ADKWorkflowTrigger,
+  ADKWorkflowTriggerLog,
   ADKWorkflowTriggerType,
   ADKWorkflowTriggerWriteRequest,
 } from "@/types";
@@ -407,6 +408,10 @@ export function workflowRunLink(result: {
   if (runId) params.set("runId", runId);
   const query = params.toString();
   return `/adk/agents${query ? `?${query}` : ""}`;
+}
+
+export function workflowLogRunLink(log: ADKWorkflowTriggerLog): string {
+  return workflowRunLink({ log });
 }
 
 function tagsFromText(raw: string): string[] {

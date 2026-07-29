@@ -186,6 +186,10 @@ describe("ADKRunsPanel", () => {
     });
 
     expect(wrapper.text()).toContain("待审批");
+    expect(wrapper.text()).toContain("近 7 日 ADK 运行");
+    expect(wrapper.text()).toContain("新会话 3 · 累计会话 4");
+    expect(wrapper.text()).toContain("近 7 日 Workflow");
+    expect(wrapper.text()).toContain("启用定义 1 · 启用触发器 1");
     expect(wrapper.text()).toContain("2.5 s");
     expect(wrapper.text()).toContain("12 s");
     expect(wrapper.text()).toContain("950 ms");
@@ -343,6 +347,7 @@ function buildMetrics(
   return {
     runs: {
       total: 4,
+      last7Days: 3,
       byStatus: {},
       byAgent: {},
       byProvider: {},
@@ -364,6 +369,7 @@ function buildMetrics(
     approvals: {
       pending: 2,
       total: 3,
+      last7Days: 2,
       approved: 1,
       denied: 0,
       recoverablePending: 1,
@@ -377,6 +383,18 @@ function buildMetrics(
       tokensInAverage: 50,
       tokensOutAverage: 75,
     },
+    sessions: { total: 4, last7Days: 3 },
+    workflows: {
+      definitions: 2,
+      enabledDefinitions: 1,
+      triggers: 2,
+      enabledTriggers: 1,
+      invocations: 5,
+      invocationsLast7Days: 3,
+      byStatus: { SUCCEEDED: 4, FAILED: 1 },
+      byTriggerType: { manual: 5 },
+    },
+    measurementWindow: { days: 7, since: "2026-07-19T00:00:00Z" },
     ...overrides,
   };
 }

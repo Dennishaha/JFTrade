@@ -159,6 +159,97 @@ describe("ADKChatComposer", () => {
     expect(wrapper.text()).not.toContain("默认模型");
   });
 
+  it("expands mobile model controls while provider selection is being saved", async () => {
+    const wrapper = mount(ADKChatComposer, {
+      attachTo: document.body,
+      props: {
+        layout: "mobile",
+        canSendChat: false,
+        chatDraft: "",
+        loading: true,
+        savingProviderSelection: true,
+        selectedAgentId: "agent-1",
+        selectedProviderId: "provider-openai",
+        providerOptions: [
+          {
+            title: "OpenAI · gpt-5.2",
+            value: "provider-openai",
+            providerId: "provider-openai",
+          },
+          {
+            title: "本地模型",
+            value: "provider-local",
+            providerId: "provider-local",
+          },
+        ],
+        sendChat: async () => {},
+      },
+      global: {
+        stubs: {
+          "v-btn": {
+            props: ["disabled", "title"],
+            emits: ["click"],
+            template:
+              "<button type='button' :disabled='disabled' :title='title' @click=\"$emit('click')\"><slot /></button>",
+          },
+          "v-menu": menuStub,
+          "v-list": passthroughStub,
+          "v-list-item": listItemStub,
+          "v-list-item-title": passthroughStub,
+          "v-list-item-subtitle": passthroughStub,
+          "v-progress-circular": passthroughStub,
+          "v-progress-linear": passthroughStub,
+        },
+      },
+    });
+
+    expect(wrapper.find(".adk-composer-utility").exists()).toBe(false);
+    await wrapper.get("[data-testid='adk-mobile-composer-toggle']").trigger("click");
+
+    const providerTrigger = wrapper.get(".adk-provider-trigger");
+    expect(providerTrigger.attributes("disabled")).toBeDefined();
+    expect(wrapper.text()).toContain("gpt-5.2");
+    expect(wrapper.text()).toContain("本地模型");
+    expect(wrapper.find(".adk-inline-progress").exists()).toBe(true);
+  });
+
+  it("executes a visible slash action through its mouse interaction", async () => {
+    const runSlashCommand = vi.fn();
+    const wrapper = mount(ADKChatComposer, {
+      attachTo: document.body,
+      props: {
+        canSendChat: true,
+        chatDraft: "/",
+        slashCommands: [
+          {
+            id: "context",
+            command: "/context",
+            title: "上下文",
+            description: "查看上下文窗口",
+          },
+          {
+            id: "compact",
+            command: "/compact",
+            title: "压缩",
+            description: "当前不可用",
+            disabled: true,
+          },
+        ],
+        runSlashCommand,
+        sendChat: async () => {},
+      },
+    });
+
+    const slashItems = wrapper.findAll(".adk-slash-menu__item");
+    expect(slashItems).toHaveLength(2);
+    expect(slashItems[1]!.attributes("disabled")).toBeDefined();
+    await slashItems[0]!.trigger("mousedown");
+    await slashItems[0]!.trigger("click");
+
+    expect(runSlashCommand).toHaveBeenCalledWith("context");
+    expect(wrapper.emitted("update:chatDraft")?.at(-1)).toEqual([""]);
+  });
+
   it("shows approval levels beside the add button and clears the default override", async () => {
     const menuStub = defineComponent({
       setup(_, { slots }) {

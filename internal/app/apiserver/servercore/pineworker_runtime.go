@@ -3,10 +3,10 @@ package servercore
 import (
 	"log"
 
+	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/pineworkerassets"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	"github.com/jftrade/jftrade-main/internal/strategy/pineruntime"
-	"github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 const (

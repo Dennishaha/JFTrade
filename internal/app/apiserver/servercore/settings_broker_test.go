@@ -17,7 +17,7 @@ import (
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestBrokerIntegrationSavePersistsWithoutMutatingRuntimeEnv(t *testing.T) {

@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	apisettings "github.com/jftrade/jftrade-main/internal/api/settings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	srvsettings "github.com/jftrade/jftrade-main/internal/settings"
 	settingsfile "github.com/jftrade/jftrade-main/internal/store/settingsfile"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {

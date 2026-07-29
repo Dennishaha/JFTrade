@@ -3,7 +3,7 @@ package assistant
 import (
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 // A workflow service must surface an unavailable persistence backend instead of

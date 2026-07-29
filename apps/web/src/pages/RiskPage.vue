@@ -6,6 +6,8 @@ import RealTradeEmergencyPanel from "../components/risk/RealTradeEmergencyPanel.
 import RiskEventTimeline from "../components/risk/RiskEventTimeline.vue";
 import RuntimeRiskConfigPanel from "../components/risk/RuntimeRiskConfigPanel.vue";
 import StrategyRuntimeRiskSection from "../components/risk/StrategyRuntimeRiskSection.vue";
+import RiskPostureSidebar from "../components/risk/RiskPostureSidebar.vue";
+import RiskStatusStrip from "../components/risk/RiskStatusStrip.vue";
 import ActionConfirmDialog from "../components/shared/ActionConfirmDialog.vue";
 import { normalizeStrategyRuntimeRiskSettings } from "../components/strategy-runtime/strategyRuntimeInstanceBinding";
 import {
@@ -543,94 +545,15 @@ async function confirmPendingAction(): Promise<void> {
 
 <template>
   <div class="risk-page">
-    <aside class="risk-sidebar" aria-label="风控态势摘要">
-      <div class="risk-sidebar__head">
-        <div class="risk-sidebar__name">风控中心</div>
-        <span
-          class="risk-sidebar__posture-dot"
-          :class="`tv-status--${riskPosture.tone}`"
-        >
-          <i class="tv-state-dot"></i>{{ riskPosture.label }}
-        </span>
-      </div>
-
-      <div
-        class="risk-sidebar__posture"
-        :class="`tv-status--${riskPosture.tone}`"
-        data-testid="risk-posture"
-      >
-        <div class="risk-sidebar__posture-label">整体风险态势</div>
-        <div class="risk-sidebar__posture-value">
-          {{ riskPosture.label }}
-        </div>
-        <div class="risk-sidebar__posture-hint">{{ riskPosture.hint }}</div>
-      </div>
-
-      <div class="risk-sidebar__rows">
-        <div
-          v-for="row in statusRows"
-          :key="row.key"
-          class="risk-sidebar__row"
-          :class="`tv-status--${row.tone}`"
-          :data-status-key="row.key"
-        >
-          <span>{{ row.label }}</span>
-          <b>{{ row.value }}</b>
-        </div>
-      </div>
-
-      <div class="risk-sidebar__facts">
-        <div
-          v-for="fact in sidebarFacts"
-          :key="fact.label"
-          class="risk-sidebar__fact"
-        >
-          <span>{{ fact.label }}</span>
-          <b :title="fact.value">{{ fact.value }}</b>
-        </div>
-      </div>
-
-      <div class="risk-sidebar__footer">
-        <button
-          type="button"
-          class="tv-btn tv-btn-ghost risk-sidebar__refresh"
-          @click="refreshRiskState"
-        >
-          刷新风控状态
-        </button>
-      </div>
-    </aside>
+    <RiskPostureSidebar
+      :posture="riskPosture"
+      :status-rows="statusRows"
+      :facts="sidebarFacts"
+      @refresh="refreshRiskState"
+    />
 
     <section class="risk-main">
-      <div class="risk-strip" aria-label="风控指标">
-        <section
-          v-for="section in stripSections"
-          :key="section.title"
-          class="risk-strip__section"
-        >
-          <header class="risk-strip__title">
-            {{ section.title }}
-            <i
-              v-if="section.title === '实盘总闸'"
-              class="tv-state-dot"
-              :class="`tv-status--${riskPosture.tone}`"
-              :title="riskPosture.hint"
-            ></i>
-          </header>
-          <div class="risk-strip__grid">
-            <div
-              v-for="item in section.items"
-              :key="item.label"
-              class="risk-strip__item"
-            >
-              <span>{{ item.label }}</span>
-              <b :class="item.tone ? `tv-status--${item.tone}` : undefined">
-                {{ item.value }}
-              </b>
-            </div>
-          </div>
-        </section>
-      </div>
+      <RiskStatusStrip :posture="riskPosture" :sections="stripSections" />
 
       <div class="risk-main__tabs-row">
         <div class="risk-main__tabs" role="tablist" aria-label="风控视图">
@@ -739,137 +662,6 @@ async function confirmPendingAction(): Promise<void> {
     var(--tv-bg-app);
 }
 
-/* ── 左侧态势摘要栏（对齐账户摘要侧栏） ───────────────────── */
-
-.risk-sidebar {
-  display: flex;
-  width: 264px;
-  flex: 0 0 auto;
-  flex-direction: column;
-  overflow: hidden auto;
-  border: 1px solid var(--tv-border);
-  border-radius: 9px;
-  background: var(--tv-bg-surface);
-  box-shadow: 0 8px 24px color-mix(in srgb, #000 8%, transparent);
-  scrollbar-width: thin;
-}
-
-.risk-sidebar__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface-2);
-}
-
-.risk-sidebar__name {
-  overflow: hidden;
-  color: var(--tv-text);
-  font-size: 13px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.risk-sidebar__posture-dot {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 6px;
-  color: var(--tv-status-fg, var(--tv-text-dim));
-  font-size: 10px;
-}
-
-.risk-sidebar__posture {
-  padding: 14px;
-  border-bottom: 1px solid var(--tv-border);
-}
-
-.risk-sidebar__posture-label {
-  color: var(--tv-text-muted);
-  font-size: 11px;
-}
-
-.risk-sidebar__posture-value {
-  margin-top: 4px;
-  color: var(--tv-status-fg, var(--tv-text));
-  font-size: 26px;
-  font-weight: 680;
-  letter-spacing: -0.02em;
-}
-
-.risk-sidebar__posture-hint {
-  margin-top: 6px;
-  color: var(--tv-text-dim);
-  font-size: 10px;
-  line-height: 1.6;
-}
-
-.risk-sidebar__rows {
-  display: grid;
-  gap: 2px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--tv-border);
-}
-
-.risk-sidebar__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 3px 0;
-  font-size: 12px;
-}
-
-.risk-sidebar__row span {
-  color: var(--tv-text-muted);
-}
-
-.risk-sidebar__row b {
-  color: var(--tv-status-fg, var(--tv-text));
-  font-weight: 550;
-}
-
-.risk-sidebar__facts {
-  display: grid;
-  gap: 2px;
-  padding: 10px 14px 14px;
-}
-
-.risk-sidebar__fact {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 3px 0;
-  font-size: 11px;
-}
-
-.risk-sidebar__fact span {
-  flex: 0 0 auto;
-  color: var(--tv-text-dim);
-}
-
-.risk-sidebar__fact b {
-  overflow: hidden;
-  color: var(--tv-text-muted);
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.risk-sidebar__footer {
-  margin-top: auto;
-  padding: 10px 14px 14px;
-}
-
-.risk-sidebar__refresh {
-  width: 100%;
-  height: 30px;
-  font-size: 12px;
-}
-
 /* ── 右侧主面板（对齐账户主面板） ───────────────────────── */
 
 .risk-main {
@@ -883,63 +675,6 @@ async function confirmPendingAction(): Promise<void> {
   border-radius: 9px;
   background: var(--tv-bg-surface);
   box-shadow: 0 8px 24px color-mix(in srgb, #000 8%, transparent);
-}
-
-.risk-strip {
-  display: grid;
-  flex: 0 0 auto;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-bottom: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface-2);
-}
-
-.risk-strip__section {
-  min-width: 0;
-  padding: 10px 14px 12px;
-  border-left: 1px solid var(--tv-border);
-}
-
-.risk-strip__section:first-child {
-  border-left: 0;
-}
-
-.risk-strip__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-  color: var(--tv-text-muted);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.risk-strip__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 12px;
-}
-
-.risk-strip__item {
-  min-width: 0;
-}
-
-.risk-strip__item span {
-  display: block;
-  color: var(--tv-text-dim);
-  font-size: 10px;
-}
-
-.risk-strip__item b {
-  display: block;
-  overflow: hidden;
-  margin-top: 1px;
-  color: var(--tv-status-fg, var(--tv-text));
-  font-size: 12px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .risk-main__tabs-row {
@@ -1034,31 +769,9 @@ async function confirmPendingAction(): Promise<void> {
     overflow: auto;
   }
 
-  .risk-sidebar {
-    width: 100%;
-    flex: 0 0 auto;
-  }
-
-  .risk-sidebar__facts {
-    grid-template-columns: 1fr 1fr;
-    column-gap: 16px;
-  }
-
   .risk-main {
     flex: 1 0 auto;
     min-height: 480px;
-  }
-
-  .risk-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .risk-strip__section:nth-child(odd) {
-    border-left: 0;
-  }
-
-  .risk-strip__section:nth-child(n + 3) {
-    border-top: 1px solid var(--tv-border);
   }
 
   .risk-main__danger-grid {

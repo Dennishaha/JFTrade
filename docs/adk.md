@@ -2,9 +2,15 @@
 
 JFTrade 的 ADK 集成在现有 sidecar 内提供 Agent 控制面，不嵌入 Google ADK 自带 Web UI。生产前端使用 `/adk` 页面和右侧 AI 助手面板。
 
+## 产品定位与使用观测
+
+ADK 是 JFTrade 的核心差异化能力，不是可以随时裁掉的辅助模块。当前保留 workflow 编排、child workflow、execution lease、goal state、approval 和工具幂等完整能力；实现已收口到仓库私有的 `internal/assistant/engine`，不再对外暗示稳定 Go API。
+
+`GET /api/v1/adk/metrics` 在现有运行指标上增加本机滚动 7 日使用窗口，包括 run、session、approval 和 workflow invocation，并同时返回 workflow definition/trigger 的启用数。设置页展示近 7 日 ADK 运行和 Workflow 调用，用于发版复盘功能接受度。这些指标只聚合本地 SQLite 中的业务记录，不上传用户数据，也不将“低频使用”自动等同于“应删除”。
+
 ## 后端边界
 
-- `pkg/adk`：独立 ADK 包装层，保存 provider、agent、session、run、approval、skill，并适配 `google.golang.org/adk/v2`。
+- `internal/assistant/engine`：仓库私有 ADK 引擎，保存 provider、agent、session、run、approval、skill，并适配 `google.golang.org/adk/v2`。
 - `internal/api/assistant`：对外提供 `/api/v1/adk/*` 的 JSON/SSE transport。
 - `internal/assistant.Service`：封装 session、run、approval、provider、agent、
   skill、observability 与 optimization 业务门面。
@@ -195,7 +201,7 @@ workflow UI 是产品层投影，不改变 ADK Go v2 的执行语义。`/adk` �
 ## 验证
 
 ```bash
-go test ./internal/assistant ./internal/api/assistant ./internal/app/apiserver/servercore ./pkg/adk
+go test ./internal/assistant ./internal/api/assistant ./internal/app/apiserver/servercore ./internal/assistant/engine
 pnpm run typecheck:web
 pnpm run build:web
 ```

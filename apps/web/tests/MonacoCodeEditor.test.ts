@@ -500,6 +500,25 @@ describe("MonacoCodeEditor", () => {
     wrapper.unmount();
   });
 
+  it("initializes without optional completion or hover providers", async () => {
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome/126" });
+    const Host = defineComponent({
+      components: { MonacoCodeEditor },
+      setup() {
+        provideThemeStore();
+        return { value: ref("plain source") };
+      },
+      template: '<MonacoCodeEditor v-model="value" language="javascript" test-id="plain-editor" />',
+    });
+
+    const wrapper = mount(Host, { attachTo: document.body });
+    await vi.waitFor(() => expect(monacoMocks.create).toHaveBeenCalledTimes(1));
+
+    expect(monacoMocks.registerCompletionItemProvider).not.toHaveBeenCalled();
+    expect(monacoMocks.registerHoverProvider).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
   it("aborts initialization when navigation unmounts the editor before imports settle", async () => {
     vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome/126" });
     const Host = defineComponent({

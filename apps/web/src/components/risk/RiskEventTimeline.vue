@@ -36,10 +36,10 @@ function tagClass(tag: "success" | "warning" | "danger" | "info"): string {
 </script>
 
 <template>
-  <section class="risk-events" aria-label="最近风控事件">
-    <header class="risk-events__head">
-      <span class="risk-events__title">最近风控事件</span>
-      <span class="risk-events__desc">运行时配置、熔断和拒单事件会出现在这里。</span>
+  <section class="risk-events jf-panel" aria-label="最近风控事件">
+    <header class="risk-events__head jf-panel__header">
+      <span class="risk-events__title jf-panel__title">最近风控事件</span>
+      <span class="risk-events__desc jf-panel__description">运行时配置、熔断和拒单事件会出现在这里。</span>
       <div class="risk-events__filter" role="group" aria-label="事件来源筛选">
         <button
           v-for="option in SOURCE_FILTERS"
@@ -119,41 +119,9 @@ function tagClass(tag: "success" | "warning" | "danger" | "info"): string {
 </template>
 
 <style scoped>
-.risk-events {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--tv-border);
-  border-radius: 8px;
-  background: var(--tv-bg-surface);
-}
-
 .risk-events__head {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  border-bottom: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface-2);
-}
-
-.risk-events__title {
-  color: var(--tv-text-muted);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.risk-events__desc {
-  overflow: hidden;
-  flex: 1;
-  color: var(--tv-text-dim);
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .risk-events__filter {

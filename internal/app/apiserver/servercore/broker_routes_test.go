@@ -2,7 +2,7 @@ package servercore
 
 import (
 	"encoding/json"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"net/http"
 	"path/filepath"
 	"testing"

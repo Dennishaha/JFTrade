@@ -1,5 +1,7 @@
 # 新券商接入指南
 
+> **状态：单实现扩展草案。** 当前生产实现只有 Futu/OpenD，未来 12 个月没有已承诺的第二 broker。`pkg/broker` 继续存在，是因为 `pkg/futu` 的公开 adapter、CapabilityCatalog 和多个业务域共同使用这些稳定 DTO；这不代表接口已经通过第二个真实 broker 验证，也不承诺当前抽象天然中立。真正接入第二个 broker 时，必须先用本页 conformance 套件重新验证并允许调整接口。
+
 JFTrade 当前是 Futu-first 产品，但 broker 边界已经支持按能力选择 adapter。新增券商不是“实现一个接口就自动出现”：必须同时完成 adapter、capability 声明、应用装配、运行时选择、API/UI surface 和 conformance 测试。
 
 ## 先理解当前边界

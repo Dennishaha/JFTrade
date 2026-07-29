@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {

@@ -3,7 +3,7 @@ package pineruntime
 import (
 	"testing"
 
-	jftsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jftsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestManagerReconfigureRejectsNilManager(t *testing.T) {

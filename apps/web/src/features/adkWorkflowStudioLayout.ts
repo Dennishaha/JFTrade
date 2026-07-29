@@ -58,6 +58,16 @@ export function normalizeWorkflowStudioPanePair(
   ];
 }
 
+export function updateWorkflowStudioPaneSizes(
+  current: WorkflowStudioPaneSizes,
+  pane: keyof WorkflowStudioPaneSizes,
+  input: unknown,
+  minSizes: WorkflowStudioPanePair,
+): WorkflowStudioPaneSizes | null {
+  const normalized = normalizeWorkflowStudioPanePair(input, minSizes);
+  return normalized ? { ...current, [pane]: normalized } : null;
+}
+
 export function graphFromFlow(
   nodes: FlowNodeSnapshot[],
   edges: FlowEdgeSnapshot[],

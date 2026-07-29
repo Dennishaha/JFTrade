@@ -9,9 +9,9 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/futuapp"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/settings"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestStartupIntegrationRemainsEffectiveWithoutPersistedBrokerSettings(t *testing.T) {

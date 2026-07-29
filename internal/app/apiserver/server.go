@@ -17,9 +17,9 @@ import (
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/servercore"
 	"github.com/jftrade/jftrade-main/internal/frontendassets"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 var desktopAPIReadyTimeout = 5 * time.Second

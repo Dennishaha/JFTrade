@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	jadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 func TestCoverage98WorkflowResourcesRejectCrossWorkflowAndInvalidRequests(t *testing.T) {

@@ -162,7 +162,7 @@ function canResumeRun(run: ADKRun): boolean {
 
 <template>
   <section class="grid gap-3">
-    <div v-if="metrics" class="grid gap-3 md:grid-cols-4">
+    <div v-if="metrics" class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
       <v-card flat class="card-shell border-0">
         <v-card-text>
           <div class="text-xs text-slate-500">待审批</div>
@@ -194,6 +194,24 @@ function canResumeRun(run: ADKRun): boolean {
           <div class="text-2xl font-semibold">{{ metrics.runs.lifecycle.resumed }}</div>
           <div class="mt-1 text-xs text-slate-500">
             审批平均等待 {{ formatDuration(metrics.approvals.pendingWaitMs.average) }}
+          </div>
+        </v-card-text>
+      </v-card>
+      <v-card flat class="card-shell border-0">
+        <v-card-text>
+          <div class="text-xs text-slate-500">近 7 日 ADK 运行</div>
+          <div class="text-2xl font-semibold">{{ metrics.runs.last7Days }}</div>
+          <div class="mt-1 text-xs text-slate-500">
+            新会话 {{ metrics.sessions.last7Days }} · 累计会话 {{ metrics.sessions.total }}
+          </div>
+        </v-card-text>
+      </v-card>
+      <v-card flat class="card-shell border-0">
+        <v-card-text>
+          <div class="text-xs text-slate-500">近 7 日 Workflow</div>
+          <div class="text-2xl font-semibold">{{ metrics.workflows.invocationsLast7Days }}</div>
+          <div class="mt-1 text-xs text-slate-500">
+            启用定义 {{ metrics.workflows.enabledDefinitions }} · 启用触发器 {{ metrics.workflows.enabledTriggers }}
           </div>
         </v-card-text>
       </v-card>

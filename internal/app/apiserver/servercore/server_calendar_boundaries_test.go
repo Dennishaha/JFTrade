@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/system"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestServerCalendarOptionsAndOperationsRemainingBoundaries(t *testing.T) {

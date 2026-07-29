@@ -887,4 +887,100 @@ describe("option workspace", () => {
     await nextTick();
     expect(emptyState.featurePath).toBe("");
   });
+
+  it("handles non-US event choices, sparse chains, and duplicate chain requests", async () => {
+    apiMocks.fetchFeature.mockResolvedValue(feature([{}]));
+    apiMocks.fetchWithInit.mockResolvedValue(feature([]));
+    const wrapper = mount(OptionWorkspacePanel, {
+      props: { instrumentId: "", market: "US" },
+      global: {
+        stubs: {
+          ...productGlobalStubs,
+          OptionComboBuilder: { template: "<div />" },
+          ProductFeaturePanel: { template: "<div />" },
+        },
+      },
+    });
+    await flushPromises();
+
+    const state = setupState<{
+      eventItems: Array<{ value: string }>;
+      eventOperation: string;
+      expirationResult: ReturnType<typeof feature> | null;
+      chainsByExpiry: Record<string, Record<string, unknown>>;
+      selectedExpiry: string;
+      strikeRange: string;
+      rangedChainRows: unknown[];
+      comboContracts: OptionContractChoice[];
+      chainRequests: Map<string, Promise<Record<string, unknown> | null>>;
+      nextExpiryAfter: (expiry: string) => string;
+      requestExpiryChain: (
+        expiry: string,
+        expirationToken: number,
+      ) => Promise<Record<string, unknown> | null>;
+      loadExpirationCatalog: () => Promise<void>;
+      openContract: (contract: Record<string, unknown>) => void;
+      selectedContract: Record<string, unknown> | null;
+      selectComboLeg: (
+        contract: Record<string, unknown>,
+        side: "buy" | "sell",
+      ) => void;
+    }>(wrapper);
+    expect(state.eventItems.some((item) => item.value === "zero_dte")).toBe(
+      true,
+    );
+
+    const rows = Array.from({ length: 21 }, (_, index) => ({
+      call: {
+        basic: { security: { code: `C${100 + index}` } },
+        optionExData: { strikePrice: 100 + index },
+      },
+    }));
+    state.expirationResult = feature([
+      expiration("2026-08-21", 33),
+      expiration("2026-09-18", 61),
+    ]);
+    state.chainsByExpiry = {
+      "2026-08-21": { strikeTime: null, option: rows },
+      "2026-09-18": { strikeTime: "2026-09-18", option: {} },
+    };
+    state.selectedExpiry = "2026-08-21";
+    state.strikeRange = "near_atm";
+    await nextTick();
+
+    expect(state.rangedChainRows).toHaveLength(20);
+    expect(state.comboContracts[0]).toMatchObject({
+      code: "C100",
+      name: "C100",
+      expiry: "",
+    });
+    expect(state.nextExpiryAfter("missing")).toBe("");
+    expect(state.nextExpiryAfter("2026-09-18")).toBe("");
+
+    const inFlight = Promise.resolve({ strikeTime: "2026-10-16", option: [] });
+    state.chainRequests.set("2026-10-16", inFlight);
+    expect(await state.requestExpiryChain("2026-10-16", 1)).toEqual(
+      await inFlight,
+    );
+
+    await state.loadExpirationCatalog();
+    expect(await state.requestExpiryChain("2026-11-20", 2)).toMatchObject({
+      strikeTime: "2026-11-20",
+      option: [],
+    });
+    expect(await state.requestExpiryChain("2026-12-18", -1)).toBeNull();
+
+    state.openContract({ instrumentId: "" });
+    expect(state.selectedContract).toBeNull();
+    state.selectComboLeg({ instrumentId: "US.MISSING" }, "buy");
+
+    state.eventOperation = "zero_dte";
+    await wrapper.setProps({ market: "HK" });
+    await nextTick();
+    expect(state.eventOperation).toBe("unusual");
+    expect(state.eventItems.some((item) => item.value === "zero_dte")).toBe(
+      false,
+    );
+    wrapper.unmount();
+  });
 });

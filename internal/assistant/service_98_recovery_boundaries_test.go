@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 // TestCoverage98ServiceSkillRecoveryContracts verifies that the façade keeps

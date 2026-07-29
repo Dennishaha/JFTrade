@@ -55,7 +55,7 @@ describe("product surface theme contract", () => {
 
   it("keeps stock-screen categories in an arrow-controlled horizontal track", () => {
     const stockScreener = source(
-      "components/research/StockScreenerView.vue",
+      "components/research/StockScreenerDialogs.vue",
     );
     const categoryNavRule = stockScreener.match(
       /\.stock-screener-view__category-nav\s*\{([^}]+)\}/,

@@ -3,11 +3,11 @@ package assembly
 import (
 	"context"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 // The exported registration slices let focused callers install only the tool
-// families they need without reaching into pkg/adk.
+// families they need without reaching into the private assistant engine.
 func RegisterProductToolSet(registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registerJFTradeProductTools(registry, deps)
 }

@@ -498,7 +498,7 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"newEphemeralRunner",
 			"ephemeralRunner",
 		},
-		"pkg/jftsettings/types.go": {
+		"internal/jftsettings/types.go": {
 			"PineWorkerSettings",
 			"backtestWorkerLimit",
 			"instanceWorkerLimit",

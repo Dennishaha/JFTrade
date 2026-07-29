@@ -22,6 +22,7 @@ import {
   windowStub,
 } from "./helpers";
 import BacktestPage from "../src/pages/BacktestPage.vue";
+import * as backtestPresentation from "../src/components/backtest/backtestRunPresentation";
 
 vi.mock("../src/components/BacktestChart.vue", () => ({
   default: {
@@ -64,6 +65,20 @@ describe("Backtest page compact UI interactions", () => {
     const { page, setup, call } = pageSetup(wrapper);
 
     expect(readSetupValue<string[]>(setup.expandedBacktestPanels)).toEqual(["history"]);
+
+    // Header report-mode controls must drive the same state transitions as
+    // route restoration and the programmatic comparison helpers.
+    await page.get('[data-testid="backtest-open-version-comparison"]').trigger("click");
+    expect(readSetupValue<string>(setup.reportMode)).toBe("compare");
+    await page.get('[data-testid="backtest-report-mode-single"]').trigger("click");
+    expect(readSetupValue<string>(setup.reportMode)).toBe("single");
+
+    // The drawer header remains the direct close affordance on compact
+    // layouts, even though the sidebar stays mounted for state preservation.
+    await page
+      .get('.bt-sidebar-drawer-head button[aria-label="关闭回测配置与历史"]')
+      .trigger("click");
+    expect(readSetupValue<boolean>(setup.backtestSidebarOpen)).toBe(false);
 
     // Toggle the setup panel open and closed through its title button.
     await page.get('[data-testid="backtest-side-panel-setup-title"]').trigger("click");
@@ -392,14 +407,14 @@ describe("Backtest page compact UI interactions", () => {
     expect(wrapper.text()).toContain("暂无订单记录。");
 
     // Nullish render-window helpers tolerate missing result fields.
-    expect(call("visibleBacktestOrderBook", { result: {} })).toEqual([]);
-    expect(call("hiddenBacktestOrderBookCount", { result: undefined })).toBe(0);
-    expect(call("visibleBacktestRuntimeErrors", {})).toEqual([]);
-    expect(call("hiddenBacktestRuntimeErrorCount", { result: {} })).toBe(0);
-    expect(call("visibleBacktestWarnings", { result: null })).toEqual([]);
-    expect(call("hiddenBacktestWarningCount", {})).toBe(0);
-    expect(call("visibleBacktestLogs", { result: {} })).toEqual([]);
-    expect(call("hiddenBacktestLogCount", {})).toBe(0);
+    expect(backtestPresentation.visibleBacktestOrderBook({ result: {} })).toEqual([]);
+    expect(backtestPresentation.hiddenBacktestOrderBookCount({ result: undefined })).toBe(0);
+    expect(backtestPresentation.visibleBacktestRuntimeErrors({})).toEqual([]);
+    expect(backtestPresentation.hiddenBacktestRuntimeErrorCount({ result: {} })).toBe(0);
+    expect(backtestPresentation.visibleBacktestWarnings({ result: null })).toEqual([]);
+    expect(backtestPresentation.hiddenBacktestWarningCount({})).toBe(0);
+    expect(backtestPresentation.visibleBacktestLogs({ result: {} })).toEqual([]);
+    expect(backtestPresentation.hiddenBacktestLogCount({})).toBe(0);
 
     // The detailed run renders order extras and truncated collections.
     call("selectFocusedRun", "run-rich");

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
@@ -44,11 +44,36 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
+	adkStore := serverADKTestStore(t, server)
+	session, err := adkStore.CreateSession(t.Context(), agent.ID, "Metrics Session")
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	workflow, err := adkStore.SaveWorkflowDefinition(t.Context(), assistant.WorkflowDefinition{
+		ID: "workflow-metrics", Name: "Metrics Workflow", Status: assistant.WorkflowStatusEnabled,
+		AgentID: agent.ID, WorkMode: assistant.WorkModeChat, PromptTemplate: "Review {{symbol}}",
+	})
+	if err != nil {
+		t.Fatalf("SaveWorkflowDefinition: %v", err)
+	}
+	trigger, err := adkStore.SaveWorkflowTrigger(t.Context(), assistant.WorkflowTrigger{
+		ID: "workflow-trigger-metrics", WorkflowID: workflow.ID, Type: assistant.WorkflowTriggerTypeManual,
+		Title: "Manual metrics trigger", Status: assistant.WorkflowTriggerStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveWorkflowTrigger: %v", err)
+	}
+	if _, err := adkStore.SaveWorkflowTriggerLog(t.Context(), assistant.WorkflowTriggerLog{
+		ID: "workflow-log-metrics", WorkflowID: workflow.ID, TriggerID: trigger.ID,
+		TriggerType: trigger.Type, Status: assistant.WorkflowTriggerLogStatusSucceeded,
+	}); err != nil {
+		t.Fatalf("SaveWorkflowTriggerLog: %v", err)
+	}
 	now := time.Now().UTC()
 	completedAt := now.Format(time.RFC3339Nano)
 	run := assistant.Run{
 		ID:            "run-metrics",
-		SessionID:     "session-1",
+		SessionID:     session.ID,
 		AgentID:       agent.ID,
 		Status:        assistant.RunStatusFailed,
 		Message:       "failed",
@@ -106,6 +131,7 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 		Data struct {
 			Runs struct {
 				Total      int            `json:"total"`
+				Last7Days  int            `json:"last7Days"`
 				ByAgent    map[string]int `json:"byAgent"`
 				ByProvider map[string]int `json:"byProvider"`
 				Lifecycle  struct {
@@ -118,6 +144,7 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 			} `json:"tools"`
 			Approvals struct {
 				Pending            int `json:"pending"`
+				Last7Days          int `json:"last7Days"`
 				RecoverablePending int `json:"recoverablePending"`
 				PendingWaitMs      struct {
 					Average int64 `json:"average"`
@@ -127,6 +154,24 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 				Samples       int  `json:"samples"`
 				TokensInTotal *int `json:"tokensInTotal"`
 			} `json:"usage"`
+			Sessions struct {
+				Total     int `json:"total"`
+				Last7Days int `json:"last7Days"`
+			} `json:"sessions"`
+			Workflows struct {
+				Definitions          int            `json:"definitions"`
+				EnabledDefinitions   int            `json:"enabledDefinitions"`
+				Triggers             int            `json:"triggers"`
+				EnabledTriggers      int            `json:"enabledTriggers"`
+				Invocations          int            `json:"invocations"`
+				InvocationsLast7Days int            `json:"invocationsLast7Days"`
+				ByStatus             map[string]int `json:"byStatus"`
+				ByTriggerType        map[string]int `json:"byTriggerType"`
+			} `json:"workflows"`
+			MeasurementWindow struct {
+				Days  int    `json:"days"`
+				Since string `json:"since"`
+			} `json:"measurementWindow"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
@@ -135,7 +180,7 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 	if !envelope.OK {
 		t.Fatalf("metrics envelope = %+v", envelope)
 	}
-	if envelope.Data.Runs.Total != 1 || envelope.Data.Runs.ByAgent[agent.ID] != 1 {
+	if envelope.Data.Runs.Total != 1 || envelope.Data.Runs.Last7Days != 1 || envelope.Data.Runs.ByAgent[agent.ID] != 1 {
 		t.Fatalf("run metrics = %+v", envelope.Data.Runs)
 	}
 	if envelope.Data.Runs.ByProvider["provider-metrics"] != 1 {
@@ -147,11 +192,24 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 	if envelope.Data.Tools.ByStatus["FAILED"] != 1 {
 		t.Fatalf("tool status metrics = %+v", envelope.Data.Tools.ByStatus)
 	}
-	if envelope.Data.Approvals.Pending != 1 || envelope.Data.Approvals.RecoverablePending != 1 || envelope.Data.Approvals.PendingWaitMs.Average <= 0 {
+	if envelope.Data.Approvals.Pending != 1 || envelope.Data.Approvals.Last7Days != 1 || envelope.Data.Approvals.RecoverablePending != 1 || envelope.Data.Approvals.PendingWaitMs.Average <= 0 {
 		t.Fatalf("approval metrics = %+v", envelope.Data.Approvals)
 	}
 	if envelope.Data.Usage.Samples != 1 || envelope.Data.Usage.TokensInTotal == nil || *envelope.Data.Usage.TokensInTotal != 120 {
 		t.Fatalf("usage metrics = %+v", envelope.Data.Usage)
+	}
+	if envelope.Data.Sessions.Total != 1 || envelope.Data.Sessions.Last7Days != 1 {
+		t.Fatalf("session metrics = %+v", envelope.Data.Sessions)
+	}
+	if envelope.Data.Workflows.Definitions != 1 || envelope.Data.Workflows.EnabledDefinitions != 1 ||
+		envelope.Data.Workflows.Triggers != 1 || envelope.Data.Workflows.EnabledTriggers != 1 ||
+		envelope.Data.Workflows.Invocations != 1 || envelope.Data.Workflows.InvocationsLast7Days != 1 ||
+		envelope.Data.Workflows.ByStatus[assistant.WorkflowTriggerLogStatusSucceeded] != 1 ||
+		envelope.Data.Workflows.ByTriggerType[assistant.WorkflowTriggerTypeManual] != 1 {
+		t.Fatalf("workflow metrics = %+v", envelope.Data.Workflows)
+	}
+	if envelope.Data.MeasurementWindow.Days != 7 || strings.TrimSpace(envelope.Data.MeasurementWindow.Since) == "" {
+		t.Fatalf("measurement window = %+v", envelope.Data.MeasurementWindow)
 	}
 }
 

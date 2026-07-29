@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
-
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/chart"
 )
@@ -173,18 +171,10 @@ func (s *Service) pruneDataSyncTasksLocked(currentKey string) {
 }
 
 func (s *Service) hasKLineCoverage(symbol, interval string, since, until time.Time, rehabType, sessionScope string) (bool, error) {
-	if s.checkKLineCoverageFn != nil {
-		err := s.checkKLineCoverageFn(s.dbPath(), symbol, interval, since, until, rehabType, sessionScope)
-		return err == nil, err
+	if s.checkKLineCoverageFn == nil {
+		return false, errKLineCoverageCheckerUnavailable
 	}
-	store, err := bt.NewFutuKLineStore(s.dbPath())
-	if err != nil {
-		return false, fmt.Errorf("open backtest store for coverage check: %w", err)
-	}
-	defer func() { _ = store.Close() }()
-	store.SetRehabType(rehabType)
-	store.SetReadSessionScope(sessionScope)
-	err = store.EnsureCoverage(symbol, bbgotypes.Interval(interval), since, until)
+	err := s.checkKLineCoverageFn(s.dbPath(), symbol, interval, since, until, rehabType, sessionScope)
 	return err == nil, err
 }
 

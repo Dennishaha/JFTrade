@@ -1,0 +1,292 @@
+[
+  {
+    "id": "parameterized-trend-entry",
+    "dimensions": ["input", "indicators", "technical-condition", "entry", "log"],
+    "source": "//@version=6\nstrategy(\"Shared Trend Entry\", overlay=true)\nfast_length = input.int(9, \"Fast Length\")\nfast = ta.ema(close, 9)\nslow = ta.sma(close, 21)\nif ta.crossover(fast, slow)\n    log.info(\"trend crossed\")\n    strategy.entry(\"Long\", strategy.long, qty=1)",
+    "expectedStatementKinds": {
+      "let": 3,
+      "if": 1,
+      "log": 1,
+      "order": 1
+    },
+    "expectedVisualBlockKinds": {
+      "strategyInput": 1,
+      "getTechnicalIndicator": 2,
+      "technicalIndicatorCondition": 1,
+      "log": 1,
+      "placeOrder": 1
+    },
+    "expectedVisualSemantics": [
+      "getTechnicalIndicator:movingAverage:EMA",
+      "getTechnicalIndicator:movingAverage:SMA",
+      "log",
+      "placeOrder:entry",
+      "strategyInput:int",
+      "technicalIndicatorCondition:pattern:goldenCross"
+    ],
+    "expectedBranches": {
+      "true": 1,
+      "false": 0
+    },
+    "expectedBranchTargets": {
+      "true:log": 1
+    },
+    "expectedTradeSemantics": [
+      "order:entry:Long:buy:shares:1:limit=false:stop=false:immediate=false"
+    ],
+    "expectedMaxIfDepth": 1
+  },
+  {
+    "id": "stateful-nested-reversal",
+    "dimensions": ["state", "reassignment", "nested-if", "else", "notification", "close-all"],
+    "source": "//@version=6\nstrategy(\"Shared Stateful Reversal\", overlay=true)\nvar armed = false\nif close > 105\n    armed := true\n    alert(\"breakout armed\")\nelse\n    if close < 95\n        armed := false\n        log.info(\"breakout reset\")\n        strategy.close_all(immediately=true)",
+    "expectedStatementKinds": {
+      "let": 3,
+      "if": 2,
+      "notify": 1,
+      "log": 1,
+      "order": 1
+    },
+    "expectedVisualBlockKinds": {
+      "stateVariable": 1,
+      "ifCloseAbove": 1,
+      "stateUpdate": 2,
+      "notify": 1,
+      "ifCloseBelow": 1,
+      "log": 1,
+      "placeOrder": 1
+    },
+    "expectedVisualSemantics": [
+      "ifCloseAbove",
+      "ifCloseBelow",
+      "log",
+      "notify",
+      "placeOrder:closeAll",
+      "stateUpdate",
+      "stateUpdate",
+      "stateVariable:bool"
+    ],
+    "expectedBranches": {
+      "true": 2,
+      "false": 1
+    },
+    "expectedBranchTargets": {
+      "true:let": 2,
+      "false:if": 1
+    },
+    "expectedTradeSemantics": [
+      "order:flatten:-:-:symbol_position_percent:100:limit=false:stop=false:immediate=true"
+    ],
+    "expectedMaxIfDepth": 2
+  },
+  {
+    "id": "mtf-derived-and-collection-state",
+    "dimensions": ["input", "mtf", "history", "collection-stat", "state"],
+    "source": "//@version=6\nstrategy(\"Shared MTF State\", overlay=true)\nhigher_timeframe = input.timeframe(\"D\", \"Higher Timeframe\")\nprevious_close = close[1]\ndaily_close = request.security(syminfo.tickerid, \"D\", close[1])\nrange_median = array.from(close, open, high).median()\nvar reference_ready = false\nreference_ready := daily_close > previous_close\nlog.info(\"higher timeframe state refreshed\")",
+    "expectedStatementKinds": {
+      "let": 6,
+      "log": 1
+    },
+    "expectedVisualBlockKinds": {
+      "strategyInput": 1,
+      "derivedSeries": 1,
+      "mtfSeries": 1,
+      "collectionStat": 1,
+      "stateVariable": 1,
+      "stateUpdate": 1,
+      "log": 1
+    },
+    "expectedVisualSemantics": [
+      "collectionStat:median",
+      "derivedSeries:history",
+      "log",
+      "mtfSeries:history",
+      "stateUpdate",
+      "stateVariable:bool",
+      "strategyInput:timeframe"
+    ],
+    "expectedBranches": {
+      "true": 0,
+      "false": 0
+    },
+    "expectedBranchTargets": {},
+    "expectedTradeSemantics": [],
+    "expectedMaxIfDepth": 0
+  },
+  {
+    "id": "session-window-order-lifecycle",
+    "dimensions": ["time-filter", "session-filter", "nested-if", "else", "limit-order", "cancel"],
+    "source": "//@version=6\nstrategy(\"Shared Session Orders\", overlay=true)\nif (hour * 60 + minute) >= 570 and (hour * 60 + minute) < 960\n    if session.ismarket\n        strategy.order(\"Breakout\", strategy.long, qty=2, limit=high[1], stop=low[1])\n    else\n        alert(\"market session unavailable\")\nelse\n    strategy.cancel(\"Breakout\")",
+    "expectedStatementKinds": {
+      "if": 2,
+      "order": 1,
+      "notify": 1,
+      "cancel": 1
+    },
+    "expectedVisualBlockKinds": {
+      "timeFilter": 1,
+      "sessionFilter": 1,
+      "placeOrder": 2,
+      "notify": 1
+    },
+    "expectedVisualSemantics": [
+      "notify",
+      "placeOrder:cancel",
+      "placeOrder:order",
+      "sessionFilter:market",
+      "timeFilter:between"
+    ],
+    "expectedBranches": {
+      "true": 2,
+      "false": 2
+    },
+    "expectedBranchTargets": {
+      "true:if": 1,
+      "true:order": 1,
+      "false:notify": 1,
+      "false:cancel": 1
+    },
+    "expectedTradeSemantics": [
+      "cancel:Breakout",
+      "order:net:Breakout:buy:shares:2:limit=true:stop=true:immediate=false"
+    ],
+    "expectedMaxIfDepth": 2
+  },
+  {
+    "id": "risk-limited-multi-order-exits",
+    "dimensions": ["risk-metadata", "entry", "order", "bracket-exit", "trailing-exit"],
+    "source": "//@version=6\nstrategy(\"Shared Risk Managed Orders\", overlay=true)\nstrategy.risk.allow_entry_in(strategy.direction.all)\nstrategy.risk.max_drawdown(8, strategy.percent_of_equity, alert_message=\"drawdown limit\")\nstrategy.entry(\"Long\", strategy.long, qty=2)\nstrategy.order(\"Hedge\", strategy.short, qty=1, limit=low[1])\nstrategy.exit(\"Long bracket\", \"Long\", stop=low[1], limit=high[1], qty_percent=50)\nstrategy.exit(\"Hedge trail\", \"Hedge\", trail_points=10, trail_offset=5)",
+    "expectedStatementKinds": {
+      "order": 2,
+      "exit": 2
+    },
+    "expectedVisualBlockKinds": {
+      "riskRule": 2,
+      "placeOrder": 2,
+      "stopLoss": 2
+    },
+    "expectedVisualSemantics": [
+      "placeOrder:entry",
+      "placeOrder:order",
+      "riskRule:allowEntryIn",
+      "riskRule:maxDrawdown",
+      "stopLoss:bracketExit",
+      "stopLoss:trailingStop"
+    ],
+    "expectedBranches": {
+      "true": 0,
+      "false": 0
+    },
+    "expectedBranchTargets": {},
+    "expectedTradeSemantics": [
+      "exit:Hedge:long:symbol_position_percent:100:stop=false:limit=false:profit=false:loss=false:trailPoints=true:trailPrice=false:trailOffset=true",
+      "exit:Long:long:symbol_position_percent:50:stop=true:limit=true:profit=false:loss=false:trailPoints=false:trailPrice=false:trailOffset=false",
+      "order:entry:Long:buy:shares:2:limit=false:stop=false:immediate=false",
+      "order:net:Hedge:sell:shares:1:limit=true:stop=false:immediate=false",
+      "risk:allowEntryIn:all",
+      "risk:maxDrawdown:8:percent_of_equity:drawdown limit"
+    ],
+    "expectedMaxIfDepth": 0
+  },
+  {
+    "id": "partial-close-and-cancel-all",
+    "dimensions": ["entry", "partial-close", "cancel-all", "tick-stop-exit"],
+    "source": "//@version=6\nstrategy(\"Shared Partial Close\", overlay=true)\nstrategy.entry(\"Long\", strategy.long, qty_percent=25)\nstrategy.close(\"Long\", qty_percent=50, immediately=true)\nstrategy.cancel_all()\nstrategy.exit(\"Residual stop\", \"Long\", loss=25, qty_percent=50)",
+    "expectedStatementKinds": {
+      "order": 2,
+      "cancel": 1,
+      "exit": 1
+    },
+    "expectedVisualBlockKinds": {
+      "placeOrder": 3,
+      "stopLoss": 1
+    },
+    "expectedVisualSemantics": [
+      "placeOrder:cancelAll",
+      "placeOrder:close",
+      "placeOrder:entry",
+      "stopLoss:stopLoss"
+    ],
+    "expectedBranches": {
+      "true": 0,
+      "false": 0
+    },
+    "expectedBranchTargets": {},
+    "expectedTradeSemantics": [
+      "cancel:*",
+      "exit:Long:long:symbol_position_percent:50:stop=false:limit=false:profit=false:loss=true:trailPoints=false:trailPrice=false:trailOffset=false",
+      "order:close:Long:sell:symbol_position_percent:50:limit=false:stop=false:immediate=true",
+      "order:entry:Long:buy:account_position_percent:25:limit=false:stop=false:immediate=false"
+    ],
+    "expectedMaxIfDepth": 0
+  },
+  {
+    "id": "volatility-numeric-guard",
+    "dimensions": ["input", "volatility-indicator", "numeric-condition", "else", "take-profit", "notification"],
+    "source": "//@version=6\nstrategy(\"Shared Volatility Guard\", overlay=true)\natr_limit = input.float(2.5, \"ATR Limit\")\natr_value = ta.atr(14)\nif atr_value > 2.5\n    strategy.exit(\"Volatility target\", \"Long\", profit=50)\nelse\n    alert(\"volatility below target\")",
+    "expectedStatementKinds": {
+      "let": 2,
+      "if": 1,
+      "exit": 1,
+      "notify": 1
+    },
+    "expectedVisualBlockKinds": {
+      "strategyInput": 1,
+      "getTechnicalIndicator": 1,
+      "technicalIndicatorCondition": 1,
+      "stopLoss": 1,
+      "notify": 1
+    },
+    "expectedVisualSemantics": [
+      "getTechnicalIndicator:atr",
+      "notify",
+      "stopLoss:takeProfit",
+      "strategyInput:float",
+      "technicalIndicatorCondition:numeric"
+    ],
+    "expectedBranches": {
+      "true": 1,
+      "false": 1
+    },
+    "expectedBranchTargets": {
+      "true:exit": 1,
+      "false:notify": 1
+    },
+    "expectedTradeSemantics": [
+      "exit:Long:long:symbol_position_percent:100:stop=false:limit=false:profit=true:loss=false:trailPoints=false:trailPrice=false:trailOffset=false"
+    ],
+    "expectedMaxIfDepth": 1
+  },
+  {
+    "id": "nested-series-signal-confirmation",
+    "dimensions": ["nested-if", "volume", "rising", "barssince", "valuewhen", "entry"],
+    "source": "//@version=6\nstrategy(\"Shared Series Confirmation\", overlay=true)\nif volume > 1000000\n    if ta.rising(close, 3)\n        if ta.barssince(close > 520) < 5\n            if ta.valuewhen(close > 520, close, 0) > 500\n                strategy.entry(\"Confirmed Long\", strategy.long, qty=1)",
+    "expectedStatementKinds": {
+      "if": 4,
+      "order": 1
+    },
+    "expectedVisualBlockKinds": {
+      "seriesCondition": 4,
+      "placeOrder": 1
+    },
+    "expectedVisualSemantics": [
+      "placeOrder:entry",
+      "seriesCondition:barssince",
+      "seriesCondition:compare",
+      "seriesCondition:rising",
+      "seriesCondition:valuewhen"
+    ],
+    "expectedBranches": {
+      "true": 4,
+      "false": 0
+    },
+    "expectedBranchTargets": {
+      "true:if": 3,
+      "true:order": 1
+    },
+    "expectedTradeSemantics": [
+      "order:entry:Confirmed Long:buy:shares:1:limit=false:stop=false:immediate=false"
+    ],
+    "expectedMaxIfDepth": 4
+  }
+]

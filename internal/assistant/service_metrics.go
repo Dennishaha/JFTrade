@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 // GetMetrics 聚合 ADK 运行指标（runs/tools/approvals/usage）。
@@ -19,8 +19,13 @@ func (s *Service) GetMetrics(ctx context.Context) (any, error) {
 		return nil, err
 	}
 	runMetrics, toolMetrics, usageMetrics := aggregateRunMetrics(runs, agentProvider)
-	approvalMetrics := aggregateApprovalMetrics(approvals, time.Now().UTC())
-	return buildMetricsPayload(runs, approvals, runMetrics, toolMetrics, approvalMetrics, usageMetrics), nil
+	now := time.Now().UTC()
+	approvalMetrics := aggregateApprovalMetrics(approvals, now)
+	activityMetrics, err := s.loadActivityMetrics(ctx, runs, approvals, now)
+	if err != nil {
+		return nil, err
+	}
+	return buildMetricsPayload(runs, approvals, runMetrics, toolMetrics, approvalMetrics, usageMetrics, activityMetrics, now), nil
 }
 
 type runMetricsSummary struct {
@@ -60,6 +65,128 @@ type approvalMetricsSummary struct {
 	resolutionWaitAvg int64
 	resolutionWaitMax int64
 	resolutionCount   int64
+}
+
+type activityMetricsSummary struct {
+	windowSince             time.Time
+	runsRecent              int
+	approvalsRecent         int
+	sessionsTotal           int
+	sessionsRecent          int
+	workflowDefinitions     int
+	workflowDefinitionsLive int
+	workflowTriggers        int
+	workflowTriggersLive    int
+	workflowInvocations     int
+	workflowRecent          int
+	workflowByStatus        map[string]int
+	workflowByTriggerType   map[string]int
+}
+
+const activityMeasurementWindow = 7 * 24 * time.Hour
+
+func (s *Service) loadActivityMetrics(
+	ctx context.Context,
+	runs []jfadk.Run,
+	approvals []jfadk.Approval,
+	now time.Time,
+) (activityMetricsSummary, error) {
+	store := s.runtime.Store()
+	sessions, err := store.ListSessions(ctx)
+	if err != nil {
+		return activityMetricsSummary{}, err
+	}
+	workflows, _, err := store.ListWorkflowDefinitionsPage(ctx, "", 100_000, 0)
+	if err != nil {
+		return activityMetricsSummary{}, err
+	}
+	triggers, err := store.ListWorkflowTriggers(ctx, "")
+	if err != nil {
+		return activityMetricsSummary{}, err
+	}
+	logs, totalLogs, err := store.ListWorkflowTriggerLogsPage(ctx, "", "", "", 100_000, 0)
+	if err != nil {
+		return activityMetricsSummary{}, err
+	}
+	return aggregateActivityMetrics(runs, approvals, sessions, workflows, triggers, logs, totalLogs, now), nil
+}
+
+func aggregateActivityMetrics(
+	runs []jfadk.Run,
+	approvals []jfadk.Approval,
+	sessions []jfadk.Session,
+	workflows []jfadk.WorkflowDefinition,
+	triggers []jfadk.WorkflowTrigger,
+	logs []jfadk.WorkflowTriggerLog,
+	totalLogs int,
+	now time.Time,
+) activityMetricsSummary {
+	since := now.Add(-activityMeasurementWindow)
+	metrics := activityMetricsSummary{
+		windowSince:           since,
+		sessionsTotal:         len(sessions),
+		workflowDefinitions:   len(workflows),
+		workflowTriggers:      len(triggers),
+		workflowInvocations:   totalLogs,
+		workflowByStatus:      map[string]int{},
+		workflowByTriggerType: map[string]int{},
+	}
+	metrics.runsRecent = countRecentRuns(runs, since)
+	metrics.approvalsRecent = countRecentApprovals(approvals, since)
+	metrics.sessionsRecent = countRecentSessions(sessions, since)
+	for _, workflow := range workflows {
+		if workflow.Status == jfadk.WorkflowStatusEnabled {
+			metrics.workflowDefinitionsLive++
+		}
+	}
+	for _, trigger := range triggers {
+		if trigger.Status == jfadk.WorkflowTriggerStatusEnabled {
+			metrics.workflowTriggersLive++
+		}
+	}
+	for _, log := range logs {
+		metrics.workflowByStatus[log.Status]++
+		metrics.workflowByTriggerType[log.TriggerType]++
+		if timestampInWindow(log.CreatedAt, since) {
+			metrics.workflowRecent++
+		}
+	}
+	return metrics
+}
+
+func countRecentRuns(runs []jfadk.Run, since time.Time) int {
+	count := 0
+	for _, run := range runs {
+		if timestampInWindow(run.CreatedAt, since) {
+			count++
+		}
+	}
+	return count
+}
+
+func countRecentApprovals(approvals []jfadk.Approval, since time.Time) int {
+	count := 0
+	for _, approval := range approvals {
+		if timestampInWindow(approval.CreatedAt, since) {
+			count++
+		}
+	}
+	return count
+}
+
+func countRecentSessions(sessions []jfadk.Session, since time.Time) int {
+	count := 0
+	for _, session := range sessions {
+		if timestampInWindow(session.CreatedAt, since) {
+			count++
+		}
+	}
+	return count
+}
+
+func timestampInWindow(value string, since time.Time) bool {
+	parsed, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(value))
+	return err == nil && !parsed.Before(since)
 }
 
 func (s *Service) loadMetricsInputs(ctx context.Context) ([]jfadk.Run, map[string]string, []jfadk.Approval, error) {
@@ -221,10 +348,13 @@ func buildMetricsPayload(
 	toolMetrics toolMetricsSummary,
 	approvalMetrics approvalMetricsSummary,
 	usageMetrics usageMetricsSummary,
+	activityMetrics activityMetricsSummary,
+	now time.Time,
 ) map[string]any {
 	return map[string]any{
 		"runs": map[string]any{
 			"total":      len(runs),
+			"last7Days":  activityMetrics.runsRecent,
 			"byStatus":   runMetrics.statuses,
 			"byAgent":    runMetrics.byAgent,
 			"byProvider": runMetrics.byProvider,
@@ -246,6 +376,7 @@ func buildMetricsPayload(
 		"approvals": map[string]any{
 			"pending":            approvalMetrics.pending,
 			"total":              len(approvals),
+			"last7Days":          activityMetrics.approvalsRecent,
 			"approved":           approvalMetrics.approved,
 			"denied":             approvalMetrics.denied,
 			"recoverablePending": approvalMetrics.recoverable,
@@ -266,6 +397,24 @@ func buildMetricsPayload(
 			"tokensInAverage":  usageMetrics.tokensInAvg,
 			"tokensOutAverage": usageMetrics.tokensOutAvg,
 		},
-		"checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
+		"sessions": map[string]any{
+			"total":     activityMetrics.sessionsTotal,
+			"last7Days": activityMetrics.sessionsRecent,
+		},
+		"workflows": map[string]any{
+			"definitions":          activityMetrics.workflowDefinitions,
+			"enabledDefinitions":   activityMetrics.workflowDefinitionsLive,
+			"triggers":             activityMetrics.workflowTriggers,
+			"enabledTriggers":      activityMetrics.workflowTriggersLive,
+			"invocations":          activityMetrics.workflowInvocations,
+			"invocationsLast7Days": activityMetrics.workflowRecent,
+			"byStatus":             activityMetrics.workflowByStatus,
+			"byTriggerType":        activityMetrics.workflowByTriggerType,
+		},
+		"measurementWindow": map[string]any{
+			"days":  7,
+			"since": activityMetrics.windowSince.Format(time.RFC3339Nano),
+		},
+		"checkedAt": now.Format(time.RFC3339Nano),
 	}
 }

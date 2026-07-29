@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func assistantRuntime(server *Server) assistantassembly.Runtime {

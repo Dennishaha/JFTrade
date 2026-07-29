@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 // WorkflowToolPage is the transport-neutral page used by workflow tools.

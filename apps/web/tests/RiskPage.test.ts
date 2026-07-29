@@ -70,6 +70,24 @@ afterEach(() => {
 });
 
 describe("RiskPage", () => {
+  it("treats nullable hard-stop entries as an empty collection", async () => {
+    const store = createRiskStore();
+    store.realTradeHardStops.value = {
+      ...emptyRealTradeHardStops,
+      entries: null,
+    } as unknown as typeof emptyRealTradeHardStops;
+    testState.store = store;
+    testState.apiGetMock.mockResolvedValue([]);
+
+    const wrapper = mountRiskPage();
+    await flushPromises();
+
+    const hardStopStatus = wrapper
+      .findAll(".risk-sidebar__row")
+      .find((row) => row.text().includes("硬停止"));
+    expect(hardStopStatus?.text()).toContain("0 条");
+  });
+
   it("emits both emergency actions and exposes their loading states", async () => {
     const wrapper = mount(RealTradeEmergencyPanel, {
       props: {

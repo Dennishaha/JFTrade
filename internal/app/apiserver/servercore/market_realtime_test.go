@@ -12,7 +12,7 @@ import (
 	"time"
 
 	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {

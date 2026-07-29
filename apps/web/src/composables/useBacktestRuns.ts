@@ -2,13 +2,24 @@ import { useQuery } from "@tanstack/vue-query";
 import { computed, onScopeDispose, reactive, ref, type ComputedRef } from "vue";
 
 import type {
+  BacktestCandleDto,
+  BacktestFeeRuleDto,
+  BacktestFeeScheduleDto,
+  BacktestOrderBookEntryDto,
+  BacktestRunResultDto,
+  BacktestRunStateDto,
+  BacktestStartRequestDto,
+  BacktestTradeEventDto,
+  BacktestTradingCostsDto,
+  RunModelTradingCostsDto,
+} from "@/contracts";
+import type {
   BacktestFeeRulePayload,
   BacktestFeeSchedulePayload,
   BacktestStartRequestPayload,
   BacktestSyncRequestPayload,
   BacktestTradingCostsPayload,
 } from "@/types";
-import type { components } from "@/generated/openapi";
 
 import {
   normalizeChartType,
@@ -21,17 +32,17 @@ import { queryClient, queryKeys } from "./serverState";
 import { useKlineSyncTask } from "./useKlineSyncTask";
 
 type BacktestDecimalTransport = string | number;
-type BacktestStartRequestWire = components["schemas"]["backtest.StartRequest"];
-type BacktestFeeScheduleWire = components["schemas"]["runmodel.FeeSchedule"];
+type BacktestStartRequestWire = BacktestStartRequestDto;
+type BacktestFeeScheduleWire = BacktestFeeScheduleDto;
 
-interface BacktestTradeView extends BacktestTrade {
+export interface BacktestTradeView extends BacktestTrade {
   priceText?: string | undefined;
   qtyText?: string | undefined;
 }
 
 type BacktestFeeMode = NonNullable<BacktestFeeSchedulePayload["mode"]>;
 
-interface BacktestCandleView extends BacktestCandle {
+export interface BacktestCandleView extends BacktestCandle {
   openText?: string | undefined;
   highText?: string | undefined;
   lowText?: string | undefined;
@@ -39,7 +50,7 @@ interface BacktestCandleView extends BacktestCandle {
   volumeText?: string | undefined;
 }
 
-interface BacktestOrderBookEntry {
+export interface BacktestOrderBookEntry {
   orderId: string;
   clientOrderId?: string | undefined;
   symbol: string;
@@ -63,12 +74,11 @@ interface BacktestOrderBookEntry {
   warmup?: boolean | undefined;
 }
 
-type BacktestTradeTransport = components["schemas"]["runmodel.TradeEvent"];
-type BacktestCandleTransport = components["schemas"]["runmodel.Candle"];
-type BacktestOrderBookEntryTransport =
-  components["schemas"]["runmodel.OrderBookEntry"];
+type BacktestTradeTransport = BacktestTradeEventDto;
+type BacktestCandleTransport = BacktestCandleDto;
+type BacktestOrderBookEntryTransport = BacktestOrderBookEntryDto;
 
-interface BacktestFeeBreakdownEntry {
+export interface BacktestFeeBreakdownEntry {
   ruleId: string;
   label: string;
   group: string;
@@ -78,7 +88,7 @@ interface BacktestFeeBreakdownEntry {
   count: number;
 }
 
-interface BacktestRunResult {
+export interface BacktestRunResult {
   symbol: string;
   interval: string;
   chartType?: ChartType | undefined;
@@ -117,9 +127,9 @@ interface BacktestRunResult {
   error?: string | undefined;
 }
 
-type BacktestRunResultTransport = components["schemas"]["backtest.RunResult"];
+type BacktestRunResultTransport = BacktestRunResultDto;
 
-interface BacktestRun {
+export interface BacktestRun {
   id: string;
   status: string;
   request: {
@@ -147,7 +157,7 @@ interface BacktestRun {
   updatedAt: string;
 }
 
-type BacktestRunTransport = components["schemas"]["backtest.RunState"];
+type BacktestRunTransport = BacktestRunStateDto;
 
 export interface BacktestFormState {
   definitionId: string;
@@ -545,7 +555,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   }
 
   function normalizeFeeRule(
-    rule: components["schemas"]["runmodel.FeeRule"],
+    rule: BacktestFeeRuleDto,
   ): BacktestFeeRulePayload {
     const side = normalizeFeeSide(rule.side);
     return {
@@ -569,7 +579,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   }
 
   function normalizeFeeSchedule(
-    schedule: components["schemas"]["runmodel.FeeSchedule"] | undefined,
+    schedule: BacktestFeeScheduleDto | undefined,
   ): BacktestFeeSchedulePayload | undefined {
     if (schedule == null) return undefined;
     const mode =
@@ -590,8 +600,8 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
 
   function normalizeTradingCosts(
     costs:
-      | components["schemas"]["backtest.TradingCosts"]
-      | components["schemas"]["runmodel.TradingCosts"]
+      | BacktestTradingCostsDto
+      | RunModelTradingCostsDto
       | undefined,
   ): BacktestTradingCostsPayload | undefined {
     if (costs == null) return undefined;

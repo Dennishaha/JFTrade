@@ -119,6 +119,124 @@ check_package_set_no_import() {
   fi
 }
 
+check_package_set_no_import_family_except() {
+  local pattern="$1"
+  local forbidden="$2"
+  local excluded="$3"
+  local label="$4"
+  local packages
+  local found=0
+
+  if ! packages="$(go list "$pattern")"; then
+    echo "  ❌ $label: unable to list packages matching $pattern"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+
+  while IFS= read -r pkg; do
+    if [ -z "$pkg" ] || { [ -n "$excluded" ] && [ "$pkg" = "$excluded" ]; }; then
+      continue
+    fi
+    found=1
+    check_no_import_family "$pkg" "$forbidden" "$label: $pkg → $forbidden"
+  done <<<"$packages"
+
+  if [ "$found" -eq 0 ]; then
+    echo "  ℹ️  $label: no packages matched $pattern"
+  fi
+}
+
+check_import_family_allowlist() {
+  local from="$1"
+  local family="$2"
+  local label="$3"
+  shift 3
+  local allowed=("$@")
+  local imports
+  local offenders=()
+
+  if ! imports="$(go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
+    echo "  ❌ $label: unable to inspect $from"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+
+  while IFS= read -r imported; do
+    if [[ "$imported" != "$family" && "$imported" != "$family/"* ]]; then
+      continue
+    fi
+    local permitted=0
+    local candidate
+    for candidate in "${allowed[@]}"; do
+      if [ "$imported" = "$candidate" ]; then
+        permitted=1
+        break
+      fi
+    done
+    if [ "$permitted" -eq 0 ]; then
+      offenders+=("$imported")
+    fi
+  done <<<"$imports"
+
+  if [ "${#offenders[@]}" -gt 0 ]; then
+    echo "  ❌ $label: imports outside allowlist"
+    printf '    %s\n' "${offenders[@]}"
+    FAIL=$((FAIL + 1))
+  else
+    echo "  ✅ $label"
+    PASS=$((PASS + 1))
+  fi
+}
+
+check_path_absent() {
+  local path="$1"
+  local label="$2"
+  if [ -e "$path" ]; then
+    echo "  ❌ $label: legacy path still exists: $path"
+    FAIL=$((FAIL + 1))
+  else
+    echo "  ✅ $label"
+    PASS=$((PASS + 1))
+  fi
+}
+
+check_top_level_directory_allowlist() {
+  local root="$1"
+  local label="$2"
+  shift 2
+  local actual
+  local expected
+  local unexpected
+  local missing
+
+  if [ ! -d "$root" ]; then
+    echo "  ❌ $label: directory does not exist: $root"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+
+  actual="$(find "$root" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | LC_ALL=C sort)"
+  expected="$(printf '%s\n' "$@" | LC_ALL=C sort -u)"
+  unexpected="$(comm -13 <(printf '%s\n' "$expected") <(printf '%s\n' "$actual"))"
+  missing="$(comm -23 <(printf '%s\n' "$expected") <(printf '%s\n' "$actual"))"
+
+  if [ -n "$unexpected" ] || [ -n "$missing" ]; then
+    echo "  ❌ $label: top-level directory set differs from the reviewed public surface"
+    if [ -n "$unexpected" ]; then
+      echo "    unexpected:"
+      sed 's/^/      /' <<<"$unexpected"
+    fi
+    if [ -n "$missing" ]; then
+      echo "    stale allowlist entries:"
+      sed 's/^/      /' <<<"$missing"
+    fi
+    FAIL=$((FAIL + 1))
+  else
+    echo "  ✅ $label"
+    PASS=$((PASS + 1))
+  fi
+}
+
 check_source_no_match() {
   local path="$1"
   local glob="$2"
@@ -234,11 +352,21 @@ echo "Rule 6b: assistant layers must stay behind their adapter boundaries"
 for forbidden in \
   "github.com/jftrade/jftrade-main/internal/api" \
   "github.com/jftrade/jftrade-main/internal/app" \
-  "github.com/jftrade/jftrade-main/internal/store" \
   "github.com/jftrade/jftrade-main/internal/integration"
 do
-  check_package_set_no_import "./internal/assistant/..." "$forbidden" "assistant core boundary"
+  check_package_set_no_import_family_except "./internal/assistant/..." "$forbidden" "" "assistant core boundary"
 done
+check_package_set_no_import_family_except \
+  "./internal/assistant/..." \
+  "github.com/jftrade/jftrade-main/internal/store" \
+  "github.com/jftrade/jftrade-main/internal/assistant/engine" \
+  "assistant store boundary"
+check_import_family_allowlist \
+  "github.com/jftrade/jftrade-main/internal/assistant/engine" \
+  "github.com/jftrade/jftrade-main/internal/store" \
+  "assistant engine SQLite infrastructure allowlist" \
+  "github.com/jftrade/jftrade-main/internal/store/sqliteconn" \
+  "github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 echo ""
 
 # Rule 6c: workflow rules are pure business policy and must not depend on assistant runtime orchestration.
@@ -389,14 +517,25 @@ done
 for forbidden in \
   "github.com/jftrade/jftrade-main/internal/api" \
   "github.com/jftrade/jftrade-main/internal/app" \
-  "github.com/jftrade/jftrade-main/internal/store" \
   "github.com/jftrade/jftrade-main/internal/integration"
 do
-  check_package_set_no_import \
+  check_package_set_no_import_family_except \
     "./internal/assistant/..." \
     "$forbidden" \
+    "" \
     "assistant business service boundary"
 done
+check_package_set_no_import_family_except \
+  "./internal/assistant/..." \
+  "github.com/jftrade/jftrade-main/internal/store" \
+  "github.com/jftrade/jftrade-main/internal/assistant/engine" \
+  "assistant business store boundary"
+check_import_family_allowlist \
+  "github.com/jftrade/jftrade-main/internal/assistant/engine" \
+  "github.com/jftrade/jftrade-main/internal/store" \
+  "assistant engine persistence dependency allowlist" \
+  "github.com/jftrade/jftrade-main/internal/store/sqliteconn" \
+  "github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 echo ""
 
 # These implementation packages now have explicit internal owners. Keep the
@@ -404,7 +543,7 @@ echo ""
 echo "Rule 16: servercore concrete implementation imports"
 for forbidden in \
   "github.com/jftrade/jftrade-main/pkg/futu" \
-  "github.com/jftrade/jftrade-main/pkg/adk" \
+  "github.com/jftrade/jftrade-main/internal/assistant/engine" \
   "github.com/jftrade/jftrade-main/pkg/backtest"
 do
   check_no_import_family \
@@ -418,7 +557,7 @@ echo ""
 echo "Rule 16a: servercore direct test imports"
 for forbidden in \
   "github.com/jftrade/jftrade-main/pkg/futu" \
-  "github.com/jftrade/jftrade-main/pkg/adk" \
+  "github.com/jftrade/jftrade-main/internal/assistant/engine" \
   "github.com/jftrade/jftrade-main/pkg/backtest"
 do
   check_no_test_import_family \
@@ -426,6 +565,31 @@ do
     "$forbidden" \
     "servercore test-only implementation dependency"
 done
+echo ""
+
+# Hard-cut internal packages must not reappear under pkg/.
+echo "Rule 16b: internal package namespace hard cut"
+check_top_level_directory_allowlist \
+  "pkg" \
+  "reviewed public package set" \
+  "backtest" \
+  "bbgo" \
+  "besteffort" \
+  "broker" \
+  "chart" \
+  "futu" \
+  "market" \
+  "observability" \
+  "researchscreen" \
+  "strategy"
+check_path_absent "pkg/adk" "legacy pkg/adk directory removed"
+check_path_absent "pkg/jftsettings" "legacy pkg/jftsettings directory removed"
+check_path_absent "pkg/jftradeapi" "legacy pkg/jftradeapi directory remains removed"
+check_source_no_match \
+  "." \
+  "*.go" \
+  'github\.com/jftrade/jftrade-main/pkg/(adk|jftsettings)' \
+  "legacy internalized package imports"
 echo ""
 
 # Pine process lifecycle is infrastructure for the strategy domain. Live order

@@ -91,8 +91,8 @@ func TestServiceCoverageAndNormalizationBoundaries(t *testing.T) {
 
 	noChecker := NewService(WithDBPathFn(func() string { return "/dev/null/jftrade-backtest.db" }))
 	covered, err = noChecker.hasKLineCoverage("US.AAPL", "1m", since, until, "forward", "regular")
-	if err == nil || covered || !strings.Contains(err.Error(), "open backtest store") {
-		t.Fatalf("hasKLineCoverage(open failure) = %v/%v", covered, err)
+	if !errors.Is(err, errKLineCoverageCheckerUnavailable) || covered {
+		t.Fatalf("hasKLineCoverage(unconfigured checker) = %v/%v", covered, err)
 	}
 
 	if normalizeRehabTypeName(" none ") != "none" || normalizeRehabTypeName("BACKWARD") != "backward" || normalizeRehabTypeName("bad") != "forward" {

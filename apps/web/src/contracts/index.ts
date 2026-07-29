@@ -1,3 +1,5 @@
+export * from "./generated/assistant";
+export * from "./generated/backtest";
 export * from "./generated/core";
 export * from "./generated/market-profile";
 export * from "./generated/market-data";

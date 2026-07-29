@@ -1273,7 +1273,7 @@ strategy.exit("Auto", stop=98, qty_percent=25)`);
     });
 
     const script = buildStrategyPineFromVisualModel(parsed.model, { name: "Exit from entry variants roundtrip" });
-    expect(script).toContain('strategy.exit("Auto stopLoss", stop=98, qty_percent=25)');
+    expect(script).toContain('strategy.exit("Auto", stop=98, qty_percent=25)');
     expect(script).not.toContain('strategy.exit("Long stopLoss", "Long", stop=98');
     expect(script).not.toContain('strategy.exit("Short stopLoss", "Short", stop=98');
   });
@@ -1347,7 +1347,7 @@ strategy.exit("Points", "Long", profit=50, loss=25, qty_percent=50)`);
     });
 
     const script = buildStrategyPineFromVisualModel(parsed.model, { name: "Exit points roundtrip" });
-    expect(script).toContain('strategy.exit("Long bracketExit", "Long", loss=25, profit=50, qty_percent=50)');
+    expect(script).toContain('strategy.exit("Points", "Long", loss=25, profit=50, qty_percent=50)');
   });
 
   it("round-trips strategy.exit trail_price semantics through legacy stopLoss blocks", () => {
@@ -1370,7 +1370,7 @@ strategy.exit("Trail", "Long", trail_price=high[1], trail_offset=close * 2 / 100
     });
 
     const script = buildStrategyPineFromVisualModel(parsed.model, { name: "Trail price roundtrip" });
-    expect(script).toContain('strategy.exit("Long trailingStop", "Long", trail_price=high[1], trail_offset=(close * 2) / 100, comment_trailing="trail")');
+    expect(script).toContain('strategy.exit("Trail", "Long", trail_price=high[1], trail_offset=(close * 2) / 100, comment_trailing="trail")');
   });
 
   it("parses request.security timeframe indicators", () => {

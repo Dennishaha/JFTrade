@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 func (s *Service) ListSessions(ctx context.Context, query SessionQuery) (Page[jfadk.Session], error) {

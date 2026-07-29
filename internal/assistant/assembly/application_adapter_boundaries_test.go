@@ -8,11 +8,11 @@ import (
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 

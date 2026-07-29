@@ -20,6 +20,7 @@ import (
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
@@ -31,7 +32,6 @@ import (
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
@@ -445,9 +445,9 @@ func (s *Server) systemCoreOptions(settingsPath string, backtestDBPath string) [
 
 func (s *Server) systemRuntimeOptions() []system.Option {
 	return []system.Option{
-		system.WithFutuOpenDHealth(func(ctx context.Context) map[string]any { return s.futuCoordinator().OpenDHealth(ctx) }),
-		system.WithFutuOpenDInstallGuide(func() map[string]any { return s.futuCoordinator().OpenDInstallGuide() }),
-		system.WithResetFutuRuntime(func() { s.futuCoordinator().Reset() }),
+		system.WithBrokerRuntimeHealth(func(ctx context.Context) map[string]any { return s.futuCoordinator().OpenDHealth(ctx) }),
+		system.WithBrokerInstallGuide(func() map[string]any { return s.futuCoordinator().OpenDInstallGuide() }),
+		system.WithResetBrokerRuntime(func() { s.futuCoordinator().Reset() }),
 		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any { return s.runtimeDependencies(ctx) }),
 		system.WithRequestObservability(func() any { return s.observability.Snapshot() }),
 		system.WithRealTradeRiskState(func() *trdsrv.RealTradeRiskSnapshot {
@@ -477,6 +477,7 @@ func (s *Server) backtestServiceOptions(state serverPersistentState, runner pine
 		btsrv.WithStrategyProvider(&strategyProviderAdapter{store: state.stores.Design}),
 		btsrv.WithDBPathFn(func() string { return deriveBacktestDBPath() }),
 		btsrv.WithNewKLineSyncerFn(futuintegration.NewKLineSyncer),
+		btsrv.WithKLineCoverageCheckFn(backteststore.CheckKLineCoverage),
 	}
 	if runner != nil {
 		opts = append(opts, btsrv.WithPineWorkerRunner(runner))

@@ -122,6 +122,8 @@ function coverageEntry(statementHits, branchHits, sourceLine = 2, generatedBindi
       start: { line: generatedBindingLine, column: 2 },
       end: { line: generatedBindingLine, column: null },
     };
+    statementMap[10] = generatedLocation;
+    statements[10] = 0;
     branchMap[23] = {
       type: "cond-expr",
       line: generatedBindingLine,
@@ -132,6 +134,13 @@ function coverageEntry(statementHits, branchHits, sourceLine = 2, generatedBindi
       ],
     };
     branches[23] = [0, 0];
+    branchMap[24] = {
+      type: "if",
+      line: generatedBindingLine,
+      loc: location(generatedBindingLine),
+      locations: [location(generatedBindingLine)],
+    };
+    branches[24] = [1];
   }
   return { statementMap, s: statements, branchMap, b: branches, fnMap: {}, f: {} };
 }

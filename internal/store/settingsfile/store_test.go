@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestEnsureBootstrapFileInitializesDefaults(t *testing.T) {

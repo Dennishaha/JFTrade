@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
+import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { nextTick } from "vue";
+import { defineComponent, nextTick } from "vue";
 
 import {
   buildPineV6WorkflowScript,
@@ -9,6 +10,7 @@ import {
 } from "../src/features/pineV6Workflow";
 import { queryClient } from "../src/composables/serverState";
 import StrategyDesignStage from "../src/components/StrategyDesignStage.vue";
+import { useStrategyDesignContext } from "../src/components/strategy-design/strategyDesignContext";
 import {
   MockWebSocket,
   buildFetchMock,
@@ -153,6 +155,11 @@ describe("StrategyDesignStage business flows", () => {
     expect(toggle.attributes("aria-expanded")).toBe("true");
     expect(wrapper.find('[data-testid="strategy-metadata-backdrop"]').exists()).toBe(true);
 
+    await wrapper.get('[data-testid="strategy-metadata-backdrop"]').trigger("click");
+    expect(stage.classes()).toContain("strategy-native-page--metadata-closed");
+    expect(wrapper.find('[data-testid="strategy-metadata-backdrop"]').exists()).toBe(false);
+
+    await toggle.trigger("click");
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     await nextTick();
     expect(stage.classes()).toContain("strategy-native-page--metadata-closed");
@@ -189,8 +196,24 @@ describe("StrategyDesignStage business flows", () => {
       setData: vi.fn(),
     };
     await definitionTitle.trigger("dragstart", { dataTransfer });
+    await definitionTitle.trigger("dragover", { clientY: 1, dataTransfer });
     await historyTitle.trigger("dragover", { clientY: 1, dataTransfer });
     await historyTitle.trigger("drop", { dataTransfer });
+    await historyTitle.trigger("dragstart", { dataTransfer });
+
+    await wrapper.get('[data-testid="strategy-side-panel-declaration-title"]').trigger(
+      "dragover",
+      { clientY: 1, dataTransfer },
+    );
+    await wrapper.get('[data-testid="strategy-side-panel-diagnostics-title"]').trigger(
+      "dragstart",
+      { dataTransfer },
+    );
+    await wrapper.get('[data-testid="strategy-side-panel-instances-title"]').trigger(
+      "dragover",
+      { clientY: 1, dataTransfer },
+    );
+    await wrapper.get(".strategy-native-side-panels").trigger("dragend");
 
     expect(dataTransfer.setData).toHaveBeenCalledWith("text/plain", "definition");
     expect((definitionPanel.element as HTMLElement).style.order).toBe("1");
@@ -198,6 +221,11 @@ describe("StrategyDesignStage business flows", () => {
     expect(historyPanel.classes()).toContain("is-first-panel");
     expect(definitionPanel.classes()).not.toContain("is-first-panel");
     expect(definitionPanel.classes()).toContain("is-fill-panel");
+
+    await wrapper.get('button[aria-label="关闭策略信息"]').trigger("click");
+    expect(wrapper.get('[data-testid="strategy-design-stage"]').classes()).toContain(
+      "strategy-native-page--metadata-closed",
+    );
 
     const setup = wrapper.getComponent(StrategyDesignStage).vm.$.setupState as Record<string, unknown>;
     setup.expandedStrategySidePanels = ["definition", "history", "declaration"];
@@ -255,8 +283,14 @@ describe("StrategyDesignStage business flows", () => {
     expect(wrapper.text()).toContain("v0.1.0");
     expect(wrapper.text()).toContain("v0.1.1");
 
+    await wrapper.get('button[aria-label="刷新版本历史"]').trigger("click");
+    await settleStrategyWorkspace();
+
     const latestEntry = wrapper.get('[data-testid="strategy-version-entry-0.1.1"]');
     const baselineEntry = wrapper.get('[data-testid="strategy-version-entry-0.1.0"]');
+    await baselineEntry.get(".strategy-native-version-entry__view").trigger("click");
+    await settleStrategyWorkspace();
+    expect(wrapper.text()).toContain("strategy(\"Versioned strategy\")");
     await latestEntry.get('input[type="checkbox"]').setValue(true);
     await baselineEntry.get('input[type="checkbox"]').setValue(true);
     await settleStrategyWorkspace();
@@ -699,6 +733,11 @@ describe("StrategyDesignStage business flows", () => {
     expect(wrapper.text()).toContain("加载策略定义失败: definitions offline");
     expect(wrapper.text()).toContain("暂无实例。");
 
+    const errorBanner = wrapper.get(".strategy-native-banner--error");
+    expect(errorBanner.attributes("aria-expanded")).toBe("false");
+    await errorBanner.trigger("click");
+    expect(errorBanner.attributes("aria-expanded")).toBe("true");
+
     await wrapper.get('[data-testid="strategy-source-override-toggle"]').setValue(true);
     await settleStrategyWorkspace();
     await strategySourceEditor(wrapper).setValue(
@@ -904,5 +943,16 @@ describe("StrategyDesignStage business flows", () => {
       diagnostics: [],
       features: [],
     });
+  });
+
+  it("fails fast when a split strategy component is mounted without its context", () => {
+    const ContextProbe = defineComponent({
+      setup() {
+        useStrategyDesignContext();
+        return () => null;
+      },
+    });
+
+    expect(() => mount(ContextProbe)).toThrow("Strategy design context is unavailable");
   });
 });

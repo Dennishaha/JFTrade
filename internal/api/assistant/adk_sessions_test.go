@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {

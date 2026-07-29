@@ -45,6 +45,7 @@ describe("directional color contract", () => {
   it("limits price-direction tokens to directional market and trading surfaces", () => {
     expect(matchingFiles(/--tv-price-(?:up|down)\b/)).toEqual([
       "components/SettingsAppearanceSection.vue",
+      "components/backtest/BacktestReportSummary.vue",
       "components/domain/market-data/OrderBookDepthTable.vue",
       "components/domain/shared/DenseMetricStrip.vue",
       "components/domain/watchlist/WatchlistVirtualTable.vue",
@@ -58,12 +59,12 @@ describe("directional color contract", () => {
       "components/workspace/InstrumentOverviewPanel.vue",
       "components/workspace/OrderBookPanel.vue",
       "composables/useUIColorPreferences.ts",
-      "pages/BacktestPage.vue",
       "style.css",
     ]);
 
     expect(matchingFiles(/\btv-(?:up|down)\b/)).toEqual([
       "components/SettingsAppearanceSection.vue",
+      "components/backtest/backtestRunPresentation.ts",
       "components/domain/account/AccountAssetStrip.vue",
       "components/domain/account/AccountSummarySidebar.vue",
       "components/domain/account/PositionsTable.vue",
@@ -75,7 +76,6 @@ describe("directional color contract", () => {
       "components/research/researchEntry.ts",
       "components/workspace/OrderBookPanel.vue",
       "components/workspace/PositionsPanel.vue",
-      "pages/BacktestPage.vue",
       "style.css",
     ]);
   });

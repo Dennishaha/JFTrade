@@ -11,6 +11,8 @@
 
 `scripts/web-contract-classification.json` 对全部人工类型模块分类，并记录 normalized API model 的 mapper 与边界测试。新增文件没有分类、mapper 或测试时，`pnpm run check:web-contract-audit` 会失败。
 
+业务组件、composable 和 view model 不得新增 `@/generated/openapi` 直引；应先在 `@/contracts` 增加直接 schema/operation 别名。只有 `contracts/generated/*`、需要对全部 operation 做泛型推导的 `apiClient.ts`，以及验证别名等价性的契约边界测试可以直接使用生成文件。`scripts/web-openapi-import-allowlist.json` 冻结其余历史调用者：文件集合与数量只能缩减，已迁移的陈旧条目也会导致门禁失败。
+
 ## 请求边界
 
 - JSON 业务请求统一使用 `apiGet/apiPost/apiPut/...`；响应类型从生成的 operation 自动推导，调用方不能传入自选 `<T>`。
@@ -26,6 +28,7 @@ pnpm run generate:docs
 pnpm run check:openapi-quality
 pnpm run check:web-api-boundary
 pnpm run check:web-contract-audit
+pnpm run check:web-openapi-imports
 pnpm run typecheck:web
 ```
 

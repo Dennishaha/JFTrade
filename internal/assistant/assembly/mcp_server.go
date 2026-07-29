@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 const localMCPMaxRequestBytes int64 = 1 << 20

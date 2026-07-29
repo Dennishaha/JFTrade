@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestCoordinatorResetPreservesApplicationOrderAndInvalidatesFutu(t *testing.T) {

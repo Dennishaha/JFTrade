@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jftrade/jftrade-main/pkg/jftsettings"
+	"github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestCheckNodeRuntimeDependencyOK(t *testing.T) {

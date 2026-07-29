@@ -767,4 +767,81 @@ describe("prediction research and Parlay lifecycle", () => {
     expect(state.subscriptionQuery()).toContain("brokerId=futu");
     wrapper.unmount();
   });
+
+  it("normalizes deep-link updates and sparse discovery and Parlay entries", async () => {
+    predictionMocks.fetchFeature.mockResolvedValue(feature([]));
+    const wrapper = mount(PredictionResearchPanel, {
+      props: { seriesCode: "SERIES.ONLY" },
+      global: {
+        stubs: {
+          ...productGlobalStubs,
+          PredictionContractDataView: { template: "<div />" },
+        },
+      },
+    });
+    await flushPromises();
+    const state = setupState<{
+      mode: string;
+      stage: string;
+      category: string;
+      tag: string;
+      eligible: ReturnType<typeof feature> | null;
+      parlayContracts: Array<{ code: string; eventName: string }>;
+      selectedLegs: Record<string, "YES" | "NO">;
+      selectDiscoverEntry: (entry: Record<string, unknown>) => void;
+      comboLegs: () => Array<{ instrumentId: string }>;
+    }>(wrapper);
+    expect(state.stage).toBe("events");
+
+    await wrapper.setProps({ seriesCode: " SERIES.ONLY " });
+    await flushPromises();
+    expect(state.stage).toBe("events");
+    await wrapper.setProps({ seriesCode: "SERIES.NEXT" });
+    await flushPromises();
+    expect(state.stage).toBe("events");
+
+    state.stage = "categories";
+    state.selectDiscoverEntry({});
+    await flushPromises();
+    expect(state.category).toBe("");
+    state.selectDiscoverEntry({});
+    await flushPromises();
+    expect(state.tag).toBe("");
+
+    state.eligible = feature([
+      {
+        competition: "NBA",
+        comboContracts: [{ code: "US.EC.HOME" }],
+      },
+      {
+        comboContracts: [{ code: "EC.AWAY" }],
+      },
+    ]);
+    state.selectedLegs = { "US.EC.HOME": "YES", "EC.AWAY": "NO" };
+    await nextTick();
+    expect(state.parlayContracts).toEqual([
+      { code: "US.EC.HOME", eventName: "NBA" },
+      { code: "EC.AWAY", eventName: "预测事件" },
+    ]);
+    expect(state.comboLegs().map((leg) => leg.instrumentId)).toEqual([
+      "US.EC.HOME",
+      "US.EC.AWAY",
+    ]);
+    wrapper.unmount();
+
+    const eventDeepLink = mount(PredictionResearchPanel, {
+      props: { eventCode: "EVENT.ONLY" },
+      global: {
+        stubs: {
+          ...productGlobalStubs,
+          PredictionContractDataView: { template: "<div />" },
+        },
+      },
+    });
+    await flushPromises();
+    expect(setupState<{ stage: string }>(eventDeepLink).stage).toBe(
+      "contracts",
+    );
+    eventDeepLink.unmount();
+  });
 });

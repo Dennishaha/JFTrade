@@ -27,7 +27,7 @@ describe("dark theme background contract", () => {
   });
 
   it("uses the standard neutral black-gray surface hierarchy", () => {
-    const styles = source("style.css");
+    const styles = source("styles/tokens.css");
     const darkThemeStart = styles.indexOf(':root,\n[data-theme="dark"]');
     const lightThemeStart = styles.indexOf('[data-theme="light"]');
     const darkTheme = styles.slice(darkThemeStart, lightThemeStart);

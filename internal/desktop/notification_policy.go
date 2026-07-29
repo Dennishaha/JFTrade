@@ -3,8 +3,8 @@ package desktop
 import (
 	"strings"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 // ShouldForwardSystemNotification reports whether a live notification should

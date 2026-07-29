@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	live "github.com/jftrade/jftrade-main/internal/live"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestLiveNotificationFromBBGONotifyFormatsStringArgs(t *testing.T) {

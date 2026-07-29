@@ -10,7 +10,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/app/apiserver"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	desktopapp "github.com/jftrade/jftrade-main/internal/desktop"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 const desktopDevelopmentAPIBind = "127.0.0.1:3008"

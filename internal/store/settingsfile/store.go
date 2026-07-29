@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 type fileData struct {

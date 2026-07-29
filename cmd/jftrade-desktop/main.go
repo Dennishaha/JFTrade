@@ -27,10 +27,10 @@ import (
 	desktopapp "github.com/jftrade/jftrade-main/internal/desktop"
 	desktopicons "github.com/jftrade/jftrade-main/internal/desktop/icons"
 	"github.com/jftrade/jftrade-main/internal/frontendassets"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 
 	// Embed IANA timezone database for desktop builds on minimal systems.
 	_ "time/tzdata"

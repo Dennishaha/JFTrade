@@ -1766,6 +1766,21 @@
       ],
       "type": "object"
     },
+    "assistant.ADKActivityCountData": {
+      "properties": {
+        "last7Days": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "last7Days",
+        "total"
+      ],
+      "type": "object"
+    },
     "assistant.ADKAgentTemplatesData": {
       "properties": {
         "templates": {
@@ -1864,6 +1879,9 @@
         "denied": {
           "type": "integer"
         },
+        "last7Days": {
+          "type": "integer"
+        },
         "pending": {
           "type": "integer"
         },
@@ -1883,6 +1901,7 @@
       "required": [
         "approved",
         "denied",
+        "last7Days",
         "pending",
         "pendingWaitMs",
         "recoverablePending",
@@ -2035,6 +2054,21 @@
       ],
       "type": "object"
     },
+    "assistant.ADKMeasurementWindowData": {
+      "properties": {
+        "days": {
+          "type": "integer"
+        },
+        "since": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "days",
+        "since"
+      ],
+      "type": "object"
+    },
     "assistant.ADKMemoryData": {
       "properties": {
         "entries": {
@@ -2078,22 +2112,34 @@
         "checkedAt": {
           "type": "string"
         },
+        "measurementWindow": {
+          "$ref": "#/definitions/assistant.ADKMeasurementWindowData"
+        },
         "runs": {
           "$ref": "#/definitions/assistant.ADKRunMetricsData"
+        },
+        "sessions": {
+          "$ref": "#/definitions/assistant.ADKActivityCountData"
         },
         "tools": {
           "$ref": "#/definitions/assistant.ADKToolMetricsData"
         },
         "usage": {
           "$ref": "#/definitions/assistant.ADKUsageMetricsData"
+        },
+        "workflows": {
+          "$ref": "#/definitions/assistant.ADKWorkflowMetricsData"
         }
       },
       "required": [
         "approvals",
         "checkedAt",
+        "measurementWindow",
         "runs",
+        "sessions",
         "tools",
-        "usage"
+        "usage",
+        "workflows"
       ],
       "type": "object"
     },
@@ -2339,6 +2385,9 @@
           },
           "type": "object"
         },
+        "last7Days": {
+          "type": "integer"
+        },
         "lifecycle": {
           "additionalProperties": {
             "type": "integer"
@@ -2353,6 +2402,7 @@
         "byAgent",
         "byProvider",
         "byStatus",
+        "last7Days",
         "lifecycle",
         "total"
       ],
@@ -2845,6 +2895,51 @@
       "required": [
         "log",
         "workflow"
+      ],
+      "type": "object"
+    },
+    "assistant.ADKWorkflowMetricsData": {
+      "properties": {
+        "byStatus": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "byTriggerType": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "definitions": {
+          "type": "integer"
+        },
+        "enabledDefinitions": {
+          "type": "integer"
+        },
+        "enabledTriggers": {
+          "type": "integer"
+        },
+        "invocations": {
+          "type": "integer"
+        },
+        "invocationsLast7Days": {
+          "type": "integer"
+        },
+        "triggers": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "byStatus",
+        "byTriggerType",
+        "definitions",
+        "enabledDefinitions",
+        "enabledTriggers",
+        "invocations",
+        "invocationsLast7Days",
+        "triggers"
       ],
       "type": "object"
     },

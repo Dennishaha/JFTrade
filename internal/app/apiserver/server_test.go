@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestStartForRunArgsInitializesRuntimeLayout(t *testing.T) {

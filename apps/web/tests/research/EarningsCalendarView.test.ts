@@ -346,6 +346,7 @@ describe("EarningsCalendarView", () => {
       "市值",
     ]);
     await wrapper.get(".earnings-calendar-view__filter-button").trigger("click");
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false);
     expect(wrapper.find('input[aria-label="隐含波动率下限"]').exists()).toBe(false);
   });
 

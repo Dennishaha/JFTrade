@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	settingssvc "github.com/jftrade/jftrade-main/internal/settings"
 	"github.com/jftrade/jftrade-main/internal/system"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {

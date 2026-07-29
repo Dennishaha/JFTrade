@@ -39,10 +39,9 @@ import type {
   MCPServerSettingsSnapshot,
   MCPServerTokenResetResult,
 } from "@/types";
-import type { ADKRuntimeSettings } from "@/contracts";
-import type { components } from "@/generated/openapi";
+import type { ADKProviderDto, ADKRuntimeSettings } from "@/contracts";
 
-type ADKProviderWire = components["schemas"]["adk.Provider"];
+type ADKProviderWire = ADKProviderDto;
 
 export interface ADKPageEnvelope {
   limit: number;
@@ -55,6 +54,7 @@ export interface ADKPageEnvelope {
 export interface ADKMetricsView {
   runs: {
     total: number;
+    last7Days: number;
     byStatus: Record<string, number>;
     byAgent: Record<string, number>;
     byProvider: Record<string, number>;
@@ -76,6 +76,7 @@ export interface ADKMetricsView {
   approvals: {
     pending: number;
     total: number;
+    last7Days: number;
     approved: number;
     denied: number;
     recoverablePending: number;
@@ -88,6 +89,24 @@ export interface ADKMetricsView {
     tokensOutTotal: number | null;
     tokensInAverage: number | null;
     tokensOutAverage: number | null;
+  };
+  sessions: {
+    total: number;
+    last7Days: number;
+  };
+  workflows: {
+    definitions: number;
+    enabledDefinitions: number;
+    triggers: number;
+    enabledTriggers: number;
+    invocations: number;
+    invocationsLast7Days: number;
+    byStatus: Record<string, number>;
+    byTriggerType: Record<string, number>;
+  };
+  measurementWindow: {
+    days: number;
+    since: string;
   };
 }
 
@@ -712,18 +731,23 @@ function isMetricsView(value: unknown): value is ADKMetricsView {
     !isRecord(value.approvals) ||
     !isRecord(value.approvals.pendingWaitMs) ||
     !isRecord(value.approvals.resolutionWaitMs) ||
-    !isRecord(value.usage)
+    !isRecord(value.usage) ||
+    !isRecord(value.sessions) ||
+    !isRecord(value.workflows) ||
+    !isRecord(value.measurementWindow)
   ) {
     return false;
   }
   const runs = value.runs;
   const lifecycle = runs.lifecycle;
   const approvals = value.approvals;
-  if (!isRecord(lifecycle) || !isRecord(approvals)) {
+  const workflows = value.workflows;
+  if (!isRecord(lifecycle) || !isRecord(approvals) || !isRecord(workflows)) {
     return false;
   }
   return (
     isNumber(runs.total) &&
+    isNumber(runs.last7Days) &&
     isNumberRecord(runs.byStatus) &&
     isNumberRecord(runs.byAgent) &&
     isNumberRecord(runs.byProvider) &&
@@ -735,7 +759,7 @@ function isMetricsView(value: unknown): value is ADKMetricsView {
     isNumber(value.tools.averageDurationMs) &&
     isNumberRecord(value.tools.byName) &&
     isNumberRecord(value.tools.byStatus) &&
-    ["pending", "total", "approved", "denied", "recoverablePending"].every(
+    ["pending", "total", "last7Days", "approved", "denied", "recoverablePending"].every(
       (key) => isNumber(approvals[key]),
     ) &&
     isNumber(value.approvals.pendingWaitMs.average) &&
@@ -747,7 +771,21 @@ function isMetricsView(value: unknown): value is ADKMetricsView {
     isNullableNumber(value.usage.tokensInTotal) &&
     isNullableNumber(value.usage.tokensOutTotal) &&
     isNullableNumber(value.usage.tokensInAverage) &&
-    isNullableNumber(value.usage.tokensOutAverage)
+    isNullableNumber(value.usage.tokensOutAverage) &&
+    isNumber(value.sessions.total) &&
+    isNumber(value.sessions.last7Days) &&
+    [
+      "definitions",
+      "enabledDefinitions",
+      "triggers",
+      "enabledTriggers",
+      "invocations",
+      "invocationsLast7Days",
+    ].every((key) => isNumber(workflows[key])) &&
+    isNumberRecord(workflows.byStatus) &&
+    isNumberRecord(workflows.byTriggerType) &&
+    isNumber(value.measurementWindow.days) &&
+    isString(value.measurementWindow.since)
   );
 }
 

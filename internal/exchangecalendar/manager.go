@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	calendarstore "github.com/jftrade/jftrade-main/internal/store/exchangecalendar"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 )
 

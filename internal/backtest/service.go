@@ -165,6 +165,8 @@ var ErrStrategyDefinitionNotFound = errors.New("strategy definition not found")
 // ErrServiceClosed identifies attempts to start work after service shutdown.
 var ErrServiceClosed = errors.New("backtest service closed")
 
+var errKLineCoverageCheckerUnavailable = errors.New("k-line coverage checker is not configured")
+
 // KLineSyncParams contains the stable business parameters passed to a K-line
 // synchronization adapter.
 type KLineSyncParams struct {
@@ -240,7 +242,7 @@ type StrategyDef struct {
 }
 
 // Service 提供回测业务的统一入口：启动回测、查询状态/结果、删除记录、K线同步管理。
-// 所有外部副作用（编译策略脚本、创建 Futu 连接、读取数据库路径）通过闭包注入，
+// 所有外部副作用（编译策略脚本、创建 broker 行情同步器、读取数据库路径）通过闭包注入，
 // 与 HTTP Server 解耦，遵循依赖注入模式。
 type Service struct {
 	runs       RunStore

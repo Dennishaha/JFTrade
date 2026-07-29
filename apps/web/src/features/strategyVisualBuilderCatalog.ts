@@ -210,6 +210,8 @@ export type StopLossFromEntryMode = "explicit" | "auto";
 
 export interface StopLossBlockProperties {
   blockKind: "stopLoss";
+  exitId?: string;
+  fromEntryId?: string;
   mode?: StopLossMode;
   direction?: StopLossDirection;
   timeValue?: number;
@@ -899,6 +901,12 @@ export function normalizeStopLossBlockProperties(
 ): StopLossBlockProperties {
   return {
     blockKind: "stopLoss",
+    ...(typeof properties.exitId === "string" && properties.exitId.trim() !== ""
+      ? { exitId: properties.exitId.trim() }
+      : {}),
+    ...(typeof properties.fromEntryId === "string" && properties.fromEntryId.trim() !== ""
+      ? { fromEntryId: properties.fromEntryId.trim() }
+      : {}),
     mode: normalizeStopLossMode(properties.mode),
     direction: normalizeStopLossDirection(properties.direction),
     timeValue: normalizeStopLossInteger(properties.timeValue, 1),

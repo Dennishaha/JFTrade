@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"

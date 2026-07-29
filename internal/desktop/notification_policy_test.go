@@ -3,8 +3,8 @@ package desktop
 import (
 	"testing"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestShouldForwardSystemNotification(t *testing.T) {

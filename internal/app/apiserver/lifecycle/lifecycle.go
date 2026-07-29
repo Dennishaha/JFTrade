@@ -13,8 +13,8 @@ import (
 	"time"
 
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 // SettingsStore is the settings surface needed by API server startup.

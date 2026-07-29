@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
-	"github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 const (

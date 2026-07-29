@@ -36,6 +36,8 @@ API 层不得：
 
 `internal/assistant` 暴露 Assistant 业务模型和 service 契约；`internal/assistant/assembly` 是应用适配边界，可以依赖其他业务 service 的公开类型来构造工具投影，但不得 import `internal/app/*`、`internal/api/*`、具体 `internal/store/*` 或 `internal/integration/*`。跨域 Assistant 工具编排应留在该包，不能回流到 `servercore`。具体 ADK Store/Runtime/ToolRegistry 构造仅允许出现在 assembly 内部和 `internal/assistant/testkit`，后者不得被生产代码使用。
 
+`internal/assistant/engine` 是上述规则的显式基础设施例外：它拥有 ADK 本地持久化适配实现，只允许直接依赖 `internal/store/sqliteconn` 和 `internal/store/sqliteschema`，不得引入其他具体 store、integration、transport 或 application 包。该窄豁免由 `scripts/check-arch-deps.sh` 的 allowlist 强制，不改变“只在 assembly 构造引擎”的规则。
+
 ### `internal/store/*`
 
 持久化层只负责：
@@ -85,10 +87,11 @@ Store 对业务层暴露消费方定义的接口。应用装配若还需要关�
 ## 强制规则
 
 - `scripts/check-arch-deps.sh` 是项目级结构保护线，负责检查 repo-specific import 方向。
-- `servercore` 的生产 import、`TestImports` 和 `XTestImports` 都受硬门禁约束，不得直接依赖 `pkg/futu`、`pkg/adk`、`pkg/backtest` 根包或其任意子包；协议测试必须经 `internal/integration/*/testkit` 等显式边界，测试代码没有 warning 级逃逸口。
+- `servercore` 的生产 import、`TestImports` 和 `XTestImports` 都受硬门禁约束，不得直接依赖 `pkg/futu`、`internal/assistant/engine`、`pkg/backtest` 根包或其任意子包；协议测试必须经 `internal/integration/*/testkit` 等显式边界，测试代码没有 warning 级逃逸口。
 - `.golangci.yml` 使用 golangci-lint v2.12.0 的 `standard` 基线，启用默认的 `errcheck`、`govet`、`ineffassign`、`staticcheck` 和 `unused`；生产代码与测试代码统一受这些规则约束，生成代码按严格生成标记排除。
 - CI 另外运行 `go vet ./...` 和 `scripts/check-arch-deps.sh`，继续检查 Go 基础问题和项目特定的依赖方向。
 - 新增模块时先选择最窄目录；只有需要被其他 Go module 复用的稳定能力才放入 `pkg/*`。
+- 已有 `pkg/*` 的保留、内移和破坏性变更按 [public-package-policy.md](public-package-policy.md) 执行，不按文件行数或调用者数量单独决定。
 - 新增 shared helper 前先确认是否属于某个业务包；不要为了少量函数建立 `utils`、`common` 或大而全 helper 包。
 
 ## 测试要求

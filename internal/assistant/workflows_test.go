@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 func TestNextWorkflowScheduleRunUsesFiveFieldCronAndTimezone(t *testing.T) {

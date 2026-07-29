@@ -8,8 +8,6 @@ import type {
   ADKAgent,
   ADKProvider,
   ADKWorkflowDefinition,
-  ADKWorkflowTrigger,
-  ADKWorkflowTriggerLog,
   ADKWorkflowTriggerType,
 } from "@/types";
 import {
@@ -23,6 +21,7 @@ import {
   defaultWorkflowPromptTemplate,
   triggerFormToPayload,
   triggerToForm,
+  workflowLogRunLink as runLink,
   workflowRunLink,
   workflowToForm,
   type TriggerFormModel,
@@ -32,8 +31,8 @@ import {
 import {
   cloneWorkflowStudioPaneSizes,
   cloneInputRows,
+  draftTriggerFromForm,
   inputRowsToInputs,
-  normalizeWorkflowStudioPanePair,
   statusLabel,
   triggerTypeLabel,
   createWorkflowTemplateForm,
@@ -43,12 +42,12 @@ import {
   workflowStatusOptions,
   workflowStudioOuterPaneMinSizes,
   workflowStudioWorkbenchPaneMinSizes,
+  updateWorkflowStudioPaneSizes,
   workflowTemplates,
   workflowTone,
   workModeLabel,
   type FlowNodeData,
   type InspectorNodeKind,
-  type WorkflowStudioPanePair,
   type WorkflowStudioPaneSizes,
   type WorkflowTemplate,
 } from "@/features/adkWorkflowStudio";
@@ -87,7 +86,6 @@ const props = withDefaults(
 );
 
 const formatDateTime = (value: string): string => props.formatDateTime(value);
-
 const saving = ref(false);
 const selectedNodeId = ref("start");
 const workflowSearch = ref("");
@@ -319,19 +317,6 @@ function startDraftWorkflow(template: WorkflowTemplate): void {
       : "start";
   refreshNodeData();
   showTemplatePicker.value = false;
-}
-
-function draftTriggerFromForm(form: TriggerFormModel): ADKWorkflowTrigger {
-  return {
-    id: "draft",
-    workflowId: "",
-    type: form.type,
-    title: form.title,
-    status: form.status,
-    config: {},
-    createdAt: "",
-    updatedAt: "",
-  };
 }
 
 async function saveStudio(): Promise<void> {
@@ -627,25 +612,15 @@ function onConnect(connection: Connection): void {
 }
 
 function handleStudioOuterPaneResized(payload: SplitpanesResizedPayload): void {
-  const sizes = payload.panes?.map((pane) => pane.size);
-  const normalized = normalizeWorkflowStudioPanePair(sizes, workflowStudioOuterPaneMinSizes);
-  if (!normalized) return;
-  const next = {
-    ...studioPaneSizes.value,
-    outer: normalized,
-  };
-  studioPaneSizes.value = next;
+  studioPaneSizes.value = updateWorkflowStudioPaneSizes(
+    studioPaneSizes.value, "outer", payload.panes?.map((pane) => pane.size), workflowStudioOuterPaneMinSizes,
+  ) ?? studioPaneSizes.value;
 }
 
 function handleStudioWorkbenchPaneResized(payload: SplitpanesResizedPayload): void {
-  const sizes = payload.panes?.map((pane) => pane.size);
-  const normalized = normalizeWorkflowStudioPanePair(sizes, workflowStudioWorkbenchPaneMinSizes);
-  if (!normalized) return;
-  const next = {
-    ...studioPaneSizes.value,
-    workbench: normalized,
-  };
-  studioPaneSizes.value = next;
+  studioPaneSizes.value = updateWorkflowStudioPaneSizes(
+    studioPaneSizes.value, "workbench", payload.panes?.map((pane) => pane.size), workflowStudioWorkbenchPaneMinSizes,
+  ) ?? studioPaneSizes.value;
 }
 
 function hideInspector(): void {
@@ -654,10 +629,6 @@ function hideInspector(): void {
 
 function showInspector(): void {
   inspectorHidden.value = false;
-}
-
-function runLink(log: ADKWorkflowTriggerLog): string {
-  return workflowRunLink({ log });
 }
 
 async function copyResultMarkdown(): Promise<void> {

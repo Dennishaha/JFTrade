@@ -1,8 +1,8 @@
 package servercore
 
 import (
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func normalizeManagedBrokerAccount(input jfsettings.ManagedBrokerAccount) jfsettings.ManagedBrokerAccount {

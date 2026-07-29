@@ -115,13 +115,13 @@ function disable() {
 </script>
 
 <template>
-  <section class="risk-panel" aria-label="实盘总闸与单笔限额">
-    <header class="risk-panel__head">
-      <span class="risk-panel__title">实盘总闸与单笔限额</span>
-      <span class="risk-panel__desc">保存后立即写入运行时配置，不需要重启。</span>
+  <section class="risk-panel jf-panel" aria-label="实盘总闸与单笔限额">
+    <header class="risk-panel__head jf-panel__header">
+      <span class="risk-panel__title jf-panel__title">实盘总闸与单笔限额</span>
+      <span class="risk-panel__desc jf-panel__description">保存后立即写入运行时配置，不需要重启。</span>
     </header>
 
-    <div class="risk-panel__body">
+    <div class="risk-panel__body jf-panel__body">
       <div class="risk-panel__field-row">
         <label class="risk-panel__toggle">
           <input
@@ -223,46 +223,18 @@ function disable() {
 </template>
 
 <style scoped>
-.risk-panel {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--tv-border);
-  border-radius: 8px;
-  background: var(--tv-bg-surface);
-}
-
 .risk-panel__head {
-  display: flex;
-  flex: 0 0 auto;
   align-items: baseline;
   gap: 10px;
   padding: 9px 12px;
-  border-bottom: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface-2);
-}
-
-.risk-panel__title {
-  color: var(--tv-text-muted);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .risk-panel__desc {
-  overflow: hidden;
-  color: var(--tv-text-dim);
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 0 1 auto;
 }
 
 .risk-panel__body {
-  display: grid;
   gap: 10px;
-  padding: 12px;
 }
 
 .risk-panel__fields {

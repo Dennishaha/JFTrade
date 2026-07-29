@@ -3,8 +3,8 @@ import { computed, onMounted, ref, watch } from "vue";
 
 import InstrumentSearchBox from "../components/domain/market-data/InstrumentSearchBox.vue";
 import AppNavigationControls from "./AppNavigationControls.vue";
+import TopBarBrokerAccountPicker from "./TopBarBrokerAccountPicker.vue";
 
-import { formatTradingEnvironment } from "../composables/consoleDataFormatting";
 import { formatUserMarketLabel } from "../composables/instrumentPresentation";
 import { useMarketProfiles } from "../composables/marketProfiles";
 import { useCommandPalette } from "../composables/useCommandPalette";
@@ -127,10 +127,6 @@ const selectedBrokerAccountSelectionKey = computed(() => {
   return "";
 });
 
-function isBrokerAccountSelected(selectionKey: string): boolean {
-  return selectedBrokerAccountSelectionKey.value === selectionKey;
-}
-
 const brokerAccountLabel = computed(() => {
   if (filteredBrokerAccounts.value.length === 0) {
     if (normalizedBrokerAccountFilterQuery.value !== "") {
@@ -201,11 +197,6 @@ function handleResolvedInstrument(candidate: {
 }): void {
   selectWorkspaceInstrument({ market: candidate.market, symbol: candidate.code });
   codeInput.value = "";
-}
-
-function onBrokerAccountChange(event: Event): void {
-  const value = (event.target as HTMLSelectElement).value;
-  void selectBrokerAccount(value === "" ? null : value);
 }
 
 function resolvePreferredBrokerAccountSelectionKey(
@@ -366,114 +357,20 @@ onMounted(() => {
       </button>
     </div>
 
-    <v-dialog
-      :model-value="brokerAccountPickerOpen"
-      max-width="760"
-      @update:modelValue="onBrokerAccountPickerVisibilityChange"
-    >
-      <v-card class="tv-topbar-account-picker" data-testid="topbar-broker-account-picker-dialog">
-        <v-card-title class="tv-topbar-account-picker__header">
-          <span>选择账户</span>
-          <button
-            type="button"
-            class="tv-btn tv-btn-ghost"
-            style="height: 28px; padding: 0 8px; font-size: 11px"
-            data-testid="topbar-broker-account-picker-close"
-            @click="closeBrokerAccountPicker"
-          >
-            关闭
-          </button>
-        </v-card-title>
-
-        <v-card-text class="tv-topbar-account-picker__body">
-          <div class="tv-topbar-account-picker__env">
-            <span class="tv-topbar-account-picker__env-label">交易环境</span>
-            <v-btn-toggle
-              :model-value="tradingEnvironmentFilter"
-              data-testid="topbar-account-picker-trading-environment-switch"
-              class="tv-topbar-env-toggle"
-              color="teal"
-              density="compact"
-              divided
-              mandatory
-              variant="outlined"
-              @update:modelValue="onTradingEnvironmentSwitch"
-            >
-              <v-btn
-                value="SIMULATE"
-                data-testid="topbar-account-picker-trading-environment-simulate"
-                size="small"
-                class="tv-topbar-env-btn tv-topbar-env-btn--simulate"
-                @click="onTradingEnvironmentSwitch('SIMULATE')"
-              >
-                模拟盘
-              </v-btn>
-              <v-btn
-                value="REAL"
-                data-testid="topbar-account-picker-trading-environment-real"
-                size="small"
-                class="tv-topbar-env-btn tv-topbar-env-btn--real"
-                @click="onTradingEnvironmentSwitch('REAL')"
-              >
-                实盘
-              </v-btn>
-            </v-btn-toggle>
-          </div>
-
-          <v-text-field
-            v-model="brokerAccountFilterQuery"
-            data-testid="topbar-broker-account-filter"
-            placeholder="筛选券商 / 账户名 / 账号 / 市场"
-            density="compact"
-            variant="outlined"
-            hide-details
-            clearable
-          />
-
-          <div class="tv-topbar-account-picker__list" data-testid="topbar-broker-account-picker-list">
-            <div
-              v-if="filteredBrokerAccounts.length === 0"
-              class="tv-topbar-account-picker__empty"
-              data-testid="topbar-broker-account-picker-empty"
-            >
-              {{ brokerAccountLabel }}
-            </div>
-
-            <div
-              v-for="account in filteredBrokerAccounts"
-              :key="account.selectionKey"
-              class="tv-topbar-account-picker__item"
-              :class="{ 'is-selected': isBrokerAccountSelected(account.selectionKey) }"
-              data-testid="topbar-broker-account-item"
-            >
-              <button
-                type="button"
-                class="tv-topbar-account-picker__item-main"
-                :title="`${account.securityFirm ?? '未知券商'} / ${account.brokerId.toUpperCase()} / ${account.displayName}`"
-                @click="selectBrokerAccountFromPicker(account.selectionKey)"
-              >
-                <span class="tv-topbar-account-picker__item-main-line">
-                  {{ `${account.securityFirm ?? "未知券商"} / ${account.brokerId.toUpperCase()} / ${account.displayName}` }}
-                </span>
-                <span class="tv-topbar-account-picker__item-sub-line">
-                  {{ `${account.accountId} / ${formatTradingEnvironment(account.tradingEnvironment)} / ${formatUserMarketLabel(account.market)}` }}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                class="tv-btn tv-btn-ghost tv-topbar-account-picker__favorite"
-                :title="isFavoriteBrokerAccount(account.selectionKey) ? '取消收藏' : '收藏账户'"
-                data-testid="topbar-broker-account-item-favorite"
-                @click.stop="toggleBrokerAccountFavorite(account.selectionKey)"
-              >
-                {{ isFavoriteBrokerAccount(account.selectionKey) ? "★" : "☆" }}
-              </button>
-            </div>
-          </div>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+    <TopBarBrokerAccountPicker
+      :open="brokerAccountPickerOpen"
+      :trading-environment="tradingEnvironmentFilter"
+      :filter-query="brokerAccountFilterQuery"
+      :accounts="filteredBrokerAccounts"
+      :empty-label="brokerAccountLabel"
+      :selected-selection-key="selectedBrokerAccountSelectionKey"
+      :favorite-selection-keys="prefs.favoriteBrokerAccountKeys"
+      @update:open="onBrokerAccountPickerVisibilityChange"
+      @update:filter-query="brokerAccountFilterQuery = $event"
+      @switch-environment="onTradingEnvironmentSwitch"
+      @select="selectBrokerAccountFromPicker"
+      @toggle-favorite="toggleBrokerAccountFavorite"
+    />
 
     <div class="tv-topbar-actions">
     <button type="button" class="tv-icon-btn" :title="`主题：${theme === 'dark' ? '深色' : '浅色'}`" @click="toggleTheme">
@@ -549,7 +446,7 @@ onMounted(() => {
   font-size: 11px;
 }
 
-.tv-topbar-env-toggle {
+:global(.tv-topbar-env-toggle) {
   width: max-content;
 }
 
@@ -585,108 +482,12 @@ onMounted(() => {
   position: relative;
 }
 
-.tv-topbar-account-picker {
-  max-width: min(760px, 92vw);
-  border: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface);
-  color: var(--tv-text);
-}
-
-.tv-topbar-account-picker__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.tv-topbar-account-picker__body {
-  display: grid;
-  gap: 10px;
-  background: var(--tv-bg-surface);
-}
-
-.tv-topbar-account-picker__env {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-}
-
-.tv-topbar-account-picker__env-label {
-  flex: 0 0 auto;
-  color: var(--tv-text-muted);
-  font-size: 12px;
-}
-
-.tv-topbar-account-picker__list {
-  display: grid;
-  gap: 8px;
-  max-height: 360px;
-  overflow: auto;
-}
-
-.tv-topbar-account-picker__empty {
-  font-size: 12px;
-  color: var(--tv-text-muted);
-  padding: 10px;
-  border: 1px dashed var(--tv-border);
-  border-radius: 8px;
-}
-
-.tv-topbar-account-picker__item {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  border: 1px solid var(--tv-border);
-  border-radius: 8px;
-  background: var(--tv-bg-surface-2);
-}
-
-.tv-topbar-account-picker__item.is-selected {
-  border-color: var(--tv-accent);
-}
-
-.tv-topbar-account-picker__item-main {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  color: inherit;
-  text-align: left;
-  padding: 8px 10px;
-  cursor: pointer;
-}
-
-.tv-topbar-account-picker__item-main-line {
-  display: block;
-  font-size: 12px;
-  color: var(--tv-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tv-topbar-account-picker__item-sub-line {
-  display: block;
-  font-size: 11px;
-  color: var(--tv-text-muted);
-  margin-top: 3px;
-}
-
-.tv-topbar-account-picker__favorite {
-  width: 36px;
-  min-width: 36px;
-  padding: 0;
-  font-size: 15px;
-}
-
-:deep(.tv-topbar-env-toggle .tv-topbar-env-btn) {
+:global(.tv-topbar-env-toggle .tv-topbar-env-btn) {
   opacity: 1;
   color: var(--tv-text-muted);
 }
 
-:deep(.tv-topbar-env-toggle .tv-topbar-env-btn--simulate.v-btn--active) {
+:global(.tv-topbar-env-toggle .tv-topbar-env-btn--simulate.v-btn--active) {
   background: color-mix(in srgb, #facc15 75%, transparent);
   border-color: color-mix(
     in srgb,
@@ -696,7 +497,7 @@ onMounted(() => {
   color: var(--tv-bg-surface);
 }
 
-:deep(.tv-topbar-env-toggle .tv-topbar-env-btn--real.v-btn--active) {
+:global(.tv-topbar-env-toggle .tv-topbar-env-btn--real.v-btn--active) {
   background: color-mix(in srgb, var(--tv-accent) 75%, transparent);
   border-color: color-mix(
     in srgb,

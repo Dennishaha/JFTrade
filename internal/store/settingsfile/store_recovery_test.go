@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestSettingsStoreRejectsMalformedOrUnreadableInput(t *testing.T) {

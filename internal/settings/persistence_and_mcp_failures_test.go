@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 type coverageErrorStore struct {

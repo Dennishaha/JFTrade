@@ -1230,7 +1230,12 @@ function buildProtectStatements(node: StrategyVisualNodeDocument): string[] {
   const explicitTrailingOffset = properties.trailingOffsetExpressionAst === undefined
     ? explicitTrailingPrice
     : renderVisualExpressionToPine(properties.trailingOffsetExpressionAst, explicitTrailingPrice ?? "close");
-  const directions = properties.fromEntryMode === "auto"
+  const preservedFromEntryId = properties.fromEntryMode === "auto"
+    ? ""
+    : (properties.fromEntryId ?? "").trim();
+  const directions = preservedFromEntryId !== ""
+    ? [properties.direction === "short" ? "short" : "long"]
+    : properties.fromEntryMode === "auto"
     ? ["auto"]
     : properties.direction === "long"
     ? ["long"]
@@ -1238,8 +1243,11 @@ function buildProtectStatements(node: StrategyVisualNodeDocument): string[] {
       ? ["short"]
       : ["long", "short"];
   return directions.map((direction) => {
-    const entryId = direction === "short" ? "Short" : "Long";
-    const exitId = direction === "auto" ? `Auto ${properties.mode ?? "stopLoss"}` : `${entryId} ${properties.mode ?? "stopLoss"}`;
+    const entryId = preservedFromEntryId || (direction === "short" ? "Short" : "Long");
+    const generatedExitId = direction === "auto" ? `Auto ${properties.mode ?? "stopLoss"}` : `${entryId} ${properties.mode ?? "stopLoss"}`;
+    const exitId = directions.length === 1 && (properties.exitId ?? "").trim() !== ""
+      ? properties.exitId!.trim()
+      : generatedExitId;
     const fromEntryArg = direction === "auto" ? "" : `, ${toPineStringLiteral(entryId)}`;
     const metadataArgs = buildProtectMetadataArgs(properties);
     switch (properties.mode) {

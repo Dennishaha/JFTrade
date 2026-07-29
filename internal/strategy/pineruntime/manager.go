@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/jftrade/jftrade-main/pkg/jftsettings"
+	"github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 // Publisher installs a newly resolved runner pair into its consumers before

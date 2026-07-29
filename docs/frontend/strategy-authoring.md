@@ -32,6 +32,12 @@ JFTrade 的策略设计面是 Pine v6 原生源码工作台。当前 UI 不再�
 
 无法安全结构化的 Pine 代码必须保留为 raw/source 内容或给出诊断，不能为了让 UI 看起来完整而改写语义。当 Pine 源码无法标准化为可同步的结构模型时，转换必须返回 `ok:false` 和行号诊断，不能伪造可编辑结构块或静默成功。
 
+## 前后端解析契约
+
+Go `pkg/strategy/pine` 是完整语法、语义诊断和 lowering 的权威实现；前端 `strategyVisualBuilderPineParser` 只承担可视化往返子集的结构投影，不应扩张为第二套完整 Pine AST。
+
+[`tests/fixtures/pine-structure-corpus.json`](../../tests/fixtures/pine-structure-corpus.json) 是两个解析器共用的业务往返语料。它覆盖参数、状态、MTF、指标、集合统计、时间与交易时段、多级条件、订单生命周期、风险元数据和多种退出。Go 测试从 lowering 后 IR 核对 `let/if/order/exit/cancel/log/notify`、分支首节点以及订单、退出和风险字段；前端测试核对 visual block、分支归属和嵌套深度，并执行 `source → visual → Pine → visual` 往返，复核数量、方向、`from_entry`、退出触发和风险值。任一侧拒绝语料、静默丢失受支持语义或改变结构都会使 `pnpm run test:pine-structure-corpus` 失败。新增可视化往返语法时必须先补这份共享语料，不能只增加同类节点计数。
+
 ## 前端代码入口
 
 - [StrategyDesignPage.vue](../../apps/web/src/pages/StrategyDesignPage.vue)：设计路由包装器，解析新建/已有入口并返回运行页。
@@ -62,7 +68,7 @@ JFTrade 的策略设计面是 Pine v6 原生源码工作台。当前 UI 不再�
 2. Pine analyze 的 error 会阻止把定义当作可运行策略；warning 不能被 UI 隐藏。
 3. 定义 ID、版本和软删除语义由后端 store 归一，不由前端伪造历史版本。
 4. 实例绑定引用定义版本；更新定义不会绕过实例刷新与运行状态约束。
-5. 新增 Pine public surface 时，同步 parser/semantic、PineTS worker、生成支持快照、Monaco 元数据和回归测试。
+5. 新增 Pine public surface 时，同步 parser/semantic、PineTS worker、生成支持快照、Monaco 元数据和回归测试；属于可视化往返子集的语法还必须更新共享结构语料。
 6. 不恢复已经移除的 Go 计划运行时、旧自定义 helper syntax 或自由连线 visual block 兼容路径。
 
 ## 时间周期与回测边界
@@ -78,6 +84,7 @@ JFTrade 的策略设计面是 Pine v6 原生源码工作台。当前 UI 不再�
 go test ./internal/strategy ./internal/api/strategy ./pkg/strategy/... -count=1
 pnpm --filter @jftrade/web run test -- Strategy
 pnpm --filter @jftrade/web run typecheck
+pnpm run test:pine-structure-corpus
 ```
 
 涉及 public Pine 支持范围时，还要运行生成参考并确认 [Pine v6 支持快照](../reference/generated/pine-v6-support.md) 与代码一致。

@@ -18,6 +18,7 @@ import {
   mountApp,
 } from "./helpers";
 import BacktestPage from "../src/pages/BacktestPage.vue";
+import * as backtestPresentation from "../src/components/backtest/backtestRunPresentation";
 import { queryClient, queryKeys } from "../src/composables/serverState";
 
 const backtestFormStorageKey = "jftrade.backtest.form.v1";
@@ -823,8 +824,8 @@ describe("Backtest page", () => {
     expect(call("resolveRunQuoteCurrency", buildBacktestRun(2))).toBe("HKD");
     expect(call("resolveRunSessionMode", richRun)).toBe("含扩展时段");
     expect(call("resolveRunSessionMode", buildBacktestRun(2))).toBe("常规时段");
-    expect(call("resolveBacktestPriceBasisNote", richRun)).toContain("已闭合历史 K 线");
-    expect(call("resolveBacktestPriceBasisNote", {
+    expect(backtestPresentation.resolveBacktestPriceBasisNote(richRun)).toContain("已闭合历史 K 线");
+    expect(backtestPresentation.resolveBacktestPriceBasisNote({
       request: { rehabType: "forward", interval: "1d" },
     })).toContain("前复权1d");
     expect(call("resolveStrategyName", "strategy-1")).toBe("EMA Reversal");
@@ -975,61 +976,61 @@ describe("Backtest page", () => {
     expect(call("statusChip", "running")).toMatchObject({ color: "info" });
     expect(call("statusChip", "queued")).toMatchObject({ color: "warning" });
     expect(call("statusChip", "unknown")).toMatchObject({ color: "" });
-    expect(call("pnlColor", 10)).toBe("tv-up");
-    expect(call("pnlColor", -1)).toBe("tv-down");
-    expect(call("pnlPrefix", 0)).toBe("+");
-    expect(call("pnlPrefix", -1)).toBe("");
-    expect(call("usesClosedTradeStats", richRun.result)).toBe(true);
-    expect(call("usesClosedTradeStats", { totalTrades: 2 })).toBe(false);
-    expect(call("backtestFillCount", richRun.result)).toBe(40);
-    expect(call("backtestFillCount", { totalTrades: 2 })).toBe(2);
-    expect(call("drawdownColor", 0.1)).toBe("bt-metric-negative");
-    expect(call("drawdownColor", 0)).toBe("bt-text");
-    expect(call("formatPercentMetric", 0.1234)).toBe("12.34%");
-    expect(call("formatPercentMetric", Number.NaN)).toBe("0.00%");
-    expect(call("formatBacktestTimestamp", undefined)).toBe("--");
-    expect(call<string>("formatBacktestTimestamp", "2026-06-01T00:00:00.000Z")).not.toBe("--");
-    expect(call("formatBacktestRunDate", "2026-06-01")).toBe("2026-06-01");
-    expect(call("formatBacktestOrderSide", "BUY")).toBe("买入");
-    expect(call("formatBacktestOrderSide", "SELL")).toBe("卖出");
-    expect(call("formatBacktestOrderSide", "SHORT")).toBe("SHORT");
-    expect(call("formatBacktestOrderStatus", "NEW")).toBe("已下单");
-    expect(call("formatBacktestOrderStatus", "FILLED")).toBe("已成交");
-    expect(call("formatBacktestOrderStatus", "CANCELED")).toBe("已撤单");
-    expect(call("formatBacktestOrderStatus", "REJECTED")).toBe("已拒绝");
-    expect(call("formatBacktestOrderStatus", "PARTIAL")).toBe("PARTIAL");
-    expect(call("formatBacktestOrderPrice", 0, "LIMIT", "101.2500")).toBe("101.2500");
-    expect(call<string>("formatBacktestOrderPrice", 101.25, "LIMIT")).toContain("101.25");
-    expect(call("formatBacktestOrderPrice", 0, "MARKET")).toBe("市价");
-    expect(call("formatBacktestOrderPrice", 0, "LIMIT")).toBe("--");
-    expect(call("formatBacktestQuantity", undefined)).toBe("--");
-    expect(call("formatBacktestQuantity", 10, "10.000")).toBe("10.000");
-    expect(call<string>("formatBacktestQuantity", 10)).toContain("10");
-    expect(call("formatBacktestFee", 0, "USD")).toBe("--");
-    expect(call<string>("formatBacktestFee", 2.5, "USD")).toContain("USD");
-    expect(call<string>("formatBacktestFee", 2.5)).not.toContain("USD");
+    expect(backtestPresentation.pnlColor(10)).toBe("tv-up");
+    expect(backtestPresentation.pnlColor(-1)).toBe("tv-down");
+    expect(backtestPresentation.pnlPrefix(0)).toBe("+");
+    expect(backtestPresentation.pnlPrefix(-1)).toBe("");
+    expect(backtestPresentation.usesClosedTradeStats(richRun.result)).toBe(true);
+    expect(backtestPresentation.usesClosedTradeStats({ totalTrades: 2 })).toBe(false);
+    expect(backtestPresentation.backtestFillCount(richRun.result)).toBe(40);
+    expect(backtestPresentation.backtestFillCount({ totalTrades: 2 })).toBe(2);
+    expect(backtestPresentation.drawdownColor(0.1)).toBe("bt-metric-negative");
+    expect(backtestPresentation.drawdownColor(0)).toBe("bt-text");
+    expect(backtestPresentation.formatPercentMetric(0.1234)).toBe("12.34%");
+    expect(backtestPresentation.formatPercentMetric(Number.NaN)).toBe("0.00%");
+    expect(backtestPresentation.formatBacktestTimestamp(undefined)).toBe("--");
+    expect(backtestPresentation.formatBacktestTimestamp("2026-06-01T00:00:00.000Z")).not.toBe("--");
+    expect(backtestPresentation.formatBacktestRunDate("2026-06-01")).toBe("2026-06-01");
+    expect(backtestPresentation.formatBacktestOrderSide("BUY")).toBe("买入");
+    expect(backtestPresentation.formatBacktestOrderSide("SELL")).toBe("卖出");
+    expect(backtestPresentation.formatBacktestOrderSide("SHORT")).toBe("SHORT");
+    expect(backtestPresentation.formatBacktestOrderStatus("NEW")).toBe("已下单");
+    expect(backtestPresentation.formatBacktestOrderStatus("FILLED")).toBe("已成交");
+    expect(backtestPresentation.formatBacktestOrderStatus("CANCELED")).toBe("已撤单");
+    expect(backtestPresentation.formatBacktestOrderStatus("REJECTED")).toBe("已拒绝");
+    expect(backtestPresentation.formatBacktestOrderStatus("PARTIAL")).toBe("PARTIAL");
+    expect(backtestPresentation.formatBacktestOrderPrice(0, "LIMIT", "101.2500")).toBe("101.2500");
+    expect(backtestPresentation.formatBacktestOrderPrice(101.25, "LIMIT")).toContain("101.25");
+    expect(backtestPresentation.formatBacktestOrderPrice(0, "MARKET")).toBe("市价");
+    expect(backtestPresentation.formatBacktestOrderPrice(0, "LIMIT")).toBe("--");
+    expect(backtestPresentation.formatBacktestQuantity(undefined)).toBe("--");
+    expect(backtestPresentation.formatBacktestQuantity(10, "10.000")).toBe("10.000");
+    expect(backtestPresentation.formatBacktestQuantity(10)).toContain("10");
+    expect(backtestPresentation.formatBacktestFee(0, "USD")).toBe("--");
+    expect(backtestPresentation.formatBacktestFee(2.5, "USD")).toContain("USD");
+    expect(backtestPresentation.formatBacktestFee(2.5)).not.toContain("USD");
 
-    expect(call("runtimeErrorTotal", richRun.result)).toBe(150);
-    expect(call("runtimeErrorRepeatCount", richRun.result, "timeout")).toBe(50);
-    expect(call("runtimeErrorRepeatCount", richRun.result, "other")).toBe(1);
-    expect(call("runtimeErrorSummary", richRun.result)).toBe("运行时错误 150 次，仅显示 125 条样本");
-    expect(call("runtimeErrorSummary", { runtimeErrors: ["one"] })).toBe("运行时错误 (1)");
-    expect(call("warningTotal", { warningTotal: 8, warnings: ["one"] })).toBe(8);
-    expect(call("warningTotal", { warnings: ["one", "two"] })).toBe(2);
-    expect(call("warningSummary", { warnings: ["one"], warningTotal: 3, warningsTruncated: true })).toBe(
+    expect(backtestPresentation.runtimeErrorTotal(richRun.result)).toBe(150);
+    expect(backtestPresentation.runtimeErrorRepeatCount(richRun.result, "timeout")).toBe(50);
+    expect(backtestPresentation.runtimeErrorRepeatCount(richRun.result, "other")).toBe(1);
+    expect(backtestPresentation.runtimeErrorSummary(richRun.result)).toBe("运行时错误 150 次，仅显示 125 条样本");
+    expect(backtestPresentation.runtimeErrorSummary({ runtimeErrors: ["one"] })).toBe("运行时错误 (1)");
+    expect(backtestPresentation.warningTotal({ warningTotal: 8, warnings: ["one"] })).toBe(8);
+    expect(backtestPresentation.warningTotal({ warnings: ["one", "two"] })).toBe(2);
+    expect(backtestPresentation.warningSummary({ warnings: ["one"], warningTotal: 3, warningsTruncated: true })).toBe(
       "回测警告 (3)，仅显示 1 条样本",
     );
-    expect(call("warningSummary", { warnings: ["one"], ignoredOrders: 2 })).toBe(
+    expect(backtestPresentation.warningSummary({ warnings: ["one"], ignoredOrders: 2 })).toBe(
       "回测警告 1 条，忽略订单 2 笔",
     );
-    expect(call("visibleBacktestWarnings", richRun)).toHaveLength(120);
-    expect(call("hiddenBacktestWarningCount", richRun)).toBe(5);
-    expect(call("visibleBacktestOrderBook", richRun)).toHaveLength(200);
-    expect(call("hiddenBacktestOrderBookCount", richRun)).toBe(5);
-    expect(call("visibleBacktestRuntimeErrors", richRun)).toHaveLength(120);
-    expect(call("hiddenBacktestRuntimeErrorCount", richRun)).toBe(5);
-    expect(call("visibleBacktestLogs", richRun)).toHaveLength(120);
-    expect(call("hiddenBacktestLogCount", richRun)).toBe(85);
+    expect(backtestPresentation.visibleBacktestWarnings(richRun)).toHaveLength(120);
+    expect(backtestPresentation.hiddenBacktestWarningCount(richRun)).toBe(5);
+    expect(backtestPresentation.visibleBacktestOrderBook(richRun)).toHaveLength(200);
+    expect(backtestPresentation.hiddenBacktestOrderBookCount(richRun)).toBe(5);
+    expect(backtestPresentation.visibleBacktestRuntimeErrors(richRun)).toHaveLength(120);
+    expect(backtestPresentation.hiddenBacktestRuntimeErrorCount(richRun)).toBe(5);
+    expect(backtestPresentation.visibleBacktestLogs(richRun)).toHaveLength(120);
+    expect(backtestPresentation.hiddenBacktestLogCount(richRun)).toBe(85);
     call("resetResultsFilters");
     await nextTick();
     expect(readSetupValue(setup.focusedRun)).toMatchObject({ id: richRun.id });
@@ -1039,9 +1040,9 @@ describe("Backtest page", () => {
     await nextTick();
     expect(readSetupValue(setup.focusedRun)).toMatchObject({ id: "run-002" });
     expect(readSetupValue<string>(setup.activeReportTab)).toBe("chart");
-    expect(call("resolveQueriedCandleBounds", undefined)).toBeNull();
-    expect(call("resolveQueriedCandleBounds", [{ time: "invalid" }])).toBeNull();
-    expect(call("resolveQueriedCandleBounds", richRun.result.candles)).toMatchObject({ count: 2 });
+    expect(backtestPresentation.resolveQueriedCandleBounds(undefined)).toBeNull();
+    expect(backtestPresentation.resolveQueriedCandleBounds([{ time: "invalid" }])).toBeNull();
+    expect(backtestPresentation.resolveQueriedCandleBounds(richRun.result.candles)).toMatchObject({ count: 2 });
 
     writeSetupValue(setup, "resultsSearchQuery", "US.AAPL");
     await nextTick();

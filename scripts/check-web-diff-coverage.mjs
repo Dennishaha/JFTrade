@@ -100,8 +100,8 @@ export function checkWebDiffCoverage({ baseRef, coveragePath, repoRoot = process
       continue;
     }
 
-    const statements = selectedStatements(coverageEntry, changedLines);
     const sourceLines = readFileSync(resolve(gitRoot, path), "utf8").split("\n");
+    const statements = selectedStatements(coverageEntry, changedLines, sourceLines);
     const branches = selectedBranches(coverageEntry, changedLines, sourceLines);
     const statementSummary = coverageSummary(statements, thresholds.statements);
     const branchSummary = coverageSummary(branches, thresholds.branches);
@@ -233,14 +233,65 @@ function relativeCoveragePath(repoRoot, coveragePath) {
   return normalizePath(relative(repoRoot, normalized));
 }
 
-function selectedStatements(entry, changedLines) {
+function selectedStatements(entry, changedLines, sourceLines) {
   const selected = [];
-  for (const [id, location] of Object.entries(entry.statementMap ?? {})) {
+  const statementEntries = Object.entries(entry.statementMap ?? {});
+  const hitStatementLocations = statementEntries
+    .filter(([id]) => Number(entry.s?.[id] ?? 0) > 0)
+    .map(([, location]) => location);
+  const hitBranchLocations = Object.entries(entry.branchMap ?? {})
+    .filter(([id]) => (entry.b?.[id] ?? []).some((hit) => Number(hit) > 0))
+    .flatMap(([, branch]) => [branch.loc, ...(Array.isArray(branch.locations) ? branch.locations : [])])
+    .filter(Boolean);
+
+  for (const [id, location] of statementEntries) {
     if (locationTouchesChangedLine(location, changedLines)) {
-      selected.push(Number(entry.s?.[id] ?? 0));
+      const hit = Number(entry.s?.[id] ?? 0);
+      if (
+        hit === 0
+        && isDegradedVueTemplateWrapper(
+          location,
+          sourceLines,
+          hitStatementLocations,
+          hitBranchLocations,
+        )
+      ) {
+        continue;
+      }
+      selected.push(hit);
     }
   }
   return selected;
+}
+
+function isDegradedVueTemplateWrapper(location, sourceLines, hitStatementLocations, hitBranchLocations) {
+  if (Number.isInteger(location?.end?.column)) return false;
+  const startLine = Number(location?.start?.line ?? 0);
+  const sourceLine = sourceLines[startLine - 1] ?? "";
+  if (!isVueTemplateBindingLine(sourceLine)) return false;
+
+  // A full V8 run can compile the same Vue render function in multiple
+  // workers. Istanbul then retains a second zero-hit wrapper with a lost end
+  // column even though concrete statements or branches inside that wrapper
+  // were executed. The nested hit is the usable source record; counting the
+  // degraded wrapper again makes coverage depend on worker assignment.
+  return [...hitStatementLocations, ...hitBranchLocations].some((hitLocation) =>
+    locationContainsStartLine(location, hitLocation),
+  );
+}
+
+function isVueTemplateBindingLine(line) {
+  const trimmed = line.trim();
+  return /^(?:v-|[:@#])[^=\s]+(?:\.[^=\s]+)*\s*=/.test(trimmed)
+    || trimmed.startsWith("{{")
+    || /^<[\w-]+[^>]*(?:\{\{|(?:v-|[:@#])[^=\s]+\s*=)/.test(trimmed);
+}
+
+function locationContainsStartLine(container, candidate) {
+  const start = Number(container?.start?.line ?? 0);
+  const end = Number(container?.end?.line ?? start);
+  const candidateStart = Number(candidate?.start?.line ?? 0);
+  return start > 0 && candidateStart >= start && candidateStart <= end;
 }
 
 function selectedBranches(entry, changedLines, sourceLines) {

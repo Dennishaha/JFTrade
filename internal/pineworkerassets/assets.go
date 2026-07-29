@@ -3,6 +3,7 @@ package pineworkerassets
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -44,5 +45,13 @@ func BundleName() string {
 }
 
 func isMissingAsset(err error) bool {
-	return err != nil && (strings.Contains(err.Error(), "file does not exist") || strings.Contains(err.Error(), "no such file"))
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return true
+	}
+	// Some platform-specific embed/fs implementations return an unwrapped OS
+	// error. Keep this compatibility fallback at the filesystem boundary.
+	return strings.Contains(err.Error(), "file does not exist") || strings.Contains(err.Error(), "no such file")
 }

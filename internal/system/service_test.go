@@ -318,13 +318,13 @@ func TestRealTradeControlDelegatesAndUnavailableBoundaries(t *testing.T) {
 func TestFutuHealthAndResetDelegates(t *testing.T) {
 	resetCalled := false
 	svc := NewService(
-		WithFutuOpenDHealth(func(ctx context.Context) map[string]any {
+		WithBrokerRuntimeHealth(func(ctx context.Context) map[string]any {
 			return map[string]any{"status": "ok", "ctx": ctx != nil}
 		}),
-		WithFutuOpenDInstallGuide(func() map[string]any {
+		WithBrokerInstallGuide(func() map[string]any {
 			return map[string]any{"available": true}
 		}),
-		WithResetFutuRuntime(func() {
+		WithResetBrokerRuntime(func() {
 			resetCalled = true
 		}),
 		WithBrokerOrderSnapshot(func() map[string]any {
@@ -356,7 +356,7 @@ func TestFutuHealthDefaultsUnavailable(t *testing.T) {
 	if health["status"] != "unavailable" {
 		t.Fatalf("status = %v, want unavailable", health["status"])
 	}
-	if health["reason"] != "futu integration not enabled" {
+	if health["reason"] != "broker integration not enabled" {
 		t.Fatalf("reason = %v", health["reason"])
 	}
 }

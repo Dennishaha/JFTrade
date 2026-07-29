@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	adksession "google.golang.org/adk/v2/session"
 )
 

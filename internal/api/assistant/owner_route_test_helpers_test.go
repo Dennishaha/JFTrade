@@ -19,9 +19,9 @@ import (
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 const testADKProviderID = "test-provider"

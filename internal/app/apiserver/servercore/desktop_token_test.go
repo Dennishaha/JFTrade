@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket(t *testing.T) {

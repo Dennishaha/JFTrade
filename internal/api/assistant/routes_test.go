@@ -21,7 +21,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 )
 
 func TestCatalogSessionRunAndObservabilityContracts(t *testing.T) {

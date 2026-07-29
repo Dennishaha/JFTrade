@@ -13,9 +13,9 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="emergency-panel" aria-label="紧急熔断">
-    <header class="emergency-panel__head">
-      <span class="emergency-panel__title">紧急熔断</span>
+  <section class="emergency-panel jf-panel" aria-label="紧急熔断">
+    <header class="emergency-panel__head jf-panel__header">
+      <span class="emergency-panel__title jf-panel__title">紧急熔断</span>
       <span
         class="emergency-panel__state"
         :class="killSwitch.killSwitchActive ? 'tv-status--error' : 'tv-status--success'"
@@ -25,7 +25,7 @@ const emit = defineEmits<{
       </span>
     </header>
 
-    <div class="emergency-panel__body">
+    <div class="emergency-panel__body jf-panel__body">
       <div
         class="emergency-panel__summary"
         :class="killSwitch.killSwitchActive ? 'tv-status--error' : 'tv-status--success'"
@@ -60,33 +60,9 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.emergency-panel {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--tv-border);
-  border-radius: 8px;
-  background: var(--tv-bg-surface);
-}
-
 .emergency-panel__head {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
   justify-content: space-between;
-  gap: 8px;
   padding: 9px 12px;
-  border-bottom: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface-2);
-}
-
-.emergency-panel__title {
-  color: var(--tv-text-muted);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .emergency-panel__state {
@@ -98,9 +74,7 @@ const emit = defineEmits<{
 }
 
 .emergency-panel__body {
-  display: grid;
   gap: 10px;
-  padding: 12px;
 }
 
 .emergency-panel__summary {

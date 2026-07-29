@@ -6,11 +6,11 @@ import (
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	appstores "github.com/jftrade/jftrade-main/internal/app/apiserver/stores"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	backteststore "github.com/jftrade/jftrade-main/internal/store/backtest"
 	researchstore "github.com/jftrade/jftrade-main/internal/store/research"
 	strategystore "github.com/jftrade/jftrade-main/internal/store/strategy"
 	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
-	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type serverPersistentState struct {
