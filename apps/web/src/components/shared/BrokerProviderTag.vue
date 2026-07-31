@@ -53,8 +53,10 @@ const emit = defineEmits<{
 const menuOpen = ref(false);
 const embeddedProviderID = ref<MarketDataProviderID | null>(null);
 const embeddedProviderError = ref("");
+const embeddedProviderUnavailable = ref(false);
 const switchingEmbeddedProvider = ref(false);
 let embeddedProviderLoad: Promise<void> | null = null;
+let embeddedProviderRevision = 0;
 const {
   loadBrokerProviders,
   loadError,
@@ -179,6 +181,8 @@ const currentLabel = computed(
   () =>
     switchingEmbeddedProvider.value
       ? "启动中"
+      : embeddedProviderUnavailable.value
+        ? "不可用"
       : selectedOption.value?.shortLabel || (loading.value ? "加载中" : "数据源"),
 );
 const currentReason = computed(() => currentCapabilitySummary.value.reason);
@@ -235,13 +239,18 @@ async function loadEmbeddedProvider(): Promise<void> {
   if (!embeddedProviderVisible.value || embeddedProviderLoad != null) {
     return embeddedProviderLoad ?? Promise.resolve();
   }
+  const revision = embeddedProviderRevision;
   embeddedProviderLoad = getMarketDataProviderSettings()
     .then((settings) => {
+      if (revision !== embeddedProviderRevision) return;
       embeddedProviderID.value = settings.activeProvider;
+      embeddedProviderUnavailable.value = false;
       selectBrokerProvider(settings.activeProvider);
       embeddedProviderError.value = "";
     })
     .catch((error: unknown) => {
+      if (revision !== embeddedProviderRevision) return;
+      embeddedProviderUnavailable.value = true;
       embeddedProviderError.value =
         error instanceof Error ? error.message : String(error);
     })
@@ -253,16 +262,21 @@ async function loadEmbeddedProvider(): Promise<void> {
 
 async function selectEmbeddedProvider(providerID: MarketDataProviderID): Promise<void> {
   const previous = embeddedProviderID.value;
+  const revision = ++embeddedProviderRevision;
   switchingEmbeddedProvider.value = true;
   embeddedProviderError.value = "";
+  embeddedProviderUnavailable.value = false;
   try {
     const saved = await putMarketDataProviderSettings(providerID);
+    if (revision !== embeddedProviderRevision) return;
     embeddedProviderID.value = saved.activeProvider;
     selectBrokerProvider(saved.activeProvider);
     emit("providerChanged");
     menuOpen.value = false;
   } catch (error) {
+    if (revision !== embeddedProviderRevision) return;
     embeddedProviderID.value = previous;
+    embeddedProviderUnavailable.value = previous == null;
     if (previous != null) selectBrokerProvider(previous);
     embeddedProviderError.value =
       error instanceof Error ? error.message : String(error);
@@ -289,7 +303,9 @@ watch(
       void loadEmbeddedProvider();
       return;
     }
+    embeddedProviderRevision += 1;
     embeddedProviderID.value = null;
+    embeddedProviderUnavailable.value = false;
     configureBrokerProviderDefaults({
       accountBrokerId: props.preferredBrokerId,
       defaultBrokerId: props.defaultBrokerId,

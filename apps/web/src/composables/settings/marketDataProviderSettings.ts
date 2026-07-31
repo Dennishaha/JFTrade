@@ -11,11 +11,6 @@ export interface MarketDataProviderSettings {
   activeProvider: MarketDataProviderID;
 }
 
-export const defaultMarketDataProviderSettings: MarketDataProviderSettings = {
-  // New installations use the embedded Yahoo Finance helper by default.
-  activeProvider: "yfinance",
-};
-
 export async function getMarketDataProviderSettings(): Promise<MarketDataProviderSettings> {
   return normalizeProviderSettings(
     await apiGet("/api/v1/settings/market-data-provider"),
@@ -37,8 +32,8 @@ export async function getMarketDataProviderStatus(): Promise<MarketDataProviderS
 function normalizeProviderSettings(
   settings: MarketDataProviderSettingsResponseDto,
 ): MarketDataProviderSettings {
-  return {
-    activeProvider:
-      settings?.activeProvider === "futu" ? "futu" : "yfinance",
-  };
+  if (settings?.activeProvider === "futu" || settings?.activeProvider === "yfinance") {
+    return { activeProvider: settings.activeProvider };
+  }
+  throw new Error("服务端返回了不支持的行情提供者");
 }

@@ -9,6 +9,7 @@ import (
 	qotgetsearchquotepb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsearchquote"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	"github.com/jftrade/jftrade-main/pkg/market"
+	"github.com/shopspring/decimal"
 )
 
 func TestQuoteSnapshotUsesCompleteActiveExtendedBlock(t *testing.T) {
@@ -26,7 +27,7 @@ func TestQuoteSnapshotUsesCompleteActiveExtendedBlock(t *testing.T) {
 	}
 	snapshot := quoteSnapshotFromBasicQotAt(quote, "US.AAPL", afterHours)
 	if snapshot.Session != market.SessionAfter || snapshot.Price.String() != "202" || snapshot.HighPrice.String() != "203" ||
-		snapshot.LowPrice.String() != "198" || snapshot.Volume != 20 || snapshot.Turnover.String() != "2000" {
+		snapshot.LowPrice.String() != "198" || !snapshot.Volume.Equal(decimal.NewFromInt(20)) || snapshot.Turnover.String() != "2000" {
 		t.Fatalf("complete after-hours snapshot = %#v", snapshot)
 	}
 	preMarket := &ExtendedMarketQuote{}

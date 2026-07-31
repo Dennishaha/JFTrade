@@ -16,15 +16,8 @@ type ProviderSettingsStore interface {
 	SaveActiveMarketDataProvider(jfsettings.ActiveMarketDataProvider) error
 }
 
-// QuoteCacheResetter invalidates provider-owned projections outside the core
-// market-data service, such as watchlist quote previews.
-type QuoteCacheResetter interface {
-	ResetQuoteCache()
-}
-
 // QuoteProviderSwitcher serializes a provider mutation with quote-flight
-// reservation. Watchlist implements this to prevent requests from crossing a
-// provider commit boundary.
+// reservation and invalidates provider-owned projections after commit.
 type QuoteProviderSwitcher interface {
 	ChangeQuoteProvider(func() error) error
 }
@@ -70,7 +63,7 @@ func ApplyProviderSettings(
 	ctx context.Context,
 	service *marketdata.Service,
 	store ProviderSettingsStore,
-	quoteCache QuoteCacheResetter,
+	quoteSwitcher QuoteProviderSwitcher,
 	providerID jfsettings.ActiveMarketDataProvider,
 	requireHealthy bool,
 ) error {
@@ -87,17 +80,10 @@ func ApplyProviderSettings(
 			})
 		})
 	}
-	if switcher, ok := quoteCache.(QuoteProviderSwitcher); ok {
-		return switcher.ChangeQuoteProvider(change)
+	if quoteSwitcher != nil {
+		return quoteSwitcher.ChangeQuoteProvider(change)
 	}
-	err := change()
-	if err != nil {
-		return err
-	}
-	if quoteCache != nil {
-		quoteCache.ResetQuoteCache()
-	}
-	return nil
+	return change()
 }
 
 func restoreConfiguredProvider(

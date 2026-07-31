@@ -12,6 +12,9 @@ import (
 func TestSecurityDetailsMapPreservesCompleteBrokerNeutralWireShape(t *testing.T) {
 	decimalValue := decimal.RequireFromString("12.34")
 	floatValue := 1_700_000_000.25
+	volumeValue := decimal.RequireFromString("1700000000.25")
+	securityVolume := decimal.RequireFromString("9007199254740993")
+	quoteVolume := decimal.RequireFromString("4321.25")
 	volume := int64(4321)
 	securityID := int64(9988)
 	count := int32(17)
@@ -26,16 +29,15 @@ func TestSecurityDetailsMapPreservesCompleteBrokerNeutralWireShape(t *testing.T)
 		LotSize: 1, IsSuspend: false, PriceSpread: decimalValue,
 		UpdateTime: "2026-07-26 09:31:00", UpdateTimestamp: &floatValue,
 		HighPrice: decimalValue, OpenPrice: decimalValue, LowPrice: decimalValue,
-		LastClosePrice: decimalValue, CurrentPrice: decimalValue, Volume: volume,
+		LastClosePrice: decimalValue, CurrentPrice: decimalValue, Volume: securityVolume,
 		Turnover: decimalValue, TurnoverRate: decimalValue,
-		AskPrice: &decimalValue, BidPrice: &decimalValue, AskVolume: &volume, BidVolume: &volume,
+		AskPrice: &decimalValue, BidPrice: &decimalValue, AskVolume: &quoteVolume, BidVolume: &quoteVolume,
 		Amplitude: &decimalValue, AveragePrice: &decimalValue, BidAskRatio: &decimalValue,
 		VolumeRatio: &decimalValue, Highest52WeeksPrice: &decimalValue, Lowest52WeeksPrice: &decimalValue,
 		HighestHistoryPrice: &decimalValue, LowestHistoryPrice: &decimalValue,
 		SessionStatus: "REGULAR", ClosePrice5Minute: &decimalValue,
-		HighPrecisionVolume: &decimalValue, HighPrecisionAskVol: &decimalValue, HighPrecisionBidVol: &decimalValue,
 		PreMarket: &pkgfutu.ExtendedMarketQuote{
-			Price: &decimalValue, HighPrice: &decimalValue, LowPrice: &decimalValue, Volume: &floatValue,
+			Price: &decimalValue, HighPrice: &decimalValue, LowPrice: &decimalValue, Volume: &volumeValue,
 			Turnover: &decimalValue, ChangeVal: &decimalValue, ChangeRate: &decimalValue,
 			Amplitude: &decimalValue, QuoteTime: "2026-07-26T08:30:00Z",
 		},
@@ -84,14 +86,20 @@ func TestSecurityDetailsMapPreservesCompleteBrokerNeutralWireShape(t *testing.T)
 
 	wire := SecurityDetailsMap(details)
 	if wire["instrumentId"] != "US.AAPL" || wire["securityId"] != securityID ||
-		wire["priceSpread"] != "12.34" || wire["askVolume"] != volume ||
+		wire["priceSpread"] != "12.34" || wire["volume"] != "9007199254740993" ||
+		wire["askVolume"] != "4321.25" || wire["bidVolume"] != "4321.25" ||
 		wire["listTimestamp"] != json.Number("1700000000.25") {
 		t.Fatalf("top-level wire fields = %#v", wire)
 	}
+	for _, removedKey := range []string{"highPrecisionVolume", "highPrecisionAskVol", "highPrecisionBidVol"} {
+		if _, exists := wire[removedKey]; exists {
+			t.Fatalf("obsolete %s field remains in wire: %#v", removedKey, wire)
+		}
+	}
 	extended := requireSecurityMap(t, wire["extended"])
 	preMarket := requireSecurityMap(t, extended["preMarket"])
-	mappedVolume, ok := preMarket["volume"].(*float64)
-	if preMarket["price"] != "12.34" || !ok || mappedVolume == nil || *mappedVolume != floatValue ||
+	mappedVolume, ok := preMarket["volume"].(string)
+	if preMarket["price"] != "12.34" || !ok || mappedVolume != volumeValue.String() ||
 		preMarket["quoteTime"] != "2026-07-26T08:30:00Z" {
 		t.Fatalf("extended quote = %#v", preMarket)
 	}

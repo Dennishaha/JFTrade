@@ -103,7 +103,7 @@ func (s *serverApplication) buildKLineCandlesResponse(ctx context.Context, marke
 			"high":   kline.High.String(),
 			"low":    kline.Low.String(),
 			"close":  kline.Close.String(),
-			"volume": kline.Volume.Float64(),
+			"volume": kline.Volume.String(),
 			"at":     kline.StartTime.Time().UTC().Format(time.RFC3339Nano),
 		}
 		if includeSession {

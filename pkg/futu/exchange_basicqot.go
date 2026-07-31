@@ -46,6 +46,25 @@ func (e *Exchange) QueryTickers(ctx context.Context, symbol ...string) (map[stri
 	return tickers, nil
 }
 
+// QueryQuoteSnapshots returns the provider-native decimal quote model for a
+// batch without routing volume through bbgo's fixed-point Ticker contract.
+func (e *Exchange) QueryQuoteSnapshots(ctx context.Context, symbols ...string) (map[string]QuoteSnapshot, error) {
+	quotes, err := e.queryBasicQotList(ctx, symbols)
+	if err != nil {
+		return nil, err
+	}
+	snapshots := make(map[string]QuoteSnapshot, len(quotes))
+	for canonical, basicQot := range quotes {
+		snapshot := quoteSnapshotFromBasicQot(basicQot, canonical)
+		if snapshot == nil {
+			continue
+		}
+		e.RecordMarketSessionSample(canonical, snapshot.Session, snapshot.QuoteAt)
+		snapshots[canonical] = *snapshot
+	}
+	return snapshots, nil
+}
+
 // QueryQuoteSnapshot returns BasicQot fields, including US pre-market,
 // after-hours, and overnight quote blocks when OpenD provides them.
 func (e *Exchange) QueryQuoteSnapshot(ctx context.Context, symbol string) (*QuoteSnapshot, error) {

@@ -216,11 +216,13 @@ func TestMarketDataRuntimeNilAndClosedLifecycleBoundaries(t *testing.T) {
 
 func TestTickFromTradeProducesBrokerNeutralPushTick(t *testing.T) {
 	at := time.Date(2026, time.June, 14, 1, 2, 3, 0, time.UTC)
-	cumulativeVolume := fixedpointValue(t, "1200")
+	cumulativeVolume := decimal.NewFromInt(1200)
+	volumeDelta := decimal.NewFromInt(200)
 	tick := tickFromTrade(bbgotypes.Trade{
 		Symbol:           "hk.00700",
 		Price:            fixedpointValue(t, "321.5"),
 		Quantity:         fixedpointValue(t, "200"),
+		VolumeDelta:      &volumeDelta,
 		CumulativeVolume: &cumulativeVolume,
 		Time:             bbgotypes.Time(at),
 	}, at.Add(time.Second))
@@ -232,7 +234,7 @@ func TestTickFromTradeProducesBrokerNeutralPushTick(t *testing.T) {
 		tick.Source != "bbgo:futu:stream" || !tick.Price.Equal(decimal.RequireFromString("321.5")) {
 		t.Fatalf("tick = %#v", tick)
 	}
-	if tick.Volume != 1200 || tick.VolumeDelta != 200 {
+	if !tick.Volume.Equal(decimal.NewFromInt(1200)) || !tick.VolumeDelta.Equal(decimal.NewFromInt(200)) {
 		t.Fatalf("tick volume contract = cumulative:%v delta:%v", tick.Volume, tick.VolumeDelta)
 	}
 
@@ -242,7 +244,7 @@ func TestTickFromTradeProducesBrokerNeutralPushTick(t *testing.T) {
 		Quantity: fixedpointValue(t, "5"),
 		Time:     bbgotypes.Time(at),
 	}, at.Add(time.Second))
-	if withoutCounter == nil || withoutCounter.Volume != 0 || withoutCounter.VolumeDelta != 5 {
+	if withoutCounter == nil || !withoutCounter.Volume.IsZero() || !withoutCounter.VolumeDelta.Equal(decimal.NewFromInt(5)) {
 		t.Fatalf("optional cumulative volume contract = %#v", withoutCounter)
 	}
 }
@@ -354,7 +356,7 @@ func TestTickFromTradeInheritsLatestQuoteFieldsThroughCache(t *testing.T) {
 		LowPrice:           &lowPrice,
 		PreviousClosePrice: &previousClose,
 		LastClosePrice:     &lastClose,
-		Volume:             43210,
+		Volume:             decimal.NewFromInt(43210),
 		Turnover:           decimal.RequireFromString("1234567.8"),
 		QuoteAt:            at.Format(time.RFC3339Nano),
 		ObservedAt:         at.Format(time.RFC3339Nano),
@@ -362,7 +364,7 @@ func TestTickFromTradeInheritsLatestQuoteFieldsThroughCache(t *testing.T) {
 		Session:            "regular",
 	})
 
-	cumulativeVolume := fixedpointValue(t, "43210")
+	cumulativeVolume := decimal.NewFromInt(43210)
 	tick := tickFromTrade(bbgotypes.Trade{
 		Symbol:           "HK.00700",
 		Price:            fixedpointValue(t, "702.3"),
@@ -397,7 +399,7 @@ func TestTickFromTradeInheritsLatestQuoteFieldsThroughCache(t *testing.T) {
 	if stored.LastClosePrice == nil || !stored.LastClosePrice.Equal(lastClose) {
 		t.Fatalf("LastClosePrice = %#v", stored.LastClosePrice)
 	}
-	if !stored.Turnover.Equal(decimal.RequireFromString("1234567.8")) || stored.Volume != 43210 || stored.VolumeDelta != 0 {
+	if !stored.Turnover.Equal(decimal.RequireFromString("1234567.8")) || !stored.Volume.Equal(decimal.NewFromInt(43210)) || !stored.VolumeDelta.IsZero() {
 		t.Fatalf("turnover/volume/delta = %s/%v/%v", stored.Turnover, stored.Volume, stored.VolumeDelta)
 	}
 }
@@ -524,17 +526,19 @@ func TestMarketDataRuntimeExchangeResetAndStreamLifecycle(t *testing.T) {
 	}
 	futuStream = stream.(*pkgfutu.Stream)
 	tradeAt := time.Date(2026, time.June, 23, 9, 31, 0, 0, time.UTC)
-	cumulativeVolume := fixedpointValue(t, "50120")
+	cumulativeVolume := decimal.NewFromInt(50120)
+	volumeDelta := decimal.NewFromInt(120)
 	futuStream.EmitMarketTrade(bbgotypes.Trade{
 		Symbol:           "HK.00700",
 		Price:            fixedpointValue(t, "323.5"),
 		Quantity:         fixedpointValue(t, "120"),
+		VolumeDelta:      &volumeDelta,
 		CumulativeVolume: &cumulativeVolume,
 		Time:             bbgotypes.Time(tradeAt),
 	})
 	select {
 	case tick := <-pushTicks:
-		if tick.InstrumentID != "HK.00700" || tick.Kind != marketdata.TickKindTrade || !tick.Price.Equal(decimal.RequireFromString("323.5")) || tick.Volume != 50120 || tick.VolumeDelta != 120 {
+		if tick.InstrumentID != "HK.00700" || tick.Kind != marketdata.TickKindTrade || !tick.Price.Equal(decimal.RequireFromString("323.5")) || !tick.Volume.Equal(decimal.NewFromInt(50120)) || !tick.VolumeDelta.Equal(decimal.NewFromInt(120)) {
 			t.Fatalf("push tick = %#v", tick)
 		}
 	case <-time.After(time.Second):
@@ -650,7 +654,7 @@ func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {
 	preChangeVal := decimal.RequireFromString("2.3")
 	preChangeRate := decimal.RequireFromString("0.72")
 	preAmplitude := decimal.RequireFromString("1.1")
-	preVolume := 4567.0
+	preVolume := decimal.NewFromInt(4567)
 
 	afterPrice := decimal.RequireFromString("322.4")
 	overnightPrice := decimal.RequireFromString("323.7")
@@ -659,6 +663,7 @@ func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {
 	lowPrice := decimal.RequireFromString("317.8")
 	previousClose := decimal.RequireFromString("316.4")
 	lastClose := decimal.RequireFromString("316.2")
+	volume := decimal.RequireFromString("9007199254740993.25")
 	snapshot := &pkgfutu.QuoteSnapshot{
 		Symbol:             "US.AAPL",
 		Price:              decimal.RequireFromString("321.2"),
@@ -669,7 +674,7 @@ func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {
 		LowPrice:           &lowPrice,
 		PreviousClosePrice: &previousClose,
 		LastClosePrice:     &lastClose,
-		Volume:             6789,
+		Volume:             volume,
 		Turnover:           decimal.RequireFromString("999999.9"),
 		QuoteAt:            quoteAt,
 		Session:            market.SessionAfter,
@@ -710,8 +715,14 @@ func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {
 	if tick.Session != string(market.SessionAfter) {
 		t.Fatalf("tick session = %s", tick.Session)
 	}
+	if !tick.Volume.Equal(volume) {
+		t.Fatalf("tick.Volume = %s, want %s", tick.Volume, volume)
+	}
 	if tick.PreMarket == nil || tick.PreMarket.Price == nil || !tick.PreMarket.Price.Equal(prePrice) {
 		t.Fatalf("tick.PreMarket = %#v", tick.PreMarket)
+	}
+	if tick.PreMarket.Volume == nil || !tick.PreMarket.Volume.Equal(preVolume) {
+		t.Fatalf("tick.PreMarket.Volume = %#v, want %s", tick.PreMarket.Volume, preVolume)
 	}
 	if tick.AfterMarket == nil || tick.AfterMarket.Price == nil || !tick.AfterMarket.Price.Equal(afterPrice) {
 		t.Fatalf("tick.AfterMarket = %#v", tick.AfterMarket)

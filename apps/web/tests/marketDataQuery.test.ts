@@ -109,9 +109,6 @@ function createSecurityDetailsResult(
       highestHistoryPrice: 150,
       lowestHistoryPrice: 50,
       closePrice5Minute: 100.1,
-      highPrecisionVolume: 1000,
-      highPrecisionAskVol: 100,
-      highPrecisionBidVol: 100,
     },
     meta: {
       instrumentId,

@@ -24,7 +24,7 @@ func TestWorkflowSnapshotAndLiveTradeReplayReachBusinessConsumers(t *testing.T) 
 		Price:        decimal.RequireFromString("321.4"),
 		Bid:          decimal.RequireFromString("321.3"),
 		Ask:          decimal.RequireFromString("321.5"),
-		Volume:       12,
+		Volume:       decimal.NewFromInt(12),
 		QuoteAt:      now.Format(time.RFC3339Nano),
 		ObservedAt:   now.Format(time.RFC3339Nano),
 		Source:       "workflow-replay",
@@ -46,7 +46,7 @@ func TestWorkflowSnapshotAndLiveTradeReplayReachBusinessConsumers(t *testing.T) 
 		Kind:         "trade",
 		InstrumentID: "HK.00700",
 		Price:        decimal.RequireFromString("321.4"),
-		Volume:       6,
+		Volume:       decimal.NewFromInt(6),
 		QuoteAt:      now.Format(time.RFC3339Nano),
 		ObservedAt:   now.Format(time.RFC3339Nano),
 	})

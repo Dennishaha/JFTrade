@@ -1,8 +1,9 @@
 package marketdata
 
 import (
-	"math"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 func TickCandles(samples []Tick, from, to time.Time, limit int) []map[string]any {
@@ -20,8 +21,8 @@ func TickCandles(samples []Tick, from, to time.Time, limit int) []map[string]any
 			continue
 		}
 		deltaVolume := sample.VolumeDelta
-		if deltaVolume < 0 || math.IsNaN(deltaVolume) || math.IsInf(deltaVolume, 0) {
-			deltaVolume = 0
+		if deltaVolume.IsNegative() {
+			deltaVolume = decimal.Zero
 		}
 		candles = append(candles, map[string]any{
 			"period":  "tick",
@@ -29,7 +30,7 @@ func TickCandles(samples []Tick, from, to time.Time, limit int) []map[string]any
 			"high":    sample.Price.String(),
 			"low":     sample.Price.String(),
 			"close":   sample.Price.String(),
-			"volume":  deltaVolume,
+			"volume":  deltaVolume.String(),
 			"at":      sample.ObservedAt,
 			"session": sample.Session,
 		})

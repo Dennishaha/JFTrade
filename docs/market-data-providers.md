@@ -2,7 +2,7 @@
 
 JFTrade 的行情查询与交易执行是两个独立边界。运行时内置 Futu OpenD 和 Yahoo Finance（`yfinance`）两种行情 Provider；首页/研究页的“行情提供者”菜单默认使用内置 yfinance，并负责切换到 Futu OpenD。账户、持仓、订单与真实下单仍只走已配置的 Futu OpenD broker。
 
-新安装默认使用 Yahoo Finance（`yfinance`），适合美股、港股和沪深的证券搜索、延迟快照与历史 K 线分析，不应当作实时交易报价。已有明确选择的 `futu` 或 `yfinance` 会保留；旧版 yfinance 连接配置会在加载时清理并回退到 Futu。
+新安装默认使用 Yahoo Finance（`yfinance`），适合美股、港股和沪深的证券搜索、延迟快照与历史 K 线分析，不应当作实时交易报价。已有明确选择的 `futu` 或 `yfinance` 会保留；当前版本只读取统一的 Provider 选择字段，不再读取历史 yfinance 连接配置。
 
 ## 能力对比
 
@@ -10,7 +10,7 @@ JFTrade 的行情查询与交易执行是两个独立边界。运行时内置 Fu
 | --- | --- | --- |
 | 支持市场 | 由 OpenD 权限和 JFTrade 映射决定 | `US`、`HK`、`SH`、`SZ`；前端将 `SH`/`SZ` 聚合为“沪深”，`CN` 必须带 `SH.` 或 `SZ.` 前缀 |
 | 证券搜索与详情 | 支持 | 支持 |
-| 行情快照 | 支持，时效取决于行情权限 | 支持；统一标记为约 15 分钟延迟 |
+| 行情快照 | 支持，时效取决于行情权限 | 支持；交易所数据延迟取决于市场和地区，美股通常约 15 分钟；JFTrade 的活跃行情轮询刷新间隔为 15 秒 |
 | 历史 K 线 | 支持 | 支持 `1m`、`5m`、`15m`、`30m`、`1h`、`1d`、`1w`、`1mo` |
 | 实时推流 | 支持 | 不支持；JFTrade 只按需轮询 |
 | Level 2 盘口 | 取决于权限 | 不支持 |
@@ -56,7 +56,7 @@ helper 的 `/health` 不访问 Yahoo 网络；只有开发者做 standalone smok
 }
 ```
 
-如果检测到旧版顶层 `yfinance` 配置块，加载时会删除该块、强制选择 Futu 并持久化；yfinance 仅作为内置默认 Provider 由运行时管理。`JFTRADE_YFINANCE_SIDECAR` 是开发环境变量，不属于持久化配置。
+yfinance 仅作为内置 Provider 由运行时管理。`JFTRADE_YFINANCE_SIDECAR` 是开发环境变量，不属于持久化配置；当前版本不读取或迁移历史的顶层 `yfinance` 连接配置块。
 
 运行中的实盘策略不会被静默迁移到延迟行情：切换 Provider 或重配当前 yfinance 前必须先停止全部实盘策略。yfinance 激活期间也不能启动实盘策略；回测不受此限制。
 

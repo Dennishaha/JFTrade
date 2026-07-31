@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+
+	"github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
 func number(value string) *json.Number {
@@ -65,6 +67,41 @@ func TestSnapshotConversionUsesPriceFallbacksAndCanonicalTimes(t *testing.T) {
 	tick, err = convertSnapshot(response, expected, testNow)
 	if err != nil || tick.QuoteAt != "" || tick.ObservedAt != response.ObservedAt {
 		t.Fatalf("snapshot without quote time = %#v, err=%v", tick, err)
+	}
+}
+
+func TestVolumeConversionPreservesLargeFractionalDecimalValues(t *testing.T) {
+	const rawVolume = "9007199254740993.25"
+	want := decimal.RequireFromString(rawVolume)
+	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}
+
+	snapshot := validSnapshot()
+	snapshot.Volume = number(rawVolume)
+	snapshot.AfterMarketQuote.Volume = number(rawVolume)
+	tick, err := convertSnapshot(snapshot, expected, testNow)
+	if err != nil {
+		t.Fatalf("convertSnapshot: %v", err)
+	}
+	if !tick.Volume.Equal(want) || tick.AfterMarket == nil ||
+		tick.AfterMarket.Volume == nil || !tick.AfterMarket.Volume.Equal(want) {
+		t.Fatalf("snapshot volume = %s, after-market = %#v", tick.Volume, tick.AfterMarket)
+	}
+	serialized := marketdata.SnapshotJSON(tick)
+	extended := serialized["extended"].(map[string]any)
+	afterMarket := extended["afterMarket"].(map[string]any)
+	if serialized["volume"] != rawVolume || afterMarket["volume"] != rawVolume {
+		t.Fatalf("serialized volume = %#v", serialized)
+	}
+
+	candles := validRemoteCandles()
+	candles.Candles[0].Volume = number(rawVolume)
+	response, err := convertCandles(candles, expected, "1d", 10, testNow)
+	if err != nil {
+		t.Fatalf("convertCandles: %v", err)
+	}
+	converted := response["candles"].([]map[string]any)
+	if converted[0]["volume"] != rawVolume {
+		t.Fatalf("candle volume = %#v, want %s", converted[0]["volume"], rawVolume)
 	}
 }
 

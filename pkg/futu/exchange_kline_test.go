@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
@@ -382,7 +383,7 @@ func TestStreamConnectEmitsBasicQotPushAsBBGOEvents(t *testing.T) {
 		if trade.Symbol != "HK.00700" || trade.Price.Float64() != 700 {
 			t.Fatalf("unexpected market trade: %+v", trade)
 		}
-		if trade.Quantity.Float64() != 0 || trade.CumulativeVolume == nil || trade.CumulativeVolume.Float64() != 1000 {
+		if trade.Quantity.Float64() != 0 || trade.CumulativeVolume == nil || !trade.CumulativeVolume.Equal(decimal.NewFromInt(1000)) {
 			t.Fatalf("unexpected market trade volume contract: %+v", trade)
 		}
 	case <-ctx.Done():

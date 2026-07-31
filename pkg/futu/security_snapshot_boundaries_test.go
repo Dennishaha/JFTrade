@@ -1,6 +1,7 @@
 package futu
 
 import (
+	"math"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -109,7 +110,12 @@ func TestSecurityDetailsFromSnapshotMapsDerivativeAndMarketExtensionData(t *test
 		details.MarketSegment != broker.MarketSegmentDerivatives {
 		t.Fatalf("product identity = %s/%s", details.ProductClass, details.MarketSegment)
 	}
-	if details.AfterMarket == nil || details.AfterMarket.Volume == nil || *details.AfterMarket.Volume != 500 || !details.AfterMarket.Price.Equal(decimal.NewFromFloat(102.0)) {
+	if !details.Volume.Equal(decimal.RequireFromString("1000.5")) ||
+		details.AskVolume == nil || !details.AskVolume.Equal(decimal.RequireFromString("120.5")) ||
+		details.BidVolume == nil || !details.BidVolume.Equal(decimal.RequireFromString("90.5")) {
+		t.Fatalf("resolved volumes = %s/%v/%v", details.Volume, details.AskVolume, details.BidVolume)
+	}
+	if details.AfterMarket == nil || details.AfterMarket.Volume == nil || !details.AfterMarket.Volume.Equal(decimal.NewFromInt(500)) || !details.AfterMarket.Price.Equal(decimal.NewFromFloat(102.0)) {
 		t.Fatalf("after-market quote = %#v", details.AfterMarket)
 	}
 	if details.Warrant == nil || details.Warrant.WarrantType != "Bull" || details.Warrant.Owner.Symbol != "00700" || details.Warrant.InLinePriceStatus != "WithIn" {
@@ -132,6 +138,34 @@ func TestSecurityDetailsFromSnapshotMapsDerivativeAndMarketExtensionData(t *test
 	}
 	if details.Trust == nil || details.Trust.AssetClass != "Bond" || details.Trust.OutstandingUnit != 500000 {
 		t.Fatalf("trust details = %#v", details.Trust)
+	}
+}
+
+func TestSecurityDetailsFromSnapshotPreservesOrdinaryVolumeWhenHighPrecisionIsInvalid(t *testing.T) {
+	largeVolume := int64(9_007_199_254_740_993)
+	ordinaryBidVolume := int64(3800)
+	fractionalAskVolume := 4000.25
+	invalidVolume := math.NaN()
+	negativeBidVolume := -1.5
+
+	details := securityDetailsFromSnapshot(&qotgetsecuritysnapshotpb.Snapshot{
+		Basic: &qotgetsecuritysnapshotpb.SnapshotBasicData{
+			Volume:   &largeVolume,
+			HpVolume: &invalidVolume,
+			HpAskVol: &fractionalAskVolume,
+			BidVol:   &ordinaryBidVolume,
+			HpBidVol: &negativeBidVolume,
+		},
+	}, "US.AAPL")
+
+	if details == nil || details.Volume.String() != "9007199254740993" {
+		t.Fatalf("volume = %#v, want exact int64 fallback", details)
+	}
+	if details.AskVolume == nil || details.AskVolume.String() != "4000.25" {
+		t.Fatalf("ask volume = %v, want high-precision decimal", details.AskVolume)
+	}
+	if details.BidVolume == nil || details.BidVolume.String() != "3800" {
+		t.Fatalf("bid volume = %v, want ordinary int64 fallback", details.BidVolume)
 	}
 }
 

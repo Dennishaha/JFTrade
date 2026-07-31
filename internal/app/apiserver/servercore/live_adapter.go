@@ -2,15 +2,17 @@ package servercore
 
 import (
 	"context"
-	"math"
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/shopspring/decimal"
 
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
+
+var maxLegacyFixedpointVolume = decimal.RequireFromString("92233720368.54775807")
 
 const (
 	liveTickDispatchInterval     = 250 * time.Millisecond
@@ -55,24 +57,33 @@ func (s *serverApplication) handlePushMarketdataTick(tick mdsrv.Tick) {
 }
 
 func marketTradeFromTick(tick mdsrv.Tick) (bbgotypes.Trade, bool) {
-	if tick.Kind != mdsrv.TickKindTrade || tick.VolumeDelta < 0 || math.IsNaN(tick.VolumeDelta) || math.IsInf(tick.VolumeDelta, 0) {
+	if tick.Kind != mdsrv.TickKindTrade || tick.VolumeDelta.IsNegative() {
 		return bbgotypes.Trade{}, false
 	}
 	price, err := fixedpoint.NewFromString(tick.Price.String())
 	if err != nil {
 		return bbgotypes.Trade{}, false
 	}
-	quantity := fixedpoint.NewFromFloat(tick.VolumeDelta)
+	quantity := fixedpoint.Zero
+	if tick.VolumeDelta.Abs().LessThanOrEqual(maxLegacyFixedpointVolume) {
+		if converted, err := fixedpoint.NewFromString(tick.VolumeDelta.String()); err == nil && !converted.IsInf() {
+			quantity = converted
+		}
+	}
 	tradeAt := time.Now().UTC()
 	if parsed := httpTime(tick.QuoteAt); !parsed.IsZero() {
 		tradeAt = parsed
 	}
+	volumeDelta := tick.VolumeDelta
+	cumulativeVolume := tick.Volume
 	return bbgotypes.Trade{
-		Exchange: "futu",
-		Symbol:   tick.InstrumentID,
-		Price:    price,
-		Quantity: quantity,
-		Time:     bbgotypes.Time(tradeAt),
+		Exchange:         "futu",
+		Symbol:           tick.InstrumentID,
+		Price:            price,
+		Quantity:         quantity,
+		VolumeDelta:      &volumeDelta,
+		CumulativeVolume: &cumulativeVolume,
+		Time:             bbgotypes.Time(tradeAt),
 	}, true
 }
 

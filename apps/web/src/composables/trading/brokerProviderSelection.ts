@@ -69,6 +69,7 @@ export interface BrokerProviderOption {
 }
 
 const STORAGE_KEY = "jftrade.market-provider.v1";
+const BUILT_IN_MARKET_DATA_PROVIDER_IDS = new Set(["yfinance"]);
 const selectedBrokerId = ref(
   (readLocalStorage(STORAGE_KEY) ?? "").trim().toLowerCase(),
 );
@@ -508,7 +509,12 @@ function resolveDefaultBrokerProvider(
     descriptors.map((descriptor) => normalizedID(descriptor.id)).filter(Boolean),
   );
   const selected = normalizedID(selectedBrokerId.value);
-  if (selected && available.has(selected)) return selected;
+  if (
+    selected &&
+    (BUILT_IN_MARKET_DATA_PROVIDER_IDS.has(selected) || available.has(selected))
+  ) {
+    return selected;
+  }
   for (const candidate of [
     preferredAccountBrokerId.value,
     serverDefaultBrokerId.value,

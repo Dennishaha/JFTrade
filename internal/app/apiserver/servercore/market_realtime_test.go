@@ -98,13 +98,13 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 			Symbol  string `json:"symbol"`
 			Period  string `json:"period"`
 			Candles []struct {
-				Period string  `json:"period"`
-				Open   string  `json:"open"`
-				High   string  `json:"high"`
-				Low    string  `json:"low"`
-				Close  string  `json:"close"`
-				Volume float64 `json:"volume"`
-				At     string  `json:"at"`
+				Period string `json:"period"`
+				Open   string `json:"open"`
+				High   string `json:"high"`
+				Low    string `json:"low"`
+				Close  string `json:"close"`
+				Volume string `json:"volume"`
+				At     string `json:"at"`
 			} `json:"candles"`
 		} `json:"data"`
 	}
@@ -133,7 +133,7 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 	if envelope.Data.Candles[1].Open != "101" || envelope.Data.Candles[1].High != "106" || envelope.Data.Candles[1].Low != "99" || envelope.Data.Candles[1].Close != "103" {
 		t.Fatalf("unexpected current candle OHLC: %+v", envelope.Data.Candles[1])
 	}
-	if envelope.Data.Candles[1].Volume != 500 {
-		t.Fatalf("current candle volume = %v, want 500", envelope.Data.Candles[1].Volume)
+	if envelope.Data.Candles[1].Volume != "500" {
+		t.Fatalf("current candle volume = %q, want 500", envelope.Data.Candles[1].Volume)
 	}
 }

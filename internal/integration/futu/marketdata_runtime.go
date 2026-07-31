@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -445,13 +446,13 @@ func (r *MarketDataRuntime) QueryTickers(ctx context.Context, instrumentIDs []st
 	if exchange == nil {
 		return nil, fmt.Errorf("futu marketdata runtime unavailable")
 	}
-	tickers, err := exchange.QueryTickers(ctx, instrumentIDs...)
+	snapshots, err := exchange.QueryQuoteSnapshots(ctx, instrumentIDs...)
 	if err != nil {
 		return nil, translateSubscriptionRequiredError(err, "TICK", "")
 	}
-	result := make(map[string]marketdata.Tick, len(tickers))
-	for instrumentID, ticker := range tickers {
-		if tick := tickFromTicker(instrumentID, &ticker, r.now().UTC()); tick != nil {
+	result := make(map[string]marketdata.Tick, len(snapshots))
+	for instrumentID, snapshot := range snapshots {
+		if tick := tickFromSnapshot(instrumentID, &snapshot, r.now().UTC()); tick != nil {
 			result[instrumentID] = *tick
 		}
 	}
@@ -550,11 +551,15 @@ func tickFromTicker(instrumentID string, ticker *bbgotypes.Ticker, observedAt ti
 		quoteAt = ticker.Time.UTC()
 	}
 	session := market.ClassifySession(instrumentID, observedAt)
+	volume := decimalFromFixedpoint(ticker.Volume)
+	if volume.IsNegative() {
+		volume = decimal.Zero
+	}
 	return &marketdata.Tick{
 		InstrumentID: instrumentID, Market: resolvedMarket, Symbol: symbol,
 		Price: price, Bid: bid, Ask: ask,
 		OpenPrice: optionalDecimal(ticker.Open), HighPrice: optionalDecimal(ticker.High), LowPrice: optionalDecimal(ticker.Low),
-		Volume: ticker.Volume.Float64(), QuoteAt: quoteAt.UTC().Format(time.RFC3339Nano),
+		Volume: volume, QuoteAt: quoteAt.UTC().Format(time.RFC3339Nano),
 		ObservedAt: observedAt.UTC().Format(time.RFC3339Nano), Source: "bbgo:futu",
 		Session: string(session), ExtendedHours: market.IsExtendedSession(session), Kind: marketdata.TickKindQuote,
 	}
@@ -570,15 +575,25 @@ func tickFromTrade(trade bbgotypes.Trade, observedAt time.Time) *marketdata.Tick
 	if !trade.Time.Time().IsZero() {
 		quoteAt = trade.Time.Time().UTC()
 	}
-	cumulativeVolume := 0.0
+	cumulativeVolume := decimal.Zero
 	if trade.CumulativeVolume != nil {
-		cumulativeVolume = trade.CumulativeVolume.Float64()
+		cumulativeVolume = *trade.CumulativeVolume
+		if cumulativeVolume.IsNegative() {
+			cumulativeVolume = decimal.Zero
+		}
+	}
+	volumeDelta := decimalFromFixedpoint(trade.Quantity)
+	if trade.VolumeDelta != nil {
+		volumeDelta = *trade.VolumeDelta
+	}
+	if volumeDelta.IsNegative() {
+		volumeDelta = decimal.Zero
 	}
 	session := market.ClassifySession(instrumentID, observedAt)
 	return &marketdata.Tick{
 		InstrumentID: instrumentID, Market: resolvedMarket, Symbol: symbol,
 		Price: price, Bid: price, Ask: price,
-		Volume: cumulativeVolume, VolumeDelta: trade.Quantity.Float64(),
+		Volume: cumulativeVolume, VolumeDelta: volumeDelta,
 		QuoteAt: quoteAt.UTC().Format(time.RFC3339Nano), ObservedAt: observedAt.UTC().Format(time.RFC3339Nano),
 		Source: "bbgo:futu:stream", Session: string(session),
 		ExtendedHours: market.IsExtendedSession(session), Kind: marketdata.TickKindTrade,
@@ -605,6 +620,17 @@ func tickFromSnapshot(instrumentID string, snapshot *pkgfutu.QuoteSnapshot, obse
 		PreMarket: extendedQuote(snapshot.PreMarket), AfterMarket: extendedQuote(snapshot.AfterMarket),
 		Overnight: extendedQuote(snapshot.Overnight), Kind: marketdata.TickKindQuote,
 	}
+}
+
+func decimalFromFixedpoint(value fixedpoint.Value) decimal.Decimal {
+	if value.IsInf() {
+		return decimal.Zero
+	}
+	parsed, err := decimal.NewFromString(value.String())
+	if err != nil {
+		return decimal.Zero
+	}
+	return parsed
 }
 
 func optionalDecimal(value interface {

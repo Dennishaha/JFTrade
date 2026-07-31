@@ -222,7 +222,7 @@ func convertSnapshot(
 
 type snapshotValues struct {
 	price, bid, ask          decimal.Decimal
-	volume                   float64
+	volume                   decimal.Decimal
 	turnover                 decimal.Decimal
 	quoteAt, observedAt      string
 	source, session          string
@@ -247,7 +247,7 @@ func parseSnapshotValues(response remoteSnapshot, fallbackObservedAt time.Time) 
 	if err != nil {
 		return snapshotValues{}, err
 	}
-	volume, err := nonNegativeFloat("volume", response.Volume)
+	volume, err := nonNegativeDecimal("volume", response.Volume)
 	if err != nil {
 		return snapshotValues{}, err
 	}
@@ -333,7 +333,7 @@ func convertSnapshotQuote(field string, quote *remoteSnapshotQuote) (*marketdata
 	if err != nil {
 		return nil, err
 	}
-	volume, err := nonNegativeFloat(field+".volume", quote.Volume)
+	volume, err := optionalNonNegativeDecimal(field+".volume", quote.Volume)
 	if err != nil {
 		return nil, err
 	}
@@ -357,7 +357,7 @@ func convertSnapshotQuote(field string, quote *remoteSnapshotQuote) (*marketdata
 		}
 	}
 	return &marketdata.ExtendedQuote{
-		Price: price, HighPrice: high, LowPrice: low, Volume: floatPointer(volume),
+		Price: price, HighPrice: high, LowPrice: low, Volume: volume,
 		Turnover: turnover, ChangeVal: changeValue, ChangeRate: changeRate, QuoteTime: quoteAt,
 	}, nil
 }
@@ -417,11 +417,11 @@ func convertCandle(candle remoteCandle, period string) (map[string]any, error) {
 		}
 		result[name] = converted.String()
 	}
-	volume, err := nonNegativeFloat("volume", candle.Volume)
+	volume, err := nonNegativeDecimal("volume", candle.Volume)
 	if err != nil {
 		return nil, err
 	}
-	result["volume"] = volume
+	result["volume"] = volume.String()
 	session, err := normalizeSession(candle.Session)
 	if err != nil {
 		return nil, err
@@ -490,13 +490,6 @@ func optionalSignedDecimal(field string, value *json.Number) (*decimal.Decimal, 
 		return nil, fmt.Errorf("%w: %s must be a decimal", ErrInvalidResponse, field)
 	}
 	return &parsed, nil
-}
-
-func floatPointer(value float64) *float64 {
-	if value == 0 {
-		return nil
-	}
-	return &value
 }
 
 func nonNegativeDecimal(field string, value *json.Number) (decimal.Decimal, error) {

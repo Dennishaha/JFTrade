@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 type pollOnlyProviderStub struct {
@@ -102,9 +104,9 @@ func TestPollOnlyProviderHealthUsesPollingModes(t *testing.T) {
 }
 
 func TestProviderSwitchCacheUtilitiesCoverConcreteValuesAndCNRejection(t *testing.T) {
-	left := 12.5
-	right := 12.5
-	if !floatPointerEqual(&left, &right) {
+	left := decimal.RequireFromString("12.5")
+	right := decimal.RequireFromString("12.5")
+	if !decimalPointerEqual(&left, &right) {
 		t.Fatal("equal concrete quote volumes compared unequal")
 	}
 	if market, symbol := normalizeCNAggregateRead("CN", "600519"); market != "CN" || symbol != "600519" {

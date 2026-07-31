@@ -3,7 +3,6 @@ package marketdata
 import (
 	"context"
 	"errors"
-	"math"
 	"testing"
 	"time"
 
@@ -54,7 +53,7 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	trade := tickAt("US.AAPL", "101", 0, now.Add(time.Second))
 	trade.Kind = TickKindTrade
 	trade.Source = "bbgo:futu:stream"
-	trade.VolumeDelta = 25
+	trade.VolumeDelta = decimal.NewFromInt(25)
 	trade.Bid = trade.Price
 	trade.Ask = trade.Price
 	trade.Session = "unknown"
@@ -63,7 +62,7 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 		t.Fatal("expected trade sample")
 		return
 	}
-	if stored.Bid.String() != "100" || stored.Ask.String() != "100" || stored.Volume != 0 || stored.VolumeDelta != 25 {
+	if stored.Bid.String() != "100" || stored.Ask.String() != "100" || !stored.Volume.IsZero() || !stored.VolumeDelta.Equal(decimal.NewFromInt(25)) {
 		t.Fatalf("trade book/volume contract = %#v", stored)
 	}
 	if stored.PreviousClosePrice == nil || stored.PreviousClosePrice.String() != "99" || stored.PreMarket == nil {
@@ -83,7 +82,7 @@ func TestCacheFreshnessRetentionAndMaximum(t *testing.T) {
 
 	cache.Seed(tickAt("HK.00700", "99", 1, now.Add(-31*time.Minute)))
 	for index, price := range []string{"100", "101", "102", "103"} {
-		cache.Store(tickAt("HK.00700", price, float64(index+2), now.Add(time.Duration(index)*time.Second)))
+		cache.Store(tickAt("HK.00700", price, int64(index+2), now.Add(time.Duration(index)*time.Second)))
 	}
 	samples := cache.Snapshot("HK.00700")
 	if len(samples) != 3 || samples[0].Price.String() != "101" || samples[2].Price.String() != "103" {
@@ -131,7 +130,7 @@ func TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays(t *testing.T) {
 	if stored.PreMarket != nil || stored.AfterMarket != nil || stored.Overnight != nil {
 		t.Fatalf("extended quote inheritance should stop at holiday boundary: %#v", stored)
 	}
-	if !stored.Bid.IsZero() || !stored.Ask.IsZero() || stored.Volume != 0 {
+	if !stored.Bid.IsZero() || !stored.Ask.IsZero() || !stored.Volume.IsZero() {
 		t.Fatalf("trade book and volume must not leak across trading days: %#v", stored)
 	}
 }
@@ -216,10 +215,10 @@ func TestTickCandlesVolumeWindowAndLimit(t *testing.T) {
 		tickAt("HK.00700", "102.30", 120, now.Add(-time.Minute)),
 		tickAt("HK.00700", "103.40", 170, now),
 	}
-	samples[0].VolumeDelta = 100
-	samples[1].VolumeDelta = 50
-	samples[2].VolumeDelta = 0
-	samples[3].VolumeDelta = math.NaN()
+	samples[0].VolumeDelta = decimal.NewFromInt(100)
+	samples[1].VolumeDelta = decimal.NewFromInt(50)
+	samples[2].VolumeDelta = decimal.Zero
+	samples[3].VolumeDelta = decimal.NewFromInt(-1)
 	unlimited := TickCandles(samples, time.Time{}, now, 0)
 	if len(unlimited) != 3 {
 		t.Fatalf("default 15 minute window returned %d candles", len(unlimited))
@@ -228,10 +227,10 @@ func TestTickCandlesVolumeWindowAndLimit(t *testing.T) {
 	if len(candles) != 2 {
 		t.Fatalf("len(candles) = %d", len(candles))
 	}
-	if candles[0]["open"] != "102.3" || candles[0]["volume"] != float64(0) {
+	if candles[0]["open"] != "102.3" || candles[0]["volume"] != "0" {
 		t.Fatalf("negative delta candle = %#v", candles[0])
 	}
-	if candles[1]["open"] != "103.4" || candles[1]["volume"] != float64(0) {
+	if candles[1]["open"] != "103.4" || candles[1]["volume"] != "0" {
 		t.Fatalf("latest candle = %#v", candles[1])
 	}
 	if candles[0]["session"] != "regular" {
@@ -250,11 +249,11 @@ func TestTickCandlesUsesExplicitVolumeDeltaAcrossTradingDays(t *testing.T) {
 		tickAt("HK.00700", "100", 10_000, previousDay),
 		tickAt("HK.00700", "101", 250, currentDay),
 	}
-	samples[0].VolumeDelta = 12
-	samples[1].VolumeDelta = 7
+	samples[0].VolumeDelta = decimal.NewFromInt(12)
+	samples[1].VolumeDelta = decimal.NewFromInt(7)
 
 	candles := TickCandles(samples, previousDay.Add(-time.Second), currentDay.Add(time.Second), 0)
-	if len(candles) != 2 || candles[0]["volume"] != float64(12) || candles[1]["volume"] != float64(7) {
+	if len(candles) != 2 || candles[0]["volume"] != "12" || candles[1]["volume"] != "7" {
 		t.Fatalf("cross-day tick candles = %#v, want explicit deltas 12/7", candles)
 	}
 }
@@ -262,14 +261,14 @@ func TestTickCandlesUsesExplicitVolumeDeltaAcrossTradingDays(t *testing.T) {
 func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 	now := time.Date(2026, time.June, 14, 10, 0, 0, 0, time.UTC)
 	sample := tickAt("US.AAPL", "100.25", 12, now)
-	sample.VolumeDelta = 3
+	sample.VolumeDelta = decimal.NewFromInt(3)
 	sample.AfterMarket = &ExtendedQuote{
 		Price:     new(decimal.RequireFromString("101.75")),
 		QuoteTime: now.Format(time.RFC3339Nano),
 	}
 
 	snapshot := SnapshotJSON(&sample)
-	if snapshot["price"] != "100.25" || snapshot["openPrice"] != nil || snapshot["volume"] != float64(12) {
+	if snapshot["price"] != "100.25" || snapshot["openPrice"] != nil || snapshot["volume"] != "12" {
 		t.Fatalf("snapshot prices = %#v", snapshot)
 	}
 	extended := jftradeCheckedTypeAssertion[map[string]any](snapshot["extended"])
@@ -287,7 +286,7 @@ func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 	if event["at"] != jftradeCheckedTypeAssertion[map[string]any](event["snapshot"])["observedAt"] {
 		t.Fatalf("observedAt override = %#v", event)
 	}
-	if event["cumulativeVolume"] != float64(12) || event["volumeDelta"] != float64(3) {
+	if event["cumulativeVolume"] != "12" || event["volumeDelta"] != "3" {
 		t.Fatalf("live event volume contract = %#v", event)
 	}
 }
@@ -343,7 +342,7 @@ func TestServiceTickCandleFallsBackToRetainedCache(t *testing.T) {
 	}
 }
 
-func tickAt(instrumentID, price string, volume float64, observedAt time.Time) Tick {
+func tickAt(instrumentID, price string, volume int64, observedAt time.Time) Tick {
 	normalized, market, symbol, _ := NormalizeInstrumentID(instrumentID)
 	value := decimal.RequireFromString(price)
 	return Tick{
@@ -353,7 +352,7 @@ func tickAt(instrumentID, price string, volume float64, observedAt time.Time) Ti
 		Price:        value,
 		Bid:          value,
 		Ask:          value,
-		Volume:       volume,
+		Volume:       decimal.NewFromInt(volume),
 		QuoteAt:      observedAt.Format(time.RFC3339Nano),
 		ObservedAt:   observedAt.Format(time.RFC3339Nano),
 		Source:       "bbgo:futu",

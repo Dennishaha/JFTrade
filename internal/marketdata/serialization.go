@@ -19,7 +19,7 @@ func SnapshotJSON(sample *Tick) map[string]any {
 		"lowPrice":           optionalPriceString(sample.LowPrice),
 		"previousClosePrice": optionalPriceString(sample.PreviousClosePrice),
 		"lastClosePrice":     optionalPriceString(sample.LastClosePrice),
-		"volume":             sample.Volume,
+		"volume":             sample.Volume.String(),
 		"turnover":           sample.Turnover.String(),
 		"at":                 sample.QuoteAt,
 		"observedAt":         sample.ObservedAt,
@@ -69,9 +69,9 @@ func LatestTicksJSON(samples []*Tick) TicksResponse {
 			"price":            sample.Price.String(),
 			"bid":              sample.Bid.String(),
 			"ask":              sample.Ask.String(),
-			"volume":           sample.Volume,
-			"cumulativeVolume": sample.Volume,
-			"volumeDelta":      sample.VolumeDelta,
+			"volume":           sample.Volume.String(),
+			"cumulativeVolume": sample.Volume.String(),
+			"volumeDelta":      sample.VolumeDelta.String(),
 			"observedAt":       sample.ObservedAt,
 			"session":          sample.Session,
 			"extendedHours":    sample.ExtendedHours,
@@ -95,11 +95,18 @@ func extendedQuoteJSON(quote *ExtendedQuote) any {
 		"price":      optionalPriceString(quote.Price),
 		"highPrice":  optionalPriceString(quote.HighPrice),
 		"lowPrice":   optionalPriceString(quote.LowPrice),
-		"volume":     quote.Volume,
+		"volume":     optionalDecimalString(quote.Volume),
 		"turnover":   optionalPriceString(quote.Turnover),
 		"changeVal":  optionalPriceString(quote.ChangeVal),
 		"changeRate": optionalPriceString(quote.ChangeRate),
 		"amplitude":  optionalPriceString(quote.Amplitude),
 		"quoteTime":  strings.TrimSpace(quote.QuoteTime),
 	}
+}
+
+func optionalDecimalString(value *decimal.Decimal) any {
+	if value == nil {
+		return nil
+	}
+	return value.String()
 }

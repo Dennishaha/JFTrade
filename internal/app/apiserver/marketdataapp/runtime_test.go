@@ -80,6 +80,34 @@ func TestRuntimeSwitchesStableDataPlaneBetweenFutuAndYFinance(t *testing.T) {
 	}
 }
 
+func TestRuntimeCommitsFutuWhenSidecarCleanupNeedsRetry(t *testing.T) {
+	stopErr := errors.New("sidecar cleanup pending")
+	runtime, err := NewRuntime(RuntimeOptions{FutuProvider: &providerStub{id: "futu-opend"}})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	sidecar := &sidecarLifecycleStub{}
+	installHealthySidecar(runtime, sidecar)
+	runtime.healthCheck = func(context.Context, marketdata.Provider) error { return nil }
+
+	if err := runtime.Activate(t.Context(), Activation{ProviderID: ProviderYFinance}); err != nil {
+		t.Fatalf("Activate(yfinance): %v", err)
+	}
+	sidecar.stopErr = stopErr
+	if err := runtime.Activate(t.Context(), Activation{ProviderID: ProviderFutu}); err != nil {
+		t.Fatalf("Activate(futu) should tolerate deferred cleanup: %v", err)
+	}
+	if runtime.ActiveProviderID() != ProviderFutu {
+		t.Fatalf("provider after deferred cleanup = %q, want futu", runtime.ActiveProviderID())
+	}
+
+	// A later close can retry the retained sidecar cleanup state.
+	sidecar.stopErr = nil
+	if err := runtime.Close(); err != nil {
+		t.Fatalf("Runtime.Close retry: %v", err)
+	}
+}
+
 func TestRuntimeRejectsInvalidActivationAndRollsBackSidecar(t *testing.T) {
 	releaseErr := errors.New("release failed")
 	reconciler := &subscriptionReconcilerStub{err: releaseErr}
@@ -172,6 +200,39 @@ func TestRuntimeReportsFutuActivationAndRollbackReleaseFailures(t *testing.T) {
 	}
 	if sidecar.ensureCalls != 1 || sidecar.stopCalls != 0 || !sidecar.running {
 		t.Fatalf("failed Futu activation sidecar state = ensure %d stop %d running %v", sidecar.ensureCalls, sidecar.stopCalls, sidecar.running)
+	}
+}
+
+func TestRuntimeRestoresPreviousSubscriptionsAfterActivationFailure(t *testing.T) {
+	previousSubscriptions := &subscriptionReconcilerStub{}
+	activationErr := errors.New("new provider rejected subscriptions")
+	nextSubscriptions := &subscriptionReconcilerStub{err: activationErr}
+	runtime, err := NewRuntime(RuntimeOptions{FutuProvider: &providerStub{id: "futu"}})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	runtime.active = runtimeState{
+		providerID:    "old-provider",
+		provider:      &providerStub{id: "old-provider"},
+		subscriptions: previousSubscriptions,
+	}
+	runtime.futu = runtimeState{
+		providerID:    ProviderFutu,
+		provider:      &providerStub{id: "futu"},
+		subscriptions: nextSubscriptions,
+	}
+	desired := []marketdata.InstrumentRef{{Channel: "SNAPSHOT", Market: "US", Symbol: "AAPL"}}
+
+	err = runtime.Activate(t.Context(), Activation{ProviderID: ProviderFutu, DesiredSubscriptions: desired})
+	if !errors.Is(err, activationErr) {
+		t.Fatalf("activation error = %v, want %v", err, activationErr)
+	}
+	if runtime.ActiveProviderID() != "old-provider" {
+		t.Fatalf("failed activation exposed provider %q", runtime.ActiveProviderID())
+	}
+	if previousSubscriptions.reconcileCalls != 2 || len(previousSubscriptions.desired) != 1 ||
+		previousSubscriptions.desired[0] != desired[0] {
+		t.Fatalf("previous subscriptions were not restored: calls=%d desired=%#v", previousSubscriptions.reconcileCalls, previousSubscriptions.desired)
 	}
 }
 

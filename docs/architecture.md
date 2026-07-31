@@ -149,7 +149,7 @@ apps/web
 
 `/api/v1/system/status` 现在同时返回基础状态和轻量观测摘要，包括 API uptime、实时连接统计、行情 collector 状态、broker descriptor 与 strategy runtime summary。
 
-新安装且没有明确选择时，`activeMarketDataProvider` 默认为 `yfinance`；已有明确的 `futu` 或 `yfinance` 选择继续保留。加载旧 `settings.json` 时如果发现历史 yfinance 连接配置块，会删除该块、选择并持久化 `futu`，不再依赖外部 helper。显式切换失败返回冲突错误并保持原 Provider；启动恢复时 helper 缺失、启动或健康探测失败则回退并持久化 `futu`，确保配置与运行态一致。
+新安装且没有明确选择时，`activeMarketDataProvider` 默认为 `yfinance`；明确的 `futu` 或 `yfinance` 选择会继续保留。当前版本不读取或迁移历史 yfinance 连接配置块。显式切换失败返回冲突错误并保持原 Provider；启动恢复时 helper 缺失、启动或健康探测失败则回退并持久化 `futu`，确保配置与运行态一致。
 
 ### 策略设计与运行控制
 
@@ -191,7 +191,7 @@ apps/web
      -> internal/integration/yfinance -> embedded PyInstaller helper (dynamic loopback) -> Yahoo Finance
 ```
 
-K 线的 bucket 归一、未收盘桶补齐、tick 驱动实时叠加详见 [frontend-kline.md](frontend-kline.md)。yfinance 当前只承诺 `US`，快照按约 15 分钟延迟数据处理，不支持实时推流和 Level 2；这些差异通过 Provider descriptor 暴露，而不是由前端猜测。
+K 线的 bucket 归一、未收盘桶补齐、tick 驱动实时叠加详见 [frontend-kline.md](frontend-kline.md)。yfinance 当前承诺 `US`、`HK`、`SH`、`SZ`；上游数据延迟取决于市场和地区，美股通常约 15 分钟，而应用轮询刷新间隔为 15 秒。它不支持实时推流和 Level 2；这些差异通过 Provider descriptor 暴露，而不是由前端猜测。
 
 ### 自选与券商导入
 

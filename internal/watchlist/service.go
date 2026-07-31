@@ -467,12 +467,6 @@ func (s *Service) BatchQuotes(ctx context.Context, instrumentIDs []string) (Batc
 	if s == nil {
 		return BatchQuotes{}, ErrUnavailable
 	}
-	s.mu.RLock()
-	source := s.quoteSource
-	s.mu.RUnlock()
-	if source == nil {
-		return BatchQuotes{}, ErrUnavailable
-	}
 	if len(instrumentIDs) == 0 || len(instrumentIDs) > MaxPageLimit {
 		return BatchQuotes{}, fmt.Errorf("%w: instrumentIds must contain 1-%d items", ErrValidation, MaxPageLimit)
 	}
@@ -489,7 +483,10 @@ func (s *Service) BatchQuotes(ctx context.Context, instrumentIDs []string) (Batc
 		seen[instrumentID] = struct{}{}
 		normalized = append(normalized, instrumentID)
 	}
-	owned, waitFor, generation := s.reserveQuoteFlights(normalized)
+	source, owned, waitFor, generation := s.reserveQuoteFlightsWithSource(normalized)
+	if source == nil {
+		return BatchQuotes{}, ErrUnavailable
+	}
 	if len(owned) > 0 {
 		quotes, itemErrors, err := source.BatchSnapshots(ctx, owned)
 		s.completeQuoteFlights(ctx, generation, owned, quotes, itemErrors, err, s.quoteCacheTTL(source))
@@ -536,8 +533,16 @@ func (s *Service) updateInstrumentMetadata(ctx context.Context, quotes []Quote) 
 }
 
 func (s *Service) reserveQuoteFlights(instrumentIDs []string) ([]string, []*quoteFlight, uint64) {
+	_, owned, waitFor, generation := s.reserveQuoteFlightsWithSource(instrumentIDs)
+	return owned, waitFor, generation
+}
+
+func (s *Service) reserveQuoteFlightsWithSource(instrumentIDs []string) (BatchSnapshotSource, []string, []*quoteFlight, uint64) {
 	s.quoteMu.Lock()
 	defer s.quoteMu.Unlock()
+	s.mu.RLock()
+	source := s.quoteSource
+	s.mu.RUnlock()
 	now := s.now()
 	owned := make([]string, 0, len(instrumentIDs))
 	waitFor := make([]*quoteFlight, 0)
@@ -558,7 +563,7 @@ func (s *Service) reserveQuoteFlights(instrumentIDs []string) ([]string, []*quot
 		s.quoteFlight[instrumentID] = flight
 		owned = append(owned, instrumentID)
 	}
-	return owned, waitFor, s.quoteGeneration
+	return source, owned, waitFor, s.quoteGeneration
 }
 
 func (s *Service) completeQuoteFlights(

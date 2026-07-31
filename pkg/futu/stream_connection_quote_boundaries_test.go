@@ -3,7 +3,6 @@ package futu
 import (
 	"context"
 	"errors"
-	"math"
 	"testing"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	qotupdatebasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdatebasicqot"
 	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
 	"github.com/jftrade/jftrade-main/pkg/market"
+	"github.com/shopspring/decimal"
 )
 
 func TestStreamCloseCancelsAndJoinsOwnedWorkers(t *testing.T) {
@@ -147,27 +147,41 @@ func TestStreamConvertsCumulativeQuoteVolumeToIncrementalTradeQuantity(t *testin
 		t.Fatalf("load Hong Kong timezone: %v", err)
 	}
 	first := time.Date(2026, time.July, 20, 10, 0, 0, 0, hk)
-	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first, 1_000); got != 0 {
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first, decimal.NewFromInt(1_000)); !got.IsZero() {
 		t.Fatalf("first cumulative sample quantity = %v, want baseline 0", got)
 	}
-	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(time.Second), 1_015); got != 15 {
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(time.Second), decimal.NewFromInt(1_015)); !got.Equal(decimal.NewFromInt(15)) {
 		t.Fatalf("incremental quantity = %v, want 15", got)
 	}
-	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(2*time.Second), 1_010); got != 0 {
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(2*time.Second), decimal.NewFromInt(1_010)); !got.IsZero() {
 		t.Fatalf("decreasing cumulative quantity = %v, want 0", got)
 	}
-	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(3*time.Second), math.NaN()); got != 0 {
-		t.Fatalf("NaN cumulative quantity = %v, want 0", got)
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(3*time.Second), decimal.NewFromInt(-1)); !got.IsZero() {
+		t.Fatalf("negative cumulative quantity = %v, want 0", got)
 	}
-	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(4*time.Second), math.Inf(1)); got != 0 {
-		t.Fatalf("infinite cumulative quantity = %v, want 0", got)
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(4*time.Second), decimal.NewFromInt(-1)); !got.IsZero() {
+		t.Fatalf("repeated negative cumulative quantity = %v, want 0", got)
 	}
-	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(5*time.Second), 1_020); got != 10 {
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(5*time.Second), decimal.NewFromInt(1_020)); !got.Equal(decimal.NewFromInt(10)) {
 		t.Fatalf("valid quantity after invalid samples = %v, want 10", got)
 	}
 	nextDay := first.AddDate(0, 0, 1)
-	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, nextDay, 25); got != 0 {
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, nextDay, decimal.NewFromInt(25)); !got.IsZero() {
 		t.Fatalf("new trading-day baseline quantity = %v, want 0", got)
+	}
+}
+
+func TestStreamPreservesFractionalCumulativeVolumeDelta(t *testing.T) {
+	stream := NewStream(NewExchange(""))
+	at := time.Date(2026, time.July, 20, 10, 0, 0, 0, time.UTC)
+	first := decimal.RequireFromString("1000.5")
+	second := decimal.RequireFromString("1000.75")
+
+	if got := stream.nextTradeQuantity("US.AAPL", market.SessionRegular, at, first); !got.IsZero() {
+		t.Fatalf("first fractional cumulative sample quantity = %s, want baseline 0", got)
+	}
+	if got := stream.nextTradeQuantity("US.AAPL", market.SessionRegular, at.Add(time.Second), second); !got.Equal(decimal.RequireFromString("0.25")) {
+		t.Fatalf("fractional cumulative volume delta = %s, want 0.25", got)
 	}
 }
 
@@ -188,27 +202,53 @@ func TestStreamMarketTradeCarriesDeltaAndCumulativeVolume(t *testing.T) {
 	if len(trades) != 2 {
 		t.Fatalf("market trades = %#v, want 2 events", trades)
 	}
-	if trades[0].Quantity.Float64() != 0 || trades[0].CumulativeVolume == nil || trades[0].CumulativeVolume.Float64() != 1_000 {
+	if trades[0].Quantity.Float64() != 0 || trades[0].VolumeDelta == nil || !trades[0].VolumeDelta.IsZero() ||
+		trades[0].CumulativeVolume == nil || !trades[0].CumulativeVolume.Equal(decimal.NewFromInt(1_000)) {
 		t.Fatalf("first market trade volume contract = %#v", trades[0])
 	}
-	if trades[1].Quantity.Float64() != 15 || trades[1].CumulativeVolume == nil || trades[1].CumulativeVolume.Float64() != 1_015 {
+	if trades[1].Quantity.Float64() != 15 || trades[1].VolumeDelta == nil || !trades[1].VolumeDelta.Equal(decimal.NewFromInt(15)) ||
+		trades[1].CumulativeVolume == nil || !trades[1].CumulativeVolume.Equal(decimal.NewFromInt(1_015)) {
 		t.Fatalf("second market trade volume contract = %#v", trades[1])
 	}
 }
 
-func TestStreamRejectsNonFiniteSnapshotVolume(t *testing.T) {
+func TestStreamMarketTradePreservesVolumeBeyondLegacyFixedpointRange(t *testing.T) {
+	stream := NewStream(NewExchange(""))
+	trades := make([]types.Trade, 0, 2)
+	stream.OnMarketTrade(func(trade types.Trade) { trades = append(trades, trade) })
+
+	security := testHKSecurity("00700")
+	first := basicQotListForSecurities([]*qotcommonpb.Security{security})[0]
+	first.Volume = new(int64(9_007_199_254_740_993))
+	stream.emitBasicQot(first)
+	second := proto.Clone(first).(*qotcommonpb.BasicQot)
+	second.Volume = new(int64(9_007_199_254_740_995))
+	stream.emitBasicQot(second)
+
+	if len(trades) != 2 || trades[1].CumulativeVolume == nil || trades[1].VolumeDelta == nil {
+		t.Fatalf("market trades = %#v", trades)
+	}
+	if trades[1].CumulativeVolume.String() != "9007199254740995" || trades[1].VolumeDelta.String() != "2" {
+		t.Fatalf("decimal volume contract = cumulative:%s delta:%s", trades[1].CumulativeVolume, trades[1].VolumeDelta)
+	}
+	if trades[1].Quantity.Float64() != 2 {
+		t.Fatalf("legacy fixedpoint quantity = %s, want representable delta 2", trades[1].Quantity)
+	}
+}
+
+func TestStreamRejectsNegativeSnapshotVolume(t *testing.T) {
 	stream := NewStream(NewExchange(""))
 	trades := 0
 	stream.OnMarketTrade(func(types.Trade) { trades++ })
 	basic := basicQotListForSecurities([]*qotcommonpb.Security{testHKSecurity("00700")})[0]
 	stream.emitBasicQotSnapshot(basic, "HK.00700", &QuoteSnapshot{
 		Symbol:  "HK.00700",
-		Volume:  math.NaN(),
+		Volume:  decimal.NewFromInt(-1),
 		QuoteAt: time.Now(),
 		Session: market.SessionRegular,
 	})
 	if trades != 0 {
-		t.Fatalf("market trades = %d, want none for non-finite cumulative volume", trades)
+		t.Fatalf("market trades = %d, want none for negative cumulative volume", trades)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -21,8 +22,9 @@ const (
 
 	// A frozen PyInstaller binary can spend tens of seconds unpacking its
 	// bundled Python runtime on the first launch, especially on macOS.
-	providerActivationTimeout = 45 * time.Second
-	providerHealthRetryDelay  = 100 * time.Millisecond
+	providerActivationTimeout   = 45 * time.Second
+	providerHealthRetryDelay    = 100 * time.Millisecond
+	providerHealthMaxRetryDelay = time.Second
 )
 
 var (
@@ -41,7 +43,7 @@ type RuntimeOptions struct {
 
 // Activation describes one desired provider selection.
 type Activation struct {
-	ProviderID           string
+	ProviderID string
 	// YFinanceEndpoint is reserved for in-process contract tests. Production
 	// callers leave it empty so the embedded helper owns the endpoint.
 	YFinanceEndpoint     string
@@ -152,21 +154,42 @@ func (r *Runtime) Activate(ctx context.Context, activation Activation) error {
 			next,
 			activation.DesiredSubscriptions,
 		); err != nil {
+			err = errors.Join(err, r.restorePreviousSubscriptions(previous, activation.DesiredSubscriptions))
 			return r.rollbackPreparedSidecar(previous, next.providerID, err)
 		}
 	}
 	if next.providerID == ProviderFutu {
 		if err := r.sidecar.Stop(); err != nil {
-			rollbackErr := error(nil)
-			if previous.providerID != next.providerID && next.subscriptions != nil {
-				rollbackErr = releaseProviderSubscriptions(activationCtx, next.subscriptions)
-			}
-			return errors.Join(fmt.Errorf("stop yfinance sidecar: %w", err), rollbackErr)
+			// Futu is already prepared and does not depend on the sidecar. Keep
+			// the provider switch committed while retaining the sidecar state for
+			// Runtime.Close or a later retry to finish cleanup.
+			log.Printf("JFTrade yfinance sidecar cleanup deferred after switching to Futu: %v", err)
 		}
 	}
 	r.mu.Lock()
 	r.active = next
 	r.mu.Unlock()
+	return nil
+}
+
+func (r *Runtime) restorePreviousSubscriptions(
+	previous runtimeState,
+	desired []marketdata.InstrumentRef,
+) error {
+	if previous.subscriptions == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		providerActivationTimeout,
+	)
+	defer cancel()
+	if err := previous.subscriptions.ReconcileSubscriptions(
+		ctx,
+		append([]marketdata.InstrumentRef(nil), desired...),
+	); err != nil {
+		return fmt.Errorf("restore %s market-data subscriptions: %w", previous.providerID, err)
+	}
 	return nil
 }
 
@@ -246,6 +269,7 @@ func waitForProviderHealth(ctx context.Context, provider marketdata.Provider) er
 	probeCtx, cancel := context.WithTimeout(ctx, providerActivationTimeout)
 	defer cancel()
 	var lastErr error
+	retryDelay := providerHealthRetryDelay
 	for {
 		health, err := provider.Health(probeCtx)
 		switch {
@@ -256,7 +280,7 @@ func waitForProviderHealth(ctx context.Context, provider marketdata.Provider) er
 		default:
 			lastErr = fmt.Errorf("provider reported disconnected")
 		}
-		timer := time.NewTimer(providerHealthRetryDelay)
+		timer := time.NewTimer(retryDelay)
 		select {
 		case <-probeCtx.Done():
 			timer.Stop()
@@ -266,7 +290,18 @@ func waitForProviderHealth(ctx context.Context, provider marketdata.Provider) er
 			return lastErr
 		case <-timer.C:
 		}
+		retryDelay = nextProviderHealthRetryDelay(retryDelay)
 	}
+}
+
+func nextProviderHealthRetryDelay(current time.Duration) time.Duration {
+	if current <= 0 {
+		return providerHealthRetryDelay
+	}
+	if current >= providerHealthMaxRetryDelay/2 {
+		return providerHealthMaxRetryDelay
+	}
+	return current * 2
 }
 
 func (r *Runtime) resolveActivation(activation Activation) (runtimeState, error) {

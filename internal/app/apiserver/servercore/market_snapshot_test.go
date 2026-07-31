@@ -28,7 +28,7 @@ func TestMarketSnapshotResponseUsesFreshCache(t *testing.T) {
 		Bid:                decimal.RequireFromString("321.3"),
 		Ask:                decimal.RequireFromString("321.5"),
 		PreviousClosePrice: decimalPointer(new(318.9)),
-		Volume:             1282100,
+		Volume:             decimal.NewFromInt(1282100),
 		Turnover:           decimal.RequireFromString("411020000"),
 		QuoteAt:            now.Format(time.RFC3339Nano),
 		ObservedAt:         now.Format(time.RFC3339Nano),
@@ -51,6 +51,9 @@ func TestMarketSnapshotResponseUsesFreshCache(t *testing.T) {
 	}
 	if got := jftradeCheckedTypeAssertion[map[string]any](response["snapshot"])["turnover"]; got != "411020000" {
 		t.Fatalf("snapshot turnover = %v", got)
+	}
+	if got := jftradeCheckedTypeAssertion[map[string]any](response["snapshot"])["volume"]; got != "1282100" {
+		t.Fatalf("snapshot volume = %#v, want decimal string", got)
 	}
 }
 
@@ -98,7 +101,7 @@ func TestMarketSnapshotResponseForceRefreshBypassesCache(t *testing.T) {
 		Price:        decimal.RequireFromString("999.9"),
 		Bid:          decimal.RequireFromString("999.8"),
 		Ask:          decimal.RequireFromString("1000.0"),
-		Volume:       1,
+		Volume:       decimal.NewFromInt(1),
 		QuoteAt:      time.Now().UTC().Add(-1 * time.Minute).Format(time.RFC3339Nano),
 		ObservedAt:   time.Now().UTC().Add(-1 * time.Minute).Format(time.RFC3339Nano),
 		Source:       "bbgo:futu:stream",
@@ -139,7 +142,7 @@ func TestMarketCandlesTickResponseUsesFreshCache(t *testing.T) {
 		Price:        decimal.RequireFromString("321.4"),
 		Bid:          decimal.RequireFromString("321.3"),
 		Ask:          decimal.RequireFromString("321.5"),
-		Volume:       1282100,
+		Volume:       decimal.NewFromInt(1282100),
 		QuoteAt:      now.Format(time.RFC3339Nano),
 		ObservedAt:   now.Format(time.RFC3339Nano),
 		Source:       "bbgo:futu:stream",
@@ -211,7 +214,7 @@ func TestMarketCandlesTickResponseFallsBackToCachedCandlesOnTickerError(t *testi
 		Price:        decimal.RequireFromString("321.4"),
 		Bid:          decimal.RequireFromString("321.3"),
 		Ask:          decimal.RequireFromString("321.5"),
-		Volume:       1282100,
+		Volume:       decimal.NewFromInt(1282100),
 		QuoteAt:      observedAt.Format(time.RFC3339Nano),
 		ObservedAt:   observedAt.Format(time.RFC3339Nano),
 		Source:       "bbgo:futu:fallback",

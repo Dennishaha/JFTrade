@@ -11,7 +11,6 @@ vi.mock("@/composables/shared/apiClient", () => ({
 }));
 
 import {
-  defaultMarketDataProviderSettings,
   getMarketDataProviderSettings,
   getMarketDataProviderStatus,
   putMarketDataProviderSettings,
@@ -22,11 +21,11 @@ beforeEach(() => {
 });
 
 describe("market data provider settings transport", () => {
-  it("defaults incomplete or unknown selections to the embedded Yahoo provider", async () => {
+  it("rejects incomplete or unknown provider selections", async () => {
     mocks.apiGet.mockResolvedValue({ activeProvider: "unsupported" });
 
-    await expect(getMarketDataProviderSettings()).resolves.toEqual(
-      defaultMarketDataProviderSettings,
+    await expect(getMarketDataProviderSettings()).rejects.toThrow(
+      "不支持的行情提供者",
     );
     expect(mocks.apiGet).toHaveBeenCalledWith(
       "/api/v1/settings/market-data-provider",
@@ -38,6 +37,14 @@ describe("market data provider settings transport", () => {
 
     await expect(getMarketDataProviderSettings()).resolves.toEqual({
       activeProvider: "futu",
+    });
+  });
+
+  it("preserves an explicit Yahoo Finance selection", async () => {
+    mocks.apiGet.mockResolvedValue({ activeProvider: "yfinance" });
+
+    await expect(getMarketDataProviderSettings()).resolves.toEqual({
+      activeProvider: "yfinance",
     });
   });
 

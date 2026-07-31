@@ -25,6 +25,8 @@ def test_numeric_conversion_rejects_non_finite_and_boolean_values() -> None:
     assert finite_float(math.inf) is None
     assert finite_float(True) is None
     assert non_negative_int(12.9) == 12
+    assert non_negative_int(9_007_199_254_740_993) == 9_007_199_254_740_993
+    assert non_negative_int("9007199254740993") == 9_007_199_254_740_993
     assert non_negative_int(-1) is None
     assert clean_text(math.nan) is None
     assert clean_text(" <NA> ") is None

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 
@@ -76,11 +77,12 @@ type Trade struct {
 	Price     fixedpoint.Value `json:"price" db:"price"`
 	// Quantity is the volume represented by this event only.
 	Quantity fixedpoint.Value `json:"quantity" db:"quantity"`
-	// CumulativeVolume is the optional provider volume counter observed with
-	// this event.
-	CumulativeVolume *fixedpoint.Value `json:"cumulativeVolume,omitempty" db:"-"`
-	QuoteQuantity    fixedpoint.Value  `json:"quoteQuantity" db:"quote_quantity"`
-	Symbol           string            `json:"symbol" db:"symbol"`
+	// VolumeDelta and CumulativeVolume preserve provider volume without forcing
+	// it through the legacy fixed-point strategy quantity boundary.
+	VolumeDelta      *decimal.Decimal `json:"volumeDelta,omitempty" db:"-"`
+	CumulativeVolume *decimal.Decimal `json:"cumulativeVolume,omitempty" db:"-"`
+	QuoteQuantity    fixedpoint.Value `json:"quoteQuantity" db:"quote_quantity"`
+	Symbol           string           `json:"symbol" db:"symbol"`
 
 	Side          SideType         `json:"side" db:"side"`
 	IsBuyer       bool             `json:"isBuyer" db:"is_buyer"`

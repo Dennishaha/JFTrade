@@ -2,6 +2,7 @@
 
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { nextTick } from "vue";
 
 const apiMocks = vi.hoisted(() => ({
   fetchEnvelope: vi.fn(),
@@ -119,6 +120,145 @@ describe("broker provider tag", () => {
       "/api/v1/settings/market-data-provider",
       { activeProvider: "yfinance" },
     );
+  });
+
+  it("preserves the embedded Yahoo provider when the broker catalog finishes later", async () => {
+    let resolveCapabilities: (value: typeof capabilities) => void = () => {};
+    const pendingCapabilities = new Promise<typeof capabilities>((resolve) => {
+      resolveCapabilities = resolve;
+    });
+    apiMocks.fetchEnvelope.mockImplementation((url: string) =>
+      url.includes("/api/v1/settings/market-data-provider")
+        ? Promise.resolve({ activeProvider: "yfinance" })
+        : pendingCapabilities,
+    );
+    const selection = useBrokerProviderSelection();
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+
+    await flushPromises();
+    expect(selection.selectedBrokerId.value).toBe("yfinance");
+    expect(wrapper.get(".broker-provider-tag").text()).toContain("Yahoo");
+
+    resolveCapabilities(capabilities);
+    await flushPromises();
+    expect(selection.selectedBrokerId.value).toBe("yfinance");
+    expect(wrapper.get(".broker-provider-tag").text()).toContain("Yahoo");
+  });
+
+  it("keeps the current provider selected while a switch is pending", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) =>
+      url.includes("/api/v1/settings/market-data-provider")
+        ? Promise.resolve({ activeProvider: "futu" })
+        : Promise.resolve(capabilities),
+    );
+    let resolvePut: (value: { activeProvider: "yfinance" }) => void = () => {};
+    apiMocks.putEnvelope.mockReturnValue(
+      new Promise<{ activeProvider: "yfinance" }>((resolve) => {
+        resolvePut = resolve;
+      }),
+    );
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    const tag = wrapper.get(".broker-provider-tag");
+    await tag.trigger("click");
+    const options = wrapper.findAll(
+      '.broker-provider-tag__menu button[role="option"]',
+    );
+    await options.find((button) => button.text().includes("Yahoo Finance"))!.trigger("click");
+    await nextTick();
+
+    expect(tag.text()).toContain("启动中");
+    expect(
+      options.every((button) => button.attributes("disabled") !== undefined),
+    ).toBe(true);
+    const futu = options.find((button) => button.text().includes("Futu"));
+    expect(futu?.attributes("aria-selected")).toBe("true");
+
+    resolvePut({ activeProvider: "yfinance" });
+    await flushPromises();
+    expect(tag.text()).toContain("Yahoo");
+    await tag.trigger("click");
+    expect(
+      wrapper
+        .findAll('.broker-provider-tag__menu button[role="option"]')
+        .find((button) => button.text().includes("Yahoo Finance"))
+        ?.attributes("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("ignores an older initial provider read after a newer switch succeeds", async () => {
+    let resolveInitialRead: (value: { activeProvider: "futu" }) => void = () => {};
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return new Promise<{ activeProvider: "futu" }>((resolve) => {
+          resolveInitialRead = resolve;
+        });
+      }
+      return Promise.resolve(capabilities);
+    });
+    apiMocks.putEnvelope.mockResolvedValue({ activeProvider: "yfinance" });
+
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    const tag = wrapper.get(".broker-provider-tag");
+    await tag.trigger("click");
+    await wrapper
+      .findAll('.broker-provider-tag__menu button[role="option"]')
+      .find((button) => button.text().includes("Yahoo Finance"))!
+      .trigger("click");
+    await flushPromises();
+    expect(tag.text()).toContain("Yahoo");
+
+    resolveInitialRead({ activeProvider: "futu" });
+    await flushPromises();
+    expect(tag.text()).toContain("Yahoo");
+  });
+
+  it("fails closed when the persisted embedded provider is unknown", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) =>
+      url.includes("/api/v1/settings/market-data-provider")
+        ? Promise.resolve({ activeProvider: "unsupported" })
+        : Promise.resolve(capabilities),
+    );
+
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    const tag = wrapper.get(".broker-provider-tag");
+    expect(tag.classes()).toContain("is-unavailable");
+    expect(tag.text()).toContain("不可用");
+    expect(tag.text()).not.toContain("Futu");
+    expect(tag.attributes("title")).toContain("不支持的行情提供者");
   });
 
   it("keeps the toolbar compact and switches the shared persisted provider", async () => {

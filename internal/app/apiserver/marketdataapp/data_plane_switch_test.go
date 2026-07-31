@@ -28,8 +28,8 @@ func TestApplyProviderSettingsUsesAtomicQuoteProviderSwitch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ApplyProviderSettings: %v", err)
 	}
-	if cache.changeCalls != 1 || cache.resetCalls != 0 {
-		t.Fatalf("quote cache calls = change %d, reset %d", cache.changeCalls, cache.resetCalls)
+	if cache.changeCalls != 1 {
+		t.Fatalf("quote cache change calls = %d", cache.changeCalls)
 	}
 	if cache.before != ProviderFutu || cache.after != ProviderYFinance {
 		t.Fatalf("provider boundary = %q -> %q", cache.before, cache.after)
@@ -54,33 +54,17 @@ func TestApplyProviderSettingsPreservesAtomicQuoteCacheOnFailure(t *testing.T) {
 	if !errors.Is(err, switchErr) {
 		t.Fatalf("ApplyProviderSettings error = %v", err)
 	}
-	if cache.changeCalls != 1 || cache.resetCalls != 0 {
-		t.Fatalf("quote cache calls = change %d, reset %d", cache.changeCalls, cache.resetCalls)
+	if cache.changeCalls != 1 {
+		t.Fatalf("quote cache change calls = %d", cache.changeCalls)
 	}
 	if cache.before != ProviderFutu || cache.after != ProviderFutu {
 		t.Fatalf("failed provider boundary = %q -> %q", cache.before, cache.after)
 	}
 }
 
-func TestApplyProviderSettingsKeepsResetterCompatibility(t *testing.T) {
+func TestApplyProviderSettingsAllowsUnavailableWatchlist(t *testing.T) {
 	_, service := newProviderSwitchDataPlane(t)
 	store := providerSettingsStoreStub{}
-	cache := &resetOnlyQuoteCacheStub{}
-
-	err := ApplyProviderSettings(
-		t.Context(),
-		service,
-		&store,
-		cache,
-		jfsettings.MarketDataProviderFutu,
-		false,
-	)
-	if err != nil {
-		t.Fatalf("ApplyProviderSettings: %v", err)
-	}
-	if cache.resetCalls != 1 {
-		t.Fatalf("quote cache reset calls = %d", cache.resetCalls)
-	}
 
 	var unavailableWatchlist *watchlist.Service
 	if err := ApplyProviderSettings(
@@ -292,7 +276,6 @@ func (s *providerSettingsStoreStub) SaveActiveMarketDataProvider(
 type atomicQuoteCacheStub struct {
 	runtime     *Runtime
 	changeCalls int
-	resetCalls  int
 	before      string
 	after       string
 }
@@ -303,18 +286,6 @@ func (s *atomicQuoteCacheStub) ChangeQuoteProvider(change func() error) error {
 	err := change()
 	s.after = s.runtime.ActiveProviderID()
 	return err
-}
-
-func (s *atomicQuoteCacheStub) ResetQuoteCache() {
-	s.resetCalls++
-}
-
-type resetOnlyQuoteCacheStub struct {
-	resetCalls int
-}
-
-func (s *resetOnlyQuoteCacheStub) ResetQuoteCache() {
-	s.resetCalls++
 }
 
 type physicalSubscriptionStub struct {

@@ -59,50 +59,6 @@ func TestMarketDataProviderDefaultsToYFinanceAndPersistsSelection(t *testing.T) 
 	}
 }
 
-func TestLegacyYFinanceSettingsMigrateToFutuAndAreRemoved(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "settings.json")
-	legacy := map[string]any{
-		"activeMarketDataProvider": "yfinance",
-		"yfinance": map[string]any{
-			"enabled":        true,
-			"host":           "127.0.0.1",
-			"port":           7788,
-			"pythonBin":      "python3",
-			"timeoutSeconds": 15,
-		},
-	}
-	rawLegacy, err := json.Marshal(legacy)
-	if err != nil {
-		t.Fatalf("marshal legacy settings: %v", err)
-	}
-	if err := os.WriteFile(path, rawLegacy, 0o600); err != nil {
-		t.Fatalf("write legacy settings: %v", err)
-	}
-
-	store, err := New(path)
-	if err != nil {
-		t.Fatalf("New legacy settings: %v", err)
-	}
-	if got := store.ActiveMarketDataProvider(); got != jfsettings.MarketDataProviderFutu {
-		t.Fatalf("migrated provider = %q, want futu", got)
-	}
-
-	rawMigrated, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read migrated settings: %v", err)
-	}
-	var migrated map[string]json.RawMessage
-	if err := json.Unmarshal(rawMigrated, &migrated); err != nil {
-		t.Fatalf("decode migrated settings: %v", err)
-	}
-	if _, ok := migrated["yfinance"]; ok {
-		t.Fatalf("migrated settings still contain legacy yfinance block: %s", rawMigrated)
-	}
-	if string(migrated["activeMarketDataProvider"]) != `"futu"` {
-		t.Fatalf("migrated active provider = %s", migrated["activeMarketDataProvider"])
-	}
-}
-
 func TestMarketDataProviderSaveRollsBackOnAtomicReplaceFailure(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	store, err := New(path)

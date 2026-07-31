@@ -213,8 +213,8 @@ func ticksEquivalent(left, right Tick) bool {
 		left.Price.Equal(right.Price) &&
 		left.Bid.Equal(right.Bid) &&
 		left.Ask.Equal(right.Ask) &&
-		left.Volume == right.Volume &&
-		left.VolumeDelta == right.VolumeDelta &&
+		left.Volume.Equal(right.Volume) &&
+		left.VolumeDelta.Equal(right.VolumeDelta) &&
 		left.Turnover.Equal(right.Turnover) &&
 		left.QuoteAt == right.QuoteAt &&
 		left.Session == right.Session &&
@@ -237,7 +237,7 @@ func extendedQuoteEqual(left, right *ExtendedQuote) bool {
 	return optionalDecimalEqual(left.Price, right.Price) &&
 		optionalDecimalEqual(left.HighPrice, right.HighPrice) &&
 		optionalDecimalEqual(left.LowPrice, right.LowPrice) &&
-		floatPointerEqual(left.Volume, right.Volume) &&
+		decimalPointerEqual(left.Volume, right.Volume) &&
 		optionalDecimalEqual(left.Turnover, right.Turnover) &&
 		optionalDecimalEqual(left.ChangeVal, right.ChangeVal) &&
 		optionalDecimalEqual(left.ChangeRate, right.ChangeRate) &&
@@ -245,11 +245,11 @@ func extendedQuoteEqual(left, right *ExtendedQuote) bool {
 		left.QuoteTime == right.QuoteTime
 }
 
-func floatPointerEqual(left, right *float64) bool {
+func decimalPointerEqual(left, right *decimal.Decimal) bool {
 	if left == nil || right == nil {
 		return left == nil && right == nil
 	}
-	return *left == *right
+	return left.Equal(*right)
 }
 
 func optionalDecimalEqual(left, right *decimal.Decimal) bool {

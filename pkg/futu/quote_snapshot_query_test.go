@@ -6,6 +6,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	"github.com/shopspring/decimal"
 )
 
 func TestExchangeQueryQuoteSnapshotUsesBasicQotPayload(t *testing.T) {
@@ -63,7 +64,7 @@ func TestExchangeQueryQuoteSnapshotUsesBasicQotPayload(t *testing.T) {
 	if snapshot.LastClosePrice == nil || snapshot.LastClosePrice.InexactFloat64() != 379 {
 		t.Fatalf("LastClosePrice = %#v, want 379", snapshot.LastClosePrice)
 	}
-	if snapshot.Volume != 1234567 {
+	if !snapshot.Volume.Equal(decimal.NewFromInt(1234567)) {
 		t.Fatalf("Volume = %v, want 1234567", snapshot.Volume)
 	}
 	if got := snapshot.Turnover.InexactFloat64(); got != 468000000 {
@@ -78,5 +79,25 @@ func TestExchangeQueryQuoteSnapshotUsesBasicQotPayload(t *testing.T) {
 	}
 	if got := server.basicQotCalls.Load(); got != 1 {
 		t.Fatalf("expected one GetBasicQot call, got %d", got)
+	}
+}
+
+func TestExchangeQueryQuoteSnapshotsPreservesVolumeBeyondFixedpointRange(t *testing.T) {
+	basic := &qotcommonpb.BasicQot{
+		Security:        testHKSecurity("00700"),
+		CurPrice:        new(190.5),
+		UpdateTimestamp: new(float64(time.Date(2026, 7, 31, 14, 0, 0, 0, time.UTC).Unix())),
+		Volume:          new(int64(9_007_199_254_740_993)),
+	}
+	snapshot := quoteSnapshotFromBasicQot(basic, "HK.00700")
+	if snapshot == nil || snapshot.Volume.String() != "9007199254740993" {
+		t.Fatalf("decimal batch volume = %#v", snapshot)
+	}
+
+	// The bbgo compatibility surface cannot represent this volume, but it must
+	// remain non-panicking while the market-data runtime uses QuoteSnapshot.
+	ticker := tickerFromBasicQot(basic)
+	if ticker == nil || !ticker.Volume.IsZero() {
+		t.Fatalf("legacy ticker volume = %#v, want zero outside fixedpoint range", ticker)
 	}
 }

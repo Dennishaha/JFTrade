@@ -164,7 +164,7 @@ func TestLiveWebSocketInitialMarketTickRefreshesObservedAt(t *testing.T) {
 		Price:        mustDecimal("320.5"),
 		Bid:          mustDecimal("320.4"),
 		Ask:          mustDecimal("320.6"),
-		Volume:       1282000,
+		Volume:       decimal.NewFromInt(1282000),
 		Turnover:     mustDecimal("411000000"),
 		QuoteAt:      quoteAt.Format(time.RFC3339Nano),
 		ObservedAt:   observedAt.Format(time.RFC3339Nano),
@@ -199,6 +199,9 @@ func TestLiveWebSocketInitialMarketTickRefreshesObservedAt(t *testing.T) {
 	}
 	if snapshot["observedAt"] != payload["at"] {
 		t.Fatalf("snapshot.observedAt = %#v, payload.at = %#v", snapshot["observedAt"], payload["at"])
+	}
+	if snapshot["volume"] != "1282000" || payload["cumulativeVolume"] != "1282000" || payload["volumeDelta"] != "0" {
+		t.Fatalf("unexpected decimal volume payload: %+v", payload)
 	}
 	if payload["source"] != "bbgo:futu" {
 		t.Fatalf("tick payload source = %#v", payload["source"])

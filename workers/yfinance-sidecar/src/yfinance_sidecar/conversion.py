@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timezone
+from numbers import Integral
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo
 
@@ -43,10 +44,19 @@ def finite_float(value: Any) -> float | None:
 
 
 def non_negative_int(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, Integral):
+        result = int(value)
+        return result if result >= 0 else None
     number = finite_float(value)
     if number is None or number < 0:
         return None
-    return int(number)
+    try:
+        result = int(value)
+    except (TypeError, ValueError, OverflowError):
+        result = int(number)
+    return result if result >= 0 else None
 
 
 def first_value(values: Mapping[str, Any], *keys: str) -> Any:

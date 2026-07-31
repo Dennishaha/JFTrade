@@ -149,13 +149,13 @@ type SecurityDetails struct {
 	LowPrice            decimal.Decimal
 	LastClosePrice      decimal.Decimal
 	CurrentPrice        decimal.Decimal
-	Volume              int64
+	Volume              decimal.Decimal
 	Turnover            decimal.Decimal
 	TurnoverRate        decimal.Decimal
 	AskPrice            *decimal.Decimal
 	BidPrice            *decimal.Decimal
-	AskVolume           *int64
-	BidVolume           *int64
+	AskVolume           *decimal.Decimal
+	BidVolume           *decimal.Decimal
 	Amplitude           *decimal.Decimal
 	AveragePrice        *decimal.Decimal
 	BidAskRatio         *decimal.Decimal
@@ -166,9 +166,6 @@ type SecurityDetails struct {
 	LowestHistoryPrice  *decimal.Decimal
 	SessionStatus       string
 	ClosePrice5Minute   *decimal.Decimal
-	HighPrecisionVolume *decimal.Decimal
-	HighPrecisionAskVol *decimal.Decimal
-	HighPrecisionBidVol *decimal.Decimal
 	PreMarket           *ExtendedMarketQuote
 	AfterMarket         *ExtendedMarketQuote
 	Overnight           *ExtendedMarketQuote
@@ -364,13 +361,13 @@ func baseSecurityDetailsFromSnapshot(basic *qotgetsecuritysnapshotpb.SnapshotBas
 		LowPrice:            decimalFromFloat64(basic.GetLowPrice()),
 		LastClosePrice:      decimalFromFloat64(basic.GetLastClosePrice()),
 		CurrentPrice:        decimalFromFloat64(basic.GetCurPrice()),
-		Volume:              basic.GetVolume(),
+		Volume:              securitySnapshotVolume(basic.GetVolume(), basic.HpVolume),
 		Turnover:            decimalFromFloat64(basic.GetTurnover()),
 		TurnoverRate:        decimalFromFloat64(basic.GetTurnoverRate()),
 		AskPrice:            decimalPtrFromFloat64(basic.AskPrice),
 		BidPrice:            decimalPtrFromFloat64(basic.BidPrice),
-		AskVolume:           cloneInt64Ptr(basic.AskVol),
-		BidVolume:           cloneInt64Ptr(basic.BidVol),
+		AskVolume:           optionalSecuritySnapshotVolume(basic.AskVol, basic.HpAskVol),
+		BidVolume:           optionalSecuritySnapshotVolume(basic.BidVol, basic.HpBidVol),
 		Amplitude:           decimalPtrFromFloat64(basic.Amplitude),
 		AveragePrice:        decimalPtrFromFloat64(basic.AvgPrice),
 		BidAskRatio:         decimalPtrFromFloat64(basic.BidAskRatio),
@@ -381,13 +378,26 @@ func baseSecurityDetailsFromSnapshot(basic *qotgetsecuritysnapshotpb.SnapshotBas
 		LowestHistoryPrice:  decimalPtrFromFloat64(basic.LowestHistoryPrice),
 		SessionStatus:       enumName(basic.GetSecStatus(), qotcommonpb.SecurityStatus_name),
 		ClosePrice5Minute:   decimalPtrFromFloat64(basic.ClosePrice5Minute),
-		HighPrecisionVolume: decimalPtrFromFloat64(basic.HpVolume),
-		HighPrecisionAskVol: decimalPtrFromFloat64(basic.HpAskVol),
-		HighPrecisionBidVol: decimalPtrFromFloat64(basic.HpBidVol),
 		PreMarket:           extendedMarketQuoteFromProto(basic.GetPreMarket(), quoteTime),
 		AfterMarket:         extendedMarketQuoteFromProto(basic.GetAfterMarket(), quoteTime),
 		Overnight:           extendedMarketQuoteFromProto(basic.GetOvernight(), quoteTime),
 	}
+}
+
+func securitySnapshotVolume(volume int64, highPrecision *float64) decimal.Decimal {
+	if highPrecision != nil && finiteNonNegativeVolume(*highPrecision) &&
+		(*highPrecision > 0 || volume == 0) {
+		return decimal.NewFromFloat(*highPrecision)
+	}
+	return decimal.NewFromInt(volume)
+}
+
+func optionalSecuritySnapshotVolume(volume *int64, highPrecision *float64) *decimal.Decimal {
+	if highPrecision != nil && finiteNonNegativeVolume(*highPrecision) &&
+		(*highPrecision > 0 || volume == nil || *volume == 0) {
+		return new(decimal.NewFromFloat(*highPrecision))
+	}
+	return cloneInt64AsDecimal(volume)
 }
 
 func applyEquitySnapshotDetails(details *SecurityDetails, equity *qotgetsecuritysnapshotpb.EquitySnapshotExData) {
@@ -666,13 +676,6 @@ func enumName(value int32, names map[int32]string) string {
 		return parts[1]
 	}
 	return raw
-}
-
-func cloneInt64Ptr(value *int64) *int64 {
-	if value == nil {
-		return nil
-	}
-	return new(*value)
 }
 
 func cloneInt32Ptr(value *int32) *int32 {

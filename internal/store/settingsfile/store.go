@@ -130,30 +130,8 @@ func (s *Store) load() error {
 	if err := json.Unmarshal(data, &loaded); err != nil {
 		return err
 	}
-	legacyYFinance, err := hasLegacyYFinanceKey(data)
-	if err != nil {
-		return err
-	}
-	previous := s.data
 	s.data = loaded
-	if legacyYFinance {
-		provider := jfsettings.MarketDataProviderFutu
-		s.data.ActiveMarketDataProvider = &provider
-		if err := s.persistLocked(); err != nil {
-			s.data = previous
-			return err
-		}
-	}
 	return nil
-}
-
-func hasLegacyYFinanceKey(data []byte) (bool, error) {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return false, err
-	}
-	_, ok := raw["yfinance"]
-	return ok, nil
 }
 
 // mutateAndPersistLocked applies an in-memory change atomically from the

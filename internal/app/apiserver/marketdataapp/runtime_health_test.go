@@ -176,6 +176,24 @@ func TestWaitForProviderHealthRetriesUntilConnected(t *testing.T) {
 	}
 }
 
+func TestProviderHealthRetryDelayBacksOffAndCaps(t *testing.T) {
+	delay := time.Duration(0)
+	want := []time.Duration{
+		providerHealthRetryDelay,
+		200 * time.Millisecond,
+		400 * time.Millisecond,
+		800 * time.Millisecond,
+		providerHealthMaxRetryDelay,
+		providerHealthMaxRetryDelay,
+	}
+	for index, expected := range want {
+		delay = nextProviderHealthRetryDelay(delay)
+		if delay != expected {
+			t.Fatalf("retry delay %d = %s, want %s", index, delay, expected)
+		}
+	}
+}
+
 func TestWaitForProviderHealthPreservesLastFailureOnCancellation(t *testing.T) {
 	probeErr := errors.New("connection refused")
 	provider := &healthSequenceProviderStub{fallbackErr: probeErr}

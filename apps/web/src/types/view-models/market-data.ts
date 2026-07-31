@@ -218,9 +218,6 @@ export interface MarketSecurityDetails {
   lowestHistoryPrice?: number | null;
   sessionStatus?: string | null;
   closePrice5Minute?: number | null;
-  highPrecisionVolume?: number | null;
-  highPrecisionAskVol?: number | null;
-  highPrecisionBidVol?: number | null;
   // Provider-neutral profile/fundamental fields used by delayed providers
   // such as Yahoo Finance. Futu-specific fields above remain unchanged.
   exchange?: string | null;

@@ -1,5 +1,7 @@
 package marketdata
 
+import "github.com/shopspring/decimal"
+
 type InstrumentDTO struct {
 	Market       string
 	Symbol       string
@@ -80,8 +82,8 @@ type TickEventDTO struct {
 	ObservedAt       string
 	BrokerID         string
 	Source           string
-	CumulativeVolume float64
-	VolumeDelta      float64
+	CumulativeVolume decimal.Decimal
+	VolumeDelta      decimal.Decimal
 }
 
 func (event TickEventDTO) JSON() map[string]any {
@@ -94,7 +96,7 @@ func (event TickEventDTO) JSON() map[string]any {
 		"source":     event.Source,
 		// Keep snapshot.volume as the compatibility field while making both
 		// volume semantics explicit for live-event consumers.
-		"cumulativeVolume": event.CumulativeVolume,
-		"volumeDelta":      event.VolumeDelta,
+		"cumulativeVolume": event.CumulativeVolume.String(),
+		"volumeDelta":      event.VolumeDelta.String(),
 	}
 }

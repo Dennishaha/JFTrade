@@ -1,6 +1,7 @@
 package futu
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -9,6 +10,41 @@ import (
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
+
+func TestQuoteSnapshotResolvesHighPrecisionVolumeWithoutLosingInt64Precision(t *testing.T) {
+	regularAt := time.Date(2026, 7, 15, 15, 0, 0, 0, usEasternLocation)
+	ordinaryVolume := int64(9_007_199_254_740_993)
+	validHighPrecision := 1000.5
+	zeroHighPrecision := 0.0
+	invalidHighPrecision := math.NaN()
+
+	tests := []struct {
+		name   string
+		hp     *float64
+		wanted decimal.Decimal
+	}{
+		{name: "fractional high precision value", hp: &validHighPrecision, wanted: decimal.RequireFromString("1000.5")},
+		{name: "zero high precision value does not erase positive ordinary volume", hp: &zeroHighPrecision, wanted: decimal.NewFromInt(ordinaryVolume)},
+		{name: "invalid high precision value falls back", hp: &invalidHighPrecision, wanted: decimal.NewFromInt(ordinaryVolume)},
+		{name: "missing high precision value falls back", wanted: decimal.NewFromInt(ordinaryVolume)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			basic := &qotcommonpb.BasicQot{
+				Security:   &qotcommonpb.Security{Market: new(int32(1)), Code: new("AAPL")},
+				CurPrice:   new(200.0),
+				Volume:     new(ordinaryVolume),
+				HpVolume:   tt.hp,
+				UpdateTime: new("2026-07-15 15:00:00"),
+			}
+			snapshot := quoteSnapshotFromBasicQotAt(basic, "US.AAPL", regularAt)
+			if !snapshot.Volume.Equal(tt.wanted) {
+				t.Fatalf("volume = %s, want %s", snapshot.Volume, tt.wanted)
+			}
+		})
+	}
+}
 
 func TestQuoteSnapshotPreviousClosePriceInClosedSession(t *testing.T) {
 	// Simulates a closed-session snapshot: Futu returns Friday's CurPrice

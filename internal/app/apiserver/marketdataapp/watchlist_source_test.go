@@ -34,7 +34,7 @@ func TestWatchlistSnapshotSourceRoutesFutuAndYFinance(t *testing.T) {
 			InstrumentID:       "US.AAPL",
 			Price:              decimal.NewFromInt(105),
 			PreviousClosePrice: &previousClose,
-			Volume:             123,
+			Volume:             decimal.NewFromInt(123),
 			Turnover:           decimal.NewFromInt(456),
 			ObservedAt:         "2026-07-29T10:00:00Z",
 			QuoteAt:            "2026-07-29T09:59:00Z",

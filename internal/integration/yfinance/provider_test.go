@@ -138,7 +138,7 @@ func TestProviderConvertsSnapshotsCandlesHealthAndUnsupportedDepth(t *testing.T)
 	}
 	if snapshot.InstrumentID != "US.AAPL" ||
 		!snapshot.Price.Equal(decimal.RequireFromString("189.25")) ||
-		snapshot.Volume != 1234567 || snapshot.QuoteAt != "2026-07-29T14:30:00Z" ||
+		!snapshot.Volume.Equal(decimal.NewFromInt(1234567)) || snapshot.QuoteAt != "2026-07-29T14:30:00Z" ||
 		snapshot.ObservedAt != "2026-07-29T14:45:00Z" || snapshot.Kind != marketdata.TickKindQuote {
 		t.Fatalf("snapshot = %#v", snapshot)
 	}
@@ -156,7 +156,7 @@ func TestProviderConvertsSnapshotsCandlesHealthAndUnsupportedDepth(t *testing.T)
 	}
 	candles := response["candles"].([]map[string]any)
 	meta := response["meta"].(map[string]any)
-	if len(candles) != 2 || candles[1]["close"] != "189.25" || candles[0]["volume"] != float64(1000) ||
+	if len(candles) != 2 || candles[1]["close"] != "189.25" || candles[0]["volume"] != "1000" ||
 		meta["source"] != "yfinance" || meta["extendedHours"] != true || meta["session"] != "all" {
 		t.Fatalf("candles response = %#v", response)
 	}

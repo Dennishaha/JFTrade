@@ -63,7 +63,7 @@ func TestWorkflowAndMarketRuntimeBoundaryHelpers(t *testing.T) {
 		}()
 		(*serverApplication)(nil).handlePushMarketdataTick(mdsrv.Tick{Kind: mdsrv.TickKindTrade})
 		(&Server{}).handlePushMarketdataTick(mdsrv.Tick{Kind: "quote"})
-		(&Server{}).handlePushMarketdataTick(mdsrv.Tick{Kind: mdsrv.TickKindTrade, InstrumentID: "US.AAPL", Price: decimal.NewFromFloat(101.5), Volume: 2})
+		(&Server{}).handlePushMarketdataTick(mdsrv.Tick{Kind: mdsrv.TickKindTrade, InstrumentID: "US.AAPL", Price: decimal.NewFromFloat(101.5), Volume: decimal.NewFromInt(2)})
 	}()
 	if panicked {
 		t.Fatal("nil market tick boundary panicked")

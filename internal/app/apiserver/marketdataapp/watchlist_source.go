@@ -118,7 +118,7 @@ func watchlistQuoteFromTick(tick marketdata.Tick, fallback time.Time) watchlist.
 		Source:        strings.TrimSpace(tick.Source),
 		Price:         &price,
 		PreviousClose: previousClose,
-		Volume:        positiveFloat(tick.Volume),
+		Volume:        positiveDecimalFloat(tick.Volume),
 		Turnover:      positiveDecimalFloat(tick.Turnover),
 		Session:       strings.TrimSpace(tick.Session),
 		ObservedAt:    observedAt,
@@ -229,13 +229,6 @@ func positiveDecimalFloat(value decimal.Decimal) *float64 {
 	}
 	converted := value.InexactFloat64()
 	return &converted
-}
-
-func positiveFloat(value float64) *float64 {
-	if value <= 0 {
-		return nil
-	}
-	return &value
 }
 
 func parsedQuoteTime(value string, fallback time.Time) time.Time {

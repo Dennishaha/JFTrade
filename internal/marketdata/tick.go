@@ -24,7 +24,7 @@ type ExtendedQuote struct {
 	Price      *decimal.Decimal
 	HighPrice  *decimal.Decimal
 	LowPrice   *decimal.Decimal
-	Volume     *float64
+	Volume     *decimal.Decimal
 	Turnover   *decimal.Decimal
 	ChangeVal  *decimal.Decimal
 	ChangeRate *decimal.Decimal
@@ -47,10 +47,10 @@ type Tick struct {
 	// Volume is the provider's cumulative volume counter for the active volume
 	// sequence (normally the current market session). It is never a per-event
 	// quantity.
-	Volume float64
+	Volume decimal.Decimal
 	// VolumeDelta is the non-negative volume represented by this event. Quote
 	// snapshots that do not carry an explicit delta leave it at zero.
-	VolumeDelta   float64
+	VolumeDelta   decimal.Decimal
 	Turnover      decimal.Decimal
 	QuoteAt       string
 	ObservedAt    string

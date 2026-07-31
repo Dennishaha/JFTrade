@@ -1,9 +1,9 @@
 package futu
 
 import (
+	"math"
 	"time"
 
-	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/shopspring/decimal"
 
@@ -17,7 +17,7 @@ type ExtendedMarketQuote struct {
 	Price      *decimal.Decimal
 	HighPrice  *decimal.Decimal
 	LowPrice   *decimal.Decimal
-	Volume     *float64
+	Volume     *decimal.Decimal
 	Turnover   *decimal.Decimal
 	ChangeVal  *decimal.Decimal
 	ChangeRate *decimal.Decimal
@@ -37,7 +37,7 @@ type QuoteSnapshot struct {
 	LowPrice           *decimal.Decimal
 	PreviousClosePrice *decimal.Decimal
 	LastClosePrice     *decimal.Decimal
-	Volume             float64
+	Volume             decimal.Decimal
 	Turnover           decimal.Decimal
 	QuoteAt            time.Time
 	Session            market.Session
@@ -60,7 +60,7 @@ func tickerFromBasicQot(basicQot *qotcommonpb.BasicQot) *types.Ticker {
 	resolvedAt := futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime(), canonical)
 	return &types.Ticker{
 		Time:   resolvedAt,
-		Volume: fixedpoint.NewFromFloat(snapshot.Volume),
+		Volume: legacyFixedpointVolume(snapshot.Volume),
 		Last:   lastPrice,
 		Open:   fixedpointFromDecimalPtr(snapshot.OpenPrice),
 		High:   fixedpointFromDecimalPtr(snapshot.HighPrice),
@@ -88,7 +88,11 @@ func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical strin
 	price := regularSessionClose
 	highPrice := decimalPtrFromFloat64(basicQot.HighPrice)
 	lowPrice := decimalPtrFromFloat64(basicQot.LowPrice)
-	volume := float64(basicQot.GetVolume())
+	volume := decimal.NewFromInt(basicQot.GetVolume())
+	if basicQot.HpVolume != nil && finiteNonNegativeVolume(*basicQot.HpVolume) &&
+		(*basicQot.HpVolume > 0 || volume.IsZero()) {
+		volume = decimal.NewFromFloat(*basicQot.HpVolume)
+	}
 	turnover := decimalFromFloat64(basicQot.GetTurnover())
 	if activeExtended != nil {
 		if decimalPositive(activeExtended.Price) {
@@ -142,13 +146,25 @@ func extendedMarketQuoteFromProto(data *qotcommonpb.PreAfterMarketData, quoteTim
 		Price:      decimalPtrFromFloat64(data.Price),
 		HighPrice:  decimalPtrFromFloat64(data.HighPrice),
 		LowPrice:   decimalPtrFromFloat64(data.LowPrice),
-		Volume:     cloneInt64AsFloat64(data.Volume),
+		Volume:     cloneInt64AsDecimal(data.Volume),
 		Turnover:   decimalPtrFromFloat64(data.Turnover),
 		ChangeVal:  decimalPtrFromFloat64(data.ChangeVal),
 		ChangeRate: decimalPtrFromFloat64(data.ChangeRate),
 		Amplitude:  decimalPtrFromFloat64(data.Amplitude),
 		QuoteTime:  quoteTime,
 	}
+}
+
+func cloneInt64AsDecimal(value *int64) *decimal.Decimal {
+	if value == nil {
+		return nil
+	}
+	result := decimal.NewFromInt(*value)
+	return &result
+}
+
+func finiteNonNegativeVolume(value float64) bool {
+	return value >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func activeExtendedQuoteForSession(session market.Session, preMarket *ExtendedMarketQuote, afterMarket *ExtendedMarketQuote, overnight *ExtendedMarketQuote) *ExtendedMarketQuote {
@@ -162,13 +178,6 @@ func activeExtendedQuoteForSession(session market.Session, preMarket *ExtendedMa
 	default:
 		return nil
 	}
-}
-
-func cloneInt64AsFloat64(value *int64) *float64 {
-	if value == nil {
-		return nil
-	}
-	return new(float64(*value))
 }
 
 func sessionFromExtendedBlocksAt(canonical string, preMarket, afterMarket, overnight *ExtendedMarketQuote, now time.Time) market.Session {
