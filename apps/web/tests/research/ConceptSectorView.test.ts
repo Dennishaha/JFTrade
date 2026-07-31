@@ -66,18 +66,16 @@ function mountView(market = "US") {
   });
   mocks.fetchWithInit.mockImplementation((_path: string, init: RequestInit) => {
     const ids = JSON.parse(String(init.body)).instrumentIds as string[];
-    return Promise.resolve(
-      featureResult(
-        ids.map((symbol, index) => ({
-          symbol,
-          lastPrice: index === 0 ? 10 : 20,
-          previousClose: index === 0 ? 9 : 21,
-          volume: index === 0 ? 1e6 : 2e6,
-          turnover: index === 0 ? 1e7 : 4e7,
-          observedAt: "2026-07-17T00:00:00Z",
-        })),
-      ),
-    );
+    return Promise.resolve({
+      quotes: ids.map((instrumentId, index) => ({
+        instrumentId,
+        price: index === 0 ? 10 : 20,
+        previousClose: index === 0 ? 9 : 21,
+        volume: index === 0 ? 1e6 : 2e6,
+        turnover: index === 0 ? 1e7 : 4e7,
+        observedAt: "2026-07-17T00:00:00Z",
+      })),
+    });
   });
   return mount(ConceptSectorView, {
     props: { market, brokerId: "futu" },
@@ -147,7 +145,7 @@ describe("ConceptSectorView", () => {
           : [];
       return Promise.resolve(featureResult(rows));
     });
-    mocks.fetchWithInit.mockResolvedValue(featureResult([]));
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
     const wrapper = mount(ConceptSectorView, { props: { market: "HK" } });
     await flushPromises();
     await wrapper.get(".concept-sector-view__connect").trigger("click");
@@ -202,7 +200,7 @@ describe("ConceptSectorView", () => {
         ]),
       );
     });
-    mocks.fetchWithInit.mockResolvedValue(featureResult([]));
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
     const wrapper = mount(ConceptSectorView);
     await flushPromises();
     await vi.waitFor(() => {
@@ -231,7 +229,7 @@ describe("ConceptSectorView", () => {
 
   it("shows plate request failures", async () => {
     mocks.fetch.mockRejectedValue(new Error("板块失败"));
-    mocks.fetchWithInit.mockResolvedValue(featureResult([]));
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
     const wrapper = mount(ConceptSectorView);
     await flushPromises();
     expect(wrapper.text()).toContain("板块失败");

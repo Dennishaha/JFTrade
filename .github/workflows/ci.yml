@@ -461,6 +461,45 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  yfinance-sidecar:
+    name: yfinance Sidecar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: workers/yfinance-sidecar/pyproject.toml
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install pinned sidecar dependencies and PyInstaller
+        run: python -m pip install --disable-pip-version-check --editable "workers/yfinance-sidecar[runtime,test,build]"
+
+      - name: Test sidecar without external market-data access
+        run: python -m pytest workers/yfinance-sidecar/tests
+
+      - name: Test native helper build script
+        run: pnpm run test:yfinance-sidecar-asset-build
+
+      - name: Build Linux native yfinance helper
+        run: pnpm run build:yfinance-sidecar
+
+      - name: Verify embedded Linux yfinance helper
+        run: go test -tags release_assets ./internal/yfinanceassets -count=1
+
   pine:
     name: Pine & Workers
     runs-on: ubuntu-latest
@@ -565,7 +604,7 @@ jobs:
   desktop-linux-smoke:
     name: Desktop Linux Smoke (PR)
     if: ${{ github.event_name == 'pull_request' }}
-    needs: [contracts, go-quality, proto-generation, go-coverage, web-quality, web-assets, pine]
+    needs: [contracts, go-quality, proto-generation, go-coverage, web-quality, web-assets, yfinance-sidecar, pine]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -582,6 +621,19 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: workers/yfinance-sidecar/pyproject.toml
+
+      - name: Install PyInstaller build dependencies
+        run: python -m pip install --disable-pip-version-check --editable "workers/yfinance-sidecar[runtime,build]"
+
+      - name: Build native yfinance helper
+        run: pnpm run build:yfinance-sidecar
 
       - name: Download generated contracts
         uses: ./.github/actions/download-contracts
@@ -628,7 +680,7 @@ jobs:
   desktop-build:
     name: Desktop Build (${{ matrix.label }})
     if: ${{ github.event_name == 'push' }}
-    needs: [contracts, go-quality, proto-generation, go-coverage, go-regression, web-quality, web-assets, pine]
+    needs: [contracts, go-quality, proto-generation, go-coverage, go-regression, web-quality, web-assets, yfinance-sidecar, pine]
     strategy:
       fail-fast: false
       matrix:
@@ -670,6 +722,19 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: workers/yfinance-sidecar/pyproject.toml
+
+      - name: Install PyInstaller build dependencies
+        run: python -m pip install --disable-pip-version-check --editable "workers/yfinance-sidecar[runtime,build]"
+
+      - name: Build native yfinance helper
+        run: pnpm run build:yfinance-sidecar
 
       - name: Download generated contracts
         uses: ./.github/actions/download-contracts
@@ -793,7 +858,7 @@ jobs:
   build-and-test:
     name: Build & Test
     if: ${{ always() }}
-    needs: [contracts, go-quality, proto-generation, go-coverage, go-regression, web-quality, web-assets, pine, desktop-linux-smoke, desktop-build]
+    needs: [contracts, go-quality, proto-generation, go-coverage, go-regression, web-quality, web-assets, yfinance-sidecar, pine, desktop-linux-smoke, desktop-build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -807,6 +872,7 @@ jobs:
           GO_REGRESSION_RESULT: ${{ needs.go-regression.result }}
           WEB_QUALITY_RESULT: ${{ needs.web-quality.result }}
           WEB_ASSETS_RESULT: ${{ needs.web-assets.result }}
+          YFINANCE_SIDECAR_RESULT: ${{ needs.yfinance-sidecar.result }}
           PINE_RESULT: ${{ needs.pine.result }}
           DESKTOP_LINUX_SMOKE_RESULT: ${{ needs.desktop-linux-smoke.result }}
           DESKTOP_BUILD_RESULT: ${{ needs.desktop-build.result }}
@@ -820,6 +886,7 @@ jobs:
             "$GO_COVERAGE_RESULT" \
             "$WEB_QUALITY_RESULT" \
             "$WEB_ASSETS_RESULT" \
+            "$YFINANCE_SIDECAR_RESULT" \
             "$PINE_RESULT"; do
             if [[ "$result" != "success" ]]; then
               failed=1
@@ -844,6 +911,7 @@ jobs:
             echo "Go Regression: $GO_REGRESSION_RESULT"
             echo "Web Quality: $WEB_QUALITY_RESULT"
             echo "Web Assets: $WEB_ASSETS_RESULT"
+            echo "yfinance Sidecar: $YFINANCE_SIDECAR_RESULT"
             echo "Pine & Workers: $PINE_RESULT"
             echo "Desktop Linux Smoke: $DESKTOP_LINUX_SMOKE_RESULT"
             echo "Desktop Build Matrix: $DESKTOP_BUILD_RESULT"

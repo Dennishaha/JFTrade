@@ -207,7 +207,7 @@ function installDefaultResponses(): void {
     }
     return Promise.reject(new Error(`unexpected path: ${path}`));
   });
-  mocks.fetchEnvelopeWithInit.mockResolvedValue({ entries: [] });
+  mocks.fetchEnvelopeWithInit.mockResolvedValue({ quotes: [] });
 }
 
 function mountRail(props: Record<string, unknown> = {}): VueWrapper {
@@ -273,10 +273,19 @@ describe("QuoteDetailRail", () => {
     const paths = mocks.fetchEnvelope.mock.calls.map(([path]) => String(path));
     expect(paths).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/\/snapshots\/US\/AAPL\?.*brokerId=futu/),
-        expect.stringMatching(/\/securities\/US\/AAPL\?.*brokerId=futu/),
+        expect.stringMatching(/\/snapshots\/US\/AAPL\?refresh=true$/),
+        expect.stringMatching(/\/securities\/US\/AAPL$/),
       ]),
     );
+    expect(
+      paths
+        .filter(
+          (path) =>
+            path.includes("/market-data/snapshots/") ||
+            path.includes("/market-data/securities/"),
+        )
+        .some((path) => path.includes("brokerId=")),
+    ).toBe(false);
     expect(paths.some((path) => path.includes("/candles/"))).toBe(false);
     expect(wrapper.text()).toContain("US.AAPL");
     expect(wrapper.text()).toContain("Apple Inc.");
@@ -306,6 +315,64 @@ describe("QuoteDetailRail", () => {
     const dialog = wrapper.get(".watchlist-dialog-stub");
     expect(dialog.attributes("data-market")).toBe("US");
     expect(dialog.attributes("data-symbol")).toBe("AAPL");
+    wrapper.unmount();
+  });
+
+  it("keeps Yahoo after-hours pricing out of the main quote", async () => {
+    mocks.fetchEnvelope.mockImplementation((path: string) => {
+      const instrumentId = idFromPath(path);
+      if (path.includes("/snapshots/")) {
+        return Promise.resolve({
+          request: instrumentParts(instrumentId),
+          snapshot: {
+            price: 211.5,
+            bid: 211.5,
+            ask: 211.5,
+            openPrice: 200.5,
+            highPrice: 212,
+            lowPrice: 199,
+            previousClosePrice: 210,
+            lastClosePrice: 200,
+            volume: 52_000_000,
+            turnover: 10_400_000_000,
+            at: "2026-07-31T00:00:00Z",
+            observedAt: "2026-07-31T00:00:15Z",
+            session: "after",
+            extendedHours: true,
+            extended: {
+              afterMarket: {
+                price: 211.5,
+                quoteTime: "2026-07-31T00:00:00Z",
+              },
+            },
+          },
+          meta: {
+            ...queryMeta(instrumentId),
+            source: "yfinance",
+            brokerId: "yfinance",
+          },
+        });
+      }
+      if (path.includes("/securities/")) {
+        return Promise.resolve(securityResponse(instrumentId));
+      }
+      return Promise.reject(new Error(`unexpected: ${path}`));
+    });
+
+    const wrapper = mountRail({ brokerId: "yfinance" });
+    await flushPromises();
+
+    expect(wrapper.get(".quote-summary__price-label").text()).toBe("最近常规收盘");
+    expect(wrapper.get(".quote-summary__price").text()).toBe("210.00");
+    expect(wrapper.text()).toContain("+10.00");
+    expect(wrapper.text()).toContain("+5.00%");
+    expect(wrapper.findAll(".quote-summary__extended-card--after")).toHaveLength(1);
+    expect(wrapper.get(".quote-summary__extended-card--after").text()).toContain(
+      "盘后价格",
+    );
+    expect(wrapper.get(".quote-summary__extended-time").attributes("title")).toBe(
+      "2026-07-31T00:00:00Z",
+    );
     wrapper.unmount();
   });
 
@@ -413,7 +480,7 @@ describe("QuoteDetailRail", () => {
       return Promise.reject(new Error(`unexpected: ${path}`));
     });
     mocks.fetchEnvelopeWithInit.mockResolvedValue({
-      entries: [
+      quotes: [
         { instrumentId: "HK.00700", lastPrice: 450, previousClose: 440 },
       ],
     });
@@ -439,7 +506,7 @@ describe("QuoteDetailRail", () => {
     expect(wrapper.text()).toContain("前 1 只");
     expect(wrapper.text()).toMatch(/上涨\s*21/);
     expect(mocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(
-      expect.stringContaining("brokerId=futu"),
+      "/api/v1/watchlist/quotes/batch",
       expect.objectContaining({ body: expect.stringContaining("HK.00700") }),
     );
     expect(String(mocks.fetchEnvelopeWithInit.mock.calls[0]?.[1]?.body)).not.toContain(
@@ -610,7 +677,7 @@ describe("QuoteDetailRail", () => {
     wrapper.unmount();
   });
 
-  it("polls snapshots every three seconds only while visible and stops on unmount", async () => {
+  it("polls snapshots every fifteen seconds only while visible and stops on unmount", async () => {
     vi.useFakeTimers();
     const originalVisibility = Object.getOwnPropertyDescriptor(
       document,
@@ -630,13 +697,13 @@ describe("QuoteDetailRail", () => {
       ).length;
     expect(snapshotCalls()).toBe(1);
 
-    await vi.advanceTimersByTimeAsync(3_000);
+    await vi.advanceTimersByTimeAsync(15_000);
     await flushPromises();
     expect(snapshotCalls()).toBe(2);
 
     visibility = "hidden";
     document.dispatchEvent(new Event("visibilitychange"));
-    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(30_000);
     expect(snapshotCalls()).toBe(2);
 
     visibility = "visible";
@@ -645,7 +712,7 @@ describe("QuoteDetailRail", () => {
     expect(snapshotCalls()).toBe(3);
 
     wrapper.unmount();
-    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(30_000);
     expect(snapshotCalls()).toBe(3);
 
     if (originalVisibility == null) {
@@ -1023,7 +1090,7 @@ describe("QuoteDetailRail", () => {
       return Promise.reject(new Error(`unexpected: ${path}`));
     });
     mocks.fetchEnvelopeWithInit.mockResolvedValue({
-      entries: [
+      quotes: [
         { instrumentId: "HK.UP", lastPrice: "2", previousClose: "1" },
         { instrumentId: "HK.DOWN", price: 1, previousClosePrice: 2 },
         { instrumentId: "HK.FLAT", lastPrice: 1, previousClose: 1 },

@@ -75,8 +75,8 @@ func TestCandlesAndDepthRoutesMapProviderFailures(t *testing.T) {
 		path string
 		code string
 	}{
-		{name: "candles", path: "/api/v1/market-data/candles/HK/00700", code: "OPEND_CANDLES_FAILED"},
-		{name: "depth with explicit level count", path: "/api/v1/market-data/depth/HK/00700?num=25", code: "OPEND_DEPTH_FAILED"},
+		{name: "candles", path: "/api/v1/market-data/candles/HK/00700", code: "MARKET_CANDLES_FAILED"},
+		{name: "depth with explicit level count", path: "/api/v1/market-data/depth/HK/00700?num=25", code: "MARKET_DEPTH_FAILED"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -91,6 +91,123 @@ func TestCandlesAndDepthRoutesMapProviderFailures(t *testing.T) {
 	}
 	if provider.depthNum != 25 {
 		t.Fatalf("depth num = %d, want 25", provider.depthNum)
+	}
+}
+
+func TestMarketsRouteFailsWhenActiveProviderDescriptorIsUnavailable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{
+		markets:       []srv.MarketProfile{{"market": "US"}},
+		descriptorErr: errors.New("active provider is unavailable"),
+	}
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), srv.NewService(provider))
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(
+		response,
+		httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/markets", nil),
+	)
+
+	if response.Code != http.StatusInternalServerError ||
+		!strings.Contains(response.Body.String(), `"code":"MARKET_DATA_FAILED"`) ||
+		!strings.Contains(response.Body.String(), "active provider is unavailable") {
+		t.Fatalf("response = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestProviderFailureCodesPreserveFutuCompatibilityOnlyForFutu(t *testing.T) {
+	const (
+		futuCode    = "OPEND_CANDLES_FAILED"
+		genericCode = "MARKET_CANDLES_FAILED"
+	)
+	tests := []struct {
+		name             string
+		explicitBrokerID string
+		descriptor       srv.ProviderDescriptor
+		descriptorErr    error
+		want             string
+	}{
+		{name: "explicit Futu", explicitBrokerID: " FuTu ", want: futuCode},
+		{name: "explicit non-Futu", explicitBrokerID: "yfinance", want: genericCode},
+		{
+			name:       "active Futu",
+			descriptor: srv.ProviderDescriptor{ProviderID: "futu-opend", BrokerID: "FuTu"},
+			want:       futuCode,
+		},
+		{
+			name:       "active non-Futu",
+			descriptor: srv.ProviderDescriptor{ProviderID: "yfinance", BrokerID: "yfinance"},
+			want:       genericCode,
+		},
+		{
+			name:          "unavailable active provider metadata",
+			descriptorErr: errors.New("descriptor unavailable"),
+			want:          genericCode,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := srv.NewService(&routeTestProvider{
+				descriptor:    test.descriptor,
+				descriptorErr: test.descriptorErr,
+			})
+
+			got := providerFailureCode(
+				t.Context(), service, test.explicitBrokerID, futuCode, genericCode,
+			)
+
+			if got != test.want {
+				t.Fatalf("provider failure code = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestExplicitYFinanceReadsUseTheActiveMarketDataProvider(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{
+		descriptor: srv.ProviderDescriptor{
+			ProviderID: "yfinance", BrokerID: "yfinance", Source: "yfinance",
+			Capabilities: srv.ProviderCapabilities{
+				Snapshots: true, HistoricalCandles: true,
+			},
+		},
+		securityDetails: srv.SecurityDetails{"symbol": "AAPL"},
+	}
+	reader := &routeBrokerReader{}
+	service := srv.NewService(provider)
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), service, reader)
+
+	for _, path := range []string{
+		"/api/v1/market-data/securities/US/AAPL?brokerId=yfinance",
+		"/api/v1/market-data/candles/US/AAPL?brokerId=yfinance&period=1d",
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s status=%d body=%s", path, response.Code, response.Body.String())
+		}
+	}
+	if len(reader.calls) != 0 {
+		t.Fatalf("explicit yfinance reads were sent to broker reader: %#v", reader.calls)
+	}
+	if !provider.candlesCalled || provider.candlesMarket != "US" || provider.candlesSymbol != "AAPL" {
+		t.Fatalf("yfinance candles were not read from active provider: called=%v market=%q symbol=%q", provider.candlesCalled, provider.candlesMarket, provider.candlesSymbol)
+	}
+}
+
+func TestMarketDataReadErrorsExposeProviderSwitchRetrySignal(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	writeMarketDataReadError(context, "MARKET_DATA_FAILED", srv.ErrProviderChanged)
+
+	if response.Code != http.StatusConflict ||
+		!strings.Contains(response.Body.String(), `"code":"MARKET_DATA_PROVIDER_CHANGED"`) {
+		t.Fatalf("response = %d %s", response.Code, response.Body.String())
 	}
 }
 
@@ -179,6 +296,47 @@ func TestLiveReadRoutesReturnConflictForMissingSubscriptionLease(t *testing.T) {
 	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/snapshots/US/AAPL", nil))
 	if response.Code != http.StatusOK {
 		t.Fatalf("leased snapshot response = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestPollOnlyReadRoutesPrioritizeCapabilitiesAndPreserveLogicalLeases(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{
+		descriptor: srv.ProviderDescriptor{
+			ProviderID: "poll-only", Source: "poll-only",
+			Capabilities: srv.ProviderCapabilities{Snapshots: true},
+		},
+		snapshot: &srv.Tick{
+			InstrumentID: "US.AAPL", Market: "US", Symbol: "AAPL",
+			Price: decimal.NewFromInt(1), Source: "poll-only",
+			ObservedAt: "2026-07-30T00:00:00Z",
+		},
+	}
+	service := srv.NewService(provider)
+	service.SetSubscriptionReconciler(&cancellingSubscriptionReconciler{})
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), service)
+
+	snapshot := httptest.NewRecorder()
+	router.ServeHTTP(snapshot, httptest.NewRequestWithContext(
+		t.Context(), http.MethodGet, "/api/v1/market-data/snapshots/US/AAPL", nil,
+	))
+	if snapshot.Code != http.StatusConflict ||
+		!strings.Contains(snapshot.Body.String(), `"code":"MARKET_DATA_SUBSCRIPTION_REQUIRED"`) {
+		t.Fatalf("poll-only snapshot = %d %s", snapshot.Code, snapshot.Body.String())
+	}
+	for _, path := range []string{
+		"/api/v1/market-data/candles/US/AAPL?period=tick",
+		"/api/v1/market-data/depth/US/AAPL?num=10",
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequestWithContext(
+			t.Context(), http.MethodGet, path, nil,
+		))
+		if response.Code != http.StatusConflict ||
+			!strings.Contains(response.Body.String(), `"code":"MARKET_DATA_CAPABILITY_UNSUPPORTED"`) {
+			t.Fatalf("poll-only unsupported %s = %d %s", path, response.Code, response.Body.String())
+		}
 	}
 }
 

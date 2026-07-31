@@ -129,6 +129,27 @@ func TestServiceOwnsSubscriptionsAndHealthMode(t *testing.T) {
 	if health.StreamMode != "push-stream" || health.ActiveCount != 0 {
 		t.Fatalf("push health = %#v", health)
 	}
+
+	service = NewService(noPushProvider{
+		stubProvider: stubProvider{
+			health: HealthStatus{Connected: true, StreamMode: "snapshot-poll-delayed"},
+		},
+	})
+	health, err = service.Health(ctx)
+	if err != nil {
+		t.Fatalf("poll-only Health: %v", err)
+	}
+	if health.StreamMode != "snapshot-poll-delayed" || !health.Connected {
+		t.Fatalf("poll-only health = %#v", health)
+	}
+}
+
+type noPushProvider struct {
+	stubProvider
+}
+
+func (noPushProvider) PushAvailable() bool {
+	return false
 }
 
 func singleSubscriptionEntry(t *testing.T, snapshot SubscriptionsSnapshot) map[string]any {
@@ -203,7 +224,12 @@ type stubProvider struct {
 }
 
 func (p stubProvider) Descriptor(context.Context) (ProviderDescriptor, error) {
-	return ProviderDescriptor{ProviderID: "stub-provider", DisplayName: "Stub Provider", Source: "stub"}, nil
+	return ProviderDescriptor{
+		ProviderID: "stub-provider", DisplayName: "Stub Provider", Source: "stub",
+		Capabilities: ProviderCapabilities{
+			Snapshots: true, TickCandles: true, OrderBookDepth: true,
+		},
+	}, nil
 }
 
 func (p stubProvider) GetMarkets(context.Context) ([]MarketProfile, error) {

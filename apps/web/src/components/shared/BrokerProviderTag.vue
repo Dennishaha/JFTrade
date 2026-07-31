@@ -9,6 +9,11 @@ import {
   useBrokerProviderSelection,
 } from "@/composables/trading/brokerProviderSelection";
 import {
+  getMarketDataProviderSettings,
+  putMarketDataProviderSettings,
+  type MarketDataProviderID,
+} from "@/composables/settings/marketDataProviderSettings";
+import {
   marketDataFeedQualityLabel,
   resolveMarketDataFeedQuality,
 } from "@/composables/market-data/marketDataFeedQuality";
@@ -26,6 +31,7 @@ const props = withDefaults(
     connectionState?: LiveSocketConnectionState | undefined;
     transportMode?: string | null | undefined;
     menuLocation?: "bottom end" | "top end";
+    enableEmbeddedMarketDataProvider?: boolean;
   }>(),
   {
     provider: null,
@@ -37,10 +43,18 @@ const props = withDefaults(
     connectionState: undefined,
     transportMode: null,
     menuLocation: "bottom end",
+    enableEmbeddedMarketDataProvider: false,
   },
 );
+const emit = defineEmits<{
+  providerChanged: [];
+}>();
 
 const menuOpen = ref(false);
+const embeddedProviderID = ref<MarketDataProviderID | null>(null);
+const embeddedProviderError = ref("");
+const switchingEmbeddedProvider = ref(false);
+let embeddedProviderLoad: Promise<void> | null = null;
 const {
   loadBrokerProviders,
   loadError,
@@ -56,8 +70,45 @@ const activeFeatureIds = computed(() => {
     props.featureId.trim() || props.provider?.featureId?.trim() || "";
   return fallback ? [fallback] : [];
 });
+const yfinanceFeatureIDs = new Set([
+  "market.search",
+  "market.instrument_profile",
+  "market.snapshot",
+  "market.snapshots",
+  "market.candles",
+]);
+const embeddedProviderVisible = computed(
+  () =>
+    props.enableEmbeddedMarketDataProvider &&
+    // Research market views combine Yahoo-supported snapshots with
+    // Futu-only ranking and industry features. The embedded provider still
+    // needs to be selectable for the quote surface; requiring every visible
+    // feature hid Yahoo from that shared toolbar entirely.
+    activeFeatureIds.value.some((feature) => yfinanceFeatureIDs.has(feature)),
+);
+const yfinanceOption = computed<BrokerProviderOption>(() => {
+  const market = props.market.trim().toUpperCase();
+  const available =
+    market === "" || ["US", "HK", "CN", "SH", "SZ"].includes(market);
+  return {
+    id: "yfinance",
+    label: "Yahoo Finance (yfinance)",
+    shortLabel: "Yahoo",
+    securityFirm: "内置延迟行情",
+    state: available ? "degraded" : "unavailable",
+    reason: available
+      ? "行情可能延迟约 15 分钟，不支持实时推流或 Level 2"
+      : "当前标的市场不在内置 yfinance 支持范围",
+  };
+});
 const options = computed(() => {
   const values = brokerProviderOptions(activeFeatureIds.value, props.market);
+  if (
+    embeddedProviderVisible.value &&
+    !values.some((option) => option.id === "yfinance")
+  ) {
+    values.push(yfinanceOption.value);
+  }
   const actualID = props.provider?.brokerId?.trim().toLowerCase() ?? "";
   if (actualID && !values.some((option) => option.id === actualID)) {
     values.push({
@@ -74,7 +125,10 @@ const options = computed(() => {
   return values;
 });
 const selectedOption = computed<BrokerProviderOption | null>(() => {
-  const selected = selectedBrokerId.value;
+  const selected =
+    embeddedProviderVisible.value && embeddedProviderID.value != null
+      ? embeddedProviderID.value
+      : selectedBrokerId.value;
   const actual = props.provider?.brokerId?.trim().toLowerCase() ?? "";
   return (
     options.value.find((option) => option.id === selected) ??
@@ -123,7 +177,9 @@ const currentState = computed<BrokerCapabilityState>(() => {
 });
 const currentLabel = computed(
   () =>
-    selectedOption.value?.shortLabel || (loading.value ? "加载中" : "数据源"),
+    switchingEmbeddedProvider.value
+      ? "启动中"
+      : selectedOption.value?.shortLabel || (loading.value ? "加载中" : "数据源"),
 );
 const currentReason = computed(() => currentCapabilitySummary.value.reason);
 const capabilityStateLabel = computed(() =>
@@ -145,6 +201,7 @@ const currentTitle = computed(() => {
       : "",
     currentReason.value ? `原因：${currentReason.value}` : "",
     loadError.value ? `能力目录：${loadError.value}` : "",
+    embeddedProviderError.value ? `切换错误：${embeddedProviderError.value}` : "",
   ];
   return values.filter(Boolean).join("\n");
 });
@@ -161,10 +218,57 @@ const currentAriaLabel = computed(() =>
     .join("，"),
 );
 
-function select(option: BrokerProviderOption): void {
-  if (option.state === "unavailable") return;
+async function select(option: BrokerProviderOption): Promise<void> {
+  if (option.state === "unavailable" || switchingEmbeddedProvider.value) return;
+  if (
+    embeddedProviderVisible.value &&
+    (option.id === "futu" || option.id === "yfinance")
+  ) {
+    await selectEmbeddedProvider(option.id);
+    return;
+  }
   selectBrokerProvider(option.id);
   menuOpen.value = false;
+}
+
+async function loadEmbeddedProvider(): Promise<void> {
+  if (!embeddedProviderVisible.value || embeddedProviderLoad != null) {
+    return embeddedProviderLoad ?? Promise.resolve();
+  }
+  embeddedProviderLoad = getMarketDataProviderSettings()
+    .then((settings) => {
+      embeddedProviderID.value = settings.activeProvider;
+      selectBrokerProvider(settings.activeProvider);
+      embeddedProviderError.value = "";
+    })
+    .catch((error: unknown) => {
+      embeddedProviderError.value =
+        error instanceof Error ? error.message : String(error);
+    })
+    .finally(() => {
+      embeddedProviderLoad = null;
+    });
+  return embeddedProviderLoad;
+}
+
+async function selectEmbeddedProvider(providerID: MarketDataProviderID): Promise<void> {
+  const previous = embeddedProviderID.value;
+  switchingEmbeddedProvider.value = true;
+  embeddedProviderError.value = "";
+  try {
+    const saved = await putMarketDataProviderSettings(providerID);
+    embeddedProviderID.value = saved.activeProvider;
+    selectBrokerProvider(saved.activeProvider);
+    emit("providerChanged");
+    menuOpen.value = false;
+  } catch (error) {
+    embeddedProviderID.value = previous;
+    if (previous != null) selectBrokerProvider(previous);
+    embeddedProviderError.value =
+      error instanceof Error ? error.message : String(error);
+  } finally {
+    switchingEmbeddedProvider.value = false;
+  }
 }
 
 watch(
@@ -174,6 +278,22 @@ watch(
   ] as const,
   ([accountBrokerId, defaultBrokerId]) => {
     configureBrokerProviderDefaults({ accountBrokerId, defaultBrokerId });
+  },
+  { immediate: true },
+);
+
+watch(
+  embeddedProviderVisible,
+  (visible) => {
+    if (visible) {
+      void loadEmbeddedProvider();
+      return;
+    }
+    embeddedProviderID.value = null;
+    configureBrokerProviderDefaults({
+      accountBrokerId: props.preferredBrokerId,
+      defaultBrokerId: props.defaultBrokerId,
+    });
   },
   { immediate: true },
 );
@@ -216,13 +336,20 @@ onMounted(() => {
         <strong>行情提供者</strong>
         <small>选择会应用到研究与产品行情</small>
       </div>
+      <div
+        v-if="switchingEmbeddedProvider"
+        class="broker-provider-tag__empty"
+        aria-live="polite"
+      >
+        正在启动内置行情提供者，首次启动可能需要几十秒…
+      </div>
       <button
         v-for="option in options"
         :key="option.id"
         type="button"
         role="option"
         :aria-selected="option.id === selectedOption?.id"
-        :disabled="option.state === 'unavailable'"
+        :disabled="option.state === 'unavailable' || switchingEmbeddedProvider"
         :class="[
           `is-${option.state}`,
           { 'is-selected': option.id === selectedOption?.id },
@@ -239,6 +366,9 @@ onMounted(() => {
           >✓</span
         >
       </button>
+      <div v-if="embeddedProviderError" class="broker-provider-tag__empty">
+        {{ embeddedProviderError }}
+      </div>
       <div v-if="options.length === 0" class="broker-provider-tag__empty">
         {{ loading ? "正在读取券商能力…" : loadError || "暂无可用提供者" }}
       </div>

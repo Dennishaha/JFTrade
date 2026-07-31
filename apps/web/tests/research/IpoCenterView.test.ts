@@ -49,9 +49,17 @@ afterEach(() => {
 
 async function mountView(data = entries) {
   mocks.fetch.mockResolvedValue(featureResult(data));
-  mocks.fetchWithInit.mockResolvedValue(
-    featureResult([{ symbol: "US.IPO2", name: "已上市乙", lastPrice: 30, previousClose: 25, observedAt: "2026-07-17T00:00:00Z" }]),
-  );
+  mocks.fetchWithInit.mockResolvedValue({
+    quotes: [
+      {
+        instrumentId: "US.IPO2",
+        name: "已上市乙",
+        price: 30,
+        previousClose: 25,
+        observedAt: "2026-07-17T00:00:00Z",
+      },
+    ],
+  });
   const wrapper = mount(IpoCenterView, { props: { brokerId: "futu" } });
   await flushPromises();
   return wrapper;
@@ -173,7 +181,7 @@ describe("IpoCenterView", () => {
             resolveMore = resolve;
           }),
       );
-    mocks.fetchWithInit.mockResolvedValue(featureResult([]));
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
     const wrapper = mount(IpoCenterView);
     await flushPromises();
     const button = wrapper.get(".ipo-center-view__load-more");

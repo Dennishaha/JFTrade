@@ -3,6 +3,8 @@ package servercore
 import (
 	"testing"
 
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
+	"github.com/jftrade/jftrade-main/internal/integration/yfinance/testkit"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
@@ -51,5 +53,28 @@ func TestNewStrategyRuntimeManagerDisabledExchange(t *testing.T) {
 	manager := liveruntime.NewManager(newStrategyRuntimeDependencies(server))
 	if manager.CurrentExchange() != nil {
 		t.Fatal("disabled runtime exchange was non-nil")
+	}
+}
+
+func TestStrategyRuntimeRejectsPollOnlyMarketDataProvider(t *testing.T) {
+	settings, err := NewSettingsStore(t.TempDir() + "/settings.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := newTestServer(t, settings)
+	sidecar := testkit.New(t)
+	if err := marketdataapp.RuntimeFromService(server.marketdataSvc).Activate(t.Context(), marketdataapp.Activation{
+		ProviderID:       marketdataapp.ProviderYFinance,
+		YFinanceEndpoint: sidecar.URL(),
+	}); err != nil {
+		t.Fatalf("activate yfinance: %v", err)
+	}
+	deps := newStrategyRuntimeDependencies(server)
+	if _, err := deps.AcquireMarketDataLease(
+		t.Context(),
+		"strategy-runtime:test",
+		[]mdsrv.InstrumentRef{{Market: "US", Symbol: "AAPL", Channel: "KLINE"}},
+	); err == nil {
+		t.Fatal("poll-only provider acquired a live strategy market-data lease")
 	}
 }

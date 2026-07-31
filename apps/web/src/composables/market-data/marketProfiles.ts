@@ -212,13 +212,22 @@ export async function loadMarketProfiles(): Promise<void> {
   return marketProfilesLoadPromise;
 }
 
-export function resetMarketProfilesForTests(): void {
+export function invalidateMarketProfiles(): void {
   marketProfilesLoadGeneration += 1;
   marketProfilesLoadPromise = null;
   marketProfiles.value = [];
   defaultMarket.value = "HK";
   isLoadingMarketProfiles.value = false;
   marketProfilesError.value = "";
+}
+
+export async function refreshMarketProfiles(): Promise<void> {
+  invalidateMarketProfiles();
+  await loadMarketProfiles();
+}
+
+export function resetMarketProfilesForTests(): void {
+  invalidateMarketProfiles();
 }
 
 export function findMarketProfile(
@@ -275,7 +284,9 @@ export function useMarketProfiles() {
     isLoadingMarketProfiles,
     marketProfilesError,
     marketOptions,
+    invalidateMarketProfiles,
     loadMarketProfiles,
+    refreshMarketProfiles,
     findMarketProfile,
     quoteCurrencyForMarket,
     pricePrecisionForMarket,

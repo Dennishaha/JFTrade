@@ -37,6 +37,110 @@ The complete GNU Affero General Public License version 3 text governing JFTrade,
 PineTS, and BBGO is provided in the repository root `LICENSE` file and in the
 embedded JFTrade license documentation.
 
+## yfinance helper direct Python dependencies
+
+JFTrade includes the AGPL-3.0-only adapter source under
+`workers/yfinance-sidecar`. Release builds freeze the runtime into a
+platform-specific PyInstaller helper and embed it in the Go binary. Its
+`pyproject.toml` pins the following direct build, runtime, and test
+dependencies. Python installers may also resolve transitive dependencies;
+every installed distribution retains its own copyright and license files.
+
+| Package | Version | Purpose | Upstream license |
+| --- | --- | --- | --- |
+| `setuptools` | `80.9.0` | PEP 517 build backend | MIT |
+| `pyinstaller` | `6.21.0` | Native yfinance helper builder | GPL-2.0-or-later with bootloader exception |
+| `yfinance` | `0.2.61` | Yahoo Finance data adapter | Apache-2.0 |
+| `curl_cffi` | `0.15.0` | bounded Yahoo HTTP transport | MIT |
+| `fastapi` | `0.115.14` | local HTTP application | MIT |
+| `uvicorn[standard]` | `0.35.0` | local ASGI server | BSD-3-Clause |
+| `pydantic` | `2.12.2` | request and response validation | MIT |
+| `httpx` | `0.28.1` | in-process ASGI contract tests | BSD-3-Clause |
+| `pytest` | `8.4.1` | test runner | MIT |
+| `pytest-asyncio` | `1.0.0` | async test support | Apache-2.0 |
+
+Upstream sources:
+
+- `setuptools`: <https://github.com/pypa/setuptools>
+- `pyinstaller`: <https://github.com/pyinstaller/pyinstaller>
+- `yfinance`: <https://github.com/ranaroussi/yfinance>
+- `curl_cffi`: <https://github.com/lexiforest/curl_cffi>
+- `fastapi`: <https://github.com/fastapi/fastapi>
+- `uvicorn`: <https://github.com/encode/uvicorn>
+- `pydantic`: <https://github.com/pydantic/pydantic>
+- `httpx`: <https://github.com/encode/httpx>
+- `pytest`: <https://github.com/pytest-dev/pytest>
+- `pytest-asyncio`: <https://github.com/pytest-dev/pytest-asyncio>
+
+MIT dependency notices:
+
+- curl_cffi: Copyright (c) 2018 multippt; Copyright (c) 2022 curl_cffi developers
+- FastAPI: Copyright (c) 2018 Sebastián Ramírez
+- Pydantic: Copyright (c) 2017 to present Pydantic Services Inc. and individual contributors
+- pytest: Copyright (c) 2004 Holger Krekel and others
+
+```text
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+Uvicorn and HTTPX are distributed under BSD-3-Clause:
+
+```text
+Uvicorn: Copyright © 2017-present, Encode OSS Ltd.
+HTTPX: Copyright © 2019, Encode OSS Ltd.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+```
+
+The full Apache License 2.0 text used by `yfinance` and `pytest-asyncio` is
+included later in this notice. The precise license and attribution files for
+all packages remain available in their installed Python distributions.
+
+PyInstaller is used only to produce the platform-native helper embedded in
+release builds. Its GPL-2.0-or-later bootloader exception permits distributing
+applications produced by PyInstaller under the application's own license;
+the corresponding PyInstaller source and license remain available from the
+upstream project above.
+
 ## go-talib-derived functions
 
 - Component: selected functions in `pkg/bbgo/datatype/floats/funcs.go`
@@ -319,6 +423,8 @@ JFTrade source tree for the exact build. It includes, among other files:
 
 - `scripts/pinets-worker.mjs`
 - `workers/pineworker`
+- `workers/yfinance-sidecar`
+- `workers/yfinance-sidecar/pyproject.toml`
 - `scripts/build-pineworker-assets.mjs`
 - `scripts/build-pineworker-dev.mjs`
 - `scripts/check-pinets-release.mjs`
@@ -332,6 +438,12 @@ Release and build commands for the PineTS integration include:
 
 - `pnpm run build:pineworker`
 - `pnpm run check:pinets-release`
+
+Development and build environments may install the helper source with:
+
+- `python -m pip install --editable "workers/yfinance-sidecar[runtime,build,test]"`
+- `python -m pytest workers/yfinance-sidecar/tests`
+- `pnpm run build:yfinance-sidecar`
 
 Published deployments must expose the exact build source location, build
 instructions, license, and third-party notices through the product's

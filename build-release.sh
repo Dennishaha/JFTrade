@@ -15,6 +15,13 @@ TARGETS=(
   "windows/amd64"
   "windows/arm64"
 )
+YFINANCE_ASSET_DIR="$ROOT_DIR/internal/yfinanceassets/assets/bin"
+YFINANCE_ASSETS=(
+  "yfinance-sidecar-darwin-arm64"
+  "yfinance-sidecar-linux-amd64"
+  "yfinance-sidecar-windows-amd64.exe"
+  "yfinance-sidecar-windows-arm64.exe"
+)
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -61,6 +68,22 @@ install_frontend_dependencies() {
   pnpm install --frozen-lockfile
 }
 
+require_yfinance_assets() {
+  local missing=()
+  local asset
+  for asset in "${YFINANCE_ASSETS[@]}"; do
+    if [[ ! -s "$YFINANCE_ASSET_DIR/$asset" ]]; then
+      missing+=("$asset")
+    fi
+  done
+  if (( ${#missing[@]} > 0 )); then
+    echo "Cross-target API release requires pre-staged native yfinance helpers." >&2
+    echo "Build each helper on its matching OS/architecture with 'pnpm run build:yfinance-sidecar', then stage it in $YFINANCE_ASSET_DIR." >&2
+    printf 'Missing yfinance helper: %s\n' "${missing[@]}" >&2
+    exit 1
+  fi
+}
+
 require_command go
 require_command node
 require_command pnpm
@@ -94,6 +117,9 @@ go run ./scripts/archive_frontend_assets.go -src "$WEB_DIST_DIR" -dst "$EMBED_AR
 
 echo "Building embedded PineTS worker assets..."
 pnpm run build:pineworker
+
+echo "Verifying pre-staged native yfinance helpers..."
+require_yfinance_assets
 
 echo "Running tests..."
 go test ./... -count=1 -timeout 300s || { echo "Tests failed"; exit 1; }

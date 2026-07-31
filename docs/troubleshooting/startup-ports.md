@@ -25,6 +25,7 @@
 | `JFTrade Dev` sidecar                     | `127.0.0.1:3008`  | Wails 开发窗口直接访问 `/api/v1/*`、SSE、WS        |
 | 可选 Web 访问监听器                        | `127.0.0.1:6688`  | 端口可在设置中修改；桌面 Web 关闭时不创建，开启后提供前端、API、SSE、WS 和 Swagger |
 | 正式 Wails 桌面 sidecar                    | `127.0.0.1:6699`  | 仅供正式 Wails WebView 无感访问，始终保持 loopback               |
+| 内置 yfinance helper                       | 动态 `127.0.0.1:<port>` | 发布版自动释放并启动；仅供 Go Provider 使用，`JFTRADE_YFINANCE_SIDECAR` 仅用于开发/测试 |
 | Futu OpenD API                            | `127.0.0.1:11110` | Go 原生 TCP/protobuf 查询与探针                    |
 | Futu OpenD WebSocket                      | `127.0.0.1:11111` | FTWebSocket / JavaScript API                       |
 

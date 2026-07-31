@@ -15,6 +15,13 @@ type SubscriptionReconciler interface {
 	SubscriptionState() map[string]any
 }
 
+// ForcedSubscriptionReleaser is an optional provider-switch capability.
+// Implementations release every physical subscription immediately, bypassing
+// ordinary broker retention and retry gates.
+type ForcedSubscriptionReleaser interface {
+	ForceReleaseSubscriptions(context.Context) error
+}
+
 // ManagedSubscription is a non-expiring, process-owned subscription lease.
 // Strategy runtimes keep one for their whole RUNNING lifetime.
 type ManagedSubscription struct {

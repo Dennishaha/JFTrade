@@ -1,0 +1,222 @@
+package marketdataapp
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestSidecarManagerStartsReusesAndStopsManagedExecutable(t *testing.T) {
+	starter := &sidecarStarterStub{}
+	cleanupCalls := 0
+	manager := &sidecarManager{
+		resolve: func() (sidecarExecutable, error) {
+			return sidecarExecutable{
+				path: "/tmp/yfinance-sidecar",
+				cleanup: func() error {
+					cleanupCalls++
+					return nil
+				},
+			}, nil
+		},
+		allocatePort: func() (int, error) { return 43123, nil },
+		start:        starter.Start,
+	}
+
+	endpoint, err := manager.EnsureStarted()
+	if err != nil {
+		t.Fatalf("EnsureStarted: %v", err)
+	}
+	if endpoint != "http://127.0.0.1:43123" || len(starter.configs) != 1 {
+		t.Fatalf("started endpoint/configs = %q/%#v", endpoint, starter.configs)
+	}
+	config := starter.configs[0]
+	if config.Executable != "/tmp/yfinance-sidecar" || config.Host != sidecarHost || config.Port != 43123 {
+		t.Fatalf("sidecar config = %#v", config)
+	}
+	if reused, err := manager.EnsureStarted(); err != nil || reused != endpoint || len(starter.configs) != 1 {
+		t.Fatalf("reused endpoint = %q, err=%v, starts=%d", reused, err, len(starter.configs))
+	}
+	if err := manager.Stop(); err != nil {
+		t.Fatalf("Stop: %v", err)
+	}
+	if starter.processes[0].closeCalls != 1 || cleanupCalls != 1 || manager.process != nil || manager.endpoint != "" {
+		t.Fatalf("stopped state = process %#v endpoint %q cleanup %d", manager.process, manager.endpoint, cleanupCalls)
+	}
+	if err := manager.Close(); err != nil {
+		t.Fatalf("Close(empty): %v", err)
+	}
+}
+
+func TestSidecarManagerRestartsExitedProcessAndCleansPreviousMaterialization(t *testing.T) {
+	starter := &sidecarStarterStub{}
+	resolveCalls := 0
+	cleanupCalls := 0
+	manager := &sidecarManager{
+		resolve: func() (sidecarExecutable, error) {
+			resolveCalls++
+			return sidecarExecutable{
+				path: "/tmp/yfinance-sidecar",
+				cleanup: func() error {
+					cleanupCalls++
+					return nil
+				},
+			}, nil
+		},
+		allocatePort: func() (int, error) { return 43120 + resolveCalls, nil },
+		start:        starter.Start,
+	}
+	if _, err := manager.EnsureStarted(); err != nil {
+		t.Fatalf("first EnsureStarted: %v", err)
+	}
+	starter.processes[0].running = false
+	endpoint, err := manager.EnsureStarted()
+	if err != nil {
+		t.Fatalf("restart EnsureStarted: %v", err)
+	}
+	if endpoint != "http://127.0.0.1:43122" || resolveCalls != 2 || cleanupCalls != 1 || len(starter.processes) != 2 {
+		t.Fatalf("restart = endpoint %q resolves %d cleanups %d starts %d", endpoint, resolveCalls, cleanupCalls, len(starter.processes))
+	}
+}
+
+func TestSidecarManagerCleansMaterializationAfterPreparationFailures(t *testing.T) {
+	allocateErr := errors.New("port allocation failed")
+	cleanupCalls := 0
+	manager := &sidecarManager{
+		resolve: func() (sidecarExecutable, error) {
+			return sidecarExecutable{path: "/tmp/helper", cleanup: func() error {
+				cleanupCalls++
+				return nil
+			}}, nil
+		},
+		allocatePort: func() (int, error) { return 0, allocateErr },
+	}
+	if _, err := manager.EnsureStarted(); !errors.Is(err, allocateErr) || cleanupCalls != 1 {
+		t.Fatalf("allocation failure = err %v cleanup %d", err, cleanupCalls)
+	}
+
+	startErr := errors.New("start failed")
+	starter := &sidecarStarterStub{errors: []error{startErr}}
+	manager.allocatePort = func() (int, error) { return 43123, nil }
+	manager.start = starter.Start
+	if _, err := manager.EnsureStarted(); !errors.Is(err, startErr) || cleanupCalls != 2 {
+		t.Fatalf("start failure = err %v cleanup %d", err, cleanupCalls)
+	}
+	if manager.process != nil || manager.endpoint != "" {
+		t.Fatalf("failed start retained state: %#v/%q", manager.process, manager.endpoint)
+	}
+}
+
+func TestSidecarManagerRetainsProcessUntilStopSucceeds(t *testing.T) {
+	stopErr := errors.New("stop failed")
+	process := &sidecarProcessStub{running: true, closeErr: stopErr}
+	manager := &sidecarManager{endpoint: "http://127.0.0.1:43123", process: process}
+	if err := manager.Stop(); !errors.Is(err, stopErr) {
+		t.Fatalf("Stop error = %v", err)
+	}
+	if manager.process != process || manager.endpoint == "" {
+		t.Fatalf("failed Stop discarded retry state: %#v/%q", manager.process, manager.endpoint)
+	}
+	process.closeErr = nil
+	if err := manager.Stop(); err != nil {
+		t.Fatalf("retry Stop: %v", err)
+	}
+	if process.closeCalls != 2 || manager.process != nil || manager.endpoint != "" {
+		t.Fatalf("retry state = calls %d process %#v endpoint %q", process.closeCalls, manager.process, manager.endpoint)
+	}
+}
+
+func TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries(t *testing.T) {
+	helper := filepath.Join(t.TempDir(), "yfinance-sidecar")
+	if err := os.WriteFile(helper, []byte("helper"), 0o700); err != nil {
+		t.Fatalf("write helper: %v", err)
+	}
+	t.Setenv("JFTRADE_YFINANCE_SIDECAR", helper)
+	executable, err := resolveYFinanceSidecarExecutable()
+	if err != nil || executable.path != helper {
+		t.Fatalf("resolve override = %#v, %v", executable, err)
+	}
+
+	t.Setenv("JFTRADE_YFINANCE_SIDECAR", "")
+	embedded, err := resolveYFinanceSidecarExecutable()
+	if err != nil {
+		if !errors.Is(err, ErrYFinanceSidecarUnavailable) {
+			t.Fatalf("resolve embedded helper: %v", err)
+		}
+	} else {
+		if embedded.path == "" || embedded.cleanup == nil {
+			t.Fatalf("embedded helper = %#v", embedded)
+		}
+		if err := embedded.cleanup(); err != nil {
+			t.Fatalf("clean up embedded helper: %v", err)
+		}
+	}
+	var nilManager *sidecarManager
+	if _, err := nilManager.EnsureStarted(); err == nil {
+		t.Fatal("nil manager started")
+	}
+	if err := nilManager.Stop(); err != nil {
+		t.Fatalf("nil manager Stop: %v", err)
+	}
+	manager := newSidecarManager()
+	if manager.resolve == nil || manager.allocatePort == nil || manager.start == nil {
+		t.Fatalf("newSidecarManager = %#v", manager)
+	}
+	port, err := allocateYFinanceSidecarPort()
+	if err != nil || port < 1 || port > 65535 {
+		t.Fatalf("allocated port = %d, %v", port, err)
+	}
+}
+
+func TestDevelopmentOverrideRejectsMissingAndNonFilePaths(t *testing.T) {
+	t.Setenv("JFTRADE_YFINANCE_SIDECAR", "relative/yfinance-sidecar")
+	if _, err := resolveYFinanceSidecarExecutable(); err == nil || !strings.Contains(err.Error(), "absolute path") {
+		t.Fatalf("relative override error = %v", err)
+	}
+	t.Setenv("JFTRADE_YFINANCE_SIDECAR", filepath.Join(t.TempDir(), "missing"))
+	if _, err := resolveYFinanceSidecarExecutable(); err == nil || !strings.Contains(err.Error(), "inspect") {
+		t.Fatalf("missing override error = %v", err)
+	}
+	t.Setenv("JFTRADE_YFINANCE_SIDECAR", t.TempDir())
+	if _, err := resolveYFinanceSidecarExecutable(); err == nil || !strings.Contains(err.Error(), "regular file") {
+		t.Fatalf("directory override error = %v", err)
+	}
+}
+
+type sidecarStarterStub struct {
+	configs   []SidecarConfig
+	processes []*sidecarProcessStub
+	errors    []error
+}
+
+func (s *sidecarStarterStub) Start(config SidecarConfig) (sidecarProcess, error) {
+	s.configs = append(s.configs, config)
+	if len(s.errors) > 0 {
+		err := s.errors[0]
+		s.errors = s.errors[1:]
+		if err != nil {
+			return nil, err
+		}
+	}
+	process := &sidecarProcessStub{running: true}
+	s.processes = append(s.processes, process)
+	return process, nil
+}
+
+type sidecarProcessStub struct {
+	running    bool
+	closeCalls int
+	closeErr   error
+}
+
+func (p *sidecarProcessStub) Running() bool { return p != nil && p.running }
+
+func (p *sidecarProcessStub) Close() error {
+	p.closeCalls++
+	if p.closeErr == nil {
+		p.running = false
+	}
+	return p.closeErr
+}

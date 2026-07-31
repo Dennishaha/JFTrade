@@ -278,8 +278,8 @@ async function reload(options: { preserveExisting?: boolean } = {}): Promise<voi
       symbol: target.symbol,
       period: target.period,
     });
-    await syncChartSubscription(target, requestSeq);
-    if (requestSeq !== chartReloadSeq) {
+    const subscriptionReady = await syncChartSubscription(target, requestSeq);
+    if (!subscriptionReady || requestSeq !== chartReloadSeq) {
       return;
     }
     await loadMarketDataQuery(
@@ -353,7 +353,7 @@ function handleChartOnline(): void {
 async function syncChartSubscription(
   next: ReturnType<typeof resolveChartSubscriptionTarget>,
   requestSeq = chartReloadSeq,
-): Promise<void> {
+): Promise<boolean> {
   if (
     heldChartSubscription != null &&
     (heldChartSubscription.market !== next.market ||
@@ -378,7 +378,7 @@ async function syncChartSubscription(
   }
 
   if (next.market === "" || next.symbol === "" || next.period === "") {
-    return;
+    return false;
   }
 
   const acquired = await acquireMarketDataSubscription({
@@ -390,7 +390,7 @@ async function syncChartSubscription(
     ...(next.channel === "KLINE" ? { interval: next.interval } : {}),
   });
   if (!acquired) {
-    return;
+    return false;
   }
   if (requestSeq !== chartReloadSeq) {
     await releaseMarketDataSubscription({
@@ -401,7 +401,7 @@ async function syncChartSubscription(
       channel: next.channel,
       ...(next.channel === "KLINE" ? { interval: next.interval } : {}),
     });
-    return;
+    return false;
   }
 
   await heartbeatChartSubscription(next.brokerId);
@@ -414,10 +414,11 @@ async function syncChartSubscription(
       channel: next.channel,
       ...(next.channel === "KLINE" ? { interval: next.interval } : {}),
     });
-    return;
+    return false;
   }
 
   heldChartSubscription = next;
+  return true;
 }
 
 function heartbeatChartSubscription(brokerId: string): Promise<void> {

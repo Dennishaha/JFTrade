@@ -14,7 +14,6 @@ import {
   createMarketDataSnapshotRefresher,
   type MarketSnapshotRefreshTarget,
 } from "@/composables/market-data/marketDataSnapshotRefresh";
-import { withBrokerProvider } from "@/composables/trading/brokerProviderSelection";
 
 export interface LoadMarketDataQueryOptions {
   appendOlder?: boolean;
@@ -62,7 +61,6 @@ interface MarketDataQueryControllerOptions {
   ) => Promise<MarketSecurityDetailsQueryResult>;
   requestCandles: (path: string) => Promise<MarketDataCandlesQueryResult>;
   normalizeInstrumentParts: NormalizeInstrumentParts;
-  resolveBrokerId?: () => string;
 }
 
 export interface MarketDataQueryController {
@@ -121,7 +119,7 @@ export function createMarketDataQueryController(
   } | null = null;
   let marketDataQueryRequestId = 0;
   let olderMarketDataRequestId = 0;
-  let loadedBrokerId = "";
+  let providerSelectionGeneration = 0;
 
   function mergeMarketDataCandles(
     current: MarketDataCandlesQueryResult | null,
@@ -225,6 +223,7 @@ export function createMarketDataQueryController(
   }
 
   function invalidateProviderSelection(): void {
+    providerSelectionGeneration += 1;
     marketDataQueryRequestId += 1;
     activeMarketDataQuery = null;
     resetMarketDataPagination();
@@ -233,8 +232,6 @@ export function createMarketDataQueryController(
     marketDataQueryError.value = "";
     lastDataRefreshedAt.value = 0;
     clearCurrentMarketDataResults();
-    loadedBrokerId =
-      options.resolveBrokerId?.().trim().toLowerCase() ?? "";
     isMarketDataSwitching.value = false;
   }
 
@@ -332,10 +329,9 @@ export function createMarketDataQueryController(
   async function refreshMarketDataFallback(
     target: MarketSnapshotRefreshTarget,
   ): Promise<{ retryAfterMs?: number }> {
-    const brokerId = options.resolveBrokerId?.().trim().toLowerCase() ?? "";
+    const providerGeneration = providerSelectionGeneration;
     if (
-      activeMarketDataInstrumentId.value !== target.instrumentId ||
-      (options.resolveBrokerId?.().trim().toLowerCase() ?? "") !== brokerId
+      activeMarketDataInstrumentId.value !== target.instrumentId
     ) {
       return {};
     }
@@ -343,21 +339,15 @@ export function createMarketDataQueryController(
     const encodedSymbol = encodeURIComponent(target.symbol);
     const [snapshotResult, securityDetailsResult] = await Promise.allSettled([
       options.requestSnapshot(
-        withBrokerProvider(
-          `/api/v1/market-data/snapshots/${encodedMarket}/${encodedSymbol}?refresh=true`,
-          brokerId,
-        ),
+        `/api/v1/market-data/snapshots/${encodedMarket}/${encodedSymbol}?refresh=true`,
       ),
       options.requestSecurityDetails(
-        withBrokerProvider(
-          `/api/v1/market-data/securities/${encodedMarket}/${encodedSymbol}`,
-          brokerId,
-        ),
+        `/api/v1/market-data/securities/${encodedMarket}/${encodedSymbol}`,
       ),
     ]);
     if (
       activeMarketDataInstrumentId.value !== target.instrumentId ||
-      (options.resolveBrokerId?.().trim().toLowerCase() ?? "") !== brokerId
+      providerSelectionGeneration !== providerGeneration
     ) {
       return {};
     }
@@ -409,8 +399,7 @@ export function createMarketDataQueryController(
     const symbol = parsedInstrument?.symbol ?? "";
     const rawPeriod = marketDataQueryPeriod.value.trim();
     const requestedLimit = Number(marketDataQueryLimit.value);
-    const brokerId =
-      options.resolveBrokerId?.().trim().toLowerCase() ?? "";
+    const providerGeneration = providerSelectionGeneration;
 
     if (queryOptions.appendOlder !== true) {
       marketDataQueryError.value = "";
@@ -469,16 +458,13 @@ export function createMarketDataQueryController(
             before,
           });
           const result = await options.requestCandles(
-            withBrokerProvider(
-              `/api/v1/market-data/candles/${encodeURIComponent(market)}/${encodeURIComponent(symbol)}?${candleParams.toString()}`,
-              brokerId,
-            ),
+            `/api/v1/market-data/candles/${encodeURIComponent(market)}/${encodeURIComponent(symbol)}?${candleParams.toString()}`,
           );
           if (
             requestID !== olderMarketDataRequestId ||
             activeMarketDataInstrumentId.value !== requestInstrumentId ||
             marketDataQueryPeriod.value !== period ||
-            (options.resolveBrokerId?.().trim().toLowerCase() ?? "") !== brokerId
+            providerSelectionGeneration !== providerGeneration
           ) {
             return;
           }
@@ -507,7 +493,7 @@ export function createMarketDataQueryController(
       limit: effectiveLimit,
       fromTime: effectiveFromTime ?? null,
       toTime: queryOptions.toTime ?? null,
-      brokerId,
+      providerGeneration,
     });
     if (activeMarketDataQuery?.key === queryKey) {
       return activeMarketDataQuery.promise;
@@ -522,14 +508,13 @@ export function createMarketDataQueryController(
     const requestInstrumentChanged =
       activeMarketDataInstrumentId.value !== requestInstrumentId;
     const requestPeriodChanged = marketDataQueryPeriod.value !== period;
-    const requestProviderChanged = loadedBrokerId !== brokerId;
 
     function isCurrentRequest(): boolean {
       return (
         marketDataQueryRequestId === requestId &&
         activeMarketDataInstrumentId.value === requestInstrumentId &&
         marketDataQueryPeriod.value === period &&
-        (options.resolveBrokerId?.().trim().toLowerCase() ?? "") === brokerId
+        providerSelectionGeneration === providerGeneration
       );
     }
 
@@ -541,7 +526,7 @@ export function createMarketDataQueryController(
       marketDataQueryLimit.value = requestedLimit;
       activeMarketDataInstrumentId.value = requestInstrumentId;
       if (queryOptions.appendOlder !== true && queryOptions.preserveExisting !== true) {
-        if (requestInstrumentChanged || requestProviderChanged) {
+        if (requestInstrumentChanged) {
           isMarketDataSwitching.value = true;
           clearCurrentMarketDataResults();
           isMarketDataSwitching.value = false;
@@ -579,24 +564,15 @@ export function createMarketDataQueryController(
         };
         const snapshotQuery =
           options.requestSnapshot(
-            withBrokerProvider(
-              `/api/v1/market-data/snapshots/${encodedMarket}/${encodedSymbol}?refresh=true`,
-              brokerId,
-            ),
+            `/api/v1/market-data/snapshots/${encodedMarket}/${encodedSymbol}?refresh=true`,
           );
         const securityDetailsQuery =
           options.requestSecurityDetails(
-            withBrokerProvider(
-              `/api/v1/market-data/securities/${encodedMarket}/${encodedSymbol}`,
-              brokerId,
-            ),
+            `/api/v1/market-data/securities/${encodedMarket}/${encodedSymbol}`,
           );
         const candlesQuery =
           options.requestCandles(
-            withBrokerProvider(
-              `/api/v1/market-data/candles/${encodedMarket}/${encodedSymbol}?${candleParams.toString()}`,
-              brokerId,
-            ),
+            `/api/v1/market-data/candles/${encodedMarket}/${encodedSymbol}?${candleParams.toString()}`,
           );
 
         void snapshotQuery
@@ -707,7 +683,6 @@ export function createMarketDataQueryController(
             market, symbol, instrumentId: requestInstrumentId,
           });
           lastDataRefreshedAt.value = Date.now();
-          loadedBrokerId = brokerId;
           isLoadingMarketDataQuery.value = false;
           isMarketDataSwitching.value = false;
         }

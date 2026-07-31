@@ -15,6 +15,7 @@
 | `JFTrade Dev` 与正式产品互相影响、重复启动或端口冲突 | [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)               | 开发版查 `3008`，正式产品查 `6699`；确认两者应用 ID 和数据目录不同                                                   |
 | 前端显示实时通道断开或没有心跳                       | [troubleshooting/live-stream-connection.md](troubleshooting/live-stream-connection.md) | `go test ./internal/app/apiserver/servercore -run TestLiveSSESendsHeartbeat`                                         |
 | OpenD 连不上、设置保存了但运行时没生效               | [troubleshooting/opend-configuration.md](troubleshooting/opend-configuration.md)       | 开发态查 `http://127.0.0.1:3000/api/v1/system/futu-opend`，发布态查 `http://127.0.0.1:6688/api/v1/system/futu-opend` |
+| yfinance helper 不可用、自动进程退出或数据明显不实时        | [troubleshooting/yfinance-sidecar.md](troubleshooting/yfinance-sidecar.md)              | 行情提供者状态、启动日志与开发态 `JFTRADE_YFINANCE_SIDECAR` 路径                                             |
 | 美股盘前盘后或夜盘显示异常                           | [troubleshooting/us-extended-hours.md](troubleshooting/us-extended-hours.md)           | 检查 snapshot 是否带 `lastClosePrice` 和扩展行情块                                                                   |
 | 回测明显变慢，或不确定慢在 sync 还是 replay          | [troubleshooting/backtest-performance.md](troubleshooting/backtest-performance.md)     | `JFTRADE_REAL_CHAIN_PROFILE=1 go test ./pkg/backtest -run '^TestRealUSMarch2026DoubleMATemplateProfile$' -v`         |
 | Pine 策略执行失败、worker 没启动、发布包缺 worker    | [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)   | 检查 `JFTRADE_PINEWORKER_BUNDLE`、Node runtime、`release_assets` 构建和非 mock smoke                                 |
@@ -48,5 +49,6 @@ go test ./...
 - 可选 Web 服务：默认 `127.0.0.1:6688`，端口可在桌面设置中修改；Wails 桌面 Web 关闭时不创建该监听器
 - OpenD API port：默认 `127.0.0.1:11110`，Go 原生 TCP API 使用
 - OpenD WebSocket port：默认 `127.0.0.1:11111`，FTWebSocket / JavaScript API 使用
+- yfinance helper：发布版随 Go 二进制嵌入，自动使用动态 loopback 端口；只供 JFTrade 的 Go 行情 Provider 访问
 
 更完整的术语、职责边界和排查顺序见 [troubleshooting/diagnostic-principles.md](troubleshooting/diagnostic-principles.md)。

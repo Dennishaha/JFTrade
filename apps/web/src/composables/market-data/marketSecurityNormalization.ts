@@ -55,6 +55,17 @@ const securityNumberKeys = [
   "highPrecisionVolume",
   "highPrecisionAskVol",
   "highPrecisionBidVol",
+  "marketCap",
+  "trailingPe",
+  "forwardPe",
+  "trailingEps",
+  "forwardEps",
+  "dividendRate",
+  "dividendYield",
+  "fiftyTwoWeekHigh",
+  "fiftyTwoWeekLow",
+  "averageVolume",
+  "sharesOutstanding",
 ] as const;
 
 const equityNumberKeys = [

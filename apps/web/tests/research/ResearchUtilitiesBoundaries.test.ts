@@ -178,7 +178,7 @@ describe("research utility boundaries", () => {
     mocks.fetchEnvelopeWithInit.mockResolvedValueOnce({});
     expect(await fetchResearchSnapshots([" us.aapl "], "", true)).toEqual([]);
     expect(mocks.fetchEnvelopeWithInit).toHaveBeenLastCalledWith(
-      "/api/v1/market-data/snapshots?refresh=true",
+      "/api/v1/watchlist/quotes/batch",
       expect.any(Object),
     );
 
@@ -200,7 +200,7 @@ describe("research utility boundaries", () => {
           }),
       )
       .mockResolvedValueOnce({
-        entries: [{ symbol: "US.FAST", lastPrice: 12 }],
+        quotes: [{ symbol: "US.FAST", lastPrice: 12 }],
       });
 
     const scope = effectScope();

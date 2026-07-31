@@ -1,15 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { nextTick } from "vue";
+import { describe, expect, it } from "vitest";
 
 import { createConsoleDataMarketDataQuerySlice } from "@/composables/market-data/consoleDataMarketDataQuery";
-import {
-  resetBrokerProviderSelectionForTests,
-  useBrokerProviderSelection,
-} from "@/composables/trading/brokerProviderSelection";
-
-afterEach(() => {
-  resetBrokerProviderSelectionForTests();
-});
 
 describe("console market-data freshness", () => {
   it("treats an untouched query as stale before a first backend response arrives", () => {
@@ -37,8 +28,7 @@ describe("console market-data freshness", () => {
     };
     marketData.lastDataRefreshedAt.value = 123;
 
-    useBrokerProviderSelection().selectBrokerProvider("alpha");
-    await nextTick();
+    marketData.invalidateMarketDataProvider();
 
     expect(marketData.marketDataSnapshot.value).toBeNull();
     expect(marketData.lastDataRefreshedAt.value).toBe(0);

@@ -56,16 +56,17 @@ func WithBatchSnapshotSource(source BatchSnapshotSource) Option {
 }
 
 type Service struct {
-	repository  Repository
-	now         func() time.Time
-	previewTTL  time.Duration
-	mu          sync.RWMutex
-	readers     map[string]WatchlistSourceReader
-	quoteSource BatchSnapshotSource
-	quoteTTL    time.Duration
-	quoteMu     sync.Mutex
-	quoteCache  map[string]quoteCacheEntry
-	quoteFlight map[string]*quoteFlight
+	repository      Repository
+	now             func() time.Time
+	previewTTL      time.Duration
+	mu              sync.RWMutex
+	readers         map[string]WatchlistSourceReader
+	quoteSource     BatchSnapshotSource
+	quoteTTL        time.Duration
+	quoteMu         sync.Mutex
+	quoteCache      map[string]quoteCacheEntry
+	quoteFlight     map[string]*quoteFlight
+	quoteGeneration uint64
 }
 
 type quoteCacheEntry struct {
@@ -488,11 +489,10 @@ func (s *Service) BatchQuotes(ctx context.Context, instrumentIDs []string) (Batc
 		seen[instrumentID] = struct{}{}
 		normalized = append(normalized, instrumentID)
 	}
-	owned, waitFor := s.reserveQuoteFlights(normalized)
+	owned, waitFor, generation := s.reserveQuoteFlights(normalized)
 	if len(owned) > 0 {
 		quotes, itemErrors, err := source.BatchSnapshots(ctx, owned)
-		s.updateInstrumentMetadata(ctx, quotes)
-		s.completeQuoteFlights(owned, quotes, itemErrors, err)
+		s.completeQuoteFlights(ctx, generation, owned, quotes, itemErrors, err, s.quoteCacheTTL(source))
 	}
 	for _, flight := range waitFor {
 		select {
@@ -503,6 +503,15 @@ func (s *Service) BatchQuotes(ctx context.Context, instrumentIDs []string) (Batc
 	}
 	quotes, itemErrors := s.collectQuoteCache(normalized)
 	return BatchQuotes{Quotes: nonNilQuotes(quotes), Errors: nonNilQuoteErrors(itemErrors), ObservedAt: s.now()}, nil
+}
+
+func (s *Service) quoteCacheTTL(source BatchSnapshotSource) time.Duration {
+	if policy, ok := source.(QuoteCachePolicySource); ok {
+		if ttl := policy.QuoteCacheTTL(); ttl > 0 {
+			return ttl
+		}
+	}
+	return s.quoteTTL
 }
 
 func (s *Service) updateInstrumentMetadata(ctx context.Context, quotes []Quote) {
@@ -526,7 +535,7 @@ func (s *Service) updateInstrumentMetadata(ctx context.Context, quotes []Quote) 
 	}
 }
 
-func (s *Service) reserveQuoteFlights(instrumentIDs []string) ([]string, []*quoteFlight) {
+func (s *Service) reserveQuoteFlights(instrumentIDs []string) ([]string, []*quoteFlight, uint64) {
 	s.quoteMu.Lock()
 	defer s.quoteMu.Unlock()
 	now := s.now()
@@ -549,10 +558,18 @@ func (s *Service) reserveQuoteFlights(instrumentIDs []string) ([]string, []*quot
 		s.quoteFlight[instrumentID] = flight
 		owned = append(owned, instrumentID)
 	}
-	return owned, waitFor
+	return owned, waitFor, s.quoteGeneration
 }
 
-func (s *Service) completeQuoteFlights(instrumentIDs []string, quotes []Quote, itemErrors []QuoteError, batchErr error) {
+func (s *Service) completeQuoteFlights(
+	ctx context.Context,
+	generation uint64,
+	instrumentIDs []string,
+	quotes []Quote,
+	itemErrors []QuoteError,
+	batchErr error,
+	cacheTTL time.Duration,
+) {
 	quoteByID := make(map[string]Quote, len(quotes))
 	for _, quote := range quotes {
 		quoteByID[quote.InstrumentID] = quote
@@ -563,7 +580,14 @@ func (s *Service) completeQuoteFlights(instrumentIDs []string, quotes []Quote, i
 	}
 	s.quoteMu.Lock()
 	defer s.quoteMu.Unlock()
-	expiresAt := s.now().Add(s.quoteTTL)
+	if generation != s.quoteGeneration {
+		return
+	}
+	s.updateInstrumentMetadata(ctx, quotes)
+	if cacheTTL <= 0 {
+		cacheTTL = s.quoteTTL
+	}
+	expiresAt := s.now().Add(cacheTTL)
 	for _, instrumentID := range instrumentIDs {
 		entry := quoteCacheEntry{expiresAt: expiresAt}
 		if quote, ok := quoteByID[instrumentID]; ok {
@@ -586,6 +610,48 @@ func (s *Service) completeQuoteFlights(instrumentIDs []string, quotes []Quote, i
 			close(flight.done)
 		}
 	}
+}
+
+// ResetQuoteCache prevents snapshots from the previous active provider from
+// being served or repopulating the cache after a provider switch.
+func (s *Service) ResetQuoteCache() {
+	if s == nil {
+		return
+	}
+	s.quoteMu.Lock()
+	s.resetQuoteCacheLocked()
+	s.quoteMu.Unlock()
+}
+
+// ChangeQuoteProvider serializes an active-provider mutation with quote flight
+// reservation and completion. A successful change invalidates existing
+// provider results before new requests can select a route. A failed change
+// preserves the current provider's cache and in-flight work.
+func (s *Service) ChangeQuoteProvider(change func() error) error {
+	if s == nil {
+		if change == nil {
+			return nil
+		}
+		return change()
+	}
+	s.quoteMu.Lock()
+	defer s.quoteMu.Unlock()
+	if change != nil {
+		if err := change(); err != nil {
+			return err
+		}
+	}
+	s.resetQuoteCacheLocked()
+	return nil
+}
+
+func (s *Service) resetQuoteCacheLocked() {
+	s.quoteGeneration++
+	s.quoteCache = make(map[string]quoteCacheEntry)
+	for _, flight := range s.quoteFlight {
+		close(flight.done)
+	}
+	s.quoteFlight = make(map[string]*quoteFlight)
 }
 
 func (s *Service) collectQuoteCache(instrumentIDs []string) ([]Quote, []QuoteError) {

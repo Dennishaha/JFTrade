@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
@@ -8,6 +9,7 @@ const packageManagerCommand = process.env.npm_execpath
 
 const rootDir = path.resolve(import.meta.dirname, "..");
 const desktopRuntimeDir = path.join(rootDir, "var", "jftrade-api");
+const yfinanceSidecarPath = resolveYFinanceSidecar();
 const apiBind = process.env.JFTRADE_API_BIND || "127.0.0.1:3008";
 const apiBaseUrl = apiBaseURLForBind(apiBind);
 const devEnv = {
@@ -25,6 +27,9 @@ const devEnv = {
   VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || apiBaseUrl,
   VITE_DEV_API_TARGET: process.env.VITE_DEV_API_TARGET || apiBaseUrl,
 };
+if (yfinanceSidecarPath) {
+  devEnv.JFTRADE_YFINANCE_SIDECAR = yfinanceSidecarPath;
+}
 
 let desktopCommand = "go";
 let desktopArgs = ["run", "./cmd/jftrade-desktop"];
@@ -36,6 +41,9 @@ if (process.env.JFTRADE_DESKTOP_DEV_DRY_RUN === "1") {
   console.log(`JFTRADE_BACKTEST_DB=${devEnv.JFTRADE_BACKTEST_DB}`);
   console.log(`JFTRADE_API_BIND=${devEnv.JFTRADE_API_BIND}`);
   console.log(`DISABLE_MARKETS_CACHE=${devEnv.DISABLE_MARKETS_CACHE}`);
+  if (yfinanceSidecarPath) {
+    console.log(`JFTRADE_YFINANCE_SIDECAR=${yfinanceSidecarPath}`);
+  }
   console.log(`VITE_API_BASE_URL=${devEnv.VITE_API_BASE_URL}`);
   console.log(`VITE_DEV_API_TARGET=${devEnv.VITE_DEV_API_TARGET}`);
   process.exit(0);
@@ -120,4 +128,66 @@ function apiBaseURLForBind(bind) {
   }
   host = host.replace(/^\[(.*)\]$/, "$1");
   return `http://${host}:${port}`;
+}
+
+function resolveYFinanceSidecar() {
+  const configured = process.env.JFTRADE_YFINANCE_SIDECAR?.trim();
+  if (configured) return configured;
+
+  const staged = stagedYFinanceSidecarPath();
+  if (existsSync(staged)) return staged;
+  if (process.env.JFTRADE_DESKTOP_DEV_DRY_RUN === "1") return "";
+
+  console.log(`Preparing native yfinance helper for desktop development: ${staged}`);
+  const python =
+    process.env.JFTRADE_YFINANCE_BUILD_PYTHON?.trim() ||
+    defaultYFinanceBuildPython();
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/build-yfinance-sidecar.mjs"],
+    {
+      cwd: rootDir,
+      env: {
+        ...process.env,
+        JFTRADE_YFINANCE_BUILD_PYTHON: python,
+      },
+      stdio: "inherit",
+    },
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(
+      `yfinance sidecar build failed with status ${result.status ?? "unknown"}`,
+    );
+  }
+  if (!existsSync(staged)) {
+    throw new Error(`yfinance sidecar build did not produce ${staged}`);
+  }
+  return staged;
+}
+
+function stagedYFinanceSidecarPath() {
+  const goos = { darwin: "darwin", linux: "linux", win32: "windows" }[
+    process.platform
+  ] || process.platform;
+  const goarch = { arm64: "arm64", x64: "amd64" }[process.arch] || process.arch;
+  const extension = goos === "windows" ? ".exe" : "";
+  return path.join(
+    rootDir,
+    "internal",
+    "yfinanceassets",
+    "assets",
+    "bin",
+    `yfinance-sidecar-${goos}-${goarch}${extension}`,
+  );
+}
+
+function defaultYFinanceBuildPython() {
+  const relative =
+    process.platform === "win32"
+      ? ["workers", "yfinance-sidecar", ".venv", "Scripts", "python.exe"]
+      : ["workers", "yfinance-sidecar", ".venv", "bin", "python"];
+  const bundled = path.join(rootDir, ...relative);
+  if (existsSync(bundled)) return bundled;
+  return process.platform === "win32" ? "python" : "python3";
 }

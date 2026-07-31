@@ -91,6 +91,10 @@ import {
 import {
   type LoadMarketDataQueryOptions,
 } from "@/composables/market-data/marketDataQuery";
+import {
+  loadMarketProfiles,
+  refreshMarketProfiles,
+} from "@/composables/market-data/marketProfiles";
 import { getSharedLiveSocketHub } from "@/composables/market-data/sharedLiveSocket";
 import { normalizeKlinePeriod } from "@/charting/kline";
 import {
@@ -182,6 +186,7 @@ function createConsoleDataStore(
     isLoadingMarketDataQuery,
     isLoadingOlderMarketData,
     hasMoreMarketDataHistory,
+    invalidateMarketDataProvider,
     isMarketDataSwitching,
     lastDataRefreshedAt,
     loadMarketDataQuery,
@@ -193,6 +198,7 @@ function createConsoleDataStore(
     marketDataQueryMarket,
     marketDataQueryPeriod,
     marketDataQuerySymbol,
+    reconcileMarketDataProvider,
     marketSecurityDetails,
     marketDataSnapshot,
     selectMarketDataInstrument,
@@ -464,7 +470,10 @@ function createConsoleDataStore(
     liveStreamCheckedAt,
     reloadSystemState,
   });
-  const { dispose: disposeConsoleStream, initialize } = consoleStreamController;
+  const {
+    dispose: disposeConsoleStream,
+    initialize: initializeConsoleStream,
+  } = consoleStreamController;
 
   function dispose(): void {
     disposeMarketDataQuery();
@@ -500,6 +509,33 @@ function createConsoleDataStore(
     });
   }
 
+  async function reloadMarketDataProvider(
+    options: { load?: boolean; refreshProfiles?: boolean } = {},
+  ): Promise<void> {
+    if (options.refreshProfiles !== false) {
+      await refreshMarketProfiles();
+    }
+    const shouldLoad = await reconcileMarketDataProvider(
+      marketInstrumentSearchOptions.value,
+    );
+    update({
+      market: marketDataQueryMarket.value,
+      symbol: marketDataQuerySymbol.value,
+      period: marketDataQueryPeriod.value,
+      marketSegment: "securities",
+      productClass: "unknown",
+    });
+    if (shouldLoad && options.load !== false) {
+      await loadMarketDataQuery();
+    }
+  }
+
+  async function initialize(): Promise<void> {
+    await initializeConsoleStream();
+    await loadMarketProfiles();
+    await reloadMarketDataProvider({ load: false, refreshProfiles: false });
+  }
+
   return {
     availableBrokerAccounts,
     brokerCashFlows,
@@ -526,6 +562,7 @@ function createConsoleDataStore(
     futuOpenDInstallGuide,
     initialize,
     heartbeatMarketDataConsumer,
+    invalidateMarketDataProvider,
     installPlugin,
     installingPluginIds,
     isLiveStreamConnected: computed(() => liveStreamStatus.value === "connected"),
@@ -580,6 +617,7 @@ function createConsoleDataStore(
     pluginCatalog,
     pluginError,
     requestFutuOpenDManualRetry,
+    reloadMarketDataProvider,
     clearBrokerMaxTradeQuantity,
     realTradeApprovals,
     realTradeHardStopEvents,

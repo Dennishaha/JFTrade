@@ -38,9 +38,16 @@ const ageMs = computed(() => {
   if (observedTime.value == null) return null;
   return Math.max(0, now.value - observedTime.value);
 });
+const effectiveTransportMode = computed(() => {
+  const source = props.source?.trim().toLowerCase() ?? "";
+  if (source === "yfinance" || source === "yahoo-finance") {
+    return "snapshot-poll-delayed";
+  }
+  return props.transportMode;
+});
 const feedQualityInput = computed(() => ({
   connectionState: props.connectionState,
-  transportMode: props.transportMode,
+  transportMode: effectiveTransportMode.value,
   fromCache: props.fromCache,
   hasUsableData: observedTime.value != null,
   error: props.error,
@@ -53,8 +60,9 @@ const feedQualityLabel = computed(() => {
   if (feedQuality.value === "unavailable") return "数据源不可用";
   if (feedQuality.value === "idle") return "等待行情订阅";
   if (props.fromCache) return "正在使用缓存数据";
-  const transportMode = props.transportMode?.trim().toLowerCase() ?? "";
+  const transportMode = effectiveTransportMode.value?.trim().toLowerCase() ?? "";
   if (transportMode === "snapshot-poll-fallback") return "已降级到轮询行情";
+  if (transportMode === "snapshot-poll-delayed") return "延迟行情轮询中";
   if (props.connectionState === "unsupported") return "不支持推送，使用快照行情";
   if (
     props.connectionState === "disconnected" ||

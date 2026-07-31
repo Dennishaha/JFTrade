@@ -3,6 +3,7 @@ package marketdata
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ const (
 	FallbackQueryTimeout  = 900 * time.Millisecond
 	StreamConnectTimeout  = 8 * time.Second
 	DemandRefreshInterval = 250 * time.Millisecond
+	CollectorCloseTimeout = 5 * time.Second
 )
 
 var retryDelays = [...]time.Duration{
@@ -61,9 +63,26 @@ type QuoteSource interface {
 	QueryTickers(context.Context, []string) (map[string]Tick, error)
 }
 
+// QuotePollingPolicy lets a poll-only provider request a suitable cadence and
+// deadline. Zero values retain the collector defaults.
+type QuotePollingPolicy struct {
+	Interval time.Duration
+	Timeout  time.Duration
+}
+
+type QuotePollingPolicySource interface {
+	QuotePollingPolicy() QuotePollingPolicy
+}
+
 // PushSource creates a broker push stream for one immutable demand generation.
 type PushSource interface {
 	NewStream([]string, PushTickHandler) (PushStream, error)
+}
+
+// PushAvailability is an optional capability implemented by switchable push
+// sources. Static sources do not need to implement it.
+type PushAvailability interface {
+	PushAvailable() bool
 }
 
 // PushStream is the lifecycle surface required by the collector.
@@ -94,6 +113,7 @@ type CollectorOptions struct {
 	QueryTimeout   time.Duration
 	ConnectTimeout time.Duration
 	DemandInterval time.Duration
+	CloseTimeout   time.Duration
 	Now            func() time.Time
 }
 
@@ -111,10 +131,14 @@ type Collector struct {
 	key                    string
 	stream                 PushStream
 	streamCancel           context.CancelFunc
+	polling                bool
+	pollGeneration         uint64
+	pollCancel             context.CancelFunc
 	ctx                    context.Context
 	cancel                 context.CancelFunc
 	wg                     sync.WaitGroup
 	closeOnce              sync.Once
+	closeErr               error
 	wake                   chan struct{}
 	paused                 bool
 
@@ -122,6 +146,7 @@ type Collector struct {
 	queryTimeout   time.Duration
 	connectTimeout time.Duration
 	demandInterval time.Duration
+	closeTimeout   time.Duration
 	now            func() time.Time
 }
 
@@ -139,6 +164,7 @@ func NewCollector(cache *Cache, quotes QuoteSource, push PushSource, handler Pus
 		queryTimeout:   durationOr(options.QueryTimeout, FallbackQueryTimeout),
 		connectTimeout: durationOr(options.ConnectTimeout, StreamConnectTimeout),
 		demandInterval: durationOr(options.DemandInterval, DemandRefreshInterval),
+		closeTimeout:   durationOr(options.CloseTimeout, CollectorCloseTimeout),
 		now:            options.Now,
 	}
 	if c.now == nil {
@@ -215,9 +241,14 @@ func (c *Collector) Reset() {
 	c.state.StreamRetryAt = time.Time{}
 	c.state.StreamFailures = 0
 	c.state.StreamLastError = ""
+	if c.pollCancel != nil {
+		c.pollCancel()
+		c.pollCancel = nil
+	}
+	c.polling = false
 	c.paused = true
 	c.mu.Unlock()
-	closeStream(stream)
+	c.closeStream(stream)
 }
 
 func (c *Collector) Resume() {
@@ -236,20 +267,20 @@ func (c *Collector) Close() error {
 	if c == nil {
 		return nil
 	}
-	var closeErr error
 	c.closeOnce.Do(func() {
+		deadline := time.Now().Add(durationOr(c.closeTimeout, CollectorCloseTimeout))
 		c.mu.Lock()
 		c.state.Closed = true
 		c.state.Generation++
 		stream := c.detachStreamLocked()
 		c.mu.Unlock()
 		c.cancel()
-		if stream != nil {
-			closeErr = stream.Close()
-		}
-		c.wg.Wait()
+		c.closeErr = errors.Join(
+			closeStreamUntil(stream, deadline),
+			waitGroupUntil(&c.wg, deadline),
+		)
 	})
-	return closeErr
+	return c.closeErr
 }
 
 func (c *Collector) run() {
@@ -286,7 +317,7 @@ func (c *Collector) reconcile() {
 	}
 	if key == c.key {
 		generation := c.state.Generation
-		needsStream := key != "" && c.push != nil && c.stream == nil && !c.now().UTC().Before(c.state.StreamRetryAt)
+		needsStream := key != "" && pushAvailable(c.push) && c.stream == nil && !c.now().UTC().Before(c.state.StreamRetryAt)
 		c.mu.Unlock()
 		if needsStream {
 			c.startStream(generation, instruments)
@@ -298,16 +329,28 @@ func (c *Collector) reconcile() {
 	c.state.Generation++
 	generation := c.state.Generation
 	c.state.Connected = false
+	if c.pollCancel != nil {
+		c.pollCancel()
+		c.pollCancel = nil
+	}
+	c.polling = false
+	c.state.LastRefreshAt = time.Time{}
+	c.state.QuoteRetryAt = time.Time{}
+	c.state.QuoteFailures = 0
+	c.state.QuoteLastError = ""
 	c.state.StreamRetryAt = time.Time{}
 	c.state.StreamFailures = 0
 	c.state.StreamLastError = ""
 	c.mu.Unlock()
-	closeStream(old)
+	c.closeStream(old)
 
-	if len(instruments) == 0 || c.push == nil {
+	if len(instruments) == 0 {
 		return
 	}
-	c.startStream(generation, instruments)
+	if pushAvailable(c.push) {
+		c.startStream(generation, instruments)
+	}
+	c.poll()
 }
 
 func (c *Collector) reconcileSubscriptions() {
@@ -355,7 +398,7 @@ func (c *Collector) startStream(generation uint64, instruments []string) {
 	if c.state.Closed || c.state.Generation != generation {
 		c.mu.Unlock()
 		cancel()
-		closeStream(stream)
+		c.closeStream(stream)
 		return
 	}
 	c.stream = stream
@@ -368,7 +411,7 @@ func (c *Collector) startStream(generation uint64, instruments []string) {
 		err := stream.Connect(connectCtx)
 		cancel()
 		if err != nil {
-			closeStream(stream)
+			c.closeStream(stream)
 			c.commitStreamFailure(generation, err)
 			return
 		}
@@ -388,6 +431,9 @@ func (c *Collector) poll() {
 	if len(instruments) == 0 || c.quotes == nil || c.cache.AllFresh(instruments, TickFreshness) {
 		return
 	}
+	policy := c.quotePollingPolicy()
+	pollInterval := durationOr(policy.Interval, c.pollInterval)
+	queryTimeout := durationOr(policy.Timeout, c.queryTimeout)
 
 	c.mu.Lock()
 	if c.state.Closed {
@@ -395,20 +441,26 @@ func (c *Collector) poll() {
 		return
 	}
 	now := c.now().UTC()
-	if now.Before(c.state.QuoteRetryAt) || (!c.state.LastRefreshAt.IsZero() && now.Sub(c.state.LastRefreshAt) < c.pollInterval) {
+	if c.polling && c.pollGeneration == c.state.Generation ||
+		now.Before(c.state.QuoteRetryAt) ||
+		(!c.state.LastRefreshAt.IsZero() && now.Sub(c.state.LastRefreshAt) < pollInterval) {
 		c.mu.Unlock()
 		return
 	}
 	c.state.LastRefreshAt = now
 	generation := c.state.Generation
+	queryCtx, cancel := context.WithTimeout(c.ctx, queryTimeout)
+	c.polling = true
+	c.pollGeneration = generation
+	c.pollCancel = cancel
 	c.wg.Add(1)
 	c.mu.Unlock()
 
 	go func() {
 		defer c.wg.Done()
-		ctx, cancel := context.WithTimeout(c.ctx, c.queryTimeout)
 		defer cancel()
-		ticks, err := c.quotes.QueryTickers(ctx, instruments)
+		defer c.finishPoll(generation)
+		ticks, err := c.quotes.QueryTickers(queryCtx, instruments)
 		if err != nil {
 			c.commitQuoteFailure(generation, err)
 			return
@@ -419,27 +471,43 @@ func (c *Collector) poll() {
 			c.state.QuoteFailures = 0
 			c.state.QuoteRetryAt = time.Time{}
 			c.state.QuoteLastError = ""
+			for _, instrumentID := range instruments {
+				if tick, ok := ticks[instrumentID]; ok {
+					c.cache.Store(tick)
+				}
+			}
 		}
 		c.mu.Unlock()
 		if !valid {
 			return
 		}
-		for _, instrumentID := range instruments {
-			if tick, ok := ticks[instrumentID]; ok {
-				c.cache.Store(tick)
-			}
-		}
 	}()
+}
+
+func (c *Collector) finishPoll(generation uint64) {
+	c.mu.Lock()
+	if c.polling && c.pollGeneration == generation {
+		c.polling = false
+		c.pollCancel = nil
+	}
+	c.mu.Unlock()
+}
+
+func (c *Collector) quotePollingPolicy() QuotePollingPolicy {
+	if source, ok := c.quotes.(QuotePollingPolicySource); ok {
+		return source.QuotePollingPolicy()
+	}
+	return QuotePollingPolicy{}
 }
 
 func (c *Collector) commitPush(generation uint64, tick Tick) {
 	c.mu.Lock()
-	valid := !c.state.Closed && c.state.Generation == generation
-	c.mu.Unlock()
-	if !valid {
+	if c.state.Closed || c.state.Generation != generation {
+		c.mu.Unlock()
 		return
 	}
 	stored := c.cache.Store(tick)
+	c.mu.Unlock()
 	if stored != nil && c.pushHandler != nil {
 		c.pushHandler(*stored)
 	}
@@ -536,10 +604,54 @@ func retryDelay(failures int) time.Duration {
 	return retryDelays[failures]
 }
 
-func closeStream(stream PushStream) {
-	if stream != nil {
-		jftradeErr1 := stream.Close()
-		besteffort.LogError(jftradeErr1)
+func (c *Collector) closeStream(stream PushStream) {
+	err := closeStreamWithin(stream, durationOr(c.closeTimeout, CollectorCloseTimeout))
+	besteffort.LogError(err)
+}
+
+func closeStreamWithin(stream PushStream, timeout time.Duration) error {
+	return closeStreamUntil(stream, time.Now().Add(timeout))
+}
+
+func closeStreamUntil(stream PushStream, deadline time.Time) error {
+	if stream == nil {
+		return nil
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- stream.Close()
+	}()
+	remaining := time.Until(deadline)
+	if remaining <= 0 {
+		return fmt.Errorf("marketdata stream close timed out")
+	}
+	timer := time.NewTimer(remaining)
+	defer timer.Stop()
+	select {
+	case err := <-done:
+		return err
+	case <-timer.C:
+		return fmt.Errorf("marketdata stream close timed out after %s", remaining)
+	}
+}
+
+func waitGroupUntil(wg *sync.WaitGroup, deadline time.Time) error {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	remaining := time.Until(deadline)
+	if remaining <= 0 {
+		return fmt.Errorf("marketdata collector shutdown timed out")
+	}
+	timer := time.NewTimer(remaining)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return nil
+	case <-timer.C:
+		return fmt.Errorf("marketdata collector shutdown timed out after %s", remaining)
 	}
 }
 
@@ -555,4 +667,14 @@ func durationOr(value, fallback time.Duration) time.Duration {
 		return value
 	}
 	return fallback
+}
+
+func pushAvailable(source PushSource) bool {
+	if source == nil {
+		return false
+	}
+	if availability, ok := source.(PushAvailability); ok {
+		return availability.PushAvailable()
+	}
+	return true
 }

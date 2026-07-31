@@ -311,6 +311,57 @@ func TestMarketSubsetInstrumentResolverCachesAndCoalescesNormalizedKeyword(t *te
 	}
 }
 
+func TestMarketSubsetInstrumentResolverResetSeparatesProviderGenerations(t *testing.T) {
+	var calls atomic.Int32
+	oldStarted := make(chan struct{})
+	releaseOld := make(chan struct{})
+	resolver := NewMarketSubsetInstrumentResolver(&resolverProviderStub{
+		search: func(context.Context, string, int) ([]InstrumentCandidate, error) {
+			switch calls.Add(1) {
+			case 1:
+				close(oldStarted)
+				<-releaseOld
+				return []InstrumentCandidate{resolverCandidate("US", "OLD", "Old Provider")}, nil
+			default:
+				return []InstrumentCandidate{resolverCandidate("US", "NEW", "New Provider")}, nil
+			}
+		},
+	})
+
+	oldResult := make(chan InstrumentResolution, 1)
+	oldError := make(chan error, 1)
+	go func() {
+		result, err := resolver.Resolve(t.Context(), "", "provider", 20)
+		oldResult <- result
+		oldError <- err
+	}()
+	<-oldStarted
+
+	resolver.Reset()
+	newResult, err := resolver.Resolve(t.Context(), "", "provider", 20)
+	if err != nil {
+		t.Fatalf("Resolve after Reset: %v", err)
+	}
+	if len(newResult.Entries) != 1 || newResult.Entries[0].InstrumentID != "US.NEW" {
+		t.Fatalf("post-reset result = %+v", newResult)
+	}
+	close(releaseOld)
+	if err := <-oldError; err != nil {
+		t.Fatalf("old Resolve: %v", err)
+	}
+	if result := <-oldResult; len(result.Entries) != 1 || result.Entries[0].InstrumentID != "US.OLD" {
+		t.Fatalf("old generation result = %+v", result)
+	}
+
+	cached, err := resolver.Resolve(t.Context(), "", "provider", 20)
+	if err != nil || len(cached.Entries) != 1 || cached.Entries[0].InstrumentID != "US.NEW" {
+		t.Fatalf("cached post-reset result = %+v, err=%v", cached, err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("provider calls = %d, want 2", calls.Load())
+	}
+}
+
 func TestMarketSubsetInstrumentResolverRechecksCacheInsideSingleflightWork(t *testing.T) {
 	var providerCalls atomic.Int32
 	resolver := NewMarketSubsetInstrumentResolver(&resolverProviderStub{
@@ -329,7 +380,12 @@ func TestMarketSubsetInstrumentResolverRechecksCacheInsideSingleflightWork(t *te
 	}
 	resolver.cacheMu.Unlock()
 
-	got, err := resolver.loadAndCacheSearch(t.Context(), "APPLE", " apple ")
+	got, err := resolver.loadAndCacheSearch(
+		t.Context(),
+		"APPLE",
+		" apple ",
+		resolver.cacheGeneration(),
+	)
 	if err != nil {
 		t.Fatalf("loadAndCacheSearch() error = %v", err)
 	}

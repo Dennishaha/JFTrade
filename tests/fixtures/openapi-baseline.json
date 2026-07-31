@@ -5510,6 +5510,17 @@
       ],
       "type": "object"
     },
+    "jftsettings.ActiveMarketDataProvider": {
+      "enum": [
+        "futu",
+        "yfinance"
+      ],
+      "type": "string",
+      "x-enum-varnames": [
+        "MarketDataProviderFutu",
+        "MarketDataProviderYFinance"
+      ]
+    },
     "jftsettings.BrokerIntegration": {
       "properties": {
         "brokerId": {
@@ -6122,6 +6133,9 @@
         },
         "connected": {
           "type": "boolean"
+        },
+        "lastError": {
+          "type": "string"
         },
         "streamMode": {
           "type": "string"
@@ -8416,6 +8430,44 @@
         "enabled",
         "market",
         "tradingEnvironment"
+      ],
+      "type": "object"
+    },
+    "settings.MarketDataProviderSettingsResponse": {
+      "properties": {
+        "activeProvider": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/jftsettings.ActiveMarketDataProvider"
+            }
+          ],
+          "enum": [
+            "futu",
+            "yfinance"
+          ]
+        }
+      },
+      "required": [
+        "activeProvider"
+      ],
+      "type": "object"
+    },
+    "settings.MarketDataProviderWriteRequest": {
+      "properties": {
+        "activeProvider": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/jftsettings.ActiveMarketDataProvider"
+            }
+          ],
+          "enum": [
+            "futu",
+            "yfinance"
+          ]
+        }
+      },
+      "required": [
+        "activeProvider"
       ],
       "type": "object"
     },
@@ -14599,6 +14651,9 @@
     },
     "watchlist.WatchlistQuote": {
       "properties": {
+        "assetClass": {
+          "type": "string"
+        },
         "change": {
           "type": "number"
         },
@@ -14629,11 +14684,17 @@
         "source": {
           "type": "string"
         },
+        "turnover": {
+          "type": "number"
+        },
         "type": {
           "type": "string"
         },
         "updateTime": {
           "type": "string"
+        },
+        "volume": {
+          "type": "number"
         }
       },
       "required": [
@@ -26733,6 +26794,104 @@
           }
         },
         "summary": "保存执行设置",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/market-data-provider": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/settings.MarketDataProviderSettingsResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          }
+        },
+        "summary": "读取当前行情数据源",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "行情数据源选择",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/settings.MarketDataProviderWriteRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/settings.MarketDataProviderSettingsResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          }
+        },
+        "summary": "切换当前行情数据源",
         "tags": [
           "settings"
         ]

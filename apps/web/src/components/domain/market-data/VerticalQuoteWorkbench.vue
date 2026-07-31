@@ -49,6 +49,7 @@ const {
   resolvedTarget,
   instrumentParts,
   name,
+  priceLabel,
   lastPrice,
   changeAmount,
   changeRate,
@@ -168,7 +169,7 @@ async function handleRefresh(): Promise<void> {
         :code="instrumentParts.symbol"
         :instrument-id="resolvedTarget.instrumentId"
         :name="name"
-        price-label="最新价"
+        :price-label="priceLabel"
         :price="lastPrice"
         :change-amount="changeAmount"
         :change-rate="changeRate"

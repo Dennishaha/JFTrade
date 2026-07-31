@@ -2,6 +2,8 @@
 
 本文用 Mermaid 图补充 [architecture.md](./architecture.md) 的文字说明。它偏向“快速看边界”，不是替代接口、配置或协议专题文档。
 
+行情 Provider 运行时包含 Futu OpenD 与内置 Yahoo Finance（yfinance）。新安装默认使用 yfinance，首页/研究页的“行情提供者”菜单负责切换 Futu；旧设置中的历史连接配置块加载时会被清除并持久化回退 Futu。启动恢复时内置 helper 缺失或启动/健康失败同样回退并持久化 Futu。yfinance helper 是随 `release_assets` 嵌入的 PyInstaller 单文件，由 JFTrade 以动态 loopback 端口自动启动，停止时清理释放目录；`JFTRADE_YFINANCE_SIDECAR` 仅用于开发/测试的绝对路径覆盖，正式运行不接受手工 sidecar。Yahoo Finance 只提供延迟快照和历史 K 线，不提供实时推流或 Level 2。
+
 ## 系统总览
 
 ```mermaid
@@ -19,6 +21,7 @@ flowchart TB
         Desktop["cmd/jftrade-desktop<br/>Wails v3 / profile / 单实例"]
         App["internal/app/apiserver<br/>启动 / 生命周期 / 运行时目录"]
         Core["servercore<br/>依赖装配 / 路由挂载 / runtime bridge"]
+        MarketRuntime["marketdataapp<br/>稳定 Provider router / helper lifecycle"]
     end
 
     subgraph Transport["HTTP / SSE / WebSocket 层"]
@@ -43,6 +46,9 @@ flowchart TB
 
     subgraph Integration["集成与可复用能力"]
         FutuIntegration["internal/integration/futu<br/>OpenD 访问与 DTO 转换"]
+        YFinanceIntegration["internal/integration/yfinance<br/>轮询 HTTP Provider"]
+        YFinanceAssets["internal/yfinanceassets<br/>release_assets 嵌入 / SHA-256"]
+        YFinanceSidecar["workers/yfinance-sidecar<br/>PyInstaller 单文件 helper<br/>动态 loopback 端口"]
         FutuPkg["pkg/futu<br/>Futu exchange adapter"]
         BrokerPkg["pkg/broker + pkg/market<br/>券商抽象 / 市场规则"]
         StrategyPkg["pkg/strategy<br/>Pine parser / IR / spec / lowering"]
@@ -64,6 +70,7 @@ flowchart TB
 
     subgraph External["外部依赖"]
         OpenD["Futu OpenD<br/>TCP 11110 / WebSocket 11111"]
+        Yahoo["Yahoo Finance<br/>延迟 US / HK / 沪深行情"]
         PineTS["pinets<br/>PineTS runtime"]
     end
 
@@ -103,7 +110,10 @@ flowchart TB
     AssistantSvc --> Core
     DataSvc --> Core
 
-    MarketSvc --> FutuIntegration
+    MarketSvc --> MarketRuntime
+    MarketRuntime --> FutuIntegration
+    MarketRuntime --> YFinanceIntegration
+    MarketRuntime --> YFinanceAssets --> YFinanceSidecar --> Yahoo
     TradingSvc --> FutuIntegration
     Core --> FutuIntegration
     FutuIntegration --> FutuPkg --> OpenD
@@ -159,7 +169,12 @@ flowchart LR
     end
 
     subgraph MarketTrade["行情与交易"]
+        MarketRuntime["marketdataapp Provider router"]
         FutuIntegration["internal/integration/futu"]
+        YFinanceIntegration["internal/integration/yfinance"]
+        YFinanceAssets["internal/yfinanceassets<br/>embedded release asset"]
+        YFinanceSidecar["PyInstaller single-file helper<br/>dynamic loopback"]
+        Yahoo["Yahoo Finance"]
         FutuPkg["pkg/futu"]
         OpenD["Futu OpenD"]
     end
@@ -183,7 +198,10 @@ flowchart LR
     Web -->|/api/v1/*| API --> Services --> Core
     Web -->|SSE / WS| LiveAPI --> LiveBus --> Web
 
-    Services --> Collector --> FutuIntegration
+    Services --> Collector --> MarketRuntime
+    MarketRuntime --> FutuIntegration
+    MarketRuntime --> YFinanceIntegration
+    MarketRuntime --> YFinanceAssets --> YFinanceSidecar --> Yahoo
     Services --> FutuIntegration --> FutuPkg --> OpenD
     Collector --> LiveBus
     FutuPkg --> LiveBus
@@ -209,12 +227,14 @@ flowchart TB
         DevDocs["pnpm run dev:docs<br/>VitePress 127.0.0.1:3001"]
         Proxy["Vite proxy<br/>/api /swagger -> 3000<br/>/docs -> 3001"]
         DesktopDev["pnpm run desktop:dev<br/>JFTrade Dev / sidecar 3008<br/>仓库 var/jftrade-api"]
+        DevYFinance["JFTRADE_YFINANCE_SIDECAR<br/>开发/测试绝对路径 helper 覆盖"]
     end
 
     subgraph Build["构建任务"]
         BuildWeb["pnpm run build:web"]
         BuildDocs["pnpm run build:docs<br/>generate OpenAPI + reference"]
         BuildWorker["pnpm run build:pineworker"]
+        BuildYFinance["pnpm run build:yfinance-sidecar<br/>PyInstaller per-platform helper"]
         BuildAPI["go build ./cmd/jftrade-api"]
         BuildDesktop["release_assets<br/>cmd/jftrade-desktop"]
     end
@@ -222,8 +242,8 @@ flowchart TB
     subgraph Release["发布态"]
         Dist["dist/"]
         GUI["前端 + API 单一同源入口<br/>127.0.0.1:6688"]
-        EmbeddedAssets["internal/frontendassets<br/>internal/pineworkerassets"]
-        DesktopProduct["JFTrade<br/>Wails sidecar 6699<br/>系统用户数据目录"]
+        EmbeddedAssets["internal/frontendassets<br/>internal/pineworkerassets<br/>internal/yfinanceassets"]
+        DesktopProduct["JFTrade<br/>Wails API sidecar 6699<br/>自动管理 yfinance helper"]
         OptionalWeb["用户主动开启的 Web 入口<br/>默认 127.0.0.1:6688 / 端口可设置"]
         MacDMG["macOS ARM64<br/>unsigned DMG"]
         WinNSIS["Windows x64 + ARM64 preview<br/>unsigned per-user NSIS"]
@@ -236,12 +256,15 @@ flowchart TB
     BuildWeb --> Dist
     BuildDocs --> Dist
     BuildWorker --> EmbeddedAssets
+    BuildYFinance --> EmbeddedAssets
     BuildAPI --> Dist
     BuildDesktop --> MacDMG
     BuildDesktop --> WinNSIS
     BuildDesktop --> DesktopProduct
     DesktopProduct -. 用户开启后立即生效 .-> OptionalWeb
     EmbeddedAssets --> BuildAPI
+
+    DevYFinance -. helper override .-> DevAPI
 
     Dist --> GUI
 ```

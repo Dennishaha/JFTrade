@@ -1406,6 +1406,7 @@ export interface components {
     ok: boolean;
     timestamp: string;
   };
+    "jftsettings.ActiveMarketDataProvider": "futu" | "yfinance";
     "jftsettings.ADKRuntimeSettings": {
     runTimeoutMs: number;
     streamIdleTimeoutMs: number;
@@ -1568,6 +1569,7 @@ export interface components {
     "marketdata.HealthStatus": {
     activeCount: number;
     connected: boolean;
+    lastError?: string;
     streamMode: string;
   };
     "marketdata.InstrumentCandidate": {
@@ -2146,6 +2148,12 @@ export interface components {
     market: string;
     securityFirm?: string;
     tradingEnvironment: string;
+  };
+    "settings.MarketDataProviderSettingsResponse": {
+    activeProvider: components["schemas"]["jftsettings.ActiveMarketDataProvider"];
+  };
+    "settings.MarketDataProviderWriteRequest": {
+    activeProvider: components["schemas"]["jftsettings.ActiveMarketDataProvider"];
   };
     "settings.OnboardingBroker": {
     available: boolean;
@@ -3640,6 +3648,7 @@ export interface components {
     revision: number;
   };
     "watchlist.WatchlistQuote": {
+    assetClass?: string;
     change?: number;
     changePercent?: number;
     extended?: components["schemas"]["watchlist.ExtendedQuote"];
@@ -3650,8 +3659,10 @@ export interface components {
     price?: number;
     session?: string;
     source?: string;
+    turnover?: number;
     type?: string;
     updateTime?: string;
+    volume?: number;
   };
     "watchlist.WatchlistQuoteBatchRequest": {
     instrumentIds: Array<string>;
@@ -10229,6 +10240,61 @@ export interface paths {
         };
         "400": {
           description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/market-data-provider": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.MarketDataProviderSettingsResponse"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+      };
+    };
+    put: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["settings.MarketDataProviderWriteRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.MarketDataProviderSettingsResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
           content: {
             "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };

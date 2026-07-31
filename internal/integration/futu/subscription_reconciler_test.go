@@ -335,6 +335,157 @@ func TestSubscriptionReconcilerRetriesFailuresAndCancelsRetryOnReacquire(t *test
 	}
 }
 
+func TestSubscriptionReconcilerForceReleaseBypassesGatesAndRetainsFailures(t *testing.T) {
+	now := time.Date(2026, time.July, 30, 2, 0, 0, 0, time.UTC)
+	releaseErr := errors.New("OpenD rejected forced release")
+	exchange := &fakePhysicalSubscriptionExchange{}
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return now },
+	)
+	desired := []marketdata.InstrumentRef{
+		{Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "1m"},
+		{Channel: "ORDER_BOOK", Market: "US", Symbol: "MSFT"},
+	}
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("initial reconcile: %v", err)
+	}
+	reconciler.records["KLINE:US.AAPL:1m"].retryAt = now.Add(time.Hour)
+	exchange.failures = map[string][]error{
+		"unsubscribe-kline:US.AAPL:1m": {releaseErr},
+	}
+	exchange.calls = nil
+
+	err := reconciler.ForceReleaseSubscriptions(context.Background())
+	if !errors.Is(err, releaseErr) || !strings.Contains(err.Error(), "force unsubscribe KLINE:US.AAPL:1m") {
+		t.Fatalf("forced release error = %v", err)
+	}
+	wantCalls := []string{
+		"unsubscribe-basic:US.AAPL",
+		"unsubscribe-kline:US.AAPL:1m",
+		"unsubscribe-order-book:US.MSFT",
+	}
+	if !reflect.DeepEqual(exchange.calls, wantCalls) {
+		t.Fatalf("forced release calls = %#v, want %#v", exchange.calls, wantCalls)
+	}
+	if len(reconciler.records) != 1 {
+		t.Fatalf("records after partial failure = %#v", reconciler.records)
+	}
+	failed := reconciler.records["KLINE:US.AAPL:1m"]
+	if failed == nil || failed.lastError != releaseErr.Error() {
+		t.Fatalf("failed record diagnostics = %#v", failed)
+	}
+	state := reconciler.SubscriptionState()
+	if state["desiredCount"] != 0 || state["ownActiveCount"] != 1 || state["pendingReleaseCount"] != 1 {
+		t.Fatalf("partial forced release state = %#v", state)
+	}
+
+	exchange.calls = nil
+	//nolint:staticcheck // Exercise the forced releaser's explicit nil-context fallback.
+	if err := reconciler.ForceReleaseSubscriptions(nil); err != nil {
+		t.Fatalf("immediate forced retry: %v", err)
+	}
+	if !reflect.DeepEqual(exchange.calls, []string{"unsubscribe-kline:US.AAPL:1m"}) {
+		t.Fatalf("forced retry honored retry gate: %#v", exchange.calls)
+	}
+	if state := reconciler.SubscriptionState(); state["ownActiveCount"] != 0 || state["pendingReleaseCount"] != 0 {
+		t.Fatalf("final forced release state = %#v", state)
+	}
+}
+
+func TestSubscriptionReconcilerForceReleaseKeepsRecordsWhenExchangeUnavailable(t *testing.T) {
+	now := time.Date(2026, time.July, 30, 3, 0, 0, 0, time.UTC)
+	exchange := &fakePhysicalSubscriptionExchange{}
+	var current physicalSubscriptionExchange = exchange
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return current },
+		func() time.Time { return now },
+	)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), []marketdata.InstrumentRef{{
+		Market: "US", Symbol: "AAPL",
+	}}); err != nil {
+		t.Fatalf("initial reconcile: %v", err)
+	}
+	current = nil
+	err := reconciler.ForceReleaseSubscriptions(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "exchange is unavailable") {
+		t.Fatalf("forced release without exchange = %v", err)
+	}
+	if len(reconciler.records) != 1 {
+		t.Fatalf("records were discarded without release: %#v", reconciler.records)
+	}
+
+	var nilReconciler *marketDataSubscriptionReconciler
+	if err := nilReconciler.ForceReleaseSubscriptions(context.Background()); err != nil {
+		t.Fatalf("nil forced release = %v", err)
+	}
+	var nilRuntime *MarketDataRuntime
+	if err := nilRuntime.ForceReleaseSubscriptions(context.Background()); err != nil {
+		t.Fatalf("nil runtime forced release = %v", err)
+	}
+}
+
+func TestSubscriptionReconcilerForceReleaseDropsOwnershipAfterConnectionReplacement(t *testing.T) {
+	now := time.Date(2026, time.July, 30, 4, 0, 0, 0, time.UTC)
+	exchange := &fakePhysicalSubscriptionExchange{}
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return now },
+	)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), []marketdata.InstrumentRef{{
+		Market: "US", Symbol: "AAPL",
+	}}); err != nil {
+		t.Fatalf("initial reconcile: %v", err)
+	}
+	exchange.calls = nil
+	exchange.generation++
+
+	if err := reconciler.ForceReleaseSubscriptions(context.Background()); err != nil {
+		t.Fatalf("forced release after connection replacement: %v", err)
+	}
+	if len(exchange.calls) != 0 {
+		t.Fatalf("stale connection ownership triggered unsubscribe: %#v", exchange.calls)
+	}
+	if len(reconciler.records) != 0 || reconciler.connectionGeneration != exchange.generation {
+		t.Fatalf("connection replacement state = records %#v generation %d", reconciler.records, reconciler.connectionGeneration)
+	}
+}
+
+func TestSubscriptionReconcilerForceReleaseDiscardsSubscriptionsThatNeverBecamePhysical(t *testing.T) {
+	now := time.Date(2026, time.July, 30, 5, 0, 0, 0, time.UTC)
+	subscribeErr := errors.New("OpenD rejected subscription")
+	exchange := &fakePhysicalSubscriptionExchange{
+		failures: map[string][]error{
+			"subscribe-basic:US.AAPL:push": {subscribeErr},
+		},
+	}
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return now },
+	)
+	err := reconciler.ReconcileSubscriptions(context.Background(), []marketdata.InstrumentRef{{
+		Market: "US", Symbol: "AAPL",
+	}})
+	if !errors.Is(err, subscribeErr) {
+		t.Fatalf("failed acquisition error = %v", err)
+	}
+	pending := reconciler.records["BASIC:US.AAPL"]
+	if pending == nil || !pending.subscribedAt.IsZero() {
+		t.Fatalf("failed acquisition record = %#v", pending)
+	}
+	exchange.calls = nil
+
+	if err := reconciler.ForceReleaseSubscriptions(context.Background()); err != nil {
+		t.Fatalf("forced release of pending acquisition: %v", err)
+	}
+	if len(exchange.calls) != 0 {
+		t.Fatalf("pending-only record triggered physical unsubscribe: %#v", exchange.calls)
+	}
+	if len(reconciler.records) != 0 {
+		t.Fatalf("pending-only records retained after force release: %#v", reconciler.records)
+	}
+}
+
 func TestSubscriptionReconcilerHandlesQuotaExchangeReplacementResetAndNilBoundaries(t *testing.T) {
 	now := time.Date(2026, time.July, 15, 3, 0, 0, 0, time.UTC)
 	quotaErr := errors.New("quota unavailable")

@@ -20,8 +20,22 @@ describe("console-data market instrument search", () => {
       market: "US",
       symbol: "AAPL",
     });
+    expect(normalizeInstrumentParts({ market: "US", symbol: "BRK.B" })).toEqual({
+      market: "US",
+      symbol: "BRK.B",
+    });
     expect(normalizeInstrumentParts({ market: "HK", symbol: "HK." })).toBeNull();
     expect(normalizeInstrumentParts({ market: "", symbol: "" })).toBeNull();
+  });
+
+  it("canonicalizes Yahoo-supported market aliases and Hong Kong codes", () => {
+    expect(normalizeInstrumentParts({ market: "HK", symbol: "700" })).toEqual({
+      market: "HK",
+      symbol: "00700",
+    });
+    expect(
+      normalizeInstrumentParts({ market: "US", symbol: "HKEX.0700" }),
+    ).toEqual({ market: "HK", symbol: "00700" });
   });
 
   it("merges references, broker mappings, subscriptions, holdings, and orders by normalized id", () => {

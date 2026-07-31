@@ -1,0 +1,559 @@
+package yfinance
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"strings"
+	"time"
+
+	"github.com/shopspring/decimal"
+
+	"github.com/jftrade/jftrade-main/internal/marketdata"
+)
+
+const sourceID = "yfinance"
+
+func convertMarkets(profiles []remoteMarketProfile) ([]marketdata.MarketProfile, error) {
+	if len(profiles) == 0 {
+		return nil, fmt.Errorf("%w: markets list is empty", ErrInvalidResponse)
+	}
+	result := make([]marketdata.MarketProfile, 0, len(profiles))
+	for _, profile := range profiles {
+		converted, err := convertMarket(profile)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, converted)
+	}
+	return result, nil
+}
+
+func convertMarket(profile remoteMarketProfile) (marketdata.MarketProfile, error) {
+	code, err := canonicalMarket(profile.Code)
+	if err != nil || code == "" {
+		return nil, fmt.Errorf("%w: market code %q", ErrInvalidResponse, profile.Code)
+	}
+	resolved := strings.ToUpper(strings.TrimSpace(profile.ResolvedMarket))
+	prefix := strings.ToUpper(strings.TrimSpace(profile.PreferredPrefix))
+	if resolved == "" {
+		resolved = code
+	}
+	if prefix == "" {
+		prefix = code
+	}
+	if !isSupportedLeafMarket(code) || prefix != code || !validResolvedMarket(code, resolved) {
+		return nil, fmt.Errorf("%w: unsupported market route %s/%s", ErrInvalidResponse, resolved, prefix)
+	}
+	sessions := make([]map[string]any, 0, len(profile.RegularSessions))
+	for _, session := range profile.RegularSessions {
+		if session.StartMinute < 0 || session.EndMinute <= session.StartMinute || session.EndMinute > 24*60 {
+			return nil, fmt.Errorf("%w: invalid regular session", ErrInvalidResponse)
+		}
+		sessions = append(sessions, map[string]any{
+			"startMinute": session.StartMinute,
+			"endMinute":   session.EndMinute,
+			"label":       strings.TrimSpace(session.Label),
+		})
+	}
+	tickSize, err := positiveFloat("tick_size", profile.TickSize)
+	if err != nil {
+		return nil, err
+	}
+	return marketdata.MarketProfile{
+		"code":                   code,
+		"resolvedMarket":         resolved,
+		"preferredPrefix":        prefix,
+		"displayName":            strings.TrimSpace(profile.DisplayName),
+		"quoteCurrency":          strings.ToUpper(strings.TrimSpace(profile.QuoteCurrency)),
+		"timezone":               strings.TrimSpace(profile.Timezone),
+		"supportsExtendedHours":  profile.SupportsExtendedHours,
+		"requiresExchangePrefix": profile.RequiresExchangePrefix,
+		"aliases":                append([]string(nil), profile.Aliases...),
+		"regularSessions":        sessions,
+		"precision": map[string]any{
+			"price": profile.Precision.Price,
+			"quote": profile.Precision.Quote,
+		},
+		"tickSize": tickSize,
+	}, nil
+}
+
+func isSupportedLeafMarket(value string) bool {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "US", "HK", "SH", "SZ":
+		return true
+	default:
+		return false
+	}
+}
+
+func validResolvedMarket(leaf, resolved string) bool {
+	leaf = strings.ToUpper(strings.TrimSpace(leaf))
+	resolved = strings.ToUpper(strings.TrimSpace(resolved))
+	if leaf == "SH" || leaf == "SZ" {
+		return resolved == "CN" || resolved == leaf
+	}
+	return resolved == leaf
+}
+
+func convertCandidates(entries []remoteInstrument) ([]marketdata.InstrumentCandidate, error) {
+	result := make([]marketdata.InstrumentCandidate, 0, len(entries))
+	for _, entry := range entries {
+		identity, err := normalizeIdentity(entry.Market, entry.Symbol, entry.InstrumentID)
+		if err != nil {
+			return nil, fmt.Errorf("%w: search entry: %w", ErrInvalidResponse, err)
+		}
+		code := canonicalInstrumentCode(identity.market, entry.Code)
+		if code != "" && code != identity.symbol {
+			return nil, fmt.Errorf("%w: search code %q does not match %s", ErrInvalidResponse, code, identity.id)
+		}
+		resolved := strings.ToUpper(strings.TrimSpace(entry.ResolvedMarket))
+		if resolved == "" {
+			resolved = identity.market
+		}
+		if !validResolvedMarket(identity.market, resolved) {
+			return nil, fmt.Errorf("%w: search resolved market %q", ErrInvalidResponse, resolved)
+		}
+		source := strings.TrimSpace(entry.Source)
+		if source == "" {
+			source = sourceID
+		}
+		candidate := marketdata.InstrumentCandidate{
+			Market:         identity.market,
+			ResolvedMarket: resolved,
+			InstrumentID:   identity.id,
+			Code:           identity.symbol,
+			Symbol:         identity.symbol,
+			Name:           strings.TrimSpace(entry.Name),
+			SecurityType:   strings.TrimSpace(entry.SecurityType),
+			Source:         source,
+			Selectable:     entry.Selectable,
+		}
+		if !candidate.Selectable {
+			candidate.UnavailableReason = "Yahoo Finance returned a non-selectable instrument"
+		}
+		result = append(result, candidate)
+	}
+	return result, nil
+}
+
+func convertSecurity(
+	response remoteSecurity,
+	expected normalizedInstrument,
+	resolvedAt time.Time,
+) (marketdata.SecurityDetails, error) {
+	identity, err := normalizeIdentity(response.Market, response.Symbol, response.InstrumentID)
+	if err != nil || identity.id != expected.id {
+		return nil, fmt.Errorf("%w: security identity does not match %s", ErrInvalidResponse, expected.id)
+	}
+	dividendYield, err := yahooDividendYieldPercent(response.DividendYield)
+	if err != nil {
+		return nil, err
+	}
+	source := strings.TrimSpace(response.Source)
+	if source == "" {
+		source = sourceID
+	}
+	security := map[string]any{
+		"instrumentId": identity.id, "market": identity.market, "symbol": identity.symbol,
+		"name": strings.TrimSpace(response.Name), "exchange": strings.TrimSpace(response.Exchange),
+		"currency": strings.ToUpper(strings.TrimSpace(response.Currency)), "timezone": strings.TrimSpace(response.Timezone),
+		"securityType": strings.TrimSpace(response.SecurityType), "industry": strings.TrimSpace(response.Industry),
+		"sector": strings.TrimSpace(response.Sector), "website": strings.TrimSpace(response.Website),
+		"businessSummary": response.BusinessSummary, "marketCap": response.MarketCap,
+		"trailingPe": response.TrailingPE, "forwardPe": response.ForwardPE,
+		"trailingEps": response.TrailingEPS, "forwardEps": response.ForwardEPS,
+		"dividendRate": response.DividendRate, "dividendYield": dividendYield,
+		"fiftyTwoWeekHigh": response.FiftyTwoWeekHigh, "fiftyTwoWeekLow": response.FiftyTwoWeekLow,
+		"averageVolume": response.AverageVolume, "sharesOutstanding": response.SharesOutstanding,
+	}
+	return marketdata.SecurityDetails{
+		"request": map[string]any{
+			"market": expected.market, "symbol": expected.symbol, "instrumentId": expected.id,
+		},
+		"security": security,
+		"meta": map[string]any{
+			"instrumentId": expected.id, "source": source,
+			"resolvedAt": resolvedAt.UTC().Format(time.RFC3339Nano), "fromCache": false,
+		},
+	}, nil
+}
+
+// yahooDividendYieldPercent adapts Yahoo's fractional yield (0.004 for
+// 0.40%) to the percentage convention used by the broker-neutral UI fields.
+func yahooDividendYieldPercent(value *json.Number) (*float64, error) {
+	if value == nil {
+		return nil, nil
+	}
+	ratio, err := nonNegativeFloat("dividend_yield", value)
+	if err != nil {
+		return nil, err
+	}
+	percent := ratio * 100
+	return &percent, nil
+}
+
+func convertSnapshot(
+	response remoteSnapshot,
+	expected normalizedInstrument,
+	fallbackObservedAt time.Time,
+) (*marketdata.Tick, error) {
+	identity, err := normalizeIdentity(response.Market, response.Symbol, response.InstrumentID)
+	if err != nil || identity.id != expected.id {
+		return nil, fmt.Errorf("%w: snapshot identity does not match %s", ErrInvalidResponse, expected.id)
+	}
+	values, err := parseSnapshotValues(response, fallbackObservedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &marketdata.Tick{
+		InstrumentID: identity.id, Market: identity.market, Symbol: identity.symbol,
+		Price: values.price, Bid: values.bid, Ask: values.ask,
+		OpenPrice: optionalDecimal(response.OpenPrice), HighPrice: optionalDecimal(response.HighPrice),
+		LowPrice: optionalDecimal(response.LowPrice), PreviousClosePrice: values.previousClose,
+		LastClosePrice: values.lastClose, Volume: values.volume, Turnover: values.turnover,
+		QuoteAt: values.quoteAt, ObservedAt: values.observedAt, Source: values.source, Session: values.session,
+		ExtendedHours: response.ExtendedHours || values.session == "pre" || values.session == "after",
+		PreMarket:     values.preMarket, AfterMarket: values.afterMarket,
+		Kind: marketdata.TickKindQuote,
+	}, nil
+}
+
+type snapshotValues struct {
+	price, bid, ask          decimal.Decimal
+	volume                   float64
+	turnover                 decimal.Decimal
+	quoteAt, observedAt      string
+	source, session          string
+	previousClose, lastClose *decimal.Decimal
+	preMarket, afterMarket   *marketdata.ExtendedQuote
+}
+
+func parseSnapshotValues(response remoteSnapshot, fallbackObservedAt time.Time) (snapshotValues, error) {
+	price, err := requiredPositiveDecimal("price", response.Price)
+	if err != nil {
+		return snapshotValues{}, err
+	}
+	bid, err := quoteDecimal("bid", response.Bid, price)
+	if err != nil {
+		return snapshotValues{}, err
+	}
+	ask, err := quoteDecimal("ask", response.Ask, price)
+	if err != nil {
+		return snapshotValues{}, err
+	}
+	observedAt, quoteAt, err := snapshotTimes(response, fallbackObservedAt)
+	if err != nil {
+		return snapshotValues{}, err
+	}
+	volume, err := nonNegativeFloat("volume", response.Volume)
+	if err != nil {
+		return snapshotValues{}, err
+	}
+	turnover, err := nonNegativeDecimal("turnover", response.Turnover)
+	if err != nil {
+		return snapshotValues{}, err
+	}
+	preMarket, err := convertSnapshotQuote("pre_market_quote", response.PreMarketQuote)
+	if err != nil {
+		return snapshotValues{}, err
+	}
+	afterMarket, err := convertSnapshotQuote("after_market_quote", response.AfterMarketQuote)
+	if err != nil {
+		return snapshotValues{}, err
+	}
+	regularQuote, err := convertSnapshotQuote("regular_quote", response.RegularQuote)
+	if err != nil {
+		return snapshotValues{}, err
+	}
+	session, err := normalizeSession(response.Session)
+	if err != nil {
+		return snapshotValues{}, err
+	}
+	previousClose, lastClose := snapshotClosePrices(response.Market, response, session, regularQuote)
+	source := strings.TrimSpace(response.Source)
+	if source == "" {
+		source = sourceID
+	}
+	return snapshotValues{
+		price: price, bid: bid, ask: ask, volume: volume, turnover: turnover,
+		quoteAt: quoteAt, observedAt: observedAt, source: source, session: session,
+		previousClose: previousClose, lastClose: lastClose, preMarket: preMarket, afterMarket: afterMarket,
+	}, nil
+}
+
+func snapshotTimes(response remoteSnapshot, fallback time.Time) (string, string, error) {
+	observedAt, err := responseTime("observed_at", response.ObservedAt, fallback)
+	if err != nil {
+		return "", "", err
+	}
+	if strings.TrimSpace(response.QuoteAt) == "" {
+		// quoteAt is the upstream quote timestamp, while observedAt is the
+		// local fetch timestamp. Do not make a missing upstream timestamp look
+		// like a market quote received at the time of polling.
+		return observedAt, "", nil
+	}
+	quoteAt, err := responseTime("quote_at", response.QuoteAt, time.Time{})
+	return observedAt, quoteAt, err
+}
+
+func snapshotClosePrices(
+	market string,
+	response remoteSnapshot,
+	session string,
+	regularQuote *marketdata.ExtendedQuote,
+) (*decimal.Decimal, *decimal.Decimal) {
+	previousClose := optionalDecimal(response.PreviousClosePrice)
+	lastClose := optionalDecimal(response.LastClosePrice)
+	if lastClose == nil {
+		lastClose = optionalDecimal(response.PreviousClosePrice)
+	}
+	if strings.EqualFold(strings.TrimSpace(market), "US") &&
+		(session == "pre" || session == "after" || session == "closed") &&
+		regularQuote != nil && regularQuote.Price != nil {
+		previousClose = regularQuote.Price
+	}
+	return previousClose, lastClose
+}
+
+func convertSnapshotQuote(field string, quote *remoteSnapshotQuote) (*marketdata.ExtendedQuote, error) {
+	if quote == nil {
+		return nil, nil
+	}
+	price, err := optionalNonNegativeDecimal(field+".price", quote.Price)
+	if err != nil {
+		return nil, err
+	}
+	high, err := optionalNonNegativeDecimal(field+".high_price", quote.HighPrice)
+	if err != nil {
+		return nil, err
+	}
+	low, err := optionalNonNegativeDecimal(field+".low_price", quote.LowPrice)
+	if err != nil {
+		return nil, err
+	}
+	volume, err := nonNegativeFloat(field+".volume", quote.Volume)
+	if err != nil {
+		return nil, err
+	}
+	turnover, err := optionalNonNegativeDecimal(field+".turnover", quote.Turnover)
+	if err != nil {
+		return nil, err
+	}
+	changeValue, err := optionalSignedDecimal(field+".change_value", quote.ChangeValue)
+	if err != nil {
+		return nil, err
+	}
+	changeRate, err := optionalSignedDecimal(field+".change_rate", quote.ChangeRate)
+	if err != nil {
+		return nil, err
+	}
+	quoteAt := ""
+	if strings.TrimSpace(quote.QuoteAt) != "" {
+		quoteAt, err = responseTime(field+".quote_at", quote.QuoteAt, time.Time{})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &marketdata.ExtendedQuote{
+		Price: price, HighPrice: high, LowPrice: low, Volume: floatPointer(volume),
+		Turnover: turnover, ChangeVal: changeValue, ChangeRate: changeRate, QuoteTime: quoteAt,
+	}, nil
+}
+
+func convertCandles(
+	response remoteCandles,
+	expected normalizedInstrument,
+	period string,
+	limit int,
+	resolvedAt time.Time,
+) (marketdata.CandlesResponse, error) {
+	identity, err := normalizeIdentity(response.Market, response.Symbol, response.InstrumentID)
+	if err != nil || identity.id != expected.id || strings.TrimSpace(response.Period) != period {
+		return nil, fmt.Errorf("%w: candle identity or period mismatch", ErrInvalidResponse)
+	}
+	if response.TotalReturned != len(response.Candles) {
+		return nil, fmt.Errorf("%w: candle count mismatch", ErrInvalidResponse)
+	}
+	candles := make([]map[string]any, 0, len(response.Candles))
+	includeSession := false
+	for index, candle := range response.Candles {
+		converted, err := convertCandle(candle, period)
+		if err != nil {
+			return nil, fmt.Errorf("candle %d: %w", index, err)
+		}
+		if converted["session"] != nil {
+			includeSession = true
+		}
+		candles = append(candles, converted)
+	}
+	source := strings.TrimSpace(response.Source)
+	if source == "" {
+		source = sourceID
+	}
+	return marketdata.CandlesResponseDTO{
+		Instrument: marketdata.InstrumentDTO{
+			Market: expected.market, Symbol: expected.symbol, InstrumentID: expected.id,
+		},
+		Period: period, Limit: limit, Candles: candles, Source: source,
+		ResolvedAt: resolvedAt.UTC().Format(time.RFC3339Nano), FromCache: false,
+		ExtendedHours: response.ExtendedHours, IncludeSession: includeSession,
+	}.JSON(), nil
+}
+
+func convertCandle(candle remoteCandle, period string) (map[string]any, error) {
+	at, err := responseTime("at", candle.At, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]any{"period": period, "at": at}
+	for name, value := range map[string]*json.Number{
+		"open": candle.Open, "high": candle.High, "low": candle.Low, "close": candle.Close,
+	} {
+		converted, err := requiredPositiveDecimal(name, value)
+		if err != nil {
+			return nil, err
+		}
+		result[name] = converted.String()
+	}
+	volume, err := nonNegativeFloat("volume", candle.Volume)
+	if err != nil {
+		return nil, err
+	}
+	result["volume"] = volume
+	session, err := normalizeSession(candle.Session)
+	if err != nil {
+		return nil, err
+	}
+	if session != "" {
+		result["session"] = session
+	} else {
+		result["session"] = nil
+	}
+	return result, nil
+}
+
+func requiredPositiveDecimal(field string, value *json.Number) (decimal.Decimal, error) {
+	if value == nil {
+		return decimal.Zero, fmt.Errorf("%w: %s is missing", ErrInvalidResponse, field)
+	}
+	parsed, err := decimal.NewFromString(value.String())
+	if err != nil || !parsed.GreaterThan(decimal.Zero) {
+		return decimal.Zero, fmt.Errorf("%w: %s must be positive", ErrInvalidResponse, field)
+	}
+	return parsed, nil
+}
+
+func quoteDecimal(field string, value *json.Number, fallback decimal.Decimal) (decimal.Decimal, error) {
+	if value == nil {
+		return fallback, nil
+	}
+	parsed, err := decimal.NewFromString(value.String())
+	if err != nil || parsed.IsNegative() {
+		return decimal.Zero, fmt.Errorf("%w: %s must be non-negative", ErrInvalidResponse, field)
+	}
+	if parsed.IsZero() {
+		return fallback, nil
+	}
+	return parsed, nil
+}
+
+func optionalDecimal(value *json.Number) *decimal.Decimal {
+	if value == nil {
+		return nil
+	}
+	parsed, err := decimal.NewFromString(value.String())
+	if err != nil {
+		return nil
+	}
+	return &parsed
+}
+
+func optionalNonNegativeDecimal(field string, value *json.Number) (*decimal.Decimal, error) {
+	if value == nil {
+		return nil, nil
+	}
+	parsed, err := decimal.NewFromString(value.String())
+	if err != nil || parsed.IsNegative() {
+		return nil, fmt.Errorf("%w: %s must be non-negative", ErrInvalidResponse, field)
+	}
+	return &parsed, nil
+}
+
+func optionalSignedDecimal(field string, value *json.Number) (*decimal.Decimal, error) {
+	if value == nil {
+		return nil, nil
+	}
+	parsed, err := decimal.NewFromString(value.String())
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s must be a decimal", ErrInvalidResponse, field)
+	}
+	return &parsed, nil
+}
+
+func floatPointer(value float64) *float64 {
+	if value == 0 {
+		return nil
+	}
+	return &value
+}
+
+func nonNegativeDecimal(field string, value *json.Number) (decimal.Decimal, error) {
+	if value == nil {
+		return decimal.Zero, nil
+	}
+	parsed, err := decimal.NewFromString(value.String())
+	if err != nil || parsed.IsNegative() {
+		return decimal.Zero, fmt.Errorf("%w: %s must be non-negative", ErrInvalidResponse, field)
+	}
+	return parsed, nil
+}
+
+func nonNegativeFloat(field string, value *json.Number) (float64, error) {
+	if value == nil {
+		return 0, nil
+	}
+	parsed, err := value.Float64()
+	if err != nil || parsed < 0 || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+		return 0, fmt.Errorf("%w: %s must be a finite non-negative number", ErrInvalidResponse, field)
+	}
+	return parsed, nil
+}
+
+func positiveFloat(field string, value json.Number) (float64, error) {
+	parsed, err := value.Float64()
+	if err != nil || parsed <= 0 || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+		return 0, fmt.Errorf("%w: %s must be a finite positive number", ErrInvalidResponse, field)
+	}
+	return parsed, nil
+}
+
+func responseTime(field, value string, fallback time.Time) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" && !fallback.IsZero() {
+		return fallback.UTC().Format(time.RFC3339Nano), nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return "", fmt.Errorf("%w: %s must be RFC3339", ErrInvalidResponse, field)
+	}
+	return parsed.UTC().Format(time.RFC3339Nano), nil
+}
+
+func normalizeSession(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "":
+		return "", nil
+	case "regular":
+		return "regular", nil
+	case "pre", "pre_market":
+		return "pre", nil
+	case "after", "after_hours", "post", "post_market":
+		return "after", nil
+	case "closed", "postpost", "post_post", "prepre", "pre_pre", "market_closed":
+		return "closed", nil
+	default:
+		return "", fmt.Errorf("%w: unsupported session %q", ErrInvalidResponse, value)
+	}
+}

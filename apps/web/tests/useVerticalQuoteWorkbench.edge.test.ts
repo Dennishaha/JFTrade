@@ -45,6 +45,7 @@ function mountHarness(input: Record<string, unknown>) {
       template: `
         <div>
           <span class="name">{{ name }}</span>
+          <span class="price-label">{{ priceLabel }}</span>
           <span class="price">{{ lastPrice }}</span>
           <span class="amount">{{ changeAmount }}</span>
           <span class="rate">{{ changeRate }}</span>
@@ -129,6 +130,82 @@ describe("useVerticalQuoteWorkbench edge behavior", () => {
     };
     await state.refresh();
     expect(mocks.fetchEnvelope).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("keeps Yahoo after-hours pricing in its dedicated card", async () => {
+    mocks.fetchEnvelope.mockImplementation((path: string) => {
+      if (path.includes("/snapshots/")) {
+        return Promise.resolve({
+          request: { market: "US", symbol: "AAPL", instrumentId: "US.AAPL" },
+          snapshot: {
+            price: 211.5,
+            bid: 211.5,
+            ask: 211.5,
+            previousClosePrice: 210,
+            lastClosePrice: 200,
+            volume: 0,
+            turnover: 0,
+            at: "2026-07-31T00:00:00Z",
+            session: "after",
+            extendedHours: true,
+            extended: {
+              afterMarket: {
+                price: 211.5,
+                quoteTime: "2026-07-31T00:00:00Z",
+              },
+            },
+          },
+          meta: {
+            instrumentId: "US.AAPL",
+            source: "yfinance",
+            brokerId: "yfinance",
+            resolvedAt: "2026-07-31T00:00:15Z",
+            fromCache: false,
+          },
+        });
+      }
+      if (path.includes("/securities/")) {
+        return Promise.resolve({
+          request: { market: "US", symbol: "AAPL", instrumentId: "US.AAPL" },
+          security: { name: "Apple" },
+          meta: {
+            instrumentId: "US.AAPL",
+            source: "yfinance",
+            brokerId: "yfinance",
+            resolvedAt: "2026-07-31T00:00:15Z",
+            fromCache: false,
+          },
+        });
+      }
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+    mocks.getWatchlistMembership.mockResolvedValue({ groupIds: [] });
+
+    const wrapper = mountHarness({
+      target: {
+        kind: "instrument",
+        instrumentId: "US.AAPL",
+        name: "Apple",
+        productClass: "equity",
+      },
+      visible: false,
+    });
+    await flushPromises();
+
+    expect(wrapper.get(".price-label").text()).toBe("最近常规收盘");
+    expect(wrapper.get(".price").text()).toBe("210");
+    expect(wrapper.get(".amount").text()).toBe("10");
+    expect(wrapper.text()).toContain("昨收=200");
+    expect(wrapper.get(".rate").text()).toBe("5");
+    const state = wrapper.vm.$.setupState as unknown as {
+      extendedCards: Array<{ key: string; quoteTime: string | null }>;
+    };
+    expect(state.extendedCards).toHaveLength(1);
+    expect(state.extendedCards[0]).toMatchObject({
+      key: "after",
+      quoteTime: "2026-07-31T00:00:00Z",
+    });
     wrapper.unmount();
   });
 });

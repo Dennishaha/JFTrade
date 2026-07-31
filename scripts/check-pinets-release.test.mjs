@@ -48,6 +48,8 @@ try {
   const passLog = readFileSync(runLog, "utf8");
   assert(passLog.includes("JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v"), "unblocked release check did not run real PineTS process smoke");
   assert(passLog.includes("pnpm run build:pineworker"), "unblocked release check did not build worker assets");
+  assert(passLog.includes("pnpm run build:yfinance-sidecar"), "unblocked release check did not build the native yfinance helper");
+  assert(passLog.includes("go test -tags release_assets ./internal/yfinanceassets -run Test"), "unblocked release check did not verify embedded yfinance assets");
   assert(passLog.includes(`go build -tags release_assets -o ${releaseOut} ./cmd/jftrade-api`), "unblocked release check did not build release_assets API binary");
   assert(existsSync(releaseOut), "unblocked release check did not leave an artifact");
 

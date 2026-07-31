@@ -86,12 +86,13 @@ var requiredCriticalScopes = []scopeCoverage{
 type exclusionCategory string
 
 const (
-	exclusionGenerated   exclusionCategory = "generated"
-	exclusionVendored    exclusionCategory = "vendored"
-	exclusionTooling     exclusionCategory = "tooling"
-	exclusionDesktop     exclusionCategory = "desktop"
-	exclusionContract    exclusionCategory = "contract"
-	exclusionTestSupport exclusionCategory = "test-support"
+	exclusionGenerated    exclusionCategory = "generated"
+	exclusionVendored     exclusionCategory = "vendored"
+	exclusionTooling      exclusionCategory = "tooling"
+	exclusionDesktop      exclusionCategory = "desktop"
+	exclusionContract     exclusionCategory = "contract"
+	exclusionTestSupport  exclusionCategory = "test-support"
+	exclusionBuildVariant exclusionCategory = "build-variant"
 )
 
 type exclusionRule struct {
@@ -123,6 +124,14 @@ var exclusionRules = []exclusionRule{
 	{
 		scope: "internal/api/research/openapi.go", category: exclusionContract,
 		reason: "declarative Swaggo-only route documentation",
+	},
+	{
+		scope: "internal/yfinanceassets/assets_release.go", category: exclusionBuildVariant,
+		reason: "release_assets-only embedded delivery adapter",
+	},
+	{
+		scope: "internal/integration/yfinance/testkit", category: exclusionTestSupport,
+		reason: "cross-package Yahoo Finance HTTP fixtures",
 	},
 	{
 		scope: "internal/integration/futu/testkit", category: exclusionTestSupport,

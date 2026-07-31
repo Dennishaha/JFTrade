@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { effectScope, ref } from "vue";
+import { flushPromises } from "@vue/test-utils";
 
 const mocks = vi.hoisted(() => ({
   fetchEnvelopeWithInit: vi.fn(),
@@ -19,13 +21,66 @@ vi.mock("@/composables/shared/apiClient", async (importOriginal) => {
   };
 });
 
-import { fetchResearchSnapshots } from "../../src/components/research/researchSnapshots";
+import {
+  fetchResearchSnapshots,
+  ResearchSnapshotBatchError,
+  useResearchSnapshots,
+} from "../../src/components/research/researchSnapshots";
 
 afterEach(() => {
   mocks.fetchEnvelopeWithInit.mockReset();
 });
 
 describe("fetchResearchSnapshots", () => {
+  it("preserves successful quotes and exposes per-instrument errors", async () => {
+    mocks.fetchEnvelopeWithInit.mockResolvedValueOnce({
+      quotes: [{ instrumentId: "US.AAPL", price: 215 }],
+      errors: [
+        {
+          instrumentId: "hk.HTIMAIN",
+          code: "UNKNOWN_SECURITY",
+          message: "未知股票 HTIMAIN",
+        },
+      ],
+    });
+
+    const result = fetchResearchSnapshots(["US.AAPL", "HK.HTIMAIN"], "futu");
+
+    await expect(result).rejects.toBeInstanceOf(ResearchSnapshotBatchError);
+    await expect(result).rejects.toMatchObject({
+      quotes: [{ instrumentId: "US.AAPL", price: 215 }],
+      errors: [
+        {
+          instrumentId: "HK.HTIMAIN",
+          code: "UNKNOWN_SECURITY",
+          message: "未知股票 HTIMAIN",
+        },
+      ],
+    });
+    await expect(result).rejects.toThrow("HK.HTIMAIN: 未知股票 HTIMAIN");
+  });
+
+  it("keeps successful quotes visible while surfacing partial failures", async () => {
+    mocks.fetchEnvelopeWithInit.mockResolvedValueOnce({
+      quotes: [{ instrumentId: "US.AAPL", price: 215 }],
+      errors: [{ instrumentId: "HK.HTIMAIN", message: "未知股票 HTIMAIN" }],
+    });
+    const scope = effectScope();
+    const state = scope.run(() =>
+      useResearchSnapshots(ref(["US.AAPL", "HK.HTIMAIN"]), ref("futu")),
+    )!;
+
+    await flushPromises();
+
+    expect(state.entries.value).toEqual([
+      { instrumentId: "US.AAPL", price: 215 },
+    ]);
+    expect(state.byInstrumentId.value["US.AAPL"]).toMatchObject({ price: 215 });
+    expect(state.error.value).toBe("部分行情加载失败：HK.HTIMAIN: 未知股票 HTIMAIN");
+    expect(state.loading.value).toBe(false);
+    scope.stop();
+  });
+
   it("chunks large catalogs at 200 IDs with bounded concurrency and stable merge order", async () => {
     let active = 0;
     let maximumActive = 0;
@@ -37,7 +92,7 @@ describe("fetchResearchSnapshots", () => {
         await Promise.resolve();
         active -= 1;
         return {
-          entries: instrumentIds.map((instrumentId) => ({ instrumentId })),
+          quotes: instrumentIds.map((instrumentId) => ({ instrumentId })),
         };
       },
     );
@@ -56,7 +111,7 @@ describe("fetchResearchSnapshots", () => {
     expect(maximumActive).toBeLessThanOrEqual(3);
     expect(
       mocks.fetchEnvelopeWithInit.mock.calls.every(([path]) =>
-        String(path).includes("brokerId=futu") && String(path).includes("refresh=true"),
+        String(path) === "/api/v1/watchlist/quotes/batch",
       ),
     ).toBe(true);
     expect(entries.map((entry) => entry.instrumentId)).toEqual(instrumentIds);

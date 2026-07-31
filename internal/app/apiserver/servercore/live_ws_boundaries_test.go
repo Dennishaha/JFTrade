@@ -7,7 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
+	"github.com/jftrade/jftrade-main/internal/integration/yfinance/testkit"
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
@@ -25,6 +30,69 @@ func (b liveSnapshotBroker) Descriptor() broker.Descriptor {
 				ID: broker.FeatureMarketSnapshots, Access: broker.FeatureAccessRead, State: broker.CapabilityAvailable,
 			}},
 		}},
+	}
+}
+
+func TestLiveWebSocketUsesActivePollOnlyProviderBehindLegacyFutuSelection(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	sidecar := testkit.New(t)
+	if err := marketdataapp.RuntimeFromService(server.marketdataSvc).Activate(t.Context(), marketdataapp.Activation{
+		ProviderID:       marketdataapp.ProviderYFinance,
+		YFinanceEndpoint: sidecar.URL(),
+	}); err != nil {
+		t.Fatalf("activate yfinance: %v", err)
+	}
+	server.marketdataSvc.NotifyProviderChanged()
+	server.marketdataSvc.Seed(mdsrv.Tick{
+		InstrumentID: "US.AAPL",
+		Market:       "US",
+		Symbol:       "AAPL",
+		Price:        decimal.NewFromInt(190),
+		ObservedAt:   time.Now().UTC().Add(-10 * time.Second).Format(time.RFC3339Nano),
+		QuoteAt:      time.Now().UTC().Add(-10 * time.Second).Format(time.RFC3339Nano),
+		Source:       "yfinance",
+	})
+
+	backend := liveWebSocketBackend{server: server}
+	heartbeat := backend.Heartbeat(
+		time.Second,
+		apilive.ClientStats{},
+		[]string{"US.AAPL"},
+		"futu",
+	)
+	transport := heartbeat["transport"].(map[string]any)
+	if heartbeat["providerBrokerId"] != "futu" ||
+		heartbeat["marketDataProviderId"] != marketdataapp.ProviderYFinance ||
+		transport["mode"] != "snapshot-poll-delayed" ||
+		transport["sampleFreshnessMs"].(int64) <= liveHeartbeatStaleThreshold.Milliseconds() {
+		t.Fatalf("yfinance heartbeat = %#v", heartbeat)
+	}
+	if reasons := heartbeat["staleReasons"].([]any); len(reasons) != 0 {
+		t.Fatalf("yfinance heartbeat stale reasons = %#v", reasons)
+	}
+	ticks, err := backend.MarketTicks(t.Context(), "futu", []string{"US.AAPL"}, "")
+	if err != nil || len(ticks) != 1 ||
+		ticks[0].Payload["source"] != "yfinance" ||
+		ticks[0].Payload["brokerId"] != "futu" ||
+		ticks[0].Payload["marketDataProviderId"] != marketdataapp.ProviderYFinance {
+		t.Fatalf("yfinance live ticks = %#v, err=%v", ticks, err)
+	}
+	if _, native := backend.nativeMarketDataProvider("yfinance"); !native {
+		t.Fatal("active yfinance id did not route through native market-data service")
+	}
+	details, err := backend.SecurityDetails(t.Context(), "futu", "US", "AAPL")
+	if err != nil || details["meta"].(map[string]any)["source"] != "yfinance" {
+		t.Fatalf("yfinance live security details = %#v, err=%v", details, err)
+	}
+	if _, err := backend.Depth(t.Context(), "futu", "US", "AAPL", 10); !errors.Is(
+		err,
+		mdsrv.ErrCapabilityUnsupported,
+	) {
+		t.Fatalf("yfinance live depth error = %v", err)
 	}
 }
 func (b liveSnapshotBroker) DiscoverAccounts(context.Context) ([]broker.Account, error) {

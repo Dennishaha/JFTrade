@@ -65,6 +65,14 @@ test("ci-local generates docs once, checks drift, then runs shared checks inline
     ([command, args]) => command === "pnpm" && args.join(" ") === "run build:frontend-assets:generated",
   );
   assert.deepEqual(commands[frontendBuildIndex + 1], ["node", ["scripts/report-web-bundle.mjs"]]);
+  const yfinanceBuildIndex = commands.findIndex(
+    ([command, args]) =>
+      command === "pnpm" && args.join(" ") === "run build:yfinance-sidecar",
+  );
+  assert.deepEqual(commands[yfinanceBuildIndex + 1], [
+    "go",
+    ["test", "-tags", "release_assets", "./internal/yfinanceassets", "-count=1"],
+  ]);
 });
 
 test("rejects unknown test layers", () => {

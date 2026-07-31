@@ -189,6 +189,120 @@ describe("createMarketDataSnapshotRefresher", () => {
     refresher.stopMarketSnapshotBackgroundRefresh();
   });
 
+  it("polls REST while a connected provider reports delayed snapshot polling", async () => {
+    vi.useFakeTimers();
+    const hub = getSharedLiveSocketHub();
+    const fallbackRefresh = vi.fn().mockResolvedValue(undefined);
+    const refresher = createMarketDataSnapshotRefresher({
+      marketSecurityDetails: ref(null),
+      fallbackIntervalMs: 3_000,
+      fallbackRefresh,
+    });
+
+    hub.connectionState.value = "connected";
+    hub.lastHeartbeatEvent.value = {
+      type: "heartbeat",
+      at: "2026-06-02T00:00:00Z",
+      providerBrokerId: "yfinance",
+      transport: { mode: "snapshot-poll-delayed" },
+    };
+    refresher.scheduleMarketSnapshotBackgroundRefresh({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+    });
+
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(fallbackRefresh).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fallbackRefresh).toHaveBeenCalledOnce();
+
+    refresher.stopMarketSnapshotBackgroundRefresh();
+  });
+
+  it("starts delayed polling when the provider heartbeat arrives after websocket connect", async () => {
+    vi.useFakeTimers();
+    const hub = getSharedLiveSocketHub();
+    const fallbackRefresh = vi.fn().mockResolvedValue(undefined);
+    const refresher = createMarketDataSnapshotRefresher({
+      marketSecurityDetails: ref(null),
+      fallbackRefresh,
+    });
+
+    hub.connectionState.value = "connected";
+    refresher.scheduleMarketSnapshotBackgroundRefresh({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+    });
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(fallbackRefresh).not.toHaveBeenCalled();
+
+    hub.lastHeartbeatEvent.value = {
+      type: "heartbeat",
+      at: "2026-06-02T00:00:00Z",
+      providerBrokerId: "yfinance",
+      transport: { mode: "snapshot-poll-delayed" },
+    };
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(fallbackRefresh).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fallbackRefresh).toHaveBeenCalledOnce();
+
+    refresher.stopMarketSnapshotBackgroundRefresh();
+  });
+
+  it("reschedules when transport mode changes between delayed polling and Futu fallback", async () => {
+    vi.useFakeTimers();
+    const hub = getSharedLiveSocketHub();
+    const fallbackRefresh = vi.fn().mockResolvedValue(undefined);
+    const refresher = createMarketDataSnapshotRefresher({
+      marketSecurityDetails: ref(null),
+      fallbackRefresh,
+    });
+
+    hub.connectionState.value = "connected";
+    hub.lastHeartbeatEvent.value = {
+      type: "heartbeat",
+      at: "2026-06-02T00:00:00Z",
+      providerBrokerId: "yfinance",
+      transport: { mode: "snapshot-poll-delayed" },
+    };
+    refresher.scheduleMarketSnapshotBackgroundRefresh({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+    });
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    hub.lastHeartbeatEvent.value = {
+      type: "heartbeat",
+      at: "2026-06-02T00:00:05Z",
+      providerBrokerId: "futu",
+      transport: { mode: "push-stream" },
+    };
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fallbackRefresh).not.toHaveBeenCalled();
+
+    hub.lastHeartbeatEvent.value = {
+      type: "heartbeat",
+      at: "2026-06-02T00:00:15Z",
+      providerBrokerId: "yfinance",
+      transport: { mode: "snapshot-poll-delayed" },
+    };
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(fallbackRefresh).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fallbackRefresh).toHaveBeenCalledOnce();
+
+    refresher.stopMarketSnapshotBackgroundRefresh();
+  });
+
   it("honors a retry delay carried by a rejected fallback request", async () => {
     vi.useFakeTimers();
     const hub = getSharedLiveSocketHub();

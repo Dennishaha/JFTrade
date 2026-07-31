@@ -62,6 +62,9 @@ const ciLocalAfterPreflight = [
   ["pnpm", ["run", "check:pinets-compliance"]],
   ["pnpm", ["run", "test:pinets-shadow-corpus"]],
   ["pnpm", ["run", "test:pineworker-asset-build"]],
+  ["pnpm", ["run", "test:yfinance-sidecar-asset-build"]],
+  ["pnpm", ["run", "build:yfinance-sidecar"]],
+  ["go", ["test", "-tags", "release_assets", "./internal/yfinanceassets", "-count=1"]],
 ];
 
 const sequentialStage = (...commands) => ({ mode: "sequential", commands });

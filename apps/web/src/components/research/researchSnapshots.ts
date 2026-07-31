@@ -1,7 +1,6 @@
 import { computed, isRef, ref, watch, type Ref } from "vue";
 
 import { apiPostPath } from "@/composables/shared/apiClient";
-import { withBrokerProvider } from "@/composables/trading/brokerProviderSelection";
 
 export type ResearchInstrumentIdsSource = Ref<string[]> | (() => string[]);
 
@@ -11,6 +10,31 @@ export interface ResearchSnapshotState {
   loading: Ref<boolean>;
   error: Ref<string>;
   refresh: () => Promise<void>;
+}
+
+export interface ResearchSnapshotErrorDetail {
+  instrumentId: string;
+  code?: string;
+  message: string;
+}
+
+/** A batch can return usable quotes alongside per-instrument failures. */
+export class ResearchSnapshotBatchError extends Error {
+  readonly quotes: Record<string, unknown>[];
+  readonly errors: ResearchSnapshotErrorDetail[];
+
+  constructor(
+    quotes: Record<string, unknown>[],
+    errors: ResearchSnapshotErrorDetail[],
+  ) {
+    const details = errors
+      .map((error) => `${error.instrumentId}: ${error.message}`)
+      .join("；");
+    super(`部分行情加载失败：${details}`);
+    this.name = "ResearchSnapshotBatchError";
+    this.quotes = quotes;
+    this.errors = errors;
+  }
 }
 
 const RESEARCH_SNAPSHOT_BATCH_SIZE = 200;
@@ -33,10 +57,25 @@ function snapshotInstrumentId(entry: Record<string, unknown>): string {
     .toUpperCase();
 }
 
+function normalizeSnapshotErrors(value: unknown): ResearchSnapshotErrorDetail[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item): ResearchSnapshotErrorDetail | null => {
+      if (item == null || typeof item !== "object") return null;
+      const error = item as Record<string, unknown>;
+      const instrumentId = String(error.instrumentId ?? "").trim().toUpperCase();
+      const message = String(error.message ?? "行情快照不可用").trim();
+      if (!instrumentId || !message) return null;
+      const code = String(error.code ?? "").trim();
+      return code ? { instrumentId, code, message } : { instrumentId, message };
+    })
+    .filter((error): error is ResearchSnapshotErrorDetail => error != null);
+}
+
 export async function fetchResearchSnapshots(
   instrumentIds: string[],
-  brokerId: string,
-  refresh = false,
+  _brokerId: string,
+  _refresh = false,
 ): Promise<Record<string, unknown>[]> {
   const ids = [
     ...new Set(
@@ -46,21 +85,26 @@ export async function fetchResearchSnapshots(
     ),
   ];
   if (ids.length === 0) return [];
-  let path = withBrokerProvider("/api/v1/market-data/snapshots", brokerId.trim());
-  if (refresh) path += `${path.includes("?") ? "&" : "?"}refresh=true`;
+  const path = "/api/v1/watchlist/quotes/batch";
   if (ids.length <= RESEARCH_SNAPSHOT_BATCH_SIZE) {
     const response = await apiPostPath(
-      "/api/v1/market-data/snapshots",
+      "/api/v1/watchlist/quotes/batch",
       path,
       { instrumentIds: ids },
     );
-    return response.entries ?? [];
+    const quotes = response.quotes ?? [];
+    const errors = normalizeSnapshotErrors(response.errors);
+    if (errors.length > 0) {
+      throw new ResearchSnapshotBatchError(quotes, errors);
+    }
+    return quotes;
   }
   const batches: string[][] = [];
   for (let index = 0; index < ids.length; index += RESEARCH_SNAPSHOT_BATCH_SIZE) {
     batches.push(ids.slice(index, index + RESEARCH_SNAPSHOT_BATCH_SIZE));
   }
   const results: Record<string, unknown>[][] = new Array(batches.length);
+  const batchErrors: ResearchSnapshotErrorDetail[][] = new Array(batches.length);
   let nextBatch = 0;
 
   async function worker(): Promise<void> {
@@ -68,11 +112,12 @@ export async function fetchResearchSnapshots(
       const batchIndex = nextBatch++;
       const instrumentIds = batches[batchIndex]!;
       const response = await apiPostPath(
-        "/api/v1/market-data/snapshots",
+        "/api/v1/watchlist/quotes/batch",
         path,
         { instrumentIds },
       );
-      results[batchIndex] = response.entries ?? [];
+      results[batchIndex] = response.quotes ?? [];
+      batchErrors[batchIndex] = normalizeSnapshotErrors(response.errors);
     }
   }
 
@@ -82,7 +127,12 @@ export async function fetchResearchSnapshots(
       () => worker(),
     ),
   );
-  return results.flat();
+  const quotes = results.flat();
+  const errors = batchErrors.flat();
+  if (errors.length > 0) {
+    throw new ResearchSnapshotBatchError(quotes, errors);
+  }
+  return quotes;
 }
 
 export function useResearchSnapshots(
@@ -114,7 +164,8 @@ export function useResearchSnapshots(
     } catch (cause) {
       if (token !== requestToken) return;
       error.value = cause instanceof Error ? cause.message : String(cause);
-      entries.value = [];
+      entries.value =
+        cause instanceof ResearchSnapshotBatchError ? cause.quotes : [];
     } finally {
       if (token === requestToken) loading.value = false;
     }
@@ -153,8 +204,8 @@ export function mergeResearchSnapshot(
   snapshot: Record<string, unknown> | undefined,
 ): Record<string, unknown> {
   if (snapshot == null) return entry;
-  const previousClose = Number(snapshot.previousClose);
-  const lastPrice = Number(snapshot.lastPrice);
+  const previousClose = Number(snapshot.previousClose ?? snapshot.previousClosePrice);
+  const lastPrice = Number(snapshot.lastPrice ?? snapshot.price);
   const hasPrices = Number.isFinite(previousClose) && Number.isFinite(lastPrice);
   const changeAmount = hasPrices ? lastPrice - previousClose : undefined;
   const changeRate =
@@ -174,8 +225,8 @@ export function mergeResearchSnapshot(
         .toUpperCase(),
     name: entry.name ?? snapshot.name,
     price: Number.isFinite(lastPrice) ? lastPrice : entry.price,
-    assetClass: entry.assetClass ?? fund?.assetClass,
-    changeAmount: entry.changeAmount ?? changeAmount,
-    changeRate: entry.changeRate ?? changeRate,
+    assetClass: entry.assetClass ?? snapshot.assetClass ?? fund?.assetClass,
+    changeAmount: entry.changeAmount ?? snapshot.change ?? changeAmount,
+    changeRate: entry.changeRate ?? snapshot.changePercent ?? changeRate,
   };
 }

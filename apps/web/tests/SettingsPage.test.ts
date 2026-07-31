@@ -120,6 +120,12 @@ describe("SettingsPage", () => {
     window.localStorage.clear();
     const { router, wrapper } = await mountSettings("/settings/security");
     expect(wrapper.get("[data-section='security']").exists()).toBe(true);
+    expect(
+      wrapper.findAll("button").some((button) => button.text() === "行情数据源"),
+    ).toBe(false);
+    expect(
+      wrapper.findAll("option").some((option) => option.text() === "行情数据源"),
+    ).toBe(false);
 
     const notifications = wrapper.findAll("button").find((button) =>
       button.text() === "系统通知",
@@ -160,6 +166,9 @@ describe("SettingsPage", () => {
     const legacy = await mountSettings("/settings/data-migration");
     expect(legacy.router.currentRoute.value.path).toBe("/settings/runtime-dependencies");
     expect(window.localStorage.getItem("jft.settings.section")).toBe("runtime-dependencies");
+
+    const removedMarketData = await mountSettings("/settings/market-data");
+    expect(removedMarketData.router.currentRoute.value.path).toBe("/settings/runtime-dependencies");
 
     window.localStorage.setItem("jft.settings.section", "security");
     const missing = await mountSettings("/settings");

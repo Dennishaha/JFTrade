@@ -441,6 +441,7 @@ func TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize(t *te
 			ProviderID:       "futu-opend",
 			DisplayName:      "Futu OpenD",
 			Source:           "bbgo:futu",
+			DefaultMarket:    "HK",
 			SupportedMarkets: []string{"US", "HK"},
 			Capabilities: srv.ProviderCapabilities{
 				Snapshots:         true,
@@ -938,6 +939,9 @@ func (p *routeTestProvider) Descriptor(context.Context) (srv.ProviderDescriptor,
 		p.descriptor.ProviderID = "route-test"
 		p.descriptor.DisplayName = "Route Test"
 		p.descriptor.Source = "test"
+		p.descriptor.Capabilities = srv.ProviderCapabilities{
+			Snapshots: true, TickCandles: true, OrderBookDepth: true,
+		}
 	}
 	return p.descriptor, p.descriptorErr
 }

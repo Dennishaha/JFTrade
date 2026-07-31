@@ -8,10 +8,8 @@ import type {
 import { apiGetPath } from "@/composables/shared/apiClient";
 import { mapMarketDataDepthResponse } from "@/composables/market-data/marketDataContract";
 import { pricePrecisionForMarket } from "@/composables/market-data/marketProfiles";
-import {
-  useBrokerProviderSelection,
-  withBrokerProvider,
-} from "@/composables/trading/brokerProviderSelection";
+import { getMarketDataProviderStatus } from "@/composables/settings/marketDataProviderSettings";
+import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
 import {
   getSharedLiveSocketHub,
   type MarketDepthLiveStreamEvent,
@@ -46,6 +44,13 @@ const depthNum = ref(DEFAULT_DEPTH_NUM);
 const depthData = ref<MarketDataDepthResponse | null>(null);
 const isLoadingDepth = ref(false);
 const depthError = ref("");
+const providerCapabilityLoading = ref(false);
+const providerCapabilityError = ref("");
+// Do not open a depth lease until the active runtime has confirmed the
+// capability. The local broker selection can briefly lag a persisted Yahoo
+// switch, and optimistically assuming Futu would issue one invalid depth
+// request before the capability response closes it.
+const supportsOrderBookDepth = ref<boolean | null>(null);
 let depthRequestSeq = 0;
 let depthAbortController: AbortController | null = null;
 let lastDepthDataRefreshedAt = 0;
@@ -157,6 +162,9 @@ const lastPrice = computed(() => security.value?.currentPrice ?? snapshot.value?
 const depthObservedAt = computed(() => depthData.value?.meta.resolvedAt ?? null);
 const depthConnectionState = computed(() => liveHub.connectionState?.value ?? "idle");
 const depthTransportMode = computed(() => liveHub.lastHeartbeatEvent?.value?.transport?.mode ?? null);
+const depthUnsupported = computed(() => supportsOrderBookDepth.value === false);
+
+let providerCapabilitySeq = 0;
 
 const changeFromClose = computed(() => {
   const lp = lastPrice.value;
@@ -220,13 +228,14 @@ function buildDepthUrl(): string | null {
   const market = prefs.value?.market;
   const symbol = prefs.value?.symbol;
   if (!market || !symbol) return null;
-  return withBrokerProvider(
-    `/api/v1/market-data/depth/${market}/${symbol}?num=${depthNum.value}`,
-    selectedBrokerId.value,
-  );
+  return `/api/v1/market-data/depth/${market}/${symbol}?num=${depthNum.value}`;
 }
 
 async function fetchDepth(): Promise<void> {
+  if (supportsOrderBookDepth.value !== true) {
+    clearDepthData();
+    return;
+  }
   const url = buildDepthUrl();
   if (!url) {
     depthAbortController?.abort();
@@ -287,6 +296,45 @@ function clearDepthData(): void {
   lastDepthDataRefreshedAt = 0;
 }
 
+async function disableDepthForProvider(): Promise<void> {
+  closeDepthStream();
+  clearDepthData();
+  if (heldDepthSubscription == null) return;
+  const previous = heldDepthSubscription;
+  heldDepthSubscription = null;
+  await releaseDepthSubscription(previous);
+}
+
+async function refreshProviderCapability(): Promise<void> {
+  const sequence = ++providerCapabilitySeq;
+  providerCapabilityLoading.value = supportsOrderBookDepth.value == null;
+  providerCapabilityError.value = "";
+  try {
+    const status = await getMarketDataProviderStatus();
+    if (sequence !== providerCapabilitySeq) return;
+    supportsOrderBookDepth.value =
+      status.descriptor?.capabilities?.orderBookDepth === true;
+    if (!supportsOrderBookDepth.value) {
+      await disableDepthForProvider();
+    } else if (!isUnmounted && sequence === providerCapabilitySeq) {
+      void connectDepthStream();
+    }
+  } catch (error) {
+    if (sequence !== providerCapabilitySeq) return;
+    // A failed capability probe is indeterminate. Stay fail-closed until a
+    // successful descriptor explicitly advertises depth, so a stale local
+    // provider selection can never issue a Yahoo depth request.
+    supportsOrderBookDepth.value = false;
+    providerCapabilityError.value =
+      error instanceof Error ? error.message : "无法读取行情能力";
+    await disableDepthForProvider();
+  } finally {
+    if (sequence === providerCapabilitySeq) {
+      providerCapabilityLoading.value = false;
+    }
+  }
+}
+
 async function releaseDepthSubscription(
   target: ReturnType<typeof resolveDepthSubscriptionTarget>,
   keepalive = false,
@@ -306,6 +354,10 @@ async function syncDepthSubscription(
   lifecycleSeq: number,
   forceAcquire = false,
 ): Promise<boolean> {
+  if (supportsOrderBookDepth.value !== true) {
+    await disableDepthForProvider();
+    return false;
+  }
   if (heldDepthSubscription != null && !isSameDepthSubscription(heldDepthSubscription, target)) {
     const previous = heldDepthSubscription;
     heldDepthSubscription = null;
@@ -365,6 +417,10 @@ async function connectDepthStream(
   forceAcquire = false,
 ): Promise<void> {
   if (isUnmounted) {
+    return;
+  }
+  if (supportsOrderBookDepth.value !== true) {
+    await disableDepthForProvider();
     return;
   }
   const lifecycleSeq = ++depthLifecycleSeq;
@@ -450,7 +506,7 @@ onMounted(() => {
   if (typeof window !== "undefined") {
     window.addEventListener("online", handleDepthOnline);
   }
-  void connectDepthStream();
+  void refreshProviderCapability();
   heartbeatTimer = window.setInterval(() => {
     if (heldDepthSubscription != null) {
       void heartbeatDepthSubscription(heldDepthSubscription.brokerId);
@@ -485,12 +541,20 @@ onUnmounted(() => {
 // Re-fetch only when the instrument changes. Period changes update workspace
 // prefs too, but depth data is independent from the chart interval.
 watch(
-  () => `${selectedBrokerId.value}|${currentInstrumentId.value}`,
+  currentInstrumentId,
   () => {
     clearDepthData();
-    void connectDepthStream();
+    if (supportsOrderBookDepth.value === true) {
+      void connectDepthStream();
+    }
   },
 );
+
+watch(selectedBrokerId, () => {
+  supportsOrderBookDepth.value = null;
+  void disableDepthForProvider();
+  void refreshProviderCapability();
+});
 </script>
 
 <template>
@@ -510,47 +574,61 @@ watch(
     </div>
 
     <div class="tv-panel-body is-flush">
-      <!-- Depth preset selector -->
-      <div class="tv-ob-presets">
-        <button v-for="preset in DEPTH_PRESETS" :key="preset" class="tv-ob-preset-btn"
-          :class="{ 'is-active': depthNum === preset }" @click="setDepthNum(preset)">
-          {{ preset }}
-        </button>
-        <span v-if="isLoadingDepth" class="tv-ob-preset-spinner fa-solid fa-spinner fa-spin"></span>
+      <div v-if="providerCapabilityLoading" class="tv-ob-capability-message"
+        style="display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 24px; color: var(--tv-text-dim); text-align: center; line-height: 1.6">
+        正在读取盘口能力…
       </div>
-
-      <!-- BBO ratio bar -->
-      <div v-if="bidAskRatio != null" class="tv-ob-ratio-bar">
-        <div class="tv-ob-ratio-bid" :style="{ width: bidRatioPercent + '%' }">
-          <span v-if="bidRatioPercent && parseFloat(bidRatioPercent) > 10">Bid {{ bidRatioPercent }}%</span>
-        </div>
-        <div class="tv-ob-ratio-ask" :style="{ width: askRatioPercent + '%' }">
-          <span v-if="askRatioPercent && parseFloat(askRatioPercent) > 10">Ask {{ askRatioPercent }}%</span>
-        </div>
+      <div v-else-if="depthUnsupported" class="tv-ob-capability-message"
+        style="display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 24px; color: var(--tv-text-dim); text-align: center; line-height: 1.6">
+        当前行情提供者不支持盘口深度 / Level 2 数据
       </div>
-
-      <!-- BBO cards -->
-      <div class="tv-ob-bbo">
-        <div class="tv-ob-bbo-card tv-ob-bbo-bid">
-          <div class="tv-ob-bbo-label">买一</div>
-          <div class="tv-ob-bbo-price tv-up">{{ fmtPrice(bidPrice) }}</div>
-          <div class="tv-ob-bbo-size">{{ fmtSize(bidVolume) }}</div>
-        </div>
-        <div class="tv-ob-bbo-card tv-ob-bbo-ask">
-          <div class="tv-ob-bbo-label">卖一</div>
-          <div class="tv-ob-bbo-price tv-down">{{ fmtPrice(askPrice) }}</div>
-          <div class="tv-ob-bbo-size">{{ fmtSize(askVolume) }}</div>
-        </div>
+      <div v-else-if="providerCapabilityError" class="tv-ob-capability-message"
+        style="display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 24px; color: var(--tv-text-dim); text-align: center; line-height: 1.6">
+        行情能力读取失败：{{ providerCapabilityError }}
       </div>
+      <template v-else>
+        <!-- Depth preset selector -->
+        <div class="tv-ob-presets">
+          <button v-for="preset in DEPTH_PRESETS" :key="preset" class="tv-ob-preset-btn"
+            :class="{ 'is-active': depthNum === preset }" @click="setDepthNum(preset)">
+            {{ preset }}
+          </button>
+          <span v-if="isLoadingDepth" class="tv-ob-preset-spinner fa-solid fa-spinner fa-spin"></span>
+        </div>
 
-      <OrderBookDepthTable
-        :levels="depthLevels"
-        :market="prefs?.market ?? ''"
-        :price-precision="pricePrecisionForMarket(prefs?.market)"
-        :loading="isLoadingDepth"
-        :error="depthError"
-        :disabled="currentInstrumentId === ''"
-      />
+        <!-- BBO ratio bar -->
+        <div v-if="bidAskRatio != null" class="tv-ob-ratio-bar">
+          <div class="tv-ob-ratio-bid" :style="{ width: bidRatioPercent + '%' }">
+            <span v-if="bidRatioPercent && parseFloat(bidRatioPercent) > 10">Bid {{ bidRatioPercent }}%</span>
+          </div>
+          <div class="tv-ob-ratio-ask" :style="{ width: askRatioPercent + '%' }">
+            <span v-if="askRatioPercent && parseFloat(askRatioPercent) > 10">Ask {{ askRatioPercent }}%</span>
+          </div>
+        </div>
+
+        <!-- BBO cards -->
+        <div class="tv-ob-bbo">
+          <div class="tv-ob-bbo-card tv-ob-bbo-bid">
+            <div class="tv-ob-bbo-label">买一</div>
+            <div class="tv-ob-bbo-price tv-up">{{ fmtPrice(bidPrice) }}</div>
+            <div class="tv-ob-bbo-size">{{ fmtSize(bidVolume) }}</div>
+          </div>
+          <div class="tv-ob-bbo-card tv-ob-bbo-ask">
+            <div class="tv-ob-bbo-label">卖一</div>
+            <div class="tv-ob-bbo-price tv-down">{{ fmtPrice(askPrice) }}</div>
+            <div class="tv-ob-bbo-size">{{ fmtSize(askVolume) }}</div>
+          </div>
+        </div>
+
+        <OrderBookDepthTable
+          :levels="depthLevels"
+          :market="prefs?.market ?? ''"
+          :price-precision="pricePrecisionForMarket(prefs?.market)"
+          :loading="isLoadingDepth"
+          :error="depthError"
+          :disabled="currentInstrumentId === ''"
+        />
+      </template>
 
     </div>
   </section>

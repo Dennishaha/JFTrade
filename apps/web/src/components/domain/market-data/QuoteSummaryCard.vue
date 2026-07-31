@@ -2,6 +2,7 @@
 import { computed } from "vue";
 
 import type { MarketSnapshotDisplayCard } from "@/composables/market-data/marketSessionDisplay";
+import { formatLocalDateTime } from "@/utils/dateTime";
 import {
   formatMarketPrice,
   formatNumber,
@@ -92,6 +93,10 @@ function formattedChangeRate(value: number | null | undefined): string {
     fallback: "--",
     showPositiveSign: true,
   });
+}
+
+function formattedQuoteTime(value: string): string {
+  return formatLocalDateTime(value, value);
 }
 </script>
 
@@ -186,6 +191,14 @@ function formattedChangeRate(value: number | null | undefined): string {
           >
             {{ formattedChangeRate(card.changeRate) }}
           </span>
+        </div>
+        <div
+          v-if="card.quoteTime"
+          class="quote-summary__extended-time"
+          :title="card.quoteTime"
+          style="margin-top: 6px; color: var(--tv-text-dim); font-size: 11px; line-height: 1.3"
+        >
+          报价时间 {{ formattedQuoteTime(card.quoteTime) }}
         </div>
       </div>
     </div>

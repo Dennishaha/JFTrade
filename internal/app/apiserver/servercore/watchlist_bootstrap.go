@@ -6,6 +6,7 @@ import (
 
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
@@ -60,7 +61,13 @@ func (s *serverApplication) initializeWatchlistService() {
 		s.futuIntegrationEnabled,
 		s.probeFutuWatchlistSource,
 	))
-	s.watchlistSvc.RegisterBatchSnapshotSource(futuwatchlist.NewBatchSnapshotSource(s.futuWatchlistBatchSnapshotSource))
+	futuSnapshots := futuwatchlist.NewBatchSnapshotSource(s.futuWatchlistBatchSnapshotSource)
+	s.watchlistSvc.RegisterBatchSnapshotSource(marketdataapp.NewWatchlistSnapshotSource(
+		func() marketdataapp.WatchlistQuoteRuntime {
+			return marketdataapp.RuntimeFromService(s.marketdataSvc)
+		},
+		futuSnapshots,
+	))
 }
 
 func (s *serverApplication) probeFutuWatchlistSource(ctx context.Context) error {

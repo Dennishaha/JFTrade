@@ -26,6 +26,7 @@ type fakeStore struct {
 	mcpServer           jfsettings.MCPServerSettings
 	pineWorker          jfsettings.PineWorkerSettings
 	calendars           jfsettings.ExchangeCalendarSettings
+	activeProvider      jfsettings.ActiveMarketDataProvider
 	integration         jfsettings.BrokerIntegration
 	managedAccounts     []jfsettings.ManagedBrokerAccount
 	path                string
@@ -52,6 +53,12 @@ func (s *fakeStore) PineWorkerSettings() jfsettings.PineWorkerSettings {
 }
 func (s *fakeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	return s.calendars
+}
+func (s *fakeStore) ActiveMarketDataProvider() jfsettings.ActiveMarketDataProvider {
+	if s.activeProvider == "" {
+		return jfsettings.MarketDataProviderFutu
+	}
+	return s.activeProvider
 }
 func (s *fakeStore) Integration() jfsettings.BrokerIntegration { return s.integration }
 func (s *fakeStore) SavedIntegration() *jfsettings.BrokerIntegration {
@@ -102,6 +109,10 @@ func (s *fakeStore) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) 
 func (s *fakeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {
 	s.calendars = input
 	return input, nil
+}
+func (s *fakeStore) SaveActiveMarketDataProvider(input jfsettings.ActiveMarketDataProvider) error {
+	s.activeProvider = input
+	return nil
 }
 func (s *fakeStore) SaveIntegration(input jfsettings.BrokerIntegration) (jfsettings.BrokerIntegration, error) {
 	s.integration = input

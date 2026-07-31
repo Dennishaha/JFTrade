@@ -47,6 +47,15 @@ tasks:
       - rm -rf dist/desktop/darwin-{{.ARCH}}
       - mkdir -p dist/desktop/darwin-{{.ARCH}}/.build
       - >-
+        helper=internal/yfinanceassets/assets/bin/yfinance-sidecar-darwin-{{.ARCH}};
+        test -s "$helper" || { echo "Missing native yfinance helper: $helper" >&2; exit 1; };
+        if [ -n "${JFTRADE_MACOS_SIGN_IDENTITY:-}" ]; then
+        codesign --force --options runtime --timestamp --sign "$JFTRADE_MACOS_SIGN_IDENTITY" "$helper";
+        else
+        codesign --force --sign - "$helper";
+        fi;
+        codesign --verify --strict --verbose=2 "$helper"
+      - >-
         go build -trimpath -buildvcs=false
         -tags production,release_assets
         -ldflags "-w -s -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"

@@ -292,6 +292,22 @@ func (r *subscriptionRegistry) activeSubscriptions() []InstrumentRef {
 	return refs
 }
 
+func (r *subscriptionRegistry) hasManagedConsumers() bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, entry := range r.subscriptions {
+		for _, consumer := range entry.consumers {
+			if consumer.managed {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (r *subscriptionRegistry) expireLocked(now time.Time) {
 	if r.externalTTL <= 0 {
 		return

@@ -13,6 +13,9 @@ const windows = read("build/windows/Taskfile.yml");
 const linux = read("build/linux/Taskfile.yml");
 const nsisProject = read("build/windows/nsis/project.nsi");
 const releaseWorkflow = read(".github/workflows/desktop-release.yml");
+const ciWorkflow = read(".github/workflows/ci.yml");
+const prepareDesktopRelease = read("scripts/prepare-desktop-release.mjs");
+const occurrences = (source, needle) => source.split(needle).length - 1;
 
 for (const standardTask of ["build:", "package:", "dev:"]) {
   assert(
@@ -29,6 +32,12 @@ for (const include of [
 ]) {
   assert(root.includes(include), `root Taskfile does not include ${include}`);
 }
+assert(
+  packageJson.includes(
+    '"build:yfinance-sidecar": "node scripts/build-yfinance-sidecar.mjs"',
+  ) && prepareDesktopRelease.includes('"build:yfinance-sidecar"'),
+  "desktop preparation does not build the current native yfinance helper",
+);
 for (const taskfile of [darwin, windows]) {
   assert(
     taskfile.includes("production,release_assets"),
@@ -109,6 +118,17 @@ assert(
 assert(
   darwin.includes("codesign --verify --deep --strict"),
   "macOS bundle sealing is not verified",
+);
+const macHelperIndex = darwin.indexOf(
+  "yfinance-sidecar-darwin-{{.ARCH}}",
+);
+const macGoBuildIndex = darwin.indexOf("go build -trimpath -buildvcs=false");
+assert(
+  macHelperIndex >= 0 &&
+    macHelperIndex < macGoBuildIndex &&
+    darwin.includes("codesign --force --options runtime --timestamp") &&
+    darwin.includes("codesign --force --sign - \"$helper\""),
+  "macOS native yfinance helper is not signed before Go embedding",
 );
 assert(
   darwin.includes("Contents/Resources/licenses/LICENSE") &&
@@ -194,6 +214,51 @@ assert(
   releaseWorkflow.includes("release/LICENSE") &&
     releaseWorkflow.includes("release/THIRD-PARTY-NOTICES.md"),
   "GitHub Release does not publish the legal notice files",
+);
+const sharedInputStart = releaseWorkflow.indexOf(
+  "- name: Upload prepared release inputs",
+);
+const firstPlatformStart = releaseWorkflow.indexOf("  macos:");
+const sharedInputBlock = releaseWorkflow.slice(
+  sharedInputStart,
+  firstPlatformStart,
+);
+assert(
+  sharedInputStart >= 0 &&
+    firstPlatformStart > sharedInputStart &&
+    !sharedInputBlock.includes("internal/yfinanceassets"),
+  "native yfinance helpers must be built by target runners, not shared from Linux",
+);
+assert(
+  occurrences(releaseWorkflow, "- name: Setup Python") >= 4 &&
+    occurrences(
+      releaseWorkflow,
+      'python -m pip install --disable-pip-version-check --editable "workers/yfinance-sidecar[runtime,build]"',
+    ) >= 4 &&
+    occurrences(releaseWorkflow, "- name: Build native yfinance helper") >= 4,
+  "desktop release jobs do not build native yfinance helpers on every target runner",
+);
+const macWorkflowStart = releaseWorkflow.indexOf("  macos:");
+const windowsWorkflowStart = releaseWorkflow.indexOf("  windows:");
+const macWorkflow = releaseWorkflow.slice(
+  macWorkflowStart,
+  windowsWorkflowStart,
+);
+assert(
+  macWorkflow.indexOf("Sign native yfinance helper before embedding") >= 0 &&
+    macWorkflow.indexOf("Sign native yfinance helper before embedding") <
+      macWorkflow.indexOf("Test macOS desktop package") &&
+    macWorkflow.indexOf("Test macOS desktop package") <
+      macWorkflow.indexOf("Build ARM64 DMG"),
+  "macOS release does not sign the native helper before release_assets embedding",
+);
+assert(
+  ciWorkflow.includes("Build Linux native yfinance helper") &&
+    ciWorkflow.includes(
+      "go test -tags release_assets ./internal/yfinanceassets -count=1",
+    ) &&
+    occurrences(ciWorkflow, "- name: Build native yfinance helper") >= 2,
+  "CI does not build and verify native yfinance release assets",
 );
 assert(
   releaseWorkflow.includes("sha256sum > SHA256SUMS") &&

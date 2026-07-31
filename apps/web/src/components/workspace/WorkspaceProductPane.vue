@@ -33,6 +33,7 @@ const {
   isLoadingMarketDataQuery,
   lastDataRefreshedAt,
   marketInstrumentReferences,
+  reloadMarketDataProvider,
   selectedBrokerAccount,
   systemStatus,
 } = useConsoleData();
@@ -247,11 +248,13 @@ onBeforeUnmount(() => {
         <BrokerProviderTag
           :feature-id="activeFeatureID"
           :market="prefs.market"
+          enable-embedded-market-data-provider
           :preferred-broker-id="selectedBrokerAccount?.brokerId"
           :default-broker-id="systemStatus.defaultBroker"
           :connection-state="liveHub.connectionState.value"
           :transport-mode="liveHub.lastHeartbeatEvent.value?.transport?.mode"
           menu-location="top end"
+          @provider-changed="void reloadMarketDataProvider()"
         />
       </Teleport>
     </div>

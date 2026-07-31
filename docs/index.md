@@ -10,10 +10,11 @@
 
 - [快速开始](./quick-start.md)：启动开发态、文档站或发布构建。
 - [配置](./configuration.md)：了解运行时目录、可选 Web 访问、端口绑定和 OpenD 集成。
+- [行情数据源](./market-data-providers.md)：了解内置 yfinance 的延迟美股、港股和沪深行情，并按需切换到 Futu OpenD。
 - [使用指南](./usage.md)：按控制台功能区进入账户、行情、策略、回测和系统功能。
 - [回测执行模型](./backtest-execution-model.md)：了解 `conservative-bar-v1` 的成交规则与实盘差异。
 - [自选系统](./watchlist.md)：管理多分组收藏、使用工作台自选栏，并从 Futu 预览导入。
-- [排障](./troubleshooting.md)：定位启动、端口、实时连接和 OpenD 问题。
+- [排障](./troubleshooting.md)：定位启动、端口、实时连接、OpenD 和 yfinance helper 问题。
 - [桌面发布与通道隔离](./troubleshooting/desktop-release.md)：运行 `JFTrade Dev`、构建正式产品并理解数据、端口和单实例隔离。
 
 ## 专题参考

@@ -129,6 +129,7 @@ const {
             </v-tabs>
             <div class="research-page__navigation-actions">
               <BrokerProviderTag :feature-id="activeFeatureIDs[0]" :feature-ids="activeFeatureIDs" :market="queryMarket"
+                enable-embedded-market-data-provider
                 :preferred-broker-id="selectedBrokerAccount?.brokerId"
                 :default-broker-id="systemStatus.defaultBroker" />
               <button

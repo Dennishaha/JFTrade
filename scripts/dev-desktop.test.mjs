@@ -11,6 +11,7 @@ const defaults = runDevDesktop({
   JFTRADE_BACKTEST_DB: "",
   JFTRADE_API_BIND: "",
   DISABLE_MARKETS_CACHE: "",
+  JFTRADE_YFINANCE_SIDECAR: "",
   VITE_API_BASE_URL: "",
   VITE_DEV_API_TARGET: "",
 });
@@ -60,6 +61,7 @@ const overrides = runDevDesktop({
   JFTRADE_BACKTEST_DB: path.join(rootDir, "tmp", "backtest.db"),
   JFTRADE_API_BIND: "127.0.0.1:7788",
   DISABLE_MARKETS_CACHE: "0",
+  JFTRADE_YFINANCE_SIDECAR: path.join(rootDir, "tmp", "yfinance-sidecar"),
   VITE_API_BASE_URL: "http://127.0.0.1:8899",
   VITE_DEV_API_TARGET: "http://127.0.0.1:8899",
 });
@@ -86,6 +88,12 @@ assert(
 assert(
   overrides.stdout.includes("DISABLE_MARKETS_CACHE=0"),
   "desktop dev did not preserve the markets cache override",
+);
+assert(
+  overrides.stdout.includes(
+    `JFTRADE_YFINANCE_SIDECAR=${path.join(rootDir, "tmp", "yfinance-sidecar")}`,
+  ),
+  "desktop dev did not preserve the yfinance sidecar override",
 );
 assert(
   overrides.stdout.includes("VITE_API_BASE_URL=http://127.0.0.1:8899"),

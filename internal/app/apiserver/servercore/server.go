@@ -15,6 +15,7 @@ import (
 
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
@@ -539,11 +540,20 @@ func (s *Server) analyzePineScript(input stratsrv.PineAnalyzeInput) (stratsrv.Pi
 }
 
 func (s *Server) initializeMarketdataService() {
-	s.marketdataSvc = mdsrv.NewService(newMarketdataProvider(s))
+	dataPlane, err := marketdataapp.NewDataPlane(marketdataapp.RuntimeOptions{
+		FutuProvider:      newMarketdataProvider(s),
+		FutuQuotes:        s.runtimes.MarketData(),
+		FutuPush:          s.runtimes.MarketData(),
+		FutuSubscriptions: s.runtimes.MarketData(),
+	}, s.store)
+	if err != nil {
+		panic(fmt.Sprintf("assemble market-data provider runtime: %v", err))
+	}
+	s.marketdataSvc = dataPlane.Service
+	s.registerResource("market data provider runtime", dataPlane.Runtime.Close)
 	s.registerResource("market data service", func() error {
 		return closeApplicationResource(s.marketdataSvc)
 	})
-	s.marketdataSvc.SetSubscriptionReconciler(s.runtimes.MarketData())
 }
 
 func (s *Server) liveWebSocketDemand() []string {
@@ -583,7 +593,7 @@ func (s *Server) initializeRuntimeServices(store SidecarSettingsStore) {
 	} else {
 		log.Printf("JFTrade local MCP server settings unavailable")
 	}
-	marketDataRuntime := s.runtimes.MarketData()
+	marketDataRuntime := marketdataapp.RuntimeFromService(s.marketdataSvc)
 	s.marketdataSvc.StartCollector(
 		marketDataRuntime,
 		marketDataRuntime,
@@ -643,6 +653,11 @@ func (s *Server) settingsSideEffects() settings.SideEffects {
 		},
 		OnPineWorkerChanged: func(settings jfsettings.PineWorkerSettings) {
 			s.applyPineWorkerSettings(settings)
+		},
+		OnProviderChanged: func(providerID jfsettings.ActiveMarketDataProvider) error {
+			return marketdataapp.ApplyProviderSettings(
+				context.Background(), s.marketdataSvc, s.store, s.watchlistSvc, providerID, true,
+			)
 		},
 		OnMCPServerChanged: func(settings jfsettings.MCPServerSettings) error {
 			assistantRuntime := s.runtimes.Assistant()

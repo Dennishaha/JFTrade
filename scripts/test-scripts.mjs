@@ -32,6 +32,7 @@ export const scriptTestSuites = Object.freeze({
     "scripts/sign-desktop-release.test.mjs",
     "scripts/prepare-linux-package-config.test.mjs",
     "scripts/dev-desktop.test.mjs",
+    "scripts/build-yfinance-sidecar.test.mjs",
   ]),
   "api-release": Object.freeze(["scripts/api-release-scripts.test.mjs"]),
   "pinets-release": Object.freeze(["scripts/check-pinets-release.test.mjs"]),
@@ -39,6 +40,9 @@ export const scriptTestSuites = Object.freeze({
     "scripts/build-pineworker-assets.test.mjs",
   ]),
   "pineworker-dev": Object.freeze(["scripts/build-pineworker-dev.test.mjs"]),
+  "yfinance-assets": Object.freeze([
+    "scripts/build-yfinance-sidecar.test.mjs",
+  ]),
   "pine-benchmark": Object.freeze([
     "scripts/check-pine-benchmark-gates.test.mjs",
   ]),

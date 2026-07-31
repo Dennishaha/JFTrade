@@ -143,10 +143,7 @@ function resolveExtendedCards(
           normalizeNullableNumber(extended.afterMarket?.changeRate),
         quoteTime: normalizeQuoteTime(extended.afterMarket),
       });
-    } else if (
-      (session === "closed" || session === "overnight") &&
-      normalizeQuoteTime(extended.afterMarket) != null
-    ) {
+    } else if (session === "closed" || session === "overnight") {
       cards.push({
         key: "after",
         label: "最近盘后价格",

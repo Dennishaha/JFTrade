@@ -7,6 +7,7 @@ import (
 	"time"
 
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	livecore "github.com/jftrade/jftrade-main/internal/live"
 )
@@ -34,8 +35,12 @@ func (b liveWebSocketBackend) Heartbeat(
 ) map[string]any {
 	payload := b.server.liveHeartbeatEvent(interval, stats, webSocketInstrumentIDs)
 	providerBrokerID = normalizeProviderBrokerID(providerBrokerID)
+	nativeProviderID, native := b.nativeMarketDataProvider(providerBrokerID)
 	payload["providerBrokerId"] = providerBrokerID
-	if providerBrokerID != "" && !usesNativeFutuLiveProvider(providerBrokerID) {
+	if native && nativeProviderID != "" {
+		payload["marketDataProviderId"] = nativeProviderID
+	}
+	if providerBrokerID != "" && !native {
 		transport, _ := payload["transport"].(map[string]any)
 		if transport == nil {
 			transport = map[string]any{}
@@ -56,12 +61,19 @@ func (b liveWebSocketBackend) MarketTicks(
 	if err != nil {
 		return nil, err
 	}
-	if !usesNativeFutuLiveProvider(providerBrokerID) {
+	nativeProviderID, native := b.nativeMarketDataProvider(providerBrokerID)
+	if !native {
 		return b.pollBrokerMarketTicks(ctx, providerBrokerID, instrumentIDs)
+	}
+	if b.server == nil || b.server.marketdataSvc == nil {
+		return nil, fmt.Errorf("active market-data service is unavailable")
 	}
 	b.server.marketdataSvc.WakeCollector()
 	result := make([]apilive.TickEvent, 0, len(instrumentIDs))
-	for _, sample := range b.server.marketdataSvc.LatestMany(instrumentIDs, liveTickSampleFreshness) {
+	for _, sample := range b.server.marketdataSvc.LatestMany(
+		instrumentIDs,
+		marketdataapp.SampleFreshness(b.server.marketdataSvc, liveHeartbeatStaleThreshold),
+	) {
 		if sample == nil {
 			continue
 		}
@@ -69,6 +81,8 @@ func (b liveWebSocketBackend) MarketTicks(
 		if event == nil {
 			continue
 		}
+		event["brokerId"] = providerBrokerID
+		event["marketDataProviderId"] = nativeProviderID
 		result = append(result, apilive.TickEvent{
 			InstrumentID: sample.InstrumentID,
 			ObservedAt:   sample.ObservedAt,
@@ -96,7 +110,7 @@ func (b liveWebSocketBackend) SecurityDetails(
 	if err != nil {
 		return nil, err
 	}
-	if !usesNativeFutuLiveProvider(providerBrokerID) {
+	if _, native := b.nativeMarketDataProvider(providerBrokerID); !native {
 		if b.server == nil || b.server.productFeaturesSvc == nil {
 			return nil, fmt.Errorf("broker market-data reader is unavailable")
 		}
@@ -104,7 +118,11 @@ func (b liveWebSocketBackend) SecurityDetails(
 			ctx, providerBrokerID, market, symbol,
 		)
 	}
-	return b.server.marketSecurityDetailsResponseForInstrument(ctx, market, symbol)
+	if b.server == nil || b.server.marketdataSvc == nil {
+		return nil, fmt.Errorf("active market-data service is unavailable")
+	}
+	details, err := b.server.marketdataSvc.GetSecurityDetails(ctx, market, symbol)
+	return map[string]any(details), err
 }
 
 func (b liveWebSocketBackend) Depth(
@@ -118,7 +136,7 @@ func (b liveWebSocketBackend) Depth(
 	if err != nil {
 		return nil, err
 	}
-	if !usesNativeFutuLiveProvider(providerBrokerID) {
+	if _, native := b.nativeMarketDataProvider(providerBrokerID); !native {
 		if b.server == nil || b.server.productFeaturesSvc == nil {
 			return nil, fmt.Errorf("broker market-data reader is unavailable")
 		}
@@ -126,9 +144,11 @@ func (b liveWebSocketBackend) Depth(
 			ctx, providerBrokerID, market, symbol, int(num),
 		)
 	}
-	return b.server.marketDepthResponseForInstrument(ctx, market, symbol, marketDepthQuery{
-		Num: newOptionalIntValue(int(num)),
-	})
+	if b.server == nil || b.server.marketdataSvc == nil {
+		return nil, fmt.Errorf("active market-data service is unavailable")
+	}
+	depth, err := b.server.marketdataSvc.GetDepth(ctx, market, symbol, int(num))
+	return map[string]any(depth), err
 }
 
 func (b liveWebSocketBackend) pollBrokerMarketTicks(
@@ -190,6 +210,26 @@ func usesNativeFutuLiveProvider(value string) bool {
 	return strings.EqualFold(strings.TrimSpace(value), "futu")
 }
 
+func (b liveWebSocketBackend) nativeMarketDataProvider(value string) (string, bool) {
+	value = normalizeProviderBrokerID(value)
+	if value == "" {
+		return "", false
+	}
+	if b.server != nil {
+		runtime := marketdataapp.RuntimeFromService(b.server.marketdataSvc)
+		if runtime != nil {
+			active := normalizeProviderBrokerID(runtime.ActiveProviderID())
+			if usesNativeFutuLiveProvider(value) || value == active {
+				return active, true
+			}
+		}
+	}
+	if usesNativeFutuLiveProvider(value) {
+		return "futu", true
+	}
+	return value, false
+}
+
 func stringMapValue(values map[string]any, key string) string {
 	value, _ := values[key].(string)
 	return strings.TrimSpace(value)
@@ -197,6 +237,10 @@ func stringMapValue(values map[string]any, key string) string {
 
 func (b liveWebSocketBackend) SubscribeDepthUpdates(onUpdate func(string)) func() {
 	if b.server == nil || !b.server.futuIntegrationEnabled() {
+		return func() {}
+	}
+	if runtime := marketdataapp.RuntimeFromService(b.server.marketdataSvc); runtime != nil &&
+		runtime.ActiveProviderID() != "futu" {
 		return func() {}
 	}
 	marketDataRuntime := b.server.runtimes.MarketData()

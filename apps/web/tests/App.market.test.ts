@@ -423,31 +423,40 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
       });
     }
     if (url.includes("/api/v1/market-data/instruments")) {
+      const query =
+        new URL(String(url), "http://127.0.0.1:3000").searchParams.get(
+          "query",
+        ) ?? "";
+      const [requestedMarket = "HK", requestedSymbol = "00700"] = query
+        .trim()
+        .toUpperCase()
+        .replace(":", ".")
+        .split(".", 2);
+      const market = requestedMarket || "HK";
+      const symbol = requestedSymbol || "00700";
+      const instrumentId = `${market}.${symbol}`;
       return createResponse({
-        query:
-          new URL(String(url), "http://127.0.0.1:3000").searchParams.get(
-            "query",
-          ) ?? "",
+        query,
         totalReturned: 1,
         entries: [
           {
-            market: "HK",
-            symbol: "00700",
-            instrumentId: "HK.00700",
-            name: "Tencent Holdings",
+            market,
+            symbol,
+            instrumentId,
+            name: market === "US" ? "Apple Inc." : "Tencent Holdings",
             securityType: "STOCK",
             lotSize: 100,
-            exchange: "HKEX",
+            exchange: market === "US" ? "NASDAQ" : "HKEX",
             status: "NORMAL",
             source: "seed",
             updatedAt: "2026-05-17T00:00:00.000Z",
             brokerMappings: [
               {
                 brokerId: "futu",
-                brokerMarket: "HK",
-                brokerSymbol: "00700",
-                brokerInstrumentId: "HK.00700",
-                displayName: "腾讯控股",
+                brokerMarket: market,
+                brokerSymbol: symbol,
+                brokerInstrumentId: instrumentId,
+                displayName: market === "US" ? "Apple Inc." : "腾讯控股",
                 source: "seed",
                 updatedAt: "2026-05-17T00:00:00.000Z",
               },

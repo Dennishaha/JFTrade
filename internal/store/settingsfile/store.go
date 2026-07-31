@@ -13,18 +13,19 @@ import (
 )
 
 type fileData struct {
-	Interfaces          *jfsettings.InterfaceSettings          `json:"interfaces,omitempty"`
-	Integration         *jfsettings.BrokerIntegration          `json:"integration,omitempty"`
-	Accounts            []jfsettings.ManagedBrokerAccount      `json:"accounts,omitempty"`
-	Appearance          *jfsettings.UIAppearanceSettings       `json:"appearance,omitempty"`
-	Onboarding          *jfsettings.OnboardingSettings         `json:"onboarding,omitempty"`
-	Execution           *jfsettings.ExecutionSettings          `json:"execution,omitempty"`
-	Security            *storedSecuritySettings                `json:"security,omitempty"`
-	SystemNotifications *jfsettings.SystemNotificationSettings `json:"systemNotifications,omitempty"`
-	ADK                 *jfsettings.ADKRuntimeSettings         `json:"adk,omitempty"`
-	MCPServer           *storedMCPServerSettings               `json:"mcpServer,omitempty"`
-	PineWorker          *jfsettings.PineWorkerSettings         `json:"pineWorker,omitempty"`
-	Calendars           *jfsettings.ExchangeCalendarSettings   `json:"exchangeCalendars,omitempty"`
+	Interfaces               *jfsettings.InterfaceSettings          `json:"interfaces,omitempty"`
+	Integration              *jfsettings.BrokerIntegration          `json:"integration,omitempty"`
+	ActiveMarketDataProvider *jfsettings.ActiveMarketDataProvider   `json:"activeMarketDataProvider,omitempty"`
+	Accounts                 []jfsettings.ManagedBrokerAccount      `json:"accounts,omitempty"`
+	Appearance               *jfsettings.UIAppearanceSettings       `json:"appearance,omitempty"`
+	Onboarding               *jfsettings.OnboardingSettings         `json:"onboarding,omitempty"`
+	Execution                *jfsettings.ExecutionSettings          `json:"execution,omitempty"`
+	Security                 *storedSecuritySettings                `json:"security,omitempty"`
+	SystemNotifications      *jfsettings.SystemNotificationSettings `json:"systemNotifications,omitempty"`
+	ADK                      *jfsettings.ADKRuntimeSettings         `json:"adk,omitempty"`
+	MCPServer                *storedMCPServerSettings               `json:"mcpServer,omitempty"`
+	PineWorker               *jfsettings.PineWorkerSettings         `json:"pineWorker,omitempty"`
+	Calendars                *jfsettings.ExchangeCalendarSettings   `json:"exchangeCalendars,omitempty"`
 }
 
 // storedSecuritySettings deliberately differs from the public API model so a
@@ -125,10 +126,34 @@ func (s *Store) load() error {
 		s.data = fileData{}
 		return nil
 	}
-	if err := json.Unmarshal(data, &s.data); err != nil {
+	var loaded fileData
+	if err := json.Unmarshal(data, &loaded); err != nil {
 		return err
 	}
+	legacyYFinance, err := hasLegacyYFinanceKey(data)
+	if err != nil {
+		return err
+	}
+	previous := s.data
+	s.data = loaded
+	if legacyYFinance {
+		provider := jfsettings.MarketDataProviderFutu
+		s.data.ActiveMarketDataProvider = &provider
+		if err := s.persistLocked(); err != nil {
+			s.data = previous
+			return err
+		}
+	}
 	return nil
+}
+
+func hasLegacyYFinanceKey(data []byte) (bool, error) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return false, err
+	}
+	_, ok := raw["yfinance"]
+	return ok, nil
 }
 
 // mutateAndPersistLocked applies an in-memory change atomically from the

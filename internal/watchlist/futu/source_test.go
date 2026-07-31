@@ -194,13 +194,19 @@ func TestFutuWatchlistSnapshotUsesTwentyAndFourHundredChunksWithPerItemErrors(t 
 func TestWatchlistQuotePreservesSnapshotDisplayMetadataAndAvoidsUnknownTimezoneGuess(t *testing.T) {
 	name, securityType := "DBS Group", "SecurityType_Eqty"
 	updateTime := "2026-07-11 15:04:05"
-	price := 42.5
+	price, volume, turnover := 42.5, 1234.0, 5678.0
 	quote := watchlistQuoteFromBrokerSnapshot("SG.D05", broker.SecuritySnapshotItem{
 		Symbol: "SG.D05", Name: &name, SecurityType: &securityType,
-		LastPrice: &price, UpdateTime: &updateTime,
+		LastPrice: &price, Volume: &volume, Turnover: &turnover, UpdateTime: &updateTime,
+		Fund: &broker.FundSnapshotData{AssetClass: "Stock"},
 	}, time.Date(2026, 7, 11, 7, 4, 6, 0, time.UTC))
 	if quote.Name != name || quote.Type != securityType {
 		t.Fatalf("quote metadata = %#v", quote)
+	}
+	if quote.Volume == nil || *quote.Volume != volume ||
+		quote.Turnover == nil || *quote.Turnover != turnover ||
+		quote.AssetClass != "Stock" {
+		t.Fatalf("quote research fields = %#v", quote)
 	}
 	if quote.UpdateTime != nil {
 		t.Fatalf("timezone-less unsupported-market update time must be omitted, got %v", quote.UpdateTime)

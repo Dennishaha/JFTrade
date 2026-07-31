@@ -10,6 +10,13 @@ $webDistDir = Join-Path $PSScriptRoot "apps/web/dist"
 $outputDir = Join-Path $PSScriptRoot "dist"
 $buildTarget = "./cmd/jftrade-api"
 $artifactPrefix = "jftrade"
+$yfinanceAssetDir = Join-Path $PSScriptRoot "internal/yfinanceassets/assets/bin"
+$requiredYfinanceAssets = @(
+    "yfinance-sidecar-darwin-arm64",
+    "yfinance-sidecar-linux-amd64",
+    "yfinance-sidecar-windows-amd64.exe",
+    "yfinance-sidecar-windows-arm64.exe"
+)
 $targets = @(
     @{ GOOS = "darwin"; GOARCH = "arm64" },
     @{ GOOS = "linux"; GOARCH = "amd64" },
@@ -62,6 +69,19 @@ function Install-FrontendDependencies {
     pnpm install --frozen-lockfile
     if ($LASTEXITCODE -ne 0) {
         throw "pnpm install failed. Close processes that may hold node_modules, then retry. To use an intentionally preinstalled dependency tree, set JFTRADE_RELEASE_SKIP_PNPM_INSTALL=1."
+    }
+}
+
+function Assert-YFinanceAssets {
+    $missing = @()
+    foreach ($asset in $requiredYfinanceAssets) {
+        $assetPath = Join-Path $yfinanceAssetDir $asset
+        if (-not (Test-Path -LiteralPath $assetPath -PathType Leaf) -or (Get-Item -LiteralPath $assetPath).Length -le 0) {
+            $missing += $asset
+        }
+    }
+    if ($missing.Count -gt 0) {
+        throw "Cross-target API release requires pre-staged native yfinance helpers. Build each helper on its matching OS/architecture with 'pnpm run build:yfinance-sidecar', stage it in $yfinanceAssetDir, and retry. Missing: $($missing -join ', ')"
     }
 }
 
@@ -181,6 +201,9 @@ pnpm run build:pineworker
 if ($LASTEXITCODE -ne 0) {
     throw "PineTS worker asset build failed"
 }
+
+Write-Host "Verifying pre-staged native yfinance helpers..." -ForegroundColor Cyan
+Assert-YFinanceAssets
 
 Write-Host "Running tests..." -ForegroundColor Cyan
 go test ./... -count=1 -timeout 300s

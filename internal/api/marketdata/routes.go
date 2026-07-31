@@ -37,6 +37,23 @@ func firstBrokerMarketDataReader(readers []BrokerMarketDataReader) BrokerMarketD
 	return readers[0]
 }
 
+func usesActiveNonBrokerProvider(
+	ctx context.Context,
+	svc *srv.Service,
+	providerID string,
+) bool {
+	providerID = strings.TrimSpace(providerID)
+	if providerID == "" || svc == nil {
+		return false
+	}
+	descriptor, err := svc.ProviderDescriptor(ctx)
+	if err != nil || strings.EqualFold(descriptor.BrokerID, "futu") {
+		return false
+	}
+	return strings.EqualFold(providerID, descriptor.BrokerID) ||
+		strings.EqualFold(providerID, descriptor.ProviderID)
+}
+
 // RegisterRoutes 注册所有 /api/v1 下的行情路由。
 // WebSocket /ws/live 由应用装配层单独注册。
 func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, brokerReaders ...BrokerMarketDataReader) {
@@ -92,8 +109,13 @@ func handleMarkets(svc *srv.Service) gin.HandlerFunc {
 			httpserver.WriteError(c, 500, "MARKET_DATA_FAILED", err.Error())
 			return
 		}
+		descriptor, err := svc.ProviderDescriptor(c.Request.Context())
+		if err != nil {
+			httpserver.WriteError(c, 500, "MARKET_DATA_FAILED", err.Error())
+			return
+		}
 		httpserver.WriteOK(c, map[string]any{
-			"defaultMarket": "HK",
+			"defaultMarket": descriptor.DefaultMarket,
 			"markets":       markets,
 		})
 	}
@@ -125,7 +147,8 @@ func handleSecurityDetails(svc *srv.Service, brokerReaders ...BrokerMarketDataRe
 		}
 		var details map[string]any
 		var err error
-		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" {
+		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" &&
+			!usesActiveNonBrokerProvider(c.Request.Context(), svc, brokerID) {
 			if brokerReader == nil {
 				err = productfeatures.ErrCapabilityUnavailable
 			} else {
@@ -178,7 +201,8 @@ func handleSnapshot(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) g
 
 		var snapshot map[string]any
 		var err error
-		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" {
+		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" &&
+			!usesActiveNonBrokerProvider(c.Request.Context(), svc, brokerID) {
 			if brokerReader == nil {
 				err = productfeatures.ErrCapabilityUnavailable
 			} else {
@@ -242,7 +266,8 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 			if err == nil {
 				result["pagination"] = map[string]any{"hasMore": false}
 			}
-		} else if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" {
+		} else if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" &&
+			!usesActiveNonBrokerProvider(c.Request.Context(), svc, brokerID) {
 			if brokerReader == nil {
 				err = productfeatures.ErrCapabilityUnavailable
 			} else {
@@ -266,7 +291,17 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 			}
 		}
 		if err != nil {
-			writeBrokerMarketDataReadError(c, "OPEND_CANDLES_FAILED", err)
+			writeBrokerMarketDataReadError(
+				c,
+				providerFailureCode(
+					c.Request.Context(),
+					svc,
+					c.Query("brokerId"),
+					"OPEND_CANDLES_FAILED",
+					"MARKET_CANDLES_FAILED",
+				),
+				err,
+			)
 			return
 		}
 		httpserver.WriteOK(c, result)
@@ -334,11 +369,37 @@ func defaultCandlePagination(result map[string]any, limit int) map[string]any {
 }
 
 func writeMarketDataReadError(c *gin.Context, fallbackCode string, err error) {
-	if errors.Is(err, srv.ErrSubscriptionRequired) {
+	switch {
+	case errors.Is(err, srv.ErrSubscriptionRequired):
 		httpserver.WriteError(c, http.StatusConflict, "MARKET_DATA_SUBSCRIPTION_REQUIRED", err.Error())
-		return
+	case errors.Is(err, srv.ErrCapabilityUnsupported):
+		httpserver.WriteError(c, http.StatusConflict, "MARKET_DATA_CAPABILITY_UNSUPPORTED", err.Error())
+	case errors.Is(err, srv.ErrProviderChanged):
+		httpserver.WriteError(c, http.StatusConflict, "MARKET_DATA_PROVIDER_CHANGED", err.Error())
+	default:
+		httpserver.WriteError(c, http.StatusBadGateway, fallbackCode, err.Error())
 	}
-	httpserver.WriteError(c, http.StatusBadGateway, fallbackCode, err.Error())
+}
+
+func providerFailureCode(
+	ctx context.Context,
+	svc *srv.Service,
+	explicitBrokerID string,
+	futuCode string,
+	genericCode string,
+) string {
+	brokerID := strings.ToLower(strings.TrimSpace(explicitBrokerID))
+	if brokerID != "" {
+		if brokerID == "futu" {
+			return futuCode
+		}
+		return genericCode
+	}
+	descriptor, err := svc.ProviderDescriptor(ctx)
+	if err == nil && strings.EqualFold(descriptor.BrokerID, "futu") {
+		return futuCode
+	}
+	return genericCode
 }
 
 func writeBrokerMarketDataReadError(c *gin.Context, fallbackCode string, err error) {
@@ -404,7 +465,8 @@ func handleDepth(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.
 		}
 		var result map[string]any
 		var err error
-		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" {
+		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" &&
+			!usesActiveNonBrokerProvider(c.Request.Context(), svc, brokerID) {
 			if brokerReader == nil {
 				err = productfeatures.ErrCapabilityUnavailable
 			} else {
@@ -416,7 +478,17 @@ func handleDepth(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.
 			result, err = svc.GetDepth(c.Request.Context(), uri.Market, uri.Symbol, num)
 		}
 		if err != nil {
-			writeBrokerMarketDataReadError(c, "OPEND_DEPTH_FAILED", err)
+			writeBrokerMarketDataReadError(
+				c,
+				providerFailureCode(
+					c.Request.Context(),
+					svc,
+					c.Query("brokerId"),
+					"OPEND_DEPTH_FAILED",
+					"MARKET_DEPTH_FAILED",
+				),
+				err,
+			)
 			return
 		}
 		httpserver.WriteOK(c, result)

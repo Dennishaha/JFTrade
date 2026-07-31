@@ -11,14 +11,19 @@ package marketdata
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
+	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 )
+
+const subscriptionCleanupTimeout = 5 * time.Second
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Provider 接口
@@ -90,6 +95,7 @@ type HealthStatus struct {
 	Connected   bool   `json:"connected"`
 	StreamMode  string `json:"streamMode"`
 	ActiveCount int    `json:"activeCount"`
+	LastError   string `json:"lastError,omitempty"`
 }
 
 // ProviderDescriptor describes the active market-data provider without leaking
@@ -150,10 +156,12 @@ type Service struct {
 	cache                   *Cache
 	subscriptions           *subscriptionRegistry
 	collector               *Collector
+	providerLifecycleMu     sync.RWMutex
 	subscriptionLifecycleMu sync.Mutex
 	subscriptionMu          sync.RWMutex
 	reconciler              SubscriptionReconciler
 	additionalDemands       []DemandSource
+	providerGeneration      atomic.Uint64
 }
 
 // NewService 创建行情服务。
@@ -168,13 +176,26 @@ func NewService(provider Provider) *Service {
 
 // ProviderStatus returns active provider metadata plus runtime state.
 func (s *Service) ProviderStatus(ctx context.Context) (ProviderStatusResponse, error) {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
 	descriptor, err := s.provider.Descriptor(ctx)
 	if err != nil {
 		return ProviderStatusResponse{}, err
 	}
-	health, err := s.Health(ctx)
+	health, err := s.health(ctx)
 	if err != nil {
-		return ProviderStatusResponse{}, err
+		state := s.RuntimeState()
+		health = HealthStatus{
+			Connected:   false,
+			StreamMode:  "idle",
+			ActiveCount: state.ActiveCount,
+			LastError:   err.Error(),
+		}
+		if availability, ok := s.provider.(PushAvailability); ok && !availability.PushAvailable() {
+			health.StreamMode = "snapshot-poll-delayed"
+		} else if health.ActiveCount > 0 {
+			health.StreamMode = "snapshot-poll-fallback"
+		}
 	}
 	subscriptions, err := s.GetSubscriptions(ctx)
 	if err != nil {
@@ -245,6 +266,52 @@ func (s *Service) ResumeCollector() {
 	}
 }
 
+// NotifyProviderChanged invalidates provider-owned state without changing the
+// provider. Provider routers should use ChangeProvider so invalidation finishes
+// before the new provider becomes visible.
+func (s *Service) NotifyProviderChanged() {
+	if s == nil {
+		return
+	}
+	s.invalidateProviderState()
+	s.ResumeCollector()
+}
+
+func (s *Service) invalidateProviderState() {
+	s.providerGeneration.Add(1)
+	if s.collector != nil {
+		s.collector.Reset()
+	}
+	s.cache.Clear()
+	s.resolver.Reset()
+}
+
+// ChangeProvider serializes a provider switch with managed lease acquisition.
+// The callback must leave the old provider active when it returns an error.
+func (s *Service) ChangeProvider(change func() error) error {
+	if s == nil || change == nil {
+		return fmt.Errorf("market-data provider change is unavailable")
+	}
+	s.subscriptionLifecycleMu.Lock()
+	defer s.subscriptionLifecycleMu.Unlock()
+	if s.subscriptions.hasManagedConsumers() {
+		return ErrManagedSubscriptionsActive
+	}
+	s.providerLifecycleMu.Lock()
+	defer s.providerLifecycleMu.Unlock()
+	if err := change(); err != nil {
+		if restoreErr := s.reconcileSubscriptionsForCleanup(); restoreErr != nil {
+			return errors.Join(err, fmt.Errorf(
+				"restore previous market-data subscriptions: %w", restoreErr,
+			))
+		}
+		return err
+	}
+	s.invalidateProviderState()
+	s.ResumeCollector()
+	return nil
+}
+
 func (s *Service) RuntimeState() RuntimeState {
 	if s == nil || s.collector == nil {
 		return RuntimeState{}
@@ -260,7 +327,7 @@ func (s *Service) Close() error {
 	if s.collector != nil {
 		collectorErr = s.collector.Close()
 	}
-	if err := s.reconcileDesired(context.Background(), nil); err != nil {
+	if err := s.reconcileDesiredForCleanup(nil); err != nil {
 		log.Printf("marketdata final subscription reconciliation failed: %v", err)
 	}
 	return collectorErr
@@ -268,11 +335,33 @@ func (s *Service) Close() error {
 
 // GetMarkets 返回可用市场列表。
 func (s *Service) GetMarkets(ctx context.Context) ([]MarketProfile, error) {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
 	return s.provider.GetMarkets(ctx)
+}
+
+// ProviderDescriptor returns the active provider's static capabilities and
+// default market without requiring a successful runtime health probe.
+func (s *Service) ProviderDescriptor(ctx context.Context) (ProviderDescriptor, error) {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
+	return s.provider.Descriptor(ctx)
+}
+
+// ProviderRuntime exposes the stable application adapter for orchestration
+// packages without leaking it through transport handlers.
+func (s *Service) ProviderRuntime() Provider {
+	if s == nil {
+		return nil
+	}
+	return s.provider
 }
 
 // GetSecurityDetails 返回证券详情。
 func (s *Service) GetSecurityDetails(ctx context.Context, market, symbol string) (SecurityDetails, error) {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
+	market, symbol = normalizeCNAggregateRead(market, symbol)
 	return s.provider.GetSecurityDetails(ctx, market, symbol)
 }
 
@@ -282,11 +371,18 @@ func (s *Service) ResolveInstrument(ctx context.Context, requestedMarket, query 
 	if s == nil || s.resolver == nil {
 		return InstrumentResolution{}, fmt.Errorf("market-data instrument resolver is unavailable")
 	}
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
 	return s.resolver.Resolve(ctx, requestedMarket, query, limit)
 }
 
 // GetSnapshot 返回最新行情快照。
 func (s *Service) GetSnapshot(ctx context.Context, market, symbol string, refresh bool) (MarketSnapshot, error) {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
+	if _, err := s.requireProviderCapability(ctx, "snapshots"); err != nil {
+		return nil, err
+	}
 	market, symbol, instrumentID := normalizeInstrument(market, symbol)
 	if err := s.requireBasicSubscriptionDemand(market, symbol, "SNAPSHOT"); err != nil {
 		return nil, err
@@ -297,10 +393,14 @@ func (s *Service) GetSnapshot(ctx context.Context, market, symbol string, refres
 	}
 	fromCache := sample != nil
 	if sample == nil {
+		generation := s.providerGeneration.Load()
 		var err error
 		sample, err = s.provider.QuerySnapshot(ctx, instrumentID)
 		if err != nil {
 			return nil, err
+		}
+		if generation != s.providerGeneration.Load() {
+			return nil, ErrProviderChanged
 		}
 		if sample != nil {
 			sample = s.Ingest(*sample)
@@ -320,12 +420,19 @@ func (s *Service) GetSnapshot(ctx context.Context, market, symbol string, refres
 
 // GetCandles 返回 K 线数据。
 func (s *Service) GetCandles(ctx context.Context, market, symbol, period string, limit int, fromTime, toTime string) (CandlesResponse, error) {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
+	market, symbol = normalizeCNAggregateRead(market, symbol)
 	period = strings.ToLower(strings.TrimSpace(period))
 	if period == "" {
 		period = "1m"
 	}
 	if period != "tick" {
 		return s.provider.GetHistoricalCandles(ctx, market, symbol, period, limit, fromTime, toTime)
+	}
+	descriptor, err := s.requireProviderCapability(ctx, "tick candles")
+	if err != nil {
+		return nil, err
 	}
 	if limit <= 0 {
 		limit = 200
@@ -339,30 +446,35 @@ func (s *Service) GetCandles(ctx context.Context, market, symbol, period string,
 	}
 	fromCache := s.cache.Latest(instrumentID, TickFreshness) != nil
 	if !fromCache {
+		generation := s.providerGeneration.Load()
 		sample, err := s.provider.QueryTicker(ctx, instrumentID)
 		if err != nil {
-			candles := s.TickCandles(instrumentID, fromTime, toTime, limit)
+			candles := s.tickCandles(instrumentID, fromTime, toTime, limit)
 			if len(candles) == 0 {
 				return nil, err
 			}
-			return tickCandlesResponse(market, symbol, instrumentID, period, limit, candles, true), nil
+			return tickCandlesResponse(
+				market, symbol, instrumentID, period, limit, candles, descriptor.Source, true,
+			), nil
+		}
+		if generation != s.providerGeneration.Load() {
+			return nil, ErrProviderChanged
 		}
 		if sample != nil {
 			s.Ingest(*sample)
 		}
 	}
-	candles := s.TickCandles(instrumentID, fromTime, toTime, limit)
-	return tickCandlesResponse(market, symbol, instrumentID, period, limit, candles, fromCache), nil
+	candles := s.tickCandles(instrumentID, fromTime, toTime, limit)
+	return tickCandlesResponse(
+		market, symbol, instrumentID, period, limit, candles, descriptor.Source, fromCache,
+	), nil
 }
 
 func (s *Service) requireBasicSubscriptionDemand(market, symbol, readChannel string) error {
 	if s == nil {
 		return NewSubscriptionRequiredError(readChannel, market, symbol, "")
 	}
-	s.subscriptionMu.RLock()
-	managed := s.reconciler != nil
-	s.subscriptionMu.RUnlock()
-	if !managed {
+	if !s.subscriptionsRequired() {
 		return nil
 	}
 	market, symbol = normalizeSubscriptionInstrument(market, symbol)
@@ -381,6 +493,12 @@ func (s *Service) requireBasicSubscriptionDemand(market, symbol, readChannel str
 
 // GetDepth 返回盘口深度数据。
 func (s *Service) GetDepth(ctx context.Context, market, symbol string, num int) (DepthResponse, error) {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
+	market, symbol = normalizeCNAggregateRead(market, symbol)
+	if _, err := s.requireProviderCapability(ctx, "order book depth"); err != nil {
+		return nil, err
+	}
 	if err := s.requireOrderBookSubscriptionDemand(market, symbol); err != nil {
 		return nil, err
 	}
@@ -391,10 +509,7 @@ func (s *Service) requireOrderBookSubscriptionDemand(market, symbol string) erro
 	if s == nil {
 		return NewSubscriptionRequiredError("ORDER_BOOK", market, symbol, "")
 	}
-	s.subscriptionMu.RLock()
-	managed := s.reconciler != nil
-	s.subscriptionMu.RUnlock()
-	if !managed {
+	if !s.subscriptionsRequired() {
 		return nil
 	}
 	market, symbol = normalizeSubscriptionInstrument(market, symbol)
@@ -405,6 +520,38 @@ func (s *Service) requireOrderBookSubscriptionDemand(market, symbol string) erro
 		}
 	}
 	return NewSubscriptionRequiredError("ORDER_BOOK", market, symbol, "")
+}
+
+func (s *Service) subscriptionsRequired() bool {
+	s.subscriptionMu.RLock()
+	defer s.subscriptionMu.RUnlock()
+	return s.reconciler != nil
+}
+
+func (s *Service) requireProviderCapability(
+	ctx context.Context,
+	capability string,
+) (ProviderDescriptor, error) {
+	descriptor, err := s.provider.Descriptor(ctx)
+	if err != nil {
+		return ProviderDescriptor{}, err
+	}
+	supported := false
+	switch capability {
+	case "snapshots":
+		supported = descriptor.Capabilities.Snapshots
+	case "tick candles":
+		supported = descriptor.Capabilities.TickCandles
+	case "order book depth":
+		supported = descriptor.Capabilities.OrderBookDepth
+	}
+	if !supported {
+		return descriptor, fmt.Errorf(
+			"%w: active provider %q does not support %s",
+			ErrCapabilityUnsupported, descriptor.ProviderID, capability,
+		)
+	}
+	return descriptor, nil
 }
 
 // AcquireSubscription 申请行情订阅。
@@ -420,7 +567,7 @@ func (s *Service) AcquireSubscription(ctx context.Context, consumerID string, in
 	_, rollback := s.subscriptions.acquireWithMode(consumerID, instruments, false)
 	if err := s.reconcileSubscriptions(ctx); err != nil {
 		s.subscriptions.restore(rollback)
-		_ = s.reconcileSubscriptions(context.Background())
+		_ = s.reconcileSubscriptionsForCleanup()
 		return nil, err
 	}
 	s.WakeCollector()
@@ -442,10 +589,14 @@ func (s *Service) AcquireManagedSubscription(ctx context.Context, consumerID str
 		return nil, err
 	}
 	s.subscriptionLifecycleMu.Lock()
+	if availability, ok := s.provider.(PushAvailability); ok && !availability.PushAvailable() {
+		s.subscriptionLifecycleMu.Unlock()
+		return nil, ErrManagedSubscriptionsUnavailable
+	}
 	_, rollback := s.subscriptions.acquireWithMode(consumerID, instruments, true)
 	if err := s.reconcileSubscriptions(ctx); err != nil {
 		s.subscriptions.restore(rollback)
-		_ = s.reconcileSubscriptions(context.Background())
+		_ = s.reconcileSubscriptionsForCleanup()
 		s.subscriptionLifecycleMu.Unlock()
 		return nil, err
 	}
@@ -455,7 +606,7 @@ func (s *Service) AcquireManagedSubscription(ctx context.Context, consumerID str
 		s.subscriptionLifecycleMu.Lock()
 		defer s.subscriptionLifecycleMu.Unlock()
 		s.subscriptions.restore(rollback)
-		if err := s.reconcileSubscriptions(context.Background()); err != nil {
+		if err := s.reconcileSubscriptionsForCleanup(); err != nil {
 			log.Printf("marketdata managed subscription release reconciliation failed: %v", err)
 		}
 		s.WakeCollector()
@@ -537,6 +688,16 @@ func (s *Service) reconcileSubscriptions(ctx context.Context) error {
 	return s.reconcileDesired(ctx, s.activeSubscriptionDemand())
 }
 
+func (s *Service) reconcileSubscriptionsForCleanup() error {
+	return s.reconcileDesiredForCleanup(s.activeSubscriptionDemand())
+}
+
+func (s *Service) reconcileDesiredForCleanup(desired []InstrumentRef) error {
+	ctx, cancel := context.WithTimeout(context.Background(), subscriptionCleanupTimeout)
+	defer cancel()
+	return s.reconcileDesired(ctx, desired)
+}
+
 func (s *Service) activeSubscriptionDemand() []InstrumentRef {
 	refs := s.subscriptions.activeSubscriptions()
 	s.subscriptionMu.RLock()
@@ -557,6 +718,16 @@ func (s *Service) activeSubscriptionDemand() []InstrumentRef {
 	return refs
 }
 
+// ActiveSubscriptionDemand returns a broker-neutral snapshot for application
+// provider activation. Callers that switch providers should capture it while
+// holding the service's provider-change lifecycle gate.
+func (s *Service) ActiveSubscriptionDemand() []InstrumentRef {
+	if s == nil {
+		return nil
+	}
+	return append([]InstrumentRef(nil), s.activeSubscriptionDemand()...)
+}
+
 func (s *Service) reconcileDesired(ctx context.Context, desired []InstrumentRef) error {
 	if s == nil {
 		return nil
@@ -572,6 +743,8 @@ func (s *Service) reconcileDesired(ctx context.Context, desired []InstrumentRef)
 
 // GetLatestTicks 批量返回最新 Tick 数据。
 func (s *Service) GetLatestTicks(ctx context.Context, symbols []string) (TicksResponse, error) {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
 	return LatestTicksJSON(s.cache.LatestMany(symbols, CacheRetention)), nil
 }
 
@@ -588,18 +761,30 @@ func (s *Service) CachedCount(instrumentID string) int {
 }
 
 func (s *Service) Latest(instrumentID string, maxAge time.Duration) *Tick {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
 	return s.cache.Latest(instrumentID, maxAge)
 }
 
 func (s *Service) LatestMany(instrumentIDs []string, maxAge time.Duration) []*Tick {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
 	return s.cache.LatestMany(instrumentIDs, maxAge)
 }
 
 func (s *Service) AllFresh(instrumentIDs []string, maxAge time.Duration) bool {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
 	return s.cache.AllFresh(instrumentIDs, maxAge)
 }
 
 func (s *Service) TickCandles(instrumentID, fromTime, toTime string, limit int) []map[string]any {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
+	return s.tickCandles(instrumentID, fromTime, toTime, limit)
+}
+
+func (s *Service) tickCandles(instrumentID, fromTime, toTime string, limit int) []map[string]any {
 	to := parseTime(toTime)
 	from := parseTime(fromTime)
 	return TickCandles(s.cache.Snapshot(instrumentID), from, to, limit)
@@ -611,21 +796,38 @@ func (s *Service) LiveTick(sample *Tick, observedAt string) map[string]any {
 
 // NormalizeInstrument 规范化标的信息。
 func (s *Service) NormalizeInstrument(ctx context.Context, input map[string]any) (map[string]any, error) {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
 	return s.provider.NormalizeInstrument(ctx, input)
 }
 
 // Health 返回行情健康状态。
 func (s *Service) Health(ctx context.Context) (HealthStatus, error) {
+	s.providerLifecycleMu.RLock()
+	defer s.providerLifecycleMu.RUnlock()
+	return s.health(ctx)
+}
+
+func (s *Service) health(ctx context.Context) (HealthStatus, error) {
 	health, err := s.provider.Health(ctx)
 	if err != nil {
 		return HealthStatus{}, err
 	}
 	if s.collector != nil {
 		state := s.collector.State()
-		health.Connected = state.Connected
+		health.Connected = health.Connected || state.Connected
 		health.ActiveCount = state.ActiveCount
 	} else {
 		health.ActiveCount = len(s.subscriptions.activeInstruments())
+	}
+	if availability, ok := s.provider.(PushAvailability); ok && !availability.PushAvailable() {
+		if strings.TrimSpace(health.StreamMode) == "" {
+			health.StreamMode = "idle"
+			if health.ActiveCount > 0 {
+				health.StreamMode = "snapshot-poll-fallback"
+			}
+		}
+		return health, nil
 	}
 	health.StreamMode = "idle"
 	if health.ActiveCount > 0 {
@@ -640,17 +842,52 @@ func (s *Service) Health(ctx context.Context) (HealthStatus, error) {
 func normalizeInstrument(market, symbol string) (string, string, string) {
 	market = strings.ToUpper(strings.TrimSpace(market))
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+	// CN is a UI aggregate, while requests must retain the concrete SH/SZ
+	// route. Parse qualified input before building the cache/provider identity
+	// so CN/SH.600519 never turns into the invalid CN.SH.600519 form.
+	if parsed, err := marketpkg.ParseInstrument(marketpkg.InstrumentInput{
+		Market: market,
+		Symbol: symbol,
+	}); err == nil {
+		return parsed.Prefix, parsed.Code, parsed.Symbol
+	}
 	return market, symbol, market + "." + symbol
 }
 
-func tickCandlesResponse(market, symbol, instrumentID, period string, limit int, candles []map[string]any, fromCache bool) CandlesResponse {
+// normalizeCNAggregateRead resolves the UI-only CN aggregate before a read is
+// forwarded to a Provider. Other inputs intentionally remain untouched because
+// several broker adapters own their own casing and symbol normalization.
+func normalizeCNAggregateRead(market, symbol string) (string, string) {
+	if !strings.EqualFold(strings.TrimSpace(market), "CN") {
+		return market, symbol
+	}
+	parsed, err := marketpkg.ParseInstrument(marketpkg.InstrumentInput{
+		Market: market,
+		Symbol: symbol,
+	})
+	if err != nil || (parsed.Prefix != "SH" && parsed.Prefix != "SZ") {
+		return market, symbol
+	}
+	return parsed.Prefix, parsed.Code
+}
+
+func tickCandlesResponse(
+	market string,
+	symbol string,
+	instrumentID string,
+	period string,
+	limit int,
+	candles []map[string]any,
+	source string,
+	fromCache bool,
+) CandlesResponse {
 	includeSession := market == "US"
 	return CandlesResponseDTO{
 		Instrument:     InstrumentDTO{Market: market, Symbol: symbol, InstrumentID: instrumentID},
 		Period:         period,
 		Limit:          limit,
 		Candles:        candles,
-		Source:         "bbgo:futu",
+		Source:         source,
 		ResolvedAt:     time.Now().UTC().Format(time.RFC3339Nano),
 		FromCache:      fromCache,
 		ExtendedHours:  includeSession,

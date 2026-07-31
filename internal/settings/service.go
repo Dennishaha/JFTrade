@@ -46,6 +46,7 @@ type Store interface {
 	ADKSettings() jfsettings.ADKRuntimeSettings
 	PineWorkerSettings() jfsettings.PineWorkerSettings
 	ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings
+	ActiveMarketDataProvider() jfsettings.ActiveMarketDataProvider
 	Integration() jfsettings.BrokerIntegration
 	SavedIntegration() *jfsettings.BrokerIntegration
 	ManagedAccounts() []jfsettings.ManagedBrokerAccount
@@ -60,6 +61,7 @@ type Store interface {
 	SaveADKSettings(jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error)
 	SavePineWorkerSettings(jfsettings.PineWorkerSettings) (jfsettings.PineWorkerSettings, error)
 	SaveExchangeCalendarSettings(jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error)
+	SaveActiveMarketDataProvider(jfsettings.ActiveMarketDataProvider) error
 	SaveIntegration(jfsettings.BrokerIntegration) (jfsettings.BrokerIntegration, error)
 	CreateManagedAccount(jfsettings.ManagedBrokerAccount) (jfsettings.ManagedBrokerAccount, error)
 	UpdateManagedAccount(id string, input jfsettings.ManagedBrokerAccount) (jfsettings.ManagedBrokerAccount, error)
@@ -95,6 +97,8 @@ type SideEffects struct {
 	OnPineWorkerChanged func(jfsettings.PineWorkerSettings)
 	// OnMCPServerChanged 在本机 MCP listener 设置变更时调用。
 	OnMCPServerChanged func(jfsettings.MCPServerSettings) error
+	// OnProviderChanged 在行情数据源选择变更时调用。
+	OnProviderChanged func(jfsettings.ActiveMarketDataProvider) error
 }
 
 // Service 提供 settings 业务逻辑：读取、持久化、副作用编排。
@@ -104,6 +108,7 @@ type Service struct {
 	sideEffects            SideEffects
 	securityMu             sync.Mutex
 	mcpServerMu            sync.Mutex
+	marketDataProviderMu   sync.RWMutex
 	hashPassword           func(string) (string, error)
 	newMCPToken            func() (string, error)
 	mcpStatus              func() jfsettings.MCPServerStatus

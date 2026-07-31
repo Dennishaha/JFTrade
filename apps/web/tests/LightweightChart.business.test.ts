@@ -1168,7 +1168,7 @@ describe("LightweightChart", () => {
     wrapper.unmount();
   });
 
-  it("does not hold or release a failed subscription and handles an empty chart target", async () => {
+  it("does not load market data after a failed subscription and handles an empty chart target", async () => {
     stores.consoleData = createConsoleDataState();
     stores.consoleData.acquireMarketDataSubscription.mockResolvedValue(false);
     stores.consoleData.marketInstrumentSearchOptions.value = [];
@@ -1178,6 +1178,7 @@ describe("LightweightChart", () => {
     const failedWrapper = mountChart();
     await flushUi();
     expect(stores.consoleData.heartbeatMarketDataConsumer).not.toHaveBeenCalled();
+    expect(stores.consoleData.loadMarketDataQuery).not.toHaveBeenCalled();
     stores.consoleData.releaseMarketDataSubscription.mockClear();
     failedWrapper.unmount();
     expect(stores.consoleData.releaseMarketDataSubscription).not.toHaveBeenCalled();
@@ -1190,6 +1191,7 @@ describe("LightweightChart", () => {
     const emptyWrapper = mountChart();
     await flushUi();
     expect(stores.consoleData.acquireMarketDataSubscription).not.toHaveBeenCalled();
+    expect(stores.consoleData.loadMarketDataQuery).not.toHaveBeenCalled();
     expect(emptyWrapper.get(".lightweight-chart-head").text()).not.toContain("Apple Inc.");
     emptyWrapper.unmount();
   });

@@ -92,7 +92,7 @@ describe("marketSessionDisplay", () => {
     ]);
   });
 
-  it("hides closed-session after-hours cards without quote time", () => {
+  it("keeps a closed-session after-hours price even without quote time", () => {
     const display = resolveMarketSnapshotDisplay(
       {
         price: 190,
@@ -109,7 +109,15 @@ describe("marketSessionDisplay", () => {
       true,
     );
 
-    expect(display.extendedCards).toEqual([]);
+    expect(display.extendedCards).toEqual([
+      {
+        key: "after",
+        label: "最近盘后价格",
+        price: 192,
+        changeRate: 1.8,
+        quoteTime: null,
+      },
+    ]);
   });
 
   it("keeps pre-market cards limited to active pre-market sessions", () => {

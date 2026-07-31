@@ -105,20 +105,14 @@ function mockData(): void {
   mocks.fetchWithInit.mockImplementation((_path: string, init: RequestInit) => {
     const ids = JSON.parse(String(init.body)).instrumentIds as string[];
     const entries = ids.map((instrumentId) => ({
-      symbol: instrumentId,
+      instrumentId,
       name: instrumentId === "US.HOT" ? "热门公司" : undefined,
-      productClass:
-        instrumentId.startsWith("HK.8") ||
-        instrumentId.startsWith("SH.") ||
-        instrumentId.startsWith("SZ.")
-          ? "index"
-          : "equity",
-      lastPrice: instrumentId === "US.HOT" ? 30 : 100,
+      price: instrumentId === "US.HOT" ? 30 : 100,
       previousClose: instrumentId === "US.HOT" ? 29 : 99,
       turnover: 1000,
       observedAt: "2026-07-17T00:00:00Z",
     }));
-    return Promise.resolve(featureResult(entries));
+    return Promise.resolve({ quotes: entries });
   });
 }
 
@@ -157,7 +151,7 @@ describe("MarketHomeView", () => {
       ]),
     );
     expect(mocks.fetchWithInit).toHaveBeenCalledWith(
-      expect.stringContaining("brokerId=futu"),
+      "/api/v1/watchlist/quotes/batch",
       expect.objectContaining({ method: "POST" }),
     );
     for (const [, init] of mocks.fetchWithInit.mock.calls) {

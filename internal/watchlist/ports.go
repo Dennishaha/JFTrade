@@ -1,6 +1,9 @@
 package watchlist
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type Repository interface {
 	ListGroups(context.Context) ([]Group, error)
@@ -44,4 +47,10 @@ type InstrumentMetadataWriter interface {
 
 type BatchSnapshotSource interface {
 	BatchSnapshots(context.Context, []string) ([]Quote, []QuoteError, error)
+}
+
+// QuoteCachePolicySource lets a delayed snapshot provider align the watchlist
+// cache lifetime with its supported upstream polling cadence.
+type QuoteCachePolicySource interface {
+	QuoteCacheTTL() time.Duration
 }

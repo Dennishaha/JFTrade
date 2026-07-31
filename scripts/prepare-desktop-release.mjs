@@ -16,6 +16,7 @@ for (const [command, args] of [
   ["pnpm", ["run", "prepare:desktop-release"]],
   ["pnpm", ["run", "generate:wails-bindings"]],
   ["pnpm", ["run", "build:pineworker"]],
+  ["pnpm", ["run", "build:yfinance-sidecar"]],
 ]) {
   const status = spawnChecked(command, args, { cwd: process.cwd() });
   if (status !== 0) process.exit(status);

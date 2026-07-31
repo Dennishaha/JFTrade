@@ -75,6 +75,18 @@ func (c *Cache) Seed(sample Tick) {
 	c.mu.Unlock()
 }
 
+// Clear drops all provider-owned samples. It is used when the active
+// market-data provider changes so a fresh read can never return a tick from the
+// previous provider.
+func (c *Cache) Clear() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.samples = map[string][]Tick{}
+	c.mu.Unlock()
+}
+
 func (c *Cache) Count(instrumentID string) int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -203,6 +215,7 @@ func ticksEquivalent(left, right Tick) bool {
 		left.Ask.Equal(right.Ask) &&
 		left.Volume == right.Volume &&
 		left.VolumeDelta == right.VolumeDelta &&
+		left.Turnover.Equal(right.Turnover) &&
 		left.QuoteAt == right.QuoteAt &&
 		left.Session == right.Session &&
 		left.ExtendedHours == right.ExtendedHours &&
@@ -210,7 +223,33 @@ func ticksEquivalent(left, right Tick) bool {
 		optionalDecimalEqual(left.OpenPrice, right.OpenPrice) &&
 		optionalDecimalEqual(left.HighPrice, right.HighPrice) &&
 		optionalDecimalEqual(left.LowPrice, right.LowPrice) &&
-		optionalDecimalEqual(left.PreviousClosePrice, right.PreviousClosePrice)
+		optionalDecimalEqual(left.PreviousClosePrice, right.PreviousClosePrice) &&
+		optionalDecimalEqual(left.LastClosePrice, right.LastClosePrice) &&
+		extendedQuoteEqual(left.PreMarket, right.PreMarket) &&
+		extendedQuoteEqual(left.AfterMarket, right.AfterMarket) &&
+		extendedQuoteEqual(left.Overnight, right.Overnight)
+}
+
+func extendedQuoteEqual(left, right *ExtendedQuote) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return optionalDecimalEqual(left.Price, right.Price) &&
+		optionalDecimalEqual(left.HighPrice, right.HighPrice) &&
+		optionalDecimalEqual(left.LowPrice, right.LowPrice) &&
+		floatPointerEqual(left.Volume, right.Volume) &&
+		optionalDecimalEqual(left.Turnover, right.Turnover) &&
+		optionalDecimalEqual(left.ChangeVal, right.ChangeVal) &&
+		optionalDecimalEqual(left.ChangeRate, right.ChangeRate) &&
+		optionalDecimalEqual(left.Amplitude, right.Amplitude) &&
+		left.QuoteTime == right.QuoteTime
+}
+
+func floatPointerEqual(left, right *float64) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
 }
 
 func optionalDecimalEqual(left, right *decimal.Decimal) bool {

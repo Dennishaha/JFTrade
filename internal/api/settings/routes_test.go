@@ -32,6 +32,7 @@ type routeStore struct {
 	mcpServer           jfsettings.MCPServerSettings
 	pineWorker          jfsettings.PineWorkerSettings
 	calendars           jfsettings.ExchangeCalendarSettings
+	activeProvider      jfsettings.ActiveMarketDataProvider
 	updateErr           error
 	deleteErr           error
 	saveErr             error
@@ -116,6 +117,12 @@ func (s *routeStore) PineWorkerSettings() jfsettings.PineWorkerSettings {
 func (s *routeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	return s.calendars
 }
+func (s *routeStore) ActiveMarketDataProvider() jfsettings.ActiveMarketDataProvider {
+	if s.activeProvider == "" {
+		return jfsettings.MarketDataProviderYFinance
+	}
+	return s.activeProvider
+}
 func (s *routeStore) Integration() jfsettings.BrokerIntegration {
 	return s.integration
 }
@@ -186,6 +193,13 @@ func (s *routeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalen
 	}
 	s.calendars = input
 	return input, nil
+}
+func (s *routeStore) SaveActiveMarketDataProvider(input jfsettings.ActiveMarketDataProvider) error {
+	if s.saveErr != nil {
+		return s.saveErr
+	}
+	s.activeProvider = input
+	return nil
 }
 func (s *routeStore) SaveIntegration(input jfsettings.BrokerIntegration) (jfsettings.BrokerIntegration, error) {
 	if s.saveErr != nil {

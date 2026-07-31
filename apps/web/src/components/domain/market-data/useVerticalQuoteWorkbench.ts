@@ -95,10 +95,27 @@ export function useVerticalQuoteWorkbench(
       ? ""
       : `${target.kind}:${target.instrumentId}:${target.productClass}`;
   });
-  const extendedCards = computed(() => {
-    if (instrumentParts.value?.market !== "US") return [];
-    return resolveMarketSnapshotDisplay(snapshot.value, true).extendedCards;
+  const supportsExtendedHours = computed(() => {
+    const extended = snapshot.value?.extended;
+    return (
+      instrumentParts.value?.market === "US" &&
+      (snapshot.value?.extendedHours === true ||
+        extended?.preMarket?.price != null ||
+        extended?.afterMarket?.price != null ||
+        extended?.overnight?.price != null)
+    );
   });
+  const snapshotDisplay = computed(() =>
+    resolveMarketSnapshotDisplay(snapshot.value, supportsExtendedHours.value),
+  );
+  const priceLabel = computed(() =>
+    snapshot.value == null ? "最新价" : snapshotDisplay.value.mainPriceLabel,
+  );
+  const extendedCards = computed(() =>
+    instrumentParts.value?.market === "US"
+      ? snapshotDisplay.value.extendedCards
+      : [],
+  );
 
   function finiteNumber(value: unknown): number | null {
     if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -126,26 +143,70 @@ export function useVerticalQuoteWorkbench(
   );
   const lastPrice = computed(() =>
     firstNumber(
-      snapshot.value?.price,
+      snapshotDisplay.value.mainDisplayPrice,
       security.value?.currentPrice,
       props.seed?.lastPrice,
     ),
   );
   const previousClose = computed(() =>
     firstNumber(
-      snapshot.value?.previousClosePrice,
-      snapshot.value?.lastClosePrice,
+      supportsExtendedHours.value &&
+        snapshotDisplay.value.session != null &&
+        snapshotDisplay.value.session !== "regular"
+        ? snapshot.value?.lastClosePrice
+        : snapshot.value?.previousClosePrice,
+      supportsExtendedHours.value &&
+        snapshotDisplay.value.session != null &&
+        snapshotDisplay.value.session !== "regular"
+        ? snapshot.value?.previousClosePrice
+        : snapshot.value?.lastClosePrice,
       security.value?.lastClosePrice,
       props.seed?.previousClosePrice,
     ),
   );
+  const snapshotChangeReference = computed(() => {
+    const display = snapshotDisplay.value;
+    if (snapshot.value == null || display.mainDisplayPrice == null) return null;
+    if (
+      supportsExtendedHours.value &&
+      display.session != null &&
+      display.session !== "regular"
+    ) {
+      return finiteNumber(snapshot.value.lastClosePrice);
+    }
+    return finiteNumber(snapshot.value.previousClosePrice);
+  });
   const changeAmount = computed(() => {
-    if (lastPrice.value != null && previousClose.value != null) {
-      return lastPrice.value - previousClose.value;
+    const display = snapshotDisplay.value;
+    if (
+      display.mainDisplayPrice != null &&
+      snapshotChangeReference.value != null &&
+      display.mainChangePercent != null
+    ) {
+      return display.mainDisplayPrice - snapshotChangeReference.value;
+    }
+    if (
+      !supportsExtendedHours.value ||
+      display.session == null ||
+      display.session === "regular"
+    ) {
+      if (lastPrice.value != null && previousClose.value != null) {
+        return lastPrice.value - previousClose.value;
+      }
     }
     return finiteNumber(props.seed?.changeAmount);
   });
   const changeRate = computed(() => {
+    if (snapshotDisplay.value.mainChangePercent != null) {
+      return snapshotDisplay.value.mainChangePercent;
+    }
+    if (
+      supportsExtendedHours.value &&
+      snapshotDisplay.value.session != null &&
+      snapshotDisplay.value.session !== "regular"
+    ) {
+      return finiteNumber(props.seed?.changeRate);
+    }
     if (
       lastPrice.value != null &&
       previousClose.value != null &&
@@ -316,8 +377,7 @@ export function useVerticalQuoteWorkbench(
       snapshotResult.value?.meta.source ?? securityResult.value?.meta.source ?? "";
     const broker =
       snapshotResult.value?.meta.brokerId ??
-      securityResult.value?.meta.brokerId ??
-      normalizedBrokerId.value;
+      securityResult.value?.meta.brokerId;
     return [broker?.toUpperCase(), source].filter(Boolean).join(" · ");
   });
 
@@ -333,8 +393,7 @@ export function useVerticalQuoteWorkbench(
   ): string {
     const parts = instrumentParts.value;
     if (parts == null) return "";
-    const base = `/api/v1/market-data/${resource}/${encodeURIComponent(parts.market)}/${encodeURIComponent(parts.symbol)}${suffix}`;
-    return withBrokerProvider(base, normalizedBrokerId.value);
+    return `/api/v1/market-data/${resource}/${encodeURIComponent(parts.market)}/${encodeURIComponent(parts.symbol)}${suffix}`;
   }
 
   async function loadSnapshot(token: number, polling = false): Promise<void> {
@@ -511,7 +570,7 @@ export function useVerticalQuoteWorkbench(
     snapshotPollTimer = window.setInterval(() => {
       if (props.visible === false || !documentVisible.value) return;
       void loadSnapshot(requestToken, true);
-    }, 3_000);
+    }, 15_000);
   }
 
   function syncDocumentVisibility(): void {
@@ -566,6 +625,7 @@ export function useVerticalQuoteWorkbench(
     resolvedTarget,
     instrumentParts,
     name,
+    priceLabel,
     lastPrice,
     changeAmount,
     changeRate,
@@ -574,6 +634,7 @@ export function useVerticalQuoteWorkbench(
     metrics,
     security,
     snapshot,
+    snapshotDisplay,
     extendedCards,
     plateMembers,
     snapshotLoading,

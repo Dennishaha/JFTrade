@@ -80,11 +80,96 @@ func TestServiceSnapshotErrorsAreBusinessVisible(t *testing.T) {
 	}
 }
 
+func TestServiceSnapshotResolvesChinaAggregateToExchangeLeaf(t *testing.T) {
+	now := time.Now().UTC()
+	sample := tickAt("SH.600519", "1338.5", 10, now)
+	provider := &dataProviderStub{snapshot: &sample}
+	service := NewService(provider)
+
+	response, err := service.GetSnapshot(
+		context.Background(),
+		"CN",
+		"SH.600519",
+		true,
+	)
+	if err != nil {
+		t.Fatalf("GetSnapshot CN aggregate: %v", err)
+	}
+	request := jftradeCheckedTypeAssertion[map[string]any](response["request"])
+	if provider.snapshotID != "SH.600519" || request["market"] != "SH" ||
+		request["symbol"] != "600519" || request["instrumentId"] != "SH.600519" {
+		t.Fatalf("CN aggregate snapshot = %#v, provider id=%q", response, provider.snapshotID)
+	}
+}
+
+func TestServiceProviderReadsResolveChinaAggregateToExchangeLeaf(t *testing.T) {
+	provider := &dataProviderStub{
+		details: SecurityDetails{"name": "Kweichow Moutai"},
+		candles: CandlesResponse{"provider": "historical"},
+		depth:   DepthResponse{"levels": 5},
+	}
+	service := NewService(provider)
+	ctx := context.Background()
+
+	if _, err := service.GetSecurityDetails(ctx, "CN", "SH.600519"); err != nil {
+		t.Fatalf("GetSecurityDetails CN aggregate: %v", err)
+	}
+	if provider.detailsMarket != "SH" || provider.detailsSymbol != "600519" {
+		t.Fatalf("details request = %s/%s", provider.detailsMarket, provider.detailsSymbol)
+	}
+
+	if _, err := service.GetCandles(ctx, "CN", "SZ.000001", "1d", 20, "", ""); err != nil {
+		t.Fatalf("GetCandles CN aggregate: %v", err)
+	}
+	if provider.candlesMarket != "SZ" || provider.candlesSymbol != "000001" {
+		t.Fatalf("candles request = %s/%s", provider.candlesMarket, provider.candlesSymbol)
+	}
+
+	if _, err := service.GetDepth(ctx, "CN", "SH.600519", 5); err != nil {
+		t.Fatalf("GetDepth CN aggregate: %v", err)
+	}
+	if provider.depthMarket != "SH" || provider.depthSymbol != "600519" {
+		t.Fatalf("depth request = %s/%s", provider.depthMarket, provider.depthSymbol)
+	}
+}
+
+func TestServiceRejectsSnapshotCompletedAfterProviderChange(t *testing.T) {
+	sample := tickAt("US.AAPL", "188.5", 10, time.Now().UTC())
+	provider := &blockingSnapshotProvider{
+		dataProviderStub: &dataProviderStub{},
+		started:          make(chan struct{}),
+		release:          make(chan struct{}),
+		snapshot:         &sample,
+	}
+	service := NewService(provider)
+	result := make(chan error, 1)
+	go func() {
+		_, err := service.GetSnapshot(context.Background(), "US", "AAPL", true)
+		result <- err
+	}()
+	<-provider.started
+	service.NotifyProviderChanged()
+	close(provider.release)
+
+	if err := <-result; !errors.Is(err, ErrProviderChanged) {
+		t.Fatalf("old provider snapshot error = %v", err)
+	}
+	if service.CachedCount("US.AAPL") != 0 {
+		t.Fatal("old provider snapshot repopulated cache")
+	}
+}
+
 func TestServiceTickCandlesProviderAndFallbackBoundaries(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 	sample := tickAt("US.AAPL", "188.5", 500, now)
-	provider := &dataProviderStub{ticker: &sample}
+	provider := &dataProviderStub{
+		descriptor: ProviderDescriptor{
+			ProviderID: "alternate-feed", Source: "alternate-feed",
+			Capabilities: ProviderCapabilities{TickCandles: true},
+		},
+		ticker: &sample,
+	}
 	service := NewService(provider)
 
 	response, err := service.GetCandles(ctx, " us ", " aapl ", " tick ", 1501, "", "")
@@ -95,7 +180,8 @@ func TestServiceTickCandlesProviderAndFallbackBoundaries(t *testing.T) {
 	instrument := jftradeCheckedTypeAssertion[map[string]any](request["instrument"])
 	meta := jftradeCheckedTypeAssertion[map[string]any](response["meta"])
 	if provider.tickerID != "US.AAPL" || request["limit"] != 1000 || instrument["market"] != "US" ||
-		response["totalReturned"] != 1 || meta["fromCache"] != false || meta["session"] != "all" {
+		response["totalReturned"] != 1 || meta["fromCache"] != false || meta["session"] != "all" ||
+		meta["source"] != "alternate-feed" {
 		t.Fatalf("provider tick response = %#v, ticker id=%s", response, provider.tickerID)
 	}
 
@@ -114,6 +200,19 @@ func TestServiceTickCandlesProviderAndFallbackBoundaries(t *testing.T) {
 	if !errors.Is(err, tickerErr) {
 		t.Fatalf("ticker error without retained cache = %v", err)
 	}
+}
+
+type blockingSnapshotProvider struct {
+	*dataProviderStub
+	started  chan struct{}
+	release  chan struct{}
+	snapshot *Tick
+}
+
+func (p *blockingSnapshotProvider) QuerySnapshot(context.Context, string) (*Tick, error) {
+	close(p.started)
+	<-p.release
+	return p.snapshot, nil
 }
 
 func TestServiceSubscriptionFacadeCacheHelpersAndLifecycle(t *testing.T) {

@@ -23,7 +23,11 @@ export function resolveMarketDataFeedQuality(
 ): MarketDataFeedQualityState {
   const transportMode = normalizedTransportMode(input.transportMode);
   if (input.error?.trim() && !input.hasUsableData) return "unavailable";
-  if (input.fromCache || transportMode === "snapshot-poll-fallback") {
+  if (
+    input.fromCache ||
+    transportMode === "snapshot-poll-fallback" ||
+    transportMode === "snapshot-poll-delayed"
+  ) {
     return "degraded";
   }
 
@@ -57,6 +61,12 @@ export function marketDataFeedQualityLabel(
         "snapshot-poll-fallback"
       ) {
         return "已降级到轮询";
+      }
+      if (
+        normalizedTransportMode(input.transportMode) ===
+        "snapshot-poll-delayed"
+      ) {
+        return "延迟行情轮询中";
       }
       switch (input.connectionState) {
         case "connecting":

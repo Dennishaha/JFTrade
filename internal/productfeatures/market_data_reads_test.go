@@ -131,6 +131,68 @@ func TestWorkspaceMarketDataReadsRejectInvalidInstrument(t *testing.T) {
 	}
 }
 
+func TestWorkspaceMarketDataReadsResolveChinaAggregateToExchangeLeaf(t *testing.T) {
+	adapter := &workspaceBoundaryBroker{
+		featureBroker: &featureBroker{
+			id: "china-reader",
+			marketData: &featureMarketDataReader{snapshot: &broker.KLineSnapshot{
+				Symbol: "SH.600519", Period: "1d",
+			}},
+			markets: []string{"SH", "SZ"},
+			features: []broker.FeatureID{
+				broker.FeatureMarketSnapshot,
+				broker.FeatureMarketSnapshots,
+				broker.FeatureInstrumentProfile,
+				broker.FeatureMarketCandles,
+				broker.FeatureMarketDepth,
+			},
+		},
+		result: &broker.FeatureResult{Entries: []map[string]any{{
+			"symbol": "SH.600519", "bids": []any{}, "asks": []any{},
+		}}},
+	}
+	registry := broker.NewRegistry()
+	registry.Register(adapter)
+	service := NewService(registry, adapter.id, nil, nil)
+
+	assertRequest := func(t *testing.T, request map[string]any, market, symbol string) {
+		t.Helper()
+		instrumentID := market + "." + symbol
+		if request["market"] != market || request["symbol"] != symbol || request["instrumentId"] != instrumentID {
+			t.Fatalf("request = %#v, want %s/%s", request, market, symbol)
+		}
+	}
+
+	snapshot, err := service.ReadMarketSnapshot(t.Context(), adapter.id, "CN", "SH.600519", true)
+	if err != nil {
+		t.Fatalf("ReadMarketSnapshot CN aggregate: %v", err)
+	}
+	assertRequest(t, snapshot["request"].(map[string]any), "SH", "600519")
+
+	details, err := service.ReadMarketSecurityDetails(t.Context(), adapter.id, "CN", "SZ.000001")
+	if err != nil {
+		t.Fatalf("ReadMarketSecurityDetails CN aggregate: %v", err)
+	}
+	assertRequest(t, details["request"].(map[string]any), "SZ", "000001")
+
+	candles, err := service.ReadMarketCandles(t.Context(), adapter.id, "CN", "SH.600519", "1d", 20, "", "", "")
+	if err != nil {
+		t.Fatalf("ReadMarketCandles CN aggregate: %v", err)
+	}
+	candleRequest := candles["request"].(map[string]any)
+	assertRequest(t, candleRequest["instrument"].(map[string]any), "SH", "600519")
+
+	depth, err := service.ReadMarketDepth(t.Context(), adapter.id, "CN", "SZ.000001", 10)
+	if err != nil {
+		t.Fatalf("ReadMarketDepth CN aggregate: %v", err)
+	}
+	assertRequest(t, depth["request"].(map[string]any), "SZ", "000001")
+
+	if _, err := service.ReadMarketSnapshot(t.Context(), adapter.id, "CN", "600519", true); !errors.Is(err, ErrInvalidQuery) {
+		t.Fatalf("bare CN code error = %v, want ErrInvalidQuery", err)
+	}
+}
+
 func TestWorkspaceMarketDataReadsSurfaceProviderFailuresAndNormalizeFallbacks(t *testing.T) {
 	providerErr := errors.New("provider unavailable")
 	reader := &featureMarketDataReader{err: providerErr}

@@ -99,6 +99,10 @@ describe("QuoteSummaryCard", () => {
     expect(
       wrapper.get(".quote-summary__extended-card--overnight").text(),
     ).toContain("夜盘价格");
+    const quoteTimes = wrapper.findAll(".quote-summary__extended-time");
+    expect(quoteTimes).toHaveLength(3);
+    expect(quoteTimes[1]?.text()).toContain("报价时间");
+    expect(quoteTimes[1]?.attributes("title")).toBe("2026-07-23T21:00:00Z");
   });
 
   it("hides favorite controls when the consumer does not expose them", () => {

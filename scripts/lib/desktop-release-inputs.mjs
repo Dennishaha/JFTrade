@@ -9,6 +9,39 @@ export const desktopReleaseInputPaths = [
   "internal/pineworkerassets/assets/bin/worker.mjs",
 ];
 
+const platformNames = {
+  darwin: "darwin",
+  linux: "linux",
+  win32: "windows",
+  windows: "windows",
+};
+const architectureNames = {
+  arm64: "arm64",
+  amd64: "amd64",
+  x64: "amd64",
+};
+
+export function currentYFinanceSidecarAssetPath({
+  environment = process.env,
+  platform = process.platform,
+  architecture = process.arch,
+} = {}) {
+  const goos = platformNames[String(environment.GOOS || platform).trim()];
+  const goarch =
+    architectureNames[String(environment.GOARCH || architecture).trim()];
+  if (!goos || !goarch) {
+    throw new Error(
+      `Unsupported desktop yfinance asset target: ${environment.GOOS || platform}/${environment.GOARCH || architecture}`,
+    );
+  }
+  const extension = goos === "windows" ? ".exe" : "";
+  return `internal/yfinanceassets/assets/bin/yfinance-sidecar-${goos}-${goarch}${extension}`;
+}
+
+export function desktopReleaseInputPathsForCurrentPlatform(options = {}) {
+  return [...desktopReleaseInputPaths, currentYFinanceSidecarAssetPath(options)];
+}
+
 export function usesPreparedDesktopReleaseInputs(environment = process.env) {
   const value = String(environment.JFTRADE_DESKTOP_PREPARED ?? "").trim();
   if (value === "") return false;
@@ -16,8 +49,8 @@ export function usesPreparedDesktopReleaseInputs(environment = process.env) {
   throw new Error("JFTRADE_DESKTOP_PREPARED must be 1 or unset.");
 }
 
-export function assertPreparedDesktopReleaseInputs(rootDir) {
-  for (const relativePath of desktopReleaseInputPaths) {
+export function assertPreparedDesktopReleaseInputs(rootDir, options = {}) {
+  for (const relativePath of desktopReleaseInputPathsForCurrentPlatform(options)) {
     const inputPath = path.join(rootDir, relativePath);
     let stat;
     try {

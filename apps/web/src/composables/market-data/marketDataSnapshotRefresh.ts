@@ -20,10 +20,13 @@ export interface MarketSnapshotFallbackResult {
 interface MarketDataSnapshotRefresherOptions {
   marketSecurityDetails: Ref<MarketSecurityDetailsQueryResult | null>;
   fallbackIntervalMs?: number;
+  delayedFallbackIntervalMs?: number;
   fallbackRefresh?: (
     target: MarketSnapshotRefreshTarget,
   ) => Promise<MarketSnapshotFallbackResult | void>;
 }
+
+export const DEFAULT_DELAYED_SNAPSHOT_POLL_INTERVAL_MS = 15_000;
 
 export function createMarketDataSnapshotRefresher(
   options: MarketDataSnapshotRefresherOptions,
@@ -31,10 +34,15 @@ export function createMarketDataSnapshotRefresher(
   const hub = getSharedLiveSocketHub();
   const ownerId = hub.createOwnerId("security-details");
   const fallbackIntervalMs = Math.max(1, options.fallbackIntervalMs ?? 3_000);
+  const delayedFallbackIntervalMs = Math.max(
+    1,
+    options.delayedFallbackIntervalMs ?? DEFAULT_DELAYED_SNAPSHOT_POLL_INTERVAL_MS,
+  );
   let explicitTarget: MarketSnapshotRefreshTarget | null | undefined;
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
   let fallbackInFlight = false;
   let stopped = false;
+  let delayedPollingMode = providerUsesDelayedPolling();
   const removeListener = hub.addEventListener((event) => {
     if (!isMarketSecurityDetailsEvent(event)) {
       return;
@@ -96,7 +104,8 @@ export function createMarketDataSnapshotRefresher(
       !stopped &&
       options.fallbackRefresh != null &&
       resolveMarketSnapshotRefreshTarget() != null &&
-      (connectionState === "connecting" ||
+      (providerUsesDelayedPolling() ||
+        connectionState === "connecting" ||
         connectionState === "disconnected" ||
         connectionState === "error" ||
         connectionState === "unsupported") &&
@@ -104,7 +113,19 @@ export function createMarketDataSnapshotRefresher(
     );
   }
 
-  function syncFallbackTimer(delayMs = fallbackIntervalMs): void {
+  function providerUsesDelayedPolling(): boolean {
+    const transportMode =
+      hub.lastHeartbeatEvent.value?.transport?.mode?.trim().toLowerCase() ?? "";
+    return transportMode === "snapshot-poll-delayed";
+  }
+
+  function effectiveFallbackIntervalMs(): number {
+    return providerUsesDelayedPolling()
+      ? delayedFallbackIntervalMs
+      : fallbackIntervalMs;
+  }
+
+  function syncFallbackTimer(delayMs?: number): void {
     if (!shouldFallback()) {
       clearFallbackTimer();
       return;
@@ -112,10 +133,11 @@ export function createMarketDataSnapshotRefresher(
     if (fallbackTimer != null || fallbackInFlight) {
       return;
     }
+    const intervalMs = effectiveFallbackIntervalMs();
     fallbackTimer = setTimeout(() => {
       fallbackTimer = null;
       void runFallbackRefresh();
-    }, Math.max(fallbackIntervalMs, delayMs));
+    }, Math.max(intervalMs, delayMs ?? intervalMs));
   }
 
   async function runFallbackRefresh(): Promise<void> {
@@ -124,7 +146,7 @@ export function createMarketDataSnapshotRefresher(
       return;
     }
     fallbackInFlight = true;
-    let retryAfterMs = fallbackIntervalMs;
+    let retryAfterMs = effectiveFallbackIntervalMs();
     try {
       const result = await options.fallbackRefresh(target);
       if (result?.retryAfterMs != null && Number.isFinite(result.retryAfterMs)) {
@@ -155,6 +177,18 @@ export function createMarketDataSnapshotRefresher(
   const stopConnectionWatch = watch(hub.connectionState, () => {
     syncFallbackTimer();
   });
+  // Provider health arrives as a heartbeat after the WebSocket reaches
+  // "connected". Watch it so a delayed provider starts polling even when the
+  // socket itself remains healthy, and so switching back to Futu clears the
+  // delayed timer promptly.
+  const stopHeartbeatWatch = watch(hub.lastHeartbeatEvent, () => {
+    const nextDelayedPollingMode = providerUsesDelayedPolling();
+    if (nextDelayedPollingMode !== delayedPollingMode) {
+      delayedPollingMode = nextDelayedPollingMode;
+      clearFallbackTimer();
+    }
+    syncFallbackTimer();
+  });
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", handleVisibilityChange);
   }
@@ -165,6 +199,7 @@ export function createMarketDataSnapshotRefresher(
       stopped = true;
       closeMarketSecurityDetailsStream();
       stopConnectionWatch();
+      stopHeartbeatWatch();
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", handleVisibilityChange);
       }

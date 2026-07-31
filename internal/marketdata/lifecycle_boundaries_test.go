@@ -29,6 +29,12 @@ func TestCacheRemainingLifecycleBoundaries(t *testing.T) {
 	if got := cache.LatestMany([]string{"US.MISSING", "US.STALE", "US.INVALID"}, time.Minute); len(got) != 0 {
 		t.Fatalf("stale LatestMany = %#v", got)
 	}
+	cache.Clear()
+	if cache.Count("US.STALE") != 0 || cache.Count("US.INVALID") != 0 {
+		t.Fatal("Clear retained provider samples")
+	}
+	var nilCache *Cache
+	nilCache.Clear()
 
 	inheritTickContext(nil, nil)
 	if cloneTick(nil) != nil {
@@ -106,8 +112,9 @@ func TestServiceRemainingLifecycleBoundaries(t *testing.T) {
 		t.Fatalf("nil reconcileDesired = %v", err)
 	}
 
-	if _, err := NewService(&dataProviderStub{healthErr: wantErr}).ProviderStatus(ctx); !errors.Is(err, wantErr) {
-		t.Fatalf("ProviderStatus health error = %v", err)
+	status, err := NewService(&dataProviderStub{healthErr: wantErr}).ProviderStatus(ctx)
+	if err != nil || status.Health.Connected || status.Health.LastError != wantErr.Error() {
+		t.Fatalf("ProviderStatus degraded health = %#v, err=%v", status.Health, err)
 	}
 	canceled, cancel := context.WithCancel(ctx)
 	cancel()
@@ -158,8 +165,15 @@ func TestServiceRemainingLifecycleBoundaries(t *testing.T) {
 	collectorService := NewService(&dataProviderStub{health: HealthStatus{Connected: true}})
 	collectorService.StartCollector(nil, nil, nil)
 	collectorService.SetSubscriptionReconciler(&fakeSubscriptionReconciler{})
-	if _, err := collectorService.Health(ctx); err != nil {
+	collectorService.Seed(Tick{InstrumentID: "US.AAPL", Price: decimal.NewFromInt(1)})
+	collectorService.NotifyProviderChanged()
+	if collectorService.CachedCount("US.AAPL") != 0 {
+		t.Fatal("provider change retained cached tick")
+	}
+	if health, err := collectorService.Health(ctx); err != nil {
 		t.Fatalf("collector Health = %v", err)
+	} else if !health.Connected {
+		t.Fatalf("provider health was overwritten by polling collector state: %#v", health)
 	}
 	if err := collectorService.Close(); err != nil {
 		t.Fatalf("collector Close = %v", err)
@@ -187,6 +201,34 @@ func (exactOnlyInstrumentProvider) LookupInstrument(context.Context, string, str
 type errOnlyContext struct {
 	context.Context
 	err error
+}
+
+type cleanupDeadlineReconciler struct {
+	sawDeadline bool
+}
+
+func (r *cleanupDeadlineReconciler) ReconcileSubscriptions(
+	ctx context.Context,
+	_ []InstrumentRef,
+) error {
+	_, r.sawDeadline = ctx.Deadline()
+	return nil
+}
+
+func (*cleanupDeadlineReconciler) SubscriptionState() map[string]any {
+	return nil
+}
+
+func TestServiceFinalSubscriptionCleanupAlwaysHasDeadline(t *testing.T) {
+	reconciler := &cleanupDeadlineReconciler{}
+	service := NewService(&dataProviderStub{})
+	service.SetSubscriptionReconciler(reconciler)
+	if err := service.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if !reconciler.sawDeadline {
+		t.Fatal("final subscription cleanup used an unbounded context")
+	}
 }
 
 func (c errOnlyContext) Done() <-chan struct{} { return nil }

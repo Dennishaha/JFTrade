@@ -17,11 +17,11 @@ func TestBatchQuotesRejectsUnsafeInputAndHonorsCanceledFlights(t *testing.T) {
 		}
 	}
 
-	owned, waiting := service.reserveQuoteFlights([]string{"US.AAPL"})
+	owned, waiting, generation := service.reserveQuoteFlights([]string{"US.AAPL"})
 	if !slices.Equal(owned, []string{"US.AAPL"}) || len(waiting) != 0 {
 		t.Fatalf("initial quote reservation = owned:%#v waiting:%#v", owned, waiting)
 	}
-	duplicateOwned, duplicateWaiting := service.reserveQuoteFlights([]string{"US.AAPL", "US.AAPL"})
+	duplicateOwned, duplicateWaiting, _ := service.reserveQuoteFlights([]string{"US.AAPL", "US.AAPL"})
 	if len(duplicateOwned) != 0 || len(duplicateWaiting) != 1 {
 		t.Fatalf("single-flight duplicate reservation = owned:%#v waiting:%#v", duplicateOwned, duplicateWaiting)
 	}
@@ -31,7 +31,7 @@ func TestBatchQuotesRejectsUnsafeInputAndHonorsCanceledFlights(t *testing.T) {
 	if _, err := service.BatchQuotes(ctx, []string{"US.AAPL"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled quote waiter error = %v", err)
 	}
-	service.completeQuoteFlights(owned, nil, nil, nil)
+	service.completeQuoteFlights(t.Context(), generation, owned, nil, nil, nil, service.quoteTTL)
 }
 
 func TestQuoteCacheAndImportHelpersKeepAbsentDataExplicit(t *testing.T) {

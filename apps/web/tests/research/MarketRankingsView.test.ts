@@ -68,14 +68,16 @@ function installMocks(): void {
   });
   mocks.fetchWithInit.mockImplementation((_path: string, init: RequestInit) => {
     const ids = JSON.parse(String(init.body)).instrumentIds as string[];
-    return Promise.resolve(featureResult(ids.map((symbol) => ({
-      symbol,
-      lastPrice: symbol.endsWith("SPY") ? 500 : 20,
-      previousClose: symbol.endsWith("SPY") ? 490 : 20,
-      turnover: symbol.endsWith("SPY") ? 1e9 : 1e6,
-      fund: { assetClass: symbol.endsWith("SPY") ? "股票" : "Unknow" },
-      observedAt: "2026-07-17T00:00:00Z",
-    }))));
+    return Promise.resolve({
+      quotes: ids.map((instrumentId) => ({
+        instrumentId,
+        price: instrumentId.endsWith("SPY") ? 500 : 20,
+        previousClose: instrumentId.endsWith("SPY") ? 490 : 20,
+        turnover: instrumentId.endsWith("SPY") ? 1e9 : 1e6,
+        assetClass: instrumentId.endsWith("SPY") ? "股票" : "Unknow",
+        observedAt: "2026-07-17T00:00:00Z",
+      })),
+    });
   });
 }
 
@@ -147,7 +149,7 @@ describe("MarketRankingsView", () => {
       expect.stringMatching(/operation=fund_catalog.*brokerId=futu/),
     );
     expect(mocks.fetchWithInit).toHaveBeenCalledWith(
-      expect.stringContaining("brokerId=futu"),
+      "/api/v1/watchlist/quotes/batch",
       expect.objectContaining({ method: "POST" }),
     );
     const firstRow = wrapper.get(".rank-list-panel__table tbody tr");
@@ -262,7 +264,7 @@ describe("MarketRankingsView", () => {
             resolveMore = resolve;
           }),
       );
-    mocks.fetchWithInit.mockResolvedValue(featureResult([]));
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
     const wrapper = mount(MarketRankingsView, { props: { market: "US" } });
     await flushPromises();
     const button = wrapper.get(".market-rankings-view__more");

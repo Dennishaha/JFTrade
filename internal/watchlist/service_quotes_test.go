@@ -21,8 +21,23 @@ type quoteResultSource struct {
 	err    error
 }
 
+type blockingMetadataSnapshotSource struct {
+	started chan struct{}
+	release chan struct{}
+	quote   Quote
+}
+
 func (source quoteResultSource) BatchSnapshots(context.Context, []string) ([]Quote, []QuoteError, error) {
 	return source.quotes, source.errors, source.err
+}
+
+func (source *blockingMetadataSnapshotSource) BatchSnapshots(
+	_ context.Context,
+	_ []string,
+) ([]Quote, []QuoteError, error) {
+	close(source.started)
+	<-source.release
+	return []Quote{source.quote}, nil, nil
 }
 
 func (source *blockingSnapshotSource) BatchSnapshots(_ context.Context, instrumentIDs []string) ([]Quote, []QuoteError, error) {
@@ -99,6 +114,34 @@ func TestBatchQuotesTurnsBatchFailureIntoPerItemErrors(t *testing.T) {
 	}
 }
 
+func TestBatchQuotesHonorsProviderCachePolicy(t *testing.T) {
+	now := time.Date(2026, time.July, 29, 9, 0, 0, 0, time.UTC)
+	source := &policySnapshotSource{ttl: 15 * time.Second}
+	service := NewService(
+		nil,
+		WithClock(func() time.Time { return now }),
+		WithBatchSnapshotSource(source),
+		WithQuoteCacheTTL(time.Second),
+	)
+	if _, err := service.BatchQuotes(t.Context(), []string{"US.AAPL"}); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(10 * time.Second)
+	if _, err := service.BatchQuotes(t.Context(), []string{"US.AAPL"}); err != nil {
+		t.Fatal(err)
+	}
+	if calls := source.calls.Load(); calls != 1 {
+		t.Fatalf("source calls before provider TTL = %d, want 1", calls)
+	}
+	now = now.Add(6 * time.Second)
+	if _, err := service.BatchQuotes(t.Context(), []string{"US.AAPL"}); err != nil {
+		t.Fatal(err)
+	}
+	if calls := source.calls.Load(); calls != 2 {
+		t.Fatalf("source calls after provider TTL = %d, want 2", calls)
+	}
+}
+
 func TestBatchQuotesPreservesPartialResultsAndUpdatesKnownMetadata(t *testing.T) {
 	var received []InstrumentMetadata
 	repository := &serviceTestRepository{updateMetadata: func(_ context.Context, metadata []InstrumentMetadata) error {
@@ -128,6 +171,102 @@ func TestBatchQuotesPreservesPartialResultsAndUpdatesKnownMetadata(t *testing.T)
 	}
 }
 
+func TestChangeQuoteProviderRejectsPreviousProviderInflightResults(t *testing.T) {
+	oldSource := &blockingSnapshotSource{started: make(chan struct{}, 1), release: make(chan struct{})}
+	service := NewService(nil, WithBatchSnapshotSource(oldSource), WithQuoteCacheTTL(time.Minute))
+	oldDone := make(chan error, 1)
+	go func() {
+		_, err := service.BatchQuotes(context.Background(), []string{"US.AAPL"})
+		oldDone <- err
+	}()
+	<-oldSource.started
+
+	err := service.ChangeQuoteProvider(func() error {
+		service.RegisterBatchSnapshotSource(quoteResultSource{quotes: []Quote{{
+			InstrumentID: "US.AAPL",
+			Source:       "new-provider",
+			ObservedAt:   time.Now(),
+		}}})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("change quote provider: %v", err)
+	}
+	current, err := service.BatchQuotes(t.Context(), []string{"US.AAPL"})
+	if err != nil || len(current.Quotes) != 1 || current.Quotes[0].Source != "new-provider" {
+		t.Fatalf("current provider quotes = %#v, err=%v", current, err)
+	}
+
+	close(oldSource.release)
+	if err := <-oldDone; err != nil {
+		t.Fatalf("old provider request: %v", err)
+	}
+	cached, err := service.BatchQuotes(t.Context(), []string{"US.AAPL"})
+	if err != nil || len(cached.Quotes) != 1 || cached.Quotes[0].Source != "new-provider" {
+		t.Fatalf("stale provider repopulated cache: %#v, err=%v", cached, err)
+	}
+}
+
+func TestChangeQuoteProviderFailurePreservesCurrentCache(t *testing.T) {
+	source := &policySnapshotSource{ttl: time.Minute}
+	service := NewService(nil, WithBatchSnapshotSource(source))
+	first, err := service.BatchQuotes(t.Context(), []string{"US.AAPL"})
+	if err != nil || len(first.Quotes) != 1 {
+		t.Fatalf("initial quotes = %#v, err=%v", first, err)
+	}
+	changeErr := errors.New("provider health check failed")
+	if err := service.ChangeQuoteProvider(func() error { return changeErr }); !errors.Is(err, changeErr) {
+		t.Fatalf("change provider error = %v, want %v", err, changeErr)
+	}
+	cached, err := service.BatchQuotes(t.Context(), []string{"US.AAPL"})
+	if err != nil || len(cached.Quotes) != 1 {
+		t.Fatalf("preserved quotes = %#v, err=%v", cached, err)
+	}
+	if calls := source.calls.Load(); calls != 1 {
+		t.Fatalf("failed provider change invalidated cache; source calls = %d, want 1", calls)
+	}
+}
+
+func TestResetQuoteCacheRejectsPreviousProviderInflightMetadata(t *testing.T) {
+	metadataWrites := make(chan []InstrumentMetadata, 1)
+	repository := &serviceTestRepository{updateMetadata: func(
+		_ context.Context,
+		metadata []InstrumentMetadata,
+	) error {
+		metadataWrites <- append([]InstrumentMetadata(nil), metadata...)
+		return nil
+	}}
+	oldSource := &blockingMetadataSnapshotSource{
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+		quote: Quote{
+			InstrumentID: "US.AAPL",
+			Name:         "Old Provider Name",
+			Type:         "old-provider-type",
+			Source:       "old-provider",
+			ObservedAt:   time.Now(),
+		},
+	}
+	service := NewService(repository, WithBatchSnapshotSource(oldSource))
+	oldDone := make(chan error, 1)
+	go func() {
+		_, err := service.BatchQuotes(context.Background(), []string{"US.AAPL"})
+		oldDone <- err
+	}()
+	<-oldSource.started
+
+	service.ResetQuoteCache()
+	close(oldSource.release)
+	if err := <-oldDone; err != nil {
+		t.Fatalf("old provider request: %v", err)
+	}
+	select {
+	case metadata := <-metadataWrites:
+		t.Fatalf("stale provider updated instrument metadata: %#v", metadata)
+	default:
+	}
+}
+
 func TestQuoteResultHelpersReturnEmptySlicesForNilValues(t *testing.T) {
 	if values := nonNilQuotes(nil); values == nil || len(values) != 0 {
 		t.Fatalf("nonNilQuotes(nil) = %#v", values)
@@ -135,4 +274,29 @@ func TestQuoteResultHelpersReturnEmptySlicesForNilValues(t *testing.T) {
 	if values := nonNilQuoteErrors(nil); values == nil || len(values) != 0 {
 		t.Fatalf("nonNilQuoteErrors(nil) = %#v", values)
 	}
+}
+
+type policySnapshotSource struct {
+	calls atomic.Int32
+	ttl   time.Duration
+}
+
+func (s *policySnapshotSource) BatchSnapshots(
+	_ context.Context,
+	instrumentIDs []string,
+) ([]Quote, []QuoteError, error) {
+	s.calls.Add(1)
+	quotes := make([]Quote, 0, len(instrumentIDs))
+	for _, instrumentID := range instrumentIDs {
+		quotes = append(quotes, Quote{
+			InstrumentID: instrumentID,
+			Source:       "policy",
+			ObservedAt:   time.Now(),
+		})
+	}
+	return quotes, nil, nil
+}
+
+func (s *policySnapshotSource) QuoteCacheTTL() time.Duration {
+	return s.ttl
 }

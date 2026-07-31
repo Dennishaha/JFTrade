@@ -203,13 +203,27 @@ func normalizeWorkspaceInstrument(market, symbol string) (string, string, string
 	if qualifiedMarket, qualifiedSymbol, ok := strings.Cut(symbol, "."); ok {
 		if market == "" {
 			market = qualifiedMarket
+			symbol = qualifiedSymbol
+		} else if market != "CN" {
+			symbol = qualifiedSymbol
 		}
-		symbol = qualifiedSymbol
 	}
 	if market == "" || symbol == "" {
 		return "", "", "", fmt.Errorf("%w: market and symbol are required", ErrInvalidQuery)
 	}
-	return market, symbol, market + "." + symbol, nil
+	if market != "CN" {
+		return market, symbol, market + "." + symbol, nil
+	}
+	parsed, err := marketpkg.ParseInstrument(marketpkg.InstrumentInput{
+		Market: market,
+		Symbol: symbol,
+	})
+	if err != nil || (parsed.Prefix != "SH" && parsed.Prefix != "SZ") {
+		return "", "", "", fmt.Errorf(
+			"%w: CN requires an SH. or SZ. qualified symbol", ErrInvalidQuery,
+		)
+	}
+	return parsed.Prefix, parsed.Code, parsed.Symbol, nil
 }
 
 func workspaceInstrumentRequest(market, symbol, instrumentID string) map[string]any {

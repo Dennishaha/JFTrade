@@ -3,6 +3,7 @@ package marketdata
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -75,6 +76,69 @@ func TestCollectorOldGenerationCannotCommitPushOrConnect(t *testing.T) {
 	waitFor(t, func() bool { return collector.State().Connected })
 }
 
+func TestCollectorResetBoundsStreamCloseAndRejectsLateTick(t *testing.T) {
+	cache := NewCache()
+	stream := &blockingLifecycleStream{
+		connectStarted: make(chan struct{}),
+		connectRelease: make(chan struct{}),
+		closeStarted:   make(chan struct{}),
+		closeRelease:   make(chan struct{}),
+	}
+	push := &blockingLifecyclePushSource{stream: stream}
+	collector := NewCollector(cache, nil, push, nil, CollectorOptions{
+		DemandInterval: time.Hour,
+		ConnectTimeout: time.Hour,
+		CloseTimeout:   20 * time.Millisecond,
+	})
+	collector.SetDemandSources(DemandSourceFunc(func() []string { return []string{"US.AAPL"} }))
+	<-stream.connectStarted
+
+	started := time.Now()
+	collector.Reset()
+	if elapsed := time.Since(started); elapsed > 500*time.Millisecond {
+		t.Fatalf("Reset blocked for %s", elapsed)
+	}
+	<-stream.closeStarted
+	stream.handler(testTick("US.AAPL", "201", TickKindTrade))
+	if got := cache.Count("US.AAPL"); got != 0 {
+		t.Fatalf("late generation committed %d ticks", got)
+	}
+
+	close(stream.closeRelease)
+	close(stream.connectRelease)
+	if err := collector.Close(); err != nil {
+		t.Fatalf("Close after releasing stream: %v", err)
+	}
+}
+
+func TestCollectorCloseBoundsUncooperativeConnectAndKeepsError(t *testing.T) {
+	stream := &blockingLifecycleStream{
+		connectStarted: make(chan struct{}),
+		connectRelease: make(chan struct{}),
+	}
+	push := &blockingLifecyclePushSource{stream: stream}
+	collector := NewCollector(NewCache(), nil, push, nil, CollectorOptions{
+		DemandInterval: time.Hour,
+		ConnectTimeout: time.Hour,
+		CloseTimeout:   20 * time.Millisecond,
+	})
+	collector.SetDemandSources(DemandSourceFunc(func() []string { return []string{"US.AAPL"} }))
+	<-stream.connectStarted
+
+	started := time.Now()
+	err := collector.Close()
+	if err == nil || !strings.Contains(err.Error(), "shutdown timed out") {
+		t.Fatalf("Close error = %v", err)
+	}
+	if elapsed := time.Since(started); elapsed > 500*time.Millisecond {
+		t.Fatalf("Close blocked for %s", elapsed)
+	}
+	if repeated := collector.Close(); repeated == nil || repeated.Error() != err.Error() {
+		t.Fatalf("repeated Close error = %v, want %v", repeated, err)
+	}
+	close(stream.connectRelease)
+}
+
 func TestCollectorPollingFallbackDoesNotCallPushHandler(t *testing.T) {
 	cache := NewCache()
 	quotes := &collectorQuoteSource{ticks: map[string]Tick{
@@ -94,6 +158,81 @@ func TestCollectorPollingFallbackDoesNotCallPushHandler(t *testing.T) {
 	}
 }
 
+func TestCollectorSkipsDynamicallyUnavailablePushSource(t *testing.T) {
+	push := &availabilityPushSource{}
+	collector := NewCollector(NewCache(), nil, push, nil, CollectorOptions{
+		DemandInterval: time.Hour,
+	})
+	t.Cleanup(func() { jftradeCheckTestError(t, collector.Close()) })
+	collector.SetDemandSources(DemandSourceFunc(func() []string { return []string{"US.AAPL"} }))
+
+	waitFor(t, func() bool { return collector.State().ActiveCount == 1 })
+	time.Sleep(10 * time.Millisecond)
+	if got := push.newCalls.Load(); got != 0 {
+		t.Fatalf("NewStream called while push unavailable: %d", got)
+	}
+
+	push.available.Store(true)
+	collector.Wake()
+	waitFor(t, func() bool { return push.newCalls.Load() == 1 })
+}
+
+func TestCollectorUsesDynamicPollingPolicyAndPreventsOverlap(t *testing.T) {
+	quotes := &policyQuoteSource{
+		collectorQuoteSource: collectorQuoteSource{
+			started: make(chan struct{}),
+			release: make(chan struct{}),
+		},
+		policy: QuotePollingPolicy{Interval: time.Hour, Timeout: time.Hour},
+	}
+	collector := NewCollector(NewCache(), quotes, nil, nil, CollectorOptions{
+		PollInterval: time.Millisecond, QueryTimeout: time.Millisecond, DemandInterval: time.Hour,
+	})
+	t.Cleanup(func() { jftradeCheckTestError(t, collector.Close()) })
+	collector.SetDemandSources(DemandSourceFunc(func() []string { return []string{"US.AAPL"} }))
+	<-quotes.started
+
+	for range 5 {
+		collector.poll()
+	}
+	time.Sleep(10 * time.Millisecond)
+	if calls := quotes.calls.Load(); calls != 1 {
+		t.Fatalf("overlapping dynamic polls = %d, want 1", calls)
+	}
+	collector.Reset()
+	close(quotes.release)
+}
+
+func TestCollectorDemandChangeCancelsPreviousProviderPoll(t *testing.T) {
+	quotes := &churnQuoteSource{started: make(chan string, 3)}
+	var demand atomic.Value
+	demand.Store([]string{"US.AAPL"})
+	collector := NewCollector(NewCache(), quotes, nil, nil, CollectorOptions{
+		PollInterval: time.Hour, QueryTimeout: time.Hour, DemandInterval: time.Hour,
+	})
+	t.Cleanup(func() { jftradeCheckTestError(t, collector.Close()) })
+	collector.SetDemandSources(DemandSourceFunc(func() []string {
+		return jftradeCheckedTypeAssertion[[]string](demand.Load())
+	}))
+	if instrumentID := <-quotes.started; instrumentID != "US.AAPL" {
+		t.Fatalf("first poll instrument = %q", instrumentID)
+	}
+
+	demand.Store([]string{"US.MSFT"})
+	collector.Wake()
+	if instrumentID := <-quotes.started; instrumentID != "US.MSFT" {
+		t.Fatalf("second poll instrument = %q", instrumentID)
+	}
+	waitFor(t, func() bool { return quotes.canceled.Load() == 1 })
+
+	demand.Store([]string{"US.NVDA"})
+	collector.Wake()
+	if instrumentID := <-quotes.started; instrumentID != "US.NVDA" {
+		t.Fatalf("third poll instrument = %q", instrumentID)
+	}
+	waitFor(t, func() bool { return quotes.canceled.Load() == 2 })
+}
+
 func TestCollectorResetInvalidatesBlockingQueryResult(t *testing.T) {
 	cache := NewCache()
 	quotes := &collectorQuoteSource{
@@ -106,7 +245,6 @@ func TestCollectorResetInvalidatesBlockingQueryResult(t *testing.T) {
 	})
 	t.Cleanup(func() { jftradeErr5 := collector.Close(); jftradeCheckTestError(t, jftradeErr5) })
 	collector.SetDemandSources(DemandSourceFunc(func() []string { return []string{"HK.00700"} }))
-	collector.poll()
 	<-quotes.started
 	collector.Reset()
 	close(quotes.release)
@@ -186,6 +324,56 @@ type collectorPushSource struct {
 	newCalls atomic.Int64
 }
 
+type availabilityPushSource struct {
+	available atomic.Bool
+	newCalls  atomic.Int64
+}
+
+type blockingLifecyclePushSource struct {
+	stream *blockingLifecycleStream
+}
+
+func (s *blockingLifecyclePushSource) NewStream(_ []string, handler PushTickHandler) (PushStream, error) {
+	s.stream.handler = handler
+	return s.stream, nil
+}
+
+type blockingLifecycleStream struct {
+	handler        PushTickHandler
+	connectStarted chan struct{}
+	connectRelease chan struct{}
+	closeStarted   chan struct{}
+	closeRelease   chan struct{}
+	closeOnce      sync.Once
+}
+
+func (s *blockingLifecycleStream) Connect(context.Context) error {
+	close(s.connectStarted)
+	<-s.connectRelease
+	return nil
+}
+
+func (s *blockingLifecycleStream) Close() error {
+	s.closeOnce.Do(func() {
+		if s.closeStarted != nil {
+			close(s.closeStarted)
+		}
+		if s.closeRelease != nil {
+			<-s.closeRelease
+		}
+	})
+	return nil
+}
+
+func (s *availabilityPushSource) PushAvailable() bool {
+	return s.available.Load()
+}
+
+func (s *availabilityPushSource) NewStream([]string, PushTickHandler) (PushStream, error) {
+	s.newCalls.Add(1)
+	return nil, errors.New("test stream unavailable")
+}
+
 func (s *collectorPushSource) NewStream(_ []string, handler PushTickHandler) (PushStream, error) {
 	s.newCalls.Add(1)
 	s.mu.Lock()
@@ -238,6 +426,32 @@ type collectorQuoteSource struct {
 	started chan struct{}
 	release chan struct{}
 	calls   atomic.Int64
+}
+
+type policyQuoteSource struct {
+	collectorQuoteSource
+	policy QuotePollingPolicy
+}
+
+func (s *policyQuoteSource) QuotePollingPolicy() QuotePollingPolicy {
+	return s.policy
+}
+
+type churnQuoteSource struct {
+	started  chan string
+	canceled atomic.Int64
+}
+
+func (s *churnQuoteSource) QueryTickers(
+	ctx context.Context,
+	instrumentIDs []string,
+) (map[string]Tick, error) {
+	if len(instrumentIDs) > 0 {
+		s.started <- instrumentIDs[0]
+	}
+	<-ctx.Done()
+	s.canceled.Add(1)
+	return nil, ctx.Err()
 }
 
 func (s *collectorQuoteSource) QueryTickers(ctx context.Context, _ []string) (map[string]Tick, error) {

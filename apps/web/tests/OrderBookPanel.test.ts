@@ -22,12 +22,14 @@ let workspacePrefs: ReturnType<
 >["prefs"] | null = null;
 
 const fetchEnvelopeMock = vi.fn();
+const providerStatusMock = vi.fn();
 const fetchEnvelopeWithInitMock = vi.fn();
 const acquireMarketDataSubscriptionMock = vi.fn();
 const heartbeatMarketDataConsumerMock = vi.fn();
 const releaseMarketDataSubscriptionMock = vi.fn();
 
 vi.mock("@/composables/shared/apiClient", () => ({
+  apiGet: (...args: unknown[]) => providerStatusMock(...args),
   fetchEnvelope: (...args: unknown[]) => fetchEnvelopeMock(...args),
   fetchEnvelopeWithInit: (...args: unknown[]) => fetchEnvelopeWithInitMock(...args),
   apiGetPath: (_template: string, path: string, init?: RequestInit) =>
@@ -96,11 +98,10 @@ function callSetup<T>(
 }
 
 async function flushOrderBook(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
-  await nextTick();
-  await Promise.resolve();
-  await nextTick();
+  for (let index = 0; index < 8; index += 1) {
+    await Promise.resolve();
+    await nextTick();
+  }
 }
 
 function deferred<T>() {
@@ -130,6 +131,7 @@ describe("OrderBookPanel", () => {
     resetSharedLiveSocketHubForTests();
     MockWebSocket.instances = [];
     fetchEnvelopeMock.mockReset();
+    providerStatusMock.mockReset();
     fetchEnvelopeWithInitMock.mockReset();
     acquireMarketDataSubscriptionMock.mockReset();
     heartbeatMarketDataConsumerMock.mockReset();
@@ -137,18 +139,9 @@ describe("OrderBookPanel", () => {
     acquireMarketDataSubscriptionMock.mockResolvedValue(true);
     heartbeatMarketDataConsumerMock.mockResolvedValue(undefined);
     releaseMarketDataSubscriptionMock.mockResolvedValue(undefined);
-    fetchEnvelopeMock.mockResolvedValue({
+    providerStatusMock.mockResolvedValue({
       descriptor: {
-        capabilities: [
-          {
-            readFeatures: {
-              orderBook: {
-                defaultNum: 10,
-                numPresets: [5, 10, 20, 50],
-              },
-            },
-          },
-        ],
+        capabilities: { orderBookDepth: true },
       },
     });
     fetchEnvelopeWithInitMock.mockResolvedValue({
@@ -274,6 +267,86 @@ describe("OrderBookPanel", () => {
     });
   });
 
+  it("does not acquire depth for Yahoo and releases an existing Futu depth lease", async () => {
+    const hub = getSharedLiveSocketHub();
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    expect(acquireMarketDataSubscriptionMock).toHaveBeenCalledTimes(1);
+    providerStatusMock.mockResolvedValue({
+      descriptor: {
+        capabilities: { orderBookDepth: false },
+      },
+    });
+    useBrokerProviderSelection().selectBrokerProvider("yfinance");
+    await flushOrderBook();
+
+    expect(wrapper.text()).toContain("当前行情提供者不支持盘口深度 / Level 2 数据");
+    expect(releaseMarketDataSubscriptionMock).toHaveBeenCalledWith({
+      consumerId: "web:workspace-depth:window:test",
+      market: "US",
+      symbol: "TME",
+      channel: "ORDER_BOOK",
+      keepalive: false,
+    });
+    expect(acquireMarketDataSubscriptionMock).toHaveBeenCalledTimes(1);
+    expect(hub.snapshotSubscriptions().depth).toEqual([]);
+
+    providerStatusMock.mockResolvedValue({
+      descriptor: {
+        capabilities: { orderBookDepth: true },
+      },
+    });
+    useBrokerProviderSelection().selectBrokerProvider("futu");
+    await flushOrderBook();
+
+    expect(wrapper.text()).not.toContain("当前行情提供者不支持盘口深度 / Level 2 数据");
+    expect(acquireMarketDataSubscriptionMock).toHaveBeenCalledTimes(2);
+    expect(fetchEnvelopeWithInitMock).toHaveBeenCalledTimes(2);
+    expect(hub.snapshotSubscriptions().depth).toEqual([{
+      market: "US",
+      symbol: "TME",
+      instrumentId: "US.TME",
+      num: 10,
+    }]);
+
+    wrapper.unmount();
+  });
+
+  it("waits for the active-provider capability before opening a depth lease", async () => {
+    const status = deferred<{ descriptor: { capabilities: { orderBookDepth: boolean } } }>();
+    providerStatusMock.mockReturnValueOnce(status.promise);
+
+    const wrapper = mountOrderBookPanel();
+    await nextTick();
+
+    expect(acquireMarketDataSubscriptionMock).not.toHaveBeenCalled();
+    expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
+
+    status.resolve({ descriptor: { capabilities: { orderBookDepth: false } } });
+    await flushOrderBook();
+
+    expect(wrapper.text()).toContain("当前行情提供者不支持盘口深度 / Level 2 数据");
+    expect(acquireMarketDataSubscriptionMock).not.toHaveBeenCalled();
+    expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
+
+    wrapper.unmount();
+  });
+
+  it("fails closed without opening depth when the capability status probe is unavailable", async () => {
+    providerStatusMock.mockRejectedValueOnce(new Error("provider status unavailable"));
+    useBrokerProviderSelection().selectBrokerProvider("yfinance");
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    expect(acquireMarketDataSubscriptionMock).not.toHaveBeenCalled();
+    expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("当前行情提供者不支持盘口深度 / Level 2 数据");
+    expect(getSharedLiveSocketHub().snapshotSubscriptions().depth).toEqual([]);
+
+    wrapper.unmount();
+  });
+
   it("keeps one websocket connection when the page becomes visible again", async () => {
     const hub = getSharedLiveSocketHub();
     const originalVisibilityState = document.visibilityState;
@@ -285,8 +358,7 @@ describe("OrderBookPanel", () => {
     const wrapper = mountOrderBookPanel();
     hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
 
-    await Promise.resolve();
-    await nextTick();
+    await flushOrderBook();
 
     const initialStreamCount = MockWebSocket.instances.length;
 
@@ -417,7 +489,7 @@ describe("OrderBookPanel", () => {
     wrapper.unmount();
   });
 
-  it("routes depth reads and leases through the selected provider", async () => {
+  it("routes depth reads through the active data provider while retaining the broker-owned lease", async () => {
     useBrokerProviderSelection().selectBrokerProvider("alpha");
     const wrapper = mountOrderBookPanel();
     await flushOrderBook();
@@ -430,7 +502,7 @@ describe("OrderBookPanel", () => {
       channel: "ORDER_BOOK",
     });
     expect(fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
-      "/api/v1/market-data/depth/US/TME?num=10&brokerId=alpha",
+      "/api/v1/market-data/depth/US/TME?num=10",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
 
@@ -955,8 +1027,7 @@ describe("OrderBookPanel", () => {
       .mockResolvedValueOnce(true);
 
     const wrapper = mountOrderBookPanel();
-    await Promise.resolve();
-    await nextTick();
+    await flushOrderBook();
 
     workspacePrefs!.value = {
       ...workspacePrefs!.value,

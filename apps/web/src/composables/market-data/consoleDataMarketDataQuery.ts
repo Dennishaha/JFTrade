@@ -1,10 +1,13 @@
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
+
+import type { MarketProfileDto } from "@/types";
 
 import { apiGetPath } from "@/composables/shared/apiClient";
 import {
   normalizeInstrumentParts,
 } from "@/composables/market-data/consoleDataMarketInstruments";
-import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
+import { resolveMarketInstrumentCandidates } from "@/composables/market-data/instrumentResolver";
+import { useMarketProfiles } from "@/composables/market-data/marketProfiles";
 import {
   createMarketDataQueryController,
   type LoadMarketDataQueryOptions,
@@ -18,8 +21,93 @@ import {
 } from "@/composables/market-data/marketDataRealtime";
 import { normalizeMarketSecurityDetailsQueryResult } from "@/composables/market-data/marketSecurityNormalization";
 
+interface ProviderFallbackInstrument {
+  market: string;
+  symbol: string;
+}
+
+const DEFAULT_PROVIDER_FALLBACK_INSTRUMENTS: readonly ProviderFallbackInstrument[] = [
+  { market: "HK", symbol: "00700" },
+];
+
+interface ProviderInstrumentIdentity {
+  market: string;
+  symbol: string;
+  instrumentId: string;
+}
+
+function normalizeMarket(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function profileIdentity(profile: MarketProfileDto): string {
+  return normalizeMarket(profile.resolvedMarket);
+}
+
+function providerInstrumentIdentity(
+  market: string,
+  symbol: string,
+): ProviderInstrumentIdentity | null {
+  const normalizedMarket = normalizeMarket(market);
+  const normalizedSymbol = symbol.trim().toUpperCase().replace(":", ".");
+  if (normalizedMarket === "" || normalizedSymbol === "") {
+    return null;
+  }
+  return {
+    market: normalizedMarket,
+    symbol: normalizedSymbol,
+    instrumentId: `${normalizedMarket}.${normalizedSymbol}`,
+  };
+}
+
+function candidateMatchesProviderInstrument(
+  candidate: {
+    market: string;
+    instrumentId: string;
+    code: string;
+    symbol: string;
+  },
+  expected: ProviderInstrumentIdentity,
+): boolean {
+  const candidateInstrumentId = candidate.instrumentId
+    .trim()
+    .toUpperCase()
+    .replace(":", ".");
+  if (candidateInstrumentId === expected.instrumentId) {
+    return true;
+  }
+  const candidateMarket = normalizeMarket(candidate.market);
+  const candidateCode = (candidate.code || candidate.symbol).trim().toUpperCase();
+  return candidateMarket === expected.market && candidateCode === expected.symbol;
+}
+
+async function isSelectableProviderInstrument(
+  market: string,
+  symbol: string,
+): Promise<boolean> {
+  const expected = providerInstrumentIdentity(market, symbol);
+  if (expected == null) {
+    return false;
+  }
+  try {
+    const resolution = await resolveMarketInstrumentCandidates({
+      market: expected.market,
+      query: expected.instrumentId,
+      limit: 1,
+    });
+    const candidate = resolution.entries[0];
+    return (
+      resolution.resolutionStatus === "resolved" &&
+      resolution.entries.length === 1 &&
+      candidate?.selectable === true &&
+      candidateMatchesProviderInstrument(candidate, expected)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function createConsoleDataMarketDataQuerySlice() {
-  const { selectedBrokerId } = useBrokerProviderSelection();
   const marketDataQueryMarket = ref("HK");
   const marketDataQuerySymbol = ref("00700");
   const marketDataQueryPeriod = ref("1m");
@@ -36,6 +124,11 @@ export function createConsoleDataMarketDataQuerySlice() {
   const marketDataOlderError = ref("");
   const marketDataQueryError = ref("");
   const lastDataRefreshedAt = ref(0);
+  const {
+    defaultMarket,
+    findMarketProfile,
+    marketOptions,
+  } = useMarketProfiles();
 
   function isMarketDataStale(maxAgeMs = 30_000): boolean {
     if (lastDataRefreshedAt.value === 0) return true;
@@ -83,11 +176,92 @@ export function createConsoleDataMarketDataQuerySlice() {
         ),
       ),
     normalizeInstrumentParts,
-    resolveBrokerId: () => selectedBrokerId.value,
   });
-  watch(selectedBrokerId, () => {
+
+  function invalidateMarketDataProvider(): void {
     marketDataQueryController.invalidateProviderSelection();
-  });
+  }
+
+  async function reconcileMarketDataProvider(
+    fallbackInstruments: ProviderFallbackInstrument[],
+  ): Promise<boolean> {
+    invalidateMarketDataProvider();
+    const currentMarket = normalizeMarket(marketDataQueryMarket.value);
+    const currentSymbol = marketDataQuerySymbol.value.trim().toUpperCase();
+    if (
+      currentSymbol !== "" &&
+      activeMarketDataInstrumentId.value !== "" &&
+      findMarketProfile(currentMarket) != null
+    ) {
+      if (await isSelectableProviderInstrument(currentMarket, currentSymbol)) {
+        return true;
+      }
+    }
+
+    const fallbackMarket = [
+      defaultMarket.value,
+      ...marketOptions.value.map((option) => option.value),
+    ]
+      .map(normalizeMarket)
+      .find((market) => findMarketProfile(market) != null) ?? "";
+    const preferredProfile = findMarketProfile(fallbackMarket);
+    const supportedFallbacks = fallbackInstruments.flatMap((instrument) => {
+      const profile = findMarketProfile(instrument.market);
+      return profile == null ? [] : [{ instrument, profile }];
+    });
+    const orderedFallbacks =
+      preferredProfile == null
+        ? supportedFallbacks
+        : [
+            ...supportedFallbacks.filter(
+              ({ profile }) =>
+                profileIdentity(profile) === profileIdentity(preferredProfile),
+            ),
+            ...supportedFallbacks.filter(
+              ({ profile }) =>
+                profileIdentity(profile) !== profileIdentity(preferredProfile),
+            ),
+          ];
+    const fallbackCandidates = [
+      ...orderedFallbacks,
+      ...DEFAULT_PROVIDER_FALLBACK_INSTRUMENTS.flatMap((instrument) => {
+        const profile = findMarketProfile(instrument.market);
+        return profile == null ? [] : [{ instrument, profile }];
+      }),
+    ];
+    const checked = new Set<string>();
+    const currentIdentity = providerInstrumentIdentity(
+      currentMarket,
+      currentSymbol,
+    );
+    if (currentIdentity != null) {
+      checked.add(currentIdentity.instrumentId);
+    }
+    for (const fallback of fallbackCandidates) {
+      const identity = providerInstrumentIdentity(
+        fallback.instrument.market,
+        fallback.instrument.symbol,
+      );
+      if (identity == null || checked.has(identity.instrumentId)) {
+        continue;
+      }
+      checked.add(identity.instrumentId);
+      if (
+        await isSelectableProviderInstrument(
+          identity.market,
+          identity.symbol,
+        )
+      ) {
+        marketDataQueryController.selectInstrument(fallback.instrument);
+        return activeMarketDataInstrumentId.value !== "";
+      }
+    }
+
+    marketDataQueryMarket.value = fallbackMarket;
+    marketDataQuerySymbol.value = "";
+    activeMarketDataInstrumentId.value = "";
+    return false;
+  }
 
   const currentMarketDataSnapshot = computed(() =>
     marketDataSnapshot.value?.request.instrumentId.trim().toUpperCase() ===
@@ -139,6 +313,7 @@ export function createConsoleDataMarketDataQuerySlice() {
     isLoadingMarketDataQuery,
     isLoadingOlderMarketData,
     hasMoreMarketDataHistory,
+    invalidateMarketDataProvider,
     isMarketDataSwitching,
     lastDataRefreshedAt,
     loadMarketDataQuery,
@@ -150,6 +325,7 @@ export function createConsoleDataMarketDataQuerySlice() {
     marketDataQueryMarket,
     marketDataQueryPeriod,
     marketDataQuerySymbol,
+    reconcileMarketDataProvider,
     marketSecurityDetails,
     marketDataSnapshot,
     selectMarketDataInstrument,

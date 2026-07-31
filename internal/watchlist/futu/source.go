@@ -419,12 +419,16 @@ func watchlistQuoteFromBrokerSnapshot(instrumentID string, item broker.SecurityS
 	quote := watchlist.Quote{
 		InstrumentID: instrumentID, Name: watchlistStringValue(item.Name), Type: watchlistStringValue(item.SecurityType),
 		Source: "futu:security-snapshot", Price: cloneFloat(price), PreviousClose: cloneFloat(item.PreviousClose),
+		Volume: cloneFloat(item.Volume), Turnover: cloneFloat(item.Turnover),
 		Session: session, ObservedAt: observedAt, UpdateTime: updateTime,
 		Extended: &watchlist.ExtendedQuote{
 			Pre:       extendedQuoteBlock(item.PreMarket, observedAt, updateTime, item.PreviousClose),
 			After:     extendedQuoteBlock(item.AfterMarket, observedAt, updateTime, item.PreviousClose),
 			Overnight: extendedQuoteBlock(item.Overnight, observedAt, updateTime, item.PreviousClose),
 		},
+	}
+	if item.Fund != nil {
+		quote.AssetClass = strings.TrimSpace(item.Fund.AssetClass)
 	}
 	if quote.Extended.Pre == nil && quote.Extended.After == nil && quote.Extended.Overnight == nil {
 		quote.Extended = nil

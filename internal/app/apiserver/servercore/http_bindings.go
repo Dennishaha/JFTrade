@@ -6,10 +6,6 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 )
 
-func newOptionalIntValue(value int) httpserver.OptionalIntValue {
-	return httpserver.OptionalIntValue{Value: value, Set: true, Valid: true}
-}
-
 func newOptionalTimeValue(value time.Time) httpserver.OptionalTimeValue {
 	return httpserver.OptionalTimeValue{Time: value}
 }

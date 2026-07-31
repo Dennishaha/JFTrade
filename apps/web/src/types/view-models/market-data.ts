@@ -221,6 +221,26 @@ export interface MarketSecurityDetails {
   highPrecisionVolume?: number | null;
   highPrecisionAskVol?: number | null;
   highPrecisionBidVol?: number | null;
+  // Provider-neutral profile/fundamental fields used by delayed providers
+  // such as Yahoo Finance. Futu-specific fields above remain unchanged.
+  exchange?: string | null;
+  currency?: string | null;
+  timezone?: string | null;
+  industry?: string | null;
+  sector?: string | null;
+  website?: string | null;
+  businessSummary?: string | null;
+  marketCap?: number | null;
+  trailingPe?: number | null;
+  forwardPe?: number | null;
+  trailingEps?: number | null;
+  forwardEps?: number | null;
+  dividendRate?: number | null;
+  dividendYield?: number | null;
+  fiftyTwoWeekHigh?: number | null;
+  fiftyTwoWeekLow?: number | null;
+  averageVolume?: number | null;
+  sharesOutstanding?: number | null;
   extended?: MarketDataExtendedQuoteBlocks | null;
   equity?: MarketSecurityEquityDetails | null;
   warrant?: MarketSecurityWarrantDetails | null;

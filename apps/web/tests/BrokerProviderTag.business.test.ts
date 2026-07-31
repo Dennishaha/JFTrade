@@ -5,10 +5,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const apiMocks = vi.hoisted(() => ({
   fetchEnvelope: vi.fn(),
+  putEnvelope: vi.fn(),
 }));
 
 vi.mock("@/composables/shared/apiClient", () => ({
   apiGet: apiMocks.fetchEnvelope,
+  apiPut: apiMocks.putEnvelope,
 }));
 
 import BrokerProviderTag from "../src/components/shared/BrokerProviderTag.vue";
@@ -82,11 +84,43 @@ const capabilities = {
 
 afterEach(() => {
   apiMocks.fetchEnvelope.mockReset();
+  apiMocks.putEnvelope.mockReset();
   resetBrokerProviderSelectionForTests();
   vi.restoreAllMocks();
 });
 
 describe("broker provider tag", () => {
+  it("shows the embedded Yahoo provider on market-data surfaces and switches it through settings", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) =>
+      url.includes("/api/v1/settings/market-data-provider")
+        ? Promise.resolve({ activeProvider: "futu" })
+        : Promise.resolve(capabilities),
+    );
+    apiMocks.putEnvelope.mockResolvedValue({ activeProvider: "yfinance" });
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        featureIds: ["market.candles", "research.rankings"],
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    expect(wrapper.get(".broker-provider-tag").text()).toContain("Futu");
+    await wrapper.get(".broker-provider-tag").trigger("click");
+    const yfinance = wrapper
+      .findAll('.broker-provider-tag__menu button[role="option"]')
+      .find((button) => button.text().includes("Yahoo Finance"));
+    expect(yfinance).toBeDefined();
+    await yfinance!.trigger("click");
+    expect(apiMocks.putEnvelope).toHaveBeenCalledWith(
+      "/api/v1/settings/market-data-provider",
+      { activeProvider: "yfinance" },
+    );
+  });
+
   it("keeps the toolbar compact and switches the shared persisted provider", async () => {
     apiMocks.fetchEnvelope.mockResolvedValue(capabilities);
     const selection = useBrokerProviderSelection();
@@ -756,6 +790,26 @@ describe("broker provider tag", () => {
       "1d",
     ]);
     expect(brokerSupportedChartPeriods("missing", "US", descriptors)).toBeNull();
+    expect(brokerSupportedChartPeriods("yfinance", "US", descriptors)).toEqual([
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "1d",
+      "1w",
+      "1mo",
+    ]);
+    expect(brokerSupportedChartPeriods("yfinance", "HK", descriptors)).toEqual([
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "1d",
+      "1w",
+      "1mo",
+    ]);
   });
 
   it("covers capability fallbacks without a market or selected descriptor", () => {

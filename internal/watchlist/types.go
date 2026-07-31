@@ -203,6 +203,9 @@ type Quote struct {
 	PreviousClose *float64       `json:"previousClose,omitempty"`
 	Change        *float64       `json:"change,omitempty"`
 	ChangePercent *float64       `json:"changePercent,omitempty"`
+	Volume        *float64       `json:"volume,omitempty"`
+	Turnover      *float64       `json:"turnover,omitempty"`
+	AssetClass    string         `json:"assetClass,omitempty"`
 	Session       string         `json:"session,omitempty"`
 	ObservedAt    time.Time      `json:"observedAt"`
 	UpdateTime    *time.Time     `json:"updateTime,omitempty"`

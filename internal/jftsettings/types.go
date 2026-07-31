@@ -34,6 +34,14 @@ type BrokerIntegration struct {
 	CreatedAt string                `json:"createdAt"`
 }
 
+// ActiveMarketDataProvider records the currently selected market-data source.
+type ActiveMarketDataProvider string
+
+const (
+	MarketDataProviderFutu     ActiveMarketDataProvider = "futu"
+	MarketDataProviderYFinance ActiveMarketDataProvider = "yfinance"
+)
+
 // ManagedBrokerAccount represents a managed broker account record.
 type ManagedBrokerAccount struct {
 	ID                 string  `json:"id"`

@@ -426,6 +426,46 @@ func TestSubscriptionRequiredErrorsAndManagedReadDemandBoundaries(t *testing.T) 
 	})
 }
 
+type pollOnlySubscriptionProvider struct {
+	stubProvider
+	snapshot Tick
+}
+
+func (*pollOnlySubscriptionProvider) Descriptor(context.Context) (ProviderDescriptor, error) {
+	return ProviderDescriptor{
+		ProviderID: "poll-only", Source: "poll-only",
+		Capabilities: ProviderCapabilities{Snapshots: true},
+	}, nil
+}
+
+func (p *pollOnlySubscriptionProvider) QuerySnapshot(context.Context, string) (*Tick, error) {
+	snapshot := p.snapshot
+	return &snapshot, nil
+}
+
+func TestPollOnlyProviderPreservesLogicalLeaseAndRejectsUnsupportedReadsFirst(t *testing.T) {
+	sample := tickAt("US.AAPL", "188.5", 10, time.Now().UTC())
+	sample.Source = "poll-only"
+	service := NewService(&pollOnlySubscriptionProvider{snapshot: sample})
+	service.SetSubscriptionReconciler(&fakeSubscriptionReconciler{})
+
+	if _, err := service.GetSnapshot(
+		context.Background(), "US", "AAPL", true,
+	); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("poll-only snapshot without logical lease = %v", err)
+	}
+	if _, err := service.GetDepth(
+		context.Background(), "US", "AAPL", 10,
+	); !errors.Is(err, ErrCapabilityUnsupported) {
+		t.Fatalf("poll-only depth error = %v", err)
+	}
+	if _, err := service.GetCandles(
+		context.Background(), "US", "AAPL", "tick", 1, "", "",
+	); !errors.Is(err, ErrCapabilityUnsupported) {
+		t.Fatalf("poll-only tick candles error = %v", err)
+	}
+}
+
 func TestServiceMergesAdditionalDemandIntoExactReconciliation(t *testing.T) {
 	reconciler := &fakeSubscriptionReconciler{}
 	service := NewService(stubProvider{})
@@ -442,12 +482,16 @@ func TestServiceMergesAdditionalDemandIntoExactReconciliation(t *testing.T) {
 	if _, err := service.AcquireSubscription(context.Background(), "chart", []InstrumentRef{{Channel: "KLINE", Market: "HK", Symbol: "00700", Interval: "5m"}}); err != nil {
 		t.Fatalf("AcquireSubscription: %v", err)
 	}
-	refs := service.activeSubscriptionDemand()
+	refs := service.ActiveSubscriptionDemand()
 	if len(refs) != 2 {
 		t.Fatalf("merged exact demand = %#v", refs)
 	}
 	if refs[0].Channel != "KLINE" || refs[1].Channel != "SNAPSHOT" || refs[1].Market != "US" || refs[1].Symbol != "AAPL" {
 		t.Fatalf("merged exact refs = %#v", refs)
+	}
+	var unavailable *Service
+	if refs := unavailable.ActiveSubscriptionDemand(); refs != nil {
+		t.Fatalf("nil service demand = %#v", refs)
 	}
 }
 

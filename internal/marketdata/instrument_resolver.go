@@ -111,6 +111,7 @@ type MarketSubsetInstrumentResolver struct {
 	cacheMu        sync.Mutex
 	searchCache    map[string]cachedInstrumentSearch
 	searchGroup    singleflight.Group
+	generation     uint64
 	now            func() time.Time
 }
 
@@ -218,8 +219,10 @@ func (r *MarketSubsetInstrumentResolver) search(ctx context.Context, query strin
 		return cached, nil
 	}
 
-	resultCh := r.searchGroup.DoChan(key, func() (any, error) {
-		entries, err := r.loadAndCacheSearch(ctx, key, query)
+	generation := r.cacheGeneration()
+	flightKey := fmt.Sprintf("%d:%s", generation, key)
+	resultCh := r.searchGroup.DoChan(flightKey, func() (any, error) {
+		entries, err := r.loadAndCacheSearch(ctx, key, query, generation)
 		return entries, err
 	})
 	select {
@@ -234,7 +237,12 @@ func (r *MarketSubsetInstrumentResolver) search(ctx context.Context, query strin
 	}
 }
 
-func (r *MarketSubsetInstrumentResolver) loadAndCacheSearch(ctx context.Context, key, query string) ([]InstrumentCandidate, error) {
+func (r *MarketSubsetInstrumentResolver) loadAndCacheSearch(
+	ctx context.Context,
+	key string,
+	query string,
+	generation uint64,
+) ([]InstrumentCandidate, error) {
 	// A caller can miss the cache, get descheduled before entering
 	// singleflight, then resume after the previous flight has populated the
 	// cache. Recheck here so that race does not issue a duplicate provider
@@ -251,6 +259,10 @@ func (r *MarketSubsetInstrumentResolver) loadAndCacheSearch(ctx context.Context,
 	entries = append([]InstrumentCandidate(nil), entries...)
 	now := r.now()
 	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+	if r.generation != generation {
+		return entries, nil
+	}
 	for cachedKey, cached := range r.searchCache {
 		if !now.Before(cached.expiresAt) {
 			delete(r.searchCache, cachedKey)
@@ -260,8 +272,26 @@ func (r *MarketSubsetInstrumentResolver) loadAndCacheSearch(ctx context.Context,
 		expiresAt: now.Add(instrumentSearchCacheTTL),
 		entries:   entries,
 	}
-	r.cacheMu.Unlock()
 	return entries, nil
+}
+
+// Reset invalidates provider-owned search results. In-flight work from an old
+// provider generation may finish for its original caller but cannot repopulate
+// the cache or coalesce with searches started after the switch.
+func (r *MarketSubsetInstrumentResolver) Reset() {
+	if r == nil {
+		return
+	}
+	r.cacheMu.Lock()
+	r.generation++
+	r.searchCache = make(map[string]cachedInstrumentSearch)
+	r.cacheMu.Unlock()
+}
+
+func (r *MarketSubsetInstrumentResolver) cacheGeneration() uint64 {
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+	return r.generation
 }
 
 func (r *MarketSubsetInstrumentResolver) cachedSearch(key string) ([]InstrumentCandidate, bool) {

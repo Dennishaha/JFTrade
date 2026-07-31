@@ -15,12 +15,14 @@ const marketSecurityDetails = ref<any>(null);
 const mocks = vi.hoisted(() => ({
   acquire: vi.fn(),
   fetchEnvelope: vi.fn(),
+  providerStatus: vi.fn(),
   fetchEnvelopeWithInit: vi.fn(),
   heartbeat: vi.fn(),
   release: vi.fn(),
 }));
 
 vi.mock("@/composables/shared/apiClient", () => ({
+  apiGet: (...args: unknown[]) => mocks.providerStatus(...args),
   fetchEnvelope: (...args: unknown[]) => mocks.fetchEnvelope(...args),
   fetchEnvelopeWithInit: (...args: unknown[]) => mocks.fetchEnvelopeWithInit(...args),
   apiGetPath: (_template: string, path: string, init?: RequestInit) =>
@@ -73,11 +75,10 @@ function callSetup<T>(wrapper: ReturnType<typeof mountPanel>, key: string, ...ar
 }
 
 async function flushPanel(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
-  await nextTick();
-  await Promise.resolve();
-  await nextTick();
+  for (let index = 0; index < 8; index += 1) {
+    await Promise.resolve();
+    await nextTick();
+  }
 }
 
 function deferred<T>() {
@@ -96,8 +97,9 @@ describe("OrderBookPanel subscription lifecycle boundaries", () => {
     mocks.acquire.mockResolvedValue(true);
     mocks.heartbeat.mockResolvedValue(undefined);
     mocks.release.mockResolvedValue(undefined);
-    mocks.fetchEnvelope.mockResolvedValue({
-      descriptor: { capabilities: [{ readFeatures: { orderBook: { defaultNum: 10 } } }] },
+    mocks.providerStatus.mockReset();
+    mocks.providerStatus.mockResolvedValue({
+      descriptor: { capabilities: { orderBookDepth: true } },
     });
     mocks.fetchEnvelopeWithInit.mockResolvedValue({
       request: { market: "US", symbol: "TME", instrumentId: "US.TME", num: 10 },
@@ -166,8 +168,7 @@ describe("OrderBookPanel subscription lifecycle boundaries", () => {
     const lateAcquire = deferred<boolean>();
     mocks.acquire.mockReturnValueOnce(lateAcquire.promise);
     const wrapper = mountPanel();
-    await Promise.resolve();
-    await nextTick();
+    await flushPanel();
     wrapper.unmount();
 
     lateAcquire.resolve(true);

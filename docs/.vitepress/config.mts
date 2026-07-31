@@ -35,6 +35,7 @@ export default defineConfig({
     nav: [
       { text: "快速开始", link: "/quick-start" },
       { text: "配置", link: "/configuration" },
+      { text: "行情数据源", link: "/market-data-providers" },
       { text: "使用指南", link: "/usage" },
       { text: "自选", link: "/watchlist" },
       { text: "排障", link: "/troubleshooting" },
@@ -48,6 +49,7 @@ export default defineConfig({
           { text: "文档首页", link: "/" },
           { text: "快速开始", link: "/quick-start" },
           { text: "配置", link: "/configuration" },
+          { text: "行情数据源", link: "/market-data-providers" },
           { text: "使用指南", link: "/usage" },
           { text: "回测执行模型", link: "/backtest-execution-model" },
           { text: "自选系统", link: "/watchlist" },
@@ -71,6 +73,7 @@ export default defineConfig({
           { text: "架构 Mermaid 图", link: "/architecture-mermaid" },
           { text: "测试与质量门禁", link: "/testing-strategy" },
           { text: "PineTS 发布清单", link: "/troubleshooting/pinets-worker-release" },
+          { text: "yfinance sidecar 排障", link: "/troubleshooting/yfinance-sidecar" },
           { text: "ADK", link: "/adk" },
           { text: "活动路线图", link: "/roadmap" },
           { text: "新券商接入", link: "/new-broker-integration-guide" },

@@ -65,6 +65,9 @@ const displayModel = computed(() =>
 const quoteObservedAt = computed(() =>
   snapshot.value?.observedAt ?? snapshot.value?.at ?? marketDataSnapshot.value?.meta.resolvedAt ?? null,
 );
+const quoteDisplayAt = computed(() =>
+  snapshot.value?.at ?? snapshot.value?.observedAt ?? marketDataSnapshot.value?.meta.resolvedAt ?? null,
+);
 const quoteConnectionState = computed(() => liveHub.connectionState?.value ?? "idle");
 const quoteTransportMode = computed(() => liveHub.lastHeartbeatEvent?.value?.transport?.mode ?? null);
 const mainPriceLabel = computed(() => displayModel.value.mainPriceLabel);
@@ -180,18 +183,19 @@ type DetailSection = {
 const securitySummaryRows = computed<DetailRow[]>(() => {
   const item = security.value;
   if (!item) return [];
+  const currentSnapshot = snapshot.value;
   return [
     { label: "类型", value: item.securityType || "—" },
-    { label: "交易所", value: item.exchangeType || item.market || "—" },
+    { label: "交易所", value: item.exchangeType || item.exchange || item.market || "—" },
     { label: "状态", value: formatSecurityStatus(item) },
     { label: "每手", value: formatInteger(item.lotSize) },
     { label: "上市", value: item.listTime || "—" },
-    { label: "昨收", value: formatPrice(item.lastClosePrice) },
-    { label: "开盘", value: formatPrice(item.openPrice) },
-    { label: "最高", value: formatPrice(item.highPrice) },
-    { label: "最低", value: formatPrice(item.lowPrice) },
-    { label: "52周高", value: formatMaybePrice(item.highest52WeeksPrice) },
-    { label: "52周低", value: formatMaybePrice(item.lowest52WeeksPrice) },
+    { label: "昨收", value: formatPrice(firstPositive(currentSnapshot?.lastClosePrice, item.lastClosePrice, currentSnapshot?.previousClosePrice)) },
+    { label: "开盘", value: formatPrice(firstPositive(currentSnapshot?.openPrice, item.openPrice)) },
+    { label: "最高", value: formatPrice(firstPositive(currentSnapshot?.highPrice, item.highPrice)) },
+    { label: "最低", value: formatPrice(firstPositive(currentSnapshot?.lowPrice, item.lowPrice)) },
+    { label: "52周高", value: formatPrice(firstPositive(item.highest52WeeksPrice, item.fiftyTwoWeekHigh)) },
+    { label: "52周低", value: formatPrice(firstPositive(item.lowest52WeeksPrice, item.fiftyTwoWeekLow)) },
     { label: "量比", value: formatPlainNumber(item.volumeRatio) },
   ];
 });
@@ -213,6 +217,36 @@ const typedDetailSections = computed<DetailSection[]>(() => {
         { label: "股息率 TTM", value: formatPercentValue(item.equity.dividendRatioTTM) },
       ],
     });
+  }
+  const providerRows: DetailRow[] = [
+    { label: "币种", value: item.currency || "—" },
+    { label: "时区", value: item.timezone || "—" },
+    { label: "行业", value: item.industry || "—" },
+    { label: "板块", value: item.sector || "—" },
+    { label: "总市值", value: formatCompactNumber(item.marketCap) },
+    { label: "总股本", value: formatInteger(item.sharesOutstanding) },
+    { label: "PE TTM", value: formatPlainNumber(item.trailingPe) },
+    { label: "Forward PE", value: formatPlainNumber(item.forwardPe) },
+    { label: "EPS", value: formatPlainNumber(item.trailingEps) },
+    { label: "Forward EPS", value: formatPlainNumber(item.forwardEps) },
+    { label: "股息率", value: formatPercentValue(item.dividendYield) },
+    { label: "均量", value: formatInteger(item.averageVolume) },
+  ];
+  if (
+    item.currency ||
+    item.timezone ||
+    item.industry ||
+    item.sector ||
+    item.marketCap != null ||
+    item.sharesOutstanding != null ||
+    item.trailingPe != null ||
+    item.forwardPe != null ||
+    item.trailingEps != null ||
+    item.forwardEps != null ||
+    item.dividendYield != null ||
+    item.averageVolume != null
+  ) {
+    sections.push({ title: "基础资料", rows: providerRows });
   }
   if (item.option) {
     sections.push({
@@ -320,6 +354,10 @@ function formatPercentValue(value: number | null | undefined): string {
   return formatSharedPercent(value);
 }
 
+function firstPositive(...values: Array<number | null | undefined>): number | null {
+  return values.find((value) => typeof value === "number" && Number.isFinite(value) && value > 0) ?? null;
+}
+
 function formatOwner(owner: { instrumentId: string } | null | undefined): string {
   return owner == null
     ? "—"
@@ -364,7 +402,7 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
             supportsExtendedHoursMarket ? displayModel.sessionLabel : ''
           "
           :session-active="displayModel.session === 'regular'"
-          :status-text="formatDateTime(snapshot.observedAt ?? snapshot.at)"
+          :status-text="formatDateTime(quoteDisplayAt)"
           :favorite-visible="true"
           :favorite-active="isWatchlisted"
           favorite-test-id="instrument-overview-favorite"
@@ -465,9 +503,6 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
           <DenseMetricStrip :items="securitySummaryRows" />
         </div>
 
-        <div v-if="!supportsExtendedHoursMarket" style="margin-top: auto; font-size: 11px; color: var(--tv-text-dim); line-height: 1.5">
-          非美股当前先按底层快照展示主价格；扩展时段数据是否可用，后续再按实际行情源补齐。
-        </div>
       </div>
       <div v-else
         style="display: flex; align-items: center; justify-content: center; min-height: 180px; color: var(--tv-text-dim); text-align: center; padding: 24px">

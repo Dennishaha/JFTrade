@@ -377,10 +377,10 @@ async function initializeConsoleShell(): Promise<void> {
     ) {
       await router.replace("/oobe");
     }
+    await console_.initialize();
   } finally {
     onboardingGateReady.value = true;
   }
-  await console_.initialize();
 }
 
 const stopFutuOpenDMessages = watch(

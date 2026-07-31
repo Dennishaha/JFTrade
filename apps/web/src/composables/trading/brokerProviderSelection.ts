@@ -612,6 +612,13 @@ export function brokerSupportedChartPeriods(
   descriptors = brokerDescriptors.value,
 ): string[] | null {
   const normalizedBroker = normalizedID(brokerId);
+  if (normalizedBroker === "yfinance") {
+    const normalizedMarket = market.trim().toUpperCase();
+    return normalizedMarket === "" ||
+      new Set(["US", "HK", "CN", "SH", "SZ"]).has(normalizedMarket)
+      ? ["1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"]
+      : [];
+  }
   const descriptor = normalizedBroker
     ? descriptors.find(
         (candidate) => normalizedID(candidate.id) === normalizedBroker,

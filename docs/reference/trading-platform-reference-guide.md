@@ -17,7 +17,7 @@
 
 - 回测已使用显式 execution model；新增成交语义必须保持模型版本和结果元数据可追溯。
 - broker capability catalog/router 已落地，下一步是补齐可复用的 connector conformance fake 和边界测试，而不是急着接第二个真实券商。
-- 行情 provider descriptor 已落地；没有真实的第二 provider 前不增加 registry 抽象，也不引入外部 Python runtime。
+- 行情 provider descriptor 已落地；没有真实的第三 provider 前不增加 registry 抽象，yfinance 通过随产品发布的内置 helper 保持独立进程边界。
 - 顶层许可证已经确定为 AGPL-3.0。剩余开源治理工作以 `docs/roadmap.md` 中的贡献、安全和变更记录规范为准。
 
 ## 禁区

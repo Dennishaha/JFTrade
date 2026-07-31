@@ -43,6 +43,8 @@ if (!blocked) {
   });
   run("pnpm", ["run", "build:pineworker"]);
   run("go", ["test", "-tags", "release_assets", "./internal/pineworkerassets", "-run", "Test"]);
+  run("pnpm", ["run", "build:yfinance-sidecar"]);
+  run("go", ["test", "-tags", "release_assets", "./internal/yfinanceassets", "-run", "Test"]);
   prepareReleaseArtifactPath();
   run("go", ["build", "-tags", "release_assets", "-o", releaseOut, "./cmd/jftrade-api"]);
   verifyReleaseArtifact();

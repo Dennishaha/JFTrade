@@ -8,7 +8,7 @@
 
 更新时间：2026-07-29。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
 
-JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。它以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、Futu/OpenD 接入、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
+JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。交易链路仍由 Futu/OpenD 管理；新安装的行情默认使用内置 yfinance 延迟数据源，支持美股、港股和沪深，也可以选择 Futu OpenD。系统以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
 
 当前主线事实：
 
@@ -18,6 +18,7 @@ JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工�
 - 开发端口：API `127.0.0.1:3000`，Web `127.0.0.1:3003`，Docs `127.0.0.1:3001`。
 - 桌面内部端口：`JFTrade Dev` sidecar 为 `127.0.0.1:3008`，正式 `JFTrade` sidecar 为 `127.0.0.1:6699`；两者仅供 Wails 使用且可同时运行。
 - 可选 Web 端口：默认 `127.0.0.1:6688`，可在桌面设置中修改；Web 关闭时桌面产品不创建该监听器。
+- 内置 yfinance helper：发布版随 `release_assets` 嵌入并由 JFTrade 自动启动，使用动态 loopback 端口；提供 `US`、`HK`、`SH`、`SZ` 的约 15 分钟延迟查询与历史 K 线，前端将 `SH`/`SZ` 聚合为“沪深”，不提供实时推流或 Level 2。`pnpm run desktop:dev` 会自动复用或构建当前平台 helper，独立 API 开发态可通过 `JFTRADE_YFINANCE_SIDECAR=/absolute/path` 指定本地 helper。
 - 数据隔离：桌面开发版继续使用仓库 `var/jftrade-api`；正式产品使用系统用户数据目录，不扫描或迁移开发数据。
 - 自选系统：`watchlists.db` 是本地唯一主数据，支持多分组、Futu 只读预览导入、可见行快照行情和 ADK 只读查询。
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
@@ -33,6 +34,7 @@ pnpm run test:web
 pnpm run typecheck:web
 pnpm run test:pineworker
 pnpm run typecheck:pineworker
+workers/yfinance-sidecar/.venv/bin/python -m pytest workers/yfinance-sidecar/tests
 pnpm run check:pinets-release
 pnpm run check:wails-bindings
 go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
@@ -56,6 +58,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 ### 2. 再按问题类型进入专题
 
 - [troubleshooting.md](troubleshooting.md)：启动、端口、实时连接、OpenD、回测性能的排障入口。
+- [market-data-providers.md](market-data-providers.md)：Futu/yfinance 行情能力、内置 helper、进程生命周期与设置边界。
 - [adk.md](adk.md)：ADK Go v2 / Agent 控制面、权限模式、内置 tools 和运行时文件。
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口。
 - [watchlist.md](watchlist.md)：自选系统的使用方式、数据主权、Futu 导入、快照行情、API、ADK 和扩展边界。
@@ -68,6 +71,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - [pinets-contract-audit.md](pinets-contract-audit.md)：PineTS 切换后的 Go/API/worker/前端契约矩阵和 visual output 边界。
 - [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)：PineTS worker 发布、运行配置、embedded asset 和非 mock smoke 放行清单。
 - [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)：Wails v3 开发/产品通道隔离、系统数据目录、版本注入、ARM64-only macOS 无签名 DMG、Windows 无签名安装器与发布产物。
+- [troubleshooting/yfinance-sidecar.md](troubleshooting/yfinance-sidecar.md)：内置 helper、开发态路径、上游错误和延迟行情排障。
 - [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)：从设置页“开发者工具”的错误、慢请求和 OpenD 摘要进入结构化日志及 ADK/回测运行记录。
 - [reference/README.md](reference/README.md)：协议细节、OpenD 资料和上游参考。
 - [new-broker-integration-guide.md](new-broker-integration-guide.md)：当前 broker capability、注册和验收约束。
@@ -85,6 +89,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - 改前端默认接口、系统状态、设置：先看 [architecture.md](architecture.md)、[configuration.md](configuration.md)、[troubleshooting.md](troubleshooting.md)
 - 改 HTTP wire contract、前端 API 类型或请求封装：先看 [frontend/api-contracts.md](frontend/api-contracts.md)
 - 改 ADK、agent、approval、provider、tools：先看 [adk.md](adk.md)
+- 改行情数据源选择、yfinance 或统一 Provider：先看 [market-data-providers.md](market-data-providers.md)、[architecture.md](architecture.md) 和 [troubleshooting/yfinance-sidecar.md](troubleshooting/yfinance-sidecar.md)
 - 改实时行情、K 线、SSE、WS：先看 [frontend-kline.md](frontend-kline.md) 和 [troubleshooting/live-stream-connection.md](troubleshooting/live-stream-connection.md)
 - 改自选分组、星标、券商导入或自选快照：先看 [watchlist.md](watchlist.md)
 - 改 PineTS worker、worker pool、embedded asset、发布验收：先看 [pinets-contract-audit.md](pinets-contract-audit.md) 和 [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)

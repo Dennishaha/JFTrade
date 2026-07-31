@@ -46,19 +46,59 @@ export function normalizeInstrumentParts(
   input: MarketInstrumentInput,
   fallbackMarket?: string,
 ): { market: string; symbol: string } | null {
-  const market = (input.market ?? fallbackMarket ?? "").trim().toUpperCase();
+  const market = canonicalMarketCode(input.market ?? fallbackMarket ?? "");
   const symbol = (input.symbol ?? "").trim().toUpperCase().replace(":", ".");
-  if (symbol.includes(".")) {
-    const [embeddedMarket, embeddedSymbol] = symbol.split(".", 2);
-    if ((embeddedMarket ?? "") === "" || (embeddedSymbol ?? "") === "") {
-      return null;
+  const separator = symbol.indexOf(".");
+  if (separator > 0) {
+    const embeddedMarket = canonicalMarketCode(symbol.slice(0, separator));
+    if (isKnownMarketCode(embeddedMarket)) {
+      const embeddedSymbol = symbol.slice(separator + 1);
+      if (embeddedSymbol === "") return null;
+      return {
+        market: embeddedMarket,
+        symbol: canonicalSymbolCode(embeddedMarket, embeddedSymbol),
+      };
     }
-    return { market: embeddedMarket ?? "", symbol: embeddedSymbol ?? "" };
   }
   if (market === "" || symbol === "") {
     return null;
   }
-  return { market, symbol };
+  return { market, symbol: canonicalSymbolCode(market, symbol) };
+}
+
+function canonicalMarketCode(value: string): string {
+  const normalized = value.trim().toUpperCase();
+  switch (normalized) {
+    case "USA":
+    case "NYSE":
+    case "NASDAQ":
+    case "AMEX":
+      return "US";
+    case "HKG":
+    case "HKEX":
+      return "HK";
+    case "CNSH":
+    case "SHH":
+    case "SSE":
+      return "SH";
+    case "CNSZ":
+    case "SHZ":
+    case "SZSE":
+      return "SZ";
+    default:
+      return normalized;
+  }
+}
+
+function canonicalSymbolCode(market: string, symbol: string): string {
+  const normalized = symbol.trim().toUpperCase();
+  return market === "HK" && /^\d{1,5}$/u.test(normalized)
+    ? normalized.padStart(5, "0")
+    : normalized;
+}
+
+function isKnownMarketCode(value: string): boolean {
+  return ["US", "HK", "CN", "SH", "SZ"].includes(value);
 }
 
 export function createConsoleDataMarketInstrumentsController(

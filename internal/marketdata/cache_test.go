@@ -183,6 +183,31 @@ func TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives(t *testing.T) {
 	}
 }
 
+func TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged(t *testing.T) {
+	now := time.Date(2026, time.July, 9, 20, 0, 0, 0, time.UTC)
+	cache := NewCache()
+	cache.now = func() time.Time { return now }
+
+	first := tickAt("US.AAPL", "100", 100, now.Add(-time.Second))
+	first.Session = "closed"
+	first.PreviousClosePrice = new(decimal.RequireFromString("99"))
+	first.LastClosePrice = new(decimal.RequireFromString("98"))
+	cache.Store(first)
+
+	postPrice := decimal.RequireFromString("100.25")
+	postQuoteAt := now.Add(-500 * time.Millisecond).Format(time.RFC3339Nano)
+	refreshed := first
+	refreshed.ObservedAt = now.Format(time.RFC3339Nano)
+	refreshed.AfterMarket = &ExtendedQuote{Price: &postPrice, QuoteTime: postQuoteAt}
+	stored := cache.Store(refreshed)
+	if stored == nil || cache.Count(first.InstrumentID) != 2 {
+		t.Fatalf("same-price extended quote was deduplicated: stored=%#v count=%d", stored, cache.Count(first.InstrumentID))
+	}
+	if stored.AfterMarket == nil || stored.AfterMarket.Price == nil || !stored.AfterMarket.Price.Equal(postPrice) {
+		t.Fatalf("after-market quote was lost: %#v", stored)
+	}
+}
+
 func TestTickCandlesVolumeWindowAndLimit(t *testing.T) {
 	now := time.Date(2026, time.June, 14, 10, 0, 0, 0, time.UTC)
 	samples := []Tick{
@@ -380,6 +405,9 @@ func (p *dataProviderStub) Descriptor(context.Context) (ProviderDescriptor, erro
 		p.descriptor.ProviderID = "stub-provider"
 		p.descriptor.DisplayName = "Stub Provider"
 		p.descriptor.Source = "stub"
+		p.descriptor.Capabilities = ProviderCapabilities{
+			Snapshots: true, TickCandles: true, OrderBookDepth: true,
+		}
 	}
 	return p.descriptor, p.descriptorErr
 }

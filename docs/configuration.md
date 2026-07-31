@@ -99,6 +99,20 @@ OpenD 连接配置位于 `integration.config`。常用字段包括：
 
 启用 Futu 后，自选系统会注册稳定 source `futu:default`，用于只读发现和导入 Futu 分组。自选主数据始终保存在 `watchlists.db`，不会因禁用 Futu 或 OpenD 暂时离线而改用券商数据。详细边界见 [自选系统](./watchlist.md)。
 
+### 行情数据源与 yfinance
+
+行情查询运行时包含 Futu OpenD 和内置 yfinance，新的安装默认使用 `yfinance`。首页/研究页的“行情提供者”菜单负责切换当前行情源；这项切换不改变账户、订单和下单 broker：
+
+```json
+{
+  "activeMarketDataProvider": "yfinance"
+}
+```
+
+- `activeMarketDataProvider`：只接受 `futu` 或 `yfinance`。
+
+发布版 Go 二进制内置当前平台的 PyInstaller 单文件 helper，会自动释放到受限临时目录、使用动态 loopback 端口并探测 `/health`；用户不需要安装 Python，也不能配置连接地址、Python 路径或超时。`pnpm run desktop:dev` 会优先复用当前平台已构建的 helper，没有时使用 `workers/yfinance-sidecar/.venv` 自动构建；独立 `cmd/jftrade-api` 开发运行仍可通过 `JFTRADE_YFINANCE_SIDECAR=/absolute/path/to/helper` 指定本地可执行文件。切换到 Futu 会清理旧行情缓存并释放旧 Futu 物理订阅；yfinance 不支持实时推流或 Level 2，collector 会退化为按需轮询。应用启动恢复 yfinance 失败时回退并持久化 Futu，避免配置与运行时分裂。检测到旧版 `yfinance` 连接配置块时，加载会清除该块、强制 Futu 并持久化。详细能力见 [行情数据源](./market-data-providers.md)。
+
 ## Web 访问与密码
 
 JFTrade 默认仅供 Wails 桌面应用使用，普通用户不需要密码、Key 或额外配置。正式桌面产品每次启动会在内存中生成临时桌面能力凭证并自动注入当前 WebView；它不会持久化，也不需要用户查看或管理。

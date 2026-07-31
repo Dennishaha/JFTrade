@@ -91,6 +91,11 @@ describe("MarketFeedStatus", () => {
       "已降级到轮询行情",
     );
 
+    await wrapper.setProps({ transportMode: "snapshot-poll-delayed" });
+    expect(wrapper.get(".market-feed-issue-badge").attributes("title")).toContain(
+      "延迟行情轮询中",
+    );
+
     await wrapper.setProps({
       connectionState: "disconnected",
       observedAt: null,
@@ -127,6 +132,23 @@ describe("MarketFeedStatus", () => {
     expect(wrapper.get(".market-feed-issue-badge").attributes("title")).toContain(
       "31秒 未更新",
     );
+    wrapper.unmount();
+  });
+
+  it("does not label a Yahoo snapshot as a realtime push before heartbeat metadata arrives", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-04T00:00:10Z"));
+    const wrapper = mount(MarketFeedStatus, {
+      props: {
+        connectionState: "connected",
+        observedAt: "2026-07-04T00:00:05Z",
+        source: "yfinance",
+      },
+    });
+
+    const issue = wrapper.get(".market-feed-issue-badge");
+    expect(issue.text()).toContain("行情已降级");
+    expect(issue.attributes("title")).toContain("延迟行情轮询中");
     wrapper.unmount();
   });
 
