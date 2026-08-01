@@ -129,6 +129,12 @@ const featurePath = computed(() => {
   }
 });
 
+function handleMarketDataProviderChanged(): void {
+  // The mounted data surface owns its physical subscription and reload order.
+  // Reconcile provider metadata here without racing its lease acquisition.
+  void reloadMarketDataProvider({ load: false });
+}
+
 function replaceRouteTab(value: WorkspaceProductTab): void {
   if (route.query.tab === value) return;
   void router.replace({ query: { ...route.query, tab: value } });
@@ -254,7 +260,7 @@ onBeforeUnmount(() => {
           :connection-state="liveHub.connectionState.value"
           :transport-mode="liveHub.lastHeartbeatEvent.value?.transport?.mode"
           menu-location="top end"
-          @provider-changed="void reloadMarketDataProvider()"
+          @provider-changed="handleMarketDataProviderChanged"
         />
       </Teleport>
     </div>

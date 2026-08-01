@@ -241,6 +241,54 @@ func (s *generationChangingPushSource) NewStream([]string, PushTickHandler) (Pus
 	return s.stream, nil
 }
 
+type collectorInactiveCleanerStub struct {
+	*fakeSubscriptionReconciler
+	cleanupCalls  int
+	cleanupErrors []error
+}
+
+func (s *collectorInactiveCleanerStub) ReconcileInactiveSubscriptions(context.Context) error {
+	s.cleanupCalls++
+	if len(s.cleanupErrors) == 0 {
+		return nil
+	}
+	err := s.cleanupErrors[0]
+	s.cleanupErrors = s.cleanupErrors[1:]
+	return err
+}
+
+func TestCollectorAdvancesInactiveSubscriptionCleanupAfterActiveDemand(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cleanupErr := errors.New("inactive cleanup deferred")
+	reconciler := &collectorInactiveCleanerStub{
+		fakeSubscriptionReconciler: &fakeSubscriptionReconciler{},
+		cleanupErrors:              []error{cleanupErr, nil},
+	}
+	collector := &Collector{
+		ctx: ctx,
+		subscriptionDemand: SubscriptionDemandSourceFunc(func() []InstrumentRef {
+			return []InstrumentRef{{Market: "US", Symbol: "AAPL"}}
+		}),
+		subscriptionReconciler: reconciler,
+	}
+
+	collector.reconcileSubscriptions()
+	collector.reconcileSubscriptions()
+	if got := reconciler.snapshots(); len(got) != 2 || got[0] != 1 || got[1] != 1 {
+		t.Fatalf("active reconciliation calls = %#v", got)
+	}
+	if reconciler.cleanupCalls != 2 {
+		t.Fatalf("inactive cleanup calls = %d, want 2", reconciler.cleanupCalls)
+	}
+
+	collector.state.Closed = true
+	collector.reconcileSubscriptions()
+	if reconciler.cleanupCalls != 2 {
+		t.Fatalf("closed collector advanced inactive cleanup %d times", reconciler.cleanupCalls)
+	}
+}
+
 func TestCollectorRemainingLifecycleBoundaries(t *testing.T) {
 	if DemandSourceFunc(nil).ActiveInstruments() != nil {
 		t.Fatal("nil demand source returned instruments")

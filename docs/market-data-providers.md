@@ -25,6 +25,12 @@ Yahoo Finance 接口不是官方稳定 API，也没有实时性或可用性承�
 
 设置页不提供行情 Provider 分类，也不提供 Python、host、port、enabled 或 timeout 配置。首页/研究页的“行情提供者”菜单只展示可用 Provider，并负责切换到 Futu OpenD。
 
+## Provider 切换与 Futu 退订
+
+切换到 Yahoo 时，JFTrade 会先启动并检查内置 helper，随后立即提交逻辑 Provider、清理旧行情缓存并让 collector 改走 Yahoo 轮询。Futu OpenD 不允许物理订阅建立后不足一分钟就退订，因此 JFTrade 不再用强制退订阻塞这次切换：旧 Futu demand 会立即归零，尚未满足最短持有时间的 Basic、KLine 和 OrderBook 订阅进入 `pending_unsubscribe`。
+
+collector 每 250 毫秒推进一次非活跃 Futu 清理；每条订阅从 OpenD 确认建立的时间起满一分钟后才发送退订。退订暂时失败会沿用行情订阅的退避策略继续重试，不会把已经成功的 Yahoo 切换回滚成 Futu。若在到期前切回 Futu，仍符合当前真实 demand 的物理订阅会直接复用，不会重复占用订阅额度。
+
 `pnpm run desktop:dev` 会优先复用当前平台的已构建 helper；如果 helper 不存在且仓库内的 `workers/yfinance-sidecar/.venv` 可用，启动脚本会自动构建并通过 `JFTRADE_YFINANCE_SIDECAR` 注入桌面进程。没有该虚拟环境时，可先按 sidecar README 安装 `[runtime,build]` 依赖。独立运行 `cmd/jftrade-api` 时，可通过绝对路径指定本地 helper：
 
 ```bash

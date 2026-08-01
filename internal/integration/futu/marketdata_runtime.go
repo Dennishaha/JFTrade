@@ -425,15 +425,6 @@ func (r *MarketDataRuntime) ReconcileSubscriptions(ctx context.Context, desired 
 	return r.subscriptionReconciler.ReconcileSubscriptions(ctx, desired)
 }
 
-// ForceReleaseSubscriptions immediately relinquishes every Futu-owned physical
-// subscription before the application switches to another market-data provider.
-func (r *MarketDataRuntime) ForceReleaseSubscriptions(ctx context.Context) error {
-	if r == nil || r.subscriptionReconciler == nil {
-		return nil
-	}
-	return r.subscriptionReconciler.ForceReleaseSubscriptions(ctx)
-}
-
 func (r *MarketDataRuntime) SubscriptionState() map[string]any {
 	if r == nil || r.subscriptionReconciler == nil {
 		return nil

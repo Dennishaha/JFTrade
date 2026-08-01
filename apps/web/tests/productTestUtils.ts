@@ -9,6 +9,7 @@ const passthrough = (tag = "div") =>
 export const productGlobalStubs = {
   BrokerProviderTag: defineComponent({
     name: "BrokerProviderTag",
+    emits: ["providerChanged"],
     props: {
       provider: { type: Object, default: null },
       featureId: { type: String, default: "" },
@@ -22,6 +23,7 @@ export const productGlobalStubs = {
         :data-feature-id="featureId"
         :data-market="market"
         :data-menu-location="menuLocation"
+        @click="$emit('providerChanged')"
       >
         {{ provider?.brokerId?.toUpperCase() ?? '数据源' }}
       </span>

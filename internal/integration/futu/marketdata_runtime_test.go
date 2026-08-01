@@ -639,9 +639,6 @@ func TestMarketDataRuntimeUnavailableQueryHelpers(t *testing.T) {
 	if err := runtime.ReconcileSubscriptions(context.Background(), []marketdata.InstrumentRef{{Market: "US", Symbol: "AAPL"}}); err == nil {
 		t.Fatal("ReconcileSubscriptions() error = nil when config disabled")
 	}
-	if err := runtime.ForceReleaseSubscriptions(context.Background()); err != nil {
-		t.Fatalf("ForceReleaseSubscriptions() before initialization = %v", err)
-	}
 	besteffort.LogError(errors.New("expected best-effort test error"))
 }
 

@@ -3,6 +3,7 @@ package marketdataapp
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -108,7 +109,7 @@ func TestRuntimeCommitsFutuWhenSidecarCleanupNeedsRetry(t *testing.T) {
 	}
 }
 
-func TestRuntimeRejectsInvalidActivationAndRollsBackSidecar(t *testing.T) {
+func TestRuntimeRejectsInvalidActivationAndDefersFutuCleanupFailure(t *testing.T) {
 	releaseErr := errors.New("release failed")
 	reconciler := &subscriptionReconcilerStub{err: releaseErr}
 	runtime, err := NewRuntime(RuntimeOptions{
@@ -127,20 +128,45 @@ func TestRuntimeRejectsInvalidActivationAndRollsBackSidecar(t *testing.T) {
 
 	installHealthySidecar(runtime, sidecar)
 	enabled := Activation{ProviderID: ProviderYFinance}
-	if err := runtime.Activate(t.Context(), enabled); !errors.Is(err, releaseErr) {
-		t.Fatalf("release failure = %v", err)
+	if err := runtime.Activate(t.Context(), enabled); err != nil {
+		t.Fatalf("Futu cleanup failure blocked provider switch: %v", err)
 	}
-	if runtime.ActiveProviderID() != ProviderFutu {
-		t.Fatalf("provider changed after failed release: %q", runtime.ActiveProviderID())
+	if runtime.ActiveProviderID() != ProviderYFinance {
+		t.Fatalf("provider after deferred cleanup = %q", runtime.ActiveProviderID())
 	}
-	if sidecar.ensureCalls != 1 || sidecar.stopCalls != 1 || sidecar.running {
-		t.Fatalf("sidecar rollback = ensure %d stop %d running %v", sidecar.ensureCalls, sidecar.stopCalls, sidecar.running)
+	if sidecar.ensureCalls != 1 || sidecar.stopCalls != 0 || !sidecar.running {
+		t.Fatalf("committed sidecar = ensure %d stop %d running %v", sidecar.ensureCalls, sidecar.stopCalls, sidecar.running)
 	}
 }
 
-func TestRuntimeUsesForcedPhysicalReleaseWhenProviderSupportsIt(t *testing.T) {
-	subscriptions := &forcedSubscriptionReconcilerStub{
-		subscriptionReconcilerStub: &subscriptionReconcilerStub{},
+func TestRuntimeRollsBackYFinanceWhenNonFutuProviderRetirementFails(t *testing.T) {
+	releaseErr := errors.New("custom provider retirement failed")
+	runtime, err := NewRuntime(RuntimeOptions{FutuProvider: &providerStub{id: "futu-opend"}})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	runtime.active = runtimeState{
+		providerID:    "custom-provider",
+		provider:      &providerStub{id: "custom-provider"},
+		subscriptions: &subscriptionReconcilerStub{err: releaseErr},
+	}
+	sidecar := &sidecarLifecycleStub{}
+	installHealthySidecar(runtime, sidecar)
+
+	err = runtime.Activate(t.Context(), Activation{ProviderID: ProviderYFinance})
+	if !errors.Is(err, releaseErr) || runtime.ActiveProviderID() != "custom-provider" {
+		t.Fatalf("custom provider rollback = provider %q, err %v",
+			runtime.ActiveProviderID(), err)
+	}
+	if sidecar.ensureCalls != 1 || sidecar.stopCalls != 1 || sidecar.running {
+		t.Fatalf("custom provider sidecar rollback = ensure %d stop %d running %v",
+			sidecar.ensureCalls, sidecar.stopCalls, sidecar.running)
+	}
+}
+
+func TestRuntimeRetiresPreviousSubscriptionsThroughBrokerReconciliation(t *testing.T) {
+	subscriptions := &subscriptionReconcilerStub{
+		desired: []marketdata.InstrumentRef{{Market: "US", Symbol: "AAPL"}},
 	}
 	runtime, err := NewRuntime(RuntimeOptions{
 		FutuProvider:      &providerStub{id: "futu-opend"},
@@ -155,16 +181,14 @@ func TestRuntimeUsesForcedPhysicalReleaseWhenProviderSupportsIt(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Activate(yfinance): %v", err)
 	}
-	if subscriptions.forceCalls != 1 || subscriptions.reconcileCalls != 0 {
-		t.Fatalf("release calls = force %d, reconcile %d",
-			subscriptions.forceCalls, subscriptions.reconcileCalls)
+	if subscriptions.reconcileCalls != 1 || len(subscriptions.desired) != 0 {
+		t.Fatalf("subscription retirement = calls %d desired %#v",
+			subscriptions.reconcileCalls, subscriptions.desired)
 	}
 }
 
 func TestRuntimeReportsFutuActivationAndRollbackReleaseFailures(t *testing.T) {
-	subscriptions := &forcedSubscriptionReconcilerStub{
-		subscriptionReconcilerStub: &subscriptionReconcilerStub{},
-	}
+	subscriptions := &subscriptionReconcilerStub{}
 	runtime, err := NewRuntime(RuntimeOptions{
 		FutuProvider:      &providerStub{id: "futu-opend"},
 		FutuSubscriptions: subscriptions,
@@ -182,8 +206,7 @@ func TestRuntimeReportsFutuActivationAndRollbackReleaseFailures(t *testing.T) {
 
 	activationErr := errors.New("OpenD rejected subscription")
 	rollbackErr := errors.New("OpenD rejected rollback release")
-	subscriptions.err = activationErr
-	subscriptions.forceErr = rollbackErr
+	subscriptions.reconcileErrors = []error{activationErr, rollbackErr}
 	err = runtime.Activate(t.Context(), Activation{
 		ProviderID: ProviderFutu,
 		DesiredSubscriptions: []marketdata.InstrumentRef{{
@@ -200,6 +223,113 @@ func TestRuntimeReportsFutuActivationAndRollbackReleaseFailures(t *testing.T) {
 	}
 	if sidecar.ensureCalls != 1 || sidecar.stopCalls != 0 || !sidecar.running {
 		t.Fatalf("failed Futu activation sidecar state = ensure %d stop %d running %v", sidecar.ensureCalls, sidecar.stopCalls, sidecar.running)
+	}
+}
+
+func TestRuntimeContinuesInactiveFutuCleanupWhileYFinanceIsActive(t *testing.T) {
+	subscriptions := &subscriptionReconcilerStub{}
+	runtime, err := NewRuntime(RuntimeOptions{
+		FutuProvider:      &providerStub{id: "futu-opend"},
+		FutuSubscriptions: subscriptions,
+	})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	installHealthySidecar(runtime, &sidecarLifecycleStub{})
+	if err := runtime.Activate(t.Context(), Activation{ProviderID: ProviderYFinance}); err != nil {
+		t.Fatalf("Activate(yfinance): %v", err)
+	}
+
+	cleanupErr := errors.New("OpenD deferred unsubscribe failed")
+	subscriptions.err = cleanupErr
+	if err := runtime.ReconcileSubscriptions(t.Context(), []marketdata.InstrumentRef{{
+		Market: "US", Symbol: "AAPL",
+	}}); err != nil {
+		t.Fatalf("foreground Yahoo reconciliation depended on Futu cleanup: %v", err)
+	}
+	if subscriptions.reconcileCalls != 1 {
+		t.Fatalf("foreground Yahoo reconciliation reached Futu %d times", subscriptions.reconcileCalls)
+	}
+	err = runtime.ReconcileInactiveSubscriptions(t.Context())
+	if !errors.Is(err, cleanupErr) {
+		t.Fatalf("inactive Futu cleanup error = %v", err)
+	}
+	if runtime.ActiveProviderID() != ProviderYFinance {
+		t.Fatalf("cleanup failure changed provider to %q", runtime.ActiveProviderID())
+	}
+	if subscriptions.reconcileCalls != 2 || len(subscriptions.desired) != 0 {
+		t.Fatalf("inactive Futu cleanup = calls %d desired %#v",
+			subscriptions.reconcileCalls, subscriptions.desired)
+	}
+
+	subscriptions.err = nil
+	if err := runtime.ReconcileInactiveSubscriptions(t.Context()); err != nil {
+		t.Fatalf("retry inactive Futu cleanup: %v", err)
+	}
+	if subscriptions.reconcileCalls != 3 || len(subscriptions.desired) != 0 {
+		t.Fatalf("inactive Futu retry = calls %d desired %#v",
+			subscriptions.reconcileCalls, subscriptions.desired)
+	}
+}
+
+func TestRuntimeSerializesInactiveCleanupWithFutuReactivation(t *testing.T) {
+	subscriptions := &gatedSubscriptionReconciler{}
+	runtime, err := NewRuntime(RuntimeOptions{
+		FutuProvider:      &providerStub{id: "futu-opend"},
+		FutuSubscriptions: subscriptions,
+	})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	installHealthySidecar(runtime, &sidecarLifecycleStub{})
+	if err := runtime.Activate(t.Context(), Activation{ProviderID: ProviderYFinance}); err != nil {
+		t.Fatalf("Activate(yfinance): %v", err)
+	}
+
+	cleanupStarted, cleanupRelease := subscriptions.blockNextReconcile()
+	cleanupReleased := false
+	defer func() {
+		if !cleanupReleased {
+			close(cleanupRelease)
+		}
+	}()
+	cleanupErrors := make(chan error, 1)
+	go func() {
+		cleanupErrors <- runtime.ReconcileInactiveSubscriptions(context.Background())
+	}()
+	select {
+	case <-cleanupStarted:
+	case <-time.After(time.Second):
+		t.Fatal("inactive cleanup did not start")
+	}
+
+	desired := []marketdata.InstrumentRef{{Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "1m"}}
+	activationStarted := make(chan struct{})
+	activationErrors := make(chan error, 1)
+	go func() {
+		close(activationStarted)
+		activationErrors <- runtime.Activate(context.Background(), Activation{
+			ProviderID: ProviderFutu, DesiredSubscriptions: desired,
+		})
+	}()
+	<-activationStarted
+	select {
+	case err := <-activationErrors:
+		t.Fatalf("Futu reactivation overtook inactive cleanup: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	close(cleanupRelease)
+	cleanupReleased = true
+	if err := <-cleanupErrors; err != nil {
+		t.Fatalf("inactive cleanup: %v", err)
+	}
+	if err := <-activationErrors; err != nil {
+		t.Fatalf("Activate(futu): %v", err)
+	}
+	got := subscriptions.desiredSnapshot()
+	if runtime.ActiveProviderID() != ProviderFutu || len(got) != 1 || got[0] != desired[0] {
+		t.Fatalf("serialized reactivation = provider %q desired %#v", runtime.ActiveProviderID(), got)
 	}
 }
 
@@ -236,10 +366,8 @@ func TestRuntimeRestoresPreviousSubscriptionsAfterActivationFailure(t *testing.T
 	}
 }
 
-func TestRuntimeBoundsForcedReleaseWithActivationContext(t *testing.T) {
-	subscriptions := &blockingForcedSubscriptionReconciler{
-		subscriptionReconcilerStub: &subscriptionReconcilerStub{},
-	}
+func TestRuntimeCommitsSwitchWhenFutuRetirementContextExpires(t *testing.T) {
+	subscriptions := &blockingSubscriptionReconciler{}
 	runtime, err := NewRuntime(RuntimeOptions{
 		FutuProvider:      &providerStub{id: "futu-opend"},
 		FutuSubscriptions: subscriptions,
@@ -253,12 +381,12 @@ func TestRuntimeBoundsForcedReleaseWithActivationContext(t *testing.T) {
 	err = runtime.Activate(ctx, Activation{
 		ProviderID: ProviderYFinance,
 	})
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("bounded forced release error = %v", err)
+	if err != nil {
+		t.Fatalf("expired Futu retirement blocked provider switch: %v", err)
 	}
-	if runtime.ActiveProviderID() != ProviderFutu || subscriptions.forceCalls != 1 {
-		t.Fatalf("timed-out activation = provider %q, force calls %d",
-			runtime.ActiveProviderID(), subscriptions.forceCalls)
+	if runtime.ActiveProviderID() != ProviderYFinance || subscriptions.reconcileCalls != 1 {
+		t.Fatalf("timed-out activation = provider %q, reconcile calls %d",
+			runtime.ActiveProviderID(), subscriptions.reconcileCalls)
 	}
 }
 
@@ -482,15 +610,21 @@ type pushSourceStub struct {
 }
 
 type subscriptionReconcilerStub struct {
-	desired        []marketdata.InstrumentRef
-	state          map[string]any
-	err            error
-	reconcileCalls int
+	desired         []marketdata.InstrumentRef
+	state           map[string]any
+	err             error
+	reconcileErrors []error
+	reconcileCalls  int
 }
 
 func (s *subscriptionReconcilerStub) ReconcileSubscriptions(_ context.Context, desired []marketdata.InstrumentRef) error {
 	s.reconcileCalls++
 	s.desired = append([]marketdata.InstrumentRef(nil), desired...)
+	if len(s.reconcileErrors) > 0 {
+		err := s.reconcileErrors[0]
+		s.reconcileErrors = s.reconcileErrors[1:]
+		return err
+	}
 	return s.err
 }
 
@@ -498,26 +632,70 @@ func (s *subscriptionReconcilerStub) SubscriptionState() map[string]any {
 	return s.state
 }
 
-type forcedSubscriptionReconcilerStub struct {
-	*subscriptionReconcilerStub
-	forceCalls int
-	forceErr   error
+type blockingSubscriptionReconciler struct {
+	reconcileCalls int
 }
 
-func (s *forcedSubscriptionReconcilerStub) ForceReleaseSubscriptions(context.Context) error {
-	s.forceCalls++
-	return s.forceErr
-}
-
-type blockingForcedSubscriptionReconciler struct {
-	*subscriptionReconcilerStub
-	forceCalls int
-}
-
-func (s *blockingForcedSubscriptionReconciler) ForceReleaseSubscriptions(ctx context.Context) error {
-	s.forceCalls++
+func (s *blockingSubscriptionReconciler) ReconcileSubscriptions(
+	ctx context.Context,
+	_ []marketdata.InstrumentRef,
+) error {
+	s.reconcileCalls++
 	<-ctx.Done()
 	return ctx.Err()
+}
+
+func (s *blockingSubscriptionReconciler) SubscriptionState() map[string]any {
+	return nil
+}
+
+type gatedSubscriptionReconciler struct {
+	mu           sync.Mutex
+	desired      []marketdata.InstrumentRef
+	blockNext    bool
+	blockStarted chan struct{}
+	blockRelease chan struct{}
+}
+
+func (s *gatedSubscriptionReconciler) blockNextReconcile() (<-chan struct{}, chan struct{}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.blockNext = true
+	s.blockStarted = make(chan struct{})
+	s.blockRelease = make(chan struct{})
+	return s.blockStarted, s.blockRelease
+}
+
+func (s *gatedSubscriptionReconciler) ReconcileSubscriptions(
+	ctx context.Context,
+	desired []marketdata.InstrumentRef,
+) error {
+	s.mu.Lock()
+	s.desired = append([]marketdata.InstrumentRef(nil), desired...)
+	block := s.blockNext
+	started, release := s.blockStarted, s.blockRelease
+	s.blockNext = false
+	s.mu.Unlock()
+	if !block {
+		return nil
+	}
+	close(started)
+	select {
+	case <-release:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *gatedSubscriptionReconciler) SubscriptionState() map[string]any {
+	return nil
+}
+
+func (s *gatedSubscriptionReconciler) desiredSnapshot() []marketdata.InstrumentRef {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]marketdata.InstrumentRef(nil), s.desired...)
 }
 
 type sidecarLifecycleStub struct {

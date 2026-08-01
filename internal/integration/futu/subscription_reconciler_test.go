@@ -22,10 +22,14 @@ type fakePhysicalSubscriptionExchange struct {
 	quota             pkgfutu.SubscriptionQuota
 	quotaCalls        int
 	quotaErrors       []error
+	onCall            func(string)
 }
 
 func (f *fakePhysicalSubscriptionExchange) call(name string) error {
 	f.calls = append(f.calls, name)
+	if f.onCall != nil {
+		f.onCall(name)
+	}
 	if changes := f.generationChanges[name]; len(changes) > 0 {
 		f.generation = changes[0]
 		f.generationChanges[name] = changes[1:]
@@ -69,6 +73,9 @@ func (f *fakePhysicalSubscriptionExchange) UnsubscribeOrderBook(_ context.Contex
 
 func (f *fakePhysicalSubscriptionExchange) QuerySubscriptionQuota(context.Context) (pkgfutu.SubscriptionQuota, error) {
 	f.quotaCalls++
+	if f.onCall != nil {
+		f.onCall("query-quota")
+	}
 	if len(f.quotaErrors) > 0 {
 		err := f.quotaErrors[0]
 		f.quotaErrors = f.quotaErrors[1:]
@@ -335,9 +342,8 @@ func TestSubscriptionReconcilerRetriesFailuresAndCancelsRetryOnReacquire(t *test
 	}
 }
 
-func TestSubscriptionReconcilerForceReleaseBypassesGatesAndRetainsFailures(t *testing.T) {
+func TestSubscriptionReconcilerProviderSwitchDefersPhysicalReleaseUntilOpenDEligible(t *testing.T) {
 	now := time.Date(2026, time.July, 30, 2, 0, 0, 0, time.UTC)
-	releaseErr := errors.New("OpenD rejected forced release")
 	exchange := &fakePhysicalSubscriptionExchange{}
 	reconciler := newMarketDataSubscriptionReconciler(
 		func() physicalSubscriptionExchange { return exchange },
@@ -350,139 +356,218 @@ func TestSubscriptionReconcilerForceReleaseBypassesGatesAndRetainsFailures(t *te
 	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
 		t.Fatalf("initial reconcile: %v", err)
 	}
-	reconciler.records["KLINE:US.AAPL:1m"].retryAt = now.Add(time.Hour)
-	exchange.failures = map[string][]error{
-		"unsubscribe-kline:US.AAPL:1m": {releaseErr},
+	wantSubscribe := []string{
+		"subscribe-basic:US.AAPL:push",
+		"subscribe-kline:US.AAPL:1m",
+		"subscribe-order-book:US.MSFT:push",
+	}
+	if !reflect.DeepEqual(exchange.calls, wantSubscribe) {
+		t.Fatalf("initial physical subscriptions = %#v, want %#v", exchange.calls, wantSubscribe)
 	}
 	exchange.calls = nil
 
-	err := reconciler.ForceReleaseSubscriptions(context.Background())
-	if !errors.Is(err, releaseErr) || !strings.Contains(err.Error(), "force unsubscribe KLINE:US.AAPL:1m") {
-		t.Fatalf("forced release error = %v", err)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), nil); err != nil {
+		t.Fatalf("deactivate Futu before minimum age: %v", err)
 	}
-	wantCalls := []string{
+	if len(exchange.calls) != 0 {
+		t.Fatalf("provider switch released subscriptions too early: %#v", exchange.calls)
+	}
+	state := reconciler.SubscriptionState()
+	if state["desiredCount"] != 0 || state["ownActiveCount"] != 3 || state["pendingReleaseCount"] != 3 {
+		t.Fatalf("deferred provider cleanup state = %#v", state)
+	}
+
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("reactivate Futu before release eligibility: %v", err)
+	}
+	if len(exchange.calls) != 0 {
+		t.Fatalf("Futu reactivation duplicated pending subscriptions: %#v", exchange.calls)
+	}
+	if state := reconciler.SubscriptionState(); state["pendingReleaseCount"] != 0 {
+		t.Fatalf("reactivated subscription state = %#v", state)
+	}
+
+	if err := reconciler.ReconcileSubscriptions(context.Background(), nil); err != nil {
+		t.Fatalf("deactivate Futu again: %v", err)
+	}
+	now = now.Add(minimumFutuSubscriptionAge)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), nil); err != nil {
+		t.Fatalf("release Futu after minimum age: %v", err)
+	}
+	wantRelease := []string{
 		"unsubscribe-basic:US.AAPL",
 		"unsubscribe-kline:US.AAPL:1m",
 		"unsubscribe-order-book:US.MSFT",
 	}
-	if !reflect.DeepEqual(exchange.calls, wantCalls) {
-		t.Fatalf("forced release calls = %#v, want %#v", exchange.calls, wantCalls)
-	}
-	if len(reconciler.records) != 1 {
-		t.Fatalf("records after partial failure = %#v", reconciler.records)
-	}
-	failed := reconciler.records["KLINE:US.AAPL:1m"]
-	if failed == nil || failed.lastError != releaseErr.Error() {
-		t.Fatalf("failed record diagnostics = %#v", failed)
-	}
-	state := reconciler.SubscriptionState()
-	if state["desiredCount"] != 0 || state["ownActiveCount"] != 1 || state["pendingReleaseCount"] != 1 {
-		t.Fatalf("partial forced release state = %#v", state)
-	}
-
-	exchange.calls = nil
-	//nolint:staticcheck // Exercise the forced releaser's explicit nil-context fallback.
-	if err := reconciler.ForceReleaseSubscriptions(nil); err != nil {
-		t.Fatalf("immediate forced retry: %v", err)
-	}
-	if !reflect.DeepEqual(exchange.calls, []string{"unsubscribe-kline:US.AAPL:1m"}) {
-		t.Fatalf("forced retry honored retry gate: %#v", exchange.calls)
+	if !reflect.DeepEqual(exchange.calls, wantRelease) {
+		t.Fatalf("eligible provider cleanup = %#v, want %#v", exchange.calls, wantRelease)
 	}
 	if state := reconciler.SubscriptionState(); state["ownActiveCount"] != 0 || state["pendingReleaseCount"] != 0 {
-		t.Fatalf("final forced release state = %#v", state)
+		t.Fatalf("completed provider cleanup state = %#v", state)
 	}
 }
 
-func TestSubscriptionReconcilerForceReleaseKeepsRecordsWhenExchangeUnavailable(t *testing.T) {
+func TestSubscriptionReconcilerMeasuresRetentionFromOpenDAcknowledgement(t *testing.T) {
+	startedAt := time.Date(2026, time.July, 30, 2, 30, 0, 0, time.UTC)
+	now := startedAt
+	exchange := &fakePhysicalSubscriptionExchange{}
+	exchange.onCall = func(name string) {
+		if name == "subscribe-basic:US.AAPL:push" {
+			now = startedAt.Add(10 * time.Second)
+		}
+	}
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return now },
+	)
+	desired := []marketdata.InstrumentRef{{Market: "US", Symbol: "AAPL"}}
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("initial reconcile: %v", err)
+	}
+	record := reconciler.records["BASIC:US.AAPL"]
+	if record == nil || !record.subscribedAt.Equal(startedAt.Add(10*time.Second)) {
+		t.Fatalf("subscription acknowledgement time = %#v", record)
+	}
+
+	exchange.calls = nil
+	now = startedAt.Add(minimumFutuSubscriptionAge)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), nil); err != nil {
+		t.Fatalf("cleanup before acknowledgement retention elapsed: %v", err)
+	}
+	if len(exchange.calls) != 0 {
+		t.Fatalf("subscription released from reconciliation start time: %#v", exchange.calls)
+	}
+
+	now = startedAt.Add(10*time.Second + minimumFutuSubscriptionAge)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), nil); err != nil {
+		t.Fatalf("cleanup after acknowledgement retention elapsed: %v", err)
+	}
+	if !reflect.DeepEqual(exchange.calls, []string{"unsubscribe-basic:US.AAPL"}) {
+		t.Fatalf("eligible acknowledgement-based cleanup = %#v", exchange.calls)
+	}
+}
+
+func TestSubscriptionReconcilerMeasuresRetryFromOpenDFailureAcknowledgement(t *testing.T) {
+	startedAt := time.Date(2026, time.July, 30, 2, 45, 0, 0, time.UTC)
+	now := startedAt
+	unsubscribeErr := errors.New("unsubscribe busy")
+	exchange := &fakePhysicalSubscriptionExchange{failures: map[string][]error{}}
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return now },
+	)
+	desired := []marketdata.InstrumentRef{{Market: "US", Symbol: "AAPL"}}
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("initial reconcile: %v", err)
+	}
+
+	failureStartedAt := startedAt.Add(minimumFutuSubscriptionAge)
+	failureAcknowledgedAt := failureStartedAt.Add(10 * time.Second)
+	now = failureStartedAt
+	exchange.failures["unsubscribe-basic:US.AAPL"] = []error{unsubscribeErr}
+	exchange.onCall = func(name string) {
+		if name == "unsubscribe-basic:US.AAPL" {
+			now = failureAcknowledgedAt
+			exchange.onCall = nil
+		}
+	}
+	if err := reconciler.ReconcileSubscriptions(context.Background(), nil); !errors.Is(err, unsubscribeErr) {
+		t.Fatalf("slow unsubscribe failure = %v", err)
+	}
+	retryAt := failureAcknowledgedAt.Add(subscriptionRetryDelays[0])
+	if got := reconciler.records["BASIC:US.AAPL"].retryAt; !got.Equal(retryAt) {
+		t.Fatalf("retry at %s, want failure acknowledgement based %s", got, retryAt)
+	}
+
+	callsAfterFailure := len(exchange.calls)
+	now = retryAt.Add(-time.Millisecond)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), nil); err != nil {
+		t.Fatalf("retry before acknowledgement-based deadline: %v", err)
+	}
+	if len(exchange.calls) != callsAfterFailure {
+		t.Fatalf("unsubscribe retried early: %#v", exchange.calls)
+	}
+	now = retryAt
+	if err := reconciler.ReconcileSubscriptions(context.Background(), nil); err != nil {
+		t.Fatalf("retry at acknowledgement-based deadline: %v", err)
+	}
+	if _, exists := reconciler.records["BASIC:US.AAPL"]; exists {
+		t.Fatalf("successful retry retained subscription record: %#v", reconciler.records)
+	}
+}
+
+func TestSubscriptionReconcilerMeasuresQuotaRefreshFromOpenDAcknowledgement(t *testing.T) {
+	startedAt := time.Date(2026, time.July, 30, 2, 50, 0, 0, time.UTC)
+	now := startedAt
+	acknowledgedAt := startedAt.Add(10 * time.Second)
+	exchange := &fakePhysicalSubscriptionExchange{}
+	exchange.onCall = func(name string) {
+		if name == "query-quota" {
+			now = acknowledgedAt
+			exchange.onCall = nil
+		}
+	}
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return now },
+	)
+	desired := []marketdata.InstrumentRef{{Market: "US", Symbol: "AAPL"}}
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("initial reconcile: %v", err)
+	}
+	if !reconciler.quotaCheckedAt.Equal(acknowledgedAt) {
+		t.Fatalf("quota checked at %s, want acknowledgement %s", reconciler.quotaCheckedAt, acknowledgedAt)
+	}
+
+	now = acknowledgedAt.Add(subscriptionQuotaRefresh - time.Millisecond)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("reconcile before quota deadline: %v", err)
+	}
+	if exchange.quotaCalls != 1 {
+		t.Fatalf("quota refreshed early: %d calls", exchange.quotaCalls)
+	}
+	now = acknowledgedAt.Add(subscriptionQuotaRefresh)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("reconcile at quota deadline: %v", err)
+	}
+	if exchange.quotaCalls != 2 {
+		t.Fatalf("quota did not refresh at deadline: %d calls", exchange.quotaCalls)
+	}
+}
+
+func TestSubscriptionReconcilerPendingProviderCleanupDropsClosedConnectionOwnership(t *testing.T) {
 	now := time.Date(2026, time.July, 30, 3, 0, 0, 0, time.UTC)
-	exchange := &fakePhysicalSubscriptionExchange{}
-	var current physicalSubscriptionExchange = exchange
-	reconciler := newMarketDataSubscriptionReconciler(
-		func() physicalSubscriptionExchange { return current },
-		func() time.Time { return now },
-	)
-	if err := reconciler.ReconcileSubscriptions(context.Background(), []marketdata.InstrumentRef{{
-		Market: "US", Symbol: "AAPL",
-	}}); err != nil {
-		t.Fatalf("initial reconcile: %v", err)
-	}
-	current = nil
-	err := reconciler.ForceReleaseSubscriptions(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "exchange is unavailable") {
-		t.Fatalf("forced release without exchange = %v", err)
-	}
-	if len(reconciler.records) != 1 {
-		t.Fatalf("records were discarded without release: %#v", reconciler.records)
-	}
-
-	var nilReconciler *marketDataSubscriptionReconciler
-	if err := nilReconciler.ForceReleaseSubscriptions(context.Background()); err != nil {
-		t.Fatalf("nil forced release = %v", err)
-	}
-	var nilRuntime *MarketDataRuntime
-	if err := nilRuntime.ForceReleaseSubscriptions(context.Background()); err != nil {
-		t.Fatalf("nil runtime forced release = %v", err)
-	}
-}
-
-func TestSubscriptionReconcilerForceReleaseDropsOwnershipAfterConnectionReplacement(t *testing.T) {
-	now := time.Date(2026, time.July, 30, 4, 0, 0, 0, time.UTC)
-	exchange := &fakePhysicalSubscriptionExchange{}
+	exchange := &fakePhysicalSubscriptionExchange{generation: 1}
 	reconciler := newMarketDataSubscriptionReconciler(
 		func() physicalSubscriptionExchange { return exchange },
 		func() time.Time { return now },
 	)
-	if err := reconciler.ReconcileSubscriptions(context.Background(), []marketdata.InstrumentRef{{
-		Market: "US", Symbol: "AAPL",
-	}}); err != nil {
+	desired := []marketdata.InstrumentRef{
+		{Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "1m"},
+		{Channel: "ORDER_BOOK", Market: "US", Symbol: "MSFT"},
+	}
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
 		t.Fatalf("initial reconcile: %v", err)
 	}
 	exchange.calls = nil
+	if err := reconciler.ReconcileSubscriptions(context.Background(), nil); err != nil {
+		t.Fatalf("mark pending provider cleanup: %v", err)
+	}
+	if state := reconciler.SubscriptionState(); state["pendingReleaseCount"] != 3 {
+		t.Fatalf("pending cleanup state = %#v", state)
+	}
+
 	exchange.generation++
-
-	if err := reconciler.ForceReleaseSubscriptions(context.Background()); err != nil {
-		t.Fatalf("forced release after connection replacement: %v", err)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), nil); err != nil {
+		t.Fatalf("reconcile cleanup after connection replacement: %v", err)
 	}
 	if len(exchange.calls) != 0 {
-		t.Fatalf("stale connection ownership triggered unsubscribe: %#v", exchange.calls)
+		t.Fatalf("stale ownership unsubscribed through replacement connection: %#v", exchange.calls)
 	}
-	if len(reconciler.records) != 0 || reconciler.connectionGeneration != exchange.generation {
-		t.Fatalf("connection replacement state = records %#v generation %d", reconciler.records, reconciler.connectionGeneration)
-	}
-}
-
-func TestSubscriptionReconcilerForceReleaseDiscardsSubscriptionsThatNeverBecamePhysical(t *testing.T) {
-	now := time.Date(2026, time.July, 30, 5, 0, 0, 0, time.UTC)
-	subscribeErr := errors.New("OpenD rejected subscription")
-	exchange := &fakePhysicalSubscriptionExchange{
-		failures: map[string][]error{
-			"subscribe-basic:US.AAPL:push": {subscribeErr},
-		},
-	}
-	reconciler := newMarketDataSubscriptionReconciler(
-		func() physicalSubscriptionExchange { return exchange },
-		func() time.Time { return now },
-	)
-	err := reconciler.ReconcileSubscriptions(context.Background(), []marketdata.InstrumentRef{{
-		Market: "US", Symbol: "AAPL",
-	}})
-	if !errors.Is(err, subscribeErr) {
-		t.Fatalf("failed acquisition error = %v", err)
-	}
-	pending := reconciler.records["BASIC:US.AAPL"]
-	if pending == nil || !pending.subscribedAt.IsZero() {
-		t.Fatalf("failed acquisition record = %#v", pending)
-	}
-	exchange.calls = nil
-
-	if err := reconciler.ForceReleaseSubscriptions(context.Background()); err != nil {
-		t.Fatalf("forced release of pending acquisition: %v", err)
-	}
-	if len(exchange.calls) != 0 {
-		t.Fatalf("pending-only record triggered physical unsubscribe: %#v", exchange.calls)
-	}
-	if len(reconciler.records) != 0 {
-		t.Fatalf("pending-only records retained after force release: %#v", reconciler.records)
+	state := reconciler.SubscriptionState()
+	if state["connectionGeneration"] != uint64(2) || state["ownActiveCount"] != 0 ||
+		state["pendingReleaseCount"] != 0 {
+		t.Fatalf("replacement connection cleanup state = %#v", state)
 	}
 }
 

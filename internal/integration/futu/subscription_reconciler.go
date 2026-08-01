@@ -129,61 +129,6 @@ func (r *marketDataSubscriptionReconciler) ReconcileSubscriptions(ctx context.Co
 	return fmt.Errorf("futu OpenD connection changed during %d consecutive subscription reconciliation attempts", maxGenerationReconcileRuns)
 }
 
-func (r *marketDataSubscriptionReconciler) ForceReleaseSubscriptions(ctx context.Context) error {
-	if r == nil {
-		return nil
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	r.reconcileMu.Lock()
-	defer r.reconcileMu.Unlock()
-
-	var exchange physicalSubscriptionExchange
-	if r.exchange != nil {
-		exchange = r.exchange()
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.desiredCount = 0
-	r.desiredKeys = map[string]struct{}{}
-	r.lastReconciledAt = r.now().UTC()
-	if len(r.records) == 0 {
-		return nil
-	}
-	if exchange == nil {
-		return fmt.Errorf("force release Futu subscriptions: exchange is unavailable")
-	}
-	generation := exchange.ConnectionGeneration()
-	if exchange != r.current || generation != r.connectionGeneration {
-		r.resetConnectionStateLocked(exchange, generation)
-		return nil
-	}
-	return errors.Join(r.forceUnsubscribeAllLocked(ctx, exchange, r.lastReconciledAt)...)
-}
-
-func (r *marketDataSubscriptionReconciler) forceUnsubscribeAllLocked(
-	ctx context.Context,
-	exchange physicalSubscriptionExchange,
-	now time.Time,
-) []error {
-	var releaseErrors []error
-	for _, key := range sortedRecordKeys(r.records) {
-		record := r.records[key]
-		if record.subscribedAt.IsZero() {
-			delete(r.records, key)
-			continue
-		}
-		if err := unsubscribePhysical(ctx, exchange, record.ref); err != nil {
-			recordSubscriptionFailure(record, now, err)
-			releaseErrors = append(releaseErrors, fmt.Errorf("force unsubscribe %s: %w", key, err))
-			continue
-		}
-		delete(r.records, key)
-	}
-	return releaseErrors
-}
-
 func (r *marketDataSubscriptionReconciler) resetConnectionStateLocked(exchange physicalSubscriptionExchange, generation uint64) {
 	r.current = exchange
 	r.connectionGeneration = generation
@@ -234,11 +179,14 @@ func (r *marketDataSubscriptionReconciler) subscribeDesiredLocked(
 			continue
 		}
 		if err := subscribePhysical(ctx, exchange, wanted); err != nil {
-			recordSubscriptionFailure(record, now, err)
+			recordSubscriptionFailure(record, r.now().UTC(), err)
 			reconcileErrors = append(reconcileErrors, fmt.Errorf("subscribe %s: %w", key, err))
 			continue
 		}
-		record.subscribedAt = now
+		// OpenD measures the retention window from the accepted subscription,
+		// not from the beginning of a potentially slow reconciliation pass. Use
+		// the post-RPC time so the local release gate is conservative.
+		record.subscribedAt = r.now().UTC()
 		record.retryAt = time.Time{}
 		record.failures = 0
 		record.lastError = ""
@@ -266,7 +214,7 @@ func (r *marketDataSubscriptionReconciler) unsubscribeUndesiredLocked(
 			continue
 		}
 		if err := unsubscribePhysical(ctx, exchange, record.ref); err != nil {
-			recordSubscriptionFailure(record, now, err)
+			recordSubscriptionFailure(record, r.now().UTC(), err)
 			reconcileErrors = append(reconcileErrors, fmt.Errorf("unsubscribe %s: %w", key, err))
 			continue
 		}
@@ -445,7 +393,9 @@ func (r *marketDataSubscriptionReconciler) refreshQuota(ctx context.Context, exc
 		return
 	}
 	quota, err := exchange.QuerySubscriptionQuota(ctx)
-	r.quotaCheckedAt = now
+	// Throttle from the OpenD response, not the start of a potentially slow
+	// query, so the full refresh interval is preserved after both outcomes.
+	r.quotaCheckedAt = r.now().UTC()
 	if err != nil {
 		r.quotaLastError = err.Error()
 		return

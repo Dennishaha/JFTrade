@@ -71,12 +71,13 @@ type Runtime struct {
 }
 
 var (
-	_ marketdata.Provider                 = (*Runtime)(nil)
-	_ marketdata.QuoteSource              = (*Runtime)(nil)
-	_ marketdata.QuotePollingPolicySource = (*Runtime)(nil)
-	_ marketdata.PushSource               = (*Runtime)(nil)
-	_ marketdata.PushAvailability         = (*Runtime)(nil)
-	_ marketdata.SubscriptionReconciler   = (*Runtime)(nil)
+	_ marketdata.Provider                    = (*Runtime)(nil)
+	_ marketdata.QuoteSource                 = (*Runtime)(nil)
+	_ marketdata.QuotePollingPolicySource    = (*Runtime)(nil)
+	_ marketdata.PushSource                  = (*Runtime)(nil)
+	_ marketdata.PushAvailability            = (*Runtime)(nil)
+	_ marketdata.SubscriptionReconciler      = (*Runtime)(nil)
+	_ marketdata.InactiveSubscriptionCleaner = (*Runtime)(nil)
 )
 
 // NewRuntime creates a stable provider router with Futu as its initial source.
@@ -100,8 +101,9 @@ func NewRuntime(options RuntimeOptions) (*Runtime, error) {
 }
 
 // Activate atomically selects a provider after its optional process lifecycle
-// has been prepared, previous physical subscriptions released, and the new
-// provider's current logical demand physically reconciled.
+// has been prepared, previous physical subscription demand retired, and the
+// new provider's current logical demand physically reconciled. Broker retention
+// rules may defer the old provider's final physical unsubscribe.
 func (r *Runtime) Activate(ctx context.Context, activation Activation) error {
 	if r == nil {
 		return fmt.Errorf("market-data provider runtime is unavailable")
@@ -137,15 +139,15 @@ func (r *Runtime) Activate(ctx context.Context, activation Activation) error {
 	}
 	if previous.subscriptions != nil && previous.providerID != next.providerID {
 		if err := releaseProviderSubscriptions(activationCtx, previous.subscriptions); err != nil {
-			return r.rollbackPreparedSidecar(
-				previous,
-				next.providerID,
-				fmt.Errorf(
-					"release %s market-data subscriptions: %w",
-					previous.providerID,
-					err,
-				),
+			releaseErr := fmt.Errorf(
+				"release %s market-data subscriptions: %w",
+				previous.providerID,
+				err,
 			)
+			if previous.providerID != ProviderFutu {
+				return r.rollbackPreparedSidecar(previous, next.providerID, releaseErr)
+			}
+			log.Printf("JFTrade inactive Futu subscription cleanup deferred during provider switch: %v", err)
 		}
 	}
 	if previous.providerID != next.providerID && next.subscriptions != nil {
@@ -249,9 +251,6 @@ func releaseProviderSubscriptions(
 	ctx context.Context,
 	subscriptions marketdata.SubscriptionReconciler,
 ) error {
-	if releaser, ok := subscriptions.(marketdata.ForcedSubscriptionReleaser); ok {
-		return releaser.ForceReleaseSubscriptions(ctx)
-	}
 	return subscriptions.ReconcileSubscriptions(ctx, nil)
 }
 
@@ -464,6 +463,22 @@ func (r *Runtime) ReconcileSubscriptions(ctx context.Context, desired []marketda
 		return nil
 	}
 	return reconciler.ReconcileSubscriptions(ctx, desired)
+}
+
+// ReconcileInactiveSubscriptions is called only by the collector background
+// loop. It keeps Futu retirement progressing while a poll-only provider is
+// active without making foreground subscriptions depend on old-provider
+// cleanup.
+func (r *Runtime) ReconcileInactiveSubscriptions(ctx context.Context) error {
+	r.switchMu.Lock()
+	defer r.switchMu.Unlock()
+	if r.closed {
+		return ErrRuntimeClosed
+	}
+	if r.snapshot().providerID == ProviderFutu || r.futu.subscriptions == nil {
+		return nil
+	}
+	return r.futu.subscriptions.ReconcileSubscriptions(ctx, nil)
 }
 
 func (r *Runtime) SubscriptionState() map[string]any {

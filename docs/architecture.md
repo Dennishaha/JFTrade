@@ -87,7 +87,7 @@ flowchart LR
 - `stores`：持久化 store 的单一应用句柄；保持降级启动语义，并在句柄内部按打开顺序逆序关闭。
 - `runtimes`：应用 runtime 的单一句柄；按生命周期分组引用，线性化 Pine runner 切换，并在句柄内部按成功登记顺序逆序关闭。
 - `futuapp`：Futu broker 选择、reset 顺序和控制台投影；OpenD 协议与连接实现仍归 `internal/integration/futu`。
-- `marketdataapp`：在稳定的 `internal/marketdata.Service` 下原子切换 Futu/yfinance Provider，释放旧物理订阅，并管理内置 PyInstaller helper 的释放、动态 loopback 端口、健康探测、停止和清理。
+- `marketdataapp`：在稳定的 `internal/marketdata.Service` 下原子切换 Futu/yfinance Provider，撤销旧 Provider demand 并按 broker 保留规则回收物理订阅，同时管理内置 PyInstaller helper 的释放、动态 loopback 端口、健康探测、停止和清理。
 - `servercore`：HTTP/security/frontend shell 与兼容入口；业务路由直接注册 `internal/api/*` handler，领域状态和生命周期由应用依赖入口持有。
 
 运行时按生命周期明确分成三类：
@@ -96,7 +96,7 @@ flowchart LR
 | --- | --- | --- |
 | 启动根 | 通知 publisher、broker registry、exchange calendar manager、实盘控制面 | 应用启动时建立；为后续可缺省 runtime 提供稳定依赖 |
 | 可缺省/延后装配 | Live WebSocket、策略 runtime manager、Assistant assembly | 允许降级启动或窄测试装配；存在时由 `runtimes.Handle` 统一登记和关闭 |
-| 可重置 | market-data Provider router/Futu coordinator/yfinance helper、Pine worker manager 与 runner | 只响应本领域设置；Provider 切换清缓存并释放旧物理订阅，helper 只在 yfinance 活跃期间运行，新 runner 发布后释放旧 runner |
+| 可重置 | market-data Provider router/Futu coordinator/yfinance helper、Pine worker manager 与 runner | 只响应本领域设置；Provider 切换清缓存并撤销旧 demand，受 broker 保留规则约束的物理订阅由 collector 后台回收；helper 只在 yfinance 活跃期间运行，新 runner 发布后释放旧 runner |
 
 应用资源先停 trading updates、market-data/backtest service，再关闭 runtime handle，最后关闭 stores；runtime handle 内部继续按实际成功登记的反序关闭 Assistant、实时入口、策略 runtime、Pine/Futu 与启动根。所有关闭错误保留资源名并聚合返回。
 
@@ -177,7 +177,7 @@ apps/web
      -> yfinance: QueryTickers() polling -> embedded PyInstaller helper (dynamic loopback) -> Yahoo Finance
 ```
 
-`internal/marketdata` 拥有 demand、cache、freshness、fallback polling、backoff、health/reset/close。稳定 router 让已有 service/lease 不随 Provider 切换而被替换；切换时清理旧缓存并重建 collector 的物理连接。显式切到 yfinance 会先启动内置 helper 并通过健康门禁，失败则保持当前 Provider 并由设置 API 返回冲突；启动恢复持久化选择时，helper 缺失或启动/健康失败会回退并持久化 Futu，避免配置与运行时分裂。Futu 支持 push 时优先流式更新，yfinance 明确报告无实时推流能力，因此 collector 只走轮询，不会反复尝试建立伪流连接；yfinance 也不提供 Level 2。实盘策略仍依赖 Futu 的推流与执行闭环：存在活跃策略时切源会被拒绝，yfinance 激活期间也不会授予新的实盘策略行情 lease。
+`internal/marketdata` 拥有 demand、cache、freshness、fallback polling、backoff、health/reset/close。稳定 router 让已有 service/lease 不随 Provider 切换而被替换；切换时清理旧缓存并重建 collector 的物理连接。显式切到 yfinance 会先启动内置 helper 并通过健康门禁，失败则保持当前 Provider 并由设置 API 返回冲突；启动恢复持久化选择时，helper 缺失或启动/健康失败会回退并持久化 Futu，避免配置与运行时分裂。逻辑切换成功后不会再被旧 Futu 清理失败回滚：OpenD 要求物理订阅至少保留一分钟，collector 会在非活跃 Futu demand 归零后按各订阅的实际建立时间延迟退订，并对暂时失败使用既有退避重试；到期前切回 Futu 会复用仍有效的物理订阅。Futu 支持 push 时优先流式更新，yfinance 明确报告无实时推流能力，因此 collector 只走轮询，不会反复尝试建立伪流连接；yfinance 也不提供 Level 2。实盘策略仍依赖 Futu 的推流与执行闭环：存在活跃策略时切源会被拒绝，yfinance 激活期间也不会授予新的实盘策略行情 lease。
 
 ### K 线、快照与盘口深度
 

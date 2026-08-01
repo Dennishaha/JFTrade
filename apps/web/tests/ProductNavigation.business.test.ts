@@ -599,6 +599,48 @@ describe("product navigation surfaces", () => {
     expect(state.featurePath).not.toContain("AAPL260117C00200000");
   });
 
+  it("lets the active market-data consumer reload after a provider switch", async () => {
+    const providerTarget = document.createElement("span");
+    providerTarget.id = "workspace-provider-statusbar";
+    document.body.appendChild(providerTarget);
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: "/workspace", component: WorkspaceProductPane }],
+    });
+    await router.push("/workspace");
+    await router.isReady();
+    let reloadProvider: ReturnType<typeof vi.fn> | null = null;
+    const Host = defineComponent({
+      setup() {
+        const trading = provideWorkspaceTradingPreferencesStore();
+        trading.update({ market: "US", symbol: "AAPL" });
+        const consoleData = provideConsoleDataStore(trading);
+        reloadProvider = vi
+          .spyOn(consoleData, "reloadMarketDataProvider")
+          .mockResolvedValue();
+        return () => h(WorkspaceProductPane);
+      },
+    });
+    const wrapper = mount(Host, {
+      global: {
+        plugins: [router],
+        stubs: {
+          ...productGlobalStubs,
+          LightweightChart: chartStub,
+        },
+      },
+    });
+    await flushPromises();
+
+    providerTarget
+      .querySelector<HTMLElement>(".broker-provider-tag-stub")
+      ?.click();
+    await flushPromises();
+
+    expect(reloadProvider).toHaveBeenCalledWith({ load: false });
+    wrapper.unmount();
+  });
+
   it("defers restricted tabs until product identity resolves", async () => {
     const router = createRouter({
       history: createMemoryHistory(),

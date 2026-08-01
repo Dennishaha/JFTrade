@@ -108,9 +108,8 @@ func TestRuntimeReportsBothHealthAndSidecarRestoreFailures(t *testing.T) {
 	}
 }
 
-func TestRuntimeReportsSubscriptionReleaseAndSidecarRestoreFailures(t *testing.T) {
+func TestRuntimeDefersSubscriptionReleaseFailureAfterHealthyActivation(t *testing.T) {
 	releaseErr := errors.New("subscription release failed")
-	restoreErr := errors.New("sidecar restore failed")
 	runtime, err := NewRuntime(RuntimeOptions{
 		FutuProvider:      &forwardingProviderStub{},
 		FutuSubscriptions: &subscriptionReconcilerStub{err: releaseErr},
@@ -118,20 +117,22 @@ func TestRuntimeReportsSubscriptionReleaseAndSidecarRestoreFailures(t *testing.T
 	if err != nil {
 		t.Fatalf("NewRuntime: %v", err)
 	}
-	sidecar := &healthSidecarLifecycleStub{errors: []error{nil, restoreErr}}
+	sidecar := &healthSidecarLifecycleStub{}
 	runtime.sidecar = sidecar
 	runtime.healthCheck = func(context.Context, marketdata.Provider) error { return nil }
 
 	err = runtime.Activate(t.Context(), Activation{
 		ProviderID: ProviderYFinance,
 	})
-	if !errors.Is(err, releaseErr) || !errors.Is(err, restoreErr) ||
-		runtime.ActiveProviderID() != ProviderFutu {
-		t.Fatalf("joined release/restore failure = provider %q, err=%v",
+	if err != nil || runtime.ActiveProviderID() != ProviderYFinance {
+		t.Fatalf("deferred release activation = provider %q, err=%v",
 			runtime.ActiveProviderID(), err)
 	}
-	if sidecar.ensureCalls != 1 || sidecar.stopCalls != 1 {
-		t.Fatalf("release rollback sidecar calls = ensure %d stop %d", sidecar.ensureCalls, sidecar.stopCalls)
+	if cleanupErr := runtime.ReconcileInactiveSubscriptions(t.Context()); !errors.Is(cleanupErr, releaseErr) {
+		t.Fatalf("background cleanup error = %v", cleanupErr)
+	}
+	if sidecar.ensureCalls != 1 || sidecar.stopCalls != 0 {
+		t.Fatalf("committed sidecar calls = ensure %d stop %d", sidecar.ensureCalls, sidecar.stopCalls)
 	}
 }
 

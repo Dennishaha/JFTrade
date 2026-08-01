@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
@@ -91,8 +92,9 @@ func TestApplyProviderSettingsRestoresExistingFutuDemandBeforeReturning(t *testi
 	if _, err := service.AcquireSubscription(t.Context(), "chart", []marketdata.InstrumentRef{demand}); err != nil {
 		t.Fatalf("AcquireSubscription: %v", err)
 	}
-	if len(subscriptions.desired) != 1 {
-		t.Fatalf("initial physical subscriptions = %#v", subscriptions.desired)
+	desired, _ := subscriptions.snapshot()
+	if len(desired) != 1 {
+		t.Fatalf("initial physical subscriptions = %#v", desired)
 	}
 
 	if err := ApplyProviderSettings(
@@ -105,8 +107,9 @@ func TestApplyProviderSettingsRestoresExistingFutuDemandBeforeReturning(t *testi
 	); err != nil {
 		t.Fatalf("ApplyProviderSettings(yfinance): %v", err)
 	}
-	if len(subscriptions.desired) != 0 {
-		t.Fatalf("Futu subscriptions remained active under yfinance: %#v", subscriptions.desired)
+	desired, _ = subscriptions.snapshot()
+	if len(desired) != 0 {
+		t.Fatalf("Futu subscriptions remained active under yfinance: %#v", desired)
 	}
 
 	if err := ApplyProviderSettings(
@@ -119,9 +122,10 @@ func TestApplyProviderSettingsRestoresExistingFutuDemandBeforeReturning(t *testi
 	); err != nil {
 		t.Fatalf("ApplyProviderSettings(futu): %v", err)
 	}
-	if runtime.ActiveProviderID() != ProviderFutu || len(subscriptions.desired) != 1 {
+	desired, _ = subscriptions.snapshot()
+	if runtime.ActiveProviderID() != ProviderFutu || len(desired) != 1 {
 		t.Fatalf("synchronous Futu restore = provider %q, desired %#v",
-			runtime.ActiveProviderID(), subscriptions.desired)
+			runtime.ActiveProviderID(), desired)
 	}
 	snapshot, err := service.GetSubscriptions(t.Context())
 	if err != nil {
@@ -156,7 +160,7 @@ func TestApplyProviderSettingsRollsBackFailedFutuDemandRestore(t *testing.T) {
 	}
 
 	restoreErr := errors.New("OpenD rejected subscription")
-	subscriptions.reconcileErr = restoreErr
+	subscriptions.setReconcileError(restoreErr)
 	err := ApplyProviderSettings(
 		t.Context(),
 		service,
@@ -171,9 +175,10 @@ func TestApplyProviderSettingsRollsBackFailedFutuDemandRestore(t *testing.T) {
 	if runtime.ActiveProviderID() != ProviderYFinance {
 		t.Fatalf("failed activation exposed provider %q", runtime.ActiveProviderID())
 	}
-	if len(subscriptions.desired) != 0 || subscriptions.forceCalls != 2 {
-		t.Fatalf("failed activation rollback = desired %#v, force calls %d",
-			subscriptions.desired, subscriptions.forceCalls)
+	subscriptions.setReconcileError(nil)
+	desired, _ := subscriptions.snapshot()
+	if len(desired) != 0 {
+		t.Fatalf("failed activation rollback = desired %#v", desired)
 	}
 	sidecar := runtime.sidecar.(*sidecarLifecycleStub)
 	if sidecar.ensureCalls != 1 || sidecar.stopCalls != 0 || !sidecar.running {
@@ -289,30 +294,39 @@ func (s *atomicQuoteCacheStub) ChangeQuoteProvider(change func() error) error {
 }
 
 type physicalSubscriptionStub struct {
+	mu             sync.Mutex
 	desired        []marketdata.InstrumentRef
 	reconcileErr   error
 	reconcileCalls int
-	forceCalls     int
 }
 
 func (s *physicalSubscriptionStub) ReconcileSubscriptions(
 	_ context.Context,
 	desired []marketdata.InstrumentRef,
 ) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.reconcileCalls++
 	s.desired = append([]marketdata.InstrumentRef(nil), desired...)
 	return s.reconcileErr
 }
 
-func (s *physicalSubscriptionStub) ForceReleaseSubscriptions(context.Context) error {
-	s.forceCalls++
-	s.desired = nil
-	return nil
+func (s *physicalSubscriptionStub) setReconcileError(err error) {
+	s.mu.Lock()
+	s.reconcileErr = err
+	s.mu.Unlock()
+}
+
+func (s *physicalSubscriptionStub) snapshot() ([]marketdata.InstrumentRef, int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]marketdata.InstrumentRef(nil), s.desired...), s.reconcileCalls
 }
 
 func (s *physicalSubscriptionStub) SubscriptionState() map[string]any {
-	entries := make([]map[string]any, 0, len(s.desired))
-	for _, ref := range s.desired {
+	desired, _ := s.snapshot()
+	entries := make([]map[string]any, 0, len(desired))
+	for _, ref := range desired {
 		instrumentID := strings.ToUpper(strings.TrimSpace(ref.Market)) +
 			"." + strings.ToUpper(strings.TrimSpace(ref.Symbol))
 		entries = append(entries, map[string]any{
@@ -324,8 +338,8 @@ func (s *physicalSubscriptionStub) SubscriptionState() map[string]any {
 		})
 	}
 	return map[string]any{
-		"desiredCount":        len(s.desired),
-		"ownActiveCount":      len(s.desired),
+		"desiredCount":        len(desired),
+		"ownActiveCount":      len(desired),
 		"pendingReleaseCount": 0,
 		"entries":             entries,
 	}

@@ -187,6 +187,27 @@ func TestConnectionGenerationInvalidatesClosedSessionAndItsSubscriptions(t *test
 	}
 }
 
+func TestExchangeCloseIsTerminalAndPreventsOrphanedReconnect(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+	exchange := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	if err := exchange.Connect(t.Context()); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	if err := exchange.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if err := exchange.Connect(t.Context()); !errors.Is(err, opend.ErrClosed) {
+		t.Fatalf("Connect after Close = %v, want %v", err, opend.ErrClosed)
+	}
+	if err := exchange.SubscribeBasicQuote(t.Context(), "US.AAPL", true); !errors.Is(err, opend.ErrClosed) {
+		t.Fatalf("SubscribeBasicQuote after Close = %v, want %v", err, opend.ErrClosed)
+	}
+	if err := exchange.Close(); err != nil {
+		t.Fatalf("second Close: %v", err)
+	}
+}
+
 func TestSubscriptionRequiredErrorFormattingAndNilConnectionGeneration(t *testing.T) {
 	var nilExchange *Exchange
 	if generation := nilExchange.ConnectionGeneration(); generation != 0 {

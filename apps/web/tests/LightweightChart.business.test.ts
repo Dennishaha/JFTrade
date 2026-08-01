@@ -896,11 +896,12 @@ describe("LightweightChart", () => {
     wrapper.unmount();
   });
 
-  it("releases and reacquires the chart lease for the selected provider", async () => {
+  it("waits for the selected provider lease before reloading its candles", async () => {
     stores.consoleData = createConsoleDataState();
     stores.workspace = createWorkspaceState();
     stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
-    useBrokerProviderSelection().selectBrokerProvider("alpha");
+    const selection = useBrokerProviderSelection();
+    selection.selectBrokerProvider("alpha");
 
     const wrapper = mountChart();
     await flushUi();
@@ -917,6 +918,49 @@ describe("LightweightChart", () => {
       "workspace-chart:1",
       "alpha",
     );
+
+    selection.brokerDescriptors.value.push({
+      ...selection.brokerDescriptors.value[0]!,
+      id: "futu",
+      displayName: "Futu",
+    });
+    const futuAcquire = deferred<boolean>();
+    stores.consoleData.acquireMarketDataSubscription.mockClear();
+    stores.consoleData.acquireMarketDataSubscription.mockReturnValueOnce(
+      futuAcquire.promise,
+    );
+    stores.consoleData.loadMarketDataQuery.mockClear();
+    stores.consoleData.releaseMarketDataSubscription.mockClear();
+
+    selection.selectBrokerProvider("futu");
+    await flushUi();
+
+    expect(stores.consoleData.releaseMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "workspace-chart:1",
+      brokerId: "alpha",
+      market: "US",
+      symbol: "AAPL",
+      channel: "KLINE",
+      interval: "1m",
+    });
+    expect(stores.consoleData.acquireMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "workspace-chart:1",
+      brokerId: "futu",
+      market: "US",
+      symbol: "AAPL",
+      channel: "KLINE",
+      interval: "1m",
+    });
+    expect(stores.consoleData.loadMarketDataQuery).not.toHaveBeenCalled();
+
+    futuAcquire.resolve(true);
+    await flushUi();
+
+    expect(stores.consoleData.heartbeatMarketDataConsumer).toHaveBeenLastCalledWith(
+      "workspace-chart:1",
+      "futu",
+    );
+    expect(stores.consoleData.loadMarketDataQuery).toHaveBeenCalledWith({});
 
     wrapper.unmount();
   });

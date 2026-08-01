@@ -66,6 +66,7 @@ type Exchange struct {
 	activeGeneration         atomic.Uint64
 	clientGenerationCounter  atomic.Uint64
 	ready                    bool
+	closed                   bool
 	connectionGeneration     uint64
 	subscriptions            subscriptionRegistry
 	systemNotifyClient       *opend.Client
@@ -478,6 +479,10 @@ func (e *Exchange) Connect(ctx context.Context) error {
 func (e *Exchange) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.closed {
+		return nil
+	}
+	e.closed = true
 	return e.invalidateClientLocked()
 }
 

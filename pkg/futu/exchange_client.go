@@ -80,6 +80,9 @@ func (e *Exchange) withClientAttempts(ctx context.Context, attempts int, fn func
 func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.closed {
+		return nil, opend.ErrClosed
+	}
 
 	if e.client == nil {
 		e.installClientLocked(e.newClient())

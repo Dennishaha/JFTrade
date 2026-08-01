@@ -370,6 +370,18 @@ func (c *Collector) reconcileSubscriptions() {
 			err,
 		)
 	}
+	cleaner, ok := reconciler.(InactiveSubscriptionCleaner)
+	if !ok {
+		return
+	}
+	if err := cleaner.ReconcileInactiveSubscriptions(c.ctx); err != nil && c.ctx.Err() == nil {
+		observability.ErrorWithImportance(
+			observability.WithFields(c.ctx, observability.Fields{Source: "market-data"}),
+			observability.ImportanceHigh,
+			"marketdata inactive subscription cleanup failed",
+			err,
+		)
+	}
 }
 
 func (c *Collector) startStream(generation uint64, instruments []string) {
