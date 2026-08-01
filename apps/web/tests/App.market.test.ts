@@ -48,7 +48,7 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
         brokers: [
           {
             id: "futu",
-            displayName: "Futu OpenAPI via OpenD",
+            displayName: "Futu",
             capabilities: ["HK", "US"].map((market) => ({
               market,
               supportsQuote: true,

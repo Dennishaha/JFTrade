@@ -31,7 +31,7 @@ const capabilities = {
   brokers: [
     {
       id: "futu",
-      displayName: "Futu OpenAPI via OpenD",
+      displayName: "Futu",
       securityFirm: "Moomoo US",
       capabilities: [
         {
@@ -482,7 +482,7 @@ describe("broker provider tag", () => {
     expect(tag.attributes("title")).toContain("连接方式：实时推送");
     expect(tag.attributes("title")).toContain("数据质量：实时推送正常");
     expect(tag.attributes("title")?.split("\n")).toEqual([
-      "供应商：Futu OpenAPI via OpenD",
+      "供应商：Futu",
       "连接方式：实时推送",
       "数据质量：实时推送正常",
     ]);
@@ -514,7 +514,7 @@ describe("broker provider tag", () => {
       brokers: [
         {
           id: "futu",
-          displayName: "Futu OpenAPI via OpenD",
+          displayName: "Futu",
           securityFirm: "Futu/Moomoo via OpenD",
           capabilities: [
             {
@@ -571,7 +571,7 @@ describe("broker provider tag", () => {
       "尚未完成当前 OpenD 行情权限核验",
     );
     expect(tag.attributes("title")?.split("\n")).toEqual([
-      "供应商：Futu OpenAPI via OpenD",
+      "供应商：Futu",
       "连接方式：实时推送",
       "数据质量：实时推送正常",
       "功能范围：当前功能受限",
@@ -815,7 +815,7 @@ describe("broker provider tag", () => {
       brokers: [
         {
           id: "futu",
-          displayName: "Futu OpenAPI via OpenD",
+          displayName: "Futu",
           capabilities: ["US", "SH", "SZ"].map((market) => ({
             market,
             supportsQuote: true,
@@ -924,7 +924,7 @@ describe("broker provider tag", () => {
       brokers: [
         {
           id: "futu",
-          displayName: "Futu OpenAPI via OpenD",
+          displayName: "Futu",
           securityFirm: "Futu/Moomoo via OpenD",
           capabilities: [
             {

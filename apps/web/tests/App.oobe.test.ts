@@ -87,7 +87,7 @@ describe("OOBE onboarding", () => {
               {
                 descriptor: {
                   id: "futu",
-                  displayName: "Futu OpenAPI via OpenD",
+                  displayName: "Futu",
                   environments: ["SIMULATE", "REAL"],
                   capabilities: [],
                   notes: [],
@@ -110,7 +110,7 @@ describe("OOBE onboarding", () => {
               {
                 descriptor: {
                   id: "futu",
-                  displayName: "Futu OpenAPI via OpenD",
+                  displayName: "Futu",
                   environments: ["SIMULATE", "REAL"],
                   capabilities: [],
                   notes: [],
@@ -178,7 +178,7 @@ describe("OOBE onboarding", () => {
               {
                 descriptor: {
                   id: "futu",
-                  displayName: "Futu OpenAPI via OpenD",
+                  displayName: "Futu",
                   environments: ["SIMULATE", "REAL"],
                   capabilities: [],
                   notes: [],
@@ -288,14 +288,14 @@ describe("OOBE onboarding", () => {
           return createResponse({
             descriptor: {
               id: "futu",
-              displayName: "Futu OpenAPI via OpenD",
+              displayName: "Futu",
               environments: ["SIMULATE", "REAL"],
               capabilities: [],
               notes: [],
             },
             session: {
               brokerId: "futu",
-              displayName: "Futu OpenAPI via OpenD",
+              displayName: "Futu",
               connection: {
                 host: "127.0.0.1",
                 apiPort: 11110,
@@ -375,7 +375,7 @@ describe("OOBE onboarding", () => {
     expect(router.currentRoute.value.path).toBe("/oobe");
     expect(wrapper.text()).toContain("运行时依赖与券商接入配置");
     expect(wrapper.text()).toContain("必需依赖已满足");
-    expect(wrapper.text()).toContain("Futu OpenAPI via OpenD");
+    expect(wrapper.text()).toContain("Futu");
     expect(openDHealthRequests).toBe(0);
     expect(runtimeRequests).toBe(0);
 
@@ -388,7 +388,7 @@ describe("OOBE onboarding", () => {
 
     const brokerButton = wrapper
       .findAll("button")
-      .find((button) => button.text().includes("Futu OpenAPI via OpenD"));
+      .find((button) => button.text().includes("Futu"));
     expect(brokerButton?.exists()).toBe(true);
     await brokerButton!.trigger("click");
     await flushRequests();

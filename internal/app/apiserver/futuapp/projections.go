@@ -28,7 +28,7 @@ func (c *Coordinator) Descriptor() map[string]any {
 func BrokerRuntimeDescriptor() trdsrv.BrokerRuntimeDescriptor {
 	environments := []string{"SIMULATE", "REAL"}
 	return trdsrv.BrokerRuntimeDescriptor{
-		ID: "futu", DisplayName: "Futu OpenAPI via OpenD", Environments: environments,
+		ID: "futu", DisplayName: "Futu", Environments: environments,
 		Capabilities: []trdsrv.BrokerMarketCapability{{
 			Market: "HK", SupportsQuote: true, SupportsTrade: true,
 			ReadFeatures: map[string]trdsrv.BrokerReadFeatureCapability{
@@ -214,7 +214,7 @@ func (c *Coordinator) BrokerRuntime(ctx context.Context) *trdsrv.BrokerRuntimeRe
 	return &trdsrv.BrokerRuntimeResponse{
 		Descriptor: BrokerRuntimeDescriptor(),
 		Session: trdsrv.BrokerRuntimeSession{
-			BrokerID: "futu", DisplayName: "Futu OpenAPI via OpenD",
+			BrokerID: "futu", DisplayName: "Futu",
 			Connection: trdsrv.BrokerRuntimeConnection{
 				Host: config.Host, APIPort: config.APIPort, WebSocketPort: config.WebSocketPort,
 				Port: config.APIPort, UseEncryption: config.UseEncryption, MarketDataTransport: LiveQuoteTransportMode,
@@ -290,7 +290,7 @@ func (c *Coordinator) emptyBrokerRuntime(config jfsettings.FutuIntegrationConfig
 	return &trdsrv.BrokerRuntimeResponse{
 		Descriptor: BrokerRuntimeDescriptor(),
 		Session: trdsrv.BrokerRuntimeSession{
-			BrokerID: "futu", DisplayName: "Futu OpenAPI via OpenD",
+			BrokerID: "futu", DisplayName: "Futu",
 			Connection: trdsrv.BrokerRuntimeConnection{
 				Host: config.Host, APIPort: config.APIPort, WebSocketPort: config.WebSocketPort,
 				Port: config.APIPort, UseEncryption: config.UseEncryption, MarketDataTransport: LiveQuoteTransportMode,

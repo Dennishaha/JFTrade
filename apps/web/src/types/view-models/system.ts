@@ -262,7 +262,7 @@ export const emptySystemStatus: SystemStatusResponse = {
   },
   broker: {
     id: "futu",
-    displayName: "Futu OpenAPI via OpenD",
+    displayName: "Futu",
     environments: ["SIMULATE", "REAL"],
     capabilities: [],
     notes: [],

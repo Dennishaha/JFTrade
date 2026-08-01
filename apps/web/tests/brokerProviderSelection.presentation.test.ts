@@ -60,7 +60,7 @@ describe("broker provider presentation", () => {
     selection.brokerDescriptors.value = [
       {
         id: "futu",
-        displayName: "Futu OpenAPI via OpenD",
+        displayName: "Futu",
         capabilities: [
           {
             market: "US",

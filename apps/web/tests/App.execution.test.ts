@@ -118,7 +118,7 @@ describe("Account page execution route redirect", () => {
               descriptor: {
                 ...emptyBrokerRuntime.descriptor,
                 id: "futu",
-                displayName: "Futu OpenAPI via OpenD",
+                displayName: "Futu",
                 environments: ["SIMULATE", "REAL"],
                 capabilities: [
                   {

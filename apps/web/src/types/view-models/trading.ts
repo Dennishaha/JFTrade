@@ -324,14 +324,14 @@ export const emptyRealTradeHardStopEvents: RealTradeHardStopEventsResponse = {
 export const emptyBrokerRuntime: BrokerRuntimeResponse = {
   descriptor: {
     id: "futu",
-    displayName: "Futu OpenAPI via OpenD",
+    displayName: "Futu",
     environments: ["SIMULATE", "REAL"],
     capabilities: [],
     notes: [],
   },
   session: {
     brokerId: "futu",
-    displayName: "Futu OpenAPI via OpenD",
+    displayName: "Futu",
     connection: {
       host: "127.0.0.1",
       apiPort: 11110,

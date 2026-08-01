@@ -53,7 +53,7 @@ export function enabledFutuBrokerSettings(
       {
         descriptor: {
           id: "futu",
-          displayName: "Futu OpenAPI via OpenD",
+          displayName: "Futu",
           environments: ["SIMULATE", "REAL"],
           capabilities: [
             { market: "HK", supportsQuote: true, supportsTrade: true },

@@ -61,7 +61,7 @@ func (a *futuAdapter) ID() string { return string(Name) }
 func (a *futuAdapter) Descriptor() broker.Descriptor {
 	return broker.Descriptor{
 		ID:                string(Name),
-		DisplayName:       "Futu OpenAPI via OpenD",
+		DisplayName:       "Futu",
 		SecurityFirm:      "Futu/Moomoo via OpenD",
 		CapabilityVersion: broker.BuiltinCapabilityCatalog.Version,
 		Environments:      []string{"SIMULATE", "REAL"},

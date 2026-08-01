@@ -12,11 +12,11 @@ import (
 func TestBrokerRuntimeResponseJSONShape(t *testing.T) {
 	response := &BrokerRuntimeResponse{
 		Descriptor: BrokerRuntimeDescriptor{
-			ID: "futu", DisplayName: "Futu OpenAPI via OpenD",
+			ID: "futu", DisplayName: "Futu",
 			Environments: []string{"SIMULATE", "REAL"}, Capabilities: []BrokerMarketCapability{}, Notes: []string{},
 		},
 		Session: BrokerRuntimeSession{
-			BrokerID: "futu", DisplayName: "Futu OpenAPI via OpenD",
+			BrokerID: "futu", DisplayName: "Futu",
 			Connection: BrokerRuntimeConnection{
 				Host: "127.0.0.1", APIPort: 11110, WebSocketPort: 11111, Port: 11110,
 				MarketDataTransport: "bbgo-opend-tcp-api",
