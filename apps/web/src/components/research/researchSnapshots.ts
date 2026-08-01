@@ -27,10 +27,8 @@ export class ResearchSnapshotBatchError extends Error {
     quotes: Record<string, unknown>[],
     errors: ResearchSnapshotErrorDetail[],
   ) {
-    const details = errors
-      .map((error) => `${error.instrumentId}: ${error.message}`)
-      .join("；");
-    super(`部分行情加载失败：${details}`);
+    const summary = `${errors.length} 个标的暂不可用`;
+    super(quotes.length > 0 ? `${summary}，已保留其余行情` : summary);
     this.name = "ResearchSnapshotBatchError";
     this.quotes = quotes;
     this.errors = errors;

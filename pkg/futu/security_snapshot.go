@@ -246,7 +246,7 @@ func (e *Exchange) querySecuritySnapshotListDirect(ctx context.Context, symbols 
 		return nil, err
 	}
 	if response.GetRetType() != 0 {
-		return nil, fmt.Errorf("opend GetSecuritySnapshot retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
+		return nil, securitySnapshotResponseError(&response)
 	}
 
 	snapshots := make(map[string]*qotgetsecuritysnapshotpb.Snapshot, len(response.GetS2C().GetSnapshotList()))
@@ -261,6 +261,51 @@ func (e *Exchange) querySecuritySnapshotListDirect(ctx context.Context, symbols 
 		return nil, errNoSecuritySnapshots
 	}
 	return snapshots, nil
+}
+
+func securitySnapshotResponseError(response *qotgetsecuritysnapshotpb.Response) error {
+	err := fmt.Errorf(
+		"opend GetSecuritySnapshot retType=%d errCode=%d retMsg=%s",
+		response.GetRetType(),
+		response.GetErrCode(),
+		response.GetRetMsg(),
+	)
+	if isSymbolScopedSecuritySnapshotAvailabilityError(response) {
+		return broker.NewSymbolScopedSnapshotError(err)
+	}
+	return err
+}
+
+func isSymbolScopedSecuritySnapshotAvailabilityError(response *qotgetsecuritysnapshotpb.Response) bool {
+	if response == nil || response.GetRetType() != -1 || response.GetErrCode() != 0 {
+		return false
+	}
+	message := strings.ToLower(strings.Join(strings.Fields(response.GetRetMsg()), " "))
+	compactMessage := strings.ReplaceAll(message, " ", "")
+	if isSecuritySnapshotEntitlementMessage(message) {
+		return false
+	}
+	if strings.Contains(message, "未知股票") ||
+		strings.Contains(message, "未知证券") ||
+		strings.Contains(message, "unknown stock") ||
+		strings.Contains(message, "unknown security") ||
+		strings.Contains(compactMessage, "暂不提供美股otc市场行情") {
+		return true
+	}
+	return strings.Contains(message, "us otc market quote is unavailable") ||
+		strings.Contains(message, "us otc market data is unavailable") ||
+		strings.Contains(message, "us otc market is unavailable") ||
+		strings.Contains(message, "us otc market quote is not available") ||
+		strings.Contains(message, "us otc market quotes are not available") ||
+		strings.Contains(message, "us otc market data is not available")
+}
+
+func isSecuritySnapshotEntitlementMessage(message string) bool {
+	return strings.Contains(message, "entitlement") ||
+		strings.Contains(message, "permission") ||
+		strings.Contains(message, "权限") ||
+		strings.Contains(message, "quote right") ||
+		strings.Contains(message, "qot right")
 }
 
 func (e *Exchange) queryStaticInfo(ctx context.Context, symbol string) (*qotcommonpb.SecurityStaticInfo, error) {

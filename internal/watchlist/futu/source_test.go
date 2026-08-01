@@ -114,6 +114,29 @@ func (f *recordingBatchSnapshotSource) QuerySecuritySnapshot(_ context.Context, 
 	return &broker.SecuritySnapshotResult{Snapshots: items}, nil
 }
 
+type symbolAvailabilitySnapshotSource struct {
+	mu          sync.Mutex
+	batches     [][]string
+	unavailable map[string]error
+}
+
+func (f *symbolAvailabilitySnapshotSource) QuerySecuritySnapshot(_ context.Context, query broker.SecuritySnapshotQuery) (*broker.SecuritySnapshotResult, error) {
+	f.mu.Lock()
+	f.batches = append(f.batches, append([]string(nil), query.Symbols...))
+	f.mu.Unlock()
+	for _, symbol := range query.Symbols {
+		if err := f.unavailable[symbol]; err != nil {
+			return nil, broker.NewSymbolScopedSnapshotError(err)
+		}
+	}
+	items := make([]broker.SecuritySnapshotItem, 0, len(query.Symbols))
+	for _, symbol := range query.Symbols {
+		price, previous := 101.0, 100.0
+		items = append(items, broker.SecuritySnapshotItem{Symbol: symbol, LastPrice: &price, PreviousClose: &previous})
+	}
+	return &broker.SecuritySnapshotResult{Snapshots: items}, nil
+}
+
 func TestFutuWatchlistSnapshotDoesNotSplitGlobalOrCanceledFailures(t *testing.T) {
 	ids := make([]string, 400)
 	for index := range ids {
@@ -125,6 +148,7 @@ func TestFutuWatchlistSnapshotDoesNotSplitGlobalOrCanceledFailures(t *testing.T)
 		err     error
 	}{
 		{name: "service failure", context: context.Background, err: errors.New("OpenD quote service unavailable")},
+		{name: "rate limited", context: context.Background, err: broker.NewSnapshotRateLimitError(time.Second, nil)},
 		{name: "canceled", context: func() context.Context {
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
@@ -188,6 +212,45 @@ func TestFutuWatchlistSnapshotUsesTwentyAndFourHundredChunksWithPerItemErrors(t 
 	}
 	if quotes[0].Change == nil || *quotes[0].Change != 1 || quotes[0].ChangePercent == nil || *quotes[0].ChangePercent != 1 {
 		t.Fatalf("quote change calculation = %#v", quotes[0])
+	}
+}
+
+func TestFutuWatchlistSnapshotIsolatesUnknownAndOTCSymbolErrors(t *testing.T) {
+	ids := []string{"US.AAPL", "US.BBKCF", "US.COIN", "US.KXIAY", "US.MSFT"}
+	unknown := errors.New("opend GetSecuritySnapshot retType=-1 errCode=0 retMsg=未知股票 BBKCF")
+	otc := errors.New("opend GetSecuritySnapshot retType=-1 errCode=0 retMsg=暂不提供美股 OTC 市场行情 KXIAY")
+	reader := &symbolAvailabilitySnapshotSource{unavailable: map[string]error{
+		"US.BBKCF": unknown,
+		"US.KXIAY": otc,
+	}}
+	source := newFutuWatchlistSnapshotSource(func() (broker.BatchSnapshotSource, error) { return reader, nil })
+
+	quotes, itemErrors, err := source.BatchSnapshots(t.Context(), ids)
+	if err != nil {
+		t.Fatalf("BatchSnapshots: %v", err)
+	}
+	quoteIDs := make([]string, 0, len(quotes))
+	for _, quote := range quotes {
+		quoteIDs = append(quoteIDs, quote.InstrumentID)
+	}
+	if !slices.Equal(quoteIDs, []string{"US.AAPL", "US.COIN", "US.MSFT"}) {
+		t.Fatalf("quote IDs = %#v", quoteIDs)
+	}
+	errorsByID := make(map[string]watchlist.QuoteError, len(itemErrors))
+	for _, itemError := range itemErrors {
+		errorsByID[itemError.InstrumentID] = itemError
+	}
+	if len(itemErrors) != 2 || len(errorsByID) != 2 ||
+		errorsByID["US.BBKCF"].Message != unknown.Error() || errorsByID["US.KXIAY"].Message != otc.Error() {
+		t.Fatalf("per-symbol errors = %#v", errorsByID)
+	}
+	for _, id := range quoteIDs {
+		if _, found := errorsByID[id]; found {
+			t.Fatalf("successful symbol %s inherited an unrelated error", id)
+		}
+	}
+	if len(reader.batches) <= len(ids) || !slices.Equal(reader.batches[0], ids) {
+		t.Fatalf("symbol-scoped failures were not isolated: %#v", reader.batches)
 	}
 }
 

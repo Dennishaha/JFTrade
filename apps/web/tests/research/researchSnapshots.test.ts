@@ -57,7 +57,7 @@ describe("fetchResearchSnapshots", () => {
         },
       ],
     });
-    await expect(result).rejects.toThrow("HK.HTIMAIN: 未知股票 HTIMAIN");
+    await expect(result).rejects.toThrow("1 个标的暂不可用，已保留其余行情");
   });
 
   it("keeps successful quotes visible while surfacing partial failures", async () => {
@@ -76,7 +76,36 @@ describe("fetchResearchSnapshots", () => {
       { instrumentId: "US.AAPL", price: 215 },
     ]);
     expect(state.byInstrumentId.value["US.AAPL"]).toMatchObject({ price: 215 });
-    expect(state.error.value).toBe("部分行情加载失败：HK.HTIMAIN: 未知股票 HTIMAIN");
+    expect(state.error.value).toBe("1 个标的暂不可用，已保留其余行情");
+    expect(state.loading.value).toBe(false);
+    scope.stop();
+  });
+
+  it("summarizes unavailable instruments when no quotes can be retained", async () => {
+    mocks.fetchEnvelopeWithInit.mockResolvedValueOnce({
+      quotes: [],
+      errors: [
+        {
+          instrumentId: "US.BBKCF",
+          code: "UNKNOWN_SECURITY",
+          message: "未知股票 BBKCF",
+        },
+        {
+          instrumentId: "US.KXIAY",
+          code: "UNSUPPORTED_OTC",
+          message: "暂不提供美股 OTC 市场行情 KXIAY",
+        },
+      ],
+    });
+    const scope = effectScope();
+    const state = scope.run(() =>
+      useResearchSnapshots(ref(["US.BBKCF", "US.KXIAY"]), ref("futu")),
+    )!;
+
+    await flushPromises();
+
+    expect(state.entries.value).toEqual([]);
+    expect(state.error.value).toBe("2 个标的暂不可用");
     expect(state.loading.value).toBe(false);
     scope.stop();
   });
