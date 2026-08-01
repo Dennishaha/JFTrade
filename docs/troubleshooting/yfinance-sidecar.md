@@ -26,10 +26,10 @@ Invoke-RestMethod http://127.0.0.1:3000/api/v1/market-data/provider
 
 ## 自动启动后立即退出
 
-发布版由 PyInstaller 单文件 helper 提供 Python 运行时，不需要用户安装 Python。`pnpm run desktop:dev` 会自动复用或构建当前平台 helper，并注入绝对路径；如果使用独立 `cmd/jftrade-api`，仍需手工提供可执行 helper：
+发布版由 PyInstaller `onedir` helper（可执行文件及其依赖目录）提供 Python 运行时，不需要用户安装 Python。`pnpm run desktop:dev` 会自动复用或构建当前平台 helper，并注入目录内可执行文件的绝对路径；如果使用独立 `cmd/jftrade-api`，仍需手工提供目录内可执行 helper：
 
 ```bash
-JFTRADE_YFINANCE_SIDECAR=/absolute/path/to/yfinance-sidecar-<platform> \
+JFTRADE_YFINANCE_SIDECAR=/absolute/path/to/yfinance-sidecar-<platform>/yfinance-sidecar-<platform> \
   go run ./cmd/jftrade-api
 ```
 
@@ -40,9 +40,9 @@ python -m pip install --editable "workers/yfinance-sidecar[runtime,build]"
 pnpm run build:yfinance-sidecar
 ```
 
-桌面开发启动会默认使用 `workers/yfinance-sidecar/.venv/bin/python`（Windows 为 `.venv\\Scripts\\python.exe`）构建；也可以通过 `JFTRADE_YFINANCE_BUILD_PYTHON` 指定构建 Python。PyInstaller 单文件首次启动可能需要几十秒解压，JFTrade 会等待 `/health` 就绪。
+桌面开发启动会默认使用 `workers/yfinance-sidecar/.venv/bin/python`（Windows 为 `.venv\\Scripts\\python.exe`）构建；也可以通过 `JFTRADE_YFINANCE_BUILD_PYTHON` 指定构建 Python。`onedir` helper 不需要启动时解压整个运行时，JFTrade 仍会等待 `/health` 就绪。
 
-显式切换到 yfinance 时，JFTrade 会等待 helper 的 `/health`（最长约 45 秒，覆盖 PyInstaller 首次解包）。路径不存在、helper 缺失、启动失败或健康探测失败都会返回 `409 MARKET_DATA_PROVIDER_UPDATE_FAILED`，停止本次新进程，并恢复原来的 Provider。
+显式切换到 yfinance 时，JFTrade 会等待 helper 的 `/health`（最长约 45 秒）。路径不存在、helper 缺失、启动失败或健康探测失败都会返回 `409 MARKET_DATA_PROVIDER_UPDATE_FAILED`，停止本次新进程，并恢复原来的 Provider。
 
 应用启动时恢复已持久化的 yfinance 若 helper 缺失会回退并持久化 Futu，不会让首页继续使用失效的数据源。修复安装或开发路径后，再切回 yfinance 以触发一次受健康门禁保护的新启动。
 

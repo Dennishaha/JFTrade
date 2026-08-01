@@ -14,13 +14,17 @@ import process from "node:process";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
-test("build stages one host-specific PyInstaller executable", () => {
+test("build stages one host-specific PyInstaller onedir asset", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "jftrade-yfinance-assets-"));
   try {
     const outDir = join(tempDir, "assets", "bin");
     mkdirSync(outDir, { recursive: true });
     writeFileSync(join(outDir, ".gitkeep"), "");
-    writeFileSync(join(outDir, hostAssetName()), "stale");
+    if (hostAssetName() !== hostAssetBase()) {
+      writeFileSync(join(outDir, hostAssetName()), "stale");
+    }
+    mkdirSync(join(outDir, hostAssetBase()), { recursive: true });
+    writeFileSync(join(outDir, hostAssetBase(), "stale"), "stale");
     writeFileSync(join(outDir, "yfinance-sidecar-other-platform"), "keep");
     writeFileSync(join(outDir, "unrelated-file"), "keep");
 
@@ -34,7 +38,7 @@ test("build stages one host-specific PyInstaller executable", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(
       result.stdout,
-      new RegExp(`Building yfinance sidecar -> ${escapeRegex(hostAssetName())}`),
+      new RegExp(`Building yfinance sidecar -> .*${escapeRegex(hostAssetBase())}`),
     );
     assert.match(result.stdout, /DRY RUN .* -m PyInstaller --clean --noconfirm/);
     assert.match(result.stdout, /yfinance-sidecar\.spec/);
@@ -43,6 +47,7 @@ test("build stages one host-specific PyInstaller executable", () => {
     assert.ok(existsSync(join(outDir, "unrelated-file")));
     assert.ok(existsSync(join(outDir, "yfinance-sidecar-other-platform")));
     assert.ok(!existsSync(join(outDir, hostAssetName())));
+    assert.ok(!existsSync(join(outDir, hostAssetBase())));
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -68,10 +73,14 @@ function runBuild(extraEnv) {
 }
 
 function hostAssetName() {
+  return `${hostAssetBase()}${process.platform === "win32" ? ".exe" : ""}`;
+}
+
+function hostAssetBase() {
   const goos =
     process.platform === "win32" ? "windows" : process.platform;
   const goarch = process.arch === "x64" ? "amd64" : process.arch;
-  return `yfinance-sidecar-${goos}-${goarch}${goos === "windows" ? ".exe" : ""}`;
+  return `yfinance-sidecar-${goos}-${goarch}`;
 }
 
 function escapeRegex(value) {

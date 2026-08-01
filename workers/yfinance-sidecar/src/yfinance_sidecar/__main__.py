@@ -7,8 +7,8 @@ import sys
 
 def _run() -> None:
     # Keep the frozen version probe independent from FastAPI/pandas/yfinance
-    # imports. PyInstaller one-file extraction is already cold-start bound;
-    # importing the full route graph here made --version needlessly expensive.
+    # imports. Importing the full route graph here makes --version needlessly
+    # expensive even though the release helper is a PyInstaller onedir bundle.
     if "--version" in sys.argv[1:]:
         from yfinance_sidecar import __version__
 

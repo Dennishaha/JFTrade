@@ -29,7 +29,7 @@ assert.equal(
   currentYFinanceSidecarAssetPath({
     environment: { GOOS: "windows", GOARCH: "amd64" },
   }),
-  "internal/yfinanceassets/assets/bin/yfinance-sidecar-windows-amd64.exe",
+  "internal/yfinanceassets/assets/bin/yfinance-sidecar-windows-amd64",
 );
 assert.throws(
   () =>
@@ -53,7 +53,14 @@ try {
   for (const relativePath of currentPlatformInputs) {
     const inputPath = path.join(rootDir, relativePath);
     fs.mkdirSync(path.dirname(inputPath), { recursive: true });
-    fs.writeFileSync(inputPath, "prepared\n", "utf8");
+    if (relativePath.startsWith("internal/yfinanceassets/assets/bin/")) {
+      fs.mkdirSync(inputPath, { recursive: true });
+      const binaryBase = path.basename(relativePath);
+      const extension = binaryBase.includes("-windows-") ? ".exe" : "";
+      fs.writeFileSync(path.join(inputPath, `${binaryBase}${extension}`), "prepared\n", "utf8");
+    } else {
+      fs.writeFileSync(inputPath, "prepared\n", "utf8");
+    }
   }
   assert.doesNotThrow(() => assertPreparedDesktopReleaseInputs(rootDir));
 

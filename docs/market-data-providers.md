@@ -21,14 +21,14 @@ Yahoo Finance 接口不是官方稳定 API，也没有实时性或可用性承�
 
 ## 内置 helper
 
-桌面版和带 `release_assets` 的 `cmd/jftrade-api` 会嵌入目标平台的 PyInstaller 单文件 helper。JFTrade 在启用内置 yfinance Provider 时自动释放到权限受限的临时目录，分配动态 loopback 端口，探测 `/health` 后注入内部 Provider endpoint；切回 Futu 或退出应用时停止进程并删除临时文件。helper 缺失、启动失败或健康探测失败会回退并持久化 Futu；helper 不会无限自动重启，也不会监听公网。
+桌面版和带 `release_assets` 的 `cmd/jftrade-api` 会嵌入目标平台的 PyInstaller `onedir` helper（可执行文件及其依赖目录）。JFTrade 在启用内置 yfinance Provider 时自动释放到权限受限的临时目录，分配动态 loopback 端口，探测 `/health` 后注入内部 Provider endpoint；切回 Futu 或退出应用时停止进程并删除临时目录。helper 缺失、启动失败或健康探测失败会回退并持久化 Futu；helper 不会无限自动重启，也不会监听公网。
 
 设置页不提供行情 Provider 分类，也不提供 Python、host、port、enabled 或 timeout 配置。首页/研究页的“行情提供者”菜单只展示可用 Provider，并负责切换到 Futu OpenD。
 
 `pnpm run desktop:dev` 会优先复用当前平台的已构建 helper；如果 helper 不存在且仓库内的 `workers/yfinance-sidecar/.venv` 可用，启动脚本会自动构建并通过 `JFTRADE_YFINANCE_SIDECAR` 注入桌面进程。没有该虚拟环境时，可先按 sidecar README 安装 `[runtime,build]` 依赖。独立运行 `cmd/jftrade-api` 时，可通过绝对路径指定本地 helper：
 
 ```bash
-JFTRADE_YFINANCE_SIDECAR=/absolute/path/to/yfinance-sidecar-darwin-arm64 \
+JFTRADE_YFINANCE_SIDECAR=/absolute/path/to/yfinance-sidecar-darwin-arm64/yfinance-sidecar-darwin-arm64 \
   go run ./cmd/jftrade-api
 ```
 

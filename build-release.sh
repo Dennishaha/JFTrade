@@ -19,8 +19,8 @@ YFINANCE_ASSET_DIR="$ROOT_DIR/internal/yfinanceassets/assets/bin"
 YFINANCE_ASSETS=(
   "yfinance-sidecar-darwin-arm64"
   "yfinance-sidecar-linux-amd64"
-  "yfinance-sidecar-windows-amd64.exe"
-  "yfinance-sidecar-windows-arm64.exe"
+  "yfinance-sidecar-windows-amd64"
+  "yfinance-sidecar-windows-arm64"
 )
 
 require_command() {
@@ -72,7 +72,11 @@ require_yfinance_assets() {
   local missing=()
   local asset
   for asset in "${YFINANCE_ASSETS[@]}"; do
-    if [[ ! -s "$YFINANCE_ASSET_DIR/$asset" ]]; then
+    local executable="$YFINANCE_ASSET_DIR/$asset/$asset"
+    if [[ "$asset" == *-windows-* ]]; then
+      executable+=".exe"
+    fi
+    if [[ ! -d "$YFINANCE_ASSET_DIR/$asset" || ! -s "$executable" ]]; then
       missing+=("$asset")
     fi
   done

@@ -37,11 +37,11 @@ python3.11 -m venv .venv
 ```
 
 源码启动仅用于开发和测试。正式 JFTrade 安装包使用随 Go 二进制嵌入的
-PyInstaller 单文件 helper，由应用自动分配 loopback 端口并管理生命周期。
+PyInstaller `onedir` helper（可执行文件及其依赖目录），由应用自动分配 loopback 端口并管理生命周期。
 helper 也支持 `--version`：
 
 ```bash
-./yfinance-sidecar --version
+../../internal/yfinanceassets/assets/bin/yfinance-sidecar-<platform>/yfinance-sidecar-<platform> --version
 ```
 
 服务应只绑定 `127.0.0.1`。可通过以下命令验证进程本身，不会触发 Yahoo
@@ -88,9 +88,9 @@ K 线参数：
 .venv/bin/pytest
 ```
 
-To build the release executable, install the pinned build extra and run the
-repository build script. The resulting one-file executable is staged under
-`internal/yfinanceassets/assets/bin`:
+To build the release bundle, install the pinned build extra and run the
+repository build script. The resulting onedir bundle is staged under
+`internal/yfinanceassets/assets/bin/<platform>`:
 
 ```bash
 .venv/bin/python -m pip install --editable '.[runtime,build]'

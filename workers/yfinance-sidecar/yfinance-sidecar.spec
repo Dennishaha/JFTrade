@@ -1,4 +1,4 @@
-# PyInstaller one-file build specification for the local yfinance sidecar.
+# PyInstaller onedir build specification for the local yfinance sidecar.
 
 from pathlib import Path
 import os
@@ -38,9 +38,8 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name=binary_name,
     debug=False,
     bootloader_ignore_signals=False,
@@ -48,4 +47,12 @@ exe = EXE(
     upx=False,
     console=True,
     disable_windowed_traceback=False,
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    name=binary_name,
 )

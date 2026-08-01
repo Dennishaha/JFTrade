@@ -41,8 +41,8 @@ embedded JFTrade license documentation.
 
 JFTrade includes the AGPL-3.0-only adapter source under
 `workers/yfinance-sidecar`. Release builds freeze the runtime into a
-platform-specific PyInstaller helper and embed it in the Go binary. Its
-`pyproject.toml` pins the following direct build, runtime, and test
+platform-specific PyInstaller `onedir` bundle and embed its files in the Go
+binary. Its `pyproject.toml` pins the following direct build, runtime, and test
 dependencies. Python installers may also resolve transitive dependencies;
 every installed distribution retains its own copyright and license files.
 

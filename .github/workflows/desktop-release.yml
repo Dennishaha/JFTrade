@@ -237,12 +237,14 @@ jobs:
       - name: Sign native yfinance helper before embedding
         run: |
           set -euo pipefail
-          helper="internal/yfinanceassets/assets/bin/yfinance-sidecar-darwin-arm64"
+          helper_dir="internal/yfinanceassets/assets/bin/yfinance-sidecar-darwin-arm64"
+          helper="$helper_dir/yfinance-sidecar-darwin-arm64"
+          test -d "$helper_dir"
           test -s "$helper"
           if [[ -n "${JFTRADE_MACOS_SIGN_IDENTITY:-}" ]]; then
-            codesign --force --options runtime --timestamp --sign "$JFTRADE_MACOS_SIGN_IDENTITY" "$helper"
+            codesign --force --options runtime --timestamp --deep --sign "$JFTRADE_MACOS_SIGN_IDENTITY" "$helper"
           else
-            codesign --force --sign - "$helper"
+            codesign --force --deep --sign - "$helper"
           fi
           codesign --verify --strict --verbose=2 "$helper"
 

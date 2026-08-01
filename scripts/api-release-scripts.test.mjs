@@ -38,8 +38,8 @@ for (const script of scripts) {
   for (const asset of [
     "yfinance-sidecar-darwin-arm64",
     "yfinance-sidecar-linux-amd64",
-    "yfinance-sidecar-windows-amd64.exe",
-    "yfinance-sidecar-windows-arm64.exe",
+    "yfinance-sidecar-windows-amd64",
+    "yfinance-sidecar-windows-arm64",
   ]) {
     assert(source.includes(asset), `${script.path} does not require ${asset}`);
   }

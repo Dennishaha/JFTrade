@@ -9,7 +9,7 @@ func TestSelectReturnsUnavailableWithoutReleaseAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Select error = %v", err)
 	}
-	if available || asset.Name != "" || len(asset.Data) != 0 || asset.SHA256 != "" {
+	if available || asset.Name != "" || len(asset.Files) != 0 || asset.SHA256 != "" {
 		t.Fatalf("Select = %#v available=%v, want unavailable empty asset", asset, available)
 	}
 	materialized, available, err := Materialize()

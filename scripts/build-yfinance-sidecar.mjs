@@ -47,12 +47,15 @@ const python =
 const dryRun = process.env.JFTRADE_YFINANCE_ASSET_BUILD_DRY_RUN === "1";
 const binaryBase = `yfinance-sidecar-${targetGOOS}-${targetGOARCH}`;
 const outputName = `${binaryBase}${targetGOOS === "windows" ? ".exe" : ""}`;
-const outputPath = join(outDir, outputName);
+const outputDir = join(outDir, binaryBase);
+const outputPath = join(outputDir, outputName);
+const legacyOutputPath = join(outDir, outputName);
 const tempDir = mkdtempSync(join(tmpdir(), "jftrade-yfinance-build-"));
 
 try {
   mkdirSync(outDir, { recursive: true });
-  rmSync(outputPath, { force: true });
+  rmSync(outputDir, { recursive: true, force: true });
+  rmSync(legacyOutputPath, { force: true });
 
   const args = [
     "-m",
@@ -65,7 +68,7 @@ try {
     join(tempDir, "work"),
     specPath,
   ];
-  console.log(`Building yfinance sidecar -> ${outputName}`);
+  console.log(`Building yfinance sidecar -> ${outputDir}`);
   if (dryRun) {
     console.log(`DRY RUN ${formatCommand(python, args)}`);
   } else {
@@ -98,9 +101,10 @@ function run(command, args, env) {
 }
 
 function verifyOutput(path, goos) {
+  const outputDir = statSync(join(path, ".."), { throwIfNoEntry: false });
   const output = statSync(path, { throwIfNoEntry: false });
-  if (!output?.isFile() || output.size === 0) {
-    fail(`PyInstaller output is missing or empty: ${path}`);
+  if (!outputDir?.isDirectory() || !output?.isFile() || output.size === 0) {
+    fail(`PyInstaller onedir output is missing or empty: ${path}`);
   }
   if (goos !== "windows") {
     chmodSync(path, 0o755);

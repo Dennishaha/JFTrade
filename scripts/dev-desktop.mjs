@@ -172,13 +172,15 @@ function stagedYFinanceSidecarPath() {
   ] || process.platform;
   const goarch = { arm64: "arm64", x64: "amd64" }[process.arch] || process.arch;
   const extension = goos === "windows" ? ".exe" : "";
+  const binaryBase = `yfinance-sidecar-${goos}-${goarch}`;
   return path.join(
     rootDir,
     "internal",
     "yfinanceassets",
     "assets",
     "bin",
-    `yfinance-sidecar-${goos}-${goarch}${extension}`,
+    binaryBase,
+    `${binaryBase}${extension}`,
   );
 }
 

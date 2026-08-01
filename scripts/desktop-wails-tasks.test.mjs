@@ -124,11 +124,12 @@ const macHelperIndex = darwin.indexOf(
 );
 const macGoBuildIndex = darwin.indexOf("go build -trimpath -buildvcs=false");
 assert(
-  macHelperIndex >= 0 &&
+    macHelperIndex >= 0 &&
     macHelperIndex < macGoBuildIndex &&
-    darwin.includes("codesign --force --options runtime --timestamp") &&
-    darwin.includes("codesign --force --sign - \"$helper\""),
-  "macOS native yfinance helper is not signed before Go embedding",
+    darwin.includes("codesign --force --options runtime --timestamp --deep") &&
+    darwin.includes("codesign --force --deep --sign - \"$helper\"") &&
+    darwin.includes("codesign --verify --strict --verbose=2 \"$helper\""),
+  "macOS native yfinance onedir helper is not recursively signed before Go embedding",
 );
 assert(
   darwin.includes("Contents/Resources/licenses/LICENSE") &&

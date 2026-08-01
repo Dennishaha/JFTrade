@@ -2,7 +2,7 @@
 
 本文用 Mermaid 图补充 [architecture.md](./architecture.md) 的文字说明。它偏向“快速看边界”，不是替代接口、配置或协议专题文档。
 
-行情 Provider 运行时包含 Futu OpenD 与内置 Yahoo Finance（yfinance）。新安装默认使用 yfinance，首页/研究页的“行情提供者”菜单负责切换 Futu；当前版本只读取统一的 Provider 选择字段，不再读取历史 yfinance 连接配置。启动恢复时内置 helper 缺失或启动/健康失败同样回退并持久化 Futu。yfinance helper 是随 `release_assets` 嵌入的 PyInstaller 单文件，由 JFTrade 以动态 loopback 端口自动启动，停止时清理释放目录；`JFTRADE_YFINANCE_SIDECAR` 仅用于开发/测试的绝对路径覆盖，正式运行不接受手工 sidecar。Yahoo Finance 只提供延迟快照和历史 K 线，不提供实时推流或 Level 2。
+行情 Provider 运行时包含 Futu OpenD 与内置 Yahoo Finance（yfinance）。新安装默认使用 yfinance，首页/研究页的“行情提供者”菜单负责切换 Futu；当前版本只读取统一的 Provider 选择字段，不再读取历史 yfinance 连接配置。启动恢复时内置 helper 缺失或启动/健康失败同样回退并持久化 Futu。yfinance helper 是随 `release_assets` 嵌入的 PyInstaller `onedir` 目录，由 JFTrade 以动态 loopback 端口自动启动，停止时清理释放目录；`JFTRADE_YFINANCE_SIDECAR` 仅用于开发/测试的目录内可执行文件绝对路径覆盖，正式运行不接受手工 sidecar。Yahoo Finance 只提供延迟快照和历史 K 线，不提供实时推流或 Level 2。
 
 ## 系统总览
 
@@ -48,7 +48,7 @@ flowchart TB
         FutuIntegration["internal/integration/futu<br/>OpenD 访问与 DTO 转换"]
         YFinanceIntegration["internal/integration/yfinance<br/>轮询 HTTP Provider"]
         YFinanceAssets["internal/yfinanceassets<br/>release_assets 嵌入 / SHA-256"]
-        YFinanceSidecar["workers/yfinance-sidecar<br/>PyInstaller 单文件 helper<br/>动态 loopback 端口"]
+        YFinanceSidecar["workers/yfinance-sidecar<br/>PyInstaller onedir helper<br/>动态 loopback 端口"]
         FutuPkg["pkg/futu<br/>Futu exchange adapter"]
         BrokerPkg["pkg/broker + pkg/market<br/>券商抽象 / 市场规则"]
         StrategyPkg["pkg/strategy<br/>Pine parser / IR / spec / lowering"]
@@ -173,7 +173,7 @@ flowchart LR
         FutuIntegration["internal/integration/futu"]
         YFinanceIntegration["internal/integration/yfinance"]
         YFinanceAssets["internal/yfinanceassets<br/>embedded release asset"]
-        YFinanceSidecar["PyInstaller single-file helper<br/>dynamic loopback"]
+        YFinanceSidecar["PyInstaller onedir helper<br/>dynamic loopback"]
         Yahoo["Yahoo Finance"]
         FutuPkg["pkg/futu"]
         OpenD["Futu OpenD"]

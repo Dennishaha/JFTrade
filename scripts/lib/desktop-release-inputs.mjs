@@ -34,8 +34,7 @@ export function currentYFinanceSidecarAssetPath({
       `Unsupported desktop yfinance asset target: ${environment.GOOS || platform}/${environment.GOARCH || architecture}`,
     );
   }
-  const extension = goos === "windows" ? ".exe" : "";
-  return `internal/yfinanceassets/assets/bin/yfinance-sidecar-${goos}-${goarch}${extension}`;
+  return `internal/yfinanceassets/assets/bin/yfinance-sidecar-${goos}-${goarch}`;
 }
 
 export function desktopReleaseInputPathsForCurrentPlatform(options = {}) {
@@ -60,6 +59,27 @@ export function assertPreparedDesktopReleaseInputs(rootDir, options = {}) {
         throw new Error(`Prepared desktop release input is missing: ${relativePath}`);
       }
       throw error;
+    }
+    if (relativePath.startsWith("internal/yfinanceassets/assets/bin/")) {
+      if (!stat.isDirectory()) {
+        throw new Error(`Prepared desktop release input is empty or invalid: ${relativePath}`);
+      }
+      const binaryBase = path.basename(relativePath);
+      const extension = binaryBase.includes("-windows-") ? ".exe" : "";
+      const executablePath = path.join(inputPath, `${binaryBase}${extension}`);
+      let executable;
+      try {
+        executable = fs.statSync(executablePath);
+      } catch (error) {
+        if (error?.code === "ENOENT") {
+          throw new Error(`Prepared desktop release input is missing: ${relativePath}/${path.basename(executablePath)}`);
+        }
+        throw error;
+      }
+      if (!executable.isFile() || executable.size === 0) {
+        throw new Error(`Prepared desktop release input is empty or invalid: ${relativePath}/${path.basename(executablePath)}`);
+      }
+      continue;
     }
     if (!stat.isFile() || stat.size === 0) {
       throw new Error(`Prepared desktop release input is empty or invalid: ${relativePath}`);

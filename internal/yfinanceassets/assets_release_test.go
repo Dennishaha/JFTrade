@@ -3,16 +3,16 @@
 package yfinanceassets
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"io/fs"
-	"path/filepath"
+	"path"
+	"runtime"
 	"testing"
 )
 
 func TestSelectReturnsStagedPlatformAssetWhenPresent(t *testing.T) {
 	name := BinaryName()
-	assetPath := filepath.ToSlash(filepath.Join(binDir, name))
+	assetRoot := path.Join(binDir, assetDirectoryName(runtime.GOOS, runtime.GOARCH))
+	assetPath := path.Join(assetRoot, name)
 	expectedData, err := fs.ReadFile(assetFS(), assetPath)
 	if err != nil {
 		t.Skipf("no staged %s release asset: %v", name, err)
@@ -25,11 +25,18 @@ func TestSelectReturnsStagedPlatformAssetWhenPresent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Select: %v", err)
 	}
-	if !available || asset.Name != name || string(asset.Data) != string(expectedData) {
+	executableData := []byte(nil)
+	for _, file := range asset.Files {
+		if file.Path == name {
+			executableData = file.Data
+			break
+		}
+	}
+	if !available || asset.Name != name || len(executableData) == 0 || string(executableData) != string(expectedData) {
 		t.Fatalf("Select = %#v available=%v, want staged %s", asset, available, name)
 	}
-	sum := sha256.Sum256(expectedData)
-	if asset.SHA256 != hex.EncodeToString(sum[:]) {
-		t.Fatalf("Select SHA256 = %q, want %q", asset.SHA256, hex.EncodeToString(sum[:]))
+	digest, err := digestAssetFiles(asset.Files)
+	if err != nil || asset.SHA256 != digest {
+		t.Fatalf("Select SHA256 = %q, want %q (error %v)", asset.SHA256, digest, err)
 	}
 }

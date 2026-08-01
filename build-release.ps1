@@ -14,8 +14,8 @@ $yfinanceAssetDir = Join-Path $PSScriptRoot "internal/yfinanceassets/assets/bin"
 $requiredYfinanceAssets = @(
     "yfinance-sidecar-darwin-arm64",
     "yfinance-sidecar-linux-amd64",
-    "yfinance-sidecar-windows-amd64.exe",
-    "yfinance-sidecar-windows-arm64.exe"
+    "yfinance-sidecar-windows-amd64",
+    "yfinance-sidecar-windows-arm64"
 )
 $targets = @(
     @{ GOOS = "darwin"; GOARCH = "arm64" },
@@ -76,7 +76,11 @@ function Assert-YFinanceAssets {
     $missing = @()
     foreach ($asset in $requiredYfinanceAssets) {
         $assetPath = Join-Path $yfinanceAssetDir $asset
-        if (-not (Test-Path -LiteralPath $assetPath -PathType Leaf) -or (Get-Item -LiteralPath $assetPath).Length -le 0) {
+        $executableName = if ($asset -like "*-windows-*") { "$asset.exe" } else { $asset }
+        $executablePath = Join-Path $assetPath $executableName
+        if (-not (Test-Path -LiteralPath $assetPath -PathType Container) -or
+            -not (Test-Path -LiteralPath $executablePath -PathType Leaf) -or
+            (Get-Item -LiteralPath $executablePath).Length -le 0) {
             $missing += $asset
         }
     }

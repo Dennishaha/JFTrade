@@ -30,7 +30,7 @@ flowchart LR
     MarketDataRuntime --> FutuIntegration
     MarketDataRuntime --> YFinanceIntegration[internal/integration/yfinance\nHTTP provider]
     MarketDataRuntime --> YFinanceAssets[internal/yfinanceassets\nrelease_assets embedded + SHA-256]
-    YFinanceAssets --> YFinanceSidecar[workers/yfinance-sidecar\nPyInstaller single-file helper\ndynamic loopback endpoint]
+    YFinanceAssets --> YFinanceSidecar[workers/yfinance-sidecar\nPyInstaller onedir helper\ndynamic loopback endpoint]
     YFinanceSidecar --> Yahoo[Yahoo Finance]
     App --> Services
     App --> Stores[internal/store/*\ndomain persistence]
@@ -62,7 +62,7 @@ flowchart LR
 - Wails sidecar 与可选 Web 入口是两个监听器，但复用同一个 Gin handler、服务层和数据目录；sidecar 始终只监听 loopback，不能被 Web 密码当作浏览器入口。
 - JFTrade 控制台只承诺 `/api/v1/*`；不要把它和 bbgo 原生 `/api/*` 混为一谈。
 - `pkg/futu`、`pkg/strategy/pineworker`、`pkg/backtest` 仍可复用 bbgo 公共类型、PineTS worker 边界和回测组件。
-- `cmd/jftrade-api` 和桌面产品都从 `release_assets` 嵌入当前平台的 PyInstaller 单文件 yfinance helper（`darwin/arm64`、`linux/amd64`、`windows/amd64`、`windows/arm64`）。JFTrade 在启用或恢复内置 Yahoo Finance Provider 时自动释放 helper 到受限临时目录，分配动态 loopback 端口并探测 `/health`；设置页不提供行情 Provider 分类，首页/研究页的“行情提供者”菜单负责切换，切换或应用退出时停止进程并清理临时文件。
+- `cmd/jftrade-api` 和桌面产品都从 `release_assets` 嵌入当前平台的 PyInstaller `onedir` yfinance helper（`darwin/arm64`、`linux/amd64`、`windows/amd64`、`windows/arm64`）。JFTrade 在启用或恢复内置 Yahoo Finance Provider 时自动释放 helper 目录到受限临时目录，分配动态 loopback 端口并探测 `/health`；设置页不提供行情 Provider 分类，首页/研究页的“行情提供者”菜单负责切换，切换或应用退出时停止进程并清理临时目录。
 - 正式运行不接受外部手工管理的 yfinance 进程。`JFTRADE_YFINANCE_SIDECAR` 只可在开发和测试环境指定绝对路径 helper，用于覆盖嵌入资产。
 
 ## 核心职责边界
@@ -125,7 +125,7 @@ Handler 只做参数绑定、校验、调用 service、错误映射和响应转�
 
 `internal/integration/futu` 是 API sidecar 内部使用的 Futu/OpenD 适配层，负责 client 生命周期、exchange 创建、stream/query 调用、探测和协议到 broker-neutral DTO/事件的转换。`internal/integration/yfinance` 是轮询型 HTTP Provider，只接收由 `marketdataapp` 注入的内部 loopback endpoint，并转换同一套 broker-neutral DTO；它不拥有数据源选择、缓存、订阅或进程生命周期。
 
-`workers/yfinance-sidecar` 用 FastAPI 封装 Python `yfinance`，通过 PyInstaller 打成单文件 helper，并由 `internal/yfinanceassets` 按平台嵌入和校验 SHA-256。JFTrade 只在需要时自动启动它，helper 监听动态分配的 loopback 端口；应用关闭或切回 Futu 时停止并清理释放目录。它当前承诺 `US`、`HK`、`SH`、`SZ` 的搜索、详情、约 15 分钟延迟快照和历史 K 线，前端将 `SH`/`SZ` 聚合为 `CN`；不提供可靠实时推流或 Level 2。用户界面不暴露连接参数或 Python 路径；Provider 选择和进程生命周期由 `internal/app/apiserver/marketdataapp` 管理，详细能力见 [market-data-providers.md](market-data-providers.md)。
+`workers/yfinance-sidecar` 用 FastAPI 封装 Python `yfinance`，通过 PyInstaller 打成 `onedir` helper，并由 `internal/yfinanceassets` 按平台嵌入目录并校验 SHA-256。JFTrade 只在需要时自动启动它，helper 监听动态分配的 loopback 端口；应用关闭或切回 Futu 时停止并清理释放目录。它当前承诺 `US`、`HK`、`SH`、`SZ` 的搜索、详情、约 15 分钟延迟快照和历史 K 线，前端将 `SH`/`SZ` 聚合为 `CN`；不提供可靠实时推流或 Level 2。用户界面不暴露连接参数或 Python 路径；Provider 选择和进程生命周期由 `internal/app/apiserver/marketdataapp` 管理，详细能力见 [market-data-providers.md](market-data-providers.md)。
 
 持久化按领域位于 `internal/store/{strategy,backtest,trading,watchlist,research,...}`。数据维护只通过 `internal/datamanagement` 的 busy、purge、compact 窄端口访问这些资源，不读取 store 的锁、map 或数据库连接。
 
