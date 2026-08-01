@@ -582,9 +582,9 @@ func securitySnapshotItemFromProto(snap *qotgetsecuritysnapshotpb.Snapshot, obse
 		Overnight:     extendedSessionSnapshotFromProto(basic.GetOvernight()),
 	}
 	item.MarketSegment = marketSegmentFromProductClass(item.ProductClass)
-	preQuote := extendedMarketQuoteFromProto(basic.GetPreMarket(), basic.GetUpdateTime())
-	afterQuote := extendedMarketQuoteFromProto(basic.GetAfterMarket(), basic.GetUpdateTime())
-	overnightQuote := extendedMarketQuoteFromProto(basic.GetOvernight(), basic.GetUpdateTime())
+	preQuote := extendedMarketQuoteFromProto(basic.GetPreMarket())
+	afterQuote := extendedMarketQuoteFromProto(basic.GetAfterMarket())
+	overnightQuote := extendedMarketQuoteFromProto(basic.GetOvernight())
 	session := sessionFromExtendedBlocksAt(item.Symbol, preQuote, afterQuote, overnightQuote, observedAt)
 	if session != market.SessionUnknown {
 		item.Session = new(string(session))

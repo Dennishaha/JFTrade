@@ -66,6 +66,10 @@ export interface MarketDataExtendedQuote {
   changeRate?: number | null;
   amplitude?: number | null;
   quoteTime?: string | null;
+  tradingDate?: string | null;
+  exchangeTimezone?: string | null;
+  sessionStartAt?: string | null;
+  sessionEndAt?: string | null;
 }
 
 export interface MarketDataExtendedQuoteBlocks {

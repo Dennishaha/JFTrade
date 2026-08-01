@@ -24,8 +24,9 @@ func TestMarketSessionBoundaryGuardClauses(t *testing.T) {
 		t.Fatal("SwapCalendarResolver should report default resolver when active resolver is nil")
 	}
 
-	if got := ClassifySession("HK.00700", time.Now()); got != SessionUnknown {
-		t.Fatalf("ClassifySession non-US = %s, want unknown", got)
+	hkLoc := mustLocation(t, "Asia/Hong_Kong")
+	if got := ClassifySession("HK.00700", time.Date(2026, 6, 12, 10, 0, 0, 0, hkLoc)); got != SessionRegular {
+		t.Fatalf("ClassifySession HK regular = %s, want regular", got)
 	}
 	if got := ClassifySession("US.AAPL", time.Time{}); got != SessionUnknown {
 		t.Fatalf("ClassifySession zero time = %s, want unknown", got)

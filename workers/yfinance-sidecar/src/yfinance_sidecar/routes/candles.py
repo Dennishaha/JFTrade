@@ -105,12 +105,10 @@ def candles(
         raise upstream_error("Yahoo Finance candle lookup failed") from exc
     converted = convert_history(
         frame,
-        period=normalized_period,
         limit=limit,
         from_time=from_time,
         to_time=to_time,
         exchange_timezone=instrument.spec.timezone,
-        market=instrument.market,
     )
     if not converted:
         raise not_found(

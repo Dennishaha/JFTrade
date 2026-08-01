@@ -342,7 +342,9 @@ describe("QuoteDetailRail", () => {
             extended: {
               afterMarket: {
                 price: 211.5,
-                quoteTime: "2026-07-31T00:00:00Z",
+                quoteTime: "2026-07-30T23:59:51Z",
+                exchangeTimezone: "America/New_York",
+                sessionEndAt: "2026-07-31T00:00:00Z",
               },
             },
           },
@@ -370,8 +372,13 @@ describe("QuoteDetailRail", () => {
     expect(wrapper.get(".quote-summary__extended-card--after").text()).toContain(
       "盘后价格",
     );
-    expect(wrapper.get(".quote-summary__extended-time").attributes("title")).toBe(
-      "2026-07-31T00:00:00Z",
+    expect(wrapper.get(".quote-summary__extended-time").text()).toContain(
+      "盘后截止",
+    );
+    expect(
+      wrapper.get(".quote-summary__extended-time div").attributes("title"),
+    ).toContain(
+      "交易所时间",
     );
     wrapper.unmount();
   });

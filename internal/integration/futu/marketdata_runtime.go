@@ -599,6 +599,12 @@ func tickFromSnapshot(instrumentID string, snapshot *pkgfutu.QuoteSnapshot, obse
 	if !ok {
 		return nil
 	}
+	preMarket := extendedQuote(snapshot.PreMarket)
+	afterMarket := extendedQuote(snapshot.AfterMarket)
+	overnight := extendedQuote(snapshot.Overnight)
+	attachFutuSessionWindow(instrumentID, preMarket, market.SessionPre, snapshot.QuoteAt)
+	attachFutuSessionWindow(instrumentID, afterMarket, market.SessionAfter, snapshot.QuoteAt)
+	attachFutuSessionWindow(instrumentID, overnight, market.SessionOvernight, snapshot.QuoteAt)
 	return &marketdata.Tick{
 		InstrumentID: instrumentID, Market: resolvedMarket, Symbol: symbol,
 		Price: snapshot.Price, Bid: snapshot.Bid, Ask: snapshot.Ask,
@@ -608,9 +614,28 @@ func tickFromSnapshot(instrumentID string, snapshot *pkgfutu.QuoteSnapshot, obse
 		QuoteAt:    snapshot.QuoteAt.UTC().Format(time.RFC3339Nano),
 		ObservedAt: observedAt.UTC().Format(time.RFC3339Nano), Source: "bbgo:futu",
 		Session: string(snapshot.Session), ExtendedHours: snapshot.ExtendedHours,
-		PreMarket: extendedQuote(snapshot.PreMarket), AfterMarket: extendedQuote(snapshot.AfterMarket),
-		Overnight: extendedQuote(snapshot.Overnight), Kind: marketdata.TickKindQuote,
+		PreMarket: preMarket, AfterMarket: afterMarket,
+		Overnight: overnight, Kind: marketdata.TickKindQuote,
 	}
+}
+
+func attachFutuSessionWindow(
+	instrumentID string,
+	quote *marketdata.ExtendedQuote,
+	session market.Session,
+	tradingDay time.Time,
+) {
+	if quote == nil {
+		return
+	}
+	window, ok := market.ResolveTradingDaySessionWindow(instrumentID, tradingDay, session)
+	if !ok {
+		return
+	}
+	quote.TradingDate = window.TradingDate
+	quote.ExchangeTimezone = window.Timezone
+	quote.SessionStartAt = window.StartAt.Format(time.RFC3339Nano)
+	quote.SessionEndAt = window.EndAt.Format(time.RFC3339Nano)
 }
 
 func decimalFromFixedpoint(value fixedpoint.Value) decimal.Decimal {

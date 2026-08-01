@@ -157,7 +157,7 @@ func TestProviderConvertsSnapshotsCandlesHealthAndUnsupportedDepth(t *testing.T)
 	candles := response["candles"].([]map[string]any)
 	meta := response["meta"].(map[string]any)
 	if len(candles) != 2 || candles[1]["close"] != "189.25" || candles[0]["volume"] != "1000" ||
-		meta["source"] != "yfinance" || meta["extendedHours"] != true || meta["session"] != "all" {
+		meta["source"] != "yfinance" || meta["extendedHours"] != false || meta["session"] != nil {
 		t.Fatalf("candles response = %#v", response)
 	}
 	candlesRequest := requestForPath(t, server, "/candles/US/AAPL")

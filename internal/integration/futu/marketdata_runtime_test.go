@@ -247,6 +247,18 @@ func TestTickFromTradeProducesBrokerNeutralPushTick(t *testing.T) {
 	if withoutCounter == nil || !withoutCounter.Volume.IsZero() || !withoutCounter.VolumeDelta.Equal(decimal.NewFromInt(5)) {
 		t.Fatalf("optional cumulative volume contract = %#v", withoutCounter)
 	}
+
+	negativeCumulative := decimal.NewFromInt(-10)
+	negativeDelta := decimal.NewFromInt(-2)
+	clamped := tickFromTrade(bbgotypes.Trade{
+		Symbol:           "HK.00700",
+		Price:            fixedpointValue(t, "321.7"),
+		VolumeDelta:      &negativeDelta,
+		CumulativeVolume: &negativeCumulative,
+	}, at)
+	if clamped == nil || !clamped.Volume.IsZero() || !clamped.VolumeDelta.IsZero() {
+		t.Fatalf("negative trade volumes must be clamped: %#v", clamped)
+	}
 }
 
 func TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks(t *testing.T) {
@@ -259,6 +271,16 @@ func TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks(t *testing.T) 
 	}
 	if got := tickFromTicker("bad-symbol", &bbgotypes.Ticker{Last: fixedpointValue(t, "1")}, at); got != nil {
 		t.Fatalf("tickFromTicker(invalid symbol) = %#v", got)
+	}
+	negativeVolume := tickFromTicker("US.MSFT", &bbgotypes.Ticker{
+		Last:   fixedpointValue(t, "400"),
+		Volume: fixedpointValue(t, "-1"),
+	}, at)
+	if negativeVolume == nil || !negativeVolume.Volume.IsZero() {
+		t.Fatalf("negative ticker volume must be clamped: %#v", negativeVolume)
+	}
+	if !decimalFromFixedpoint(fixedpoint.PosInf).IsZero() {
+		t.Fatal("infinite fixedpoint values must not enter decimal market data")
 	}
 
 	tick := tickFromTicker("US.MSFT", &bbgotypes.Ticker{
@@ -724,6 +746,11 @@ func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {
 	if tick.AfterMarket == nil || tick.AfterMarket.Price == nil || !tick.AfterMarket.Price.Equal(afterPrice) {
 		t.Fatalf("tick.AfterMarket = %#v", tick.AfterMarket)
 	}
+	if tick.AfterMarket.TradingDate != "2026-06-23" ||
+		tick.AfterMarket.ExchangeTimezone != "America/New_York" ||
+		tick.AfterMarket.SessionEndAt != "2026-06-24T00:00:00Z" {
+		t.Fatalf("tick.AfterMarket session window = %#v", tick.AfterMarket)
+	}
 	if tick.Overnight == nil || tick.Overnight.Price == nil || !tick.Overnight.Price.Equal(overnightPrice) {
 		t.Fatalf("tick.Overnight = %#v", tick.Overnight)
 	}
@@ -739,6 +766,13 @@ func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {
 	}
 	if got := extendedQuote(nil); got != nil {
 		t.Fatalf("extendedQuote(nil) = %#v", got)
+	}
+
+	attachFutuSessionWindow("US.AAPL", nil, market.SessionAfter, quoteAt)
+	missingWindow := &marketdata.ExtendedQuote{}
+	attachFutuSessionWindow("HK.00700", missingWindow, market.SessionPre, quoteAt)
+	if missingWindow.TradingDate != "" || missingWindow.SessionEndAt != "" {
+		t.Fatalf("missing calendar session must stay unannotated: %#v", missingWindow)
 	}
 }
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -384,7 +383,6 @@ func baseSecurityDetailsFromSnapshot(basic *qotgetsecuritysnapshotpb.SnapshotBas
 	if ref == nil {
 		ref = securityRefFromCanonical(canonical)
 	}
-	quoteTime := futuQuoteTime(basic.GetUpdateTimestamp(), basic.GetUpdateTime(), canonical).Format(time.RFC3339Nano)
 	productClass := productClassFromSecurityType(basic.GetType())
 	return &SecurityDetails{
 		InstrumentID:        ref.InstrumentID,
@@ -423,9 +421,9 @@ func baseSecurityDetailsFromSnapshot(basic *qotgetsecuritysnapshotpb.SnapshotBas
 		LowestHistoryPrice:  decimalPtrFromFloat64(basic.LowestHistoryPrice),
 		SessionStatus:       enumName(basic.GetSecStatus(), qotcommonpb.SecurityStatus_name),
 		ClosePrice5Minute:   decimalPtrFromFloat64(basic.ClosePrice5Minute),
-		PreMarket:           extendedMarketQuoteFromProto(basic.GetPreMarket(), quoteTime),
-		AfterMarket:         extendedMarketQuoteFromProto(basic.GetAfterMarket(), quoteTime),
-		Overnight:           extendedMarketQuoteFromProto(basic.GetOvernight(), quoteTime),
+		PreMarket:           extendedMarketQuoteFromProto(basic.GetPreMarket()),
+		AfterMarket:         extendedMarketQuoteFromProto(basic.GetAfterMarket()),
+		Overnight:           extendedMarketQuoteFromProto(basic.GetOvernight()),
 	}
 }
 

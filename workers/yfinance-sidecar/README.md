@@ -13,6 +13,9 @@
   crypto、currency、future 会稳定返回 `404`，不会伪装成其他市场数据。
 - K 线支持 `1m`、`5m`、`15m`、`30m`、`1h`、`1d`、`1w`、`1mo`；美股请求
   会包含盘前盘后数据，港股及沪深按各自交易时区请求常规时段数据。
+- sidecar 只传递 Yahoo 的常规、盘前、盘后原始报价块和实际报价时间，不根据
+  `marketState` 或固定时钟生成业务 session。交易日、节假日、早收市和分钟线
+  session 统一由 Go 进程中当前生效的 JFTrade 交易所日历判定。
 - Yahoo Finance 免费数据不提供 JFTrade 所需的可靠实时推流或 Level 2
   盘口；快照按 15 分钟延迟数据展示。
 - Yahoo Finance 接口并非官方稳定 API，调用失败会被转换为结构化的
@@ -20,7 +23,7 @@
 - 每次 Yahoo 上游传输调用最多等待 10 秒，避免 Go 请求取消后后台线程
   长时间占用 sidecar worker。
 
-所有时间字段都是 RFC 3339 UTC 字符串。缺失或非有限数值会返回 `null`；
+所有行情时间字段都是 RFC 3339 UTC 字符串。缺失或非有限数值会返回 `null`；
 OHLC 不完整的 K 线会被丢弃，因此响应不会包含非法 JSON 的 `NaN` 或
 `Infinity`。
 

@@ -1696,7 +1696,44 @@ export interface components {
     "marketdata.SnapshotData": {
     meta: components["schemas"]["marketdata.MarketQueryMeta"];
     request: components["schemas"]["marketdata.MarketInstrumentData"];
-    snapshot: Record<string, unknown>;
+    snapshot: components["schemas"]["marketdata.SnapshotQuote"];
+  };
+    "marketdata.SnapshotExtendedQuote": {
+    amplitude: string | null;
+    changeRate: string | null;
+    changeVal: string | null;
+    exchangeTimezone?: string;
+    highPrice: string | null;
+    lowPrice: string | null;
+    price: string | null;
+    quoteTime: string;
+    sessionEndAt?: string;
+    sessionStartAt?: string;
+    tradingDate?: string;
+    turnover: string | null;
+    volume: string | null;
+  };
+    "marketdata.SnapshotExtendedQuotes": {
+    afterMarket: components["schemas"]["marketdata.SnapshotExtendedQuote"] | null;
+    overnight: components["schemas"]["marketdata.SnapshotExtendedQuote"] | null;
+    preMarket: components["schemas"]["marketdata.SnapshotExtendedQuote"] | null;
+  };
+    "marketdata.SnapshotQuote": {
+    ask: string;
+    at: string;
+    bid: string;
+    extended: components["schemas"]["marketdata.SnapshotExtendedQuotes"];
+    extendedHours: boolean;
+    highPrice: string | null;
+    lastClosePrice: string | null;
+    lowPrice: string | null;
+    observedAt: string;
+    openPrice: string | null;
+    previousClosePrice: string | null;
+    price: string;
+    session: string;
+    turnover: string;
+    volume: string;
   };
     "marketdata.SubscriptionEntryData": {
     brokerState?: string;

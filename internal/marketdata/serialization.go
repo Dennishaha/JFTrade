@@ -91,7 +91,7 @@ func extendedQuoteJSON(quote *ExtendedQuote) any {
 	if quote == nil {
 		return nil
 	}
-	return map[string]any{
+	result := map[string]any{
 		"price":      optionalPriceString(quote.Price),
 		"highPrice":  optionalPriceString(quote.HighPrice),
 		"lowPrice":   optionalPriceString(quote.LowPrice),
@@ -102,6 +102,15 @@ func extendedQuoteJSON(quote *ExtendedQuote) any {
 		"amplitude":  optionalPriceString(quote.Amplitude),
 		"quoteTime":  strings.TrimSpace(quote.QuoteTime),
 	}
+	for key, value := range map[string]string{
+		"tradingDate": quote.TradingDate, "exchangeTimezone": quote.ExchangeTimezone,
+		"sessionStartAt": quote.SessionStartAt, "sessionEndAt": quote.SessionEndAt,
+	} {
+		if normalized := strings.TrimSpace(value); normalized != "" {
+			result[key] = normalized
+		}
+	}
+	return result
 }
 
 func optionalDecimalString(value *decimal.Decimal) any {

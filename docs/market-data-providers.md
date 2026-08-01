@@ -19,6 +19,8 @@ JFTrade 的行情查询与交易执行是两个独立边界。运行时内置 Fu
 
 Yahoo Finance 接口不是官方稳定 API，也没有实时性或可用性承诺。JFTrade 会把缺失值安全映射为 `null`，并把上游失败转换为结构化错误，但无法消除上游限流、字段变化或临时不可用。
 
+Yahoo 的 `postMarketPrice` / `postMarketTime` 是 Yahoo Provider 下的盘后价格与实际报价时间，不会用 Futu 数值覆盖。JFTrade 使用当前生效的交易所日历校验报价所属交易日和盘前/盘后窗口，并据此分类分钟 K 线；周末、节假日和早收市边界不由 Python helper 或前端硬编码。行情卡片分别展示实际“报价时间”和日历计划“截止时间”，两者均以交易所时区为主。Futu `PreAfterMarketData` 不携带独立时间戳，因此不会把 BasicQot 常规更新时间冒充盘外报价时间。
+
 ## 内置 helper
 
 桌面版和带 `release_assets` 的 `cmd/jftrade-api` 会嵌入目标平台的 PyInstaller `onedir` helper（可执行文件及其依赖目录）。JFTrade 在启用内置 yfinance Provider 时自动释放到权限受限的临时目录，分配动态 loopback 端口，探测 `/health` 后注入内部 Provider endpoint；切回 Futu 或退出应用时停止进程并删除临时目录。helper 缺失、启动失败或健康探测失败会回退并持久化 Futu；helper 不会无限自动重启，也不会监听公网。

@@ -8,6 +8,8 @@
 - 非盘中：主卡片显示最近一次 regular session 收盘价
 - 盘外涨跌幅基准：`lastClosePrice`
 - 盘前、盘后、夜盘的活动卡片优先使用 live tick；HTTP 快照只作兜底和补全
+- `quoteTime` 是 Provider 实际报价时间；`sessionStartAt` / `sessionEndAt` 是交易日历计划边界，前端不得互相替代
+- 行情卡片按交易所时区显示实际报价时间和计划截止时间，浏览器本地时间只作为提示信息
 - 回测页只在“当前标的属于 US 且当前周期支持 extended replay”时展示扩展时段开关；不生效时直接隐藏，不再显示禁用态切换
 - 回测页的预热 K 线预览会按当前选中的标的、周期和扩展时段口径一起推导，避免 UI 预览与实际回测 warmup 不一致
 - 回测结果页里的时间统一按当前浏览器本地时间展示，格式固定为 `YYYY-MM-DD HH:mm:ss`
@@ -15,13 +17,7 @@
 
 ## session 判定优先级
 
-当前优先顺序是：
-
-1. Futu 扩展行情块
-2. 市场时间规则
-3. 最后才是本地时间兜底
-
-所以排查时不要先假设“前端只按本地时钟猜 session”。
+当前 session 由 Go 进程中生效的 `pkg/market/calendar` 解析器统一判定。Yahoo 的 `marketState` 和 Python helper 固定时钟窗口都不是 session 事实来源；Futu/Yahoo 扩展行情块只有在对应日历窗口内才作为盘外行情展示。
 
 ## 优先检查的字段
 
@@ -30,6 +26,10 @@
 - `afterMarket`
 - `overnight`
 - `session`
+- `quoteTime`
+- `tradingDate`
+- `exchangeTimezone`
+- `sessionStartAt` / `sessionEndAt`
 
 如果这些字段都不存在，再往前查 sidecar 的 snapshot 生成链路。
 
@@ -45,7 +45,7 @@
 
 ### 节假日或半日市 session 错误
 
-优先检查扩展行情块是否已返回，而不是直接按本地时间判断。
+优先检查 `/api/v1/system/exchange-calendars/status` 的有效来源和覆盖范围，再核对扩展行情的 `tradingDate` 与 `sessionEndAt`。早收市日的盘后截止会随日历调整，不固定为 20:00 ET。
 
 ## 回测侧的日历边界
 

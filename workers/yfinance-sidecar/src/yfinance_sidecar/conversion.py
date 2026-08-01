@@ -13,12 +13,6 @@ from .models import Candle
 
 UTC = timezone.utc
 US_EASTERN = "America/New_York"
-MARKET_SESSION_WINDOWS: dict[str, tuple[tuple[int, int], ...]] = {
-    "US": ((570, 960),),
-    "HK": ((570, 720), (780, 960)),
-    "SH": ((570, 690), (780, 900)),
-    "SZ": ((570, 690), (780, 900)),
-}
 
 
 def clean_text(value: Any) -> str | None:
@@ -130,84 +124,13 @@ def timestamp_as_rfc3339(value: Any, assumed_timezone: str = US_EASTERN) -> str 
     return format_rfc3339(parsed) if parsed is not None else None
 
 
-def session_for_timestamp(
-    value: datetime,
-    period: str,
-    *,
-    market: str = "US",
-    exchange_timezone: str = US_EASTERN,
-) -> str:
-    if period in {"1d", "1w", "1mo"}:
-        return "regular"
-    canonical_market = market.strip().upper() or "US"
-    fallback_timezone = exchange_timezone.strip() or US_EASTERN
-    timezone_name = {
-        "HK": "Asia/Hong_Kong",
-        "SH": "Asia/Shanghai",
-        "SZ": "Asia/Shanghai",
-    }.get(canonical_market, fallback_timezone)
-    local = value.astimezone(ZoneInfo(timezone_name))
-    minute = local.hour * 60 + local.minute
-    windows = MARKET_SESSION_WINDOWS.get(canonical_market, ((570, 960),))
-    if any(start <= minute < end for start, end in windows):
-        return "regular"
-    if canonical_market != "US":
-        # Yahoo does not provide a reliable pre/post session for HK/CN. Keep
-        # auction and lunch-break bars visible without mislabelling them as
-        # US-style after-hours or fabricated overnight data.
-        return "closed"
-    if 240 <= minute < 570:
-        return "pre_market"
-    if 960 <= minute < 1200:
-        return "after_hours"
-    # Yahoo's US extended-hours feed ends with the post-market session. It
-    # does not provide a dependable overnight quote stream, so do not leak an
-    # Futu-only overnight session into this provider's candle contract.
-    return "closed"
-
-
-def snapshot_session(market_state: Any) -> tuple[str, bool]:
-    return snapshot_session_for_market(market_state, market="US")
-
-
-def snapshot_session_for_market(
-    market_state: Any,
-    *,
-    market: str,
-) -> tuple[str, bool]:
-    """Classify a Yahoo market state without inventing non-US extended hours."""
-    state = (clean_text(market_state) or "").upper()
-    canonical_market = market.strip().upper() or "US"
-    if state == "REGULAR":
-        return "regular", False
-    if canonical_market != "US":
-        # Yahoo's US-style PRE/POST labels do not establish a reliable
-        # extended-hours contract for HK/CN. Their actual auction bars remain
-        # available through candles, but a snapshot must not claim a US-style
-        # pre-market or after-hours session.
-        return "closed", False
-    if state == "PRE":
-        return "pre_market", True
-    if state == "POST":
-        return "after_hours", True
-    if state in {"PREPRE", "POSTPOST", "CLOSED"}:
-        return "closed", False
-    if state.startswith("PRE"):
-        return "pre_market", True
-    if state.startswith("POST"):
-        return "after_hours", True
-    return "regular", False
-
-
 def convert_history(
     frame: Any,
     *,
-    period: str,
     limit: int,
     from_time: datetime | None = None,
     to_time: datetime | None = None,
     exchange_timezone: str = US_EASTERN,
-    market: str = "US",
 ) -> list[Candle]:
     if frame is None or bool(getattr(frame, "empty", True)):
         return []
@@ -239,12 +162,6 @@ def convert_history(
                 low=prices[2],
                 close=prices[3],
                 volume=volume or 0,
-                session=session_for_timestamp(
-                    at,
-                    period,
-                    market=market,
-                    exchange_timezone=exchange_timezone,
-                ),
             )
         )
     candles.sort(key=lambda candle: candle.at)

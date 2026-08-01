@@ -22,6 +22,10 @@ export interface MarketSnapshotDisplayCard {
   price: number;
   changeRate: number | null;
   quoteTime: string | null;
+  tradingDate?: string | null;
+  exchangeTimezone?: string | null;
+  sessionStartAt?: string | null;
+  sessionEndAt?: string | null;
 }
 
 export interface MarketSnapshotDisplayModel {
@@ -126,6 +130,7 @@ function resolveExtendedCards(
         percentChange(price, snapshot?.previousClosePrice) ??
         normalizeNullableNumber(extended.preMarket?.changeRate),
       quoteTime: normalizeQuoteTime(extended.preMarket),
+      ...sessionWindowFields(extended.preMarket),
     });
   }
 
@@ -142,6 +147,7 @@ function resolveExtendedCards(
           percentChange(afterMarketPrice, snapshot?.previousClosePrice) ??
           normalizeNullableNumber(extended.afterMarket?.changeRate),
         quoteTime: normalizeQuoteTime(extended.afterMarket),
+        ...sessionWindowFields(extended.afterMarket),
       });
     } else if (session === "closed" || session === "overnight") {
       cards.push({
@@ -150,6 +156,7 @@ function resolveExtendedCards(
         price: afterMarketPrice,
         changeRate: normalizeNullableNumber(extended.afterMarket?.changeRate),
         quoteTime: normalizeQuoteTime(extended.afterMarket),
+        ...sessionWindowFields(extended.afterMarket),
       });
     }
   }
@@ -164,6 +171,7 @@ function resolveExtendedCards(
         percentChange(price, snapshot?.previousClosePrice) ??
         normalizeNullableNumber(extended.overnight?.changeRate),
       quoteTime: normalizeQuoteTime(extended.overnight),
+      ...sessionWindowFields(extended.overnight),
     });
   }
 
@@ -193,5 +201,32 @@ function normalizeQuoteTime(quote: MarketDataExtendedQuote | null | undefined): 
     return null;
   }
   const trimmed = quote.quoteTime.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+function sessionWindowFields(
+  quote: MarketDataExtendedQuote | null | undefined,
+): Partial<Pick<
+  MarketSnapshotDisplayCard,
+  | "tradingDate"
+  | "exchangeTimezone"
+  | "sessionStartAt"
+  | "sessionEndAt"
+>> {
+  const result: Partial<MarketSnapshotDisplayCard> = {};
+  const tradingDate = normalizedText(quote?.tradingDate);
+  const exchangeTimezone = normalizedText(quote?.exchangeTimezone);
+  const sessionStartAt = normalizedText(quote?.sessionStartAt);
+  const sessionEndAt = normalizedText(quote?.sessionEndAt);
+  if (tradingDate != null) result.tradingDate = tradingDate;
+  if (exchangeTimezone != null) result.exchangeTimezone = exchangeTimezone;
+  if (sessionStartAt != null) result.sessionStartAt = sessionStartAt;
+  if (sessionEndAt != null) result.sessionEndAt = sessionEndAt;
+  return result;
+}
+
+function normalizedText(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
   return trimmed === "" ? null : trimmed;
 }

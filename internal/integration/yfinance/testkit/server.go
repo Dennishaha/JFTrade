@@ -221,7 +221,7 @@ func snapshotFixture(market, symbol string) string {
 		price, exchange, currency = "12.5", "SZSE", "CNY"
 	}
 	return fmt.Sprintf(
-		`{"market":"%[1]s","symbol":"%[2]s","instrument_id":"%[1]s.%[2]s","price":%[3]s,"bid":%[3]s,"ask":%[3]s,"open_price":187.5,"high_price":190.1,"low_price":186.9,"previous_close_price":188.2,"last_close_price":188.2,"regular_quote":{"price":188.5,"quote_at":"2026-07-29T14:30:00Z"},"pre_market_quote":null,"after_market_quote":null,"volume":1234567,"turnover":233456789.5,"quote_at":"2026-07-29T14:30:00Z","observed_at":"2026-07-29T14:45:00Z","source":"yfinance","session":"regular","extended_hours":false,"delayed":true,"delay_minutes":15,"currency":"%[4]s","exchange":"%[5]s"}`,
+		`{"market":"%[1]s","symbol":"%[2]s","instrument_id":"%[1]s.%[2]s","price":%[3]s,"bid":%[3]s,"ask":%[3]s,"open_price":187.5,"high_price":190.1,"low_price":186.9,"previous_close_price":188.2,"last_close_price":188.2,"regular_quote":{"price":188.5,"quote_at":"2026-07-29T14:30:00Z"},"pre_market_quote":null,"after_market_quote":null,"volume":1234567,"turnover":233456789.5,"quote_at":"2026-07-29T14:30:00Z","observed_at":"2026-07-29T14:45:00Z","source":"yfinance","delayed":true,"delay_minutes":15,"currency":"%[4]s","exchange":"%[5]s"}`,
 		market, symbol, price, currency, exchange,
 	)
 }
@@ -232,7 +232,7 @@ func candlesFixture(market, symbol, period string) string {
 	}
 	extendedHours := market == "US"
 	return fmt.Sprintf(
-		`{"market":"%[1]s","symbol":"%[2]s","instrument_id":"%[1]s.%[2]s","period":"%[3]s","extended_hours":%[4]t,"total_returned":2,"source":"yfinance","candles":[{"at":"2026-07-28T13:30:00Z","open":185.1,"high":188.2,"low":184.5,"close":187.8,"volume":1000,"session":"regular"},{"at":"2026-07-29T13:30:00Z","open":187.8,"high":190.1,"low":186.9,"close":189.25,"volume":1200,"session":"regular"}]}`,
+		`{"market":"%[1]s","symbol":"%[2]s","instrument_id":"%[1]s.%[2]s","period":"%[3]s","extended_hours":%[4]t,"total_returned":2,"source":"yfinance","candles":[{"at":"2026-07-28T13:30:00Z","open":185.1,"high":188.2,"low":184.5,"close":187.8,"volume":1000},{"at":"2026-07-29T13:30:00Z","open":187.8,"high":190.1,"low":186.9,"close":189.25,"volume":1200}]}`,
 		market, symbol, period, extendedHours,
 	)
 }

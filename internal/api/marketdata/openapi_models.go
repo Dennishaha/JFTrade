@@ -47,6 +47,49 @@ type MarketQueryMeta struct {
 	Session       string `json:"session,omitempty"`
 }
 
+// SnapshotExtendedQuote documents a provider-neutral pre/after/overnight quote.
+type SnapshotExtendedQuote struct {
+	Price            *string `json:"price" extensions:"x-nullable"`
+	HighPrice        *string `json:"highPrice" extensions:"x-nullable"`
+	LowPrice         *string `json:"lowPrice" extensions:"x-nullable"`
+	Volume           *string `json:"volume" extensions:"x-nullable"`
+	Turnover         *string `json:"turnover" extensions:"x-nullable"`
+	ChangeVal        *string `json:"changeVal" extensions:"x-nullable"`
+	ChangeRate       *string `json:"changeRate" extensions:"x-nullable"`
+	Amplitude        *string `json:"amplitude" extensions:"x-nullable"`
+	QuoteTime        string  `json:"quoteTime"`
+	TradingDate      string  `json:"tradingDate,omitempty"`
+	ExchangeTimezone string  `json:"exchangeTimezone,omitempty"`
+	SessionStartAt   string  `json:"sessionStartAt,omitempty"`
+	SessionEndAt     string  `json:"sessionEndAt,omitempty"`
+}
+
+// SnapshotExtendedQuotes documents the available extended-session blocks.
+type SnapshotExtendedQuotes struct {
+	PreMarket   *SnapshotExtendedQuote `json:"preMarket" extensions:"x-nullable"`
+	AfterMarket *SnapshotExtendedQuote `json:"afterMarket" extensions:"x-nullable"`
+	Overnight   *SnapshotExtendedQuote `json:"overnight" extensions:"x-nullable"`
+}
+
+// SnapshotQuote documents the normalized market-data snapshot payload.
+type SnapshotQuote struct {
+	Price              string                 `json:"price"`
+	Bid                string                 `json:"bid"`
+	Ask                string                 `json:"ask"`
+	OpenPrice          *string                `json:"openPrice" extensions:"x-nullable"`
+	HighPrice          *string                `json:"highPrice" extensions:"x-nullable"`
+	LowPrice           *string                `json:"lowPrice" extensions:"x-nullable"`
+	PreviousClosePrice *string                `json:"previousClosePrice" extensions:"x-nullable"`
+	LastClosePrice     *string                `json:"lastClosePrice" extensions:"x-nullable"`
+	Volume             string                 `json:"volume"`
+	Turnover           string                 `json:"turnover"`
+	At                 string                 `json:"at"`
+	ObservedAt         string                 `json:"observedAt"`
+	Session            string                 `json:"session"`
+	ExtendedHours      bool                   `json:"extendedHours"`
+	Extended           SnapshotExtendedQuotes `json:"extended"`
+}
+
 // SecurityDetailsData documents the security-details query wrapper.
 type SecurityDetailsData struct {
 	Request  MarketInstrumentData `json:"request"`
@@ -57,7 +100,7 @@ type SecurityDetailsData struct {
 // SnapshotData documents the single-instrument snapshot wrapper.
 type SnapshotData struct {
 	Request  MarketInstrumentData `json:"request"`
-	Snapshot map[string]any       `json:"snapshot"`
+	Snapshot SnapshotQuote        `json:"snapshot"`
 	Meta     MarketQueryMeta      `json:"meta"`
 }
 

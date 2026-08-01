@@ -21,15 +21,19 @@ const (
 )
 
 type ExtendedQuote struct {
-	Price      *decimal.Decimal
-	HighPrice  *decimal.Decimal
-	LowPrice   *decimal.Decimal
-	Volume     *decimal.Decimal
-	Turnover   *decimal.Decimal
-	ChangeVal  *decimal.Decimal
-	ChangeRate *decimal.Decimal
-	Amplitude  *decimal.Decimal
-	QuoteTime  string
+	Price            *decimal.Decimal
+	HighPrice        *decimal.Decimal
+	LowPrice         *decimal.Decimal
+	Volume           *decimal.Decimal
+	Turnover         *decimal.Decimal
+	ChangeVal        *decimal.Decimal
+	ChangeRate       *decimal.Decimal
+	Amplitude        *decimal.Decimal
+	QuoteTime        string
+	TradingDate      string
+	ExchangeTimezone string
+	SessionStartAt   string
+	SessionEndAt     string
 }
 
 type Tick struct {

@@ -10,6 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/internal/marketdata"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 const sourceID = "yfinance"
@@ -207,6 +208,18 @@ func convertSnapshot(
 	if err != nil {
 		return nil, err
 	}
+	observedAt, err := time.Parse(time.RFC3339Nano, values.observedAt)
+	if err != nil {
+		return nil, fmt.Errorf("%w: observed_at must be RFC3339", ErrInvalidResponse)
+	}
+	values.session = yahooSessionAt(identity.id, observedAt)
+	values.preMarket = normalizeYahooExtendedQuote(identity.id, values.preMarket, market.SessionPre)
+	values.afterMarket = normalizeYahooExtendedQuote(identity.id, values.afterMarket, market.SessionAfter)
+	values = retainRelevantYahooExtendedQuotes(identity.id, values, observedAt)
+	values.previousClose, values.lastClose = snapshotClosePrices(
+		response.Market, response, values.session, values.regularQuote,
+	)
+	values = selectYahooActiveQuote(values)
 	return &marketdata.Tick{
 		InstrumentID: identity.id, Market: identity.market, Symbol: identity.symbol,
 		Price: values.price, Bid: values.bid, Ask: values.ask,
@@ -214,7 +227,7 @@ func convertSnapshot(
 		LowPrice: optionalDecimal(response.LowPrice), PreviousClosePrice: values.previousClose,
 		LastClosePrice: values.lastClose, Volume: values.volume, Turnover: values.turnover,
 		QuoteAt: values.quoteAt, ObservedAt: values.observedAt, Source: values.source, Session: values.session,
-		ExtendedHours: response.ExtendedHours || values.session == "pre" || values.session == "after",
+		ExtendedHours: values.session == "pre" || values.session == "after",
 		PreMarket:     values.preMarket, AfterMarket: values.afterMarket,
 		Kind: marketdata.TickKindQuote,
 	}, nil
@@ -227,6 +240,7 @@ type snapshotValues struct {
 	quoteAt, observedAt      string
 	source, session          string
 	previousClose, lastClose *decimal.Decimal
+	regularQuote             *marketdata.ExtendedQuote
 	preMarket, afterMarket   *marketdata.ExtendedQuote
 }
 
@@ -267,19 +281,14 @@ func parseSnapshotValues(response remoteSnapshot, fallbackObservedAt time.Time) 
 	if err != nil {
 		return snapshotValues{}, err
 	}
-	session, err := normalizeSession(response.Session)
-	if err != nil {
-		return snapshotValues{}, err
-	}
-	previousClose, lastClose := snapshotClosePrices(response.Market, response, session, regularQuote)
 	source := strings.TrimSpace(response.Source)
 	if source == "" {
 		source = sourceID
 	}
 	return snapshotValues{
 		price: price, bid: bid, ask: ask, volume: volume, turnover: turnover,
-		quoteAt: quoteAt, observedAt: observedAt, source: source, session: session,
-		previousClose: previousClose, lastClose: lastClose, preMarket: preMarket, afterMarket: afterMarket,
+		quoteAt: quoteAt, observedAt: observedAt, source: source,
+		regularQuote: regularQuote, preMarket: preMarket, afterMarket: afterMarket,
 	}, nil
 }
 
@@ -379,9 +388,12 @@ func convertCandles(
 	candles := make([]map[string]any, 0, len(response.Candles))
 	includeSession := false
 	for index, candle := range response.Candles {
-		converted, err := convertCandle(candle, period)
+		converted, keep, err := convertCandle(candle, expected.id, period)
 		if err != nil {
 			return nil, fmt.Errorf("candle %d: %w", index, err)
+		}
+		if !keep {
+			continue
 		}
 		if converted["session"] != nil {
 			includeSession = true
@@ -398,14 +410,14 @@ func convertCandles(
 		},
 		Period: period, Limit: limit, Candles: candles, Source: source,
 		ResolvedAt: resolvedAt.UTC().Format(time.RFC3339Nano), FromCache: false,
-		ExtendedHours: response.ExtendedHours, IncludeSession: includeSession,
+		ExtendedHours: response.ExtendedHours && includeSession, IncludeSession: includeSession,
 	}.JSON(), nil
 }
 
-func convertCandle(candle remoteCandle, period string) (map[string]any, error) {
+func convertCandle(candle remoteCandle, instrumentID string, period string) (map[string]any, bool, error) {
 	at, err := responseTime("at", candle.At, time.Time{})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	result := map[string]any{"period": period, "at": at}
 	for name, value := range map[string]*json.Number{
@@ -413,25 +425,43 @@ func convertCandle(candle remoteCandle, period string) (map[string]any, error) {
 	} {
 		converted, err := requiredPositiveDecimal(name, value)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		result[name] = converted.String()
 	}
 	volume, err := nonNegativeDecimal("volume", candle.Volume)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	result["volume"] = volume.String()
-	session, err := normalizeSession(candle.Session)
+	session, keep, err := yahooCandleSession(instrumentID, at, period)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	if session != "" {
-		result["session"] = session
-	} else {
+	if !keep {
+		return nil, false, nil
+	}
+	if session == "" {
 		result["session"] = nil
+	} else {
+		result["session"] = session
 	}
-	return result, nil
+	return result, true, nil
+}
+
+func yahooCandleSession(instrumentID string, atValue string, period string) (string, bool, error) {
+	if period == "1d" || period == "1w" || period == "1mo" {
+		return "", true, nil
+	}
+	at, err := time.Parse(time.RFC3339Nano, atValue)
+	if err != nil {
+		return "", false, fmt.Errorf("%w: at must be RFC3339", ErrInvalidResponse)
+	}
+	session := market.ClassifySession(instrumentID, at)
+	if session == market.SessionClosed || session == market.SessionUnknown || session == market.SessionOvernight {
+		return string(session), false, nil
+	}
+	return string(session), true, nil
 }
 
 func requiredPositiveDecimal(field string, value *json.Number) (decimal.Decimal, error) {
@@ -532,21 +562,4 @@ func responseTime(field, value string, fallback time.Time) (string, error) {
 		return "", fmt.Errorf("%w: %s must be RFC3339", ErrInvalidResponse, field)
 	}
 	return parsed.UTC().Format(time.RFC3339Nano), nil
-}
-
-func normalizeSession(value string) (string, error) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "":
-		return "", nil
-	case "regular":
-		return "regular", nil
-	case "pre", "pre_market":
-		return "pre", nil
-	case "after", "after_hours", "post", "post_market":
-		return "after", nil
-	case "closed", "postpost", "post_post", "prepre", "pre_pre", "market_closed":
-		return "closed", nil
-	default:
-		return "", fmt.Errorf("%w: unsupported session %q", ErrInvalidResponse, value)
-	}
 }

@@ -98,6 +98,44 @@ function formattedChangeRate(value: number | null | undefined): string {
 function formattedQuoteTime(value: string): string {
   return formatLocalDateTime(value, value);
 }
+
+function formattedExchangeTime(
+  value: string,
+  timezone: string | null | undefined,
+): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || timezone == null) {
+    return formattedQuoteTime(value);
+  }
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      timeZoneName: "short",
+    }).format(date);
+  } catch {
+    return formattedQuoteTime(value);
+  }
+}
+
+function exchangeTimeTitle(
+  value: string,
+  timezone: string | null | undefined,
+): string | undefined {
+  if (timezone == null || timezone.trim() === "") return undefined;
+  return `交易所时间 ${formattedExchangeTime(value, timezone)}`;
+}
+
+function cutoffLabel(card: MarketSnapshotDisplayCard): string {
+  if (card.key === "pre") return "盘前截止";
+  if (card.key === "overnight") return "夜盘截止";
+  return "盘后截止";
+}
 </script>
 
 <template>
@@ -193,12 +231,24 @@ function formattedQuoteTime(value: string): string {
           </span>
         </div>
         <div
-          v-if="card.quoteTime"
+          v-if="card.quoteTime || card.sessionEndAt"
           class="quote-summary__extended-time"
-          :title="card.quoteTime"
           style="margin-top: 6px; color: var(--tv-text-dim); font-size: 11px; line-height: 1.3"
         >
-          报价时间 {{ formattedQuoteTime(card.quoteTime) }}
+          <div
+            v-if="card.quoteTime"
+            :title="exchangeTimeTitle(card.quoteTime, card.exchangeTimezone)"
+          >
+            报价时间
+            {{ formattedQuoteTime(card.quoteTime) }}
+          </div>
+          <div
+            v-if="card.sessionEndAt"
+            :title="exchangeTimeTitle(card.sessionEndAt, card.exchangeTimezone)"
+          >
+            {{ cutoffLabel(card) }}
+            {{ formattedQuoteTime(card.sessionEndAt) }}
+          </div>
         </div>
       </div>
     </div>

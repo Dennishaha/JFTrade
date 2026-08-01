@@ -125,8 +125,8 @@ func TestQuoteSnapshotHolidayRemainsClosedWithStaleExtendedBlocks(t *testing.T) 
 	if snap.PreMarket == nil || snap.AfterMarket == nil || snap.Overnight == nil {
 		t.Fatal("extended blocks should remain available for display decisions")
 	}
-	if snap.PreMarket.QuoteTime == "" || snap.AfterMarket.QuoteTime == "" || snap.Overnight.QuoteTime == "" {
-		t.Fatal("extended blocks should preserve quoteTime metadata")
+	if snap.PreMarket.QuoteTime != "" || snap.AfterMarket.QuoteTime != "" || snap.Overnight.QuoteTime != "" {
+		t.Fatal("OpenD extended blocks do not carry independent quote timestamps")
 	}
 }
 
@@ -156,8 +156,8 @@ func TestQuoteSnapshotPreviousClosePriceInAfterHours(t *testing.T) {
 	if snap.Session != market.SessionAfter {
 		t.Errorf("Session = %s, want after", snap.Session)
 	}
-	if snap.AfterMarket == nil || snap.AfterMarket.QuoteTime == "" {
-		t.Fatal("AfterMarket quoteTime should be preserved")
+	if snap.AfterMarket == nil || snap.AfterMarket.QuoteTime != "" {
+		t.Fatal("AfterMarket must not reuse the BasicQot regular quote time")
 	}
 }
 
@@ -200,8 +200,8 @@ func TestQuoteSnapshotPreviousClosePriceForHKLunchBreak(t *testing.T) {
 	lunchBreakAt := time.Date(2026, 6, 12, 12, 30, 0, 0, time.FixedZone("HKT", 8*60*60))
 	snap := quoteSnapshotFromBasicQotAt(basicQot, "HK.00700", lunchBreakAt)
 
-	if snap.Session != market.SessionUnknown {
-		t.Errorf("Session = %s, want unknown", snap.Session)
+	if snap.Session != market.SessionClosed {
+		t.Errorf("Session = %s, want closed", snap.Session)
 	}
 	if snap.PreviousClosePrice == nil {
 		t.Fatal("PreviousClosePrice is nil, expected 318.90")

@@ -77,6 +77,8 @@ describe("QuoteSummaryCard", () => {
             price: 200,
             changeRate: -0.75,
             quoteTime: "2026-07-23T21:00:00Z",
+            exchangeTimezone: "America/New_York",
+            sessionEndAt: "2026-07-24T00:00:00Z",
           },
           {
             key: "overnight",
@@ -102,7 +104,13 @@ describe("QuoteSummaryCard", () => {
     const quoteTimes = wrapper.findAll(".quote-summary__extended-time");
     expect(quoteTimes).toHaveLength(3);
     expect(quoteTimes[1]?.text()).toContain("报价时间");
-    expect(quoteTimes[1]?.attributes("title")).toBe("2026-07-23T21:00:00Z");
+    expect(quoteTimes[1]?.text()).toContain("盘后截止");
+    expect(quoteTimes[1]?.text()).not.toContain("EDT");
+    const exchangeTitle = quoteTimes[1]
+      ?.findAll("div")[0]
+      ?.attributes("title");
+    expect(exchangeTitle).toContain("交易所时间");
+    expect(exchangeTitle).toContain("EDT");
   });
 
   it("hides favorite controls when the consumer does not expose them", () => {

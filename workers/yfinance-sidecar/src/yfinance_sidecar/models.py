@@ -129,8 +129,6 @@ class SnapshotResponse(WireModel):
     turnover: float | None = None
     quote_at: str | None = None
     observed_at: str
-    session: str
-    extended_hours: bool
     delayed: bool
     delay_minutes: int = Field(ge=0)
     currency: str | None = None
@@ -145,7 +143,6 @@ class Candle(WireModel):
     low: float
     close: float
     volume: int
-    session: str
 
 
 class CandlesResponse(WireModel):

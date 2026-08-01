@@ -76,10 +76,9 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 
 func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical string, now time.Time) *QuoteSnapshot {
 	quoteAt := futuQuoteTimeAt(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime(), canonical, now)
-	quoteTime := quoteAt.Format(time.RFC3339Nano)
-	preMarket := extendedMarketQuoteFromProto(basicQot.GetPreMarket(), quoteTime)
-	afterMarket := extendedMarketQuoteFromProto(basicQot.GetAfterMarket(), quoteTime)
-	overnight := extendedMarketQuoteFromProto(basicQot.GetOvernight(), quoteTime)
+	preMarket := extendedMarketQuoteFromProto(basicQot.GetPreMarket())
+	afterMarket := extendedMarketQuoteFromProto(basicQot.GetAfterMarket())
+	overnight := extendedMarketQuoteFromProto(basicQot.GetOvernight())
 	session := sessionFromExtendedBlocksAt(canonical, preMarket, afterMarket, overnight, now)
 	activeExtended := activeExtendedQuoteForSession(session, preMarket, afterMarket, overnight)
 
@@ -138,7 +137,7 @@ func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical strin
 	}
 }
 
-func extendedMarketQuoteFromProto(data *qotcommonpb.PreAfterMarketData, quoteTime string) *ExtendedMarketQuote {
+func extendedMarketQuoteFromProto(data *qotcommonpb.PreAfterMarketData) *ExtendedMarketQuote {
 	if data == nil {
 		return nil
 	}
@@ -151,7 +150,6 @@ func extendedMarketQuoteFromProto(data *qotcommonpb.PreAfterMarketData, quoteTim
 		ChangeVal:  decimalPtrFromFloat64(data.ChangeVal),
 		ChangeRate: decimalPtrFromFloat64(data.ChangeRate),
 		Amplitude:  decimalPtrFromFloat64(data.Amplitude),
-		QuoteTime:  quoteTime,
 	}
 }
 

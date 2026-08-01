@@ -30,6 +30,10 @@ describe("marketSessionDisplay", () => {
             price: 111.81,
             changeRate: 0.602,
             quoteTime: "2026-07-09T23:36:39.917Z",
+            tradingDate: "2026-07-09",
+            exchangeTimezone: "America/New_York",
+            sessionStartAt: "2026-07-09T20:00:00Z",
+            sessionEndAt: "2026-07-10T00:00:00Z",
           },
         },
       },
@@ -49,6 +53,10 @@ describe("marketSessionDisplay", () => {
       label: "盘后价格",
       price: 111.81,
       quoteTime: "2026-07-09T23:36:39.917Z",
+      tradingDate: "2026-07-09",
+      exchangeTimezone: "America/New_York",
+      sessionStartAt: "2026-07-09T20:00:00Z",
+      sessionEndAt: "2026-07-10T00:00:00Z",
     });
     expect(afterHoursDisplay.extendedCards[0]?.changeRate).toBeCloseTo(
       ((111.81 - 111.14) / 111.14) * 100,

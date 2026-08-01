@@ -385,7 +385,7 @@ async def test_instrument_metadata_upstream_errors_do_not_leak_details(
 
 
 @pytest.mark.asyncio
-async def test_snapshot_prefers_extended_price_and_preserves_quote_time(
+async def test_snapshot_returns_regular_baseline_and_preserves_quote_blocks(
     client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -416,12 +416,12 @@ async def test_snapshot_prefers_extended_price_and_preserves_quote_time(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["price"] == 211.5
+    assert body["price"] == 210.0
     assert body["bid"] is None
     assert body["ask"] == 211.7
     assert body["volume"] == 42_000_000
-    assert body["session"] == "after_hours"
-    assert body["extended_hours"] is True
+    assert "session" not in body
+    assert "extended_hours" not in body
     assert body["delayed"] is True
     assert body["delay_minutes"] == 15
     assert body["regular_quote"]["price"] == 210.0
@@ -459,8 +459,8 @@ async def test_non_us_snapshot_keeps_regular_price_when_yahoo_uses_post_state(
     assert body["market"] == "HK"
     assert body["symbol"] == "00700"
     assert body["price"] == 410.0
-    assert body["session"] == "closed"
-    assert body["extended_hours"] is False
+    assert "session" not in body
+    assert "extended_hours" not in body
     assert body["after_market_quote"]["price"] == 411.0
 
 

@@ -56,7 +56,7 @@ func ResetCalendarResolver() {
 }
 
 func ClassifySession(symbol string, at time.Time) Session {
-	if !IsUSSymbol(symbol) || at.IsZero() {
+	if at.IsZero() {
 		return SessionUnknown
 	}
 	profile, ok := ProfileForSymbol(symbol)
@@ -68,7 +68,7 @@ func ClassifySession(symbol string, at time.Time) Session {
 		return SessionUnknown
 	}
 	minutes := local.Hour()*60 + local.Minute()
-	if local.Weekday() == time.Sunday && minutes >= template.OvernightCarryStartMin {
+	if template.SupportsExtendedHours && local.Weekday() == time.Sunday && minutes >= template.OvernightCarryStartMin {
 		if nextSchedule, ok := scheduleForMarketDay(profile.Market, local.AddDate(0, 0, 1)); ok && marketcalendar.TradingDayHasSessions(nextSchedule) {
 			return SessionOvernight
 		}
@@ -79,7 +79,7 @@ func ClassifySession(symbol string, at time.Time) Session {
 	if session, ok := marketcalendar.SessionForMinute(schedule, minutes); ok {
 		return sessionFromCalendar(session)
 	}
-	if minutes >= template.OvernightCarryStartMin {
+	if template.SupportsExtendedHours && minutes >= template.OvernightCarryStartMin {
 		if nextSchedule, ok := scheduleForMarketDay(profile.Market, local.AddDate(0, 0, 1)); ok && marketcalendar.TradingDayHasSessions(nextSchedule) {
 			return SessionOvernight
 		}

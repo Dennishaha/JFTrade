@@ -14,7 +14,6 @@ from ..conversion import (
     first_value,
     format_rfc3339,
     non_negative_int,
-    snapshot_session_for_market,
     timestamp_as_rfc3339,
 )
 from ..errors import not_found, upstream_error
@@ -46,20 +45,13 @@ def snapshot(market: str, symbol: str) -> SnapshotResponse:
             "snapshot_not_found",
             f"snapshot not found: {instrument.instrument_id}",
         )
-    price, quote_time = _snapshot_price_and_time(
-        info,
-        supports_extended_hours=instrument.spec.supports_extended_hours,
-    )
+    price, quote_time = _regular_price_and_time(info)
     if price is None:
         raise not_found(
             "snapshot_not_found",
             f"snapshot not found: {instrument.instrument_id}",
         )
     observed_at = format_rfc3339(datetime.now(timezone.utc))
-    session, extended_hours = snapshot_session_for_market(
-        info.get("marketState"),
-        market=instrument.market,
-    )
     previous_close = finite_float(
         first_value(info, "regularMarketPreviousClose", "previousClose")
     )
@@ -81,12 +73,10 @@ def snapshot(market: str, symbol: str) -> SnapshotResponse:
         regular_quote=_quote_block(info, "regular"),
         pre_market_quote=_quote_block(info, "pre_market"),
         after_market_quote=_quote_block(info, "after_market"),
-        volume=_active_volume(info, session),
-        turnover=_active_turnover(info, session),
+        volume=non_negative_int(info.get("regularMarketVolume")) or 0,
+        turnover=finite_float(info.get("regularMarketTurnover")),
         quote_at=timestamp_as_rfc3339(quote_time),
         observed_at=observed_at,
-        session=session,
-        extended_hours=extended_hours,
         delayed=True,
         delay_minutes=15,
         currency=clean_text(info.get("currency")),
@@ -95,29 +85,11 @@ def snapshot(market: str, symbol: str) -> SnapshotResponse:
     )
 
 
-def _snapshot_price_and_time(
-    info: Mapping[str, Any],
-    *,
-    supports_extended_hours: bool = True,
-) -> tuple[float | None, Any]:
-    state = (clean_text(info.get("marketState")) or "").upper()
-    if supports_extended_hours and state == "PRE":
-        candidates = (
-            ("preMarketPrice", "preMarketTime"),
-            ("regularMarketPrice", "regularMarketTime"),
-            ("currentPrice", "regularMarketTime"),
-        )
-    elif supports_extended_hours and state == "POST":
-        candidates = (
-            ("postMarketPrice", "postMarketTime"),
-            ("regularMarketPrice", "regularMarketTime"),
-            ("currentPrice", "regularMarketTime"),
-        )
-    else:
-        candidates = (
-            ("regularMarketPrice", "regularMarketTime"),
-            ("currentPrice", "regularMarketTime"),
-        )
+def _regular_price_and_time(info: Mapping[str, Any]) -> tuple[float | None, Any]:
+    candidates = (
+        ("regularMarketPrice", "regularMarketTime"),
+        ("currentPrice", "regularMarketTime"),
+    )
     for price_key, time_key in candidates:
         price = finite_float(info.get(price_key))
         if price is not None:
@@ -156,21 +128,3 @@ def _quote_block(info: Mapping[str, Any], session: str) -> SnapshotQuote | None:
             )
         ),
     )
-
-
-def _active_volume(info: Mapping[str, Any], session: str) -> int:
-    key = {
-        "pre_market": "preMarketVolume",
-        "after_hours": "postMarketVolume",
-    }.get(session, "regularMarketVolume")
-    return non_negative_int(info.get(key)) or non_negative_int(
-        info.get("regularMarketVolume")
-    ) or 0
-
-
-def _active_turnover(info: Mapping[str, Any], session: str) -> float | None:
-    key = {
-        "pre_market": "preMarketTurnover",
-        "after_hours": "postMarketTurnover",
-    }.get(session, "regularMarketTurnover")
-    return finite_float(info.get(key)) or finite_float(info.get("regularMarketTurnover"))

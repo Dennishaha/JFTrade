@@ -19,14 +19,13 @@ func number(value string) *json.Number {
 func validSnapshot() remoteSnapshot {
 	return remoteSnapshot{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL",
-		Price: number("100.25"), Bid: number("0"), Ask: nil,
+		Price: number("99.75"), Bid: number("0"), Ask: nil,
 		OpenPrice: number("99"), HighPrice: number("101"), LowPrice: number("98"),
 		PreviousClosePrice: number("98.5"), LastClosePrice: number("98.5"), Volume: number("123"), Turnover: number("12345.5"),
-		RegularQuote:     &remoteSnapshotQuote{Price: number("99.75"), QuoteAt: "2026-07-29T20:00:00Z"},
-		PreMarketQuote:   &remoteSnapshotQuote{Price: number("99.5"), ChangeValue: number("-1.2")},
+		RegularQuote:     &remoteSnapshotQuote{Price: number("99.75"), QuoteAt: "2026-07-29T19:59:59Z"},
+		PreMarketQuote:   &remoteSnapshotQuote{Price: number("99.5"), ChangeValue: number("-1.2"), QuoteAt: "2026-07-29T12:00:00Z"},
 		AfterMarketQuote: &remoteSnapshotQuote{Price: number("100.25"), QuoteAt: "2026-07-29T21:00:00Z"},
-		QuoteAt:          "2026-07-29T10:00:00-04:00", ObservedAt: "", Source: "",
-		Session: " AFTER ", ExtendedHours: false,
+		QuoteAt:          "2026-07-29T19:59:59Z", ObservedAt: "", Source: "",
 	}
 }
 
@@ -36,33 +35,38 @@ func validRemoteCandles() remoteCandles {
 		ExtendedHours: true, TotalReturned: 1, Source: "",
 		Candles: []remoteCandle{{
 			At: "2026-07-29T13:30:00Z", Open: number("99"), High: number("102"),
-			Low: number("98"), Close: number("101.5"), Volume: number("500"), Session: "",
+			Low: number("98"), Close: number("101.5"), Volume: number("500"),
 		}},
 	}
 }
 
+var afterMarketNow = time.Date(2026, time.July, 29, 21, 15, 0, 0, time.UTC)
+
 func TestSnapshotConversionUsesPriceFallbacksAndCanonicalTimes(t *testing.T) {
 	response := validSnapshot()
 	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}
-	tick, err := convertSnapshot(response, expected, testNow)
+	tick, err := convertSnapshot(response, expected, afterMarketNow)
 	if err != nil {
 		t.Fatalf("convertSnapshot: %v", err)
 	}
 
 	if !tick.Bid.Equal(tick.Price) || !tick.Ask.Equal(tick.Price) ||
 		!tick.Price.Equal(decimal.RequireFromString("100.25")) ||
-		tick.QuoteAt != "2026-07-29T14:00:00Z" ||
-		tick.ObservedAt != testNow.Format(time.RFC3339Nano) ||
+		tick.QuoteAt != "2026-07-29T21:00:00Z" ||
+		tick.ObservedAt != afterMarketNow.Format(time.RFC3339Nano) ||
 		tick.Source != sourceID || tick.Session != "after" || !tick.ExtendedHours ||
 		tick.PreviousClosePrice == nil || !tick.PreviousClosePrice.Equal(decimal.RequireFromString("99.75")) ||
 		tick.LastClosePrice == nil || !tick.LastClosePrice.Equal(decimal.RequireFromString("98.5")) ||
 		tick.PreMarket == nil || tick.AfterMarket == nil ||
 		tick.PreMarket.ChangeVal == nil || !tick.PreMarket.ChangeVal.Equal(decimal.RequireFromString("-1.2")) ||
-		tick.AfterMarket.QuoteTime != "2026-07-29T21:00:00Z" {
+		tick.AfterMarket.QuoteTime != "2026-07-29T21:00:00Z" ||
+		tick.AfterMarket.ExchangeTimezone != "America/New_York" ||
+		tick.AfterMarket.SessionEndAt != "2026-07-30T00:00:00Z" {
 		t.Fatalf("converted tick = %#v", tick)
 	}
 
 	response.QuoteAt = ""
+	response.AfterMarketQuote = nil
 	response.ObservedAt = "2026-07-29T14:45:00Z"
 	tick, err = convertSnapshot(response, expected, testNow)
 	if err != nil || tick.QuoteAt != "" || tick.ObservedAt != response.ObservedAt {
@@ -78,7 +82,7 @@ func TestVolumeConversionPreservesLargeFractionalDecimalValues(t *testing.T) {
 	snapshot := validSnapshot()
 	snapshot.Volume = number(rawVolume)
 	snapshot.AfterMarketQuote.Volume = number(rawVolume)
-	tick, err := convertSnapshot(snapshot, expected, testNow)
+	tick, err := convertSnapshot(snapshot, expected, afterMarketNow)
 	if err != nil {
 		t.Fatalf("convertSnapshot: %v", err)
 	}
@@ -110,7 +114,6 @@ func TestSnapshotConversionKeepsOriginalCloseForNonUSClosedMarkets(t *testing.T)
 	response.Market = "HK"
 	response.Symbol = "00700"
 	response.InstrumentID = "HK.00700"
-	response.Session = "closed"
 	response.PreviousClosePrice = number("90")
 	response.LastClosePrice = number("89")
 	response.RegularQuote = &remoteSnapshotQuote{Price: number("100")}
@@ -126,6 +129,52 @@ func TestSnapshotConversionKeepsOriginalCloseForNonUSClosedMarkets(t *testing.T)
 	if tick.PreviousClosePrice == nil || !tick.PreviousClosePrice.Equal(decimal.RequireFromString("90")) ||
 		tick.LastClosePrice == nil || !tick.LastClosePrice.Equal(decimal.RequireFromString("89")) {
 		t.Fatalf("non-US close prices = previous=%v last=%v", tick.PreviousClosePrice, tick.LastClosePrice)
+	}
+}
+
+func TestSnapshotConversionUsesCalendarForLatestClosedSessionAfterMarket(t *testing.T) {
+	response := validSnapshot()
+	response.Symbol = "BABA"
+	response.InstrumentID = "US.BABA"
+	response.Price = number("122.25")
+	response.RegularQuote = &remoteSnapshotQuote{
+		Price: number("122.25"), QuoteAt: "2026-07-31T20:02:27Z",
+	}
+	response.AfterMarketQuote = &remoteSnapshotQuote{
+		Price: number("121.80"), QuoteAt: "2026-07-31T23:59:51Z",
+	}
+	response.PreMarketQuote = nil
+	response.QuoteAt = "2026-07-31T20:02:27Z"
+	response.ObservedAt = "2026-08-01T12:00:00Z"
+	expected := normalizedInstrument{market: "US", symbol: "BABA", id: "US.BABA"}
+
+	tick, err := convertSnapshot(response, expected, testNow)
+	if err != nil {
+		t.Fatalf("convertSnapshot: %v", err)
+	}
+	if tick.Session != "closed" || !tick.Price.Equal(decimal.RequireFromString("122.25")) ||
+		tick.AfterMarket == nil || !tick.AfterMarket.Price.Equal(decimal.RequireFromString("121.80")) ||
+		tick.AfterMarket.QuoteTime != "2026-07-31T23:59:51Z" ||
+		tick.AfterMarket.SessionEndAt != "2026-08-01T00:00:00Z" {
+		t.Fatalf("closed-session tick = %#v", tick)
+	}
+
+	response.AfterMarketQuote.QuoteAt = "2026-07-30T23:59:51Z"
+	tick, err = convertSnapshot(response, expected, testNow)
+	if err != nil || tick.AfterMarket != nil {
+		t.Fatalf("stale after-market quote = %#v, err=%v", tick.AfterMarket, err)
+	}
+
+	response.AfterMarketQuote.QuoteAt = "2026-08-01T00:00:01Z"
+	tick, err = convertSnapshot(response, expected, testNow)
+	if err != nil || tick.AfterMarket != nil {
+		t.Fatalf("out-of-window after-market quote = %#v, err=%v", tick.AfterMarket, err)
+	}
+
+	response.AfterMarketQuote.QuoteAt = ""
+	tick, err = convertSnapshot(response, expected, testNow)
+	if err != nil || tick.AfterMarket != nil {
+		t.Fatalf("missing-time after-market quote = %#v, err=%v", tick.AfterMarket, err)
 	}
 }
 
@@ -162,7 +211,7 @@ func TestCandleConversionBuildsNeutralResponseAndRejectsDrift(t *testing.T) {
 	candles := result["candles"].([]map[string]any)
 	meta := result["meta"].(map[string]any)
 	if len(candles) != 1 || candles[0]["close"] != "101.5" || candles[0]["session"] != nil ||
-		meta["source"] != sourceID || meta["extendedHours"] != true {
+		meta["source"] != sourceID || meta["extendedHours"] != false {
 		t.Fatalf("converted candles = %#v", result)
 	}
 	if _, exists := meta["session"]; exists {
@@ -170,8 +219,9 @@ func TestCandleConversionBuildsNeutralResponseAndRejectsDrift(t *testing.T) {
 	}
 
 	response = validRemoteCandles()
-	response.Candles[0].Session = "pre_market"
-	result, err = convertCandles(response, expected, "1d", 10, testNow)
+	response.Period = "1m"
+	response.Candles[0].At = "2026-07-29T12:00:00Z"
+	result, err = convertCandles(response, expected, "1m", 10, testNow)
 	if err != nil {
 		t.Fatalf("convertCandles pre-market: %v", err)
 	}
@@ -188,7 +238,6 @@ func TestCandleConversionBuildsNeutralResponseAndRejectsDrift(t *testing.T) {
 		func(value *remoteCandles) { value.Candles[0].Open = nil },
 		func(value *remoteCandles) { value.Candles[0].High = number("-2") },
 		func(value *remoteCandles) { value.Candles[0].Volume = number("-1") },
-		func(value *remoteCandles) { value.Candles[0].Session = "auction" },
 	}
 	for index, mutate := range tests {
 		value := validRemoteCandles()
@@ -196,6 +245,28 @@ func TestCandleConversionBuildsNeutralResponseAndRejectsDrift(t *testing.T) {
 		if _, err := convertCandles(value, expected, "1d", 10, testNow); !errors.Is(err, ErrInvalidResponse) {
 			t.Fatalf("case %d error = %v", index, err)
 		}
+	}
+}
+
+func TestCandleConversionUsesEarlyCloseCalendarAndDropsClosedBars(t *testing.T) {
+	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}
+	response := remoteCandles{
+		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Period: "1m",
+		ExtendedHours: true, TotalReturned: 3, Source: sourceID,
+		Candles: []remoteCandle{
+			{At: "2026-11-27T17:59:00Z", Open: number("100"), High: number("101"), Low: number("99"), Close: number("100"), Volume: number("10")},
+			{At: "2026-11-27T21:59:00Z", Open: number("101"), High: number("102"), Low: number("100"), Close: number("101"), Volume: number("11")},
+			{At: "2026-11-27T22:01:00Z", Open: number("102"), High: number("103"), Low: number("101"), Close: number("102"), Volume: number("12")},
+		},
+	}
+
+	result, err := convertCandles(response, expected, "1m", 10, testNow)
+	if err != nil {
+		t.Fatalf("convertCandles: %v", err)
+	}
+	candles := result["candles"].([]map[string]any)
+	if len(candles) != 2 || candles[0]["session"] != "regular" || candles[1]["session"] != "after" {
+		t.Fatalf("early-close candles = %#v", candles)
 	}
 }
 
@@ -326,13 +397,5 @@ func TestNormalizationAndNumericHelpersCoverAliasesAndBoundaries(t *testing.T) {
 	}
 	if _, err := responseTime("at", "", time.Time{}); !errors.Is(err, ErrInvalidResponse) {
 		t.Fatalf("empty required time error = %v", err)
-	}
-	for _, value := range []string{"POSTPOST", "PREPRE", "CLOSED"} {
-		if session, err := normalizeSession(value); err != nil || session != "closed" {
-			t.Fatalf("normalizeSession(%q) = %q, %v", value, session, err)
-		}
-	}
-	if _, err := normalizeSession("overnight"); !errors.Is(err, ErrInvalidResponse) {
-		t.Fatalf("overnight session error = %v", err)
 	}
 }

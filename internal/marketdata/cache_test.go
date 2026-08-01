@@ -263,8 +263,12 @@ func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 	sample := tickAt("US.AAPL", "100.25", 12, now)
 	sample.VolumeDelta = decimal.NewFromInt(3)
 	sample.AfterMarket = &ExtendedQuote{
-		Price:     new(decimal.RequireFromString("101.75")),
-		QuoteTime: now.Format(time.RFC3339Nano),
+		Price:            new(decimal.RequireFromString("101.75")),
+		QuoteTime:        now.Format(time.RFC3339Nano),
+		TradingDate:      "2026-06-14",
+		ExchangeTimezone: "America/New_York",
+		SessionStartAt:   "2026-06-14T20:00:00Z",
+		SessionEndAt:     "2026-06-15T00:00:00Z",
 	}
 
 	snapshot := SnapshotJSON(&sample)
@@ -280,6 +284,9 @@ func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 	}
 	if jftradeCheckedTypeAssertion[map[string]any](extended["afterMarket"])["quoteTime"] != now.Format(time.RFC3339Nano) {
 		t.Fatalf("after market quoteTime = %#v", extended["afterMarket"])
+	}
+	if jftradeCheckedTypeAssertion[map[string]any](extended["afterMarket"])["sessionEndAt"] != "2026-06-15T00:00:00Z" {
+		t.Fatalf("after market session window = %#v", extended["afterMarket"])
 	}
 
 	event := LiveTickJSON(&sample, now.Add(time.Second).Format(time.RFC3339Nano))

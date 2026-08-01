@@ -6637,14 +6637,182 @@
           "$ref": "#/definitions/marketdata.MarketInstrumentData"
         },
         "snapshot": {
-          "additionalProperties": {},
-          "type": "object"
+          "$ref": "#/definitions/marketdata.SnapshotQuote"
         }
       },
       "required": [
         "meta",
         "request",
         "snapshot"
+      ],
+      "type": "object"
+    },
+    "marketdata.SnapshotExtendedQuote": {
+      "properties": {
+        "amplitude": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "changeRate": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "changeVal": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "exchangeTimezone": {
+          "type": "string"
+        },
+        "highPrice": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "lowPrice": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "price": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "quoteTime": {
+          "type": "string"
+        },
+        "sessionEndAt": {
+          "type": "string"
+        },
+        "sessionStartAt": {
+          "type": "string"
+        },
+        "tradingDate": {
+          "type": "string"
+        },
+        "turnover": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "volume": {
+          "type": "string",
+          "x-nullable": true
+        }
+      },
+      "required": [
+        "amplitude",
+        "changeRate",
+        "changeVal",
+        "highPrice",
+        "lowPrice",
+        "price",
+        "quoteTime",
+        "turnover",
+        "volume"
+      ],
+      "type": "object"
+    },
+    "marketdata.SnapshotExtendedQuotes": {
+      "properties": {
+        "afterMarket": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/marketdata.SnapshotExtendedQuote"
+            }
+          ],
+          "x-nullable": true
+        },
+        "overnight": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/marketdata.SnapshotExtendedQuote"
+            }
+          ],
+          "x-nullable": true
+        },
+        "preMarket": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/marketdata.SnapshotExtendedQuote"
+            }
+          ],
+          "x-nullable": true
+        }
+      },
+      "required": [
+        "afterMarket",
+        "overnight",
+        "preMarket"
+      ],
+      "type": "object"
+    },
+    "marketdata.SnapshotQuote": {
+      "properties": {
+        "ask": {
+          "type": "string"
+        },
+        "at": {
+          "type": "string"
+        },
+        "bid": {
+          "type": "string"
+        },
+        "extended": {
+          "$ref": "#/definitions/marketdata.SnapshotExtendedQuotes"
+        },
+        "extendedHours": {
+          "type": "boolean"
+        },
+        "highPrice": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "lastClosePrice": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "lowPrice": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "observedAt": {
+          "type": "string"
+        },
+        "openPrice": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "previousClosePrice": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "price": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        },
+        "turnover": {
+          "type": "string"
+        },
+        "volume": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ask",
+        "at",
+        "bid",
+        "extended",
+        "extendedHours",
+        "highPrice",
+        "lastClosePrice",
+        "lowPrice",
+        "observedAt",
+        "openPrice",
+        "previousClosePrice",
+        "price",
+        "session",
+        "turnover",
+        "volume"
       ],
       "type": "object"
     },

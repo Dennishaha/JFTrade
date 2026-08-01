@@ -119,8 +119,6 @@ type remoteSnapshot struct {
 	QuoteAt            string               `json:"quote_at"`
 	ObservedAt         string               `json:"observed_at"`
 	Source             string               `json:"source"`
-	Session            string               `json:"session"`
-	ExtendedHours      bool                 `json:"extended_hours"`
 }
 
 type remoteCandles struct {
@@ -135,11 +133,10 @@ type remoteCandles struct {
 }
 
 type remoteCandle struct {
-	At      string       `json:"at"`
-	Open    *json.Number `json:"open"`
-	High    *json.Number `json:"high"`
-	Low     *json.Number `json:"low"`
-	Close   *json.Number `json:"close"`
-	Volume  *json.Number `json:"volume"`
-	Session string       `json:"session"`
+	At     string       `json:"at"`
+	Open   *json.Number `json:"open"`
+	High   *json.Number `json:"high"`
+	Low    *json.Number `json:"low"`
+	Close  *json.Number `json:"close"`
+	Volume *json.Number `json:"volume"`
 }

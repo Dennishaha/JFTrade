@@ -242,7 +242,11 @@ func extendedQuoteEqual(left, right *ExtendedQuote) bool {
 		optionalDecimalEqual(left.ChangeVal, right.ChangeVal) &&
 		optionalDecimalEqual(left.ChangeRate, right.ChangeRate) &&
 		optionalDecimalEqual(left.Amplitude, right.Amplitude) &&
-		left.QuoteTime == right.QuoteTime
+		left.QuoteTime == right.QuoteTime &&
+		left.TradingDate == right.TradingDate &&
+		left.ExchangeTimezone == right.ExchangeTimezone &&
+		left.SessionStartAt == right.SessionStartAt &&
+		left.SessionEndAt == right.SessionEndAt
 }
 
 func decimalPointerEqual(left, right *decimal.Decimal) bool {
