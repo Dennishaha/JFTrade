@@ -113,13 +113,149 @@ describe("broker provider tag", () => {
     await wrapper.get(".broker-provider-tag").trigger("click");
     const yfinance = wrapper
       .findAll('.broker-provider-tag__menu button[role="option"]')
-      .find((button) => button.text().includes("Yahoo Finance"));
+      .find((button) => button.text().includes("Yahoo"));
     expect(yfinance).toBeDefined();
     await yfinance!.trigger("click");
     expect(apiMocks.putEnvelope).toHaveBeenCalledWith(
       "/api/v1/settings/market-data-provider",
       { activeProvider: "yfinance" },
     );
+  });
+
+  it("renders Yahoo's delayed HTTP polling as a normal green provider state", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return Promise.resolve({ activeProvider: "yfinance" });
+      }
+      if (url.includes("/api/v1/market-data/provider")) {
+        return Promise.resolve({
+          descriptor: {
+            providerId: "yahoo-finance",
+            brokerId: "yfinance",
+            displayName: "Yahoo",
+          },
+          health: {
+            connected: true,
+            streamMode: "snapshot-poll-delayed",
+            activeCount: 1,
+          },
+          runtime: {},
+          subscriptions: {},
+          checkedAt: "2026-07-31T00:00:00Z",
+        });
+      }
+      return Promise.resolve(capabilities);
+    });
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+    await flushPromises();
+
+    const tag = wrapper.get(".broker-provider-tag");
+    expect(tag.text()).toContain("Yahoo");
+    expect(tag.classes()).toContain("is-available");
+    expect(tag.attributes("data-capability-state")).toBe("degraded");
+    expect(tag.attributes("data-display-state")).toBe("available");
+    expect(tag.attributes("data-quality")).toBe("degraded");
+    expect(tag.attributes("title")?.split("\n")).toEqual([
+      "供应商：Yahoo",
+      "连接方式：HTTP 定时查询",
+      "数据质量：非实时快照，时效以供应商返回为准",
+    ]);
+    expect(tag.attributes("title")).not.toContain("降级");
+  });
+
+  it("keeps the selected provider usable when the status read fails", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return Promise.resolve({ activeProvider: "yfinance" });
+      }
+      if (url.includes("/api/v1/market-data/provider")) {
+        return Promise.reject(new Error("provider status unavailable"));
+      }
+      return Promise.resolve(capabilities);
+    });
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+    await flushPromises();
+
+    const tag = wrapper.get(".broker-provider-tag");
+    expect(tag.text()).toContain("Yahoo");
+    expect(tag.classes()).toContain("is-available");
+    expect(tag.classes()).not.toContain("is-unavailable");
+    expect(tag.attributes("title")).toContain(
+      "状态详情：provider status unavailable",
+    );
+  });
+
+  it("ignores an older provider status response after switching", async () => {
+    const statusResolvers: Array<(value: unknown) => void> = [];
+    const status = (brokerId: string, streamMode: string) => ({
+      descriptor: {
+        providerId: brokerId === "yfinance" ? "yahoo-finance" : brokerId,
+        brokerId,
+        displayName: brokerId === "yfinance" ? "Yahoo" : "Futu OpenD",
+      },
+      health: { connected: true, streamMode, activeCount: 1 },
+      runtime: {},
+      subscriptions: {},
+      checkedAt: "2026-07-31T00:00:00Z",
+    });
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return Promise.resolve({ activeProvider: "futu" });
+      }
+      if (url.includes("/api/v1/market-data/provider")) {
+        return new Promise((resolve) => statusResolvers.push(resolve));
+      }
+      return Promise.resolve(capabilities);
+    });
+    apiMocks.putEnvelope.mockResolvedValue({ activeProvider: "yfinance" });
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+    await flushPromises();
+    expect(statusResolvers).toHaveLength(1);
+
+    await wrapper.get(".broker-provider-tag").trigger("click");
+    await wrapper
+      .findAll('.broker-provider-tag__menu button[role="option"]')
+      .find((button) => button.text().includes("Yahoo"))!
+      .trigger("click");
+    await flushPromises();
+    await flushPromises();
+    expect(statusResolvers).toHaveLength(2);
+
+    statusResolvers[1]!(status("yfinance", "snapshot-poll-delayed"));
+    await flushPromises();
+    await flushPromises();
+    const tag = wrapper.get(".broker-provider-tag");
+    expect(tag.text()).toContain("Yahoo");
+    expect(tag.attributes("title")).toContain("HTTP 定时查询");
+
+    statusResolvers[0]!(status("futu", "push-stream"));
+    await flushPromises();
+    expect(tag.text()).toContain("Yahoo");
+    expect(tag.attributes("title")).toContain("HTTP 定时查询");
   });
 
   it("preserves the embedded Yahoo provider when the broker catalog finishes later", async () => {
@@ -179,7 +315,7 @@ describe("broker provider tag", () => {
     const options = wrapper.findAll(
       '.broker-provider-tag__menu button[role="option"]',
     );
-    await options.find((button) => button.text().includes("Yahoo Finance"))!.trigger("click");
+    await options.find((button) => button.text().includes("Yahoo"))!.trigger("click");
     await nextTick();
 
     expect(tag.text()).toContain("启动中");
@@ -196,7 +332,7 @@ describe("broker provider tag", () => {
     expect(
       wrapper
         .findAll('.broker-provider-tag__menu button[role="option"]')
-        .find((button) => button.text().includes("Yahoo Finance"))
+        .find((button) => button.text().includes("Yahoo"))
         ?.attributes("aria-selected"),
     ).toBe("true");
   });
@@ -227,7 +363,7 @@ describe("broker provider tag", () => {
     await tag.trigger("click");
     await wrapper
       .findAll('.broker-provider-tag__menu button[role="option"]')
-      .find((button) => button.text().includes("Yahoo Finance"))!
+      .find((button) => button.text().includes("Yahoo"))!
       .trigger("click");
     await flushPromises();
     expect(tag.text()).toContain("Yahoo");
@@ -313,7 +449,7 @@ describe("broker provider tag", () => {
     );
     expect(wrapper.get(".broker-provider-tag").text()).toContain("Alpha");
     expect(wrapper.get(".broker-provider-tag").classes()).toContain(
-      "is-degraded",
+      "is-available",
     );
   });
 
@@ -343,11 +479,12 @@ describe("broker provider tag", () => {
     const tag = wrapper.get(".broker-provider-tag");
     expect(tag.classes()).toContain("is-available");
     expect(tag.attributes("data-quality")).toBe("healthy");
-    expect(tag.attributes("title")).toContain("行情传输：实时推送正常");
+    expect(tag.attributes("title")).toContain("连接方式：实时推送");
+    expect(tag.attributes("title")).toContain("数据质量：实时推送正常");
     expect(tag.attributes("title")?.split("\n")).toEqual([
-      "数据源：Futu OpenAPI via OpenD（Moomoo US）",
-      "功能能力：可用",
-      "行情传输：实时推送正常",
+      "供应商：Futu OpenAPI via OpenD",
+      "连接方式：实时推送",
+      "数据质量：实时推送正常",
     ]);
 
     await wrapper.setProps({
@@ -356,20 +493,20 @@ describe("broker provider tag", () => {
     });
     expect(tag.classes()).toContain("is-degraded");
     expect(tag.attributes("data-quality")).toBe("degraded");
-    expect(tag.attributes("title")).toContain("行情传输：已降级到轮询");
-    expect(tag.attributes("aria-label")).toContain("已降级到轮询");
+    expect(tag.attributes("title")).toContain("数据质量：快照轮询（推送回退）");
+    expect(tag.attributes("aria-label")).toContain("快照轮询（推送回退）");
 
     await wrapper.setProps({
       connectionState: "disconnected",
       transportMode: "push-stream",
     });
-    expect(tag.attributes("title")).toContain("行情传输：实时连接已中断");
+    expect(tag.attributes("title")).toContain("数据质量：实时连接已中断");
     expect(tag.attributes("aria-label")).toContain("实时连接已中断");
 
     await wrapper.setProps({ connectionState: "error", transportMode: null });
     expect(tag.classes()).toContain("is-unavailable");
     expect(tag.attributes("data-quality")).toBe("unavailable");
-    expect(tag.attributes("title")).toContain("行情传输：数据源不可用");
+    expect(tag.attributes("title")).toContain("数据质量：数据源不可用");
   });
 
   it("keeps capability state and reason from the same runtime summary", async () => {
@@ -434,10 +571,11 @@ describe("broker provider tag", () => {
       "尚未完成当前 OpenD 行情权限核验",
     );
     expect(tag.attributes("title")?.split("\n")).toEqual([
-      "数据源：Futu OpenAPI via OpenD（Futu/Moomoo via OpenD）",
-      "功能能力：降级",
-      "行情传输：实时推送正常",
-      "原因：尚未完成当前 OpenD 行情权限核验",
+      "供应商：Futu OpenAPI via OpenD",
+      "连接方式：实时推送",
+      "数据质量：实时推送正常",
+      "功能范围：当前功能受限",
+      "说明：尚未完成当前 OpenD 行情权限核验",
     ]);
     expect(tag.attributes("title")).not.toContain("explicit");
   });
@@ -839,13 +977,13 @@ describe("broker provider tag", () => {
       "research.news：新闻权限关闭",
     );
     expect(tag.attributes("title")).toContain("新闻权限关闭");
-    expect(tag.attributes("aria-label")).toContain("能力降级");
+    expect(tag.attributes("aria-label")).toContain("当前功能受限");
 
     await wrapper.setProps({ featureIds: [] });
     expect(tag.classes()).toContain("is-unavailable");
     expect(tag.attributes("data-capability-state")).toBe("unavailable");
     expect(tag.attributes("title")).toContain("新闻权限关闭");
-    expect(tag.attributes("aria-label")).toContain("能力不可用");
+    expect(tag.attributes("aria-label")).toContain("当前功能不可用");
     await tag.trigger("click");
     expect(
       wrapper.get('.broker-provider-tag__menu button[role="option"]')

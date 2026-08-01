@@ -20,6 +20,7 @@ import {
   type KlineIndicatorKey,
 } from "../../charting/kline";
 import {
+  brokerProviderDisplayName,
   brokerSupportedChartPeriods,
   useBrokerProviderSelection,
 } from "@/composables/trading/brokerProviderSelection";
@@ -228,6 +229,13 @@ const chartTransportMode = computed(() =>
 const chartSource = computed(() =>
   marketDataSnapshot.value?.meta.source ?? marketDataCandles.value?.meta.source ?? null,
 );
+const chartProviderName = computed(() => {
+  const providerID =
+    marketDataSnapshot.value?.meta.brokerId ??
+    marketDataCandles.value?.meta.brokerId ??
+    selectedBrokerId.value;
+  return providerID?.trim() ? brokerProviderDisplayName(providerID) : null;
+});
 const chartFromCache = computed(() =>
   marketDataSnapshot.value?.meta.fromCache ?? marketDataCandles.value?.meta.fromCache ?? false,
 );
@@ -570,6 +578,7 @@ watch(
       :observed-at="chartObservedAt"
       :transport-mode="chartTransportMode"
       :source="chartSource"
+      :provider-name="chartProviderName"
       :from-cache="chartFromCache"
       :loading-data="isLoadingMarketDataQuery"
       :data-error="marketDataQueryError"

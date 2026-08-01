@@ -40,7 +40,7 @@ describe("market data provider settings transport", () => {
     });
   });
 
-  it("preserves an explicit Yahoo Finance selection", async () => {
+  it("preserves an explicit Yahoo selection", async () => {
     mocks.apiGet.mockResolvedValue({ activeProvider: "yfinance" });
 
     await expect(getMarketDataProviderSettings()).resolves.toEqual({

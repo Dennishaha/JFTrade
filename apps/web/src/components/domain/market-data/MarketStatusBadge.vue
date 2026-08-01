@@ -69,8 +69,9 @@ const displayLabel = computed(() => props.label || defaultLabels[props.state]);
 }
 
 .market-status-badge--live {
-  color: var(--tv-accent);
-  background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-surface-2));
+  border-color: var(--tv-status-success-border);
+  color: var(--tv-status-success-fg);
+  background: var(--tv-status-success-bg);
 }
 
 .market-status-badge--loading {

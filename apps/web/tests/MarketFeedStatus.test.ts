@@ -85,16 +85,14 @@ describe("MarketFeedStatus", () => {
       fromCache: false,
       transportMode: "snapshot-poll-fallback",
     });
-    expect(wrapper.get(".market-feed-issue-badge").text()).toContain("行情已降级");
+    expect(wrapper.get(".market-feed-issue-badge").text()).toContain("推送回退");
     expect(wrapper.get(".market-feed-issue-badge").attributes("data-issue")).toBe("degraded");
     expect(wrapper.get(".market-feed-issue-badge").attributes("title")).toContain(
-      "已降级到轮询行情",
+      "快照轮询（推送回退）",
     );
 
     await wrapper.setProps({ transportMode: "snapshot-poll-delayed" });
-    expect(wrapper.get(".market-feed-issue-badge").attributes("title")).toContain(
-      "延迟行情轮询中",
-    );
+    expect(wrapper.find(".market-feed-issue-badge").exists()).toBe(false);
 
     await wrapper.setProps({
       connectionState: "disconnected",
@@ -135,7 +133,7 @@ describe("MarketFeedStatus", () => {
     wrapper.unmount();
   });
 
-  it("does not label a Yahoo snapshot as a realtime push before heartbeat metadata arrives", () => {
+  it("shows a Yahoo snapshot as an expected HTTP query", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-04T00:00:10Z"));
     const wrapper = mount(MarketFeedStatus, {
@@ -146,9 +144,35 @@ describe("MarketFeedStatus", () => {
       },
     });
 
-    const issue = wrapper.get(".market-feed-issue-badge");
-    expect(issue.text()).toContain("行情已降级");
-    expect(issue.attributes("title")).toContain("延迟行情轮询中");
+    const badge = wrapper.get(".market-feed-provider-badge");
+    expect(badge.attributes("data-state")).toBe("live");
+    expect(badge.attributes("data-quality")).toBe("degraded");
+    expect(badge.text()).toContain("Yahoo");
+    expect(badge.attributes("title")).toContain("连接方式：HTTP 定时查询");
+    expect(badge.attributes("title")).toContain(
+      "数据质量：非实时快照，时效以供应商返回为准",
+    );
+    expect(badge.attributes("title")).not.toContain("降级");
+    wrapper.unmount();
+  });
+
+  it("shows a Futu push feed with the provider name in the normal badge", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-04T00:00:10Z"));
+    const wrapper = mount(MarketFeedStatus, {
+      props: {
+        connectionState: "connected",
+        observedAt: "2026-07-04T00:00:05Z",
+        transportMode: "push-stream",
+        source: "bbgo:futu",
+      },
+    });
+
+    const badge = wrapper.get(".market-feed-provider-badge");
+    expect(badge.text()).toContain("Futu OpenD");
+    expect(badge.attributes("data-state")).toBe("live");
+    expect(badge.attributes("title")).toContain("供应商：Futu OpenD");
+    expect(badge.attributes("title")).toContain("连接方式：实时推送");
     wrapper.unmount();
   });
 

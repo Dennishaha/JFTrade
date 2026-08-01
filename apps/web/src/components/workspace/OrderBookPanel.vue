@@ -9,7 +9,10 @@ import { apiGetPath } from "@/composables/shared/apiClient";
 import { mapMarketDataDepthResponse } from "@/composables/market-data/marketDataContract";
 import { pricePrecisionForMarket } from "@/composables/market-data/marketProfiles";
 import { getMarketDataProviderStatus } from "@/composables/settings/marketDataProviderSettings";
-import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
+import {
+  brokerProviderDisplayName,
+  useBrokerProviderSelection,
+} from "@/composables/trading/brokerProviderSelection";
 import {
   getSharedLiveSocketHub,
   type MarketDepthLiveStreamEvent,
@@ -162,6 +165,10 @@ const lastPrice = computed(() => security.value?.currentPrice ?? snapshot.value?
 const depthObservedAt = computed(() => depthData.value?.meta.resolvedAt ?? null);
 const depthConnectionState = computed(() => liveHub.connectionState?.value ?? "idle");
 const depthTransportMode = computed(() => liveHub.lastHeartbeatEvent?.value?.transport?.mode ?? null);
+const depthProviderName = computed(() => {
+  const providerID = depthData.value?.meta.brokerId ?? selectedBrokerId.value;
+  return providerID?.trim() ? brokerProviderDisplayName(providerID) : null;
+});
 const depthUnsupported = computed(() => supportsOrderBookDepth.value === false);
 
 let providerCapabilitySeq = 0;
@@ -567,6 +574,7 @@ watch(selectedBrokerId, () => {
         :observed-at="depthObservedAt"
         :transport-mode="depthTransportMode"
         :source="depthData?.meta.source ?? null"
+        :provider-name="depthProviderName"
         :from-cache="depthData?.meta.fromCache ?? false"
         :loading="isLoadingDepth"
         :error="depthError"

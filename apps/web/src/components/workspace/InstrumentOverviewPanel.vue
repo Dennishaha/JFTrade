@@ -9,6 +9,7 @@ import { formatInstrumentIdentityText } from "@/composables/market-data/instrume
 import type { MarketSecurityDetails } from "@/composables/market-data/marketDataRealtime";
 import { apiGetPath } from "@/composables/shared/apiClient";
 import { resolveBrokerQuery } from "@/composables/trading/consoleDataBrokerAccountSelection";
+import { brokerProviderDisplayName, useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
 import { useMarketProfiles } from "@/composables/market-data/marketProfiles";
 import { resolveMarketSnapshotDisplay } from "@/composables/market-data/marketSessionDisplay";
 import { getSharedLiveSocketHub } from "@/composables/market-data/sharedLiveSocket";
@@ -38,6 +39,7 @@ const {
   supportsBrokerReadFeature,
 } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
+const { selectedBrokerId } = useBrokerProviderSelection();
 const { pricePrecisionForMarket, supportsExtendedHoursForMarket } = useMarketProfiles();
 const liveHub = getSharedLiveSocketHub();
 const membershipDialogOpen = ref(false);
@@ -70,6 +72,11 @@ const quoteDisplayAt = computed(() =>
 );
 const quoteConnectionState = computed(() => liveHub.connectionState?.value ?? "idle");
 const quoteTransportMode = computed(() => liveHub.lastHeartbeatEvent?.value?.transport?.mode ?? null);
+const quoteProviderName = computed(() => {
+  const providerID =
+    marketDataSnapshot.value?.meta.brokerId ?? selectedBrokerId.value;
+  return providerID?.trim() ? brokerProviderDisplayName(providerID) : null;
+});
 const mainPriceLabel = computed(() => displayModel.value.mainPriceLabel);
 const mainDisplayPrice = computed(() => displayModel.value.mainDisplayPrice);
 const mainChangePercent = computed(() => displayModel.value.mainChangePercent);
@@ -382,6 +389,7 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
         :observed-at="quoteObservedAt"
         :transport-mode="quoteTransportMode"
         :source="marketDataSnapshot?.meta.source ?? null"
+        :provider-name="quoteProviderName"
         :from-cache="marketDataSnapshot?.meta.fromCache ?? false"
         :loading="isLoadingMarketDataQuery"
         :error="marketDataQueryError"

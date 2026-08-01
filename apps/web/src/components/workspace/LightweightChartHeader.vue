@@ -23,6 +23,7 @@ const props = defineProps<{
   observedAt: string | null;
   transportMode: string | null;
   source: string | null;
+  providerName: string | null;
   fromCache: boolean;
   loadingData: boolean;
   dataError: string;
@@ -109,6 +110,7 @@ function handlePeriodChange(event: Event): void {
       :observed-at="props.observedAt"
       :transport-mode="props.transportMode"
       :source="props.source"
+      :provider-name="props.providerName"
       :from-cache="props.fromCache"
       :loading="props.loadingData"
       :error="props.dataError"

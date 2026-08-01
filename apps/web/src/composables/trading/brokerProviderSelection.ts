@@ -12,6 +12,19 @@ import { readLocalStorage, writeLocalStorage } from "@/composables/shared/safeSt
 
 export type BrokerCapabilityState = "available" | "degraded" | "unavailable";
 
+/**
+ * Presentation state intentionally differs from capability state. A provider
+ * may advertise a degraded capability (for example, delayed HTTP snapshots)
+ * while still operating normally for the feature currently being viewed.
+ */
+export type BrokerProviderDisplayState = BrokerCapabilityState;
+export type BrokerProviderDisplayTone = "success" | "warning" | "error";
+
+export interface BrokerCapabilityPresentation {
+  displayState: BrokerProviderDisplayState;
+  tone: BrokerProviderDisplayTone;
+}
+
 export interface BrokerFeatureCapability {
   id: string;
   markets?: string[];
@@ -66,6 +79,10 @@ export interface BrokerProviderOption {
   securityFirm: string;
   state: BrokerCapabilityState;
   reason: string;
+  /** UI-only state; `state` remains the raw capability state for selection. */
+  displayState?: BrokerProviderDisplayState;
+  /** UI-only semantic color, independent of capability selection semantics. */
+  tone?: BrokerProviderDisplayTone;
 }
 
 const STORAGE_KEY = "jftrade.market-provider.v1";
@@ -175,11 +192,45 @@ function normalizedID(value: string | null | undefined): string {
 function shortProviderLabel(
   descriptor: Pick<BrokerCapabilityDescriptor, "id" | "displayName">,
 ): string {
+  const providerID = normalizedID(descriptor.id);
+  if (providerID === "yfinance" || providerID === "yahoo-finance") {
+    return "Yahoo";
+  }
+  if (providerID === "futu" || providerID === "futu-opend") return "Futu";
   const displayName = descriptor.displayName.trim();
   const firstWord = displayName.split(/[\s·/]+/, 1)[0]?.trim();
   if (firstWord) return firstWord.slice(0, 12);
   return descriptor.id.trim().toUpperCase().slice(0, 12) || "数据源";
 }
+
+type BrokerProviderNameInput =
+  | Pick<BrokerCapabilityDescriptor, "id" | "displayName">
+  | string
+  | null
+  | undefined;
+
+/** Resolve a user-facing provider name from a descriptor, id, or both. */
+export function resolveBrokerProviderDisplayName(
+  value: BrokerProviderNameInput,
+  descriptors: readonly BrokerCapabilityDescriptor[] = brokerDescriptors.value,
+): string {
+  const inputID =
+    typeof value === "string" ? normalizedID(value) : normalizedID(value?.id);
+  if (inputID === "yfinance" || inputID === "yahoo-finance") {
+    return "Yahoo";
+  }
+  const descriptor =
+    typeof value === "string"
+      ? descriptors.find((candidate) => normalizedID(candidate.id) === inputID)
+      : value;
+  const displayName = descriptor?.displayName?.trim();
+  if (displayName) return displayName;
+  if (inputID === "futu" || inputID === "futu-opend") return "Futu OpenD";
+  return inputID ? inputID.toUpperCase() : "";
+}
+
+// Short alias for callers that already use the provider-first naming style.
+export const brokerProviderDisplayName = resolveBrokerProviderDisplayName;
 
 function normalizedFeatureIDs(value: BrokerFeatureSelector): string[] {
   const values = Array.isArray(value) ? value : [value];
@@ -491,6 +542,69 @@ function featureState(
   );
 }
 
+function matchingRuntimeCapabilities(
+  descriptor: BrokerCapabilityDescriptor,
+  featureSelector: BrokerFeatureSelector,
+  market: string,
+): BrokerRuntimeCapabilityStatus[] {
+  const featureIDs = normalizedFeatureIDs(featureSelector);
+  const markets = logicalCapabilityMarkets(market);
+  return brokerRuntimeCapabilities.value.filter((status) => {
+    if (normalizedID(status.brokerId) !== normalizedID(descriptor.id)) {
+      return false;
+    }
+    if (
+      featureIDs.length > 0 &&
+      !featureIDs.includes(status.featureId.trim())
+    ) {
+      return false;
+    }
+    return (
+      markets.length === 0 ||
+      markets.includes(status.market.trim().toUpperCase())
+    );
+  });
+}
+
+function capabilityPresentation(
+  summary: BrokerCapabilitySummary,
+  runtimeStatuses: readonly BrokerRuntimeCapabilityStatus[],
+): BrokerCapabilityPresentation {
+  // Unavailable always remains an error. Runtime degradation is also visible
+  // to users; static degraded declarations are normal for that provider.
+  if (summary.state === "unavailable") {
+    return { displayState: "unavailable", tone: "error" };
+  }
+  const runtimeStates = runtimeStatuses.map((status) =>
+    status.evaluation?.state ?? status.capability.state,
+  );
+  if (runtimeStates.some((state) => state === "degraded")) {
+    return { displayState: "degraded", tone: "warning" };
+  }
+  // `summary` already aggregates runtime unavailability for the selected
+  // feature(s). An unavailable status for an unrelated capability must not
+  // turn an otherwise usable provider red.
+  if (
+    summary.state === "degraded" &&
+    runtimeStates.some((state) => state === "unavailable")
+  ) {
+    return { displayState: "degraded", tone: "warning" };
+  }
+  return { displayState: "available", tone: "success" };
+}
+
+function descriptorCapabilityPresentation(
+  descriptor: BrokerCapabilityDescriptor,
+  featureSelector: BrokerFeatureSelector,
+  market: string,
+  summary: BrokerCapabilitySummary,
+): BrokerCapabilityPresentation {
+  return capabilityPresentation(
+    summary,
+    matchingRuntimeCapabilities(descriptor, featureSelector, market),
+  );
+}
+
 function commitBrokerProvider(brokerId: string): void {
   const value = normalizedID(brokerId);
   if (!value) return;
@@ -583,13 +697,22 @@ export function brokerProviderOptions(
   featureId: BrokerFeatureSelector = "",
   market = "",
 ): BrokerProviderOption[] {
-  return brokerDescriptors.value.map((descriptor) => ({
-    id: normalizedID(descriptor.id),
-    label: descriptor.displayName.trim() || descriptor.id.toUpperCase(),
-    shortLabel: shortProviderLabel(descriptor),
-    securityFirm: descriptor.securityFirm?.trim() ?? "",
-    ...featureState(descriptor, featureId, market),
-  }));
+  return brokerDescriptors.value.map((descriptor) => {
+    const summary = featureState(descriptor, featureId, market);
+    return {
+      id: normalizedID(descriptor.id),
+      label: resolveBrokerProviderDisplayName(descriptor),
+      shortLabel: shortProviderLabel(descriptor),
+      securityFirm: descriptor.securityFirm?.trim() ?? "",
+      ...summary,
+      ...descriptorCapabilityPresentation(
+        descriptor,
+        featureId,
+        market,
+        summary,
+      ),
+    };
+  });
 }
 
 export function brokerCapabilitySummary(
@@ -610,6 +733,28 @@ export function brokerCapabilitySummary(
     };
   }
   return featureState(descriptor, featureId, market);
+}
+
+/** Return UI presentation state while keeping raw capability state unchanged. */
+export function brokerProviderCapabilityPresentation(
+  brokerId: string,
+  featureId: BrokerFeatureSelector = "",
+  market = "",
+): BrokerCapabilityPresentation {
+  const normalizedBroker = normalizedID(brokerId);
+  const descriptor = brokerDescriptors.value.find(
+    (candidate) => normalizedID(candidate.id) === normalizedBroker,
+  );
+  if (descriptor == null) {
+    return { displayState: "unavailable", tone: "error" };
+  }
+  const summary = featureState(descriptor, featureId, market);
+  return descriptorCapabilityPresentation(
+    descriptor,
+    featureId,
+    market,
+    summary,
+  );
 }
 
 export function brokerSupportedChartPeriods(

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 
-import { resolveMarketDataFeedQuality } from "@/composables/market-data/marketDataFeedQuality";
+import {
+  resolveMarketDataFeedPresentation,
+  resolveMarketDataFeedQuality,
+} from "@/composables/market-data/marketDataFeedQuality";
 import type { LiveSocketConnectionState } from "@/composables/market-data/sharedLiveSocket";
 import MarketStatusBadge from "./MarketStatusBadge.vue";
 
@@ -10,6 +13,7 @@ const props = withDefaults(defineProps<{
   observedAt?: string | null;
   transportMode?: string | null;
   source?: string | null;
+  providerName?: string | null;
   fromCache?: boolean;
   loading?: boolean;
   error?: string | null;
@@ -17,6 +21,7 @@ const props = withDefaults(defineProps<{
   observedAt: null,
   transportMode: null,
   source: null,
+  providerName: null,
   fromCache: false,
   loading: false,
   error: null,
@@ -45,6 +50,23 @@ const effectiveTransportMode = computed(() => {
   }
   return props.transportMode;
 });
+const providerLabel = computed(() => {
+  const explicit = props.providerName?.trim();
+  if (explicit) return explicit;
+  const source = props.source?.trim().toLowerCase() ?? "";
+  if (source === "yfinance" || source === "yahoo-finance") {
+    return "Yahoo";
+  }
+  if (
+    source === "futu" ||
+    source === "futu-opend" ||
+    source.startsWith("futu:") ||
+    source.startsWith("bbgo:futu")
+  ) {
+    return "Futu OpenD";
+  }
+  return "";
+});
 const feedQualityInput = computed(() => ({
   connectionState: props.connectionState,
   transportMode: effectiveTransportMode.value,
@@ -55,35 +77,33 @@ const feedQualityInput = computed(() => ({
 const feedQuality = computed(() =>
   resolveMarketDataFeedQuality(feedQualityInput.value),
 );
-const feedQualityLabel = computed(() => {
-  if (feedQuality.value === "healthy") return "实时推送正常";
-  if (feedQuality.value === "unavailable") return "数据源不可用";
-  if (feedQuality.value === "idle") return "等待行情订阅";
-  if (props.fromCache) return "正在使用缓存数据";
+const feedPresentation = computed(() =>
+  resolveMarketDataFeedPresentation(feedQualityInput.value),
+);
+const feedQualityLabel = computed(() => feedPresentation.value.qualityLabel);
+const expectedDelayedSnapshot = computed(
+  () =>
+    effectiveTransportMode.value?.trim().toLowerCase() ===
+    "snapshot-poll-delayed",
+);
+const feedIssueLabel = computed(() => {
   const transportMode = effectiveTransportMode.value?.trim().toLowerCase() ?? "";
-  if (transportMode === "snapshot-poll-fallback") return "已降级到轮询行情";
-  if (transportMode === "snapshot-poll-delayed") return "延迟行情轮询中";
-  if (props.connectionState === "unsupported") return "不支持推送，使用快照行情";
-  if (
-    props.connectionState === "disconnected" ||
-    props.connectionState === "error"
-  ) {
-    return "连接不可用，显示最近一次行情";
+  if (transportMode === "snapshot-poll-fallback") return "推送回退";
+  switch (props.connectionState) {
+    case "disconnected":
+      return "实时连接中断";
+    case "error":
+      return "实时连接异常";
+    case "unsupported":
+      return "不支持实时推送";
+    default:
+      return "查询受限";
   }
-  return transportMode ? `行情传输已降级：${transportMode}` : "行情传输已降级";
 });
 const issue = computed<FeedIssue | null>(() => {
   const error = props.error?.trim() ?? "";
   if (error !== "") {
     return { kind: "error", state: "error", label: "行情异常", detail: error };
-  }
-  if (ageMs.value != null && ageMs.value > staleAfterMs) {
-    return {
-      kind: "stale",
-      state: "stale",
-      label: "数据陈旧",
-      detail: `行情已 ${formatAge(ageMs.value)} 未更新`,
-    };
   }
   if (props.loading || props.connectionState === "connecting") {
     return null;
@@ -107,12 +127,16 @@ const issue = computed<FeedIssue | null>(() => {
       detail: "当前显示缓存数据",
     };
   }
-  if (feedQuality.value === "degraded") {
+  if (
+    ageMs.value != null &&
+    ageMs.value > staleAfterMs &&
+    !expectedDelayedSnapshot.value
+  ) {
     return {
-      kind: "degraded",
+      kind: "stale",
       state: "stale",
-      label: "行情已降级",
-      detail: feedQualityLabel.value,
+      label: "数据陈旧",
+      detail: `行情已 ${formatAge(ageMs.value)} 未更新`,
     };
   }
   if (observedTime.value == null) {
@@ -123,6 +147,17 @@ const issue = computed<FeedIssue | null>(() => {
       detail: "当前栏位还没有可显示的行情数据",
     };
   }
+  if (feedQuality.value === "degraded" && !feedPresentation.value.expected) {
+    const isPushFallback =
+      effectiveTransportMode.value?.trim().toLowerCase() ===
+      "snapshot-poll-fallback";
+    return {
+      kind: "degraded",
+      state: "stale",
+      label: isPushFallback ? "推送回退" : feedIssueLabel.value,
+      detail: feedQualityLabel.value,
+    };
+  }
   return null;
 });
 const issueTitle = computed(() => {
@@ -130,10 +165,25 @@ const issueTitle = computed(() => {
   if (current == null) return "";
   return [
     current.detail,
-    `数据源质量：${feedQualityLabel.value}`,
+    providerLabel.value ? `供应商：${providerLabel.value}` : "",
+    `连接方式：${feedPresentation.value.connectionLabel}`,
+    `数据质量：${feedPresentation.value.qualityLabel}`,
     props.source?.trim() ? `来源：${props.source.trim()}` : "",
     props.observedAt?.trim() ? `更新时间：${props.observedAt.trim()}` : "",
   ].filter(Boolean).join("\n");
+});
+const normalTitle = computed(() => [
+  providerLabel.value ? `供应商：${providerLabel.value}` : "",
+  `连接方式：${feedPresentation.value.connectionLabel}`,
+  `数据质量：${feedPresentation.value.qualityLabel}`,
+  props.source?.trim() ? `来源：${props.source.trim()}` : "",
+  props.observedAt?.trim() ? `更新时间：${props.observedAt.trim()}` : "",
+].filter(Boolean).join("\n"));
+
+const issueLabel = computed(() => {
+  const current = issue.value;
+  if (current == null || !providerLabel.value) return current?.label ?? "";
+  return `${providerLabel.value} · ${current.label}`;
 });
 
 function parseTimestamp(value: string | null | undefined): number | null {
@@ -163,10 +213,21 @@ onUnmounted(() => {
     v-if="issue"
     class="market-feed-issue-badge"
     :state="issue.state"
-    :label="issue.label"
+    :label="issueLabel"
     :data-quality="feedQuality"
     :data-issue="issue.kind"
     :title="issueTitle"
+    :aria-label="issueTitle"
+  />
+  <MarketStatusBadge
+    v-else-if="providerLabel && feedPresentation.state === 'live' && observedTime != null"
+    class="market-feed-provider-badge"
+    state="live"
+    :label="providerLabel"
+    :data-quality="feedQuality"
+    data-issue="none"
+    :title="normalTitle"
+    :aria-label="normalTitle"
   />
 </template>
 

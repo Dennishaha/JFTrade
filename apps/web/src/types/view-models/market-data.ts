@@ -219,7 +219,7 @@ export interface MarketSecurityDetails {
   sessionStatus?: string | null;
   closePrice5Minute?: number | null;
   // Provider-neutral profile/fundamental fields used by delayed providers
-  // such as Yahoo Finance. Futu-specific fields above remain unchanged.
+  // such as Yahoo. Futu-specific fields above remain unchanged.
   exchange?: string | null;
   currency?: string | null;
   timezone?: string | null;

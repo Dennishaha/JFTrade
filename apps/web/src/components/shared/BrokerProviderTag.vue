@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 
+import type { MarketDataProviderStatusDto } from "@/contracts";
 import {
   brokerProviderOptions,
+  brokerProviderDisplayName,
   configureBrokerProviderDefaults,
   type BrokerCapabilityState,
   type BrokerProviderOption,
@@ -10,11 +12,12 @@ import {
 } from "@/composables/trading/brokerProviderSelection";
 import {
   getMarketDataProviderSettings,
+  getMarketDataProviderStatus,
   putMarketDataProviderSettings,
   type MarketDataProviderID,
 } from "@/composables/settings/marketDataProviderSettings";
 import {
-  marketDataFeedQualityLabel,
+  resolveMarketDataFeedPresentation,
   resolveMarketDataFeedQuality,
 } from "@/composables/market-data/marketDataFeedQuality";
 import type { LiveSocketConnectionState } from "@/composables/market-data/sharedLiveSocket";
@@ -53,9 +56,12 @@ const emit = defineEmits<{
 const menuOpen = ref(false);
 const embeddedProviderID = ref<MarketDataProviderID | null>(null);
 const embeddedProviderError = ref("");
+const embeddedProviderStatus = ref<MarketDataProviderStatusDto | null>(null);
+const embeddedProviderStatusError = ref("");
 const embeddedProviderUnavailable = ref(false);
 const switchingEmbeddedProvider = ref(false);
 let embeddedProviderLoad: Promise<void> | null = null;
+let embeddedProviderLoadRevision = -1;
 let embeddedProviderRevision = 0;
 const {
   loadBrokerProviders,
@@ -94,13 +100,15 @@ const yfinanceOption = computed<BrokerProviderOption>(() => {
     market === "" || ["US", "HK", "CN", "SH", "SZ"].includes(market);
   return {
     id: "yfinance",
-    label: "Yahoo Finance (yfinance)",
+    label: "Yahoo",
     shortLabel: "Yahoo",
-    securityFirm: "内置延迟行情",
+    securityFirm: "内置行情查询",
     state: available ? "degraded" : "unavailable",
+    displayState: available ? "available" : "unavailable",
+    tone: available ? "success" : "error",
     reason: available
-      ? "行情可能延迟约 15 分钟，不支持实时推流或 Level 2"
-      : "当前标的市场不在内置 yfinance 支持范围",
+      ? "非实时快照查询，不支持实时推流或 Level 2"
+      : "当前标的市场不在内置 Yahoo 支持范围",
   };
 });
 const options = computed(() => {
@@ -119,6 +127,13 @@ const options = computed(() => {
       shortLabel: actualID.toUpperCase().slice(0, 12),
       securityFirm: props.provider?.securityFirm?.trim() ?? "",
       state: props.provider?.capability ?? "unavailable",
+      displayState: props.provider?.capability ?? "unavailable",
+      tone:
+        props.provider?.capability === "available"
+          ? "success"
+          : props.provider?.capability === "degraded"
+            ? "warning"
+            : "error",
       // selectionReason describes why this provider was selected, not why a
       // capability is restricted. Keep it out of the capability hint.
       reason: "",
@@ -147,35 +162,65 @@ const currentCapabilitySummary = computed(() => {
   };
 });
 const capabilityState = computed(() => currentCapabilitySummary.value.state);
-const runtimeFeedQuality = computed(() => {
-  if (props.connectionState == null) return null;
-  return resolveMarketDataFeedQuality({
-    connectionState: props.connectionState,
-    transportMode: props.transportMode,
-  });
-});
-const runtimeFeedQualityLabel = computed(() => {
-  if (props.connectionState == null || runtimeFeedQuality.value == null) {
-    return "";
-  }
-  return marketDataFeedQualityLabel(
-    {
-      connectionState: props.connectionState,
-      transportMode: props.transportMode,
-    },
-    runtimeFeedQuality.value,
-  );
-});
-const currentState = computed<BrokerCapabilityState>(() => {
-  if (capabilityState.value === "unavailable") return "unavailable";
-  if (runtimeFeedQuality.value === "unavailable") return "unavailable";
+const capabilityDisplayState = computed<BrokerCapabilityState>(
+  () => selectedOption.value?.displayState ?? capabilityState.value,
+);
+const runtimeFeedInput = computed(() => {
+  const statusHealth = embeddedProviderStatus.value?.health;
   if (
-    capabilityState.value === "degraded" ||
-    runtimeFeedQuality.value === "degraded"
+    props.connectionState == null &&
+    props.transportMode == null &&
+    statusHealth == null
+  ) {
+    return null;
+  }
+  const statusConnectionState = statusHealth?.connected
+    ? "connected"
+    : statusHealth?.lastError
+      ? "error"
+      : "disconnected";
+  const statusIsAuthoritative =
+    statusHealth != null &&
+    (selectedOption.value?.id === "yfinance" ||
+      (props.connectionState == null && props.transportMode == null));
+  const hasUsableData =
+    (statusIsAuthoritative && statusHealth?.connected === true) ||
+    (!statusIsAuthoritative && props.connectionState === "connected");
+  return {
+    connectionState: statusIsAuthoritative
+      ? statusConnectionState
+      : props.connectionState ?? statusConnectionState,
+    transportMode: statusIsAuthoritative
+      ? statusHealth?.streamMode ?? props.transportMode ?? null
+      : props.transportMode ?? statusHealth?.streamMode ?? null,
+    hasUsableData,
+    error: statusHealth?.lastError ?? null,
+  };
+});
+const runtimeFeedQuality = computed(() => {
+  const input = runtimeFeedInput.value;
+  return input == null ? null : resolveMarketDataFeedQuality(input);
+});
+const runtimeFeedPresentation = computed(() => {
+  const input = runtimeFeedInput.value;
+  return input == null ? null : resolveMarketDataFeedPresentation(input);
+});
+const runtimeFeedQualityLabel = computed(
+  () => runtimeFeedPresentation.value?.qualityLabel ?? "",
+);
+const currentState = computed<BrokerCapabilityState>(() => {
+  if (embeddedProviderUnavailable.value) return "unavailable";
+  if (capabilityDisplayState.value === "unavailable") return "unavailable";
+  const runtimeState = runtimeFeedPresentation.value?.state;
+  if (runtimeState === "error") return "unavailable";
+  if (
+    runtimeState === "stale" ||
+    runtimeState === "loading" ||
+    runtimeState === "empty"
   ) {
     return "degraded";
   }
-  return capabilityState.value;
+  return capabilityDisplayState.value;
 });
 const currentLabel = computed(
   () =>
@@ -186,37 +231,56 @@ const currentLabel = computed(
       : selectedOption.value?.shortLabel || (loading.value ? "加载中" : "数据源"),
 );
 const currentReason = computed(() => currentCapabilitySummary.value.reason);
-const capabilityStateLabel = computed(() =>
-  capabilityState.value === "available"
-    ? "可用"
-    : capabilityState.value === "degraded"
-      ? "降级"
-      : "不可用",
+const currentReasonDetail = computed(() =>
+  currentState.value === "available" ? "" : currentReason.value,
 );
+const currentProviderName = computed(() =>
+  selectedOption.value?.label?.trim() ||
+  (selectedOption.value == null
+    ? "行情提供者"
+    : brokerProviderDisplayName(selectedOption.value.id)),
+);
+const capabilityDetail = computed(() => {
+  if (capabilityDisplayState.value === "unavailable") return "当前功能不可用";
+  if (
+    capabilityState.value === "degraded" &&
+    currentState.value !== "available"
+  ) {
+    return "当前功能受限";
+  }
+  return "";
+});
 const currentTitle = computed(() => {
-  const selected = selectedOption.value;
-  const sourceLabel = selected?.label || "行情提供者";
-  const securityFirm = selected?.securityFirm?.trim();
   const values = [
-    `数据源：${sourceLabel}${securityFirm ? `（${securityFirm}）` : ""}`,
-    `功能能力：${capabilityStateLabel.value}`,
-    runtimeFeedQualityLabel.value
-      ? `行情传输：${runtimeFeedQualityLabel.value}`
+    `供应商：${currentProviderName.value}`,
+    runtimeFeedPresentation.value?.connectionLabel
+      ? `连接方式：${runtimeFeedPresentation.value.connectionLabel}`
       : "",
-    currentReason.value ? `原因：${currentReason.value}` : "",
+    runtimeFeedQualityLabel.value
+      ? `数据质量：${runtimeFeedQualityLabel.value}`
+      : "",
+    capabilityDetail.value ? `功能范围：${capabilityDetail.value}` : "",
+    currentReasonDetail.value ? `说明：${currentReasonDetail.value}` : "",
     loadError.value ? `能力目录：${loadError.value}` : "",
     embeddedProviderError.value ? `切换错误：${embeddedProviderError.value}` : "",
+    embeddedProviderStatusError.value
+      ? `状态详情：${embeddedProviderStatusError.value}`
+      : "",
   ];
   return values.filter(Boolean).join("\n");
 });
 const currentAriaLabel = computed(() =>
   [
     "切换行情提供者",
-    `功能能力${capabilityStateLabel.value}`,
-    runtimeFeedQualityLabel.value
-      ? `行情传输${runtimeFeedQualityLabel.value}`
+    `供应商${currentProviderName.value}`,
+    runtimeFeedPresentation.value?.connectionLabel
+      ? `连接方式${runtimeFeedPresentation.value.connectionLabel}`
       : "",
-    currentReason.value ? `原因${currentReason.value}` : "",
+    capabilityDetail.value ? `功能范围${capabilityDetail.value}` : "",
+    runtimeFeedQualityLabel.value
+      ? `数据质量${runtimeFeedQualityLabel.value}`
+      : "",
+    currentReasonDetail.value ? `说明${currentReasonDetail.value}` : "",
   ]
     .filter(Boolean)
     .join("，"),
@@ -240,6 +304,7 @@ async function loadEmbeddedProvider(): Promise<void> {
     return embeddedProviderLoad ?? Promise.resolve();
   }
   const revision = embeddedProviderRevision;
+  embeddedProviderLoadRevision = revision;
   embeddedProviderLoad = getMarketDataProviderSettings()
     .then((settings) => {
       if (revision !== embeddedProviderRevision) return;
@@ -247,6 +312,7 @@ async function loadEmbeddedProvider(): Promise<void> {
       embeddedProviderUnavailable.value = false;
       selectBrokerProvider(settings.activeProvider);
       embeddedProviderError.value = "";
+      void loadEmbeddedProviderStatus(revision);
     })
     .catch((error: unknown) => {
       if (revision !== embeddedProviderRevision) return;
@@ -260,6 +326,22 @@ async function loadEmbeddedProvider(): Promise<void> {
   return embeddedProviderLoad;
 }
 
+async function loadEmbeddedProviderStatus(
+  revision = embeddedProviderRevision,
+): Promise<void> {
+  if (!embeddedProviderVisible.value) return;
+  try {
+    const status = await getMarketDataProviderStatus();
+    if (revision !== embeddedProviderRevision) return;
+    embeddedProviderStatus.value = status;
+    embeddedProviderStatusError.value = "";
+  } catch (error: unknown) {
+    if (revision !== embeddedProviderRevision) return;
+    embeddedProviderStatusError.value =
+      error instanceof Error ? error.message : String(error);
+  }
+}
+
 async function selectEmbeddedProvider(providerID: MarketDataProviderID): Promise<void> {
   const previous = embeddedProviderID.value;
   const revision = ++embeddedProviderRevision;
@@ -271,6 +353,9 @@ async function selectEmbeddedProvider(providerID: MarketDataProviderID): Promise
     if (revision !== embeddedProviderRevision) return;
     embeddedProviderID.value = saved.activeProvider;
     selectBrokerProvider(saved.activeProvider);
+    embeddedProviderStatus.value = null;
+    embeddedProviderStatusError.value = "";
+    void loadEmbeddedProviderStatus(revision);
     emit("providerChanged");
     menuOpen.value = false;
   } catch (error) {
@@ -300,11 +385,25 @@ watch(
   embeddedProviderVisible,
   (visible) => {
     if (visible) {
-      void loadEmbeddedProvider();
+      const load = loadEmbeddedProvider();
+      // A visibility change can invalidate an in-flight read. Re-run the
+      // current revision after the stale promise settles so the toolbar does
+      // not remain without an active provider.
+      void load.then(() => {
+        if (
+          embeddedProviderVisible.value &&
+          embeddedProviderID.value == null &&
+          embeddedProviderLoadRevision !== embeddedProviderRevision
+        ) {
+          void loadEmbeddedProvider();
+        }
+      });
       return;
     }
     embeddedProviderRevision += 1;
     embeddedProviderID.value = null;
+    embeddedProviderStatus.value = null;
+    embeddedProviderStatusError.value = "";
     embeddedProviderUnavailable.value = false;
     configureBrokerProviderDefaults({
       accountBrokerId: props.preferredBrokerId,
@@ -334,6 +433,7 @@ onMounted(() => {
         :class="`is-${currentState}`"
         :data-quality="runtimeFeedQuality || undefined"
         :data-capability-state="capabilityState"
+        :data-display-state="currentState"
         :data-capability-reason="currentReason || undefined"
         :title="currentTitle"
         :aria-label="currentAriaLabel"
@@ -367,7 +467,7 @@ onMounted(() => {
         :aria-selected="option.id === selectedOption?.id"
         :disabled="option.state === 'unavailable' || switchingEmbeddedProvider"
         :class="[
-          `is-${option.state}`,
+          `is-${option.displayState ?? option.state}`,
           { 'is-selected': option.id === selectedOption?.id },
         ]"
         @click="select(option)"
