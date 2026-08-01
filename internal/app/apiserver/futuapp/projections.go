@@ -8,6 +8,7 @@ import (
 
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 )
 
@@ -255,6 +256,36 @@ func (c *Coordinator) OpenDHealth(ctx context.Context) map[string]any {
 		}
 	}
 	return c.healthPayload(config, probe, code, summary, manualRetry, restartOpenDRecommended)
+}
+
+// MarketDataHealth projects the same OpenD probe used by system status into
+// the broker-neutral market-data health contract.
+func (c *Coordinator) MarketDataHealth(ctx context.Context) (mdsrv.HealthStatus, error) {
+	enabled := c != nil && c.Enabled()
+	probe := futuintegration.Probe{}
+	if enabled {
+		probe = c.Probe(ctx)
+	}
+	return marketDataHealthFromProbe(enabled, probe), nil
+}
+
+func marketDataHealthFromProbe(enabled bool, probe futuintegration.Probe) mdsrv.HealthStatus {
+	health := mdsrv.HealthStatus{}
+	switch {
+	case !enabled:
+		health.LastError = "Futu OpenD integration is disabled"
+	case probe.LastError != nil:
+		health.LastError = strings.TrimSpace(*probe.LastError)
+	case probe.Connectivity != "connected" || probe.Status != "healthy":
+		health.LastError = "Futu OpenD is not connected"
+	case probe.QuoteLoggedIn == nil:
+		health.LastError = "Futu OpenD quote session status is unavailable"
+	case !*probe.QuoteLoggedIn:
+		health.LastError = "Futu OpenD quote session is not logged in"
+	default:
+		health.Connected = true
+	}
+	return health
 }
 
 // SocketDiagnostics returns local live-stream and collector state.

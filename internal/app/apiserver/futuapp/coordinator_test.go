@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -55,9 +56,53 @@ func TestCoordinatorDisabledProjectionsAndRetryDiagnostics(t *testing.T) {
 	if health["status"] != "offline" {
 		t.Fatalf("disabled health = %#v", health)
 	}
+	marketHealth, err := coordinator.MarketDataHealth(t.Context())
+	if err != nil || marketHealth.Connected || marketHealth.LastError == "" {
+		t.Fatalf("disabled market-data health = %#v, %v", marketHealth, err)
+	}
 	diagnostics := health["localSocketDiagnostics"].(map[string]any)
 	if diagnostics["liveQuoteBackoffActive"] != true || diagnostics["liveQuoteFailureCount"] != 3 {
 		t.Fatalf("retry diagnostics = %#v", diagnostics)
+	}
+}
+
+func TestMarketDataHealthRequiresHealthyOpenDQuoteSession(t *testing.T) {
+	health := marketDataHealthFromProbe(true, futuintegration.Probe{
+		Connectivity: "connected",
+		Status:       "healthy",
+	})
+	if health.Connected || health.LastError != "Futu OpenD quote session status is unavailable" {
+		t.Fatalf("unknown quote-session market-data health = %#v", health)
+	}
+
+	quoteLoggedOut := false
+	health = marketDataHealthFromProbe(true, futuintegration.Probe{
+		Connectivity:  "connected",
+		Status:        "healthy",
+		QuoteLoggedIn: &quoteLoggedOut,
+	})
+	if health.Connected || health.LastError != "Futu OpenD quote session is not logged in" {
+		t.Fatalf("logged-out market-data health = %#v", health)
+	}
+
+	probeErr := "unsupported OpenD version"
+	health = marketDataHealthFromProbe(true, futuintegration.Probe{
+		Connectivity: "degraded",
+		Status:       "degraded",
+		LastError:    &probeErr,
+	})
+	if health.Connected || health.LastError != probeErr {
+		t.Fatalf("degraded market-data health = %#v", health)
+	}
+
+	quoteLoggedIn := true
+	health = marketDataHealthFromProbe(true, futuintegration.Probe{
+		Connectivity:  "connected",
+		Status:        "healthy",
+		QuoteLoggedIn: &quoteLoggedIn,
+	})
+	if !health.Connected || health.LastError != "" {
+		t.Fatalf("healthy market-data health = %#v", health)
 	}
 }
 

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import type { MarketDataProviderStatusDto } from "@/contracts";
+import type { FutuOpenDHealthResponse } from "@/types";
 import {
   brokerProviderOptions,
   brokerProviderDisplayName,
@@ -11,6 +12,7 @@ import {
   useBrokerProviderSelection,
 } from "@/composables/trading/brokerProviderSelection";
 import {
+  getFutuOpenDHealth,
   getMarketDataProviderSettings,
   getMarketDataProviderStatus,
   putMarketDataProviderSettings,
@@ -53,16 +55,27 @@ const emit = defineEmits<{
   providerChanged: [];
 }>();
 
+const embeddedProviderRefreshIntervalMs = 10_000;
+
 const menuOpen = ref(false);
 const embeddedProviderID = ref<MarketDataProviderID | null>(null);
 const embeddedProviderError = ref("");
 const embeddedProviderStatus = ref<MarketDataProviderStatusDto | null>(null);
 const embeddedProviderStatusError = ref("");
+const futuOpenDHealth = ref<FutuOpenDHealthResponse | null>(null);
+const futuOpenDHealthError = ref("");
+const futuOpenDRefreshRequired = ref(false);
 const embeddedProviderUnavailable = ref(false);
 const switchingEmbeddedProvider = ref(false);
 let embeddedProviderLoad: Promise<void> | null = null;
+let embeddedProviderRefresh: Promise<void> | null = null;
+let embeddedProviderRefreshQueued = false;
+let embeddedProviderRefreshQueuedFresh = false;
 let embeddedProviderLoadRevision = -1;
 let embeddedProviderRevision = 0;
+let embeddedProviderRefreshTimer: ReturnType<typeof setInterval> | null = null;
+let embeddedProviderRefreshTimerGeneration = 0;
+let componentUnmounted = false;
 const {
   loadBrokerProviders,
   loadError,
@@ -94,6 +107,58 @@ const embeddedProviderVisible = computed(
     // feature hid Yahoo from that shared toolbar entirely.
     activeFeatureIds.value.some((feature) => yfinanceFeatureIDs.has(feature)),
 );
+function isFutuOpenDHealthy(health: FutuOpenDHealthResponse | null): boolean {
+  return (
+    health?.status === "healthy" &&
+    health.runtime.connectivity === "connected" &&
+    health.runtime.quoteLoggedIn === true
+  );
+}
+
+function futuOpenDUnavailableReason(health: FutuOpenDHealthResponse): string {
+  if (health.runtime.connectivity === "disconnected") {
+    return "当前无法连接 OpenD";
+  }
+  if (health.runtime.quoteLoggedIn === false) {
+    return "OpenD 行情会话尚未登录";
+  }
+  if (health.runtime.quoteLoggedIn == null) {
+    return "OpenD 行情会话状态不可用";
+  }
+  return "OpenD 连接异常";
+}
+
+const futuProviderReadiness = computed<{
+  displayState: BrokerCapabilityState;
+  reason: string;
+} | null>(() => {
+  if (!embeddedProviderVisible.value) return null;
+  if (futuOpenDRefreshRequired.value) {
+    const health = futuOpenDHealth.value;
+    if (health != null && !isFutuOpenDHealthy(health)) {
+      return {
+        displayState: "unavailable",
+        reason: futuOpenDUnavailableReason(health),
+      };
+    }
+    return { displayState: "degraded", reason: "正在检查 OpenD 连接…" };
+  }
+  if (futuOpenDHealthError.value) {
+    return { displayState: "unavailable", reason: "无法读取 OpenD 连接状态" };
+  }
+  const health = futuOpenDHealth.value;
+  if (health == null) {
+    return { displayState: "unavailable", reason: "尚未检查 OpenD 连接" };
+  }
+  if (!isFutuOpenDHealthy(health)) {
+    return {
+      displayState: "unavailable",
+      reason: futuOpenDUnavailableReason(health),
+    };
+  }
+  return null;
+});
+
 const yfinanceOption = computed<BrokerProviderOption>(() => {
   const market = props.market.trim().toUpperCase();
   const available =
@@ -106,12 +171,13 @@ const yfinanceOption = computed<BrokerProviderOption>(() => {
     state: available ? "degraded" : "unavailable",
     displayState: available ? "available" : "unavailable",
     tone: available ? "success" : "error",
+    selectable: available,
     reason: available
       ? "非实时快照查询，不支持实时推流或 Level 2"
       : "当前标的市场不在内置 Yahoo 支持范围",
   };
 });
-const options = computed(() => {
+const options = computed<BrokerProviderOption[]>(() => {
   const values = brokerProviderOptions(activeFeatureIds.value, props.market);
   if (
     embeddedProviderVisible.value &&
@@ -134,12 +200,25 @@ const options = computed(() => {
           : props.provider?.capability === "degraded"
             ? "warning"
             : "error",
+      selectable: props.provider?.capability !== "unavailable",
       // selectionReason describes why this provider was selected, not why a
       // capability is restricted. Keep it out of the capability hint.
       reason: "",
     });
   }
-  return values;
+  const futuReadiness = futuProviderReadiness.value;
+  return values.map((option) =>
+    option.id === "futu" && futuReadiness != null
+      ? {
+          ...option,
+          displayState: futuReadiness.displayState,
+          tone:
+            futuReadiness.displayState === "degraded" ? "warning" : "error",
+          reason: futuReadiness.reason,
+          selectable: false,
+        }
+      : option,
+  );
 });
 const selectedOption = computed<BrokerProviderOption | null>(() => {
   const selected =
@@ -165,8 +244,33 @@ const capabilityState = computed(() => currentCapabilitySummary.value.state);
 const capabilityDisplayState = computed<BrokerCapabilityState>(
   () => selectedOption.value?.displayState ?? capabilityState.value,
 );
+const authoritativeProviderHealth = computed(() => {
+  const selectedID = selectedOption.value?.id;
+  if (embeddedProviderVisible.value && selectedID === "futu") {
+    const readiness = futuProviderReadiness.value;
+    const connected = readiness == null && isFutuOpenDHealthy(futuOpenDHealth.value);
+    return {
+      connected,
+      streamMode: props.transportMode ?? (connected ? "push-stream" : "idle"),
+      lastError: connected ? "" : readiness?.reason || "尚未检查 OpenD 连接",
+    };
+  }
+  const status = embeddedProviderStatus.value;
+  const statusProviderID =
+    status?.descriptor?.brokerId?.trim().toLowerCase() ||
+    status?.descriptor?.providerId?.trim().toLowerCase() ||
+    "";
+  if (
+    embeddedProviderVisible.value &&
+    selectedID === "yfinance" &&
+    ["yfinance", "yahoo-finance"].includes(statusProviderID)
+  ) {
+    return status?.health ?? null;
+  }
+  return null;
+});
 const runtimeFeedInput = computed(() => {
-  const statusHealth = embeddedProviderStatus.value?.health;
+  const statusHealth = authoritativeProviderHealth.value;
   if (
     props.connectionState == null &&
     props.transportMode == null &&
@@ -179,10 +283,7 @@ const runtimeFeedInput = computed(() => {
     : statusHealth?.lastError
       ? "error"
       : "disconnected";
-  const statusIsAuthoritative =
-    statusHealth != null &&
-    (selectedOption.value?.id === "yfinance" ||
-      (props.connectionState == null && props.transportMode == null));
+  const statusIsAuthoritative = statusHealth != null;
   const hasUsableData =
     (statusIsAuthoritative && statusHealth?.connected === true) ||
     (!statusIsAuthoritative && props.connectionState === "connected");
@@ -192,7 +293,7 @@ const runtimeFeedInput = computed(() => {
       : props.connectionState ?? statusConnectionState,
     transportMode: statusIsAuthoritative
       ? statusHealth?.streamMode ?? props.transportMode ?? null
-      : props.transportMode ?? statusHealth?.streamMode ?? null,
+      : props.transportMode ?? null,
     hasUsableData,
     error: statusHealth?.lastError ?? null,
   };
@@ -287,7 +388,7 @@ const currentAriaLabel = computed(() =>
 );
 
 async function select(option: BrokerProviderOption): Promise<void> {
-  if (option.state === "unavailable" || switchingEmbeddedProvider.value) return;
+  if (!option.selectable || switchingEmbeddedProvider.value) return;
   if (
     embeddedProviderVisible.value &&
     (option.id === "futu" || option.id === "yfinance")
@@ -297,6 +398,7 @@ async function select(option: BrokerProviderOption): Promise<void> {
   }
   selectBrokerProvider(option.id);
   menuOpen.value = false;
+  stopEmbeddedProviderRefreshTimer();
 }
 
 async function loadEmbeddedProvider(): Promise<void> {
@@ -312,7 +414,7 @@ async function loadEmbeddedProvider(): Promise<void> {
       embeddedProviderUnavailable.value = false;
       selectBrokerProvider(settings.activeProvider);
       embeddedProviderError.value = "";
-      void loadEmbeddedProviderStatus(revision);
+      void refreshEmbeddedProviderState();
     })
     .catch((error: unknown) => {
       if (revision !== embeddedProviderRevision) return;
@@ -342,6 +444,101 @@ async function loadEmbeddedProviderStatus(
   }
 }
 
+async function loadFutuOpenDProviderHealth(
+  revision = embeddedProviderRevision,
+): Promise<void> {
+  const wasHealthy = isFutuOpenDHealthy(futuOpenDHealth.value);
+  try {
+    const health = await getFutuOpenDHealth();
+    if (revision !== embeddedProviderRevision) return;
+    futuOpenDHealth.value = health;
+    futuOpenDHealthError.value = "";
+    if (isFutuOpenDHealthy(health) && !wasHealthy) {
+      await loadBrokerProviders(true);
+    }
+  } catch (error: unknown) {
+    if (revision !== embeddedProviderRevision) return;
+    futuOpenDHealth.value = null;
+    futuOpenDHealthError.value =
+      error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function refreshEmbeddedProviderState(
+  requireFreshFutu = false,
+): Promise<void> {
+  if (componentUnmounted || !embeddedProviderVisible.value) return;
+  if (requireFreshFutu) futuOpenDRefreshRequired.value = true;
+  if (embeddedProviderRefresh != null) {
+    embeddedProviderRefreshQueued = true;
+    embeddedProviderRefreshQueuedFresh ||= requireFreshFutu;
+    return embeddedProviderRefresh;
+  }
+
+  const revision = embeddedProviderRevision;
+  const includeFutu =
+    menuOpen.value || embeddedProviderID.value === "futu";
+  const includeActiveStatus = embeddedProviderID.value === "yfinance";
+  embeddedProviderRefresh = Promise.all([
+    includeFutu
+      ? loadFutuOpenDProviderHealth(revision)
+      : Promise.resolve(),
+    includeActiveStatus
+      ? loadEmbeddedProviderStatus(revision)
+      : Promise.resolve(),
+  ])
+    .then(() => undefined)
+    .finally(() => {
+      if (revision === embeddedProviderRevision && includeFutu) {
+        futuOpenDRefreshRequired.value = false;
+      }
+      embeddedProviderRefresh = null;
+      if (componentUnmounted || !embeddedProviderRefreshQueued) return;
+      const queuedFresh = embeddedProviderRefreshQueuedFresh;
+      embeddedProviderRefreshQueued = false;
+      embeddedProviderRefreshQueuedFresh = false;
+      void refreshEmbeddedProviderState(queuedFresh);
+    });
+  return embeddedProviderRefresh;
+}
+
+function documentIsVisible(): boolean {
+  return typeof document === "undefined" || document.visibilityState !== "hidden";
+}
+
+function stopEmbeddedProviderRefreshTimer(): void {
+  embeddedProviderRefreshTimerGeneration += 1;
+  if (embeddedProviderRefreshTimer != null) {
+    clearInterval(embeddedProviderRefreshTimer);
+    embeddedProviderRefreshTimer = null;
+  }
+}
+
+function startEmbeddedProviderRefreshTimer(): void {
+  stopEmbeddedProviderRefreshTimer();
+  if (!menuOpen.value || !documentIsVisible()) return;
+  const generation = ++embeddedProviderRefreshTimerGeneration;
+  embeddedProviderRefreshTimer = setInterval(() => {
+    if (
+      generation === embeddedProviderRefreshTimerGeneration &&
+      menuOpen.value &&
+      documentIsVisible()
+    ) {
+      void refreshEmbeddedProviderState();
+    }
+  }, embeddedProviderRefreshIntervalMs);
+}
+
+function handleEmbeddedProviderVisibilityChange(): void {
+  if (!menuOpen.value) return;
+  if (!documentIsVisible()) {
+    stopEmbeddedProviderRefreshTimer();
+    return;
+  }
+  void refreshEmbeddedProviderState(true);
+  startEmbeddedProviderRefreshTimer();
+}
+
 async function selectEmbeddedProvider(providerID: MarketDataProviderID): Promise<void> {
   const previous = embeddedProviderID.value;
   const revision = ++embeddedProviderRevision;
@@ -355,9 +552,10 @@ async function selectEmbeddedProvider(providerID: MarketDataProviderID): Promise
     selectBrokerProvider(saved.activeProvider);
     embeddedProviderStatus.value = null;
     embeddedProviderStatusError.value = "";
-    void loadEmbeddedProviderStatus(revision);
-    emit("providerChanged");
     menuOpen.value = false;
+    stopEmbeddedProviderRefreshTimer();
+    void refreshEmbeddedProviderState();
+    emit("providerChanged");
   } catch (error) {
     if (revision !== embeddedProviderRevision) return;
     embeddedProviderID.value = previous;
@@ -381,6 +579,21 @@ watch(
   { immediate: true },
 );
 
+watch(menuOpen, (open) => {
+  if (!open) {
+    futuOpenDRefreshRequired.value = false;
+    stopEmbeddedProviderRefreshTimer();
+    return;
+  }
+  futuOpenDRefreshRequired.value = true;
+  startEmbeddedProviderRefreshTimer();
+  if (embeddedProviderID.value == null) {
+    void loadEmbeddedProvider();
+    return;
+  }
+  if (documentIsVisible()) void refreshEmbeddedProviderState(true);
+});
+
 watch(
   embeddedProviderVisible,
   (visible) => {
@@ -401,9 +614,15 @@ watch(
       return;
     }
     embeddedProviderRevision += 1;
+    menuOpen.value = false;
     embeddedProviderID.value = null;
     embeddedProviderStatus.value = null;
     embeddedProviderStatusError.value = "";
+    futuOpenDHealth.value = null;
+    futuOpenDHealthError.value = "";
+    futuOpenDRefreshRequired.value = false;
+    embeddedProviderRefreshQueued = false;
+    embeddedProviderRefreshQueuedFresh = false;
     embeddedProviderUnavailable.value = false;
     configureBrokerProviderDefaults({
       accountBrokerId: props.preferredBrokerId,
@@ -415,6 +634,26 @@ watch(
 
 onMounted(() => {
   void loadBrokerProviders();
+  if (typeof document !== "undefined") {
+    document.addEventListener(
+      "visibilitychange",
+      handleEmbeddedProviderVisibilityChange,
+    );
+  }
+});
+
+onBeforeUnmount(() => {
+  componentUnmounted = true;
+  embeddedProviderRevision += 1;
+  embeddedProviderRefreshQueued = false;
+  embeddedProviderRefreshQueuedFresh = false;
+  stopEmbeddedProviderRefreshTimer();
+  if (typeof document !== "undefined") {
+    document.removeEventListener(
+      "visibilitychange",
+      handleEmbeddedProviderVisibilityChange,
+    );
+  }
 });
 </script>
 
@@ -465,7 +704,7 @@ onMounted(() => {
         type="button"
         role="option"
         :aria-selected="option.id === selectedOption?.id"
-        :disabled="option.state === 'unavailable' || switchingEmbeddedProvider"
+        :disabled="!option.selectable || switchingEmbeddedProvider"
         :class="[
           `is-${option.displayState ?? option.state}`,
           { 'is-selected': option.id === selectedOption?.id },

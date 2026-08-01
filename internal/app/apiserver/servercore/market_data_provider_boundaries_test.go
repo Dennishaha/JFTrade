@@ -70,8 +70,8 @@ func TestMarketDataProviderClosureAndOptionalCapabilityBoundaries(t *testing.T) 
 	if _, err := provider.GetSecurityDetails(context.Background(), "US", "AAPL"); err == nil {
 		t.Fatal("expected security details integration error")
 	}
-	if health, err := provider.Health(context.Background()); err != nil || health != (mdsrv.HealthStatus{}) {
-		t.Fatalf("provider health = %#v, %v", health, err)
+	if health, err := provider.Health(context.Background()); err != nil || health.Connected || health.LastError == "" {
+		t.Fatalf("disabled provider health = %#v, %v", health, err)
 	}
 
 	empty := &marketdataProvider{}

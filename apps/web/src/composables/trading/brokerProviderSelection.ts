@@ -83,6 +83,8 @@ export interface BrokerProviderOption {
   displayState?: BrokerProviderDisplayState;
   /** UI-only semantic color, independent of capability selection semantics. */
   tone?: BrokerProviderDisplayTone;
+  /** Static capability gate; runtime health may additionally disable selection. */
+  selectable: boolean;
 }
 
 const STORAGE_KEY = "jftrade.market-provider.v1";
@@ -542,6 +544,71 @@ function featureState(
   );
 }
 
+function staticFeatureStateAcrossMarkets(
+  descriptor: BrokerCapabilityDescriptor,
+  featureId: string,
+  logicalMarket: string,
+): BrokerCapabilitySummary {
+  const markets = logicalCapabilityMarkets(logicalMarket);
+  if (markets.length === 0) {
+    const declaredMarkets = (descriptor.capabilities ?? [])
+      .filter((capability) =>
+        (capability.features ?? []).some(
+          (candidate) => candidate.id === featureId,
+        ),
+      )
+      .map((capability) => capability.market.trim().toUpperCase())
+      .filter(Boolean);
+    return aggregateAlternative(
+      declaredMarkets.map((market) =>
+        staticFeatureState(descriptor, featureId, market),
+      ),
+      "未声明此项能力",
+    );
+  }
+  const branchStates = markets.map((market) => {
+    const state = staticFeatureState(descriptor, featureId, market);
+    if (markets.length === 1 || state.state === "available") return state;
+    return {
+      ...state,
+      reason: state.reason ? `${market}：${state.reason}` : `${market} 能力受限`,
+    };
+  });
+  return aggregateRequired(
+    branchStates,
+    "部分市场的此项能力受限",
+    logicalMarket.trim().toUpperCase()
+      ? `不支持 ${logicalMarket.trim().toUpperCase()} 的此项能力`
+      : "未声明此项能力",
+  );
+}
+
+function staticFeatureSummary(
+  descriptor: BrokerCapabilityDescriptor,
+  featureSelector: BrokerFeatureSelector,
+  market: string,
+): BrokerCapabilitySummary {
+  const featureIds = normalizedFeatureIDs(featureSelector);
+  if (featureIds.length === 0) return staticReadState(descriptor, market);
+  const featureStates = featureIds.map((featureId) => {
+    const state = staticFeatureStateAcrossMarkets(descriptor, featureId, market);
+    if (featureIds.length === 1 || state.state === "available") return state;
+    return {
+      ...state,
+      reason: state.reason
+        ? `${featureId}：${state.reason}`
+        : `${featureId} 能力受限`,
+    };
+  });
+  return aggregateRequired(
+    featureStates,
+    "部分行情或研究能力受限",
+    market.trim()
+      ? `不支持 ${market.trim().toUpperCase()} 的这些能力`
+      : "未声明这些能力",
+  );
+}
+
 function matchingRuntimeCapabilities(
   descriptor: BrokerCapabilityDescriptor,
   featureSelector: BrokerFeatureSelector,
@@ -699,11 +766,14 @@ export function brokerProviderOptions(
 ): BrokerProviderOption[] {
   return brokerDescriptors.value.map((descriptor) => {
     const summary = featureState(descriptor, featureId, market);
+    const selection = staticFeatureSummary(descriptor, featureId, market);
     return {
       id: normalizedID(descriptor.id),
       label: resolveBrokerProviderDisplayName(descriptor),
       shortLabel: shortProviderLabel(descriptor),
       securityFirm: descriptor.securityFirm?.trim() ?? "",
+      selectable:
+        selection.state !== "unavailable" && summary.state !== "unavailable",
       ...summary,
       ...descriptorCapabilityPresentation(
         descriptor,

@@ -35,6 +35,10 @@ func TestCoordinatorProjectsConnectedRuntimeAndDiscoveredAccounts(t *testing.T) 
 	if runtime.Session.GlobalState == nil || runtime.Session.GlobalState.ServerVersion == nil {
 		t.Fatalf("global state = %#v, want OpenD version projection", runtime.Session.GlobalState)
 	}
+	health, err := coordinator.MarketDataHealth(t.Context())
+	if err != nil || !health.Connected || health.LastError != "" {
+		t.Fatalf("market-data health = %#v, %v", health, err)
+	}
 }
 
 func TestCoordinatorConnectedProbeWithoutBrokerFailsClosed(t *testing.T) {
@@ -69,6 +73,10 @@ func TestCoordinatorEnabledClosedPortReportsManualRetryDiagnosis(t *testing.T) {
 	}
 	if runtime := coordinator.BrokerRuntime(t.Context()); runtime.Session.Connectivity != "disconnected" {
 		t.Fatalf("runtime connectivity = %q, want disconnected", runtime.Session.Connectivity)
+	}
+	marketHealth, err := coordinator.MarketDataHealth(t.Context())
+	if err != nil || marketHealth.Connected || marketHealth.LastError == "" {
+		t.Fatalf("disconnected market-data health = %#v, %v", marketHealth, err)
 	}
 }
 

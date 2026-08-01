@@ -2,7 +2,9 @@ import type {
   MarketDataProviderSettingsResponse as MarketDataProviderSettingsResponseDto,
   MarketDataProviderStatusDto,
 } from "@/contracts";
+import type { FutuOpenDHealthResponse } from "@/types";
 
+import { mapFutuOpenDHealth } from "@/composables/market-data/futuOpenDContract";
 import { apiGet, apiPut } from "@/composables/shared/apiClient";
 
 export type MarketDataProviderID = "futu" | "yfinance";
@@ -27,6 +29,12 @@ export async function putMarketDataProviderSettings(
 
 export async function getMarketDataProviderStatus(): Promise<MarketDataProviderStatusDto> {
   return apiGet("/api/v1/market-data/provider");
+}
+
+export async function getFutuOpenDHealth(): Promise<FutuOpenDHealthResponse> {
+  return mapFutuOpenDHealth(
+    await apiGet("/api/v1/system/futu-opend"),
+  );
 }
 
 function normalizeProviderSettings(

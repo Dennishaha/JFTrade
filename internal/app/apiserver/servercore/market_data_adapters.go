@@ -42,7 +42,7 @@ func newMarketdataProvider(s *Server) mdsrv.Provider {
 		},
 
 		health: func(ctx context.Context) (mdsrv.HealthStatus, error) {
-			return mdsrv.HealthStatus{}, nil
+			return s.futuCoordinator().MarketDataHealth(ctx)
 		},
 	}
 }

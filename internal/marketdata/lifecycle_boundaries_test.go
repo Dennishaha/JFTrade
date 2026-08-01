@@ -175,6 +175,17 @@ func TestServiceRemainingLifecycleBoundaries(t *testing.T) {
 	} else if !health.Connected {
 		t.Fatalf("provider health was overwritten by polling collector state: %#v", health)
 	}
+	disconnectedService := NewService(&dataProviderStub{
+		health: HealthStatus{Connected: false, LastError: "provider disconnected"},
+	})
+	disconnectedService.collector = &Collector{
+		state: RuntimeState{Connected: true},
+	}
+	if health, err := disconnectedService.Health(ctx); err != nil {
+		t.Fatalf("disconnected provider Health = %v", err)
+	} else if health.Connected || health.LastError != "provider disconnected" {
+		t.Fatalf("collector overwrote authoritative provider health: %#v", health)
+	}
 	if err := collectorService.Close(); err != nil {
 		t.Fatalf("collector Close = %v", err)
 	}

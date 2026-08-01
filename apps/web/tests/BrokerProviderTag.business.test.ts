@@ -83,10 +83,75 @@ const capabilities = {
   ],
 };
 
+function futuOpenDHealth(healthy: boolean) {
+  return {
+    checkedAt: "2026-08-01T00:00:00Z",
+    status: healthy ? "healthy" : "offline",
+    runtime: {
+      connectivity: healthy ? "connected" : "disconnected",
+      host: "127.0.0.1",
+      apiPort: 11110,
+      websocketPort: 11111,
+      useEncryption: false,
+      websocketKeyConfigured: true,
+      marketDataTransport: "bbgo-opend-tcp-api",
+      quoteLoggedIn: healthy,
+      tradeLoggedIn: healthy,
+      programStatus: healthy ? "Ready" : null,
+      serverVersion: healthy ? "10.9.6908" : null,
+      minimumVersion: "10.9.6908",
+      lastError: healthy ? null : "connection refused",
+    },
+    diagnosis: {
+      code: healthy ? "NONE" : "OPEND_API_CONNECTIVITY",
+      summary: healthy ? null : "connection refused",
+      manualRetryRequired: !healthy,
+      restartOpenDRecommended: !healthy,
+    },
+    localSocketDiagnostics: {
+      configuredOpenDWebSocketLimit: 20,
+      configuredOpenDWebSocketLimitActive: false,
+      configuredOpenDWebSocketLimitScope: "diagnostic",
+      websocketEstablishedConnections: 0,
+      jftradeLiveWebSocketLimit: 20,
+      jftradeLiveWebSocketAtLimit: false,
+      likelyConnectionSaturation: false,
+      openDWebSocketPoolLikelySaturation: false,
+      liveQuoteBackoffActive: false,
+      liveQuoteRetryAfter: null,
+      liveQuoteFailureCount: 0,
+      liveQuoteLastError: null,
+      liveStreamBackoffActive: false,
+      liveStreamRetryAfter: null,
+      liveStreamFailureCount: 0,
+      liveStreamLastError: null,
+      transportMode: "bbgo-opend-tcp-api",
+      topClientProcesses: [],
+    },
+    localInstallation: {
+      platform: "darwin",
+      installed: true,
+      version: "10.9.6908",
+      installPath: "/Applications/Futu_OpenD.app",
+      guiDetected: true,
+      process: { running: true, pid: 100, executablePath: "/Futu_OpenD" },
+    },
+    latestVersion: {
+      value: null,
+      sourceUrl: null,
+      checkedAt: null,
+      status: "unknown",
+      error: null,
+    },
+    recommendations: [],
+  };
+}
+
 afterEach(() => {
   apiMocks.fetchEnvelope.mockReset();
   apiMocks.putEnvelope.mockReset();
   resetBrokerProviderSelectionForTests();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -201,7 +266,181 @@ describe("broker provider tag", () => {
     );
   });
 
-  it("ignores an older provider status response after switching", async () => {
+  it("marks disconnected Futu red and disables switching from Yahoo", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return Promise.resolve({ activeProvider: "yfinance" });
+      }
+      if (url.includes("/api/v1/market-data/provider")) {
+        return Promise.resolve({
+          descriptor: { providerId: "yahoo-finance", brokerId: "yfinance" },
+          health: {
+            connected: true,
+            streamMode: "snapshot-poll-delayed",
+            activeCount: 0,
+          },
+          runtime: {},
+          subscriptions: {},
+          checkedAt: "2026-08-01T00:00:00Z",
+        });
+      }
+      if (url.includes("/api/v1/system/futu-opend")) {
+        return Promise.resolve(futuOpenDHealth(false));
+      }
+      return Promise.resolve(capabilities);
+    });
+
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+    await wrapper.get(".broker-provider-tag").trigger("click");
+    await flushPromises();
+
+    const futu = wrapper
+      .findAll('.broker-provider-tag__menu button[role="option"]')
+      .find((button) => button.text().includes("Futu"))!;
+    expect(futu.classes()).toContain("is-unavailable");
+    expect(futu.attributes("disabled")).toBeDefined();
+    expect(futu.text()).toContain("当前无法连接 OpenD");
+    await futu.trigger("click");
+    expect(apiMocks.putEnvelope).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("uses OpenD health instead of the browser socket for active Futu", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return Promise.resolve({ activeProvider: "futu" });
+      }
+      if (url.includes("/api/v1/system/futu-opend")) {
+        return Promise.resolve(futuOpenDHealth(false));
+      }
+      return Promise.resolve(capabilities);
+    });
+
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+        connectionState: "connected",
+        transportMode: "push-stream",
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+    await flushPromises();
+
+    const tag = wrapper.get(".broker-provider-tag");
+    expect(tag.text()).toContain("Futu");
+    expect(tag.classes()).toContain("is-unavailable");
+    expect(tag.attributes("data-quality")).toBe("unavailable");
+    expect(tag.attributes("title")).toContain("当前无法连接 OpenD");
+  });
+
+  it("polls only while visible and open, then enables Futu after recovery", async () => {
+    vi.useFakeTimers();
+    const recoverableCapabilities = {
+      ...capabilities,
+      brokers: capabilities.brokers.map((broker) =>
+        broker.id !== "futu"
+          ? broker
+          : {
+              ...broker,
+              capabilities: broker.capabilities.map((capability) => ({
+                ...capability,
+                features: [
+                  ...capability.features,
+                  { id: "market.candles", markets: ["US"], state: "available" },
+                ],
+              })),
+            },
+      ),
+    };
+    const visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("visible");
+    let healthy = false;
+    let healthCalls = 0;
+    apiMocks.putEnvelope.mockResolvedValue({ activeProvider: "yfinance" });
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return Promise.resolve({ activeProvider: "yfinance" });
+      }
+      if (url.includes("/api/v1/market-data/provider")) {
+        return Promise.resolve({
+          descriptor: { providerId: "yahoo-finance", brokerId: "yfinance" },
+          health: {
+            connected: true,
+            streamMode: "snapshot-poll-delayed",
+            activeCount: 0,
+          },
+          runtime: {},
+          subscriptions: {},
+          checkedAt: "2026-08-01T00:00:00Z",
+        });
+      }
+      if (url.includes("/api/v1/system/futu-opend")) {
+        healthCalls += 1;
+        return Promise.resolve(futuOpenDHealth(healthy));
+      }
+      return Promise.resolve(recoverableCapabilities);
+    });
+
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+    const tag = wrapper.get(".broker-provider-tag");
+    await wrapper.get(".broker-provider-tag").trigger("click");
+    await flushPromises();
+    expect(healthCalls).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    await flushPromises();
+    expect(healthCalls).toBe(2);
+
+    visibility.mockReturnValue("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(healthCalls).toBe(2);
+
+    healthy = true;
+    visibility.mockReturnValue("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushPromises();
+    await flushPromises();
+    expect(healthCalls).toBeGreaterThanOrEqual(3);
+    for (let index = 0; index < 6; index += 1) await flushPromises();
+    const futu = wrapper
+      .findAll('.broker-provider-tag__menu button[role="option"]')
+      .find((button) => button.text().includes("Futu"))!;
+    expect(futu.classes()).toContain("is-available");
+    expect(futu.attributes("disabled")).toBeUndefined();
+    await wrapper
+      .findAll('.broker-provider-tag__menu button[role="option"]')
+      .find((button) => button.text().includes("Yahoo"))!
+      .trigger("click");
+    await flushPromises();
+    expect(wrapper.find(".broker-provider-tag__menu").exists()).toBe(false);
+    const recoveredHealthCalls = healthCalls;
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(healthCalls).toBe(recoveredHealthCalls);
+  });
+
+  it("ignores an older OpenD health response after switching", async () => {
+    const healthResolvers: Array<(value: unknown) => void> = [];
     const statusResolvers: Array<(value: unknown) => void> = [];
     const status = (brokerId: string, streamMode: string) => ({
       descriptor: {
@@ -221,6 +460,9 @@ describe("broker provider tag", () => {
       if (url.includes("/api/v1/market-data/provider")) {
         return new Promise((resolve) => statusResolvers.push(resolve));
       }
+      if (url.includes("/api/v1/system/futu-opend")) {
+        return new Promise((resolve) => healthResolvers.push(resolve));
+      }
       return Promise.resolve(capabilities);
     });
     apiMocks.putEnvelope.mockResolvedValue({ activeProvider: "yfinance" });
@@ -234,7 +476,7 @@ describe("broker provider tag", () => {
     });
     await flushPromises();
     await flushPromises();
-    expect(statusResolvers).toHaveLength(1);
+    expect(healthResolvers).toHaveLength(1);
 
     await wrapper.get(".broker-provider-tag").trigger("click");
     await wrapper
@@ -243,17 +485,17 @@ describe("broker provider tag", () => {
       .trigger("click");
     await flushPromises();
     await flushPromises();
-    expect(statusResolvers).toHaveLength(2);
+    expect(statusResolvers).toHaveLength(0);
 
-    statusResolvers[1]!(status("yfinance", "snapshot-poll-delayed"));
+    healthResolvers[0]!(futuOpenDHealth(true));
+    await flushPromises();
+    await flushPromises();
+    expect(statusResolvers).toHaveLength(1);
+
+    statusResolvers[0]!(status("yfinance", "snapshot-poll-delayed"));
     await flushPromises();
     await flushPromises();
     const tag = wrapper.get(".broker-provider-tag");
-    expect(tag.text()).toContain("Yahoo");
-    expect(tag.attributes("title")).toContain("HTTP 定时查询");
-
-    statusResolvers[0]!(status("futu", "push-stream"));
-    await flushPromises();
     expect(tag.text()).toContain("Yahoo");
     expect(tag.attributes("title")).toContain("HTTP 定时查询");
   });

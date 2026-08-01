@@ -815,7 +815,6 @@ func (s *Service) health(ctx context.Context) (HealthStatus, error) {
 	}
 	if s.collector != nil {
 		state := s.collector.State()
-		health.Connected = health.Connected || state.Connected
 		health.ActiveCount = state.ActiveCount
 	} else {
 		health.ActiveCount = len(s.subscriptions.activeInstruments())
