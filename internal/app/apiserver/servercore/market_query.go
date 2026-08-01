@@ -1,10 +1,9 @@
 package servercore
 
 import (
+	"fmt"
 	"strings"
 	"time"
-
-	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func pathTail(path string, prefix string) (string, string) {
@@ -16,13 +15,14 @@ func pathTail(path string, prefix string) (string, string) {
 	return parts[0], parts[1]
 }
 
-func decodeMarketSnapshotQuery(values map[string][]string) marketSnapshotQuery {
+func decodeMarketSnapshotQuery(values map[string][]string) (marketSnapshotQuery, error) {
 	var query marketSnapshotQuery
 	if raw, ok := firstQueryValue(values, "refresh"); ok && raw != "" {
-		jftradeErr5 := query.Refresh.UnmarshalText([]byte(raw))
-		besteffort.LogError(jftradeErr5)
+		if err := query.Refresh.UnmarshalText([]byte(raw)); err != nil {
+			return marketSnapshotQuery{}, fmt.Errorf("invalid refresh query: %w", err)
+		}
 	}
-	return query
+	return query, nil
 }
 
 func decodeMarketCandlesQuery(values map[string][]string) (marketCandlesQuery, error) {
@@ -33,24 +33,29 @@ func decodeMarketCandlesQuery(values map[string][]string) (marketCandlesQuery, e
 		}
 	}
 	if raw, ok := firstQueryValue(values, "limit"); ok && raw != "" {
-		jftradeErr3 := query.Limit.UnmarshalText([]byte(raw))
-		besteffort.LogError(jftradeErr3)
+		if err := query.Limit.UnmarshalText([]byte(raw)); err != nil {
+			return marketCandlesQuery{}, fmt.Errorf("invalid limit query: %w", err)
+		}
 	}
 	if raw, ok := firstQueryValue(values, "fromTime"); ok && raw != "" {
-		jftradeErr6 := query.FromTime.UnmarshalText([]byte(raw))
-		besteffort.LogError(jftradeErr6)
+		if err := query.FromTime.UnmarshalText([]byte(raw)); err != nil {
+			return marketCandlesQuery{}, fmt.Errorf("invalid fromTime query: %w", err)
+		}
 	}
 	if raw, ok := firstQueryValue(values, "toTime"); ok && raw != "" {
-		jftradeErr4 := query.ToTime.UnmarshalText([]byte(raw))
-		besteffort.LogError(jftradeErr4)
+		if err := query.ToTime.UnmarshalText([]byte(raw)); err != nil {
+			return marketCandlesQuery{}, fmt.Errorf("invalid toTime query: %w", err)
+		}
 	}
 	if raw, ok := firstQueryValue(values, "from"); ok && raw != "" {
-		jftradeErr2 := query.From.UnmarshalText([]byte(raw))
-		besteffort.LogError(jftradeErr2)
+		if err := query.From.UnmarshalText([]byte(raw)); err != nil {
+			return marketCandlesQuery{}, fmt.Errorf("invalid from query: %w", err)
+		}
 	}
 	if raw, ok := firstQueryValue(values, "to"); ok && raw != "" {
-		jftradeErr1 := query.To.UnmarshalText([]byte(raw))
-		besteffort.LogError(jftradeErr1)
+		if err := query.To.UnmarshalText([]byte(raw)); err != nil {
+			return marketCandlesQuery{}, fmt.Errorf("invalid to query: %w", err)
+		}
 	}
 	return query, nil
 }

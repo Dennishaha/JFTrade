@@ -151,7 +151,9 @@ function createConsoleDataStore(
   const portfolioPositions = ref<PortfolioPositionsResponse>(
     emptyPortfolioPositions,
   );
+  const portfolioLiveDataError = ref("");
   const activeExecutionOrders = ref<ExecutionOrdersResponse>(emptyExecutionOrders);
+  const activeExecutionOrdersError = ref("");
   const historicalExecutionOrders = ref<ExecutionOrdersResponse>(emptyExecutionOrders);
   const executionOrderEvents = ref<ExecutionOrderEventsResponse>(
     emptyExecutionOrderEvents,
@@ -382,6 +384,7 @@ function createConsoleDataStore(
     createConsoleDataPortfolioLiveQueryController({
       portfolioCashBalances,
       portfolioPositions,
+      portfolioLiveDataError,
     });
   const { loadPortfolioLiveData } = portfolioLiveQueryController;
   const brokerLiveQueryController =
@@ -395,6 +398,7 @@ function createConsoleDataStore(
       brokerPositions,
       brokerOrders,
       activeExecutionOrders,
+      activeExecutionOrdersError,
       historicalExecutionOrders,
       isLoadingBrokerOrders,
       isLoadingHistoricalOrders,
@@ -557,6 +561,7 @@ function createConsoleDataStore(
     executionEventsError,
     executionOrderEvents,
     activeExecutionOrders,
+    activeExecutionOrdersError,
     historicalExecutionOrders,
     futuOpenDHealth,
     futuOpenDInstallGuide,
@@ -613,6 +618,7 @@ function createConsoleDataStore(
     onboardingState,
     orderFeesError,
     portfolioCashBalances,
+    portfolioLiveDataError,
     portfolioPositions,
     pluginCatalog,
     pluginError,

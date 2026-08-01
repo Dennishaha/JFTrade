@@ -39,8 +39,8 @@ type ToolDeps struct {
 	DefaultTradeMarket             func() string
 	BrokerFunds                    func(context.Context, broker.ReadQuery, time.Duration) any
 	BrokerPositions                func(context.Context, broker.ReadQuery, time.Duration) any
-	ExecutionOrders                func() any
-	ExecutionOrderEvents           func(string) any
+	ExecutionOrders                func() (any, error)
+	ExecutionOrderEvents           func(string) (any, error)
 	BrokerOrders                   func(context.Context, BrokerReadInput) (any, error)
 	BrokerFills                    func(context.Context, BrokerReadInput) (any, error)
 	BrokerCashFlows                func(context.Context, BrokerReadInput) (any, error)
@@ -49,7 +49,7 @@ type ToolDeps struct {
 	MarketDepth                    func(context.Context, string, string, int) (any, error)
 	RiskState                      func() any
 	RiskEvents                     func() any
-	ListStrategyDefinitions        func() []StrategyDefinitionSummary
+	ListStrategyDefinitions        func() ([]StrategyDefinitionSummary, error)
 	ListStrategyDefinitionVersions func(string) ([]stratsrv.DefinitionVersionSummary, bool, error)
 	GetStrategyDefinitionVersion   func(string, string) (stratsrv.DefinitionVersion, bool, error)
 	ListStrategyInstances          func() []StrategyInstanceSummary
@@ -232,11 +232,17 @@ func RegisterJFTradeADKTools(store *jfadk.Store, registry *jfadk.ToolRegistry, d
 			TradingEnvironment: strings.ToUpper(strings.TrimSpace(stringValue(input, "tradingEnvironment"))),
 			Market:             strings.ToUpper(stringOrDefault(stringValue(input, "market"), deps.DefaultTradeMarket())),
 		}
-		orders := deps.ExecutionOrders()
+		orders, err := deps.ExecutionOrders()
+		if err != nil {
+			return nil, err
+		}
 		return map[string]any{"accounts": deps.ManagedAccounts(), "brokerEnabled": deps.BrokerEnabled(), "orders": orders, "orderCount": collectionLen(orders), "funds": deps.BrokerFunds(ctx, query, 8*time.Second), "positions": deps.BrokerPositions(ctx, query, 8*time.Second), "checkedAt": nowStringRFC3339Nano()}, nil
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "account.orders", DisplayName: "订单摘要", Description: "读取执行订单视图摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单列表和数量。"}, func(context.Context, map[string]any) (any, error) {
-		orders := deps.ExecutionOrders()
+		orders, err := deps.ExecutionOrders()
+		if err != nil {
+			return nil, err
+		}
 		return map[string]any{"orders": orders, "count": collectionLen(orders), "checkedAt": nowStringRFC3339Nano()}, nil
 	})
 	registerJFTradeADKWorkflowTools(store, registry, deps)
@@ -255,7 +261,11 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 
 func registerADKStrategyDefinitionTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.definitions", DisplayName: "策略定义", Description: "读取当前策略定义和策略实例摘要。", Category: "strategy", Permission: "read_internal", OutputSummary: "策略定义、运行实例和数量摘要。"}, func(context.Context, map[string]any) (any, error) {
-		return SummarizeADKStrategyDefinitions(deps.ListStrategyDefinitions(), deps.ListStrategyInstances()), nil
+		definitions, err := deps.ListStrategyDefinitions()
+		if err != nil {
+			return nil, err
+		}
+		return SummarizeADKStrategyDefinitions(definitions, deps.ListStrategyInstances()), nil
 	})
 	versionSkills := []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.definition_versions.list", DisplayName: "策略版本历史", Description: "按策略定义 ID 列出不可变版本快照摘要，按保存时间倒序返回。", Category: "strategy", Permission: "read_internal", RiskLevel: "low", OutputSummary: "策略定义 ID、版本摘要列表和版本数量。", RequiredSkills: versionSkills}, func(_ context.Context, input map[string]any) (any, error) {
@@ -567,9 +577,9 @@ func registerJFTradeADKReadTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registry.Register(jfadk.ToolDescriptor{Name: "execution.order_events", DisplayName: "执行订单事件", Description: "按内部订单 ID 读取执行订单事件历史；未提供 ID 时返回订单列表。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单事件时间线。"}, func(_ context.Context, input map[string]any) (any, error) {
 		internalOrderID := strings.TrimSpace(stringValue(input, "internalOrderId"))
 		if internalOrderID == "" {
-			return deps.ExecutionOrders(), nil
+			return deps.ExecutionOrders()
 		}
-		return deps.ExecutionOrderEvents(internalOrderID), nil
+		return deps.ExecutionOrderEvents(internalOrderID)
 	})
 }
 

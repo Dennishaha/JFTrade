@@ -311,8 +311,8 @@ func TestWorkflowTaskToolsetLookupBoundaryBranches(t *testing.T) {
 	if _, _, err := (&workflowTaskToolset{executor: runtime.workflowExecutor(), parentID: "missing-parent"}).parentAndTasks(ctx); err == nil || !strings.Contains(err.Error(), "parent run not found") {
 		t.Fatalf("missing parentAndTasks err = %v", err)
 	}
-	if task, ok := toolset.taskByID(ctx, " "); ok || task.ID != "" {
-		t.Fatalf("blank taskByID = %+v/%v, want missing", task, ok)
+	if task, ok, err := toolset.taskByID(ctx, " "); err != nil || ok || task.ID != "" {
+		t.Fatalf("blank taskByID = %+v/%v err=%v, want missing", task, ok, err)
 	}
 	if task, err := toolset.resolveTask(ctx, parent, []Task{ready}, "missing-task", true); err == nil || task.ID != "" || !strings.Contains(err.Error(), "task not found") {
 		t.Fatalf("explicit missing resolveTask = %+v/%v", task, err)
@@ -345,7 +345,10 @@ func TestWorkflowTaskToolsetLookupBoundaryBranches(t *testing.T) {
 		t.Fatalf("clean firstBlockingTaskChild = %+v index=%d ok=%v, want none", child, index, ok)
 	}
 
-	blockers := toolset.workflowCompletionBlockers(ctx, parent, []Task{{ID: "done", Status: "DONE"}})
+	blockers, err := toolset.workflowCompletionBlockers(ctx, parent, []Task{{ID: "done", Status: "DONE"}})
+	if err != nil {
+		t.Fatalf("workflowCompletionBlockers: %v", err)
+	}
 	if len(blockers) != 0 {
 		t.Fatalf("blank/self child IDs should not block completion: %+v", blockers)
 	}
@@ -361,8 +364,11 @@ func TestWorkflowTaskToolsetLookupBoundaryBranches(t *testing.T) {
 	if _, _, err := closedToolset.parentAndTasks(ctx); err == nil {
 		t.Fatal("closed parentAndTasks err = nil, want error")
 	}
-	if task, ok := closedToolset.taskByID(ctx, current.ID); ok || task.ID != "" {
-		t.Fatalf("closed taskByID = %+v/%v, want missing", task, ok)
+	if task, ok, err := closedToolset.taskByID(ctx, current.ID); err == nil || ok || task.ID != "" {
+		t.Fatalf("closed taskByID = %+v/%v err=%v, want read error", task, ok, err)
+	}
+	if task, err := closedToolset.resolveTask(ctx, parent, nil, current.ID, true); err == nil || task.ID != "" {
+		t.Fatalf("closed resolveTask = %+v/%v, want read error", task, err)
 	}
 	if err := closedToolset.saveParentPlan(ctx, parent, nil); err == nil {
 		t.Fatal("closed saveParentPlan err = nil, want error")

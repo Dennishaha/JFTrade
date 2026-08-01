@@ -214,8 +214,8 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 		t.Fatalf("GET logs with legacy query parsing: %v", err)
 	}
 	defer func() { jftradeCheckTestError(t, legacyQueryResp.Body.Close()) }()
-	if legacyQueryResp.StatusCode != http.StatusOK {
-		t.Fatalf("GET logs with legacy query parsing status = %d", legacyQueryResp.StatusCode)
+	if legacyQueryResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("GET logs with invalid query status = %d", legacyQueryResp.StatusCode)
 	}
 
 	filteredLogsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/"+instanceID+"/logs?level=error")

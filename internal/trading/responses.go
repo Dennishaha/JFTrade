@@ -426,7 +426,15 @@ type PortfolioCashBalance struct {
 
 // PortfolioCashBalancesResponse GET /portfolio/{id}/cash-balances 响应。
 type PortfolioCashBalancesResponse struct {
+	BrokerReadStatus
 	Balances []PortfolioCashBalance `json:"balances" binding:"required"`
+}
+
+func portfolioCashBalancesReadError(err error) *PortfolioCashBalancesResponse {
+	return &PortfolioCashBalancesResponse{
+		BrokerReadStatus: readErrorStatus(err),
+		Balances:         []PortfolioCashBalance{},
+	}
 }
 
 // PortfolioPosition portfolio 持仓条目。
@@ -445,5 +453,13 @@ type PortfolioPosition struct {
 
 // PortfolioPositionsResponse GET /portfolio/{id}/positions 响应。
 type PortfolioPositionsResponse struct {
+	BrokerReadStatus
 	Positions []PortfolioPosition `json:"positions" binding:"required"`
+}
+
+func portfolioPositionsReadError(err error) *PortfolioPositionsResponse {
+	return &PortfolioPositionsResponse{
+		BrokerReadStatus: readErrorStatus(err),
+		Positions:        []PortfolioPosition{},
+	}
 }

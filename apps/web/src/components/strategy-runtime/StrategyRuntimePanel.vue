@@ -336,7 +336,6 @@ async function loadStrategyDefinitions(): Promise<void> {
             queryFn: () => apiGet("/api/v1/strategy-definitions"),
         });
     } catch (error) {
-        strategyDefinitions.value = [];
         definitionsError.value =
             error instanceof Error ? error.message : "加载策略定义失败。";
     } finally {
@@ -365,9 +364,6 @@ async function loadStrategies(preferredId = selectedStrategyId.value): Promise<v
             await loadStrategyDetails(nextId);
         }
     } catch (error) {
-        strategies.value = [];
-        selectedStrategyId.value = "";
-        clearRuntimeDetails();
         listError.value =
             error instanceof Error ? error.message : "加载策略实例失败。";
     } finally {
@@ -377,7 +373,10 @@ async function loadStrategies(preferredId = selectedStrategyId.value): Promise<v
 }
 
 async function loadStrategyDetails(instanceId: string): Promise<void> {
-    selectedStrategyId.value = instanceId;
+    const previousStrategyId = selectedStrategyId.value;
+    if (previousStrategyId === "") {
+        selectedStrategyId.value = instanceId;
+    }
     detailsError.value = "";
     isLoadingDetails.value = true;
 
@@ -400,8 +399,11 @@ async function loadStrategyDetails(instanceId: string): Promise<void> {
 
         strategyLogs.value = logs.logs;
         strategyAuditEntries.value = audit.entries;
+        selectedStrategyId.value = instanceId;
     } catch (error) {
-        clearRuntimeDetails();
+        if (previousStrategyId !== "") {
+            selectedStrategyId.value = previousStrategyId;
+        }
         detailsError.value =
             error instanceof Error ? error.message : "加载策略明细失败。";
     } finally {

@@ -16,7 +16,7 @@ interface WorkbenchContext {
   strategyDisplayMode: Ref<StrategyDisplayMode>;
   metadataPaneOpen: Ref<boolean>;
   isMediumWorkbench: Ref<boolean>;
-  error: Ref<string>;
+  error: Readonly<Ref<string>>;
   errorExpanded: Ref<boolean>;
   sourceEditorRef: Ref<InstanceType<typeof PineSourceCodePaneType> | null>;
   activeScript: Readonly<Ref<string>>;

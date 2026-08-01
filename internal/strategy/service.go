@@ -23,7 +23,7 @@ import (
 // 由 internal/store/strategy 实现。
 type DesignStore interface {
 	// ListDefinitions 返回所有未删除的策略定义（按 updated_at 倒序）。
-	ListDefinitions() []Definition
+	ListDefinitions() ([]Definition, error)
 
 	// GetDefinition 按 ID 查询策略定义。
 	// 返回 (定义, 是否存在, 错误)。
@@ -191,7 +191,7 @@ func NewService(design DesignStore, catalog CatalogStore, runtime RuntimeManager
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ListDefinitions 返回所有策略定义。
-func (s *Service) ListDefinitions() []Definition {
+func (s *Service) ListDefinitions() ([]Definition, error) {
 	return s.design.ListDefinitions()
 }
 

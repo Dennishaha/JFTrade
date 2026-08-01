@@ -60,6 +60,12 @@ func TestBrokerReadFailuresRemainVisibleAcrossAccountDataViews(t *testing.T) {
 		{name: "margin ratios", key: "marginRatios", call: func() (any, error) {
 			return service.MarginRatios(t.Context(), broker.MarginRatioQuery{ReadQuery: read, Symbols: []string{"US.AAPL"}})
 		}},
+		{name: "portfolio cash", key: "balances", call: func() (any, error) {
+			return service.PortfolioCashBalances(t.Context(), read)
+		}},
+		{name: "portfolio positions", key: "positions", call: func() (any, error) {
+			return service.PortfolioPositions(t.Context(), read)
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

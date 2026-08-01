@@ -113,30 +113,33 @@ func (s *Store) load() error {
 	return nil
 }
 
-func (s *Store) ListDefinitions() []stratsrv.Definition {
+func (s *Store) ListDefinitions() ([]stratsrv.Definition, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.listDefinitionsFromDBLocked()
 }
 
-func (s *Store) listDefinitionsFromDBLocked() []stratsrv.Definition {
+func (s *Store) listDefinitionsFromDBLocked() ([]stratsrv.Definition, error) {
+	if s.db == nil {
+		return nil, errors.New("strategy definition store is unavailable")
+	}
 	rows := []strategyDesignDefinitionRow{}
 	if err := s.db.Select(&rows,
 		`SELECT id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at `+
 			`FROM `+strategyDesignDefinitionTable+` `+
 			`WHERE deleted_at IS NULL OR TRIM(deleted_at) = '' `+
 			`ORDER BY updated_at DESC, id ASC`); err != nil {
-		return []stratsrv.Definition{}
+		return nil, err
 	}
 	items := make([]stratsrv.Definition, 0, len(rows))
 	for _, row := range rows {
 		definition, err := strategyDesignDefinitionFromRow(row)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		items = append(items, definition)
 	}
-	return items
+	return items, nil
 }
 
 func (s *Store) GetDefinition(id string) (stratsrv.Definition, bool, error) {

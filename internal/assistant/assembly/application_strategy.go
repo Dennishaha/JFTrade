@@ -10,12 +10,15 @@ import (
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
-func (a *ApplicationAdapter) strategyDefinitionSummaries() []StrategyDefinitionSummary {
+func (a *ApplicationAdapter) strategyDefinitionSummaries() ([]StrategyDefinitionSummary, error) {
 	service := a.strategy()
 	if service == nil {
-		return nil
+		return nil, fmt.Errorf("strategy definition service is unavailable")
 	}
-	definitions := service.ListDefinitions()
+	definitions, err := service.ListDefinitions()
+	if err != nil {
+		return nil, err
+	}
 	out := make([]StrategyDefinitionSummary, 0, len(definitions))
 	for _, definition := range definitions {
 		summary := StrategyDefinitionSummary{
@@ -29,7 +32,7 @@ func (a *ApplicationAdapter) strategyDefinitionSummaries() []StrategyDefinitionS
 		}
 		out = append(out, summary)
 	}
-	return out
+	return out, nil
 }
 
 func (a *ApplicationAdapter) listStrategyDefinitionVersions(

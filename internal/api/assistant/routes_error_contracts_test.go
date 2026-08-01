@@ -49,7 +49,7 @@ func TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources(t *testi
 		{name: "agent templates", method: http.MethodGet, path: "/api/v1/adk/agent-templates", wantStatus: http.StatusOK},
 		{name: "snapshot", method: http.MethodGet, path: "/api/v1/adk", wantStatus: http.StatusOK},
 		{name: "tools", method: http.MethodGet, path: "/api/v1/adk/tools", wantStatus: http.StatusOK},
-		{name: "non numeric tasks limit falls back", method: http.MethodGet, path: "/api/v1/adk/tasks?limit=oops", wantStatus: http.StatusOK},
+		{name: "non numeric tasks limit is rejected", method: http.MethodGet, path: "/api/v1/adk/tasks?limit=oops", wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
 		{name: "invalid task status", method: http.MethodGet, path: "/api/v1/adk/tasks?status=NOT_A_STATUS", wantStatus: http.StatusBadRequest, wantCode: "ADK_TASK_LIST_FAILED"},
 		{name: "invalid task create payload", method: http.MethodPost, path: "/api/v1/adk/tasks", body: []byte(`{`), wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
 		{name: "invalid task patch payload", method: http.MethodPut, path: "/api/v1/adk/tasks/task-missing", body: []byte(`{`), wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
@@ -61,12 +61,12 @@ func TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources(t *testi
 		{name: "invalid agent payload", method: http.MethodPost, path: "/api/v1/adk/agents", body: []byte(`{`), wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
 		{name: "invalid agent update payload", method: http.MethodPut, path: "/api/v1/adk/agents/agent-errors", body: []byte(`{`), wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
 		{name: "invalid skill install payload", method: http.MethodPost, path: "/api/v1/adk/skills", body: []byte(`{`), wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
-		{name: "non numeric sessions limit falls back", method: http.MethodGet, path: "/api/v1/adk/sessions?limit=oops", wantStatus: http.StatusOK},
+		{name: "non numeric sessions limit is rejected", method: http.MethodGet, path: "/api/v1/adk/sessions?limit=oops", wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
 		{name: "invalid rename payload", method: http.MethodPut, path: "/api/v1/adk/sessions/" + session.ID, body: []byte(`{`), wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
 		{name: "invalid composer payload", method: http.MethodPatch, path: "/api/v1/adk/sessions/" + session.ID + "/composer-state", body: []byte(`{`), wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
-		{name: "non numeric runs limit falls back", method: http.MethodGet, path: "/api/v1/adk/runs?limit=oops", wantStatus: http.StatusOK},
+		{name: "non numeric runs limit is rejected", method: http.MethodGet, path: "/api/v1/adk/runs?limit=oops", wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
 		{name: "invalid objective payload", method: http.MethodPatch, path: "/api/v1/adk/runs/" + run.ID + "/objective", body: []byte(`{`), wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
-		{name: "non numeric approvals limit falls back", method: http.MethodGet, path: "/api/v1/adk/approvals?limit=oops", wantStatus: http.StatusOK},
+		{name: "non numeric approvals limit is rejected", method: http.MethodGet, path: "/api/v1/adk/approvals?limit=oops", wantStatus: http.StatusBadRequest, wantCode: "BAD_REQUEST"},
 	}
 
 	for _, tc := range cases {

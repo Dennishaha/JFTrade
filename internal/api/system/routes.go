@@ -2,6 +2,7 @@ package system
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -274,8 +275,9 @@ func handleReleaseRealTradeHardStop(svc *sys.Service) gin.HandlerFunc {
 			return
 		}
 		var request RealTradeHardStopRequest
-		if c.Request.Body != nil {
-			_ = c.ShouldBindJSON(&request)
+		if err := bindOptionalJSON(c, &request); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid real-trade hard stop release payload")
+			return
 		}
 		result, err := svc.ReleaseRealTradeHardStop(c.Request.Context(), hardStopID, request.command())
 		if err != nil {
@@ -345,13 +347,15 @@ func handleActivateRealTradeKillSwitch(svc *sys.Service) gin.HandlerFunc {
 // @Produce json
 // @Param request body RealTradeKillSwitchRequest false "熔断解除请求"
 // @Success 200 {object} httpserver.Envelope{data=trading.RealTradeRiskSnapshot}
+// @Failure 400 {object} httpserver.ErrorEnvelope
 // @Failure 409 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/real-trade-kill-switch/release [post]
 func handleReleaseRealTradeKillSwitch(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var request RealTradeKillSwitchRequest
-		if c.Request.Body != nil {
-			_ = c.ShouldBindJSON(&request)
+		if err := bindOptionalJSON(c, &request); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid real-trade kill switch release payload")
+			return
 		}
 		result, err := svc.ReleaseRealTradeKillSwitch(c.Request.Context(), request.command())
 		if err != nil {
@@ -426,13 +430,15 @@ func handleUpdateRealTradeRiskLimits(svc *sys.Service) gin.HandlerFunc {
 // @Produce json
 // @Param request body RealTradeRuntimeRiskRequest false "禁用请求"
 // @Success 200 {object} httpserver.Envelope{data=trading.RealTradeRiskSnapshot}
+// @Failure 400 {object} httpserver.ErrorEnvelope
 // @Failure 409 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/system/real-trade-risk-limits [delete]
 func handleDisableRealTradeRiskLimits(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var request RealTradeRuntimeRiskRequest
-		if c.Request.Body != nil {
-			_ = c.ShouldBindJSON(&request)
+		if err := bindOptionalJSON(c, &request); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid real-trade runtime risk disable payload")
+			return
 		}
 		result, err := svc.DisableRealTradeRuntimeRisk(c.Request.Context(), request.command())
 		if err != nil {
@@ -454,6 +460,16 @@ func handleRealTradeRiskEvents(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeRiskEvents())
 	}
+}
+
+func bindOptionalJSON(c *gin.Context, target any) error {
+	if c == nil || c.Request == nil || c.Request.Body == nil {
+		return nil
+	}
+	if err := c.ShouldBindJSON(target); err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	return nil
 }
 
 func validateRealTradeRuntimeRiskCommand(command sys.RealTradeRuntimeRiskCommand) error {

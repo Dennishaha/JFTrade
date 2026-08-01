@@ -398,9 +398,9 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if _, ok, err := server.stores.Design.GetDefinition(definition.ID); err != nil || ok {
 		t.Fatal("definition should be hidden after soft delete")
 	}
-	definitions := server.stores.Design.ListDefinitions()
-	if len(definitions) != 0 {
-		t.Fatalf("expected no active definitions after delete, got %+v", definitions)
+	definitions, err := server.stores.Design.ListDefinitions()
+	if err != nil || len(definitions) != 0 {
+		t.Fatalf("expected no active definitions after delete, got %+v, err %v", definitions, err)
 	}
 	historyResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategy-definitions/"+definition.ID+"/versions")
 	if err != nil {

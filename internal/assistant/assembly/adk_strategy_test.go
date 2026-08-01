@@ -209,8 +209,8 @@ func TestADKStrategyToolsHandleNegativeAndFallbackScenarios(t *testing.T) {
 	var savedDraft StrategyDraftInput
 	viewCalls := 0
 	registerJFTradeADKStrategyTools(store, registry, ToolDeps{
-		ListStrategyDefinitions: func() []StrategyDefinitionSummary {
-			return []StrategyDefinitionSummary{{ID: "def-1", Name: "Mean Revert"}}
+		ListStrategyDefinitions: func() ([]StrategyDefinitionSummary, error) {
+			return []StrategyDefinitionSummary{{ID: "def-1", Name: "Mean Revert"}}, nil
 		},
 		ListStrategyInstances: func() []StrategyInstanceSummary {
 			return []StrategyInstanceSummary{{ID: "inst-1", DefinitionID: "def-1", ExecutionMode: "live"}}

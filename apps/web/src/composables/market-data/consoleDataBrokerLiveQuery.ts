@@ -66,6 +66,7 @@ interface CreateConsoleDataBrokerLiveQueryControllerOptions {
   brokerPositions: Ref<BrokerPositionsResponse>;
   brokerOrders: Ref<BrokerOrdersResponse>;
   activeExecutionOrders: Ref<ExecutionOrdersResponse>;
+  activeExecutionOrdersError: Ref<string>;
   historicalExecutionOrders: Ref<ExecutionOrdersResponse>;
   isLoadingBrokerOrders: Ref<boolean>;
   isLoadingHistoricalOrders: Ref<boolean>;
@@ -497,6 +498,10 @@ export function createConsoleDataBrokerLiveQueryController(
             error instanceof Error ? error.message : "券商订单加载失败。",
         }));
 
+    const activeOrdersPromise = apiGetPath(
+      "/api/v1/execution/orders",
+      executionOrdersUrl({ ...input, scope: "active" }),
+    ).then(mapExecutionOrders);
     const [nextFunds, nextPositions, orders, , activeOrders] = await Promise.all([
       fundsPromise,
       positionsPromise,
@@ -505,12 +510,13 @@ export function createConsoleDataBrokerLiveQueryController(
         brokerId: input.brokerId,
         brokerQuery: input.brokerQuery,
       }),
-      apiGetPath(
-        "/api/v1/execution/orders",
-        executionOrdersUrl({ ...input, scope: "active" }),
-      )
-        .then(mapExecutionOrders)
-        .catch(() => emptyExecutionOrders),
+      activeOrdersPromise.then(
+        (value) => ({ value, error: "" }),
+        (cause: unknown) => ({
+          value: null,
+          error: `活动执行订单加载失败: ${errorMessage(cause)}`,
+        }),
+      ),
     ]);
 
     funds = nextFunds;
@@ -518,7 +524,10 @@ export function createConsoleDataBrokerLiveQueryController(
     options.brokerFunds.value = funds;
     options.brokerPositions.value = positions;
     options.brokerOrders.value = orders;
-    options.activeExecutionOrders.value = activeOrders;
+    if (activeOrders.value != null) {
+      options.activeExecutionOrders.value = activeOrders.value;
+    }
+    options.activeExecutionOrdersError.value = activeOrders.error;
     options.isLoadingBrokerOrders.value = false;
 
     if (input.futuBrokerReadsPaused) {
@@ -554,4 +563,10 @@ export function createConsoleDataBrokerLiveQueryController(
     loadBrokerMaxTradeQuantity,
     loadHistoricalExecutionOrders,
   };
+}
+
+function errorMessage(cause: unknown): string {
+  return cause instanceof Error && cause.message.trim() !== ""
+    ? cause.message
+    : "请求失败。";
 }

@@ -174,7 +174,10 @@ func TestWorkflowGoalCompleteBlocksUnfinishedChildrenAndApprovals(t *testing.T) 
 	if err != nil {
 		t.Fatalf("parentAndTasks: %v", err)
 	}
-	blockers := toolset.workflowCompletionBlockers(ctx, parent, tasks)
+	blockers, err := toolset.workflowCompletionBlockers(ctx, parent, tasks)
+	if err != nil {
+		t.Fatalf("workflowCompletionBlockers: %v", err)
+	}
 	if !hasWorkflowBlocker(blockers, "task-goal-todo", "TODO") {
 		t.Fatalf("blockers = %+v, want open task blocker", blockers)
 	}

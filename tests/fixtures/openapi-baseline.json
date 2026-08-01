@@ -13685,10 +13685,23 @@
             "$ref": "#/definitions/trading.PortfolioCashBalance"
           },
           "type": "array"
+        },
+        "checkedAt": {
+          "type": "string"
+        },
+        "connectivity": {
+          "type": "string"
+        },
+        "lastError": {
+          "type": "string",
+          "x-nullable": true
         }
       },
       "required": [
-        "balances"
+        "balances",
+        "checkedAt",
+        "connectivity",
+        "lastError"
       ],
       "type": "object"
     },
@@ -13741,6 +13754,16 @@
     },
     "trading.PortfolioPositionsResponse": {
       "properties": {
+        "checkedAt": {
+          "type": "string"
+        },
+        "connectivity": {
+          "type": "string"
+        },
+        "lastError": {
+          "type": "string",
+          "x-nullable": true
+        },
         "positions": {
           "items": {
             "$ref": "#/definitions/trading.PortfolioPosition"
@@ -13749,6 +13772,9 @@
         }
       },
       "required": [
+        "checkedAt",
+        "connectivity",
+        "lastError",
         "positions"
       ],
       "type": "object"
@@ -28077,6 +28103,12 @@
               "$ref": "#/definitions/httpserver.ErrorEnvelope"
             }
           },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
           "503": {
             "description": "Service Unavailable",
             "schema": {
@@ -29397,6 +29429,12 @@
               ]
             }
           },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
           "409": {
             "description": "Conflict",
             "schema": {
@@ -29482,6 +29520,12 @@
                   "type": "object"
                 }
               ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
             }
           },
           "409": {

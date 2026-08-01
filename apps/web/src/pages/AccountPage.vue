@@ -30,6 +30,7 @@ import type { AccountTab } from "../features/accountPage";
 
 const {
   activeExecutionOrders,
+  activeExecutionOrdersError,
   historicalExecutionOrders,
   brokerFunds,
   brokerPositions,
@@ -41,6 +42,7 @@ const {
   loadHistoricalExecutionOrders,
   loadSystemState,
   portfolioPositions,
+  portfolioLiveDataError,
   selectedBrokerAccount,
   selectedExecutionOrderId,
   supportsBrokerReadFeature,
@@ -61,6 +63,11 @@ const isRefreshingAccount = ref(false);
 let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const pendingCancelOrder = ref<AccountExecutionOrder | null>(null);
+const accountDataError = computed(() =>
+  [portfolioLiveDataError.value, activeExecutionOrdersError.value]
+    .filter((message) => message !== "")
+    .join("；"),
+);
 const pendingCancelMessage = computed(() => {
   const order = pendingCancelOrder.value;
   if (order == null) return "";
@@ -605,6 +612,17 @@ if (requestedExecutionOrderId !== "") {
         </button>
       </div>
 
+      <v-alert
+        v-if="accountDataError"
+        type="warning"
+        :closable="false"
+        density="compact"
+        data-testid="account-live-data-error"
+        class="account-page__data-error"
+      >
+        {{ accountDataError }}
+      </v-alert>
+
       <div class="account-page__content">
         <PositionsTable v-if="activeTab === 'positions'" :positions="accountPositions" />
         <ActiveOrdersTable
@@ -683,6 +701,11 @@ if (requestedExecutionOrderId !== "") {
   min-width: 0;
   border-bottom: 1px solid var(--tv-border);
   background: var(--tv-bg-surface-2);
+}
+
+.account-page__data-error {
+  flex: 0 0 auto;
+  margin: 8px 12px 0;
 }
 
 .account-page__tabs {

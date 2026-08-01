@@ -21,6 +21,7 @@ type routeLifecycleDesignStore struct {
 	definition srv.Definition
 	found      bool
 	err        error
+	listErr    error
 	saveInput  srv.Definition
 	saveErr    error
 	deleteID   string
@@ -32,7 +33,9 @@ type routeLifecycleDesignStore struct {
 	versionErr error
 }
 
-func (s *routeLifecycleDesignStore) ListDefinitions() []srv.Definition { return s.list }
+func (s *routeLifecycleDesignStore) ListDefinitions() ([]srv.Definition, error) {
+	return s.list, s.listErr
+}
 func (s *routeLifecycleDesignStore) GetDefinition(string) (srv.Definition, bool, error) {
 	return s.definition, s.found, s.err
 }
@@ -586,21 +589,21 @@ func TestStrategyRoutesMapValidationAndBusinessErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("logs and audit return not found when activity is missing", func(t *testing.T) {
+	t.Run("logs and audit reject malformed time filters before activity lookup", func(t *testing.T) {
 		router := newRouter(&routeLifecycleDesignStore{}, &routeLifecycleCatalogStore{}, &routeLifecycleRuntime{})
 
 		logsMissingRec := httptest.NewRecorder()
 		logsMissingReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/strategies/inst-1/logs?fromTime=bad-time", nil)
 		router.ServeHTTP(logsMissingRec, logsMissingReq)
-		if logsMissingRec.Code != http.StatusNotFound {
-			t.Fatalf("logs missing status = %d, want 404, body=%s", logsMissingRec.Code, logsMissingRec.Body.String())
+		if logsMissingRec.Code != http.StatusBadRequest {
+			t.Fatalf("logs malformed time status = %d, want 400, body=%s", logsMissingRec.Code, logsMissingRec.Body.String())
 		}
 
 		auditMissingRec := httptest.NewRecorder()
 		auditMissingReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/strategies/inst-1/audit?toTime=bad-time", nil)
 		router.ServeHTTP(auditMissingRec, auditMissingReq)
-		if auditMissingRec.Code != http.StatusNotFound {
-			t.Fatalf("audit missing status = %d, want 404, body=%s", auditMissingRec.Code, auditMissingRec.Body.String())
+		if auditMissingRec.Code != http.StatusBadRequest {
+			t.Fatalf("audit malformed time status = %d, want 400, body=%s", auditMissingRec.Code, auditMissingRec.Body.String())
 		}
 	})
 }

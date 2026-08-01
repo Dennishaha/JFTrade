@@ -18,9 +18,10 @@ type routeTestDesignStore struct {
 	definition srv.Definition
 	found      bool
 	err        error
+	listErr    error
 }
 
-func (s *routeTestDesignStore) ListDefinitions() []srv.Definition { return nil }
+func (s *routeTestDesignStore) ListDefinitions() ([]srv.Definition, error) { return nil, s.listErr }
 func (s *routeTestDesignStore) GetDefinition(string) (srv.Definition, bool, error) {
 	return s.definition, s.found, s.err
 }

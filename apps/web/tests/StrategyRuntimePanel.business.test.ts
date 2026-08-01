@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { StrategyDefinitionDocument } from "@/types";
 import StrategyRuntimePanel from "@/components/strategy-runtime/StrategyRuntimePanel.vue";
+import { queryClient, queryKeys } from "@/composables/settings/serverState";
 import { PINE_WORKER_RUNTIME } from "../src/components/strategy-runtime/strategyRuntimeIdentity";
 import {
   MockWebSocket,
@@ -477,6 +478,79 @@ describe("StrategyRuntimePanel business workflows", () => {
     await failedDetails.wrapper.get('[data-testid="strategy-runtime-details-error-close"]').trigger("click");
     expect(failedDetails.wrapper.text()).not.toContain("运行日志读取失败");
     failedDetails.wrapper.unmount();
+  });
+
+  it("retains successful definitions, instances, selection, and activity details when refreshes fail", async () => {
+    let failDefinitions = false;
+    let failStrategies = false;
+    let failDetails = false;
+    const first = {
+      ...buildStrategy("STOPPED"),
+      id: "instance-1",
+      definition: { strategyId: "mean-revert", name: "Mean Revert", version: "1.0.0" },
+    };
+    const second = {
+      ...buildStrategy("STOPPED"),
+      id: "instance-2",
+      definition: { strategyId: "trend", name: "Trend", version: "1.0.0" },
+    };
+    const baseFetch = buildFetchMock({
+      definitions: [buildDefinition(), { ...buildDefinition(), id: "trend", name: "Trend" }],
+      strategies: [first, second],
+      logsById: { "instance-1": ["persisted log"] },
+      auditById: {
+        "instance-1": [
+          { instanceId: "instance-1", kind: "created", detail: "persisted audit", at: "2026-06-01T00:00:00.000Z" },
+        ],
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const method = requestMethod(input, init);
+      if (failDefinitions && url.endsWith("/api/v1/strategy-definitions") && method === "GET") {
+        return errorResponse("策略定义刷新失败", 503);
+      }
+      if (failStrategies && url.endsWith("/api/v1/strategies") && method === "GET") {
+        return errorResponse("策略实例刷新失败", 503);
+      }
+      if (failDetails && (url.includes("/strategies/instance-2/logs") || url.includes("/strategies/instance-2/audit"))) {
+        return errorResponse("策略明细刷新失败", 503);
+      }
+      return baseFetch(input, init);
+    }));
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { wrapper } = await mountStrategyPage("/strategy/runtime");
+    await settleStrategyWorkspace();
+    const setup = wrapper.getComponent(StrategyRuntimePanel).vm.$.setupState as Record<string, unknown>;
+
+    expect(readSetupArray<{ id: string }>(setup.strategyDefinitions)).toHaveLength(2);
+    expect(readSetupArray<{ id: string }>(setup.strategies)).toHaveLength(2);
+    expect(readSetupText(setup.selectedStrategyId)).toBe("instance-1");
+    expect(readSetupArray<string>(setup.strategyLogs)).toEqual(["persisted log"]);
+    expect(readSetupArray<{ detail: string }>(setup.strategyAuditEntries)[0]?.detail).toBe("persisted audit");
+
+    failDefinitions = true;
+    queryClient.removeQueries({ queryKey: queryKeys.strategyDefinitions() });
+    await (setup.loadStrategyDefinitions as () => Promise<void>)();
+    expect(readSetupArray<{ id: string }>(setup.strategyDefinitions)).toHaveLength(2);
+    expect(readSetupText(setup.definitionsError)).toBe("策略定义刷新失败");
+
+    failStrategies = true;
+    await (setup.loadStrategies as () => Promise<void>)();
+    expect(readSetupArray<{ id: string }>(setup.strategies)).toHaveLength(2);
+    expect(readSetupText(setup.selectedStrategyId)).toBe("instance-1");
+    expect(readSetupText(setup.listError)).toBe("策略实例刷新失败");
+
+    failDetails = true;
+    await (setup.loadStrategyDetails as (instanceId: string) => Promise<void>)("instance-2");
+    expect(readSetupText(setup.selectedStrategyId)).toBe("instance-1");
+    expect(readSetupArray<string>(setup.strategyLogs)).toEqual(["persisted log"]);
+    expect(readSetupArray<{ detail: string }>(setup.strategyAuditEntries)[0]?.detail).toBe("persisted audit");
+    expect(readSetupText(setup.detailsError)).toBe("策略明细刷新失败");
+    expect(wrapper.text()).toContain("策略明细刷新失败");
+
+    wrapper.unmount();
   });
 
   it("keeps mutation dialogs recoverable when create, update, risk, delete or refresh APIs fail", async () => {

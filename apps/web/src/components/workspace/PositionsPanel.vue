@@ -42,12 +42,14 @@ const props = defineProps<{
 const {
   brokerOrders,
   activeExecutionOrders,
+  activeExecutionOrdersError,
   historicalExecutionOrders,
   executionOrderEvents,
   isLoadingBrokerOrders,
   isLoadingHistoricalOrders,
   historicalOrdersError,
   portfolioPositions,
+  portfolioLiveDataError,
   selectedBrokerAccount,
   loadHistoricalExecutionOrders,
   systemStatus,
@@ -62,6 +64,13 @@ const pendingCancelOrder = ref<ExecutionOrder | null>(null);
 const activeTab = computed<Tab>(() => props.view ?? tab.value);
 
 const positions = computed(() => portfolioPositions.value.positions);
+const activeTabError = computed(() => {
+  if (activeTab.value === "positions") return portfolioLiveDataError.value;
+  if (activeTab.value === "active" || activeTab.value === "fills") {
+    return activeExecutionOrdersError.value;
+  }
+  return "";
+});
 const activeOrderScope = computed(() => {
   const selected = selectedBrokerAccount.value;
   return {
@@ -351,6 +360,16 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
       />
     </div>
     <div class="tv-panel-body is-flush">
+      <v-alert
+        v-if="activeTabError"
+        type="warning"
+        :closable="false"
+        density="compact"
+        data-testid="portfolio-live-data-error"
+        style="margin: 8px"
+      >
+        {{ activeTabError }}
+      </v-alert>
       <table v-if="activeTab === 'positions'" class="tv-table">
         <thead>
           <tr>

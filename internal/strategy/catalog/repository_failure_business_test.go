@@ -45,6 +45,13 @@ func TestCatalogFailedSavesLeaveDurableRepositorySnapshotUnchanged(t *testing.T)
 			},
 		},
 		{
+			name: "apply linked definition",
+			operation: func(service *Service) error {
+				_, err := service.ApplyDefinitionToLinked(catalogBusinessDefinition("mean-revert", "2.0.0"))
+				return err
+			},
+		},
+		{
 			name: "delete instance",
 			operation: func(service *Service) error {
 				_, err := service.DeleteInstance("stopped")
@@ -106,6 +113,11 @@ func TestCatalogFailedSavesLeaveDurableRepositorySnapshotUnchanged(t *testing.T)
 			}
 			if got := reloaded.GetLinkedInstanceIDs("mean-revert"); !reflect.DeepEqual(got, []string{"stopped"}) {
 				t.Fatalf("reloaded linked instances = %v", got)
+			}
+			if test.name == "apply linked definition" {
+				if current, ok := service.GetInstance("stopped"); !ok || current.Definition.Version != "1.0.0" {
+					t.Fatalf("in-memory linked instance after failed save = %#v, found=%v; want version 1.0.0", current, ok)
+				}
 			}
 		})
 	}

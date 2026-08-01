@@ -45,7 +45,11 @@ func (s *serverApplication) marketSecurityDetailsResponseForInstrument(ctx conte
 
 func (s *serverApplication) marketSnapshotResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
 	market, symbol := pathTail(path, "/api/v1/market-data/snapshots/")
-	return s.marketSnapshotResponseForInstrument(ctx, market, symbol, decodeMarketSnapshotQuery(query))
+	decoded, err := decodeMarketSnapshotQuery(query)
+	if err != nil {
+		return nil, err
+	}
+	return s.marketSnapshotResponseForInstrument(ctx, market, symbol, decoded)
 }
 
 func (s *serverApplication) marketSnapshotResponseForInstrument(ctx context.Context, market string, symbol string, query marketSnapshotQuery) (map[string]any, error) {

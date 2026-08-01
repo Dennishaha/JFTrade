@@ -349,7 +349,7 @@ func TestCandlesRouteForwardsExclusiveBeforeAndRejectsInvalidCombinations(t *tes
 	}
 }
 
-func TestCandlesRouteDefaultsInvalidLimit(t *testing.T) {
+func TestCandlesRouteRejectsInvalidLimit(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{}
 	service := srv.NewService(provider)
@@ -361,14 +361,11 @@ func TestCandlesRouteDefaultsInvalidLimit(t *testing.T) {
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 
-	if response.Code != http.StatusOK {
+	if response.Code != http.StatusBadRequest {
 		t.Fatalf("GET candles status = %d, body = %s", response.Code, response.Body.String())
 	}
-	if !provider.candlesCalled {
-		t.Fatal("GetHistoricalCandles should be called with the default limit")
-	}
-	if provider.candlesLimit != 0 {
-		t.Fatalf("limit = %d, want 0", provider.candlesLimit)
+	if provider.candlesCalled {
+		t.Fatal("GetHistoricalCandles should not be called for an invalid limit")
 	}
 }
 
@@ -411,7 +408,7 @@ func TestCandlesRouteTickAndLegacyBeforePagination(t *testing.T) {
 	}
 }
 
-func TestDepthRouteDefaultsInvalidNum(t *testing.T) {
+func TestDepthRouteRejectsInvalidNum(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{}
 	service := srv.NewService(provider)
@@ -423,14 +420,11 @@ func TestDepthRouteDefaultsInvalidNum(t *testing.T) {
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 
-	if response.Code != http.StatusOK {
+	if response.Code != http.StatusBadRequest {
 		t.Fatalf("GET depth status = %d, body = %s", response.Code, response.Body.String())
 	}
-	if !provider.depthCalled {
-		t.Fatal("GetDepth should be called with the default num")
-	}
-	if provider.depthNum != 10 {
-		t.Fatalf("num = %d, want 10", provider.depthNum)
+	if provider.depthCalled {
+		t.Fatal("GetDepth should not be called for an invalid num")
 	}
 }
 

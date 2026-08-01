@@ -211,7 +211,7 @@ func TestADKAuditRouteFiltersByKindAndSubjectID(t *testing.T) {
 	}
 }
 
-func TestADKAuditRouteDefaultPagination(t *testing.T) {
+func TestADKAuditRouteRejectsInvalidPagination(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -220,38 +220,25 @@ func TestADKAuditRouteDefaultPagination(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	assistantRuntime(server).RecordAudit(t.Context(), "agent.saved", "agent-audit-1", "saved", nil)
-	assistantRuntime(server).RecordAudit(t.Context(), "agent.saved", "agent-audit-2", "saved", nil)
-
 	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/audit?limit=oops&offset=-10")
 	if err != nil {
 		t.Fatalf("GET audit with invalid page params: %v", err)
 	}
 	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("audit status = %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("audit status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
 	}
 	var envelope struct {
-		OK   bool `json:"ok"`
-		Data struct {
-			Events []asst.AuditEvent `json:"events"`
-			Page   struct {
-				Limit    int  `json:"limit"`
-				Offset   int  `json:"offset"`
-				Total    int  `json:"total"`
-				Returned int  `json:"returned"`
-				HasMore  bool `json:"hasMore"`
-			} `json:"page"`
-		} `json:"data"`
+		OK    bool `json:"ok"`
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-		t.Fatalf("decode audit default page: %v", err)
+		t.Fatalf("decode audit error: %v", err)
 	}
-	if !envelope.OK {
-		t.Fatalf("audit default page envelope = %+v", envelope)
-	}
-	if envelope.Data.Page.Limit != 100 || envelope.Data.Page.Offset != 0 || envelope.Data.Page.Total != 2 || envelope.Data.Page.Returned != 2 || envelope.Data.Page.HasMore {
-		t.Fatalf("audit default page = %+v, want default pagination", envelope.Data.Page)
+	if envelope.OK || envelope.Error.Code != "BAD_REQUEST" {
+		t.Fatalf("audit error envelope = %+v", envelope)
 	}
 }
 

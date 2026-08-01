@@ -3420,6 +3420,9 @@ export interface components {
   };
     "trading.PortfolioCashBalancesResponse": {
     balances: Array<components["schemas"]["trading.PortfolioCashBalance"]>;
+    checkedAt: string;
+    connectivity: string;
+    lastError: string | null;
   };
     "trading.PortfolioPosition": {
     accountId: string;
@@ -3434,6 +3437,9 @@ export interface components {
     updatedAt: string;
   };
     "trading.PortfolioPositionsResponse": {
+    checkedAt: string;
+    connectivity: string;
+    lastError: string | null;
     positions: Array<components["schemas"]["trading.PortfolioPosition"]>;
   };
     "trading.RealTradeControlEvent": {
@@ -10971,6 +10977,12 @@ export interface paths {
             "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
         "503": {
           description: "Service Unavailable";
           content: {
@@ -11707,6 +11719,12 @@ export interface paths {
   };
           };
         };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
         "409": {
           description: "Conflict";
           content: {
@@ -11797,6 +11815,12 @@ export interface paths {
             "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
   };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "409": {

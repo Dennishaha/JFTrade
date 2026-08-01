@@ -399,6 +399,7 @@ function createController(
     brokerPositions: ref<BrokerPositionsResponse>(emptyBrokerPositions),
     brokerOrders: ref<BrokerOrdersResponse>(emptyBrokerOrders),
     activeExecutionOrders: ref<ExecutionOrdersResponse>(emptyExecutionOrders),
+    activeExecutionOrdersError: ref(""),
     historicalExecutionOrders: ref<ExecutionOrdersResponse>(emptyExecutionOrders),
     isLoadingBrokerOrders: ref(false),
     isLoadingHistoricalOrders: ref(false),
@@ -613,6 +614,7 @@ describe("createConsoleDataBrokerLiveQueryController", () => {
     vi.setSystemTime(new Date("2026-07-03T12:00:00.000Z"));
 
     const { controller, state, loadPortfolioLiveData } = createController();
+    state.activeExecutionOrdersError.value = "previous failure";
 
     mocks.fetchEnvelope.mockImplementation(async (url: string) => {
       if (url.includes("/api/v1/brokers/futu/funds")) {
@@ -663,6 +665,7 @@ describe("createConsoleDataBrokerLiveQueryController", () => {
     expect(state.activeExecutionOrders.value.orders[0]?.internalOrderId).toBe(
       "exec-live",
     );
+    expect(state.activeExecutionOrdersError.value).toBe("");
     expect(state.brokerCashFlows.value.cashFlows).toHaveLength(1);
     expect(state.brokerFills.value.fills).toHaveLength(1);
     expect(state.brokerMarginRatios.value.marginRatios).toHaveLength(2);
@@ -875,6 +878,9 @@ describe("createConsoleDataBrokerLiveQueryController", () => {
     await controller.loadBrokerLiveData({
       brokerId: "futu", brokerQuery: "market=US", futuBrokerReadsPaused: false,
     });
-    expect(state.activeExecutionOrders.value).toEqual(emptyExecutionOrders);
+    expect(state.activeExecutionOrders.value.orders[0]?.internalOrderId).toBe("offline");
+    expect(state.activeExecutionOrdersError.value).toBe(
+      "活动执行订单加载失败: all broker reads offline",
+    );
   });
 });

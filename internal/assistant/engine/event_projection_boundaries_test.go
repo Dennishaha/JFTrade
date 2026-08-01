@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -65,5 +66,36 @@ func TestEventProjectionHandlesEmptyStorageOrderingAndFallbackEntries(t *testing
 	entry, ok := transcriptEntryFromADKEvent(fallback)
 	if !ok || entry.Role != "user" || entry.Content != "user reply" || !strings.HasPrefix(entry.ID, "event-message-") {
 		t.Fatalf("fallback transcript entry = %+v ok=%v", entry, ok)
+	}
+}
+
+func TestSessionProjectionPropagatesADKSessionReadFailures(t *testing.T) {
+	runtime := newTestRuntime(t)
+	session := mustCreateSession(t, runtime, "projection-read-error-agent", "projection read error")
+	store := runtime.Store()
+	want := errors.New("ADK session store unavailable")
+	store.mu.Lock()
+	store.sessions = getErrorADKSessionService{Service: store.sessions, err: want}
+	store.mu.Unlock()
+
+	if _, _, err := store.SessionProjection(t.Context(), session.ID); !errors.Is(err, want) {
+		t.Fatalf("SessionProjection error = %v, want %v", err, want)
+	}
+	if _, err := store.TranscriptEntries(t.Context(), session.ID); !errors.Is(err, want) {
+		t.Fatalf("TranscriptEntries error = %v, want %v", err, want)
+	}
+}
+
+func TestSessionProjectionTreatsMissingADKSessionAsEmpty(t *testing.T) {
+	runtime := newTestRuntime(t)
+	session := mustCreateSession(t, runtime, "projection-missing-session-agent", "projection missing session")
+
+	projection, ok, err := runtime.Store().SessionProjection(t.Context(), session.ID)
+	if err != nil || ok || projection.SessionID != session.ID {
+		t.Fatalf("SessionProjection = %+v ok=%v err=%v, want empty projection", projection, ok, err)
+	}
+	entries, err := runtime.Store().TranscriptEntries(t.Context(), session.ID)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("TranscriptEntries = %+v err=%v, want empty entries", entries, err)
 	}
 }

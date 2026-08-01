@@ -413,10 +413,16 @@ export const emptyBrokerOrders: BrokerOrdersResponse = {
 };
 
 export const emptyPortfolioPositions: PortfolioPositionsResponse = {
+  checkedAt: new Date(0).toISOString(),
+  connectivity: "disconnected",
+  lastError: null,
   positions: [],
 };
 
 export const emptyPortfolioCashBalances: PortfolioCashBalancesResponse = {
+  checkedAt: new Date(0).toISOString(),
+  connectivity: "disconnected",
+  lastError: null,
   balances: [],
 };
 

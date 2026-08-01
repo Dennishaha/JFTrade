@@ -72,6 +72,12 @@ func TestDefinitionRoutesMapReadWriteAndDeleteFailures(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	wantErr := errors.New("definition store unavailable")
 
+	t.Run("list failure", func(t *testing.T) {
+		router := strategyRouter(&routeLifecycleDesignStore{listErr: wantErr}, &routeLifecycleCatalogStore{})
+		response := strategyRequest(t, router, http.MethodGet, "/api/v1/strategy-definitions", "")
+		assertStrategyResponse(t, response, http.StatusInternalServerError, "STRATEGY_FAILED")
+	})
+
 	t.Run("read failure", func(t *testing.T) {
 		router := strategyRouter(&routeLifecycleDesignStore{err: wantErr}, &routeLifecycleCatalogStore{})
 		response := strategyRequest(t, router, http.MethodGet, "/api/v1/strategy-definitions/def-1", "")

@@ -346,11 +346,11 @@ func (s *Service) PortfolioCashBalances(ctx context.Context, query broker.ReadQu
 		return nil, err
 	}
 	if reader == nil {
-		return &PortfolioCashBalancesResponse{Balances: []PortfolioCashBalance{}}, nil
+		return portfolioCashBalancesReadError(errors.New("broker market data not available")), nil
 	}
 	snapshot, err := reader.QueryFunds(ctx, query)
 	if err != nil {
-		return &PortfolioCashBalancesResponse{Balances: []PortfolioCashBalance{}}, nil
+		return portfolioCashBalancesReadError(err), nil
 	}
 	timestamp := now()
 	balances := make([]PortfolioCashBalance, 0, len(snapshot.CurrencyBalances))
@@ -368,7 +368,7 @@ func (s *Service) PortfolioCashBalances(ctx context.Context, query broker.ReadQu
 			CashBalance: floatValue(snapshot.Cash), UpdatedAt: timestamp, CreatedAt: timestamp,
 		})
 	}
-	return &PortfolioCashBalancesResponse{Balances: balances}, nil
+	return &PortfolioCashBalancesResponse{BrokerReadStatus: connectedReadStatus(), Balances: balances}, nil
 }
 
 func (s *Service) PortfolioPositions(ctx context.Context, query broker.ReadQuery) (*PortfolioPositionsResponse, error) {
@@ -377,11 +377,11 @@ func (s *Service) PortfolioPositions(ctx context.Context, query broker.ReadQuery
 		return nil, err
 	}
 	if reader == nil {
-		return &PortfolioPositionsResponse{Positions: []PortfolioPosition{}}, nil
+		return portfolioPositionsReadError(errors.New("broker market data not available")), nil
 	}
 	snapshots, err := reader.QueryPositions(ctx, query)
 	if err != nil {
-		return &PortfolioPositionsResponse{Positions: []PortfolioPosition{}}, nil
+		return portfolioPositionsReadError(err), nil
 	}
 	timestamp := now()
 	positions := make([]PortfolioPosition, 0, len(snapshots))
@@ -393,7 +393,7 @@ func (s *Service) PortfolioPositions(ctx context.Context, query broker.ReadQuery
 			MarketValue: position.MarketValue, UpdatedAt: timestamp, CreatedAt: timestamp,
 		})
 	}
-	return &PortfolioPositionsResponse{Positions: positions}, nil
+	return &PortfolioPositionsResponse{BrokerReadStatus: connectedReadStatus(), Positions: positions}, nil
 }
 
 func (s *Service) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*BrokerPlaceOrderResponse, error) {

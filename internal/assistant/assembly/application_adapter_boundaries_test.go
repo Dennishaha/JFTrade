@@ -122,11 +122,11 @@ func TestApplicationAdapterValidatesDomainInputsBeforeDelegation(t *testing.T) {
 	tradingService := trdsrv.NewService()
 	adapter := NewApplicationAdapter(ApplicationPorts{Trading: func() *trdsrv.Service { return tradingService }})
 	ctx := t.Context()
-	if got := adapter.executionOrders(); got == nil {
-		t.Fatal("executionOrders fallback = nil")
+	if _, err := adapter.executionOrders(); err == nil {
+		t.Fatal("executionOrders unavailable error = nil")
 	}
-	if got := adapter.executionOrderEvents("order-1"); got == nil {
-		t.Fatal("executionOrderEvents fallback = nil")
+	if _, err := adapter.executionOrderEvents("order-1"); err == nil {
+		t.Fatal("executionOrderEvents unavailable error = nil")
 	}
 	for name, call := range map[string]func() error{
 		"orders scope":   func() error { _, err := adapter.brokerOrders(ctx, BrokerReadInput{Scope: "archive"}); return err },
@@ -214,24 +214,25 @@ func TestApplicationAdapterValidatesDomainInputsBeforeDelegation(t *testing.T) {
 func assertUnavailableApplicationOperations(t *testing.T, deps ToolDeps) {
 	t.Helper()
 	for name, call := range map[string]func() error{
-		"strategy versions":   func() error { _, _, err := deps.ListStrategyDefinitionVersions("definition"); return err },
-		"strategy version":    func() error { _, _, err := deps.GetStrategyDefinitionVersion("definition", "1"); return err },
-		"strategy definition": func() error { _, err := deps.SaveStrategyDefinition(StrategyDefinitionInput{}); return err },
-		"strategy mode":       func() error { _, err := deps.UpdateStrategyInstanceMode("instance", "paper"); return err },
-		"backtest data":       func() error { _, err := deps.EnsureBacktestData(nil, BacktestStartInput{}); return err },
-		"research data":       func() error { _, err := deps.EnsureResearchBacktestData(ResearchBacktestInput{}); return err },
-		"research start":      func() error { _, err := deps.StartResearchBacktest(ResearchBacktestInput{}); return err },
-		"backtest result":     func() error { _, err := deps.BacktestResultView(BacktestResultViewInput{}); return err },
-		"broker fills":        func() error { _, err := deps.BrokerFills(t.Context(), BrokerReadInput{}); return err },
-		"broker cash flows":   func() error { _, err := deps.BrokerCashFlows(t.Context(), BrokerReadInput{}); return err },
-		"broker fees":         func() error { _, err := deps.BrokerFees(t.Context(), BrokerReadInput{}); return err },
-		"broker margin":       func() error { _, err := deps.BrokerMarginRatios(t.Context(), BrokerReadInput{}); return err },
+		"strategy definitions": func() error { _, err := deps.ListStrategyDefinitions(); return err },
+		"strategy versions":    func() error { _, _, err := deps.ListStrategyDefinitionVersions("definition"); return err },
+		"strategy version":     func() error { _, _, err := deps.GetStrategyDefinitionVersion("definition", "1"); return err },
+		"strategy definition":  func() error { _, err := deps.SaveStrategyDefinition(StrategyDefinitionInput{}); return err },
+		"strategy mode":        func() error { _, err := deps.UpdateStrategyInstanceMode("instance", "paper"); return err },
+		"backtest data":        func() error { _, err := deps.EnsureBacktestData(nil, BacktestStartInput{}); return err },
+		"research data":        func() error { _, err := deps.EnsureResearchBacktestData(ResearchBacktestInput{}); return err },
+		"research start":       func() error { _, err := deps.StartResearchBacktest(ResearchBacktestInput{}); return err },
+		"backtest result":      func() error { _, err := deps.BacktestResultView(BacktestResultViewInput{}); return err },
+		"broker fills":         func() error { _, err := deps.BrokerFills(t.Context(), BrokerReadInput{}); return err },
+		"broker cash flows":    func() error { _, err := deps.BrokerCashFlows(t.Context(), BrokerReadInput{}); return err },
+		"broker fees":          func() error { _, err := deps.BrokerFees(t.Context(), BrokerReadInput{}); return err },
+		"broker margin":        func() error { _, err := deps.BrokerMarginRatios(t.Context(), BrokerReadInput{}); return err },
 	} {
 		if err := call(); err == nil {
 			t.Fatalf("%s error = nil, want unavailable", name)
 		}
 	}
-	if deps.ListStrategyDefinitions() != nil || deps.ListStrategyInstances() != nil || deps.ListBacktestRuns() != nil {
+	if deps.ListStrategyInstances() != nil || deps.ListBacktestRuns() != nil {
 		t.Fatal("unavailable list operations returned data")
 	}
 	if progress, ok := deps.BacktestKLineSyncProgress("missing"); progress != nil || ok {

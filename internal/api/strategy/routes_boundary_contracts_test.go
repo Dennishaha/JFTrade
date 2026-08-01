@@ -139,7 +139,7 @@ func TestStrategyStartRouteMapsPreflightRuntimeAndTransitionBoundaries(t *testin
 	}
 }
 
-func TestStrategyActivityRoutesTreatMalformedPaginationAsDefaults(t *testing.T) {
+func TestStrategyActivityRoutesRejectMalformedPagination(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	catalog := &routeLifecycleCatalogStore{
@@ -149,18 +149,18 @@ func TestStrategyActivityRoutesTreatMalformedPaginationAsDefaults(t *testing.T) 
 	router := strategyRouter(&routeLifecycleDesignStore{}, catalog)
 
 	logsResponse := strategyRequest(t, router, http.MethodGet, "/api/v1/strategies/inst-1/logs?limit=bogus", "")
-	if logsResponse.Code != http.StatusOK {
-		t.Fatalf("logs response = %d %s, want 200", logsResponse.Code, logsResponse.Body.String())
+	if logsResponse.Code != http.StatusBadRequest {
+		t.Fatalf("logs response = %d %s, want 400", logsResponse.Code, logsResponse.Body.String())
 	}
-	if catalog.logsQuery.Limit != 500 || catalog.logsQuery.Offset != 0 {
-		t.Fatalf("logs query = %#v, want default pagination", catalog.logsQuery)
+	if catalog.logsQuery != (srv.LogQuery{}) {
+		t.Fatalf("logs query = %#v, want no query", catalog.logsQuery)
 	}
 
 	auditResponse := strategyRequest(t, router, http.MethodGet, "/api/v1/strategies/inst-1/audit?offset=bogus", "")
-	if auditResponse.Code != http.StatusOK {
-		t.Fatalf("audit response = %d %s, want 200", auditResponse.Code, auditResponse.Body.String())
+	if auditResponse.Code != http.StatusBadRequest {
+		t.Fatalf("audit response = %d %s, want 400", auditResponse.Code, auditResponse.Body.String())
 	}
-	if catalog.auditQuery.Limit != 500 || catalog.auditQuery.Offset != 0 {
-		t.Fatalf("audit query = %#v, want default pagination", catalog.auditQuery)
+	if catalog.auditQuery != (srv.AuditQuery{}) {
+		t.Fatalf("audit query = %#v, want no query", catalog.auditQuery)
 	}
 }

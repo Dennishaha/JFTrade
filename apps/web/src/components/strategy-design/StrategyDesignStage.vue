@@ -135,6 +135,12 @@ const isLoadingStrategies = ref(false);
 const isSavingDefinition = ref(false);
 const isAnalyzing = ref(false);
 const error = ref("");
+const strategiesLoadError = ref("");
+const displayError = computed(() =>
+  [error.value, strategiesLoadError.value]
+    .filter((message) => message !== "")
+    .join("；"),
+);
 const analyzeResult = ref<StrategyPineAnalyzeResponse | null>(null);
 const actionFeedback = ref<"analyze" | "save" | "">("");
 const actionFeedbackTimer = ref<ReturnType<typeof setTimeout> | null>(null);
@@ -443,8 +449,9 @@ async function loadStrategies(): Promise<void> {
   isLoadingStrategies.value = true;
   try {
     strategies.value = mapStrategyInstances(await apiGet("/api/v1/strategies"));
-  } catch {
-    strategies.value = [];
+    strategiesLoadError.value = "";
+  } catch (cause) {
+    strategiesLoadError.value = `加载策略实例失败: ${cause instanceof Error ? cause.message : String(cause)}`;
   } finally {
     isLoadingStrategies.value = false;
   }
@@ -629,7 +636,7 @@ provideStrategyDesignContext({
   selectedVersionSnapshot, isLoadingVersionSnapshot, versionSnapshotError,
   selectedComparisonVersions, canOpenVersionComparison, expandedStrategySidePanels,
   expandedStrategySidePanelCount, isWideWorkbench, isMediumWorkbench,
-  strategyMobileSection, strategyDisplayMode, metadataPaneOpen, error, errorExpanded,
+  strategyMobileSection, strategyDisplayMode, metadataPaneOpen, error: displayError, errorExpanded,
   sourceEditorRef, activeScript, useSourceOverride, pineDiagnosticMarkers,
   sourceStructureNodes, rawSourceNodeCount, selectedSourceNodeSummary,
   selectedSourceNodeId, expandedSourceNodeId, canUndoSourceChange, canRedoSourceChange,

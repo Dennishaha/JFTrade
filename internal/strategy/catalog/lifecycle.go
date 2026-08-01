@@ -177,6 +177,7 @@ func (s *Service) ApplyDefinitionToLinked(definition stratsrv.Definition) (strat
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	previous := s.snapshotLocked()
 	changed := false
 	for index := range s.data.Strategies {
 		instance := s.normalizeStrategy(s.data.Strategies[index])
@@ -199,6 +200,7 @@ func (s *Service) ApplyDefinitionToLinked(definition stratsrv.Definition) (strat
 	}
 	if changed {
 		if err := s.persistLocked(); err != nil {
+			s.data = previous
 			return stratsrv.ApplyLinkedInstancesResult{}, err
 		}
 	}

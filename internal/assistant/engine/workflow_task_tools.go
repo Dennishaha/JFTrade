@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkagent "google.golang.org/adk/v2/agent"
 	adktool "google.golang.org/adk/v2/tool"
 )
@@ -75,12 +74,10 @@ func (t *workflowTaskToolset) modelsList(args map[string]any) (map[string]any, e
 func (t *workflowTaskToolset) list(map[string]any) (map[string]any, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	parent, tasks, err := t.parentAndTasks(context.Background())
+	parent, tasks, err := t.syncParentPlan(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	jftradeErr15 := t.saveParentPlan(context.Background(), parent, tasks)
-	besteffort.LogError(jftradeErr15)
 	return map[string]any{"success": true, "tasks": taskToolTaskSummaries(tasks), "readyTasks": taskToolTaskSummaries(executableWorkflowTasks(tasks, parent.WorkMode))}, nil
 }
 
@@ -91,7 +88,10 @@ func (t *workflowTaskToolset) add(args map[string]any) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	current, _ := t.taskByID(context.Background(), t.currentTaskID)
+	current, _, err := t.taskByID(context.Background(), t.currentTaskID)
+	if err != nil {
+		return nil, err
+	}
 	task, err := t.executor.addRuntimeWorkflowTask(context.Background(), parent, current, workflowRuntimeTaskRequest{
 		Title: plannerStringArg(args, "title"), Message: plannerStringArg(args, "message"), Description: plannerStringArg(args, "description"),
 		DependsOn: plannerStringSliceArg(args, "dependsOn"), AgentRole: plannerStringArg(args, "agentRole"), ModeHint: plannerStringArg(args, "modeHint"),
@@ -100,10 +100,9 @@ func (t *workflowTaskToolset) add(args map[string]any) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	parent, tasks, jftradeErr22 := t.parentAndTasks(context.Background())
-	besteffort.LogError(jftradeErr22)
-	jftradeErr13 := t.saveParentPlan(context.Background(), parent, tasks)
-	besteffort.LogError(jftradeErr13)
+	if _, _, err := t.syncParentPlan(context.Background()); err != nil {
+		return taskMutationProjectionFailure(task, err)
+	}
 	return map[string]any{"success": true, "task": taskToolTaskSummary(task)}, nil
 }
 
@@ -126,11 +125,11 @@ func (t *workflowTaskToolset) claim(args map[string]any) (map[string]any, error)
 	if err != nil {
 		return nil, err
 	}
+	if _, _, err := t.syncParentPlan(context.Background()); err != nil {
+		t.currentTaskID = updated.ID
+		return taskMutationProjectionFailure(updated, err)
+	}
 	t.currentTaskID = updated.ID
-	parent, tasks, jftradeErr16 := t.parentAndTasks(context.Background())
-	besteffort.LogError(jftradeErr16)
-	jftradeErr11 := t.saveParentPlan(context.Background(), parent, tasks)
-	besteffort.LogError(jftradeErr11)
 	return map[string]any{"success": true, "task": taskToolTaskSummary(updated)}, nil
 }
 
@@ -180,11 +179,11 @@ func (t *workflowTaskToolset) complete(args map[string]any) (map[string]any, err
 	if err != nil {
 		return nil, err
 	}
+	if _, _, err := t.syncParentPlan(context.Background()); err != nil {
+		t.currentTaskID = ""
+		return taskMutationProjectionFailure(updated, err)
+	}
 	t.currentTaskID = ""
-	parent, tasks, jftradeErr12 := t.parentAndTasks(context.Background())
-	besteffort.LogError(jftradeErr12)
-	jftradeErr14 := t.saveParentPlan(context.Background(), parent, tasks)
-	besteffort.LogError(jftradeErr14)
 	return map[string]any{"success": true, "task": taskToolTaskSummary(updated)}, nil
 }
 
@@ -209,10 +208,9 @@ func (t *workflowTaskToolset) block(args map[string]any) (map[string]any, error)
 	if err != nil {
 		return nil, err
 	}
-	parent, tasks, jftradeErr20 := t.parentAndTasks(context.Background())
-	besteffort.LogError(jftradeErr20)
-	jftradeErr18 := t.saveParentPlan(context.Background(), parent, tasks)
-	besteffort.LogError(jftradeErr18)
+	if _, _, err := t.syncParentPlan(context.Background()); err != nil {
+		return taskMutationProjectionFailure(updated, err)
+	}
 	return map[string]any{"success": true, "task": taskToolTaskSummary(updated)}, nil
 }
 
@@ -295,7 +293,11 @@ func (t *workflowTaskToolset) goalComplete(args map[string]any) (map[string]any,
 	if err != nil {
 		return nil, err
 	}
-	if blockers := t.workflowCompletionBlockers(context.Background(), parent, tasks); len(blockers) > 0 {
+	blockers, err := t.workflowCompletionBlockers(context.Background(), parent, tasks)
+	if err != nil {
+		return nil, err
+	}
+	if len(blockers) > 0 {
 		return map[string]any{
 			"success":  false,
 			"status":   "blocked",
@@ -307,20 +309,23 @@ func (t *workflowTaskToolset) goalComplete(args map[string]any) (map[string]any,
 	if summary == "" {
 		summary = plannerStringArg(args, "resultSummary")
 	}
+	if err := t.saveParentPlan(context.Background(), parent, tasks); err != nil {
+		return nil, err
+	}
 	t.req.GoalDecision.setComplete(summary)
-	jftradeErr17 := t.saveParentPlan(context.Background(), parent, tasks)
-	besteffort.LogError(jftradeErr17)
 	return map[string]any{"success": true, "status": "complete", "summary": summary}, nil
 }
 
-func (t *workflowTaskToolset) workflowCompletionBlockers(ctx context.Context, parent Run, tasks []Task) []map[string]any {
+func (t *workflowTaskToolset) workflowCompletionBlockers(ctx context.Context, parent Run, tasks []Task) ([]map[string]any, error) {
 	blockers := make([]map[string]any, 0)
 	pendingApprovalRuns := map[string]struct{}{}
-	if approvals, err := t.executor.runtime.store.ListApprovals(ctx); err == nil {
-		for _, approval := range approvals {
-			if approval.Status == ApprovalStatusPending {
-				pendingApprovalRuns[strings.TrimSpace(approval.RunID)] = struct{}{}
-			}
+	approvals, err := t.executor.runtime.store.ListApprovals(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, approval := range approvals {
+		if approval.Status == ApprovalStatusPending {
+			pendingApprovalRuns[strings.TrimSpace(approval.RunID)] = struct{}{}
 		}
 	}
 	for _, task := range tasks {
@@ -368,7 +373,7 @@ func (t *workflowTaskToolset) workflowCompletionBlockers(ctx context.Context, pa
 			blockers = append(blockers, map[string]any{"type": "child_run", "id": childRunID, "status": status})
 		}
 	}
-	return blockers
+	return blockers, nil
 }
 
 func (t *workflowTaskToolset) goalContinue(args map[string]any) (map[string]any, error) {
@@ -378,11 +383,10 @@ func (t *workflowTaskToolset) goalContinue(args map[string]any) (map[string]any,
 	if reason == "" {
 		reason = "目标尚未完成。"
 	}
+	if _, _, err := t.syncParentPlan(context.Background()); err != nil {
+		return nil, err
+	}
 	t.req.GoalDecision.setContinue(reason)
-	parent, tasks, jftradeErr21 := t.parentAndTasks(context.Background())
-	besteffort.LogError(jftradeErr21)
-	jftradeErr19 := t.saveParentPlan(context.Background(), parent, tasks)
-	besteffort.LogError(jftradeErr19)
 	return map[string]any{"success": true, "status": "continue", "reason": reason}, nil
 }
 
@@ -407,26 +411,51 @@ func (t *workflowTaskToolset) saveParentPlan(ctx context.Context, parent Run, ta
 	return err
 }
 
-func (t *workflowTaskToolset) taskByID(ctx context.Context, id string) (Task, bool) {
-	if strings.TrimSpace(id) == "" {
-		return Task{}, false
-	}
-	task, ok, err := t.executor.runtime.store.Task(ctx, id)
+func (t *workflowTaskToolset) syncParentPlan(ctx context.Context) (Run, []Task, error) {
+	parent, tasks, err := t.parentAndTasks(ctx)
 	if err != nil {
-		return Task{}, false
+		return Run{}, nil, err
 	}
-	return task, ok
+	if err := t.saveParentPlan(ctx, parent, tasks); err != nil {
+		return Run{}, nil, err
+	}
+	return parent, tasks, nil
+}
+
+func taskMutationProjectionFailure(task Task, err error) (map[string]any, error) {
+	return map[string]any{
+		"success":          false,
+		"committed":        true,
+		"partial":          true,
+		"retryable":        false,
+		"parentPlanSynced": false,
+		"task":             taskToolTaskSummary(task),
+		"message":          "task mutation was committed, but parent workflow-plan projection failed; refresh workflow state before continuing",
+		"error":            err.Error(),
+	}, nil
+}
+
+func (t *workflowTaskToolset) taskByID(ctx context.Context, id string) (Task, bool, error) {
+	if strings.TrimSpace(id) == "" {
+		return Task{}, false, nil
+	}
+	return t.executor.runtime.store.Task(ctx, id)
 }
 
 func (t *workflowTaskToolset) resolveTask(ctx context.Context, parent Run, tasks []Task, id string, allowReady bool) (Task, error) {
 	if strings.TrimSpace(id) != "" {
-		task, ok := t.taskByID(ctx, id)
+		task, ok, err := t.taskByID(ctx, id)
+		if err != nil {
+			return Task{}, err
+		}
 		if !ok {
 			return Task{}, fmt.Errorf("task not found: %s", id)
 		}
 		return task, nil
 	}
-	if task, ok := t.taskByID(ctx, t.currentTaskID); ok && task.Status != "DONE" && task.Status != "CANCELLED" {
+	if task, ok, err := t.taskByID(ctx, t.currentTaskID); err != nil {
+		return Task{}, err
+	} else if ok && task.Status != "DONE" && task.Status != "CANCELLED" {
 		return task, nil
 	}
 	for _, task := range tasks {

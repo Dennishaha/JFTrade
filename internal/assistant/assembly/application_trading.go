@@ -9,28 +9,28 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-func (a *ApplicationAdapter) executionOrders() any {
+func (a *ApplicationAdapter) executionOrders() (any, error) {
 	service := a.trading()
 	if service == nil {
-		return []trdsrv.ExecutionOrder{}
+		return nil, fmt.Errorf("trading service is unavailable")
 	}
 	orders, err := service.ExecutionOrdersSnapshot(context.Background())
 	if err != nil {
-		return []trdsrv.ExecutionOrder{}
+		return nil, err
 	}
-	return orders.Orders
+	return orders.Orders, nil
 }
 
-func (a *ApplicationAdapter) executionOrderEvents(internalOrderID string) any {
+func (a *ApplicationAdapter) executionOrderEvents(internalOrderID string) (any, error) {
 	service := a.trading()
 	if service == nil {
-		return trdsrv.ExecutionOrderEvents{InternalOrderID: internalOrderID}
+		return nil, fmt.Errorf("trading service is unavailable")
 	}
 	events, err := service.ExecutionOrderEvents(context.Background(), internalOrderID)
 	if err != nil {
-		return trdsrv.ExecutionOrderEvents{InternalOrderID: internalOrderID}
+		return nil, err
 	}
-	return events
+	return events, nil
 }
 
 func (a *ApplicationAdapter) brokerOrders(ctx context.Context, input BrokerReadInput) (any, error) {

@@ -42,7 +42,7 @@ func jftradeCheckTestError(t *testing.T, err error) {
 
 func NewStrategyDesignStore(path string) (*Store, error) { return openStore(path) }
 
-func (s *Store) listDefinitions() []stratsrv.Definition { return s.ListDefinitions() }
+func (s *Store) listDefinitions() ([]stratsrv.Definition, error) { return s.ListDefinitions() }
 
 func (s *Store) definition(id string) (stratsrv.Definition, bool, error) {
 	return s.GetDefinition(id)
@@ -156,8 +156,8 @@ func TestStrategyDesignStoreIgnoresLegacyJSONFile(t *testing.T) {
 	}
 	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
 
-	if got := store.listDefinitions(); len(got) != 0 {
-		t.Fatalf("expected legacy json definitions to be ignored, got %+v", got)
+	if got, err := store.listDefinitions(); err != nil || len(got) != 0 {
+		t.Fatalf("expected legacy json definitions to be ignored, got %+v, err %v", got, err)
 	}
 	if _, ok, err := store.definition("legacy-ma-strategy"); err != nil || ok {
 		t.Fatal("expected legacy json definition to be ignored")
@@ -530,8 +530,8 @@ func TestStrategyDesignStoreDeleteDefinitionSoftDeletes(t *testing.T) {
 	if _, ok, err := store.definition(created.ID); err != nil || ok {
 		t.Fatal("expected soft-deleted definition to be hidden from definition lookup")
 	}
-	if got := store.listDefinitions(); len(got) != 0 {
-		t.Fatalf("expected soft-deleted definition to be hidden from list, got %+v", got)
+	if got, err := store.listDefinitions(); err != nil || len(got) != 0 {
+		t.Fatalf("expected soft-deleted definition to be hidden from list, got %+v, err %v", got, err)
 	}
 	if got := countStrategyDesignDefinitionRows(t, store.dbPath); got != 1 {
 		t.Fatalf("db row count after soft delete = %d, want 1", got)
@@ -551,8 +551,8 @@ func TestStrategyDesignStoreRejectsCorruptRowsAndClosedOperations(t *testing.T) 
 strategy("Corrupt")', '{', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL)`); err != nil {
 		t.Fatalf("insert corrupt definition: %v", err)
 	}
-	if got := store.ListDefinitions(); len(got) != 0 {
-		t.Fatalf("corrupt definitions list = %#v", got)
+	if got, err := store.ListDefinitions(); err == nil || got != nil {
+		t.Fatalf("corrupt definitions list = %#v, err %v", got, err)
 	}
 	if _, ok, err := store.GetDefinition("corrupt"); err == nil || ok {
 		t.Fatalf("corrupt definition = ok %v, err %v", ok, err)
@@ -574,8 +574,8 @@ strategy("Corrupt")', '{', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL)
 	if err := store.Close(); err != nil {
 		t.Fatalf("close design store: %v", err)
 	}
-	if got := store.ListDefinitions(); len(got) != 0 {
-		t.Fatalf("closed definitions list = %#v", got)
+	if got, err := store.ListDefinitions(); err == nil || got != nil {
+		t.Fatalf("closed definitions list = %#v, err %v", got, err)
 	}
 	if _, _, err := store.GetDefinition("closed"); err == nil {
 		t.Fatal("expected closed definition error")

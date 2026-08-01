@@ -116,11 +116,17 @@ func handleAnalyzePine(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Success 200 {object} httpserver.Envelope{data=[]srv.Definition}
 // @Failure 401 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
 // @Failure 503 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/strategy-definitions [get]
 func handleListDefinitions(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		httpserver.WriteOK(c, svc.ListDefinitions())
+		items, err := svc.ListDefinitions()
+		if err != nil {
+			httpserver.WriteError(c, http.StatusInternalServerError, "STRATEGY_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, items)
 	}
 }
 

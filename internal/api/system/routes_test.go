@@ -118,6 +118,55 @@ func TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits(
 	}
 }
 
+func TestRealTradeReleaseRoutesRejectMalformedOptionalPayloadBeforeStateChange(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	actions := 0
+	svc := sysservice.NewService(
+		sysservice.WithRealTradeRuntimeRiskControls(
+			nil,
+			func(context.Context, sysservice.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+				actions++
+				return trdsrv.RealTradeRiskSnapshot{}, nil
+			},
+		),
+		sysservice.WithRealTradeKillSwitchControls(
+			nil,
+			func(context.Context, sysservice.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+				actions++
+				return trdsrv.RealTradeRiskSnapshot{}, nil
+			},
+		),
+		sysservice.WithRealTradeHardStopControls(
+			nil,
+			func(context.Context, string, sysservice.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+				actions++
+				return trdsrv.RealTradeRiskSnapshot{}, nil
+			},
+		),
+	)
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), svc)
+
+	for _, route := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/v1/system/real-trade-hard-stops/hs-1/release"},
+		{http.MethodPost, "/api/v1/system/real-trade-kill-switch/release"},
+		{http.MethodDelete, "/api/v1/system/real-trade-risk-limits"},
+	} {
+		t.Run(route.path, func(t *testing.T) {
+			response := performSystemRouteJSONRequest(router, route.method, route.path, `{`)
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d body=%s", response.Code, response.Body.String())
+			}
+		})
+	}
+	if actions != 0 {
+		t.Fatalf("release actions = %d, want 0", actions)
+	}
+}
+
 func TestExchangeCalendarProbeRouteCallsProbe(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	probedMarket := ""

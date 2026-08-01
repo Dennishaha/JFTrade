@@ -2,6 +2,7 @@ package assembly
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -15,13 +16,11 @@ import (
 func TestApplicationAdapterReportsUnavailableDomainServices(t *testing.T) {
 	deps := NewApplicationAdapter(ApplicationPorts{}).ToolDeps()
 
-	orders, ok := deps.ExecutionOrders().([]trdsrv.ExecutionOrder)
-	if !ok || len(orders) != 0 {
-		t.Fatalf("execution orders fallback = %#v, want typed empty trading orders", orders)
+	if _, err := deps.ExecutionOrders(); err == nil {
+		t.Fatal("execution orders unavailable error = nil")
 	}
-	events := deps.ExecutionOrderEvents("order-1")
-	if events == nil {
-		t.Fatal("execution order events fallback is nil")
+	if _, err := deps.ExecutionOrderEvents("order-1"); err == nil {
+		t.Fatal("execution order events unavailable error = nil")
 	}
 	for name, invoke := range map[string]func() error{
 		"broker orders": func() error {
@@ -48,11 +47,34 @@ func TestApplicationAdapterReportsUnavailableDomainServices(t *testing.T) {
 			t.Fatalf("%s error = nil, want unavailable service error", name)
 		}
 	}
-	if got := deps.ListStrategyDefinitions(); got != nil {
-		t.Fatalf("strategy definitions fallback = %#v, want nil", got)
+	if got, err := deps.ListStrategyDefinitions(); err == nil || got != nil {
+		t.Fatalf("strategy definitions = %#v, %v; want unavailable error", got, err)
 	}
 	if got := deps.ListBacktestRuns(); got != nil {
 		t.Fatalf("backtest runs fallback = %#v, want nil", got)
+	}
+}
+
+func TestApplicationAdapterPropagatesExecutionProjectionFailures(t *testing.T) {
+	want := errors.New("execution storage unavailable")
+	adapter := NewApplicationAdapter(ApplicationPorts{Trading: func() *trdsrv.Service {
+		return trdsrv.NewService(
+			trdsrv.WithListOrders(func(context.Context, trdsrv.ExecutionOrderFilter) (trdsrv.ExecutionOrders, error) {
+				return trdsrv.ExecutionOrders{}, want
+			}),
+			trdsrv.WithGetOrderEvents(func(context.Context, string) (trdsrv.ExecutionOrderEvents, error) {
+				return trdsrv.ExecutionOrderEvents{}, want
+			}),
+		)
+	}})
+	deps := adapter.ToolDeps()
+	for name, call := range map[string]func() error{
+		"orders": func() error { _, err := deps.ExecutionOrders(); return err },
+		"events": func() error { _, err := deps.ExecutionOrderEvents("order-1"); return err },
+	} {
+		if !errors.Is(call(), want) {
+			t.Fatalf("%s error did not preserve storage failure", name)
+		}
 	}
 }
 

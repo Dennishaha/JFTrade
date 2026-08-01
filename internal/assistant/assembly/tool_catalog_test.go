@@ -2,6 +2,7 @@ package assembly
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -298,11 +299,11 @@ func TestADKReadToolsNormalizeInputsAndExposeBusinessHandlers(t *testing.T) {
 		},
 		RiskState:  func() any { return map[string]any{"killSwitch": false} },
 		RiskEvents: func() any { return []string{"none"} },
-		ExecutionOrders: func() any {
-			return []map[string]any{{"id": "exec-1"}}
+		ExecutionOrders: func() (any, error) {
+			return []map[string]any{{"id": "exec-1"}}, nil
 		},
-		ExecutionOrderEvents: func(internalOrderID string) any {
-			return map[string]any{"internalOrderId": internalOrderID, "events": []string{"accepted"}}
+		ExecutionOrderEvents: func(internalOrderID string) (any, error) {
+			return map[string]any{"internalOrderId": internalOrderID, "events": []string{"accepted"}}, nil
 		},
 	})
 
@@ -581,8 +582,8 @@ func TestADKCoreToolHandlersNormalizeMarketAndPortfolioFlows(t *testing.T) {
 		DefaultTradeMarket: func() string {
 			return "US"
 		},
-		ExecutionOrders: func() any {
-			return []map[string]any{{"id": "ord-1"}, {"id": "ord-2"}}
+		ExecutionOrders: func() (any, error) {
+			return []map[string]any{{"id": "ord-1"}, {"id": "ord-2"}}, nil
 		},
 		BrokerFunds: func(_ context.Context, query broker.ReadQuery, _ time.Duration) any {
 			fundsQuery = query
@@ -704,5 +705,33 @@ func TestWatchlistListToolDefaultsToReadOnlyMetadataAndNormalizesPaging(t *testi
 	}
 	if _, err := tool.Handler(context.Background(), map[string]any{"includeQuotes": true}); err != nil || !captured.IncludeQuotes {
 		t.Fatalf("includeQuotes opt-in captured=%#v err=%v", captured, err)
+	}
+}
+
+func TestExecutionReadToolsPropagateProjectionFailures(t *testing.T) {
+	want := errors.New("execution store unavailable")
+	registry := jfadk.NewToolRegistry()
+	RegisterJFTradeADKTools(nil, registry, ToolDeps{
+		DefaultTradeMarket:   func() string { return "US" },
+		ExecutionOrders:      func() (any, error) { return nil, want },
+		ExecutionOrderEvents: func(string) (any, error) { return nil, want },
+	})
+	for name, input := range map[string]map[string]any{
+		"portfolio.summary":        {},
+		"account.orders":           {},
+		"execution.order_events":   {},
+		"execution.order_events/1": {"internalOrderId": "order-1"},
+	} {
+		toolName := name
+		if toolName == "execution.order_events/1" {
+			toolName = "execution.order_events"
+		}
+		tool, ok := registry.Get(toolName)
+		if !ok {
+			t.Fatalf("%s is not registered", toolName)
+		}
+		if _, err := tool.Handler(t.Context(), input); !errors.Is(err, want) {
+			t.Fatalf("%s error = %v, want %v", name, err, want)
+		}
 	}
 }

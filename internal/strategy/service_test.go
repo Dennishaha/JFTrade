@@ -11,10 +11,11 @@ import (
 
 type fakeDesignStore struct {
 	definitions []Definition
+	listErr     error
 	saved       Definition
 }
 
-func (s *fakeDesignStore) ListDefinitions() []Definition { return s.definitions }
+func (s *fakeDesignStore) ListDefinitions() ([]Definition, error) { return s.definitions, s.listErr }
 func (s *fakeDesignStore) GetDefinition(id string) (Definition, bool, error) {
 	return Definition{ID: id}, true, nil
 }
@@ -140,8 +141,8 @@ func TestServiceDelegatesStoresAndRuntime(t *testing.T) {
 	runtime := &fakeRuntimeManager{}
 	service := NewService(design, catalog, runtime)
 
-	if got := service.ListDefinitions(); len(got) != 1 {
-		t.Fatalf("ListDefinitions() = %#v", got)
+	if got, err := service.ListDefinitions(); err != nil || len(got) != 1 {
+		t.Fatalf("ListDefinitions() = %#v, err %v", got, err)
 	}
 	if got, ok, err := service.GetDefinition("d1"); err != nil || !ok || got.ID != "d1" {
 		t.Fatalf("GetDefinition() = %#v, %v, %v", got, ok, err)
@@ -158,6 +159,15 @@ func TestServiceDelegatesStoresAndRuntime(t *testing.T) {
 	}
 	if got := service.ActiveInstrumentIDs(); len(got) != 1 || got[0] != "US.AAPL" {
 		t.Fatalf("ActiveInstrumentIDs() = %#v", got)
+	}
+}
+
+func TestServiceListDefinitionsPropagatesStoreError(t *testing.T) {
+	wantErr := errors.New("definition store unavailable")
+	service := NewService(&fakeDesignStore{listErr: wantErr}, &fakeCatalogStore{}, &fakeRuntimeManager{})
+
+	if _, err := service.ListDefinitions(); !errors.Is(err, wantErr) {
+		t.Fatalf("ListDefinitions() error = %v, want %v", err, wantErr)
 	}
 }
 

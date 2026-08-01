@@ -46,7 +46,10 @@ func TestWorkflowTaskToolsetAdditionalBusinessBranches(t *testing.T) {
 		runtime.activeRuns["orphan-active-child"] = func() {}
 		runtime.activeMu.Unlock()
 
-		blockers := (&workflowTaskToolset{executor: runtime.workflowExecutor()}).workflowCompletionBlockers(ctx, parent, tasks)
+		blockers, err := (&workflowTaskToolset{executor: runtime.workflowExecutor()}).workflowCompletionBlockers(ctx, parent, tasks)
+		if err != nil {
+			t.Fatalf("workflowCompletionBlockers: %v", err)
+		}
 		statuses := map[string]string{}
 		for _, blocker := range blockers {
 			id, _ := blocker["id"].(string)

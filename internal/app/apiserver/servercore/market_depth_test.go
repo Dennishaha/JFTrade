@@ -369,18 +369,19 @@ func TestMarketDepthNumClamping(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	tests := []struct {
-		name       string
-		queryNum   string
-		expectCode int
-		expectNum  int
+		name          string
+		queryNum      string
+		expectCode    int
+		expectNum     int
+		expectSuccess bool
 	}{
-		{"num=0 clamps to 1", "0", http.StatusOK, 1},
-		{"num=-5 clamps to 1", "-5", http.StatusOK, 1},
-		{"num=100 clamps to 50", "100", http.StatusOK, 50},
-		{"num=50 is max valid", "50", http.StatusOK, 50},
-		{"no num defaults to 10", "", http.StatusOK, 10},
-		{"num=5 is valid", "5", http.StatusOK, 5},
-		{"non-numeric num defaults to 10", "abc", http.StatusOK, 10},
+		{"num=0 clamps to 1", "0", http.StatusOK, 1, true},
+		{"num=-5 clamps to 1", "-5", http.StatusOK, 1, true},
+		{"num=100 clamps to 50", "100", http.StatusOK, 50, true},
+		{"num=50 is max valid", "50", http.StatusOK, 50, true},
+		{"no num defaults to 10", "", http.StatusOK, 10, true},
+		{"num=5 is valid", "5", http.StatusOK, 5, true},
+		{"non-numeric num is rejected", "abc", http.StatusBadRequest, 0, false},
 	}
 
 	for _, tt := range tests {
@@ -397,6 +398,9 @@ func TestMarketDepthNumClamping(t *testing.T) {
 
 			if resp.StatusCode != tt.expectCode {
 				t.Errorf("status = %d, want %d", resp.StatusCode, tt.expectCode)
+			}
+			if !tt.expectSuccess {
+				return
 			}
 			var envelope struct {
 				OK   bool `json:"ok"`

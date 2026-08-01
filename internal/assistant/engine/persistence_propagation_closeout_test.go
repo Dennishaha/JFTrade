@@ -277,9 +277,12 @@ func TestWorkflowBlockerAndRuntimeInitializationFailureSemantics(t *testing.T) {
 	runtime := newTestRuntime(t)
 	parent := Run{ID: "missing-child-blocker-parent", ChildRunIDs: []string{"orphan-child"}}
 	toolset := &workflowTaskToolset{executor: runtime.workflowExecutor()}
-	blockers := toolset.workflowCompletionBlockers(t.Context(), parent, []Task{{
+	blockers, err := toolset.workflowCompletionBlockers(t.Context(), parent, []Task{{
 		ID: "missing-child-blocker-task", Status: "DONE", Executor: workflowTaskExecutorChild, RunID: "missing-child",
 	}})
+	if err != nil {
+		t.Fatalf("workflowCompletionBlockers: %v", err)
+	}
 	if len(blockers) != 2 || blockers[0]["status"] != "MISSING" || blockers[1]["status"] != "MISSING" {
 		t.Fatalf("workflow completion blockers = %+v", blockers)
 	}

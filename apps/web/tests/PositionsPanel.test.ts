@@ -91,6 +91,7 @@ function createConsoleDataState() {
     activeExecutionOrders: ref({
       orders: [],
     }),
+    activeExecutionOrdersError: ref(""),
     historicalExecutionOrders: ref({
       orders: [],
     }),
@@ -104,6 +105,7 @@ function createConsoleDataState() {
     portfolioPositions: ref({
       positions: [],
     }),
+    portfolioLiveDataError: ref(""),
     selectedBrokerAccount: ref(null),
     loadHistoricalExecutionOrders: mocks.loadHistoricalExecutionOrders,
     systemStatus: ref({
@@ -685,6 +687,22 @@ describe("PositionsPanel", () => {
     setRefValue(consoleDataState.historicalOrdersError, "历史订单同步失败");
     await nextTick();
     expect(wrapper.text()).toContain("历史订单同步失败");
+  });
+
+  it("labels failed portfolio and active-order reads instead of presenting them as empty data", async () => {
+    setRefValue(consoleDataState.portfolioLiveDataError, "持仓加载失败: positions unavailable");
+    const { wrapper } = mountPositionsPanel();
+
+    expect(wrapper.get('[data-testid="portfolio-live-data-error"]').text()).toContain(
+      "持仓加载失败: positions unavailable",
+    );
+
+    setRefValue(consoleDataState.activeExecutionOrdersError, "活动执行订单加载失败: orders unavailable");
+    await switchTab(wrapper, "近期订单");
+
+    expect(wrapper.get('[data-testid="portfolio-live-data-error"]').text()).toContain(
+      "活动执行订单加载失败: orders unavailable",
+    );
   });
 
   it("marks historical orders as loaded without fetching when no broker account is selected", async () => {

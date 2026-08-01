@@ -120,6 +120,7 @@ function createConsoleDataState() {
     activeExecutionOrders: ref({
       orders: [],
     }),
+    activeExecutionOrdersError: ref(""),
     historicalExecutionOrders: ref({
       orders: [],
     }),
@@ -140,6 +141,7 @@ function createConsoleDataState() {
     portfolioPositions: ref({
       positions: [],
     }),
+    portfolioLiveDataError: ref(""),
     resolveBrokerReadFeatureQueryRequirements:
       mocks.resolveBrokerReadFeatureQueryRequirements,
     selectedBrokerAccount: ref(null),

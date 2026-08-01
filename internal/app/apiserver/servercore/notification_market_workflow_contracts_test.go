@@ -89,6 +89,15 @@ func TestMarketQueryAndExecutionPayloadFallbacksRemainDeterministic(t *testing.T
 	if _, err := decodeMarketCandlesQuery(map[string][]string{"period": {"not-a-period"}}); err == nil {
 		t.Fatal("invalid period should be rejected")
 	}
+	for key, value := range map[string]string{
+		"limit":    "not-a-number",
+		"fromTime": "not-a-time",
+		"toTime":   "not-a-time",
+	} {
+		if _, err := decodeMarketCandlesQuery(map[string][]string{key: {value}}); err == nil {
+			t.Fatalf("invalid %s should be rejected", key)
+		}
+	}
 	query, err := decodeMarketCandlesQuery(map[string][]string{
 		"limit": {"0"}, "from": {"2026-07-15T10:00:00Z"}, "to": {"2026-07-15T09:00:00Z"},
 	})

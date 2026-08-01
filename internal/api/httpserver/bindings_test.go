@@ -98,7 +98,7 @@ func TestBindURIAllowsEscapedLiteralPercent(t *testing.T) {
 }
 
 func TestOptionalQueryValueParsingSemantics(t *testing.T) {
-	t.Run("optional int treats empty as valid zero and invalid text as non-fatal", func(t *testing.T) {
+	t.Run("optional int treats empty as valid zero and rejects invalid text", func(t *testing.T) {
 		var empty OptionalIntValue
 		if err := empty.UnmarshalText([]byte("   ")); err != nil {
 			t.Fatalf("OptionalIntValue.UnmarshalText(empty) error = %v", err)
@@ -108,8 +108,8 @@ func TestOptionalQueryValueParsingSemantics(t *testing.T) {
 		}
 
 		var invalid OptionalIntValue
-		if err := invalid.UnmarshalText([]byte("abc")); err != nil {
-			t.Fatalf("OptionalIntValue.UnmarshalText(invalid) error = %v", err)
+		if err := invalid.UnmarshalText([]byte("abc")); err == nil {
+			t.Fatal("OptionalIntValue.UnmarshalText(invalid) error = nil")
 		}
 		if !invalid.Set || invalid.Valid || invalid.Int() != 0 {
 			t.Fatalf("OptionalIntValue(invalid) = %#v", invalid)
@@ -124,7 +124,7 @@ func TestOptionalQueryValueParsingSemantics(t *testing.T) {
 		}
 	})
 
-	t.Run("optional bool accepts common truthy and falsy forms", func(t *testing.T) {
+	t.Run("optional bool accepts common truthy and falsy forms and rejects invalid input", func(t *testing.T) {
 		var truthy OptionalBoolValue
 		if err := truthy.UnmarshalText([]byte(" YeS ")); err != nil {
 			t.Fatalf("OptionalBoolValue.UnmarshalText(truthy) error = %v", err)
@@ -134,11 +134,19 @@ func TestOptionalQueryValueParsingSemantics(t *testing.T) {
 		}
 
 		var falsy OptionalBoolValue
-		if err := falsy.UnmarshalText([]byte("maybe")); err != nil {
+		if err := falsy.UnmarshalText([]byte("off")); err != nil {
 			t.Fatalf("OptionalBoolValue.UnmarshalText(falsy) error = %v", err)
 		}
 		if !falsy.Set || falsy.Bool() {
 			t.Fatalf("OptionalBoolValue(falsy) = %#v", falsy)
+		}
+
+		var invalid OptionalBoolValue
+		if err := invalid.UnmarshalText([]byte("maybe")); err == nil {
+			t.Fatal("OptionalBoolValue.UnmarshalText(invalid) error = nil")
+		}
+		if !invalid.Set || invalid.Bool() {
+			t.Fatalf("OptionalBoolValue(invalid) = %#v", invalid)
 		}
 	})
 
@@ -163,6 +171,14 @@ func TestOptionalQueryValueParsingSemantics(t *testing.T) {
 		var zero OptionalTimeValue
 		if zero.PtrUTC() != nil || zero.StringValue() != "" {
 			t.Fatalf("zero OptionalTimeValue = ptr:%v string:%q", zero.PtrUTC(), zero.StringValue())
+		}
+
+		var invalid OptionalTimeValue
+		if err := invalid.UnmarshalText([]byte("not-a-time")); err == nil {
+			t.Fatal("OptionalTimeValue.UnmarshalText(invalid) error = nil")
+		}
+		if invalid.PtrUTC() != nil {
+			t.Fatalf("OptionalTimeValue(invalid) = %#v", invalid)
 		}
 	})
 }

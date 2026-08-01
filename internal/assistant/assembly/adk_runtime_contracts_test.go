@@ -28,8 +28,8 @@ func TestADKRuntimeStrategyToolsPreserveOwnerContracts(t *testing.T) {
 			updatedInstance = instanceID + ":" + mode
 			return map[string]any{"id": instanceID, "executionMode": mode}, nil
 		},
-		ListStrategyDefinitions: func() []StrategyDefinitionSummary {
-			return []StrategyDefinitionSummary{{ID: "definition-1", Name: "Saved", Script: strategypinespec.Skeleton()}}
+		ListStrategyDefinitions: func() ([]StrategyDefinitionSummary, error) {
+			return []StrategyDefinitionSummary{{ID: "definition-1", Name: "Saved", Script: strategypinespec.Skeleton()}}, nil
 		},
 		ListStrategyInstances: func() []StrategyInstanceSummary {
 			return []StrategyInstanceSummary{{ID: "instance-1", DefinitionID: "definition-1", Status: "STOPPED"}}

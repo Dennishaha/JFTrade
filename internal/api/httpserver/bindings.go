@@ -43,7 +43,7 @@ func (v *OptionalIntValue) UnmarshalText(text []byte) error {
 	if err != nil {
 		v.Value = 0
 		v.Valid = false
-		return nil // 不返回 error，保持 Valid=false
+		return fmt.Errorf("invalid integer %q", raw)
 	}
 	v.Value = parsed
 	v.Valid = true
@@ -71,6 +71,7 @@ func (v *OptionalBoolValue) UnmarshalText(text []byte) error {
 		v.Value = false
 	default:
 		v.Value = false
+		return fmt.Errorf("invalid boolean %q", strings.TrimSpace(string(text)))
 	}
 	return nil
 }
@@ -88,7 +89,17 @@ type OptionalTimeValue struct {
 }
 
 func (v *OptionalTimeValue) UnmarshalText(text []byte) error {
-	v.Time = ParseQueryTime(string(text), time.Time{})
+	value := strings.TrimSpace(string(text))
+	if value == "" {
+		v.Time = time.Time{}
+		return nil
+	}
+	parsed, err := parseQueryTime(value)
+	if err != nil {
+		v.Time = time.Time{}
+		return err
+	}
+	v.Time = parsed
 	return nil
 }
 
@@ -196,17 +207,25 @@ func NormalizeBoundPage(limit int, offset int, defaultLimit int, maxLimit int) (
 // ParseQueryTime 解析查询参数中的时间字符串，支持多种常见格式。
 // 解析失败时返回 fallback。
 func ParseQueryTime(value string, fallback time.Time) time.Time {
+	parsed, err := parseQueryTime(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func parseQueryTime(value string) (time.Time, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return fallback
+		return time.Time{}, fmt.Errorf("time value is empty")
 	}
 	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05", "2006-01-02"} {
 		parsed, err := time.ParseInLocation(layout, value, time.UTC)
 		if err == nil {
-			return parsed.UTC()
+			return parsed.UTC(), nil
 		}
 	}
-	return fallback
+	return time.Time{}, fmt.Errorf("invalid time %q", value)
 }
 
 // ---- Candle Period Normalization ----

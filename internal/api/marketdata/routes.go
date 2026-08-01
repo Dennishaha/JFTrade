@@ -13,7 +13,6 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	srv "github.com/jftrade/jftrade-main/internal/marketdata"
 	productfeatures "github.com/jftrade/jftrade-main/internal/productfeatures"
-	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -194,8 +193,10 @@ func handleSnapshot(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) g
 		}
 		var refreshValue httpserver.OptionalBoolValue
 		if raw := c.Query("refresh"); raw != "" {
-			jftradeErr3 := refreshValue.UnmarshalText([]byte(raw))
-			besteffort.LogError(jftradeErr3)
+			if err := refreshValue.UnmarshalText([]byte(raw)); err != nil {
+				httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid refresh query")
+				return
+			}
 		}
 		refresh := refreshValue.Bool()
 
@@ -327,18 +328,34 @@ func parseCandleRouteQuery(c *gin.Context) (candleRouteQuery, error) {
 	}
 	if rawLimit := c.Query("limit"); rawLimit != "" {
 		parsed := httpserver.OptionalIntValue{}
-		besteffort.LogError(parsed.UnmarshalText([]byte(rawLimit)))
-		if parsed.Valid {
-			query.limit = parsed.Int()
+		if err := parsed.UnmarshalText([]byte(rawLimit)); err != nil {
+			return candleRouteQuery{}, errors.New("limit must be an integer")
 		}
+		query.limit = parsed.Int()
 	}
-	query.fromTime = normalizeOptionalQueryTime(c.Query("fromTime"))
+	fromTime, err := normalizeOptionalQueryTime(c.Query("fromTime"))
+	if err != nil {
+		return candleRouteQuery{}, err
+	}
+	query.fromTime = fromTime
 	if query.fromTime == "" {
-		query.fromTime = normalizeOptionalQueryTime(c.Query("from"))
+		from, err := normalizeOptionalQueryTime(c.Query("from"))
+		if err != nil {
+			return candleRouteQuery{}, err
+		}
+		query.fromTime = from
 	}
-	query.toTime = normalizeOptionalQueryTime(c.Query("toTime"))
+	toTime, err := normalizeOptionalQueryTime(c.Query("toTime"))
+	if err != nil {
+		return candleRouteQuery{}, err
+	}
+	query.toTime = toTime
 	if query.toTime == "" {
-		query.toTime = normalizeOptionalQueryTime(c.Query("to"))
+		to, err := normalizeOptionalQueryTime(c.Query("to"))
+		if err != nil {
+			return candleRouteQuery{}, err
+		}
+		query.toTime = to
 	}
 	if rawBefore := strings.TrimSpace(c.Query("before")); rawBefore != "" {
 		beforeAt, err := time.Parse(time.RFC3339Nano, rawBefore)
@@ -421,12 +438,16 @@ func writeBrokerMarketDataReadError(c *gin.Context, fallbackCode string, err err
 	}
 }
 
-func normalizeOptionalQueryTime(value string) string {
-	parsed := httpserver.ParseQueryTime(value, time.Time{})
-	if parsed.IsZero() {
-		return ""
+func normalizeOptionalQueryTime(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
 	}
-	return parsed.UTC().Format(time.RFC3339Nano)
+	parsed := httpserver.OptionalTimeValue{}
+	if err := parsed.UnmarshalText([]byte(value)); err != nil {
+		return "", errors.New("time must be a valid timestamp")
+	}
+	return parsed.UTC().Format(time.RFC3339Nano), nil
 }
 
 // handleDepth godoc
@@ -457,11 +478,11 @@ func handleDepth(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.
 		num := 10
 		if n := c.Query("num"); n != "" {
 			parsed := httpserver.OptionalIntValue{}
-			jftradeErr1 := parsed.UnmarshalText([]byte(n))
-			besteffort.LogError(jftradeErr1)
-			if parsed.Valid {
-				num = parsed.Int()
+			if err := parsed.UnmarshalText([]byte(n)); err != nil {
+				httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "num must be an integer")
+				return
 			}
+			num = parsed.Int()
 		}
 		var result map[string]any
 		var err error

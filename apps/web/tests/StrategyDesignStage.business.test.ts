@@ -731,7 +731,7 @@ describe("StrategyDesignStage business flows", () => {
     await settleStrategyWorkspace();
 
     expect(wrapper.text()).toContain("加载策略定义失败: definitions offline");
-    expect(wrapper.text()).toContain("暂无实例。");
+    expect(wrapper.text()).toContain("加载策略实例失败: strategies offline");
 
     const errorBanner = wrapper.get(".strategy-native-banner--error");
     expect(errorBanner.attributes("aria-expanded")).toBe("false");

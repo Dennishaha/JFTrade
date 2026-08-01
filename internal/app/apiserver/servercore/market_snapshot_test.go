@@ -126,6 +126,22 @@ func TestMarketSnapshotResponseForceRefreshBypassesCache(t *testing.T) {
 	}
 }
 
+func TestMarketSnapshotResponseRejectsInvalidRefreshQuery(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+
+	if _, err := server.marketSnapshotResponse(
+		t.Context(),
+		"/api/v1/market-data/snapshots/HK/00700",
+		map[string][]string{"refresh": {"sometimes"}},
+	); err == nil {
+		t.Fatal("marketSnapshotResponse invalid refresh error = nil")
+	}
+}
+
 func TestMarketCandlesTickResponseUsesFreshCache(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {

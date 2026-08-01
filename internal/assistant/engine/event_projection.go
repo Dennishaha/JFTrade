@@ -13,6 +13,7 @@ import (
 	"google.golang.org/adk/v2/tool/toolconfirmation"
 	adkworkflow "google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
+	"gorm.io/gorm"
 )
 
 type SessionProjection struct {
@@ -81,7 +82,13 @@ func (s *Store) SessionProjection(ctx context.Context, sessionID string) (Sessio
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
-	if err != nil || response == nil || response.Session == nil {
+	if err != nil {
+		if isADKSessionNotFound(err) {
+			return SessionProjection{SessionID: session.ID}, false, nil
+		}
+		return SessionProjection{}, false, err
+	}
+	if response == nil || response.Session == nil {
 		return SessionProjection{SessionID: session.ID}, false, nil
 	}
 	projection := sessionProjectionFromADKEvents(eventSlice(response.Session.Events()))
@@ -128,6 +135,14 @@ func (s *Store) latestRunBySession(ctx context.Context, sessionID string) (Run, 
 		return Run{}, false, err
 	}
 	return runs[0], true, nil
+}
+
+func isADKSessionNotFound(err error) bool {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return true
+	}
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.HasPrefix(message, "session ") && strings.HasSuffix(message, " not found")
 }
 
 func sessionProjectionFromADKEvents(events []*adksession.Event) SessionProjection {
