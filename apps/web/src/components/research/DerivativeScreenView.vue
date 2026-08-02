@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
+import EmptyState from "@/components/shared/EmptyState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import {
   directionClass,
@@ -373,19 +374,22 @@ function openEntry(entry: Record<string, unknown>): void {
       <small v-if="feature.asOf.value">更新 {{ feature.asOf.value }}</small>
       <button type="button" @click="feature.refresh">刷新</button>
     </header>
-    <div v-if="feature.loading.value" class="derivative-screen__status">加载中…</div>
-    <div v-else-if="feature.error.value" class="derivative-screen__status">
-      {{ feature.error.value }}
-    </div>
-    <ResearchDataTable
-      v-else
-      :entries="visibleEntries"
-      :columns="operation === 'warrant' ? warrantColumns : optionColumns"
-      :row-key="rowKey"
-      :empty-label="operation === 'warrant' ? '暂无符合条件的轮证' : '暂无符合条件的期权'"
-      @select="selectEntry"
-      @open="openEntry"
-    />
+    <EmptyState
+      :loading="feature.loading.value"
+      :error="feature.error.value"
+      class="derivative-screen__status"
+      bordered
+      :min-height="140"
+    >
+      <ResearchDataTable
+        :entries="visibleEntries"
+        :columns="operation === 'warrant' ? warrantColumns : optionColumns"
+        :row-key="rowKey"
+        :empty-label="operation === 'warrant' ? '暂无符合条件的轮证' : '暂无符合条件的期权'"
+        @select="selectEntry"
+        @open="openEntry"
+      />
+    </EmptyState>
     <button
       v-if="feature.hasMore.value"
       class="derivative-screen__more"
@@ -458,16 +462,6 @@ function openEntry(entry: Record<string, unknown>): void {
   color: var(--tv-text);
   cursor: pointer;
   font: inherit;
-}
-
-.derivative-screen__status {
-  display: grid;
-  min-height: 140px;
-  place-items: center;
-  border: 1px solid var(--tv-border);
-  border-radius: 6px;
-  background: var(--tv-bg-surface);
-  color: var(--tv-text-dim);
 }
 
 .derivative-screen__more {

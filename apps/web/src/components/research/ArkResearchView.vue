@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
+import EmptyState from "@/components/shared/EmptyState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import {
   directionClass,
@@ -167,19 +168,21 @@ function rowKey(
         <button type="button" @click="feature.refresh">刷新</button>
       </div>
     </header>
-    <div v-if="feature.loading.value" class="ark-research__status">加载中…</div>
-    <div v-else-if="feature.error.value" class="ark-research__status">
-      {{ feature.error.value }}
-    </div>
-    <ResearchDataTable
-      v-else
-      :entries="feature.entries.value"
-      :columns="holdings ? holdingColumns : transactionColumns"
-      :row-key="rowKey"
-      empty-label="暂无 ARK 数据"
-      @select="emit('select', $event)"
-      @open="emit('open', $event)"
-    />
+    <EmptyState
+      :loading="feature.loading.value"
+      :error="feature.error.value"
+      class="ark-research__status"
+      bordered
+    >
+      <ResearchDataTable
+        :entries="feature.entries.value"
+        :columns="holdings ? holdingColumns : transactionColumns"
+        :row-key="rowKey"
+        empty-label="暂无 ARK 数据"
+        @select="emit('select', $event)"
+        @open="emit('open', $event)"
+      />
+    </EmptyState>
     <button
       v-if="feature.hasMore.value"
       class="ark-research__more"
@@ -249,16 +252,6 @@ function rowKey(
 
 .ark-research__toolbar select {
   min-width: 92px;
-}
-
-.ark-research__status {
-  display: grid;
-  min-height: 120px;
-  place-items: center;
-  border: 1px solid var(--tv-border);
-  border-radius: 6px;
-  background: var(--tv-bg-surface);
-  color: var(--tv-text-dim);
 }
 
 .ark-research__more {

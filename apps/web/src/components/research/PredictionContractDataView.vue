@@ -2,6 +2,7 @@
 import { computed } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
+import EmptyState from "@/components/shared/EmptyState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import {
   formatCompactNumber,
@@ -255,13 +256,14 @@ const rows = computed(() => {
       <small v-if="feature.asOf.value">更新 {{ feature.asOf.value }}</small>
       <button type="button" @click="feature.refresh">刷新</button>
     </header>
-    <div v-if="feature.loading.value" class="prediction-contract-data__status">
-      加载中…
-    </div>
-    <div v-else-if="feature.error.value" class="prediction-contract-data__status">
-      {{ feature.error.value }}
-    </div>
-    <div v-else-if="view === 'snapshot'" class="prediction-contract-data__snapshot">
+    <EmptyState
+      :loading="feature.loading.value"
+      :error="feature.error.value"
+      class="prediction-contract-data__status"
+      bordered
+      grow
+    >
+      <div v-if="view === 'snapshot'" class="prediction-contract-data__snapshot">
       <div>
         <span>状态</span>
         <strong>{{ pickString(snapshot, ["status", "contractStatus"]) || "--" }}</strong>
@@ -301,12 +303,13 @@ const rows = computed(() => {
         <strong>{{ formatCompactNumber(pickNumber(snapshot, ["openInterest"])) }}</strong>
       </div>
     </div>
-    <ResearchDataTable
-      v-else
-      :entries="rows"
-      :columns="columns"
-      empty-label="暂无合约数据"
-    />
+      <ResearchDataTable
+        v-else
+        :entries="rows"
+        :columns="columns"
+        empty-label="暂无合约数据"
+      />
+    </EmptyState>
   </section>
 </template>
 
@@ -347,17 +350,6 @@ const rows = computed(() => {
   color: var(--tv-text);
   cursor: pointer;
   font: inherit;
-}
-
-.prediction-contract-data__status {
-  display: grid;
-  min-height: 120px;
-  flex: 1;
-  place-items: center;
-  border: 1px solid var(--tv-border);
-  border-radius: 6px;
-  background: var(--tv-bg-surface);
-  color: var(--tv-text-dim);
 }
 
 .prediction-contract-data__snapshot {

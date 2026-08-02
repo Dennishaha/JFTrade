@@ -12,6 +12,7 @@ import {
   useInstitutionGridController,
   type InstitutionOperation,
 } from "./useInstitutionGridController";
+import EmptyState from "@/components/shared/EmptyState.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -183,14 +184,14 @@ const hasProfileOverview = computed(
       </span>
     </div>
 
-    <div v-if="feature.loading.value" class="institution-grid-view__status">加载中…</div>
-    <div v-else-if="feature.error.value" class="institution-grid-view__status">
-      {{ feature.error.value }}
-    </div>
-    <div v-else-if="visibleCards.length === 0" class="institution-grid-view__status">
-      暂无数据
-    </div>
-    <div v-else class="institution-grid-view__grid">
+    <EmptyState
+      :loading="feature.loading.value"
+      :error="feature.error.value"
+      :empty="visibleCards.length === 0"
+      class="institution-grid-view__status"
+      bordered
+    >
+      <div class="institution-grid-view__grid">
       <div
         v-for="card in visibleCards"
         :key="card.name"
@@ -228,7 +229,8 @@ const hasProfileOverview = computed(
           <small v-if="card.disclosureDate" class="institution-grid-view__date">披露 {{ card.disclosureDate }}</small>
         </div>
       </div>
-    </div>
+      </div>
+    </EmptyState>
     <button
       v-if="feature.hasMore.value"
       type="button"
@@ -419,16 +421,6 @@ const hasProfileOverview = computed(
 }
 
 .institution-grid-view__currency {
-  color: var(--tv-text-dim);
-}
-
-.institution-grid-view__status {
-  display: grid;
-  min-height: 120px;
-  place-items: center;
-  border: 1px solid var(--tv-border);
-  border-radius: 6px;
-  background: var(--tv-bg-surface);
   color: var(--tv-text-dim);
 }
 

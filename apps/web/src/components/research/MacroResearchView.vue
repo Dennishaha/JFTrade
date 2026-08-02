@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
+import EmptyState from "@/components/shared/EmptyState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import SparklineChart from "./SparklineChart.vue";
 import {
@@ -230,20 +231,29 @@ const dotYears = computed(() =>
   })),
 );
 
-const status = computed(() => {
-  if (props.operation === "indicators") {
-    if (listFeature.loading.value || historyFeature.loading.value) return "加载中…";
-    return listFeature.error.value || historyFeature.error.value;
-  }
-  if (fedFeature.loading.value) return "加载中…";
-  return fedFeature.error.value;
-});
+const statusLoading = computed(() =>
+  props.operation === "indicators"
+    ? listFeature.loading.value || historyFeature.loading.value
+    : fedFeature.loading.value,
+);
+const statusError = computed(() =>
+  props.operation === "indicators"
+    ? listFeature.error.value || historyFeature.error.value
+    : fedFeature.error.value,
+);
 </script>
 
 <template>
   <section class="macro-research">
-    <div v-if="status" class="macro-research__status">{{ status }}</div>
-    <template v-else-if="operation === 'indicators'">
+    <EmptyState
+      :loading="statusLoading"
+      :error="statusError"
+      class="macro-research__status"
+      bordered
+      :min-height="160"
+      style="grid-column: 1 / -1"
+    >
+    <template v-if="operation === 'indicators'">
       <aside class="macro-research__catalog">
         <header>
           <strong>宏观指标</strong>
@@ -346,6 +356,7 @@ const status = computed(() => {
         </article>
       </div>
     </template>
+    </EmptyState>
   </section>
 </template>
 
@@ -465,17 +476,6 @@ const status = computed(() => {
   border: 1px solid var(--tv-border);
   border-radius: 6px;
   background: var(--tv-bg-surface);
-}
-
-.macro-research__status {
-  display: grid;
-  min-height: 160px;
-  grid-column: 1 / -1;
-  place-items: center;
-  border: 1px solid var(--tv-border);
-  border-radius: 6px;
-  background: var(--tv-bg-surface);
-  color: var(--tv-text-dim);
 }
 
 .macro-research__toolbar,

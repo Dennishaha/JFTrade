@@ -11,6 +11,7 @@ import {
   useBrokerProviderSelection,
   withBrokerProvider,
 } from "@/composables/trading/brokerProviderSelection";
+import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
 import ProductPanelToolbar from "./ProductPanelToolbar.vue";
 import ProductToolbarRefreshButton from "./ProductToolbarRefreshButton.vue";
 
@@ -209,30 +210,18 @@ watch(
       <ProductToolbarRefreshButton :loading="loading" @refresh="load(true)" />
     </ProductPanelToolbar>
 
-    <v-progress-linear v-if="loading" indeterminate />
-    <v-alert v-if="error" type="warning" variant="tonal" density="compact">
-      {{ error }}
-    </v-alert>
-    <template v-if="!error && result != null">
-      <v-alert
-        v-for="warning in result.warnings ?? []"
-        :key="warning"
-        type="warning"
-        variant="tonal"
-        density="compact"
-      >
-        {{ warning }}
-      </v-alert>
-      <v-alert
-        v-for="partialError in result.partialErrors ?? []"
-        :key="`${partialError.scope}-${partialError.code}`"
-        type="warning"
-        variant="outlined"
-        density="compact"
-      >
+    <AsyncPanelState
+      :loading="loading"
+      :error="error"
+      :warnings="error ? [] : (result?.warnings ?? [])"
+      :partial-errors="error ? [] : (result?.partialErrors ?? [])"
+    >
+      <template #partial-error="{ partialError }">
         {{ partialError.scope }} · {{ partialError.code }} ·
         {{ partialError.message }}
-      </v-alert>
+      </template>
+    </AsyncPanelState>
+    <template v-if="!error && result != null">
       <div
         v-if="result.entries.length === 0 && !loading"
         class="product-feature-panel__empty"

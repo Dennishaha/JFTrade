@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
+import EmptyState from "@/components/shared/EmptyState.vue";
+
 type SortOrder = "desc" | "asc";
 
 const props = withDefaults(
@@ -122,11 +124,14 @@ function valueClass(value: number | null): string {
     <header class="rank-list-panel__head">
       <span class="rank-list-panel__title">{{ title }}</span>
     </header>
-    <div v-if="loading" class="rank-list-panel__status">加载中…</div>
-    <div v-else-if="sortedEntries.length === 0" class="rank-list-panel__status">
-      暂无数据
-    </div>
-    <table v-else class="rank-list-panel__table">
+    <EmptyState
+      :loading="loading"
+      :empty="sortedEntries.length === 0"
+      class="rank-list-panel__status"
+      :min-height="96"
+      grow
+    >
+      <table class="rank-list-panel__table">
       <thead>
         <tr>
           <th class="rank-list-panel__code">代码</th>
@@ -161,6 +166,7 @@ function valueClass(value: number | null): string {
         </tr>
       </tbody>
     </table>
+    </EmptyState>
   </section>
 </template>
 
@@ -195,14 +201,6 @@ function valueClass(value: number | null): string {
 .rank-list-panel__title {
   font-size: var(--jf-text-6);
   font-weight: 600;
-}
-
-.rank-list-panel__status {
-  display: grid;
-  flex: 1;
-  min-height: 96px;
-  place-items: center;
-  color: var(--tv-text-dim);
 }
 
 .rank-list-panel__table {

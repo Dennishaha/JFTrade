@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
+import EmptyState from "@/components/shared/EmptyState.vue";
 import {
   entryDayKey,
   pickNumber,
@@ -200,14 +201,14 @@ function importance(entry: Record<string, unknown>): number {
       <span class="econ-calendar-view__count">共 {{ filteredEntries.length }} 条</span>
     </div>
 
-    <div v-if="feature.loading.value" class="econ-calendar-view__status">加载中…</div>
-    <div v-else-if="feature.error.value" class="econ-calendar-view__status">
-      {{ feature.error.value }}
-    </div>
-    <div v-else-if="groups.length === 0" class="econ-calendar-view__status">
-      暂无数据
-    </div>
-    <div v-else class="econ-calendar-view__list">
+    <EmptyState
+      :loading="feature.loading.value"
+      :error="feature.error.value"
+      :empty="groups.length === 0"
+      class="econ-calendar-view__status"
+      bordered
+    >
+      <div class="econ-calendar-view__list">
       <section
         v-for="group in groups"
         :key="group.dayKey"
@@ -243,7 +244,8 @@ function importance(entry: Record<string, unknown>): number {
           </span>
         </div>
       </section>
-    </div>
+      </div>
+    </EmptyState>
   </div>
 </template>
 
@@ -283,16 +285,6 @@ function importance(entry: Record<string, unknown>): number {
 .econ-calendar-view__count {
   color: var(--tv-text-dim);
   font-variant-numeric: tabular-nums;
-}
-
-.econ-calendar-view__status {
-  display: grid;
-  min-height: 120px;
-  place-items: center;
-  border: 1px solid var(--tv-border);
-  border-radius: 6px;
-  background: var(--tv-bg-surface);
-  color: var(--tv-text-dim);
 }
 
 .econ-calendar-view__list {

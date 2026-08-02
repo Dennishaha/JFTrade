@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { ref } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
+import EmptyState from "@/components/shared/EmptyState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import { dayKeyOf, pickString } from "./researchEntry";
 import type { ResearchTableColumn } from "./researchTable";
@@ -57,12 +58,6 @@ const columns: ResearchTableColumn[] = [
   },
 ];
 
-const statusLabel = computed(() => {
-  if (feature.loading.value) return "派息日历加载中…";
-  if (feature.error.value) return feature.error.value;
-  return "";
-});
-
 function shiftDate(days: number): void {
   const value = new Date(`${selectedDate.value}T12:00:00`);
   value.setDate(value.getDate() + days);
@@ -91,18 +86,22 @@ function rowKey(
       <small v-if="feature.asOf.value">更新 {{ feature.asOf.value }}</small>
       <button type="button" @click="feature.refresh">刷新</button>
     </header>
-    <div v-if="statusLabel" class="dividend-calendar__status">
-      {{ statusLabel }}
-    </div>
-    <ResearchDataTable
-      v-else
-      :entries="feature.entries.value"
-      :columns="columns"
-      :row-key="rowKey"
-      empty-label="当日暂无派息安排"
-      @select="emit('select', $event)"
-      @open="emit('open', $event)"
-    />
+    <EmptyState
+      :loading="feature.loading.value"
+      :error="feature.error.value"
+      loading-label="派息日历加载中…"
+      class="dividend-calendar__status"
+      bordered
+    >
+      <ResearchDataTable
+        :entries="feature.entries.value"
+        :columns="columns"
+        :row-key="rowKey"
+        empty-label="当日暂无派息安排"
+        @select="emit('select', $event)"
+        @open="emit('open', $event)"
+      />
+    </EmptyState>
   </section>
 </template>
 
@@ -147,16 +146,6 @@ function rowKey(
 }
 
 .dividend-calendar__toolbar small {
-  color: var(--tv-text-dim);
-}
-
-.dividend-calendar__status {
-  display: grid;
-  min-height: 120px;
-  place-items: center;
-  border: 1px solid var(--tv-border);
-  border-radius: 6px;
-  background: var(--tv-bg-surface);
   color: var(--tv-text-dim);
 }
 </style>

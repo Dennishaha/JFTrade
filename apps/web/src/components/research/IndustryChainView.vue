@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
+import EmptyState from "@/components/shared/EmptyState.vue";
 import {
   formatCompactNumber,
   pickNumber,
@@ -192,11 +193,13 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
         placeholder="搜索产业链"
         aria-label="搜索产业链"
       />
-      <div v-if="list.loading.value" class="industry-chain__status">加载中…</div>
-      <div v-else-if="list.error.value" class="industry-chain__status">
-        {{ list.error.value }}
-      </div>
-      <nav v-else>
+      <EmptyState
+        :loading="list.loading.value"
+        :error="list.error.value"
+        class="industry-chain__status"
+        grow
+      >
+        <nav>
         <button
           v-for="chain in visibleChains"
           :key="pickString(chain, ['chainId', 'id'])"
@@ -224,19 +227,25 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
           {{ list.loadingMore.value ? "加载中…" : "加载更多产业链" }}
         </button>
       </nav>
+      </EmptyState>
     </aside>
 
     <main class="industry-chain__detail">
-      <div v-if="!selectedChainId" class="industry-chain__status">
-        请选择产业链查看上下游结构
-      </div>
-      <div v-else-if="detail.loading.value" class="industry-chain__status">
-        产业链详情加载中…
-      </div>
-      <div v-else-if="detail.error.value" class="industry-chain__status">
-        {{ detail.error.value }}
-      </div>
-      <template v-else>
+      <EmptyState
+        v-if="!selectedChainId"
+        empty
+        empty-label="请选择产业链查看上下游结构"
+        class="industry-chain__status"
+        grow
+      />
+      <EmptyState
+        v-else
+        :loading="detail.loading.value"
+        loading-label="产业链详情加载中…"
+        :error="detail.error.value"
+        class="industry-chain__status"
+        grow
+      >
         <header class="industry-chain__detail-head">
           <div>
             <strong>{{ pickString(selectedChain ?? {}, ["name", "chainName"]) }}</strong>
@@ -252,10 +261,13 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
             <strong>上下游节点</strong>
             <small>点击具备板块标识的节点查看关联产业链</small>
           </header>
-          <div v-if="nodes.length === 0" class="industry-chain__status">
-            暂无节点数据
-          </div>
-          <div v-else class="industry-chain__layers">
+          <EmptyState
+            :empty="nodes.length === 0"
+            empty-label="暂无节点数据"
+            class="industry-chain__status"
+            grow
+          >
+            <div class="industry-chain__layers">
             <button
               v-for="node in nodes"
               :key="pickString(node, ['nodeId', 'id'])"
@@ -274,6 +286,7 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
               </i>
             </button>
           </div>
+          </EmptyState>
         </section>
 
         <section
@@ -305,11 +318,13 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
           <p v-if="pickString(plateInfo.entries.value[0] ?? {}, ['summary'])">
             {{ pickString(plateInfo.entries.value[0] ?? {}, ["summary"]) }}
           </p>
-          <div v-if="related.loading.value" class="industry-chain__status">加载中…</div>
-          <div v-else-if="related.error.value" class="industry-chain__status">
-            {{ related.error.value }}
-          </div>
-          <div v-else class="industry-chain__related-list">
+          <EmptyState
+            :loading="related.loading.value"
+            :error="related.error.value"
+            class="industry-chain__status"
+            grow
+          >
+            <div class="industry-chain__related-list">
             <button
               v-for="chain in related.entries.value"
               :key="pickString(chain, ['chainId', 'id'])"
@@ -319,6 +334,7 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
               {{ pickString(chain, ["name", "chainName"]) }}
             </button>
           </div>
+          </EmptyState>
         </section>
 
         <section
@@ -329,19 +345,14 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
             <strong>{{ selectedPlateId ? "板块成分" : "相关证券" }}</strong>
             <small>{{ selectedSecurities.length }} 只</small>
           </header>
-          <div
-            v-if="selectedPlateId && plateStocks.loading.value"
+          <EmptyState
+            :loading="!!selectedPlateId && plateStocks.loading.value"
+            loading-label="板块成分加载中…"
+            :error="selectedPlateId ? plateStocks.error.value : null"
             class="industry-chain__status"
+            grow
           >
-            板块成分加载中…
-          </div>
-          <div
-            v-else-if="selectedPlateId && plateStocks.error.value"
-            class="industry-chain__status"
-          >
-            {{ plateStocks.error.value }}
-          </div>
-          <div v-else>
+            <div>
             <button
               v-for="security in selectedSecurities"
               :key="
@@ -367,8 +378,9 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
               </small>
             </button>
           </div>
+          </EmptyState>
         </section>
-      </template>
+      </EmptyState>
     </main>
   </section>
 </template>
@@ -519,14 +531,6 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
   border-radius: 4px;
   background: var(--tv-bg-surface-2);
   cursor: pointer;
-}
-
-.industry-chain__status {
-  display: grid;
-  min-height: 120px;
-  flex: 1;
-  place-items: center;
-  color: var(--tv-text-dim);
 }
 
 .industry-chain__layers {

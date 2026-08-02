@@ -15,6 +15,7 @@ import {
   mergeResearchSnapshot,
   useResearchSnapshots,
 } from "./researchSnapshots";
+import EmptyState from "@/components/shared/EmptyState.vue";
 
 const props = withDefaults(
   defineProps<{ market?: string; brokerId?: string }>(),
@@ -165,8 +166,11 @@ const anyError = computed(
 
 <template>
   <div class="market-home-view">
-    <div v-if="anyLoading" class="market-home-view__status">加载中…</div>
-    <template v-else>
+    <EmptyState
+      :loading="anyLoading"
+      class="market-home-view__status"
+      :min-height="96"
+    >
       <div v-if="anyError" class="market-home-view__warning">部分数据加载失败：{{ anyError }}</div>
       <div class="market-home-view__indices">
         <div
@@ -193,9 +197,14 @@ const anyError = computed(
             {{ formatSigned(card.changeRate, "%") }}
           </div>
         </div>
-        <div v-if="supportsBenchmarkSnapshots && indexCards.length === 0" class="market-home-view__status market-home-view__status--inline">
-          暂无指数数据
-        </div>
+        <EmptyState
+          v-if="supportsBenchmarkSnapshots && indexCards.length === 0"
+          empty
+          empty-label="暂无指数数据"
+          class="market-home-view__status market-home-view__status--inline"
+          :min-height="76"
+          grow
+        />
       </div>
 
       <div class="market-home-view__body">
@@ -270,7 +279,7 @@ const anyError = computed(
           />
         </div>
       </div>
-    </template>
+    </EmptyState>
   </div>
 </template>
 
@@ -285,18 +294,6 @@ const anyError = computed(
   gap: 8px;
   color: var(--tv-text);
   font-size: var(--jf-text-6);
-}
-
-.market-home-view__status {
-  display: grid;
-  min-height: 96px;
-  place-items: center;
-  color: var(--tv-text-dim);
-}
-
-.market-home-view__status--inline {
-  flex: 1;
-  min-height: 76px;
 }
 
 .market-home-view__warning {

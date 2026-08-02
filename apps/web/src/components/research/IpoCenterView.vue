@@ -15,6 +15,7 @@ import {
   useResearchSnapshots,
 } from "./researchSnapshots";
 import { isResearchQuoteEntry } from "./researchQuote";
+import EmptyState from "@/components/shared/EmptyState.vue";
 
 const props = withDefaults(
   defineProps<{ market?: string; brokerId?: string }>(),
@@ -99,11 +100,12 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
 
 <template>
   <div class="ipo-center-view">
-    <div v-if="feature.loading.value" class="ipo-center-view__status">加载中…</div>
-    <div v-else-if="feature.error.value" class="ipo-center-view__status">
-      {{ feature.error.value }}
-    </div>
-    <template v-else>
+    <EmptyState
+      :loading="feature.loading.value"
+      :error="feature.error.value"
+      class="ipo-center-view__status"
+      :min-height="96"
+    >
       <div v-if="listedSnapshots.error.value" class="ipo-center-view__warning">
         上市后行情补充失败：{{ listedSnapshots.error.value }}
       </div>
@@ -119,16 +121,17 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
               更多 &gt;
             </button>
           </header>
-          <div v-if="pendingEntries.length === 0" class="ipo-center-view__status">
-            暂无数据
-          </div>
-          <div
-            v-else
-            class="ipo-center-view__table-scroll"
-            role="region"
-            aria-label="待上市新股表格"
-            tabindex="0"
+          <EmptyState
+            :empty="pendingEntries.length === 0"
+            class="ipo-center-view__status"
+            :min-height="96"
           >
+            <div
+              class="ipo-center-view__table-scroll"
+              role="region"
+              aria-label="待上市新股表格"
+              tabindex="0"
+            >
             <table class="ipo-center-view__table">
               <thead>
                 <tr>
@@ -158,7 +161,8 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
                 </tr>
               </tbody>
             </table>
-          </div>
+            </div>
+          </EmptyState>
         </section>
 
         <section class="ipo-center-view__panel">
@@ -172,16 +176,17 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
               更多 &gt;
             </button>
           </header>
-          <div v-if="listedEntries.length === 0" class="ipo-center-view__status">
-            暂无数据
-          </div>
-          <div
-            v-else
-            class="ipo-center-view__table-scroll"
-            role="region"
-            aria-label="已上市新股表格"
-            tabindex="0"
+          <EmptyState
+            :empty="listedEntries.length === 0"
+            class="ipo-center-view__status"
+            :min-height="96"
           >
+            <div
+              class="ipo-center-view__table-scroll"
+              role="region"
+              aria-label="已上市新股表格"
+              tabindex="0"
+            >
             <table class="ipo-center-view__table">
               <thead>
                 <tr>
@@ -218,7 +223,8 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
                 </tr>
               </tbody>
             </table>
-          </div>
+            </div>
+          </EmptyState>
         </section>
       </div>
       <button
@@ -228,7 +234,7 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
         :disabled="feature.loadingMore.value"
         @click="feature.loadMore()"
       >{{ feature.loadingMore.value ? "加载中…" : "加载更多" }}</button>
-    </template>
+    </EmptyState>
   </div>
 </template>
 
@@ -282,13 +288,6 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
 
 .ipo-center-view__more:hover {
   color: var(--tv-text);
-}
-
-.ipo-center-view__status {
-  display: grid;
-  min-height: 96px;
-  place-items: center;
-  color: var(--tv-text-dim);
 }
 
 .ipo-center-view__warning {

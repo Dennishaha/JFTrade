@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
 import OptionChainTable from "./OptionChainTable.vue";
 import OptionContractAnalysisDrawer from "./OptionContractAnalysisDrawer.vue";
 import OptionResearchPanel from "./OptionResearchPanel.vue";
@@ -163,35 +164,35 @@ const {
       />
     </nav>
 
-    <v-progress-linear
-      v-if="loading"
-      class="option-workspace__chain-progress"
-      indeterminate
-    />
-    <v-alert
-      v-if="section === 'chain' && expirationError"
-      type="warning"
-      variant="tonal"
-      density="compact"
+    <AsyncPanelState
+      :loading="loading"
+      progress-class="option-workspace__chain-progress"
     >
-      {{ expirationError }}
-    </v-alert>
-    <v-alert
-      v-if="section === 'chain' && chainError"
-      type="warning"
-      variant="tonal"
-      density="compact"
-    >
-      {{ chainError }}
-    </v-alert>
-    <v-alert
-      v-if="section === 'chain' && snapshotError"
-      type="warning"
-      variant="tonal"
-      density="compact"
-    >
-      {{ snapshotError }}
-    </v-alert>
+      <v-alert
+        v-if="section === 'chain' && expirationError"
+        type="warning"
+        variant="tonal"
+        density="compact"
+      >
+        {{ expirationError }}
+      </v-alert>
+      <v-alert
+        v-if="section === 'chain' && chainError"
+        type="warning"
+        variant="tonal"
+        density="compact"
+      >
+        {{ chainError }}
+      </v-alert>
+      <v-alert
+        v-if="section === 'chain' && snapshotError"
+        type="warning"
+        variant="tonal"
+        density="compact"
+      >
+        {{ snapshotError }}
+      </v-alert>
+    </AsyncPanelState>
 
     <div
       v-if="needsUnderlying && !underlyingResolved"

@@ -14,6 +14,7 @@ import {
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
 import { useConsoleData } from "@/composables/workspace/useConsoleData";
+import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
 
 type PredictionView = "contract" | "depth" | "chart" | "ticks" | "rules";
 type Entry = Record<string, unknown>;
@@ -221,19 +222,12 @@ onUnmounted(() => {
         }}
       </strong>
     </header>
-    <v-progress-linear v-if="loading" indeterminate />
-    <v-alert v-if="error" type="warning" variant="tonal" density="compact">
-      {{ error }}
-    </v-alert>
-    <v-alert
-      v-for="warning in result?.warnings ?? []"
-      :key="warning"
-      type="info"
-      variant="tonal"
-      density="compact"
-    >
-      {{ warning }}
-    </v-alert>
+    <AsyncPanelState
+      :loading="loading"
+      :error="error"
+      :warnings="result?.warnings ?? []"
+      warning-type="info"
+    />
 
     <div v-if="props.view === 'contract'" class="prediction-contract__metrics">
       <div v-for="[label, value] in snapshotMetrics" :key="String(label)">

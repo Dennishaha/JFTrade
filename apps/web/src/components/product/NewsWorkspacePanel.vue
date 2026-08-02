@@ -15,6 +15,7 @@ import {
   withBrokerProvider,
 } from "@/composables/trading/brokerProviderSelection";
 import { useExternalLink } from "@/composables/shared/externalLink";
+import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
 import ProductPanelToolbar from "./ProductPanelToolbar.vue";
 import ProductToolbarRefreshButton from "./ProductToolbarRefreshButton.vue";
 
@@ -124,30 +125,13 @@ watch(
       <ProductToolbarRefreshButton :loading="loading" @refresh="load(true)" />
     </ProductPanelToolbar>
 
-    <v-progress-linear v-if="loading" indeterminate />
-    <v-alert v-if="error" type="warning" variant="tonal" density="compact">
-      {{ error }}
-    </v-alert>
-    <template v-else-if="result">
-      <v-alert
-        v-for="warning in result.warnings ?? []"
-        :key="warning"
-        type="warning"
-        variant="tonal"
-        density="compact"
-      >
-        {{ warning }}
-      </v-alert>
-      <v-alert
-        v-for="partialError in result.partialErrors ?? []"
-        :key="`${partialError.scope}-${partialError.code}`"
-        type="warning"
-        variant="outlined"
-        density="compact"
-      >
-        {{ partialError.scope }} · {{ partialError.message }}
-      </v-alert>
-
+    <AsyncPanelState
+      :loading="loading"
+      :error="error"
+      :warnings="error ? [] : (result?.warnings ?? [])"
+      :partial-errors="error ? [] : (result?.partialErrors ?? [])"
+    />
+    <template v-if="!error && result">
       <div v-if="visibleItems.length" class="news-workspace__list">
         <article
           v-for="item in visibleItems"

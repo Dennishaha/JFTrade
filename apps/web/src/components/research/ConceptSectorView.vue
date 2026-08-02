@@ -14,6 +14,7 @@ import {
   mergeResearchSnapshot,
   useResearchSnapshots,
 } from "./researchSnapshots";
+import EmptyState from "@/components/shared/EmptyState.vue";
 
 const props = withDefaults(
   defineProps<{ market?: string; brokerId?: string }>(),
@@ -173,14 +174,15 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
           @click="connectOnly = !connectOnly"
         >港股通</button>
       </header>
-      <div v-if="plates.loading.value" class="concept-sector-view__status">加载中…</div>
-      <div v-else-if="plates.error.value" class="concept-sector-view__status">
-        {{ plates.error.value }}
-      </div>
-      <div v-else-if="plateEntries.length === 0" class="concept-sector-view__status">
-        {{ connectOnly ? "当前 OpenD 未返回港股通相关板块" : "暂无数据" }}
-      </div>
-      <table v-else class="concept-sector-view__table">
+      <EmptyState
+        :loading="plates.loading.value"
+        :error="plates.error.value"
+        :empty="plateEntries.length === 0"
+        :empty-label="connectOnly ? '当前 OpenD 未返回港股通相关板块' : '暂无数据'"
+        class="concept-sector-view__status"
+        :min-height="96"
+      >
+        <table class="concept-sector-view__table">
         <thead>
           <tr>
             <th class="concept-sector-view__index">#</th>
@@ -214,6 +216,7 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
           </tr>
         </tbody>
       </table>
+      </EmptyState>
     </section>
 
     <section class="concept-sector-view__stocks">
@@ -222,14 +225,14 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
           {{ pickString(selectedPlate, ["name"]) }}</span
         >
       </header>
-      <div v-if="stocks.loading.value" class="concept-sector-view__status">加载中…</div>
-      <div v-else-if="stocks.error.value" class="concept-sector-view__status">
-        {{ stocks.error.value }}
-      </div>
-      <div v-else-if="sortedStocks.length === 0" class="concept-sector-view__status">
-        暂无数据
-      </div>
-      <table v-else class="concept-sector-view__table">
+      <EmptyState
+        :loading="stocks.loading.value"
+        :error="stocks.error.value"
+        :empty="sortedStocks.length === 0"
+        class="concept-sector-view__status"
+        :min-height="96"
+      >
+        <table class="concept-sector-view__table">
         <thead>
           <tr>
             <th class="concept-sector-view__index">#</th>
@@ -280,6 +283,7 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
           </tr>
         </tbody>
       </table>
+      </EmptyState>
     </section>
   </div>
 </template>
@@ -347,13 +351,6 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
 .concept-sector-view__connect.is-active {
   border-color: var(--tv-accent);
   color: var(--tv-accent);
-}
-
-.concept-sector-view__status {
-  display: grid;
-  min-height: 96px;
-  place-items: center;
-  color: var(--tv-text-dim);
 }
 
 .concept-sector-view__table {

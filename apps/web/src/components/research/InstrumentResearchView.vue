@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 import CompactInstrumentNews from "../domain/market-data/CompactInstrumentNews.vue";
 import InstrumentSearchBox from "../domain/market-data/InstrumentSearchBox.vue";
+import EmptyState from "@/components/shared/EmptyState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import { formatPrice, pickNumber, pickString } from "./researchEntry";
 import {
@@ -59,7 +60,6 @@ const {
   shortRows,
   shortColumns,
   shortSummary,
-  status,
 } = useInstrumentResearchController(props, emit);
 
 const analystRatings = computed(() =>
@@ -123,10 +123,17 @@ const analystRatings = computed(() =>
       </button>
     </header>
 
-    <div v-if="status" class="instrument-research__status">{{ status }}</div>
-
+    <EmptyState
+      :loading="operation !== 'news' && feature.loading.value"
+      loading-label="研究数据加载中…"
+      :error="operation === 'news' ? null : feature.error.value"
+      class="instrument-research__status"
+      bordered
+      grow
+      :min-height="140"
+    >
     <div
-      v-else-if="operation === 'profile'"
+      v-if="operation === 'profile'"
       class="instrument-research__profile"
     >
       <section v-for="group in profileGroups" :key="group.title">
@@ -146,9 +153,15 @@ const analystRatings = computed(() =>
           </template>
         </dl>
       </section>
-      <div v-if="profileGroups.length === 0" class="instrument-research__status">
-        暂无公司资料
-      </div>
+      <EmptyState
+        v-if="profileGroups.length === 0"
+        empty
+        empty-label="暂无公司资料"
+        class="instrument-research__status"
+        bordered
+        grow
+        :min-height="140"
+      />
     </div>
 
     <ResearchDataTable
@@ -238,9 +251,15 @@ const analystRatings = computed(() =>
           compact
         />
       </section>
-      <div v-if="!hasValuationData" class="instrument-research__status">
-        暂无估值数据
-      </div>
+      <EmptyState
+        v-if="!hasValuationData"
+        empty
+        empty-label="暂无估值数据"
+        class="instrument-research__status"
+        bordered
+        grow
+        :min-height="140"
+      />
     </div>
 
     <div
@@ -331,6 +350,7 @@ const analystRatings = computed(() =>
       active
       @select-target="emit('update:instrumentId', $event.instrumentId)"
     />
+    </EmptyState>
   </section>
 </template>
 
@@ -379,17 +399,6 @@ const analystRatings = computed(() =>
   color: var(--tv-text);
   cursor: pointer;
   font: inherit;
-}
-
-.instrument-research__status {
-  display: grid;
-  min-height: 140px;
-  flex: 1;
-  place-items: center;
-  border: 1px solid var(--tv-border);
-  border-radius: 6px;
-  background: var(--tv-bg-surface);
-  color: var(--tv-text-dim);
 }
 
 .instrument-research__profile,

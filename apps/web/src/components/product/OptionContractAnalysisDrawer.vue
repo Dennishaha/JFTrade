@@ -13,6 +13,7 @@ import {
   fetchProductFeature,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
+import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
 
 type Entry = Record<string, unknown>;
 type AnalysisOperation = "quote" | "volatility" | "exercise_probability";
@@ -181,23 +182,24 @@ watch(
       </button>
     </header>
 
-    <v-progress-linear v-if="loading" indeterminate />
-    <div class="option-contract-drawer__metrics">
-      <div v-for="item in metrics" :key="item.label">
-        <span>{{ item.label }}</span>
-        <strong>{{ item.value }}</strong>
+    <AsyncPanelState :loading="loading">
+      <div class="option-contract-drawer__metrics">
+        <div v-for="item in metrics" :key="item.label">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+        </div>
       </div>
-    </div>
 
-    <v-alert
-      v-for="(message, operation) in errors"
-      :key="operation"
-      type="warning"
-      variant="tonal"
-      density="compact"
-    >
-      {{ operation }} 暂不可用：{{ message }}
-    </v-alert>
+      <v-alert
+        v-for="(message, operation) in errors"
+        :key="operation"
+        type="warning"
+        variant="tonal"
+        density="compact"
+      >
+        {{ operation }} 暂不可用：{{ message }}
+      </v-alert>
+    </AsyncPanelState>
 
     <footer>
       <v-btn

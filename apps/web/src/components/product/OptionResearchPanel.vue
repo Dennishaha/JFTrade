@@ -24,6 +24,7 @@ import type {
   OptionResearchOperation,
   OptionSellerStrategy as SellerStrategy,
 } from "../../features/optionResearch";
+import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
 import ProductToolbarRefreshButton from "./ProductToolbarRefreshButton.vue";
 
 const props = withDefaults(
@@ -279,25 +280,16 @@ watch(
       />
     </div>
 
-    <div
-      v-if="loading && presentation === 'research'"
-      class="option-research-panel__progress"
-    />
-    <v-progress-linear v-else-if="loading" indeterminate />
-    <div
-      v-if="error && presentation === 'research'"
-      class="option-research-panel__notice tv-status--warning"
-    >
-      {{ error }}
-    </div>
-    <v-alert
-      v-else-if="error"
-      type="warning"
-      variant="tonal"
-      density="compact"
-    >
-      {{ error }}
-    </v-alert>
+    <template v-if="presentation === 'research'">
+      <div v-if="loading" class="option-research-panel__progress" />
+      <div
+        v-if="error"
+        class="option-research-panel__notice tv-status--warning"
+      >
+        {{ error }}
+      </div>
+    </template>
+    <AsyncPanelState v-else :loading="loading" :error="error" />
     <div v-if="!active" class="option-research-panel__empty">
       正在识别当前正股标的，识别完成后再加载期权事件。
     </div>
