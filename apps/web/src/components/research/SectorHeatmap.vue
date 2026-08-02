@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
+import { formatPercent } from "@/utils/numberFormat";
+
 import { squarifiedLayout } from "./heatmapLayout";
 
 const WEIGHT_FIELD_CANDIDATES = ["marketValue", "turnover", "volume"] as const;
@@ -113,11 +115,7 @@ function blockTextLevel(widthPx: number, heightPx: number): "full" | "name" | "n
 }
 
 function formatChangeRate(value: number | null): string {
-  if (value == null) return "--";
-  const formatted = `${Math.abs(value).toFixed(2)}%`;
-  if (value > 0) return `+${formatted}`;
-  if (value < 0) return `-${formatted}`;
-  return formatted;
+  return formatPercent(value, { showPositiveSign: true, fallback: "--" });
 }
 
 function tooltip(item: HeatmapItem): string {

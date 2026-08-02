@@ -6,6 +6,7 @@ import {
   formatMarketPrice,
   formatMoney,
   formatNumber,
+  formatPercent,
 } from "../../../utils/numberFormat";
 
 export interface AccountPositionRow {
@@ -61,8 +62,7 @@ function formatPositionMoney(
 function formatPnlRatio(value: number | null | undefined): string {
   if (value == null) return "--";
   const percent = Math.abs(value) <= 1 ? value * 100 : value;
-  const sign = percent > 0 ? "+" : "";
-  return `${sign}${percent.toFixed(2)}%`;
+  return formatPercent(percent, { showPositiveSign: true });
 }
 
 function pnlClass(value: number | null | undefined): string {

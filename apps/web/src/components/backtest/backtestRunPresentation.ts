@@ -1,4 +1,5 @@
 import { formatLocalDateTime } from "@/utils/dateTime";
+import { formatNumber, formatPercent } from "@/utils/numberFormat";
 import { normalizeBacktestDateLabel } from "@/pages/backtestTimeWindow";
 
 export type BacktestReportTab = "chart" | "orders" | "properties";
@@ -63,7 +64,7 @@ export function drawdownColor(value: number | undefined): string {
 
 export function formatPercentMetric(value: number | undefined): string {
   const normalized = Number.isFinite(value) ? (value ?? 0) : 0;
-  return `${(normalized * 100).toFixed(2)}%`;
+  return formatPercent(normalized, { input: "ratio" });
 }
 
 export function formatBacktestTimestamp(value?: string): string {
@@ -97,7 +98,7 @@ export function formatBacktestOrderPrice(
 ): string {
   if (raw && raw.trim() !== "" && raw !== "0") return raw;
   if (value !== undefined && Number.isFinite(value) && value > 0) {
-    return value.toLocaleString(undefined, {
+    return formatNumber(value, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 4,
     });
@@ -108,7 +109,7 @@ export function formatBacktestOrderPrice(
 export function formatBacktestQuantity(value: number | undefined, raw?: string): string {
   if (raw && raw.trim() !== "") return raw;
   if (value === undefined || !Number.isFinite(value)) return "--";
-  return value.toLocaleString(undefined, {
+  return formatNumber(value, {
     minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
     maximumFractionDigits: 4,
   });
@@ -116,7 +117,7 @@ export function formatBacktestQuantity(value: number | undefined, raw?: string):
 
 export function formatBacktestFee(value: number | undefined, currency?: string): string {
   if (value === undefined || !Number.isFinite(value) || value <= 0) return "--";
-  const amount = value.toLocaleString(undefined, {
+  const amount = formatNumber(value, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 4,
   });

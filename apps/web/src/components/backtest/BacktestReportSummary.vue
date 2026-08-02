@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BacktestRunResult } from "@/composables/backtest/useBacktestRuns";
+import { formatNumber, formatPercent } from "@/utils/numberFormat";
 
 import {
   backtestFillCount,
@@ -24,14 +25,14 @@ defineProps<{
       <div class="bt-report-stat" data-testid="backtest-kpi-final-balance">
         <div class="bt-report-stat__label">最终资金</div>
         <div class="bt-report-stat__value">
-          {{ result.finalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+          {{ formatNumber(result.finalBalance, { minimumFractionDigits: 2, maximumFractionDigits: 3 }) }}
         </div>
         <div class="bt-report-stat__meta">{{ currency }}</div>
       </div>
       <div class="bt-report-stat" data-testid="backtest-kpi-pnl">
         <div class="bt-report-stat__label">收益</div>
         <div class="bt-report-stat__value" :class="pnlColor(result.pnl)">
-          {{ pnlPrefix(result.pnl) }}{{ result.pnl.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+          {{ pnlPrefix(result.pnl) }}{{ formatNumber(result.pnl, { minimumFractionDigits: 2, maximumFractionDigits: 3 }) }}
         </div>
         <div class="bt-report-stat__meta">{{ currency }}</div>
       </div>
@@ -49,7 +50,7 @@ defineProps<{
           {{ usesClosedTradeStats(result) ? "已平仓胜率" : "历史胜率" }}
         </div>
         <div class="bt-report-stat__value">
-          {{ usesClosedTradeStats(result) ? `${(result.winRate * 100).toFixed(1)}%` : "--" }}
+          {{ usesClosedTradeStats(result) ? formatPercent(result.winRate, { input: "ratio", maximumFractionDigits: 1 }) : "--" }}
         </div>
       </div>
       <div class="bt-report-stat" data-testid="backtest-kpi-max-drawdown">

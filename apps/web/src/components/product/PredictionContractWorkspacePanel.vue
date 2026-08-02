@@ -15,6 +15,7 @@ import {
 } from "@/composables/product/productFeatures";
 import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
+import { formatNumber } from "@/utils/numberFormat";
 
 type PredictionView = "contract" | "depth" | "chart" | "ticks" | "rules";
 type Entry = Record<string, unknown>;
@@ -99,7 +100,7 @@ function asEntry(value: unknown): Entry {
 
 function display(value: unknown): string {
   if (value == null || value === "") return "—";
-  if (typeof value === "number") return value.toLocaleString("zh-CN");
+  if (typeof value === "number") return formatNumber(value, { maximumFractionDigits: 3 });
   return String(value);
 }
 

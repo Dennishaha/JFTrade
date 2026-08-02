@@ -1,3 +1,5 @@
+import { formatNumber } from "@/utils/numberFormat";
+
 export type ADKToolVisualization =
   | ADKSummaryVisualization
   | ADKTableVisualization
@@ -569,7 +571,7 @@ function hasDisplayValue(value: unknown): boolean {
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "-";
   if (typeof value === "boolean") return value ? "是" : "否";
-  if (typeof value === "number") return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "-";
+  if (typeof value === "number") return formatNumber(value, { maximumFractionDigits: 4, fallback: "-" });
   if (typeof value === "string") {
     const trimmed = value.trim();
     return trimmed ? translateDisplayText(trimmed) : "-";

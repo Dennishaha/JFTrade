@@ -2,6 +2,7 @@
 import BacktestChart from "@/components/backtest/BacktestChart.vue";
 import InstrumentIdentity from "@/components/domain/market-data/InstrumentIdentity.vue";
 import type { BacktestRun } from "@/composables/backtest/useBacktestRuns";
+import { formatNumber } from "@/utils/numberFormat";
 
 import {
   formatBacktestRunDate,
@@ -45,7 +46,7 @@ const activeTab = defineModel<BacktestReportTab>("activeTab", { required: true }
       <span class="bt-report-context-bar__id" :title="run.id">{{ run.id }}</span>
       <span>{{ formatBacktestRunDate(run.request.startDate) }} → {{ formatBacktestRunDate(run.request.endDate) }}</span>
       <span>{{ sessionMode }}</span><span>{{ rehabLabel }}</span>
-      <span>{{ run.request.initialBalance.toLocaleString() }} {{ quoteCurrency }}</span>
+      <span>{{ formatNumber(run.request.initialBalance, { maximumFractionDigits: 3 }) }} {{ quoteCurrency }}</span>
     </div>
 
     <div v-if="run.status === 'running' || run.status === 'queued' || versionNotice || detailLoading || detailError"

@@ -16,6 +16,7 @@ import type {
 } from "@/types";
 
 import type { QueuedChatMessage } from "@/composables/adk/adkChatRuntime";
+import { formatNumber } from "@/utils/numberFormat";
 
 export interface SlashCommandItem {
   id: "context" | "compact" | "compact-aggressive";
@@ -682,7 +683,7 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 function formatTokenCount(value: number): string {
-  return Math.max(0, value).toLocaleString("zh-CN");
+  return formatNumber(Math.max(0, value), { maximumFractionDigits: 3 });
 }
 
 function contextWindowLabel(

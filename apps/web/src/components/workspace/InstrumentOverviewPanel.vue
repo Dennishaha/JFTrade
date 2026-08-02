@@ -486,7 +486,7 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
                       <span v-if="marginRatioEntry.shortPoolRemain != null"
                         style="color: var(--tv-text-dim)">卖空池剩余</span>
                       <span v-if="marginRatioEntry.shortPoolRemain != null" style="text-align: right">{{
-                        marginRatioEntry.shortPoolRemain.toLocaleString("zh-CN") }}</span>
+                        formatNumber(marginRatioEntry.shortPoolRemain, { maximumFractionDigits: 3 }) }}</span>
                     </div>
                   </div>
                 </div>

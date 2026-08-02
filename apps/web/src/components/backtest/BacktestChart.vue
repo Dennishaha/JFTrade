@@ -30,6 +30,7 @@ import {
   type HeikinAshiSeed,
 } from "@/charting/kline";
 import { useTheme } from "@/composables/settings/useTheme";
+import { formatNumber, formatPercent } from "@/utils/numberFormat";
 import { formatBacktestChartTime, formatBacktestTickMark } from "./backtestChartTime";
 
 // ── Types ──
@@ -167,7 +168,7 @@ const chartBodyStyle = computed(() =>
 );
 
 function formatCurrencyValue(value: number) {
-  return `${displayCurrencyUnit.value} ${value.toLocaleString(undefined, {
+  return `${displayCurrencyUnit.value} ${formatNumber(value, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -182,7 +183,7 @@ function buildCurrencyPriceFormat() {
 }
 
 function formatDrawdownPercent(value: number) {
-  return `${(value * 100).toFixed(2)}%`;
+  return formatPercent(value, { input: "ratio" });
 }
 
 function normalizePeakRatio(drawdown: number) {

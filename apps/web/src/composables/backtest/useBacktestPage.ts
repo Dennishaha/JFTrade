@@ -29,6 +29,7 @@ import type {
 } from "@/types";
 import { ApiClientError, apiGet, apiGetPath } from "@/composables/shared/apiClient";
 import { formatGenericStatusLabel } from "@/composables/shared/consoleDataFormatting";
+import { formatNumber, formatPercent } from "@/utils/numberFormat";
 import {
   backtestInstrumentTypeForSecurityType,
   categoryMarketForUser,
@@ -1121,7 +1122,7 @@ function formatComparisonCurrency(value: number | undefined, currency: string): 
   if (value == null || !Number.isFinite(value)) {
     return "--";
   }
-  const rendered = value.toLocaleString(undefined, {
+  const rendered = formatNumber(value, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -1133,12 +1134,12 @@ function formatComparisonMetric(value: number | undefined, kind: ComparisonMetri
     return "--";
   }
   if (kind === "percent") {
-    return `${(value * 100).toFixed(2)}%`;
+    return formatPercent(value, { input: "ratio" });
   }
   if (kind === "currency") {
     return formatComparisonCurrency(value, currency);
   }
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return formatNumber(value, { maximumFractionDigits: 2 });
 }
 
 function comparisonMetricDelta(metric: ComparisonMetric): string {

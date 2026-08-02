@@ -13,6 +13,7 @@ import {
   type InstitutionOperation,
 } from "./useInstitutionGridController";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import { formatPercent as formatSharedPercent } from "@/utils/numberFormat";
 
 const props = withDefaults(
   defineProps<{
@@ -68,7 +69,7 @@ const {
 } = useInstitutionGridController(props, emit);
 
 function formatPercent(value: number | null): string {
-  return value == null ? "--" : `${value.toFixed(2)}%`;
+  return formatSharedPercent(value, { fallback: "--" });
 }
 
 interface ProfileMetric {
