@@ -1,4 +1,5 @@
 import { resolveMarketDataRealtimeCandleDisplayAt } from "@/composables/market-data/marketDataRealtimeBuckets";
+import { maxKnownKlineVolume } from "@/charting/kline";
 
 import type {
   MarketDataCandlesQueryResult,
@@ -142,7 +143,7 @@ function mergeOverlappingCandle(
     low: Math.min(current.low, next.low),
     close: preferred.close,
     // Both values are per-bar volumes. They are comparable, never additive.
-    volume: Math.max(current.volume, next.volume),
+    volume: maxKnownKlineVolume(current.volume, next.volume),
   };
   const displayAt = preferred.displayAt ?? secondary.displayAt;
   if (displayAt !== undefined) {

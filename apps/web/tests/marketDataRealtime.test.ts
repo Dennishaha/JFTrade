@@ -90,6 +90,7 @@ describe("marketDataRealtime", () => {
       ...buildCandles("1m", []),
       candles: [
         { period: "1m", at: "2026-07-16T00:00:00Z", open: "200", high: "201.5", low: "199.5", close: "201", volume: "50" },
+        { period: "1m", at: "2026-07-16T00:00:30Z", open: "201", high: "202", low: "200", close: "201.5", volume: null },
         null as never,
         { period: "1m", at: "2026-07-16T00:01:00Z", open: "bad", high: 202, low: 200, close: 201, volume: Number.POSITIVE_INFINITY },
       ],
@@ -98,9 +99,10 @@ describe("marketDataRealtime", () => {
     expect(snapshot.snapshot).toMatchObject({ price: 201.5, bid: "", ask: "not-a-number", volume: 1500 });
     expect(snapshot.snapshot?.extended?.preMarket).toMatchObject({ price: 199.25, volume: 12 });
     expect(snapshot.snapshot?.extended?.overnight).toBeNull();
-    expect(candles.candles).toHaveLength(2);
+    expect(candles.candles).toHaveLength(3);
     expect(candles.candles[0]).toMatchObject({ open: 200, high: 201.5, low: 199.5, close: 201, volume: 50 });
-    expect(candles.candles[1]).toMatchObject({ open: "bad", high: 202, volume: Number.POSITIVE_INFINITY });
+    expect(candles.candles[1]).toMatchObject({ open: 201, high: 202, volume: null });
+    expect(candles.candles[2]).toMatchObject({ open: "bad", high: 202, volume: Number.POSITIVE_INFINITY });
   });
 
   it("ignores invalid or foreign tick events", () => {

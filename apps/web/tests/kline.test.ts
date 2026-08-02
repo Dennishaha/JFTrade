@@ -867,7 +867,7 @@ describe("kline realtime bucket resolution", () => {
       },
       "1m",
     ).at(-1);
-    expect(newBucket?.volume).toBe(0);
+    expect(newBucket?.volume).toBeNull();
     expect(newBucket?.volume).not.toBe(legacyCumulativeVolume);
 
     const tick = overlayRealtimeTickCandle(
@@ -878,7 +878,7 @@ describe("kline realtime bucket resolution", () => {
       },
       "tick",
     ).at(-1);
-    expect(tick?.volume).toBe(0);
+    expect(tick?.volume).toBeNull();
     expect(tick?.volume).not.toBe(legacyCumulativeVolume);
   });
 

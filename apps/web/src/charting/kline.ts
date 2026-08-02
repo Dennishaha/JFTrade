@@ -6,8 +6,19 @@ export interface KlineCandle {
   high: number;
   low: number;
   close: number;
-  volume: number;
+  volume: number | null;
   session?: string | null;
+}
+
+export function maxKnownKlineVolume(
+  left: number | null | undefined,
+  right: number | null | undefined,
+): number | null {
+  const leftKnown = typeof left === "number" && Number.isFinite(left);
+  const rightKnown = typeof right === "number" && Number.isFinite(right);
+  if (!leftKnown) return rightKnown ? right : null;
+  if (!rightKnown) return left;
+  return Math.max(left, right);
 }
 
 /**
@@ -706,7 +717,7 @@ export function overlayRealtimeTickCandle(
       high: snapshot.price,
       low: snapshot.price,
       close: snapshot.price,
-      volume: snapshot.barVolume ?? 0,
+      volume: snapshot.barVolume ?? null,
     };
     if (snapshot.session !== undefined) {
       tickCandle.session = snapshot.session;
@@ -741,7 +752,7 @@ export function overlayRealtimeTickCandle(
     high: Math.max(existing?.high ?? baseOpen, overlayHigh),
     low: Math.min(existing?.low ?? baseOpen, overlayLow),
     close: snapshot.price,
-    volume: snapshot.barVolume ?? existing?.volume ?? 0,
+    volume: snapshot.barVolume ?? existing?.volume ?? null,
   };
   if (displayAt != null) {
     mergedCandle.displayAt = displayAt;

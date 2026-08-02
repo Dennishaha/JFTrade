@@ -136,6 +136,18 @@ describe("marketDataRealtimeCandles", () => {
     });
   });
 
+  it("preserves known volume when overlapping history contains unavailable volume", () => {
+    const current = buildCandlesResult();
+    current.candles[0] = { ...current.candles[0]!, volume: null };
+    const next = buildCandlesResult();
+    next.candles[0] = { ...next.candles[0]!, volume: 120 };
+
+    expect(mergeMarketDataCandles(current, next).candles[0]?.volume).toBe(120);
+
+    next.candles[0] = { ...next.candles[0]!, volume: null };
+    expect(mergeMarketDataCandles(current, next).candles[0]?.volume).toBeNull();
+  });
+
   it("creates a realtime bar with session metadata and normalized display time", () => {
     const result = upsertMarketDataRealtimeCandle({
       current: null,

@@ -20,6 +20,7 @@ import {
   getKlineIndicatorDefinition,
   isKlineOverlayIndicator,
   isKlinePaneIndicator,
+  maxKnownKlineVolume,
   normalizeKlineIndicators,
   resolveKlineCandleDisplayAt,
   type KlineCandle,
@@ -160,7 +161,7 @@ function sortCandles(candles: readonly KlineCandle[]): KlineCandle[] {
       high: Math.max(existing.high, candle.high),
       low: Math.min(existing.low, candle.low),
       close: candle.close,
-      volume: Math.max(existing.volume, candle.volume),
+      volume: maxKnownKlineVolume(existing.volume, candle.volume),
     });
   }
 
@@ -543,14 +544,20 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
   private updateIndicatorSeries(sorted: readonly KlineCandle[]): void {
     if (this.volumeSeries != null) {
       this.volumeSeries.setData(
-        sorted.map((candle) => ({
-          time: toTimestamp(candle.at),
-          value: candle.volume,
-          color:
-            candle.close >= candle.open
-              ? this.palette.volumeUp
-              : this.palette.volumeDown,
-        })),
+        sorted.map((candle) => {
+          const time = toTimestamp(candle.at);
+          if (candle.volume == null || !Number.isFinite(candle.volume)) {
+            return { time };
+          }
+          return {
+            time,
+            value: candle.volume,
+            color:
+              candle.close >= candle.open
+                ? this.palette.volumeUp
+                : this.palette.volumeDown,
+          };
+        }),
       );
     }
 

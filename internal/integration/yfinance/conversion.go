@@ -419,6 +419,10 @@ func convertCandle(candle remoteCandle, instrumentID string, period string) (map
 	if err != nil {
 		return nil, false, err
 	}
+	session, keep, err := yahooCandleSession(instrumentID, at, period)
+	if err != nil || !keep {
+		return nil, keep, err
+	}
 	result := map[string]any{"period": period, "at": at}
 	for name, value := range map[string]*json.Number{
 		"open": candle.Open, "high": candle.High, "low": candle.Low, "close": candle.Close,
@@ -429,24 +433,31 @@ func convertCandle(candle remoteCandle, instrumentID string, period string) (map
 		}
 		result[name] = converted.String()
 	}
-	volume, err := nonNegativeDecimal("volume", candle.Volume)
+	volume, err := yahooCandleVolume(candle.Volume, session)
 	if err != nil {
 		return nil, false, err
 	}
-	result["volume"] = volume.String()
-	session, keep, err := yahooCandleSession(instrumentID, at, period)
-	if err != nil {
-		return nil, false, err
-	}
-	if !keep {
-		return nil, false, nil
-	}
+	result["volume"] = volume
 	if session == "" {
 		result["session"] = nil
 	} else {
 		result["session"] = session
 	}
 	return result, true, nil
+}
+
+func yahooCandleVolume(value *json.Number, session string) (any, error) {
+	// Yahoo's US extended-hours rows are price samples, not trustworthy
+	// per-bar volume observations. They commonly carry zero in pre-market and
+	// can carry a session-cumulative snapshot in one after-market minute.
+	if session == string(market.SessionPre) || session == string(market.SessionAfter) {
+		return nil, nil
+	}
+	volume, err := nonNegativeDecimal("volume", value)
+	if err != nil {
+		return nil, err
+	}
+	return volume.String(), nil
 }
 
 func yahooCandleSession(instrumentID string, atValue string, period string) (string, bool, error) {

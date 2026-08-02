@@ -280,7 +280,7 @@ export interface MarketDataCandlesQueryResult {
     high: number;
     low: number;
     close: number;
-    volume: number;
+    volume: number | null;
     at: string;
     displayAt?: string | null;
     session?: MarketDataSession | string | null;

@@ -147,7 +147,7 @@ const displayCandles = computed<BacktestCandle[]>(() =>
     high: candle.high,
     low: candle.low,
     close: candle.close,
-    volume: candle.volume,
+    volume: candle.volume ?? 0,
   })),
 );
 const hasCandles = computed(() => displayCandles.value.length > 0);

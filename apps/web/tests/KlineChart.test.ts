@@ -369,7 +369,7 @@ describe("KlineChart", () => {
         high: 320.8,
         low: 319.9,
         close: 320.5,
-        volume: 18000,
+        volume: null,
       },
     ]);
 
@@ -414,7 +414,7 @@ describe("KlineChart", () => {
       },
     ]);
     expect(chartMocks.volumeSetData).toHaveBeenLastCalledWith([
-      expect.objectContaining({ time: 1778981460, value: 18000 }),
+      { time: 1778981460 },
       expect.objectContaining({ time: 1778981520, value: 21000 }),
     ]);
     expect(chartMocks.resize).toHaveBeenCalledWith(640, 320, true);

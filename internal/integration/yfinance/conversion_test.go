@@ -226,7 +226,8 @@ func TestCandleConversionBuildsNeutralResponseAndRejectsDrift(t *testing.T) {
 		t.Fatalf("convertCandles pre-market: %v", err)
 	}
 	candles = result["candles"].([]map[string]any)
-	if candles[0]["session"] != "pre" || result["meta"].(map[string]any)["session"] != "all" {
+	if candles[0]["session"] != "pre" || candles[0]["volume"] != nil ||
+		result["meta"].(map[string]any)["session"] != "all" {
 		t.Fatalf("pre-market candle normalization = %#v", result)
 	}
 
@@ -265,8 +266,33 @@ func TestCandleConversionUsesEarlyCloseCalendarAndDropsClosedBars(t *testing.T) 
 		t.Fatalf("convertCandles: %v", err)
 	}
 	candles := result["candles"].([]map[string]any)
-	if len(candles) != 2 || candles[0]["session"] != "regular" || candles[1]["session"] != "after" {
+	if len(candles) != 2 || candles[0]["session"] != "regular" || candles[0]["volume"] != "10" ||
+		candles[1]["session"] != "after" || candles[1]["volume"] != nil {
 		t.Fatalf("early-close candles = %#v", candles)
+	}
+}
+
+func TestCandleConversionMarksYahooExtendedVolumeUnavailable(t *testing.T) {
+	expected := normalizedInstrument{market: "US", symbol: "BABA", id: "US.BABA"}
+	response := remoteCandles{
+		Market: "US", Symbol: "BABA", InstrumentID: "US.BABA", Period: "1m",
+		ExtendedHours: true, TotalReturned: 3, Source: sourceID,
+		Candles: []remoteCandle{
+			{At: "2026-07-31T12:00:00Z", Open: number("119"), High: number("120"), Low: number("118"), Close: number("119.5"), Volume: number("0")},
+			{At: "2026-07-31T14:00:00Z", Open: number("120"), High: number("121"), Low: number("119"), Close: number("120.5"), Volume: number("2500")},
+			{At: "2026-07-31T20:02:00Z", Open: number("122.15"), High: number("122.25"), Low: number("122.11"), Close: number("122.25"), Volume: number("16323414")},
+		},
+	}
+
+	result, err := convertCandles(response, expected, "1m", 10, testNow)
+	if err != nil {
+		t.Fatalf("convertCandles: %v", err)
+	}
+	candles := result["candles"].([]map[string]any)
+	if len(candles) != 3 || candles[0]["session"] != "pre" || candles[0]["volume"] != nil ||
+		candles[1]["session"] != "regular" || candles[1]["volume"] != "2500" ||
+		candles[2]["session"] != "after" || candles[2]["volume"] != nil {
+		t.Fatalf("Yahoo extended volume normalization = %#v", candles)
 	}
 }
 

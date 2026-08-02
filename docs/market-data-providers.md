@@ -19,6 +19,8 @@ JFTrade 的行情查询与交易执行是两个独立边界。运行时内置 Fu
 
 Yahoo Finance 接口不是官方稳定 API，也没有实时性或可用性承诺。JFTrade 会把缺失值安全映射为 `null`，并把上游失败转换为结构化错误，但无法消除上游限流、字段变化或临时不可用。
 
+Yahoo 的美股盘外分钟数据只作为价格样本使用：上游盘前成交量通常为零，盘后还可能把截至当时的累计成交量放进单根分钟 K，不能解释为该分钟增量。JFTrade 因此把 Yahoo 美股盘前、盘后分钟 K 的 `volume` 统一标记为 `null`，价格 K 仍保留；成交量柱和量价指标只使用成交量有效的常规时段 K。日成交量直接读取 Yahoo 日 K，不从盘外分钟 K 聚合。Futu OpenD 的每根 K 线成交量不受此规则影响。
+
 Yahoo 的 `postMarketPrice` / `postMarketTime` 是 Yahoo Provider 下的盘后价格与实际报价时间，不会用 Futu 数值覆盖。JFTrade 使用当前生效的交易所日历校验报价所属交易日和盘前/盘后窗口，并据此分类分钟 K 线；周末、节假日和早收市边界不由 Python helper 或前端硬编码。行情卡片分别展示实际“报价时间”和日历计划“截止时间”，两者均以交易所时区为主。Futu `PreAfterMarketData` 不携带独立时间戳，因此不会把 BasicQot 常规更新时间冒充盘外报价时间。
 
 ## 内置 helper
