@@ -60,6 +60,23 @@ export function resolveDesktopMode(): boolean {
   return window.__JFTRADE_RUNTIME_CONFIG__?.desktopMode === true;
 }
 
+export function resolveDesktopBridgeAvailable(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const runtimeWindow = window as typeof window & {
+    chrome?: { webview?: { postMessage?: unknown } };
+    webkit?: { messageHandlers?: { external?: { postMessage?: unknown } } };
+    wails?: { invoke?: unknown };
+  };
+  return (
+    typeof runtimeWindow.chrome?.webview?.postMessage === "function" ||
+    typeof runtimeWindow.webkit?.messageHandlers?.external?.postMessage ===
+      "function" ||
+    typeof runtimeWindow.wails?.invoke === "function"
+  );
+}
+
 export function resolveDesktopApiToken(): string | null {
   if (typeof window === "undefined") {
     return null;

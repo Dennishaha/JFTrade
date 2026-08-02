@@ -147,7 +147,7 @@ func writeResponse(writer http.ResponseWriter, response Response) {
 func defaultFixture(request *http.Request) (int, string) {
 	switch {
 	case request.URL.Path == "/health":
-		return http.StatusOK, `{"ok":true,"yfinance_version":"0.2.61"}`
+		return http.StatusOK, `{"ok":true,"yfinance_version":"0.2.61","runtime_state":"ready","warmup_error":null}`
 	case request.URL.Path == "/markets":
 		return http.StatusOK, marketsFixture
 	case request.URL.Path == "/search":

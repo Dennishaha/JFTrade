@@ -89,7 +89,7 @@ func TestRuntimeCommitsFutuWhenSidecarCleanupNeedsRetry(t *testing.T) {
 	}
 	sidecar := &sidecarLifecycleStub{}
 	installHealthySidecar(runtime, sidecar)
-	runtime.healthCheck = func(context.Context, marketdata.Provider) error { return nil }
+	runtime.healthCheck = func(context.Context, marketdata.Provider, bool) error { return nil }
 
 	if err := runtime.Activate(t.Context(), Activation{ProviderID: ProviderYFinance}); err != nil {
 		t.Fatalf("Activate(yfinance): %v", err)
@@ -764,5 +764,5 @@ func (s *sidecarLifecycleStub) Close() error {
 
 func installHealthySidecar(runtime *Runtime, sidecar *sidecarLifecycleStub) {
 	runtime.sidecar = sidecar
-	runtime.healthCheck = func(context.Context, marketdata.Provider) error { return nil }
+	runtime.healthCheck = func(context.Context, marketdata.Provider, bool) error { return nil }
 }

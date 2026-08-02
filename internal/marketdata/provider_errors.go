@@ -9,6 +9,9 @@ var (
 	// ErrCapabilityUnsupported identifies a valid request that the active
 	// provider cannot supply.
 	ErrCapabilityUnsupported = errors.New("market-data capability is unsupported")
+	// ErrProviderWarming indicates that the selected provider process is healthy
+	// but its heavy runtime dependencies are still loading.
+	ErrProviderWarming = errors.New("market-data provider is warming")
 	// ErrManagedSubscriptionsActive prevents a provider change from moving
 	// running in-process consumers, such as live strategies, onto another data
 	// source.

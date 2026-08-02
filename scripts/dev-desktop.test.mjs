@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+
+import {
+  nativeBundleCacheReusable,
+  selectYFinanceDevelopmentRuntime,
+} from "./lib/desktop-dev-fast-path.mjs";
 
 const rootDir = process.cwd();
 const desktopRuntimeDir = path.join(rootDir, "var", "jftrade-api");
@@ -12,6 +18,8 @@ const defaults = runDevDesktop({
   JFTRADE_API_BIND: "",
   DISABLE_MARKETS_CACHE: "",
   JFTRADE_YFINANCE_SIDECAR: "",
+  JFTRADE_YFINANCE_DEV_PYTHON: "",
+  JFTRADE_YFINANCE_DEV_PYTHONPATH: "",
   VITE_API_BASE_URL: "",
   VITE_DEV_API_TARGET: "",
 });
@@ -55,6 +63,10 @@ assert(
   defaults.stdout.includes("VITE_DEV_API_TARGET=http://127.0.0.1:3008"),
   "desktop dev did not point the Vite proxy at the desktop API",
 );
+assert(
+  defaults.stdout.includes("JFTRADE_YFINANCE_DEV_MODE="),
+  "desktop dev did not report its yfinance runtime selection",
+);
 
 const overrides = runDevDesktop({
   JFTRADE_SETTINGS_PATH: path.join(rootDir, "tmp", "settings.json"),
@@ -68,6 +80,23 @@ const overrides = runDevDesktop({
 assert(
   overrides.status === 0,
   `desktop dev override dry run failed: ${overrides.stderr || overrides.stdout}`,
+);
+
+const pythonSource = runDevDesktop({
+  JFTRADE_YFINANCE_SIDECAR: "",
+  JFTRADE_YFINANCE_DEV_PYTHON: process.execPath,
+  JFTRADE_YFINANCE_DEV_PYTHONPATH: rootDir,
+});
+assert(
+  pythonSource.status === 0 &&
+    pythonSource.stdout.includes(
+      `JFTRADE_YFINANCE_DEV_PYTHON=${process.execPath}`,
+    ) &&
+    pythonSource.stdout.includes(
+      `JFTRADE_YFINANCE_DEV_PYTHONPATH=${rootDir}`,
+    ) &&
+    pythonSource.stdout.includes("JFTRADE_YFINANCE_DEV_MODE=python-source"),
+  "desktop dev did not preserve an explicit Python source runtime",
 );
 assert(
   overrides.stdout.includes(
@@ -104,6 +133,79 @@ assert(
   "desktop dev did not preserve the Vite proxy target override",
 );
 
+const implementation = readFileSync(
+  path.join(rootDir, "scripts", "dev-desktop.mjs"),
+  "utf8",
+);
+assert(
+  implementation.indexOf("run\", \"dev:web") <
+    implementation.indexOf("prepareDesktopExecutable()"),
+  "desktop dev does not start Vite before native preparation",
+);
+assert(
+  implementation.includes("nativeDesktopFingerprint") &&
+    implementation.includes("validCodeSignature") &&
+    implementation.includes("JFTrade native development bundle cache hit"),
+  "desktop dev native fingerprint/signature cache is missing",
+);
+assert(
+  !implementation.includes("build-yfinance-sidecar.mjs"),
+  "desktop dev still performs an implicit frozen helper build",
+);
+
+assert(
+  nativeBundleCacheReusable({
+    executableAvailable: true,
+    fingerprint: "current",
+    storedFingerprint: "current",
+    signatureValid: true,
+  }),
+  "native cache did not accept a matching signed bundle",
+);
+for (const invalid of [
+  { executableAvailable: false, storedFingerprint: "current", signatureValid: true },
+  { executableAvailable: true, storedFingerprint: "stale", signatureValid: true },
+  { executableAvailable: true, storedFingerprint: "current", signatureValid: false },
+]) {
+  assert(
+    !nativeBundleCacheReusable({ fingerprint: "current", ...invalid }),
+    "native cache accepted a missing, stale, or unsigned bundle",
+  );
+}
+
+const baseRuntime = {
+  explicitHelper: "",
+  explicitHelperUsable: false,
+  explicitPython: "",
+  explicitSource: "",
+  explicitPythonUsable: false,
+  defaultPython: "/venv/python",
+  defaultSource: "/source",
+  defaultPythonUsable: false,
+  frozenAvailable: false,
+  frozenHelper: "/frozen/helper",
+  allowUnavailable: false,
+};
+assert(
+  selectYFinanceDevelopmentRuntime({
+    ...baseRuntime,
+    defaultPythonUsable: true,
+  }).kind === "python-source",
+  "desktop dev did not prefer the usable venv source runtime",
+);
+assert(
+  selectYFinanceDevelopmentRuntime({
+    ...baseRuntime,
+    frozenAvailable: true,
+  }).kind === "frozen-helper",
+  "desktop dev did not fall back to the frozen helper",
+);
+assertThrows(
+  () => selectYFinanceDevelopmentRuntime(baseRuntime),
+  "pip install --editable",
+  "desktop dev did not fail quickly with an actionable install command",
+);
+
 function runDevDesktop(extraEnv) {
   const env = { ...process.env, JFTRADE_DESKTOP_DEV_DRY_RUN: "1" };
   for (const [key, value] of Object.entries(extraEnv)) {
@@ -124,4 +226,14 @@ function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+function assertThrows(operation, expected, message) {
+  try {
+    operation();
+  } catch (error) {
+    assert(String(error).includes(expected), message);
+    return;
+  }
+  throw new Error(message);
 }

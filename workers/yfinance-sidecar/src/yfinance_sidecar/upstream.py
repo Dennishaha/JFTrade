@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import importlib
 import threading
 import time
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-import yfinance as yf
-from curl_cffi import requests
+from .errors import SidecarError
 
 UPSTREAM_TIMEOUT_SECONDS = 10
 UPSTREAM_IMPERSONATE = "chrome"
@@ -16,33 +17,107 @@ SNAPSHOT_CACHE_SECONDS = 15
 SECURITY_CACHE_SECONDS = 86400
 
 
-class _BoundedSession(requests.Session):
-    """Clamp every yfinance transport request to a finite upper bound."""
-
-    def request(
-        self,
-        method: Any,
-        url: str,
-        *args: Any,
-        **kwargs: Any,
-    ) -> Any:
-        requested = kwargs.get("timeout")
-        if (
-            not isinstance(requested, (int, float))
-            or requested <= 0
-            or requested > UPSTREAM_TIMEOUT_SECONDS
-        ):
-            kwargs["timeout"] = UPSTREAM_TIMEOUT_SECONDS
-        return super().request(method, url, *args, **kwargs)
+RuntimeState = Literal["warming", "ready", "failed"]
 
 
-# Yahoo frequently rate-limits the default curl_cffi fingerprint. Use a
-# stable browser profile for all yfinance requests while keeping the
-# transport local to this sidecar.
-_SESSION = _BoundedSession(
-    impersonate=UPSTREAM_IMPERSONATE,
-    timeout=UPSTREAM_TIMEOUT_SECONDS,
-)
+@dataclass(frozen=True)
+class RuntimeSnapshot:
+    state: RuntimeState
+    error: str = ""
+
+
+@dataclass(frozen=True)
+class _RuntimeComponents:
+    yfinance: Any
+    session: Any
+
+
+_runtime_lock = threading.Lock()
+_runtime_started = False
+_runtime_snapshot = RuntimeSnapshot("warming")
+_runtime_components: _RuntimeComponents | None = None
+
+
+def runtime_snapshot() -> RuntimeSnapshot:
+    with _runtime_lock:
+        return _runtime_snapshot
+
+
+def warm_runtime() -> None:
+    """Import the heavy Yahoo stack once without blocking process health."""
+    global _runtime_started, _runtime_snapshot, _runtime_components
+    with _runtime_lock:
+        if _runtime_started:
+            return
+        _runtime_started = True
+    try:
+        yf = importlib.import_module("yfinance")
+        requests = importlib.import_module("curl_cffi.requests")
+        components = _RuntimeComponents(
+            yfinance=yf,
+            session=_build_session(requests),
+        )
+    except Exception as exc:
+        with _runtime_lock:
+            _runtime_snapshot = RuntimeSnapshot(
+                "failed",
+                f"{type(exc).__name__}: {exc}",
+            )
+        return
+    with _runtime_lock:
+        _runtime_components = components
+        _runtime_snapshot = RuntimeSnapshot("ready")
+
+
+def require_runtime() -> _RuntimeComponents:
+    snapshot = runtime_snapshot()
+    if snapshot.state == "warming":
+        raise SidecarError(
+            503,
+            "YFINANCE_RUNTIME_WARMING",
+            "Yahoo Finance runtime is warming up",
+        )
+    if snapshot.state == "failed":
+        raise SidecarError(
+            503,
+            "YFINANCE_RUNTIME_FAILED",
+            "Yahoo Finance runtime failed to initialize",
+        )
+    with _runtime_lock:
+        components = _runtime_components
+    if components is None:
+        raise SidecarError(
+            503,
+            "YFINANCE_RUNTIME_FAILED",
+            "Yahoo Finance runtime is unavailable",
+        )
+    return components
+
+
+def _build_session(requests: Any) -> Any:
+    class _BoundedSession(requests.Session):
+        """Clamp every yfinance transport request to a finite upper bound."""
+
+        def request(
+            self,
+            method: Any,
+            url: str,
+            *args: Any,
+            **kwargs: Any,
+        ) -> Any:
+            requested = kwargs.get("timeout")
+            if (
+                not isinstance(requested, (int, float))
+                or requested <= 0
+                or requested > UPSTREAM_TIMEOUT_SECONDS
+            ):
+                kwargs["timeout"] = UPSTREAM_TIMEOUT_SECONDS
+            return super().request(method, url, *args, **kwargs)
+
+    return _BoundedSession(
+        impersonate=UPSTREAM_IMPERSONATE,
+        timeout=UPSTREAM_TIMEOUT_SECONDS,
+    )
 
 
 class _TickerInfoCache:
@@ -119,11 +194,12 @@ _ticker_info_cache = _TickerInfoCache()
 
 
 def search_quotes(query: str, limit: int) -> list[dict[str, Any]]:
-    search = yf.Search(
+    runtime = require_runtime()
+    search = runtime.yfinance.Search(
         query,
         max_results=limit,
         news_count=0,
-        session=_SESSION,
+        session=runtime.session,
         timeout=UPSTREAM_TIMEOUT_SECONDS,
     )
     return list(search.quotes or [])
@@ -141,10 +217,14 @@ def ticker_info(
     :data:`SECURITY_CACHE_SECONDS`. Concurrent misses for the same Yahoo
     ticker share one upstream request.
     """
+    runtime = require_runtime()
     return _ticker_info_cache.get_or_fetch(
         symbol,
         max_age_seconds,
-        lambda: yf.Ticker(symbol, session=_SESSION).get_info(),
+        lambda: runtime.yfinance.Ticker(
+            symbol,
+            session=runtime.session,
+        ).get_info(),
     )
 
 
@@ -157,6 +237,7 @@ def ticker_history(
     end: datetime | None,
     prepost: bool = True,
 ) -> Any:
+    runtime = require_runtime()
     options: dict[str, Any] = {
         "interval": interval,
         "prepost": prepost,
@@ -180,4 +261,7 @@ def ticker_history(
             options["start"] = start
         if end is not None:
             options["end"] = end
-    return yf.Ticker(symbol, session=_SESSION).history(**options)
+    return runtime.yfinance.Ticker(
+        symbol,
+        session=runtime.session,
+    ).history(**options)

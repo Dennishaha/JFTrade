@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -21,6 +23,8 @@ class ErrorEnvelope(WireModel):
 class HealthResponse(WireModel):
     ok: bool
     yfinance_version: str
+    runtime_state: Literal["warming", "ready", "failed"]
+    warmup_error: str | None = None
 
 
 class TradingWindow(WireModel):

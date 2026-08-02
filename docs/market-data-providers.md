@@ -25,24 +25,26 @@ Yahoo 的 `postMarketPrice` / `postMarketTime` 是 Yahoo Provider 下的盘后�
 
 ## 内置 helper
 
-桌面版和带 `release_assets` 的 `cmd/jftrade-api` 会嵌入目标平台的 PyInstaller `onedir` helper（可执行文件及其依赖目录）。JFTrade 在启用内置 yfinance Provider 时自动释放到权限受限的临时目录，分配动态 loopback 端口，探测 `/health` 后注入内部 Provider endpoint；切回 Futu 或退出应用时停止进程并删除临时目录。helper 缺失、启动失败或健康探测失败会回退并持久化 Futu；helper 不会无限自动重启，也不会监听公网。
+桌面版和带 `release_assets` 的 `cmd/jftrade-api` 会嵌入目标平台的 PyInstaller `onedir` helper（可执行文件及其依赖目录）。JFTrade 首次启用时把它原子发布到设置目录下的 `cache/yfinance-sidecar/<bundle-sha256>/`，逐文件校验摘要、类型和权限；后续启动完整校验后复用，不再重复写文件。损坏只重建当前摘要目录，缓存不可写时降级到权限受限的临时目录。切回 Futu 或退出时停止 helper 进程，但保留有效缓存；成功启动后尽力清理超过 7 天的旧摘要。helper 不会无限自动重启，也不会监听公网。
 
 设置页不提供行情 Provider 分类，也不提供 Python、host、port、enabled 或 timeout 配置。首页/研究页的“行情提供者”菜单只展示可用 Provider，并负责切换到 Futu OpenD。
 
 ## Provider 切换与 Futu 退订
 
-切换到 Yahoo 时，JFTrade 会先启动并检查内置 helper，随后立即提交逻辑 Provider、清理旧行情缓存并让 collector 改走 Yahoo 轮询。Futu OpenD 不允许物理订阅建立后不足一分钟就退订，因此 JFTrade 不再用强制退订阻塞这次切换：旧 Futu demand 会立即归零，尚未满足最短持有时间的 Basic、KLine 和 OrderBook 订阅进入 `pending_unsubscribe`。
+helper 的 `/health` 只读取轻量包元数据，并通过 `runtime_state` 报告 `warming`、`ready` 或 `failed`；pandas、numpy、yfinance 与 curl_cffi 在 FastAPI lifespan 的单个后台预热任务中导入。预热前的数据请求返回 `503 YFINANCE_RUNTIME_WARMING` 和 `Retry-After: 1`，统一行情接口保留这项可重试语义。应用启动恢复持久化的 Yahoo 时只要求 helper 进程健康，因此 API 和其他功能不会等待预热；用户显式切换到 Yahoo 时仍必须等到 `ready` 才提交切换。
+
+切换到 Yahoo 时，JFTrade 会先启动并检查内置 helper，随后提交逻辑 Provider、清理旧行情缓存并让 collector 改走 Yahoo 轮询。Futu OpenD 不允许物理订阅建立后不足一分钟就退订，因此 JFTrade 不再用强制退订阻塞这次切换：旧 Futu demand 会立即归零，尚未满足最短持有时间的 Basic、KLine 和 OrderBook 订阅进入 `pending_unsubscribe`。
 
 collector 每 250 毫秒推进一次非活跃 Futu 清理；每条订阅从 OpenD 确认建立的时间起满一分钟后才发送退订。退订暂时失败会沿用行情订阅的退避策略继续重试，不会把已经成功的 Yahoo 切换回滚成 Futu。若在到期前切回 Futu，仍符合当前真实 demand 的物理订阅会直接复用，不会重复占用订阅额度。
 
-`pnpm run desktop:dev` 会优先复用当前平台的已构建 helper；如果 helper 不存在且仓库内的 `workers/yfinance-sidecar/.venv` 可用，启动脚本会自动构建并通过 `JFTRADE_YFINANCE_SIDECAR` 注入桌面进程。没有该虚拟环境时，可先按 sidecar README 安装 `[runtime,build]` 依赖。独立运行 `cmd/jftrade-api` 时，可通过绝对路径指定本地 helper：
+`pnpm run desktop:dev` 默认直接使用 `workers/yfinance-sidecar/.venv` 和源码目录；只有显式 helper、开发 venv 均不可用时才复用已构建的 frozen helper，启动脚本不会隐式运行 PyInstaller。没有可用运行时会立即给出安装命令。独立运行 `cmd/jftrade-api` 时，可通过绝对路径指定本地 helper：
 
 ```bash
 JFTRADE_YFINANCE_SIDECAR=/absolute/path/to/yfinance-sidecar-darwin-arm64/yfinance-sidecar-darwin-arm64 \
   go run ./cmd/jftrade-api
 ```
 
-该环境变量仅用于开发和测试，不写入 `settings.json`，也不会出现在用户界面。构建 helper 的依赖和 PyInstaller spec 位于 `workers/yfinance-sidecar`；目标平台构建命令为 `pnpm run build:yfinance-sidecar`。
+该环境变量仅用于开发和测试，不写入 `settings.json`，也不会出现在用户界面。源码命令也可成对使用 `JFTRADE_YFINANCE_DEV_PYTHON=/absolute/path/to/python` 和 `JFTRADE_YFINANCE_DEV_PYTHONPATH=/absolute/path/to/src`；正式 profile 忽略全部开发覆盖。构建 helper 的依赖和 PyInstaller spec 位于 `workers/yfinance-sidecar`；目标平台构建命令为 `pnpm run build:yfinance-sidecar`。
 
 ## 验证
 

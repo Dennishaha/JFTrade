@@ -5,9 +5,11 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import threading
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from curl_cffi import requests
 
 from yfinance_sidecar import upstream
 from yfinance_sidecar.routes.candles import inclusive_history_end
@@ -40,13 +42,21 @@ def test_bounded_history_never_uses_a_period(
     class FakeTicker:
         def __init__(self, symbol: str, **kwargs: Any) -> None:
             assert symbol == "AAPL"
-            assert kwargs["session"] is upstream._SESSION
+            assert kwargs["session"] is session
 
         def history(self, **options: Any) -> str:
             calls.append(options)
             return "frame"
 
-    monkeypatch.setattr(upstream.yf, "Ticker", FakeTicker)
+    session = object()
+    monkeypatch.setattr(
+        upstream,
+        "require_runtime",
+        lambda: SimpleNamespace(
+            yfinance=SimpleNamespace(Ticker=FakeTicker),
+            session=session,
+        ),
+    )
     result = TICKER_HISTORY(
         "AAPL",
         interval="1d",
@@ -70,13 +80,21 @@ def test_unbounded_history_uses_the_configured_fetch_period(
 
     class FakeTicker:
         def __init__(self, _symbol: str, **kwargs: Any) -> None:
-            assert kwargs["session"] is upstream._SESSION
+            assert kwargs["session"] is session
 
         def history(self, **options: Any) -> str:
             calls.append(options)
             return "frame"
 
-    monkeypatch.setattr(upstream.yf, "Ticker", FakeTicker)
+    session = object()
+    monkeypatch.setattr(
+        upstream,
+        "require_runtime",
+        lambda: SimpleNamespace(
+            yfinance=SimpleNamespace(Ticker=FakeTicker),
+            session=session,
+        ),
+    )
 
     TICKER_HISTORY(
         "AAPL",
@@ -107,7 +125,14 @@ def test_history_can_disable_extended_hours_for_hk_and_cn_markets(
             calls.append(options)
             return "frame"
 
-    monkeypatch.setattr(upstream.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(
+        upstream,
+        "require_runtime",
+        lambda: SimpleNamespace(
+            yfinance=SimpleNamespace(Ticker=FakeTicker),
+            session=object(),
+        ),
+    )
     monkeypatch.setattr(upstream, "ticker_history", TICKER_HISTORY)
     TICKER_HISTORY(
         "0700.HK",
@@ -136,8 +161,8 @@ def test_bounded_session_clamps_yfinance_transport_timeouts(
         calls.append(kwargs["timeout"])
         return "response"
 
-    monkeypatch.setattr(upstream.requests.Session, "request", fake_request)
-    session = upstream._BoundedSession(timeout=60)
+    monkeypatch.setattr(requests.Session, "request", fake_request)
+    session = upstream._build_session(requests)
 
     assert session.request("GET", "https://example.test", timeout=30) == "response"
     assert session.request("GET", "https://example.test", timeout=3) == "response"
@@ -146,7 +171,8 @@ def test_bounded_session_clamps_yfinance_transport_timeouts(
 
 
 def test_shared_session_uses_browser_transport_profile() -> None:
-    assert upstream._SESSION.impersonate == upstream.UPSTREAM_IMPERSONATE
+    session = upstream._build_session(requests)
+    assert session.impersonate == upstream.UPSTREAM_IMPERSONATE
 
 
 def test_ticker_info_snapshot_cache_singleflights_concurrent_misses(
@@ -168,7 +194,14 @@ def test_ticker_info_snapshot_cache_singleflights_concurrent_misses(
             assert release.wait(timeout=2)
             return {"symbol": "AAPL", "exchange": "NMS", "quoteType": "EQUITY"}
 
-    monkeypatch.setattr(upstream.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(
+        upstream,
+        "require_runtime",
+        lambda: SimpleNamespace(
+            yfinance=SimpleNamespace(Ticker=FakeTicker),
+            session=object(),
+        ),
+    )
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = [
             executor.submit(

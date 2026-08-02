@@ -53,7 +53,7 @@ every installed distribution retains its own copyright and license files.
 | `yfinance` | `0.2.61` | Yahoo Finance data adapter | Apache-2.0 |
 | `curl_cffi` | `0.15.0` | bounded Yahoo HTTP transport | MIT |
 | `fastapi` | `0.115.14` | local HTTP application | MIT |
-| `uvicorn[standard]` | `0.35.0` | local ASGI server | BSD-3-Clause |
+| `uvicorn` | `0.35.0` | local ASGI server (`asyncio` + `h11`, WebSocket disabled) | BSD-3-Clause |
 | `pydantic` | `2.12.2` | request and response validation | MIT |
 | `httpx` | `0.28.1` | in-process ASGI contract tests | BSD-3-Clause |
 | `pytest` | `8.4.1` | test runner | MIT |

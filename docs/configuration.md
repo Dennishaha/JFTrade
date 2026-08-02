@@ -111,7 +111,7 @@ OpenD 连接配置位于 `integration.config`。常用字段包括：
 
 - `activeMarketDataProvider`：只接受 `futu` 或 `yfinance`。
 
-发布版 Go 二进制内置当前平台的 PyInstaller `onedir` helper，会自动释放整个目录到受限临时目录、使用动态 loopback 端口并探测 `/health`；用户不需要安装 Python，也不能配置连接地址、Python 路径或超时。`pnpm run desktop:dev` 会优先复用当前平台已构建的 helper，没有时使用 `workers/yfinance-sidecar/.venv` 自动构建；独立 `cmd/jftrade-api` 开发运行仍可通过 `JFTRADE_YFINANCE_SIDECAR=/absolute/path/to/helper` 指定目录内本地可执行文件。切离 Futu 会立即清理旧行情缓存并撤销 Futu demand；OpenD 要求至少保留一分钟的物理订阅会在到期后由 collector 后台退订，失败则按退避策略重试。yfinance 不支持实时推流或 Level 2，collector 会退化为按需轮询。应用启动恢复 yfinance 失败时回退并持久化 Futu，避免配置与运行时分裂。当前版本不读取历史的 `yfinance` 连接配置块。详细能力见 [行情数据源](./market-data-providers.md)。
+发布版 Go 二进制内置当前平台的 PyInstaller `onedir` helper。首次使用会在设置目录下的 `cache/yfinance-sidecar/<bundle-sha256>/` 原子发布并完整校验，后续启动校验后直接复用；缓存不可写时才降级到受限临时目录。helper 使用动态 loopback 端口，`/health` 在重型 Python 依赖后台预热期间也可立即响应。用户不需要安装 Python，也不能配置连接地址、Python 路径或超时。`pnpm run desktop:dev` 默认通过 `workers/yfinance-sidecar/.venv` 运行源码，不会隐式构建 frozen helper；开发/测试可用 `JFTRADE_YFINANCE_SIDECAR`，或成对设置 `JFTRADE_YFINANCE_DEV_PYTHON` 与 `JFTRADE_YFINANCE_DEV_PYTHONPATH`，正式 profile 会忽略这些覆盖。切离 Futu 会立即清理旧行情缓存并撤销 Futu demand；OpenD 要求至少保留一分钟的物理订阅会在到期后由 collector 后台退订，失败则按退避策略重试。yfinance 不支持实时推流或 Level 2，collector 会退化为按需轮询。应用启动恢复只要求 helper 进程健康，预热状态由行情健康接口暴露；用户显式切换到 yfinance 仍必须等到预热完成。当前版本不读取历史的 `yfinance` 连接配置块。详细能力见 [行情数据源](./market-data-providers.md)。
 
 ## Web 访问与密码
 

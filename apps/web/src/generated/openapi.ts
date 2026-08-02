@@ -1570,6 +1570,7 @@ export interface components {
     activeCount: number;
     connected: boolean;
     lastError?: string;
+    readiness?: components["schemas"]["marketdata.ProviderReadiness"];
     streamMode: string;
   };
     "marketdata.InstrumentCandidate": {
@@ -1668,6 +1669,7 @@ export interface components {
     supportedMarkets: Array<string>;
     transports: Array<string>;
   };
+    "marketdata.ProviderReadiness": "warming" | "ready" | "failed";
     "marketdata.ProviderStatusResponse": {
     checkedAt: string;
     descriptor: components["schemas"]["marketdata.ProviderDescriptor"];
@@ -7306,6 +7308,12 @@ export interface paths {
             "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
   };
@@ -7454,6 +7462,12 @@ export interface paths {
         };
         "502": {
           description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
           content: {
             "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
@@ -8488,6 +8502,12 @@ export interface paths {
             "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
       };
     };
   };
@@ -8575,6 +8595,12 @@ export interface paths {
         };
         "502": {
           description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
           content: {
             "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };

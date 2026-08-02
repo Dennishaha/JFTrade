@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import logging
+import threading
 from collections.abc import Sequence
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -12,11 +14,25 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import __version__
+from . import upstream
 from .errors import SidecarError
 from .models import ErrorBody, ErrorEnvelope
 from .routes import candles, health, markets, search, security, snapshot
 
 logger = logging.getLogger(__name__)
+RUNTIME_WARMUP_DELAY_SECONDS = 0.5
+
+
+@asynccontextmanager
+async def _lifespan(_application: FastAPI):
+    warmup = threading.Timer(
+        RUNTIME_WARMUP_DELAY_SECONDS,
+        function=upstream.warm_runtime,
+    )
+    warmup.name = "yfinance-runtime-warmup"
+    warmup.daemon = True
+    warmup.start()
+    yield
 
 
 def create_app() -> FastAPI:
@@ -26,6 +42,7 @@ def create_app() -> FastAPI:
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
+        lifespan=_lifespan,
     )
     application.add_exception_handler(SidecarError, _sidecar_error_handler)
     application.add_exception_handler(
@@ -37,6 +54,7 @@ def create_app() -> FastAPI:
         _http_error_handler,
     )
     application.add_exception_handler(Exception, _unexpected_error_handler)
+    application.middleware("http")(_runtime_readiness_middleware)
     application.include_router(health.router)
     application.include_router(markets.router)
     application.include_router(search.router)
@@ -44,6 +62,30 @@ def create_app() -> FastAPI:
     application.include_router(snapshot.router)
     application.include_router(candles.router)
     return application
+
+
+async def _runtime_readiness_middleware(
+    request: Request,
+    call_next,
+):
+    if request.url.path not in {"/health", "/markets"}:
+        runtime = upstream.runtime_snapshot()
+        if runtime.state != "ready":
+            code = (
+                "YFINANCE_RUNTIME_WARMING"
+                if runtime.state == "warming"
+                else "YFINANCE_RUNTIME_FAILED"
+            )
+            message = (
+                "Yahoo Finance runtime is warming up"
+                if runtime.state == "warming"
+                else "Yahoo Finance runtime failed to initialize"
+            )
+            response = _error_response(503, code, message)
+            if runtime.state == "warming":
+                response.headers["Retry-After"] = "1"
+            return response
+    return await call_next(request)
 
 
 async def _sidecar_error_handler(
@@ -124,7 +166,15 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(argv)
     import uvicorn
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        loop="asyncio",
+        http="h11",
+        ws="none",
+        lifespan="on",
+    )
 
 
 if __name__ == "__main__":

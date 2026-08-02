@@ -3,10 +3,12 @@
 
 import * as DesktopLinkService from "./desktoplinkservice.js";
 import * as DesktopLogService from "./desktoplogservice.js";
+import * as DesktopStartupService from "./desktopstartupservice.js";
 import * as DesktopUpdateService from "./desktopupdateservice.js";
 export {
     DesktopLinkService,
     DesktopLogService,
+    DesktopStartupService,
     DesktopUpdateService
 };
 
@@ -14,5 +16,6 @@ export type {
     DesktopLogDay,
     DesktopLogLine,
     DesktopLogPage,
+    DesktopStartupSnapshot,
     DesktopUpdateResult
 } from "./models.js";

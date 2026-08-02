@@ -20,6 +20,17 @@ export interface DesktopLogPage {
     "nextOffset"?: number | null;
 }
 
+/**
+ * DesktopStartupSnapshot is the desktop-only startup contract consumed before
+ * the local HTTP API is available.
+ */
+export interface DesktopStartupSnapshot {
+    "state": string;
+    "phase": string;
+    "message": string;
+    "startedAt": string;
+}
+
 export interface DesktopUpdateResult {
     "currentVersion": string;
     "available": boolean;

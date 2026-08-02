@@ -39,6 +39,7 @@ type RuntimeOptions struct {
 	FutuQuotes        marketdata.QuoteSource
 	FutuPush          marketdata.PushSource
 	FutuSubscriptions marketdata.SubscriptionReconciler
+	YFinanceCacheDir  string
 }
 
 // Activation describes one desired provider selection.
@@ -66,7 +67,7 @@ type Runtime struct {
 	futu        runtimeState
 	active      runtimeState
 	sidecar     sidecarLifecycle
-	healthCheck func(context.Context, marketdata.Provider) error
+	healthCheck func(context.Context, marketdata.Provider, bool) error
 	closed      bool
 }
 
@@ -95,7 +96,7 @@ func NewRuntime(options RuntimeOptions) (*Runtime, error) {
 	return &Runtime{
 		futu:        futu,
 		active:      futu,
-		sidecar:     newSidecarManager(),
+		sidecar:     newSidecarManager(options.YFinanceCacheDir),
 		healthCheck: waitForProviderHealth,
 	}, nil
 }
@@ -129,7 +130,11 @@ func (r *Runtime) Activate(ctx context.Context, activation Activation) error {
 		return r.rollbackPreparedSidecar(previous, targetProviderID, err)
 	}
 	if next.providerID == ProviderYFinance {
-		if err := r.checkHealth(activationCtx, next.provider); err != nil {
+		if err := r.checkHealth(
+			activationCtx,
+			next.provider,
+			activation.RequireHealthy,
+		); err != nil {
 			return r.rollbackPreparedSidecar(
 				previous,
 				next.providerID,
@@ -254,14 +259,22 @@ func releaseProviderSubscriptions(
 	return subscriptions.ReconcileSubscriptions(ctx, nil)
 }
 
-func (r *Runtime) checkHealth(ctx context.Context, provider marketdata.Provider) error {
+func (r *Runtime) checkHealth(
+	ctx context.Context,
+	provider marketdata.Provider,
+	requireReady bool,
+) error {
 	if r.healthCheck == nil {
-		return waitForProviderHealth(ctx, provider)
+		return waitForProviderHealth(ctx, provider, requireReady)
 	}
-	return r.healthCheck(ctx, provider)
+	return r.healthCheck(ctx, provider, requireReady)
 }
 
-func waitForProviderHealth(ctx context.Context, provider marketdata.Provider) error {
+func waitForProviderHealth(
+	ctx context.Context,
+	provider marketdata.Provider,
+	requireReady bool,
+) error {
 	if provider == nil {
 		return fmt.Errorf("market-data provider is unavailable")
 	}
@@ -272,10 +285,20 @@ func waitForProviderHealth(ctx context.Context, provider marketdata.Provider) er
 	for {
 		health, err := provider.Health(probeCtx)
 		switch {
-		case err == nil && health.Connected:
+		case err == nil && health.Connected && providerReadinessAccepted(
+			health.Readiness,
+			requireReady,
+		):
 			return nil
 		case err != nil:
 			lastErr = err
+		case health.Readiness == marketdata.ProviderReadinessFailed:
+			if health.LastError != "" {
+				return fmt.Errorf("provider runtime failed: %s", health.LastError)
+			}
+			return fmt.Errorf("provider runtime failed")
+		case health.Readiness == marketdata.ProviderReadinessWarming:
+			lastErr = fmt.Errorf("provider runtime is warming")
 		default:
 			lastErr = fmt.Errorf("provider reported disconnected")
 		}
@@ -291,6 +314,14 @@ func waitForProviderHealth(ctx context.Context, provider marketdata.Provider) er
 		}
 		retryDelay = nextProviderHealthRetryDelay(retryDelay)
 	}
+}
+
+func providerReadinessAccepted(
+	readiness marketdata.ProviderReadiness,
+	requireReady bool,
+) bool {
+	return !requireReady || readiness == "" ||
+		readiness == marketdata.ProviderReadinessReady
 }
 
 func nextProviderHealthRetryDelay(current time.Duration) time.Duration {

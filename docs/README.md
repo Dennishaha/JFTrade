@@ -6,19 +6,19 @@
 
 ## 当前版本快照
 
-更新时间：2026-07-29。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
+更新时间：2026-08-02。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
 
 JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。交易链路仍由 Futu/OpenD 管理；新安装的行情默认使用内置 yfinance 延迟数据源，支持美股、港股和沪深，也可以选择 Futu OpenD。系统以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
 
 当前主线事实：
 
 - 独立后端入口：`cmd/jftrade-api`，只支持 API sidecar 模式。
-- 桌面入口：`cmd/jftrade-desktop`，使用 Wails `v3.0.0-alpha2.117`，仍通过 HTTP/SSE/WebSocket 访问内置 sidecar，仅将链接、日志和更新检查暴露为桌面 bindings。
+- 桌面入口：`cmd/jftrade-desktop`，使用 Wails `v3.0.0-alpha2.117`，先显示窗口、再异步启动内置 API；仍通过 HTTP/SSE/WebSocket 访问 sidecar，并将启动状态、链接、日志和更新检查暴露为桌面 bindings。
 - 前端入口：`apps/web`，Vue 3 + Vite；文档站使用 VitePress。
 - 开发端口：API `127.0.0.1:3000`，Web `127.0.0.1:3003`，Docs `127.0.0.1:3001`。
 - 桌面内部端口：`JFTrade Dev` sidecar 为 `127.0.0.1:3008`，正式 `JFTrade` sidecar 为 `127.0.0.1:6699`；两者仅供 Wails 使用且可同时运行。
 - 可选 Web 端口：默认 `127.0.0.1:6688`，可在桌面设置中修改；Web 关闭时桌面产品不创建该监听器。
-- 内置 yfinance helper：发布版随 `release_assets` 嵌入并由 JFTrade 自动启动，使用动态 loopback 端口；提供 `US`、`HK`、`SH`、`SZ` 的约 15 分钟延迟查询与历史 K 线，前端将 `SH`/`SZ` 聚合为“沪深”，不提供实时推流或 Level 2。`pnpm run desktop:dev` 会自动复用或构建当前平台 helper，独立 API 开发态可通过 `JFTRADE_YFINANCE_SIDECAR=/absolute/path` 指定本地 helper。
+- 内置 yfinance helper：发布版随 `release_assets` 嵌入并由 JFTrade 自动启动，按 bundle SHA-256 持久缓存并使用动态 loopback 端口；提供 `US`、`HK`、`SH`、`SZ` 的约 15 分钟延迟查询与历史 K 线，前端将 `SH`/`SZ` 聚合为“沪深”，不提供实时推流或 Level 2。`pnpm run desktop:dev` 默认直接使用仓库 `.venv` 运行 Python 源码，不再隐式构建 frozen helper；独立 API 开发态可通过开发专用环境变量覆盖命令。
 - 数据隔离：桌面开发版继续使用仓库 `var/jftrade-api`；正式产品使用系统用户数据目录，不扫描或迁移开发数据。
 - 自选系统：`watchlists.db` 是本地唯一主数据，支持多分组、Futu 只读预览导入、可见行快照行情和 ADK 只读查询。
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
@@ -71,6 +71,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - [pinets-contract-audit.md](pinets-contract-audit.md)：PineTS 切换后的 Go/API/worker/前端契约矩阵和 visual output 边界。
 - [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)：PineTS worker 发布、运行配置、embedded asset 和非 mock smoke 放行清单。
 - [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)：Wails v3 开发/产品通道隔离、系统数据目录、版本注入、ARM64-only macOS 无签名 DMG、Windows 无签名安装器与发布产物。
+- [troubleshooting/desktop-startup-performance.md](troubleshooting/desktop-startup-performance.md)：开发/正式桌面冷启动、缓存命中、窗口和 API 墙钟基准。
 - [troubleshooting/yfinance-sidecar.md](troubleshooting/yfinance-sidecar.md)：内置 helper、开发态路径、上游错误和延迟行情排障。
 - [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)：从设置页“开发者工具”的错误、慢请求和 OpenD 摘要进入结构化日志及 ADK/回测运行记录。
 - [reference/README.md](reference/README.md)：协议细节、OpenD 资料和上游参考。

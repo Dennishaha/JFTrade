@@ -30,14 +30,26 @@ def test_parse_args_reports_version(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_main_passes_host_and_port_to_uvicorn(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[tuple[object, str, int]] = []
+    calls: list[tuple[object, dict[str, object]]] = []
 
     class FakeUvicorn:
         @staticmethod
-        def run(application: object, *, host: str, port: int) -> None:
-            calls.append((application, host, port))
+        def run(application: object, **options: object) -> None:
+            calls.append((application, options))
 
     monkeypatch.setitem(__import__("sys").modules, "uvicorn", FakeUvicorn)
     sidecar_main.main(["--host", "127.0.0.1", "--port", "7790"])
 
-    assert calls == [(sidecar_main.app, "127.0.0.1", 7790)]
+    assert calls == [
+        (
+            sidecar_main.app,
+            {
+                "host": "127.0.0.1",
+                "port": 7790,
+                "loop": "asyncio",
+                "http": "h11",
+                "ws": "none",
+                "lifespan": "on",
+            },
+        )
+    ]

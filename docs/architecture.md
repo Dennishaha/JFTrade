@@ -13,7 +13,7 @@
 JFTrade 当前以一个本地后端服务为核心。它既可以由 `cmd/jftrade-api` 独立启动，也可以由 Wails `cmd/jftrade-desktop` 作为桌面 sidecar 管理。下文仍用 sidecar 指这个后端服务。
 
 - 前端控制台使用 JFTrade 后端服务，`cmd/jftrade-api` 和 `cmd/jftrade-desktop` 都装配到 `internal/app/apiserver`；HTTP 层位于 `internal/api/*`，业务能力位于 `internal/{system,settings,marketdata,trading,strategy,backtest,assistant,watchlist}`。
-- Wails 桌面壳不替换业务 transport：Vue 仍直接访问 REST、SSE 和 WebSocket；bindings 仅承载链接、桌面日志和更新检查。
+- Wails 桌面壳不替换业务 transport：Vue 仍直接访问 REST、SSE 和 WebSocket；bindings 仅承载启动状态、链接、桌面日志和更新检查。
 - 策略执行、回测、行情和通知仍复用 bbgo 的公共类型、stream、backtest engine 和通知总线，但不再提供独立 bbgo CLI/full runtime 入口。
 
 历史上的 `pkg/jftradeapi` 兼容门面已经删除。旧文档或旧测试命令如果仍指向 `pkg/jftradeapi`，应迁移到 `internal/app/apiserver/servercore`、`internal/api/*` 或对应业务 service。
@@ -62,7 +62,7 @@ flowchart LR
 - Wails sidecar 与可选 Web 入口是两个监听器，但复用同一个 Gin handler、服务层和数据目录；sidecar 始终只监听 loopback，不能被 Web 密码当作浏览器入口。
 - JFTrade 控制台只承诺 `/api/v1/*`；不要把它和 bbgo 原生 `/api/*` 混为一谈。
 - `pkg/futu`、`pkg/strategy/pineworker`、`pkg/backtest` 仍可复用 bbgo 公共类型、PineTS worker 边界和回测组件。
-- `cmd/jftrade-api` 和桌面产品都从 `release_assets` 嵌入当前平台的 PyInstaller `onedir` yfinance helper（`darwin/arm64`、`linux/amd64`、`windows/amd64`、`windows/arm64`）。JFTrade 在启用或恢复内置 Yahoo Finance Provider 时自动释放 helper 目录到受限临时目录，分配动态 loopback 端口并探测 `/health`；设置页不提供行情 Provider 分类，首页/研究页的“行情提供者”菜单负责切换，切换或应用退出时停止进程并清理临时目录。
+- `cmd/jftrade-api` 和桌面产品都从 `release_assets` 嵌入当前平台的 PyInstaller `onedir` yfinance helper（`darwin/arm64`、`linux/amd64`、`windows/amd64`、`windows/arm64`）。JFTrade 在启用或恢复内置 Yahoo Finance Provider 时将 helper 原子发布到设置目录下按 bundle SHA-256 寻址的私有缓存，后续完整校验并复用；缓存不可写时才降级到受限临时目录。helper 使用动态 loopback 端口，切换或退出只停止进程并保留持久缓存。
 - 正式运行不接受外部手工管理的 yfinance 进程。`JFTRADE_YFINANCE_SIDECAR` 只可在开发和测试环境指定绝对路径 helper，用于覆盖嵌入资产。
 
 ## 核心职责边界
@@ -72,7 +72,7 @@ flowchart LR
 职责：决定进程以哪种模式启动，并把控制权交给应用装配层。
 
 - `cmd/jftrade-api`：独立 API 后端服务入口。
-- `cmd/jftrade-desktop`：Wails v3 桌面入口，集中解析 build profile、运行配置、临时桌面 API 凭证、单实例和窗口生命周期。
+- `cmd/jftrade-desktop`：Wails v3 桌面入口，集中解析 build profile、运行配置、临时桌面 API 凭证、单实例和窗口生命周期；窗口先进入 Wails `Run`，`ApplicationStarted` 后才异步装配 API，并通过 `DesktopStartupService` 暴露 `starting/ready/failed`。
 - 历史 full 模式入口已移除。
 
 入口不是业务层，不实现行情、设置、策略或协议逻辑。
@@ -87,7 +87,7 @@ flowchart LR
 - `stores`：持久化 store 的单一应用句柄；保持降级启动语义，并在句柄内部按打开顺序逆序关闭。
 - `runtimes`：应用 runtime 的单一句柄；按生命周期分组引用，线性化 Pine runner 切换，并在句柄内部按成功登记顺序逆序关闭。
 - `futuapp`：Futu broker 选择、reset 顺序和控制台投影；OpenD 协议与连接实现仍归 `internal/integration/futu`。
-- `marketdataapp`：在稳定的 `internal/marketdata.Service` 下原子切换 Futu/yfinance Provider，撤销旧 Provider demand 并按 broker 保留规则回收物理订阅，同时管理内置 PyInstaller helper 的释放、动态 loopback 端口、健康探测、停止和清理。
+- `marketdataapp`：在稳定的 `internal/marketdata.Service` 下原子切换 Futu/yfinance Provider，撤销旧 Provider demand 并按 broker 保留规则回收物理订阅，同时管理内置 PyInstaller helper 的持久缓存/临时降级、动态 loopback 端口、预热 readiness、停止和过期清理。
 - `servercore`：HTTP/security/frontend shell 与兼容入口；业务路由直接注册 `internal/api/*` handler，领域状态和生命周期由应用依赖入口持有。
 
 运行时按生命周期明确分成三类：
@@ -125,7 +125,7 @@ Handler 只做参数绑定、校验、调用 service、错误映射和响应转�
 
 `internal/integration/futu` 是 API sidecar 内部使用的 Futu/OpenD 适配层，负责 client 生命周期、exchange 创建、stream/query 调用、探测和协议到 broker-neutral DTO/事件的转换。`internal/integration/yfinance` 是轮询型 HTTP Provider，只接收由 `marketdataapp` 注入的内部 loopback endpoint，并转换同一套 broker-neutral DTO；它不拥有数据源选择、缓存、订阅或进程生命周期。
 
-`workers/yfinance-sidecar` 用 FastAPI 封装 Python `yfinance`，通过 PyInstaller 打成 `onedir` helper，并由 `internal/yfinanceassets` 按平台嵌入目录并校验 SHA-256。JFTrade 只在需要时自动启动它，helper 监听动态分配的 loopback 端口；应用关闭或切回 Futu 时停止并清理释放目录。它当前承诺 `US`、`HK`、`SH`、`SZ` 的搜索、详情、约 15 分钟延迟快照和历史 K 线，前端将 `SH`/`SZ` 聚合为 `CN`；不提供可靠实时推流或 Level 2。用户界面不暴露连接参数或 Python 路径；Provider 选择和进程生命周期由 `internal/app/apiserver/marketdataapp` 管理，详细能力见 [market-data-providers.md](market-data-providers.md)。
+`workers/yfinance-sidecar` 用 FastAPI 封装 Python `yfinance`，通过 PyInstaller 打成 `onedir` helper，并由 `internal/yfinanceassets` 按平台嵌入目录、校验 SHA-256 和管理内容寻址缓存。`/health` 不同步导入重型数据栈；FastAPI lifespan 启动一次后台预热，数据路由在 `warming` 时返回可重试的 503。JFTrade 只在需要时自动启动 helper，并监听动态分配的 loopback 端口；应用关闭或切回 Futu 时停止进程但保留持久缓存。它当前承诺 `US`、`HK`、`SH`、`SZ` 的搜索、详情、约 15 分钟延迟快照和历史 K 线，前端将 `SH`/`SZ` 聚合为 `CN`；不提供可靠实时推流或 Level 2。用户界面不暴露连接参数或 Python 路径；Provider 选择和进程生命周期由 `internal/app/apiserver/marketdataapp` 管理，详细能力见 [market-data-providers.md](market-data-providers.md)。
 
 持久化按领域位于 `internal/store/{strategy,backtest,trading,watchlist,research,...}`。数据维护只通过 `internal/datamanagement` 的 busy、purge、compact 窄端口访问这些资源，不读取 store 的锁、map 或数据库连接。
 
@@ -133,7 +133,7 @@ Handler 只做参数绑定、校验、调用 service、错误映射和响应转�
 
 ### 6. 桌面专属边界
 
-`cmd/jftrade-desktop` 只暴露三个 bindings 服务：外部链接、分页桌面日志和更新检查。生成的 TypeScript bindings 位于 `apps/web/src/wails`。窗口位置、尺寸和最大化状态写入正式产品数据目录的 `desktop-state.json`；开发版与产品版使用不同 Product/SingleInstance ID，允许同时运行。
+`cmd/jftrade-desktop` 只暴露四个 bindings 服务：启动状态、外部链接、分页桌面日志和更新检查。生成的 TypeScript bindings 位于 `apps/web/src/wails`。启动页通过本地 binding 轮询状态，API ready 后才挂载主界面；失败页只允许打开日志目录或退出，不做进程内重试。窗口位置、尺寸和最大化状态写入正式产品数据目录的 `desktop-state.json`；开发版与产品版使用不同 Product/SingleInstance ID，允许同时运行。
 
 ## 请求与数据流
 
@@ -149,7 +149,7 @@ apps/web
 
 `/api/v1/system/status` 现在同时返回基础状态和轻量观测摘要，包括 API uptime、实时连接统计、行情 collector 状态、broker descriptor 与 strategy runtime summary。
 
-新安装且没有明确选择时，`activeMarketDataProvider` 默认为 `yfinance`；明确的 `futu` 或 `yfinance` 选择会继续保留。当前版本不读取或迁移历史 yfinance 连接配置块。显式切换失败返回冲突错误并保持原 Provider；启动恢复时 helper 缺失、启动或健康探测失败则回退并持久化 `futu`，确保配置与运行态一致。
+新安装且没有明确选择时，`activeMarketDataProvider` 默认为 `yfinance`；明确的 `futu` 或 `yfinance` 选择会继续保留。当前版本不读取或迁移历史 yfinance 连接配置块。显式切换必须通过 `ready` 健康门禁，失败时保持原 Provider；启动恢复只要求 helper 进程及 `/health` 可用，可在 `warming` 状态提交 Provider，从而不阻塞 API。helper 缺失、进程启动或健康端点失败时仍回退并持久化 `futu`，确保配置与运行态一致。
 
 ### 策略设计与运行控制
 
@@ -177,7 +177,7 @@ apps/web
      -> yfinance: QueryTickers() polling -> embedded PyInstaller helper (dynamic loopback) -> Yahoo Finance
 ```
 
-`internal/marketdata` 拥有 demand、cache、freshness、fallback polling、backoff、health/reset/close。稳定 router 让已有 service/lease 不随 Provider 切换而被替换；切换时清理旧缓存并重建 collector 的物理连接。显式切到 yfinance 会先启动内置 helper 并通过健康门禁，失败则保持当前 Provider 并由设置 API 返回冲突；启动恢复持久化选择时，helper 缺失或启动/健康失败会回退并持久化 Futu，避免配置与运行时分裂。逻辑切换成功后不会再被旧 Futu 清理失败回滚：OpenD 要求物理订阅至少保留一分钟，collector 会在非活跃 Futu demand 归零后按各订阅的实际建立时间延迟退订，并对暂时失败使用既有退避重试；到期前切回 Futu 会复用仍有效的物理订阅。Futu 支持 push 时优先流式更新，yfinance 明确报告无实时推流能力，因此 collector 只走轮询，不会反复尝试建立伪流连接；yfinance 也不提供 Level 2。实盘策略仍依赖 Futu 的推流与执行闭环：存在活跃策略时切源会被拒绝，yfinance 激活期间也不会授予新的实盘策略行情 lease。
+`internal/marketdata` 拥有 demand、cache、freshness、fallback polling、backoff、health/reset/close。稳定 router 让已有 service/lease 不随 Provider 切换而被替换；切换时清理旧缓存并重建 collector 的物理连接。显式切到 yfinance 会先启动内置 helper 并等待 `ready` 健康门禁，失败则保持当前 Provider 并由设置 API 返回冲突；启动恢复持久化选择只要求 helper 已连接，允许 Yahoo 在后台 `warming`，其间数据请求通过 `Retry-After` 进入既有退避路径。helper 缺失或进程/健康端点失败仍回退并持久化 Futu。逻辑切换成功后不会再被旧 Futu 清理失败回滚：OpenD 要求物理订阅至少保留一分钟，collector 会在非活跃 Futu demand 归零后按各订阅的实际建立时间延迟退订，并对暂时失败使用既有退避重试；到期前切回 Futu 会复用仍有效的物理订阅。Futu 支持 push 时优先流式更新，yfinance 明确报告无实时推流能力，因此 collector 只走轮询，不会反复尝试建立伪流连接；yfinance 也不提供 Level 2。实盘策略仍依赖 Futu 的推流与执行闭环：存在活跃策略时切源会被拒绝，yfinance 激活期间也不会授予新的实盘策略行情 lease。
 
 ### K 线、快照与盘口深度
 

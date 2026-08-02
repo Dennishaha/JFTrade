@@ -13,6 +13,8 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
 
+import { materializeDirectorySymlinks } from "./lib/materialize-directory-symlinks.mjs";
+
 const rootDir = resolve(import.meta.dirname, "..");
 const sidecarDir = join(rootDir, "workers/yfinance-sidecar");
 const specPath = join(sidecarDir, "yfinance-sidecar.spec");
@@ -76,7 +78,11 @@ try {
       ...process.env,
       JFTRADE_YFINANCE_BINARY_NAME: binaryBase,
     });
+    const materializedLinks = materializeDirectorySymlinks(outputDir);
     verifyOutput(outputPath, targetGOOS);
+    console.log(
+      `Materialized ${materializedLinks} bundle symlink(s) as regular files`,
+    );
     console.log(`Staged yfinance sidecar at ${outputPath}`);
   }
 } finally {

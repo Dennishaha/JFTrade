@@ -33,6 +33,7 @@ export const scriptTestSuites = Object.freeze({
     "scripts/prepare-linux-package-config.test.mjs",
     "scripts/dev-desktop.test.mjs",
     "scripts/build-yfinance-sidecar.test.mjs",
+    "scripts/lib/materialize-directory-symlinks.test.mjs",
   ]),
   "api-release": Object.freeze(["scripts/api-release-scripts.test.mjs"]),
   "pinets-release": Object.freeze(["scripts/check-pinets-release.test.mjs"]),

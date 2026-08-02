@@ -8,7 +8,7 @@
 
 ## 开发版与产品版
 
-`pnpm run desktop:dev` 是 `JFTrade Dev`，默认使用 `127.0.0.1:3008` 和仓库内 `var/jftrade-api`。正式 `release_assets` 产品是 `JFTrade`，默认使用 `127.0.0.1:6699` 和系统用户数据目录。两者的 bundle/product ID 与 SingleInstance ID 不同，可以同时运行；同一通道重复启动只恢复已有窗口。
+`pnpm run desktop:dev` 是 `JFTrade Dev`，默认使用 `127.0.0.1:3008` 和仓库内 `var/jftrade-api`。启动脚本会并行启动 Vite 与准备原生 bundle；原生输入指纹和签名都命中时直接复用 `.app`，仅修改前端不会触发 Go rebuild 或 codesign。正式 `release_assets` 产品是 `JFTrade`，默认使用 `127.0.0.1:6699` 和系统用户数据目录。两者的 bundle/product ID 与 SingleInstance ID 不同，可以同时运行；同一通道重复启动只恢复已有窗口。
 
 | 属性                        | `JFTrade Dev`             | 正式 `JFTrade`                   |
 | --------------------------- | ------------------------- | -------------------------------- |
@@ -19,7 +19,7 @@
 | 数据目录                    | 仓库 `var/jftrade-api`    | 系统用户数据目录                 |
 | 更新检查                    | 禁用                      | 每日后台一次，并支持菜单手动检查 |
 
-桌面化没有迁移业务 API：Vue 前端仍直接访问 REST/OpenAPI、SSE 和业务 WebSocket。Wails bindings 只暴露 `DesktopLinkService`、`DesktopLogService` 和 `DesktopUpdateService`；bindings 由仓库脚本生成并提交，不维护手写方法 ID。
+桌面化没有迁移业务 API：Vue 前端仍直接访问 REST/OpenAPI、SSE 和业务 WebSocket。Wails 窗口先显示启动页，`ApplicationStarted` 后才异步启动 API；`DesktopStartupService` 暴露阶段，ready 后挂载主界面，失败时只提供日志目录和退出。bindings 还包括 `DesktopLinkService`、`DesktopLogService` 和 `DesktopUpdateService`，全部由仓库脚本生成并提交，不维护手写方法 ID。
 
 正式产品通过 Wails `production` tag 关闭 DevTools、调试 runtime 和开发资源代理，并统一启用 `-trimpath`、`-s -w`；Linux 额外使用 `gtk3`，Windows 使用 GUI subsystem。正式产品不会扫描、复制或移动开发数据。`desktop-state.json` 只写入正式产品数据目录。显式 `JFTRADE_API_BIND` 仍可覆盖端口，但端口已被占用时启动会返回 `API port conflict`，不会关闭或接管现有进程。
 
@@ -65,6 +65,8 @@ pnpm run desktop:doctor
 pnpm run check:desktop
 pnpm run typecheck:web
 ```
+
+桌面窗口、API 与 Yahoo helper 冷/热启动的本地墙钟结果和复测方法见 [桌面启动性能基准](desktop-startup-performance.md)。
 
 各安装包也可以按需单独生成。Windows MSIX 不进入默认 GitHub Release；三个 Linux 命令对应默认 Release 中的 AppImage、deb 和 rpm：
 

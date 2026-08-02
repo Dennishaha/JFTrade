@@ -6137,6 +6137,18 @@
         "lastError": {
           "type": "string"
         },
+        "readiness": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/marketdata.ProviderReadiness"
+            }
+          ],
+          "enum": [
+            "warming",
+            "ready",
+            "failed"
+          ]
+        },
         "streamMode": {
           "type": "string"
         }
@@ -6541,6 +6553,19 @@
         "transports"
       ],
       "type": "object"
+    },
+    "marketdata.ProviderReadiness": {
+      "enum": [
+        "warming",
+        "ready",
+        "failed"
+      ],
+      "type": "string",
+      "x-enum-varnames": [
+        "ProviderReadinessWarming",
+        "ProviderReadinessReady",
+        "ProviderReadinessFailed"
+      ]
     },
     "marketdata.ProviderStatusResponse": {
       "properties": {
@@ -21624,6 +21649,12 @@
             "schema": {
               "$ref": "#/definitions/httpserver.ErrorEnvelope"
             }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
           }
         },
         "summary": "查询 K 线",
@@ -21913,6 +21944,12 @@
           },
           "502": {
             "description": "Bad Gateway",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
             "schema": {
               "$ref": "#/definitions/httpserver.ErrorEnvelope"
             }
@@ -23703,6 +23740,12 @@
             "schema": {
               "$ref": "#/definitions/httpserver.ErrorEnvelope"
             }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
           }
         },
         "summary": "查询证券详情",
@@ -23852,6 +23895,12 @@
           },
           "502": {
             "description": "Bad Gateway",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
             "schema": {
               "$ref": "#/definitions/httpserver.ErrorEnvelope"
             }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/integration/yfinance/testkit"
+	"github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
 func TestNewClientValidatesURLAndDefaultTransport(t *testing.T) {
@@ -36,7 +37,7 @@ func TestClientRetriesSafeServerFailuresThenReturnsDecodedResponse(t *testing.T)
 			Body:   `{"error":{"code":"RATE_LIMIT","message":"slow down"}}`,
 			Header: http.Header{"Retry-After": []string{"0"}},
 		},
-		testkit.Response{Body: `{"ok":true,"yfinance_version":"0.2.61"}`},
+		testkit.Response{Body: `{"ok":true,"yfinance_version":"0.2.61","runtime_state":"ready"}`},
 	)
 	client, err := NewClient(server.URL(), &http.Client{Timeout: time.Second})
 	if err != nil {
@@ -67,6 +68,17 @@ func TestClientHealthRequiresYFinanceVersion(t *testing.T) {
 			response.OK ||
 			response.YFinanceVersion != "" {
 			t.Fatalf("health body %s = %#v, err=%v", body, response, err)
+		}
+	}
+}
+
+func TestClientHealthRequiresKnownRuntimeState(t *testing.T) {
+	server := testkit.New(t)
+	client, _ := NewClient(server.URL(), &http.Client{Timeout: time.Second})
+	for _, state := range []string{"", "starting", "READY"} {
+		server.Queue("/health", testkit.Response{Body: `{"ok":true,"yfinance_version":"0.2.61","runtime_state":"` + state + `"}`})
+		if _, err := client.health(context.Background()); !errors.Is(err, ErrInvalidResponse) {
+			t.Fatalf("runtime_state %q error = %v", state, err)
 		}
 	}
 }
@@ -154,6 +166,26 @@ func TestClientRetryWaitHonorsContextCancellation(t *testing.T) {
 	_, err := client.health(ctx)
 	if !errors.Is(err, context.DeadlineExceeded) || server.Count("/health") != 1 {
 		t.Fatalf("canceled retry = %v, count=%d", err, server.Count("/health"))
+	}
+}
+
+func TestClientClassifiesRuntimeWarmingAfterRetryBudget(t *testing.T) {
+	server := testkit.New(t)
+	server.Queue("/search", testkit.Response{
+		Status: http.StatusServiceUnavailable,
+		Body:   `{"error":{"code":"YFINANCE_RUNTIME_WARMING","message":"warming"}}`,
+		Header: http.Header{"Retry-After": []string{"1"}},
+	})
+	client, _ := NewClient(server.URL(), &http.Client{Timeout: time.Second})
+	client.maxAttempts = 1
+
+	_, err := client.search(t.Context(), "AAPL", 1)
+	if !errors.Is(err, marketdata.ErrProviderWarming) {
+		t.Fatalf("warming error = %v", err)
+	}
+	var remoteErr *HTTPError
+	if !errors.As(err, &remoteErr) || remoteErr.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("warming HTTP error = %#v", remoteErr)
 	}
 }
 

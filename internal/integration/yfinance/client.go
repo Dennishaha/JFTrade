@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
@@ -80,13 +81,22 @@ func (c *Client) get(ctx context.Context, segments []string, query url.Values, t
 				return fmt.Errorf("%w: GET %s: %w", ErrSidecarUnavailable, endpoint.Redacted(), err)
 			}
 		} else if !isRetryableStatus(status) || attempt == attempts {
-			return decodeHTTPError(status, body)
+			return classifyRuntimeError(decodeHTTPError(status, body))
 		}
 		if err := waitForRetry(callCtx, retryWait(header, c.retryDelay, attempt)); err != nil {
 			return err
 		}
 	}
 	return ErrSidecarUnavailable
+}
+
+func classifyRuntimeError(err error) error {
+	var remoteErr *HTTPError
+	if errors.As(err, &remoteErr) &&
+		remoteErr.Code == "YFINANCE_RUNTIME_WARMING" {
+		return fmt.Errorf("%w: %w", marketdata.ErrProviderWarming, remoteErr)
+	}
+	return err
 }
 
 func (c *Client) getOnce(ctx context.Context, endpoint string) ([]byte, int, http.Header, error) {
@@ -179,6 +189,14 @@ func (c *Client) health(ctx context.Context) (remoteHealth, error) {
 	if strings.TrimSpace(response.YFinanceVersion) == "" {
 		return remoteHealth{}, fmt.Errorf(
 			"%w: health response field yfinance_version is required",
+			ErrInvalidResponse,
+		)
+	}
+	switch response.RuntimeState {
+	case "warming", "ready", "failed":
+	default:
+		return remoteHealth{}, fmt.Errorf(
+			"%w: health response field runtime_state is invalid",
 			ErrInvalidResponse,
 		)
 	}

@@ -44,6 +44,7 @@ const (
 )
 
 func main() {
+	desktopProcessStartedAt := time.Now()
 	configureDesktopEnvironment()
 	bootstrap, err := resolveDesktopBootstrap()
 	if err != nil {
@@ -56,17 +57,27 @@ func main() {
 
 	state := newDesktopAppState(stopSignals)
 	state.logManager = logManager
-	app, linkService, updateService, notificationSink := newDesktopApplication(state, bootstrap, logManager)
+	startupService := newDesktopStartupService(state, time.Now())
+	app, linkService, updateService, notificationSink := newDesktopApplication(
+		state,
+		bootstrap,
+		logManager,
+		startupService,
+	)
 	if logManager != nil {
 		logManager.bindApp(app)
 	}
 	window := newDesktopMainWindow(app, state, bootstrap)
 	configureDesktopSystemTray(app, window, linkService, updateService, state, bootstrap.Profile)
-	startDesktopAPI(ctx, state, notificationSink, bootstrap.Runtime)
+	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		log.Printf("JFTrade desktop window ready in %s", time.Since(desktopProcessStartedAt))
+		startDesktopAPIAsync(ctx, state, startupService, notificationSink, bootstrap.Runtime)
+	})
 	startDesktopUpdateChecks(ctx, app, updateService)
 	quitDesktopOnSignal(ctx, app, state)
 
 	if err := app.Run(); err != nil {
+		state.shutdownApp()
 		log.Fatalf("JFTrade desktop failed: %v", err)
 	}
 }
@@ -80,19 +91,24 @@ func configureDesktopEnvironment() {
 type desktopShutdownFunc func(context.Context) error
 
 type desktopAppState struct {
-	shutdown     desktopShutdownFunc
-	shutdownOnce sync.Once
-	exiting      atomic.Bool
-	stopSignals  context.CancelFunc
-	mainWindow   application.Window
-	logManager   *desktopLogManager
-	windowState  *desktopWindowStateStore
+	shutdownMu     sync.Mutex
+	shutdown       desktopShutdownFunc
+	shutdownOnce   sync.Once
+	startupOnce    sync.Once
+	startupStarted atomic.Bool
+	startupDone    chan struct{}
+	exiting        atomic.Bool
+	stopSignals    context.CancelFunc
+	mainWindow     application.Window
+	logManager     *desktopLogManager
+	windowState    *desktopWindowStateStore
 }
 
 func newDesktopAppState(stopSignals context.CancelFunc) *desktopAppState {
 	return &desktopAppState{
 		shutdown:    func(context.Context) error { return nil },
 		stopSignals: stopSignals,
+		startupDone: make(chan struct{}),
 	}
 }
 
@@ -102,15 +118,42 @@ func (state *desktopAppState) shouldQuit() bool {
 
 func (state *desktopAppState) shutdownApp() {
 	state.shutdownOnce.Do(func() {
-		state.stopSignals()
+		state.exiting.Store(true)
+		if state.stopSignals != nil {
+			state.stopSignals()
+		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		besteffort.LogError(state.shutdown(shutdownCtx))
+		if state.startupStarted.Load() {
+			select {
+			case <-state.startupDone:
+			case <-shutdownCtx.Done():
+			}
+		}
+		state.shutdownMu.Lock()
+		shutdown := state.shutdown
+		state.shutdownMu.Unlock()
+		besteffort.LogError(shutdown(shutdownCtx))
 		if state.logManager != nil {
 			besteffort.LogError(state.logManager.close())
 		}
-		besteffort.LogError(state.windowState.close())
+		if state.windowState != nil {
+			besteffort.LogError(state.windowState.close())
+		}
 	})
+}
+
+func (state *desktopAppState) installShutdown(shutdown desktopShutdownFunc) bool {
+	if state == nil || shutdown == nil {
+		return false
+	}
+	state.shutdownMu.Lock()
+	defer state.shutdownMu.Unlock()
+	if state.exiting.Load() {
+		return false
+	}
+	state.shutdown = shutdown
+	return true
 }
 
 func (state *desktopAppState) quit(app *application.App) {
@@ -118,13 +161,14 @@ func (state *desktopAppState) quit(app *application.App) {
 	app.Quit()
 }
 
-func newDesktopApplication(state *desktopAppState, bootstrap desktopBootstrap, logManager *desktopLogManager) (*application.App, *DesktopLinkService, *DesktopUpdateService, *desktopNotificationSink) {
+func newDesktopApplication(state *desktopAppState, bootstrap desktopBootstrap, logManager *desktopLogManager, startupService *DesktopStartupService) (*application.App, *DesktopLinkService, *DesktopUpdateService, *desktopNotificationSink) {
 	var notificationService *notifications.NotificationService
 	linkService := &DesktopLinkService{}
 	updateService := newDesktopUpdateService(bootstrap.Profile)
 	services := []application.Service{
 		application.NewService(linkService),
 		application.NewService(newDesktopLogService(logManager)),
+		application.NewService(startupService),
 		application.NewService(updateService),
 	}
 	if runtime.GOOS != "darwin" || macBundleIdentifier() != "" {
@@ -161,6 +205,7 @@ func newDesktopApplication(state *desktopAppState, bootstrap desktopBootstrap, l
 		},
 	})
 	linkService.app = app
+	startupService.app = app
 	return app, linkService, updateService, notificationSink
 }
 
@@ -231,14 +276,6 @@ func configureDesktopSystemTray(app *application.App, window application.Window,
 	})
 	systemTray.SetMenu(menu)
 	configureDesktopTrayMenuClick(systemTray, runtime.GOOS)
-}
-
-func startDesktopAPI(ctx context.Context, state *desktopAppState, notificationSink *desktopNotificationSink, runtimeConfig apiserver.DesktopRuntimeConfig) {
-	var err error
-	state.shutdown, err = apiserver.StartDesktopWithConfig(ctx, runtimeConfig, notificationSink.Notify)
-	if err != nil {
-		log.Fatalf("JFTrade desktop API startup failed: %v", err)
-	}
 }
 
 func quitDesktopOnSignal(ctx context.Context, app *application.App, state *desktopAppState) {

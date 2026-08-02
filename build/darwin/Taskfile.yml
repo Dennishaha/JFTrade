@@ -14,15 +14,17 @@ tasks:
       - task: common:generate:assets
         vars: { VERSION: "0.0.0" }
     cmds:
-      - rm -rf "dist/dev/JFTrade Dev.app"
-      - mkdir -p "dist/dev/JFTrade Dev.app/Contents/MacOS" "dist/dev/JFTrade Dev.app/Contents/Resources"
-      - go build -buildvcs=false -o "dist/dev/JFTrade Dev.app/Contents/MacOS/JFTrade Dev" ./cmd/jftrade-desktop
-      - cp build/darwin/Info.dev.plist "dist/dev/JFTrade Dev.app/Contents/Info.plist"
-      - cp "{{.GENERATED_DIR}}/darwin/icons.icns" "dist/dev/JFTrade Dev.app/Contents/Resources/icons.icns"
-      - mkdir -p "dist/dev/JFTrade Dev.app/Contents/Resources/licenses"
-      - cp LICENSE "dist/dev/JFTrade Dev.app/Contents/Resources/licenses/LICENSE"
-      - cp docs/legal/third-party-notices.md "dist/dev/JFTrade Dev.app/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md"
-      - codesign --force --deep --sign - "dist/dev/JFTrade Dev.app"
+      - rm -rf "dist/dev/JFTrade Dev.app.next"
+      - mkdir -p "dist/dev/JFTrade Dev.app.next/Contents/MacOS" "dist/dev/JFTrade Dev.app.next/Contents/Resources"
+      - go build -buildvcs=false -o "dist/dev/JFTrade Dev.app.next/Contents/MacOS/JFTrade Dev" ./cmd/jftrade-desktop
+      - cp build/darwin/Info.dev.plist "dist/dev/JFTrade Dev.app.next/Contents/Info.plist"
+      - cp "{{.GENERATED_DIR}}/darwin/icons.icns" "dist/dev/JFTrade Dev.app.next/Contents/Resources/icons.icns"
+      - mkdir -p "dist/dev/JFTrade Dev.app.next/Contents/Resources/licenses"
+      - cp LICENSE "dist/dev/JFTrade Dev.app.next/Contents/Resources/licenses/LICENSE"
+      - cp docs/legal/third-party-notices.md "dist/dev/JFTrade Dev.app.next/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md"
+      - codesign --force --deep --sign - "dist/dev/JFTrade Dev.app.next"
+      - codesign --verify --deep --strict "dist/dev/JFTrade Dev.app.next"
+      - rm -rf "dist/dev/JFTrade Dev.app" && mv "dist/dev/JFTrade Dev.app.next" "dist/dev/JFTrade Dev.app"
 
   build:
     desc: Build the production macOS application bundle with Wails assets

@@ -283,6 +283,20 @@ func TestMarketDataReadErrorsExposeProviderSwitchRetrySignal(t *testing.T) {
 	}
 }
 
+func TestMarketDataReadErrorsExposeProviderWarmupRetrySignal(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	writeMarketDataReadError(context, "MARKET_DATA_FAILED", srv.ErrProviderWarming)
+
+	if response.Code != http.StatusServiceUnavailable ||
+		response.Header().Get("Retry-After") != "1" ||
+		!strings.Contains(response.Body.String(), `"code":"MARKET_DATA_PROVIDER_WARMING"`) {
+		t.Fatalf("response = %d headers=%v body=%s", response.Code, response.Header(), response.Body.String())
+	}
+}
+
 func TestBrokerMarketDataReadErrorsPreserveClientActionability(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tests := []struct {

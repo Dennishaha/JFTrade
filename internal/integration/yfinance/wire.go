@@ -12,6 +12,8 @@ type remoteErrorEnvelope struct {
 type remoteHealth struct {
 	OK              bool   `json:"ok"`
 	YFinanceVersion string `json:"yfinance_version"`
+	RuntimeState    string `json:"runtime_state"`
+	WarmupError     string `json:"warmup_error"`
 }
 
 type remoteMarkets struct {

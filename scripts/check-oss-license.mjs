@@ -11,7 +11,7 @@ const YFINANCE_SIDECAR_EXTRAS = {
     "yfinance==0.2.61",
     "curl_cffi==0.15.0",
     "fastapi==0.115.14",
-    "uvicorn[standard]==0.35.0",
+    "uvicorn==0.35.0",
     "pydantic==2.12.2",
   ],
   build: ["pyinstaller==6.21.0"],

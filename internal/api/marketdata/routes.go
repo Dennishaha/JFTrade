@@ -131,6 +131,7 @@ func handleMarkets(svc *srv.Service) gin.HandlerFunc {
 // @Failure 400 {object} httpserver.ErrorEnvelope
 // @Failure 409 {object} httpserver.ErrorEnvelope
 // @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/securities/{market}/{symbol} [get]
 func handleSecurityDetails(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
@@ -178,6 +179,7 @@ func handleSecurityDetails(svc *srv.Service, brokerReaders ...BrokerMarketDataRe
 // @Failure 400 {object} httpserver.ErrorEnvelope
 // @Failure 409 {object} httpserver.ErrorEnvelope
 // @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/snapshots/{market}/{symbol} [get]
 func handleSnapshot(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
@@ -238,6 +240,7 @@ func handleSnapshot(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) g
 // @Failure 400 {object} httpserver.ErrorEnvelope
 // @Failure 409 {object} httpserver.ErrorEnvelope
 // @Failure 429 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/candles/{market}/{symbol} [get]
 func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
@@ -393,6 +396,14 @@ func writeMarketDataReadError(c *gin.Context, fallbackCode string, err error) {
 		httpserver.WriteError(c, http.StatusConflict, "MARKET_DATA_CAPABILITY_UNSUPPORTED", err.Error())
 	case errors.Is(err, srv.ErrProviderChanged):
 		httpserver.WriteError(c, http.StatusConflict, "MARKET_DATA_PROVIDER_CHANGED", err.Error())
+	case errors.Is(err, srv.ErrProviderWarming):
+		c.Header("Retry-After", "1")
+		httpserver.WriteError(
+			c,
+			http.StatusServiceUnavailable,
+			"MARKET_DATA_PROVIDER_WARMING",
+			"行情服务正在预热，请稍后重试",
+		)
 	default:
 		httpserver.WriteError(c, http.StatusBadGateway, fallbackCode, err.Error())
 	}
@@ -774,6 +785,7 @@ func brokerPollingSubscriptionResponse(
 // @Param limit query int false "返回数量，默认 20，范围 1..100"
 // @Success 200 {object} httpserver.Envelope{data=marketdata.InstrumentResolution}
 // @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
 // @Failure 502 {object} httpserver.ErrorEnvelope
 // @Router /api/v1/market-data/instruments [get]
 func handleInstrumentSearch(svc *srv.Service) gin.HandlerFunc {
@@ -798,7 +810,7 @@ func handleInstrumentSearch(svc *srv.Service) gin.HandlerFunc {
 				httpserver.WriteError(c, 400, "MARKET_INSTRUMENT_INVALID", err.Error())
 				return
 			}
-			httpserver.WriteError(c, 502, "MARKET_INSTRUMENT_SEARCH_FAILED", err.Error())
+			writeMarketDataReadError(c, "MARKET_INSTRUMENT_SEARCH_FAILED", err)
 			return
 		}
 		httpserver.WriteOK(c, result)

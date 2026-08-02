@@ -3,7 +3,7 @@
 from pathlib import Path
 import os
 
-from PyInstaller.utils.hooks import collect_all, collect_submodules
+from PyInstaller.utils.hooks import collect_all
 
 
 project_dir = Path(SPECPATH).resolve()
@@ -18,7 +18,19 @@ for package in ("curl_cffi", "yfinance"):
     binaries.extend(package_binaries)
     hiddenimports.extend(package_hiddenimports)
 
-hiddenimports.extend(collect_submodules("uvicorn"))
+hiddenimports.extend([
+    "uvicorn.lifespan.on",
+    "uvicorn.loops.asyncio",
+    "uvicorn.protocols.http.h11_impl",
+])
+excluded_uvicorn_modules = [
+    "uvloop",
+    "uvicorn.loops.auto",
+    "uvicorn.loops.uvloop",
+    "uvicorn.protocols.http.auto",
+    "uvicorn.protocols.http.httptools_impl",
+    "uvicorn.protocols.websockets",
+]
 binary_name = os.environ.get("JFTRADE_YFINANCE_BINARY_NAME", "yfinance-sidecar")
 
 
@@ -31,7 +43,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=excluded_uvicorn_modules,
     noarchive=False,
 )
 pyz = PYZ(a.pure)

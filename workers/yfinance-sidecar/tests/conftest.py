@@ -20,6 +20,11 @@ def block_real_network(monkeypatch: pytest.MonkeyPatch) -> None:
         raise AssertionError("yfinance must be mocked in sidecar tests")
 
     monkeypatch.setattr(socket.socket, "connect", blocked_connect)
+    monkeypatch.setattr(
+        upstream,
+        "runtime_snapshot",
+        lambda: upstream.RuntimeSnapshot("ready"),
+    )
     monkeypatch.setattr(upstream, "search_quotes", blocked_yfinance)
     monkeypatch.setattr(upstream, "ticker_info", blocked_yfinance)
     monkeypatch.setattr(upstream, "ticker_history", blocked_yfinance)

@@ -7,12 +7,14 @@ import {
   buildRuntimeLiveSocketUrl,
   resolveApiBaseUrl,
   resolveAuthRequired,
+  resolveDesktopBridgeAvailable,
   resolveDesktopApiToken,
   resolveDesktopMode,
 } from "../src/runtimeConfig";
 
 afterEach(() => {
   delete window.__JFTRADE_RUNTIME_CONFIG__;
+  delete (window as typeof window & { wails?: unknown }).wails;
 });
 
 describe("runtimeConfig", () => {
@@ -43,7 +45,16 @@ describe("runtimeConfig", () => {
 
   it("treats missing desktop mode as web mode", () => {
     expect(resolveDesktopMode()).toBe(false);
+    expect(resolveDesktopBridgeAvailable()).toBe(false);
     expect(resolveDesktopApiToken()).toBeNull();
+  });
+
+  it("detects the native bridge independently of desktop runtime config", () => {
+    (window as typeof window & { wails?: { invoke: () => void } }).wails = {
+      invoke: () => undefined,
+    };
+
+    expect(resolveDesktopBridgeAvailable()).toBe(true);
   });
 
   it("keeps the injected authRequired flag compatible for Web clients", () => {
@@ -60,6 +71,7 @@ describe("runtimeConfig", () => {
     try {
       const serverRuntimeConfig = await import("../src/runtimeConfig");
       expect(serverRuntimeConfig.resolveDesktopMode()).toBe(false);
+      expect(serverRuntimeConfig.resolveDesktopBridgeAvailable()).toBe(false);
       expect(serverRuntimeConfig.resolveDesktopApiToken()).toBeNull();
       expect(serverRuntimeConfig.buildRuntimeLiveSocketUrl("/api/v1/ws/live")).toBe(
         "ws://127.0.0.1/api/v1/ws/live",

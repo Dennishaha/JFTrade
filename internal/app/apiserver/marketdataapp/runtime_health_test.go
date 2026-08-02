@@ -24,8 +24,11 @@ func TestRuntimeExplicitYFinanceActivationRequiresHealthBeforePublishing(t *test
 	sidecar := &healthSidecarLifecycleStub{}
 	runtime.sidecar = sidecar
 	healthCalls := 0
-	runtime.healthCheck = func(_ context.Context, provider marketdata.Provider) error {
+	runtime.healthCheck = func(_ context.Context, provider marketdata.Provider, requireReady bool) error {
 		healthCalls++
+		if !requireReady {
+			t.Fatal("explicit activation did not require a ready provider")
+		}
 		descriptor, descriptorErr := provider.Descriptor(t.Context())
 		if descriptorErr != nil || descriptor.ProviderID != "yahoo-finance" {
 			t.Fatalf("health-check provider = %#v, err=%v", descriptor, descriptorErr)
@@ -72,7 +75,7 @@ func TestRuntimeFailedHealthCheckRestoresSidecarWithoutChangingProvider(t *testi
 	}
 	sidecar := &healthSidecarLifecycleStub{}
 	runtime.sidecar = sidecar
-	runtime.healthCheck = func(context.Context, marketdata.Provider) error { return healthErr }
+	runtime.healthCheck = func(context.Context, marketdata.Provider, bool) error { return healthErr }
 
 	err = runtime.Activate(t.Context(), Activation{
 		ProviderID: ProviderYFinance, RequireHealthy: true,
@@ -97,7 +100,7 @@ func TestRuntimeReportsBothHealthAndSidecarRestoreFailures(t *testing.T) {
 	}
 	sidecar := &healthSidecarLifecycleStub{errors: []error{nil, restoreErr}}
 	runtime.sidecar = sidecar
-	runtime.healthCheck = func(context.Context, marketdata.Provider) error { return healthErr }
+	runtime.healthCheck = func(context.Context, marketdata.Provider, bool) error { return healthErr }
 
 	err = runtime.Activate(t.Context(), Activation{
 		ProviderID: ProviderYFinance, RequireHealthy: true,
@@ -119,7 +122,7 @@ func TestRuntimeDefersSubscriptionReleaseFailureAfterHealthyActivation(t *testin
 	}
 	sidecar := &healthSidecarLifecycleStub{}
 	runtime.sidecar = sidecar
-	runtime.healthCheck = func(context.Context, marketdata.Provider) error { return nil }
+	runtime.healthCheck = func(context.Context, marketdata.Provider, bool) error { return nil }
 
 	err = runtime.Activate(t.Context(), Activation{
 		ProviderID: ProviderYFinance,
@@ -143,7 +146,7 @@ func TestRuntimeChecksEmbeddedYFinanceOnStartupButNotFutu(t *testing.T) {
 	}
 	runtime.sidecar = &healthSidecarLifecycleStub{}
 	healthCalls := 0
-	runtime.healthCheck = func(context.Context, marketdata.Provider) error {
+	runtime.healthCheck = func(context.Context, marketdata.Provider, bool) error {
 		healthCalls++
 		return nil
 	}
@@ -169,11 +172,50 @@ func TestWaitForProviderHealthRetriesUntilConnected(t *testing.T) {
 		},
 	}
 	startedAt := time.Now()
-	if err := waitForProviderHealth(t.Context(), provider); err != nil {
+	if err := waitForProviderHealth(t.Context(), provider, false); err != nil {
 		t.Fatalf("waitForProviderHealth: %v", err)
 	}
 	if provider.calls != 2 || time.Since(startedAt) < providerHealthRetryDelay {
 		t.Fatalf("health retry = calls %d, elapsed %s", provider.calls, time.Since(startedAt))
+	}
+}
+
+func TestWaitForProviderHealthAllowsWarmingOnlyDuringStartupRestore(t *testing.T) {
+	t.Parallel()
+	startupProvider := &healthSequenceProviderStub{statuses: []marketdata.HealthStatus{{
+		Connected: true,
+		Readiness: marketdata.ProviderReadinessWarming,
+	}}}
+	if err := waitForProviderHealth(t.Context(), startupProvider, false); err != nil {
+		t.Fatalf("startup warming health: %v", err)
+	}
+
+	explicitProvider := &healthSequenceProviderStub{statuses: []marketdata.HealthStatus{
+		{Connected: true, Readiness: marketdata.ProviderReadinessWarming},
+		{Connected: true, Readiness: marketdata.ProviderReadinessReady},
+	}}
+	if err := waitForProviderHealth(t.Context(), explicitProvider, true); err != nil {
+		t.Fatalf("explicit ready health: %v", err)
+	}
+	if explicitProvider.calls != 2 {
+		t.Fatalf("explicit health calls = %d, want 2", explicitProvider.calls)
+	}
+}
+
+func TestWaitForProviderHealthStopsOnFailedWarmup(t *testing.T) {
+	t.Parallel()
+	provider := &healthSequenceProviderStub{statuses: []marketdata.HealthStatus{{
+		Connected: true,
+		Readiness: marketdata.ProviderReadinessFailed,
+		LastError: "missing runtime asset",
+	}}}
+
+	err := waitForProviderHealth(t.Context(), provider, true)
+	if err == nil || !strings.Contains(err.Error(), "missing runtime asset") {
+		t.Fatalf("failed warmup error = %v", err)
+	}
+	if provider.calls != 1 {
+		t.Fatalf("failed warmup calls = %d, want 1", provider.calls)
 	}
 }
 
@@ -200,7 +242,7 @@ func TestWaitForProviderHealthPreservesLastFailureOnCancellation(t *testing.T) {
 	provider := &healthSequenceProviderStub{fallbackErr: probeErr}
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
 	defer cancel()
-	if err := waitForProviderHealth(ctx, provider); !errors.Is(err, probeErr) {
+	if err := waitForProviderHealth(ctx, provider, false); !errors.Is(err, probeErr) {
 		t.Fatalf("health probe failure = %v", err)
 	}
 	if provider.calls != 1 {
@@ -210,14 +252,14 @@ func TestWaitForProviderHealthPreservesLastFailureOnCancellation(t *testing.T) {
 	disconnected := &healthSequenceProviderStub{}
 	ctx, cancel = context.WithTimeout(t.Context(), 10*time.Millisecond)
 	defer cancel()
-	err := waitForProviderHealth(ctx, disconnected)
+	err := waitForProviderHealth(ctx, disconnected, false)
 	if err == nil || !strings.Contains(err.Error(), "reported disconnected") {
 		t.Fatalf("disconnected health error = %v", err)
 	}
 }
 
 func TestWaitForProviderHealthAndRuntimeDefaultCheckerBoundaries(t *testing.T) {
-	if err := waitForProviderHealth(t.Context(), nil); err == nil ||
+	if err := waitForProviderHealth(t.Context(), nil, false); err == nil ||
 		!strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("nil provider health error = %v", err)
 	}
@@ -225,7 +267,7 @@ func TestWaitForProviderHealthAndRuntimeDefaultCheckerBoundaries(t *testing.T) {
 		statuses: []marketdata.HealthStatus{{Connected: true}},
 	}
 	runtime := &Runtime{}
-	if err := runtime.checkHealth(t.Context(), healthy); err != nil {
+	if err := runtime.checkHealth(t.Context(), healthy, false); err != nil {
 		t.Fatalf("default checkHealth: %v", err)
 	}
 	if healthy.calls != 1 {

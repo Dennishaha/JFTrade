@@ -6,15 +6,21 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/jftrade/jftrade-main/internal/yfinanceassets"
 )
 
 func TestSidecarManagerStartsReusesAndStopsManagedExecutable(t *testing.T) {
 	starter := &sidecarStarterStub{}
 	cleanupCalls := 0
+	startedCalls := 0
 	manager := &sidecarManager{
 		resolve: func() (sidecarExecutable, error) {
 			return sidecarExecutable{
 				path: "/tmp/yfinance-sidecar",
+				started: func() {
+					startedCalls++
+				},
 				cleanup: func() error {
 					cleanupCalls++
 					return nil
@@ -29,7 +35,7 @@ func TestSidecarManagerStartsReusesAndStopsManagedExecutable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EnsureStarted: %v", err)
 	}
-	if endpoint != "http://127.0.0.1:43123" || len(starter.configs) != 1 {
+	if endpoint != "http://127.0.0.1:43123" || len(starter.configs) != 1 || startedCalls != 1 {
 		t.Fatalf("started endpoint/configs = %q/%#v", endpoint, starter.configs)
 	}
 	config := starter.configs[0]
@@ -84,12 +90,17 @@ func TestSidecarManagerRestartsExitedProcessAndCleansPreviousMaterialization(t *
 func TestSidecarManagerCleansMaterializationAfterPreparationFailures(t *testing.T) {
 	allocateErr := errors.New("port allocation failed")
 	cleanupCalls := 0
+	startedCalls := 0
 	manager := &sidecarManager{
 		resolve: func() (sidecarExecutable, error) {
-			return sidecarExecutable{path: "/tmp/helper", cleanup: func() error {
-				cleanupCalls++
-				return nil
-			}}, nil
+			return sidecarExecutable{
+				path:    "/tmp/helper",
+				started: func() { startedCalls++ },
+				cleanup: func() error {
+					cleanupCalls++
+					return nil
+				},
+			}, nil
 		},
 		allocatePort: func() (int, error) { return 0, allocateErr },
 	}
@@ -106,6 +117,9 @@ func TestSidecarManagerCleansMaterializationAfterPreparationFailures(t *testing.
 	}
 	if manager.process != nil || manager.endpoint != "" {
 		t.Fatalf("failed start retained state: %#v/%q", manager.process, manager.endpoint)
+	}
+	if startedCalls != 0 {
+		t.Fatalf("post-start hook ran %d times after failed starts", startedCalls)
 	}
 }
 
@@ -129,6 +143,9 @@ func TestSidecarManagerRetainsProcessUntilStopSucceeds(t *testing.T) {
 }
 
 func TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries(t *testing.T) {
+	if !yfinanceassets.DevelopmentOverridesAllowed() {
+		t.Skip("development overrides are disabled in release-assets builds")
+	}
 	helper := filepath.Join(t.TempDir(), "yfinance-sidecar")
 	if err := os.WriteFile(helper, []byte("helper"), 0o700); err != nil {
 		t.Fatalf("write helper: %v", err)
@@ -171,6 +188,9 @@ func TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries(t *testing.T) 
 }
 
 func TestDevelopmentOverrideRejectsMissingAndNonFilePaths(t *testing.T) {
+	if !yfinanceassets.DevelopmentOverridesAllowed() {
+		t.Skip("development overrides are disabled in release-assets builds")
+	}
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", "relative/yfinance-sidecar")
 	if _, err := resolveYFinanceSidecarExecutable(); err == nil || !strings.Contains(err.Error(), "absolute path") {
 		t.Fatalf("relative override error = %v", err)
@@ -182,6 +202,95 @@ func TestDevelopmentOverrideRejectsMissingAndNonFilePaths(t *testing.T) {
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", t.TempDir())
 	if _, err := resolveYFinanceSidecarExecutable(); err == nil || !strings.Contains(err.Error(), "regular file") {
 		t.Fatalf("directory override error = %v", err)
+	}
+}
+
+func TestDevelopmentPythonSourceCommandAndExplicitHelperPrecedence(t *testing.T) {
+	if !yfinanceassets.DevelopmentOverridesAllowed() {
+		t.Skip("development overrides are disabled in release-assets builds")
+	}
+	root := t.TempDir()
+	python := filepath.Join(root, "python")
+	helper := filepath.Join(root, "helper")
+	source := filepath.Join(root, "src")
+	if err := os.WriteFile(python, []byte("python"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(helper, []byte("helper"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(source, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("JFTRADE_YFINANCE_DEV_PYTHON", python)
+	t.Setenv("JFTRADE_YFINANCE_DEV_PYTHONPATH", source)
+	t.Setenv("JFTRADE_YFINANCE_SIDECAR", helper)
+	executable, err := resolveYFinanceSidecarExecutable()
+	if err != nil || executable.path != helper || len(executable.arguments) != 0 {
+		t.Fatalf("explicit helper precedence = %#v, %v", executable, err)
+	}
+
+	t.Setenv("JFTRADE_YFINANCE_SIDECAR", "")
+	executable, err = resolveYFinanceSidecarExecutable()
+	if err != nil || executable.path != python ||
+		strings.Join(executable.arguments, " ") != "-m yfinance_sidecar.main" ||
+		len(executable.environment) != 1 ||
+		executable.environment[0] != "PYTHONPATH="+source {
+		t.Fatalf("Python source command = %#v, %v", executable, err)
+	}
+
+	starter := &sidecarStarterStub{}
+	manager := &sidecarManager{
+		resolve:      func() (sidecarExecutable, error) { return executable, nil },
+		allocatePort: func() (int, error) { return 43123, nil },
+		start:        starter.Start,
+	}
+	if _, err := manager.EnsureStarted(); err != nil {
+		t.Fatal(err)
+	}
+	config := starter.configs[0]
+	if strings.Join(config.Arguments, " ") != "-m yfinance_sidecar.main" ||
+		len(config.Environment) != 1 || config.Environment[0] != "PYTHONPATH="+source {
+		t.Fatalf("manager command config = %#v", config)
+	}
+}
+
+func TestDevelopmentPythonSourceCommandRejectsInvalidConfiguration(t *testing.T) {
+	if !yfinanceassets.DevelopmentOverridesAllowed() {
+		t.Skip("development overrides are disabled in release-assets builds")
+	}
+	root := t.TempDir()
+	python := filepath.Join(root, "python")
+	source := filepath.Join(root, "src")
+	if err := os.WriteFile(python, []byte("python"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(source, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("JFTRADE_YFINANCE_SIDECAR", "")
+
+	tests := []struct {
+		name       string
+		python     string
+		pythonPath string
+		want       string
+	}{
+		{name: "missing python path", python: python, want: "must be set together"},
+		{name: "missing python", pythonPath: source, want: "must be set together"},
+		{name: "relative python path", python: python, pythonPath: "relative/src", want: "absolute path"},
+		{name: "missing source directory", python: python, pythonPath: filepath.Join(root, "missing"), want: "inspect"},
+		{name: "source path is file", python: python, pythonPath: python, want: "must name a directory"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("JFTRADE_YFINANCE_DEV_PYTHON", test.python)
+			t.Setenv("JFTRADE_YFINANCE_DEV_PYTHONPATH", test.pythonPath)
+			_, available, err := resolveDevelopmentPythonSidecar()
+			if err == nil || !available || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("resolveDevelopmentPythonSidecar = available %v, error %v", available, err)
+			}
+		})
 	}
 }
 

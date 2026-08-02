@@ -40,6 +40,7 @@ const serviceFiles = [...after.keys()]
 const expectedServices = [
   "desktoplinkservice.ts",
   "desktoplogservice.ts",
+  "desktopstartupservice.ts",
   "desktopupdateservice.ts",
 ];
 if (JSON.stringify(serviceFiles) !== JSON.stringify(expectedServices)) {

@@ -92,11 +92,20 @@ type TicksResponse map[string]any
 
 // HealthStatus 行情健康状态。
 type HealthStatus struct {
-	Connected   bool   `json:"connected"`
-	StreamMode  string `json:"streamMode"`
-	ActiveCount int    `json:"activeCount"`
-	LastError   string `json:"lastError,omitempty"`
+	Connected   bool              `json:"connected"`
+	StreamMode  string            `json:"streamMode"`
+	ActiveCount int               `json:"activeCount"`
+	Readiness   ProviderReadiness `json:"readiness,omitempty" enums:"warming,ready,failed"`
+	LastError   string            `json:"lastError,omitempty"`
 }
+
+type ProviderReadiness string
+
+const (
+	ProviderReadinessWarming ProviderReadiness = "warming"
+	ProviderReadinessReady   ProviderReadiness = "ready"
+	ProviderReadinessFailed  ProviderReadiness = "failed"
+)
 
 // ProviderDescriptor describes the active market-data provider without leaking
 // broker SDK or protocol implementation details into transport/UI layers.

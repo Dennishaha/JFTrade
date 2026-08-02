@@ -311,7 +311,11 @@ func (p *Provider) Health(ctx context.Context) (marketdata.HealthStatus, error) 
 		return marketdata.HealthStatus{}, err
 	}
 	return marketdata.HealthStatus{
-		Connected: response.OK, StreamMode: "snapshot-poll-delayed", ActiveCount: 0,
+		Connected:   response.OK,
+		StreamMode:  "snapshot-poll-delayed",
+		ActiveCount: 0,
+		Readiness:   marketdata.ProviderReadiness(response.RuntimeState),
+		LastError:   response.WarmupError,
 	}, nil
 }
 

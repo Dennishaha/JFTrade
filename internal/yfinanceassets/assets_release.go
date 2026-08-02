@@ -19,3 +19,8 @@ func assetFS() fs.FS {
 	}
 	return assets
 }
+
+// DevelopmentOverridesAllowed is false for packaged release-assets builds.
+func DevelopmentOverridesAllowed() bool {
+	return false
+}

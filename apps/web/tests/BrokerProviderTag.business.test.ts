@@ -203,6 +203,7 @@ describe("broker provider tag", () => {
             connected: true,
             streamMode: "snapshot-poll-delayed",
             activeCount: 1,
+            readiness: "ready",
           },
           runtime: {},
           subscriptions: {},
@@ -234,6 +235,50 @@ describe("broker provider tag", () => {
       "数据质量：非实时快照，时效以供应商返回为准",
     ]);
     expect(tag.attributes("title")).not.toContain("降级");
+  });
+
+  it("shows Yahoo warming until the background runtime is ready", async () => {
+    vi.useFakeTimers();
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return Promise.resolve({ activeProvider: "yfinance" });
+      }
+      if (url.includes("/api/v1/market-data/provider")) {
+        return Promise.resolve({
+          descriptor: {
+            providerId: "yahoo-finance",
+            brokerId: "yfinance",
+            displayName: "Yahoo",
+          },
+          health: {
+            connected: true,
+            streamMode: "snapshot-poll-delayed",
+            activeCount: 0,
+            readiness: "warming",
+          },
+          runtime: {},
+          subscriptions: {},
+          checkedAt: "2026-08-02T00:00:00Z",
+        });
+      }
+      return Promise.resolve(capabilities);
+    });
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+    await flushPromises();
+
+    const tag = wrapper.get(".broker-provider-tag");
+    expect(tag.text()).toContain("Yahoo 预热中");
+    expect(tag.classes()).toContain("is-degraded");
+    expect(tag.attributes("title")).toContain("后台预热");
+    wrapper.unmount();
   });
 
   it("keeps the selected provider usable when the status read fails", async () => {

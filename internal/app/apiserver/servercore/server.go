@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -545,6 +546,11 @@ func (s *Server) initializeMarketdataService() {
 		FutuQuotes:        s.runtimes.MarketData(),
 		FutuPush:          s.runtimes.MarketData(),
 		FutuSubscriptions: s.runtimes.MarketData(),
+		YFinanceCacheDir: filepath.Join(
+			filepath.Dir(s.store.Path()),
+			"cache",
+			"yfinance-sidecar",
+		),
 	}, s.store)
 	if err != nil {
 		panic(fmt.Sprintf("assemble market-data provider runtime: %v", err))

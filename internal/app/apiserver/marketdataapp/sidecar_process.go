@@ -26,9 +26,11 @@ const (
 // SidecarConfig contains application-owned process arguments. It is never
 // loaded from user settings.
 type SidecarConfig struct {
-	Executable string
-	Host       string
-	Port       int
+	Executable  string
+	Arguments   []string
+	Environment []string
+	Host        string
+	Port        int
 }
 
 type sidecarLifecycle interface {
@@ -45,8 +47,11 @@ type sidecarProcess interface {
 type sidecarStarter func(SidecarConfig) (sidecarProcess, error)
 
 type sidecarExecutable struct {
-	path    string
-	cleanup func() error
+	path        string
+	arguments   []string
+	environment []string
+	started     func()
+	cleanup     func() error
 }
 
 type sidecarExecutableResolver func() (sidecarExecutable, error)
@@ -64,9 +69,15 @@ type sidecarManager struct {
 	start        sidecarStarter
 }
 
-func newSidecarManager() *sidecarManager {
+func newSidecarManager(cacheDirs ...string) *sidecarManager {
+	cacheDir := ""
+	if len(cacheDirs) > 0 {
+		cacheDir = strings.TrimSpace(cacheDirs[0])
+	}
 	return &sidecarManager{
-		resolve:      resolveYFinanceSidecarExecutable,
+		resolve: func() (sidecarExecutable, error) {
+			return resolveYFinanceSidecarExecutable(cacheDir)
+		},
 		allocatePort: allocateYFinanceSidecarPort,
 		start:        startYFinanceSidecar,
 	}
@@ -86,7 +97,9 @@ func (m *sidecarManager) EnsureStarted() (string, error) {
 	}
 	resolve := m.resolve
 	if resolve == nil {
-		resolve = resolveYFinanceSidecarExecutable
+		resolve = func() (sidecarExecutable, error) {
+			return resolveYFinanceSidecarExecutable()
+		}
 	}
 	executable, err := resolve()
 	if err != nil {
@@ -104,7 +117,13 @@ func (m *sidecarManager) EnsureStarted() (string, error) {
 	if err != nil {
 		return "", errors.Join(err, cleanup())
 	}
-	config := SidecarConfig{Executable: executable.path, Host: sidecarHost, Port: port}
+	config := SidecarConfig{
+		Executable:  executable.path,
+		Arguments:   append([]string(nil), executable.arguments...),
+		Environment: append([]string(nil), executable.environment...),
+		Host:        sidecarHost,
+		Port:        port,
+	}
 	start := m.start
 	if start == nil {
 		start = startYFinanceSidecar
@@ -116,6 +135,9 @@ func (m *sidecarManager) EnsureStarted() (string, error) {
 	m.endpoint = "http://" + net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
 	m.process = process
 	m.cleanup = cleanup
+	if executable.started != nil {
+		executable.started()
+	}
 	return m.endpoint, nil
 }
 
@@ -169,24 +191,40 @@ func allocateYFinanceSidecarPort() (int, error) {
 	return address.Port, nil
 }
 
-func resolveYFinanceSidecarExecutable() (sidecarExecutable, error) {
+func resolveYFinanceSidecarExecutable(cacheDirs ...string) (sidecarExecutable, error) {
+	cacheDir := ""
+	if len(cacheDirs) > 0 {
+		cacheDir = strings.TrimSpace(cacheDirs[0])
+	}
 	path := strings.TrimSpace(os.Getenv("JFTRADE_YFINANCE_SIDECAR"))
-	if path != "" {
-		if !filepath.IsAbs(path) {
-			return sidecarExecutable{}, fmt.Errorf("JFTRADE_YFINANCE_SIDECAR must be an absolute path")
-		}
-		absolute, err := filepath.Abs(path)
+	if path != "" && yfinanceassets.DevelopmentOverridesAllowed() {
+		absolute, err := validateAbsoluteRegularFile(
+			path,
+			"JFTRADE_YFINANCE_SIDECAR",
+		)
 		if err != nil {
-			return sidecarExecutable{}, fmt.Errorf("resolve JFTRADE_YFINANCE_SIDECAR: %w", err)
-		}
-		info, err := os.Stat(absolute)
-		if err != nil {
-			return sidecarExecutable{}, fmt.Errorf("inspect JFTRADE_YFINANCE_SIDECAR: %w", err)
-		}
-		if !info.Mode().IsRegular() {
-			return sidecarExecutable{}, fmt.Errorf("JFTRADE_YFINANCE_SIDECAR must name a regular file")
+			return sidecarExecutable{}, err
 		}
 		return sidecarExecutable{path: absolute}, nil
+	}
+	if yfinanceassets.DevelopmentOverridesAllowed() {
+		if executable, ok, err := resolveDevelopmentPythonSidecar(); err != nil || ok {
+			return executable, err
+		}
+	}
+	if cacheDir != "" {
+		materialized, available, err := yfinanceassets.MaterializeCached(cacheDir)
+		if err == nil && available && materialized != nil && materialized.Path != "" {
+			return sidecarExecutable{
+				path: materialized.Path,
+				started: func() {
+					yfinanceassets.PruneCached(cacheDir, materialized.SHA256)
+				},
+			}, nil
+		}
+		if err != nil {
+			log.Printf("JFTrade persistent yfinance sidecar cache unavailable; using temporary asset: %v", err)
+		}
 	}
 	materialized, available, err := yfinanceassets.Materialize()
 	if err != nil {
@@ -196,6 +234,56 @@ func resolveYFinanceSidecarExecutable() (sidecarExecutable, error) {
 		return sidecarExecutable{}, ErrYFinanceSidecarUnavailable
 	}
 	return sidecarExecutable{path: materialized.Path, cleanup: materialized.Cleanup}, nil
+}
+
+func resolveDevelopmentPythonSidecar() (sidecarExecutable, bool, error) {
+	python := strings.TrimSpace(os.Getenv("JFTRADE_YFINANCE_DEV_PYTHON"))
+	pythonPath := strings.TrimSpace(os.Getenv("JFTRADE_YFINANCE_DEV_PYTHONPATH"))
+	if python == "" && pythonPath == "" {
+		return sidecarExecutable{}, false, nil
+	}
+	if python == "" || pythonPath == "" {
+		return sidecarExecutable{}, true, fmt.Errorf(
+			"JFTRADE_YFINANCE_DEV_PYTHON and JFTRADE_YFINANCE_DEV_PYTHONPATH must be set together",
+		)
+	}
+	python, err := validateAbsoluteRegularFile(python, "JFTRADE_YFINANCE_DEV_PYTHON")
+	if err != nil {
+		return sidecarExecutable{}, true, err
+	}
+	if !filepath.IsAbs(pythonPath) {
+		return sidecarExecutable{}, true, fmt.Errorf("JFTRADE_YFINANCE_DEV_PYTHONPATH must be an absolute path")
+	}
+	info, err := os.Stat(pythonPath)
+	if err != nil {
+		return sidecarExecutable{}, true, fmt.Errorf("inspect JFTRADE_YFINANCE_DEV_PYTHONPATH: %w", err)
+	}
+	if !info.IsDir() {
+		return sidecarExecutable{}, true, fmt.Errorf("JFTRADE_YFINANCE_DEV_PYTHONPATH must name a directory")
+	}
+	return sidecarExecutable{
+		path:        python,
+		arguments:   []string{"-m", "yfinance_sidecar.main"},
+		environment: []string{"PYTHONPATH=" + pythonPath},
+	}, true, nil
+}
+
+func validateAbsoluteRegularFile(value string, name string) (string, error) {
+	if !filepath.IsAbs(value) {
+		return "", fmt.Errorf("%s must be an absolute path", name)
+	}
+	absolute, err := filepath.Abs(value)
+	if err != nil {
+		return "", fmt.Errorf("resolve %s: %w", name, err)
+	}
+	info, err := os.Stat(absolute)
+	if err != nil {
+		return "", fmt.Errorf("inspect %s: %w", name, err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("%s must name a regular file", name)
+	}
+	return absolute, nil
 }
 
 type osSidecarProcess struct {
@@ -220,12 +308,14 @@ func startYFinanceSidecar(config SidecarConfig) (sidecarProcess, error) {
 	if config.Port < 1 || config.Port > 65535 {
 		return nil, fmt.Errorf("yfinance sidecar port must be between 1 and 65535")
 	}
-	args := []string{
+	args := append([]string(nil), config.Arguments...)
+	args = append(args,
 		"--host", config.Host,
 		"--port", strconv.Itoa(config.Port),
-	}
+	)
 	cmd := exec.Command(config.Executable, args...)
-	cmd.Env = append(os.Environ(), "PYTHONUNBUFFERED=1")
+	cmd.Env = append(os.Environ(), config.Environment...)
+	cmd.Env = append(cmd.Env, "PYTHONUNBUFFERED=1")
 	cmd.Stdout = log.Writer()
 	cmd.Stderr = log.Writer()
 	if err := cmd.Start(); err != nil {

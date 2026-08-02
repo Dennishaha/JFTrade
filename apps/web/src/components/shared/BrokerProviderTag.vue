@@ -24,6 +24,7 @@ import {
 } from "@/composables/market-data/marketDataFeedQuality";
 import type { LiveSocketConnectionState } from "@/composables/market-data/sharedLiveSocket";
 import type { ProductFeatureProvider } from "@/composables/product/productFeatures";
+import { useYFinanceRuntimeWarmup } from "@/composables/market-data/useYFinanceRuntimeWarmup";
 import BrokerProviderMenu from "./BrokerProviderMenu.vue";
 
 const props = withDefaults(
@@ -270,6 +271,11 @@ const authoritativeProviderHealth = computed(() => {
   }
   return null;
 });
+const { readiness: yfinanceRuntimeReadiness } = useYFinanceRuntimeWarmup({
+  providerID: embeddedProviderID,
+  status: embeddedProviderStatus,
+  refresh: () => refreshEmbeddedProviderState(),
+});
 const runtimeFeedInput = computed(() => {
   const statusHealth = authoritativeProviderHealth.value;
   if (
@@ -312,6 +318,8 @@ const runtimeFeedQualityLabel = computed(
 );
 const currentState = computed<BrokerCapabilityState>(() => {
   if (embeddedProviderUnavailable.value) return "unavailable";
+  if (yfinanceRuntimeReadiness.value === "warming") return "degraded";
+  if (yfinanceRuntimeReadiness.value === "failed") return "unavailable";
   if (capabilityDisplayState.value === "unavailable") return "unavailable";
   const runtimeState = runtimeFeedPresentation.value?.state;
   if (runtimeState === "error") return "unavailable";
@@ -328,11 +336,17 @@ const currentLabel = computed(
   () =>
     switchingEmbeddedProvider.value
       ? "启动中"
+      : yfinanceRuntimeReadiness.value === "warming"
+        ? "Yahoo 预热中"
       : embeddedProviderUnavailable.value
         ? "不可用"
       : selectedOption.value?.shortLabel || (loading.value ? "加载中" : "数据源"),
 );
-const currentReason = computed(() => currentCapabilitySummary.value.reason);
+const currentReason = computed(() =>
+  yfinanceRuntimeReadiness.value === "warming"
+    ? "Yahoo 行情依赖正在后台预热，完成后会自动恢复查询"
+    : currentCapabilitySummary.value.reason,
+);
 const currentReasonDetail = computed(() =>
   currentState.value === "available" ? "" : currentReason.value,
 );

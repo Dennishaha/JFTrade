@@ -21,12 +21,14 @@ Invoke-RestMethod http://127.0.0.1:3000/api/v1/market-data/provider
 - 连接被拒绝：helper 没启动、启动后退出，或开发态 `JFTRADE_YFINANCE_SIDECAR` 路径无效。
 - 发布版提示 helper 缺失：安装包不是对应平台的 `release_assets` 构建，或资产校验失败；重新安装匹配平台的产品包。
 - helper `/health` 返回 `200`，JFTrade 仍报不可用：检查 Provider 状态中的最后错误和 helper 进程日志。
-- `/health` 正常，但查询返回 `502 upstream_error`：本地进程正常，失败发生在 Yahoo 网络请求或上游响应转换。
+- `/health` 的 `runtime_state=warming`，查询返回 `503 YFINANCE_RUNTIME_WARMING`：本地进程已就绪，重型依赖仍在后台预热；客户端应遵循 `Retry-After: 1`，通常无需人工处理。
+- `/health` 的 `runtime_state=failed`：后台预热失败，查看可选 `warmup_error` 和桌面日志定位缺失资产或导入错误。
+- `/health` 为 `ready`，但查询返回 `502 upstream_error`：本地进程与运行时正常，失败发生在 Yahoo 网络请求或上游响应转换。
 - 返回 `unsupported_market`、`unsupported_period` 或 `unsupported_capability`：请求超出当前明确支持的能力，不应靠重试解决。
 
 ## 自动启动后立即退出
 
-发布版由 PyInstaller `onedir` helper（可执行文件及其依赖目录）提供 Python 运行时，不需要用户安装 Python。`pnpm run desktop:dev` 会自动复用或构建当前平台 helper，并注入目录内可执行文件的绝对路径；如果使用独立 `cmd/jftrade-api`，仍需手工提供目录内可执行 helper：
+发布版由 PyInstaller `onedir` helper（可执行文件及其依赖目录）提供 Python 运行时，不需要用户安装 Python。有效 bundle 持久缓存到设置目录下的 `cache/yfinance-sidecar/<bundle-sha256>/`；遇到篡改、符号链接、摘要或权限不匹配时只重建当前摘要，缓存不可写才退回临时目录。`pnpm run desktop:dev` 默认直接用仓库 `.venv` 运行源码，不会自动构建 helper；如果使用独立 `cmd/jftrade-api`，可手工提供目录内可执行 helper：
 
 ```bash
 JFTRADE_YFINANCE_SIDECAR=/absolute/path/to/yfinance-sidecar-<platform>/yfinance-sidecar-<platform> \
@@ -40,11 +42,11 @@ python -m pip install --editable "workers/yfinance-sidecar[runtime,build]"
 pnpm run build:yfinance-sidecar
 ```
 
-桌面开发启动会默认使用 `workers/yfinance-sidecar/.venv/bin/python`（Windows 为 `.venv\\Scripts\\python.exe`）构建；也可以通过 `JFTRADE_YFINANCE_BUILD_PYTHON` 指定构建 Python。`onedir` helper 不需要启动时解压整个运行时，JFTrade 仍会等待 `/health` 就绪。
+桌面开发启动会默认使用 `workers/yfinance-sidecar/.venv/bin/python`（Windows 为 `.venv\\Scripts\\python.exe`）和 `workers/yfinance-sidecar/src`；可成对设置 `JFTRADE_YFINANCE_DEV_PYTHON` 与 `JFTRADE_YFINANCE_DEV_PYTHONPATH` 覆盖。解析顺序为显式 `JFTRADE_YFINANCE_SIDECAR`、可用 Python 源码命令、已构建 frozen helper；全部不可用时快速退出并给出安装命令。正式 profile 忽略这些开发覆盖。
 
-显式切换到 yfinance 时，JFTrade 会等待 helper 的 `/health`（最长约 45 秒）。路径不存在、helper 缺失、启动失败或健康探测失败都会返回 `409 MARKET_DATA_PROVIDER_UPDATE_FAILED`，停止本次新进程，并恢复原来的 Provider。
+显式切换到 yfinance 时，JFTrade 会等待 helper 的 `/health` 达到 `runtime_state=ready`（最长约 45 秒）。路径不存在、helper 缺失、启动失败、预热失败或超时都会返回 `409 MARKET_DATA_PROVIDER_UPDATE_FAILED`，停止本次新进程，并恢复原来的 Provider。
 
-应用启动时恢复已持久化的 yfinance 若 helper 缺失会回退并持久化 Futu，不会让首页继续使用失效的数据源。修复安装或开发路径后，再切回 yfinance 以触发一次受健康门禁保护的新启动。
+应用启动时恢复已持久化的 yfinance 只要求 helper 进程和 `/health` 可用，不等待后台预热；主界面可以先进入，行情状态显示“Yahoo 预热中”。helper 缺失或进程健康失败仍会回退并持久化 Futu。修复安装或开发路径后，再切回 yfinance 以触发一次受 ready 门禁保护的新启动。
 
 ## 端口冲突
 
@@ -74,7 +76,7 @@ sidecar 会把网络错误、限流和无法解析的上游响应转换为结构
 
 每次 Yahoo 上游传输调用最多等待 10 秒；JFTrade 设置中的请求总超时还包含 Go 侧安全重试，因此两者不是同一个超时。若持续出现超时，应先排查网络或上游限流，而不是不断放大总超时。
 
-`/health` 不访问 Yahoo，因此它只能证明本地进程和依赖已加载，不能证明上游行情可用。
+`/health` 不访问 Yahoo，也不同步导入 pandas、numpy、yfinance；它证明本地进程可响应，并通过 `runtime_state` 区分预热阶段。即使状态为 `ready`，也不能证明 Yahoo 上游行情可用。
 
 ## 数据看起来不实时
 

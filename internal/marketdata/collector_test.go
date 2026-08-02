@@ -421,11 +421,12 @@ func (s *collectorStream) Close() error {
 }
 
 type collectorQuoteSource struct {
-	ticks   map[string]Tick
-	err     error
-	started chan struct{}
-	release chan struct{}
-	calls   atomic.Int64
+	ticks       map[string]Tick
+	err         error
+	started     chan struct{}
+	release     chan struct{}
+	calls       atomic.Int64
+	startedOnce sync.Once
 }
 
 type policyQuoteSource struct {
@@ -457,7 +458,7 @@ func (s *churnQuoteSource) QueryTickers(
 func (s *collectorQuoteSource) QueryTickers(ctx context.Context, _ []string) (map[string]Tick, error) {
 	s.calls.Add(1)
 	if s.started != nil {
-		close(s.started)
+		s.startedOnce.Do(func() { close(s.started) })
 	}
 	if s.release != nil {
 		select {
