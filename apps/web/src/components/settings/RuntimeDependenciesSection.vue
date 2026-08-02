@@ -2,14 +2,7 @@
 import { useMutation, useQuery } from "@tanstack/vue-query";
 import { computed, onMounted, ref, watch } from "vue";
 
-import type {
-  RuntimeDependenciesResponse,
-  RuntimeDependencyItem,
-} from "@/types";
-import type {
-  RuntimeDependenciesResponseDto,
-  RuntimeDependencyItemDto,
-} from "@/contracts";
+import type { RuntimeDependenciesResponse } from "@/types";
 import { apiGet } from "@/composables/shared/apiClient";
 import { useExternalLink } from "@/composables/shared/externalLink";
 import {
@@ -24,6 +17,14 @@ import {
   putRuntimeDependencySettings,
   type RuntimeDependencySettings,
 } from "@/composables/settings/runtimeDependencySettings";
+import {
+  dependencyPathLabel,
+  dependencySourceLabel,
+  dependencyStatusClass,
+  dependencyStatusLabel,
+  dependencyVersionLabel,
+  mapRuntimeDependencies,
+} from "@/composables/settings/runtimeDependencyPresentation";
 import { queryClient, queryKeys } from "@/composables/settings/serverState";
 import SectionHeader from "@/components/shared/SectionHeader.vue";
 
@@ -52,36 +53,6 @@ const panelLoading = ref(true);
 const refreshing = ref(false);
 const errorMessage = ref("");
 const noticeMessage = ref("");
-
-function mapRuntimeDependency(
-  value: RuntimeDependencyItemDto,
-): RuntimeDependencyItem {
-  return {
-    id: value.id ?? "",
-    displayName: value.displayName ?? value.id ?? "",
-    required: value.required ?? false,
-    configurable: value.configurable ?? false,
-    status: value.status ?? "error",
-    minimumVersion: value.minimumVersion ?? "",
-    detectedVersion: value.detectedVersion ?? "",
-    configuredPath: value.configuredPath ?? "",
-    effectivePath: value.effectivePath ?? "",
-    resolvedPath: value.resolvedPath ?? "",
-    source: value.source ?? "",
-    homepageUrl: value.homepageUrl ?? "",
-    message: value.message ?? "",
-  };
-}
-
-function mapRuntimeDependencies(
-  value: RuntimeDependenciesResponseDto,
-): RuntimeDependenciesResponse {
-  return {
-    checkedAt: value.checkedAt ?? "",
-    allRequiredSatisfied: value.allRequiredSatisfied ?? false,
-    dependencies: (value.dependencies ?? []).map(mapRuntimeDependency),
-  };
-}
 
 const pineWorkerSettingsQueryKey = queryKeys.settings("pine-worker");
 const pineWorkerSettingsQuery = useQuery({
@@ -267,48 +238,6 @@ async function savePythonBinaryPath(): Promise<void> {
   }
 }
 
-function dependencyStatusLabel(status: string): string {
-  switch (status.toLowerCase()) {
-    case "ok":
-      return "可用";
-    case "missing":
-      return "缺失";
-    case "outdated":
-      return "版本过低";
-    default:
-      return "异常";
-  }
-}
-
-function dependencyStatusClass(status: string): string {
-  switch (status.toLowerCase()) {
-    case "ok":
-      return "status-ok";
-    case "missing":
-    case "outdated":
-      return "status-warning";
-    default:
-      return "status-error";
-  }
-}
-
-function dependencyVersionLabel(value: string): string {
-  return value.trim() === "" ? "-" : value;
-}
-
-function dependencyPathLabel(value: string): string {
-  return value.trim() === "" ? "自动检测" : value;
-}
-
-function dependencySourceLabel(value: string): string {
-  if (value === "settings") return "设置";
-  if (value === "path") return "PATH";
-  if (value === "bundled") return "应用内嵌";
-  if (value === "external-helper") return "Frozen helper";
-  if (value === "workspace-venv") return "项目虚拟环境";
-  if (value.startsWith("env:")) return value.replace("env:", "环境变量 ");
-  return value || "-";
-}
 </script>
 
 <template>
@@ -426,7 +355,7 @@ function dependencySourceLabel(value: string): string {
               {{ savingPython ? "保存中" : "保存路径并检查" }}
             </button>
           </div>
-          <p class="dependency-path-editor__hint">
+          <p class="m-0 text-xs leading-[1.6] text-[var(--card-text-3)]">
             保存不会重启当前 Yahoo helper；新路径在下一次 helper 启动、切换行情 Provider 或重启应用时生效。
           </p>
         </div>
@@ -712,13 +641,6 @@ function dependencySourceLabel(value: string): string {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
-}
-
-.dependency-path-editor__hint {
-  margin: 0;
-  color: var(--card-text-3);
-  font-size: 12px;
-  line-height: 1.6;
 }
 
 .dependency-path-editor input {

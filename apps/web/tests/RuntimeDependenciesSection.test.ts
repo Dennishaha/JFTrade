@@ -13,6 +13,7 @@ beforeEach(() => {
 
 afterEach(() => {
   queryClient.clear();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -379,6 +380,102 @@ describe("RuntimeDependenciesSection", () => {
       wrapper.find("[data-testid='runtime-dependency-python-path-input']").exists(),
     ).toBe(false);
     expect(dependencyChecks).toBe(2);
+  });
+
+  it("renders OOBE dependency warnings and reports failed Python path saves", async () => {
+    const fetchMock = vi.fn(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+        const method = String(init?.method ?? "GET").toUpperCase();
+        if (url.includes("/api/v1/settings/pine-worker")) {
+          return createResponse({
+            backtestWorkerLimit: 2,
+            instanceWorkerLimit: 10,
+            nodeBinaryPath: "",
+          });
+        }
+        if (
+          url.includes("/api/v1/settings/runtime-dependencies") &&
+          method === "PUT"
+        ) {
+          throw "python settings write rejected";
+        }
+        if (url.includes("/api/v1/settings/runtime-dependencies")) {
+          return createResponse({ pythonBinaryPath: "" });
+        }
+        if (url.includes("/api/v1/system/runtime-dependencies")) {
+          return createResponse({
+            checkedAt: "2026-08-02T00:00:00Z",
+            allRequiredSatisfied: false,
+            dependencies: [
+              {
+                id: "node",
+                displayName: "Node.js",
+                required: true,
+                configurable: true,
+                status: "missing",
+                message: "Node.js was not found.",
+              },
+              {
+                id: "python",
+                displayName: "Python",
+                required: true,
+                configurable: true,
+                status: "outdated",
+                message: "Python 3.11 or newer is required.",
+              },
+            ],
+          });
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(RuntimeDependenciesSection, { props: { mode: "oobe" } });
+    await flushRequests();
+
+    expect(wrapper.text()).toContain(
+      "Node.js 缺失或版本过低时，策略回测与运行实例无法启动。",
+    );
+    expect(wrapper.text()).toContain(
+      "Python 缺失、版本过低或运行模块不完整时，源码方式的 Yahoo 行情不可用。",
+    );
+
+    await wrapper
+      .get("[data-testid='runtime-dependency-python-path-input']")
+      .setValue("/custom/python3");
+    await wrapper
+      .get("[data-testid='runtime-dependency-python-path-save']")
+      .trigger("click");
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("保存 Python 路径失败");
+  });
+
+  it("reports a stable fallback when initial settings loading rejects a non-Error value", async () => {
+    vi.spyOn(queryClient, "ensureQueryData").mockRejectedValue(
+      "settings connection closed",
+    );
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/v1/system/runtime-dependencies")) {
+        return createResponse({
+          checkedAt: "2026-08-02T00:00:00Z",
+          allRequiredSatisfied: true,
+          dependencies: [],
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(RuntimeDependenciesSection, {
+      props: { mode: "settings" },
+    });
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("读取运行时依赖失败");
   });
 
 });
