@@ -22,17 +22,18 @@ const (
 )
 
 var (
-	ErrWebAccessPasswordRequired = errors.New("a Web access password is required before Web access can be enabled")
-	ErrWebAccessPasswordTooShort = errors.New("web access password must contain at least 15 characters")
-	ErrWebAccessPasswordTooLong  = errors.New("web access password must contain at most 1024 bytes")
-	ErrWebAccessPortInvalid      = errors.New("web access port must be between 1024 and 65535")
-	ErrWebAccessRuntimeUpdate    = errors.New("could not apply Web access listener settings")
-	ErrMCPServerPortInvalid      = errors.New("MCP server port must be between 1024 and 65535")
-	ErrMCPServerAuthModeInvalid  = errors.New("MCP server auth mode must be token or none")
-	ErrMCPServerTokenRequired    = errors.New("an MCP server token is required before token authentication can be enabled")
-	ErrMCPServerRuntimeUpdate    = errors.New("could not apply MCP server listener settings")
-	ErrMCPServerStoreUnavailable = errors.New("MCP server settings store is unavailable")
-	ErrNotificationUnavailable   = errors.New("notification publisher is unavailable")
+	ErrWebAccessPasswordRequired         = errors.New("a Web access password is required before Web access can be enabled")
+	ErrWebAccessPasswordTooShort         = errors.New("web access password must contain at least 15 characters")
+	ErrWebAccessPasswordTooLong          = errors.New("web access password must contain at most 1024 bytes")
+	ErrWebAccessPortInvalid              = errors.New("web access port must be between 1024 and 65535")
+	ErrWebAccessRuntimeUpdate            = errors.New("could not apply Web access listener settings")
+	ErrMCPServerPortInvalid              = errors.New("MCP server port must be between 1024 and 65535")
+	ErrMCPServerAuthModeInvalid          = errors.New("MCP server auth mode must be token or none")
+	ErrMCPServerTokenRequired            = errors.New("an MCP server token is required before token authentication can be enabled")
+	ErrMCPServerRuntimeUpdate            = errors.New("could not apply MCP server listener settings")
+	ErrMCPServerStoreUnavailable         = errors.New("MCP server settings store is unavailable")
+	ErrRuntimeDependencyStoreUnavailable = errors.New("runtime dependency settings store is unavailable")
+	ErrNotificationUnavailable           = errors.New("notification publisher is unavailable")
 )
 
 // Store 是 settings 持久化层接口，由应用装配层注入具体实现。
@@ -82,6 +83,14 @@ type MCPServerStore interface {
 	SaveMCPServerSettings(jfsettings.MCPServerSettings) (jfsettings.MCPServerSettings, error)
 }
 
+// RuntimeDependencyStore is an optional settings extension for host runtime
+// paths. Keeping it separate avoids widening integrations that only need the
+// long-standing settings contract.
+type RuntimeDependencyStore interface {
+	RuntimeDependencySettings() jfsettings.RuntimeDependencySettings
+	SaveRuntimeDependencySettings(jfsettings.RuntimeDependencySettings) (jfsettings.RuntimeDependencySettings, error)
+}
+
 // SideEffects 定义 settings 写操作触发的跨模块回调。
 // 由 Server 实现并注入，避免 settings 包直接依赖 Futu/execution/frontend。
 type SideEffects struct {
@@ -95,6 +104,8 @@ type SideEffects struct {
 	OnExchangeCalendarsChanged func(jfsettings.ExchangeCalendarSettings)
 	// OnPineWorkerChanged 在 PineTS worker 设置变更时调用。
 	OnPineWorkerChanged func(jfsettings.PineWorkerSettings)
+	// OnRuntimeDependenciesChanged updates host runtime selection for future starts.
+	OnRuntimeDependenciesChanged func(jfsettings.RuntimeDependencySettings)
 	// OnMCPServerChanged 在本机 MCP listener 设置变更时调用。
 	OnMCPServerChanged func(jfsettings.MCPServerSettings) error
 	// OnProviderChanged 在行情数据源选择变更时调用。
@@ -105,6 +116,7 @@ type SideEffects struct {
 type Service struct {
 	store                  Store
 	mcpStore               MCPServerStore
+	runtimeDependencyStore RuntimeDependencyStore
 	sideEffects            SideEffects
 	securityMu             sync.Mutex
 	mcpServerMu            sync.Mutex
@@ -124,7 +136,12 @@ type Service struct {
 // NewService 创建 settings 服务。
 func NewService(store Store, opts ...Option) *Service {
 	mcpStore, _ := store.(MCPServerStore)
-	s := &Service{store: store, mcpStore: mcpStore, hashPassword: passwordhash.Hash, newMCPToken: newMCPServerToken}
+	runtimeDependencyStore, _ := store.(RuntimeDependencyStore)
+	s := &Service{
+		store: store, mcpStore: mcpStore,
+		runtimeDependencyStore: runtimeDependencyStore,
+		hashPassword:           passwordhash.Hash, newMCPToken: newMCPServerToken,
+	}
 	for _, o := range opts {
 		o(s)
 	}
@@ -488,6 +505,32 @@ func (s *Service) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) (j
 	}
 	if s.sideEffects.OnPineWorkerChanged != nil {
 		s.sideEffects.OnPineWorkerChanged(result)
+	}
+	return result, nil
+}
+
+// GetRuntimeDependencySettings returns persisted host runtime paths.
+func (s *Service) GetRuntimeDependencySettings() jfsettings.RuntimeDependencySettings {
+	if s.runtimeDependencyStore == nil {
+		return jfsettings.RuntimeDependencySettings{}
+	}
+	return s.runtimeDependencyStore.RuntimeDependencySettings()
+}
+
+// SaveRuntimeDependencySettings persists host runtime paths and updates only
+// the configuration used by future runtime starts.
+func (s *Service) SaveRuntimeDependencySettings(
+	input jfsettings.RuntimeDependencySettings,
+) (jfsettings.RuntimeDependencySettings, error) {
+	if s.runtimeDependencyStore == nil {
+		return s.GetRuntimeDependencySettings(), ErrRuntimeDependencyStoreUnavailable
+	}
+	result, err := s.runtimeDependencyStore.SaveRuntimeDependencySettings(input)
+	if err != nil {
+		return result, err
+	}
+	if s.sideEffects.OnRuntimeDependenciesChanged != nil {
+		s.sideEffects.OnRuntimeDependenciesChanged(result)
 	}
 	return result, nil
 }

@@ -25,17 +25,18 @@ const packageManagerCommand = process.env.npm_execpath
   ? [process.execPath, [process.env.npm_execpath]]
   : [process.platform === "win32" ? "pnpm.cmd" : "pnpm", []];
 
+const settingsPath =
+  process.env.JFTRADE_SETTINGS_PATH ||
+  path.join(desktopRuntimeDir, "settings.json");
 const apiBind = process.env.JFTRADE_API_BIND || "127.0.0.1:3008";
 const apiBaseUrl = apiBaseURLForBind(apiBind);
 const frontendURL =
   process.env.FRONTEND_DEVSERVER_URL || "http://127.0.0.1:3003";
-const yfinanceRuntime = resolveYFinanceRuntime();
+const yfinanceRuntime = resolveYFinanceRuntime(settingsPath);
 const devEnv = {
   JFTRADE_DESKTOP_MODE: "1",
   FRONTEND_DEVSERVER_URL: frontendURL,
-  JFTRADE_SETTINGS_PATH:
-    process.env.JFTRADE_SETTINGS_PATH ||
-    path.join(desktopRuntimeDir, "settings.json"),
+  JFTRADE_SETTINGS_PATH: settingsPath,
   JFTRADE_BACKTEST_DB:
     process.env.JFTRADE_BACKTEST_DB ||
     path.join(desktopRuntimeDir, "backtest.db"),
@@ -333,12 +334,22 @@ async function waitForURL(url, processToWatch) {
   throw new Error(`Vite did not become ready within 30s: ${url}`);
 }
 
-function resolveYFinanceRuntime() {
+function resolveYFinanceRuntime(runtimeSettingsPath) {
   const configured = process.env.JFTRADE_YFINANCE_SIDECAR?.trim();
   const configuredPython = process.env.JFTRADE_YFINANCE_DEV_PYTHON?.trim();
   const configuredSource = process.env.JFTRADE_YFINANCE_DEV_PYTHONPATH?.trim();
-  const python = defaultYFinancePython();
   const source = path.join(rootDir, "workers", "yfinance-sidecar", "src");
+  const savedPython = savedPythonBinaryPath(runtimeSettingsPath);
+  if (!configured && !configuredPython && !configuredSource && savedPython) {
+    // Do not copy the persisted path into the process environment: the backend
+    // must be able to observe a newly saved path on the next helper start.
+    return {
+      mode: "python-source-settings",
+      environment: { JFTRADE_YFINANCE_DEV_PYTHONPATH: source },
+    };
+  }
+
+  const python = defaultYFinancePython();
   const staged = stagedYFinanceSidecarPath();
   const explicitPythonRequested = Boolean(configuredPython || configuredSource);
   const inspectDefaultRuntime = !configured && !explicitPythonRequested;
@@ -396,8 +407,9 @@ function usableRegularFile(file) {
 function pythonRuntimeUsable(python, source) {
   const probe = [
     "import importlib.util, sys",
-    "required = ('fastapi', 'uvicorn', 'yfinance', 'curl_cffi')",
-    "sys.exit(0 if all(importlib.util.find_spec(name) for name in required) else 1)",
+    "required = ('yfinance_sidecar', 'fastapi', 'uvicorn', 'yfinance', 'curl_cffi')",
+    "valid = sys.version_info >= (3, 11) and all(importlib.util.find_spec(name) for name in required)",
+    "sys.exit(0 if valid else 1)",
   ].join("; ");
   const result = spawnSync(python, ["-c", probe], {
     cwd: rootDir,
@@ -413,6 +425,16 @@ function defaultYFinancePython() {
       ? ["workers", "yfinance-sidecar", ".venv", "Scripts", "python.exe"]
       : ["workers", "yfinance-sidecar", ".venv", "bin", "python"];
   return path.join(rootDir, ...relative);
+}
+
+function savedPythonBinaryPath(runtimeSettingsPath) {
+  try {
+    const settings = JSON.parse(readFileSync(runtimeSettingsPath, "utf8"));
+    const value = settings?.runtimeDependencies?.pythonBinaryPath;
+    return typeof value === "string" ? value.trim() : "";
+  } catch {
+    return "";
+  }
 }
 
 function stagedYFinanceSidecarPath() {

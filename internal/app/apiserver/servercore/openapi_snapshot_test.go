@@ -193,8 +193,8 @@ func TestOpenAPIDocumentsExplicitErrorResponses(t *testing.T) {
 			}
 		}
 	}
-	if operationCount != 274 {
-		t.Fatalf("OpenAPI operation count = %d, want 274", operationCount)
+	if operationCount != 276 {
+		t.Fatalf("OpenAPI operation count = %d, want 276", operationCount)
 	}
 	sort.Strings(missing)
 	if len(missing) > 0 {
@@ -266,6 +266,7 @@ func TestOpenAPIDocumentsWritableRequestBodies(t *testing.T) {
 		{path: "/api/v1/settings/adk", method: "put", refSuffix: "settings.ADKRuntimeSettingsWriteRequest", properties: []string{"runTimeoutMs", "streamIdleTimeoutMs"}},
 		{path: "/api/v1/settings/execution", method: "put", refSuffix: "settings.ExecutionSettingsWriteRequest", properties: []string{"defaultTradingEnvironment", "brokerOrderHistoryLookbackDays", "seenFillRetentionDays"}},
 		{path: "/api/v1/settings/pine-worker", method: "put", refSuffix: "settings.PineWorkerSettingsWriteRequest", properties: []string{"backtestWorkerLimit", "instanceWorkerLimit", "nodeBinaryPath"}},
+		{path: "/api/v1/settings/runtime-dependencies", method: "put", refSuffix: "settings.RuntimeDependencySettingsWriteRequest", properties: []string{"pythonBinaryPath"}},
 		{path: "/api/v1/settings/system-notifications", method: "put", refSuffix: "settings.SystemNotificationSettingsWriteRequest", properties: []string{"enabled", "mode", "levels", "categories", "soundEnabled"}},
 		{path: "/api/v1/settings/security", method: "put", refSuffix: "jftsettings.SecuritySettingsUpdate", properties: []string{"newPassword", "publicAccessEnabled", "webAccessEnabled", "webPort"}, forbidden: []string{"passwordConfigured", "passwordHash"}},
 		{path: "/api/v1/settings/brokers/{brokerId}/integration", method: "put", refSuffix: "settings.BrokerIntegrationSaveRequest", properties: []string{"enabled", "config"}, forbidden: []string{"brokerId", "createdAt", "updatedAt"}},

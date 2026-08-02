@@ -50,6 +50,7 @@ function runtimeDependencyMockResponse(url: string): Response | null {
           id: "node",
           displayName: "Node.js",
           required: true,
+          configurable: true,
           status: "ok",
           minimumVersion: "22.0.0",
           detectedVersion: "22.1.0",
@@ -69,6 +70,9 @@ function runtimeDependencyMockResponse(url: string): Response | null {
       instanceWorkerLimit: 10,
       nodeBinaryPath: "",
     });
+  }
+  if (url.includes("/api/v1/settings/runtime-dependencies")) {
+    return createResponse({ pythonBinaryPath: "" });
   }
   return null;
 }

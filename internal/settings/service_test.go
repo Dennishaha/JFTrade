@@ -25,6 +25,7 @@ type fakeStore struct {
 	adk                 jfsettings.ADKRuntimeSettings
 	mcpServer           jfsettings.MCPServerSettings
 	pineWorker          jfsettings.PineWorkerSettings
+	runtimeDependencies jfsettings.RuntimeDependencySettings
 	calendars           jfsettings.ExchangeCalendarSettings
 	activeProvider      jfsettings.ActiveMarketDataProvider
 	integration         jfsettings.BrokerIntegration
@@ -50,6 +51,9 @@ func (s *fakeStore) MCPServerSettings() jfsettings.MCPServerSettings {
 }
 func (s *fakeStore) PineWorkerSettings() jfsettings.PineWorkerSettings {
 	return s.pineWorker
+}
+func (s *fakeStore) RuntimeDependencySettings() jfsettings.RuntimeDependencySettings {
+	return s.runtimeDependencies
 }
 func (s *fakeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	return s.calendars
@@ -106,6 +110,10 @@ func (s *fakeStore) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) 
 	s.pineWorker = input
 	return input, nil
 }
+func (s *fakeStore) SaveRuntimeDependencySettings(input jfsettings.RuntimeDependencySettings) (jfsettings.RuntimeDependencySettings, error) {
+	s.runtimeDependencies = input
+	return input, nil
+}
 func (s *fakeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {
 	s.calendars = input
 	return input, nil
@@ -157,6 +165,7 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 	var gotCalendars jfsettings.ExchangeCalendarSettings
 	var gotIntegration jfsettings.BrokerIntegration
 	var gotPineWorker jfsettings.PineWorkerSettings
+	var gotRuntimeDependencies jfsettings.RuntimeDependencySettings
 
 	svc := NewService(store, WithSideEffects(SideEffects{
 		OnExecutionChanged: func(settings jfsettings.ExecutionSettings) {
@@ -174,6 +183,9 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 		},
 		OnPineWorkerChanged: func(settings jfsettings.PineWorkerSettings) {
 			gotPineWorker = settings
+		},
+		OnRuntimeDependenciesChanged: func(settings jfsettings.RuntimeDependencySettings) {
+			gotRuntimeDependencies = settings
 		},
 	}))
 
@@ -225,6 +237,14 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 	}
 	if !reflect.DeepEqual(gotPineWorker, pineWorker) {
 		t.Fatalf("pine worker side effect = %#v, want %#v", gotPineWorker, pineWorker)
+	}
+
+	runtimeDependencies := jfsettings.RuntimeDependencySettings{PythonBinaryPath: "/opt/python/bin/python3"}
+	if _, err := svc.SaveRuntimeDependencySettings(runtimeDependencies); err != nil {
+		t.Fatalf("SaveRuntimeDependencySettings: %v", err)
+	}
+	if gotRuntimeDependencies != runtimeDependencies {
+		t.Fatalf("runtime dependency side effect = %#v, want %#v", gotRuntimeDependencies, runtimeDependencies)
 	}
 }
 

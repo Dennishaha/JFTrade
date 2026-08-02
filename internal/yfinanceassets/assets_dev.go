@@ -9,7 +9,8 @@ func assetFS() fs.FS {
 }
 
 // DevelopmentOverridesAllowed reports whether external helper commands may be
-// supplied by the local development environment.
+// supplied by the local development environment, including Python source
+// runtimes selected by runtime dependency settings.
 func DevelopmentOverridesAllowed() bool {
 	return true
 }

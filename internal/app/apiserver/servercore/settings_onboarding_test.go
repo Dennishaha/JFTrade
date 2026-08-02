@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestOnboardingDefaultsAndSave(t *testing.T) {
@@ -60,6 +62,9 @@ func TestOnboardingRoutesSuggestOobeUntilCompleted(t *testing.T) {
 		func(path string) (string, error) { return path, nil },
 		func(context.Context, string, ...string) ([]byte, error) { return []byte("v22.0.0"), nil },
 	)
+	restorePythonDependencyProbe(t, func(context.Context, marketdataapp.PythonRuntimeResolution) marketdataapp.PythonRuntimeProbeResult {
+		return marketdataapp.PythonRuntimeProbeResult{Available: true, DetectedVersion: "3.11.9"}
+	})
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)

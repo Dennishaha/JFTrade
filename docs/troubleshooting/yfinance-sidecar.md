@@ -28,7 +28,7 @@ Invoke-RestMethod http://127.0.0.1:3000/api/v1/market-data/provider
 
 ## 自动启动后立即退出
 
-发布版由 PyInstaller `onedir` helper（可执行文件及其依赖目录）提供 Python 运行时，不需要用户安装 Python。有效 bundle 持久缓存到设置目录下的 `cache/yfinance-sidecar/<bundle-sha256>/`；遇到篡改、符号链接、摘要或权限不匹配时只重建当前摘要，缓存不可写才退回临时目录。`pnpm run desktop:dev` 默认直接用仓库 `.venv` 运行源码，不会自动构建 helper；如果使用独立 `cmd/jftrade-api`，可手工提供目录内可执行 helper：
+发布版由 PyInstaller `onedir` helper（可执行文件及其依赖目录）提供 Python 运行时，不需要用户安装 Python。有效 bundle 持久缓存到设置目录下的 `cache/yfinance-sidecar/<bundle-sha256>/`；遇到篡改、符号链接、摘要或权限不匹配时只重建当前摘要，缓存不可写才退回临时目录。源码开发模式会检查 Python 3.11+ 以及 `yfinance_sidecar`、FastAPI、Uvicorn、yfinance、curl_cffi；可以在“设置 → 依赖项管理”保存解释器路径，也可以通过环境变量覆盖。如果使用独立 frozen helper，可显式提供其绝对路径：
 
 ```bash
 JFTRADE_YFINANCE_SIDECAR=/absolute/path/to/yfinance-sidecar-<platform>/yfinance-sidecar-<platform> \
@@ -42,7 +42,9 @@ python -m pip install --editable "workers/yfinance-sidecar[runtime,build]"
 pnpm run build:yfinance-sidecar
 ```
 
-桌面开发启动会默认使用 `workers/yfinance-sidecar/.venv/bin/python`（Windows 为 `.venv\\Scripts\\python.exe`）和 `workers/yfinance-sidecar/src`；可成对设置 `JFTRADE_YFINANCE_DEV_PYTHON` 与 `JFTRADE_YFINANCE_DEV_PYTHONPATH` 覆盖。解析顺序为显式 `JFTRADE_YFINANCE_SIDECAR`、可用 Python 源码命令、已构建 frozen helper；全部不可用时快速退出并给出安装命令。正式 profile 忽略这些开发覆盖。
+源码模式只检测依赖，不会自动执行 pip、升级或创建虚拟环境。保存新的 Python 路径后，设置页会立即重新探测；当前 Yahoo helper 不会被中断，新路径在下一次 helper 启动、Provider 切换或应用重启时生效。
+
+桌面开发启动会优先保留显式 `JFTRADE_YFINANCE_SIDECAR` 或源码环境覆盖；没有覆盖时检查已保存的 Python 路径，再检查 `workers/yfinance-sidecar/.venv/bin/python`（Windows 为 `.venv\\Scripts\\python.exe`）和 `workers/yfinance-sidecar/src`，最后复用已构建 frozen helper。启动脚本不会自动构建 helper；全部不可用时快速退出并给出安装命令。正式 profile 忽略开发覆盖。`onedir` helper 不需要启动时解压整个运行时，JFTrade 仍会等待 `/health` 就绪。
 
 显式切换到 yfinance 时，JFTrade 会等待 helper 的 `/health` 达到 `runtime_state=ready`（最长约 45 秒）。路径不存在、helper 缺失、启动失败、预热失败或超时都会返回 `409 MARKET_DATA_PROVIDER_UPDATE_FAILED`，停止本次新进程，并恢复原来的 Provider。
 

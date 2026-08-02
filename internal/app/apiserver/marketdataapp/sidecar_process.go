@@ -1,6 +1,7 @@
 package marketdataapp
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -14,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/yfinanceassets"
 )
 
@@ -21,6 +23,7 @@ const (
 	sidecarStopTimeout = 5 * time.Second
 	sidecarKillTimeout = 2 * time.Second
 	sidecarHost        = "127.0.0.1"
+	sourceProbeTimeout = 3 * time.Second
 )
 
 // SidecarConfig contains application-owned process arguments. It is never
@@ -67,20 +70,35 @@ type sidecarManager struct {
 	resolve      sidecarExecutableResolver
 	allocatePort sidecarPortAllocator
 	start        sidecarStarter
+	cacheDir     string
+	settings     jftsettings.RuntimeDependencySettings
 }
 
-func newSidecarManager(cacheDirs ...string) *sidecarManager {
-	cacheDir := ""
-	if len(cacheDirs) > 0 {
-		cacheDir = strings.TrimSpace(cacheDirs[0])
-	}
-	return &sidecarManager{
-		resolve: func() (sidecarExecutable, error) {
-			return resolveYFinanceSidecarExecutable(cacheDir)
-		},
+func newSidecarManager(
+	cacheDir string,
+	settings ...jftsettings.RuntimeDependencySettings,
+) *sidecarManager {
+	manager := &sidecarManager{
 		allocatePort: allocateYFinanceSidecarPort,
 		start:        startYFinanceSidecar,
+		cacheDir:     strings.TrimSpace(cacheDir),
 	}
+	if len(settings) > 0 {
+		manager.settings = settings[0]
+	}
+	manager.resolve = func() (sidecarExecutable, error) {
+		return resolveYFinanceSidecarExecutable(manager.cacheDir, manager.settings)
+	}
+	return manager
+}
+
+func (m *sidecarManager) ConfigureRuntimeDependencies(settings jftsettings.RuntimeDependencySettings) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	m.settings = settings
+	m.mu.Unlock()
 }
 
 func (m *sidecarManager) EnsureStarted() (string, error) {
@@ -98,7 +116,7 @@ func (m *sidecarManager) EnsureStarted() (string, error) {
 	resolve := m.resolve
 	if resolve == nil {
 		resolve = func() (sidecarExecutable, error) {
-			return resolveYFinanceSidecarExecutable()
+			return resolveYFinanceSidecarExecutable(m.cacheDir, m.settings)
 		}
 	}
 	executable, err := resolve()
@@ -191,26 +209,42 @@ func allocateYFinanceSidecarPort() (int, error) {
 	return address.Port, nil
 }
 
-func resolveYFinanceSidecarExecutable(cacheDirs ...string) (sidecarExecutable, error) {
-	cacheDir := ""
-	if len(cacheDirs) > 0 {
-		cacheDir = strings.TrimSpace(cacheDirs[0])
-	}
-	path := strings.TrimSpace(os.Getenv("JFTRADE_YFINANCE_SIDECAR"))
+func resolveYFinanceSidecarExecutable(
+	cacheDir string,
+	settings ...jftsettings.RuntimeDependencySettings,
+) (sidecarExecutable, error) {
+	cacheDir = strings.TrimSpace(cacheDir)
+	path := strings.TrimSpace(os.Getenv(EnvYFinanceSidecar))
 	if path != "" && yfinanceassets.DevelopmentOverridesAllowed() {
-		absolute, err := validateAbsoluteRegularFile(
-			path,
-			"JFTRADE_YFINANCE_SIDECAR",
-		)
+		absolute, err := validateAbsoluteRegularFile(path, EnvYFinanceSidecar)
 		if err != nil {
 			return sidecarExecutable{}, err
 		}
 		return sidecarExecutable{path: absolute}, nil
 	}
 	if yfinanceassets.DevelopmentOverridesAllowed() {
-		if executable, ok, err := resolveDevelopmentPythonSidecar(); err != nil || ok {
-			return executable, err
+		dependencySettings := jftsettings.RuntimeDependencySettings{}
+		if len(settings) > 0 {
+			dependencySettings = settings[0]
 		}
+		resolution := ResolvePythonRuntime(dependencySettings)
+		if !resolution.Available || resolution.ResolvedPath == "" {
+			return sidecarExecutable{}, fmt.Errorf(
+				"resolve yfinance Python source runtime: %w",
+				pythonRuntimeMissingError(resolution),
+			)
+		}
+		probeCtx, cancel := context.WithTimeout(context.Background(), sourceProbeTimeout)
+		probe := ProbePythonRuntime(probeCtx, resolution)
+		probeErr := pythonRuntimeProbeError(probeCtx, probe)
+		cancel()
+		if !probe.Available {
+			return sidecarExecutable{}, probeErr
+		}
+		return sidecarExecutable{
+			path: resolution.ResolvedPath, arguments: []string{"-m", "yfinance_sidecar.main"},
+			environment: []string{"PYTHONPATH=" + resolution.SourcePath},
+		}, nil
 	}
 	if cacheDir != "" {
 		materialized, available, err := yfinanceassets.MaterializeCached(cacheDir)
@@ -236,36 +270,26 @@ func resolveYFinanceSidecarExecutable(cacheDirs ...string) (sidecarExecutable, e
 	return sidecarExecutable{path: materialized.Path, cleanup: materialized.Cleanup}, nil
 }
 
-func resolveDevelopmentPythonSidecar() (sidecarExecutable, bool, error) {
-	python := strings.TrimSpace(os.Getenv("JFTRADE_YFINANCE_DEV_PYTHON"))
-	pythonPath := strings.TrimSpace(os.Getenv("JFTRADE_YFINANCE_DEV_PYTHONPATH"))
-	if python == "" && pythonPath == "" {
-		return sidecarExecutable{}, false, nil
+func pythonRuntimeProbeError(
+	ctx context.Context,
+	probe PythonRuntimeProbeResult,
+) error {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return fmt.Errorf("validate yfinance Python source runtime: timed out")
 	}
-	if python == "" || pythonPath == "" {
-		return sidecarExecutable{}, true, fmt.Errorf(
-			"JFTRADE_YFINANCE_DEV_PYTHON and JFTRADE_YFINANCE_DEV_PYTHONPATH must be set together",
+	if probe.Err != nil {
+		return fmt.Errorf("validate yfinance Python source runtime: %w", probe.Err)
+	}
+	if probe.Outdated {
+		return fmt.Errorf("validate yfinance Python source runtime: Python %s is below 3.11", probe.DetectedVersion)
+	}
+	if len(probe.MissingModules) > 0 {
+		return fmt.Errorf(
+			"validate yfinance Python source runtime: missing modules: %s",
+			strings.Join(probe.MissingModules, ","),
 		)
 	}
-	python, err := validateAbsoluteRegularFile(python, "JFTRADE_YFINANCE_DEV_PYTHON")
-	if err != nil {
-		return sidecarExecutable{}, true, err
-	}
-	if !filepath.IsAbs(pythonPath) {
-		return sidecarExecutable{}, true, fmt.Errorf("JFTRADE_YFINANCE_DEV_PYTHONPATH must be an absolute path")
-	}
-	info, err := os.Stat(pythonPath)
-	if err != nil {
-		return sidecarExecutable{}, true, fmt.Errorf("inspect JFTRADE_YFINANCE_DEV_PYTHONPATH: %w", err)
-	}
-	if !info.IsDir() {
-		return sidecarExecutable{}, true, fmt.Errorf("JFTRADE_YFINANCE_DEV_PYTHONPATH must name a directory")
-	}
-	return sidecarExecutable{
-		path:        python,
-		arguments:   []string{"-m", "yfinance_sidecar.main"},
-		environment: []string{"PYTHONPATH=" + pythonPath},
-	}, true, nil
+	return fmt.Errorf("validate yfinance Python source runtime: unavailable")
 }
 
 func validateAbsoluteRegularFile(value string, name string) (string, error) {

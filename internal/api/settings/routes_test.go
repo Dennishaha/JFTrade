@@ -31,6 +31,7 @@ type routeStore struct {
 	adk                 jfsettings.ADKRuntimeSettings
 	mcpServer           jfsettings.MCPServerSettings
 	pineWorker          jfsettings.PineWorkerSettings
+	runtimeDependencies jfsettings.RuntimeDependencySettings
 	calendars           jfsettings.ExchangeCalendarSettings
 	activeProvider      jfsettings.ActiveMarketDataProvider
 	updateErr           error
@@ -114,6 +115,9 @@ func (s *routeStore) MCPServerSettings() jfsettings.MCPServerSettings {
 func (s *routeStore) PineWorkerSettings() jfsettings.PineWorkerSettings {
 	return s.pineWorker
 }
+func (s *routeStore) RuntimeDependencySettings() jfsettings.RuntimeDependencySettings {
+	return s.runtimeDependencies
+}
 func (s *routeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	return s.calendars
 }
@@ -185,6 +189,13 @@ func (s *routeStore) SavePineWorkerSettings(input jfsettings.PineWorkerSettings)
 		return jfsettings.PineWorkerSettings{}, s.saveErr
 	}
 	s.pineWorker = input
+	return input, nil
+}
+func (s *routeStore) SaveRuntimeDependencySettings(input jfsettings.RuntimeDependencySettings) (jfsettings.RuntimeDependencySettings, error) {
+	if s.saveErr != nil {
+		return jfsettings.RuntimeDependencySettings{}, s.saveErr
+	}
+	s.runtimeDependencies = input
 	return input, nil
 }
 func (s *routeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {

@@ -1511,6 +1511,9 @@ export interface components {
     instanceWorkerLimit: number;
     nodeBinaryPath: string;
   };
+    "jftsettings.RuntimeDependencySettings": {
+    pythonBinaryPath: string;
+  };
     "jftsettings.SecuritySettings": {
     passwordConfigured: boolean;
     publicAccessEnabled: boolean;
@@ -2222,6 +2225,9 @@ export interface components {
     instanceWorkerLimit: number;
     nodeBinaryPath: string;
   };
+    "settings.RuntimeDependencySettingsWriteRequest": {
+    pythonBinaryPath: string;
+  };
     "settings.SystemNotificationEvent": {
     at: string;
     brokerId: string;
@@ -2885,6 +2891,7 @@ export interface components {
   };
     "system.RuntimeDependencyItem": {
     attemptedPaths: Array<string>;
+    configurable: boolean;
     configuredPath: string;
     detectedVersion: string;
     displayName: string;
@@ -10457,6 +10464,55 @@ export interface paths {
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["jftsettings.PineWorkerSettings"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/runtime-dependencies": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.RuntimeDependencySettings"];
+  };
+          };
+        };
+        "401": {
+          description: "Unauthorized";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+      };
+    };
+    put: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["settings.RuntimeDependencySettingsWriteRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.RuntimeDependencySettings"];
   };
           };
         };

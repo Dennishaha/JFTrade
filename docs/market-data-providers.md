@@ -27,7 +27,7 @@ Yahoo 的 `postMarketPrice` / `postMarketTime` 是 Yahoo Provider 下的盘后�
 
 桌面版和带 `release_assets` 的 `cmd/jftrade-api` 会嵌入目标平台的 PyInstaller `onedir` helper（可执行文件及其依赖目录）。JFTrade 首次启用时把它原子发布到设置目录下的 `cache/yfinance-sidecar/<bundle-sha256>/`，逐文件校验摘要、类型和权限；后续启动完整校验后复用，不再重复写文件。损坏只重建当前摘要目录，缓存不可写时降级到权限受限的临时目录。切回 Futu 或退出时停止 helper 进程，但保留有效缓存；成功启动后尽力清理超过 7 天的旧摘要。helper 不会无限自动重启，也不会监听公网。
 
-设置页不提供行情 Provider 分类，也不提供 Python、host、port、enabled 或 timeout 配置。首页/研究页的“行情提供者”菜单只展示可用 Provider，并负责切换到 Futu OpenD。
+设置页不提供行情 Provider 分类，也不提供 host、port、enabled 或 timeout 配置。发布版及 frozen helper 自带 Python；源码开发模式可在“设置 → 依赖项管理”查看 Python 3.11+ 与运行模块状态，并保存解释器路径。
 
 ## Provider 切换与 Futu 退订
 
@@ -44,7 +44,7 @@ JFTRADE_YFINANCE_SIDECAR=/absolute/path/to/yfinance-sidecar-darwin-arm64/yfinanc
   go run ./cmd/jftrade-api
 ```
 
-该环境变量仅用于开发和测试，不写入 `settings.json`，也不会出现在用户界面。源码命令也可成对使用 `JFTRADE_YFINANCE_DEV_PYTHON=/absolute/path/to/python` 和 `JFTRADE_YFINANCE_DEV_PYTHONPATH=/absolute/path/to/src`；正式 profile 忽略全部开发覆盖。构建 helper 的依赖和 PyInstaller spec 位于 `workers/yfinance-sidecar`；目标平台构建命令为 `pnpm run build:yfinance-sidecar`。
+开发和测试仍可使用环境变量覆盖：`JFTRADE_YFINANCE_SIDECAR` 指定 frozen helper，`JFTRADE_YFINANCE_DEV_PYTHON` 与 `JFTRADE_YFINANCE_DEV_PYTHONPATH` 指定源码命令。环境变量优先于 `settings.json` 中的 `runtimeDependencies.pythonBinaryPath`；设置页保存的路径仅用于源码 Python sidecar。保存后立即重新探测，但不会重启当前 Yahoo helper，新路径在下一次 helper 启动、Provider 切换或应用重启时生效。正式 profile 忽略全部开发覆盖，也不显示路径编辑器。构建 helper 的依赖和 PyInstaller spec 位于 `workers/yfinance-sidecar`；目标平台构建命令为 `pnpm run build:yfinance-sidecar`。
 
 ## 验证
 
@@ -68,7 +68,7 @@ helper 的 `/health` 不访问 Yahoo 网络；只有开发者做 standalone smok
 }
 ```
 
-yfinance 仅作为内置 Provider 由运行时管理。`JFTRADE_YFINANCE_SIDECAR` 是开发环境变量，不属于持久化配置；当前版本不读取或迁移历史的顶层 `yfinance` 连接配置块。
+yfinance 仍由运行时管理，唯一可持久化的开发态运行时覆盖是 `runtimeDependencies.pythonBinaryPath`。它不包含包安装、连接地址或端口；JFTrade 不自动执行 pip、升级或创建虚拟环境。`JFTRADE_YFINANCE_SIDECAR` 仍是非持久化开发环境变量；当前版本不读取或迁移历史的顶层 `yfinance` 连接配置块。
 
 运行中的实盘策略不会被静默迁移到延迟行情：切换 Provider 或重配当前 yfinance 前必须先停止全部实盘策略。yfinance 激活期间也不能启动实盘策略；回测不受此限制。
 

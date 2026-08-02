@@ -6,6 +6,9 @@ export type ADKRuntimeSettings =
 export type PineWorkerSettingsResponse =
   components["schemas"]["jftsettings.PineWorkerSettings"];
 
+export type RuntimeDependencySettingsResponse =
+  components["schemas"]["jftsettings.RuntimeDependencySettings"];
+
 export type MarketDataProviderSettingsResponse =
   components["schemas"]["settings.MarketDataProviderSettingsResponse"];
 

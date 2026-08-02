@@ -237,6 +237,16 @@ func (request PineWorkerSettingsWriteRequest) settings() jfsettings.PineWorkerSe
 	}
 }
 
+// RuntimeDependencySettingsWriteRequest is the independent write contract
+// for user-selected host runtime paths.
+type RuntimeDependencySettingsWriteRequest struct {
+	PythonBinaryPath string `json:"pythonBinaryPath"`
+}
+
+func (request RuntimeDependencySettingsWriteRequest) settings() jfsettings.RuntimeDependencySettings {
+	return jfsettings.RuntimeDependencySettings{PythonBinaryPath: request.PythonBinaryPath}
+}
+
 // MarketDataProviderWriteRequest selects the active market-data source.
 type MarketDataProviderWriteRequest struct {
 	ActiveProvider jfsettings.ActiveMarketDataProvider `json:"activeProvider" enums:"futu,yfinance"`

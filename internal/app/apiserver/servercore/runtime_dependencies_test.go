@@ -3,10 +3,13 @@ package servercore
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	"github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -139,6 +142,13 @@ func TestCheckNodeRuntimeDependencyReportsOutdatedInvalidAndCommandError(t *test
 }
 
 func TestRuntimeDependenciesAggregatesRequiredStatus(t *testing.T) {
+	python := configureTestPythonSourceRuntime(t)
+	restorePythonDependencyProbe(t, func(_ context.Context, resolution marketdataapp.PythonRuntimeResolution) marketdataapp.PythonRuntimeProbeResult {
+		if resolution.ResolvedPath != python {
+			t.Fatalf("Python path = %q, want %q", resolution.ResolvedPath, python)
+		}
+		return marketdataapp.PythonRuntimeProbeResult{Available: true, DetectedVersion: "3.11.9"}
+	})
 	restoreRuntimeDependencyProbe(t,
 		func(path string) (string, error) { return path, nil },
 		func(context.Context, string, ...string) ([]byte, error) { return []byte("v21.0.0"), nil },
@@ -149,9 +159,74 @@ func TestRuntimeDependenciesAggregatesRequiredStatus(t *testing.T) {
 		t.Fatalf("allRequiredSatisfied = %#v, want false", result["allRequiredSatisfied"])
 	}
 	dependencies, ok := result["dependencies"].([]map[string]any)
-	if !ok || len(dependencies) != 1 || dependencies[0]["id"] != "node" {
+	if !ok || len(dependencies) != 2 || dependencies[0]["id"] != "node" || dependencies[1]["id"] != "python" {
 		t.Fatalf("dependencies = %#v", result["dependencies"])
 	}
+}
+
+func TestCheckPythonRuntimeDependencyValidatesVersionAndModules(t *testing.T) {
+	python := configureTestPythonSourceRuntime(t)
+	tests := []struct {
+		name       string
+		probe      marketdataapp.PythonRuntimeProbeResult
+		wantStatus string
+		wantText   string
+	}{
+		{name: "available", probe: marketdataapp.PythonRuntimeProbeResult{Available: true, DetectedVersion: "3.11.9"}, wantStatus: runtimeDependencyStatusOK, wantText: "runtime modules"},
+		{name: "outdated", probe: marketdataapp.PythonRuntimeProbeResult{DetectedVersion: "3.10.14", Outdated: true}, wantStatus: runtimeDependencyStatusOutdated, wantText: "below"},
+		{name: "invalid", probe: marketdataapp.PythonRuntimeProbeResult{Err: errors.New("invalid probe output"), Output: "PyPy unknown"}, wantStatus: runtimeDependencyStatusError, wantText: "check failed"},
+		{name: "missing modules", probe: marketdataapp.PythonRuntimeProbeResult{DetectedVersion: "3.12.1", MissingModules: []string{"yfinance", "curl_cffi"}}, wantStatus: runtimeDependencyStatusError, wantText: "yfinance,curl_cffi"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			restorePythonDependencyProbe(t, func(_ context.Context, resolution marketdataapp.PythonRuntimeResolution) marketdataapp.PythonRuntimeProbeResult {
+				if resolution.ResolvedPath != python || resolution.SourcePath == "" {
+					t.Fatalf("probe resolution=%#v", resolution)
+				}
+				return tt.probe
+			})
+			result := checkPythonRuntimeDependency(context.Background(), jftsettings.RuntimeDependencySettings{})
+			if result["status"] != tt.wantStatus || !strings.Contains(result["message"].(string), tt.wantText) {
+				t.Fatalf("result = %#v", result)
+			}
+		})
+	}
+}
+
+func TestCheckPythonRuntimeDependencyReportsConfiguredPathMissing(t *testing.T) {
+	t.Setenv(marketdataapp.EnvYFinanceSidecar, "")
+	t.Setenv(marketdataapp.EnvYFinanceDevPython, "")
+	t.Setenv(marketdataapp.EnvYFinanceDevPythonPath, t.TempDir())
+	missing := filepath.Join(t.TempDir(), "python")
+	result := checkPythonRuntimeDependency(context.Background(), jftsettings.RuntimeDependencySettings{PythonBinaryPath: missing})
+	if result["status"] != runtimeDependencyStatusMissing || result["configurable"] != true || result["required"] != true {
+		t.Fatalf("result = %#v", result)
+	}
+	if !strings.Contains(result["message"].(string), "Configured Python") {
+		t.Fatalf("message = %#v", result["message"])
+	}
+}
+
+func configureTestPythonSourceRuntime(t *testing.T) string {
+	t.Helper()
+	python := filepath.Join(t.TempDir(), "python")
+	if err := os.WriteFile(python, []byte("python"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(marketdataapp.EnvYFinanceSidecar, "")
+	t.Setenv(marketdataapp.EnvYFinanceDevPython, python)
+	t.Setenv(marketdataapp.EnvYFinanceDevPythonPath, t.TempDir())
+	return python
+}
+
+func restorePythonDependencyProbe(
+	t *testing.T,
+	probe func(context.Context, marketdataapp.PythonRuntimeResolution) marketdataapp.PythonRuntimeProbeResult,
+) {
+	t.Helper()
+	previous := runtimeDependencyPythonProbe
+	runtimeDependencyPythonProbe = probe
+	t.Cleanup(func() { runtimeDependencyPythonProbe = previous })
 }
 
 func setRuntimeDependencyGOOS(t *testing.T, goos string) {

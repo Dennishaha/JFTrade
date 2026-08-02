@@ -135,6 +135,7 @@ describe("OOBE onboarding", () => {
                 id: "node",
                 displayName: "Node.js",
                 required: true,
+                configurable: true,
                 status: "ok",
                 minimumVersion: "22.0.0",
                 detectedVersion: "22.1.0",
@@ -154,6 +155,9 @@ describe("OOBE onboarding", () => {
             instanceWorkerLimit: 10,
             nodeBinaryPath: "",
           });
+        }
+        if (url.includes("/api/v1/settings/runtime-dependencies")) {
+          return createResponse({ pythonBinaryPath: "" });
         }
         if (
           url.includes("/api/v1/settings/brokers/futu/integration") &&
@@ -399,7 +403,9 @@ describe("OOBE onboarding", () => {
     await nextButtons.at(-1)!.trigger("click");
     await flushRequests();
 
-    expect(wrapper.text()).toContain("保存并检测 OpenD");
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain("保存并检测 OpenD");
+    });
     expect(openDHealthRequests).toBe(0);
     expect(runtimeRequests).toBe(0);
 

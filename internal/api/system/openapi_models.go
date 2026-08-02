@@ -191,6 +191,7 @@ type RuntimeDependencyItem struct {
 	ID              string   `json:"id"`
 	DisplayName     string   `json:"displayName"`
 	Required        bool     `json:"required"`
+	Configurable    bool     `json:"configurable"`
 	Status          string   `json:"status"`
 	MinimumVersion  string   `json:"minimumVersion"`
 	DetectedVersion string   `json:"detectedVersion"`

@@ -48,6 +48,7 @@ export interface RuntimeDependencyItem {
   id: string;
   displayName: string;
   required: boolean;
+  configurable: boolean;
   status: RuntimeDependencyStatus;
   minimumVersion: string;
   detectedVersion: string;

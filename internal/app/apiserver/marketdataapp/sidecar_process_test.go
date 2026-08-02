@@ -1,9 +1,11 @@
 package marketdataapp
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -151,24 +153,22 @@ func TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries(t *testing.T) 
 		t.Fatalf("write helper: %v", err)
 	}
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", helper)
-	executable, err := resolveYFinanceSidecarExecutable()
+	executable, err := resolveYFinanceSidecarExecutable("")
 	if err != nil || executable.path != helper {
 		t.Fatalf("resolve override = %#v, %v", executable, err)
 	}
 
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", "")
-	embedded, err := resolveYFinanceSidecarExecutable()
+	restorePythonRuntimeProbeOutput(t, func(context.Context, string, string, ...string) ([]byte, error) {
+		return []byte(`{"version":[3,11,9],"missing":[]}`), nil
+	})
+	sourceRuntime, err := resolveYFinanceSidecarExecutable("")
 	if err != nil {
-		if !errors.Is(err, ErrYFinanceSidecarUnavailable) {
-			t.Fatalf("resolve embedded helper: %v", err)
-		}
-	} else {
-		if embedded.path == "" || embedded.cleanup == nil {
-			t.Fatalf("embedded helper = %#v", embedded)
-		}
-		if err := embedded.cleanup(); err != nil {
-			t.Fatalf("clean up embedded helper: %v", err)
-		}
+		t.Fatalf("resolve source runtime: %v", err)
+	}
+	if sourceRuntime.path == "" || !reflect.DeepEqual(sourceRuntime.arguments, []string{"-m", "yfinance_sidecar.main"}) ||
+		len(sourceRuntime.environment) != 1 || !strings.HasPrefix(sourceRuntime.environment[0], "PYTHONPATH=") {
+		t.Fatalf("source runtime = %#v", sourceRuntime)
 	}
 	var nilManager *sidecarManager
 	if _, err := nilManager.EnsureStarted(); err == nil {
@@ -177,7 +177,7 @@ func TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries(t *testing.T) 
 	if err := nilManager.Stop(); err != nil {
 		t.Fatalf("nil manager Stop: %v", err)
 	}
-	manager := newSidecarManager()
+	manager := newSidecarManager("")
 	if manager.resolve == nil || manager.allocatePort == nil || manager.start == nil {
 		t.Fatalf("newSidecarManager = %#v", manager)
 	}
@@ -192,15 +192,15 @@ func TestDevelopmentOverrideRejectsMissingAndNonFilePaths(t *testing.T) {
 		t.Skip("development overrides are disabled in release-assets builds")
 	}
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", "relative/yfinance-sidecar")
-	if _, err := resolveYFinanceSidecarExecutable(); err == nil || !strings.Contains(err.Error(), "absolute path") {
+	if _, err := resolveYFinanceSidecarExecutable(""); err == nil || !strings.Contains(err.Error(), "absolute path") {
 		t.Fatalf("relative override error = %v", err)
 	}
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", filepath.Join(t.TempDir(), "missing"))
-	if _, err := resolveYFinanceSidecarExecutable(); err == nil || !strings.Contains(err.Error(), "inspect") {
+	if _, err := resolveYFinanceSidecarExecutable(""); err == nil || !strings.Contains(err.Error(), "inspect") {
 		t.Fatalf("missing override error = %v", err)
 	}
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", t.TempDir())
-	if _, err := resolveYFinanceSidecarExecutable(); err == nil || !strings.Contains(err.Error(), "regular file") {
+	if _, err := resolveYFinanceSidecarExecutable(""); err == nil || !strings.Contains(err.Error(), "regular file") {
 		t.Fatalf("directory override error = %v", err)
 	}
 }
@@ -225,13 +225,16 @@ func TestDevelopmentPythonSourceCommandAndExplicitHelperPrecedence(t *testing.T)
 	t.Setenv("JFTRADE_YFINANCE_DEV_PYTHON", python)
 	t.Setenv("JFTRADE_YFINANCE_DEV_PYTHONPATH", source)
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", helper)
-	executable, err := resolveYFinanceSidecarExecutable()
+	executable, err := resolveYFinanceSidecarExecutable("")
 	if err != nil || executable.path != helper || len(executable.arguments) != 0 {
 		t.Fatalf("explicit helper precedence = %#v, %v", executable, err)
 	}
 
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", "")
-	executable, err = resolveYFinanceSidecarExecutable()
+	restorePythonRuntimeProbeOutput(t, func(context.Context, string, string, ...string) ([]byte, error) {
+		return []byte(`{"version":[3,12,1],"missing":[]}`), nil
+	})
+	executable, err = resolveYFinanceSidecarExecutable("")
 	if err != nil || executable.path != python ||
 		strings.Join(executable.arguments, " ") != "-m yfinance_sidecar.main" ||
 		len(executable.environment) != 1 ||
@@ -255,7 +258,7 @@ func TestDevelopmentPythonSourceCommandAndExplicitHelperPrecedence(t *testing.T)
 	}
 }
 
-func TestDevelopmentPythonSourceCommandRejectsInvalidConfiguration(t *testing.T) {
+func TestDevelopmentPythonSourceCommandRejectsInvalidSourcePath(t *testing.T) {
 	if !yfinanceassets.DevelopmentOverridesAllowed() {
 		t.Skip("development overrides are disabled in release-assets builds")
 	}
@@ -272,25 +275,44 @@ func TestDevelopmentPythonSourceCommandRejectsInvalidConfiguration(t *testing.T)
 
 	tests := []struct {
 		name       string
-		python     string
 		pythonPath string
 		want       string
 	}{
-		{name: "missing python path", python: python, want: "must be set together"},
-		{name: "missing python", pythonPath: source, want: "must be set together"},
-		{name: "relative python path", python: python, pythonPath: "relative/src", want: "absolute path"},
-		{name: "missing source directory", python: python, pythonPath: filepath.Join(root, "missing"), want: "inspect"},
-		{name: "source path is file", python: python, pythonPath: python, want: "must name a directory"},
+		{name: "relative source path", pythonPath: "relative/src", want: "absolute path"},
+		{name: "missing source directory", pythonPath: filepath.Join(root, "missing"), want: "inspect"},
+		{name: "source path is file", pythonPath: python, want: "must name a directory"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Setenv("JFTRADE_YFINANCE_DEV_PYTHON", test.python)
+			t.Setenv("JFTRADE_YFINANCE_DEV_PYTHON", python)
 			t.Setenv("JFTRADE_YFINANCE_DEV_PYTHONPATH", test.pythonPath)
-			_, available, err := resolveDevelopmentPythonSidecar()
-			if err == nil || !available || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("resolveDevelopmentPythonSidecar = available %v, error %v", available, err)
+			_, err := resolveYFinanceSidecarExecutable("")
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("resolveYFinanceSidecarExecutable error = %v", err)
 			}
 		})
+	}
+}
+
+func TestDevelopmentPythonSourceCommandRejectsInvalidRuntimeBeforeStart(t *testing.T) {
+	if !yfinanceassets.DevelopmentOverridesAllowed() {
+		t.Skip("development overrides are disabled in release-assets builds")
+	}
+	root := t.TempDir()
+	python := filepath.Join(root, "python")
+	if err := os.WriteFile(python, []byte("python"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(EnvYFinanceSidecar, "")
+	t.Setenv(EnvYFinanceDevPython, python)
+	t.Setenv(EnvYFinanceDevPythonPath, root)
+	restorePythonRuntimeProbeOutput(t, func(context.Context, string, string, ...string) ([]byte, error) {
+		return []byte(`{"version":[3,10,14],"missing":[]}`), nil
+	})
+
+	_, err := resolveYFinanceSidecarExecutable("")
+	if err == nil || !strings.Contains(err.Error(), "below 3.11") {
+		t.Fatalf("invalid source runtime error = %v", err)
 	}
 }
 

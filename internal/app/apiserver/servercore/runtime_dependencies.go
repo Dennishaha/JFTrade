@@ -11,22 +11,28 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 )
 
 const (
-	runtimeDependencyNodeID            = "node"
-	runtimeDependencyNodeDisplayName   = "Node.js"
-	runtimeDependencyNodeMinimum       = "22.0.0"
-	runtimeDependencyNodeHomepage      = "https://nodejs.org/"
-	runtimeDependencyNodeCheckTimeout  = 2 * time.Second
-	runtimeDependencyStatusOK          = "ok"
-	runtimeDependencyStatusMissing     = "missing"
-	runtimeDependencyStatusOutdated    = "outdated"
-	runtimeDependencyStatusError       = "error"
-	runtimeDependencySourceSettings    = "settings"
-	runtimeDependencySourceDefaultPath = "path"
+	runtimeDependencyNodeID             = "node"
+	runtimeDependencyNodeDisplayName    = "Node.js"
+	runtimeDependencyNodeMinimum        = "22.0.0"
+	runtimeDependencyNodeHomepage       = "https://nodejs.org/"
+	runtimeDependencyNodeCheckTimeout   = 2 * time.Second
+	runtimeDependencyPythonID           = "python"
+	runtimeDependencyPythonDisplayName  = "Python"
+	runtimeDependencyPythonMinimum      = "3.11.0"
+	runtimeDependencyPythonHomepage     = "https://www.python.org/downloads/"
+	runtimeDependencyPythonCheckTimeout = 3 * time.Second
+	runtimeDependencyStatusOK           = "ok"
+	runtimeDependencyStatusMissing      = "missing"
+	runtimeDependencyStatusOutdated     = "outdated"
+	runtimeDependencyStatusError        = "error"
+	runtimeDependencySourceSettings     = "settings"
+	runtimeDependencySourceDefaultPath  = "path"
 )
 
 var (
@@ -34,7 +40,8 @@ var (
 	runtimeDependencyOutput   = func(ctx context.Context, path string, args ...string) ([]byte, error) {
 		return exec.CommandContext(ctx, path, args...).CombinedOutput()
 	}
-	runtimeDependencyGOOS = runtime.GOOS
+	runtimeDependencyPythonProbe = marketdataapp.ProbePythonRuntime
+	runtimeDependencyGOOS        = runtime.GOOS
 )
 
 type dependencySemanticVersion struct {
@@ -58,7 +65,8 @@ type nodeRuntimeResolution struct {
 
 func (s *serverApplication) runtimeDependencies(ctx context.Context) map[string]any {
 	node := checkNodeRuntimeDependency(ctx, s.pineWorkerSettings())
-	dependencies := []map[string]any{node}
+	python := checkPythonRuntimeDependency(ctx, s.runtimeDependencySettings())
+	dependencies := []map[string]any{node, python}
 	allRequiredSatisfied := true
 	for _, dependency := range dependencies {
 		required, _ := dependency["required"].(bool)
@@ -73,6 +81,19 @@ func (s *serverApplication) runtimeDependencies(ctx context.Context) map[string]
 		"allRequiredSatisfied": allRequiredSatisfied,
 		"dependencies":         dependencies,
 	}
+}
+
+func (s *serverApplication) runtimeDependencySettings() jftsettings.RuntimeDependencySettings {
+	if s == nil || s.store == nil {
+		return settingsfile.DefaultRuntimeDependencySettings()
+	}
+	store, ok := any(persistenceOnlySettingsStore(s.store)).(interface {
+		RuntimeDependencySettings() jftsettings.RuntimeDependencySettings
+	})
+	if !ok {
+		return settingsfile.DefaultRuntimeDependencySettings()
+	}
+	return store.RuntimeDependencySettings()
 }
 
 func checkNodeRuntimeDependency(ctx context.Context, settings jftsettings.PineWorkerSettings) map[string]any {
@@ -131,6 +152,7 @@ func baseNodeRuntimeDependency(configuredPath string, effectivePath string, sour
 		"id":              runtimeDependencyNodeID,
 		"displayName":     runtimeDependencyNodeDisplayName,
 		"required":        true,
+		"configurable":    true,
 		"status":          runtimeDependencyStatusError,
 		"minimumVersion":  runtimeDependencyNodeMinimum,
 		"detectedVersion": "",
@@ -141,6 +163,98 @@ func baseNodeRuntimeDependency(configuredPath string, effectivePath string, sour
 		"homepageUrl":     runtimeDependencyNodeHomepage,
 		"message":         "",
 	}
+}
+
+func checkPythonRuntimeDependency(
+	ctx context.Context,
+	settings jftsettings.RuntimeDependencySettings,
+) map[string]any {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	resolution := marketdataapp.ResolvePythonRuntime(settings)
+	result := basePythonRuntimeDependency(resolution)
+	if resolution.Mode != marketdataapp.PythonRuntimeModeSource {
+		return checkManagedPythonRuntime(result, resolution)
+	}
+	if !resolution.Available || resolution.ResolvedPath == "" {
+		result["status"] = runtimeDependencyStatusMissing
+		result["message"] = pythonMissingMessage(resolution)
+		return result
+	}
+	result["resolvedPath"] = resolution.ResolvedPath
+	checkCtx, cancel := context.WithTimeout(ctx, runtimeDependencyPythonCheckTimeout)
+	probe := runtimeDependencyPythonProbe(checkCtx, resolution)
+	timedOut := errors.Is(checkCtx.Err(), context.DeadlineExceeded)
+	cancel()
+	if probe.DetectedVersion != "" {
+		result["detectedVersion"] = probe.DetectedVersion
+	}
+	if timedOut {
+		result["status"] = runtimeDependencyStatusError
+		result["message"] = "Python runtime check timed out."
+		return result
+	}
+	if probe.Err != nil {
+		result["status"] = runtimeDependencyStatusError
+		result["message"] = "Python runtime check failed: " + summarizeDependencyCommandError(probe.Err, []byte(probe.Output))
+		return result
+	}
+	if probe.Outdated {
+		result["status"] = runtimeDependencyStatusOutdated
+		result["message"] = fmt.Sprintf(
+			"Python %s is below the required %s.", probe.DetectedVersion, runtimeDependencyPythonMinimum,
+		)
+		return result
+	}
+	if len(probe.MissingModules) > 0 {
+		result["status"] = runtimeDependencyStatusError
+		result["message"] = "Python is missing required yfinance runtime modules: " + strings.Join(probe.MissingModules, ",")
+		return result
+	}
+	result["status"] = runtimeDependencyStatusOK
+	result["message"] = fmt.Sprintf("Python %s and the yfinance runtime modules are available.", probe.DetectedVersion)
+	return result
+}
+
+func basePythonRuntimeDependency(resolution marketdataapp.PythonRuntimeResolution) map[string]any {
+	return map[string]any{
+		"id": runtimeDependencyPythonID, "displayName": runtimeDependencyPythonDisplayName,
+		"required": resolution.Required, "configurable": resolution.Configurable,
+		"status": runtimeDependencyStatusError, "minimumVersion": runtimeDependencyPythonMinimum,
+		"detectedVersion": "", "configuredPath": resolution.ConfiguredPath,
+		"effectivePath": resolution.EffectivePath, "resolvedPath": resolution.ResolvedPath,
+		"attemptedPaths": resolution.AttemptedPaths, "source": resolution.Source,
+		"homepageUrl": runtimeDependencyPythonHomepage, "message": "",
+	}
+}
+
+func checkManagedPythonRuntime(
+	result map[string]any,
+	resolution marketdataapp.PythonRuntimeResolution,
+) map[string]any {
+	if !resolution.Available {
+		result["status"] = runtimeDependencyStatusError
+		result["message"] = fmt.Sprintf("The bundled Python runtime is unavailable: %v", resolution.ResolutionError)
+		return result
+	}
+	result["status"] = runtimeDependencyStatusOK
+	if resolution.Mode == marketdataapp.PythonRuntimeModeExternalHelper {
+		result["message"] = "Python is supplied by the configured frozen yfinance helper."
+		return result
+	}
+	result["message"] = "Python is supplied by the bundled yfinance helper."
+	return result
+}
+
+func pythonMissingMessage(resolution marketdataapp.PythonRuntimeResolution) string {
+	if strings.TrimSpace(resolution.ConfiguredPath) != "" {
+		return fmt.Sprintf("Configured Python binary was not found or is not executable: %v", resolution.ResolutionError)
+	}
+	return fmt.Sprintf(
+		"Python was not found for the yfinance source runtime: %v. Tried: %s. Set the Python binary path in Settings.",
+		resolution.ResolutionError, strings.Join(resolution.AttemptedPaths, ", "),
+	)
 }
 
 func resolveNodeDependencyRuntime(settings jftsettings.PineWorkerSettings) nodeRuntimeResolution {
