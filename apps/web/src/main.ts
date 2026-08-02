@@ -1,10 +1,14 @@
-import "@fortawesome/fontawesome-free/css/all.min.css";
+// FontAwesome 只用到 solid / regular 两族（见 fontAwesomeIcons.ts 与模板），
+// 不引入 all.min.css，避免 brands / v4compatibility 字体进产物。
+import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
+import "@fortawesome/fontawesome-free/css/solid.min.css";
+import "@fortawesome/fontawesome-free/css/regular.min.css";
 import { VueQueryPlugin } from "@tanstack/vue-query";
 import "splitpanes/dist/splitpanes.css";
 import { createApp } from "vue";
-import * as components from "vuetify/components";
-import * as directives from "vuetify/directives";
 import { createVuetify } from "vuetify";
+// 全局样式（reset / 工具类 / 调色板）仍需全量：模板大量使用 vuetify 工具类
+// 与 color="teal" 等调色板颜色。组件级样式由 vite-plugin-vuetify 按需引入。
 import "vuetify/styles";
 
 import App from "./App.vue";
@@ -18,8 +22,6 @@ import "./styles/product-controls.css";
 import "./style.css";
 
 const vuetify = createVuetify({
-  components,
-  directives,
   icons: fontAwesomeIcons,
   theme: {
     defaultTheme: "dark",

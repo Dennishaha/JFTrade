@@ -1,5 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
+import vuetify from "vite-plugin-vuetify";
 import vueDevTools from "vite-plugin-vue-devtools";
 import { defineConfig } from "vitest/config";
 import type { Plugin } from "vite";
@@ -105,6 +106,25 @@ function resolveDevelopmentApiTarget(): string {
 
 const resolvedDevelopmentApiTarget = resolveDevelopmentApiTarget();
 
+// 核心框架依赖拆成稳定 vendor chunk，便于长期缓存。lazy 依赖
+// （monaco / mermaid / @vue-flow / lightweight-charts）不匹配以下规则，
+// 保持原有的按需 chunk 行为。
+function vendorChunk(id: string): string | undefined {
+  if (!id.includes("node_modules")) {
+    return undefined;
+  }
+  if (/\/node_modules\/(vue|vue-router|@vue)\//.test(id)) {
+    return "vendor-vue";
+  }
+  if (/\/node_modules\/vuetify\//.test(id)) {
+    return "vendor-vuetify";
+  }
+  if (/\/node_modules\/@tanstack\//.test(id)) {
+    return "vendor-query";
+  }
+  return undefined;
+}
+
 function desktopRuntimeConfigPlugin(): Plugin {
   return {
     name: "jftrade-desktop-runtime-config",
@@ -132,9 +152,20 @@ function desktopRuntimeConfigPlugin(): Plugin {
 
 export default defineConfig({
   resolve: {
-    alias: {
-      "@": new URL("./src", import.meta.url).pathname,
-    },
+    alias: [
+      // "monaco-editor" 裸导入替换为按需入口（src/monacoEditorEntry.ts），
+      // 剔除 80+ 语言定义、css/html/json 语言服务及对应 worker chunk。
+      // 类型解析不受影响（import type 仍指向 monaco-editor 官方声明）。
+      {
+        find: /^monaco-editor$/,
+        replacement: new URL("./src/monacoEditorEntry.ts", import.meta.url)
+          .pathname,
+      },
+      {
+        find: "@",
+        replacement: new URL("./src", import.meta.url).pathname,
+      },
+    ],
     dedupe: [
       "@vue/reactivity",
       "@vue/runtime-core",
@@ -147,6 +178,10 @@ export default defineConfig({
   plugins: [
     desktopRuntimeConfigPlugin(),
     vue(),
+    // 按需引入 vuetify 组件/指令及其样式。测试环境关闭：vitest 用例大量
+    // 依赖字符串 stubs（如 "v-btn"），autoImport 会把模板组件改写为直接
+    // import，绕过 VTU 的 stubs 机制。
+    vuetify({ autoImport: process.env.NODE_ENV !== "test" }),
     tailwindcss(),
     vueDevTools(devToolsOptions),
   ],
@@ -159,7 +194,12 @@ export default defineConfig({
     ],
   },
   build: {
-    chunkSizeWarningLimit: 4096,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: vendorChunk,
+      },
+    },
   },
   test: {
     coverage: {
