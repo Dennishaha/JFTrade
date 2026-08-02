@@ -3,8 +3,10 @@ import { ref } from "vue";
 
 import type { ADKAgent, ADKApproval, ADKAuditEvent, ADKOptimizationTask, ADKProvider, ADKRun } from "@/types";
 import type { PageEnvelope, ADKMetricsResponse } from "@/composables/adk/adkSettingsApi";
+import { statusTone } from "@/composables/shared/statusTone";
 
 import ADKRunTrace from "../shared/ADKRunTrace.vue";
+import StatusChip from "../shared/StatusChip.vue";
 
 const props = defineProps<{
   metrics: ADKMetricsResponse | null;
@@ -86,14 +88,11 @@ function runStatusColor(run: ADKRun): string {
   if (run.errorCode === "RUN_ORPHANED") return "error";
   switch (run.status) {
     case "COMPLETED":
-      return "success";
     case "RUNNING":
-      return "info";
     case "PENDING_APPROVAL":
-      return "warning";
     case "FAILED":
     case "TIMED_OUT":
-      return "error";
+      return statusTone(run.status).color;
     case "CANCELLED":
       return "grey";
     default:
@@ -106,9 +105,8 @@ function approvalColor(approval: ADKApproval): string {
     case "PENDING":
       return "warning";
     case "APPROVED":
-      return "success";
     case "DENIED":
-      return "error";
+      return statusTone(approval.status).color;
     default:
       return "default";
   }
@@ -121,12 +119,11 @@ function isRecoverableApproval(approval: ADKApproval): boolean {
 function optimizationTaskColor(task: ADKOptimizationTask): string {
   switch (task.status) {
     case "completed":
-      return "success";
     case "running":
+    case "failed":
+      return statusTone(task.status).color;
     case "queued":
       return "info";
-    case "failed":
-      return "error";
     case "cancelled":
       return "grey";
     default:
@@ -257,10 +254,12 @@ function canResumeRun(run: ADKRun): boolean {
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <v-chip size="small" :color="runStatusColor(run)" variant="tonal">{{ run.status }}</v-chip>
-            <v-chip size="small" :color="toolCallStatusColor(run.status)" variant="tonal">
-              {{ run.toolCalls.length }} 次调用
-            </v-chip>
+            <StatusChip :status="run.status" :color="runStatusColor(run)" />
+            <StatusChip
+              :status="run.status"
+              :color="toolCallStatusColor(run.status)"
+              :label="`${run.toolCalls.length} 次调用`"
+            />
             <v-btn
               v-if="run.status === 'RUNNING' || run.status === 'PENDING_APPROVAL'"
               size="small"
@@ -349,7 +348,7 @@ function canResumeRun(run: ADKRun): boolean {
               <div class="font-medium">{{ approval.toolName }}</div>
               <div class="text-xs text-slate-500">{{ approval.reason }}</div>
             </div>
-            <v-chip size="small" :color="approvalColor(approval)" variant="tonal">{{ approval.status }}</v-chip>
+            <StatusChip :status="approval.status" :color="approvalColor(approval)" />
           </div>
           <div class="mt-2 grid gap-1 text-xs text-slate-500 md:grid-cols-2">
             <div>运行：{{ approval.runId }}</div>
@@ -373,7 +372,7 @@ function canResumeRun(run: ADKRun): boolean {
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <v-chip size="small" :color="optimizationTaskColor(task)" variant="tonal">{{ task.status }}</v-chip>
+              <StatusChip :status="task.status" :color="optimizationTaskColor(task)" />
               <v-btn
                 v-if="task.status === 'queued' || task.status === 'running'"
                 size="small"

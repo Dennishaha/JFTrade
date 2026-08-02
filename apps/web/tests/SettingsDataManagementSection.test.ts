@@ -57,8 +57,8 @@ describe("SettingsDataManagementSection", () => {
     expect(wrapper.text()).toContain("schema metadata is missing");
     expect(wrapper.find("[data-testid='compact-backtest']").exists()).toBe(false);
     await wrapper.get("[data-testid='rebuild-adk']").trigger("click");
-    await wrapper.get("[data-testid='database-rebuild-confirmation']").setValue("REBUILD adk");
-    await wrapper.get("[data-testid='confirm-database-rebuild']").trigger("submit");
+    await wrapper.get("[data-testid='action-confirm-confirmation-input']").setValue("REBUILD adk");
+    await wrapper.get("[data-testid='action-confirm-submit']").trigger("click");
     await flushRequests();
 
     expect(fetchMock.mock.calls.some((call) => call[1]?.method === "POST")).toBe(true);
@@ -156,11 +156,11 @@ describe("SettingsDataManagementSection", () => {
     await flushRequests();
 
     await wrapper.get("[data-testid='rebuild-incompatible']").trigger("click");
-    const confirm = wrapper.get("[data-testid='confirm-database-rebuild']");
+    const confirm = wrapper.get("[data-testid='action-confirm-submit']");
     expect(confirm.attributes("disabled")).toBeDefined();
-    await wrapper.get("[data-testid='database-rebuild-confirmation']").setValue("REBUILD INCOMPATIBLE DATABASES");
+    await wrapper.get("[data-testid='action-confirm-confirmation-input']").setValue("REBUILD INCOMPATIBLE DATABASES");
     expect(confirm.attributes("disabled")).toBeUndefined();
-    await confirm.trigger("submit");
+    await confirm.trigger("click");
     await flushRequests();
     expect(fetchMock.mock.calls.some((call) => call[1]?.method === "POST")).toBe(true);
   });
@@ -219,8 +219,6 @@ describe("SettingsDataManagementSection", () => {
       }
     });
     vi.stubGlobal("fetch", fetchMock);
-    const confirmMock = vi.fn(() => true);
-    vi.stubGlobal("confirm", confirmMock);
     const wrapper = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
@@ -231,9 +229,12 @@ describe("SettingsDataManagementSection", () => {
     await nextTick();
 
     await wrapper.get("[data-testid='backup-watchlist']").trigger("click");
+    expect(
+      fetchMock.mock.calls.some((call) => String(call[0]).endsWith("/databases/watchlist/backup")),
+    ).toBe(false);
+    await wrapper.get("[data-testid='action-confirm-submit']").trigger("click");
     await flushRequests();
 
-    expect(confirmMock).toHaveBeenCalledOnce();
     const backupCall = fetchMock.mock.calls.find((call) =>
       String(call[0]).endsWith("/databases/watchlist/backup"),
     );
@@ -311,8 +312,6 @@ describe("SettingsDataManagementSection", () => {
       }
     });
     vi.stubGlobal("fetch", fetchMock);
-    const confirmMock = vi.fn(() => false);
-    vi.stubGlobal("confirm", confirmMock);
     const wrapper = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
@@ -329,18 +328,18 @@ describe("SettingsDataManagementSection", () => {
     (wrapper.vm as unknown as { expandedDatabaseIDs: string[] }).expandedDatabaseIDs = ["strategy", "watchlist"];
     await nextTick();
     await wrapper.get("[data-testid='backup-watchlist']").trigger("click");
-    expect(confirmMock).toHaveBeenCalledOnce();
+    await wrapper.get("[data-testid='action-confirm-cancel']").trigger("click");
     expect(fetchMock.mock.calls.some((call) => String(call[0]).endsWith("/databases/watchlist/backup"))).toBe(false);
 
     await wrapper.get("[data-testid='compact-strategy']").trigger("click");
-    await wrapper.get("[data-testid='database-compact-confirmation']").setValue("COMPACT strategy");
-    await wrapper.get("[data-testid='confirm-database-compact']").trigger("submit");
+    await wrapper.get("[data-testid='action-confirm-confirmation-input']").setValue("COMPACT strategy");
+    await wrapper.get("[data-testid='action-confirm-submit']").trigger("click");
     await flushRequests();
     expect(wrapper.text()).toContain("数据库整理完成，释放 2.0 KiB。");
 
     await wrapper.get("[data-testid='compact-strategy']").trigger("click");
-    await wrapper.get("[data-testid='database-compact-confirmation']").setValue("COMPACT strategy");
-    await wrapper.get("[data-testid='confirm-database-compact']").trigger("submit");
+    await wrapper.get("[data-testid='action-confirm-confirmation-input']").setValue("COMPACT strategy");
+    await wrapper.get("[data-testid='action-confirm-submit']").trigger("click");
     await flushRequests();
     expect(wrapper.text()).toContain("策略库仍有写入任务");
   });
@@ -420,7 +419,6 @@ describe("SettingsDataManagementSection", () => {
       return undefined;
     });
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("confirm", vi.fn(() => true));
     const wrapper = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
@@ -428,10 +426,11 @@ describe("SettingsDataManagementSection", () => {
     await flushRequests();
 
     await wrapper.get("[data-testid='rebuild-incompatible']").trigger("click");
-    await wrapper.get("[data-testid='database-rebuild-confirmation']").setValue("REBUILD INCOMPATIBLE DATABASES");
-    await wrapper.get("[data-testid='confirm-database-rebuild']").trigger("submit");
+    await wrapper.get("[data-testid='action-confirm-confirmation-input']").setValue("REBUILD INCOMPATIBLE DATABASES");
+    await wrapper.get("[data-testid='action-confirm-submit']").trigger("click");
     await flushRequests();
     expect(wrapper.text()).toContain("安排数据库重建失败");
+    await wrapper.get("[data-testid='action-confirm-cancel']").trigger("click");
 
     await wrapper.get("[data-testid='preview-soft-deleted-strategy']").trigger("click");
     await flushRequests();
@@ -448,12 +447,14 @@ describe("SettingsDataManagementSection", () => {
     (wrapper.vm as unknown as { expandedDatabaseIDs: string[] }).expandedDatabaseIDs = ["strategy", "watchlist"];
     await nextTick();
     await wrapper.get("[data-testid='compact-strategy']").trigger("click");
-    await wrapper.get("[data-testid='database-compact-confirmation']").setValue("COMPACT strategy");
-    await wrapper.get("[data-testid='confirm-database-compact']").trigger("submit");
+    await wrapper.get("[data-testid='action-confirm-confirmation-input']").setValue("COMPACT strategy");
+    await wrapper.get("[data-testid='action-confirm-submit']").trigger("click");
     await flushRequests();
     expect(wrapper.text()).toContain("整理数据库失败");
+    await wrapper.get("[data-testid='action-confirm-cancel']").trigger("click");
 
     await wrapper.get("[data-testid='backup-watchlist']").trigger("click");
+    await wrapper.get("[data-testid='action-confirm-submit']").trigger("click");
     await flushRequests();
     expect(wrapper.text()).toContain("备份数据库失败");
   });
@@ -473,14 +474,14 @@ describe("SettingsDataManagementSection", () => {
         setupState: {
           databases: { value: ReturnType<typeof buildStatuses> };
           executeCleanup: () => Promise<void>;
-          executeCompact: () => Promise<void>;
+          executeCompact: (confirmationInput: string) => Promise<void>;
           formatBytes: (value: number) => string;
           previewCleanableItem: (
             database: ReturnType<typeof buildStatuses>[number],
             item: { kind: string; label: string; count: number; estimatedBytes: number },
           ) => void;
           replaceDatabase: (database: ReturnType<typeof buildStatuses>[number]) => void;
-          submitRebuild: () => Promise<void>;
+          submitRebuild: (confirmationInput: string) => Promise<void>;
         };
       };
     }).$.setupState;
@@ -492,9 +493,9 @@ describe("SettingsDataManagementSection", () => {
       count: 4,
       estimatedBytes: 1024,
     });
-    await state.submitRebuild();
+    await state.submitRebuild("REBUILD WRONG");
     await state.executeCleanup();
-    await state.executeCompact();
+    await state.executeCompact("COMPACT WRONG");
 
     expect(fetchMock).toHaveBeenCalledTimes(requestCount);
     expect(state.formatBytes(Number.NaN)).toBe("0 B");
@@ -543,12 +544,12 @@ describe("SettingsDataManagementSection", () => {
     expect(read<number>(state.loadProgressPercent)).toBe(0);
     write("databases", statuses);
 
-    const dialog = document.getElementById("database-rebuild-dialog") as HTMLDialogElement;
+    const dialog = document.getElementById("database-cleanup-dialog") as HTMLDialogElement;
     const showModal = vi.fn();
     const close = vi.fn();
     Object.assign(dialog, { showModal, close });
-    (state.showDialog as (id: string) => void)("database-rebuild-dialog");
-    (state.closeDialog as (id: string) => void)("database-rebuild-dialog");
+    (state.showDialog as (id: string) => void)("database-cleanup-dialog");
+    (state.closeDialog as (id: string) => void)("database-cleanup-dialog");
     expect(showModal).toHaveBeenCalledOnce();
     expect(close).toHaveBeenCalledOnce();
 

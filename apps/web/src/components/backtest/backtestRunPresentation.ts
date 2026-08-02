@@ -8,6 +8,11 @@ export function isTerminalBacktestStatus(status: string): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
 }
 
+/** 回测运行中/排队进度条的 Vuetify 配色（v-progress-linear 非 chip 形态，本地域专属）。 */
+export function backtestRunProgressColor(status: string): string {
+  return status === "running" ? "teal" : "warning";
+}
+
 export function formatBacktestRehabType(rehabType: string | undefined): string {
   switch ((rehabType ?? "forward").trim().toLowerCase()) {
     case "none":

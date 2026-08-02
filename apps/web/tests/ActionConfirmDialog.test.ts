@@ -46,4 +46,80 @@ describe("ActionConfirmDialog", () => {
     expect(wrapper.emitted("close")).toBeUndefined();
     expect(wrapper.emitted("confirm")).toBeUndefined();
   });
+
+  it("shows a custom busy label when provided", () => {
+    const wrapper = mount(ActionConfirmDialog, {
+      props: {
+        busy: true,
+        busyLabel: "正在安排…",
+        message: "安排后无法撤销。",
+        open: true,
+        title: "确认重建",
+      },
+    });
+
+    expect(wrapper.get('[data-testid="action-confirm-submit"]').text()).toBe("正在安排…");
+  });
+
+  it("keeps the confirm button disabled until the typed confirmation matches", async () => {
+    const wrapper = mount(ActionConfirmDialog, {
+      props: {
+        confirmationText: "COMPACT strategy",
+        confirmLabel: "确认整理",
+        message: "将执行 WAL checkpoint 和 VACUUM。",
+        open: true,
+        title: "整理 strategy",
+      },
+    });
+
+    const submit = wrapper.get('[data-testid="action-confirm-submit"]');
+    expect(submit.attributes("disabled")).toBeDefined();
+    expect(wrapper.text()).toContain("COMPACT strategy");
+
+    const input = wrapper.get('[data-testid="action-confirm-confirmation-input"]');
+    await input.setValue("COMPACT other");
+    expect(submit.attributes("disabled")).toBeDefined();
+    await submit.trigger("click");
+    expect(wrapper.emitted("confirm")).toBeUndefined();
+
+    await input.setValue("COMPACT strategy");
+    expect(wrapper.get('[data-testid="action-confirm-submit"]').attributes("disabled")).toBeUndefined();
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
+    expect(wrapper.emitted("confirm")).toEqual([["COMPACT strategy"]]);
+  });
+
+  it("submits the typed confirmation with the Enter key", async () => {
+    const wrapper = mount(ActionConfirmDialog, {
+      props: {
+        confirmationText: "REBUILD ALL",
+        message: "无法撤销。",
+        open: true,
+        title: "重建数据库",
+      },
+    });
+
+    const input = wrapper.get('[data-testid="action-confirm-confirmation-input"]');
+    await input.setValue("REBUILD ALL");
+    await input.trigger("keydown", { key: "Enter" });
+    expect(wrapper.emitted("confirm")).toEqual([["REBUILD ALL"]]);
+  });
+
+  it("resets the typed confirmation each time the dialog reopens", async () => {
+    const wrapper = mount(ActionConfirmDialog, {
+      props: {
+        confirmationText: "COMPACT strategy",
+        message: "将执行 WAL checkpoint 和 VACUUM。",
+        open: true,
+        title: "整理 strategy",
+      },
+    });
+
+    await wrapper.get('[data-testid="action-confirm-confirmation-input"]').setValue("COMPACT strategy");
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({ open: true });
+
+    const input = wrapper.get('[data-testid="action-confirm-confirmation-input"]');
+    expect((input.element as HTMLInputElement).value).toBe("");
+    expect(wrapper.get('[data-testid="action-confirm-submit"]').attributes("disabled")).toBeDefined();
+  });
 });

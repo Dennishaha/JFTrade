@@ -20,6 +20,7 @@ import {
   type StrategyDefinitionVersionSummary,
 } from "@/composables/strategy/strategyDefinitionVersions";
 import { usePolling } from "@/composables/shared/usePolling";
+import { formatStrategyRuntimeStatus } from "@/composables/shared/consoleDataFormatting";
 import { queryClient, queryKeys } from "@/composables/settings/serverState";
 import { formatLocalDateTime } from "@/utils/dateTime";
 import { buildPineStrategyDefinitionPayload } from "@/components/strategy-runtime/strategyDefinitionPayload";
@@ -238,18 +239,7 @@ const canOpenVersionComparison = computed(
   () => selectedDefinitionId.value !== "" && selectedComparisonVersions.value.length === 2,
 );
 
-function statusLabel(status: string): string {
-  switch (status) {
-    case "RUNNING":
-      return "运行中";
-    case "PAUSED":
-      return "已暂停";
-    case "STOPPED":
-      return "已停止";
-    default:
-      return status;
-  }
-}
+const statusLabel = formatStrategyRuntimeStatus;
 
 function compatibleWorkflowSnapshot(): PineV6WorkflowDocument {
   return buildWorkflowSnapshotFromSource(activeScript.value, workflow.value);

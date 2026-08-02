@@ -28,7 +28,7 @@ import type {
   InstrumentResolutionCandidate,
 } from "@/types";
 import { ApiClientError, apiGet, apiGetPath } from "@/composables/shared/apiClient";
-import { formatGenericStatusLabel } from "@/composables/shared/consoleDataFormatting";
+import { statusTone } from "@/composables/shared/statusTone";
 import { formatNumber, formatPercent } from "@/utils/numberFormat";
 import {
   backtestInstrumentTypeForSecurityType,
@@ -1731,19 +1731,17 @@ async function loadWarmupPreview() {
 
 // ── Formatters ──
 const statusChip = (status: string) => {
+  const tone = statusTone(status);
   switch (status) {
     case "completed":
-      return { color: "success", label: formatGenericStatusLabel(status) };
     case "failed":
-      return { color: "error", label: formatGenericStatusLabel(status) };
-    case "cancelled":
-      return { color: "warning", label: formatGenericStatusLabel(status) };
     case "running":
-      return { color: "info", label: formatGenericStatusLabel(status) };
+      return { color: tone.color, label: tone.label };
+    case "cancelled":
     case "queued":
-      return { color: "warning", label: formatGenericStatusLabel(status) };
+      return { color: "warning", label: tone.label };
     default:
-      return { color: "", label: formatGenericStatusLabel(status) };
+      return { color: "", label: tone.label };
   }
 };
 

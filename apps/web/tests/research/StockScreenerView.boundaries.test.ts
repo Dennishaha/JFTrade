@@ -10,6 +10,7 @@ import type {
   StockScreenFactor,
   StockScreenPreset,
 } from "../../src/components/research/stockScreenTypes";
+import type { ActionConfirmationController } from "@/composables/shared/useActionConfirmation";
 import { flushPromises } from "../productTestUtils";
 
 const mocks = vi.hoisted(() => ({
@@ -116,6 +117,7 @@ type ScreenerState = {
   queryError: string;
   loading: boolean;
   savingPreset: boolean;
+  actionConfirmation: ActionConfirmationController;
   queryMarket: string;
   mobilePane: string;
   factorDialogOpen: boolean;
@@ -399,17 +401,22 @@ describe("StockScreenerView controller boundaries", () => {
     await state.savePendingDraft();
     expect(state.presetError).toContain("填写预设名称");
 
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     state.selectedPresetId = "preset-1";
     state.presets = [preset];
-    await state.removePreset();
+    const removeCancelled = state.removePreset();
+    expect(state.actionConfirmation.confirmationOpen.value).toBe(true);
+    state.actionConfirmation.cancelConfirmation();
+    await removeCancelled;
     expect(mocks.remove).not.toHaveBeenCalled();
-    confirm.mockReturnValue(true);
     mocks.remove.mockRejectedValueOnce(new Error("delete failed"));
-    await state.removePreset();
+    const removeFailed = state.removePreset();
+    state.actionConfirmation.confirmConfirmation("");
+    await removeFailed;
     expect(state.presetError).toBe("delete failed");
     mocks.remove.mockResolvedValueOnce(undefined);
-    await state.removePreset();
+    const removeDone = state.removePreset();
+    state.actionConfirmation.confirmConfirmation("");
+    await removeDone;
     expect(wrapper.emitted("presetChange")?.at(-1)).toEqual([""]);
   });
 
@@ -493,8 +500,11 @@ describe("StockScreenerView controller boundaries", () => {
     state.presetName = "基础策略";
     mocks.create.mockRejectedValueOnce(new Error("duplicate"));
     mocks.conflict.mockReturnValueOnce(true);
-    vi.spyOn(window, "confirm").mockReturnValue(false);
-    expect(await state.savePreset()).toBe(false);
+    const saveCancelled = state.savePreset();
+    await flushPromises();
+    expect(state.actionConfirmation.confirmationOpen.value).toBe(true);
+    state.actionConfirmation.cancelConfirmation();
+    expect(await saveCancelled).toBe(false);
 
     mocks.create.mockRejectedValueOnce(
       new Error("columns[0].factor.factorKey: 结果列失效"),

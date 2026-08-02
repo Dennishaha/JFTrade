@@ -1,19 +1,45 @@
 <script setup lang="ts">
-withDefaults(defineProps<{
+import { computed, ref, watch } from "vue";
+
+const props = withDefaults(defineProps<{
   busy?: boolean;
+  busyLabel?: string;
   confirmLabel?: string;
+  /** 设置后要求输入完全匹配该文本才能确认（增强确认）。 */
+  confirmationText?: string;
   message: string;
   open: boolean;
   title: string;
 }>(), {
   busy: false,
+  busyLabel: "正在处理…",
   confirmLabel: "确认",
+  confirmationText: "",
 });
 
 const emit = defineEmits<{
   close: [];
-  confirm: [];
+  confirm: [confirmationInput: string];
 }>();
+
+const confirmationInput = ref("");
+
+watch(
+  () => props.open,
+  (open) => {
+    if (open) confirmationInput.value = "";
+  },
+);
+
+const requiresConfirmation = computed(() => props.confirmationText.trim() !== "");
+const confirmDisabled = computed(
+  () => props.busy || (requiresConfirmation.value && confirmationInput.value !== props.confirmationText),
+);
+
+function submitIfMatched(): void {
+  if (confirmDisabled.value) return;
+  emit("confirm", requiresConfirmation.value ? confirmationInput.value : "");
+}
 </script>
 
 <template>
@@ -38,18 +64,33 @@ const emit = defineEmits<{
         </button>
       </header>
       <p>{{ message }}</p>
+      <label
+        v-if="requiresConfirmation"
+        class="mx-4 mb-4 grid gap-2 text-(length:--jf-text-6) text-(--tv-text-muted)"
+      >
+        <span>输入 <code class="select-all rounded bg-(--tv-bg-surface-2) px-1 py-0.5 text-(--tv-text)">{{ confirmationText }}</code> 以确认</span>
+        <input
+          v-model="confirmationInput"
+          data-testid="action-confirm-confirmation-input"
+          type="text"
+          autocomplete="off"
+          :disabled="busy"
+          class="rounded border border-(--tv-border) bg-(--tv-bg-surface) px-3 py-2 font-mono text-(length:--jf-text-6) text-(--tv-text) outline-none focus:border-(--tv-accent)"
+          @keydown.enter.prevent="submitIfMatched"
+        />
+      </label>
       <footer class="action-confirm__actions">
-        <button type="button" :disabled="busy" @click="emit('close')">
+        <button type="button" data-testid="action-confirm-cancel" :disabled="busy" @click="emit('close')">
           取消
         </button>
         <button
           type="button"
           class="action-confirm__submit"
           data-testid="action-confirm-submit"
-          :disabled="busy"
-          @click="emit('confirm')"
+          :disabled="confirmDisabled"
+          @click="submitIfMatched"
         >
-          {{ busy ? "正在处理…" : confirmLabel }}
+          {{ busy ? busyLabel : confirmLabel }}
         </button>
       </footer>
     </section>

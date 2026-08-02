@@ -7,8 +7,13 @@ import type {
   ADKToolDescriptor,
   ADKWorkMode,
 } from "@/types";
+import type { ActionConfirmationController } from "@/composables/shared/useActionConfirmation";
+
+import ActionConfirmationHost from "../shared/ActionConfirmationHost.vue";
+import StatusChip from "../shared/StatusChip.vue";
 
 const props = defineProps<{
+  actionConfirmation: ActionConfirmationController;
   agentForm: {
     id: string;
     name: string;
@@ -229,9 +234,7 @@ watch(
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="font-semibold text-slate-900">{{ agent.name }}</span>
-                <v-chip size="x-small" variant="tonal" :color="agent.status === 'ENABLED' ? 'success' : 'default'">
-                  {{ agent.status }}
-                </v-chip>
+                <StatusChip :status="agent.status" size="x-small" />
                 <v-chip size="x-small" variant="tonal">
                   {{ formatPermission(agent.permissionMode) }}
                 </v-chip>
@@ -521,6 +524,8 @@ watch(
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <ActionConfirmationHost :controller="actionConfirmation" />
   </section>
 </template>
 

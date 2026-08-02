@@ -1,6 +1,6 @@
 import type { ADKPermissionMode, ADKSkill } from "@/types";
 
-import { runStatusTone } from "@/composables/adk/adkChatPresentation";
+import { statusTone } from "@/composables/shared/statusTone";
 
 export const permissionModes: Array<{ title: string; value: ADKPermissionMode }> = [
   { title: "请求批准", value: "approval" },
@@ -25,14 +25,7 @@ export function preview(value: unknown): string {
 }
 
 export function toolCallStatusColor(status: string): string {
-  const tone = runStatusTone(status);
-  switch (tone) {
-    case "success": return "success";
-    case "error": return "error";
-    case "warning": return "warning";
-    case "info": return "info";
-    default: return "default";
-  }
+  return statusTone(status).color;
 }
 
 export function riskColor(risk?: string): string {

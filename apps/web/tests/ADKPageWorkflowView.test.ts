@@ -335,7 +335,6 @@ describe("ADKPage workflow view", () => {
       clipboard: { writeText: clipboardWrite },
     });
     const fetchMock = stubWorkflowFetch({ logs: [buildResultLog()] });
-    vi.stubGlobal("confirm", vi.fn(() => true));
     const wrapper = mount(ADKWorkflowStudio, {
       props: {
         agents: [buildAgent()],
@@ -376,9 +375,16 @@ describe("ADKPage workflow view", () => {
     expect((setup.runLink as (log: ReturnType<typeof buildResultLog>) => string)(buildResultLog()))
       .toBe("/adk/agents?sessionId=session-result&runId=run-result");
 
-    await (setup.removeSelectedTrigger as () => Promise<void>)();
-    expect(window.confirm).toHaveBeenCalled();
-    await (setup.removeSelectedWorkflow as () => Promise<void>)();
+    const removeTrigger = (setup.removeSelectedTrigger as () => Promise<void>)();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain("删除触发器");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
+    await removeTrigger;
+
+    const removeWorkflow = (setup.removeSelectedWorkflow as () => Promise<void>)();
+    await wrapper.vm.$nextTick();
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
+    await removeWorkflow;
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).endsWith("/api/v1/adk/workflows/workflow-copy") && init?.method === "DELETE",
     )).toBe(true);
@@ -420,8 +426,7 @@ describe("ADKPage workflow view", () => {
   });
 
   it("resets paged filters, starts templates and ignores duplicate or cancelled actions", async () => {
-    stubWorkflowFetch();
-    vi.stubGlobal("confirm", vi.fn(() => false));
+    const fetchMock = stubWorkflowFetch();
     const wrapper = mount(ADKWorkflowStudio, {
       props: {
         agents: [buildAgent()],
@@ -473,9 +478,19 @@ describe("ADKPage workflow view", () => {
     await (setup.runSelectedTrigger as () => Promise<void>)();
     writeSetupValue(setup, "runningTrigger", false);
 
-    await (setup.removeSelectedWorkflow as () => Promise<void>)();
-    await (setup.removeSelectedTrigger as () => Promise<void>)();
-    expect(window.confirm).toHaveBeenCalledTimes(2);
+    const removeWorkflow = (setup.removeSelectedWorkflow as () => Promise<void>)();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain("删除工作流「Daily Review」？");
+    await wrapper.get('[data-testid="action-confirm-cancel"]').trigger("click");
+    await removeWorkflow;
+
+    const removeTrigger = (setup.removeSelectedTrigger as () => Promise<void>)();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain("删除触发器「Market open」？");
+    await wrapper.get('[data-testid="action-confirm-cancel"]').trigger("click");
+    await removeTrigger;
+
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
 
     (setup.selectWorkflow as (workflow: ReturnType<typeof buildWorkflow>) => void)(buildWorkflow());
     (setup.openWorkflowLogs as () => void)();
@@ -502,7 +517,6 @@ describe("ADKPage workflow view", () => {
       if (shouldFail) return workflowErrorResponse(`${failedOperation} failed`);
       return baseFetch(input, init);
     }));
-    vi.stubGlobal("confirm", vi.fn(() => true));
     const wrapper = mount(ADKWorkflowStudio, {
       props: {
         agents: [buildAgent()],
@@ -540,10 +554,16 @@ describe("ADKPage workflow view", () => {
     await (setup.removeSelectedWorkflow as () => Promise<void>)();
     workflowForm.id = "workflow-1";
     failedOperation = "workflow-delete";
-    await (setup.removeSelectedWorkflow as () => Promise<void>)();
+    const removeWorkflow = (setup.removeSelectedWorkflow as () => Promise<void>)();
+    await wrapper.vm.$nextTick();
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
+    await removeWorkflow;
     expect(readSetupValue(setup.errorMessage)).toBe("workflow-delete failed");
     failedOperation = "trigger-delete";
-    await (setup.removeSelectedTrigger as () => Promise<void>)();
+    const removeTrigger = (setup.removeSelectedTrigger as () => Promise<void>)();
+    await wrapper.vm.$nextTick();
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
+    await removeTrigger;
     expect(readSetupValue(setup.errorMessage)).toBe("trigger-delete failed");
 
   });

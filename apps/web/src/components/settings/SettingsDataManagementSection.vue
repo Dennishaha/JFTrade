@@ -10,6 +10,10 @@ import {
   apiPost,
   apiPostPath,
 } from "@/composables/shared/apiClient";
+import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
+
+import ActionConfirmDialog from "@/components/shared/ActionConfirmDialog.vue";
+import ActionConfirmationHost from "@/components/shared/ActionConfirmationHost.vue";
 
 type StorageStats = {
   mainBytes: number;
@@ -89,6 +93,8 @@ const expandedDatabaseIDs = ref<string[]>([]);
 const activeCleanupTab = ref<"type" | "database">("type");
 const olderThanDays = ref(30);
 const keepLatest = ref(20);
+const rebuildDialogOpen = ref(false);
+const backupConfirmation = useActionConfirmation();
 const batchConfirmation = "REBUILD INCOMPATIBLE DATABASES";
 let loadGeneration = 0;
 
@@ -304,29 +310,28 @@ function closeDialog(id: string): void {
 
 function openDatabaseRebuild(database: DatabaseStatus): void {
   selectedDatabase.value = database;
-  confirmation.value = "";
+  rebuildDialogOpen.value = true;
 }
 
 function openBatchRebuild(): void {
   selectedDatabase.value = null;
-  confirmation.value = "";
+  rebuildDialogOpen.value = true;
 }
 
 function closeRebuildDialog(): void {
-  confirmation.value = "";
+  rebuildDialogOpen.value = false;
   selectedDatabase.value = null;
-  closeDialog("database-rebuild-dialog");
 }
 
-async function submitRebuild(): Promise<void> {
-  if (confirmation.value !== requiredConfirmation.value || submitting.value) return;
+async function submitRebuild(confirmationInput: string): Promise<void> {
+  if (confirmationInput !== requiredConfirmation.value || submitting.value) return;
   submitting.value = true;
   errorMessage.value = "";
   const targetDatabaseId = selectedDatabase.value?.id ?? "";
   try {
     const body = selectedDatabase.value == null
-      ? { mode: "incompatible", confirmation: confirmation.value }
-      : { mode: "single", databaseId: selectedDatabase.value.id, confirmation: confirmation.value };
+      ? { mode: "incompatible", confirmation: confirmationInput }
+      : { mode: "single", databaseId: selectedDatabase.value.id, confirmation: confirmationInput };
     const result = await apiPost(
       "/api/v1/settings/data-management/databases/rebuild",
       body,
@@ -395,26 +400,22 @@ async function executeCleanup(): Promise<void> {
 
 function openCompact(database: DatabaseStatus): void {
   compactDatabase.value = database;
-  confirmation.value = "";
-  showDialog("database-compact-dialog");
 }
 
 function closeCompactDialog(): void {
   compactDatabase.value = null;
-  confirmation.value = "";
-  closeDialog("database-compact-dialog");
 }
 
-async function executeCompact(): Promise<void> {
+async function executeCompact(confirmationInput: string): Promise<void> {
   const database = compactDatabase.value;
-  if (database == null || confirmation.value !== `COMPACT ${database.id}` || submitting.value) return;
+  if (database == null || confirmationInput !== `COMPACT ${database.id}` || submitting.value) return;
   submitting.value = true;
   errorMessage.value = "";
   try {
     const result = await apiPostPath(
       "/api/v1/settings/data-management/databases/{databaseId}/compact",
       `/api/v1/settings/data-management/databases/${encodeURIComponent(database.id)}/compact`,
-      { confirmation: confirmation.value },
+      { confirmation: confirmationInput },
     );
     noticeMessage.value = `数据库整理完成，释放 ${formatBytes(result.reclaimedBytes)}。`;
     closeCompactDialog();
@@ -428,8 +429,13 @@ async function executeCompact(): Promise<void> {
 
 async function backupDatabase(database: DatabaseStatus): Promise<void> {
   if (submitting.value) return;
+  const confirmed = await backupConfirmation.requestConfirmation({
+    title: "备份数据库",
+    message: `确认创建“${database.name}”的本地数据库备份？`,
+    confirmLabel: "确认备份",
+  });
+  if (confirmed === null) return;
   const confirmation = `BACKUP ${database.id}`;
-  if (!window.confirm(`确认创建“${database.name}”的本地数据库备份？`)) return;
   submitting.value = true;
   errorMessage.value = "";
   try {
@@ -581,7 +587,7 @@ function statusClass(status: DatabaseStatus["status"]): string {
                 <div class="flex gap-2">
                   <button type="button" class="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-50" :disabled="database.status === 'missing' || database.status === 'unavailable' || !isDatabaseLoaded(database.id) || submitting" :data-testid="`backup-${database.id}`" @click="backupDatabase(database)">创建备份</button>
                   <button type="button" class="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-50" :disabled="database.status !== 'ready' || database.rebuildScheduled || !isDatabaseLoaded(database.id) || submitting" :data-testid="`compact-${database.id}`" @click="openCompact(database)">整理空间</button>
-                  <button type="button" class="rounded-md border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-700 disabled:opacity-50" :data-testid="`rebuild-${database.id}`" :disabled="database.rebuildScheduled" @click="openDatabaseRebuild(database); showDialog('database-rebuild-dialog')">{{ database.status === "ready" ? "危险操作：重建" : "重建数据库" }}</button>
+                  <button type="button" class="rounded-md border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-700 disabled:opacity-50" :data-testid="`rebuild-${database.id}`" :disabled="database.rebuildScheduled" @click="openDatabaseRebuild(database)">{{ database.status === "ready" ? "危险操作：重建" : "重建数据库" }}</button>
                 </div>
               </div>
               <dl class="mt-4 grid gap-3 rounded-md bg-slate-50 px-4 py-3 text-xs sm:grid-cols-2 xl:grid-cols-3">
@@ -611,7 +617,7 @@ function statusClass(status: DatabaseStatus["status"]): string {
     </section>
 
     <section class="rounded-lg border border-rose-200 bg-white px-5 py-5">
-      <div class="flex flex-wrap items-start justify-between gap-4"><div><h3 class="text-sm font-semibold text-slate-900">数据库重建</h3><p class="mt-1 max-w-3xl text-xs leading-5 text-slate-500">不兼容数据库必须重建后才能使用。重建会在下次启动时永久删除整个数据库。</p></div><button data-testid="rebuild-incompatible" type="button" class="rounded-md bg-rose-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50" :disabled="loading || incompatibleDatabases.length === 0" @click="openBatchRebuild(); showDialog('database-rebuild-dialog')">重建全部不兼容数据库</button></div>
+      <div class="flex flex-wrap items-start justify-between gap-4"><div><h3 class="text-sm font-semibold text-slate-900">数据库重建</h3><p class="mt-1 max-w-3xl text-xs leading-5 text-slate-500">不兼容数据库必须重建后才能使用。重建会在下次启动时永久删除整个数据库。</p></div><button data-testid="rebuild-incompatible" type="button" class="rounded-md bg-rose-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50" :disabled="loading || incompatibleDatabases.length === 0" @click="openBatchRebuild()">重建全部不兼容数据库</button></div>
     </section>
 
     <dialog id="database-cleanup-dialog" class="m-auto w-[min(92vw,560px)] rounded-xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-950/35">
@@ -624,13 +630,31 @@ function statusClass(status: DatabaseStatus["status"]): string {
       </form>
     </dialog>
 
-    <dialog id="database-compact-dialog" class="m-auto w-[min(92vw,520px)] rounded-xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-950/35">
-      <form class="grid gap-4 p-5" @submit.prevent="executeCompact"><div><h3 class="text-base font-semibold text-slate-900">整理 {{ compactDatabase?.name }}</h3><p class="mt-2 text-sm text-slate-600">将执行 WAL checkpoint 和 VACUUM，期间相关写入会暂停。存在活动任务时操作会被拒绝。</p></div><label class="grid gap-2 text-sm text-slate-700">输入 <code class="select-all rounded bg-slate-100 px-1 py-0.5">COMPACT {{ compactDatabase?.id }}</code> 以确认<input v-model="confirmation" data-testid="database-compact-confirmation" class="rounded-md border border-slate-300 px-3 py-2 font-mono text-sm" /></label><div class="flex justify-end gap-2"><button type="button" class="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600" @click="closeCompactDialog">取消</button><button data-testid="confirm-database-compact" type="submit" class="rounded-md bg-slate-800 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="compactDatabase == null || confirmation !== `COMPACT ${compactDatabase.id}` || submitting">确认整理</button></div></form>
-    </dialog>
+    <ActionConfirmDialog
+      :open="compactDatabase != null"
+      :title="compactDatabase ? `整理 ${compactDatabase.name}` : ''"
+      message="将执行 WAL checkpoint 和 VACUUM，期间相关写入会暂停。存在活动任务时操作会被拒绝。"
+      :confirmation-text="compactDatabase ? `COMPACT ${compactDatabase.id}` : ''"
+      confirm-label="确认整理"
+      busy-label="确认整理"
+      :busy="submitting"
+      @close="closeCompactDialog"
+      @confirm="executeCompact"
+    />
 
-    <dialog id="database-rebuild-dialog" class="m-auto w-[min(92vw,520px)] rounded-xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-950/35">
-      <form class="grid gap-4 p-5" @submit.prevent="submitRebuild"><div><h3 class="text-base font-semibold text-slate-900">{{ dialogTitle }}</h3><p class="mt-2 text-sm leading-6 text-rose-700">此操作会在下次启动时永久删除所选数据库及其 WAL/SHM 文件，再创建空数据库，无法撤销。</p></div><label class="grid gap-2 text-sm text-slate-700">输入 <code class="select-all rounded bg-slate-100 px-1 py-0.5">{{ requiredConfirmation }}</code> 以确认<input v-model="confirmation" data-testid="database-rebuild-confirmation" autocomplete="off" class="rounded-md border border-slate-300 px-3 py-2 font-mono text-sm" /></label><div class="flex justify-end gap-2"><button type="button" class="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600" @click="closeRebuildDialog">取消</button><button data-testid="confirm-database-rebuild" type="submit" class="rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="confirmation !== requiredConfirmation || submitting">{{ submitting ? "正在安排…" : "确认重建" }}</button></div></form>
-    </dialog>
+    <ActionConfirmDialog
+      :open="rebuildDialogOpen"
+      :title="dialogTitle"
+      message="此操作会在下次启动时永久删除所选数据库及其 WAL/SHM 文件，再创建空数据库，无法撤销。"
+      :confirmation-text="requiredConfirmation"
+      confirm-label="确认重建"
+      busy-label="正在安排…"
+      :busy="submitting"
+      @close="closeRebuildDialog"
+      @confirm="submitRebuild"
+    />
+
+    <ActionConfirmationHost :controller="backupConfirmation" />
   </section>
 </template>
 

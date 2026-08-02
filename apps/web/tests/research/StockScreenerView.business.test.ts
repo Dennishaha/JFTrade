@@ -447,9 +447,9 @@ describe("StockScreenerView", () => {
     installDefaults();
     mocks.create.mockRejectedValue(new Error("duplicate"));
     mocks.conflict.mockReturnValue(true);
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const wrapper = mount(StockScreenerView, {
       props: { market: "US", brokerId: "futu" },
+      global: { stubs: { teleport: true } },
     });
     await flushPromises();
 
@@ -460,7 +460,10 @@ describe("StockScreenerView", () => {
       .trigger("click");
     await flushPromises();
 
-    expect(confirm).toHaveBeenCalledWith("预设“低估值”已存在，是否覆盖？");
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("预设“低估值”已存在，是否覆盖？");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
+    await flushPromises();
     expect(mocks.update).toHaveBeenCalledWith(
       "preset-1",
       "低估值",

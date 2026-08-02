@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ADKAgentsPanel from "../src/components/adk-settings/ADKAgentsPanel.vue";
 import type { ADKAgent } from "../src/types";
+import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
 import {
   buttonStub,
   dialogStub,
@@ -194,6 +195,7 @@ function mountAgentsPanel(
   return mount(ADKAgentsPanel, {
     attachTo: document.body,
     props: {
+      actionConfirmation: useActionConfirmation(),
       agentForm,
       agents: overrides.agents ?? [],
       agentTemplates: overrides.agentTemplates ?? [],

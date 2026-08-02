@@ -8,11 +8,14 @@ import ADKProvidersPanel from "@/components/adk-settings/ADKProvidersPanel.vue";
 import ADKRunsPanel from "@/components/adk-settings/ADKRunsPanel.vue";
 import ADKSkillsPanel from "@/components/adk-settings/ADKSkillsPanel.vue";
 import ADKToolsPanel from "@/components/adk-settings/ADKToolsPanel.vue";
+import StatusChip from "@/components/shared/StatusChip.vue";
+import { statusTone } from "@/composables/shared/statusTone";
 import { useADKSettingsSectionState } from "@/composables/adk/useADKSettingsSectionState";
 
 const {
   activeTab,
   agents,
+  agentActionConfirmation,
   agentForm,
   agentTemplateNotice,
   agentTemplates,
@@ -206,11 +209,9 @@ function agentName(agentId: string | undefined): string {
 function taskStatusColor(status: string): string {
   switch (status) {
     case "DONE":
-      return "success";
     case "IN_PROGRESS":
-      return "info";
     case "BLOCKED":
-      return "warning";
+      return statusTone(status).color;
     case "CANCELLED":
       return "grey";
     case "TODO":
@@ -288,6 +289,7 @@ function memoryScopeHint(scope: string): string {
       <!-- ─── Agents ─── -->
       <v-window-item value="agents">
         <ADKAgentsPanel
+          :action-confirmation="agentActionConfirmation"
           :agent-form="agentForm"
           :agents="agents"
           :agent-templates="agentTemplates"
@@ -390,7 +392,7 @@ function memoryScopeHint(scope: string): string {
                             <div class="font-medium text-slate-900">{{ task.title }}</div>
                             <div class="text-xs text-slate-500">更新 {{ formatDateTime(task.updatedAt) }}</div>
                           </div>
-                          <v-chip size="small" :color="taskStatusColor(task.status)" variant="tonal">{{ task.status }}</v-chip>
+                          <StatusChip :status="task.status" :color="taskStatusColor(task.status)" />
                         </div>
                         <div class="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
                           <span>智能体：{{ agentName(task.agentId) }}</span>

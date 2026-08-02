@@ -9,6 +9,9 @@ import {
   useUpdateWatchlistGroup,
   useWatchlistGroups,
 } from "@/composables/watchlist/useWatchlist";
+import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
+
+import ActionConfirmationHost from "../../shared/ActionConfirmationHost.vue";
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
@@ -70,14 +73,16 @@ async function saveRename(group: WatchlistGroup): Promise<void> {
   }
 }
 
+const deleteConfirmation = useActionConfirmation();
+
 async function removeGroup(group: WatchlistGroup): Promise<void> {
   if (group.protected || group.isDefault) return;
-  if (
-    typeof window !== "undefined" &&
-    !window.confirm(`删除本地分组“${group.name}”？不会修改券商端数据。`)
-  ) {
-    return;
-  }
+  const confirmed = await deleteConfirmation.requestConfirmation({
+    title: "删除分组",
+    message: `删除本地分组“${group.name}”？不会修改券商端数据。`,
+    confirmLabel: "删除",
+  });
+  if (confirmed === null) return;
   busyGroupId.value = group.id;
   errorMessage.value = "";
   try {
@@ -140,6 +145,7 @@ watch(
       </div>
       <footer><button type="button" class="tv-btn tv-btn-ghost" @click="close">完成</button></footer>
     </section>
+    <ActionConfirmationHost :controller="deleteConfirmation" />
   </v-dialog>
 </template>
 

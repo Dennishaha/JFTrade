@@ -10,6 +10,7 @@ import type {
 } from "@/types";
 
 import { deleteADKAgent, saveADKAgent } from "@/composables/adk/adkSettingsApi";
+import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
 
 function createAgentForm(_providers: ADKProvider[], _tools: ADKToolDescriptor[], skills: ADKSkill[]) {
   return {
@@ -58,11 +59,9 @@ export function useADKAgentForm(
     status: "ENABLED",
   });
 
-  async function saveAgent(): Promise<void> {
-    if (agentForm.value.id !== "" && agentForm.value.status === "DISABLED") {
-      const confirmed = window.confirm("确认禁用这个 Agent？禁用后将不能用于新对话。");
-      if (!confirmed) return;
-    }
+  const actionConfirmation = useActionConfirmation();
+
+  async function persistAgent(): Promise<void> {
     try {
       await saveADKAgent(agentForm.value);
       successMessage.value = "Agent 已保存";
@@ -70,6 +69,24 @@ export function useADKAgentForm(
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : "保存失败";
     }
+  }
+
+  function saveAgent(): Promise<void> {
+    if (agentForm.value.id !== "" && agentForm.value.status === "DISABLED") {
+      // 确认由宿主组件渲染 ActionConfirmDialog 完成；保存编辑弹窗先行关闭，
+      // 与原生 window.confirm 取消后同样退出编辑态的终态一致。
+      void actionConfirmation
+        .requestConfirmation({
+          title: "禁用 Agent",
+          message: "确认禁用这个 Agent？禁用后将不能用于新对话。",
+          confirmLabel: "禁用",
+        })
+        .then((confirmed) => {
+          if (confirmed !== null) void persistAgent();
+        });
+      return Promise.resolve();
+    }
+    return persistAgent();
   }
 
   function editAgent(agent: ADKAgent): void {
@@ -122,6 +139,7 @@ export function useADKAgentForm(
   }
 
   return {
+    actionConfirmation,
     agentForm,
     saveAgent,
     editAgent,

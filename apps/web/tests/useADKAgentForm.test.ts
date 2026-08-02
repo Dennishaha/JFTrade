@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { flushPromises } from "@vue/test-utils";
 import { ref } from "vue";
 
 import type { ADKAgent, ADKSkill, ADKToolDescriptor } from "../src/types";
@@ -106,9 +107,17 @@ describe("useADKAgentForm", () => {
   it("requires confirmation before disabling an existing agent", async () => {
     const state = createState();
     state.editAgent({ ...buildAgent("chat"), status: "DISABLED" });
-    vi.spyOn(window, "confirm").mockReturnValue(false);
 
     await state.saveAgent();
+
+    expect(saveADKAgent).not.toHaveBeenCalled();
+    expect(state.actionConfirmation.confirmationOpen.value).toBe(true);
+    expect(state.actionConfirmation.pendingConfirmation.value?.message).toBe(
+      "确认禁用这个 Agent？禁用后将不能用于新对话。",
+    );
+
+    state.actionConfirmation.cancelConfirmation();
+    await flushPromises();
 
     expect(saveADKAgent).not.toHaveBeenCalled();
     expect(state.refreshAll).not.toHaveBeenCalled();
@@ -117,10 +126,13 @@ describe("useADKAgentForm", () => {
   it("saves a confirmed disabled agent and refreshes the persisted list", async () => {
     const state = createState();
     state.editAgent({ ...buildAgent("loop"), status: "DISABLED" });
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.mocked(saveADKAgent).mockResolvedValue(buildAgent("loop"));
 
     await state.saveAgent();
+    expect(saveADKAgent).not.toHaveBeenCalled();
+
+    state.actionConfirmation.confirmConfirmation("");
+    await flushPromises();
 
     expect(saveADKAgent).toHaveBeenCalledWith(
       expect.objectContaining({ status: "DISABLED", workMode: "loop" }),
@@ -131,12 +143,11 @@ describe("useADKAgentForm", () => {
 
   it("does not prompt when saving a new or enabled agent", async () => {
     const state = createState();
-    const confirm = vi.spyOn(window, "confirm");
     vi.mocked(saveADKAgent).mockResolvedValue(buildAgent("chat"));
 
     await state.saveAgent();
 
-    expect(confirm).not.toHaveBeenCalled();
+    expect(state.actionConfirmation.pendingConfirmation.value).toBeNull();
     expect(saveADKAgent).toHaveBeenCalledOnce();
   });
 

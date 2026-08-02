@@ -5,6 +5,7 @@ import type { BacktestRun } from "@/composables/backtest/useBacktestRuns";
 import { formatNumber } from "@/utils/numberFormat";
 
 import {
+  backtestRunProgressColor,
   formatBacktestRunDate,
   type BacktestReportTab,
 } from "./backtestRunPresentation";
@@ -52,7 +53,7 @@ const activeTab = defineModel<BacktestReportTab>("activeTab", { required: true }
     <div v-if="run.status === 'running' || run.status === 'queued' || versionNotice || detailLoading || detailError"
       class="bt-report-notices">
       <div v-if="run.status === 'running' || run.status === 'queued'" class="bt-report-notice flex items-center gap-3">
-        <v-progress-linear :color="run.status === 'running' ? 'teal' : 'warning'" indeterminate rounded :height="4" class="flex-1" />
+        <v-progress-linear :color="backtestRunProgressColor(run.status)" indeterminate rounded :height="4" class="flex-1" />
         <span class="shrink-0 whitespace-nowrap text-xs" :class="run.status === 'running' ? 'bt-text-running' : 'bt-text-queued'">
           {{ run.status === "running" ? "回测运行中…" : "排队等待中…" }}
         </span>

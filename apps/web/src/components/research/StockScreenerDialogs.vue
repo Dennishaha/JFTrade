@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import ActionConfirmationHost from "../shared/ActionConfirmationHost.vue";
 import { useStockScreenerControllerContext } from "./useStockScreenerController";
 
 const {
   pendingDraftAction,
   pendingDraftActionLabel,
+  actionConfirmation,
   savingPreset,
   savePendingDraft,
   discardPendingDraft,
@@ -31,6 +33,10 @@ const {
 </script>
 
 <template>
+  <Teleport to="body">
+    <ActionConfirmationHost :controller="actionConfirmation" />
+  </Teleport>
+
   <Teleport to="body">
     <div
       v-if="pendingDraftAction"

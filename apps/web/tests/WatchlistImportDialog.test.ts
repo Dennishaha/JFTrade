@@ -240,8 +240,8 @@ describe("WatchlistImportDialog", () => {
       }),
     );
 
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     await wrapper.get(".watchlist-import-dialog__bindings button").trigger("click");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await flushPromises();
     expect(importMocks.deleteBinding).toHaveBeenCalledWith("binding-1");
   });
@@ -274,7 +274,6 @@ describe("WatchlistImportDialog", () => {
       });
     importMocks.commit.mockRejectedValueOnce(new Error("导入任务被拒绝"));
     importMocks.deleteBinding.mockRejectedValueOnce(new Error("解除绑定被拒绝"));
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
     const wrapper = mount(WatchlistImportDialog, {
       props: { modelValue: true },
       global: { stubs: { "v-dialog": DialogStub } },
@@ -297,9 +296,11 @@ describe("WatchlistImportDialog", () => {
 
     await wrapper.get(".watchlist-import-dialog__bindings button").trigger("click");
     expect(importMocks.deleteBinding).not.toHaveBeenCalled();
+    await wrapper.get('[data-testid="action-confirm-cancel"]').trigger("click");
+    expect(importMocks.deleteBinding).not.toHaveBeenCalled();
     await wrapper.get(".watchlist-import-dialog__bindings button").trigger("click");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await flushPromises();
-    expect(confirmSpy).toHaveBeenCalledTimes(2);
     expect(wrapper.text()).toContain("解除绑定被拒绝");
     await wrapper.get("button[aria-label='关闭']").trigger("click");
     expect(wrapper.emitted("update:modelValue")).toEqual([[false]]);

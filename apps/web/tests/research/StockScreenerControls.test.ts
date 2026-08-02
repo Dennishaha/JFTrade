@@ -9,6 +9,7 @@ import StockScreenerDialogs from "../../src/components/research/StockScreenerDia
 import StockScreenerPresetSidebar from "../../src/components/research/StockScreenerPresetSidebar.vue";
 import StockScreenerToolbar from "../../src/components/research/StockScreenerToolbar.vue";
 import type { StockScreenFactor } from "../../src/components/research/stockScreenTypes";
+import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
 import {
   provideStockScreenerController,
   type StockScreenerController,
@@ -21,7 +22,10 @@ function mountControl(
   const host = defineComponent({
     setup() {
       provideStockScreenerController(
-        controller as unknown as StockScreenerController,
+        {
+          actionConfirmation: useActionConfirmation(),
+          ...controller,
+        } as unknown as StockScreenerController,
       );
       return () => h(component);
     },

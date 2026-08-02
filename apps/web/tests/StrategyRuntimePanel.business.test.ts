@@ -188,8 +188,6 @@ describe("StrategyRuntimePanel business workflows", () => {
     const fetchSpy = vi.fn(fetchMock);
     vi.stubGlobal("fetch", fetchSpy);
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
-    vi.stubGlobal("confirm", vi.fn(() => true));
-
     const { wrapper } = await mountStrategyPage("/strategy/runtime");
     await openCreateInstancePanel(wrapper);
 
@@ -261,7 +259,10 @@ describe("StrategyRuntimePanel business workflows", () => {
     await wrapper.get('[data-testid="strategy-delete-instance"]').trigger("click");
     await settleStrategyWorkspace();
 
-    expect(window.confirm).toHaveBeenCalledWith("确认删除策略实例「Mean Revert」吗？");
+    expect(wrapper.text()).toContain("确认删除策略实例「Mean Revert」吗？");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
+    await settleStrategyWorkspace();
+
     expect(wrapper.text()).toContain("已删除实例：Mean Revert");
     expect(wrapper.find('[data-testid="strategy-mean-revert-instance"]').exists()).toBe(false);
     expect(findFetchCall(fetchSpy, "/strategies/mean-revert-instance", "DELETE")).toBeTruthy();
@@ -580,7 +581,6 @@ describe("StrategyRuntimePanel business workflows", () => {
     });
     vi.stubGlobal("fetch", fetchSpy);
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
-    vi.stubGlobal("confirm", vi.fn(() => true));
 
     const { wrapper } = await mountStrategyPage("/strategy/runtime");
     await openCreateInstancePanel(wrapper);
@@ -606,6 +606,7 @@ describe("StrategyRuntimePanel business workflows", () => {
     failedOperation = "delete";
     await wrapper.get('[data-testid="strategy-current-binding-summary"]').trigger("click");
     await wrapper.get('[data-testid="strategy-delete-instance"]').trigger("click");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await settleStrategyWorkspace();
     expect(wrapper.text()).toContain("delete rejected");
     expect(wrapper.find('[data-testid="strategy-instance-1"]').exists()).toBe(true);
@@ -675,7 +676,6 @@ describe("StrategyRuntimePanel business workflows", () => {
       ],
     }));
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
-    vi.stubGlobal("confirm", vi.fn(() => false));
     const { wrapper } = await mountStrategyPage("/strategy/runtime");
     const setup = wrapper.getComponent(StrategyRuntimePanel).vm.$.setupState as Record<string, unknown>;
 
@@ -688,8 +688,13 @@ describe("StrategyRuntimePanel business workflows", () => {
 
     const strategies = readSetupArray<{ status: string; definitionSync?: { isLatest: boolean } }>(setup.strategies);
     strategies[0]!.status = "STOPPED";
-    await (setup.deleteSelectedStrategy as () => Promise<void>)();
-    expect(window.confirm).toHaveBeenCalled();
+    await wrapper.get('[data-testid="strategy-current-binding-summary"]').trigger("click");
+    await waitForSelector(wrapper, '[data-testid="strategy-delete-instance"]');
+    await wrapper.get('[data-testid="strategy-delete-instance"]').trigger("click");
+    await settleStrategyWorkspace();
+    expect(wrapper.text()).toContain("确认删除策略实例「Mean Revert」吗？");
+    await wrapper.get('[data-testid="action-confirm-cancel"]').trigger("click");
+    await settleStrategyWorkspace();
     expect(wrapper.find('[data-testid="strategy-instance-1"]').exists()).toBe(true);
 
     strategies[0]!.definitionSync!.isLatest = true;

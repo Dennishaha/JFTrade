@@ -10,6 +10,8 @@ import type {
 
 import { KLINE_CHART_TYPES, type ChartType } from "../../charting/kline";
 import type { BrokerAccountSelectionOption } from "@/composables/trading/consoleDataBrokerAccountSelection";
+import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
+import ActionConfirmationHost from "../shared/ActionConfirmationHost.vue";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import InstrumentSearchBox from "../domain/market-data/InstrumentSearchBox.vue";
 import StrategyRuntimeBrokerAccountPicker from "./StrategyRuntimeBrokerAccountPicker.vue";
@@ -79,6 +81,18 @@ const emit = defineEmits<{
 
 const isCreate = computed(() => props.mode === "create");
 const isEdit = computed(() => props.mode === "edit");
+
+const deleteConfirmation = useActionConfirmation();
+
+async function requestDeleteInstance(): Promise<void> {
+    const confirmed = await deleteConfirmation.requestConfirmation({
+        title: "删除策略实例",
+        message: `确认删除策略实例「${props.selectedStrategy?.definition.name ?? ""}」吗？`,
+        confirmLabel: "删除",
+    });
+    if (confirmed === null) return;
+    emit("submit-delete");
+}
 const symbolDraftInput = ref(props.symbolDraft);
 const closeTestId = computed(() =>
     isCreate.value ? "strategy-create-instance-close" : "strategy-edit-instance-close",
@@ -578,7 +592,7 @@ function handleRuntimeRiskNumberInput(field: "maxOrderQuantity" | "maxOrderNotio
                                 data-testid="strategy-delete-instance"
                                 :disabled="!canDeleteSelectedStrategy"
                                 type="button"
-                                @click="emit('submit-delete')"
+                                @click="requestDeleteInstance"
                             >
                                 {{ isDeletingStrategy ? "删除中" : "删除实例" }}
                             </button>
@@ -590,6 +604,7 @@ function handleRuntimeRiskNumberInput(field: "maxOrderQuantity" | "maxOrderNotio
                 </div>
             </div>
         </div>
+        <ActionConfirmationHost :controller="deleteConfirmation" />
     </v-dialog>
 </template>
 

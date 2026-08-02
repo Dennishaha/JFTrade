@@ -8,7 +8,9 @@ import type {
 
 import { useWatchlistGroups } from "@/composables/watchlist/useWatchlist";
 import { useWatchlistImport } from "@/composables/watchlist/useWatchlistImport";
+import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
 import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
+import ActionConfirmationHost from "../../shared/ActionConfirmationHost.vue";
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{
@@ -86,15 +88,15 @@ function localGroupLabel(binding: WatchlistBinding): string {
   );
 }
 
+const unlinkConfirmation = useActionConfirmation();
+
 async function unlinkBinding(binding: WatchlistBinding): Promise<void> {
-  if (
-    typeof window !== "undefined" &&
-    !window.confirm(
-      `解除“${binding.remoteGroupName}”与本地分组“${localGroupLabel(binding)}”的绑定？不会修改券商端数据。`,
-    )
-  ) {
-    return;
-  }
+  const confirmed = await unlinkConfirmation.requestConfirmation({
+    title: "解除绑定",
+    message: `解除“${binding.remoteGroupName}”与本地分组“${localGroupLabel(binding)}”的绑定？不会修改券商端数据。`,
+    confirmLabel: "解除绑定",
+  });
+  if (confirmed === null) return;
   errorMessage.value = "";
   try {
     await unlinkMutation.mutateAsync(binding.id);
@@ -347,6 +349,7 @@ watch(
         </button>
       </footer>
     </section>
+    <ActionConfirmationHost :controller="unlinkConfirmation" />
   </v-dialog>
 </template>
 

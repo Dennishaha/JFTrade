@@ -128,20 +128,21 @@ describe("WatchlistGroupManagerDialog", () => {
     const protectedDelete = defaultArticle.findAll("button").find((button) => button.text() === "删除")!;
     expect(protectedDelete.attributes("disabled")).toBeDefined();
 
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
     const techArticle = articleFor(wrapper, "科技观察");
     const deleteButton = techArticle.findAll("button").find((button) => button.text() === "删除")!;
     await deleteButton.trigger("click");
     await flushPromises();
     expect(groupMocks.delete).not.toHaveBeenCalled();
+    await wrapper.get('[data-testid="action-confirm-cancel"]').trigger("click");
 
     await deleteButton.trigger("click");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await flushPromises();
-    expect(confirmSpy).toHaveBeenCalledTimes(2);
     expect(groupMocks.delete).toHaveBeenCalledWith("tech");
 
     groupMocks.delete.mockRejectedValueOnce(new Error("分组仍有同步任务"));
     await deleteButton.trigger("click");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("分组仍有同步任务");
   });

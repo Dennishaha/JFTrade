@@ -4,6 +4,8 @@ import { computed, ref, watch } from "vue";
 import type { MCPServerStatus } from "@/contracts";
 import type { MCPServerAuthMode } from "@/types";
 
+import StatusChip from "../shared/StatusChip.vue";
+
 const props = defineProps<{
   form: {
     enabled: boolean;
@@ -28,6 +30,13 @@ const statusLabel = computed(() => {
   return "已停止";
 });
 
+const statusWord = computed(() => {
+  if (props.status.running) return "running";
+  if (props.status.lastError) return "failed";
+  return "stopped";
+});
+
+// MCP 服务状态的配色是域专属的（运行中→success），与共享 statusTone 的 running→info 不同，本地保留。
 const statusColor = computed(() => {
   if (props.status.running) return "success";
   if (props.status.lastError) return "error";
@@ -86,9 +95,7 @@ function closeTokenDialog(): void {
     <v-card flat class="card-shell border-0">
       <v-card-title class="flex flex-wrap items-center justify-between gap-3">
         <span class="text-base font-semibold text-slate-900">MCP 服务</span>
-        <v-chip size="small" :color="statusColor" variant="tonal">
-          {{ statusLabel }}
-        </v-chip>
+        <StatusChip :status="statusWord" :color="statusColor" :label="statusLabel" />
       </v-card-title>
       <v-card-text class="grid gap-4">
         <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_10rem_12rem] md:items-center">

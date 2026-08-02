@@ -20,6 +20,7 @@ import {
   runStockScreen,
   updateStockScreenPreset,
 } from "./stockScreenApi";
+import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
 import {
   createStockScreenFilter,
   factorEnumName,
@@ -128,6 +129,7 @@ export function useStockScreenerController(
   const screenerOuterPaneMinSizes: [number, number] = [12, 70];
   const screenerInnerPaneMinSizes: [number, number] = [28, 45];
   const pendingDraftAction = ref<PendingDraftAction | null>(null);
+  const actionConfirmation = useActionConfirmation();
   let retryTimer: ReturnType<typeof setInterval> | undefined;
   let filterSerial = 0;
   let catalogToken = 0;
@@ -915,7 +917,11 @@ export function useStockScreenerController(
           );
           if (
             !existing ||
-            !window.confirm(`预设“${name}”已存在，是否覆盖？`)
+            (await actionConfirmation.requestConfirmation({
+              title: "覆盖预设",
+              message: `预设“${name}”已存在，是否覆盖？`,
+              confirmLabel: "覆盖",
+            })) === null
           ) {
             return false;
           }
@@ -950,7 +956,12 @@ export function useStockScreenerController(
   async function removePreset(): Promise<void> {
     const preset = selectedPreset.value;
     if (!preset) return;
-    if (!window.confirm(`删除预设“${preset.name}”？`)) return;
+    const confirmed = await actionConfirmation.requestConfirmation({
+      title: "删除预设",
+      message: `删除预设“${preset.name}”？`,
+      confirmLabel: "删除",
+    });
+    if (confirmed === null) return;
     presetError.value = "";
     try {
       await deleteStockScreenPreset(preset.presetId);
@@ -1150,6 +1161,7 @@ export function useStockScreenerController(
     screenerOuterPaneMinSizes,
     screenerInnerPaneMinSizes,
     pendingDraftAction,
+    actionConfirmation,
     factorMap,
     commonFactors,
     retrievableFactors,

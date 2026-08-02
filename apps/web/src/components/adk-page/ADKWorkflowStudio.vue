@@ -61,8 +61,6 @@ import ADKWorkflowStudioTopbar from "./ADKWorkflowStudioTopbar.vue";
 import SplitPane from "../shared/SplitPane.vue";
 import SplitPaneItem from "../shared/SplitPaneItem.vue";
 import {
-  deleteADKWorkflow,
-  deleteADKWorkflowTrigger,
   pageSummary,
   runADKWorkflow,
   runADKWorkflowTrigger,
@@ -70,8 +68,10 @@ import {
   saveADKWorkflowTrigger,
 } from "@/composables/adk/adkWorkflowsApi";
 import { useADKWorkflowStudioCanvas } from "@/composables/adk/useADKWorkflowStudioCanvas";
+import { useADKWorkflowStudioDelete } from "@/composables/adk/useADKWorkflowStudioDelete";
 import { useADKWorkflowStudioResources } from "@/composables/adk/useADKWorkflowStudioResources";
 import { useADKWorkflowStudioViewModel } from "@/composables/adk/useADKWorkflowStudioViewModel";
+import ActionConfirmationHost from "../shared/ActionConfirmationHost.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -470,34 +470,21 @@ async function runSelectedTrigger(): Promise<void> {
   }
 }
 
-async function removeSelectedWorkflow(): Promise<void> {
-  if (workflowForm.id.trim() === "") return;
-  if (!window.confirm(`删除工作流「${workflowForm.name}」？`)) return;
-  try {
-    await deleteADKWorkflow(workflowForm.id);
-    removeWorkflowLocal(workflowForm.id);
-  } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : "删除工作流失败";
-  }
-}
-
-async function removeSelectedTrigger(): Promise<void> {
-  if (triggerForm.id.trim() === "") {
-    removeDraftTriggerNode();
-    return;
-  }
-  if (!window.confirm(`删除触发器「${triggerForm.title || triggerForm.id}」？`)) return;
-  try {
-    await deleteADKWorkflowTrigger(selectedWorkflowId.value, triggerForm.id);
-    removeTriggerLocal(triggerForm.id);
-    removeFlowNode(selectedNodeId.value);
-    selectedNodeId.value = "start";
-  } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : "删除触发器失败";
-  }
-}
+const {
+  deleteConfirmation,
+  removeSelectedWorkflow,
+  removeSelectedTrigger,
+} = useADKWorkflowStudioDelete({
+  workflowForm,
+  triggerForm,
+  selectedWorkflowId,
+  selectedNodeId,
+  errorMessage,
+  removeWorkflow: removeWorkflowLocal,
+  removeTrigger: removeTriggerLocal,
+  removeFlowNode,
+  removeDraftTriggerNode,
+});
 
 function addTriggerNode(type: ADKWorkflowTriggerType = "schedule"): void {
   const id = `trigger:draft-${Date.now()}`;
@@ -794,5 +781,6 @@ function providerName(providerId: string): string {
     </SplitPane>
 
     <ADKWorkflowSecretDialog v-model="secretDialogOpen" :secret="webhookSecret" />
+    <ActionConfirmationHost :controller="deleteConfirmation" />
   </section>
 </template>

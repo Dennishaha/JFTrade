@@ -577,6 +577,7 @@ export function useADKSettingsSectionState() {
     runPage,
     runStatusFilter,
     runTerminalMessage,
+    agentActionConfirmation: agentFormState.actionConfirmation,
     saveAgent: agentFormState.saveAgent,
     saveMCPServerSettings,
     saveProvider: providerFormState.saveProvider,

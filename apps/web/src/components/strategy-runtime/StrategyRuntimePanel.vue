@@ -589,13 +589,6 @@ async function deleteSelectedStrategy(): Promise<void> {
         instanceMutationError.value = "仅已停止的实例允许删除。";
         return;
     }
-    if (
-        typeof window !== "undefined"
-        && typeof window.confirm === "function"
-        && !window.confirm(`确认删除策略实例「${selectedStrategy.value.definition.name}」吗？`)
-    ) {
-        return;
-    }
 
     isDeletingStrategy.value = true;
 

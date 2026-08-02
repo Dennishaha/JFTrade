@@ -6,6 +6,7 @@ import { defineComponent, h, nextTick } from "vue";
 
 import ADKAgentsPanel from "../src/components/adk-settings/ADKAgentsPanel.vue";
 import type { ADKAgent, ADKToolDescriptor } from "../src/types";
+import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
 import { dialogStub, selectStub } from "./helpers";
 
 const singleSlotStub = {
@@ -480,6 +481,7 @@ function mountAgentsPanel(
   return mount(ADKAgentsPanel, {
     attachTo: document.body,
     props: {
+      actionConfirmation: useActionConfirmation(),
       agentForm: overrides.agentForm ?? buildAgentForm(),
       agents: overrides.agents ?? [],
       agentTemplates: overrides.agentTemplates ?? [],

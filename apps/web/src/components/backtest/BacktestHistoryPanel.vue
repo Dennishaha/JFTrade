@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import { useBacktestPageContext } from "@/composables/backtest/useBacktestPage";
+import { backtestRunProgressColor } from "./backtestRunPresentation";
 
 const {
   BACKTEST_RESULT_STATUS_OPTIONS,
@@ -100,7 +101,7 @@ const {
                           </div>
                           <div v-if="run.status === 'running' || run.status === 'queued'"
                             class="mt-2 flex items-center gap-3">
-                            <v-progress-linear :color="run.status === 'running' ? 'teal' : 'warning'" indeterminate
+                            <v-progress-linear :color="backtestRunProgressColor(run.status)" indeterminate
                               rounded :height="6" class="flex-1" />
                             <span class="text-xs whitespace-nowrap shrink-0" :class="run.status === 'running'
                               ? 'bt-text-running'
