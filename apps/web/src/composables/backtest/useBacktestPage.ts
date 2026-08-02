@@ -48,7 +48,7 @@ import {
   type BacktestFormState,
 } from "@/composables/backtest/useBacktestRuns";
 import { normalizeBacktestDateLabel } from "@/pages/backtestTimeWindow";
-import dayjs from "dayjs";
+import { formatLocalDate } from "@/utils/dateTime";
 
 export function useBacktestPage() {
 const BACKTEST_FORM_STORAGE_KEY = "jftrade.backtest.form.v1";
@@ -131,8 +131,15 @@ interface StoredBacktestFormPreferences {
 }
 
 function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
-  const defaultStartDate = dayjs().subtract(3, "year").format("YYYY-MM-DD");
-  const defaultEndDate = dayjs().format("YYYY-MM-DD");
+  const today = new Date();
+  // Match dayjs().subtract(3, "year"): clamp the day to the target month's
+  // last day so a Feb 29 start lands on Feb 28, not Mar 1.
+  const startYear = today.getFullYear() - 3;
+  const daysInStartMonth = new Date(startYear, today.getMonth() + 1, 0).getDate();
+  const defaultStartDate = formatLocalDate(
+    new Date(startYear, today.getMonth(), Math.min(today.getDate(), daysInStartMonth)),
+  );
+  const defaultEndDate = formatLocalDate(today);
   const defaults: StoredBacktestFormPreferences = {
     selectedDefinitionId: "",
     selectedMarket: "HK",

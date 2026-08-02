@@ -26,6 +26,16 @@ export function formatLocalDateTime(
   return `${parsed.getFullYear()}-${padTwoDigits(parsed.getMonth() + 1)}-${padTwoDigits(parsed.getDate())} ${padTwoDigits(parsed.getHours())}:${padTwoDigits(parsed.getMinutes())}:${padTwoDigits(parsed.getSeconds())}`;
 }
 
+export function formatLocalDate(
+  value: DateTimeInput,
+  fallback = "--",
+): string {
+  const parsed = parseDateTime(value, fallback);
+  if (typeof parsed === "string") return parsed;
+
+  return `${parsed.getFullYear()}-${padTwoDigits(parsed.getMonth() + 1)}-${padTwoDigits(parsed.getDate())}`;
+}
+
 export function formatDateTime(
   value: DateTimeInput,
   options: {
