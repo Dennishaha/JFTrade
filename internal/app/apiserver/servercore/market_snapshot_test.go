@@ -206,6 +206,9 @@ func TestMarketCandlesTickResponseQueriesTickerOnCacheMiss(t *testing.T) {
 
 func acquireMarketDataTestSubscription(t *testing.T, server *Server, ref mdsrv.InstrumentRef) {
 	t.Helper()
+	// These tests assert the synchronous cache-miss request count. Keep the
+	// independently tested fallback collector from racing that direct read.
+	server.marketdataSvc.ResetCollector()
 	_, err := server.marketdataSvc.AcquireSubscription(t.Context(), "market-snapshot-test", []mdsrv.InstrumentRef{ref})
 	if err != nil {
 		t.Fatalf("AcquireSubscription(%#v): %v", ref, err)

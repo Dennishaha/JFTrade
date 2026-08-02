@@ -67,7 +67,7 @@ function assertStagedRenameDiff() {
     mkdirSync(join(root, "apps/web/src/legacy"), { recursive: true });
     mkdirSync(join(root, "apps/web/src/composables"), { recursive: true });
     writeFileSync(join(root, oldPath), `${originalLines.join("\n")}\n`);
-    git(root, ["init"]);
+    git(root, ["init", "--initial-branch=main"]);
     git(root, ["config", "user.email", "coverage@example.test"]);
     git(root, ["config", "user.name", "Coverage Test"]);
     git(root, ["add", "."]);
@@ -97,7 +97,7 @@ function setupRepository(root) {
     "<script setup lang=\"ts\">\nfunction ordinary(value: number) {\n  return value;\n}\n</script>\n<template>\n  <option :value=\"0\">Zero</option>\n</template>\n",
   );
   writeFileSync(join(root, "apps/web/src/components/risk/guard.ts"), "export function guard(value: number) {\n  return value;\n}\n");
-  git(root, ["init"]);
+  git(root, ["init", "--initial-branch=main"]);
   git(root, ["config", "user.email", "coverage@example.test"]);
   git(root, ["config", "user.name", "Coverage Test"]);
   git(root, ["add", "."]);

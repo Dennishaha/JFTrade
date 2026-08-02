@@ -62,9 +62,11 @@ func TestOnboardingRoutesSuggestOobeUntilCompleted(t *testing.T) {
 		func(path string) (string, error) { return path, nil },
 		func(context.Context, string, ...string) ([]byte, error) { return []byte("v22.0.0"), nil },
 	)
-	restorePythonDependencyProbe(t, func(context.Context, marketdataapp.PythonRuntimeResolution) marketdataapp.PythonRuntimeProbeResult {
-		return marketdataapp.PythonRuntimeProbeResult{Available: true, DetectedVersion: "3.11.9"}
-	})
+	helper := filepath.Join(t.TempDir(), "yfinance-helper")
+	if err := os.WriteFile(helper, []byte("helper"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(marketdataapp.EnvYFinanceSidecar, helper)
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
