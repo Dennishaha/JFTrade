@@ -882,5 +882,13 @@ describe("createConsoleDataBrokerLiveQueryController", () => {
     expect(state.activeExecutionOrdersError.value).toBe(
       "活动执行订单加载失败: all broker reads offline",
     );
+
+    mocks.fetchEnvelope.mockRejectedValue("");
+    await controller.loadBrokerLiveData({
+      brokerId: "futu", brokerQuery: "market=US", futuBrokerReadsPaused: false,
+    });
+    expect(state.activeExecutionOrdersError.value).toBe(
+      "活动执行订单加载失败: 请求失败。",
+    );
   });
 });

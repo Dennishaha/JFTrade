@@ -344,6 +344,47 @@ describe("broker provider tag", () => {
     expect(tag.attributes("title")).toContain("当前无法连接 OpenD");
   });
 
+  it("distinguishes logged-out and unknown OpenD quote sessions", async () => {
+    const cases = [
+      { quoteLoggedIn: false, reason: "OpenD 行情会话尚未登录" },
+      { quoteLoggedIn: null, reason: "OpenD 行情会话状态不可用" },
+    ];
+
+    for (const test of cases) {
+      const health = futuOpenDHealth(false);
+      health.runtime.connectivity = "connected";
+      (health.runtime as { quoteLoggedIn: boolean | null }).quoteLoggedIn =
+        test.quoteLoggedIn;
+      apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+        if (url.includes("/api/v1/settings/market-data-provider")) {
+          return Promise.resolve({ activeProvider: "futu" });
+        }
+        if (url.includes("/api/v1/system/futu-opend")) {
+          return Promise.resolve(health);
+        }
+        return Promise.resolve(capabilities);
+      });
+
+      const wrapper = mount(BrokerProviderTag, {
+        props: {
+          market: "US",
+          featureId: "market.candles",
+          enableEmbeddedMarketDataProvider: true,
+        },
+        global: { stubs: productGlobalStubs },
+      });
+      await flushPromises();
+      await flushPromises();
+
+      expect(wrapper.get(".broker-provider-tag").attributes("title")).toContain(
+        test.reason,
+      );
+      wrapper.unmount();
+      resetBrokerProviderSelectionForTests();
+      apiMocks.fetchEnvelope.mockReset();
+    }
+  });
+
   it("polls only while visible and open, then enables Futu after recovery", async () => {
     vi.useFakeTimers();
     const recoverableCapabilities = {

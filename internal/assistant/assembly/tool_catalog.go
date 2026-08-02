@@ -178,6 +178,34 @@ func RegisterJFTradeADKTools(store *jfadk.Store, registry *jfadk.ToolRegistry, d
 	registry.Register(jfadk.ToolDescriptor{Name: "plugins.catalog", DisplayName: "策略插件目录", Description: "读取现有策略插件安装状态。", Category: "system", Permission: "read_internal", OutputSummary: "策略插件目录与安装状态。"}, func(context.Context, map[string]any) (any, error) {
 		return deps.PluginCatalog(), nil
 	})
+	registerJFTradeADKMarketTools(registry, deps)
+	registry.Register(jfadk.ToolDescriptor{Name: "portfolio.summary", DisplayName: "组合摘要", Description: "读取托管账户、资金、订单和持仓的控制台摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "托管账户、broker 状态、执行订单摘要和当前检查时间。"}, func(ctx context.Context, input map[string]any) (any, error) {
+		query := broker.ReadQuery{
+			BrokerID:           "futu",
+			AccountID:          strings.TrimSpace(stringValue(input, "accountId")),
+			TradingEnvironment: strings.ToUpper(strings.TrimSpace(stringValue(input, "tradingEnvironment"))),
+			Market:             strings.ToUpper(stringOrDefault(stringValue(input, "market"), deps.DefaultTradeMarket())),
+		}
+		orders, err := deps.ExecutionOrders()
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"accounts": deps.ManagedAccounts(), "brokerEnabled": deps.BrokerEnabled(), "orders": orders, "orderCount": collectionLen(orders), "funds": deps.BrokerFunds(ctx, query, 8*time.Second), "positions": deps.BrokerPositions(ctx, query, 8*time.Second), "checkedAt": nowStringRFC3339Nano()}, nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "account.orders", DisplayName: "订单摘要", Description: "读取执行订单视图摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单列表和数量。"}, func(context.Context, map[string]any) (any, error) {
+		orders, err := deps.ExecutionOrders()
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"orders": orders, "count": collectionLen(orders), "checkedAt": nowStringRFC3339Nano()}, nil
+	})
+	registerJFTradeADKWorkflowTools(store, registry, deps)
+	registerJFTradeADKReadTools(registry, deps)
+	registerJFTradeProductTools(registry, deps)
+	registerJFTradeADKStrategyTools(store, registry, deps)
+}
+
+func registerJFTradeADKMarketTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registry.Register(jfadk.ToolDescriptor{Name: "market.subscriptions", DisplayName: "行情订阅", Description: "读取当前行情订阅和配额摘要。", Category: "market", Permission: "read_internal", OutputSummary: "当前订阅、活跃标的和检查时间。"}, func(ctx context.Context, _ map[string]any) (any, error) {
 		subscriptions, activeInstruments, err := deps.MarketSubscriptions(ctx)
 		if err != nil {
@@ -225,30 +253,6 @@ func RegisterJFTradeADKTools(store *jfadk.Store, registry *jfadk.ToolRegistry, d
 			IncludeQuotes: boolInputValue(input, "includeQuotes"),
 		})
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "portfolio.summary", DisplayName: "组合摘要", Description: "读取托管账户、资金、订单和持仓的控制台摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "托管账户、broker 状态、执行订单摘要和当前检查时间。"}, func(ctx context.Context, input map[string]any) (any, error) {
-		query := broker.ReadQuery{
-			BrokerID:           "futu",
-			AccountID:          strings.TrimSpace(stringValue(input, "accountId")),
-			TradingEnvironment: strings.ToUpper(strings.TrimSpace(stringValue(input, "tradingEnvironment"))),
-			Market:             strings.ToUpper(stringOrDefault(stringValue(input, "market"), deps.DefaultTradeMarket())),
-		}
-		orders, err := deps.ExecutionOrders()
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"accounts": deps.ManagedAccounts(), "brokerEnabled": deps.BrokerEnabled(), "orders": orders, "orderCount": collectionLen(orders), "funds": deps.BrokerFunds(ctx, query, 8*time.Second), "positions": deps.BrokerPositions(ctx, query, 8*time.Second), "checkedAt": nowStringRFC3339Nano()}, nil
-	})
-	registry.Register(jfadk.ToolDescriptor{Name: "account.orders", DisplayName: "订单摘要", Description: "读取执行订单视图摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单列表和数量。"}, func(context.Context, map[string]any) (any, error) {
-		orders, err := deps.ExecutionOrders()
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"orders": orders, "count": collectionLen(orders), "checkedAt": nowStringRFC3339Nano()}, nil
-	})
-	registerJFTradeADKWorkflowTools(store, registry, deps)
-	registerJFTradeADKReadTools(registry, deps)
-	registerJFTradeProductTools(registry, deps)
-	registerJFTradeADKStrategyTools(store, registry, deps)
 }
 
 func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolRegistry, deps ToolDeps) {

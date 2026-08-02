@@ -89,6 +89,19 @@ function readSetupValue<T>(
   return value as T;
 }
 
+function writeSetupValue<T>(
+  wrapper: ReturnType<typeof mountOrderBookPanel>,
+  key: string,
+  value: T,
+): void {
+  const current = panelSetup(wrapper)[key];
+  if (current !== null && typeof current === "object" && "value" in current) {
+    (current as { value: T }).value = value;
+    return;
+  }
+  panelSetup(wrapper)[key] = value;
+}
+
 function callSetup<T>(
   wrapper: ReturnType<typeof mountOrderBookPanel>,
   key: string,
@@ -334,16 +347,59 @@ describe("OrderBookPanel", () => {
   });
 
   it("fails closed without opening depth when the capability status probe is unavailable", async () => {
-    providerStatusMock.mockRejectedValueOnce(new Error("provider status unavailable"));
+    providerStatusMock.mockRejectedValueOnce("provider status unavailable");
     useBrokerProviderSelection().selectBrokerProvider("yfinance");
     const wrapper = mountOrderBookPanel();
     await flushOrderBook();
 
     expect(acquireMarketDataSubscriptionMock).not.toHaveBeenCalled();
     expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain("当前行情提供者不支持盘口深度 / Level 2 数据");
+    expect(wrapper.text()).toContain("行情能力读取失败：无法读取行情能力");
     expect(getSharedLiveSocketHub().snapshotSubscriptions().depth).toEqual([]);
 
+    wrapper.unmount();
+  });
+
+  it("fails closed through every depth entry point when capability is disabled", async () => {
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+    writeSetupValue(wrapper, "supportsOrderBookDepth", false);
+
+    await callSetup<Promise<void>>(wrapper, "fetchDepth");
+    const target = callSetup<Record<string, unknown>>(
+      wrapper,
+      "resolveDepthSubscriptionTarget",
+    );
+    await expect(
+      callSetup<Promise<boolean>>(wrapper, "syncDepthSubscription", target, 0),
+    ).resolves.toBe(false);
+    await callSetup<Promise<void>>(wrapper, "connectDepthStream");
+
+    workspacePrefs!.value = {
+      ...workspacePrefs!.value,
+      symbol: "AAPL",
+    };
+    await nextTick();
+
+    expect(readSetupValue(wrapper, "depthData")).toBeNull();
+    wrapper.unmount();
+  });
+
+  it("ignores a stale failed capability probe after a newer probe succeeds", async () => {
+    const stale = deferred<unknown>();
+    providerStatusMock.mockReturnValueOnce(stale.promise);
+    providerStatusMock.mockResolvedValueOnce({
+      descriptor: { capabilities: { orderBookDepth: true } },
+    });
+    const wrapper = mountOrderBookPanel();
+    await nextTick();
+
+    await callSetup<Promise<void>>(wrapper, "refreshProviderCapability");
+    stale.reject(new Error("stale provider status"));
+    await flushOrderBook();
+
+    expect(readSetupValue(wrapper, "supportsOrderBookDepth")).toBe(true);
+    expect(readSetupValue(wrapper, "providerCapabilityError")).toBe("");
     wrapper.unmount();
   });
 

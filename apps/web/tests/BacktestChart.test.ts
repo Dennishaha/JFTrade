@@ -245,7 +245,11 @@ function mountChart(options: {
 
 describe("BacktestChart", () => {
   it("renders normalized candles, trade markers, equity and bounded drawdown data", async () => {
-    const { wrapper } = mountChart();
+    const candlesWithMissingVolume = [
+      candles[0]!,
+      { ...candles[1]!, volume: undefined as unknown as number },
+    ];
+    const { wrapper } = mountChart({ candles: candlesWithMissingVolume });
     await nextTick();
 
     expect(wrapper.text()).toContain("2 根 · HKD");
@@ -279,7 +283,7 @@ describe("BacktestChart", () => {
     ]);
     expect(chartMocks.series[1]!.setData).toHaveBeenLastCalledWith([
       expect.objectContaining({ time: 1780277400, value: 1000, color: "rgba(22, 199, 132, 0.45)" }),
-      expect.objectContaining({ time: 1780277460, value: 1500, color: "rgba(234, 57, 67, 0.45)" }),
+      expect.objectContaining({ time: 1780277460, value: 0, color: "rgba(234, 57, 67, 0.45)" }),
     ]);
     expect(chartMocks.series[2]!.setData).toHaveBeenLastCalledWith([
       { time: 1780277400, value: 100000 },

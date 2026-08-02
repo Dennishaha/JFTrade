@@ -714,7 +714,7 @@ describe("StrategyDesignStage business flows", () => {
       }
 
       if (url.endsWith("/api/v1/strategies") && method === "GET") {
-        throw new Error("strategies offline");
+        throw "strategies offline";
       }
 
       if (url.endsWith("/api/v1/strategy-definitions") && method === "POST") {

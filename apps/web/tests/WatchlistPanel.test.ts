@@ -32,6 +32,7 @@ describe("WatchlistPanel", () => {
         name: "Tencent Holdings",
         securityType: "Eqty",
         exchangeType: "HK_HKEX",
+        currency: "HKD",
         equity: {
           issuedShares: 9600000000,
           issuedMarketValue: 3085440000000,
@@ -55,6 +56,8 @@ describe("WatchlistPanel", () => {
     expect(wrapper.text()).toContain("股票基本面");
     expect(wrapper.text()).toContain("PE TTM");
     expect(wrapper.text()).toContain("HK_HKEX");
+    expect(wrapper.text()).toContain("基础资料");
+    expect(wrapper.text()).toContain("HKD");
     expect(wrapper.text()).toContain("321.400");
 
     wrapper.unmount();
@@ -600,6 +603,7 @@ function createSecurityDetails(
     highestHistoryPrice: overrides.highestHistoryPrice ?? null,
     lowestHistoryPrice: overrides.lowestHistoryPrice ?? null,
     sessionStatus: overrides.sessionStatus ?? "Normal",
+    currency: overrides.currency ?? null,
     closePrice5Minute: overrides.closePrice5Minute ?? null,
     extended: overrides.extended ?? null,
     equity: overrides.equity ?? null,

@@ -586,13 +586,13 @@ watch(selectedBrokerId, () => {
         style="display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 24px; color: var(--tv-text-dim); text-align: center; line-height: 1.6">
         正在读取盘口能力…
       </div>
-      <div v-else-if="depthUnsupported" class="tv-ob-capability-message"
-        style="display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 24px; color: var(--tv-text-dim); text-align: center; line-height: 1.6">
-        当前行情提供者不支持盘口深度 / Level 2 数据
-      </div>
       <div v-else-if="providerCapabilityError" class="tv-ob-capability-message"
         style="display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 24px; color: var(--tv-text-dim); text-align: center; line-height: 1.6">
         行情能力读取失败：{{ providerCapabilityError }}
+      </div>
+      <div v-else-if="depthUnsupported" class="tv-ob-capability-message"
+        style="display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 24px; color: var(--tv-text-dim); text-align: center; line-height: 1.6">
+        当前行情提供者不支持盘口深度 / Level 2 数据
       </div>
       <template v-else>
         <!-- Depth preset selector -->

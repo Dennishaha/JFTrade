@@ -9,6 +9,7 @@ import {
   formatExecutionStatusTransition,
   orderStatusClass,
 } from "../src/components/domain/account/executionOrderFormat";
+import OrderHistoryPanel from "../src/components/domain/account/OrderHistoryPanel.vue";
 import { formatMoney } from "../src/utils/numberFormat";
 import AccountPage from "../src/pages/AccountPage.vue";
 
@@ -213,10 +214,16 @@ describe("AccountPage business flows", () => {
   it("opens an order detail from the account orderId query", async () => {
     window.history.pushState({}, "", "/account?tab=history&orderId=order-query");
 
-    const { setup } = mountAccountPage();
+    const { wrapper, setup } = mountAccountPage();
     await nextTick();
 
     expect(readSetupValue<string>(setup.activeTab)).toBe("history");
+    const history = wrapper.findComponent(OrderHistoryPanel);
+    expect(
+      readSetupValue<boolean>(
+        history.vm.$.setupState.supportsSelectedExecutionOrderFees,
+      ),
+    ).toBe(false);
     expect(mocks.loadHistoricalExecutionOrders).toHaveBeenCalled();
     expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("order-query");
   });

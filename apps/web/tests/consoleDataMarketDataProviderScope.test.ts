@@ -213,4 +213,33 @@ describe("console market-data provider scope", () => {
     expect(marketData.activeMarketDataInstrumentId.value).toBe("HK.00700");
     marketData.disposeMarketDataQuery();
   });
+
+  it("accepts a canonical provider candidate after skipping an empty fallback", async () => {
+    await refreshMarketProfiles();
+    const marketData = createConsoleDataMarketDataQuerySlice();
+    mocks.apiGetPath.mockResolvedValue({
+      requestedMarket: "US",
+      query: "US.AAPL",
+      resolutionStatus: "resolved",
+      totalReturned: 1,
+      entries: [{
+        market: "US",
+        resolvedMarket: "US",
+        instrumentId: "US:AAPL",
+        code: "AAPL",
+        symbol: "AAPL",
+        selectable: true,
+      }],
+      failures: [],
+    });
+
+    const shouldLoad = await marketData.reconcileMarketDataProvider([
+      { market: "US", symbol: "" },
+      { market: "US", symbol: "AAPL" },
+    ]);
+
+    expect(shouldLoad).toBe(true);
+    expect(marketData.activeMarketDataInstrumentId.value).toBe("US.AAPL");
+    marketData.disposeMarketDataQuery();
+  });
 });

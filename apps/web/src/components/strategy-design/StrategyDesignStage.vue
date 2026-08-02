@@ -451,7 +451,8 @@ async function loadStrategies(): Promise<void> {
     strategies.value = mapStrategyInstances(await apiGet("/api/v1/strategies"));
     strategiesLoadError.value = "";
   } catch (cause) {
-    strategiesLoadError.value = `加载策略实例失败: ${cause instanceof Error ? cause.message : String(cause)}`;
+    const message = String(cause).replace(/^[A-Za-z]*Error:\s*/u, "");
+    strategiesLoadError.value = `加载策略实例失败: ${message}`;
   } finally {
     isLoadingStrategies.value = false;
   }

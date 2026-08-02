@@ -164,6 +164,78 @@ func TestProviderFailureCodesPreserveFutuCompatibilityOnlyForFutu(t *testing.T) 
 	}
 }
 
+func TestActiveNonBrokerProviderMatchingHandlesMissingAndFutuDescriptors(t *testing.T) {
+	tests := []struct {
+		name       string
+		providerID string
+		service    *srv.Service
+		want       bool
+	}{
+		{name: "empty provider id", service: srv.NewService(&routeTestProvider{})},
+		{name: "missing service", providerID: "yfinance"},
+		{
+			name:       "descriptor unavailable",
+			providerID: "yfinance",
+			service: srv.NewService(&routeTestProvider{
+				descriptorErr: errors.New("descriptor unavailable"),
+			}),
+		},
+		{
+			name:       "Futu remains broker-routed",
+			providerID: "futu-opend",
+			service: srv.NewService(&routeTestProvider{
+				descriptor: srv.ProviderDescriptor{ProviderID: "futu-opend", BrokerID: "futu"},
+			}),
+		},
+		{
+			name:       "Yahoo provider alias",
+			providerID: "YFINANCE",
+			service: srv.NewService(&routeTestProvider{
+				descriptor: srv.ProviderDescriptor{ProviderID: "yfinance", BrokerID: "yfinance"},
+			}),
+			want: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := usesActiveNonBrokerProvider(t.Context(), test.service, test.providerID); got != test.want {
+				t.Fatalf("usesActiveNonBrokerProvider() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestSnapshotRejectsMalformedRefreshQuery(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{}
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), srv.NewService(provider))
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequestWithContext(
+		t.Context(), http.MethodGet,
+		"/api/v1/market-data/snapshots/US/AAPL?refresh=not-a-boolean", nil,
+	))
+
+	if response.Code != http.StatusBadRequest ||
+		!strings.Contains(response.Body.String(), `"code":"BAD_REQUEST"`) {
+		t.Fatalf("response = %d %s", response.Code, response.Body.String())
+	}
+	if provider.snapshotInstrumentID != "" {
+		t.Fatalf("snapshot provider was called for malformed refresh: %q", provider.snapshotInstrumentID)
+	}
+}
+
+func TestNormalizeOptionalQueryTimeAcceptsEmptyAndRejectsMalformedValues(t *testing.T) {
+	value, err := normalizeOptionalQueryTime("  ")
+	if err != nil || value != "" {
+		t.Fatalf("empty time = %q, %v; want empty value", value, err)
+	}
+	if _, err := normalizeOptionalQueryTime("not-a-time"); err == nil {
+		t.Fatal("normalizeOptionalQueryTime() accepted malformed input")
+	}
+}
+
 func TestExplicitYFinanceReadsUseTheActiveMarketDataProvider(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{

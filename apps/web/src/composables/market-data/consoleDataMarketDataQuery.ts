@@ -61,24 +61,13 @@ function providerInstrumentIdentity(
 }
 
 function candidateMatchesProviderInstrument(
-  candidate: {
-    market: string;
-    instrumentId: string;
-    code: string;
-    symbol: string;
-  },
+  candidate: { instrumentId: string },
   expected: ProviderInstrumentIdentity,
 ): boolean {
-  const candidateInstrumentId = candidate.instrumentId
+  return candidate.instrumentId
     .trim()
     .toUpperCase()
-    .replace(":", ".");
-  if (candidateInstrumentId === expected.instrumentId) {
-    return true;
-  }
-  const candidateMarket = normalizeMarket(candidate.market);
-  const candidateCode = (candidate.code || candidate.symbol).trim().toUpperCase();
-  return candidateMarket === expected.market && candidateCode === expected.symbol;
+    .replace(":", ".") === expected.instrumentId;
 }
 
 async function isSelectableProviderInstrument(

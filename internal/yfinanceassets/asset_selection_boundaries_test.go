@@ -88,6 +88,66 @@ func TestSelectFromFSReturnsUnexpectedReadError(t *testing.T) {
 	}
 }
 
+func TestSelectFromFSRejectsInvalidPlatformBundleShapes(t *testing.T) {
+	const (
+		root       = "bin/yfinance-sidecar-linux-amd64"
+		executable = root + "/yfinance-sidecar-linux-amd64"
+	)
+	tests := []struct {
+		name      string
+		files     fs.FS
+		wantError bool
+	}{
+		{name: "bundle root is a file", files: fstest.MapFS{root: &fstest.MapFile{Data: []byte("not a directory")}}},
+		{name: "executable is missing", files: fstest.MapFS{root + "/lib/runtime.so": &fstest.MapFile{Data: []byte("runtime")}}},
+		{
+			name: "executable cannot be read",
+			files: pathFailingAssetFS{
+				FS:   fstest.MapFS{executable: &fstest.MapFile{Data: []byte("sidecar")}},
+				path: executable,
+				err:  errors.New("executable read denied"),
+			},
+			wantError: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			asset, available, err := selectFromFS(test.files, "linux", "amd64")
+			if (err != nil) != test.wantError {
+				t.Fatalf("selectFromFS() error = %v, wantError %v", err, test.wantError)
+			}
+			if available || asset.Name != "" {
+				t.Fatalf("selectFromFS() = (%#v, %v), want unavailable", asset, available)
+			}
+		})
+	}
+}
+
+func TestReadAssetFilesRejectsUnsafeOrUnreadableEntries(t *testing.T) {
+	const root = "bin/sidecar"
+	tests := []struct {
+		name  string
+		files fs.FS
+	}{
+		{name: "walk failure", files: failingAssetFS{err: errors.New("walk denied")}},
+		{name: "symlink", files: fstest.MapFS{
+			root + "/runtime": &fstest.MapFile{Mode: fs.ModeSymlink},
+		}},
+		{name: "file read failure", files: pathFailingAssetFS{
+			FS:   fstest.MapFS{root + "/runtime": &fstest.MapFile{Data: []byte("runtime")}},
+			path: root + "/runtime",
+			err:  errors.New("file read denied"),
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := readAssetFiles(test.files, root); err == nil {
+				t.Fatal("readAssetFiles() returned nil error")
+			}
+		})
+	}
+}
+
 func TestMaterializeAssetUsesPrivateDirectoryAndCleansUp(t *testing.T) {
 	asset := Asset{Name: "yfinance-sidecar-linux-amd64", Files: []AssetFile{
 		{Path: "yfinance-sidecar-linux-amd64", Data: []byte("#!/bin/sh\nexit 0\n")},
@@ -168,6 +228,62 @@ func TestMaterializeAssetRejectsInvalidBundlePath(t *testing.T) {
 	}
 }
 
+func TestMaterializeAssetRequiresUsableExecutableAndWritableTempRoot(t *testing.T) {
+	t.Run("empty executable", func(t *testing.T) {
+		asset := assetWithDigest(t, "sidecar", []AssetFile{{Path: "sidecar"}})
+		materialized, available, err := materializeAsset(asset)
+		if err != nil || available || materialized != nil {
+			t.Fatalf("materializeAsset() = %#v, %v, %v; want unavailable", materialized, available, err)
+		}
+	})
+	t.Run("named executable missing", func(t *testing.T) {
+		asset := assetWithDigest(t, "sidecar", []AssetFile{{Path: "runtime", Data: []byte("runtime")}})
+		materialized, available, err := materializeAsset(asset)
+		if err != nil || available || materialized != nil {
+			t.Fatalf("materializeAsset() = %#v, %v, %v; want unavailable", materialized, available, err)
+		}
+	})
+	t.Run("temp root is not a directory", func(t *testing.T) {
+		tempRoot := filepath.Join(t.TempDir(), "temp-root-file")
+		if err := os.WriteFile(tempRoot, []byte("file"), 0o600); err != nil {
+			t.Fatalf("write temp root fixture: %v", err)
+		}
+		t.Setenv("TMPDIR", tempRoot)
+		asset := assetWithDigest(t, "sidecar", []AssetFile{{Path: "sidecar", Data: []byte("sidecar")}})
+		materialized, available, err := materializeAsset(asset)
+		if err == nil || available || materialized != nil {
+			t.Fatalf("materializeAsset() = %#v, %v, %v; want temp directory error", materialized, available, err)
+		}
+	})
+	t.Run("bundle file blocks a child directory", func(t *testing.T) {
+		asset := assetWithDigest(t, "sidecar", []AssetFile{
+			{Path: "a", Data: []byte("file")},
+			{Path: "a/runtime", Data: []byte("runtime")},
+			{Path: "sidecar", Data: []byte("sidecar")},
+		})
+		materialized, available, err := materializeAsset(asset)
+		if err == nil || available || materialized != nil {
+			t.Fatalf("materializeAsset() = %#v, %v, %v; want directory creation error", materialized, available, err)
+		}
+	})
+}
+
+func TestAssetPathAndDigestHelpersRejectDuplicateOrEscapingPaths(t *testing.T) {
+	duplicate := []AssetFile{{Path: "runtime"}, {Path: "runtime"}}
+	if _, err := normalizeAssetFiles(duplicate); err == nil {
+		t.Fatal("normalizeAssetFiles() accepted a duplicate path")
+	}
+	if _, err := digestAssetFiles(duplicate); err == nil {
+		t.Fatal("digestAssetFiles() accepted a duplicate path")
+	}
+	if _, err := materializedFilePath(t.TempDir(), "../runtime"); err == nil {
+		t.Fatal("materializedFilePath() accepted an escaping path")
+	}
+	if _, err := digestMaterializedFiles(t.TempDir(), []AssetFile{{Path: "../runtime"}}); err == nil {
+		t.Fatal("digestMaterializedFiles() accepted an escaping path")
+	}
+}
+
 func TestCleanupHandlesNilAndAlreadyCleanedAssets(t *testing.T) {
 	var nilAsset *MaterializedAsset
 	if err := nilAsset.Cleanup(); err != nil {
@@ -220,6 +336,19 @@ type failingAssetFS struct {
 	err error
 }
 
+type pathFailingAssetFS struct {
+	fs.FS
+	path string
+	err  error
+}
+
+func (files pathFailingAssetFS) Open(name string) (fs.File, error) {
+	if name == files.path {
+		return nil, files.err
+	}
+	return files.FS.Open(name)
+}
+
 func (files failingAssetFS) Open(string) (fs.File, error) {
 	return nil, files.err
 }
@@ -228,4 +357,13 @@ type osDirFS string
 
 func (dir osDirFS) Open(name string) (fs.File, error) {
 	return os.Open(filepath.Join(string(dir), name))
+}
+
+func assetWithDigest(t *testing.T, name string, files []AssetFile) Asset {
+	t.Helper()
+	digest, err := digestAssetFiles(files)
+	if err != nil {
+		t.Fatalf("digestAssetFiles(): %v", err)
+	}
+	return Asset{Name: name, Files: files, SHA256: digest}
 }

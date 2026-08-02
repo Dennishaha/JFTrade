@@ -113,6 +113,48 @@ describe("QuoteSummaryCard", () => {
     expect(exchangeTitle).toContain("EDT");
   });
 
+  it("falls back safely for invalid exchange times and labels every cutoff session", () => {
+    const wrapper = mount(QuoteSummaryCard, {
+      props: {
+        market: "US",
+        code: "AAPL",
+        instrumentId: "US.AAPL",
+        name: "Apple",
+        price: 201.5,
+        extendedCards: [
+          {
+            key: "pre",
+            label: "盘前价格",
+            price: 202,
+            changeRate: null,
+            sessionEndAt: "invalid-pre-cutoff",
+            exchangeTimezone: "America/New_York",
+          },
+          {
+            key: "overnight",
+            label: "夜盘价格",
+            price: 203,
+            changeRate: null,
+            sessionEndAt: "2026-07-24T08:00:00Z",
+            exchangeTimezone: "Invalid/Timezone",
+          },
+        ],
+      },
+    });
+
+    const times = wrapper.findAll(".quote-summary__extended-time");
+    expect(times).toHaveLength(2);
+    expect(times[0]?.text()).toContain("盘前截止");
+    expect(times[0]?.text()).not.toContain("报价时间");
+    expect(times[1]?.text()).toContain("夜盘截止");
+    expect(times[0]?.find("div").attributes("title")).toContain(
+      "invalid-pre-cutoff",
+    );
+    expect(times[1]?.find("div").attributes("title")).toContain(
+      "交易所时间",
+    );
+  });
+
   it("hides favorite controls when the consumer does not expose them", () => {
     const wrapper = mount(QuoteSummaryCard, {
       props: {

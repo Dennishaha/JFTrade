@@ -36,6 +36,20 @@ describe("console-data market instrument search", () => {
     expect(
       normalizeInstrumentParts({ market: "US", symbol: "HKEX.0700" }),
     ).toEqual({ market: "HK", symbol: "00700" });
+
+    for (const alias of ["USA", "NYSE", "NASDAQ", "AMEX"]) {
+      expect(normalizeInstrumentParts({ market: alias, symbol: "AAPL" })).toEqual({
+        market: "US",
+        symbol: "AAPL",
+      });
+    }
+    for (const alias of ["HKG", "CNSH", "SHH", "SSE", "CNSZ", "SHZ", "SZSE"]) {
+      const expectedMarket = alias === "HKG" ? "HK" : ["CNSH", "SHH", "SSE"].includes(alias) ? "SH" : "SZ";
+      expect(normalizeInstrumentParts({ market: alias, symbol: "600519" })).toEqual({
+        market: expectedMarket,
+        symbol: alias === "HKG" ? "600519" : "600519",
+      });
+    }
   });
 
   it("merges references, broker mappings, subscriptions, holdings, and orders by normalized id", () => {
