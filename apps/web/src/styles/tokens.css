@@ -45,6 +45,25 @@
   --jf-tracking-3: 0.18em;
   --jf-tracking-4: 0.2em;
 
+  /* Theme-independent fixed colors. Deliberately defined only in this block:
+     the hex values they replace were fixed in both themes, so the light theme
+     must keep resolving to the same values. */
+  --jf-white: #ffffff;
+  --jf-shadow-color: #000;
+  --jf-accent-teal: #14b8a6;
+  --jf-accent-teal-text: #2dd4bf;
+  --jf-accent-amber: #f59e0b;
+  --jf-accent-amber-text: #fbbf24;
+  --jf-accent-amber-muted: #d99a2b;
+  --jf-accent-red: #ef4444;
+  --jf-accent-red-text: #fca5a5;
+  --jf-accent-red-muted: #d55353;
+  --jf-accent-red-strong: #dc2626;
+  --jf-accent-green: #22c55e;
+  --jf-accent-blue: #2563eb;
+  --jf-accent-yellow: #eab308;
+  --jf-console-border: #262b30;
+
   --tv-bg-app: #0a0a0a;
   --tv-bg-surface: #141414;
   --tv-bg-surface-2: #1a1a1a;

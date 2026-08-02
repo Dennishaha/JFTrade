@@ -493,12 +493,12 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: #eab308;
+  color: var(--jf-accent-yellow);
   cursor: pointer;
 }
 
 .watchlist-table__star:hover {
-  background: color-mix(in srgb, #eab308 14%, transparent);
+  background: color-mix(in srgb, var(--jf-accent-yellow) 14%, transparent);
 }
 
 .watchlist-table__empty {

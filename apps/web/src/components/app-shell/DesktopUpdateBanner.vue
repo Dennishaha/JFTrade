@@ -49,7 +49,7 @@ onUnmounted(() => cancelListener?.());
   padding: 6px 12px;
   color: #dbeafe;
   background: #123456;
-  border-bottom: 1px solid #2563eb;
+  border-bottom: 1px solid var(--jf-accent-blue);
 }
 
 .desktop-update-banner button {

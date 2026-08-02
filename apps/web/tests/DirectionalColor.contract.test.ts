@@ -60,6 +60,7 @@ describe("directional color contract", () => {
       "components/workspace/OrderBookPanel.vue",
       "composables/settings/useUIColorPreferences.ts",
       "style.css",
+      "styles/components.css",
     ]);
 
     expect(matchingFiles(/\btv-(?:up|down)\b/)).toEqual([
@@ -74,6 +75,7 @@ describe("directional color contract", () => {
       "components/research/RankListPanel.vue",
       "components/research/researchEntry.ts",
       "components/settings/SettingsAppearanceSection.vue",
+      "components/workspace/InstrumentOverviewPanel.vue",
       "components/workspace/OrderBookPanel.vue",
       "components/workspace/PositionsPanel.vue",
       "style.css",

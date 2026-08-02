@@ -335,7 +335,7 @@ watch(
   background: var(--tv-bg-surface-2);
 }
 
-.watchlist-membership-dialog__save { border-color: var(--tv-accent); background: var(--tv-accent); color: #fff; }
+.watchlist-membership-dialog__save { border-color: var(--tv-accent); background: var(--tv-accent); color: var(--jf-white); }
 
 @media (max-width: 600px) {
   .watchlist-membership-dialog__groups { grid-template-columns: 1fr; }

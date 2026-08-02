@@ -286,7 +286,7 @@ onBeforeUnmount(() => {
 .earnings-calendar-view__filter-button > span {
   position: absolute; top: -3px; right: -3px; display: grid; min-width: 17px; height: 17px;
   place-items: center; padding: 0 4px; border: 2px solid var(--tv-bg); border-radius: 9px;
-  background: var(--tv-accent); color: #fff; font-size: var(--jf-text-4); font-weight: 700;
+  background: var(--tv-accent); color: var(--jf-white); font-size: var(--jf-text-4); font-weight: 700;
 }
 :where(
   .earnings-calendar-view__mode,

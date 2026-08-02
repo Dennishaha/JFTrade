@@ -43,3 +43,154 @@
   gap: var(--jf-space-3);
   padding: var(--jf-space-3);
 }
+
+/* Text color roles for compact workspace readouts. */
+.jf-text {
+  color: var(--tv-text);
+}
+
+.jf-text-muted {
+  color: var(--tv-text-muted);
+}
+
+.jf-text-dim {
+  color: var(--tv-text-dim);
+}
+
+/* Small note text; dim by default, modifiers swap the tone. */
+.jf-note {
+  color: var(--tv-text-dim);
+  font-size: var(--jf-text-5);
+}
+
+.jf-note--muted {
+  color: var(--tv-text-muted);
+}
+
+.jf-note--accent {
+  color: var(--tv-accent);
+}
+
+/* Pill tag whose tone is supplied by an inline binding. */
+.jf-pill {
+  padding: 3px 8px;
+  border-radius: var(--jf-radius-pill);
+  font-size: var(--jf-text-5);
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* Two-column label/value grid inside popovers. */
+.jf-kv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+}
+
+/* Trading-mode badge (实盘). */
+.jf-mode-badge {
+  padding: 2px 6px;
+  border-radius: var(--jf-radius-xs);
+  background: var(--tv-accent-strong);
+  color: var(--jf-white);
+  font-size: var(--jf-text-4);
+  font-weight: 600;
+}
+
+/* Bordered readout box (order estimate). */
+.jf-estimate-box {
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid var(--tv-border);
+  border-radius: var(--jf-radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Empty-state notes. The .tv-table variant only raises specificity above
+   the base .tv-table td padding. */
+.jf-empty-note,
+.tv-table .jf-empty-note {
+  padding: var(--jf-space-6);
+  color: var(--tv-text-dim);
+  text-align: center;
+}
+
+.jf-empty-panel {
+  display: flex;
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
+  padding: var(--jf-space-6);
+  color: var(--tv-text-dim);
+  text-align: center;
+}
+
+/* Monospace identifier cells. */
+.jf-mono-sm {
+  font-family: monospace;
+  font-size: var(--jf-text-5);
+}
+
+/* Filter toolbar with compact labelled selects. */
+.jf-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--tv-border);
+}
+
+.jf-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tv-text-muted);
+  font-size: var(--jf-text-5);
+}
+
+/* Compact control modifiers. The compound selectors keep them above the
+   unlayered .tv-btn / .tv-select base rules from style.css. */
+.tv-select.jf-select-compact {
+  height: 26px;
+  font-size: var(--jf-text-5);
+}
+
+.tv-btn.jf-btn-sm {
+  height: var(--jf-control-height-sm);
+  padding: 0 8px;
+  font-size: var(--jf-text-5);
+}
+
+.tv-btn.jf-btn-compact {
+  height: 26px;
+  font-size: var(--jf-text-5);
+}
+
+.tv-btn.jf-btn-tiny {
+  height: 20px;
+  padding: 0 6px;
+  font-size: var(--jf-text-4);
+}
+
+.tv-btn.jf-submit-btn {
+  width: 100%;
+  height: 38px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.tv-icon-btn.jf-icon-btn-wide {
+  width: 36px;
+}
+
+/* Theme preview swatches. */
+.jf-swatch-up {
+  border-color: var(--tv-price-up);
+  background: var(--tv-price-up);
+}
+
+.jf-swatch-down {
+  border-color: var(--tv-price-down);
+  background: var(--tv-price-down);
+}

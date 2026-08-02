@@ -256,10 +256,10 @@ onUnmounted(() => {
   gap: 10px;
   padding: 10px 12px;
   background: #171a1d;
-  border-color: #262b30;
+  border-color: var(--jf-console-border);
 }
 .desktop-logs__toolbar {
-  border-bottom: 1px solid #262b30;
+  border-bottom: 1px solid var(--jf-console-border);
 }
 .desktop-logs__toolbar input {
   flex: 1;
@@ -283,7 +283,7 @@ onUnmounted(() => {
   gap: 16px;
   padding: 7px 12px;
   color: #99a3ad;
-  border-bottom: 1px solid #262b30;
+  border-bottom: 1px solid var(--jf-console-border);
 }
 .desktop-logs__content {
   flex: 1;
@@ -317,6 +317,6 @@ onUnmounted(() => {
 }
 .desktop-logs__pager {
   justify-content: flex-end;
-  border-top: 1px solid #262b30;
+  border-top: 1px solid var(--jf-console-border);
 }
 </style>

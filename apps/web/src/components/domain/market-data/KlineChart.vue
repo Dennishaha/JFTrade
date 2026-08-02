@@ -356,6 +356,6 @@ watch(palette, (next) => {
 }
 
 .kline-chart-overlay.is-error {
-  color: #dc2626;
+  color: var(--jf-accent-red-strong);
 }
 </style>

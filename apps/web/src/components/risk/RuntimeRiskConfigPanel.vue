@@ -337,7 +337,7 @@ function disable() {
 .risk-panel__primary {
   border-color: var(--tv-accent);
   background: var(--tv-accent);
-  color: #fff;
+  color: var(--jf-white);
 }
 
 .risk-panel__actions .tv-btn:disabled {

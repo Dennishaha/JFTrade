@@ -394,7 +394,7 @@ watch(
 .watchlist-import-dialog__local-only label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 5px; padding: 6px 8px; border: 1px solid var(--tv-border); border-radius: 5px; font-size: var(--jf-text-5); }
 .watchlist-import-dialog__local-only small { color: var(--tv-text-dim); font-size: var(--jf-text-3); }
 .watchlist-import-dialog > footer { justify-content: flex-end; border-top: 1px solid var(--tv-border); border-bottom: 0; }
-.watchlist-import-dialog__primary { border-color: var(--tv-accent); background: var(--tv-accent); color: #fff; }
+.watchlist-import-dialog__primary { border-color: var(--tv-accent); background: var(--tv-accent); color: var(--jf-white); }
 @media (max-width: 640px) {
   .watchlist-import-dialog__form-grid,
   .watchlist-import-dialog__local-only { grid-template-columns: 1fr; }

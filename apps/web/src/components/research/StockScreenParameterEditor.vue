@@ -275,7 +275,7 @@ function errorFor(parameter: StockScreenFactorParameter): string {
 }
 
 .stock-screen-parameter-editor__error {
-  color: #d55353;
+  color: var(--jf-accent-red-muted);
   font-size: var(--jf-text-4);
 }
 

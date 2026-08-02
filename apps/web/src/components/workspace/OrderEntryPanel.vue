@@ -126,18 +126,18 @@ const {
         :name="security?.name"
         compact
       />
-      <div style="flex: 1"></div>
+      <div class="flex-1"></div>
       <span
         v-if="isRealMode"
-        style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--tv-accent-strong); color: #fff; font-weight: 600"
+        class="jf-mode-badge"
       >
         实盘
       </span>
     </div>
     <div class="tv-panel-body">
-      <div class="tv-seg tv-order-side-seg" style="width: 100%; margin-bottom: 10px">
-        <button style="flex: 1" class="is-buy" :class="{ 'is-active': side === 'BUY' }" @click="setSide('BUY')">买入</button>
-        <button style="flex: 1" class="is-sell" :class="{ 'is-active': side === 'SELL' }" @click="setSide('SELL')">卖出</button>
+      <div class="tv-seg tv-order-side-seg mb-2.5 w-full">
+        <button class="is-buy flex-1" :class="{ 'is-active': side === 'BUY' }" @click="setSide('BUY')">买入</button>
+        <button class="is-sell flex-1" :class="{ 'is-active': side === 'SELL' }" @click="setSide('SELL')">卖出</button>
       </div>
 
       <div class="tv-form-row">
@@ -165,7 +165,7 @@ const {
 
       <div v-if="isLimit" class="tv-form-row">
         <label>价格</label>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) 32px; gap: 6px; align-items: center">
+        <div class="grid grid-cols-[minmax(0,1fr)_32px] items-center gap-1.5">
           <input v-model.number="price" type="number" min="0" :step="limitPriceStep" class="tv-input" @input="markPriceEdited" @blur="alignPriceInput" />
           <button
             type="button"
@@ -204,75 +204,74 @@ const {
         </select>
       </div>
 
-      <div v-if="supportsOrderSessionSelection && orderSessionSummary" style="margin: -2px 0 8px; font-size: 11px; color: var(--tv-text-dim)">
+      <div v-if="supportsOrderSessionSelection && orderSessionSummary" class="jf-note -mt-0.5 mb-2">
         {{ orderSessionSummary }}
       </div>
 
-      <div v-if="supportsOrderSessionSelection && orderSessionCaution" style="margin: 0 0 10px; font-size: 11px; color: var(--tv-accent)">
+      <div v-if="supportsOrderSessionSelection && orderSessionCaution" class="jf-note jf-note--accent mb-2.5">
         {{ orderSessionCaution }}
       </div>
 
-      <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--tv-text-muted); margin: 4px 0 10px">
+      <div class="jf-note jf-note--muted mt-1 mb-2.5 flex justify-between">
         <span>名义金额</span>
-        <span class="tv-num" style="color: var(--tv-text)">{{ estimate() }}</span>
+        <span class="tv-num jf-text">{{ estimate() }}</span>
       </div>
 
-      <div style="border: 1px solid var(--tv-border); border-radius: 8px; padding: 10px; margin: 0 0 10px; background: rgba(255,255,255,0.03)">
-        <div style="display: flex; justify-content: space-between; gap: 8px; align-items: center">
-          <span style="font-size: 11px; color: var(--tv-text-muted)">最大可交易数量</span>
-          <span style="font-size: 11px; color: var(--tv-text-dim)">
+      <div class="jf-estimate-box">
+        <div class="flex items-center justify-between gap-2">
+          <span class="jf-note jf-note--muted">最大可交易数量</span>
+          <span class="jf-note">
             {{ formattedMaxTradeSession || tradeQuantityUnitHint }}
           </span>
         </div>
-        <div v-if="isLoadingBrokerMaxTradeQuantity" style="margin-top: 6px; font-size: 11px; color: var(--tv-text-muted)">
+        <div v-if="isLoadingBrokerMaxTradeQuantity" class="jf-note jf-note--muted mt-1.5">
           正在估算...
         </div>
-        <div v-else-if="brokerMaxTradeQuantity.lastError" style="margin-top: 6px; font-size: 11px; color: var(--tv-accent)">
+        <div v-else-if="brokerMaxTradeQuantity.lastError" class="jf-note jf-note--accent mt-1.5">
           {{ brokerMaxTradeQuantity.lastError }}
         </div>
         <template v-else-if="brokerMaxTradeQuantity.maxTradeQuantity">
-          <div style="display: flex; justify-content: space-between; gap: 8px; margin-top: 6px">
-            <span style="font-size: 11px; color: var(--tv-text-muted)">{{ maxTradeQuantityPrimaryLabel }}</span>
-            <span class="tv-num" style="font-size: 16px; color: var(--tv-text); font-weight: 600">
+          <div class="mt-1.5 flex justify-between gap-2">
+            <span class="jf-note jf-note--muted">{{ maxTradeQuantityPrimaryLabel }}</span>
+            <span class="tv-num jf-text font-semibold text-[var(--jf-text-10)]">
               {{ formatMetric(maxTradeQuantityPrimaryValue) }} {{ tradeQuantityUnit }}
             </span>
           </div>
-          <div style="margin-top: 4px; font-size: 11px; color: var(--tv-text-dim)">
+          <div class="jf-note mt-1">
             {{ tradeQuantityUnitHint }}<span v-if="formattedMaxTradeSession"> · {{ formattedMaxTradeSession }}</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; font-size: 11px">
+          <div class="mt-2 grid grid-cols-2 gap-2 text-[var(--jf-text-5)]">
             <div>
-              <div style="color: var(--tv-text-muted)">现金可买</div>
-              <div class="tv-num" style="color: var(--tv-text)">{{ formatMetric(brokerMaxTradeQuantity.maxTradeQuantity.maxCashBuy) }} {{ tradeQuantityUnit }}</div>
+              <div class="jf-text-muted">现金可买</div>
+              <div class="tv-num jf-text">{{ formatMetric(brokerMaxTradeQuantity.maxTradeQuantity.maxCashBuy) }} {{ tradeQuantityUnit }}</div>
             </div>
             <div>
-              <div style="color: var(--tv-text-muted)">融资后可买</div>
-              <div class="tv-num" style="color: var(--tv-text)">{{ formatMetric(brokerMaxTradeQuantity.maxTradeQuantity.maxCashAndMarginBuy) }} {{ tradeQuantityUnit }}</div>
+              <div class="jf-text-muted">融资后可买</div>
+              <div class="tv-num jf-text">{{ formatMetric(brokerMaxTradeQuantity.maxTradeQuantity.maxCashAndMarginBuy) }} {{ tradeQuantityUnit }}</div>
             </div>
             <div>
-              <div style="color: var(--tv-text-muted)">可卖持仓</div>
-              <div class="tv-num" style="color: var(--tv-text)">{{ formatMetric(brokerMaxTradeQuantity.maxTradeQuantity.maxPositionSell) }} {{ tradeQuantityUnit }}</div>
+              <div class="jf-text-muted">可卖持仓</div>
+              <div class="tv-num jf-text">{{ formatMetric(brokerMaxTradeQuantity.maxTradeQuantity.maxPositionSell) }} {{ tradeQuantityUnit }}</div>
             </div>
             <div>
-              <div style="color: var(--tv-text-muted)">可卖空</div>
-              <div class="tv-num" style="color: var(--tv-text)">{{ formatMetric(brokerMaxTradeQuantity.maxTradeQuantity.maxSellShort) }} {{ tradeQuantityUnit }}</div>
+              <div class="jf-text-muted">可卖空</div>
+              <div class="tv-num jf-text">{{ formatMetric(brokerMaxTradeQuantity.maxTradeQuantity.maxSellShort) }} {{ tradeQuantityUnit }}</div>
             </div>
           </div>
-          <div style="display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 11px; color: var(--tv-text-muted)">
+          <div class="jf-note jf-note--muted mt-2 flex justify-between gap-2">
             <span title="多头初始保证金；股票通常不返回该字段">多头初始保证金 {{ formatInitialMargin(brokerMaxTradeQuantity.maxTradeQuantity.longRequiredIm) }}</span>
             <span title="空头初始保证金；股票通常不返回该字段">空头初始保证金 {{ formatInitialMargin(brokerMaxTradeQuantity.maxTradeQuantity.shortRequiredIm) }}</span>
           </div>
         </template>
-        <div v-else style="margin-top: 6px; font-size: 11px; color: var(--tv-text-muted)">
+        <div v-else class="jf-note jf-note--muted mt-1.5">
           {{ maxTradeQuantityHint }}
         </div>
       </div>
 
       <button
         type="button"
-        class="tv-btn"
+        class="tv-btn jf-submit-btn"
         :class="side === 'BUY' ? 'tv-btn-buy' : 'tv-btn-sell'"
-        style="width: 100%; height: 38px; font-weight: 600; letter-spacing: 0.04em"
         :disabled="submitting"
         @click="submit"
       >

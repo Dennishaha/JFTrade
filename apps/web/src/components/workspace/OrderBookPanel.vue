@@ -568,7 +568,7 @@ watch(selectedBrokerId, () => {
   <section class="tv-panel">
     <div class="tv-panel-head">
       <span class="tv-panel-title">盘口</span>
-      <div style="flex: 1"></div>
+      <div class="flex-1"></div>
       <MarketFeedStatus
         :connection-state="depthConnectionState"
         :observed-at="depthObservedAt"
@@ -582,16 +582,13 @@ watch(selectedBrokerId, () => {
     </div>
 
     <div class="tv-panel-body is-flush">
-      <div v-if="providerCapabilityLoading" class="tv-ob-capability-message"
-        style="display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 24px; color: var(--tv-text-dim); text-align: center; line-height: 1.6">
+      <div v-if="providerCapabilityLoading" class="tv-ob-capability-message jf-empty-panel leading-[1.6]">
         正在读取盘口能力…
       </div>
-      <div v-else-if="providerCapabilityError" class="tv-ob-capability-message"
-        style="display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 24px; color: var(--tv-text-dim); text-align: center; line-height: 1.6">
+      <div v-else-if="providerCapabilityError" class="tv-ob-capability-message jf-empty-panel leading-[1.6]">
         行情能力读取失败：{{ providerCapabilityError }}
       </div>
-      <div v-else-if="depthUnsupported" class="tv-ob-capability-message"
-        style="display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 24px; color: var(--tv-text-dim); text-align: center; line-height: 1.6">
+      <div v-else-if="depthUnsupported" class="tv-ob-capability-message jf-empty-panel leading-[1.6]">
         当前行情提供者不支持盘口深度 / Level 2 数据
       </div>
       <template v-else>
@@ -680,7 +677,7 @@ watch(selectedBrokerId, () => {
 .tv-ob-preset-btn.is-active {
   background: var(--tv-accent);
   border-color: var(--tv-accent);
-  color: #fff;
+  color: var(--jf-white);
 }
 
 .tv-ob-preset-spinner {

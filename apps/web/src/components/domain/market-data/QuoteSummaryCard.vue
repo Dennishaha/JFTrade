@@ -232,8 +232,7 @@ function cutoffLabel(card: MarketSnapshotDisplayCard): string {
         </div>
         <div
           v-if="card.quoteTime || card.sessionEndAt"
-          class="quote-summary__extended-time"
-          style="margin-top: 6px; color: var(--tv-text-dim); font-size: 11px; line-height: 1.3"
+          class="quote-summary__extended-time jf-note mt-1.5 leading-[1.3]"
         >
           <div
             v-if="card.quoteTime"

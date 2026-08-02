@@ -198,9 +198,9 @@ const context = useStrategyDesignContext<WorkbenchContext>();
 }
 
 .strategy-native-banner--error {
-  border-color: color-mix(in srgb, #ef4444 52%, var(--tv-border));
-  background: color-mix(in srgb, #ef4444 12%, var(--tv-bg-surface));
-  color: color-mix(in srgb, #fca5a5 72%, var(--tv-text));
+  border-color: color-mix(in srgb, var(--jf-accent-red) 52%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-red) 12%, var(--tv-bg-surface));
+  color: color-mix(in srgb, var(--jf-accent-red-text) 72%, var(--tv-text));
 }
 
 .strategy-native-banner span {

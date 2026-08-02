@@ -153,7 +153,7 @@ const {
 }
 
 .stock-screener-view__result-stale {
-  color: #d99a2b !important;
+  color: var(--jf-accent-amber-muted) !important;
   font-weight: 600;
 }
 

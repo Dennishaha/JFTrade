@@ -211,9 +211,9 @@ const {
 }
 
 .strategy-native-chip--diagnostic.has-error {
-  border-color: color-mix(in srgb, #ef4444 52%, var(--tv-border));
-  background: color-mix(in srgb, #ef4444 10%, transparent);
-  color: color-mix(in srgb, #fca5a5 76%, var(--tv-text));
+  border-color: color-mix(in srgb, var(--jf-accent-red) 52%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-red) 10%, transparent);
+  color: color-mix(in srgb, var(--jf-accent-red-text) 76%, var(--tv-text));
 }
 
 .strategy-native-metadata-toggle,

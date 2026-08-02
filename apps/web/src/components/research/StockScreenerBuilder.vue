@@ -471,7 +471,7 @@ function addSelectedColumn(event: Event): void {
 .stock-screener-view__field-error {
   display: block;
   margin-top: 4px;
-  color: #d55353;
+  color: var(--jf-accent-red-muted);
   font-size: var(--jf-text-5);
 }
 

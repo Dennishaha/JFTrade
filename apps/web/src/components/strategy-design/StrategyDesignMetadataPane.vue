@@ -555,8 +555,8 @@ const context = useStrategyDesignContext<MetadataContext>();
 }
 
 .strategy-native-side-panels :deep(.strategy-native-panel-count.has-error) {
-  border-color: color-mix(in srgb, #ef4444 52%, var(--tv-border));
-  color: color-mix(in srgb, #fca5a5 76%, var(--tv-text));
+  border-color: color-mix(in srgb, var(--jf-accent-red) 52%, var(--tv-border));
+  color: color-mix(in srgb, var(--jf-accent-red-text) 76%, var(--tv-text));
 }
 
 .strategy-native-side-panels :deep(.strategy-native-icon-button) {
@@ -646,15 +646,15 @@ const context = useStrategyDesignContext<MetadataContext>();
 }
 
 .strategy-native-side-panels :deep(.strategy-native-diagnostic--error) {
-  border-color: color-mix(in srgb, #ef4444 48%, var(--tv-border));
-  background: color-mix(in srgb, #ef4444 12%, var(--tv-bg-surface));
-  color: color-mix(in srgb, #fca5a5 72%, var(--tv-text));
+  border-color: color-mix(in srgb, var(--jf-accent-red) 48%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-red) 12%, var(--tv-bg-surface));
+  color: color-mix(in srgb, var(--jf-accent-red-text) 72%, var(--tv-text));
 }
 
 .strategy-native-side-panels :deep(.strategy-native-diagnostic--warning) {
-  border-color: color-mix(in srgb, #f59e0b 48%, var(--tv-border));
-  background: color-mix(in srgb, #f59e0b 12%, var(--tv-bg-surface));
-  color: color-mix(in srgb, #fbbf24 70%, var(--tv-text));
+  border-color: color-mix(in srgb, var(--jf-accent-amber) 48%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-amber) 12%, var(--tv-bg-surface));
+  color: color-mix(in srgb, var(--jf-accent-amber-text) 70%, var(--tv-text));
 }
 
 .strategy-native-side-panels :deep(.strategy-native-diagnostic--info) {
@@ -687,13 +687,13 @@ const context = useStrategyDesignContext<MetadataContext>();
 }
 
 .strategy-native-side-panels :deep(.strategy-native-status--running) {
-  background: color-mix(in srgb, #22c55e 18%, var(--tv-bg-surface));
+  background: color-mix(in srgb, var(--jf-accent-green) 18%, var(--tv-bg-surface));
   color: color-mix(in srgb, #86efac 72%, var(--tv-text));
 }
 
 .strategy-native-side-panels :deep(.strategy-native-status--paused) {
-  background: color-mix(in srgb, #f59e0b 18%, var(--tv-bg-surface));
-  color: color-mix(in srgb, #fbbf24 72%, var(--tv-text));
+  background: color-mix(in srgb, var(--jf-accent-amber) 18%, var(--tv-bg-surface));
+  color: color-mix(in srgb, var(--jf-accent-amber-text) 72%, var(--tv-text));
 }
 
 .strategy-native-side-panels :deep(.strategy-native-status--stopped) {

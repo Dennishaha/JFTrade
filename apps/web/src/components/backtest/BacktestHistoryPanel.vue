@@ -186,7 +186,7 @@ const {
 }
 
 .bt-history-run__status.is-running {
-  color: #2dd4bf;
+  color: var(--jf-accent-teal-text);
 }
 
 .bt-history-run__status.is-failed,

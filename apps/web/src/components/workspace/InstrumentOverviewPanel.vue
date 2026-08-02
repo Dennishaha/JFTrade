@@ -383,7 +383,7 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
   <section class="tv-panel">
     <div class="tv-panel-head">
       <span class="tv-panel-title">行情</span>
-      <div style="flex: 1"></div>
+      <div class="flex-1"></div>
       <MarketFeedStatus
         :connection-state="quoteConnectionState"
         :observed-at="quoteObservedAt"
@@ -396,7 +396,7 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
       />
     </div>
     <div class="tv-panel-body">
-      <div v-if="snapshot" style="display: flex; flex-direction: column; gap: 12px; min-height: 100%">
+      <div v-if="snapshot" class="flex min-h-full flex-col gap-3">
         <QuoteSummaryCard
           class="instrument-overview__quote-card"
           :market="prefs.market"
@@ -421,13 +421,13 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
         >
           <template #badges>
             <span v-if="showMarginBadges" ref="marginTriggerRef"
-              style="display: inline-flex; align-items: center; gap: 4px" @mouseenter="marginHovered = true"
+              class="inline-flex items-center gap-1" @mouseenter="marginHovered = true"
               @mouseleave="marginHovered = false">
               <span v-if="hasLongPermit"
-                style="font-size: 11px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; cursor: default"
+                class="jf-pill"
                 :style="{ color: 'var(--tv-price-up)', border: '1px solid var(--tv-price-up)', background: 'color-mix(in srgb, var(--tv-price-up) 12%, var(--tv-bg-surface-2))' }">融</span>
               <span v-if="hasShortPermit"
-                style="font-size: 11px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; cursor: default"
+                class="jf-pill"
                 :style="{ color: 'var(--tv-price-down)', border: '1px solid var(--tv-price-down)', background: 'color-mix(in srgb, var(--tv-price-down) 12%, var(--tv-bg-surface-2))' }">沽</span>
               <!-- 悬浮面板 -->
               <Teleport to="body">
@@ -447,45 +447,44 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
                   color: 'var(--tv-text)',
                   whiteSpace: 'nowrap',
                 }">
-                  <div class="text-xs" 
-                    style="color: var(--tv-text); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px">
+                  <div class="jf-text text-xs mb-2.5 uppercase tracking-[0.08em]">
                     融资融券信息
                   </div>
-                  <div v-if="hasLongPermit" style="margin-bottom: 8px">
-                    <div style="font-weight: 600; color: var(--tv-price-up); margin-bottom: 4px">融资（做多）</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px">
-                      <span style="color: var(--tv-text-dim)">初始保证金率</span>
-                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.initialMarginLongRatio)
+                  <div v-if="hasLongPermit" class="mb-2">
+                    <div class="tv-up mb-1 font-semibold">融资（做多）</div>
+                    <div class="jf-kv-grid">
+                      <span class="jf-text-dim">初始保证金率</span>
+                      <span class="text-right">{{ formatPercentValue(marginRatioEntry.initialMarginLongRatio)
                       }}</span>
-                      <span style="color: var(--tv-text-dim)">维持保证金率</span>
-                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.maintenanceLongRatio)
+                      <span class="jf-text-dim">维持保证金率</span>
+                      <span class="text-right">{{ formatPercentValue(marginRatioEntry.maintenanceLongRatio)
                       }}</span>
-                      <span style="color: var(--tv-text-dim)">预警比率</span>
-                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.alertLongRatio) }}</span>
-                      <span style="color: var(--tv-text-dim)">Margin Call</span>
-                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.marginCallLongRatio)
+                      <span class="jf-text-dim">预警比率</span>
+                      <span class="text-right">{{ formatPercentValue(marginRatioEntry.alertLongRatio) }}</span>
+                      <span class="jf-text-dim">Margin Call</span>
+                      <span class="text-right">{{ formatPercentValue(marginRatioEntry.marginCallLongRatio)
                       }}</span>
                     </div>
                   </div>
                   <div v-if="hasShortPermit">
-                    <div style="font-weight: 600; color: var(--tv-price-down); margin-bottom: 4px">融券（做空）</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px">
-                      <span style="color: var(--tv-text-dim)">融券利率</span>
-                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.shortFeeRate) }}</span>
-                      <span style="color: var(--tv-text-dim)">初始保证金率</span>
-                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.initialMarginShortRatio)
+                    <div class="tv-down mb-1 font-semibold">融券（做空）</div>
+                    <div class="jf-kv-grid">
+                      <span class="jf-text-dim">融券利率</span>
+                      <span class="text-right">{{ formatPercentValue(marginRatioEntry.shortFeeRate) }}</span>
+                      <span class="jf-text-dim">初始保证金率</span>
+                      <span class="text-right">{{ formatPercentValue(marginRatioEntry.initialMarginShortRatio)
                       }}</span>
-                      <span style="color: var(--tv-text-dim)">维持保证金率</span>
-                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.maintenanceShortRatio)
+                      <span class="jf-text-dim">维持保证金率</span>
+                      <span class="text-right">{{ formatPercentValue(marginRatioEntry.maintenanceShortRatio)
                       }}</span>
-                      <span style="color: var(--tv-text-dim)">预警比率</span>
-                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.alertShortRatio) }}</span>
-                      <span style="color: var(--tv-text-dim)">Margin Call</span>
-                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.marginCallShortRatio)
+                      <span class="jf-text-dim">预警比率</span>
+                      <span class="text-right">{{ formatPercentValue(marginRatioEntry.alertShortRatio) }}</span>
+                      <span class="jf-text-dim">Margin Call</span>
+                      <span class="text-right">{{ formatPercentValue(marginRatioEntry.marginCallShortRatio)
                       }}</span>
                       <span v-if="marginRatioEntry.shortPoolRemain != null"
-                        style="color: var(--tv-text-dim)">卖空池剩余</span>
-                      <span v-if="marginRatioEntry.shortPoolRemain != null" style="text-align: right">{{
+                        class="jf-text-dim">卖空池剩余</span>
+                      <span v-if="marginRatioEntry.shortPoolRemain != null" class="text-right">{{
                         formatNumber(marginRatioEntry.shortPoolRemain, { maximumFractionDigits: 3 }) }}</span>
                     </div>
                   </div>
@@ -495,17 +494,17 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
           </template>
         </QuoteSummaryCard>
 
-        <div v-if="typedDetailSections.length" style="display: grid; gap: 10px">
-          <div v-for="section in typedDetailSections" :key="section.title" style="display: grid; gap: 8px">
-            <div style="font-size: 11px; color: var(--tv-text-dim); text-transform: uppercase; letter-spacing: 0.08em">
+        <div v-if="typedDetailSections.length" class="grid gap-2.5">
+          <div v-for="section in typedDetailSections" :key="section.title" class="grid gap-2">
+            <div class="jf-note uppercase tracking-[0.08em]">
               {{ section.title }}
             </div>
             <DenseMetricStrip :items="section.rows" />
           </div>
         </div>
 
-        <div v-if="securitySummaryRows.length" style="display: grid; gap: 8px">
-          <div style="font-size: 11px; color: var(--tv-text-dim); text-transform: uppercase; letter-spacing: 0.08em">
+        <div v-if="securitySummaryRows.length" class="grid gap-2">
+          <div class="jf-note uppercase tracking-[0.08em]">
             Security
           </div>
           <DenseMetricStrip :items="securitySummaryRows" />
@@ -513,7 +512,7 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
 
       </div>
       <div v-else
-        style="display: flex; align-items: center; justify-content: center; min-height: 180px; color: var(--tv-text-dim); text-align: center; padding: 24px">
+        class="jf-empty-panel">
         当前标的暂无快照，行情加载后会在这里显示价格信息。
       </div>
     </div>

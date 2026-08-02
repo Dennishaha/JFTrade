@@ -248,10 +248,9 @@ const statusError = computed(() =>
     <EmptyState
       :loading="statusLoading"
       :error="statusError"
-      class="macro-research__status"
+      class="macro-research__status col-span-full"
       bordered
       :min-height="160"
-      style="grid-column: 1 / -1"
     >
     <template v-if="operation === 'indicators'">
       <aside class="macro-research__catalog">

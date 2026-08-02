@@ -530,7 +530,7 @@ function formatPercentage(value: number | null): string {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 50%;
-  color: #fff;
+  color: var(--jf-white);
   font-size: var(--jf-text-5);
   font-weight: 700;
 }

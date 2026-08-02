@@ -305,10 +305,10 @@ const {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: 1px solid color-mix(in srgb, #14b8a6 45%, var(--tv-border));
+  border: 1px solid color-mix(in srgb, var(--jf-accent-teal) 45%, var(--tv-border));
   border-radius: 5px;
-  background: color-mix(in srgb, #14b8a6 12%, var(--tv-bg-surface));
-  color: #2dd4bf;
+  background: color-mix(in srgb, var(--jf-accent-teal) 12%, var(--tv-bg-surface));
+  color: var(--jf-accent-teal-text);
   padding: 0 10px;
   font-size: 0.75rem;
   font-weight: 750;
@@ -317,8 +317,8 @@ const {
 }
 
 .bt-run-btn:hover:not(:disabled) {
-  border-color: color-mix(in srgb, #14b8a6 62%, var(--tv-border));
-  background: color-mix(in srgb, #14b8a6 18%, var(--tv-bg-surface));
+  border-color: color-mix(in srgb, var(--jf-accent-teal) 62%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-teal) 18%, var(--tv-bg-surface));
 }
 
 .bt-run-btn:disabled {
@@ -327,13 +327,13 @@ const {
 }
 
 .bt-run-btn--primary {
-  border-color: color-mix(in srgb, #14b8a6 62%, var(--tv-border));
-  background: color-mix(in srgb, #14b8a6 68%, var(--tv-bg-surface));
+  border-color: color-mix(in srgb, var(--jf-accent-teal) 62%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-teal) 68%, var(--tv-bg-surface));
   color: #f0fdfa;
 }
 
 .bt-run-btn--primary:hover:not(:disabled) {
-  background: color-mix(in srgb, #14b8a6 78%, var(--tv-bg-surface));
+  background: color-mix(in srgb, var(--jf-accent-teal) 78%, var(--tv-bg-surface));
 }
 
 .bt-run-btn--primary:disabled {
@@ -347,11 +347,11 @@ const {
   display: grid;
   min-width: 0;
   gap: 6px;
-  border: 1px solid color-mix(in srgb, #14b8a6 40%, var(--tv-border));
+  border: 1px solid color-mix(in srgb, var(--jf-accent-teal) 40%, var(--tv-border));
   border-radius: 6px;
-  background: color-mix(in srgb, #14b8a6 8%, var(--tv-bg-surface));
+  background: color-mix(in srgb, var(--jf-accent-teal) 8%, var(--tv-bg-surface));
   padding: 6px 8px;
-  color: #2dd4bf;
+  color: var(--jf-accent-teal-text);
   font-size: 0.72rem;
 }
 
@@ -379,37 +379,37 @@ const {
 
 .bt-sync-block__cancel {
   flex: 0 0 auto;
-  border: 1px solid color-mix(in srgb, #ef4444 45%, var(--tv-border));
+  border: 1px solid color-mix(in srgb, var(--jf-accent-red) 45%, var(--tv-border));
   border-radius: 999px;
   background: transparent;
-  color: color-mix(in srgb, #fca5a5 78%, var(--tv-text));
+  color: color-mix(in srgb, var(--jf-accent-red-text) 78%, var(--tv-text));
   padding: 1px 8px;
   font-size: 0.68rem;
   cursor: pointer;
 }
 
 .bt-sync-block__cancel:hover {
-  background: color-mix(in srgb, #ef4444 10%, var(--tv-bg-surface));
+  background: color-mix(in srgb, var(--jf-accent-red) 10%, var(--tv-bg-surface));
 }
 
 .bt-sync-block__bar {
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: color-mix(in srgb, #14b8a6 22%, var(--tv-bg-surface));
+  background: color-mix(in srgb, var(--jf-accent-teal) 22%, var(--tv-bg-surface));
 }
 
 .bt-sync-block__bar-fill {
   height: 100%;
   border-radius: 999px;
-  background: #14b8a6;
+  background: var(--jf-accent-teal);
   transition: width 500ms ease;
 }
 
 .bt-sync-block--cancelled {
-  border-color: color-mix(in srgb, #f59e0b 44%, var(--tv-border));
-  background: color-mix(in srgb, #f59e0b 10%, var(--tv-bg-surface));
-  color: color-mix(in srgb, #fbbf24 72%, var(--tv-text));
+  border-color: color-mix(in srgb, var(--jf-accent-amber) 44%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-amber) 10%, var(--tv-bg-surface));
+  color: color-mix(in srgb, var(--jf-accent-amber-text) 72%, var(--tv-text));
 }
 
 input {
@@ -464,10 +464,10 @@ input {
 }
 
 .bt-inline-warning {
-  border: 1px solid color-mix(in srgb, #f59e0b 44%, var(--tv-border));
+  border: 1px solid color-mix(in srgb, var(--jf-accent-amber) 44%, var(--tv-border));
   border-radius: 4px;
-  background: color-mix(in srgb, #f59e0b 10%, var(--tv-bg-surface));
-  color: color-mix(in srgb, #fbbf24 72%, var(--tv-text));
+  background: color-mix(in srgb, var(--jf-accent-amber) 10%, var(--tv-bg-surface));
+  color: color-mix(in srgb, var(--jf-accent-amber-text) 72%, var(--tv-text));
   padding: 4px 8px;
   font-size: 0.72rem;
   line-height: 1.35;
@@ -485,7 +485,7 @@ input {
   width: auto;
   min-height: 0;
   margin-top: 2px;
-  accent-color: #14b8a6;
+  accent-color: var(--jf-accent-teal);
   cursor: pointer;
 }
 

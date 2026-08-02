@@ -350,7 +350,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         <button :class="{ 'is-active': activeTab === 'historical' }" @click="tab = 'historical'">历史订单{{ formatTabCount(completedExecs.length, isHistoricalOrdersLoaded) }}</button>
         <button :class="{ 'is-active': activeTab === 'fills' }" @click="tab = 'fills'">事件{{ formatTabCount(events.length, isEventsLoaded) }}</button>
       </div>
-      <div style="flex: 1"></div>
+      <div class="flex-1"></div>
       <MarketStatusBadge
         v-if="orderConnectivityIssue"
         data-testid="order-connectivity-issue"
@@ -366,7 +366,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         :closable="false"
         density="compact"
         data-testid="portfolio-live-data-error"
-        style="margin: 8px"
+        class="m-2"
       >
         {{ activeTabError }}
       </v-alert>
@@ -379,22 +379,22 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         </thead>
         <tbody>
           <tr v-for="p in positions" :key="`${p.brokerId}-${p.accountId}-${p.market}-${p.symbol}`">
-            <td style="font-weight: 600">
+            <td class="font-semibold">
               <InstrumentIdentity :market="p.market" :instrument-id="p.symbol" compact />
             </td>
             <td>{{ formatUserMarketLabel(p.market) }}</td>
-            <td style="color: var(--tv-text-muted)">{{ p.accountId }}</td>
+            <td class="jf-text-muted">{{ p.accountId }}</td>
             <td>{{ formatTradingEnvironment(p.tradingEnvironment) }}</td>
             <td class="tv-num" :class="p.quantity >= 0 ? 'tv-up' : 'tv-down'">{{ formatQuantity(p.quantity) }}</td>
             <td class="tv-num">{{ formatPositionPrice(p.averagePrice, p.market) }}</td>
             <td class="tv-num">{{ formatPositionValue(p.marketValue, p.market) }}</td>
-            <td style="color: var(--tv-text-dim); font-size: 11px">{{ formatDateTime(p.updatedAt) }}</td>
+            <td class="jf-note">{{ formatDateTime(p.updatedAt) }}</td>
           </tr>
           <tr v-if="!isPositionsLoaded">
-            <td colspan="8" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">正在加载持仓...</td>
+            <td colspan="8" class="jf-empty-note">正在加载持仓...</td>
           </tr>
           <tr v-else-if="positions.length === 0">
-            <td colspan="8" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">暂无持仓</td>
+            <td colspan="8" class="jf-empty-note">暂无持仓</td>
           </tr>
         </tbody>
       </table>
@@ -409,7 +409,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         <tbody>
           <template v-for="o in pendingExecs" :key="o.internalOrderId">
           <tr :class="{ 'is-focused-order': o.internalOrderId === focusOrderId }">
-            <td style="font-family: monospace; font-size: 11px">
+            <td class="jf-mono-sm">
               <button
                 v-if="o.legs?.length"
                 class="tv-order-expand"
@@ -419,12 +419,12 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
               {{ o.internalOrderId }}
             </td>
             <td><InstrumentIdentity :market="o.market" :instrument-id="o.symbol" compact /></td>
-            <td :class="sideClass(o.side)" style="font-weight: 600">{{ formatOrderSideLabel(o.side) }}</td>
+            <td :class="sideClass(o.side)" class="font-semibold">{{ formatOrderSideLabel(o.side) }}</td>
             <td>{{ formatExecutionOrderStatusLabel(o.status) }}</td>
             <td class="tv-num">{{ formatQuantity(o.requestedQuantity) }}</td>
             <td class="tv-num">{{ formatQuantity(o.filledQuantity ?? 0) }}</td>
             <td class="tv-num">{{ formatPositionPrice(o.filledAveragePrice, o.market) }}</td>
-            <td style="color: var(--tv-text-dim); font-size: 11px">{{ formatDateTime(o.updatedAt) }}</td>
+            <td class="jf-note">{{ formatDateTime(o.updatedAt) }}</td>
             <td>
               <button
                 v-if="canCancelOrder(o)"
@@ -451,16 +451,16 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
           </tr>
           </template>
           <tr v-if="!isActiveOrdersLoaded">
-            <td colspan="9" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">正在加载近期订单...</td>
+            <td colspan="9" class="jf-empty-note">正在加载近期订单...</td>
           </tr>
           <tr v-else-if="pendingExecs.length === 0">
-            <td colspan="9" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">暂无近期订单</td>
+            <td colspan="9" class="jf-empty-note">暂无近期订单</td>
           </tr>
         </tbody>
       </table>
 
       <template v-else-if="activeTab === 'historical'">
-        <div v-if="isLoadingHistoricalOrders && !hasLoadedHistoricalOrders" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">
+        <div v-if="isLoadingHistoricalOrders && !hasLoadedHistoricalOrders" class="jf-empty-note">
           正在加载历史订单...
         </div>
         <v-alert
@@ -468,7 +468,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
           type="warning"
           :closable="false"
           density="compact"
-          style="margin: 8px"
+          class="m-2"
         >
           {{ historicalOrdersError }}
         </v-alert>
@@ -482,7 +482,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
           <tbody>
             <template v-for="o in completedExecs" :key="o.internalOrderId">
             <tr :class="{ 'is-focused-order': o.internalOrderId === focusOrderId }">
-              <td style="font-family: monospace; font-size: 11px">
+              <td class="jf-mono-sm">
                 <button
                   v-if="o.legs?.length"
                   class="tv-order-expand"
@@ -492,12 +492,12 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
                 {{ o.internalOrderId }}
               </td>
               <td><InstrumentIdentity :market="o.market" :instrument-id="o.symbol" compact /></td>
-              <td :class="sideClass(o.side)" style="font-weight: 600">{{ formatOrderSideLabel(o.side) }}</td>
+              <td :class="sideClass(o.side)" class="font-semibold">{{ formatOrderSideLabel(o.side) }}</td>
               <td>{{ formatExecutionOrderStatusLabel(o.status) }}</td>
               <td class="tv-num">{{ formatQuantity(o.requestedQuantity) }}</td>
               <td class="tv-num">{{ formatQuantity(o.filledQuantity ?? 0) }}</td>
               <td class="tv-num">{{ formatPositionPrice(o.filledAveragePrice, o.market) }}</td>
-              <td style="color: var(--tv-text-dim); font-size: 11px">{{ formatDateTime(o.updatedAt) }}</td>
+              <td class="jf-note">{{ formatDateTime(o.updatedAt) }}</td>
             </tr>
             <tr v-if="isExpanded(o.internalOrderId)" class="tv-order-legs">
               <td colspan="8">
@@ -514,10 +514,10 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
             </tr>
             </template>
             <tr v-if="isLoadingHistoricalOrders">
-              <td colspan="8" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">正在加载历史订单...</td>
+              <td colspan="8" class="jf-empty-note">正在加载历史订单...</td>
             </tr>
             <tr v-else-if="completedExecs.length === 0">
-              <td colspan="8" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">暂无历史订单</td>
+              <td colspan="8" class="jf-empty-note">暂无历史订单</td>
             </tr>
           </tbody>
         </table>
@@ -529,17 +529,17 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         </thead>
         <tbody>
           <tr v-for="ev in events" :key="ev.id">
-            <td style="font-weight: 600">{{ formatExecutionEventTypeLabel(ev.eventType) }}</td>
-            <td style="color: var(--tv-text-muted)">{{ formatExecutionOrderStatusLabel(ev.previousStatus) }}</td>
+            <td class="font-semibold">{{ formatExecutionEventTypeLabel(ev.eventType) }}</td>
+            <td class="jf-text-muted">{{ formatExecutionOrderStatusLabel(ev.previousStatus) }}</td>
             <td>{{ formatExecutionOrderStatusLabel(ev.nextStatus) }}</td>
-            <td style="font-family: monospace; font-size: 11px">{{ ev.internalOrderId }}</td>
-            <td style="color: var(--tv-text-dim); font-size: 11px">{{ formatDateTime(ev.createdAt) }}</td>
+            <td class="jf-mono-sm">{{ ev.internalOrderId }}</td>
+            <td class="jf-note">{{ formatDateTime(ev.createdAt) }}</td>
           </tr>
           <tr v-if="!isEventsLoaded">
-            <td colspan="5" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">正在加载订单事件...</td>
+            <td colspan="5" class="jf-empty-note">正在加载订单事件...</td>
           </tr>
           <tr v-else-if="events.length === 0">
-            <td colspan="5" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">暂无事件</td>
+            <td colspan="5" class="jf-empty-note">暂无事件</td>
           </tr>
         </tbody>
       </table>

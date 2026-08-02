@@ -161,9 +161,9 @@ const context = useStrategyDesignContext<HistoryContext>();
 }
 
 .strategy-native-version-notice {
-  border-color: color-mix(in srgb, #f59e0b 44%, var(--tv-border));
-  background: color-mix(in srgb, #f59e0b 10%, var(--tv-bg-surface));
-  color: color-mix(in srgb, #fbbf24 72%, var(--tv-text));
+  border-color: color-mix(in srgb, var(--jf-accent-amber) 44%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-amber) 10%, var(--tv-bg-surface));
+  color: color-mix(in srgb, var(--jf-accent-amber-text) 72%, var(--tv-text));
   overflow-wrap: anywhere;
 }
 

@@ -655,7 +655,7 @@ if (requestedExecutionOrderId !== "") {
   border: 1px solid var(--tv-border);
   border-radius: 9px;
   background: var(--tv-bg-surface);
-  box-shadow: 0 8px 24px color-mix(in srgb, #000 8%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--jf-shadow-color) 8%, transparent);
 }
 
 .account-page__content {

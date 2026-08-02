@@ -676,7 +676,7 @@ async function savePythonBinaryPath(): Promise<void> {
 .primary-button {
   border: 1px solid var(--tv-accent);
   background: var(--tv-accent);
-  color: #fff;
+  color: var(--jf-white);
 }
 
 .secondary-button {

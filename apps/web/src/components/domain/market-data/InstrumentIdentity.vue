@@ -109,7 +109,7 @@ function copyCanonicalInstrumentId(event: ClipboardEvent): void {
 [data-theme="dark"] {
   --instrument-market-tag-cn-border: #7f1d1d;
   --instrument-market-tag-cn-background: #451a1a;
-  --instrument-market-tag-cn-text: #fca5a5;
+  --instrument-market-tag-cn-text: var(--jf-accent-red-text);
   --instrument-market-tag-hk-border: #6b21a8;
   --instrument-market-tag-hk-background: #2e1065;
   --instrument-market-tag-hk-text: #d8b4fe;

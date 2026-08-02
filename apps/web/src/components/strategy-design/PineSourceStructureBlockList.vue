@@ -293,7 +293,7 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
 .pine-block__rail {
   width: 0.2rem;
   align-self: stretch;
-  background: color-mix(in srgb, var(--tv-accent) 70%, #14b8a6);
+  background: color-mix(in srgb, var(--tv-accent) 70%, var(--jf-accent-teal));
 }
 
 .strategy-native-source-node__line {

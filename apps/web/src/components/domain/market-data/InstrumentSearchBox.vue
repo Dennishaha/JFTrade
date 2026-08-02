@@ -546,14 +546,14 @@ function candidateOptionId(index: number): string | undefined {
   min-height: 40px;
   border: 1px solid var(--tv-border, #cbd5e1);
   border-radius: 0.45rem;
-  background: var(--tv-bg-surface, #fff);
+  background: var(--tv-bg-surface, var(--jf-white));
   padding-inline: 0.75rem 0.35rem;
 }
 
 .instrument-search-box--dialog .instrument-search-box__control {
   border-color: #cbd5e1;
   border-radius: 1rem;
-  background: #fff;
+  background: var(--jf-white);
   color: #0f172a;
 }
 
@@ -643,14 +643,14 @@ function candidateOptionId(index: number): string | undefined {
   overflow: hidden;
   border: 1px solid var(--tv-border, #cbd5e1);
   border-radius: 0.6rem;
-  background: var(--tv-bg-surface, #fff);
+  background: var(--tv-bg-surface, var(--jf-white));
   box-shadow: var(--tv-shadow-lg, 0 18px 40px rgb(15 23 42 / 18%));
   color: var(--tv-text, #0f172a);
 }
 
 .instrument-search-box--dialog .instrument-search-box__panel {
   border-color: #e2e8f0;
-  background: #fff;
+  background: var(--jf-white);
   color: #334155;
 }
 

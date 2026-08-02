@@ -26,7 +26,7 @@ function toggle(): void {
       'is-ai': prefs.rightDockOpen && prefs.rightDockTab === 'ai',
     }"
   >
-    <div style="display: flex; flex-direction: column; height: 100%; min-height: 0">
+    <div class="flex h-full min-h-0 flex-col">
       <div class="tv-dock-tabs">
         <div
           v-for="tab in tabs"
@@ -38,7 +38,7 @@ function toggle(): void {
         >
           {{ tab.label }}
         </div>
-        <button class="tv-icon-btn" style="width: 36px" title="收起" @click="toggle">⟩</button>
+        <button class="tv-icon-btn jf-icon-btn-wide" title="收起" @click="toggle">⟩</button>
       </div>
 
       <NotificationCenter v-if="prefs.rightDockTab === 'notifications'" />

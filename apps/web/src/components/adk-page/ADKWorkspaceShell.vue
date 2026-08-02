@@ -291,7 +291,7 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
               :aria-expanded="mobileSessionPanelOpen ? 'true' : 'false'"
               @click="toggleMobileSessionPanel"
             >
-              <span style="text-wrap: nowrap">会话</span>
+              <span class="text-nowrap">会话</span>
               <span class="adk-mobile-toolbar__count">{{
                 sessions.length
               }}</span>
@@ -308,7 +308,7 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
               :disabled="selectedAgentId === '' || creatingSession"
               @click="void handleMobileCreateNewSession()"
             >
-              <span style="text-wrap: nowrap">{{
+              <span class="text-nowrap">{{
                 creatingSession ? "创建中" : "新建"
               }}</span>
             </button>

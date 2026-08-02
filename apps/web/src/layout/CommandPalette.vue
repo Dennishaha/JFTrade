@@ -101,12 +101,12 @@ onUnmounted(() => {
           @mousedown.prevent="run(idx)"
         >
           <span>
-            <span style="color: var(--tv-text-dim); margin-right: 8px">{{ action.group }}</span>
+            <span class="jf-text-dim mr-2">{{ action.group }}</span>
             {{ action.label }}
           </span>
           <span v-if="action.hint" class="tv-palette-hint">{{ action.hint }}</span>
         </li>
-        <li v-if="filtered.length === 0" style="color: var(--tv-text-dim); cursor: default">
+        <li v-if="filtered.length === 0" class="jf-text-dim cursor-default">
           没有匹配项
         </li>
       </ul>

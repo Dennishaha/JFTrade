@@ -268,11 +268,11 @@ const {
   align-items: center;
   gap: 7px;
   border: 0;
-  border-bottom: 1px solid color-mix(in srgb, #ef4444 42%, var(--tv-border));
+  border-bottom: 1px solid color-mix(in srgb, var(--jf-accent-red) 42%, var(--tv-border));
   border-radius: 0;
-  background: color-mix(in srgb, #ef4444 9%, var(--tv-bg-surface));
+  background: color-mix(in srgb, var(--jf-accent-red) 9%, var(--tv-bg-surface));
   padding: 0 4px 0 8px;
-  color: color-mix(in srgb, #fca5a5 78%, var(--tv-text));
+  color: color-mix(in srgb, var(--jf-accent-red-text) 78%, var(--tv-text));
   font-size: 0.76rem;
   text-align: left;
 }

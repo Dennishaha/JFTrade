@@ -128,7 +128,7 @@ const realTradingStatus = computed(() => {
 }
 
 .trading-scope-bar--real {
-  border-color: color-mix(in srgb, #dc2626 44%, var(--tv-border));
+  border-color: color-mix(in srgb, var(--jf-accent-red-strong) 44%, var(--tv-border));
   background: color-mix(in srgb, #fee2e2 16%, var(--tv-bg-surface));
 }
 
@@ -159,9 +159,9 @@ const realTradingStatus = computed(() => {
 
 .trading-scope-bar__chip--real,
 .trading-scope-bar__status--real {
-  border-color: color-mix(in srgb, #dc2626 58%, var(--tv-border));
-  background: color-mix(in srgb, #dc2626 13%, var(--tv-bg-surface));
-  color: color-mix(in srgb, #dc2626 86%, var(--tv-text));
+  border-color: color-mix(in srgb, var(--jf-accent-red-strong) 58%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-red-strong) 13%, var(--tv-bg-surface));
+  color: color-mix(in srgb, var(--jf-accent-red-strong) 86%, var(--tv-text));
 }
 
 .trading-scope-bar__items {

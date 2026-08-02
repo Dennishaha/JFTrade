@@ -219,13 +219,13 @@ const {
 
 .stock-screener-view__status.is-有未保存修改,
 .stock-screener-view__status.is-待更新 {
-  border-color: color-mix(in srgb, #d99a2b 60%, var(--tv-border));
-  color: #d99a2b;
+  border-color: color-mix(in srgb, var(--jf-accent-amber-muted) 60%, var(--tv-border));
+  color: var(--jf-accent-amber-muted);
 }
 
 .stock-screener-view__status.is-error {
-  border-color: color-mix(in srgb, #d55353 60%, var(--tv-border));
-  color: #d55353;
+  border-color: color-mix(in srgb, var(--jf-accent-red-muted) 60%, var(--tv-border));
+  color: var(--jf-accent-red-muted);
 }
 
 .stock-screener-view__run {

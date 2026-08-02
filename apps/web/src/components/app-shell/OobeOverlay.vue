@@ -425,7 +425,7 @@ async function goToAccountStep(): Promise<void> {
 .oobe-page {
   min-height: 100vh;
   overflow: auto;
-  background: color-mix(in srgb, var(--tv-bg-app) 90%, #ffffff 10%);
+  background: color-mix(in srgb, var(--tv-bg-app) 90%, var(--jf-white) 10%);
   padding: 24px;
 }
 
@@ -506,7 +506,7 @@ async function goToAccountStep(): Promise<void> {
 }
 
 .oobe-steps button.active {
-  border-color: #2563eb;
+  border-color: var(--jf-accent-blue);
   color: var(--card-text-1);
 }
 
@@ -521,8 +521,8 @@ async function goToAccountStep(): Promise<void> {
   height: 24px;
   place-items: center;
   border-radius: 999px;
-  background: #2563eb;
-  color: #ffffff;
+  background: var(--jf-accent-blue);
+  color: var(--jf-white);
   font-size: var(--jf-text-6);
   font-weight: 800;
 }
@@ -564,8 +564,8 @@ async function goToAccountStep(): Promise<void> {
 }
 
 .oobe-broker-card.selected {
-  border-color: #2563eb;
-  background: color-mix(in srgb, #2563eb 10%, var(--card-surface));
+  border-color: var(--jf-accent-blue);
+  background: color-mix(in srgb, var(--jf-accent-blue) 10%, var(--card-surface));
 }
 
 .oobe-broker-card span {

@@ -71,7 +71,7 @@ const consoleRefreshIssueTitle = computed(() =>
       风控状态 {{ killActive ? "已激活" : "正常" }}
     </span>
     <span>存储：{{ systemStatus.persistence.engine }} / {{ formatGenericStatusLabel(systemStatus.persistence.status) }}</span>
-    <span style="flex: 1"></span>
+    <span class="flex-1"></span>
     <span>
       选定账户：
       {{
@@ -80,7 +80,7 @@ const consoleRefreshIssueTitle = computed(() =>
           : `${systemStatus.broker.displayName}/${formatTradingEnvironment(systemStatus.defaultTradingEnvironment)}`
       }}
     </span>
-    <span style="font-variant-numeric: tabular-nums">{{ clock }} 本地时间</span>
+    <span class="tabular-nums">{{ clock }} 本地时间</span>
     <span
       id="workspace-provider-statusbar"
       class="tv-statusbar__provider"

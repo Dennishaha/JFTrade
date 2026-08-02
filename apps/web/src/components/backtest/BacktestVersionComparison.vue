@@ -288,14 +288,14 @@ const {
 }
 
 .bt-version-compare-notice--warning {
-  border-color: color-mix(in srgb, #f59e0b 46%, var(--tv-border));
-  background: color-mix(in srgb, #f59e0b 10%, var(--tv-bg-surface));
-  color: color-mix(in srgb, #fbbf24 72%, var(--tv-text));
+  border-color: color-mix(in srgb, var(--jf-accent-amber) 46%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-amber) 10%, var(--tv-bg-surface));
+  color: color-mix(in srgb, var(--jf-accent-amber-text) 72%, var(--tv-text));
 }
 
 .bt-version-compare-notice--ok {
-  border-color: color-mix(in srgb, #22c55e 48%, var(--tv-border));
-  background: color-mix(in srgb, #22c55e 10%, var(--tv-bg-surface));
+  border-color: color-mix(in srgb, var(--jf-accent-green) 48%, var(--tv-border));
+  background: color-mix(in srgb, var(--jf-accent-green) 10%, var(--tv-bg-surface));
   color: color-mix(in srgb, #86efac 72%, var(--tv-text));
 }
 
@@ -356,7 +356,7 @@ const {
 }
 
 .bt-version-compare-config .is-different {
-  background: color-mix(in srgb, #f59e0b 8%, var(--tv-bg-surface));
+  background: color-mix(in srgb, var(--jf-accent-amber) 8%, var(--tv-bg-surface));
   color: var(--tv-text);
 }
 

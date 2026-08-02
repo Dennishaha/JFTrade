@@ -52,8 +52,7 @@ function switchEnvironment(value: unknown): void {
         <span>选择账户</span>
         <button
           type="button"
-          class="tv-btn tv-btn-ghost"
-          style="height: 28px; padding: 0 8px; font-size: 11px"
+          class="tv-btn tv-btn-ghost jf-btn-sm"
           data-testid="topbar-broker-account-picker-close"
           @click="$emit('update:open', false)"
         >

@@ -68,13 +68,13 @@ const accessibleLabel = computed(
 
 .watchlist-favorite-button:hover:not(:disabled),
 .watchlist-favorite-button.is-active {
-  background: color-mix(in srgb, #eab308 12%, transparent);
-  color: #eab308;
+  background: color-mix(in srgb, var(--jf-accent-yellow) 12%, transparent);
+  color: var(--jf-accent-yellow);
 }
 
 .watchlist-favorite-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, #eab308 35%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--jf-accent-yellow) 35%, transparent);
 }
 
 .watchlist-favorite-button:disabled {

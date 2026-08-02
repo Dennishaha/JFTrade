@@ -247,8 +247,7 @@ function showLatestTimeline(): void {
           :key="hint"
           size="small"
           variant="outlined"
-          class="ma-1"
-          style="cursor: pointer"
+          class="ma-1 cursor-pointer"
           @click="$emit('update:chatDraft', hint)"
         >
           {{ hint }}

@@ -94,19 +94,18 @@ function fmt(at: string): string {
 </script>
 
 <template>
-  <div style="display: flex; flex-direction: column; height: 100%; min-height: 0">
-    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 10px; border-bottom: 1px solid var(--tv-border)">
+  <div class="flex h-full min-h-0 flex-col">
+    <div class="jf-filter-bar">
       <div class="tv-seg">
         <button :class="{ 'is-active': statusFilter === 'all' }" @click="statusFilter = 'all'">全部</button>
         <button :class="{ 'is-active': statusFilter === 'unread' }" @click="statusFilter = 'unread'">未读</button>
       </div>
-      <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--tv-text-muted)">
+      <label class="jf-filter-label">
         <span>级别</span>
         <select
           v-model="levelFilter"
           data-testid="notification-level-filter"
-          class="tv-select"
-          style="height: 26px; min-width: 96px; font-size: 11px"
+          class="tv-select jf-select-compact min-w-24"
         >
           <option value="all">全部级别</option>
           <option value="info">提示</option>
@@ -115,52 +114,50 @@ function fmt(at: string): string {
           <option value="error">错误</option>
         </select>
       </label>
-      <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--tv-text-muted)">
+      <label class="jf-filter-label">
         <span>来源</span>
         <select
           v-model="sourceFilter"
           data-testid="notification-source-filter"
-          class="tv-select"
-          style="height: 26px; min-width: 128px; font-size: 11px"
+          class="tv-select jf-select-compact min-w-32"
         >
           <option value="all">全部来源</option>
           <option v-for="source in sourceOptions" :key="source" :value="source">{{ formatNotificationSource(source) }}</option>
         </select>
       </label>
-      <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--tv-text-muted)">
+      <label class="jf-filter-label">
         <span>分类</span>
         <select
           v-model="categoryFilter"
           data-testid="notification-category-filter"
-          class="tv-select"
-          style="height: 26px; min-width: 156px; font-size: 11px"
+          class="tv-select jf-select-compact min-w-[156px]"
         >
           <option value="all">全部分类</option>
           <option v-for="category in categoryOptions" :key="category" :value="category">{{ formatNotificationCategory(category) }}</option>
         </select>
       </label>
-      <div style="flex: 1"></div>
-      <button class="tv-btn tv-btn-ghost" style="height: 26px; font-size: 11px" @click="markAllRead">全部标记已读</button>
-      <button class="tv-btn tv-btn-ghost" style="height: 26px; font-size: 11px" @click="clear">清空</button>
+      <div class="flex-1"></div>
+      <button class="tv-btn tv-btn-ghost jf-btn-compact" @click="markAllRead">全部标记已读</button>
+      <button class="tv-btn tv-btn-ghost jf-btn-compact" @click="clear">清空</button>
     </div>
-    <div style="flex: 1; overflow-y: auto; padding: 10px">
+    <div class="flex-1 overflow-y-auto p-2.5">
       <div
         v-for="item in visible"
         :key="item.id"
         class="tv-noti-item"
         :class="[{ 'is-unread': !item.read }, `level-${item.level}`]"
       >
-        <div style="display: flex; justify-content: space-between; gap: 8px">
-          <div style="font-weight: 600">{{ item.title }}</div>
-          <div style="color: var(--tv-text-dim); font-size: 11px" :title="formatDateTime(item.at)">{{ fmt(item.at) }}</div>
+        <div class="flex justify-between gap-2">
+          <div class="font-semibold">{{ item.title }}</div>
+          <div class="jf-note" :title="formatDateTime(item.at)">{{ fmt(item.at) }}</div>
         </div>
-        <div v-if="item.message" style="margin-top: 4px; color: var(--tv-text-muted)">{{ item.message }}</div>
-        <div style="display: flex; justify-content: space-between; margin-top: 4px; color: var(--tv-text-dim); font-size: 11px">
+        <div v-if="item.message" class="jf-text-muted mt-1">{{ item.message }}</div>
+        <div class="jf-note mt-1 flex justify-between">
           <span>{{ formatNotificationMeta(item) }}</span>
-          <button class="tv-btn tv-btn-ghost" style="height: 20px; font-size: 10px; padding: 0 6px" @click="remove(item.id)">×</button>
+          <button class="tv-btn tv-btn-ghost jf-btn-tiny" @click="remove(item.id)">×</button>
         </div>
       </div>
-      <div v-if="visible.length === 0" style="color: var(--tv-text-dim); text-align: center; padding: 24px 0; font-size: 12px">
+      <div v-if="visible.length === 0" class="jf-text-dim py-6 text-center text-[var(--jf-text-6)]">
         {{ items.length === 0 ? "暂无通知" : "当前筛选条件下暂无通知" }}
       </div>
     </div>

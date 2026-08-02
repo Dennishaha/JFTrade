@@ -112,7 +112,7 @@ defineEmits<{
   transform: translate(-50%, 8px);
   border-radius: 5px 5px 0 0;
   background: var(--tv-toolbar-action-tone);
-  color: #fff;
+  color: var(--jf-white);
   font-size: var(--jf-text-5);
   font-weight: 600;
   line-height: 24px;
@@ -132,7 +132,7 @@ defineEmits<{
 
 .tv-toolbar-action:hover,
 .tv-toolbar-action:focus-visible {
-  color: #fff;
+  color: var(--jf-white);
   outline: 0;
 }
 
