@@ -109,7 +109,7 @@ const {
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   color: rgb(15 23 42);
 }
 
@@ -119,13 +119,13 @@ const {
 }
 
 .adk-slash-menu__title {
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 600;
   color: rgb(15 23 42);
 }
 
 .adk-slash-menu__desc {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   color: rgb(100 116 139);
 }
 

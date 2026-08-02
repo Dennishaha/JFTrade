@@ -652,7 +652,7 @@ watch(
   padding: 4px 8px;
   background: color-mix(in srgb, var(--tv-bg-surface) 86%, transparent);
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .tv-chart-history-status.is-error {
@@ -668,7 +668,7 @@ watch(
   place-items: center;
   background: var(--tv-bg-surface);
   color: var(--tv-text-muted);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
 }
 
 .tv-chart-host :deep(.kline-chart-shell) {

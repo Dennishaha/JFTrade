@@ -52,7 +52,7 @@ defineProps<{
   gap: 6px;
   margin-bottom: 8px;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 650;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -63,13 +63,13 @@ defineProps<{
   gap: 6px 12px;
 }
 .risk-strip__item { min-width: 0; }
-.risk-strip__item span { display: block; color: var(--tv-text-dim); font-size: 10px; }
+.risk-strip__item span { display: block; color: var(--tv-text-dim); font-size: var(--jf-text-4); }
 .risk-strip__item b {
   display: block;
   overflow: hidden;
   margin-top: 1px;
   color: var(--tv-status-fg, var(--tv-text));
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;

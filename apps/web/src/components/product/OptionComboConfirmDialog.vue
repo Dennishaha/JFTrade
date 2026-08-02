@@ -155,13 +155,13 @@ watch(
 .combo-confirm small,
 .combo-confirm label {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .combo-confirm dd {
   margin: 0;
   color: var(--tv-text);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .combo-confirm__legs {

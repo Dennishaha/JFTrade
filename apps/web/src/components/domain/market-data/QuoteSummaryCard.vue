@@ -291,7 +291,7 @@ function cutoffLabel(card: MarketSnapshotDisplayCard): string {
 .quote-summary__price-label,
 .quote-summary__extended-label {
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -306,13 +306,13 @@ function cutoffLabel(card: MarketSnapshotDisplayCard): string {
 
 .quote-summary__price {
   color: var(--tv-text);
-  font-size: 38px;
+  font-size: var(--jf-text-18);
   font-weight: 650;
   line-height: 1;
 }
 
 .quote-summary__change {
-  font-size: 16px;
+  font-size: var(--jf-text-10);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -325,7 +325,7 @@ function cutoffLabel(card: MarketSnapshotDisplayCard): string {
   flex-wrap: wrap;
   margin-top: 10px;
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .quote-summary__session {
@@ -402,23 +402,23 @@ function cutoffLabel(card: MarketSnapshotDisplayCard): string {
 
 .quote-summary__extended-price {
   color: var(--tv-text);
-  font-size: 24px;
+  font-size: var(--jf-text-14);
   font-weight: 600;
   line-height: 1;
 }
 
 .quote-summary__extended-change {
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 600;
 }
 
 @container quote-summary (max-width: 400px) {
   .quote-summary__price {
-    font-size: 34px;
+    font-size: var(--jf-text-17);
   }
 
   .quote-summary__change {
-    font-size: 14px;
+    font-size: var(--jf-text-8);
   }
 
   .quote-summary__source {

@@ -167,7 +167,7 @@ function handlePeriodChange(event: Event): void {
   background: transparent;
   color: var(--tv-text);
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 600;
 }
 
@@ -186,7 +186,7 @@ function handlePeriodChange(event: Event): void {
   position: absolute;
   right: 8px;
   color: var(--tv-text-muted);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   pointer-events: none;
 }
 
@@ -202,7 +202,7 @@ function handlePeriodChange(event: Event): void {
   flex: 0 1 auto;
   overflow: hidden;
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

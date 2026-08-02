@@ -297,7 +297,7 @@ function close(): void {
 
 .earnings-filter-drawer__header h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--jf-text-13);
   font-weight: 650;
 }
 
@@ -342,7 +342,7 @@ function close(): void {
   grid-template-columns: 118px minmax(0, 1fr);
   align-items: center;
   color: var(--tv-text);
-  font-size: 14px;
+  font-size: var(--jf-text-8);
   font-weight: 600;
 }
 
@@ -364,7 +364,7 @@ function close(): void {
 
 .earnings-filter-drawer__label {
   color: var(--tv-text);
-  font-size: 14px;
+  font-size: var(--jf-text-8);
   font-weight: 600;
 }
 
@@ -416,7 +416,7 @@ function close(): void {
 .earnings-filter-drawer__range small {
   grid-column: 2 / -1;
   color: var(--tv-status-error-fg);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .earnings-filter-drawer__footer {

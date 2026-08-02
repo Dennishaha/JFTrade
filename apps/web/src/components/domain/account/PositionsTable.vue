@@ -161,6 +161,6 @@ function formatPositionProduct(value: string | null | undefined): string {
   justify-content: center;
   padding: 48px 12px;
   color: var(--tv-text-dim);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 </style>

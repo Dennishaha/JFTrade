@@ -231,11 +231,11 @@ onBeforeUnmount(() => {
   padding: 2px 2px 0;
 }
 
-.watchlist-page__eyebrow { color: var(--tv-accent); font-size: 9px; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
+.watchlist-page__eyebrow { color: var(--tv-accent); font-size: var(--jf-text-3); font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
 .watchlist-page__title-row { display: flex; align-items: baseline; gap: 12px; }
-.watchlist-page__title-row h1 { margin: 2px 0 0; color: var(--tv-text); font-size: 24px; font-weight: 680; letter-spacing: -.02em; }
-.watchlist-page__title-row span { color: var(--tv-text-dim); font-size: 11px; }
-.watchlist-page__header p { margin: 2px 0 0; color: var(--tv-text-dim); font-size: 11px; }
+.watchlist-page__title-row h1 { margin: 2px 0 0; color: var(--tv-text); font-size: var(--jf-text-14); font-weight: 680; letter-spacing: -.02em; }
+.watchlist-page__title-row span { color: var(--tv-text-dim); font-size: var(--jf-text-5); }
+.watchlist-page__header p { margin: 2px 0 0; color: var(--tv-text-dim); font-size: var(--jf-text-5); }
 .watchlist-page__header-actions { display: flex; gap: 8px; }
 .watchlist-page__header-actions .tv-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .watchlist-page__import-button { border-color: var(--tv-accent); background: var(--tv-accent); color: #fff; }
@@ -255,20 +255,20 @@ onBeforeUnmount(() => {
 
 .watchlist-page__tabs-row { display: flex; flex: 0 0 auto; align-items: stretch; min-width: 0; border-bottom: 1px solid var(--tv-border); background: var(--tv-bg-surface-2); }
 .watchlist-page__tabs { display: flex; min-width: 0; flex: 1; gap: 2px; padding: 5px 7px 0; overflow-x: auto; scrollbar-width: thin; }
-.watchlist-page__tabs button { position: relative; flex: 0 0 auto; padding: 8px 11px 9px; border: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--tv-text-muted); font-size: 11px; cursor: pointer; }
-.watchlist-page__tabs button span { margin-left: 4px; color: var(--tv-text-dim); font-size: 9px; }
+.watchlist-page__tabs button { position: relative; flex: 0 0 auto; padding: 8px 11px 9px; border: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--tv-text-muted); font-size: var(--jf-text-5); cursor: pointer; }
+.watchlist-page__tabs button span { margin-left: 4px; color: var(--tv-text-dim); font-size: var(--jf-text-3); }
 .watchlist-page__tabs button.is-active { background: var(--tv-bg-surface); color: var(--tv-text); font-weight: 650; }
 .watchlist-page__tabs button.is-active::after { position: absolute; right: 8px; bottom: -1px; left: 8px; height: 2px; background: var(--tv-accent); content: ""; }
-.watchlist-page__add-group { width: 40px; flex: 0 0 auto; border: 0; border-left: 1px solid var(--tv-border); background: transparent; color: var(--tv-text-muted); font-size: 18px; }
+.watchlist-page__add-group { width: 40px; flex: 0 0 auto; border: 0; border-left: 1px solid var(--tv-border); background: transparent; color: var(--tv-text-muted); font-size: var(--jf-text-12); }
 
 .watchlist-page__filters { display: flex; min-height: 43px; flex: 0 0 auto; align-items: center; gap: 10px; padding: 6px 9px; border-bottom: 1px solid var(--tv-border); }
 .watchlist-page__search { display: flex; width: min(360px, 42vw); height: 30px; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid var(--tv-border); border-radius: 6px; background: var(--tv-bg-surface-2); color: var(--tv-text-dim); }
-.watchlist-page__search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--tv-text); font-size: 11px; }
+.watchlist-page__search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--tv-text); font-size: var(--jf-text-5); }
 .watchlist-page__search button { border: 0; background: transparent; color: var(--tv-text-dim); }
-.watchlist-page__market-filter { display: flex; height: 30px; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid var(--tv-border); border-radius: 6px; color: var(--tv-text-dim); font-size: 10px; }
-.watchlist-page__market-filter select { border: 0; outline: 0; background: transparent; color: var(--tv-text); font-size: 11px; }
-.watchlist-page__polling-state { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--tv-text-dim); font-size: 10px; white-space: nowrap; }
-.watchlist-page__error { display: flex; align-items: center; gap: 8px; padding: 8px 11px; border-bottom-width: 1px; border-bottom-style: solid; font-size: 11px; }
+.watchlist-page__market-filter { display: flex; height: 30px; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid var(--tv-border); border-radius: 6px; color: var(--tv-text-dim); font-size: var(--jf-text-4); }
+.watchlist-page__market-filter select { border: 0; outline: 0; background: transparent; color: var(--tv-text); font-size: var(--jf-text-5); }
+.watchlist-page__polling-state { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--tv-text-dim); font-size: var(--jf-text-4); white-space: nowrap; }
+.watchlist-page__error { display: flex; align-items: center; gap: 8px; padding: 8px 11px; border-bottom-width: 1px; border-bottom-style: solid; font-size: var(--jf-text-5); }
 .watchlist-page__error button { margin-left: auto; border: 0; background: transparent; color: inherit; text-decoration: underline; }
 
 @media (max-width: 780px) {

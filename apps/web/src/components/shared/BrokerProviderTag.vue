@@ -723,7 +723,7 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--tv-text) 3%, var(--tv-bg-surface));
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   line-height: 1;
   user-select: none;
 }
@@ -766,7 +766,7 @@ onBeforeUnmount(() => {
 
 .broker-provider-tag__chevron {
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   transform: translateY(-1px);
 }
 

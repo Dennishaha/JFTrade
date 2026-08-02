@@ -99,7 +99,7 @@ function statusClass(status: string): string {
 .strategy-risk__refresh {
   height: 24px;
   padding: 0 10px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .strategy-risk__body {
@@ -111,7 +111,7 @@ function statusClass(status: string): string {
   padding: 7px 10px;
   border: 1px solid;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .strategy-risk__grid {
@@ -140,7 +140,7 @@ function statusClass(status: string): string {
 
 .strategy-risk__instance-head b {
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
 }
 
@@ -148,7 +148,7 @@ function statusClass(status: string): string {
   padding: 2px 8px;
   border: 1px solid;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   white-space: nowrap;
 }
 
@@ -156,7 +156,7 @@ function statusClass(status: string): string {
   overflow: hidden;
   margin-top: 2px;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -164,7 +164,7 @@ function statusClass(status: string): string {
 .strategy-risk__instance-summary {
   margin-top: 4px;
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .strategy-risk__mode:disabled {
@@ -175,7 +175,7 @@ function statusClass(status: string): string {
 .strategy-risk__empty {
   padding: 14px 2px;
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 @media (max-width: 1180px) {

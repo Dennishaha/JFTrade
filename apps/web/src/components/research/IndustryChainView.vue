@@ -381,7 +381,7 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
   grid-template-columns: minmax(210px, 280px) minmax(0, 1fr);
   gap: 8px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .industry-chain__master,
@@ -565,7 +565,7 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
 .industry-chain__layers button small,
 .industry-chain__layers button i {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-style: normal;
 }
 

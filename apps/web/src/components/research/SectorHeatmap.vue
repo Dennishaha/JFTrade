@@ -171,7 +171,7 @@ function tooltip(item: HeatmapItem): string {
   height: 100%;
   place-items: center;
   color: var(--tv-text-dim);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .sector-heatmap__block {
@@ -187,7 +187,7 @@ function tooltip(item: HeatmapItem): string {
   border-radius: 2px;
   color: var(--tv-text);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   line-height: 1.3;
   text-align: left;
 }
@@ -205,12 +205,12 @@ function tooltip(item: HeatmapItem): string {
 }
 
 .sector-heatmap__change {
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   opacity: 0.9;
 }
 
 .sector-heatmap__block--name .sector-heatmap__name {
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 500;
 }
 </style>

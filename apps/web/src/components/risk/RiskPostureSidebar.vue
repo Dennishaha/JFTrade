@@ -80,7 +80,7 @@ defineEmits<{ refresh: [] }>();
 .risk-sidebar__name {
   overflow: hidden;
   color: var(--tv-text);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -91,21 +91,21 @@ defineEmits<{ refresh: [] }>();
   align-items: center;
   gap: 6px;
   color: var(--tv-status-fg, var(--tv-text-dim));
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 .risk-sidebar__posture { padding: 14px; border-bottom: 1px solid var(--tv-border); }
-.risk-sidebar__posture-label { color: var(--tv-text-muted); font-size: 11px; }
+.risk-sidebar__posture-label { color: var(--tv-text-muted); font-size: var(--jf-text-5); }
 .risk-sidebar__posture-value {
   margin-top: 4px;
   color: var(--tv-status-fg, var(--tv-text));
-  font-size: 26px;
+  font-size: var(--jf-text-15);
   font-weight: 680;
   letter-spacing: -0.02em;
 }
 .risk-sidebar__posture-hint {
   margin-top: 6px;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   line-height: 1.6;
 }
 .risk-sidebar__rows {
@@ -121,11 +121,11 @@ defineEmits<{ refresh: [] }>();
   justify-content: space-between;
   padding: 3px 0;
 }
-.risk-sidebar__row { font-size: 12px; }
+.risk-sidebar__row { font-size: var(--jf-text-6); }
 .risk-sidebar__row span { color: var(--tv-text-muted); }
 .risk-sidebar__row b { color: var(--tv-status-fg, var(--tv-text)); font-weight: 550; }
 .risk-sidebar__facts { display: grid; gap: 2px; padding: 10px 14px 14px; }
-.risk-sidebar__fact { gap: 10px; font-size: 11px; }
+.risk-sidebar__fact { gap: 10px; font-size: var(--jf-text-5); }
 .risk-sidebar__fact span { flex: 0 0 auto; color: var(--tv-text-dim); }
 .risk-sidebar__fact b {
   overflow: hidden;
@@ -135,7 +135,7 @@ defineEmits<{ refresh: [] }>();
   white-space: nowrap;
 }
 .risk-sidebar__footer { margin-top: auto; padding: 10px 14px 14px; }
-.risk-sidebar__refresh { width: 100%; height: 30px; font-size: 12px; }
+.risk-sidebar__refresh { width: 100%; height: 30px; font-size: var(--jf-text-6); }
 @media (max-width: 1180px) {
   .risk-sidebar { width: 100%; flex: 0 0 auto; }
   .risk-sidebar__facts { grid-template-columns: 1fr 1fr; column-gap: 16px; }

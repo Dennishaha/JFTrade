@@ -412,7 +412,7 @@ onMounted(() => {
   flex: 0 0 auto;
   height: 28px;
   padding: 0 8px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .tv-topbar-spacer {
@@ -426,7 +426,7 @@ onMounted(() => {
   gap: 8px;
   min-width: 0;
   color: var(--tv-text-muted);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
 }
 
 .tv-topbar-env-control {
@@ -443,7 +443,7 @@ onMounted(() => {
   height: 26px;
   min-height: 26px;
   padding-inline: 10px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 :global(.tv-topbar-env-toggle) {
@@ -464,7 +464,7 @@ onMounted(() => {
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .tv-topbar-actions {
@@ -541,7 +541,7 @@ onMounted(() => {
   .tv-topbar-brand {
     min-width: 0;
     letter-spacing: 0.06em;
-    font-size: 11px;
+    font-size: var(--jf-text-5);
   }
 
   .tv-topbar--compact .tv-topbar-brand {
@@ -587,7 +587,7 @@ onMounted(() => {
     max-width: none;
     padding: 0 6px;
     text-align: center;
-    font-size: 10px;
+    font-size: var(--jf-text-4);
   }
 
   .tv-topbar--compact .tv-topbar-actions {

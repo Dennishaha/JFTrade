@@ -190,7 +190,7 @@ body {
   padding: 1rem;
   text-align: center;
   color: var(--tv-text-dim);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   pointer-events: none;
 }
 
@@ -287,7 +287,7 @@ body {
   padding: 0 16px;
   border-bottom: 1px solid var(--tv-border);
   background: var(--tv-bg-surface);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
 }
 
 .tv-iconrail {
@@ -323,7 +323,7 @@ body {
   transition:
     background-color 120ms ease,
     color 120ms ease;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   text-decoration: none;
   user-select: none;
 }
@@ -342,14 +342,14 @@ body {
   display: block;
   height: 18px;
   width: auto;
-  font-size: 18px;
+  font-size: var(--jf-text-12);
   line-height: 1;
   text-align: center;
 }
 
 .tv-iconrail-btn .tv-iconrail-glyph--external {
   height: 20px;
-  font-size: 20px;
+  font-size: var(--jf-text-13);
 }
 
 .tv-shell-backdrop {
@@ -447,7 +447,7 @@ body {
   padding: 0 16px;
   border-top: 1px solid var(--tv-border);
   background: var(--tv-bg-surface);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   color: var(--tv-text-muted);
   letter-spacing: 0.04em;
 }
@@ -501,7 +501,7 @@ body {
   border: 0;
   outline: none;
   color: var(--tv-text);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
 }
 
 .tv-topbar-symbol select {
@@ -547,7 +547,7 @@ body {
   border-radius: 7px;
   background: var(--tv-accent-strong);
   color: #fff;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   line-height: 14px;
   font-weight: 600;
 }
@@ -688,7 +688,7 @@ body {
   height: 36px;
   padding: 0 10px;
   border-bottom: 1px solid var(--tv-border);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
   color: var(--tv-text);
   background: var(--tv-bg-surface-2);
@@ -698,7 +698,7 @@ body {
 .tv-panel-head .tv-panel-title {
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   color: var(--tv-text-muted);
 }
 
@@ -733,7 +733,7 @@ body {
 .tv-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .tv-table th,
@@ -777,7 +777,7 @@ body {
 }
 
 .tv-form-row label {
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   color: var(--tv-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -791,7 +791,7 @@ body {
   color: var(--tv-text);
   padding: 6px 8px;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   outline: none;
 }
 
@@ -810,7 +810,7 @@ body {
   border: 1px solid var(--tv-border);
   background: var(--tv-bg-elevated);
   color: var(--tv-text);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   cursor: pointer;
   gap: 6px;
 }
@@ -844,7 +844,7 @@ body {
   border: 0;
   color: var(--tv-text-muted);
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   cursor: pointer;
 }
 .tv-seg button.is-active {
@@ -888,7 +888,7 @@ body {
   background: transparent;
   color: var(--tv-text);
   padding: 14px 16px;
-  font-size: 14px;
+  font-size: var(--jf-text-8);
   outline: none;
 }
 
@@ -907,7 +907,7 @@ body {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   color: var(--tv-text);
 }
 
@@ -918,7 +918,7 @@ body {
 
 .tv-palette li .tv-palette-hint {
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 /* Right dock tabs */
@@ -933,7 +933,7 @@ body {
   flex: 1;
   text-align: center;
   padding: 10px 8px;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   color: var(--tv-text-muted);
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -959,7 +959,7 @@ body {
   padding: 8px 10px;
   margin-bottom: 8px;
   background: var(--tv-bg-surface-2);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .tv-noti-item.is-unread {
@@ -1025,7 +1025,7 @@ body {
   border: 1px solid var(--tv-border);
   background: color-mix(in srgb, var(--tv-bg-surface) 82%, transparent);
   color: var(--adk-muted-fg);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1;
 }
 
@@ -1103,7 +1103,7 @@ body {
   border-radius: 8px;
   background: color-mix(in srgb, var(--tv-bg-surface) 84%, transparent);
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .adk-run-trace-window button,
@@ -1183,7 +1183,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
   color: var(--tv-text);
   white-space: nowrap;
@@ -1191,7 +1191,7 @@ body {
 
 .adk-run-trace-card__index {
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 500;
 }
 
@@ -1200,7 +1200,7 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   color: var(--tv-text-dim);
   min-width: 0;
 }
@@ -1223,7 +1223,7 @@ body {
 .adk-run-trace-card__chevron {
   flex-shrink: 0;
   color: var(--tv-text-dim);
-  font-size: 16px;
+  font-size: var(--jf-text-10);
   line-height: 1;
 }
 
@@ -1279,7 +1279,7 @@ body {
 
 .adk-child-run-trace__usage {
   color: var(--tv-text-dim);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-child-run-trace__fields {
@@ -1287,7 +1287,7 @@ body {
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 6px 10px;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-child-run-trace__fields dt {
@@ -1321,13 +1321,13 @@ body {
 
 .adk-tool-visual__title {
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 700;
 }
 
 .adk-tool-visual__subtitle {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .adk-tool-visual__summary {
@@ -1364,14 +1364,14 @@ body {
 
 .adk-tool-visual-card__label {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .adk-tool-visual-card__value {
   color: var(--tv-text);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   overflow-wrap: anywhere;
 }
 
@@ -1380,7 +1380,7 @@ body {
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 4px 10px;
   margin: 0;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .adk-tool-visual__rows dt {
@@ -1400,7 +1400,7 @@ body {
 .adk-tool-visual-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .adk-tool-visual-table th,
@@ -1429,7 +1429,7 @@ body {
 .adk-tool-visual-depth__label {
   margin-bottom: 5px;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -1443,7 +1443,7 @@ body {
   overflow: hidden;
   border-radius: 5px;
   color: var(--tv-text);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .adk-tool-visual-depth-row span {
@@ -1507,13 +1507,13 @@ body {
 }
 
 .adk-tool-visual-timeline__main strong {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-tool-visual-timeline__main small,
 .adk-tool-visual-timeline__main span {
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   overflow-wrap: anywhere;
 }
 
@@ -1632,7 +1632,7 @@ body {
 }
 
 .adk-brand {
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1655,7 +1655,7 @@ body {
 }
 
 .adk-session-filters .v-field {
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .adk-session-item {
@@ -1663,7 +1663,7 @@ body {
   align-items: center;
   gap: 6px;
   padding: 7px 14px;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   color: var(--tv-text-muted);
   cursor: pointer;
   border-radius: 0;
@@ -1698,7 +1698,7 @@ body {
   gap: 8px;
   padding: 8px 14px 4px;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1721,7 +1721,7 @@ body {
 .adk-session-group__header small {
   flex: 0 0 auto;
   color: color-mix(in srgb, var(--tv-accent) 72%, var(--tv-text-dim));
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   letter-spacing: 0;
 }
 
@@ -1736,7 +1736,7 @@ body {
   color: var(--tv-text-dim);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1;
   letter-spacing: 0;
   padding: 0;
@@ -1760,7 +1760,7 @@ body {
 .adk-session-agent {
   overflow: hidden;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   line-height: 1.2;
   text-overflow: ellipsis;
 }
@@ -1780,7 +1780,7 @@ body {
 }
 
 .adk-session-empty {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   color: var(--tv-text-dim);
   padding: 16px 14px;
   text-align: center;
@@ -1794,7 +1794,7 @@ body {
 .adk-agent-info {
   display: flex;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   color: var(--tv-text-muted);
   gap: 4px;
 }
@@ -1850,7 +1850,7 @@ body {
 }
 
 .adk-chat-thread--mobile .adk-bubble {
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   line-height: 1.55;
 }
 
@@ -1877,14 +1877,14 @@ body {
 }
 
 .adk-empty-title {
-  font-size: 16px;
+  font-size: var(--jf-text-10);
   font-weight: 600;
   color: var(--tv-text);
   margin: 0;
 }
 
 .adk-empty-hint {
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   color: var(--tv-text-muted);
   max-width: 440px;
   margin: 0;
@@ -1892,11 +1892,11 @@ body {
 }
 
 .adk-empty--mobile .adk-empty-title {
-  font-size: 14px;
+  font-size: var(--jf-text-8);
 }
 
 .adk-empty--mobile .adk-empty-hint {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   max-width: 100%;
 }
 
@@ -1942,7 +1942,7 @@ body {
   border-radius: 8px;
   background: color-mix(in srgb, var(--tv-bg-elevated) 86%, var(--tv-accent) 14%);
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   line-height: 1.4;
 }
 
@@ -1959,7 +1959,7 @@ body {
 .adk-bubble {
   padding: 10px 14px;
   border-radius: 16px;
-  font-size: 14px;
+  font-size: var(--jf-text-8);
   line-height: 1.65;
   white-space: pre-wrap;
   word-break: break-word;
@@ -2005,7 +2005,7 @@ body {
   border-radius: 6px;
   background: transparent;
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   line-height: 1;
   cursor: pointer;
 }
@@ -2036,7 +2036,7 @@ body {
   border: 0;
   background: transparent;
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   cursor: pointer;
 }
 
@@ -2125,7 +2125,7 @@ body {
 }
 
 .adk-json-label {
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--tv-text-dim);
@@ -2134,7 +2134,7 @@ body {
 
 .adk-json {
   font-family: "JetBrains Mono", "Fira Code", monospace;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1.5;
   background: var(--tv-bg-surface);
   border: 1px solid var(--tv-border);
@@ -2166,7 +2166,7 @@ body {
   border-radius: 10px;
   background: var(--adk-success-bg);
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-input-request-notice {
@@ -2192,14 +2192,14 @@ body {
 
 .adk-input-request-notice strong {
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 700;
 }
 
 .adk-input-request-notice span {
   margin-top: 2px;
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .adk-dot {
@@ -2248,7 +2248,7 @@ body {
   padding: 0;
   background: transparent;
   color: var(--adk-accent-fg);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 700;
   cursor: pointer;
 }
@@ -2260,7 +2260,7 @@ body {
 
 .adk-inline-alert__detail {
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   line-height: 1.45;
   opacity: 0.86;
 }
@@ -2305,7 +2305,7 @@ body {
   gap: 6px;
   padding: 9px 16px 0;
   color: var(--adk-warning-fg);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-composer-input {
@@ -2345,7 +2345,7 @@ body {
 
 .adk-composer-controls .v-field {
   color: var(--tv-text-muted);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
 }
 
 .adk-composer-controls .v-field__input {
@@ -2423,7 +2423,7 @@ body {
 }
 
 .adk-drawer-title {
-  font-size: 15px;
+  font-size: var(--jf-text-9);
   font-weight: 600;
   color: var(--tv-text);
   flex: 1;
@@ -2553,7 +2553,7 @@ body {
 
 .auth-gate__brand {
   color: #60a5fa;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 700;
   letter-spacing: 0.16em;
 }

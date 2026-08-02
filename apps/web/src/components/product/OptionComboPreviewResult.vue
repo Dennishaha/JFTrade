@@ -50,7 +50,7 @@ function valueText(value: number | null | undefined): string {
   border: 1px solid var(--tv-status-success-border);
   background: var(--tv-status-success-bg);
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   white-space: nowrap;
 }
 

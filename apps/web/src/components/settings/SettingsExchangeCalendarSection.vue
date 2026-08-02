@@ -370,7 +370,7 @@ function currentSourceError(source: CalendarSourceStatus): string {
             </button>
           </div>
           <p class="mt-3 text-xs leading-5 opacity-90 dark:opacity-95">{{ marketModeDescription(market) }}</p>
-          <div class="mt-3 text-[11px] opacity-75 dark:opacity-80">检查时间 {{ formatDateTime(market.checkedAt) }}</div>
+          <div class="mt-3 text-(length:--jf-text-5) opacity-75 dark:opacity-80">检查时间 {{ formatDateTime(market.checkedAt) }}</div>
         </article>
       </section>
 
@@ -390,17 +390,17 @@ function currentSourceError(source: CalendarSourceStatus): string {
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                   <div class="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{{ source.id }}</div>
-                  <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{{ source.kind }} / {{ source.authority }}</div>
+                  <div class="mt-1 text-(length:--jf-text-5) text-slate-500 dark:text-slate-400">{{ source.kind }} / {{ source.authority }}</div>
                 </div>
-                <span class="shrink-0 rounded border px-2 py-0.5 text-[11px] font-medium" :class="healthClass(source)">{{ healthLabel(source) }}</span>
+                <span class="shrink-0 rounded border px-2 py-0.5 text-(length:--jf-text-5) font-medium" :class="healthClass(source)">{{ healthLabel(source) }}</span>
               </div>
               <div class="mt-2 flex flex-wrap gap-1">
-                <span v-for="market in source.markets" :key="`${source.id}-${market}`" class="rounded border border-slate-200 px-1.5 py-0.5 text-[11px] text-slate-500 dark:border-slate-700 dark:text-slate-400">{{ market }}</span>
+                <span v-for="market in source.markets" :key="`${source.id}-${market}`" class="rounded border border-slate-200 px-1.5 py-0.5 text-(length:--jf-text-5) text-slate-500 dark:border-slate-700 dark:text-slate-400">{{ market }}</span>
               </div>
-              <div class="mt-2 text-[11px]" :class="activeSourceIDs.has(source.id) ? 'font-semibold text-emerald-700 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'">
+              <div class="mt-2 text-(length:--jf-text-5)" :class="activeSourceIDs.has(source.id) ? 'font-semibold text-emerald-700 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'">
                 {{ sourceUsageLabel(source) }}
               </div>
-              <div v-if="currentSourceError(source)" class="mt-1 line-clamp-2 text-[11px] text-rose-600 dark:text-rose-300">
+              <div v-if="currentSourceError(source)" class="mt-1 line-clamp-2 text-(length:--jf-text-5) text-rose-600 dark:text-rose-300">
                 {{ currentSourceError(source) }}
               </div>
             </button>
@@ -512,7 +512,7 @@ function currentSourceError(source: CalendarSourceStatus): string {
                   </div>
                   <div>
                     <dt class="text-slate-400 dark:text-slate-500">校验值</dt>
-                    <dd class="mt-1 break-all font-mono text-[11px] text-slate-600 dark:text-slate-400">{{ snapshot.checksum || "-" }}</dd>
+                    <dd class="mt-1 break-all font-mono text-(length:--jf-text-5) text-slate-600 dark:text-slate-400">{{ snapshot.checksum || "-" }}</dd>
                   </div>
                 </dl>
                 <div v-if="snapshot.sampleSchedules?.length" class="mt-4 flex flex-wrap gap-2">

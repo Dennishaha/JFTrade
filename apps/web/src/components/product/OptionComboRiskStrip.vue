@@ -50,14 +50,14 @@ function bound(
   border-top: 1px solid var(--tv-border);
   border-bottom: 1px solid var(--tv-border);
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   white-space: nowrap;
 }
 
 .combo-risk-strip strong {
   margin-left: 4px;
   color: var(--tv-text);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-variant-numeric: tabular-nums;
 }
 

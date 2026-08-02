@@ -145,18 +145,18 @@ watch(groups, (next) => {
 <style scoped>
 .workspace-watchlist { display: flex; width: 100%; height: 100%; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border-right: 1px solid var(--tv-border); background: var(--tv-bg-surface); color: var(--tv-text); }
 .workspace-watchlist__header { display: flex; height: 45px; flex: 0 0 auto; align-items: center; justify-content: space-between; padding: 0 8px 0 11px; border-bottom: 1px solid var(--tv-border); background: var(--tv-bg-surface-2); }
-.workspace-watchlist__header span { font-size: 12px; font-weight: 700; }
+.workspace-watchlist__header span { font-size: var(--jf-text-6); font-weight: 700; }
 .workspace-watchlist__header button,
 .workspace-watchlist__group-row button { width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: var(--tv-text-muted); }
 .workspace-watchlist__header button:hover,
 .workspace-watchlist__group-row button:hover { background: var(--tv-bg-elevated); color: var(--tv-text); }
 .workspace-watchlist__group-row { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; padding: 6px; border-bottom: 1px solid var(--tv-border); }
-.workspace-watchlist__group-row select { min-width: 0; height: 29px; flex: 1; padding: 0 7px; border: 1px solid var(--tv-border); border-radius: 5px; outline: 0; background: var(--tv-bg-surface-2); color: var(--tv-text); font-size: 10px; }
-.workspace-watchlist__error { display: flex; align-items: center; gap: 5px; padding: 6px 8px; font-size: 9px; }
+.workspace-watchlist__group-row select { min-width: 0; height: 29px; flex: 1; padding: 0 7px; border: 1px solid var(--tv-border); border-radius: 5px; outline: 0; background: var(--tv-bg-surface-2); color: var(--tv-text); font-size: var(--jf-text-4); }
+.workspace-watchlist__error { display: flex; align-items: center; gap: 5px; padding: 6px 8px; font-size: var(--jf-text-3); }
 .workspace-watchlist__error span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-watchlist__error button { border: 0; background: transparent; color: inherit; text-decoration: underline; }
 .workspace-watchlist footer { display: flex; min-height: 33px; flex: 0 0 auto; align-items: center; justify-content: center; border-top: 1px solid var(--tv-border); background: var(--tv-bg-surface-2); }
-.workspace-watchlist footer button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--tv-text-muted); font-size: 10px; }
+.workspace-watchlist footer button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--tv-text-muted); font-size: var(--jf-text-4); }
 .workspace-watchlist footer button:hover { color: var(--tv-accent); }
 .workspace-watchlist--compact { border-right: 0; box-shadow: 18px 0 42px rgba(2, 6, 23, .3); }
 </style>

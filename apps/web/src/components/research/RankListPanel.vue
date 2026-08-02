@@ -179,7 +179,7 @@ function valueClass(value: number | null): string {
   border-radius: 6px;
   background: var(--tv-bg-surface);
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .rank-list-panel__head {
@@ -193,7 +193,7 @@ function valueClass(value: number | null): string {
 }
 
 .rank-list-panel__title {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
 }
 
@@ -226,7 +226,7 @@ function valueClass(value: number | null): string {
 .rank-list-panel__table th {
   background: var(--tv-bg-surface-2);
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 500;
 }
 
@@ -241,7 +241,7 @@ function valueClass(value: number | null): string {
 
 .rank-list-panel__sort-icon {
   margin-left: 2px;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .rank-list-panel__table tbody tr {

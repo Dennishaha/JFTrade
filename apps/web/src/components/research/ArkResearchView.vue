@@ -199,7 +199,7 @@ function rowKey(
   flex-direction: column;
   gap: 8px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .ark-research__toolbar {

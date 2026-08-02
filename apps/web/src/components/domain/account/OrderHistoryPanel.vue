@@ -381,7 +381,7 @@ function formatFeeMoney(value: number | null | undefined): string {
 
 .tv-panel-title {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 650;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -390,7 +390,7 @@ function formatFeeMoney(value: number | null | undefined): string {
 .order-history__count {
   overflow: hidden;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -439,13 +439,13 @@ function formatFeeMoney(value: number | null | undefined): string {
   gap: 4px 12px;
   margin-top: 6px;
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .order-history__item-time {
   margin-top: 4px;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .order-history__status {
@@ -454,7 +454,7 @@ function formatFeeMoney(value: number | null | undefined): string {
   padding: 2px 8px;
   border: 1px solid;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   white-space: nowrap;
 }
 
@@ -481,7 +481,7 @@ function formatFeeMoney(value: number | null | undefined): string {
 .order-history__raw-status {
   margin-bottom: 8px;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .order-history__chips {
@@ -496,7 +496,7 @@ function formatFeeMoney(value: number | null | undefined): string {
   border: 1px solid var(--tv-border);
   border-radius: 999px;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .order-history__leg {
@@ -509,7 +509,7 @@ function formatFeeMoney(value: number | null | undefined): string {
   border: 1px solid var(--tv-border);
   border-radius: 6px;
   background: var(--tv-bg-surface-2);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .order-history__leg-id {
@@ -533,7 +533,7 @@ function formatFeeMoney(value: number | null | undefined): string {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .order-history__event-head b {
@@ -543,24 +543,24 @@ function formatFeeMoney(value: number | null | undefined): string {
 
 .order-history__event-head span {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .order-history__event-body {
   margin-top: 4px;
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .order-history__hint {
   padding: 14px 2px;
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .order-history__hint--desc {
   padding: 6px 2px 0;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .order-history__error {
@@ -568,7 +568,7 @@ function formatFeeMoney(value: number | null | undefined): string {
   padding: 8px 10px;
   border: 1px solid;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .order-history__fills {
@@ -578,7 +578,7 @@ function formatFeeMoney(value: number | null | undefined): string {
 
 .order-history__mono {
   font-family: ui-monospace, monospace;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 @media (max-width: 1180px) {

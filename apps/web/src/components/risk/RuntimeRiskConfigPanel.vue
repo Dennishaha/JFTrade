@@ -256,7 +256,7 @@ function disable() {
   gap: 8px;
   color: var(--tv-text);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .risk-panel__toggle input {
@@ -306,7 +306,7 @@ function disable() {
 
 .risk-panel__current {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   white-space: nowrap;
 }
 
@@ -317,7 +317,7 @@ function disable() {
   border-radius: 999px;
   background: var(--tv-status-warning-bg);
   color: var(--tv-status-warning-fg);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   font-style: normal;
 }
 
@@ -325,7 +325,7 @@ function disable() {
   padding: 7px 10px;
   border: 1px solid;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .risk-panel__actions {

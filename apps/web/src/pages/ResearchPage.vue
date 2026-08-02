@@ -324,7 +324,7 @@ const {
   min-width: 76px;
   height: 42px;
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 650;
   letter-spacing: 0;
   text-transform: none;
@@ -406,7 +406,7 @@ const {
   border-radius: 6px;
   background: var(--tv-bg-surface);
   color: var(--tv-text-dim);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .research-page__market-rail {

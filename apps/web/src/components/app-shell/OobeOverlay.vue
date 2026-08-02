@@ -451,7 +451,7 @@ async function goToAccountStep(): Promise<void> {
 
 .oobe-eyebrow {
   color: var(--card-text-2);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -459,7 +459,7 @@ async function goToAccountStep(): Promise<void> {
 .oobe-header h1 {
   margin: 6px 0 8px;
   color: var(--card-text-1);
-  font-size: 28px;
+  font-size: var(--jf-text-16);
   font-weight: 800;
 }
 
@@ -523,7 +523,7 @@ async function goToAccountStep(): Promise<void> {
   border-radius: 999px;
   background: #2563eb;
   color: #ffffff;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 800;
 }
 
@@ -542,7 +542,7 @@ async function goToAccountStep(): Promise<void> {
 
 .oobe-section-title {
   color: var(--card-text-1);
-  font-size: 18px;
+  font-size: var(--jf-text-12);
   font-weight: 800;
 }
 
@@ -582,7 +582,7 @@ async function goToAccountStep(): Promise<void> {
   flex-wrap: wrap;
   gap: 8px;
   color: var(--card-text-2);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
 }
 
 .oobe-status-strip span {
@@ -593,7 +593,7 @@ async function goToAccountStep(): Promise<void> {
 
 .oobe-step-hint {
   color: #475569;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   line-height: 1.6;
 }
 

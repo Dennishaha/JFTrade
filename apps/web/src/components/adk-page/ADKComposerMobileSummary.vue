@@ -115,7 +115,7 @@ const {
   background: color-mix(in srgb, var(--tv-bg-surface) 90%, transparent);
   color: var(--tv-text-muted);
   flex: 0 0 auto;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1.2;
 }
 
@@ -144,7 +144,7 @@ const {
   border-radius: 999px;
   background: var(--adk-accent-bg-soft);
   color: var(--adk-accent-fg);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 600;
   cursor: pointer;
 }

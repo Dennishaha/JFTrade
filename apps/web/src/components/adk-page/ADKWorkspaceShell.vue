@@ -584,7 +584,7 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
   border-radius: 999px;
   background: color-mix(in srgb, var(--tv-bg-surface) 78%, transparent);
   color: var(--tv-text);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   cursor: pointer;
 }
 
@@ -605,7 +605,7 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
   border-radius: 999px;
   background: color-mix(in srgb, var(--tv-accent) 16%, transparent);
   color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   text-align: center;
 }
 
@@ -625,12 +625,12 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
 
 .adk-mobile-toolbar__summary strong {
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-mobile-toolbar__summary span {
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .adk-mobile-session-drawer {
@@ -657,7 +657,7 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
   border-radius: 999px;
   background: color-mix(in srgb, var(--tv-bg-surface) 92%, transparent);
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   cursor: pointer;
 }
 
@@ -696,18 +696,18 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   color: var(--tv-text-muted);
 }
 
 .adk-child-view-header__crumb code {
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .adk-child-view-header p {
   margin: 0;
   color: var(--tv-text);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   line-height: 1.5;
 }
 
@@ -719,7 +719,7 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
   background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
   color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-child-view-sticky {
@@ -755,7 +755,7 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
   min-width: 0;
   overflow: hidden;
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   white-space: nowrap;
 }
 
@@ -768,18 +768,18 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
   overflow: hidden;
   max-width: 220px;
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   text-overflow: ellipsis;
 }
 
 .adk-child-view-sticky--mobile .adk-child-view-sticky__label {
   gap: 5px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .adk-child-view-sticky--mobile .adk-child-view-sticky__label code {
   max-width: 116px;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .adk-child-view-sticky button {
@@ -790,11 +790,11 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
   background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
   color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-child-view-sticky--mobile button {
   padding: 3px 8px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 </style>

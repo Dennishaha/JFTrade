@@ -306,7 +306,7 @@ async function handleRefresh(): Promise<void> {
   background: var(--tv-bg-app);
   color: var(--tv-text);
   container: quote-workbench / inline-size;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .vertical-quote-workbench--drawer {
@@ -323,7 +323,7 @@ async function handleRefresh(): Promise<void> {
   padding: 4px 12px;
   border-bottom: 1px solid var(--tv-border);
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .vertical-quote-workbench__toolbar > div {
@@ -347,7 +347,7 @@ async function handleRefresh(): Promise<void> {
   place-items: center;
   padding: 0 7px;
   border-radius: 3px;
-  font-size: 14px;
+  font-size: var(--jf-text-8);
 }
 
 .vertical-quote-workbench__toolbar button:hover,
@@ -365,7 +365,7 @@ async function handleRefresh(): Promise<void> {
   display: block;
   border: 1px solid var(--tv-border);
   background: transparent;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   transition:
     border-color 120ms ease,
     background-color 120ms ease,
@@ -424,7 +424,7 @@ async function handleRefresh(): Promise<void> {
   flex: 0 0 auto;
   padding: 8px 18px;
   border-bottom: 1px solid var(--tv-border);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .vertical-quote-workbench__tabs {
@@ -440,7 +440,7 @@ async function handleRefresh(): Promise<void> {
 .vertical-quote-workbench__tabs button {
   position: relative;
   padding: 0 3px;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .vertical-quote-workbench__tabs button:hover,

@@ -306,8 +306,8 @@ defineExpose({ refresh: () => load(true) });
   flex-direction: column;
 }
 
-.compact-instrument-news__header strong { font-size: 12px; }
-.compact-instrument-news__header small { color: var(--tv-text-dim); font-size: 9px; }
+.compact-instrument-news__header strong { font-size: var(--jf-text-6); }
+.compact-instrument-news__header small { color: var(--tv-text-dim); font-size: var(--jf-text-3); }
 
 .compact-instrument-news__categories {
   display: flex;
@@ -322,7 +322,7 @@ defineExpose({ refresh: () => load(true) });
   background: transparent;
   color: var(--tv-text-dim);
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .compact-instrument-news__categories button:hover,
@@ -343,7 +343,7 @@ defineExpose({ refresh: () => load(true) });
 .compact-instrument-news__notice {
   padding: 7px 14px;
   border-bottom: 1px solid var(--tv-border);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .compact-instrument-news__item {
@@ -359,7 +359,7 @@ defineExpose({ refresh: () => load(true) });
   min-width: 0;
   gap: 7px;
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .compact-instrument-news__meta span {
@@ -370,7 +370,7 @@ defineExpose({ refresh: () => load(true) });
 
 .compact-instrument-news__item h3 {
   margin: 5px 0 0;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   line-height: 1.45;
 }
 
@@ -386,7 +386,7 @@ defineExpose({ refresh: () => load(true) });
   margin: 5px 0 0;
   overflow: hidden;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
@@ -413,7 +413,7 @@ defineExpose({ refresh: () => load(true) });
   background: transparent;
   color: var(--tv-text-dim);
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .compact-instrument-news__related button:hover {

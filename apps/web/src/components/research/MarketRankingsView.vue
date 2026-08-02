@@ -266,7 +266,7 @@ const valuePresentation = computed(() => {
   flex-direction: column;
   gap: 8px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .market-rankings-view__toolbar {
@@ -331,7 +331,7 @@ const valuePresentation = computed(() => {
 
 .market-rankings-view__asset-map span {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .market-rankings-view__more {

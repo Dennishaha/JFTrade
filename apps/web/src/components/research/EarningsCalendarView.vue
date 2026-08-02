@@ -372,7 +372,7 @@ function formatPercentage(value: number | null): string {
   gap: 12px;
   overflow: hidden;
   color: var(--tv-text);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
 }
 
 .earnings-calendar-view__error {
@@ -426,7 +426,7 @@ function formatPercentage(value: number | null): string {
   padding: 0 12px;
   border-right: 1px solid var(--tv-border);
   color: var(--tv-text-muted);
-  font-size: 14px;
+  font-size: var(--jf-text-8);
   font-weight: 650;
 }
 
@@ -471,7 +471,7 @@ function formatPercentage(value: number | null): string {
   place-items: center;
   border-radius: 5px;
   color: var(--tv-text);
-  font-size: 14px;
+  font-size: var(--jf-text-8);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -531,7 +531,7 @@ function formatPercentage(value: number | null): string {
   place-items: center;
   border-radius: 50%;
   color: #fff;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 700;
 }
 
@@ -550,7 +550,7 @@ function formatPercentage(value: number | null): string {
 .earnings-calendar-view__overflow {
   padding: 3px 5px;
   color: var(--tv-accent);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .earnings-calendar-view__table {

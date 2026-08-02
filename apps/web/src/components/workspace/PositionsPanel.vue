@@ -559,7 +559,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
 <style scoped>
 .tv-btn-cancel {
   padding: 2px 10px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   color: var(--tv-text-dim);
   background: transparent;
   border: 1px solid var(--tv-text-dim);
@@ -601,7 +601,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
   align-items: center;
   gap: 8px;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .tv-order-legs code {

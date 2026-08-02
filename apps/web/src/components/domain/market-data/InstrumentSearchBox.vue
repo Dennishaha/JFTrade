@@ -559,7 +559,7 @@ function candidateOptionId(index: number): string | undefined {
 
 .instrument-search-box__leading {
   color: var(--tv-text-muted, #64748b);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .instrument-search-box input {

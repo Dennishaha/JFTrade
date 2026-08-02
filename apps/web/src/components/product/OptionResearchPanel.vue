@@ -531,7 +531,7 @@ watch(
 .option-research-panel__count,
 .option-research-panel__pager {
   color: var(--tv-text-dim);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
 }
 
 .option-research-panel__seller {
@@ -559,7 +559,7 @@ watch(
   background: transparent;
   color: var(--tv-accent);
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .option-research-panel__refresh-native,
@@ -630,14 +630,14 @@ watch(
 }
 
 .option-research-panel :deep(table) {
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   font-variant-numeric: tabular-nums;
 }
 
 .option-research-panel :deep(th) {
   height: 31px;
   color: var(--tv-text-dim);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
   white-space: nowrap;
 }
 
@@ -653,7 +653,7 @@ watch(
   flex: 1;
   place-items: center;
   color: var(--tv-text-muted);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .option-research-panel__pager {
@@ -668,7 +668,7 @@ watch(
 
 .option-research-panel :deep(.v-alert) {
   flex: 0 0 auto;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .option-research-panel__progress {
@@ -693,7 +693,7 @@ watch(
   padding: 7px 8px;
   border-bottom: 1px solid var(--tv-border);
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .option-research-panel--research {
@@ -710,16 +710,16 @@ watch(
 .option-research-panel--research .option-research-panel__summary,
 .option-research-panel--research .option-research-panel__count,
 .option-research-panel--research .option-research-panel__pager {
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .option-research-panel--research :deep(table) {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .option-research-panel--research :deep(th) {
   height: 32px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .option-research-panel--research :deep(td) {

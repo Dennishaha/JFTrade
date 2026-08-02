@@ -92,7 +92,7 @@ const emit = defineEmits<{
 
 .action-confirm__header h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--jf-text-10);
 }
 
 .action-confirm__header button {
@@ -101,14 +101,14 @@ const emit = defineEmits<{
   background: transparent;
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 20px;
+  font-size: var(--jf-text-13);
 }
 
 .action-confirm__panel p {
   margin: 0;
   padding: 18px 16px;
   color: var(--tv-text-muted);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   line-height: 1.65;
   overflow-wrap: anywhere;
 }

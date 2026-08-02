@@ -362,7 +362,7 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--tv-bg-elevated) 92%, transparent);
   color: var(--tv-text-muted);
   box-shadow: 0 5px 18px rgba(2, 6, 23, .14);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .tv-workspace__watchlist-open:hover {

@@ -332,12 +332,12 @@ onUnmounted(() => {
   min-width: 0;
   flex-direction: column;
 }
-.prediction-contract__header strong { font-size: 13px; }
+.prediction-contract__header strong { font-size: var(--jf-text-7); }
 .prediction-contract__header span,
 .prediction-contract__table small,
 .prediction-contract__rules span {
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 .prediction-contract__metrics {
   display: grid;
@@ -354,10 +354,10 @@ onUnmounted(() => {
   padding: 12px;
   background: var(--tv-bg-surface);
 }
-.prediction-contract__metrics span { color: var(--tv-text-muted); font-size: 10px; }
-.prediction-contract__metrics strong { font-size: 17px; }
+.prediction-contract__metrics span { color: var(--tv-text-muted); font-size: var(--jf-text-4); }
+.prediction-contract__metrics strong { font-size: var(--jf-text-11); }
 .prediction-contract__table-wrap { min-height: 0; overflow: auto; }
-.prediction-contract__table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.prediction-contract__table { width: 100%; border-collapse: collapse; font-size: var(--jf-text-5); }
 .prediction-contract__table th,
 .prediction-contract__table td {
   padding: 7px 10px;
@@ -380,7 +380,7 @@ onUnmounted(() => {
   background: var(--tv-bg-surface-2);
 }
 .prediction-contract__rules article > * { display: block; margin: 0 0 4px; }
-.prediction-contract__rules p { color: var(--tv-text-muted); font-size: 11px; }
+.prediction-contract__rules p { color: var(--tv-text-muted); font-size: var(--jf-text-5); }
 .prediction-contract__empty { padding: 24px; color: var(--tv-text-muted); text-align: center; }
 @media (max-width: 760px) {
   .prediction-contract__metrics { grid-template-columns: repeat(2, minmax(100px, 1fr)); }

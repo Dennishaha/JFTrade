@@ -303,7 +303,7 @@ watch(
   background: transparent;
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1;
 }
 
@@ -327,7 +327,7 @@ watch(
   border-radius: 8px;
   background: color-mix(in srgb, var(--tv-text) 12%, transparent);
   color: var(--tv-text);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 600;
 }
 
@@ -351,7 +351,7 @@ watch(
   justify-content: space-between;
   margin-bottom: 6px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .kline-indicator-selector__close {
@@ -379,7 +379,7 @@ watch(
 .kline-indicator-selector__group-title {
   margin-bottom: 4px;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 650;
 }
 
@@ -402,7 +402,7 @@ watch(
   background: var(--tv-bg-elevated);
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   line-height: 1;
   user-select: none;
 }

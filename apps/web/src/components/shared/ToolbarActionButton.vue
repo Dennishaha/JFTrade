@@ -113,7 +113,7 @@ defineEmits<{
   border-radius: 5px 5px 0 0;
   background: var(--tv-toolbar-action-tone);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 600;
   line-height: 24px;
   opacity: 0;
@@ -126,7 +126,7 @@ defineEmits<{
 .tv-toolbar-action__icon {
   position: relative;
   z-index: 1;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   line-height: 1;
 }
 

@@ -705,13 +705,13 @@ async function confirmPendingAction(): Promise<void> {
   background: transparent;
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .risk-main__tabs button span {
   margin-left: 4px;
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .risk-main__tabs button.is-active {
@@ -745,7 +745,7 @@ async function confirmPendingAction(): Promise<void> {
   padding: 8px 11px;
   border: 1px solid;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .risk-main__danger-grid {

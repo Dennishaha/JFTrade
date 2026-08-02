@@ -246,13 +246,13 @@ function errorFor(parameter: StockScreenFactorParameter): string {
 
 .stock-screen-parameter-editor > label > span {
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .stock-screen-parameter-editor > label > span small {
   margin-left: 4px;
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .stock-screen-parameter-editor input,
@@ -276,7 +276,7 @@ function errorFor(parameter: StockScreenFactorParameter): string {
 
 .stock-screen-parameter-editor__error {
   color: #d55353;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .stock-screen-parameter-editor--compact {

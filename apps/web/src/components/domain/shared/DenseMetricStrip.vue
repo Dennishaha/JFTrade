@@ -51,14 +51,14 @@ withDefaults(defineProps<{
 
 .dense-metric-strip__label {
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .dense-metric-strip__value {
   margin-top: 4px;
   overflow: hidden;
   color: var(--tv-text);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -78,6 +78,6 @@ withDefaults(defineProps<{
 
 .dense-metric-strip__empty {
   color: var(--tv-text-dim);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 </style>

@@ -233,13 +233,13 @@ watch(
 
 .watchlist-membership-dialog__header h2 {
   margin: 2px 0 0;
-  font-size: 16px;
+  font-size: var(--jf-text-10);
   font-weight: 650;
 }
 
 .watchlist-membership-dialog__eyebrow {
   color: var(--tv-accent);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 700;
   letter-spacing: 0.12em;
 }
@@ -251,7 +251,7 @@ watch(
   border-radius: 6px;
   background: transparent;
   color: var(--tv-text-muted);
-  font-size: 20px;
+  font-size: var(--jf-text-13);
   cursor: pointer;
 }
 
@@ -267,7 +267,7 @@ watch(
 .watchlist-membership-dialog__loading {
   margin: 0;
   color: var(--tv-text-dim);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .watchlist-membership-dialog__groups {
@@ -290,11 +290,11 @@ watch(
 
 .watchlist-membership-dialog__group input { accent-color: var(--tv-accent); }
 .watchlist-membership-dialog__group span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.watchlist-membership-dialog__group strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.watchlist-membership-dialog__group small { color: var(--tv-text-dim); font-size: 10px; }
+.watchlist-membership-dialog__group strong { overflow: hidden; font-size: var(--jf-text-6); text-overflow: ellipsis; white-space: nowrap; }
+.watchlist-membership-dialog__group small { color: var(--tv-text-dim); font-size: var(--jf-text-4); }
 
 .watchlist-membership-dialog__new-group { display: grid; gap: 7px; }
-.watchlist-membership-dialog__new-group > label { color: var(--tv-text-muted); font-size: 11px; font-weight: 650; }
+.watchlist-membership-dialog__new-group > label { color: var(--tv-text-muted); font-size: var(--jf-text-5); font-weight: 650; }
 .watchlist-membership-dialog__new-group > div:first-of-type { display: flex; gap: 8px; }
 .watchlist-membership-dialog__new-group input {
   min-width: 0;
@@ -323,10 +323,10 @@ watch(
   border-radius: 999px;
   background: color-mix(in srgb, var(--tv-accent) 10%, var(--tv-bg-surface));
   color: var(--tv-accent);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
-.watchlist-membership-dialog__notice { margin: 0; padding: 8px 10px; border-radius: 6px; font-size: 11px; }
+.watchlist-membership-dialog__notice { margin: 0; padding: 8px 10px; border-radius: 6px; font-size: var(--jf-text-5); }
 
 .watchlist-membership-dialog__footer {
   justify-content: flex-end;

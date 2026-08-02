@@ -666,7 +666,7 @@ watch(selectedBrokerId, () => {
   border-radius: 3px;
   background: var(--tv-bg-surface);
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 500;
   cursor: pointer;
   transition: all 120ms ease;
@@ -684,7 +684,7 @@ watch(selectedBrokerId, () => {
 }
 
 .tv-ob-preset-spinner {
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   color: var(--tv-text-dim);
   margin-left: 4px;
 }
@@ -695,7 +695,7 @@ watch(selectedBrokerId, () => {
   height: 18px;
   margin: 0;
   border-bottom: 1px solid var(--tv-border);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   line-height: 18px;
 }
 
@@ -746,20 +746,20 @@ watch(selectedBrokerId, () => {
 }
 
 .tv-ob-bbo-label {
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   color: var(--tv-text-dim);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .tv-ob-bbo-price {
-  font-size: 18px;
+  font-size: var(--jf-text-12);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .tv-ob-bbo-size {
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   color: var(--tv-text-muted);
   font-variant-numeric: tabular-nums;
 }

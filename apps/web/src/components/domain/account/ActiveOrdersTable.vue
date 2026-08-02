@@ -127,12 +127,12 @@ function formatQuantity(value: number | null | undefined): string {
 .active-orders__order-id {
   margin-top: 2px;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .active-orders__source {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .active-orders__status {
@@ -140,7 +140,7 @@ function formatQuantity(value: number | null | undefined): string {
   padding: 2px 8px;
   border: 1px solid;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   white-space: nowrap;
 }
 
@@ -152,7 +152,7 @@ function formatQuantity(value: number | null | undefined): string {
 .active-orders__action {
   height: 24px;
   padding: 0 8px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .active-orders__action--danger:not(:disabled):hover {
@@ -171,6 +171,6 @@ function formatQuantity(value: number | null | undefined): string {
   justify-content: center;
   padding: 48px 12px;
   color: var(--tv-text-dim);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 </style>

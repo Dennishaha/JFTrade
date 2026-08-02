@@ -9,7 +9,7 @@
   border-radius: 5px;
   background: var(--tv-bg-surface);
   color: var(--tv-text);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .product-compact-control .v-field__overlay {
@@ -32,21 +32,21 @@
 .product-compact-control .v-field__input {
   padding-top: 0;
   padding-bottom: 0;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   line-height: 1.25;
 }
 
 .product-compact-control .v-field__input input,
 .product-compact-control .v-select__selection,
 .product-compact-control .v-select__selection-text {
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   line-height: 1.25;
 }
 
 .product-compact-control .v-field-label,
 .product-compact-control input::placeholder {
   color: var(--tv-text-dim);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
 }
 
 .product-compact-control .v-field__append-inner,
@@ -57,7 +57,7 @@
 }
 
 .product-compact-control .v-icon {
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .product-compact-menu .v-list {
@@ -85,7 +85,7 @@
 }
 
 .product-compact-menu .v-list-item-title {
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   line-height: 1.3;
 }
 

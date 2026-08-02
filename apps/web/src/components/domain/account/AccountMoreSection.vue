@@ -288,7 +288,7 @@ function formatCash(value: number | null | undefined, cur?: string | null): stri
 .account-more__section summary::before {
   color: var(--tv-text-dim);
   content: "▸";
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   transition: transform 0.12s ease;
 }
 
@@ -299,7 +299,7 @@ function formatCash(value: number | null | undefined, cur?: string | null): stri
 .account-more__section summary .tv-panel-title {
   margin-right: auto;
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 650;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -307,7 +307,7 @@ function formatCash(value: number | null | undefined, cur?: string | null): stri
 
 .account-more__meta {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .account-more__body {
@@ -321,7 +321,7 @@ function formatCash(value: number | null | undefined, cur?: string | null): stri
 .account-more__empty {
   padding: 18px 12px;
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .account-more__error {
@@ -329,7 +329,7 @@ function formatCash(value: number | null | undefined, cur?: string | null): stri
   padding: 8px 10px;
   border: 1px solid;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .account-more__kv-grid {
@@ -348,14 +348,14 @@ function formatCash(value: number | null | undefined, cur?: string | null): stri
 .account-more__kv span {
   display: block;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .account-more__kv b {
   display: block;
   margin-top: 2px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
 }
 
@@ -370,7 +370,7 @@ function formatCash(value: number | null | undefined, cur?: string | null): stri
 .account-more__pdt-title {
   margin-bottom: 8px;
   color: var(--tv-warn);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 650;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -378,11 +378,11 @@ function formatCash(value: number | null | undefined, cur?: string | null): stri
 
 .account-more__mono {
   font-family: ui-monospace, monospace;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .account-more__dim {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 </style>

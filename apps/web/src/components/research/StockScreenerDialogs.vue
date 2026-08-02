@@ -370,14 +370,14 @@ const {
 .stock-screener-view__factor-list small {
   margin-left: 6px;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .stock-screener-view__factor-list p {
   margin: 2px 0 0;
   overflow: hidden;
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -411,7 +411,7 @@ const {
   background: var(--tv-bg-elevated);
   box-shadow: 0 24px 64px rgb(0 0 0 / 42%);
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .stock-screener-view__draft-dialog {
@@ -433,7 +433,7 @@ const {
 
 .stock-screener-view__draft-dialog header span {
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .stock-screener-view__draft-dialog-actions {
@@ -502,7 +502,7 @@ const {
 
 .stock-screener-view__factor-dialog-head span {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .stock-screener-view__factor-dialog-close {

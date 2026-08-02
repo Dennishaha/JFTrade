@@ -16,26 +16,26 @@ defineProps<{
             <div class="flex items-center justify-between gap-3">
                 <div class="text-xl font-semibold text-slate-900">运行总览</div>
                 <span
-                    class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600"
+                    class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-(--jf-tracking-3) text-slate-600"
                 >
                     {{ activeStrategyCount }} 个运行中
                 </span>
             </div>
             <div class="mt-4 grid gap-3 md:grid-cols-3">
                 <div class="rounded-3xl bg-white px-4 py-4">
-                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">交易环境</div>
+                    <div class="text-xs uppercase tracking-(--jf-tracking-4) text-slate-500">交易环境</div>
                     <div class="mt-2 text-2xl font-semibold text-slate-900">
                         {{ systemStatus.defaultTradingEnvironment }}
                     </div>
                 </div>
                 <div class="rounded-3xl bg-white px-4 py-4">
-                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">当前策略</div>
+                    <div class="text-xs uppercase tracking-(--jf-tracking-4) text-slate-500">当前策略</div>
                     <div class="mt-2 text-xl font-semibold text-slate-900">
                         {{ selectedStrategy?.definition.name ?? "暂无" }}
                     </div>
                 </div>
                 <div class="rounded-3xl bg-white px-4 py-4">
-                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">运行形态</div>
+                    <div class="text-xs uppercase tracking-(--jf-tracking-4) text-slate-500">运行形态</div>
                     <div class="mt-2 text-xl font-semibold text-slate-900" data-testid="strategy-runtime-mode">
                         {{ selectedStrategyRuntimeLabel }}
                     </div>
@@ -50,13 +50,13 @@ defineProps<{
             <div class="text-xl font-semibold text-slate-900">运行保护</div>
             <div class="mt-4 grid gap-3 md:grid-cols-3">
                 <div class="rounded-3xl bg-white px-4 py-4">
-                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">实盘开关</div>
+                    <div class="text-xs uppercase tracking-(--jf-tracking-4) text-slate-500">实盘开关</div>
                     <div class="mt-2 text-xl font-semibold text-slate-900">
                         {{ systemStatus.realTradingEnabled ? "已开启" : "已关闭" }}
                     </div>
                 </div>
                 <div class="rounded-3xl bg-white px-4 py-4">
-                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">急停开关</div>
+                    <div class="text-xs uppercase tracking-(--jf-tracking-4) text-slate-500">急停开关</div>
                     <div
                         class="mt-2 text-xl font-semibold"
                         :class="systemStatus.realTradingKillSwitch.active ? 'text-red-600' : 'text-teal-700'"
@@ -65,7 +65,7 @@ defineProps<{
                     </div>
                 </div>
                 <div class="rounded-3xl bg-white px-4 py-4">
-                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">策略动态风控</div>
+                    <div class="text-xs uppercase tracking-(--jf-tracking-4) text-slate-500">策略动态风控</div>
                     <div class="mt-2 text-sm font-semibold text-slate-900" data-testid="strategy-overview-runtime-risk">
                         {{ formatStrategyRuntimeRiskSummary(selectedStrategy?.binding?.runtimeRisk) }}
                     </div>

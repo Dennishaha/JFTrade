@@ -68,13 +68,13 @@ const {
 }
 
 .adk-queue-strip__title {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
   color: rgb(15 23 42);
 }
 
 .adk-queue-strip__hint {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   color: rgb(100 116 139);
 }
 
@@ -92,14 +92,14 @@ const {
 }
 
 .adk-queue-item__index {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   color: rgb(100 116 139);
 }
 
 .adk-queue-item__badge {
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1.4;
   text-transform: lowercase;
   color: var(--adk-queue-queued-fg);
@@ -126,7 +126,7 @@ const {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   color: rgb(15 23 42);
 }
 
@@ -134,7 +134,7 @@ const {
   border: 0;
   background: transparent;
   color: var(--adk-danger-fg);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   cursor: pointer;
 }
 

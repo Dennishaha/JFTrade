@@ -31,7 +31,7 @@ function hiddenEntryCount(): number {
       </div>
       <div class="bt-order-table-scroll max-h-[520px] overflow-auto">
         <table class="bt-order-table min-w-full text-sm">
-          <thead class="sticky top-0 text-left text-xs uppercase tracking-[0.14em]">
+          <thead class="sticky top-0 text-left text-xs uppercase tracking-(--jf-tracking-1)">
             <tr>
               <th>下单</th><th>成交</th><th>方向</th><th>数量</th>
               <th>委托价</th><th>成交价</th><th>费用</th><th>状态</th>

@@ -192,7 +192,7 @@ watch(
   height: 35px;
   padding: 0 9px;
   color: var(--tv-text-muted);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   letter-spacing: 0;
   text-transform: none;
 }

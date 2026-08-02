@@ -284,7 +284,7 @@ const anyError = computed(
   flex-direction: column;
   gap: 8px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .market-home-view__status {
@@ -336,7 +336,7 @@ const anyError = computed(
 
 .market-home-view__benchmark-note span {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .market-home-view__index-card:hover {
@@ -356,7 +356,7 @@ const anyError = computed(
 
 .market-home-view__index-value {
   margin-top: 6px;
-  font-size: 20px;
+  font-size: var(--jf-text-13);
   font-weight: 650;
   line-height: 1.1;
 }
@@ -412,7 +412,7 @@ const anyError = computed(
   background: transparent;
   color: var(--tv-text-dim);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .market-home-view__more:hover {

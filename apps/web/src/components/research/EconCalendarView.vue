@@ -254,7 +254,7 @@ function importance(entry: Record<string, unknown>): number {
   flex-direction: column;
   gap: 8px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .econ-calendar-view__toolbar {
@@ -273,7 +273,7 @@ function importance(entry: Record<string, unknown>): number {
   border-radius: 4px;
   background: var(--tv-bg-surface-2);
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .econ-calendar-view__spacer {
@@ -343,7 +343,7 @@ function importance(entry: Record<string, unknown>): number {
 .econ-calendar-view__stars {
   grid-area: stars;
   color: var(--tv-warn);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .econ-calendar-view__title {
@@ -360,12 +360,12 @@ function importance(entry: Record<string, unknown>): number {
   border: 1px solid var(--tv-border);
   border-radius: 999px;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .econ-calendar-view__values {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   white-space: nowrap;
 }
 

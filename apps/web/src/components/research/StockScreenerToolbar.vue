@@ -182,7 +182,7 @@ const {
 .stock-screener-view__title span,
 .stock-screener-view__toolbar label > span {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .stock-screener-view__preset-select,
@@ -192,7 +192,7 @@ const {
 
 .stock-screener-view__scope {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   white-space: nowrap;
 }
 
@@ -208,7 +208,7 @@ const {
   border: 1px solid var(--tv-border);
   border-radius: 999px;
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   white-space: nowrap;
 }
 

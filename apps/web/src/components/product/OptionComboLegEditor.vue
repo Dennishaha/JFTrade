@@ -161,7 +161,7 @@ function toggleSide(leg: OptionComboLegDraft): void {
 .combo-leg-editor__quote,
 .combo-leg-editor__identity small {
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .combo-leg-editor select,
@@ -177,7 +177,7 @@ function toggleSide(leg: OptionComboLegDraft): void {
 .combo-leg-editor select {
   min-width: 0;
   padding: 0 8px;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .combo-leg-editor button {
@@ -203,7 +203,7 @@ function toggleSide(leg: OptionComboLegDraft): void {
   place-items: center;
   border: 1px dashed var(--tv-border);
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   text-align: center;
 }
 
@@ -220,7 +220,7 @@ function toggleSide(leg: OptionComboLegDraft): void {
 .combo-leg-editor__columns {
   min-height: 22px;
   color: var(--tv-text-dim);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
 }
 
 .combo-leg-editor__row {
@@ -236,7 +236,7 @@ function toggleSide(leg: OptionComboLegDraft): void {
   border-radius: 50%;
   background: color-mix(in srgb, var(--tv-accent) 18%, transparent);
   color: var(--tv-accent);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   font-weight: 750;
 }
 
@@ -250,7 +250,7 @@ function toggleSide(leg: OptionComboLegDraft): void {
   overflow: hidden;
   color: var(--tv-text);
   font-family: var(--tv-font-mono, monospace);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

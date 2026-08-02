@@ -291,7 +291,7 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
   grid-template-columns: minmax(240px, 1fr) minmax(320px, 2fr);
   gap: 8px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .concept-sector-view__plates,
@@ -373,7 +373,7 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
 .concept-sector-view__table th {
   background: var(--tv-bg-surface-2);
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 500;
 }
 

@@ -96,7 +96,7 @@ const emit = defineEmits<{
 
 .tv-real-confirmation__title {
   color: var(--tv-text);
-  font-size: 16px;
+  font-size: var(--jf-text-10);
   font-weight: 700;
 }
 
@@ -111,7 +111,7 @@ const emit = defineEmits<{
   padding: 9px 10px;
   background: color-mix(in srgb, var(--tv-accent-strong) 10%, transparent);
   color: var(--tv-text);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 700;
 }
 
@@ -132,20 +132,20 @@ const emit = defineEmits<{
 .tv-real-confirmation__grid span {
   display: block;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .tv-real-confirmation__grid strong {
   display: block;
   margin-top: 3px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   overflow-wrap: anywhere;
 }
 
 .tv-real-confirmation__notice {
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   line-height: 1.5;
 }
 
@@ -155,7 +155,7 @@ const emit = defineEmits<{
   background: rgba(255, 255, 255, 0.08);
   color: var(--tv-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .tv-real-confirmation__input {

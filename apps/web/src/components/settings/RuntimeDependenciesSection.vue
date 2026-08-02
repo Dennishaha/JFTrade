@@ -438,14 +438,14 @@ async function savePythonBinaryPath(): Promise<void> {
 
 .runtime-summary__title {
   color: var(--card-text-1);
-  font-size: 15px;
+  font-size: var(--jf-text-9);
   font-weight: 700;
 }
 
 .runtime-summary__meta {
   margin-top: 4px;
   color: var(--card-text-3);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .runtime-warning {
@@ -455,7 +455,7 @@ async function savePythonBinaryPath(): Promise<void> {
   color: var(--card-amber-text);
   border-radius: 8px;
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   line-height: 1.7;
 }
 
@@ -518,7 +518,7 @@ async function savePythonBinaryPath(): Promise<void> {
 .dependency-status {
   border-radius: 999px;
   padding: 3px 8px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 700;
   line-height: 1.3;
 }
@@ -567,7 +567,7 @@ async function savePythonBinaryPath(): Promise<void> {
 .dependency-card__message {
   margin: 8px 0 0;
   color: var(--card-text-2);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   line-height: 1.6;
 }
 
@@ -588,7 +588,7 @@ async function savePythonBinaryPath(): Promise<void> {
 
 .dependency-details dt {
   color: var(--card-text-3);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .dependency-details dd {
@@ -596,13 +596,13 @@ async function savePythonBinaryPath(): Promise<void> {
   overflow-wrap: anywhere;
   color: var(--card-text-1);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 700;
 }
 
 .dependency-actions {
   margin-top: 12px;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
 }
 
 .dependency-actions a {
@@ -633,7 +633,7 @@ async function savePythonBinaryPath(): Promise<void> {
 
 .dependency-path-editor label {
   color: var(--card-text-2);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 700;
 }
 
@@ -650,7 +650,7 @@ async function savePythonBinaryPath(): Promise<void> {
   background: color-mix(in srgb, var(--card-surface) 90%, var(--card-surface-raised));
   padding: 9px 10px;
   color: var(--card-text-1);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -668,7 +668,7 @@ async function savePythonBinaryPath(): Promise<void> {
 .secondary-button {
   border-radius: 8px;
   padding: 9px 12px;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 700;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
@@ -712,7 +712,7 @@ async function savePythonBinaryPath(): Promise<void> {
 .runtime-notice,
 .runtime-error {
   margin-top: 14px;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
 }
 
 .runtime-empty {

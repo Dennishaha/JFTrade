@@ -245,12 +245,12 @@ header span,
 header small,
 .option-contract-drawer__metrics span {
   color: var(--tv-text-dim);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
 }
 
 header strong {
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 header button {
@@ -261,7 +261,7 @@ header button {
   background: var(--tv-bg-surface-2);
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 18px;
+  font-size: var(--jf-text-12);
 }
 
 .option-contract-drawer__metrics {
@@ -283,13 +283,13 @@ header button {
 
 .option-contract-drawer__metrics strong {
   color: var(--tv-text);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-variant-numeric: tabular-nums;
 }
 
 .option-contract-drawer :deep(.v-alert) {
   margin: 8px 10px 0;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 footer {

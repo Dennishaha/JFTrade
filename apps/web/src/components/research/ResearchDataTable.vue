@@ -96,7 +96,7 @@ function display(
   border-radius: 6px;
   background: var(--tv-bg-surface);
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .research-data-table table {
@@ -115,7 +115,7 @@ function display(
   border-bottom: 1px solid var(--tv-border);
   background: var(--tv-bg-surface-2);
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 600;
 }
 

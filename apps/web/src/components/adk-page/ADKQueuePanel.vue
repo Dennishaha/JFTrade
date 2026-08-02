@@ -91,7 +91,7 @@ watch(
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 700;
 }
 
@@ -101,7 +101,7 @@ watch(
   border-radius: 999px;
   background: color-mix(in srgb, var(--tv-text-dim) 18%, transparent);
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1.5;
   text-align: center;
 }
@@ -110,7 +110,7 @@ watch(
   justify-self: start;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1.4;
   text-transform: uppercase;
 }
@@ -145,12 +145,12 @@ watch(
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-workspace-queue__toggle {
   color: var(--adk-accent-fg);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-workspace-queue__body {
@@ -181,7 +181,7 @@ watch(
 
 :deep(.adk-workspace-queue-item__index) {
   color: var(--tv-text-dim);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   white-space: nowrap;
 }
 
@@ -193,7 +193,7 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 600;
 }
 
@@ -202,7 +202,7 @@ watch(
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 :deep(.adk-workspace-queue-item__actions) {
@@ -215,7 +215,7 @@ watch(
   justify-self: start;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1.4;
   text-transform: uppercase;
 }
@@ -252,7 +252,7 @@ watch(
   background: var(--adk-accent-bg);
   color: var(--adk-accent-fg);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 :deep(.adk-workspace-queue-button.is-danger) {

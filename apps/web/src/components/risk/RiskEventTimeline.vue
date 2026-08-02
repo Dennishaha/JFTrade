@@ -138,7 +138,7 @@ function tagClass(tag: "success" | "warning" | "danger" | "info"): string {
   background: transparent;
   color: var(--tv-text-dim);
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .risk-events__filter-btn.is-active {
@@ -160,7 +160,7 @@ function tagClass(tag: "success" | "warning" | "danger" | "info"): string {
 .risk-events__column-title {
   margin-bottom: 8px;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 650;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -185,7 +185,7 @@ function tagClass(tag: "success" | "warning" | "danger" | "info"): string {
 
 .risk-events__event-head b {
   color: var(--tv-text);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 600;
 }
 
@@ -194,24 +194,24 @@ function tagClass(tag: "success" | "warning" | "danger" | "info"): string {
   padding: 2px 8px;
   border: 1px solid;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   white-space: nowrap;
 }
 
 .risk-events__event-meta {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .risk-events__event-reason {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .risk-events__empty {
   padding: 8px 2px;
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 @media (max-width: 1180px) {

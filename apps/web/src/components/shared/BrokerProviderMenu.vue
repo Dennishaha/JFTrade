@@ -96,11 +96,11 @@ const emit = defineEmits<{
 }
 .broker-provider-tag__heading strong {
   color: var(--tv-text);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 .broker-provider-tag__heading small {
   color: var(--tv-text-dim);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
 }
 .broker-provider-tag__menu button {
   display: grid;
@@ -132,7 +132,7 @@ const emit = defineEmits<{
 }
 .broker-provider-tag__menu button strong {
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -140,7 +140,7 @@ const emit = defineEmits<{
 .broker-provider-tag__empty {
   overflow: hidden;
   color: var(--tv-text-dim);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

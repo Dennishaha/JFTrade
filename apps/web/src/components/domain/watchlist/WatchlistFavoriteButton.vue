@@ -57,7 +57,7 @@ const accessibleLabel = computed(
   background: transparent;
   color: var(--tv-text-dim);
   font: inherit;
-  font-size: 18px;
+  font-size: var(--jf-text-12);
   line-height: 1;
   cursor: pointer;
   transition:

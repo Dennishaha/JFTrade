@@ -70,7 +70,7 @@ const emit = defineEmits<{
   align-items: center;
   gap: 6px;
   color: var(--tv-status-fg, var(--tv-text-muted));
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .emergency-panel__body {
@@ -92,13 +92,13 @@ const emit = defineEmits<{
 
 .emergency-panel__summary b {
   color: var(--tv-status-fg, var(--tv-text));
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
 }
 
 .emergency-panel__summary span {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .emergency-panel__actions {
@@ -109,7 +109,7 @@ const emit = defineEmits<{
 
 .emergency-panel__actions .tv-btn {
   height: 28px;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .emergency-panel__danger:not(:disabled) {

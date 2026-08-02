@@ -262,14 +262,14 @@ function quoteAvailable(value: number | null): boolean {
 }
 
 .option-chain-table__group strong {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   letter-spacing: 0.08em;
 }
 
 .option-chain-table__group span,
 .option-chain-table__underlying span {
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .option-chain-table__group--call strong {
@@ -289,7 +289,7 @@ function quoteAvailable(value: number | null): boolean {
 
 .option-chain-table__underlying strong {
   color: var(--tv-accent);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .option-chain-table__scroll {
@@ -301,7 +301,7 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   color: var(--tv-text);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-variant-numeric: tabular-nums;
 }
 
@@ -314,7 +314,7 @@ th {
   border-bottom: 1px solid var(--tv-border);
   background: color-mix(in srgb, var(--tv-bg-surface-2) 94%, transparent);
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   font-weight: 650;
   text-align: right;
 }
@@ -364,7 +364,7 @@ tbody tr:hover td {
 .is-contract small {
   margin-left: 5px;
   color: var(--tv-text-dim);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
 }
 
 .is-contract.is-itm {
@@ -439,7 +439,7 @@ td.is-ask {
   border-radius: 7px;
   background: var(--tv-accent);
   color: var(--tv-bg);
-  font-size: 7px;
+  font-size: var(--jf-text-1);
   line-height: 14px;
   text-align: center;
 }
@@ -457,14 +457,14 @@ td.is-ask {
 
 td.is-strike {
   color: var(--tv-text);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 750;
 }
 
 td.is-strike small {
   display: block;
   color: var(--tv-warn);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
 }
 
 tr.is-atm td {

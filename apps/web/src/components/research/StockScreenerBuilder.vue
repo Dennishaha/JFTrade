@@ -425,7 +425,7 @@ function addSelectedColumn(event: Event): void {
 
 .stock-screener-view__panel-head > span {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .stock-screener-view__panel-head > button {
@@ -455,7 +455,7 @@ function addSelectedColumn(event: Event): void {
   align-self: center;
   margin-right: 4px;
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .stock-screener-view__condition {
@@ -472,7 +472,7 @@ function addSelectedColumn(event: Event): void {
   display: block;
   margin-top: 4px;
   color: #d55353;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .stock-screener-view__condition-title {
@@ -529,7 +529,7 @@ function addSelectedColumn(event: Event): void {
 
 .stock-screener-view__parameters span {
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .stock-screener-view__column-picker,

@@ -112,7 +112,7 @@ const {
   gap: 8px;
   padding: 8px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .stock-screener-view :deep(button),

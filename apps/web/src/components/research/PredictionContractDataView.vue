@@ -382,11 +382,11 @@ const rows = computed(() => {
 
 .prediction-contract-data__snapshot span {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .prediction-contract-data__snapshot strong {
-  font-size: 16px;
+  font-size: var(--jf-text-10);
   font-variant-numeric: tabular-nums;
 }
 </style>

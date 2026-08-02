@@ -237,7 +237,7 @@ function formatOverviewMoney(value: number | null | undefined): string {
 .account-sidebar__name {
   overflow: hidden;
   color: var(--tv-text);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -249,7 +249,7 @@ function formatOverviewMoney(value: number | null | undefined): string {
   align-items: center;
   gap: 6px;
   color: var(--tv-status-fg, var(--tv-text-dim));
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .account-sidebar__total {
@@ -259,19 +259,19 @@ function formatOverviewMoney(value: number | null | undefined): string {
 
 .account-sidebar__total-label {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .account-sidebar__total-label span {
   margin-left: 6px;
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .account-sidebar__total-value {
   margin-top: 4px;
   color: var(--tv-text);
-  font-size: 26px;
+  font-size: var(--jf-text-15);
   font-weight: 680;
   letter-spacing: -0.02em;
 }
@@ -286,11 +286,11 @@ function formatOverviewMoney(value: number | null | undefined): string {
 .account-sidebar__pnl span {
   display: block;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .account-sidebar__pnl b {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
 }
 
@@ -310,7 +310,7 @@ function formatOverviewMoney(value: number | null | undefined): string {
   align-items: center;
   justify-content: space-between;
   padding: 3px 0;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .account-sidebar__row span {
@@ -334,7 +334,7 @@ function formatOverviewMoney(value: number | null | undefined): string {
   justify-content: space-between;
   gap: 10px;
   padding: 3px 0;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .account-sidebar__fact span {

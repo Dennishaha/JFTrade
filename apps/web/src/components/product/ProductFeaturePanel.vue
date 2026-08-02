@@ -331,17 +331,17 @@ watch(
   border: 1px solid var(--tv-border-strong);
   border-radius: 50%;
   color: var(--tv-accent);
-  font-size: 18px;
+  font-size: var(--jf-text-12);
 }
 
 .product-feature-panel__empty strong {
   color: var(--tv-text);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .product-feature-panel__empty small {
   margin-top: 4px;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .product-feature-panel__filter {
@@ -351,7 +351,7 @@ watch(
 
 .product-feature-panel__count {
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -362,7 +362,7 @@ watch(
 }
 
 .product-feature-panel__table-wrap :deep(table) {
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-variant-numeric: tabular-nums;
 }
 
@@ -370,7 +370,7 @@ watch(
   height: 33px !important;
   background: var(--tv-bg-surface-2) !important;
   color: var(--tv-text-dim) !important;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   font-weight: 650 !important;
   white-space: nowrap;
 }
@@ -398,7 +398,7 @@ watch(
   color: var(--tv-accent);
   cursor: pointer;
   list-style: none;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .product-feature-panel__actions pre {
@@ -432,6 +432,6 @@ watch(
   border-top: 1px solid var(--tv-border);
   background: var(--tv-bg-surface-2);
   color: var(--tv-text-dim);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
 }
 </style>

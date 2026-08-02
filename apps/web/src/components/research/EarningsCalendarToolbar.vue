@@ -246,7 +246,7 @@ onBeforeUnmount(() => {
 .earnings-calendar-view__period-picker {
   display: flex; min-width: 132px; height: 34px; align-items: center; justify-content: center; gap: 5px;
   padding: 0 9px; border: 0; border-radius: 5px; background: transparent; color: inherit;
-  cursor: pointer; font: inherit; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums;
+  cursor: pointer; font: inherit; font-size: var(--jf-text-9); font-weight: 650; font-variant-numeric: tabular-nums;
 }
 .earnings-calendar-view__period-picker:hover,
 .earnings-calendar-view__period-picker:focus-visible { background: var(--tv-bg-surface-2); }
@@ -286,7 +286,7 @@ onBeforeUnmount(() => {
 .earnings-calendar-view__filter-button > span {
   position: absolute; top: -3px; right: -3px; display: grid; min-width: 17px; height: 17px;
   place-items: center; padding: 0 4px; border: 2px solid var(--tv-bg); border-radius: 9px;
-  background: var(--tv-accent); color: #fff; font-size: 10px; font-weight: 700;
+  background: var(--tv-accent); color: #fff; font-size: var(--jf-text-4); font-weight: 700;
 }
 :where(
   .earnings-calendar-view__mode,

@@ -47,7 +47,7 @@ const displayLabel = computed(() => props.label || defaultLabels[props.state]);
   padding: 3px 8px;
   overflow: hidden;
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;

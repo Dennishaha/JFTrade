@@ -190,7 +190,7 @@ function switchEnvironment(value: unknown): void {
 .tv-topbar-account-picker__env-label {
   flex: 0 0 auto;
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .tv-topbar-account-picker__list {
@@ -205,7 +205,7 @@ function switchEnvironment(value: unknown): void {
   border: 1px dashed var(--tv-border);
   border-radius: 8px;
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .tv-topbar-account-picker__item {
@@ -236,7 +236,7 @@ function switchEnvironment(value: unknown): void {
   display: block;
   overflow: hidden;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -245,13 +245,13 @@ function switchEnvironment(value: unknown): void {
   display: block;
   margin-top: 3px;
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .tv-topbar-account-picker__favorite {
   width: 36px;
   min-width: 36px;
   padding: 0;
-  font-size: 15px;
+  font-size: var(--jf-text-9);
 }
 </style>

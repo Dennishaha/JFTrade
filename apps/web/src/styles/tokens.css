@@ -22,6 +22,28 @@
   --jf-z-sticky: 10;
   --jf-z-drawer: 40;
   --jf-z-dialog: 120;
+  --jf-text-1: 7px;
+  --jf-text-2: 8px;
+  --jf-text-3: 9px;
+  --jf-text-4: 10px;
+  --jf-text-5: 11px;
+  --jf-text-6: 12px;
+  --jf-text-7: 13px;
+  --jf-text-8: 14px;
+  --jf-text-9: 15px;
+  --jf-text-10: 16px;
+  --jf-text-11: 17px;
+  --jf-text-12: 18px;
+  --jf-text-13: 20px;
+  --jf-text-14: 24px;
+  --jf-text-15: 26px;
+  --jf-text-16: 28px;
+  --jf-text-17: 34px;
+  --jf-text-18: 38px;
+  --jf-tracking-1: 0.14em;
+  --jf-tracking-2: 0.16em;
+  --jf-tracking-3: 0.18em;
+  --jf-tracking-4: 0.2em;
 
   --tv-bg-app: #0a0a0a;
   --tv-bg-surface: #141414;

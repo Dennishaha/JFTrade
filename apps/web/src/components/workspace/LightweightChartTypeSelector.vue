@@ -195,7 +195,7 @@ onBeforeUnmount(() => {
   background: transparent;
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   line-height: 1;
 }
 
@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
   background: transparent;
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   text-align: left;
 }
 

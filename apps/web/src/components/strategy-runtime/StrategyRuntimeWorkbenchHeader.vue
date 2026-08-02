@@ -35,7 +35,7 @@ const emit = defineEmits<{
     <header class="runtime-workbench-panel__header border-b px-4 py-3">
         <div class="runtime-workbench-header-row">
             <div class="runtime-workbench-header-main min-w-0">
-                <div class="text-xs uppercase tracking-[0.16em] runtime-workbench-text-muted">运行操作台</div>
+                <div class="text-xs uppercase tracking-(--jf-tracking-2) runtime-workbench-text-muted">运行操作台</div>
                 <div class="mt-1 break-words text-lg font-semibold runtime-workbench-text-strong">
                     {{ selectedStrategy.definition.name }}
                 </div>

@@ -354,45 +354,45 @@ watch(
 .watchlist-import-dialog { overflow: hidden; border: 1px solid var(--tv-border); border-radius: 12px; background: var(--tv-bg-elevated); color: var(--tv-text); box-shadow: var(--tv-shadow-lg); }
 .watchlist-import-dialog > header,
 .watchlist-import-dialog > footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--tv-border); background: var(--tv-bg-surface-2); }
-.watchlist-import-dialog > header span { color: var(--tv-accent); font-size: 10px; font-weight: 700; letter-spacing: .12em; }
-.watchlist-import-dialog > header h2 { margin: 2px 0 0; font-size: 17px; }
-.watchlist-import-dialog > header p { margin: 4px 0 0; color: var(--tv-text-dim); font-size: 11px; }
-.watchlist-import-dialog > header button { width: 30px; height: 30px; border: 0; background: transparent; color: var(--tv-text-muted); font-size: 20px; }
+.watchlist-import-dialog > header span { color: var(--tv-accent); font-size: var(--jf-text-4); font-weight: 700; letter-spacing: .12em; }
+.watchlist-import-dialog > header h2 { margin: 2px 0 0; font-size: var(--jf-text-11); }
+.watchlist-import-dialog > header p { margin: 4px 0 0; color: var(--tv-text-dim); font-size: var(--jf-text-5); }
+.watchlist-import-dialog > header button { width: 30px; height: 30px; border: 0; background: transparent; color: var(--tv-text-muted); font-size: var(--jf-text-13); }
 .watchlist-import-dialog__body { display: grid; gap: 16px; max-height: min(68vh, 660px); padding: 18px; overflow: auto; }
 .watchlist-import-dialog__form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .watchlist-import-dialog__form-grid label { display: grid; gap: 6px; }
-.watchlist-import-dialog__form-grid label > span { color: var(--tv-text-muted); font-size: 11px; font-weight: 650; }
+.watchlist-import-dialog__form-grid label > span { color: var(--tv-text-muted); font-size: var(--jf-text-5); font-weight: 650; }
 .watchlist-import-dialog__form-grid select,
-.watchlist-import-dialog__form-grid input { width: 100%; height: 35px; padding: 0 9px; border: 1px solid var(--tv-border); border-radius: 6px; outline: none; background: var(--tv-bg-surface); color: var(--tv-text); font-size: 12px; }
+.watchlist-import-dialog__form-grid input { width: 100%; height: 35px; padding: 0 9px; border: 1px solid var(--tv-border); border-radius: 6px; outline: none; background: var(--tv-bg-surface); color: var(--tv-text); font-size: var(--jf-text-6); }
 .watchlist-import-dialog__form-grid select:focus,
 .watchlist-import-dialog__form-grid input:focus { border-color: var(--tv-accent); }
-.watchlist-import-dialog__state { margin: 0; padding: 9px 11px; border-radius: 6px; background: var(--tv-status-bg, var(--tv-bg-surface)); color: var(--tv-status-fg, var(--tv-text-dim)); font-size: 11px; }
+.watchlist-import-dialog__state { margin: 0; padding: 9px 11px; border-radius: 6px; background: var(--tv-status-bg, var(--tv-bg-surface)); color: var(--tv-status-fg, var(--tv-text-dim)); font-size: var(--jf-text-5); }
 .watchlist-import-dialog__bindings { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--tv-border); border-radius: 7px; background: var(--tv-bg-surface); }
 .watchlist-import-dialog__bindings > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .watchlist-import-dialog__bindings h3,
 .watchlist-import-dialog__bindings p { margin: 0; }
-.watchlist-import-dialog__bindings h3 { font-size: 12px; }
-.watchlist-import-dialog__bindings p { color: var(--tv-text-dim); font-size: 10px; }
+.watchlist-import-dialog__bindings h3 { font-size: var(--jf-text-6); }
+.watchlist-import-dialog__bindings p { color: var(--tv-text-dim); font-size: var(--jf-text-4); }
 .watchlist-import-dialog__bindings article { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--tv-border); }
 .watchlist-import-dialog__bindings article span { display: flex; min-width: 0; flex-direction: column; }
-.watchlist-import-dialog__bindings article strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.watchlist-import-dialog__bindings article strong { overflow: hidden; font-size: var(--jf-text-5); text-overflow: ellipsis; white-space: nowrap; }
 .watchlist-import-dialog__bindings article small,
-.watchlist-import-dialog__bindings article b { color: var(--tv-text-dim); font-size: 9px; font-weight: 400; }
-.watchlist-import-dialog__bindings article button { padding: 5px 7px; border: 1px solid var(--tv-border); border-radius: 5px; background: var(--tv-bg-surface-2); color: var(--tv-text-muted); font-size: 10px; }
+.watchlist-import-dialog__bindings article b { color: var(--tv-text-dim); font-size: var(--jf-text-3); font-weight: 400; }
+.watchlist-import-dialog__bindings article button { padding: 5px 7px; border: 1px solid var(--tv-border); border-radius: 5px; background: var(--tv-bg-surface-2); color: var(--tv-text-muted); font-size: var(--jf-text-4); }
 .watchlist-import-dialog__preview { display: grid; gap: 14px; padding-top: 2px; }
 .watchlist-import-dialog__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .watchlist-import-dialog__stats div { display: flex; align-items: baseline; gap: 7px; padding: 10px 12px; border: 1px solid var(--tv-border); border-radius: 7px; background: var(--tv-bg-surface); }
-.watchlist-import-dialog__stats strong { font-size: 18px; }
-.watchlist-import-dialog__stats span { color: var(--tv-text-dim); font-size: 10px; }
+.watchlist-import-dialog__stats strong { font-size: var(--jf-text-12); }
+.watchlist-import-dialog__stats span { color: var(--tv-text-dim); font-size: var(--jf-text-4); }
 .watchlist-import-dialog__preview section { display: grid; gap: 7px; }
-.watchlist-import-dialog__preview h3 { margin: 0; font-size: 12px; }
+.watchlist-import-dialog__preview h3 { margin: 0; font-size: var(--jf-text-6); }
 .watchlist-import-dialog__preview section > p,
-.watchlist-import-dialog__expiry { margin: 0; color: var(--tv-text-dim); font-size: 10px; }
+.watchlist-import-dialog__expiry { margin: 0; color: var(--tv-text-dim); font-size: var(--jf-text-4); }
 .watchlist-import-dialog__tokens { display: flex; max-height: 90px; flex-wrap: wrap; gap: 5px; overflow: auto; }
-.watchlist-import-dialog__tokens > span { padding: 3px 7px; border-radius: 4px; font-size: 10px; }
+.watchlist-import-dialog__tokens > span { padding: 3px 7px; border-radius: 4px; font-size: var(--jf-text-4); }
 .watchlist-import-dialog__local-only { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; max-height: 150px; overflow: auto; }
-.watchlist-import-dialog__local-only label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 5px; padding: 6px 8px; border: 1px solid var(--tv-border); border-radius: 5px; font-size: 11px; }
-.watchlist-import-dialog__local-only small { color: var(--tv-text-dim); font-size: 9px; }
+.watchlist-import-dialog__local-only label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 5px; padding: 6px 8px; border: 1px solid var(--tv-border); border-radius: 5px; font-size: var(--jf-text-5); }
+.watchlist-import-dialog__local-only small { color: var(--tv-text-dim); font-size: var(--jf-text-3); }
 .watchlist-import-dialog > footer { justify-content: flex-end; border-top: 1px solid var(--tv-border); border-bottom: 0; }
 .watchlist-import-dialog__primary { border-color: var(--tv-accent); background: var(--tv-accent); color: #fff; }
 @media (max-width: 640px) {

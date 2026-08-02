@@ -294,7 +294,7 @@ function closeStrategyActivityDetailDialog(): void {
                 data-testid="strategy-activity-detail-dialog">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <div class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        <div class="text-sm font-semibold uppercase tracking-(--jf-tracking-2) text-slate-500">
                             {{ selectedStrategyActivityDetail?.kindLabel ?? '详情' }}
                         </div>
                         <div class="mt-1 text-xl font-semibold text-slate-900">
@@ -311,21 +311,21 @@ function closeStrategyActivityDetailDialog(): void {
                 <div v-if="selectedStrategyActivityDetail !== null"
                     class="mt-4 grid gap-3 sm:grid-cols-2">
                     <div class="rounded-3xl bg-slate-50 px-4 py-4">
-                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">本地时间</div>
+                        <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-3) text-slate-500">本地时间</div>
                         <div class="mt-2 text-sm font-medium text-slate-900 strategy-time-display"
                             :title="selectedStrategyActivityDetail.tooltip">
                             {{ selectedStrategyActivityDetail.at }}
                         </div>
                     </div>
                     <div class="rounded-3xl bg-slate-50 px-4 py-4">
-                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">级别</div>
+                        <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-3) text-slate-500">级别</div>
                         <div class="mt-2 text-sm font-medium text-slate-900">
                             {{ formatStrategyActivityLevel(selectedStrategyActivityDetail.level) }}
                         </div>
                     </div>
                     <div v-if="selectedStrategyActivityDetail.rawKind !== undefined"
                         class="rounded-3xl bg-slate-50 px-4 py-4">
-                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">原始类型</div>
+                        <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-3) text-slate-500">原始类型</div>
                         <div class="mt-2 text-sm font-medium text-slate-900 break-all">
                             {{ selectedStrategyActivityDetail.rawKind }}
                         </div>
@@ -334,11 +334,11 @@ function closeStrategyActivityDetailDialog(): void {
 
                 <div v-if="selectedStrategyActivityDetail !== null"
                     class="mt-4 rounded-3xl bg-slate-50 px-4 py-4">
-                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">摘要</div>
+                    <div class="text-xs font-semibold uppercase tracking-(--jf-tracking-2) text-slate-500">摘要</div>
                     <div class="mt-2 text-sm text-slate-700 break-words">
                         {{ selectedStrategyActivityDetail.summary }}
                     </div>
-                    <div class="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">详情</div>
+                    <div class="mt-4 text-xs font-semibold uppercase tracking-(--jf-tracking-2) text-slate-500">详情</div>
                     <div class="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
                         {{ selectedStrategyActivityDetail.detail }}
                     </div>

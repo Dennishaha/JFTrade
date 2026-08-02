@@ -174,14 +174,14 @@ function handleSubmitted(internalOrderId: string): void {
 
 .option-trading-dock__account strong {
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .option-trading-dock__account small {
   color: var(--tv-text-dim);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
 }
 
 .option-trading-dock__account small.is-real {
@@ -203,7 +203,7 @@ function handleSubmitted(internalOrderId: string): void {
   background: transparent;
   color: var(--tv-text-dim);
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .option-trading-dock nav button::after {
@@ -234,7 +234,7 @@ function handleSubmitted(internalOrderId: string): void {
   border-radius: 7px;
   background: var(--tv-bg-surface-2);
   color: var(--tv-text-muted);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
 }
 
 .option-trading-dock__collapse {

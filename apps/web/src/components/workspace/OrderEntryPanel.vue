@@ -365,7 +365,7 @@ const {
   border-radius: 6px;
   padding: 9px 10px;
   background: rgba(255, 255, 255, 0.03);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   line-height: 1.45;
 }
 
@@ -406,7 +406,7 @@ const {
 .tv-order-receipt-grid span {
   display: block;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .tv-order-receipt-grid strong {
@@ -426,7 +426,7 @@ const {
 
 .tv-order-feedback-actions a {
   color: var(--tv-accent);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
   text-decoration: none;
 }
@@ -438,13 +438,13 @@ const {
 .tv-order-feedback-actions > span {
   margin-left: auto;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .tv-order-feedback-event {
   margin-top: 7px;
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 </style>

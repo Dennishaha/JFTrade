@@ -25,6 +25,10 @@
 
 新增样式时先寻找语义 token。只有真实的新设计语义才能新增 token；不要为某个组件的单个像素值创建 token。亮色和暗色必须在同一 token 名称下分别赋值。
 
+### 字号与字距尺度
+
+字号使用 `--jf-text-1` 到 `--jf-text-18`（7px 到 38px，按全仓实际用值递增编号，中间档不为假想值预留）；字距使用 `--jf-tracking-1` 到 `--jf-tracking-4`（0.14em / 0.16em / 0.18em / 0.2em）。scoped CSS 与全局样式中的 `font-size` 静态声明必须写 `var(--jf-text-N)`，不得直接写 px 字面值。Tailwind 侧用 CSS 变量短横语法引用：`text-(length:--jf-text-5)`、`tracking-(--jf-tracking-2)`，不要再写 `text-[11px]`、`tracking-[0.16em]` 这类任意值。模板内联 `style` 与脚本中的动态字号（如图表配置）暂不受此约束。
+
 ## 何时抽取共享样式
 
 满足以下任一条件时，优先提取到 `styles/components.css` 或已有共享组件：

@@ -369,7 +369,7 @@ const {
   overflow: auto;
   background: var(--tv-bg-surface);
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .prediction-research__header,
@@ -390,7 +390,7 @@ const {
 .prediction-research__breadcrumb span,
 .prediction-research__contract-footer span {
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .prediction-research__segments {
@@ -568,7 +568,7 @@ const {
 
 .prediction-research__parlay h3 {
   margin: 0 0 9px;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .prediction-research__leg-list {
@@ -617,7 +617,7 @@ const {
 .prediction-research__quote span,
 .prediction-research__field > span {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .prediction-research__field {

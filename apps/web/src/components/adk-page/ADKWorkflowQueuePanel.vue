@@ -142,7 +142,7 @@ function highestPriorityStatus(statuses: string[]): string {
   flex-wrap: wrap;
   gap: 6px 10px;
   color: var(--tv-text-muted);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-workflow-queue__output {
@@ -154,7 +154,7 @@ function highestPriorityStatus(statuses: string[]): string {
   border-radius: 8px;
   background: color-mix(in srgb, var(--tv-bg-surface-2) 92%, transparent);
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   white-space: pre-wrap;
 }
 </style>

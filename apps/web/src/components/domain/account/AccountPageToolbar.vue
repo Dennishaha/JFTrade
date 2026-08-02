@@ -91,12 +91,12 @@ const emit = defineEmits<{
   background: transparent;
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 .account-page__tabs button span {
   margin-left: 4px;
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 .account-page__tabs button.is-active {
   background: var(--tv-bg-surface);
@@ -124,7 +124,7 @@ const emit = defineEmits<{
   background: var(--tv-bg-surface);
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 .account-page__refresh:hover:not(:disabled) {
   border-color: var(--tv-accent);
@@ -136,7 +136,7 @@ const emit = defineEmits<{
 }
 .account-page__refresh-icon {
   display: inline-block;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   line-height: 1;
 }
 .account-page__refresh-icon.is-refreshing {

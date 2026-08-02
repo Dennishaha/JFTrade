@@ -259,7 +259,7 @@ const {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
 }
 
 .adk-context-breakdown {
@@ -276,11 +276,11 @@ const {
 
 .adk-context-summary__title {
   color: rgb(100 116 139);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .adk-context-summary__content {
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;

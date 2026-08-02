@@ -342,7 +342,7 @@ const analystRatings = computed(() =>
   flex-direction: column;
   gap: 8px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .instrument-research__toolbar {
@@ -426,7 +426,7 @@ const analystRatings = computed(() =>
 
 .instrument-research__valuation section > header small {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 500;
 }
 
@@ -471,7 +471,7 @@ const analystRatings = computed(() =>
 
 .instrument-research__metric-grid span {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .instrument-research__nested-table {
@@ -511,7 +511,7 @@ const analystRatings = computed(() =>
 
 .instrument-research__target b {
   color: var(--tv-text);
-  font-size: 18px;
+  font-size: var(--jf-text-12);
 }
 
 .instrument-research__ratings {

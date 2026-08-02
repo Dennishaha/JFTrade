@@ -49,7 +49,7 @@ withDefaults(
 
 .product-panel-toolbar__identity strong {
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 700;
   text-overflow: ellipsis;
 }
@@ -57,7 +57,7 @@ withDefaults(
 .product-panel-toolbar__identity span {
   overflow: hidden;
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
   text-overflow: ellipsis;
 }
 

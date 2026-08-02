@@ -111,7 +111,7 @@
 .option-combo-ticket label,
 .option-combo-ticket__scope span {
   color: var(--tv-text-dim);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .option-combo-ticket select,
@@ -129,13 +129,13 @@
 .option-combo-ticket input {
   min-width: 0;
   padding: 0 8px;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .option-combo-ticket button {
   padding: 0 8px;
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .option-combo-ticket button:hover:not(:disabled),
@@ -170,7 +170,7 @@
 
 .option-combo-ticket label > strong {
   color: var(--tv-text);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .option-combo-ticket__anchors {
@@ -221,7 +221,7 @@
   padding: 5px 10px;
   background: color-mix(in srgb, var(--tv-warn) 7%, transparent);
   color: var(--tv-warn);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .option-combo-ticket__message.is-error {
@@ -235,7 +235,7 @@
   padding: 0 10px;
   border-top: 1px solid var(--tv-border);
   color: var(--tv-text-muted);
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 @container option-combo-ticket (max-width: 940px) {

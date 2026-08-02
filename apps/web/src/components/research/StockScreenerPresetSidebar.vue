@@ -66,7 +66,7 @@ const {
 
 .stock-screener-view__preset-sidebar-head span {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .stock-screener-view__new-preset {
@@ -109,7 +109,7 @@ const {
 .stock-screener-view__preset-empty {
   padding: 12px 4px;
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   text-align: center;
 }
 

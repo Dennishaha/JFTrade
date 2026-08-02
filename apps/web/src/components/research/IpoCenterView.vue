@@ -238,7 +238,7 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
   min-height: 0;
   flex-direction: column;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .ipo-center-view__panels {
@@ -276,7 +276,7 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
   background: transparent;
   color: var(--tv-text-dim);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 400;
 }
 
@@ -322,7 +322,7 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
 .ipo-center-view__table th {
   background: var(--tv-bg-surface-2);
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 500;
 }
 

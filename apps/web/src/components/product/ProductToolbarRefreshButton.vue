@@ -41,6 +41,6 @@ defineEmits<{
 }
 
 .product-toolbar-refresh :deep(.v-icon) {
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 </style>

@@ -117,7 +117,7 @@ function barWidth(max: number, value: number): string {
 .tv-ob-depth-table {
   display: grid;
   grid-template-columns: 1fr auto auto 1fr;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-variant-numeric: tabular-nums;
 }
 
@@ -203,18 +203,18 @@ function barWidth(max: number, value: number): string {
 }
 
 .tv-ob-depth-placeholder-icon {
-  font-size: 28px;
+  font-size: var(--jf-text-16);
   opacity: 0.4;
 }
 
 .tv-ob-depth-placeholder-text {
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 500;
 }
 
 .tv-ob-depth-placeholder-hint {
   max-width: 180px;
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   line-height: 1.4;
   text-align: center;
 }

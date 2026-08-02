@@ -181,7 +181,7 @@ function toneClass(item: MetricItem): string {
   border-bottom: 1px solid color-mix(in srgb, var(--tv-warn) 35%, var(--tv-border));
   background: color-mix(in srgb, var(--tv-warn) 9%, var(--tv-bg-surface-2));
   color: var(--tv-warn);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .asset-strip__section:first-child {
@@ -194,7 +194,7 @@ function toneClass(item: MetricItem): string {
   gap: 6px;
   margin-bottom: 8px;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 650;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -213,7 +213,7 @@ function toneClass(item: MetricItem): string {
 .asset-strip__item span {
   display: block;
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .asset-strip__item b {
@@ -221,7 +221,7 @@ function toneClass(item: MetricItem): string {
   overflow: hidden;
   margin-top: 1px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;

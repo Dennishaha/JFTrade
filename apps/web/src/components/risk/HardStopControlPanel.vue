@@ -220,7 +220,7 @@ function activate() {
   align-items: center;
   gap: 6px;
   color: var(--tv-status-fg, var(--tv-text-muted));
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .hardstop-panel__body {
@@ -260,7 +260,7 @@ function activate() {
 .hardstop-panel__create,
 .hardstop-panel__entry-actions .tv-btn {
   height: 28px;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .hardstop-panel__entries {
@@ -286,7 +286,7 @@ function activate() {
 
 .hardstop-panel__entry-head b {
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 600;
 }
 
@@ -294,23 +294,23 @@ function activate() {
   padding: 2px 8px;
   border: 1px solid;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   white-space: nowrap;
 }
 
 .hardstop-panel__entry-meta {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .hardstop-panel__entry-reason {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .hardstop-panel__empty {
   padding: 8px 2px;
   color: var(--tv-text-dim);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 </style>

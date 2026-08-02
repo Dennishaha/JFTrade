@@ -358,7 +358,7 @@ onBeforeUnmount(() => {
   padding: 0 10px;
   background: var(--tv-bg-surface-2);
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -368,7 +368,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 30px;
   padding: 0 6px;
-  font-size: 9px;
+  font-size: var(--jf-text-3);
 }
 
 .watchlist-table__viewport {
@@ -433,7 +433,7 @@ onBeforeUnmount(() => {
 
 .watchlist-table__instrument strong {
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--jf-text-6);
   font-weight: 650;
   text-overflow: ellipsis;
 }
@@ -441,7 +441,7 @@ onBeforeUnmount(() => {
 .watchlist-table__instrument small,
 .watchlist-table__muted {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .watchlist-table__price {
@@ -464,12 +464,12 @@ onBeforeUnmount(() => {
 
 .watchlist-table__session {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .watchlist-table__quote-error {
   color: var(--tv-warning, #d97706);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .watchlist-table__quote-stale {
@@ -482,7 +482,7 @@ onBeforeUnmount(() => {
   border: 1px solid currentColor;
   border-radius: 999px;
   color: var(--tv-warning, #d97706);
-  font-size: 8px;
+  font-size: var(--jf-text-2);
   line-height: 1;
   vertical-align: 1px;
 }
@@ -513,8 +513,8 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.watchlist-table__empty strong { color: var(--tv-text-muted); font-size: 13px; }
-.watchlist-table__empty small { max-width: 260px; font-size: 11px; }
+.watchlist-table__empty strong { color: var(--tv-text-muted); font-size: var(--jf-text-7); }
+.watchlist-table__empty small { max-width: 260px; font-size: var(--jf-text-5); }
 
 .watchlist-table__spinner {
   width: 20px;
@@ -535,7 +535,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: var(--tv-bg-elevated);
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 @keyframes watchlist-spin { to { transform: rotate(360deg); } }

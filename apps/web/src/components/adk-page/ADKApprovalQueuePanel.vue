@@ -125,7 +125,7 @@ function sourceLabel(item: ADKApprovalQueueItem): string {
 .adk-approval-queue__risk {
   margin-left: 6px;
   color: var(--adk-warning-fg);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 500;
 }
 
@@ -138,7 +138,7 @@ function sourceLabel(item: ADKApprovalQueueItem): string {
   border: 1px solid var(--tv-border);
   background: color-mix(in srgb, var(--tv-bg-surface-2) 92%, transparent);
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   white-space: pre-wrap;
 }
 </style>

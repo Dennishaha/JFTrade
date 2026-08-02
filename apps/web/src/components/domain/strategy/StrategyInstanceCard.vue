@@ -47,7 +47,7 @@ function selectStrategy(): void {
         <div
           v-if="model.definitionStale"
           :data-testid="`strategy-definition-stale-${model.id}`"
-          class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase text-amber-700"
+          class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-(length:--jf-text-5) font-semibold uppercase text-amber-700"
         >
           待刷新
         </div>
@@ -79,7 +79,7 @@ function selectStrategy(): void {
     <div class="mt-1 break-all text-sm text-slate-500">{{ model.brokerAccountSummary }}</div>
     <div
       v-if="model.currentBrokerAccount"
-      class="mt-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-emerald-700"
+      class="mt-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-(length:--jf-text-5) font-semibold uppercase text-emerald-700"
     >
       当前
     </div>
@@ -87,7 +87,7 @@ function selectStrategy(): void {
       创建于
       <span class="strategy-time-display" :title="model.createdAtTooltip">{{ model.createdAt }}</span>
     </div>
-    <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold uppercase">
+    <div class="mt-3 flex flex-wrap gap-2 text-(length:--jf-text-5) font-semibold uppercase">
       <span class="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-slate-600">
         {{ model.runtimeLabel }}
       </span>

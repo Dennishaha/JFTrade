@@ -30,7 +30,7 @@ const { isMobileLayout, mobileControlsExpanded } = useADKChatComposerContext();
   border-radius: 9px;
   background: transparent;
   padding: 0 7px;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   font-weight: 600;
   cursor: pointer;
 }
@@ -54,7 +54,7 @@ const { isMobileLayout, mobileControlsExpanded } = useADKChatComposerContext();
   background: transparent;
   padding: 0 7px;
   color: var(--tv-text-muted);
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   line-height: 1;
   cursor: pointer;
 }

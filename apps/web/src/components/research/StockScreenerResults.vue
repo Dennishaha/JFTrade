@@ -145,7 +145,7 @@ const {
 
 .stock-screener-view__result-head > span {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
 }
 
 .stock-screener-view__result-head span:last-child {
@@ -189,7 +189,7 @@ const {
   border-bottom: 1px solid var(--tv-border);
   background: var(--tv-bg-surface-2);
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   text-align: left;
 }
 

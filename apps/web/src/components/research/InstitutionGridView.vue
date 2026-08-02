@@ -386,7 +386,7 @@ const hasProfileOverview = computed(
   flex-direction: column;
   gap: 8px;
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .institution-grid-view__toolbar {
@@ -407,7 +407,7 @@ const hasProfileOverview = computed(
   outline: none;
   background: var(--tv-bg-surface-2);
   color: var(--tv-text);
-  font-size: 12px;
+  font-size: var(--jf-text-6);
 }
 
 .institution-grid-view__search:focus {
@@ -466,7 +466,7 @@ const hasProfileOverview = computed(
   border-radius: 50%;
   background: var(--tv-bg-surface-2);
   color: var(--tv-text-muted);
-  font-size: 16px;
+  font-size: var(--jf-text-10);
   font-weight: 600;
 }
 
@@ -502,7 +502,7 @@ const hasProfileOverview = computed(
 
 .institution-grid-view__date {
   color: var(--tv-text-dim);
-  font-size: 10px;
+  font-size: var(--jf-text-4);
 }
 
 .institution-grid-view__details {
@@ -584,7 +584,7 @@ const hasProfileOverview = computed(
 
 .institution-grid-view__metric strong {
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--jf-text-7);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -661,7 +661,7 @@ const hasProfileOverview = computed(
 
 .institution-grid-view__holdings th {
   color: var(--tv-text-muted);
-  font-size: 11px;
+  font-size: var(--jf-text-5);
   font-weight: 500;
 }
 
