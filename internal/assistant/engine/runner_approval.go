@@ -176,6 +176,9 @@ func (r *Runtime) continueResolvedApprovalRun(ctx context.Context, runID string)
 	}
 	ctx, cancel := context.WithTimeout(ctx, runTimeoutForRun(run))
 	defer cancel()
+	if err := r.waitForLocalRunLeaseRelease(ctx, run.ID); err != nil {
+		return err
+	}
 	leaseCtx, leaseCancel, waitForLease, leaseErr := r.beginRunExecutionLease(ctx, run.ID)
 	if leaseErr != nil {
 		if isRunLeaseHeld(leaseErr) {
@@ -195,6 +198,25 @@ func (r *Runtime) continueResolvedApprovalRun(ctx context.Context, runID string)
 		_, err = r.continueParentWorkflowAfterChild(leaseCtx, *resolution.Run)
 	}
 	return err
+}
+
+// waitForLocalRunLeaseRelease prevents an approval resolved immediately after
+// input from losing its continuation while that input continuation is still
+// releasing the same run's lease. A foreign lease remains authoritative and is
+// handled by the normal reconciliation path.
+func (r *Runtime) waitForLocalRunLeaseRelease(ctx context.Context, runID string) error {
+	for {
+		if _, active := r.currentRunLease(runID); !active {
+			return nil
+		}
+		timer := time.NewTimer(10 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
 }
 
 func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID string, cause error) error {

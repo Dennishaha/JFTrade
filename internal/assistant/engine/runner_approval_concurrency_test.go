@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -148,6 +149,60 @@ func TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("sibling async run did not complete; executions=%d", executions.Load())
+}
+
+func TestAsyncApprovalWaitsForLocalInputContinuationLease(t *testing.T) {
+	ctx := t.Context()
+	runtime, executions := newWorkflowApprovalRuntime(t, WorkModeChat)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "approval-local-lease-agent", Name: "Approval Local Lease", ProviderID: testProviderID,
+		Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
+	})
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@approval.required save"})
+	if err != nil || len(response.PendingApprovals) != 1 {
+		t.Fatalf("Chat response=%+v err=%v", response, err)
+	}
+
+	_, cancelLease, waitForLease, err := runtime.beginRunExecutionLease(ctx, response.Run.ID)
+	if err != nil {
+		t.Fatalf("hold local input continuation lease: %v", err)
+	}
+	resolved, err := runtime.ResolveApprovalAsync(ctx, response.PendingApprovals[0].ID, true)
+	if err != nil || resolved.Run == nil || resolved.Run.ResumeState != "approval_resuming" {
+		cancelLease()
+		waitForLease()
+		t.Fatalf("ResolveApprovalAsync=%+v err=%v", resolved, err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if got := executions.Load(); got != 0 {
+		cancelLease()
+		waitForLease()
+		t.Fatalf("approved tool executed %d times before local lease release", got)
+	}
+
+	cancelLease()
+	waitForLease()
+	completed := waitForRunStatus(t, runtime, response.Run.ID, RunStatusCompleted)
+	if completed.ResumeState != "adk_confirmation_resolved" || executions.Load() != 1 {
+		t.Fatalf("completed run=%+v executions=%d", completed, executions.Load())
+	}
+}
+
+func TestApprovalLeaseWaitStopsWhenRuntimeContextIsCancelled(t *testing.T) {
+	runtime := newTestRuntime(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	_, cancelLease, waitForLease, err := runtime.beginRunExecutionLease(t.Context(), "approval-cancelled-wait")
+	if err != nil {
+		t.Fatalf("hold local lease: %v", err)
+	}
+	cancel()
+	if err := runtime.waitForLocalRunLeaseRelease(ctx, "approval-cancelled-wait"); !errors.Is(err, context.Canceled) {
+		cancelLease()
+		waitForLease()
+		t.Fatalf("wait error = %v, want context cancellation", err)
+	}
+	cancelLease()
+	waitForLease()
 }
 
 func newSiblingApprovalRuntime(t *testing.T) (*Runtime, ChatResponse, *atomic.Int64) {
