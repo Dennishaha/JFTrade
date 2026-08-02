@@ -142,7 +142,7 @@ body {
 }
 
 [data-theme="light"] body {
-  background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 50%, #eef2f7 100%);
+  background: var(--tv-bg-app);
 }
 
 /* Semantic UI state colors. Keep these separate from market up/down colors. */

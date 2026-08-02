@@ -104,33 +104,6 @@ function copyCanonicalInstrumentId(event: ClipboardEvent): void {
   </span>
 </template>
 
-<style>
-:root,
-[data-theme="dark"] {
-  --instrument-market-tag-cn-border: #7f1d1d;
-  --instrument-market-tag-cn-background: #451a1a;
-  --instrument-market-tag-cn-text: var(--jf-accent-red-text);
-  --instrument-market-tag-hk-border: #6b21a8;
-  --instrument-market-tag-hk-background: #2e1065;
-  --instrument-market-tag-hk-text: #d8b4fe;
-  --instrument-market-tag-us-border: #1e40af;
-  --instrument-market-tag-us-background: #172554;
-  --instrument-market-tag-us-text: #93c5fd;
-}
-
-[data-theme="light"] {
-  --instrument-market-tag-cn-border: #fecaca;
-  --instrument-market-tag-cn-background: #fee2e2;
-  --instrument-market-tag-cn-text: #b91c1c;
-  --instrument-market-tag-hk-border: #e9d5ff;
-  --instrument-market-tag-hk-background: #f3e8ff;
-  --instrument-market-tag-hk-text: #7e22ce;
-  --instrument-market-tag-us-border: #bfdbfe;
-  --instrument-market-tag-us-background: #dbeafe;
-  --instrument-market-tag-us-text: #1d4ed8;
-}
-</style>
-
 <style scoped>
 .instrument-identity {
   display: inline-flex;

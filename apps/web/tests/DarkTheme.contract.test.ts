@@ -47,7 +47,7 @@ describe("dark theme background contract", () => {
 
   it("keeps independent dark surfaces aligned with the global hierarchy", () => {
     const styles = source("style.css");
-    const vuetify = source("main.ts");
+    const vuetify = source("vuetifyTheme.ts");
     const kline = source("components/domain/market-data/KlineChart.vue");
     const backtest = source("components/backtest/BacktestChart.vue");
     const workflow = source("styles/adk-workflow-studio.css");

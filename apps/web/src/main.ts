@@ -15,6 +15,7 @@ import App from "./App.vue";
 import { fontAwesomeIcons } from "./fontAwesomeIcons";
 import { queryClient } from "@/composables/settings/serverState";
 import { createConsoleRouter } from "./router";
+import { vuetifyTheme } from "./vuetifyTheme";
 import "./styles/tokens.css";
 import "./styles/adk-tokens.css";
 import "./styles/components.css";
@@ -23,25 +24,7 @@ import "./style.css";
 
 const vuetify = createVuetify({
   icons: fontAwesomeIcons,
-  theme: {
-    defaultTheme: "dark",
-    themes: {
-      light: {
-        dark: false,
-        colors: {
-          background: "#f4f7fb",
-          surface: "#ffffff",
-        },
-      },
-      dark: {
-        dark: true,
-        colors: {
-          background: "#0a0a0a",
-          surface: "#141414",
-        },
-      },
-    },
-  },
+  theme: vuetifyTheme,
 });
 
 const app = createApp(App);
