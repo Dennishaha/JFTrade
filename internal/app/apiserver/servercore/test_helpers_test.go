@@ -12,6 +12,7 @@ import (
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 const testADKProviderID = "test-provider"
@@ -23,6 +24,7 @@ func newTestServer(t *testing.T, store *SettingsStore) *Server {
 	t.Helper()
 	isolateTestBacktestDatabase(t, store)
 	disableTestExchangeCalendarAutoRefresh(t, store)
+	forceTestMarketDataProvider(t, store)
 	server := NewServer(store)
 	if server.marketdataSvc != nil {
 		server.marketdataSvc.SetSubscriptionReconciler(nil)
@@ -50,6 +52,7 @@ func newHTTPTestServer(t *testing.T, store *SettingsStore) *httptest.Server {
 	t.Helper()
 	isolateTestBacktestDatabase(t, store)
 	disableTestExchangeCalendarAutoRefresh(t, store)
+	forceTestMarketDataProvider(t, store)
 	server := NewServer(store)
 	if server.marketdataSvc != nil {
 		server.marketdataSvc.SetSubscriptionReconciler(nil)
@@ -65,6 +68,18 @@ func newHTTPTestServer(t *testing.T, store *SettingsStore) *httptest.Server {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+func forceTestMarketDataProvider(t *testing.T, store *SettingsStore) {
+	t.Helper()
+	if store == nil {
+		return
+	}
+	// Keep the shared server fixture independent of whether the host has a
+	// compatible Python runtime that would make yfinance the default provider.
+	if err := store.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderFutu); err != nil {
+		t.Fatalf("SaveActiveMarketDataProvider: %v", err)
+	}
 }
 
 func isolateTestBacktestDatabase(t *testing.T, store *SettingsStore) {

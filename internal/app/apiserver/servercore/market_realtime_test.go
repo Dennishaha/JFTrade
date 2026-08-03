@@ -51,6 +51,9 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 		CreatedAt: now,
 	}
 	store.mu.Unlock()
+	if err := store.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderFutu); err != nil {
+		t.Fatalf("SaveActiveMarketDataProvider: %v", err)
+	}
 
 	disableTestExchangeCalendarAutoRefresh(t, store)
 	server := NewServer(store)
