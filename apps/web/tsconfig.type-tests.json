@@ -3,5 +3,5 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["tests/contractsModularization.test.ts"]
+  "include": ["tests/contracts/contractsModularization.test.ts"]
 }

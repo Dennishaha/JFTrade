@@ -12,7 +12,7 @@ const sourceRoots = ["apps/web/src", "apps/web/tests"];
 const sourceExtensions = new Set([".js", ".jsx", ".ts", ".tsx", ".vue"]);
 const exactInfrastructureFiles = new Set([
   "apps/web/src/composables/shared/apiClient.ts",
-  "apps/web/tests/contractsModularization.test.ts",
+  "apps/web/tests/contracts/contractsModularization.test.ts",
 ]);
 
 export function directGeneratedOpenAPIImportFiles(sources) {

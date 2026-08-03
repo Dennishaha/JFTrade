@@ -62,13 +62,13 @@ apps/web
 - [../internal/app/apiserver/servercore/market_data_adapters.go](../internal/app/apiserver/servercore/market_data_adapters.go)
 - [../internal/integration/futu/marketdata_runtime.go](../internal/integration/futu/marketdata_runtime.go)
 
-- `apps/web/tests/kline.test.ts`
+- `apps/web/tests/charting/kline.test.ts`
   - 覆盖分钟/小时 K 展示桶结束点、历史最后一根不被实时新桶吞掉、日线、周线、分钟线分桶，以及 stale history gap 抑制。
 
-- `apps/web/tests/KlineChart.test.ts`
+- `apps/web/tests/components/domain/KlineChart.test.ts`
   - 覆盖分钟 K 图表 series 时间使用桶结束展示时间。
 
-- `apps/web/tests/useConsoleData.klineRealtime.test.ts`
+- `apps/web/tests/composables/useConsoleData.klineRealtime.test.ts`
   - 覆盖实时事件 `event.at` 已跨分钟、但 `snapshot.at` 仍停在旧分钟时，前端仍应开启新桶。
   - 覆盖同一周期内多 tick 的 open/high/low/close 累计，以及 1m、5m 跨周期拆分。
   - 覆盖历史查询已经带回当前桶时，后续实时 tick 必须复用该当前桶的真实 open/high/low，而不是回退到上一根 close。

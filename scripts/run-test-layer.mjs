@@ -16,6 +16,7 @@ export const preflightChecks = [
   ["pnpm", ["run", "check:web-contract-audit"]],
   ["pnpm", ["run", "check:web-openapi-imports"]],
   ["pnpm", ["run", "check:web-component-budget"]],
+  ["pnpm", ["run", "check:web-file-length"]],
   ["pnpm", ["run", "test:pine-structure-corpus"]],
   ["pnpm", ["run", "lint:go"]],
   ["pnpm", ["run", "lint:go:errorlint"]],
@@ -25,8 +26,8 @@ export const preflightChecks = [
   ["pnpm", ["run", "check:arch-deps"]],
 ];
 
-export const parallelPreflightChecks = preflightChecks.slice(0, 10);
-export const sequentialPreflightChecks = preflightChecks.slice(10);
+export const parallelPreflightChecks = preflightChecks.slice(0, 11);
+export const sequentialPreflightChecks = preflightChecks.slice(11);
 
 const generateDocs = ["pnpm", ["run", "generate:docs"]];
 const contractDriftCheck = [

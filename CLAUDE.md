@@ -83,7 +83,7 @@ pnpm run test:main        # ci-local + 完整 Go 回归 + desktop + 真实 PineT
 
 **自选：** `watchlists.db` 是唯一主数据。Futu 3213/3222 只做远端分组发现与预览导入，3203 `SecuritySnapshot` 只做可见行报价；自选行情不进入实时 collector demand 或 BasicQot 订阅。
 
-**前端：** `apps/web/src` 下 `pages/` + `components/` + `composables/` + `features/`（纯逻辑模块，如 `strategyVisualBuilder*`、`pineSourceStructure*`）+ `charting/`（lightweight-charts）；Vuetify 4 + Tailwind 4 + `@tanstack/vue-query`；测试在 `apps/web/tests/`。
+**前端：** `apps/web/src` 下 `pages/` + `components/` + `composables/` + `features/`（纯逻辑模块，如 `strategyVisualBuilder*`、`pineSourceStructure*`）+ `charting/`（lightweight-charts）；Vuetify 4 + Tailwind 4 + `@tanstack/vue-query`；测试在 `apps/web/tests/`，按被测对象镜像 src 结构分域（`components/<域>/`、`composables/`、`features/`、`pages/` 等，跨域契约归 `shared/`）。
 
 ## 硬性约束
 

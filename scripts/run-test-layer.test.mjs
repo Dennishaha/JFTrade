@@ -23,7 +23,7 @@ test("preflight generates docs before running the shared checks", () => {
     { mode: "parallel", commands: parallelPreflightChecks },
     { mode: "sequential", commands: sequentialPreflightChecks },
   ]);
-  assert.equal(parallelPreflightChecks.length, 10);
+  assert.equal(parallelPreflightChecks.length, 11);
 });
 
 test("ci-local generates docs once, checks drift, then runs shared checks inline", () => {

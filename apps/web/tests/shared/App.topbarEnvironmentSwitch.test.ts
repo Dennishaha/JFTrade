@@ -1,0 +1,998 @@
+// @vitest-environment jsdom
+
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  emptyBrokerCashFlows,
+  emptyBrokerFunds,
+  emptyBrokerOrders,
+  emptyBrokerPositions,
+  emptyBrokerRuntime,
+  emptyBrokerSettings,
+  emptyExecutionOrders,
+  emptyMarketDataSubscriptions,
+  emptyPortfolioCashBalances,
+  emptyPortfolioPositions,
+  emptyRealTradeApprovals,
+  emptyRealTradeHardStopEvents,
+  emptyRealTradeHardStops,
+  emptyRealTradeKillSwitchEvents,
+  emptyRealTradeKillSwitchState,
+  emptyRealTradeRiskEvents,
+  emptyRealTradeRiskState,
+  emptySystemStatus,
+} from "@/types";
+
+import {
+  MockWebSocket,
+  createLiveEnvelope,
+  createResponse,
+  enabledFutuBrokerSettings,
+  flushRequests,
+  mountApp,
+} from "../helpers";
+
+async function waitForShellData(): Promise<void> {
+  await flushRequests();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  await flushRequests();
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  MockWebSocket.instances = [];
+});
+
+function findLiveEventStream(): MockWebSocket | undefined {
+  return MockWebSocket.instances.find((instance) =>
+    instance.url.includes("/api/v1/ws/live"),
+  );
+}
+
+describe("TopBar trading environment switch", () => {
+  it("keeps compact topbar to primary controls plus search and moves environment switching into the account picker", async () => {
+
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: query === "(max-width: 1180px)",
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/system/status")) {
+        return createResponse({
+          ...emptySystemStatus,
+          defaultBroker: "futu",
+          defaultTradingEnvironment: "SIMULATE",
+        });
+      }
+      if (url.includes("/api/v1/settings/brokers")) {
+        return createResponse(
+          enabledFutuBrokerSettings([
+            {
+              accountId: "SIM-001",
+              displayName: "Sim Primary",
+              tradingEnvironment: "SIMULATE",
+              market: "HK",
+            },
+            {
+              accountId: "REAL-001",
+              displayName: "Real Primary",
+              tradingEnvironment: "REAL",
+              market: "US",
+            },
+          ]),
+        );
+      }
+      if (url.includes("/api/v1/system/real-trade-approvals"))
+        return createResponse(emptyRealTradeApprovals);
+      if (url.includes("/api/v1/system/real-trade-hard-stops"))
+        return createResponse(emptyRealTradeHardStops);
+      if (url.includes("/api/v1/system/real-trade-hard-stop-events"))
+        return createResponse(emptyRealTradeHardStopEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch-events"))
+        return createResponse(emptyRealTradeKillSwitchEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch"))
+        return createResponse(emptyRealTradeKillSwitchState);
+      if (url.includes("/api/v1/system/real-trade-risk-events"))
+        return createResponse(emptyRealTradeRiskEvents);
+      if (url.includes("/api/v1/system/real-trade-risk-limits"))
+        return createResponse(emptyRealTradeRiskState);
+      if (url.includes("/api/v1/brokers/futu/runtime"))
+        return createResponse(emptyBrokerRuntime);
+      if (url.includes("/api/v1/brokers/futu/funds"))
+        return createResponse(emptyBrokerFunds);
+      if (url.includes("/api/v1/brokers/futu/positions"))
+        return createResponse(emptyBrokerPositions);
+      if (url.includes("/api/v1/brokers/futu/orders"))
+        return createResponse(emptyBrokerOrders);
+      if (url.includes("/api/v1/brokers/futu/cash-flows"))
+        return createResponse(emptyBrokerCashFlows);
+      if (url.includes("/api/v1/portfolio/futu/cash-balances"))
+        return createResponse(emptyPortfolioCashBalances);
+      if (url.includes("/api/v1/portfolio/futu/positions"))
+        return createResponse(emptyPortfolioPositions);
+      if (url.includes("/api/v1/execution/orders"))
+        return createResponse(emptyExecutionOrders);
+      if (url.includes("/api/v1/market-data/markets")) {
+        return createResponse({
+          defaultMarket: "HK",
+          updatedAt: "2026-06-12T00:00:00.000Z",
+          markets: [
+            {
+              code: "HK",
+              resolvedMarket: "HK",
+              preferredPrefix: "HK",
+              displayName: "Hong Kong",
+              quoteCurrency: "HKD",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: ["HKEX"],
+              regularSessions: [],
+              precision: { price: 3, quote: 3 },
+              tickSize: 0.001,
+            },
+          ],
+        });
+      }
+      if (url.includes("/api/v1/market-data/subscriptions")) {
+        return createResponse(emptyMarketDataSubscriptions);
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
+    );
+
+    const { wrapper } = await mountApp("/test-shell-only");
+    await waitForShellData();
+
+    expect(wrapper.get(".tv-topbar").classes()).toContain(
+      "tv-topbar--compact",
+    );
+    expect(
+      wrapper.get('[data-testid="topbar-compact-nav-toggle"]').exists(),
+    ).toBe(true);
+    expect(wrapper.get('[data-testid="topbar-instrument-form"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.get('button[title="通知"]').exists()).toBe(true);
+    expect(wrapper.get('button[title="AI 助手"]').exists()).toBe(true);
+    expect(
+      wrapper.find('[data-testid="topbar-trading-environment-switch"]').exists(),
+    ).toBe(false);
+
+    const pickerOpenButton = wrapper.get(
+      '[data-testid="topbar-broker-account-picker-open"]',
+    );
+    expect(pickerOpenButton.text()).toContain("模拟盘 · FUTU / SIM-001");
+
+    await pickerOpenButton.trigger("click");
+    expect(
+      wrapper
+        .get('[data-testid="topbar-account-picker-trading-environment-switch"]')
+        .exists(),
+    ).toBe(true);
+
+    await wrapper
+      .get('[data-testid="topbar-account-picker-trading-environment-real"]')
+      .trigger("click");
+    await flushRequests();
+
+    expect(pickerOpenButton.text()).toContain("实盘 · FUTU / REAL-001");
+    expect(
+      wrapper
+        .findAll('[data-testid="topbar-broker-account-item"]')
+        .some((item) => item.text().includes("REAL-001")),
+    ).toBe(true);
+
+    await wrapper
+      .get('[data-testid="topbar-account-picker-trading-environment-simulate"]')
+      .trigger("click");
+    await flushRequests();
+
+    wrapper.unmount();
+  });
+
+  it("filters account list in picker by environment and auto-selects the first available account", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/system/status")) {
+        return createResponse({
+          ...emptySystemStatus,
+          defaultTradingEnvironment: "SIMULATE",
+        });
+      }
+      if (url.includes("/api/v1/settings/brokers")) {
+        return createResponse({
+          brokers: [
+            {
+              descriptor: {
+                id: "futu",
+                displayName: "Futu",
+                environments: ["SIMULATE", "REAL"],
+                capabilities: [
+                  { market: "HK", supportsQuote: true, supportsTrade: true },
+                  { market: "US", supportsQuote: true, supportsTrade: true },
+                ],
+                notes: [],
+              },
+              integration: {
+                brokerId: "futu",
+                enabled: true,
+                config: {
+                  type: "futu",
+                  host: "127.0.0.1",
+                  apiPort: 11110,
+                  websocketPort: 11111,
+                  maxWebSocketConnections: 20,
+                  useEncryption: false,
+                  websocketKey: "",
+                  tradeMarket: "HK",
+                  securityFirm: "FUTUSECURITIES",
+                },
+                updatedAt: "2026-05-17T00:00:00.000Z",
+                createdAt: "2026-05-17T00:00:00.000Z",
+              },
+              defaults: {
+                type: "futu",
+                host: "127.0.0.1",
+                apiPort: 11110,
+                websocketPort: 11111,
+                maxWebSocketConnections: 20,
+                useEncryption: false,
+                websocketKey: "",
+                tradeMarket: "HK",
+                securityFirm: "FUTUSECURITIES",
+              },
+            },
+          ],
+          accounts: [],
+        });
+      }
+      if (url.includes("/api/v1/system/real-trade-approvals"))
+        return createResponse(emptyRealTradeApprovals);
+      if (url.includes("/api/v1/system/real-trade-hard-stops"))
+        return createResponse(emptyRealTradeHardStops);
+      if (url.includes("/api/v1/system/real-trade-hard-stop-events"))
+        return createResponse(emptyRealTradeHardStopEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch-events"))
+        return createResponse(emptyRealTradeKillSwitchEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch"))
+        return createResponse(emptyRealTradeKillSwitchState);
+      if (url.includes("/api/v1/system/real-trade-risk-events"))
+        return createResponse(emptyRealTradeRiskEvents);
+      if (url.includes("/api/v1/system/real-trade-risk-limits"))
+        return createResponse(emptyRealTradeRiskState);
+
+      if (url.includes("/api/v1/brokers/futu/runtime")) {
+        return createResponse({
+          ...emptyBrokerRuntime,
+          accounts: [
+            {
+              accountId: "SIM-001",
+              tradingEnvironment: "SIMULATE",
+              accountType: "CASH",
+              accountRole: null,
+              securityFirm: "FUTUSECURITIES",
+              marketAuthorities: ["HK"],
+              simulatedAccountType: "STOCK",
+            },
+            {
+              accountId: "REAL-001",
+              tradingEnvironment: "REAL",
+              accountType: "MARGIN",
+              accountRole: null,
+              securityFirm: "FUTUSECURITIES",
+              marketAuthorities: ["US"],
+              simulatedAccountType: null,
+            },
+          ],
+        });
+      }
+
+      if (url.includes("/api/v1/brokers/futu/funds"))
+        return createResponse(emptyBrokerFunds);
+      if (url.includes("/api/v1/brokers/futu/positions"))
+        return createResponse({
+          ...emptyBrokerPositions,
+          positions: [
+            {
+              accountId: "SIM-001",
+              tradingEnvironment: "SIMULATE",
+              market: "HK",
+              symbol: "HK.00700",
+              symbolName: "Tencent",
+              quantity: 100,
+              sellableQuantity: 100,
+              lastPrice: 320,
+              costPrice: 300,
+              averageCostPrice: 300,
+              marketValue: 32000,
+              unrealizedPnl: 2000,
+              realizedPnl: 0,
+            },
+          ],
+        });
+      if (url.includes("/api/v1/brokers/futu/orders"))
+        return createResponse(emptyBrokerOrders);
+      if (url.includes("/api/v1/brokers/futu/cash-flows"))
+        return createResponse(emptyBrokerCashFlows);
+
+      if (url.includes("/api/v1/portfolio/futu/cash-balances"))
+        return createResponse(emptyPortfolioCashBalances);
+      if (url.includes("/api/v1/portfolio/futu/positions"))
+        return createResponse(emptyPortfolioPositions);
+      if (url.includes("/api/v1/execution/orders"))
+        return createResponse(emptyExecutionOrders);
+      if (url.includes("/api/v1/market-data/markets")) {
+        return createResponse({
+          defaultMarket: "HK",
+          updatedAt: "2026-06-12T00:00:00.000Z",
+          markets: [
+            {
+              code: "HK",
+              resolvedMarket: "HK",
+              preferredPrefix: "HK",
+              displayName: "Hong Kong",
+              quoteCurrency: "HKD",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: ["HKEX"],
+              regularSessions: [],
+              precision: { price: 3, quote: 3 },
+              tickSize: 0.001,
+            },
+          ],
+        });
+      }
+      if (url.includes("/api/v1/market-data/subscriptions")) {
+        return createResponse({
+          ...emptyMarketDataSubscriptions,
+          entries: [
+            {
+              key: "SNAPSHOT:HK.00700",
+              channel: "SNAPSHOT",
+              market: "HK",
+              symbol: "00700",
+              instrumentId: "HK.00700",
+              interval: null,
+              depthLevel: null,
+              consumers: ["web:test-shell-only"],
+              refCount: 1,
+              createdAt: "2026-05-17T00:00:00.000Z",
+              updatedAt: "2026-05-17T00:01:00.000Z",
+            },
+          ],
+        });
+      }
+      if (url.includes("/api/v1/market-data/instruments/normalize")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          market?: string;
+          code?: string;
+          instrumentId?: string;
+        };
+        const market = (body.market ?? "HK").trim().toUpperCase();
+        const code = (body.instrumentId ?? body.code ?? "").trim().toUpperCase();
+        return createResponse({
+          market,
+          prefix: market,
+          code,
+          symbol: `${market}.${code}`,
+          instrumentId: `${market}.${code}`,
+          resolvedMarket: market,
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
+    );
+
+    const { wrapper } = await mountApp("/test-shell-only");
+    await waitForShellData();
+    const liveStream = findLiveEventStream();
+
+    expect(wrapper.find('[data-testid="topbar-instrument-market"]').exists()).toBe(false);
+
+    liveStream?.emitMessage(
+      createLiveEnvelope(
+        {
+          type: "system.notification",
+          id: "topbar-notification-1",
+          at: "2026-07-03T00:00:00.000Z",
+          level: "warn",
+          title: "OpenD 连接状态变化",
+          message: "行情未登录",
+          source: "futu-opend",
+          brokerId: "futu",
+          category: "broker.connection",
+        },
+        {
+          source: "notification",
+          entityId: "topbar-notification-1",
+          eventId: "topbar-notification-1",
+        },
+      ),
+    );
+    await flushRequests();
+    expect(
+      Number(wrapper.find('button[title="通知"] .tv-badge').text()),
+    ).toBeGreaterThan(0);
+
+    const commandPaletteButton = wrapper.findAll("button").find((button) =>
+      button.attributes("title")?.includes("命令面板"),
+    );
+    expect(commandPaletteButton).toBeDefined();
+    await commandPaletteButton!.trigger("click");
+    await flushRequests();
+    expect(
+      wrapper.find('input[placeholder="键入命令或搜索路由…"]').exists(),
+    ).toBe(true);
+
+    const pickerOpenButton = wrapper.get(
+      '[data-testid="topbar-broker-account-picker-open"]',
+    );
+    await pickerOpenButton.trigger("click");
+
+    const initialItemTexts = wrapper.findAll('[data-testid="topbar-broker-account-item"]').map(
+      (item) => item.text(),
+    );
+
+    expect(initialItemTexts.some((text) => text.includes("SIM-001"))).toBe(
+      true,
+    );
+    expect(initialItemTexts.some((text) => text.includes("REAL-001"))).toBe(
+      false,
+    );
+
+    const favoriteButton = wrapper.get(
+      '[data-testid="topbar-broker-account-item-favorite"]',
+    );
+    expect(favoriteButton.text()).toBe("☆");
+    await favoriteButton.trigger("click");
+    await flushRequests();
+    expect(
+      wrapper.find('[data-testid="topbar-broker-account-item-favorite"]').text(),
+    ).toBe("★");
+
+    const pickerCloseButton = wrapper.get(
+      '[data-testid="topbar-broker-account-picker-close"]',
+    );
+    await pickerCloseButton.trigger("click");
+
+    const statusRequestsBeforeSwitch = fetchMock.mock.calls.filter(
+      ([request]) => String(request).includes("/api/v1/system/status"),
+    ).length;
+
+    const environmentSwitch = wrapper.get(
+      '[data-testid="topbar-trading-environment-real"]',
+    );
+    await environmentSwitch.trigger("click");
+    await flushRequests();
+
+    expect(pickerOpenButton.text()).toContain("REAL-001");
+
+    await pickerOpenButton.trigger("click");
+
+    const brokerAccountFilterInput = wrapper.get(
+      '[data-testid="topbar-broker-account-filter"]',
+    );
+    await brokerAccountFilterInput.setValue("REAL-001");
+    await flushRequests();
+
+    const realOnlyItemTexts = wrapper.findAll('[data-testid="topbar-broker-account-item"]').map(
+      (item) => item.text(),
+    );
+
+    expect(realOnlyItemTexts.some((text) => text.includes("REAL-001"))).toBe(
+      true,
+    );
+    expect(realOnlyItemTexts.some((text) => text.includes("SIM-001"))).toBe(
+      false,
+    );
+
+    await wrapper
+      .findAll('[data-testid="topbar-broker-account-item"] button')
+      [0]!.trigger("click");
+    await flushRequests();
+    expect(pickerOpenButton.text()).toContain("REAL-001");
+
+    const themeToggle = wrapper.findAll("button").find((button) =>
+      button.attributes("title")?.startsWith("主题："),
+    );
+    expect(themeToggle).toBeDefined();
+    const themeBefore = themeToggle!.text();
+    await themeToggle!.trigger("click");
+    await flushRequests();
+    expect(themeToggle!.text()).not.toBe(themeBefore);
+
+    await wrapper.get('button[title="通知"]').trigger("click");
+    expect(
+      wrapper.get('[data-testid="rightdock-tab-notifications"]').classes(),
+    ).toContain("is-active");
+    await wrapper.get('button[title="AI 助手"]').trigger("click");
+    expect(wrapper.get('[data-testid="rightdock-tab-ai"]').classes()).toContain(
+      "is-active",
+    );
+
+    const statusRequestsAfterSwitch = fetchMock.mock.calls.filter(
+      ([request]) => String(request).includes("/api/v1/system/status"),
+    ).length;
+
+    expect(statusRequestsAfterSwitch).toBeGreaterThan(
+      statusRequestsBeforeSwitch,
+    );
+
+    wrapper.unmount();
+  });
+
+  it("prefers the first favorite account when switching environment", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/system/status")) {
+        return createResponse({
+          ...emptySystemStatus,
+          defaultTradingEnvironment: "SIMULATE",
+        });
+      }
+      if (url.includes("/api/v1/settings/brokers")) {
+        return createResponse({
+          brokers: [
+            {
+              descriptor: {
+                id: "futu",
+                displayName: "Futu",
+                environments: ["SIMULATE", "REAL"],
+                capabilities: [
+                  { market: "HK", supportsQuote: true, supportsTrade: true },
+                  { market: "US", supportsQuote: true, supportsTrade: true },
+                ],
+                notes: [],
+              },
+              integration: {
+                brokerId: "futu",
+                enabled: true,
+                config: {
+                  type: "futu",
+                  host: "127.0.0.1",
+                  apiPort: 11110,
+                  websocketPort: 11111,
+                  maxWebSocketConnections: 20,
+                  useEncryption: false,
+                  websocketKey: "",
+                  tradeMarket: "HK",
+                  securityFirm: "FUTUSECURITIES",
+                },
+                updatedAt: "2026-05-17T00:00:00.000Z",
+                createdAt: "2026-05-17T00:00:00.000Z",
+              },
+              defaults: {
+                type: "futu",
+                host: "127.0.0.1",
+                apiPort: 11110,
+                websocketPort: 11111,
+                maxWebSocketConnections: 20,
+                useEncryption: false,
+                websocketKey: "",
+                tradeMarket: "HK",
+                securityFirm: "FUTUSECURITIES",
+              },
+            },
+          ],
+          accounts: [],
+        });
+      }
+      if (url.includes("/api/v1/system/real-trade-approvals"))
+        return createResponse(emptyRealTradeApprovals);
+      if (url.includes("/api/v1/system/real-trade-hard-stops"))
+        return createResponse(emptyRealTradeHardStops);
+      if (url.includes("/api/v1/system/real-trade-hard-stop-events"))
+        return createResponse(emptyRealTradeHardStopEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch-events"))
+        return createResponse(emptyRealTradeKillSwitchEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch"))
+        return createResponse(emptyRealTradeKillSwitchState);
+      if (url.includes("/api/v1/system/real-trade-risk-events"))
+        return createResponse(emptyRealTradeRiskEvents);
+      if (url.includes("/api/v1/system/real-trade-risk-limits"))
+        return createResponse(emptyRealTradeRiskState);
+
+      if (url.includes("/api/v1/brokers/futu/runtime")) {
+        return createResponse({
+          ...emptyBrokerRuntime,
+          accounts: [
+            {
+              accountId: "SIM-001",
+              tradingEnvironment: "SIMULATE",
+              accountType: "CASH",
+              accountRole: null,
+              securityFirm: "FUTUSECURITIES",
+              marketAuthorities: ["HK"],
+              simulatedAccountType: "STOCK",
+            },
+            {
+              accountId: "REAL-001",
+              tradingEnvironment: "REAL",
+              accountType: "MARGIN",
+              accountRole: null,
+              securityFirm: "FUTUSECURITIES",
+              marketAuthorities: ["US"],
+              simulatedAccountType: null,
+            },
+            {
+              accountId: "REAL-002",
+              tradingEnvironment: "REAL",
+              accountType: "MARGIN",
+              accountRole: null,
+              securityFirm: "FUTUSECURITIES",
+              marketAuthorities: ["US"],
+              simulatedAccountType: null,
+            },
+          ],
+        });
+      }
+
+      if (url.includes("/api/v1/brokers/futu/funds"))
+        return createResponse(emptyBrokerFunds);
+      if (url.includes("/api/v1/brokers/futu/positions"))
+        return createResponse(emptyBrokerPositions);
+      if (url.includes("/api/v1/brokers/futu/orders"))
+        return createResponse(emptyBrokerOrders);
+      if (url.includes("/api/v1/brokers/futu/cash-flows"))
+        return createResponse(emptyBrokerCashFlows);
+
+      if (url.includes("/api/v1/portfolio/futu/cash-balances"))
+        return createResponse(emptyPortfolioCashBalances);
+      if (url.includes("/api/v1/portfolio/futu/positions"))
+        return createResponse(emptyPortfolioPositions);
+      if (url.includes("/api/v1/execution/orders"))
+        return createResponse(emptyExecutionOrders);
+      if (url.includes("/api/v1/market-data/markets")) {
+        return createResponse({
+          defaultMarket: "HK",
+          updatedAt: "2026-06-12T00:00:00.000Z",
+          markets: [
+            {
+              code: "HK",
+              resolvedMarket: "HK",
+              preferredPrefix: "HK",
+              displayName: "Hong Kong",
+              quoteCurrency: "HKD",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: ["HKEX"],
+              regularSessions: [],
+              precision: { price: 3, quote: 3 },
+              tickSize: 0.001,
+            },
+          ],
+        });
+      }
+      if (url.includes("/api/v1/market-data/instruments/normalize")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          market?: string;
+          code?: string;
+          instrumentId?: string;
+        };
+        const rawInstrument = (body.instrumentId ?? body.code ?? "")
+          .trim()
+          .toUpperCase()
+          .replace(":", ".");
+        const embedded = rawInstrument.includes(".")
+          ? rawInstrument.split(".", 2)
+          : null;
+        const market = (embedded?.[0] ?? body.market ?? "HK").trim().toUpperCase();
+        const code = (embedded?.[1] ?? rawInstrument).trim().toUpperCase();
+        return createResponse({
+          market,
+          prefix: market,
+          code,
+          symbol: `${market}.${code}`,
+          instrumentId: `${market}.${code}`,
+          resolvedMarket: market,
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
+    );
+
+    const { wrapper } = await mountApp("/test-shell-only");
+    await waitForShellData();
+
+    const pickerOpenButton = wrapper.get(
+      '[data-testid="topbar-broker-account-picker-open"]',
+    );
+
+    const switchToReal = wrapper.get(
+      '[data-testid="topbar-trading-environment-real"]',
+    );
+    await switchToReal.trigger("click");
+    await flushRequests();
+
+    await pickerOpenButton.trigger("click");
+
+    const real002Row = wrapper
+      .findAll('[data-testid="topbar-broker-account-item"]')
+      .find((item) => item.text().includes("REAL-002"));
+    expect(real002Row).toBeDefined();
+
+    const real002FavoriteButton = real002Row?.get(
+      '[data-testid="topbar-broker-account-item-favorite"]',
+    );
+    await real002FavoriteButton?.trigger("click");
+
+    const pickerCloseButton = wrapper.get(
+      '[data-testid="topbar-broker-account-picker-close"]',
+    );
+    await pickerCloseButton.trigger("click");
+
+    const switchToSim = wrapper.get(
+      '[data-testid="topbar-trading-environment-simulate"]',
+    );
+    await switchToSim.trigger("click");
+    await flushRequests();
+
+    await switchToReal.trigger("click");
+    await flushRequests();
+
+    expect(pickerOpenButton.text()).toContain("REAL-002");
+
+    wrapper.unmount();
+  });
+
+  it("resolves an A-share category input and persists the actual exchange", async () => {
+
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/system/status")) {
+        return createResponse({
+          ...emptySystemStatus,
+          defaultTradingEnvironment: "SIMULATE",
+        });
+      }
+      if (url.includes("/api/v1/settings/brokers")) {
+        return createResponse(emptyBrokerSettings);
+      }
+      if (url.includes("/api/v1/system/real-trade-approvals"))
+        return createResponse(emptyRealTradeApprovals);
+      if (url.includes("/api/v1/system/real-trade-hard-stops"))
+        return createResponse(emptyRealTradeHardStops);
+      if (url.includes("/api/v1/system/real-trade-hard-stop-events"))
+        return createResponse(emptyRealTradeHardStopEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch-events"))
+        return createResponse(emptyRealTradeKillSwitchEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch"))
+        return createResponse(emptyRealTradeKillSwitchState);
+      if (url.includes("/api/v1/system/real-trade-risk-events"))
+        return createResponse(emptyRealTradeRiskEvents);
+      if (url.includes("/api/v1/system/real-trade-risk-limits"))
+        return createResponse(emptyRealTradeRiskState);
+
+      if (url.includes("/api/v1/brokers/futu/runtime")) {
+        return createResponse({
+          ...emptyBrokerRuntime,
+          accounts: [
+            {
+              accountId: "SIM-001",
+              tradingEnvironment: "SIMULATE",
+              accountType: "CASH",
+              accountRole: null,
+              securityFirm: "FUTUSECURITIES",
+              marketAuthorities: ["HK"],
+              simulatedAccountType: "STOCK",
+            },
+          ],
+        });
+      }
+
+      if (url.includes("/api/v1/brokers/futu/funds"))
+        return createResponse(emptyBrokerFunds);
+      if (url.includes("/api/v1/brokers/futu/positions"))
+        return createResponse(emptyBrokerPositions);
+      if (url.includes("/api/v1/brokers/futu/orders"))
+        return createResponse(emptyBrokerOrders);
+      if (url.includes("/api/v1/brokers/futu/cash-flows"))
+        return createResponse(emptyBrokerCashFlows);
+
+      if (url.includes("/api/v1/portfolio/futu/cash-balances"))
+        return createResponse(emptyPortfolioCashBalances);
+      if (url.includes("/api/v1/portfolio/futu/positions"))
+        return createResponse(emptyPortfolioPositions);
+      if (url.includes("/api/v1/execution/orders"))
+        return createResponse(emptyExecutionOrders);
+      if (url.includes("/api/v1/market-data/markets")) {
+        return createResponse({
+          defaultMarket: "HK",
+          updatedAt: "2026-06-12T00:00:00.000Z",
+          markets: [
+            {
+              code: "HK",
+              resolvedMarket: "HK",
+              preferredPrefix: "HK",
+              displayName: "Hong Kong",
+              quoteCurrency: "HKD",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: ["HKEX"],
+              regularSessions: [],
+              precision: { price: 3, quote: 3 },
+              tickSize: 0.001,
+            },
+            {
+              code: "US",
+              resolvedMarket: "US",
+              preferredPrefix: "US",
+              displayName: "United States",
+              quoteCurrency: "USD",
+              supportsExtendedHours: true,
+              requiresExchangePrefix: false,
+              aliases: [],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
+            {
+              code: "CN",
+              resolvedMarket: "CN",
+              preferredPrefix: "",
+              displayName: "沪深",
+              quoteCurrency: "CNY",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: true,
+              aliases: ["SH", "SZ", "CNSH", "CNSZ"],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
+          ],
+        });
+      }
+      if (url.includes("/api/v1/market-data/instruments/normalize")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          market?: string;
+          code?: string;
+          instrumentId?: string;
+        };
+        const rawInstrument = (body.instrumentId ?? body.code ?? "")
+          .trim()
+          .toUpperCase()
+          .replace(":", ".");
+        const embedded = rawInstrument.includes(".")
+          ? rawInstrument.split(".", 2)
+          : null;
+        const market = (embedded?.[0] ?? body.market ?? "HK").trim().toUpperCase();
+        const code = (embedded?.[1] ?? rawInstrument).trim().toUpperCase();
+        return createResponse({
+          market,
+          prefix: market,
+          code,
+          symbol: `${market}.${code}`,
+          instrumentId: `${market}.${code}`,
+          resolvedMarket: market,
+        });
+      }
+      if (url.includes("/api/v1/market-data/instruments?")) {
+        const requestURL = new URL(url, "http://localhost");
+        const requestedMarket = (requestURL.searchParams.get("market") ?? "")
+          .trim()
+          .toUpperCase();
+        const rawQuery = (requestURL.searchParams.get("query") ?? "")
+          .trim()
+          .toUpperCase()
+          .replace(":", ".");
+        if (rawQuery === "") {
+          return createResponse({ query: "", totalReturned: 0, entries: [] });
+        }
+        const embedded = rawQuery.includes(".") ? rawQuery.split(".", 2) : null;
+        const market = embedded?.[0] ?? (rawQuery === "600519" ? "SH" : "US");
+        const code = embedded?.[1] ?? rawQuery;
+        return createResponse({
+          requestedMarket,
+          query: rawQuery,
+          resolutionStatus: "resolved",
+          totalReturned: 1,
+          entries: [{
+            market,
+            resolvedMarket: market === "SH" || market === "SZ" ? "CN" : market,
+            instrumentId: `${market}.${code}`,
+            code,
+            symbol: code,
+            name: null,
+            securityType: "STOCK",
+            lotSize: 1,
+            source: "test-static",
+          }],
+          failures: [],
+        });
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
+    );
+
+    const { wrapper } = await mountApp("/test-shell-only");
+    await waitForShellData();
+
+    const codeInput = wrapper.get(
+      '[data-testid="topbar-instrument-code"]',
+    );
+
+    expect(wrapper.find('[data-testid="topbar-instrument-market"]').exists()).toBe(false);
+    expect(codeInput.element.tagName).toBe("INPUT");
+    expect(wrapper.find(".instrument-resolver__submit").exists()).toBe(false);
+    await codeInput.setValue("600519");
+    await codeInput.trigger("keydown", { key: "Enter" });
+    await flushRequests();
+
+    const storedPrefs = JSON.parse(
+      window.sessionStorage.getItem("jftrade.workspace.trading.v1") ?? "{}",
+    ) as { market?: string; symbol?: string };
+
+    expect(storedPrefs.market).toBe("SH");
+    expect(storedPrefs.symbol).toBe("600519");
+
+    await codeInput.setValue("AAPL");
+    await codeInput.trigger("keydown", { key: "Enter" });
+    await flushRequests();
+
+    const usPrefs = JSON.parse(
+      window.sessionStorage.getItem("jftrade.workspace.trading.v1") ?? "{}",
+    ) as { market?: string; symbol?: string };
+    expect(usPrefs).toMatchObject({ market: "US", symbol: "AAPL" });
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes(
+          "/api/v1/market-data/instruments?query=AAPL&limit=20",
+        ),
+      ),
+    ).toBe(true);
+
+    const submitButton = wrapper.get(
+      '[data-testid="topbar-instrument-submit"]',
+    );
+    expect(submitButton.get(".instrument-search-box__submit-shortcut").text()).toBe(
+      "⏎",
+    );
+    expect(submitButton.get(".instrument-search-box__submit-label").text()).toBe(
+      "查询",
+    );
+
+    await codeInput.setValue("MSFT");
+    await submitButton.trigger("click");
+    await flushRequests();
+    expect(
+      JSON.parse(
+        window.sessionStorage.getItem("jftrade.workspace.trading.v1") ?? "{}",
+      ),
+    ).toMatchObject({ market: "US", symbol: "MSFT" });
+
+    wrapper.unmount();
+  });
+});

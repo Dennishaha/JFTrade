@@ -40,7 +40,7 @@ test("sanctions only the generated contract boundary and exact client infrastruc
     true,
   );
   assert.equal(
-    isOpenAPIImportInfrastructure("apps/web/tests/contractsModularization.test.ts"),
+    isOpenAPIImportInfrastructure("apps/web/tests/contracts/contractsModularization.test.ts"),
     true,
   );
   assert.equal(

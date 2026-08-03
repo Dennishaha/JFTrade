@@ -90,6 +90,7 @@
     "check:web-openapi-imports": "node scripts/check-web-openapi-imports.mjs",
     "check:web-bundle": "node scripts/report-web-bundle.mjs",
     "check:web-component-budget": "node scripts/check-web-component-budget.mjs",
+    "check:web-file-length": "node scripts/check-web-file-length-budget.mjs",
     "test:test-policy": "go test ./scripts/go-test-quality -count=1 && pnpm run test:scripts -- policy",
     "test:preflight": "node scripts/run-test-layer.mjs preflight",
     "test:pr": "pnpm run test:preflight",

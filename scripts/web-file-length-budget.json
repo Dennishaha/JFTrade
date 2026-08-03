@@ -1,0 +1,32 @@
+{
+  "srcMaxLines": 800,
+  "testMaxLines": 1200,
+  "exceptions": {
+    "apps/web/src/components/research/stockScreenModel.ts": 909,
+    "apps/web/src/components/research/useStockScreenerController.ts": 1248,
+    "apps/web/src/composables/adk/adkApiMappers.ts": 947,
+    "apps/web/src/composables/adk/useADKChatComposer.ts": 824,
+    "apps/web/src/composables/adk/useADKPageChatState.ts": 1661,
+    "apps/web/src/composables/backtest/useBacktestPage.ts": 1965,
+    "apps/web/src/composables/backtest/useBacktestRuns.ts": 986,
+    "apps/web/src/composables/research/usePredictionResearch.ts": 802,
+    "apps/web/src/composables/trading/brokerProviderSelection.ts": 918,
+    "apps/web/src/composables/trading/useOrderEntryPanel.ts": 1080,
+    "apps/web/src/features/pineV6Workflow.ts": 805,
+    "apps/web/src/features/strategy-builder/strategyVisualBuilderCatalog.ts": 1264,
+    "apps/web/src/features/strategy-builder/strategyVisualBuilderIndicatorBlock.ts": 1110,
+    "apps/web/src/features/strategy-builder/strategyVisualBuilderPine.ts": 1363,
+    "apps/web/src/features/strategy-builder/strategyVisualBuilderPineParser.ts": 2232,
+    "apps/web/src/features/strategyPineEditorIntelliSense.ts": 2344,
+    "apps/web/src/pages/useResearchPageController.ts": 1039,
+    "apps/web/tests/components/domain/KlineChart.test.ts": 1516,
+    "apps/web/tests/components/shared/BrokerProviderTag.business.test.ts": 1480,
+    "apps/web/tests/components/workspace/LightweightChart.business.test.ts": 1431,
+    "apps/web/tests/composables/useConsoleData.klineRealtime.test.ts": 1612,
+    "apps/web/tests/features/adkWorkflowStudio.test.ts": 1344,
+    "apps/web/tests/features/strategyVisualBuilderPine.business.test.ts": 1478,
+    "apps/web/tests/features/strategyVisualBuilderPine.test.ts": 1876,
+    "apps/web/tests/pages/ADKPage.test.ts": 4201,
+    "apps/web/tests/shared/App.backtest.test.ts": 1434
+  }
+}

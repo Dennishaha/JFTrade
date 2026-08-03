@@ -17,6 +17,7 @@ export const scriptTestSuites = Object.freeze({
     "scripts/check-web-contract-audit.test.mjs",
     "scripts/check-web-openapi-imports.test.mjs",
     "scripts/check-web-component-budget.test.mjs",
+    "scripts/check-web-file-length-budget.test.mjs",
     "scripts/check-web-diff-thresholds.test.mjs",
     "scripts/run-errorlint.test.mjs",
     "scripts/run-go-argument-forwarding.test.mjs",

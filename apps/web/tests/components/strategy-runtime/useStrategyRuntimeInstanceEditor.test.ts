@@ -1,0 +1,500 @@
+import { effectScope, nextTick, ref } from "vue";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type {
+  NormalizeInstrumentRequest,
+  StrategyDefinitionDocument,
+  StrategyInstanceBindingDocument,
+  StrategyInstanceItem,
+} from "../../../src/types";
+import type { BrokerAccountSelectionOption } from "@/composables/trading/consoleDataBrokerAccountSelection";
+import { useStrategyRuntimeInstanceEditor } from "../../../src/components/strategy-runtime/useStrategyRuntimeInstanceEditor";
+
+const definitions: StrategyDefinitionDocument[] = [
+  {
+    id: "def-1",
+    name: "Breakout",
+    version: "1.2.0",
+    description: "",
+    runtime: "pine-v6",
+    script: "strategy('Breakout')",
+    createdAt: "2026-07-01T00:00:00Z",
+    updatedAt: "2026-07-01T00:00:00Z",
+  },
+  {
+    id: "def-2",
+    name: "Mean Revert",
+    version: "2.0.0",
+    description: "",
+    runtime: "pine-v6",
+    script: "strategy('Mean Revert')",
+    createdAt: "2026-07-01T00:00:00Z",
+    updatedAt: "2026-07-01T00:00:00Z",
+  },
+];
+
+const accounts: BrokerAccountSelectionOption[] = [
+  {
+    selectionKey: "futu|SIMULATE|acc-us|US",
+    source: "managed",
+    brokerId: "futu",
+    accountId: "acc-us",
+    displayName: "US Paper",
+    tradingEnvironment: "SIMULATE",
+    market: "US",
+    securityFirm: "FUTUSECURITIES",
+  },
+  {
+    selectionKey: "futu|REAL|acc-hk|HK",
+    source: "managed",
+    brokerId: "futu",
+    accountId: "acc-hk",
+    displayName: "HK Live",
+    tradingEnvironment: "REAL",
+    market: "HK",
+    securityFirm: null,
+  },
+];
+
+const selectedStrategy: StrategyInstanceItem = {
+  id: "inst-1",
+  definition: { strategyId: "def-1", name: "Breakout", version: "1.1.0" },
+  runtime: "pine-v6",
+  sourceFormat: "pine-v6",
+  startable: true,
+  params: {},
+  status: "STOPPED",
+  createdAt: "2026-07-01T00:00:00Z",
+  logs: [],
+};
+
+const selectedBinding: StrategyInstanceBindingDocument = {
+  instruments: [{ market: "HK", code: "00700" }],
+  symbols: ["HK.00700"],
+  interval: "15m",
+  chartType: "heikinashi",
+  executionMode: "notify_only",
+  brokerAccount: {
+    brokerId: "futu",
+    accountId: "acc-hk",
+    tradingEnvironment: "REAL",
+    market: "HK",
+  },
+  runtimeRisk: {
+    mode: "enforce",
+    closeOnly: true,
+    maxOrderQuantity: 100,
+    maxOrderNotional: 50000,
+    dailyMaxOrders: 8,
+    pauseOnReject: true,
+  },
+};
+
+const scopes: ReturnType<typeof effectScope>[] = [];
+
+afterEach(() => {
+  for (const scope of scopes.splice(0)) scope.stop();
+});
+
+function createEditor(input: {
+  pendingDefinitionId?: string;
+  selected?: StrategyInstanceItem | null;
+  binding?: StrategyInstanceBindingDocument | null;
+  resolver?: (request: NormalizeInstrumentRequest) => Promise<{
+    market: string;
+    prefix: string;
+    code: string;
+    symbol: string;
+    instrumentId: string;
+    resolvedMarket: string;
+  }>;
+} = {}) {
+  const scope = effectScope();
+  scopes.push(scope);
+  const strategyDefinitions = ref([...definitions]);
+  const selected = ref<StrategyInstanceItem | null>(input.selected ?? null);
+  const binding = ref<StrategyInstanceBindingDocument | null>(input.binding ?? null);
+  const brokerAccountOptions = ref([...accounts]);
+  const selectedBrokerAccount = ref<BrokerAccountSelectionOption | null>(accounts[0] ?? null);
+  const defaultBrokerAccountSelectionKey = ref(accounts[0]?.selectionKey ?? "");
+  let pendingDefinitionId = input.pendingDefinitionId;
+  const pendingSelected = vi.fn(() => {
+    pendingDefinitionId = undefined;
+  });
+  const resolver = vi.fn(input.resolver ?? (async (request: NormalizeInstrumentRequest) => {
+    const raw = String(request.instrumentId ?? request.code ?? "").trim().toUpperCase();
+    if (raw === "BAD" || raw === "US.BAD") throw new Error("unknown instrument");
+    const explicitMarket = String(request.market ?? "").trim().toUpperCase();
+    const separator = raw.indexOf(".");
+    const qualifiedMarket =
+      explicitMarket === "" && separator > 0 ? raw.slice(0, separator) : "";
+    const qualifiedCode =
+      explicitMarket === "" && separator > 0 ? raw.slice(separator + 1) : "";
+    const prefix = explicitMarket || qualifiedMarket || "";
+    const code = qualifiedCode || raw;
+    return {
+      market: prefix,
+      prefix,
+      code,
+      symbol: `${prefix}.${code}`,
+      instrumentId: `${prefix}.${code}`,
+      resolvedMarket: prefix,
+    };
+  }));
+
+  const editor = scope.run(() => useStrategyRuntimeInstanceEditor({
+    strategyDefinitions,
+    selectedStrategy: selected,
+    selectedStrategyBinding: binding,
+    brokerAccountOptions,
+    selectedBrokerAccount,
+    defaultBrokerAccountSelectionKey,
+    pendingDefinitionId: () => pendingDefinitionId,
+    onPendingDefinitionSelected: pendingSelected,
+    normalizeInstrumentRefWithMarketApi: resolver,
+  }));
+  if (editor == null) throw new Error("editor scope failed");
+  return {
+    editor,
+    strategyDefinitions,
+    selected,
+    binding,
+    brokerAccountOptions,
+    selectedBrokerAccount,
+    defaultBrokerAccountSelectionKey,
+    resolver,
+    pendingSelected,
+  };
+}
+
+describe("strategy runtime instance editor", () => {
+  it("opens a pending definition and maintains create-form summaries", async () => {
+    const { editor, pendingSelected } = createEditor({ pendingDefinitionId: " def-2 " });
+    await nextTick();
+
+    expect(editor.instanceEditorMode.value).toBe("create");
+    expect(editor.createDefinitionId.value).toBe("def-2");
+    expect(editor.instanceEditorPreviewDefinitionLabel.value).toBe("Mean Revert / v2.0.0");
+    expect(editor.instanceEditorTitle.value).toBe("新增实例");
+    expect(editor.instanceEditorHint.value).toContain("实例负责绑定");
+    expect(editor.activeInstanceEditorSymbolsSummary.value).toBe("暂未绑定交易代码");
+    expect(editor.activeInstanceEditorBrokerAccountSummary.value).toContain("acc-us");
+    expect(pendingSelected).toHaveBeenCalledOnce();
+
+    editor.instanceEditorOpen.value = false;
+    expect(editor.instanceEditorMode.value).toBeNull();
+    editor.openCreateInstanceForm();
+    expect(editor.activeSymbolDraft.value).toBe("");
+  });
+
+  it("normalizes mixed symbol drafts and reports only invalid instruments", async () => {
+    const { editor, resolver } = createEditor();
+    editor.openCreateInstanceForm();
+    editor.updateActiveSymbolDraft("US.AAPL, US.BAD; HK.00700");
+
+    await expect(editor.commitSymbolDraft("create")).resolves.toBe(false);
+
+    expect(editor.activeSymbolTags.value).toEqual(["US.AAPL", "HK.00700"]);
+    expect(editor.activeSymbolDraft.value).toBe("");
+    expect(editor.activeSymbolValidationMessage.value).toContain("BAD");
+    expect(resolver).toHaveBeenCalledTimes(3);
+
+    editor.removeActiveSymbol("US.AAPL");
+    expect(editor.activeSymbolTags.value).toEqual(["HK.00700"]);
+    editor.updateActiveSymbolDraft("US.MSFT");
+    await expect(editor.commitSymbolDraft("create")).resolves.toBe(true);
+    expect(editor.activeSymbolValidationMessage.value).toBe("");
+    expect(editor.activeSymbolTags.value).toEqual(["HK.00700", "US.MSFT"]);
+  });
+
+  it("stores the actual A-share exchange after an explicit resolver selection", () => {
+    const { editor } = createEditor();
+    editor.openCreateInstanceForm();
+
+    editor.acceptActiveResolvedInstrument({
+      market: "SZ",
+      resolvedMarket: "CN",
+      instrumentId: "SZ.000001",
+      code: "000001",
+      symbol: "000001",
+      name: "平安银行",
+      securityType: "STOCK",
+      lotSize: 100,
+      source: "test-static",
+      isWatched: false,
+      selectable: true,
+      unavailableReason: null,
+    });
+
+    expect(editor.createBindingInstruments.value).toEqual([
+      { market: "SZ", code: "000001" },
+    ]);
+    expect(editor.activeSymbolTags.value).toEqual(["SZ.000001"]);
+  });
+
+  it("requires qualified symbols for batch input when all markets is selected", async () => {
+    const { editor } = createEditor();
+    editor.openCreateInstanceForm();
+
+    editor.updateActiveSymbolDraft("AAPL, HK.00700, JP.7203");
+    await expect(editor.commitSymbolDraft("create")).resolves.toBe(false);
+
+    expect(editor.activeSymbolTags.value).toEqual(["HK.00700"]);
+    expect(editor.activeSymbolValidationMessage.value).toContain("AAPL");
+    expect(editor.activeSymbolValidationMessage.value).toContain("JP.7203");
+    expect(editor.activeSymbolValidationMessage.value).toContain("完整格式");
+  });
+
+  it("preserves dotted tickers when a qualified market prefix is present", async () => {
+    const { editor, resolver } = createEditor();
+    editor.openCreateInstanceForm();
+    editor.updateActiveSymbolDraft("US.BRK.B");
+
+    await expect(editor.commitSymbolDraft("create")).resolves.toBe(true);
+    expect(editor.activeSymbolTags.value).toEqual(["US.BRK.B"]);
+    expect(resolver).toHaveBeenCalledWith({ instrumentId: "US.BRK.B" });
+  });
+
+  it("handles keyboard and paste editing semantics", async () => {
+    const { editor } = createEditor();
+    editor.openCreateInstanceForm();
+    editor.updateActiveSymbolDraft("US.AAPL");
+
+    const composingPrevent = vi.fn();
+    editor.handleActiveSymbolDraftKeydown({ isComposing: true, key: "Enter", preventDefault: composingPrevent } as unknown as KeyboardEvent);
+    expect(composingPrevent).not.toHaveBeenCalled();
+
+    const enterPrevent = vi.fn();
+    editor.handleActiveSymbolDraftKeydown({ isComposing: false, key: "Enter", preventDefault: enterPrevent } as unknown as KeyboardEvent);
+    expect(enterPrevent).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(editor.activeSymbolTags.value).toContain("US.AAPL"));
+
+    editor.updateActiveSymbolDraft("");
+    const backspacePrevent = vi.fn();
+    editor.handleActiveSymbolDraftKeydown({ isComposing: false, key: "Backspace", preventDefault: backspacePrevent } as unknown as KeyboardEvent);
+    expect(backspacePrevent).toHaveBeenCalledOnce();
+    expect(editor.activeSymbolTags.value).toEqual([]);
+
+    const pastePrevent = vi.fn();
+    editor.handleActiveSymbolDraftPaste({
+      clipboardData: { getData: () => "US.AAPL\nUS.MSFT" },
+      preventDefault: pastePrevent,
+    } as unknown as ClipboardEvent);
+    expect(pastePrevent).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(editor.activeSymbolTags.value).toEqual(["US.AAPL", "US.MSFT"]));
+
+    const singlePastePrevent = vi.fn();
+    editor.handleActiveSymbolDraftPaste({
+      clipboardData: { getData: () => "NVDA" },
+      preventDefault: singlePastePrevent,
+    } as unknown as ClipboardEvent);
+    expect(singlePastePrevent).not.toHaveBeenCalled();
+  });
+
+  it("updates create risk, execution, interval, and broker account controls", () => {
+    const { editor } = createEditor();
+    editor.openCreateInstanceForm();
+
+    editor.updateActiveIntervalValue("1h");
+    editor.updateActiveExecutionMode("notify_only");
+    editor.updateActiveRuntimeRiskMode("enforce");
+    editor.updateActiveRuntimeRiskCloseOnly(true);
+    editor.updateActiveRuntimeRiskPauseOnReject(true);
+    editor.updateActiveRuntimeRiskNumber("maxOrderQuantity", "25");
+    editor.updateActiveRuntimeRiskNumber("maxOrderNotional", "bad");
+    editor.updateActiveRuntimeRiskNumber("dailyMaxOrders", "");
+    expect(editor.activeIntervalValue.value).toBe("1h");
+    expect(editor.activeExecutionMode.value).toBe("notify_only");
+    expect(editor.activeRuntimeRisk.value).toMatchObject({
+      mode: "enforce",
+      closeOnly: true,
+      pauseOnReject: true,
+      maxOrderQuantity: 25,
+      maxOrderNotional: null,
+      dailyMaxOrders: null,
+    });
+
+    editor.toggleActiveBrokerAccountPicker();
+    expect(editor.activeIsBrokerAccountPickerOpen.value).toBe(true);
+    editor.updateActiveBrokerAccountQuery("hk live");
+    expect(editor.activeFilteredBrokerAccountOptions.value.map((item) => item.selectionKey)).toEqual([
+      accounts[1]?.selectionKey,
+    ]);
+    editor.selectActiveBrokerAccount(accounts[1]?.selectionKey ?? "");
+    expect(editor.activeSelectedBrokerAccountKey.value).toBe(accounts[1]?.selectionKey);
+    expect(editor.activeIsBrokerAccountPickerOpen.value).toBe(false);
+    editor.clearActiveBrokerAccountSelection();
+    expect(editor.activeSelectedBrokerAccountKey.value).toBe("");
+    expect(editor.activeInstanceEditorBrokerAccountSummary.value).toBe("暂不绑定账号");
+  });
+
+  it("keeps chart type scoped to each editor mode and resets it for Tick intervals", () => {
+    const { editor } = createEditor({
+      selected: selectedStrategy,
+      binding: selectedBinding,
+    });
+
+    editor.openCreateInstanceForm();
+    editor.updateActiveChartType("heikinashi");
+    expect(editor.createChartType.value).toBe("heikinashi");
+    expect(editor.activeChartType.value).toBe("heikinashi");
+
+    editor.updateActiveIntervalValue(" tick ");
+    expect(editor.createChartType.value).toBe("standard");
+
+    editor.openEditInstanceForm();
+    expect(editor.activeChartType.value).toBe("heikinashi");
+    editor.updateActiveChartType("standard");
+    expect(editor.editChartType.value).toBe("standard");
+
+    editor.updateActiveChartType("heikinashi");
+    editor.updateActiveIntervalValue("tick");
+    expect(editor.editChartType.value).toBe("standard");
+  });
+
+  it("loads and edits an existing binding, then resets when selection disappears", async () => {
+    const state = createEditor({ selected: selectedStrategy, binding: selectedBinding });
+    const { editor } = state;
+    editor.openEditInstanceForm();
+
+    expect(editor.instanceEditorMode.value).toBe("edit");
+    expect(editor.instanceEditorTitle.value).toBe("实例绑定");
+    expect(editor.instanceEditorHint.value).toContain("独立绑定");
+    expect(editor.instanceEditorPreviewDefinitionLabel.value).toBe("Breakout / v1.1.0");
+    expect(editor.activeSymbolTags.value).toEqual(["HK.00700"]);
+    expect(editor.activeIntervalValue.value).toBe("15m");
+    expect(editor.activeExecutionMode.value).toBe("notify_only");
+    expect(editor.activeSelectedBrokerAccountKey.value).toBe(accounts[1]?.selectionKey);
+
+    editor.updateActiveSymbolDraft("US.AAPL");
+    await expect(editor.commitSymbolDraft("edit")).resolves.toBe(true);
+    editor.updateActiveIntervalValue("30m");
+    editor.updateActiveExecutionMode("unsupported");
+    editor.updateActiveRuntimeRiskMode("unexpected");
+    expect(editor.editBindingInstruments.value).toHaveLength(2);
+    expect(editor.editInterval.value).toBe("30m");
+    expect(editor.editExecutionMode.value).toBe("live");
+    expect(editor.editRuntimeRisk.value.mode).toBe("off");
+
+    state.selected.value = null;
+    await nextTick();
+    expect(editor.instanceEditorMode.value).toBeNull();
+
+    state.binding.value = null;
+    await nextTick();
+    expect(editor.editBindingInstruments.value).toEqual([]);
+    expect(editor.editInterval.value).toBe("5m");
+    expect(editor.editExecutionMode.value).toBe("live");
+  });
+
+  it("tracks definition and account option changes without retaining stale selections", async () => {
+    const state = createEditor();
+    expect(state.editor.createDefinitionId.value).toBe("def-1");
+
+    state.editor.createDefinitionId.value = "missing";
+    state.strategyDefinitions.value = [definitions[1]!];
+    await nextTick();
+    expect(state.editor.createDefinitionId.value).toBe("def-2");
+
+    state.strategyDefinitions.value = [];
+    await nextTick();
+    expect(state.editor.createDefinitionId.value).toBe("");
+    expect(state.editor.instanceEditorHint.value).toContain("先回到设计区");
+
+    state.defaultBrokerAccountSelectionKey.value = accounts[1]?.selectionKey ?? "";
+    state.brokerAccountOptions.value = [accounts[1]!];
+    await nextTick();
+    expect(state.editor.createBrokerAccountKey.value).toBe(accounts[1]?.selectionKey);
+
+    state.editor.openCreateInstanceForm();
+    state.editor.closeInstanceEditorDialog();
+    expect(state.editor.instanceEditorMode.value).toBeNull();
+  });
+
+  it("keeps an existing editor stable while a duplicate symbol commit is in flight", async () => {
+    let resolveLookup: ((value: {
+      market: string;
+      prefix: string;
+      code: string;
+      symbol: string;
+      instrumentId: string;
+      resolvedMarket: string;
+    }) => void) | null = null;
+    const state = createEditor({
+      resolver: () => new Promise((resolve) => {
+        resolveLookup = resolve;
+      }),
+    });
+    state.editor.openCreateInstanceForm();
+    state.editor.updateActiveSymbolDraft("US.NVDA");
+
+    const firstCommit = state.editor.commitSymbolDraft("create");
+    const duplicateCommit = state.editor.commitSymbolDraft("create");
+    resolveLookup?.({
+      market: "US",
+      prefix: "US",
+      code: "NVDA",
+      symbol: "US.NVDA",
+      instrumentId: "US.NVDA",
+      resolvedMarket: "US",
+    });
+
+    await expect(firstCommit).resolves.toBe(true);
+    await expect(duplicateCommit).resolves.toBe(true);
+    expect(state.resolver).toHaveBeenCalledOnce();
+    expect(state.editor.activeSymbolTags.value).toEqual(["US.NVDA"]);
+  });
+
+  it("preserves editor safety when an instrument result is unavailable or incomplete", () => {
+    const { editor } = createEditor();
+    editor.openCreateInstanceForm();
+
+    editor.acceptActiveResolvedInstrument({
+      market: "US",
+      resolvedMarket: "US",
+      instrumentId: "US.AAPL",
+      code: "AAPL",
+      symbol: "AAPL",
+      name: "Apple",
+      securityType: "STOCK",
+      lotSize: 1,
+      source: "test",
+      isWatched: false,
+      selectable: false,
+      unavailableReason: "该市场暂不支持策略实例。",
+    });
+    expect(editor.activeSymbolTags.value).toEqual([]);
+    expect(editor.activeSymbolValidationMessage.value).toBe("该市场暂不支持策略实例。");
+
+    editor.acceptActiveResolvedInstrument({
+      market: "",
+      resolvedMarket: "",
+      instrumentId: "",
+      code: "",
+      symbol: "",
+      name: "Unknown",
+      securityType: "STOCK",
+      lotSize: 1,
+      source: "test",
+      isWatched: false,
+      selectable: true,
+      unavailableReason: null,
+    });
+    expect(editor.activeSymbolTags.value).toEqual([]);
+    expect(editor.activeSymbolValidationMessage.value).toContain("缺少市场或代码");
+  });
+
+  it("closes an active broker picker and declines edit mode when no strategy is selected", () => {
+    const { editor } = createEditor();
+    editor.openCreateInstanceForm();
+    editor.toggleActiveBrokerAccountPicker();
+    editor.updateActiveBrokerAccountQuery("paper");
+    editor.toggleActiveBrokerAccountPicker();
+    expect(editor.activeIsBrokerAccountPickerOpen.value).toBe(false);
+    expect(editor.activeBrokerAccountQuery.value).toBe("");
+
+    editor.closeInstanceEditorDialog();
+    editor.openEditInstanceForm();
+    expect(editor.instanceEditorMode.value).toBeNull();
+  });
+});
