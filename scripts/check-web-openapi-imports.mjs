@@ -33,7 +33,7 @@ export function isOpenAPIImportInfrastructure(rawPath) {
   const file = normalizePath(rawPath);
   return (
     exactInfrastructureFiles.has(file) ||
-    /^apps\/web\/src\/contracts\/generated\/[^/]+\.ts$/.test(file)
+    /^apps\/web\/src\/contracts\/wire\/[^/]+\.ts$/.test(file)
   );
 }
 
@@ -122,7 +122,7 @@ function main() {
   const failures = [...parsed.failures];
   failures.push(
     ...result.unallowlisted.map(
-      (file) => `${file}: import a generated alias from @/contracts instead`,
+      (file) => `${file}: import a wire alias from @/contracts instead`,
     ),
     ...result.stale.map(
       (file) => `${file}: remove this resolved legacy entry from the allowlist`,

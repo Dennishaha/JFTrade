@@ -4,14 +4,14 @@
 
 ## 类型分层
 
-- `apps/web/src/contracts/generated/*`：只允许直接导出 OpenAPI schema 或 operation 类型。
+- `apps/web/src/contracts/wire/*`：只允许直接导出 OpenAPI schema 或 operation 类型。
 - `apps/web/src/contracts/index.ts`：仅作为生成类型的兼容 re-export 入口，不声明 interface、运行时常量或人工 wire shape。
 - `apps/web/src/types/view-models/*`：字段缺失、`null`、开放枚举或 UI 语义需要归一化时使用的前端模型。
 - `apps/web/src/composables/*Contract.ts`、`*Mappers.ts` 或对应 API 模块：wire → view model 的显式 mapper；必须覆盖缺失字段、`null` 和未知枚举。
 
 `scripts/web-contract-classification.json` 对全部人工类型模块分类，并记录 normalized API model 的 mapper 与边界测试。新增文件没有分类、mapper 或测试时，`pnpm run check:web-contract-audit` 会失败。
 
-业务组件、composable 和 view model 不得新增 `@/generated/openapi` 直引；应先在 `@/contracts` 增加直接 schema/operation 别名。只有 `contracts/generated/*`、需要对全部 operation 做泛型推导的 `apiClient.ts`，以及验证别名等价性的契约边界测试可以直接使用生成文件。`scripts/web-openapi-import-allowlist.json` 冻结其余历史调用者：文件集合与数量只能缩减，已迁移的陈旧条目也会导致门禁失败。
+业务组件、composable 和 view model 不得新增 `@/generated/openapi` 直引；应先在 `@/contracts` 增加直接 schema/operation 别名。只有 `contracts/wire/*`、需要对全部 operation 做泛型推导的 `apiClient.ts`，以及验证别名等价性的契约边界测试可以直接使用生成文件。`scripts/web-openapi-import-allowlist.json` 冻结其余历史调用者：文件集合与数量只能缩减，已迁移的陈旧条目也会导致门禁失败。
 
 ## 请求边界
 

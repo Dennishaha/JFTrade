@@ -1,8 +1,8 @@
-import type { ExecutionSettingsResponse } from "../../contracts/generated/settings";
+import type { ExecutionSettingsResponse } from "../../contracts/wire/settings";
 import type {
   RuntimeResourcesSummary,
   SystemBuildInformation,
-} from "../../contracts/generated/system";
+} from "../../contracts/wire/system";
 import type { StrategyRuntimeActiveInstanceSummary } from "./strategy";
 
 export interface HealthResponse {

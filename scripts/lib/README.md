@@ -20,7 +20,7 @@ these symbols instead of copying their logic or depending on unexported helpers.
 | `pineworker-rolldown-build.mjs` | Produce the Node ESM Pineworker bundle or its dry-run command. | `buildPineWorkerBundle`, `dryRunPineWorkerBundleCommand` |
 | `openapi-quality.mjs` | Find OpenAPI quality gaps and maintain the quality allowlist. | `findOpenAPIQualityGaps`, `compareQualityGaps`, `buildQualityAllowlist` |
 | `web-contract-index.mjs` | Validate the Web contract barrel exports. | `contractIndexViolations` |
-| `web-contract-audit.mjs` | Audit generated contracts, view-model classification and exported declaration counts. | `normalizeRelativePath`, `generatedSchemaViolations`, `generatedContractViolations`, `viewModelClassificationViolations`, `classifiedDeclarationCounts` |
+| `web-contract-audit.mjs` | Audit wire contracts, view-model classification and exported declaration counts. | `normalizeRelativePath`, `generatedSchemaViolations`, `wireContractViolations`, `viewModelClassificationViolations`, `classifiedDeclarationCounts` |
 
 Changing an exported symbol requires updating its direct callers and tests in the
 same change. Unexported helpers are implementation details.

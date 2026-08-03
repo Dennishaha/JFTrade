@@ -30,9 +30,9 @@ test("finds alias and relative raw OpenAPI imports in TypeScript and Vue sources
   ]);
 });
 
-test("sanctions only the generated contract boundary and exact client infrastructure", () => {
+test("sanctions only the wire contract boundary and exact client infrastructure", () => {
   assert.equal(
-    isOpenAPIImportInfrastructure("apps/web/src/contracts/generated/system.ts"),
+    isOpenAPIImportInfrastructure("apps/web/src/contracts/wire/system.ts"),
     true,
   );
   assert.equal(
@@ -59,7 +59,7 @@ test("reports new imports, stale exceptions, and allowlist growth independently"
       "apps/web/src/components/legacy.vue",
       "apps/web/src/components/new.vue",
       "apps/web/src/components/unallowlisted.vue",
-      "apps/web/src/contracts/generated/system.ts",
+      "apps/web/src/contracts/wire/system.ts",
     ],
     allowlistEntries: new Map([
       ["apps/web/src/components/legacy.vue", "legacy"],
@@ -89,8 +89,8 @@ test("requires normalized debt entries with concrete migration reasons", () => {
     version: 1,
     legacyDirectImports: {
       "apps\\web\\src\\legacy.ts": "short",
-      "apps/web/src/contracts/generated/system.ts":
-        "generated contracts are infrastructure and need no exception",
+      "apps/web/src/contracts/wire/system.ts":
+        "wire contracts are infrastructure and need no exception",
     },
   });
 

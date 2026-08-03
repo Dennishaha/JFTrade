@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { generateAPITypes } from "./generate-api-types.mjs";
 import {
-  generatedContractViolations,
+  wireContractViolations,
   generatedSchemaViolations,
   normalizeRelativePath,
   viewModelClassificationViolations,
@@ -44,10 +44,10 @@ test("audits generated schemas field-for-field including required, nullable, enu
   assert.match(violations[0], /fixture\.Item/);
 });
 
-test("accepts direct generated aliases and rejects handwritten contract declarations", () => {
-  const valid = generatedContractViolations({
-    indexSource: 'export * from "./generated/items";\n',
-    generatedSources: new Map([
+test("accepts direct wire aliases and rejects handwritten contract declarations", () => {
+  const valid = wireContractViolations({
+    indexSource: 'export * from "./wire/items";\n',
+    wireSources: new Map([
       [
         "items.ts",
         [
@@ -61,15 +61,15 @@ test("accepts direct generated aliases and rejects handwritten contract declarat
   });
   assert.deepEqual(valid, []);
 
-  const invalid = generatedContractViolations({
+  const invalid = wireContractViolations({
     indexSource: 'export * from "./manual";\n',
-    generatedSources: new Map([
+    wireSources: new Map([
       ["manual.ts", "export interface Item { id: string }\n"],
     ]),
     schemaNames: new Set(["fixture.Item"]),
   });
-  assert.ok(invalid.some((message) => message.includes("non-generated")));
-  assert.ok(invalid.some((message) => message.includes("generated type aliases")));
+  assert.ok(invalid.some((message) => message.includes("non-wire")));
+  assert.ok(invalid.some((message) => message.includes("wire type aliases")));
 });
 
 test("requires every normalized model module to declare real adapters and tests", () => {

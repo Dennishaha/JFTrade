@@ -49,7 +49,7 @@ Go `pkg/strategy/pine` 是完整语法、语义诊断和 lowering 的权威实�
 - [pine-structure/index.ts](../../apps/web/src/features/pine-structure/index.ts)：源码结构索引与 snapshot 构建入口。
 - [pineV6Workflow.ts](../../apps/web/src/features/pineV6Workflow.ts)：workflow block registry、默认策略、归一化和诊断。
 - [strategyPineEditorIntelliSense.ts](../../apps/web/src/features/strategyPineEditorIntelliSense.ts)：Monaco completion、snippet 与 hover 元数据。
-- [types/view-models/strategy.ts](../../apps/web/src/types/view-models/strategy.ts)：前端归一化后的 `PineV6WorkflowDocument`、策略定义和实例 view model；线上 wire contract 由 [contracts/generated/strategy.ts](../../apps/web/src/contracts/generated/strategy.ts) 从 OpenAPI 导出。
+- [types/view-models/strategy.ts](../../apps/web/src/types/view-models/strategy.ts)：前端归一化后的 `PineV6WorkflowDocument`、策略定义和实例 view model；线上 wire contract 由 [contracts/wire/strategy.ts](../../apps/web/src/contracts/wire/strategy.ts) 从 OpenAPI 导出。
 
 ## 后端代码入口
 

@@ -1,4 +1,4 @@
-import type { MCPServerStatus } from "../../contracts/generated/settings";
+import type { MCPServerStatus } from "../../contracts/wire/settings";
 
 export type ADKPermissionMode = "approval" | "less_approval" | "all";
 export type ADKWorkMode = "chat" | "loop";

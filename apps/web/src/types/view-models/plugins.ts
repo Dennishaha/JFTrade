@@ -2,7 +2,7 @@ import type {
   PluginBuildTupleDto,
   PluginDescriptorDto,
   PluginUninstallGuidanceDto,
-} from "../../contracts/generated/plugins";
+} from "../../contracts/wire/plugins";
 
 export type PluginInstallStatus =
   | "NOT_INSTALLED"

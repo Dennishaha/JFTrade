@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   classifiedDeclarationCounts,
-  generatedContractViolations,
+  wireContractViolations,
   generatedSchemaViolations,
   normalizeRelativePath,
   viewModelClassificationViolations,
@@ -40,26 +40,26 @@ const violations = generatedSchemaViolations(
 
 const rootEntries = readdirSync(contractRoot).sort();
 for (const entry of rootEntries) {
-  if (entry !== "generated" && entry !== "index.ts") {
+  if (entry !== "wire" && entry !== "index.ts") {
     violations.push(
-      `apps/web/src/contracts/${entry}: handwritten modules are forbidden in the generated contract boundary`,
+      `apps/web/src/contracts/${entry}: handwritten modules are forbidden outside the wire contract boundary`,
     );
   }
 }
 
-const generatedSources = new Map(
-  readdirSync(join(contractRoot, "generated"))
+const wireSources = new Map(
+  readdirSync(join(contractRoot, "wire"))
     .filter((file) => file.endsWith(".ts"))
     .sort()
     .map((file) => [
       file,
-      readFileSync(join(contractRoot, "generated", file), "utf8"),
+      readFileSync(join(contractRoot, "wire", file), "utf8"),
     ]),
 );
 violations.push(
-  ...generatedContractViolations({
+  ...wireContractViolations({
     indexSource: readFileSync(join(contractRoot, "index.ts"), "utf8"),
-    generatedSources,
+    wireSources,
     schemaNames: new Set(Object.keys(spec.definitions ?? {})),
     pathNames: new Set(Object.keys(spec.paths ?? {})),
   }),
@@ -109,7 +109,7 @@ if (violations.length > 0) {
   console.log(
     [
       `Web contract audit passed: ${Object.keys(spec.definitions ?? {}).length} Swagger schemas match generated TypeScript field-for-field`,
-      `${generatedSources.size} generated alias modules`,
+      `${wireSources.size} wire alias modules`,
       `${counts["normalized-api"]} normalized API declarations`,
       `${counts["ui-view-model"]} UI declarations`,
       `${counts["client-infrastructure"]} client infrastructure declarations`,

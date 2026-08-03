@@ -1,4 +1,4 @@
-import type { FutuOpenDInstallOptionDto } from "../../contracts/generated/system";
+import type { FutuOpenDInstallOptionDto } from "../../contracts/wire/system";
 
 export interface FutuOpenDInstallGuideResponse {
   brokerId: "futu";

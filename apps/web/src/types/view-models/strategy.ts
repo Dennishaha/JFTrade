@@ -5,7 +5,7 @@ import type {
   StrategyDefinitionDto,
   StrategyDefinitionSummaryDocument,
   StrategyVisualModelDto,
-} from "../../contracts/generated/strategy";
+} from "../../contracts/wire/strategy";
 
 export interface StrategyVisualNodeDocument {
   id: string;

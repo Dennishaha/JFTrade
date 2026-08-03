@@ -67,9 +67,9 @@ export function generatedSchemaViolations(
   return violations;
 }
 
-export function generatedContractViolations({
+export function wireContractViolations({
   indexSource,
-  generatedSources,
+  wireSources,
   schemaNames,
   pathNames = new Set(),
 }) {
@@ -77,8 +77,8 @@ export function generatedContractViolations({
   const indexFile = parseSource(indexSource, "contracts/index.ts");
   violations.push(...diagnosticsFor(indexFile));
   const expectedModules = new Set(
-    [...generatedSources.keys()]
-      .map((file) => `./generated/${file.replace(/\.ts$/, "")}`)
+    [...wireSources.keys()]
+      .map((file) => `./wire/${file.replace(/\.ts$/, "")}`)
       .sort(),
   );
   const exportedModules = new Set();
@@ -90,14 +90,14 @@ export function generatedContractViolations({
       !ts.isStringLiteral(statement.moduleSpecifier)
     ) {
       violations.push(
-        `contracts/index.ts:${lineFor(indexFile, statement)} must contain generated re-exports only`,
+        `contracts/index.ts:${lineFor(indexFile, statement)} must contain wire re-exports only`,
       );
       continue;
     }
     const moduleName = statement.moduleSpecifier.text;
-    if (!moduleName.startsWith("./generated/")) {
+    if (!moduleName.startsWith("./wire/")) {
       violations.push(
-        `contracts/index.ts:${lineFor(indexFile, statement)} re-exports non-generated module ${moduleName}`,
+        `contracts/index.ts:${lineFor(indexFile, statement)} re-exports non-wire module ${moduleName}`,
       );
     }
     exportedModules.add(moduleName);
@@ -114,7 +114,7 @@ export function generatedContractViolations({
     }
   }
 
-  for (const [file, source] of [...generatedSources.entries()].sort()) {
+  for (const [file, source] of [...wireSources.entries()].sort()) {
     const sourceFile = parseSource(source, file);
     violations.push(...diagnosticsFor(sourceFile));
     for (const statement of sourceFile.statements) {
@@ -135,7 +135,7 @@ export function generatedContractViolations({
         !hasExportModifier(statement)
       ) {
         violations.push(
-          `${file}:${lineFor(sourceFile, statement)} may only export generated type aliases`,
+          `${file}:${lineFor(sourceFile, statement)} may only export direct wire type aliases`,
         );
         continue;
       }

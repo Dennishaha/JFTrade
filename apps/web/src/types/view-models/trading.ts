@@ -18,7 +18,7 @@ import type {
   RealTradeKillSwitchStateResponse,
   RealTradeRiskEventsResponse,
   RealTradeRiskStateResponse,
-} from "../../contracts/generated/trading";
+} from "../../contracts/wire/trading";
 
 export interface BrokerPlaceOrderRequestPayload {
   tradingEnvironment: string;
