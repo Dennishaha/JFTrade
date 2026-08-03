@@ -5,10 +5,12 @@ import { extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
+import { inspectMonacoLayout } from "./lib/monaco-layout.mjs";
+
 const defaultDist = "apps/web/dist";
 const defaultBudget = "scripts/web-bundle-budget.json";
 
-export function collectBundleReport({ distRoot, html, budget }) {
+export function collectBundleReport({ distRoot, html, budget, monacoLanguageNames = [] }) {
   const referenced = htmlAssetReferences(html);
   const assets = walkFiles(distRoot)
     .filter((file) => {
@@ -37,6 +39,7 @@ export function collectBundleReport({ distRoot, html, budget }) {
     assets,
     budget,
     largestAsyncJavaScript,
+    monacoLanguageNames,
     totals,
   });
   return { assets, failures, largestAsyncJavaScript, totals };
@@ -53,7 +56,13 @@ export function htmlAssetReferences(html) {
   return references;
 }
 
-export function compareBudget({ assets, budget, largestAsyncJavaScript, totals }) {
+export function compareBudget({
+  assets,
+  budget,
+  largestAsyncJavaScript,
+  monacoLanguageNames = [],
+  totals,
+}) {
   const failures = [];
   checkLimit(
     failures,
@@ -89,7 +98,38 @@ export function compareBudget({ assets, budget, largestAsyncJavaScript, totals }
       }
     }
   }
+  failures.push(...monacoBundleFailures(assets, monacoLanguageNames));
   return failures;
+}
+
+export function monacoBundleFailures(assets, languageNames) {
+  const failures = [];
+  const allowedLanguages = new Set(["javascript", "typescript"]);
+  for (const language of languageNames) {
+    if (
+      !allowedLanguages.has(language) &&
+      assets.some((asset) => matchesHashedAsset(asset.path, language))
+    ) {
+      failures.push(`assets/${language}-*.js: unexpected Monaco language chunk`);
+    }
+  }
+
+  for (const worker of ["css.worker", "html.worker", "json.worker"]) {
+    if (assets.some((asset) => matchesHashedAsset(asset.path, worker))) {
+      failures.push(`assets/${worker}-*.js: forbidden Monaco worker`);
+    }
+  }
+  for (const worker of ["editor.worker", "ts.worker"]) {
+    if (!assets.some((asset) => matchesHashedAsset(asset.path, worker))) {
+      failures.push(`assets/${worker}-*.js: required Monaco worker is missing`);
+    }
+  }
+  return failures;
+}
+
+function matchesHashedAsset(path, stem) {
+  const filename = normalizePath(path).split("/").at(-1) ?? "";
+  return filename.startsWith(`${stem}-`) && filename.endsWith(".js");
 }
 
 function assetMetrics(distRoot, absolutePath, referenced) {
@@ -173,11 +213,16 @@ function main() {
   if (!existsSync(indexPath) || !statSync(indexPath).isFile()) {
     throw new Error(`web bundle index not found: ${indexPath}; build the web app first`);
   }
+  const monacoLayout = inspectMonacoLayout();
   const report = collectBundleReport({
     distRoot,
     html: readFileSync(indexPath, "utf8"),
     budget: readBudget(budgetPath),
+    monacoLanguageNames: monacoLayout.languageDefinitions,
   });
+  console.log(
+    `Monaco ${monacoLayout.installedVersion}: ${monacoLayout.languageDefinitions.length} language definitions audited`,
+  );
   const rows = [
     ["initial JavaScript", report.totals.initialJavaScript],
     ["initial CSS", report.totals.initialCss],

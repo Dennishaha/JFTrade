@@ -48,7 +48,10 @@ export const scriptTestSuites = Object.freeze({
   "pine-benchmark": Object.freeze([
     "scripts/check-pine-benchmark-gates.test.mjs",
   ]),
-  "web-bundle": Object.freeze(["scripts/report-web-bundle.test.mjs"]),
+  "web-bundle": Object.freeze([
+    "scripts/lib/monaco-layout.test.mjs",
+    "scripts/report-web-bundle.test.mjs",
+  ]),
 });
 
 export function resolveScriptTestFiles(requestedSuites = []) {
