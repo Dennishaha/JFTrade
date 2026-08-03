@@ -17,6 +17,7 @@ import MarketRankingsView from "../components/research/MarketRankingsView.vue";
 import QuoteDetailRail from "../components/research/QuoteDetailRail.vue";
 import StockScreenerView from "../components/research/StockScreenerView.vue";
 import BrokerProviderTag from "../components/shared/BrokerProviderTag.vue";
+import AppTabs from "../components/shared/AppTabs.vue";
 import SplitPane from "../components/shared/SplitPane.vue";
 import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
 import { useResearchPageController } from "./useResearchPageController";
@@ -120,13 +121,8 @@ const {
         :max-size="marketRailCollapsed ? 100 : researchPaneBounds.leftMaxSize">
         <section class="research-page__center">
           <div class="research-page__navigation">
-            <v-tabs class="research-page__tabs" :model-value="activeSection" density="compact" show-arrows
-              @update:model-value="selectSection">
-              <v-tab v-for="section in sections" :key="section.value" :value="section.value"
-                :data-capability-surface="section.surfaceId">
-                {{ section.label }}
-              </v-tab>
-            </v-tabs>
+            <AppTabs class="research-page__tabs" :model-value="activeSection" :items="sections"
+              label="研究中心视图" @update:model-value="selectSection" />
             <div class="research-page__navigation-actions">
               <BrokerProviderTag :feature-id="activeFeatureIDs[0]" :feature-ids="activeFeatureIDs" :market="queryMarket"
                 enable-embedded-market-data-provider
@@ -320,21 +316,19 @@ const {
   flex: 1 1 auto;
 }
 
-.research-page__navigation :deep(.v-tab) {
+.research-page__navigation :deep(.app-tabs__tab) {
   min-width: 76px;
   height: 42px;
   color: var(--tv-text-muted);
   font-size: var(--jf-text-6);
   font-weight: 650;
-  letter-spacing: var(--jf-tracking-0);
-  text-transform: none;
 }
 
-.research-page__navigation :deep(.v-tab--selected) {
+.research-page__navigation :deep(.app-tabs__tab.is-active) {
   color: var(--tv-text);
 }
 
-.research-page__navigation :deep(.v-tab__slider) {
+.research-page__navigation :deep(.app-tabs__tab.is-active::after) {
   height: 2px;
   background: var(--tv-accent);
 }

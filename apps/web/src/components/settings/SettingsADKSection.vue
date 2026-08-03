@@ -8,6 +8,7 @@ import ADKProvidersPanel from "@/components/adk-settings/ADKProvidersPanel.vue";
 import ADKRunsPanel from "@/components/adk-settings/ADKRunsPanel.vue";
 import ADKSkillsPanel from "@/components/adk-settings/ADKSkillsPanel.vue";
 import ADKToolsPanel from "@/components/adk-settings/ADKToolsPanel.vue";
+import AppTabs from "@/components/shared/AppTabs.vue";
 import StatusChip from "@/components/shared/StatusChip.vue";
 import { statusTone } from "@/composables/shared/statusTone";
 import { useADKSettingsSectionState } from "@/composables/adk/useADKSettingsSectionState";
@@ -111,6 +112,18 @@ const router = useRouter();
 
 const adkTabs = new Set(["providers", "agents", "tools", "skills", "mcp", "observation"]);
 const observationTabs = new Set(["workflow", "runs"]);
+const adkTabItems = [
+  { value: "providers", label: "模型服务" },
+  { value: "agents", label: "智能体" },
+  { value: "tools", label: "工具" },
+  { value: "skills", label: "技能" },
+  { value: "mcp", label: "MCP 服务" },
+  { value: "observation", label: "观察" },
+] as const;
+const observationTabItems = [
+  { value: "workflow", label: "任务与记忆" },
+  { value: "runs", label: "运行与审计" },
+] as const;
 
 function firstQueryValue(value: unknown): string | undefined {
   if (Array.isArray(value)) {
@@ -257,16 +270,7 @@ function memoryScopeHint(scope: string): string {
       {{ successMessage }}
     </v-alert>
 
-      <v-tabs v-model="activeTab" class="tv-page-tabs">
-        <v-tab value="providers">模型服务</v-tab>
-        <v-tab value="agents">智能体</v-tab>
-        <v-tab value="tools">工具</v-tab>
-        <v-tab value="skills">技能</v-tab>
-        <v-tab value="mcp">MCP 服务</v-tab>
-
-      <!-- 观察放最后 -->
-      <v-tab value="observation">观察</v-tab>
-    </v-tabs>
+    <AppTabs v-model="activeTab" class="tv-page-tabs" :items="adkTabItems" label="ADK 设置视图" />
 
     <v-window v-model="activeTab" class="adk-settings-window">
 
@@ -356,10 +360,8 @@ function memoryScopeHint(scope: string): string {
 
       <v-window-item value="observation">
         <section class="grid gap-4">
-          <v-tabs v-model="observationTab" class="tv-page-tabs">
-            <v-tab value="workflow">任务与记忆</v-tab>
-            <v-tab value="runs">运行与审计</v-tab>
-          </v-tabs>
+          <AppTabs v-model="observationTab" class="tv-page-tabs" :items="observationTabItems"
+            label="ADK 观察视图" />
           <v-window v-model="observationTab" class="adk-settings-window">
             <v-window-item value="workflow">
               <section class="grid gap-5 lg:grid-cols-2">

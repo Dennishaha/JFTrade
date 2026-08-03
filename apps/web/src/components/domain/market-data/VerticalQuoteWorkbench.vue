@@ -6,6 +6,7 @@ import DenseMetricStrip from "../shared/DenseMetricStrip.vue";
 import WatchlistMembershipDialog from "../watchlist/WatchlistMembershipDialog.vue";
 import CompactInstrumentNews from "./CompactInstrumentNews.vue";
 import QuoteSummaryCard from "./QuoteSummaryCard.vue";
+import AppTabs from "@/components/shared/AppTabs.vue";
 import {
   type QuoteWorkbenchPeriod,
   type QuoteWorkbenchTab,
@@ -73,6 +74,10 @@ const {
 
 const newsPanel = ref<InstanceType<typeof CompactInstrumentNews> | null>(null);
 const refreshing = ref(false);
+const workbenchTabs = [
+  { value: "quote", label: "行情" },
+  { value: "news", label: "资讯" },
+] as const;
 const isPlate = computed(() => resolvedTarget.value?.kind === "plate");
 const activeTab = computed<QuoteWorkbenchTab>(() =>
   isPlate.value ? "quote" : props.tab,
@@ -97,7 +102,8 @@ function selectPeriod(period: QuoteWorkbenchPeriod): void {
   emit("update:period", period);
 }
 
-function selectTab(tab: QuoteWorkbenchTab): void {
+function selectTab(tab: string): void {
+  if (tab !== "quote" && tab !== "news") return;
   if (isPlate.value && tab === "news") return;
   emit("update:tab", tab);
 }
@@ -197,31 +203,16 @@ async function handleRefresh(): Promise<void> {
         {{ [snapshotError, securityError].filter(Boolean).join(" / ") }}
       </div>
 
-      <nav
+      <AppTabs
         v-if="!isPlate"
         class="vertical-quote-workbench__tabs"
-        role="tablist"
-        aria-label="竖屏行情内容"
-      >
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="activeTab === 'quote'"
-          :class="{ 'is-active': activeTab === 'quote' }"
-          @click="selectTab('quote')"
-        >
-          行情
-        </button>
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="activeTab === 'news'"
-          :class="{ 'is-active': activeTab === 'news' }"
-          @click="selectTab('news')"
-        >
-          资讯
-        </button>
-      </nav>
+        variant="compact"
+        fill
+        :model-value="activeTab"
+        :items="workbenchTabs"
+        label="竖屏行情内容"
+        @update:model-value="selectTab"
+      />
 
       <section
         v-if="activeTab === 'quote' && !isPlate"
@@ -333,7 +324,7 @@ async function handleRefresh(): Promise<void> {
 }
 
 .vertical-quote-workbench__toolbar button,
-.vertical-quote-workbench__tabs button {
+.vertical-quote-workbench__tabs :deep(.app-tabs__tab) {
   border: 0;
   background: transparent;
   color: var(--tv-text-muted);
@@ -437,18 +428,18 @@ async function handleRefresh(): Promise<void> {
   border-bottom: 1px solid var(--tv-border);
 }
 
-.vertical-quote-workbench__tabs button {
+.vertical-quote-workbench__tabs :deep(.app-tabs__tab) {
   position: relative;
   padding: 0 3px;
   font-size: var(--jf-text-6);
 }
 
-.vertical-quote-workbench__tabs button:hover,
-.vertical-quote-workbench__tabs button.is-active {
+.vertical-quote-workbench__tabs :deep(.app-tabs__tab:hover),
+.vertical-quote-workbench__tabs :deep(.app-tabs__tab.is-active) {
   color: var(--tv-text);
 }
 
-.vertical-quote-workbench__tabs button.is-active::after {
+.vertical-quote-workbench__tabs :deep(.app-tabs__tab.is-active::after) {
   position: absolute;
   right: 0;
   bottom: 0;

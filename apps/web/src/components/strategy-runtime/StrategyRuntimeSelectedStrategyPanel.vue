@@ -12,6 +12,7 @@ import type {
     StrategyAuditEntryDocument,
     StrategyBrokerAccountBinding,
 } from "@/contracts";
+import AppTabs from "@/components/shared/AppTabs.vue";
 
 import StrategyRuntimeActivityPanel from "./StrategyRuntimeActivityPanel.vue";
 import StrategyRuntimeBindingTab from "./StrategyRuntimeBindingTab.vue";
@@ -68,11 +69,12 @@ const emit = defineEmits<{
 const activeRuntimeTab = ref<StrategyRuntimeWorkbenchTab>("runtime");
 
 const runtimeTabs = computed(() => [
-    { value: "runtime" as const, label: "运行" },
-    { value: "binding" as const, label: "绑定" },
+    { value: "runtime" as const, label: "运行", testId: "strategy-runtime-tab-runtime" },
+    { value: "binding" as const, label: "绑定", testId: "strategy-runtime-tab-binding" },
     {
         value: "activity" as const,
         label: `活动 ${props.strategyLogs.length + props.strategyAuditEntries.length}`,
+        testId: "strategy-runtime-tab-activity",
     },
 ]);
 
@@ -89,7 +91,8 @@ watch(
     },
 );
 
-function selectRuntimeTab(tab: StrategyRuntimeWorkbenchTab): void {
+function selectRuntimeTab(tab: string): void {
+    if (tab !== "runtime" && tab !== "binding" && tab !== "activity") return;
     activeRuntimeTab.value = tab;
 }
 </script>
@@ -111,19 +114,13 @@ function selectRuntimeTab(tab: StrategyRuntimeWorkbenchTab): void {
             @change-status="emit('change-status', $event)"
         />
 
-        <div class="runtime-workbench-tabs border-b px-4">
-            <button
-                v-for="tab in runtimeTabs"
-                :key="tab.value"
-                class="runtime-workbench-tab"
-                :class="{ 'is-active': activeRuntimeTab === tab.value }"
-                :data-testid="`strategy-runtime-tab-${tab.value}`"
-                type="button"
-                @click="selectRuntimeTab(tab.value)"
-            >
-                {{ tab.label }}
-            </button>
-        </div>
+        <AppTabs
+            class="runtime-workbench-tabs border-b px-4"
+            :model-value="activeRuntimeTab"
+            :items="runtimeTabs"
+            label="策略运行视图"
+            @update:model-value="selectRuntimeTab"
+        />
 
         <div class="min-h-0 flex-1 overflow-auto p-4">
             <StrategyRuntimeRunTab

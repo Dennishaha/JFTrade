@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import type { WatchlistItem } from "@/types";
+import AppTabs from "../components/shared/AppTabs.vue";
 
 import WatchlistGroupManagerDialog from "../components/domain/watchlist/WatchlistGroupManagerDialog.vue";
 import WatchlistImportDialog from "../components/domain/watchlist/WatchlistImportDialog.vue";
@@ -67,10 +68,22 @@ const selectedGroupName = computed(
       : groups.value.find((group) => group.id === selectedGroupId.value)?.name ??
         "分组",
 );
+const groupTabs = computed(() => [
+  { value: "", label: "全部" },
+  ...groups.value.map((group) => ({
+    value: group.id,
+    label: group.name,
+    count: group.itemCount ?? 0,
+  })),
+]);
 
 function selectGroup(groupId: string | null): void {
   selectedGroupId.value = groupId;
   visibleInstrumentIds.value = [];
+}
+
+function selectGroupTab(value: string): void {
+  selectGroup(value === "" ? null : value);
 }
 
 function selectInstrument(item: WatchlistItem): void {
@@ -137,14 +150,8 @@ onBeforeUnmount(() => {
 
     <section class="watchlist-page__surface">
       <div class="watchlist-page__tabs-row">
-        <div class="watchlist-page__tabs" role="tablist" aria-label="自选分组">
-          <button type="button" role="tab" :aria-selected="selectedGroupId == null" :class="{ 'is-active': selectedGroupId == null }" @click="selectGroup(null)">
-            全部
-          </button>
-          <button v-for="group in groups" :key="group.id" type="button" role="tab" :aria-selected="selectedGroupId === group.id" :class="{ 'is-active': selectedGroupId === group.id }" @click="selectGroup(group.id)">
-            {{ group.name }} <span>{{ group.itemCount ?? 0 }}</span>
-          </button>
-        </div>
+        <AppTabs class="watchlist-page__tabs" :model-value="selectedGroupId ?? ''" :items="groupTabs"
+          label="自选分组" @update:model-value="selectGroupTab" />
         <button type="button" class="watchlist-page__add-group" title="新建分组" @click="groupManagerOpen = true">＋</button>
       </div>
 
@@ -255,10 +262,10 @@ onBeforeUnmount(() => {
 
 .watchlist-page__tabs-row { display: flex; flex: 0 0 auto; align-items: stretch; min-width: 0; border-bottom: 1px solid var(--tv-border); background: var(--tv-bg-surface-2); }
 .watchlist-page__tabs { display: flex; min-width: 0; flex: 1; gap: 2px; padding: 5px 7px 0; overflow-x: auto; scrollbar-width: thin; }
-.watchlist-page__tabs button { position: relative; flex: 0 0 auto; padding: 8px 11px 9px; border: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--tv-text-muted); font-size: var(--jf-text-5); cursor: pointer; }
-.watchlist-page__tabs button span { margin-left: 4px; color: var(--tv-text-dim); font-size: var(--jf-text-3); }
-.watchlist-page__tabs button.is-active { background: var(--tv-bg-surface); color: var(--tv-text); font-weight: 650; }
-.watchlist-page__tabs button.is-active::after { position: absolute; right: 8px; bottom: -1px; left: 8px; height: 2px; background: var(--tv-accent); content: ""; }
+.watchlist-page__tabs :deep(.app-tabs__tab) { position: relative; flex: 0 0 auto; padding: 8px 11px 9px; border: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--tv-text-muted); font-size: var(--jf-text-5); cursor: pointer; }
+.watchlist-page__tabs :deep(.app-tabs__count) { margin-left: 4px; color: var(--tv-text-dim); font-size: var(--jf-text-3); }
+.watchlist-page__tabs :deep(.app-tabs__tab.is-active) { background: var(--tv-bg-surface); color: var(--tv-text); font-weight: 650; }
+.watchlist-page__tabs :deep(.app-tabs__tab.is-active::after) { position: absolute; right: 8px; bottom: -1px; left: 8px; height: 2px; background: var(--tv-accent); content: ""; }
 .watchlist-page__add-group { width: 40px; flex: 0 0 auto; border: 0; border-left: 1px solid var(--tv-border); background: transparent; color: var(--tv-text-muted); font-size: var(--jf-text-12); }
 
 .watchlist-page__filters { display: flex; min-height: 43px; flex: 0 0 auto; align-items: center; gap: 10px; padding: 6px 9px; border-bottom: 1px solid var(--tv-border); }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ActionConfirmationHost from "../shared/ActionConfirmationHost.vue";
+import SegmentedControl from "../shared/SegmentedControl.vue";
 import { useStockScreenerControllerContext } from "./useStockScreenerController";
 
 const {
@@ -30,6 +31,17 @@ const {
   sorts,
   addSort,
 } = useStockScreenerControllerContext();
+
+const factorRoles = [
+  { value: "filter", label: "条件" },
+  { value: "column", label: "结果列" },
+  { value: "sort", label: "排序" },
+] as const;
+
+function selectFactorRole(value: string): void {
+  if (value !== "filter" && value !== "column" && value !== "sort") return;
+  activeFactorRole.value = value;
+}
 </script>
 
 <template>
@@ -109,39 +121,14 @@ const {
             aria-label="搜索因子"
             placeholder="搜索名称、键或说明"
           />
-          <div
+          <SegmentedControl
             class="stock-screener-view__factor-roles"
-            role="tablist"
-            aria-label="因子用途"
-          >
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="activeFactorRole === 'filter'"
-              :class="{ 'is-active': activeFactorRole === 'filter' }"
-              @click="activeFactorRole = 'filter'"
-            >
-              条件
-            </button>
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="activeFactorRole === 'column'"
-              :class="{ 'is-active': activeFactorRole === 'column' }"
-              @click="activeFactorRole = 'column'"
-            >
-              结果列
-            </button>
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="activeFactorRole === 'sort'"
-              :class="{ 'is-active': activeFactorRole === 'sort' }"
-              @click="activeFactorRole = 'sort'"
-            >
-              排序
-            </button>
-          </div>
+            size="small"
+            :model-value="activeFactorRole"
+            :items="factorRoles"
+            label="因子用途"
+            @update:model-value="selectFactorRole"
+          />
           <div class="stock-screener-view__category-nav">
             <button
               type="button"
@@ -318,14 +305,14 @@ const {
   gap: 4px;
 }
 
-.stock-screener-view__factor-roles button {
+.stock-screener-view__factor-roles :deep(.segmented-control__item) {
   flex: 1;
   border-color: transparent;
   background: transparent;
   color: var(--tv-text-muted);
 }
 
-.stock-screener-view__factor-roles button.is-active {
+.stock-screener-view__factor-roles :deep(.segmented-control__item.is-active) {
   border-color: var(--tv-border);
   background: var(--tv-bg-surface-2);
   color: var(--tv-text);

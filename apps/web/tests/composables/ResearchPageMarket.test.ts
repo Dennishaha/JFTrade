@@ -255,7 +255,7 @@ describe("ResearchPage information architecture and quote rail", () => {
 
   it("keeps a selected capability domain instead of racing back to market", async () => {
     const { page, router } = await mountResearchPage();
-    page.getComponent({ name: "VTabs" }).vm.$emit("update:modelValue", "calendar");
+    page.getComponent({ name: "AppTabs" }).vm.$emit("update:modelValue", "calendar");
     await flushPromises();
     await vi.waitFor(() => {
       expect(router.currentRoute.value.query.section).toBe("calendar");
@@ -506,7 +506,7 @@ describe("ResearchPage information architecture and quote rail", () => {
       "section=prediction&operation=categories&instrumentId=US.AAPL&institutionId=101&seriesCode=SERIES.1&eventCode=EVENT.1&contractCode=EC.1&contractView=depth",
     );
     prediction.page
-      .getComponent({ name: "VTabs" })
+      .getComponent({ name: "AppTabs" })
       .vm.$emit("update:modelValue", "calendar");
     await vi.waitFor(() => {
       expect(prediction.router.currentRoute.value.query.section).toBe(

@@ -12,6 +12,7 @@ import {
 } from "@/composables/product/productFeatures";
 import { withBrokerProvider } from "@/composables/trading/brokerProviderSelection";
 import { useExternalLink } from "@/composables/shared/externalLink";
+import SegmentedControl from "@/components/shared/SegmentedControl.vue";
 import type { QuoteWorkbenchTarget } from "./quoteWorkbench";
 
 const props = withDefaults(
@@ -65,6 +66,11 @@ const visibleItems = computed(() =>
   filterNewsItems(items.value, category.value, ""),
 );
 const { handleExternalLinkClick } = useExternalLink();
+
+function selectCategory(value: string): void {
+  if (!categories.some((option) => option.value === value)) return;
+  category.value = value as NewsCategory;
+}
 
 function parseInstrumentId(
   instrumentId: string,
@@ -164,23 +170,14 @@ defineExpose({ refresh: () => load(true) });
         <strong>相关资讯</strong>
         <small>关键词搜索</small>
       </div>
-      <div
+      <SegmentedControl
         class="compact-instrument-news__categories"
-        role="tablist"
-        aria-label="资讯分类"
-      >
-        <button
-          v-for="option in categories"
-          :key="option.value"
-          type="button"
-          role="tab"
-          :aria-selected="category === option.value"
-          :class="{ 'is-active': category === option.value }"
-          @click="category = option.value"
-        >
-          {{ option.label }}
-        </button>
-      </div>
+        size="small"
+        :model-value="category"
+        :items="categories"
+        label="资讯分类"
+        @update:model-value="selectCategory"
+      />
     </header>
 
     <div v-if="pending" class="compact-instrument-news__state">
@@ -313,9 +310,12 @@ defineExpose({ refresh: () => load(true) });
   display: flex;
   align-items: center;
   gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
-.compact-instrument-news__categories button {
+.compact-instrument-news__categories :deep(.segmented-control__item) {
   padding: 4px 6px;
   border: 0;
   border-radius: 3px;
@@ -325,8 +325,8 @@ defineExpose({ refresh: () => load(true) });
   font-size: var(--jf-text-4);
 }
 
-.compact-instrument-news__categories button:hover,
-.compact-instrument-news__categories button.is-active {
+.compact-instrument-news__categories :deep(.segmented-control__item:hover),
+.compact-instrument-news__categories :deep(.segmented-control__item.is-active) {
   background: var(--tv-bg-surface-2);
   color: var(--tv-text);
 }

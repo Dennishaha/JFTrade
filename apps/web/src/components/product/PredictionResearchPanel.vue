@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppTabs from "@/components/shared/AppTabs.vue";
 import PredictionContractDataView from "../research/PredictionContractDataView.vue";
 import {
   usePredictionResearch,
@@ -86,6 +87,28 @@ const {
   systemStatus,
   selectedBrokerId,
 } = usePredictionResearch(props, emit);
+
+const researchModes = [
+  { value: "discover", label: "事件与合约" },
+  { value: "parlay", label: "Parlay 组合" },
+] as const;
+const contractViews = [
+  { value: "snapshot", label: "快照" },
+  { value: "depth", label: "YES/NO 盘口" },
+  { value: "candles", label: "K 线" },
+  { value: "ticks", label: "逐笔" },
+  { value: "milestones", label: "里程碑" },
+] as const;
+
+function selectResearchMode(value: string): void {
+  if (value !== "discover" && value !== "parlay") return;
+  switchMode(value);
+}
+
+function selectDataView(value: string): void {
+  if (!contractViews.some((item) => item.value === value)) return;
+  selectContractView(value as (typeof contractViews)[number]["value"]);
+}
 </script>
 
 <template>
@@ -96,26 +119,8 @@ const {
     ]"
   >
     <header class="prediction-research__header">
-      <div class="prediction-research__segments" role="tablist" aria-label="预测市场研究模式">
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="mode === 'discover'"
-          :class="{ 'is-active': mode === 'discover' }"
-          @click="switchMode('discover')"
-        >
-          事件与合约
-        </button>
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="mode === 'parlay'"
-          :class="{ 'is-active': mode === 'parlay' }"
-          @click="switchMode('parlay')"
-        >
-          Parlay 组合
-        </button>
-      </div>
+      <AppTabs class="prediction-research__segments" variant="compact" :model-value="mode"
+        :items="researchModes" label="预测市场研究模式" @update:model-value="selectResearchMode" />
       <div class="prediction-research__eligibility">
         US · prediction · 运行时账户资格
       </div>
@@ -168,29 +173,14 @@ const {
       </div>
 
       <div v-else class="prediction-research__contract">
-        <div
+        <AppTabs
           class="prediction-research__segments prediction-research__segments--contract"
-          role="tablist"
-          aria-label="合约数据视图"
-        >
-          <button
-            v-for="item in [
-              ['snapshot', '快照'],
-              ['depth', 'YES/NO 盘口'],
-              ['candles', 'K 线'],
-              ['ticks', '逐笔'],
-              ['milestones', '里程碑'],
-            ] as const"
-            :key="item[0]"
-            type="button"
-            role="tab"
-            :aria-selected="contractView === item[0]"
-            :class="{ 'is-active': contractView === item[0] }"
-            @click="selectContractView(item[0])"
-          >
-            {{ item[1] }}
-          </button>
-        </div>
+          variant="compact"
+          :model-value="contractView"
+          :items="contractViews"
+          label="合约数据视图"
+          @update:model-value="selectDataView"
+        />
 
         <PredictionContractDataView
           v-if="subscriptionReady"
@@ -402,7 +392,7 @@ const {
   background: var(--tv-bg-surface-2);
 }
 
-.prediction-research__segments button {
+.prediction-research__segments :deep(.app-tabs__tab) {
   height: 26px;
   padding: 0 9px;
   border: 0;
@@ -414,11 +404,11 @@ const {
   white-space: nowrap;
 }
 
-.prediction-research__segments button:last-child {
+.prediction-research__segments :deep(.app-tabs__tab:last-child) {
   border-right: 0;
 }
 
-.prediction-research__segments button.is-active {
+.prediction-research__segments :deep(.app-tabs__tab.is-active) {
   background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
   color: var(--tv-accent);
   font-weight: 600;

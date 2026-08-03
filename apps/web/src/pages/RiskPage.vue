@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
+import AppTabs from "../components/shared/AppTabs.vue";
 import HardStopControlPanel from "../components/risk/HardStopControlPanel.vue";
 import RealTradeEmergencyPanel from "../components/risk/RealTradeEmergencyPanel.vue";
 import RiskEventTimeline from "../components/risk/RiskEventTimeline.vue";
@@ -46,6 +49,18 @@ const {
   releaseHardStop,
   confirmPendingAction,
 } = useRiskPage();
+
+const riskTabs = computed(() =>
+  RISK_TABS.map((tab) => {
+    const count = tabBadge(tab.value);
+    return { ...tab, ...(count > 0 ? { count } : {}) };
+  }),
+);
+
+function selectRiskTab(value: string): void {
+  const tab = RISK_TABS.find((item) => item.value === value);
+  if (tab) setActiveTab(tab.value);
+}
 </script>
 
 <template>
@@ -61,20 +76,8 @@ const {
       <RiskStatusStrip :posture="riskPosture" :sections="stripSections" />
 
       <div class="risk-main__tabs-row">
-        <div class="risk-main__tabs" role="tablist" aria-label="风控视图">
-          <button
-            v-for="tab in RISK_TABS"
-            :key="tab.value"
-            type="button"
-            role="tab"
-            :aria-selected="activeTab === tab.value"
-            :class="{ 'is-active': activeTab === tab.value }"
-            @click="setActiveTab(tab.value)"
-          >
-            {{ tab.label }}
-            <span v-if="tabBadge(tab.value) > 0">{{ tabBadge(tab.value) }}</span>
-          </button>
-        </div>
+        <AppTabs class="risk-main__tabs" :model-value="activeTab" :items="riskTabs"
+          label="风控视图" @update:model-value="selectRiskTab" />
       </div>
 
       <div class="risk-main__content">
@@ -201,7 +204,7 @@ const {
   scrollbar-width: thin;
 }
 
-.risk-main__tabs button {
+.risk-main__tabs :deep(.app-tabs__tab) {
   position: relative;
   flex: 0 0 auto;
   padding: 8px 14px 9px;
@@ -213,19 +216,19 @@ const {
   font-size: var(--jf-text-5);
 }
 
-.risk-main__tabs button span {
+.risk-main__tabs :deep(.app-tabs__count) {
   margin-left: 4px;
   color: var(--tv-text-dim);
   font-size: var(--jf-text-3);
 }
 
-.risk-main__tabs button.is-active {
+.risk-main__tabs :deep(.app-tabs__tab.is-active) {
   background: var(--tv-bg-surface);
   color: var(--tv-text);
   font-weight: 650;
 }
 
-.risk-main__tabs button.is-active::after {
+.risk-main__tabs :deep(.app-tabs__tab.is-active::after) {
   position: absolute;
   right: 8px;
   bottom: -1px;

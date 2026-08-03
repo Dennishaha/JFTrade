@@ -7,6 +7,7 @@ import { useBrokerProviderSelection } from "@/composables/trading/brokerProvider
 import { getSharedLiveSocketHub } from "@/composables/market-data/sharedLiveSocket";
 import { resolveProductUnderlying } from "@/composables/product/productUnderlying";
 import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
+import AppTabs from "@/components/shared/AppTabs.vue";
 import {
   isWorkspaceProductTab,
   resolveWorkspaceProductClass,
@@ -241,12 +242,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="workspace-product-pane">
     <div class="workspace-product-pane__navigation">
-      <v-tabs :model-value="activeTab" density="compact" class="workspace-product-pane__tabs"
-        @update:model-value="selectTab">
-        <v-tab v-for="tab in tabs" :key="tab.value" :value="tab.value" :data-capability-surface="tab.surfaceId">
-          {{ tab.label }}
-        </v-tab>
-      </v-tabs>
+      <AppTabs :model-value="activeTab" :items="tabs" class="workspace-product-pane__tabs"
+        label="产品工作区视图" @update:model-value="selectTab" />
       <Teleport
         to="#workspace-provider-statusbar"
         :disabled="!providerStatusBarAvailable"
@@ -316,32 +313,12 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.workspace-product-pane__tabs :deep(.v-slide-group__content) {
-  gap: 2px;
-  padding: 0 8px;
-}
-
-.workspace-product-pane__tabs :deep(.v-tab) {
+.workspace-product-pane__tabs :deep(.app-tabs__tab) {
   min-width: 68px;
   height: 41px;
   padding: 0 11px;
   color: var(--tv-text-muted);
   font-size: var(--jf-text-5);
   font-weight: 620;
-  letter-spacing: var(--jf-tracking-0);
-  text-transform: none;
-}
-
-.workspace-product-pane__tabs :deep(.v-tab:hover) {
-  color: var(--tv-text);
-}
-
-.workspace-product-pane__tabs :deep(.v-tab--selected) {
-  color: var(--tv-text);
-}
-
-.workspace-product-pane__tabs :deep(.v-tab__slider) {
-  height: 2px;
-  background: var(--tv-accent);
 }
 </style>

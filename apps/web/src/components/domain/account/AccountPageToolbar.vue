@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
+import AppTabs from "@/components/shared/AppTabs.vue";
 import { ACCOUNT_TABS, type AccountTab } from "@/features/accountPage";
 
-defineProps<{
+const props = defineProps<{
   activeTab: AccountTab;
   pendingOrderCount: number;
   refreshing: boolean;
@@ -12,26 +15,26 @@ const emit = defineEmits<{
   select: [tab: AccountTab];
   refresh: [];
 }>();
+
+const accountTabs = computed(() =>
+  ACCOUNT_TABS.map((tab) => ({
+    ...tab,
+    ...(tab.value === "orders" && props.pendingOrderCount > 0
+      ? { count: props.pendingOrderCount }
+      : {}),
+  })),
+);
+
+function selectTab(value: string): void {
+  if (!ACCOUNT_TABS.some((tab) => tab.value === value)) return;
+  emit("select", value as AccountTab);
+}
 </script>
 
 <template>
   <div class="account-page__tabs-row">
-    <div class="account-page__tabs" role="tablist" aria-label="账户视图">
-      <button
-        v-for="tab in ACCOUNT_TABS"
-        :key="tab.value"
-        type="button"
-        role="tab"
-        :aria-selected="activeTab === tab.value"
-        :class="{ 'is-active': activeTab === tab.value }"
-        @click="emit('select', tab.value)"
-      >
-        {{ tab.label }}
-        <span v-if="tab.value === 'orders' && pendingOrderCount">
-          {{ pendingOrderCount }}
-        </span>
-      </button>
-    </div>
+    <AppTabs class="account-page__tabs" :model-value="activeTab" :items="accountTabs"
+      label="账户视图" @update:model-value="selectTab" />
     <button
       type="button"
       class="account-page__refresh"
@@ -82,7 +85,7 @@ const emit = defineEmits<{
   overflow-x: auto;
   scrollbar-width: thin;
 }
-.account-page__tabs button {
+.account-page__tabs :deep(.app-tabs__tab) {
   position: relative;
   flex: 0 0 auto;
   padding: 8px 14px 9px;
@@ -93,17 +96,17 @@ const emit = defineEmits<{
   cursor: pointer;
   font-size: var(--jf-text-5);
 }
-.account-page__tabs button span {
+.account-page__tabs :deep(.app-tabs__count) {
   margin-left: 4px;
   color: var(--tv-text-dim);
   font-size: var(--jf-text-3);
 }
-.account-page__tabs button.is-active {
+.account-page__tabs :deep(.app-tabs__tab.is-active) {
   background: var(--tv-bg-surface);
   color: var(--tv-text);
   font-weight: 650;
 }
-.account-page__tabs button.is-active::after {
+.account-page__tabs :deep(.app-tabs__tab.is-active::after) {
   position: absolute;
   right: 8px;
   bottom: -1px;

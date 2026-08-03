@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import type { ADKAgent, ADKProvider } from "@/types";
+import AppTabs from "@/components/shared/AppTabs.vue";
 
 import ADKWorkspaceShell from "../components/adk-page/ADKWorkspaceShell.vue";
 import { fetchADKPageSessionData } from "@/composables/adk/adkPageSessionApi";
@@ -23,9 +24,9 @@ const workflowResourcesLoading = ref(false);
 const workflowResourcesError = ref("");
 
 const viewOptions = [
-  { title: "智能体", value: "agents" },
-  { title: "工作流", value: "workflows" },
-];
+  { label: "智能体", value: "agents" },
+  { label: "工作流", value: "workflows" },
+] as const;
 const activeView = computed<ADKPageView>(() =>
   route.path === "/adk/workflows" ? "workflows" : "agents",
 );
@@ -79,15 +80,7 @@ onMounted(() => {
 <template>
   <div class="adk-page">
     <div class="adk-page__tabs">
-      <v-tabs v-model="activePageTab" density="compact">
-        <v-tab
-          v-for="item in viewOptions"
-          :key="item.value"
-          :value="item.value"
-        >
-          {{ item.title }}
-        </v-tab>
-      </v-tabs>
+      <AppTabs v-model="activePageTab" :items="viewOptions" label="ADK 工作区视图" />
     </div>
 
     <ADKWorkspaceShell v-if="activeView === 'agents'" layout="desktop" />

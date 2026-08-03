@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import BacktestChart from "@/components/backtest/BacktestChart.vue";
 import InstrumentIdentity from "@/components/domain/market-data/InstrumentIdentity.vue";
+import AppTabs from "@/components/shared/AppTabs.vue";
 import type { BacktestRun } from "@/composables/backtest/useBacktestRuns";
 import { formatNumber } from "@/utils/numberFormat";
 
@@ -29,6 +30,12 @@ defineProps<{
 }>();
 
 const activeTab = defineModel<BacktestReportTab>("activeTab", { required: true });
+
+const reportTabs = [
+  { value: "chart", label: "图表", icon: "fa-solid fa-chart-line" },
+  { value: "orders", label: "订单", icon: "fa-solid fa-list-check" },
+  { value: "properties", label: "属性", icon: "fa-solid fa-sliders" },
+] as const;
 </script>
 
 <template>
@@ -65,11 +72,12 @@ const activeTab = defineModel<BacktestReportTab>("activeTab", { required: true }
 
     <BacktestReportSummary :result="run.result" :ready="resultReady" :currency="quoteCurrency" />
 
-    <v-tabs v-model="activeTab" bg-color="transparent" density="compact" class="bt-report-tabs shrink-0">
-      <v-tab value="chart"><v-icon size="13" class="mr-1">fa-solid fa-chart-line</v-icon>图表</v-tab>
-      <v-tab value="orders"><v-icon size="13" class="mr-1">fa-solid fa-list-check</v-icon>订单</v-tab>
-      <v-tab value="properties"><v-icon size="13" class="mr-1">fa-solid fa-sliders</v-icon>属性</v-tab>
-    </v-tabs>
+    <AppTabs
+      v-model="activeTab"
+      class="bt-report-tabs shrink-0"
+      :items="reportTabs"
+      label="回测报告视图"
+    />
 
     <v-window v-model="activeTab" class="bt-report-window min-h-0 flex-1 overflow-hidden">
       <v-window-item value="chart" class="bt-report-window-item bt-report-window-item--chart">
@@ -121,14 +129,10 @@ const activeTab = defineModel<BacktestReportTab>("activeTab", { required: true }
 .bt-report-window :deep(.v-window-item),
 .bt-report-window :deep(.v-window-item--active) { min-width: 0; height: 100%; min-height: 0; }
 .bt-report-tabs { min-height: 32px; height: 32px; max-width: 100%; min-width: 0; border-bottom: 1px solid var(--tv-border); background: var(--tv-bg-surface); }
-.bt-report-tabs :deep(.v-slide-group__content) { height: 32px; }
-.bt-report-tabs :deep(.v-tab) { min-height: 32px; height: 32px; padding-inline: 10px; font-size: 0.73rem; }
-.bt-report-tabs :deep(.v-slide-group__container) { min-width: 0; overflow-x: auto; }
 
 @media (max-width: 768px) {
   .bt-report-topbar,
   .bt-report-context-bar { gap: 7px; overflow-x: auto; }
   .bt-report-window { overflow: hidden; }
-  .bt-report-tabs :deep(.v-tab) { min-width: 0; padding-inline: 10px; }
 }
 </style>

@@ -318,10 +318,16 @@ describe("StockScreener extracted controls", () => {
     await draftButtons[0]!.trigger("click");
     await draftButtons[1]!.trigger("click");
     await dialogs.get('[aria-label="搜索因子"]').setValue("价格");
-    const roleButtons = dialogs.findAll(".stock-screener-view__factor-roles button");
-    await roleButtons[1]!.trigger("click");
-    await roleButtons[2]!.trigger("click");
-    await roleButtons[0]!.trigger("click");
+    const roleButton = (label: string) =>
+      dialogs
+        .findAll(".stock-screener-view__factor-roles button")
+        .find((button) => button.text() === label)!;
+    await roleButton("结果列").trigger("click");
+    expect(activeFactorRole.value).toBe("column");
+    await roleButton("排序").trigger("click");
+    expect(activeFactorRole.value).toBe("sort");
+    await roleButton("条件").trigger("click");
+    expect(activeFactorRole.value).toBe("filter");
     await dialogs.get('[aria-label="向左滚动因子分类"]').trigger("click");
     await dialogs.get('[aria-label="向右滚动因子分类"]').trigger("click");
     await dialogs.get(".stock-screener-view__categories").trigger("scroll");

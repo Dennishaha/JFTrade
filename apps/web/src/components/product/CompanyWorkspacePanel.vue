@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import { productCompactMenuProps } from "@/composables/product/productControlDensity";
+import AppTabs from "@/components/shared/AppTabs.vue";
 import ProductFeaturePanel from "./ProductFeaturePanel.vue";
 
 type CompanySection =
@@ -139,11 +140,7 @@ watch(
 
 <template>
   <section class="company-workspace">
-    <v-tabs v-model="section" density="compact" show-arrows>
-      <v-tab v-for="item in sections" :key="item.value" :value="item.value">
-        {{ item.label }}
-      </v-tab>
-    </v-tabs>
+    <AppTabs v-model="section" :items="sections" label="公司研究视图" />
     <ProductFeaturePanel
       :key="path"
       :title="activeSection.label"
@@ -178,29 +175,20 @@ watch(
   min-height: 0;
   flex: 1;
 }
-.company-workspace :deep(.v-tabs) {
+.company-workspace > :first-child {
   min-height: 36px;
   flex: 0 0 36px;
   border-bottom: 1px solid var(--tv-border);
   background: var(--tv-bg-surface-2);
 }
-.company-workspace :deep(.v-slide-group__content) {
-  padding: 0 7px;
-}
-.company-workspace :deep(.v-tab) {
+.company-workspace :deep(.app-tabs__tab) {
   min-width: 68px;
   height: 35px;
   padding: 0 9px;
-  color: var(--tv-text-muted);
   font-size: var(--jf-text-3);
-  letter-spacing: var(--jf-tracking-0);
-  text-transform: none;
 }
-.company-workspace :deep(.v-tab--selected) {
+.company-workspace :deep(.app-tabs__tab.is-active) {
   color: var(--tv-text);
-}
-.company-workspace :deep(.v-tab__slider) {
-  height: 2px;
 }
 .company-workspace__operation {
   width: 168px;

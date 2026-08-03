@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppTabs from "@/components/shared/AppTabs.vue";
 import { useWorkspaceViewState } from "@/composables/workspace/useWorkspaceLayout";
 import AiAssistantPanel from "./AiAssistantPanel.vue";
 import NotificationCenter from "./NotificationCenter.vue";
@@ -6,12 +7,13 @@ import NotificationCenter from "./NotificationCenter.vue";
 const { prefs, update } = useWorkspaceViewState();
 
 const tabs = [
-  { id: "notifications", label: "通知" },
-  { id: "ai", label: "助手" },
+  { value: "notifications", label: "通知", testId: "rightdock-tab-notifications" },
+  { value: "ai", label: "助手", testId: "rightdock-tab-ai" },
 ] as const;
 
-function select(id: (typeof tabs)[number]["id"]): void {
-  update({ rightDockTab: id, rightDockOpen: true });
+function select(value: string): void {
+  if (value !== "notifications" && value !== "ai") return;
+  update({ rightDockTab: value, rightDockOpen: true });
 }
 
 function toggle(): void {
@@ -27,17 +29,16 @@ function toggle(): void {
     }"
   >
     <div class="flex h-full min-h-0 flex-col">
-      <div class="tv-dock-tabs">
-        <div
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="tv-dock-tab"
-          :class="{ 'is-active': prefs.rightDockTab === tab.id }"
-          :data-testid="`rightdock-tab-${tab.id}`"
-          @click="select(tab.id)"
-        >
-          {{ tab.label }}
-        </div>
+      <div class="tv-dock-navigation">
+        <AppTabs
+          class="tv-dock-tabs"
+          variant="compact"
+          fill
+          :model-value="prefs.rightDockTab"
+          :items="tabs"
+          label="右侧停靠栏视图"
+          @update:model-value="select"
+        />
         <button class="tv-icon-btn jf-icon-btn-wide" title="收起" @click="toggle">⟩</button>
       </div>
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppTabs from "../shared/AppTabs.vue";
 import { useStockScreenerControllerContext } from "./useStockScreenerController";
 
 const {
@@ -28,6 +29,16 @@ const {
   partialErrors,
   mobilePane,
 } = useStockScreenerControllerContext();
+
+const mobileTabs = [
+  { value: "builder", label: "条件" },
+  { value: "results", label: "结果" },
+] as const;
+
+function selectMobilePane(value: string): void {
+  if (value !== "builder" && value !== "results") return;
+  mobilePane.value = value;
+}
 </script>
 
 <template>
@@ -128,30 +139,15 @@ const {
     {{ partialError.message || partialError.code || "部分结果不可用" }}
   </div>
 
-  <div
+  <AppTabs
     class="stock-screener-view__mobile-tabs"
-    role="tablist"
-    aria-label="选股器页面"
-  >
-    <button
-      type="button"
-      role="tab"
-      :aria-selected="mobilePane === 'builder'"
-      :class="{ 'is-active': mobilePane === 'builder' }"
-      @click="mobilePane = 'builder'"
-    >
-      条件
-    </button>
-    <button
-      type="button"
-      role="tab"
-      :aria-selected="mobilePane === 'results'"
-      :class="{ 'is-active': mobilePane === 'results' }"
-      @click="mobilePane = 'results'"
-    >
-      结果 {{ entries.length }}
-    </button>
-  </div>
+    variant="compact"
+    fill
+    :model-value="mobilePane"
+    :items="[mobileTabs[0], { ...mobileTabs[1], count: entries.length }]"
+    label="选股器页面"
+    @update:model-value="selectMobilePane"
+  />
 </template>
 
 <style scoped>
@@ -270,7 +266,7 @@ const {
     gap: 4px;
   }
 
-  .stock-screener-view__mobile-tabs button.is-active {
+  .stock-screener-view__mobile-tabs :deep(.app-tabs__tab.is-active) {
     border-color: var(--tv-accent);
     color: var(--tv-accent);
   }

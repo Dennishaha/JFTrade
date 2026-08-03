@@ -475,32 +475,9 @@
 }
 
 .runtime-workbench-tabs {
-    display: flex;
-    gap: 1rem;
     max-width: 100%;
     min-width: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
     border-color: var(--tv-border);
-}
-
-.runtime-workbench-tab {
-    flex: 0 0 auto;
-    border-bottom: 2px solid transparent;
-    padding: 0.75rem 0.1rem 0.65rem;
-    color: var(--tv-text-muted);
-    font-size: 0.875rem;
-    font-weight: 700;
-    transition: border-color 140ms ease, color 140ms ease;
-}
-
-.runtime-workbench-tab:hover,
-.runtime-workbench-tab.is-active {
-    color: var(--tv-text);
-}
-
-.runtime-workbench-tab.is-active {
-    border-color: var(--tv-accent);
 }
 
 .runtime-workbench-section {
@@ -635,13 +612,7 @@
     }
 
     .runtime-workbench-tabs {
-        gap: 0.5rem;
         padding-inline: 0.75rem;
-    }
-
-    .runtime-workbench-tab {
-        padding-block: 0.65rem 0.55rem;
-        font-size: 0.8rem;
     }
 
     .runtime-workbench-section {

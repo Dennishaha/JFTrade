@@ -220,7 +220,7 @@ describe("product navigation surfaces", () => {
       }
     }
     expect(state.path).toContain("/api/v1/market-data/news");
-    wrapper.getComponent({ name: "VTabs" }).vm.$emit(
+    wrapper.getComponent({ name: "AppTabs" }).vm.$emit(
       "update:modelValue",
       "financials",
     );
@@ -291,7 +291,7 @@ describe("product navigation surfaces", () => {
     );
     state.activeSection = "macro";
     await nextTick();
-    page.getComponent({ name: "VTabs" }).vm.$emit(
+    page.getComponent({ name: "AppTabs" }).vm.$emit(
       "update:modelValue",
       "institutions",
     );
@@ -436,7 +436,7 @@ describe("product navigation surfaces", () => {
     state.activeTab = "warrants";
     expect(state.featurePath).toBe("");
     state.activeTab = "chart";
-    pane.getComponent({ name: "VTabs" }).vm.$emit(
+    pane.getComponent({ name: "AppTabs" }).vm.$emit(
       "update:modelValue",
       "futures",
     );
@@ -472,7 +472,7 @@ describe("product navigation surfaces", () => {
       "轮证",
     );
 
-    pane.getComponent({ name: "VTabs" }).vm.$emit(
+    pane.getComponent({ name: "AppTabs" }).vm.$emit(
       "update:modelValue",
       "news",
     );

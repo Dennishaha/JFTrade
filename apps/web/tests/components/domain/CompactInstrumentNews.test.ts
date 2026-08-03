@@ -134,7 +134,7 @@ describe("CompactInstrumentNews", () => {
     });
 
     const noticeTab = wrapper
-      .findAll('[role="tab"]')
+      .findAll('[aria-pressed]')
       .find((button) => button.text() === "公告")!;
     await noticeTab.trigger("click");
     expect(wrapper.findAll(".compact-instrument-news__item")).toHaveLength(1);
@@ -154,9 +154,9 @@ describe("CompactInstrumentNews", () => {
     await wrapper.setProps({ queryInstrumentId: "US.MSFT" });
     expect(
       wrapper
-        .findAll('[role="tab"]')
+        .findAll('[aria-pressed]')
         .find((button) => button.text() === "全部")
-        ?.attributes("aria-selected"),
+        ?.attributes("aria-pressed"),
     ).toBe("true");
   });
 

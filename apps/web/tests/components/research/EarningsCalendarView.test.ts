@@ -86,9 +86,9 @@ describe("EarningsCalendarView", () => {
     const wrapper = mount(EarningsCalendarView);
     await flushPromises();
 
-    const tabs = wrapper.findAll('[role="tab"]');
+    const tabs = wrapper.findAll('[aria-pressed]');
     expect(tabs).toHaveLength(3);
-    expect(tabs[2]!.attributes("aria-selected")).toBe("true");
+    expect(tabs[2]!.attributes("aria-pressed")).toBe("true");
     expect(wrapper.text()).toContain("2026/07");
     expect(wrapper.findAll(".earnings-calendar-view__day")).toHaveLength(35);
     expect(wrapper.findAll(".earnings-calendar-view__day.is-today")).toHaveLength(1);
@@ -110,7 +110,7 @@ describe("EarningsCalendarView", () => {
     const wrapper = mount(EarningsCalendarView);
     await flushPromises();
 
-    await wrapper.findAll('[role="tab"]')[0]!.trigger("click");
+    await wrapper.findAll('[aria-pressed]')[0]!.trigger("click");
     await flushPromises();
     expect(wrapper.get(".earnings-calendar-view__table").text()).toContain("2026Q2");
     expect(wrapper.text()).toContain("3.00万亿");
@@ -118,7 +118,7 @@ describe("EarningsCalendarView", () => {
     expect(mocks.fetch.mock.calls.at(-1)?.[0]).toContain("beginDate=2026-07-23");
     expect(mocks.fetch.mock.calls.at(-1)?.[0]).toContain("endDate=2026-07-23");
 
-    await wrapper.findAll('[role="tab"]')[1]!.trigger("click");
+    await wrapper.findAll('[aria-pressed]')[1]!.trigger("click");
     await flushPromises();
     expect(wrapper.findAll(".earnings-calendar-view__day")).toHaveLength(7);
     expect(wrapper.get(".earnings-calendar-view__week-scroll").attributes("aria-label")).toBe(
@@ -255,16 +255,16 @@ describe("EarningsCalendarView", () => {
     const wrapper = mount(EarningsCalendarView, { props: { market: "CN" } });
     await flushPromises();
 
-    const monthTab = wrapper.findAll('[role="tab"]')[2]!;
+    const monthTab = wrapper.findAll('[aria-pressed]')[2]!;
     await monthTab.trigger("keydown", { key: "ArrowRight" });
     await flushPromises();
-    expect(wrapper.findAll('[role="tab"]')[0]!.attributes("aria-selected")).toBe("true");
+    expect(wrapper.findAll('[aria-pressed]')[0]!.attributes("aria-pressed")).toBe("true");
 
-    await wrapper.findAll('[role="tab"]')[0]!.trigger("keydown", { key: "ArrowLeft" });
+    await wrapper.findAll('[aria-pressed]')[0]!.trigger("keydown", { key: "ArrowLeft" });
     await flushPromises();
-    expect(wrapper.findAll('[role="tab"]')[2]!.attributes("aria-selected")).toBe("true");
+    expect(wrapper.findAll('[aria-pressed]')[2]!.attributes("aria-pressed")).toBe("true");
 
-    await wrapper.findAll('[role="tab"]')[0]!.trigger("click");
+    await wrapper.findAll('[aria-pressed]')[0]!.trigger("click");
     await flushPromises();
     expect(wrapper.get(".earnings-calendar-view__table-company").element.tagName).toBe("SPAN");
     expect(wrapper.text()).toContain("RAW");
@@ -307,9 +307,9 @@ describe("EarningsCalendarView", () => {
     );
     const wrapper = mount(EarningsCalendarView);
 
-    await wrapper.findAll('[role="tab"]')[0]!.trigger("click");
+    await wrapper.findAll('[aria-pressed]')[0]!.trigger("click");
     expect(wrapper.find('[aria-label="正在加载日视图"]').exists()).toBe(true);
-    await wrapper.findAll('[role="tab"]')[1]!.trigger("click");
+    await wrapper.findAll('[aria-pressed]')[1]!.trigger("click");
     expect(wrapper.find('[aria-label="正在加载周视图"]').exists()).toBe(true);
 
     resolveRequest?.(featureResult([]));

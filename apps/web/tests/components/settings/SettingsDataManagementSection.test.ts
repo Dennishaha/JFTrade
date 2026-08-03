@@ -36,7 +36,7 @@ describe("SettingsDataManagementSection", () => {
     await flushRequests();
     await flushRequests();
 
-    expect(wrapper.get("[data-testid='cleanup-tab-type']").attributes("aria-selected")).toBe("true");
+    expect(wrapper.get("[data-testid='cleanup-tab-type']").attributes("aria-pressed")).toBe("true");
     expect(wrapper.find("[data-testid='cleanup-by-type']").exists()).toBe(true);
     expect(wrapper.findAll("[data-testid^='database-card-']")).toHaveLength(0);
 
@@ -44,7 +44,7 @@ describe("SettingsDataManagementSection", () => {
     await nextTick();
 
     expect(wrapper.findAll("[data-testid^='database-card-']")).toHaveLength(7);
-    expect(wrapper.get("[data-testid='cleanup-tab-database']").attributes("aria-selected")).toBe("true");
+    expect(wrapper.get("[data-testid='cleanup-tab-database']").attributes("aria-pressed")).toBe("true");
     expect(wrapper.find("[data-testid='compact-backtest']").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("/var/jftrade-api/adk.db");
     expect(wrapper.text()).not.toContain("schema metadata is missing");

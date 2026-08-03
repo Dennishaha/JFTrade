@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+
+import SegmentedControl from "@/components/shared/SegmentedControl.vue";
 
 import {
   earningsCalendarPeriodLabel,
@@ -79,16 +81,9 @@ function openFilters(): void {
   emit("open-filters");
 }
 
-async function handleModeKeydown(event: KeyboardEvent, index: number): Promise<void> {
-  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-  event.preventDefault();
-  const delta = event.key === "ArrowRight" ? 1 : -1;
-  const nextIndex = (index + delta + modes.length) % modes.length;
-  emit("update:mode", modes[nextIndex]!.value);
-  await nextTick();
-  document
-    .querySelectorAll<HTMLButtonElement>(".earnings-calendar-view__mode")
-    [nextIndex]?.focus();
+function selectMode(value: string): void {
+  if (!modes.some((mode) => mode.value === value)) return;
+  emit("update:mode", value as EarningsCalendarMode);
 }
 
 function handleDocumentPointerDown(event: PointerEvent): void {
@@ -120,22 +115,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="earnings-calendar-view__toolbar">
-    <div class="earnings-calendar-view__modes" role="tablist" aria-label="财报日历视图">
-      <button
-        v-for="(item, index) in modes"
-        :key="item.value"
-        type="button"
-        class="earnings-calendar-view__mode"
-        :class="{ 'is-active': mode === item.value }"
-        role="tab"
-        :aria-selected="mode === item.value"
-        :tabindex="mode === item.value ? 0 : -1"
-        @click="emit('update:mode', item.value)"
-        @keydown="handleModeKeydown($event, index)"
-      >
-        {{ item.label }}
-      </button>
-    </div>
+    <SegmentedControl class="earnings-calendar-view__modes" size="small" :model-value="mode"
+      :items="modes" label="财报日历视图" @update:model-value="selectMode" />
 
     <div class="earnings-calendar-view__period">
       <button
@@ -220,13 +201,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .earnings-calendar-view__toolbar { display: flex; min-height: 44px; flex: 0 0 auto; align-items: center; gap: 18px; }
-.earnings-calendar-view__modes { display: inline-flex; padding: 3px; border-radius: 6px; background: var(--tv-bg-surface-2); }
-.earnings-calendar-view__mode {
+.earnings-calendar-view__modes { display: inline-flex; padding: 3px; border: 0; border-radius: 6px; background: var(--tv-bg-surface-2); }
+.earnings-calendar-view__modes :deep(.segmented-control__item) {
   min-width: 38px; height: 32px; padding: 0 11px; border: 0; border-radius: 4px;
   background: transparent; color: var(--tv-text-muted); cursor: pointer; font: inherit; font-weight: 600;
 }
-.earnings-calendar-view__mode:hover { color: var(--tv-text); }
-.earnings-calendar-view__mode.is-active {
+.earnings-calendar-view__modes :deep(.segmented-control__item:hover) { color: var(--tv-text); }
+.earnings-calendar-view__modes :deep(.segmented-control__item.is-active) {
   background: var(--tv-bg-elevated); color: var(--tv-text);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tv-border) 70%, transparent);
 }

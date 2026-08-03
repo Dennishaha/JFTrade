@@ -14,6 +14,7 @@ import { useActionConfirmation } from "@/composables/shared/useActionConfirmatio
 
 import ActionConfirmDialog from "@/components/shared/ActionConfirmDialog.vue";
 import ActionConfirmationHost from "@/components/shared/ActionConfirmationHost.vue";
+import SegmentedControl from "@/components/shared/SegmentedControl.vue";
 
 type StorageStats = {
   mainBytes: number;
@@ -91,6 +92,15 @@ const compactDatabase = ref<DatabaseStatus | null>(null);
 const cleanupPreview = ref<CleanupPreview | null>(null);
 const expandedDatabaseIDs = ref<string[]>([]);
 const activeCleanupTab = ref<"type" | "database">("type");
+const cleanupViews = [
+  { value: "type", label: "按类型整理", testId: "cleanup-tab-type" },
+  { value: "database", label: "按库整理", testId: "cleanup-tab-database" },
+] as const;
+
+function selectCleanupView(value: string): void {
+  if (value !== "type" && value !== "database") return;
+  activeCleanupTab.value = value;
+}
 const olderThanDays = ref(30);
 const keepLatest = ref(20);
 const rebuildDialogOpen = ref(false);
@@ -516,30 +526,8 @@ function statusClass(status: DatabaseStatus["status"]): string {
           <h3 id="optimization-title" class="text-sm font-semibold text-slate-900">空间优化</h3>
           <p class="mt-1 text-xs text-slate-500">清理前会生成精确预览；执行后自动整理目标数据库。</p>
         </div>
-        <div class="inline-flex rounded-lg border border-slate-200 bg-white p-1" role="tablist" aria-label="空间优化视角">
-          <button
-            type="button"
-            data-testid="cleanup-tab-type"
-            role="tab"
-            :aria-selected="activeCleanupTab === 'type'"
-            class="rounded-md px-3 py-1.5 text-xs font-semibold"
-            :class="activeCleanupTab === 'type' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'"
-            @click="activeCleanupTab = 'type'"
-          >
-            按类型整理
-          </button>
-          <button
-            type="button"
-            data-testid="cleanup-tab-database"
-            role="tab"
-            :aria-selected="activeCleanupTab === 'database'"
-            class="rounded-md px-3 py-1.5 text-xs font-semibold"
-            :class="activeCleanupTab === 'database' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'"
-            @click="activeCleanupTab = 'database'"
-          >
-            按库整理
-          </button>
-        </div>
+        <SegmentedControl size="small" :model-value="activeCleanupTab" :items="cleanupViews"
+          label="空间优化视角" @update:model-value="selectCleanupView" />
       </div>
 
       <div v-if="activeCleanupTab === 'type'" data-testid="cleanup-by-type" class="grid gap-4">
