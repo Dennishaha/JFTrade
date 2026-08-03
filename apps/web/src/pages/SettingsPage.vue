@@ -338,7 +338,7 @@ const {
     color: var(--tv-text-muted);
     font-size: 0.72rem;
     font-weight: 800;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--jf-tracking-6);
     text-transform: uppercase;
   }
 

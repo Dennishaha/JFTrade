@@ -241,7 +241,7 @@ watch(
   color: var(--tv-accent);
   font-size: var(--jf-text-4);
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--jf-tracking-6);
 }
 
 .watchlist-membership-dialog__close {

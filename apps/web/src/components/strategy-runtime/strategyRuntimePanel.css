@@ -19,7 +19,7 @@
 .runtime-panel__eyebrow {
     font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.22em;
+    letter-spacing: var(--jf-tracking-11);
     text-transform: uppercase;
     color: var(--tv-text-muted);
 }
@@ -412,7 +412,7 @@
     background: color-mix(in srgb, var(--tv-bg-elevated) 84%, transparent);
     font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.14em;
+    letter-spacing: var(--jf-tracking-7);
     line-height: 1.25;
     text-transform: uppercase;
 }
@@ -460,7 +460,7 @@
     color: var(--tv-text-muted);
     font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--jf-tracking-6);
     text-transform: uppercase;
 }
 
@@ -524,7 +524,7 @@
     padding: 0.2rem 0.6rem;
     font-size: 0.68rem;
     font-weight: 750;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--jf-tracking-6);
     text-transform: uppercase;
     overflow-wrap: anywhere;
 }
@@ -551,7 +551,7 @@
     color: var(--tv-text-muted);
     font-size: 0.68rem;
     font-weight: 750;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--jf-tracking-6);
     text-transform: uppercase;
 }
 

@@ -231,9 +231,9 @@ onBeforeUnmount(() => {
   padding: 2px 2px 0;
 }
 
-.watchlist-page__eyebrow { color: var(--tv-accent); font-size: var(--jf-text-3); font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
+.watchlist-page__eyebrow { color: var(--tv-accent); font-size: var(--jf-text-3); font-weight: 750; letter-spacing: var(--jf-tracking-9); text-transform: uppercase; }
 .watchlist-page__title-row { display: flex; align-items: baseline; gap: 12px; }
-.watchlist-page__title-row h1 { margin: 2px 0 0; color: var(--tv-text); font-size: var(--jf-text-14); font-weight: 680; letter-spacing: -.02em; }
+.watchlist-page__title-row h1 { margin: 2px 0 0; color: var(--tv-text); font-size: var(--jf-text-14); font-weight: 680; letter-spacing: var(--jf-tracking-tight); }
 .watchlist-page__title-row span { color: var(--tv-text-dim); font-size: var(--jf-text-5); }
 .watchlist-page__header p { margin: 2px 0 0; color: var(--tv-text-dim); font-size: var(--jf-text-5); }
 .watchlist-page__header-actions { display: flex; gap: 8px; }

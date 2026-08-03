@@ -193,7 +193,7 @@ watch(
   padding: 0 9px;
   color: var(--tv-text-muted);
   font-size: var(--jf-text-3);
-  letter-spacing: 0;
+  letter-spacing: var(--jf-tracking-0);
   text-transform: none;
 }
 .company-workspace :deep(.v-tab--selected) {

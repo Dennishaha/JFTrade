@@ -404,7 +404,7 @@ onMounted(() => {
 <style scoped>
 .tv-topbar-brand {
   flex: 0 0 auto;
-  letter-spacing: 0.18em;
+  letter-spacing: var(--jf-tracking-9);
   color: var(--tv-accent);
 }
 
@@ -540,7 +540,7 @@ onMounted(() => {
 
   .tv-topbar-brand {
     min-width: 0;
-    letter-spacing: 0.06em;
+    letter-spacing: var(--jf-tracking-3);
     font-size: var(--jf-text-5);
   }
 

@@ -8,7 +8,7 @@ function source(path: string): string {
   return readFileSync(new URL(path, sourceRoot), "utf8");
 }
 
-describe("dark theme background contract", () => {
+describe("application theme background contract", () => {
   it("binds Tailwind dark variants to the explicit application theme", () => {
     const styles = source("style.css");
 
@@ -42,6 +42,24 @@ describe("dark theme background contract", () => {
     expect(darkTheme).toContain("--card-surface: rgba(20, 20, 20, 0.90)");
     expect(darkTheme).toContain(
       "--card-surface-raised: rgba(36, 36, 36, 0.70)",
+    );
+  });
+
+  it("keeps the light application, Vuetify, and body background aligned", () => {
+    const tokens = source("styles/tokens.css");
+    const lightTheme = tokens.slice(tokens.indexOf('[data-theme="light"]'));
+    const vuetify = source("vuetifyTheme.ts");
+    const styles = source("style.css");
+
+    expect(lightTheme).toContain("--tv-bg-app: #f1f5f9");
+    expect(lightTheme).toContain("--tv-bg-surface: #ffffff");
+    expect(vuetify).toContain('background: "#f1f5f9"');
+    expect(vuetify).toContain('surface: "#ffffff"');
+    expect(styles).toContain(
+      '[data-theme="light"] body {\n  background: var(--tv-bg-app);\n}',
+    );
+    expect(`${styles}\n${vuetify}`).not.toMatch(
+      /#f4f7fb|linear-gradient\(180deg, #eef2f7 0%, #f8fafc 50%, #eef2f7 100%\)/,
     );
   });
 

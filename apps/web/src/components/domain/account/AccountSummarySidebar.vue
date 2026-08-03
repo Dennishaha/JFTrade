@@ -273,7 +273,7 @@ function formatOverviewMoney(value: number | null | undefined): string {
   color: var(--tv-text);
   font-size: var(--jf-text-15);
   font-weight: 680;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--jf-tracking-tight);
 }
 
 .account-sidebar__pnl {

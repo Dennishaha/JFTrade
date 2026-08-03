@@ -40,10 +40,19 @@
   --jf-text-16: 28px;
   --jf-text-17: 34px;
   --jf-text-18: 38px;
-  --jf-tracking-1: 0.14em;
-  --jf-tracking-2: 0.16em;
-  --jf-tracking-3: 0.18em;
-  --jf-tracking-4: 0.2em;
+  --jf-tracking-tight: -0.02em;
+  --jf-tracking-0: 0;
+  --jf-tracking-1: 0.04em;
+  --jf-tracking-2: 0.05em;
+  --jf-tracking-3: 0.06em;
+  --jf-tracking-4: 0.08em;
+  --jf-tracking-5: 0.1em;
+  --jf-tracking-6: 0.12em;
+  --jf-tracking-7: 0.14em;
+  --jf-tracking-8: 0.16em;
+  --jf-tracking-9: 0.18em;
+  --jf-tracking-10: 0.2em;
+  --jf-tracking-11: 0.22em;
 
   /* Theme-independent fixed colors. Deliberately defined only in this block:
      the hex values they replace were fixed in both themes, so the light theme

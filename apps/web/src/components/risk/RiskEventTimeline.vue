@@ -162,7 +162,7 @@ function tagClass(tag: "success" | "warning" | "danger" | "info"): string {
   color: var(--tv-text-dim);
   font-size: var(--jf-text-4);
   font-weight: 650;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--jf-tracking-4);
   text-transform: uppercase;
 }
 

@@ -226,7 +226,7 @@ function handleQueryInput(event: Event): void {
     padding: 0.15rem 0.5rem;
     font-size: 0.64rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--jf-tracking-6);
     text-transform: uppercase;
 }
 .strategy-account-picker__tag--current {

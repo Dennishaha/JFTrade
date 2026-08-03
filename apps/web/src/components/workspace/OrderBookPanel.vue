@@ -746,7 +746,7 @@ watch(selectedBrokerId, () => {
   font-size: var(--jf-text-4);
   color: var(--tv-text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--jf-tracking-3);
 }
 
 .tv-ob-bbo-price {

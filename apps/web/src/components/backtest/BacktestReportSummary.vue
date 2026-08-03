@@ -140,7 +140,7 @@ defineProps<{
   color: var(--tv-text-muted);
   font-size: 0.61rem;
   font-weight: 750;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--jf-tracking-3);
   text-transform: uppercase;
 }
 

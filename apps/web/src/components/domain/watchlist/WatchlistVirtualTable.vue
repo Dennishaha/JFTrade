@@ -360,7 +360,7 @@ onBeforeUnmount(() => {
   color: var(--tv-text-dim);
   font-size: var(--jf-text-4);
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--jf-tracking-2);
   text-transform: uppercase;
 }
 
@@ -468,7 +468,7 @@ onBeforeUnmount(() => {
 }
 
 .watchlist-table__quote-error {
-  color: var(--tv-warning, #d97706);
+  color: var(--tv-warn);
   font-size: var(--jf-text-4);
 }
 
@@ -481,7 +481,7 @@ onBeforeUnmount(() => {
   margin-left: 2px;
   border: 1px solid currentColor;
   border-radius: 999px;
-  color: var(--tv-warning, #d97706);
+  color: var(--tv-warn);
   font-size: var(--jf-text-2);
   line-height: 1;
   vertical-align: 1px;

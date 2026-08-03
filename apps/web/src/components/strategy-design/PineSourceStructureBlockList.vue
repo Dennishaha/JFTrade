@@ -429,7 +429,7 @@ function filledSourceParam(block: PineV6WorkflowDocument["blocks"][number], key:
   color: var(--tv-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--jf-tracking-4);
   text-transform: uppercase;
 }
 

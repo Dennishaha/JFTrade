@@ -164,7 +164,7 @@ function copyCanonicalInstrumentId(event: ClipboardEvent): void {
 .instrument-identity__secondary {
   max-width: 100%;
   overflow: hidden;
-  color: var(--tv-text-dim, #64748b);
+  color: var(--tv-text-dim);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.6875rem;
   font-variant-numeric: tabular-nums;

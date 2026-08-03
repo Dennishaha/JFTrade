@@ -171,7 +171,7 @@ defineExpose({
   color: var(--tv-text-muted);
   font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--jf-tracking-5);
   text-transform: uppercase;
 }
 
@@ -198,7 +198,7 @@ defineExpose({
   color: var(--tv-text-muted);
   font-size: 0.73rem;
   font-weight: 700;
-  letter-spacing: 0 !important;
+  letter-spacing: var(--jf-tracking-0) !important;
   text-transform: none !important;
 }
 

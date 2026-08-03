@@ -263,7 +263,7 @@ function quoteAvailable(value: number | null): boolean {
 
 .option-chain-table__group strong {
   font-size: var(--jf-text-6);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--jf-tracking-4);
 }
 
 .option-chain-table__group span,

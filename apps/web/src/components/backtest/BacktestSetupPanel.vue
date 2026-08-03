@@ -444,7 +444,7 @@ input {
   color: var(--tv-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--jf-tracking-2);
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;

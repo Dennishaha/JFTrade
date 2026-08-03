@@ -190,7 +190,7 @@ const context = useStrategyDesignContext<HistoryContext>();
   gap: 5px;
   color: var(--tv-text) !important;
   font-size: 0.8rem !important;
-  letter-spacing: 0 !important;
+  letter-spacing: var(--jf-tracking-0) !important;
   text-transform: none !important;
 }
 

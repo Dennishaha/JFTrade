@@ -383,7 +383,7 @@ function formatFeeMoney(value: number | null | undefined): string {
   color: var(--tv-text-muted);
   font-size: var(--jf-text-5);
   font-weight: 650;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--jf-tracking-4);
   text-transform: uppercase;
 }
 

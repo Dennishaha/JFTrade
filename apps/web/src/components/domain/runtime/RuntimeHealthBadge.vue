@@ -67,7 +67,7 @@ const defaultLabel = computed(() => {
   color: rgb(71 85 105);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0;
+  letter-spacing: var(--jf-tracking-0);
   text-transform: uppercase;
   white-space: nowrap;
 }

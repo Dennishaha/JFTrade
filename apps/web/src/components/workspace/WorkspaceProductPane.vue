@@ -328,7 +328,7 @@ onBeforeUnmount(() => {
   color: var(--tv-text-muted);
   font-size: var(--jf-text-5);
   font-weight: 620;
-  letter-spacing: 0;
+  letter-spacing: var(--jf-tracking-0);
   text-transform: none;
 }
 

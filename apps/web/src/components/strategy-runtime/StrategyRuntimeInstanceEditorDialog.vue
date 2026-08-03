@@ -244,7 +244,7 @@ function handleRuntimeRiskNumberInput(field: "maxOrderQuantity" | "maxOrderNotio
         <div class="strategy-instance-dialog" data-testid="strategy-instance-dialog">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <div class="text-sm font-semibold uppercase tracking-(--jf-tracking-2) text-slate-500">{{ title }}</div>
+                    <div class="text-sm font-semibold uppercase tracking-(--jf-tracking-8) text-slate-500">{{ title }}</div>
                     <div class="mt-1 text-sm text-slate-500">
                         {{ hint }}
                     </div>
@@ -310,7 +310,7 @@ function handleRuntimeRiskNumberInput(field: "maxOrderQuantity" | "maxOrderNotio
                         </select>
                     </label>
                     <div v-else class="rounded-3xl bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                        <div class="text-xs uppercase tracking-(--jf-tracking-2) text-slate-500">策略定义</div>
+                        <div class="text-xs uppercase tracking-(--jf-tracking-8) text-slate-500">策略定义</div>
                         <div class="mt-2 break-words font-medium text-slate-900">
                             {{ selectedStrategy?.definition.name }} / v{{ selectedStrategy?.definition.version }}
                         </div>
@@ -517,18 +517,18 @@ function handleRuntimeRiskNumberInput(field: "maxOrderQuantity" | "maxOrderNotio
                 </div>
 
                 <div class="min-w-0 rounded-3xl bg-slate-50 px-4 py-4">
-                    <div class="text-xs font-semibold uppercase tracking-(--jf-tracking-3) text-slate-500">
+                    <div class="text-xs font-semibold uppercase tracking-(--jf-tracking-9) text-slate-500">
                         {{ previewHeading }}
                     </div>
                     <div class="mt-4 grid gap-3 text-sm text-slate-600">
                         <div>
-                            <div class="text-xs uppercase tracking-(--jf-tracking-2) text-slate-400">策略定义</div>
+                            <div class="text-xs uppercase tracking-(--jf-tracking-8) text-slate-400">策略定义</div>
                             <div class="mt-1 break-words font-medium text-slate-900">
                                 {{ previewDefinitionLabel }}
                             </div>
                         </div>
                         <div>
-                            <div class="text-xs uppercase tracking-(--jf-tracking-2) text-slate-400">交易代码</div>
+                            <div class="text-xs uppercase tracking-(--jf-tracking-8) text-slate-400">交易代码</div>
                             <div class="mt-1 flex flex-wrap items-center gap-1.5 break-words font-medium text-slate-900">
                                 <template v-if="symbolTags.length > 0">
                                     <InstrumentIdentity
@@ -542,25 +542,25 @@ function handleRuntimeRiskNumberInput(field: "maxOrderQuantity" | "maxOrderNotio
                             </div>
                         </div>
                         <div>
-                            <div class="text-xs uppercase tracking-(--jf-tracking-2) text-slate-400">周期</div>
+                            <div class="text-xs uppercase tracking-(--jf-tracking-8) text-slate-400">周期</div>
                             <div class="mt-1 font-medium text-slate-900">
                                 {{ intervalValue.trim() || '5m' }}
                             </div>
                         </div>
                         <div>
-                            <div class="text-xs uppercase tracking-(--jf-tracking-2) text-slate-400">执行模式</div>
+                            <div class="text-xs uppercase tracking-(--jf-tracking-8) text-slate-400">执行模式</div>
                             <div class="mt-1 font-medium text-slate-900">
                                 {{ executionMode === 'notify_only' ? '仅通知' : '确认执行' }}
                             </div>
                         </div>
                         <div>
-                            <div class="text-xs uppercase tracking-(--jf-tracking-2) text-slate-400">券商账号</div>
+                            <div class="text-xs uppercase tracking-(--jf-tracking-8) text-slate-400">券商账号</div>
                             <div class="mt-1 break-all font-medium text-slate-900">
                                 {{ brokerAccountSummary }}
                             </div>
                             <div
                                 v-if="isSelectedCurrentBrokerAccount"
-                                class="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-(length:--jf-text-5) font-semibold uppercase tracking-(--jf-tracking-1) text-emerald-700"
+                                class="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-(length:--jf-text-5) font-semibold uppercase tracking-(--jf-tracking-7) text-emerald-700"
                             >
                                 当前
                             </div>

@@ -52,7 +52,7 @@
   border: 1px solid transparent;
   border-radius: 5px !important;
   color: var(--tv-text-muted);
-  letter-spacing: 0;
+  letter-spacing: var(--jf-tracking-0);
   text-transform: none;
 }
 

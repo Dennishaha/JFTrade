@@ -357,7 +357,7 @@ watch(
 .watchlist-import-dialog { overflow: hidden; border: 1px solid var(--tv-border); border-radius: 12px; background: var(--tv-bg-elevated); color: var(--tv-text); box-shadow: var(--tv-shadow-lg); }
 .watchlist-import-dialog > header,
 .watchlist-import-dialog > footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--tv-border); background: var(--tv-bg-surface-2); }
-.watchlist-import-dialog > header span { color: var(--tv-accent); font-size: var(--jf-text-4); font-weight: 700; letter-spacing: .12em; }
+.watchlist-import-dialog > header span { color: var(--tv-accent); font-size: var(--jf-text-4); font-weight: 700; letter-spacing: var(--jf-tracking-6); }
 .watchlist-import-dialog > header h2 { margin: 2px 0 0; font-size: var(--jf-text-11); }
 .watchlist-import-dialog > header p { margin: 4px 0 0; color: var(--tv-text-dim); font-size: var(--jf-text-5); }
 .watchlist-import-dialog > header button { width: 30px; height: 30px; border: 0; background: transparent; color: var(--tv-text-muted); font-size: var(--jf-text-13); }

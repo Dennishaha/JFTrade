@@ -128,7 +128,7 @@ function closeDetailsError(): void {
             class="runtime-workbench-section"
             data-testid="strategy-runtime-observation"
         >
-            <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-3) runtime-workbench-text-muted">实际运行态</div>
+            <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-9) runtime-workbench-text-muted">实际运行态</div>
             <div class="mt-3 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
                 <div>
                     <div class="runtime-workbench-field-label">运行状态</div>

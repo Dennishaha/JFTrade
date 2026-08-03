@@ -54,7 +54,7 @@ defineProps<{
   color: var(--tv-text-muted);
   font-size: var(--jf-text-4);
   font-weight: 650;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--jf-tracking-5);
   text-transform: uppercase;
 }
 .risk-strip__grid {

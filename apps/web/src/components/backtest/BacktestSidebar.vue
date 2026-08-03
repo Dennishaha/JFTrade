@@ -147,7 +147,7 @@ const { closeBacktestSidebar, resultsPageSummary } = useBacktestPageContext();
 .bt-sidebar-panels :deep(.bt-sidebar-panel__title span) {
   font-size: 0.78rem;
   font-weight: 750;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--jf-tracking-1);
 }
 
 .bt-sidebar-panels :deep(.bt-sidebar-panel__title em) {

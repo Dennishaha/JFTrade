@@ -392,7 +392,7 @@ body {
   background: var(--tv-bg-surface);
   font-size: var(--jf-text-5);
   color: var(--tv-text-muted);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--jf-tracking-1);
 }
 
 .tv-statusbar .tv-status-dot {
@@ -630,7 +630,7 @@ body {
 
 .tv-panel-head .tv-panel-title {
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--jf-tracking-4);
   font-size: var(--jf-text-5);
   color: var(--tv-text-muted);
 }
@@ -713,7 +713,7 @@ body {
   font-size: var(--jf-text-5);
   color: var(--tv-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--jf-tracking-3);
 }
 
 .tv-input,
@@ -1290,7 +1290,7 @@ body {
   color: var(--tv-text-dim);
   font-size: var(--jf-text-4);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--jf-tracking-1);
 }
 
 .adk-tool-visual-card__value {
@@ -1554,7 +1554,7 @@ body {
 .adk-brand {
   font-size: var(--jf-text-7);
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--jf-tracking-6);
   text-transform: uppercase;
   color: var(--tv-accent);
   flex: 1;
@@ -1620,7 +1620,7 @@ body {
   color: var(--tv-text-dim);
   font-size: var(--jf-text-4);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--jf-tracking-4);
   text-transform: uppercase;
 }
 
@@ -1642,7 +1642,7 @@ body {
   flex: 0 0 auto;
   color: color-mix(in srgb, var(--tv-accent) 72%, var(--tv-text-dim));
   font-size: var(--jf-text-4);
-  letter-spacing: 0;
+  letter-spacing: var(--jf-tracking-0);
 }
 
 .adk-session-group__toggle {
@@ -1658,7 +1658,7 @@ body {
   font: inherit;
   font-size: var(--jf-text-5);
   line-height: 1;
-  letter-spacing: 0;
+  letter-spacing: var(--jf-tracking-0);
   padding: 0;
   transition: background 120ms, color 120ms;
 }
@@ -2043,7 +2043,7 @@ body {
 .adk-json-label {
   font-size: var(--jf-text-4);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--jf-tracking-4);
   color: var(--tv-text-dim);
   margin-bottom: 4px;
 }
@@ -2404,7 +2404,7 @@ body {
   color: #60a5fa;
   font-size: var(--jf-text-6);
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--jf-tracking-8);
 }
 
 .auth-gate__card h1 {

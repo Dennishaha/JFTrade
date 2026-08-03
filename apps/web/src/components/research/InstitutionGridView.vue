@@ -538,7 +538,7 @@ const hasProfileOverview = computed(
 
 .institution-grid-view__detail-warning {
   border-bottom: 1px solid var(--tv-border);
-  color: var(--tv-warning, #d6a34a);
+  color: var(--tv-warn);
 }
 
 .institution-grid-view__profile,

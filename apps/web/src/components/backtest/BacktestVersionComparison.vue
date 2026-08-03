@@ -257,7 +257,7 @@ const {
   color: var(--tv-text-muted);
   font-size: 0.75rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--jf-tracking-5);
   text-transform: uppercase;
 }
 

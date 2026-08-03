@@ -459,8 +459,8 @@ const {
 }
 
 .prediction-research__notice.is-warning {
-  border-color: color-mix(in srgb, var(--tv-warn, #f5a623) 45%, var(--tv-border));
-  color: var(--tv-warn, #f5a623);
+  border-color: color-mix(in srgb, var(--tv-warn) 45%, var(--tv-border));
+  color: var(--tv-warn);
 }
 
 .prediction-research__notice.is-success {

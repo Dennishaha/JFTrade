@@ -24,7 +24,7 @@
   color: var(--tv-text-muted);
   font-size: var(--jf-text-5);
   font-weight: 650;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--jf-tracking-4);
   text-transform: uppercase;
 }
 
@@ -177,7 +177,7 @@
   width: 100%;
   height: 38px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--jf-tracking-1);
 }
 
 .tv-icon-btn.jf-icon-btn-wide {

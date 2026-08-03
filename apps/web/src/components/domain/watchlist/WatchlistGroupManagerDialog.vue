@@ -153,7 +153,7 @@ watch(
 .watchlist-groups-dialog { overflow: hidden; border: 1px solid var(--tv-border); border-radius: 12px; background: var(--tv-bg-elevated); color: var(--tv-text); }
 .watchlist-groups-dialog > header,
 .watchlist-groups-dialog > footer { display: flex; align-items: center; justify-content: space-between; padding: 15px 18px; border-bottom: 1px solid var(--tv-border); background: var(--tv-bg-surface-2); }
-.watchlist-groups-dialog > header span { color: var(--tv-accent); font-size: var(--jf-text-4); font-weight: 700; letter-spacing: .1em; }
+.watchlist-groups-dialog > header span { color: var(--tv-accent); font-size: var(--jf-text-4); font-weight: 700; letter-spacing: var(--jf-tracking-5); }
 .watchlist-groups-dialog > header h2 { margin: 2px 0 0; font-size: var(--jf-text-10); }
 .watchlist-groups-dialog > header > button { border: 0; background: transparent; color: var(--tv-text-muted); font-size: var(--jf-text-13); }
 .watchlist-groups-dialog__body { display: grid; gap: 14px; padding: 16px 18px; }

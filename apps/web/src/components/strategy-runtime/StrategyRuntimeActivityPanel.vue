@@ -294,7 +294,7 @@ function closeStrategyActivityDetailDialog(): void {
                 data-testid="strategy-activity-detail-dialog">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <div class="text-sm font-semibold uppercase tracking-(--jf-tracking-2) text-slate-500">
+                        <div class="text-sm font-semibold uppercase tracking-(--jf-tracking-8) text-slate-500">
                             {{ selectedStrategyActivityDetail?.kindLabel ?? '详情' }}
                         </div>
                         <div class="mt-1 text-xl font-semibold text-slate-900">
@@ -311,21 +311,21 @@ function closeStrategyActivityDetailDialog(): void {
                 <div v-if="selectedStrategyActivityDetail !== null"
                     class="mt-4 grid gap-3 sm:grid-cols-2">
                     <div class="rounded-3xl bg-slate-50 px-4 py-4">
-                        <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-3) text-slate-500">本地时间</div>
+                        <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-9) text-slate-500">本地时间</div>
                         <div class="mt-2 text-sm font-medium text-slate-900 strategy-time-display"
                             :title="selectedStrategyActivityDetail.tooltip">
                             {{ selectedStrategyActivityDetail.at }}
                         </div>
                     </div>
                     <div class="rounded-3xl bg-slate-50 px-4 py-4">
-                        <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-3) text-slate-500">级别</div>
+                        <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-9) text-slate-500">级别</div>
                         <div class="mt-2 text-sm font-medium text-slate-900">
                             {{ formatStrategyActivityLevel(selectedStrategyActivityDetail.level) }}
                         </div>
                     </div>
                     <div v-if="selectedStrategyActivityDetail.rawKind !== undefined"
                         class="rounded-3xl bg-slate-50 px-4 py-4">
-                        <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-3) text-slate-500">原始类型</div>
+                        <div class="text-(length:--jf-text-5) uppercase tracking-(--jf-tracking-9) text-slate-500">原始类型</div>
                         <div class="mt-2 text-sm font-medium text-slate-900 break-all">
                             {{ selectedStrategyActivityDetail.rawKind }}
                         </div>
@@ -334,11 +334,11 @@ function closeStrategyActivityDetailDialog(): void {
 
                 <div v-if="selectedStrategyActivityDetail !== null"
                     class="mt-4 rounded-3xl bg-slate-50 px-4 py-4">
-                    <div class="text-xs font-semibold uppercase tracking-(--jf-tracking-2) text-slate-500">摘要</div>
+                    <div class="text-xs font-semibold uppercase tracking-(--jf-tracking-8) text-slate-500">摘要</div>
                     <div class="mt-2 text-sm text-slate-700 break-words">
                         {{ selectedStrategyActivityDetail.summary }}
                     </div>
-                    <div class="mt-4 text-xs font-semibold uppercase tracking-(--jf-tracking-2) text-slate-500">详情</div>
+                    <div class="mt-4 text-xs font-semibold uppercase tracking-(--jf-tracking-8) text-slate-500">详情</div>
                     <div class="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
                         {{ selectedStrategyActivityDetail.detail }}
                     </div>
@@ -404,7 +404,7 @@ function closeStrategyActivityDetailDialog(): void {
     padding: 0.15rem 0.55rem;
     font-size: 0.78rem;
     font-weight: 800;
-    letter-spacing: 0.14em;
+    letter-spacing: var(--jf-tracking-7);
     cursor: pointer;
     transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease, transform 140ms ease;
 }
@@ -449,7 +449,7 @@ function closeStrategyActivityDetailDialog(): void {
     padding: 0.5rem 0.85rem;
     font-size: 0.76rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--jf-tracking-4);
     text-transform: uppercase;
 }
 
@@ -544,7 +544,7 @@ function closeStrategyActivityDetailDialog(): void {
     padding: 0.22rem 0.65rem;
     font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--jf-tracking-6);
     text-transform: uppercase;
 }
 
@@ -670,7 +670,7 @@ function closeStrategyActivityDetailDialog(): void {
     .tv-main .strategy-activity-filter {
         min-width: 0;
         padding: 0.45rem 0.65rem;
-        letter-spacing: 0.04em;
+        letter-spacing: var(--jf-tracking-1);
     }
 
     .tv-main .strategy-activity-viewport {

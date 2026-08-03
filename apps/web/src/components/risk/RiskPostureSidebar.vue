@@ -100,7 +100,7 @@ defineEmits<{ refresh: [] }>();
   color: var(--tv-status-fg, var(--tv-text));
   font-size: var(--jf-text-15);
   font-weight: 680;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--jf-tracking-tight);
 }
 .risk-sidebar__posture-hint {
   margin-top: 6px;

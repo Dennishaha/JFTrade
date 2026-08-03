@@ -538,7 +538,7 @@ const context = useStrategyDesignContext<MetadataContext>();
   color: var(--tv-text-muted);
   font-size: 0.78rem;
   font-weight: 750;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--jf-tracking-1);
 }
 
 .strategy-native-side-panels :deep(.strategy-native-panel-count) {
@@ -595,7 +595,7 @@ const context = useStrategyDesignContext<MetadataContext>();
   gap: 3px;
   color: var(--tv-text-muted);
   font-size: 0.7rem;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--jf-tracking-3);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -627,7 +627,7 @@ const context = useStrategyDesignContext<MetadataContext>();
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 5px;
-  letter-spacing: 0 !important;
+  letter-spacing: var(--jf-tracking-0) !important;
   text-transform: none !important;
 }
 

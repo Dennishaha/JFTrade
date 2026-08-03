@@ -291,7 +291,7 @@ function cutoffLabel(card: MarketSnapshotDisplayCard): string {
 .quote-summary__extended-label {
   color: var(--tv-text-dim);
   font-size: var(--jf-text-5);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--jf-tracking-4);
   text-transform: uppercase;
 }
 

@@ -94,7 +94,7 @@ const context = useStrategyDesignContext<InstructionContext>();
   color: var(--tv-text-muted);
   font-size: 0.78rem;
   font-weight: 750;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--jf-tracking-1);
 }
 
 .strategy-native-chip {
