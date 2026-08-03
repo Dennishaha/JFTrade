@@ -37,7 +37,7 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 
 每个覆盖 lane 会把命令输出及 Go/Web/worker 的 coverage 报告保存为 CI artifact（保留 7 天），并在对应 job summary 摘出总量和增量结果，便于定位门禁失败而不依赖本地复现。
 
-真实 Futu/OpenD 不属于普通 PR 或 main CI：只能通过 `futu-live.yml` 手动触发，并调度到带 `self-hosted`、`futu`、`opend` 标签的 runner。该 workflow 显式设置 `JFTRADE_FUTU_LIVE_TEST=1`，并在未连通 OpenD 或权限不足时失败，绝不把跳过当作通过。性能基准保留手动触发；每周在同一 self-hosted runner 上把当前 main 与其上一提交比较。手动性能测试未填写 `compare_ref` 时同样比较上一提交，填写后才使用指定基线。
+真实 Futu/OpenD 不属于普通 PR 或 main CI：只能通过 `futu-live.yml` 手动触发，并调度到带 `self-hosted`、`futu`、`opend` 标签的 runner。该 workflow 显式设置 `JFTRADE_FUTU_LIVE_TEST=1`，并在未连通 OpenD 或权限不足时失败，绝不把跳过当作通过。性能基准保留手动触发；每周在 GitHub 托管的 macOS ARM64 runner 上，将当前 main 与其上一提交放在同一 job 内连续比较。手动性能测试未填写 `compare_ref` 时同样比较上一提交，填写后才使用指定基线。
 
 ## 本地入口
 
