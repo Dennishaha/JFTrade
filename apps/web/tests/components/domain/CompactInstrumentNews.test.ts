@@ -19,6 +19,7 @@ vi.mock("@/composables/shared/externalLink", () => ({
 }));
 
 import CompactInstrumentNews from "../../../src/components/domain/market-data/CompactInstrumentNews.vue";
+import SegmentedControl from "../../../src/components/shared/SegmentedControl.vue";
 import { flushPromises } from "../../productTestUtils";
 
 const target = {
@@ -139,6 +140,10 @@ describe("CompactInstrumentNews", () => {
     await noticeTab.trigger("click");
     expect(wrapper.findAll(".compact-instrument-news__item")).toHaveLength(1);
     expect(wrapper.text()).toContain("Apple 公告");
+
+    wrapper.findComponent(SegmentedControl).vm.$emit("update:modelValue", "invalid");
+    await wrapper.vm.$nextTick();
+    expect(wrapper.findComponent(SegmentedControl).props("modelValue")).toBe("notice");
 
     mocks.fetch.mockRejectedValueOnce(new Error("刷新失败原因"));
     await (

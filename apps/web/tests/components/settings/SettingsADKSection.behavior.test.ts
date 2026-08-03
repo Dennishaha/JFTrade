@@ -6,6 +6,7 @@ import { defineComponent, ref } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 
 import SettingsADKSection from "@/components/settings/SettingsADKSection.vue";
+import AppTabs from "@/components/shared/AppTabs.vue";
 import type { ADKAgent } from "../../../src/types";
 import {
   buttonStub,
@@ -105,6 +106,26 @@ describe("SettingsADKSection business flows", () => {
     expect(wrapper.text()).toContain("对开启记忆的智能体全局可见");
     expect(wrapper.text()).toContain("仅当前智能体使用");
     expect(wrapper.text()).toContain("智能体：策略助手");
+
+    const appTabs = wrapper.findAllComponents(AppTabs);
+    appTabs.find((tab) => tab.props("label") === "ADK 设置视图")!.vm.$emit(
+      "update:modelValue",
+      "providers",
+    );
+    appTabs.find((tab) => tab.props("label") === "ADK 观察视图")!.vm.$emit(
+      "update:modelValue",
+      "runs",
+    );
+    await flushRequests();
+    appTabs.find((tab) => tab.props("label") === "ADK 设置视图")!.vm.$emit(
+      "update:modelValue",
+      "observation",
+    );
+    appTabs.find((tab) => tab.props("label") === "ADK 观察视图")!.vm.$emit(
+      "update:modelValue",
+      "workflow",
+    );
+    await flushRequests();
 
     const taskCards = wrapper
       .findAll("div")

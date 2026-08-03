@@ -87,6 +87,12 @@ describe("QuoteSummaryCard", () => {
             changeRate: 0.75,
             quoteTime: "2026-07-24T01:00:00Z",
           },
+          {
+            key: "regular",
+            label: "常规价格",
+            price: 201.5,
+            changeRate: 0,
+          },
         ],
       },
     });
@@ -103,6 +109,7 @@ describe("QuoteSummaryCard", () => {
     ).toContain("夜盘价格");
     const quoteTimes = wrapper.findAll(".quote-summary__extended-time");
     expect(quoteTimes).toHaveLength(3);
+    expect(wrapper.get(".quote-summary__extended-card--regular").find(".quote-summary__extended-time").exists()).toBe(false);
     expect(quoteTimes[1]?.text()).toContain("报价时间");
     expect(quoteTimes[1]?.text()).toContain("盘后截止");
     expect(quoteTimes[1]?.text()).not.toContain("EDT");

@@ -239,6 +239,7 @@ describe("option research panel", () => {
         operation: "unusual",
         scope: "underlying",
         underlyingInstrumentId: "",
+        presentation: "research",
       },
       global: { stubs: productGlobalStubs },
     });

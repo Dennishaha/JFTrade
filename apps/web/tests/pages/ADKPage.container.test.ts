@@ -179,8 +179,13 @@ describe("ADKPage workflow container", () => {
     );
     expect(fetchADKPageSessionDataMock).not.toHaveBeenCalled();
 
-    await router.push({ path: "/adk/workflows", query: { q: "keep-me" } });
-    await router.isReady();
+    await wrapper
+      .findAll('[role="tab"]')
+      .find((tab) => tab.text() === "工作流")!
+      .trigger("click");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.path).toBe("/adk/workflows");
+    });
     await flushUi();
 
     expect(router.currentRoute.value.path).toBe("/adk/workflows");
@@ -192,11 +197,21 @@ describe("ADKPage workflow container", () => {
     );
 
     fetchADKPageSessionDataMock.mockResolvedValueOnce(buildPageData());
-    await router.push({ path: "/adk/agents", query: { q: "keep-me" } });
-    await router.isReady();
+    await wrapper
+      .findAll('[role="tab"]')
+      .find((tab) => tab.text() === "智能体")!
+      .trigger("click");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.path).toBe("/adk/agents");
+    });
     await flushUi();
-    await router.push({ path: "/adk/workflows", query: { q: "keep-me" } });
-    await router.isReady();
+    await wrapper
+      .findAll('[role="tab"]')
+      .find((tab) => tab.text() === "工作流")!
+      .trigger("click");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.path).toBe("/adk/workflows");
+    });
     await flushUi();
 
     expect(fetchADKPageSessionDataMock).toHaveBeenCalledTimes(2);

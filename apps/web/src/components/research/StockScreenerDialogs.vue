@@ -45,9 +45,7 @@ function selectFactorRole(value: string): void {
 </script>
 
 <template>
-  <Teleport to="body">
-    <ActionConfirmationHost :controller="actionConfirmation" />
-  </Teleport>
+  <ActionConfirmationHost :controller="actionConfirmation" />
 
   <Teleport to="body">
     <div

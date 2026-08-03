@@ -8,6 +8,8 @@ import StockScreenerBuilder from "../../../src/components/research/StockScreener
 import StockScreenerDialogs from "../../../src/components/research/StockScreenerDialogs.vue";
 import StockScreenerPresetSidebar from "../../../src/components/research/StockScreenerPresetSidebar.vue";
 import StockScreenerToolbar from "../../../src/components/research/StockScreenerToolbar.vue";
+import AppTabs from "../../../src/components/shared/AppTabs.vue";
+import SegmentedControl from "../../../src/components/shared/SegmentedControl.vue";
 import type { StockScreenFactor } from "../../../src/components/research/stockScreenTypes";
 import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
 import {
@@ -119,6 +121,8 @@ describe("StockScreener extracted controls", () => {
     );
     await mobileTabs[1]!.trigger("click");
     await mobileTabs[0]!.trigger("click");
+    toolbar.findComponent(AppTabs).vm.$emit("update:modelValue", "invalid");
+    await toolbar.vm.$nextTick();
 
     expect(changeMarket).toHaveBeenCalledOnce();
     expect(choosePreset).toHaveBeenCalledOnce();
@@ -265,7 +269,7 @@ describe("StockScreener extracted controls", () => {
   it("routes factor-dialog choices and draft-resolution actions", async () => {
     const pendingDraftAction = ref<Record<string, unknown> | null>(null);
     const pendingDraftActionLabel = ref("切换策略");
-    const factorDialogOpen = ref(false);
+    const factorDialogOpen = ref(true);
     const activeFactorRole = ref("filter");
     const activeCategory = ref("");
     const closeFactorDialog = vi.fn();
@@ -275,7 +279,14 @@ describe("StockScreener extracted controls", () => {
     const addColumn = vi.fn();
     const addSort = vi.fn();
     const available = factor({ key: "simple.price", label: "最新价" });
+    const actionConfirmation = useActionConfirmation();
+    const confirmation = actionConfirmation.requestConfirmation({
+      title: "删除筛选预设",
+      message: "确认删除？",
+      confirmLabel: "删除",
+    });
     const dialogs = mountControl(StockScreenerDialogs, {
+      actionConfirmation,
       pendingDraftAction,
       pendingDraftActionLabel,
       savingPreset: ref(false),
@@ -309,8 +320,13 @@ describe("StockScreener extracted controls", () => {
 
     pendingDraftAction.value = { kind: "new" };
     pendingDraftActionLabel.value = "新建策略";
-    factorDialogOpen.value = true;
     await dialogs.vm.$nextTick();
+
+    dialogs.findComponent(SegmentedControl).vm.$emit("update:modelValue", "invalid");
+    await dialogs.vm.$nextTick();
+    expect(activeFactorRole.value).toBe("filter");
+    await dialogs.get('[data-testid="action-confirm-cancel"]').trigger("click");
+    await confirmation;
 
     const draftButtons = dialogs.findAll(
       ".stock-screener-view__draft-dialog-actions button",

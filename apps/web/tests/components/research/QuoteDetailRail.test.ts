@@ -44,6 +44,7 @@ vi.mock("@/composables/watchlist/watchlistApi", async (importOriginal) => {
 });
 
 import QuoteDetailRail from "../../../src/components/research/QuoteDetailRail.vue";
+import AppTabs from "../../../src/components/shared/AppTabs.vue";
 import {
   researchQuoteSeedFromEntry,
   researchQuoteTargetFromEntry,
@@ -779,6 +780,9 @@ describe("QuoteDetailRail", () => {
       .findAll(".vertical-quote-workbench__tabs button")
       .find((button) => button.text() === "资讯");
     expect(newsTab).toBeDefined();
+    wrapper.findComponent(AppTabs).vm.$emit("update:modelValue", "invalid");
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted("update:tab")).toBeUndefined();
     await newsTab!.trigger("click");
     expect(wrapper.emitted("update:tab")?.[0]).toEqual(["news"]);
     expect(

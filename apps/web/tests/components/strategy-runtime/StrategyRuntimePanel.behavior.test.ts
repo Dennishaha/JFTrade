@@ -138,6 +138,13 @@ describe("StrategyRuntimePanel business workflows", () => {
     expect(wrapper.get('[data-testid="strategy-activity-tab-logs"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("paused strategy beta");
 
+    wrapper
+      .findAllComponents({ name: "AppTabs" })
+      .find((tabs) => tabs.props("label") === "策略运行视图")!
+      .vm.$emit("update:modelValue", "invalid");
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="strategy-runtime-tab-activity"]').classes()).toContain("is-active");
+
     wrapper.unmount();
   });
 

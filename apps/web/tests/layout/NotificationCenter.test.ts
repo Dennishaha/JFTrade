@@ -43,6 +43,13 @@ const NotificationCenterHarness = defineComponent({
       category: "market.calendar.source",
       at: "2026-05-21T10:03:00.000Z",
     });
+    notifications.push({
+      level: "success",
+      title: "后台任务完成",
+      source: "system",
+      category: "system.task",
+      at: "2026-05-21T10:04:00.000Z",
+    });
     return {};
   },
   template: "<NotificationCenter />",
@@ -95,7 +102,7 @@ describe("NotificationCenter", () => {
     await buttons().find((button) => button.text() === "全部")!.trigger("click");
     await nextTick();
     await buttons().find((button) => button.text() === "×")!.trigger("click");
-    expect(wrapper.findAll(".tv-noti-item")).toHaveLength(3);
+    expect(wrapper.findAll(".tv-noti-item")).toHaveLength(4);
     await buttons().find((button) => button.text() === "清空")!.trigger("click");
     await nextTick();
     expect(wrapper.text()).toContain("暂无通知");

@@ -62,6 +62,7 @@ function setupState() {
   const groups = ref([
     { id: "default", name: "自选股", revision: 1, itemCount: 1 },
     { id: "tech", name: "科技", revision: 2, itemCount: 1 },
+    { id: "uncounted", name: "未计数", revision: 3 },
   ]);
   const groupError = ref<unknown>(null);
   const itemError = ref<unknown>(null);

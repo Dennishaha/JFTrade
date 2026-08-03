@@ -10,6 +10,7 @@ import {
   orderStatusClass,
 } from "../../src/components/domain/account/executionOrderFormat";
 import OrderHistoryPanel from "../../src/components/domain/account/OrderHistoryPanel.vue";
+import AppTabs from "../../src/components/shared/AppTabs.vue";
 import { formatMoney } from "../../src/utils/numberFormat";
 import AccountPage from "../../src/pages/AccountPage.vue";
 
@@ -808,6 +809,10 @@ describe("AccountPage business flows", () => {
 
     const refreshButton = wrapper.find('button[aria-label="刷新账户数据"]');
     expect(refreshButton.exists()).toBe(true);
+
+    wrapper.findComponent(AppTabs).vm.$emit("update:modelValue", "invalid");
+    await nextTick();
+    expect(wrapper.findComponent(AppTabs).props("modelValue")).toBe("positions");
 
     await refreshButton.trigger("click");
     expect(mocks.loadSystemState).toHaveBeenCalledWith({ bypassCooldown: true });

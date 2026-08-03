@@ -32,6 +32,7 @@ vi.mock("@/composables/shared/apiClient", () => ({
 }));
 
 import RiskPage from "../../src/pages/RiskPage.vue";
+import AppTabs from "../../src/components/shared/AppTabs.vue";
 import InstrumentSearchBox from "../../src/components/domain/market-data/InstrumentSearchBox.vue";
 import RealTradeEmergencyPanel from "../../src/components/risk/RealTradeEmergencyPanel.vue";
 
@@ -81,6 +82,10 @@ describe("RiskPage", () => {
 
     const wrapper = mountRiskPage();
     await flushPromises();
+
+    wrapper.findComponent(AppTabs).vm.$emit("update:modelValue", "invalid");
+    await flushPromises();
+    expect(wrapper.findComponent(AppTabs).props("modelValue")).toBe("emergency");
 
     const hardStopStatus = wrapper
       .findAll(".risk-sidebar__row")

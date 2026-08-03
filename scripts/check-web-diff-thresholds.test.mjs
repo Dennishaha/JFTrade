@@ -107,7 +107,7 @@ function setupRepository(root) {
 function writeChangedWebSources(root) {
   writeFileSync(
     join(root, "apps/web/src/ordinary.vue"),
-    "<script setup lang=\"ts\">\nfunction ordinary(value: number) {\n  const next = value > 0 ? value : 0;\n  return next;\n}\n</script>\n<template>\n  <option :value=\"0\">Default</option>\n</template>\n",
+    "<script setup lang=\"ts\">\nfunction ordinary(value: number) {\n  const next = value > 0 ? value : 0;\n  return next;\n}\n</script>\n<template>\n  <option :value=\"0\">Default</option>\n  <StatusChip :status=\"status\" />\n</template>\n",
   );
   writeFileSync(join(root, "apps/web/src/components/risk/guard.ts"), "export function guard(value: number) {\n  return value > 0 ? value : 0;\n}\n");
 }
@@ -116,7 +116,7 @@ function writeCoverage(root, { ordinaryStatementHits, criticalStatementHits, omi
   const coverageDirectory = join(root, "apps/web/coverage");
   mkdirSync(coverageDirectory, { recursive: true });
   const coverage = {
-    [join(root, "apps/web/src/ordinary.vue")]: coverageEntry(ordinaryStatementHits, 17, 3, 8),
+    [join(root, "apps/web/src/ordinary.vue")]: coverageEntry(ordinaryStatementHits, 17, 3, 8, 9),
   };
   if (!omitCritical) {
     coverage[join(root, "apps/web/src/components/risk/guard.ts")] = coverageEntry(criticalStatementHits, 18);
@@ -124,7 +124,7 @@ function writeCoverage(root, { ordinaryStatementHits, criticalStatementHits, omi
   writeFileSync(join(coverageDirectory, "coverage-final.json"), JSON.stringify(coverage));
 }
 
-function coverageEntry(statementHits, branchHits, sourceLine = 2, generatedBindingLine) {
+function coverageEntry(statementHits, branchHits, sourceLine = 2, generatedBindingLine, generatedComponentLine) {
   const statementMap = {};
   const statements = {};
   for (let index = 0; index < 10; index++) {
@@ -152,6 +152,19 @@ function coverageEntry(statementHits, branchHits, sourceLine = 2, generatedBindi
     locations: [locationSpan(sourceLine, 0, 1), locationSpan(sourceLine, 1, 2)],
   };
   branches[21] = [1, 1];
+  branchMap[25] = {
+    type: "cond-expr",
+    line: sourceLine,
+    loc: collapsedLocation,
+    locations: [
+      {
+        start: { line: sourceLine, column: 0 },
+        end: { line: sourceLine + 1, column: 1 },
+      },
+      collapsedLocation,
+    ],
+  };
+  branches[25] = [0, 0];
   const degradedLocation = { start: { line: sourceLine, column: 0 }, end: { line: sourceLine, column: null } };
   branchMap[22] = {
     type: "if",
@@ -184,6 +197,13 @@ function coverageEntry(statementHits, branchHits, sourceLine = 2, generatedBindi
       locations: [location(generatedBindingLine)],
     };
     branches[24] = [1];
+  }
+  if (generatedComponentLine !== undefined) {
+    statementMap[11] = {
+      start: { line: generatedComponentLine, column: 2 },
+      end: { line: generatedComponentLine, column: null },
+    };
+    statements[11] = 0;
   }
   return { statementMap, s: statements, branchMap, b: branches, fnMap: {}, f: {} };
 }

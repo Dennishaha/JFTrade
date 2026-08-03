@@ -801,8 +801,13 @@ describe("option workspace", () => {
       loadVisibleSnapshots: () => Promise<void>;
       section: string;
       expirationError: string;
+      chainError: string;
       snapshotError: string;
     }>(wrapper);
+    state.chainError = "期权链失败";
+    await nextTick();
+    expect(wrapper.text()).toContain("期权链失败");
+    state.chainError = "";
     await state.loadExpirationCatalog();
     expect(wrapper.text()).toContain("字符串失败");
     expect(optionCode({}, "call")).toBe("");

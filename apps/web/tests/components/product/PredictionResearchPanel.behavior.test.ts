@@ -53,6 +53,7 @@ vi.mock("@/composables/workspace/useConsoleData", () => ({
 }));
 
 import PredictionResearchPanel from "../../../src/components/product/PredictionResearchPanel.vue";
+import AppTabs from "../../../src/components/shared/AppTabs.vue";
 import {
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
@@ -139,6 +140,18 @@ describe("prediction research and Parlay lifecycle", () => {
     expect(wrapper.text()).toContain("SERIES.DEEP");
     expect(wrapper.text()).toContain("EVENT.DEEP");
     expect(predictionMocks.fetchFeature).not.toHaveBeenCalled();
+
+    const tabs = wrapper.findAllComponents(AppTabs);
+    tabs.find((tab) => tab.props("label") === "预测市场研究模式")!.vm.$emit(
+      "update:modelValue",
+      "invalid",
+    );
+    tabs.find((tab) => tab.props("label") === "合约数据视图")!.vm.$emit(
+      "update:modelValue",
+      "invalid",
+    );
+    await nextTick();
+    expect(state.contractView).toBe("snapshot");
 
     await wrapper
       .findAll('[aria-label="合约数据视图"] button')

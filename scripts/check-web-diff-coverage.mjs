@@ -275,11 +275,14 @@ function selectedStatements(entry, changedLines, sourceLines) {
       const hit = Number(entry.s?.[id] ?? 0);
       if (
         hit === 0
-        && isDegradedVueTemplateWrapper(
-          location,
-          sourceLines,
-          hitStatementLocations,
-          hitBranchLocations,
+        && (
+          isDegradedVueTemplateWrapper(
+            location,
+            sourceLines,
+            hitStatementLocations,
+            hitBranchLocations,
+          )
+          || isDeclarativeVueComponentWrapper(location, sourceLines)
         )
       ) {
         continue;
@@ -288,6 +291,17 @@ function selectedStatements(entry, changedLines, sourceLines) {
     }
   }
   return selected;
+}
+
+function isDeclarativeVueComponentWrapper(location, sourceLines) {
+  if (Number.isInteger(location?.end?.column)) return false;
+  const sourceLine = (sourceLines[Number(location?.start?.line ?? 0) - 1] ?? "").trim();
+  // V8 can expose an unconditional SFC component invocation as a zero-hit
+  // wrapper even though the child rendered. A prop-only component tag has no
+  // local executable handler; v-model and event bindings remain accountable.
+  return /^<[A-Z][\w-]*(?:\s|\/>|>)/.test(sourceLine)
+    && !/\bv-model(?::|\.|=|\s)/.test(sourceLine)
+    && !/(?:^|\s)@[^=\s]+\s*=/.test(sourceLine);
 }
 
 function isDegradedVueTemplateWrapper(location, sourceLines, hitStatementLocations, hitBranchLocations) {
@@ -322,6 +336,14 @@ function locationContainsStartLine(container, candidate) {
 
 function selectedBranches(entry, changedLines, sourceLines) {
   const selected = [];
+  const collapsedConditionalLocations = new Set(
+    Object.values(entry.branchMap ?? {})
+      .filter((branch) =>
+        branch.type === "cond-expr"
+        && locationsCollapseToOneSpan(Array.isArray(branch.locations) ? branch.locations : []),
+      )
+      .map((branch) => locationKey(branch.loc)),
+  );
   const concreteHitLines = new Set(
     Object.entries(entry.branchMap ?? {})
       .filter(([id, branch]) => branchHasConcreteSpan(branch) && (entry.b?.[id] ?? []).some((hit) => Number(hit) > 0))
@@ -338,11 +360,23 @@ function selectedBranches(entry, changedLines, sourceLines) {
     if (branch.type === "cond-expr" && locationsCollapseToOneSpan(locations)) {
       continue;
     }
+    // Istanbul can retain a second all-zero conditional for a Vue v-for
+    // binding at the exact location of an already-collapsed generated record.
+    // Its first alternative often spans unrelated presentation-only edits,
+    // making an unchanged template branch look newly uncovered.
+    const hits = entry.b?.[id] ?? [];
+    if (
+      branch.type === "cond-expr"
+      && hits.length > 0
+      && hits.every((hit) => Number(hit) === 0)
+      && collapsedConditionalLocations.has(locationKey(branch.loc))
+    ) {
+      continue;
+    }
     // Merged V8 reports can also retain a second, zero-hit copy of a Vue
     // branch after losing all source-map end columns. A concrete, hit-bearing
     // branch on the same source line is the usable record; the degraded copy
     // is not a separately identifiable branch.
-    const hits = entry.b?.[id] ?? [];
     const sourceLine = sourceLines[Number(branchStartLine(branch) ?? 0) - 1] ?? "";
     const isStaticVueBinding = /^\s*<[\w-]+\b[^>]*:[\w-]+(?:\.\w+)*\s*=\s*["'](?:-?\d+(?:\.\d+)?|true|false|null)["']/.test(
       sourceLine,
@@ -376,6 +410,15 @@ function selectedBranches(entry, changedLines, sourceLines) {
     }
   }
   return selected;
+}
+
+function locationKey(location) {
+  return [
+    location?.start?.line ?? null,
+    location?.start?.column ?? null,
+    location?.end?.line ?? null,
+    location?.end?.column ?? null,
+  ].join(":");
 }
 
 function branchStartLine(branch) {
