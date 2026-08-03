@@ -18,10 +18,10 @@ import {
   flushRequests,
   mountApp,
   passthroughStub,
-  tabsStub,
   windowStub,
 } from "../helpers";
 import BacktestPage from "../../src/pages/BacktestPage.vue";
+import AppTabs from "../../src/components/shared/AppTabs.vue";
 import * as backtestPresentation from "../../src/components/backtest/backtestRunPresentation";
 
 vi.mock("@/components/backtest/BacktestChart.vue", () => ({
@@ -207,8 +207,8 @@ describe("Backtest page compact UI interactions", () => {
     const noticeTexts = page.findAll(".bt-report-notice").map((node) => node.text());
     expect(noticeTexts.some((text) => text.includes("排队等待中…"))).toBe(true);
 
-    // v-tabs/v-window v-model handlers update the active tab.
-    const tabs = page.findComponent(tabsStub as any);
+    // Shared tabs and the report window update the same active-tab state.
+    const tabs = page.findComponent(AppTabs);
     tabs.vm.$emit("update:modelValue", "orders");
     await nextTick();
     expect(readSetupValue<string>(setup.activeReportTab)).toBe("orders");

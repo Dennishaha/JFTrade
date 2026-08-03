@@ -18,6 +18,7 @@ describe("product surface theme contract", () => {
     const predictionWorkspace = source(
       "components/product/PredictionResearchPanel.vue",
     );
+    const appTabs = source("components/shared/AppTabs.vue");
 
     expect(controls).toContain(".product-segmented-control.v-btn-group");
     expect(controls).toContain("background: var(--tv-bg-surface-2)");
@@ -28,8 +29,10 @@ describe("product surface theme contract", () => {
     expect(newsWorkspace).toContain(
       "news-workspace__categories product-segmented-control",
     );
-    expect(predictionWorkspace).toContain('role="tablist"');
-    expect(predictionWorkspace).toContain('role="tab"');
+    expect(predictionWorkspace).toContain("<AppTabs");
+    expect(predictionWorkspace).toContain('label="预测市场研究模式"');
+    expect(appTabs).toContain('role="tablist"');
+    expect(appTabs).toContain('role="tab"');
     expect(predictionWorkspace).toContain(
       'class="prediction-research__segments"',
     );
