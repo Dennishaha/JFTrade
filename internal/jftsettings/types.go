@@ -166,12 +166,6 @@ type PineWorkerSettings struct {
 	NodeBinaryPath      string `json:"nodeBinaryPath"`
 }
 
-// RuntimeDependencySettings holds user-selected host runtime paths that do
-// not belong to a feature-specific settings group.
-type RuntimeDependencySettings struct {
-	PythonBinaryPath string `json:"pythonBinaryPath"`
-}
-
 type ExchangeCalendarSessionWindow struct {
 	Kind        string `json:"kind"`
 	StartMinute int    `json:"startMinute"`

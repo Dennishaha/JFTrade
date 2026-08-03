@@ -156,9 +156,6 @@ describe("OOBE onboarding", () => {
             nodeBinaryPath: "",
           });
         }
-        if (url.includes("/api/v1/settings/runtime-dependencies")) {
-          return createResponse({ pythonBinaryPath: "" });
-        }
         if (
           url.includes("/api/v1/settings/brokers/futu/integration") &&
           method === "PUT"

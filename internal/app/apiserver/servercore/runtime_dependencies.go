@@ -59,7 +59,7 @@ type nodeRuntimeResolution struct {
 
 func (s *serverApplication) runtimeDependencies(ctx context.Context) map[string]any {
 	node := checkNodeRuntimeDependency(ctx, s.pineWorkerSettings())
-	python := marketdataapp.CheckPythonRuntimeDependency(ctx, s.runtimeDependencySettings())
+	python := marketdataapp.CheckPythonRuntimeDependency(ctx)
 	dependencies := []map[string]any{node, python}
 	allRequiredSatisfied := true
 	for _, dependency := range dependencies {
@@ -75,19 +75,6 @@ func (s *serverApplication) runtimeDependencies(ctx context.Context) map[string]
 		"allRequiredSatisfied": allRequiredSatisfied,
 		"dependencies":         dependencies,
 	}
-}
-
-func (s *serverApplication) runtimeDependencySettings() jftsettings.RuntimeDependencySettings {
-	if s == nil || s.store == nil {
-		return settingsfile.DefaultRuntimeDependencySettings()
-	}
-	store, ok := any(persistenceOnlySettingsStore(s.store)).(interface {
-		RuntimeDependencySettings() jftsettings.RuntimeDependencySettings
-	})
-	if !ok {
-		return settingsfile.DefaultRuntimeDependencySettings()
-	}
-	return store.RuntimeDependencySettings()
 }
 
 func checkNodeRuntimeDependency(ctx context.Context, settings jftsettings.PineWorkerSettings) map[string]any {

@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 func TestCheckPythonRuntimeDependencyValidatesVersionAndModules(t *testing.T) {
@@ -33,7 +31,7 @@ func TestCheckPythonRuntimeDependencyValidatesVersionAndModules(t *testing.T) {
 				}
 				return test.probe
 			})
-			result := CheckPythonRuntimeDependency(context.Background(), jftsettings.RuntimeDependencySettings{})
+			result := CheckPythonRuntimeDependency(context.Background())
 			if result["status"] != test.wantStatus || !strings.Contains(result["message"].(string), test.wantText) {
 				t.Fatalf("result = %#v", result)
 			}
@@ -46,23 +44,15 @@ func TestCheckPythonRuntimeDependencyReportsMissingSourceRuntime(t *testing.T) {
 	t.Setenv(EnvYFinanceDevPython, "")
 	t.Setenv(EnvYFinanceDevPythonPath, t.TempDir())
 
-	configured := filepath.Join(t.TempDir(), "python")
-	result := CheckPythonRuntimeDependency(
-		context.Background(),
-		jftsettings.RuntimeDependencySettings{PythonBinaryPath: configured},
-	)
-	if result["status"] != pythonRuntimeDependencyStatusMissing || result["configurable"] != true || result["required"] != true {
-		t.Fatalf("configured result = %#v", result)
-	}
-	if !strings.Contains(result["message"].(string), "Configured Python") {
-		t.Fatalf("configured message = %#v", result["message"])
-	}
-
 	restorePythonRuntimeLookPath(t, func(string) (string, error) {
 		return "", os.ErrNotExist
 	})
-	result = CheckPythonRuntimeDependency(context.Background(), jftsettings.RuntimeDependencySettings{})
-	if result["status"] != pythonRuntimeDependencyStatusMissing || !strings.Contains(result["message"].(string), "Tried:") {
+	result := CheckPythonRuntimeDependency(context.Background())
+	if result["status"] != pythonRuntimeDependencyStatusMissing || result["configurable"] != false || result["required"] != true {
+		t.Fatalf("automatic result = %#v", result)
+	}
+	message := result["message"].(string)
+	if !strings.Contains(message, "Tried:") || !strings.Contains(message, EnvYFinanceDevPython) || !strings.Contains(message, ".venv") {
 		t.Fatalf("automatic result = %#v", result)
 	}
 }
@@ -73,7 +63,7 @@ func TestCheckPythonRuntimeDependencyReportsManagedHelpers(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv(EnvYFinanceSidecar, helper)
-	result := CheckPythonRuntimeDependency(context.Background(), jftsettings.RuntimeDependencySettings{})
+	result := CheckPythonRuntimeDependency(context.Background())
 	if result["status"] != pythonRuntimeDependencyStatusOK || result["required"] != false ||
 		!strings.Contains(result["message"].(string), "configured frozen") {
 		t.Fatalf("external helper result = %#v", result)
@@ -81,7 +71,7 @@ func TestCheckPythonRuntimeDependencyReportsManagedHelpers(t *testing.T) {
 
 	missingHelper := filepath.Join(t.TempDir(), "missing-helper")
 	t.Setenv(EnvYFinanceSidecar, missingHelper)
-	result = CheckPythonRuntimeDependency(context.Background(), jftsettings.RuntimeDependencySettings{})
+	result = CheckPythonRuntimeDependency(context.Background())
 	if result["status"] != pythonRuntimeDependencyStatusError || !strings.Contains(result["message"].(string), "unavailable") {
 		t.Fatalf("missing helper result = %#v", result)
 	}
@@ -103,7 +93,7 @@ func TestCheckPythonRuntimeDependencyReportsTimeout(t *testing.T) {
 		return PythonRuntimeProbeResult{DetectedVersion: "3.12.1"}
 	})
 
-	result := CheckPythonRuntimeDependency(context.Background(), jftsettings.RuntimeDependencySettings{})
+	result := CheckPythonRuntimeDependency(context.Background())
 	if result["status"] != pythonRuntimeDependencyStatusError || !strings.Contains(result["message"].(string), "timed out") {
 		t.Fatalf("timeout result = %#v", result)
 	}

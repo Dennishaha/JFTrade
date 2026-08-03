@@ -31,7 +31,6 @@ func TestSettingWriteRoutesRejectMalformedJSON(t *testing.T) {
 		{name: "system notifications", method: http.MethodPut, path: "/api/v1/settings/system-notifications"},
 		{name: "adk", method: http.MethodPut, path: "/api/v1/settings/adk"},
 		{name: "pine worker", method: http.MethodPut, path: "/api/v1/settings/pine-worker"},
-		{name: "runtime dependencies", method: http.MethodPut, path: "/api/v1/settings/runtime-dependencies"},
 		{name: "managed account create", method: http.MethodPost, path: "/api/v1/settings/broker-accounts"},
 		{name: "managed account update", method: http.MethodPut, path: "/api/v1/settings/broker-accounts/account-1"},
 	}
@@ -66,7 +65,6 @@ func TestSettingWriteRoutesMapPersistenceFailures(t *testing.T) {
 		{name: "system notifications", method: http.MethodPut, path: "/api/v1/settings/system-notifications", body: `{}`},
 		{name: "adk", method: http.MethodPut, path: "/api/v1/settings/adk", body: `{}`},
 		{name: "pine worker", method: http.MethodPut, path: "/api/v1/settings/pine-worker", body: `{}`},
-		{name: "runtime dependencies", method: http.MethodPut, path: "/api/v1/settings/runtime-dependencies", body: `{}`},
 		{name: "exchange calendar", method: http.MethodPut, path: "/api/v1/settings/exchange-calendars", body: `{"exchangeCalendars":{}}`},
 		{name: "broker integration", method: http.MethodPut, path: "/api/v1/settings/brokers/futu/integration", body: `{}`},
 		{name: "managed account create", method: http.MethodPost, path: "/api/v1/settings/broker-accounts", body: `{"accountId":"acc-1"}`},

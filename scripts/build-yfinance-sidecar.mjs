@@ -47,6 +47,7 @@ const python =
       ? "python"
       : "python3");
 const dryRun = process.env.JFTRADE_YFINANCE_ASSET_BUILD_DRY_RUN === "1";
+assertBuildPython(python);
 const binaryBase = `yfinance-sidecar-${targetGOOS}-${targetGOARCH}`;
 const outputName = `${binaryBase}${targetGOOS === "windows" ? ".exe" : ""}`;
 const outputDir = join(outDir, binaryBase);
@@ -137,6 +138,47 @@ function assertSupportedTarget(goos, goarch) {
   }
   if (!["amd64", "arm64"].includes(goarch)) {
     fail(`Unsupported yfinance sidecar target architecture: ${goarch}`);
+  }
+}
+
+function assertBuildPython(command) {
+  const script =
+    "import json,sys; print(json.dumps({\"implementation\":sys.implementation.name,\"version\":list(sys.version_info[:3])}))";
+  const result = spawnSync(command, ["-c", script], {
+    cwd: sidecarDir,
+    env: process.env,
+    encoding: "utf8",
+    shell: process.platform === "win32" && /\.(?:cmd|bat)$/i.test(command),
+  });
+  if (result.error) {
+    fail(`Could not execute yfinance build Python ${JSON.stringify(command)}: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    const detail = String(result.stderr || result.stdout || "").trim();
+    fail(
+      `Could not inspect yfinance build Python ${JSON.stringify(command)}` +
+        (detail ? `: ${detail}` : ` (exit ${result.status ?? "unknown"})`),
+    );
+  }
+  let payload;
+  try {
+    payload = JSON.parse(String(result.stdout || "").trim());
+  } catch {
+    fail(`Could not parse yfinance build Python version from ${JSON.stringify(command)}.`);
+  }
+  const version = Array.isArray(payload?.version) ? payload.version : [];
+  const detected = version.length >= 2 ? version.join(".") : "unknown";
+  if (
+    payload?.implementation !== "cpython" ||
+    version[0] !== 3 ||
+    version[1] !== 14
+  ) {
+    fail(
+      `yfinance PyInstaller builds require CPython 3.14.x; ` +
+        `detected ${payload?.implementation || "unknown"} ${detected} at ${JSON.stringify(command)}. ` +
+        `Recreate workers/yfinance-sidecar/.venv with Python 3.14 or set ` +
+        `JFTRADE_YFINANCE_BUILD_PYTHON to a Python 3.14 executable.`,
+    );
   }
 }
 

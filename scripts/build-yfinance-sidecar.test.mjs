@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -28,7 +29,7 @@ test("build stages one host-specific PyInstaller onedir asset", () => {
     writeFileSync(join(outDir, "yfinance-sidecar-other-platform"), "keep");
     writeFileSync(join(outDir, "unrelated-file"), "keep");
 
-    const python = join(tempDir, "Python Runtime", "python");
+    const python = createFakePython(tempDir, "3.14.9");
     const result = runBuild({
       JFTRADE_YFINANCE_ASSET_BUILD_DRY_RUN: "1",
       JFTRADE_YFINANCE_ASSET_OUT_DIR: outDir,
@@ -53,6 +54,53 @@ test("build stages one host-specific PyInstaller onedir asset", () => {
   }
 });
 
+for (const version of ["3.13.9", "3.15.0"]) {
+  test(`build rejects CPython ${version} without deleting staged assets`, () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "jftrade-yfinance-version-"));
+    try {
+      const outDir = join(tempDir, "assets", "bin");
+      const stagedDir = join(outDir, hostAssetBase());
+      mkdirSync(stagedDir, { recursive: true });
+      const sentinel = join(stagedDir, "keep-existing");
+      writeFileSync(sentinel, "keep");
+      const result = runBuild({
+        JFTRADE_YFINANCE_ASSET_BUILD_DRY_RUN: "1",
+        JFTRADE_YFINANCE_ASSET_OUT_DIR: outDir,
+        JFTRADE_YFINANCE_BUILD_PYTHON: createFakePython(tempDir, version),
+      });
+
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /require CPython 3\.14\.x/);
+      assert.match(result.stderr, new RegExp(version.replaceAll(".", "\\.")));
+      assert.ok(existsSync(sentinel));
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+}
+
+test("build rejects invalid and unavailable Python probes", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "jftrade-yfinance-probe-"));
+  try {
+    const invalid = createFakePython(tempDir, "invalid", "not-json");
+    const invalidResult = runBuild({
+      JFTRADE_YFINANCE_ASSET_BUILD_DRY_RUN: "1",
+      JFTRADE_YFINANCE_BUILD_PYTHON: invalid,
+    });
+    assert.notEqual(invalidResult.status, 0);
+    assert.match(invalidResult.stderr, /Could not parse yfinance build Python version/);
+
+    const missingResult = runBuild({
+      JFTRADE_YFINANCE_ASSET_BUILD_DRY_RUN: "1",
+      JFTRADE_YFINANCE_BUILD_PYTHON: join(tempDir, "missing-python"),
+    });
+    assert.notEqual(missingResult.status, 0);
+    assert.match(missingResult.stderr, /Could not execute yfinance build Python/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("build rejects a target that PyInstaller cannot produce on this host", () => {
   const crossGOOS = process.platform === "win32" ? "linux" : "windows";
   const result = runBuild({
@@ -70,6 +118,26 @@ function runBuild(extraEnv) {
     env: { ...process.env, GOOS: "", GOARCH: "", ...extraEnv },
     encoding: "utf8",
   });
+}
+
+function createFakePython(root, version, output) {
+  const directory = join(root, `Python Runtime ${version}`);
+  mkdirSync(directory, { recursive: true });
+  if (process.platform === "win32") {
+    const path = join(directory, "python.cmd");
+    writeFileSync(
+      path,
+      `@echo off\r\necho ${output ?? `{\"implementation\":\"cpython\",\"version\":[${version.split(".").join(",")}]}`}\r\n`,
+    );
+    return path;
+  }
+  const path = join(directory, "python");
+  writeFileSync(
+    path,
+    `#!/bin/sh\nprintf '%s\\n' '${output ?? `{\"implementation\":\"cpython\",\"version\":[${version.split(".").join(",")}]}`}'\n`,
+  );
+  chmodSync(path, 0o755);
+  return path;
 }
 
 function hostAssetName() {

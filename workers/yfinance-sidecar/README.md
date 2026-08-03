@@ -95,8 +95,9 @@ helper 只转发 Yahoo 原始 K 线成交量。Yahoo 美股盘前分钟量常为
 .venv/bin/pytest
 ```
 
-To build the release bundle, install the pinned build extra and run the
-repository build script. The resulting onedir bundle is staged under
+To build the release bundle, create the build environment with CPython 3.14.x,
+install the pinned build extra, and run the repository build script. The script
+rejects other Python minor versions. The resulting onedir bundle is staged under
 `internal/yfinanceassets/assets/bin/<platform>`:
 
 ```bash

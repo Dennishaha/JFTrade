@@ -116,28 +116,6 @@ func (s *Store) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) (jfs
 	return normalized, err
 }
 
-func (s *Store) RuntimeDependencySettings() jfsettings.RuntimeDependencySettings {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	if s.data.RuntimeDependencies != nil {
-		return NormalizeRuntimeDependencySettings(*s.data.RuntimeDependencies)
-	}
-	return DefaultRuntimeDependencySettings()
-}
-
-func (s *Store) SaveRuntimeDependencySettings(
-	input jfsettings.RuntimeDependencySettings,
-) (jfsettings.RuntimeDependencySettings, error) {
-	normalized := NormalizeRuntimeDependencySettings(input)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	err := s.mutateAndPersistLocked(func() {
-		s.data.RuntimeDependencies = runtimeDependencySettingsPointer(normalized)
-	})
-	return normalized, err
-}
-
 func DefaultExecutionSettings() jfsettings.ExecutionSettings {
 	return jfsettings.ExecutionSettings{
 		DefaultTradingEnvironment:      "SIMULATE",
@@ -346,18 +324,6 @@ func DefaultPineWorkerSettings() jfsettings.PineWorkerSettings {
 	}
 }
 
-func DefaultRuntimeDependencySettings() jfsettings.RuntimeDependencySettings {
-	return jfsettings.RuntimeDependencySettings{}
-}
-
-func NormalizeRuntimeDependencySettings(
-	input jfsettings.RuntimeDependencySettings,
-) jfsettings.RuntimeDependencySettings {
-	return jfsettings.RuntimeDependencySettings{
-		PythonBinaryPath: NormalizeExecutablePath(input.PythonBinaryPath),
-	}
-}
-
 func NormalizePineWorkerSettings(input jfsettings.PineWorkerSettings) jfsettings.PineWorkerSettings {
 	return jfsettings.PineWorkerSettings{
 		BacktestWorkerLimit: clampInt(input.BacktestWorkerLimit, 1, 1000),
@@ -384,12 +350,6 @@ func NormalizeExecutablePath(input string) string {
 }
 
 func pineWorkerSettingsPointer(value jfsettings.PineWorkerSettings) *jfsettings.PineWorkerSettings {
-	return new(value)
-}
-
-func runtimeDependencySettingsPointer(
-	value jfsettings.RuntimeDependencySettings,
-) *jfsettings.RuntimeDependencySettings {
 	return new(value)
 }
 

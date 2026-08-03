@@ -12,12 +12,6 @@ import {
   type PineWorkerSettings,
 } from "@/composables/settings/pineWorkerSettings";
 import {
-  defaultRuntimeDependencySettings,
-  getRuntimeDependencySettings,
-  putRuntimeDependencySettings,
-  type RuntimeDependencySettings,
-} from "@/composables/settings/runtimeDependencySettings";
-import {
   dependencyPathLabel,
   dependencySourceLabel,
   dependencyStatusClass,
@@ -48,7 +42,6 @@ const runtimeDependencies = ref<RuntimeDependenciesResponse>({
   dependencies: [],
 });
 const nodeBinaryPathInput = ref("");
-const pythonBinaryPathInput = ref("");
 const panelLoading = ref(true);
 const refreshing = ref(false);
 const errorMessage = ref("");
@@ -67,36 +60,12 @@ const savePineWorkerSettingsMutation = useMutation({
     await queryClient.invalidateQueries({ queryKey: pineWorkerSettingsQueryKey, refetchType: "none" });
   },
 }, queryClient);
-const runtimeDependencySettingsQueryKey = queryKeys.settings("runtime-dependencies");
-const runtimeDependencySettingsQuery = useQuery({
-  queryKey: runtimeDependencySettingsQueryKey,
-  queryFn: getRuntimeDependencySettings,
-  enabled: false,
-}, queryClient);
-const saveRuntimeDependencySettingsMutation = useMutation({
-  mutationFn: putRuntimeDependencySettings,
-  onSuccess: async (saved) => {
-    queryClient.setQueryData(runtimeDependencySettingsQueryKey, saved);
-    await queryClient.invalidateQueries({
-      queryKey: runtimeDependencySettingsQueryKey,
-      refetchType: "none",
-    });
-  },
-}, queryClient);
-
 const pineWorkerSettings = computed(() => pineWorkerSettingsQuery.data.value ?? defaultPineWorkerSettings);
-const runtimeDependencySettings = computed(
-  () => runtimeDependencySettingsQuery.data.value ?? defaultRuntimeDependencySettings,
-);
 const loading = computed(
-  () =>
-    panelLoading.value ||
-    pineWorkerSettingsQuery.isLoading.value ||
-    runtimeDependencySettingsQuery.isLoading.value,
+  () => panelLoading.value || pineWorkerSettingsQuery.isLoading.value,
 );
 const savingNode = computed(() => savePineWorkerSettingsMutation.isPending.value);
-const savingPython = computed(() => saveRuntimeDependencySettingsMutation.isPending.value);
-const saving = computed(() => savingNode.value || savingPython.value);
+const saving = computed(() => savingNode.value);
 
 const headerDescription = computed(() =>
   props.mode === "oobe"
@@ -147,15 +116,6 @@ watch(
   { immediate: true },
 );
 
-watch(
-  () => runtimeDependencySettingsQuery.data.value?.pythonBinaryPath,
-  (next) => {
-    if (next == null || savingPython.value) return;
-    pythonBinaryPathInput.value = next;
-  },
-  { immediate: true },
-);
-
 async function loadRuntimeDependencyPanel(): Promise<void> {
   panelLoading.value = true;
   errorMessage.value = "";
@@ -166,15 +126,9 @@ async function loadRuntimeDependencyPanel(): Promise<void> {
         queryKey: pineWorkerSettingsQueryKey,
         queryFn: getPineWorkerSettings,
       }),
-      queryClient.ensureQueryData({
-        queryKey: runtimeDependencySettingsQueryKey,
-        queryFn: getRuntimeDependencySettings,
-      }),
       refreshDependencies(),
     ]);
     nodeBinaryPathInput.value = pineWorkerSettings.value.nodeBinaryPath ?? "";
-    pythonBinaryPathInput.value =
-      runtimeDependencySettings.value.pythonBinaryPath ?? "";
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : "读取运行时依赖失败";
@@ -216,25 +170,6 @@ async function saveNodeBinaryPath(): Promise<void> {
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : "保存 Node.js 路径失败";
-  }
-}
-
-async function savePythonBinaryPath(): Promise<void> {
-  if (savingPython.value) return;
-  errorMessage.value = "";
-  noticeMessage.value = "";
-  try {
-    const next: RuntimeDependencySettings = {
-      pythonBinaryPath: pythonBinaryPathInput.value.trim(),
-    };
-    const saved = await saveRuntimeDependencySettingsMutation.mutateAsync(next);
-    pythonBinaryPathInput.value = saved.pythonBinaryPath ?? "";
-    noticeMessage.value =
-      "Python 路径已保存并重新检查；当前 Yahoo 行情不会中断，新路径将在下一次 helper 启动时生效。";
-    await refreshDependencies();
-  } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : "保存 Python 路径失败";
   }
 }
 
@@ -343,22 +278,6 @@ async function savePythonBinaryPath(): Promise<void> {
           </div>
         </div>
 
-        <div v-if="dependency.id === 'python' && dependency.configurable" class="dependency-path-editor">
-          <label for="python-binary-path">自定义 Python 二进制路径</label>
-          <div class="dependency-path-editor__row">
-            <input id="python-binary-path" v-model="pythonBinaryPathInput"
-              data-testid="runtime-dependency-python-path-input" type="text"
-              placeholder="留空自动检测，例如 /opt/python/bin/python3 或 C:\Python311\python.exe"
-              :disabled="loading || savingPython" />
-            <button data-testid="runtime-dependency-python-path-save" type="button" class="primary-button"
-              :disabled="loading || savingPython" @click="savePythonBinaryPath">
-              {{ savingPython ? "保存中" : "保存路径并检查" }}
-            </button>
-          </div>
-          <p class="m-0 text-xs leading-[1.6] text-[var(--card-text-3)]">
-            保存不会重启当前 Yahoo helper；新路径在下一次 helper 启动、切换行情 Provider 或重启应用时生效。
-          </p>
-        </div>
       </article>
 
       <div v-if="runtimeDependencies.dependencies.length === 0" class="runtime-empty">

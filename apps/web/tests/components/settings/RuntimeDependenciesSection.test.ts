@@ -46,10 +46,6 @@ describe("RuntimeDependenciesSection", () => {
           });
         }
 
-        if (url.includes("/api/v1/settings/runtime-dependencies")) {
-          return createResponse({ pythonBinaryPath: "" });
-        }
-
         if (url.includes("/api/v1/system/runtime-dependencies")) {
           dependencyChecks += 1;
           return createResponse({
@@ -134,10 +130,6 @@ describe("RuntimeDependenciesSection", () => {
           });
         }
 
-        if (url.includes("/api/v1/settings/runtime-dependencies")) {
-          return createResponse({ pythonBinaryPath: "" });
-        }
-
         if (url.includes("/api/v1/system/runtime-dependencies")) {
           return createResponse({
             checkedAt: "2026-06-29T00:00:00Z",
@@ -212,9 +204,6 @@ describe("RuntimeDependenciesSection", () => {
           nodeBinaryPath: "",
         });
       }
-      if (url.includes("/api/v1/settings/runtime-dependencies")) {
-        return createResponse({ pythonBinaryPath: "" });
-      }
       if (url.includes("/api/v1/system/runtime-dependencies")) {
         throw "runtime probe socket closed";
       }
@@ -241,9 +230,6 @@ describe("RuntimeDependenciesSection", () => {
           instanceWorkerLimit: 10,
           nodeBinaryPath: "",
         });
-      }
-      if (url.includes("/api/v1/settings/runtime-dependencies")) {
-        return createResponse({ pythonBinaryPath: "" });
       }
       if (url.includes("/api/v1/system/runtime-dependencies")) {
         return createResponse({
@@ -304,153 +290,54 @@ describe("RuntimeDependenciesSection", () => {
     expect(wrapper.text()).toContain("node");
   });
 
-  it("saves source Python paths and hides the editor for bundled runtimes", async () => {
-    let dependencyChecks = 0;
-    const fetchMock = vi.fn(
-      async (input: string | URL | Request, init?: RequestInit) => {
-        const url = String(input);
-        const method = String(init?.method ?? "GET").toUpperCase();
-        if (url.includes("/api/v1/settings/pine-worker")) {
-          return createResponse({
-            backtestWorkerLimit: 2,
-            instanceWorkerLimit: 10,
-            nodeBinaryPath: "",
-          });
-        }
-        if (
-          url.includes("/api/v1/settings/runtime-dependencies") &&
-          method === "PUT"
-        ) {
-          expect(JSON.parse(String(init?.body))).toEqual({
-            pythonBinaryPath: "/opt/python/bin/python3",
-          });
-          return createResponse({
-            pythonBinaryPath: "/opt/python/bin/python3",
-          });
-        }
-        if (url.includes("/api/v1/settings/runtime-dependencies")) {
-          return createResponse({ pythonBinaryPath: "" });
-        }
-        if (url.includes("/api/v1/system/runtime-dependencies")) {
-          dependencyChecks += 1;
-          return createResponse({
-            checkedAt: "2026-08-02T00:00:00Z",
-            allRequiredSatisfied: true,
-            dependencies: [
-              {
-                id: "python",
-                displayName: "Python",
-                required: dependencyChecks === 1,
-                configurable: dependencyChecks === 1,
-                status: "ok",
-                minimumVersion: "3.11.0",
-                detectedVersion: dependencyChecks === 1 ? "3.12.1" : "内嵌",
-                configuredPath: "",
-                effectivePath:
-                  dependencyChecks === 1 ? "python3" : "",
-                resolvedPath:
-                  dependencyChecks === 1 ? "/usr/bin/python3" : "",
-                source: dependencyChecks === 1 ? "path" : "bundled",
-                homepageUrl: "https://www.python.org/",
-                message: "Python runtime is available.",
-              },
-            ],
-          });
-        }
-        throw new Error(`Unexpected request: ${url}`);
-      },
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const wrapper = mount(RuntimeDependenciesSection, {
-      props: { mode: "settings" },
+  it("renders Python status and OOBE warnings without a path editor or settings request", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/v1/settings/pine-worker")) {
+        return createResponse({
+          backtestWorkerLimit: 2,
+          instanceWorkerLimit: 10,
+          nodeBinaryPath: "",
+        });
+      }
+      if (url.includes("/api/v1/system/runtime-dependencies")) {
+        return createResponse({
+          checkedAt: "2026-08-02T00:00:00Z",
+          allRequiredSatisfied: false,
+          dependencies: [
+            {
+              id: "node",
+              displayName: "Node.js",
+              required: true,
+              configurable: true,
+              status: "missing",
+              message: "Node.js was not found.",
+            },
+            {
+              id: "python",
+              displayName: "Python",
+              required: true,
+              configurable: false,
+              status: "outdated",
+              minimumVersion: "3.11.0",
+              message: "Python 3.11 or newer is required.",
+            },
+          ],
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
     });
-    await flushRequests();
-    await wrapper
-      .get("[data-testid='runtime-dependency-python-path-input']")
-      .setValue("  /opt/python/bin/python3  ");
-    await wrapper
-      .get("[data-testid='runtime-dependency-python-path-save']")
-      .trigger("click");
-    await flushRequests();
-
-    expect(wrapper.text()).toContain("当前 Yahoo 行情不会中断");
-    expect(wrapper.text()).toContain("应用内嵌");
-    expect(
-      wrapper.find("[data-testid='runtime-dependency-python-path-input']").exists(),
-    ).toBe(false);
-    expect(dependencyChecks).toBe(2);
-  });
-
-  it("renders OOBE dependency warnings and reports failed Python path saves", async () => {
-    const fetchMock = vi.fn(
-      async (input: string | URL | Request, init?: RequestInit) => {
-        const url = String(input);
-        const method = String(init?.method ?? "GET").toUpperCase();
-        if (url.includes("/api/v1/settings/pine-worker")) {
-          return createResponse({
-            backtestWorkerLimit: 2,
-            instanceWorkerLimit: 10,
-            nodeBinaryPath: "",
-          });
-        }
-        if (
-          url.includes("/api/v1/settings/runtime-dependencies") &&
-          method === "PUT"
-        ) {
-          throw "python settings write rejected";
-        }
-        if (url.includes("/api/v1/settings/runtime-dependencies")) {
-          return createResponse({ pythonBinaryPath: "" });
-        }
-        if (url.includes("/api/v1/system/runtime-dependencies")) {
-          return createResponse({
-            checkedAt: "2026-08-02T00:00:00Z",
-            allRequiredSatisfied: false,
-            dependencies: [
-              {
-                id: "node",
-                displayName: "Node.js",
-                required: true,
-                configurable: true,
-                status: "missing",
-                message: "Node.js was not found.",
-              },
-              {
-                id: "python",
-                displayName: "Python",
-                required: true,
-                configurable: true,
-                status: "outdated",
-                message: "Python 3.11 or newer is required.",
-              },
-            ],
-          });
-        }
-        throw new Error(`Unexpected request: ${url}`);
-      },
-    );
     vi.stubGlobal("fetch", fetchMock);
 
     const wrapper = mount(RuntimeDependenciesSection, { props: { mode: "oobe" } });
     await flushRequests();
 
-    expect(wrapper.text()).toContain(
-      "Node.js 缺失或版本过低时，策略回测与运行实例无法启动。",
-    );
+    expect(wrapper.text()).toContain("Python");
     expect(wrapper.text()).toContain(
       "Python 缺失、版本过低或运行模块不完整时，源码方式的 Yahoo 行情不可用。",
     );
-
-    await wrapper
-      .get("[data-testid='runtime-dependency-python-path-input']")
-      .setValue("/custom/python3");
-    await wrapper
-      .get("[data-testid='runtime-dependency-python-path-save']")
-      .trigger("click");
-    await flushRequests();
-
-    expect(wrapper.text()).toContain("保存 Python 路径失败");
+    expect(wrapper.find("[data-testid='runtime-dependency-python-path-input']").exists()).toBe(false);
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/api/v1/settings/runtime-dependencies"))).toBe(false);
   });
 
   it("reports a stable fallback when initial settings loading rejects a non-Error value", async () => {

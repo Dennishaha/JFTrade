@@ -33,7 +33,7 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 | L3 系统回归 | release assets、嵌入 yfinance helper 的启动/健康/清理、并发重复；PR 构建 Linux desktop，main 额外执行完整 Go 回归、真实 PineTS backtest smoke 和三平台 desktop build | PR / main |
 | L4 手动重型验证 | race、性能基线与真实 OpenD | manual |
 
-`.github/workflows/ci.yml` 是 PR 与 main 的主门禁。合同和参考文档由独立 job 统一生成并检查一次，再通过 workflow artifact 交给 Go、Web 资产和 desktop 消费；不依赖合同的 Web 质量、Pine、proto 和 yfinance sidecar job 可立即并行。yfinance lane 固定 Python 3.11，从 `pyproject.toml` 安装精确直依赖，并运行禁止外部行情网络的 pytest。PR 的 desktop lane 只做 Linux 原生 smoke build；main 的 desktop matrix 验证 Linux AMD64、macOS ARM64、Windows AMD64 和 Windows ARM64 的 helper 资产与对应桌面产物。桌面 job 只有在对应基础门禁全部通过后才启动，最终仍由稳定的 `Build & Test` required check 汇总。
+`.github/workflows/ci.yml` 是 PR 与 main 的主门禁。合同和参考文档由独立 job 统一生成并检查一次，再通过 workflow artifact 交给 Go、Web 资产和 desktop 消费；不依赖合同的 Web 质量、Pine、proto 和 yfinance sidecar job 可立即并行。yfinance lane 在 Python 3.11 和 3.14 上运行禁止外部行情网络的 pytest，只有 3.14 lane 构建并验证 PyInstaller helper。PR 的 desktop lane 只做 Linux 原生 smoke build；main 的 desktop matrix 使用 Python 3.14 验证 Linux AMD64、macOS ARM64、Windows AMD64 和 Windows ARM64 的 helper 资产与对应桌面产物。桌面 job 只有在对应基础门禁全部通过后才启动，最终仍由稳定的 `Build & Test` required check 汇总。
 
 每个覆盖 lane 会把命令输出及 Go/Web/worker 的 coverage 报告保存为 CI artifact（保留 7 天），并在对应 job summary 摘出总量和增量结果，便于定位门禁失败而不依赖本地复现。
 

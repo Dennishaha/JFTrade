@@ -15,7 +15,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/yfinanceassets"
 )
 
@@ -71,34 +70,18 @@ type sidecarManager struct {
 	allocatePort sidecarPortAllocator
 	start        sidecarStarter
 	cacheDir     string
-	settings     jftsettings.RuntimeDependencySettings
 }
 
-func newSidecarManager(
-	cacheDir string,
-	settings ...jftsettings.RuntimeDependencySettings,
-) *sidecarManager {
+func newSidecarManager(cacheDir string) *sidecarManager {
 	manager := &sidecarManager{
 		allocatePort: allocateYFinanceSidecarPort,
 		start:        startYFinanceSidecar,
 		cacheDir:     strings.TrimSpace(cacheDir),
 	}
-	if len(settings) > 0 {
-		manager.settings = settings[0]
-	}
 	manager.resolve = func() (sidecarExecutable, error) {
-		return resolveYFinanceSidecarExecutable(manager.cacheDir, manager.settings)
+		return resolveYFinanceSidecarExecutable(manager.cacheDir)
 	}
 	return manager
-}
-
-func (m *sidecarManager) ConfigureRuntimeDependencies(settings jftsettings.RuntimeDependencySettings) {
-	if m == nil {
-		return
-	}
-	m.mu.Lock()
-	m.settings = settings
-	m.mu.Unlock()
 }
 
 func (m *sidecarManager) EnsureStarted() (string, error) {
@@ -116,7 +99,7 @@ func (m *sidecarManager) EnsureStarted() (string, error) {
 	resolve := m.resolve
 	if resolve == nil {
 		resolve = func() (sidecarExecutable, error) {
-			return resolveYFinanceSidecarExecutable(m.cacheDir, m.settings)
+			return resolveYFinanceSidecarExecutable(m.cacheDir)
 		}
 	}
 	executable, err := resolve()
@@ -209,10 +192,7 @@ func allocateYFinanceSidecarPort() (int, error) {
 	return address.Port, nil
 }
 
-func resolveYFinanceSidecarExecutable(
-	cacheDir string,
-	settings ...jftsettings.RuntimeDependencySettings,
-) (sidecarExecutable, error) {
+func resolveYFinanceSidecarExecutable(cacheDir string) (sidecarExecutable, error) {
 	cacheDir = strings.TrimSpace(cacheDir)
 	path := strings.TrimSpace(os.Getenv(EnvYFinanceSidecar))
 	if path != "" && yfinanceassets.DevelopmentOverridesAllowed() {
@@ -223,11 +203,7 @@ func resolveYFinanceSidecarExecutable(
 		return sidecarExecutable{path: absolute}, nil
 	}
 	if yfinanceassets.DevelopmentOverridesAllowed() {
-		dependencySettings := jftsettings.RuntimeDependencySettings{}
-		if len(settings) > 0 {
-			dependencySettings = settings[0]
-		}
-		resolution := ResolvePythonRuntime(dependencySettings)
+		resolution := ResolvePythonRuntime()
 		if !resolution.Available || resolution.ResolvedPath == "" {
 			return sidecarExecutable{}, fmt.Errorf(
 				"resolve yfinance Python source runtime: %w",

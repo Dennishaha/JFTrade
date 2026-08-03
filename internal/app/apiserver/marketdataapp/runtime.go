@@ -13,7 +13,6 @@ import (
 	"time"
 
 	yfinanceintegration "github.com/jftrade/jftrade-main/internal/integration/yfinance"
-	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
@@ -36,12 +35,11 @@ var (
 // RuntimeOptions supplies the already assembled Futu data plane. YFinance is
 // created lazily from persisted settings when it becomes active.
 type RuntimeOptions struct {
-	FutuProvider        marketdata.Provider
-	FutuQuotes          marketdata.QuoteSource
-	FutuPush            marketdata.PushSource
-	FutuSubscriptions   marketdata.SubscriptionReconciler
-	YFinanceCacheDir    string
-	RuntimeDependencies jftsettings.RuntimeDependencySettings
+	FutuProvider      marketdata.Provider
+	FutuQuotes        marketdata.QuoteSource
+	FutuPush          marketdata.PushSource
+	FutuSubscriptions marketdata.SubscriptionReconciler
+	YFinanceCacheDir  string
 }
 
 // Activation describes one desired provider selection.
@@ -98,22 +96,9 @@ func NewRuntime(options RuntimeOptions) (*Runtime, error) {
 	return &Runtime{
 		futu:        futu,
 		active:      futu,
-		sidecar:     newSidecarManager(options.YFinanceCacheDir, options.RuntimeDependencies),
+		sidecar:     newSidecarManager(options.YFinanceCacheDir),
 		healthCheck: waitForProviderHealth,
 	}, nil
-}
-
-// ConfigureRuntimeDependencies updates the interpreter used the next time the
-// yfinance sidecar starts. A running helper is intentionally not restarted.
-func (r *Runtime) ConfigureRuntimeDependencies(settings jftsettings.RuntimeDependencySettings) {
-	if r == nil {
-		return
-	}
-	if configurable, ok := r.sidecar.(interface {
-		ConfigureRuntimeDependencies(jftsettings.RuntimeDependencySettings)
-	}); ok {
-		configurable.ConfigureRuntimeDependencies(settings)
-	}
 }
 
 // Activate atomically selects a provider after its optional process lifecycle

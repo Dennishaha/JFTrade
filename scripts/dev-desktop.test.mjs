@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import {
@@ -153,6 +152,11 @@ assert(
   !implementation.includes("build-yfinance-sidecar.mjs"),
   "desktop dev still performs an implicit frozen helper build",
 );
+assert(
+  !implementation.includes("runtimeDependencies") &&
+    !implementation.includes("pythonBinaryPath"),
+  "desktop dev still reads the removed persisted Python path",
+);
 
 assert(
   nativeBundleCacheReusable({
@@ -207,35 +211,6 @@ assertThrows(
   "desktop dev did not fail quickly with an actionable install command",
 );
 
-const settingsDir = mkdtempSync(path.join(tmpdir(), "jftrade-desktop-python-"));
-try {
-  const settingsPath = path.join(settingsDir, "settings.json");
-  writeFileSync(
-    settingsPath,
-    JSON.stringify({
-      runtimeDependencies: { pythonBinaryPath: "/opt/python/bin/python3" },
-    }),
-  );
-  const savedPython = runDevDesktop({
-    JFTRADE_SETTINGS_PATH: settingsPath,
-    JFTRADE_YFINANCE_SIDECAR: "",
-    JFTRADE_YFINANCE_DEV_PYTHON: "",
-    JFTRADE_YFINANCE_DEV_PYTHONPATH: "",
-  });
-  assert(savedPython.status === 0, "desktop dev rejected saved Python settings");
-  assert(
-    savedPython.stdout.includes(
-      `JFTRADE_YFINANCE_DEV_PYTHONPATH=${path.join(rootDir, "workers", "yfinance-sidecar", "src")}`,
-    ),
-    "desktop dev did not select the source helper for saved Python settings",
-  );
-  assert(
-    !savedPython.stdout.includes("JFTRADE_YFINANCE_DEV_PYTHON="),
-    "desktop dev shadowed the persisted Python path with a process environment override",
-  );
-} finally {
-  rmSync(settingsDir, { recursive: true, force: true });
-}
 function runDevDesktop(extraEnv) {
   const env = { ...process.env, JFTRADE_DESKTOP_DEV_DRY_RUN: "1" };
   for (const [key, value] of Object.entries(extraEnv)) {

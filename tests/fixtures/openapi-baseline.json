@@ -5911,17 +5911,6 @@
       ],
       "type": "object"
     },
-    "jftsettings.RuntimeDependencySettings": {
-      "properties": {
-        "pythonBinaryPath": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "pythonBinaryPath"
-      ],
-      "type": "object"
-    },
     "jftsettings.SecuritySettings": {
       "properties": {
         "passwordConfigured": {
@@ -8784,17 +8773,6 @@
         "backtestWorkerLimit",
         "instanceWorkerLimit",
         "nodeBinaryPath"
-      ],
-      "type": "object"
-    },
-    "settings.RuntimeDependencySettingsWriteRequest": {
-      "properties": {
-        "pythonBinaryPath": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "pythonBinaryPath"
       ],
       "type": "object"
     },
@@ -27345,98 +27323,6 @@
           }
         },
         "summary": "保存 PineTS worker 设置",
-        "tags": [
-          "settings"
-        ]
-      }
-    },
-    "/api/v1/settings/runtime-dependencies": {
-      "get": {
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/httpserver.Envelope"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/jftsettings.RuntimeDependencySettings"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/httpserver.ErrorEnvelope"
-            }
-          }
-        },
-        "summary": "读取运行时依赖路径设置",
-        "tags": [
-          "settings"
-        ]
-      },
-      "put": {
-        "consumes": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "description": "运行时依赖路径设置",
-            "in": "body",
-            "name": "request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/settings.RuntimeDependencySettingsWriteRequest"
-            }
-          }
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/httpserver.Envelope"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/jftsettings.RuntimeDependencySettings"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "schema": {
-              "$ref": "#/definitions/httpserver.ErrorEnvelope"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/httpserver.ErrorEnvelope"
-            }
-          }
-        },
-        "summary": "保存运行时依赖路径设置",
         "tags": [
           "settings"
         ]

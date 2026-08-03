@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	"github.com/jftrade/jftrade-main/internal/yfinanceassets"
 )
@@ -50,7 +49,6 @@ type PythonRuntimeResolution struct {
 	Required        bool
 	Configurable    bool
 	Available       bool
-	ConfiguredPath  string
 	EffectivePath   string
 	ResolvedPath    string
 	Source          string
@@ -82,15 +80,14 @@ type pythonRuntimeProbePayload struct {
 
 // ResolvePythonRuntime selects embedded/helper Python for frozen runtimes and
 // a host interpreter for source development. It does not execute Python.
-func ResolvePythonRuntime(settings jftsettings.RuntimeDependencySettings) PythonRuntimeResolution {
-	configured := settingsfile.NormalizeExecutablePath(settings.PythonBinaryPath)
+func ResolvePythonRuntime() PythonRuntimeResolution {
 	if !yfinanceassets.DevelopmentOverridesAllowed() {
-		return resolveEmbeddedPythonRuntime(configured)
+		return resolveEmbeddedPythonRuntime()
 	}
 	if helper := strings.TrimSpace(os.Getenv(EnvYFinanceSidecar)); helper != "" {
-		return resolveExternalHelperPythonRuntime(configured, helper)
+		return resolveExternalHelperPythonRuntime(helper)
 	}
-	return resolveSourcePythonRuntime(configured)
+	return resolveSourcePythonRuntime()
 }
 
 // ProbePythonRuntime checks Python 3.11+ and the source sidecar modules without
@@ -132,10 +129,9 @@ func ProbePythonRuntime(
 	return result
 }
 
-func resolveEmbeddedPythonRuntime(configured string) PythonRuntimeResolution {
+func resolveEmbeddedPythonRuntime() PythonRuntimeResolution {
 	resolution := PythonRuntimeResolution{
 		Mode: PythonRuntimeModeEmbedded, Source: "bundled",
-		ConfiguredPath: configured,
 	}
 	_, available, err := selectYFinanceAsset()
 	resolution.Available = available && err == nil
@@ -146,10 +142,10 @@ func resolveEmbeddedPythonRuntime(configured string) PythonRuntimeResolution {
 	return resolution
 }
 
-func resolveExternalHelperPythonRuntime(configured string, helper string) PythonRuntimeResolution {
+func resolveExternalHelperPythonRuntime(helper string) PythonRuntimeResolution {
 	resolution := PythonRuntimeResolution{
 		Mode: PythonRuntimeModeExternalHelper, Source: "external-helper",
-		ConfiguredPath: configured, EffectivePath: helper,
+		EffectivePath: helper,
 	}
 	path, err := validateAbsoluteRegularFile(helper, EnvYFinanceSidecar)
 	resolution.ResolvedPath = path
@@ -158,14 +154,14 @@ func resolveExternalHelperPythonRuntime(configured string, helper string) Python
 	return resolution
 }
 
-func resolveSourcePythonRuntime(configured string) PythonRuntimeResolution {
+func resolveSourcePythonRuntime() PythonRuntimeResolution {
 	sourcePath, sourceErr := resolveYFinanceSourcePath()
 	resolution := PythonRuntimeResolution{
-		Mode: PythonRuntimeModeSource, Required: true, Configurable: true,
-		ConfiguredPath: configured, SourcePath: sourcePath,
+		Mode: PythonRuntimeModeSource, Required: true, Configurable: false,
+		SourcePath:      sourcePath,
 		ResolutionError: sourceErr,
 	}
-	candidates := sourcePythonRuntimeCandidates(configured, sourcePath)
+	candidates := sourcePythonRuntimeCandidates(sourcePath)
 	if len(candidates) == 0 {
 		candidates = []pythonRuntimeCandidate{{path: "python3", source: "path"}}
 	}
@@ -187,12 +183,9 @@ func resolveSourcePythonRuntime(configured string) PythonRuntimeResolution {
 	return resolution
 }
 
-func sourcePythonRuntimeCandidates(configured string, sourcePath string) []pythonRuntimeCandidate {
+func sourcePythonRuntimeCandidates(sourcePath string) []pythonRuntimeCandidate {
 	if value := settingsfile.NormalizeExecutablePath(os.Getenv(EnvYFinanceDevPython)); value != "" {
 		return []pythonRuntimeCandidate{{path: value, source: "env:" + EnvYFinanceDevPython}}
-	}
-	if configured != "" {
-		return []pythonRuntimeCandidate{{path: configured, source: "settings"}}
 	}
 	candidates := make([]pythonRuntimeCandidate, 0, 6)
 	if sourcePath != "" {

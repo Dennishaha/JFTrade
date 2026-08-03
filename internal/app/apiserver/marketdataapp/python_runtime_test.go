@@ -7,18 +7,17 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/yfinanceassets"
 )
 
-func TestResolveSourcePythonRuntimeHonorsEnvironmentSettingsAndFallbacks(t *testing.T) {
+func TestResolveSourcePythonRuntimeHonorsEnvironmentAndFallbacks(t *testing.T) {
 	if !yfinanceassets.DevelopmentOverridesAllowed() {
 		t.Skip("source Python resolution is disabled in release-assets builds")
 	}
 	source := t.TempDir()
 	t.Setenv(EnvYFinanceDevPythonPath, source)
 
-	t.Run("environment overrides settings", func(t *testing.T) {
+	t.Run("environment override", func(t *testing.T) {
 		t.Setenv(EnvYFinanceDevPython, "/env/python")
 		restorePythonRuntimeLookPath(t, func(path string) (string, error) {
 			if path != "/env/python" {
@@ -26,22 +25,8 @@ func TestResolveSourcePythonRuntimeHonorsEnvironmentSettingsAndFallbacks(t *test
 			}
 			return path, nil
 		})
-		got := ResolvePythonRuntime(jftsettings.RuntimeDependencySettings{PythonBinaryPath: "/settings/python"})
+		got := ResolvePythonRuntime()
 		if !got.Available || got.Source != "env:"+EnvYFinanceDevPython || got.ResolvedPath != "/env/python" {
-			t.Fatalf("resolution = %#v", got)
-		}
-	})
-
-	t.Run("settings path is used without environment", func(t *testing.T) {
-		t.Setenv(EnvYFinanceDevPython, "")
-		restorePythonRuntimeLookPath(t, func(path string) (string, error) {
-			if path != "/settings/python" {
-				t.Fatalf("LookPath = %q, want settings Python", path)
-			}
-			return path, nil
-		})
-		got := ResolvePythonRuntime(jftsettings.RuntimeDependencySettings{PythonBinaryPath: ` "/settings/python" `})
-		if !got.Available || got.Source != "settings" || got.ConfiguredPath != "/settings/python" {
 			t.Fatalf("resolution = %#v", got)
 		}
 	})
@@ -57,7 +42,7 @@ func TestResolveSourcePythonRuntimeHonorsEnvironmentSettingsAndFallbacks(t *test
 			}
 			return "", errors.New("missing")
 		})
-		got := ResolvePythonRuntime(jftsettings.RuntimeDependencySettings{})
+		got := ResolvePythonRuntime()
 		if !got.Available || got.Source != "path" || got.ResolvedPath != "/usr/bin/python3" {
 			t.Fatalf("resolution = %#v", got)
 		}
@@ -74,7 +59,7 @@ func TestResolvePythonRuntimeReportsExternalAndEmbeddedHelpers(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Setenv(EnvYFinanceSidecar, helper)
-		got := ResolvePythonRuntime(jftsettings.RuntimeDependencySettings{PythonBinaryPath: "/ignored"})
+		got := ResolvePythonRuntime()
 		if got.Mode != PythonRuntimeModeExternalHelper || !got.Available || got.Configurable || got.Required {
 			t.Fatalf("external helper resolution = %#v", got)
 		}
@@ -85,25 +70,9 @@ func TestResolvePythonRuntimeReportsExternalAndEmbeddedHelpers(t *testing.T) {
 		return yfinanceassets.Asset{Name: "helper"}, true, nil
 	}
 	t.Cleanup(func() { selectYFinanceAsset = previous })
-	embedded := resolveEmbeddedPythonRuntime("")
+	embedded := resolveEmbeddedPythonRuntime()
 	if embedded.Mode != PythonRuntimeModeEmbedded || !embedded.Available || embedded.Configurable || embedded.Required {
 		t.Fatalf("embedded resolution = %#v", embedded)
-	}
-}
-
-func TestSidecarManagerDefersPythonSettingsUntilNextStart(t *testing.T) {
-	manager := newSidecarManager("", jftsettings.RuntimeDependencySettings{PythonBinaryPath: "/old/python"})
-	running := &sidecarProcessStub{running: true}
-	manager.process = running
-	manager.endpoint = "http://127.0.0.1:7788"
-	manager.ConfigureRuntimeDependencies(jftsettings.RuntimeDependencySettings{PythonBinaryPath: "/new/python"})
-
-	endpoint, err := manager.EnsureStarted()
-	if err != nil || endpoint != "http://127.0.0.1:7788" {
-		t.Fatalf("EnsureStarted = %q, %v", endpoint, err)
-	}
-	if !running.running || manager.settings.PythonBinaryPath != "/new/python" {
-		t.Fatalf("manager = %#v running=%v", manager.settings, running.running)
 	}
 }
 

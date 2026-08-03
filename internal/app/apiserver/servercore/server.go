@@ -542,11 +542,10 @@ func (s *Server) analyzePineScript(input stratsrv.PineAnalyzeInput) (stratsrv.Pi
 
 func (s *Server) initializeMarketdataService() {
 	dataPlane, err := marketdataapp.NewDataPlane(marketdataapp.RuntimeOptions{
-		FutuProvider:        newMarketdataProvider(s),
-		FutuQuotes:          s.runtimes.MarketData(),
-		FutuPush:            s.runtimes.MarketData(),
-		FutuSubscriptions:   s.runtimes.MarketData(),
-		RuntimeDependencies: s.runtimeDependencySettings(),
+		FutuProvider:      newMarketdataProvider(s),
+		FutuQuotes:        s.runtimes.MarketData(),
+		FutuPush:          s.runtimes.MarketData(),
+		FutuSubscriptions: s.runtimes.MarketData(),
 		YFinanceCacheDir: filepath.Join(
 			filepath.Dir(s.store.Path()),
 			"cache",
@@ -660,11 +659,6 @@ func (s *Server) settingsSideEffects() settings.SideEffects {
 		},
 		OnPineWorkerChanged: func(settings jfsettings.PineWorkerSettings) {
 			s.applyPineWorkerSettings(settings)
-		},
-		OnRuntimeDependenciesChanged: func(settings jfsettings.RuntimeDependencySettings) {
-			if runtime := marketdataapp.RuntimeFromService(s.marketdataSvc); runtime != nil {
-				runtime.ConfigureRuntimeDependencies(settings)
-			}
 		},
 		OnProviderChanged: func(providerID jfsettings.ActiveMarketDataProvider) error {
 			return marketdataapp.ApplyProviderSettings(

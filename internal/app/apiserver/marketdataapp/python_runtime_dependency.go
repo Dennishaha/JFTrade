@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 const (
@@ -28,11 +26,8 @@ var (
 
 // CheckPythonRuntimeDependency reports the Python runtime selected by the
 // authoritative yfinance sidecar resolver.
-func CheckPythonRuntimeDependency(
-	ctx context.Context,
-	settings jftsettings.RuntimeDependencySettings,
-) map[string]any {
-	resolution := ResolvePythonRuntime(settings)
+func CheckPythonRuntimeDependency(ctx context.Context) map[string]any {
+	resolution := ResolvePythonRuntime()
 	result := basePythonRuntimeDependency(resolution)
 	if resolution.Mode != PythonRuntimeModeSource {
 		return checkManagedPythonRuntimeDependency(result, resolution)
@@ -82,7 +77,7 @@ func basePythonRuntimeDependency(resolution PythonRuntimeResolution) map[string]
 		"id": pythonRuntimeDependencyID, "displayName": pythonRuntimeDependencyDisplayName,
 		"required": resolution.Required, "configurable": resolution.Configurable,
 		"status": pythonRuntimeDependencyStatusError, "minimumVersion": pythonRuntimeDependencyMinimum,
-		"detectedVersion": "", "configuredPath": resolution.ConfiguredPath,
+		"detectedVersion": "", "configuredPath": "",
 		"effectivePath": resolution.EffectivePath, "resolvedPath": resolution.ResolvedPath,
 		"attemptedPaths": resolution.AttemptedPaths, "source": resolution.Source,
 		"homepageUrl": pythonRuntimeDependencyHomepage, "message": "",
@@ -108,12 +103,9 @@ func checkManagedPythonRuntimeDependency(
 }
 
 func pythonRuntimeMissingMessage(resolution PythonRuntimeResolution) string {
-	if strings.TrimSpace(resolution.ConfiguredPath) != "" {
-		return fmt.Sprintf("Configured Python binary was not found or is not executable: %v", resolution.ResolutionError)
-	}
 	return fmt.Sprintf(
-		"Python was not found for the yfinance source runtime: %v. Tried: %s. Set the Python binary path in Settings.",
-		resolution.ResolutionError, strings.Join(resolution.AttemptedPaths, ", "),
+		"Python was not found for the yfinance source runtime: %v. Tried: %s. Set %s or create workers/yfinance-sidecar/.venv with Python 3.11+.",
+		resolution.ResolutionError, strings.Join(resolution.AttemptedPaths, ", "), EnvYFinanceDevPython,
 	)
 }
 

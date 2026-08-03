@@ -31,7 +31,6 @@ type routeStore struct {
 	adk                 jfsettings.ADKRuntimeSettings
 	mcpServer           jfsettings.MCPServerSettings
 	pineWorker          jfsettings.PineWorkerSettings
-	runtimeDependencies jfsettings.RuntimeDependencySettings
 	calendars           jfsettings.ExchangeCalendarSettings
 	activeProvider      jfsettings.ActiveMarketDataProvider
 	updateErr           error
@@ -115,9 +114,6 @@ func (s *routeStore) MCPServerSettings() jfsettings.MCPServerSettings {
 func (s *routeStore) PineWorkerSettings() jfsettings.PineWorkerSettings {
 	return s.pineWorker
 }
-func (s *routeStore) RuntimeDependencySettings() jfsettings.RuntimeDependencySettings {
-	return s.runtimeDependencies
-}
 func (s *routeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	return s.calendars
 }
@@ -191,13 +187,6 @@ func (s *routeStore) SavePineWorkerSettings(input jfsettings.PineWorkerSettings)
 	s.pineWorker = input
 	return input, nil
 }
-func (s *routeStore) SaveRuntimeDependencySettings(input jfsettings.RuntimeDependencySettings) (jfsettings.RuntimeDependencySettings, error) {
-	if s.saveErr != nil {
-		return jfsettings.RuntimeDependencySettings{}, s.saveErr
-	}
-	s.runtimeDependencies = input
-	return input, nil
-}
 func (s *routeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {
 	if s.saveErr != nil {
 		return jfsettings.ExchangeCalendarSettings{}, s.saveErr
@@ -247,6 +236,13 @@ func TestSettingsRoutesPreserveLegacyResponseShapes(t *testing.T) {
 	service := srvsettings.NewService(store)
 	router := gin.New()
 	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+
+	t.Run("removed runtime dependency settings route is not registered", func(t *testing.T) {
+		response := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/runtime-dependencies", "")
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+		}
+	})
 
 	t.Run("broker integration returns object directly", func(t *testing.T) {
 		recorder := httptest.NewRecorder()

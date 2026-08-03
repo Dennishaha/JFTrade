@@ -25,7 +25,6 @@ type fileData struct {
 	ADK                      *jfsettings.ADKRuntimeSettings         `json:"adk,omitempty"`
 	MCPServer                *storedMCPServerSettings               `json:"mcpServer,omitempty"`
 	PineWorker               *jfsettings.PineWorkerSettings         `json:"pineWorker,omitempty"`
-	RuntimeDependencies      *jfsettings.RuntimeDependencySettings  `json:"runtimeDependencies,omitempty"`
 	Calendars                *jfsettings.ExchangeCalendarSettings   `json:"exchangeCalendars,omitempty"`
 }
 

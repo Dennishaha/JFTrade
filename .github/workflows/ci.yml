@@ -462,9 +462,13 @@ jobs:
           retention-days: 1
 
   yfinance-sidecar:
-    name: yfinance Sidecar
+    name: yfinance Sidecar (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.14"]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -472,7 +476,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: workers/yfinance-sidecar/pyproject.toml
 
@@ -492,12 +496,15 @@ jobs:
         run: python -m pytest workers/yfinance-sidecar/tests
 
       - name: Test native helper build script
+        if: ${{ matrix.python == '3.14' }}
         run: pnpm run test:yfinance-sidecar-asset-build
 
       - name: Build Linux native yfinance helper
+        if: ${{ matrix.python == '3.14' }}
         run: pnpm run build:yfinance-sidecar
 
       - name: Verify embedded Linux yfinance helper
+        if: ${{ matrix.python == '3.14' }}
         run: go test -tags release_assets ./internal/yfinanceassets -count=1
 
   pine:
@@ -625,7 +632,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.14"
           cache: pip
           cache-dependency-path: workers/yfinance-sidecar/pyproject.toml
 
@@ -726,7 +733,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.14"
           cache: pip
           cache-dependency-path: workers/yfinance-sidecar/pyproject.toml
 

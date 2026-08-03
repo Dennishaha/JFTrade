@@ -32,7 +32,7 @@ const apiBind = process.env.JFTRADE_API_BIND || "127.0.0.1:3008";
 const apiBaseUrl = apiBaseURLForBind(apiBind);
 const frontendURL =
   process.env.FRONTEND_DEVSERVER_URL || "http://127.0.0.1:3003";
-const yfinanceRuntime = resolveYFinanceRuntime(settingsPath);
+const yfinanceRuntime = resolveYFinanceRuntime();
 const devEnv = {
   JFTRADE_DESKTOP_MODE: "1",
   FRONTEND_DEVSERVER_URL: frontendURL,
@@ -334,21 +334,11 @@ async function waitForURL(url, processToWatch) {
   throw new Error(`Vite did not become ready within 30s: ${url}`);
 }
 
-function resolveYFinanceRuntime(runtimeSettingsPath) {
+function resolveYFinanceRuntime() {
   const configured = process.env.JFTRADE_YFINANCE_SIDECAR?.trim();
   const configuredPython = process.env.JFTRADE_YFINANCE_DEV_PYTHON?.trim();
   const configuredSource = process.env.JFTRADE_YFINANCE_DEV_PYTHONPATH?.trim();
   const source = path.join(rootDir, "workers", "yfinance-sidecar", "src");
-  const savedPython = savedPythonBinaryPath(runtimeSettingsPath);
-  if (!configured && !configuredPython && !configuredSource && savedPython) {
-    // Do not copy the persisted path into the process environment: the backend
-    // must be able to observe a newly saved path on the next helper start.
-    return {
-      mode: "python-source-settings",
-      environment: { JFTRADE_YFINANCE_DEV_PYTHONPATH: source },
-    };
-  }
-
   const python = defaultYFinancePython();
   const staged = stagedYFinanceSidecarPath();
   const explicitPythonRequested = Boolean(configuredPython || configuredSource);
@@ -425,16 +415,6 @@ function defaultYFinancePython() {
       ? ["workers", "yfinance-sidecar", ".venv", "Scripts", "python.exe"]
       : ["workers", "yfinance-sidecar", ".venv", "bin", "python"];
   return path.join(rootDir, ...relative);
-}
-
-function savedPythonBinaryPath(runtimeSettingsPath) {
-  try {
-    const settings = JSON.parse(readFileSync(runtimeSettingsPath, "utf8"));
-    const value = settings?.runtimeDependencies?.pythonBinaryPath;
-    return typeof value === "string" ? value.trim() : "";
-  } catch {
-    return "";
-  }
 }
 
 function stagedYFinanceSidecarPath() {

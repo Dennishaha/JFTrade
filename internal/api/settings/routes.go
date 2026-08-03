@@ -46,8 +46,6 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, dataManagementServic
 	// Pine Worker
 	settings.GET("/pine-worker", handlePineWorkerSettings(svc))
 	settings.PUT("/pine-worker", handleSavePineWorkerSettings(svc))
-	settings.GET("/runtime-dependencies", handleRuntimeDependencySettings(svc))
-	settings.PUT("/runtime-dependencies", handleSaveRuntimeDependencySettings(svc))
 
 	// Market Data Providers
 	settings.GET("/market-data-provider", handleActiveMarketDataProvider(svc))
