@@ -40,6 +40,7 @@ type ActiveMarketDataProvider string
 const (
 	MarketDataProviderFutu     ActiveMarketDataProvider = "futu"
 	MarketDataProviderYFinance ActiveMarketDataProvider = "yfinance"
+	MarketDataProviderAKShare  ActiveMarketDataProvider = "akshare"
 )
 
 // ManagedBrokerAccount represents a managed broker account record.

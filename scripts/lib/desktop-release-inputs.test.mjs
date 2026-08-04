@@ -5,7 +5,7 @@ import path from "node:path";
 
 import {
   assertPreparedDesktopReleaseInputs,
-  currentYFinanceSidecarAssetPath,
+  currentMarketDataSidecarAssetPath,
   desktopReleaseInputPaths,
   desktopReleaseInputPathsForCurrentPlatform,
   usesPreparedDesktopReleaseInputs,
@@ -18,27 +18,27 @@ assert.throws(
   /must be 1 or unset/,
 );
 assert.equal(
-  currentYFinanceSidecarAssetPath({
+  currentMarketDataSidecarAssetPath({
     environment: {},
     platform: "darwin",
     architecture: "arm64",
   }),
-  "internal/yfinanceassets/assets/bin/yfinance-sidecar-darwin-arm64",
+  "internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-arm64",
 );
 assert.equal(
-  currentYFinanceSidecarAssetPath({
+  currentMarketDataSidecarAssetPath({
     environment: { GOOS: "windows", GOARCH: "amd64" },
   }),
-  "internal/yfinanceassets/assets/bin/yfinance-sidecar-windows-amd64",
+  "internal/marketdataassets/assets/bin/marketdata-sidecar-windows-amd64",
 );
 assert.throws(
   () =>
-    currentYFinanceSidecarAssetPath({
+    currentMarketDataSidecarAssetPath({
       environment: {},
       platform: "freebsd",
       architecture: "x64",
     }),
-  /Unsupported desktop yfinance asset target/,
+  /Unsupported desktop market-data asset target/,
 );
 
 const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-desktop-inputs-"));
@@ -53,7 +53,7 @@ try {
   for (const relativePath of currentPlatformInputs) {
     const inputPath = path.join(rootDir, relativePath);
     fs.mkdirSync(path.dirname(inputPath), { recursive: true });
-    if (relativePath.startsWith("internal/yfinanceassets/assets/bin/")) {
+    if (relativePath.startsWith("internal/marketdataassets/assets/bin/")) {
       fs.mkdirSync(inputPath, { recursive: true });
       const binaryBase = path.basename(relativePath);
       const extension = binaryBase.includes("-windows-") ? ".exe" : "";

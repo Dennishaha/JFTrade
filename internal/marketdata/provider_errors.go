@@ -12,6 +12,9 @@ var (
 	// ErrProviderWarming indicates that the selected provider process is healthy
 	// but its heavy runtime dependencies are still loading.
 	ErrProviderWarming = errors.New("market-data provider is warming")
+	// ErrProviderBusy indicates that a provider's bounded upstream executor has
+	// no slot available for another request yet.
+	ErrProviderBusy = errors.New("market-data provider is temporarily busy")
 	// ErrManagedSubscriptionsActive prevents a provider change from moving
 	// running in-process consumers, such as live strategies, onto another data
 	// source.

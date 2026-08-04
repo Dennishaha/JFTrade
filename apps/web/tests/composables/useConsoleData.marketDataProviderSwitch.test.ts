@@ -319,4 +319,65 @@ describe("console data provider switching", () => {
     harness.consoleData.dispose();
     harness.wrapper.unmount();
   });
+
+  it("retries a temporarily incomplete provider directory before falling back", async () => {
+    let instrumentAttempts = 0;
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/v1/market-data/markets")) {
+        return createResponse({
+          defaultMarket: "US",
+          markets: [{ code: "US", resolvedMarket: "US" }],
+        });
+      }
+      if (url.includes("/api/v1/market-data/instruments?")) {
+        instrumentAttempts += 1;
+        const query = new URL(url, "http://localhost").searchParams.get("query") ?? "";
+        if (instrumentAttempts === 1) {
+          return createResponse({
+            requestedMarket: "US",
+            query,
+            resolutionStatus: "incomplete",
+            totalReturned: 0,
+            entries: [],
+            failures: [{ market: "US", code: "POOL_BUSY", message: "temporarily busy" }],
+          });
+        }
+        return createResponse({
+          requestedMarket: "US",
+          query,
+          resolutionStatus: "resolved",
+          totalReturned: 1,
+          entries: [{
+            market: "US",
+            resolvedMarket: "US",
+            instrumentId: query,
+            code: "AAPL",
+            symbol: "AAPL",
+            selectable: true,
+          }],
+          failures: [],
+        });
+      }
+      if (
+        url.includes("/api/v1/market-data/snapshots/") ||
+        url.includes("/api/v1/market-data/securities/") ||
+        url.includes("/api/v1/market-data/candles/")
+      ) {
+        throw new Error("test request stopped");
+      }
+      throw new Error(`unexpected request ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await refreshMarketProfiles();
+    const harness = createConsoleHarness();
+    harness.consoleData.selectWorkspaceInstrument({ market: "US", symbol: "AAPL" });
+
+    await harness.consoleData.reloadMarketDataProvider();
+
+    expect(instrumentAttempts).toBe(2);
+    expect(harness.consoleData.activeMarketDataInstrumentId.value).toBe("US.AAPL");
+    harness.consoleData.dispose();
+    harness.wrapper.unmount();
+  });
 });

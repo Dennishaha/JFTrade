@@ -4,7 +4,7 @@ import { resolveMarketDataRealtimeBucketStart } from "@/composables/market-data/
 
 interface MarketDataRealtimeTickSnapshotLike {
   price: number;
-  volume: number;
+  volume: number | null;
   at: string;
   observedAt?: string | null;
 }

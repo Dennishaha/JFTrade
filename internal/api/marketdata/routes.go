@@ -398,6 +398,14 @@ func writeMarketDataReadError(c *gin.Context, fallbackCode string, err error) {
 			"MARKET_DATA_PROVIDER_WARMING",
 			"行情服务正在预热，请稍后重试",
 		)
+	case errors.Is(err, srv.ErrProviderBusy):
+		c.Header("Retry-After", "2")
+		httpserver.WriteError(
+			c,
+			http.StatusServiceUnavailable,
+			"MARKET_DATA_PROVIDER_BUSY",
+			"行情服务当前繁忙，请稍后重试",
+		)
 	default:
 		httpserver.WriteError(c, http.StatusBadGateway, fallbackCode, err.Error())
 	}

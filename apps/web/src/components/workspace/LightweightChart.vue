@@ -25,6 +25,11 @@ import {
   useBrokerProviderSelection,
 } from "@/composables/trading/brokerProviderSelection";
 import { getSharedLiveSocketHub } from "@/composables/market-data/sharedLiveSocket";
+import {
+  fallbackInstrumentPeriod,
+  resolveInstrumentRequestPeriod,
+  resolveInstrumentSupportedPeriods,
+} from "@/composables/market-data/instrumentPeriodCapabilities";
 import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
 
@@ -59,6 +64,7 @@ const {
 const {
   currentMarketDataCandles: marketDataCandles,
   currentMarketDataSnapshot: marketDataSnapshot,
+  currentMarketSecurityDetails,
   marketDataQueryMarket,
   marketDataQuerySymbol,
   marketDataQueryPeriod,
@@ -93,6 +99,11 @@ const targetSymbol = computed(() =>
     ?.trim()
     .toUpperCase() ?? "",
 );
+const targetInstrumentId = computed(() =>
+  targetMarket.value === "" || targetSymbol.value === ""
+    ? ""
+    : `${targetMarket.value}.${targetSymbol.value}`,
+);
 const renderablePeriods = new Set<string>(
   KLINE_PERIODS.map((period) => period.value),
 );
@@ -111,21 +122,57 @@ let heartbeatTimer = 0;
 let reloadInFlight: { key: string; promise: Promise<void> } | null = null;
 let chartReloadSeq = 0;
 
-const supportedPeriodValues = computed(() =>
+const providerSupportedPeriodValues = computed(() =>
   brokerSupportedChartPeriods(
     selectedBrokerId.value,
     targetMarket.value,
     brokerDescriptors.value,
   ),
 );
+const requiresInstrumentPeriodCapabilities = computed(
+  () => selectedBrokerId.value.trim().toLowerCase() === "akshare",
+);
+const supportedPeriodValues = computed<string[] | null>(() =>
+  resolveInstrumentSupportedPeriods({
+    providerID: selectedBrokerId.value,
+    instrumentID: targetInstrumentId.value,
+    providerPeriods: providerSupportedPeriodValues.value,
+    details: currentMarketSecurityDetails.value,
+    requireDetails: requiresInstrumentPeriodCapabilities.value,
+  }),
+);
+const periodCapabilitiesError = computed(() => {
+  if (brokerCapabilitiesError.value) return brokerCapabilitiesError.value;
+  if (
+    requiresInstrumentPeriodCapabilities.value &&
+    supportedPeriodValues.value == null &&
+    !isLoadingMarketDataQuery.value
+  ) {
+    return marketDataQueryError.value;
+  }
+  return "";
+});
+const isLoadingPeriodCapabilities = computed(
+  () =>
+    isLoadingBrokerCapabilities.value ||
+    (requiresInstrumentPeriodCapabilities.value &&
+      supportedPeriodValues.value == null &&
+      periodCapabilitiesError.value === ""),
+);
+const displayedPeriodValues = computed(
+  () =>
+    supportedPeriodValues.value ??
+    (periodCapabilitiesError.value
+      ? []
+      : providerSupportedPeriodValues.value ?? []),
+);
 const periods = computed(() => {
-  const supported = new Set(supportedPeriodValues.value ?? []);
+  const supported = new Set(displayedPeriodValues.value);
   return KLINE_PERIODS.filter((period) => supported.has(period.value));
 });
 const hasResolvedPeriodCapabilities = computed(
   () =>
-    !isLoadingBrokerCapabilities.value &&
-    supportedPeriodValues.value != null,
+    !isLoadingPeriodCapabilities.value && supportedPeriodValues.value != null,
 );
 const hasSupportedChartPeriod = computed(() => periods.value.length > 0);
 const isTickChartPeriod = computed(
@@ -160,15 +207,6 @@ function normalizedSelectedPeriod(): RenderableKlinePeriod | "" {
   );
 }
 
-function fallbackPeriod(values: readonly string[]): RenderableKlinePeriod {
-  for (const candidate of ["1m", "5m", "1d"]) {
-    if (values.includes(candidate)) return candidate as RenderableKlinePeriod;
-  }
-  return (
-    values.find((period) => period !== "tick") ?? "tick"
-  ) as RenderableKlinePeriod;
-}
-
 function commitPeriod(period: RenderableKlinePeriod): void {
   if (controlled.value) {
     emit("update:period", period);
@@ -183,26 +221,25 @@ function reconcileSelectedPeriod(): void {
   );
   const current = normalizedSelectedPeriod();
   if (supported.length > 0 && !supported.includes(current)) {
-    commitPeriod(fallbackPeriod(supported));
+    commitPeriod(fallbackInstrumentPeriod(supported) as RenderableKlinePeriod);
   }
 }
 
 const chartTarget = computed(() => {
   const preferredPeriod = normalizedSelectedPeriod();
-  const period = periods.value.some(
-    (candidate) => candidate.value === preferredPeriod,
-  )
-    ? preferredPeriod
-    : "";
+  const period = resolveInstrumentRequestPeriod({
+    preferredPeriod,
+    providerPeriods: providerSupportedPeriodValues.value,
+    supportedPeriods: supportedPeriodValues.value,
+    requireDetails: requiresInstrumentPeriodCapabilities.value,
+    renderablePeriods,
+  }) as RenderableKlinePeriod | "";
   return {
     brokerId: selectedBrokerId.value,
     market: targetMarket.value,
     symbol: targetSymbol.value,
     period,
-    instrumentId:
-      targetMarket.value === "" || targetSymbol.value === ""
-        ? ""
-        : `${targetMarket.value}.${targetSymbol.value}`,
+    instrumentId: targetInstrumentId.value,
     channel: (period === "tick" ? "TICK" : "KLINE") as "TICK" | "KLINE",
     interval: period,
   };
@@ -210,7 +247,9 @@ const chartTarget = computed(() => {
 const chartCandles = computed<KlineCandle[]>(() =>
   overlayRealtimeTickCandle(
     marketDataCandles.value?.candles ?? [],
-    marketDataSnapshot.value?.snapshot ?? null,
+    selectedBrokerId.value.trim().toLowerCase() === "akshare"
+      ? null
+      : marketDataSnapshot.value?.snapshot ?? null,
     marketDataQueryPeriod.value,
   ),
 );
@@ -473,8 +512,9 @@ async function handleLoadMore(): Promise<void> {
 }
 
 async function retryBrokerCapabilities(): Promise<void> {
-  await loadBrokerProviders(true);
+  if (brokerCapabilitiesError.value) await loadBrokerProviders(true);
   reconcileSelectedPeriod();
+  await reload();
 }
 
 onMounted(() => {
@@ -569,8 +609,8 @@ watch(
       :variant="variant"
       :periods="periods"
       :selected-period="normalizedSelectedPeriod()"
-      :loading-capabilities="isLoadingBrokerCapabilities"
-      :capabilities-error="brokerCapabilitiesError"
+      :loading-capabilities="isLoadingPeriodCapabilities"
+      :capabilities-error="periodCapabilitiesError"
       :active-chart-type="activeChartType"
       :active-chart-type-label="activeChartTypeLabel"
       :tick-period="isTickChartPeriod"
@@ -594,7 +634,7 @@ watch(
           :chart-type="activeChartType"
           :min-height="minHeight"
           :indicators="selectedIndicators"
-          empty-text="暂无 K 线数据；确认 OpenD 行情权限后点击刷新。"
+          empty-text="暂无 K 线数据；确认行情数据源可用后点击刷新。"
           @load-more="handleLoadMore"
         />
         <button

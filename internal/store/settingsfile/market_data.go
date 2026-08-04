@@ -29,6 +29,8 @@ func NormalizeActiveMarketDataProvider(input jfsettings.ActiveMarketDataProvider
 	switch strings.ToLower(strings.TrimSpace(string(input))) {
 	case string(jfsettings.MarketDataProviderYFinance):
 		return jfsettings.MarketDataProviderYFinance
+	case string(jfsettings.MarketDataProviderAKShare):
+		return jfsettings.MarketDataProviderAKShare
 	default:
 		return jfsettings.MarketDataProviderFutu
 	}

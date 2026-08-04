@@ -25,7 +25,7 @@ var (
 )
 
 // CheckPythonRuntimeDependency reports the Python runtime selected by the
-// authoritative yfinance sidecar resolver.
+// authoritative market-data sidecar resolver.
 func CheckPythonRuntimeDependency(ctx context.Context) map[string]any {
 	resolution := ResolvePythonRuntime()
 	result := basePythonRuntimeDependency(resolution)
@@ -64,11 +64,11 @@ func CheckPythonRuntimeDependency(ctx context.Context) map[string]any {
 	}
 	if len(probe.MissingModules) > 0 {
 		result["status"] = pythonRuntimeDependencyStatusError
-		result["message"] = "Python is missing required yfinance runtime modules: " + strings.Join(probe.MissingModules, ",")
+		result["message"] = "Python is missing required market-data runtime modules: " + strings.Join(probe.MissingModules, ",")
 		return result
 	}
 	result["status"] = pythonRuntimeDependencyStatusOK
-	result["message"] = fmt.Sprintf("Python %s and the yfinance runtime modules are available.", probe.DetectedVersion)
+	result["message"] = fmt.Sprintf("Python %s and the market-data runtime modules are available.", probe.DetectedVersion)
 	return result
 }
 
@@ -95,17 +95,17 @@ func checkManagedPythonRuntimeDependency(
 	}
 	result["status"] = pythonRuntimeDependencyStatusOK
 	if resolution.Mode == PythonRuntimeModeExternalHelper {
-		result["message"] = "Python is supplied by the configured frozen yfinance helper."
+		result["message"] = "Python is supplied by the configured frozen market-data helper."
 		return result
 	}
-	result["message"] = "Python is supplied by the bundled yfinance helper."
+	result["message"] = "Python is supplied by the bundled market-data helper."
 	return result
 }
 
 func pythonRuntimeMissingMessage(resolution PythonRuntimeResolution) string {
 	return fmt.Sprintf(
-		"Python was not found for the yfinance source runtime: %v. Tried: %s. Set %s or create workers/yfinance-sidecar/.venv with Python 3.11+.",
-		resolution.ResolutionError, strings.Join(resolution.AttemptedPaths, ", "), EnvYFinanceDevPython,
+		"Python was not found for the market-data source runtime: %v. Tried: %s. Set %s or create workers/marketdata-sidecar/.venv with Python 3.11+.",
+		resolution.ResolutionError, strings.Join(resolution.AttemptedPaths, ", "), EnvMarketDataDevPython,
 	)
 }
 

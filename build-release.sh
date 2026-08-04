@@ -15,12 +15,12 @@ TARGETS=(
   "windows/amd64"
   "windows/arm64"
 )
-YFINANCE_ASSET_DIR="$ROOT_DIR/internal/yfinanceassets/assets/bin"
-YFINANCE_ASSETS=(
-  "yfinance-sidecar-darwin-arm64"
-  "yfinance-sidecar-linux-amd64"
-  "yfinance-sidecar-windows-amd64"
-  "yfinance-sidecar-windows-arm64"
+MARKETDATA_ASSET_DIR="$ROOT_DIR/internal/marketdataassets/assets/bin"
+MARKETDATA_ASSETS=(
+  "marketdata-sidecar-darwin-arm64"
+  "marketdata-sidecar-linux-amd64"
+  "marketdata-sidecar-windows-amd64"
+  "marketdata-sidecar-windows-arm64"
 )
 
 require_command() {
@@ -68,22 +68,22 @@ install_frontend_dependencies() {
   pnpm install --frozen-lockfile
 }
 
-require_yfinance_assets() {
+require_marketdata_assets() {
   local missing=()
   local asset
-  for asset in "${YFINANCE_ASSETS[@]}"; do
-    local executable="$YFINANCE_ASSET_DIR/$asset/$asset"
+  for asset in "${MARKETDATA_ASSETS[@]}"; do
+    local executable="$MARKETDATA_ASSET_DIR/$asset/$asset"
     if [[ "$asset" == *-windows-* ]]; then
       executable+=".exe"
     fi
-    if [[ ! -d "$YFINANCE_ASSET_DIR/$asset" || ! -s "$executable" ]]; then
+    if [[ ! -d "$MARKETDATA_ASSET_DIR/$asset" || ! -s "$executable" ]]; then
       missing+=("$asset")
     fi
   done
   if (( ${#missing[@]} > 0 )); then
-    echo "Cross-target API release requires pre-staged native yfinance helpers." >&2
-    echo "Build each helper on its matching OS/architecture with 'pnpm run build:yfinance-sidecar', then stage it in $YFINANCE_ASSET_DIR." >&2
-    printf 'Missing yfinance helper: %s\n' "${missing[@]}" >&2
+    echo "Cross-target API release requires pre-staged native market-data helpers." >&2
+    echo "Build each helper on its matching OS/architecture with 'pnpm run build:marketdata-sidecar', then stage it in $MARKETDATA_ASSET_DIR." >&2
+    printf 'Missing market-data helper: %s\n' "${missing[@]}" >&2
     exit 1
   fi
 }
@@ -122,8 +122,8 @@ go run ./scripts/archive_frontend_assets.go -src "$WEB_DIST_DIR" -dst "$EMBED_AR
 echo "Building embedded PineTS worker assets..."
 pnpm run build:pineworker
 
-echo "Verifying pre-staged native yfinance helpers..."
-require_yfinance_assets
+echo "Verifying pre-staged native market-data helpers..."
+require_marketdata_assets
 
 echo "Running tests..."
 go test ./... -count=1 -timeout 300s || { echo "Tests failed"; exit 1; }

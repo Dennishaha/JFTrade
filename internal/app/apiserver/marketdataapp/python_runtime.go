@@ -13,11 +13,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/internal/marketdataassets"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
-	"github.com/jftrade/jftrade-main/internal/yfinanceassets"
 )
 
 const (
+	EnvMarketDataSidecar       = "JFTRADE_MARKETDATA_SIDECAR"
+	EnvMarketDataDevPython     = "JFTRADE_MARKETDATA_DEV_PYTHON"
+	EnvMarketDataDevPythonPath = "JFTRADE_MARKETDATA_DEV_PYTHONPATH"
+
+	// Deprecated yfinance-specific environment variables remain lower-priority
+	// aliases so existing development and test environments keep working.
 	EnvYFinanceSidecar       = "JFTRADE_YFINANCE_SIDECAR"
 	EnvYFinanceDevPython     = "JFTRADE_YFINANCE_DEV_PYTHON"
 	EnvYFinanceDevPythonPath = "JFTRADE_YFINANCE_DEV_PYTHONPATH"
@@ -32,7 +38,7 @@ var (
 	pythonRuntimeStat        = os.Stat
 	pythonRuntimeWorkingDir  = os.Getwd
 	pythonRuntimeGOOS        = runtime.GOOS
-	selectYFinanceAsset      = yfinanceassets.Select
+	selectMarketDataAsset    = marketdataassets.Select
 	pythonRuntimeProbeOutput = func(
 		ctx context.Context, path string, sourcePath string, args ...string,
 	) ([]byte, error) {
@@ -43,7 +49,7 @@ var (
 )
 
 // PythonRuntimeResolution describes the Python provider selected by the same
-// rules used to launch the yfinance sidecar.
+// rules used to launch the market-data sidecar.
 type PythonRuntimeResolution struct {
 	Mode            string
 	Required        bool
@@ -81,17 +87,18 @@ type pythonRuntimeProbePayload struct {
 // ResolvePythonRuntime selects embedded/helper Python for frozen runtimes and
 // a host interpreter for source development. It does not execute Python.
 func ResolvePythonRuntime() PythonRuntimeResolution {
-	if !yfinanceassets.DevelopmentOverridesAllowed() {
+	if !marketdataassets.DevelopmentOverridesAllowed() {
 		return resolveEmbeddedPythonRuntime()
 	}
-	if helper := strings.TrimSpace(os.Getenv(EnvYFinanceSidecar)); helper != "" {
-		return resolveExternalHelperPythonRuntime(helper)
+	if helper, source := environmentOverride(EnvMarketDataSidecar, EnvYFinanceSidecar); helper != "" {
+		return resolveExternalHelperPythonRuntime(helper, source)
 	}
 	return resolveSourcePythonRuntime()
 }
 
-// ProbePythonRuntime checks Python 3.11+ and the source sidecar modules without
-// importing heavy dependencies, so it does not defeat helper background warmup.
+// ProbePythonRuntime checks Python 3.11+ and only the shared source-sidecar
+// bootstrap modules. Provider-specific dependencies remain isolated behind
+// their own lazy health checks, so one failed import cannot block the process.
 func ProbePythonRuntime(
 	ctx context.Context,
 	resolution PythonRuntimeResolution,
@@ -102,7 +109,7 @@ func ProbePythonRuntime(
 	if !resolution.Available || resolution.ResolvedPath == "" {
 		return PythonRuntimeProbeResult{Err: pythonRuntimeMissingError(resolution)}
 	}
-	const script = "import importlib.util,json,sys;required=('yfinance_sidecar','fastapi','uvicorn','yfinance','curl_cffi');missing=[name for name in required if importlib.util.find_spec(name) is None];print(json.dumps({'version':list(sys.version_info[:3]),'missing':missing}))"
+	const script = "import importlib.util,json,sys;required=('marketdata_sidecar','fastapi','uvicorn');missing=[name for name in required if importlib.util.find_spec(name) is None];print(json.dumps({'version':list(sys.version_info[:3]),'missing':missing}))"
 	output, err := pythonRuntimeProbeOutput(
 		ctx, resolution.ResolvedPath, resolution.SourcePath, "-c", script,
 	)
@@ -133,21 +140,21 @@ func resolveEmbeddedPythonRuntime() PythonRuntimeResolution {
 	resolution := PythonRuntimeResolution{
 		Mode: PythonRuntimeModeEmbedded, Source: "bundled",
 	}
-	_, available, err := selectYFinanceAsset()
+	_, available, err := selectMarketDataAsset()
 	resolution.Available = available && err == nil
 	resolution.ResolutionError = err
 	if err == nil && !available {
-		resolution.ResolutionError = ErrYFinanceSidecarUnavailable
+		resolution.ResolutionError = ErrMarketDataSidecarUnavailable
 	}
 	return resolution
 }
 
-func resolveExternalHelperPythonRuntime(helper string) PythonRuntimeResolution {
+func resolveExternalHelperPythonRuntime(helper string, source string) PythonRuntimeResolution {
 	resolution := PythonRuntimeResolution{
-		Mode: PythonRuntimeModeExternalHelper, Source: "external-helper",
+		Mode: PythonRuntimeModeExternalHelper, Source: "env:" + source,
 		EffectivePath: helper,
 	}
-	path, err := validateAbsoluteRegularFile(helper, EnvYFinanceSidecar)
+	path, err := validateAbsoluteRegularFile(helper, source)
 	resolution.ResolvedPath = path
 	resolution.Available = err == nil
 	resolution.ResolutionError = err
@@ -155,7 +162,7 @@ func resolveExternalHelperPythonRuntime(helper string) PythonRuntimeResolution {
 }
 
 func resolveSourcePythonRuntime() PythonRuntimeResolution {
-	sourcePath, sourceErr := resolveYFinanceSourcePath()
+	sourcePath, sourceErr := resolveMarketDataSourcePath()
 	resolution := PythonRuntimeResolution{
 		Mode: PythonRuntimeModeSource, Required: true, Configurable: false,
 		SourcePath:      sourcePath,
@@ -184,8 +191,9 @@ func resolveSourcePythonRuntime() PythonRuntimeResolution {
 }
 
 func sourcePythonRuntimeCandidates(sourcePath string) []pythonRuntimeCandidate {
-	if value := settingsfile.NormalizeExecutablePath(os.Getenv(EnvYFinanceDevPython)); value != "" {
-		return []pythonRuntimeCandidate{{path: value, source: "env:" + EnvYFinanceDevPython}}
+	if configured, source := environmentOverride(EnvMarketDataDevPython, EnvYFinanceDevPython); configured != "" {
+		value := settingsfile.NormalizeExecutablePath(configured)
+		return []pythonRuntimeCandidate{{path: value, source: "env:" + source}}
 	}
 	candidates := make([]pythonRuntimeCandidate, 0, 6)
 	if sourcePath != "" {
@@ -213,20 +221,20 @@ func sourcePythonRuntimeCandidates(sourcePath string) []pythonRuntimeCandidate {
 	return candidates
 }
 
-func resolveYFinanceSourcePath() (string, error) {
-	if configured := strings.TrimSpace(os.Getenv(EnvYFinanceDevPythonPath)); configured != "" {
+func resolveMarketDataSourcePath() (string, error) {
+	if configured, source := environmentOverride(EnvMarketDataDevPythonPath, EnvYFinanceDevPythonPath); configured != "" {
 		if !filepath.IsAbs(configured) {
-			return configured, fmt.Errorf("%s must be an absolute path", EnvYFinanceDevPythonPath)
+			return configured, fmt.Errorf("%s must be an absolute path", source)
 		}
-		return validateDirectory(configured, EnvYFinanceDevPythonPath)
+		return validateDirectory(configured, source)
 	}
 	workingDir, err := pythonRuntimeWorkingDir()
 	if err != nil {
-		return "", fmt.Errorf("resolve yfinance workspace root: %w", err)
+		return "", fmt.Errorf("resolve market-data workspace root: %w", err)
 	}
 	for current := workingDir; ; current = filepath.Dir(current) {
-		candidate := filepath.Join(current, "workers", "yfinance-sidecar", "src")
-		if path, candidateErr := validateDirectory(candidate, "yfinance source path"); candidateErr == nil {
+		candidate := filepath.Join(current, "workers", "marketdata-sidecar", "src")
+		if path, candidateErr := validateDirectory(candidate, "market-data source path"); candidateErr == nil {
 			return path, nil
 		}
 		parent := filepath.Dir(current)
@@ -234,7 +242,17 @@ func resolveYFinanceSourcePath() (string, error) {
 			break
 		}
 	}
-	return "", fmt.Errorf("yfinance source path was not found from %s", workingDir)
+	return "", fmt.Errorf("market-data source path was not found from %s", workingDir)
+}
+
+func environmentOverride(primary string, legacy string) (string, string) {
+	if value := strings.TrimSpace(os.Getenv(primary)); value != "" {
+		return value, primary
+	}
+	if value := strings.TrimSpace(os.Getenv(legacy)); value != "" {
+		return value, legacy
+	}
+	return "", primary
 }
 
 func validateDirectory(value string, name string) (string, error) {

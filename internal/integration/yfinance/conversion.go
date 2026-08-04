@@ -121,15 +121,16 @@ func convertCandidates(entries []remoteInstrument) ([]marketdata.InstrumentCandi
 			source = sourceID
 		}
 		candidate := marketdata.InstrumentCandidate{
-			Market:         identity.market,
-			ResolvedMarket: resolved,
-			InstrumentID:   identity.id,
-			Code:           identity.symbol,
-			Symbol:         identity.symbol,
-			Name:           strings.TrimSpace(entry.Name),
-			SecurityType:   strings.TrimSpace(entry.SecurityType),
-			Source:         source,
-			Selectable:     entry.Selectable,
+			Market:           identity.market,
+			ResolvedMarket:   resolved,
+			InstrumentID:     identity.id,
+			Code:             identity.symbol,
+			Symbol:           identity.symbol,
+			Name:             strings.TrimSpace(entry.Name),
+			SecurityType:     strings.TrimSpace(entry.SecurityType),
+			SupportedPeriods: append([]string(nil), entry.SupportedPeriods...),
+			Source:           source,
+			Selectable:       entry.Selectable,
 		}
 		if !candidate.Selectable {
 			candidate.UnavailableReason = "Yahoo Finance returned a non-selectable instrument"
@@ -168,6 +169,9 @@ func convertSecurity(
 		"dividendRate": response.DividendRate, "dividendYield": dividendYield,
 		"fiftyTwoWeekHigh": response.FiftyTwoWeekHigh, "fiftyTwoWeekLow": response.FiftyTwoWeekLow,
 		"averageVolume": response.AverageVolume, "sharesOutstanding": response.SharesOutstanding,
+	}
+	if len(response.SupportedPeriods) > 0 {
+		security["supportedPeriods"] = append([]string(nil), response.SupportedPeriods...)
 	}
 	return marketdata.SecurityDetails{
 		"request": map[string]any{

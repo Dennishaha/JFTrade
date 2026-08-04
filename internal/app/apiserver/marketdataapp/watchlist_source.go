@@ -29,7 +29,7 @@ type watchlistSnapshotSource struct {
 }
 
 // NewWatchlistSnapshotSource preserves Futu's quota-free SecuritySnapshot path
-// while routing yfinance selections through the active provider runtime.
+// while routing poll-only provider selections through the active runtime.
 func NewWatchlistSnapshotSource(
 	runtime func() WatchlistQuoteRuntime,
 	futu watchlist.BatchSnapshotSource,
@@ -54,7 +54,8 @@ func (s *watchlistSnapshotSource) BatchSnapshots(
 		}
 		return s.futu.BatchSnapshots(ctx, instrumentIDs)
 	}
-	if runtime.ActiveProviderID() != ProviderYFinance {
+	providerID := runtime.ActiveProviderID()
+	if !isPythonProvider(providerID) {
 		return nil, nil, fmt.Errorf(
 			"%w: unsupported active market-data provider %q",
 			watchlist.ErrUnavailable,
@@ -63,7 +64,7 @@ func (s *watchlistSnapshotSource) BatchSnapshots(
 	}
 	ticks, err := runtime.QueryTickers(ctx, instrumentIDs)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: yfinance snapshots: %w", watchlist.ErrUnavailable, err)
+		return nil, nil, fmt.Errorf("%w: %s snapshots: %w", watchlist.ErrUnavailable, providerID, err)
 	}
 	return watchlistQuotesFromTicks(instrumentIDs, ticks, s.currentTime())
 }
@@ -73,7 +74,7 @@ func (s *watchlistSnapshotSource) QuoteCacheTTL() time.Duration {
 		return 0
 	}
 	runtime := s.runtime()
-	if runtime == nil || runtime.ActiveProviderID() != ProviderYFinance {
+	if runtime == nil || !isPythonProvider(runtime.ActiveProviderID()) {
 		return 0
 	}
 	return runtime.QuotePollingPolicy().Interval
@@ -118,8 +119,8 @@ func watchlistQuoteFromTick(tick marketdata.Tick, fallback time.Time) watchlist.
 		Source:        strings.TrimSpace(tick.Source),
 		Price:         &price,
 		PreviousClose: previousClose,
-		Volume:        positiveDecimalFloat(tick.Volume),
-		Turnover:      positiveDecimalFloat(tick.Turnover),
+		Volume:        availablePositiveDecimalFloat(tick.Volume, tick.Availability, true),
+		Turnover:      availablePositiveDecimalFloat(tick.Turnover, tick.Availability, false),
 		Session:       strings.TrimSpace(tick.Session),
 		ObservedAt:    observedAt,
 		UpdateTime:    updateTime,
@@ -229,6 +230,23 @@ func positiveDecimalFloat(value decimal.Decimal) *float64 {
 	}
 	converted := value.InexactFloat64()
 	return &converted
+}
+
+func availablePositiveDecimalFloat(
+	value decimal.Decimal,
+	availability marketdata.QuoteFieldAvailability,
+	volume bool,
+) *float64 {
+	if availability.Authoritative {
+		available := availability.Turnover
+		if volume {
+			available = availability.Volume
+		}
+		if !available {
+			return nil
+		}
+	}
+	return positiveDecimalFloat(value)
 }
 
 func parsedQuoteTime(value string, fallback time.Time) time.Time {

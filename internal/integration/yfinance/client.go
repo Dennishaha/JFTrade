@@ -24,6 +24,8 @@ const (
 	maxResponseBytes   = 4 << 20
 )
 
+var yfinanceProviderPath = []string{"providers", "yfinance"}
+
 type Client struct {
 	baseURL     *url.URL
 	httpClient  *http.Client
@@ -183,7 +185,7 @@ func waitForRetry(ctx context.Context, delay time.Duration) error {
 
 func (c *Client) health(ctx context.Context) (remoteHealth, error) {
 	var response remoteHealth
-	if err := c.get(ctx, []string{"health"}, nil, &response); err != nil {
+	if err := c.get(ctx, yfinanceProviderSegments("health"), nil, &response); err != nil {
 		return remoteHealth{}, err
 	}
 	if strings.TrimSpace(response.YFinanceVersion) == "" {
@@ -205,7 +207,7 @@ func (c *Client) health(ctx context.Context) (remoteHealth, error) {
 
 func (c *Client) markets(ctx context.Context) ([]remoteMarketProfile, error) {
 	var response remoteMarkets
-	err := c.get(ctx, []string{"markets"}, nil, &response)
+	err := c.get(ctx, yfinanceProviderSegments("markets"), nil, &response)
 	return response.Markets, err
 }
 
@@ -214,19 +216,19 @@ func (c *Client) search(ctx context.Context, query string, limit int) ([]remoteI
 	values.Set("q", strings.TrimSpace(query))
 	values.Set("limit", strconv.Itoa(limit))
 	var response remoteSearch
-	err := c.get(ctx, []string{"search"}, values, &response)
+	err := c.get(ctx, yfinanceProviderSegments("search"), values, &response)
 	return response.Entries, err
 }
 
 func (c *Client) security(ctx context.Context, market, symbol string) (remoteSecurity, error) {
 	var response remoteSecurity
-	err := c.get(ctx, []string{"security", market, symbol}, nil, &response)
+	err := c.get(ctx, yfinanceProviderSegments("security", market, symbol), nil, &response)
 	return response, err
 }
 
 func (c *Client) snapshot(ctx context.Context, market, symbol string) (remoteSnapshot, error) {
 	var response remoteSnapshot
-	err := c.get(ctx, []string{"snapshot", market, symbol}, nil, &response)
+	err := c.get(ctx, yfinanceProviderSegments("snapshot", market, symbol), nil, &response)
 	return response, err
 }
 
@@ -249,6 +251,11 @@ func (c *Client) candles(
 		values.Set("to", value)
 	}
 	var response remoteCandles
-	err := c.get(ctx, []string{"candles", market, symbol}, values, &response)
+	err := c.get(ctx, yfinanceProviderSegments("candles", market, symbol), values, &response)
 	return response, err
+}
+
+func yfinanceProviderSegments(values ...string) []string {
+	result := append([]string(nil), yfinanceProviderPath...)
+	return append(result, values...)
 }

@@ -1406,7 +1406,7 @@ export interface components {
     ok: boolean;
     timestamp: string;
   };
-    "jftsettings.ActiveMarketDataProvider": "futu" | "yfinance";
+    "jftsettings.ActiveMarketDataProvider": "futu" | "yfinance" | "akshare";
     "jftsettings.ADKRuntimeSettings": {
     runTimeoutMs: number;
     streamIdleTimeoutMs: number;
@@ -1584,6 +1584,7 @@ export interface components {
     securityType?: string;
     selectable: boolean;
     source?: string;
+    supportedPeriods?: Array<string>;
     symbol: string;
     unavailableReason?: string;
   };
@@ -1693,7 +1694,18 @@ export interface components {
     "marketdata.SecurityDetailsData": {
     meta: components["schemas"]["marketdata.MarketQueryMeta"];
     request: components["schemas"]["marketdata.MarketInstrumentData"];
-    security: Record<string, unknown>;
+    security: components["schemas"]["marketdata.SecurityDetailsPayload"];
+  };
+    "marketdata.SecurityDetailsPayload": {
+    currency?: string;
+    exchange?: string;
+    instrumentId: string;
+    market: string;
+    name: string;
+    securityType?: string;
+    supportedPeriods?: Array<string>;
+    symbol: string;
+    timezone?: string;
   };
     "marketdata.SnapshotData": {
     meta: components["schemas"]["marketdata.MarketQueryMeta"];
@@ -1721,9 +1733,9 @@ export interface components {
     preMarket: components["schemas"]["marketdata.SnapshotExtendedQuote"] | null;
   };
     "marketdata.SnapshotQuote": {
-    ask: string;
+    ask: string | null;
     at: string;
-    bid: string;
+    bid: string | null;
     extended: components["schemas"]["marketdata.SnapshotExtendedQuotes"];
     extendedHours: boolean;
     highPrice: string | null;
@@ -1734,8 +1746,8 @@ export interface components {
     previousClosePrice: string | null;
     price: string;
     session: string;
-    turnover: string;
-    volume: string;
+    turnover: string | null;
+    volume: string | null;
   };
     "marketdata.SubscriptionEntryData": {
     brokerState?: string;

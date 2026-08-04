@@ -29,14 +29,16 @@ flowchart LR
     MarketData --> MarketDataRuntime[internal/app/apiserver/marketdataapp\nstable provider router]
     MarketDataRuntime --> FutuIntegration
     MarketDataRuntime --> YFinanceIntegration[internal/integration/yfinance\nHTTP provider]
-    MarketDataRuntime --> YFinanceAssets[internal/yfinanceassets\nrelease_assets embedded + SHA-256]
-    YFinanceAssets --> YFinanceSidecar[workers/yfinance-sidecar\nPyInstaller onedir helper\ndynamic loopback endpoint]
+    MarketDataRuntime --> YFinanceAssets[internal/marketdataassets\nrelease_assets embedded + SHA-256]
+    YFinanceAssets --> YFinanceSidecar[workers/marketdata-sidecar\nPyInstaller onedir helper\ndynamic loopback endpoint]
     YFinanceSidecar --> Yahoo[Yahoo Finance]
     App --> Services
     App --> Stores[internal/store/*\ndomain persistence]
     App --> AssistantAssembly[internal/assistant/assembly\nADK + MCP lifecycle]
     App --> PineRuntime[internal/strategy/pineruntime\nworker lifecycle]
     Services --> FutuIntegration[internal/integration/futu\nOpenD adapters]
+    Services --> AKShareIntegration[internal/integration/akshare\nHTTP Provider adapter]
+    AKShareIntegration --> MarketDataSidecar[marketdata-sidecar\nyfinance + AKShare runtimes]
     FutuIntegration --> Futu[pkg/futu\nFutu Exchange]
     Futu --> OpenD[Futu OpenD\nAPI TCP 11110]
 
@@ -54,7 +56,7 @@ flowchart LR
 | -------------- | -------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | API 后端服务   | `go run ./cmd/jftrade-api` | 前端开发、配置调试、行情、策略运行控制与通知调试 | `cmd/jftrade-api` -> `internal/app/apiserver` -> `internal/api/*` -> services -> integrations |
 | Wails 桌面开发 | `pnpm run desktop:dev`      | 桌面联调，同时保留仓库开发数据                   | `JFTrade Dev` -> Vite -> loopback sidecar `3008`；可选 Web 监听器使用用户端口                  |
-| Wails 正式产品 | `release_assets` 构建      | 独立安装的桌面产品                               | `JFTrade` -> embedded frontend -> loopback API sidecar `6699`；按需自动管理内置 yfinance helper；可选 Web 默认 `6688` |
+| Wails 正式产品 | `release_assets` 构建      | 独立安装的桌面产品                               | `JFTrade` -> embedded frontend -> loopback API sidecar `6699`；按需自动管理内置行情 helper；可选 Web 默认 `6688` |
 
 当前默认按下面理解：
 
@@ -62,8 +64,8 @@ flowchart LR
 - Wails sidecar 与可选 Web 入口是两个监听器，但复用同一个 Gin handler、服务层和数据目录；sidecar 始终只监听 loopback，不能被 Web 密码当作浏览器入口。
 - JFTrade 控制台只承诺 `/api/v1/*`；不要把它和 bbgo 原生 `/api/*` 混为一谈。
 - `pkg/futu`、`pkg/strategy/pineworker`、`pkg/backtest` 仍可复用 bbgo 公共类型、PineTS worker 边界和回测组件。
-- `cmd/jftrade-api` 和桌面产品都从 `release_assets` 嵌入当前平台的 PyInstaller `onedir` yfinance helper（`darwin/arm64`、`linux/amd64`、`windows/amd64`、`windows/arm64`）。JFTrade 在启用或恢复内置 Yahoo Finance Provider 时将 helper 原子发布到设置目录下按 bundle SHA-256 寻址的私有缓存，后续完整校验并复用；缓存不可写时才降级到受限临时目录。helper 使用动态 loopback 端口，切换或退出只停止进程并保留持久缓存。
-- 正式运行不接受外部手工管理的 yfinance 进程。`JFTRADE_YFINANCE_SIDECAR` 只可在开发和测试环境指定绝对路径 helper，用于覆盖嵌入资产。
+- `cmd/jftrade-api` 和桌面产品都从 `release_assets` 嵌入当前平台的 PyInstaller `onedir` `marketdata-sidecar`（`darwin/arm64`、`linux/amd64`、`windows/amd64`、`windows/arm64`）。yfinance 与 AKShare 在同一进程内独立懒加载；Yahoo↔AKShare 切换复用进程，切回 Futu 后停止。bundle 按 SHA-256 原子发布到 `cache/marketdata-sidecar` 并校验复用。
+- 正式运行不接受外部手工管理的 Python 行情进程。`JFTRADE_MARKETDATA_SIDECAR` 只可在开发和测试环境指定绝对路径 helper；旧 `JFTRADE_YFINANCE_SIDECAR` 是低优先级兼容别名。
 
 ## 核心职责边界
 
@@ -96,7 +98,7 @@ flowchart LR
 | --- | --- | --- |
 | 启动根 | 通知 publisher、broker registry、exchange calendar manager、实盘控制面 | 应用启动时建立；为后续可缺省 runtime 提供稳定依赖 |
 | 可缺省/延后装配 | Live WebSocket、策略 runtime manager、Assistant assembly | 允许降级启动或窄测试装配；存在时由 `runtimes.Handle` 统一登记和关闭 |
-| 可重置 | market-data Provider router/Futu coordinator/yfinance helper、Pine worker manager 与 runner | 只响应本领域设置；Provider 切换清缓存并撤销旧 demand，受 broker 保留规则约束的物理订阅由 collector 后台回收；helper 只在 yfinance 活跃期间运行，新 runner 发布后释放旧 runner |
+| 可重置 | market-data Provider router/Futu coordinator/Python helper、Pine worker manager 与 runner | 只响应本领域设置；Provider 切换清缓存并撤销旧 demand，受 broker 保留规则约束的物理订阅由 collector 后台回收；helper 在任一 Python Provider 活跃期间复用，新 runner 发布后释放旧 runner |
 
 应用资源先停 trading updates、market-data/backtest service，再关闭 runtime handle，最后关闭 stores；runtime handle 内部继续按实际成功登记的反序关闭 Assistant、实时入口、策略 runtime、Pine/Futu 与启动根。所有关闭错误保留资源名并聚合返回。
 
@@ -125,7 +127,7 @@ Handler 只做参数绑定、校验、调用 service、错误映射和响应转�
 
 `internal/integration/futu` 是 API sidecar 内部使用的 Futu/OpenD 适配层，负责 client 生命周期、exchange 创建、stream/query 调用、探测和协议到 broker-neutral DTO/事件的转换。`internal/integration/yfinance` 是轮询型 HTTP Provider，只接收由 `marketdataapp` 注入的内部 loopback endpoint，并转换同一套 broker-neutral DTO；它不拥有数据源选择、缓存、订阅或进程生命周期。
 
-`workers/yfinance-sidecar` 用 FastAPI 封装 Python `yfinance`，通过 PyInstaller 打成 `onedir` helper，并由 `internal/yfinanceassets` 按平台嵌入目录、校验 SHA-256 和管理内容寻址缓存。`/health` 不同步导入重型数据栈；FastAPI lifespan 启动一次后台预热，数据路由在 `warming` 时返回可重试的 503。JFTrade 只在需要时自动启动 helper，并监听动态分配的 loopback 端口；应用关闭或切回 Futu 时停止进程但保留持久缓存。它当前承诺 `US`、`HK`、`SH`、`SZ` 的搜索、详情、约 15 分钟延迟快照和历史 K 线，前端将 `SH`/`SZ` 聚合为 `CN`；不提供可靠实时推流或 Level 2。用户界面不暴露连接参数或 Python 路径；Provider 选择和进程生命周期由 `internal/app/apiserver/marketdataapp` 管理，详细能力见 [market-data-providers.md](market-data-providers.md)。
+`workers/marketdata-sidecar` 用 FastAPI 封装 Python yfinance 与 AKShare，通过 PyInstaller 打成 `onedir` helper，并由 `internal/marketdataassets` 按平台嵌入、校验 SHA-256 和管理内容寻址缓存。`/healthz` 不导入数据栈；两个 Provider 各自懒加载并独立报告健康，数据路由在 `warming` 时返回带 `Retry-After` 的 503。AKShare 阻塞调用由四槽线程池约束并设 12 秒请求截止。JFTrade 只在需要时启动 helper，Yahoo↔AKShare 切换复用进程，应用关闭或切回 Futu 时停止。它承诺四市场搜索、详情、延迟快照和品种级历史周期，不提供推流、深度、扩展时段或交易能力。详细契约见 [market-data-providers.md](market-data-providers.md)。
 
 持久化按领域位于 `internal/store/{strategy,backtest,trading,watchlist,research,...}`。数据维护只通过 `internal/datamanagement` 的 busy、purge、compact 窄端口访问这些资源，不读取 store 的锁、map 或数据库连接。
 
@@ -149,7 +151,7 @@ apps/web
 
 `/api/v1/system/status` 现在同时返回基础状态和轻量观测摘要，包括 API uptime、实时连接统计、行情 collector 状态、broker descriptor 与 strategy runtime summary。
 
-新安装且没有明确选择时，`activeMarketDataProvider` 默认为 `yfinance`；明确的 `futu` 或 `yfinance` 选择会继续保留。当前版本不读取或迁移历史 yfinance 连接配置块。显式切换必须通过 `ready` 健康门禁，失败时保持原 Provider；启动恢复只要求 helper 进程及 `/health` 可用，可在 `warming` 状态提交 Provider，从而不阻塞 API。helper 缺失、进程启动或健康端点失败时仍回退并持久化 `futu`，确保配置与运行态一致。
+新安装且没有明确选择时，`activeMarketDataProvider` 默认为 `yfinance`；明确的 `futu`、`yfinance` 或 `akshare` 选择会保留。显式切换必须通过对应 Provider 的 `ready` 健康门禁，失败时保持原 Provider；启动恢复可在 `warming` 状态提交 Python Provider，从而不阻塞 API。helper 缺失、进程启动或健康端点失败时回退并持久化 `futu`，确保配置与运行态一致。
 
 ### 策略设计与运行控制
 

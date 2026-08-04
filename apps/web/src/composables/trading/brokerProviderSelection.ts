@@ -88,7 +88,7 @@ export interface BrokerProviderOption {
 }
 
 const STORAGE_KEY = "jftrade.market-provider.v1";
-const BUILT_IN_MARKET_DATA_PROVIDER_IDS = new Set(["yfinance"]);
+const BUILT_IN_MARKET_DATA_PROVIDER_IDS = new Set(["yfinance", "akshare"]);
 const selectedBrokerId = ref(
   (readLocalStorage(STORAGE_KEY) ?? "").trim().toLowerCase(),
 );
@@ -195,9 +195,8 @@ function shortProviderLabel(
   descriptor: Pick<BrokerCapabilityDescriptor, "id" | "displayName">,
 ): string {
   const providerID = normalizedID(descriptor.id);
-  if (providerID === "yfinance" || providerID === "yahoo-finance") {
-    return "Yahoo";
-  }
+  if (providerID === "yfinance" || providerID === "yahoo-finance") return "Yahoo";
+  if (providerID === "akshare") return "AKShare";
   if (providerID === "futu" || providerID === "futu-opend") return "Futu";
   const displayName = descriptor.displayName.trim();
   const firstWord = displayName.split(/[\s·/]+/, 1)[0]?.trim();
@@ -218,9 +217,8 @@ export function resolveBrokerProviderDisplayName(
 ): string {
   const inputID =
     typeof value === "string" ? normalizedID(value) : normalizedID(value?.id);
-  if (inputID === "yfinance" || inputID === "yahoo-finance") {
-    return "Yahoo";
-  }
+  if (inputID === "yfinance" || inputID === "yahoo-finance") return "Yahoo";
+  if (inputID === "akshare") return "AKShare";
   const descriptor =
     typeof value === "string"
       ? descriptors.find((candidate) => normalizedID(candidate.id) === inputID)
@@ -833,7 +831,7 @@ export function brokerSupportedChartPeriods(
   descriptors = brokerDescriptors.value,
 ): string[] | null {
   const normalizedBroker = normalizedID(brokerId);
-  if (normalizedBroker === "yfinance") {
+  if (normalizedBroker === "yfinance" || normalizedBroker === "akshare") {
     const normalizedMarket = market.trim().toUpperCase();
     return normalizedMarket === "" ||
       new Set(["US", "HK", "CN", "SH", "SZ"]).has(normalizedMarket)

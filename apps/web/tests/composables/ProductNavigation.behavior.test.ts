@@ -637,7 +637,7 @@ describe("product navigation surfaces", () => {
       ?.click();
     await flushPromises();
 
-    expect(reloadProvider).toHaveBeenCalledWith({ load: false });
+    expect(reloadProvider).toHaveBeenCalledWith({ load: true });
     wrapper.unmount();
   });
 

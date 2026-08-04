@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	akshareintegration "github.com/jftrade/jftrade-main/internal/integration/akshare"
 	yfinanceintegration "github.com/jftrade/jftrade-main/internal/integration/yfinance"
 	"github.com/jftrade/jftrade-main/internal/marketdata"
 )
@@ -19,6 +20,7 @@ import (
 const (
 	ProviderFutu     = "futu"
 	ProviderYFinance = "yfinance"
+	ProviderAKShare  = "akshare"
 
 	// A frozen PyInstaller binary can spend tens of seconds unpacking its
 	// bundled Python runtime on the first launch, especially on macOS.
@@ -32,14 +34,16 @@ var (
 	ErrRuntimeClosed        = errors.New("market-data provider runtime is closed")
 )
 
-// RuntimeOptions supplies the already assembled Futu data plane. YFinance is
-// created lazily from persisted settings when it becomes active.
+// RuntimeOptions supplies the already assembled Futu data plane. Python-backed
+// providers are created lazily from persisted settings when one becomes active.
 type RuntimeOptions struct {
-	FutuProvider      marketdata.Provider
-	FutuQuotes        marketdata.QuoteSource
-	FutuPush          marketdata.PushSource
-	FutuSubscriptions marketdata.SubscriptionReconciler
-	YFinanceCacheDir  string
+	FutuProvider       marketdata.Provider
+	FutuQuotes         marketdata.QuoteSource
+	FutuPush           marketdata.PushSource
+	FutuSubscriptions  marketdata.SubscriptionReconciler
+	MarketDataCacheDir string
+	// YFinanceCacheDir is a deprecated compatibility fallback.
+	YFinanceCacheDir string
 }
 
 // Activation describes one desired provider selection.
@@ -47,7 +51,10 @@ type Activation struct {
 	ProviderID string
 	// YFinanceEndpoint is reserved for in-process contract tests. Production
 	// callers leave it empty so the embedded helper owns the endpoint.
-	YFinanceEndpoint     string
+	YFinanceEndpoint string
+	// AKShareEndpoint is reserved for in-process contract tests. Production
+	// callers leave it empty so the shared helper owns the endpoint.
+	AKShareEndpoint      string
 	RequireHealthy       bool
 	DesiredSubscriptions []marketdata.InstrumentRef
 }
@@ -96,7 +103,7 @@ func NewRuntime(options RuntimeOptions) (*Runtime, error) {
 	return &Runtime{
 		futu:        futu,
 		active:      futu,
-		sidecar:     newSidecarManager(options.YFinanceCacheDir),
+		sidecar:     newSidecarManager(runtimeSidecarCacheDir(options)),
 		healthCheck: waitForProviderHealth,
 	}, nil
 }
@@ -129,7 +136,7 @@ func (r *Runtime) Activate(ctx context.Context, activation Activation) error {
 	if err != nil {
 		return r.rollbackPreparedSidecar(previous, targetProviderID, err)
 	}
-	if next.providerID == ProviderYFinance {
+	if isPythonProvider(next.providerID) {
 		if err := r.checkHealth(
 			activationCtx,
 			next.provider,
@@ -170,7 +177,7 @@ func (r *Runtime) Activate(ctx context.Context, activation Activation) error {
 			// Futu is already prepared and does not depend on the sidecar. Keep
 			// the provider switch committed while retaining the sidecar state for
 			// Runtime.Close or a later retry to finish cleanup.
-			log.Printf("JFTrade yfinance sidecar cleanup deferred after switching to Futu: %v", err)
+			log.Printf("JFTrade market-data sidecar cleanup deferred after switching to Futu: %v", err)
 		}
 	}
 	r.mu.Lock()
@@ -240,13 +247,13 @@ func (r *Runtime) rollbackPreparedSidecar(
 	targetProviderID string,
 	activationErr error,
 ) error {
-	if targetProviderID != ProviderYFinance || previous.providerID == ProviderYFinance {
+	if !isPythonProvider(targetProviderID) || isPythonProvider(previous.providerID) {
 		return activationErr
 	}
 	if stopErr := r.sidecar.Stop(); stopErr != nil {
 		return errors.Join(
 			activationErr,
-			fmt.Errorf("rollback yfinance sidecar: %w", stopErr),
+			fmt.Errorf("rollback market-data sidecar: %w", stopErr),
 		)
 	}
 	return activationErr
@@ -356,6 +363,24 @@ func (r *Runtime) resolveActivation(activation Activation) (runtimeState, error)
 			provider:   provider,
 			quotes:     provider,
 		}, nil
+	case ProviderAKShare:
+		endpoint := strings.TrimSpace(activation.AKShareEndpoint)
+		if endpoint == "" {
+			var err error
+			endpoint, err = r.sidecar.EnsureStarted()
+			if err != nil {
+				return runtimeState{}, err
+			}
+		}
+		provider, err := akshareintegration.NewProvider(endpoint)
+		if err != nil {
+			return runtimeState{}, err
+		}
+		return runtimeState{
+			providerID: ProviderAKShare,
+			provider:   provider,
+			quotes:     provider,
+		}, nil
 	default:
 		return runtimeState{}, fmt.Errorf("unsupported market-data provider %q", activation.ProviderID)
 	}
@@ -363,6 +388,22 @@ func (r *Runtime) resolveActivation(activation Activation) (runtimeState, error)
 
 func normalizeProviderID(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func isPythonProvider(providerID string) bool {
+	switch normalizeProviderID(providerID) {
+	case ProviderYFinance, ProviderAKShare:
+		return true
+	default:
+		return false
+	}
+}
+
+func runtimeSidecarCacheDir(options RuntimeOptions) string {
+	if value := strings.TrimSpace(options.MarketDataCacheDir); value != "" {
+		return value
+	}
+	return strings.TrimSpace(options.YFinanceCacheDir)
 }
 
 func (r *Runtime) snapshot() runtimeState {
@@ -392,7 +433,7 @@ func (r *Runtime) Close() error {
 		if retryErr := r.sidecar.Close(); retryErr != nil {
 			return errors.Join(
 				err,
-				fmt.Errorf("retry yfinance sidecar cleanup: %w", retryErr),
+				fmt.Errorf("retry market-data sidecar cleanup: %w", retryErr),
 			)
 		}
 	}

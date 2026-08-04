@@ -103,6 +103,23 @@ func TestPollOnlyProviderHealthUsesPollingModes(t *testing.T) {
 	}
 }
 
+func TestPollOnlyProviderReadsDoNotRequireLogicalLease(t *testing.T) {
+	sample := tickAt("US.AAPL", "188.5", 10, time.Now().UTC())
+	provider := &pollOnlyProviderStub{dataProviderStub: &dataProviderStub{
+		descriptor: ProviderDescriptor{
+			ProviderID: "poll-only", Source: "poll-only",
+			Capabilities: ProviderCapabilities{Snapshots: true},
+		},
+		snapshot: &sample,
+	}}
+	service := NewService(provider)
+	service.SetSubscriptionReconciler(&fakeSubscriptionReconciler{})
+
+	if _, err := service.GetSnapshot(context.Background(), "US", "AAPL", true); err != nil {
+		t.Fatalf("poll-only snapshot without logical lease: %v", err)
+	}
+}
+
 func TestProviderSwitchCacheUtilitiesCoverConcreteValuesAndCNRejection(t *testing.T) {
 	left := decimal.RequireFromString("12.5")
 	right := decimal.RequireFromString("12.5")

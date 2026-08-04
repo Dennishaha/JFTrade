@@ -251,6 +251,8 @@ export interface RealtimeKlineSnapshot {
   price: number;
   at: string;
   observedAt?: string | null;
+  brokerId?: string | null;
+  source?: string | null;
   barVolume?: number | null;
   barOpen?: number | null;
   barHigh?: number | null;
@@ -558,7 +560,20 @@ function truncateSnapshotTimeToPeriod(
 }
 
 function resolveSnapshotTimelineAt(snapshot: RealtimeKlineSnapshot): string {
-  return snapshot.observedAt?.trim() || snapshot.at;
+  const brokerID = snapshot.brokerId?.trim().toLowerCase() ?? "";
+  const source = snapshot.source?.trim().toLowerCase() ?? "";
+  const isAKShare =
+    brokerID === "akshare" ||
+    source === "akshare" ||
+    source.startsWith("akshare:");
+  if (isAKShare) {
+    // AKShare snapshots have no exchange quote time. Receipt time is not a
+    // valid substitute because it would manufacture a current candle.
+    return snapshot.at?.trim() || "";
+  }
+  // Futu and other streaming sources may publish an exchange time that lags
+  // the event receipt. Preserve the established event-time fallback there.
+  return snapshot.observedAt?.trim() || snapshot.at?.trim() || "";
 }
 
 function findCandleInPeriod(

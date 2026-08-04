@@ -394,6 +394,9 @@ func TestProviderSearchClampsLimitAndLookupRejectsMismatchedIdentity(t *testing.
 
 func requestForPath(t *testing.T, server *testkit.Server, path string) testkit.Request {
 	t.Helper()
+	if strings.HasPrefix(path, "/") && !strings.HasPrefix(path, "/providers/yfinance/") {
+		path = "/providers/yfinance" + path
+	}
 	for _, request := range server.Requests() {
 		if request.Path == path {
 			if request.Method != http.MethodGet {

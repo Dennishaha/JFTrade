@@ -65,13 +65,17 @@ test("ci-local generates docs once, checks drift, then runs shared checks inline
     ([command, args]) => command === "pnpm" && args.join(" ") === "run build:frontend-assets:generated",
   );
   assert.deepEqual(commands[frontendBuildIndex + 1], ["node", ["scripts/report-web-bundle.mjs"]]);
-  const yfinanceBuildIndex = commands.findIndex(
+  const marketDataBuildIndex = commands.findIndex(
     ([command, args]) =>
-      command === "pnpm" && args.join(" ") === "run build:yfinance-sidecar",
+      command === "pnpm" && args.join(" ") === "run build:marketdata-sidecar",
   );
-  assert.deepEqual(commands[yfinanceBuildIndex + 1], [
+  assert.deepEqual(commands[marketDataBuildIndex + 1], [
+    "pnpm",
+    ["run", "smoke:marketdata-sidecar"],
+  ]);
+  assert.deepEqual(commands[marketDataBuildIndex + 2], [
     "go",
-    ["test", "-tags", "release_assets", "./internal/yfinanceassets", "-count=1"],
+    ["test", "-tags", "release_assets", "./internal/marketdataassets", "-count=1"],
   ]);
 });
 

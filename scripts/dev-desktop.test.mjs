@@ -5,7 +5,7 @@ import path from "node:path";
 
 import {
   nativeBundleCacheReusable,
-  selectYFinanceDevelopmentRuntime,
+  selectMarketDataDevelopmentRuntime,
 } from "./lib/desktop-dev-fast-path.mjs";
 
 const rootDir = process.cwd();
@@ -17,6 +17,9 @@ const defaults = runDevDesktop({
   JFTRADE_BACKTEST_DB: "",
   JFTRADE_API_BIND: "",
   DISABLE_MARKETS_CACHE: "",
+  JFTRADE_MARKETDATA_SIDECAR: "",
+  JFTRADE_MARKETDATA_DEV_PYTHON: "",
+  JFTRADE_MARKETDATA_DEV_PYTHONPATH: "",
   JFTRADE_YFINANCE_SIDECAR: "",
   JFTRADE_YFINANCE_DEV_PYTHON: "",
   JFTRADE_YFINANCE_DEV_PYTHONPATH: "",
@@ -64,8 +67,8 @@ assert(
   "desktop dev did not point the Vite proxy at the desktop API",
 );
 assert(
-  defaults.stdout.includes("JFTRADE_YFINANCE_DEV_MODE="),
-  "desktop dev did not report its yfinance runtime selection",
+  defaults.stdout.includes("JFTRADE_MARKETDATA_DEV_MODE="),
+  "desktop dev did not report its market-data runtime selection",
 );
 
 const overrides = runDevDesktop({
@@ -73,7 +76,7 @@ const overrides = runDevDesktop({
   JFTRADE_BACKTEST_DB: path.join(rootDir, "tmp", "backtest.db"),
   JFTRADE_API_BIND: "127.0.0.1:7788",
   DISABLE_MARKETS_CACHE: "0",
-  JFTRADE_YFINANCE_SIDECAR: path.join(rootDir, "tmp", "yfinance-sidecar"),
+  JFTRADE_MARKETDATA_SIDECAR: path.join(rootDir, "tmp", "marketdata-sidecar"),
   VITE_API_BASE_URL: "http://127.0.0.1:8899",
   VITE_DEV_API_TARGET: "http://127.0.0.1:8899",
 });
@@ -82,20 +85,32 @@ assert(
   `desktop dev override dry run failed: ${overrides.stderr || overrides.stdout}`,
 );
 
+const legacyOverride = runDevDesktop({
+  JFTRADE_MARKETDATA_SIDECAR: "",
+  JFTRADE_YFINANCE_SIDECAR: path.join(rootDir, "tmp", "legacy-yfinance-sidecar"),
+});
+assert(
+  legacyOverride.status === 0 &&
+    legacyOverride.stdout.includes(
+      `JFTRADE_MARKETDATA_SIDECAR=${path.join(rootDir, "tmp", "legacy-yfinance-sidecar")}`,
+    ),
+  "desktop dev did not translate the legacy market-data helper override",
+);
+
 const pythonSource = runDevDesktop({
-  JFTRADE_YFINANCE_SIDECAR: "",
-  JFTRADE_YFINANCE_DEV_PYTHON: process.execPath,
-  JFTRADE_YFINANCE_DEV_PYTHONPATH: rootDir,
+  JFTRADE_MARKETDATA_SIDECAR: "",
+  JFTRADE_MARKETDATA_DEV_PYTHON: process.execPath,
+  JFTRADE_MARKETDATA_DEV_PYTHONPATH: rootDir,
 });
 assert(
   pythonSource.status === 0 &&
     pythonSource.stdout.includes(
-      `JFTRADE_YFINANCE_DEV_PYTHON=${process.execPath}`,
+      `JFTRADE_MARKETDATA_DEV_PYTHON=${process.execPath}`,
     ) &&
     pythonSource.stdout.includes(
-      `JFTRADE_YFINANCE_DEV_PYTHONPATH=${rootDir}`,
+      `JFTRADE_MARKETDATA_DEV_PYTHONPATH=${rootDir}`,
     ) &&
-    pythonSource.stdout.includes("JFTRADE_YFINANCE_DEV_MODE=python-source"),
+    pythonSource.stdout.includes("JFTRADE_MARKETDATA_DEV_MODE=python-source"),
   "desktop dev did not preserve an explicit Python source runtime",
 );
 assert(
@@ -120,9 +135,9 @@ assert(
 );
 assert(
   overrides.stdout.includes(
-    `JFTRADE_YFINANCE_SIDECAR=${path.join(rootDir, "tmp", "yfinance-sidecar")}`,
+    `JFTRADE_MARKETDATA_SIDECAR=${path.join(rootDir, "tmp", "marketdata-sidecar")}`,
   ),
-  "desktop dev did not preserve the yfinance sidecar override",
+  "desktop dev did not preserve the market-data sidecar override",
 );
 assert(
   overrides.stdout.includes("VITE_API_BASE_URL=http://127.0.0.1:8899"),
@@ -149,7 +164,7 @@ assert(
   "desktop dev native fingerprint/signature cache is missing",
 );
 assert(
-  !implementation.includes("build-yfinance-sidecar.mjs"),
+  !implementation.includes("build-marketdata-sidecar.mjs"),
   "desktop dev still performs an implicit frozen helper build",
 );
 assert(
@@ -192,21 +207,21 @@ const baseRuntime = {
   allowUnavailable: false,
 };
 assert(
-  selectYFinanceDevelopmentRuntime({
+  selectMarketDataDevelopmentRuntime({
     ...baseRuntime,
     defaultPythonUsable: true,
   }).kind === "python-source",
   "desktop dev did not prefer the usable venv source runtime",
 );
 assert(
-  selectYFinanceDevelopmentRuntime({
+  selectMarketDataDevelopmentRuntime({
     ...baseRuntime,
     frozenAvailable: true,
   }).kind === "frozen-helper",
   "desktop dev did not fall back to the frozen helper",
 );
 assertThrows(
-  () => selectYFinanceDevelopmentRuntime(baseRuntime),
+  () => selectMarketDataDevelopmentRuntime(baseRuntime),
   "pip install --editable",
   "desktop dev did not fail quickly with an actionable install command",
 );

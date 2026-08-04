@@ -51,16 +51,17 @@ type remoteSearch struct {
 }
 
 type remoteInstrument struct {
-	Market         string `json:"market"`
-	ResolvedMarket string `json:"resolved_market"`
-	InstrumentID   string `json:"instrument_id"`
-	Code           string `json:"code"`
-	Symbol         string `json:"symbol"`
-	Name           string `json:"name"`
-	SecurityType   string `json:"security_type"`
-	Exchange       string `json:"exchange"`
-	Selectable     bool   `json:"selectable"`
-	Source         string `json:"source"`
+	Market           string   `json:"market"`
+	ResolvedMarket   string   `json:"resolved_market"`
+	InstrumentID     string   `json:"instrument_id"`
+	Code             string   `json:"code"`
+	Symbol           string   `json:"symbol"`
+	Name             string   `json:"name"`
+	SecurityType     string   `json:"security_type"`
+	Exchange         string   `json:"exchange"`
+	Selectable       bool     `json:"selectable"`
+	Source           string   `json:"source"`
+	SupportedPeriods []string `json:"supported_periods"`
 }
 
 type remoteSecurity struct {
@@ -88,6 +89,7 @@ type remoteSecurity struct {
 	AverageVolume     *json.Number `json:"average_volume"`
 	SharesOutstanding *json.Number `json:"shares_outstanding"`
 	Source            string       `json:"source"`
+	SupportedPeriods  []string     `json:"supported_periods"`
 }
 
 type remoteSnapshotQuote struct {

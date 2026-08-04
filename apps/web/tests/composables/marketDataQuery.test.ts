@@ -373,6 +373,57 @@ describe("createMarketDataQueryController", () => {
     });
   });
 
+  it("serializes the initial reads before starting the candle request", async () => {
+    const { controller, state, fetchEnvelope } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1d";
+    state.marketDataQueryLimit.value = 2;
+    fetchEnvelope
+      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 200))
+      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
+      .mockResolvedValueOnce(
+        createCandlesResult("US", "AAPL", "1d", []),
+      );
+
+    await controller.loadQuery();
+
+    expect(fetchEnvelope.mock.calls.map(([path]) => String(path))).toEqual([
+      "/api/v1/market-data/snapshots/US/AAPL?refresh=true",
+      "/api/v1/market-data/securities/US/AAPL",
+      expect.stringContaining(
+        "/api/v1/market-data/candles/US/AAPL?period=1d",
+      ),
+    ]);
+  });
+
+  it("retries one initial read after a provider Retry-After response", async () => {
+    vi.useFakeTimers();
+    const { controller, state, fetchEnvelope } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1d";
+    state.marketDataQueryLimit.value = 2;
+    const busy = Object.assign(new Error("provider busy"), {
+      retryAfterMs: 1_000,
+    });
+    fetchEnvelope
+      .mockRejectedValueOnce(busy)
+      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 200))
+      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
+      .mockResolvedValueOnce(createCandlesResult("US", "AAPL", "1d", []));
+
+    const pending = controller.loadQuery();
+    await Promise.resolve();
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await pending;
+
+    expect(fetchEnvelope).toHaveBeenCalledTimes(4);
+    expect(state.marketDataSnapshot.value?.snapshot?.price).toBe(200);
+    expect(state.marketDataQueryError.value).toBe("");
+  });
+
   it("keeps live candle volume when a slower historical response arrives", async () => {
     const { controller, state, fetchEnvelope } = createController();
     state.marketDataQueryMarket.value = "US";

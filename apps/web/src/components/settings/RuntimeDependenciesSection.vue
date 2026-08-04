@@ -207,7 +207,7 @@ async function saveNodeBinaryPath(): Promise<void> {
         Node.js 缺失或版本过低时，策略回测与运行实例无法启动。
       </div>
       <div v-if="requiredIssueIDs.has('python')">
-        Python 缺失、版本过低或运行模块不完整时，源码方式的 Yahoo 行情不可用。
+        Python 缺失、版本过低或运行模块不完整时，源码方式的 Yahoo/AKShare 行情不可用。
       </div>
       可以继续配置券商，但相关功能会在修复依赖前保持不可用。
     </div>

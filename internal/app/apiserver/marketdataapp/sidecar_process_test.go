@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jftrade/jftrade-main/internal/yfinanceassets"
+	"github.com/jftrade/jftrade-main/internal/marketdataassets"
 )
 
 func TestSidecarManagerStartsReusesAndStopsManagedExecutable(t *testing.T) {
@@ -145,7 +145,7 @@ func TestSidecarManagerRetainsProcessUntilStopSucceeds(t *testing.T) {
 }
 
 func TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries(t *testing.T) {
-	if !yfinanceassets.DevelopmentOverridesAllowed() {
+	if !marketdataassets.DevelopmentOverridesAllowed() {
 		t.Skip("development overrides are disabled in release-assets builds")
 	}
 	helper := filepath.Join(t.TempDir(), "yfinance-sidecar")
@@ -153,7 +153,7 @@ func TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries(t *testing.T) 
 		t.Fatalf("write helper: %v", err)
 	}
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", helper)
-	executable, err := resolveYFinanceSidecarExecutable("")
+	executable, err := resolveMarketDataSidecarExecutable("")
 	if err != nil || executable.path != helper {
 		t.Fatalf("resolve override = %#v, %v", executable, err)
 	}
@@ -162,11 +162,11 @@ func TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries(t *testing.T) 
 	restorePythonRuntimeProbeOutput(t, func(context.Context, string, string, ...string) ([]byte, error) {
 		return []byte(`{"version":[3,11,9],"missing":[]}`), nil
 	})
-	sourceRuntime, err := resolveYFinanceSidecarExecutable("")
+	sourceRuntime, err := resolveMarketDataSidecarExecutable("")
 	if err != nil {
 		t.Fatalf("resolve source runtime: %v", err)
 	}
-	if sourceRuntime.path == "" || !reflect.DeepEqual(sourceRuntime.arguments, []string{"-m", "yfinance_sidecar.main"}) ||
+	if sourceRuntime.path == "" || !reflect.DeepEqual(sourceRuntime.arguments, []string{"-m", "marketdata_sidecar.main"}) ||
 		len(sourceRuntime.environment) != 1 || !strings.HasPrefix(sourceRuntime.environment[0], "PYTHONPATH=") {
 		t.Fatalf("source runtime = %#v", sourceRuntime)
 	}
@@ -181,32 +181,32 @@ func TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries(t *testing.T) 
 	if manager.resolve == nil || manager.allocatePort == nil || manager.start == nil {
 		t.Fatalf("newSidecarManager = %#v", manager)
 	}
-	port, err := allocateYFinanceSidecarPort()
+	port, err := allocateMarketDataSidecarPort()
 	if err != nil || port < 1 || port > 65535 {
 		t.Fatalf("allocated port = %d, %v", port, err)
 	}
 }
 
 func TestDevelopmentOverrideRejectsMissingAndNonFilePaths(t *testing.T) {
-	if !yfinanceassets.DevelopmentOverridesAllowed() {
+	if !marketdataassets.DevelopmentOverridesAllowed() {
 		t.Skip("development overrides are disabled in release-assets builds")
 	}
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", "relative/yfinance-sidecar")
-	if _, err := resolveYFinanceSidecarExecutable(""); err == nil || !strings.Contains(err.Error(), "absolute path") {
+	if _, err := resolveMarketDataSidecarExecutable(""); err == nil || !strings.Contains(err.Error(), "absolute path") {
 		t.Fatalf("relative override error = %v", err)
 	}
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", filepath.Join(t.TempDir(), "missing"))
-	if _, err := resolveYFinanceSidecarExecutable(""); err == nil || !strings.Contains(err.Error(), "inspect") {
+	if _, err := resolveMarketDataSidecarExecutable(""); err == nil || !strings.Contains(err.Error(), "inspect") {
 		t.Fatalf("missing override error = %v", err)
 	}
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", t.TempDir())
-	if _, err := resolveYFinanceSidecarExecutable(""); err == nil || !strings.Contains(err.Error(), "regular file") {
+	if _, err := resolveMarketDataSidecarExecutable(""); err == nil || !strings.Contains(err.Error(), "regular file") {
 		t.Fatalf("directory override error = %v", err)
 	}
 }
 
 func TestDevelopmentPythonSourceCommandAndExplicitHelperPrecedence(t *testing.T) {
-	if !yfinanceassets.DevelopmentOverridesAllowed() {
+	if !marketdataassets.DevelopmentOverridesAllowed() {
 		t.Skip("development overrides are disabled in release-assets builds")
 	}
 	root := t.TempDir()
@@ -225,7 +225,7 @@ func TestDevelopmentPythonSourceCommandAndExplicitHelperPrecedence(t *testing.T)
 	t.Setenv("JFTRADE_YFINANCE_DEV_PYTHON", python)
 	t.Setenv("JFTRADE_YFINANCE_DEV_PYTHONPATH", source)
 	t.Setenv("JFTRADE_YFINANCE_SIDECAR", helper)
-	executable, err := resolveYFinanceSidecarExecutable("")
+	executable, err := resolveMarketDataSidecarExecutable("")
 	if err != nil || executable.path != helper || len(executable.arguments) != 0 {
 		t.Fatalf("explicit helper precedence = %#v, %v", executable, err)
 	}
@@ -234,9 +234,9 @@ func TestDevelopmentPythonSourceCommandAndExplicitHelperPrecedence(t *testing.T)
 	restorePythonRuntimeProbeOutput(t, func(context.Context, string, string, ...string) ([]byte, error) {
 		return []byte(`{"version":[3,12,1],"missing":[]}`), nil
 	})
-	executable, err = resolveYFinanceSidecarExecutable("")
+	executable, err = resolveMarketDataSidecarExecutable("")
 	if err != nil || executable.path != python ||
-		strings.Join(executable.arguments, " ") != "-m yfinance_sidecar.main" ||
+		strings.Join(executable.arguments, " ") != "-m marketdata_sidecar.main" ||
 		len(executable.environment) != 1 ||
 		executable.environment[0] != "PYTHONPATH="+source {
 		t.Fatalf("Python source command = %#v, %v", executable, err)
@@ -252,14 +252,14 @@ func TestDevelopmentPythonSourceCommandAndExplicitHelperPrecedence(t *testing.T)
 		t.Fatal(err)
 	}
 	config := starter.configs[0]
-	if strings.Join(config.Arguments, " ") != "-m yfinance_sidecar.main" ||
+	if strings.Join(config.Arguments, " ") != "-m marketdata_sidecar.main" ||
 		len(config.Environment) != 1 || config.Environment[0] != "PYTHONPATH="+source {
 		t.Fatalf("manager command config = %#v", config)
 	}
 }
 
 func TestDevelopmentPythonSourceCommandRejectsInvalidSourcePath(t *testing.T) {
-	if !yfinanceassets.DevelopmentOverridesAllowed() {
+	if !marketdataassets.DevelopmentOverridesAllowed() {
 		t.Skip("development overrides are disabled in release-assets builds")
 	}
 	root := t.TempDir()
@@ -286,16 +286,16 @@ func TestDevelopmentPythonSourceCommandRejectsInvalidSourcePath(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("JFTRADE_YFINANCE_DEV_PYTHON", python)
 			t.Setenv("JFTRADE_YFINANCE_DEV_PYTHONPATH", test.pythonPath)
-			_, err := resolveYFinanceSidecarExecutable("")
+			_, err := resolveMarketDataSidecarExecutable("")
 			if err == nil || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("resolveYFinanceSidecarExecutable error = %v", err)
+				t.Fatalf("resolveMarketDataSidecarExecutable error = %v", err)
 			}
 		})
 	}
 }
 
 func TestDevelopmentPythonSourceCommandRejectsInvalidRuntimeBeforeStart(t *testing.T) {
-	if !yfinanceassets.DevelopmentOverridesAllowed() {
+	if !marketdataassets.DevelopmentOverridesAllowed() {
 		t.Skip("development overrides are disabled in release-assets builds")
 	}
 	root := t.TempDir()
@@ -303,14 +303,14 @@ func TestDevelopmentPythonSourceCommandRejectsInvalidRuntimeBeforeStart(t *testi
 	if err := os.WriteFile(python, []byte("python"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv(EnvYFinanceSidecar, "")
-	t.Setenv(EnvYFinanceDevPython, python)
-	t.Setenv(EnvYFinanceDevPythonPath, root)
+	t.Setenv(EnvMarketDataSidecar, "")
+	t.Setenv(EnvMarketDataDevPython, python)
+	t.Setenv(EnvMarketDataDevPythonPath, root)
 	restorePythonRuntimeProbeOutput(t, func(context.Context, string, string, ...string) ([]byte, error) {
 		return []byte(`{"version":[3,10,14],"missing":[]}`), nil
 	})
 
-	_, err := resolveYFinanceSidecarExecutable("")
+	_, err := resolveMarketDataSidecarExecutable("")
 	if err == nil || !strings.Contains(err.Error(), "below 3.11") {
 		t.Fatalf("invalid source runtime error = %v", err)
 	}

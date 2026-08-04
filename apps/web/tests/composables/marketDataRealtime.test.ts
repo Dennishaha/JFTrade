@@ -135,15 +135,56 @@ describe("marketDataRealtime", () => {
     ).toBeNull();
   });
 
+  it.each([
+    ["akshare", "live"],
+    ["futu", "akshare"],
+    ["futu", "akshare:poll"],
+  ])("does not turn delayed AKShare polling into a realtime candle (%s/%s)", (brokerId, source) => {
+    const controller = createMarketDataRealtimeController();
+
+    expect(
+      controller.applyTickEvent({
+        event: buildTickEvent({
+          brokerId,
+          source,
+          at: "2026-07-03T12:00:31.000Z",
+          snapshot: {
+            at: "",
+            observedAt: "2026-07-03T12:00:31.000Z",
+          },
+        }),
+        currentInstrumentId: "US.AAPL",
+        candles: null,
+        period: "1m",
+        limit: 50,
+      }),
+    ).toBeNull();
+  });
+
+  it("accepts a non-AKShare tick when its source is absent", () => {
+    const controller = createMarketDataRealtimeController();
+    const event = buildTickEvent({ source: undefined });
+
+    expect(
+      controller.applyTickEvent({
+        event,
+        currentInstrumentId: "US.AAPL",
+        candles: null,
+        period: "1m",
+        limit: 50,
+      }),
+    ).not.toBeNull();
+  });
+
   it("retains nullable fields and rejects tick envelopes without a usable snapshot", () => {
     const normalized = normalizeMarketDataSnapshotQueryResult({
       request: { market: "US", symbol: "AAPL", instrumentId: "US.AAPL" },
       snapshot: {
         price: 201.5,
-        bid: 201.4,
-        ask: 201.6,
-        volume: 1_500,
-        turnover: 300_000,
+        bid: null,
+        ask: null,
+        volume: null,
+        turnover: null,
         at: "2026-07-03T12:00:30.000Z",
         barOpen: null,
         barHigh: false as never,
@@ -155,7 +196,14 @@ describe("marketDataRealtime", () => {
         fromCache: false,
       },
     });
-    expect(normalized.snapshot).toMatchObject({ barOpen: null, barHigh: false });
+    expect(normalized.snapshot).toMatchObject({
+      bid: null,
+      ask: null,
+      volume: null,
+      turnover: null,
+      barOpen: null,
+      barHigh: false,
+    });
 
     expect(
       normalizeMarketDataSnapshotQueryResult({

@@ -15,7 +15,7 @@ import process from "node:process";
 
 import {
   nativeBundleCacheReusable,
-  selectYFinanceDevelopmentRuntime,
+  selectMarketDataDevelopmentRuntime,
 } from "./lib/desktop-dev-fast-path.mjs";
 
 const rootDir = path.resolve(import.meta.dirname, "..");
@@ -32,7 +32,7 @@ const apiBind = process.env.JFTRADE_API_BIND || "127.0.0.1:3008";
 const apiBaseUrl = apiBaseURLForBind(apiBind);
 const frontendURL =
   process.env.FRONTEND_DEVSERVER_URL || "http://127.0.0.1:3003";
-const yfinanceRuntime = resolveYFinanceRuntime();
+const marketDataRuntime = resolveMarketDataRuntime();
 const devEnv = {
   JFTRADE_DESKTOP_MODE: "1",
   FRONTEND_DEVSERVER_URL: frontendURL,
@@ -44,11 +44,11 @@ const devEnv = {
   DISABLE_MARKETS_CACHE: process.env.DISABLE_MARKETS_CACHE || "1",
   VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || apiBaseUrl,
   VITE_DEV_API_TARGET: process.env.VITE_DEV_API_TARGET || apiBaseUrl,
-  ...yfinanceRuntime.environment,
+  ...marketDataRuntime.environment,
 };
 
 if (dryRun) {
-  printDryRun(devEnv, yfinanceRuntime.mode);
+  printDryRun(devEnv, marketDataRuntime.mode);
   process.exit(0);
 }
 
@@ -334,16 +334,22 @@ async function waitForURL(url, processToWatch) {
   throw new Error(`Vite did not become ready within 30s: ${url}`);
 }
 
-function resolveYFinanceRuntime() {
-  const configured = process.env.JFTRADE_YFINANCE_SIDECAR?.trim();
-  const configuredPython = process.env.JFTRADE_YFINANCE_DEV_PYTHON?.trim();
-  const configuredSource = process.env.JFTRADE_YFINANCE_DEV_PYTHONPATH?.trim();
-  const source = path.join(rootDir, "workers", "yfinance-sidecar", "src");
-  const python = defaultYFinancePython();
-  const staged = stagedYFinanceSidecarPath();
+function resolveMarketDataRuntime() {
+  const configured =
+    process.env.JFTRADE_MARKETDATA_SIDECAR?.trim() ||
+    process.env.JFTRADE_YFINANCE_SIDECAR?.trim();
+  const configuredPython =
+    process.env.JFTRADE_MARKETDATA_DEV_PYTHON?.trim() ||
+    process.env.JFTRADE_YFINANCE_DEV_PYTHON?.trim();
+  const configuredSource =
+    process.env.JFTRADE_MARKETDATA_DEV_PYTHONPATH?.trim() ||
+    process.env.JFTRADE_YFINANCE_DEV_PYTHONPATH?.trim();
+  const source = path.join(rootDir, "workers", "marketdata-sidecar", "src");
+  const python = defaultMarketDataPython();
+  const staged = stagedMarketDataSidecarPath();
   const explicitPythonRequested = Boolean(configuredPython || configuredSource);
   const inspectDefaultRuntime = !configured && !explicitPythonRequested;
-  const selection = selectYFinanceDevelopmentRuntime({
+  const selection = selectMarketDataDevelopmentRuntime({
     explicitHelper: configured,
     explicitHelperUsable:
       dryRun || (Boolean(configured) && usableRegularFile(configured)),
@@ -372,15 +378,15 @@ function resolveYFinanceRuntime() {
     return {
       mode: "python-source",
       environment: {
-        JFTRADE_YFINANCE_DEV_PYTHON: selection.python,
-        JFTRADE_YFINANCE_DEV_PYTHONPATH: selection.source,
+        JFTRADE_MARKETDATA_DEV_PYTHON: selection.python,
+        JFTRADE_MARKETDATA_DEV_PYTHONPATH: selection.source,
       },
     };
   }
   if (selection.kind === "explicit-helper" || selection.kind === "frozen-helper") {
     return {
       mode: selection.kind,
-      environment: { JFTRADE_YFINANCE_SIDECAR: selection.executable },
+      environment: { JFTRADE_MARKETDATA_SIDECAR: selection.executable },
     };
   }
   return { mode: "unavailable", environment: {} };
@@ -397,7 +403,7 @@ function usableRegularFile(file) {
 function pythonRuntimeUsable(python, source) {
   const probe = [
     "import importlib.util, sys",
-    "required = ('yfinance_sidecar', 'fastapi', 'uvicorn', 'yfinance', 'curl_cffi')",
+    "required = ('marketdata_sidecar', 'fastapi', 'uvicorn')",
     "valid = sys.version_info >= (3, 11) and all(importlib.util.find_spec(name) for name in required)",
     "sys.exit(0 if valid else 1)",
   ].join("; ");
@@ -409,25 +415,25 @@ function pythonRuntimeUsable(python, source) {
   return result.status === 0;
 }
 
-function defaultYFinancePython() {
+function defaultMarketDataPython() {
   const relative =
     process.platform === "win32"
-      ? ["workers", "yfinance-sidecar", ".venv", "Scripts", "python.exe"]
-      : ["workers", "yfinance-sidecar", ".venv", "bin", "python"];
+      ? ["workers", "marketdata-sidecar", ".venv", "Scripts", "python.exe"]
+      : ["workers", "marketdata-sidecar", ".venv", "bin", "python"];
   return path.join(rootDir, ...relative);
 }
 
-function stagedYFinanceSidecarPath() {
+function stagedMarketDataSidecarPath() {
   const goos = { darwin: "darwin", linux: "linux", win32: "windows" }[
     process.platform
   ] || process.platform;
   const goarch = { arm64: "arm64", x64: "amd64" }[process.arch] || process.arch;
   const extension = goos === "windows" ? ".exe" : "";
-  const binaryBase = `yfinance-sidecar-${goos}-${goarch}`;
+  const binaryBase = `marketdata-sidecar-${goos}-${goarch}`;
   return path.join(
     rootDir,
     "internal",
-    "yfinanceassets",
+    "marketdataassets",
     "assets",
     "bin",
     binaryBase,
@@ -443,6 +449,9 @@ function printDryRun(environment, mode) {
     "JFTRADE_BACKTEST_DB",
     "JFTRADE_API_BIND",
     "DISABLE_MARKETS_CACHE",
+    "JFTRADE_MARKETDATA_SIDECAR",
+    "JFTRADE_MARKETDATA_DEV_PYTHON",
+    "JFTRADE_MARKETDATA_DEV_PYTHONPATH",
     "JFTRADE_YFINANCE_SIDECAR",
     "JFTRADE_YFINANCE_DEV_PYTHON",
     "JFTRADE_YFINANCE_DEV_PYTHONPATH",
@@ -451,7 +460,7 @@ function printDryRun(environment, mode) {
   ]) {
     if (environment[key]) console.log(`${key}=${environment[key]}`);
   }
-  console.log(`JFTRADE_YFINANCE_DEV_MODE=${mode}`);
+  console.log(`JFTRADE_MARKETDATA_DEV_MODE=${mode}`);
 }
 
 function apiBaseURLForBind(bind) {

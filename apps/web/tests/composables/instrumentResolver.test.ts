@@ -134,6 +134,7 @@ describe("resolveMarketInstrumentCandidates", () => {
               name: "平安银行",
               lotSize: 100,
               selectable: true,
+              supportedPeriods: [" 1D ", "1d", "", "5M", null],
             },
             {
               market: "SZ",
@@ -151,7 +152,12 @@ describe("resolveMarketInstrumentCandidates", () => {
     ).resolves.toMatchObject({
       resolutionStatus: "resolved",
       totalReturned: 1,
-      entries: [{ instrumentId: "SZ.000001" }],
+      entries: [
+        {
+          instrumentId: "SZ.000001",
+          supportedPeriods: ["1d", "5m"],
+        },
+      ],
     });
   });
 

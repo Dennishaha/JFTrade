@@ -35,18 +35,19 @@ const (
 // Market is the actual routing market. Only HK/US/SH/SZ candidates may enter
 // downstream trading, backtest, or workspace state.
 type InstrumentCandidate struct {
-	Market            string `json:"market"`
-	ResolvedMarket    string `json:"resolvedMarket"`
-	InstrumentID      string `json:"instrumentId"`
-	Code              string `json:"code"`
-	Symbol            string `json:"symbol"`
-	Name              string `json:"name,omitempty"`
-	SecurityType      string `json:"securityType,omitempty"`
-	LotSize           int32  `json:"lotSize,omitempty"`
-	Source            string `json:"source,omitempty"`
-	IsWatched         bool   `json:"isWatched,omitempty"`
-	Selectable        bool   `json:"selectable"`
-	UnavailableReason string `json:"unavailableReason,omitempty"`
+	Market            string   `json:"market"`
+	ResolvedMarket    string   `json:"resolvedMarket"`
+	InstrumentID      string   `json:"instrumentId"`
+	Code              string   `json:"code"`
+	Symbol            string   `json:"symbol"`
+	Name              string   `json:"name,omitempty"`
+	SecurityType      string   `json:"securityType,omitempty"`
+	SupportedPeriods  []string `json:"supportedPeriods,omitempty"`
+	LotSize           int32    `json:"lotSize,omitempty"`
+	Source            string   `json:"source,omitempty"`
+	IsWatched         bool     `json:"isWatched,omitempty"`
+	Selectable        bool     `json:"selectable"`
+	UnavailableReason string   `json:"unavailableReason,omitempty"`
 }
 
 // InstrumentResolutionFailure preserves a failed leaf lookup without hiding

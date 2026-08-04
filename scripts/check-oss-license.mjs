@@ -6,9 +6,10 @@ const AGPL_V3_OFFICIAL_SHA256 =
   "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0";
 const PROJECT_LICENSE = "AGPL-3.0-only";
 const COPYRIGHT_NOTICE = "Copyright (C) 2026 JFTrade Contributors";
-const YFINANCE_SIDECAR_EXTRAS = {
+const MARKETDATA_SIDECAR_EXTRAS = {
   runtime: [
     "yfinance==0.2.61",
+    "akshare==1.18.81",
     "curl_cffi==0.15.0",
     "fastapi==0.115.14",
     "uvicorn==0.35.0",
@@ -80,23 +81,23 @@ for (const manifestPath of [
   }
 }
 
-const yfinanceSidecarManifestPath =
-  "workers/yfinance-sidecar/pyproject.toml";
-const yfinanceSidecarManifest = read(yfinanceSidecarManifestPath);
+const marketDataSidecarManifestPath =
+  "workers/marketdata-sidecar/pyproject.toml";
+const marketDataSidecarManifest = read(marketDataSidecarManifestPath);
 for (const needle of [
-  'name = "yfinance-sidecar"',
+  'name = "marketdata-sidecar"',
   'requires-python = ">=3.11"',
   `license = "${PROJECT_LICENSE}"`,
   'requires = ["setuptools==80.9.0"]',
 ]) {
-  requireText(yfinanceSidecarManifest, needle, yfinanceSidecarManifestPath);
+  requireText(marketDataSidecarManifest, needle, marketDataSidecarManifestPath);
 }
-for (const [extra, dependencies] of Object.entries(YFINANCE_SIDECAR_EXTRAS)) {
+for (const [extra, dependencies] of Object.entries(MARKETDATA_SIDECAR_EXTRAS)) {
   requireExactTomlStringArray(
-    yfinanceSidecarManifest,
+    marketDataSidecarManifest,
     extra,
     dependencies,
-    yfinanceSidecarManifestPath,
+    marketDataSidecarManifestPath,
   );
 }
 
@@ -131,7 +132,7 @@ for (const needle of [
 }
 for (const dependency of [
   "setuptools==80.9.0",
-  ...Object.values(YFINANCE_SIDECAR_EXTRAS).flat(),
+  ...Object.values(MARKETDATA_SIDECAR_EXTRAS).flat(),
 ]) {
   const separator = dependency.indexOf("==");
   const packageName = dependency.slice(0, separator);
@@ -143,10 +144,10 @@ for (const dependency of [
   );
 }
 for (const needle of [
-  "yfinance helper direct Python dependencies",
+  "Market-data helper direct Python dependencies",
   "Apache-2.0",
   "BSD-3-Clause",
-  "workers/yfinance-sidecar/pyproject.toml",
+  "workers/marketdata-sidecar/pyproject.toml",
 ]) {
   requireText(notice, needle, "docs/legal/third-party-notices.md");
 }

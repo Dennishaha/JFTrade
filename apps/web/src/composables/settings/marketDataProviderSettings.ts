@@ -7,7 +7,7 @@ import type { FutuOpenDHealthResponse } from "@/types";
 import { mapFutuOpenDHealth } from "@/composables/market-data/futuOpenDContract";
 import { apiGet, apiPut } from "@/composables/shared/apiClient";
 
-export type MarketDataProviderID = "futu" | "yfinance";
+export type MarketDataProviderID = "futu" | "yfinance" | "akshare";
 
 export interface MarketDataProviderSettings {
   activeProvider: MarketDataProviderID;
@@ -23,7 +23,10 @@ export async function putMarketDataProviderSettings(
   activeProvider: MarketDataProviderID,
 ): Promise<MarketDataProviderSettings> {
   return normalizeProviderSettings(
-    await apiPut("/api/v1/settings/market-data-provider", { activeProvider }),
+    await apiPut(
+      "/api/v1/settings/market-data-provider",
+      { activeProvider },
+    ),
   );
 }
 
@@ -40,8 +43,14 @@ export async function getFutuOpenDHealth(): Promise<FutuOpenDHealthResponse> {
 function normalizeProviderSettings(
   settings: MarketDataProviderSettingsResponseDto,
 ): MarketDataProviderSettings {
-  if (settings?.activeProvider === "futu" || settings?.activeProvider === "yfinance") {
-    return { activeProvider: settings.activeProvider };
+  const activeProvider = (settings as { activeProvider?: unknown } | null)
+    ?.activeProvider;
+  if (
+    activeProvider === "futu" ||
+    activeProvider === "yfinance" ||
+    activeProvider === "akshare"
+  ) {
+    return { activeProvider };
   }
   throw new Error("服务端返回了不支持的行情提供者");
 }

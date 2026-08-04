@@ -48,6 +48,14 @@ describe("market data provider settings transport", () => {
     });
   });
 
+  it("preserves an explicit AKShare selection", async () => {
+    mocks.apiGet.mockResolvedValue({ activeProvider: "akshare" });
+
+    await expect(getMarketDataProviderSettings()).resolves.toEqual({
+      activeProvider: "akshare",
+    });
+  });
+
   it("updates the provider through the single selection endpoint", async () => {
     mocks.apiPut.mockResolvedValue({ activeProvider: "futu" });
 

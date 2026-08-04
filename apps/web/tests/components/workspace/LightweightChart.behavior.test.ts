@@ -3,7 +3,6 @@
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
-
 const stores = vi.hoisted(() => ({
   consoleData: null as ReturnType<typeof createConsoleDataState> | null,
   workspace: null as ReturnType<typeof createWorkspaceState> | null,
@@ -96,6 +95,7 @@ function createConsoleDataState() {
   return {
     currentMarketDataCandles: ref(createCandlesResult()),
     currentMarketDataSnapshot: ref(createSnapshotResult()),
+    currentMarketSecurityDetails: ref(null),
     marketDataQueryMarket: ref("US"),
     marketDataQuerySymbol: ref("AAPL"),
     marketDataQueryPeriod: ref("1m"),

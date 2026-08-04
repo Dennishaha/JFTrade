@@ -60,6 +60,10 @@ cmd/jftrade/__debug_bin*
 jftrade-api.exe
 jftrade-api
 
-# Native yfinance sidecar build artifacts
+# Native market-data sidecar build artifacts
+internal/marketdataassets/assets/bin/*
+!internal/marketdataassets/assets/bin/.gitkeep
+
+# Legacy yfinance sidecar artifacts are intentionally left in place during the
+# market-data sidecar migration and are never selected by the new asset loader.
 internal/yfinanceassets/assets/bin/*
-!internal/yfinanceassets/assets/bin/.gitkeep

@@ -25,6 +25,7 @@ import {
   normalizeInstrumentMarket,
   parseInstrumentId,
 } from "@/composables/market-data/instrumentPresentation";
+import { normalizeSupportedPeriods } from "@/composables/market-data/marketDataSupportedPeriods";
 
 export type {
   InstrumentResolutionCandidate,
@@ -78,6 +79,7 @@ function normalizeCandidate(
     return null;
   }
 
+  const supportedPeriods = normalizeSupportedPeriods(entry.supportedPeriods);
   return {
     market,
     resolvedMarket:
@@ -96,6 +98,7 @@ function normalizeCandidate(
     isWatched: entry.isWatched === true,
     selectable: entry.selectable !== false,
     unavailableReason: normalizedText(entry.unavailableReason) || null,
+    ...(supportedPeriods == null ? {} : { supportedPeriods }),
   };
 }
 

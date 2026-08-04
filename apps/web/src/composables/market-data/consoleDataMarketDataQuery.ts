@@ -36,6 +36,10 @@ interface ProviderInstrumentIdentity {
   instrumentId: string;
 }
 
+const MAX_PROVIDER_INSTRUMENT_RETRIES = 4;
+const MAX_PROVIDER_RETRY_DELAY_MS = 5_000;
+const INCOMPLETE_PROVIDER_RETRY_DELAY_MS = 500;
+
 function normalizeMarket(value: string): string {
   return value.trim().toUpperCase();
 }
@@ -78,22 +82,46 @@ async function isSelectableProviderInstrument(
   if (expected == null) {
     return false;
   }
-  try {
-    const resolution = await resolveMarketInstrumentCandidates({
-      market: expected.market,
-      query: expected.instrumentId,
-      limit: 1,
-    });
-    const candidate = resolution.entries[0];
-    return (
-      resolution.resolutionStatus === "resolved" &&
-      resolution.entries.length === 1 &&
-      candidate?.selectable === true &&
-      candidateMatchesProviderInstrument(candidate, expected)
-    );
-  } catch {
-    return false;
+  for (let attempt = 0; attempt < MAX_PROVIDER_INSTRUMENT_RETRIES; attempt += 1) {
+    try {
+      const resolution = await resolveMarketInstrumentCandidates({
+        market: expected.market,
+        query: expected.instrumentId,
+        limit: 1,
+      });
+      if (
+        resolution.resolutionStatus === "incomplete" &&
+        attempt + 1 < MAX_PROVIDER_INSTRUMENT_RETRIES
+      ) {
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, INCOMPLETE_PROVIDER_RETRY_DELAY_MS);
+        });
+        continue;
+      }
+      const candidate = resolution.entries[0];
+      return (
+        resolution.resolutionStatus === "resolved" &&
+        resolution.entries.length === 1 &&
+        candidate?.selectable === true &&
+        candidateMatchesProviderInstrument(candidate, expected)
+      );
+    } catch (error) {
+      const retryAfterMs = (error as { retryAfterMs?: unknown } | null)
+        ?.retryAfterMs;
+      if (
+        attempt + 1 >= MAX_PROVIDER_INSTRUMENT_RETRIES ||
+        typeof retryAfterMs !== "number" ||
+        !Number.isFinite(retryAfterMs) ||
+        retryAfterMs <= 0
+      ) {
+        return false;
+      }
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, Math.min(retryAfterMs, MAX_PROVIDER_RETRY_DELAY_MS));
+      });
+    }
   }
+  return false;
 }
 
 export function createConsoleDataMarketDataQuerySlice() {

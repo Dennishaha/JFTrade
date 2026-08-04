@@ -82,7 +82,7 @@ type TickEventDTO struct {
 	ObservedAt       string
 	BrokerID         string
 	Source           string
-	CumulativeVolume decimal.Decimal
+	CumulativeVolume *decimal.Decimal
 	VolumeDelta      decimal.Decimal
 }
 
@@ -96,7 +96,7 @@ func (event TickEventDTO) JSON() map[string]any {
 		"source":     event.Source,
 		// Keep snapshot.volume as the compatibility field while making both
 		// volume semantics explicit for live-event consumers.
-		"cumulativeVolume": event.CumulativeVolume.String(),
+		"cumulativeVolume": optionalDecimalString(event.CumulativeVolume),
 		"volumeDelta":      event.VolumeDelta.String(),
 	}
 }

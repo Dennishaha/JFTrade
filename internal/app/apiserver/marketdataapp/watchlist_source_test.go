@@ -71,6 +71,32 @@ func TestWatchlistSnapshotSourceRoutesFutuAndYFinance(t *testing.T) {
 	}
 }
 
+func TestWatchlistSnapshotSourceRoutesAKShareAndPreservesMissingValues(t *testing.T) {
+	runtime := &watchlistRuntimeStub{
+		providerID: ProviderAKShare,
+		ticks: map[string]marketdata.Tick{"US.AAPL": {
+			InstrumentID: "US.AAPL", Price: decimal.NewFromInt(105),
+			Volume: decimal.Zero, Turnover: decimal.Zero,
+			Availability: marketdata.QuoteFieldAvailability{Authoritative: true},
+			ObservedAt:   "2026-08-03T10:00:00Z", Source: "akshare:eastmoney",
+		}},
+	}
+	source := NewWatchlistSnapshotSource(
+		func() WatchlistQuoteRuntime { return runtime },
+		&watchlistSourceStub{},
+	)
+	quotes, itemErrors, err := source.BatchSnapshots(t.Context(), []string{"US.AAPL"})
+	if err != nil || len(itemErrors) != 0 || len(quotes) != 1 {
+		t.Fatalf("AKShare quotes = %#v errors=%#v err=%v", quotes, itemErrors, err)
+	}
+	if quotes[0].Source != "akshare:eastmoney" || quotes[0].Volume != nil || quotes[0].Turnover != nil {
+		t.Fatalf("AKShare nullable quote = %#v", quotes[0])
+	}
+	if ttl := source.(watchlist.QuoteCachePolicySource).QuoteCacheTTL(); ttl != 15*time.Second {
+		t.Fatalf("AKShare quote cache TTL = %s", ttl)
+	}
+}
+
 func TestWatchlistSnapshotSourceReportsUnavailableBoundaries(t *testing.T) {
 	var nilSource *watchlistSnapshotSource
 	if _, _, err := nilSource.BatchSnapshots(t.Context(), nil); !errors.Is(err, watchlist.ErrUnavailable) {

@@ -34,9 +34,19 @@ for (const include of [
 }
 assert(
   packageJson.includes(
-    '"build:yfinance-sidecar": "node scripts/build-yfinance-sidecar.mjs"',
-  ) && prepareDesktopRelease.includes('"build:yfinance-sidecar"'),
-  "desktop preparation does not build the current native yfinance helper",
+    '"build:marketdata-sidecar": "node scripts/build-marketdata-sidecar.mjs"',
+  ) &&
+    packageJson.includes(
+      '"smoke:marketdata-sidecar": "node scripts/smoke-marketdata-sidecar.mjs"',
+    ) &&
+    packageJson.includes(
+      '"build:yfinance-sidecar": "pnpm run build:marketdata-sidecar"',
+    ) &&
+    packageJson.includes(
+      '"smoke:yfinance-sidecar": "pnpm run smoke:marketdata-sidecar"',
+    ) &&
+    prepareDesktopRelease.includes('"build:marketdata-sidecar"'),
+  "desktop preparation does not build the current native market-data helper",
 );
 for (const taskfile of [darwin, windows]) {
   assert(
@@ -120,7 +130,7 @@ assert(
   "macOS bundle sealing is not verified",
 );
 const macHelperIndex = darwin.indexOf(
-  "yfinance-sidecar-darwin-{{.ARCH}}",
+  "marketdata-sidecar-darwin-{{.ARCH}}",
 );
 const macGoBuildIndex = darwin.indexOf("go build -trimpath -buildvcs=false");
 assert(
@@ -129,7 +139,7 @@ assert(
     darwin.includes("codesign --force --options runtime --timestamp --deep") &&
     darwin.includes("codesign --force --deep --sign - \"$helper\"") &&
     darwin.includes("codesign --verify --strict --verbose=2 \"$helper\""),
-  "macOS native yfinance onedir helper is not recursively signed before Go embedding",
+  "macOS native market-data onedir helper is not recursively signed before Go embedding",
 );
 assert(
   darwin.includes("Contents/Resources/licenses/LICENSE") &&
@@ -227,17 +237,18 @@ const sharedInputBlock = releaseWorkflow.slice(
 assert(
   sharedInputStart >= 0 &&
     firstPlatformStart > sharedInputStart &&
-    !sharedInputBlock.includes("internal/yfinanceassets"),
-  "native yfinance helpers must be built by target runners, not shared from Linux",
+    !sharedInputBlock.includes("internal/marketdataassets"),
+  "native market-data helpers must be built by target runners, not shared from Linux",
 );
 assert(
   occurrences(releaseWorkflow, "- name: Setup Python") >= 4 &&
     occurrences(
       releaseWorkflow,
-      'python -m pip install --disable-pip-version-check --editable "workers/yfinance-sidecar[runtime,build]"',
+      'python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"',
     ) >= 4 &&
-    occurrences(releaseWorkflow, "- name: Build native yfinance helper") >= 4,
-  "desktop release jobs do not build native yfinance helpers on every target runner",
+    occurrences(releaseWorkflow, "- name: Build native market-data helper") >= 4 &&
+    frozenSmokePairs(releaseWorkflow) === 4,
+  "desktop release jobs do not build and smoke native market-data helpers on every target runner",
 );
 const macWorkflowStart = releaseWorkflow.indexOf("  macos:");
 const windowsWorkflowStart = releaseWorkflow.indexOf("  windows:");
@@ -246,20 +257,21 @@ const macWorkflow = releaseWorkflow.slice(
   windowsWorkflowStart,
 );
 assert(
-  macWorkflow.indexOf("Sign native yfinance helper before embedding") >= 0 &&
-    macWorkflow.indexOf("Sign native yfinance helper before embedding") <
+  macWorkflow.indexOf("Sign native market-data helper before embedding") >= 0 &&
+    macWorkflow.indexOf("Sign native market-data helper before embedding") <
       macWorkflow.indexOf("Test macOS desktop package") &&
     macWorkflow.indexOf("Test macOS desktop package") <
       macWorkflow.indexOf("Build ARM64 DMG"),
   "macOS release does not sign the native helper before release_assets embedding",
 );
 assert(
-  ciWorkflow.includes("Build Linux native yfinance helper") &&
+  ciWorkflow.includes("Build Linux native market-data helper") &&
     ciWorkflow.includes(
-      "go test -tags release_assets ./internal/yfinanceassets -count=1",
+      "go test -tags release_assets ./internal/marketdataassets -count=1",
     ) &&
-    occurrences(ciWorkflow, "- name: Build native yfinance helper") >= 2,
-  "CI does not build and verify native yfinance release assets",
+    occurrences(ciWorkflow, "- name: Build native market-data helper") >= 2 &&
+    frozenSmokePairs(ciWorkflow) === 3,
+  "CI does not build, smoke and verify native market-data release assets",
 );
 assert(
   releaseWorkflow.includes("sha256sum > SHA256SUMS") &&
@@ -313,3 +325,11 @@ assert(
   !nfpm.includes("archlinux"),
   "Linux package metadata must not retain an Arch override",
 );
+
+function frozenSmokePairs(workflow) {
+  return [
+    ...workflow.matchAll(
+      /run: pnpm run build:marketdata-sidecar\n\n\s+- name: Smoke[^\n]*market-data helper\n(?:\s+if: [^\n]+\n)?\s+run: pnpm run smoke:marketdata-sidecar/g,
+    ),
+  ].length;
+}

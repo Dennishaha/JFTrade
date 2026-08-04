@@ -131,9 +131,10 @@ const featurePath = computed(() => {
 });
 
 function handleMarketDataProviderChanged(): void {
-  // The mounted data surface owns its physical subscription and reload order.
-  // Reconcile provider metadata here without racing its lease acquisition.
-  void reloadMarketDataProvider({ load: false });
+  // Provider invalidation increments the query generation. Complete the
+  // reconciliation with one fresh load so a chart request started by the
+  // provider selector cannot be discarded without a replacement request.
+  void reloadMarketDataProvider({ load: true });
 }
 
 function replaceRouteTab(value: WorkspaceProductTab): void {

@@ -334,7 +334,7 @@ describe("RuntimeDependenciesSection", () => {
 
     expect(wrapper.text()).toContain("Python");
     expect(wrapper.text()).toContain(
-      "Python 缺失、版本过低或运行模块不完整时，源码方式的 Yahoo 行情不可用。",
+      "Python 缺失、版本过低或运行模块不完整时，源码方式的 Yahoo/AKShare 行情不可用。",
     );
     expect(wrapper.find("[data-testid='runtime-dependency-python-path-input']").exists()).toBe(false);
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/api/v1/settings/runtime-dependencies"))).toBe(false);

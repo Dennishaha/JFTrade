@@ -52,7 +52,7 @@
 
 ```bash
 pnpm run build:frontend-assets
-pnpm run build:yfinance-sidecar
+pnpm run build:marketdata-sidecar
 JFTRADE_DESKTOP_PREPARED=1 node scripts/build-desktop.mjs darwin-arm64
 ```
 

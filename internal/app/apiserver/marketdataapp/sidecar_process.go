@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jftrade/jftrade-main/internal/yfinanceassets"
+	"github.com/jftrade/jftrade-main/internal/marketdataassets"
 )
 
 const (
@@ -59,7 +59,11 @@ type sidecarExecutable struct {
 type sidecarExecutableResolver func() (sidecarExecutable, error)
 type sidecarPortAllocator func() (int, error)
 
-var ErrYFinanceSidecarUnavailable = errors.New("embedded yfinance sidecar is unavailable")
+var (
+	ErrMarketDataSidecarUnavailable = errors.New("embedded market-data sidecar is unavailable")
+	// ErrYFinanceSidecarUnavailable is retained for source compatibility.
+	ErrYFinanceSidecarUnavailable = ErrMarketDataSidecarUnavailable
+)
 
 type sidecarManager struct {
 	mu           sync.Mutex
@@ -74,19 +78,19 @@ type sidecarManager struct {
 
 func newSidecarManager(cacheDir string) *sidecarManager {
 	manager := &sidecarManager{
-		allocatePort: allocateYFinanceSidecarPort,
-		start:        startYFinanceSidecar,
+		allocatePort: allocateMarketDataSidecarPort,
+		start:        startMarketDataSidecar,
 		cacheDir:     strings.TrimSpace(cacheDir),
 	}
 	manager.resolve = func() (sidecarExecutable, error) {
-		return resolveYFinanceSidecarExecutable(manager.cacheDir)
+		return resolveMarketDataSidecarExecutable(manager.cacheDir)
 	}
 	return manager
 }
 
 func (m *sidecarManager) EnsureStarted() (string, error) {
 	if m == nil {
-		return "", fmt.Errorf("yfinance sidecar manager is unavailable")
+		return "", fmt.Errorf("market-data sidecar manager is unavailable")
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -99,7 +103,7 @@ func (m *sidecarManager) EnsureStarted() (string, error) {
 	resolve := m.resolve
 	if resolve == nil {
 		resolve = func() (sidecarExecutable, error) {
-			return resolveYFinanceSidecarExecutable(m.cacheDir)
+			return resolveMarketDataSidecarExecutable(m.cacheDir)
 		}
 	}
 	executable, err := resolve()
@@ -112,7 +116,7 @@ func (m *sidecarManager) EnsureStarted() (string, error) {
 	}
 	allocatePort := m.allocatePort
 	if allocatePort == nil {
-		allocatePort = allocateYFinanceSidecarPort
+		allocatePort = allocateMarketDataSidecarPort
 	}
 	port, err := allocatePort()
 	if err != nil {
@@ -127,11 +131,11 @@ func (m *sidecarManager) EnsureStarted() (string, error) {
 	}
 	start := m.start
 	if start == nil {
-		start = startYFinanceSidecar
+		start = startMarketDataSidecar
 	}
 	process, err := start(config)
 	if err != nil {
-		return "", errors.Join(fmt.Errorf("start yfinance sidecar: %w", err), cleanup())
+		return "", errors.Join(fmt.Errorf("start market-data sidecar: %w", err), cleanup())
 	}
 	m.endpoint = "http://" + net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
 	m.process = process
@@ -163,7 +167,7 @@ func (m *sidecarManager) stopLocked() error {
 	if m.process != nil {
 		stopErr = m.process.Close()
 		if stopErr != nil {
-			return fmt.Errorf("stop yfinance sidecar: %w", stopErr)
+			return fmt.Errorf("stop market-data sidecar: %w", stopErr)
 		}
 	}
 	cleanup := m.cleanup
@@ -172,41 +176,41 @@ func (m *sidecarManager) stopLocked() error {
 	if cleanup != nil {
 		if err := cleanup(); err != nil {
 			m.cleanup = cleanup
-			return fmt.Errorf("clean up yfinance sidecar: %w", err)
+			return fmt.Errorf("clean up market-data sidecar: %w", err)
 		}
 	}
 	m.cleanup = nil
 	return nil
 }
 
-func allocateYFinanceSidecarPort() (int, error) {
+func allocateMarketDataSidecarPort() (int, error) {
 	listener, err := net.Listen("tcp", net.JoinHostPort(sidecarHost, "0"))
 	if err != nil {
-		return 0, fmt.Errorf("allocate yfinance sidecar port: %w", err)
+		return 0, fmt.Errorf("allocate market-data sidecar port: %w", err)
 	}
 	defer func() { _ = listener.Close() }()
 	address, ok := listener.Addr().(*net.TCPAddr)
 	if !ok || address.Port < 1 {
-		return 0, fmt.Errorf("allocate yfinance sidecar port: invalid listener address %q", listener.Addr())
+		return 0, fmt.Errorf("allocate market-data sidecar port: invalid listener address %q", listener.Addr())
 	}
 	return address.Port, nil
 }
 
-func resolveYFinanceSidecarExecutable(cacheDir string) (sidecarExecutable, error) {
+func resolveMarketDataSidecarExecutable(cacheDir string) (sidecarExecutable, error) {
 	cacheDir = strings.TrimSpace(cacheDir)
-	path := strings.TrimSpace(os.Getenv(EnvYFinanceSidecar))
-	if path != "" && yfinanceassets.DevelopmentOverridesAllowed() {
-		absolute, err := validateAbsoluteRegularFile(path, EnvYFinanceSidecar)
+	path, source := environmentOverride(EnvMarketDataSidecar, EnvYFinanceSidecar)
+	if path != "" && marketdataassets.DevelopmentOverridesAllowed() {
+		absolute, err := validateAbsoluteRegularFile(path, source)
 		if err != nil {
 			return sidecarExecutable{}, err
 		}
 		return sidecarExecutable{path: absolute}, nil
 	}
-	if yfinanceassets.DevelopmentOverridesAllowed() {
+	if marketdataassets.DevelopmentOverridesAllowed() {
 		resolution := ResolvePythonRuntime()
 		if !resolution.Available || resolution.ResolvedPath == "" {
 			return sidecarExecutable{}, fmt.Errorf(
-				"resolve yfinance Python source runtime: %w",
+				"resolve market-data Python source runtime: %w",
 				pythonRuntimeMissingError(resolution),
 			)
 		}
@@ -218,30 +222,30 @@ func resolveYFinanceSidecarExecutable(cacheDir string) (sidecarExecutable, error
 			return sidecarExecutable{}, probeErr
 		}
 		return sidecarExecutable{
-			path: resolution.ResolvedPath, arguments: []string{"-m", "yfinance_sidecar.main"},
+			path: resolution.ResolvedPath, arguments: []string{"-m", "marketdata_sidecar.main"},
 			environment: []string{"PYTHONPATH=" + resolution.SourcePath},
 		}, nil
 	}
 	if cacheDir != "" {
-		materialized, available, err := yfinanceassets.MaterializeCached(cacheDir)
+		materialized, available, err := marketdataassets.MaterializeCached(cacheDir)
 		if err == nil && available && materialized != nil && materialized.Path != "" {
 			return sidecarExecutable{
 				path: materialized.Path,
 				started: func() {
-					yfinanceassets.PruneCached(cacheDir, materialized.SHA256)
+					marketdataassets.PruneCached(cacheDir, materialized.SHA256)
 				},
 			}, nil
 		}
 		if err != nil {
-			log.Printf("JFTrade persistent yfinance sidecar cache unavailable; using temporary asset: %v", err)
+			log.Printf("JFTrade persistent market-data sidecar cache unavailable; using temporary asset: %v", err)
 		}
 	}
-	materialized, available, err := yfinanceassets.Materialize()
+	materialized, available, err := marketdataassets.Materialize()
 	if err != nil {
-		return sidecarExecutable{}, fmt.Errorf("materialize embedded yfinance sidecar: %w", err)
+		return sidecarExecutable{}, fmt.Errorf("materialize embedded market-data sidecar: %w", err)
 	}
 	if !available || materialized == nil || materialized.Path == "" {
-		return sidecarExecutable{}, ErrYFinanceSidecarUnavailable
+		return sidecarExecutable{}, ErrMarketDataSidecarUnavailable
 	}
 	return sidecarExecutable{path: materialized.Path, cleanup: materialized.Cleanup}, nil
 }
@@ -251,21 +255,21 @@ func pythonRuntimeProbeError(
 	probe PythonRuntimeProbeResult,
 ) error {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return fmt.Errorf("validate yfinance Python source runtime: timed out")
+		return fmt.Errorf("validate market-data Python source runtime: timed out")
 	}
 	if probe.Err != nil {
-		return fmt.Errorf("validate yfinance Python source runtime: %w", probe.Err)
+		return fmt.Errorf("validate market-data Python source runtime: %w", probe.Err)
 	}
 	if probe.Outdated {
-		return fmt.Errorf("validate yfinance Python source runtime: Python %s is below 3.11", probe.DetectedVersion)
+		return fmt.Errorf("validate market-data Python source runtime: Python %s is below 3.11", probe.DetectedVersion)
 	}
 	if len(probe.MissingModules) > 0 {
 		return fmt.Errorf(
-			"validate yfinance Python source runtime: missing modules: %s",
+			"validate market-data Python source runtime: missing modules: %s",
 			strings.Join(probe.MissingModules, ","),
 		)
 	}
-	return fmt.Errorf("validate yfinance Python source runtime: unavailable")
+	return fmt.Errorf("validate market-data Python source runtime: unavailable")
 }
 
 func validateAbsoluteRegularFile(value string, name string) (string, error) {
@@ -296,17 +300,17 @@ type osSidecarProcess struct {
 	killTimeout time.Duration
 }
 
-func startYFinanceSidecar(config SidecarConfig) (sidecarProcess, error) {
+func startMarketDataSidecar(config SidecarConfig) (sidecarProcess, error) {
 	config.Executable = strings.TrimSpace(config.Executable)
 	config.Host = strings.TrimSpace(config.Host)
 	if config.Executable == "" {
-		return nil, fmt.Errorf("yfinance sidecar executable is required")
+		return nil, fmt.Errorf("market-data sidecar executable is required")
 	}
 	if config.Host != sidecarHost {
-		return nil, fmt.Errorf("yfinance sidecar host must be %s", sidecarHost)
+		return nil, fmt.Errorf("market-data sidecar host must be %s", sidecarHost)
 	}
 	if config.Port < 1 || config.Port > 65535 {
-		return nil, fmt.Errorf("yfinance sidecar port must be between 1 and 65535")
+		return nil, fmt.Errorf("market-data sidecar port must be between 1 and 65535")
 	}
 	args := append([]string(nil), config.Arguments...)
 	args = append(args,
@@ -339,9 +343,9 @@ func (p *osSidecarProcess) wait() {
 	close(p.done)
 	if !p.stopping.Load() {
 		if err != nil {
-			log.Printf("JFTrade yfinance sidecar exited: %v", err)
+			log.Printf("JFTrade market-data sidecar exited: %v", err)
 		} else {
-			log.Printf("JFTrade yfinance sidecar exited unexpectedly")
+			log.Printf("JFTrade market-data sidecar exited unexpectedly")
 		}
 	}
 }
@@ -375,7 +379,7 @@ func (p *osSidecarProcess) Close() error {
 			return errors.Join(
 				stopErr,
 				wrapSidecarKillError(killErr, p.Running()),
-				fmt.Errorf("wait for killed yfinance sidecar timed out after %s", killTimeout),
+				fmt.Errorf("wait for killed market-data sidecar timed out after %s", killTimeout),
 			)
 		}
 	}
@@ -404,8 +408,8 @@ func (p *osSidecarProcess) requestStop() (bool, error) {
 		return true, nil
 	}
 	return true, errors.Join(
-		fmt.Errorf("terminate yfinance sidecar: %w", err),
-		fmt.Errorf("kill yfinance sidecar: %w", killErr),
+		fmt.Errorf("terminate market-data sidecar: %w", err),
+		fmt.Errorf("kill market-data sidecar: %w", killErr),
 	)
 }
 
@@ -431,7 +435,7 @@ func wrapSidecarKillError(err error, running bool) error {
 	if processStopSucceeded(err) || !running {
 		return nil
 	}
-	return fmt.Errorf("kill yfinance sidecar: %w", err)
+	return fmt.Errorf("kill market-data sidecar: %w", err)
 }
 
 func processStopSucceeded(err error) bool {

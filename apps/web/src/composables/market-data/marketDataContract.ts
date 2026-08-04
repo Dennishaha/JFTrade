@@ -13,8 +13,9 @@ import type {
 
 export type MarketInstrumentResolution =
   MarketDataInstrumentResolutionDto;
-export type MarketInstrumentCandidate =
-  MarketDataInstrumentCandidateDto;
+export type MarketInstrumentCandidate = MarketDataInstrumentCandidateDto & {
+  supportedPeriods?: string[];
+};
 export type MarketProfilesWire =
   MarketDataMarketsDto;
 export type MarketSubscriptionsWire =

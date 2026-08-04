@@ -14,7 +14,7 @@ type ExchangeCalendarSettingsResponse struct {
 }
 
 type MarketDataProviderSettingsResponse struct {
-	ActiveProvider jfsettings.ActiveMarketDataProvider `json:"activeProvider" enums:"futu,yfinance"`
+	ActiveProvider jfsettings.ActiveMarketDataProvider `json:"activeProvider" enums:"futu,yfinance,akshare"`
 }
 
 type OnboardingReason struct {
@@ -239,7 +239,7 @@ func (request PineWorkerSettingsWriteRequest) settings() jfsettings.PineWorkerSe
 
 // MarketDataProviderWriteRequest selects the active market-data source.
 type MarketDataProviderWriteRequest struct {
-	ActiveProvider jfsettings.ActiveMarketDataProvider `json:"activeProvider" enums:"futu,yfinance"`
+	ActiveProvider jfsettings.ActiveMarketDataProvider `json:"activeProvider" enums:"futu,yfinance,akshare"`
 }
 
 // SystemNotificationSettingsWriteRequest is the independent wire contract for

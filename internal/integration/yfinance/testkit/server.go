@@ -74,6 +74,7 @@ func (s *Server) Close() {
 func (s *Server) Queue(path string, responses ...Response) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	path = namespacedPath(path)
 	s.queued[path] = append(s.queued[path], responses...)
 }
 
@@ -86,6 +87,7 @@ func (s *Server) Requests() []Request {
 }
 
 func (s *Server) Count(path string) int {
+	path = namespacedPath(path)
 	count := 0
 	for _, request := range s.Requests() {
 		if request.Path == path {
@@ -93,6 +95,16 @@ func (s *Server) Count(path string) int {
 		}
 	}
 	return count
+}
+
+func namespacedPath(path string) string {
+	if strings.HasPrefix(path, "/providers/yfinance/") {
+		return path
+	}
+	if strings.HasPrefix(path, "/") {
+		return "/providers/yfinance" + path
+	}
+	return path
 }
 
 func (s *Server) serveHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -145,19 +157,20 @@ func writeResponse(writer http.ResponseWriter, response Response) {
 }
 
 func defaultFixture(request *http.Request) (int, string) {
+	path := strings.TrimPrefix(request.URL.Path, "/providers/yfinance")
 	switch {
-	case request.URL.Path == "/health":
+	case path == "/health":
 		return http.StatusOK, `{"ok":true,"yfinance_version":"0.2.61","runtime_state":"ready","warmup_error":null}`
-	case request.URL.Path == "/markets":
+	case path == "/markets":
 		return http.StatusOK, marketsFixture
-	case request.URL.Path == "/search":
+	case path == "/search":
 		return http.StatusOK, searchFixture(request.URL.Query().Get("q"))
-	case strings.HasPrefix(request.URL.Path, "/security/"):
-		return http.StatusOK, securityFixture(pathMarket(request.URL.Path), pathSymbol(request.URL.Path))
-	case strings.HasPrefix(request.URL.Path, "/snapshot/"):
-		return http.StatusOK, snapshotFixture(pathMarket(request.URL.Path), pathSymbol(request.URL.Path))
-	case strings.HasPrefix(request.URL.Path, "/candles/"):
-		return http.StatusOK, candlesFixture(pathMarket(request.URL.Path), pathSymbol(request.URL.Path), request.URL.Query().Get("period"))
+	case strings.HasPrefix(path, "/security/"):
+		return http.StatusOK, securityFixture(pathMarket(path), pathSymbol(path))
+	case strings.HasPrefix(path, "/snapshot/"):
+		return http.StatusOK, snapshotFixture(pathMarket(path), pathSymbol(path))
+	case strings.HasPrefix(path, "/candles/"):
+		return http.StatusOK, candlesFixture(pathMarket(path), pathSymbol(path), request.URL.Query().Get("period"))
 	default:
 		return http.StatusNotFound, `{"error":{"code":"NOT_FOUND","message":"fixture route not found"}}`
 	}

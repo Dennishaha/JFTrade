@@ -76,6 +76,24 @@ func TestMarketDataProviderSettingsNormalizeAndApply(t *testing.T) {
 	}
 }
 
+func TestMarketDataProviderSettingsAcceptAKShare(t *testing.T) {
+	store := &fakeStore{activeProvider: jfsettings.MarketDataProviderYFinance}
+	var applied jfsettings.ActiveMarketDataProvider
+	service := NewService(store, WithSideEffects(SideEffects{
+		OnProviderChanged: func(provider jfsettings.ActiveMarketDataProvider) error {
+			applied = provider
+			return nil
+		},
+	}))
+	provider, err := service.SaveActiveMarketDataProvider(" AKSHARE ")
+	if err != nil || provider != jfsettings.MarketDataProviderAKShare ||
+		store.ActiveMarketDataProvider() != jfsettings.MarketDataProviderAKShare ||
+		applied != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("AKShare provider save = %q stored=%q applied=%q err=%v",
+			provider, store.ActiveMarketDataProvider(), applied, err)
+	}
+}
+
 func TestMarketDataProviderRuntimeRollback(t *testing.T) {
 	runtimeErr := errors.New("sidecar startup failed")
 	store := &fakeStore{activeProvider: jfsettings.MarketDataProviderYFinance}

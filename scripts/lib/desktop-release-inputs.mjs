@@ -21,7 +21,7 @@ const architectureNames = {
   x64: "amd64",
 };
 
-export function currentYFinanceSidecarAssetPath({
+export function currentMarketDataSidecarAssetPath({
   environment = process.env,
   platform = process.platform,
   architecture = process.arch,
@@ -31,14 +31,14 @@ export function currentYFinanceSidecarAssetPath({
     architectureNames[String(environment.GOARCH || architecture).trim()];
   if (!goos || !goarch) {
     throw new Error(
-      `Unsupported desktop yfinance asset target: ${environment.GOOS || platform}/${environment.GOARCH || architecture}`,
+      `Unsupported desktop market-data asset target: ${environment.GOOS || platform}/${environment.GOARCH || architecture}`,
     );
   }
-  return `internal/yfinanceassets/assets/bin/yfinance-sidecar-${goos}-${goarch}`;
+  return `internal/marketdataassets/assets/bin/marketdata-sidecar-${goos}-${goarch}`;
 }
 
 export function desktopReleaseInputPathsForCurrentPlatform(options = {}) {
-  return [...desktopReleaseInputPaths, currentYFinanceSidecarAssetPath(options)];
+  return [...desktopReleaseInputPaths, currentMarketDataSidecarAssetPath(options)];
 }
 
 export function usesPreparedDesktopReleaseInputs(environment = process.env) {
@@ -60,7 +60,7 @@ export function assertPreparedDesktopReleaseInputs(rootDir, options = {}) {
       }
       throw error;
     }
-    if (relativePath.startsWith("internal/yfinanceassets/assets/bin/")) {
+    if (relativePath.startsWith("internal/marketdataassets/assets/bin/")) {
       if (!stat.isDirectory()) {
         throw new Error(`Prepared desktop release input is empty or invalid: ${relativePath}`);
       }

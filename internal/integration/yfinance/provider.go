@@ -135,6 +135,7 @@ func (p *Provider) LookupInstrument(
 		Market: response.Market, ResolvedMarket: response.Market, InstrumentID: response.InstrumentID,
 		Code: response.Symbol, Symbol: response.Symbol, Name: response.Name,
 		SecurityType: response.SecurityType, Exchange: response.Exchange, Selectable: true, Source: response.Source,
+		SupportedPeriods: response.SupportedPeriods,
 	}})
 	if err != nil {
 		return nil, err

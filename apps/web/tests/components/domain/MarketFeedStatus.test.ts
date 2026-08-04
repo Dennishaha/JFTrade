@@ -156,6 +156,27 @@ describe("MarketFeedStatus", () => {
     wrapper.unmount();
   });
 
+  it("recognizes AKShare upstream sources as expected delayed HTTP queries", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-04T00:00:10Z"));
+    const wrapper = mount(MarketFeedStatus, {
+      props: {
+        connectionState: "connected",
+        observedAt: "2026-07-04T00:00:05Z",
+        source: "akshare:eastmoney",
+      },
+    });
+
+    const badge = wrapper.get(".market-feed-provider-badge");
+    expect(badge.text()).toContain("AKShare");
+    expect(badge.attributes("data-quality")).toBe("degraded");
+    expect(badge.attributes("title")).toContain("连接方式：HTTP 定时查询");
+    expect(badge.attributes("title")).toContain(
+      "数据质量：非实时快照，时效以供应商返回为准",
+    );
+    wrapper.unmount();
+  });
+
   it("shows a Futu push feed with the provider name in the normal badge", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-04T00:00:10Z"));

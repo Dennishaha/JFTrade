@@ -73,7 +73,7 @@ export default defineConfig({
           { text: "架构 Mermaid 图", link: "/architecture-mermaid" },
           { text: "测试与质量门禁", link: "/testing-strategy" },
           { text: "PineTS 发布清单", link: "/troubleshooting/pinets-worker-release" },
-          { text: "yfinance sidecar 排障", link: "/troubleshooting/yfinance-sidecar" },
+          { text: "yfinance sidecar 排障", link: "/troubleshooting/marketdata-sidecar" },
           { text: "ADK", link: "/adk" },
           { text: "活动路线图", link: "/roadmap" },
           { text: "新券商接入", link: "/new-broker-integration-guide" },

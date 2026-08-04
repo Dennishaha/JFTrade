@@ -77,6 +77,29 @@ export interface MarketDataQueryController {
 
 const DEFAULT_TICK_QUERY_LIMIT = 20_000;
 const DEFAULT_TICK_QUERY_LOOKBACK_MS = 15 * 60 * 1000;
+const MAX_INITIAL_RETRY_DELAY_MS = 5_000;
+
+async function requestWithRetryAfter<T>(request: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await request();
+    } catch (error) {
+      const retryAfterMs = (error as { retryAfterMs?: unknown } | null)
+        ?.retryAfterMs;
+      if (
+        attempt > 0 ||
+        typeof retryAfterMs !== "number" ||
+        !Number.isFinite(retryAfterMs) ||
+        retryAfterMs <= 0
+      ) {
+        throw error;
+      }
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, Math.min(retryAfterMs, MAX_INITIAL_RETRY_DELAY_MS));
+      });
+    }
+  }
+}
 
 function snapshotFreshnessTime(
   result: MarketDataSnapshotQueryResult,
@@ -562,44 +585,62 @@ export function createMarketDataQueryController(
           );
           marketDataQueryError.value = earlyErrors.join(" / ");
         };
-        const snapshotQuery =
+        // One AKShare instrument lookup can otherwise burst into three
+        // simultaneous sidecar calls (snapshot, details, and candles). Keep
+        // the read order deterministic so a normal chart load cannot consume
+        // most of the provider's four bounded upstream workers by itself.
+        const snapshotQuery = requestWithRetryAfter(() =>
           options.requestSnapshot(
             `/api/v1/market-data/snapshots/${encodedMarket}/${encodedSymbol}?refresh=true`,
-          );
-        const securityDetailsQuery =
+          ),
+        );
+        const [snapshotResult] = await Promise.allSettled([snapshotQuery]);
+        if (snapshotResult.status === "fulfilled") {
+          if (isCurrentRequest()) {
+            marketDataSnapshot.value = mergeFreshMarketDataSnapshot(
+              normalizeMarketDataSnapshotQueryResult(snapshotResult.value),
+            );
+          }
+        } else {
+          recordEarlyError(snapshotResult.reason);
+        }
+        if (!isCurrentRequest()) {
+          return;
+        }
+
+        const securityDetailsQuery = requestWithRetryAfter(() =>
           options.requestSecurityDetails(
             `/api/v1/market-data/securities/${encodedMarket}/${encodedSymbol}`,
-          );
-        const candlesQuery =
+          ),
+        );
+        const [securityDetailsResult] = await Promise.allSettled([
+          securityDetailsQuery,
+        ]);
+        if (securityDetailsResult.status === "fulfilled") {
+          if (isCurrentRequest()) {
+            marketSecurityDetails.value =
+              normalizeMarketSecurityDetailsQueryResult(
+                securityDetailsResult.value,
+              );
+          }
+        } else {
+          recordEarlyError(securityDetailsResult.reason);
+        }
+        if (!isCurrentRequest()) {
+          return;
+        }
+
+        const candlesQuery = requestWithRetryAfter(() =>
           options.requestCandles(
             `/api/v1/market-data/candles/${encodedMarket}/${encodedSymbol}?${candleParams.toString()}`,
-          );
-
-        void snapshotQuery
-          .then((result) => {
-            if (!isCurrentRequest()) {
-              return;
-            }
-            marketDataSnapshot.value = mergeFreshMarketDataSnapshot(
-              normalizeMarketDataSnapshotQueryResult(result),
+          ),
+        );
+        const [candlesResult] = await Promise.allSettled([candlesQuery]);
+        if (candlesResult.status === "fulfilled") {
+          if (isCurrentRequest()) {
+            const normalized = normalizeMarketDataCandlesQueryResult(
+              candlesResult.value,
             );
-          })
-          .catch(recordEarlyError);
-        void securityDetailsQuery
-          .then((result) => {
-            if (!isCurrentRequest()) {
-              return;
-            }
-            marketSecurityDetails.value =
-              normalizeMarketSecurityDetailsQueryResult(result);
-          })
-          .catch(recordEarlyError);
-        void candlesQuery
-          .then((result) => {
-            if (!isCurrentRequest()) {
-              return;
-            }
-            const normalized = normalizeMarketDataCandlesQueryResult(result);
             marketDataCandles.value = mergeLoadedMarketDataCandles(normalized);
             if (queryOptions.preserveExisting !== true) {
               updateMarketDataPagination(normalized, effectiveLimit);
@@ -607,14 +648,10 @@ export function createMarketDataQueryController(
             marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
               marketDataSnapshot.value,
             );
-          })
-          .catch(recordEarlyError);
-
-        const [snapshotResult, securityDetailsResult, candlesResult] = await Promise.allSettled([
-          snapshotQuery,
-          securityDetailsQuery,
-          candlesQuery,
-        ]);
+          }
+        } else {
+          recordEarlyError(candlesResult.reason);
+        }
 
         if (!isCurrentRequest()) {
           return;
@@ -659,7 +696,8 @@ export function createMarketDataQueryController(
             result.reason instanceof Error
               ? result.reason.message
               : "部分行情查询加载失败。",
-          );
+          )
+          .filter((message, index, values) => values.indexOf(message) === index);
         if (partialErrors.length > 0) {
           marketDataQueryError.value = partialErrors.join(" / ");
         }

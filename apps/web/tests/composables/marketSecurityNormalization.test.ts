@@ -16,6 +16,7 @@ describe("normalizeMarketSecurityDetailsQueryResult", () => {
         lotSize: "100",
         currentPrice: "388.5",
         volume: "120000",
+        supportedPeriods: [" 1D ", "1d", "5M", "", 60],
         extended: {
           preMarket: {
             price: "390.1",
@@ -70,6 +71,7 @@ describe("normalizeMarketSecurityDetailsQueryResult", () => {
       lotSize: 100,
       currentPrice: 388.5,
       volume: 120000,
+      supportedPeriods: ["1d", "5m"],
       extended: {
         preMarket: {
           price: 390.1,
@@ -140,6 +142,7 @@ describe("normalizeMarketSecurityDetailsQueryResult", () => {
       lotSize: Number.POSITIVE_INFINITY,
       currentPrice: "",
       turnover: true,
+      supportedPeriods: "1d",
       extended: "broken",
       equity: null,
         warrant: {
@@ -174,5 +177,6 @@ describe("normalizeMarketSecurityDetailsQueryResult", () => {
         position: null,
       },
     });
+    expect(normalized.security).not.toHaveProperty("supportedPeriods");
   });
 });

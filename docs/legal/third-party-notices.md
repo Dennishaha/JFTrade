@@ -37,10 +37,10 @@ The complete GNU Affero General Public License version 3 text governing JFTrade,
 PineTS, and BBGO is provided in the repository root `LICENSE` file and in the
 embedded JFTrade license documentation.
 
-## yfinance helper direct Python dependencies
+## Market-data helper direct Python dependencies
 
 JFTrade includes the AGPL-3.0-only adapter source under
-`workers/yfinance-sidecar`. Release builds freeze the runtime into a
+`workers/marketdata-sidecar`. Release builds freeze the runtime into a
 platform-specific PyInstaller `onedir` bundle and embed its files in the Go
 binary. Its `pyproject.toml` pins the following direct build, runtime, and test
 dependencies. Python installers may also resolve transitive dependencies;
@@ -49,8 +49,9 @@ every installed distribution retains its own copyright and license files.
 | Package | Version | Purpose | Upstream license |
 | --- | --- | --- | --- |
 | `setuptools` | `80.9.0` | PEP 517 build backend | MIT |
-| `pyinstaller` | `6.21.0` | Native yfinance helper builder | GPL-2.0-or-later with bootloader exception |
+| `pyinstaller` | `6.21.0` | Native market-data helper builder | GPL-2.0-or-later with bootloader exception |
 | `yfinance` | `0.2.61` | Yahoo Finance data adapter | Apache-2.0 |
+| `akshare` | `1.18.81` | AKShare market-data adapter | MIT |
 | `curl_cffi` | `0.15.0` | bounded Yahoo HTTP transport | MIT |
 | `fastapi` | `0.115.14` | local HTTP application | MIT |
 | `uvicorn` | `0.35.0` | local ASGI server (`asyncio` + `h11`, WebSocket disabled) | BSD-3-Clause |
@@ -64,6 +65,7 @@ Upstream sources:
 - `setuptools`: <https://github.com/pypa/setuptools>
 - `pyinstaller`: <https://github.com/pyinstaller/pyinstaller>
 - `yfinance`: <https://github.com/ranaroussi/yfinance>
+- `akshare`: <https://github.com/akfamily/akshare>
 - `curl_cffi`: <https://github.com/lexiforest/curl_cffi>
 - `fastapi`: <https://github.com/fastapi/fastapi>
 - `uvicorn`: <https://github.com/encode/uvicorn>
@@ -423,8 +425,8 @@ JFTrade source tree for the exact build. It includes, among other files:
 
 - `scripts/pinets-worker.mjs`
 - `workers/pineworker`
-- `workers/yfinance-sidecar`
-- `workers/yfinance-sidecar/pyproject.toml`
+- `workers/marketdata-sidecar`
+- `workers/marketdata-sidecar/pyproject.toml`
 - `scripts/build-pineworker-assets.mjs`
 - `scripts/build-pineworker-dev.mjs`
 - `scripts/check-pinets-release.mjs`
@@ -441,9 +443,9 @@ Release and build commands for the PineTS integration include:
 
 Development and build environments may install the helper source with:
 
-- `python -m pip install --editable "workers/yfinance-sidecar[runtime,build,test]"`
-- `python -m pytest workers/yfinance-sidecar/tests`
-- `pnpm run build:yfinance-sidecar`
+- `python -m pip install --editable "workers/marketdata-sidecar[runtime,build,test]"`
+- `python -m pytest workers/marketdata-sidecar/tests`
+- `pnpm run build:marketdata-sidecar`
 
 Published deployments must expose the exact build source location, build
 instructions, license, and third-party notices through the product's

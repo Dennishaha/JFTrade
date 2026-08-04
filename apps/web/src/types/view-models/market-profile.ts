@@ -49,6 +49,7 @@ export type InstrumentResolutionCandidate = Omit<
   | "name"
   | "securityType"
   | "source"
+  | "supportedPeriods"
   | "unavailableReason"
 > & {
   name: string | null;
@@ -57,6 +58,7 @@ export type InstrumentResolutionCandidate = Omit<
   source: string;
   isWatched: boolean;
   unavailableReason: string | null;
+  supportedPeriods?: string[];
 };
 
 export type InstrumentResolutionResponse = Omit<

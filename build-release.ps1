@@ -10,12 +10,12 @@ $webDistDir = Join-Path $PSScriptRoot "apps/web/dist"
 $outputDir = Join-Path $PSScriptRoot "dist"
 $buildTarget = "./cmd/jftrade-api"
 $artifactPrefix = "jftrade"
-$yfinanceAssetDir = Join-Path $PSScriptRoot "internal/yfinanceassets/assets/bin"
-$requiredYfinanceAssets = @(
-    "yfinance-sidecar-darwin-arm64",
-    "yfinance-sidecar-linux-amd64",
-    "yfinance-sidecar-windows-amd64",
-    "yfinance-sidecar-windows-arm64"
+$marketDataAssetDir = Join-Path $PSScriptRoot "internal/marketdataassets/assets/bin"
+$requiredMarketDataAssets = @(
+    "marketdata-sidecar-darwin-arm64",
+    "marketdata-sidecar-linux-amd64",
+    "marketdata-sidecar-windows-amd64",
+    "marketdata-sidecar-windows-arm64"
 )
 $targets = @(
     @{ GOOS = "darwin"; GOARCH = "arm64" },
@@ -72,10 +72,10 @@ function Install-FrontendDependencies {
     }
 }
 
-function Assert-YFinanceAssets {
+function Assert-MarketDataAssets {
     $missing = @()
-    foreach ($asset in $requiredYfinanceAssets) {
-        $assetPath = Join-Path $yfinanceAssetDir $asset
+    foreach ($asset in $requiredMarketDataAssets) {
+        $assetPath = Join-Path $marketDataAssetDir $asset
         $executableName = if ($asset -like "*-windows-*") { "$asset.exe" } else { $asset }
         $executablePath = Join-Path $assetPath $executableName
         if (-not (Test-Path -LiteralPath $assetPath -PathType Container) -or
@@ -85,7 +85,7 @@ function Assert-YFinanceAssets {
         }
     }
     if ($missing.Count -gt 0) {
-        throw "Cross-target API release requires pre-staged native yfinance helpers. Build each helper on its matching OS/architecture with 'pnpm run build:yfinance-sidecar', stage it in $yfinanceAssetDir, and retry. Missing: $($missing -join ', ')"
+        throw "Cross-target API release requires pre-staged native market-data helpers. Build each helper on its matching OS/architecture with 'pnpm run build:marketdata-sidecar', stage it in $marketDataAssetDir, and retry. Missing: $($missing -join ', ')"
     }
 }
 
@@ -206,8 +206,8 @@ if ($LASTEXITCODE -ne 0) {
     throw "PineTS worker asset build failed"
 }
 
-Write-Host "Verifying pre-staged native yfinance helpers..." -ForegroundColor Cyan
-Assert-YFinanceAssets
+Write-Host "Verifying pre-staged native market-data helpers..." -ForegroundColor Cyan
+Assert-MarketDataAssets
 
 Write-Host "Running tests..." -ForegroundColor Cyan
 go test ./... -count=1 -timeout 300s

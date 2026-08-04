@@ -5,6 +5,7 @@ import { defineComponent, h, ref } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MarketDataProviderStatusDto } from "@/contracts";
+import { usePythonMarketDataRuntimeWarmup } from "@/composables/market-data/usePythonMarketDataRuntimeWarmup";
 import { useYFinanceRuntimeWarmup } from "@/composables/market-data/useYFinanceRuntimeWarmup";
 
 afterEach(() => vi.useRealTimers());
@@ -40,16 +41,47 @@ describe("Yahoo runtime warmup refresh", () => {
     expect(refresh).toHaveBeenCalledOnce();
     wrapper.unmount();
   });
+
+  it("applies the same isolated warmup polling to AKShare", async () => {
+    vi.useFakeTimers();
+    const providerID = ref<"akshare" | "futu">("akshare");
+    const status = ref(providerStatus("warming", "akshare"));
+    const refresh = vi.fn(async () => {
+      status.value = providerStatus("ready", "akshare");
+    });
+    const harness = defineComponent({
+      setup() {
+        const { readiness } = usePythonMarketDataRuntimeWarmup({
+          providerID,
+          status,
+          refresh,
+        });
+        return () => h("span", readiness.value);
+      },
+    });
+    const wrapper = mount(harness);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    await flushPromises();
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(wrapper.text()).toBe("ready");
+
+    providerID.value = "futu";
+    await flushPromises();
+    expect(wrapper.text()).toBe("");
+    wrapper.unmount();
+  });
 });
 
 function providerStatus(
   readiness: "warming" | "ready",
+  providerID: "yfinance" | "akshare" = "yfinance",
 ): MarketDataProviderStatusDto {
   return {
     descriptor: {
-      providerId: "yahoo-finance",
-      brokerId: "yfinance",
-      displayName: "Yahoo",
+      providerId: providerID === "yfinance" ? "yahoo-finance" : "akshare",
+      brokerId: providerID,
+      displayName: providerID === "yfinance" ? "Yahoo" : "AKShare",
       securityFirm: "Yahoo Finance",
       supportedMarkets: ["US"],
       transports: ["snapshot-poll-delayed"],

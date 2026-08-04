@@ -546,10 +546,10 @@ func (s *Server) initializeMarketdataService() {
 		FutuQuotes:        s.runtimes.MarketData(),
 		FutuPush:          s.runtimes.MarketData(),
 		FutuSubscriptions: s.runtimes.MarketData(),
-		YFinanceCacheDir: filepath.Join(
+		MarketDataCacheDir: filepath.Join(
 			filepath.Dir(s.store.Path()),
 			"cache",
-			"yfinance-sidecar",
+			"marketdata-sidecar",
 		),
 	}, s.store)
 	if err != nil {

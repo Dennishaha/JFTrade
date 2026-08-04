@@ -43,9 +43,17 @@ const ageMs = computed(() => {
   if (observedTime.value == null) return null;
   return Math.max(0, now.value - observedTime.value);
 });
+function isDelayedHTTPSource(source: string): boolean {
+  return (
+    source === "yfinance" ||
+    source === "yahoo-finance" ||
+    source === "akshare" ||
+    source.startsWith("akshare:")
+  );
+}
 const effectiveTransportMode = computed(() => {
   const source = props.source?.trim().toLowerCase() ?? "";
-  if (source === "yfinance" || source === "yahoo-finance") {
+  if (isDelayedHTTPSource(source)) {
     return "snapshot-poll-delayed";
   }
   return props.transportMode;
@@ -56,6 +64,9 @@ const providerLabel = computed(() => {
   const source = props.source?.trim().toLowerCase() ?? "";
   if (source === "yfinance" || source === "yahoo-finance") {
     return "Yahoo";
+  }
+  if (source === "akshare" || source.startsWith("akshare:")) {
+    return "AKShare";
   }
   if (
     source === "futu" ||

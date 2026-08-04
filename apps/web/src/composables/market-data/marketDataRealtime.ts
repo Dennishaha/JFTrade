@@ -236,15 +236,15 @@ export interface MarketDataSnapshotQueryResult {
   };
   snapshot: {
     price: number;
-    bid: number;
-    ask: number;
+    bid: number | null;
+    ask: number | null;
     openPrice?: number | null;
     highPrice?: number | null;
     lowPrice?: number | null;
     previousClosePrice?: number | null;
     lastClosePrice?: number | null;
-    volume: number;
-    turnover: number;
+    volume: number | null;
+    turnover: number | null;
     at: string;
     observedAt?: string | null;
     barVolume?: number | null;
@@ -316,15 +316,15 @@ export interface MarketDataTickLiveEvent {
   };
   snapshot: {
     price: number;
-    bid: number;
-    ask: number;
+    bid: number | null;
+    ask: number | null;
     openPrice?: number | null;
     highPrice?: number | null;
     lowPrice?: number | null;
     previousClosePrice?: number | null;
     lastClosePrice?: number | null;
-    volume: number;
-    turnover: number;
+    volume: number | null;
+    turnover: number | null;
     at: string;
     observedAt?: string | null;
     barVolume?: number | null;
@@ -578,6 +578,19 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
     }
 
     if (event.instrument.instrumentId !== input.currentInstrumentId) {
+      return null;
+    }
+
+    // AKShare is a delayed HTTP-poll provider. It has no streaming tick
+    // contract, so accepting a poll event here would turn its receipt time
+    // into a fake realtime candle.
+    const providerID = event.brokerId.trim().toLowerCase();
+    const source = event.source?.trim().toLowerCase() ?? "";
+    if (
+      providerID === "akshare" ||
+      source === "akshare" ||
+      source.startsWith("akshare:")
+    ) {
       return null;
     }
 

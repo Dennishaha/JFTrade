@@ -24,7 +24,16 @@ import {
 } from "@/composables/market-data/marketDataFeedQuality";
 import type { LiveSocketConnectionState } from "@/composables/market-data/sharedLiveSocket";
 import type { ProductFeatureProvider } from "@/composables/product/productFeatures";
-import { useYFinanceRuntimeWarmup } from "@/composables/market-data/useYFinanceRuntimeWarmup";
+import {
+  isPythonMarketDataProvider,
+  usePythonMarketDataRuntimeWarmup,
+} from "@/composables/market-data/usePythonMarketDataRuntimeWarmup";
+import {
+  embeddedPythonMarketDataFeatureIDs,
+  embeddedPythonMarketDataProviderOption,
+  pythonMarketDataProviderName,
+  statusMatchesPythonMarketDataProvider,
+} from "@/composables/market-data/embeddedPythonMarketDataProviders";
 import BrokerProviderMenu from "./BrokerProviderMenu.vue";
 
 const props = withDefaults(
@@ -93,21 +102,16 @@ const activeFeatureIds = computed(() => {
     props.featureId.trim() || props.provider?.featureId?.trim() || "";
   return fallback ? [fallback] : [];
 });
-const yfinanceFeatureIDs = new Set([
-  "market.search",
-  "market.instrument_profile",
-  "market.snapshot",
-  "market.snapshots",
-  "market.candles",
-]);
 const embeddedProviderVisible = computed(
   () =>
     props.enableEmbeddedMarketDataProvider &&
-    // Research market views combine Yahoo-supported snapshots with
+    // Research market views combine Python-provider snapshots with
     // Futu-only ranking and industry features. The embedded provider still
     // needs to be selectable for the quote surface; requiring every visible
-    // feature hid Yahoo from that shared toolbar entirely.
-    activeFeatureIds.value.some((feature) => yfinanceFeatureIDs.has(feature)),
+    // feature hid those providers from that shared toolbar entirely.
+    activeFeatureIds.value.some((feature) =>
+      embeddedPythonMarketDataFeatureIDs.has(feature),
+    ),
 );
 function isFutuOpenDHealthy(health: FutuOpenDHealthResponse | null): boolean {
   return (
@@ -161,24 +165,12 @@ const futuProviderReadiness = computed<{
   return null;
 });
 
-const yfinanceOption = computed<BrokerProviderOption>(() => {
-  const market = props.market.trim().toUpperCase();
-  const available =
-    market === "" || ["US", "HK", "CN", "SH", "SZ"].includes(market);
-  return {
-    id: "yfinance",
-    label: "Yahoo",
-    shortLabel: "Yahoo",
-    securityFirm: "内置行情查询",
-    state: available ? "degraded" : "unavailable",
-    displayState: available ? "available" : "unavailable",
-    tone: available ? "success" : "error",
-    selectable: available,
-    reason: available
-      ? "非实时快照查询，不支持实时推流或 Level 2"
-      : "当前标的市场不在内置 Yahoo 支持范围",
-  };
-});
+const yfinanceOption = computed<BrokerProviderOption>(() =>
+  embeddedPythonMarketDataProviderOption("yfinance", props.market),
+);
+const akshareOption = computed<BrokerProviderOption>(() =>
+  embeddedPythonMarketDataProviderOption("akshare", props.market),
+);
 const options = computed<BrokerProviderOption[]>(() => {
   const values = brokerProviderOptions(activeFeatureIds.value, props.market);
   if (
@@ -186,6 +178,12 @@ const options = computed<BrokerProviderOption[]>(() => {
     !values.some((option) => option.id === "yfinance")
   ) {
     values.push(yfinanceOption.value);
+  }
+  if (
+    embeddedProviderVisible.value &&
+    !values.some((option) => option.id === "akshare")
+  ) {
+    values.push(akshareOption.value);
   }
   const actualID = props.provider?.brokerId?.trim().toLowerCase() ?? "";
   if (actualID && !values.some((option) => option.id === actualID)) {
@@ -262,20 +260,24 @@ const authoritativeProviderHealth = computed(() => {
     status?.descriptor?.brokerId?.trim().toLowerCase() ||
     status?.descriptor?.providerId?.trim().toLowerCase() ||
     "";
-  if (
-    embeddedProviderVisible.value &&
-    selectedID === "yfinance" &&
-    ["yfinance", "yahoo-finance"].includes(statusProviderID)
-  ) {
+  const statusMatchesSelectedProvider =
+    isPythonMarketDataProvider(selectedID) &&
+    statusMatchesPythonMarketDataProvider(selectedID, statusProviderID);
+  if (embeddedProviderVisible.value && statusMatchesSelectedProvider) {
     return status?.health ?? null;
   }
   return null;
 });
-const { readiness: yfinanceRuntimeReadiness } = useYFinanceRuntimeWarmup({
+const { readiness: pythonRuntimeReadiness } = usePythonMarketDataRuntimeWarmup({
   providerID: embeddedProviderID,
   status: embeddedProviderStatus,
   refresh: () => refreshEmbeddedProviderState(),
 });
+const pythonProviderName = computed(() =>
+  pythonMarketDataProviderName(
+    embeddedProviderID.value === "akshare" ? "akshare" : "yfinance",
+  ),
+);
 const runtimeFeedInput = computed(() => {
   const statusHealth = authoritativeProviderHealth.value;
   if (
@@ -318,8 +320,8 @@ const runtimeFeedQualityLabel = computed(
 );
 const currentState = computed<BrokerCapabilityState>(() => {
   if (embeddedProviderUnavailable.value) return "unavailable";
-  if (yfinanceRuntimeReadiness.value === "warming") return "degraded";
-  if (yfinanceRuntimeReadiness.value === "failed") return "unavailable";
+  if (pythonRuntimeReadiness.value === "warming") return "degraded";
+  if (pythonRuntimeReadiness.value === "failed") return "unavailable";
   if (capabilityDisplayState.value === "unavailable") return "unavailable";
   const runtimeState = runtimeFeedPresentation.value?.state;
   if (runtimeState === "error") return "unavailable";
@@ -336,15 +338,15 @@ const currentLabel = computed(
   () =>
     switchingEmbeddedProvider.value
       ? "启动中"
-      : yfinanceRuntimeReadiness.value === "warming"
-        ? "Yahoo 预热中"
+      : pythonRuntimeReadiness.value === "warming"
+        ? `${pythonProviderName.value} 预热中`
       : embeddedProviderUnavailable.value
         ? "不可用"
       : selectedOption.value?.shortLabel || (loading.value ? "加载中" : "数据源"),
 );
 const currentReason = computed(() =>
-  yfinanceRuntimeReadiness.value === "warming"
-    ? "Yahoo 行情依赖正在后台预热，完成后会自动恢复查询"
+  pythonRuntimeReadiness.value === "warming"
+    ? `${pythonProviderName.value} 行情依赖正在后台预热，完成后会自动恢复查询`
     : currentCapabilitySummary.value.reason,
 );
 const currentReasonDetail = computed(() =>
@@ -406,7 +408,9 @@ async function select(option: BrokerProviderOption): Promise<void> {
   if (!option.selectable || switchingEmbeddedProvider.value) return;
   if (
     embeddedProviderVisible.value &&
-    (option.id === "futu" || option.id === "yfinance")
+    (option.id === "futu" ||
+      option.id === "yfinance" ||
+      option.id === "akshare")
   ) {
     await selectEmbeddedProvider(option.id);
     return;
@@ -493,7 +497,9 @@ async function refreshEmbeddedProviderState(
   const revision = embeddedProviderRevision;
   const includeFutu =
     menuOpen.value || embeddedProviderID.value === "futu";
-  const includeActiveStatus = embeddedProviderID.value === "yfinance";
+  const includeActiveStatus = isPythonMarketDataProvider(
+    embeddedProviderID.value,
+  );
   embeddedProviderRefresh = Promise.all([
     includeFutu
       ? loadFutuOpenDProviderHealth(revision)

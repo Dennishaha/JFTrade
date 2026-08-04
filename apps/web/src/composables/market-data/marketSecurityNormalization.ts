@@ -13,6 +13,7 @@ import type {
   MarketSecurityWarrantDetails,
 } from "@/types";
 import type { MarketDataSecurityDetailsDto } from "@/contracts";
+import { normalizeSupportedPeriods } from "@/composables/market-data/marketDataSupportedPeriods";
 
 const extendedQuoteNumberKeys = [
   "price",
@@ -233,11 +234,15 @@ function normalizeSecurityDetails(value: unknown): MarketSecurityDetails | null 
     isRecord(security.option) ? security.option : null,
     optionNumberKeys,
   ) as MarketSecurityOptionDetails | null;
+  const supportedPeriods = normalizeSupportedPeriods(security.supportedPeriods);
+  const normalizedSecurity = { ...security };
+  delete normalizedSecurity.supportedPeriods;
 
   return {
-    ...security,
+    ...normalizedSecurity,
     securityType:
       typeof security.securityType === "string" ? security.securityType : "",
+    ...(supportedPeriods == null ? {} : { supportedPeriods }),
     extended: normalizeExtendedQuoteBlocks(security.extended),
     equity: normalizeFields(
       isRecord(security.equity) ? security.equity : null,

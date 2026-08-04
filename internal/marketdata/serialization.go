@@ -12,15 +12,15 @@ func SnapshotJSON(sample *Tick) map[string]any {
 	}
 	return map[string]any{
 		"price":              sample.Price.String(),
-		"bid":                sample.Bid.String(),
-		"ask":                sample.Ask.String(),
+		"bid":                availableDecimalString(sample.Bid, sample.Availability, quoteFieldBid),
+		"ask":                availableDecimalString(sample.Ask, sample.Availability, quoteFieldAsk),
 		"openPrice":          optionalPriceString(sample.OpenPrice),
 		"highPrice":          optionalPriceString(sample.HighPrice),
 		"lowPrice":           optionalPriceString(sample.LowPrice),
 		"previousClosePrice": optionalPriceString(sample.PreviousClosePrice),
 		"lastClosePrice":     optionalPriceString(sample.LastClosePrice),
-		"volume":             sample.Volume.String(),
-		"turnover":           sample.Turnover.String(),
+		"volume":             availableDecimalString(sample.Volume, sample.Availability, quoteFieldVolume),
+		"turnover":           availableDecimalString(sample.Turnover, sample.Availability, quoteFieldTurnover),
 		"at":                 sample.QuoteAt,
 		"observedAt":         sample.ObservedAt,
 		"session":            sample.Session,
@@ -49,11 +49,23 @@ func LiveTickJSON(sample *Tick, observedAt string) map[string]any {
 		},
 		Snapshot:         SnapshotJSON(&cloned),
 		ObservedAt:       cloned.ObservedAt,
-		BrokerID:         "futu",
+		BrokerID:         brokerIDFromTickSource(cloned.Source),
 		Source:           cloned.Source,
-		CumulativeVolume: cloned.Volume,
+		CumulativeVolume: availableDecimalPointer(cloned.Volume, cloned.Availability, quoteFieldVolume),
 		VolumeDelta:      cloned.VolumeDelta,
 	}.JSON()
+}
+
+func brokerIDFromTickSource(source string) string {
+	normalized := strings.ToLower(strings.TrimSpace(source))
+	switch {
+	case normalized == "akshare" || strings.HasPrefix(normalized, "akshare:"):
+		return "akshare"
+	case normalized == "yfinance" || strings.HasPrefix(normalized, "yfinance:"):
+		return "yfinance"
+	default:
+		return "futu"
+	}
 }
 
 func LatestTicksJSON(samples []*Tick) TicksResponse {
@@ -67,10 +79,10 @@ func LatestTicksJSON(samples []*Tick) TicksResponse {
 			"market":           sample.Market,
 			"symbol":           sample.Symbol,
 			"price":            sample.Price.String(),
-			"bid":              sample.Bid.String(),
-			"ask":              sample.Ask.String(),
-			"volume":           sample.Volume.String(),
-			"cumulativeVolume": sample.Volume.String(),
+			"bid":              availableDecimalString(sample.Bid, sample.Availability, quoteFieldBid),
+			"ask":              availableDecimalString(sample.Ask, sample.Availability, quoteFieldAsk),
+			"volume":           availableDecimalString(sample.Volume, sample.Availability, quoteFieldVolume),
+			"cumulativeVolume": availableDecimalString(sample.Volume, sample.Availability, quoteFieldVolume),
 			"volumeDelta":      sample.VolumeDelta.String(),
 			"observedAt":       sample.ObservedAt,
 			"session":          sample.Session,
@@ -78,6 +90,53 @@ func LatestTicksJSON(samples []*Tick) TicksResponse {
 		})
 	}
 	return TicksResponse{"ticks": ticks, "totalReturned": len(ticks)}
+}
+
+type quoteField uint8
+
+const (
+	quoteFieldBid quoteField = iota
+	quoteFieldAsk
+	quoteFieldVolume
+	quoteFieldTurnover
+)
+
+func availableDecimalString(
+	value decimal.Decimal,
+	availability QuoteFieldAvailability,
+	field quoteField,
+) any {
+	pointer := availableDecimalPointer(value, availability, field)
+	if pointer == nil {
+		return nil
+	}
+	return pointer.String()
+}
+
+func availableDecimalPointer(
+	value decimal.Decimal,
+	availability QuoteFieldAvailability,
+	field quoteField,
+) *decimal.Decimal {
+	if availability.Authoritative && !quoteFieldAvailable(availability, field) {
+		return nil
+	}
+	return new(value)
+}
+
+func quoteFieldAvailable(availability QuoteFieldAvailability, field quoteField) bool {
+	switch field {
+	case quoteFieldBid:
+		return availability.Bid
+	case quoteFieldAsk:
+		return availability.Ask
+	case quoteFieldVolume:
+		return availability.Volume
+	case quoteFieldTurnover:
+		return availability.Turnover
+	default:
+		return false
+	}
 }
 
 func optionalPriceString(value *decimal.Decimal) any {

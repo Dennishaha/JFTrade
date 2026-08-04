@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrMarketDataProviderInvalid = errors.New("active market-data provider must be futu or yfinance")
+	ErrMarketDataProviderInvalid = errors.New("active market-data provider must be futu, yfinance, or akshare")
 	ErrProviderRuntimeUpdate     = errors.New("could not apply market-data provider settings")
 )
 
@@ -58,7 +58,9 @@ func validateActiveMarketDataProvider(
 ) (jfsettings.ActiveMarketDataProvider, error) {
 	provider := jfsettings.ActiveMarketDataProvider(strings.ToLower(strings.TrimSpace(string(input))))
 	switch provider {
-	case jfsettings.MarketDataProviderFutu, jfsettings.MarketDataProviderYFinance:
+	case jfsettings.MarketDataProviderFutu,
+		jfsettings.MarketDataProviderYFinance,
+		jfsettings.MarketDataProviderAKShare:
 		return provider, nil
 	default:
 		return "", ErrMarketDataProviderInvalid

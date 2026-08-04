@@ -12,21 +12,21 @@ export function nativeBundleCacheReusable({
   );
 }
 
-export function selectYFinanceDevelopmentRuntime(options) {
+export function selectMarketDataDevelopmentRuntime(options) {
   if (options.explicitHelper) {
     if (!options.explicitHelperUsable) {
-      throw new Error("Configured yfinance helper is unusable");
+      throw new Error("Configured market-data helper is unusable");
     }
     return { kind: "explicit-helper", executable: options.explicitHelper };
   }
   if (options.explicitPython || options.explicitSource) {
     if (!options.explicitPython || !options.explicitSource) {
       throw new Error(
-        "JFTRADE_YFINANCE_DEV_PYTHON and JFTRADE_YFINANCE_DEV_PYTHONPATH must be set together",
+        "JFTRADE_MARKETDATA_DEV_PYTHON and JFTRADE_MARKETDATA_DEV_PYTHONPATH must be set together",
       );
     }
     if (!options.explicitPythonUsable) {
-      throw new Error("Configured yfinance Python source runtime is unusable");
+      throw new Error("Configured market-data Python source runtime is unusable");
     }
     return {
       kind: "python-source",
@@ -48,6 +48,6 @@ export function selectYFinanceDevelopmentRuntime(options) {
     return { kind: "unavailable" };
   }
   throw new Error(
-    "No usable yfinance development runtime. Run: python -m pip install --editable \"workers/yfinance-sidecar[runtime,build,test]\"",
+    "No usable market-data development runtime. Run: python -m pip install --editable \"workers/marketdata-sidecar[runtime,build,test]\"",
   );
 }

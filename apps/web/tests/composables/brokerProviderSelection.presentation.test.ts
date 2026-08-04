@@ -17,10 +17,12 @@ describe("broker provider presentation", () => {
     const selection = useBrokerProviderSelection();
     selection.brokerDescriptors.value = [
       { id: "yfinance", displayName: "", capabilities: [] },
+      { id: "akshare", displayName: "", capabilities: [] },
       { id: "futu", displayName: "", capabilities: [] },
     ];
 
     expect(resolveBrokerProviderDisplayName("yfinance")).toBe("Yahoo");
+    expect(resolveBrokerProviderDisplayName("akshare")).toBe("AKShare");
     expect(resolveBrokerProviderDisplayName("futu")).toBe("Futu OpenD");
     expect(resolveBrokerProviderDisplayName("unknown")).toBe("UNKNOWN");
     expect(resolveBrokerProviderDisplayName("missing")).toBe("MISSING");

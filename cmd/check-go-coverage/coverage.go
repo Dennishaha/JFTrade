@@ -126,7 +126,7 @@ var exclusionRules = []exclusionRule{
 		reason: "declarative Swaggo-only route documentation",
 	},
 	{
-		scope: "internal/yfinanceassets/assets_release.go", category: exclusionBuildVariant,
+		scope: "internal/marketdataassets/assets_release.go", category: exclusionBuildVariant,
 		reason: "release_assets-only embedded delivery adapter",
 	},
 	{

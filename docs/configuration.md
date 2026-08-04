@@ -99,9 +99,9 @@ OpenD 连接配置位于 `integration.config`。常用字段包括：
 
 启用 Futu 后，自选系统会注册稳定 source `futu:default`，用于只读发现和导入 Futu 分组。自选主数据始终保存在 `watchlists.db`，不会因禁用 Futu 或 OpenD 暂时离线而改用券商数据。详细边界见 [自选系统](./watchlist.md)。
 
-### 行情数据源与 yfinance
+### 行情数据源与 Python helper
 
-行情查询运行时包含 Futu OpenD 和内置 yfinance，新的安装默认使用 `yfinance`。首页/研究页的“行情提供者”菜单负责切换当前行情源；这项切换不改变账户、订单和下单 broker：
+行情查询运行时包含 Futu OpenD、yfinance 和 AKShare，新的安装默认使用 `yfinance`。首页/研究页的“行情提供者”菜单负责切换当前行情源；这项切换不改变账户、订单和下单 broker：
 
 ```json
 {
@@ -109,9 +109,9 @@ OpenD 连接配置位于 `integration.config`。常用字段包括：
 }
 ```
 
-- `activeMarketDataProvider`：只接受 `futu` 或 `yfinance`。
+- `activeMarketDataProvider`：只接受 `futu`、`yfinance` 或 `akshare`。
 
-发布版 Go 二进制内置由 CPython 3.14.x 构建的当前平台 PyInstaller `onedir` helper。首次使用会在设置目录下的 `cache/yfinance-sidecar/<bundle-sha256>/` 原子发布并完整校验，后续启动校验后直接复用；缓存不可写时才降级到受限临时目录。helper 使用动态 loopback 端口，`/health` 在重型 Python 依赖后台预热期间也可立即响应。用户不需要安装 Python，也不能配置连接地址、Python 路径或超时。源码开发模式最低要求 Python 3.11 且必须具备 yfinance sidecar 运行模块；解释器依次从 `JFTRADE_YFINANCE_DEV_PYTHON`、workspace `.venv`、PATH 和平台常见路径解析。JFTrade 不自动安装 pip 包、升级 Python 或创建虚拟环境。`pnpm run desktop:dev` 优先保留显式环境覆盖，并在 workspace `.venv` 可用时运行源码；否则复用已构建的 frozen helper，不会隐式构建。独立 `cmd/jftrade-api` 使用相同的后端 Python 解析。切离 Futu 会立即清理旧行情缓存并撤销 Futu demand；OpenD 要求至少保留一分钟的物理订阅会在到期后由 collector 后台退订，失败则按退避策略重试。yfinance 不支持实时推流或 Level 2，collector 会退化为按需轮询。应用启动恢复只要求 helper 进程健康，预热状态由行情健康接口暴露；用户显式切换到 yfinance 仍必须等到预热完成。恢复失败时会回退并持久化 Futu，避免配置与运行时分裂。当前版本不读取历史的 `yfinance` 连接配置块。详细能力见 [行情数据源](./market-data-providers.md)。
+发布版 Go 二进制内置由 CPython 3.14.x 构建的当前平台 PyInstaller `onedir` helper。首次使用会在设置目录下的 `cache/marketdata-sidecar/<bundle-sha256>/` 原子发布并完整校验，后续启动校验后直接复用；不会复用或清理旧 `cache/yfinance-sidecar`。helper 使用动态 loopback 端口，yfinance 与 AKShare 在同一进程中独立懒加载和报告健康。用户不需要安装 Python，也不能配置连接地址、Python 路径或超时。源码开发模式最低要求 Python 3.11；解释器依次从 `JFTRADE_MARKETDATA_DEV_PYTHON`、workspace `.venv`、PATH 和平台常见路径解析，旧 `JFTRADE_YFINANCE_*` 仅作低优先级兼容别名。JFTrade 不自动安装 pip 包、升级 Python 或创建虚拟环境。切离 Futu 会立即清理旧行情缓存并撤销 Futu demand；OpenD 订阅在满足最短持有时间后由 collector 后台退订。yfinance 和 AKShare 都不支持实时推流或 Level 2，collector 使用 15 秒 HTTP 轮询；二者激活时禁止启动实盘策略。详细能力见 [行情数据源](./market-data-providers.md)。
 
 ## Web 访问与密码
 

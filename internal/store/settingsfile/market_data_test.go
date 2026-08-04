@@ -94,9 +94,27 @@ func TestNormalizeActiveMarketDataProviderFallsBackToFutu(t *testing.T) {
 	if got := NormalizeActiveMarketDataProvider(" yfinance "); got != jfsettings.MarketDataProviderYFinance {
 		t.Fatalf("normalized yfinance provider = %q", got)
 	}
+	if got := NormalizeActiveMarketDataProvider(" AKSHARE "); got != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("normalized AKShare provider = %q", got)
+	}
 	for _, input := range []jfsettings.ActiveMarketDataProvider{"", "unknown", "futu"} {
 		if got := NormalizeActiveMarketDataProvider(input); got != jfsettings.MarketDataProviderFutu {
 			t.Fatalf("normalized %q = %q, want futu", input, got)
 		}
+	}
+}
+
+func TestMarketDataProviderPersistsAKShareSelection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	store, err := New(path)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := store.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderAKShare); err != nil {
+		t.Fatalf("SaveActiveMarketDataProvider: %v", err)
+	}
+	reloaded, err := New(path)
+	if err != nil || reloaded.ActiveMarketDataProvider() != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("reloaded AKShare provider = %q, err=%v", reloaded.ActiveMarketDataProvider(), err)
 	}
 }

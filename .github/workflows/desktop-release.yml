@@ -186,7 +186,7 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: workers/yfinance-sidecar/pyproject.toml
+          cache-dependency-path: workers/marketdata-sidecar/pyproject.toml
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -198,10 +198,13 @@ jobs:
         run: test "$(uname -m)" = "arm64"
 
       - name: Install PyInstaller build dependencies
-        run: python -m pip install --disable-pip-version-check --editable "workers/yfinance-sidecar[runtime,build]"
+        run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"
 
-      - name: Build native yfinance helper
-        run: pnpm run build:yfinance-sidecar
+      - name: Build native market-data helper
+        run: pnpm run build:marketdata-sidecar
+
+      - name: Smoke native market-data helper
+        run: pnpm run smoke:marketdata-sidecar
 
       - name: Configure macOS signing and notarization
         env:
@@ -234,11 +237,11 @@ jobs:
           echo "JFTRADE_MACOS_SIGN_IDENTITY=$SIGN_IDENTITY" >> "$GITHUB_ENV"
           echo "JFTRADE_MACOS_NOTARY_PROFILE=jftrade-ci" >> "$GITHUB_ENV"
 
-      - name: Sign native yfinance helper before embedding
+      - name: Sign native market-data helper before embedding
         run: |
           set -euo pipefail
-          helper_dir="internal/yfinanceassets/assets/bin/yfinance-sidecar-darwin-arm64"
-          helper="$helper_dir/yfinance-sidecar-darwin-arm64"
+          helper_dir="internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-arm64"
+          helper="$helper_dir/marketdata-sidecar-darwin-arm64"
           test -d "$helper_dir"
           test -s "$helper"
           if [[ -n "${JFTRADE_MACOS_SIGN_IDENTITY:-}" ]]; then
@@ -325,7 +328,7 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: workers/yfinance-sidecar/pyproject.toml
+          cache-dependency-path: workers/marketdata-sidecar/pyproject.toml
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -360,10 +363,13 @@ jobs:
           "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install PyInstaller build dependencies
-        run: python -m pip install --disable-pip-version-check --editable "workers/yfinance-sidecar[runtime,build]"
+        run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"
 
-      - name: Build native yfinance helper
-        run: pnpm run build:yfinance-sidecar
+      - name: Build native market-data helper
+        run: pnpm run build:marketdata-sidecar
+
+      - name: Smoke native market-data helper
+        run: pnpm run smoke:marketdata-sidecar
 
       - name: Test Windows desktop package
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
@@ -434,7 +440,7 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: workers/yfinance-sidecar/pyproject.toml
+          cache-dependency-path: workers/marketdata-sidecar/pyproject.toml
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -474,10 +480,13 @@ jobs:
           "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install PyInstaller build dependencies
-        run: python -m pip install --disable-pip-version-check --editable "workers/yfinance-sidecar[runtime,build]"
+        run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"
 
-      - name: Build native yfinance helper
-        run: pnpm run build:yfinance-sidecar
+      - name: Build native market-data helper
+        run: pnpm run build:marketdata-sidecar
+
+      - name: Smoke native market-data helper
+        run: pnpm run smoke:marketdata-sidecar
 
       - name: Test Windows ARM64 desktop package
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
@@ -548,7 +557,7 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: workers/yfinance-sidecar/pyproject.toml
+          cache-dependency-path: workers/marketdata-sidecar/pyproject.toml
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -563,10 +572,13 @@ jobs:
         run: sudo apt-get install -y rpm squashfs-tools
 
       - name: Install PyInstaller build dependencies
-        run: python -m pip install --disable-pip-version-check --editable "workers/yfinance-sidecar[runtime,build]"
+        run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"
 
-      - name: Build native yfinance helper
-        run: pnpm run build:yfinance-sidecar
+      - name: Build native market-data helper
+        run: pnpm run build:marketdata-sidecar
+
+      - name: Smoke native market-data helper
+        run: pnpm run smoke:marketdata-sidecar
 
       - name: Test Linux release profile
         run: go test -tags production,release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1

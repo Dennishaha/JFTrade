@@ -15,34 +15,34 @@ func TestOSSidecarProcessValidatesLaunchesAndStopsRealChild(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("os.Interrupt process semantics are POSIX-specific")
 	}
-	if _, err := startYFinanceSidecar(SidecarConfig{}); err == nil {
-		t.Fatal("startYFinanceSidecar accepted an empty executable")
+	if _, err := startMarketDataSidecar(SidecarConfig{}); err == nil {
+		t.Fatal("startMarketDataSidecar accepted an empty executable")
 	}
 	for _, port := range []int{0, 65536} {
-		_, err := startYFinanceSidecar(SidecarConfig{Executable: os.Args[0], Host: sidecarHost, Port: port})
+		_, err := startMarketDataSidecar(SidecarConfig{Executable: os.Args[0], Host: sidecarHost, Port: port})
 		if err == nil || !strings.Contains(err.Error(), "between 1 and 65535") {
 			t.Fatalf("port %d error = %v", port, err)
 		}
 	}
-	if _, err := startYFinanceSidecar(SidecarConfig{
+	if _, err := startMarketDataSidecar(SidecarConfig{
 		Executable: os.Args[0], Host: "0.0.0.0", Port: 7788,
 	}); err == nil || !strings.Contains(err.Error(), sidecarHost) {
 		t.Fatalf("non-loopback managed host error = %v", err)
 	}
-	if _, err := startYFinanceSidecar(SidecarConfig{
+	if _, err := startMarketDataSidecar(SidecarConfig{
 		Executable: filepath.Join(t.TempDir(), "missing-helper"), Host: sidecarHost, Port: 7788,
 	}); err == nil {
-		t.Fatal("startYFinanceSidecar accepted a missing executable")
+		t.Fatal("startMarketDataSidecar accepted a missing executable")
 	}
 
 	helper := buildSidecarHelper(t)
 	capturePath := filepath.Join(t.TempDir(), "sidecar-args")
 	t.Setenv("JFTRADE_TEST_SIDECAR_CAPTURE", capturePath)
-	process, err := startYFinanceSidecar(SidecarConfig{
+	process, err := startMarketDataSidecar(SidecarConfig{
 		Executable: helper, Host: sidecarHost, Port: 7788,
 	})
 	if err != nil {
-		t.Fatalf("startYFinanceSidecar: %v", err)
+		t.Fatalf("startMarketDataSidecar: %v", err)
 	}
 	concrete, ok := process.(*osSidecarProcess)
 	if !ok || !concrete.Running() {
@@ -81,11 +81,11 @@ func TestOSSidecarProcessTreatsNaturalExitAsStoppedAndCloseable(t *testing.T) {
 	}
 	helper := buildSidecarHelper(t)
 	t.Setenv("JFTRADE_TEST_SIDECAR_EXIT", "1")
-	process, err := startYFinanceSidecar(SidecarConfig{
+	process, err := startMarketDataSidecar(SidecarConfig{
 		Executable: helper, Host: sidecarHost, Port: 7788,
 	})
 	if err != nil {
-		t.Fatalf("startYFinanceSidecar: %v", err)
+		t.Fatalf("startMarketDataSidecar: %v", err)
 	}
 	concrete := process.(*osSidecarProcess)
 	waitForProcessExit(t, concrete)
@@ -120,11 +120,11 @@ func TestOSSidecarProcessBoundsGracefulStopBeforeKillingChild(t *testing.T) {
 	capturePath := filepath.Join(t.TempDir(), "sidecar-args")
 	t.Setenv("JFTRADE_TEST_SIDECAR_CAPTURE", capturePath)
 	t.Setenv("JFTRADE_TEST_SIDECAR_IGNORE_TERM", "1")
-	process, err := startYFinanceSidecar(SidecarConfig{
+	process, err := startMarketDataSidecar(SidecarConfig{
 		Executable: helper, Host: sidecarHost, Port: 7788,
 	})
 	if err != nil {
-		t.Fatalf("startYFinanceSidecar: %v", err)
+		t.Fatalf("startMarketDataSidecar: %v", err)
 	}
 	concrete := process.(*osSidecarProcess)
 	concrete.stopTimeout = 20 * time.Millisecond

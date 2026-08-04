@@ -7,18 +7,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/jftrade/jftrade-main/internal/yfinanceassets"
+	"github.com/jftrade/jftrade-main/internal/marketdataassets"
 )
 
 func TestResolveSourcePythonRuntimeHonorsEnvironmentAndFallbacks(t *testing.T) {
-	if !yfinanceassets.DevelopmentOverridesAllowed() {
+	if !marketdataassets.DevelopmentOverridesAllowed() {
 		t.Skip("source Python resolution is disabled in release-assets builds")
 	}
 	source := t.TempDir()
-	t.Setenv(EnvYFinanceDevPythonPath, source)
+	t.Setenv(EnvMarketDataDevPythonPath, source)
 
 	t.Run("environment override", func(t *testing.T) {
-		t.Setenv(EnvYFinanceDevPython, "/env/python")
+		t.Setenv(EnvMarketDataDevPython, "/env/python")
 		restorePythonRuntimeLookPath(t, func(path string) (string, error) {
 			if path != "/env/python" {
 				t.Fatalf("LookPath = %q, want environment Python", path)
@@ -26,13 +26,13 @@ func TestResolveSourcePythonRuntimeHonorsEnvironmentAndFallbacks(t *testing.T) {
 			return path, nil
 		})
 		got := ResolvePythonRuntime()
-		if !got.Available || got.Source != "env:"+EnvYFinanceDevPython || got.ResolvedPath != "/env/python" {
+		if !got.Available || got.Source != "env:"+EnvMarketDataDevPython || got.ResolvedPath != "/env/python" {
 			t.Fatalf("resolution = %#v", got)
 		}
 	})
 
 	t.Run("workspace venv then PATH", func(t *testing.T) {
-		t.Setenv(EnvYFinanceDevPython, "")
+		t.Setenv(EnvMarketDataDevPython, "")
 		venv := filepath.Join(filepath.Dir(source), ".venv", "bin", "python")
 		lookups := []string{}
 		restorePythonRuntimeLookPath(t, func(path string) (string, error) {
@@ -53,26 +53,41 @@ func TestResolveSourcePythonRuntimeHonorsEnvironmentAndFallbacks(t *testing.T) {
 }
 
 func TestResolvePythonRuntimeReportsExternalAndEmbeddedHelpers(t *testing.T) {
-	if yfinanceassets.DevelopmentOverridesAllowed() {
+	if marketdataassets.DevelopmentOverridesAllowed() {
 		helper := filepath.Join(t.TempDir(), "helper")
 		if err := os.WriteFile(helper, []byte("helper"), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		t.Setenv(EnvYFinanceSidecar, helper)
+		t.Setenv(EnvMarketDataSidecar, helper)
 		got := ResolvePythonRuntime()
 		if got.Mode != PythonRuntimeModeExternalHelper || !got.Available || got.Configurable || got.Required {
 			t.Fatalf("external helper resolution = %#v", got)
 		}
 	}
 
-	previous := selectYFinanceAsset
-	selectYFinanceAsset = func() (yfinanceassets.Asset, bool, error) {
-		return yfinanceassets.Asset{Name: "helper"}, true, nil
+	previous := selectMarketDataAsset
+	selectMarketDataAsset = func() (marketdataassets.Asset, bool, error) {
+		return marketdataassets.Asset{Name: "helper"}, true, nil
 	}
-	t.Cleanup(func() { selectYFinanceAsset = previous })
+	t.Cleanup(func() { selectMarketDataAsset = previous })
 	embedded := resolveEmbeddedPythonRuntime()
 	if embedded.Mode != PythonRuntimeModeEmbedded || !embedded.Available || embedded.Configurable || embedded.Required {
 		t.Fatalf("embedded resolution = %#v", embedded)
+	}
+}
+
+func TestMarketDataEnvironmentOverridesTakePriorityOverYFinanceAliases(t *testing.T) {
+	t.Setenv(EnvMarketDataSidecar, "/new/helper")
+	t.Setenv(EnvYFinanceSidecar, "/legacy/helper")
+	value, source := environmentOverride(EnvMarketDataSidecar, EnvYFinanceSidecar)
+	if value != "/new/helper" || source != EnvMarketDataSidecar {
+		t.Fatalf("primary override = %q from %q", value, source)
+	}
+
+	t.Setenv(EnvMarketDataSidecar, "")
+	value, source = environmentOverride(EnvMarketDataSidecar, EnvYFinanceSidecar)
+	if value != "/legacy/helper" || source != EnvYFinanceSidecar {
+		t.Fatalf("legacy override = %q from %q", value, source)
 	}
 }
 

@@ -242,6 +242,7 @@ export interface MarketSecurityDetails {
   fiftyTwoWeekLow?: number | null;
   averageVolume?: number | null;
   sharesOutstanding?: number | null;
+  supportedPeriods?: string[];
   extended?: MarketDataExtendedQuoteBlocks | null;
   equity?: MarketSecurityEquityDetails | null;
   warrant?: MarketSecurityWarrantDetails | null;

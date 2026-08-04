@@ -74,15 +74,15 @@ type SnapshotExtendedQuotes struct {
 // SnapshotQuote documents the normalized market-data snapshot payload.
 type SnapshotQuote struct {
 	Price              string                 `json:"price"`
-	Bid                string                 `json:"bid"`
-	Ask                string                 `json:"ask"`
+	Bid                *string                `json:"bid" extensions:"x-nullable"`
+	Ask                *string                `json:"ask" extensions:"x-nullable"`
 	OpenPrice          *string                `json:"openPrice" extensions:"x-nullable"`
 	HighPrice          *string                `json:"highPrice" extensions:"x-nullable"`
 	LowPrice           *string                `json:"lowPrice" extensions:"x-nullable"`
 	PreviousClosePrice *string                `json:"previousClosePrice" extensions:"x-nullable"`
 	LastClosePrice     *string                `json:"lastClosePrice" extensions:"x-nullable"`
-	Volume             string                 `json:"volume"`
-	Turnover           string                 `json:"turnover"`
+	Volume             *string                `json:"volume" extensions:"x-nullable"`
+	Turnover           *string                `json:"turnover" extensions:"x-nullable"`
 	At                 string                 `json:"at"`
 	ObservedAt         string                 `json:"observedAt"`
 	Session            string                 `json:"session"`
@@ -90,11 +90,26 @@ type SnapshotQuote struct {
 	Extended           SnapshotExtendedQuotes `json:"extended"`
 }
 
+// SecurityDetailsPayload documents the provider-neutral security identity and
+// authoritative candle periods. Providers may return additional research
+// fields in this object.
+type SecurityDetailsPayload struct {
+	InstrumentID     string   `json:"instrumentId"`
+	Market           string   `json:"market"`
+	Symbol           string   `json:"symbol"`
+	Name             string   `json:"name"`
+	Exchange         string   `json:"exchange,omitempty"`
+	Currency         string   `json:"currency,omitempty"`
+	Timezone         string   `json:"timezone,omitempty"`
+	SecurityType     string   `json:"securityType,omitempty"`
+	SupportedPeriods []string `json:"supportedPeriods,omitempty"`
+}
+
 // SecurityDetailsData documents the security-details query wrapper.
 type SecurityDetailsData struct {
-	Request  MarketInstrumentData `json:"request"`
-	Security map[string]any       `json:"security"`
-	Meta     MarketQueryMeta      `json:"meta"`
+	Request  MarketInstrumentData   `json:"request"`
+	Security SecurityDetailsPayload `json:"security"`
+	Meta     MarketQueryMeta        `json:"meta"`
 }
 
 // SnapshotData documents the single-instrument snapshot wrapper.

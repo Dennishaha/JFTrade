@@ -21,7 +21,7 @@ func TestCheckPythonRuntimeDependencyValidatesVersionAndModules(t *testing.T) {
 		{name: "available", probe: PythonRuntimeProbeResult{Available: true, DetectedVersion: "3.11.9"}, wantStatus: pythonRuntimeDependencyStatusOK, wantText: "runtime modules"},
 		{name: "outdated", probe: PythonRuntimeProbeResult{DetectedVersion: "3.10.14", Outdated: true}, wantStatus: pythonRuntimeDependencyStatusOutdated, wantText: "below"},
 		{name: "invalid", probe: PythonRuntimeProbeResult{Err: errors.New("invalid probe output"), Output: "PyPy unknown"}, wantStatus: pythonRuntimeDependencyStatusError, wantText: "check failed"},
-		{name: "missing modules", probe: PythonRuntimeProbeResult{DetectedVersion: "3.12.1", MissingModules: []string{"yfinance", "curl_cffi"}}, wantStatus: pythonRuntimeDependencyStatusError, wantText: "yfinance,curl_cffi"},
+		{name: "missing modules", probe: PythonRuntimeProbeResult{DetectedVersion: "3.12.1", MissingModules: []string{"fastapi", "uvicorn"}}, wantStatus: pythonRuntimeDependencyStatusError, wantText: "fastapi,uvicorn"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -40,9 +40,12 @@ func TestCheckPythonRuntimeDependencyValidatesVersionAndModules(t *testing.T) {
 }
 
 func TestCheckPythonRuntimeDependencyReportsMissingSourceRuntime(t *testing.T) {
+	t.Setenv(EnvMarketDataSidecar, "")
+	t.Setenv(EnvMarketDataDevPython, "")
+	t.Setenv(EnvMarketDataDevPythonPath, t.TempDir())
 	t.Setenv(EnvYFinanceSidecar, "")
 	t.Setenv(EnvYFinanceDevPython, "")
-	t.Setenv(EnvYFinanceDevPythonPath, t.TempDir())
+	t.Setenv(EnvYFinanceDevPythonPath, "")
 
 	restorePythonRuntimeLookPath(t, func(string) (string, error) {
 		return "", os.ErrNotExist
@@ -52,7 +55,7 @@ func TestCheckPythonRuntimeDependencyReportsMissingSourceRuntime(t *testing.T) {
 		t.Fatalf("automatic result = %#v", result)
 	}
 	message := result["message"].(string)
-	if !strings.Contains(message, "Tried:") || !strings.Contains(message, EnvYFinanceDevPython) || !strings.Contains(message, ".venv") {
+	if !strings.Contains(message, "Tried:") || !strings.Contains(message, EnvMarketDataDevPython) || !strings.Contains(message, ".venv") {
 		t.Fatalf("automatic result = %#v", result)
 	}
 }
@@ -62,7 +65,7 @@ func TestCheckPythonRuntimeDependencyReportsManagedHelpers(t *testing.T) {
 	if err := os.WriteFile(helper, []byte("helper"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv(EnvYFinanceSidecar, helper)
+	t.Setenv(EnvMarketDataSidecar, helper)
 	result := CheckPythonRuntimeDependency(context.Background())
 	if result["status"] != pythonRuntimeDependencyStatusOK || result["required"] != false ||
 		!strings.Contains(result["message"].(string), "configured frozen") {
@@ -70,7 +73,7 @@ func TestCheckPythonRuntimeDependencyReportsManagedHelpers(t *testing.T) {
 	}
 
 	missingHelper := filepath.Join(t.TempDir(), "missing-helper")
-	t.Setenv(EnvYFinanceSidecar, missingHelper)
+	t.Setenv(EnvMarketDataSidecar, missingHelper)
 	result = CheckPythonRuntimeDependency(context.Background())
 	if result["status"] != pythonRuntimeDependencyStatusError || !strings.Contains(result["message"].(string), "unavailable") {
 		t.Fatalf("missing helper result = %#v", result)
@@ -117,9 +120,12 @@ func configureDependencyTestPythonSourceRuntime(t *testing.T) string {
 	if err := os.WriteFile(python, []byte("python"), 0o700); err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv(EnvMarketDataSidecar, "")
+	t.Setenv(EnvMarketDataDevPython, python)
+	t.Setenv(EnvMarketDataDevPythonPath, t.TempDir())
 	t.Setenv(EnvYFinanceSidecar, "")
-	t.Setenv(EnvYFinanceDevPython, python)
-	t.Setenv(EnvYFinanceDevPythonPath, t.TempDir())
+	t.Setenv(EnvYFinanceDevPython, "")
+	t.Setenv(EnvYFinanceDevPythonPath, "")
 	return python
 }
 

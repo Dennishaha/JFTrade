@@ -297,6 +297,20 @@ func TestMarketDataReadErrorsExposeProviderWarmupRetrySignal(t *testing.T) {
 	}
 }
 
+func TestMarketDataReadErrorsExposeProviderBusyRetrySignal(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	writeMarketDataReadError(context, "MARKET_DATA_FAILED", srv.ErrProviderBusy)
+
+	if response.Code != http.StatusServiceUnavailable ||
+		response.Header().Get("Retry-After") != "2" ||
+		!strings.Contains(response.Body.String(), `"code":"MARKET_DATA_PROVIDER_BUSY"`) {
+		t.Fatalf("response = %d headers=%v body=%s", response.Code, response.Header(), response.Body.String())
+	}
+}
+
 func TestBrokerMarketDataReadErrorsPreserveClientActionability(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tests := []struct {

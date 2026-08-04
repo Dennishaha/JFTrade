@@ -242,4 +242,45 @@ describe("console market-data provider scope", () => {
     expect(marketData.activeMarketDataInstrumentId.value).toBe("US.AAPL");
     marketData.disposeMarketDataQuery();
   });
+
+  it("retries an incomplete provider lookup before accepting the candidate", async () => {
+    await refreshMarketProfiles();
+    const marketData = createConsoleDataMarketDataQuerySlice();
+    mocks.apiGetPath
+      .mockResolvedValueOnce({
+        requestedMarket: "US",
+        query: "US.AAPL",
+        resolutionStatus: "incomplete",
+        totalReturned: 0,
+        entries: [],
+        failures: [{ market: "US", code: "UPSTREAM", message: "busy" }],
+      })
+      .mockResolvedValueOnce(instrumentResolution("US.AAPL"));
+
+    await expect(
+      marketData.reconcileMarketDataProvider([
+        { market: "US", symbol: "AAPL" },
+      ]),
+    ).resolves.toBe(true);
+    expect(mocks.apiGetPath).toHaveBeenCalledTimes(2);
+    expect(marketData.activeMarketDataInstrumentId.value).toBe("US.AAPL");
+    marketData.disposeMarketDataQuery();
+  });
+
+  it("honors Retry-After while retrying a provider lookup", async () => {
+    await refreshMarketProfiles();
+    const marketData = createConsoleDataMarketDataQuerySlice();
+    mocks.apiGetPath
+      .mockRejectedValueOnce({ retryAfterMs: 125 })
+      .mockResolvedValueOnce(instrumentResolution("US.AAPL"));
+
+    await expect(
+      marketData.reconcileMarketDataProvider([
+        { market: "US", symbol: "AAPL" },
+      ]),
+    ).resolves.toBe(true);
+    expect(mocks.apiGetPath).toHaveBeenCalledTimes(2);
+    expect(marketData.activeMarketDataInstrumentId.value).toBe("US.AAPL");
+    marketData.disposeMarketDataQuery();
+  });
 });

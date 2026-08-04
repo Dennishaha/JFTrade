@@ -36,6 +36,18 @@ type ExtendedQuote struct {
 	SessionEndAt     string
 }
 
+// QuoteFieldAvailability makes nullable upstream quote fields explicit without
+// weakening the decimal invariants used by the cache and collector. Providers
+// that leave Authoritative false retain the legacy behavior where all four
+// decimal fields are available, including a legitimate zero value.
+type QuoteFieldAvailability struct {
+	Authoritative bool
+	Bid           bool
+	Ask           bool
+	Volume        bool
+	Turnover      bool
+}
+
 type Tick struct {
 	InstrumentID       string
 	Market             string
@@ -56,6 +68,7 @@ type Tick struct {
 	// snapshots that do not carry an explicit delta leave it at zero.
 	VolumeDelta   decimal.Decimal
 	Turnover      decimal.Decimal
+	Availability  QuoteFieldAvailability
 	QuoteAt       string
 	ObservedAt    string
 	Source        string

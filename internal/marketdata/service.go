@@ -531,8 +531,18 @@ func (s *Service) requireOrderBookSubscriptionDemand(market, symbol string) erro
 
 func (s *Service) subscriptionsRequired() bool {
 	s.subscriptionMu.RLock()
-	defer s.subscriptionMu.RUnlock()
-	return s.reconciler != nil
+	reconciler := s.reconciler
+	s.subscriptionMu.RUnlock()
+	if reconciler == nil {
+		return false
+	}
+	// Poll-only providers (for example AKShare and yfinance) do not create
+	// broker-side leases. Their HTTP reads are authorized by provider
+	// selection, while Futu continues to require an explicit subscription.
+	if availability, ok := s.provider.(PushAvailability); ok && !availability.PushAvailable() {
+		return false
+	}
+	return true
 }
 
 func (s *Service) requireProviderCapability(

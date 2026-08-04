@@ -831,6 +831,33 @@ describe("kline realtime bucket resolution", () => {
     expect(overlayRealtimeTickCandle(candles, null, "1m")).toEqual(candles);
   });
 
+  it("does not use receipt time for an AKShare snapshot without quote time", () => {
+    const candles = [
+      {
+        period: "1m" as const,
+        at: "2026-05-20T10:00:00.000Z",
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100.5,
+        volume: 12,
+      },
+    ];
+
+    expect(
+      overlayRealtimeTickCandle(
+        candles,
+        {
+          price: 102,
+          at: "",
+          observedAt: "2026-05-20T21:25:00.000Z",
+          brokerId: "akshare",
+        },
+        "1m",
+      ),
+    ).toEqual(candles);
+  });
+
   it("never treats legacy cumulative snapshot volume as per-bar volume", () => {
     const legacyCumulativeVolume = 999_999;
     const candles = [
