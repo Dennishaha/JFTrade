@@ -133,6 +133,8 @@ def convert_history(
     from_time: datetime | None = None,
     to_time: datetime | None = None,
     exchange_timezone: str = US_EASTERN,
+    sessions: tuple[str, ...] | None = None,
+    period: str | None = None,
 ) -> list[Candle]:
     if frame is None or bool(getattr(frame, "empty", True)):
         return []
@@ -151,6 +153,11 @@ def convert_history(
             continue
         if to_time is not None and at > to_time:
             continue
+        candle_session = "regular"
+        if period in {"1m", "5m", "15m", "30m", "1h"}:
+            candle_session = classify_candle_session(at, exchange_timezone)
+        if sessions is not None and candle_session not in sessions:
+            continue
         prices = [finite_float(row[columns[key]]) for key in ("open", "high", "low", "close")]
         if any(price is None for price in prices):
             continue
@@ -168,6 +175,21 @@ def convert_history(
         )
     candles.sort(key=lambda candle: candle.at)
     return candles[-limit:]
+
+
+def classify_candle_session(value: datetime, exchange_timezone: str) -> str:
+    """Classify Yahoo intraday timestamps without fabricating overnight data."""
+    if exchange_timezone != US_EASTERN:
+        return "regular"
+    local = value.astimezone(ZoneInfo(exchange_timezone))
+    minute = local.hour * 60 + local.minute
+    if 4 * 60 <= minute < 9 * 60 + 30:
+        return "extended"
+    if 9 * 60 + 30 <= minute < 16 * 60:
+        return "regular"
+    if 16 * 60 <= minute < 20 * 60:
+        return "extended"
+    return "overnight"
 
 
 def _normalized_column_name(column: Any) -> str:

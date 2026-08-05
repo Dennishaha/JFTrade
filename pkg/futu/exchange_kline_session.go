@@ -47,19 +47,39 @@ func (err *historicalKLineRequestError) Error() string {
 
 // --- Session planning ---
 
-func buildHistoricalKLineRequestPlans(symbol string, interval types.Interval) []historicalKLineRequestPlan {
+func buildHistoricalKLineRequestPlansForSessions(symbol string, interval types.Interval, sessions []market.Session) []historicalKLineRequestPlan {
 	if shouldSplitHistoricalKLineRequestsBySession(symbol, interval) {
-		return []historicalKLineRequestPlan{
-			{extendedTime: true, session: new(commonpb.Session_Session_RTH), keepSessions: []market.Session{market.SessionRegular}},
-			{extendedTime: true, session: new(commonpb.Session_Session_ETH), keepSessions: []market.Session{market.SessionPre, market.SessionAfter}},
-			{extendedTime: true, session: new(commonpb.Session_Session_ALL), keepSessions: []market.Session{market.SessionOvernight}},
+		if sessions == nil {
+			sessions = []market.Session{market.SessionRegular, market.SessionPre, market.SessionAfter, market.SessionOvernight}
 		}
+		plans := make([]historicalKLineRequestPlan, 0, 3)
+		if slices.Contains(sessions, market.SessionRegular) {
+			plans = append(plans, historicalKLineRequestPlan{extendedTime: true, session: new(commonpb.Session_Session_RTH), keepSessions: []market.Session{market.SessionRegular}})
+		}
+		if slices.Contains(sessions, market.SessionPre) || slices.Contains(sessions, market.SessionAfter) {
+			keep := make([]market.Session, 0, 2)
+			if slices.Contains(sessions, market.SessionPre) {
+				keep = append(keep, market.SessionPre)
+			}
+			if slices.Contains(sessions, market.SessionAfter) {
+				keep = append(keep, market.SessionAfter)
+			}
+			plans = append(plans, historicalKLineRequestPlan{extendedTime: true, session: new(commonpb.Session_Session_ETH), keepSessions: keep})
+		}
+		if slices.Contains(sessions, market.SessionOvernight) {
+			plans = append(plans, historicalKLineRequestPlan{extendedTime: true, session: new(commonpb.Session_Session_ALL), keepSessions: []market.Session{market.SessionOvernight}})
+		}
+		return plans
 	}
 	return []historicalKLineRequestPlan{{}}
 }
 
-func historicalKLineRequestPlanAll() historicalKLineRequestPlan {
-	return historicalKLineRequestPlan{extendedTime: true, session: new(commonpb.Session_Session_ALL)}
+func historicalKLineRequestPlanAll(requested ...[]market.Session) historicalKLineRequestPlan {
+	var keepSessions []market.Session
+	if len(requested) > 0 {
+		keepSessions = requested[0]
+	}
+	return historicalKLineRequestPlan{extendedTime: true, session: new(commonpb.Session_Session_ALL), keepSessions: keepSessions}
 }
 
 func shouldSplitHistoricalKLineRequestsBySession(symbol string, interval types.Interval) bool {
@@ -155,6 +175,17 @@ func filterKLinesByWindow(klines []types.KLine, beginAt time.Time, endAt time.Ti
 			continue
 		}
 		filtered = append(filtered, kline)
+	}
+	return filtered
+}
+
+func filterKLinesBySessions(klines []types.KLine, sessions []market.Session) []types.KLine {
+	filtered := make([]types.KLine, 0, len(klines))
+	for _, kline := range klines {
+		session := resolveKLineSessionByClock(kline.Symbol, kline)
+		if slices.Contains(sessions, session) {
+			filtered = append(filtered, kline)
+		}
 	}
 	return filtered
 }

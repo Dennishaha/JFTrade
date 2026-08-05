@@ -126,6 +126,35 @@ func TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles(t *testing.T) 
 	}
 }
 
+func TestMarketCandlesResponseRejectsInvalidSessionsBeforeFutuAccess(t *testing.T) {
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
+	_, err := server.marketCandlesResponse(
+		t.Context(), "/api/v1/market-data/candles/US/NVDA",
+		map[string][]string{"period": {"1m"}, "sessions": {"regular,unknown"}},
+	)
+	if err == nil {
+		t.Fatal("invalid sessions error = nil")
+	}
+}
+
+func TestMarketCandlesResponseClassifiesUnknownUSSessionAsDataError(t *testing.T) {
+	quoteServer := fututestkit.StartQuoteServer(t)
+	defer quoteServer.Close()
+	quoteServer.SetHistoryPages([][]fututestkit.KLine{{
+		testMarketDataProtoKLine(time.Date(2026, time.May, 24, 12, 0, 0, 0, time.UTC), 100, 101, 99, 100.5, 1000),
+	}})
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.Addr())
+	_, err := server.marketCandlesResponse(
+		t.Context(), "/api/v1/market-data/candles/US/NVDA",
+		map[string][]string{"period": {"1m"}, "limit": {"1"}},
+	)
+	if err == nil {
+		t.Fatal("unknown session error = nil")
+	}
+}
+
 func testMarketDataProtoKLine(at time.Time, open, high, low, close float64, volume int64) fututestkit.KLine {
 	return fututestkit.KLine{At: at, Open: open, High: high, Low: low, Close: close, Volume: volume}
 }

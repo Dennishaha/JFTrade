@@ -279,14 +279,14 @@ func marketdataProviderNormalizeInstrument(_ context.Context, input map[string]a
 	}, nil
 }
 
-func (s *serverApplication) marketdataProviderHistoricalCandles(ctx context.Context, market string, symbol string, period string, limit int, fromTime string, toTime string) (mdsrv.CandlesResponse, error) {
-	query := marketdataProviderCandlesQuery(period, limit, fromTime, toTime)
+func (s *serverApplication) marketdataProviderHistoricalCandles(ctx context.Context, request mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error) {
+	query := marketdataProviderCandlesQuery(request)
 	normalizedPeriod := query.normalizedPeriod()
 	if normalizedPeriod == "tick" {
 		normalizedPeriod = "1m"
 	}
-	resolvedMarket := strings.ToUpper(strings.TrimSpace(market))
-	resolvedSymbol := strings.ToUpper(strings.TrimSpace(symbol))
+	resolvedMarket := strings.ToUpper(strings.TrimSpace(request.Market))
+	resolvedSymbol := strings.ToUpper(strings.TrimSpace(request.Symbol))
 	instrumentID := resolvedMarket + "." + resolvedSymbol
 	resp, err := s.buildKLineCandlesResponse(ctx, resolvedMarket, resolvedSymbol, instrumentID, normalizedPeriod, query.limitOrDefault(200, 1000), query)
 	if err != nil {
@@ -298,16 +298,18 @@ func (s *serverApplication) marketdataProviderHistoricalCandles(ctx context.Cont
 	return mdsrv.CandlesResponse(resp), nil
 }
 
-func marketdataProviderCandlesQuery(period string, limit int, fromTime string, toTime string) marketCandlesQuery {
+func marketdataProviderCandlesQuery(request mdsrv.HistoricalCandlesQuery) marketCandlesQuery {
 	query := marketCandlesQuery{}
-	if period != "" {
-		query.Period = httpserver.CandlePeriodValue(period)
+	if request.Period != "" {
+		query.Period = httpserver.CandlePeriodValue(request.Period)
 	}
-	if limit > 0 {
-		query.Limit = httpserver.OptionalIntValue{Value: limit, Set: true, Valid: true}
+	if request.Limit > 0 {
+		query.Limit = httpserver.OptionalIntValue{Value: request.Limit, Set: true, Valid: true}
 	}
-	query.FromTime = marketdataProviderOptionalTime(fromTime)
-	query.ToTime = marketdataProviderOptionalTime(toTime)
+	query.FromTime = marketdataProviderOptionalTime(request.FromTime)
+	query.ToTime = marketdataProviderOptionalTime(request.ToTime)
+	query.Sessions = append([]mdsrv.CandleSession(nil), request.Sessions...)
+	query.SessionsSpecified = request.SessionsSpecified
 	return query
 }
 
@@ -331,7 +333,7 @@ type marketdataProvider struct {
 	searchInstruments    func(context.Context, string, int) ([]mdsrv.InstrumentCandidate, error)
 	querySnapshot        func(context.Context, string) (*mdsrv.Tick, error)
 	queryTicker          func(context.Context, string) (*mdsrv.Tick, error)
-	getHistoricalCandles func(context.Context, string, string, string, int, string, string) (mdsrv.CandlesResponse, error)
+	getHistoricalCandles func(context.Context, mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error)
 	getDepth             func(context.Context, string, string, int) (mdsrv.DepthResponse, error)
 	health               func(context.Context) (mdsrv.HealthStatus, error)
 }
@@ -377,8 +379,8 @@ func (p *marketdataProvider) QueryTicker(ctx context.Context, instrumentID strin
 	return p.queryTicker(ctx, instrumentID)
 }
 
-func (p *marketdataProvider) GetHistoricalCandles(ctx context.Context, market, symbol, period string, limit int, fromTime, toTime string) (mdsrv.CandlesResponse, error) {
-	return p.getHistoricalCandles(ctx, market, symbol, period, limit, fromTime, toTime)
+func (p *marketdataProvider) GetHistoricalCandles(ctx context.Context, query mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error) {
+	return p.getHistoricalCandles(ctx, query)
 }
 
 func (p *marketdataProvider) GetDepth(ctx context.Context, market, symbol string, num int) (mdsrv.DepthResponse, error) {

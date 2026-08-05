@@ -257,13 +257,10 @@ func batchRemoteErrors(values []remoteBatchError) []error {
 
 func (p *Provider) GetHistoricalCandles(
 	ctx context.Context,
-	marketValue string,
-	symbol string,
-	period string,
-	limit int,
-	fromTime string,
-	toTime string,
+	query marketdata.HistoricalCandlesQuery,
 ) (marketdata.CandlesResponse, error) {
+	marketValue, symbol, period := query.Market, query.Symbol, query.Period
+	limit, fromTime, toTime := query.Limit, query.FromTime, query.ToTime
 	instrument, err := normalizeIdentity(marketValue, symbol, "")
 	if err != nil {
 		return nil, err
@@ -272,14 +269,23 @@ func (p *Provider) GetHistoricalCandles(
 	if !supportedCandlePeriod(period) {
 		return nil, fmt.Errorf("%w: candle period %q", ErrUnsupported, period)
 	}
-	limit = normalizeLimit(limit, defaultCandleLimit, maxCandleLimit)
-	response, err := p.client.candles(
-		ctx, instrument.market, instrument.symbol, period, limit, fromTime, toTime,
+	sessions, err := marketdata.ResolveCandleSessions(
+		query.Sessions,
+		query.SessionsSpecified,
+		[]marketdata.CandleSession{marketdata.CandleSessionRegular},
 	)
 	if err != nil {
 		return nil, err
 	}
-	return convertCandles(response, instrument, period, limit, p.currentTime())
+	limit = normalizeLimit(limit, defaultCandleLimit, maxCandleLimit)
+	response, err := p.client.candles(
+		ctx, instrument.market, instrument.symbol, period, limit, fromTime, toTime,
+		marketdata.CandleSessionStrings(sessions),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return convertCandlesForSessions(response, instrument, period, limit, sessions, p.currentTime())
 }
 
 func (p *Provider) GetDepth(

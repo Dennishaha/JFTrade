@@ -124,7 +124,7 @@ func TestServiceRemainingLifecycleBoundaries(t *testing.T) {
 
 	service := NewService(&dataProviderStub{candles: CandlesResponse{"ok": true}})
 	_, _ = service.ResolveInstrument(ctx, "US", "AAPL", 1)
-	if response, err := service.GetCandles(ctx, "US", "AAPL", "", 1, "", ""); err != nil || response["ok"] != true {
+	if response, err := service.GetCandles(ctx, HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Limit: 1}); err != nil || response["ok"] != true {
 		t.Fatalf("default candle period = %#v, %v", response, err)
 	}
 

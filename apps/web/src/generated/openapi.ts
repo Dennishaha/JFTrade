@@ -936,6 +936,10 @@ export interface components {
     marketFees: components["schemas"]["runmodel.FeeSchedule"];
   };
     "broker.ApprovalLevel": "none" | "high" | "critical";
+    "broker.CandleSessionCapability": {
+    id: string;
+    supportedPeriods: Array<string>;
+  };
     "broker.CapabilityCatalog": {
     features: Array<components["schemas"]["broker.CapabilityDefinition"]>;
     version: string;
@@ -1044,6 +1048,7 @@ export interface components {
     requiresQuoteRight?: boolean;
     state: components["schemas"]["broker.CapabilityState"];
     supportedPeriods?: Array<string>;
+    supportedSessions?: Array<components["schemas"]["broker.CandleSessionCapability"]>;
   };
     "broker.FeatureID": "market.search" | "market.instrument_profile" | "market.snapshot" | "market.snapshots" | "market.candles" | "market.intraday" | "market.ticks" | "market.depth" | "market.broker_queue" | "market.capital_flow" | "derivatives.option_chain" | "derivatives.option_screen" | "derivatives.option_analysis" | "derivatives.option_events" | "derivatives.warrants" | "derivatives.futures" | "research.instrument" | "research.financials" | "research.valuation" | "research.analyst" | "research.ownership" | "research.corporate_actions" | "research.short_interest" | "research.news" | "research.screen" | "research.calendar" | "research.macro" | "research.rankings" | "research.institutions" | "research.industry" | "research.technical_indicators" | "prediction.discover" | "prediction.snapshot" | "prediction.depth" | "prediction.history" | "prediction.combo_eligible" | "prediction.combo_quote" | "execution.order_preview" | "execution.order_place" | "execution.order_cancel" | "execution.combo_preview" | "execution.combo_place" | "execution.combo_cancel" | "execution.buying_power" | "alerts.price.list" | "alerts.price.set" | "alerts.option_event.list" | "alerts.option_event.set" | "watchlist.remote.list" | "watchlist.remote.modify";
     "broker.FeaturePartialError": {
@@ -1547,6 +1552,7 @@ export interface components {
     instrument: components["schemas"]["marketdata.MarketInstrumentData"];
     limit: number;
     period: string;
+    sessions: Array<string>;
   };
     "marketdata.CandlesData": {
     candles: Array<Record<string, unknown>>;
@@ -1620,6 +1626,7 @@ export interface components {
     instrumentId: string;
     resolvedAt: string;
     session?: string;
+    sessions?: Array<string>;
     source: string;
   };
     "marketdata.MarketsData": {
@@ -7285,6 +7292,7 @@ export interface paths {
         fromTime?: string;
         toTime?: string;
         before?: string;
+        sessions?: Array<string>;
         brokerId?: string;
       };
       };

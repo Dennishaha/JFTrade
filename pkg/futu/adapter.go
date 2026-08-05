@@ -121,7 +121,7 @@ func futuFeatureCapabilities(market string) []broker.FeatureCapability {
 			reason = "Prediction markets require an eligible Moomoo US environment."
 			requiresAccount = true
 		}
-		features = append(features, broker.FeatureCapability{
+		feature := broker.FeatureCapability{
 			ID:                 definition.ID,
 			Markets:            []string{market},
 			SupportedPeriods:   futuFeatureSupportedPeriods(definition.ID),
@@ -134,9 +134,40 @@ func futuFeatureCapabilities(market string) []broker.FeatureCapability {
 			RequiresConnection: true,
 			RequiresAccount:    requiresAccount,
 			RequiresQuoteRight: requiresQuoteRight,
-		})
+		}
+		feature.SupportedSessions = futuFeatureSupportedSessions(definition.ID, market)
+		features = append(features, feature)
 	}
 	return features
+}
+
+func futuFeatureSupportedSessions(id broker.FeatureID, market string) []broker.CandleSessionCapability {
+	if id != broker.FeatureMarketCandles {
+		return nil
+	}
+	periods := futuCandlePeriods()
+	if market != "US" {
+		return []broker.CandleSessionCapability{{ID: "regular", SupportedPeriods: periods}}
+	}
+	intraday := make([]string, 0, len(periods)+1)
+	daily := make([]string, 0, len(periods))
+	for _, period := range periods {
+		switch period {
+		case "1m", "5m", "15m", "30m", "1h":
+			intraday = append(intraday, period)
+		default:
+			daily = append(daily, period)
+		}
+	}
+	intraday = append([]string{"tick"}, intraday...)
+	allPeriods := make([]string, 0, len(intraday)+len(daily))
+	allPeriods = append(allPeriods, intraday...)
+	allPeriods = append(allPeriods, daily...)
+	return []broker.CandleSessionCapability{
+		{ID: "regular", SupportedPeriods: allPeriods},
+		{ID: "extended", SupportedPeriods: append([]string(nil), intraday...)},
+		{ID: "overnight", SupportedPeriods: append([]string(nil), intraday...)},
+	}
 }
 
 func futuFeatureSupportedPeriods(id broker.FeatureID) []string {

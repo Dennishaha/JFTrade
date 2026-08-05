@@ -95,10 +95,11 @@ func (r *futuMarketDataReader) QueryKLines(ctx context.Context, query broker.KLi
 	}
 	lowerBound := r.klineListingLowerBound(ctx, query.Symbol, location)
 	extendedHours := shouldRequestExtendedKLines(query.Symbol, interval)
-	session := "regular"
-	if extendedHours {
-		session = "all"
+	requestedSessions, err := resolveBrokerKLineSessions(query.Sessions, extendedHours)
+	if err != nil {
+		return nil, err
 	}
+	session := brokerKLineSessionLabel(requestedSessions, extendedHours)
 
 	var klines []bbgotypes.KLine
 	hasMore := false
@@ -109,7 +110,7 @@ func (r *futuMarketDataReader) QueryKLines(ctx context.Context, query broker.KLi
 			return nil, fmt.Errorf("futu: invalid beforeTime: %w", parseErr)
 		}
 		klines, hasMore, err = r.queryAdaptiveKLinePage(
-			ctx, query.Symbol, interval, lowerBound, beforeAt, limit,
+			ctx, query.Symbol, interval, lowerBound, beforeAt, limit, requestedSessions,
 		)
 	} else if strings.TrimSpace(query.FromTime) != "" || strings.TrimSpace(query.ToTime) != "" {
 		beginAt := lowerBound
@@ -129,21 +130,88 @@ func (r *futuMarketDataReader) QueryKLines(ctx context.Context, query broker.KLi
 		if !beginAt.Before(endAt) {
 			return nil, fmt.Errorf("futu: fromTime must be before toTime")
 		}
-		klines, err = r.exchange.QueryAllKLines(
+		klines, err = r.exchange.QueryAllKLinesForSessions(
 			ctx, query.Symbol, interval, beginAt.In(location), endAt.In(location),
-			qotcommonpb.RehabType_RehabType_Forward,
+			qotcommonpb.RehabType_RehabType_Forward, requestedSessions,
 		)
 		klines = normalizeBrokerKLinePage(klines, beginAt, endAt, limit, false)
 	} else {
 		klines, hasMore, err = r.queryAdaptiveKLinePage(
-			ctx, query.Symbol, interval, lowerBound, time.Now().In(location), limit,
+			ctx, query.Symbol, interval, lowerBound, time.Now().In(location), limit, requestedSessions,
 		)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	return r.buildBrokerKLineSnapshot(query, interval, klines, hasMore, extendedHours, session), nil
+	return r.buildBrokerKLineSnapshot(query, interval, klines, hasMore, hasNonRegularBrokerSession(requestedSessions, extendedHours), session, requestedSessions), nil
+}
+
+func hasNonRegularBrokerSession(sessions []market.Session, extendedHours bool) bool {
+	if sessions == nil {
+		return extendedHours
+	}
+	for _, session := range sessions {
+		if session != market.SessionRegular {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveBrokerKLineSessions(values []string, extendedHours bool) ([]market.Session, error) {
+	if len(values) == 0 {
+		if !extendedHours {
+			return []market.Session{market.SessionRegular}, nil
+		}
+		return []market.Session{
+			market.SessionRegular,
+			market.SessionPre,
+			market.SessionAfter,
+			market.SessionOvernight,
+		}, nil
+	}
+	seen := make(map[market.Session]struct{}, 3)
+	for _, value := range values {
+		for _, token := range strings.Split(value, ",") {
+			switch strings.ToLower(strings.TrimSpace(token)) {
+			case "regular":
+				seen[market.SessionRegular] = struct{}{}
+			case "extended":
+				if !extendedHours {
+					return nil, fmt.Errorf("%w: extended is unsupported", broker.ErrInvalidCandleSessions)
+				}
+				seen[market.SessionPre] = struct{}{}
+				seen[market.SessionAfter] = struct{}{}
+			case "overnight":
+				if !extendedHours {
+					return nil, fmt.Errorf("%w: overnight is unsupported", broker.ErrInvalidCandleSessions)
+				}
+				seen[market.SessionOvernight] = struct{}{}
+			default:
+				return nil, fmt.Errorf("%w: %q", broker.ErrInvalidCandleSessions, token)
+			}
+		}
+	}
+	result := make([]market.Session, 0, len(seen))
+	for _, session := range []market.Session{market.SessionRegular, market.SessionPre, market.SessionAfter, market.SessionOvernight} {
+		if _, ok := seen[session]; ok {
+			result = append(result, session)
+		}
+	}
+	return result, nil
+}
+
+func brokerKLineSessionLabel(sessions []market.Session, extendedHours bool) string {
+	if len(sessions) == 0 && extendedHours {
+		return "all"
+	}
+	for _, session := range sessions {
+		if session != market.SessionRegular {
+			return "all"
+		}
+	}
+	return "regular"
 }
 
 func (r *futuMarketDataReader) buildBrokerKLineSnapshot(
@@ -153,13 +221,19 @@ func (r *futuMarketDataReader) buildBrokerKLineSnapshot(
 	hasMore bool,
 	extendedHours bool,
 	session string,
+	requestedSessions ...[]market.Session,
 ) *broker.KLineSnapshot {
+	var sessions []market.Session
+	if len(requestedSessions) > 0 {
+		sessions = requestedSessions[0]
+	}
 	snapshot := &broker.KLineSnapshot{
 		AccountID:     query.AccountID,
 		Symbol:        strings.ToUpper(strings.TrimSpace(query.Symbol)),
 		Period:        string(interval),
 		ExtendedHours: extendedHours,
 		Session:       session,
+		Sessions:      brokerSessionStrings(sessions),
 		Pagination: broker.KLinePagination{
 			HasMore: hasMore,
 		},
@@ -192,6 +266,34 @@ func (r *futuMarketDataReader) buildBrokerKLineSnapshot(
 	return snapshot
 }
 
+func brokerSessionStrings(sessions []market.Session) []string {
+	if len(sessions) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(sessions))
+	hasRegular, hasExtended, hasOvernight := false, false, false
+	for _, session := range sessions {
+		switch session {
+		case market.SessionRegular:
+			hasRegular = true
+		case market.SessionPre, market.SessionAfter:
+			hasExtended = true
+		case market.SessionOvernight:
+			hasOvernight = true
+		}
+	}
+	if hasRegular {
+		result = append(result, "regular")
+	}
+	if hasExtended {
+		result = append(result, "extended")
+	}
+	if hasOvernight {
+		result = append(result, "overnight")
+	}
+	return result
+}
+
 func (r *futuMarketDataReader) queryAdaptiveKLinePage(
 	ctx context.Context,
 	symbol string,
@@ -199,7 +301,12 @@ func (r *futuMarketDataReader) queryAdaptiveKLinePage(
 	lowerBound time.Time,
 	endExclusive time.Time,
 	limit int,
+	sessions ...[]market.Session,
 ) ([]bbgotypes.KLine, bool, error) {
+	var requested []market.Session
+	if len(sessions) > 0 {
+		requested = sessions[0]
+	}
 	location := endExclusive.Location()
 	lowerBound = lowerBound.In(location)
 	if !lowerBound.Before(endExclusive) {
@@ -214,9 +321,9 @@ func (r *futuMarketDataReader) queryAdaptiveKLinePage(
 			beginAt = lowerBound
 		}
 		requestEnd := endExclusive.Add(-time.Nanosecond)
-		klines, err := r.exchange.QueryAllKLines(
+		klines, err := r.exchange.QueryAllKLinesForSessions(
 			ctx, symbol, interval, beginAt, requestEnd,
-			qotcommonpb.RehabType_RehabType_Forward,
+			qotcommonpb.RehabType_RehabType_Forward, requested,
 		)
 		if err != nil {
 			return nil, false, err

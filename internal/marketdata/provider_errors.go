@@ -9,6 +9,10 @@ var (
 	// ErrCapabilityUnsupported identifies a valid request that the active
 	// provider cannot supply.
 	ErrCapabilityUnsupported = errors.New("market-data capability is unsupported")
+	// ErrInvalidCandleSessions identifies malformed or unsupported candle
+	// session selections. It maps to a client input error instead of an
+	// upstream/provider failure.
+	ErrInvalidCandleSessions = errors.New("invalid candle sessions")
 	// ErrProviderWarming indicates that the selected provider process is healthy
 	// but its heavy runtime dependencies are still loading.
 	ErrProviderWarming = errors.New("market-data provider is warming")

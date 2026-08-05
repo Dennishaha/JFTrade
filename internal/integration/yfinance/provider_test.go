@@ -148,8 +148,10 @@ func TestProviderConvertsSnapshotsCandlesHealthAndUnsupportedDepth(t *testing.T)
 	}
 
 	response, err := provider.GetHistoricalCandles(
-		ctx, "NYSE", "AAPL", "1d", 2,
-		"2026-07-28T00:00:00Z", "2026-07-30T00:00:00Z",
+		ctx, marketdata.HistoricalCandlesQuery{
+			Market: "NYSE", Symbol: "AAPL", Period: "1d", Limit: 2,
+			FromTime: "2026-07-28T00:00:00Z", ToTime: "2026-07-30T00:00:00Z",
+		},
 	)
 	if err != nil {
 		t.Fatalf("GetHistoricalCandles: %v", err)
@@ -186,7 +188,7 @@ func TestProviderConvertsSnapshotsCandlesHealthAndUnsupportedDepth(t *testing.T)
 	if _, err := provider.GetDepth(ctx, "US", "AAPL", 10); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("GetDepth error = %v", err)
 	}
-	if _, err := provider.GetHistoricalCandles(ctx, "US", "AAPL", "tick", 10, "", ""); !errors.Is(err, ErrUnsupported) {
+	if _, err := provider.GetHistoricalCandles(ctx, marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "tick", Limit: 10}); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("unsupported candle period error = %v", err)
 	}
 }
@@ -203,7 +205,7 @@ func TestProviderMarksYahooExtendedMinuteVolumeUnavailable(t *testing.T) {
 	})
 
 	response, err := provider.GetHistoricalCandles(
-		context.Background(), "US", "BABA", "1m", 10, "2026-07-25T00:00:00Z", "",
+		context.Background(), marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "BABA", Period: "1m", Limit: 10, FromTime: "2026-07-25T00:00:00Z"},
 	)
 	if err != nil {
 		t.Fatalf("GetHistoricalCandles: %v", err)
@@ -213,6 +215,17 @@ func TestProviderMarksYahooExtendedMinuteVolumeUnavailable(t *testing.T) {
 		candles[1]["session"] != "regular" || candles[1]["volume"] != "2500" ||
 		candles[2]["session"] != "after" || candles[2]["volume"] != nil {
 		t.Fatalf("BABA candles = %#v", candles)
+	}
+}
+
+func TestProviderRejectsUnsupportedYahooCandleSessions(t *testing.T) {
+	provider := newTestProvider(t, testkit.New(t))
+	_, err := provider.GetHistoricalCandles(context.Background(), marketdata.HistoricalCandlesQuery{
+		Market: "US", Symbol: "AAPL", Period: "1m", Limit: 10,
+		Sessions: []marketdata.CandleSession{marketdata.CandleSessionOvernight}, SessionsSpecified: true,
+	})
+	if !errors.Is(err, marketdata.ErrInvalidCandleSessions) {
+		t.Fatalf("overnight-session error = %v, want invalid candle sessions", err)
 	}
 }
 
@@ -298,13 +311,13 @@ func TestGetHistoricalCandlesRejectsOneMinutePeriodBeyondSevenDayWindow(t *testi
 
 	// testNow = 2026-07-29T15:00:00Z; 7-day cutoff = 2026-07-22T15:00:00Z
 	beyondWindow := "2026-07-01T00:00:00Z"
-	if _, err := provider.GetHistoricalCandles(ctx, "US", "AAPL", "1m", 10, beyondWindow, ""); !errors.Is(err, ErrUnsupported) {
+	if _, err := provider.GetHistoricalCandles(ctx, marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1m", Limit: 10, FromTime: beyondWindow}); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("1m beyond window: want ErrUnsupported, got %v", err)
 	}
 
 	// One second before cutoff should also be rejected.
 	justBefore := "2026-07-22T14:59:59Z"
-	if _, err := provider.GetHistoricalCandles(ctx, "US", "AAPL", "1m", 10, justBefore, ""); !errors.Is(err, ErrUnsupported) {
+	if _, err := provider.GetHistoricalCandles(ctx, marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1m", Limit: 10, FromTime: justBefore}); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("1m at cutoff boundary: want ErrUnsupported, got %v", err)
 	}
 
@@ -314,7 +327,7 @@ func TestGetHistoricalCandlesRejectsOneMinutePeriodBeyondSevenDayWindow(t *testi
 			`"period":"1m","extended_hours":true,"total_returned":0,"source":"yfinance","candles":[]}`,
 	})
 	withinWindow := "2026-07-25T00:00:00Z"
-	_, err := provider.GetHistoricalCandles(ctx, "US", "AAPL", "1m", 10, withinWindow, "")
+	_, err := provider.GetHistoricalCandles(ctx, marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1m", Limit: 10, FromTime: withinWindow})
 	if errors.Is(err, ErrUnsupported) {
 		t.Fatalf("1m within window should not return ErrUnsupported, got %v", err)
 	}
@@ -324,7 +337,7 @@ func TestGetHistoricalCandlesRejectsOneMinutePeriodBeyondSevenDayWindow(t *testi
 		Body: `{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL",` +
 			`"period":"1m","extended_hours":true,"total_returned":0,"source":"yfinance","candles":[]}`,
 	})
-	_, err = provider.GetHistoricalCandles(ctx, "US", "AAPL", "1m", 10, "", "")
+	_, err = provider.GetHistoricalCandles(ctx, marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1m", Limit: 10})
 	if errors.Is(err, ErrUnsupported) {
 		t.Fatalf("1m with no from_time should not return ErrUnsupported, got %v", err)
 	}

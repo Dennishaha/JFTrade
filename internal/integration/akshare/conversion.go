@@ -278,6 +278,24 @@ func convertCandles(
 	limit int,
 	resolvedAt time.Time,
 ) (marketdata.CandlesResponse, error) {
+	return convertCandlesForSessions(
+		response,
+		expected,
+		period,
+		limit,
+		[]marketdata.CandleSession{marketdata.CandleSessionRegular},
+		resolvedAt,
+	)
+}
+
+func convertCandlesForSessions(
+	response remoteCandles,
+	expected normalizedInstrument,
+	period string,
+	limit int,
+	sessions []marketdata.CandleSession,
+	resolvedAt time.Time,
+) (marketdata.CandlesResponse, error) {
 	identity, err := normalizeIdentity(response.Market, response.Symbol, response.InstrumentID)
 	if err != nil || identity.id != expected.id || strings.TrimSpace(response.Period) != period {
 		return nil, fmt.Errorf("%w: candle identity or period mismatch", ErrInvalidResponse)
@@ -303,6 +321,7 @@ func convertCandles(
 		Period: period, Limit: limit, Candles: candles, Source: defaultSource(response.Source),
 		ResolvedAt: resolvedAt.UTC().Format(time.RFC3339Nano), FromCache: false,
 		ExtendedHours: false, IncludeSession: false,
+		Sessions: sessions,
 	}.JSON(), nil
 }
 

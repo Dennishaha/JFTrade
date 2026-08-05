@@ -570,6 +570,7 @@ func normalizeCoreCandleQuery(
 		stringParam(query.Params, "endTime"),
 		stringParam(query.Params, "toTime"),
 	)
+	sessions := stringSliceParam(query.Params, "sessions")
 	if beforeTime != "" && (fromTime != "" || toTime != "") {
 		return broker.KLineQuery{}, "", fmt.Errorf(
 			"%w: before cannot be combined with fromTime or toTime",
@@ -583,7 +584,26 @@ func normalizeCoreCandleQuery(
 		},
 		Symbol: instrumentID, Period: period,
 		FromTime: fromTime, ToTime: toTime, BeforeTime: beforeTime, Limit: limit,
+		Sessions: sessions,
 	}, operation, nil
+}
+
+func stringSliceParam(values map[string]any, key string) []string {
+	if values == nil || values[key] == nil {
+		return nil
+	}
+	switch value := values[key].(type) {
+	case []string:
+		return append([]string(nil), value...)
+	case []any:
+		result := make([]string, 0, len(value))
+		for _, item := range value {
+			result = append(result, strings.TrimSpace(fmt.Sprint(item)))
+		}
+		return result
+	default:
+		return strings.Split(strings.TrimSpace(fmt.Sprint(value)), ",")
+	}
 }
 
 func normalizedCoreCandleResult(
@@ -626,6 +646,7 @@ func normalizedCoreCandleResult(
 		nextCursor = snapshot.Pagination.NextBefore
 		metadata["extendedHours"] = snapshot.ExtendedHours
 		metadata["session"] = snapshot.Session
+		metadata["sessions"] = snapshot.Sessions
 	}
 	return &broker.FeatureResult{
 		ResolvedInstrument: &broker.Instrument{

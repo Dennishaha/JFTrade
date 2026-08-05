@@ -296,6 +296,32 @@ func TestCandleConversionMarksYahooExtendedVolumeUnavailable(t *testing.T) {
 	}
 }
 
+func TestCandleConversionFiltersSessionsAndAppliesFinalLimit(t *testing.T) {
+	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}
+	response := validRemoteCandles()
+	response.Period = "1m"
+	response.TotalReturned = 3
+	response.Candles = []remoteCandle{
+		{At: "2026-07-29T12:00:00Z", Open: number("99"), High: number("100"), Low: number("98"), Close: number("99.5")},
+		{At: "2026-07-29T14:00:00Z", Open: number("100"), High: number("101"), Low: number("99"), Close: number("100.5")},
+		{At: "2026-07-29T20:00:00Z", Open: number("101"), High: number("102"), Low: number("100"), Close: number("101.5")},
+	}
+	result, err := convertCandlesForSessions(response, expected, "1m", 1, []marketdata.CandleSession{marketdata.CandleSessionRegular}, testNow)
+	if err != nil {
+		t.Fatalf("convertCandlesForSessions: %v", err)
+	}
+	rows := result["candles"].([]map[string]any)
+	if len(rows) != 1 || rows[0]["session"] != "regular" {
+		t.Fatalf("filtered rows = %#v", rows)
+	}
+}
+
+func TestConvertedCandleSessionGroupRejectsUnknownLabels(t *testing.T) {
+	if _, err := convertedCandleSessionGroup(map[string]any{"session": "mystery"}); !errors.Is(err, ErrInvalidResponse) {
+		t.Fatalf("unknown session error = %v", err)
+	}
+}
+
 func TestMarketAndCandidateConversionRejectsMalformedProviderData(t *testing.T) {
 	if _, err := convertMarkets(nil); !errors.Is(err, ErrInvalidResponse) {
 		t.Fatalf("empty markets error = %v", err)

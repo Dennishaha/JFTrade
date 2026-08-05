@@ -382,6 +382,28 @@ func convertCandles(
 	limit int,
 	resolvedAt time.Time,
 ) (marketdata.CandlesResponse, error) {
+	return convertCandlesForSessions(
+		response,
+		expected,
+		period,
+		limit,
+		[]marketdata.CandleSession{
+			marketdata.CandleSessionRegular,
+			marketdata.CandleSessionExtended,
+			marketdata.CandleSessionOvernight,
+		},
+		resolvedAt,
+	)
+}
+
+func convertCandlesForSessions(
+	response remoteCandles,
+	expected normalizedInstrument,
+	period string,
+	limit int,
+	sessions []marketdata.CandleSession,
+	resolvedAt time.Time,
+) (marketdata.CandlesResponse, error) {
 	identity, err := normalizeIdentity(response.Market, response.Symbol, response.InstrumentID)
 	if err != nil || identity.id != expected.id || strings.TrimSpace(response.Period) != period {
 		return nil, fmt.Errorf("%w: candle identity or period mismatch", ErrInvalidResponse)
@@ -399,10 +421,20 @@ func convertCandles(
 		if !keep {
 			continue
 		}
+		sessionGroup, err := convertedCandleSessionGroup(converted)
+		if err != nil {
+			return nil, fmt.Errorf("candle %d: %w", index, err)
+		}
+		if !marketdata.ContainsCandleSession(sessions, sessionGroup) {
+			continue
+		}
 		if converted["session"] != nil {
 			includeSession = true
 		}
 		candles = append(candles, converted)
+	}
+	if limit > 0 && len(candles) > limit {
+		candles = candles[len(candles)-limit:]
 	}
 	source := strings.TrimSpace(response.Source)
 	if source == "" {
@@ -415,7 +447,19 @@ func convertCandles(
 		Period: period, Limit: limit, Candles: candles, Source: source,
 		ResolvedAt: resolvedAt.UTC().Format(time.RFC3339Nano), FromCache: false,
 		ExtendedHours: response.ExtendedHours && includeSession, IncludeSession: includeSession,
+		Sessions: sessions,
 	}.JSON(), nil
+}
+
+func convertedCandleSessionGroup(candle map[string]any) (marketdata.CandleSession, error) {
+	group := marketdata.CandleSessionRegular
+	if label, ok := candle["session"].(string); ok {
+		group = marketdata.CandleSessionForLabel(label)
+		if group == "" {
+			return "", fmt.Errorf("%w: unknown session %q", ErrInvalidResponse, label)
+		}
+	}
+	return group, nil
 }
 
 func convertCandle(candle remoteCandle, instrumentID string, period string) (map[string]any, bool, error) {

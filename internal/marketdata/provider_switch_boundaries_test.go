@@ -69,7 +69,7 @@ func TestProviderSwitchRetainsOnlyCurrentGenerationTickCandles(t *testing.T) {
 	service := NewService(provider)
 	provider.afterQuery = func() { service.providerGeneration.Add(1) }
 
-	_, err := service.GetCandles(context.Background(), "US", "AAPL", "tick", 1, "", "")
+	_, err := service.GetCandles(context.Background(), HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "tick", Limit: 1})
 	if !errors.Is(err, ErrProviderChanged) {
 		t.Fatalf("stale ticker response error = %v", err)
 	}

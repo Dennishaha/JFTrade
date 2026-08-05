@@ -19,7 +19,7 @@ import (
 type BrokerMarketDataReader interface {
 	ReadMarketSnapshot(context.Context, string, string, string, bool) (map[string]any, error)
 	ReadMarketSecurityDetails(context.Context, string, string, string) (map[string]any, error)
-	ReadMarketCandles(context.Context, string, string, string, string, int, string, string, string) (map[string]any, error)
+	ReadMarketCandles(context.Context, string, string, string, string, int, string, string, string, []string) (map[string]any, error)
 	ReadMarketDepth(context.Context, string, string, string, int) (map[string]any, error)
 }
 
@@ -229,6 +229,7 @@ func handleSnapshot(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) g
 // @Param fromTime query string false "起始时间"
 // @Param toTime query string false "结束时间"
 // @Param before query string false "严格早于该 RFC3339 时间的历史分页游标"
+// @Param sessions query []string false "交易时段：regular,extended,overnight" collectionFormat(csv)
 // @Param brokerId query string false "行情提供者；省略时使用服务端默认"
 // @Success 200 {object} httpserver.Envelope{data=CandlesData}
 // @Failure 400 {object} httpserver.ErrorEnvelope
@@ -257,10 +258,11 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 		var result map[string]any
 		var err error
 		if query.period == "tick" {
-			result, err = svc.GetCandles(
-				c.Request.Context(), uri.Market, uri.Symbol,
-				query.period, query.limit, query.fromTime, query.toTime,
-			)
+			result, err = svc.GetCandles(c.Request.Context(), srv.HistoricalCandlesQuery{
+				Market: uri.Market, Symbol: uri.Symbol, Period: query.period,
+				Limit: query.limit, FromTime: query.fromTime, ToTime: query.toTime,
+				Sessions: query.sessions, SessionsSpecified: query.sessionsSpecified,
+			})
 			if err == nil {
 				result["pagination"] = map[string]any{"hasMore": false}
 			}
@@ -272,6 +274,7 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 				result, err = brokerReader.ReadMarketCandles(
 					c.Request.Context(), brokerID, uri.Market, uri.Symbol,
 					query.period, query.limit, query.fromTime, query.toTime, query.beforeTime,
+					srv.CandleSessionStrings(query.sessions),
 				)
 			}
 		} else {
@@ -280,10 +283,11 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 				beforeAt, _ := time.Parse(time.RFC3339Nano, query.beforeTime)
 				defaultToTime = beforeAt.Add(-time.Nanosecond).Format(time.RFC3339Nano)
 			}
-			result, err = svc.GetCandles(
-				c.Request.Context(), uri.Market, uri.Symbol,
-				query.period, query.limit, query.fromTime, defaultToTime,
-			)
+			result, err = svc.GetCandles(c.Request.Context(), srv.HistoricalCandlesQuery{
+				Market: uri.Market, Symbol: uri.Symbol, Period: query.period,
+				Limit: query.limit, FromTime: query.fromTime, ToTime: defaultToTime,
+				Sessions: query.sessions, SessionsSpecified: query.sessionsSpecified,
+			})
 			if err == nil {
 				result["pagination"] = defaultCandlePagination(result, query.limit)
 			}
@@ -307,15 +311,25 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 }
 
 type candleRouteQuery struct {
-	period     string
-	limit      int
-	fromTime   string
-	toTime     string
-	beforeTime string
+	period            string
+	limit             int
+	fromTime          string
+	toTime            string
+	beforeTime        string
+	sessions          []srv.CandleSession
+	sessionsSpecified bool
 }
 
 func parseCandleRouteQuery(c *gin.Context) (candleRouteQuery, error) {
 	query := candleRouteQuery{period: "1m"}
+	if values, ok := c.Request.URL.Query()["sessions"]; ok {
+		sessions, err := srv.ParseCandleSessions(values)
+		if err != nil {
+			return candleRouteQuery{}, err
+		}
+		query.sessions = sessions
+		query.sessionsSpecified = true
+	}
 	if raw := c.Query("period"); raw != "" {
 		period, err := httpserver.NormalizeCandlePeriod(raw)
 		if err != nil {
@@ -384,6 +398,8 @@ func defaultCandlePagination(result map[string]any, limit int) map[string]any {
 
 func writeMarketDataReadError(c *gin.Context, fallbackCode string, err error) {
 	switch {
+	case errors.Is(err, srv.ErrInvalidCandleSessions):
+		httpserver.WriteError(c, http.StatusBadRequest, "MARKET_CANDLE_SESSIONS_INVALID", err.Error())
 	case errors.Is(err, srv.ErrSubscriptionRequired):
 		httpserver.WriteError(c, http.StatusConflict, "MARKET_DATA_SUBSCRIPTION_REQUIRED", err.Error())
 	case errors.Is(err, srv.ErrCapabilityUnsupported):
@@ -434,6 +450,8 @@ func providerFailureCode(
 
 func writeBrokerMarketDataReadError(c *gin.Context, fallbackCode string, err error) {
 	switch {
+	case errors.Is(err, broker.ErrInvalidCandleSessions):
+		httpserver.WriteError(c, http.StatusBadRequest, "MARKET_CANDLE_SESSIONS_INVALID", err.Error())
 	case errors.Is(err, broker.ErrSnapshotRateLimited):
 		retryAfter, ok := broker.SnapshotRetryAfter(err)
 		if !ok {

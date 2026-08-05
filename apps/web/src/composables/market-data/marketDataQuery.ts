@@ -10,6 +10,7 @@ import {
   normalizeMarketDataSnapshotQueryResult,
 } from "@/composables/market-data/marketDataRealtime";
 import { normalizeMarketSecurityDetailsQueryResult } from "@/composables/market-data/marketSecurityNormalization";
+import { normalizeCandleSessions } from "@/composables/market-data/candleSessions";
 import {
   createMarketDataSnapshotRefresher,
   type MarketSnapshotRefreshTarget,
@@ -22,6 +23,7 @@ export interface LoadMarketDataQueryOptions {
   toTime?: string;
   /** When true, skip clearing existing data before loading (useful for visibility recovery). */
   preserveExisting?: boolean;
+  sessions?: readonly string[];
 }
 
 interface NormalizeInstrumentInput {
@@ -143,6 +145,7 @@ export function createMarketDataQueryController(
   let marketDataQueryRequestId = 0;
   let olderMarketDataRequestId = 0;
   let providerSelectionGeneration = 0;
+  let activeCandleSessionsKey = "";
 
   function mergeMarketDataCandles(
     current: MarketDataCandlesQueryResult | null,
@@ -249,6 +252,7 @@ export function createMarketDataQueryController(
     providerSelectionGeneration += 1;
     marketDataQueryRequestId += 1;
     activeMarketDataQuery = null;
+    activeCandleSessionsKey = "";
     resetMarketDataPagination();
     isLoadingMarketDataQuery.value = false;
     isMarketDataSwitching.value = true;
@@ -471,6 +475,9 @@ export function createMarketDataQueryController(
       }
       const requestInstrumentId = normalizeInstrumentId(market, symbol);
       const requestID = ++olderMarketDataRequestId;
+      const sessionsKey = normalizeCandleSessions(
+        queryOptions.sessions ?? (activeCandleSessionsKey ? activeCandleSessionsKey.split(",") : undefined),
+      ).join(",");
       return (async () => {
         isLoadingOlderMarketData.value = true;
         marketDataOlderError.value = "";
@@ -480,6 +487,7 @@ export function createMarketDataQueryController(
             limit: String(effectiveLimit),
             before,
           });
+          if (sessionsKey) candleParams.set("sessions", sessionsKey);
           const result = await options.requestCandles(
             `/api/v1/market-data/candles/${encodeURIComponent(market)}/${encodeURIComponent(symbol)}?${candleParams.toString()}`,
           );
@@ -487,7 +495,8 @@ export function createMarketDataQueryController(
             requestID !== olderMarketDataRequestId ||
             activeMarketDataInstrumentId.value !== requestInstrumentId ||
             marketDataQueryPeriod.value !== period ||
-            providerSelectionGeneration !== providerGeneration
+            providerSelectionGeneration !== providerGeneration ||
+            activeCandleSessionsKey !== sessionsKey
           ) {
             return;
           }
@@ -517,12 +526,14 @@ export function createMarketDataQueryController(
       fromTime: effectiveFromTime ?? null,
       toTime: queryOptions.toTime ?? null,
       providerGeneration,
+      sessions: normalizeCandleSessions(queryOptions.sessions).join(","),
     });
     if (activeMarketDataQuery?.key === queryKey) {
       return activeMarketDataQuery.promise;
     }
 
     const requestId = marketDataQueryRequestId + 1;
+    const sessionsKey = normalizeCandleSessions(queryOptions.sessions).join(",");
     marketDataQueryRequestId = requestId;
     olderMarketDataRequestId += 1;
     isLoadingOlderMarketData.value = false;
@@ -537,7 +548,8 @@ export function createMarketDataQueryController(
         marketDataQueryRequestId === requestId &&
         activeMarketDataInstrumentId.value === requestInstrumentId &&
         marketDataQueryPeriod.value === period &&
-        providerSelectionGeneration === providerGeneration
+        providerSelectionGeneration === providerGeneration &&
+        activeCandleSessionsKey === sessionsKey
       );
     }
 
@@ -546,6 +558,7 @@ export function createMarketDataQueryController(
       marketDataQueryMarket.value = market;
       marketDataQuerySymbol.value = symbol;
       marketDataQueryPeriod.value = period;
+      activeCandleSessionsKey = sessionsKey;
       marketDataQueryLimit.value = requestedLimit;
       activeMarketDataInstrumentId.value = requestInstrumentId;
       if (queryOptions.appendOlder !== true && queryOptions.preserveExisting !== true) {
@@ -573,6 +586,7 @@ export function createMarketDataQueryController(
         if (queryOptions.toTime != null) {
           candleParams.set("toTime", queryOptions.toTime);
         }
+        if (sessionsKey) candleParams.set("sessions", sessionsKey);
         const earlyErrors: string[] = [];
         const recordEarlyError = (error: unknown): void => {
           if (!isCurrentRequest()) {

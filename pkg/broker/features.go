@@ -2,11 +2,14 @@ package broker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 	"time"
 )
+
+var ErrInvalidCandleSessions = errors.New("invalid candle sessions")
 
 type FeatureID string
 
@@ -99,19 +102,27 @@ const (
 // can be downgraded at runtime for connection, quote entitlement, account
 // authority, security-firm eligibility, or rate-limit reasons.
 type FeatureCapability struct {
-	ID                 FeatureID       `json:"id"`
-	Markets            []string        `json:"markets"`
-	SupportedPeriods   []string        `json:"supportedPeriods,omitempty"`
-	ProductClasses     []ProductClass  `json:"productClasses,omitempty"`
-	MarketSegments     []MarketSegment `json:"marketSegments,omitempty"`
-	Access             FeatureAccess   `json:"access"`
-	State              CapabilityState `json:"state"`
-	ReasonCode         string          `json:"reasonCode,omitempty"`
-	Reason             string          `json:"reason,omitempty"`
-	RequiresConnection bool            `json:"requiresConnection,omitempty"`
-	RequiresAccount    bool            `json:"requiresAccount,omitempty"`
-	RequiresQuoteRight bool            `json:"requiresQuoteRight,omitempty"`
-	Limits             map[string]any  `json:"limits,omitempty"`
+	ID                 FeatureID                 `json:"id"`
+	Markets            []string                  `json:"markets"`
+	SupportedPeriods   []string                  `json:"supportedPeriods,omitempty"`
+	SupportedSessions  []CandleSessionCapability `json:"supportedSessions,omitempty"`
+	ProductClasses     []ProductClass            `json:"productClasses,omitempty"`
+	MarketSegments     []MarketSegment           `json:"marketSegments,omitempty"`
+	Access             FeatureAccess             `json:"access"`
+	State              CapabilityState           `json:"state"`
+	ReasonCode         string                    `json:"reasonCode,omitempty"`
+	Reason             string                    `json:"reason,omitempty"`
+	RequiresConnection bool                      `json:"requiresConnection,omitempty"`
+	RequiresAccount    bool                      `json:"requiresAccount,omitempty"`
+	RequiresQuoteRight bool                      `json:"requiresQuoteRight,omitempty"`
+	Limits             map[string]any            `json:"limits,omitempty"`
+}
+
+// CandleSessionCapability declares which chart periods can be split into a
+// provider-neutral trading-session group for one market capability.
+type CandleSessionCapability struct {
+	ID               string   `json:"id"`
+	SupportedPeriods []string `json:"supportedPeriods"`
 }
 
 // CapabilityCheck is one runtime dimension of a broker capability. Static

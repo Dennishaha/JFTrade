@@ -26,7 +26,7 @@ from ..models import (
     TradingWindow,
 )
 from ..readiness import provider_health_response
-from .common import MARKET_SPECS
+from .common import MARKET_SPECS, parse_candle_sessions
 from ..conversion import parse_rfc3339_utc
 
 router = APIRouter(prefix="/providers/akshare")
@@ -147,6 +147,7 @@ def candles(
     limit: int = Query(default=200, ge=1, le=1000),
     from_value: str | None = Query(default=None, alias="from"),
     to_value: str | None = Query(default=None, alias="to"),
+    sessions: list[str] | None = Query(default=None),
 ) -> AKCandlesResponse:
     from_time = parse_rfc3339_utc(from_value, "from")
     to_time = parse_rfc3339_utc(to_value, "to")
@@ -159,6 +160,7 @@ def candles(
         limit=limit,
         from_time=from_time,
         to_time=to_time,
+        sessions=sessions,
     )
 
 
@@ -195,7 +197,16 @@ def _candles(
     limit: int,
     from_time,
     to_time,
+    sessions,
 ) -> AKCandlesResponse:
+    selected_sessions = parse_candle_sessions(
+        sessions,
+        market=akshare_provider.normalize_identity(market, symbol)[0],
+        period=period.strip().lower(),
+        extended=False,
+    )
+    if selected_sessions != ("regular",):
+        raise SidecarError(400, "unsupported_sessions", "AKShare only provides regular-session candles")
     akshare_provider.validate_candle_query(period, from_time, to_time)
     normalized_market, _normalized_symbol = akshare_provider.normalize_identity(
         market,

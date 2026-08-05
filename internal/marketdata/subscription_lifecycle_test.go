@@ -368,7 +368,7 @@ func TestSubscriptionRequiredErrorsAndManagedReadDemandBoundaries(t *testing.T) 
 	if _, err := service.GetSnapshot(context.Background(), "US", "AAPL", false); !errors.Is(err, ErrSubscriptionRequired) {
 		t.Fatalf("snapshot without demand error = %v", err)
 	}
-	if _, err := service.GetCandles(context.Background(), "US", "AAPL", "tick", 1, "", ""); !errors.Is(err, ErrSubscriptionRequired) {
+	if _, err := service.GetCandles(context.Background(), HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "tick", Limit: 1}); !errors.Is(err, ErrSubscriptionRequired) {
 		t.Fatalf("tick candles without demand error = %v", err)
 	}
 	if _, err := service.GetDepth(context.Background(), "US", "AAPL", 10); !errors.Is(err, ErrSubscriptionRequired) {
@@ -460,7 +460,7 @@ func TestPollOnlyProviderPreservesLogicalLeaseAndRejectsUnsupportedReadsFirst(t 
 		t.Fatalf("poll-only depth error = %v", err)
 	}
 	if _, err := service.GetCandles(
-		context.Background(), "US", "AAPL", "tick", 1, "", "",
+		context.Background(), HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "tick", Limit: 1},
 	); !errors.Is(err, ErrCapabilityUnsupported) {
 		t.Fatalf("poll-only tick candles error = %v", err)
 	}

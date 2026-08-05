@@ -892,7 +892,7 @@ async def test_weekly_candles_fetch_max_history_for_1000_bar_limit(
             "fetch_period": "max",
             "start": None,
             "end": None,
-            "prepost": True,
+            "prepost": False,
         }
     ]
 

@@ -120,6 +120,32 @@ func TestApplicationAdapterNormalizesCrossDomainInputs(t *testing.T) {
 	}
 }
 
+func TestApplicationAdapterForwardsMarketCandles(t *testing.T) {
+	provider := &assistantMarketDataProvider{response: mdsrv.CandlesResponse{"source": "fixture"}}
+	adapter := NewApplicationAdapter(ApplicationPorts{
+		MarketData: func() *mdsrv.Service { return mdsrv.NewService(provider) },
+	})
+	result, err := adapter.ToolDeps().MarketCandles(t.Context(), "US", "AAPL", "1d", 25)
+	if err != nil {
+		t.Fatalf("MarketCandles: %v", err)
+	}
+	if result.(map[string]any)["source"] != "fixture" || provider.query.Market != "US" ||
+		provider.query.Symbol != "AAPL" || provider.query.Period != "1d" || provider.query.Limit != 25 {
+		t.Fatalf("market candle forwarding = %#v, query=%#v", result, provider.query)
+	}
+}
+
+type assistantMarketDataProvider struct {
+	mdsrv.Provider
+	response mdsrv.CandlesResponse
+	query    mdsrv.HistoricalCandlesQuery
+}
+
+func (p *assistantMarketDataProvider) GetHistoricalCandles(_ context.Context, query mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error) {
+	p.query = query
+	return p.response, nil
+}
+
 func TestApplicationAdapterNormalizesStrategyVisualModels(t *testing.T) {
 	model, err := strategyVisualModelFromInput(map[string]any{
 		"nodes": []any{map[string]any{"id": "node-1"}},

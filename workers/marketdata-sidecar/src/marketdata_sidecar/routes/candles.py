@@ -11,7 +11,7 @@ from .. import upstream
 from ..conversion import convert_history, parse_rfc3339_utc
 from ..errors import invalid_request, not_found, upstream_error
 from ..models import CandlesResponse
-from .common import normalize_instrument, quote_is_supported, quote_matches_instrument
+from .common import normalize_instrument, parse_candle_sessions, quote_is_supported, quote_matches_instrument
 
 router = APIRouter()
 
@@ -56,6 +56,7 @@ def candles(
     limit: int = Query(default=200, ge=1, le=1000),
     from_value: str | None = Query(default=None, alias="from"),
     to_value: str | None = Query(default=None, alias="to"),
+    sessions: list[str] | None = Query(default=None),
 ) -> CandlesResponse:
     instrument = normalize_instrument(market, symbol)
     normalized_period = period.strip().lower()
@@ -64,6 +65,11 @@ def candles(
             "unsupported_period",
             f"unsupported candle period: {period}",
         )
+    selected_sessions = parse_candle_sessions(
+        sessions,
+        market=instrument.market,
+        period=normalized_period,
+    )
     from_time = parse_rfc3339_utc(from_value, "from")
     to_time = parse_rfc3339_utc(to_value, "to")
     if from_time is not None and to_time is not None and from_time > to_time:
@@ -99,7 +105,7 @@ def candles(
             fetch_period=FETCH_PERIODS[normalized_period],
             start=history_start(from_time, to_time, normalized_period),
             end=inclusive_history_end(to_time, normalized_period),
-            prepost=instrument.spec.supports_extended_hours,
+            prepost="extended" in selected_sessions,
         )
     except Exception as exc:
         raise upstream_error("Yahoo Finance candle lookup failed") from exc
@@ -109,6 +115,8 @@ def candles(
         from_time=from_time,
         to_time=to_time,
         exchange_timezone=instrument.spec.timezone,
+        sessions=selected_sessions,
+        period=normalized_period,
     )
     if not converted:
         raise not_found(
@@ -120,7 +128,7 @@ def candles(
         symbol=instrument.symbol,
         instrument_id=instrument.instrument_id,
         period=normalized_period,
-        extended_hours=instrument.spec.supports_extended_hours,
+        extended_hours="extended" in selected_sessions,
         candles=converted,
         total_returned=len(converted),
         source="yfinance",

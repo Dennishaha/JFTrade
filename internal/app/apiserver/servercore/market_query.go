@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
 func pathTail(path string, prefix string) (string, string) {
@@ -27,6 +29,14 @@ func decodeMarketSnapshotQuery(values map[string][]string) (marketSnapshotQuery,
 
 func decodeMarketCandlesQuery(values map[string][]string) (marketCandlesQuery, error) {
 	var query marketCandlesQuery
+	if raw, ok := values["sessions"]; ok {
+		sessions, err := mdsrv.ParseCandleSessions(raw)
+		if err != nil {
+			return marketCandlesQuery{}, err
+		}
+		query.Sessions = sessions
+		query.SessionsSpecified = true
+	}
 	if raw, ok := firstQueryValue(values, "period"); ok && raw != "" {
 		if err := query.Period.UnmarshalText([]byte(raw)); err != nil {
 			return marketCandlesQuery{}, err

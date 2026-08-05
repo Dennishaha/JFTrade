@@ -98,7 +98,7 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 		queryTicker: func(context.Context, string) (*mdsrv.Tick, error) {
 			return &mdsrv.Tick{InstrumentID: "US.MSFT", Kind: mdsrv.TickKindQuote}, nil
 		},
-		getHistoricalCandles: func(context.Context, string, string, string, int, string, string) (mdsrv.CandlesResponse, error) {
+		getHistoricalCandles: func(context.Context, mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error) {
 			return mdsrv.CandlesResponse{"period": "1m"}, nil
 		},
 		getDepth: func(context.Context, string, string, int) (mdsrv.DepthResponse, error) {
@@ -134,7 +134,7 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 	if tick, err := provider.QueryTicker(ctx, "US.MSFT"); err != nil || tick.Kind != mdsrv.TickKindQuote {
 		t.Fatalf("QueryTicker() = %#v err=%v", tick, err)
 	}
-	if candles, err := provider.GetHistoricalCandles(ctx, "US", "AAPL", "1m", 10, "", ""); err != nil || candles["period"] != "1m" {
+	if candles, err := provider.GetHistoricalCandles(ctx, mdsrv.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1m", Limit: 10}); err != nil || candles["period"] != "1m" {
 		t.Fatalf("GetHistoricalCandles() = %#v err=%v", candles, err)
 	}
 	if depth, err := provider.GetDepth(ctx, "US", "AAPL", 5); err != nil || depth["asks"] != 1 {

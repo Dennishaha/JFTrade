@@ -4,6 +4,13 @@ import type { LiveSocketConnectionState } from "@/composables/market-data/shared
 import KlineIndicatorSelector from "@/components/domain/market-data/KlineIndicatorSelector.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import LightweightChartTypeSelector from "./LightweightChartTypeSelector.vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import {
+  CANDLE_SESSION_LABELS,
+  CANDLE_SESSION_ORDER,
+  summarizeCandleSessions,
+  type CandleSession,
+} from "@/composables/market-data/candleSessions";
 
 interface PeriodOption {
   value: string;
@@ -12,6 +19,7 @@ interface PeriodOption {
 
 const props = defineProps<{
   variant: "workspace" | "embedded";
+  market: string;
   periods: readonly PeriodOption[];
   selectedPeriod: string;
   loadingCapabilities: boolean;
@@ -28,7 +36,18 @@ const props = defineProps<{
   loadingData: boolean;
   dataError: string;
   indicators: KlineIndicatorKey[];
+  candleSessions: readonly CandleSession[];
+  supportedCandleSessions: readonly CandleSession[];
 }>();
+
+const showCandleSessionSelector = computed(() => {
+  if (props.supportedCandleSessions.length > 1) return true;
+  return (
+    props.market.trim().toUpperCase() === "US" &&
+    props.supportedCandleSessions.length === 1 &&
+    props.supportedCandleSessions[0] === "regular"
+  );
+});
 
 const emit = defineEmits<{
   "update:indicators": [indicators: KlineIndicatorKey[]];
@@ -36,7 +55,104 @@ const emit = defineEmits<{
   "select-chart-type": [chartType: ChartType];
   retry: [];
   refresh: [];
+  "update:candle-sessions": [sessions: CandleSession[]];
 }>();
+
+const sessionMenuOpen = ref(false);
+const sessionTrigger = ref<HTMLElement | null>(null);
+const sessionMenu = ref<HTMLElement | null>(null);
+const sessionMenuTop = ref(0);
+const sessionMenuLeft = ref(0);
+const SESSION_PANEL_GAP = 4;
+const SESSION_VIEWPORT_GAP = 8;
+
+function syncSessionMenuPosition(): void {
+  const trigger = sessionTrigger.value;
+  const menu = sessionMenu.value;
+  if (trigger == null || menu == null || typeof window === "undefined") return;
+
+  const triggerRect = trigger.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  const maxLeft = Math.max(
+    SESSION_VIEWPORT_GAP,
+    window.innerWidth - menuRect.width - SESSION_VIEWPORT_GAP,
+  );
+  sessionMenuLeft.value = Math.min(
+    Math.max(triggerRect.left, SESSION_VIEWPORT_GAP),
+    maxLeft,
+  );
+
+  const below = triggerRect.bottom + SESSION_PANEL_GAP;
+  const above = triggerRect.top - menuRect.height - SESSION_PANEL_GAP;
+  const maxTop = Math.max(
+    SESSION_VIEWPORT_GAP,
+    window.innerHeight - menuRect.height - SESSION_VIEWPORT_GAP,
+  );
+  sessionMenuTop.value =
+    below + menuRect.height <= window.innerHeight - SESSION_VIEWPORT_GAP
+      ? below
+      : above >= SESSION_VIEWPORT_GAP
+        ? above
+        : Math.min(Math.max(below, SESSION_VIEWPORT_GAP), maxTop);
+}
+
+async function toggleSessionMenu(): Promise<void> {
+  if (props.loadingCapabilities || props.supportedCandleSessions.length === 0) return;
+  sessionMenuOpen.value = !sessionMenuOpen.value;
+  if (!sessionMenuOpen.value) return;
+  await nextTick();
+  syncSessionMenuPosition();
+}
+
+function closeSessionMenu(options?: { restoreTriggerFocus?: boolean }): void {
+  sessionMenuOpen.value = false;
+  if (options?.restoreTriggerFocus) sessionTrigger.value?.focus();
+}
+
+function isSessionSelected(session: CandleSession): boolean {
+  return props.candleSessions.includes(session);
+}
+
+function isSessionSupported(session: CandleSession): boolean {
+  return props.supportedCandleSessions.includes(session);
+}
+
+function updateSession(session: CandleSession, checked: boolean): void {
+  if (!isSessionSupported(session)) return;
+  const selected = new Set(props.candleSessions);
+  if (checked) selected.add(session);
+  else if (selected.size > 1) selected.delete(session);
+  emit("update:candle-sessions", CANDLE_SESSION_ORDER.filter((value) => selected.has(value)));
+}
+
+function handleDocumentPointerDown(event: PointerEvent): void {
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  if (
+    (sessionTrigger.value?.contains(target) ?? false) ||
+    (sessionMenu.value?.contains(target) ?? false)
+  ) return;
+  closeSessionMenu();
+}
+
+function handleDocumentKeydown(event: KeyboardEvent): void {
+  if (event.key !== "Escape" || !sessionMenuOpen.value) return;
+  event.preventDefault();
+  closeSessionMenu({ restoreTriggerFocus: true });
+}
+
+onMounted(() => {
+  document.addEventListener("pointerdown", handleDocumentPointerDown);
+  document.addEventListener("keydown", handleDocumentKeydown);
+  window.addEventListener("resize", syncSessionMenuPosition);
+  window.addEventListener("scroll", syncSessionMenuPosition, true);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", handleDocumentPointerDown);
+  document.removeEventListener("keydown", handleDocumentKeydown);
+  window.removeEventListener("resize", syncSessionMenuPosition);
+  window.removeEventListener("scroll", syncSessionMenuPosition, true);
+});
 
 function handlePeriodChange(event: Event): void {
   emit("select-period", (event.currentTarget as HTMLSelectElement).value);
@@ -49,6 +165,64 @@ function handlePeriodChange(event: Event): void {
     :class="{ 'lightweight-chart-head--workspace': props.variant === 'workspace' }"
   >
     <div class="lightweight-chart-head__primary-controls">
+      <div
+        v-if="showCandleSessionSelector"
+        class="lightweight-chart-session-selector"
+      >
+        <button
+          ref="sessionTrigger"
+          class="lightweight-chart-session-selector__trigger"
+          type="button"
+          :class="{ 'is-open': sessionMenuOpen }"
+          :disabled="props.loadingCapabilities || props.supportedCandleSessions.length === 0"
+          :aria-expanded="sessionMenuOpen"
+          aria-haspopup="dialog"
+          title="交易时段"
+          @click="toggleSessionMenu"
+        >
+          <span class="lightweight-chart-session-selector__label">时段</span>
+          <span class="lightweight-chart-session-selector__summary">{{ summarizeCandleSessions(props.candleSessions) }}</span>
+        </button>
+        <Teleport to="body">
+          <div
+            v-if="sessionMenuOpen"
+            ref="sessionMenu"
+            class="lightweight-chart-session-selector__menu"
+            role="dialog"
+            aria-label="交易时段"
+            :style="{ top: `${sessionMenuTop}px`, left: `${sessionMenuLeft}px` }"
+          >
+            <header class="lightweight-chart-session-selector__header">
+              <strong>交易时段</strong>
+              <button
+                class="lightweight-chart-session-selector__close"
+                type="button"
+                title="关闭"
+                aria-label="关闭交易时段选择"
+                @click="closeSessionMenu({ restoreTriggerFocus: true })"
+              >
+                <span class="fa-solid fa-xmark" aria-hidden="true" />
+              </button>
+            </header>
+            <div class="lightweight-chart-session-selector__options">
+              <label
+                v-for="session in CANDLE_SESSION_ORDER"
+                :key="session"
+                class="lightweight-chart-session-selector__option"
+                :class="{ 'is-disabled': !isSessionSupported(session) }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="isSessionSelected(session)"
+                  :disabled="!isSessionSupported(session) || (isSessionSelected(session) && props.candleSessions.length === 1)"
+                  @change="updateSession(session, ($event.target as HTMLInputElement).checked)"
+                />
+                <span>{{ CANDLE_SESSION_LABELS[session] }}</span>
+              </label>
+            </div>
+          </div>
+        </Teleport>
+      </div>
       <div class="tv-seg lightweight-chart-head__periods">
         <button
           v-for="period in props.periods"

@@ -30,7 +30,7 @@ func TestServiceDelegatesProviderFacadeAndRefreshBoundaries(t *testing.T) {
 	if err != nil || details["name"] != "Apple Inc." || provider.detailsMarket != "us" || provider.detailsSymbol != "aapl" {
 		t.Fatalf("GetSecurityDetails = %#v, provider=%s/%s, err=%v", details, provider.detailsMarket, provider.detailsSymbol, err)
 	}
-	candles, err := service.GetCandles(ctx, "us", "aapl", " 1D ", 20, "2026-06-01T00:00:00Z", "2026-06-02T00:00:00Z")
+	candles, err := service.GetCandles(ctx, HistoricalCandlesQuery{Market: "us", Symbol: "aapl", Period: " 1D ", Limit: 20, FromTime: "2026-06-01T00:00:00Z", ToTime: "2026-06-02T00:00:00Z"})
 	if err != nil || candles["provider"] != "historical" {
 		t.Fatalf("GetCandles historical = %#v, err=%v", candles, err)
 	}
@@ -118,7 +118,7 @@ func TestServiceProviderReadsResolveChinaAggregateToExchangeLeaf(t *testing.T) {
 		t.Fatalf("details request = %s/%s", provider.detailsMarket, provider.detailsSymbol)
 	}
 
-	if _, err := service.GetCandles(ctx, "CN", "SZ.000001", "1d", 20, "", ""); err != nil {
+	if _, err := service.GetCandles(ctx, HistoricalCandlesQuery{Market: "CN", Symbol: "SZ.000001", Period: "1d", Limit: 20}); err != nil {
 		t.Fatalf("GetCandles CN aggregate: %v", err)
 	}
 	if provider.candlesMarket != "SZ" || provider.candlesSymbol != "000001" {
@@ -172,7 +172,7 @@ func TestServiceTickCandlesProviderAndFallbackBoundaries(t *testing.T) {
 	}
 	service := NewService(provider)
 
-	response, err := service.GetCandles(ctx, " us ", " aapl ", " tick ", 1501, "", "")
+	response, err := service.GetCandles(ctx, HistoricalCandlesQuery{Market: " us ", Symbol: " aapl ", Period: " tick ", Limit: 1501})
 	if err != nil {
 		t.Fatalf("GetCandles provider tick: %v", err)
 	}
@@ -185,7 +185,7 @@ func TestServiceTickCandlesProviderAndFallbackBoundaries(t *testing.T) {
 		t.Fatalf("provider tick response = %#v, ticker id=%s", response, provider.tickerID)
 	}
 
-	cached, err := service.GetCandles(ctx, "US", "AAPL", "tick", 0, "", "")
+	cached, err := service.GetCandles(ctx, HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "tick"})
 	if err != nil {
 		t.Fatalf("GetCandles cached tick: %v", err)
 	}
@@ -196,9 +196,28 @@ func TestServiceTickCandlesProviderAndFallbackBoundaries(t *testing.T) {
 	}
 
 	tickerErr := errors.New("ticker unavailable")
-	_, err = NewService(&dataProviderStub{tickerErr: tickerErr}).GetCandles(ctx, "HK", "00700", "tick", 0, "", "")
+	_, err = NewService(&dataProviderStub{tickerErr: tickerErr}).GetCandles(ctx, HistoricalCandlesQuery{Market: "HK", Symbol: "00700", Period: "tick"})
 	if !errors.Is(err, tickerErr) {
 		t.Fatalf("ticker error without retained cache = %v", err)
+	}
+
+	_, err = service.GetCandles(ctx, HistoricalCandlesQuery{
+		Market: "HK", Symbol: "00700", Period: "tick",
+		Sessions: []CandleSession{CandleSessionOvernight}, SessionsSpecified: true,
+	})
+	if !errors.Is(err, ErrInvalidCandleSessions) {
+		t.Fatalf("unsupported tick session error = %v", err)
+	}
+}
+
+func TestLimitCandleMapsKeepsLatestEntriesOnly(t *testing.T) {
+	candles := []map[string]any{{"at": "1"}, {"at": "2"}, {"at": "3"}}
+	limited := limitCandleMaps(candles, 2)
+	if len(limited) != 2 || limited[0]["at"] != "2" || limited[1]["at"] != "3" {
+		t.Fatalf("limited candles = %#v", limited)
+	}
+	if got := limitCandleMaps(candles, 0); len(got) != len(candles) {
+		t.Fatalf("unlimited candles = %#v", got)
 	}
 }
 

@@ -256,7 +256,7 @@ func (p stubProvider) QueryTicker(context.Context, string) (*Tick, error) {
 	return nil, nil
 }
 
-func (p stubProvider) GetHistoricalCandles(context.Context, string, string, string, int, string, string) (CandlesResponse, error) {
+func (p stubProvider) GetHistoricalCandles(context.Context, HistoricalCandlesQuery) (CandlesResponse, error) {
 	return nil, nil
 }
 

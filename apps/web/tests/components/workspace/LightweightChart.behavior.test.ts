@@ -3,6 +3,7 @@
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
+
 const stores = vi.hoisted(() => ({
   consoleData: null as ReturnType<typeof createConsoleDataState> | null,
   workspace: null as ReturnType<typeof createWorkspaceState> | null,
@@ -12,19 +13,15 @@ const stores = vi.hoisted(() => ({
     lastHeartbeatEvent?: ReturnType<typeof ref>;
   } | null,
 }));
-
 vi.mock("@/composables/workspace/useConsoleData", () => ({
   useConsoleData: () => stores.consoleData,
 }));
-
 vi.mock("@/composables/workspace/useWorkspaceLayout", () => ({
   useWorkspaceTradingPrefs: () => stores.workspace,
 }));
-
 vi.mock("@/composables/market-data/sharedLiveSocket", () => ({
   getSharedLiveSocketHub: () => stores.liveHub,
 }));
-
 import LightweightChart from "../../../src/components/workspace/LightweightChart.vue";
 import {
   resetBrokerProviderSelectionForTests,
@@ -171,6 +168,11 @@ function mountChart(props: Record<string, unknown> = {}) {
                   "1w",
                   "1mo",
                 ],
+                supportedSessions: [
+                  { id: "regular", supportedPeriods: ["1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"] },
+                  { id: "extended", supportedPeriods: ["1m", "5m", "15m", "30m", "1h"] },
+                  { id: "overnight", supportedPeriods: ["1m", "5m", "15m", "30m", "1h"] },
+                ],
               },
               { id: "market.ticks", state: "available" },
             ],
@@ -184,6 +186,7 @@ function mountChart(props: Record<string, unknown> = {}) {
                 id: "market.candles",
                 state: "available",
                 supportedPeriods: ["1m", "5m", "1d"],
+                supportedSessions: [{ id: "regular", supportedPeriods: ["1m", "5m", "1d"] }],
               },
               { id: "market.ticks", state: "available" },
             ],
@@ -294,7 +297,6 @@ describe("LightweightChart", () => {
     );
     wrapper.unmount();
   });
-
   it("uses the compact period selector without changing period semantics", async () => {
     stores.consoleData = createConsoleDataState();
     stores.workspace = createWorkspaceState();
@@ -310,7 +312,6 @@ describe("LightweightChart", () => {
     expect(stores.workspace.update).toHaveBeenCalledWith({ period: "1d" });
     wrapper.unmount();
   });
-
   it("persists the selected chart type and closes its topbar menu via Escape or outside click", async () => {
     stores.consoleData = createConsoleDataState();
     stores.workspace = createWorkspaceState();
@@ -413,7 +414,6 @@ describe("LightweightChart", () => {
     );
     wrapper.unmount();
   });
-
   it("falls back to standard candles and disables Heikin Ashi for Tick charts", async () => {
     stores.consoleData = createConsoleDataState();
     stores.workspace = createWorkspaceState();
@@ -444,7 +444,6 @@ describe("LightweightChart", () => {
     expect(heikinAshiOption?.disabled).toBe(true);
     wrapper.unmount();
   });
-
   it("keeps controlled Tick charts local to the embedded view", async () => {
     stores.consoleData = createConsoleDataState();
     stores.workspace = createWorkspaceState();

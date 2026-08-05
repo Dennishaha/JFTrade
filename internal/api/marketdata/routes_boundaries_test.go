@@ -311,6 +311,19 @@ func TestMarketDataReadErrorsExposeProviderBusyRetrySignal(t *testing.T) {
 	}
 }
 
+func TestMarketDataReadErrorsRejectInvalidCandleSessions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	writeMarketDataReadError(context, "MARKET_DATA_FAILED", srv.ErrInvalidCandleSessions)
+
+	if response.Code != http.StatusBadRequest ||
+		!strings.Contains(response.Body.String(), `"code":"MARKET_CANDLE_SESSIONS_INVALID"`) {
+		t.Fatalf("response = %d %s", response.Code, response.Body.String())
+	}
+}
+
 func TestBrokerMarketDataReadErrorsPreserveClientActionability(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tests := []struct {
@@ -345,6 +358,12 @@ func TestBrokerMarketDataReadErrorsPreserveClientActionability(t *testing.T) {
 			err:        productfeatures.ErrCapabilityUnavailable,
 			statusCode: http.StatusConflict,
 			code:       "BROKER_CAPABILITY_UNAVAILABLE",
+		},
+		{
+			name:       "invalid candle sessions",
+			err:        broker.ErrInvalidCandleSessions,
+			statusCode: http.StatusBadRequest,
+			code:       "MARKET_CANDLE_SESSIONS_INVALID",
 		},
 	}
 

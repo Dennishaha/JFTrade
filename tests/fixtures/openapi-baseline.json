@@ -3552,6 +3552,24 @@
         "ApprovalCritical"
       ]
     },
+    "broker.CandleSessionCapability": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "supportedPeriods": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "supportedPeriods"
+      ],
+      "type": "object"
+    },
     "broker.CapabilityCatalog": {
       "properties": {
         "features": {
@@ -3974,6 +3992,12 @@
         "supportedPeriods": {
           "items": {
             "type": "string"
+          },
+          "type": "array"
+        },
+        "supportedSessions": {
+          "items": {
+            "$ref": "#/definitions/broker.CandleSessionCapability"
           },
           "type": "array"
         }
@@ -6046,12 +6070,19 @@
         },
         "period": {
           "type": "string"
+        },
+        "sessions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [
         "instrument",
         "limit",
-        "period"
+        "period",
+        "sessions"
       ],
       "type": "object"
     },
@@ -6349,6 +6380,12 @@
         },
         "session": {
           "type": "string"
+        },
+        "sessions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "source": {
           "type": "string"
@@ -21654,6 +21691,16 @@
             "in": "query",
             "name": "before",
             "type": "string"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "交易时段：regular,extended,overnight",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "sessions",
+            "type": "array"
           },
           {
             "description": "行情提供者；省略时使用服务端默认",

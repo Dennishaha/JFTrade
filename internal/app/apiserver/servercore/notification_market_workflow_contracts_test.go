@@ -157,11 +157,20 @@ func TestWorkflowMarketAdaptersRejectInvalidInputsAndPreserveMetadata(t *testing
 		t.Fatal("workflow adapter without market service should fail closed")
 	}
 
-	request := marketCandlesRequest("US", "AAPL", "US.AAPL", "1h", 200)
-	if request["period"] != "1h" || request["limit"] != 200 {
-		t.Fatalf("market candles request = %#v", request)
+	response := (mdsrv.CandlesResponseDTO{
+		Instrument: mdsrv.InstrumentDTO{Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL"},
+		Period:     "1h", Limit: 200, Source: "bbgo:futu", IncludeSession: true,
+		ExtendedHours: true,
+		Sessions:      []mdsrv.CandleSession{mdsrv.CandleSessionRegular, mdsrv.CandleSessionExtended},
+	}).JSON()
+	request, ok := response["request"].(map[string]any)
+	if !ok || request["period"] != "1h" || request["limit"] != 200 {
+		t.Fatalf("market candles request = %#v", response["request"])
 	}
-	meta := candleMeta("US.AAPL", false, true, true)
+	meta, ok := response["meta"].(map[string]any)
+	if !ok {
+		t.Fatalf("market candles meta = %#v", response["meta"])
+	}
 	if meta["session"] != "all" || meta["extendedHours"] != true {
 		t.Fatalf("US intraday candle meta = %#v", meta)
 	}

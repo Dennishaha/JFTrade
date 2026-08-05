@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
 func TestNormalizeCandlePeriodMapsAliases(t *testing.T) {
@@ -38,6 +39,21 @@ func TestKLineQueryWindowUsesExplicitBounds(t *testing.T) {
 	}
 	if !endAt.Equal(expectedEnd) {
 		t.Fatalf("endAt = %s, want %s", endAt, expectedEnd)
+	}
+}
+
+func TestDecodeMarketCandlesQueryParsesRepeatedSessions(t *testing.T) {
+	query, err := decodeMarketCandlesQuery(map[string][]string{
+		"sessions": {"overnight,regular", "extended,regular"},
+	})
+	if err != nil {
+		t.Fatalf("decodeMarketCandlesQuery: %v", err)
+	}
+	if !query.SessionsSpecified || len(query.Sessions) != 3 ||
+		query.Sessions[0] != mdsrv.CandleSessionRegular ||
+		query.Sessions[1] != mdsrv.CandleSessionExtended ||
+		query.Sessions[2] != mdsrv.CandleSessionOvernight {
+		t.Fatalf("sessions = %#v, specified=%v", query.Sessions, query.SessionsSpecified)
 	}
 }
 

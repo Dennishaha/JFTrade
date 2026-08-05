@@ -321,7 +321,7 @@ func TestServiceUsesSingleCacheForSnapshotCandlesAndLatest(t *testing.T) {
 	if err != nil || jftradeCheckedTypeAssertion[map[string]any](snapshot["meta"])["fromCache"] != true {
 		t.Fatalf("cached snapshot = %#v, err=%v", snapshot, err)
 	}
-	candles, err := service.GetCandles(context.Background(), "HK", "00700", "tick", 10, "", "")
+	candles, err := service.GetCandles(context.Background(), HistoricalCandlesQuery{Market: "HK", Symbol: "00700", Period: "tick", Limit: 10})
 	if err != nil {
 		t.Fatalf("GetCandles: %v", err)
 	}
@@ -340,7 +340,7 @@ func TestServiceTickCandleFallsBackToRetainedCache(t *testing.T) {
 	service := NewService(provider)
 	service.Seed(tickAt("HK.00700", "321.4", 100, now.Add(-time.Minute)))
 
-	response, err := service.GetCandles(context.Background(), "HK", "00700", "tick", 2, "", "")
+	response, err := service.GetCandles(context.Background(), HistoricalCandlesQuery{Market: "HK", Symbol: "00700", Period: "tick", Limit: 2})
 	if err != nil {
 		t.Fatalf("GetCandles fallback: %v", err)
 	}
@@ -448,13 +448,13 @@ func (p *dataProviderStub) QueryTicker(_ context.Context, instrumentID string) (
 	return cloneTick(p.ticker), p.tickerErr
 }
 
-func (p *dataProviderStub) GetHistoricalCandles(_ context.Context, market, symbol, period string, limit int, fromTime, toTime string) (CandlesResponse, error) {
-	p.candlesMarket = market
-	p.candlesSymbol = symbol
-	p.candlesPeriod = period
-	p.candlesLimit = limit
-	p.candlesFrom = fromTime
-	p.candlesTo = toTime
+func (p *dataProviderStub) GetHistoricalCandles(_ context.Context, query HistoricalCandlesQuery) (CandlesResponse, error) {
+	p.candlesMarket = query.Market
+	p.candlesSymbol = query.Symbol
+	p.candlesPeriod = query.Period
+	p.candlesLimit = query.Limit
+	p.candlesFrom = query.FromTime
+	p.candlesTo = query.ToTime
 	return p.candles, p.candlesErr
 }
 

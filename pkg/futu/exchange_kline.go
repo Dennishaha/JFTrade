@@ -14,6 +14,7 @@ import (
 	qotgetklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetkl"
 	historypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 const maxHistoryKLinePages = 32 // OpenD can paginate valid recent intraday windows into more than 8 history pages.
@@ -32,6 +33,10 @@ func (request klineSubscriptionRequest) cacheKey() string {
 }
 
 func (e *Exchange) QueryKLines(ctx context.Context, symbol string, interval types.Interval, options types.KLineQueryOptions) ([]types.KLine, error) {
+	return e.QueryKLinesForSessions(ctx, symbol, interval, options, nil)
+}
+
+func (e *Exchange) QueryKLinesForSessions(ctx context.Context, symbol string, interval types.Interval, options types.KLineQueryOptions, sessions []market.Session) ([]types.KLine, error) {
 	security, canonicalSymbol, err := futuSecurityFromSymbol(symbol)
 	if err != nil {
 		return nil, err
@@ -48,9 +53,16 @@ func (e *Exchange) QueryKLines(ctx context.Context, symbol string, interval type
 			return nil, err
 		}
 	}
-	klines, err := e.queryHistoricalKLines(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, limit)
+	klines, err := e.queryHistoricalKLinesForSessions(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, limit, sessions)
 	if err != nil {
 		return nil, err
+	}
+	// Session labels are meaningful only for US intraday candles. Daily and
+	// non-US candles are regular-session data even when the caller explicitly
+	// supplies the compatible `regular` session.
+	filterBySession := sessions != nil && shouldRequestExtendedKLines(canonicalSymbol, interval)
+	if filterBySession {
+		klines = filterKLinesBySessions(klines, sessions)
 	}
 	if queryCurrent {
 		currentKLines, err := e.queryCurrentKLines(ctx, security, canonicalSymbol, interval, klType)
@@ -58,6 +70,9 @@ func (e *Exchange) QueryKLines(ctx context.Context, symbol string, interval type
 			return nil, err
 		}
 		klines = mergeKLinesByStartTime(klines, filterKLinesByWindow(currentKLines, beginAt, endAt))
+		if filterBySession {
+			klines = filterKLinesBySessions(klines, sessions)
+		}
 	}
 	sort.Slice(klines, func(i, j int) bool {
 		return klines[i].StartTime.Time().Before(klines[j].StartTime.Time())
@@ -74,6 +89,10 @@ func (e *Exchange) QueryKLines(ctx context.Context, symbol string, interval type
 // It does not query the current unfinished bucket (not needed for sync).
 // rehabType controls price adjustment: None(0)=不复权, Forward(1)=前复权, Backward(2)=后复权.
 func (e *Exchange) QueryAllKLines(ctx context.Context, symbol string, interval types.Interval, beginAt, endAt time.Time, rehabType qotcommonpb.RehabType) ([]types.KLine, error) {
+	return e.QueryAllKLinesForSessions(ctx, symbol, interval, beginAt, endAt, rehabType, nil)
+}
+
+func (e *Exchange) QueryAllKLinesForSessions(ctx context.Context, symbol string, interval types.Interval, beginAt, endAt time.Time, rehabType qotcommonpb.RehabType, sessions []market.Session) ([]types.KLine, error) {
 	security, canonicalSymbol, err := futuSecurityFromSymbol(symbol)
 	if err != nil {
 		return nil, err
@@ -83,7 +102,7 @@ func (e *Exchange) QueryAllKLines(ctx context.Context, symbol string, interval t
 		return nil, err
 	}
 
-	plans := buildHistoricalKLineRequestPlans(canonicalSymbol, interval)
+	plans := buildHistoricalKLineRequestPlansForSessions(canonicalSymbol, interval, sessions)
 	klines, err := e.queryHistoricalKLinesAcrossPlans(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, rehabType, 0, maxSyncKLinePages, plans)
 	if err != nil {
 		return nil, err
@@ -94,8 +113,8 @@ func (e *Exchange) QueryAllKLines(ctx context.Context, symbol string, interval t
 	return klines, nil
 }
 
-func (e *Exchange) queryHistoricalKLines(ctx context.Context, security *qotcommonpb.Security, canonicalSymbol string, interval types.Interval, klType qotcommonpb.KLType, beginAt time.Time, endAt time.Time, limit int) ([]types.KLine, error) {
-	plans := buildHistoricalKLineRequestPlans(canonicalSymbol, interval)
+func (e *Exchange) queryHistoricalKLinesForSessions(ctx context.Context, security *qotcommonpb.Security, canonicalSymbol string, interval types.Interval, klType qotcommonpb.KLType, beginAt time.Time, endAt time.Time, limit int, sessions []market.Session) ([]types.KLine, error) {
+	plans := buildHistoricalKLineRequestPlansForSessions(canonicalSymbol, interval, sessions)
 	return e.queryHistoricalKLinesAcrossPlans(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, qotcommonpb.RehabType_RehabType_None, limit, maxHistoryKLinePages, plans)
 }
 
@@ -105,6 +124,9 @@ func (e *Exchange) queryHistoricalKLinesAcrossPlans(ctx context.Context, securit
 		routeKLines, err := e.queryHistoricalKLinesForPlan(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, rehabType, limit, maxPages, plan)
 		if err != nil {
 			if shouldFallbackHistoricalKLineSplit(err, plan) {
+				// Session_ALL is the only route supported by some OpenD versions.
+				// Keep its complete result here; the caller applies the final
+				// requested-session filter after all routes are merged.
 				return e.queryHistoricalKLinesForPlan(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, rehabType, limit, maxPages, historicalKLineRequestPlanAll())
 			}
 			return nil, err

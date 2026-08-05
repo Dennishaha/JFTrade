@@ -370,12 +370,13 @@ type QuoteItem struct {
 
 type KLineQuery struct {
 	ReadQuery
-	Symbol     string `json:"symbol"`
-	Period     string `json:"period"` // 1m, 3m, 5m, 10m, 15m, 30m, 1h, 1d, 1w, 1mo
-	FromTime   string `json:"fromTime,omitempty"`
-	ToTime     string `json:"toTime,omitempty"`
-	BeforeTime string `json:"beforeTime,omitempty"`
-	Limit      int32  `json:"limit,omitempty"`
+	Symbol     string   `json:"symbol"`
+	Period     string   `json:"period"` // 1m, 3m, 5m, 10m, 15m, 30m, 1h, 1d, 1w, 1mo
+	FromTime   string   `json:"fromTime,omitempty"`
+	ToTime     string   `json:"toTime,omitempty"`
+	BeforeTime string   `json:"beforeTime,omitempty"`
+	Limit      int32    `json:"limit,omitempty"`
+	Sessions   []string `json:"sessions,omitempty"`
 }
 
 type KLineSnapshot struct {
@@ -386,6 +387,7 @@ type KLineSnapshot struct {
 	Pagination    KLinePagination `json:"pagination"`
 	ExtendedHours bool            `json:"extendedHours"`
 	Session       string          `json:"session,omitempty"`
+	Sessions      []string        `json:"sessions,omitempty"`
 }
 
 type KLinePagination struct {

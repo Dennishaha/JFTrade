@@ -2,12 +2,14 @@ package servercore
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 )
@@ -83,19 +85,36 @@ func (s *serverApplication) marketCandlesResponseForInstrument(ctx context.Conte
 	if !query.To.IsZero() {
 		toTime = query.To.UTC().Format(time.RFC3339Nano)
 	}
-	response, err := s.marketdataSvc.GetCandles(ctx, market, symbol, period, limit, fromTime, toTime)
+	response, err := s.marketdataSvc.GetCandles(ctx, mdsrv.HistoricalCandlesQuery{
+		Market: market, Symbol: symbol, Period: period, Limit: limit,
+		FromTime: fromTime, ToTime: toTime,
+		Sessions: query.Sessions, SessionsSpecified: query.SessionsSpecified,
+	})
 	return map[string]any(response), err
 }
 
 func (s *serverApplication) buildKLineCandlesResponse(ctx context.Context, market string, symbol string, instrumentID string, period string, limit int, query marketCandlesQuery) (map[string]any, error) {
 	interval := bbgotypes.Interval(period)
 	includeSession := shouldAnnotateHistoricalKLineSession(market, interval)
+	availableSessions := []mdsrv.CandleSession{mdsrv.CandleSessionRegular}
+	if includeSession {
+		availableSessions = append(availableSessions, mdsrv.CandleSessionExtended, mdsrv.CandleSessionOvernight)
+	}
+	sessions, err := mdsrv.ResolveCandleSessions(
+		query.Sessions,
+		query.SessionsSpecified,
+		availableSessions,
+	)
+	if err != nil {
+		return nil, err
+	}
 	beginAt, endAt := kLineQueryWindow(query, interval.Duration(), limit)
 	marketDataRuntime := s.runtimes.MarketData()
 	if marketDataRuntime == nil || !s.futuIntegrationEnabled() {
 		return nil, errFutuIntegrationNotEnabled
 	}
-	klines, err := marketDataRuntime.QueryKLines(ctx, instrumentID, interval, bbgotypes.KLineQueryOptions{Limit: limit, StartTime: &beginAt, EndTime: &endAt})
+	requestedFutuSessions := futuintegration.MarketSessionsForCandleSessions(sessions)
+	klines, err := marketDataRuntime.QueryKLinesForSessions(ctx, instrumentID, interval, bbgotypes.KLineQueryOptions{Limit: limit, StartTime: &beginAt, EndTime: &endAt}, requestedFutuSessions)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +129,7 @@ func (s *serverApplication) buildKLineCandlesResponse(ctx context.Context, marke
 			"volume": kline.Volume.String(),
 			"at":     kline.StartTime.Time().UTC().Format(time.RFC3339Nano),
 		}
+		sessionGroup := mdsrv.CandleSessionRegular
 		if includeSession {
 			session, ok := marketDataRuntime.ResolveKLineSession(kline)
 			if !ok {
@@ -118,47 +138,27 @@ func (s *serverApplication) buildKLineCandlesResponse(ctx context.Context, marke
 			if session != marketpkg.SessionUnknown && session != marketpkg.SessionClosed {
 				candle["session"] = string(session)
 			}
+			sessionGroup = mdsrv.CandleSessionForLabel(string(session))
+			if sessionGroup == "" {
+				return nil, fmt.Errorf("unable to classify K-line session at %s", candle["at"])
+			}
+		}
+		if !mdsrv.ContainsCandleSession(sessions, sessionGroup) {
+			continue
 		}
 		candles = append(candles, candle)
 	}
-	extendedHours := includeSession
-
-	return map[string]any{
-		"request":       marketCandlesRequest(market, symbol, instrumentID, period, limit),
-		"candles":       candles,
-		"totalReturned": len(candles),
-		"meta":          candleMeta(instrumentID, false, extendedHours, includeSession),
-	}, nil
-}
-
-func marketCandlesRequest(market string, symbol string, instrumentID string, period string, limit int) map[string]any {
-	return map[string]any{
-		"instrument": map[string]any{
-			"market":       market,
-			"symbol":       symbol,
-			"instrumentId": instrumentID,
-		},
-		"period": period,
-		"limit":  limit,
+	if len(candles) > limit {
+		candles = candles[len(candles)-limit:]
 	}
-}
-
-func candleMeta(instrumentID string, fromCache bool, extendedHours bool, includeSession bool) map[string]any {
-	meta := map[string]any{
-		"instrumentId":  instrumentID,
-		"source":        "bbgo:futu",
-		"resolvedAt":    time.Now().UTC().Format(time.RFC3339Nano),
-		"fromCache":     fromCache,
-		"extendedHours": extendedHours,
-	}
-	if includeSession {
-		session := "regular"
-		if extendedHours {
-			session = "all"
-		}
-		meta["session"] = session
-	}
-	return meta
+	extendedHours := mdsrv.ContainsCandleSession(sessions, mdsrv.CandleSessionExtended) ||
+		mdsrv.ContainsCandleSession(sessions, mdsrv.CandleSessionOvernight)
+	return mdsrv.CandlesResponseDTO{
+		Instrument: mdsrv.InstrumentDTO{Market: market, Symbol: symbol, InstrumentID: instrumentID},
+		Period:     period, Limit: limit, Candles: candles, Source: "bbgo:futu",
+		ResolvedAt: time.Now().UTC().Format(time.RFC3339Nano), ExtendedHours: extendedHours,
+		IncludeSession: includeSession, Sessions: sessions,
+	}.JSON(), nil
 }
 
 func shouldAnnotateHistoricalKLineSession(market string, interval bbgotypes.Interval) bool {

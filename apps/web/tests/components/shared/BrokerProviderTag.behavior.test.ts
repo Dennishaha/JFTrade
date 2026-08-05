@@ -932,6 +932,7 @@ describe("broker provider tag", () => {
                   state: "future-state",
                   markets: ["HK"],
                   supportedPeriods: ["1d"],
+                  supportedSessions: [{ id: "regular", supportedPeriods: ["1d"] }, { id: "future-session", supportedPeriods: ["1d"] }],
                   reasonCode: "FUTURE_STATE",
                   reason: "等待适配",
                 },
@@ -964,10 +965,8 @@ describe("broker provider tag", () => {
         },
       ],
     });
-
     const selection = useBrokerProviderSelection();
     await selection.loadBrokerProviders();
-
     expect(selection.brokerDescriptors.value).toEqual([
       expect.objectContaining({
         id: "future",
@@ -981,6 +980,7 @@ describe("broker provider tag", () => {
                 state: "unavailable",
                 reasonCode: "FUTURE_STATE",
                 supportedPeriods: ["1d"],
+                supportedSessions: [{ id: "regular", supportedPeriods: ["1d"] }],
               }),
             ],
           }),

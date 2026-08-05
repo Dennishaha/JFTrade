@@ -9,6 +9,40 @@ from typing import Any, Mapping
 from ..conversion import clean_text
 from ..errors import invalid_request
 
+CANDLE_SESSION_ORDER = ("regular", "extended", "overnight")
+CANDLE_INTRADAY_PERIODS = frozenset({"1m", "5m", "15m", "30m", "1h"})
+
+
+def parse_candle_sessions(
+    values: list[str] | None,
+    *,
+    market: str,
+    period: str,
+    extended: bool = True,
+    overnight: bool = False,
+) -> tuple[str, ...]:
+    intraday = period in CANDLE_INTRADAY_PERIODS and market == "US"
+    available = {"regular"}
+    if intraday and extended:
+        available.add("extended")
+        if overnight:
+            available.add("overnight")
+    if values is None:
+        return tuple(session for session in CANDLE_SESSION_ORDER if session in available)
+    seen: set[str] = set()
+    for value in values:
+        for token in value.split(","):
+            normalized = token.strip().lower()
+            if normalized not in CANDLE_SESSION_ORDER:
+                raise invalid_request("invalid_sessions", f"unsupported candle session: {token}")
+            seen.add(normalized)
+    if not seen:
+        raise invalid_request("invalid_sessions", "at least one candle session is required")
+    unsupported = sorted(seen - available)
+    if unsupported:
+        raise invalid_request("unsupported_sessions", f"candle sessions are unavailable: {', '.join(unsupported)}")
+    return tuple(session for session in CANDLE_SESSION_ORDER if session in seen)
+
 
 @dataclass(frozen=True)
 class MarketSpec:

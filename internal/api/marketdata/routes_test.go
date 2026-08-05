@@ -299,6 +299,41 @@ func TestCandlesRoutePreservesLegacyQueryParsing(t *testing.T) {
 	}
 }
 
+func TestCandlesRouteNormalizesRepeatedSessions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{}
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), srv.NewService(provider))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequestWithContext(
+		t.Context(), http.MethodGet,
+		"/api/v1/market-data/candles/US/AAPL?period=5m&sessions=overnight,regular&sessions=extended&sessions=regular",
+		nil,
+	))
+	if response.Code != http.StatusOK {
+		t.Fatalf("GET candles status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if got := srv.CandleSessionStrings(provider.candlesSessions); strings.Join(got, ",") != "regular,extended,overnight" || !provider.candlesSessionsSpecified {
+		t.Fatalf("sessions = %#v specified=%v", got, provider.candlesSessionsSpecified)
+	}
+}
+
+func TestCandlesRouteRejectsInvalidSessions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{}
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), srv.NewService(provider))
+	for _, query := range []string{"sessions=", "sessions=regular,invalid"} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequestWithContext(
+			t.Context(), http.MethodGet, "/api/v1/market-data/candles/US/AAPL?"+query, nil,
+		))
+		if response.Code != http.StatusBadRequest {
+			t.Errorf("query %q status = %d, body = %s", query, response.Code, response.Body.String())
+		}
+	}
+}
+
 func TestCandlesRouteRejectsUnsupportedPeriod(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{}
@@ -842,37 +877,39 @@ func routeEntriesByKey(t *testing.T, snapshot map[string]any) map[string]map[str
 }
 
 type routeTestProvider struct {
-	descriptor           srv.ProviderDescriptor
-	descriptorErr        error
-	candlesCalled        bool
-	candlesMarket        string
-	candlesSymbol        string
-	candlesPeriod        string
-	candlesLimit         int
-	candlesFromTime      string
-	candlesToTime        string
-	candlesErr           error
-	depthCalled          bool
-	depthNum             int
-	depthErr             error
-	markets              []srv.MarketProfile
-	marketsErr           error
-	securityDetails      srv.SecurityDetails
-	securityErr          error
-	securityMarket       string
-	securitySymbol       string
-	snapshot             *srv.Tick
-	snapshotErr          error
-	snapshotInstrumentID string
-	normalizedInstrument map[string]any
-	normalizeErr         error
-	normalizeRequest     map[string]any
-	lookupMu             sync.Mutex
-	lookupCalls          []string
-	lookupInstrument     func(context.Context, string, string) ([]srv.InstrumentCandidate, error)
-	searchMu             sync.Mutex
-	searchCalls          []string
-	searchInstruments    func(context.Context, string, int) ([]srv.InstrumentCandidate, error)
+	descriptor               srv.ProviderDescriptor
+	descriptorErr            error
+	candlesCalled            bool
+	candlesMarket            string
+	candlesSymbol            string
+	candlesPeriod            string
+	candlesLimit             int
+	candlesFromTime          string
+	candlesToTime            string
+	candlesSessions          []srv.CandleSession
+	candlesSessionsSpecified bool
+	candlesErr               error
+	depthCalled              bool
+	depthNum                 int
+	depthErr                 error
+	markets                  []srv.MarketProfile
+	marketsErr               error
+	securityDetails          srv.SecurityDetails
+	securityErr              error
+	securityMarket           string
+	securitySymbol           string
+	snapshot                 *srv.Tick
+	snapshotErr              error
+	snapshotInstrumentID     string
+	normalizedInstrument     map[string]any
+	normalizeErr             error
+	normalizeRequest         map[string]any
+	lookupMu                 sync.Mutex
+	lookupCalls              []string
+	lookupInstrument         func(context.Context, string, string) ([]srv.InstrumentCandidate, error)
+	searchMu                 sync.Mutex
+	searchCalls              []string
+	searchInstruments        func(context.Context, string, int) ([]srv.InstrumentCandidate, error)
 }
 
 type routeBrokerReader struct {
@@ -911,6 +948,7 @@ func (r *routeBrokerReader) ReadMarketCandles(
 	_ string,
 	_ string,
 	before string,
+	_ []string,
 ) (map[string]any, error) {
 	r.lastBefore = before
 	r.calls = append(r.calls, fmt.Sprintf("candles:%s:%s:%s:%s:%d", brokerID, market, symbol, period, limit))
@@ -979,14 +1017,16 @@ func (*routeTestProvider) QueryTicker(context.Context, string) (*srv.Tick, error
 	return nil, nil
 }
 
-func (p *routeTestProvider) GetHistoricalCandles(_ context.Context, market, symbol, period string, limit int, fromTime, toTime string) (srv.CandlesResponse, error) {
+func (p *routeTestProvider) GetHistoricalCandles(_ context.Context, query srv.HistoricalCandlesQuery) (srv.CandlesResponse, error) {
 	p.candlesCalled = true
-	p.candlesMarket = market
-	p.candlesSymbol = symbol
-	p.candlesPeriod = period
-	p.candlesLimit = limit
-	p.candlesFromTime = fromTime
-	p.candlesToTime = toTime
+	p.candlesMarket = query.Market
+	p.candlesSymbol = query.Symbol
+	p.candlesPeriod = query.Period
+	p.candlesLimit = query.Limit
+	p.candlesFromTime = query.FromTime
+	p.candlesToTime = query.ToTime
+	p.candlesSessions = append([]srv.CandleSession(nil), query.Sessions...)
+	p.candlesSessionsSpecified = query.SessionsSpecified
 	return srv.CandlesResponse{"candles": []any{}}, p.candlesErr
 }
 

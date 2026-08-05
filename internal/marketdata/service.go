@@ -39,7 +39,7 @@ type Provider interface {
 	SearchInstruments(ctx context.Context, query string, limit int) ([]InstrumentCandidate, error)
 	QuerySnapshot(ctx context.Context, instrumentID string) (*Tick, error)
 	QueryTicker(ctx context.Context, instrumentID string) (*Tick, error)
-	GetHistoricalCandles(ctx context.Context, market, symbol, period string, limit int, fromTime, toTime string) (CandlesResponse, error)
+	GetHistoricalCandles(ctx context.Context, query HistoricalCandlesQuery) (CandlesResponse, error)
 	GetDepth(ctx context.Context, market, symbol string, num int) (DepthResponse, error)
 
 	// ── 工具方法 ──
@@ -426,18 +426,38 @@ func (s *Service) GetSnapshot(ctx context.Context, market, symbol string, refres
 }
 
 // GetCandles 返回 K 线数据。
-func (s *Service) GetCandles(ctx context.Context, market, symbol, period string, limit int, fromTime, toTime string) (CandlesResponse, error) {
+func (s *Service) GetCandles(ctx context.Context, query HistoricalCandlesQuery) (CandlesResponse, error) {
 	s.providerLifecycleMu.RLock()
 	defer s.providerLifecycleMu.RUnlock()
+	market, symbol := query.Market, query.Symbol
+	period, limit := query.Period, query.Limit
+	fromTime, toTime := query.FromTime, query.ToTime
 	market, symbol = normalizeCNAggregateRead(market, symbol)
 	period = strings.ToLower(strings.TrimSpace(period))
 	if period == "" {
 		period = "1m"
 	}
 	if period != "tick" {
-		return s.provider.GetHistoricalCandles(ctx, market, symbol, period, limit, fromTime, toTime)
+		query.Market, query.Symbol, query.Period = market, symbol, period
+		return s.provider.GetHistoricalCandles(ctx, query)
 	}
 	descriptor, err := s.requireProviderCapability(ctx, "tick candles")
+	if err != nil {
+		return nil, err
+	}
+	availableSessions := []CandleSession{CandleSessionRegular}
+	if strings.EqualFold(market, "US") {
+		availableSessions = []CandleSession{
+			CandleSessionRegular,
+			CandleSessionExtended,
+			CandleSessionOvernight,
+		}
+	}
+	sessions, err := ResolveCandleSessions(
+		query.Sessions,
+		query.SessionsSpecified,
+		availableSessions,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -456,12 +476,16 @@ func (s *Service) GetCandles(ctx context.Context, market, symbol, period string,
 		generation := s.providerGeneration.Load()
 		sample, err := s.provider.QueryTicker(ctx, instrumentID)
 		if err != nil {
-			candles := s.tickCandles(instrumentID, fromTime, toTime, limit)
+			candles := FilterCandlesBySessions(
+				s.tickCandles(instrumentID, fromTime, toTime, 0),
+				sessions,
+			)
+			candles = limitCandleMaps(candles, limit)
 			if len(candles) == 0 {
 				return nil, err
 			}
 			return tickCandlesResponse(
-				market, symbol, instrumentID, period, limit, candles, descriptor.Source, true,
+				market, symbol, instrumentID, period, limit, candles, descriptor.Source, true, sessions,
 			), nil
 		}
 		if generation != s.providerGeneration.Load() {
@@ -471,10 +495,21 @@ func (s *Service) GetCandles(ctx context.Context, market, symbol, period string,
 			s.Ingest(*sample)
 		}
 	}
-	candles := s.tickCandles(instrumentID, fromTime, toTime, limit)
+	candles := FilterCandlesBySessions(
+		s.tickCandles(instrumentID, fromTime, toTime, 0),
+		sessions,
+	)
+	candles = limitCandleMaps(candles, limit)
 	return tickCandlesResponse(
-		market, symbol, instrumentID, period, limit, candles, descriptor.Source, fromCache,
+		market, symbol, instrumentID, period, limit, candles, descriptor.Source, fromCache, sessions,
 	), nil
+}
+
+func limitCandleMaps(candles []map[string]any, limit int) []map[string]any {
+	if limit > 0 && len(candles) > limit {
+		return candles[len(candles)-limit:]
+	}
+	return candles
 }
 
 func (s *Service) requireBasicSubscriptionDemand(market, symbol, readChannel string) error {
@@ -709,6 +744,7 @@ func tickCandlesResponse(
 	candles []map[string]any,
 	source string,
 	fromCache bool,
+	sessions []CandleSession,
 ) CandlesResponse {
 	includeSession := market == "US"
 	return CandlesResponseDTO{
@@ -721,5 +757,6 @@ func tickCandlesResponse(
 		FromCache:      fromCache,
 		ExtendedHours:  includeSession,
 		IncludeSession: includeSession,
+		Sessions:       sessions,
 	}.JSON()
 }

@@ -47,6 +47,7 @@ type CandlesResponseDTO struct {
 	FromCache      bool
 	ExtendedHours  bool
 	IncludeSession bool
+	Sessions       []CandleSession
 }
 
 func (response CandlesResponseDTO) JSON() CandlesResponse {
@@ -56,6 +57,7 @@ func (response CandlesResponseDTO) JSON() CandlesResponse {
 		"resolvedAt":    response.ResolvedAt,
 		"fromCache":     response.FromCache,
 		"extendedHours": response.ExtendedHours,
+		"sessions":      CandleSessionStrings(response.Sessions),
 	}
 	if response.IncludeSession {
 		session := "regular"
@@ -69,6 +71,7 @@ func (response CandlesResponseDTO) JSON() CandlesResponse {
 			"instrument": response.Instrument.JSON(),
 			"period":     response.Period,
 			"limit":      response.Limit,
+			"sessions":   CandleSessionStrings(response.Sessions),
 		},
 		"candles":       response.Candles,
 		"totalReturned": len(response.Candles),

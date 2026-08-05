@@ -311,11 +311,23 @@ func (r *MarketDataRuntime) QueryKLines(
 	interval bbgotypes.Interval,
 	options bbgotypes.KLineQueryOptions,
 ) ([]bbgotypes.KLine, error) {
+	return r.QueryKLinesForSessions(ctx, instrumentID, interval, options, nil)
+}
+
+// QueryKLinesForSessions restricts historical and current US candles to the
+// requested exchange sessions while preserving the legacy all-session method.
+func (r *MarketDataRuntime) QueryKLinesForSessions(
+	ctx context.Context,
+	instrumentID string,
+	interval bbgotypes.Interval,
+	options bbgotypes.KLineQueryOptions,
+	sessions []market.Session,
+) ([]bbgotypes.KLine, error) {
 	exchange := r.Ensure()
 	if exchange == nil {
 		return nil, fmt.Errorf("futu marketdata runtime unavailable")
 	}
-	klines, err := exchange.QueryKLines(ctx, instrumentID, interval, options)
+	klines, err := exchange.QueryKLinesForSessions(ctx, instrumentID, interval, options, sessions)
 	if err != nil {
 		return nil, translateSubscriptionRequiredError(err, "KLINE", string(interval))
 	}

@@ -152,10 +152,30 @@ const implementation = readFileSync(
   path.join(rootDir, "scripts", "dev-desktop.mjs"),
   "utf8",
 );
+const viteConfig = readFileSync(
+  path.join(rootDir, "apps", "web", "vite.config.ts"),
+  "utf8",
+);
 assert(
   implementation.indexOf("run\", \"dev:web") <
     implementation.indexOf("prepareDesktopExecutable()"),
   "desktop dev does not start Vite before native preparation",
+);
+assert(
+  implementation.includes("prepareFrontendDependencies()") &&
+    implementation.indexOf("prepareFrontendDependencies()") <
+      implementation.indexOf("launchLongRunning(") &&
+    implementation.includes('"vite",\n      "optimize"'),
+  "desktop dev does not pre-optimize frontend dependencies before starting Vite",
+);
+assert(
+  [
+    "@tanstack/vue-query",
+    "@wailsio/runtime",
+    "vuetify/components/VAlert",
+    "vuetify/components/VTextarea",
+  ].every((dependency) => viteConfig.includes(`"${dependency}"`)),
+  "Vite does not explicitly pre-optimize the desktop startup dependencies",
 );
 assert(
   implementation.includes("nativeDesktopFingerprint") &&

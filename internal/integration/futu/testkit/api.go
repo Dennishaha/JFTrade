@@ -397,7 +397,6 @@ func protocolKLines(lines []KLine) []*qotcommonpb.KLine {
 	return values
 }
 
-
 func tradingEnvironment(value string) trdcommonpb.TrdEnv {
 	if strings.EqualFold(value, "REAL") {
 		return trdcommonpb.TrdEnv_TrdEnv_Real

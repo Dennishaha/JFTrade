@@ -231,13 +231,10 @@ func (p *Provider) queryTickerWorker(
 
 func (p *Provider) GetHistoricalCandles(
 	ctx context.Context,
-	marketValue string,
-	symbol string,
-	period string,
-	limit int,
-	fromTime string,
-	toTime string,
+	query marketdata.HistoricalCandlesQuery,
 ) (marketdata.CandlesResponse, error) {
+	marketValue, symbol, period := query.Market, query.Symbol, query.Period
+	limit, fromTime, toTime := query.Limit, query.FromTime, query.ToTime
 	instrument, err := normalizeIdentity(marketValue, symbol, "")
 	if err != nil {
 		return nil, err
@@ -245,6 +242,18 @@ func (p *Provider) GetHistoricalCandles(
 	period = strings.ToLower(strings.TrimSpace(period))
 	if _, ok := supportedCandlePeriods[period]; !ok {
 		return nil, fmt.Errorf("%w: candle period %q", ErrUnsupported, period)
+	}
+	availableSessions := []marketdata.CandleSession{marketdata.CandleSessionRegular}
+	if instrument.market == "US" && isIntradayCandlePeriod(period) {
+		availableSessions = append(availableSessions, marketdata.CandleSessionExtended)
+	}
+	sessions, err := marketdata.ResolveCandleSessions(
+		query.Sessions,
+		query.SessionsSpecified,
+		availableSessions,
+	)
+	if err != nil {
+		return nil, err
 	}
 	if period == "1m" {
 		if err := validateOneMinuteCandleWindow(fromTime, p.now()); err != nil {
@@ -254,11 +263,21 @@ func (p *Provider) GetHistoricalCandles(
 	limit = normalizeLimit(limit, defaultCandleLimit, maxCandleLimit)
 	response, err := p.client.candles(
 		ctx, instrument.market, instrument.symbol, period, limit, fromTime, toTime,
+		marketdata.CandleSessionStrings(sessions),
 	)
 	if err != nil {
 		return nil, err
 	}
-	return convertCandles(response, instrument, period, limit, p.currentTime())
+	return convertCandlesForSessions(response, instrument, period, limit, sessions, p.currentTime())
+}
+
+func isIntradayCandlePeriod(period string) bool {
+	switch period {
+	case "1m", "5m", "15m", "30m", "1h":
+		return true
+	default:
+		return false
+	}
 }
 
 func (p *Provider) GetDepth(

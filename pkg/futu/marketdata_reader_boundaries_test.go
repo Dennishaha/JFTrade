@@ -11,6 +11,7 @@ import (
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetsearchquotepb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsearchquote"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 func TestMarketDataReaderSurfacesTransportAndPayloadBoundaries(t *testing.T) {
@@ -101,6 +102,51 @@ func TestMarketDataReaderSurfacesTransportAndPayloadBoundaries(t *testing.T) {
 
 	if _, err := reader.QueryOrderBook(ctx, broker.OrderBookQuery{Symbol: "BAD", Num: 5}); err == nil {
 		t.Fatal("QueryOrderBook(invalid symbol) error = nil")
+	}
+}
+
+func TestBrokerKLineSessionHelpersNormalizeAndRejectSelections(t *testing.T) {
+	all, err := resolveBrokerKLineSessions(nil, true)
+	if err != nil || len(all) != 4 || all[0] != market.SessionRegular || all[3] != market.SessionOvernight {
+		t.Fatalf("default US sessions = %#v, err=%v", all, err)
+	}
+	regular, err := resolveBrokerKLineSessions([]string{" overnight,regular", "extended"}, true)
+	if err != nil || len(regular) != 4 || regular[1] != market.SessionPre || regular[2] != market.SessionAfter {
+		t.Fatalf("normalized sessions = %#v, err=%v", regular, err)
+	}
+	if _, err := resolveBrokerKLineSessions([]string{"extended"}, false); !errors.Is(err, broker.ErrInvalidCandleSessions) {
+		t.Fatalf("non-US extended session error = %v", err)
+	}
+	if _, err := resolveBrokerKLineSessions([]string{"overnight"}, false); !errors.Is(err, broker.ErrInvalidCandleSessions) {
+		t.Fatalf("non-US overnight session error = %v", err)
+	}
+	if _, err := resolveBrokerKLineSessions([]string{"unknown"}, true); !errors.Is(err, broker.ErrInvalidCandleSessions) {
+		t.Fatalf("unknown session error = %v", err)
+	}
+	if !hasNonRegularBrokerSession(nil, true) || hasNonRegularBrokerSession([]market.Session{market.SessionRegular}, true) || !hasNonRegularBrokerSession([]market.Session{market.SessionAfter}, false) {
+		t.Fatal("hasNonRegularBrokerSession classification mismatch")
+	}
+	for _, test := range []struct {
+		sessions []market.Session
+		extended bool
+		want     string
+	}{
+		{sessions: nil, extended: true, want: "all"},
+		{sessions: []market.Session{market.SessionRegular}, want: "regular"},
+		{sessions: []market.Session{market.SessionRegular, market.SessionOvernight}, want: "all"},
+	} {
+		if got := brokerKLineSessionLabel(test.sessions, test.extended); got != test.want {
+			t.Errorf("brokerKLineSessionLabel(%v, %t) = %q, want %q", test.sessions, test.extended, got, test.want)
+		}
+	}
+	if got := brokerSessionStrings([]market.Session{market.SessionOvernight, market.SessionAfter, market.SessionRegular}); strings.Join(got, ",") != "regular,extended,overnight" {
+		t.Fatalf("broker session strings = %#v", got)
+	}
+	_, reader := coverageMarginMarketDataReader(t)
+	if _, err := reader.QueryKLines(t.Context(), broker.KLineQuery{
+		Symbol: "HK.00700", Period: "5m", Sessions: []string{"overnight"},
+	}); !errors.Is(err, broker.ErrInvalidCandleSessions) {
+		t.Fatalf("QueryKLines unsupported session error = %v", err)
 	}
 }
 

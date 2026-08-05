@@ -273,6 +273,7 @@ export interface MarketDataCandlesQueryResult {
     };
     period: string;
     limit: number;
+    sessions?: string[];
   };
   candles: Array<{
     period: string;
@@ -298,6 +299,7 @@ export interface MarketDataCandlesQueryResult {
     fromCache: boolean;
     extendedHours?: boolean | null;
     session?: string | null;
+    sessions?: string[];
   };
 }
 

@@ -91,6 +91,7 @@ func (s *Service) ReadMarketCandles(
 	fromTime string,
 	toTime string,
 	beforeTime string,
+	sessions []string,
 ) (map[string]any, error) {
 	market, symbol, instrumentID, err := normalizeWorkspaceInstrument(market, symbol)
 	if err != nil {
@@ -113,6 +114,7 @@ func (s *Service) ReadMarketCandles(
 			"fromTime":   fromTime,
 			"toTime":     toTime,
 			"beforeTime": beforeTime,
+			"sessions":   sessions,
 		},
 	})
 	if err != nil {
@@ -128,6 +130,7 @@ func (s *Service) ReadMarketCandles(
 		candles = append(candles, candle)
 	}
 	meta := workspaceProviderMeta(result, instrumentID, false)
+	meta["sessions"] = sessions
 	if result.Metadata != nil {
 		if extendedHours, ok := result.Metadata["extendedHours"].(bool); ok {
 			meta["extendedHours"] = extendedHours
@@ -146,6 +149,7 @@ func (s *Service) ReadMarketCandles(
 			"instrument": workspaceInstrumentRequest(market, symbol, instrumentID),
 			"period":     period,
 			"limit":      pageSize,
+			"sessions":   sessions,
 		},
 		"candles":       candles,
 		"totalReturned": len(candles),

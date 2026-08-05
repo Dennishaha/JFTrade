@@ -470,14 +470,9 @@ func (r *Runtime) QueryTicker(ctx context.Context, instrumentID string) (*market
 
 func (r *Runtime) GetHistoricalCandles(
 	ctx context.Context,
-	market string,
-	symbol string,
-	period string,
-	limit int,
-	fromTime string,
-	toTime string,
+	query marketdata.HistoricalCandlesQuery,
 ) (marketdata.CandlesResponse, error) {
-	return r.snapshot().provider.GetHistoricalCandles(ctx, market, symbol, period, limit, fromTime, toTime)
+	return r.snapshot().provider.GetHistoricalCandles(ctx, query)
 }
 
 func (r *Runtime) GetDepth(ctx context.Context, market, symbol string, num int) (marketdata.DepthResponse, error) {

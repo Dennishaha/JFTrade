@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
 func newOptionalTimeValue(value time.Time) httpserver.OptionalTimeValue {
@@ -15,12 +16,14 @@ type marketSnapshotQuery struct {
 }
 
 type marketCandlesQuery struct {
-	Period   httpserver.CandlePeriodValue `form:"period,parser=encoding.TextUnmarshaler"`
-	Limit    httpserver.OptionalIntValue  `form:"limit,parser=encoding.TextUnmarshaler"`
-	FromTime httpserver.OptionalTimeValue `form:"fromTime,parser=encoding.TextUnmarshaler"`
-	ToTime   httpserver.OptionalTimeValue `form:"toTime,parser=encoding.TextUnmarshaler"`
-	From     httpserver.OptionalTimeValue `form:"from,parser=encoding.TextUnmarshaler"`
-	To       httpserver.OptionalTimeValue `form:"to,parser=encoding.TextUnmarshaler"`
+	Period            httpserver.CandlePeriodValue `form:"period,parser=encoding.TextUnmarshaler"`
+	Limit             httpserver.OptionalIntValue  `form:"limit,parser=encoding.TextUnmarshaler"`
+	FromTime          httpserver.OptionalTimeValue `form:"fromTime,parser=encoding.TextUnmarshaler"`
+	ToTime            httpserver.OptionalTimeValue `form:"toTime,parser=encoding.TextUnmarshaler"`
+	From              httpserver.OptionalTimeValue `form:"from,parser=encoding.TextUnmarshaler"`
+	To                httpserver.OptionalTimeValue `form:"to,parser=encoding.TextUnmarshaler"`
+	Sessions          []mdsrv.CandleSession
+	SessionsSpecified bool
 }
 
 type marketDepthQuery struct {

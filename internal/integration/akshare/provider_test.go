@@ -102,7 +102,10 @@ func TestProviderConvertsNamespacedSidecarContract(t *testing.T) {
 		t.Fatalf("QueryTickers = %#v, err=%v", ticks, err)
 	}
 	candles, err := provider.GetHistoricalCandles(
-		t.Context(), "US", "AAPL", "1d", 2, "2026-08-01T00:00:00Z", "2026-08-03T00:00:00Z",
+		t.Context(), marketdata.HistoricalCandlesQuery{
+			Market: "US", Symbol: "AAPL", Period: "1d", Limit: 2,
+			FromTime: "2026-08-01T00:00:00Z", ToTime: "2026-08-03T00:00:00Z",
+		},
 	)
 	rows, _ := candles["candles"].([]map[string]any)
 	if err != nil || len(rows) != 2 || rows[0]["open"] != "185.1" || rows[0]["volume"] != "1000" ||
@@ -148,7 +151,7 @@ func TestProviderPreservesErrorsAndPartialBatchResults(t *testing.T) {
 	if err != nil || len(lookup) != 0 {
 		t.Fatalf("not-found lookup = %#v, err=%v", lookup, err)
 	}
-	if _, err := provider.GetHistoricalCandles(t.Context(), "US", "AAPL", "1m", 5, "", ""); !errors.Is(err, ErrUnsupported) {
+	if _, err := provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1m", Limit: 5}); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("unsupported range error = %v", err)
 	}
 	ticks, err := provider.QueryTickers(t.Context(), []string{"US.AAPL", "US.MISSING"})
@@ -192,8 +195,22 @@ func TestProviderNormalizesIndexAndExchangeIdentities(t *testing.T) {
 			t.Fatalf("NormalizeInstrument(%#v) unexpectedly succeeded", input)
 		}
 	}
-	if _, err := provider.GetHistoricalCandles(t.Context(), "US", "AAPL", "2m", 10, "", ""); !errors.Is(err, ErrUnsupported) {
+	if _, err := provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "2m", Limit: 10}); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("unsupported period error = %v", err)
+	}
+}
+
+func TestProviderRejectsNonRegularCandleSessions(t *testing.T) {
+	provider, err := NewProvider("http://127.0.0.1:7788")
+	if err != nil {
+		t.Fatalf("NewProvider: %v", err)
+	}
+	_, err = provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
+		Market: "US", Symbol: "AAPL", Period: "1m", Limit: 10,
+		Sessions: []marketdata.CandleSession{marketdata.CandleSessionExtended}, SessionsSpecified: true,
+	})
+	if !errors.Is(err, marketdata.ErrInvalidCandleSessions) {
+		t.Fatalf("extended-session error = %v, want invalid candle sessions", err)
 	}
 }
 

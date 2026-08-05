@@ -56,7 +56,7 @@ func TestRuntimeForwardsEveryDataPlaneOperationWithoutRewritingProviderResults(t
 		t.Fatalf("QueryTicker = %#v, err=%v", ticker, err)
 	}
 	candles, err := runtime.GetHistoricalCandles(
-		ctx, "US", "AAPL", "1d", 20, "2026-07-01T00:00:00Z", "2026-07-29T00:00:00Z",
+		ctx, marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1d", Limit: 20, FromTime: "2026-07-01T00:00:00Z", ToTime: "2026-07-29T00:00:00Z"},
 	)
 	if err != nil || candles["period"] != "1d" {
 		t.Fatalf("GetHistoricalCandles = %#v, err=%v", candles, err)
@@ -135,7 +135,7 @@ func TestRuntimePreservesErrorsFromEveryActiveCapability(t *testing.T) {
 		{"QuerySnapshot", func() error { _, callErr := runtime.QuerySnapshot(ctx, "US.AAPL"); return callErr }},
 		{"QueryTicker", func() error { _, callErr := runtime.QueryTicker(ctx, "US.AAPL"); return callErr }},
 		{"GetHistoricalCandles", func() error {
-			_, callErr := runtime.GetHistoricalCandles(ctx, "US", "AAPL", "1d", 5, "", "")
+			_, callErr := runtime.GetHistoricalCandles(ctx, marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1d", Limit: 5})
 			return callErr
 		}},
 		{"GetDepth", func() error { _, callErr := runtime.GetDepth(ctx, "US", "AAPL", 5); return callErr }},
@@ -274,12 +274,7 @@ func (p *forwardingProviderStub) QueryTicker(context.Context, string) (*marketda
 
 func (p *forwardingProviderStub) GetHistoricalCandles(
 	context.Context,
-	string,
-	string,
-	string,
-	int,
-	string,
-	string,
+	marketdata.HistoricalCandlesQuery,
 ) (marketdata.CandlesResponse, error) {
 	p.record("GetHistoricalCandles")
 	return marketdata.CandlesResponse{"period": "1d"}, p.err

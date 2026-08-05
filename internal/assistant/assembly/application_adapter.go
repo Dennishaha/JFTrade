@@ -205,7 +205,9 @@ func (a *ApplicationAdapter) marketCandles(
 	if service == nil {
 		return nil, fmt.Errorf("market data service is unavailable")
 	}
-	response, err := service.GetCandles(ctx, market, symbol, period, limit, "", "")
+	response, err := service.GetCandles(ctx, mdsrv.HistoricalCandlesQuery{
+		Market: market, Symbol: symbol, Period: period, Limit: limit,
+	})
 	return map[string]any(response), err
 }
 

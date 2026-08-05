@@ -6,10 +6,12 @@ import type {
   BrokerFeatureCapabilityDto,
   BrokerRuntimeCapabilityStatusDto,
 } from "@/contracts";
-
 import { apiGet } from "@/composables/shared/apiClient";
 import { readLocalStorage, writeLocalStorage } from "@/composables/shared/safeStorage";
-
+import {
+  mapSupportedCandleSessions,
+  type BrokerCandleSessionCapability,
+} from "./brokerCandleSessions";
 export type BrokerCapabilityState = "available" | "degraded" | "unavailable";
 
 /**
@@ -29,6 +31,7 @@ export interface BrokerFeatureCapability {
   id: string;
   markets?: string[];
   supportedPeriods?: string[];
+  supportedSessions?: BrokerCandleSessionCapability[];
   state: BrokerCapabilityState;
   reasonCode?: string;
   reason?: string;
@@ -99,9 +102,6 @@ const loadError = ref("");
 const preferredAccountBrokerId = ref("");
 const serverDefaultBrokerId = ref("");
 let loadPromise: Promise<BrokerCapabilityDescriptor[]> | null = null;
-
-type BrokerCapabilitiesWire = BrokerCapabilitiesDto;
-
 function mapCapabilityState(value: string): BrokerCapabilityState {
   switch (value) {
     case "available":
@@ -116,6 +116,7 @@ function mapCapabilityState(value: string): BrokerCapabilityState {
 function mapFeatureCapability(
   value: BrokerFeatureCapabilityDto,
 ): BrokerFeatureCapability {
+  const supportedSessions = mapSupportedCandleSessions(value.supportedSessions);
   return {
     id: value.id,
     state: mapCapabilityState(value.state),
@@ -123,6 +124,7 @@ function mapFeatureCapability(
     ...(value.supportedPeriods == null
       ? {}
       : { supportedPeriods: [...value.supportedPeriods] }),
+    ...(supportedSessions == null ? {} : { supportedSessions }),
     ...(value.reasonCode == null ? {} : { reasonCode: value.reasonCode }),
     ...(value.reason == null ? {} : { reason: value.reason }),
   };
@@ -177,7 +179,7 @@ function mapRuntimeCapability(
   };
 }
 
-function mapBrokerCapabilities(response: BrokerCapabilitiesWire): {
+function mapBrokerCapabilities(response: BrokerCapabilitiesDto): {
   brokers: BrokerCapabilityDescriptor[];
   runtime: BrokerRuntimeCapabilityStatus[];
 } {

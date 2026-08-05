@@ -6,7 +6,6 @@ import {
   ref,
   watch,
 } from "vue";
-
 import KlineChart from "@/components/domain/market-data/KlineChart.vue";
 import LightweightChartHeader from "./LightweightChartHeader.vue";
 import {
@@ -24,6 +23,14 @@ import {
   brokerSupportedChartPeriods,
   useBrokerProviderSelection,
 } from "@/composables/trading/brokerProviderSelection";
+import { brokerSupportedChartSessions } from "@/composables/trading/brokerCandleSessions";
+import {
+  candleMatchesSessions,
+  CANDLE_SESSION_ORDER,
+  intersectCandleSessions,
+  normalizeCandleSessions,
+  type CandleSession,
+} from "@/composables/market-data/candleSessions";
 import { getSharedLiveSocketHub } from "@/composables/market-data/sharedLiveSocket";
 import {
   fallbackInstrumentPeriod,
@@ -32,9 +39,7 @@ import {
 } from "@/composables/market-data/instrumentPeriodCapabilities";
 import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
-
 type RenderableKlinePeriod = (typeof KLINE_PERIODS)[number]["value"];
-
 const props = withDefaults(
   defineProps<{
     target?: { market: string; symbol: string } | null;
@@ -48,11 +53,9 @@ const props = withDefaults(
     minHeight: 320,
   },
 );
-
 const emit = defineEmits<{
   "update:period": [period: RenderableKlinePeriod];
 }>();
-
 const { prefs, update } = useWorkspaceTradingPrefs();
 const {
   brokerDescriptors,
@@ -85,9 +88,9 @@ const {
   isMarketDataStale,
   isLiveStreamConnected,
 } = useConsoleData();
-
 const controlled = computed(() => props.target !== undefined);
 const selectedIndicators = ref<KlineIndicatorKey[]>(["volume"]);
+const selectedCandleSessions = ref<CandleSession[]>([...CANDLE_SESSION_ORDER]);
 const controlledChartType = ref<ChartType>("standard");
 const targetMarket = computed(() =>
   (controlled.value ? props.target?.market : prefs.value.market)
@@ -121,7 +124,7 @@ let heldChartSubscription: {
 let heartbeatTimer = 0;
 let reloadInFlight: { key: string; promise: Promise<void> } | null = null;
 let chartReloadSeq = 0;
-
+const historyLoadAttempted = ref(false);
 const providerSupportedPeriodValues = computed(() =>
   brokerSupportedChartPeriods(
     selectedBrokerId.value,
@@ -129,6 +132,21 @@ const providerSupportedPeriodValues = computed(() =>
     brokerDescriptors.value,
   ),
 );
+const supportedCandleSessions = computed<CandleSession[]>(() => {
+  const supported = brokerSupportedChartSessions(
+    selectedBrokerId.value,
+    targetMarket.value,
+    normalizedSelectedPeriod(),
+    brokerDescriptors.value,
+  );
+  return supported == null ? [] : normalizeCandleSessions(supported);
+});
+const effectiveCandleSessions = computed<CandleSession[]>(() => {
+  const available = supportedCandleSessions.value;
+  if (available.length === 0) return [...selectedCandleSessions.value];
+  const retained = intersectCandleSessions(selectedCandleSessions.value, available);
+  return retained.length > 0 ? retained : [...available];
+});
 const requiresInstrumentPeriodCapabilities = computed(
   () => selectedBrokerId.value.trim().toLowerCase() === "akshare",
 );
@@ -189,7 +207,6 @@ const activeChartTypeLabel = computed(
     KLINE_CHART_TYPES.find((option) => option.value === activeChartType.value)
       ?.label ?? "标准 K 线",
 );
-
 function normalizedRenderablePeriod(value: string): RenderableKlinePeriod | "" {
   try {
     const normalized = normalizeKlinePeriod(value);
@@ -206,7 +223,6 @@ function normalizedSelectedPeriod(): RenderableKlinePeriod | "" {
     controlled.value ? props.period : prefs.value.period,
   );
 }
-
 function commitPeriod(period: RenderableKlinePeriod): void {
   if (controlled.value) {
     emit("update:period", period);
@@ -242,12 +258,19 @@ const chartTarget = computed(() => {
     instrumentId: targetInstrumentId.value,
     channel: (period === "tick" ? "TICK" : "KLINE") as "TICK" | "KLINE",
     interval: period,
+    sessions: [...effectiveCandleSessions.value],
   };
 });
 const chartCandles = computed<KlineCandle[]>(() =>
   overlayRealtimeTickCandle(
-    marketDataCandles.value?.candles ?? [],
-    selectedBrokerId.value.trim().toLowerCase() === "akshare"
+    (marketDataCandles.value?.candles ?? []).filter((candle) =>
+      candleMatchesSessions(candle.session, effectiveCandleSessions.value),
+    ),
+    selectedBrokerId.value.trim().toLowerCase() === "akshare" ||
+      !candleMatchesSessions(
+        marketDataSnapshot.value?.snapshot?.session,
+        effectiveCandleSessions.value,
+      )
       ? null
       : marketDataSnapshot.value?.snapshot ?? null,
     marketDataQueryPeriod.value,
@@ -284,6 +307,7 @@ const historyLoadStatus = computed(() => {
   }
   if (isLoadingOlderMarketData.value) return "正在加载更早数据";
   if (marketDataOlderError.value) return "加载失败，拖动或点击重试";
+  if (!historyLoadAttempted.value) return "";
   if (
     marketDataCandles.value != null &&
     !isLoadingMarketDataQuery.value &&
@@ -293,24 +317,34 @@ const historyLoadStatus = computed(() => {
   }
   return "";
 });
-
 function resolveChartSubscriptionTarget() {
   return chartTarget.value;
 }
-
 function chartTargetKey(
   target: ReturnType<typeof resolveChartSubscriptionTarget>,
 ): string {
   return JSON.stringify(target);
 }
 
+function sessionsForQuery(): CandleSession[] | undefined {
+  const available = supportedCandleSessions.value;
+  if (available.length === 0) return undefined;
+  if (
+    available.length > 0 &&
+    available.length === effectiveCandleSessions.value.length &&
+    available.every((session) => effectiveCandleSessions.value.includes(session))
+  ) {
+    return undefined;
+  }
+  return effectiveCandleSessions.value;
+}
 async function reload(options: { preserveExisting?: boolean } = {}): Promise<void> {
   const target = resolveChartSubscriptionTarget();
   const reloadKey = chartTargetKey(target);
   if (reloadInFlight != null && reloadInFlight.key === reloadKey) {
     return reloadInFlight.promise;
   }
-
+  historyLoadAttempted.value = false;
   const requestSeq = ++chartReloadSeq;
   const promise = (async () => {
     if (target.period === "") {
@@ -329,14 +363,15 @@ async function reload(options: { preserveExisting?: boolean } = {}): Promise<voi
     if (!subscriptionReady || requestSeq !== chartReloadSeq) {
       return;
     }
-    await loadMarketDataQuery(
-      options.preserveExisting == null
+    const sessions = sessionsForQuery();
+    await loadMarketDataQuery({
+      ...(options.preserveExisting == null
         ? {}
-        : { preserveExisting: options.preserveExisting },
-    );
+        : { preserveExisting: options.preserveExisting }),
+      ...(sessions == null ? {} : { sessions }),
+    });
   })();
   reloadInFlight = { key: reloadKey, promise };
-
   try {
     await promise;
   } finally {
@@ -396,7 +431,6 @@ function handleChartVisibilityChange(): void {
 function handleChartOnline(): void {
   void reload();
 }
-
 async function syncChartSubscription(
   next: ReturnType<typeof resolveChartSubscriptionTarget>,
   requestSeq = chartReloadSeq,
@@ -493,7 +527,6 @@ function handlePeriodSelection(value: string): void {
   const period = normalizedRenderablePeriod(value);
   if (period !== "") setPeriod(period);
 }
-
 async function handleLoadMore(): Promise<void> {
   const target = chartTarget.value;
   if (
@@ -505,10 +538,19 @@ async function handleLoadMore(): Promise<void> {
   ) {
     return;
   }
+  historyLoadAttempted.value = true;
+  const sessions = sessionsForQuery();
   await loadMarketDataQuery({
     appendOlder: true,
     before: marketDataNextBefore.value,
+    ...(sessions == null ? {} : { sessions }),
   });
+}
+function updateCandleSessions(sessions: CandleSession[]): void {
+  const next = intersectCandleSessions(sessions, supportedCandleSessions.value);
+  if (next.length === 0) return;
+  selectedCandleSessions.value = next;
+  void reload();
 }
 
 async function retryBrokerCapabilities(): Promise<void> {
@@ -583,6 +625,25 @@ watch(
   },
 );
 watch(
+  () => [
+    selectedBrokerId.value,
+    targetMarket.value,
+    targetSymbol.value,
+    normalizedSelectedPeriod(),
+    supportedCandleSessions.value.join(","),
+  ],
+  (next, previous) => {
+    const available = supportedCandleSessions.value;
+    if (available.length === 0) return;
+    const providerChanged = previous != null && next[0] !== previous[0];
+    const retained = providerChanged
+      ? []
+      : intersectCandleSessions(selectedCandleSessions.value, available);
+    selectedCandleSessions.value = retained.length > 0 ? retained : [...available];
+  },
+  { immediate: true },
+);
+watch(
   () => normalizedSelectedPeriod(),
   (period) => {
     if (period !== "tick") return;
@@ -607,6 +668,7 @@ watch(
     <LightweightChartHeader
       v-model:indicators="selectedIndicators"
       :variant="variant"
+      :market="targetMarket"
       :periods="periods"
       :selected-period="normalizedSelectedPeriod()"
       :loading-capabilities="isLoadingPeriodCapabilities"
@@ -622,8 +684,11 @@ watch(
       :from-cache="chartFromCache"
       :loading-data="isLoadingMarketDataQuery"
       :data-error="marketDataQueryError"
+      :candle-sessions="effectiveCandleSessions"
+      :supported-candle-sessions="supportedCandleSessions"
       @select-period="handlePeriodSelection"
       @select-chart-type="selectChartType"
+      @update:candle-sessions="updateCandleSessions"
       @retry="retryBrokerCapabilities"
       @refresh="reload()"
     />

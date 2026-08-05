@@ -168,7 +168,7 @@ func TestMarketDataProviderSearchFailureAndNormalizationBoundaries(t *testing.T)
 }
 
 func TestMarketDataProviderCandleParsingRemainingBoundaries(t *testing.T) {
-	query := marketdataProviderCandlesQuery("", 0, "", "invalid")
+	query := marketdataProviderCandlesQuery(mdsrv.HistoricalCandlesQuery{ToTime: "invalid"})
 	if query.Period != "" || query.Limit.Set || !query.FromTime.IsZero() || !query.ToTime.IsZero() {
 		t.Fatalf("empty/invalid candle query = %#v", query)
 	}
@@ -178,7 +178,7 @@ func TestMarketDataProviderCandleParsingRemainingBoundaries(t *testing.T) {
 	}
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, "127.0.0.1:1")
-	if _, err := server.marketdataProviderHistoricalCandles(context.Background(), "US", "AAPL", "tick", 1, "", ""); !errors.Is(err, mdsrv.ErrSubscriptionRequired) {
+	if _, err := server.marketdataProviderHistoricalCandles(context.Background(), mdsrv.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "tick", Limit: 1}); !errors.Is(err, mdsrv.ErrSubscriptionRequired) {
 		t.Fatalf("current K-line without lease error = %v", err)
 	}
 }

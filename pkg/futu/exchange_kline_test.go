@@ -103,6 +103,78 @@ func TestQueryKLinesSplitsUSHistoricalRequestsBySessionAndMergesResults(t *testi
 	}
 }
 
+func TestQueryKLinesForSessionsFiltersUSHistoricalRoutes(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setHistoryPagesBySession(map[int32][][]*qotcommonpb.KLine{
+		int32(commonpb.Session_Session_RTH): {{testHistoryKLine(time.Date(2026, time.May, 20, 15, 30, 0, 0, time.UTC), 110)}},
+		int32(commonpb.Session_Session_ETH): {{testHistoryKLine(time.Date(2026, time.May, 20, 10, 0, 0, 0, time.UTC), 100)}},
+		int32(commonpb.Session_Session_ALL): {{testHistoryKLine(time.Date(2026, time.May, 20, 2, 0, 0, 0, time.UTC), 90)}},
+	})
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
+	start := time.Date(2026, time.May, 20, 0, 0, 0, 0, time.UTC)
+	klines, err := ex.QueryKLinesForSessions(
+		t.Context(), "US.NVDA", types.Interval1m,
+		types.KLineQueryOptions{Limit: 10, StartTime: &start, EndTime: new(start.Add(24 * time.Hour))},
+		[]market.Session{market.SessionRegular},
+	)
+	if err != nil || len(klines) != 1 {
+		t.Fatalf("regular-only US candles = %#v, err=%v", klines, err)
+	}
+	if got := server.historySessionCalls(); len(got) != 1 || got[0] != int32(commonpb.Session_Session_RTH) {
+		t.Fatalf("regular-only routes = %#v", got)
+	}
+}
+
+func TestHistoricalKLineSessionHelpersFilterAndPlanExplicitSelections(t *testing.T) {
+	plans := buildHistoricalKLineRequestPlansForSessions("US.AAPL", types.Interval1m, []market.Session{market.SessionPre})
+	if len(plans) != 1 || *plans[0].session != commonpb.Session_Session_ETH || len(plans[0].keepSessions) != 1 || plans[0].keepSessions[0] != market.SessionPre {
+		t.Fatalf("pre-only request plans = %#v", plans)
+	}
+	if plan := historicalKLineRequestPlanAll([]market.Session{market.SessionOvernight}); len(plan.keepSessions) != 1 || plan.keepSessions[0] != market.SessionOvernight {
+		t.Fatalf("all fallback keep sessions = %#v", plan.keepSessions)
+	}
+	base := time.Date(2026, time.May, 20, 0, 0, 0, 0, time.UTC)
+	klines := []types.KLine{
+		{Symbol: "US.AAPL", StartTime: types.Time(base.Add(2 * time.Hour))},
+		{Symbol: "US.AAPL", StartTime: types.Time(base.Add(12 * time.Hour))},
+	}
+	filtered := filterKLinesBySessions(klines, []market.Session{market.SessionPre})
+	if len(filtered) != 1 || !filtered[0].StartTime.Time().Equal(base.Add(12*time.Hour)) {
+		t.Fatalf("pre-session filter = %#v", filtered)
+	}
+}
+
+func TestQueryKLinesForSessionsFiltersCurrentUSBucket(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	label := time.Now().UTC().Truncate(time.Minute)
+	server.setHistoryPagesBySession(map[int32][][]*qotcommonpb.KLine{
+		int32(commonpb.Session_Session_RTH): {{testHistoryKLine(label.Add(-time.Minute), 110)}},
+	})
+	server.setCurrentKLines([]*qotcommonpb.KLine{testCurrentKLine(label, 111, 112, 110, 111.5, 10)})
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
+	if err := ex.SubscribeKLine(t.Context(), "US.NVDA", types.Interval1m); err != nil {
+		t.Fatalf("SubscribeKLine: %v", err)
+	}
+	start := label.Add(-time.Hour)
+	klines, err := ex.QueryKLinesForSessions(
+		t.Context(), "US.NVDA", types.Interval1m,
+		types.KLineQueryOptions{Limit: 10, StartTime: &start, EndTime: new(label.Add(time.Minute))},
+		[]market.Session{market.SessionRegular},
+	)
+	if err != nil {
+		t.Fatalf("regular-only current candles = %#v, err=%v", klines, err)
+	}
+	if got := server.currentKLCallCount(); got != 1 {
+		t.Fatalf("current K-line calls = %d, want 1", got)
+	}
+}
+
 func TestResolveHistoricalRequestSessionUsesRouteForRTHAndOvernight(t *testing.T) {
 	preClockKLine := types.KLine{
 		Symbol:    "US.AAPL",

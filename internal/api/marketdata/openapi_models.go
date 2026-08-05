@@ -38,13 +38,14 @@ type MarketInstrumentData struct {
 
 // MarketQueryMeta documents common provider/cache attribution.
 type MarketQueryMeta struct {
-	InstrumentID  string `json:"instrumentId"`
-	Source        string `json:"source"`
-	BrokerID      string `json:"brokerId,omitempty"`
-	ResolvedAt    string `json:"resolvedAt"`
-	FromCache     bool   `json:"fromCache"`
-	ExtendedHours *bool  `json:"extendedHours,omitempty"`
-	Session       string `json:"session,omitempty"`
+	InstrumentID  string   `json:"instrumentId"`
+	Source        string   `json:"source"`
+	BrokerID      string   `json:"brokerId,omitempty"`
+	ResolvedAt    string   `json:"resolvedAt"`
+	FromCache     bool     `json:"fromCache"`
+	ExtendedHours *bool    `json:"extendedHours,omitempty"`
+	Session       string   `json:"session,omitempty"`
+	Sessions      []string `json:"sessions,omitempty"`
 }
 
 // SnapshotExtendedQuote documents a provider-neutral pre/after/overnight quote.
@@ -124,6 +125,7 @@ type CandleRequestData struct {
 	Instrument MarketInstrumentData `json:"instrument"`
 	Period     string               `json:"period"`
 	Limit      int                  `json:"limit"`
+	Sessions   []string             `json:"sessions"`
 }
 
 // CandlePaginationData documents historical pagination state.

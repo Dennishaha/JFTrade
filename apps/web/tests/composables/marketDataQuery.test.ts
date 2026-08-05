@@ -397,6 +397,34 @@ describe("createMarketDataQueryController", () => {
     ]);
   });
 
+  it("normalizes session query parameters and carries them into older-page requests", async () => {
+    const { controller, state, fetchEnvelope } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.marketDataQueryLimit.value = 2;
+    fetchEnvelope
+      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 200))
+      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
+      .mockResolvedValueOnce(createCandlesResult("US", "AAPL", "1m", []));
+
+    await controller.loadQuery({ sessions: ["overnight,regular", "regular"] });
+    expect(fetchEnvelope.mock.calls[2]?.[0]).toContain(
+      "sessions=regular%2Covernight",
+    );
+
+    state.activeMarketDataInstrumentId.value = "US.AAPL";
+    state.hasMoreMarketDataHistory.value = true;
+    state.marketDataNextBefore.value = "2026-07-03T12:00:00.000Z";
+    fetchEnvelope.mockResolvedValueOnce(
+      createCandlesResult("US", "AAPL", "1m", []),
+    );
+    await controller.loadQuery({ appendOlder: true });
+    expect(fetchEnvelope.mock.calls[3]?.[0]).toContain(
+      "sessions=regular%2Covernight",
+    );
+  });
+
   it("retries one initial read after a provider Retry-After response", async () => {
     vi.useFakeTimers();
     const { controller, state, fetchEnvelope } = createController();

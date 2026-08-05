@@ -56,6 +56,7 @@ const children = [];
 let shuttingDown = false;
 
 try {
+  await prepareFrontendDependencies();
   const web = launchLongRunning(
     packageManagerCommand[0],
     [...packageManagerCommand[1], "run", "dev:web"],
@@ -306,15 +307,37 @@ function validCodeSignature(appPath) {
   return result.status === 0;
 }
 
-function spawnAndWait(command, args) {
+function spawnAndWait(command, args, extraEnv = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd: rootDir, stdio: "inherit" });
+    const child = spawn(command, args, {
+      cwd: rootDir,
+      env: { ...process.env, ...extraEnv },
+      shell:
+        process.platform === "win32" && /\.(?:cmd|bat)$/i.test(command),
+      stdio: "inherit",
+    });
     child.on("error", reject);
     child.on("exit", (code) => {
       if (code === 0) resolve();
       else reject(new Error(`${command} exited with status ${code ?? 1}`));
     });
   });
+}
+
+async function prepareFrontendDependencies() {
+  console.log("Preparing frontend dependencies for desktop development");
+  await spawnAndWait(
+    packageManagerCommand[0],
+    [
+      ...packageManagerCommand[1],
+      "--filter",
+      "@jftrade/web",
+      "exec",
+      "vite",
+      "optimize",
+    ],
+    devEnv,
+  );
 }
 
 async function waitForURL(url, processToWatch) {

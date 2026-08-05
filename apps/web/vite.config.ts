@@ -186,11 +186,33 @@ export default defineConfig({
     vueDevTools(devToolsOptions),
   ],
   optimizeDeps: {
+    // Wails opens as soon as the dev server binds. Keep eager runtime and
+    // Vuetify auto-import entries in the initial bundle to avoid cold-start
+    // requests racing Vite's dependency optimizer.
     include: [
+      "@tanstack/vue-query",
       "@vue-flow/background",
       "@vue-flow/controls",
       "@vue-flow/core",
       "@vue-flow/minimap",
+      "@wailsio/runtime",
+      "vuetify/components/VAlert",
+      "vuetify/components/VBtn",
+      "vuetify/components/VBtnToggle",
+      "vuetify/components/VCard",
+      "vuetify/components/VChip",
+      "vuetify/components/VDialog",
+      "vuetify/components/VEmptyState",
+      "vuetify/components/VIcon",
+      "vuetify/components/VList",
+      "vuetify/components/VMenu",
+      "vuetify/components/VProgressCircular",
+      "vuetify/components/VProgressLinear",
+      "vuetify/components/VSelect",
+      "vuetify/components/VSwitch",
+      "vuetify/components/VTextField",
+      "vuetify/components/VTextarea",
+      "vuetify/iconsets/fa",
     ],
   },
   build: {
