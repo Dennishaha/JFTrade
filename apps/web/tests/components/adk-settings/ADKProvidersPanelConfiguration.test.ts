@@ -40,6 +40,7 @@ describe("ADK providers panel configuration", () => {
       displayName: "",
       baseUrl: "",
       model: "",
+      apiProtocol: "chat_completions" as const,
       contextWindowTokens: 0,
       requestTimeoutSeconds: 60,
       apiKey: "",
@@ -49,7 +50,10 @@ describe("ADK providers panel configuration", () => {
       providerForm.displayName = "New provider";
       providerForm.baseUrl = "https://initial.example";
     });
-    const saveProvider = vi.fn().mockResolvedValue(undefined);
+    const saveProvider = vi
+      .fn()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
     const wrapper = mount(ADKProvidersPanel, {
       props: {
         providerForm,
@@ -96,12 +100,21 @@ describe("ADK providers panel configuration", () => {
       displayName: "研究模型",
       baseUrl: "https://provider.example/v1",
       model: "research-model",
+      apiProtocol: "chat_completions",
       contextWindowTokens: "128000",
       requestTimeoutSeconds: "120",
       apiKey: "secret-token",
       enabled: false,
     });
     expect(saveProvider).toHaveBeenCalledOnce();
+    expect(wrapper.find(".provider-dialog").exists()).toBe(true);
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "保存模型服务")!
+      .trigger("click");
+
+    expect(saveProvider).toHaveBeenCalledTimes(2);
     expect(wrapper.find(".provider-dialog").exists()).toBe(false);
   });
 });

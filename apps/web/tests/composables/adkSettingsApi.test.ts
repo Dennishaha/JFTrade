@@ -75,7 +75,17 @@ describe("ADK settings API business contracts", () => {
       optimizationTasks: [{ id: "opt-1" }],
       tasks: [{ id: "task-1" }],
       memoryEntries: [{ id: "memory-1" }],
-      agentTemplates: [{ id: "template-1" }],
+      agentTemplates: [
+        {
+          id: "template-1",
+          model: "",
+          tools: [],
+          skills: [],
+          recentUserWindow: 6,
+          workMode: "chat",
+          loopMaxIterations: 5,
+        },
+      ],
       runtimeSettings: {
         runTimeoutMs: 1_800_000,
         streamIdleTimeoutMs: 300_000,
@@ -417,9 +427,16 @@ function buildAgent(overrides: Record<string, unknown> = {}) {
 }
 
 function buildAgentTemplate(overrides: Record<string, unknown> = {}) {
-  const { createdAt: _createdAt, updatedAt: _updatedAt, ...template } =
-    buildAgent(overrides);
-  return template;
+  return {
+    id: "template-1",
+    name: "Agent template",
+    instruction: "Help the user.",
+    providerId: "",
+    permissionMode: "approval",
+    memoryEnabled: true,
+    status: "ENABLED",
+    ...overrides,
+  };
 }
 
 function buildTool(overrides: Record<string, unknown> = {}) {

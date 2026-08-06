@@ -97,6 +97,27 @@ func TestWatchlistSnapshotSourceRoutesAKShareAndPreservesMissingValues(t *testin
 	}
 }
 
+func TestWatchlistSnapshotSourcePreservesFutuPermissionErrorsWithoutPythonQuery(t *testing.T) {
+	permissionError := watchlist.QuoteError{
+		InstrumentID: "SH.000001",
+		Code:         "SNAPSHOT_QUERY_FAILED",
+		Message:      "无权限获取SH.000001的行情，请检查A股市场指数行情权限",
+	}
+	runtime := &watchlistRuntimeStub{providerID: ProviderFutu, ticks: map[string]marketdata.Tick{
+		"SH.000001": {InstrumentID: "SH.000001", Source: "akshare:eastmoney"},
+	}}
+	futu := &watchlistSourceStub{errors: []watchlist.QuoteError{permissionError}}
+	source := NewWatchlistSnapshotSource(func() WatchlistQuoteRuntime { return runtime }, futu)
+
+	quotes, itemErrors, err := source.BatchSnapshots(t.Context(), []string{"SH.000001"})
+	if err != nil || len(quotes) != 0 || len(itemErrors) != 1 || itemErrors[0] != permissionError {
+		t.Fatalf("Futu permission result quotes=%#v errors=%#v err=%v", quotes, itemErrors, err)
+	}
+	if futu.calls != 1 || runtime.calls != 0 {
+		t.Fatalf("quote calls: Futu=%d Python=%d", futu.calls, runtime.calls)
+	}
+}
+
 func TestWatchlistSnapshotSourceReportsUnavailableBoundaries(t *testing.T) {
 	var nilSource *watchlistSnapshotSource
 	if _, _, err := nilSource.BatchSnapshots(t.Context(), nil); !errors.Is(err, watchlist.ErrUnavailable) {

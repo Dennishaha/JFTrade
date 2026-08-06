@@ -33,7 +33,7 @@ An execution backend implementing that interface promises all-or-none acceptance
 
 ## PineTS capability alignment
 
-| Capability | PineTS `0.9.29` | Worker contract | Frontend support |
+| Capability | PineTS `0.9.30` | Worker contract | Frontend support |
 | --- | --- | --- | --- |
 | Numeric plots | Supported through `plots` | `plots` and `outputs` preserve numeric series | Monaco suggests `plot`; rendering remains a separate chart concern. |
 | Alerts | `alert()` / `alertcondition()` events | `alerts` carries normalized alert events | Monaco suggests `alert` and `alertcondition`; flow notify blocks still generate `alert()`. |
@@ -41,8 +41,8 @@ An execution backend implementing that interface promises all-or-none acceptance
 | Drawing objects | `label`, `line`, `box`, `polyline`, `linefill` helpers | Captured as `visual_outputs` when returned by the worker result | Monaco suggests common constructors; visual model does not treat drawings as orders. |
 | Tables | `table.*` helpers | Captured as `visual_outputs` when returned by the worker result | Monaco suggests `table.new`; flow blocks stay trading-focused. |
 | Strategy orders | `strategy.entry/order/exit/close/cancel` state | Normalized to `orderIntents`, then executed by Go | Flow blocks cover the JFTrade tradeable subset. |
-| Strategy metrics | `buy_and_hold_pnl`, `buy_and_hold_per_gain`, `strategy_outperformance` in PineTS `0.9.29` strategy state | Captured as optional `strategy_metrics` with presence flags so zero values remain distinguishable | No dedicated display yet; Go backtest metrics remain authoritative for JFTrade results. |
-| Integer division and UDF history | `int / int` truncates toward zero; user-function return paths support `src[len]`, `close[len]`, and tuple-return computed history access in PineTS `0.9.29` | Passed through unchanged by the worker adapter and guarded by real PineTS executor tests | Reflected through normal plot/order outputs; no dedicated UI needed. |
+| Strategy metrics | `buy_and_hold_pnl`, `buy_and_hold_per_gain`, `strategy_outperformance` in PineTS `0.9.30` strategy state | Captured as optional `strategy_metrics` with presence flags so zero values remain distinguishable | No dedicated display yet; Go backtest metrics remain authoritative for JFTrade results. |
+| Integer division and UDF history | `int / int` truncates toward zero; user-function return paths support `src[len]`, `close[len]`, and tuple-return computed history access in PineTS `0.9.30` | Passed through unchanged by the worker adapter and guarded by real PineTS executor tests | Reflected through normal plot/order outputs; no dedicated UI needed. |
 | Arrays/maps/matrices | PineTS namespace support | Available to PineTS script execution; not a separate API payload | Monaco suggests common constructors/helpers; flow blocks expose only limited read-only collection stats. |
 | Extended tickers | `ticker.heikinashi`, `ticker.standard`, `ticker.inherit`, `chart.is_*` | Current symbol only; aggregate standard bars before HA conversion, and refresh secondary contexts incrementally in live sessions | Workspace, backtest, and strategy bindings select standard K line or Heikin Ashi independently. |
 

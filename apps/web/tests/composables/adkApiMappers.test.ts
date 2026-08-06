@@ -104,6 +104,52 @@ describe("ADK API wire mappers", () => {
     expect(tool?.requiresApprovalIn).toEqual([]);
   });
 
+  it("normalizes optional agent template fields omitted by Go", () => {
+    const template = {
+      id: "jftrade-default",
+      name: "默认助手",
+      instruction: "Help the user.",
+      providerId: "",
+      permissionMode: "approval",
+      memoryEnabled: true,
+      status: "ENABLED",
+    };
+
+    expect(requireADKAgentTemplates([template])).toEqual([
+      {
+        ...template,
+        model: "",
+        tools: [],
+        skills: [],
+        recentUserWindow: 6,
+        workMode: "chat",
+        loopMaxIterations: 5,
+      },
+    ]);
+  });
+
+  it("rejects malformed required and optional agent template fields", () => {
+    const template = {
+      id: "jftrade-default",
+      name: "默认助手",
+      instruction: "Help the user.",
+      providerId: "",
+      permissionMode: "approval",
+      memoryEnabled: true,
+      status: "ENABLED",
+    };
+
+    for (const malformed of [
+      { ...template, name: 42 },
+      { ...template, permissionMode: "unrestricted" },
+      { ...template, tools: null },
+    ]) {
+      expect(() => requireADKAgentTemplates([malformed])).toThrow(
+        "ADK API response is invalid: agent templates",
+      );
+    }
+  });
+
   it("validates persisted provider, agent, tool, skill, task, and memory records", () => {
     const provider = {
       id: "provider-1",

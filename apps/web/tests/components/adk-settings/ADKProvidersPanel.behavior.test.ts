@@ -24,13 +24,14 @@ describe("ADKProvidersPanel business flows", () => {
     const testProvider = vi.fn();
     const deleteProvider = vi.fn();
     const setDefaultProvider = vi.fn();
-    const saveProvider = vi.fn(async () => {});
+    const saveProvider = vi.fn(async () => true);
     const saveRuntimeSettings = vi.fn();
     const providerForm = {
       id: "provider-default",
       displayName: "OpenAI",
       baseUrl: "https://api.openai.com/v1",
       model: "gpt-4.1",
+      apiProtocol: "chat_completions" as const,
       contextWindowTokens: 128000,
       requestTimeoutSeconds: 180,
       apiKey: "",
@@ -137,6 +138,7 @@ function mountProvidersPanel(
       displayName: string;
       baseUrl: string;
       model: string;
+      apiProtocol: "chat_completions" | "responses";
       contextWindowTokens: number;
       requestTimeoutSeconds: number;
       apiKey: string;
@@ -164,6 +166,7 @@ function mountProvidersPanel(
         displayName: "OpenAI Compatible",
         baseUrl: "https://api.openai.com/v1",
         model: "gpt-4o-mini",
+        apiProtocol: "chat_completions",
         contextWindowTokens: 0,
         requestTimeoutSeconds: 180,
         apiKey: "",
@@ -174,7 +177,7 @@ function mountProvidersPanel(
         streamIdleTimeoutSeconds: 300,
       },
       providers: overrides.providers ?? [],
-      saveProvider: overrides.saveProvider ?? vi.fn(async () => {}),
+      saveProvider: overrides.saveProvider ?? vi.fn(async () => true),
       saveRuntimeSettings: overrides.saveRuntimeSettings ?? vi.fn(),
       newProviderForm: overrides.newProviderForm ?? vi.fn(),
       editProvider: overrides.editProvider ?? vi.fn(),

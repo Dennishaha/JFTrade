@@ -60,6 +60,10 @@ const ADK_RUN_TIMEOUT_MAX_SECONDS = 43_200;
 const ADK_STREAM_IDLE_TIMEOUT_MIN_SECONDS = 30;
 const ADK_STREAM_IDLE_TIMEOUT_MAX_SECONDS = 900;
 
+interface RefreshAllOptions {
+  throwOnError?: boolean;
+}
+
 function clampRuntimeSeconds(value: unknown, fallback: number, min: number, max: number): number {
   const numeric = Math.round(Number(value));
   if (!Number.isFinite(numeric)) return fallback;
@@ -188,7 +192,7 @@ export function useADKSettingsSectionState() {
         : runs.value.filter((run) => run.status === runStatusFilter.value),
   );
 
-  async function refreshAll(): Promise<void> {
+  async function refreshAll(options: RefreshAllOptions = {}): Promise<void> {
     loading.value = true;
     errorMessage.value = "";
     try {
@@ -222,7 +226,10 @@ export function useADKSettingsSectionState() {
       applyMCPServerSnapshot(mcpSnapshot);
       await Promise.all([refreshRuns(), refreshApprovals(), refreshAuditEvents()]);
     } catch (error) {
-      errorMessage.value = error instanceof Error ? error.message : "加载智能体配置失败";
+      const failure =
+        error instanceof Error ? error : new Error("加载智能体配置失败");
+      errorMessage.value = failure.message;
+      if (options.throwOnError) throw failure;
     } finally {
       loading.value = false;
     }
@@ -479,7 +486,11 @@ export function useADKSettingsSectionState() {
     mcpServerOneTimeToken.value = "";
   }
 
-  const providerFormState = useADKProviderForm(refreshAll, successMessage, errorMessage);
+  const providerFormState = useADKProviderForm(
+    () => refreshAll({ throwOnError: true }),
+    successMessage,
+    errorMessage,
+  );
   const agentFormState = useADKAgentForm(providers, tools, skills, refreshAll, successMessage, errorMessage);
 
   onMounted(() => {

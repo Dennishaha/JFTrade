@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	ErrInvalidTaskStatus = errors.New("invalid task status")
-	ErrProviderInUse     = errors.New("provider is used by agent")
+	ErrInvalidTaskStatus          = errors.New("invalid task status")
+	ErrProviderInUse              = errors.New("provider is used by agent")
+	ErrInvalidProviderAPIProtocol = errors.New("invalid provider API protocol")
 
 	errGoogleADKFunctionCallEventMissing = errors.New("no function call event found for function responses ids")
 )

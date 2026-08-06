@@ -7,7 +7,7 @@ third-party components listed below.
 ## PineTS / pinets
 
 - Package: `pinets`
-- Version: `0.9.29`
+- Version: `0.9.30`
 - Upstream: <https://github.com/LuxAlgo/PineTS>
 - npm: <https://www.npmjs.com/package/pinets>
 - License: `AGPL-3.0-only`
@@ -36,6 +36,16 @@ instructions, and any local modifications required by AGPL-3.0.
 The complete GNU Affero General Public License version 3 text governing JFTrade,
 PineTS, and BBGO is provided in the repository root `LICENSE` file and in the
 embedded JFTrade license documentation.
+
+## OpenAI Go SDK
+
+- Module: `github.com/openai/openai-go/v3`
+- Version: `v3.8.1`
+- Upstream: <https://github.com/openai/openai-go>
+- License: `Apache-2.0`
+- Integration: ADK provider support for the OpenAI Responses API.
+
+The complete Apache License 2.0 text is included later in this notice.
 
 ## Market-data helper direct Python dependencies
 

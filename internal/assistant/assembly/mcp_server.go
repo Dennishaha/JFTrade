@@ -17,23 +17,36 @@ import (
 
 const localMCPMaxRequestBytes int64 = 1 << 20
 
+type mcpLifecycleHandler interface {
+	http.Handler
+	Close()
+}
+
 // mcpServerManager owns the independently bound local MCP listener. Its
 // settings are updated synchronously by settings.Service so port conflicts can
 // be reported to the caller and persisted settings can be rolled back.
 type mcpServerManager struct {
-	mu       sync.RWMutex
-	runtime  *jfadk.Runtime
-	listen   func(network, address string) (net.Listener, error)
-	listener net.Listener
-	server   *http.Server
-	settings jfsettings.MCPServerSettings
-	lastErr  string
-	closed   bool
-	serveWG  sync.WaitGroup
+	mu         sync.RWMutex
+	runtime    *jfadk.Runtime
+	listen     func(network, address string) (net.Listener, error)
+	newHandler func(*jfadk.Runtime) (mcpLifecycleHandler, error)
+	listener   net.Listener
+	server     *http.Server
+	handler    mcpLifecycleHandler
+	settings   jfsettings.MCPServerSettings
+	lastErr    string
+	closed     bool
+	serveWG    sync.WaitGroup
 }
 
 func newMCPServerManager(runtime *jfadk.Runtime) *mcpServerManager {
-	return &mcpServerManager{runtime: runtime, listen: net.Listen}
+	return &mcpServerManager{
+		runtime: runtime,
+		listen:  net.Listen,
+		newHandler: func(runtime *jfadk.Runtime) (mcpLifecycleHandler, error) {
+			return jfadk.NewLocalMCPHandler(runtime)
+		},
+	}
 }
 
 func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) error {
@@ -73,7 +86,7 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 		return nil
 	}
 
-	handler, err := jfadk.NewLocalMCPHandler(m.runtime)
+	handler, err := m.createHandler()
 	if err != nil {
 		m.lastErr = err.Error()
 		return err
@@ -84,6 +97,7 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 	}
 	listener, err := listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(settings.Port)))
 	if err != nil {
+		handler.Close()
 		m.lastErr = err.Error()
 		return err
 	}
@@ -94,8 +108,10 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 		IdleTimeout:       6 * time.Minute,
 	}
 	oldServer := m.server
+	oldHandler := m.handler
 	m.server = server
 	m.listener = listener
+	m.handler = handler
 	m.settings = settings
 	m.lastErr = ""
 	m.serveWG.Add(1)
@@ -110,7 +126,17 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 			m.lastErr = err.Error()
 		}
 	}
+	if oldHandler != nil {
+		oldHandler.Close()
+	}
 	return nil
+}
+
+func (m *mcpServerManager) createHandler() (mcpLifecycleHandler, error) {
+	if m.newHandler != nil {
+		return m.newHandler(m.runtime)
+	}
+	return jfadk.NewLocalMCPHandler(m.runtime)
 }
 
 func (m *mcpServerManager) Status() jfsettings.MCPServerStatus {
@@ -144,22 +170,34 @@ func (m *mcpServerManager) serve(server *http.Server, listener net.Listener) {
 		return
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
+	var handler mcpLifecycleHandler
 	if m.server == server {
+		handler = m.handler
 		m.server = nil
 		m.listener = nil
+		m.handler = nil
 		m.lastErr = err.Error()
+	}
+	m.mu.Unlock()
+	if handler != nil {
+		handler.Close()
 	}
 }
 
 func (m *mcpServerManager) stopLocked() error {
 	server := m.server
+	handler := m.handler
 	m.server = nil
 	m.listener = nil
-	if server == nil {
-		return nil
+	m.handler = nil
+	var err error
+	if server != nil {
+		err = closeMCPHTTPServer(server)
 	}
-	return closeMCPHTTPServer(server)
+	if handler != nil {
+		handler.Close()
+	}
+	return err
 }
 
 func closeMCPHTTPServer(server *http.Server) error {

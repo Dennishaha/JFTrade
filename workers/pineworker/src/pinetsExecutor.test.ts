@@ -160,6 +160,91 @@ describe("NativePineTSExecutor", () => {
     await expect(executor.closeLiveSession("session-1", 2)).resolves.toBe(2);
   });
 
+  test("updates closed live bars through the provider tail hook and invalidates failed sessions", async () => {
+    const candles = conditionalOrderCandles();
+    const updates: Array<{ candleCount: number; dataVersion?: number; length?: number }> = [];
+    let failTailUpdate = false;
+    const executor = new NativePineTSExecutor({
+      PineTS: class {
+        private readonly provider: ExtendedTickerProvider;
+
+        constructor(source: unknown) {
+          this.provider = source as ExtendedTickerProvider;
+        }
+
+        async run(): Promise<FakeLiveContext> {
+          return {
+            dataVersion: 0,
+            length: 2,
+            plots: { close: { data: [{ value: 100 }, { value: 105 }] } },
+          };
+        }
+
+        async updateTail(context: unknown): Promise<boolean> {
+          const liveContext = context as FakeLiveContext;
+          const providerCandles = await this.provider.getMarketData("US.AAPL", "1");
+          updates.push({
+            candleCount: providerCandles.length,
+            dataVersion: liveContext.dataVersion,
+            length: liveContext.length,
+          });
+          if (failTailUpdate) {
+            throw new Error("tail failed");
+          }
+          liveContext.dataVersion = (liveContext.dataVersion ?? 0) + 1;
+          liveContext.length = providerCandles.length;
+          liveContext.plots!.close!.data!.push({ value: providerCandles.at(-1)!.close });
+          return true;
+        }
+      },
+    });
+    const source = `//@version=6\nindicator("tail hook")\nplot(close)`;
+
+    await executor.openLiveSession("tail-session", preparedRequest({
+      jobId: "tail-open", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "tail-session", sessionOperation: "open", expectedRevision: 0,
+      candles: candles.slice(0, 2),
+    }));
+    const appended = await executor.appendLiveSession("tail-session", 1, preparedRequest({
+      jobId: "tail-append", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "tail-session", sessionOperation: "append", expectedRevision: 1,
+      candles: [candles[2]!],
+    }));
+
+    expect(updates).toEqual([{ candleCount: 3, dataVersion: 0, length: 2 }]);
+    expect(appended.revision).toBe(2);
+    expect(plotValues(appended.result, "close")).toEqual([109]);
+
+    failTailUpdate = true;
+    await expect(executor.appendLiveSession("tail-session", 2, preparedRequest({
+      jobId: "tail-failure", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "tail-session", sessionOperation: "append", expectedRevision: 2,
+      candles: [candles[3]!],
+    }))).rejects.toThrow("was invalidated after an append failure: tail failed");
+    await expect(executor.appendLiveSession("tail-session", 2, preparedRequest({
+      jobId: "tail-unavailable", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "tail-session", sessionOperation: "append", expectedRevision: 2,
+      candles: [candles[3]!],
+    }))).rejects.toThrow("is not available");
+  });
+
+  test("requires PineTS updateTail to open a live session", async () => {
+    const executor = new NativePineTSExecutor({
+      PineTS: class {
+        async run(): Promise<PineTSRunResult> {
+          return { plots: {} };
+        }
+      },
+    });
+    const candles = conditionalOrderCandles();
+
+    await expect(executor.openLiveSession("missing-tail-hook", preparedRequest({
+      jobId: "missing-tail-hook", source: `//@version=6\nindicator("x")`, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "missing-tail-hook", sessionOperation: "open", expectedRevision: 0,
+      candles: candles.slice(0, 2),
+    }))).rejects.toThrow("does not expose the update-tail hook");
+  });
+
   test("serves HA chart data while ticker.standard reads standard OHLC", async () => {
     const executor = await createNativePineTSExecutor("pinets-test");
     const candles = conditionalOrderCandles();
@@ -841,6 +926,11 @@ describe("NativePineTSExecutor", () => {
     ].join("\n"));
   });
 });
+
+type FakeLiveContext = PineTSRunResult & {
+  dataVersion?: number;
+  length?: number;
+};
 
 function preparedRequest(request: RunScriptRequest): PreparedRunScriptRequest {
   const { candles, ...fields } = request;

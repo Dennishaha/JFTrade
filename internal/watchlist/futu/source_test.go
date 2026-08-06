@@ -143,12 +143,19 @@ func TestFutuWatchlistSnapshotDoesNotSplitGlobalOrCanceledFailures(t *testing.T)
 		ids[index] = fmt.Sprintf("US.TEST%d", index)
 	}
 	tests := []struct {
-		name    string
-		context func() context.Context
-		err     error
+		name        string
+		context     func() context.Context
+		err         error
+		wantMessage string
 	}{
 		{name: "service failure", context: context.Background, err: errors.New("OpenD quote service unavailable")},
 		{name: "rate limited", context: context.Background, err: broker.NewSnapshotRateLimitError(time.Second, nil)},
+		{
+			name:        "permission denied",
+			context:     context.Background,
+			err:         errors.New("无权限获取SH.000001的行情，请检查A股市场指数行情权限"),
+			wantMessage: "无权限获取SH.000001的行情，请检查A股市场指数行情权限",
+		},
 		{name: "canceled", context: func() context.Context {
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
@@ -165,6 +172,13 @@ func TestFutuWatchlistSnapshotDoesNotSplitGlobalOrCanceledFailures(t *testing.T)
 			}
 			if len(fake.batches) != 1 {
 				t.Fatalf("snapshot calls = %d, want 1", len(fake.batches))
+			}
+			if test.wantMessage != "" {
+				for _, itemError := range itemErrors {
+					if itemError.Message != test.wantMessage {
+						t.Fatalf("snapshot error message = %q, want %q", itemError.Message, test.wantMessage)
+					}
+				}
 			}
 		})
 	}

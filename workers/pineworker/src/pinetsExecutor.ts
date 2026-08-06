@@ -3,7 +3,6 @@ import { splitTickerModifier } from "pinets";
 import { chartTicker, ExtendedTickerProvider } from "./extendedTickerProvider";
 import {
   normalizeChartType,
-  type Candle,
   type PineTSExecutor,
   type PineTSPlot,
   type PineTSRunResult,
@@ -41,9 +40,11 @@ type PineTSRuntime = {
     startIdx: number,
     endIdx: number,
   ) => Promise<void>;
-  _appendCandle?: (candle: Candle) => void;
   updateTail?: (context: PineTSExecutionContext) => Promise<boolean>;
-  _transpiledCode?: PineTSIteration;
+};
+
+type LivePineTSRuntime = PineTSRuntime & {
+  updateTail(context: PineTSExecutionContext): Promise<boolean>;
 };
 
 type PendingOrderRecord = Record<string, unknown>;
@@ -61,13 +62,11 @@ type OrderIntentCapture = {
 };
 
 type NativeLiveSession = {
-  runtime: PineTSRuntime;
+  runtime: LivePineTSRuntime;
   context: PineTSExecutionContext & PineTSRunResult;
-  transpiled: PineTSIteration;
   capture: OrderIntentCapture;
   request: PreparedRunScriptRequest;
   provider: ExtendedTickerProvider;
-  mainTicker: string;
   revision: number;
   queue: Promise<void>;
   failed: boolean;
@@ -131,13 +130,12 @@ export class NativePineTSExecutor implements PineTSExecutor {
       throw new Error("PineTS live session open requires expected revision 0");
     }
     const execution = await this.createExecution(request);
-    const transpiled = execution.runtime._transpiledCode;
-    if (typeof execution.runtime._appendCandle !== "function" || typeof transpiled !== "function") {
-      throw new Error("PineTS runtime does not expose the append/execute hooks required for stateful live sessions");
+    if (!isLivePineTSRuntime(execution.runtime)) {
+      throw new Error("PineTS runtime does not expose the update-tail hook required for stateful live sessions");
     }
     this.liveSessions.set(sessionId, {
       ...execution,
-      transpiled,
+      runtime: execution.runtime,
       revision: 1,
       queue: Promise.resolve(),
       failed: false,
@@ -182,25 +180,12 @@ export class NativePineTSExecutor implements PineTSExecutor {
       const marker = resultMarker(session.context, session.capture);
       try {
         for (const candle of request.candles) {
-          const startIndex = session.context.length ?? session.request.candles.length;
           session.provider.append(candle);
-          const mainCandles = session.provider.candlesFor(session.mainTicker, session.request.timeframe);
-          const appendedCandles = mainCandles.slice(startIndex);
-          if (appendedCandles.length === 0) {
-            throw new Error("Pineworker could not derive a new primary candle from the appended standard candle");
-          }
-          for (const mainCandle of appendedCandles) {
-            session.runtime._appendCandle!(mainCandle);
-          }
           session.request.candles.push({ ...candle });
-          session.context.length = startIndex + appendedCandles.length;
-          session.context.dataVersion = (session.context.dataVersion ?? 0) + 1;
-          await session.runtime._executeIterations!(
-            session.context,
-            session.transpiled,
-            startIndex,
-            session.context.length,
-          );
+          const updated = await session.runtime.updateTail(session.context);
+          if (!updated) {
+            throw new Error("Pineworker runtime did not update its tail after a closed candle append");
+          }
           stabilizeSecondaryContexts(session.context);
         }
       } catch (error) {
@@ -212,7 +197,13 @@ export class NativePineTSExecutor implements PineTSExecutor {
       }
       session.revision++;
       return {
-        result: incrementalResult(session.context, session.capture, marker, request.includePlots !== false),
+        result: incrementalResult(
+          session.context,
+          session.capture,
+          marker,
+          request.includePlots !== false,
+          request.candles.length,
+        ),
         revision: session.revision,
       };
     });
@@ -243,7 +234,6 @@ export class NativePineTSExecutor implements PineTSExecutor {
     capture: OrderIntentCapture;
     request: PreparedRunScriptRequest;
     provider: ExtendedTickerProvider;
-    mainTicker: string;
   }> {
     const periods = Math.max(1, request.candles.length);
     const provider = new ExtendedTickerProvider(request.symbol, request.timeframe, request.candles);
@@ -275,7 +265,6 @@ export class NativePineTSExecutor implements PineTSExecutor {
       capture: orderCapture,
       request,
       provider,
-      mainTicker,
     };
   }
 
@@ -292,6 +281,10 @@ export class NativePineTSExecutor implements PineTSExecutor {
       release();
     }
   }
+}
+
+function isLivePineTSRuntime(runtime: PineTSRuntime): runtime is LivePineTSRuntime {
+  return typeof runtime.updateTail === "function";
 }
 
 type StaticPineNamespaceCall = {
@@ -843,6 +836,7 @@ function incrementalResult(
   capture: OrderIntentCapture,
   marker: ResultMarker,
   includePlots: boolean,
+  appendedBarCount = 0,
 ): PineTSRunResult {
   const delta: PineTSRunResult = {
     orderIntents: capture.intents.slice(marker.intentCount),
@@ -855,7 +849,10 @@ function incrementalResult(
   if (includePlots) {
     delta.plots = Object.fromEntries(Object.entries(result.plots ?? {}).map(([name, plot]) => [
       name,
-      slicePlot(plot, marker.plotLengths[name] ?? 0),
+      slicePlot(plot, Math.max(
+        marker.plotLengths[name] ?? 0,
+        plotLength(plot) - appendedBarCount,
+      )),
     ]));
   }
   return compactPineTSResult(delta, includePlots);

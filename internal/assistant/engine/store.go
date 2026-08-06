@@ -368,9 +368,27 @@ func normalizeBaseURL(value string) string {
 }
 
 func normalizeProvider(provider Provider) Provider {
+	provider.APIProtocol = normalizeProviderAPIProtocol(provider.APIProtocol)
 	provider.RequestTimeoutMs = normalizeProviderRequestTimeoutMs(provider.RequestTimeoutMs)
 	provider.ContextWindowTokens = normalizeContextWindowTokens(provider.ContextWindowTokens)
 	return provider
+}
+
+func normalizeProviderAPIProtocol(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return ProviderAPIProtocolChatCompletions
+	}
+	return value
+}
+
+func validateProviderAPIProtocol(value string) error {
+	switch normalizeProviderAPIProtocol(value) {
+	case ProviderAPIProtocolChatCompletions, ProviderAPIProtocolResponses:
+		return nil
+	default:
+		return fmt.Errorf("%w %q", ErrInvalidProviderAPIProtocol, value)
+	}
 }
 
 func normalizeContextWindowTokens(value int) int {

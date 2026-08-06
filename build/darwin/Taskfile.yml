@@ -114,7 +114,7 @@ tasks:
       - mkdir -p dist/desktop-release/darwin-{{.ARCH}}
       - node scripts/sign-desktop-release.mjs macos dist/desktop/darwin-{{.ARCH}}/JFTrade.app
       - cp -R dist/desktop/darwin-{{.ARCH}}/JFTrade.app dist/desktop-release/darwin-{{.ARCH}}/JFTrade.app
-      # alpha2.117 temporarily disables `wails3 tool package -format dmg`; use the same native hdiutil final step.
+      # Wails v3 beta.4 supports dmg packaging, but JFTrade keeps the branded hdiutil flow below.
       - >-
         bash build/darwin/package-dmg.sh
         dist/desktop-release/darwin-{{.ARCH}}/JFTrade.app

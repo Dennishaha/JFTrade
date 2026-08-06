@@ -9,6 +9,7 @@ const props = defineProps<{
     displayName: string;
     baseUrl: string;
     model: string;
+    apiProtocol: "chat_completions" | "responses";
     contextWindowTokens: number;
     requestTimeoutSeconds: number;
     apiKey: string;
@@ -19,7 +20,7 @@ const props = defineProps<{
     streamIdleTimeoutSeconds: number;
   };
   providers: ADKProvider[];
-  saveProvider: () => void | Promise<void>;
+  saveProvider: () => Promise<boolean>;
   saveRuntimeSettings: () => void | Promise<void>;
   newProviderForm: () => void;
   editProvider: (provider: ADKProvider) => void;
@@ -41,8 +42,9 @@ function openEditProviderDialog(provider: ADKProvider): void {
 }
 
 async function submitProviderForm(): Promise<void> {
-  await props.saveProvider();
-  providerDialogOpen.value = false;
+  if (await props.saveProvider()) {
+    providerDialogOpen.value = false;
+  }
 }
 </script>
 
@@ -97,6 +99,9 @@ async function submitProviderForm(): Promise<void> {
                 </div>
                 <div class="mt-0.5 text-xs text-slate-500">
                   {{ provider.baseUrl }} · {{ provider.model }}
+                </div>
+                <div class="text-xs text-slate-500">
+                  协议：{{ provider.apiProtocol === "responses" ? "Responses" : "Chat Completions" }}
                 </div>
                 <div class="text-xs text-slate-500">
                   上下文窗口：{{ provider.contextWindowTokens || "未配置" }}
@@ -234,6 +239,15 @@ async function submitProviderForm(): Promise<void> {
           <v-text-field
             v-model="providerForm.model"
             label="默认模型"
+            density="comfortable"
+          />
+          <v-select
+            v-model="providerForm.apiProtocol"
+            label="API 协议"
+            :items="[
+              { title: 'Chat Completions', value: 'chat_completions' },
+              { title: 'Responses', value: 'responses' },
+            ]"
             density="comfortable"
           />
           <v-text-field

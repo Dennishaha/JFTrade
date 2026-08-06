@@ -42,6 +42,108 @@ func validRemoteCandles() remoteCandles {
 
 var afterMarketNow = time.Date(2026, time.July, 29, 21, 15, 0, 0, time.UTC)
 
+func TestSnapshotConversionPreservesRegularChangeWhenPreMarketQuoteIsUnavailable(t *testing.T) {
+	response := validSnapshot()
+	response.Price = number("311")
+	response.PreviousClosePrice = number("309.38")
+	response.LastClosePrice = number("309.38")
+	response.RegularQuote = &remoteSnapshotQuote{
+		Price: number("311"), QuoteAt: "2026-08-05T20:00:01Z",
+	}
+	response.PreMarketQuote = nil
+	response.AfterMarketQuote = nil
+	response.QuoteAt = "2026-08-05T20:00:01Z"
+	response.ObservedAt = "2026-08-06T12:55:00Z"
+	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}
+
+	tick, err := convertSnapshot(response, expected, time.Time{})
+	if err != nil {
+		t.Fatalf("convertSnapshot: %v", err)
+	}
+	if tick.Session != "pre" || tick.PreMarket != nil ||
+		!tick.Price.Equal(decimal.RequireFromString("311")) ||
+		tick.PreviousClosePrice == nil ||
+		!tick.PreviousClosePrice.Equal(decimal.RequireFromString("309.38")) {
+		t.Fatalf("pre-market fallback tick = %#v", tick)
+	}
+	changePercent := tick.Price.Sub(*tick.PreviousClosePrice).
+		Div(*tick.PreviousClosePrice).
+		Mul(decimal.NewFromInt(100))
+	if !changePercent.Round(2).Equal(decimal.RequireFromString("0.52")) {
+		t.Fatalf("pre-market fallback change percent = %s", changePercent)
+	}
+}
+
+func TestSnapshotConversionUsesRegularCloseForValidPreMarketQuote(t *testing.T) {
+	response := validSnapshot()
+	response.Price = number("311")
+	response.PreviousClosePrice = number("309.38")
+	response.LastClosePrice = number("309.38")
+	response.RegularQuote = &remoteSnapshotQuote{
+		Price: number("311"), QuoteAt: "2026-08-05T20:00:01Z",
+	}
+	response.PreMarketQuote = &remoteSnapshotQuote{
+		Price: number("312.25"), QuoteAt: "2026-08-06T12:54:00Z",
+	}
+	response.AfterMarketQuote = nil
+	response.QuoteAt = "2026-08-05T20:00:01Z"
+	response.ObservedAt = "2026-08-06T12:55:00Z"
+	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}
+
+	tick, err := convertSnapshot(response, expected, time.Time{})
+	if err != nil {
+		t.Fatalf("convertSnapshot: %v", err)
+	}
+	if tick.Session != "pre" || tick.PreMarket == nil ||
+		!tick.Price.Equal(decimal.RequireFromString("312.25")) ||
+		tick.PreviousClosePrice == nil ||
+		!tick.PreviousClosePrice.Equal(decimal.RequireFromString("311")) {
+		t.Fatalf("active pre-market tick = %#v", tick)
+	}
+}
+
+func TestSnapshotConversionRejectsInvalidPreMarketQuotesWithoutChangingTheBaseline(t *testing.T) {
+	tests := []struct {
+		name      string
+		quoteTime string
+	}{
+		{name: "stale trading day", quoteTime: "2026-08-05T12:54:00Z"},
+		{name: "regular session", quoteTime: "2026-08-06T14:00:00Z"},
+		{name: "missing quote time", quoteTime: ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := validSnapshot()
+			response.Price = number("311")
+			response.PreviousClosePrice = number("309.38")
+			response.LastClosePrice = number("309.38")
+			response.RegularQuote = &remoteSnapshotQuote{
+				Price: number("311"), QuoteAt: "2026-08-05T20:00:01Z",
+			}
+			response.PreMarketQuote = &remoteSnapshotQuote{
+				Price: number("312.25"), QuoteAt: test.quoteTime,
+			}
+			response.AfterMarketQuote = nil
+			response.QuoteAt = "2026-08-05T20:00:01Z"
+			response.ObservedAt = "2026-08-06T12:55:00Z"
+
+			tick, err := convertSnapshot(
+				response,
+				normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"},
+				time.Time{},
+			)
+			if err != nil {
+				t.Fatalf("convertSnapshot: %v", err)
+			}
+			if tick.PreMarket != nil || !tick.Price.Equal(decimal.RequireFromString("311")) ||
+				tick.PreviousClosePrice == nil ||
+				!tick.PreviousClosePrice.Equal(decimal.RequireFromString("309.38")) {
+				t.Fatalf("invalid pre-market quote tick = %#v", tick)
+			}
+		})
+	}
+}
+
 func TestSnapshotConversionUsesPriceFallbacksAndCanonicalTimes(t *testing.T) {
 	response := validSnapshot()
 	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}

@@ -297,6 +297,7 @@ export async function saveADKProvider(provider: {
   displayName: string;
   baseUrl: string;
   model: string;
+  apiProtocol?: "chat_completions" | "responses";
   contextWindowTokens: number;
   requestTimeoutMs: number;
   apiKey: string;

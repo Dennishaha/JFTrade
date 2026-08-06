@@ -1,6 +1,6 @@
 import { ref } from "vue";
 
-import type { ADKProvider } from "@/types";
+import type { ADKProvider, ADKProviderAPIProtocol } from "@/types";
 
 import {
   deleteADKProvider,
@@ -9,12 +9,25 @@ import {
   testADKProvider,
 } from "@/composables/adk/adkSettingsApi";
 
-function createProviderForm() {
+type ADKProviderForm = {
+  id: string;
+  displayName: string;
+  baseUrl: string;
+  model: string;
+  apiProtocol: ADKProviderAPIProtocol;
+  contextWindowTokens: number;
+  requestTimeoutSeconds: number;
+  apiKey: string;
+  enabled: boolean;
+};
+
+function createProviderForm(): ADKProviderForm {
   return {
     id: "",
     displayName: "OpenAI Compatible",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
+    apiProtocol: "chat_completions",
     contextWindowTokens: 0,
     requestTimeoutSeconds: 180,
     apiKey: "",
@@ -29,7 +42,10 @@ export function useADKProviderForm(
 ) {
   const providerForm = ref(createProviderForm());
 
-  async function saveProvider(): Promise<void> {
+  async function saveProvider(): Promise<boolean> {
+    successMessage.value = "";
+    errorMessage.value = "";
+    let providerSaved = false;
     try {
       const provider = await saveADKProvider({
         ...providerForm.value,
@@ -44,12 +60,24 @@ export function useADKProviderForm(
           ),
         ),
       });
+      providerSaved = true;
       providerForm.value.id = provider.id;
       providerForm.value.apiKey = "";
-      successMessage.value = "Provider 已保存";
       await refreshAll();
+      successMessage.value = "Provider 已保存";
+      return true;
     } catch (error) {
-      errorMessage.value = error instanceof Error ? error.message : "保存失败";
+      successMessage.value = "";
+      const message =
+        error instanceof Error
+          ? error.message
+          : providerSaved
+            ? "未知错误"
+            : "保存失败";
+      errorMessage.value = providerSaved
+        ? `Provider 已保存，但刷新界面失败：${message}`
+        : message;
+      return false;
     }
   }
 
@@ -92,6 +120,7 @@ export function useADKProviderForm(
       displayName: provider.displayName,
       baseUrl: provider.baseUrl,
       model: provider.model,
+      apiProtocol: provider.apiProtocol ?? "chat_completions",
       contextWindowTokens: provider.contextWindowTokens ?? 0,
       requestTimeoutSeconds: Math.max(
         1,

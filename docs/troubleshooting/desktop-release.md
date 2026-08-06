@@ -1,6 +1,6 @@
 # Wails v3 桌面发布与通道隔离
 
-桌面壳固定使用 Wails `v3.0.0-alpha2.117` 和 `@wailsio/runtime@3.0.0-alpha.97`。仓库脚本只调用 `go tool wails3`，不读取全局安装的 `wails3`。
+桌面壳固定使用 Wails `v3.0.0-beta.4` 和 `@wailsio/runtime@3.0.0-beta.1`。仓库脚本只调用 `go tool wails3`，不读取全局安装的 `wails3`。
 
 桌面构建的事实来源是根 `Taskfile.yml`、`build/config.yml` 和三个平台 Taskfile。Node 入口只校验 tag、解析 Version/Commit/BuildTime 并调用 Wails task；平台资源、production flags、应用 bundle、NSIS、AppImage 和 Linux 包均由 Wails task/tool 生成。
 

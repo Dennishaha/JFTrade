@@ -2,12 +2,14 @@ import type { MCPServerStatus } from "../../contracts/wire/settings";
 
 export type ADKPermissionMode = "approval" | "less_approval" | "all";
 export type ADKWorkMode = "chat" | "loop";
+export type ADKProviderAPIProtocol = "chat_completions" | "responses";
 
 export interface ADKProvider {
   id: string;
   displayName: string;
   baseUrl: string;
   model: string;
+  apiProtocol: ADKProviderAPIProtocol;
   contextWindowTokens?: number;
   requestTimeoutMs: number;
   defaultHeaders?: Record<string, string>;

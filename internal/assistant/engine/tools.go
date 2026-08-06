@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -153,14 +154,19 @@ func ToolRequiredSkillNames(descriptor ToolDescriptor) []string {
 type RegisteredTool struct {
 	Descriptor ToolDescriptor
 	Handler    ToolFunc
+	revision   uint64
 }
 
 type ToolRegistry struct {
-	tools map[string]RegisteredTool
+	mu             sync.RWMutex
+	tools          map[string]RegisteredTool
+	changeHandlers map[uint64]func()
+	nextChangeID   uint64
+	nextRevision   uint64
 }
 
 func NewToolRegistry() *ToolRegistry {
-	registry := &ToolRegistry{tools: map[string]RegisteredTool{}}
+	registry := &ToolRegistry{tools: map[string]RegisteredTool{}, changeHandlers: map[uint64]func(){}}
 	registerInputRequestTool(registry)
 	registry.Register(ToolDescriptor{
 		Name:               "workflow.wait",
@@ -269,13 +275,53 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 	if descriptor.RiskLevel == "" {
 		descriptor.RiskLevel = defaultToolRiskLevelForTool(descriptor.Name, descriptor.Permission)
 	}
-	r.tools[descriptor.Name] = RegisteredTool{Descriptor: descriptor, Handler: handler}
+	r.mu.Lock()
+	if r.tools == nil {
+		r.tools = make(map[string]RegisteredTool)
+	}
+	r.nextRevision++
+	r.tools[descriptor.Name] = RegisteredTool{Descriptor: descriptor, Handler: handler, revision: r.nextRevision}
+	handlers := make([]func(), 0, len(r.changeHandlers))
+	for _, changeHandler := range r.changeHandlers {
+		handlers = append(handlers, changeHandler)
+	}
+	r.mu.Unlock()
+	for _, changeHandler := range handlers {
+		changeHandler()
+	}
+}
+
+// OnChange registers a callback that runs after a tool registration is
+// committed. It may safely query the registry and the returned function is
+// idempotent, allowing listeners to be detached during shutdown.
+func (r *ToolRegistry) OnChange(changeHandler func()) func() {
+	if r == nil || changeHandler == nil {
+		return func() {}
+	}
+	r.mu.Lock()
+	if r.changeHandlers == nil {
+		r.changeHandlers = make(map[uint64]func())
+	}
+	r.nextChangeID++
+	id := r.nextChangeID
+	r.changeHandlers[id] = changeHandler
+	r.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			r.mu.Lock()
+			delete(r.changeHandlers, id)
+			r.mu.Unlock()
+		})
+	}
 }
 
 func (r *ToolRegistry) List() []ToolDescriptor {
 	if r == nil {
 		return []ToolDescriptor{}
 	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	items := make([]ToolDescriptor, 0, len(r.tools))
 	for _, tool := range r.tools {
 		items = append(items, tool.Descriptor)
@@ -288,6 +334,8 @@ func (r *ToolRegistry) Get(name string) (RegisteredTool, bool) {
 	if r == nil {
 		return RegisteredTool{}, false
 	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	tool, ok := r.tools[strings.TrimSpace(name)]
 	return tool, ok
 }
@@ -342,6 +390,8 @@ func (r *ToolRegistry) CanonicalName(name string) (string, bool) {
 	if r == nil {
 		return "", false
 	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	raw := strings.TrimSpace(name)
 	if _, ok := r.tools[raw]; ok {
 		return raw, true

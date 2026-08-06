@@ -4,7 +4,7 @@ import vuetify from "vite-plugin-vuetify";
 import vueDevTools from "vite-plugin-vue-devtools";
 import { defineConfig } from "vitest/config";
 import type { Plugin } from "vite";
-import coveragePolicy from "./coverage-policy.json";
+import coveragePolicy from "./coverage-policy.json" with { type: "json" };
 
 type RuntimeProcess = {
   env?: Record<string, string | undefined>;

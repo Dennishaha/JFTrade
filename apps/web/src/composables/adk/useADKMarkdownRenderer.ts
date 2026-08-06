@@ -1,4 +1,4 @@
-import MarkdownIt from "markdown-it";
+import MarkdownIt from "markdown-it/browser";
 
 export function useADKMarkdownRenderer(options: {
   enableMermaid?: boolean;

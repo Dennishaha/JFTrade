@@ -39,9 +39,10 @@ import type {
   MCPServerSettingsSnapshot,
   MCPServerTokenResetResult,
 } from "@/types";
-import type { ADKProviderDto, ADKRuntimeSettings } from "@/contracts";
-
-type ADKProviderWire = ADKProviderDto;
+import type {
+  ADKAgentWriteRequestDto,
+  ADKRuntimeSettings,
+} from "@/contracts";
 
 export interface ADKPageEnvelope {
   limit: number;
@@ -174,6 +175,7 @@ function isADKProvider(value: unknown): value is ADKProvider {
     isString(value.displayName) &&
     isString(value.baseUrl) &&
     isString(value.model) &&
+    (value.apiProtocol === undefined || value.apiProtocol === "chat_completions" || value.apiProtocol === "responses") &&
     isNumber(value.requestTimeoutMs) &&
     isBoolean(value.enabled) &&
     isBoolean(value.default) &&
@@ -224,6 +226,22 @@ function isADKAgentTemplate(
     isNumber(value.loopMaxIterations) &&
     isString(value.status)
   );
+}
+
+function normalizeADKAgentTemplateWire(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const template = value as Partial<ADKAgentWriteRequestDto>;
+  return {
+    ...value,
+    model: template.model === undefined ? "" : template.model,
+    tools: template.tools === undefined ? [] : template.tools,
+    skills: template.skills === undefined ? [] : template.skills,
+    recentUserWindow:
+      template.recentUserWindow === undefined ? 6 : template.recentUserWindow,
+    workMode: template.workMode === undefined ? "chat" : template.workMode,
+    loopMaxIterations:
+      template.loopMaxIterations === undefined ? 5 : template.loopMaxIterations,
+  };
 }
 
 function isADKToolDescriptor(value: unknown): value is ADKToolDescriptor {
@@ -830,7 +848,13 @@ export const requireADKAgents = (value: unknown): ADKAgent[] =>
 export const requireADKAgentTemplates = (
   value: unknown,
 ): Array<Omit<ADKAgent, "createdAt" | "updatedAt">> =>
-  requireList(value, isADKAgentTemplate, "agent templates");
+  requireList(
+    Array.isArray(value)
+      ? value.map(normalizeADKAgentTemplateWire)
+      : value,
+    isADKAgentTemplate,
+    "agent templates",
+  );
 export const requireADKToolDescriptors = (
   value: unknown,
 ): ADKToolDescriptor[] =>

@@ -41,12 +41,7 @@ func (s *Store) SaveProvider(ctx context.Context, req ProviderWriteRequest) (Pro
 	if id == "" {
 		id = "provider-" + uuid.NewString()
 	}
-	if strings.TrimSpace(req.BaseURL) != "" {
-		if err := validateProviderBaseURL(req.BaseURL); err != nil {
-			return Provider{}, err
-		}
-	}
-	if err := validateProviderHeaders(req.DefaultHeaders); err != nil {
+	if err := validateProviderWriteRequest(req); err != nil {
 		return Provider{}, err
 	}
 	now := nowString()
@@ -63,6 +58,7 @@ func (s *Store) SaveProvider(ctx context.Context, req ProviderWriteRequest) (Pro
 		DisplayName:         defaultString(req.DisplayName, id),
 		BaseURL:             normalizeBaseURL(req.BaseURL),
 		Model:               defaultString(req.Model, "gpt-4o-mini"),
+		APIProtocol:         normalizeProviderAPIProtocol(req.APIProtocol),
 		ContextWindowTokens: normalizeContextWindowTokens(req.ContextWindowTokens),
 		RequestTimeoutMs:    normalizeProviderRequestTimeoutMs(req.RequestTimeoutMs),
 		DefaultHeaders:      normalizeHeaders(req.DefaultHeaders),
@@ -73,6 +69,9 @@ func (s *Store) SaveProvider(ctx context.Context, req ProviderWriteRequest) (Pro
 	}
 	if ok {
 		provider.Capabilities = existing.Capabilities
+		if strings.TrimSpace(req.APIProtocol) == "" {
+			provider.APIProtocol = existing.APIProtocol
+		}
 		if req.RequestTimeoutMs == 0 {
 			provider.RequestTimeoutMs = existing.RequestTimeoutMs
 		}
@@ -111,6 +110,18 @@ func (s *Store) SaveProvider(ctx context.Context, req ProviderWriteRequest) (Pro
 		return saved, nil
 	}
 	return provider, nil
+}
+
+func validateProviderWriteRequest(req ProviderWriteRequest) error {
+	if strings.TrimSpace(req.BaseURL) != "" {
+		if err := validateProviderBaseURL(req.BaseURL); err != nil {
+			return err
+		}
+	}
+	if err := validateProviderAPIProtocol(req.APIProtocol); err != nil {
+		return err
+	}
+	return validateProviderHeaders(req.DefaultHeaders)
 }
 
 func (s *Store) UpdateProviderCapabilities(ctx context.Context, id string, capabilities map[string]bool) (Provider, error) {

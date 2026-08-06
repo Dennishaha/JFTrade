@@ -233,7 +233,7 @@ func externalEngine() map[string]any {
 		"enabled":           payload.Enabled,
 		"status":            payload.Status,
 		"license":           "AGPL-3.0-only",
-		"package":           "pinets@0.9.29",
+		"package":           "pinets@0.9.30",
 		"repository":        "https://github.com/LuxAlgo/PineTS",
 		"worker":            "scripts/pinets-worker.mjs",
 		"authority":         "pine-pinets production runtime remains authoritative",

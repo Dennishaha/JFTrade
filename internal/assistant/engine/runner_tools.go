@@ -18,6 +18,7 @@ import (
 	"google.golang.org/adk/v2/tool/preloadmemorytool"
 	"google.golang.org/adk/v2/tool/skilltoolset"
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
+	"google.golang.org/adk/v2/tool/toolutils"
 	"google.golang.org/genai"
 )
 
@@ -407,31 +408,7 @@ func packGoogleADKTool(req *adkmodel.LLMRequest, tool googleADKDeclaredRunnableT
 	if req == nil || tool == nil {
 		return fmt.Errorf("GO-ADK tool request is unavailable")
 	}
-	if req.Tools == nil {
-		req.Tools = make(map[string]any)
-	}
-	if _, exists := req.Tools[tool.Name()]; exists {
-		return fmt.Errorf("duplicate tool: %q", tool.Name())
-	}
-	req.Tools[tool.Name()] = tool
-	if req.Config == nil {
-		req.Config = &genai.GenerateContentConfig{}
-	}
-	var functionTools *genai.Tool
-	for _, item := range req.Config.Tools {
-		if item != nil && item.FunctionDeclarations != nil {
-			functionTools = item
-			break
-		}
-	}
-	if functionTools == nil {
-		req.Config.Tools = append(req.Config.Tools, &genai.Tool{
-			FunctionDeclarations: []*genai.FunctionDeclaration{tool.Declaration()},
-		})
-	} else {
-		functionTools.FunctionDeclarations = append(functionTools.FunctionDeclarations, tool.Declaration())
-	}
-	return nil
+	return toolutils.PackTool(req, tool)
 }
 
 func (t *googleADKTool) Run(ctx adkagent.Context, args any) (map[string]any, error) {

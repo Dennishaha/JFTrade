@@ -24,6 +24,7 @@ const provider: ADKProvider = {
   displayName: "Private Gateway",
   baseUrl: "https://llm.example/v1",
   model: "reasoning-large",
+  apiProtocol: "responses",
   contextWindowTokens: 128_000,
   requestTimeoutMs: 245_500,
   enabled: true,
@@ -49,8 +50,9 @@ describe("useADKProviderForm", () => {
       apiKey: "secret",
     };
 
-    await state.saveProvider();
+    const saved = await state.saveProvider();
 
+    expect(saved).toBe(true);
     expect(saveADKProvider).toHaveBeenCalledWith(
       expect.objectContaining({
         contextWindowTokens: 128_000,
@@ -74,6 +76,7 @@ describe("useADKProviderForm", () => {
       displayName: "Private Gateway",
       baseUrl: "https://llm.example/v1",
       model: "reasoning-large",
+      apiProtocol: "responses",
       contextWindowTokens: 128_000,
       requestTimeoutSeconds: 246,
       apiKey: "",
@@ -87,6 +90,15 @@ describe("useADKProviderForm", () => {
       requestTimeoutSeconds: 180,
       apiKey: "",
     });
+  });
+
+  it("defaults legacy provider payloads to Chat Completions", () => {
+    const state = createState();
+    const legacyProvider = { ...provider, apiProtocol: undefined } as unknown as ADKProvider;
+
+    state.editProvider(legacyProvider);
+
+    expect(state.providerForm.value.apiProtocol).toBe("chat_completions");
   });
 
   it("reports provider health replies and updates the default provider", async () => {
@@ -118,8 +130,10 @@ describe("useADKProviderForm", () => {
     expect(state.refreshAll).toHaveBeenCalledOnce();
 
     vi.mocked(saveADKProvider).mockRejectedValueOnce(new Error("duplicate provider"));
-    await state.saveProvider();
+    state.successMessage.value = "stale success";
+    expect(await state.saveProvider()).toBe(false);
     expect(state.errorMessage.value).toBe("duplicate provider");
+    expect(state.successMessage.value).toBe("");
 
     vi.mocked(testADKProvider).mockRejectedValueOnce("network down");
     await state.testProvider("private-gateway");
@@ -139,9 +153,13 @@ describe("useADKProviderForm", () => {
     const state = createState();
     state.refreshAll.mockRejectedValueOnce(new Error("refresh failed"));
 
-    await state.saveProvider();
+    const saved = await state.saveProvider();
 
-    expect(state.errorMessage.value).toBe("refresh failed");
+    expect(saved).toBe(false);
+    expect(state.errorMessage.value).toBe(
+      "Provider 已保存，但刷新界面失败：refresh failed",
+    );
+    expect(state.successMessage.value).toBe("");
   });
 });
 

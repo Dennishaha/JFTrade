@@ -122,6 +122,7 @@ export interface components {
     value: string;
   };
     "adk.Provider": {
+    apiProtocol: "chat_completions" | "responses";
     baseUrl: string;
     capabilities?: Record<string, boolean>;
     contextWindowTokens?: number;
@@ -621,6 +622,7 @@ export interface components {
   };
     "assistant.ADKProviderWriteRequest": {
     apiKey?: string;
+    apiProtocol?: "chat_completions" | "responses";
     baseUrl: string;
     contextWindowTokens?: number;
     defaultHeaders?: Record<string, string>;

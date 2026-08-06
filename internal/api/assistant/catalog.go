@@ -333,7 +333,11 @@ func (h *Handler) handleADKSaveProvider(c *gin.Context) {
 	}
 	provider, err := h.service.SaveProvider(c.Request.Context(), jfadk.ProviderWriteRequest(payload))
 	if err != nil {
-		h.writeError(c, http.StatusInternalServerError, "ADK_PROVIDER_SAVE_FAILED", err.Error())
+		status := http.StatusInternalServerError
+		if errors.Is(err, jfadk.ErrInvalidProviderAPIProtocol) {
+			status = http.StatusBadRequest
+		}
+		h.writeError(c, status, "ADK_PROVIDER_SAVE_FAILED", err.Error())
 		return
 	}
 	h.writeOK(c, provider)

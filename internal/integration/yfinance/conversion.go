@@ -222,6 +222,7 @@ func convertSnapshot(
 	values = retainRelevantYahooExtendedQuotes(identity.id, values, observedAt)
 	values.previousClose, values.lastClose = snapshotClosePrices(
 		response.Market, response, values.session, values.regularQuote,
+		activeYahooExtendedQuote(values),
 	)
 	values = selectYahooActiveQuote(values)
 	return &marketdata.Tick{
@@ -312,22 +313,37 @@ func snapshotTimes(response remoteSnapshot, fallback time.Time) (string, string,
 }
 
 func snapshotClosePrices(
-	market string,
+	marketCode string,
 	response remoteSnapshot,
 	session string,
 	regularQuote *marketdata.ExtendedQuote,
+	activeExtendedQuote *marketdata.ExtendedQuote,
 ) (*decimal.Decimal, *decimal.Decimal) {
 	previousClose := optionalDecimal(response.PreviousClosePrice)
 	lastClose := optionalDecimal(response.LastClosePrice)
 	if lastClose == nil {
 		lastClose = optionalDecimal(response.PreviousClosePrice)
 	}
-	if strings.EqualFold(strings.TrimSpace(market), "US") &&
-		(session == "pre" || session == "after" || session == "closed") &&
+	useRegularClose := session == string(market.SessionClosed) ||
+		((session == string(market.SessionPre) || session == string(market.SessionAfter)) &&
+			activeExtendedQuote != nil && activeExtendedQuote.Price != nil)
+	if strings.EqualFold(strings.TrimSpace(marketCode), "US") &&
+		useRegularClose &&
 		regularQuote != nil && regularQuote.Price != nil {
 		previousClose = regularQuote.Price
 	}
 	return previousClose, lastClose
+}
+
+func activeYahooExtendedQuote(values snapshotValues) *marketdata.ExtendedQuote {
+	switch values.session {
+	case string(market.SessionPre):
+		return values.preMarket
+	case string(market.SessionAfter):
+		return values.afterMarket
+	default:
+		return nil
+	}
 }
 
 func convertSnapshotQuote(field string, quote *remoteSnapshotQuote) (*marketdata.ExtendedQuote, error) {

@@ -400,18 +400,11 @@ func (r *Runtime) TestProvider(ctx context.Context, providerID string) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	reply, err := r.openai.chat(ctx, provider, apiKey, provider.Model, []openAIChatMessage{
-		{Role: "system", Content: "Reply with a short health check sentence."},
-		{Role: "user", Content: "JFTrade ADK provider connectivity test."},
-	})
+	reply, err := r.testProviderConnectivity(ctx, provider, apiKey)
 	if err != nil {
 		return nil, err
 	}
-	_, toolErr := r.openai.selectTools(ctx, provider, apiKey, provider.Model, []openAIChatMessage{
-		{Role: "user", Content: "Do not call a tool."},
-	}, []ToolDescriptor{{
-		Name: "system.health_probe", DisplayName: "健康探测", Description: "用于探测 provider 工具能力的内部工具。", Permission: "read_internal",
-	}})
+	toolErr := r.testProviderTools(ctx, provider, apiKey)
 	capabilities := map[string]bool{
 		"streaming": true,
 		"tools":     toolErr == nil,
@@ -423,6 +416,29 @@ func (r *Runtime) TestProvider(ctx context.Context, providerID string) (map[stri
 	}
 	r.audit(ctx, "provider.tested", provider.ID, "Provider capability test completed.", map[string]any{"capabilities": capabilities})
 	return map[string]any{"ok": true, "reply": reply, "capabilities": updated.Capabilities, "checkedAt": nowString()}, nil
+}
+
+func (r *Runtime) testProviderConnectivity(ctx context.Context, provider Provider, apiKey string) (string, error) {
+	if provider.APIProtocol == ProviderAPIProtocolResponses {
+		return probeOpenAIResponsesProvider(ctx, provider, apiKey, false)
+	}
+	return r.openai.chat(ctx, provider, apiKey, provider.Model, []openAIChatMessage{
+		{Role: "system", Content: "Reply with a short health check sentence."},
+		{Role: "user", Content: "JFTrade ADK provider connectivity test."},
+	})
+}
+
+func (r *Runtime) testProviderTools(ctx context.Context, provider Provider, apiKey string) error {
+	if provider.APIProtocol == ProviderAPIProtocolResponses {
+		_, err := probeOpenAIResponsesProvider(ctx, provider, apiKey, true)
+		return err
+	}
+	_, err := r.openai.selectTools(ctx, provider, apiKey, provider.Model, []openAIChatMessage{
+		{Role: "user", Content: "Do not call a tool."},
+	}, []ToolDescriptor{{
+		Name: "system.health_probe", DisplayName: "健康探测", Description: "用于探测 provider 工具能力的内部工具。", Permission: "read_internal",
+	}})
+	return err
 }
 
 func (r *Runtime) Chat(ctx context.Context, req ChatRequest) (ChatResponse, error) {

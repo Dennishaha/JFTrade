@@ -6,14 +6,14 @@
 
 ## 当前版本快照
 
-更新时间：2026-08-02。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
+更新时间：2026-08-06。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
 
 JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。交易链路仍由 Futu/OpenD 管理；新安装的行情默认使用内置 yfinance 延迟数据源，支持美股、港股和沪深，也可以选择 Futu OpenD。系统以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
 
 当前主线事实：
 
 - 独立后端入口：`cmd/jftrade-api`，只支持 API sidecar 模式。
-- 桌面入口：`cmd/jftrade-desktop`，使用 Wails `v3.0.0-alpha2.117`，先显示窗口、再异步启动内置 API；仍通过 HTTP/SSE/WebSocket 访问 sidecar，并将启动状态、链接、日志和更新检查暴露为桌面 bindings。
+- 桌面入口：`cmd/jftrade-desktop`，使用 Wails `v3.0.0-beta.4`，先显示窗口、再异步启动内置 API；仍通过 HTTP/SSE/WebSocket 访问 sidecar，并将启动状态、链接、日志和更新检查暴露为桌面 bindings。
 - 前端入口：`apps/web`，Vue 3 + Vite；文档站使用 VitePress。
 - 开发端口：API `127.0.0.1:3000`，Web `127.0.0.1:3003`，Docs `127.0.0.1:3001`。
 - 桌面内部端口：`JFTrade Dev` sidecar 为 `127.0.0.1:3008`，正式 `JFTrade` sidecar 为 `127.0.0.1:6699`；两者仅供 Wails 使用且可同时运行。
@@ -24,7 +24,7 @@ JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工�
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
 - PineTS worker：Node ESM `worker.mjs`，Go 通过 localhost gRPC 管理 worker pool。
 - 回测和实盘权威边界：PineTS 产出信号、图形输出和 order intents；Go 负责撮合、成交、资金曲线、风控、账户刷新和券商下单。
-- 许可证注意：`workers/pineworker` 精确依赖 `pinets@0.9.29`，当前 npm license 为 `AGPL-3.0-only`。
+- 许可证注意：`workers/pineworker` 精确依赖 `pinets@0.9.30`，当前 npm license 为 `AGPL-3.0-only`。
 
 当前发布和验收入口：
 

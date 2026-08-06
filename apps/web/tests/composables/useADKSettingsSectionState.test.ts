@@ -509,6 +509,14 @@ describe("useADKSettingsSectionState", () => {
     await state.refreshAll();
     expect(state.errorMessage.value).toBe("加载智能体配置失败");
 
+    fetchADKSettingsSnapshotMock.mockRejectedValueOnce(
+      new Error("template refresh failed"),
+    );
+    await expect(
+      state.refreshAll({ throwOnError: true }),
+    ).rejects.toThrow("template refresh failed");
+    expect(state.errorMessage.value).toBe("template refresh failed");
+
     cancelADKRunMock.mockRejectedValueOnce(new Error("run locked"));
     await state.cancelRun(run);
     expect(state.errorMessage.value).toBe("run locked");

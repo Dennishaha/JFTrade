@@ -31,6 +31,9 @@ func TestMainWindowOptionsUseWebZoom(t *testing.T) {
 	if options.UseApplicationMenu {
 		t.Fatal("main window should hide the native application menu")
 	}
+	if options.Mac.Backdrop != application.MacBackdropNormal {
+		t.Fatalf("main window backdrop = %v, want standard opaque backdrop", options.Mac.Backdrop)
+	}
 }
 
 func TestDesktopSingleInstanceOptionsAreChannelScoped(t *testing.T) {
@@ -167,6 +170,9 @@ func TestDesktopLogWindowOptionsUseVueRoute(t *testing.T) {
 	}
 	if options.Title != "JFTrade Dev 日志" || options.Zoom != desktopWebviewZoom {
 		t.Fatalf("log window identity = %#v", options)
+	}
+	if options.Mac.Backdrop != application.MacBackdropNormal {
+		t.Fatalf("log window backdrop = %v, want standard opaque backdrop", options.Mac.Backdrop)
 	}
 }
 

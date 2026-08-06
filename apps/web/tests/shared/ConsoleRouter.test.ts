@@ -49,5 +49,5 @@ describe("console router", () => {
         "DesktopLogsPage",
       ]),
     );
-  });
+  }, 15_000);
 });

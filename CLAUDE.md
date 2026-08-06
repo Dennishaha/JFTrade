@@ -77,7 +77,7 @@ pnpm run test:main        # ci-local + 完整 Go 回归 + desktop + 真实 PineT
 - `internal/assistant/assembly`：Assistant Runtime、ADK/MCP 生命周期和跨域工具投影；可依赖业务 service 的公开类型，但禁止反向依赖 `internal/app`、具体 store、integration 或 HTTP transport。
 - `pkg/*` 只放需要被外部 module 复用的稳定能力（`pkg/futu` 实现 bbgo `types.Exchange`，同时服务 sidecar、策略 runtime 和回测——改动前先判断影响面）。
 
-**策略/回测执行边界。** 主路径是 `sourceFormat=pine-v6` + `runtime=pine-pinets`：前端生成 Pine，Go（`pkg/strategy/{pine,pinespec,ir,pineworker}`）解析并规划，交由 Node ESM `worker.mjs`（`workers/pineworker`，固定 `pinets@0.9.29`）通过 localhost gRPC worker pool 执行。**PineTS 只产出信号、图形输出和 order intents；撮合、成交、资金曲线、风控、账户刷新和券商下单全部在 Go 侧**（`pkg/backtest`，撮合模型见 `docs/backtest-execution-model.md`）。Go 主进程不再维护自研 Pine 执行 runtime。
+**策略/回测执行边界。** 主路径是 `sourceFormat=pine-v6` + `runtime=pine-pinets`：前端生成 Pine，Go（`pkg/strategy/{pine,pinespec,ir,pineworker}`）解析并规划，交由 Node ESM `worker.mjs`（`workers/pineworker`，固定 `pinets@0.9.30`）通过 localhost gRPC worker pool 执行。**PineTS 只产出信号、图形输出和 order intents；撮合、成交、资金曲线、风控、账户刷新和券商下单全部在 Go 侧**（`pkg/backtest`，撮合模型见 `docs/backtest-execution-model.md`）。Go 主进程不再维护自研 Pine 执行 runtime。
 
 **实时行情链路：** `apps/web` → SSE `/api/v1/stream/live` 或 WS `/api/v1/ws/live` → `internal/api/live` → `internal/marketdata`（demand / tick cache / freshness / fallback polling / backoff 都归它）→ `internal/integration/futu` → `pkg/futu` → OpenD。
 

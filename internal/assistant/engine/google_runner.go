@@ -608,6 +608,9 @@ func (r *Runtime) googleADKModelForAgent(ctx context.Context, definition Agent) 
 	if !hasKey || strings.TrimSpace(apiKey) == "" {
 		return nil, fmt.Errorf("agent provider API key is not configured")
 	}
+	if provider.APIProtocol == ProviderAPIProtocolResponses {
+		return newOpenAIResponsesADKModel(ctx, provider, apiKey, definition.Model)
+	}
 	return newOpenAICompatibleADKModel(provider, apiKey, definition.Model), nil
 }
 

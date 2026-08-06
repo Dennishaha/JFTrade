@@ -310,6 +310,7 @@ type ADKProviderWriteRequest struct {
 	DisplayName         string            `json:"displayName"`
 	BaseURL             string            `json:"baseUrl"`
 	Model               string            `json:"model"`
+	APIProtocol         string            `json:"apiProtocol,omitempty" enums:"chat_completions,responses"`
 	ContextWindowTokens int               `json:"contextWindowTokens,omitempty"`
 	RequestTimeoutMs    int               `json:"requestTimeoutMs,omitempty"`
 	DefaultHeaders      map[string]string `json:"defaultHeaders,omitempty"`

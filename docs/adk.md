@@ -26,7 +26,7 @@ ADK 是 JFTrade 的核心差异化能力，不是可以随时裁掉的辅助模�
 - Session：使用 ADK `session/database` 持久化事件；执行真相源是独立的 ADK session SQLite，不再从 JFTrade 历史消息回灌。`adk-session.db` schema 不兼容时会按 v2 结构重建，旧 ADK 原始对话事件不迁移。
 - Tool：JFTrade `ToolRegistry` 中的工具会包装为 ADK Function Tool，并由 Runner 调用；工具是否执行由 Provider 返回的 tool/function call 决定，后端不再按关键词或 `<execute-tool>` 文本标签做本地工具选择兜底。
 - HITL：需要审批的工具使用 ADK `RequestConfirmation` 和 `adk_request_confirmation` 协议。模型需要用户做方案决策时使用自动注入的 long-running tool `interaction.request_user`，Run 进入 `PENDING_INPUT`，回答通过原 function-call ID 恢复。原始 ADK workflow `RequestInput` 仍不是公开产品入口；非 `interaction.request_user` 的 requested-input 事件继续返回 `ADK_INPUT_UNSUPPORTED`。
-- Model：Provider 通过 ADK `model.LLM` 适配器调用 OpenAI-compatible `/chat/completions`；Agent 必须显式绑定启用状态的 Provider，且该 Provider 必须配置 API Key。不再提供本地确定性模型回复或 Provider 不可用时的本地文本兜底。
+- Model：Provider 默认通过 ADK `model.LLM` 适配器调用 OpenAI-compatible `/chat/completions`；设置 `apiProtocol=responses` 时改用 ADK 官方 `openaimodel` 的 Responses API 适配器。两种协议都复用 Provider 的请求超时、默认请求头和 SSRF 防护；Responses 请求会对工具名做线上的安全字符适配，并在返回时恢复 JFTrade 原始名称。Agent 必须显式绑定启用状态的 Provider，且该 Provider 必须配置 API Key。不再提供本地确定性模型回复或 Provider 不可用时的本地文本兜底。
 
 JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 ADK Go v2 的 Agent、Runner、Session 或 Tool 执行语义。本次切换后不再为历史会话或旧 skill 数据提供兼容恢复逻辑。
 
@@ -124,12 +124,13 @@ Provider 默认允许局域网和本机模型地址，但始终拒绝 link-local
 
 ## 本机 MCP Server
 
-JFTrade 可作为本机 MCP Server，使用 `github.com/modelcontextprotocol/go-sdk v1.6.1` 提供 Streamable HTTP transport。该服务默认关闭，在“设置 → 智能体 → MCP 服务”中启用；默认端点为 `http://127.0.0.1:6697/mcp`。
+JFTrade 可作为本机 MCP Server，使用 `github.com/modelcontextprotocol/go-sdk v1.7.0` 提供无状态 Streamable HTTP transport。该服务默认关闭，在“设置 → 智能体 → MCP 服务”中启用；默认端点为 `http://127.0.0.1:6697/mcp`。
 
 - 仅绑定 `127.0.0.1`，不提供 stdio、局域网或公网监听。即使选择“无 Token”，也仍只接受本机连接。
 - 默认使用 Bearer Token 鉴权。Token 只在生成或重置响应中显示一次；设置文件只保存不可逆校验值。重置后旧 Token 会立即失效。
-- 服务支持 Streamable HTTP 的 `GET`、`POST`、`DELETE` 会话请求，并保留 SDK 的 localhost Host 防护。
+- 服务使用无状态 Streamable HTTP，仅接受 `POST`，不依赖 `Mcp-Session-Id`；`GET`、`DELETE` 返回 `405`，并保留 SDK 的 localhost Host 防护。
 - 仅公开经过固定白名单审核的只读工具：系统、行情、账户与风险、策略读取和回测读取工具。交易、写入、HTTP 抓取、Agent/Skill/任务/记忆管理工具不会出现在 `tools/list` 中。
+- 客户端可读取 `jftrade://runtime/status` JSON 资源；内容只包含脱敏的运行时、Provider 摘要、Agent、Skill 和工具目录，不包含 API Key。资源支持订阅，运行时工具目录变化会发送 `tools/list_changed` 和 `resources/updated` 通知。
 
 通用 MCP 客户端配置示例：
 
