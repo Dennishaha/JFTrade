@@ -87,7 +87,7 @@ pnpm run test:main        # ci-local + 完整 Go 回归 + desktop + 真实 PineT
 
 ## 硬性约束
 
-- **Lint**：`funlen` 限制函数 80 行 / 60 语句（测试文件豁免）；revive `filename-format` 约束 Go 文件名。CI 另跑 revive 文件长度门禁：生产 Go 文件 ≤ 800 行，测试 Go 文件 ≤ 1200 行（`.revive-file-length-{prod,test}.toml`）。
+- **Lint**：`funlen` 限制函数 80 行 / 60 语句（测试文件豁免）；revive `filename-format` 约束 Go 文件名。CI 另跑 revive 文件长度门禁：生产 Go 文件 ≤ 1000 行，测试 Go 文件 ≤ 1200 行（`.revive-file-length-{prod,test}.toml`）。
 - **测试文件命名**：不得使用 `coverage_98`、`c95` 一类覆盖率数字命名，文件名要描述被验证的业务行为；`pnpm run check:test-names` 只检查相对 base 新增的文件。
 - **覆盖率门禁**（`docs/testing-strategy.md`）：Go 业务总量 ≥90%、普通 package ≥85%、关键域 ≥95%；Web statements/lines ≥90%、branches/functions ≥85%，关键 Web 域 95/90。关键域 = 交易与订单、实盘行情、Futu/OpenD、回测与策略执行、安全认证、SQLite schema/migration。
 - **真实外部依赖**：真实 Futu/OpenD 只在手动 `futu-live.yml`（`JFTRADE_FUTU_LIVE_TEST=1`，self-hosted runner）中跑；普通测试用 mock server 或协议 fixture，不得以 `skip` 充当验证结论。
