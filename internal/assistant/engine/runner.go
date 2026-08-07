@@ -400,11 +400,13 @@ func (r *Runtime) TestProvider(ctx context.Context, providerID string) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	reply, err := r.testProviderConnectivity(ctx, provider, apiKey)
+	probeCtx, cancel := context.WithTimeout(ctx, providerProbeTimeout(provider))
+	defer cancel()
+	reply, err := r.testProviderConnectivity(probeCtx, provider, apiKey)
 	if err != nil {
 		return nil, err
 	}
-	toolErr := r.testProviderTools(ctx, provider, apiKey)
+	toolErr := r.testProviderTools(probeCtx, provider, apiKey)
 	capabilities := map[string]bool{
 		"streaming": true,
 		"tools":     toolErr == nil,
@@ -416,6 +418,17 @@ func (r *Runtime) TestProvider(ctx context.Context, providerID string) (map[stri
 	}
 	r.audit(ctx, "provider.tested", provider.ID, "Provider capability test completed.", map[string]any{"capabilities": capabilities})
 	return map[string]any{"ok": true, "reply": reply, "capabilities": updated.Capabilities, "checkedAt": nowString()}, nil
+}
+
+// Provider probes are UI health checks, so they should not inherit long inference timeouts.
+const maxProviderProbeTimeout = 30 * time.Second
+
+func providerProbeTimeout(provider Provider) time.Duration {
+	configured := providerRequestTimeout(provider)
+	if configured < maxProviderProbeTimeout {
+		return configured
+	}
+	return maxProviderProbeTimeout
 }
 
 func (r *Runtime) testProviderConnectivity(ctx context.Context, provider Provider, apiKey string) (string, error) {

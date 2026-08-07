@@ -3,6 +3,11 @@ import { ref } from "vue";
 
 import type { ADKProvider } from "@/types";
 
+type ProviderTestFeedback = {
+  ok: boolean;
+  message: string;
+};
+
 const props = defineProps<{
   providerForm: {
     id: string;
@@ -24,12 +29,20 @@ const props = defineProps<{
   saveRuntimeSettings: () => void | Promise<void>;
   newProviderForm: () => void;
   editProvider: (provider: ADKProvider) => void;
-  testProvider: (providerId: string) => void | Promise<void>;
+  testProvider: (
+    providerId: string,
+  ) => void | Promise<ProviderTestFeedback | void>;
   deleteProvider: (providerId: string) => void | Promise<void>;
   setDefaultProvider: (providerId: string) => void | Promise<void>;
 }>();
 
 const providerDialogOpen = ref(false);
+const testingProviderId = ref("");
+const providerTestFeedback = ref<{
+  providerId: string;
+  ok: boolean;
+  message: string;
+} | null>(null);
 
 function openNewProviderDialog(): void {
   props.newProviderForm();
@@ -44,6 +57,26 @@ function openEditProviderDialog(provider: ADKProvider): void {
 async function submitProviderForm(): Promise<void> {
   if (await props.saveProvider()) {
     providerDialogOpen.value = false;
+  }
+}
+
+async function runProviderTest(providerId: string): Promise<void> {
+  if (testingProviderId.value !== "") return;
+  providerTestFeedback.value = null;
+  testingProviderId.value = providerId;
+  try {
+    const feedback = await props.testProvider(providerId);
+    if (feedback) {
+      providerTestFeedback.value = { providerId, ...feedback };
+    }
+  } catch (error) {
+    providerTestFeedback.value = {
+      providerId,
+      ok: false,
+      message: error instanceof Error ? error.message : "测试失败",
+    };
+  } finally {
+    testingProviderId.value = "";
   }
 }
 </script>
@@ -140,8 +173,10 @@ async function submitProviderForm(): Promise<void> {
                 <v-btn
                   size="x-small"
                   variant="outlined"
-                  @click="testProvider(provider.id)"
-                  >测试</v-btn
+                  :loading="testingProviderId === provider.id"
+                  :disabled="testingProviderId !== ''"
+                  @click="runProviderTest(provider.id)"
+                  >{{ testingProviderId === provider.id ? "测试中" : "测试" }}</v-btn
                 >
                 <v-btn
                   v-if="!provider.default"
@@ -159,6 +194,17 @@ async function submitProviderForm(): Promise<void> {
                 >
               </div>
             </div>
+            <v-alert
+              v-if="providerTestFeedback?.providerId === provider.id"
+              :type="providerTestFeedback.ok ? 'success' : 'error'"
+              variant="tonal"
+              density="compact"
+              closable
+              class="mt-3"
+              @click:close="providerTestFeedback = null"
+            >
+              {{ providerTestFeedback.message }}
+            </v-alert>
           </v-card-text>
         </v-card>
         <v-card

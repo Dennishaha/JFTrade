@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 
@@ -13,9 +13,10 @@ const singleSlotStub = {
 };
 
 const safeButtonStub = defineComponent({
+  props: ["disabled"],
   emits: ["click"],
   template:
-    "<button type='button' @click=\"$emit('click')\"><slot /></button>",
+    "<button type='button' :disabled='disabled' @click=\"$emit('click')\"><slot /></button>",
 });
 
 describe("ADKProvidersPanel business flows", () => {
@@ -128,6 +129,43 @@ describe("ADKProvidersPanel business flows", () => {
       .find((button) => button.text() === "取消")!
       .trigger("click");
     expect(wrapper.find(".v-dialog-stub").exists()).toBe(false);
+  });
+
+  it("shows pending and completed feedback next to the tested provider", async () => {
+    let completeTest:
+      | ((feedback: { ok: boolean; message: string }) => void)
+      | undefined;
+    const testProvider = vi.fn(
+      () =>
+        new Promise<{ ok: boolean; message: string }>((resolve) => {
+          completeTest = resolve;
+        }),
+    );
+    const wrapper = mountProvidersPanel({
+      providers: [buildProvider({ id: "provider-under-test" })],
+      testProvider,
+    });
+
+    const testButton = wrapper
+      .findAll("button")
+      .find((button) => button.text() === "测试")!;
+    await testButton.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(testProvider).toHaveBeenCalledWith("provider-under-test");
+    expect(testButton.text()).toBe("测试中");
+    expect(testButton.attributes("disabled")).toBeDefined();
+
+    completeTest!({ ok: true, message: "Provider 测试成功" });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Provider 测试成功");
+    expect(
+      wrapper
+        .findAll("button")
+        .find((button) => button.text() === "测试")!
+        .attributes("disabled"),
+    ).toBeUndefined();
   });
 });
 

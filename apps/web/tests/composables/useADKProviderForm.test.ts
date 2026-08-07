@@ -101,13 +101,14 @@ describe("useADKProviderForm", () => {
     expect(state.providerForm.value.apiProtocol).toBe("chat_completions");
   });
 
-  it("reports provider health replies and updates the default provider", async () => {
+  it("reports provider test completion and updates the default provider", async () => {
     vi.mocked(testADKProvider).mockResolvedValue({ reply: "model ready" });
     vi.mocked(setADKDefaultProvider).mockResolvedValue({ ...provider, default: true });
     const state = createState();
 
-    await state.testProvider("private-gateway");
-    expect(state.successMessage.value).toBe("Provider 测试成功：model ready");
+    const feedback = await state.testProvider("private-gateway");
+    expect(feedback).toEqual({ ok: true, message: "Provider 测试成功" });
+    expect(state.successMessage.value).toBe("Provider 测试成功");
 
     await state.setDefaultProvider("private-gateway");
     expect(state.successMessage.value).toBe("默认模型已更新");
@@ -118,9 +119,10 @@ describe("useADKProviderForm", () => {
     vi.mocked(testADKProvider).mockResolvedValue({});
     const state = createState();
 
-    await state.testProvider("private-gateway");
+    const feedback = await state.testProvider("private-gateway");
 
-    expect(state.successMessage.value).toBe("Provider 测试成功：ok");
+    expect(feedback).toEqual({ ok: true, message: "Provider 测试成功" });
+    expect(state.successMessage.value).toBe("Provider 测试成功");
   });
 
   it("refreshes after deletion and surfaces service failures", async () => {
@@ -136,7 +138,10 @@ describe("useADKProviderForm", () => {
     expect(state.successMessage.value).toBe("");
 
     vi.mocked(testADKProvider).mockRejectedValueOnce("network down");
-    await state.testProvider("private-gateway");
+    expect(await state.testProvider("private-gateway")).toEqual({
+      ok: false,
+      message: "测试失败",
+    });
     expect(state.errorMessage.value).toBe("测试失败");
 
     vi.mocked(deleteADKProvider).mockRejectedValueOnce("locked");

@@ -21,6 +21,11 @@ type ADKProviderForm = {
   enabled: boolean;
 };
 
+type ADKProviderTestFeedback = {
+  ok: boolean;
+  message: string;
+};
+
 function createProviderForm(): ADKProviderForm {
   return {
     id: "",
@@ -81,12 +86,20 @@ export function useADKProviderForm(
     }
   }
 
-  async function testProvider(providerId: string): Promise<void> {
+  async function testProvider(
+    providerId: string,
+  ): Promise<ADKProviderTestFeedback> {
+    successMessage.value = "";
+    errorMessage.value = "";
     try {
-      const result = await testADKProvider(providerId);
-      successMessage.value = `Provider 测试成功：${String(result.reply ?? "ok")}`;
+      await testADKProvider(providerId);
+      const message = "Provider 测试成功";
+      successMessage.value = message;
+      return { ok: true, message };
     } catch (error) {
-      errorMessage.value = error instanceof Error ? error.message : "测试失败";
+      const message = error instanceof Error ? error.message : "测试失败";
+      errorMessage.value = message;
+      return { ok: false, message };
     }
   }
 
