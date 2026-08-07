@@ -12,6 +12,10 @@ import {
 import { normalizeMarketSecurityDetailsQueryResult } from "@/composables/market-data/marketSecurityNormalization";
 import { normalizeCandleSessions } from "@/composables/market-data/candleSessions";
 import {
+  marketDataCandlePagination,
+  validateOlderMarketDataCandlePage,
+} from "@/composables/market-data/candlePagination";
+import {
   createMarketDataSnapshotRefresher,
   type MarketSnapshotRefreshTarget,
 } from "@/composables/market-data/marketDataSnapshotRefresh";
@@ -233,19 +237,10 @@ export function createMarketDataQueryController(
 
   function updateMarketDataPagination(
     result: MarketDataCandlesQueryResult,
-    fallbackLimit: number,
   ): void {
-    const candles = result.candles;
-    const fallbackHasMore =
-      fallbackLimit > 0 && candles.length >= fallbackLimit;
-    hasMoreMarketDataHistory.value =
-      result.pagination?.hasMore ?? fallbackHasMore;
-    marketDataNextBefore.value =
-      result.pagination?.nextBefore?.trim() ??
-      (hasMoreMarketDataHistory.value ? candles[0]?.at ?? "" : "");
-    if (!hasMoreMarketDataHistory.value) {
-      marketDataNextBefore.value = "";
-    }
+    const pagination = marketDataCandlePagination(result);
+    hasMoreMarketDataHistory.value = pagination.hasMore;
+    marketDataNextBefore.value = pagination.nextBefore;
   }
 
   function invalidateProviderSelection(): void {
@@ -501,11 +496,16 @@ export function createMarketDataQueryController(
             return;
           }
           const normalized = normalizeMarketDataCandlesQueryResult(result);
+          validateOlderMarketDataCandlePage(
+            normalized,
+            before,
+            marketDataCandles.value,
+          );
           marketDataCandles.value = mergeMarketDataCandles(
             marketDataCandles.value,
             normalized,
           );
-          updateMarketDataPagination(normalized, effectiveLimit);
+          updateMarketDataPagination(normalized);
         } catch (error) {
           if (requestID !== olderMarketDataRequestId) return;
           marketDataOlderError.value =
@@ -657,7 +657,7 @@ export function createMarketDataQueryController(
             );
             marketDataCandles.value = mergeLoadedMarketDataCandles(normalized);
             if (queryOptions.preserveExisting !== true) {
-              updateMarketDataPagination(normalized, effectiveLimit);
+              updateMarketDataPagination(normalized);
             }
             marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
               marketDataSnapshot.value,
@@ -696,7 +696,6 @@ export function createMarketDataQueryController(
         ) {
           updateMarketDataPagination(
             normalizeMarketDataCandlesQueryResult(candlesResult.value),
-            effectiveLimit,
           );
         }
 

@@ -76,6 +76,13 @@ type BatchSnapshotSource interface {
 	QuerySecuritySnapshot(ctx context.Context, query SecuritySnapshotQuery) (*SecuritySnapshotResult, error)
 }
 
+// SnapshotFallbackSource is an optional delayed quote path for a broker that
+// cannot establish a BasicQot subscription for a specific instrument. It must
+// not create a push subscription as a side effect.
+type SnapshotFallbackSource interface {
+	QuerySnapshotFallback(ctx context.Context, query SecuritySnapshotQuery) (*SecuritySnapshotResult, error)
+}
+
 // WatchlistGroupReader is an optional broker connection capability for
 // importing remote watchlist groups. It is deliberately read-only.
 type WatchlistGroupReader interface {

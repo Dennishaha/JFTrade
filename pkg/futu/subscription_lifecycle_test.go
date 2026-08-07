@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -101,11 +102,14 @@ func TestExchangeSubscriptionCacheUpdatesOnlyAfterOpenDConfirmation(t *testing.T
 		t.Fatalf("cache incorrectly suppressed retry, Qot_Sub calls = %d", server.subCallCount())
 	}
 
-	server.setQotSubResponses(failure, success, failure, success)
-	if err := exchange.SubscribeBasicQuote(t.Context(), "US.NVDA", false); err == nil {
+	basicFailure := &qotsubpb.Response{RetType: new(int32(1)), ErrCode: new(int32(429)), RetMsg: new("subscription is full")}
+	server.setQotSubResponses(basicFailure, success, failure, success)
+	if err := exchange.SubscribeBasicQuote(t.Context(), "US.NVDA", true); err == nil {
 		t.Fatal("failed SubscribeBasicQuote error = nil")
+	} else if kind, ok := broker.SnapshotAvailability(err); !ok || kind != broker.SnapshotAvailabilityQuota {
+		t.Fatalf("failed SubscribeBasicQuote availability = %q, %v; want quota", kind, err)
 	}
-	if err := exchange.SubscribeBasicQuote(t.Context(), "US.NVDA", false); err != nil {
+	if err := exchange.SubscribeBasicQuote(t.Context(), "US.NVDA", true); err != nil {
 		t.Fatalf("retry SubscribeBasicQuote: %v", err)
 	}
 	if err := exchange.UnsubscribeBasicQuote(t.Context(), "US.NVDA"); err == nil {

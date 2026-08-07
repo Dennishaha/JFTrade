@@ -269,10 +269,43 @@ func securitySnapshotResponseError(response *qotgetsecuritysnapshotpb.Response) 
 		response.GetErrCode(),
 		response.GetRetMsg(),
 	)
+	if isSecuritySnapshotEntitlementResponse(response) {
+		return broker.NewSnapshotAvailabilityError(broker.SnapshotAvailabilityEntitlement, err)
+	}
+	if isSecuritySnapshotQuotaResponse(response) {
+		return broker.NewSnapshotAvailabilityError(broker.SnapshotAvailabilityQuota, err)
+	}
 	if isSymbolScopedSecuritySnapshotAvailabilityError(response) {
-		return broker.NewSymbolScopedSnapshotError(err)
+		return broker.NewSymbolScopedSnapshotError(
+			broker.NewSnapshotAvailabilityError(broker.SnapshotAvailabilityUnsupported, err),
+		)
 	}
 	return err
+}
+
+func isSecuritySnapshotEntitlementResponse(response *qotgetsecuritysnapshotpb.Response) bool {
+	if response == nil || response.GetRetType() != -1 {
+		return false
+	}
+	if response.GetErrCode() == 403 {
+		return true
+	}
+	message := strings.ToLower(strings.Join(strings.Fields(response.GetRetMsg()), " "))
+	return isSecuritySnapshotEntitlementMessage(message)
+}
+
+func isSecuritySnapshotQuotaResponse(response *qotgetsecuritysnapshotpb.Response) bool {
+	if response == nil || response.GetRetType() != -1 {
+		return false
+	}
+	message := strings.ToLower(strings.Join(strings.Fields(response.GetRetMsg()), " "))
+	return strings.Contains(message, "quota") ||
+		strings.Contains(message, "subscription limit") ||
+		strings.Contains(message, "subscribe limit") ||
+		strings.Contains(message, "maximum subscription") ||
+		strings.Contains(message, "subscription is full") ||
+		strings.Contains(message, "订阅数量") ||
+		strings.Contains(message, "订阅已满")
 }
 
 func isSymbolScopedSecuritySnapshotAvailabilityError(response *qotgetsecuritysnapshotpb.Response) bool {

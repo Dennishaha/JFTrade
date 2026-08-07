@@ -122,7 +122,10 @@ func TestWaitDesktopAPIReadyCoversAuthorizationAndTimeout(t *testing.T) {
 	}))
 	t.Cleanup(unready.Close)
 	previousTimeout := desktopAPIReadyTimeout
-	desktopAPIReadyTimeout = 25 * time.Millisecond
+	// The timeout only bounds this local negative-path assertion. Keep it short
+	// enough to exercise startup failure, but above coverage-instrumented HTTP
+	// scheduling jitter on loaded CI hosts.
+	desktopAPIReadyTimeout = 250 * time.Millisecond
 	t.Cleanup(func() { desktopAPIReadyTimeout = previousTimeout })
 	if err := waitDesktopAPIReady(t.Context(), unready.URL, ""); err == nil || !strings.Contains(err.Error(), "readiness status 503") {
 		t.Fatalf("unready API error = %v", err)

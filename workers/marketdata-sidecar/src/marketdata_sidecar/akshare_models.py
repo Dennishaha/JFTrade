@@ -94,6 +94,8 @@ class AKCandlesResponse(AKWireModel):
     extended_hours: bool = False
     candles: list[AKCandle]
     total_returned: int = Field(ge=0)
+    has_more: bool
+    next_before: str | None = None
     source: str = "akshare:eastmoney"
 
 

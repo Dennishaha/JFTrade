@@ -96,11 +96,13 @@ PyInstaller spec 使用 `JFTRADE_MARKETDATA_BINARY_NAME` 指定二进制名；�
 }
 ```
 
-K 线参数为 `period`、`limit`、`from`、`to`。股票、沪深 ETF/指数支持
+K 线参数为 `period`、`limit`、`from`、`to`、`before`。股票、沪深 ETF/指数支持
 `1m/5m/15m/30m/1h/1d/1w/1mo`；美港指数只支持 `1d/1w/1mo`。
 美股 5–60 分钟线由 1 分钟数据按纽约交易所时区确定性聚合，美港指数周/月线
 由日线按交易所时区聚合。1 分钟请求超出最近五天返回
 `400 UNSUPPORTED_RANGE`，不会伪装成空结果。
+
+`before` 是严格排除式游标：返回的 K 线都早于它。当且仅当已确认仍有更早的有效 K 线时，响应才设 `has_more=true`，并以当前页最早 K 线时间作为 `next_before`。`from`/`to` 为包含式范围边界，不能与 `before` 同时使用；范围查询总是终点页（`has_more=false`）。游标超过最早可用历史或短周期保留边界时，服务返回空页与 `has_more=false`，不将其当作上游故障。
 
 所有失败都使用统一 envelope：
 

@@ -449,8 +449,9 @@ func convertCandlesForSessions(
 		}
 		candles = append(candles, converted)
 	}
-	if limit > 0 && len(candles) > limit {
-		candles = candles[len(candles)-limit:]
+	pagination, err := validateCandlePagination(response, candles, limit)
+	if err != nil {
+		return nil, err
 	}
 	source := strings.TrimSpace(response.Source)
 	if source == "" {
@@ -460,11 +461,120 @@ func convertCandlesForSessions(
 		Instrument: marketdata.InstrumentDTO{
 			Market: expected.market, Symbol: expected.symbol, InstrumentID: expected.id,
 		},
-		Period: period, Limit: limit, Candles: candles, Source: source,
+		Period: period, Limit: limit, Candles: candles, Pagination: pagination, Source: source,
 		ResolvedAt: resolvedAt.UTC().Format(time.RFC3339Nano), FromCache: false,
 		ExtendedHours: response.ExtendedHours && includeSession, IncludeSession: includeSession,
 		Sessions: sessions,
 	}.JSON(), nil
+}
+
+func validateCandlePagination(
+	response remoteCandles,
+	candles []map[string]any,
+	limit int,
+) (marketdata.CandlePagination, error) {
+	if response.HasMore == nil {
+		return marketdata.CandlePagination{}, fmt.Errorf("%w: candle pagination has_more is required", ErrInvalidResponse)
+	}
+	if err := validateCandleSequence(candles); err != nil {
+		return marketdata.CandlePagination{}, err
+	}
+	if limit > 0 && len(candles) > limit {
+		return marketdata.CandlePagination{}, fmt.Errorf("%w: candle page exceeds the requested limit", ErrInvalidResponse)
+	}
+	if !*response.HasMore {
+		if strings.TrimSpace(response.NextBefore) != "" {
+			return marketdata.CandlePagination{}, fmt.Errorf("%w: terminal candle page has next_before", ErrInvalidResponse)
+		}
+		return marketdata.CandlePagination{}, nil
+	}
+	if len(candles) == 0 {
+		return marketdata.CandlePagination{}, fmt.Errorf("%w: invalid paged candle count", ErrInvalidResponse)
+	}
+	nextBefore, err := responseTime("next_before", response.NextBefore, time.Time{})
+	if err != nil {
+		return marketdata.CandlePagination{}, err
+	}
+	earliest, ok := candles[0]["at"].(string)
+	if !ok || earliest != nextBefore {
+		return marketdata.CandlePagination{}, fmt.Errorf("%w: next_before must equal earliest candle", ErrInvalidResponse)
+	}
+	return marketdata.CandlePagination{HasMore: true, NextBefore: nextBefore}, nil
+}
+
+func validateCandleSequence(candles []map[string]any) error {
+	var previous time.Time
+	for index, candle := range candles {
+		at, ok := candle["at"].(string)
+		if !ok {
+			return fmt.Errorf("%w: candle %d timestamp is missing", ErrInvalidResponse, index)
+		}
+		parsed, err := time.Parse(time.RFC3339Nano, at)
+		if err != nil || (!previous.IsZero() && !previous.Before(parsed)) {
+			return fmt.Errorf("%w: candles are not strictly ordered", ErrInvalidResponse)
+		}
+		previous = parsed
+	}
+	return nil
+}
+
+func validateHistoricalCandleCursor(
+	response marketdata.CandlesResponse,
+	beforeTime string,
+) (marketdata.CandlesResponse, error) {
+	beforeTime = strings.TrimSpace(beforeTime)
+	if beforeTime == "" {
+		return response, nil
+	}
+	before, err := time.Parse(time.RFC3339Nano, beforeTime)
+	if err != nil {
+		return nil, fmt.Errorf("%w: before cursor must be RFC3339", ErrInvalidResponse)
+	}
+	candles, ok := response["candles"].([]map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("%w: candle response is malformed", ErrInvalidResponse)
+	}
+	for index, candle := range candles {
+		at, ok := candle["at"].(string)
+		if !ok {
+			return nil, fmt.Errorf("%w: candle %d timestamp is missing", ErrInvalidResponse, index)
+		}
+		parsed, err := time.Parse(time.RFC3339Nano, at)
+		if err != nil || !parsed.Before(before) {
+			return nil, fmt.Errorf("%w: candle page violates before cursor", ErrInvalidResponse)
+		}
+	}
+	return response, nil
+}
+
+func validateHistoricalCandleResponse(
+	response marketdata.CandlesResponse,
+	beforeTime string,
+	fromTime string,
+	toTime string,
+) (marketdata.CandlesResponse, error) {
+	response, err := validateHistoricalCandleCursor(response, beforeTime)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(fromTime) == "" && strings.TrimSpace(toTime) == "" {
+		return response, nil
+	}
+	pagination, ok := response["pagination"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("%w: bounded candle response is missing pagination", ErrInvalidResponse)
+	}
+	hasMore, ok := pagination["hasMore"].(bool)
+	if !ok || hasMore {
+		return nil, fmt.Errorf("%w: bounded candle response cannot continue pagination", ErrInvalidResponse)
+	}
+	if nextBefore, exists := pagination["nextBefore"]; exists {
+		value, valid := nextBefore.(string)
+		if !valid || strings.TrimSpace(value) != "" {
+			return nil, fmt.Errorf("%w: bounded candle response contains nextBefore", ErrInvalidResponse)
+		}
+	}
+	return response, nil
 }
 
 func convertedCandleSessionGroup(candle map[string]any) (marketdata.CandleSession, error) {

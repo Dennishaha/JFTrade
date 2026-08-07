@@ -214,7 +214,7 @@ func TestCoreCandleBridgeValidatesBoundariesAndProductSemantics(t *testing.T) {
 	}
 	if _, _, err := normalizeCoreCandleQuery(nil, broker.FeatureQuery{
 		BrokerID: "fallback", InstrumentID: "US.AAPL",
-		Params: map[string]any{"limit": 501},
+		Params: map[string]any{"limit": 1001},
 	}); !errors.Is(err, ErrInvalidQuery) {
 		t.Fatalf("oversized limit error = %v", err)
 	}

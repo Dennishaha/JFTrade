@@ -51,8 +51,14 @@ function isDelayedHTTPSource(source: string): boolean {
     source.startsWith("akshare:")
   );
 }
+function isFutuSnapshotFallbackSource(source: string): boolean {
+  return source === "futu:stock-screen-delayed";
+}
 const effectiveTransportMode = computed(() => {
   const source = props.source?.trim().toLowerCase() ?? "";
+  if (isFutuSnapshotFallbackSource(source)) {
+    return "snapshot-poll-fallback";
+  }
   if (isDelayedHTTPSource(source)) {
     return "snapshot-poll-delayed";
   }

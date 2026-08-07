@@ -118,6 +118,37 @@ func TestBrokerKLineQueryFormatsOpenDWindowInMarketTimeAndReturnsUTC(t *testing.
 	}
 }
 
+func TestBrokerKLineCursorPreservesExactSecondWindowAndExcludesBoundaryLocally(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	boundary := time.Date(2026, time.May, 20, 0, 1, 0, 0, time.UTC)
+	server.setHistorySeries([]*qotcommonpb.KLine{
+		// OpenD labels intraday historical bars at the end of each bucket.
+		testHistoryKLine(boundary, 100),
+		testHistoryKLine(boundary.Add(time.Minute), 101),
+	})
+	reader := newTestBrokerAdapter(t, server).MarketData()
+
+	snapshot, err := reader.QueryKLines(t.Context(), broker.KLineQuery{
+		Symbol: "HK.00700", Period: "1m", Limit: 10,
+		BeforeTime: boundary.Format(time.RFC3339Nano),
+	})
+	if err != nil {
+		t.Fatalf("QueryKLines: %v", err)
+	}
+	beginTime, endTime := server.lastHistoryWindow()
+	if endTime != "2026-05-20 08:01:00" {
+		t.Fatalf("OpenD cursor end = %q, want unmodified boundary second", endTime)
+	}
+	if len(snapshot.KLines) != 1 || snapshot.KLines[0].Time != boundary.Add(-time.Minute).Format(time.RFC3339Nano) {
+		t.Fatalf("strict cursor page = %#v", snapshot.KLines)
+	}
+	if beginTime == "" {
+		t.Fatal("OpenD cursor request did not include a start time")
+	}
+}
+
 func TestNormalizeBrokerKLinePageDeduplicatesSortsAndKeepsLatest(t *testing.T) {
 	base := time.Date(2026, time.July, 18, 12, 0, 0, 0, time.UTC)
 	makeKLine := func(at time.Time, closePrice int64) bbgotypes.KLine {
@@ -164,6 +195,31 @@ func TestNormalizeBrokerKLinePageDeduplicatesSortsAndKeepsLatest(t *testing.T) {
 	}
 }
 
+func TestNormalizeBrokerKLineRangeKeepsInclusiveBoundaries(t *testing.T) {
+	base := time.Date(2026, time.July, 18, 12, 0, 0, 0, time.UTC)
+	makeKLine := func(at time.Time, closePrice int64) bbgotypes.KLine {
+		return bbgotypes.KLine{StartTime: bbgotypes.Time(at), Close: fixedpoint.NewFromInt(closePrice)}
+	}
+	input := []bbgotypes.KLine{
+		makeKLine(base.Add(-time.Minute), 99),
+		makeKLine(base.Add(2*time.Minute), 102),
+		makeKLine(base, 100),
+		makeKLine(base.Add(time.Minute), 101),
+		makeKLine(base.Add(time.Minute), 201),
+		makeKLine(base.Add(3*time.Minute), 103),
+	}
+	rangePage := normalizeBrokerKLineRange(input, base, base.Add(2*time.Minute), 0)
+	if len(rangePage) != 3 || !rangePage[0].StartTime.Time().Equal(base) ||
+		!rangePage[2].StartTime.Time().Equal(base.Add(2*time.Minute)) || rangePage[1].Close.Int64() != 201 {
+		t.Fatalf("inclusive normalized range = %#v", rangePage)
+	}
+	limited := normalizeBrokerKLineRange(input, base, base.Add(2*time.Minute), 2)
+	if len(limited) != 2 || !limited[0].StartTime.Time().Equal(base) ||
+		!limited[1].StartTime.Time().Equal(base.Add(time.Minute)) {
+		t.Fatalf("limited normalized range = %#v", limited)
+	}
+}
+
 func TestBrokerKLineQueryRejectsCursorAndTimeBoundaryErrors(t *testing.T) {
 	_, reader := coverageMarginMarketDataReader(t)
 	tests := []struct {
@@ -207,7 +263,7 @@ func TestBrokerKLineQueryRejectsCursorAndTimeBoundaryErrors(t *testing.T) {
 				Symbol: "HK.00700", Period: "5m",
 				FromTime: "2026-07-02T00:00:00Z", ToTime: "2026-07-01T00:00:00Z",
 			},
-			want: "fromTime must be before toTime",
+			want: "fromTime must be earlier than or equal to toTime",
 		},
 	}
 	for _, test := range tests {

@@ -305,6 +305,7 @@ func (c *Client) candles(
 	limit int,
 	fromTime string,
 	toTime string,
+	beforeTime string,
 	sessionSets ...[]string,
 ) (remoteCandles, error) {
 	values := url.Values{"period": {period}, "limit": {strconv.Itoa(limit)}}
@@ -313,6 +314,9 @@ func (c *Client) candles(
 	}
 	if value := strings.TrimSpace(toTime); value != "" {
 		values.Set("to", value)
+	}
+	if value := strings.TrimSpace(beforeTime); value != "" {
+		values.Set("before", value)
 	}
 	if len(sessionSets) > 0 && len(sessionSets[0]) > 0 {
 		values.Set("sessions", strings.Join(sessionSets[0], ","))

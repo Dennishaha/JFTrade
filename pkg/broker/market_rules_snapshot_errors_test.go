@@ -73,4 +73,52 @@ func TestSnapshotRateLimitErrorCarriesRetryDelay(t *testing.T) {
 	if !ok || defaultDelay != time.Second {
 		t.Fatalf("default retryAfter = %v, %t", defaultDelay, ok)
 	}
+	var nilRateLimit *broker.SnapshotRateLimitError
+	if nilRateLimit.Error() != broker.ErrSnapshotRateLimited.Error() {
+		t.Fatalf("nil rate limit Error() = %q", nilRateLimit.Error())
+	}
+	if _, ok := broker.SnapshotRetryAfter(errors.New("plain")); ok {
+		t.Fatal("plain error yielded retry delay")
+	}
+}
+
+func TestSnapshotAvailabilityErrorsExposeFallbackEligibility(t *testing.T) {
+	cause := errors.New("BasicQot entitlement is unavailable")
+	for _, test := range []struct {
+		name     string
+		kind     broker.SnapshotAvailabilityKind
+		eligible bool
+	}{
+		{name: "entitlement", kind: broker.SnapshotAvailabilityEntitlement, eligible: true},
+		{name: "unsupported", kind: broker.SnapshotAvailabilityUnsupported, eligible: true},
+		{name: "quota", kind: broker.SnapshotAvailabilityQuota, eligible: true},
+		{name: "unknown", kind: broker.SnapshotAvailabilityKind("other"), eligible: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			err := broker.NewSnapshotAvailabilityError(test.kind, cause)
+			if err == nil || err.Error() != cause.Error() || !errors.Is(err, cause) {
+				t.Fatalf("availability error = %v", err)
+			}
+			kind, ok := broker.SnapshotAvailability(fmt.Errorf("wrapped: %w", err))
+			if !ok || kind != test.kind {
+				t.Fatalf("SnapshotAvailability = %q, %t", kind, ok)
+			}
+			if got := broker.IsSnapshotFallbackEligible(err); got != test.eligible {
+				t.Fatalf("IsSnapshotFallbackEligible = %t, want %t", got, test.eligible)
+			}
+		})
+	}
+	if got := broker.NewSnapshotAvailabilityError(broker.SnapshotAvailabilityQuota, nil); got != nil {
+		t.Fatalf("NewSnapshotAvailabilityError(nil) = %v", got)
+	}
+	if _, ok := broker.SnapshotAvailability(errors.New("plain")); ok {
+		t.Fatal("plain error exposed availability")
+	}
+	if broker.IsSnapshotFallbackEligible(errors.New("plain")) {
+		t.Fatal("plain error reported as fallback eligible")
+	}
+	var nilAvailability *broker.SnapshotAvailabilityError
+	if nilAvailability.Error() != "broker snapshot availability is unavailable" {
+		t.Fatalf("nil availability error = %q", nilAvailability.Error())
+	}
 }

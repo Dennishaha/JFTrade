@@ -29,6 +29,10 @@ type HistoricalCandlesQuery struct {
 	Limit             int
 	FromTime          string
 	ToTime            string
+	// BeforeTime is an exclusive historical-page cursor. It must remain
+	// distinct from ToTime because upstream providers can use coarser time
+	// precision than the public RFC3339 value.
+	BeforeTime        string
 	Sessions          []CandleSession
 	SessionsSpecified bool
 }

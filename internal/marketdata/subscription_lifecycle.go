@@ -15,6 +15,15 @@ type SubscriptionReconciler interface {
 	SubscriptionState() map[string]any
 }
 
+// SubscriptionFallbackState is an optional capability exposed by a broker
+// reconciler when one or more Basic quote subscriptions are being served by a
+// delayed per-instrument fallback. It intentionally says nothing about other
+// subscription channels: K-line and order-book leases still require their
+// native broker capabilities.
+type SubscriptionFallbackState interface {
+	HasFallbackSubscriptions() bool
+}
+
 // InactiveSubscriptionCleaner lets the collector advance cleanup work that
 // belongs to a non-active provider without coupling it to foreground demand
 // mutations. Cleanup failures are diagnostic and retryable; they must not roll

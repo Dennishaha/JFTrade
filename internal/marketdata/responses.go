@@ -42,12 +42,20 @@ type CandlesResponseDTO struct {
 	Period         string
 	Limit          int
 	Candles        []map[string]any
+	Pagination     CandlePagination
 	Source         string
 	ResolvedAt     string
 	FromCache      bool
 	ExtendedHours  bool
 	IncludeSession bool
 	Sessions       []CandleSession
+}
+
+// CandlePagination keeps historical-page progress tied to the exact oldest
+// returned candle. Its zero value represents a terminal page.
+type CandlePagination struct {
+	HasMore    bool
+	NextBefore string
 }
 
 func (response CandlesResponseDTO) JSON() CandlesResponse {
@@ -66,6 +74,10 @@ func (response CandlesResponseDTO) JSON() CandlesResponse {
 		}
 		meta["session"] = session
 	}
+	pagination := map[string]any{"hasMore": response.Pagination.HasMore}
+	if response.Pagination.HasMore && response.Pagination.NextBefore != "" {
+		pagination["nextBefore"] = response.Pagination.NextBefore
+	}
 	return CandlesResponse{
 		"request": map[string]any{
 			"instrument": response.Instrument.JSON(),
@@ -75,6 +87,7 @@ func (response CandlesResponseDTO) JSON() CandlesResponse {
 		},
 		"candles":       response.Candles,
 		"totalReturned": len(response.Candles),
+		"pagination":    pagination,
 		"meta":          meta,
 	}
 }

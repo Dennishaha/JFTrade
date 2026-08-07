@@ -11,6 +11,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/marketdata"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	pkgfutu "github.com/jftrade/jftrade-main/pkg/futu"
 )
 
@@ -339,6 +340,54 @@ func TestSubscriptionReconcilerRetriesFailuresAndCancelsRetryOnReacquire(t *test
 	}
 	if subscriptionRetryDelay(-1) != 5*time.Second || subscriptionRetryDelay(99) != 30*time.Second {
 		t.Fatal("retry delay bounds are incorrect")
+	}
+}
+
+func TestSubscriptionReconcilerUsesDelayedFallbackForBasicQuoteAvailabilityFailures(t *testing.T) {
+	now := time.Date(2026, time.August, 7, 1, 2, 3, 0, time.UTC)
+	quotaErr := broker.NewSnapshotAvailabilityError(
+		broker.SnapshotAvailabilityQuota,
+		errors.New("OpenD subscription is full"),
+	)
+	exchange := &fakePhysicalSubscriptionExchange{failures: map[string][]error{
+		"subscribe-basic:SH.600519:push": {quotaErr},
+	}}
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return now },
+	)
+	desired := []marketdata.InstrumentRef{{Channel: "SNAPSHOT", Market: "SH", Symbol: "600519"}}
+
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("quota fallback reconcile = %v", err)
+	}
+	if !reconciler.IsFallbackInstrument("SH.600519") || !reconciler.HasFallbackSubscriptions() {
+		t.Fatalf("fallback state was not retained: %#v", reconciler.SubscriptionState())
+	}
+	record := reconciler.records["BASIC:SH.600519"]
+	if record == nil || !record.retryAt.Equal(now.Add(fallbackSubscriptionRetry)) || record.lastError != quotaErr.Error() {
+		t.Fatalf("fallback record = %#v", record)
+	}
+	state := reconciler.SubscriptionState()
+	if state["ownActiveCount"] != 0 || state["fallbackCount"] != 1 {
+		t.Fatalf("fallback counts = %#v", state)
+	}
+	entries := state["entries"].([]map[string]any)
+	if len(entries) != 1 || entries[0]["brokerState"] != "fallback" || entries[0]["lastError"] != quotaErr.Error() {
+		t.Fatalf("fallback entry = %#v", entries)
+	}
+
+	now = now.Add(fallbackSubscriptionRetry)
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("fallback recovery reconcile = %v", err)
+	}
+	if reconciler.IsFallbackInstrument("SH.600519") || reconciler.HasFallbackSubscriptions() {
+		t.Fatalf("fallback state persisted after recovery: %#v", reconciler.SubscriptionState())
+	}
+	state = reconciler.SubscriptionState()
+	if state["ownActiveCount"] != 1 || state["fallbackCount"] != 0 ||
+		state["entries"].([]map[string]any)[0]["brokerState"] != "active" {
+		t.Fatalf("recovered state = %#v", state)
 	}
 }
 

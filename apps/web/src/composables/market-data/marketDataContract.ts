@@ -131,9 +131,10 @@ function nullableString(value: unknown): string | null {
 
 function subscriptionBrokerState(
   value: string | undefined,
-): "active" | "pending_subscribe" | "pending_unsubscribe" | "retrying" | "unmanaged" | undefined {
+): "active" | "fallback" | "pending_subscribe" | "pending_unsubscribe" | "retrying" | "unmanaged" | undefined {
   switch (value) {
     case "active":
+    case "fallback":
     case "pending_subscribe":
     case "pending_unsubscribe":
     case "retrying":

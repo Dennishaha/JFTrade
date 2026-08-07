@@ -98,6 +98,10 @@ function quoteErrorFor(item: WatchlistItem): WatchlistQuoteError | undefined {
   return props.quoteErrors.get(item.instrumentId.toUpperCase());
 }
 
+function isDelayedSnapshot(quote: WatchlistQuote | undefined): boolean {
+  return quote?.source?.trim().toLowerCase() === "futu:stock-screen-delayed";
+}
+
 function formatPrice(value: number | undefined, market?: string): string {
   return formatMarketPrice(value, {
     market: market ?? null,
@@ -274,6 +278,12 @@ onBeforeUnmount(() => {
           <span class="watchlist-table__price is-numeric" role="gridcell">
             <template v-if="quoteFor(row.item)">
               {{ formatPrice(quoteFor(row.item)?.price, row.item.market) }}
+	              <v-icon
+	                v-if="isDelayedSnapshot(quoteFor(row.item))"
+	                class="watchlist-table__quote-delayed watchlist-table__quote-error"
+	                title="延迟快照：实时订阅不可用，正在使用 Futu StockScreen 行情"
+	                aria-label="延迟快照行情"
+	              >fa-solid fa-clock</v-icon>
               <span
                 v-if="quoteErrorFor(row.item)"
                 class="watchlist-table__quote-stale"

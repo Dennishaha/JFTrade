@@ -42,8 +42,12 @@ func materializeCachedAsset(
 	target := filepath.Join(cacheRoot, strings.ToLower(digest))
 	if err := validateCachedAsset(target, files, digest); err == nil {
 		return persistentAsset(asset, target, digest), true, nil
-	} else if removeErr := removeInvalidCacheTarget(target); removeErr != nil {
-		return nil, false, errors.Join(err, removeErr)
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		// A missing target is the normal concurrent-publish case. Removing it
+		// after another publisher wins would race with its atomic rename.
+		if removeErr := removeInvalidCacheTarget(target); removeErr != nil {
+			return nil, false, errors.Join(err, removeErr)
+		}
 	}
 
 	staging, err := os.MkdirTemp(cacheRoot, ".staging-")

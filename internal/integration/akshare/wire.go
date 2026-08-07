@@ -134,6 +134,8 @@ type remoteCandles struct {
 	Period        string         `json:"period"`
 	ExtendedHours bool           `json:"extended_hours"`
 	TotalReturned int            `json:"total_returned"`
+	HasMore       *bool          `json:"has_more"`
+	NextBefore    string         `json:"next_before"`
 	Source        string         `json:"source"`
 	Candles       []remoteCandle `json:"candles"`
 }

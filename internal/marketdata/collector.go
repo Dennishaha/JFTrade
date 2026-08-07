@@ -85,6 +85,14 @@ type PushAvailability interface {
 	PushAvailable() bool
 }
 
+// PushInstrumentFilter is an optional capability for a push provider whose
+// availability varies by instrument. The collector continues to poll every
+// logical demand item, while only the returned subset is connected to a push
+// stream.
+type PushInstrumentFilter interface {
+	FilterPushInstruments([]string) []string
+}
+
 // PushStream is the lifecycle surface required by the collector.
 type PushStream interface {
 	Connect(context.Context) error
@@ -129,6 +137,7 @@ type Collector struct {
 	subscriptionReconciler SubscriptionReconciler
 	state                  RuntimeState
 	key                    string
+	streamKey              string
 	stream                 PushStream
 	streamCancel           context.CancelFunc
 	polling                bool
@@ -232,6 +241,7 @@ func (c *Collector) Reset() {
 	}
 	stream := c.detachStreamLocked()
 	c.key = ""
+	c.streamKey = ""
 	c.state.Generation++
 	c.state.Connected = false
 	c.state.LastRefreshAt = time.Time{}
@@ -309,23 +319,26 @@ func (c *Collector) reconcile() {
 	c.reconcileSubscriptions()
 	instruments := c.activeInstruments()
 	key := strings.Join(instruments, ",")
+	streamInstruments := filterPushInstruments(c.push, instruments)
+	streamKey := strings.Join(streamInstruments, ",")
 
 	c.mu.Lock()
 	if c.state.Closed {
 		c.mu.Unlock()
 		return
 	}
-	if key == c.key {
+	if key == c.key && streamKey == c.streamKey {
 		generation := c.state.Generation
-		needsStream := key != "" && pushAvailable(c.push) && c.stream == nil && !c.now().UTC().Before(c.state.StreamRetryAt)
+		needsStream := streamKey != "" && pushAvailable(c.push) && c.stream == nil && !c.now().UTC().Before(c.state.StreamRetryAt)
 		c.mu.Unlock()
 		if needsStream {
-			c.startStream(generation, instruments)
+			c.startStream(generation, streamInstruments)
 		}
 		return
 	}
 	old := c.detachStreamLocked()
 	c.key = key
+	c.streamKey = streamKey
 	c.state.Generation++
 	generation := c.state.Generation
 	c.state.Connected = false
@@ -347,8 +360,8 @@ func (c *Collector) reconcile() {
 	if len(instruments) == 0 {
 		return
 	}
-	if pushAvailable(c.push) {
-		c.startStream(generation, instruments)
+	if len(streamInstruments) > 0 && pushAvailable(c.push) {
+		c.startStream(generation, streamInstruments)
 	}
 	c.poll()
 }
@@ -386,7 +399,7 @@ func (c *Collector) reconcileSubscriptions() {
 
 func (c *Collector) startStream(generation uint64, instruments []string) {
 	c.mu.Lock()
-	if c.state.Closed || c.state.Generation != generation || c.key == "" {
+	if c.state.Closed || c.state.Generation != generation || c.streamKey == "" {
 		c.mu.Unlock()
 		return
 	}
@@ -689,4 +702,38 @@ func pushAvailable(source PushSource) bool {
 		return availability.PushAvailable()
 	}
 	return true
+}
+
+func filterPushInstruments(source PushSource, instruments []string) []string {
+	if len(instruments) == 0 {
+		return nil
+	}
+	filter, ok := source.(PushInstrumentFilter)
+	if !ok {
+		return append([]string(nil), instruments...)
+	}
+	allowed := make(map[string]struct{}, len(instruments))
+	for _, raw := range instruments {
+		instrumentID := strings.ToUpper(strings.TrimSpace(raw))
+		if instrumentID == "" {
+			continue
+		}
+		allowed[instrumentID] = struct{}{}
+	}
+	filtered := filter.FilterPushInstruments(append([]string(nil), instruments...))
+	result := make([]string, 0, len(filtered))
+	seen := make(map[string]struct{}, len(filtered))
+	for _, raw := range filtered {
+		instrumentID := strings.ToUpper(strings.TrimSpace(raw))
+		if _, valid := allowed[instrumentID]; !valid {
+			continue
+		}
+		if _, duplicate := seen[instrumentID]; duplicate {
+			continue
+		}
+		seen[instrumentID] = struct{}{}
+		result = append(result, instrumentID)
+	}
+	sort.Strings(result)
+	return result
 }

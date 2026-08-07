@@ -547,6 +547,17 @@ describe("useADKSettingsSectionState", () => {
     await state.saveRuntimeSettings();
     expect(state.errorMessage.value).toBe("保存运行时设置失败");
   });
+
+  it("uses the strict refresh path after saving a provider", async () => {
+    const state = await mountState();
+    saveADKProviderMock.mockResolvedValueOnce(buildProvider({ id: "saved-provider" }));
+    fetchADKSettingsSnapshotMock.mockRejectedValueOnce(new Error("refresh failed"));
+
+    expect(await state.saveProvider()).toBe(false);
+    expect(state.errorMessage.value).toBe(
+      "Provider 已保存，但刷新界面失败：refresh failed",
+    );
+  });
 });
 
 async function mountState() {

@@ -197,6 +197,25 @@ describe("MarketFeedStatus", () => {
     wrapper.unmount();
   });
 
+  it("marks a Futu StockScreen fallback as a push degradation", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-04T00:00:10Z"));
+    const wrapper = mount(MarketFeedStatus, {
+      props: {
+        connectionState: "connected",
+        observedAt: "2026-07-04T00:00:05Z",
+        transportMode: "push-stream",
+        source: "futu:stock-screen-delayed",
+      },
+    });
+
+    const issue = wrapper.get(".market-feed-issue-badge");
+    expect(issue.text()).toContain("推送回退");
+    expect(issue.attributes("title")).toContain("快照轮询（推送回退）");
+    expect(issue.attributes("title")).toContain("Futu OpenD");
+    wrapper.unmount();
+  });
+
   it("keeps an empty diagnostic title when no issue is present", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-04T00:00:10Z"));

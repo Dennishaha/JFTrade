@@ -70,3 +70,62 @@ func IsSymbolScopedSnapshotError(err error) bool {
 	var target *SymbolScopedSnapshotError
 	return errors.As(err, &target)
 }
+
+// SnapshotAvailabilityKind describes a known quote-access failure that can be
+// served by a broker's non-streaming fallback path. It intentionally excludes
+// transport, cancellation, timeout, and request-rate errors.
+type SnapshotAvailabilityKind string
+
+const (
+	SnapshotAvailabilityEntitlement SnapshotAvailabilityKind = "entitlement"
+	SnapshotAvailabilityUnsupported SnapshotAvailabilityKind = "unsupported"
+	SnapshotAvailabilityQuota       SnapshotAvailabilityKind = "subscription_quota"
+)
+
+// SnapshotAvailabilityError preserves the upstream message while making the
+// fallback eligibility available without parsing adapter-specific text.
+type SnapshotAvailabilityError struct {
+	kind  SnapshotAvailabilityKind
+	cause error
+}
+
+func (e *SnapshotAvailabilityError) Error() string {
+	if e == nil || e.cause == nil {
+		return "broker snapshot availability is unavailable"
+	}
+	return e.cause.Error()
+}
+
+func (e *SnapshotAvailabilityError) Unwrap() error { return e.cause }
+
+// NewSnapshotAvailabilityError annotates a known availability failure.
+func NewSnapshotAvailabilityError(kind SnapshotAvailabilityKind, cause error) error {
+	if cause == nil {
+		return nil
+	}
+	return &SnapshotAvailabilityError{kind: kind, cause: cause}
+}
+
+// SnapshotAvailability extracts the adapter-neutral availability kind.
+func SnapshotAvailability(err error) (SnapshotAvailabilityKind, bool) {
+	var target *SnapshotAvailabilityError
+	if !errors.As(err, &target) || target == nil {
+		return "", false
+	}
+	return target.kind, true
+}
+
+// IsSnapshotFallbackEligible reports whether an error is safe to route to a
+// broker-provided delayed snapshot source.
+func IsSnapshotFallbackEligible(err error) bool {
+	kind, ok := SnapshotAvailability(err)
+	if !ok {
+		return false
+	}
+	switch kind {
+	case SnapshotAvailabilityEntitlement, SnapshotAvailabilityUnsupported, SnapshotAvailabilityQuota:
+		return true
+	default:
+		return false
+	}
+}

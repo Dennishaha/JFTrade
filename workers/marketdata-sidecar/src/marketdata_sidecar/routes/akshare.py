@@ -147,10 +147,14 @@ def candles(
     limit: int = Query(default=200, ge=1, le=1000),
     from_value: str | None = Query(default=None, alias="from"),
     to_value: str | None = Query(default=None, alias="to"),
+    before_value: str | None = Query(default=None, alias="before"),
     sessions: list[str] | None = Query(default=None),
 ) -> AKCandlesResponse:
     from_time = parse_rfc3339_utc(from_value, "from")
     to_time = parse_rfc3339_utc(to_value, "to")
+    before_time = parse_rfc3339_utc(before_value, "before")
+    if before_time is not None and (from_time is not None or to_time is not None):
+        raise SidecarError(400, "invalid_time_range", "before cannot be combined with from or to")
     return _translate(
         "candle lookup",
         _candles,
@@ -160,6 +164,7 @@ def candles(
         limit=limit,
         from_time=from_time,
         to_time=to_time,
+        before_time=before_time,
         sessions=sessions,
     )
 
@@ -197,6 +202,7 @@ def _candles(
     limit: int,
     from_time,
     to_time,
+    before_time,
     sessions,
 ) -> AKCandlesResponse:
     selected_sessions = parse_candle_sessions(
@@ -224,6 +230,7 @@ def _candles(
         limit=limit,
         from_time=from_time,
         to_time=to_time,
+        before_time=before_time,
     )
 
 

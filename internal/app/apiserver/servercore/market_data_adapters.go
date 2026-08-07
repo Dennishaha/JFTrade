@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	httpserver "github.com/jftrade/jftrade-main/internal/api/httpserver"
+	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
@@ -280,47 +281,63 @@ func marketdataProviderNormalizeInstrument(_ context.Context, input map[string]a
 }
 
 func (s *serverApplication) marketdataProviderHistoricalCandles(ctx context.Context, request mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error) {
-	query := marketdataProviderCandlesQuery(request)
-	normalizedPeriod := query.normalizedPeriod()
-	if normalizedPeriod == "tick" {
-		normalizedPeriod = "1m"
+	period := strings.ToLower(strings.TrimSpace(request.Period))
+	if period == "tick" {
+		period = "1m"
 	}
-	resolvedMarket := strings.ToUpper(strings.TrimSpace(request.Market))
-	resolvedSymbol := strings.ToUpper(strings.TrimSpace(request.Symbol))
-	instrumentID := resolvedMarket + "." + resolvedSymbol
-	resp, err := s.buildKLineCandlesResponse(ctx, resolvedMarket, resolvedSymbol, instrumentID, normalizedPeriod, query.limitOrDefault(200, 1000), query)
+	limit := request.Limit
+	if limit < 1 {
+		limit = 200
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	marketCode := strings.ToUpper(strings.TrimSpace(request.Market))
+	symbol := strings.ToUpper(strings.TrimSpace(request.Symbol))
+	instrumentID := marketCode + "." + symbol
+	includeSession := shouldAnnotateHistoricalKLineSession(marketCode, bbgotypes.Interval(period))
+	sessions, err := resolveProviderCandleSessions(request, includeSession)
+	if err != nil {
+		return nil, err
+	}
+	b, err := s.futuBrokerOrError()
+	if err != nil {
+		return nil, err
+	}
+	reader := b.MarketData()
+	if reader == nil {
+		return nil, fmt.Errorf("broker market data not available")
+	}
+	snapshot, err := reader.QueryKLines(ctx, broker.KLineQuery{
+		ReadQuery:  broker.ReadQuery{BrokerID: futuintegration.BrokerID, Market: marketCode},
+		Symbol:     instrumentID,
+		Period:     period,
+		FromTime:   request.FromTime,
+		ToTime:     request.ToTime,
+		BeforeTime: request.BeforeTime,
+		Limit:      int32(limit),
+		Sessions:   mdsrv.CandleSessionStrings(sessions),
+	})
 	if err != nil {
 		if errors.Is(err, mdsrv.ErrSubscriptionRequired) {
-			return nil, mdsrv.NewSubscriptionRequiredError("KLINE", resolvedMarket, resolvedSymbol, normalizedPeriod)
+			return nil, mdsrv.NewSubscriptionRequiredError("KLINE", marketCode, symbol, period)
 		}
 		return nil, err
 	}
-	return mdsrv.CandlesResponse(resp), nil
+	return mdsrv.BrokerKLineCandlesResponse(
+		marketCode, symbol, instrumentID, period, limit, request, sessions, includeSession, snapshot, "bbgo:futu",
+	)
 }
 
-func marketdataProviderCandlesQuery(request mdsrv.HistoricalCandlesQuery) marketCandlesQuery {
-	query := marketCandlesQuery{}
-	if request.Period != "" {
-		query.Period = httpserver.CandlePeriodValue(request.Period)
+func resolveProviderCandleSessions(
+	request mdsrv.HistoricalCandlesQuery,
+	includeSession bool,
+) ([]mdsrv.CandleSession, error) {
+	available := []mdsrv.CandleSession{mdsrv.CandleSessionRegular}
+	if includeSession {
+		available = append(available, mdsrv.CandleSessionExtended, mdsrv.CandleSessionOvernight)
 	}
-	if request.Limit > 0 {
-		query.Limit = httpserver.OptionalIntValue{Value: request.Limit, Set: true, Valid: true}
-	}
-	query.FromTime = marketdataProviderOptionalTime(request.FromTime)
-	query.ToTime = marketdataProviderOptionalTime(request.ToTime)
-	query.Sessions = append([]mdsrv.CandleSession(nil), request.Sessions...)
-	query.SessionsSpecified = request.SessionsSpecified
-	return query
-}
-
-func marketdataProviderOptionalTime(value string) httpserver.OptionalTimeValue {
-	if value == "" {
-		return httpserver.OptionalTimeValue{}
-	}
-	if t, err := time.Parse(time.RFC3339Nano, value); err == nil {
-		return httpserver.OptionalTimeValue{Time: t}
-	}
-	return httpserver.OptionalTimeValue{}
+	return mdsrv.ResolveCandleSessions(request.Sessions, request.SessionsSpecified, available)
 }
 
 // marketdataProvider 闭包式 Provider 实现——每个方法通过闭包委托到 Server。

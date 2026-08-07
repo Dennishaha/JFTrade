@@ -8,6 +8,7 @@ import (
 
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -15,7 +16,12 @@ type marketDataBoundaryBroker struct{ reader broker.MarketDataReader }
 
 func (b marketDataBoundaryBroker) ID() string { return "futu" }
 func (b marketDataBoundaryBroker) Descriptor() broker.Descriptor {
-	return broker.Descriptor{ID: "futu"}
+	return broker.Descriptor{ID: "futu", Capabilities: []broker.MarketCapability{{
+		Market: "US", Features: []broker.FeatureCapability{{
+			ID: broker.FeatureMarketCandles, Markets: []string{"US"},
+			Access: broker.FeatureAccessRead, State: broker.CapabilityAvailable,
+		}},
+	}}}
 }
 func (b marketDataBoundaryBroker) DiscoverAccounts(context.Context) ([]broker.Account, error) {
 	return nil, nil
@@ -25,10 +31,13 @@ func (b marketDataBoundaryBroker) MarketData() broker.MarketDataReader { return 
 
 type marketDataBoundaryReader struct {
 	servercoreFakeBrokerReader
-	info      *broker.SecurityInfoSnapshot
-	infoErr   error
-	search    *broker.SecuritySearchSnapshot
-	searchErr error
+	info       *broker.SecurityInfoSnapshot
+	infoErr    error
+	search     *broker.SecuritySearchSnapshot
+	searchErr  error
+	kline      *broker.KLineSnapshot
+	klineErr   error
+	klineQuery broker.KLineQuery
 }
 
 func (r *marketDataBoundaryReader) QuerySecurityInfo(context.Context, broker.SecurityInfoQuery) (*broker.SecurityInfoSnapshot, error) {
@@ -37,6 +46,14 @@ func (r *marketDataBoundaryReader) QuerySecurityInfo(context.Context, broker.Sec
 
 func (r *marketDataBoundaryReader) QuerySecuritySearch(context.Context, broker.SecuritySearchQuery) (*broker.SecuritySearchSnapshot, error) {
 	return r.search, r.searchErr
+}
+
+func (r *marketDataBoundaryReader) QueryKLines(
+	_ context.Context,
+	query broker.KLineQuery,
+) (*broker.KLineSnapshot, error) {
+	r.klineQuery = query
+	return r.kline, r.klineErr
 }
 
 func newMarketDataProviderBoundaryServer(t *testing.T, reader broker.MarketDataReader) *Server {
@@ -56,6 +73,7 @@ func newMarketDataProviderBoundaryServer(t *testing.T, reader broker.MarketDataR
 		},
 	}
 	server.runtimes.SetBrokerRegistry(registry)
+	server.productFeaturesSvc = productsrv.NewService(registry, "futu", nil, nil)
 	return server
 }
 
@@ -168,17 +186,32 @@ func TestMarketDataProviderSearchFailureAndNormalizationBoundaries(t *testing.T)
 }
 
 func TestMarketDataProviderCandleParsingRemainingBoundaries(t *testing.T) {
-	query := marketdataProviderCandlesQuery(mdsrv.HistoricalCandlesQuery{ToTime: "invalid"})
-	if query.Period != "" || query.Limit.Set || !query.FromTime.IsZero() || !query.ToTime.IsZero() {
-		t.Fatalf("empty/invalid candle query = %#v", query)
+	open, high, low, volume := 100.0, 102.0, 99.0, 1000.0
+	closePrice := 101.5
+	reader := &marketDataBoundaryReader{kline: &broker.KLineSnapshot{
+		Symbol: "US.AAPL", Period: "5m",
+		Pagination: broker.KLinePagination{
+			HasMore: true, NextBefore: "2026-07-15T01:00:00Z",
+		},
+		KLines: []broker.KLineItem{{
+			Time: "2026-07-15T01:00:00Z", Open: &open, High: &high, Low: &low,
+			Close: &closePrice, Volume: &volume,
+		}},
+	}}
+	server := newMarketDataProviderBoundaryServer(t, reader)
+	response, err := server.marketdataProviderHistoricalCandles(context.Background(), mdsrv.HistoricalCandlesQuery{
+		Market: "US", Symbol: "AAPL", Period: "5m", Limit: 1000,
+		BeforeTime: "2026-07-15T01:02:03.123456789Z",
+	})
+	if err != nil {
+		t.Fatalf("default Futu candles: %v", err)
 	}
-	valid := marketdataProviderOptionalTime("2026-07-15T01:02:03.123456789Z")
-	if valid.IsZero() {
-		t.Fatal("nanosecond timestamp was not parsed")
+	if reader.klineQuery.BrokerID != "futu" || reader.klineQuery.Symbol != "US.AAPL" ||
+		reader.klineQuery.BeforeTime != "2026-07-15T01:02:03.123456789Z" || reader.klineQuery.Limit != 1000 {
+		t.Fatalf("broker candle query = %#v", reader.klineQuery)
 	}
-
-	server := newMarketDataTestServerWithQuoteRuntime(t, "127.0.0.1:1")
-	if _, err := server.marketdataProviderHistoricalCandles(context.Background(), mdsrv.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "tick", Limit: 1}); !errors.Is(err, mdsrv.ErrSubscriptionRequired) {
-		t.Fatalf("current K-line without lease error = %v", err)
+	pagination, ok := response["pagination"].(map[string]any)
+	if !ok || pagination["hasMore"] != true || pagination["nextBefore"] != "2026-07-15T01:00:00Z" {
+		t.Fatalf("default Futu pagination = %#v", response["pagination"])
 	}
 }

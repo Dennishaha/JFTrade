@@ -60,6 +60,7 @@ describe("ADKProvidersPanel business flows", () => {
           id: "provider-other",
           displayName: "Claude",
           model: "claude-sonnet",
+          apiProtocol: "responses",
           enabled: false,
           default: false,
           contextWindowTokens: 0,
@@ -80,6 +81,7 @@ describe("ADKProvidersPanel business flows", () => {
     expect(wrapper.text()).toContain("vision · 不支持");
     expect(wrapper.text()).toContain("请求超时：61 秒");
     expect(wrapper.text()).toContain("上下文窗口：未配置");
+    expect(wrapper.text()).toContain("协议：Responses");
 
     const buttons = wrapper.findAll("button");
     await buttons.find((button) => button.text() === "测试")!.trigger("click");
@@ -167,6 +169,52 @@ describe("ADKProvidersPanel business flows", () => {
         .attributes("disabled"),
     ).toBeUndefined();
   });
+
+  it("serializes provider tests and reports both Error and fallback failures", async () => {
+    let rejectFirst: ((reason?: unknown) => void) | undefined;
+    const testProvider = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ ok: boolean; message: string }>((_resolve, reject) => {
+            rejectFirst = reject;
+          }),
+      )
+      .mockRejectedValueOnce("transport unavailable")
+      .mockResolvedValueOnce(undefined);
+    const wrapper = mountProvidersPanel({
+      providers: [
+        buildProvider({ id: "provider-first" }),
+        buildProvider({ id: "provider-second", default: false }),
+      ],
+      testProvider,
+    });
+    const initialButtons = wrapper
+      .findAll("button")
+      .filter((button) => button.text() === "测试");
+
+    await initialButtons[0]!.trigger("click");
+    await initialButtons[1]!.trigger("click");
+    expect(testProvider).toHaveBeenCalledOnce();
+
+    rejectFirst!(new Error("provider rejected request"));
+    await flushPromises();
+    expect(wrapper.text()).toContain("provider rejected request");
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "测试")!
+      .trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("测试失败");
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "测试")!
+      .trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("测试失败");
+  });
 });
 
 function mountProvidersPanel(
@@ -231,6 +279,7 @@ function mountProvidersPanel(
         "v-card-title": singleSlotStub,
         "v-card-text": singleSlotStub,
         "v-chip": { template: "<span><slot /></span>" },
+        "v-alert": singleSlotStub,
         "v-dialog": dialogStub,
         "v-progress-circular": singleSlotStub,
         "v-switch": {
@@ -245,6 +294,7 @@ function mountProvidersPanel(
           template:
             "<label>{{ label }} {{ hint }}<input :value='modelValue' @input=\"$emit('update:modelValue', $event.target.value)\" /></label>",
         },
+        "v-select": singleSlotStub,
       },
     },
   });

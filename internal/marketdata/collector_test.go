@@ -177,6 +177,49 @@ func TestCollectorSkipsDynamicallyUnavailablePushSource(t *testing.T) {
 	waitFor(t, func() bool { return push.newCalls.Load() == 1 })
 }
 
+func TestCollectorPollsFallbackInstrumentsWithoutAddingThemToPushStream(t *testing.T) {
+	cache := NewCache()
+	quotes := &recordingCollectorQuoteSource{
+		ticks: map[string]Tick{
+			"SH.600519": testTick("SH.600519", "1500", TickKindQuote),
+			"US.AAPL":   testTick("US.AAPL", "190", TickKindQuote),
+		},
+		requested: make(chan []string, 1),
+	}
+	push := &filteringCollectorPushSource{
+		allowed:         []string{" us.aapl "},
+		stream:          &collectorStream{connectStarted: make(chan struct{})},
+		streamRequested: make(chan []string, 1),
+	}
+	collector := NewCollector(cache, quotes, push, nil, CollectorOptions{
+		PollInterval: time.Hour, QueryTimeout: time.Second, DemandInterval: time.Hour,
+	})
+	t.Cleanup(func() { jftradeCheckTestError(t, collector.Close()) })
+	collector.SetDemandSources(DemandSourceFunc(func() []string {
+		return []string{"SH.600519", "US.AAPL"}
+	}))
+
+	select {
+	case requested := <-quotes.requested:
+		if strings.Join(requested, ",") != "SH.600519,US.AAPL" {
+			t.Fatalf("poll requested = %#v, want all demand instruments", requested)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("collector did not poll the demand set")
+	}
+	select {
+	case requested := <-push.streamRequested:
+		if strings.Join(requested, ",") != "US.AAPL" {
+			t.Fatalf("push stream requested = %#v, want only realtime instruments", requested)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("collector did not start the realtime push stream")
+	}
+	waitFor(t, func() bool {
+		return cache.Count("SH.600519") == 1 && cache.Count("US.AAPL") == 1
+	})
+}
+
 func TestCollectorUsesDynamicPollingPolicyAndPreventsOverlap(t *testing.T) {
 	quotes := &policyQuoteSource{
 		collectorQuoteSource: collectorQuoteSource{
@@ -329,6 +372,17 @@ type availabilityPushSource struct {
 	newCalls  atomic.Int64
 }
 
+type filteringCollectorPushSource struct {
+	allowed         []string
+	stream          *collectorStream
+	streamRequested chan []string
+}
+
+type recordingCollectorQuoteSource struct {
+	ticks     map[string]Tick
+	requested chan []string
+}
+
 type blockingLifecyclePushSource struct {
 	stream *blockingLifecycleStream
 }
@@ -372,6 +426,19 @@ func (s *availabilityPushSource) PushAvailable() bool {
 func (s *availabilityPushSource) NewStream([]string, PushTickHandler) (PushStream, error) {
 	s.newCalls.Add(1)
 	return nil, errors.New("test stream unavailable")
+}
+
+func (s *filteringCollectorPushSource) FilterPushInstruments([]string) []string {
+	return append([]string(nil), s.allowed...)
+}
+
+func (s *filteringCollectorPushSource) NewStream(instrumentIDs []string, handler PushTickHandler) (PushStream, error) {
+	s.stream.handler = handler
+	select {
+	case s.streamRequested <- append([]string(nil), instrumentIDs...):
+	default:
+	}
+	return s.stream, nil
 }
 
 func (s *collectorPushSource) NewStream(_ []string, handler PushTickHandler) (PushStream, error) {
@@ -469,6 +536,14 @@ func (s *collectorQuoteSource) QueryTickers(ctx context.Context, _ []string) (ma
 	}
 	if s.err != nil {
 		return nil, s.err
+	}
+	return s.ticks, nil
+}
+
+func (s *recordingCollectorQuoteSource) QueryTickers(_ context.Context, instrumentIDs []string) (map[string]Tick, error) {
+	select {
+	case s.requested <- append([]string(nil), instrumentIDs...):
+	default:
 	}
 	return s.ticks, nil
 }

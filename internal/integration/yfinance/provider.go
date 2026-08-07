@@ -234,7 +234,7 @@ func (p *Provider) GetHistoricalCandles(
 	query marketdata.HistoricalCandlesQuery,
 ) (marketdata.CandlesResponse, error) {
 	marketValue, symbol, period := query.Market, query.Symbol, query.Period
-	limit, fromTime, toTime := query.Limit, query.FromTime, query.ToTime
+	limit, fromTime, toTime, beforeTime := query.Limit, query.FromTime, query.ToTime, query.BeforeTime
 	instrument, err := normalizeIdentity(marketValue, symbol, "")
 	if err != nil {
 		return nil, err
@@ -262,13 +262,17 @@ func (p *Provider) GetHistoricalCandles(
 	}
 	limit = normalizeLimit(limit, defaultCandleLimit, maxCandleLimit)
 	response, err := p.client.candles(
-		ctx, instrument.market, instrument.symbol, period, limit, fromTime, toTime,
+		ctx, instrument.market, instrument.symbol, period, limit, fromTime, toTime, beforeTime,
 		marketdata.CandleSessionStrings(sessions),
 	)
 	if err != nil {
 		return nil, err
 	}
-	return convertCandlesForSessions(response, instrument, period, limit, sessions, p.currentTime())
+	converted, err := convertCandlesForSessions(response, instrument, period, limit, sessions, p.currentTime())
+	if err != nil {
+		return nil, err
+	}
+	return validateHistoricalCandleResponse(converted, beforeTime, fromTime, toTime)
 }
 
 func isIntradayCandlePeriod(period string) bool {

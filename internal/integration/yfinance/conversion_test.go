@@ -16,6 +16,10 @@ func number(value string) *json.Number {
 	return &result
 }
 
+func boolPointer(value bool) *bool {
+	return &value
+}
+
 func validSnapshot() remoteSnapshot {
 	return remoteSnapshot{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL",
@@ -32,7 +36,7 @@ func validSnapshot() remoteSnapshot {
 func validRemoteCandles() remoteCandles {
 	return remoteCandles{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Period: "1d",
-		ExtendedHours: true, TotalReturned: 1, Source: "",
+		ExtendedHours: true, TotalReturned: 1, HasMore: boolPointer(false), Source: "",
 		Candles: []remoteCandle{{
 			At: "2026-07-29T13:30:00Z", Open: number("99"), High: number("102"),
 			Low: number("98"), Close: number("101.5"), Volume: number("500"),
@@ -351,11 +355,138 @@ func TestCandleConversionBuildsNeutralResponseAndRejectsDrift(t *testing.T) {
 	}
 }
 
+func TestCandleConversionRejectsInvalidPaginationMetadata(t *testing.T) {
+	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}
+	valid := validRemoteCandles()
+
+	for _, test := range []struct {
+		name   string
+		limit  int
+		mutate func(*remoteCandles)
+	}{
+		{
+			name: "missing has more",
+			mutate: func(value *remoteCandles) {
+				value.HasMore = nil
+			},
+		},
+		{
+			name: "terminal cursor",
+			mutate: func(value *remoteCandles) {
+				value.NextBefore = value.Candles[0].At
+			},
+		},
+		{
+			name: "continued page missing cursor",
+			mutate: func(value *remoteCandles) {
+				value.HasMore = boolPointer(true)
+			},
+		},
+		{
+			name: "continued page cursor mismatches earliest candle",
+			mutate: func(value *remoteCandles) {
+				value.HasMore = boolPointer(true)
+				value.NextBefore = "2026-07-28T13:30:00Z"
+			},
+		},
+		{
+			name:  "terminal page exceeds limit",
+			limit: 1,
+			mutate: func(value *remoteCandles) {
+				value.TotalReturned = 2
+				value.Candles = append(value.Candles, remoteCandle{
+					At: "2026-07-30T13:30:00Z", Open: number("101"), High: number("103"),
+					Low: number("100"), Close: number("102"), Volume: number("600"),
+				})
+			},
+		},
+		{
+			name:  "timestamps are not strictly ordered",
+			limit: 2,
+			mutate: func(value *remoteCandles) {
+				value.TotalReturned = 2
+				value.Candles = append(value.Candles, value.Candles[0])
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			value := valid
+			value.Candles = append([]remoteCandle(nil), valid.Candles...)
+			test.mutate(&value)
+			limit := test.limit
+			if limit == 0 {
+				limit = 10
+			}
+			if _, err := convertCandles(value, expected, "1d", limit, testNow); !errors.Is(err, ErrInvalidResponse) {
+				t.Fatalf("convertCandles error = %v", err)
+			}
+		})
+	}
+
+	continued := valid
+	continued.HasMore = boolPointer(true)
+	continued.NextBefore = continued.Candles[0].At
+	response, err := convertCandles(continued, expected, "1d", 10, testNow)
+	if err != nil {
+		t.Fatalf("valid continued page: %v", err)
+	}
+	if pagination := response["pagination"].(map[string]any); pagination["hasMore"] != true ||
+		pagination["nextBefore"] != continued.Candles[0].At {
+		t.Fatalf("continued pagination = %#v", pagination)
+	}
+
+	terminal, err := convertCandles(valid, expected, "1d", 10, testNow)
+	if err != nil {
+		t.Fatalf("valid terminal page: %v", err)
+	}
+	if _, err := validateHistoricalCandleResponse(terminal, valid.Candles[0].At, "", ""); !errors.Is(err, ErrInvalidResponse) {
+		t.Fatalf("cursor boundary error = %v", err)
+	}
+	if _, err := validateHistoricalCandleResponse(response, "", "2026-07-01T00:00:00Z", ""); !errors.Is(err, ErrInvalidResponse) {
+		t.Fatalf("bounded continuation error = %v", err)
+	}
+}
+
+func TestHistoricalCandleResponseValidationPreservesStrictAndBoundedPages(t *testing.T) {
+	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}
+	terminal, err := convertCandles(validRemoteCandles(), expected, "1d", 10, testNow)
+	if err != nil {
+		t.Fatalf("convertCandles: %v", err)
+	}
+	before := "2026-07-30T13:30:00Z"
+	if got, err := validateHistoricalCandleResponse(terminal, before, "", ""); err != nil || got == nil {
+		t.Fatalf("strict terminal response = %#v, %v", got, err)
+	}
+	if got, err := validateHistoricalCandleResponse(terminal, "", "2026-07-01T00:00:00Z", ""); err != nil || got == nil {
+		t.Fatalf("bounded terminal response = %#v, %v", got, err)
+	}
+	for _, test := range []struct {
+		name     string
+		response marketdata.CandlesResponse
+		before   string
+		from     string
+	}{
+		{name: "invalid before", response: terminal, before: "invalid"},
+		{name: "missing candles", response: marketdata.CandlesResponse{}, before: before},
+		{name: "missing candle timestamp", response: marketdata.CandlesResponse{"candles": []map[string]any{{}}}, before: before},
+		{name: "invalid candle timestamp", response: marketdata.CandlesResponse{"candles": []map[string]any{{"at": "invalid"}}}, before: before},
+		{name: "bounded missing pagination", response: marketdata.CandlesResponse{}, from: "2026-07-01T00:00:00Z"},
+		{name: "bounded malformed has more", response: marketdata.CandlesResponse{"pagination": map[string]any{"hasMore": "false"}}, from: "2026-07-01T00:00:00Z"},
+		{name: "bounded cursor", response: marketdata.CandlesResponse{"pagination": map[string]any{"hasMore": false, "nextBefore": "2026-07-01T00:00:00Z"}}, from: "2026-07-01T00:00:00Z"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := validateHistoricalCandleResponse(test.response, test.before, test.from, ""); !errors.Is(err, ErrInvalidResponse) {
+				t.Fatalf("validation error = %v", err)
+			}
+		})
+	}
+}
+
 func TestCandleConversionUsesEarlyCloseCalendarAndDropsClosedBars(t *testing.T) {
 	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}
 	response := remoteCandles{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Period: "1m",
-		ExtendedHours: true, TotalReturned: 3, Source: sourceID,
+		ExtendedHours: true, TotalReturned: 3, HasMore: boolPointer(false), Source: sourceID,
 		Candles: []remoteCandle{
 			{At: "2026-11-27T17:59:00Z", Open: number("100"), High: number("101"), Low: number("99"), Close: number("100"), Volume: number("10")},
 			{At: "2026-11-27T21:59:00Z", Open: number("101"), High: number("102"), Low: number("100"), Close: number("101"), Volume: number("11")},
@@ -378,7 +509,7 @@ func TestCandleConversionMarksYahooExtendedVolumeUnavailable(t *testing.T) {
 	expected := normalizedInstrument{market: "US", symbol: "BABA", id: "US.BABA"}
 	response := remoteCandles{
 		Market: "US", Symbol: "BABA", InstrumentID: "US.BABA", Period: "1m",
-		ExtendedHours: true, TotalReturned: 3, Source: sourceID,
+		ExtendedHours: true, TotalReturned: 3, HasMore: boolPointer(false), Source: sourceID,
 		Candles: []remoteCandle{
 			{At: "2026-07-31T12:00:00Z", Open: number("119"), High: number("120"), Low: number("118"), Close: number("119.5"), Volume: number("0")},
 			{At: "2026-07-31T14:00:00Z", Open: number("120"), High: number("121"), Low: number("119"), Close: number("120.5"), Volume: number("2500")},

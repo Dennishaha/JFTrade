@@ -2,12 +2,14 @@ package futu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -225,12 +227,13 @@ func (e *Exchange) SubscribeBasicQuote(ctx context.Context, symbol string, push 
 		return err
 	}
 	request := basicQotRequest{canonical: canonical, security: security}
-	return e.withRetryingClient(ctx, func(client *opend.Client) error {
+	err = e.withRetryingClient(ctx, func(client *opend.Client) error {
 		if push {
 			return e.ensureBasicQotPushSubscriptions(ctx, client, []basicQotRequest{request})
 		}
 		return e.ensureBasicQotSubscriptions(ctx, client, []basicQotRequest{request})
 	})
+	return classifyBasicQotSubscriptionError(err)
 }
 
 // UnsubscribeBasicQuote unregisters pushes and releases the Basic quote
@@ -282,4 +285,33 @@ func setBasicQotSubscription(ctx context.Context, client *opend.Client, securiti
 		return fmt.Errorf("opend Qot_Sub retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
 	}
 	return nil
+}
+
+func classifyBasicQotSubscriptionError(err error) error {
+	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, broker.ErrSnapshotRateLimited) || broker.IsSnapshotFallbackEligible(err) {
+		return err
+	}
+	message := strings.ToLower(strings.Join(strings.Fields(err.Error()), " "))
+	if strings.Contains(message, "rate limit") || strings.Contains(message, "frequency") ||
+		strings.Contains(message, "too many request") || strings.Contains(message, "请求过于频繁") {
+		return err
+	}
+	if strings.Contains(message, "entitlement") || strings.Contains(message, "permission") ||
+		strings.Contains(message, "quote right") || strings.Contains(message, "qot right") ||
+		strings.Contains(message, "权限") {
+		return broker.NewSnapshotAvailabilityError(broker.SnapshotAvailabilityEntitlement, err)
+	}
+	if strings.Contains(message, "quota") || strings.Contains(message, "subscription limit") ||
+		strings.Contains(message, "subscribe limit") || strings.Contains(message, "maximum subscription") ||
+		strings.Contains(message, "subscription is full") || strings.Contains(message, "订阅数量") ||
+		strings.Contains(message, "订阅已满") {
+		return broker.NewSnapshotAvailabilityError(broker.SnapshotAvailabilityQuota, err)
+	}
+	if strings.Contains(message, "unknown stock") || strings.Contains(message, "unknown security") ||
+		strings.Contains(message, "未知股票") || strings.Contains(message, "未知证券") ||
+		strings.Contains(message, "not support") || strings.Contains(message, "unsupported") {
+		return broker.NewSnapshotAvailabilityError(broker.SnapshotAvailabilityUnsupported, err)
+	}
+	return err
 }

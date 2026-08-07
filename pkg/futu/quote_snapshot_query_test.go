@@ -77,8 +77,12 @@ func TestExchangeQueryQuoteSnapshotUsesBasicQotPayload(t *testing.T) {
 	if snapshot.PreMarket != nil || snapshot.AfterMarket != nil || snapshot.Overnight != nil {
 		t.Fatalf("unexpected extended blocks: pre=%#v after=%#v overnight=%#v", snapshot.PreMarket, snapshot.AfterMarket, snapshot.Overnight)
 	}
-	if got := server.basicQotCalls.Load(); got != 1 {
-		t.Fatalf("expected one GetBasicQot call, got %d", got)
+	batch, err := ex.QueryQuoteSnapshots(t.Context(), "HK.00700", "hk.00700")
+	if err != nil || len(batch) != 1 || !batch["HK.00700"].Price.Equal(snapshot.Price) {
+		t.Fatalf("QueryQuoteSnapshots = %#v, %v", batch, err)
+	}
+	if got := server.basicQotCalls.Load(); got != 2 {
+		t.Fatalf("expected two GetBasicQot calls, got %d", got)
 	}
 }
 

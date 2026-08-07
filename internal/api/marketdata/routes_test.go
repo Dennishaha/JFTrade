@@ -404,7 +404,7 @@ func TestCandlesRouteRejectsInvalidLimit(t *testing.T) {
 	}
 }
 
-func TestCandlesRouteTickAndLegacyBeforePagination(t *testing.T) {
+func TestCandlesRouteTickAndStrictBeforePagination(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{}
 	router := gin.New()
@@ -431,15 +431,8 @@ func TestCandlesRouteTickAndLegacyBeforePagination(t *testing.T) {
 	if before.Code != http.StatusOK {
 		t.Fatalf("legacy before response status=%d body=%s", before.Code, before.Body.String())
 	}
-	if provider.candlesToTime != "2026-07-18T13:39:59.999999999Z" {
-		t.Fatalf("exclusive legacy toTime = %q", provider.candlesToTime)
-	}
-
-	pagination := defaultCandlePagination(map[string]any{
-		"candles": []map[string]any{{"at": "2026-07-18T13:35:00Z"}},
-	}, 1)
-	if pagination["hasMore"] != true || pagination["nextBefore"] != "2026-07-18T13:35:00Z" {
-		t.Fatalf("default pagination = %#v", pagination)
+	if provider.candlesBeforeTime != "2026-07-18T13:40:00Z" || provider.candlesToTime != "" {
+		t.Fatalf("strict before query = before %q, to %q", provider.candlesBeforeTime, provider.candlesToTime)
 	}
 }
 
@@ -886,6 +879,7 @@ type routeTestProvider struct {
 	candlesLimit             int
 	candlesFromTime          string
 	candlesToTime            string
+	candlesBeforeTime        string
 	candlesSessions          []srv.CandleSession
 	candlesSessionsSpecified bool
 	candlesErr               error
@@ -1025,6 +1019,7 @@ func (p *routeTestProvider) GetHistoricalCandles(_ context.Context, query srv.Hi
 	p.candlesLimit = query.Limit
 	p.candlesFromTime = query.FromTime
 	p.candlesToTime = query.ToTime
+	p.candlesBeforeTime = query.BeforeTime
 	p.candlesSessions = append([]srv.CandleSession(nil), query.Sessions...)
 	p.candlesSessionsSpecified = query.SessionsSpecified
 	return srv.CandlesResponse{"candles": []any{}}, p.candlesErr

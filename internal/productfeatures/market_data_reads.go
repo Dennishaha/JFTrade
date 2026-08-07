@@ -139,10 +139,15 @@ func (s *Service) ReadMarketCandles(
 			meta["session"] = session
 		}
 	}
-	hasMore := result.HasMore != nil && *result.HasMore
-	pagination := map[string]any{"hasMore": hasMore}
-	if result.NextCursor != "" {
-		pagination["nextBefore"] = result.NextCursor
+	pagination, err := validateWorkspaceCandlePagination(
+		result,
+		candles,
+		pageSize,
+		fromTime,
+		toTime,
+	)
+	if err != nil {
+		return nil, err
 	}
 	return map[string]any{
 		"request": map[string]any{
@@ -156,6 +161,74 @@ func (s *Service) ReadMarketCandles(
 		"pagination":    pagination,
 		"meta":          meta,
 	}, nil
+}
+
+func validateWorkspaceCandlePagination(
+	result *broker.FeatureResult,
+	candles []map[string]any,
+	limit int,
+	fromTime string,
+	toTime string,
+) (map[string]any, error) {
+	if result == nil || result.HasMore == nil {
+		return nil, fmt.Errorf("broker candle response is missing hasMore pagination metadata")
+	}
+	firstAt, firstAtText, err := validateWorkspaceCandleSequence(candles)
+	if err != nil {
+		return nil, err
+	}
+	if limit > 0 && len(candles) > limit {
+		return nil, fmt.Errorf("broker candle page exceeds the requested limit")
+	}
+	hasRange := strings.TrimSpace(fromTime) != "" || strings.TrimSpace(toTime) != ""
+	if hasRange {
+		if *result.HasMore {
+			return nil, fmt.Errorf("bounded broker candle query returned hasMore=true")
+		}
+		if strings.TrimSpace(result.NextCursor) != "" {
+			return nil, fmt.Errorf("bounded broker candle query contains nextBefore")
+		}
+		return map[string]any{"hasMore": false}, nil
+	}
+	if !*result.HasMore {
+		if strings.TrimSpace(result.NextCursor) != "" {
+			return nil, fmt.Errorf("terminal broker candle page contains nextBefore")
+		}
+		return map[string]any{"hasMore": false}, nil
+	}
+	if firstAt.IsZero() || strings.TrimSpace(result.NextCursor) == "" {
+		return nil, fmt.Errorf("paged broker candle response is missing nextBefore")
+	}
+	nextBefore, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(result.NextCursor))
+	if err != nil || !nextBefore.Equal(firstAt) {
+		return nil, fmt.Errorf("broker candle nextBefore must equal the earliest candle")
+	}
+	return map[string]any{"hasMore": true, "nextBefore": firstAtText}, nil
+}
+
+func validateWorkspaceCandleSequence(candles []map[string]any) (time.Time, string, error) {
+	var first time.Time
+	var firstText string
+	var previous time.Time
+	for index, candle := range candles {
+		atText, ok := candle["at"].(string)
+		if !ok || strings.TrimSpace(atText) == "" {
+			return time.Time{}, "", fmt.Errorf("broker candle %d is missing its timestamp", index)
+		}
+		at, err := time.Parse(time.RFC3339Nano, atText)
+		if err != nil {
+			return time.Time{}, "", fmt.Errorf("broker candle %d has an invalid timestamp", index)
+		}
+		if !previous.IsZero() && !previous.Before(at) {
+			return time.Time{}, "", fmt.Errorf("broker candles are not strictly ordered")
+		}
+		if first.IsZero() {
+			first = at
+			firstText = atText
+		}
+		previous = at
+	}
+	return first, firstText, nil
 }
 
 // ReadMarketDepth adapts broker-neutral order-book data to the stable

@@ -369,7 +369,7 @@ export type MarketDataSubscriptionEntryDto = Omit<
   MarketDataSubscriptionEntryWire,
   "brokerState" | "lastError" | "subscribedAt" | "unsubscribeEligibleAt"
 > & {
-  brokerState?: "active" | "pending_subscribe" | "pending_unsubscribe" | "retrying" | "unmanaged";
+  brokerState?: "active" | "fallback" | "pending_subscribe" | "pending_unsubscribe" | "retrying" | "unmanaged";
   subscribedAt?: string | null;
   unsubscribeEligibleAt?: string | null;
   lastError?: string | null;

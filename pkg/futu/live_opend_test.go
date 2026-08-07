@@ -248,6 +248,52 @@ func TestLiveOpenDQuoteRightDiscoveryDoesNotSubscribe(t *testing.T) {
 	}
 }
 
+func TestLiveOpenDDelayedStockScreenSnapshotsDoNotSubscribe(t *testing.T) {
+	if os.Getenv("JFTRADE_FUTU_LIVE_TEST") != "1" {
+		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 45*time.Second)
+	defer cancel()
+	exchange := NewExchange(DefaultOpenDAddr)
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
+	if err := exchange.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	client := exchange.Client()
+	before, err := client.GetSubInfo(ctx, false)
+	if err != nil {
+		t.Fatalf("GetSubInfo before delayed snapshots: %v", err)
+	}
+
+	fallback, ok := NewBrokerAdapter(exchange).(broker.SnapshotFallbackSource)
+	if !ok {
+		t.Fatal("Futu adapter does not expose the delayed snapshot fallback")
+	}
+	result, err := fallback.QuerySnapshotFallback(ctx, broker.SecuritySnapshotQuery{
+		Symbols: []string{"SH.600519", "SZ.000858"},
+	})
+	if err != nil || result == nil || len(result.Snapshots) != 2 {
+		t.Fatalf("A-share delayed snapshots = %#v, %v", result, err)
+	}
+	for _, snapshot := range result.Snapshots {
+		if snapshot.Source != "futu:stock-screen-delayed" || snapshot.LastPrice == nil || *snapshot.LastPrice <= 0 ||
+			snapshot.PreviousClose == nil || *snapshot.PreviousClose <= 0 {
+			t.Fatalf("invalid delayed snapshot = %#v", snapshot)
+		}
+		t.Logf("delayed snapshot symbol=%s price=%v previousClose=%v", snapshot.Symbol, *snapshot.LastPrice, *snapshot.PreviousClose)
+	}
+
+	after, err := client.GetSubInfo(ctx, false)
+	if err != nil {
+		t.Fatalf("GetSubInfo after delayed snapshots: %v", err)
+	}
+	if liveCurrentConnectionSubscriptionCount(before) != liveCurrentConnectionSubscriptionCount(after) {
+		t.Fatalf("delayed snapshots changed current-connection subscriptions: before=%v after=%v",
+			before.GetConnSubInfoList(), after.GetConnSubInfoList())
+	}
+}
+
 func TestLiveOpenDResearchCatalogReadsDoNotSubscribe(t *testing.T) {
 	if os.Getenv("JFTRADE_FUTU_LIVE_TEST") != "1" {
 		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")

@@ -131,6 +131,98 @@ func TestWorkspaceMarketDataReadsRejectInvalidInstrument(t *testing.T) {
 	}
 }
 
+func TestWorkspaceCandlePaginationRejectsInvalidMetadata(t *testing.T) {
+	falseValue := false
+	trueValue := true
+	oldest := map[string]any{"at": "2026-07-18T13:35:00Z"}
+	latest := map[string]any{"at": "2026-07-18T13:40:00Z"}
+
+	for _, test := range []struct {
+		name     string
+		result   *broker.FeatureResult
+		candles  []map[string]any
+		limit    int
+		fromTime string
+		toTime   string
+	}{
+		{
+			name:    "missing has more",
+			result:  &broker.FeatureResult{},
+			candles: []map[string]any{oldest},
+			limit:   1,
+		},
+		{
+			name: "terminal cursor",
+			result: &broker.FeatureResult{
+				HasMore: &falseValue, NextCursor: "2026-07-18T13:35:00Z",
+			},
+			candles: []map[string]any{oldest}, limit: 1,
+		},
+		{
+			name:    "continued page missing cursor",
+			result:  &broker.FeatureResult{HasMore: &trueValue},
+			candles: []map[string]any{oldest},
+			limit:   1,
+		},
+		{
+			name: "continued page cursor mismatches earliest candle",
+			result: &broker.FeatureResult{
+				HasMore: &trueValue, NextCursor: "2026-07-18T13:34:00Z",
+			},
+			candles: []map[string]any{oldest}, limit: 1,
+		},
+		{
+			name:    "timestamps are not strictly ordered",
+			result:  &broker.FeatureResult{HasMore: &falseValue},
+			candles: []map[string]any{latest, oldest},
+			limit:   2,
+		},
+		{
+			name:    "page exceeds limit",
+			result:  &broker.FeatureResult{HasMore: &falseValue},
+			candles: []map[string]any{oldest, latest},
+			limit:   1,
+		},
+		{
+			name: "bounded page has more",
+			result: &broker.FeatureResult{
+				HasMore: &trueValue, NextCursor: "2026-07-18T13:35:00Z",
+			},
+			candles: []map[string]any{oldest}, limit: 1, fromTime: "2026-07-01T00:00:00Z",
+		},
+		{
+			name: "bounded page cursor",
+			result: &broker.FeatureResult{
+				HasMore: &falseValue, NextCursor: "2026-07-18T13:35:00Z",
+			},
+			candles: []map[string]any{oldest}, limit: 1, toTime: "2026-07-19T00:00:00Z",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := validateWorkspaceCandlePagination(
+				test.result,
+				test.candles,
+				test.limit,
+				test.fromTime,
+				test.toTime,
+			); err == nil {
+				t.Fatal("validateWorkspaceCandlePagination unexpectedly succeeded")
+			}
+		})
+	}
+
+	pagination, err := validateWorkspaceCandlePagination(
+		&broker.FeatureResult{HasMore: &trueValue, NextCursor: "2026-07-18T13:35:00Z"},
+		[]map[string]any{oldest},
+		1,
+		"",
+		"",
+	)
+	if err != nil || pagination["hasMore"] != true || pagination["nextBefore"] != oldest["at"] {
+		t.Fatalf("valid pagination = %#v, err=%v", pagination, err)
+	}
+}
+
 func TestNormalizeCoreCandleQueryAcceptsSessionParameterShapes(t *testing.T) {
 	for name, value := range map[string]any{
 		"array":  []any{" regular ", "extended"},

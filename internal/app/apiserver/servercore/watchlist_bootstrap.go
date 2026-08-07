@@ -120,9 +120,14 @@ func (s *serverApplication) futuWatchlistBatchSnapshotSource() (broker.BatchSnap
 	if err != nil {
 		return nil, err
 	}
+	source, ok := value.(broker.BatchSnapshotSource)
+	if ok {
+		return source, nil
+	}
 	reader := value.MarketData()
-	if reader == nil {
+	source, ok = reader.(broker.BatchSnapshotSource)
+	if !ok {
 		return nil, fmt.Errorf("%w: Futu SecuritySnapshot is unavailable", watchlist.ErrUnavailable)
 	}
-	return reader, nil
+	return source, nil
 }

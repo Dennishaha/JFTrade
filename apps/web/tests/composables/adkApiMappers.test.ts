@@ -128,6 +128,31 @@ describe("ADK API wire mappers", () => {
     ]);
   });
 
+  it("accepts both Provider API protocols while retaining a strict provider contract", () => {
+    const provider = {
+      id: "provider-1",
+      displayName: "Local provider",
+      baseUrl: "http://127.0.0.1:11434",
+      model: "model-a",
+      requestTimeoutMs: 30_000,
+      enabled: true,
+      default: true,
+      hasApiKey: false,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    expect(requireADKProvider({ ...provider, apiProtocol: "chat_completions" })).toMatchObject({
+      apiProtocol: "chat_completions",
+    });
+    expect(requireADKProvider({ ...provider, apiProtocol: "responses" })).toMatchObject({
+      apiProtocol: "responses",
+    });
+    expect(() =>
+      requireADKProvider({ ...provider, apiProtocol: "unsupported" }),
+    ).toThrow("ADK API response is invalid: provider");
+  });
+
   it("rejects malformed required and optional agent template fields", () => {
     const template = {
       id: "jftrade-default",
@@ -143,11 +168,19 @@ describe("ADK API wire mappers", () => {
       { ...template, name: 42 },
       { ...template, permissionMode: "unrestricted" },
       { ...template, tools: null },
+      null,
     ]) {
       expect(() => requireADKAgentTemplates([malformed])).toThrow(
         "ADK API response is invalid: agent templates",
       );
     }
+
+    expect(() => requireADKAgentTemplates(template)).toThrow(
+      "ADK API response is invalid: agent templates",
+    );
+    expect(() => requireADKToolDescriptors({})).toThrow(
+      "ADK API response is invalid: tools",
+    );
   });
 
   it("validates persisted provider, agent, tool, skill, task, and memory records", () => {

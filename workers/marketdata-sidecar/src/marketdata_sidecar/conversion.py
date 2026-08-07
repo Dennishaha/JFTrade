@@ -132,6 +132,7 @@ def convert_history(
     limit: int,
     from_time: datetime | None = None,
     to_time: datetime | None = None,
+    before_time: datetime | None = None,
     exchange_timezone: str = US_EASTERN,
     sessions: tuple[str, ...] | None = None,
     period: str | None = None,
@@ -152,6 +153,8 @@ def convert_history(
         if at is None or (from_time is not None and at < from_time):
             continue
         if to_time is not None and at > to_time:
+            continue
+        if before_time is not None and at >= before_time:
             continue
         candle_session = "regular"
         if period in {"1m", "5m", "15m", "30m", "1h"}:

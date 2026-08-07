@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 import threading
 import time
 from typing import Any
@@ -485,6 +485,65 @@ async def test_sina_daily_history_keeps_share_volume_and_aggregates_periods(
         }
     ]
     assert all(name != "stock_us_hist" for name, _kwargs in calls)
+
+
+@pytest.mark.asyncio
+async def test_akshare_candle_cursor_pages_are_strict_and_reach_the_history_boundary(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    today = datetime.now(timezone.utc).date()
+    frame = pd.DataFrame(
+        [
+            {
+                "date": today - timedelta(days=days),
+                "open": str(200 + index),
+                "high": str(201 + index),
+                "low": str(199 + index),
+                "close": str(200.5 + index),
+                "volume": str(1000 + index),
+            }
+            for index, days in enumerate((5, 4, 3, 2))
+        ]
+    )
+
+    def fake_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
+        if function_name == "stock_us_daily":
+            assert kwargs == {"symbol": "AAPL", "adjust": ""}
+            return frame
+        return _standard_catalog_call(function_name, **kwargs)
+
+    monkeypatch.setattr(akshare_upstream, "call", fake_call)
+
+    first = await client.get(
+        "/providers/akshare/candles/US/AAPL",
+        params={"period": "1d", "limit": 2},
+    )
+    assert first.status_code == 200
+    first_body = first.json()
+    first_times = [item["at"] for item in first_body["candles"]]
+    assert first_body["has_more"] is True
+    assert first_body["next_before"] == first_times[0]
+
+    second = await client.get(
+        "/providers/akshare/candles/US/AAPL",
+        params={"period": "1d", "limit": 2, "before": first_body["next_before"]},
+    )
+    assert second.status_code == 200
+    second_body = second.json()
+    second_times = [item["at"] for item in second_body["candles"]]
+    assert second_body["has_more"] is False
+    assert second_body["next_before"] is None
+    assert set(first_times).isdisjoint(second_times)
+    assert max(second_times) < min(first_times)
+
+    terminal = await client.get(
+        "/providers/akshare/candles/US/AAPL",
+        params={"period": "1d", "limit": 2, "before": second_times[0]},
+    )
+    assert terminal.status_code == 200
+    assert terminal.json()["candles"] == []
+    assert terminal.json()["has_more"] is False
 
 
 @pytest.mark.asyncio

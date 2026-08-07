@@ -555,9 +555,9 @@ func normalizeCoreCandleQuery(
 	if limit < 1 {
 		limit = 500
 	}
-	if limit > 500 {
+	if limit > 1000 {
 		return broker.KLineQuery{}, "", fmt.Errorf(
-			"%w: limit must be between 1 and 500",
+			"%w: limit must be between 1 and 1000",
 			ErrInvalidQuery,
 		)
 	}

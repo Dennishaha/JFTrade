@@ -84,8 +84,8 @@ func (r *futuMarketDataReader) QueryKLines(ctx context.Context, query broker.KLi
 	if limit < 1 {
 		limit = 500
 	}
-	if limit > 500 {
-		limit = 500
+	if limit > 1000 {
+		limit = 1000
 	}
 	location := time.UTC
 	if profile, ok := market.ProfileForSymbol(query.Symbol); ok && profile.Location != nil {
@@ -125,14 +125,15 @@ func (r *futuMarketDataReader) QueryKLines(ctx context.Context, query broker.KLi
 				return nil, fmt.Errorf("futu: invalid toTime: %w", err)
 			}
 		}
-		if !beginAt.Before(endAt) {
-			return nil, fmt.Errorf("futu: fromTime must be before toTime")
+		if beginAt.After(endAt) {
+			return nil, fmt.Errorf("futu: fromTime must be earlier than or equal to toTime")
 		}
-		klines, err = r.exchange.QueryAllKLinesForSessions(
-			ctx, query.Symbol, interval, beginAt.In(location), endAt.In(location),
-			qotcommonpb.RehabType_RehabType_Forward, requestedSessions,
+		klines, err = r.exchange.QueryKLinesForSessions(
+			ctx, query.Symbol, interval, bbgotypes.KLineQueryOptions{
+				StartTime: &beginAt, EndTime: &endAt, Limit: limit,
+			}, requestedSessions,
 		)
-		klines = normalizeBrokerKLinePage(klines, beginAt, endAt, limit, false)
+		klines = normalizeBrokerKLineRange(klines, beginAt, endAt, limit)
 	} else {
 		klines, hasMore, err = r.queryAdaptiveKLinePage(
 			ctx, query.Symbol, interval, lowerBound, time.Now().In(location), limit, requestedSessions,
@@ -318,9 +319,8 @@ func (r *futuMarketDataReader) queryAdaptiveKLinePage(
 		if reachedLowerBound {
 			beginAt = lowerBound
 		}
-		requestEnd := endExclusive.Add(-time.Nanosecond)
 		klines, err := r.exchange.QueryAllKLinesForSessions(
-			ctx, symbol, interval, beginAt, requestEnd,
+			ctx, symbol, interval, beginAt, endExclusive,
 			qotcommonpb.RehabType_RehabType_Forward, requested,
 		)
 		if err != nil {
@@ -341,6 +341,33 @@ func (r *futuMarketDataReader) queryAdaptiveKLinePage(
 			lookback *= 2
 		}
 	}
+}
+
+func normalizeBrokerKLineRange(
+	klines []bbgotypes.KLine,
+	beginInclusive time.Time,
+	endInclusive time.Time,
+	limit int,
+) []bbgotypes.KLine {
+	byStart := make(map[int64]bbgotypes.KLine, len(klines))
+	for _, kline := range klines {
+		at := kline.StartTime.Time().UTC()
+		if at.Before(beginInclusive.UTC()) || at.After(endInclusive.UTC()) {
+			continue
+		}
+		byStart[at.UnixNano()] = kline
+	}
+	result := make([]bbgotypes.KLine, 0, len(byStart))
+	for _, kline := range byStart {
+		result = append(result, kline)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].StartTime.Time().Before(result[j].StartTime.Time())
+	})
+	if limit > 0 && len(result) > limit {
+		return result[:limit]
+	}
+	return result
 }
 
 func normalizeBrokerKLinePage(

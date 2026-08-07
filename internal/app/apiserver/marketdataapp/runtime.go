@@ -84,7 +84,9 @@ var (
 	_ marketdata.QuotePollingPolicySource    = (*Runtime)(nil)
 	_ marketdata.PushSource                  = (*Runtime)(nil)
 	_ marketdata.PushAvailability            = (*Runtime)(nil)
+	_ marketdata.PushInstrumentFilter        = (*Runtime)(nil)
 	_ marketdata.SubscriptionReconciler      = (*Runtime)(nil)
+	_ marketdata.SubscriptionFallbackState   = (*Runtime)(nil)
 	_ marketdata.InactiveSubscriptionCleaner = (*Runtime)(nil)
 )
 
@@ -511,6 +513,16 @@ func (r *Runtime) PushAvailable() bool {
 	return r.snapshot().push != nil
 }
 
+// FilterPushInstruments forwards per-instrument push availability from the
+// active provider without rebuilding Collector during a provider switch.
+func (r *Runtime) FilterPushInstruments(instrumentIDs []string) []string {
+	source := r.snapshot().push
+	if filter, ok := source.(marketdata.PushInstrumentFilter); ok {
+		return filter.FilterPushInstruments(instrumentIDs)
+	}
+	return append([]string(nil), instrumentIDs...)
+}
+
 func (r *Runtime) NewStream(instrumentIDs []string, handler marketdata.PushTickHandler) (marketdata.PushStream, error) {
 	source := r.snapshot().push
 	if source == nil {
@@ -554,4 +566,13 @@ func (r *Runtime) SubscriptionState() map[string]any {
 		return nil
 	}
 	return reconciler.SubscriptionState()
+}
+
+// HasFallbackSubscriptions forwards the active provider's per-instrument
+// fallback state so provider health can remain honest in mixed push/fallback
+// demand sets.
+func (r *Runtime) HasFallbackSubscriptions() bool {
+	reconciler := r.snapshot().subscriptions
+	fallbacks, ok := reconciler.(marketdata.SubscriptionFallbackState)
+	return ok && fallbacks.HasFallbackSubscriptions()
 }

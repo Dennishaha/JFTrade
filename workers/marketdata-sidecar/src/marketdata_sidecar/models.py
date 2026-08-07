@@ -172,4 +172,6 @@ class CandlesResponse(WireModel):
     extended_hours: bool
     candles: list[Candle]
     total_returned: int = Field(ge=0)
+    has_more: bool
+    next_before: str | None = None
     source: str

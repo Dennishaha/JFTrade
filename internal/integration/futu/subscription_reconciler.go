@@ -11,6 +11,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/marketdata"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	pkgfutu "github.com/jftrade/jftrade-main/pkg/futu"
 )
 
@@ -18,6 +19,7 @@ const (
 	minimumFutuSubscriptionAge = time.Minute
 	subscriptionQuotaRefresh   = time.Minute
 	maxGenerationReconcileRuns = 3
+	fallbackSubscriptionRetry  = 15 * time.Second
 )
 
 var subscriptionRetryDelays = [...]time.Duration{
@@ -51,6 +53,7 @@ type physicalSubscriptionRecord struct {
 	retryAt      time.Time
 	failures     int
 	lastError    string
+	fallback     bool
 }
 
 type marketDataSubscriptionReconciler struct {
@@ -169,6 +172,7 @@ func (r *marketDataSubscriptionReconciler) subscribeDesiredLocked(
 			record.retryAt = time.Time{}
 			record.failures = 0
 			record.lastError = ""
+			record.fallback = false
 			continue
 		}
 		if record == nil {
@@ -179,6 +183,10 @@ func (r *marketDataSubscriptionReconciler) subscribeDesiredLocked(
 			continue
 		}
 		if err := subscribePhysical(ctx, exchange, wanted); err != nil {
+			if wanted.kind == "BASIC" && broker.IsSnapshotFallbackEligible(err) {
+				recordSubscriptionFallback(record, r.now().UTC(), err)
+				continue
+			}
 			recordSubscriptionFailure(record, r.now().UTC(), err)
 			reconcileErrors = append(reconcileErrors, fmt.Errorf("subscribe %s: %w", key, err))
 			continue
@@ -190,6 +198,7 @@ func (r *marketDataSubscriptionReconciler) subscribeDesiredLocked(
 		record.retryAt = time.Time{}
 		record.failures = 0
 		record.lastError = ""
+		record.fallback = false
 	}
 	return reconcileErrors
 }
@@ -238,12 +247,16 @@ func (r *marketDataSubscriptionReconciler) SubscriptionState() map[string]any {
 	entries := make([]map[string]any, 0, len(r.records))
 	pending := 0
 	active := 0
+	fallbacks := 0
 	for _, key := range sortedRecordKeys(r.records) {
 		record := r.records[key]
 		state := "retrying"
 		var subscribedAt any
 		var eligibleAt any
-		if !record.subscribedAt.IsZero() && !connectionChanged {
+		if record.fallback && !connectionChanged {
+			fallbacks++
+			state = "fallback"
+		} else if !record.subscribedAt.IsZero() && !connectionChanged {
 			active++
 			subscribedAt = record.subscribedAt.Format(time.RFC3339Nano)
 			eligible := record.subscribedAt.Add(minimumFutuSubscriptionAge)
@@ -270,12 +283,55 @@ func (r *marketDataSubscriptionReconciler) SubscriptionState() map[string]any {
 		entries = append(entries, entry)
 	}
 	return map[string]any{
-		"desiredCount": r.desiredCount, "ownActiveCount": active, "pendingReleaseCount": pending,
+		"desiredCount": r.desiredCount, "ownActiveCount": active, "fallbackCount": fallbacks, "pendingReleaseCount": pending,
 		"connectionGeneration": r.connectionGeneration, "observedConnectionGeneration": observedGeneration,
 		"totalUsedQuota": r.quota.TotalUsed, "remainQuota": r.quota.Remaining, "ownUsedQuota": r.quota.OwnUsed,
 		"checkedAt": nullableTime(r.quotaCheckedAt), "lastError": nullableString(r.quotaLastError),
 		"reconciledAt": nullableTime(r.lastReconciledAt), "entries": entries,
 	}
+}
+
+// IsFallbackInstrument reports whether the current OpenD generation could not
+// establish a BasicQot subscription for this instrument and is therefore using
+// the delayed StockScreen path instead.
+func (r *marketDataSubscriptionReconciler) IsFallbackInstrument(instrumentID string) bool {
+	if r == nil {
+		return false
+	}
+	instrumentID, _, _, ok := marketdata.NormalizeInstrumentID(instrumentID)
+	if !ok {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.connectionChangedLocked() {
+		return false
+	}
+	record := r.records["BASIC:"+instrumentID]
+	return record != nil && record.fallback
+}
+
+// HasFallbackSubscriptions reports whether the current connection has at least
+// one desired Basic quote being served by the delayed fallback source.
+func (r *marketDataSubscriptionReconciler) HasFallbackSubscriptions() bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.connectionChangedLocked() {
+		return false
+	}
+	for _, record := range r.records {
+		if record.ref.kind == "BASIC" && record.fallback {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *marketDataSubscriptionReconciler) connectionChangedLocked() bool {
+	return r.current != nil && r.current.ConnectionGeneration() != r.connectionGeneration
 }
 
 func (r *marketDataSubscriptionReconciler) ResetPhysicalSubscriptions() {
@@ -376,6 +432,15 @@ func recordSubscriptionFailure(record *physicalSubscriptionRecord, now time.Time
 	record.failures++
 	record.retryAt = now.Add(delay)
 	record.lastError = err.Error()
+	record.fallback = false
+}
+
+func recordSubscriptionFallback(record *physicalSubscriptionRecord, now time.Time, err error) {
+	record.subscribedAt = time.Time{}
+	record.retryAt = now.Add(fallbackSubscriptionRetry)
+	record.failures = 0
+	record.lastError = err.Error()
+	record.fallback = true
 }
 
 func subscriptionRetryDelay(failures int) time.Duration {

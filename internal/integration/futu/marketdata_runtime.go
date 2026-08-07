@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -444,26 +445,145 @@ func (r *MarketDataRuntime) SubscriptionState() map[string]any {
 	return r.subscriptionReconciler.SubscriptionState()
 }
 
+// HasFallbackSubscriptions exposes the current BasicQot fallback state to the
+// broker-neutral market-data service. It is false for all non-Futu runtimes and
+// after an OpenD connection generation changes.
+func (r *MarketDataRuntime) HasFallbackSubscriptions() bool {
+	return r != nil && r.subscriptionReconciler != nil && r.subscriptionReconciler.HasFallbackSubscriptions()
+}
+
+// FilterPushInstruments removes only symbols whose BasicQot subscriptions are
+// currently served by the delayed StockScreen fallback. Other symbols continue
+// to share the same OpenD push stream.
+func (r *MarketDataRuntime) FilterPushInstruments(instrumentIDs []string) []string {
+	if r == nil || r.subscriptionReconciler == nil {
+		return append([]string(nil), instrumentIDs...)
+	}
+	result := make([]string, 0, len(instrumentIDs))
+	for _, raw := range instrumentIDs {
+		instrumentID := strings.ToUpper(strings.TrimSpace(raw))
+		if instrumentID == "" || r.subscriptionReconciler.IsFallbackInstrument(instrumentID) {
+			continue
+		}
+		result = append(result, instrumentID)
+	}
+	return result
+}
+
 func (r *MarketDataRuntime) QueryTickers(ctx context.Context, instrumentIDs []string) (map[string]marketdata.Tick, error) {
+	return r.queryTickers(ctx, instrumentIDs, "TICK")
+}
+
+func (r *MarketDataRuntime) queryTickers(
+	ctx context.Context,
+	instrumentIDs []string,
+	channel string,
+) (map[string]marketdata.Tick, error) {
 	exchange := r.Ensure()
 	if exchange == nil {
 		return nil, fmt.Errorf("futu marketdata runtime unavailable")
 	}
-	snapshots, err := exchange.QueryQuoteSnapshots(ctx, instrumentIDs...)
-	if err != nil {
-		return nil, translateSubscriptionRequiredError(err, "TICK", "")
+	realtimeIDs, fallbackIDs := r.partitionTickerInstruments(instrumentIDs)
+	result := make(map[string]marketdata.Tick, len(instrumentIDs))
+	if len(realtimeIDs) > 0 {
+		snapshots, err := exchange.QueryQuoteSnapshots(ctx, realtimeIDs...)
+		if err != nil {
+			return nil, translateSubscriptionRequiredError(err, channel, "")
+		}
+		for instrumentID, snapshot := range snapshots {
+			if tick := tickFromSnapshot(instrumentID, &snapshot, r.now().UTC()); tick != nil {
+				result[instrumentID] = *tick
+			}
+		}
 	}
-	result := make(map[string]marketdata.Tick, len(snapshots))
-	for instrumentID, snapshot := range snapshots {
-		if tick := tickFromSnapshot(instrumentID, &snapshot, r.now().UTC()); tick != nil {
-			result[instrumentID] = *tick
+	if len(fallbackIDs) > 0 {
+		fallbackTicks, err := r.queryFallbackTickers(ctx, fallbackIDs)
+		if err != nil {
+			// A delayed snapshot failure must not discard quote samples already
+			// read from the native BasicQot path for other instruments.
+			if len(result) > 0 {
+				return result, nil
+			}
+			return nil, err
+		}
+		for instrumentID, tick := range fallbackTicks {
+			result[instrumentID] = tick
 		}
 	}
 	return result, nil
 }
 
+func (r *MarketDataRuntime) partitionTickerInstruments(instrumentIDs []string) ([]string, []string) {
+	realtime := make([]string, 0, len(instrumentIDs))
+	fallback := make([]string, 0, len(instrumentIDs))
+	for _, raw := range instrumentIDs {
+		instrumentID := strings.ToUpper(strings.TrimSpace(raw))
+		if r != nil && r.subscriptionReconciler != nil && r.subscriptionReconciler.IsFallbackInstrument(instrumentID) {
+			fallback = append(fallback, instrumentID)
+			continue
+		}
+		realtime = append(realtime, instrumentID)
+	}
+	return realtime, fallback
+}
+
+func (r *MarketDataRuntime) queryFallbackTickers(
+	ctx context.Context,
+	instrumentIDs []string,
+) (map[string]marketdata.Tick, error) {
+	active := r.Broker()
+	fallback, ok := active.(broker.SnapshotFallbackSource)
+	if !ok {
+		return nil, fmt.Errorf("futu delayed snapshot fallback is unavailable")
+	}
+	result, err := fallback.QuerySnapshotFallback(ctx, broker.SecuritySnapshotQuery{Symbols: instrumentIDs})
+	if err != nil {
+		return nil, err
+	}
+	return fallbackTickerMap(instrumentIDs, result, r.now().UTC()), nil
+}
+
+func fallbackTickerMap(
+	instrumentIDs []string,
+	result *broker.SecuritySnapshotResult,
+	fallbackObservedAt time.Time,
+) map[string]marketdata.Tick {
+	requested := make(map[string]struct{}, len(instrumentIDs))
+	for _, raw := range instrumentIDs {
+		instrumentID, _, _, ok := marketdata.NormalizeInstrumentID(raw)
+		if ok {
+			requested[instrumentID] = struct{}{}
+		}
+	}
+	ticks := make(map[string]marketdata.Tick, len(requested))
+	if result == nil {
+		return ticks
+	}
+	for _, item := range result.Snapshots {
+		instrumentID, _, _, ok := marketdata.NormalizeInstrumentID(item.Symbol)
+		if !ok {
+			continue
+		}
+		if _, wanted := requested[instrumentID]; !wanted {
+			continue
+		}
+		if tick := tickFromFallbackSnapshot(instrumentID, item, fallbackObservedAt); tick != nil {
+			ticks[instrumentID] = *tick
+		}
+	}
+	return ticks
+}
+
 func (r *MarketDataRuntime) QueryTicker(ctx context.Context, instrumentID string) (*marketdata.Tick, error) {
-	ticks, err := r.QueryTickers(ctx, []string{instrumentID})
+	return r.queryTicker(ctx, instrumentID, "TICK")
+}
+
+func (r *MarketDataRuntime) queryTicker(
+	ctx context.Context,
+	instrumentID string,
+	channel string,
+) (*marketdata.Tick, error) {
+	ticks, err := r.queryTickers(ctx, []string{instrumentID}, channel)
 	if err != nil {
 		return nil, err
 	}
@@ -475,15 +595,7 @@ func (r *MarketDataRuntime) QueryTicker(ctx context.Context, instrumentID string
 }
 
 func (r *MarketDataRuntime) QuerySnapshot(ctx context.Context, instrumentID string) (*marketdata.Tick, error) {
-	exchange := r.Ensure()
-	if exchange == nil {
-		return nil, fmt.Errorf("futu marketdata runtime unavailable")
-	}
-	snapshot, err := exchange.QueryQuoteSnapshot(ctx, instrumentID)
-	if err != nil {
-		return nil, translateSubscriptionRequiredError(err, "SNAPSHOT", "")
-	}
-	return tickFromSnapshot(instrumentID, snapshot, r.now().UTC()), nil
+	return r.queryTicker(ctx, instrumentID, "SNAPSHOT")
 }
 
 func translateSubscriptionRequiredError(err error, channel, interval string) error {
@@ -629,6 +741,113 @@ func tickFromSnapshot(instrumentID string, snapshot *pkgfutu.QuoteSnapshot, obse
 		PreMarket: preMarket, AfterMarket: afterMarket,
 		Overnight: overnight, Kind: marketdata.TickKindQuote,
 	}
+}
+
+func tickFromFallbackSnapshot(
+	instrumentID string,
+	snapshot broker.SecuritySnapshotItem,
+	fallbackObservedAt time.Time,
+) *marketdata.Tick {
+	if !usableFallbackPrice(snapshot.LastPrice) {
+		return nil
+	}
+	instrumentID, resolvedMarket, symbol, ok := marketdata.NormalizeInstrumentID(instrumentID)
+	if !ok {
+		return nil
+	}
+	observedAt := snapshot.ObservedAt.UTC()
+	if observedAt.IsZero() {
+		observedAt = fallbackObservedAt.UTC()
+	}
+	price := decimal.NewFromFloat(*snapshot.LastPrice)
+	bid := fallbackBidOrAsk(snapshot.BidPrice, price)
+	ask := fallbackBidOrAsk(snapshot.AskPrice, price)
+	session := fallbackSnapshotSession(snapshot.Session, instrumentID, observedAt)
+	source := strings.TrimSpace(snapshot.Source)
+	if source == "" {
+		source = "futu:stock-screen"
+	}
+	return &marketdata.Tick{
+		InstrumentID:       instrumentID,
+		Market:             resolvedMarket,
+		Symbol:             symbol,
+		Price:              price,
+		Bid:                bid,
+		Ask:                ask,
+		OpenPrice:          fallbackOptionalDecimal(snapshot.OpenPrice),
+		HighPrice:          fallbackOptionalDecimal(snapshot.HighPrice),
+		LowPrice:           fallbackOptionalDecimal(snapshot.LowPrice),
+		PreviousClosePrice: fallbackOptionalDecimal(snapshot.PreviousClose),
+		Volume:             fallbackNonNegativeDecimal(snapshot.Volume),
+		Turnover:           fallbackNonNegativeDecimal(snapshot.Turnover),
+		Availability: marketdata.QuoteFieldAvailability{
+			Authoritative: true,
+			Bid:           usableFallbackPrice(snapshot.BidPrice),
+			Ask:           usableFallbackPrice(snapshot.AskPrice),
+			Volume:        usableFallbackNumber(snapshot.Volume),
+			Turnover:      usableFallbackNumber(snapshot.Turnover),
+		},
+		QuoteAt:       observedAt.Format(time.RFC3339Nano),
+		ObservedAt:    observedAt.Format(time.RFC3339Nano),
+		Source:        source,
+		Session:       string(session),
+		ExtendedHours: market.IsExtendedSession(session),
+		Kind:          marketdata.TickKindQuote,
+	}
+}
+
+func fallbackSnapshotSession(value *string, instrumentID string, observedAt time.Time) market.Session {
+	switch strings.ToLower(strings.TrimSpace(stringValue(value))) {
+	case string(market.SessionClosed):
+		return market.SessionClosed
+	case string(market.SessionPre):
+		return market.SessionPre
+	case string(market.SessionRegular):
+		return market.SessionRegular
+	case string(market.SessionAfter):
+		return market.SessionAfter
+	case string(market.SessionOvernight):
+		return market.SessionOvernight
+	default:
+		return market.ClassifySession(instrumentID, observedAt)
+	}
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func usableFallbackPrice(value *float64) bool {
+	return value != nil && usableFallbackNumber(value) && *value > 0
+}
+
+func usableFallbackNumber(value *float64) bool {
+	return value != nil && !math.IsNaN(*value) && !math.IsInf(*value, 0)
+}
+
+func fallbackBidOrAsk(value *float64, fallback decimal.Decimal) decimal.Decimal {
+	if usableFallbackPrice(value) {
+		return decimal.NewFromFloat(*value)
+	}
+	return fallback
+}
+
+func fallbackOptionalDecimal(value *float64) *decimal.Decimal {
+	if !usableFallbackNumber(value) {
+		return nil
+	}
+	result := decimal.NewFromFloat(*value)
+	return &result
+}
+
+func fallbackNonNegativeDecimal(value *float64) decimal.Decimal {
+	if !usableFallbackNumber(value) || *value < 0 {
+		return decimal.Zero
+	}
+	return decimal.NewFromFloat(*value)
 }
 
 func attachFutuSessionWindow(

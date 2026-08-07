@@ -4,9 +4,9 @@
   "exceptions": {
     "apps/web/src/components/research/stockScreenModel.ts": 909,
     "apps/web/src/components/research/useStockScreenerController.ts": 1248,
-    "apps/web/src/composables/adk/adkApiMappers.ts": 947,
+    "apps/web/src/composables/adk/adkApiMappers.ts": 971,
     "apps/web/src/composables/adk/useADKChatComposer.ts": 824,
-    "apps/web/src/composables/adk/useADKPageChatState.ts": 1661,
+    "apps/web/src/composables/adk/useADKPageChatState.ts": 1708,
     "apps/web/src/composables/backtest/useBacktestPage.ts": 1965,
     "apps/web/src/composables/backtest/useBacktestRuns.ts": 986,
     "apps/web/src/composables/research/usePredictionResearch.ts": 802,

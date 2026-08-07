@@ -278,19 +278,16 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 				)
 			}
 		} else {
-			defaultToTime := query.toTime
-			if query.beforeTime != "" {
-				beforeAt, _ := time.Parse(time.RFC3339Nano, query.beforeTime)
-				defaultToTime = beforeAt.Add(-time.Nanosecond).Format(time.RFC3339Nano)
-			}
 			result, err = svc.GetCandles(c.Request.Context(), srv.HistoricalCandlesQuery{
 				Market: uri.Market, Symbol: uri.Symbol, Period: query.period,
-				Limit: query.limit, FromTime: query.fromTime, ToTime: defaultToTime,
+				Limit: query.limit, FromTime: query.fromTime, ToTime: query.toTime,
+				BeforeTime: query.beforeTime,
 				Sessions: query.sessions, SessionsSpecified: query.sessionsSpecified,
 			})
-			if err == nil {
-				result["pagination"] = defaultCandlePagination(result, query.limit)
-			}
+		}
+		if err == nil && (query.fromTime != "" || query.toTime != "") {
+			// Explicit ranges cannot be continued with a bare before cursor.
+			result["pagination"] = map[string]any{"hasMore": false}
 		}
 		if err != nil {
 			writeBrokerMarketDataReadError(
@@ -382,18 +379,6 @@ func parseCandleRouteQuery(c *gin.Context) (candleRouteQuery, error) {
 		return candleRouteQuery{}, errors.New("tick candles do not support historical pagination")
 	}
 	return query, nil
-}
-
-func defaultCandlePagination(result map[string]any, limit int) map[string]any {
-	candles, _ := result["candles"].([]map[string]any)
-	hasMore := limit > 0 && len(candles) >= limit
-	pagination := map[string]any{"hasMore": hasMore}
-	if hasMore && len(candles) > 0 {
-		if at, ok := candles[0]["at"].(string); ok && at != "" {
-			pagination["nextBefore"] = at
-		}
-	}
-	return pagination
 }
 
 func writeMarketDataReadError(c *gin.Context, fallbackCode string, err error) {

@@ -306,7 +306,7 @@ func snapshotFixture(marketValue, symbol, price string) string {
 
 func candlesFixture() string {
 	return `{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL","period":"1d",` +
-		`"extended_hours":false,"total_returned":2,"source":"akshare:eastmoney","candles":[` +
+		`"extended_hours":false,"total_returned":2,"has_more":false,"next_before":null,"source":"akshare:eastmoney","candles":[` +
 		`{"at":"2026-08-01T04:00:00Z","open":"185.1","high":"188.2","low":"184.5","close":"187.8","volume":"1000"},` +
 		`{"at":"2026-08-02T04:00:00Z","open":"187.8","high":"190.1","low":"186.9","close":"189.25","volume":null}]}`
 }

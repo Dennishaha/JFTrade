@@ -19,6 +19,9 @@ type futuAdapter struct {
 	exchange  *Exchange
 	watchlist *futuWatchlistReader
 
+	snapshotFallbackMu sync.Mutex
+	snapshotFallback   *stockScreenSnapshotCoordinator
+
 	capabilityMu                sync.RWMutex
 	lastConnectStatus           *futuConnectCapabilityStatus
 	lastQuoteRights             *futuQuoteCapabilityRights
@@ -43,6 +46,7 @@ func NewBrokerAdapter(exchange *Exchange) broker.Broker {
 	adapter := &futuAdapter{
 		exchange:                  exchange,
 		watchlist:                 newFutuWatchlistReader(exchange),
+		snapshotFallback:          newStockScreenSnapshotCoordinator(),
 		predictionStreamClients:   make(map[*opend.Client]struct{}),
 		predictionStreamListeners: make(map[uint64]func(broker.PredictionMarketUpdate)),
 		predictionSubscriptions:   make(map[string]broker.PredictionSubscription),

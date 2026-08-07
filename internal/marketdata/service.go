@@ -684,6 +684,10 @@ func (s *Service) health(ctx context.Context) (HealthStatus, error) {
 	} else {
 		health.ActiveCount = len(s.subscriptions.activeInstruments())
 	}
+	if s.hasFallbackSubscriptions() {
+		health.StreamMode = "snapshot-poll-fallback"
+		return health, nil
+	}
 	if availability, ok := s.provider.(PushAvailability); ok && !availability.PushAvailable() {
 		if strings.TrimSpace(health.StreamMode) == "" {
 			health.StreamMode = "idle"
@@ -701,6 +705,17 @@ func (s *Service) health(ctx context.Context) (HealthStatus, error) {
 		health.StreamMode = "push-stream"
 	}
 	return health, nil
+}
+
+func (s *Service) hasFallbackSubscriptions() bool {
+	if s == nil {
+		return false
+	}
+	s.subscriptionMu.RLock()
+	reconciler := s.reconciler
+	s.subscriptionMu.RUnlock()
+	fallbacks, ok := reconciler.(SubscriptionFallbackState)
+	return ok && fallbacks.HasFallbackSubscriptions()
 }
 
 func normalizeInstrument(market, symbol string) (string, string, string) {

@@ -482,7 +482,11 @@ type SecuritySnapshotResult struct {
 }
 
 type SecuritySnapshotItem struct {
-	Symbol        string                   `json:"symbol"`
+	Symbol string `json:"symbol"`
+	// Source is adapter-local provenance used when a non-streaming fallback
+	// supplies this item. It is deliberately not part of the public broker
+	// snapshot JSON contract.
+	Source        string                   `json:"-"`
 	Name          *string                  `json:"name,omitempty"`
 	SecurityType  *string                  `json:"securityType,omitempty"`
 	ProductClass  ProductClass             `json:"productClass,omitempty"`

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -631,6 +631,8 @@ async def test_candles_map_period_include_extended_hours_and_apply_limit(
     supported_us_instrument: None,
 ) -> None:
     calls: list[dict[str, Any]] = []
+    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    timestamps = [now - timedelta(minutes=15 - index * 5) for index in range(3)]
     frame = pd.DataFrame(
         {
             "Open": [10.0, 11.0, 12.0],
@@ -640,11 +642,7 @@ async def test_candles_map_period_include_extended_hours_and_apply_limit(
             "Volume": [100, 200, 300],
         },
         index=pd.DatetimeIndex(
-            [
-                "2026-07-28T13:30:00Z",
-                "2026-07-28T13:35:00Z",
-                "2026-07-28T13:40:00Z",
-            ]
+            timestamps
         ),
     )
 
@@ -660,16 +658,13 @@ async def test_candles_map_period_include_extended_hours_and_apply_limit(
     )
 
     assert response.status_code == 200
-    assert calls == [
-        {
-            "symbol": "AAPL",
-            "interval": "5m",
-            "fetch_period": "60d",
-            "start": None,
-            "end": None,
-            "prepost": True,
-        }
-    ]
+    assert len(calls) == 1
+    assert calls[0]["symbol"] == "AAPL"
+    assert calls[0]["interval"] == "5m"
+    assert calls[0]["fetch_period"] == "60d"
+    assert calls[0]["start"] is not None
+    assert calls[0]["end"] is not None
+    assert calls[0]["prepost"] is True
     body = response.json()
     assert body["market"] == "US"
     assert body["instrument_id"] == "US.AAPL"
@@ -677,9 +672,11 @@ async def test_candles_map_period_include_extended_hours_and_apply_limit(
     assert body["extended_hours"] is True
     assert body["total_returned"] == 2
     assert [item["at"] for item in body["candles"]] == [
-        "2026-07-28T13:35:00Z",
-        "2026-07-28T13:40:00Z",
+        timestamps[1].isoformat().replace("+00:00", "Z"),
+        timestamps[2].isoformat().replace("+00:00", "Z"),
     ]
+    assert body["has_more"] is True
+    assert body["next_before"] == body["candles"][0]["at"]
 
 
 @pytest.mark.asyncio
@@ -885,16 +882,95 @@ async def test_weekly_candles_fetch_max_history_for_1000_bar_limit(
     )
 
     assert response.status_code == 200
-    assert calls == [
+    assert len(calls) == 1
+    assert calls[0]["symbol"] == "AAPL"
+    assert calls[0]["interval"] == "1wk"
+    assert calls[0]["fetch_period"] == "max"
+    assert calls[0]["start"] == datetime(1900, 1, 1, tzinfo=timezone.utc)
+    assert calls[0]["end"] is not None
+    assert calls[0]["prepost"] is False
+
+
+@pytest.mark.asyncio
+async def test_candle_cursor_pages_are_strict_and_reach_the_history_boundary(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    supported_us_instrument: None,
+) -> None:
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    timestamps = [now - timedelta(days=days) for days in (4, 3, 2, 1)]
+    frame = pd.DataFrame(
         {
-            "symbol": "AAPL",
-            "interval": "1wk",
-            "fetch_period": "max",
-            "start": None,
-            "end": None,
-            "prepost": False,
-        }
-    ]
+            "Open": [10.0, 11.0, 12.0, 13.0],
+            "High": [11.0, 12.0, 13.0, 14.0],
+            "Low": [9.0, 10.0, 11.0, 12.0],
+            "Close": [10.5, 11.5, 12.5, 13.5],
+            "Volume": [100, 110, 120, 130],
+        },
+        index=pd.DatetimeIndex(timestamps),
+    )
+
+    def fake_history(_symbol: str, **kwargs: Any) -> pd.DataFrame:
+        return frame.loc[
+            (frame.index >= kwargs["start"]) & (frame.index < kwargs["end"])
+        ]
+
+    monkeypatch.setattr(upstream, "ticker_history", fake_history)
+
+    first = await client.get("/candles/US/AAPL", params={"period": "1d", "limit": 2})
+    assert first.status_code == 200
+    first_body = first.json()
+    first_times = [item["at"] for item in first_body["candles"]]
+    assert first_body["has_more"] is True
+    assert first_body["next_before"] == first_times[0]
+
+    second = await client.get(
+        "/candles/US/AAPL",
+        params={"period": "1d", "limit": 2, "before": first_body["next_before"]},
+    )
+    assert second.status_code == 200
+    second_body = second.json()
+    second_times = [item["at"] for item in second_body["candles"]]
+    assert second_body["has_more"] is False
+    assert second_body["next_before"] is None
+    assert set(first_times).isdisjoint(second_times)
+    assert max(second_times) < min(first_times)
+
+    terminal = await client.get(
+        "/candles/US/AAPL",
+        params={"period": "1d", "limit": 2, "before": second_times[0]},
+    )
+    assert terminal.status_code == 200
+    assert terminal.json()["candles"] == []
+    assert terminal.json()["has_more"] is False
+
+
+@pytest.mark.asyncio
+async def test_minute_cursor_before_retention_is_a_normal_history_boundary(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    supported_us_instrument: None,
+) -> None:
+    history_calls = 0
+
+    def fake_history(_symbol: str, **_kwargs: Any) -> pd.DataFrame:
+        nonlocal history_calls
+        history_calls += 1
+        return pd.DataFrame()
+
+    monkeypatch.setattr(upstream, "ticker_history", fake_history)
+    response = await client.get(
+        "/candles/US/AAPL",
+        params={
+            "period": "1m",
+            "before": (datetime.now(timezone.utc) - timedelta(days=8)).isoformat(),
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["candles"] == []
+    assert response.json()["has_more"] is False
+    assert history_calls == 0
 
 
 @pytest.mark.asyncio

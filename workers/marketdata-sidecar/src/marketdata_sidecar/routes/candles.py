@@ -10,7 +10,7 @@ from fastapi import APIRouter, Query
 from .. import upstream
 from ..conversion import convert_history, parse_rfc3339_utc
 from ..errors import invalid_request, not_found, upstream_error
-from ..models import CandlesResponse
+from ..models import Candle, CandlesResponse
 from .common import normalize_instrument, parse_candle_sessions, quote_is_supported, quote_matches_instrument
 
 router = APIRouter()
@@ -47,6 +47,16 @@ INTERVAL_DELTAS = {
     "1w": timedelta(days=7),
 }
 
+PAGED_RETENTION = {
+    "1m": timedelta(days=7),
+    "5m": timedelta(days=60),
+    "15m": timedelta(days=60),
+    "30m": timedelta(days=60),
+    "1h": timedelta(days=730),
+}
+
+HISTORY_FLOOR = datetime(1900, 1, 1, tzinfo=timezone.utc)
+
 
 @router.get("/candles/{market}/{symbol}", response_model=CandlesResponse)
 def candles(
@@ -56,6 +66,7 @@ def candles(
     limit: int = Query(default=200, ge=1, le=1000),
     from_value: str | None = Query(default=None, alias="from"),
     to_value: str | None = Query(default=None, alias="to"),
+    before_value: str | None = Query(default=None, alias="before"),
     sessions: list[str] | None = Query(default=None),
 ) -> CandlesResponse:
     instrument = normalize_instrument(market, symbol)
@@ -72,6 +83,12 @@ def candles(
     )
     from_time = parse_rfc3339_utc(from_value, "from")
     to_time = parse_rfc3339_utc(to_value, "to")
+    before_time = parse_rfc3339_utc(before_value, "before")
+    if before_time is not None and (from_time is not None or to_time is not None):
+        raise invalid_request(
+            "invalid_time_range",
+            "before cannot be combined with from or to",
+        )
     if from_time is not None and to_time is not None and from_time > to_time:
         raise invalid_request(
             "invalid_time_range",
@@ -98,41 +115,197 @@ def candles(
             "candles_not_found",
             f"candles not found: {instrument.instrument_id}",
         )
-    try:
-        frame = upstream.ticker_history(
+    if from_time is not None or to_time is not None:
+        converted = bounded_history(
             instrument.yahoo_symbol,
-            interval=INTERVALS[normalized_period],
-            fetch_period=FETCH_PERIODS[normalized_period],
-            start=history_start(from_time, to_time, normalized_period),
-            end=inclusive_history_end(to_time, normalized_period),
-            prepost="extended" in selected_sessions,
+            normalized_period,
+            limit,
+            from_time,
+            to_time,
+            selected_sessions,
+            instrument.spec.timezone,
         )
-    except Exception as exc:
-        raise upstream_error("Yahoo Finance candle lookup failed") from exc
-    converted = convert_history(
-        frame,
-        limit=limit,
-        from_time=from_time,
-        to_time=to_time,
-        exchange_timezone=instrument.spec.timezone,
-        sessions=selected_sessions,
-        period=normalized_period,
+        if not converted:
+            raise not_found(
+                "candles_not_found",
+                f"candles not found: {instrument.instrument_id}",
+            )
+        return candle_response(
+            instrument.market,
+            instrument.symbol,
+            instrument.instrument_id,
+            normalized_period,
+            selected_sessions,
+            converted,
+            False,
+        )
+
+    converted, has_more = paged_history(
+        instrument.yahoo_symbol,
+        normalized_period,
+        limit,
+        before_time,
+        selected_sessions,
+        instrument.spec.timezone,
     )
-    if not converted:
+    if not converted and before_time is None:
         raise not_found(
             "candles_not_found",
             f"candles not found: {instrument.instrument_id}",
         )
+    return candle_response(
+        instrument.market,
+        instrument.symbol,
+        instrument.instrument_id,
+        normalized_period,
+        selected_sessions,
+        converted,
+        has_more,
+    )
+
+
+def candle_response(
+    market: str,
+    symbol: str,
+    instrument_id: str,
+    period: str,
+    sessions: tuple[str, ...],
+    candles: list[Candle],
+    has_more: bool,
+) -> CandlesResponse:
     return CandlesResponse(
-        market=instrument.market,
-        symbol=instrument.symbol,
-        instrument_id=instrument.instrument_id,
-        period=normalized_period,
-        extended_hours="extended" in selected_sessions,
-        candles=converted,
-        total_returned=len(converted),
+        market=market,
+        symbol=symbol,
+        instrument_id=instrument_id,
+        period=period,
+        extended_hours="extended" in sessions,
+        candles=candles,
+        total_returned=len(candles),
+        has_more=has_more,
+        next_before=candles[0].at if has_more else None,
         source="yfinance",
     )
+
+
+def bounded_history(
+    symbol: str,
+    period: str,
+    limit: int,
+    from_time: datetime | None,
+    to_time: datetime | None,
+    sessions: tuple[str, ...],
+    exchange_timezone: str,
+) -> list[Candle]:
+    return read_history(
+        symbol,
+        period,
+        limit,
+        history_start(from_time, to_time, period),
+        inclusive_history_end(to_time, period),
+        from_time,
+        to_time,
+        None,
+        sessions,
+        exchange_timezone,
+    )
+
+
+def paged_history(
+    symbol: str,
+    period: str,
+    limit: int,
+    before_time: datetime | None,
+    sessions: tuple[str, ...],
+    exchange_timezone: str,
+) -> tuple[list[Candle], bool]:
+    now = datetime.now(timezone.utc)
+    end_time = before_time or now
+    lower_bound = history_lower_bound(period, now)
+    if before_time is not None and before_time <= lower_bound:
+        return [], False
+
+    start_time = max(lower_bound, end_time - page_lookback(period, limit))
+    if FETCH_PERIODS[period] == "max":
+        start_time = lower_bound
+    converted = read_history(
+        symbol,
+        period,
+        limit + 1,
+        start_time,
+        end_time,
+        start_time,
+        end_time,
+        before_time,
+        sessions,
+        exchange_timezone,
+    )
+    if len(converted) <= limit and start_time > lower_bound:
+        converted = read_history(
+            symbol,
+            period,
+            limit + 1,
+            lower_bound,
+            end_time,
+            lower_bound,
+            end_time,
+            before_time,
+            sessions,
+            exchange_timezone,
+        )
+    has_more = len(converted) > limit
+    if has_more:
+        converted = converted[-limit:]
+    return converted, has_more
+
+
+def read_history(
+    symbol: str,
+    period: str,
+    limit: int,
+    start: datetime | None,
+    end: datetime | None,
+    from_time: datetime | None,
+    to_time: datetime | None,
+    before_time: datetime | None,
+    sessions: tuple[str, ...],
+    exchange_timezone: str,
+) -> list[Candle]:
+    try:
+        frame = upstream.ticker_history(
+            symbol,
+            interval=INTERVALS[period],
+            fetch_period=FETCH_PERIODS[period],
+            start=start,
+            end=end,
+            prepost="extended" in sessions,
+        )
+    except Exception as exc:
+        raise upstream_error("Yahoo Finance candle lookup failed") from exc
+    return convert_history(
+        frame,
+        limit=limit,
+        from_time=from_time,
+        to_time=to_time,
+        before_time=before_time,
+        exchange_timezone=exchange_timezone,
+        sessions=sessions,
+        period=period,
+    )
+
+
+def history_lower_bound(period: str, now: datetime) -> datetime:
+    retention = PAGED_RETENTION.get(period)
+    if retention is None:
+        return HISTORY_FLOOR
+    return now - retention
+
+
+def page_lookback(period: str, limit: int) -> timedelta:
+    if period == "1mo":
+        interval = timedelta(days=31)
+    else:
+        interval = INTERVAL_DELTAS[period]
+    return max(interval * (limit + 1) * 2, timedelta(days=7))
 
 
 def history_start(

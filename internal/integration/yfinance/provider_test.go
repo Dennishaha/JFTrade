@@ -198,7 +198,7 @@ func TestProviderMarksYahooExtendedMinuteVolumeUnavailable(t *testing.T) {
 	provider := newTestProvider(t, server)
 	server.Queue("/candles/US/BABA", testkit.Response{
 		Body: `{"market":"US","symbol":"BABA","instrument_id":"US.BABA","period":"1m",` +
-			`"extended_hours":true,"total_returned":3,"source":"yfinance","candles":[` +
+			`"extended_hours":true,"total_returned":3,"has_more":false,"next_before":null,"source":"yfinance","candles":[` +
 			`{"at":"2026-07-29T12:00:00Z","open":119,"high":120,"low":118,"close":119.5,"volume":0},` +
 			`{"at":"2026-07-29T14:00:00Z","open":120,"high":121,"low":119,"close":120.5,"volume":2500},` +
 			`{"at":"2026-07-29T20:02:00Z","open":122.15,"high":122.25,"low":122.11,"close":122.25,"volume":16323414}]}`,
@@ -324,7 +324,7 @@ func TestGetHistoricalCandlesRejectsOneMinutePeriodBeyondSevenDayWindow(t *testi
 	// Within the window: Go validation passes; sidecar returns empty candles.
 	server.Queue("/candles/US/AAPL", testkit.Response{
 		Body: `{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL",` +
-			`"period":"1m","extended_hours":true,"total_returned":0,"source":"yfinance","candles":[]}`,
+			`"period":"1m","extended_hours":true,"total_returned":0,"has_more":false,"next_before":null,"source":"yfinance","candles":[]}`,
 	})
 	withinWindow := "2026-07-25T00:00:00Z"
 	_, err := provider.GetHistoricalCandles(ctx, marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1m", Limit: 10, FromTime: withinWindow})
@@ -335,7 +335,7 @@ func TestGetHistoricalCandlesRejectsOneMinutePeriodBeyondSevenDayWindow(t *testi
 	// Empty from_time: no window check; sidecar handles its own default window.
 	server.Queue("/candles/US/AAPL", testkit.Response{
 		Body: `{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL",` +
-			`"period":"1m","extended_hours":true,"total_returned":0,"source":"yfinance","candles":[]}`,
+			`"period":"1m","extended_hours":true,"total_returned":0,"has_more":false,"next_before":null,"source":"yfinance","candles":[]}`,
 	})
 	_, err = provider.GetHistoricalCandles(ctx, marketdata.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1m", Limit: 10})
 	if errors.Is(err, ErrUnsupported) {

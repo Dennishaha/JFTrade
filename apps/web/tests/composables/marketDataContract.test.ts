@@ -232,6 +232,7 @@ describe("market data wire mappers", () => {
       },
       entries: [
         "active",
+        "fallback",
         "pending_subscribe",
         "pending_unsubscribe",
         "retrying",
@@ -294,6 +295,7 @@ describe("market data wire mappers", () => {
     });
     expect(mapped.entries.map((entry) => entry.brokerState)).toEqual([
       "active",
+      "fallback",
       "pending_subscribe",
       "pending_unsubscribe",
       "retrying",

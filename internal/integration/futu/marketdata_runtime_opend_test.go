@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/internal/marketdata"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	pkgfutu "github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
@@ -31,6 +32,18 @@ type marketDataRuntimeOpenDServer struct {
 	empty    atomic.Bool
 	zero     atomic.Bool
 	wg       sync.WaitGroup
+}
+
+type failingSnapshotFallbackBroker struct {
+	broker.Broker
+	err error
+}
+
+func (b *failingSnapshotFallbackBroker) QuerySnapshotFallback(
+	context.Context,
+	broker.SecuritySnapshotQuery,
+) (*broker.SecuritySnapshotResult, error) {
+	return nil, b.err
 }
 
 func startMarketDataRuntimeOpenDServer(t *testing.T) *marketDataRuntimeOpenDServer {
@@ -156,6 +169,15 @@ func TestMarketDataRuntimeQueryAndSubscriptionWrappers(t *testing.T) {
 		Now: func() time.Time { return now },
 	})
 	t.Cleanup(func() { _ = runtime.Close() })
+	missingSnapshot, err := runtime.QuerySnapshot(context.Background(), "US.AAPL")
+	if missingSnapshot != nil {
+		t.Fatalf("QuerySnapshot without lease = %#v, want nil", missingSnapshot)
+	}
+	var required *marketdata.SubscriptionRequiredError
+	if !errors.As(err, &required) || required.Channel != "SNAPSHOT" ||
+		required.Market != "US" || required.Symbol != "AAPL" {
+		t.Fatalf("QuerySnapshot without lease error = %#v, %v", required, err)
+	}
 	desired := []marketdata.InstrumentRef{{Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "1m"}}
 	if err := runtime.ReconcileSubscriptions(context.Background(), desired); err != nil {
 		t.Fatalf("ReconcileSubscriptions: %v", err)
@@ -198,6 +220,55 @@ func TestMarketDataRuntimeQueryAndSubscriptionWrappers(t *testing.T) {
 	}
 	if state := nilRuntime.SubscriptionState(); state != nil {
 		t.Fatalf("nil SubscriptionState = %#v", state)
+	}
+}
+
+func TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails(t *testing.T) {
+	server := startMarketDataRuntimeOpenDServer(t)
+	host, portText, err := net.SplitHostPort(server.listener.Addr().String())
+	if err != nil {
+		t.Fatalf("SplitHostPort: %v", err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatalf("Atoi: %v", err)
+	}
+	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{
+		ConfigSource: func() MarketDataConfig {
+			return MarketDataConfig{Enabled: true, Host: host, APIPort: port}
+		},
+	})
+	t.Cleanup(func() { _ = runtime.Close() })
+	desired := []marketdata.InstrumentRef{
+		{Channel: "SNAPSHOT", Market: "SH", Symbol: "600519"},
+		{Channel: "SNAPSHOT", Market: "US", Symbol: "AAPL"},
+	}
+	if err := runtime.ReconcileSubscriptions(t.Context(), desired); err != nil {
+		t.Fatalf("ReconcileSubscriptions: %v", err)
+	}
+	runtime.subscriptionReconciler.mu.Lock()
+	record := runtime.subscriptionReconciler.records["BASIC:SH.600519"]
+	if record == nil {
+		runtime.subscriptionReconciler.mu.Unlock()
+		t.Fatal("Shanghai BasicQot subscription was not reconciled")
+	}
+	record.fallback = true
+	record.subscribedAt = time.Time{}
+	runtime.subscriptionReconciler.mu.Unlock()
+	fallbackErr := errors.New("StockScreen unavailable")
+	runtime.mu.Lock()
+	runtime.brokerAdapter = &failingSnapshotFallbackBroker{err: fallbackErr}
+	runtime.mu.Unlock()
+
+	ticks, err := runtime.QueryTickers(t.Context(), []string{"US.AAPL", "SH.600519"})
+	if err != nil {
+		t.Fatalf("mixed QueryTickers: %v", err)
+	}
+	if len(ticks) != 1 || ticks["US.AAPL"].InstrumentID != "US.AAPL" {
+		t.Fatalf("mixed ticks = %#v, want only the successful realtime quote", ticks)
+	}
+	if _, err := runtime.QueryTickers(t.Context(), []string{"SH.600519"}); !errors.Is(err, fallbackErr) {
+		t.Fatalf("fallback-only QueryTickers error = %v, want %v", err, fallbackErr)
 	}
 }
 

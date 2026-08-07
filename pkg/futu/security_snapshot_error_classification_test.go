@@ -20,6 +20,7 @@ func TestMarketDataReaderClassifiesSymbolScopedSecuritySnapshotProtocolErrors(t 
 		errCode      int32
 		message      string
 		symbolScoped bool
+		availability broker.SnapshotAvailabilityKind
 	}{
 		{name: "Chinese unknown stock", retType: -1, message: "未知股票 BBKCF", symbolScoped: true},
 		{name: "Chinese unknown security", retType: -1, message: "未知证券 BBKCF", symbolScoped: true},
@@ -31,6 +32,8 @@ func TestMarketDataReaderClassifiesSymbolScopedSecuritySnapshotProtocolErrors(t 
 		{name: "unknown security entitlement", retType: -1, message: "unknown security because entitlement is unavailable"},
 		{name: "entitlement", retType: -1, errCode: 403, message: "snapshot entitlement denied"},
 		{name: "entitlement without error code", retType: -1, message: "US OTC market quote is unavailable because entitlement"},
+		{name: "subscription full", retType: -1, message: "subscription is full", availability: broker.SnapshotAvailabilityQuota},
+		{name: "quota exceeded", retType: -1, message: "quote subscription quota exceeded", availability: broker.SnapshotAvailabilityQuota},
 		{name: "generic service", retType: -1, message: "snapshot service unavailable"},
 		{name: "session", retType: -1, message: "OpenD session unavailable"},
 		{name: "rate limit", retType: -1, message: "frequency too high"},
@@ -56,6 +59,10 @@ func TestMarketDataReaderClassifiesSymbolScopedSecuritySnapshotProtocolErrors(t 
 			}
 			if got := broker.IsSymbolScopedSnapshotError(err); got != test.symbolScoped {
 				t.Fatalf("IsSymbolScopedSnapshotError(%v) = %v, want %v", err, got, test.symbolScoped)
+			}
+			availability, hasAvailability := broker.SnapshotAvailability(err)
+			if test.availability != "" && (!hasAvailability || availability != test.availability) {
+				t.Fatalf("SnapshotAvailability(%v) = %q, %v; want %q", err, availability, hasAvailability, test.availability)
 			}
 		})
 	}

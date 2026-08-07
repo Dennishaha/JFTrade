@@ -572,6 +572,7 @@ def candles(
     limit: int,
     from_time: datetime | None,
     to_time: datetime | None,
+    before_time: datetime | None = None,
 ) -> AKCandlesResponse:
     normalized_period = period.strip().lower()
     validate_candle_query(normalized_period, from_time, to_time)
@@ -586,9 +587,104 @@ def candles(
         from_time,
         to_time,
     )
-    frame, fetched_period, source, volume_multiplier = _fetch_candle_frame(
+    if before_time is not None and (from_time is not None or to_time is not None):
+        raise invalid_request("invalid_time_range", "before cannot be combined with from or to")
+
+    if from_time is not None or to_time is not None:
+        converted, source = _load_candle_window(
+            instrument,
+            normalized_period,
+            from_time,
+            to_time,
+            None,
+        )
+        converted = converted[-limit:]
+        if not converted:
+            raise not_found(
+                "candles_not_found",
+                f"candles not found: {instrument.instrument_id}",
+            )
+        return _candle_response(instrument, normalized_period, converted, source, False)
+
+    converted, source, has_more = _load_candle_page(
         instrument,
         normalized_period,
+        limit,
+        before_time,
+    )
+    if not converted and before_time is None:
+        raise not_found(
+            "candles_not_found",
+            f"candles not found: {instrument.instrument_id}",
+        )
+
+    return _candle_response(instrument, normalized_period, converted, source, has_more)
+
+
+def _candle_response(
+    instrument: AKInstrument,
+    period: str,
+    candles: list[AKCandle],
+    source: str,
+    has_more: bool,
+) -> AKCandlesResponse:
+    return AKCandlesResponse(
+        market=instrument.market,
+        symbol=instrument.symbol,
+        instrument_id=instrument.instrument_id,
+        period=period,
+        candles=candles,
+        total_returned=len(candles),
+        has_more=has_more,
+        next_before=candles[0].at if has_more else None,
+        source=source,
+    )
+
+
+def _load_candle_page(
+    instrument: AKInstrument,
+    period: str,
+    limit: int,
+    before_time: datetime | None,
+) -> tuple[list[AKCandle], str, bool]:
+    now = _utc_now()
+    end_time = before_time or now
+    lower_bound = _candle_history_lower_bound(instrument.market, period, now)
+    if before_time is not None and before_time <= lower_bound:
+        return [], "akshare:eastmoney", False
+
+    start_time = max(lower_bound, end_time - _candle_page_lookback(period, limit))
+    converted, source = _load_candle_window(
+        instrument,
+        period,
+        start_time,
+        end_time,
+        before_time,
+    )
+    if len(converted) <= limit and start_time > lower_bound:
+        converted, source = _load_candle_window(
+            instrument,
+            period,
+            lower_bound,
+            end_time,
+            before_time,
+        )
+    has_more = len(converted) > limit
+    if has_more:
+        converted = converted[-limit:]
+    return converted, source, has_more
+
+
+def _load_candle_window(
+    instrument: AKInstrument,
+    period: str,
+    from_time: datetime | None,
+    to_time: datetime | None,
+    before_time: datetime | None,
+) -> tuple[list[AKCandle], str]:
+    frame, fetched_period, source, volume_multiplier = _fetch_candle_frame(
+        instrument,
+        period,
         from_time,
         to_time,
     )
@@ -597,29 +693,38 @@ def candles(
         instrument=instrument,
         from_time=from_time,
         to_time=to_time,
+        before_time=before_time,
         volume_multiplier=volume_multiplier,
     )
-    if fetched_period != normalized_period:
-        converted = _aggregate_candles(
-            converted,
-            normalized_period,
-            instrument.timezone,
-        )
-    converted = converted[-limit:]
-    if not converted:
-        raise not_found(
-            "candles_not_found",
-            f"candles not found: {instrument.instrument_id}",
-        )
-    return AKCandlesResponse(
-        market=instrument.market,
-        symbol=instrument.symbol,
-        instrument_id=instrument.instrument_id,
-        period=normalized_period,
-        candles=converted,
-        total_returned=len(converted),
-        source=source,
-    )
+    if fetched_period != period:
+        converted = _aggregate_candles(converted, period, instrument.timezone)
+        if before_time is not None:
+            converted = [
+                candle
+                for candle in converted
+                if datetime.fromisoformat(candle.at.replace("Z", "+00:00")) < before_time
+            ]
+    return converted, source
+
+
+def _candle_history_lower_bound(market: str, period: str, now: datetime) -> datetime:
+    if _uses_five_day_candle_source(market, period):
+        return now - timedelta(days=5)
+    return datetime(1900, 1, 1, tzinfo=UTC)
+
+
+def _candle_page_lookback(period: str, limit: int) -> timedelta:
+    interval = {
+        "1m": timedelta(minutes=1),
+        "5m": timedelta(minutes=5),
+        "15m": timedelta(minutes=15),
+        "30m": timedelta(minutes=30),
+        "1h": timedelta(hours=1),
+        "1d": timedelta(days=1),
+        "1w": timedelta(days=7),
+        "1mo": timedelta(days=31),
+    }[period]
+    return max(interval * (limit + 1) * 2, timedelta(days=7))
 
 
 def validate_candle_query(
@@ -639,11 +744,7 @@ def validate_candle_retention(
     from_time: datetime | None,
     to_time: datetime | None,
 ) -> None:
-    normalized_period = period.strip().lower()
-    uses_five_day_source = normalized_period == "1m" or (
-        market.strip().upper() == "US" and normalized_period in INTRADAY_PERIODS
-    )
-    if not uses_five_day_source:
+    if not _uses_five_day_candle_source(market, period):
         return
     cutoff = _utc_now() - timedelta(days=5)
     if any(bound is not None and bound < cutoff for bound in (from_time, to_time)):
@@ -651,6 +752,13 @@ def validate_candle_retention(
             "UNSUPPORTED_RANGE",
             "requested intraday data is only available for the last 5 days",
         )
+
+
+def _uses_five_day_candle_source(market: str, period: str) -> bool:
+    normalized_period = period.strip().lower()
+    return normalized_period == "1m" or (
+        market.strip().upper() == "US" and normalized_period in INTRADAY_PERIODS
+    )
 
 
 def normalize_identity(market: str, symbol: str) -> tuple[str, str]:
@@ -1074,6 +1182,7 @@ def _convert_candle_frame(
     instrument: AKInstrument,
     from_time: datetime | None,
     to_time: datetime | None,
+    before_time: datetime | None = None,
     volume_multiplier: Decimal,
 ) -> list[AKCandle]:
     result: list[AKCandle] = []
@@ -1081,6 +1190,8 @@ def _convert_candle_frame(
         at_value = _row_value(row, "时间", "日期", "datetime", "date", "time", "day")
         at = timestamp_as_utc(at_value if at_value is not None else index, instrument.timezone)
         if at is None or (from_time is not None and at < from_time) or (to_time is not None and at > to_time):
+            continue
+        if before_time is not None and at >= before_time:
             continue
         open_price = _optional_decimal(row, "开盘", "开盘价", "open", minimum=Decimal(0))
         high = _optional_decimal(row, "最高", "最高价", "high", minimum=Decimal(0))

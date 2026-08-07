@@ -97,6 +97,40 @@ describe("WatchlistVirtualTable", () => {
     );
   });
 
+  it("marks delayed StockScreen fallback quotes as degraded", () => {
+    const watched = {
+      instrumentId: "SH.600519",
+      market: "SH",
+      symbol: "600519",
+      name: "贵州茅台",
+      securityType: "EQUITY",
+    };
+    const wrapper = mount(WatchlistVirtualTable, {
+      props: {
+        items: [watched],
+        quotes: new Map([
+          [
+            watched.instrumentId,
+            {
+              instrumentId: watched.instrumentId,
+              price: 1500,
+              previousClose: 1490,
+              source: "futu:stock-screen-delayed",
+            },
+          ],
+        ]),
+      },
+      global: {
+        stubs: { "v-icon": { template: "<span><slot /></span>" } },
+      },
+    });
+
+    const marker = wrapper.get(".watchlist-table__quote-delayed");
+    expect(marker.text()).toContain("fa-solid fa-clock");
+    expect(marker.attributes("title")).toContain("延迟快照");
+    expect(marker.attributes("aria-label")).toBe("延迟快照行情");
+  });
+
   it("uses snapshot metadata while a locally starred instrument is being enriched", () => {
     const localOnly = { ...item(3), name: undefined, securityType: undefined };
     const quotes = new Map<string, WatchlistQuote>([

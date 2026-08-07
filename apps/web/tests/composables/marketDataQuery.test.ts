@@ -722,6 +722,155 @@ describe("createMarketDataQueryController", () => {
     expect(mocks.scheduleMarketSnapshotBackgroundRefresh).toHaveBeenCalledTimes(2);
   });
 
+  it("does not infer more history from a full initial candle page", async () => {
+    const { controller, state, fetchEnvelope } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.marketDataQueryLimit.value = 2;
+    fetchEnvelope
+      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 200))
+      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
+      .mockResolvedValueOnce(
+        createCandlesResult("US", "AAPL", "1m", [
+          {
+            period: "1m",
+            open: 199,
+            high: 200,
+            low: 198,
+            close: 199.5,
+            volume: 100,
+            at: "2026-07-03T12:28:00.000Z",
+          },
+          {
+            period: "1m",
+            open: 200,
+            high: 201,
+            low: 199,
+            close: 200.5,
+            volume: 120,
+            at: "2026-07-03T12:29:00.000Z",
+          },
+        ]),
+      );
+
+    await controller.loadQuery();
+
+    expect(state.hasMoreMarketDataHistory.value).toBe(false);
+    expect(state.marketDataNextBefore.value).toBe("");
+  });
+
+  it("treats an empty terminal older page as the known history boundary", async () => {
+    const { controller, state, fetchEnvelope } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.marketDataQueryLimit.value = 2;
+    state.activeMarketDataInstrumentId.value = "US.AAPL";
+    state.hasMoreMarketDataHistory.value = true;
+    state.marketDataNextBefore.value = "2026-07-03T12:29:00.000Z";
+    state.marketDataCandles.value = createCandlesResult("US", "AAPL", "1m", [
+      {
+        period: "1m",
+        open: 200,
+        high: 201,
+        low: 199,
+        close: 200.5,
+        volume: 120,
+        at: "2026-07-03T12:29:00.000Z",
+      },
+    ]);
+    const terminalPage = createCandlesResult("US", "AAPL", "1m", []);
+    terminalPage.pagination = { hasMore: false };
+    fetchEnvelope.mockResolvedValueOnce(terminalPage);
+
+    await controller.loadQuery({ appendOlder: true });
+
+    expect(state.marketDataCandles.value?.candles).toHaveLength(1);
+    expect(state.hasMoreMarketDataHistory.value).toBe(false);
+    expect(state.marketDataNextBefore.value).toBe("");
+    expect(state.marketDataOlderError.value).toBe("");
+  });
+
+  it("rejects invalid older pages without merging them into the chart", async () => {
+    const { controller, state, fetchEnvelope } = createController();
+    const before = "2026-07-03T12:29:00.000Z";
+    const existing = createCandlesResult("US", "AAPL", "1m", [
+      {
+        period: "1m",
+        open: 199,
+        high: 200,
+        low: 198,
+        close: 199.5,
+        volume: 100,
+        at: "2026-07-03T12:28:00.000Z",
+      },
+      {
+        period: "1m",
+        open: 200,
+        high: 201,
+        low: 199,
+        close: 200.5,
+        volume: 120,
+        at: before,
+      },
+    ]);
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.marketDataQueryLimit.value = 2;
+    state.activeMarketDataInstrumentId.value = "US.AAPL";
+    state.marketDataCandles.value = existing;
+    state.hasMoreMarketDataHistory.value = true;
+    state.marketDataNextBefore.value = before;
+
+    const duplicate = createCandlesResult("US", "AAPL", "1m", [
+      { ...existing.candles[0] },
+    ]);
+    duplicate.pagination = { hasMore: false };
+    const boundary = createCandlesResult("US", "AAPL", "1m", [
+      { ...existing.candles[1] },
+    ]);
+    boundary.pagination = { hasMore: false };
+    const stalled = createCandlesResult("US", "AAPL", "1m", [
+      {
+        period: "1m",
+        open: 198,
+        high: 199,
+        low: 197,
+        close: 198.5,
+        volume: 80,
+        at: "2026-07-03T12:27:00.000Z",
+      },
+    ]);
+    stalled.pagination = { hasMore: true, nextBefore: before };
+    const missingMetadata = createCandlesResult("US", "AAPL", "1m", [
+      {
+        period: "1m",
+        open: 197,
+        high: 198,
+        low: 196,
+        close: 197.5,
+        volume: 70,
+        at: "2026-07-03T12:26:00.000Z",
+      },
+    ]);
+
+    for (const invalidPage of [duplicate, boundary, stalled, missingMetadata]) {
+      fetchEnvelope.mockResolvedValueOnce(invalidPage);
+      await controller.loadQuery({ appendOlder: true });
+
+      expect(state.marketDataCandles.value?.candles).toEqual(existing.candles);
+      expect(state.hasMoreMarketDataHistory.value).toBe(true);
+      expect(state.marketDataNextBefore.value).toBe(before);
+      expect(state.marketDataOlderError.value).toContain("历史 K 线分页响应无效");
+    }
+
+    fetchEnvelope.mockRejectedValueOnce(undefined);
+    await controller.loadQuery({ appendOlder: true });
+    expect(state.marketDataOlderError.value).toBe("更早 K 线加载失败。");
+  });
+
   it("does not page Tick history and discards an older page after the target changes", async () => {
     const { controller, state, fetchEnvelope } = createController();
     state.marketDataQueryMarket.value = "US";

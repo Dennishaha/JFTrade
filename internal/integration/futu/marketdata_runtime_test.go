@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"net"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -607,6 +610,48 @@ func TestMarketDataRuntimeReplacesAnExchangeWhenItsConfigKeyChanges(t *testing.T
 	}
 }
 
+func TestMarketDataRuntimeFiltersFallbackInstrumentsFromPushStream(t *testing.T) {
+	now := time.Date(2026, time.August, 7, 2, 3, 4, 0, time.UTC)
+	quotaErr := broker.NewSnapshotAvailabilityError(
+		broker.SnapshotAvailabilityQuota,
+		errors.New("OpenD subscription is full"),
+	)
+	exchange := &fakePhysicalSubscriptionExchange{failures: map[string][]error{
+		"subscribe-basic:SH.600519:push": {quotaErr},
+	}}
+	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{})
+	runtime.subscriptionReconciler = newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return now },
+	)
+	t.Cleanup(func() { _ = runtime.Close() })
+
+	desired := []marketdata.InstrumentRef{
+		{Channel: "SNAPSHOT", Market: "SH", Symbol: "600519"},
+		{Channel: "SNAPSHOT", Market: "US", Symbol: "AAPL"},
+	}
+	if err := runtime.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("initial ReconcileSubscriptions: %v", err)
+	}
+	if !runtime.HasFallbackSubscriptions() {
+		t.Fatal("runtime did not retain the BasicQot fallback state")
+	}
+	if got := runtime.FilterPushInstruments([]string{"SH.600519", "US.AAPL"}); len(got) != 1 || got[0] != "US.AAPL" {
+		t.Fatalf("FilterPushInstruments() = %#v, want only US.AAPL", got)
+	}
+
+	now = now.Add(fallbackSubscriptionRetry)
+	if err := runtime.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("fallback recovery ReconcileSubscriptions: %v", err)
+	}
+	if runtime.HasFallbackSubscriptions() {
+		t.Fatalf("fallback state persisted after recovery: %#v", runtime.SubscriptionState())
+	}
+	if got := runtime.FilterPushInstruments([]string{"SH.600519", "US.AAPL"}); len(got) != 2 || got[0] != "SH.600519" || got[1] != "US.AAPL" {
+		t.Fatalf("FilterPushInstruments() after recovery = %#v", got)
+	}
+}
+
 func TestMarketDataRuntimeUnavailableQueryHelpers(t *testing.T) {
 	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{
 		ConfigSource: func() MarketDataConfig { return MarketDataConfig{} },
@@ -775,6 +820,189 @@ func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {
 		t.Fatalf("missing calendar session must stay unannotated: %#v", missingWindow)
 	}
 }
+
+func TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots(t *testing.T) {
+	observedAt := time.Date(2026, time.August, 7, 14, 0, 0, 0, time.UTC)
+	last, bid, high, previousClose, volume := 10.5, 10.2, 11.0, 9.8, -3.0
+	invalid := math.NaN()
+	session := "after"
+	ticks := fallbackTickerMap(
+		[]string{" us.aapl ", "SH.600519", "invalid"},
+		&broker.SecuritySnapshotResult{Snapshots: []broker.SecuritySnapshotItem{
+			{
+				Symbol: "US.AAPL", LastPrice: &last, BidPrice: &bid, AskPrice: &invalid,
+				HighPrice: &high, PreviousClose: &previousClose, Volume: &volume, Session: &session,
+			},
+			{Symbol: "SH.600519", LastPrice: fallbackFloat(1500)},
+			{Symbol: "US.MSFT", LastPrice: fallbackFloat(300)},
+			{Symbol: "US.GOOG", LastPrice: fallbackFloat(0)},
+			{Symbol: "invalid", LastPrice: fallbackFloat(1)},
+		}},
+		observedAt,
+	)
+	if len(ticks) != 2 {
+		t.Fatalf("fallbackTickerMap = %#v", ticks)
+	}
+	aapl := ticks["US.AAPL"]
+	if aapl.InstrumentID != "US.AAPL" || !aapl.Price.Equal(decimal.RequireFromString("10.5")) ||
+		!aapl.Bid.Equal(decimal.RequireFromString("10.2")) || !aapl.Ask.Equal(aapl.Price) {
+		t.Fatalf("AAPL fallback tick = %#v", aapl)
+	}
+	if aapl.HighPrice == nil || !aapl.HighPrice.Equal(decimal.RequireFromString("11")) ||
+		aapl.PreviousClosePrice == nil || !aapl.PreviousClosePrice.Equal(decimal.RequireFromString("9.8")) ||
+		!aapl.Volume.IsZero() {
+		t.Fatalf("AAPL fallback fields = %#v", aapl)
+	}
+	if aapl.Source != "futu:stock-screen" || aapl.Session != string(market.SessionAfter) || !aapl.ExtendedHours ||
+		aapl.QuoteAt != observedAt.Format(time.RFC3339Nano) || !aapl.Availability.Authoritative ||
+		!aapl.Availability.Bid || aapl.Availability.Ask || !aapl.Availability.Volume {
+		t.Fatalf("AAPL fallback metadata = %#v", aapl)
+	}
+	if got := ticks["SH.600519"]; got.InstrumentID != "SH.600519" || !got.Price.Equal(decimal.NewFromInt(1500)) {
+		t.Fatalf("Shanghai fallback tick = %#v", got)
+	}
+	if got := fallbackTickerMap([]string{"US.AAPL"}, nil, observedAt); len(got) != 0 {
+		t.Fatalf("nil fallback result = %#v", got)
+	}
+}
+
+func TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification(t *testing.T) {
+	observedAt := time.Date(2026, time.July, 15, 14, 0, 0, 0, time.UTC)
+	if got := tickFromFallbackSnapshot("US.AAPL", broker.SecuritySnapshotItem{}, observedAt); got != nil {
+		t.Fatalf("empty fallback snapshot = %#v", got)
+	}
+	if got := tickFromFallbackSnapshot("invalid", broker.SecuritySnapshotItem{LastPrice: fallbackFloat(1)}, observedAt); got != nil {
+		t.Fatalf("invalid fallback instrument = %#v", got)
+	}
+	last, open, low, turnover := 10.0, math.NaN(), -1.0, math.Inf(1)
+	quotedAt := observedAt.Add(-time.Minute)
+	tick := tickFromFallbackSnapshot("US.AAPL", broker.SecuritySnapshotItem{
+		LastPrice: &last, OpenPrice: &open, LowPrice: &low, Turnover: &turnover, ObservedAt: quotedAt,
+	}, observedAt)
+	if tick == nil || tick.OpenPrice != nil || tick.LowPrice == nil || !tick.LowPrice.Equal(decimal.NewFromInt(-1)) ||
+		!tick.Turnover.IsZero() || tick.Session != string(market.SessionRegular) || tick.ExtendedHours ||
+		tick.QuoteAt != quotedAt.Format(time.RFC3339Nano) {
+		t.Fatalf("classified fallback tick = %#v", tick)
+	}
+	for _, test := range []struct {
+		name  string
+		value *string
+		want  market.Session
+	}{
+		{name: "nil", want: market.SessionRegular},
+		{name: "closed", value: fallbackString("closed"), want: market.SessionClosed},
+		{name: "pre", value: fallbackString(" pre "), want: market.SessionPre},
+		{name: "regular", value: fallbackString("regular"), want: market.SessionRegular},
+		{name: "after", value: fallbackString("after"), want: market.SessionAfter},
+		{name: "overnight", value: fallbackString("overnight"), want: market.SessionOvernight},
+		{name: "unknown", value: fallbackString("unrecognized"), want: market.SessionRegular},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := fallbackSnapshotSession(test.value, "US.AAPL", observedAt); got != test.want {
+				t.Fatalf("fallbackSnapshotSession = %q, want %q", got, test.want)
+			}
+		})
+	}
+	if stringValue(nil) != "" || stringValue(fallbackString("text")) != "text" {
+		t.Fatal("stringValue did not preserve optional text")
+	}
+	for _, value := range []*float64{nil, fallbackFloat(math.NaN()), fallbackFloat(math.Inf(1)), fallbackFloat(-1), fallbackFloat(0)} {
+		if usableFallbackPrice(value) {
+			t.Fatalf("unusable fallback price accepted: %#v", value)
+		}
+	}
+	if !usableFallbackPrice(fallbackFloat(1)) || !usableFallbackNumber(fallbackFloat(-1)) || usableFallbackNumber(fallbackFloat(math.NaN())) {
+		t.Fatal("fallback value predicates are inconsistent")
+	}
+	if got := fallbackBidOrAsk(fallbackFloat(2), decimal.NewFromInt(1)); !got.Equal(decimal.NewFromInt(2)) {
+		t.Fatalf("fallbackBidOrAsk(valid) = %s", got)
+	}
+	if got := fallbackBidOrAsk(fallbackFloat(0), decimal.NewFromInt(1)); !got.Equal(decimal.NewFromInt(1)) {
+		t.Fatalf("fallbackBidOrAsk(default) = %s", got)
+	}
+	if got := fallbackOptionalDecimal(fallbackFloat(math.Inf(1))); got != nil {
+		t.Fatalf("fallbackOptionalDecimal(inf) = %v", got)
+	}
+	if got := fallbackOptionalDecimal(fallbackFloat(2)); got == nil || !got.Equal(decimal.NewFromInt(2)) {
+		t.Fatalf("fallbackOptionalDecimal(valid) = %v", got)
+	}
+	if got := fallbackNonNegativeDecimal(fallbackFloat(-1)); !got.IsZero() {
+		t.Fatalf("fallbackNonNegativeDecimal(negative) = %s", got)
+	}
+	if got := fallbackNonNegativeDecimal(fallbackFloat(2)); !got.Equal(decimal.NewFromInt(2)) {
+		t.Fatalf("fallbackNonNegativeDecimal(valid) = %s", got)
+	}
+}
+
+func TestMarketDataRuntimeQueriesDelayedSnapshotsAlongsideRealtimeQuotes(t *testing.T) {
+	server := startMarketDataRuntimeOpenDServer(t)
+	host, portText, err := net.SplitHostPort(server.listener.Addr().String())
+	if err != nil {
+		t.Fatalf("SplitHostPort: %v", err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatalf("Atoi: %v", err)
+	}
+	now := time.Date(2026, time.August, 7, 14, 0, 0, 0, time.UTC)
+	fallbackPrice := 1500.0
+	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{
+		ConfigSource: func() MarketDataConfig { return MarketDataConfig{Enabled: true, Host: host, APIPort: port} },
+		Now:          func() time.Time { return now },
+	})
+	t.Cleanup(func() { _ = runtime.Close() })
+	desired := []marketdata.InstrumentRef{
+		{Channel: "SNAPSHOT", Market: "US", Symbol: "AAPL"},
+		{Channel: "SNAPSHOT", Market: "SH", Symbol: "600519"},
+	}
+	if err := runtime.ReconcileSubscriptions(t.Context(), desired); err != nil {
+		t.Fatalf("ReconcileSubscriptions: %v", err)
+	}
+	runtime.subscriptionReconciler.mu.Lock()
+	record := runtime.subscriptionReconciler.records["BASIC:SH.600519"]
+	if record == nil {
+		runtime.subscriptionReconciler.mu.Unlock()
+		t.Fatal("Shanghai subscription record was not created")
+	}
+	record.fallback = true
+	record.subscribedAt = time.Time{}
+	runtime.subscriptionReconciler.mu.Unlock()
+	runtime.mu.Lock()
+	runtime.brokerAdapter = &successfulSnapshotFallbackBroker{result: &broker.SecuritySnapshotResult{
+		Snapshots: []broker.SecuritySnapshotItem{{Symbol: "SH.600519", LastPrice: &fallbackPrice, ObservedAt: now}},
+	}}
+	runtime.mu.Unlock()
+
+	ticks, err := runtime.QueryTickers(t.Context(), []string{"US.AAPL", "SH.600519"})
+	if err != nil || len(ticks) != 2 || ticks["US.AAPL"].Source != "bbgo:futu" ||
+		ticks["SH.600519"].Source != "futu:stock-screen" {
+		t.Fatalf("mixed realtime/fallback ticks = %#v, %v", ticks, err)
+	}
+	if got := runtime.FilterPushInstruments([]string{" SH.600519 ", "", "US.AAPL"}); len(got) != 1 || got[0] != "US.AAPL" {
+		t.Fatalf("FilterPushInstruments = %#v", got)
+	}
+	var nilRuntime *MarketDataRuntime
+	if got := nilRuntime.FilterPushInstruments([]string{" us.aapl "}); len(got) != 1 || got[0] != " us.aapl " {
+		t.Fatalf("nil FilterPushInstruments = %#v", got)
+	}
+}
+
+type successfulSnapshotFallbackBroker struct {
+	broker.Broker
+	result *broker.SecuritySnapshotResult
+	err    error
+}
+
+func (b *successfulSnapshotFallbackBroker) QuerySnapshotFallback(
+	context.Context,
+	broker.SecuritySnapshotQuery,
+) (*broker.SecuritySnapshotResult, error) {
+	return b.result, b.err
+}
+
+func fallbackFloat(value float64) *float64 { return &value }
+
+func fallbackString(value string) *string { return &value }
 
 func fixedpointValue(t *testing.T, value string) fixedpoint.Value {
 	t.Helper()

@@ -245,7 +245,7 @@ func candlesFixture(market, symbol, period string) string {
 	}
 	extendedHours := market == "US"
 	return fmt.Sprintf(
-		`{"market":"%[1]s","symbol":"%[2]s","instrument_id":"%[1]s.%[2]s","period":"%[3]s","extended_hours":%[4]t,"total_returned":2,"source":"yfinance","candles":[{"at":"2026-07-28T13:30:00Z","open":185.1,"high":188.2,"low":184.5,"close":187.8,"volume":1000},{"at":"2026-07-29T13:30:00Z","open":187.8,"high":190.1,"low":186.9,"close":189.25,"volume":1200}]}`,
+		`{"market":"%[1]s","symbol":"%[2]s","instrument_id":"%[1]s.%[2]s","period":"%[3]s","extended_hours":%[4]t,"total_returned":2,"has_more":false,"next_before":null,"source":"yfinance","candles":[{"at":"2026-07-28T13:30:00Z","open":185.1,"high":188.2,"low":184.5,"close":187.8,"volume":1000},{"at":"2026-07-29T13:30:00Z","open":187.8,"high":190.1,"low":186.9,"close":189.25,"volume":1200}]}`,
 		market, symbol, period, extendedHours,
 	)
 }

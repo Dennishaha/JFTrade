@@ -291,7 +291,7 @@ func TestConversionRejectsInvalidCandleContracts(t *testing.T) {
 	expected, _ := normalizeIdentity("US", "AAPL", "")
 	valid := remoteCandles{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Period: "1d",
-		TotalReturned: 1, Candles: []remoteCandle{validRemoteCandle()},
+		TotalReturned: 1, HasMore: boolPointer(false), Candles: []remoteCandle{validRemoteCandle()},
 	}
 	response, err := convertCandles(valid, expected, "1d", 1, time.Now())
 	if err != nil || response["totalReturned"] != 1 {
@@ -320,6 +320,101 @@ func TestConversionRejectsInvalidCandleContracts(t *testing.T) {
 		if _, err := convertCandles(value, expected, "1d", 1, time.Now()); !errors.Is(err, ErrInvalidResponse) {
 			t.Fatalf("invalid candle %#v error = %v", value.Candles[0], err)
 		}
+	}
+}
+
+func TestConversionRejectsInvalidCandlePaginationMetadata(t *testing.T) {
+	expected, _ := normalizeIdentity("US", "AAPL", "")
+	valid := remoteCandles{
+		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Period: "1d",
+		TotalReturned: 1, HasMore: boolPointer(false), Candles: []remoteCandle{validRemoteCandle()},
+	}
+
+	for _, test := range []struct {
+		name   string
+		limit  int
+		mutate func(*remoteCandles)
+	}{
+		{
+			name: "missing has more",
+			mutate: func(value *remoteCandles) {
+				value.HasMore = nil
+			},
+		},
+		{
+			name: "terminal cursor",
+			mutate: func(value *remoteCandles) {
+				value.NextBefore = value.Candles[0].At
+			},
+		},
+		{
+			name: "continued page missing cursor",
+			mutate: func(value *remoteCandles) {
+				value.HasMore = boolPointer(true)
+			},
+		},
+		{
+			name: "continued page cursor mismatches earliest candle",
+			mutate: func(value *remoteCandles) {
+				value.HasMore = boolPointer(true)
+				value.NextBefore = "2026-08-01T04:01:00Z"
+			},
+		},
+		{
+			name:  "terminal page exceeds limit",
+			limit: 1,
+			mutate: func(value *remoteCandles) {
+				value.TotalReturned = 2
+				value.Candles = append(value.Candles, remoteCandle{
+					At: "2026-08-02T04:00:00Z", Open: number("11"), High: number("13"),
+					Low: number("10"), Close: number("12"), Volume: number("110"),
+				})
+			},
+		},
+		{
+			name:  "timestamps are not strictly ordered",
+			limit: 2,
+			mutate: func(value *remoteCandles) {
+				value.TotalReturned = 2
+				value.Candles = append(value.Candles, value.Candles[0])
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			value := valid
+			value.Candles = append([]remoteCandle(nil), valid.Candles...)
+			test.mutate(&value)
+			limit := test.limit
+			if limit == 0 {
+				limit = 10
+			}
+			if _, err := convertCandles(value, expected, "1d", limit, time.Now()); !errors.Is(err, ErrInvalidResponse) {
+				t.Fatalf("convertCandles error = %v", err)
+			}
+		})
+	}
+
+	continued := valid
+	continued.HasMore = boolPointer(true)
+	continued.NextBefore = continued.Candles[0].At
+	response, err := convertCandles(continued, expected, "1d", 10, time.Now())
+	if err != nil {
+		t.Fatalf("valid continued page: %v", err)
+	}
+	if pagination := response["pagination"].(map[string]any); pagination["hasMore"] != true ||
+		pagination["nextBefore"] != continued.Candles[0].At {
+		t.Fatalf("continued pagination = %#v", pagination)
+	}
+
+	terminal, err := convertCandles(valid, expected, "1d", 10, time.Now())
+	if err != nil {
+		t.Fatalf("valid terminal page: %v", err)
+	}
+	if _, err := validateHistoricalCandleResponse(terminal, valid.Candles[0].At, "", ""); !errors.Is(err, ErrInvalidResponse) {
+		t.Fatalf("cursor boundary error = %v", err)
+	}
+	if _, err := validateHistoricalCandleResponse(response, "", "2026-08-01T00:00:00Z", ""); !errors.Is(err, ErrInvalidResponse) {
+		t.Fatalf("bounded continuation error = %v", err)
 	}
 }
 
@@ -403,6 +498,10 @@ func validRemoteCandle() remoteCandle {
 		At: "2026-08-01T04:00:00Z", Open: number("10"), High: number("12"),
 		Low: number("9"), Close: number("11"), Volume: number("100"),
 	}
+}
+
+func boolPointer(value bool) *bool {
+	return &value
 }
 
 func number(value string) *json.Number {

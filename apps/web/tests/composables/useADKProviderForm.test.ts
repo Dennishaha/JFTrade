@@ -92,13 +92,20 @@ describe("useADKProviderForm", () => {
     });
   });
 
-  it("defaults legacy provider payloads to Chat Completions", () => {
+  it("defaults incomplete legacy provider payloads to Chat Completions", () => {
     const state = createState();
-    const legacyProvider = { ...provider, apiProtocol: undefined } as unknown as ADKProvider;
+    const legacyProvider = {
+      ...provider,
+      apiProtocol: undefined,
+      contextWindowTokens: undefined,
+      requestTimeoutMs: undefined,
+    } as unknown as ADKProvider;
 
     state.editProvider(legacyProvider);
 
     expect(state.providerForm.value.apiProtocol).toBe("chat_completions");
+    expect(state.providerForm.value.contextWindowTokens).toBe(0);
+    expect(state.providerForm.value.requestTimeoutSeconds).toBe(180);
   });
 
   it("reports provider test completion and updates the default provider", async () => {
@@ -165,6 +172,32 @@ describe("useADKProviderForm", () => {
       "Provider 已保存，但刷新界面失败：refresh failed",
     );
     expect(state.successMessage.value).toBe("");
+  });
+
+  it("keeps non-Error save failures distinct before and after a provider write", async () => {
+    const state = createState();
+
+    vi.mocked(saveADKProvider).mockRejectedValueOnce("offline");
+    expect(await state.saveProvider()).toBe(false);
+    expect(state.errorMessage.value).toBe("保存失败");
+
+    vi.mocked(saveADKProvider).mockResolvedValueOnce(provider);
+    state.refreshAll.mockRejectedValueOnce(undefined);
+    expect(await state.saveProvider()).toBe(false);
+    expect(state.errorMessage.value).toBe(
+      "Provider 已保存，但刷新界面失败：未知错误",
+    );
+  });
+
+  it("preserves Error messages from provider test failures", async () => {
+    const state = createState();
+    vi.mocked(testADKProvider).mockRejectedValueOnce(new Error("probe timed out"));
+
+    expect(await state.testProvider("private-gateway")).toEqual({
+      ok: false,
+      message: "probe timed out",
+    });
+    expect(state.errorMessage.value).toBe("probe timed out");
   });
 });
 

@@ -297,14 +297,16 @@ func (s *futuWatchlistSnapshotSource) BatchSnapshots(ctx context.Context, instru
 	if err != nil {
 		return nil, nil, err
 	}
-	hkIDs := make([]string, 0, len(instrumentIDs))
-	otherIDs := make([]string, 0, len(instrumentIDs))
+	// OpenD reports a missing market entitlement as a batch failure. Keep
+	// markets isolated so one unavailable market cannot hide another.
+	marketIDs := make(map[string][]string, len(instrumentIDs))
+	marketOrder := make([]string, 0, len(instrumentIDs))
 	for _, instrumentID := range instrumentIDs {
-		if marketpkg.SymbolMarket(instrumentID) == "HK" {
-			hkIDs = append(hkIDs, instrumentID)
-		} else {
-			otherIDs = append(otherIDs, instrumentID)
+		market := marketpkg.SymbolMarket(instrumentID)
+		if _, exists := marketIDs[market]; !exists {
+			marketOrder = append(marketOrder, market)
 		}
+		marketIDs[market] = append(marketIDs[market], instrumentID)
 	}
 	items := make(map[string]broker.SecuritySnapshotItem, len(instrumentIDs))
 	itemErrors := make([]watchlist.QuoteError, 0)
@@ -316,8 +318,13 @@ func (s *futuWatchlistSnapshotSource) BatchSnapshots(ctx context.Context, instru
 			itemErrors = append(itemErrors, batchErrors...)
 		}
 	}
-	queryBatches(hkIDs, futuHKSnapshotBatch)
-	queryBatches(otherIDs, futuSnapshotBatch)
+	for _, market := range marketOrder {
+		batchSize := futuSnapshotBatch
+		if market == "HK" {
+			batchSize = futuHKSnapshotBatch
+		}
+		queryBatches(marketIDs[market], batchSize)
+	}
 	now := time.Now().UTC()
 	if s.now != nil {
 		now = s.now().UTC()
@@ -336,15 +343,14 @@ func (s *futuWatchlistSnapshotSource) BatchSnapshots(ctx context.Context, instru
 func queryFutuSnapshotBatch(ctx context.Context, source broker.BatchSnapshotSource, instrumentIDs []string) (map[string]broker.SecuritySnapshotItem, []watchlist.QuoteError) {
 	result, err := source.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{Symbols: instrumentIDs})
 	if err != nil {
-		if len(instrumentIDs) == 1 || ctx.Err() != nil || !broker.IsSymbolScopedSnapshotError(err) {
-			code := watchlistSnapshotErrorCode(err)
-			itemErrors := make([]watchlist.QuoteError, 0, len(instrumentIDs))
-			for _, instrumentID := range instrumentIDs {
-				itemErrors = append(itemErrors, watchlist.QuoteError{
-					InstrumentID: instrumentID, Code: code, Message: err.Error(),
-				})
+		if fallback, ok := source.(broker.SnapshotFallbackSource); ok &&
+			ctx.Err() == nil && broker.IsSnapshotFallbackEligible(err) {
+			if items, fallbackErr := queryFutuSnapshotFallback(ctx, fallback, instrumentIDs); fallbackErr == nil {
+				return items, missingSnapshotErrors(instrumentIDs, items, watchlistSnapshotErrorCode(err), err.Error())
 			}
-			return nil, itemErrors
+		}
+		if len(instrumentIDs) == 1 || ctx.Err() != nil || !broker.IsSymbolScopedSnapshotError(err) {
+			return nil, missingSnapshotErrors(instrumentIDs, nil, watchlistSnapshotErrorCode(err), err.Error())
 		}
 		middle := len(instrumentIDs) / 2
 		leftItems, leftErrors := queryFutuSnapshotBatch(ctx, source, instrumentIDs[:middle])
@@ -366,13 +372,69 @@ func queryFutuSnapshotBatch(ctx context.Context, source broker.BatchSnapshotSour
 			}
 		}
 	}
-	errorsByID := make([]watchlist.QuoteError, 0)
-	for _, instrumentID := range instrumentIDs {
-		if _, ok := items[instrumentID]; !ok {
-			errorsByID = append(errorsByID, watchlist.QuoteError{InstrumentID: instrumentID, Code: "SNAPSHOT_NOT_RETURNED", Message: "Futu OpenD did not return a snapshot for this instrument"})
+	if fallback, ok := source.(broker.SnapshotFallbackSource); ok && len(items) < len(instrumentIDs) && ctx.Err() == nil {
+		missing := missingSnapshotIDs(instrumentIDs, items)
+		if fallbackItems, fallbackErr := queryFutuSnapshotFallback(ctx, fallback, missing); fallbackErr == nil {
+			maps.Copy(items, fallbackItems)
 		}
 	}
-	return items, errorsByID
+	return items, missingSnapshotErrors(
+		instrumentIDs,
+		items,
+		"SNAPSHOT_NOT_RETURNED",
+		"Futu OpenD did not return a snapshot for this instrument",
+	)
+}
+
+func queryFutuSnapshotFallback(
+	ctx context.Context,
+	source broker.SnapshotFallbackSource,
+	instrumentIDs []string,
+) (map[string]broker.SecuritySnapshotItem, error) {
+	if source == nil || len(instrumentIDs) == 0 {
+		return map[string]broker.SecuritySnapshotItem{}, nil
+	}
+	result, err := source.QuerySnapshotFallback(ctx, broker.SecuritySnapshotQuery{Symbols: instrumentIDs})
+	if err != nil {
+		return nil, err
+	}
+	items := make(map[string]broker.SecuritySnapshotItem, len(instrumentIDs))
+	if result == nil {
+		return items, nil
+	}
+	for _, item := range result.Snapshots {
+		canonical, parseErr := watchlist.NormalizeInstrumentID(item.Symbol)
+		if parseErr == nil {
+			items[canonical] = item
+		}
+	}
+	return items, nil
+}
+
+func missingSnapshotIDs(instrumentIDs []string, items map[string]broker.SecuritySnapshotItem) []string {
+	missing := make([]string, 0, len(instrumentIDs))
+	for _, instrumentID := range instrumentIDs {
+		if _, ok := items[instrumentID]; !ok {
+			missing = append(missing, instrumentID)
+		}
+	}
+	return missing
+}
+
+func missingSnapshotErrors(
+	instrumentIDs []string,
+	items map[string]broker.SecuritySnapshotItem,
+	code string,
+	message string,
+) []watchlist.QuoteError {
+	itemErrors := make([]watchlist.QuoteError, 0, len(instrumentIDs))
+	for _, instrumentID := range instrumentIDs {
+		if _, ok := items[instrumentID]; ok {
+			continue
+		}
+		itemErrors = append(itemErrors, watchlist.QuoteError{InstrumentID: instrumentID, Code: code, Message: message})
+	}
+	return itemErrors
 }
 
 func watchlistSnapshotErrorCode(err error) string {
@@ -426,6 +488,9 @@ func watchlistQuoteFromBrokerSnapshot(instrumentID string, item broker.SecurityS
 			After:     extendedQuoteBlock(item.AfterMarket, observedAt, updateTime, item.PreviousClose),
 			Overnight: extendedQuoteBlock(item.Overnight, observedAt, updateTime, item.PreviousClose),
 		},
+	}
+	if source := strings.TrimSpace(item.Source); source != "" {
+		quote.Source = source
 	}
 	if item.Fund != nil {
 		quote.AssetClass = strings.TrimSpace(item.Fund.AssetClass)

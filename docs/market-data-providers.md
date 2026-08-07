@@ -22,11 +22,19 @@ AKShare 目录包含沪深股票与 ETF、美港通用证券、上证/深证/中
 
 AKShare 沪深股票、ETF、指数及美港通用证券支持 `1m/5m/15m/30m/1h/1d/1w/1mo`；美股 `5m` 至 `1h` 由一分钟数据确定性聚合，美港指数的周/月线由日线按交易所时区聚合。超出上游保留窗口会返回 `UNSUPPORTED_RANGE`，不会伪装为空结果。历史查询统一不复权；沪深以“手”报告的成交量转换为股数。不存在的 bid、ask、volume、turnover 和真实报价时间保持 `null`。
 
+## 历史 K 线分页
+
+历史 K 线的 `before` 是严格排除式游标：后续页中的每根 K 线都必须早于它。`pagination.nextBefore` 始终等于当前页最早的 K 线时间，且只有 Provider 已确认还存在更早的有效 K 线时才会返回 `hasMore=true`。调用方必须以此分页元数据为准，不能根据当前页的返回条数推断是否还有历史数据。
+
+`from`/`to` 是包含式边界，与 `before` 不可同时使用；所有显式范围查询都是有界查询，回应 `hasMore=false`。游标到达 Provider 最早可用数据或短周期保留边界时，会正常返回空页与 `hasMore=false`，而不是报错；上游、鉴权和响应格式故障仍按错误处理。
+
 Yahoo Finance 接口不是官方稳定 API，也没有实时性或可用性承诺。JFTrade 会把缺失值安全映射为 `null`，并把上游失败转换为结构化错误，但无法消除上游限流、字段变化或临时不可用。
 
 Yahoo 的美股盘外分钟数据只作为价格样本使用：上游盘前成交量通常为零，盘后还可能把截至当时的累计成交量放进单根分钟 K，不能解释为该分钟增量。JFTrade 因此把 Yahoo 美股盘前、盘后分钟 K 的 `volume` 统一标记为 `null`，价格 K 仍保留；成交量柱和量价指标只使用成交量有效的常规时段 K。日成交量直接读取 Yahoo 日 K，不从盘外分钟 K 聚合。Futu OpenD 的每根 K 线成交量不受此规则影响。
 
 Yahoo 的 `postMarketPrice` / `postMarketTime` 是 Yahoo Provider 下的盘后价格与实际报价时间，不会用 Futu 数值覆盖。JFTrade 使用当前生效的交易所日历校验报价所属交易日和盘前/盘后窗口，并据此分类分钟 K 线；周末、节假日和早收市边界不由 Python helper 或前端硬编码。行情卡片分别展示实际“报价时间”和日历计划“截止时间”，两者均以交易所时区为主。Futu `PreAfterMarketData` 不携带独立时间戳，因此不会把 BasicQot 常规更新时间冒充盘外报价时间。
+
+Futu 的可见标的若 `BasicQot` 订阅因行情权限、不支持或订阅额度已满而无法建立，JFTrade 不会自动切换到 Yahoo/AKShare，也不会启动 Python helper。它会在同一 OpenD 连接上用 `Qot_GetStaticInfo` 获取 Stock ID，并用 `Qot_StockScreen` 读取延迟快照补全价格和可用的昨收；该路径不会创建 `Qot_Sub`，结果短暂缓存 15 秒。回退标的继续参与快照轮询，但不会加入实时推送流；订阅状态会标为 `fallback`，行情状态和自选价格旁会显示黄色的降级提示。盘口、K 线和实盘策略仍要求原生 Futu 订阅。
 
 ## 内置 helper
 
