@@ -15,7 +15,7 @@ func TestAssistantChatRoutesRejectMalformedOrUnresolvableRequests(t *testing.T) 
 	malformed := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat", []byte(`{"agentId":`))
 	assertAssistantErrorCode(t, malformed, http.StatusBadRequest, "BAD_REQUEST")
 
-	missingAgent := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat", []byte(`{"agentId":"agent-missing","message":"review US.AAPL"}`))
+	missingAgent := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat", testADKChatBody(`{"agentId":"agent-missing","message":"review US.AAPL"}`))
 	assertAssistantErrorCode(t, missingAgent, http.StatusBadRequest, "ADK_CHAT_FAILED")
 
 	stream := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat/stream", []byte(`{"agentId":`))

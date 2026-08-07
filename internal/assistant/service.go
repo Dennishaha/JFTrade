@@ -144,6 +144,21 @@ func (s *Service) ChatStream(ctx context.Context, req jfadk.ChatRequest, onDelta
 	return s.runtime.ChatStream(ctx, req, onDelta)
 }
 
+// CheckChatRequestConflict rejects a reused request ID whose normalized payload changed.
+func (s *Service) CheckChatRequestConflict(ctx context.Context, clientRequestID string, fingerprint string) error {
+	if s.runtime == nil || s.runtime.Store() == nil {
+		return nil
+	}
+	_, existingFingerprint, ok, err := s.runtime.Store().ChatRunByClientRequestID(ctx, clientRequestID)
+	if err != nil || !ok {
+		return err
+	}
+	if existingFingerprint != fingerprint {
+		return &jfadk.ChatRequestConflictError{ClientRequestID: clientRequestID}
+	}
+	return nil
+}
+
 // PreviewSession returns the existing or prospective session emitted at stream start.
 func (s *Service) PreviewSession(ctx context.Context, payload jfadk.ChatRequest) (jfadk.Session, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
@@ -221,6 +236,9 @@ func (s *Service) recoverAssistantReply(ctx context.Context, run jfadk.Run) (str
 		return "", ""
 	}
 	if finalMessageID := strings.TrimSpace(run.FinalMessageID); finalMessageID != "" {
+		if message, found := projection.MessagesByEventID[finalMessageID]; found {
+			return message.Content, message.ReasoningContent
+		}
 		for _, message := range projection.Messages {
 			if message.ID == finalMessageID && strings.EqualFold(strings.TrimSpace(message.Role), "assistant") {
 				return message.Content, message.ReasoningContent

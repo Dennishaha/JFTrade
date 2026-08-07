@@ -159,7 +159,7 @@ func TestGoalTurnPersistenceFailuresBubbleThroughTheOrchestrator(t *testing.T) {
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_goal_complete_write")
 
 		_, response, done, prompt, err := runtime.workflowExecutor().finishCompleteGoalWorkflow(
-			t.Context(), workflowRequest{Session: session}, parent, nil, openAIChatResult{},
+			t.Context(), workflowRequest{Session: session}, parent, nil, assistantExecutionResult{},
 			workflowGoalDecisionSnapshot{summary: "durable result"}, "", 1,
 		)
 		if err == nil || !strings.Contains(err.Error(), "persist completed goal state") || !strings.Contains(err.Error(), "reject_goal_complete_write") {
@@ -181,7 +181,7 @@ func TestGoalTurnPersistenceFailuresBubbleThroughTheOrchestrator(t *testing.T) {
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_goal_continue_write")
 
 		_, response, done, prompt, err := runtime.workflowExecutor().finishContinueGoalWorkflow(
-			t.Context(), workflowRequest{Session: session}, parent, openAIChatResult{},
+			t.Context(), workflowRequest{Session: session}, parent, assistantExecutionResult{},
 			workflowGoalDecisionSnapshot{reason: "continue after review"}, "", 1,
 		)
 		if err == nil || !strings.Contains(err.Error(), "persist continued goal state") || !strings.Contains(err.Error(), "reject_goal_continue_write") {

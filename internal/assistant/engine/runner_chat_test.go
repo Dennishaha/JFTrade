@@ -111,7 +111,7 @@ func TestCompleteChatRunDoesNotPromoteTopLevelFollowUpToPendingInput(t *testing.
 		CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 	})
 
-	response, err := runtime.completeChatRun(ctx, session, run, run.UserMessage, toolExecutionContext{}, nil, openAIChatResult{
+	response, err := runtime.completeChatRun(ctx, session, run, run.UserMessage, toolExecutionContext{}, nil, assistantExecutionResult{
 		Reply: reply,
 	}, nil)
 	if err != nil {
@@ -237,7 +237,7 @@ func TestAttachFinalAssistantMessagePersistsMessageAndRunLink(t *testing.T) {
 		UpdatedAt: nowString(),
 	})
 
-	updated, err := runtime.attachFinalAssistantMessage(ctx, session, run, openAIChatResult{
+	updated, err := runtime.attachFinalAssistantMessage(ctx, session, run, assistantExecutionResult{
 		Reply:            "all set",
 		ReasoningContent: "internal reasoning",
 	})
@@ -347,7 +347,7 @@ func TestCompleteChatRunFailurePersistsUserFacingErrorReply(t *testing.T) {
 		"账户现在怎么样",
 		toolExecutionContext{summaries: run.ToolSummaries},
 		nil,
-		openAIChatResult{},
+		assistantExecutionResult{},
 		errors.New("provider down"),
 	)
 	if err != nil {
@@ -397,7 +397,7 @@ func TestCompleteChatRunSuccessPersistsCompletedRunAndAssistantReply(t *testing.
 		"hello",
 		toolExecutionContext{},
 		nil,
-		openAIChatResult{Reply: "final answer", ReasoningContent: "because data"},
+		assistantExecutionResult{Reply: "final answer", ReasoningContent: "because data"},
 		nil,
 	)
 	if err != nil {
@@ -454,7 +454,7 @@ func TestCompleteChatRunKeepsFailedToolCallsVisibleWithoutFailingRun(t *testing.
 		"save this strategy",
 		toolExecutionContext{calls: run.ToolCalls},
 		nil,
-		openAIChatResult{},
+		assistantExecutionResult{},
 		nil,
 	)
 	if err != nil {
@@ -512,7 +512,7 @@ func TestProjectedChatResponseAppliesProjectionToRunFields(t *testing.T) {
 	appendADKEvent(t, runtime, agent.ID, session.ID, newToolResponseEvent(run.ID, "call-opt", "strategy.optimize", map[string]any{"taskId": "opt-999", "status": "started"}, time.Unix(32, 0)))
 	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "优化已启动。"}}, time.Unix(33, 0)))
 
-	response := runtime.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: "projected reply"})
+	response := runtime.projectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: "projected reply"})
 	if response.Reply != "先说明一下。优化已启动。" {
 		t.Fatalf("reply = %q, want 先说明一下。优化已启动。", response.Reply)
 	}
@@ -798,22 +798,22 @@ func TestRunnerChatProjectionPersistenceAndAssistantBoundaries(t *testing.T) {
 	}
 	mergeRunActivitySnapshot(nil, snapshot)
 
-	message, err := runtime.appendAssistantMessageEvent(ctx, session, run, openAIChatResult{Reply: "reply", ReasoningContent: "reasoning"})
+	message, err := runtime.appendAssistantMessageEvent(ctx, session, run, assistantExecutionResult{Reply: "reply", ReasoningContent: "reasoning"})
 	if err != nil {
 		t.Fatalf("appendAssistantMessageEvent: %v", err)
 	}
 	if message.SessionID != session.ID || message.RunID != run.ID || message.Content != "reply" || message.ReasoningContent != "reasoning" {
 		t.Fatalf("assistant message = %+v", message)
 	}
-	shortcut, err := runtime.ensureAssistantMessage(ctx, session, run, openAIChatResult{Reply: "reply", ReasoningContent: "reasoning"})
+	shortcut, err := runtime.ensureAssistantMessage(ctx, session, run, assistantExecutionResult{Reply: "reply", ReasoningContent: "reasoning"})
 	if err != nil || shortcut.ID != message.ID {
 		t.Fatalf("ensureAssistantMessage projection shortcut = %+v err=%v", shortcut, err)
 	}
-	if _, err := (*Runtime)(nil).appendAssistantMessageEvent(ctx, session, run, openAIChatResult{Reply: "x"}); err == nil || !strings.Contains(err.Error(), "session service") {
+	if _, err := (*Runtime)(nil).appendAssistantMessageEvent(ctx, session, run, assistantExecutionResult{Reply: "x"}); err == nil || !strings.Contains(err.Error(), "session service") {
 		t.Fatalf("nil appendAssistantMessageEvent err = %v", err)
 	}
 	createErrRuntime := &Runtime{rawSessionService: createErrorSessionService{err: errors.New("create failed")}}
-	if _, err := createErrRuntime.appendAssistantMessageEvent(ctx, session, run, openAIChatResult{Reply: "x"}); err == nil || !strings.Contains(err.Error(), "create failed") {
+	if _, err := createErrRuntime.appendAssistantMessageEvent(ctx, session, run, assistantExecutionResult{Reply: "x"}); err == nil || !strings.Contains(err.Error(), "create failed") {
 		t.Fatalf("create error appendAssistantMessageEvent err = %v", err)
 	}
 
@@ -883,7 +883,7 @@ func TestProjectedChatResponseDoesNotExposeResolvedApprovals(t *testing.T) {
 	})
 	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "done"}}, time.Unix(41, 0)))
 
-	response := runtime.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: "projected reply"})
+	response := runtime.projectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: "projected reply"})
 	if len(response.PendingApprovals) != 0 {
 		t.Fatalf("response pending approvals = %+v, want none", response.PendingApprovals)
 	}

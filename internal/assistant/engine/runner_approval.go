@@ -241,7 +241,7 @@ func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID stri
 	if _, err := r.continueParentWorkflowAfterChild(ctx, run); err != nil {
 		return err
 	}
-	replyResult := openAIChatResult{Reply: run.FailureReason}
+	replyResult := assistantExecutionResult{Reply: run.FailureReason, SyntheticKind: "approval_failure"}
 	if saved, msgErr := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, replyResult); msgErr == nil {
 		run.FinalMessageID = saved.ID
 		if err := r.store.SaveRun(ctx, run); err != nil {

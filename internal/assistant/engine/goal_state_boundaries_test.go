@@ -77,7 +77,7 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 		executionWithoutPostToolReply := newBareGoogleADKExecution(parent.ID)
 		executionWithoutPostToolReply.calls = []ToolCall{{ID: "coverage98-finished-tool", RunID: parent.ID, ToolName: workflowTasksListTool, Status: "SUCCEEDED"}}
 		updated, _, snapshot, done, response, prompt, err := executor.resolveGoalWorkflowDecision(ctx, workflowRequest{Session: session}, parent, nil,
-			executionWithoutPostToolReply, &workflowGoalDecision{}, openAIChatResult{}, "visible progress", "", 1, false)
+			executionWithoutPostToolReply, &workflowGoalDecision{}, assistantExecutionResult{}, "visible progress", "", 1, false)
 		if err != nil {
 			t.Fatalf("resolve missing final reply: %v", err)
 		}
@@ -92,7 +92,7 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 			CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
 		updated, _, _, done, response, prompt, err = executor.resolveGoalWorkflowDecision(ctx, workflowRequest{Session: session}, pausedParent, nil,
-			newBareGoogleADKExecution(pausedParent.ID), &workflowGoalDecision{}, openAIChatResult{}, "progress before pause", "", 1, false)
+			newBareGoogleADKExecution(pausedParent.ID), &workflowGoalDecision{}, assistantExecutionResult{}, "progress before pause", "", 1, false)
 		if err != nil {
 			t.Fatalf("resolve pause-first decision: %v", err)
 		}
@@ -101,7 +101,7 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 		}
 
 		unchanged, replyResult, pauseDone, pauseResponse, err := executor.pauseAfterMissingGoalDecision(ctx, workflowRequest{Session: session}, parent,
-			openAIChatResult{}, "visible fallback", workflowGoalDecisionSnapshot{}, 1)
+			assistantExecutionResult{}, "visible fallback", workflowGoalDecisionSnapshot{}, 1)
 		if err != nil {
 			t.Fatalf("pause after missing decision: %v", err)
 		}
@@ -125,7 +125,7 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 			CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
 		continued, response, paused, prompt, err := runtime.workflowExecutor().finishContinueGoalWorkflow(ctx, workflowRequest{Session: session}, parent,
-			openAIChatResult{}, workflowGoalDecisionSnapshot{reason: "await review"}, "", 2)
+			assistantExecutionResult{}, workflowGoalDecisionSnapshot{reason: "await review"}, "", 2)
 		if err != nil {
 			t.Fatalf("finish continued goal: %v", err)
 		}

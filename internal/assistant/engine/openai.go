@@ -91,9 +91,11 @@ type openAIChatStreamResponse struct {
 	} `json:"error,omitempty"`
 }
 
-type openAIChatResult struct {
+type assistantExecutionResult struct {
 	Reply            string
 	ReasoningContent string
+	SourceEventID    string
+	SyntheticKind    string
 }
 
 func newOpenAIClient() openAIClient {
@@ -425,11 +427,11 @@ func (c openAIClient) chat(ctx context.Context, provider Provider, apiKey string
 	return result.Reply, nil
 }
 
-func (c openAIClient) chatDetailed(ctx context.Context, provider Provider, apiKey string, model string, messages []openAIChatMessage) (openAIChatResult, error) {
-	var result openAIChatResult
+func (c openAIClient) chatDetailed(ctx context.Context, provider Provider, apiKey string, model string, messages []openAIChatMessage) (assistantExecutionResult, error) {
+	var result assistantExecutionResult
 	streamResult, err := c.chatStream(ctx, provider, apiKey, model, messages, nil)
 	if err != nil {
-		return openAIChatResult{}, err
+		return assistantExecutionResult{}, err
 	}
 	result = streamResult
 	return result, nil
@@ -517,7 +519,7 @@ func (c openAIClient) chatStream(
 	model string,
 	messages []openAIChatMessage,
 	onDelta func(ChatDelta) error,
-) (openAIChatResult, error) {
+) (assistantExecutionResult, error) {
 	endpoint := strings.TrimRight(provider.BaseURL, "/") + "/chat/completions"
 	if strings.TrimSpace(model) == "" {
 		model = provider.Model
@@ -525,11 +527,11 @@ func (c openAIClient) chatStream(
 	payload := openAIChatRequest{Model: model, Messages: trimMessagesForProvider(messages, maxProviderPayloadBytes), Temperature: 0.2, Stream: true}
 	raw, err := json.Marshal(payload)
 	if err != nil {
-		return openAIChatResult{}, err
+		return assistantExecutionResult{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))
 	if err != nil {
-		return openAIChatResult{}, err
+		return assistantExecutionResult{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream, application/json")
@@ -543,19 +545,19 @@ func (c openAIClient) chatStream(
 	}
 	resp, err := c.httpClientForProvider(provider).Do(req)
 	if err != nil {
-		return openAIChatResult{}, err
+		return assistantExecutionResult{}, err
 	}
 	defer func() { besteffort.LogError(resp.Body.Close()) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 		if readErr != nil {
-			return openAIChatResult{}, readErr
+			return assistantExecutionResult{}, readErr
 		}
 		var parsed openAIChatResponse
 		if err := json.Unmarshal(body, &parsed); err == nil && parsed.Error != nil && parsed.Error.Message != "" {
-			return openAIChatResult{}, fmt.Errorf("provider returned %d: %s", resp.StatusCode, parsed.Error.Message)
+			return assistantExecutionResult{}, fmt.Errorf("provider returned %d: %s", resp.StatusCode, parsed.Error.Message)
 		}
-		return openAIChatResult{}, fmt.Errorf("provider returned %d", resp.StatusCode)
+		return assistantExecutionResult{}, fmt.Errorf("provider returned %d", resp.StatusCode)
 	}
 
 	if strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
@@ -564,22 +566,22 @@ func (c openAIClient) chatStream(
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
-		return openAIChatResult{}, err
+		return assistantExecutionResult{}, err
 	}
 	var parsed openAIChatResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return openAIChatResult{}, fmt.Errorf("decode OpenAI-compatible response: %w", err)
+		return assistantExecutionResult{}, fmt.Errorf("decode OpenAI-compatible response: %w", err)
 	}
 	if parsed.Error != nil && parsed.Error.Message != "" {
-		return openAIChatResult{}, fmt.Errorf("provider returned: %s", parsed.Error.Message)
+		return assistantExecutionResult{}, fmt.Errorf("provider returned: %s", parsed.Error.Message)
 	}
 	if len(parsed.Choices) == 0 {
-		return openAIChatResult{}, fmt.Errorf("provider returned no choices")
+		return assistantExecutionResult{}, fmt.Errorf("provider returned no choices")
 	}
 	return c.emitStructuredMessage(parsed.Choices[0].Message, onDelta)
 }
 
-func (c openAIClient) readStreamingResponse(body io.Reader, onDelta func(ChatDelta) error) (openAIChatResult, error) {
+func (c openAIClient) readStreamingResponse(body io.Reader, onDelta func(ChatDelta) error) (assistantExecutionResult, error) {
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 64<<10), 2<<20)
 	stream := &openAIStreamAccumulator{}
@@ -588,17 +590,17 @@ func (c openAIClient) readStreamingResponse(body io.Reader, onDelta func(ChatDel
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return openAIChatResult{}, err
+			return assistantExecutionResult{}, err
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return openAIChatResult{}, err
+		return assistantExecutionResult{}, err
 	}
 	if err := stream.flushEvent(onDelta); err != nil && !errors.Is(err, io.EOF) {
-		return openAIChatResult{}, err
+		return assistantExecutionResult{}, err
 	}
 	if err := stream.flushTail(onDelta); err != nil {
-		return openAIChatResult{}, err
+		return assistantExecutionResult{}, err
 	}
 	return stream.result()
 }
@@ -662,29 +664,29 @@ func (s *openAIStreamAccumulator) flushTail(onDelta func(ChatDelta) error) error
 	return nil
 }
 
-func (s *openAIStreamAccumulator) result() (openAIChatResult, error) {
-	result := openAIChatResult{
+func (s *openAIStreamAccumulator) result() (assistantExecutionResult, error) {
+	result := assistantExecutionResult{
 		Reply:            strings.TrimSpace(s.replyBuilder.String()),
 		ReasoningContent: strings.TrimSpace(s.reasoningBuilder.String()),
 	}
 	if result.Reply == "" {
-		return openAIChatResult{}, fmt.Errorf("provider returned an empty reply")
+		return assistantExecutionResult{}, fmt.Errorf("provider returned an empty reply")
 	}
 	return result, nil
 }
 
-func (c openAIClient) emitStructuredMessage(message openAIChatMessage, onDelta func(ChatDelta) error) (openAIChatResult, error) {
+func (c openAIClient) emitStructuredMessage(message openAIChatMessage, onDelta func(ChatDelta) error) (assistantExecutionResult, error) {
 	reply, reasoning := extractVisibleAndReasoningText(message.Content, message.ReasoningContent, message.Reasoning)
-	result := openAIChatResult{
+	result := assistantExecutionResult{
 		Reply:            strings.TrimSpace(reply),
 		ReasoningContent: strings.TrimSpace(reasoning),
 	}
 	if result.Reply == "" {
-		return openAIChatResult{}, fmt.Errorf("provider returned an empty reply")
+		return assistantExecutionResult{}, fmt.Errorf("provider returned an empty reply")
 	}
 	if onDelta != nil {
 		if err := onDelta(ChatDelta{Reply: result.Reply, ReasoningContent: result.ReasoningContent}); err != nil {
-			return openAIChatResult{}, err
+			return assistantExecutionResult{}, err
 		}
 	}
 	return result, nil

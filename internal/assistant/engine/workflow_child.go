@@ -93,7 +93,7 @@ func workflowChildHasExecutionActivity(
 	child Run,
 	toolContext toolExecutionContext,
 	approvals []Approval,
-	replyResult openAIChatResult,
+	replyResult assistantExecutionResult,
 ) bool {
 	if len(approvals) > 0 || len(toolContext.calls) > 0 {
 		return true

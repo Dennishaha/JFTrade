@@ -521,7 +521,7 @@ func TestWorkflowResponseUsesAuthoritativePauseRequestedParent(t *testing.T) {
 		ctx,
 		session,
 		stale,
-		openAIChatResult{Reply: "still running"},
+		assistantExecutionResult{Reply: "still running"},
 	)
 
 	if response.Run.PauseRequestedAt == nil || response.Run.ResumeState != "user_pause_requested" {

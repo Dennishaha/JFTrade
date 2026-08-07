@@ -75,7 +75,7 @@ func TestCoverage98ChatStreamTransportHandlesDisconnectedClients(t *testing.T) {
 
 	t.Run("valid request keeps terminal execution state after client disconnect", func(t *testing.T) {
 		writer := newCoverage98FailingSSEWriter()
-		handler.handleADKChatStream(coverage98SSEContext(t, writer, http.MethodPost, "/api/v1/adk/chat/stream", `{"message":"hello"}`))
+		handler.handleADKChatStream(coverage98SSEContext(t, writer, http.MethodPost, "/api/v1/adk/chat/stream", testADKChatJSON(`{"message":"hello"}`)))
 
 		streamID := writer.Header().Get("X-ADK-Stream-ID")
 		if streamID == "" {

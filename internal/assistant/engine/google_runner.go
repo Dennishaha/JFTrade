@@ -48,6 +48,7 @@ type googleADKExecution struct {
 	postToolTextByRunID      map[string]bool
 	toolResponseSeqByRunID   map[string]int
 	postToolTextSeqByRunID   map[string]int
+	finalMessageIDByRunID    map[string]string
 	reply                    strings.Builder
 	reasoning                strings.Builder
 	preToolContent           strings.Builder
@@ -70,10 +71,10 @@ func (r *Runtime) executeGoogleADK(
 	runID string,
 	text string,
 	onDelta func(ChatDelta) error,
-) (toolExecutionContext, []Approval, openAIChatResult, string, string, error) {
+) (toolExecutionContext, []Approval, assistantExecutionResult, string, string, error) {
 	execution, err := r.newGoogleADKExecution(ctx, agent, session, runID, onDelta)
 	if err != nil {
-		return toolExecutionContext{}, nil, openAIChatResult{}, "", "", err
+		return toolExecutionContext{}, nil, assistantExecutionResult{}, "", "", err
 	}
 	if err := execution.run(ctx, genai.NewContentFromText(text, genai.RoleUser)); err != nil {
 		preToolContent, preToolReasoning := execution.preToolState()

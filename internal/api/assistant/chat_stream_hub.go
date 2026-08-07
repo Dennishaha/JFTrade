@@ -23,28 +23,32 @@ const (
 )
 
 type adkChatStreamHub struct {
-	mu      sync.Mutex
-	streams map[string]*adkChatStreamRecord
-	byRunID map[string]string
+	mu                sync.Mutex
+	streams           map[string]*adkChatStreamRecord
+	byRunID           map[string]string
+	byClientRequestID map[string]string
 }
 
 type adkChatStreamRecord struct {
-	mu           sync.Mutex
-	id           string
-	runID        string
-	nextSequence int64
-	events       []adkChatStreamEvent
-	notify       chan struct{}
-	terminal     bool
-	startedAt    time.Time
-	updatedAt    time.Time
-	expiresAt    time.Time
+	mu                 sync.Mutex
+	id                 string
+	runID              string
+	nextSequence       int64
+	events             []adkChatStreamEvent
+	notify             chan struct{}
+	terminal           bool
+	startedAt          time.Time
+	updatedAt          time.Time
+	expiresAt          time.Time
+	clientRequestID    string
+	requestFingerprint string
 }
 
 func newADKChatStreamHub() *adkChatStreamHub {
 	return &adkChatStreamHub{
-		streams: make(map[string]*adkChatStreamRecord),
-		byRunID: make(map[string]string),
+		streams:           make(map[string]*adkChatStreamRecord),
+		byRunID:           make(map[string]string),
+		byClientRequestID: make(map[string]string),
 	}
 }
 
@@ -62,6 +66,31 @@ func (h *adkChatStreamHub) create() *adkChatStreamRecord {
 	h.streams[record.id] = record
 	h.mu.Unlock()
 	return record
+}
+
+func (h *adkChatStreamHub) claim(clientRequestID string, fingerprint string) (*adkChatStreamRecord, bool, error) {
+	h.cleanup()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	clientRequestID = strings.TrimSpace(clientRequestID)
+	if streamID := h.byClientRequestID[clientRequestID]; streamID != "" {
+		record := h.streams[streamID]
+		if record != nil {
+			if record.requestFingerprint != fingerprint {
+				return nil, false, &jfadk.ChatRequestConflictError{ClientRequestID: clientRequestID}
+			}
+			return record, false, nil
+		}
+		delete(h.byClientRequestID, clientRequestID)
+	}
+	now := time.Now()
+	record := &adkChatStreamRecord{
+		id: "stream-" + uuid.NewString(), clientRequestID: clientRequestID, requestFingerprint: fingerprint,
+		startedAt: now, updatedAt: now, events: make([]adkChatStreamEvent, 0, 32), notify: make(chan struct{}),
+	}
+	h.streams[record.id] = record
+	h.byClientRequestID[clientRequestID] = record.id
+	return record, true, nil
 }
 
 func (h *adkChatStreamHub) get(streamID string) (*adkChatStreamRecord, bool) {
@@ -157,6 +186,9 @@ func (h *adkChatStreamHub) cleanupWithRunLookup(runLookup func(string) (jfadk.Ru
 		if h.byRunID[runID] == streamID {
 			delete(h.byRunID, runID)
 		}
+		if h.byClientRequestID[record.clientRequestID] == streamID {
+			delete(h.byClientRequestID, record.clientRequestID)
+		}
 	}
 }
 
@@ -197,8 +229,11 @@ func streamEventRunID(event adkChatStreamEvent) string {
 	return strings.TrimSpace(event.RunID)
 }
 
-func (h *Handler) startADKChatStream(payload jfadk.ChatRequest) *adkChatStreamRecord {
-	record := h.streams.create()
+func (h *Handler) startOrReuseADKChatStream(payload jfadk.ChatRequest, fingerprint string) (*adkChatStreamRecord, bool, error) {
+	record, created, err := h.streams.claim(payload.ClientRequestID, fingerprint)
+	if err != nil || !created {
+		return record, created, err
+	}
 	// Execution belongs to the transport, not one SSE request: disconnecting a
 	// client leaves the run available for replay, while Handler.Close cancels it.
 	if !h.startBackground(func(ctx context.Context) {
@@ -210,7 +245,7 @@ func (h *Handler) startADKChatStream(payload jfadk.ChatRequest) *adkChatStreamRe
 			Message: "assistant transport is shutting down",
 		})
 	}
-	return record
+	return record, true, nil
 }
 
 func (h *Handler) cleanupADKChatStreams(ctx context.Context) {

@@ -1,7 +1,9 @@
 package assistant
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,8 +50,17 @@ func (h *Handler) handleADKChat(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid chat payload")
 		return
 	}
-	result, err := h.service.Chat(c.Request.Context(), jfadk.ChatRequest(payload))
+	request, _, err := jfadk.NormalizeChatRequestIdentity(jfadk.ChatRequest(payload))
 	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	result, err := h.service.Chat(c.Request.Context(), request)
+	if err != nil {
+		if errors.Is(err, jfadk.ErrChatRequestConflict) {
+			h.writeError(c, http.StatusConflict, "ADK_CHAT_IDEMPOTENCY_CONFLICT", err.Error())
+			return
+		}
 		h.writeError(c, http.StatusBadRequest, "ADK_CHAT_FAILED", err.Error())
 		return
 	}
@@ -84,17 +95,50 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 		besteffort.LogError(jftradeErr1)
 		return
 	}
+	request, fingerprint, err := jfadk.NormalizeChatRequestIdentity(jfadk.ChatRequest(payload))
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	if h.isClosing() {
+		writer, ok := httpserver.PrepareSSEWriter(c.Writer)
+		if !ok {
+			h.writeError(c, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming is unavailable")
+			return
+		}
+		if err := writer.WriteRetryDirective(); err != nil {
+			return
+		}
+		besteffort.LogError(writer.WriteEvent(adkChatStreamEvent{Type: "error", Message: "assistant transport is shutting down"}))
+		return
+	}
+	if err := h.service.CheckChatRequestConflict(context.WithoutCancel(c.Request.Context()), request.ClientRequestID, fingerprint); err != nil {
+		if errors.Is(err, jfadk.ErrChatRequestConflict) {
+			h.writeError(c, http.StatusConflict, "ADK_CHAT_IDEMPOTENCY_CONFLICT", err.Error())
+			return
+		}
+		h.writeError(c, http.StatusInternalServerError, "ADK_CHAT_FAILED", err.Error())
+		return
+	}
 	writer, ok := httpserver.PrepareSSEWriter(c.Writer)
 	if !ok {
 		h.writeError(c, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming is unavailable")
 		return
 	}
-	record := h.startADKChatStream(jfadk.ChatRequest(payload))
+	record, created, err := h.startOrReuseADKChatStream(request, fingerprint)
+	if err != nil {
+		if errors.Is(err, jfadk.ErrChatRequestConflict) {
+			h.writeError(c, http.StatusConflict, "ADK_CHAT_IDEMPOTENCY_CONFLICT", err.Error())
+			return
+		}
+		h.writeError(c, http.StatusInternalServerError, "ADK_CHAT_FAILED", err.Error())
+		return
+	}
 	c.Header("X-ADK-Stream-ID", record.id)
 	if err := writer.WriteRetryDirective(); err != nil {
 		return
 	}
-	h.streamADKChatRecord(c, writer, record, 0, false)
+	h.streamADKChatRecord(c, writer, record, 0, !created)
 }
 
 // handleADKChatStreamReconnect godoc

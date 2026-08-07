@@ -340,7 +340,7 @@ func (e *WorkflowExecutor) completeResumedWorkflow(ctx context.Context, session 
 	parent.PendingApprovals = nil
 	parent.CompletedAt = new(nowString())
 	finalizeRunUsage(&parent)
-	message, err := e.runtime.ensureAssistantMessage(ctx, session, parent, openAIChatResult{Reply: reply})
+	message, err := e.runtime.ensureAssistantMessage(ctx, session, parent, assistantExecutionResult{Reply: reply, SyntheticKind: "workflow_resume_summary"})
 	if err == nil {
 		parent.FinalMessageID = message.ID
 	}

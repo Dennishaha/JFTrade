@@ -180,7 +180,7 @@ func TestRunnerChatAndStoreAdditionalBoundaryBranches(t *testing.T) {
 		CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 	})
 	pendingApproval := Approval{ID: "runner-boundary-approval", RunID: baseRun.ID, AgentID: agent.ID, ToolName: "write", Status: ApprovalStatusPending, CreatedAt: now, UpdatedAt: now}
-	pendingResponse, err := runtime.completeChatRun(ctx, session, baseRun, "approve", toolExecutionContext{}, []Approval{pendingApproval}, openAIChatResult{}, nil)
+	pendingResponse, err := runtime.completeChatRun(ctx, session, baseRun, "approve", toolExecutionContext{}, []Approval{pendingApproval}, assistantExecutionResult{}, nil)
 	if err != nil || pendingResponse.Run.Status != RunStatusPending || len(pendingResponse.PendingApprovals) != 1 {
 		t.Fatalf("pending completeChatRun response=%+v err=%v", pendingResponse, err)
 	}
@@ -188,7 +188,7 @@ func TestRunnerChatAndStoreAdditionalBoundaryBranches(t *testing.T) {
 	failedRun.ID = "runner-boundary-failed"
 	failedRun.Status = RunStatusRunning
 	mustSaveRun(t, runtime, failedRun)
-	failedResponse, err := runtime.completeChatRun(ctx, session, failedRun, "fail", toolExecutionContext{}, nil, openAIChatResult{}, fmt.Errorf("model failed"))
+	failedResponse, err := runtime.completeChatRun(ctx, session, failedRun, "fail", toolExecutionContext{}, nil, assistantExecutionResult{}, fmt.Errorf("model failed"))
 	if err != nil || failedResponse.Run.Status != RunStatusFailed || failedResponse.Run.ErrorCode == "" || failedResponse.Reply == "" {
 		t.Fatalf("failed completeChatRun response=%+v err=%v", failedResponse, err)
 	}
@@ -197,7 +197,7 @@ func TestRunnerChatAndStoreAdditionalBoundaryBranches(t *testing.T) {
 	completedRun.Status = RunStatusRunning
 	completedRun.ToolCalls = []ToolCall{{ID: "call-failed", RunID: completedRun.ID, ToolName: "tool", Status: "FAILED", Error: new("tool failed")}}
 	mustSaveRun(t, runtime, completedRun)
-	completedResponse, err := runtime.completeChatRun(ctx, session, completedRun, "done", toolExecutionContext{calls: completedRun.ToolCalls}, nil, openAIChatResult{}, nil)
+	completedResponse, err := runtime.completeChatRun(ctx, session, completedRun, "done", toolExecutionContext{calls: completedRun.ToolCalls}, nil, assistantExecutionResult{}, nil)
 	if err != nil || completedResponse.Run.Status != RunStatusCompleted || !completedResponse.Run.Degraded || !strings.Contains(completedResponse.Reply, "tool failed") {
 		t.Fatalf("completed degraded response=%+v err=%v", completedResponse, err)
 	}

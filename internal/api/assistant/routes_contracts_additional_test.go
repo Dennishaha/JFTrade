@@ -405,7 +405,7 @@ func TestStreamReconnectAndSkillContracts(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	stream := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat/stream", []byte(`{"agentId":"`+agent.ID+`","message":"hello reconnect"}`))
+	stream := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat/stream", testADKChatBody(`{"agentId":"`+agent.ID+`","message":"hello reconnect"}`))
 	if stream.Code != http.StatusOK {
 		t.Fatalf("stream status=%d body=%s", stream.Code, stream.Body.String())
 	}

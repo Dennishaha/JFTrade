@@ -86,7 +86,7 @@ func TestRunnerChatCoveragePushesToward95(t *testing.T) {
 			UpdatedAt: nowString(),
 		})
 
-		response := runtime.projectedChatResponse(ctx, session, Run{}, openAIChatResult{Reply: "draft"})
+		response := runtime.projectedChatResponse(ctx, session, Run{}, assistantExecutionResult{Reply: "draft"})
 		if len(response.PendingApprovals) != 1 || response.PendingApprovals[0].ID != "approval-projected" {
 			t.Fatalf("PendingApprovals = %+v, want projected pending approval", response.PendingApprovals)
 		}

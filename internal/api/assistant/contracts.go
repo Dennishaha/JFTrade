@@ -345,6 +345,7 @@ type ADKSessionComposerStatePatch struct {
 }
 
 type ADKChatRequest struct {
+	ClientRequestID        string            `json:"clientRequestId" format:"uuid"`
 	AgentID                string            `json:"agentId,omitempty"`
 	SessionID              string            `json:"sessionId,omitempty"`
 	Message                string            `json:"message"`

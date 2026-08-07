@@ -58,7 +58,7 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 		t.Fatalf("CreateSession: %v", err)
 	}
 
-	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(`{"agentId":"`+agent.ID+`","sessionId":"`+session.ID+`","message":"<execute-tool name=\"approval.required\" />"}`))
+	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(testADKChatJSON(`{"agentId":"`+agent.ID+`","sessionId":"`+session.ID+`","message":"<execute-tool name=\"approval.required\" />"}`)))
 	if err != nil {
 		t.Fatalf("POST session chat: %v", err)
 	}
@@ -263,7 +263,7 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"hello"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(testADKChatJSON(`{"agentId":"`+agent.ID+`","message":"hello"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	server.ServeHTTP(rec, req)
@@ -326,7 +326,7 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 	detachedReq := httptest.NewRequestWithContext(t.Context(),
 		http.MethodPost,
 		"/api/v1/adk/chat/stream",
-		strings.NewReader(`{"agentId":"`+agent.ID+`","message":"detached execution"}`),
+		strings.NewReader(testADKChatJSON(`{"agentId":"`+agent.ID+`","message":"detached execution"}`)),
 	).WithContext(detachedCtx)
 	detachedReq.Header.Set("Content-Type", "application/json")
 	cancelDetached()
@@ -383,7 +383,7 @@ func TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存失败草稿"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat", strings.NewReader(testADKChatJSON(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存失败草稿"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	server.ServeHTTP(rec, req)
@@ -444,7 +444,7 @@ func TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure(t *testing
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存失败草稿"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(testADKChatJSON(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存失败草稿"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	server.ServeHTTP(rec, req)
@@ -518,7 +518,7 @@ func TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFail
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft attach final failure"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(testADKChatJSON(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft attach final failure"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	server.ServeHTTP(rec, req)
@@ -1022,7 +1022,7 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"<execute-tool name=\"approval.required\" />"}`))
+	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(testADKChatJSON(`{"agentId":"`+agent.ID+`","message":"<execute-tool name=\"approval.required\" />"}`)))
 	if err != nil {
 		t.Fatalf("POST chat for approval: %v", err)
 	}

@@ -33,7 +33,7 @@ func TestGoalWorkflowTerminalHelpersPersistCompletionContinuationAndStablePause(
 		t.Fatalf("task-summary completion reply = %q", got)
 	}
 
-	completed, response, done, prompt, err := executor.finishCompleteGoalWorkflow(ctx, workflowRequest{Session: session}, parent, []Task{task}, openAIChatResult{Reply: "model reply"}, workflowGoalDecisionSnapshot{}, "model reply", 2)
+	completed, response, done, prompt, err := executor.finishCompleteGoalWorkflow(ctx, workflowRequest{Session: session}, parent, []Task{task}, assistantExecutionResult{Reply: "model reply"}, workflowGoalDecisionSnapshot{}, "model reply", 2)
 	if err != nil {
 		t.Fatalf("finish complete goal: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestGoalWorkflowTerminalHelpersPersistCompletionContinuationAndStablePause(
 		ID: "goal-continue-parent", SessionID: session.ID, AgentID: session.AgentID, Status: RunStatusRunning,
 		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 	})
-	continued, emptyResponse, paused, nudge, err := executor.finishContinueGoalWorkflow(ctx, workflowRequest{Session: session}, continuingParent, openAIChatResult{}, workflowGoalDecisionSnapshot{reason: "need one more verification"}, "", 3)
+	continued, emptyResponse, paused, nudge, err := executor.finishContinueGoalWorkflow(ctx, workflowRequest{Session: session}, continuingParent, assistantExecutionResult{}, workflowGoalDecisionSnapshot{reason: "need one more verification"}, "", 3)
 	if err != nil {
 		t.Fatalf("finish continued goal: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestGoalWorkflowTerminalHelpersPersistCompletionContinuationAndStablePause(
 
 	decision := &workflowGoalDecision{}
 	decision.setComplete("done")
-	_, _, snapshot, done, _, _, err := executor.resolveGoalWorkflowDecision(ctx, workflowRequest{Session: session}, continuingParent, nil, newBareGoogleADKExecution(continuingParent.ID), decision, openAIChatResult{Reply: "reply"}, "reply", "", 1, false)
+	_, _, snapshot, done, _, _, err := executor.resolveGoalWorkflowDecision(ctx, workflowRequest{Session: session}, continuingParent, nil, newBareGoogleADKExecution(continuingParent.ID), decision, assistantExecutionResult{Reply: "reply"}, "reply", "", 1, false)
 	if err != nil {
 		t.Fatalf("resolve recorded decision: %v", err)
 	}

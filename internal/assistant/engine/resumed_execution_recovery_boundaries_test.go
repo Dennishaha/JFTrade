@@ -40,13 +40,13 @@ func TestResumedExecutionFailurePersistenceIsObservable(t *testing.T) {
 		if updated := persistResumedApprovalMessage(ctx, runtime, run, execution); updated.FinalMessageID != "" {
 			t.Fatalf("blank interim message created final ID: %+v", updated)
 		}
-		approved := finalizeResumedResult(run, openAIChatResult{}, false)
+		approved := finalizeResumedResult(run, assistantExecutionResult{}, false)
 		if strings.TrimSpace(approved.Reply) == "" {
 			t.Fatal("approved resume must retain a visible fallback confirmation summary")
 		}
 		deniedRun := run
 		deniedRun.PendingApprovals[0].Status = ApprovalStatusDenied
-		denied := finalizeResumedResult(deniedRun, openAIChatResult{Reply: "stale", ReasoningContent: "private"}, true)
+		denied := finalizeResumedResult(deniedRun, assistantExecutionResult{Reply: "stale", ReasoningContent: "private"}, true)
 		if !strings.Contains(denied.Reply, "拒绝") || denied.ReasoningContent != "" {
 			t.Fatalf("denied finalization = %+v", denied)
 		}

@@ -301,7 +301,11 @@ func (m *openAICompatibleADKModel) decodeChatResponse(body io.Reader) (*model.LL
 func openAIMessageToADKResponse(message openAIChatMessage, partial bool) (*model.LLMResponse, error) {
 	replyText, reasoningText := extractVisibleAndReasoningText(message.Content, message.ReasoningContent, message.Reasoning)
 	parts := make([]*genai.Part, 0, len(message.ToolCalls)+2)
-	parts = append(parts, partsFromReplyAndReasoning(replyText, reasoningText)...)
+	if partial {
+		parts = append(parts, rawPartsFromReplyAndReasoning(replyText, reasoningText)...)
+	} else {
+		parts = append(parts, partsFromReplyAndReasoning(replyText, reasoningText)...)
+	}
 	for _, call := range message.ToolCalls {
 		args := map[string]any{}
 		if strings.TrimSpace(call.Function.Arguments) != "" {

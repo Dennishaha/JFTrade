@@ -365,6 +365,7 @@ type ToolDescriptor struct {
 }
 
 type ChatRequest struct {
+	ClientRequestID        string      `json:"clientRequestId"`
 	AgentID                string      `json:"agentId,omitempty"`
 	SessionID              string      `json:"sessionId,omitempty"`
 	Message                string      `json:"message"`

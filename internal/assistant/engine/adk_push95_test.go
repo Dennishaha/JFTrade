@@ -484,7 +484,7 @@ func TestGoogleRunnerBoundaryCoverage(t *testing.T) {
 			UpdatedAt: nowString(),
 			Usage:     &RunUsage{},
 		})
-		if _, err := runtime.persistResumedRunResult(ctx, run, openAIChatResult{Reply: "hello"}); err == nil || !strings.Contains(err.Error(), "create failed") {
+		if _, err := runtime.persistResumedRunResult(ctx, run, assistantExecutionResult{Reply: "hello"}); err == nil || !strings.Contains(err.Error(), "create failed") {
 			t.Fatalf("persistResumedRunResult message err = %v, want create failed", err)
 		}
 	})
@@ -505,7 +505,7 @@ func TestGoogleRunnerBoundaryCoverage(t *testing.T) {
 		if _, err := runtime.Store().db.ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
 			t.Fatalf("drop runs table: %v", err)
 		}
-		if _, err := runtime.persistResumedRunResult(ctx, run, openAIChatResult{Reply: "hello"}); err == nil || !strings.Contains(err.Error(), tableRuns) {
+		if _, err := runtime.persistResumedRunResult(ctx, run, assistantExecutionResult{Reply: "hello"}); err == nil || !strings.Contains(err.Error(), tableRuns) {
 			t.Fatalf("persistResumedRunResult save err = %v, want runs table failure", err)
 		}
 	})
@@ -649,7 +649,7 @@ func TestRunnerChatHelperCoverage(t *testing.T) {
 		if _, err := runtime.Store().db.ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
 			t.Fatalf("drop runs table for projection: %v", err)
 		}
-		if _, err := runtime.ensureAssistantMessage(ctx, session, run, openAIChatResult{Reply: "hello"}); err == nil || !strings.Contains(err.Error(), tableRuns) {
+		if _, err := runtime.ensureAssistantMessage(ctx, session, run, assistantExecutionResult{Reply: "hello"}); err == nil || !strings.Contains(err.Error(), tableRuns) {
 			t.Fatalf("ensureAssistantMessage err = %v, want projection failure", err)
 		}
 
@@ -668,13 +668,13 @@ func TestRunnerChatHelperCoverage(t *testing.T) {
 		if _, err := runtime.Store().db.ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
 			t.Fatalf("drop runs table for save: %v", err)
 		}
-		if _, err := runtime.attachFinalAssistantMessage(ctx, session, run, openAIChatResult{Reply: "hello"}); err == nil || !strings.Contains(err.Error(), tableRuns) {
+		if _, err := runtime.attachFinalAssistantMessage(ctx, session, run, assistantExecutionResult{Reply: "hello"}); err == nil || !strings.Contains(err.Error(), tableRuns) {
 			t.Fatalf("attachFinalAssistantMessage err = %v, want save failure", err)
 		}
 	})
 
 	t.Run("projectedChatResponse and context snapshot helpers degrade safely without dependencies", func(t *testing.T) {
-		response := (&Runtime{}).projectedChatResponse(ctx, Session{ID: "session", AgentID: "agent"}, Run{ID: "run"}, openAIChatResult{Reply: "hello"})
+		response := (&Runtime{}).projectedChatResponse(ctx, Session{ID: "session", AgentID: "agent"}, Run{ID: "run"}, assistantExecutionResult{Reply: "hello"})
 		if response.Reply != "hello" || response.Run.ID != "run" {
 			t.Fatalf("projectedChatResponse without store = %+v", response)
 		}
@@ -701,7 +701,7 @@ func TestRunnerChatHelperCoverage(t *testing.T) {
 		if _, err := runtime.Store().db.ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
 			t.Fatalf("drop runs table: %v", err)
 		}
-		if _, err := runtime.completeChatRun(ctx, session, run, "hello", toolExecutionContext{}, nil, openAIChatResult{Reply: "done"}, nil); err == nil || !strings.Contains(err.Error(), tableRuns) {
+		if _, err := runtime.completeChatRun(ctx, session, run, "hello", toolExecutionContext{}, nil, assistantExecutionResult{Reply: "done"}, nil); err == nil || !strings.Contains(err.Error(), tableRuns) {
 			t.Fatalf("completeChatRun success-path err = %v, want runs table failure", err)
 		}
 
@@ -716,7 +716,7 @@ func TestRunnerChatHelperCoverage(t *testing.T) {
 			t.Fatalf("Create raw session: %v", err)
 		}
 		run = Run{ID: "append-message-helper-run", SessionID: session.ID, AgentID: "append-message-helper-agent"}
-		_, err = runtime.appendAssistantMessageEvent(ctx, session, run, openAIChatResult{Reply: "hello"})
+		_, err = runtime.appendAssistantMessageEvent(ctx, session, run, assistantExecutionResult{Reply: "hello"})
 		if err == nil || !strings.Contains(err.Error(), "append failed") {
 			t.Fatalf("appendAssistantMessageEvent err = %v, want append failed", err)
 		}

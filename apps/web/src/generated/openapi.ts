@@ -527,6 +527,7 @@ export interface components {
   };
     "assistant.ADKChatRequest": {
     agentId?: string;
+    clientRequestId: string;
     message: string;
     model?: string;
     objective?: string;

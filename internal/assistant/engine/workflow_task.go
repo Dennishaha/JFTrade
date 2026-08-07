@@ -119,7 +119,7 @@ func (e *WorkflowExecutor) runADKGoalWorkflow(ctx context.Context, req workflowR
 		if persistErr != nil {
 			return ChatResponse{}, persistErr
 		}
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+		return e.workflowResponse(ctx, req.Session, parent, assistantExecutionResult{Reply: parent.FailureReason}), nil
 	}
 	limit := normalizeLoopMaxIterations(req.RunOptions.LoopMaxIterations)
 	return e.continueADKGoalWorkflow(ctx, req, parent, tasks, goalOrchestratorUserMessage(parent), 1, limit)
@@ -145,7 +145,7 @@ func (e *WorkflowExecutor) continueADKGoalWorkflow(
 		if persistErr != nil {
 			return ChatResponse{}, persistErr
 		}
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+		return e.workflowResponse(ctx, req.Session, parent, assistantExecutionResult{Reply: parent.FailureReason}), nil
 	}
 	if startIteration < 1 {
 		startIteration = 1
@@ -188,7 +188,7 @@ func (e *WorkflowExecutor) continueADKGoalWorkflow(
 	if saveErr != nil {
 		return ChatResponse{}, fmt.Errorf("persist goal iteration-limit pause: %w", saveErr)
 	}
-	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.Message}), nil
+	return e.workflowResponse(ctx, req.Session, parent, assistantExecutionResult{Reply: parent.Message}), nil
 }
 
 func (e *WorkflowExecutor) pauseADKGoalWorkflowIfRequested(
@@ -215,7 +215,7 @@ func (e *WorkflowExecutor) pauseADKGoalWorkflowIfRequested(
 			}
 			parent = updatedParent
 		}
-		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: defaultString(reply, parent.Message)}), true, nil
+		return parent, e.workflowResponse(ctx, req.Session, parent, assistantExecutionResult{Reply: defaultString(reply, parent.Message)}), true, nil
 	}
 	pausedAt := nowString()
 	parent.Status = RunStatusPaused
@@ -235,7 +235,7 @@ func (e *WorkflowExecutor) pauseADKGoalWorkflowIfRequested(
 	if err != nil {
 		return Run{}, ChatResponse{}, false, fmt.Errorf("persist user-paused goal state: %w", err)
 	}
-	return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: defaultString(reply, parent.Message)}), true, nil
+	return parent, e.workflowResponse(ctx, req.Session, parent, assistantExecutionResult{Reply: defaultString(reply, parent.Message)}), true, nil
 }
 
 func (e *WorkflowExecutor) resumeADKGoalWorkflow(ctx context.Context, session Session, agent Agent, parent Run) (Run, error) {
@@ -316,19 +316,19 @@ func (e *WorkflowExecutor) resolveGoalWorkflowDecision(
 	known []Task,
 	execution *googleADKExecution,
 	decision *workflowGoalDecision,
-	replyResult openAIChatResult,
+	replyResult assistantExecutionResult,
 	visibleReply string,
 	prompt string,
 	iteration int,
 	decisionRetry bool,
-) (Run, openAIChatResult, workflowGoalDecisionSnapshot, bool, ChatResponse, string, error) {
+) (Run, assistantExecutionResult, workflowGoalDecisionSnapshot, bool, ChatResponse, string, error) {
 	snapshot := decision.snapshot()
 	if snapshot.status != "" {
 		return parent, replyResult, snapshot, false, ChatResponse{}, prompt, nil
 	}
 	parent, response, paused, err := e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, visibleReply)
 	if err != nil {
-		return Run{}, openAIChatResult{}, workflowGoalDecisionSnapshot{}, false, ChatResponse{}, "", err
+		return Run{}, assistantExecutionResult{}, workflowGoalDecisionSnapshot{}, false, ChatResponse{}, "", err
 	}
 	if paused {
 		replyResult.Reply = defaultString(visibleReply, replyResult.Reply)
@@ -356,12 +356,12 @@ func (e *WorkflowExecutor) runGoalWorkflowDecision(
 	visibleReply string,
 	iteration int,
 	decisionRetry bool,
-) (Run, openAIChatResult, workflowGoalDecisionSnapshot, bool, ChatResponse, string, error) {
+) (Run, assistantExecutionResult, workflowGoalDecisionSnapshot, bool, ChatResponse, string, error) {
 	decision.beginDecision()
 	decisionErr := execution.run(ctx, genai.NewContentFromText(goalDecisionPrompt(latest, visibleReply, decisionRetry), genai.RoleUser))
 	parent, replyResult, done, prompt, err := e.prepareGoalWorkflowTurn(ctx, req, parent, known, execution, decisionErr, iteration)
 	if err != nil {
-		return Run{}, openAIChatResult{}, workflowGoalDecisionSnapshot{}, false, ChatResponse{}, "", err
+		return Run{}, assistantExecutionResult{}, workflowGoalDecisionSnapshot{}, false, ChatResponse{}, "", err
 	}
 	if done {
 		return parent, replyResult, decision.snapshot(), true, e.workflowResponse(ctx, req.Session, parent, replyResult), "", nil
@@ -369,7 +369,7 @@ func (e *WorkflowExecutor) runGoalWorkflowDecision(
 	snapshot := decision.snapshot()
 	parent, replyResult, done, response, err := e.pauseAfterMissingGoalDecision(ctx, req, parent, replyResult, visibleReply, snapshot, iteration)
 	if err != nil {
-		return Run{}, openAIChatResult{}, workflowGoalDecisionSnapshot{}, false, ChatResponse{}, "", err
+		return Run{}, assistantExecutionResult{}, workflowGoalDecisionSnapshot{}, false, ChatResponse{}, "", err
 	}
 	if done {
 		return parent, replyResult, snapshot, true, response, "", nil
@@ -389,11 +389,11 @@ func (e *WorkflowExecutor) pauseAfterMissingGoalDecision(
 	ctx context.Context,
 	req workflowRequest,
 	parent Run,
-	replyResult openAIChatResult,
+	replyResult assistantExecutionResult,
 	visibleReply string,
 	snapshot workflowGoalDecisionSnapshot,
 	iteration int,
-) (Run, openAIChatResult, bool, ChatResponse, error) {
+) (Run, assistantExecutionResult, bool, ChatResponse, error) {
 	if snapshot.status != "" {
 		return parent, replyResult, false, ChatResponse{}, nil
 	}
@@ -403,7 +403,7 @@ func (e *WorkflowExecutor) pauseAfterMissingGoalDecision(
 	}
 	parent, response, paused, err := e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
 	if err != nil {
-		return Run{}, openAIChatResult{}, false, ChatResponse{}, err
+		return Run{}, assistantExecutionResult{}, false, ChatResponse{}, err
 	}
 	if paused {
 		replyResult.Reply = defaultString(reply, replyResult.Reply)
@@ -417,7 +417,7 @@ func (e *WorkflowExecutor) finishCompleteGoalWorkflow(
 	req workflowRequest,
 	parent Run,
 	known []Task,
-	replyResult openAIChatResult,
+	replyResult assistantExecutionResult,
 	snapshot workflowGoalDecisionSnapshot,
 	visibleReply string,
 	iteration int,
@@ -471,7 +471,7 @@ func (e *WorkflowExecutor) finishContinueGoalWorkflow(
 	ctx context.Context,
 	req workflowRequest,
 	parent Run,
-	replyResult openAIChatResult,
+	replyResult assistantExecutionResult,
 	snapshot workflowGoalDecisionSnapshot,
 	visibleReply string,
 	iteration int,
@@ -504,7 +504,7 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 	execution *googleADKExecution,
 	adkErr error,
 	iteration int,
-) (Run, openAIChatResult, bool, string, error) {
+) (Run, assistantExecutionResult, bool, string, error) {
 	if latest, ok, err := e.runtime.store.Run(ctx, parent.ID); err == nil && ok {
 		parent = latest
 	}
@@ -516,9 +516,9 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 	if err != nil {
 		parent, persistErr := e.failParent(ctx, parent, err)
 		if persistErr != nil {
-			return Run{}, openAIChatResult{}, false, "", persistErr
+			return Run{}, assistantExecutionResult{}, false, "", persistErr
 		}
-		return parent, openAIChatResult{Reply: parent.FailureReason}, true, "", nil
+		return parent, assistantExecutionResult{Reply: parent.FailureReason}, true, "", nil
 	}
 	parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
 	if errors.Is(adkErr, errUserGoalPauseRequested) {
@@ -526,18 +526,18 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 		var paused bool
 		parent, _, paused, err = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
 		if err != nil {
-			return Run{}, openAIChatResult{}, false, "", err
+			return Run{}, assistantExecutionResult{}, false, "", err
 		}
 		if paused {
-			return parent, openAIChatResult{Reply: defaultString(reply, parent.Message)}, true, "", nil
+			return parent, assistantExecutionResult{Reply: defaultString(reply, parent.Message)}, true, "", nil
 		}
 	}
 	if adkErr != nil {
 		parent, persistErr := e.failParent(ctx, parent, adkErr)
 		if persistErr != nil {
-			return Run{}, openAIChatResult{}, false, "", persistErr
+			return Run{}, assistantExecutionResult{}, false, "", persistErr
 		}
-		return parent, openAIChatResult{Reply: parent.FailureReason}, true, "", nil
+		return parent, assistantExecutionResult{Reply: parent.FailureReason}, true, "", nil
 	}
 	if child, index, ok := e.firstBlockingTaskChild(ctx, parent); ok {
 		if child.Status == RunStatusPending || child.Status == RunStatusPendingInput || child.Status == RunStatusRunning {
@@ -545,15 +545,15 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 			parent.Iteration = iteration
 			parent, err = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
 			if err != nil {
-				return Run{}, openAIChatResult{}, false, "", fmt.Errorf("persist goal blocked by child: %w", err)
+				return Run{}, assistantExecutionResult{}, false, "", fmt.Errorf("persist goal blocked by child: %w", err)
 			}
-			return parent, openAIChatResult{Reply: workflowPendingReply(parent)}, true, "", nil
+			return parent, assistantExecutionResult{Reply: workflowPendingReply(parent)}, true, "", nil
 		}
 		parent, err = e.runtime.terminateParentWorkflowFromChild(ctx, parent, child)
 		if err != nil {
-			return Run{}, openAIChatResult{}, false, "", err
+			return Run{}, assistantExecutionResult{}, false, "", err
 		}
-		return parent, openAIChatResult{Reply: parent.FailureReason}, true, "", nil
+		return parent, assistantExecutionResult{Reply: parent.FailureReason}, true, "", nil
 	}
 	if blockedTask, ok := firstTerminalWorkflowTask(tasks); ok {
 		parent.Status = RunStatusFailed
@@ -565,16 +565,16 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 		parent.CompletedAt = new(nowString())
 		finalizeRunUsage(&parent)
 		if err := e.runtime.store.SaveRun(ctx, parent); err != nil {
-			return Run{}, openAIChatResult{}, false, "", fmt.Errorf("persist blocked goal state: %w", err)
+			return Run{}, assistantExecutionResult{}, false, "", fmt.Errorf("persist blocked goal state: %w", err)
 		}
-		return parent, openAIChatResult{Reply: parent.FailureReason}, true, "", nil
+		return parent, assistantExecutionResult{Reply: parent.FailureReason}, true, "", nil
 	}
 	parent.Status = RunStatusRunning
 	parent.WorkflowStatus = workflowStatusRunning
 	parent.Message = "goal running"
 	parent, err = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
 	if err != nil {
-		return Run{}, openAIChatResult{}, false, "", fmt.Errorf("persist running goal state: %w", err)
+		return Run{}, assistantExecutionResult{}, false, "", fmt.Errorf("persist running goal state: %w", err)
 	}
 	return parent, replyResult, false, "", nil
 }

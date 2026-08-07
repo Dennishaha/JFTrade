@@ -204,6 +204,84 @@ describe("useADKPageChatState boundaries", () => {
     harness.unmount();
   });
 
+  it("admits only one send before the first await yields", async () => {
+    vi.mocked(streamADKChat).mockResolvedValue(buildResponse(buildRun()));
+    const harness = mountHarness();
+    harness.state.chatDraft.value = "send exactly once";
+
+    const first = harness.state.sendChat();
+    const duplicate = harness.state.sendChat();
+    await Promise.all([first, duplicate]);
+
+    expect(streamADKChat).toHaveBeenCalledOnce();
+    expect(vi.mocked(streamADKChat).mock.calls[0]?.[0].clientRequestId).toMatch(
+      /^[0-9a-f-]{36}$/,
+    );
+    harness.unmount();
+  });
+
+  it("reuses a failed request id until the restored draft is edited", async () => {
+    vi.mocked(streamADKChat)
+      .mockRejectedValueOnce(new Error("transport closed"))
+      .mockResolvedValue(buildResponse(buildRun()));
+    const harness = mountHarness();
+    harness.state.chatDraft.value = "retry this request";
+
+    await harness.state.sendChat();
+    const failedRequestId = vi.mocked(streamADKChat).mock.calls[0]?.[0]
+      .clientRequestId;
+    await harness.state.sendChat();
+
+    expect(vi.mocked(streamADKChat).mock.calls[1]?.[0].clientRequestId).toBe(
+      failedRequestId,
+    );
+
+    vi.mocked(streamADKChat).mockRejectedValueOnce(new Error("fail again"));
+    harness.state.chatDraft.value = "retry then edit";
+    await harness.state.sendChat();
+    const secondFailedRequestId = vi.mocked(streamADKChat).mock.calls[2]?.[0]
+      .clientRequestId;
+    harness.state.chatDraft.value = "edited request";
+    await harness.state.sendChat();
+
+    expect(vi.mocked(streamADKChat).mock.calls[3]?.[0].clientRequestId).not.toBe(
+      secondFailedRequestId,
+    );
+    harness.unmount();
+  });
+
+  it("keeps a queued request id when queue dispatch fails", async () => {
+    let resolveFirstSend: ((response: ADKChatResponse) => void) | null = null;
+    vi.mocked(streamADKChat)
+      .mockImplementationOnce(
+        async () =>
+          new Promise<ADKChatResponse>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockRejectedValueOnce(new Error("queued transport failed"));
+    const harness = mountHarness();
+    harness.state.chatDraft.value = "first request";
+    const first = harness.state.sendChat();
+    await flushAsync();
+
+    harness.state.chatDraft.value = "queued request";
+    await harness.state.sendChat();
+    const queuedRequestId = harness.state.queuedMessages.value[0]
+      ?.clientRequestId;
+    resolveFirstSend?.(buildResponse(buildRun()));
+    await first;
+    await flushAsync();
+
+    expect(vi.mocked(streamADKChat).mock.calls[1]?.[0].clientRequestId).toBe(
+      queuedRequestId,
+    );
+    expect(harness.state.queuedMessages.value[0]?.clientRequestId).toBe(
+      queuedRequestId,
+    );
+    harness.unmount();
+  });
+
   it("updates an active goal objective with an encoded run identifier", async () => {
     const active = buildRun({
       id: "goal/run-1",

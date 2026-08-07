@@ -54,7 +54,7 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	chatPayload := []byte(`{"agentId":"` + agent.ID + `","message":"<execute-tool name=\"approval.required\" />"}`)
+	chatPayload := testADKChatBody(`{"agentId":"` + agent.ID + `","message":"<execute-tool name=\"approval.required\" />"}`)
 	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader(chatPayload))
 	if err != nil {
 		t.Fatalf("POST adk chat: %v", err)
@@ -211,7 +211,7 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	chatPayload := []byte(`{"agentId":"` + agent.ID + `","message":"<execute-tool name=\"approval.required\" />"}`)
+	chatPayload := testADKChatBody(`{"agentId":"` + agent.ID + `","message":"<execute-tool name=\"approval.required\" />"}`)
 	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader(chatPayload))
 	if err != nil {
 		t.Fatalf("POST adk chat: %v", err)

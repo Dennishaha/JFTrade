@@ -17,16 +17,17 @@ import (
 )
 
 type SessionProjection struct {
-	SessionID        string
-	Messages         []TranscriptEntry
-	LatestAssistant  *TranscriptEntry
-	Reply            string
-	ReasoningContent string
-	ToolCalls        []ToolCall
-	PendingApprovals []Approval
-	PreToolContent   string
-	PreToolReasoning string
-	FinalMessageID   string
+	SessionID         string
+	Messages          []TranscriptEntry
+	MessagesByEventID map[string]TranscriptEntry
+	LatestAssistant   *TranscriptEntry
+	Reply             string
+	ReasoningContent  string
+	ToolCalls         []ToolCall
+	PendingApprovals  []Approval
+	PreToolContent    string
+	PreToolReasoning  string
+	FinalMessageID    string
 }
 
 type projectedRunState struct {
@@ -96,6 +97,10 @@ func (s *Store) SessionProjection(ctx context.Context, sessionID string) (Sessio
 	for index := range projection.Messages {
 		projection.Messages[index].SessionID = session.ID
 	}
+	for eventID, message := range projection.MessagesByEventID {
+		message.SessionID = session.ID
+		projection.MessagesByEventID[eventID] = message
+	}
 	latestRun, hasRun, err := s.latestRunBySession(ctx, session.ID)
 	if err != nil {
 		return SessionProjection{}, false, err
@@ -150,8 +155,24 @@ func sessionProjectionFromADKEvents(events []*adksession.Event) SessionProjectio
 	entries, runStates, runOrder := projectSessionEvents(events)
 	projection := buildSessionProjection(entries, runStates, runOrder)
 	projection.Messages = filterProjectedEntries(entries, &projection)
+	projection.MessagesByEventID = assistantMessagesByEventID(events)
 	applyProjectionLatestAssistant(&projection)
 	return projection
+}
+
+func assistantMessagesByEventID(events []*adksession.Event) map[string]TranscriptEntry {
+	messages := make(map[string]TranscriptEntry)
+	for _, event := range events {
+		if event == nil || event.Partial || isUserEvent(event) {
+			continue
+		}
+		message, ok := transcriptEntryFromADKEvent(event)
+		if !ok || strings.TrimSpace(event.ID) == "" {
+			continue
+		}
+		messages[event.ID] = message
+	}
+	return messages
 }
 
 func sortProjectedEvents(events []*adksession.Event) {
@@ -238,7 +259,7 @@ func projectSessionEventPart(event *adksession.Event, part *genai.Part, entries 
 }
 
 func projectProjectedTextPart(state *projectedRunState, part *genai.Part, event *adksession.Event) {
-	reply, reasoning := visibleTextFromParts([]*genai.Part{part})
+	reply, reasoning := rawVisibleTextFromParts([]*genai.Part{part})
 	mergeProjectedText(&state.reply, reply, event.Partial)
 	mergeProjectedText(&state.reasoning, reasoning, event.Partial)
 	if textID := strings.TrimSpace(event.ID); textID != "" {
@@ -425,7 +446,6 @@ func pruneProjectedToolCall(state *projectedRunState, callID string, toolName st
 }
 
 func mergeProjectedText(builder *strings.Builder, text string, partial bool) {
-	text = strings.TrimSpace(text)
 	if text == "" {
 		return
 	}
@@ -503,7 +523,7 @@ func transcriptEntryFromADKEvent(event *adksession.Event) (TranscriptEntry, bool
 	}, true
 }
 
-func visibleTextFromParts(parts []*genai.Part) (string, string) {
+func rawVisibleTextFromParts(parts []*genai.Part) (string, string) {
 	var reply strings.Builder
 	var reasoning strings.Builder
 	for _, part := range parts {
@@ -516,7 +536,12 @@ func visibleTextFromParts(parts []*genai.Part) (string, string) {
 		}
 		reply.WriteString(part.Text)
 	}
-	return strings.TrimSpace(reply.String()), strings.TrimSpace(reasoning.String())
+	return reply.String(), reasoning.String()
+}
+
+func visibleTextFromParts(parts []*genai.Part) (string, string) {
+	reply, reasoning := rawVisibleTextFromParts(parts)
+	return strings.TrimSpace(reply), strings.TrimSpace(reasoning)
 }
 
 func partsFromReplyAndReasoning(reply string, reasoning string) []*genai.Part {
@@ -526,6 +551,17 @@ func partsFromReplyAndReasoning(reply string, reasoning string) []*genai.Part {
 	}
 	if trimmedReply := strings.TrimSpace(reply); trimmedReply != "" {
 		parts = append(parts, &genai.Part{Text: trimmedReply})
+	}
+	return parts
+}
+
+func rawPartsFromReplyAndReasoning(reply string, reasoning string) []*genai.Part {
+	parts := make([]*genai.Part, 0, 2)
+	if reasoning != "" {
+		parts = append(parts, &genai.Part{Text: reasoning, Thought: true})
+	}
+	if reply != "" {
+		parts = append(parts, &genai.Part{Text: reply})
 	}
 	return parts
 }

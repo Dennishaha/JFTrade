@@ -100,7 +100,7 @@ func TestGoalDecisionErrorsAndTerminalFallbacksStayObservable(t *testing.T) {
 			CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
 		updated, response, done, prompt, err := runtime.workflowExecutor().finishCompleteGoalWorkflow(ctx, workflowRequest{Session: session}, parent, nil,
-			openAIChatResult{Reply: "complete reply"}, workflowGoalDecisionSnapshot{summary: "complete reply"}, "complete reply", 1)
+			assistantExecutionResult{Reply: "complete reply"}, workflowGoalDecisionSnapshot{summary: "complete reply"}, "complete reply", 1)
 		if err != nil {
 			t.Fatalf("finish paused completion: %v", err)
 		}
@@ -116,7 +116,7 @@ func TestGoalDecisionErrorsAndTerminalFallbacksStayObservable(t *testing.T) {
 			CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
 		updated, response, done, prompt, err = runtime.workflowExecutor().finishCompleteGoalWorkflow(ctx, workflowRequest{Session: session}, parent, nil,
-			openAIChatResult{Reply: "message fallback"}, workflowGoalDecisionSnapshot{summary: "message fallback"}, "message fallback", 1)
+			assistantExecutionResult{Reply: "message fallback"}, workflowGoalDecisionSnapshot{summary: "message fallback"}, "message fallback", 1)
 		if err != nil {
 			t.Fatalf("finish completion fallback: %v", err)
 		}

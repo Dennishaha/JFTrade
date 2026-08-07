@@ -296,13 +296,15 @@ type toolExecutionContext struct {
 }
 
 type runStartOptions struct {
-	WorkMode       string
-	Objective      string
-	ParentRunID    string
-	ChildRunIDs    []string
-	Iteration      int
-	WorkflowStatus string
-	WorkflowEngine string
+	WorkMode           string
+	Objective          string
+	ClientRequestID    string
+	RequestFingerprint string
+	ParentRunID        string
+	ChildRunIDs        []string
+	Iteration          int
+	WorkflowStatus     string
+	WorkflowEngine     string
 }
 
 func (r *Runtime) startRun(ctx context.Context, sessionID string, agent Agent, text string) (Run, context.Context, func(), error) {
@@ -335,7 +337,26 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 	// workflow this ctx may carry the parent's lease, which must not authorize a
 	// write to the new child run.
 	runContext := adkRunObservabilityContext(withoutRunExecutionLease(ctx), run)
-	if err := r.store.SaveRun(runContext, run); err != nil {
+	if strings.TrimSpace(options.ClientRequestID) != "" {
+		claimed, created, claimErr := r.store.ClaimChatRun(runContext, run, options.ClientRequestID, options.RequestFingerprint)
+		if claimErr != nil {
+			requestState := "conflict"
+			if !errors.Is(claimErr, ErrChatRequestConflict) {
+				requestState = "claim_failed"
+			}
+			observability.InfoWithImportance(runContext, observability.ImportanceNormal, "adk chat request claim failed",
+				"request_state", requestState, "client_request_id", options.ClientRequestID)
+			return Run{}, nil, nil, claimErr
+		}
+		if !created {
+			observability.InfoWithImportance(runContext, observability.ImportanceNormal, "adk chat request reused",
+				"request_state", "reused", "client_request_id", options.ClientRequestID, "run_id", claimed.ID)
+			return Run{}, nil, nil, &reusedChatRequestError{Run: claimed}
+		}
+		run = claimed
+		observability.InfoWithImportance(runContext, observability.ImportanceNormal, "adk chat request claimed",
+			"request_state", "claimed", "client_request_id", options.ClientRequestID, "run_id", run.ID)
+	} else if err := r.store.SaveRun(runContext, run); err != nil {
 		return Run{}, nil, nil, err
 	}
 	r.audit(runContext, "run.started", run.ID, "Agent run started.", map[string]any{

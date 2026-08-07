@@ -18,7 +18,7 @@ func TestGoalPausePersistenceErrorsPropagateAcrossDecisionBoundaries(t *testing.
 		runtime, session, parent := newGoalPausePersistenceFixture(t, "resolve")
 		_, _, _, _, _, _, err := runtime.workflowExecutor().resolveGoalWorkflowDecision(
 			t.Context(), workflowRequest{Session: session}, parent, nil, newBareGoogleADKExecution(parent.ID),
-			&workflowGoalDecision{}, openAIChatResult{}, "visible progress", "", 1, false,
+			&workflowGoalDecision{}, assistantExecutionResult{}, "visible progress", "", 1, false,
 		)
 		assertGoalPausePersistenceError(t, err)
 	})
@@ -26,7 +26,7 @@ func TestGoalPausePersistenceErrorsPropagateAcrossDecisionBoundaries(t *testing.
 	t.Run("missing decision fallback", func(t *testing.T) {
 		runtime, session, parent := newGoalPausePersistenceFixture(t, "missing-decision")
 		_, _, _, _, err := runtime.workflowExecutor().pauseAfterMissingGoalDecision(
-			t.Context(), workflowRequest{Session: session}, parent, openAIChatResult{}, "visible progress", workflowGoalDecisionSnapshot{}, 1,
+			t.Context(), workflowRequest{Session: session}, parent, assistantExecutionResult{}, "visible progress", workflowGoalDecisionSnapshot{}, 1,
 		)
 		assertGoalPausePersistenceError(t, err)
 	})
@@ -34,7 +34,7 @@ func TestGoalPausePersistenceErrorsPropagateAcrossDecisionBoundaries(t *testing.
 	t.Run("complete decision", func(t *testing.T) {
 		runtime, session, parent := newGoalPausePersistenceFixture(t, "complete")
 		_, _, _, _, err := runtime.workflowExecutor().finishCompleteGoalWorkflow(
-			t.Context(), workflowRequest{Session: session}, parent, nil, openAIChatResult{},
+			t.Context(), workflowRequest{Session: session}, parent, nil, assistantExecutionResult{},
 			workflowGoalDecisionSnapshot{summary: "complete after persistence"}, "", 1,
 		)
 		assertGoalPausePersistenceError(t, err)
@@ -43,7 +43,7 @@ func TestGoalPausePersistenceErrorsPropagateAcrossDecisionBoundaries(t *testing.
 	t.Run("continue decision", func(t *testing.T) {
 		runtime, session, parent := newGoalPausePersistenceFixture(t, "continue")
 		_, _, _, _, err := runtime.workflowExecutor().finishContinueGoalWorkflow(
-			t.Context(), workflowRequest{Session: session}, parent, openAIChatResult{},
+			t.Context(), workflowRequest{Session: session}, parent, assistantExecutionResult{},
 			workflowGoalDecisionSnapshot{reason: "continue after persistence"}, "", 1,
 		)
 		assertGoalPausePersistenceError(t, err)

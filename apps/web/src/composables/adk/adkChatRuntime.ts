@@ -14,6 +14,7 @@ export type QueuedChatMessageMode = "queued" | "interrupt";
 
 export interface QueuedChatMessage {
   id: string;
+  clientRequestId: string;
   sessionKey: string;
   text: string;
   mode: QueuedChatMessageMode;
@@ -93,10 +94,11 @@ export function createQueuedChatMessage(
   text: string,
   sessionKey: string,
   mode: QueuedChatMessageMode,
-  options: { forceChat?: boolean } = {},
+  options: { forceChat?: boolean; clientRequestId?: string } = {},
 ): QueuedChatMessage {
   return {
     id: `queued-chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    clientRequestId: options.clientRequestId ?? crypto.randomUUID(),
     sessionKey,
     text,
     mode,

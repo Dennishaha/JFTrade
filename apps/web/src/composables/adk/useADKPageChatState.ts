@@ -150,6 +150,13 @@ export function useADKPageChatState(
   let chatStreamController: AbortController | null = null;
   let chatStreamAbortReason = "";
   let lastContextRefreshAt = 0;
+  let sendAdmissionLocked = false;
+  let draftRevision = 0;
+  let retryDraftRequest: {
+    text: string;
+    clientRequestId: string;
+    draftRevision: number;
+  } | null = null;
   const pageState = readADKPagePersistentState();
   const flushComposerStateBeforeUnload = () => {
     void flushComposerState({ keepalive: true });
@@ -378,6 +385,14 @@ export function useADKPageChatState(
       goalObjectiveDraft.value = chatDraft.value;
     }
   });
+
+  watch(
+    chatDraft,
+    () => {
+      draftRevision += 1;
+    },
+    { flush: "sync" },
+  );
 
   watch(
     () => [
@@ -700,35 +715,62 @@ export function useADKPageChatState(
     ) {
       return;
     }
-    if (await handleExactSlashCommand(text)) {
+    if (sendAdmissionLocked) {
+      return;
+    }
+    sendAdmissionLocked = true;
+    let handedOff = false;
+    try {
+      if (await handleExactSlashCommand(text)) {
+        chatDraft.value = "";
+        markComposerStateDirty();
+        await flushComposerState();
+        return;
+      }
+
+      const clientRequestId =
+        retryDraftRequest?.text === text &&
+        retryDraftRequest.draftRevision === draftRevision
+          ? retryDraftRequest.clientRequestId
+          : crypto.randomUUID();
+      retryDraftRequest = null;
+
+      if (hasBlockingRun.value || sendingChat.value) {
+        enqueueChatMessage(text, "queued", {
+          forceChat: shouldSendCurrentDraftAsGoalConversation(),
+          clientRequestId,
+        });
+        chatDraft.value = "";
+        markComposerStateDirty();
+        await flushComposerState();
+        await scrollToBottom(threadRef);
+        return;
+      }
+
+      const draftBeforeSend = chatDraft.value;
       chatDraft.value = "";
       markComposerStateDirty();
       await flushComposerState();
-      return;
-    }
-
-    if (hasBlockingRun.value || sendingChat.value) {
-      enqueueChatMessage(text, "queued", {
-        forceChat: shouldSendCurrentDraftAsGoalConversation(),
-      });
-      chatDraft.value = "";
-      markComposerStateDirty();
-      await flushComposerState();
-      await scrollToBottom(threadRef);
-      return;
-    }
-
-    const draftBeforeSend = chatDraft.value;
-    chatDraft.value = "";
-    markComposerStateDirty();
-    await flushComposerState();
-    const sent = await executeChatMessage(text, {
-      forceChat: shouldSendCurrentDraftAsGoalConversation(),
-    });
-    if (!sent) {
-      chatDraft.value = draftBeforeSend;
-      markComposerStateDirty();
-      await flushComposerState();
+      const execution = executeChatMessage(
+        text,
+        {
+          forceChat: shouldSendCurrentDraftAsGoalConversation(),
+        },
+        clientRequestId,
+      );
+      handedOff = true;
+      sendAdmissionLocked = false;
+      const sent = await execution;
+      if (!sent) {
+        chatDraft.value = draftBeforeSend;
+        retryDraftRequest = { text, clientRequestId, draftRevision };
+        markComposerStateDirty();
+        await flushComposerState();
+      }
+    } finally {
+      if (!handedOff) {
+        sendAdmissionLocked = false;
+      }
     }
   }
 
@@ -1004,8 +1046,10 @@ export function useADKPageChatState(
   async function executeChatMessage(
     text: string,
     options: { forceChat?: boolean } = {},
+    clientRequestId: string = crypto.randomUUID(),
   ): Promise<boolean> {
     const payload: Parameters<typeof streamADKChat>[0] = {
+      clientRequestId,
       agentId: sessionState.selectedAgentId.value,
       sessionId: sessionState.selectedSessionId.value,
       message: text,
@@ -1031,7 +1075,7 @@ export function useADKPageChatState(
       }
     }
     const optimisticUserEntry = createTimelineEntryState({
-      id: `local-user-${Date.now()}`,
+      id: `local-user-${clientRequestId}`,
       sessionId: sessionState.selectedSessionId.value,
       kind: "user_message",
       createdAt: new Date().toISOString(),
@@ -1042,9 +1086,12 @@ export function useADKPageChatState(
     if (!options.forceChat) {
       clearWorkflowPlanRun();
     }
-    timelineEntries.value = [...timelineEntries.value, optimisticUserEntry];
-    await scrollToBottom(threadRef);
     sendingChat.value = true;
+    timelineEntries.value = upsertTimelineEntry(
+      timelineEntries.value,
+      optimisticUserEntry,
+    );
+    await scrollToBottom(threadRef);
     const controller = new AbortController();
     chatStreamController = controller;
     chatStreamAbortReason = "";
@@ -1541,7 +1588,7 @@ export function useADKPageChatState(
   function enqueueChatMessage(
     text: string,
     mode: "queued" | "interrupt",
-    options: { forceChat?: boolean } = {},
+    options: { forceChat?: boolean; clientRequestId?: string } = {},
   ): QueuedChatMessage {
     const message = createQueuedChatMessage(
       text,
@@ -1577,7 +1624,7 @@ export function useADKPageChatState(
     queueDispatchingId.value = nextMessage.id;
     const sent = await executeChatMessage(nextMessage.text, {
       forceChat: nextMessage.forceChat === true,
-    });
+    }, nextMessage.clientRequestId);
     if (sent) {
       queuedChatMessages.value = queuedChatMessages.value.filter(
         (message) => message.id !== nextMessage.id,

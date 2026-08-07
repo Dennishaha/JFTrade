@@ -565,21 +565,30 @@ func writeOpenAIStreamEvent(t *testing.T, w http.ResponseWriter, value any) {
 }
 
 func TestGoogleADKExecutionConsumeEventSkipsDuplicateFinalTextAfterPartial(t *testing.T) {
-	execution := &googleADKExecution{}
+	var deltas []ChatDelta
+	execution := &googleADKExecution{runID: "run-whitespace", onDelta: func(delta ChatDelta) error {
+		deltas = append(deltas, delta)
+		return nil
+	}}
 
 	partialA := adksession.NewEvent(context.Background(), "partial-a")
 	partialA.LLMResponse = adkmodel.LLMResponse{
-		Content: genai.NewContentFromText("你", genai.RoleModel),
+		Content: genai.NewContentFromParts([]*genai.Part{{Text: "Hello"}, {Text: "  think", Thought: true}}, genai.RoleModel),
 		Partial: true,
 	}
 	partialB := adksession.NewEvent(context.Background(), "partial-b")
 	partialB.LLMResponse = adkmodel.LLMResponse{
-		Content: genai.NewContentFromText("好", genai.RoleModel),
+		Content: genai.NewContentFromParts([]*genai.Part{{Text: " world"}, {Text: " more", Thought: true}}, genai.RoleModel),
+		Partial: true,
+	}
+	partialC := adksession.NewEvent(context.Background(), "partial-c")
+	partialC.LLMResponse = adkmodel.LLMResponse{
+		Content: genai.NewContentFromParts([]*genai.Part{{Text: "\n\nnext"}, {Text: "\nlast  ", Thought: true}}, genai.RoleModel),
 		Partial: true,
 	}
 	final := adksession.NewEvent(context.Background(), "final")
 	final.LLMResponse = adkmodel.LLMResponse{
-		Content: genai.NewContentFromText("你好", genai.RoleModel),
+		Content: genai.NewContentFromParts([]*genai.Part{{Text: "Hello world\n\nnext"}, {Text: "think more\nlast", Thought: true}}, genai.RoleModel),
 	}
 
 	if err := execution.consumeEvent(partialA); err != nil {
@@ -588,11 +597,20 @@ func TestGoogleADKExecutionConsumeEventSkipsDuplicateFinalTextAfterPartial(t *te
 	if err := execution.consumeEvent(partialB); err != nil {
 		t.Fatalf("consumeEvent(partialB): %v", err)
 	}
+	if err := execution.consumeEvent(partialC); err != nil {
+		t.Fatalf("consumeEvent(partialC): %v", err)
+	}
 	if err := execution.consumeEvent(final); err != nil {
 		t.Fatalf("consumeEvent(final): %v", err)
 	}
 
-	if got := execution.result().Reply; got != "你好" {
-		t.Fatalf("reply = %q, want 你好", got)
+	result := execution.result()
+	if result.Reply != "Hello world\n\nnext" || result.ReasoningContent != "think more\nlast" || result.SourceEventID != final.ID {
+		t.Fatalf("result = %#v", result)
+	}
+	if len(deltas) != 6 || deltas[0].Reply != "Hello" || deltas[1].ReasoningContent != "  think" ||
+		deltas[2].Reply != " world" || deltas[3].ReasoningContent != " more" ||
+		deltas[4].Reply != "\n\nnext" || deltas[5].ReasoningContent != "\nlast  " {
+		t.Fatalf("deltas = %#v", deltas)
 	}
 }

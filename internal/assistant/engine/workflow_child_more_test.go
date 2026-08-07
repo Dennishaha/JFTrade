@@ -92,10 +92,10 @@ func TestWorkflowChildAdditionalCoverageBranches(t *testing.T) {
 	})
 
 	t.Run("workflow child activity detects reply reasoning without tools", func(t *testing.T) {
-		if !workflowChildHasExecutionActivity(nil, Run{ID: "child"}, toolExecutionContext{}, nil, openAIChatResult{ReasoningContent: "thinking"}) {
+		if !workflowChildHasExecutionActivity(nil, Run{ID: "child"}, toolExecutionContext{}, nil, assistantExecutionResult{ReasoningContent: "thinking"}) {
 			t.Fatal("reply reasoning should count as child execution activity")
 		}
-		if workflowChildHasExecutionActivity(nil, Run{ID: "child"}, toolExecutionContext{}, nil, openAIChatResult{}) {
+		if workflowChildHasExecutionActivity(nil, Run{ID: "child"}, toolExecutionContext{}, nil, assistantExecutionResult{}) {
 			t.Fatal("empty child execution should not count as activity without observation")
 		}
 	})

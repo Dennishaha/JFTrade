@@ -216,12 +216,16 @@ func (r *Runtime) failResumedExecution(ctx context.Context, run Run, execution *
 	return run, nil, true, nil
 }
 
-func finalizeResumedResult(run Run, result openAIChatResult, denied bool) openAIChatResult {
+func finalizeResumedResult(run Run, result assistantExecutionResult, denied bool) assistantExecutionResult {
 	if denied {
 		result.Reply = approvalResolutionSummary(run, run.PendingApprovals[0], false)
 		result.ReasoningContent = ""
+		result.SourceEventID = ""
+		result.SyntheticKind = "approval_denied"
 	} else if result.Reply == "" {
 		result.Reply = approvalResolutionSummary(run, run.PendingApprovals[0], true)
+		result.SourceEventID = ""
+		result.SyntheticKind = "approval_resolved"
 	}
 	return result
 }
@@ -316,7 +320,7 @@ func markFailedResumedRunIfNeeded(run Run) Run {
 	return run
 }
 
-func (r *Runtime) persistResumedRunResult(ctx context.Context, run Run, result openAIChatResult) (*TranscriptEntry, error) {
+func (r *Runtime) persistResumedRunResult(ctx context.Context, run Run, result assistantExecutionResult) (*TranscriptEntry, error) {
 	message, err := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
 	if err != nil {
 		return nil, err

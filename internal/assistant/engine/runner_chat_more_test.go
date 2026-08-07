@@ -556,7 +556,7 @@ func TestRunChatAdditionalBranches(t *testing.T) {
 		if _, err := runtime.finishPendingApprovalRun(ctx, session, run, []Approval{{ID: "approval-save-error", Status: ApprovalStatusPending}}); err == nil || !strings.Contains(err.Error(), tableRuns) {
 			t.Fatalf("finishPendingApprovalRun save err = %v", err)
 		}
-		if _, err := runtime.completeChatRun(ctx, session, run, "hello", toolExecutionContext{}, nil, openAIChatResult{}, errors.New("boom")); err == nil || !strings.Contains(err.Error(), tableRuns) {
+		if _, err := runtime.completeChatRun(ctx, session, run, "hello", toolExecutionContext{}, nil, assistantExecutionResult{}, errors.New("boom")); err == nil || !strings.Contains(err.Error(), tableRuns) {
 			t.Fatalf("completeChatRun terminal save err = %v", err)
 		}
 	})
@@ -569,7 +569,7 @@ func TestRunChatAdditionalBranches(t *testing.T) {
 			Status: RunStatusRunning, CreatedAt: nowString(), UpdatedAt: nowString(), StartedAt: nowString(), Usage: &RunUsage{},
 		})
 		runtime.rawSessionService = createErrorSessionService{err: errors.New("create failed")}
-		if _, err := runtime.completeChatRun(ctx, session, run, "hello", toolExecutionContext{}, nil, openAIChatResult{Reply: "final"}, nil); err == nil || !strings.Contains(err.Error(), "create failed") {
+		if _, err := runtime.completeChatRun(ctx, session, run, "hello", toolExecutionContext{}, nil, assistantExecutionResult{Reply: "final"}, nil); err == nil || !strings.Contains(err.Error(), "create failed") {
 			t.Fatalf("completeChatRun attach message err = %v", err)
 		}
 	})

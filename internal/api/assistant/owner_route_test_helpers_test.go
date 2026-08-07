@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	adksession "google.golang.org/adk/v2/session"
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
@@ -25,6 +26,22 @@ import (
 )
 
 const testADKProviderID = "test-provider"
+
+func testADKChatJSON(body string) string {
+	trimmed := strings.TrimSpace(body)
+	if !strings.HasPrefix(trimmed, "{") {
+		return body
+	}
+	tail := strings.TrimPrefix(trimmed, "{")
+	if tail == "}" {
+		return `{"clientRequestId":"` + uuid.NewString() + `"}`
+	}
+	return `{"clientRequestId":"` + uuid.NewString() + `",` + tail
+}
+
+func testADKChatBody(body string) []byte {
+	return []byte(testADKChatJSON(body))
+}
 
 // SettingsStore is the small settings surface needed by API transport tests.
 // Persistent Assistant state belongs to the ADK store below, not this fixture.

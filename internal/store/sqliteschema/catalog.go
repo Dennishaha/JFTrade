@@ -31,7 +31,7 @@ const (
 	BacktestRunsVersion = 1
 	StrategyVersion     = 2
 	ExecutionVersion    = 5
-	ADKVersion          = 2
+	ADKVersion          = 3
 	ADKSessionVersion   = 4
 	ADKArtifactVersion  = 1
 	WatchlistVersion    = 1

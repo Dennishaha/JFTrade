@@ -2,6 +2,8 @@ package adk
 
 import (
 	"context"
+	"crypto/sha256"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -13,17 +15,27 @@ import (
 )
 
 func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(ChatDelta) error, emitRun bool) (ChatResponse, error) {
+	var requestFingerprint string
+	var err error
+	req, requestFingerprint, err = ensureChatRequestIdentity(req)
+	if err != nil {
+		return ChatResponse{}, err
+	}
+	response, reused, err := r.reusedChatResponse(ctx, req, requestFingerprint)
+	if err != nil {
+		return ChatResponse{}, err
+	}
+	if reused {
+		return response, nil
+	}
 	text, err := r.prepareChatRequest(ctx, req)
 	if err != nil {
 		return ChatResponse{}, err
 	}
 	defer func() { <-r.runSem }()
-	if !validWorkMode(req.WorkModeOverride) {
-		return ChatResponse{}, fmt.Errorf("invalid work mode %q", req.WorkModeOverride)
-	}
-	permissionModeOverride := strings.TrimSpace(req.PermissionModeOverride)
-	if permissionModeOverride != "" && !validPermissionMode(permissionModeOverride) {
-		return ChatResponse{}, fmt.Errorf("invalid permission mode %q", permissionModeOverride)
+	permissionModeOverride, err := validateChatOverrides(req)
+	if err != nil {
+		return ChatResponse{}, err
 	}
 	agent, err := r.resolveAgentDefinition(ctx, req.AgentID)
 	if err != nil {
@@ -57,10 +69,17 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 		return r.workflowExecutor().Run(ctx, workflowRequest{
 			Agent: agent, Session: session, Message: text, Mode: workMode, Objective: objective,
 			RunOptions: runOptions, OnDelta: onDelta, EmitRun: emitRun,
+			ClientRequestID: req.ClientRequestID, RequestFingerprint: requestFingerprint,
 		})
 	}
-	run, runCtx, finishRun, err := r.startRun(ctx, session.ID, agent, text)
+	run, runCtx, finishRun, err := r.startRunWithOptions(ctx, session.ID, agent, text, runStartOptions{
+		WorkMode: agent.WorkMode, ClientRequestID: req.ClientRequestID, RequestFingerprint: requestFingerprint,
+	})
 	if err != nil {
+		var reused *reusedChatRequestError
+		if errors.As(err, &reused) {
+			return r.chatResponseForExistingRun(ctx, reused.Run)
+		}
 		return ChatResponse{}, err
 	}
 	defer finishRun()
@@ -72,6 +91,39 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 	toolContext, approvals, replyResult, preToolContent, preToolReasoning, adkErr := r.executeGoogleADK(runCtx, agent, session, run.ID, text, onDelta)
 	run = hydrateRunExecutionResult(run, toolContext, approvals, preToolContent, preToolReasoning)
 	return r.completeChatRun(runCtx, session, run, text, toolContext, approvals, replyResult, adkErr)
+}
+
+func (r *Runtime) reusedChatResponse(ctx context.Context, req ChatRequest, requestFingerprint string) (ChatResponse, bool, error) {
+	if r == nil || r.store == nil {
+		return ChatResponse{}, false, nil
+	}
+	existing, existingFingerprint, ok, err := r.store.ChatRunByClientRequestID(ctx, req.ClientRequestID)
+	if err != nil {
+		return ChatResponse{}, false, err
+	}
+	if !ok {
+		return ChatResponse{}, false, nil
+	}
+	if existingFingerprint != requestFingerprint {
+		observability.InfoWithImportance(ctx, observability.ImportanceNormal, "adk chat request conflict",
+			"request_state", "conflict", "client_request_id", req.ClientRequestID, "run_id", existing.ID)
+		return ChatResponse{}, false, &ChatRequestConflictError{ClientRequestID: req.ClientRequestID}
+	}
+	observability.InfoWithImportance(ctx, observability.ImportanceNormal, "adk chat request reused",
+		"request_state", "reused", "client_request_id", req.ClientRequestID, "run_id", existing.ID)
+	response, err := r.chatResponseForExistingRun(ctx, existing)
+	return response, true, err
+}
+
+func (r *Runtime) chatResponseForExistingRun(ctx context.Context, run Run) (ChatResponse, error) {
+	session, ok, err := r.store.Session(ctx, run.SessionID)
+	if err != nil {
+		return ChatResponse{}, err
+	}
+	if !ok {
+		return ChatResponse{}, fmt.Errorf("session not found: %s", run.SessionID)
+	}
+	return r.projectedChatResponse(ctx, session, run, assistantExecutionResult{}), nil
 }
 
 func resolveChatWorkflowOptions(req ChatRequest, agent Agent) (string, RunOptions, string, error) {
@@ -97,6 +149,17 @@ func resolveChatWorkflowOptions(req ChatRequest, agent Agent) (string, RunOption
 	return mode, options, objective, nil
 }
 
+func validateChatOverrides(req ChatRequest) (string, error) {
+	if !validWorkMode(req.WorkModeOverride) {
+		return "", fmt.Errorf("invalid work mode %q", req.WorkModeOverride)
+	}
+	permissionMode := strings.TrimSpace(req.PermissionModeOverride)
+	if permissionMode != "" && !validPermissionMode(permissionMode) {
+		return "", fmt.Errorf("invalid permission mode %q", permissionMode)
+	}
+	return permissionMode, nil
+}
+
 func (r *Runtime) completeChatRun(
 	ctx context.Context,
 	session Session,
@@ -104,7 +167,7 @@ func (r *Runtime) completeChatRun(
 	text string,
 	toolContext toolExecutionContext,
 	approvals []Approval,
-	replyResult openAIChatResult,
+	replyResult assistantExecutionResult,
 	adkErr error,
 ) (ChatResponse, error) {
 	ctx = adkRunObservabilityContext(ctx, run)
@@ -120,12 +183,12 @@ func (r *Runtime) completeChatRun(
 		if err := r.persistRunTerminalState(ctx, run); err != nil {
 			return ChatResponse{}, err
 		}
-		replyResult = openAIChatResult{Reply: userFacingADKError(adkErr)}
+		replyResult = assistantExecutionResult{Reply: userFacingADKError(adkErr), SyntheticKind: "provider_error"}
 	} else {
 		var toolFailure string
 		run, toolFailure = markCompletedChatRun(run)
 		if toolFailure != "" && strings.TrimSpace(replyResult.Reply) == "" {
-			replyResult = openAIChatResult{Reply: toolFailure}
+			replyResult = assistantExecutionResult{Reply: toolFailure, SyntheticKind: "tool_failure"}
 		}
 		if err := r.persistRunTerminalState(ctx, run); err != nil {
 			return ChatResponse{}, err
@@ -154,7 +217,7 @@ func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session,
 	})
 	observability.InfoWithImportance(ctx, observability.ImportanceNormal, "adk run awaiting approval", "status", run.Status, "pending_approvals", len(run.PendingApprovals))
 	reply := "我已经准备好执行需要授权的操作，请先在 ADK 审批队列里确认或拒绝。"
-	return r.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: reply}), nil
+	return r.projectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: reply}), nil
 }
 
 func applyChatModelOverride(agent Agent, req ChatRequest) Agent {
@@ -221,7 +284,7 @@ func (r *Runtime) finishPendingInputRun(ctx context.Context, session Session, ru
 	r.audit(ctx, "run.awaiting_input", run.ID, "Agent run is waiting for user input.", map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "requestId": request.ID,
 	})
-	return r.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: "我需要你确认几个选择，回答后会继续执行。"}), nil
+	return r.projectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: "我需要你确认几个选择，回答后会继续执行。"}), nil
 }
 
 func markFailedChatRun(ctx context.Context, run Run, adkErr error) Run {
@@ -356,8 +419,11 @@ func (r *Runtime) attachFinalAssistantMessage(
 	ctx context.Context,
 	session Session,
 	run Run,
-	replyResult openAIChatResult,
+	replyResult assistantExecutionResult,
 ) (Run, error) {
+	if strings.TrimSpace(replyResult.SourceEventID) == "" && strings.TrimSpace(replyResult.SyntheticKind) == "" {
+		replyResult.SyntheticKind = "local_fallback"
+	}
 	message, err := r.ensureAssistantMessage(ctx, session, run, replyResult)
 	if err != nil {
 		return run, err
@@ -366,6 +432,12 @@ func (r *Runtime) attachFinalAssistantMessage(
 	if err := r.store.SaveRun(ctx, run); err != nil {
 		return run, err
 	}
+	finalSource := "synthetic"
+	if strings.TrimSpace(replyResult.SourceEventID) != "" {
+		finalSource = "native"
+	}
+	observability.InfoWithImportance(ctx, observability.ImportanceNormal, "adk final message attached",
+		"final_event_source", finalSource, "final_message_id", message.ID, "synthetic_kind", replyResult.SyntheticKind)
 	return run, nil
 }
 
@@ -373,23 +445,66 @@ func (r *Runtime) ensureAssistantMessage(
 	ctx context.Context,
 	session Session,
 	run Run,
-	replyResult openAIChatResult,
+	replyResult assistantExecutionResult,
 ) (TranscriptEntry, error) {
-	if r != nil && r.store != nil {
-		if projection, ok, err := r.store.SessionProjection(ctx, session.ID); err != nil {
+	if sourceID := strings.TrimSpace(replyResult.SourceEventID); sourceID != "" {
+		message, ok, err := r.assistantMessageByID(ctx, session, sourceID)
+		if err != nil {
 			return TranscriptEntry{}, err
-		} else if ok && projection.LatestAssistant != nil && projectedMessageMatchesReply(*projection.LatestAssistant, replyResult) {
-			return *projection.LatestAssistant, nil
 		}
+		if !ok {
+			return TranscriptEntry{}, fmt.Errorf("persisted ADK assistant event %s is missing from session %s", sourceID, session.ID)
+		}
+		return message, nil
 	}
 	return r.appendAssistantMessageEvent(ctx, session, run, replyResult)
+}
+
+func (r *Runtime) assistantMessageByID(ctx context.Context, session Session, messageID string) (TranscriptEntry, bool, error) {
+	if r == nil || r.store == nil {
+		return TranscriptEntry{}, false, fmt.Errorf("adk store is unavailable")
+	}
+	if r.rawSessionService != nil {
+		response, err := r.rawSessionService.Get(ctx, &adksession.GetRequest{
+			AppName: googleADKAppName(session.AgentID), UserID: googleADKUserID, SessionID: session.ID,
+		})
+		if err != nil && !isADKSessionNotFound(err) {
+			return TranscriptEntry{}, false, err
+		}
+		if err == nil && response != nil && response.Session != nil {
+			for _, event := range eventSlice(response.Session.Events()) {
+				if event == nil || event.Partial || event.ID != messageID || isUserEvent(event) {
+					continue
+				}
+				message, visible := transcriptEntryFromADKEvent(event)
+				if visible {
+					message.SessionID = session.ID
+					return message, true, nil
+				}
+			}
+		}
+	}
+	projection, ok, err := r.store.SessionProjection(ctx, session.ID)
+	if err != nil || !ok {
+		return TranscriptEntry{}, false, err
+	}
+	message, ok := projection.MessagesByEventID[messageID]
+	if ok && strings.EqualFold(message.Role, "assistant") {
+		return message, true, nil
+	}
+	for _, projected := range projection.Messages {
+		if projected.ID == messageID && strings.EqualFold(projected.Role, "assistant") {
+			return projected, true, nil
+		}
+	}
+	return TranscriptEntry{}, false, nil
 }
 
 func (r *Runtime) appendAssistantMessageEvent(
 	ctx context.Context,
 	session Session,
 	run Run,
-	replyResult openAIChatResult,
+	replyResult assistantExecutionResult,
 ) (TranscriptEntry, error) {
 	if r == nil || r.rawSessionService == nil {
 		return TranscriptEntry{}, fmt.Errorf("adk session service is unavailable")
@@ -410,13 +525,23 @@ func (r *Runtime) appendAssistantMessageEvent(
 		}
 		response = &adksession.GetResponse{Session: created.Session}
 	}
+	eventID := syntheticAssistantMessageID(run.ID, replyResult)
+	if existing, ok, lookupErr := r.assistantMessageByID(ctx, session, eventID); lookupErr != nil {
+		return TranscriptEntry{}, lookupErr
+	} else if ok {
+		return existing, nil
+	}
 	event := adksession.NewEvent(ctx, run.ID)
+	event.ID = eventID
 	event.Author = googleADKAgentName(defaultString(run.AgentID, session.AgentID))
 	event.LLMResponse = adkmodel.LLMResponse{
 		Content:      genai.NewContentFromParts(partsFromReplyAndReasoning(replyResult.Reply, replyResult.ReasoningContent), genai.RoleModel),
 		TurnComplete: true,
 	}
 	if err := appendADKEventWithStaleRetry(ctx, runtimeAppendLocks(r), r.rawSessionService, response.Session, event); err != nil {
+		if existing, ok, lookupErr := r.assistantMessageByID(ctx, session, eventID); lookupErr == nil && ok {
+			return existing, nil
+		}
 		return TranscriptEntry{}, err
 	}
 	message, _ := transcriptEntryFromADKEvent(event)
@@ -425,16 +550,20 @@ func (r *Runtime) appendAssistantMessageEvent(
 	return message, nil
 }
 
-func projectedMessageMatchesReply(message TranscriptEntry, replyResult openAIChatResult) bool {
-	return strings.TrimSpace(message.Content) == strings.TrimSpace(replyResult.Reply) &&
-		strings.TrimSpace(message.ReasoningContent) == strings.TrimSpace(replyResult.ReasoningContent)
+func syntheticAssistantMessageID(runID string, result assistantExecutionResult) string {
+	kind := strings.TrimSpace(result.SyntheticKind)
+	if kind == "" {
+		kind = "local"
+	}
+	digest := sha256.Sum256([]byte(kind + "\x00" + strings.TrimSpace(result.ReasoningContent) + "\x00" + strings.TrimSpace(result.Reply)))
+	return fmt.Sprintf("jftrade-%s-%s-%x", strings.TrimSpace(runID), kind, digest[:8])
 }
 
 func (r *Runtime) projectedChatResponse(
 	ctx context.Context,
 	session Session,
 	run Run,
-	replyResult openAIChatResult,
+	replyResult assistantExecutionResult,
 ) ChatResponse {
 	run = r.authoritativeRunSnapshot(ctx, run)
 	response := ChatResponse{
@@ -454,9 +583,9 @@ func (r *Runtime) projectedChatResponse(
 	if err != nil || !ok {
 		return response
 	}
-	if projection.LatestAssistant != nil {
-		response.Reply = projection.LatestAssistant.Content
-		response.ReasoningContent = projection.LatestAssistant.ReasoningContent
+	if message := projectedAssistantMessageForRun(projection, response.Run); message != nil {
+		response.Reply = message.Content
+		response.ReasoningContent = message.ReasoningContent
 	}
 	if len(response.PendingApprovals) == 0 && len(projection.PendingApprovals) > 0 {
 		response.PendingApprovals = pendingApprovalsOnly(projection.PendingApprovals)
@@ -469,13 +598,32 @@ func (r *Runtime) projectedChatResponse(
 	return NormalizeChatResponse(response)
 }
 
+func projectedAssistantMessageForRun(projection SessionProjection, run Run) *TranscriptEntry {
+	finalMessageID := strings.TrimSpace(run.FinalMessageID)
+	if finalMessageID != "" {
+		if message, ok := projection.MessagesByEventID[finalMessageID]; ok {
+			return new(message)
+		}
+	}
+	for index := range projection.Messages {
+		message := &projection.Messages[index]
+		if finalMessageID != "" && message.ID == finalMessageID {
+			return message
+		}
+		if finalMessageID == "" && strings.TrimSpace(message.RunID) == strings.TrimSpace(run.ID) {
+			return message
+		}
+	}
+	return nil
+}
+
 func normalizedTimelineEntries(entries []TimelineEntry) []TimelineEntry {
 	return normalizeTimelineEntries(entries)
 }
 
 func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
 	run.PendingApprovals = pendingApprovalsOnly(run.PendingApprovals)
-	if strings.TrimSpace(projection.FinalMessageID) != "" {
+	if strings.TrimSpace(run.FinalMessageID) == "" && strings.TrimSpace(projection.FinalMessageID) != "" {
 		run.FinalMessageID = projection.FinalMessageID
 	}
 	if strings.TrimSpace(projection.PreToolContent) != "" {

@@ -88,9 +88,11 @@ func TestOpenAIClientChatStreamProviderFailureContracts(t *testing.T) {
 func TestOpenAIClientReadStreamingResponseCombinesDeltaAndMessageFrames(t *testing.T) {
 	body := strings.NewReader(strings.Join([]string{
 		": keepalive",
-		`data: {"choices":[{"delta":{"content":"hello ","reasoning_content":"first "}}]}`,
+		`data: {"choices":[{"delta":{"content":"Hello","reasoning_content":"  first"}}]}`,
 		"",
-		`data: {"choices":[{"message":{"content":"world","reasoning":"second"}}]}`,
+		`data: {"choices":[{"delta":{"content":" world","reasoning":" second"}}]}`,
+		"",
+		`data: {"choices":[{"message":{"content":"\n\nnext","reasoning":"\nlast  "}}]}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -103,10 +105,12 @@ func TestOpenAIClientReadStreamingResponseCombinesDeltaAndMessageFrames(t *testi
 	if err != nil {
 		t.Fatalf("readStreamingResponse: %v", err)
 	}
-	if result.Reply != "hello world" || result.ReasoningContent != "first second" {
+	if result.Reply != "Hello world\n\nnext" || result.ReasoningContent != "first second\nlast" {
 		t.Fatalf("stream result = %#v", result)
 	}
-	if len(deltas) != 2 || deltas[0].Reply != "hello " || deltas[1].Reply != "world" {
+	if len(deltas) != 3 || deltas[0].Reply != "Hello" || deltas[0].ReasoningContent != "  first" ||
+		deltas[1].Reply != " world" || deltas[1].ReasoningContent != " second" ||
+		deltas[2].Reply != "\n\nnext" || deltas[2].ReasoningContent != "\nlast  " {
 		t.Fatalf("stream deltas = %#v", deltas)
 	}
 }

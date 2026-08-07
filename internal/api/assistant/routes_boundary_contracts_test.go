@@ -64,7 +64,7 @@ func TestAssistantRoutesReturnUnavailableWhenRuntimeMissing(t *testing.T) {
 		{"composer state", http.MethodPatch, "/api/v1/adk/sessions/session-1/composer-state", []byte(`{"chatDraft":"draft"}`)},
 		{"rename session", http.MethodPut, "/api/v1/adk/sessions/session-1", []byte(`{"title":"Renamed"}`)},
 		{"delete session", http.MethodDelete, "/api/v1/adk/sessions/session-1", nil},
-		{"chat", http.MethodPost, "/api/v1/adk/chat", []byte(`{"agentId":"agent-1","message":"hi"}`)},
+		{"chat", http.MethodPost, "/api/v1/adk/chat", testADKChatBody(`{"agentId":"agent-1","message":"hi"}`)},
 		{"runs", http.MethodGet, "/api/v1/adk/runs", nil},
 		{"run", http.MethodGet, "/api/v1/adk/runs/run-1", nil},
 		{"cancel run", http.MethodPost, "/api/v1/adk/runs/run-1/cancel", nil},

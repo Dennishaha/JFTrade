@@ -107,7 +107,7 @@ func (e *googleADKExecution) consumeEvent(event *adksession.Event) error {
 			e.consumeFunctionResponse(part.FunctionResponse)
 		}
 		if emitText && part.Text != "" {
-			reply, reasoning := visibleTextFromParts([]*genai.Part{part})
+			reply, reasoning := rawVisibleTextFromParts([]*genai.Part{part})
 			if err := e.appendVisibleTextForRun(e.runIDForAgentName(event.Author), reply, reasoning); err != nil {
 				return err
 			}
@@ -115,6 +115,7 @@ func (e *googleADKExecution) consumeEvent(event *adksession.Event) error {
 	}
 	if !event.Partial {
 		e.mu.Lock()
+		e.recordFinalMessageIDLocked(event)
 		e.sawPartialText = false
 		e.mu.Unlock()
 	}
@@ -462,11 +463,11 @@ func (e *googleADKExecution) setInputRequests(requests map[string]*InputRequest)
 	e.emitRunSnapshotDeltas(deltas)
 }
 
-func (e *googleADKExecution) result() openAIChatResult {
+func (e *googleADKExecution) result() assistantExecutionResult {
 	return e.resultForRun(e.runID)
 }
 
-func (e *googleADKExecution) resultForRun(runID string) openAIChatResult {
+func (e *googleADKExecution) resultForRun(runID string) assistantExecutionResult {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.ensureTextMapsLocked()
@@ -475,8 +476,9 @@ func (e *googleADKExecution) resultForRun(runID string) openAIChatResult {
 		runID = e.runID
 	}
 	if runID == e.runID {
-		return openAIChatResult{
+		return assistantExecutionResult{
 			Reply: strings.TrimSpace(e.reply.String()), ReasoningContent: strings.TrimSpace(e.reasoning.String()),
+			SourceEventID: strings.TrimSpace(e.finalMessageIDByRunID[runID]),
 		}
 	}
 	reply := e.replyByRunID[runID]
@@ -488,9 +490,24 @@ func (e *googleADKExecution) resultForRun(runID string) openAIChatResult {
 	if reasoning != nil {
 		reasoningText = reasoning.String()
 	}
-	return openAIChatResult{
+	return assistantExecutionResult{
 		Reply: strings.TrimSpace(replyText), ReasoningContent: strings.TrimSpace(reasoningText),
+		SourceEventID: strings.TrimSpace(e.finalMessageIDByRunID[runID]),
 	}
+}
+
+func (e *googleADKExecution) recordFinalMessageIDLocked(event *adksession.Event) {
+	if event == nil || event.Content == nil || event.Partial || isUserEvent(event) || strings.TrimSpace(event.ID) == "" || !contentHasText(event.Content) {
+		return
+	}
+	if event.Content.Role != "" && event.Content.Role != genai.RoleModel {
+		return
+	}
+	if e.finalMessageIDByRunID == nil {
+		e.finalMessageIDByRunID = map[string]string{}
+	}
+	runID := e.runIDForAgentName(event.Author)
+	e.finalMessageIDByRunID[runID] = strings.TrimSpace(event.ID)
 }
 
 func (e *googleADKExecution) trackedRunIDForFunctionCall(functionCallID string) (string, bool) {
@@ -616,9 +633,9 @@ func (e *googleADKExecution) flushBufferedTextForRunIfReadyLocked(runID string) 
 	}
 	replyBuffer := e.builderForRun(e.bufferedReplyByRunID, runID)
 	reasoningBuffer := e.builderForRun(e.bufferedReasoningByRunID, runID)
-	reply := strings.TrimSpace(replyBuffer.String())
-	reasoning := strings.TrimSpace(reasoningBuffer.String())
-	if reply == "" && reasoning == "" {
+	reply := replyBuffer.String()
+	reasoning := reasoningBuffer.String()
+	if strings.TrimSpace(reply) == "" && strings.TrimSpace(reasoning) == "" {
 		return ChatDelta{}, false
 	}
 	replyBuffer.Reset()
@@ -670,6 +687,9 @@ func (e *googleADKExecution) ensureTextMapsLocked() {
 	}
 	if e.postToolTextSeqByRunID == nil {
 		e.postToolTextSeqByRunID = map[string]int{}
+	}
+	if e.finalMessageIDByRunID == nil {
+		e.finalMessageIDByRunID = map[string]string{}
 	}
 }
 

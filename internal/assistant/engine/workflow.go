@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -30,14 +31,16 @@ type WorkflowExecutor struct {
 }
 
 type workflowRequest struct {
-	Agent      Agent
-	Session    Session
-	Message    string
-	Mode       string
-	Objective  string
-	RunOptions RunOptions
-	OnDelta    func(ChatDelta) error
-	EmitRun    bool
+	Agent              Agent
+	Session            Session
+	Message            string
+	Mode               string
+	Objective          string
+	RunOptions         RunOptions
+	OnDelta            func(ChatDelta) error
+	EmitRun            bool
+	ClientRequestID    string
+	RequestFingerprint string
 
 	GoalDecision *workflowGoalDecision
 }
@@ -94,12 +97,18 @@ func (e *WorkflowExecutor) Run(ctx context.Context, req workflowRequest) (ChatRe
 		objective = req.Message
 	}
 	parent, parentCtx, finishParent, err := e.runtime.startRunWithOptions(ctx, req.Session.ID, req.Agent, req.Message, runStartOptions{
-		WorkMode:       mode,
-		Objective:      objective,
-		WorkflowStatus: workflowStatusRunning,
-		WorkflowEngine: workflowEngineForMode(mode),
+		WorkMode:           mode,
+		Objective:          objective,
+		ClientRequestID:    req.ClientRequestID,
+		RequestFingerprint: req.RequestFingerprint,
+		WorkflowStatus:     workflowStatusRunning,
+		WorkflowEngine:     workflowEngineForMode(mode),
 	})
 	if err != nil {
+		var reused *reusedChatRequestError
+		if errors.As(err, &reused) {
+			return e.runtime.chatResponseForExistingRun(ctx, reused.Run)
+		}
 		return ChatResponse{}, err
 	}
 	defer finishParent()
@@ -114,7 +123,7 @@ func (e *WorkflowExecutor) Run(ctx context.Context, req workflowRequest) (ChatRe
 		if persistErr != nil {
 			return ChatResponse{}, persistErr
 		}
-		return e.workflowResponse(parentCtx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+		return e.workflowResponse(parentCtx, req.Session, parent, assistantExecutionResult{Reply: parent.FailureReason}), nil
 	}
 	parent.WorkflowPlan = workflowPlanFromTasks([]Task{task}, parent.WorkflowPlan)
 	parent, err = e.runtime.saveRunPreservingUserGoalPause(parentCtx, parent)
@@ -318,7 +327,7 @@ func (e *WorkflowExecutor) failedWorkflowResponse(ctx context.Context, req workf
 	if err != nil {
 		return ChatResponse{}, err
 	}
-	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+	return e.workflowResponse(ctx, req.Session, parent, assistantExecutionResult{Reply: parent.FailureReason}), nil
 }
 
 func (e *WorkflowExecutor) prepareWorkflowParent(ctx context.Context, req workflowRequest, parent Run, childRuns []Run) (Run, error) {
@@ -389,7 +398,7 @@ func (e *WorkflowExecutor) finishWorkflowPendingInputs(ctx context.Context, req 
 	for _, child := range childRuns {
 		request := result.inputRequests[child.ID]
 		if request == nil {
-			responses = append(responses, e.workflowResponse(ctx, req.Session, child, openAIChatResult{}))
+			responses = append(responses, e.workflowResponse(ctx, req.Session, child, assistantExecutionResult{}))
 			continue
 		}
 		toolContext := result.execution.toolContextForRun(child.ID)
@@ -423,7 +432,7 @@ func (e *WorkflowExecutor) finalizePlannedWorkflow(ctx context.Context, req work
 		return ChatResponse{}, err
 	}
 	if blockingChild != nil {
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: workflowPendingReply(parent)}), nil
+		return e.workflowResponse(ctx, req.Session, parent, assistantExecutionResult{Reply: workflowPendingReply(parent)}), nil
 	}
 	if !e.workflowTasksFinished(ctx, parent, tasks) {
 		parent, err = e.failParent(ctx, parent, fmt.Errorf("workflow task scheduler incomplete"))
@@ -434,7 +443,7 @@ func (e *WorkflowExecutor) finalizePlannedWorkflow(ctx context.Context, req work
 		if err := e.runtime.store.SaveRun(ctx, parent); err != nil {
 			return ChatResponse{}, fmt.Errorf("persist incomplete workflow state: %w", err)
 		}
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+		return e.workflowResponse(ctx, req.Session, parent, assistantExecutionResult{Reply: parent.FailureReason}), nil
 	}
 	parent.Status = RunStatusCompleted
 	parent.Message = "workflow completed"
@@ -445,7 +454,7 @@ func (e *WorkflowExecutor) finalizePlannedWorkflow(ctx context.Context, req work
 	parent.PendingApprovals = nil
 	parent.CompletedAt = new(nowString())
 	finalizeRunUsage(&parent)
-	replyResult := openAIChatResult{Reply: workflowSummary(parent, replies)}
+	replyResult := assistantExecutionResult{Reply: workflowSummary(parent, replies), SyntheticKind: "workflow_summary"}
 	if saved, err := e.runtime.attachFinalAssistantMessage(ctx, req.Session, parent, replyResult); err == nil {
 		parent = saved
 	} else {
@@ -562,6 +571,6 @@ func (e *WorkflowExecutor) failParent(ctx context.Context, parent Run, cause err
 	return parent, nil
 }
 
-func (e *WorkflowExecutor) workflowResponse(ctx context.Context, session Session, parent Run, replyResult openAIChatResult) ChatResponse {
+func (e *WorkflowExecutor) workflowResponse(ctx context.Context, session Session, parent Run, replyResult assistantExecutionResult) ChatResponse {
 	return e.runtime.projectedChatResponse(ctx, session, parent, replyResult)
 }

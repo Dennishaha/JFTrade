@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	adkmodel "google.golang.org/adk/v2/model"
 	adksession "google.golang.org/adk/v2/session"
@@ -272,14 +273,13 @@ func TestChatAndSSEContracts(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	payload := []byte(`{"agentId":"` + agent.ID + `","message":"hello"}`)
-	chat := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat", payload)
+	chat := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat", testADKChatBody(`{"agentId":"`+agent.ID+`","message":"hello"}`))
 	if chat.Code != http.StatusOK {
 		t.Fatalf("chat status=%d body=%s", chat.Code, chat.Body.String())
 	}
 	assertOKEnvelope(t, chat)
 
-	stream := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat/stream", payload)
+	stream := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat/stream", testADKChatBody(`{"agentId":"`+agent.ID+`","message":"hello"}`))
 	if stream.Code != http.StatusOK {
 		t.Fatalf("stream status=%d body=%s", stream.Code, stream.Body.String())
 	}
@@ -294,6 +294,53 @@ func TestChatAndSSEContracts(t *testing.T) {
 		if !strings.Contains(body, eventType) {
 			t.Fatalf("stream body missing %s: %s", eventType, body)
 		}
+	}
+}
+
+func TestChatRequestIdempotencyContracts(t *testing.T) {
+	runtime, router := newAssistantTestRouter(t)
+	agent, err := runtime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+		ID: "agent-idempotency", Name: "Idempotency Agent", ProviderID: "test-provider", Status: jfadk.AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+
+	missing := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat", []byte(`{"agentId":"`+agent.ID+`","message":"hello"}`))
+	invalid := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat", []byte(`{"clientRequestId":"invalid","agentId":"`+agent.ID+`","message":"hello"}`))
+	if missing.Code != http.StatusBadRequest || invalid.Code != http.StatusBadRequest {
+		t.Fatalf("UUID validation statuses missing=%d invalid=%d", missing.Code, invalid.Code)
+	}
+
+	syncRequestID := uuid.NewString()
+	syncBody := []byte(`{"clientRequestId":"` + syncRequestID + `","agentId":"` + agent.ID + `","message":"sync once"}`)
+	first := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat", syncBody)
+	replayed := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat", syncBody)
+	conflict := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat", []byte(`{"clientRequestId":"`+syncRequestID+`","agentId":"`+agent.ID+`","message":"changed"}`))
+	if first.Code != http.StatusOK || replayed.Code != http.StatusOK || conflict.Code != http.StatusConflict {
+		t.Fatalf("sync idempotency statuses first=%d replay=%d conflict=%d", first.Code, replayed.Code, conflict.Code)
+	}
+	if !strings.Contains(conflict.Body.String(), "ADK_CHAT_IDEMPOTENCY_CONFLICT") {
+		t.Fatalf("conflict body = %s", conflict.Body.String())
+	}
+
+	streamRequestID := uuid.NewString()
+	streamBody := []byte(`{"clientRequestId":"` + streamRequestID + `","agentId":"` + agent.ID + `","message":"stream once"}`)
+	stream := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat/stream", streamBody)
+	streamReplay := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat/stream", streamBody)
+	if stream.Code != http.StatusOK || streamReplay.Code != http.StatusOK {
+		t.Fatalf("stream statuses first=%d replay=%d", stream.Code, streamReplay.Code)
+	}
+	firstStreamID := stream.Header().Get("X-ADK-Stream-ID")
+	if firstStreamID == "" || streamReplay.Header().Get("X-ADK-Stream-ID") != firstStreamID {
+		t.Fatalf("stream IDs first=%q replay=%q", firstStreamID, streamReplay.Header().Get("X-ADK-Stream-ID"))
+	}
+	if !strings.Contains(streamReplay.Body.String(), `"replay":true`) {
+		t.Fatalf("stream replay body = %s", streamReplay.Body.String())
+	}
+	streamConflict := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/chat/stream", []byte(`{"clientRequestId":"`+streamRequestID+`","agentId":"`+agent.ID+`","message":"changed"}`))
+	if streamConflict.Code != http.StatusConflict {
+		t.Fatalf("stream conflict status=%d body=%s", streamConflict.Code, streamConflict.Body.String())
 	}
 }
 
@@ -337,7 +384,7 @@ func TestApprovalContract(t *testing.T) {
 		router,
 		http.MethodPost,
 		"/api/v1/adk/chat",
-		[]byte(`{"agentId":"`+agent.ID+`","message":"@contract.write save"}`),
+		testADKChatBody(`{"agentId":"`+agent.ID+`","message":"@contract.write save"}`),
 	)
 	var envelope struct {
 		OK   bool `json:"ok"`

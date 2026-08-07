@@ -72,6 +72,15 @@ func (h *Handler) startBackground(run func(context.Context)) bool {
 	return true
 }
 
+func (h *Handler) isClosing() bool {
+	if h == nil {
+		return true
+	}
+	h.backgroundMu.Lock()
+	defer h.backgroundMu.Unlock()
+	return h.closing
+}
+
 func (h *Handler) ensureBackgroundContextLocked() {
 	if h.backgroundCtx != nil && h.backgroundCancel != nil {
 		return

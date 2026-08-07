@@ -304,7 +304,7 @@ func googleADKWorkflowObserveVisibleReply(builder *strings.Builder, sawPartialTe
 		emitText = false
 	}
 	if emitText {
-		reply, _ := visibleTextFromParts(event.Content.Parts)
+		reply, _ := rawVisibleTextFromParts(event.Content.Parts)
 		builder.WriteString(reply)
 	}
 	if !event.Partial {
