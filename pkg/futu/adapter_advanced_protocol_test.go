@@ -272,7 +272,7 @@ func TestFutuAdvancedAdapterProtocolValidationDefaultsAndPayloadHelpers(t *testi
 	}
 }
 
-func TestFutuComboAdapterCompleteOptionAndEventLifecycle(t *testing.T) {
+func TestFutuComboAdapterOptionAndEventLifecycle(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	defer server.stop()
 	account := testSimulateHKCashAccount()

@@ -245,7 +245,7 @@ func TestUSAfterHoursWindowsAndPeriodLabelBoundaries(t *testing.T) {
 	}
 }
 
-func TestNormalizeMarketInputAdditionalAliases(t *testing.T) {
+func TestNormalizeMarketInputAliases(t *testing.T) {
 	resolved, prefix, err := NormalizeMarketInput(" sg ")
 	if err != nil || resolved != "SG" || prefix != "SG" {
 		t.Fatalf("NormalizeMarketInput(SG) = %q/%q err=%v", resolved, prefix, err)

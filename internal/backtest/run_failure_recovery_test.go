@@ -23,7 +23,7 @@ func (s addFailingRunStore) Add(*RunState) error {
 	return s.err
 }
 
-func TestCoverage98BacktestStartDoesNotLeakLifecycleTaskWhenQueuePersistenceFails(t *testing.T) {
+func TestBacktestStartDoesNotLeakLifecycleTaskWhenQueuePersistenceFails(t *testing.T) {
 	persistErr := errors.New("run database is unavailable")
 	runs := addFailingRunStore{memoryRunStore: newMemoryRunStore(), err: persistErr}
 	service := newTestBacktestService(&runs, func(context.Context, bt.RunConfig) *bt.RunResult {
@@ -50,7 +50,7 @@ func TestCoverage98BacktestStartDoesNotLeakLifecycleTaskWhenQueuePersistenceFail
 	}
 }
 
-func TestCoverage98BacktestPreparationRejectsInvalidInstrumentAndWarmupPlan(t *testing.T) {
+func TestBacktestPreparationRejectsInvalidInstrumentAndWarmupPlan(t *testing.T) {
 	validDefinition := StrategyDef{
 		ID:           "def-prepare",
 		Version:      "v1",
@@ -78,7 +78,7 @@ if close > fast
 	}
 }
 
-func TestCoverage98BacktestKeepsTerminalStateWhenRunningTransitionCannotPersist(t *testing.T) {
+func TestBacktestKeepsTerminalStateWhenRunningTransitionCannotPersist(t *testing.T) {
 	runs := newMemoryRunStore()
 	runs.updateErr = errors.New("transient run-store write failure")
 	service := newTestBacktestService(runs, func(_ context.Context, config bt.RunConfig) *bt.RunResult {

@@ -129,7 +129,7 @@ func TestAdvancedResponseValidationAndPayloadHelpers(t *testing.T) {
 	}
 }
 
-func TestComboTradingClientCompleteResponseShapes(t *testing.T) {
+func TestComboTradingClientResponseShapes(t *testing.T) {
 	header := testTrdHeader(1001)
 	qty := 1.0
 	orderType := int32(trdcommonpb.OrderType_OrderType_Normal)

@@ -14,7 +14,7 @@ import (
 // apparently successful empty list. Each subtest uses a real SQLite schema
 // fault after the API runtime has started, matching the failure mode an
 // operator would see when a damaged or partially migrated database is served.
-func TestCoverage98CatalogReadFaultsExposeStableAPIContracts(t *testing.T) {
+func TestCatalogReadFaultsExposeStableAPIContracts(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {

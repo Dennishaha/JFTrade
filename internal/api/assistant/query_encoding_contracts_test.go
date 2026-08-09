@@ -10,7 +10,7 @@ import (
 // malformed percent escape is not silently converted to an empty query by
 // net/url. The table covers each ADK read route that accepts query fields, so
 // callers receive the same explicit 400 contract before any business action.
-func TestCoverage98AssistantQueryRoutesRejectMalformedEncoding(t *testing.T) {
+func TestAssistantQueryRoutesRejectMalformedEncoding(t *testing.T) {
 	_, router := newAssistantTestRouter(t)
 
 	for _, endpoint := range []struct {
