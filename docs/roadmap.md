@@ -44,5 +44,5 @@
 - [x] servercore 单包测试小于 30 秒：实测 20.9 秒（不包含已迁出的 servercoretest 包；当前机器负载敏感）。
 - [x] servercore 生产代码低于 3500 行：已达成（3324 行）；测试低于 9000 行：已达成（8947 行，已从 14991 行下降并锁定 ratchet）；有效方法低于 60：已达成（59）。
 - [x] assistant engine 外部直接依赖文件不超过 10 个：已达成（0）；核心 engine 测试低于 20 秒：已达成（本轮实测约 14–17 秒，当前机器负载敏感）。
-- [ ] 每个硬切独立提交：未完成，工作树仍有 660+ 项未提交改动，需用户确认分组/提交策略。
-- [ ] 工作树在任何 `check:*` 后保持干净：本轮复核 `check:quick`、`test:affected`、`check:generated` 均只读（前后 `git status --porcelain` 摘要一致）；整体因历史未提交改动无法成立。
+- [x] 每个硬切独立提交：按用户确认的 7 阶段分组完成（P0 上下文 / P1 门禁 / P1 测试命名 / P2 后端 / P3 Web / P3 Worker+Python / P3 CI），每个提交独立可编译。
+- [x] 工作树在任何 `check:*` 后保持干净：提交后 `check:all` 全绿且 `git status --porcelain` 为空；`check:quick`、`test:affected`、`check:generated` 复核均只读。

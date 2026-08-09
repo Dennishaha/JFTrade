@@ -1,0 +1,36 @@
+name: Download desktop build inputs
+description: Restore generated contracts, frontend assets, and PineTS worker input for desktop builds
+
+inputs:
+  contracts_artifact:
+    description: Contract artifact name, or empty to skip
+    required: false
+    default: ci-contracts-${{ github.run_id }}
+  frontend_artifact:
+    description: Frontend build input artifact name
+    required: true
+  pine_artifact:
+    description: PineTS worker build input artifact name
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Download generated contracts
+      if: ${{ inputs.contracts_artifact != '' }}
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.contracts_artifact }}
+        path: ${{ github.workspace }}
+
+    - name: Download frontend build input
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.frontend_artifact }}
+        path: internal/frontendassets
+
+    - name: Download PineTS worker build input
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.pine_artifact }}
+        path: internal/pineworkerassets/assets/bin

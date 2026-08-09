@@ -1,0 +1,17 @@
+name: Build and smoke market data sidecar
+description: Install sidecar build dependencies and verify the native helper builds and runs
+
+runs:
+  using: composite
+  steps:
+    - name: Install PyInstaller build dependencies
+      shell: bash
+      run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"
+
+    - name: Build native market-data helper
+      shell: bash
+      run: pnpm run build:marketdata-sidecar
+
+    - name: Smoke native market-data helper
+      shell: bash
+      run: pnpm run smoke:marketdata-sidecar

@@ -90,10 +90,7 @@ jobs:
           echo "Verified required CI run: $ci_url"
 
       - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
+        uses: ./.github/actions/setup-go
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -173,20 +170,15 @@ jobs:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: ./.github/actions/setup-go
         with:
-          go-version-file: go.mod
           cache: false
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
 
       - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-          cache: pip
-          cache-dependency-path: workers/marketdata-sidecar/pyproject.toml
+        uses: ./.github/actions/setup-python
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -197,14 +189,8 @@ jobs:
       - name: Verify ARM64 runner
         run: test "$(uname -m)" = "arm64"
 
-      - name: Install PyInstaller build dependencies
-        run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"
-
-      - name: Build native market-data helper
-        run: pnpm run build:marketdata-sidecar
-
-      - name: Smoke native market-data helper
-        run: pnpm run smoke:marketdata-sidecar
+      - name: Build and smoke market data sidecar
+        uses: ./.github/actions/build-marketdata-sidecar
 
       - name: Configure macOS signing and notarization
         env:
@@ -315,20 +301,15 @@ jobs:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: ./.github/actions/setup-go
         with:
-          go-version-file: go.mod
           cache: false
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
 
       - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-          cache: pip
-          cache-dependency-path: workers/marketdata-sidecar/pyproject.toml
+        uses: ./.github/actions/setup-python
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -362,14 +343,8 @@ jobs:
           "JFTRADE_WINDOWS_CERTIFICATE=$certificate" | Out-File -FilePath $env:GITHUB_ENV -Append
           "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Install PyInstaller build dependencies
-        run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"
-
-      - name: Build native market-data helper
-        run: pnpm run build:marketdata-sidecar
-
-      - name: Smoke native market-data helper
-        run: pnpm run smoke:marketdata-sidecar
+      - name: Build and smoke market data sidecar
+        uses: ./.github/actions/build-marketdata-sidecar
 
       - name: Test Windows desktop package
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
@@ -427,20 +402,15 @@ jobs:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: ./.github/actions/setup-go
         with:
-          go-version-file: go.mod
           cache: false
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
 
       - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-          cache: pip
-          cache-dependency-path: workers/marketdata-sidecar/pyproject.toml
+        uses: ./.github/actions/setup-python
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -479,14 +449,8 @@ jobs:
           "JFTRADE_WINDOWS_CERTIFICATE=$certificate" | Out-File -FilePath $env:GITHUB_ENV -Append
           "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Install PyInstaller build dependencies
-        run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"
-
-      - name: Build native market-data helper
-        run: pnpm run build:marketdata-sidecar
-
-      - name: Smoke native market-data helper
-        run: pnpm run smoke:marketdata-sidecar
+      - name: Build and smoke market data sidecar
+        uses: ./.github/actions/build-marketdata-sidecar
 
       - name: Test Windows ARM64 desktop package
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
@@ -544,20 +508,13 @@ jobs:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
       - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
+        uses: ./.github/actions/setup-go
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
 
       - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-          cache: pip
-          cache-dependency-path: workers/marketdata-sidecar/pyproject.toml
+        uses: ./.github/actions/setup-python
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -571,14 +528,8 @@ jobs:
       - name: Install Linux package verification tools
         run: sudo apt-get install -y rpm squashfs-tools
 
-      - name: Install PyInstaller build dependencies
-        run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"
-
-      - name: Build native market-data helper
-        run: pnpm run build:marketdata-sidecar
-
-      - name: Smoke native market-data helper
-        run: pnpm run smoke:marketdata-sidecar
+      - name: Build and smoke market data sidecar
+        uses: ./.github/actions/build-marketdata-sidecar
 
       - name: Test Linux release profile
         run: go test -tags production,release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1

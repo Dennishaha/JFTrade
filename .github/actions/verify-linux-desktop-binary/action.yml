@@ -1,0 +1,23 @@
+name: Verify Linux desktop binary
+description: Verify the Linux desktop binary is an executable ELF built from the expected module
+
+inputs:
+  artifact_path:
+    description: Path to the Linux desktop binary
+    required: false
+    default: dist/desktop/linux-amd64/jftrade-desktop-linux-amd64
+
+runs:
+  using: composite
+  steps:
+    - name: Verify Linux desktop binary
+      shell: bash
+      run: |
+        set -euo pipefail
+        artifact="${{ inputs.artifact_path }}"
+        test -x "$artifact"
+        file "$artifact" | grep -q 'ELF 64-bit'
+        go version -m "$artifact" | tee /tmp/jftrade-linux-buildinfo.txt
+        grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-linux-buildinfo.txt
+        ldd "$artifact" | tee /tmp/jftrade-linux-ldd.txt
+        ! grep -q 'not found' /tmp/jftrade-linux-ldd.txt
