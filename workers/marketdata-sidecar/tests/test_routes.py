@@ -631,7 +631,12 @@ async def test_candles_map_period_include_extended_hours_and_apply_limit(
     supported_us_instrument: None,
 ) -> None:
     calls: list[dict[str, Any]] = []
-    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    now = (datetime.now(timezone.utc) - timedelta(days=1)).replace(
+        hour=12,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
     timestamps = [now - timedelta(minutes=15 - index * 5) for index in range(3)]
     frame = pd.DataFrame(
         {

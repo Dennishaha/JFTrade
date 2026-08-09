@@ -44,3 +44,6 @@ addopts = "-q"
 asyncio_mode = "auto"
 pythonpath = ["src"]
 testpaths = ["tests"]
+filterwarnings = [
+  "ignore:'asyncio\\.iscoroutinefunction' is deprecated and slated for removal in Python 3\\.16; use inspect\\.iscoroutinefunction\\(\\) instead:DeprecationWarning:fastapi\\.routing",
+]

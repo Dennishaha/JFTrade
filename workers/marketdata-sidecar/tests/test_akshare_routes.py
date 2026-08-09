@@ -11,7 +11,7 @@ import httpx
 import pandas as pd
 import pytest
 
-from marketdata_sidecar import akshare_provider, akshare_upstream
+from marketdata_sidecar import akshare_candles, akshare_provider, akshare_upstream
 
 
 def _empty() -> pd.DataFrame:
@@ -386,6 +386,11 @@ async def test_cn_minute_candles_are_utc_validated_and_hand_scaled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        akshare_candles,
+        "_utc_now",
+        lambda: datetime(2026, 8, 5, tzinfo=timezone.utc),
+    )
 
     def fake_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
         if function_name == "stock_zh_a_hist_min_em":
@@ -551,6 +556,12 @@ async def test_sina_cn_minutes_are_not_multiplied_as_eastmoney_hands(
     client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(
+        akshare_candles,
+        "_utc_now",
+        lambda: datetime(2026, 8, 5, tzinfo=timezone.utc),
+    )
+
     def fake_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
         if function_name == "stock_zh_a_minute":
             assert kwargs == {"symbol": "sh600519", "period": "1", "adjust": ""}
@@ -618,6 +629,12 @@ async def test_us_hk_minutes_and_hk_index_daily_are_deterministically_aggregated
     client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(
+        akshare_candles,
+        "_utc_now",
+        lambda: datetime(2026, 8, 5, tzinfo=timezone.utc),
+    )
+
     def fake_us_minutes(symbol: str) -> list[dict[str, str]]:
         assert symbol == "AAPL"
         return [
