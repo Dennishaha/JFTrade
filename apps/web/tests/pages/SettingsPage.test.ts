@@ -76,6 +76,8 @@ const accountDiscoveryStub = {
   template: "<section data-section='account-discovery'>{{ unavailableMessage }}</section>",
 };
 
+const mountedWrappers: Array<{ unmount: () => void }> = [];
+
 function mountSettings(path: string, options: { realDataManagement?: boolean } = {}) {
   const router = createRouter({
     history: createMemoryHistory(),
@@ -106,12 +108,15 @@ function mountSettings(path: string, options: { realDataManagement?: boolean } =
         stubs,
       },
     });
+    mountedWrappers.push(wrapper);
     await flushPromises();
     return { router, wrapper };
   });
 }
 
-afterEach(() => {
+afterEach(async () => {
+  await vi.dynamicImportSettled();
+  for (const wrapper of mountedWrappers.splice(0)) wrapper.unmount();
   vi.unstubAllGlobals();
 });
 
@@ -205,8 +210,9 @@ describe("SettingsPage", () => {
     const { wrapper } = await mountSettings("/settings/data-management", {
       realDataManagement: true,
     });
+    await vi.dynamicImportSettled();
     await flushPromises();
 
-    expect(wrapper.text()).toContain("数据管理");
+    expect(wrapper.get("#storage-overview-title").text()).toBe("存储概览");
   });
 });
