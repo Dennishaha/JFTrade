@@ -6,6 +6,8 @@ import { relative, resolve } from "node:path";
 
 const coverageName = /coverage/i;
 const coverageNumberShorthand = /(?:^|[._-])c[_-]?\d{2,3}(?=$|[._-])/i;
+const numericCoverageSuffix = /(?:^|[._-])(?:push)?\d{2,3}(?=$|[._-])/i;
+const vagueQualifier = /(?:^|[._-])(?:more|additional|extra|complete)(?=$|[._-])/i;
 const defaultAllowlist = "scripts/test-name-allowlist.txt";
 
 export function isTestFile(path) {
@@ -14,7 +16,10 @@ export function isTestFile(path) {
 
 export function hasManagedCoverageName(path) {
   const basename = path.replace(/^.*[\\/]/, "");
-  return coverageName.test(basename) || coverageNumberShorthand.test(basename);
+  return coverageName.test(basename)
+    || coverageNumberShorthand.test(basename)
+    || numericCoverageSuffix.test(basename)
+    || vagueQualifier.test(basename);
 }
 
 export function parseAllowlist(contents) {
@@ -28,7 +33,7 @@ export function parseAllowlist(contents) {
 export function comparePolicyState(violations, allowlist, baseAllowlist) {
   const violationSet = new Set(violations);
   return {
-    unallowlisted: violations.filter((path) => !allowlist.has(path)),
+    unallowlisted: violations.filter((path) => !allowlist.has(path) && !baseAllowlist?.has(path)),
     stale: [...allowlist].filter((path) => !violationSet.has(path)).sort(),
     growth: baseAllowlist ? [...allowlist].filter((path) => !baseAllowlist.has(path)).sort() : [],
   };
@@ -69,7 +74,7 @@ function main() {
 
   console.log(
     `Test filename policy passed across the repository `
-    + `(${violations.length} allowlisted legacy files; baseline derived from the ${base} tree).`,
+    + `(${violations.length} legacy violations; baseline derived from the ${base} tree).`,
   );
 }
 

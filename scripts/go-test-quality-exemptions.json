@@ -9,6 +9,11 @@
       "path": "pkg/strategy/pineworker/process_launcher_boundaries_test.go",
       "test": "TestPineworkerInterruptIgnoringHelperProcess",
       "reason": "This subprocess fixture intentionally blocks after signaling readiness; the parent tests assert its forced-stop behavior and cleanup."
+    },
+    {
+      "path": "internal/app/apiserver/tradingapp/order_updates_test.go",
+      "test": "TestExecutionOrderUpdatesIgnoreMissingLedger",
+      "reason": "The boundary contract is that nil or missing execution ledgers are ignored without panicking or writing."
     }
   ]
 }

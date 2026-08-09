@@ -1,0 +1,7 @@
+{
+  "productionMaxLines": 800,
+  "testMaxLines": 1200,
+  "productionExceptions": {
+    "internal/integration/futu/marketdata_runtime.go": 902
+  }
+}

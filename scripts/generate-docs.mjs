@@ -4,10 +4,11 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import ts from "typescript";
 
-const rootDir = process.cwd();
-const generatedDir = path.join(rootDir, "docs", "reference", "generated");
-const swaggerPath = path.join(rootDir, "docs", "swagger", "swagger.json");
-const contractsPath = path.join(rootDir, "apps", "web", "src", "contracts", "index.ts");
+const sourceRoot = path.resolve(import.meta.dirname, "..");
+const generatedRoot = path.resolve(process.env.JFTRADE_GENERATED_ROOT || sourceRoot);
+const generatedDir = path.join(generatedRoot, "docs", "reference", "generated");
+const swaggerPath = path.join(generatedRoot, "docs", "swagger", "swagger.json");
+const contractsPath = path.join(sourceRoot, "apps", "web", "src", "contracts", "index.ts");
 const execFileAsync = promisify(execFile);
 
 await fs.mkdir(generatedDir, { recursive: true });
@@ -142,7 +143,7 @@ async function generateTypeDocs() {
 
 async function generatePineSupportDocs() {
   await execFileAsync("go", ["run", "./cmd/generate-pine-spec-docs", "-out", generatedDir], {
-    cwd: rootDir,
+    cwd: sourceRoot,
     maxBuffer: 1024 * 1024 * 10,
   });
 }

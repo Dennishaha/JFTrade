@@ -1,9 +1,12 @@
 {
-  "productionLinesMax": 6560,
-  "testLinesMax": 18000,
-  "serverMethodsMax": 46,
-  "applicationMethodsMax": 73,
-  "effectiveServerMethodsMax": 119,
+  "productionLinesMax": 3324,
+  "productionLinesTarget": 3500,
+  "testLinesMax": 8947,
+  "testLinesTarget": 9000,
+  "serverMethodsMax": 14,
+  "applicationMethodsMax": 45,
+  "effectiveServerMethodsMax": 59,
+  "effectiveServerMethodsTarget": 59,
   "aggregateFieldsMax": 26,
   "directImportFiles": {
     "github.com/jftrade/jftrade-main/pkg/futu": [],

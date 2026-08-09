@@ -10,26 +10,26 @@ import {
   sequentialPreflightChecks,
 } from "./run-test-layer.mjs";
 
-const generateDocs = ["pnpm", ["run", "generate:docs"]];
+const checkGenerated = ["pnpm", ["run", "check:generated"]];
 
-test("preflight generates docs before running the shared checks", () => {
+test("preflight checks generated docs before running the shared checks", () => {
   const commands = commandsForLayer("preflight");
   const stages = executionStagesForLayer("preflight");
 
-  assert.deepEqual(commands[0], generateDocs);
+  assert.deepEqual(commands[0], checkGenerated);
   assert.deepEqual(commands.slice(1), preflightChecks);
   assert.deepEqual(stages, [
-    { mode: "sequential", commands: [generateDocs] },
+    { mode: "sequential", commands: [checkGenerated] },
     { mode: "parallel", commands: parallelPreflightChecks },
     { mode: "sequential", commands: sequentialPreflightChecks },
   ]);
-  assert.equal(parallelPreflightChecks.length, 11);
+  assert.equal(parallelPreflightChecks.length, 13);
 });
 
-test("ci-local generates docs once, checks drift, then runs shared checks inline", () => {
+test("ci-local checks generated docs once, checks drift, then runs shared checks inline", () => {
   const commands = commandsForLayer("ci-local");
   const generated = commands.filter(
-    ([command, args]) => command === "pnpm" && args.join(" ") === "run generate:docs",
+    ([command, args]) => command === "pnpm" && args.join(" ") === "run check:generated",
   );
   const diffIndex = commands.findIndex(([command]) => command === "git");
   const firstCheckIndex = commands.findIndex(
@@ -38,7 +38,7 @@ test("ci-local generates docs once, checks drift, then runs shared checks inline
       args.join(" ") === preflightChecks[0][1].join(" "),
   );
 
-  assert.deepEqual(generated, [generateDocs]);
+  assert.deepEqual(generated, [checkGenerated]);
   assert.equal(diffIndex, 1);
   assert.deepEqual(commands.slice(2, 4), [
     ["pnpm", ["run", "audit:dependencies"]],

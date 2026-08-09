@@ -8,15 +8,94 @@ PASS=0
 FAIL=0
 WARN=0
 
+# Package import data is loaded once with a single `go list -json ./...`
+# snapshot; every rule below then reads from the snapshot instead of spawning
+# one `go list` subprocess per package/rule.
+ARCH_DEPS_TMP=""
+
+prepare_arch_deps_snapshot() {
+  ARCH_DEPS_TMP="$(mktemp -d)"
+  if ! go list -json ./... > "$ARCH_DEPS_TMP/list.json"; then
+    echo "❌ unable to build package import snapshot"
+    exit 1
+  fi
+  python3 - "$ARCH_DEPS_TMP" <<'PY'
+import json
+import os
+import sys
+
+root = sys.argv[1]
+packages = []
+imports = []
+testimports = []
+standard = []
+decoder = json.JSONDecoder()
+with open(os.path.join(root, "list.json")) as handle:
+    source = handle.read()
+cursor = 0
+while cursor < len(source):
+    while cursor < len(source) and source[cursor] in " \t\r\n":
+        cursor += 1
+    if cursor >= len(source):
+        break
+    obj, cursor = decoder.raw_decode(source, cursor)
+    if not obj.get("ImportPath"):
+        continue
+    packages.append(obj["ImportPath"])
+    imports.append("\t".join([obj["ImportPath"], *obj.get("Imports", [])]))
+    tests = [*obj.get("TestImports", []), *obj.get("XTestImports", [])]
+    testimports.append("\t".join([obj["ImportPath"], *tests]))
+    standard.append(f'{obj["ImportPath"]}\t{obj.get("Standard", False)}')
+open(os.path.join(root, "packages.txt"), "w").write("\n".join(packages) + "\n")
+open(os.path.join(root, "imports.tsv"), "w").write("\n".join(imports) + "\n")
+open(os.path.join(root, "testimports.tsv"), "w").write("\n".join(testimports) + "\n")
+open(os.path.join(root, "standard.tsv"), "w").write("\n".join(standard) + "\n")
+all_imports = sorted({item for row in imports for item in row.split("\t")[1:] if item and item != "C"})
+open(os.path.join(root, "all_imports.txt"), "w").write("\n".join(all_imports) + "\n")
+PY
+if [ -s "$ARCH_DEPS_TMP/all_imports.txt" ]; then
+  # The main-module snapshot does not include stdlib packages; query Standard
+  # flags for every observed import in one batched go list invocation.
+  go list -f '{{.ImportPath}} {{.Standard}}' $(cat "$ARCH_DEPS_TMP/all_imports.txt") > "$ARCH_DEPS_TMP/standard.tsv"
+fi
+}
+
+package_imports() {
+  awk -F '\t' -v p="$1" '$1==p { for (i=2; i<=NF; i++) print $i }' "$ARCH_DEPS_TMP/imports.tsv"
+}
+
+package_test_imports() {
+  awk -F '\t' -v p="$1" '$1==p { for (i=2; i<=NF; i++) print $i }' "$ARCH_DEPS_TMP/testimports.tsv"
+}
+
+package_is_standard() {
+  awk -v p="$1" '$1==p { print $2 }' "$ARCH_DEPS_TMP/standard.tsv"
+}
+
+package_exists() {
+  rg -F -x -q "$1" "$ARCH_DEPS_TMP/packages.txt"
+}
+
+packages_for_pattern() {
+  local pattern="$1"
+  if [[ "$pattern" == *"/..." ]]; then
+    local prefix="${pattern%/...}"
+    prefix="github.com/jftrade/jftrade-main/${prefix#./}"
+    awk -v p="$prefix" '$0 == p || index($0, p "/") == 1' "$ARCH_DEPS_TMP/packages.txt"
+  else
+    awk -v p="github.com/jftrade/jftrade-main/${pattern#./}" '$0 == p' "$ARCH_DEPS_TMP/packages.txt"
+  fi
+}
+
 check_no_import() {
   local from="$1"
   local forbidden="$2"
   local label="$3"
   local imports
-  if ! imports="$(go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
+  if ! package_exists "$from"; then
     echo "  ❌ $label: unable to inspect $from"
     FAIL=$((FAIL + 1))
-  elif rg -F -x -q "$forbidden" <<<"$imports"; then
+  elif imports="$(package_imports "$from")" && rg -F -x -q "$forbidden" <<<"$imports"; then
     echo "  ❌ $label: $from imports $forbidden"
     FAIL=$((FAIL + 1))
   else
@@ -33,10 +112,10 @@ check_no_test_import() {
 
   # TestImports and XTestImports contain only imports declared directly by the
   # package's internal and external tests, so transitive dependencies stay out.
-  if ! imports="$(go list -f '{{range .TestImports}}{{.}}{{"\n"}}{{end}}{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
+  if ! package_exists "$from"; then
     echo "  ❌ $label: unable to inspect test imports for $from"
     FAIL=$((FAIL + 1))
-  elif rg -F -x -q "$forbidden" <<<"$imports"; then
+  elif imports="$(package_test_imports "$from")" && rg -F -x -q "$forbidden" <<<"$imports"; then
     echo "  ❌ $label: tests in $from directly import $forbidden"
     FAIL=$((FAIL + 1))
   else
@@ -63,10 +142,10 @@ check_no_import_family() {
   local forbidden="$2"
   local label="$3"
   local imports
-  if ! imports="$(go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
+  if ! package_exists "$from"; then
     echo "  ❌ $label: unable to inspect $from"
     FAIL=$((FAIL + 1))
-  elif imports_contain_family "$imports" "$forbidden"; then
+  elif imports="$(package_imports "$from")" && imports_contain_family "$imports" "$forbidden"; then
     echo "  ❌ $label: $from imports package family $forbidden"
     FAIL=$((FAIL + 1))
   else
@@ -81,10 +160,10 @@ check_no_test_import_family() {
   local label="$3"
   local imports
 
-  if ! imports="$(go list -f '{{range .TestImports}}{{.}}{{"\n"}}{{end}}{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
+  if ! package_exists "$from"; then
     echo "  ❌ $label: unable to inspect test imports for $from"
     FAIL=$((FAIL + 1))
-  elif imports_contain_family "$imports" "$forbidden"; then
+  elif imports="$(package_test_imports "$from")" && imports_contain_family "$imports" "$forbidden"; then
     echo "  ❌ $label: tests in $from directly import package family $forbidden"
     FAIL=$((FAIL + 1))
   else
@@ -100,7 +179,7 @@ check_package_set_no_import() {
   local packages
   local found=0
 
-  if ! packages="$(go list "$pattern")"; then
+  if ! packages="$(packages_for_pattern "$pattern")"; then
     echo "  ❌ $label: unable to list packages matching $pattern"
     FAIL=$((FAIL + 1))
     return
@@ -127,14 +206,25 @@ check_package_set_no_import_family_except() {
   local packages
   local found=0
 
-  if ! packages="$(go list "$pattern")"; then
+  if ! packages="$(packages_for_pattern "$pattern")"; then
     echo "  ❌ $label: unable to list packages matching $pattern"
     FAIL=$((FAIL + 1))
     return
   fi
 
   while IFS= read -r pkg; do
-    if [ -z "$pkg" ] || { [ -n "$excluded" ] && [ "$pkg" = "$excluded" ]; }; then
+    if [ -z "$pkg" ]; then
+      continue
+    fi
+    local skip=0
+    local excluded_pkg
+    for excluded_pkg in $excluded; do
+      if [ "$pkg" = "$excluded_pkg" ]; then
+        skip=1
+        break
+      fi
+    done
+    if [ "$skip" -eq 1 ]; then
       continue
     fi
     found=1
@@ -155,11 +245,12 @@ check_import_family_allowlist() {
   local imports
   local offenders=()
 
-  if ! imports="$(go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
+  if ! package_exists "$from"; then
     echo "  ❌ $label: unable to inspect $from"
     FAIL=$((FAIL + 1))
     return
   fi
+  imports="$(package_imports "$from")"
 
   while IFS= read -r imported; do
     if [[ "$imported" != "$family" && "$imported" != "$family/"* ]]; then
@@ -270,17 +361,19 @@ check_only_standard_library() {
   local imports
   local non_standard=()
 
-  if ! imports="$(go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' "$package")"; then
+  if ! package_exists "$package"; then
     echo "  ❌ $label: unable to inspect $package"
     FAIL=$((FAIL + 1))
     return
   fi
+  imports="$(package_imports "$package")"
 
+  local imported
   while IFS= read -r imported; do
     if [ -z "$imported" ]; then
       continue
     fi
-    if [ "$(go list -f '{{.Standard}}' "$imported")" != "true" ]; then
+    if [ "$(package_is_standard "$imported")" != "true" ]; then
       non_standard+=("$imported")
     fi
   done <<<"$imports"
@@ -298,6 +391,8 @@ check_only_standard_library() {
 arch_deps_main() {
 echo "=== JFTrade Architecture Dependency Check ==="
 echo ""
+prepare_arch_deps_snapshot
+trap 'if [ -n "${ARCH_DEPS_TMP:-}" ]; then rm -rf "$ARCH_DEPS_TMP"; fi' EXIT
 
 # Rule 1: internal/api/* must not import Futu SDK or protobuf packages.
 echo "Rule 1: internal/api/* must not import Futu integration packages"
@@ -359,14 +454,19 @@ done
 check_package_set_no_import_family_except \
   "./internal/assistant/..." \
   "github.com/jftrade/jftrade-main/internal/store" \
-  "github.com/jftrade/jftrade-main/internal/assistant/engine" \
+  "github.com/jftrade/jftrade-main/internal/assistant/engine github.com/jftrade/jftrade-main/internal/assistant/engine/persistence" \
   "assistant store boundary"
-check_import_family_allowlist \
+for assistant_sqlite_owner in \
   "github.com/jftrade/jftrade-main/internal/assistant/engine" \
-  "github.com/jftrade/jftrade-main/internal/store" \
-  "assistant engine SQLite infrastructure allowlist" \
-  "github.com/jftrade/jftrade-main/internal/store/sqliteconn" \
-  "github.com/jftrade/jftrade-main/internal/store/sqliteschema"
+  "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
+do
+  check_import_family_allowlist \
+    "$assistant_sqlite_owner" \
+    "github.com/jftrade/jftrade-main/internal/store" \
+    "assistant SQLite infrastructure allowlist: $assistant_sqlite_owner" \
+    "github.com/jftrade/jftrade-main/internal/store/sqliteconn" \
+    "github.com/jftrade/jftrade-main/internal/store/sqliteschema"
+done
 echo ""
 
 # Rule 6c: workflow rules are pure business policy and must not depend on assistant runtime orchestration.
@@ -528,14 +628,19 @@ done
 check_package_set_no_import_family_except \
   "./internal/assistant/..." \
   "github.com/jftrade/jftrade-main/internal/store" \
-  "github.com/jftrade/jftrade-main/internal/assistant/engine" \
+  "github.com/jftrade/jftrade-main/internal/assistant/engine github.com/jftrade/jftrade-main/internal/assistant/engine/persistence" \
   "assistant business store boundary"
-check_import_family_allowlist \
+for assistant_persistence_owner in \
   "github.com/jftrade/jftrade-main/internal/assistant/engine" \
-  "github.com/jftrade/jftrade-main/internal/store" \
-  "assistant engine persistence dependency allowlist" \
-  "github.com/jftrade/jftrade-main/internal/store/sqliteconn" \
-  "github.com/jftrade/jftrade-main/internal/store/sqliteschema"
+  "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
+do
+  check_import_family_allowlist \
+    "$assistant_persistence_owner" \
+    "github.com/jftrade/jftrade-main/internal/store" \
+    "assistant persistence dependency allowlist: $assistant_persistence_owner" \
+    "github.com/jftrade/jftrade-main/internal/store/sqliteconn" \
+    "github.com/jftrade/jftrade-main/internal/store/sqliteschema"
+done
 echo ""
 
 # These implementation packages now have explicit internal owners. Keep the

@@ -14,6 +14,7 @@ const linux = read("build/linux/Taskfile.yml");
 const nsisProject = read("build/windows/nsis/project.nsi");
 const releaseWorkflow = read(".github/workflows/desktop-release.yml");
 const ciWorkflow = read(".github/workflows/ci.yml");
+const sidecarAction = read(".github/actions/build-marketdata-sidecar/action.yml");
 const prepareDesktopRelease = read("scripts/prepare-desktop-release.mjs");
 const occurrences = (source, needle) => source.split(needle).length - 1;
 
@@ -242,12 +243,12 @@ assert(
 );
 assert(
   occurrences(releaseWorkflow, "- name: Setup Python") >= 4 &&
-    occurrences(
-      releaseWorkflow,
+    occurrences(releaseWorkflow, "uses: ./.github/actions/build-marketdata-sidecar") >= 4 &&
+    sidecarAction.includes(
       'python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"',
-    ) >= 4 &&
-    occurrences(releaseWorkflow, "- name: Build native market-data helper") >= 4 &&
-    frozenSmokePairs(releaseWorkflow) === 4,
+    ) &&
+    sidecarAction.includes("pnpm run build:marketdata-sidecar") &&
+    sidecarAction.includes("pnpm run smoke:marketdata-sidecar"),
   "desktop release jobs do not build and smoke native market-data helpers on every target runner",
 );
 const macWorkflowStart = releaseWorkflow.indexOf("  macos:");
@@ -269,8 +270,9 @@ assert(
     ciWorkflow.includes(
       "go test -tags release_assets ./internal/marketdataassets -count=1",
     ) &&
-    occurrences(ciWorkflow, "- name: Build native market-data helper") >= 2 &&
-    frozenSmokePairs(ciWorkflow) === 3,
+    occurrences(ciWorkflow, "uses: ./.github/actions/build-marketdata-sidecar") >= 2 &&
+    sidecarAction.includes("pnpm run build:marketdata-sidecar") &&
+    sidecarAction.includes("pnpm run smoke:marketdata-sidecar"),
   "CI does not build, smoke and verify native market-data release assets",
 );
 assert(
@@ -325,11 +327,3 @@ assert(
   !nfpm.includes("archlinux"),
   "Linux package metadata must not retain an Arch override",
 );
-
-function frozenSmokePairs(workflow) {
-  return [
-    ...workflow.matchAll(
-      /run: pnpm run build:marketdata-sidecar\n\n\s+- name: Smoke[^\n]*market-data helper\n(?:\s+if: [^\n]+\n)?\s+run: pnpm run smoke:marketdata-sidecar/g,
-    ),
-  ].length;
-}

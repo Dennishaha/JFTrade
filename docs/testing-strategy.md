@@ -79,9 +79,9 @@ JFTRADE_DIFF_BASE=origin/main pnpm run test:coverage
 
 2026-08-04 的本机 macOS ARM64 样本按“递归累加 PyInstaller `onedir` 下所有普通文件的 `stat().st_size`，不计目录和文件系统分配块”测量：旧 yfinance bundle 为 89.20 MiB，新 market-data bundle 为 104.65 MiB，增加 15.45 MiB（17.3%）。这是单机迁移基线，不作为其他平台的固定体积上限；`smoke:marketdata-sidecar` 会在每个发布 runner 上报告该平台 bundle 的精确字节数和 MiB，并同时验证 frozen helper 的版本、loopback 健康与两个 Python Provider 的导入状态。
 
-`test:preflight` 会先运行 `pnpm run generate:docs`，自动补齐或刷新 Swagger、前端 OpenAPI 类型、契约基线和参考文档，然后执行契约与质量门禁。因此它可以直接在干净检出上运行；生成物可能更新当前工作树。`test:ci-local` 在同一生成步骤后立即运行 tracked 生成物漂移检查，未提交的契约差异仍会硬失败。
+`test:preflight`、`test:pr` 和 `test:ci-local` 使用 `pnpm run check:generated` 在临时目录生成 Swagger、前端 OpenAPI 类型、契约基线和参考文档，再与工作树逐字节比较。因此这些检查不会写入工作树；契约有意变化时才运行 `pnpm run generate:docs` 更新跟踪产物。
 
-测试文件名必须描述被验证的业务行为，不得包含任意大小写或分隔形式的 `coverage`，也不得使用 `c95`、`c_98` 等覆盖率数字缩写。`pnpm run check:test-names` 扫描当前全仓文件；历史违规文件已经全部改为行为名称，`scripts/test-name-allowlist.txt` 当前没有豁免项。检查器仍从 merge-base Git 文件树按当前规则推导历史上限，不信任基准提交里的旧清单，因此规则扩展后可纳管此前遗漏的文件，也不能通过“新增违规文件并写入清单”绕过门禁。
+测试文件名必须描述被验证的业务行为，不得包含任意大小写或分隔形式的 `coverage`，也不得使用 `c95`、`c_98`、`push95`、`_98_` 等覆盖率数字缩写，或 `more`、`additional`、`extra`、`complete` 等无业务语义后缀。`pnpm run check:test-names` 扫描当前全仓文件；历史违规文件已经全部改为行为名称，`scripts/test-name-allowlist.txt` 当前没有豁免项。检查器仍从 merge-base Git 文件树按当前规则推导历史上限，不信任基准提交里的旧清单，因此规则扩展后可纳管此前遗漏的文件，也不能通过“新增违规文件并写入清单”绕过门禁。
 
 `pnpm run check:test-quality` 使用 Go AST 识别 `testing.T` 失败调用、testify 断言和仓内断言 helper 调用。它会报告全仓所有未识别到断言的 `Test*`，但只对相对 merge-base 新增的缺口硬失败；普通函数调用、`Sleep`、`Skip` 或启动 goroutine 不再被当作断言。确实以“不 panic”、helper process 退出等效果作为契约的测试，必须在 `scripts/go-test-quality-exemptions.json` 中按文件、测试函数和具体理由登记；重复、理由过短或已经失效的条目都会失败。`report:test-quality` 保留为兼容入口，但执行同一硬门禁。
 

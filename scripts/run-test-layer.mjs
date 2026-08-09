@@ -10,6 +10,8 @@ export const preflightChecks = [
   ["pnpm", ["run", "check:test-names"]],
   ["pnpm", ["run", "check:test-quality"]],
   ["pnpm", ["run", "check:servercore-budget"]],
+  ["pnpm", ["run", "check:assistant-budget"]],
+  ["pnpm", ["run", "check:go-file-length"]],
   ["pnpm", ["run", "check:openapi-quality"]],
   ["pnpm", ["run", "check:web-api-boundary"]],
   ["pnpm", ["run", "check:web-contract-index"]],
@@ -26,10 +28,10 @@ export const preflightChecks = [
   ["pnpm", ["run", "check:arch-deps"]],
 ];
 
-export const parallelPreflightChecks = preflightChecks.slice(0, 11);
-export const sequentialPreflightChecks = preflightChecks.slice(11);
+export const parallelPreflightChecks = preflightChecks.slice(0, 13);
+export const sequentialPreflightChecks = preflightChecks.slice(13);
 
-const generateDocs = ["pnpm", ["run", "generate:docs"]];
+const checkGenerated = ["pnpm", ["run", "check:generated"]];
 const contractDriftCheck = [
   "git",
   [
@@ -44,7 +46,7 @@ const contractDriftCheck = [
 ];
 
 const ciLocalBeforePreflight = [
-  generateDocs,
+  checkGenerated,
   contractDriftCheck,
   ["pnpm", ["run", "audit:dependencies"]],
   ["pnpm", ["run", "check:oss-license"]],
@@ -74,7 +76,7 @@ const parallelStage = (...commands) => ({ mode: "parallel", commands });
 
 const layerStages = {
   preflight: [
-    sequentialStage(generateDocs),
+    sequentialStage(checkGenerated),
     parallelStage(...parallelPreflightChecks),
     sequentialStage(...sequentialPreflightChecks),
   ],

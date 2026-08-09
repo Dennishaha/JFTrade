@@ -7,6 +7,10 @@ const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 export const scriptTestSuites = Object.freeze({
   policy: Object.freeze([
     "scripts/check-arch-deps.test.mjs",
+    "scripts/check-ai-context.test.mjs",
+    "scripts/check-go-file-length-budget.test.mjs",
+    "scripts/check-assistant-budget.test.mjs",
+    "scripts/test-affected.test.mjs",
     "scripts/check-test-names.test.mjs",
     "scripts/report-go-test-quality.test.mjs",
     "scripts/check-servercore-budget.test.mjs",

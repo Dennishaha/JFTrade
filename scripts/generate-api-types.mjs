@@ -7,8 +7,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
-const inputPath = path.join(repoRoot, "docs/swagger/swagger.json");
-const outputPath = path.join(repoRoot, "apps/web/src/generated/openapi.ts");
+const generatedRoot = path.resolve(process.env.JFTRADE_GENERATED_ROOT || repoRoot);
+const inputPath = path.join(generatedRoot, "docs/swagger/swagger.json");
+const outputPath = path.join(generatedRoot, "apps/web/src/generated/openapi.ts");
 
 const httpMethods = ["get", "post", "put", "patch", "delete", "options", "head"];
 
@@ -297,7 +298,7 @@ async function main() {
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, output);
   console.log(
-    `Generated ${path.relative(repoRoot, outputPath)} from ${path.relative(repoRoot, inputPath)}`,
+    `Generated ${path.relative(generatedRoot, outputPath)} from ${path.relative(generatedRoot, inputPath)}`,
   );
 }
 

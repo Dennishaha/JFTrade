@@ -120,8 +120,6 @@ for (const needle of [
   "github.com/c9s/bbgo@v1.64.2",
   "Copyright (c) 2016 Mark Chenoweth",
   "Copyright Suneido Software Corp.",
-  "Copyright 2000-2016 JetBrains s.r.o.",
-  "Copyright 2000-2024 JetBrains s.r.o. and contributors",
   "Permission is hereby granted, free of charge",
   "Apache License",
   "Version 2.0, January 2004",

@@ -21,14 +21,21 @@ test("recognizes Go and TypeScript test files", () => {
   assert.equal(isTestFile("apps/web/src/order.ts"), false);
 });
 
-test("recognizes coverage names with or without numbers and numeric shorthand", () => {
+test("recognizes coverage targets and vague test qualifiers", () => {
   assert.equal(hasManagedCoverageName("pkg/trading/coverage_98_test.go"), true);
   assert.equal(hasManagedCoverageName("pkg/trading/order_coverage_test.go"), true);
   assert.equal(hasManagedCoverageName("apps/web/tests/AccountPageCoverage.test.ts"), true);
   assert.equal(hasManagedCoverageName("workers/pineworker/coveragePolicy.test.ts"), true);
   assert.equal(hasManagedCoverageName("apps/web/tests/order-c95.spec.ts"), true);
   assert.equal(hasManagedCoverageName("apps/web/tests/order_c_98.spec.ts"), true);
+  assert.equal(hasManagedCoverageName("internal/assistant/adk_push95_test.go"), true);
+  assert.equal(hasManagedCoverageName("internal/assistant/routes_98_boundary_test.go"), true);
+  assert.equal(hasManagedCoverageName("internal/assistant/routes_additional_test.go"), true);
+  assert.equal(hasManagedCoverageName("apps/web/tests/order-more.spec.ts"), true);
+  assert.equal(hasManagedCoverageName("apps/web/tests/order.extra.test.ts"), true);
+  assert.equal(hasManagedCoverageName("apps/web/tests/order_complete.test.ts"), true);
   assert.equal(hasManagedCoverageName("apps/web/tests/order-risk.spec.ts"), false);
+  assert.equal(hasManagedCoverageName("apps/web/tests/order-boundary.spec.ts"), false);
   assert.equal(hasManagedCoverageName("apps/web/tests/rfc9110.spec.ts"), false);
 });
 
