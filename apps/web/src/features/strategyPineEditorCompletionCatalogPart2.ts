@@ -542,4 +542,3 @@ export const strategyPineEditorCompletionCatalogPart2: MonacoCompletionDefinitio
     insertText: ["${1:grid}.set(${2:0}, ${3:0}, ${4:close})", "${5:value} = ${1:grid}.get(${2:0}, ${3:0})", "${6:rows} = ${1:grid}.rows()", "${7:cols} = ${1:grid}.columns()"].join("\n"),
   },
 ];
-

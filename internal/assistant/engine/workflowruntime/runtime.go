@@ -1,9 +1,9 @@
 // Package workflowruntime is the external ADK facade: it re-exports the
 // engine-root runtime surface (Runtime/Store, constructors, normalizers and
 // constants) and the workflow executor so consumers never import the engine
-// root package directly. The directory/package name is part of the generated
-// OpenAPI contract (definitions such as workflowruntime.Agent) and must not
-// move. The executor implementation lives in the leaf package workflowexec.
+// root package directly. Public DTO aliases retain their legacy adk.* OpenAPI
+// schema names even though runtime ownership moved into this package. The
+// executor implementation lives in the leaf package workflowexec.
 package workflowruntime
 
 import (
@@ -109,59 +109,59 @@ const (
 )
 
 type (
-	Provider                       = jfadk.Provider
+	Provider                       = jfadk.Provider // @name adk.Provider
 	ProviderWriteRequest           = jfadk.ProviderWriteRequest
-	Agent                          = jfadk.Agent
-	AgentWriteRequest              = jfadk.AgentWriteRequest
-	Session                        = jfadk.Session
-	SessionComposerState           = jfadk.SessionComposerState
+	Agent                          = jfadk.Agent                // @name adk.Agent
+	AgentWriteRequest              = jfadk.AgentWriteRequest    // @name adk.AgentWriteRequest
+	Session                        = jfadk.Session              // @name adk.Session
+	SessionComposerState           = jfadk.SessionComposerState // @name adk.SessionComposerState
 	SessionComposerStatePatch      = jfadk.SessionComposerStatePatch
-	TranscriptEntry                = jfadk.TranscriptEntry
-	TimelineEntry                  = jfadk.TimelineEntry
-	Run                            = jfadk.Run
-	WorkflowStepState              = jfadk.WorkflowStepState
-	RunUsage                       = jfadk.RunUsage
-	ToolCall                       = jfadk.ToolCall
-	Approval                       = jfadk.Approval
-	InputOption                    = jfadk.InputOption
-	InputQuestion                  = jfadk.InputQuestion
-	InputAnswer                    = jfadk.InputAnswer
-	InputRequest                   = jfadk.InputRequest
+	TranscriptEntry                = jfadk.TranscriptEntry   // @name adk.TranscriptEntry
+	TimelineEntry                  = jfadk.TimelineEntry     // @name adk.TimelineEntry
+	Run                            = jfadk.Run               // @name adk.Run
+	WorkflowStepState              = jfadk.WorkflowStepState // @name adk.WorkflowStepState
+	RunUsage                       = jfadk.RunUsage          // @name adk.RunUsage
+	ToolCall                       = jfadk.ToolCall          // @name adk.ToolCall
+	Approval                       = jfadk.Approval          // @name adk.Approval
+	InputOption                    = jfadk.InputOption       // @name adk.InputOption
+	InputQuestion                  = jfadk.InputQuestion     // @name adk.InputQuestion
+	InputAnswer                    = jfadk.InputAnswer       // @name adk.InputAnswer
+	InputRequest                   = jfadk.InputRequest      // @name adk.InputRequest
 	InputResponseRequest           = jfadk.InputResponseRequest
-	InputResolution                = jfadk.InputResolution
-	Skill                          = jfadk.Skill
-	ToolDescriptor                 = jfadk.ToolDescriptor
+	InputResolution                = jfadk.InputResolution // @name adk.InputResolution
+	Skill                          = jfadk.Skill           // @name adk.Skill
+	ToolDescriptor                 = jfadk.ToolDescriptor  // @name adk.ToolDescriptor
 	ChatRequest                    = jfadk.ChatRequest
-	RunOptions                     = jfadk.RunOptions
-	WorkflowDefinition             = jfadk.WorkflowDefinition
+	RunOptions                     = jfadk.RunOptions         // @name adk.RunOptions
+	WorkflowDefinition             = jfadk.WorkflowDefinition // @name adk.WorkflowDefinition
 	WorkflowDefinitionWriteRequest = jfadk.WorkflowDefinitionWriteRequest
-	WorkflowCanvasGraph            = jfadk.WorkflowCanvasGraph
-	WorkflowCanvasPoint            = jfadk.WorkflowCanvasPoint
-	WorkflowCanvasNode             = jfadk.WorkflowCanvasNode
-	WorkflowCanvasEdge             = jfadk.WorkflowCanvasEdge
-	WorkflowTrigger                = jfadk.WorkflowTrigger
+	WorkflowCanvasGraph            = jfadk.WorkflowCanvasGraph // @name adk.WorkflowCanvasGraph
+	WorkflowCanvasPoint            = jfadk.WorkflowCanvasPoint // @name adk.WorkflowCanvasPoint
+	WorkflowCanvasNode             = jfadk.WorkflowCanvasNode  // @name adk.WorkflowCanvasNode
+	WorkflowCanvasEdge             = jfadk.WorkflowCanvasEdge  // @name adk.WorkflowCanvasEdge
+	WorkflowTrigger                = jfadk.WorkflowTrigger     // @name adk.WorkflowTrigger
 	WorkflowTriggerWriteRequest    = jfadk.WorkflowTriggerWriteRequest
-	WorkflowTriggerLog             = jfadk.WorkflowTriggerLog
-	WorkflowResult                 = jfadk.WorkflowResult
-	WorkflowNodeRun                = jfadk.WorkflowNodeRun
+	WorkflowTriggerLog             = jfadk.WorkflowTriggerLog // @name adk.WorkflowTriggerLog
+	WorkflowResult                 = jfadk.WorkflowResult     // @name adk.WorkflowResult
+	WorkflowNodeRun                = jfadk.WorkflowNodeRun    // @name adk.WorkflowNodeRun
 	WorkflowEvent                  = jfadk.WorkflowEvent
 	ChatDelta                      = jfadk.ChatDelta
-	ChatResponse                   = jfadk.ChatResponse
-	ApprovalResolution             = jfadk.ApprovalResolution
-	SessionsResponse               = jfadk.SessionsResponse
+	ChatResponse                   = jfadk.ChatResponse       // @name adk.ChatResponse
+	ApprovalResolution             = jfadk.ApprovalResolution // @name adk.ApprovalResolution
+	SessionsResponse               = jfadk.SessionsResponse   // @name adk.SessionsResponse
 	Snapshot                       = jfadk.Snapshot
-	AuditEvent                     = jfadk.AuditEvent
+	AuditEvent                     = jfadk.AuditEvent // @name adk.AuditEvent
 	OptimizationRunRef             = jfadk.OptimizationRunRef
 	OptimizationTask               = jfadk.OptimizationTask
-	Task                           = jfadk.Task
+	Task                           = jfadk.Task // @name adk.Task
 	TaskWriteRequest               = jfadk.TaskWriteRequest
 	TaskPatchRequest               = jfadk.TaskPatchRequest
-	MemoryEntry                    = jfadk.MemoryEntry
+	MemoryEntry                    = jfadk.MemoryEntry // @name adk.MemoryEntry
 	MemoryWriteRequest             = jfadk.MemoryWriteRequest
 	HandoffSegment                 = jfadk.HandoffSegment
-	SessionContextBreakdown        = jfadk.SessionContextBreakdown
+	SessionContextBreakdown        = jfadk.SessionContextBreakdown // @name adk.SessionContextBreakdown
 	SessionContextState            = jfadk.SessionContextState
-	SessionContextSnapshot         = jfadk.SessionContextSnapshot
+	SessionContextSnapshot         = jfadk.SessionContextSnapshot // @name adk.SessionContextSnapshot
 
 	Runtime                  = jfadk.Runtime
 	Store                    = jfadk.Store

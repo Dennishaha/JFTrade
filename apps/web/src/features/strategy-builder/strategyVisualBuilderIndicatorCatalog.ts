@@ -341,5 +341,3 @@ export const TECHNICAL_INDICATOR_INPUT_SLOTS: Record<
   keltner: ["primary"],
   alma: ["primary"],
 };
-
-

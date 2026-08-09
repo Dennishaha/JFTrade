@@ -105,6 +105,3 @@ def snapshot(instrument: QuoteInstrument) -> AKSnapshotResponse:
         currency=MARKET_CURRENCY[instrument.market],
         exchange=instrument.exchange,
     )
-
-
-

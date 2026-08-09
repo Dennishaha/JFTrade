@@ -153,4 +153,3 @@ def _validate_snapshot_ohlc(
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
-

@@ -771,5 +771,3 @@ export function normalizeTimelineWire(value: unknown): unknown {
     ...(value.approvals === null ? { approvals: [] } : {}),
   };
 }
-
-

@@ -300,5 +300,3 @@ export const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
     accent: "#b91c1c",
   },
 ];
-
-

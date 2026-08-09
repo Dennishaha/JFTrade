@@ -14,6 +14,7 @@ const generousBudget = {
   maxInitialJavaScriptGzipBytes: 1000,
   maxInitialCssGzipBytes: 1000,
   maxLargestAsyncJavaScriptGzipBytes: 1000,
+  maxLargestAsyncNonWorkerJavaScriptGzipBytes: 1000,
   maxTotalJavaScriptGzipBytes: 2000,
   forbiddenInitialAssetPatterns: ["\\.worker-"],
 };
@@ -33,6 +34,7 @@ try {
   writeFileSync(join(root, "assets", "editor.worker-a.js"), "export const editor = true;\n");
   writeFileSync(join(root, "assets", "javascript-a.js"), "export const js = true;\n");
   writeFileSync(join(root, "assets", "typescript-a.js"), "export const ts = true;\n");
+  writeFileSync(join(root, "assets", "feature-a.js"), "export const feature = true;\n");
   const html = '<script src="/assets/index-a.js"></script><link href="/assets/app.css">';
   const passing = collectBundleReport({
     distRoot: root,
@@ -44,6 +46,7 @@ try {
   assert.equal(passing.totals.initialJavaScript.files, 1);
   assert.equal(passing.totals.initialCss.files, 1);
   assert(passing.assets.some((asset) => asset.path === "assets/ts.worker-a.js"));
+  assert.equal(passing.largestAsyncNonWorkerJavaScript?.path, "assets/feature-a.js");
 
   const eagerWorker = collectBundleReport({
     distRoot: root,
@@ -60,6 +63,17 @@ try {
     monacoLanguageNames,
   });
   assert.match(strict.failures.join("\n"), /initial JavaScript gzip/);
+
+  const strictNonWorker = collectBundleReport({
+    distRoot: root,
+    html,
+    budget: { ...generousBudget, maxLargestAsyncNonWorkerJavaScriptGzipBytes: 1 },
+    monacoLanguageNames,
+  });
+  assert.match(
+    strictNonWorker.failures.join("\n"),
+    /largest async non-worker JavaScript gzip/,
+  );
 
   writeFileSync(join(root, "assets", "python-a.js"), "export const python = true;\n");
   writeFileSync(join(root, "assets", "css.worker-a.js"), "export const css = true;\n");

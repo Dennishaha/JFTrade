@@ -2,21 +2,16 @@ import { onBeforeUnmount, ref, watch, type Ref } from "vue";
 
 import type {
   ADKAgent,
-  ADKChatResponse,
   ADKProvider,
   ADKRun,
   ADKSession,
 } from "@/types";
 
 import { isTerminalRunStatus } from "@/composables/adk/adkChatPresentation";
-import { streamADKChat } from "@/composables/adk/adkChatStream";
-import { normalizeADKRun } from "@/composables/adk/adkNormalization";
 import {
   isActiveGoalParentRun,
-  isGoalPauseAbortError,
   isQueueDispatchBlockedByGoalLifecycle,
   isRootRun,
-  resolveGoalAwareChatResponse,
   isBlockingRunStatus,
   syncGoalAwareActiveRun,
   type ActiveChatRunState,
@@ -25,12 +20,7 @@ import {
 } from "@/composables/adk/adkChatRuntime";
 import { scrollToBottom } from "@/composables/adk/adkThreadScroll";
 import { loadSessionChatHistory } from "@/composables/adk/adkPageRunHistory";
-import {
-  createTimelineEntryState,
-  replaceAuthoritativeChatResponseTimeline,
-  upsertTimelineEntry,
-  type ADKTimelineEntryState,
-} from "@/composables/adk/adkTimeline";
+import { type ADKTimelineEntryState } from "@/composables/adk/adkTimeline";
 import { useADKWorkflowQueueState } from "@/composables/adk/useADKWorkflowQueueState";
 import { useADKComposerPersistence } from "@/composables/adk/useADKComposerPersistence";
 import { useADKSessionContextState } from "@/composables/adk/useADKSessionContextState";
@@ -38,6 +28,7 @@ import { useADKApprovalRuntime } from "@/composables/adk/useADKApprovalRuntime";
 import { useADKRunActions } from "@/composables/adk/useADKRunActions";
 import { useADKPageRuntimePersistence } from "@/composables/adk/useADKPageRuntimePersistence";
 import { useADKStreamRuntime } from "@/composables/adk/useADKStreamRuntime";
+import { useADKPageChatExecution } from "@/composables/adk/useADKPageChatExecution";
 import {
   enqueueChatMessage as enqueueADKChatMessage,
   handleComposerKeydown as handleADKComposerKeydown,
@@ -84,8 +75,6 @@ export function useADKPageChatState(
   const goalObjectiveError = ref("");
   const goalLifecycleBusy = ref(false);
   let pageStateRestored = false;
-  let chatStreamController: AbortController | null = null;
-  let chatStreamAbortReason = "";
   let sendAdmissionLocked = false;
   let retryDraftRequest: {
     text: string;
@@ -123,30 +112,6 @@ export function useADKPageChatState(
     errorMessage: sessionState.errorMessage,
     reloadTimeline: reloadSessionTimeline,
     selectedSessionId: sessionState.selectedSessionId,
-  });
-  const streamRuntime = useADKStreamRuntime({
-    activeRunSnapshot,
-    activeGoalRunSnapshot,
-    applyAuthoritativeTimeline,
-    applySessionContext,
-    clearSessionRuntimeState,
-    errorMessage: sessionState.errorMessage,
-    finalizeStreamResponse,
-    handleRunContinuation: (run) => waitForRunContinuation(run),
-    reloadSessionTimeline,
-    scheduleSessionContextRefresh,
-    scrollTarget: threadRef,
-    selectedSessionId: sessionState.selectedSessionId,
-    setSelectedSessionId: (sessionId) =>
-      setADKSelectedSessionId(
-        sessionState.selectedSessionId,
-        queuedChatMessages,
-        sessionId,
-      ),
-    syncActiveRun,
-    timelineEntries,
-    sessionRuntimeState,
-    updateSessionRuntimeState,
   });
   const {
     approvalsBusy,
@@ -234,6 +199,62 @@ export function useADKPageChatState(
     selectedSessionId: sessionState.selectedSessionId,
     workModeOverride,
   });
+  let streamRuntime!: ReturnType<typeof useADKStreamRuntime>;
+  const chatExecution = useADKPageChatExecution({
+    applySessionContext,
+    clearSessionRuntimeState,
+    dispatchQueuedMessagesIfIdle,
+    effectiveWorkMode,
+    errorMessage: sessionState.errorMessage,
+    flushComposerState,
+    goalObjectiveDraft,
+    goalPauseRequested,
+    permissionModeOverride,
+    refreshAll: sessionState.refreshAll,
+    refreshSessionContext,
+    reloadSessionTimeline,
+    scrollTarget: threadRef,
+    selectedAgentId: sessionState.selectedAgentId,
+    selectedProvider: sessionState.selectedProvider,
+    selectedProviderId: sessionState.selectedProviderId,
+    selectedSessionId: sessionState.selectedSessionId,
+    sendingChat,
+    setSelectedSessionId: (sessionId) =>
+      setADKSelectedSessionId(
+        sessionState.selectedSessionId,
+        queuedChatMessages,
+        sessionId,
+      ),
+    syncActiveRun,
+    timelineEntries,
+    clearWorkflowPlanRun,
+    onStreamEvent: (event) => streamRuntime.handleChatStreamEvent(event),
+  });
+  streamRuntime = useADKStreamRuntime({
+    activeRunSnapshot,
+    activeGoalRunSnapshot,
+    applyAuthoritativeTimeline: chatExecution.applyAuthoritativeTimeline,
+    applySessionContext,
+    clearSessionRuntimeState,
+    errorMessage: sessionState.errorMessage,
+    finalizeStreamResponse: chatExecution.finalizeStreamResponse,
+    handleRunContinuation: (run) => waitForRunContinuation(run),
+    reloadSessionTimeline,
+    scheduleSessionContextRefresh,
+    scrollTarget: threadRef,
+    selectedSessionId: sessionState.selectedSessionId,
+    setSelectedSessionId: (sessionId) =>
+      setADKSelectedSessionId(
+        sessionState.selectedSessionId,
+        queuedChatMessages,
+        sessionId,
+      ),
+    syncActiveRun,
+    timelineEntries,
+    sessionRuntimeState,
+    updateSessionRuntimeState,
+  });
+  const { abortActiveChatStream, executeChatMessage } = chatExecution;
   const {
     cancelActiveRun,
     pauseGoalRun,
@@ -540,129 +561,6 @@ export function useADKPageChatState(
     pendingInputRequest,
   };
 
-  async function executeChatMessage(
-    text: string,
-    options: { forceChat?: boolean } = {},
-    clientRequestId: string = crypto.randomUUID(),
-  ): Promise<boolean> {
-    const payload: Parameters<typeof streamADKChat>[0] = {
-      clientRequestId,
-      agentId: sessionState.selectedAgentId.value,
-      sessionId: sessionState.selectedSessionId.value,
-      message: text,
-    };
-    const providerId = sessionState.selectedProviderId.value.trim();
-    if (providerId !== "") {
-      payload.providerId = providerId;
-    }
-    const model = sessionState.selectedProvider.value?.model?.trim() ?? "";
-    if (model !== "") {
-      payload.model = model;
-    }
-    if (permissionModeOverride.value) {
-      payload.permissionModeOverride = permissionModeOverride.value;
-    }
-    const mode = effectiveWorkMode.value;
-    if (options.forceChat) {
-      payload.workModeOverride = "chat";
-    } else if (mode) {
-      payload.workModeOverride = mode;
-      if (mode === "loop") {
-        payload.objective = goalObjectiveDraft.value.trim() || text;
-      }
-    }
-    const optimisticUserEntry = createTimelineEntryState({
-      id: `local-user-${clientRequestId}`,
-      sessionId: sessionState.selectedSessionId.value,
-      kind: "user_message",
-      createdAt: new Date().toISOString(),
-      sequence: timelineEntries.value.length + 1,
-      status: "streaming",
-      text,
-    });
-    if (!options.forceChat) {
-      clearWorkflowPlanRun();
-    }
-    sendingChat.value = true;
-    timelineEntries.value = upsertTimelineEntry(
-      timelineEntries.value,
-      optimisticUserEntry,
-    );
-    await scrollToBottom(threadRef);
-    const controller = new AbortController();
-    chatStreamController = controller;
-    chatStreamAbortReason = "";
-    let streamAbortedForGoalPause = false;
-
-    try {
-      const response = await streamADKChat(payload, streamRuntime.handleChatStreamEvent, {
-        signal: controller.signal,
-      });
-      await finalizeStreamResponse(response);
-      await flushComposerState();
-      return true;
-    } catch (error) {
-      if (isGoalPauseAbort(controller, error)) {
-        streamAbortedForGoalPause = true;
-        await flushComposerState();
-        return true;
-      }
-      sessionState.errorMessage.value =
-        error instanceof Error ? error.message : "Agents chat failed";
-      await scrollToBottom(threadRef);
-      return false;
-    } finally {
-      if (chatStreamController === controller) {
-        chatStreamController = null;
-        chatStreamAbortReason = "";
-      }
-      sendingChat.value = false;
-      if (!streamAbortedForGoalPause || !goalPauseRequested.value) {
-        await dispatchQueuedMessagesIfIdle();
-      }
-    }
-  }
-
-  async function finalizeStreamResponse(
-    response: ADKChatResponse,
-  ): Promise<void> {
-    const resolution = resolveGoalAwareChatResponse(response, syncActiveRun);
-    setADKSelectedSessionId(
-      sessionState.selectedSessionId,
-      queuedChatMessages,
-      resolution.normalizedResponse.session.id,
-    );
-    if (resolution.staleTerminalGoalPauseOverride) {
-      clearSessionRuntimeState(resolution.normalizedResponse.session.id);
-      await reloadSessionTimeline(resolution.normalizedResponse.session.id);
-      return;
-    }
-    await applyAuthoritativeTimeline(resolution.resolvedResponse);
-    if (resolution.normalizedResponse.context) {
-      applySessionContext(resolution.normalizedResponse.context);
-    } else {
-      await refreshSessionContext(resolution.normalizedResponse.session.id);
-    }
-    await sessionState.refreshAll();
-    if (resolution.failMessage) {
-      sessionState.errorMessage.value = resolution.failMessage;
-    }
-    if (resolution.terminal) {
-      clearSessionRuntimeState(resolution.normalizedResponse.session.id);
-    }
-    await scrollToBottom(threadRef);
-  }
-
-  async function applyAuthoritativeTimeline(
-    response: ADKChatResponse,
-  ): Promise<void> {
-    timelineEntries.value = replaceAuthoritativeChatResponseTimeline(
-      response,
-      timelineEntries.value,
-    );
-    await scrollToBottom(threadRef);
-  }
-
   async function reloadSessionTimeline(sessionId: string): Promise<void> {
     if (!sessionId || sessionState.selectedSessionId.value !== sessionId) {
       return;
@@ -762,21 +660,6 @@ export function useADKPageChatState(
 
   function shouldSendCurrentDraftAsGoalConversation(): boolean {
     return effectiveWorkMode.value === "loop" && activeGoalRun.value != null;
-  }
-
-  function abortActiveChatStream(reason = ""): void {
-    if (!chatStreamController) {
-      return;
-    }
-    chatStreamAbortReason = reason;
-    chatStreamController.abort();
-  }
-
-  function isGoalPauseAbort(
-    controller: AbortController,
-    error: unknown,
-  ): boolean {
-    return isGoalPauseAbortError(controller, error, chatStreamAbortReason);
   }
 
   function currentGoalObjectiveState(): GoalObjectiveState {

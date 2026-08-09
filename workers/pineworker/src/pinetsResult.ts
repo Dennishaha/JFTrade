@@ -138,4 +138,3 @@ function compactTrades(value: unknown, includeExit: boolean): unknown[] {
     return [trade];
   });
 }
-

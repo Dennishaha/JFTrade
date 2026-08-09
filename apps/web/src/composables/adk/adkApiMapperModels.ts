@@ -64,5 +64,3 @@ export interface ADKMetricsView {
     since: string;
   };
 }
-
-

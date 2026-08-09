@@ -24,26 +24,30 @@ export function resolveFallbackChecks(files) {
   if (files.some((file) => file.startsWith("scripts/") || file.startsWith(".github/"))) {
     checks.add("scripts");
   }
+  if (files.some((file) => file.startsWith(".github/workflows/"))) {
+    checks.add("workflows");
+  }
   if (files.some((file) => file.startsWith("docs/swagger/") || file.startsWith("docs/reference/generated/") || file.startsWith("apps/web/src/generated/") || file === "tests/fixtures/openapi-baseline.json")) {
     checks.add("generated");
   }
   return checks;
 }
 
-export function changedFiles(root = repoRoot, base = resolveBase(root)) {
-  const names = git(root, ["diff", "--name-only", "--diff-filter=ACMRD", base]);
-  const untracked = git(root, ["ls-files", "--others", "--exclude-standard", "-z"])
+export function changedFiles(root = repoRoot, base, { gitCommand = git } = {}) {
+  const comparisonBase = base ?? resolveBase(root, { gitCommand });
+  const names = gitCommand(root, ["diff", "--name-only", "--diff-filter=ACMRD", comparisonBase]);
+  const untracked = gitCommand(root, ["ls-files", "--others", "--exclude-standard", "-z"])
     .split("\0")
     .filter(Boolean);
   return [...new Set([...names.split("\n").filter(Boolean), ...untracked])].sort();
 }
 
-function resolveBase(root) {
-  for (const candidate of [process.env.JFTRADE_DIFF_BASE, "origin/main", "HEAD^"]) {
+export function resolveBase(root = repoRoot, { env = process.env, gitCommand = git } = {}) {
+  for (const candidate of [env.JFTRADE_DIFF_BASE, "origin/main", "HEAD^"]) {
     if (!candidate) continue;
     try {
-      git(root, ["rev-parse", "--verify", candidate]);
-      return candidate;
+      gitCommand(root, ["rev-parse", "--verify", candidate]);
+      return gitCommand(root, ["merge-base", "HEAD", candidate]);
     } catch {
       // Try the next available baseline.
     }
@@ -61,12 +65,15 @@ function run(command) {
   return result.status ?? 1;
 }
 
-export function webAffectedTestCommands(files) {
+export function webAffectedTestCommands(files, { fileExists = fs.existsSync, webRoot = path.join(repoRoot, "apps/web") } = {}) {
   const webFiles = files
     .filter((file) => file.startsWith("apps/web/"))
     .map((file) => file.slice("apps/web/".length));
-  const directTests = webFiles.filter((file) => /(?:^|\/)(?:tests\/.*|src\/.*\.(?:test|spec)\.[cm]?[jt]sx?)$/.test(file));
-  const sources = webFiles.filter((file) => file.startsWith("src/") && !directTests.includes(file));
+  const existingWebFiles = webFiles.filter((file) => fileExists(path.join(webRoot, file)));
+  const directTests = existingWebFiles.filter((file) => (
+    /(?:^|\/)(?:tests\/.*|src\/.*\.(?:test|spec)\.[cm]?[jt]sx?)$/.test(file)
+  ));
+  const sources = existingWebFiles.filter((file) => file.startsWith("src/") && !directTests.includes(file));
   const commands = [];
   if (directTests.length > 0) {
     commands.push(`pnpm --filter @jftrade/web exec vitest run ${directTests.map(shellQuote).join(" ")}`);
@@ -89,6 +96,7 @@ function buildCommands(files, modules, withChecks) {
   const fallback = resolveFallbackChecks(files);
   if (withChecks) {
     commands.unshift("pnpm run check:ai-context");
+    commands.unshift("pnpm run check:diff");
     if (fallback.has("go") || modules.some((module) => module.id === "apiserver" || module.id === "assistant")) {
       commands.push("pnpm run check:go-file-length");
       const vetTargets = [...new Set(modules.flatMap((module) => module.vetPackages ?? []))];
@@ -104,6 +112,9 @@ function buildCommands(files, modules, withChecks) {
     }
     if (fallback.has("scripts")) {
       commands.push("pnpm run test:scripts -- policy");
+    }
+    if (fallback.has("workflows")) {
+      commands.push("pnpm run check:actionlint");
     }
     if (fallback.has("generated") || modules.some((module) => module.id === "apiserver")) {
       commands.push("pnpm run check:generated");

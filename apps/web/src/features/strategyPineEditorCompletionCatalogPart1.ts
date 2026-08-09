@@ -542,4 +542,3 @@ export const strategyPineEditorCompletionCatalogPart1: MonacoCompletionDefinitio
     insertText: "ta.linreg(${1:close}, ${2:20}, ${3:0})",
   },
 ];
-

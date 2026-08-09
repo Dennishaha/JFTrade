@@ -11,27 +11,40 @@ import {
 } from "./run-test-layer.mjs";
 
 const checkGenerated = ["pnpm", ["run", "check:generated"]];
+const checkDiff = ["pnpm", ["run", "check:diff"]];
+const checkActionlint = ["pnpm", ["run", "check:actionlint"]];
 
 test("preflight checks generated docs before running the shared checks", () => {
   const commands = commandsForLayer("preflight");
   const stages = executionStagesForLayer("preflight");
 
   assert.deepEqual(commands[0], checkGenerated);
-  assert.deepEqual(commands.slice(1), preflightChecks);
+  assert.deepEqual(commands.slice(2), preflightChecks);
   assert.deepEqual(stages, [
-    { mode: "sequential", commands: [checkGenerated] },
+    { mode: "sequential", commands: [checkGenerated, checkDiff] },
     { mode: "parallel", commands: parallelPreflightChecks },
     { mode: "sequential", commands: sequentialPreflightChecks },
   ]);
   assert.equal(parallelPreflightChecks.length, 13);
 });
 
-test("ci-local checks generated docs once, checks drift, then runs shared checks inline", () => {
+test("main is the complete non-recursive gate and runs actionlint", () => {
+  const commands = commandsForLayer("main");
+  assert.equal(commands.some(([command, args]) => command === "pnpm" && args.join(" ") === "run test:ci-local"), false);
+  assert.ok(commands.some(([command, args]) => command === checkDiff[0] && args.join(" ") === checkDiff[1].join(" ")));
+  assert.deepEqual(commands.slice(-4), [
+    checkActionlint,
+    ["pnpm", ["run", "test:go"]],
+    ["pnpm", ["run", "test:desktop"]],
+    ["pnpm", ["run", "smoke:pinets-backtest"]],
+  ]);
+});
+
+test("ci-local checks the working projection before running shared checks inline", () => {
   const commands = commandsForLayer("ci-local");
   const generated = commands.filter(
     ([command, args]) => command === "pnpm" && args.join(" ") === "run check:generated",
   );
-  const diffIndex = commands.findIndex(([command]) => command === "git");
   const firstCheckIndex = commands.findIndex(
     ([command, args]) =>
       command === preflightChecks[0][0] &&
@@ -39,11 +52,13 @@ test("ci-local checks generated docs once, checks drift, then runs shared checks
   );
 
   assert.deepEqual(generated, [checkGenerated]);
-  assert.equal(diffIndex, 1);
-  assert.deepEqual(commands.slice(2, 4), [
+  assert.deepEqual(commands.slice(0, 4), [
+    checkGenerated,
+    checkDiff,
     ["pnpm", ["run", "audit:dependencies"]],
     ["pnpm", ["run", "check:oss-license"]],
   ]);
+  assert.equal(commands.some(([command]) => command === "git"), false);
   assert.equal(firstCheckIndex, 4);
   assert.deepEqual(
     commands.slice(firstCheckIndex, firstCheckIndex + preflightChecks.length),

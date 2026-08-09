@@ -336,5 +336,3 @@ export function buildProtectMetadataArgs(
   ].filter((arg) => arg !== "");
   return args.length === 0 ? "" : `, ${args.join(", ")}`;
 }
-
-

@@ -93,7 +93,7 @@ type Provider struct {
 	Capabilities        map[string]bool   `json:"capabilities,omitempty"`
 	CreatedAt           string            `json:"createdAt"`
 	UpdatedAt           string            `json:"updatedAt"`
-}
+} // @name adk.Provider
 
 // RequestTimeout returns the effective provider request timeout after
 // applying the shared floor, ceiling and default normalization rules.
@@ -151,7 +151,7 @@ type Agent struct {
 	CreatedAt         string   `json:"createdAt"`
 	UpdatedAt         string   `json:"updatedAt"`
 	DeletedAt         *string  `json:"deletedAt,omitempty"`
-}
+} // @name adk.Agent
 
 type AgentWriteRequest struct {
 	ID                string   `json:"id,omitempty"`
@@ -167,7 +167,7 @@ type AgentWriteRequest struct {
 	WorkMode          string   `json:"workMode,omitempty"`
 	LoopMaxIterations int      `json:"loopMaxIterations,omitempty"`
 	Status            string   `json:"status"`
-}
+} // @name adk.AgentWriteRequest
 
 type Session struct {
 	ID           string `json:"id"`
@@ -177,7 +177,7 @@ type Session struct {
 	WorkflowName string `json:"workflowName,omitempty"`
 	CreatedAt    string `json:"createdAt"`
 	UpdatedAt    string `json:"updatedAt"`
-}
+} // @name adk.Session
 
 type SessionComposerState struct {
 	SessionID              string `json:"sessionId"`
@@ -189,7 +189,7 @@ type SessionComposerState struct {
 	GoalObjectiveDraft     string `json:"goalObjectiveDraft"`
 	GoalObjectiveTouched   bool   `json:"goalObjectiveTouched"`
 	UpdatedAt              string `json:"updatedAt"`
-}
+} // @name adk.SessionComposerState
 
 type SessionComposerStatePatch struct {
 	ChatDraft              *string `json:"chatDraft,omitempty"`
@@ -224,7 +224,7 @@ type TranscriptEntry struct {
 	Content          string `json:"content"`
 	ReasoningContent string `json:"reasoningContent,omitempty"`
 	CreatedAt        string `json:"createdAt"`
-}
+} // @name adk.TranscriptEntry
 
 type TimelineEntry struct {
 	ID            string        `json:"id"`
@@ -241,7 +241,7 @@ type TimelineEntry struct {
 	ToolCalls     []ToolCall    `json:"toolCalls,omitempty"`
 	Approvals     []Approval    `json:"approvals,omitempty"`
 	InputRequest  *InputRequest `json:"inputRequest,omitempty"`
-}
+} // @name adk.TimelineEntry
 
 // SessionProjection is the denormalized view of one session's ADK events and
 // latest run state used by timelines, transcripts and context projections.
@@ -302,7 +302,7 @@ type Run struct {
 	UpdatedAt          string              `json:"updatedAt"`
 	CompletedAt        *string             `json:"completedAt,omitempty"`
 	CancelledAt        *string             `json:"cancelledAt,omitempty"`
-}
+} // @name adk.Run
 
 type WorkflowStepState struct {
 	TaskID              string   `json:"taskId,omitempty"`
@@ -331,7 +331,7 @@ type WorkflowStepState struct {
 	NodeStatus          string   `json:"nodeStatus,omitempty"`
 	Routes              []string `json:"routes,omitempty"`
 	OutputSummary       string   `json:"outputSummary,omitempty"`
-}
+} // @name adk.WorkflowStepState
 
 type RunUsage struct {
 	ModelCalls     int   `json:"modelCalls"`
@@ -339,7 +339,7 @@ type RunUsage struct {
 	DurationMs     int64 `json:"durationMs,omitempty"`
 	TokensIn       int   `json:"tokensIn,omitempty"`
 	TokensOut      int   `json:"tokensOut,omitempty"`
-}
+} // @name adk.RunUsage
 
 type ToolCall struct {
 	ID             string         `json:"id"`
@@ -357,7 +357,7 @@ type ToolCall struct {
 	UpdatedAt      string         `json:"updatedAt"`
 	CompletedAt    *string        `json:"completedAt,omitempty"`
 	DurationMs     int64          `json:"durationMs,omitempty"`
-}
+} // @name adk.ToolCall
 
 type Approval struct {
 	ID                 string         `json:"id"`
@@ -371,7 +371,7 @@ type Approval struct {
 	ConfirmationCallID string         `json:"confirmationCallId,omitempty"`
 	CreatedAt          string         `json:"createdAt"`
 	UpdatedAt          string         `json:"updatedAt"`
-}
+} // @name adk.Approval
 
 const (
 	InputRequestStatusPending   = "PENDING"
@@ -384,20 +384,20 @@ type InputOption struct {
 	Label       string `json:"label"`
 	Description string `json:"description,omitempty"`
 	Recommended bool   `json:"recommended,omitempty"`
-}
+} // @name adk.InputOption
 
 type InputQuestion struct {
 	ID         string        `json:"id"`
 	Question   string        `json:"question"`
 	Options    []InputOption `json:"options"`
 	AllowOther bool          `json:"allowOther"`
-}
+} // @name adk.InputQuestion
 
 type InputAnswer struct {
 	QuestionID string `json:"questionId"`
 	OptionID   string `json:"optionId,omitempty"`
 	OtherText  string `json:"otherText,omitempty"`
-}
+} // @name adk.InputAnswer
 
 type InputRequest struct {
 	ID             string          `json:"id"`
@@ -411,7 +411,7 @@ type InputRequest struct {
 	CreatedAt      string          `json:"createdAt"`
 	UpdatedAt      string          `json:"updatedAt"`
 	AnsweredAt     *string         `json:"answeredAt,omitempty"`
-}
+} // @name adk.InputRequest
 
 type InputResponseRequest struct {
 	RequestID string        `json:"requestId"`
@@ -423,7 +423,7 @@ type InputResolution struct {
 	Run       *Run             `json:"run,omitempty"`
 	ParentRun *Run             `json:"parentRun,omitempty"`
 	Message   *TranscriptEntry `json:"message,omitempty"`
-}
+} // @name adk.InputResolution
 
 type Skill struct {
 	ID               string   `json:"id"`
@@ -440,7 +440,7 @@ type Skill struct {
 	ValidationError  string   `json:"validationError,omitempty"`
 	CreatedAt        string   `json:"createdAt"`
 	UpdatedAt        string   `json:"updatedAt"`
-}
+} // @name adk.Skill
 
 type ToolDescriptor struct {
 	Name               string         `json:"name"`
@@ -455,4 +455,4 @@ type ToolDescriptor struct {
 	OutputSummary      string         `json:"outputSummary,omitempty"`
 	RiskLevel          string         `json:"riskLevel,omitempty"`
 	RequiredSkills     []string       `json:"requiredSkills,omitempty"`
-}
+} // @name adk.ToolDescriptor

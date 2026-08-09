@@ -59,6 +59,3 @@ export function normalizePineSourceForPineTS(source: string): string {
 function isIdentifierChar(value: string | undefined): boolean {
   return value !== undefined && /[A-Za-z0-9_]/.test(value);
 }
-
-
-

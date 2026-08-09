@@ -32,5 +32,3 @@ export function sessionScopeLabel(value: TradingSessionScope): string {
       return "常规交易时段";
   }
 }
-
-

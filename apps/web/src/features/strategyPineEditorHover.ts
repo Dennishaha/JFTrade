@@ -742,4 +742,3 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
     documentation: "取消当前策略 symbol 的全部未触发 pending orders。",
   },
 ];
-

@@ -11,6 +11,8 @@ export const scriptTestSuites = Object.freeze({
     "scripts/check-go-file-length-budget.test.mjs",
     "scripts/check-assistant-budget.test.mjs",
     "scripts/test-affected.test.mjs",
+    "scripts/generate-contracts.test.mjs",
+    "scripts/check-diff.test.mjs",
     "scripts/check-test-names.test.mjs",
     "scripts/report-go-test-quality.test.mjs",
     "scripts/check-servercore-budget.test.mjs",

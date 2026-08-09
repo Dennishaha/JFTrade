@@ -44,4 +44,3 @@ export function formatPineValue(value: unknown): string {
 export function indent(depth: number): string {
   return "  ".repeat(depth);
 }
-

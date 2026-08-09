@@ -115,4 +115,3 @@ export interface BacktestRun {
   createdAt: string;
   updatedAt: string;
 }
-

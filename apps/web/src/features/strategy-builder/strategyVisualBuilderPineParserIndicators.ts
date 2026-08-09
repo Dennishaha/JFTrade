@@ -542,7 +542,6 @@ export function parseIndicatorExpression(expression: string): Record<string, unk
       return null;
   }
 }
-
 export function parseRequestSecurityIndicator(args: string[]): Record<string, unknown> | null {
   if (args.length < 3 || args[0]?.trim() !== "syminfo.tickerid") {
     return null;
@@ -613,4 +612,3 @@ export function normalizePineTimeframe(value: string): string | null {
       return null;
   }
 }
-

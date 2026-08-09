@@ -26,21 +26,21 @@ type ChatResponse struct {
 	InputRequest     *InputRequest           `json:"inputRequest,omitempty"`
 	Timeline         []TimelineEntry         `json:"timeline"`
 	Context          *SessionContextSnapshot `json:"context,omitempty"`
-}
+} // @name adk.ChatResponse
 
 type ApprovalResolution struct {
 	Approval  Approval         `json:"approval"`
 	Run       *Run             `json:"run,omitempty"`
 	ParentRun *Run             `json:"parentRun,omitempty"`
 	Message   *TranscriptEntry `json:"message,omitempty"`
-}
+} // @name adk.ApprovalResolution
 
 type SessionsResponse struct {
 	Session       Session              `json:"session"`
 	Timeline      []TimelineEntry      `json:"timeline"`
 	Runs          []Run                `json:"runs,omitempty"`
 	ComposerState SessionComposerState `json:"composerState"`
-}
+} // @name adk.SessionsResponse
 
 type Snapshot struct {
 	Providers []Provider       `json:"providers"`
@@ -56,7 +56,7 @@ type AuditEvent struct {
 	Detail    string         `json:"detail"`
 	Metadata  map[string]any `json:"metadata,omitempty"`
 	CreatedAt string         `json:"createdAt"`
-}
+} // @name adk.AuditEvent
 
 type OptimizationRunRef struct {
 	DefinitionID string `json:"definitionId"`
@@ -97,7 +97,7 @@ type Task struct {
 	PlannerWarnings     []string `json:"plannerWarnings,omitempty"`
 	CreatedAt           string   `json:"createdAt"`
 	UpdatedAt           string   `json:"updatedAt"`
-}
+} // @name adk.Task
 
 type TaskWriteRequest struct {
 	ID                  string   `json:"id,omitempty"`
@@ -156,7 +156,7 @@ type MemoryEntry struct {
 	Scope     string `json:"scope"`
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt"`
-}
+} // @name adk.MemoryEntry
 
 type MemoryWriteRequest struct {
 	AgentID string `json:"agentId,omitempty"`
@@ -190,7 +190,7 @@ type SessionContextBreakdown struct {
 	OtherVisibleTokens    int `json:"otherVisibleTokens"`
 	PendingUserTokens     int `json:"pendingUserTokens"`
 	ToolDeclarationTokens int `json:"toolDeclarationTokens"`
-}
+} // @name adk.SessionContextBreakdown
 
 type SessionContextState struct {
 	SessionID                 string                  `json:"sessionId"`
@@ -245,4 +245,4 @@ type SessionContextSnapshot struct {
 	LastCompactionReason       string                  `json:"lastCompactionReason,omitempty"`
 	AutoCompacted              bool                    `json:"autoCompacted"`
 	DegradedSummary            bool                    `json:"degradedSummary"`
-}
+} // @name adk.SessionContextSnapshot

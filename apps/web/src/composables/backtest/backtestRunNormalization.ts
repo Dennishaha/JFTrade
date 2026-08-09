@@ -95,7 +95,6 @@ export function normalizeCandle(candle: BacktestCandleTransport): BacktestCandle
     volumeText: volume.text,
   };
 }
-
 export function normalizeHeikinAshiSeed(value: unknown): HeikinAshiSeed | undefined {
   if (value == null || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
@@ -362,4 +361,3 @@ export function normalizeRun(run: BacktestRunTransport): BacktestRun {
     updatedAt: run.updatedAt ?? "",
   };
 }
-

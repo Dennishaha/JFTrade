@@ -81,6 +81,17 @@ const monacoMocks = vi.hoisted(() => {
   const setCompilerOptions = vi.fn();
   const setDiagnosticsOptions = vi.fn();
   const setEagerModelSync = vi.fn();
+  const typescriptSupport = {
+    ModuleKind: { ESNext: 99 },
+    ScriptTarget: { ES2020: 77 },
+    javascriptDefaults: {
+      addExtraLib,
+      setCompilerOptions,
+      setDiagnosticsOptions,
+      setEagerModelSync,
+    },
+  };
+  const loadTypeScriptSupport = vi.fn(async () => typescriptSupport);
 
   return {
     addExtraLib,
@@ -95,6 +106,7 @@ const monacoMocks = vi.hoisted(() => {
     getHoverProvider: () => hoverProvider,
     getLanguages: () => registeredLanguages,
     hoverDispose,
+    loadTypeScriptSupport,
     model,
     modelChangeDispose,
     register,
@@ -125,6 +137,7 @@ const monacoMocks = vi.hoisted(() => {
     setModelMarkers,
     setMonarchTokensProvider,
     setTheme,
+    typescriptSupport,
     triggerBlur() {
       blurHandler?.();
     },
@@ -142,8 +155,8 @@ vi.mock("monaco-editor/editor/editor.worker?worker", () => ({
   default: class EditorWorker {},
 }));
 
-vi.mock("monaco-editor/language/typescript/ts.worker?worker", () => ({
-  default: class TypeScriptWorker {},
+vi.mock("@/monacoTypescriptSupport", () => ({
+  loadMonacoTypeScriptSupport: monacoMocks.loadTypeScriptSupport,
 }));
 
 vi.mock("monaco-editor", () => ({
@@ -170,16 +183,6 @@ vi.mock("monaco-editor", () => ({
     setLanguageConfiguration: monacoMocks.setLanguageConfiguration,
     setMonarchTokensProvider: monacoMocks.setMonarchTokensProvider,
   },
-  typescript: {
-    ModuleKind: { ESNext: 99 },
-    ScriptTarget: { ES2020: 77 },
-    javascriptDefaults: {
-      addExtraLib: monacoMocks.addExtraLib,
-      setCompilerOptions: monacoMocks.setCompilerOptions,
-      setDiagnosticsOptions: monacoMocks.setDiagnosticsOptions,
-      setEagerModelSync: monacoMocks.setEagerModelSync,
-    },
-  },
 }));
 
 beforeEach(() => {
@@ -204,15 +207,24 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  delete (globalThis as typeof globalThis & { MonacoEnvironment?: unknown }).MonacoEnvironment;
   window.localStorage.clear();
   document.body.innerHTML = "";
 });
 
-async function mountBrowserEditor() {
+async function mountBrowserEditor(options: {
+  language?: string;
+  withExtraLib?: boolean;
+} = {}) {
   vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome/126" });
   const props = {
     value: ref("const initial = true;"),
-    language: ref("pine-v6"),
+    language: ref(options.language ?? "pine-v6"),
+    extraLibs: ref(
+      options.withExtraLib === false
+        ? []
+        : [{ filePath: "file:///jftrade.d.ts", content: "declare const ctx: unknown" }],
+    ),
     fontSize: ref(12),
     readOnly: ref(false),
     markers: ref([
@@ -240,7 +252,7 @@ async function mountBrowserEditor() {
         :min-height="180"
         resizable
         test-id="pine-editor"
-        :extra-libs="[{ filePath: 'file:///jftrade.d.ts', content: 'declare const ctx: unknown' }]"
+        :extra-libs="extraLibs"
         :completion-items="[
           { label: 'plot', insertText: 'plot(\${1:value})', detail: 'function', documentation: '绘图', kind: 'function', insertTextRule: 'snippet' },
           { label: 'State', insertText: 'State', detail: 'interface', documentation: '状态', kind: 'interface' },
@@ -264,6 +276,93 @@ async function mountBrowserEditor() {
 }
 
 describe("MonacoCodeEditor", () => {
+  it.each(["pine-v6", "json"])(
+    "does not load TypeScript support for %s without extra libs",
+    async (language) => {
+      const { wrapper } = await mountBrowserEditor({
+        language,
+        withExtraLib: false,
+      });
+
+      expect(monacoMocks.loadTypeScriptSupport).not.toHaveBeenCalled();
+      expect(monacoMocks.setEagerModelSync).not.toHaveBeenCalled();
+      expect(monacoMocks.setCompilerOptions).not.toHaveBeenCalled();
+      expect(
+        (globalThis as typeof globalThis & { MonacoEnvironment?: unknown })
+          .MonacoEnvironment,
+      ).toBeDefined();
+      wrapper.unmount();
+    },
+  );
+
+  it.each(["javascript", "typescript"])(
+    "loads TypeScript support for %s without extra libs",
+    async (language) => {
+      const { wrapper } = await mountBrowserEditor({
+        language,
+        withExtraLib: false,
+      });
+
+      expect(monacoMocks.loadTypeScriptSupport).toHaveBeenCalledTimes(1);
+      expect(monacoMocks.setEagerModelSync).toHaveBeenCalledWith(true);
+      expect(monacoMocks.setDiagnosticsOptions).toHaveBeenCalledWith({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+      expect(monacoMocks.setCompilerOptions).toHaveBeenCalledWith({
+        allowNonTsExtensions: true,
+        allowJs: true,
+        checkJs: true,
+        target: 77,
+        module: 99,
+      });
+      expect(
+        (globalThis as typeof globalThis & { MonacoEnvironment?: unknown })
+          .MonacoEnvironment,
+      ).toBeDefined();
+      wrapper.unmount();
+    },
+  );
+
+  it("loads TypeScript support before switching a mounted editor to JavaScript", async () => {
+    const { props, wrapper } = await mountBrowserEditor({ withExtraLib: false });
+    expect(monacoMocks.loadTypeScriptSupport).not.toHaveBeenCalled();
+
+    props.language.value = "javascript";
+    await vi.waitFor(() => {
+      expect(monacoMocks.loadTypeScriptSupport).toHaveBeenCalledTimes(1);
+      expect(monacoMocks.setModelLanguage).toHaveBeenCalledWith(
+        monacoMocks.model,
+        "javascript",
+      );
+    });
+
+    wrapper.unmount();
+  });
+
+  it("stops an asynchronous language switch after the editor unmounts", async () => {
+    let resolveTypeScriptSupport!: (
+      value: typeof monacoMocks.typescriptSupport,
+    ) => void;
+    monacoMocks.loadTypeScriptSupport.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveTypeScriptSupport = resolve;
+        }),
+    );
+    const { props, wrapper } = await mountBrowserEditor({ withExtraLib: false });
+
+    props.language.value = "javascript";
+    await vi.waitFor(() => {
+      expect(monacoMocks.loadTypeScriptSupport).toHaveBeenCalledTimes(1);
+    });
+    wrapper.unmount();
+    resolveTypeScriptSupport(monacoMocks.typescriptSupport);
+    await Promise.resolve();
+
+    expect(monacoMocks.setModelLanguage).not.toHaveBeenCalled();
+  });
+
   it("uses a functional textarea fallback and reveals source ranges safely", async () => {
     const value = ref("line one\nline two");
     const readOnly = ref(false);
@@ -457,13 +556,10 @@ describe("MonacoCodeEditor", () => {
     ).suggestions;
     expect(genericSuggestions).toHaveLength(4);
 
-    const environment = (globalThis as typeof globalThis & {
-      MonacoEnvironment?: { getWorker: (moduleId: string, label: string) => Worker };
-    }).MonacoEnvironment;
-    expect(environment).toBeDefined();
-    expect(environment!.getWorker("", "javascript")).toBeTruthy();
-    expect(environment!.getWorker("", "typescript")).toBeTruthy();
-    expect(environment!.getWorker("", "editor")).toBeTruthy();
+    expect(
+      (globalThis as typeof globalThis & { MonacoEnvironment?: unknown })
+        .MonacoEnvironment,
+    ).toBeDefined();
 
     const fullExpressionHover = hoverProvider!.provideHover(
       monacoMocks.model,
@@ -572,6 +668,15 @@ describe("MonacoCodeEditor", () => {
     await vi.waitFor(() => expect(monacoMocks.dispose).toHaveBeenCalled());
     expect(monacoMocks.extraLibDispose).toHaveBeenCalled();
     invalidated.wrapper.unmount();
+
+    monacoMocks.create.mockClear();
+    monacoMocks.create.mockImplementationOnce(() => {
+      document.querySelector('[data-testid="pine-editor"]')?.remove();
+      throw new Error("editor target disappeared");
+    });
+    const detachedFailure = await mountBrowserEditor();
+    expect(detachedFailure.wrapper.find("textarea").exists()).toBe(false);
+    detachedFailure.wrapper.unmount();
   });
 });
 

@@ -206,7 +206,3 @@ def validate_candle_retention(
             "UNSUPPORTED_RANGE",
             "requested intraday data is only available for the last 5 days",
         )
-
-
-
-

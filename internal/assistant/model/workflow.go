@@ -51,7 +51,7 @@ type ChatRequest struct {
 
 type RunOptions struct {
 	LoopMaxIterations int `json:"loopMaxIterations,omitempty"`
-}
+} // @name adk.RunOptions
 
 type WorkflowDefinition struct {
 	ID                string               `json:"id"`
@@ -72,7 +72,7 @@ type WorkflowDefinition struct {
 	CreatedAt         string               `json:"createdAt"`
 	UpdatedAt         string               `json:"updatedAt"`
 	DeletedAt         *string              `json:"deletedAt,omitempty"`
-}
+} // @name adk.WorkflowDefinition
 
 type WorkflowDefinitionWriteRequest struct {
 	ID                string               `json:"id,omitempty"`
@@ -96,19 +96,19 @@ type WorkflowCanvasGraph struct {
 	Nodes    []WorkflowCanvasNode `json:"nodes,omitempty"`
 	Edges    []WorkflowCanvasEdge `json:"edges,omitempty"`
 	Viewport map[string]any       `json:"viewport,omitempty"`
-}
+} // @name adk.WorkflowCanvasGraph
 
 type WorkflowCanvasPoint struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
-}
+} // @name adk.WorkflowCanvasPoint
 
 type WorkflowCanvasNode struct {
 	ID       string              `json:"id"`
 	Type     string              `json:"type"`
 	Position WorkflowCanvasPoint `json:"position"`
 	Data     map[string]any      `json:"data,omitempty"`
-}
+} // @name adk.WorkflowCanvasNode
 
 type WorkflowCanvasEdge struct {
 	ID           string         `json:"id"`
@@ -118,7 +118,7 @@ type WorkflowCanvasEdge struct {
 	TargetHandle string         `json:"targetHandle,omitempty"`
 	Type         string         `json:"type,omitempty"`
 	Data         map[string]any `json:"data,omitempty"`
-}
+} // @name adk.WorkflowCanvasEdge
 
 type WorkflowTrigger struct {
 	ID         string         `json:"id"`
@@ -136,7 +136,7 @@ type WorkflowTrigger struct {
 	CreatedAt  string         `json:"createdAt"`
 	UpdatedAt  string         `json:"updatedAt"`
 	DeletedAt  *string        `json:"deletedAt,omitempty"`
-}
+} // @name adk.WorkflowTrigger
 
 type WorkflowTriggerWriteRequest struct {
 	ID          string         `json:"id,omitempty"`
@@ -164,14 +164,14 @@ type WorkflowTriggerLog struct {
 	FinishedAt   string            `json:"finishedAt,omitempty"`
 	CreatedAt    string            `json:"createdAt"`
 	UpdatedAt    string            `json:"updatedAt"`
-}
+} // @name adk.WorkflowTriggerLog
 
 type WorkflowResult struct {
 	Format      string         `json:"format,omitempty"`
 	Markdown    string         `json:"markdown,omitempty"`
 	JSON        map[string]any `json:"json,omitempty"`
 	RawResponse *ChatResponse  `json:"rawResponse,omitempty"`
-}
+} // @name adk.WorkflowResult
 
 type WorkflowNodeRun struct {
 	NodeID     string         `json:"nodeId"`
@@ -183,7 +183,7 @@ type WorkflowNodeRun struct {
 	Inputs     map[string]any `json:"inputs,omitempty"`
 	Outputs    map[string]any `json:"outputs,omitempty"`
 	Error      string         `json:"error,omitempty"`
-}
+} // @name adk.WorkflowNodeRun
 
 type WorkflowEvent struct {
 	ID       string         `json:"id,omitempty"`

@@ -51,5 +51,3 @@ export function tokenizePine(script: string): ParsedPineEntry[] {
 
   return entries;
 }
-
-

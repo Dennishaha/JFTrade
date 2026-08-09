@@ -48,7 +48,10 @@ pnpm run test:preflight
 # 单机可执行的 Linux CI 核心门禁，不包含 GitHub 三操作系统矩阵
 pnpm run test:ci-local
 
-# 在 ci-local 之上执行完整 Go、当前平台 desktop 和真实 PineTS smoke
+# 完整本地门禁：ci-local、actionlint、完整 Go、当前平台 desktop 和真实 PineTS smoke
+pnpm run check:all
+
+# test:main 是 check:all 的兼容入口
 pnpm run test:main
 
 # 单独运行三套覆盖率门禁
@@ -79,7 +82,7 @@ JFTRADE_DIFF_BASE=origin/main pnpm run test:coverage
 
 2026-08-04 的本机 macOS ARM64 样本按“递归累加 PyInstaller `onedir` 下所有普通文件的 `stat().st_size`，不计目录和文件系统分配块”测量：旧 yfinance bundle 为 89.20 MiB，新 market-data bundle 为 104.65 MiB，增加 15.45 MiB（17.3%）。这是单机迁移基线，不作为其他平台的固定体积上限；`smoke:marketdata-sidecar` 会在每个发布 runner 上报告该平台 bundle 的精确字节数和 MiB，并同时验证 frozen helper 的版本、loopback 健康与两个 Python Provider 的导入状态。
 
-`test:preflight`、`test:pr` 和 `test:ci-local` 使用 `pnpm run check:generated` 在临时目录生成 Swagger、前端 OpenAPI 类型、契约基线和参考文档，再与工作树逐字节比较。因此这些检查不会写入工作树；契约有意变化时才运行 `pnpm run generate:docs` 更新跟踪产物。
+`test:preflight`、`test:pr` 和 `test:ci-local` 使用 `pnpm run check:generated` 在临时目录生成 Swagger、前端 OpenAPI 类型、契约基线和参考文档，并逐字节比较需要提交的 OpenAPI 类型、契约基线和 Pine 支持矩阵。Swagger runtime 快照只作为临时测试输入，不写入仓库。因此这些检查不会修改工作树；契约有意变化时才运行 `pnpm run generate:docs` 更新跟踪产物。
 
 测试文件名必须描述被验证的业务行为，不得包含任意大小写或分隔形式的 `coverage`，也不得使用 `c95`、`c_98`、`push95`、`_98_` 等覆盖率数字缩写，或 `more`、`additional`、`extra`、`complete` 等无业务语义后缀。`pnpm run check:test-names` 扫描当前全仓文件；历史违规文件已经全部改为行为名称，`scripts/test-name-allowlist.txt` 当前没有豁免项。检查器仍从 merge-base Git 文件树按当前规则推导历史上限，不信任基准提交里的旧清单，因此规则扩展后可纳管此前遗漏的文件，也不能通过“新增违规文件并写入清单”绕过门禁。
 

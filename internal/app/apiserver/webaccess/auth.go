@@ -50,7 +50,7 @@ type webSession struct {
 
 type webLoginRequest struct {
 	Password string `json:"password"`
-}
+} // @name servercore.webLoginRequest
 
 // WebSessionData is the public response contract shared by login, logout and
 // session inspection. CSRF and expiry are absent for trusted desktop requests
@@ -59,7 +59,7 @@ type WebSessionData struct {
 	Authenticated bool   `json:"authenticated"`
 	CSRFToken     string `json:"csrfToken,omitempty"`
 	ExpiresAt     string `json:"expiresAt,omitempty"`
-}
+} // @name servercore.WebSessionData
 
 type webLoginConfig struct {
 	enabled        bool

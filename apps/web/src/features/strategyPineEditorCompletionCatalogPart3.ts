@@ -507,4 +507,3 @@ export const strategyPineEditorCompletionCatalogPart3: MonacoCompletionDefinitio
     insertText: "alert(\"${1:message}\")",
   },
 ];
-

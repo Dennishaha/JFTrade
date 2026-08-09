@@ -13,4 +13,3 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   ...strategyPineEditorCompletionCatalogPart2,
   ...strategyPineEditorCompletionCatalogPart3,
 ];
-

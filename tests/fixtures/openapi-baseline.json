@@ -80,19 +80,126 @@
       ],
       "type": "object"
     },
+    "adk.AgentWriteRequest": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "instruction": {
+          "type": "string"
+        },
+        "loopMaxIterations": {
+          "type": "integer"
+        },
+        "memoryEnabled": {
+          "type": "boolean"
+        },
+        "model": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "permissionMode": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "recentUserWindow": {
+          "type": "integer"
+        },
+        "skills": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "status": {
+          "type": "string"
+        },
+        "tools": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "workMode": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "instruction",
+        "memoryEnabled",
+        "name",
+        "permissionMode",
+        "providerId",
+        "status"
+      ],
+      "type": "object"
+    },
+    "adk.Approval": {
+      "properties": {
+        "agentId": {
+          "type": "string"
+        },
+        "confirmationCallId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "functionCallId": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "toolName": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "agentId",
+        "createdAt",
+        "id",
+        "reason",
+        "runId",
+        "status",
+        "toolName",
+        "updatedAt"
+      ],
+      "type": "object"
+    },
     "adk.ApprovalResolution": {
       "properties": {
         "approval": {
-          "$ref": "#/definitions/model.Approval"
+          "$ref": "#/definitions/adk.Approval"
         },
         "message": {
-          "$ref": "#/definitions/model.TranscriptEntry"
+          "$ref": "#/definitions/adk.TranscriptEntry"
         },
         "parentRun": {
-          "$ref": "#/definitions/model.Run"
+          "$ref": "#/definitions/adk.Run"
         },
         "run": {
-          "$ref": "#/definitions/model.Run"
+          "$ref": "#/definitions/adk.Run"
         }
       },
       "required": [
@@ -100,17 +207,47 @@
       ],
       "type": "object"
     },
+    "adk.AuditEvent": {
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "subjectId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "createdAt",
+        "detail",
+        "id",
+        "kind"
+      ],
+      "type": "object"
+    },
     "adk.ChatResponse": {
       "properties": {
         "context": {
-          "$ref": "#/definitions/model.SessionContextSnapshot"
+          "$ref": "#/definitions/adk.SessionContextSnapshot"
         },
         "inputRequest": {
-          "$ref": "#/definitions/model.InputRequest"
+          "$ref": "#/definitions/adk.InputRequest"
         },
         "pendingApprovals": {
           "items": {
-            "$ref": "#/definitions/model.Approval"
+            "$ref": "#/definitions/adk.Approval"
           },
           "type": "array"
         },
@@ -121,14 +258,14 @@
           "type": "string"
         },
         "run": {
-          "$ref": "#/definitions/model.Run"
+          "$ref": "#/definitions/adk.Run"
         },
         "session": {
-          "$ref": "#/definitions/model.Session"
+          "$ref": "#/definitions/adk.Session"
         },
         "timeline": {
           "items": {
-            "$ref": "#/definitions/model.TimelineEntry"
+            "$ref": "#/definitions/adk.TimelineEntry"
           },
           "type": "array"
         }
@@ -142,19 +279,137 @@
       ],
       "type": "object"
     },
+    "adk.InputAnswer": {
+      "properties": {
+        "optionId": {
+          "type": "string"
+        },
+        "otherText": {
+          "type": "string"
+        },
+        "questionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "questionId"
+      ],
+      "type": "object"
+    },
+    "adk.InputOption": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "recommended": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "type": "object"
+    },
+    "adk.InputQuestion": {
+      "properties": {
+        "allowOther": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/definitions/adk.InputOption"
+          },
+          "type": "array"
+        },
+        "question": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "allowOther",
+        "id",
+        "options",
+        "question"
+      ],
+      "type": "object"
+    },
+    "adk.InputRequest": {
+      "properties": {
+        "agentId": {
+          "type": "string"
+        },
+        "answeredAt": {
+          "type": "string"
+        },
+        "answers": {
+          "items": {
+            "$ref": "#/definitions/adk.InputAnswer"
+          },
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "functionCallId": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "questions": {
+          "items": {
+            "$ref": "#/definitions/adk.InputQuestion"
+          },
+          "type": "array"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "agentId",
+        "createdAt",
+        "functionCallId",
+        "id",
+        "questions",
+        "runId",
+        "status",
+        "updatedAt"
+      ],
+      "type": "object"
+    },
     "adk.InputResolution": {
       "properties": {
         "message": {
-          "$ref": "#/definitions/model.TranscriptEntry"
+          "$ref": "#/definitions/adk.TranscriptEntry"
         },
         "parentRun": {
-          "$ref": "#/definitions/model.Run"
+          "$ref": "#/definitions/adk.Run"
         },
         "request": {
-          "$ref": "#/definitions/model.InputRequest"
+          "$ref": "#/definitions/adk.InputRequest"
         },
         "run": {
-          "$ref": "#/definitions/model.Run"
+          "$ref": "#/definitions/adk.Run"
         }
       },
       "required": [
@@ -302,11 +557,11 @@
           "type": "string"
         },
         "inputRequest": {
-          "$ref": "#/definitions/model.InputRequest"
+          "$ref": "#/definitions/adk.InputRequest"
         },
         "inputRequests": {
           "items": {
-            "$ref": "#/definitions/model.InputRequest"
+            "$ref": "#/definitions/adk.InputRequest"
           },
           "type": "array"
         },
@@ -342,7 +597,7 @@
         },
         "pendingApprovals": {
           "items": {
-            "$ref": "#/definitions/model.Approval"
+            "$ref": "#/definitions/adk.Approval"
           },
           "type": "array"
         },
@@ -375,7 +630,7 @@
         },
         "toolCalls": {
           "items": {
-            "$ref": "#/definitions/model.ToolCall"
+            "$ref": "#/definitions/adk.ToolCall"
           },
           "type": "array"
         },
@@ -389,7 +644,7 @@
           "type": "string"
         },
         "usage": {
-          "$ref": "#/definitions/model.RunUsage"
+          "$ref": "#/definitions/adk.RunUsage"
         },
         "userMessage": {
           "type": "string"
@@ -405,7 +660,7 @@
         },
         "workflowPlan": {
           "items": {
-            "$ref": "#/definitions/model.WorkflowStepState"
+            "$ref": "#/definitions/adk.WorkflowStepState"
           },
           "type": "array"
         },
@@ -424,6 +679,38 @@
         "status",
         "toolCalls",
         "updatedAt"
+      ],
+      "type": "object"
+    },
+    "adk.RunOptions": {
+      "properties": {
+        "loopMaxIterations": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "adk.RunUsage": {
+      "properties": {
+        "durationMs": {
+          "type": "integer"
+        },
+        "modelCalls": {
+          "type": "integer"
+        },
+        "tokensIn": {
+          "type": "integer"
+        },
+        "tokensOut": {
+          "type": "integer"
+        },
+        "toolCallsTotal": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "modelCalls",
+        "toolCallsTotal"
       ],
       "type": "object"
     },
@@ -503,6 +790,41 @@
       ],
       "type": "object"
     },
+    "adk.SessionContextBreakdown": {
+      "properties": {
+        "handoffTokens": {
+          "type": "integer"
+        },
+        "instructionTokens": {
+          "type": "integer"
+        },
+        "otherVisibleTokens": {
+          "type": "integer"
+        },
+        "pendingUserTokens": {
+          "type": "integer"
+        },
+        "protectedTailTokens": {
+          "type": "integer"
+        },
+        "recentUserTokens": {
+          "type": "integer"
+        },
+        "toolDeclarationTokens": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "handoffTokens",
+        "instructionTokens",
+        "otherVisibleTokens",
+        "pendingUserTokens",
+        "protectedTailTokens",
+        "recentUserTokens",
+        "toolDeclarationTokens"
+      ],
+      "type": "object"
+    },
     "adk.SessionContextSnapshot": {
       "properties": {
         "activeHandoffCount": {
@@ -512,7 +834,7 @@
           "type": "boolean"
         },
         "breakdown": {
-          "$ref": "#/definitions/model.SessionContextBreakdown"
+          "$ref": "#/definitions/adk.SessionContextBreakdown"
         },
         "compactedEventCount": {
           "type": "integer"
@@ -557,7 +879,7 @@
           "type": "integer"
         },
         "rawBreakdown": {
-          "$ref": "#/definitions/model.SessionContextBreakdown"
+          "$ref": "#/definitions/adk.SessionContextBreakdown"
         },
         "rawCurrentInputTokens": {
           "type": "integer"
@@ -613,20 +935,20 @@
     "adk.SessionsResponse": {
       "properties": {
         "composerState": {
-          "$ref": "#/definitions/model.SessionComposerState"
+          "$ref": "#/definitions/adk.SessionComposerState"
         },
         "runs": {
           "items": {
-            "$ref": "#/definitions/model.Run"
+            "$ref": "#/definitions/adk.Run"
           },
           "type": "array"
         },
         "session": {
-          "$ref": "#/definitions/model.Session"
+          "$ref": "#/definitions/adk.Session"
         },
         "timeline": {
           "items": {
-            "$ref": "#/definitions/model.TimelineEntry"
+            "$ref": "#/definitions/adk.TimelineEntry"
           },
           "type": "array"
         }
@@ -790,6 +1112,316 @@
       ],
       "type": "object"
     },
+    "adk.TimelineEntry": {
+      "properties": {
+        "approvals": {
+          "items": {
+            "$ref": "#/definitions/adk.Approval"
+          },
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "inputRequest": {
+          "$ref": "#/definitions/adk.InputRequest"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "originalText": {
+          "type": "string"
+        },
+        "processedText": {
+          "type": "string"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "integer"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "toolCalls": {
+          "items": {
+            "$ref": "#/definitions/adk.ToolCall"
+          },
+          "type": "array"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "createdAt",
+        "id",
+        "kind",
+        "sequence",
+        "sessionId"
+      ],
+      "type": "object"
+    },
+    "adk.ToolCall": {
+      "properties": {
+        "completedAt": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "durationMs": {
+          "type": "integer"
+        },
+        "error": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "idempotencyKey": {
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "output": {},
+        "permission": {
+          "type": "string"
+        },
+        "requiresUser": {
+          "type": "boolean"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "toolName": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "createdAt",
+        "id",
+        "permission",
+        "requiresUser",
+        "runId",
+        "status",
+        "toolName",
+        "updatedAt"
+      ],
+      "type": "object"
+    },
+    "adk.ToolDescriptor": {
+      "properties": {
+        "allowedModes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "category": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "idempotencyMode": {
+          "type": "string"
+        },
+        "inputSchema": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "name": {
+          "type": "string"
+        },
+        "outputSummary": {
+          "type": "string"
+        },
+        "permission": {
+          "type": "string"
+        },
+        "requiredSkills": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "requiresApprovalIn": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "riskLevel": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "allowedModes",
+        "category",
+        "description",
+        "displayName",
+        "name",
+        "permission",
+        "requiresApprovalIn"
+      ],
+      "type": "object"
+    },
+    "adk.TranscriptEntry": {
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "reasoningContent": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "content",
+        "createdAt",
+        "id",
+        "kind",
+        "role",
+        "sessionId"
+      ],
+      "type": "object"
+    },
+    "adk.WorkflowCanvasEdge": {
+      "properties": {
+        "data": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "sourceHandle": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "targetHandle": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "source",
+        "target"
+      ],
+      "type": "object"
+    },
+    "adk.WorkflowCanvasGraph": {
+      "properties": {
+        "edges": {
+          "items": {
+            "$ref": "#/definitions/adk.WorkflowCanvasEdge"
+          },
+          "type": "array"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/definitions/adk.WorkflowCanvasNode"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "string"
+        },
+        "viewport": {
+          "additionalProperties": {},
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "adk.WorkflowCanvasNode": {
+      "properties": {
+        "data": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/definitions/adk.WorkflowCanvasPoint"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "position",
+        "type"
+      ],
+      "type": "object"
+    },
+    "adk.WorkflowCanvasPoint": {
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
     "adk.WorkflowDefinition": {
       "properties": {
         "agentId": {
@@ -799,7 +1431,7 @@
           "type": "boolean"
         },
         "canvasGraph": {
-          "$ref": "#/definitions/model.WorkflowCanvasGraph"
+          "$ref": "#/definitions/adk.WorkflowCanvasGraph"
         },
         "createdAt": {
           "type": "string"
@@ -863,6 +1495,285 @@
       ],
       "type": "object"
     },
+    "adk.WorkflowNodeRun": {
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "finishedAt": {
+          "type": "string"
+        },
+        "inputs": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "nodeId": {
+          "type": "string"
+        },
+        "nodeType": {
+          "type": "string"
+        },
+        "outputs": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "nodeId",
+        "nodeType",
+        "status"
+      ],
+      "type": "object"
+    },
+    "adk.WorkflowResult": {
+      "properties": {
+        "format": {
+          "type": "string"
+        },
+        "json": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "markdown": {
+          "type": "string"
+        },
+        "rawResponse": {
+          "$ref": "#/definitions/adk.ChatResponse"
+        }
+      },
+      "type": "object"
+    },
+    "adk.WorkflowStepState": {
+      "properties": {
+        "agentRole": {
+          "type": "string"
+        },
+        "childAgentId": {
+          "type": "string"
+        },
+        "childModel": {
+          "type": "string"
+        },
+        "childPermissionMode": {
+          "type": "string"
+        },
+        "childProviderId": {
+          "type": "string"
+        },
+        "childRunId": {
+          "type": "string"
+        },
+        "dependsOn": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "description": {
+          "type": "string"
+        },
+        "executor": {
+          "type": "string"
+        },
+        "iteration": {
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        },
+        "modeHint": {
+          "type": "string"
+        },
+        "nodeName": {
+          "type": "string"
+        },
+        "nodeStatus": {
+          "type": "string"
+        },
+        "objective": {
+          "type": "string"
+        },
+        "order": {
+          "type": "integer"
+        },
+        "outputSummary": {
+          "type": "string"
+        },
+        "planSource": {
+          "type": "string"
+        },
+        "plannerStepId": {
+          "type": "string"
+        },
+        "plannerWarnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "resultSummary": {
+          "type": "string"
+        },
+        "routes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "status": {
+          "type": "string"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "workflowMode": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "title"
+      ],
+      "type": "object"
+    },
+    "adk.WorkflowTrigger": {
+      "properties": {
+        "config": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "deletedAt": {
+          "type": "string"
+        },
+        "hasSecret": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "lastError": {
+          "type": "string"
+        },
+        "lastRunAt": {
+          "type": "string"
+        },
+        "lastRunId": {
+          "type": "string"
+        },
+        "nextRunAt": {
+          "type": "string"
+        },
+        "secretHash": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "workflowId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "createdAt",
+        "id",
+        "status",
+        "title",
+        "type",
+        "updatedAt",
+        "workflowId"
+      ],
+      "type": "object"
+    },
+    "adk.WorkflowTriggerLog": {
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "finishedAt": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "inputs": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "matchedEvent": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "nodeRuns": {
+          "items": {
+            "$ref": "#/definitions/adk.WorkflowNodeRun"
+          },
+          "type": "array"
+        },
+        "result": {
+          "$ref": "#/definitions/adk.WorkflowResult"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "triggerId": {
+          "type": "string"
+        },
+        "triggerType": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "workflowId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "createdAt",
+        "id",
+        "status",
+        "triggerType",
+        "updatedAt",
+        "workflowId"
+      ],
+      "type": "object"
+    },
     "assistant.ADKActivityCountData": {
       "properties": {
         "last7Days": {
@@ -882,7 +1793,7 @@
       "properties": {
         "templates": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.AgentWriteRequest"
+            "$ref": "#/definitions/adk.AgentWriteRequest"
           },
           "type": "array"
         }
@@ -954,7 +1865,7 @@
       "properties": {
         "agents": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.Agent"
+            "$ref": "#/definitions/adk.Agent"
           },
           "type": "array"
         },
@@ -1011,7 +1922,7 @@
       "properties": {
         "approvals": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.Approval"
+            "$ref": "#/definitions/adk.Approval"
           },
           "type": "array"
         },
@@ -1029,7 +1940,7 @@
       "properties": {
         "events": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.AuditEvent"
+            "$ref": "#/definitions/adk.AuditEvent"
           },
           "type": "array"
         },
@@ -1068,7 +1979,7 @@
           "type": "string"
         },
         "runOptions": {
-          "$ref": "#/definitions/workflowruntime.RunOptions"
+          "$ref": "#/definitions/adk.RunOptions"
         },
         "sessionId": {
           "type": "string"
@@ -1131,7 +2042,7 @@
       "properties": {
         "answers": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.InputAnswer"
+            "$ref": "#/definitions/adk.InputAnswer"
           },
           "type": "array"
         },
@@ -1175,7 +2086,7 @@
       "properties": {
         "entries": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.MemoryEntry"
+            "$ref": "#/definitions/adk.MemoryEntry"
           },
           "type": "array"
         }
@@ -1453,7 +2364,7 @@
       "properties": {
         "providers": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.Provider"
+            "$ref": "#/definitions/adk.Provider"
           },
           "type": "array"
         }
@@ -1524,7 +2435,7 @@
         },
         "runs": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.Run"
+            "$ref": "#/definitions/adk.Run"
           },
           "type": "array"
         }
@@ -1568,7 +2479,7 @@
         },
         "sessions": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.Session"
+            "$ref": "#/definitions/adk.Session"
           },
           "type": "array"
         }
@@ -1583,7 +2494,7 @@
       "properties": {
         "skills": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.Skill"
+            "$ref": "#/definitions/adk.Skill"
           },
           "type": "array"
         }
@@ -1597,13 +2508,13 @@
       "properties": {
         "agents": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.Agent"
+            "$ref": "#/definitions/adk.Agent"
           },
           "type": "array"
         },
         "providers": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.Provider"
+            "$ref": "#/definitions/adk.Provider"
           },
           "type": "array"
         },
@@ -1612,13 +2523,13 @@
         },
         "skills": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.Skill"
+            "$ref": "#/definitions/adk.Skill"
           },
           "type": "array"
         },
         "tools": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.ToolDescriptor"
+            "$ref": "#/definitions/adk.ToolDescriptor"
           },
           "type": "array"
         }
@@ -1792,7 +2703,7 @@
         },
         "tasks": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.Task"
+            "$ref": "#/definitions/adk.Task"
           },
           "type": "array"
         }
@@ -1840,7 +2751,7 @@
       "properties": {
         "tools": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.ToolDescriptor"
+            "$ref": "#/definitions/adk.ToolDescriptor"
           },
           "type": "array"
         }
@@ -1912,7 +2823,7 @@
           "type": "string"
         },
         "canvasGraph": {
-          "$ref": "#/definitions/workflowruntime.WorkflowCanvasGraph"
+          "$ref": "#/definitions/adk.WorkflowCanvasGraph"
         },
         "defaultInputs": {
           "additionalProperties": {},
@@ -1968,7 +2879,7 @@
           "type": "boolean"
         },
         "workflow": {
-          "$ref": "#/definitions/workflowruntime.WorkflowDefinition"
+          "$ref": "#/definitions/adk.WorkflowDefinition"
         }
       },
       "required": [
@@ -1989,16 +2900,16 @@
     "assistant.ADKWorkflowInvocationData": {
       "properties": {
         "log": {
-          "$ref": "#/definitions/workflowruntime.WorkflowTriggerLog"
+          "$ref": "#/definitions/adk.WorkflowTriggerLog"
         },
         "response": {
-          "$ref": "#/definitions/workflowruntime.ChatResponse"
+          "$ref": "#/definitions/adk.ChatResponse"
         },
         "trigger": {
-          "$ref": "#/definitions/workflowruntime.WorkflowTrigger"
+          "$ref": "#/definitions/adk.WorkflowTrigger"
         },
         "workflow": {
-          "$ref": "#/definitions/workflowruntime.WorkflowDefinition"
+          "$ref": "#/definitions/adk.WorkflowDefinition"
         }
       },
       "required": [
@@ -2058,7 +2969,7 @@
           "type": "boolean"
         },
         "trigger": {
-          "$ref": "#/definitions/workflowruntime.WorkflowTrigger"
+          "$ref": "#/definitions/adk.WorkflowTrigger"
         }
       },
       "required": [
@@ -2071,7 +2982,7 @@
       "properties": {
         "logs": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.WorkflowTriggerLog"
+            "$ref": "#/definitions/adk.WorkflowTriggerLog"
           },
           "type": "array"
         },
@@ -2091,7 +3002,7 @@
           "type": "string"
         },
         "trigger": {
-          "$ref": "#/definitions/workflowruntime.WorkflowTrigger"
+          "$ref": "#/definitions/adk.WorkflowTrigger"
         }
       },
       "required": [
@@ -2130,7 +3041,7 @@
       "properties": {
         "triggers": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.WorkflowTrigger"
+            "$ref": "#/definitions/adk.WorkflowTrigger"
           },
           "type": "array"
         }
@@ -2147,7 +3058,7 @@
         },
         "workflows": {
           "items": {
-            "$ref": "#/definitions/workflowruntime.WorkflowDefinition"
+            "$ref": "#/definitions/adk.WorkflowDefinition"
           },
           "type": "array"
         }
@@ -6285,1021 +7196,6 @@
       "additionalProperties": {},
       "type": "object"
     },
-    "model.Approval": {
-      "properties": {
-        "agentId": {
-          "type": "string"
-        },
-        "confirmationCallId": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "functionCallId": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "input": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "reason": {
-          "type": "string"
-        },
-        "runId": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "toolName": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "agentId",
-        "createdAt",
-        "id",
-        "reason",
-        "runId",
-        "status",
-        "toolName",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "model.ChatResponse": {
-      "properties": {
-        "context": {
-          "$ref": "#/definitions/model.SessionContextSnapshot"
-        },
-        "inputRequest": {
-          "$ref": "#/definitions/model.InputRequest"
-        },
-        "pendingApprovals": {
-          "items": {
-            "$ref": "#/definitions/model.Approval"
-          },
-          "type": "array"
-        },
-        "reasoningContent": {
-          "type": "string"
-        },
-        "reply": {
-          "type": "string"
-        },
-        "run": {
-          "$ref": "#/definitions/model.Run"
-        },
-        "session": {
-          "$ref": "#/definitions/model.Session"
-        },
-        "timeline": {
-          "items": {
-            "$ref": "#/definitions/model.TimelineEntry"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "pendingApprovals",
-        "reply",
-        "run",
-        "session",
-        "timeline"
-      ],
-      "type": "object"
-    },
-    "model.InputAnswer": {
-      "properties": {
-        "optionId": {
-          "type": "string"
-        },
-        "otherText": {
-          "type": "string"
-        },
-        "questionId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "questionId"
-      ],
-      "type": "object"
-    },
-    "model.InputOption": {
-      "properties": {
-        "description": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "recommended": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "id",
-        "label"
-      ],
-      "type": "object"
-    },
-    "model.InputQuestion": {
-      "properties": {
-        "allowOther": {
-          "type": "boolean"
-        },
-        "id": {
-          "type": "string"
-        },
-        "options": {
-          "items": {
-            "$ref": "#/definitions/model.InputOption"
-          },
-          "type": "array"
-        },
-        "question": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "allowOther",
-        "id",
-        "options",
-        "question"
-      ],
-      "type": "object"
-    },
-    "model.InputRequest": {
-      "properties": {
-        "agentId": {
-          "type": "string"
-        },
-        "answeredAt": {
-          "type": "string"
-        },
-        "answers": {
-          "items": {
-            "$ref": "#/definitions/model.InputAnswer"
-          },
-          "type": "array"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "functionCallId": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "questions": {
-          "items": {
-            "$ref": "#/definitions/model.InputQuestion"
-          },
-          "type": "array"
-        },
-        "runId": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "agentId",
-        "createdAt",
-        "functionCallId",
-        "id",
-        "questions",
-        "runId",
-        "status",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "model.Run": {
-      "properties": {
-        "agentId": {
-          "type": "string"
-        },
-        "cancelledAt": {
-          "type": "string"
-        },
-        "childRunIds": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "completedAt": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "degraded": {
-          "type": "boolean"
-        },
-        "errorCode": {
-          "type": "string"
-        },
-        "failureReason": {
-          "type": "string"
-        },
-        "finalMessageId": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "inputRequest": {
-          "$ref": "#/definitions/model.InputRequest"
-        },
-        "inputRequests": {
-          "items": {
-            "$ref": "#/definitions/model.InputRequest"
-          },
-          "type": "array"
-        },
-        "iteration": {
-          "type": "integer"
-        },
-        "maxDurationMs": {
-          "type": "integer"
-        },
-        "message": {
-          "type": "string"
-        },
-        "model": {
-          "type": "string"
-        },
-        "objective": {
-          "type": "string"
-        },
-        "optimizationTaskId": {
-          "type": "string"
-        },
-        "parentRunId": {
-          "type": "string"
-        },
-        "pauseRequestedAt": {
-          "type": "string"
-        },
-        "pausedAt": {
-          "type": "string"
-        },
-        "pausedReason": {
-          "type": "string"
-        },
-        "pendingApprovals": {
-          "items": {
-            "$ref": "#/definitions/model.Approval"
-          },
-          "type": "array"
-        },
-        "permissionMode": {
-          "type": "string"
-        },
-        "preToolContent": {
-          "type": "string"
-        },
-        "preToolReasoning": {
-          "type": "string"
-        },
-        "providerId": {
-          "type": "string"
-        },
-        "providerName": {
-          "type": "string"
-        },
-        "resumeState": {
-          "type": "string"
-        },
-        "sessionId": {
-          "type": "string"
-        },
-        "startedAt": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "toolCalls": {
-          "items": {
-            "$ref": "#/definitions/model.ToolCall"
-          },
-          "type": "array"
-        },
-        "toolSummaries": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "usage": {
-          "$ref": "#/definitions/model.RunUsage"
-        },
-        "userMessage": {
-          "type": "string"
-        },
-        "workMode": {
-          "type": "string"
-        },
-        "workflowCursor": {
-          "type": "integer"
-        },
-        "workflowEngine": {
-          "type": "string"
-        },
-        "workflowPlan": {
-          "items": {
-            "$ref": "#/definitions/model.WorkflowStepState"
-          },
-          "type": "array"
-        },
-        "workflowStatus": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "agentId",
-        "createdAt",
-        "id",
-        "maxDurationMs",
-        "message",
-        "pendingApprovals",
-        "sessionId",
-        "status",
-        "toolCalls",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "model.RunUsage": {
-      "properties": {
-        "durationMs": {
-          "type": "integer"
-        },
-        "modelCalls": {
-          "type": "integer"
-        },
-        "tokensIn": {
-          "type": "integer"
-        },
-        "tokensOut": {
-          "type": "integer"
-        },
-        "toolCallsTotal": {
-          "type": "integer"
-        }
-      },
-      "required": [
-        "modelCalls",
-        "toolCallsTotal"
-      ],
-      "type": "object"
-    },
-    "model.Session": {
-      "properties": {
-        "agentId": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "workflowId": {
-          "type": "string"
-        },
-        "workflowName": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "agentId",
-        "createdAt",
-        "id",
-        "title",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "model.SessionComposerState": {
-      "properties": {
-        "chatDraft": {
-          "type": "string"
-        },
-        "goalObjectiveDraft": {
-          "type": "string"
-        },
-        "goalObjectiveTouched": {
-          "type": "boolean"
-        },
-        "modelOverride": {
-          "type": "string"
-        },
-        "permissionModeOverride": {
-          "type": "string"
-        },
-        "providerIdOverride": {
-          "type": "string"
-        },
-        "sessionId": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "workModeOverride": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "chatDraft",
-        "goalObjectiveDraft",
-        "goalObjectiveTouched",
-        "modelOverride",
-        "permissionModeOverride",
-        "providerIdOverride",
-        "sessionId",
-        "updatedAt",
-        "workModeOverride"
-      ],
-      "type": "object"
-    },
-    "model.SessionContextBreakdown": {
-      "properties": {
-        "handoffTokens": {
-          "type": "integer"
-        },
-        "instructionTokens": {
-          "type": "integer"
-        },
-        "otherVisibleTokens": {
-          "type": "integer"
-        },
-        "pendingUserTokens": {
-          "type": "integer"
-        },
-        "protectedTailTokens": {
-          "type": "integer"
-        },
-        "recentUserTokens": {
-          "type": "integer"
-        },
-        "toolDeclarationTokens": {
-          "type": "integer"
-        }
-      },
-      "required": [
-        "handoffTokens",
-        "instructionTokens",
-        "otherVisibleTokens",
-        "pendingUserTokens",
-        "protectedTailTokens",
-        "recentUserTokens",
-        "toolDeclarationTokens"
-      ],
-      "type": "object"
-    },
-    "model.SessionContextSnapshot": {
-      "properties": {
-        "activeHandoffCount": {
-          "type": "integer"
-        },
-        "autoCompacted": {
-          "type": "boolean"
-        },
-        "breakdown": {
-          "$ref": "#/definitions/model.SessionContextBreakdown"
-        },
-        "compactedEventCount": {
-          "type": "integer"
-        },
-        "contextRevisionCreatedAt": {
-          "type": "string"
-        },
-        "contextRevisionId": {
-          "type": "string"
-        },
-        "contextWindowTokens": {
-          "type": "integer"
-        },
-        "currentInputTokens": {
-          "type": "integer"
-        },
-        "degradedSummary": {
-          "type": "boolean"
-        },
-        "estimatedInputTokens": {
-          "type": "integer"
-        },
-        "lastCompactedAt": {
-          "type": "string"
-        },
-        "lastCompactionMode": {
-          "type": "string"
-        },
-        "lastCompactionReason": {
-          "type": "string"
-        },
-        "latestHandoffPreview": {
-          "type": "string"
-        },
-        "previousContextRevisionId": {
-          "type": "string"
-        },
-        "projectedNextTurnTokens": {
-          "type": "integer"
-        },
-        "protectedRecentCount": {
-          "type": "integer"
-        },
-        "rawBreakdown": {
-          "$ref": "#/definitions/model.SessionContextBreakdown"
-        },
-        "rawCurrentInputTokens": {
-          "type": "integer"
-        },
-        "rawEventCount": {
-          "type": "integer"
-        },
-        "rawProjectedNextTurnTokens": {
-          "type": "integer"
-        },
-        "recentUserWindow": {
-          "type": "integer"
-        },
-        "retainedRecentUserCount": {
-          "type": "integer"
-        },
-        "sessionId": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "summaryBoundaryEventIndex": {
-          "type": "integer"
-        },
-        "summaryPreview": {
-          "type": "string"
-        },
-        "trimmedToolResponseCount": {
-          "type": "integer"
-        },
-        "usageRatio": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "activeHandoffCount",
-        "autoCompacted",
-        "breakdown",
-        "contextWindowTokens",
-        "currentInputTokens",
-        "degradedSummary",
-        "projectedNextTurnTokens",
-        "rawBreakdown",
-        "recentUserWindow",
-        "retainedRecentUserCount",
-        "sessionId",
-        "status",
-        "usageRatio"
-      ],
-      "type": "object"
-    },
-    "model.TimelineEntry": {
-      "properties": {
-        "approvals": {
-          "items": {
-            "$ref": "#/definitions/model.Approval"
-          },
-          "type": "array"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "inputRequest": {
-          "$ref": "#/definitions/model.InputRequest"
-        },
-        "kind": {
-          "type": "string"
-        },
-        "originalText": {
-          "type": "string"
-        },
-        "processedText": {
-          "type": "string"
-        },
-        "runId": {
-          "type": "string"
-        },
-        "sequence": {
-          "type": "integer"
-        },
-        "sessionId": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "text": {
-          "type": "string"
-        },
-        "toolCalls": {
-          "items": {
-            "$ref": "#/definitions/model.ToolCall"
-          },
-          "type": "array"
-        },
-        "updatedAt": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "createdAt",
-        "id",
-        "kind",
-        "sequence",
-        "sessionId"
-      ],
-      "type": "object"
-    },
-    "model.ToolCall": {
-      "properties": {
-        "completedAt": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "durationMs": {
-          "type": "integer"
-        },
-        "error": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "idempotencyKey": {
-          "type": "string"
-        },
-        "input": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "output": {},
-        "permission": {
-          "type": "string"
-        },
-        "requiresUser": {
-          "type": "boolean"
-        },
-        "runId": {
-          "type": "string"
-        },
-        "startedAt": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "toolName": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "createdAt",
-        "id",
-        "permission",
-        "requiresUser",
-        "runId",
-        "status",
-        "toolName",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "model.TranscriptEntry": {
-      "properties": {
-        "content": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "type": "string"
-        },
-        "reasoningContent": {
-          "type": "string"
-        },
-        "role": {
-          "type": "string"
-        },
-        "runId": {
-          "type": "string"
-        },
-        "sessionId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "content",
-        "createdAt",
-        "id",
-        "kind",
-        "role",
-        "sessionId"
-      ],
-      "type": "object"
-    },
-    "model.WorkflowCanvasEdge": {
-      "properties": {
-        "data": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "id": {
-          "type": "string"
-        },
-        "source": {
-          "type": "string"
-        },
-        "sourceHandle": {
-          "type": "string"
-        },
-        "target": {
-          "type": "string"
-        },
-        "targetHandle": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "source",
-        "target"
-      ],
-      "type": "object"
-    },
-    "model.WorkflowCanvasGraph": {
-      "properties": {
-        "edges": {
-          "items": {
-            "$ref": "#/definitions/model.WorkflowCanvasEdge"
-          },
-          "type": "array"
-        },
-        "nodes": {
-          "items": {
-            "$ref": "#/definitions/model.WorkflowCanvasNode"
-          },
-          "type": "array"
-        },
-        "version": {
-          "type": "string"
-        },
-        "viewport": {
-          "additionalProperties": {},
-          "type": "object"
-        }
-      },
-      "type": "object"
-    },
-    "model.WorkflowCanvasNode": {
-      "properties": {
-        "data": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "id": {
-          "type": "string"
-        },
-        "position": {
-          "$ref": "#/definitions/model.WorkflowCanvasPoint"
-        },
-        "type": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "position",
-        "type"
-      ],
-      "type": "object"
-    },
-    "model.WorkflowCanvasPoint": {
-      "properties": {
-        "x": {
-          "type": "number"
-        },
-        "y": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "x",
-        "y"
-      ],
-      "type": "object"
-    },
-    "model.WorkflowNodeRun": {
-      "properties": {
-        "error": {
-          "type": "string"
-        },
-        "finishedAt": {
-          "type": "string"
-        },
-        "inputs": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "nodeId": {
-          "type": "string"
-        },
-        "nodeType": {
-          "type": "string"
-        },
-        "outputs": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "startedAt": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "nodeId",
-        "nodeType",
-        "status"
-      ],
-      "type": "object"
-    },
-    "model.WorkflowResult": {
-      "properties": {
-        "format": {
-          "type": "string"
-        },
-        "json": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "markdown": {
-          "type": "string"
-        },
-        "rawResponse": {
-          "$ref": "#/definitions/model.ChatResponse"
-        }
-      },
-      "type": "object"
-    },
-    "model.WorkflowStepState": {
-      "properties": {
-        "agentRole": {
-          "type": "string"
-        },
-        "childAgentId": {
-          "type": "string"
-        },
-        "childModel": {
-          "type": "string"
-        },
-        "childPermissionMode": {
-          "type": "string"
-        },
-        "childProviderId": {
-          "type": "string"
-        },
-        "childRunId": {
-          "type": "string"
-        },
-        "dependsOn": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "description": {
-          "type": "string"
-        },
-        "executor": {
-          "type": "string"
-        },
-        "iteration": {
-          "type": "integer"
-        },
-        "message": {
-          "type": "string"
-        },
-        "modeHint": {
-          "type": "string"
-        },
-        "nodeName": {
-          "type": "string"
-        },
-        "nodeStatus": {
-          "type": "string"
-        },
-        "objective": {
-          "type": "string"
-        },
-        "order": {
-          "type": "integer"
-        },
-        "outputSummary": {
-          "type": "string"
-        },
-        "planSource": {
-          "type": "string"
-        },
-        "plannerStepId": {
-          "type": "string"
-        },
-        "plannerWarnings": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "resultSummary": {
-          "type": "string"
-        },
-        "routes": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "status": {
-          "type": "string"
-        },
-        "taskId": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "workflowMode": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "status",
-        "title"
-      ],
-      "type": "object"
-    },
     "observability.Event": {
       "properties": {
         "accountId": {
@@ -8334,6 +8230,34 @@
       "required": [
         "brokerFees",
         "marketFees"
+      ],
+      "type": "object"
+    },
+    "servercore.WebSessionData": {
+      "properties": {
+        "authenticated": {
+          "type": "boolean"
+        },
+        "csrfToken": {
+          "type": "string"
+        },
+        "expiresAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "authenticated"
+      ],
+      "type": "object"
+    },
+    "servercore.webLoginRequest": {
+      "properties": {
+        "password": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "password"
       ],
       "type": "object"
     },
@@ -15266,1050 +15190,6 @@
         "sources"
       ],
       "type": "object"
-    },
-    "webaccess.WebSessionData": {
-      "properties": {
-        "authenticated": {
-          "type": "boolean"
-        },
-        "csrfToken": {
-          "type": "string"
-        },
-        "expiresAt": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "authenticated"
-      ],
-      "type": "object"
-    },
-    "webaccess.webLoginRequest": {
-      "properties": {
-        "password": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "password"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.Agent": {
-      "properties": {
-        "builtin": {
-          "type": "boolean"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "deletedAt": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "instruction": {
-          "type": "string"
-        },
-        "loopMaxIterations": {
-          "type": "integer"
-        },
-        "memoryEnabled": {
-          "type": "boolean"
-        },
-        "model": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "permissionMode": {
-          "type": "string"
-        },
-        "providerId": {
-          "type": "string"
-        },
-        "recentUserWindow": {
-          "type": "integer"
-        },
-        "skills": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "status": {
-          "type": "string"
-        },
-        "tools": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "workMode": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "createdAt",
-        "id",
-        "instruction",
-        "loopMaxIterations",
-        "memoryEnabled",
-        "model",
-        "name",
-        "permissionMode",
-        "providerId",
-        "recentUserWindow",
-        "skills",
-        "status",
-        "tools",
-        "updatedAt",
-        "workMode"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.AgentWriteRequest": {
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "instruction": {
-          "type": "string"
-        },
-        "loopMaxIterations": {
-          "type": "integer"
-        },
-        "memoryEnabled": {
-          "type": "boolean"
-        },
-        "model": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "permissionMode": {
-          "type": "string"
-        },
-        "providerId": {
-          "type": "string"
-        },
-        "recentUserWindow": {
-          "type": "integer"
-        },
-        "skills": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "status": {
-          "type": "string"
-        },
-        "tools": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "workMode": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "instruction",
-        "memoryEnabled",
-        "name",
-        "permissionMode",
-        "providerId",
-        "status"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.Approval": {
-      "properties": {
-        "agentId": {
-          "type": "string"
-        },
-        "confirmationCallId": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "functionCallId": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "input": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "reason": {
-          "type": "string"
-        },
-        "runId": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "toolName": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "agentId",
-        "createdAt",
-        "id",
-        "reason",
-        "runId",
-        "status",
-        "toolName",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.AuditEvent": {
-      "properties": {
-        "createdAt": {
-          "type": "string"
-        },
-        "detail": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "type": "string"
-        },
-        "metadata": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "subjectId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "createdAt",
-        "detail",
-        "id",
-        "kind"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.ChatResponse": {
-      "properties": {
-        "context": {
-          "$ref": "#/definitions/model.SessionContextSnapshot"
-        },
-        "inputRequest": {
-          "$ref": "#/definitions/model.InputRequest"
-        },
-        "pendingApprovals": {
-          "items": {
-            "$ref": "#/definitions/model.Approval"
-          },
-          "type": "array"
-        },
-        "reasoningContent": {
-          "type": "string"
-        },
-        "reply": {
-          "type": "string"
-        },
-        "run": {
-          "$ref": "#/definitions/model.Run"
-        },
-        "session": {
-          "$ref": "#/definitions/model.Session"
-        },
-        "timeline": {
-          "items": {
-            "$ref": "#/definitions/model.TimelineEntry"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "pendingApprovals",
-        "reply",
-        "run",
-        "session",
-        "timeline"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.InputAnswer": {
-      "properties": {
-        "optionId": {
-          "type": "string"
-        },
-        "otherText": {
-          "type": "string"
-        },
-        "questionId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "questionId"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.MemoryEntry": {
-      "properties": {
-        "agentId": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "key": {
-          "type": "string"
-        },
-        "scope": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "createdAt",
-        "id",
-        "key",
-        "scope",
-        "updatedAt",
-        "value"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.Provider": {
-      "properties": {
-        "apiProtocol": {
-          "enum": [
-            "chat_completions",
-            "responses"
-          ],
-          "type": "string"
-        },
-        "baseUrl": {
-          "type": "string"
-        },
-        "capabilities": {
-          "additionalProperties": {
-            "type": "boolean"
-          },
-          "type": "object"
-        },
-        "contextWindowTokens": {
-          "type": "integer"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "default": {
-          "type": "boolean"
-        },
-        "defaultHeaders": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        "displayName": {
-          "type": "string"
-        },
-        "enabled": {
-          "type": "boolean"
-        },
-        "hasApiKey": {
-          "type": "boolean"
-        },
-        "id": {
-          "type": "string"
-        },
-        "model": {
-          "type": "string"
-        },
-        "requestTimeoutMs": {
-          "type": "integer"
-        },
-        "updatedAt": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "apiProtocol",
-        "baseUrl",
-        "createdAt",
-        "default",
-        "displayName",
-        "enabled",
-        "hasApiKey",
-        "id",
-        "model",
-        "requestTimeoutMs",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.Run": {
-      "properties": {
-        "agentId": {
-          "type": "string"
-        },
-        "cancelledAt": {
-          "type": "string"
-        },
-        "childRunIds": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "completedAt": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "degraded": {
-          "type": "boolean"
-        },
-        "errorCode": {
-          "type": "string"
-        },
-        "failureReason": {
-          "type": "string"
-        },
-        "finalMessageId": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "inputRequest": {
-          "$ref": "#/definitions/model.InputRequest"
-        },
-        "inputRequests": {
-          "items": {
-            "$ref": "#/definitions/model.InputRequest"
-          },
-          "type": "array"
-        },
-        "iteration": {
-          "type": "integer"
-        },
-        "maxDurationMs": {
-          "type": "integer"
-        },
-        "message": {
-          "type": "string"
-        },
-        "model": {
-          "type": "string"
-        },
-        "objective": {
-          "type": "string"
-        },
-        "optimizationTaskId": {
-          "type": "string"
-        },
-        "parentRunId": {
-          "type": "string"
-        },
-        "pauseRequestedAt": {
-          "type": "string"
-        },
-        "pausedAt": {
-          "type": "string"
-        },
-        "pausedReason": {
-          "type": "string"
-        },
-        "pendingApprovals": {
-          "items": {
-            "$ref": "#/definitions/model.Approval"
-          },
-          "type": "array"
-        },
-        "permissionMode": {
-          "type": "string"
-        },
-        "preToolContent": {
-          "type": "string"
-        },
-        "preToolReasoning": {
-          "type": "string"
-        },
-        "providerId": {
-          "type": "string"
-        },
-        "providerName": {
-          "type": "string"
-        },
-        "resumeState": {
-          "type": "string"
-        },
-        "sessionId": {
-          "type": "string"
-        },
-        "startedAt": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "toolCalls": {
-          "items": {
-            "$ref": "#/definitions/model.ToolCall"
-          },
-          "type": "array"
-        },
-        "toolSummaries": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "usage": {
-          "$ref": "#/definitions/model.RunUsage"
-        },
-        "userMessage": {
-          "type": "string"
-        },
-        "workMode": {
-          "type": "string"
-        },
-        "workflowCursor": {
-          "type": "integer"
-        },
-        "workflowEngine": {
-          "type": "string"
-        },
-        "workflowPlan": {
-          "items": {
-            "$ref": "#/definitions/model.WorkflowStepState"
-          },
-          "type": "array"
-        },
-        "workflowStatus": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "agentId",
-        "createdAt",
-        "id",
-        "maxDurationMs",
-        "message",
-        "pendingApprovals",
-        "sessionId",
-        "status",
-        "toolCalls",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.RunOptions": {
-      "properties": {
-        "loopMaxIterations": {
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "workflowruntime.Session": {
-      "properties": {
-        "agentId": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "workflowId": {
-          "type": "string"
-        },
-        "workflowName": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "agentId",
-        "createdAt",
-        "id",
-        "title",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.Skill": {
-      "properties": {
-        "builtin": {
-          "type": "boolean"
-        },
-        "contentHash": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "displayName": {
-          "type": "string"
-        },
-        "enabled": {
-          "type": "boolean"
-        },
-        "id": {
-          "type": "string"
-        },
-        "installPath": {
-          "type": "string"
-        },
-        "source": {
-          "type": "string"
-        },
-        "tools": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "validationError": {
-          "type": "string"
-        },
-        "validationStatus": {
-          "type": "string"
-        },
-        "version": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "builtin",
-        "createdAt",
-        "description",
-        "displayName",
-        "enabled",
-        "id",
-        "installPath",
-        "source",
-        "tools",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.Task": {
-      "properties": {
-        "agentId": {
-          "type": "string"
-        },
-        "agentRole": {
-          "type": "string"
-        },
-        "childAgentId": {
-          "type": "string"
-        },
-        "childModel": {
-          "type": "string"
-        },
-        "childPermissionMode": {
-          "type": "string"
-        },
-        "childProviderId": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "dependsOn": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "description": {
-          "type": "string"
-        },
-        "executor": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
-        },
-        "modeHint": {
-          "type": "string"
-        },
-        "objective": {
-          "type": "string"
-        },
-        "order": {
-          "type": "integer"
-        },
-        "planSource": {
-          "type": "string"
-        },
-        "plannerStepId": {
-          "type": "string"
-        },
-        "plannerWarnings": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "resultSummary": {
-          "type": "string"
-        },
-        "runId": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "workflowMode": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "createdAt",
-        "id",
-        "status",
-        "title",
-        "updatedAt"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.ToolDescriptor": {
-      "properties": {
-        "allowedModes": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "category": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "displayName": {
-          "type": "string"
-        },
-        "idempotencyMode": {
-          "type": "string"
-        },
-        "inputSchema": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "name": {
-          "type": "string"
-        },
-        "outputSummary": {
-          "type": "string"
-        },
-        "permission": {
-          "type": "string"
-        },
-        "requiredSkills": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "requiresApprovalIn": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "riskLevel": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "allowedModes",
-        "category",
-        "description",
-        "displayName",
-        "name",
-        "permission",
-        "requiresApprovalIn"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.WorkflowCanvasGraph": {
-      "properties": {
-        "edges": {
-          "items": {
-            "$ref": "#/definitions/model.WorkflowCanvasEdge"
-          },
-          "type": "array"
-        },
-        "nodes": {
-          "items": {
-            "$ref": "#/definitions/model.WorkflowCanvasNode"
-          },
-          "type": "array"
-        },
-        "version": {
-          "type": "string"
-        },
-        "viewport": {
-          "additionalProperties": {},
-          "type": "object"
-        }
-      },
-      "type": "object"
-    },
-    "workflowruntime.WorkflowDefinition": {
-      "properties": {
-        "agentId": {
-          "type": "string"
-        },
-        "builtinTemplate": {
-          "type": "boolean"
-        },
-        "canvasGraph": {
-          "$ref": "#/definitions/model.WorkflowCanvasGraph"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "defaultInputs": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "deletedAt": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "model": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "objectiveTemplate": {
-          "type": "string"
-        },
-        "permissionMode": {
-          "type": "string"
-        },
-        "promptTemplate": {
-          "type": "string"
-        },
-        "providerId": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "tags": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "workMode": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "agentId",
-        "createdAt",
-        "id",
-        "name",
-        "promptTemplate",
-        "status",
-        "updatedAt",
-        "workMode"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.WorkflowTrigger": {
-      "properties": {
-        "config": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "deletedAt": {
-          "type": "string"
-        },
-        "hasSecret": {
-          "type": "boolean"
-        },
-        "id": {
-          "type": "string"
-        },
-        "lastError": {
-          "type": "string"
-        },
-        "lastRunAt": {
-          "type": "string"
-        },
-        "lastRunId": {
-          "type": "string"
-        },
-        "nextRunAt": {
-          "type": "string"
-        },
-        "secretHash": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "workflowId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "createdAt",
-        "id",
-        "status",
-        "title",
-        "type",
-        "updatedAt",
-        "workflowId"
-      ],
-      "type": "object"
-    },
-    "workflowruntime.WorkflowTriggerLog": {
-      "properties": {
-        "createdAt": {
-          "type": "string"
-        },
-        "error": {
-          "type": "string"
-        },
-        "finishedAt": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "inputs": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "matchedEvent": {
-          "additionalProperties": {},
-          "type": "object"
-        },
-        "nodeRuns": {
-          "items": {
-            "$ref": "#/definitions/model.WorkflowNodeRun"
-          },
-          "type": "array"
-        },
-        "result": {
-          "$ref": "#/definitions/model.WorkflowResult"
-        },
-        "runId": {
-          "type": "string"
-        },
-        "sessionId": {
-          "type": "string"
-        },
-        "startedAt": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "triggerId": {
-          "type": "string"
-        },
-        "triggerType": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "workflowId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "createdAt",
-        "id",
-        "status",
-        "triggerType",
-        "updatedAt",
-        "workflowId"
-      ],
-      "type": "object"
     }
   },
   "host": "",
@@ -20292,7 +19172,7 @@
             "name": "request",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/webaccess.webLoginRequest"
+              "$ref": "#/definitions/servercore.webLoginRequest"
             }
           }
         ],
@@ -20310,7 +19190,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/webaccess.WebSessionData"
+                      "$ref": "#/definitions/servercore.WebSessionData"
                     }
                   },
                   "type": "object"
@@ -20389,7 +19269,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/webaccess.WebSessionData"
+                      "$ref": "#/definitions/servercore.WebSessionData"
                     }
                   },
                   "type": "object"
@@ -20432,7 +19312,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/webaccess.WebSessionData"
+                      "$ref": "#/definitions/servercore.WebSessionData"
                     }
                   },
                   "type": "object"

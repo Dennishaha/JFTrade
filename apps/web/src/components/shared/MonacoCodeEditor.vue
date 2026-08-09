@@ -9,6 +9,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import { useTheme } from "@/composables/settings/useTheme";
 import {
+  loadMonacoTypeScriptSupport,
+  type MonacoTypeScriptSupport,
+} from "@/monacoTypescriptSupport";
+import {
   buildContextAwareSuggestions,
   createCompletionRange,
   ensurePineV6Language,
@@ -69,6 +73,7 @@ const fallbackTextareaRef = ref<HTMLTextAreaElement | null>(null);
 const isFallbackMode = ref(shouldUseMonacoFallback());
 
 let monaco: MonacoModule | null = null;
+let typescriptSupport: MonacoTypeScriptSupport | null = null;
 let editor: MonacoEditorNamespace.IStandaloneCodeEditor | null = null;
 let skipEditorChange = false;
 
@@ -150,14 +155,7 @@ watch(
 watch(
   () => props.language,
   (nextLanguage) => {
-    if (isFallbackMode.value || editor === null || monaco === null) {
-      return;
-    }
-    const model = editor.getModel();
-    if (model === null) {
-      return;
-    }
-    monaco.editor.setModelLanguage(model, nextLanguage);
+    void updateModelLanguage(nextLanguage);
   },
 );
 
@@ -326,6 +324,76 @@ function getMonacoTheme(): "vs" | "vs-dark" {
   return theme.value === "light" ? "vs" : "vs-dark";
 }
 
+function needsTypeScriptSupport(): boolean {
+  return (
+    props.language === "javascript" ||
+    props.language === "typescript" ||
+    props.extraLibs.length > 0
+  );
+}
+
+function configureEditorWorker(EditorWorker: new () => Worker): void {
+  (
+    globalThis as typeof globalThis & {
+      MonacoEnvironment?: {
+        getWorker: (_moduleId: string, label: string) => Worker;
+      };
+    }
+  ).MonacoEnvironment = {
+    getWorker: () => new EditorWorker(),
+  };
+}
+
+function configureTypeScriptSupport(
+  nextTypeScriptSupport: MonacoTypeScriptSupport,
+): void {
+  nextTypeScriptSupport.javascriptDefaults.setEagerModelSync(true);
+  nextTypeScriptSupport.javascriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: false,
+    noSyntaxValidation: false,
+  });
+  nextTypeScriptSupport.javascriptDefaults.setCompilerOptions({
+    allowNonTsExtensions: true,
+    allowJs: true,
+    checkJs: true,
+    target: nextTypeScriptSupport.ScriptTarget.ES2020,
+    module: nextTypeScriptSupport.ModuleKind.ESNext,
+  });
+}
+
+async function ensureTypeScriptSupport(): Promise<MonacoTypeScriptSupport> {
+  if (typescriptSupport !== null) {
+    return typescriptSupport;
+  }
+  const nextTypeScriptSupport = await loadMonacoTypeScriptSupport();
+  if (isUnmounted) {
+    return nextTypeScriptSupport;
+  }
+  configureTypeScriptSupport(nextTypeScriptSupport);
+  typescriptSupport = nextTypeScriptSupport;
+  return nextTypeScriptSupport;
+}
+
+async function updateModelLanguage(nextLanguage: string): Promise<void> {
+  if (isFallbackMode.value || editor === null || monaco === null) {
+    return;
+  }
+  if (
+    (nextLanguage === "javascript" || nextLanguage === "typescript") &&
+    typescriptSupport === null
+  ) {
+    await ensureTypeScriptSupport();
+  }
+  if (isUnmounted || editor === null || monaco === null) {
+    return;
+  }
+  const model = editor.getModel();
+  if (model === null) {
+    return;
+  }
+  monaco.editor.setModelLanguage(model, nextLanguage);
+}
+
 async function initializeMonaco(): Promise<void> {
   const target = containerRef.value;
   if (!canMountEditor(target) || editor !== null) {
@@ -335,58 +403,43 @@ async function initializeMonaco(): Promise<void> {
   const generation = ++initializationGeneration;
 
   try {
-    const editorWorkerModule = await import(
-      "monaco-editor/editor/editor.worker?worker"
-    );
-    const typescriptWorkerModule = await import(
-      "monaco-editor/language/typescript/ts.worker?worker"
-    );
-    const monacoModule = await import("monaco-editor");
+    const [editorWorkerModule, monacoModule, nextTypeScriptSupport] =
+      await Promise.all([
+        import("monaco-editor/editor/editor.worker?worker"),
+        import("monaco-editor"),
+        needsTypeScriptSupport()
+          ? loadMonacoTypeScriptSupport()
+          : Promise.resolve(null),
+      ]);
 
     if (shouldAbortInitialization(generation, target)) {
       return;
     }
 
     const EditorWorker = editorWorkerModule.default;
-    const TypeScriptWorker = typescriptWorkerModule.default;
     const nextMonaco = monacoModule;
 
-    (
-      globalThis as typeof globalThis & {
-        MonacoEnvironment?: {
-          getWorker: (_moduleId: string, label: string) => Worker;
-        };
-      }
-    ).MonacoEnvironment = {
-      getWorker: (_moduleId, label) => {
-        if (label === "javascript" || label === "typescript") {
-          return new TypeScriptWorker();
-        }
-        return new EditorWorker();
-      },
-    };
+    configureEditorWorker(EditorWorker);
+    if (nextTypeScriptSupport !== null) {
+      configureTypeScriptSupport(nextTypeScriptSupport);
+      typescriptSupport = nextTypeScriptSupport;
+      // Monaco 0.56 的 TypeScript workerManager 会在首次使用时通过
+      // ts.worker.js 自己创建 worker；这里仍保留统一的 editor worker
+      // 环境，避免 standaloneWebWorkerService 丢失 editor worker 工厂。
+    }
 
     monaco = nextMonaco;
     ensurePineV6Language(monaco);
-    monaco.typescript.javascriptDefaults.setEagerModelSync(true);
-    monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
-      noSemanticValidation: false,
-      noSyntaxValidation: false,
-    });
-    monaco.typescript.javascriptDefaults.setCompilerOptions({
-      allowNonTsExtensions: true,
-      allowJs: true,
-      checkJs: true,
-      target: monaco.typescript.ScriptTarget.ES2020,
-      module: monaco.typescript.ModuleKind.ESNext,
-    });
 
-    const nextExtraLibDisposables = props.extraLibs.map((extraLib) =>
-      monaco!.typescript.javascriptDefaults.addExtraLib(
-        extraLib.content,
-        extraLib.filePath,
-      ),
-    );
+    const nextExtraLibDisposables =
+      nextTypeScriptSupport?.javascriptDefaults === undefined
+        ? []
+        : props.extraLibs.map((extraLib) =>
+            nextTypeScriptSupport.javascriptDefaults.addExtraLib(
+              extraLib.content,
+              extraLib.filePath,
+            ),
+          );
 
     let nextCompletionProviderDisposable: IDisposable | null = null;
     let nextHoverProviderDisposable: IDisposable | null = null;

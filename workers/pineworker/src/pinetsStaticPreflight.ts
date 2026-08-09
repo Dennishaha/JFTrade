@@ -467,4 +467,3 @@ function requestSecurityPreflightError(message: string): Error {
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
-

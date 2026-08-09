@@ -32,22 +32,12 @@ export const parallelPreflightChecks = preflightChecks.slice(0, 13);
 export const sequentialPreflightChecks = preflightChecks.slice(13);
 
 const checkGenerated = ["pnpm", ["run", "check:generated"]];
-const contractDriftCheck = [
-  "git",
-  [
-    "diff",
-    "--exit-code",
-    "--",
-    "docs/swagger",
-    "apps/web/src/generated/openapi.ts",
-    "tests/fixtures/openapi-baseline.json",
-    "docs/reference/generated",
-  ],
-];
+const checkDiff = ["pnpm", ["run", "check:diff"]];
+const checkActionlint = ["pnpm", ["run", "check:actionlint"]];
 
 const ciLocalBeforePreflight = [
   checkGenerated,
-  contractDriftCheck,
+  checkDiff,
   ["pnpm", ["run", "audit:dependencies"]],
   ["pnpm", ["run", "check:oss-license"]],
 ];
@@ -74,23 +64,26 @@ const ciLocalAfterPreflight = [
 const sequentialStage = (...commands) => ({ mode: "sequential", commands });
 const parallelStage = (...commands) => ({ mode: "parallel", commands });
 
+const ciLocalStages = [
+  sequentialStage(...ciLocalBeforePreflight),
+  parallelStage(...parallelPreflightChecks),
+  sequentialStage(...sequentialPreflightChecks, ...ciLocalAfterPreflight),
+];
+const mainAfterCiLocal = [
+  checkActionlint,
+  ["pnpm", ["run", "test:go"]],
+  ["pnpm", ["run", "test:desktop"]],
+  ["pnpm", ["run", "smoke:pinets-backtest"]],
+];
+
 const layerStages = {
   preflight: [
-    sequentialStage(checkGenerated),
+    sequentialStage(checkGenerated, checkDiff),
     parallelStage(...parallelPreflightChecks),
     sequentialStage(...sequentialPreflightChecks),
   ],
-  "ci-local": [
-    sequentialStage(...ciLocalBeforePreflight),
-    parallelStage(...parallelPreflightChecks),
-    sequentialStage(...sequentialPreflightChecks, ...ciLocalAfterPreflight),
-  ],
-  main: [sequentialStage(
-    ["pnpm", ["run", "test:ci-local"]],
-    ["pnpm", ["run", "test:go"]],
-    ["pnpm", ["run", "test:desktop"]],
-    ["pnpm", ["run", "smoke:pinets-backtest"]],
-  )],
+  "ci-local": ciLocalStages,
+  main: [...ciLocalStages, sequentialStage(...mainAfterCiLocal)],
 };
 
 export function executionStagesForLayer(layer) {

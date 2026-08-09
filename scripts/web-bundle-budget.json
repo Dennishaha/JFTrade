@@ -1,9 +1,10 @@
 {
   "version": 1,
-  "maxInitialJavaScriptGzipBytes": 455000,
-  "maxInitialCssGzipBytes": 130000,
-  "maxLargestAsyncJavaScriptGzipBytes": 1650000,
-  "maxTotalJavaScriptGzipBytes": 5600000,
+  "maxInitialJavaScriptGzipBytes": 360000,
+  "maxInitialCssGzipBytes": 100000,
+  "maxLargestAsyncJavaScriptGzipBytes": 1550000,
+  "maxLargestAsyncNonWorkerJavaScriptGzipBytes": 740000,
+  "maxTotalJavaScriptGzipBytes": 4850000,
   "forbiddenInitialAssetPatterns": [
     "(^|/)editor\\.api-",
     "\\.worker-",

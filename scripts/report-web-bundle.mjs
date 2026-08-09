@@ -28,6 +28,9 @@ export function collectBundleReport({ distRoot, html, budget, monacoLanguageName
   const asyncJavaScript = assets.filter(
     (asset) => !asset.initial && asset.extension === ".js",
   );
+  const asyncNonWorkerJavaScript = asyncJavaScript.filter(
+    (asset) => !isWorkerAsset(asset.path),
+  );
   const allJavaScript = assets.filter((asset) => asset.extension === ".js");
   const totals = {
     initialJavaScript: sumMetrics(initialJavaScript),
@@ -35,14 +38,22 @@ export function collectBundleReport({ distRoot, html, budget, monacoLanguageName
     totalJavaScript: sumMetrics(allJavaScript),
   };
   const largestAsyncJavaScript = asyncJavaScript[0] ?? null;
+  const largestAsyncNonWorkerJavaScript = asyncNonWorkerJavaScript[0] ?? null;
   const failures = compareBudget({
     assets,
     budget,
     largestAsyncJavaScript,
+    largestAsyncNonWorkerJavaScript,
     monacoLanguageNames,
     totals,
   });
-  return { assets, failures, largestAsyncJavaScript, totals };
+  return {
+    assets,
+    failures,
+    largestAsyncJavaScript,
+    largestAsyncNonWorkerJavaScript,
+    totals,
+  };
 }
 
 export function htmlAssetReferences(html) {
@@ -60,6 +71,7 @@ export function compareBudget({
   assets,
   budget,
   largestAsyncJavaScript,
+  largestAsyncNonWorkerJavaScript,
   monacoLanguageNames = [],
   totals,
 }) {
@@ -81,6 +93,12 @@ export function compareBudget({
     "largest async JavaScript gzip",
     largestAsyncJavaScript?.gzipBytes ?? 0,
     budget.maxLargestAsyncJavaScriptGzipBytes,
+  );
+  checkLimit(
+    failures,
+    "largest async non-worker JavaScript gzip",
+    largestAsyncNonWorkerJavaScript?.gzipBytes ?? 0,
+    budget.maxLargestAsyncNonWorkerJavaScriptGzipBytes,
   );
   checkLimit(
     failures,
@@ -130,6 +148,10 @@ export function monacoBundleFailures(assets, languageNames) {
 function matchesHashedAsset(path, stem) {
   const filename = normalizePath(path).split("/").at(-1) ?? "";
   return filename.startsWith(`${stem}-`) && filename.endsWith(".js");
+}
+
+function isWorkerAsset(path) {
+  return /\.worker-[^/]+\.js$/.test(normalizePath(path));
 }
 
 function assetMetrics(distRoot, absolutePath, referenced) {
@@ -238,6 +260,12 @@ function main() {
     console.log(
       `largest async JavaScript: ${report.largestAsyncJavaScript.path}, ` +
         `${formatBytes(report.largestAsyncJavaScript.gzipBytes)} gzip`,
+    );
+  }
+  if (report.largestAsyncNonWorkerJavaScript) {
+    console.log(
+      `largest async non-worker JavaScript: ${report.largestAsyncNonWorkerJavaScript.path}, ` +
+        `${formatBytes(report.largestAsyncNonWorkerJavaScript.gzipBytes)} gzip`,
     );
   }
   console.log("largest JavaScript assets:");

@@ -38,4 +38,3 @@ export interface ParsedNodeResult {
   node: StrategyVisualNodeDocument;
   isCondition: boolean;
 }
-

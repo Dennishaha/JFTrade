@@ -431,4 +431,3 @@ export function defaultIndicatorText(properties: Record<string, unknown>): strin
 export function indicatorTypeForCondition(value: string): string {
   return value === "ma" ? "movingAverage" : value;
 }
-

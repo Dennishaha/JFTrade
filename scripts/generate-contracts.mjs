@@ -7,21 +7,21 @@ import process from "node:process";
 import { spawnChecked } from "./lib/spawn.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const trackedOutputs = [
-	"docs/swagger/docs.go",
-	"docs/swagger/swagger.json",
-	"docs/swagger/swagger.yaml",
-	"apps/web/src/generated/openapi.ts",
-	"tests/fixtures/openapi-baseline.json",
-	"docs/reference/generated/api.md",
-	"docs/reference/generated/types.md",
-	"docs/reference/generated/pine-v6-support.md",
-];
+export const trackedOutputs = Object.freeze([
+  // Keep this list limited to files that are actually committed. The other
+  // swagger/reference files are local generation inputs and are gitignored.
+  // swagger.runtime.json is a temporary snapshot-test input and is never
+  // written under the repository root.
+  "apps/web/src/generated/openapi.ts",
+  "tests/fixtures/openapi-baseline.json",
+  "docs/reference/generated/pine-v6-support.md",
+]);
 
 export async function generateContracts({ check = false } = {}) {
   const outputRoot = check
     ? await fs.mkdtemp(path.join(os.tmpdir(), "jftrade-contracts-"))
     : repoRoot;
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "jftrade-openapi-runtime-"));
   const environment = {
     ...process.env,
     JFTRADE_GENERATED_ROOT: outputRoot,
@@ -33,7 +33,7 @@ export async function generateContracts({ check = false } = {}) {
   try {
     run("go", ["generate", "./cmd/jftrade-api"], environment);
     run("node", ["scripts/generate-api-types.mjs"], environment);
-    const runtimeSwaggerPath = await writeRuntimeSwagger(outputRoot);
+    const runtimeSwaggerPath = await writeRuntimeSwagger(outputRoot, runtimeRoot);
     environment.JFTRADE_OPENAPI_SOURCE = runtimeSwaggerPath;
     run(
       "go",
@@ -46,16 +46,20 @@ export async function generateContracts({ check = false } = {}) {
       console.log("Generated contract check passed without modifying the worktree.");
     }
   } finally {
-    if (check) {
-      await fs.rm(outputRoot, { recursive: true, force: true });
-    }
+    await Promise.all([
+      check ? fs.rm(outputRoot, { recursive: true, force: true }) : Promise.resolve(),
+      fs.rm(runtimeRoot, { recursive: true, force: true }),
+    ]);
   }
 }
 
-async function assertTrackedOutputsMatch(outputRoot) {
+export async function assertTrackedOutputsMatch(
+  outputRoot,
+  { expectedRoot = repoRoot, outputs = trackedOutputs } = {},
+) {
   const mismatches = [];
-  for (const relativePath of trackedOutputs) {
-    const expectedPath = path.join(repoRoot, relativePath);
+  for (const relativePath of outputs) {
+    const expectedPath = path.join(expectedRoot, relativePath);
     const generatedPath = path.join(outputRoot, relativePath);
     const [expected, generated] = await Promise.all([
       fs.readFile(expectedPath),
@@ -70,12 +74,13 @@ async function assertTrackedOutputsMatch(outputRoot) {
   }
 }
 
-async function writeRuntimeSwagger(outputRoot) {
+async function writeRuntimeSwagger(outputRoot, runtimeRoot) {
   const sourcePath = path.join(outputRoot, "docs/swagger/swagger.json");
-  const runtimePath = path.join(outputRoot, "docs/swagger/swagger.runtime.json");
+  const runtimePath = path.join(runtimeRoot, "docs/swagger/swagger.runtime.json");
   const document = JSON.parse(await fs.readFile(sourcePath, "utf8"));
   document.host = "";
   document.basePath = "/";
+  await fs.mkdir(path.dirname(runtimePath), { recursive: true });
   await fs.writeFile(runtimePath, `${JSON.stringify(document, null, 2)}\n`, "utf8");
   return runtimePath;
 }

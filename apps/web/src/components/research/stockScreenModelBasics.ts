@@ -416,5 +416,3 @@ export function cloneStockScreenDraft(query: StockScreenDraft): StockScreenDraft
     sort: (query.sort ?? []).map(cloneStockScreenSort),
   };
 }
-
-
