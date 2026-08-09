@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adksession "google.golang.org/adk/v2/session"
 )
 
@@ -40,7 +41,7 @@ func skillActiveInState(state adksession.ReadonlyState, agentName string, skillN
 }
 
 func anySkillActiveInState(state adksession.ReadonlyState, agentName string, skillNames []string) bool {
-	for _, skillName := range normalizeStringSlice(skillNames) {
+	for _, skillName := range jfadkmodel.NormalizeStringSlice(skillNames) {
 		if skillActiveInState(state, agentName, skillName) {
 			return true
 		}

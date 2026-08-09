@@ -29,7 +29,7 @@ func TestGoogleADKMemoryServiceSearchesJFTradeMemory(t *testing.T) {
 	}
 
 	response, err := runtime.memoryService.SearchMemory(ctx, &adkmemory.SearchRequest{
-		AppName: googleADKAppName(agent.ID),
+		AppName: GoogleADKAppName(agent.ID),
 		UserID:  googleADKUserID,
 		Query:   "risk",
 	})
@@ -48,7 +48,7 @@ func TestGoogleADKMemoryServiceSearchesJFTradeMemory(t *testing.T) {
 	}
 
 	response, err = runtime.memoryService.SearchMemory(ctx, &adkmemory.SearchRequest{
-		AppName: googleADKAppName(agent.ID),
+		AppName: GoogleADKAppName(agent.ID),
 		UserID:  googleADKUserID,
 		Query:   "HK",
 	})
@@ -75,7 +75,7 @@ func TestGoogleADKMemoryServiceSearchesJFTradeMemory(t *testing.T) {
 }
 
 func TestGoogleADKAgentIDFromAppName(t *testing.T) {
-	if got := googleADKAgentIDFromAppName(googleADKAppName("Memory Agent")); got != "memory-agent" {
+	if got := googleADKAgentIDFromAppName(GoogleADKAppName("Memory Agent")); got != "memory-agent" {
 		t.Fatalf("roundtrip agent id = %q", got)
 	}
 	if got := googleADKAgentIDFromAppName("jftrade-default"); got != "" {

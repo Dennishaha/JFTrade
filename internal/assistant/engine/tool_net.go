@@ -4,15 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/netip"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
@@ -33,7 +32,7 @@ func httpFetchTool(ctx context.Context, input map[string]any) (any, error) {
 		return nil, err
 	}
 	timeout := 12 * time.Second
-	client := newSafeHTTPClient(timeout, rejectUnsafeHost)
+	client := providers.NewSafeHTTPClient(timeout, rejectUnsafeHost)
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		if err := rejectUnsafeHost(req.Context(), req.URL.Hostname()); err != nil {
 			return fmt.Errorf("redirect to unsafe host %q blocked: %w", req.URL.Hostname(), err)
@@ -78,7 +77,7 @@ func workflowWaitTool(ctx context.Context, input map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	reason := strings.TrimSpace(toolStringValue(input, "reason"))
+	reason := strings.TrimSpace(skillsruntime.StringValue(input, "reason"))
 	started := time.Now().UTC()
 	timer := time.NewTimer(duration)
 	defer timer.Stop()
@@ -97,7 +96,7 @@ func workflowWaitTool(ctx context.Context, input map[string]any) (any, error) {
 }
 
 func workflowWaitDuration(input map[string]any) (time.Duration, error) {
-	durationMs := toolIntValue(input, "durationMs", 0)
+	durationMs := skillsruntime.IntValue(input, "durationMs", 0)
 	if durationMs <= 0 {
 		switch value := input["seconds"].(type) {
 		case float64:
@@ -122,37 +121,5 @@ func workflowWaitDuration(input map[string]any) (time.Duration, error) {
 }
 
 func rejectUnsafeHost(ctx context.Context, host string) error {
-	host = strings.TrimSpace(host)
-	if host == "" {
-		return fmt.Errorf("host is required")
-	}
-	lower := strings.ToLower(host)
-	if lower == "localhost" || strings.HasSuffix(lower, ".localhost") {
-		return fmt.Errorf("localhost targets are blocked")
-	}
-	if addr, err := netip.ParseAddr(host); err == nil {
-		if unsafeAddr(addr) {
-			return fmt.Errorf("private, loopback, link-local, multicast and metadata addresses are blocked")
-		}
-		return nil
-	}
-	resolver := net.DefaultResolver
-	addrs, err := resolver.LookupNetIP(ctx, "ip", host)
-	if err != nil {
-		return fmt.Errorf("resolve host: %w", err)
-	}
-	if slices.ContainsFunc(addrs, unsafeAddr) {
-		return fmt.Errorf("private, loopback, link-local, multicast and metadata addresses are blocked")
-	}
-	return nil
-}
-
-func unsafeAddr(addr netip.Addr) bool {
-	if addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() || addr.IsMulticast() || addr.IsUnspecified() {
-		return true
-	}
-	if addr.String() == "169.254.169.254" {
-		return true
-	}
-	return false
+	return providers.RejectUnsafeHost(ctx, host)
 }

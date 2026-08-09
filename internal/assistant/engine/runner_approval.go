@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
@@ -15,7 +16,7 @@ func (r *Runtime) ResolveApproval(ctx context.Context, approvalID string, approv
 	if approved {
 		status = ApprovalStatusApproved
 	}
-	approval, changed, run, shouldContinue, err := r.store.resolveAndStageApproval(ctx, approvalID, status)
+	approval, changed, run, shouldContinue, err := r.store.ResolveAndStageApproval(ctx, approvalID, status)
 	if err != nil {
 		return ApprovalResolution{}, err
 	}
@@ -85,7 +86,7 @@ func (r *Runtime) ResolveApprovalAsync(ctx context.Context, approvalID string, a
 	if approved {
 		status = ApprovalStatusApproved
 	}
-	approval, changed, run, shouldContinue, err := r.store.resolveAndStageApproval(ctx, approvalID, status)
+	approval, changed, run, shouldContinue, err := r.store.ResolveAndStageApproval(ctx, approvalID, status)
 	if err != nil {
 		return ApprovalResolution{}, err
 	}
@@ -114,7 +115,7 @@ func (r *Runtime) stageResolvedApproval(ctx context.Context, approval Approval, 
 	if approved {
 		status = ApprovalStatusApproved
 	}
-	resolved, _, run, shouldContinue, err := r.store.resolveAndStageApproval(ctx, approval.ID, status)
+	resolved, _, run, shouldContinue, err := r.store.ResolveAndStageApproval(ctx, approval.ID, status)
 	if err != nil {
 		return ApprovalResolution{}, false, err
 	}
@@ -242,7 +243,7 @@ func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID stri
 		return err
 	}
 	replyResult := assistantExecutionResult{Reply: run.FailureReason, SyntheticKind: "approval_failure"}
-	if saved, msgErr := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, replyResult); msgErr == nil {
+	if saved, msgErr := r.EnsureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, replyResult); msgErr == nil {
 		run.FinalMessageID = saved.ID
 		if err := r.store.SaveRun(ctx, run); err != nil {
 			return fmt.Errorf("persist approval failure message reference: %w", err)
@@ -252,15 +253,6 @@ func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID stri
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState, "failureReason": run.FailureReason,
 	})
 	return nil
-}
-
-func runHasPendingApproval(approvals []Approval) bool {
-	for _, approval := range approvals {
-		if approval.Status == ApprovalStatusPending {
-			return true
-		}
-	}
-	return false
 }
 
 func (r *Runtime) continueResolvedApproval(ctx context.Context, approval Approval, approved bool) (ApprovalResolution, error) {
@@ -350,15 +342,6 @@ func (r *Runtime) resumeGoogleADKWithBusyRetry(ctx context.Context, run Run) (Ru
 		case <-timer.C:
 		}
 	}
-}
-
-func isRetryableADKSessionBusy(err error) bool {
-	if err == nil {
-		return false
-	}
-	lower := strings.ToLower(err.Error())
-	return strings.Contains(lower, "append event to sessionservice") &&
-		(strings.Contains(lower, "database is locked") || strings.Contains(lower, "sqlite_busy"))
 }
 
 func (r *Runtime) ReconcileResolvedApprovals(ctx context.Context) {
@@ -451,43 +434,22 @@ func (r *Runtime) reconcileWorkflowParent(ctx context.Context, parent Run) {
 	}
 }
 
+func isRetryableADKSessionBusy(err error) bool {
+	return jfadkmodel.IsRetryableADKSessionBusy(err)
+}
+
 func runHasRecoverableApprovalContext(run Run) bool {
-	for _, approval := range run.PendingApprovals {
-		if approval.Status != ApprovalStatusPending {
-			continue
-		}
-		if strings.TrimSpace(approval.FunctionCallID) != "" && strings.TrimSpace(approval.ConfirmationCallID) != "" {
-			return true
-		}
-	}
-	return false
+	return jfadkmodel.RunHasRecoverableApprovalContext(run)
 }
 
 func runHasRecoverableResolvedApprovalContext(run Run) bool {
-	if strings.TrimSpace(run.ResumeState) != "approval_resuming" {
-		return false
-	}
-	for _, approval := range run.PendingApprovals {
-		if approval.Status == ApprovalStatusPending {
-			continue
-		}
-		if strings.TrimSpace(approval.FunctionCallID) != "" && strings.TrimSpace(approval.ConfirmationCallID) != "" {
-			return true
-		}
-	}
-	return false
+	return jfadkmodel.RunHasRecoverableResolvedApprovalContext(run)
 }
 
 func runCanContinueResolvedApproval(run Run) bool {
-	if isWorkflowParentRun(run) {
-		return false
-	}
-	if run.Status == RunStatusPending {
-		return true
-	}
-	return run.Status == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run)
+	return jfadkmodel.RunCanContinueResolvedApproval(run)
 }
 
 func isWorkflowParentRun(run Run) bool {
-	return normalizeWorkMode(run.WorkMode) != WorkModeChat && strings.TrimSpace(run.WorkflowStatus) != ""
+	return jfadkmodel.IsWorkflowParentRun(run)
 }

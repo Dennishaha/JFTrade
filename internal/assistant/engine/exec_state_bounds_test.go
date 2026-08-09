@@ -53,23 +53,23 @@ func TestGoogleADKExecutionRunScopedStateProjectionBoundaries(t *testing.T) {
 	execution.builderForRun(execution.replyByRunID, "child-run").WriteString(" child reply ")
 	execution.builderForRun(execution.reasoningByRunID, "child-run").WriteString(" child reasoning ")
 
-	root := execution.toolContextForRun(" root-run ")
-	if len(root.calls) != 1 || root.calls[0].ID != "root-call" {
-		t.Fatalf("root tool context calls = %+v, want only root call", root.calls)
+	root := execution.ToolContextForRun(" root-run ")
+	if len(root.Calls) != 1 || root.Calls[0].ID != "root-call" {
+		t.Fatalf("root tool context calls = %+v, want only root call", root.Calls)
 	}
-	if len(root.summaries) != 1 || !strings.Contains(root.summaries[0], "portfolio.summary") {
-		t.Fatalf("root summaries = %+v, want output summary", root.summaries)
+	if len(root.Summaries) != 1 || !strings.Contains(root.Summaries[0], "portfolio.summary") {
+		t.Fatalf("root summaries = %+v, want output summary", root.Summaries)
 	}
-	child := execution.toolContextForRun("child-run")
-	if len(child.calls) != 2 {
-		t.Fatalf("child tool context calls = %+v, want failed and pending child calls", child.calls)
+	child := execution.ToolContextForRun("child-run")
+	if len(child.Calls) != 2 {
+		t.Fatalf("child tool context calls = %+v, want failed and pending child calls", child.Calls)
 	}
-	if len(child.summaries) != 1 || child.summaries[0] != "market.candles: feed unavailable" {
-		t.Fatalf("child summaries = %+v, want failed tool summary only", child.summaries)
+	if len(child.Summaries) != 1 || child.Summaries[0] != "market.candles: feed unavailable" {
+		t.Fatalf("child summaries = %+v, want failed tool summary only", child.Summaries)
 	}
-	global := execution.toolContextForRun("")
-	if len(global.calls) != 4 || len(global.summaries) != 1 || global.summaries[0] != "legacy global summary" {
-		t.Fatalf("global context = calls:%d summaries:%+v", len(global.calls), global.summaries)
+	global := execution.ToolContextForRun("")
+	if len(global.Calls) != 4 || len(global.Summaries) != 1 || global.Summaries[0] != "legacy global summary" {
+		t.Fatalf("global context = calls:%d summaries:%+v", len(global.Calls), global.Summaries)
 	}
 
 	if got, ok := execution.trackedRunIDForFunctionCall("function-child"); !ok || got != "child-run" {
@@ -78,10 +78,10 @@ func TestGoogleADKExecutionRunScopedStateProjectionBoundaries(t *testing.T) {
 	if got, ok := execution.trackedRunIDForFunctionCall("function-unscoped"); ok || got != "" {
 		t.Fatalf("tracked unscoped call = %q/%v, want missing", got, ok)
 	}
-	if got := execution.resultForRun(""); got.Reply != "root reply" || got.ReasoningContent != "root reasoning" {
+	if got := execution.ResultForRun(""); got.Reply != "root reply" || got.ReasoningContent != "root reasoning" {
 		t.Fatalf("root result = %#v", got)
 	}
-	if got := execution.resultForRun("child-run"); got.Reply != "child reply" || got.ReasoningContent != "child reasoning" {
+	if got := execution.ResultForRun("child-run"); got.Reply != "child reply" || got.ReasoningContent != "child reasoning" {
 		t.Fatalf("child result = %#v", got)
 	}
 	if reply, reasoning := execution.preToolState(); reply != "before tools" || reasoning != "inspect inputs" {
@@ -120,7 +120,7 @@ func TestGoogleADKExecutionBufferedTextAndDeltaBoundaries(t *testing.T) {
 	if err := execution.flushBufferedTextForRunIfReady("child-run"); err != nil {
 		t.Fatalf("flush active child: %v", err)
 	}
-	if got := execution.resultForRun("child-run"); got.Reply != "" || got.ReasoningContent != "" {
+	if got := execution.ResultForRun("child-run"); got.Reply != "" || got.ReasoningContent != "" {
 		t.Fatalf("active child result = %#v, want buffered only", got)
 	}
 	if len(deltas) != 0 {
@@ -132,10 +132,10 @@ func TestGoogleADKExecutionBufferedTextAndDeltaBoundaries(t *testing.T) {
 	if err := execution.flushBufferedTextForRunIfReady(" child-run "); err != nil {
 		t.Fatalf("flush completed child: %v", err)
 	}
-	if got := execution.resultForRun("child-run"); got.Reply != "child answer" || got.ReasoningContent != "child reasoning" {
+	if got := execution.ResultForRun("child-run"); got.Reply != "child answer" || got.ReasoningContent != "child reasoning" {
 		t.Fatalf("flushed child result = %#v", got)
 	}
-	if !execution.runHasPostToolText("child-run") {
+	if !execution.RunHasPostToolText("child-run") {
 		t.Fatal("child run should record post-tool text after flushing buffered content")
 	}
 	if len(deltas) != 0 {
@@ -150,7 +150,7 @@ func TestGoogleADKExecutionBufferedTextAndDeltaBoundaries(t *testing.T) {
 	if err := execution.flushBufferedTextIfReady(); err != nil {
 		t.Fatalf("flush root: %v", err)
 	}
-	if got := execution.resultForRun("root-run"); got.Reply != "root answer" || got.ReasoningContent != "root reasoning" {
+	if got := execution.ResultForRun("root-run"); got.Reply != "root answer" || got.ReasoningContent != "root reasoning" {
 		t.Fatalf("flushed root result = %#v", got)
 	}
 	if len(deltas) != 1 || strings.TrimSpace(deltas[0].Reply) != "root answer" || strings.TrimSpace(deltas[0].ReasoningContent) != "root reasoning" {
@@ -161,7 +161,7 @@ func TestGoogleADKExecutionBufferedTextAndDeltaBoundaries(t *testing.T) {
 	if len(deltas) != 2 || !strings.Contains(deltas[1].ToolProgress, "portfolio.summary") {
 		t.Fatalf("tool progress delta = %+v", deltas)
 	}
-	execution.detachDeltaSink()
+	execution.DetachDeltaSink()
 	execution.emitToolProgress("root-tool", "market.candles")
 	if len(deltas) != 2 {
 		t.Fatalf("delta sink was not detached: %+v", deltas)

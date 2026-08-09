@@ -16,20 +16,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type SessionProjection struct {
-	SessionID         string
-	Messages          []TranscriptEntry
-	MessagesByEventID map[string]TranscriptEntry
-	LatestAssistant   *TranscriptEntry
-	Reply             string
-	ReasoningContent  string
-	ToolCalls         []ToolCall
-	PendingApprovals  []Approval
-	PreToolContent    string
-	PreToolReasoning  string
-	FinalMessageID    string
-}
-
 type projectedRunState struct {
 	runID            string
 	entryIndex       int
@@ -68,9 +54,7 @@ func (s *Store) SessionProjection(ctx context.Context, sessionID string) (Sessio
 	if sessionID == "" || s == nil {
 		return SessionProjection{}, false, nil
 	}
-	s.mu.RLock()
-	service := s.sessions
-	s.mu.RUnlock()
+	service := s.SessionService()
 	if service == nil {
 		return SessionProjection{SessionID: sessionID}, false, nil
 	}
@@ -79,7 +63,7 @@ func (s *Store) SessionProjection(ctx context.Context, sessionID string) (Sessio
 		return SessionProjection{}, false, err
 	}
 	response, err := service.Get(ctx, &adksession.GetRequest{
-		AppName:   googleADKAppName(session.AgentID),
+		AppName:   GoogleADKAppName(session.AgentID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -106,7 +90,7 @@ func (s *Store) SessionProjection(ctx context.Context, sessionID string) (Sessio
 		return SessionProjection{}, false, err
 	}
 	if hasRun {
-		latestPendingApprovals := pendingApprovalsOnly(latestRun.PendingApprovals)
+		latestPendingApprovals := PendingApprovalsOnly(latestRun.PendingApprovals)
 		if len(projection.PendingApprovals) == 0 && len(latestPendingApprovals) > 0 {
 			projection.PendingApprovals = latestPendingApprovals
 		}
@@ -523,45 +507,7 @@ func transcriptEntryFromADKEvent(event *adksession.Event) (TranscriptEntry, bool
 	}, true
 }
 
-func rawVisibleTextFromParts(parts []*genai.Part) (string, string) {
-	var reply strings.Builder
-	var reasoning strings.Builder
-	for _, part := range parts {
-		if part == nil || part.Text == "" {
-			continue
-		}
-		if part.Thought {
-			reasoning.WriteString(part.Text)
-			continue
-		}
-		reply.WriteString(part.Text)
-	}
-	return reply.String(), reasoning.String()
-}
-
 func visibleTextFromParts(parts []*genai.Part) (string, string) {
 	reply, reasoning := rawVisibleTextFromParts(parts)
 	return strings.TrimSpace(reply), strings.TrimSpace(reasoning)
-}
-
-func partsFromReplyAndReasoning(reply string, reasoning string) []*genai.Part {
-	parts := make([]*genai.Part, 0, 2)
-	if trimmedReasoning := strings.TrimSpace(reasoning); trimmedReasoning != "" {
-		parts = append(parts, &genai.Part{Text: trimmedReasoning, Thought: true})
-	}
-	if trimmedReply := strings.TrimSpace(reply); trimmedReply != "" {
-		parts = append(parts, &genai.Part{Text: trimmedReply})
-	}
-	return parts
-}
-
-func rawPartsFromReplyAndReasoning(reply string, reasoning string) []*genai.Part {
-	parts := make([]*genai.Part, 0, 2)
-	if reasoning != "" {
-		parts = append(parts, &genai.Part{Text: reasoning, Thought: true})
-	}
-	if reply != "" {
-		parts = append(parts, &genai.Part{Text: reply})
-	}
-	return parts
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	apilive "github.com/jftrade/jftrade-main/internal/api/live"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/liveapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
@@ -24,31 +24,31 @@ func (b *serverBootstrap) loadWatchlistStore() *watchliststore.Store {
 	return store
 }
 
-func (s *Server) initializeBootstrapState(store SidecarSettingsStore, bootstrap serverBootstrap, state serverPersistentState) {
-	s.initializeSecurityAndCalendars(store, bootstrap.settingsPath)
+func initializeBootstrapState(s *Server, store SidecarSettingsStore, bootstrap serverBootstrap, state serverPersistentState) {
+	initializeSecurityAndCalendars(s, store, bootstrap.settingsPath)
 	s.initializeWatchlistService()
 	s.initializeResearchService()
-	s.initializeMarketdataRuntime()
-	s.startLiveNotifications()
-	s.initializeRealTradeControl(bootstrap)
-	s.tradingSvc = s.newTradingService()
+	initializeMarketdataRuntime(s)
+	startLiveNotifications(s)
+	initializeRealTradeControl(s, bootstrap)
+	s.tradingSvc = newTradingService(s)
 	s.registerResource("trading order updates", s.stopTradingOrderUpdates)
-	s.initializeBacktestService(state)
-	liveWebSocket := apilive.NewHandler(liveWebSocketBackend{server: s}, apilive.Options{
+	initializeBacktestService(s, state)
+	liveWebSocket := liveapp.NewHandler(newLiveWebSocketBackend(s), liveapp.Options{
 		DataInterval:            liveTickDispatchInterval,
-		SecurityDetailsInterval: marketSecurityDetailsStreamInterval,
-		DepthRefreshInterval:    marketDepthStreamRefreshInterval,
+		SecurityDetailsInterval: marketdataapp.MarketSecurityDetailsStreamInterval,
+		DepthRefreshInterval:    marketdataapp.MarketDepthStreamRefreshInterval,
 	})
-	s.initializeMarketdataService()
+	initializeMarketdataService(s)
 	strategyRuntime := liveruntime.NewManager(newStrategyRuntimeDependencies(s))
 	s.runtimes.SetStrategyRuntime(strategyRuntime, strategyRuntime)
-	s.reconcileStrategyRuntimeStates()
-	s.initializeStrategyService(state)
+	reconcileStrategyRuntimeStates(s)
+	initializeStrategyService(s, state)
 	s.runtimes.SetLiveWebSocket(liveWebSocket)
-	s.initializeSystemService(bootstrap)
-	s.initializeADKRuntime(bootstrap)
-	s.initializeRuntimeServices(store)
-	s.startAssistantWorkflowScheduler()
+	initializeSystemService(s, bootstrap)
+	initializeADKRuntime(s, bootstrap)
+	initializeRuntimeServices(s, store)
+	startAssistantWorkflowScheduler(s)
 }
 
 func (s *serverApplication) initializeWatchlistService() {
@@ -58,7 +58,7 @@ func (s *serverApplication) initializeWatchlistService() {
 	s.watchlistSvc = watchlist.NewService(s.stores.Watchlist)
 	s.watchlistSvc.RegisterSourceReader(futuwatchlist.SourceID, futuwatchlist.NewSourceReader(
 		s.futuWatchlistGroupReader,
-		s.futuIntegrationEnabled,
+		s.futuCoordinator().Enabled,
 		s.probeFutuWatchlistSource,
 	))
 	futuSnapshots := futuwatchlist.NewBatchSnapshotSource(s.futuWatchlistBatchSnapshotSource)
@@ -88,7 +88,7 @@ func futuWatchlistProbeError(probe opendProbe) error {
 }
 
 func (s *serverApplication) futuWatchlistBroker() (broker.Broker, error) {
-	if s == nil || !s.futuIntegrationEnabled() {
+	if s == nil || !s.futuCoordinator().Enabled() {
 		return nil, fmt.Errorf("%w: Futu integration is disabled", watchlist.ErrUnavailable)
 	}
 	marketDataRuntime := s.runtimes.MarketData()

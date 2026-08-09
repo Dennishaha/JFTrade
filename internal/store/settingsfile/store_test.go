@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -19,8 +18,8 @@ func TestEnsureBootstrapFileInitializesDefaults(t *testing.T) {
 	}
 
 	defaults := jfsettings.LaunchDefaults{
-		APIBind:      runtime.DefaultReleaseAPIBind,
-		GUIBind:      runtime.DefaultReleaseGUIBind,
+		APIBind:      jfsettings.DefaultReleaseAPIBind,
+		GUIBind:      jfsettings.DefaultReleaseGUIBind,
 		SettingsPath: settingsPath,
 	}
 	if err := store.EnsureBootstrapFile(defaults); err != nil {
@@ -30,7 +29,7 @@ func TestEnsureBootstrapFileInitializesDefaults(t *testing.T) {
 	if !store.HasAppearance() {
 		t.Fatalf("expected bootstrap appearance")
 	}
-	if got := store.InterfaceSettings(defaults); got.APIBind != runtime.DefaultReleaseAPIBind || got.GUIBind != runtime.DefaultReleaseGUIBind {
+	if got := store.InterfaceSettings(defaults); got.APIBind != jfsettings.DefaultReleaseAPIBind || got.GUIBind != jfsettings.DefaultReleaseGUIBind {
 		t.Fatalf("InterfaceSettings = %#v", got)
 	}
 	if _, err := os.Stat(settingsPath); err != nil {

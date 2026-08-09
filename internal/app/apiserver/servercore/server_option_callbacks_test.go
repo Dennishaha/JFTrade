@@ -18,7 +18,7 @@ func TestServerSystemAndSettingsOptionCallbacks(t *testing.T) {
 	server := newTestServer(t, settings)
 	server.tradingSvc = nil
 
-	options := append(server.systemCoreOptions(settings.Path(), deriveBacktestDBPath()), server.systemRuntimeOptions()...)
+	options := append(systemCoreOptions(server, settings.Path(), deriveBacktestDBPath()), systemRuntimeOptions(server)...)
 	service := system.NewService(options...)
 	if got := service.Status(); got["name"] != "JFTrade" {
 		t.Fatalf("system status = %#v", got)
@@ -40,7 +40,7 @@ func TestServerSystemAndSettingsOptionCallbacks(t *testing.T) {
 		t.Fatalf("nil risk gateway state = %#v", got)
 	}
 
-	settingsService := settingssvc.NewService(settings, server.settingsServiceOptions()...)
+	settingsService := settingssvc.NewService(settings, settingsServiceOptions(server)...)
 	if got := settingsService.BrokerSettings(); got == nil {
 		t.Fatal("broker settings callback returned nil")
 	}
@@ -71,7 +71,7 @@ func TestServerStrategyDemandWithRuntimeManager(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 	defer server.runtimes.StrategyRuntime().Stop(instanceID)
-	if got := server.strategyRuntimeDemand(); len(got) != 1 || got[0] != "US.AAPL" {
+	if got := strategyRuntimeDemand(server); len(got) != 1 || got[0] != "US.AAPL" {
 		t.Fatalf("strategy runtime demand = %#v", got)
 	}
 }

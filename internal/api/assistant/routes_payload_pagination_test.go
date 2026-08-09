@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	jadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 func TestAssistantChatRoutesRejectMalformedOrUnresolvableRequests(t *testing.T) {

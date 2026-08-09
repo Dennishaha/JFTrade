@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 )
 
 type leaseContextValueKey struct{}
@@ -20,16 +22,15 @@ func TestRunExecutionLeaseContextAndReuseBoundaries(t *testing.T) {
 	if lease, ok := runExecutionLeaseFromContext(nil); ok || lease.RunID != "" { //nolint:staticcheck // Exercise nil lookup directly.
 		t.Fatalf("nil context lease = %#v, %v", lease, ok)
 	}
-	emptyLeaseCtx := context.WithValue(plain, runExecutionLeaseContextKey{}, RunLease{})
+	emptyLeaseCtx := context.WithValue(plain, runExecutionLeaseContextKey{}, enginepersistence.RunLease{})
 	if _, ok := runExecutionLeaseFromContext(emptyLeaseCtx); ok {
 		t.Fatal("empty run lease was accepted")
 	}
-	leased := context.WithValue(plain, runExecutionLeaseContextKey{}, RunLease{RunID: "run-context", FencingToken: 1})
+	leased := context.WithValue(plain, runExecutionLeaseContextKey{}, enginepersistence.RunLease{RunID: "run-context", FencingToken: 1})
 	stripped := withoutRunExecutionLease(leased)
 	if _, ok := runExecutionLeaseFromContext(stripped); ok || stripped.Value(leaseContextValueKey{}) != "retained" {
 		t.Fatalf("stripped context leaked lease or lost parent value")
 	}
-
 	var nilRuntime *Runtime
 	if _, _, _, err := nilRuntime.beginRunExecutionLease(t.Context(), "run"); err == nil {
 		t.Fatal("nil runtime began a lease")
@@ -66,20 +67,20 @@ func TestRunExecutionLeaseContextAndReuseBoundaries(t *testing.T) {
 		t.Fatalf("adopt active lease = %#v, %v, err=%v", adoptedLease, adopted, err)
 	}
 	finishAdopted()
-	if activeCtx, err := runtime.activeRunExecutionContext(leaseCtx, "run-reuse"); err != nil || activeCtx != leaseCtx {
+	if activeCtx, err := runtime.ActiveRunExecutionContext(leaseCtx, "run-reuse"); err != nil || activeCtx != leaseCtx {
 		t.Fatalf("active owning context = %v, err=%v", activeCtx, err)
 	}
-	if activeCtx, err := runtime.activeRunExecutionContext(t.Context(), "run-reuse"); err != nil {
+	if activeCtx, err := runtime.ActiveRunExecutionContext(t.Context(), "run-reuse"); err != nil {
 		t.Fatalf("adopt current active context: %v", err)
 	} else if activeLease, ok := runExecutionLeaseFromContext(activeCtx); !ok || activeLease.RunID != "run-reuse" {
 		t.Fatalf("active adopted lease = %#v, %v", activeLease, ok)
 	}
 	cancel()
 	wait()
-	if activeCtx, err := runtime.activeRunExecutionContext(t.Context(), "run-reuse"); err != nil || activeCtx == nil {
+	if activeCtx, err := runtime.ActiveRunExecutionContext(t.Context(), "run-reuse"); err != nil || activeCtx == nil {
 		t.Fatalf("plain context without active lease = %v, err=%v", activeCtx, err)
 	}
-	if _, err := runtime.activeRunExecutionContext(leaseCtx, "run-reuse"); !errors.Is(err, ErrRunLeaseLost) {
+	if _, err := runtime.ActiveRunExecutionContext(leaseCtx, "run-reuse"); !errors.Is(err, enginepersistence.ErrRunLeaseLost) {
 		t.Fatalf("stale leased context error = %v", err)
 	}
 
@@ -87,7 +88,7 @@ func TestRunExecutionLeaseContextAndReuseBoundaries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("claim foreign lease: %v", err)
 	}
-	if _, _, err := runtime.beginOrReuseRunExecutionLease(t.Context(), foreignLease.RunID); !errors.Is(err, ErrRunLeaseHeld) {
+	if _, _, err := runtime.beginOrReuseRunExecutionLease(t.Context(), foreignLease.RunID); !errors.Is(err, enginepersistence.ErrRunLeaseHeld) {
 		t.Fatalf("foreign lease reuse error = %v", err)
 	}
 	if foreign, err := runtime.freshForeignRunLease(t.Context(), foreignLease.RunID, time.Now().UTC()); err != nil || !foreign {
@@ -99,7 +100,7 @@ func TestRunExecutionLeaseContextAndReuseBoundaries(t *testing.T) {
 	if foreign, err := nilRuntime.freshForeignRunLease(t.Context(), "run", time.Now().UTC()); err != nil || foreign {
 		t.Fatalf("nil runtime foreign lease = %v, err=%v", foreign, err)
 	}
-	if !isRunLeaseHeld(ErrRunLeaseHeld) || isRunLeaseHeld(errors.New("other")) {
+	if !isRunLeaseHeld(enginepersistence.ErrRunLeaseHeld) || isRunLeaseHeld(errors.New("other")) {
 		t.Fatal("run lease held classification mismatch")
 	}
 }
@@ -131,11 +132,11 @@ func TestRunExecutionLeaseHeartbeatFailureCancelsOwner(t *testing.T) {
 
 func TestRefreshRunExecutionLeaseRejectsExpiredLeaseBeforeStoreWrite(t *testing.T) {
 	runtime := &Runtime{}
-	expired := RunLease{
+	expired := enginepersistence.RunLease{
 		RunID:     "run-expired-heartbeat",
 		ExpiresAt: time.Now().UTC().Add(-time.Millisecond),
 	}
-	if _, err := runtime.refreshRunExecutionLease(expired, time.Second); !errors.Is(err, ErrRunLeaseLost) {
+	if _, err := runtime.refreshRunExecutionLease(expired, time.Second); !errors.Is(err, enginepersistence.ErrRunLeaseLost) {
 		t.Fatalf("expired lease heartbeat error = %v, want ErrRunLeaseLost", err)
 	}
 }
@@ -181,7 +182,7 @@ func TestRuntimeCloseCancelsAndWaitsForInFlightRunLease(t *testing.T) {
 	if err != nil {
 		t.Fatalf("begin run lease: %v", err)
 	}
-	blocker, err := observerStore.db.BeginWrite(t.Context(), nil)
+	blocker, err := observerStore.DB().BeginWrite(t.Context(), nil)
 	if err != nil {
 		cancel()
 		wait()

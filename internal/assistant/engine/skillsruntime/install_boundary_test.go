@@ -1,0 +1,218 @@
+package skillsruntime
+
+import (
+	"archive/zip"
+	"bytes"
+	"context"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+)
+
+func TestSkillInstallAdditionalBoundaryBranches(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("installArchive and archive helpers surface tempdir and fs errors", func(t *testing.T) {
+		registry := &SkillRegistry{skillsPath: t.TempDir()}
+		blockedTmp := filepath.Join(t.TempDir(), "tmp-file")
+		if err := os.WriteFile(blockedTmp, []byte("x"), 0o644); err != nil {
+			t.Fatalf("WriteFile blocked TMPDIR: %v", err)
+		}
+		t.Setenv("TMPDIR", blockedTmp)
+		if _, err := registry.InstallArchive(ctx, "https://example.com/tmp-fail.zip", zipArchive(t, map[string]string{
+			"tmp-fail/SKILL.md": "---\nname: tmp-fail\n---\nBody.",
+		})); err == nil {
+			t.Fatal("installArchive accepted non-directory TMPDIR")
+		}
+
+		archive := zipArchiveWithDirectories(t, map[string]string{
+			"nested/SKILL.md": "---\nname: nested\n---\nBody.",
+		})
+		reader, err := zip.NewReader(bytes.NewReader(archive), int64(len(archive)))
+		if err != nil {
+			t.Fatalf("zip.NewReader: %v", err)
+		}
+		tempFile := filepath.Join(t.TempDir(), "not-a-dir")
+		if err := os.WriteFile(tempFile, []byte("x"), 0o644); err != nil {
+			t.Fatalf("WriteFile temp file: %v", err)
+		}
+		var extracted uint64
+		if err := ExtractSkillArchiveFile(reader.File[0], tempFile, &extracted); err == nil {
+			t.Fatal("extractSkillArchiveFile accepted temp root that is already a file")
+		}
+
+		reader.File[0].Method = 999
+		if err := CopySkillArchiveFile(reader.File[0], filepath.Join(t.TempDir(), "copy.out")); err == nil {
+			t.Fatal("copySkillArchiveFile accepted empty zip file descriptor")
+		}
+	})
+
+	t.Run("installArchive rejects a zip whose payload was corrupted after download", func(t *testing.T) {
+		archive := zipArchiveWithDirectories(t, map[string]string{
+			"corrupt-skill/SKILL.md": "---\nname: corrupt-skill\n---\nThis body must fail checksum validation.",
+		})
+		reader, err := zip.NewReader(bytes.NewReader(archive), int64(len(archive)))
+		if err != nil {
+			t.Fatalf("zip.NewReader: %v", err)
+		}
+		offset, err := reader.File[0].DataOffset()
+		if err != nil {
+			t.Fatalf("zip data offset: %v", err)
+		}
+		if offset < 0 || offset >= int64(len(archive)) {
+			t.Fatalf("zip data offset = %d, archive len = %d", offset, len(archive))
+		}
+		corrupted := append([]byte(nil), archive...)
+		corrupted[offset] ^= 0xff
+
+		registry := &SkillRegistry{skillsPath: t.TempDir()}
+		if _, err := registry.InstallArchive(ctx, "https://example.com/corrupt-skill.zip", corrupted); err == nil {
+			t.Fatal("installArchive accepted a zip whose extracted payload fails integrity verification")
+		}
+		if _, err := os.Stat(filepath.Join(registry.skillsPath, "corrupt-skill")); !os.IsNotExist(err) {
+			t.Fatalf("corrupt archive left an installed skill behind, stat err=%v", err)
+		}
+	})
+
+	t.Run("rewriteArchiveSkillDocument and installed archive loading surface read write and lookup errors", func(t *testing.T) {
+		if runtime.GOOS != "windows" {
+			readRoot := t.TempDir()
+			if err := os.Symlink(filepath.Join(readRoot, "missing-skill"), filepath.Join(readRoot, "SKILL.md")); err != nil {
+				t.Fatalf("Symlink unreadable SKILL.md: %v", err)
+			}
+			if _, _, err := RewriteArchiveSkillDocument(readRoot, "https://example.com/read-error"); err == nil {
+				t.Fatal("rewriteArchiveSkillDocument accepted unreadable SKILL.md symlink")
+			}
+
+			writeRoot := t.TempDir()
+			writeSkillDocument(t, writeRoot, "writable", "---\nname: writable\ndescription: Writable\n---\nBody.")
+			docPath := filepath.Join(writeRoot, "writable", "SKILL.md")
+			if err := os.Chmod(docPath, 0o444); err != nil {
+				t.Fatalf("Chmod readonly SKILL.md: %v", err)
+			}
+			if _, _, err := RewriteArchiveSkillDocument(filepath.Join(writeRoot, "writable"), "https://example.com/write-error"); err == nil {
+				t.Fatal("rewriteArchiveSkillDocument accepted readonly SKILL.md")
+			}
+		}
+
+		registry := &SkillRegistry{skillsPath: t.TempDir()}
+		if _, err := registry.LoadInstalledArchiveSkill(ctx, "missing"); err == nil || !strings.Contains(err.Error(), "installed skill not found") {
+			t.Fatalf("loadInstalledArchiveSkill missing err = %v", err)
+		}
+		writeSkillDocument(t, registry.skillsPath, "broken", "---\nname: broken\nmetadata: [\n---\nBroken.")
+		if _, err := registry.LoadInstalledArchiveSkill(ctx, "broken"); err == nil {
+			t.Fatal("loadInstalledArchiveSkill accepted malformed installed skill")
+		}
+	})
+
+	t.Run("copy helpers surface additional filesystem failures", func(t *testing.T) {
+		root := t.TempDir()
+		source := filepath.Join(root, "source")
+		if err := os.MkdirAll(source, 0o755); err != nil {
+			t.Fatalf("MkdirAll source: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(source, "SKILL.md"), []byte("skill"), 0o644); err != nil {
+			t.Fatalf("WriteFile source SKILL.md: %v", err)
+		}
+		if err := CopyDirectoryContents(source, filepath.Join(root, "missing-target")); err == nil {
+			t.Fatal("copyDirectoryContents accepted missing target root for file copy")
+		}
+
+		if runtime.GOOS != "windows" {
+			bundleRoot := t.TempDir()
+			if err := os.Symlink(filepath.Join(bundleRoot, "missing"), filepath.Join(bundleRoot, "broken.md")); err != nil {
+				t.Fatalf("Symlink broken bundle file: %v", err)
+			}
+			if DirectoryMatchesBundle(bundleRoot, map[string]string{"broken.md": "body"}) {
+				t.Fatal("directoryMatchesBundle accepted broken symlink file entry")
+			}
+		}
+	})
+
+	t.Run("replaceDirectoryWithBundle surfaces tempdir stat and bundle conflict errors", func(t *testing.T) {
+		if runtime.GOOS != "windows" {
+			noWriteRoot := filepath.Join(t.TempDir(), "no-write")
+			if err := os.MkdirAll(noWriteRoot, 0o500); err != nil {
+				t.Fatalf("MkdirAll no-write root: %v", err)
+			}
+			if err := ReplaceDirectoryWithBundle(filepath.Join(noWriteRoot, "skill"), map[string]string{"SKILL.md": "body"}); err == nil {
+				t.Fatal("replaceDirectoryWithBundle accepted non-writable parent directory")
+			}
+
+			loopRoot := t.TempDir()
+			loopPath := filepath.Join(loopRoot, "loop")
+			if err := os.Symlink("loop", loopPath); err != nil {
+				t.Fatalf("Symlink loop path: %v", err)
+			}
+			if err := ReplaceDirectoryWithBundle(loopPath, map[string]string{"SKILL.md": "body"}); err == nil {
+				t.Fatal("replaceDirectoryWithBundle accepted symlink loop target")
+			}
+		}
+
+		if err := ReplaceDirectoryWithBundle(filepath.Join(t.TempDir(), "conflict-skill"), map[string]string{
+			"a":   "file",
+			"a/b": "child",
+		}); err == nil {
+			t.Fatal("replaceDirectoryWithBundle accepted conflicting file and directory bundle paths")
+		}
+	})
+}
+
+func writeSkillDocument(t *testing.T, skillsPath, name, content string) {
+	t.Helper()
+	dir := filepath.Join(skillsPath, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("MkdirAll %s: %v", name, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile %s: %v", name, err)
+	}
+}
+
+func zipArchive(t *testing.T, entries map[string]string) []byte {
+	t.Helper()
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	for name, content := range entries {
+		file, err := writer.Create(name)
+		if err != nil {
+			t.Fatalf("Create zip entry %s: %v", name, err)
+		}
+		if _, err := file.Write([]byte(content)); err != nil {
+			t.Fatalf("Write zip entry %s: %v", name, err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close zip writer: %v", err)
+	}
+	return archive.Bytes()
+}
+
+func zipArchiveWithDirectories(t *testing.T, entries map[string]string) []byte {
+	t.Helper()
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	for name, content := range entries {
+		header := &zip.FileHeader{Name: name}
+		if strings.HasSuffix(name, "/") {
+			header.SetMode(os.ModeDir | 0o755)
+		} else {
+			header.SetMode(0o644)
+		}
+		file, err := writer.CreateHeader(header)
+		if err != nil {
+			t.Fatalf("Create zip entry %s: %v", name, err)
+		}
+		if !strings.HasSuffix(name, "/") {
+			if _, err := file.Write([]byte(content)); err != nil {
+				t.Fatalf("Write zip entry %s: %v", name, err)
+			}
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close zip writer: %v", err)
+	}
+	return archive.Bytes()
+}

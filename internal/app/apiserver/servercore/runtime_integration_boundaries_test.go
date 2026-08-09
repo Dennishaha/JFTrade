@@ -34,14 +34,14 @@ func TestStartupIntegrationRemainsEffectiveWithoutPersistedBrokerSettings(t *tes
 	}
 	server := &Server{serverApplication: serverApplication{store: wrapped}}
 	server.runtimes.SetBrokerRegistry(broker.NewRegistry())
-	server.initializeMarketdataRuntime()
+	initializeMarketdataRuntime(server)
 	t.Cleanup(func() {
 		if err := server.runtimes.MarketData().Close(); err != nil {
 			t.Errorf("close market data runtime: %v", err)
 		}
 	})
 
-	if !server.futuIntegrationEnabled() {
+	if !server.futuCoordinator().Enabled() {
 		t.Fatal("startup integration was treated as disabled")
 	}
 	if exchange := server.runtimes.MarketData().Ensure(); exchange == nil {
@@ -105,13 +105,13 @@ func TestPersistenceStoreUnwrapsStartupIntegrationForMCPSettings(t *testing.T) {
 
 func TestFutuBrokerRefreshesAfterRuntimeResetAndStaysHiddenWhenDisabled(t *testing.T) {
 	server := enabledFutuRuntimeBoundaryServer(t)
-	first := server.activeBroker()
+	first := server.futuCoordinator().ActiveBroker()
 	if first == nil {
 		t.Fatal("initial Futu broker is unavailable")
 	}
 
 	server.futuCoordinator().Reset()
-	second := server.activeBroker()
+	second := server.futuCoordinator().ActiveBroker()
 	if second == nil {
 		t.Fatal("Futu broker is unavailable after runtime reset")
 	}
@@ -125,10 +125,10 @@ func TestFutuBrokerRefreshesAfterRuntimeResetAndStaysHiddenWhenDisabled(t *testi
 		t.Fatalf("disable Futu integration: %v", err)
 	}
 	server.futuCoordinator().Reset()
-	if active := server.activeBroker(); active != nil {
+	if active := server.futuCoordinator().ActiveBroker(); active != nil {
 		t.Fatalf("disabled integration exposed active broker %T", active)
 	}
-	if selected := server.resolveBroker("futu"); selected != nil {
+	if selected := server.futuCoordinator().ResolveBroker("futu"); selected != nil {
 		t.Fatalf("disabled integration resolved Futu broker %T", selected)
 	}
 }
@@ -139,7 +139,7 @@ func TestExplicitFutuResolutionRestoresRuntimeBrokerAlongsideOtherBrokers(t *tes
 	other := &runtimeBoundaryBroker{id: "other"}
 	server.runtimes.Brokers().Replace(other)
 
-	selected := server.resolveBroker(futuintegration.BrokerID)
+	selected := server.futuCoordinator().ResolveBroker(futuintegration.BrokerID)
 	if selected == nil || selected.ID() != futuintegration.BrokerID {
 		t.Fatalf("resolve Futu with another broker registered = %T", selected)
 	}
@@ -183,7 +183,7 @@ func TestActiveBrokerWaitsForFutuRuntimeResetInvalidation(t *testing.T) {
 		},
 	}))
 
-	first := server.activeBroker()
+	first := server.futuCoordinator().ActiveBroker()
 	if first == nil {
 		t.Fatal("initial Futu broker is unavailable")
 	}
@@ -195,7 +195,7 @@ func TestActiveBrokerWaitsForFutuRuntimeResetInvalidation(t *testing.T) {
 	<-closeStarted
 
 	activeResult := make(chan broker.Broker, 1)
-	go func() { activeResult <- server.activeBroker() }()
+	go func() { activeResult <- server.futuCoordinator().ActiveBroker() }()
 	select {
 	case active := <-activeResult:
 		release()

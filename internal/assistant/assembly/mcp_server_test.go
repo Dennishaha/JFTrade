@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
 	"github.com/modelcontextprotocol/go-sdk/mcp"

@@ -48,7 +48,7 @@ func TestLiveStreamDiagnosticsUseConfiguredLimit(t *testing.T) {
 
 	deadline := time.Now().Add(time.Second)
 	for {
-		count, _, _ := server.liveStreamStats()
+		count, _, _ := liveStreamStats(&server.serverApplication)
 		if count == 2 || time.Now().After(deadline) {
 			break
 		}

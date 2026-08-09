@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"

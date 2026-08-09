@@ -69,14 +69,14 @@ func TestRequestedInputEventFailsWithUnsupportedInputCode(t *testing.T) {
 
 func TestHydrateRunExecutionResultPopulatesRunFields(t *testing.T) {
 	run := Run{ID: "run-1", Usage: &RunUsage{}}
-	result := hydrateRunExecutionResult(
+	result := HydrateRunExecutionResult(
 		run,
-		toolExecutionContext{
-			calls: []ToolCall{
+		ToolExecutionContext{
+			Calls: []ToolCall{
 				{ToolName: "strategy.save_draft", Status: "FAILED", Error: new("disk full")},
 				{ToolName: "strategy.optimize", Status: "SUCCEEDED", Output: map[string]any{"taskId": "opt-123"}},
 			},
-			summaries: []string{"saved draft", "optimization started"},
+			Summaries: []string{"saved draft", "optimization started"},
 		},
 		[]Approval{{ID: "approval-1", Status: ApprovalStatusPending}},
 		"pre content",
@@ -111,7 +111,7 @@ func TestCompleteChatRunDoesNotPromoteTopLevelFollowUpToPendingInput(t *testing.
 		CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 	})
 
-	response, err := runtime.completeChatRun(ctx, session, run, run.UserMessage, toolExecutionContext{}, nil, assistantExecutionResult{
+	response, err := runtime.CompleteChatRun(ctx, session, run, run.UserMessage, ToolExecutionContext{}, nil, assistantExecutionResult{
 		Reply: reply,
 	}, nil)
 	if err != nil {
@@ -194,7 +194,7 @@ func TestPersistRunTerminalStateWritesRunAndAudit(t *testing.T) {
 		CreatedAt:     nowString(),
 		UpdatedAt:     nowString(),
 	})
-	if err := runtime.persistRunTerminalState(ctx, run); err != nil {
+	if err := runtime.PersistRunTerminalState(ctx, run); err != nil {
 		t.Fatalf("persistRunTerminalState: %v", err)
 	}
 
@@ -237,7 +237,7 @@ func TestAttachFinalAssistantMessagePersistsMessageAndRunLink(t *testing.T) {
 		UpdatedAt: nowString(),
 	})
 
-	updated, err := runtime.attachFinalAssistantMessage(ctx, session, run, assistantExecutionResult{
+	updated, err := runtime.AttachFinalAssistantMessage(ctx, session, run, assistantExecutionResult{
 		Reply:            "all set",
 		ReasoningContent: "internal reasoning",
 	})
@@ -340,12 +340,12 @@ func TestCompleteChatRunFailurePersistsUserFacingErrorReply(t *testing.T) {
 		Usage:         &RunUsage{},
 	})
 
-	response, err := runtime.completeChatRun(
+	response, err := runtime.CompleteChatRun(
 		ctx,
 		session,
 		run,
 		"账户现在怎么样",
-		toolExecutionContext{summaries: run.ToolSummaries},
+		ToolExecutionContext{Summaries: run.ToolSummaries},
 		nil,
 		assistantExecutionResult{},
 		errors.New("provider down"),
@@ -390,12 +390,12 @@ func TestCompleteChatRunSuccessPersistsCompletedRunAndAssistantReply(t *testing.
 		Usage:     &RunUsage{},
 	})
 
-	response, err := runtime.completeChatRun(
+	response, err := runtime.CompleteChatRun(
 		ctx,
 		session,
 		run,
 		"hello",
-		toolExecutionContext{},
+		ToolExecutionContext{},
 		nil,
 		assistantExecutionResult{Reply: "final answer", ReasoningContent: "because data"},
 		nil,
@@ -447,12 +447,12 @@ func TestCompleteChatRunKeepsFailedToolCallsVisibleWithoutFailingRun(t *testing.
 		Usage: &RunUsage{},
 	})
 
-	response, err := runtime.completeChatRun(
+	response, err := runtime.CompleteChatRun(
 		ctx,
 		session,
 		run,
 		"save this strategy",
-		toolExecutionContext{calls: run.ToolCalls},
+		ToolExecutionContext{Calls: run.ToolCalls},
 		nil,
 		assistantExecutionResult{},
 		nil,
@@ -512,7 +512,7 @@ func TestProjectedChatResponseAppliesProjectionToRunFields(t *testing.T) {
 	appendADKEvent(t, runtime, agent.ID, session.ID, newToolResponseEvent(run.ID, "call-opt", "strategy.optimize", map[string]any{"taskId": "opt-999", "status": "started"}, time.Unix(32, 0)))
 	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "优化已启动。"}}, time.Unix(33, 0)))
 
-	response := runtime.projectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: "projected reply"})
+	response := runtime.ProjectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: "projected reply"})
 	if response.Reply != "先说明一下。优化已启动。" {
 		t.Fatalf("reply = %q, want 先说明一下。优化已启动。", response.Reply)
 	}
@@ -789,11 +789,11 @@ func TestRunnerChatProjectionPersistenceAndAssistantBoundaries(t *testing.T) {
 	if merged.Status != RunStatusFailed || merged.PreToolContent != "pre" || merged.Usage.ModelCalls != 2 || merged.CompletedAt == nil || merged.CancelledAt == nil {
 		t.Fatalf("merged activity snapshot = %+v", merged)
 	}
-	authoritative := runtime.authoritativeRunSnapshot(ctx, Run{ID: run.ID, Status: RunStatusRunning})
+	authoritative := runtime.AuthoritativeRunSnapshot(ctx, Run{ID: run.ID, Status: RunStatusRunning})
 	if authoritative.Status != RunStatusFailed {
 		t.Fatalf("authoritative snapshot = %+v, want stored failed", authoritative)
 	}
-	if fallback := (&Runtime{}).authoritativeRunSnapshot(ctx, Run{ID: "missing", Status: RunStatusRunning}); fallback.Status != RunStatusRunning {
+	if fallback := (&Runtime{}).AuthoritativeRunSnapshot(ctx, Run{ID: "missing", Status: RunStatusRunning}); fallback.Status != RunStatusRunning {
 		t.Fatalf("fallback authoritative snapshot = %+v", fallback)
 	}
 	mergeRunActivitySnapshot(nil, snapshot)
@@ -805,7 +805,7 @@ func TestRunnerChatProjectionPersistenceAndAssistantBoundaries(t *testing.T) {
 	if message.SessionID != session.ID || message.RunID != run.ID || message.Content != "reply" || message.ReasoningContent != "reasoning" {
 		t.Fatalf("assistant message = %+v", message)
 	}
-	shortcut, err := runtime.ensureAssistantMessage(ctx, session, run, assistantExecutionResult{Reply: "reply", ReasoningContent: "reasoning"})
+	shortcut, err := runtime.EnsureAssistantMessage(ctx, session, run, assistantExecutionResult{Reply: "reply", ReasoningContent: "reasoning"})
 	if err != nil || shortcut.ID != message.ID {
 		t.Fatalf("ensureAssistantMessage projection shortcut = %+v err=%v", shortcut, err)
 	}
@@ -883,7 +883,7 @@ func TestProjectedChatResponseDoesNotExposeResolvedApprovals(t *testing.T) {
 	})
 	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "done"}}, time.Unix(41, 0)))
 
-	response := runtime.projectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: "projected reply"})
+	response := runtime.ProjectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: "projected reply"})
 	if len(response.PendingApprovals) != 0 {
 		t.Fatalf("response pending approvals = %+v, want none", response.PendingApprovals)
 	}

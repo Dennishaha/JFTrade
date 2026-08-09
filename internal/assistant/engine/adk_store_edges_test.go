@@ -51,7 +51,7 @@ func TestStoreSessionContextAndNoticeBoundaryBranches(t *testing.T) {
 	if notice.Kind != TimelineKindContextNotice || notice.Text != "hello" {
 		t.Fatalf("normalized notice = %+v", notice)
 	}
-	if _, err := store.db.ExecContext(ctx, `INSERT INTO `+tableSessionNotices+` (id, session_id, run_id, kind, status, payload_json, created_at, updated_at) VALUES (?, ?, '', ?, ?, ?, ?, ?)`,
+	if _, err := store.DB().ExecContext(ctx, `INSERT INTO `+tableSessionNotices+` (id, session_id, run_id, kind, status, payload_json, created_at, updated_at) VALUES (?, ?, '', ?, ?, ?, ?, ?)`,
 		"notice-bad-json", "session-bad", TimelineKindContextNotice, TimelineStatusFinal, "{", nowString(), nowString()); err != nil {
 		t.Fatalf("insert bad notice: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestNewStoreAndDeleteSessionBoundaryBranches(t *testing.T) {
 				t.Fatalf("NewStore broken: %v", err)
 			}
 			t.Cleanup(func() { jftradeCheckTestError(t, broken.Close()) })
-			if _, err := broken.db.ExecContext(ctx, `DROP TABLE `+tc.dropTable); err != nil {
+			if _, err := broken.DB().ExecContext(ctx, `DROP TABLE `+tc.dropTable); err != nil {
 				t.Fatalf("drop %s: %v", tc.dropTable, err)
 			}
 			if err := broken.DeleteSession(ctx, "session"); err == nil {
@@ -159,7 +159,7 @@ func TestStoreProviderSecretAndDefaultErrorBranches(t *testing.T) {
 	if err := os.WriteFile(blocker, []byte("file"), 0o600); err != nil {
 		t.Fatalf("write secret blocker: %v", err)
 	}
-	store.secrets.path = filepath.Join(blocker, "adk.json")
+	store.SetSecretsPath(filepath.Join(blocker, "adk.json"))
 	if _, err := store.SaveProvider(ctx, ProviderWriteRequest{
 		ID: "secret-error-provider", BaseURL: "https://example.test/v1", Model: "model", APIKey: "sk-secret", Enabled: true,
 	}); err == nil {
@@ -175,10 +175,10 @@ func TestStoreProviderSecretAndDefaultErrorBranches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveProvider second default: %v", err)
 	}
-	if _, err := defaultStore.db.ExecContext(ctx, `UPDATE `+tableProviders+` SET payload_json = json_set(payload_json, '$.default', json('false')) WHERE id IN (?, ?)`, first.ID, second.ID); err != nil {
+	if _, err := defaultStore.DB().ExecContext(ctx, `UPDATE `+tableProviders+` SET payload_json = json_set(payload_json, '$.default', json('false')) WHERE id IN (?, ?)`, first.ID, second.ID); err != nil {
 		t.Fatalf("clear provider defaults: %v", err)
 	}
-	if _, err := defaultStore.db.ExecContext(ctx, `CREATE TRIGGER fail_provider_default_update BEFORE UPDATE ON `+tableProviders+` BEGIN SELECT RAISE(FAIL, 'provider default update failed'); END`); err != nil {
+	if _, err := defaultStore.DB().ExecContext(ctx, `CREATE TRIGGER fail_provider_default_update BEFORE UPDATE ON `+tableProviders+` BEGIN SELECT RAISE(FAIL, 'provider default update failed'); END`); err != nil {
 		t.Fatalf("create provider trigger: %v", err)
 	}
 	if _, err := defaultStore.ListProviders(ctx); err == nil || !strings.Contains(err.Error(), "provider default update failed") {
@@ -188,15 +188,6 @@ func TestStoreProviderSecretAndDefaultErrorBranches(t *testing.T) {
 		t.Fatalf("SetDefaultProvider default save err = %v, want trigger error", err)
 	}
 
-	providers := []Provider{
-		{ID: "b", CreatedAt: "same", Default: false},
-		{ID: "a", CreatedAt: "same", Default: false},
-		{ID: "default", CreatedAt: "later", Default: true},
-	}
-	sortProvidersDefaultFirst(providers)
-	if providers[0].ID != "default" || providers[1].ID != "a" || providers[2].ID != "b" {
-		t.Fatalf("sortProvidersDefaultFirst id tie = %+v", providers)
-	}
 }
 
 func TestStoreRunApprovalAndMemoryErrorBranches(t *testing.T) {
@@ -221,7 +212,7 @@ func TestStoreRunApprovalAndMemoryErrorBranches(t *testing.T) {
 		t.Fatalf("SaveApprovalIfConfirmationAbsent bad json created=%v err=%v, want marshal error", created, err)
 	}
 
-	if _, err := store.db.ExecContext(ctx, `INSERT INTO `+tableApprovals+` (id, run_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+	if _, err := store.DB().ExecContext(ctx, `INSERT INTO `+tableApprovals+` (id, run_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		"approval-bad-payload", "run-bad-payload", "agent", ApprovalStatusPending, `"bad"`, nowString(), nowString()); err != nil {
 		t.Fatalf("insert bad approval payload: %v", err)
 	}
@@ -233,7 +224,7 @@ func TestStoreRunApprovalAndMemoryErrorBranches(t *testing.T) {
 	if err := store.SaveApproval(ctx, approval); err != nil {
 		t.Fatalf("SaveApproval trigger ignore: %v", err)
 	}
-	if _, err := store.db.ExecContext(ctx, `CREATE TRIGGER ignore_approval_update BEFORE UPDATE ON `+tableApprovals+` WHEN OLD.id = 'approval-trigger-ignore' BEGIN SELECT RAISE(IGNORE); END`); err != nil {
+	if _, err := store.DB().ExecContext(ctx, `CREATE TRIGGER ignore_approval_update BEFORE UPDATE ON `+tableApprovals+` WHEN OLD.id = 'approval-trigger-ignore' BEGIN SELECT RAISE(IGNORE); END`); err != nil {
 		t.Fatalf("create approval ignore trigger: %v", err)
 	}
 	current, changed, err := store.ResolvePendingApproval(ctx, approval.ID, ApprovalStatusApproved)
@@ -247,7 +238,7 @@ func TestStoreRunApprovalAndMemoryErrorBranches(t *testing.T) {
 	if _, err := store.ListMemoryFiltered(ctx, "team", "", ""); err == nil || !strings.Contains(err.Error(), "workspace or agent") {
 		t.Fatalf("ListMemoryFiltered bad scope err = %v, want scope error", err)
 	}
-	if _, err := store.db.ExecContext(ctx, `INSERT INTO `+tableMemory+` (id, agent_id, scope, memory_key, payload_json, created_at, updated_at) VALUES (?, '', 'workspace', ?, ?, ?, ?)`,
+	if _, err := store.DB().ExecContext(ctx, `INSERT INTO `+tableMemory+` (id, agent_id, scope, memory_key, payload_json, created_at, updated_at) VALUES (?, '', 'workspace', ?, ?, ?, ?)`,
 		"memory-bad-json", "bad-json", `"bad"`, nowString(), nowString()); err != nil {
 		t.Fatalf("insert bad memory: %v", err)
 	}
@@ -262,18 +253,18 @@ func TestStoreRunApprovalAndMemoryErrorBranches(t *testing.T) {
 	}
 
 	pauseStore := newBusinessStore(t)
-	if _, err := pauseStore.db.ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
+	if _, err := pauseStore.DB().ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
 		t.Fatalf("drop runs for pause guard: %v", err)
 	}
 	pauseRuntime := &Runtime{store: pauseStore}
-	if _, err := pauseRuntime.saveRunPreservingUserGoalPause(ctx, Run{ID: "root-loop", WorkMode: WorkModeLoop, Status: RunStatusRunning}); err == nil {
+	if _, err := pauseRuntime.SaveRunPreservingUserGoalPause(ctx, Run{ID: "root-loop", WorkMode: WorkModeLoop, Status: RunStatusRunning}); err == nil {
 		t.Fatal("saveRunPreservingUserGoalPause prepare err = nil, want error")
 	}
 	saveErrStore := newBusinessStore(t)
-	if _, err := saveErrStore.db.ExecContext(ctx, `CREATE TRIGGER fail_run_pause_save BEFORE INSERT ON `+tableRuns+` BEGIN SELECT RAISE(FAIL, 'pause save failed'); END`); err != nil {
+	if _, err := saveErrStore.DB().ExecContext(ctx, `CREATE TRIGGER fail_run_pause_save BEFORE INSERT ON `+tableRuns+` BEGIN SELECT RAISE(FAIL, 'pause save failed'); END`); err != nil {
 		t.Fatalf("create pause save trigger: %v", err)
 	}
-	if _, err := (&Runtime{store: saveErrStore}).saveRunPreservingUserGoalPause(ctx, Run{ID: "root-loop-save", WorkMode: WorkModeLoop, Status: RunStatusRunning}); err == nil || !strings.Contains(err.Error(), "pause save failed") {
+	if _, err := (&Runtime{store: saveErrStore}).SaveRunPreservingUserGoalPause(ctx, Run{ID: "root-loop-save", WorkMode: WorkModeLoop, Status: RunStatusRunning}); err == nil || !strings.Contains(err.Error(), "pause save failed") {
 		t.Fatalf("saveRunPreservingUserGoalPause save err = %v, want trigger error", err)
 	}
 }
@@ -281,7 +272,7 @@ func TestStoreRunApprovalAndMemoryErrorBranches(t *testing.T) {
 func TestStoreBuiltinAndLowLevelJSONErrorBranches(t *testing.T) {
 	ctx := t.Context()
 	skillsErrorStore := newBusinessStore(t)
-	if _, err := skillsErrorStore.db.ExecContext(ctx, `DROP TABLE `+tableSkills); err != nil {
+	if _, err := skillsErrorStore.DB().ExecContext(ctx, `DROP TABLE `+tableSkills); err != nil {
 		t.Fatalf("drop skills: %v", err)
 	}
 	if err := skillsErrorStore.ensureBuiltins(ctx); err == nil {
@@ -289,7 +280,7 @@ func TestStoreBuiltinAndLowLevelJSONErrorBranches(t *testing.T) {
 	}
 
 	agentErrorStore := newBusinessStore(t)
-	if _, err := agentErrorStore.db.ExecContext(ctx, `DROP TABLE `+tableAgents); err != nil {
+	if _, err := agentErrorStore.DB().ExecContext(ctx, `DROP TABLE `+tableAgents); err != nil {
 		t.Fatalf("drop agents: %v", err)
 	}
 	if err := agentErrorStore.ensureBuiltins(ctx); err == nil {
@@ -297,53 +288,15 @@ func TestStoreBuiltinAndLowLevelJSONErrorBranches(t *testing.T) {
 	}
 
 	jsonStore := newBusinessStore(t)
-	if _, err := jsonStore.db.ExecContext(ctx, `INSERT INTO `+tableAgents+` (id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+	if _, err := jsonStore.DB().ExecContext(ctx, `INSERT INTO `+tableAgents+` (id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?)`,
 		"agent-bad-json", `"bad"`, nowString(), nowString()); err != nil {
 		t.Fatalf("insert bad agent json: %v", err)
 	}
 	if _, _, err := jsonStore.Agent(ctx, "agent-bad-json"); err == nil {
 		t.Fatal("Agent bad payload err = nil, want error")
 	}
-	if err := jsonStore.saveJSON(ctx, tableAgents, "bad-save-json", nowString(), nowString(), map[string]any{"bad": func() {}}); err == nil {
+	if err := jsonStore.SaveJSON(ctx, tableAgents, "bad-save-json", nowString(), nowString(), map[string]any{"bad": func() {}}); err == nil {
 		t.Fatal("saveJSON marshal err = nil, want error")
-	}
-	if err := savePreparedRunWithExecutor(ctx, jsonStore.db, Run{
-		ID: "prepared-bad-json", SessionID: "session", AgentID: "agent", Status: RunStatusRunning,
-		ToolCalls: []ToolCall{{ID: "tool", Output: func() {}}},
-	}); err == nil {
-		t.Fatal("savePreparedRunWithExecutor marshal err = nil, want error")
-	}
-
-	badSecret := secretStore{path: filepath.Join(t.TempDir(), "bad.json")}
-	if err := os.WriteFile(badSecret.path, []byte("{"), 0o600); err != nil {
-		t.Fatalf("write bad secret: %v", err)
-	}
-	if _, err := badSecret.read(); err == nil {
-		t.Fatal("secretStore read invalid JSON err = nil, want error")
-	}
-	if _, _, err := badSecret.get("provider"); err == nil {
-		t.Fatal("secretStore get invalid JSON err = nil, want error")
-	}
-	if err := badSecret.set("provider", "sk"); err == nil {
-		t.Fatal("secretStore set invalid JSON err = nil, want error")
-	}
-	if err := badSecret.delete("provider"); err == nil {
-		t.Fatal("secretStore delete invalid JSON err = nil, want error")
-	}
-	blankSecret := secretStore{path: filepath.Join(t.TempDir(), "blank.json")}
-	if err := os.WriteFile(blankSecret.path, []byte(" \n\t "), 0o600); err != nil {
-		t.Fatalf("write blank secret: %v", err)
-	}
-	if data, err := blankSecret.read(); err != nil || len(data) != 0 {
-		t.Fatalf("secretStore blank read = %#v/%v, want empty/nil", data, err)
-	}
-	blocker := filepath.Join(t.TempDir(), "secret-dir-file")
-	if err := os.WriteFile(blocker, []byte("file"), 0o600); err != nil {
-		t.Fatalf("write secret write blocker: %v", err)
-	}
-	blockedSecret := secretStore{path: filepath.Join(blocker, "adk.json")}
-	if err := blockedSecret.write(map[string]string{"provider": "sk"}); err == nil {
-		t.Fatal("secretStore write mkdir err = nil, want error")
 	}
 }
 
@@ -472,16 +425,12 @@ func TestStoreSessionComposerBoundaryBranches(t *testing.T) {
 	if _, err := store.SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{PermissionModeOverride: &badPermission}); err == nil || !strings.Contains(err.Error(), "invalid composer permission mode") {
 		t.Fatalf("bad permission composer err = %v, want invalid permission", err)
 	}
-	if _, err := store.db.ExecContext(ctx, `INSERT INTO `+tableSessionComposer+` (id, session_id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+	if _, err := store.DB().ExecContext(ctx, `INSERT INTO `+tableSessionComposer+` (id, session_id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
 		"bad-composer-json", "bad-composer-json", `"bad"`, nowString(), nowString()); err != nil {
 		t.Fatalf("insert bad composer: %v", err)
 	}
 	if _, _, err := store.SessionComposerState(ctx, "bad-composer-json"); err == nil {
 		t.Fatal("SessionComposerState bad payload err = nil, want error")
-	}
-	normalized := normalizeSessionComposerState("session", SessionComposerState{WorkModeOverride: "bad-mode", PermissionModeOverride: "bad-permission"})
-	if normalized.WorkModeOverride != "" || normalized.PermissionModeOverride != "" {
-		t.Fatalf("normalizeSessionComposerState invalid modes = %+v, want cleared", normalized)
 	}
 }
 

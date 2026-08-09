@@ -1,90 +1,31 @@
 package adk
 
-import "strings"
+import (
+	"strings"
 
-func normalizeToolCalls(toolCalls []ToolCall) []ToolCall {
-	if len(toolCalls) == 0 {
-		return []ToolCall{}
-	}
-	return append([]ToolCall(nil), toolCalls...)
-}
+	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+)
 
 func normalizeApprovals(approvals []Approval) []Approval {
-	if len(approvals) == 0 {
-		return []Approval{}
-	}
-	return append([]Approval(nil), approvals...)
-}
-
-func normalizeWorkflowPlan(plan []WorkflowStepState) []WorkflowStepState {
-	if len(plan) == 0 {
-		return []WorkflowStepState{}
-	}
-	normalized := make([]WorkflowStepState, 0, len(plan))
-	for _, step := range plan {
-		if len(step.DependsOn) == 0 {
-			step.DependsOn = []string{}
-		} else {
-			step.DependsOn = normalizeStringSlice(step.DependsOn)
-		}
-		if len(step.Routes) == 0 {
-			step.Routes = []string{}
-		} else {
-			step.Routes = normalizeStringSlice(step.Routes)
-		}
-		normalized = append(normalized, step)
-	}
-	return normalized
+	return jfadkmodel.NormalizeApprovals(approvals)
 }
 
 func normalizeTimelineEntries(entries []TimelineEntry) []TimelineEntry {
-	if len(entries) == 0 {
-		return []TimelineEntry{}
-	}
-	normalized := make([]TimelineEntry, 0, len(entries))
-	for _, entry := range entries {
-		normalized = append(normalized, NormalizeTimelineEntry(entry))
-	}
-	return normalized
+	return jfadkmodel.NormalizeTimelineEntries(entries)
 }
 
 func NormalizeRun(run Run) Run {
-	run.WorkMode = normalizeWorkMode(run.WorkMode)
-	run.ProviderID = strings.TrimSpace(run.ProviderID)
-	run.ProviderName = strings.TrimSpace(run.ProviderName)
-	run.Model = strings.TrimSpace(run.Model)
-	run.WorkflowEngine = strings.TrimSpace(run.WorkflowEngine)
-	if len(run.ChildRunIDs) == 0 {
-		run.ChildRunIDs = []string{}
-	} else {
-		run.ChildRunIDs = normalizeStringSlice(run.ChildRunIDs)
-	}
-	run.ToolCalls = normalizeToolCalls(run.ToolCalls)
-	run.PendingApprovals = normalizeApprovals(run.PendingApprovals)
-	run.InputRequests = normalizeInputRequests(run.InputRequests)
-	run.InputRequest = normalizeInputRequest(run.InputRequest)
-	if run.InputRequest != nil {
-		run.InputRequests = appendInputRequestIfMissing(run.InputRequests, *run.InputRequest)
-	}
-	if latest := latestInputRequest(run.InputRequests); latest != nil {
-		run.InputRequest = latest
-	}
-	run.WorkflowPlan = normalizeWorkflowPlan(run.WorkflowPlan)
-	if len(run.ToolSummaries) == 0 {
-		run.ToolSummaries = []string{}
-	} else {
-		run.ToolSummaries = append([]string(nil), run.ToolSummaries...)
-	}
-	return run
+	return jfadkmodel.NormalizeRun(run)
 }
 
 func NormalizeAgent(agent Agent) Agent {
-	agent.Tools = normalizeStringSlice(agent.Tools)
-	agent.Skills = normalizeStringSlice(agent.Skills)
+	agent.Tools = jfadkmodel.NormalizeStringSlice(agent.Tools)
+	agent.Skills = jfadkmodel.NormalizeStringSlice(agent.Skills)
 	agent.PermissionMode = normalizePermissionMode(agent.PermissionMode)
 	agent.RecentUserWindow = normalizeRecentUserWindow(agent.RecentUserWindow)
 	agent.WorkMode = normalizeAgentDefaultWorkMode(agent.WorkMode)
-	agent.LoopMaxIterations = normalizeLoopMaxIterations(agent.LoopMaxIterations)
+	agent.LoopMaxIterations = jfadkmodel.NormalizeLoopMaxIterations(agent.LoopMaxIterations)
 	agent.Builtin = agent.Builtin || IsBuiltinAgentID(agent.ID)
 	if IsPrimaryBuiltinAgentID(agent.ID) {
 		agent.Name = "默认助手"
@@ -97,10 +38,7 @@ func NormalizeAgent(agent Agent) Agent {
 }
 
 func NormalizeTimelineEntry(entry TimelineEntry) TimelineEntry {
-	entry.ToolCalls = normalizeToolCalls(entry.ToolCalls)
-	entry.Approvals = normalizeApprovals(entry.Approvals)
-	entry.InputRequest = normalizeInputRequest(entry.InputRequest)
-	return entry
+	return jfadkmodel.NormalizeTimelineEntry(entry)
 }
 
 func NormalizeChatResponse(response ChatResponse) ChatResponse {
@@ -112,44 +50,11 @@ func NormalizeChatResponse(response ChatResponse) ChatResponse {
 }
 
 func normalizeInputRequest(request *InputRequest) *InputRequest {
-	if request == nil {
-		return nil
-	}
-	result := *request
-	result.Questions = append([]InputQuestion(nil), request.Questions...)
-	for index := range result.Questions {
-		result.Questions[index].Options = append([]InputOption(nil), result.Questions[index].Options...)
-	}
-	result.Answers = append([]InputAnswer(nil), request.Answers...)
-	return &result
-}
-
-func normalizeInputRequests(requests []InputRequest) []InputRequest {
-	if len(requests) == 0 {
-		return []InputRequest{}
-	}
-	result := make([]InputRequest, 0, len(requests))
-	for index := range requests {
-		result = append(result, *normalizeInputRequest(&requests[index]))
-	}
-	return result
+	return jfadkmodel.NormalizeInputRequest(request)
 }
 
 func appendInputRequestIfMissing(requests []InputRequest, request InputRequest) []InputRequest {
-	for index := range requests {
-		if requests[index].ID == request.ID || (request.FunctionCallID != "" && requests[index].FunctionCallID == request.FunctionCallID) {
-			requests[index] = *normalizeInputRequest(&request)
-			return requests
-		}
-	}
-	return append(requests, *normalizeInputRequest(&request))
-}
-
-func latestInputRequest(requests []InputRequest) *InputRequest {
-	if len(requests) == 0 {
-		return nil
-	}
-	return normalizeInputRequest(&requests[len(requests)-1])
+	return jfadkmodel.AppendInputRequestIfMissing(requests, request)
 }
 
 func NormalizeWorkflowDefinition(workflow WorkflowDefinition) WorkflowDefinition {
@@ -161,7 +66,7 @@ func NormalizeWorkflowDefinition(workflow WorkflowDefinition) WorkflowDefinition
 		workflow.Status = WorkflowStatusEnabled
 	}
 	workflow.AgentID = strings.TrimSpace(workflow.AgentID)
-	workflow.WorkMode = normalizeWorkMode(workflow.WorkMode)
+	workflow.WorkMode = jfadkmodel.NormalizeWorkMode(workflow.WorkMode)
 	workflow.ProviderID = strings.TrimSpace(workflow.ProviderID)
 	workflow.Model = strings.TrimSpace(workflow.Model)
 	workflow.PermissionMode = normalizeOptionalPermissionMode(workflow.PermissionMode)
@@ -169,7 +74,7 @@ func NormalizeWorkflowDefinition(workflow WorkflowDefinition) WorkflowDefinition
 	workflow.ObjectiveTemplate = strings.TrimSpace(workflow.ObjectiveTemplate)
 	workflow.DefaultInputs = normalizeAnyMap(workflow.DefaultInputs)
 	workflow.CanvasGraph = normalizeWorkflowCanvasGraph(workflow.CanvasGraph)
-	workflow.Tags = normalizeStringSlice(workflow.Tags)
+	workflow.Tags = jfadkmodel.NormalizeStringSlice(workflow.Tags)
 	return workflow
 }
 
@@ -301,7 +206,7 @@ func NormalizeSessionsResponse(response SessionsResponse) SessionsResponse {
 			response.Runs[index] = NormalizeRun(response.Runs[index])
 		}
 	}
-	response.ComposerState = normalizeSessionComposerState(response.Session.ID, response.ComposerState)
+	response.ComposerState = enginepersistence.NormalizeSessionComposerState(response.Session.ID, response.ComposerState)
 	return response
 }
 

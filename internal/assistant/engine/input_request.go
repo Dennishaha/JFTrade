@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	adkmodel "google.golang.org/adk/v2/model"
 	adksession "google.golang.org/adk/v2/session"
@@ -20,65 +21,6 @@ import (
 const interactionRequestUserTool = "interaction.request_user"
 
 const maxInputRequestOptions = 3
-
-const (
-	InputRequestStatusPending   = "PENDING"
-	InputRequestStatusAnswered  = "ANSWERED"
-	InputRequestStatusCancelled = "CANCELLED"
-)
-
-type InputOption struct {
-	ID          string `json:"id"`
-	Label       string `json:"label"`
-	Description string `json:"description,omitempty"`
-	Recommended bool   `json:"recommended,omitempty"`
-}
-
-type InputQuestion struct {
-	ID         string        `json:"id"`
-	Question   string        `json:"question"`
-	Options    []InputOption `json:"options"`
-	AllowOther bool          `json:"allowOther"`
-}
-
-type InputAnswer struct {
-	QuestionID string `json:"questionId"`
-	OptionID   string `json:"optionId,omitempty"`
-	OtherText  string `json:"otherText,omitempty"`
-}
-
-type InputRequest struct {
-	ID             string          `json:"id"`
-	RunID          string          `json:"runId"`
-	AgentID        string          `json:"agentId"`
-	FunctionCallID string          `json:"functionCallId"`
-	Title          string          `json:"title,omitempty"`
-	Status         string          `json:"status"`
-	Questions      []InputQuestion `json:"questions"`
-	Answers        []InputAnswer   `json:"answers,omitempty"`
-	CreatedAt      string          `json:"createdAt"`
-	UpdatedAt      string          `json:"updatedAt"`
-	AnsweredAt     *string         `json:"answeredAt,omitempty"`
-}
-
-type InputResponseRequest struct {
-	RequestID string        `json:"requestId"`
-	Answers   []InputAnswer `json:"answers"`
-}
-
-type InputResolution struct {
-	Request   InputRequest     `json:"request"`
-	Run       *Run             `json:"run,omitempty"`
-	ParentRun *Run             `json:"parentRun,omitempty"`
-	Message   *TranscriptEntry `json:"message,omitempty"`
-}
-
-var (
-	errInputRequestNotFound        = errors.New("input request not found")
-	errInputRequestInvalid         = errors.New("input response is invalid")
-	errInputRequestConflict        = errors.New("input request conflict")
-	errInputRequestAlreadyAnswered = errors.New("input request already answered")
-)
 
 type requestUserToolOption struct {
 	Label       string `json:"label"`
@@ -105,7 +47,7 @@ func inputRequestToolDescriptor() ToolDescriptor {
 		Category:     "interaction",
 		Permission:   "read_internal",
 		RiskLevel:    "low",
-		AllowedModes: allPermissionModes(),
+		AllowedModes: jfadkmodel.AllPermissionModes(),
 		InputSchema:  inputRequestToolInputSchema(),
 	}
 }
@@ -307,63 +249,6 @@ func requestUserToolArgsFromCall(call *genai.FunctionCall) (requestUserToolArgs,
 	return args, nil
 }
 
-func validateInputAnswers(request InputRequest, submitted []InputAnswer) ([]InputAnswer, error) {
-	if len(submitted) != len(request.Questions) {
-		return nil, fmt.Errorf("%w: every question must be answered", errInputRequestInvalid)
-	}
-	byQuestion := make(map[string]InputAnswer, len(submitted))
-	for _, answer := range submitted {
-		questionID := strings.TrimSpace(answer.QuestionID)
-		if questionID == "" {
-			return nil, fmt.Errorf("%w: questionId is required", errInputRequestInvalid)
-		}
-		if _, exists := byQuestion[questionID]; exists {
-			return nil, fmt.Errorf("%w: duplicate answer for %s", errInputRequestInvalid, questionID)
-		}
-		answer.QuestionID = questionID
-		answer.OptionID = strings.TrimSpace(answer.OptionID)
-		answer.OtherText = strings.TrimSpace(answer.OtherText)
-		byQuestion[questionID] = answer
-	}
-	canonical := make([]InputAnswer, 0, len(request.Questions))
-	for _, question := range request.Questions {
-		answer, ok := byQuestion[question.ID]
-		if !ok {
-			return nil, fmt.Errorf("%w: missing answer for %s", errInputRequestInvalid, question.ID)
-		}
-		usesOption := answer.OptionID != ""
-		usesOther := answer.OtherText != ""
-		if usesOption == usesOther {
-			return nil, fmt.Errorf("%w: %s must use exactly one answer type", errInputRequestInvalid, question.ID)
-		}
-		if usesOther {
-			if !question.AllowOther {
-				return nil, fmt.Errorf("%w: %s does not allow other text", errInputRequestInvalid, question.ID)
-			}
-			canonical = append(canonical, InputAnswer{QuestionID: question.ID, OtherText: answer.OtherText})
-			continue
-		}
-		validOption := false
-		for _, option := range question.Options {
-			if option.ID == answer.OptionID {
-				validOption = true
-				break
-			}
-		}
-		if !validOption {
-			return nil, fmt.Errorf("%w: invalid option for %s", errInputRequestInvalid, question.ID)
-		}
-		canonical = append(canonical, InputAnswer{QuestionID: question.ID, OptionID: answer.OptionID})
-	}
-	return canonical, nil
-}
-
-func inputAnswersEqual(left []InputAnswer, right []InputAnswer) bool {
-	leftJSON, _ := json.Marshal(left)
-	rightJSON, _ := json.Marshal(right)
-	return string(leftJSON) == string(rightJSON)
-}
-
 func inputResponsePayload(request InputRequest) map[string]any {
 	answers := make([]map[string]any, 0, len(request.Answers))
 	for _, answer := range request.Answers {
@@ -391,12 +276,12 @@ func inputResponsePayload(request InputRequest) map[string]any {
 	return map[string]any{"requestId": request.ID, "answers": answers}
 }
 
-func (r *Runtime) pendingInputRequests(ctx context.Context, execution *googleADKExecution) (map[string]*InputRequest, error) {
+func (r *Runtime) PendingInputRequests(ctx context.Context, execution WorkflowExecutionHandle) (map[string]*InputRequest, error) {
 	if execution == nil {
 		return nil, nil
 	}
-	response, err := execution.sessionService.Get(ctx, &adksession.GetRequest{
-		AppName: execution.appName, UserID: googleADKUserID, SessionID: execution.sessionID,
+	response, err := execution.SessionService().Get(ctx, &adksession.GetRequest{
+		AppName: execution.AppName(), UserID: googleADKUserID, SessionID: execution.SessionID(),
 	})
 	if err != nil {
 		return nil, err
@@ -411,7 +296,7 @@ func (r *Runtime) pendingInputRequests(ctx context.Context, execution *googleADK
 			if call == nil || call.Name != interactionRequestUserTool || !sliceContainsExact(event.LongRunningToolIDs, call.ID) {
 				continue
 			}
-			runID, tracked := execution.trackedRunIDForFunctionCall(call.ID)
+			runID, tracked := execution.TrackedRunIDForFunctionCall(call.ID)
 			if !tracked {
 				continue
 			}
@@ -432,7 +317,7 @@ func (r *Runtime) pendingInputRequests(ctx context.Context, execution *googleADK
 			if err != nil {
 				continue
 			}
-			agentID := execution.agent.ID
+			agentID := execution.AgentDefinition().ID
 			if ok {
 				agentID = stored.AgentID
 			}
@@ -441,7 +326,7 @@ func (r *Runtime) pendingInputRequests(ctx context.Context, execution *googleADK
 				continue
 			}
 			requests[runID] = request
-			execution.markCallWaitingForInput(call.ID)
+			execution.MarkCallWaitingForInput(call.ID)
 		}
 	}
 	return requests, nil

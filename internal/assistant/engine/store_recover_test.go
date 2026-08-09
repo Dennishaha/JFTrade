@@ -29,7 +29,7 @@ func TestStoreListProvidersRepairsPersistedDefaultSelection(t *testing.T) {
 		t.Fatalf("SaveProvider gamma: %v", err)
 	}
 
-	if _, err := store.db.ExecContext(ctx, `UPDATE `+tableProviders+` SET payload_json = json_set(payload_json, '$.default', json('true'))`); err != nil {
+	if _, err := store.DB().ExecContext(ctx, `UPDATE `+tableProviders+` SET payload_json = json_set(payload_json, '$.default', json('true'))`); err != nil {
 		t.Fatalf("force duplicate provider defaults: %v", err)
 	}
 
@@ -70,7 +70,7 @@ func TestStoreDefaultAgentSkipsDisabledPrimaryAndRestoresTemplate(t *testing.T) 
 		t.Fatalf("save fallback agent: %v", err)
 	}
 
-	if _, err := store.db.ExecContext(ctx, `UPDATE `+tableAgents+` SET payload_json = json_set(payload_json, '$.status', ?), updated_at = ? WHERE id = ?`, AgentStatusDisabled, nowString(), DefaultBuiltinAgentID); err != nil {
+	if _, err := store.DB().ExecContext(ctx, `UPDATE `+tableAgents+` SET payload_json = json_set(payload_json, '$.status', ?), updated_at = ? WHERE id = ?`, AgentStatusDisabled, nowString(), DefaultBuiltinAgentID); err != nil {
 		t.Fatalf("disable primary builtin agent: %v", err)
 	}
 	agents, err := store.ListAgents(ctx)
@@ -96,7 +96,7 @@ func TestStoreDefaultAgentSkipsDisabledPrimaryAndRestoresTemplate(t *testing.T) 
 		t.Fatalf("DefaultAgent fallback = %#v, want first enabled %#v", fallback, firstEnabled)
 	}
 
-	if _, err := store.db.ExecContext(ctx, `UPDATE `+tableAgents+` SET payload_json = json_set(payload_json, '$.status', ?), updated_at = ?`, AgentStatusDisabled, nowString()); err != nil {
+	if _, err := store.DB().ExecContext(ctx, `UPDATE `+tableAgents+` SET payload_json = json_set(payload_json, '$.status', ?), updated_at = ?`, AgentStatusDisabled, nowString()); err != nil {
 		t.Fatalf("disable all agents: %v", err)
 	}
 	restored, err := store.DefaultAgent(ctx)
@@ -115,7 +115,7 @@ func TestStoreListAuditEventsReturnsCorruptPayloadError(t *testing.T) {
 	if err := store.AddAuditEvent(ctx, AuditEvent{ID: "audit-valid", Kind: "agent.saved", SubjectID: "agent", Detail: "saved", CreatedAt: "2026-01-02T03:04:05Z"}); err != nil {
 		t.Fatalf("AddAuditEvent valid: %v", err)
 	}
-	if _, err := store.db.ExecContext(ctx, `INSERT INTO `+tableAudit+` (id, kind, subject_id, payload_json, created_at) VALUES (?, ?, ?, ?, ?)`, "audit-corrupt", "agent.saved", "agent", "{not-json", "2026-01-02T03:04:06Z"); err != nil {
+	if _, err := store.DB().ExecContext(ctx, `INSERT INTO `+tableAudit+` (id, kind, subject_id, payload_json, created_at) VALUES (?, ?, ?, ?, ?)`, "audit-corrupt", "agent.saved", "agent", "{not-json", "2026-01-02T03:04:06Z"); err != nil {
 		t.Fatalf("insert corrupt audit payload: %v", err)
 	}
 

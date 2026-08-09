@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	adkmodel "google.golang.org/adk/v2/model"
 	adktool "google.golang.org/adk/v2/tool"
@@ -89,7 +90,7 @@ func (t *googleADKSkillGatedTool) Run(ctx adkagent.Context, args any) (map[strin
 }
 
 func skillRequiredLoadError(toolName string, skillNames []string) error {
-	skillNames = normalizeStringSlice(skillNames)
+	skillNames = jfadkmodel.NormalizeStringSlice(skillNames)
 	if len(skillNames) == 1 {
 		return fmt.Errorf("tool %q requires loading skill %q in the current invocation", toolName, skillNames[0])
 	}

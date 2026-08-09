@@ -16,13 +16,6 @@ const (
 	strategyStatusStopped           = strategycatalog.StatusStopped
 	strategyExecutionModeLive       = strategycatalog.ExecutionModeLive
 	strategyExecutionModeNotifyOnly = strategycatalog.ExecutionModeNotifyOnly
-	pluginTypeGoStrategy            = "strategy-go-plugin"
-	pluginBuildMode                 = "plugin"
-)
-
-type (
-	strategyPluginArtifact = strategycatalog.PluginArtifact
-	managedStrategyPlugin  = strategycatalog.ManagedPlugin
 )
 
 func IDPinePlanPlugin() string {

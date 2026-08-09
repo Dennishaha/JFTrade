@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -20,11 +21,11 @@ func init() {
 	swaggerdocs.SwaggerInfo.BasePath = "/"
 }
 
-func (s *Server) handleSwaggerRoot(c *gin.Context) {
+func handleSwaggerRoot(c *gin.Context) {
 	http.Redirect(c.Writer, c.Request, "/swagger/index.html", http.StatusTemporaryRedirect)
 }
 
-func (s *Server) handleSwaggerUI(c *gin.Context) {
+func handleSwaggerUI(c *gin.Context) {
 	if c.Request.URL.Path == "/swagger/" {
 		http.Redirect(c.Writer, c.Request, "/swagger/index.html", http.StatusTemporaryRedirect)
 		return
@@ -47,6 +48,17 @@ func (s *Server) handleSwaggerUI(c *gin.Context) {
 };
 `))
 		return
+	}
+	if c.Request.URL.Path == "/swagger/doc.json" {
+		if sourcePath := os.Getenv("JFTRADE_OPENAPI_SOURCE"); sourcePath != "" {
+			body, err := os.ReadFile(sourcePath)
+			if err != nil {
+				c.String(http.StatusInternalServerError, "read OpenAPI source: %v", err)
+				return
+			}
+			c.Data(http.StatusOK, "application/json; charset=utf-8", body)
+			return
+		}
 	}
 	swaggerUIHandler(c)
 }

@@ -1,785 +1,143 @@
 package adk
 
 import (
-	"sync"
-	"time"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 const (
-	PermissionModeApproval     = "approval"
-	PermissionModeLessApproval = "less_approval"
-	PermissionModeAll          = "all"
+	PermissionModeApproval     = jfadkmodel.PermissionModeApproval
+	PermissionModeLessApproval = jfadkmodel.PermissionModeLessApproval
+	PermissionModeAll          = jfadkmodel.PermissionModeAll
 
-	WorkModeChat = "chat"
-	WorkModeLoop = "loop"
+	WorkModeChat = jfadkmodel.WorkModeChat
+	WorkModeLoop = jfadkmodel.WorkModeLoop
 
-	WorkflowEngineADK2Loop   = "adk2_loop"
-	WorkflowEngineADK2Canvas = "adk2_canvas"
+	WorkflowEngineADK2Loop   = jfadkmodel.WorkflowEngineADK2Loop
+	WorkflowEngineADK2Canvas = jfadkmodel.WorkflowEngineADK2Canvas
 
-	AgentStatusEnabled  = "ENABLED"
-	AgentStatusDisabled = "DISABLED"
+	AgentStatusEnabled  = jfadkmodel.AgentStatusEnabled
+	AgentStatusDisabled = jfadkmodel.AgentStatusDisabled
 
-	WorkflowStatusEnabled  = "ENABLED"
-	WorkflowStatusDisabled = "DISABLED"
+	WorkflowStatusEnabled  = jfadkmodel.WorkflowStatusEnabled
+	WorkflowStatusDisabled = jfadkmodel.WorkflowStatusDisabled
+	WorkflowStatusRunning  = jfadkmodel.WorkflowStatusRunning
 
-	WorkflowTriggerTypeManual          = "manual"
-	WorkflowTriggerTypeSchedule        = "schedule"
-	WorkflowTriggerTypeWebhook         = "webhook"
-	WorkflowTriggerTypeEvent           = "event"
-	WorkflowTriggerTypeMarketThreshold = "market_threshold"
+	WorkflowTriggerTypeManual          = jfadkmodel.WorkflowTriggerTypeManual
+	WorkflowTriggerTypeSchedule        = jfadkmodel.WorkflowTriggerTypeSchedule
+	WorkflowTriggerTypeWebhook         = jfadkmodel.WorkflowTriggerTypeWebhook
+	WorkflowTriggerTypeEvent           = jfadkmodel.WorkflowTriggerTypeEvent
+	WorkflowTriggerTypeMarketThreshold = jfadkmodel.WorkflowTriggerTypeMarketThreshold
 
-	WorkflowTriggerStatusEnabled  = "ENABLED"
-	WorkflowTriggerStatusDisabled = "DISABLED"
-	WorkflowTriggerStatusError    = "ERROR"
+	WorkflowTriggerStatusEnabled  = jfadkmodel.WorkflowTriggerStatusEnabled
+	WorkflowTriggerStatusDisabled = jfadkmodel.WorkflowTriggerStatusDisabled
+	WorkflowTriggerStatusError    = jfadkmodel.WorkflowTriggerStatusError
 
-	WorkflowTriggerLogStatusQueued          = "QUEUED"
-	WorkflowTriggerLogStatusRunning         = "RUNNING"
-	WorkflowTriggerLogStatusSucceeded       = "SUCCEEDED"
-	WorkflowTriggerLogStatusPendingApproval = "PENDING_APPROVAL"
-	WorkflowTriggerLogStatusFailed          = "FAILED"
-	WorkflowTriggerLogStatusCancelled       = "CANCELLED"
-	WorkflowTriggerLogStatusSkipped         = "SKIPPED"
+	WorkflowTriggerLogStatusQueued          = jfadkmodel.WorkflowTriggerLogStatusQueued
+	WorkflowTriggerLogStatusRunning         = jfadkmodel.WorkflowTriggerLogStatusRunning
+	WorkflowTriggerLogStatusSucceeded       = jfadkmodel.WorkflowTriggerLogStatusSucceeded
+	WorkflowTriggerLogStatusPendingApproval = jfadkmodel.WorkflowTriggerLogStatusPendingApproval
+	WorkflowTriggerLogStatusFailed          = jfadkmodel.WorkflowTriggerLogStatusFailed
+	WorkflowTriggerLogStatusCancelled       = jfadkmodel.WorkflowTriggerLogStatusCancelled
+	WorkflowTriggerLogStatusSkipped         = jfadkmodel.WorkflowTriggerLogStatusSkipped
 
-	RunStatusRunning      = "RUNNING"
-	RunStatusCompleted    = "COMPLETED"
-	RunStatusPending      = "PENDING_APPROVAL"
-	RunStatusPendingInput = "PENDING_INPUT"
-	RunStatusFailed       = "FAILED"
-	RunStatusDenied       = "DENIED"
-	RunStatusCancelled    = "CANCELLED"
-	RunStatusTimedOut     = "TIMED_OUT"
-	RunStatusPaused       = "PAUSED"
+	RunStatusRunning      = jfadkmodel.RunStatusRunning
+	RunStatusCompleted    = jfadkmodel.RunStatusCompleted
+	RunStatusPending      = jfadkmodel.RunStatusPending
+	RunStatusPendingInput = jfadkmodel.RunStatusPendingInput
+	RunStatusFailed       = jfadkmodel.RunStatusFailed
+	RunStatusDenied       = jfadkmodel.RunStatusDenied
+	RunStatusCancelled    = jfadkmodel.RunStatusCancelled
+	RunStatusTimedOut     = jfadkmodel.RunStatusTimedOut
+	RunStatusPaused       = jfadkmodel.RunStatusPaused
 
-	ApprovalStatusPending  = "PENDING"
-	ApprovalStatusApproved = "APPROVED"
-	ApprovalStatusDenied   = "DENIED"
+	ApprovalStatusPending  = jfadkmodel.ApprovalStatusPending
+	ApprovalStatusApproved = jfadkmodel.ApprovalStatusApproved
+	ApprovalStatusDenied   = jfadkmodel.ApprovalStatusDenied
 
-	// Runtime safety limits
-	DefaultProviderRequestTimeout = 180 * time.Second
-	DefaultRunTimeout             = 30 * time.Minute
-	DefaultStreamIdleTimeout      = 300 * time.Second
-	MaxConcurrentRuns             = 10 // Maximum simultaneous runs
-	DefaultLoopMaxIterations      = 5
-	MaxLoopIterations             = 20
-	MaxToolOutputBytes            = 256 << 10 // Maximum tool output size (256 KiB)
-	MaxMessageLength              = 50000     // Maximum user message length in runes
+	InputRequestStatusPending   = jfadkmodel.InputRequestStatusPending
+	InputRequestStatusAnswered  = jfadkmodel.InputRequestStatusAnswered
+	InputRequestStatusCancelled = jfadkmodel.InputRequestStatusCancelled
+
+	DefaultProviderRequestTimeout = jfadkmodel.DefaultProviderRequestTimeout
+	DefaultRunTimeout             = jfadkmodel.DefaultRunTimeout
+	DefaultStreamIdleTimeout      = jfadkmodel.DefaultStreamIdleTimeout
+	MaxConcurrentRuns             = jfadkmodel.MaxConcurrentRuns
+	DefaultLoopMaxIterations      = jfadkmodel.DefaultLoopMaxIterations
+	MaxLoopIterations             = jfadkmodel.MaxLoopIterations
+	MaxToolOutputBytes            = jfadkmodel.MaxToolOutputBytes
+	MaxMessageLength              = jfadkmodel.MaxMessageLength
+
+	ProviderAPIProtocolChatCompletions = jfadkmodel.ProviderAPIProtocolChatCompletions
+	ProviderAPIProtocolResponses       = jfadkmodel.ProviderAPIProtocolResponses
+
+	TimelineKindUserMessage        = jfadkmodel.TimelineKindUserMessage
+	TimelineKindAssistantMessage   = jfadkmodel.TimelineKindAssistantMessage
+	TimelineKindAssistantReasoning = jfadkmodel.TimelineKindAssistantReasoning
+	TimelineKindToolGroup          = jfadkmodel.TimelineKindToolGroup
+	TimelineKindApprovalGroup      = jfadkmodel.TimelineKindApprovalGroup
+	TimelineKindInputRequest       = jfadkmodel.TimelineKindInputRequest
+	TimelineKindContextNotice      = jfadkmodel.TimelineKindContextNotice
+
+	TimelineStatusStreaming = jfadkmodel.TimelineStatusStreaming
+	TimelineStatusFinal     = jfadkmodel.TimelineStatusFinal
+	TimelineStatusError     = jfadkmodel.TimelineStatusError
 )
 
-const (
-	ProviderAPIProtocolChatCompletions = "chat_completions"
-	ProviderAPIProtocolResponses       = "responses"
+type (
+	Provider                       = jfadkmodel.Provider
+	ProviderWriteRequest           = jfadkmodel.ProviderWriteRequest
+	Agent                          = jfadkmodel.Agent
+	AgentWriteRequest              = jfadkmodel.AgentWriteRequest
+	Session                        = jfadkmodel.Session
+	SessionComposerState           = jfadkmodel.SessionComposerState
+	SessionComposerStatePatch      = jfadkmodel.SessionComposerStatePatch
+	TranscriptEntry                = jfadkmodel.TranscriptEntry
+	TimelineEntry                  = jfadkmodel.TimelineEntry
+	SessionProjection              = jfadkmodel.SessionProjection
+	Run                            = jfadkmodel.Run
+	WorkflowStepState              = jfadkmodel.WorkflowStepState
+	RunUsage                       = jfadkmodel.RunUsage
+	ToolCall                       = jfadkmodel.ToolCall
+	Approval                       = jfadkmodel.Approval
+	InputOption                    = jfadkmodel.InputOption
+	InputQuestion                  = jfadkmodel.InputQuestion
+	InputAnswer                    = jfadkmodel.InputAnswer
+	InputRequest                   = jfadkmodel.InputRequest
+	InputResponseRequest           = jfadkmodel.InputResponseRequest
+	InputResolution                = jfadkmodel.InputResolution
+	Skill                          = jfadkmodel.Skill
+	ToolDescriptor                 = jfadkmodel.ToolDescriptor
+	ChatRequest                    = jfadkmodel.ChatRequest
+	RunOptions                     = jfadkmodel.RunOptions
+	WorkflowDefinition             = jfadkmodel.WorkflowDefinition
+	WorkflowDefinitionWriteRequest = jfadkmodel.WorkflowDefinitionWriteRequest
+	WorkflowCanvasGraph            = jfadkmodel.WorkflowCanvasGraph
+	WorkflowCanvasPoint            = jfadkmodel.WorkflowCanvasPoint
+	WorkflowCanvasNode             = jfadkmodel.WorkflowCanvasNode
+	WorkflowCanvasEdge             = jfadkmodel.WorkflowCanvasEdge
+	WorkflowTrigger                = jfadkmodel.WorkflowTrigger
+	WorkflowTriggerWriteRequest    = jfadkmodel.WorkflowTriggerWriteRequest
+	WorkflowTriggerLog             = jfadkmodel.WorkflowTriggerLog
+	WorkflowResult                 = jfadkmodel.WorkflowResult
+	WorkflowNodeRun                = jfadkmodel.WorkflowNodeRun
+	WorkflowEvent                  = jfadkmodel.WorkflowEvent
+	ChatDelta                      = jfadkmodel.ChatDelta
+	ChatResponse                   = jfadkmodel.ChatResponse
+	ApprovalResolution             = jfadkmodel.ApprovalResolution
+	SessionsResponse               = jfadkmodel.SessionsResponse
+	Snapshot                       = jfadkmodel.Snapshot
+	AuditEvent                     = jfadkmodel.AuditEvent
+	OptimizationRunRef             = jfadkmodel.OptimizationRunRef
+	OptimizationTask               = jfadkmodel.OptimizationTask
+	Task                           = jfadkmodel.Task
+	TaskWriteRequest               = jfadkmodel.TaskWriteRequest
+	TaskPatchRequest               = jfadkmodel.TaskPatchRequest
+	MemoryEntry                    = jfadkmodel.MemoryEntry
+	MemoryWriteRequest             = jfadkmodel.MemoryWriteRequest
+	HandoffSegment                 = jfadkmodel.HandoffSegment
+	SessionContextBreakdown        = jfadkmodel.SessionContextBreakdown
+	SessionContextState            = jfadkmodel.SessionContextState
+	SessionContextSnapshot         = jfadkmodel.SessionContextSnapshot
 )
-
-type Provider struct {
-	ID                  string            `json:"id"`
-	DisplayName         string            `json:"displayName"`
-	BaseURL             string            `json:"baseUrl"`
-	Model               string            `json:"model"`
-	APIProtocol         string            `json:"apiProtocol" enums:"chat_completions,responses"`
-	ContextWindowTokens int               `json:"contextWindowTokens,omitempty"`
-	RequestTimeoutMs    int               `json:"requestTimeoutMs"`
-	DefaultHeaders      map[string]string `json:"defaultHeaders,omitempty"`
-	Enabled             bool              `json:"enabled"`
-	Default             bool              `json:"default"`
-	HasAPIKey           bool              `json:"hasApiKey"`
-	Capabilities        map[string]bool   `json:"capabilities,omitempty"`
-	CreatedAt           string            `json:"createdAt"`
-	UpdatedAt           string            `json:"updatedAt"`
-}
-
-type ProviderWriteRequest struct {
-	ID                  string            `json:"id,omitempty"`
-	DisplayName         string            `json:"displayName"`
-	BaseURL             string            `json:"baseUrl"`
-	Model               string            `json:"model"`
-	APIProtocol         string            `json:"apiProtocol,omitempty" enums:"chat_completions,responses"`
-	ContextWindowTokens int               `json:"contextWindowTokens,omitempty"`
-	RequestTimeoutMs    int               `json:"requestTimeoutMs,omitempty"`
-	DefaultHeaders      map[string]string `json:"defaultHeaders,omitempty"`
-	APIKey              string            `json:"apiKey,omitempty"`
-	Enabled             bool              `json:"enabled"`
-}
-
-type RuntimeLimits struct {
-	RunTimeout time.Duration
-}
-
-type RuntimeLimitsProvider func() RuntimeLimits
-
-type Agent struct {
-	ID                string   `json:"id"`
-	Name              string   `json:"name"`
-	Instruction       string   `json:"instruction"`
-	ProviderID        string   `json:"providerId"`
-	Model             string   `json:"model"`
-	Tools             []string `json:"tools"`
-	Skills            []string `json:"skills"`
-	PermissionMode    string   `json:"permissionMode"`
-	MemoryEnabled     bool     `json:"memoryEnabled"`
-	RecentUserWindow  int      `json:"recentUserWindow"`
-	WorkMode          string   `json:"workMode"`
-	LoopMaxIterations int      `json:"loopMaxIterations"`
-	Status            string   `json:"status"`
-	Builtin           bool     `json:"builtin,omitempty"`
-	CreatedAt         string   `json:"createdAt"`
-	UpdatedAt         string   `json:"updatedAt"`
-	DeletedAt         *string  `json:"deletedAt,omitempty"`
-}
-
-type AgentWriteRequest struct {
-	ID                string   `json:"id,omitempty"`
-	Name              string   `json:"name"`
-	Instruction       string   `json:"instruction"`
-	ProviderID        string   `json:"providerId"`
-	Model             string   `json:"model,omitempty"`
-	Tools             []string `json:"tools,omitempty"`
-	Skills            []string `json:"skills,omitempty"`
-	PermissionMode    string   `json:"permissionMode"`
-	MemoryEnabled     bool     `json:"memoryEnabled"`
-	RecentUserWindow  int      `json:"recentUserWindow,omitempty"`
-	WorkMode          string   `json:"workMode,omitempty"`
-	LoopMaxIterations int      `json:"loopMaxIterations,omitempty"`
-	Status            string   `json:"status"`
-}
-
-type Session struct {
-	ID           string `json:"id"`
-	AgentID      string `json:"agentId"`
-	Title        string `json:"title"`
-	WorkflowID   string `json:"workflowId,omitempty"`
-	WorkflowName string `json:"workflowName,omitempty"`
-	CreatedAt    string `json:"createdAt"`
-	UpdatedAt    string `json:"updatedAt"`
-}
-
-type SessionComposerState struct {
-	SessionID              string `json:"sessionId"`
-	ChatDraft              string `json:"chatDraft"`
-	ProviderIDOverride     string `json:"providerIdOverride"`
-	ModelOverride          string `json:"modelOverride"`
-	WorkModeOverride       string `json:"workModeOverride"`
-	PermissionModeOverride string `json:"permissionModeOverride"`
-	GoalObjectiveDraft     string `json:"goalObjectiveDraft"`
-	GoalObjectiveTouched   bool   `json:"goalObjectiveTouched"`
-	UpdatedAt              string `json:"updatedAt"`
-}
-
-type SessionComposerStatePatch struct {
-	ChatDraft              *string `json:"chatDraft,omitempty"`
-	ProviderIDOverride     *string `json:"providerIdOverride,omitempty"`
-	ModelOverride          *string `json:"modelOverride,omitempty"`
-	WorkModeOverride       *string `json:"workModeOverride,omitempty"`
-	PermissionModeOverride *string `json:"permissionModeOverride,omitempty"`
-	GoalObjectiveDraft     *string `json:"goalObjectiveDraft,omitempty"`
-	GoalObjectiveTouched   *bool   `json:"goalObjectiveTouched,omitempty"`
-}
 
 const transcriptKindMessage = "message"
-
-const (
-	TimelineKindUserMessage        = "user_message"
-	TimelineKindAssistantMessage   = "assistant_message"
-	TimelineKindAssistantReasoning = "assistant_reasoning"
-	TimelineKindToolGroup          = "tool_group"
-	TimelineKindApprovalGroup      = "approval_group"
-	TimelineKindInputRequest       = "input_request"
-	TimelineKindContextNotice      = "context_notice"
-
-	TimelineStatusStreaming = "streaming"
-	TimelineStatusFinal     = "final"
-	TimelineStatusError     = "error"
-)
-
-type TranscriptEntry struct {
-	ID               string `json:"id"`
-	SessionID        string `json:"sessionId"`
-	RunID            string `json:"runId,omitempty"`
-	Role             string `json:"role"`
-	Kind             string `json:"kind"`
-	Content          string `json:"content"`
-	ReasoningContent string `json:"reasoningContent,omitempty"`
-	CreatedAt        string `json:"createdAt"`
-}
-
-type TimelineEntry struct {
-	ID            string        `json:"id"`
-	SessionID     string        `json:"sessionId"`
-	RunID         string        `json:"runId,omitempty"`
-	Kind          string        `json:"kind"`
-	CreatedAt     string        `json:"createdAt"`
-	UpdatedAt     string        `json:"updatedAt,omitempty"`
-	Sequence      int           `json:"sequence"`
-	Status        string        `json:"status,omitempty"`
-	Text          string        `json:"text,omitempty"`
-	OriginalText  string        `json:"originalText,omitempty"`
-	ProcessedText string        `json:"processedText,omitempty"`
-	ToolCalls     []ToolCall    `json:"toolCalls,omitempty"`
-	Approvals     []Approval    `json:"approvals,omitempty"`
-	InputRequest  *InputRequest `json:"inputRequest,omitempty"`
-}
-
-type Run struct {
-	ID                 string              `json:"id"`
-	SessionID          string              `json:"sessionId"`
-	AgentID            string              `json:"agentId"`
-	ProviderID         string              `json:"providerId,omitempty"`
-	ProviderName       string              `json:"providerName,omitempty"`
-	Model              string              `json:"model,omitempty"`
-	MaxDurationMs      int64               `json:"maxDurationMs"`
-	Status             string              `json:"status"`
-	Message            string              `json:"message"`
-	UserMessage        string              `json:"userMessage,omitempty"`
-	PreToolContent     string              `json:"preToolContent,omitempty"`
-	PreToolReasoning   string              `json:"preToolReasoning,omitempty"`
-	ToolSummaries      []string            `json:"toolSummaries,omitempty"`
-	FailureReason      string              `json:"failureReason,omitempty"`
-	ErrorCode          string              `json:"errorCode,omitempty"`
-	Degraded           bool                `json:"degraded,omitempty"`
-	OptimizationTaskID string              `json:"optimizationTaskId,omitempty"`
-	WorkMode           string              `json:"workMode,omitempty"`
-	PermissionMode     string              `json:"permissionMode,omitempty"`
-	Objective          string              `json:"objective,omitempty"`
-	ParentRunID        string              `json:"parentRunId,omitempty"`
-	ChildRunIDs        []string            `json:"childRunIds,omitempty"`
-	Iteration          int                 `json:"iteration,omitempty"`
-	WorkflowStatus     string              `json:"workflowStatus,omitempty"`
-	WorkflowEngine     string              `json:"workflowEngine,omitempty"`
-	WorkflowCursor     int                 `json:"workflowCursor,omitempty"`
-	WorkflowPlan       []WorkflowStepState `json:"workflowPlan,omitempty"`
-	ToolCalls          []ToolCall          `json:"toolCalls"`
-	PendingApprovals   []Approval          `json:"pendingApprovals"`
-	InputRequest       *InputRequest       `json:"inputRequest,omitempty"`
-	InputRequests      []InputRequest      `json:"inputRequests,omitempty"`
-	ResumeState        string              `json:"resumeState,omitempty"`
-	PauseRequestedAt   *string             `json:"pauseRequestedAt,omitempty"`
-	PausedAt           *string             `json:"pausedAt,omitempty"`
-	PausedReason       string              `json:"pausedReason,omitempty"`
-	FinalMessageID     string              `json:"finalMessageId,omitempty"`
-	Usage              *RunUsage           `json:"usage,omitempty"`
-	CreatedAt          string              `json:"createdAt"`
-	StartedAt          string              `json:"startedAt,omitempty"`
-	UpdatedAt          string              `json:"updatedAt"`
-	CompletedAt        *string             `json:"completedAt,omitempty"`
-	CancelledAt        *string             `json:"cancelledAt,omitempty"`
-}
-
-type WorkflowStepState struct {
-	TaskID              string   `json:"taskId,omitempty"`
-	Title               string   `json:"title"`
-	Description         string   `json:"description,omitempty"`
-	Message             string   `json:"message,omitempty"`
-	Status              string   `json:"status"`
-	ChildRunID          string   `json:"childRunId,omitempty"`
-	ChildAgentID        string   `json:"childAgentId,omitempty"`
-	ChildProviderID     string   `json:"childProviderId,omitempty"`
-	ChildModel          string   `json:"childModel,omitempty"`
-	ChildPermissionMode string   `json:"childPermissionMode,omitempty"`
-	DependsOn           []string `json:"dependsOn,omitempty"`
-	Iteration           int      `json:"iteration,omitempty"`
-	Order               int      `json:"order,omitempty"`
-	ModeHint            string   `json:"modeHint,omitempty"`
-	AgentRole           string   `json:"agentRole,omitempty"`
-	PlannerStepID       string   `json:"plannerStepId,omitempty"`
-	PlanSource          string   `json:"planSource,omitempty"`
-	WorkflowMode        string   `json:"workflowMode,omitempty"`
-	Objective           string   `json:"objective,omitempty"`
-	Executor            string   `json:"executor,omitempty"`
-	ResultSummary       string   `json:"resultSummary,omitempty"`
-	PlannerWarnings     []string `json:"plannerWarnings,omitempty"`
-	NodeName            string   `json:"nodeName,omitempty"`
-	NodeStatus          string   `json:"nodeStatus,omitempty"`
-	Routes              []string `json:"routes,omitempty"`
-	OutputSummary       string   `json:"outputSummary,omitempty"`
-}
-
-type RunUsage struct {
-	ModelCalls     int   `json:"modelCalls"`
-	ToolCallsTotal int   `json:"toolCallsTotal"`
-	DurationMs     int64 `json:"durationMs,omitempty"`
-	TokensIn       int   `json:"tokensIn,omitempty"`
-	TokensOut      int   `json:"tokensOut,omitempty"`
-}
-
-type ToolCall struct {
-	ID             string         `json:"id"`
-	RunID          string         `json:"runId"`
-	ToolName       string         `json:"toolName"`
-	Permission     string         `json:"permission"`
-	Status         string         `json:"status"`
-	Input          map[string]any `json:"input,omitempty"`
-	Output         any            `json:"output,omitempty"`
-	Error          *string        `json:"error,omitempty"`
-	RequiresUser   bool           `json:"requiresUser"`
-	IdempotencyKey string         `json:"idempotencyKey,omitempty"`
-	CreatedAt      string         `json:"createdAt"`
-	StartedAt      string         `json:"startedAt,omitempty"`
-	UpdatedAt      string         `json:"updatedAt"`
-	CompletedAt    *string        `json:"completedAt,omitempty"`
-	DurationMs     int64          `json:"durationMs,omitempty"`
-}
-
-type Approval struct {
-	ID                 string         `json:"id"`
-	RunID              string         `json:"runId"`
-	AgentID            string         `json:"agentId"`
-	ToolName           string         `json:"toolName"`
-	Input              map[string]any `json:"input,omitempty"`
-	Status             string         `json:"status"`
-	Reason             string         `json:"reason"`
-	FunctionCallID     string         `json:"functionCallId,omitempty"`
-	ConfirmationCallID string         `json:"confirmationCallId,omitempty"`
-	CreatedAt          string         `json:"createdAt"`
-	UpdatedAt          string         `json:"updatedAt"`
-}
-
-type Skill struct {
-	ID               string   `json:"id"`
-	DisplayName      string   `json:"displayName"`
-	Description      string   `json:"description"`
-	Source           string   `json:"source"`
-	InstallPath      string   `json:"installPath"`
-	Enabled          bool     `json:"enabled"`
-	Builtin          bool     `json:"builtin"`
-	Tools            []string `json:"tools"`
-	Version          string   `json:"version,omitempty"`
-	ContentHash      string   `json:"contentHash,omitempty"`
-	ValidationStatus string   `json:"validationStatus,omitempty"`
-	ValidationError  string   `json:"validationError,omitempty"`
-	CreatedAt        string   `json:"createdAt"`
-	UpdatedAt        string   `json:"updatedAt"`
-}
-
-type ToolDescriptor struct {
-	Name               string         `json:"name"`
-	DisplayName        string         `json:"displayName"`
-	Description        string         `json:"description"`
-	Category           string         `json:"category"`
-	Permission         string         `json:"permission"`
-	IdempotencyMode    string         `json:"idempotencyMode,omitempty"`
-	AllowedModes       []string       `json:"allowedModes"`
-	RequiresApprovalIn []string       `json:"requiresApprovalIn"`
-	InputSchema        map[string]any `json:"inputSchema,omitempty"`
-	OutputSummary      string         `json:"outputSummary,omitempty"`
-	RiskLevel          string         `json:"riskLevel,omitempty"`
-	RequiredSkills     []string       `json:"requiredSkills,omitempty"`
-}
-
-type ChatRequest struct {
-	ClientRequestID        string      `json:"clientRequestId"`
-	AgentID                string      `json:"agentId,omitempty"`
-	SessionID              string      `json:"sessionId,omitempty"`
-	Message                string      `json:"message"`
-	ProviderID             string      `json:"providerId,omitempty"`
-	Model                  string      `json:"model,omitempty"`
-	WorkModeOverride       string      `json:"workModeOverride,omitempty"`
-	PermissionModeOverride string      `json:"permissionModeOverride,omitempty"`
-	Objective              string      `json:"objective,omitempty"`
-	RunOptions             *RunOptions `json:"runOptions,omitempty"`
-}
-
-type RunOptions struct {
-	LoopMaxIterations int `json:"loopMaxIterations,omitempty"`
-}
-
-type WorkflowDefinition struct {
-	ID                string               `json:"id"`
-	Name              string               `json:"name"`
-	Description       string               `json:"description,omitempty"`
-	Status            string               `json:"status"`
-	AgentID           string               `json:"agentId"`
-	WorkMode          string               `json:"workMode"`
-	ProviderID        string               `json:"providerId,omitempty"`
-	Model             string               `json:"model,omitempty"`
-	PermissionMode    string               `json:"permissionMode,omitempty"`
-	PromptTemplate    string               `json:"promptTemplate"`
-	ObjectiveTemplate string               `json:"objectiveTemplate,omitempty"`
-	DefaultInputs     map[string]any       `json:"defaultInputs,omitempty"`
-	CanvasGraph       *WorkflowCanvasGraph `json:"canvasGraph,omitempty"`
-	Tags              []string             `json:"tags,omitempty"`
-	BuiltinTemplate   bool                 `json:"builtinTemplate,omitempty"`
-	CreatedAt         string               `json:"createdAt"`
-	UpdatedAt         string               `json:"updatedAt"`
-	DeletedAt         *string              `json:"deletedAt,omitempty"`
-}
-
-type WorkflowDefinitionWriteRequest struct {
-	ID                string               `json:"id,omitempty"`
-	Name              string               `json:"name"`
-	Description       string               `json:"description,omitempty"`
-	Status            string               `json:"status,omitempty"`
-	AgentID           string               `json:"agentId"`
-	WorkMode          string               `json:"workMode,omitempty"`
-	ProviderID        string               `json:"providerId,omitempty"`
-	Model             string               `json:"model,omitempty"`
-	PermissionMode    string               `json:"permissionMode,omitempty"`
-	PromptTemplate    string               `json:"promptTemplate"`
-	ObjectiveTemplate string               `json:"objectiveTemplate,omitempty"`
-	DefaultInputs     map[string]any       `json:"defaultInputs,omitempty"`
-	CanvasGraph       *WorkflowCanvasGraph `json:"canvasGraph,omitempty"`
-	Tags              []string             `json:"tags,omitempty"`
-}
-
-type WorkflowCanvasGraph struct {
-	Version  string               `json:"version,omitempty"`
-	Nodes    []WorkflowCanvasNode `json:"nodes,omitempty"`
-	Edges    []WorkflowCanvasEdge `json:"edges,omitempty"`
-	Viewport map[string]any       `json:"viewport,omitempty"`
-}
-
-type WorkflowCanvasPoint struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-}
-
-type WorkflowCanvasNode struct {
-	ID       string              `json:"id"`
-	Type     string              `json:"type"`
-	Position WorkflowCanvasPoint `json:"position"`
-	Data     map[string]any      `json:"data,omitempty"`
-}
-
-type WorkflowCanvasEdge struct {
-	ID           string         `json:"id"`
-	Source       string         `json:"source"`
-	Target       string         `json:"target"`
-	SourceHandle string         `json:"sourceHandle,omitempty"`
-	TargetHandle string         `json:"targetHandle,omitempty"`
-	Type         string         `json:"type,omitempty"`
-	Data         map[string]any `json:"data,omitempty"`
-}
-
-type WorkflowTrigger struct {
-	ID         string         `json:"id"`
-	WorkflowID string         `json:"workflowId"`
-	Type       string         `json:"type"`
-	Title      string         `json:"title"`
-	Status     string         `json:"status"`
-	Config     map[string]any `json:"config,omitempty"`
-	SecretHash string         `json:"secretHash,omitempty"`
-	HasSecret  bool           `json:"hasSecret,omitempty"`
-	NextRunAt  string         `json:"nextRunAt,omitempty"`
-	LastRunAt  string         `json:"lastRunAt,omitempty"`
-	LastRunID  string         `json:"lastRunId,omitempty"`
-	LastError  string         `json:"lastError,omitempty"`
-	CreatedAt  string         `json:"createdAt"`
-	UpdatedAt  string         `json:"updatedAt"`
-	DeletedAt  *string        `json:"deletedAt,omitempty"`
-}
-
-type WorkflowTriggerWriteRequest struct {
-	ID          string         `json:"id,omitempty"`
-	Type        string         `json:"type"`
-	Title       string         `json:"title,omitempty"`
-	Status      string         `json:"status,omitempty"`
-	Config      map[string]any `json:"config,omitempty"`
-	ResetSecret bool           `json:"resetSecret,omitempty"`
-}
-
-type WorkflowTriggerLog struct {
-	ID           string            `json:"id"`
-	WorkflowID   string            `json:"workflowId"`
-	TriggerID    string            `json:"triggerId,omitempty"`
-	TriggerType  string            `json:"triggerType"`
-	Status       string            `json:"status"`
-	RunID        string            `json:"runId,omitempty"`
-	SessionID    string            `json:"sessionId,omitempty"`
-	Inputs       map[string]any    `json:"inputs,omitempty"`
-	MatchedEvent map[string]any    `json:"matchedEvent,omitempty"`
-	Result       *WorkflowResult   `json:"result,omitempty"`
-	NodeRuns     []WorkflowNodeRun `json:"nodeRuns,omitempty"`
-	Error        string            `json:"error,omitempty"`
-	StartedAt    string            `json:"startedAt,omitempty"`
-	FinishedAt   string            `json:"finishedAt,omitempty"`
-	CreatedAt    string            `json:"createdAt"`
-	UpdatedAt    string            `json:"updatedAt"`
-}
-
-type WorkflowResult struct {
-	Format      string         `json:"format,omitempty"`
-	Markdown    string         `json:"markdown,omitempty"`
-	JSON        map[string]any `json:"json,omitempty"`
-	RawResponse *ChatResponse  `json:"rawResponse,omitempty"`
-}
-
-type WorkflowNodeRun struct {
-	NodeID     string         `json:"nodeId"`
-	NodeType   string         `json:"nodeType"`
-	Title      string         `json:"title,omitempty"`
-	Status     string         `json:"status"`
-	StartedAt  string         `json:"startedAt,omitempty"`
-	FinishedAt string         `json:"finishedAt,omitempty"`
-	Inputs     map[string]any `json:"inputs,omitempty"`
-	Outputs    map[string]any `json:"outputs,omitempty"`
-	Error      string         `json:"error,omitempty"`
-}
-
-type WorkflowEvent struct {
-	ID       string         `json:"id,omitempty"`
-	Type     string         `json:"type"`
-	Source   string         `json:"source"`
-	EntityID string         `json:"entityId,omitempty"`
-	At       string         `json:"at,omitempty"`
-	Payload  map[string]any `json:"payload,omitempty"`
-}
-
-type ChatDelta struct {
-	Reply            string                  `json:"reply,omitempty"`
-	ReasoningContent string                  `json:"reasoningContent,omitempty"`
-	ToolProgress     string                  `json:"toolProgress,omitempty"`
-	Run              *Run                    `json:"run,omitempty"`
-	Context          *SessionContextSnapshot `json:"context,omitempty"`
-	Timeline         *TimelineEntry          `json:"timeline,omitempty"`
-}
-
-type ChatResponse struct {
-	Reply            string                  `json:"reply"`
-	ReasoningContent string                  `json:"reasoningContent,omitempty"`
-	Session          Session                 `json:"session"`
-	Run              Run                     `json:"run"`
-	PendingApprovals []Approval              `json:"pendingApprovals"`
-	InputRequest     *InputRequest           `json:"inputRequest,omitempty"`
-	Timeline         []TimelineEntry         `json:"timeline"`
-	Context          *SessionContextSnapshot `json:"context,omitempty"`
-}
-
-type ApprovalResolution struct {
-	Approval  Approval         `json:"approval"`
-	Run       *Run             `json:"run,omitempty"`
-	ParentRun *Run             `json:"parentRun,omitempty"`
-	Message   *TranscriptEntry `json:"message,omitempty"`
-}
-
-type SessionsResponse struct {
-	Session       Session              `json:"session"`
-	Timeline      []TimelineEntry      `json:"timeline"`
-	Runs          []Run                `json:"runs,omitempty"`
-	ComposerState SessionComposerState `json:"composerState"`
-}
-
-type Snapshot struct {
-	Providers []Provider       `json:"providers"`
-	Agents    []Agent          `json:"agents"`
-	Skills    []Skill          `json:"skills"`
-	Tools     []ToolDescriptor `json:"tools"`
-}
-
-type AuditEvent struct {
-	ID        string         `json:"id"`
-	Kind      string         `json:"kind"`
-	SubjectID string         `json:"subjectId,omitempty"`
-	Detail    string         `json:"detail"`
-	Metadata  map[string]any `json:"metadata,omitempty"`
-	CreatedAt string         `json:"createdAt"`
-}
-
-type OptimizationRunRef struct {
-	DefinitionID string `json:"definitionId"`
-	RunID        string `json:"runId"`
-}
-
-type OptimizationTask struct {
-	ID        string               `json:"id"`
-	Status    string               `json:"status"`
-	Objective string               `json:"objective"`
-	Runs      []OptimizationRunRef `json:"runs"`
-	CreatedAt string               `json:"createdAt"`
-	UpdatedAt string               `json:"updatedAt"`
-}
-
-type Task struct {
-	ID                  string   `json:"id"`
-	Title               string   `json:"title"`
-	Description         string   `json:"description,omitempty"`
-	Status              string   `json:"status"`
-	AgentID             string   `json:"agentId,omitempty"`
-	RunID               string   `json:"runId,omitempty"`
-	DependsOn           []string `json:"dependsOn,omitempty"`
-	Order               int      `json:"order,omitempty"`
-	ModeHint            string   `json:"modeHint,omitempty"`
-	AgentRole           string   `json:"agentRole,omitempty"`
-	PlannerStepID       string   `json:"plannerStepId,omitempty"`
-	PlanSource          string   `json:"planSource,omitempty"`
-	WorkflowMode        string   `json:"workflowMode,omitempty"`
-	Objective           string   `json:"objective,omitempty"`
-	Message             string   `json:"message,omitempty"`
-	Executor            string   `json:"executor,omitempty"`
-	ChildAgentID        string   `json:"childAgentId,omitempty"`
-	ChildProviderID     string   `json:"childProviderId,omitempty"`
-	ChildModel          string   `json:"childModel,omitempty"`
-	ChildPermissionMode string   `json:"childPermissionMode,omitempty"`
-	ResultSummary       string   `json:"resultSummary,omitempty"`
-	PlannerWarnings     []string `json:"plannerWarnings,omitempty"`
-	CreatedAt           string   `json:"createdAt"`
-	UpdatedAt           string   `json:"updatedAt"`
-}
-
-type TaskWriteRequest struct {
-	ID                  string   `json:"id,omitempty"`
-	Title               string   `json:"title"`
-	Description         string   `json:"description,omitempty"`
-	Status              string   `json:"status,omitempty"`
-	AgentID             string   `json:"agentId,omitempty"`
-	RunID               string   `json:"runId,omitempty"`
-	DependsOn           []string `json:"dependsOn,omitempty"`
-	Order               int      `json:"order,omitempty"`
-	ModeHint            string   `json:"modeHint,omitempty"`
-	AgentRole           string   `json:"agentRole,omitempty"`
-	PlannerStepID       string   `json:"plannerStepId,omitempty"`
-	PlanSource          string   `json:"planSource,omitempty"`
-	WorkflowMode        string   `json:"workflowMode,omitempty"`
-	Objective           string   `json:"objective,omitempty"`
-	Message             string   `json:"message,omitempty"`
-	Executor            string   `json:"executor,omitempty"`
-	ChildAgentID        string   `json:"childAgentId,omitempty"`
-	ChildProviderID     string   `json:"childProviderId,omitempty"`
-	ChildModel          string   `json:"childModel,omitempty"`
-	ChildPermissionMode string   `json:"childPermissionMode,omitempty"`
-	ResultSummary       string   `json:"resultSummary,omitempty"`
-	PlannerWarnings     []string `json:"plannerWarnings,omitempty"`
-}
-
-type TaskPatchRequest struct {
-	Title               *string  `json:"title,omitempty"`
-	Description         *string  `json:"description,omitempty"`
-	Status              *string  `json:"status,omitempty"`
-	AgentID             *string  `json:"agentId,omitempty"`
-	RunID               *string  `json:"runId,omitempty"`
-	DependsOn           []string `json:"dependsOn,omitempty"`
-	Order               *int     `json:"order,omitempty"`
-	ModeHint            *string  `json:"modeHint,omitempty"`
-	AgentRole           *string  `json:"agentRole,omitempty"`
-	PlannerStepID       *string  `json:"plannerStepId,omitempty"`
-	PlanSource          *string  `json:"planSource,omitempty"`
-	WorkflowMode        *string  `json:"workflowMode,omitempty"`
-	Objective           *string  `json:"objective,omitempty"`
-	Message             *string  `json:"message,omitempty"`
-	Executor            *string  `json:"executor,omitempty"`
-	ChildAgentID        *string  `json:"childAgentId,omitempty"`
-	ChildProviderID     *string  `json:"childProviderId,omitempty"`
-	ChildModel          *string  `json:"childModel,omitempty"`
-	ChildPermissionMode *string  `json:"childPermissionMode,omitempty"`
-	ResultSummary       *string  `json:"resultSummary,omitempty"`
-	PlannerWarnings     []string `json:"plannerWarnings,omitempty"`
-}
-
-type MemoryEntry struct {
-	ID        string `json:"id"`
-	AgentID   string `json:"agentId,omitempty"`
-	Key       string `json:"key"`
-	Value     string `json:"value"`
-	Scope     string `json:"scope"`
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
-}
-
-type MemoryWriteRequest struct {
-	AgentID string `json:"agentId,omitempty"`
-	Key     string `json:"key"`
-	Value   string `json:"value"`
-	Scope   string `json:"scope,omitempty"`
-}
-
-type HandoffSegment struct {
-	ID                string `json:"id"`
-	SessionID         string `json:"sessionId"`
-	ContextRevisionID string `json:"contextRevisionId,omitempty"`
-	Sequence          int    `json:"sequence"`
-	StartEventIndex   int    `json:"startEventIndex"`
-	EndEventIndex     int    `json:"endEventIndex"`
-	Summary           string `json:"summary"`
-	Mode              string `json:"mode"`
-	Reason            string `json:"reason,omitempty"`
-	EstimatedTokens   int    `json:"estimatedTokens"`
-	Active            bool   `json:"active"`
-	SupersededBy      string `json:"supersededBy,omitempty"`
-	CreatedAt         string `json:"createdAt"`
-	UpdatedAt         string `json:"updatedAt"`
-}
-
-type SessionContextBreakdown struct {
-	InstructionTokens     int `json:"instructionTokens"`
-	HandoffTokens         int `json:"handoffTokens"`
-	RecentUserTokens      int `json:"recentUserTokens"`
-	ProtectedTailTokens   int `json:"protectedTailTokens"`
-	OtherVisibleTokens    int `json:"otherVisibleTokens"`
-	PendingUserTokens     int `json:"pendingUserTokens"`
-	ToolDeclarationTokens int `json:"toolDeclarationTokens"`
-}
-
-type SessionContextState struct {
-	SessionID                 string                  `json:"sessionId"`
-	ContextRevisionID         string                  `json:"contextRevisionId,omitempty"`
-	PreviousContextRevisionID string                  `json:"previousContextRevisionId,omitempty"`
-	ContextRevisionCreatedAt  string                  `json:"contextRevisionCreatedAt,omitempty"`
-	RecentUserWindow          int                     `json:"recentUserWindow"`
-	RetainedRecentUserCount   int                     `json:"retainedRecentUserCount"`
-	ActiveHandoffCount        int                     `json:"activeHandoffCount"`
-	CurrentInputTokens        int                     `json:"currentInputTokens"`
-	ProjectedNextTurnTokens   int                     `json:"projectedNextTurnTokens"`
-	ContextWindowTokens       int                     `json:"contextWindowTokens"`
-	UsageRatio                float64                 `json:"usageRatio"`
-	LatestHandoffPreview      string                  `json:"latestHandoffPreview,omitempty"`
-	Breakdown                 SessionContextBreakdown `json:"breakdown"`
-	LastCompactedAt           string                  `json:"lastCompactedAt,omitempty"`
-	LastCompactionMode        string                  `json:"lastCompactionMode,omitempty"`
-	LastCompactionReason      string                  `json:"lastCompactionReason,omitempty"`
-	AutoCompacted             bool                    `json:"autoCompacted,omitempty"`
-	DegradedSummary           bool                    `json:"degradedSummary,omitempty"`
-	CreatedAt                 string                  `json:"createdAt"`
-	UpdatedAt                 string                  `json:"updatedAt"`
-}
-
-type SessionContextSnapshot struct {
-	SessionID                  string                  `json:"sessionId"`
-	ContextRevisionID          string                  `json:"contextRevisionId,omitempty"`
-	PreviousContextRevisionID  string                  `json:"previousContextRevisionId,omitempty"`
-	ContextRevisionCreatedAt   string                  `json:"contextRevisionCreatedAt,omitempty"`
-	CurrentInputTokens         int                     `json:"currentInputTokens"`
-	ProjectedNextTurnTokens    int                     `json:"projectedNextTurnTokens"`
-	EstimatedInputTokens       int                     `json:"estimatedInputTokens,omitempty"`
-	RawCurrentInputTokens      int                     `json:"rawCurrentInputTokens,omitempty"`
-	RawProjectedNextTurnTokens int                     `json:"rawProjectedNextTurnTokens,omitempty"`
-	ContextWindowTokens        int                     `json:"contextWindowTokens"`
-	UsageRatio                 float64                 `json:"usageRatio"`
-	Status                     string                  `json:"status"`
-	RecentUserWindow           int                     `json:"recentUserWindow"`
-	RetainedRecentUserCount    int                     `json:"retainedRecentUserCount"`
-	ProtectedRecentCount       int                     `json:"protectedRecentCount,omitempty"`
-	ActiveHandoffCount         int                     `json:"activeHandoffCount"`
-	LatestHandoffPreview       string                  `json:"latestHandoffPreview,omitempty"`
-	SummaryPreview             string                  `json:"summaryPreview,omitempty"`
-	RawEventCount              int                     `json:"rawEventCount,omitempty"`
-	CompactedEventCount        int                     `json:"compactedEventCount,omitempty"`
-	SummaryBoundaryEventIndex  int                     `json:"summaryBoundaryEventIndex,omitempty"`
-	Breakdown                  SessionContextBreakdown `json:"breakdown"`
-	RawBreakdown               SessionContextBreakdown `json:"rawBreakdown,omitzero"`
-	TrimmedToolResponseCount   int                     `json:"trimmedToolResponseCount,omitempty"`
-	LastCompactedAt            string                  `json:"lastCompactedAt,omitempty"`
-	LastCompactionMode         string                  `json:"lastCompactionMode,omitempty"`
-	LastCompactionReason       string                  `json:"lastCompactionReason,omitempty"`
-	AutoCompacted              bool                    `json:"autoCompacted"`
-	DegradedSummary            bool                    `json:"degradedSummary"`
-}
-
-var (
-	nowStringMu   sync.Mutex
-	lastNowString time.Time
-)
-
-// sortableTimestampLayout retains nanosecond precision instead of trimming
-// trailing zeroes like time.RFC3339Nano. Values in timestamp columns are
-// ordered as text by SQLite, so a fixed-width fraction is required for their
-// lexical and chronological order to match.
-const sortableTimestampLayout = "2006-01-02T15:04:05.000000000Z07:00"
-
-func nowString() string {
-	nowStringMu.Lock()
-	defer nowStringMu.Unlock()
-
-	now := time.Now().UTC()
-	if !lastNowString.IsZero() && !now.After(lastNowString) {
-		now = lastNowString.Add(time.Nanosecond)
-	}
-	lastNowString = now
-	return now.Format(sortableTimestampLayout)
-}

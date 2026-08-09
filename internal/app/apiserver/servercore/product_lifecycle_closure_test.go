@@ -1,7 +1,6 @@
 package servercore
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -12,142 +11,8 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-func TestProductLifecycleOrderUpdateSourceAggregatesBrokersAndFees(t *testing.T) {
-	server := newTradingCancellationTestServer(t)
-	reader := &lifecycleMarketDataReader{
-		orders: []broker.OrderSnapshot{{
-			BrokerOrderID: "order-1", AccountID: "account-1", Market: "US",
-		}},
-		history: []broker.OrderSnapshot{{
-			BrokerOrderID: "history-1", AccountID: "account-1", Market: "US",
-		}},
-		fees: []broker.OrderFeeSnapshot{{BrokerOrderIDEx: "order-ex-1"}},
-	}
-	server.runtimes.Brokers().Replace(&lifecycleBroker{
-		id: "partial", reader: reader,
-		accounts: []broker.Account{{ID: "account-1", TradingEnvironment: "SIMULATE"}},
-	})
-	server.runtimes.Brokers().Replace(&lifecycleBroker{id: "failed", discoverErr: errors.New("accounts failed")})
-	source := &tradingOrderUpdateSource{server: server}
-
-	accounts, err := source.DiscoverAccounts(t.Context())
-	if err != nil || len(accounts) != 1 || accounts[0].BrokerID != "partial" {
-		t.Fatalf("aggregated accounts = %#v, %v", accounts, err)
-	}
-	query := trdsrv.OrderQuery{
-		BrokerID: "partial", AccountID: "account-1",
-		TradingEnvironment: "SIMULATE", Market: "US",
-	}
-	orders, err := source.CurrentOrders(t.Context(), query)
-	if err != nil || len(orders) != 1 || orders[0].BrokerOrderID != "order-1" {
-		t.Fatalf("current orders = %#v, %v", orders, err)
-	}
-	history, err := source.HistoryOrders(
-		t.Context(),
-		query,
-		time.Now().Add(-time.Hour),
-		time.Now(),
-	)
-	if err != nil || len(history) != 1 || history[0].BrokerOrderID != "history-1" {
-		t.Fatalf("history orders = %#v, %v", history, err)
-	}
-	fees, err := source.OrderFees(t.Context(), query, []string{"order-ex-1"})
-	if err != nil || len(fees) != 1 ||
-		len(reader.feeQuery.OrderIDExList) != 1 ||
-		reader.feeQuery.BrokerID != "partial" {
-		t.Fatalf("order fees = %#v, query=%#v, err=%v", fees, reader.feeQuery, err)
-	}
-
-	reader.err = errors.New("broker read failed")
-	if _, err := source.CurrentOrders(t.Context(), query); !errors.Is(err, reader.err) {
-		t.Fatalf("current order failure = %v", err)
-	}
-	if _, err := source.HistoryOrders(
-		t.Context(),
-		query,
-		time.Now().Add(-time.Hour),
-		time.Now(),
-	); !errors.Is(err, reader.err) {
-		t.Fatalf("history order failure = %v", err)
-	}
-	if _, err := source.OrderFees(
-		t.Context(),
-		query,
-		[]string{"order-ex-1"},
-	); !errors.Is(err, reader.err) {
-		t.Fatalf("fee failure = %v", err)
-	}
-	if fees, err := source.OrderFees(
-		t.Context(),
-		trdsrv.OrderQuery{BrokerID: "missing"},
-		nil,
-	); err != nil || fees != nil {
-		t.Fatalf("missing broker fees = %#v, %v", fees, err)
-	}
-
-	onlyFailures := newTradingCancellationTestServer(t)
-	onlyFailures.runtimes.Brokers().Replace(&lifecycleBroker{
-		id: "failed", discoverErr: errors.New("only failure"),
-	})
-	if _, err := (&tradingOrderUpdateSource{server: onlyFailures}).DiscoverAccounts(
-		t.Context(),
-	); err == nil || !strings.Contains(err.Error(), "only failure") {
-		t.Fatalf("all-broker account failure = %v", err)
-	}
-}
-
-func TestProductLifecycleOrderUpdateSourceSkipsFundOnlyAccounts(t *testing.T) {
-	server := newTradingCancellationTestServer(t)
-	server.runtimes.Brokers().Replace(&lifecycleBroker{
-		id: "futu",
-		accounts: []broker.Account{
-			{ID: "generic", MarketAuthorities: []string{"HK"}},
-			{
-				ID: "mixed", MarketAuthorities: []string{"US", "HK"},
-				OrderMarketAuthorities: []string{"US"},
-			},
-			{
-				ID: "fund-only", MarketAuthorities: []string{"US"},
-				OrderMarketAuthorities: []string{},
-			},
-		},
-	})
-
-	accounts, err := (&tradingOrderUpdateSource{server: server}).DiscoverAccounts(t.Context())
-	if err != nil {
-		t.Fatalf("DiscoverAccounts: %v", err)
-	}
-	if len(accounts) != 2 {
-		t.Fatalf("order accounts = %#v, want generic and mixed only", accounts)
-	}
-	if accounts[0].ID != "generic" || len(accounts[0].MarketAuthorities) != 1 || accounts[0].MarketAuthorities[0] != "HK" {
-		t.Fatalf("generic account = %#v", accounts[0])
-	}
-	if accounts[1].ID != "mixed" || len(accounts[1].MarketAuthorities) != 1 || accounts[1].MarketAuthorities[0] != "US" {
-		t.Fatalf("mixed account = %#v", accounts[1])
-	}
-
-	fundOnlyServer := newTradingCancellationTestServer(t)
-	fundOnlyServer.runtimes.Brokers().Replace(&lifecycleBroker{
-		id: "futu",
-		accounts: []broker.Account{{
-			ID: "fund-only", MarketAuthorities: []string{"US"},
-			OrderMarketAuthorities: []string{},
-		}},
-	})
-	if _, err := (&tradingOrderUpdateSource{server: fundOnlyServer}).DiscoverAccounts(
-		t.Context(),
-	); !errors.Is(err, trdsrv.ErrOrderUpdateSourceInactive) {
-		t.Fatalf("fund-only discovery error = %v, want inactive without fallback queries", err)
-	}
-}
-
 func TestProductLifecycleFeeUpdatesPersistOnlyOnLiveOrderLedger(t *testing.T) {
-	var nilUpdates *tradingExecutionOrderUpdates
-	nilUpdates.ApplyFees(t.Context(), "partial", []broker.OrderFeeSnapshot{{
-		BrokerOrderIDEx: "order-ex-1",
-	}})
-	(&tradingExecutionOrderUpdates{}).ApplyFees(
+	newTradingExecutionOrderUpdates(nil).ApplyFees(
 		t.Context(),
 		"partial",
 		[]broker.OrderFeeSnapshot{{BrokerOrderIDEx: "order-ex-1"}},
@@ -160,7 +25,7 @@ func TestProductLifecycleFeeUpdatesPersistOnlyOnLiveOrderLedger(t *testing.T) {
 		Status: "SUBMITTED", EventType: "COMMAND_PLACE_ACCEPTED",
 	})
 	fee := 1.25
-	updates := &tradingExecutionOrderUpdates{server: server}
+	updates := newTradingExecutionOrderUpdates(server)
 	updates.ApplyFees(t.Context(), "partial", []broker.OrderFeeSnapshot{{
 		BrokerOrderIDEx: "order-ex-1", AccountID: "account-1",
 		TradingEnvironment: "SIMULATE", Market: "US", FeeAmount: &fee,
@@ -340,7 +205,7 @@ func TestProductLifecycleSnapshotIdentityAndRuntimeHelpers(t *testing.T) {
 
 func TestProductLifecycleExecutionGatewayGuardsAndSubscriptionFallback(t *testing.T) {
 	server := newTradingCancellationTestServer(t)
-	if _, err := server.placeExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{
+	if _, err := placeExecutionOrder(&server.serverApplication, t.Context(), trdsrv.ExecutionOrderCommand{
 		BrokerID: "first",
 		Query: broker.PlaceOrderQuery{
 			ReadQuery: broker.ReadQuery{BrokerID: "second"},
@@ -360,11 +225,11 @@ func TestProductLifecycleExecutionGatewayGuardsAndSubscriptionFallback(t *testin
 		},
 		Symbol: "US.AAPL", Side: "BUY", OrderType: "LIMIT",
 	}
-	if _, err := server.placeExecutionOrder(t.Context(), command); err == nil ||
+	if _, err := placeExecutionOrder(&server.serverApplication, t.Context(), command); err == nil ||
 		!strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("missing execution broker error = %v", err)
 	}
-	replayed, err := server.placeExecutionOrder(t.Context(), command)
+	replayed, err := placeExecutionOrder(&server.serverApplication, t.Context(), command)
 	if err != nil || replayed.Status != trdsrv.OrderStatusSubmissionUnknown {
 		t.Fatalf("unknown submission replay = %#v, %v", replayed, err)
 	}
@@ -372,7 +237,7 @@ func TestProductLifecycleExecutionGatewayGuardsAndSubscriptionFallback(t *testin
 		t.Fatalf("missing submission update = %#v", missing)
 	}
 
-	source := &tradingOrderUpdateSource{server: server}
+	source := newTradingOrderUpdateSource(server)
 	subscription, err := source.Subscribe(
 		t.Context(),
 		[]trdsrv.Account{{BrokerID: "futu"}},
@@ -396,53 +261,4 @@ func TestProductLifecycleStartupBoundaries(t *testing.T) {
 	if shouldStartForArgs([]string{"--help", "api"}) {
 		t.Fatal("help startup was accepted")
 	}
-}
-
-type lifecycleBroker struct {
-	id          string
-	reader      broker.MarketDataReader
-	accounts    []broker.Account
-	discoverErr error
-}
-
-func (b *lifecycleBroker) ID() string { return b.id }
-func (b *lifecycleBroker) Descriptor() broker.Descriptor {
-	return broker.Descriptor{ID: b.id}
-}
-func (b *lifecycleBroker) DiscoverAccounts(context.Context) ([]broker.Account, error) {
-	return b.accounts, b.discoverErr
-}
-func (b *lifecycleBroker) Trading() broker.TradingService      { return nil }
-func (b *lifecycleBroker) MarketData() broker.MarketDataReader { return b.reader }
-
-type lifecycleMarketDataReader struct {
-	broker.MarketDataReader
-	orders   []broker.OrderSnapshot
-	history  []broker.OrderSnapshot
-	fees     []broker.OrderFeeSnapshot
-	feeQuery broker.OrderFeeQuery
-	err      error
-}
-
-func (r *lifecycleMarketDataReader) QueryOrders(
-	context.Context,
-	broker.ReadQuery,
-	string,
-) ([]broker.OrderSnapshot, error) {
-	return r.orders, r.err
-}
-
-func (r *lifecycleMarketDataReader) QueryHistoryOrders(
-	context.Context,
-	broker.OrderHistoryQuery,
-) ([]broker.OrderSnapshot, error) {
-	return r.history, r.err
-}
-
-func (r *lifecycleMarketDataReader) QueryOrderFees(
-	_ context.Context,
-	query broker.OrderFeeQuery,
-) ([]broker.OrderFeeSnapshot, error) {
-	r.feeQuery = query
-	return r.fees, r.err
 }

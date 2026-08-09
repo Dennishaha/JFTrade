@@ -16,8 +16,8 @@ import (
 func newStrategyRuntimeDependencies(server *Server) liveruntime.Dependencies {
 	dependencies := liveruntime.Dependencies{
 		ExchangeProvider: func() liveruntime.Exchange {
-			exchange := server.futuExchange()
-			activeBroker := server.activeBroker()
+			exchange := server.futuCoordinator().Exchange()
+			activeBroker := server.futuCoordinator().ActiveBroker()
 			if exchange == nil || activeBroker == nil {
 				return nil
 			}

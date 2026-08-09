@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	adkagent "google.golang.org/adk/v2/agent"
 	adkartifact "google.golang.org/adk/v2/artifact"
 	adkmodel "google.golang.org/adk/v2/model"
@@ -437,7 +438,7 @@ func (t *googleADKTool) run(ctx adkagent.Context, input map[string]any) (map[str
 	lease, ok := runtime.currentRunLease(leaseRunID)
 	contextLease, contextOwnsRun := runExecutionLeaseFromContext(toolCtx)
 	if !ok || !contextOwnsRun || toolCtx.Err() != nil || contextLease.RunID != leaseRunID || contextLease.FencingToken != lease.FencingToken {
-		return nil, fmt.Errorf("%w: run %s has no active execution lease", ErrRunLeaseLost, leaseRunID)
+		return nil, fmt.Errorf("%w: run %s has no active execution lease", enginepersistence.ErrRunLeaseLost, leaseRunID)
 	}
 	logicalRunID := strings.TrimSpace(t.execution.runIDForAgentName(ctx.AgentName()))
 	if logicalRunID == "" {
@@ -448,7 +449,7 @@ func (t *googleADKTool) run(ctx adkagent.Context, input map[string]any) (map[str
 		invocationKey = logicalRunID + ":" + functionCallID
 	}
 	stableKey := leaseRunID + ":" + invocationKey
-	ticket, err := runtime.store.ClaimToolInvocation(toolCtx, ToolInvocationClaim{
+	ticket, err := runtime.store.ClaimToolInvocation(toolCtx, enginepersistence.ToolInvocationClaim{
 		RunID: leaseRunID, IdempotencyKey: invocationKey, ToolName: t.Name(),
 		OwnerID: lease.OwnerID, RunLeaseToken: lease.FencingToken,
 		Input: input, Mode: t.descriptor.IdempotencyMode, Now: time.Now().UTC(), TTL: defaultADKToolClaimTTL,
@@ -476,7 +477,7 @@ func (t *googleADKTool) run(ctx adkagent.Context, input map[string]any) (map[str
 	mode := normalizeToolIdempotencyMode(t.descriptor.IdempotencyMode, t.descriptor.Permission)
 	if mode == ToolIdempotencyKeyed && !idempotency.observed.Load() {
 		markErr := runtime.store.MarkToolInvocationIndeterminate(context.WithoutCancel(toolCtx), ticket, time.Now().UTC())
-		contractErr := fmt.Errorf("%w: keyed tool %s did not consume ToolInvocationIdempotencyKey", ErrToolOutcomeUnknown, t.Name())
+		contractErr := fmt.Errorf("%w: keyed tool %s did not consume ToolInvocationIdempotencyKey", enginepersistence.ErrToolOutcomeUnknown, t.Name())
 		if markErr != nil {
 			return nil, errors.Join(contractErr, markErr)
 		}
@@ -487,7 +488,7 @@ func (t *googleADKTool) run(ctx adkagent.Context, input map[string]any) (map[str
 		if markErr != nil {
 			return nil, errors.Join(execErr, markErr)
 		}
-		return nil, fmt.Errorf("%w: tool %s returned an uncertain write failure: %w", ErrToolOutcomeUnknown, t.Name(), execErr)
+		return nil, fmt.Errorf("%w: tool %s returned an uncertain write failure: %w", enginepersistence.ErrToolOutcomeUnknown, t.Name(), execErr)
 	}
 	if err := runtime.store.CompleteToolInvocation(context.WithoutCancel(toolCtx), ticket, mapped, time.Now().UTC()); err != nil {
 		return nil, err
@@ -578,7 +579,7 @@ func toolResponseErrorMessage(response map[string]any) string {
 func toolResponseError(response map[string]any) error {
 	if msg, ok := response["message"]; ok {
 		if text := strings.TrimSpace(fmt.Sprint(msg)); text != "" {
-			return errorFromSerializedADKText(text)
+			return ErrorFromSerializedADKText(text)
 		}
 	}
 	if errValue, ok := response["error"]; ok {

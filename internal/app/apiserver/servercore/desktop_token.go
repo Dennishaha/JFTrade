@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
 )
 
 const desktopWebSocketProtocol = "jftrade.desktop.v1"
@@ -25,13 +26,13 @@ func (s *Server) desktopTokenMiddleware() gin.HandlerFunc {
 			// loopback-only development experience and let the desktop settings
 			// screen configure Web access. Production desktop builds always set
 			// a capability and never enter this branch.
-			if s.desktopMode && s.auth != nil && !s.auth.enforceAccess && !isWebAccessSurfaceRequest(c.Request) {
+			if s.desktopMode && s.auth != nil && !s.auth.EnforceAccess() && !isWebAccessSurfaceRequest(c.Request) {
 				c.Request = middleware.MarkRequestTrustedHost(c.Request)
 			}
 			c.Next()
 			return
 		}
-		if constantTimeEqual(desktopTokenFromRequest(c.Request), required) {
+		if webaccess.ConstantTimeEqual(desktopTokenFromRequest(c.Request), required) {
 			c.Request = middleware.MarkRequestTrustedHost(c.Request)
 			c.Next()
 			return
@@ -51,7 +52,7 @@ func desktopTokenFromRequest(r *http.Request) string {
 	if r == nil {
 		return ""
 	}
-	if token := bearerToken(r.Header.Get("Authorization")); token != "" {
+	if token := webaccess.BearerToken(r.Header.Get("Authorization")); token != "" {
 		return token
 	}
 	if !strings.EqualFold(strings.TrimSpace(r.Header.Get("Upgrade")), "websocket") {

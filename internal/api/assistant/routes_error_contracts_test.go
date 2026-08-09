@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 func TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources(t *testing.T) {

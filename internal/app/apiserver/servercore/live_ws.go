@@ -1,258 +1,49 @@
 package servercore
 
 import (
-	"context"
-	"fmt"
-	"strings"
-	"time"
-
-	apilive "github.com/jftrade/jftrade-main/internal/api/live"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/liveapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
-	"github.com/jftrade/jftrade-main/internal/jftsettings"
-	livecore "github.com/jftrade/jftrade-main/internal/live"
+	jftsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
 )
 
-type liveWebSocketBackend struct {
-	server *Server
-}
-
-func (b liveWebSocketBackend) ConnectionLimit() int {
-	if b.server == nil {
-		return defaultMaxWebSocketClients
+func newLiveWebSocketBackend(s *Server) *liveapp.Backend {
+	options := liveapp.BackendOptions{
+		DefaultConnectionLimit:   defaultMaxWebSocketClients,
+		SampleFreshnessThreshold: liveHeartbeatStaleThreshold,
 	}
-	limit := b.server.store.InterfaceSettings(jftsettings.LaunchDefaults{}).LiveWebSocketConnectionLimit
-	if limit <= 0 {
-		return defaultMaxWebSocketClients
+	if s == nil {
+		return liveapp.NewBackend(options)
 	}
-	return limit
-}
-
-func (b liveWebSocketBackend) Heartbeat(
-	interval time.Duration,
-	stats apilive.ClientStats,
-	webSocketInstrumentIDs []string,
-	providerBrokerID string,
-) map[string]any {
-	payload := b.server.liveHeartbeatEvent(interval, stats, webSocketInstrumentIDs)
-	providerBrokerID = normalizeProviderBrokerID(providerBrokerID)
-	nativeProviderID, native := b.nativeMarketDataProvider(providerBrokerID)
-	payload["providerBrokerId"] = providerBrokerID
-	if native && nativeProviderID != "" {
-		payload["marketDataProviderId"] = nativeProviderID
-	}
-	if providerBrokerID != "" && !native {
-		transport, _ := payload["transport"].(map[string]any)
-		if transport == nil {
-			transport = map[string]any{}
-			payload["transport"] = transport
+	options.ConnectionLimit = func() int {
+		if s.store == nil {
+			return defaultMaxWebSocketClients
 		}
-		transport["mode"] = "snapshot-poll-fallback"
+		return s.store.InterfaceSettings(jftsettings.LaunchDefaults{}).LiveWebSocketConnectionLimit
 	}
-	return payload
-}
-
-func (b liveWebSocketBackend) MarketTicks(
-	ctx context.Context,
-	providerBrokerID string,
-	instrumentIDs []string,
-	initialObservedAt string,
-) ([]apilive.TickEvent, error) {
-	providerBrokerID, err := requireProviderBrokerID(providerBrokerID)
-	if err != nil {
-		return nil, err
-	}
-	nativeProviderID, native := b.nativeMarketDataProvider(providerBrokerID)
-	if !native {
-		return b.pollBrokerMarketTicks(ctx, providerBrokerID, instrumentIDs)
-	}
-	if b.server == nil || b.server.marketdataSvc == nil {
-		return nil, fmt.Errorf("active market-data service is unavailable")
-	}
-	b.server.marketdataSvc.WakeCollector()
-	result := make([]apilive.TickEvent, 0, len(instrumentIDs))
-	for _, sample := range b.server.marketdataSvc.LatestMany(
-		instrumentIDs,
-		marketdataapp.SampleFreshness(b.server.marketdataSvc, liveHeartbeatStaleThreshold),
-	) {
-		if sample == nil {
-			continue
+	options.Heartbeat = s.liveHeartbeatEvent
+	options.MarketData = func() *mdsrv.Service { return s.marketdataSvc }
+	options.ProductFeatures = func() *productsrv.Service { return s.productFeaturesSvc }
+	options.NotificationsAfter = s.liveNotificationsAfter
+	options.EnsureNotificationBridge = s.ensureLiveNotificationBridge
+	options.SubscribeNativeDepth = func(onUpdate func(string)) func() {
+		if !s.futuCoordinator().Enabled() {
+			return nil
 		}
-		event := b.server.marketdataSvc.LiveTick(sample, initialObservedAt)
-		if event == nil {
-			continue
+		if runtime := marketdataapp.RuntimeFromService(s.marketdataSvc); runtime != nil && runtime.ActiveProviderID() != "futu" {
+			return nil
 		}
-		event["brokerId"] = providerBrokerID
-		event["marketDataProviderId"] = nativeProviderID
-		result = append(result, apilive.TickEvent{
-			InstrumentID: sample.InstrumentID,
-			ObservedAt:   sample.ObservedAt,
-			Payload:      event,
-		})
-	}
-	return result, nil
-}
-
-func (b liveWebSocketBackend) NotificationsAfter(sequence uint64) []livecore.Event {
-	return b.server.liveNotificationsAfter(sequence)
-}
-
-func (b liveWebSocketBackend) EnsureNotificationBridge(ctx context.Context) {
-	b.server.ensureLiveNotificationBridge(ctx)
-}
-
-func (b liveWebSocketBackend) SecurityDetails(
-	ctx context.Context,
-	providerBrokerID string,
-	market string,
-	symbol string,
-) (map[string]any, error) {
-	providerBrokerID, err := requireProviderBrokerID(providerBrokerID)
-	if err != nil {
-		return nil, err
-	}
-	if _, native := b.nativeMarketDataProvider(providerBrokerID); !native {
-		if b.server == nil || b.server.productFeaturesSvc == nil {
-			return nil, fmt.Errorf("broker market-data reader is unavailable")
+		marketDataRuntime := s.runtimes.MarketData()
+		if marketDataRuntime == nil {
+			return nil
 		}
-		return b.server.productFeaturesSvc.ReadMarketSecurityDetails(
-			ctx, providerBrokerID, market, symbol,
-		)
+		return marketDataRuntime.OnOrderBookUpdate(onUpdate)
 	}
-	if b.server == nil || b.server.marketdataSvc == nil {
-		return nil, fmt.Errorf("active market-data service is unavailable")
-	}
-	details, err := b.server.marketdataSvc.GetSecurityDetails(ctx, market, symbol)
-	return map[string]any(details), err
+	return liveapp.NewBackend(options)
 }
 
-func (b liveWebSocketBackend) Depth(
-	ctx context.Context,
-	providerBrokerID string,
-	market string,
-	symbol string,
-	num int32,
-) (map[string]any, error) {
-	providerBrokerID, err := requireProviderBrokerID(providerBrokerID)
-	if err != nil {
-		return nil, err
-	}
-	if _, native := b.nativeMarketDataProvider(providerBrokerID); !native {
-		if b.server == nil || b.server.productFeaturesSvc == nil {
-			return nil, fmt.Errorf("broker market-data reader is unavailable")
-		}
-		return b.server.productFeaturesSvc.ReadMarketDepth(
-			ctx, providerBrokerID, market, symbol, int(num),
-		)
-	}
-	if b.server == nil || b.server.marketdataSvc == nil {
-		return nil, fmt.Errorf("active market-data service is unavailable")
-	}
-	depth, err := b.server.marketdataSvc.GetDepth(ctx, market, symbol, int(num))
-	return map[string]any(depth), err
-}
-
-func (b liveWebSocketBackend) pollBrokerMarketTicks(
-	ctx context.Context,
-	providerBrokerID string,
-	instrumentIDs []string,
-) ([]apilive.TickEvent, error) {
-	if b.server == nil || b.server.productFeaturesSvc == nil {
-		return nil, fmt.Errorf("broker market-data reader is unavailable")
-	}
-	result := make([]apilive.TickEvent, 0, len(instrumentIDs))
-	for _, instrumentID := range instrumentIDs {
-		market, symbol, ok := strings.Cut(strings.ToUpper(strings.TrimSpace(instrumentID)), ".")
-		if !ok || market == "" || symbol == "" {
-			continue
-		}
-		response, err := b.server.productFeaturesSvc.ReadMarketSnapshot(
-			ctx, providerBrokerID, market, symbol, false,
-		)
-		if err != nil {
-			return nil, err
-		}
-		snapshot, _ := response["snapshot"].(map[string]any)
-		meta, _ := response["meta"].(map[string]any)
-		observedAt := stringMapValue(snapshot, "observedAt")
-		if observedAt == "" {
-			observedAt = stringMapValue(meta, "resolvedAt")
-		}
-		payload := map[string]any{
-			"type":       "market-data.tick",
-			"at":         observedAt,
-			"brokerId":   providerBrokerID,
-			"instrument": response["request"],
-			"snapshot":   snapshot,
-			"source":     stringMapValue(meta, "source"),
-		}
-		result = append(result, apilive.TickEvent{
-			InstrumentID: instrumentID,
-			ObservedAt:   observedAt,
-			Payload:      payload,
-		})
-	}
-	return result, nil
-}
-
-func normalizeProviderBrokerID(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
-}
-
-func requireProviderBrokerID(value string) (string, error) {
-	value = normalizeProviderBrokerID(value)
-	if value == "" {
-		return "", fmt.Errorf("provider broker id is required")
-	}
-	return value, nil
-}
-
-func usesNativeFutuLiveProvider(value string) bool {
-	return strings.EqualFold(strings.TrimSpace(value), "futu")
-}
-
-func (b liveWebSocketBackend) nativeMarketDataProvider(value string) (string, bool) {
-	value = normalizeProviderBrokerID(value)
-	if value == "" {
-		return "", false
-	}
-	if b.server != nil {
-		runtime := marketdataapp.RuntimeFromService(b.server.marketdataSvc)
-		if runtime != nil {
-			active := normalizeProviderBrokerID(runtime.ActiveProviderID())
-			if usesNativeFutuLiveProvider(value) || value == active {
-				return active, true
-			}
-		}
-	}
-	if usesNativeFutuLiveProvider(value) {
-		return "futu", true
-	}
-	return value, false
-}
-
-func stringMapValue(values map[string]any, key string) string {
-	value, _ := values[key].(string)
-	return strings.TrimSpace(value)
-}
-
-func (b liveWebSocketBackend) SubscribeDepthUpdates(onUpdate func(string)) func() {
-	if b.server == nil || !b.server.futuIntegrationEnabled() {
-		return func() {}
-	}
-	if runtime := marketdataapp.RuntimeFromService(b.server.marketdataSvc); runtime != nil &&
-		runtime.ActiveProviderID() != "futu" {
-		return func() {}
-	}
-	marketDataRuntime := b.server.runtimes.MarketData()
-	if marketDataRuntime == nil {
-		return func() {}
-	}
-	return marketDataRuntime.OnOrderBookUpdate(func(updatedSymbol string) {
-		onUpdate(strings.ToUpper(strings.TrimSpace(updatedSymbol)))
-	})
-}
-
-func (s *serverApplication) liveStreamStats() (count int, limit int, atLimit bool) {
+func liveStreamStats(s *serverApplication) (count int, limit int, atLimit bool) {
 	if s == nil {
 		return 0, defaultMaxWebSocketClients, false
 	}

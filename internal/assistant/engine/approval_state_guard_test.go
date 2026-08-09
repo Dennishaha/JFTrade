@@ -43,9 +43,9 @@ func TestSaveRunProtectsClaimedApprovalContinuationFromStaleSnapshot(t *testing.
 		t.Fatalf("SaveApproval: %v", err)
 	}
 
-	resolved, changed, claimed, shouldContinue, err := runtime.Store().resolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved)
+	resolved, changed, claimed, shouldContinue, err := runtime.Store().ResolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved)
 	if err != nil || !changed || !shouldContinue || claimed == nil {
-		t.Fatalf("resolveAndStageApproval = %+v/%v/%+v/%v/%v", resolved, changed, claimed, shouldContinue, err)
+		t.Fatalf("ResolveAndStageApproval = %+v/%v/%+v/%v/%v", resolved, changed, claimed, shouldContinue, err)
 		return
 	}
 	if claimed.Status != RunStatusRunning || claimed.ResumeState != "approval_resuming" || claimed.PendingApprovals[0].Status != ApprovalStatusApproved {

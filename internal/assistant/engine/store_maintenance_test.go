@@ -54,20 +54,20 @@ func TestPurgeDeletedConfigsCascadesConfigurationButKeepsHistory(t *testing.T) {
 func TestCompactDatabaseReclaimsFreePages(t *testing.T) {
 	store := newBusinessStore(t)
 	ctx := t.Context()
-	if _, err := store.db.ExecContext(ctx, `CREATE TABLE maintenance_blob (id INTEGER PRIMARY KEY, payload TEXT NOT NULL)`); err != nil {
+	if _, err := store.DB().ExecContext(ctx, `CREATE TABLE maintenance_blob (id INTEGER PRIMARY KEY, payload TEXT NOT NULL)`); err != nil {
 		t.Fatal(err)
 	}
 	payload := strings.Repeat("x", 8192)
 	for range 256 {
-		if _, err := store.db.ExecContext(ctx, `INSERT INTO maintenance_blob(payload) VALUES (?)`, payload); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `INSERT INTO maintenance_blob(payload) VALUES (?)`, payload); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := store.db.ExecContext(ctx, `DELETE FROM maintenance_blob`); err != nil {
+	if _, err := store.DB().ExecContext(ctx, `DELETE FROM maintenance_blob`); err != nil {
 		t.Fatal(err)
 	}
 	var before int
-	if err := store.db.QueryRowContext(ctx, `PRAGMA freelist_count`).Scan(&before); err != nil {
+	if err := store.DB().QueryRowContext(ctx, `PRAGMA freelist_count`).Scan(&before); err != nil {
 		t.Fatal(err)
 	}
 	if before == 0 {
@@ -77,7 +77,7 @@ func TestCompactDatabaseReclaimsFreePages(t *testing.T) {
 		t.Fatal(err)
 	}
 	var after int
-	if err := store.db.QueryRowContext(ctx, `PRAGMA freelist_count`).Scan(&after); err != nil {
+	if err := store.DB().QueryRowContext(ctx, `PRAGMA freelist_count`).Scan(&after); err != nil {
 		t.Fatal(err)
 	}
 	if after != 0 {

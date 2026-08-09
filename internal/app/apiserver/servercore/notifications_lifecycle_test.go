@@ -8,7 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/liveapp"
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 )
 
 func TestServerCloseUnregistersOnlyItsBBGONotificationSink(t *testing.T) {
@@ -27,7 +30,7 @@ func TestServerCloseUnregistersOnlyItsBBGONotificationSink(t *testing.T) {
 	t.Cleanup(func() { jftradeErr1 := first.Close(); jftradeCheckTestError(t, jftradeErr1) })
 	t.Cleanup(func() { jftradeErr2 := second.Close(); jftradeCheckTestError(t, jftradeErr2) })
 
-	dispatchBBGONotification(live.Notification{Title: "before close"})
+	bbgo.Notify("before close")
 	if got := len(first.liveNotificationsAfter(0)); got != 1 {
 		t.Fatalf("first notifications before close = %d", got)
 	}
@@ -41,13 +44,13 @@ func TestServerCloseUnregistersOnlyItsBBGONotificationSink(t *testing.T) {
 	if err := first.Close(); err != nil {
 		t.Fatalf("first second Close: %v", err)
 	}
-	dispatchBBGONotification(live.Notification{Title: "after close"})
+	bbgo.Notify("after close")
 
 	if got := len(first.liveNotificationsAfter(0)); got != 1 {
 		t.Fatalf("closed server notifications = %d", got)
 	}
 	events := second.liveNotificationsAfter(0)
-	if len(events) != 2 || events[1].Title != "after close" {
+	if len(events) != 2 || events[1].Message != "after close" {
 		t.Fatalf("active server notifications = %#v", events)
 	}
 }
@@ -63,7 +66,7 @@ func TestLiveNotificationEventMapContract(t *testing.T) {
 		BrokerID: "futu",
 		Category: "bbgo.notify",
 	}
-	got := liveNotificationEventMap(event)
+	got := liveapp.NotificationEventMap(event)
 	want := map[string]any{
 		"type":     "system.notification",
 		"id":       "system-notification-7",
@@ -81,7 +84,7 @@ func TestLiveNotificationEventMapContract(t *testing.T) {
 
 	event.Message = ""
 	delete(want, "message")
-	if got := liveNotificationEventMap(event); !reflect.DeepEqual(got, want) {
+	if got := liveapp.NotificationEventMap(event); !reflect.DeepEqual(got, want) {
 		t.Fatalf("event map without message = %#v, want %#v", got, want)
 	}
 }
@@ -119,7 +122,7 @@ func TestSystemNotificationTestRouteReturnsDeliveryStatus(t *testing.T) {
 	disableTestExchangeCalendarAutoRefresh(t, store)
 	server := NewServer(store)
 	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
-	server.auth.enabled = false
+	server.auth.Configure(jfsettings.SecuritySettings{})
 	server.runtimes.SetLiveNotificationSink(func(live.Event) live.NotificationDelivery {
 		return live.NotificationDelivered("sent to operating system")
 	})

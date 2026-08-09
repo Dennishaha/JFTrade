@@ -6,7 +6,7 @@ import (
 	"time"
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 

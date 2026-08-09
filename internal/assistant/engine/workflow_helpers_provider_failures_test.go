@@ -19,20 +19,6 @@ func TestWorkflowHelpersAndProviderFailureBoundaries(t *testing.T) {
 		}
 	})
 
-	t.Run("workflow task toolset switches to goal decision tools", func(t *testing.T) {
-		decision := &workflowGoalDecision{}
-		decision.beginDecision()
-		tools, err := (&workflowTaskToolset{
-			req: workflowRequest{Mode: WorkModeLoop, GoalDecision: decision},
-		}).Tools(newGoogleADKToolTestContext())
-		if err != nil {
-			t.Fatalf("workflowTaskToolset.Tools: %v", err)
-		}
-		if len(tools) != 2 || tools[0].Name() != workflowGoalCompleteTool || tools[1].Name() != workflowGoalContinueTool {
-			t.Fatalf("workflow goal decision tools = %#v, want complete/continue only", tools)
-		}
-	})
-
 	t.Run("google ADK model lookup surfaces disabled providers and secret read errors", func(t *testing.T) {
 		disabledRuntime := newTestRuntime(t)
 		mustSaveProvider(t, disabledRuntime, ProviderWriteRequest{
@@ -43,7 +29,7 @@ func TestWorkflowHelpersAndProviderFailureBoundaries(t *testing.T) {
 			APIKey:      "sk-test",
 			Enabled:     false,
 		})
-		if _, err := disabledRuntime.googleADKModelForAgent(ctx, Agent{
+		if _, err := disabledRuntime.GoogleADKModelForAgent(ctx, Agent{
 			ID: "disabled-model-agent", Name: "Disabled Model Agent", ProviderID: "disabled-model-provider", Model: "test-model",
 		}); err == nil || !strings.Contains(err.Error(), "unavailable") {
 			t.Fatalf("googleADKModelForAgent disabled provider err = %v", err)
@@ -57,10 +43,10 @@ func TestWorkflowHelpersAndProviderFailureBoundaries(t *testing.T) {
 			Model:       "test-model",
 			Enabled:     true,
 		})
-		if err := os.WriteFile(secretRuntime.store.secrets.path, []byte("{"), 0o600); err != nil {
+		if err := os.WriteFile(secretRuntime.store.SecretsPath(), []byte("{"), 0o600); err != nil {
 			t.Fatalf("WriteFile broken secrets: %v", err)
 		}
-		if _, err := secretRuntime.googleADKModelForAgent(ctx, Agent{
+		if _, err := secretRuntime.GoogleADKModelForAgent(ctx, Agent{
 			ID: "broken-secret-agent", Name: "Broken Secret Agent", ProviderID: "broken-secret-provider", Model: "test-model",
 		}); err == nil {
 			t.Fatal("googleADKModelForAgent accepted invalid provider secret store")

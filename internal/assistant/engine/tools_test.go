@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"io"
 	"net/http"
 	"net/netip"
@@ -42,7 +44,7 @@ func TestToolRegistrySerializesEmptyApprovalModesAsArray(t *testing.T) {
 func TestDefaultTaskToolSchemaIncludesPlannerProjectionFields(t *testing.T) {
 	for _, name := range []string{"tasks.create", "tasks.update"} {
 		t.Run(name, func(t *testing.T) {
-			schema := defaultToolInputSchema(name)
+			schema := skillsruntime.DefaultToolInputSchema(name)
 			properties, ok := schema["properties"].(map[string]any)
 			if !ok {
 				t.Fatalf("schema properties = %#v, want object", schema["properties"])
@@ -126,7 +128,7 @@ func TestLowRiskWriteToolsCanSkipApproval(t *testing.T) {
 
 func TestApprovalModeRequiresMediumAndHigherRiskApproval(t *testing.T) {
 	for _, risk := range []string{"medium", "high", "critical"} {
-		descriptor := ToolDescriptor{Name: "risk." + risk, Permission: "write_external", RiskLevel: risk, AllowedModes: allPermissionModes()}
+		descriptor := ToolDescriptor{Name: "risk." + risk, Permission: "write_external", RiskLevel: risk, AllowedModes: jfadkmodel.AllPermissionModes()}
 		if !ToolRequiresApproval(descriptor, PermissionModeApproval) {
 			t.Fatalf("risk %s did not require approval in approval mode", risk)
 		}
@@ -134,7 +136,7 @@ func TestApprovalModeRequiresMediumAndHigherRiskApproval(t *testing.T) {
 			t.Fatalf("risk %s unexpectedly required approval in all mode", risk)
 		}
 	}
-	low := ToolDescriptor{Name: "risk.low", Permission: "write_external", RiskLevel: "low", AllowedModes: allPermissionModes()}
+	low := ToolDescriptor{Name: "risk.low", Permission: "write_external", RiskLevel: "low", AllowedModes: jfadkmodel.AllPermissionModes()}
 	if ToolRequiresApproval(low, PermissionModeApproval) {
 		t.Fatal("low risk tool unexpectedly requires approval in approval mode")
 	}
@@ -146,9 +148,9 @@ func TestResearchBacktestExplicitlySkipsApproval(t *testing.T) {
 		Permission:         "optimize_strategy",
 		RiskLevel:          "low",
 		RequiresApprovalIn: []string{PermissionModeApproval},
-		AllowedModes:       allPermissionModes(),
+		AllowedModes:       jfadkmodel.AllPermissionModes(),
 	}
-	for _, mode := range allPermissionModes() {
+	for _, mode := range jfadkmodel.AllPermissionModes() {
 		if ToolRequiresApproval(descriptor, mode) {
 			t.Fatalf("strategy.research_backtest requires approval in %s", mode)
 		}
@@ -612,7 +614,7 @@ func TestAccountOrdersWithSlowPortfolioSummary(t *testing.T) {
 		mu.Unlock()
 		// Simulate slow broker API call (but still within tool timeout).
 		select {
-		case <-time.After(5 * time.Second):
+		case <-time.After(500 * time.Millisecond):
 			return map[string]any{"accounts": []any{}, "brokerEnabled": false, "orderCount": 0, "checkedAt": nowString()}, nil
 		case <-toolCtx.Done():
 			return nil, toolCtx.Err()

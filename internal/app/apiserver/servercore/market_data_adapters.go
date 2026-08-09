@@ -2,415 +2,72 @@ package servercore
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"strings"
 
 	httpserver "github.com/jftrade/jftrade-main/internal/api/httpserver"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/futuapp"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
-	"github.com/jftrade/jftrade-main/pkg/broker"
-	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
-// newMarketdataProvider 创建一个 marketdata.Provider 实现，通过闭包委托到 Server
-// 尚未迁出的外部行情能力。
 func newMarketdataProvider(s *Server) mdsrv.Provider {
-	return &marketdataProvider{
-		descriptor:          marketdataProviderDescriptor,
-		getMarkets:          marketdataProviderMarkets,
-		normalizeInstrument: marketdataProviderNormalizeInstrument,
-		getSecurityDetails: func(ctx context.Context, market, symbol string) (mdsrv.SecurityDetails, error) {
-			return s.marketSecurityDetailsResponseForInstrument(ctx, market, symbol)
+	return marketdataapp.NewFutuProvider(marketdataapp.FutuProviderDependencies{
+		SecurityDetails: func(ctx context.Context, marketCode, symbol string) (mdsrv.SecurityDetails, error) {
+			return marketHTTPAdapters(s).SecurityDetailsResponseForInstrument(ctx, marketCode, symbol)
 		},
-		lookupInstrument:  s.marketdataProviderLookupInstrument,
-		searchInstruments: s.marketdataProviderSearchInstruments,
-
-		querySnapshot: func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {
+		LookupInstrument: func(ctx context.Context, marketCode, code string) ([]mdsrv.InstrumentCandidate, error) {
+			selected, err := futuapp.BrokerOrError(s.futuCoordinator())
+			if err != nil {
+				return nil, err
+			}
+			return marketdataapp.LookupInstrument(ctx, selected, marketCode, code, "bbgo:futu")
+		},
+		SearchInstruments: func(ctx context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error) {
+			selected, err := futuapp.BrokerOrError(s.futuCoordinator())
+			if err != nil {
+				return nil, err
+			}
+			return marketdataapp.SearchInstruments(ctx, selected, query, limit, "bbgo:futu-search")
+		},
+		QuerySnapshot: func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {
 			return s.runtimes.MarketData().QuerySnapshot(ctx, instrumentID)
 		},
-
-		queryTicker: func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {
+		QueryTicker: func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {
 			return s.runtimes.MarketData().QueryTicker(ctx, instrumentID)
 		},
-		getHistoricalCandles: s.marketdataProviderHistoricalCandles,
-		getDepth: func(ctx context.Context, market, symbol string, num int) (mdsrv.DepthResponse, error) {
-			// Always set Num so that Server.numOrDefault handles clamping (<=0→1, >50→50).
-			query := marketDepthQuery{}
-			query.Num = httpserver.OptionalIntValue{Value: num, Set: true, Valid: true}
-			return s.marketDepthResponseForInstrument(ctx, market, symbol, query)
+		HistoricalCandles: func(ctx context.Context, request mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error) {
+			selected, err := futuapp.BrokerOrError(s.futuCoordinator())
+			if err != nil {
+				return nil, err
+			}
+			marketCode := strings.ToUpper(strings.TrimSpace(request.Market))
+			includeSession := marketdataapp.ShouldAnnotateHistoricalKLineSession(marketCode, bbgotypes.Interval(strings.ToLower(strings.TrimSpace(request.Period))))
+			return marketdataapp.HistoricalCandles(
+				ctx, selected, futuintegration.BrokerID, request, includeSession, "bbgo:futu",
+			)
 		},
-
-		health: func(ctx context.Context) (mdsrv.HealthStatus, error) {
+		Depth: func(ctx context.Context, marketCode, symbol string, num int) (mdsrv.DepthResponse, error) {
+			query := marketdataapp.DepthQuery{Num: httpserver.OptionalIntValue{Value: num, Set: true, Valid: true}}
+			return marketHTTPAdapters(s).DepthResponseForInstrument(ctx, marketCode, symbol, query)
+		},
+		Health: func(ctx context.Context) (mdsrv.HealthStatus, error) {
 			return s.futuCoordinator().MarketDataHealth(ctx)
 		},
-	}
+	})
 }
 
-func marketdataProviderDescriptor(context.Context) (mdsrv.ProviderDescriptor, error) {
-	dtos := marketProfileDTOs()
-	supportedMarkets := make([]string, 0, len(dtos))
-	for _, profile := range dtos {
-		supportedMarkets = append(supportedMarkets, strings.ToUpper(strings.TrimSpace(profile.Code)))
-	}
-	return mdsrv.ProviderDescriptor{
-		ProviderID:       "futu-opend",
-		DisplayName:      "Futu OpenD",
-		BrokerID:         "futu",
-		Source:           "bbgo:futu",
-		DefaultMarket:    "HK",
-		SupportedMarkets: supportedMarkets,
-		Transports:       []string{"opend-tcp", "push-stream", "snapshot-poll-fallback"},
-		Capabilities: mdsrv.ProviderCapabilities{
-			Snapshots:         true,
-			StreamingQuotes:   true,
-			StreamingDepth:    true,
-			HistoricalCandles: true,
-			TickCandles:       true,
-			OrderBookDepth:    true,
-			InstrumentSearch:  true,
-			ExtendedHours:     true,
-			CandleIntervals:   []string{"tick", "1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"},
-			OrderBookLevels:   []int{1, 5, 10, 25, 50},
-			Sessions:          []string{"RTH", "ETH", "ALL", "OVERNIGHT"},
+func marketHTTPAdapters(s *Server) *marketdataapp.HTTPAdapters {
+	return marketdataapp.NewServerHTTPAdapters(marketdataapp.ServerHTTPAdapterDependencies{
+		MarketDataService: func() *mdsrv.Service {
+			return s.marketdataSvc
 		},
-		Constraints: mdsrv.ProviderConstraints{
-			RequiresOpenD:           true,
-			RequiresMarketDataRight: true,
-			UsesSubscriptionQuota:   true,
+		MarketDataRuntime: func() *futuintegration.MarketDataRuntime {
+			return s.runtimes.MarketData()
 		},
-		Notes: []string{
-			"Futu-first provider; data entitlement and subscription quota are enforced by Futu OpenD.",
-			"Historical candles and real-time pushes can diverge during extended sessions; UI surfaces observed timestamps and transport mode.",
+		FutuEnabled: func() bool {
+			return s.futuCoordinator().Enabled()
 		},
-	}, nil
-}
-
-func marketdataProviderMarkets(context.Context) ([]mdsrv.MarketProfile, error) {
-	dtos := userMarketProfileDTOs()
-	profiles := make([]mdsrv.MarketProfile, 0, len(dtos))
-	for _, d := range dtos {
-		profiles = append(profiles, mdsrv.MarketProfile{
-			"code":                   d.Code,
-			"resolvedMarket":         d.ResolvedMarket,
-			"preferredPrefix":        d.PreferredPrefix,
-			"displayName":            d.DisplayName,
-			"quoteCurrency":          d.QuoteCurrency,
-			"timezone":               d.Timezone,
-			"supportsExtendedHours":  d.SupportsExtendedHours,
-			"requiresExchangePrefix": d.RequiresExchangePrefix,
-			"aliases":                d.Aliases,
-			"regularSessions":        d.RegularSessions,
-			"precision":              d.Precision,
-			"tickSize":               d.TickSize,
-		})
-	}
-	return profiles, nil
-}
-
-func (s *serverApplication) marketdataProviderLookupInstrument(ctx context.Context, marketCode, code string) ([]mdsrv.InstrumentCandidate, error) {
-	instrument, err := market.ParseInstrument(market.InstrumentInput{Market: marketCode, Code: code})
-	if err != nil {
-		return nil, err
-	}
-	b, err := s.futuBrokerOrError()
-	if err != nil {
-		return nil, err
-	}
-	reader := b.MarketData()
-	if reader == nil {
-		return nil, fmt.Errorf("broker market data not available")
-	}
-	staticInfo, err := reader.QuerySecurityInfo(ctx, broker.SecurityInfoQuery{
-		ReadQuery: brokerReadQuery(instrument.Symbol),
-		Symbols:   []string{instrument.Symbol},
 	})
-	if err != nil {
-		return nil, err
-	}
-	if staticInfo == nil {
-		return []mdsrv.InstrumentCandidate{}, nil
-	}
-
-	candidates := make([]mdsrv.InstrumentCandidate, 0, len(staticInfo.Securities))
-	for _, security := range staticInfo.Securities {
-		parsed, parseErr := market.ParseQualifiedInstrumentSymbol(security.Symbol)
-		if parseErr != nil || parsed.Prefix != instrument.Prefix || !strings.EqualFold(parsed.Code, instrument.Code) {
-			continue
-		}
-		candidate := mdsrv.InstrumentCandidate{
-			Market:         parsed.Prefix,
-			ResolvedMarket: parsed.Market,
-			InstrumentID:   parsed.Symbol,
-			Code:           parsed.Code,
-			Symbol:         parsed.Code,
-			Source:         "bbgo:futu",
-			Selectable:     isSelectableInstrumentMarketCode(parsed.Prefix),
-		}
-		if security.Name != nil {
-			candidate.Name = strings.TrimSpace(*security.Name)
-		}
-		if security.SecurityType != nil {
-			candidate.SecurityType = strings.TrimSpace(*security.SecurityType)
-		}
-		if security.LotSize != nil && *security.LotSize > 0 {
-			candidate.LotSize = *security.LotSize
-		}
-		candidates = append(candidates, candidate)
-	}
-	return candidates, nil
-}
-
-func (s *serverApplication) marketdataProviderSearchInstruments(ctx context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error) {
-	b, err := s.futuBrokerOrError()
-	if err != nil {
-		return nil, err
-	}
-	reader := b.MarketData()
-	if reader == nil {
-		return nil, fmt.Errorf("broker market data not available")
-	}
-	snapshot, err := reader.QuerySecuritySearch(ctx, broker.SecuritySearchQuery{
-		Keyword: strings.TrimSpace(query),
-		Limit:   int32(limit),
-	})
-	if err != nil {
-		return nil, err
-	}
-	if snapshot == nil {
-		return []mdsrv.InstrumentCandidate{}, nil
-	}
-
-	candidates := make([]mdsrv.InstrumentCandidate, 0, len(snapshot.Entries))
-	for _, entry := range snapshot.Entries {
-		marketCode := strings.ToUpper(strings.TrimSpace(entry.Market))
-		symbol := strings.ToUpper(strings.TrimSpace(entry.Symbol))
-		marketCode, code := brokerSearchInstrumentParts(marketCode, symbol)
-		if marketCode == "" || code == "" {
-			continue
-		}
-		resolvedMarket := marketCode
-		if marketCode == "SH" || marketCode == "SZ" {
-			resolvedMarket = "CN"
-		}
-		selectable := isSelectableInstrumentMarketCode(marketCode)
-		candidate := mdsrv.InstrumentCandidate{
-			Market:         marketCode,
-			ResolvedMarket: resolvedMarket,
-			InstrumentID:   marketCode + "." + code,
-			Code:           code,
-			Symbol:         code,
-			Name:           strings.TrimSpace(entry.Name),
-			SecurityType:   strings.TrimSpace(entry.SecurityType),
-			Source:         "bbgo:futu-search",
-			IsWatched:      entry.IsWatched,
-			Selectable:     selectable,
-		}
-		if !selectable {
-			candidate.UnavailableReason = fmt.Sprintf("当前版本暂不支持 %s 市场", marketCode)
-		}
-		candidates = append(candidates, candidate)
-	}
-	return candidates, nil
-}
-
-func brokerSearchInstrumentParts(marketCode, symbol string) (string, string) {
-	if separator := strings.Index(symbol, "."); separator > 0 {
-		prefix := canonicalBrokerSearchMarketPrefix(symbol[:separator])
-		if marketCode == "" {
-			marketCode = prefix
-		}
-		if prefix != "" && prefix == marketCode {
-			return marketCode, strings.TrimSpace(symbol[separator+1:])
-		}
-	}
-	return marketCode, symbol
-}
-
-func canonicalBrokerSearchMarketPrefix(value string) string {
-	normalized := strings.ToUpper(strings.TrimSpace(value))
-	switch normalized {
-	case "CNSH":
-		return "SH"
-	case "CNSZ":
-		return "SZ"
-	case "HKFUTURE", "HK_FUTURES":
-		return "HK_FUTURE"
-	case "CC":
-		return "CRYPTO"
-	case "HK", "US", "SH", "SZ", "SG", "JP", "AU", "MY", "CA", "FX", "CRYPTO", "HK_FUTURE", "UNKNOWN":
-		return normalized
-	default:
-		return ""
-	}
-}
-
-func isSelectableInstrumentMarketCode(marketCode string) bool {
-	switch strings.ToUpper(strings.TrimSpace(marketCode)) {
-	case "HK", "US", "SH", "SZ":
-		return true
-	default:
-		return false
-	}
-}
-
-func marketdataProviderNormalizeInstrument(_ context.Context, input map[string]any) (map[string]any, error) {
-	marketStr := jftradeOptionalTypeAssertion[string](input["market"])
-	symbolStr := jftradeOptionalTypeAssertion[string](input["symbol"])
-	codeStr := jftradeOptionalTypeAssertion[string](input["code"])
-	instrumentIDStr := jftradeOptionalTypeAssertion[string](input["instrumentId"])
-
-	instrument, err := market.ParseInstrument(market.InstrumentInput{
-		Market:       marketStr,
-		Symbol:       symbolStr,
-		Code:         codeStr,
-		InstrumentID: instrumentIDStr,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{
-		"market":         instrument.Market,
-		"prefix":         instrument.Prefix,
-		"code":           instrument.Code,
-		"symbol":         instrument.Symbol,
-		"instrumentId":   instrument.Symbol,
-		"resolvedMarket": instrument.Market,
-	}, nil
-}
-
-func (s *serverApplication) marketdataProviderHistoricalCandles(ctx context.Context, request mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error) {
-	period := strings.ToLower(strings.TrimSpace(request.Period))
-	if period == "tick" {
-		period = "1m"
-	}
-	limit := request.Limit
-	if limit < 1 {
-		limit = 200
-	}
-	if limit > 1000 {
-		limit = 1000
-	}
-	marketCode := strings.ToUpper(strings.TrimSpace(request.Market))
-	symbol := strings.ToUpper(strings.TrimSpace(request.Symbol))
-	instrumentID := marketCode + "." + symbol
-	includeSession := shouldAnnotateHistoricalKLineSession(marketCode, bbgotypes.Interval(period))
-	sessions, err := resolveProviderCandleSessions(request, includeSession)
-	if err != nil {
-		return nil, err
-	}
-	b, err := s.futuBrokerOrError()
-	if err != nil {
-		return nil, err
-	}
-	reader := b.MarketData()
-	if reader == nil {
-		return nil, fmt.Errorf("broker market data not available")
-	}
-	snapshot, err := reader.QueryKLines(ctx, broker.KLineQuery{
-		ReadQuery:  broker.ReadQuery{BrokerID: futuintegration.BrokerID, Market: marketCode},
-		Symbol:     instrumentID,
-		Period:     period,
-		FromTime:   request.FromTime,
-		ToTime:     request.ToTime,
-		BeforeTime: request.BeforeTime,
-		Limit:      int32(limit),
-		Sessions:   mdsrv.CandleSessionStrings(sessions),
-	})
-	if err != nil {
-		if errors.Is(err, mdsrv.ErrSubscriptionRequired) {
-			return nil, mdsrv.NewSubscriptionRequiredError("KLINE", marketCode, symbol, period)
-		}
-		return nil, err
-	}
-	return mdsrv.BrokerKLineCandlesResponse(
-		marketCode, symbol, instrumentID, period, limit, request, sessions, includeSession, snapshot, "bbgo:futu",
-	)
-}
-
-func resolveProviderCandleSessions(
-	request mdsrv.HistoricalCandlesQuery,
-	includeSession bool,
-) ([]mdsrv.CandleSession, error) {
-	available := []mdsrv.CandleSession{mdsrv.CandleSessionRegular}
-	if includeSession {
-		available = append(available, mdsrv.CandleSessionExtended, mdsrv.CandleSessionOvernight)
-	}
-	return mdsrv.ResolveCandleSessions(request.Sessions, request.SessionsSpecified, available)
-}
-
-// marketdataProvider 闭包式 Provider 实现——每个方法通过闭包委托到 Server。
-type marketdataProvider struct {
-	descriptor           func(context.Context) (mdsrv.ProviderDescriptor, error)
-	getMarkets           func(context.Context) ([]mdsrv.MarketProfile, error)
-	normalizeInstrument  func(context.Context, map[string]any) (map[string]any, error)
-	getSecurityDetails   func(context.Context, string, string) (mdsrv.SecurityDetails, error)
-	lookupInstrument     func(context.Context, string, string) ([]mdsrv.InstrumentCandidate, error)
-	searchInstruments    func(context.Context, string, int) ([]mdsrv.InstrumentCandidate, error)
-	querySnapshot        func(context.Context, string) (*mdsrv.Tick, error)
-	queryTicker          func(context.Context, string) (*mdsrv.Tick, error)
-	getHistoricalCandles func(context.Context, mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error)
-	getDepth             func(context.Context, string, string, int) (mdsrv.DepthResponse, error)
-	health               func(context.Context) (mdsrv.HealthStatus, error)
-}
-
-// compile-time interface check
-var _ mdsrv.Provider = (*marketdataProvider)(nil)
-
-func (p *marketdataProvider) Descriptor(ctx context.Context) (mdsrv.ProviderDescriptor, error) {
-	return p.descriptor(ctx)
-}
-
-func (p *marketdataProvider) GetMarkets(ctx context.Context) ([]mdsrv.MarketProfile, error) {
-	return p.getMarkets(ctx)
-}
-
-func (p *marketdataProvider) NormalizeInstrument(ctx context.Context, input map[string]any) (map[string]any, error) {
-	return p.normalizeInstrument(ctx, input)
-}
-
-func (p *marketdataProvider) GetSecurityDetails(ctx context.Context, market, symbol string) (mdsrv.SecurityDetails, error) {
-	return p.getSecurityDetails(ctx, market, symbol)
-}
-
-func (p *marketdataProvider) LookupInstrument(ctx context.Context, market, code string) ([]mdsrv.InstrumentCandidate, error) {
-	if p.lookupInstrument == nil {
-		return nil, fmt.Errorf("market-data exact instrument lookup is unavailable")
-	}
-	return p.lookupInstrument(ctx, market, code)
-}
-
-func (p *marketdataProvider) SearchInstruments(ctx context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error) {
-	if p.searchInstruments == nil {
-		return nil, fmt.Errorf("market-data instrument search is unavailable")
-	}
-	return p.searchInstruments(ctx, query, limit)
-}
-
-func (p *marketdataProvider) QuerySnapshot(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {
-	return p.querySnapshot(ctx, instrumentID)
-}
-
-func (p *marketdataProvider) QueryTicker(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {
-	return p.queryTicker(ctx, instrumentID)
-}
-
-func (p *marketdataProvider) GetHistoricalCandles(ctx context.Context, query mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error) {
-	return p.getHistoricalCandles(ctx, query)
-}
-
-func (p *marketdataProvider) GetDepth(ctx context.Context, market, symbol string, num int) (mdsrv.DepthResponse, error) {
-	result, err := p.getDepth(ctx, market, symbol, num)
-	if err != nil {
-		if errors.Is(err, mdsrv.ErrSubscriptionRequired) {
-			return nil, mdsrv.NewSubscriptionRequiredError("ORDER_BOOK", market, symbol, "")
-		}
-		return nil, err
-	}
-	return result, nil
-}
-
-func (p *marketdataProvider) Health(ctx context.Context) (mdsrv.HealthStatus, error) {
-	return p.health(ctx)
 }

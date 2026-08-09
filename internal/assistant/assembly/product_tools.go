@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"slices"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 var productReadTools = []struct {

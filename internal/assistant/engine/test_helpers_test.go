@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 )
@@ -154,7 +156,7 @@ func newWorkflowApprovalRuntime(t *testing.T, mode string) (*Runtime, *atomic.In
 		RequiresApprovalIn: []string{PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		executions.Add(1)
-		return map[string]any{"saved": true, "mode": normalizeWorkMode(mode)}, nil
+		return map[string]any{"saved": true, "mode": mode}, nil
 	})
 	runtime := newRuntimeWithRegistry(t, base.Store(), registry)
 	return runtime, executions
@@ -182,12 +184,12 @@ func appendADKEvent(t *testing.T, runtime *Runtime, agentID string, sessionID st
 	t.Helper()
 	ctx := context.Background()
 	if _, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName: googleADKAppName(agentID), UserID: googleADKUserID, SessionID: sessionID,
+		AppName: GoogleADKAppName(agentID), UserID: googleADKUserID, SessionID: sessionID,
 	}); err != nil && !strings.Contains(strings.ToLower(err.Error()), "already") && !strings.Contains(strings.ToLower(err.Error()), "unique constraint") && !strings.Contains(strings.ToLower(err.Error()), "constraint failed") {
 		t.Fatalf("Create ADK session: %v", err)
 	}
 	response, err := runtime.rawSessionService.Get(context.Background(), &adksession.GetRequest{
-		AppName: googleADKAppName(agentID), UserID: googleADKUserID, SessionID: sessionID,
+		AppName: GoogleADKAppName(agentID), UserID: googleADKUserID, SessionID: sessionID,
 	})
 	if err != nil || response == nil || response.Session == nil {
 		t.Fatalf("Get ADK session: response=%#v err=%v", response, err)
@@ -248,7 +250,7 @@ func testGoalWorkflowToolResponsesSinceLastUser(messages []openAIChatMessage) ma
 			break
 		}
 		if message.Role == "tool" {
-			name := restoreToolNameFromOpenAI(message.Name)
+			name := providers.RestoreToolNameFromOpenAI(message.Name)
 			if name == "" {
 				name = message.Name
 			}
@@ -308,7 +310,7 @@ func testProviderToolResponseNames(messages []openAIChatMessage) map[string]bool
 	names := map[string]bool{}
 	for _, message := range messages {
 		if message.Role == "tool" {
-			name := restoreToolNameFromOpenAI(message.Name)
+			name := providers.RestoreToolNameFromOpenAI(message.Name)
 			if name == "" {
 				name = message.Name
 			}
@@ -321,7 +323,7 @@ func testProviderToolResponseNames(messages []openAIChatMessage) map[string]bool
 func testProviderToolCalls(req openAIChatRequest) []openAIToolCall {
 	toolNames := make([]string, 0, len(req.Tools))
 	for _, tool := range req.Tools {
-		name := restoreToolNameFromOpenAI(tool.Function.Name)
+		name := providers.RestoreToolNameFromOpenAI(tool.Function.Name)
 		if name == "" {
 			name = tool.Function.Name
 		}
@@ -387,7 +389,7 @@ func testProviderToolCallCount(messages []openAIChatMessage, name string) int {
 	count := 0
 	for _, message := range messages {
 		for _, call := range message.ToolCalls {
-			if restoreToolNameFromOpenAI(call.Function.Name) == name {
+			if providers.RestoreToolNameFromOpenAI(call.Function.Name) == name {
 				count++
 			}
 		}
@@ -398,7 +400,7 @@ func testProviderToolCallCount(messages []openAIChatMessage, name string) int {
 func testProviderInputAnswerCount(messages []openAIChatMessage) int {
 	count := 0
 	for _, message := range messages {
-		if message.Role != "tool" || restoreToolNameFromOpenAI(message.Name) != interactionRequestUserTool {
+		if message.Role != "tool" || providers.RestoreToolNameFromOpenAI(message.Name) != interactionRequestUserTool {
 			continue
 		}
 		if strings.Contains(message.Content, `"requestId"`) && strings.Contains(message.Content, `"answers"`) {
@@ -471,7 +473,7 @@ func testProviderWorkflowTaskCalls(req openAIChatRequest, text string) []openAIT
 func testProviderToolNames(req openAIChatRequest) []string {
 	toolNames := make([]string, 0, len(req.Tools))
 	for _, tool := range req.Tools {
-		name := restoreToolNameFromOpenAI(tool.Function.Name)
+		name := providers.RestoreToolNameFromOpenAI(tool.Function.Name)
 		if name == "" {
 			name = tool.Function.Name
 		}
@@ -506,7 +508,7 @@ func testProviderBusinessToolCalls(toolNames []string, text string) []openAITool
 	var calls []openAIToolCall
 	add := func(name string, args map[string]any) {
 		if containsTool(toolNames, name) {
-			calls = append(calls, testProviderToolCall(fmt.Sprintf("call-%d-%s", len(calls)+1, sanitizeToolNameForOpenAI(name)), name, args))
+			calls = append(calls, testProviderToolCall(fmt.Sprintf("call-%d-%s", len(calls)+1, providers.SanitizeToolNameForOpenAI(name)), name, args))
 		}
 	}
 	for _, name := range toolNames {
@@ -564,15 +566,15 @@ func testProviderExecuteToolCalls(toolNames []string, text string) []openAIToolC
 				args[key] = value
 			}
 		}
-		calls = append(calls, testProviderToolCall(fmt.Sprintf("call-tag-%d-%s", len(calls)+1, sanitizeToolNameForOpenAI(name)), name, args))
+		calls = append(calls, testProviderToolCall(fmt.Sprintf("call-tag-%d-%s", len(calls)+1, providers.SanitizeToolNameForOpenAI(name)), name, args))
 	}
 	return calls
 }
 
 func testProviderCanonicalToolName(toolNames []string, raw string) string {
-	normalized := normalizeToolAlias(raw)
+	normalized := skillsruntime.NormalizeToolAlias(raw)
 	for _, name := range toolNames {
-		if normalizeToolAlias(name) == normalized {
+		if skillsruntime.NormalizeToolAlias(name) == normalized {
 			return name
 		}
 	}
@@ -600,7 +602,7 @@ func testProviderToolCall(id string, name string, args map[string]any) openAIToo
 	rawArgs, jftradeErr3 := json.Marshal(args)
 	jftradePanicOnError(jftradeErr3)
 	call := openAIToolCall{ID: id, Type: "function"}
-	call.Function.Name = sanitizeToolNameForOpenAI(name)
+	call.Function.Name = providers.SanitizeToolNameForOpenAI(name)
 	call.Function.Arguments = string(rawArgs)
 	return call
 }
@@ -621,7 +623,7 @@ func testProviderFinalReply(req openAIChatRequest) string {
 	var toolNames []string
 	for _, message := range req.Messages {
 		if message.Role == "tool" && strings.TrimSpace(message.Name) != "" {
-			toolNames = append(toolNames, restoreToolNameFromOpenAI(message.Name))
+			toolNames = append(toolNames, providers.RestoreToolNameFromOpenAI(message.Name))
 		}
 	}
 	if len(toolNames) > 0 {

@@ -24,12 +24,12 @@ func TestDataManagementBackendRemainingOperations(t *testing.T) {
 		t.Fatal(err)
 	}
 	server := newTestServer(t, settings)
-	backend := dataManagementBackend{manager: server.dataMigration}
+	backend := datamigration.NewBackend(server.dataMigration)
 
 	if overview, err := backend.Overview(t.Context(), dmsrv.OverviewRequest{SummaryOnly: true}); err != nil || overview == nil {
 		t.Fatalf("Overview() = %#v, %v", overview, err)
 	}
-	if _, err := (dataManagementBackend{}).Backup(t.Context(), dmsrv.BackupRequest{}); err == nil {
+	if _, err := datamigration.NewBackend(nil).Backup(t.Context(), dmsrv.BackupRequest{}); err == nil {
 		t.Fatal("nil-manager Backup error = nil")
 	}
 	if _, err := backend.Backup(t.Context(), dmsrv.BackupRequest{DatabaseID: datamigration.DatabaseWatchlist, Confirmation: "wrong"}); err == nil {
@@ -55,7 +55,7 @@ func TestDataManagementBackendRemainingOperations(t *testing.T) {
 	}
 
 	var nilServer *Server
-	nilServer.configureDataManagement()
+	configureDataManagement(nilServer)
 }
 
 func TestDatabaseMaintenanceRemainingBusyReasons(t *testing.T) {

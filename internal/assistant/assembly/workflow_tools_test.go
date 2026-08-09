@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 func TestWorkflowManagementToolCatalogAndApprovalMatrix(t *testing.T) {

@@ -3,7 +3,8 @@ package adk
 import (
 	"context"
 	"errors"
-	"fmt"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"math"
 	"strings"
 	"testing"
@@ -44,11 +45,11 @@ func TestToolOpenAIAndWorkflowHelperAdditionalBoundaries(t *testing.T) {
 		if !ToolRequiresApproval(ToolDescriptor{Name: "live.trade", Permission: "live_trading"}, PermissionModeApproval) {
 			t.Fatal("live_trading should always require approval")
 		}
-		if got := defaultToolRiskLevel("mystery"); got != "medium" {
-			t.Fatalf("defaultToolRiskLevel(default) = %q, want medium", got)
+		if got := skillsruntime.DefaultToolRiskLevel("mystery"); got != "medium" {
+			t.Fatalf("skillsruntime.DefaultToolRiskLevel(default) = %q, want medium", got)
 		}
-		if got := normalizeToolAlias(" @JFTrade  market//snapshot::latest "); got != "market.snapshot.latest" {
-			t.Fatalf("normalizeToolAlias = %q, want market.snapshot.latest", got)
+		if got := skillsruntime.NormalizeToolAlias(" @JFTrade  market//snapshot::latest "); got != "market.snapshot.latest" {
+			t.Fatalf("skillsruntime.NormalizeToolAlias = %q, want market.snapshot.latest", got)
 		}
 
 		fallbackRegistry := &ToolRegistry{tools: map[string]RegisteredTool{}}
@@ -161,13 +162,13 @@ func TestToolOpenAIAndWorkflowHelperAdditionalBoundaries(t *testing.T) {
 			t.Fatalf("sanitizeWorkflowPlanStep blank request = %+v", got)
 		}
 
-		if workflowTasksComplete(nil) {
-			t.Fatal("workflowTasksComplete(nil) = true, want false")
+		if jfadkmodel.WorkflowTasksComplete(nil) {
+			t.Fatal("jfadkmodel.WorkflowTasksComplete(nil) = true, want false")
 		}
-		if _, ok := firstTerminalWorkflowTask([]Task{{Status: "DONE"}}); ok {
+		if _, ok := jfadkmodel.FirstTerminalWorkflowTask([]Task{{Status: "DONE"}}); ok {
 			t.Fatal("firstTerminalWorkflowTask unexpectedly found terminal task")
 		}
-		ready := executableWorkflowTasks([]Task{
+		ready := jfadkmodel.ExecutableWorkflowTasks([]Task{
 			{ID: "a", Status: "DONE"},
 			{ID: "b", Status: "TODO", DependsOn: []string{"a"}, Order: 1},
 			{ID: "c", Status: "TODO", DependsOn: []string{"a"}, Order: 2},
@@ -176,44 +177,44 @@ func TestToolOpenAIAndWorkflowHelperAdditionalBoundaries(t *testing.T) {
 			t.Fatalf("executableWorkflowTasks = %#v, want earliest ready task", ready)
 		}
 
-		if got := workflowStepFromTask(Task{Title: "Title", Description: "Desc", Message: ""}); got.Message != "Desc" {
+		if got := jfadkmodel.WorkflowStepFromTask(Task{Title: "Title", Description: "Desc", Message: ""}); got.Message != "Desc" {
 			t.Fatalf("workflowStepFromTask fallback message = %+v", got)
 		}
-		if got := workflowTaskIteration(Task{}); got != 1 {
+		if got := jfadkmodel.WorkflowTaskIteration(Task{}); got != 1 {
 			t.Fatalf("workflowTaskIteration = %d, want 1", got)
 		}
-		if got := workflowPlanIndexForTask(nil, "missing"); got != -1 {
-			t.Fatalf("workflowPlanIndexForTask(nil) = %d, want -1", got)
+		if got := jfadkmodel.WorkflowPlanIndexForTask(nil, "missing"); got != -1 {
+			t.Fatalf("jfadkmodel.WorkflowPlanIndexForTask(nil) = %d, want -1", got)
 		}
-		if got := approvalsForRun([]Approval{{RunID: "run", Status: ApprovalStatusApproved}, {RunID: "run", Status: ApprovalStatusPending}}, " "); got != nil {
-			t.Fatalf("approvalsForRun(blank) = %#v, want nil", got)
+		if got := jfadkmodel.ApprovalsForRun([]Approval{{RunID: "run", Status: ApprovalStatusApproved}, {RunID: "run", Status: ApprovalStatusPending}}, " "); got != nil {
+			t.Fatalf("jfadkmodel.ApprovalsForRun(blank) = %#v, want nil", got)
 		}
 
 		parent := Run{WorkflowPlan: []WorkflowStepState{{TaskID: "task-1"}, {TaskID: "task-2"}}}
 		child := Run{ID: "child", Status: RunStatusRunning, ProviderID: "provider", Model: "model", Iteration: 3}
-		updated := updateWorkflowPlanForChildAt(parent, child, 1)
+		updated := jfadkmodel.UpdateWorkflowPlanForChildAt(parent, child, 1)
 		if updated.WorkflowCursor != 1 || updated.WorkflowPlan[1].Status != "IN_PROGRESS" {
 			t.Fatalf("updateWorkflowPlanForChildAt indexed = %+v", updated.WorkflowPlan[1])
 		}
-		noMatch := updateWorkflowPlanForChild(parent, Run{ID: "other"})
+		noMatch := jfadkmodel.UpdateWorkflowPlanForChild(parent, Run{ID: "other"})
 		if noMatch.WorkflowCursor != 0 && noMatch.WorkflowCursor != parent.WorkflowCursor {
 			t.Fatalf("updateWorkflowPlanForChild no match cursor = %d", noMatch.WorkflowCursor)
 		}
 
 		var nilStep *WorkflowStepState
-		applyWorkflowChildState(nilStep, child)
+		jfadkmodel.ApplyWorkflowChildState(nilStep, child)
 		blocked := WorkflowStepState{}
-		applyWorkflowChildState(&blocked, Run{ID: "child-pending", Status: RunStatusPending})
+		jfadkmodel.ApplyWorkflowChildState(&blocked, Run{ID: "child-pending", Status: RunStatusPending})
 		if blocked.Status != "BLOCKED" {
 			t.Fatalf("applyWorkflowChildState pending = %+v", blocked)
 		}
 		other := WorkflowStepState{}
-		applyWorkflowChildState(&other, Run{ID: "child-failed", Status: RunStatusFailed})
+		jfadkmodel.ApplyWorkflowChildState(&other, Run{ID: "child-failed", Status: RunStatusFailed})
 		if other.Status != "BLOCKED" {
 			t.Fatalf("applyWorkflowChildState default = %+v", other)
 		}
 
-		agent := workflowChildAgentForStep(Agent{ProviderID: "parent-provider", Model: "parent-model", WorkMode: WorkModeLoop}, workflowStep{
+		agent := jfadkmodel.WorkflowChildAgentForStep(Agent{ProviderID: "parent-provider", Model: "parent-model", WorkMode: WorkModeLoop}, workflowStep{
 			ChildProviderID: "child-provider",
 			ChildModel:      "child-model",
 		})
@@ -221,36 +222,5 @@ func TestToolOpenAIAndWorkflowHelperAdditionalBoundaries(t *testing.T) {
 			t.Fatalf("workflowChildAgentForStep = %+v", agent)
 		}
 
-		runtime := newTestRuntime(t)
-		executor := &WorkflowExecutor{runtime: runtime}
-		parentRun := mustSaveRun(t, runtime, Run{
-			ID:             "workflow-helper-parent",
-			SessionID:      "session",
-			AgentID:        "agent",
-			Status:         RunStatusRunning,
-			WorkMode:       WorkModeLoop,
-			WorkflowStatus: workflowStatusRunning,
-			Objective:      "目标",
-			CreatedAt:      nowString(),
-			UpdatedAt:      nowString(),
-		})
-		for i := range maxRuntimeWorkflowTasks {
-			if _, err := runtime.Store().SaveTask(context.Background(), TaskWriteRequest{
-				ID:           fmt.Sprintf("runtime-task-%d", i),
-				Title:        fmt.Sprintf("task-%d", i),
-				Status:       "TODO",
-				AgentID:      parentRun.AgentID,
-				RunID:        parentRun.ID,
-				Order:        i + 1,
-				PlanSource:   workflowPlanSourceRuntime,
-				WorkflowMode: parentRun.WorkMode,
-				Objective:    parentRun.Objective,
-			}); err != nil {
-				t.Fatalf("SaveTask runtime %d: %v", i, err)
-			}
-		}
-		if _, err := executor.addRuntimeWorkflowTask(context.Background(), parentRun, Task{}, workflowRuntimeTaskRequest{Title: "overflow"}); err == nil || !strings.Contains(err.Error(), "limit reached") {
-			t.Fatalf("addRuntimeWorkflowTask limit err = %v", err)
-		}
 	})
 }

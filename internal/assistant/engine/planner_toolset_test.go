@@ -1,13 +1,13 @@
 package adk
 
 import (
-	"strings"
-	"testing"
-
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	adkmodel "google.golang.org/adk/v2/model"
 	adktool "google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
+	"strings"
+	"testing"
 )
 
 type workflowToolRequestProcessor interface {
@@ -165,16 +165,16 @@ func workflowPlannerNumberArg(args map[string]any, key string) int {
 }
 
 func TestWorkflowPlannerArgumentAndDependencyHelpers(t *testing.T) {
-	if got := plannerIntArg(map[string]any{"order": int64(7)}, "order"); got != 7 {
+	if got := jfadkmodel.PlannerIntArg(map[string]any{"order": int64(7)}, "order"); got != 7 {
 		t.Fatalf("plannerIntArg int64 = %d", got)
 	}
-	if got := plannerIntArg(map[string]any{"order": float32(3.9)}, "order"); got != 3 {
+	if got := jfadkmodel.PlannerIntArg(map[string]any{"order": float32(3.9)}, "order"); got != 3 {
 		t.Fatalf("plannerIntArg float32 = %d", got)
 	}
-	if got := plannerIntArg(map[string]any{"order": "not-number"}, "order"); got != 0 {
+	if got := jfadkmodel.PlannerIntArg(map[string]any{"order": "not-number"}, "order"); got != 0 {
 		t.Fatalf("plannerIntArg bad string = %d", got)
 	}
-	if got := plannerStringArg(map[string]any{"title": nil}, "title"); got != "" {
+	if got := jfadkmodel.PlannerStringArg(map[string]any{"title": nil}, "title"); got != "" {
 		t.Fatalf("plannerStringArg nil = %q", got)
 	}
 	if workflowStepsHaveDependencies([]workflowStep{{DependsOn: []string{" "}}}) {

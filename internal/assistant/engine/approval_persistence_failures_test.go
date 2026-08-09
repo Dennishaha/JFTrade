@@ -146,7 +146,7 @@ func newPendingApprovalRun(t *testing.T, runID string, approvalCount int) (*Runt
 
 func installApprovalRunUpdateRejectTrigger(t *testing.T, runtime *Runtime, triggerName string) {
 	t.Helper()
-	if _, err := runtime.Store().db.Exec(`CREATE TRIGGER ` + triggerName + ` BEFORE UPDATE ON ` + tableRuns + ` BEGIN SELECT RAISE(ABORT, '` + triggerName + `'); END`); err != nil {
+	if _, err := runtime.Store().DB().Exec(`CREATE TRIGGER ` + triggerName + ` BEFORE UPDATE ON ` + tableRuns + ` BEGIN SELECT RAISE(ABORT, '` + triggerName + `'); END`); err != nil {
 		t.Fatalf("create %s trigger: %v", triggerName, err)
 	}
 }

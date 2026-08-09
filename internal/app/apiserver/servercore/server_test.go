@@ -172,7 +172,7 @@ func TestServerCloseStopsMarketdataAndPreventsExchangeRevival(t *testing.T) {
 	store.mu.Unlock()
 
 	server := newTestServer(t, store)
-	if exchange := server.futuExchange(); exchange == nil {
+	if exchange := server.futuCoordinator().Exchange(); exchange == nil {
 		t.Fatal("expected exchange before Close")
 	}
 	if err := server.Close(); err != nil {

@@ -100,7 +100,7 @@ func TestGoogleADKExecutionRunAndEventErrorBoundaries(t *testing.T) {
 			return nil
 		},
 	}
-	if err := execution.run(ctx, genai.NewContentFromText("cancel", genai.RoleUser)); !errors.Is(err, context.Canceled) {
+	if err := execution.Run(ctx, genai.NewContentFromText("cancel", genai.RoleUser)); !errors.Is(err, context.Canceled) {
 		t.Fatalf("run canceled err = %v, want context.Canceled", err)
 	}
 
@@ -290,7 +290,7 @@ func TestGoogleADKExecutionApprovalResolutionAndPendingBoundaries(t *testing.T) 
 		sessionService: getErrorADKSessionService{err: getErr},
 		appName:        "app",
 		sessionID:      "missing-session",
-	}).pendingApprovals(ctx, newTestRuntime(t).Store())
+	}).PendingApprovals(ctx, newTestRuntime(t).Store())
 	if !errors.Is(err, getErr) {
 		t.Fatalf("pendingApprovals get err = %v, want %v", err, getErr)
 	}
@@ -319,7 +319,7 @@ func TestGoogleADKExecutionApprovalResolutionAndPendingBoundaries(t *testing.T) 
 		sessionService: service,
 		appName:        "app",
 		sessionID:      "approval-errors",
-	}).pendingApprovals(ctx, newTestRuntime(t).Store())
+	}).PendingApprovals(ctx, newTestRuntime(t).Store())
 	if err == nil || !strings.Contains(err.Error(), `argument "originalFunctionCall" has invalid type`) {
 		t.Fatalf("pendingApprovals original-call err = %v, want invalid originalFunctionCall type", err)
 	}
@@ -344,7 +344,7 @@ func TestGoogleADKExecutionApprovalResolutionAndPendingBoundaries(t *testing.T) 
 		t.Fatalf("AppendEvent(save-error): %v", err)
 	}
 	runtime := newTestRuntime(t)
-	if _, err := runtime.Store().db.ExecContext(ctx, `DROP TABLE `+tableApprovals); err != nil {
+	if _, err := runtime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableApprovals); err != nil {
 		t.Fatalf("drop approvals table: %v", err)
 	}
 	execution := &googleADKExecution{
@@ -355,7 +355,7 @@ func TestGoogleADKExecutionApprovalResolutionAndPendingBoundaries(t *testing.T) 
 		runID:          "run-save-error",
 	}
 	execution.ensureCall(original.ID, ToolDescriptor{Name: original.Name}, original.Args)
-	_, err = execution.pendingApprovals(ctx, runtime.Store())
+	_, err = execution.PendingApprovals(ctx, runtime.Store())
 	if err == nil || !strings.Contains(err.Error(), tableApprovals) {
 		t.Fatalf("pendingApprovals save err = %v, want approvals table error", err)
 	}

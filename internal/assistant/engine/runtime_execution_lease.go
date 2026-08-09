@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
@@ -41,11 +42,11 @@ func withoutRunExecutionLease(ctx context.Context) context.Context {
 	return contextWithoutRunExecutionLease{Context: ctx}
 }
 
-func runExecutionLeaseFromContext(ctx context.Context) (RunLease, bool) {
+func runExecutionLeaseFromContext(ctx context.Context) (enginepersistence.RunLease, bool) {
 	if ctx == nil {
-		return RunLease{}, false
+		return enginepersistence.RunLease{}, false
 	}
-	lease, ok := ctx.Value(runExecutionLeaseContextKey{}).(RunLease)
+	lease, ok := ctx.Value(runExecutionLeaseContextKey{}).(enginepersistence.RunLease)
 	return lease, ok && strings.TrimSpace(lease.RunID) != ""
 }
 
@@ -85,7 +86,7 @@ func (r *Runtime) beginRunExecutionLease(
 	leasedCtx := context.WithValue(leaseBaseCtx, runExecutionLeaseContextKey{}, lease)
 	r.activeMu.Lock()
 	if r.runLeases == nil {
-		r.runLeases = make(map[string]RunLease)
+		r.runLeases = make(map[string]enginepersistence.RunLease)
 	}
 	r.runLeases[runID] = lease
 	r.activeMu.Unlock()
@@ -158,11 +159,11 @@ func (r *Runtime) reserveRunExecutionLeaseLifecycle(
 	return leaseCtx, cancel, finish, nil
 }
 
-func (r *Runtime) refreshRunExecutionLease(lease RunLease, ttl time.Duration) (RunLease, error) {
+func (r *Runtime) refreshRunExecutionLease(lease enginepersistence.RunLease, ttl time.Duration) (enginepersistence.RunLease, error) {
 	now := time.Now().UTC()
 	remaining := lease.ExpiresAt.Sub(now)
 	if remaining <= 0 {
-		return RunLease{}, ErrRunLeaseLost
+		return enginepersistence.RunLease{}, enginepersistence.ErrRunLeaseLost
 	}
 	heartbeatTimeout := min(remaining, min(ttl/3, 5*time.Second))
 	heartbeatCtx, heartbeatCancel := context.WithTimeout(context.Background(), heartbeatTimeout)
@@ -170,9 +171,9 @@ func (r *Runtime) refreshRunExecutionLease(lease RunLease, ttl time.Duration) (R
 	return r.store.HeartbeatRunLease(heartbeatCtx, lease, now, ttl)
 }
 
-func (r *Runtime) currentRunLease(runID string) (RunLease, bool) {
+func (r *Runtime) currentRunLease(runID string) (enginepersistence.RunLease, bool) {
 	if r == nil {
-		return RunLease{}, false
+		return enginepersistence.RunLease{}, false
 	}
 	r.activeMu.Lock()
 	defer r.activeMu.Unlock()
@@ -215,7 +216,7 @@ func (r *Runtime) beginOrReuseRunExecutionLease(
 // that is already held by this Runtime. Calls made directly by maintenance and
 // tests without any execution lease remain unfenced; an executor carrying a
 // different run lease must never silently write the target run.
-func (r *Runtime) activeRunExecutionContext(ctx context.Context, runID string) (context.Context, error) {
+func (r *Runtime) ActiveRunExecutionContext(ctx context.Context, runID string) (context.Context, error) {
 	runID = strings.TrimSpace(runID)
 	contextLease, contextHasLease := runExecutionLeaseFromContext(ctx)
 	currentLease, currentLeaseActive := r.currentRunLease(runID)
@@ -226,7 +227,7 @@ func (r *Runtime) activeRunExecutionContext(ctx context.Context, runID string) (
 		return context.WithValue(ctx, runExecutionLeaseContextKey{}, currentLease), nil
 	}
 	if contextHasLease {
-		return nil, fmt.Errorf("%w: run %s has no active execution lease", ErrRunLeaseLost, runID)
+		return nil, fmt.Errorf("%w: run %s has no active execution lease", enginepersistence.ErrRunLeaseLost, runID)
 	}
 	return ctx, nil
 }
@@ -243,12 +244,12 @@ func (r *Runtime) freshForeignRunLease(ctx context.Context, runID string, now ti
 }
 
 func isRunLeaseHeld(err error) bool {
-	return errors.Is(err, ErrRunLeaseHeld)
+	return errors.Is(err, enginepersistence.ErrRunLeaseHeld)
 }
 
 func (r *Runtime) beginToolInvocationHeartbeat(
 	ctx context.Context,
-	ticket ToolInvocationTicket,
+	ticket enginepersistence.ToolInvocationTicket,
 ) (context.Context, func() error) {
 	claimedCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)

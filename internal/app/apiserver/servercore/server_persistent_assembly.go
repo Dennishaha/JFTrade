@@ -6,6 +6,7 @@ import (
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	appstores "github.com/jftrade/jftrade-main/internal/app/apiserver/stores"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	backteststore "github.com/jftrade/jftrade-main/internal/store/backtest"
 	researchstore "github.com/jftrade/jftrade-main/internal/store/research"
@@ -17,7 +18,7 @@ type serverPersistentState struct {
 	resources        *appcomposition.Resources
 	resourceSetupErr error
 	stores           appstores.Handle
-	auth             *webAuth
+	auth             *webaccess.Auth
 }
 
 func (b *serverBootstrap) loadPersistentState(store SidecarSettingsStore) serverPersistentState {
@@ -68,10 +69,10 @@ func (b *serverBootstrap) loadPersistentState(store SidecarSettingsStore) server
 	state.auth = openPersistentResource(
 		&state,
 		"web authentication",
-		func() (*webAuth, error) { return newWebAuth(store.SecuritySettings()), nil },
-		func(auth *webAuth) error {
+		func() (*webaccess.Auth, error) { return webaccess.NewAuth(store.SecuritySettings()), nil },
+		func(auth *webaccess.Auth) error {
 			if auth != nil {
-				auth.close()
+				auth.Close()
 			}
 			return nil
 		},

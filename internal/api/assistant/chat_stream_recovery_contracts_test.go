@@ -6,7 +6,7 @@ import (
 	"time"
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
-	jadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 func TestChatStreamHubKeepsEventAndTimelineContracts(t *testing.T) {

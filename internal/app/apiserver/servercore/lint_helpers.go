@@ -7,12 +7,3 @@ func jftradeCheckedTypeAssertion[T any](value any) T {
 	}
 	return typed
 }
-
-func jftradeOptionalTypeAssertion[T any](value any) T {
-	typed, ok := value.(T)
-	if !ok {
-		var zero T
-		return zero
-	}
-	return typed
-}

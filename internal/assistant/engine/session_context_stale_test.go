@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
@@ -104,13 +105,16 @@ func newContextApprovalResponseEvent(approvalEventID string) *adksession.Event {
 
 func TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession(t *testing.T) {
 	ctx := context.Background()
-	service, err := NewSQLiteSessionService(t.TempDir() + "/adk-session.db")
+	service, err := enginepersistence.NewSQLiteSessionService(t.TempDir() + "/adk-session.db")
 	if err != nil {
-		t.Fatalf("NewSQLiteSessionService: %v", err)
+		t.Fatalf("enginepersistence.NewSQLiteSessionService: %v", err)
 	}
-	t.Cleanup(func() { jftradeErr2 := CloseSessionService(service); jftradeCheckTestError(t, jftradeErr2) })
-	if err := ValidateSQLiteSessionService(service); err != nil {
-		t.Fatalf("ValidateSQLiteSessionService: %v", err)
+	t.Cleanup(func() {
+		jftradeErr2 := enginepersistence.CloseSessionService(service)
+		jftradeCheckTestError(t, jftradeErr2)
+	})
+	if err := enginepersistence.ValidateSQLiteSessionService(service); err != nil {
+		t.Fatalf("enginepersistence.ValidateSQLiteSessionService: %v", err)
 	}
 	created, err := service.Create(ctx, &adksession.CreateRequest{
 		AppName: "app", UserID: "user", SessionID: "session-concurrent-stale-retry",
@@ -340,7 +344,7 @@ func TestSessionContextProjectionTrimsOversizedToolResponses(t *testing.T) {
 		t.Fatalf("CreateSession: %v", err)
 	}
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -384,7 +388,7 @@ func TestSessionContextProjectionTrimsOversizedToolResponses(t *testing.T) {
 	}
 
 	response, err := runtime.sessionService.Get(ctx, &adksession.GetRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -433,7 +437,7 @@ func TestSessionContextProjectionKeepsSmallToolResponsesUntouched(t *testing.T) 
 		t.Fatalf("CreateSession: %v", err)
 	}
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -467,7 +471,7 @@ func TestSessionContextProjectionKeepsSmallToolResponsesUntouched(t *testing.T) 
 	}
 
 	response, err := runtime.sessionService.Get(ctx, &adksession.GetRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})

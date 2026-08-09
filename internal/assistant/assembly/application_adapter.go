@@ -6,6 +6,7 @@ import (
 	"time"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
@@ -312,11 +313,11 @@ func (a *ApplicationAdapter) streamIdleTimeout() int {
 	return 0
 }
 
-func (a *ApplicationAdapter) runtimeLimits() RuntimeLimits {
+func (a *ApplicationAdapter) runtimeLimits() jfadkmodel.RuntimeLimits {
 	if a == nil || a.ports.RuntimeSettings == nil {
-		return RuntimeLimits{}
+		return jfadkmodel.RuntimeLimits{}
 	}
-	return RuntimeLimits{RunTimeout: time.Duration(a.ports.RuntimeSettings().RunTimeoutMs) * time.Millisecond}
+	return jfadkmodel.RuntimeLimits{RunTimeout: time.Duration(a.ports.RuntimeSettings().RunTimeoutMs) * time.Millisecond}
 }
 
 func (a *ApplicationAdapter) assistantService() *assistant.Service {

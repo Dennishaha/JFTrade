@@ -2,18 +2,12 @@ package adk
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
-	adktool "google.golang.org/adk/v2/tool"
-	adkworkflow "google.golang.org/adk/v2/workflow"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 var (
-	ErrInvalidTaskStatus          = errors.New("invalid task status")
-	ErrProviderInUse              = errors.New("provider is used by agent")
-	ErrInvalidProviderAPIProtocol = errors.New("invalid provider API protocol")
-
 	errGoogleADKFunctionCallEventMissing = errors.New("no function call event found for function responses ids")
 )
 
@@ -41,41 +35,11 @@ func withErrorClass(err error, class error) error {
 }
 
 func errorFromSerializedADKValue(value any) error {
-	if err, ok := value.(error); ok {
-		return classifySerializedADKError(err)
-	}
-	return errorFromSerializedADKText(fmt.Sprint(value))
+	return jfadkmodel.ErrorFromSerializedADKValue(value)
 }
 
-func errorFromSerializedADKText(text string) error {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return nil
-	}
-	return classifySerializedADKError(errors.New(text))
-}
-
-func classifySerializedADKError(err error) error {
-	if err == nil {
-		return nil
-	}
-	// GO-ADK FunctionResponse and persisted ToolCall records carry only the
-	// rendered error. Rehydrate only the sentinels whose text is owned by GO-ADK
-	// or this package, so all business call sites can use errors.Is.
-	for _, class := range []error{
-		adktool.ErrConfirmationRequired,
-		adktool.ErrConfirmationRejected,
-		adkworkflow.ErrNodeInterrupted,
-		errUserGoalPauseRequested,
-	} {
-		if errors.Is(err, class) {
-			return err
-		}
-		if strings.Contains(err.Error(), class.Error()) {
-			return withErrorClass(err, class)
-		}
-	}
-	return err
+func ErrorFromSerializedADKText(text string) error {
+	return jfadkmodel.ErrorFromSerializedADKText(text)
 }
 
 func classifyGoogleADKRunnerError(err error) error {

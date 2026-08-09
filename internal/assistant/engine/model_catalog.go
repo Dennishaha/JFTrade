@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func (r *Runtime) registerModelCatalogTool() {
@@ -17,14 +20,14 @@ func (r *Runtime) registerModelCatalogTool() {
 		Description:        "查询当前 ADK 已配置 Provider 暴露的可调用模型信息，供主智能体选择子智能体运行模型；不会返回 API Key。",
 		Category:           "system",
 		Permission:         "read_internal",
-		AllowedModes:       allPermissionModes(),
+		AllowedModes:       jfadkmodel.AllPermissionModes(),
 		RequiresApprovalIn: nil,
 		OutputSummary:      "Provider、模型、上下文窗口、能力和是否可调用。",
 		RiskLevel:          "low",
-	}, r.modelsListTool)
+	}, r.ModelsListTool)
 }
 
-func (r *Runtime) modelsListTool(ctx context.Context, input map[string]any) (any, error) {
+func (r *Runtime) ModelsListTool(ctx context.Context, input map[string]any) (any, error) {
 	if r == nil || r.store == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
 	}
@@ -32,10 +35,10 @@ func (r *Runtime) modelsListTool(ctx context.Context, input map[string]any) (any
 	if err != nil {
 		return nil, err
 	}
-	query := strings.ToLower(strings.TrimSpace(toolStringValue(input, "query")))
-	providerID := strings.TrimSpace(toolStringValue(input, "providerId"))
+	query := strings.ToLower(strings.TrimSpace(skillsruntime.StringValue(input, "query")))
+	providerID := strings.TrimSpace(skillsruntime.StringValue(input, "providerId"))
 	callableOnly := toolBoolValue(input, "callableOnly", true)
-	limit := min(max(toolIntValue(input, "limit", 50), 1), 100)
+	limit := min(max(skillsruntime.IntValue(input, "limit", 50), 1), 100)
 	items := make([]map[string]any, 0, len(providers))
 	for _, provider := range providers {
 		if providerID != "" && provider.ID != providerID {

@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/liveapp"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
@@ -14,22 +16,22 @@ import (
 )
 
 func TestBusinessNotificationsAndOptionalSecurityFieldsPreserveWireSemantics(t *testing.T) {
-	if got := formatBBGONotifyText("risk %s", "limit"); got != "risk limit" {
+	if got := liveapp.FormatBBGONotifyText("risk %s", "limit"); got != "risk limit" {
 		t.Fatalf("format formatted text = %q", got)
 	}
-	if got := formatBBGONotifyText(notificationTextStringer("provider")); got != "provider" {
+	if got := liveapp.FormatBBGONotifyText(notificationTextStringer("provider")); got != "provider" {
 		t.Fatalf("format Stringer = %q", got)
 	}
-	if got := formatBBGONotifyText(notificationTextStringer("provider"), "retry"); got != "provider retry" {
+	if got := liveapp.FormatBBGONotifyText(notificationTextStringer("provider"), "retry"); got != "provider retry" {
 		t.Fatalf("format Stringer with args = %q", got)
 	}
-	if got := formatBBGONotifyText(42, "attempt", 2); got != "42 attempt 2" {
+	if got := liveapp.FormatBBGONotifyText(42, "attempt", 2); got != "42 attempt 2" {
 		t.Fatalf("format generic notification = %q", got)
 	}
-	if note := liveNotificationFromBBGONotify("   "); note != nil {
+	if note := liveapp.NotificationFromBBGO("   "); note != nil {
 		t.Fatalf("blank BBGO notification = %#v, want nil", note)
 	}
-	if note := liveNotificationFromBBGONotify(fmt.Errorf("connection timeout")); note == nil || note.Level != "error" {
+	if note := liveapp.NotificationFromBBGO(fmt.Errorf("connection timeout")); note == nil || note.Level != "error" {
 		t.Fatalf("BBGO error notification = %#v", note)
 	}
 
@@ -80,13 +82,13 @@ func TestBusinessNotificationsAndOptionalSecurityFieldsPreserveWireSemantics(t *
 }
 
 func TestMarketQueryAndExecutionPayloadFallbacksRemainDeterministic(t *testing.T) {
-	if first, second := pathTail("/api/v1/market/HK/00700", "/api/v1/market/"); first != "HK" || second != "00700" {
+	if first, second := marketdataapp.PathTail("/api/v1/market/HK/00700", "/api/v1/market/"); first != "HK" || second != "00700" {
 		t.Fatalf("pathTail = %q, %q", first, second)
 	}
-	if first, second := pathTail("/api/v1/market/HK", "/api/v1/market/"); first != "" || second != "" {
+	if first, second := marketdataapp.PathTail("/api/v1/market/HK", "/api/v1/market/"); first != "" || second != "" {
 		t.Fatalf("short pathTail = %q, %q", first, second)
 	}
-	if _, err := decodeMarketCandlesQuery(map[string][]string{"period": {"not-a-period"}}); err == nil {
+	if _, err := marketdataapp.DecodeCandlesQuery(map[string][]string{"period": {"not-a-period"}}); err == nil {
 		t.Fatal("invalid period should be rejected")
 	}
 	for key, value := range map[string]string{
@@ -94,23 +96,23 @@ func TestMarketQueryAndExecutionPayloadFallbacksRemainDeterministic(t *testing.T
 		"fromTime": "not-a-time",
 		"toTime":   "not-a-time",
 	} {
-		if _, err := decodeMarketCandlesQuery(map[string][]string{key: {value}}); err == nil {
+		if _, err := marketdataapp.DecodeCandlesQuery(map[string][]string{key: {value}}); err == nil {
 			t.Fatalf("invalid %s should be rejected", key)
 		}
 	}
-	query, err := decodeMarketCandlesQuery(map[string][]string{
+	query, err := marketdataapp.DecodeCandlesQuery(map[string][]string{
 		"limit": {"0"}, "from": {"2026-07-15T10:00:00Z"}, "to": {"2026-07-15T09:00:00Z"},
 	})
 	if err != nil {
 		t.Fatalf("decode market candles: %v", err)
 	}
-	if got := query.normalizedPeriod(); got != "1m" {
+	if got := query.NormalizedPeriod(); got != "1m" {
 		t.Fatalf("normalized period = %q", got)
 	}
-	if got := query.limitOrDefault(20, 50); got != 1 {
+	if got := query.LimitOrDefault(20, 50); got != 1 {
 		t.Fatalf("limit clamp = %d", got)
 	}
-	begin, end := kLineQueryWindow(query, time.Minute, 10)
+	begin, end := marketdataapp.KLineQueryWindow(query, time.Minute, 10)
 	if !begin.Before(end) {
 		t.Fatalf("invalid explicit range should fall back to a chronological window: %s >= %s", begin, end)
 	}
@@ -174,13 +176,13 @@ func TestWorkflowMarketAdaptersRejectInvalidInputsAndPreserveMetadata(t *testing
 	if meta["session"] != "all" || meta["extendedHours"] != true {
 		t.Fatalf("US intraday candle meta = %#v", meta)
 	}
-	if shouldAnnotateHistoricalKLineSession("US", bbgotypes.Interval("1h")) != true {
+	if marketdataapp.ShouldAnnotateHistoricalKLineSession("US", bbgotypes.Interval("1h")) != true {
 		t.Fatal("US hourly candles should carry session metadata")
 	}
-	if shouldAnnotateHistoricalKLineSession("HK", bbgotypes.Interval("1h")) || shouldAnnotateHistoricalKLineSession("US", bbgotypes.Interval("1d")) {
+	if marketdataapp.ShouldAnnotateHistoricalKLineSession("HK", bbgotypes.Interval("1h")) || marketdataapp.ShouldAnnotateHistoricalKLineSession("US", bbgotypes.Interval("1d")) {
 		t.Fatal("only US intraday candles should carry extended-session metadata")
 	}
-	if read := brokerReadQuery("HK.00700"); read.Market != "HK" {
+	if read := marketdataapp.ReadQueryForInstrument("HK.00700"); read.Market != "HK" {
 		t.Fatalf("broker read market = %q", read.Market)
 	}
 
@@ -193,10 +195,10 @@ func TestWorkflowMarketAdaptersRejectInvalidInputsAndPreserveMetadata(t *testing
 	if got := httpTime("2026-07-16T10:00:00Z"); got != (time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC)) {
 		t.Fatalf("parsed HTTP time = %s", got)
 	}
-	if limit := (liveWebSocketBackend{}).ConnectionLimit(); limit != defaultMaxWebSocketClients {
+	if limit := newLiveWebSocketBackend(nil).ConnectionLimit(); limit != defaultMaxWebSocketClients {
 		t.Fatalf("nil live backend limit = %d", limit)
 	}
-	if count, limit, atLimit := nilServer.liveStreamStats(); count != 0 || limit != defaultMaxWebSocketClients || atLimit {
+	if count, limit, atLimit := liveStreamStats((*serverApplication)(nil)); count != 0 || limit != defaultMaxWebSocketClients || atLimit {
 		t.Fatalf("nil live stats = %d, %d, %v", count, limit, atLimit)
 	}
 }

@@ -11,7 +11,7 @@ import (
 	"text/template"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	workflowrules "github.com/jftrade/jftrade-main/internal/assistant/workflow"
 )
 

@@ -7,7 +7,8 @@ import (
 	"time"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -20,8 +21,8 @@ func TestOpenBuildsToolsServiceAndIdempotentLifecycle(t *testing.T) {
 	}
 	handle, err := Open(Options{
 		Paths: paths,
-		RuntimeLimits: func() RuntimeLimits {
-			return RuntimeLimits{RunTimeout: time.Second}
+		RuntimeLimits: func() jfadkmodel.RuntimeLimits {
+			return jfadkmodel.RuntimeLimits{RunTimeout: time.Second}
 		},
 		Tools: &tools,
 	})

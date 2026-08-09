@@ -12,7 +12,7 @@ func TestStoreDataFailureAndNormalizationBoundaries(t *testing.T) {
 
 	t.Run("SaveRun and approval helpers surface lookup and payload failures", func(t *testing.T) {
 		store := newBusinessStore(t)
-		if _, err := store.db.ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
 			t.Fatalf("drop runs table: %v", err)
 		}
 		if err := store.SaveRun(ctx, Run{ID: "goal-run", WorkMode: WorkModeLoop}); err == nil || !strings.Contains(err.Error(), tableRuns) {
@@ -22,7 +22,7 @@ func TestStoreDataFailureAndNormalizationBoundaries(t *testing.T) {
 
 	t.Run("SaveRunAndDenyPendingApprovals surfaces approval query failures", func(t *testing.T) {
 		store := newBusinessStore(t)
-		if _, err := store.db.ExecContext(ctx, `DROP TABLE `+tableApprovals); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `DROP TABLE `+tableApprovals); err != nil {
 			t.Fatalf("drop approvals table: %v", err)
 		}
 		if err := store.SaveRunAndDenyPendingApprovals(ctx, Run{ID: "run-deny", SessionID: "session", AgentID: "agent", Status: RunStatusRunning}); err == nil || !strings.Contains(err.Error(), tableApprovals) {
@@ -51,15 +51,15 @@ func TestStoreDataFailureAndNormalizationBoundaries(t *testing.T) {
 	t.Run("approval lookup and audit helpers reject malformed payloads", func(t *testing.T) {
 		store := newBusinessStore(t)
 		now := nowString()
-		if _, err := store.db.ExecContext(ctx, `INSERT INTO `+tableApprovals+` (id, run_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		if _, err := store.DB().ExecContext(ctx, `INSERT INTO `+tableApprovals+` (id, run_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			"approval-bad-payload", "run", "agent", ApprovalStatusPending, `{"confirmationCallId":"bad-confirmation","status":["broken"]}`, now, now,
 		); err != nil {
 			t.Fatalf("insert malformed approval: %v", err)
 		}
-		if _, _, err := store.approvalByConfirmationCallID(ctx, "missing-confirmation"); err != nil {
+		if _, _, err := store.ApprovalByConfirmationCallID(ctx, "missing-confirmation"); err != nil {
 			t.Fatalf("approvalByConfirmationCallID missing err = %v, want nil", err)
 		}
-		if _, _, err := store.approvalByConfirmationCallID(ctx, "bad-confirmation"); err == nil {
+		if _, _, err := store.ApprovalByConfirmationCallID(ctx, "bad-confirmation"); err == nil {
 			t.Fatal("approvalByConfirmationCallID accepted malformed JSON payload")
 		}
 		if err := store.AddAuditEvent(ctx, AuditEvent{
@@ -71,10 +71,6 @@ func TestStoreDataFailureAndNormalizationBoundaries(t *testing.T) {
 	})
 
 	t.Run("task and memory helpers cover nil patch, default scope and agent lookup errors", func(t *testing.T) {
-		if err := applyTaskPatch(nil, "task", TaskPatchRequest{}); err != nil {
-			t.Fatalf("applyTaskPatch(nil): %v", err)
-		}
-
 		store := newBusinessStore(t)
 		entry, err := store.SaveMemory(ctx, MemoryWriteRequest{Key: "workspace note", Value: "hello"})
 		if err != nil {
@@ -83,7 +79,7 @@ func TestStoreDataFailureAndNormalizationBoundaries(t *testing.T) {
 		if entry.Scope != "workspace" || entry.AgentID != "" {
 			t.Fatalf("workspace memory entry = %+v, want workspace scope without agent", entry)
 		}
-		if _, err := store.db.ExecContext(ctx, `DROP TABLE `+tableAgents); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `DROP TABLE `+tableAgents); err != nil {
 			t.Fatalf("drop agents table: %v", err)
 		}
 		if _, err := store.SaveMemory(ctx, MemoryWriteRequest{Key: "agent note", Value: "x", Scope: "agent", AgentID: "agent-1"}); err == nil || !strings.Contains(err.Error(), tableAgents) {
@@ -118,7 +114,7 @@ func TestStoreDataFailureAndNormalizationBoundaries(t *testing.T) {
 		if err := store.SaveApproval(ctx, approval); err != nil {
 			t.Fatalf("SaveApproval: %v", err)
 		}
-		if _, err := store.db.ExecContext(ctx, `CREATE TRIGGER coverage98_reject_approval_resolution BEFORE UPDATE ON `+tableApprovals+` WHEN NEW.id = '`+approval.ID+`' BEGIN SELECT RAISE(FAIL, 'approval resolution write rejected'); END`); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `CREATE TRIGGER coverage98_reject_approval_resolution BEFORE UPDATE ON `+tableApprovals+` WHEN NEW.id = '`+approval.ID+`' BEGIN SELECT RAISE(FAIL, 'approval resolution write rejected'); END`); err != nil {
 			t.Fatalf("create approval update trigger: %v", err)
 		}
 		if _, _, err := store.ResolvePendingApproval(ctx, approval.ID, ApprovalStatusApproved); err == nil || !strings.Contains(err.Error(), "approval resolution write rejected") {
@@ -130,7 +126,7 @@ func TestStoreDataFailureAndNormalizationBoundaries(t *testing.T) {
 		if err := store.SaveApproval(ctx, approval); err != nil {
 			t.Fatalf("SaveApproval terminal denial: %v", err)
 		}
-		if _, err := store.db.ExecContext(ctx, `CREATE TRIGGER coverage98_reject_terminal_denial BEFORE UPDATE ON `+tableApprovals+` WHEN NEW.id = '`+approval.ID+`' BEGIN SELECT RAISE(FAIL, 'terminal denial approval write rejected'); END`); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `CREATE TRIGGER coverage98_reject_terminal_denial BEFORE UPDATE ON `+tableApprovals+` WHEN NEW.id = '`+approval.ID+`' BEGIN SELECT RAISE(FAIL, 'terminal denial approval write rejected'); END`); err != nil {
 			t.Fatalf("create terminal denial trigger: %v", err)
 		}
 		if err := store.SaveRunAndDenyPendingApprovals(ctx, Run{ID: approval.RunID, SessionID: "session", AgentID: approval.AgentID, Status: RunStatusFailed}); err == nil || !strings.Contains(err.Error(), "terminal denial approval write rejected") {
@@ -151,7 +147,7 @@ func TestStoreDataFailureAndNormalizationBoundaries(t *testing.T) {
 		// SQLite RAISE(IGNORE) mirrors the observable result of a concurrent
 		// resolver winning the conditional UPDATE: this call must not claim a
 		// state transition that the database did not persist.
-		if _, err := store.db.ExecContext(ctx, `CREATE TRIGGER coverage98_ignore_approval_race BEFORE UPDATE ON `+tableApprovals+` WHEN NEW.id = '`+approval.ID+`' BEGIN SELECT RAISE(IGNORE); END`); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `CREATE TRIGGER coverage98_ignore_approval_race BEFORE UPDATE ON `+tableApprovals+` WHEN NEW.id = '`+approval.ID+`' BEGIN SELECT RAISE(IGNORE); END`); err != nil {
 			t.Fatalf("create approval race trigger: %v", err)
 		}
 		current, changed, err := store.ResolvePendingApproval(ctx, approval.ID, ApprovalStatusApproved)
@@ -162,7 +158,7 @@ func TestStoreDataFailureAndNormalizationBoundaries(t *testing.T) {
 
 	t.Run("root workflow terminal denial propagates preparation read failures", func(t *testing.T) {
 		store := newBusinessStore(t)
-		if _, err := store.db.ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
 			t.Fatalf("drop runs table: %v", err)
 		}
 		if err := store.SaveRunAndDenyPendingApprovals(ctx, Run{ID: "coverage-root-deny", WorkMode: WorkModeLoop, Status: RunStatusFailed}); err == nil || !strings.Contains(err.Error(), tableRuns) {
@@ -199,7 +195,7 @@ func TestStoreEntityDefaultsAndStorageFailures(t *testing.T) {
 		if err != nil {
 			t.Fatalf("SaveProvider: %v", err)
 		}
-		if _, err := store.db.ExecContext(ctx, `DROP TABLE `+tableProviders); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `DROP TABLE `+tableProviders); err != nil {
 			t.Fatalf("drop providers table: %v", err)
 		}
 		if err := store.DeleteProvider(ctx, provider.ID); err == nil || !strings.Contains(err.Error(), tableProviders) {
@@ -209,10 +205,10 @@ func TestStoreEntityDefaultsAndStorageFailures(t *testing.T) {
 
 	t.Run("ensureDefaultProvider surfaces provider list failures", func(t *testing.T) {
 		store := newBusinessStore(t)
-		if _, err := store.db.ExecContext(ctx, `DROP TABLE `+tableProviders); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `DROP TABLE `+tableProviders); err != nil {
 			t.Fatalf("drop providers table: %v", err)
 		}
-		if _, err := store.ensureDefaultProvider(ctx); err == nil || !strings.Contains(err.Error(), tableProviders) {
+		if _, err := store.EnsureDefaultProvider(ctx); err == nil || !strings.Contains(err.Error(), tableProviders) {
 			t.Fatalf("ensureDefaultProvider err = %v, want %s failure", err, tableProviders)
 		}
 	})

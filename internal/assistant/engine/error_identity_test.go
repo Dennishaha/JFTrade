@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adktool "google.golang.org/adk/v2/tool"
 	adkworkflow "google.golang.org/adk/v2/workflow"
 )
@@ -21,13 +22,13 @@ func TestSerializedADKErrorRestoresKnownSentinelIdentity(t *testing.T) {
 		adktool.ErrConfirmationRequired,
 		adktool.ErrConfirmationRejected,
 		adkworkflow.ErrNodeInterrupted,
-		errUserGoalPauseRequested,
+		jfadkmodel.ErrUserGoalPauseRequested,
 	} {
 		t.Run(sentinel.Error(), func(t *testing.T) {
 			text := "serialized tool failure: " + sentinel.Error()
-			err := errorFromSerializedADKText(text)
+			err := ErrorFromSerializedADKText(text)
 			if !errors.Is(err, sentinel) {
-				t.Fatalf("errorFromSerializedADKText(%q) = %v, want errors.Is(_, %v)", text, err, sentinel)
+				t.Fatalf("ErrorFromSerializedADKText(%q) = %v, want errors.Is(_, %v)", text, err, sentinel)
 			}
 			if err.Error() != text {
 				t.Fatalf("classified error text = %q, want %q", err.Error(), text)

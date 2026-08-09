@@ -83,7 +83,7 @@ func TestReconcileTerminalWorkflowCancelsChildrenAndClearsStaleApprovals(t *test
 		Status: RunStatusRunning, WorkMode: WorkModeChat, CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 	})
 
-	if err := runtime.reconcileStaleRun(ctx, runtime.workflowExecutor(), parent); err != nil {
+	if err := runtime.reconcileStaleRun(ctx, mustWorkflowExecutor(t, runtime), parent); err != nil {
 		t.Fatalf("reconcile terminal parent: %v", err)
 	}
 	updatedParent, ok, err := runtime.Store().Run(ctx, parent.ID)

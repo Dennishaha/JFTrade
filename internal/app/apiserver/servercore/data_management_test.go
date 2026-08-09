@@ -133,7 +133,7 @@ func TestDataManagementAdaptersRejectBusyRuntimeAndMapStalePreview(t *testing.T)
 	server.runtimes.SetStrategyRuntime(nil, dmsrv.BusyCheckerFunc(func(context.Context) string {
 		return "存在活动策略运行实例"
 	}))
-	server.configureDataManagement()
+	configureDataManagement(server)
 	if _, err := server.dataManagementSvc.Compact(
 		t.Context(),
 		datamigration.DatabaseStrategy,
@@ -145,7 +145,7 @@ func TestDataManagementAdaptersRejectBusyRuntimeAndMapStalePreview(t *testing.T)
 		server.runtimes.StrategyRuntime(),
 		server.runtimes.StrategyRuntime(),
 	)
-	server.configureDataManagement()
+	configureDataManagement(server)
 
 	created, err := server.stores.Design.SaveDefinition(stratsrv.Definition{
 		ID:           "stale-strategy",
@@ -199,7 +199,7 @@ func TestTranslateDataManagementErrors(t *testing.T) {
 		{context.Canceled, context.Canceled},
 	}
 	for _, test := range tests {
-		got := translateDataManagementError(test.input)
+		got := datamigration.TranslateServiceError(test.input)
 		if test.target == nil {
 			if got != nil {
 				t.Fatalf("translate nil = %v", got)

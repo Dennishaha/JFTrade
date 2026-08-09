@@ -12,6 +12,9 @@ import (
 	"testing"
 	"time"
 
+	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
+	workflowexec "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowexec"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"google.golang.org/genai"
 )
 
@@ -22,25 +25,35 @@ func newTestRuntime(t *testing.T) *Runtime {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	sessionService, err := NewSQLiteSessionService(filepath.Join(dir, "adk-session.db"))
+	sessionService, err := enginepersistence.NewSQLiteSessionService(filepath.Join(dir, "adk-session.db"))
 	if err != nil {
-		t.Fatalf("NewSessionService: %v", err)
+		t.Fatalf("enginepersistence.NewSessionService: %v", err)
 	}
-	if err := ValidateSQLiteSessionService(sessionService); err != nil {
-		jftradeCheckTestError(t, CloseSessionService(sessionService))
+	if err := enginepersistence.ValidateSQLiteSessionService(sessionService); err != nil {
+		jftradeCheckTestError(t, enginepersistence.CloseSessionService(sessionService))
 		jftradeCheckTestError(t, store.Close())
-		t.Fatalf("ValidateSQLiteSessionService: %v", err)
+		t.Fatalf("enginepersistence.ValidateSQLiteSessionService: %v", err)
 	}
 	ensureTestProviderForStore(t, store)
 	runtime := NewRuntimeWithSessionService(store, NewToolRegistry(), sessionService)
+	runtime.SetWorkflowExecutor(workflowexec.NewWorkflowExecutor(runtime))
 	artifactService := runtime.artifactService
 	t.Cleanup(func() {
-		jftradeCheckTestError(t, CloseArtifactService(artifactService))
-		jftradeCheckTestError(t, CloseSessionService(sessionService))
+		jftradeCheckTestError(t, enginepersistence.CloseArtifactService(artifactService))
+		jftradeCheckTestError(t, enginepersistence.CloseSessionService(sessionService))
 		jftradeCheckTestError(t, store.Close())
 	})
 	t.Cleanup(func() { jftradeCheckTestError(t, runtime.Close()) })
 	return runtime
+}
+
+func mustWorkflowExecutor(t *testing.T, runtime *Runtime) WorkflowExecution {
+	t.Helper()
+	executor, err := runtime.workflowExecutor()
+	if err != nil {
+		t.Fatalf("workflow executor: %v", err)
+	}
+	return executor
 }
 
 func TestNewStoreUsesSeparatedConcurrentReadAndSingleWritePools(t *testing.T) {
@@ -51,10 +64,10 @@ func TestNewStoreUsesSeparatedConcurrentReadAndSingleWritePools(t *testing.T) {
 	}
 	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
 
-	if got := store.db.Stats().MaxOpenConnections; got != 8 {
+	if got := store.DB().Stats().MaxOpenConnections; got != 8 {
 		t.Fatalf("read MaxOpenConnections = %d, want 8", got)
 	}
-	if got := store.db.WriteStats().MaxOpenConnections; got != 1 {
+	if got := store.DB().WriteStats().MaxOpenConnections; got != 1 {
 		t.Fatalf("write MaxOpenConnections = %d, want 1", got)
 	}
 }
@@ -103,7 +116,7 @@ func TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, migrated.Close()) }()
 	var rawMode string
-	if err := migrated.db.Get(&rawMode, `SELECT json_extract(payload_json, '$.workMode') FROM `+tableAgents+` WHERE id = ?`, agent.ID); err != nil {
+	if err := migrated.DB().Get(&rawMode, `SELECT json_extract(payload_json, '$.workMode') FROM `+tableAgents+` WHERE id = ?`, agent.ID); err != nil {
 		t.Fatalf("read raw agent mode: %v", err)
 	}
 	if rawMode != WorkModeChat {
@@ -165,11 +178,11 @@ func TestStoreMigrationRepairsOrphanTasksAndDuplicateConfirmations(t *testing.T)
 	}
 	defer func() { jftradeCheckTestError(t, migrated.Close()) }()
 	var orphanCount int
-	if err := migrated.db.Get(&orphanCount, `SELECT COUNT(*) FROM `+tableTasks+` WHERE id = 'orphan-task'`); err != nil || orphanCount != 0 {
+	if err := migrated.DB().Get(&orphanCount, `SELECT COUNT(*) FROM `+tableTasks+` WHERE id = 'orphan-task'`); err != nil || orphanCount != 0 {
 		t.Fatalf("orphan task count = %d err=%v", orphanCount, err)
 	}
 	var embeddedApprovalCount int
-	if err := migrated.db.Get(&embeddedApprovalCount, `SELECT json_array_length(json_extract(payload_json, '$.pendingApprovals')) FROM `+tableRuns+` WHERE id = 'terminal-with-approval'`); err != nil || embeddedApprovalCount != 0 {
+	if err := migrated.DB().Get(&embeddedApprovalCount, `SELECT json_array_length(json_extract(payload_json, '$.pendingApprovals')) FROM `+tableRuns+` WHERE id = 'terminal-with-approval'`); err != nil || embeddedApprovalCount != 0 {
 		t.Fatalf("terminal embedded approval count = %d err=%v", embeddedApprovalCount, err)
 	}
 	approval, ok, err := migrated.ApprovalByConfirmationCallID(ctx, "confirmation-duplicate")
@@ -337,20 +350,21 @@ func TestSaveApprovalIfConfirmationAbsentIsConcurrentIdempotent(t *testing.T) {
 
 func newRuntimeWithRegistry(t *testing.T, store *Store, registry *ToolRegistry) *Runtime {
 	t.Helper()
-	sessionService, err := NewSQLiteSessionService(filepath.Join(filepath.Dir(store.SkillsPath()), "adk-session.db"))
+	sessionService, err := enginepersistence.NewSQLiteSessionService(filepath.Join(filepath.Dir(store.SkillsPath()), "adk-session.db"))
 	if err != nil {
-		t.Fatalf("NewSessionService: %v", err)
+		t.Fatalf("enginepersistence.NewSessionService: %v", err)
 	}
-	if err := ValidateSQLiteSessionService(sessionService); err != nil {
-		jftradeCheckTestError(t, CloseSessionService(sessionService))
-		t.Fatalf("ValidateSQLiteSessionService: %v", err)
+	if err := enginepersistence.ValidateSQLiteSessionService(sessionService); err != nil {
+		jftradeCheckTestError(t, enginepersistence.CloseSessionService(sessionService))
+		t.Fatalf("enginepersistence.ValidateSQLiteSessionService: %v", err)
 	}
 	ensureTestProviderForStore(t, store)
 	runtime := NewRuntimeWithSessionService(store, registry, sessionService)
+	runtime.SetWorkflowExecutor(workflowexec.NewWorkflowExecutor(runtime))
 	artifactService := runtime.artifactService
 	t.Cleanup(func() {
-		jftradeCheckTestError(t, CloseArtifactService(artifactService))
-		jftradeCheckTestError(t, CloseSessionService(sessionService))
+		jftradeCheckTestError(t, enginepersistence.CloseArtifactService(artifactService))
+		jftradeCheckTestError(t, enginepersistence.CloseSessionService(sessionService))
 	})
 	t.Cleanup(func() { jftradeCheckTestError(t, runtime.Close()) })
 	return runtime
@@ -360,7 +374,7 @@ func TestNewStoreDropsLegacyMessageTables(t *testing.T) {
 	runtime := newTestRuntime(t)
 
 	var count int
-	if err := runtime.Store().db.Get(&count, `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('adk_messages', 'adk_transcript_entries')`); err != nil {
+	if err := runtime.Store().DB().Get(&count, `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('adk_messages', 'adk_transcript_entries')`); err != nil {
 		t.Fatalf("legacy table lookup: %v", err)
 	}
 	if count != 0 {
@@ -855,7 +869,7 @@ func TestGoogleADKExecutionRunHonorsContextDeadline(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	err := execution.run(ctx, genai.NewContentFromText("查看系统状态", genai.RoleUser))
+	err := execution.Run(ctx, genai.NewContentFromText("查看系统状态", genai.RoleUser))
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("run error = %v, want context deadline exceeded", err)
 	}
@@ -866,8 +880,8 @@ func TestGoogleADKExecutionRunHonorsContextDeadline(t *testing.T) {
 
 func TestStartRunUsesConfiguredRuntimeTimeout(t *testing.T) {
 	runtime := newTestRuntime(t)
-	runtime.SetRuntimeLimitsProvider(func() RuntimeLimits {
-		return RuntimeLimits{RunTimeout: 12 * time.Minute}
+	runtime.SetRuntimeLimitsProvider(func() jfadkmodel.RuntimeLimits {
+		return jfadkmodel.RuntimeLimits{RunTimeout: 12 * time.Minute}
 	})
 
 	run, _, finish, err := runtime.startRun(context.Background(), "session-1", Agent{ID: "agent-1"}, "hello")
@@ -884,8 +898,8 @@ func TestStartRunUsesConfiguredRuntimeTimeout(t *testing.T) {
 func TestResumeGoalRunAllowsTimedOutGoalWithFreshTimeoutWindow(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	runtime.SetRuntimeLimitsProvider(func() RuntimeLimits {
-		return RuntimeLimits{RunTimeout: 45 * time.Minute}
+	runtime.SetRuntimeLimitsProvider(func() jfadkmodel.RuntimeLimits {
+		return jfadkmodel.RuntimeLimits{RunTimeout: 45 * time.Minute}
 	})
 
 	completedAt := time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano)

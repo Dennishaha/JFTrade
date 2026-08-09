@@ -1,6 +1,6 @@
 package assistant
 
-import jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+import jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 
 // Assistant-facing models are re-exported by the business boundary so
 // application and transport tests do not depend on runtime assembly details.

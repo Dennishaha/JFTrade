@@ -36,7 +36,7 @@ func TestResolveInputAsyncDoesNotRestartAnInFlightContinuation(t *testing.T) {
 	var continuations atomic.Int32
 	execution := newBareGoogleADKExecution(child.ID)
 	execution.sessionID = session.ID
-	execution.appName = googleADKAppName(agent.ID)
+	execution.appName = GoogleADKAppName(agent.ID)
 	execution.agent = agent
 	execution.runBlocking = func(context.Context, *genai.Content) error {
 		continuations.Add(1)

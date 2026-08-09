@@ -20,7 +20,7 @@ import (
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )

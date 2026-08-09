@@ -1,0 +1,70 @@
+package marketdataapp
+
+import (
+	"time"
+
+	"github.com/jftrade/jftrade-main/internal/api/httpserver"
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+)
+
+func NewOptionalTimeValue(value time.Time) httpserver.OptionalTimeValue {
+	return httpserver.OptionalTimeValue{Time: value}
+}
+
+type SnapshotQuery struct {
+	Refresh httpserver.OptionalBoolValue `form:"refresh,parser=encoding.TextUnmarshaler"`
+}
+
+type CandlesQuery struct {
+	Period            httpserver.CandlePeriodValue `form:"period,parser=encoding.TextUnmarshaler"`
+	Limit             httpserver.OptionalIntValue  `form:"limit,parser=encoding.TextUnmarshaler"`
+	FromTime          httpserver.OptionalTimeValue `form:"fromTime,parser=encoding.TextUnmarshaler"`
+	ToTime            httpserver.OptionalTimeValue `form:"toTime,parser=encoding.TextUnmarshaler"`
+	From              httpserver.OptionalTimeValue `form:"from,parser=encoding.TextUnmarshaler"`
+	To                httpserver.OptionalTimeValue `form:"to,parser=encoding.TextUnmarshaler"`
+	Sessions          []mdsrv.CandleSession
+	SessionsSpecified bool
+}
+
+type DepthQuery struct {
+	Num httpserver.OptionalIntValue `form:"num,parser=encoding.TextUnmarshaler"`
+}
+
+func (q SnapshotQuery) ForceRefresh() bool {
+	return q.Refresh.Bool()
+}
+
+func (q CandlesQuery) NormalizedPeriod() string {
+	if q.Period == "" {
+		return "1m"
+	}
+	return q.Period.String()
+}
+
+func (q CandlesQuery) LimitOrDefault(defaultLimit int, maxLimit int) int {
+	limit := defaultLimit
+	if q.Limit.Set && q.Limit.Valid {
+		limit = q.Limit.Int()
+	}
+	if limit < 1 {
+		limit = 1
+	}
+	if limit > maxLimit {
+		limit = maxLimit
+	}
+	return limit
+}
+
+func (q DepthQuery) NumOrDefault(defaultNum int32, maxNum int32) int32 {
+	num := defaultNum
+	if q.Num.Set && q.Num.Valid {
+		num = int32(q.Num.Int())
+	}
+	if num < 1 {
+		num = 1
+	}
+	if num > maxNum {
+		num = maxNum
+	}
+	return num
+}

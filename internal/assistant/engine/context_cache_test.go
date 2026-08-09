@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
 )
 
 type capturedChatProvider struct {
@@ -242,7 +244,7 @@ func firstSystemMessage(messages []openAIChatMessage) string {
 func restoredToolNames(tools []openAITool) []string {
 	names := make([]string, 0, len(tools))
 	for _, tool := range tools {
-		name := restoreToolNameFromOpenAI(tool.Function.Name)
+		name := providers.RestoreToolNameFromOpenAI(tool.Function.Name)
 		if name == "" {
 			name = tool.Function.Name
 		}

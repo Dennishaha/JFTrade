@@ -1,23 +1,11 @@
 package adk
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/google/jsonschema-go/jsonschema"
+
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func googleADKJSONSchemaFromMap(schema map[string]any) (*jsonschema.Schema, error) {
-	if schema == nil {
-		return nil, nil
-	}
-	raw, err := json.Marshal(schema)
-	if err != nil {
-		return nil, fmt.Errorf("encode GO-ADK JSON schema: %w", err)
-	}
-	var converted jsonschema.Schema
-	if err := json.Unmarshal(raw, &converted); err != nil {
-		return nil, fmt.Errorf("decode GO-ADK JSON schema: %w", err)
-	}
-	return &converted, nil
+	return jfadkmodel.GoogleADKJSONSchemaFromMap(schema)
 }

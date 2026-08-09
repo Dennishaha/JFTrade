@@ -3,6 +3,7 @@ package servercore
 import (
 	"log"
 
+	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/pineworkerassets"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
@@ -85,5 +86,5 @@ func publishPineWorkerRunners(s *serverApplication, backtestRunner pineruntime.R
 }
 
 func resolvePineWorkerRuntime(settings jftsettings.PineWorkerSettings) string {
-	return resolveNodeDependencyRuntime(settings).effectivePath
+	return apiruntime.ResolveNodeRuntime(settings)
 }

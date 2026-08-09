@@ -192,7 +192,7 @@ func TestStartRunPersistsExecutionLeaseClaimFailure(t *testing.T) {
 		ID: "lease-claim-failure-agent", Name: "Lease Claim Failure", ProviderID: testProviderID, Status: AgentStatusEnabled,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "lease claim failure")
-	if _, err := runtime.Store().db.ExecContext(t.Context(), `CREATE TRIGGER reject_run_lease_claim BEFORE INSERT ON `+tableRunLeases+` BEGIN SELECT RAISE(FAIL, 'forced lease claim failure'); END`); err != nil {
+	if _, err := runtime.Store().DB().ExecContext(t.Context(), `CREATE TRIGGER reject_run_lease_claim BEFORE INSERT ON `+tableRunLeases+` BEGIN SELECT RAISE(FAIL, 'forced lease claim failure'); END`); err != nil {
 		t.Fatalf("create lease trigger: %v", err)
 	}
 	if _, _, _, err := runtime.startRun(t.Context(), session.ID, agent, "must fail closed"); err == nil || !strings.Contains(err.Error(), "forced lease claim failure") {
@@ -220,7 +220,7 @@ func TestResolvedApprovalDoesNotStealForeignExecutionLease(t *testing.T) {
 
 	t.Run("background continuation leaves foreign owner untouched", func(t *testing.T) {
 		runtime, run, approvals := newPendingApprovalRun(t, "approval-background-foreign-lease", 1)
-		resolved, _, staged, shouldContinue, err := runtime.Store().resolveAndStageApproval(t.Context(), approvals[0].ID, ApprovalStatusApproved)
+		resolved, _, staged, shouldContinue, err := runtime.Store().ResolveAndStageApproval(t.Context(), approvals[0].ID, ApprovalStatusApproved)
 		if err != nil || !shouldContinue || staged == nil {
 			t.Fatalf("stage approval = %+v/%+v/%v, err=%v", resolved, staged, shouldContinue, err)
 		}
@@ -246,13 +246,13 @@ func TestLifecycleReportsLeaseStorageFailures(t *testing.T) {
 		ID: "run-missing-lease-schema", SessionID: "session-missing-lease-schema", AgentID: "agent-missing-lease-schema",
 		Status: RunStatusRunning, CreatedAt: now, StartedAt: now, UpdatedAt: now, MaxDurationMs: 1, Usage: &RunUsage{},
 	})
-	if _, err := runtime.Store().db.ExecContext(t.Context(), `DROP TABLE `+tableRunLeases); err != nil {
+	if _, err := runtime.Store().DB().ExecContext(t.Context(), `DROP TABLE `+tableRunLeases); err != nil {
 		t.Fatalf("drop run lease table: %v", err)
 	}
 	if err := runtime.ReconcileExpiredRuns(t.Context()); err == nil || !strings.Contains(err.Error(), tableRunLeases) {
 		t.Fatalf("expired-run lease inspection error = %v", err)
 	}
-	if err := runtime.reconcileStaleRun(t.Context(), &WorkflowExecutor{runtime: runtime}, run); err == nil || !strings.Contains(err.Error(), tableRunLeases) {
+	if err := runtime.reconcileStaleRun(t.Context(), mustWorkflowExecutor(t, runtime), run); err == nil || !strings.Contains(err.Error(), tableRunLeases) {
 		t.Fatalf("stale-run lease inspection error = %v", err)
 	}
 
@@ -300,7 +300,7 @@ func TestGoalResumeFailsClosedWhenExecutionLeaseCannotBeClaimed(t *testing.T) {
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 			CreatedAt: nowString(), StartedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
-		if _, err := runtime.Store().db.ExecContext(t.Context(), `CREATE TRIGGER reject_goal_resume_lease BEFORE INSERT ON `+tableRunLeases+` BEGIN SELECT RAISE(FAIL, 'forced goal resume lease failure'); END`); err != nil {
+		if _, err := runtime.Store().DB().ExecContext(t.Context(), `CREATE TRIGGER reject_goal_resume_lease BEFORE INSERT ON `+tableRunLeases+` BEGIN SELECT RAISE(FAIL, 'forced goal resume lease failure'); END`); err != nil {
 			t.Fatalf("create goal lease trigger: %v", err)
 		}
 		runtime.resumeUserPausedGoalRun(run)
@@ -449,7 +449,7 @@ func TestGoalResumeExecutionErrorPaths(t *testing.T) {
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 			CreatedAt: nowString(), StartedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
-		if _, err := runtime.Store().db.ExecContext(t.Context(), `CREATE TRIGGER reject_wf_resume BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = 'goal-resume-wf-save-fail' AND json_extract(NEW.payload_json, '$.resumeState') = 'user_resuming' BEGIN SELECT RAISE(FAIL, 'forced workflow save failure'); END`); err != nil {
+		if _, err := runtime.Store().DB().ExecContext(t.Context(), `CREATE TRIGGER reject_wf_resume BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = 'goal-resume-wf-save-fail' AND json_extract(NEW.payload_json, '$.resumeState') = 'user_resuming' BEGIN SELECT RAISE(FAIL, 'forced workflow save failure'); END`); err != nil {
 			t.Fatalf("create workflow trigger: %v", err)
 		}
 		runtime.resumeUserPausedGoalRun(run)

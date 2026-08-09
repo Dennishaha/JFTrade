@@ -3,7 +3,7 @@
 package testkit
 
 import (
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	adksession "google.golang.org/adk/v2/session"
 )
 

@@ -4,14 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
-	"testing"
-	"time"
-
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	adkartifact "google.golang.org/adk/v2/artifact"
 	adkmemory "google.golang.org/adk/v2/memory"
@@ -21,6 +15,13 @@ import (
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
+	"io"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+	"time"
 )
 
 func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T) {
@@ -32,7 +33,7 @@ func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T)
 		Description:  "Read a symbol for a delegated ADK agent.",
 		Category:     "test",
 		Permission:   "read_internal",
-		AllowedModes: allPermissionModes(),
+		AllowedModes: jfadkmodel.AllPermissionModes(),
 		InputSchema: map[string]any{
 			"type":                 "object",
 			"additionalProperties": false,
@@ -42,21 +43,21 @@ func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T)
 			"required": []any{"symbol"},
 		},
 	}, func(_ context.Context, input map[string]any) (any, error) {
-		return map[string]any{"success": true, "symbol": strings.TrimSpace(toolStringValue(input, "symbol"))}, nil
+		return map[string]any{"success": true, "symbol": strings.TrimSpace(skillsruntime.StringValue(input, "symbol"))}, nil
 	})
-	registry.Register(ToolDescriptor{Name: "test.scalar", Description: "Return a scalar", Permission: "read_internal", AllowedModes: allPermissionModes()}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: "test.scalar", Description: "Return a scalar", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
 		return "ok", nil
 	})
-	registry.Register(ToolDescriptor{Name: "test.error", Description: "Fail hard", Permission: "read_internal", AllowedModes: allPermissionModes()}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: "test.error", Description: "Fail hard", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
 		return nil, errors.New("provider failed")
 	})
-	registry.Register(ToolDescriptor{Name: "test.structured", Description: "Return structured failure", Permission: "read_internal", AllowedModes: allPermissionModes()}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: "test.structured", Description: "Return structured failure", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"success": false, "message": "risk check failed"}, nil
 	})
-	registry.Register(ToolDescriptor{Name: "test.legacy", Description: "Return legacy failure", Permission: "read_internal", AllowedModes: allPermissionModes()}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: "test.legacy", Description: "Return legacy failure", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"error": "legacy failed"}, nil
 	})
-	registry.Register(ToolDescriptor{Name: "test.confirm", Description: "Needs HITL confirmation", Permission: "read_internal", AllowedModes: allPermissionModes()}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: "test.confirm", Description: "Needs HITL confirmation", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
 		return nil, adktool.ErrConfirmationRequired
 	})
 
@@ -145,7 +146,7 @@ func TestGoogleADKProductToolsetFunctionToolBoundaries(t *testing.T) {
 	ctx := newGoogleADKToolTestContext()
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "test.strict", Description: "Strict schema", Permission: "read_internal", AllowedModes: allPermissionModes(),
+		Name: "test.strict", Description: "Strict schema", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes(),
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -218,7 +219,7 @@ func TestGoogleADKProductToolsetFunctionToolBoundaries(t *testing.T) {
 func TestGoogleADKProductToolsetRejectsInvalidFunctionSchema(t *testing.T) {
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "test.invalid_schema", Description: "Invalid schema", Permission: "read_internal", AllowedModes: allPermissionModes(),
+		Name: "test.invalid_schema", Description: "Invalid schema", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes(),
 		InputSchema: map[string]any{
 			"type": make(chan int),
 		},
@@ -276,7 +277,7 @@ func TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions(t *testing.T)
 	ctx := context.Background()
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "test.read", DisplayName: "测试读取", Description: "Read", Permission: "read_internal", AllowedModes: allPermissionModes(),
+		Name: "test.read", DisplayName: "测试读取", Description: "Read", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes(),
 	}, func(context.Context, map[string]any) (any, error) { return map[string]any{"ok": true}, nil })
 	registry.Register(ToolDescriptor{
 		Name: "test.trade", Description: "Trade", Permission: "live_trading", AllowedModes: []string{PermissionModeAll},
@@ -441,7 +442,7 @@ func TestGoogleADKToolsetsBoundaryErrorsAndStaticToolsets(t *testing.T) {
 		Name:         "test.invalid_toolset_schema",
 		Description:  "Invalid schema for aggregate toolset",
 		Permission:   "read_internal",
-		AllowedModes: allPermissionModes(),
+		AllowedModes: jfadkmodel.AllPermissionModes(),
 		InputSchema:  map[string]any{"type": make(chan int)},
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"ok": true}, nil
@@ -628,42 +629,6 @@ func TestWorkflowStoreTriggerDeletionAndLogLookupBoundaries(t *testing.T) {
 	}
 	if _, err := store.DeleteWorkflowTrigger(ctx, "missing-trigger"); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("DeleteWorkflowTrigger missing err = %v", err)
-	}
-}
-
-func TestWorkflowTaskModelsListUsesRuntimeProviderCatalog(t *testing.T) {
-	ctx := context.Background()
-	runtime := newTestRuntime(t)
-	if _, err := runtime.Store().SaveProvider(ctx, ProviderWriteRequest{
-		ID: "disabled-provider", DisplayName: "Disabled Provider", BaseURL: "https://disabled.example/v1", Model: "cold-model", Enabled: false,
-	}); err != nil {
-		t.Fatalf("SaveProvider disabled: %v", err)
-	}
-	toolset := &workflowTaskToolset{executor: runtime.workflowExecutor()}
-	result, err := toolset.modelsList(map[string]any{"query": "test-model", "limit": 5})
-	if err != nil {
-		t.Fatalf("modelsList: %v", err)
-	}
-	models, ok := result["models"].([]map[string]any)
-	if !ok || len(models) != 1 || models[0]["providerId"] != testProviderID || models[0]["callable"] != true {
-		t.Fatalf("modelsList result = %#v", result)
-	}
-	if _, leaked := models[0]["apiKey"]; leaked {
-		t.Fatalf("modelsList leaked api key: %#v", models[0])
-	}
-	result, err = toolset.modelsList(map[string]any{"providerId": "disabled-provider", "callableOnly": "false"})
-	if err != nil {
-		t.Fatalf("modelsList disabled: %v", err)
-	}
-	models, ok = result["models"].([]map[string]any)
-	if !ok || len(models) != 1 || models[0]["providerId"] != "disabled-provider" || models[0]["callable"] != false {
-		t.Fatalf("disabled modelsList result = %#v", result)
-	}
-	if _, err := (*workflowTaskToolset)(nil).modelsList(map[string]any{}); err == nil || !strings.Contains(err.Error(), "runtime is unavailable") {
-		t.Fatalf("nil modelsList err = %v", err)
-	}
-	if _, err := (&workflowTaskToolset{}).modelsList(map[string]any{}); err == nil || !strings.Contains(err.Error(), "runtime is unavailable") {
-		t.Fatalf("empty modelsList err = %v", err)
 	}
 }
 

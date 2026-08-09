@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"google.golang.org/genai"
 )
 
@@ -180,7 +181,7 @@ func TestResolveRunInputStoreErrors(t *testing.T) {
 
 	t.Run("missing table", func(t *testing.T) {
 		broken := newTestRuntime(t)
-		if _, err := broken.Store().db.ExecContext(t.Context(), `DROP TABLE `+tableRuns); err != nil {
+		if _, err := broken.Store().DB().ExecContext(t.Context(), `DROP TABLE `+tableRuns); err != nil {
 			t.Fatal(err)
 		}
 		if _, _, err := broken.Store().ResolveRunInput(t.Context(), "run", InputResponseRequest{RequestID: "request"}); err == nil {
@@ -191,7 +192,7 @@ func TestResolveRunInputStoreErrors(t *testing.T) {
 	t.Run("invalid stored payload", func(t *testing.T) {
 		broken := newTestRuntime(t)
 		mustSaveRun(t, broken, Run{ID: "invalid-json-run", CreatedAt: nowString(), UpdatedAt: nowString()})
-		if _, err := broken.Store().db.ExecContext(t.Context(), `UPDATE `+tableRuns+` SET payload_json = '{' WHERE id = ?`, "invalid-json-run"); err != nil {
+		if _, err := broken.Store().DB().ExecContext(t.Context(), `UPDATE `+tableRuns+` SET payload_json = '{' WHERE id = ?`, "invalid-json-run"); err != nil {
 			t.Fatal(err)
 		}
 		if _, _, err := broken.Store().ResolveRunInput(t.Context(), "invalid-json-run", InputResponseRequest{RequestID: "request"}); err == nil {
@@ -218,7 +219,7 @@ func TestResolveRunInputStoreErrors(t *testing.T) {
 				ID: "trigger-run", Status: RunStatusPendingInput, InputRequest: request,
 				CreatedAt: nowString(), UpdatedAt: nowString(),
 			})
-			if _, err := broken.Store().db.ExecContext(t.Context(), tc.trigger); err != nil {
+			if _, err := broken.Store().DB().ExecContext(t.Context(), tc.trigger); err != nil {
 				t.Fatal(err)
 			}
 			if _, _, err := broken.Store().ResolveRunInput(t.Context(), "trigger-run", InputResponseRequest{
@@ -232,7 +233,7 @@ func TestResolveRunInputStoreErrors(t *testing.T) {
 
 func TestPendingInputRequestConflictEdges(t *testing.T) {
 	runtime := newTestRuntime(t)
-	if requests, err := runtime.pendingInputRequests(t.Context(), nil); err != nil || requests != nil {
+	if requests, err := runtime.PendingInputRequests(t.Context(), nil); err != nil || requests != nil {
 		t.Fatalf("nil execution requests=%v err=%v", requests, err)
 	}
 	session := mustCreateSession(t, runtime, "input-edge-agent", "Input edges")
@@ -262,7 +263,7 @@ func TestPendingInputRequestConflictEdges(t *testing.T) {
 		event.LongRunningToolIDs = []string{"untracked-call", "malformed-call", "invalid-call", "existing-call"}
 		appendADKEvent(t, runtime, "input-filter-agent", session.ID, event)
 		execution := &googleADKExecution{
-			sessionService: runtime.rawSessionService, appName: googleADKAppName("input-filter-agent"), sessionID: session.ID,
+			sessionService: runtime.rawSessionService, appName: GoogleADKAppName("input-filter-agent"), sessionID: session.ID,
 			agent: Agent{ID: "input-filter-agent"},
 			calls: []ToolCall{
 				{RunID: "input-filter-run", IdempotencyKey: "malformed-call"},
@@ -270,7 +271,7 @@ func TestPendingInputRequestConflictEdges(t *testing.T) {
 				{RunID: "input-existing-run", IdempotencyKey: "existing-call"},
 			},
 		}
-		requests, err := runtime.pendingInputRequests(t.Context(), execution)
+		requests, err := runtime.PendingInputRequests(t.Context(), execution)
 		if err != nil || len(requests) != 0 {
 			t.Fatalf("filtered requests=%v err=%v", requests, err)
 		}
@@ -278,9 +279,9 @@ func TestPendingInputRequestConflictEdges(t *testing.T) {
 
 	t.Run("missing session", func(t *testing.T) {
 		execution := &googleADKExecution{
-			sessionService: runtime.rawSessionService, appName: googleADKAppName("input-edge-agent"), sessionID: "missing-session",
+			sessionService: runtime.rawSessionService, appName: GoogleADKAppName("input-edge-agent"), sessionID: "missing-session",
 		}
-		if _, err := runtime.pendingInputRequests(t.Context(), execution); err == nil {
+		if _, err := runtime.PendingInputRequests(t.Context(), execution); err == nil {
 			t.Fatal("missing session error = nil")
 		}
 	})
@@ -302,10 +303,10 @@ func TestPendingInputRequestConflictEdges(t *testing.T) {
 		event.LongRunningToolIDs = []string{"new-call"}
 		appendADKEvent(t, runtime, "input-edge-agent", session.ID, event)
 		execution := &googleADKExecution{
-			sessionService: runtime.rawSessionService, appName: googleADKAppName("input-edge-agent"), sessionID: session.ID,
+			sessionService: runtime.rawSessionService, appName: GoogleADKAppName("input-edge-agent"), sessionID: session.ID,
 			agent: Agent{ID: "input-edge-agent"}, calls: []ToolCall{{RunID: "input-edge-run", IdempotencyKey: "new-call"}},
 		}
-		if _, err := runtime.pendingInputRequests(t.Context(), execution); !errors.Is(err, errInputRequestConflict) {
+		if _, err := runtime.PendingInputRequests(t.Context(), execution); !errors.Is(err, errInputRequestConflict) {
 			t.Fatalf("existing pending request error = %v", err)
 		}
 	})
@@ -323,14 +324,14 @@ func TestPendingInputRequestConflictEdges(t *testing.T) {
 		event.LongRunningToolIDs = []string{"call-a", "call-b"}
 		appendADKEvent(t, runtime, "input-parallel-agent", session.ID, event)
 		execution := &googleADKExecution{
-			sessionService: runtime.rawSessionService, appName: googleADKAppName("input-parallel-agent"), sessionID: session.ID,
+			sessionService: runtime.rawSessionService, appName: GoogleADKAppName("input-parallel-agent"), sessionID: session.ID,
 			agent: Agent{ID: "input-parallel-agent"},
 			calls: []ToolCall{
 				{RunID: "input-parallel-run", IdempotencyKey: "call-a"},
 				{RunID: "input-parallel-run", IdempotencyKey: "call-b"},
 			},
 		}
-		if _, err := runtime.pendingInputRequests(t.Context(), execution); !errors.Is(err, errInputRequestConflict) {
+		if _, err := runtime.PendingInputRequests(t.Context(), execution); !errors.Is(err, errInputRequestConflict) {
 			t.Fatalf("simultaneous request error = %v", err)
 		}
 	})
@@ -467,7 +468,7 @@ func TestInputRequestTimelinePersistsAnsweredCard(t *testing.T) {
 	second.Answers = []InputAnswer{}
 	second.CreatedAt = "9999-01-01T00:00:00Z"
 	second.UpdatedAt = second.CreatedAt
-	entries := groupTimelinePrimitives(timelinePrimitivesForRunActivity("session", Run{
+	entries := jfadkmodel.GroupTimelinePrimitives(jfadkmodel.TimelinePrimitivesForRunActivity("session", Run{
 		ID: "timeline-run", InputRequest: &second, InputRequests: []InputRequest{*request, second},
 		ToolCalls: []ToolCall{{ID: "call", RunID: "timeline-run", ToolName: interactionRequestUserTool, Status: RunStatusPendingInput}},
 	}))

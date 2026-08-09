@@ -10,12 +10,17 @@ import (
 	"testing"
 
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/status"
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
 const testADKProviderID = "test-provider"
+
+func stringPointerOrNil(value string) *string {
+	return status.StringPointerOrNil(value)
+}
 
 // newTestServer creates a Server with the given SettingsStore and registers its
 // Close on t.Cleanup. Prefer this over bare NewServer(store) in tests so that
@@ -30,7 +35,7 @@ func newTestServer(t *testing.T, store *SettingsStore) *Server {
 		server.marketdataSvc.SetSubscriptionReconciler(nil)
 	}
 	if server.auth != nil {
-		server.auth.enabled = false
+		server.auth.Configure(jfsettings.SecuritySettings{})
 	}
 	if server.runtimes.StrategyRuntime() != nil {
 		useFakeStrategyRuntimePineWorker(server, newFakeStrategyRuntimePineWorker())
@@ -58,7 +63,7 @@ func newHTTPTestServer(t *testing.T, store *SettingsStore) *httptest.Server {
 		server.marketdataSvc.SetSubscriptionReconciler(nil)
 	}
 	if server.auth != nil {
-		server.auth.enabled = false
+		server.auth.Configure(jfsettings.SecuritySettings{})
 	}
 	configureTestADKProvider(t, server)
 	t.Cleanup(func() {

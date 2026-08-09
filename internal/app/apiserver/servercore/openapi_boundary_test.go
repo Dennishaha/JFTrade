@@ -10,10 +10,9 @@ import (
 
 func TestSwaggerRoutesRedirectToBrowsableDocumentation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	server := &Server{}
 	router := gin.New()
-	router.GET("/swagger", server.handleSwaggerRoot)
-	router.GET("/swagger/*any", server.handleSwaggerUI)
+	router.GET("/swagger", handleSwaggerRoot)
+	router.GET("/swagger/*any", handleSwaggerUI)
 
 	for _, path := range []string{"/swagger", "/swagger/"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)

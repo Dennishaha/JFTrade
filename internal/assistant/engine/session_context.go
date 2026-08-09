@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/uuid"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adksession "google.golang.org/adk/v2/session"
 )
@@ -93,21 +92,6 @@ type projectedVisibleSession struct {
 	rawBreakdown             SessionContextBreakdown
 	effectiveBreakdown       SessionContextBreakdown
 	trimmedToolResponseCount int
-}
-
-func ensureSessionContextRevision(state SessionContextState, sessionID string) SessionContextState {
-	state.SessionID = strings.TrimSpace(defaultString(state.SessionID, sessionID))
-	if strings.TrimSpace(state.ContextRevisionID) == "" {
-		state.ContextRevisionID = newContextRevisionID()
-	}
-	if strings.TrimSpace(state.ContextRevisionCreatedAt) == "" {
-		state.ContextRevisionCreatedAt = defaultString(state.CreatedAt, nowString())
-	}
-	return state
-}
-
-func newContextRevisionID() string {
-	return "ctxrev-" + uuid.NewString()
 }
 
 func NewSessionContextManager(store *Store, rawService adksession.Service, openai openAIClient, tools *ToolRegistry) *SessionContextManager {
@@ -475,7 +459,7 @@ func (m *SessionContextManager) HasActiveRun(ctx context.Context, sessionID stri
 
 func (m *SessionContextManager) rawSession(ctx context.Context, agentID string, sessionID string) (*adksession.GetResponse, error) {
 	response, err := m.rawService.Get(ctx, &adksession.GetRequest{
-		AppName:   googleADKAppName(agentID),
+		AppName:   GoogleADKAppName(agentID),
 		UserID:    googleADKUserID,
 		SessionID: sessionID,
 	})
@@ -487,7 +471,7 @@ func (m *SessionContextManager) rawSession(ctx context.Context, agentID string, 
 		return &adksession.GetResponse{
 			Session: &emptySession{
 				id:      sessionID,
-				appName: googleADKAppName(agentID),
+				appName: GoogleADKAppName(agentID),
 				userID:  googleADKUserID,
 				state:   &emptyState{values: map[string]any{}},
 				events:  &wrappedEvents{},

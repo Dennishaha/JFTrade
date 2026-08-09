@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 func TestADKChatStreamTransportPreservesEventIdentityAndPayload(t *testing.T) {

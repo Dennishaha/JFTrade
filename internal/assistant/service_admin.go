@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 func (s *Service) Snapshot(ctx context.Context) (any, error) {

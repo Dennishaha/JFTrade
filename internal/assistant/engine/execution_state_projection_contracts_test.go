@@ -15,7 +15,7 @@ import (
 func newBareGoogleADKExecution(runID string) *googleADKExecution {
 	return &googleADKExecution{
 		sessionID: "session-" + runID,
-		appName:   googleADKAppName("coverage-agent"),
+		appName:   GoogleADKAppName("coverage-agent"),
 		agent:     Agent{ID: "coverage-agent"},
 		runID:     runID,
 		runIDByAgentName: map[string]string{
@@ -67,8 +67,8 @@ func TestGoogleADKExecutionProjectsToolResponseLifecycle(t *testing.T) {
 	if call := execution.calls[0]; call.Status != "SUCCEEDED" || call.Output == nil || call.CompletedAt == nil || call.Error != nil {
 		t.Fatalf("successful response call = %+v", call)
 	}
-	if result := execution.resultForRun("child-run"); result.Reply != "final answer" || result.ReasoningContent != "final reasoning" || !execution.runHasPostToolText("child-run") {
-		t.Fatalf("post-tool child result = %+v, hasPost=%v", result, execution.runHasPostToolText("child-run"))
+	if result := execution.ResultForRun("child-run"); result.Reply != "final answer" || result.ReasoningContent != "final reasoning" || !execution.RunHasPostToolText("child-run") {
+		t.Fatalf("post-tool child result = %+v, hasPost=%v", result, execution.RunHasPostToolText("child-run"))
 	}
 
 	timedOut := execution.ensureCallForRun("timeout", ToolDescriptor{Name: "market.history"}, nil, "root-run")
@@ -159,7 +159,7 @@ func TestGoogleADKExecutionStateModelsVisibleAndPersistedRunStatus(t *testing.T)
 		t.Fatalf("persisted root snapshot = %+v", snapshot)
 	}
 
-	if googleADKAgentName("") != "jftrade_agent" || googleADKAgentName("user") != "jftrade_user_agent" || googleADKWorkflowRootName("") != "workflow_root" {
+	if googleADKAgentName("") != "jftrade_agent" || googleADKAgentName("user") != "jftrade_user_agent" || GoogleADKWorkflowRootName("") != "workflow_root" {
 		t.Fatal("ADK agent/workflow names must remain valid for blank and user identities")
 	}
 	instruction := workflowChildInstructionTask(workflowStep{Objective: "research", Message: "inspect price", Description: "use verified data", AgentRole: "analyst"})
@@ -218,7 +218,7 @@ func TestGoogleADKRunnerHelpersPreserveRecoveryRules(t *testing.T) {
 		<-ctx.Done()
 		return ctx.Err()
 	}
-	if err := cancelExecution.run(cancelledCoverageContext(t), genai.NewContentFromText("wait", genai.RoleUser)); !errors.Is(err, context.Canceled) {
+	if err := cancelExecution.Run(cancelledCoverageContext(t), genai.NewContentFromText("wait", genai.RoleUser)); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled execution run err = %v", err)
 	}
 }

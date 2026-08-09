@@ -16,8 +16,10 @@ import (
 
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/liveapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
@@ -50,8 +52,6 @@ const (
 	observabilityMinImportanceEnv    = "JFTRADE_OBSERVABILITY_MIN_IMPORTANCE"
 )
 
-var errFutuIntegrationNotEnabled = errors.New("futu integration is not enabled")
-
 // Server is the API sidecar's HTTP and security shell. Domain dependencies and
 // their lifecycle are exposed through the single embedded serverApplication
 // entry; the remaining fields only cover transport, frontend and access
@@ -61,7 +61,7 @@ type Server struct {
 
 	frontend             *frontendServer
 	apiPort              int
-	auth                 *webAuth
+	auth                 *webaccess.Auth
 	router               *gin.Engine
 	desktopMode          bool
 	desktopAPIToken      string
@@ -128,9 +128,9 @@ func NewSidecarHandlerWithOptions(store SidecarSettingsStore, options SidecarOpt
 	server.desktopMode = options.DesktopMode
 	server.desktopAPIToken = strings.TrimSpace(options.DesktopAPIToken)
 	if server.auth != nil {
-		server.auth.enforceAccess = !options.DesktopMode || server.desktopAPIToken != ""
+		server.auth.SetEnforceAccess(!options.DesktopMode || server.desktopAPIToken != "")
 	}
-	server.applySecuritySettings(store.SecuritySettings())
+	applySecuritySettings(server, store.SecuritySettings())
 	return server
 }
 
@@ -156,7 +156,7 @@ func (s *Server) SetAPIPort(port int) {
 // ConfigureAuthOrigins allows API sidecar assembly to add trusted origins.
 func (s *Server) ConfigureAuthOrigins(origins ...string) {
 	if s != nil && s.auth != nil {
-		s.auth.configureOrigins(origins...)
+		s.auth.ConfigureOrigins(origins...)
 	}
 }
 
@@ -173,7 +173,7 @@ func (s *Server) SetFrontendFS(frontendFS fs.FS, runtimeAPIBaseURL string) {
 // ApplySecuritySettings applies optional Web access settings to API and frontend.
 func (s *Server) ApplySecuritySettings(settings jfsettings.SecuritySettings) {
 	if s != nil {
-		s.applySecuritySettings(settings)
+		applySecuritySettings(s, settings)
 	}
 }
 
@@ -197,9 +197,9 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 	bootstrap := newServerBootstrap(store)
 	state := bootstrap.loadPersistentState(store)
 	server := newBootstrapServer(store, frontend, bootstrap, state)
-	server.initializeBootstrapState(store, bootstrap, state)
+	initializeBootstrapState(server, store, bootstrap, state)
 	server.registerResource("runtime consumers", server.runtimes.CloseConsumers)
-	server.registerOwnedResources()
+	registerOwnedResources(server)
 	server.router = server.buildRouter()
 	return server
 }
@@ -272,7 +272,7 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 	server.runtimes.SetFutuCoordinator(newFutuRuntimeCoordinator(&server.serverApplication))
 	server.registerResource("runtime providers", server.runtimes.CloseProviders)
 	server.productFeaturesSvc = productsrv.NewService(server.runtimes.Brokers(), futuintegration.BrokerID, nil, func() {
-		_ = server.activeBroker()
+		_ = server.futuCoordinator().ActiveBroker()
 	})
 	server.productFeaturesSvc.SetPredictionQuoteStore(
 		server.stores.ExecutionOrders,
@@ -280,8 +280,8 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 	return server
 }
 
-func (s *Server) initializeSecurityAndCalendars(store SidecarSettingsStore, settingsPath string) {
-	s.applySecuritySettings(store.SecuritySettings())
+func initializeSecurityAndCalendars(s *Server, store SidecarSettingsStore, settingsPath string) {
+	applySecuritySettings(s, store.SecuritySettings())
 	manager := exchangecalendar.NewManager(
 		exchangecalendarstore.New(apiruntime.DeriveExchangeCalendarDir(settingsPath)),
 		func() jfsettings.ExchangeCalendarSettings {
@@ -296,7 +296,7 @@ func (s *Server) initializeSecurityAndCalendars(store SidecarSettingsStore, sett
 	manager.Start()
 }
 
-func (s *Server) initializeADKRuntime(bootstrap serverBootstrap) {
+func initializeADKRuntime(s *Server, bootstrap serverBootstrap) {
 	bootstrap.probeADKDatabase()
 	bootstrap.probeADKSessionDatabase()
 	if bootstrap.unavailableDatabases[datamigration.DatabaseADK] == nil &&
@@ -320,7 +320,7 @@ func (s *Server) initializeADKRuntime(bootstrap serverBootstrap) {
 			s.assistantSvc = assembly.Service()
 		}
 	}
-	s.refreshUnavailableDatabaseStatuses()
+	refreshUnavailableDatabaseStatuses(s)
 }
 
 func (b *serverBootstrap) probeADKDatabase() {
@@ -345,7 +345,7 @@ func (b *serverBootstrap) probeADKSessionDatabase() {
 	}
 }
 
-func (s *Server) refreshUnavailableDatabaseStatuses() {
+func refreshUnavailableDatabaseStatuses(s *Server) {
 	statuses, err := s.dataMigration.Statuses(context.Background())
 	if err != nil {
 		log.Printf("JFTrade database status inspection failed: %v", err)
@@ -363,7 +363,7 @@ func (s *Server) refreshUnavailableDatabaseStatuses() {
 	}
 }
 
-func (s *Server) initializeMarketdataRuntime() {
+func initializeMarketdataRuntime(s *Server) {
 	coordinator := s.runtimes.FutuCoordinator()
 	if coordinator == nil {
 		coordinator = newFutuRuntimeCoordinator(&s.serverApplication)
@@ -389,7 +389,7 @@ func (s *Server) initializeMarketdataRuntime() {
 	s.runtimes.SetMarketData(runtime)
 }
 
-func (s *Server) reconcileStrategyRuntimeStates() {
+func reconcileStrategyRuntimeStates(s *Server) {
 	if _, unavailable := s.unavailableDatabases[datamigration.DatabaseStrategy]; unavailable {
 		return
 	}
@@ -403,13 +403,13 @@ func (s *Server) reconcileStrategyRuntimeStates() {
 	}
 }
 
-func (s *Server) startLiveNotifications() {
-	if err := s.runtimes.LiveNotifications().Start(bbgoNotificationSource{}); err != nil {
+func startLiveNotifications(s *Server) {
+	if err := s.runtimes.LiveNotifications().Start(liveapp.BBGONotificationSource{}); err != nil {
 		log.Printf("JFTrade BBGO notification source unavailable: %v", err)
 	}
 }
 
-func (s *Server) initializeRealTradeControl(bootstrap serverBootstrap) {
+func initializeRealTradeControl(s *Server, bootstrap serverBootstrap) {
 	controlPlane, err := trdsrv.NewRealTradeControlPlane(deriveRealTradeControlPath(bootstrap.settingsPath))
 	if err != nil {
 		bootstrap.recordUnavailable("real-trade-control", err)
@@ -417,22 +417,22 @@ func (s *Server) initializeRealTradeControl(bootstrap serverBootstrap) {
 	s.runtimes.SetRealTradeControl(controlPlane, controlPlane)
 }
 
-func (s *Server) initializeSystemService(bootstrap serverBootstrap) {
-	opts := append(s.systemCoreOptions(bootstrap.settingsPath, bootstrap.backtestDBPath), s.systemCalendarOptions()...)
-	opts = append(opts, s.systemRuntimeOptions()...)
+func initializeSystemService(s *Server, bootstrap serverBootstrap) {
+	opts := append(systemCoreOptions(s, bootstrap.settingsPath, bootstrap.backtestDBPath), s.systemCalendarOptions()...)
+	opts = append(opts, systemRuntimeOptions(s)...)
 	opts = append(opts, s.systemRiskOptions()...)
 	s.sysSvc = system.NewService(opts...)
 }
 
-func (s *Server) systemCoreOptions(settingsPath string, backtestDBPath string) []system.Option {
+func systemCoreOptions(s *Server, settingsPath string, backtestDBPath string) []system.Option {
 	return []system.Option{
 		system.WithAPIPortFunc(func() int { return s.apiPort }),
 		system.WithSettingsPath(settingsPath),
-		system.WithDefaultTradingEnvironmentFunc(func() string { return s.defaultTradingEnvironment() }),
+		system.WithDefaultTradingEnvironmentFunc(func() string { return defaultTradingEnvironment(&s.serverApplication) }),
 		system.WithBrokerDescriptor(func() map[string]any { return s.futuCoordinator().Descriptor() }),
-		system.WithStrategyRuntimeSummary(func() map[string]any { return s.strategyRuntimeSummary() }),
-		system.WithLiveStats(func() map[string]any { return s.liveStatsSummary() }),
-		system.WithMarketdataRuntimeSummary(func() map[string]any { return s.marketdataRuntimeSummary() }),
+		system.WithStrategyRuntimeSummary(func() map[string]any { return strategyRuntimeSummary(&s.serverApplication) }),
+		system.WithLiveStats(func() map[string]any { return liveStatsSummary(&s.serverApplication) }),
+		system.WithMarketdataRuntimeSummary(func() map[string]any { return marketdataRuntimeSummary(&s.serverApplication) }),
 		system.WithRuntimeResources(func() map[string]any {
 			return apiruntime.RuntimeResourceSummary(settingsPath, backtestDBPath)
 		}),
@@ -445,12 +445,14 @@ func (s *Server) systemCoreOptions(settingsPath string, backtestDBPath string) [
 	}
 }
 
-func (s *Server) systemRuntimeOptions() []system.Option {
+func systemRuntimeOptions(s *Server) []system.Option {
 	return []system.Option{
 		system.WithBrokerRuntimeHealth(func(ctx context.Context) map[string]any { return s.futuCoordinator().OpenDHealth(ctx) }),
 		system.WithBrokerInstallGuide(func() map[string]any { return s.futuCoordinator().OpenDInstallGuide() }),
 		system.WithResetBrokerRuntime(func() { s.futuCoordinator().Reset() }),
-		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any { return s.runtimeDependencies(ctx) }),
+		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any {
+			return apiruntime.Dependencies(ctx, s.pineWorkerSettings())
+		}),
 		system.WithRequestObservability(func() any { return s.observability.Snapshot() }),
 		system.WithRealTradeRiskState(func() *trdsrv.RealTradeRiskSnapshot {
 			riskGateway := s.runtimes.PreTradeRisk()
@@ -463,16 +465,16 @@ func (s *Server) systemRuntimeOptions() []system.Option {
 	}
 }
 
-func (s *Server) initializeBacktestService(state serverPersistentState) {
+func initializeBacktestService(s *Server, state serverPersistentState) {
 	backtestRunner, instanceRunner := s.startPineWorkerManagers()
 	s.runtimes.SetPineWorkerRunners(backtestRunner, instanceRunner)
-	s.backtestSvc = btsrv.NewService(s.backtestServiceOptions(state, backtestRunner)...)
+	s.backtestSvc = btsrv.NewService(backtestServiceOptions(s, state, backtestRunner)...)
 	s.registerResource("backtest service", func() error {
 		return closeApplicationResource(s.backtestSvc)
 	})
 }
 
-func (s *Server) backtestServiceOptions(state serverPersistentState, runner pineWorkerRunner) []btsrv.Option {
+func backtestServiceOptions(s *Server, state serverPersistentState, runner pineWorkerRunner) []btsrv.Option {
 	opts := []btsrv.Option{
 		btsrv.WithRunStore(state.stores.BacktestRuns),
 		btsrv.WithSyncTaskStore(s.stores.BacktestTasks),
@@ -487,7 +489,7 @@ func (s *Server) backtestServiceOptions(state serverPersistentState, runner pine
 	return opts
 }
 
-func (s *Server) initializeStrategyService(state serverPersistentState) {
+func initializeStrategyService(s *Server, state serverPersistentState) {
 	state.stores.StrategyCatalog.SetDefinitionStore(state.stores.Design)
 	strategyRuntime := s.runtimes.StrategyRuntime()
 	if strategyRuntime != nil {
@@ -540,7 +542,7 @@ func (s *Server) analyzePineScript(input stratsrv.PineAnalyzeInput) (stratsrv.Pi
 	return response, nil
 }
 
-func (s *Server) initializeMarketdataService() {
+func initializeMarketdataService(s *Server) {
 	dataPlane, err := marketdataapp.NewDataPlane(marketdataapp.RuntimeOptions{
 		FutuProvider:      newMarketdataProvider(s),
 		FutuQuotes:        s.runtimes.MarketData(),
@@ -562,7 +564,7 @@ func (s *Server) initializeMarketdataService() {
 	})
 }
 
-func (s *Server) liveWebSocketDemand() []string {
+func liveWebSocketDemand(s *Server) []string {
 	liveWebSocket := s.runtimes.LiveWebSocket()
 	if liveWebSocket == nil {
 		return nil
@@ -570,7 +572,7 @@ func (s *Server) liveWebSocketDemand() []string {
 	return liveWebSocket.ActiveInstrumentIDs()
 }
 
-func (s *Server) strategyRuntimeDemand() []string {
+func strategyRuntimeDemand(s *Server) []string {
 	strategyRuntime := s.runtimes.StrategyRuntime()
 	if strategyRuntime == nil {
 		return nil
@@ -578,17 +580,17 @@ func (s *Server) strategyRuntimeDemand() []string {
 	return strategyRuntime.ActiveInstrumentIDs()
 }
 
-func (s *Server) startAssistantWorkflowScheduler() {
+func startAssistantWorkflowScheduler(s *Server) {
 	if assistantRuntime := s.runtimes.Assistant(); assistantRuntime != nil {
 		assistantRuntime.StartWorkflowScheduler(context.Background())
 	}
 }
 
-func (s *Server) initializeRuntimeServices(store SidecarSettingsStore) {
-	s.configureDataManagement()
-	s.dataManagementSvc = s.newDataManagementService()
+func initializeRuntimeServices(s *Server, store SidecarSettingsStore) {
+	configureDataManagement(s)
+	s.dataManagementSvc = datamigration.NewService(s.dataMigration)
 	persistenceStore := persistenceOnlySettingsStore(store)
-	s.settingsSvc = settings.NewService(persistenceStore, s.settingsServiceOptions()...)
+	s.settingsSvc = settings.NewService(persistenceStore, settingsServiceOptions(s)...)
 	if mcpStore, ok := persistenceStore.(settings.MCPServerStore); ok {
 		assistantRuntime := s.runtimes.Assistant()
 		if assistantRuntime == nil {
@@ -604,18 +606,18 @@ func (s *Server) initializeRuntimeServices(store SidecarSettingsStore) {
 		marketDataRuntime,
 		marketDataRuntime,
 		s.handlePushMarketdataTick,
-		mdsrv.DemandSourceFunc(s.liveWebSocketDemand),
+		mdsrv.DemandSourceFunc(func() []string { return liveWebSocketDemand(s) }),
 		mdsrv.DemandSourceFunc(func() []string { return s.workflowWatchedInstruments() }),
 	)
 }
 
-func (s *Server) settingsServiceOptions() []settings.Option {
+func settingsServiceOptions(s *Server) []settings.Option {
 	return []settings.Option{
-		settings.WithSideEffects(s.settingsSideEffects()),
+		settings.WithSideEffects(settingsSideEffects(s)),
 		settings.WithBrokerDescriptor(func() map[string]any { return s.futuCoordinator().Descriptor() }),
 		settings.WithBrokerSettings(func() map[string]any { return s.futuCoordinator().BrokerSettings() }),
 		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return s.futuCoordinator().OnboardingState(ctx) }),
-		settings.WithDefaultTradingEnvironment(s.defaultTradingEnvironment()),
+		settings.WithDefaultTradingEnvironment(defaultTradingEnvironment(&s.serverApplication)),
 		settings.WithMCPServerStatus(func() jfsettings.MCPServerStatus {
 			assistantRuntime := s.runtimes.Assistant()
 			if assistantRuntime == nil {
@@ -635,7 +637,7 @@ func (s *Server) settingsServiceOptions() []settings.Option {
 	}
 }
 
-func (s *Server) settingsSideEffects() settings.SideEffects {
+func settingsSideEffects(s *Server) settings.SideEffects {
 	return settings.SideEffects{
 		OnIntegrationChanged: func(_ jfsettings.BrokerIntegration) {
 			s.futuCoordinator().Reset()
@@ -649,7 +651,7 @@ func (s *Server) settingsSideEffects() settings.SideEffects {
 			if s.webAccessReconfigure != nil {
 				return s.webAccessReconfigure(sec)
 			}
-			s.applySecuritySettings(sec)
+			applySecuritySettings(s, sec)
 			return nil
 		},
 		OnExchangeCalendarsChanged: func(settings jfsettings.ExchangeCalendarSettings) {

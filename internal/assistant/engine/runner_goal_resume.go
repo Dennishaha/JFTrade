@@ -23,8 +23,12 @@ func (r *Runtime) executeUserPausedGoalResume(ctx context.Context, run Run) {
 		if isRunLeaseHeld(leaseErr) {
 			return
 		}
-		executor := &WorkflowExecutor{runtime: r}
-		_, persistErr := executor.failParent(context.WithoutCancel(ctx), run, leaseErr)
+		executor, err := r.workflowExecutor()
+		if err != nil {
+			besteffort.LogError(err)
+			return
+		}
+		_, persistErr := executor.FailParent(context.WithoutCancel(ctx), run, leaseErr)
 		besteffort.LogError(persistErr)
 		return
 	}
@@ -42,14 +46,18 @@ func (r *Runtime) executeUserPausedGoalResume(ctx context.Context, run Run) {
 		r.activeMu.Unlock()
 	}()
 	session, agent, err := r.workflowResumeContext(leaseCtx, run)
-	executor := &WorkflowExecutor{runtime: r}
+	executor, executorErr := r.workflowExecutor()
+	if executorErr != nil {
+		besteffort.LogError(executorErr)
+		return
+	}
 	if err != nil {
-		_, persistErr := executor.failParent(leaseCtx, run, err)
+		_, persistErr := executor.FailParent(leaseCtx, run, err)
 		besteffort.LogError(persistErr)
 		return
 	}
-	if _, err := executor.resumeADKGoalWorkflow(leaseCtx, session, agent, run); err != nil {
-		_, persistErr := executor.failParent(leaseCtx, run, err)
+	if _, err := executor.ResumeADKGoalWorkflow(leaseCtx, session, agent, run); err != nil {
+		_, persistErr := executor.FailParent(leaseCtx, run, err)
 		besteffort.LogError(persistErr)
 	}
 }

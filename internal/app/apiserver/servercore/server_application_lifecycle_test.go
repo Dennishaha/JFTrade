@@ -11,7 +11,7 @@ import (
 
 func TestServerCloseUsesApplicationResourceOrderAndStableAggregation(t *testing.T) {
 	server := &Server{}
-	server.registerOwnedResources()
+	registerOwnedResources(server)
 	firstErr := errors.New("first resource failed")
 	secondErr := errors.New("second resource failed")
 	var closed []string

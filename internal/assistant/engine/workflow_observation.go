@@ -1,9 +1,9 @@
 package adk
 
 import (
-	"encoding/json"
 	"strings"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adksession "google.golang.org/adk/v2/session"
 )
 
@@ -34,7 +34,7 @@ func (e *googleADKExecution) observeWorkflowEvent(event *adksession.Event) {
 			step.NodeName = nodeName
 		}
 		if len(event.Routes) > 0 {
-			step.Routes = normalizeStringSlice(event.Routes)
+			step.Routes = jfadkmodel.NormalizeStringSlice(event.Routes)
 		}
 		if summary := summarizeWorkflowOutput(event.Output); summary != "" {
 			step.OutputSummary = summary
@@ -59,7 +59,7 @@ func (e *googleADKExecution) observeWorkflowEvent(event *adksession.Event) {
 	e.emitRunSnapshotDeltas(deltas)
 }
 
-func (e *googleADKExecution) workflowRunObserved(runID string) bool {
+func (e *googleADKExecution) WorkflowRunObserved(runID string) bool {
 	if e == nil {
 		return false
 	}
@@ -77,6 +77,21 @@ func (e *googleADKExecution) workflowRunObserved(runID string) bool {
 		return strings.TrimSpace(step.NodeStatus) != "" ||
 			strings.TrimSpace(step.OutputSummary) != "" ||
 			len(step.Routes) > 0
+	}
+	return false
+}
+
+func (e *googleADKExecution) HasToolCallsForRun(runID string) bool {
+	if e == nil {
+		return false
+	}
+	runID = strings.TrimSpace(runID)
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, call := range e.calls {
+		if strings.TrimSpace(call.RunID) == runID {
+			return true
+		}
 	}
 	return false
 }
@@ -102,13 +117,7 @@ func workflowEventNodeName(event *adksession.Event) string {
 }
 
 func workflowObservationMatchesStep(step WorkflowStepState, runID string, nodeName string) bool {
-	if strings.TrimSpace(step.ChildRunID) != "" && strings.TrimSpace(step.ChildRunID) == strings.TrimSpace(runID) {
-		return true
-	}
-	if strings.TrimSpace(step.NodeName) != "" && strings.TrimSpace(step.NodeName) == strings.TrimSpace(nodeName) {
-		return true
-	}
-	return strings.TrimSpace(nodeName) != "" && strings.Contains(strings.TrimSpace(step.NodeName), strings.TrimSpace(nodeName))
+	return jfadkmodel.WorkflowObservationMatchesStep(step, runID, nodeName)
 }
 
 func workflowNodeStatus(event *adksession.Event) string {
@@ -128,24 +137,9 @@ func workflowNodeStatus(event *adksession.Event) string {
 }
 
 func summarizeWorkflowOutput(output any) string {
-	if output == nil {
-		return ""
-	}
-	raw, err := json.Marshal(output)
-	if err != nil {
-		return strings.TrimSpace(jsonFallbackString(output))
-	}
-	text := string(raw)
-	if len(text) > 600 {
-		text = text[:600] + "...(truncated)"
-	}
-	return text
+	return jfadkmodel.SummarizeWorkflowOutput(output)
 }
 
 func jsonFallbackString(value any) string {
-	raw, err := json.Marshal(map[string]any{"value": value})
-	if err != nil {
-		return ""
-	}
-	return string(raw)
+	return jfadkmodel.JSONFallbackString(value)
 }

@@ -52,7 +52,7 @@ func TestGoogleExecutionEventReplayKeepsApprovalStateIdempotent(t *testing.T) {
 		t.Fatalf("SaveApprovalIfConfirmationAbsent = %#v/%v/%v", previous, inserted, err)
 	}
 
-	approvals, err := execution.pendingApprovals(ctx, runtime.Store())
+	approvals, err := execution.PendingApprovals(ctx, runtime.Store())
 	if err != nil {
 		t.Fatalf("pendingApprovals: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestGoogleExecutionEventGuardsPreserveProjectionState(t *testing.T) {
 		execution.sessionService = service
 		execution.appName = "coverage-untracked"
 		execution.sessionID = "coverage-untracked-session"
-		approvals, err := execution.pendingApprovals(ctx, newTestRuntime(t).Store())
+		approvals, err := execution.PendingApprovals(ctx, newTestRuntime(t).Store())
 		if err != nil {
 			t.Fatalf("pendingApprovals: %v", err)
 		}

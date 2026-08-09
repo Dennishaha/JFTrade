@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
@@ -31,7 +32,7 @@ func TestSmallADKBoundaryTailBranches(t *testing.T) {
 			BaseURL: "https://example.test/v1", Model: fmt.Sprintf("model-%d", index), APIKey: "sk-limit", Enabled: true,
 		})
 	}
-	raw, err := runtime.modelsListTool(t.Context(), map[string]any{"limit": 1, "callableOnly": "yes"})
+	raw, err := runtime.ModelsListTool(t.Context(), map[string]any{"limit": 1, "callableOnly": "yes"})
 	if err != nil {
 		t.Fatalf("modelsListTool limit: %v", err)
 	}
@@ -43,7 +44,7 @@ func TestSmallADKBoundaryTailBranches(t *testing.T) {
 		t.Fatal("toolBoolValue true string = false, want true")
 	}
 
-	var splitter legacyAssistantContentSplitter
+	splitter := providers.NewLegacyAssistantContentSplitter(providers.ReasoningModeReply)
 	reply, reasoning := splitter.Push("visible <not-a-tag> tail")
 	if !strings.Contains(reply, "<not-a-tag>") || reasoning != "" {
 		t.Fatalf("legacy splitter unknown tag = reply:%q reasoning:%q", reply, reasoning)
@@ -82,13 +83,13 @@ func TestSmallADKBoundaryTailBranches(t *testing.T) {
 }
 
 func TestProviderHTTPBoundaryTailBranches(t *testing.T) {
-	if err := validateProviderHostname(" "); err == nil || !strings.Contains(err.Error(), "host is required") {
+	if err := providers.ValidateHostname(" "); err == nil || !strings.Contains(err.Error(), "host is required") {
 		t.Fatalf("blank provider host err = %v, want required", err)
 	}
-	if err := validateProviderIP(netip.Addr{}); err == nil || !strings.Contains(err.Error(), "unspecified") {
+	if err := providers.ValidateIP(netip.Addr{}); err == nil || !strings.Contains(err.Error(), "unspecified") {
 		t.Fatalf("invalid provider IP err = %v, want unspecified", err)
 	}
-	if err := validateProviderIP(netip.MustParseAddr("224.0.0.1")); err == nil || !strings.Contains(err.Error(), "multicast") {
+	if err := providers.ValidateIP(netip.MustParseAddr("224.0.0.1")); err == nil || !strings.Contains(err.Error(), "multicast") {
 		t.Fatalf("multicast provider IP err = %v, want multicast", err)
 	}
 	func() {
@@ -101,7 +102,7 @@ func TestProviderHTTPBoundaryTailBranches(t *testing.T) {
 	}()
 
 	lookupErr := errors.New("lookup failed")
-	client := newProviderHTTPClientWithResolver(time.Second, func(context.Context, string, string) ([]netip.Addr, error) {
+	client := providers.NewHTTPClientWithResolver(time.Second, func(context.Context, string, string) ([]netip.Addr, error) {
 		return nil, lookupErr
 	})
 	transport := client.Transport.(*http.Transport)
@@ -115,13 +116,13 @@ func TestProviderHTTPBoundaryTailBranches(t *testing.T) {
 		t.Fatalf("provider DialContext lookup err = %v, want lookupErr", err)
 	}
 
-	blockedClient := newProviderHTTPClientWithResolver(time.Second, func(context.Context, string, string) ([]netip.Addr, error) {
+	blockedClient := providers.NewHTTPClientWithResolver(time.Second, func(context.Context, string, string) ([]netip.Addr, error) {
 		return []netip.Addr{netip.MustParseAddr("169.254.169.254")}, nil
 	})
 	if _, err := blockedClient.Transport.(*http.Transport).DialContext(t.Context(), "tcp", "example.test:443"); err == nil || !strings.Contains(err.Error(), "blocked") {
 		t.Fatalf("provider DialContext blocked IP err = %v, want blocked address", err)
 	}
-	emptyClient := newProviderHTTPClientWithResolver(time.Second, func(context.Context, string, string) ([]netip.Addr, error) {
+	emptyClient := providers.NewHTTPClientWithResolver(time.Second, func(context.Context, string, string) ([]netip.Addr, error) {
 		return nil, nil
 	})
 	if _, err := emptyClient.Transport.(*http.Transport).DialContext(t.Context(), "tcp", "example.test:443"); err == nil || !strings.Contains(err.Error(), "no usable addresses") {
@@ -167,23 +168,9 @@ func TestProjectionAndReasoningHelperBoundaryBranches(t *testing.T) {
 		t.Fatalf("append merge = %q", got)
 	}
 
-	var splitter legacyAssistantContentSplitter
-	splitter.tagBuffer.WriteString("<think>")
-	if reply, reasoning := splitter.Flush(); reply != "" || reasoning != "" || splitter.mode != reasoningModeReasoning {
-		t.Fatalf("flush opening = (%q,%q) mode=%v", reply, reasoning, splitter.mode)
-	}
-	splitter.tagBuffer.WriteString("</think>")
-	if reply, reasoning := splitter.Flush(); reply != "" || reasoning != "" || splitter.mode != reasoningModeReply {
-		t.Fatalf("flush closing = (%q,%q) mode=%v", reply, reasoning, splitter.mode)
-	}
-	splitter = legacyAssistantContentSplitter{mode: reasoningModeReasoning}
-	splitter.tagBuffer.WriteString("<partial")
-	if reply, reasoning := splitter.Flush(); reply != "" || reasoning != "<partial" {
-		t.Fatalf("flush reasoning partial = (%q,%q)", reply, reasoning)
-	}
 }
 
-func TestNormalizeAndWorkflowModelToolBoundaryBranches(t *testing.T) {
+func TestNormalizeAndApprovalResolutionBoundaryBranches(t *testing.T) {
 	run := Run{ID: "run-resolution", ToolCalls: nil}
 	parent := Run{ID: "parent-resolution", ToolCalls: nil}
 	resolution := NormalizeApprovalResolution(ApprovalResolution{Run: &run, ParentRun: &parent})
@@ -193,56 +180,43 @@ func TestNormalizeAndWorkflowModelToolBoundaryBranches(t *testing.T) {
 	if got := normalizeAnyMap(map[string]any{" ": "ignored"}); len(got) != 0 {
 		t.Fatalf("normalizeAnyMap blank-only = %#v, want empty", got)
 	}
-	runtime := newTestRuntime(t)
-	toolset := &workflowTaskToolset{executor: runtime.workflowExecutor()}
-	modelTool, err := toolset.modelsListTool()
-	if err != nil {
-		t.Fatalf("modelsListTool: %v", err)
-	}
-	if modelTool.Name() != workflowModelsListTool {
-		t.Fatalf("models tool name = %q", modelTool.Name())
-	}
-	jftradeCheckTestError(t, runtime.Store().Close())
-	if _, err := toolset.modelsList(map[string]any{"query": "test"}); err == nil {
-		t.Fatal("modelsList closed runtime err = nil, want error")
-	}
 }
 
 func TestWorkflowTaskLocalHelperBoundaryBranches(t *testing.T) {
 	var nilDecision *workflowGoalDecision
-	nilDecision.reset()
-	nilDecision.beginDecision()
-	nilDecision.setComplete("ignored")
-	nilDecision.setContinue("ignored")
-	if nilDecision.decisionPhase() {
+	nilDecision.Reset()
+	nilDecision.BeginDecision()
+	nilDecision.SetComplete("ignored")
+	nilDecision.SetContinue("ignored")
+	if nilDecision.DecisionPhase() {
 		t.Fatal("nil decision should not be in decision phase")
 	}
-	if snap := nilDecision.snapshot(); snap.status != "" || snap.summary != "" || snap.reason != "" {
-		t.Fatalf("nil decision snapshot status=%q summary=%q reason=%q, want empty", snap.status, snap.summary, snap.reason)
+	if snap := nilDecision.Snapshot(); snap.Status != "" || snap.Summary != "" || snap.Reason != "" {
+		t.Fatalf("nil decision snapshot status=%q summary=%q reason=%q, want empty", snap.Status, snap.Summary, snap.Reason)
 	}
 	decision := &workflowGoalDecision{}
-	decision.beginDecision()
-	if !decision.decisionPhase() {
+	decision.BeginDecision()
+	if !decision.DecisionPhase() {
 		t.Fatal("decision should be in decision phase")
 	}
-	decision.setComplete(" complete summary ")
-	if snap := decision.snapshot(); snap.status != "complete" || snap.summary != "complete summary" || snap.reason != "" {
-		t.Fatalf("complete decision snapshot status=%q summary=%q reason=%q", snap.status, snap.summary, snap.reason)
+	decision.SetComplete(" complete summary ")
+	if snap := decision.Snapshot(); snap.Status != "complete" || snap.Summary != "complete summary" || snap.Reason != "" {
+		t.Fatalf("complete decision snapshot status=%q summary=%q reason=%q", snap.Status, snap.Summary, snap.Reason)
 	}
-	decision.setContinue(" continue reason ")
-	if snap := decision.snapshot(); snap.status != "continue" || snap.reason != "continue reason" || snap.summary != "" {
-		t.Fatalf("continue decision snapshot status=%q summary=%q reason=%q", snap.status, snap.summary, snap.reason)
+	decision.SetContinue(" continue reason ")
+	if snap := decision.Snapshot(); snap.Status != "continue" || snap.Reason != "continue reason" || snap.Summary != "" {
+		t.Fatalf("continue decision snapshot status=%q summary=%q reason=%q", snap.Status, snap.Summary, snap.Reason)
 	}
-	decision.reset()
-	if decision.decisionPhase() {
+	decision.Reset()
+	if decision.DecisionPhase() {
 		t.Fatal("reset decision should leave decision phase")
 	}
 
-	if run, changed := pruneInterruptedGoalWorkflowToolCalls(Run{}); changed || len(run.ToolCalls) != 0 {
+	if run, changed := jfadkmodel.PruneInterruptedGoalWorkflowToolCalls(Run{}); changed || len(run.ToolCalls) != 0 {
 		t.Fatalf("empty prune = %+v changed=%v", run, changed)
 	}
-	pauseErr := errUserGoalPauseRequested.Error()
-	run, changed := pruneInterruptedGoalWorkflowToolCalls(Run{
+	pauseErr := jfadkmodel.ErrUserGoalPauseRequested.Error()
+	run, changed := jfadkmodel.PruneInterruptedGoalWorkflowToolCalls(Run{
 		ID: "parent-run",
 		ToolCalls: []ToolCall{
 			{ID: "keep-other-run", RunID: "child-run", ToolName: workflowTasksListTool, Status: "RUNNING"},
@@ -266,204 +240,11 @@ func TestWorkflowTaskLocalHelperBoundaryBranches(t *testing.T) {
 	}
 }
 
-func TestWorkflowTaskToolsetLookupBoundaryBranches(t *testing.T) {
-	ctx := t.Context()
-	runtime := newTestRuntime(t)
-	now := nowString()
-	parent := mustSaveRun(t, runtime, Run{
-		ID: "workflow-helper-parent", SessionID: "workflow-helper-session", AgentID: "workflow-helper-agent",
-		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		WorkflowPlan: []WorkflowStepState{
-			{TaskID: "task-current", ChildRunID: ""},
-			{TaskID: "task-missing-child", ChildRunID: "missing-child"},
-			{TaskID: "task-foreign-child", ChildRunID: "foreign-child"},
-			{TaskID: "task-pending-child", ChildRunID: "pending-child"},
-		},
-		ChildRunIDs: []string{"", "workflow-helper-parent"},
-		CreatedAt:   now, UpdatedAt: now,
-	})
-	current, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
-		ID: "task-current", Title: "Current", Status: "IN_PROGRESS", AgentID: parent.AgentID, RunID: parent.ID, Order: 1, WorkflowMode: parent.WorkMode,
-	})
-	if err != nil {
-		t.Fatalf("SaveTask current: %v", err)
-	}
-	ready, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
-		ID: "task-ready", Title: "Ready", Status: "TODO", AgentID: parent.AgentID, RunID: parent.ID, Order: 2, WorkflowMode: parent.WorkMode,
-	})
-	if err != nil {
-		t.Fatalf("SaveTask ready: %v", err)
-	}
-	mustSaveRun(t, runtime, Run{
-		ID: "foreign-child", SessionID: parent.SessionID, AgentID: parent.AgentID, ParentRunID: "other-parent",
-		Status: RunStatusRunning, CreatedAt: now, UpdatedAt: now,
-	})
-	mustSaveRun(t, runtime, Run{
-		ID: "pending-child", SessionID: parent.SessionID, AgentID: parent.AgentID, ParentRunID: parent.ID,
-		Status: RunStatusPending, CreatedAt: now, UpdatedAt: now,
-	})
-	toolset := &workflowTaskToolset{
-		executor:      runtime.workflowExecutor(),
-		parentID:      parent.ID,
-		currentTaskID: current.ID,
-		req:           workflowRequest{Mode: WorkModeLoop},
-	}
-	if _, _, err := (&workflowTaskToolset{executor: runtime.workflowExecutor(), parentID: "missing-parent"}).parentAndTasks(ctx); err == nil || !strings.Contains(err.Error(), "parent run not found") {
-		t.Fatalf("missing parentAndTasks err = %v", err)
-	}
-	if task, ok, err := toolset.taskByID(ctx, " "); err != nil || ok || task.ID != "" {
-		t.Fatalf("blank taskByID = %+v/%v err=%v, want missing", task, ok, err)
-	}
-	if task, err := toolset.resolveTask(ctx, parent, []Task{ready}, "missing-task", true); err == nil || task.ID != "" || !strings.Contains(err.Error(), "task not found") {
-		t.Fatalf("explicit missing resolveTask = %+v/%v", task, err)
-	}
-	if task, err := toolset.resolveTask(ctx, parent, []Task{ready}, "", false); err != nil || task.ID != current.ID {
-		t.Fatalf("current resolveTask = %+v/%v, want current", task, err)
-	}
-	toolset.currentTaskID = ""
-	if task, err := toolset.resolveTask(ctx, parent, []Task{{ID: "in-progress", Status: "IN_PROGRESS"}}, "", false); err != nil || task.ID != "in-progress" {
-		t.Fatalf("in-progress resolveTask = %+v/%v", task, err)
-	}
-	if task, err := toolset.resolveTask(ctx, parent, []Task{ready}, "", true); err != nil || task.ID != ready.ID {
-		t.Fatalf("ready resolveTask = %+v/%v", task, err)
-	}
-	if _, err := toolset.resolveTask(ctx, parent, []Task{{ID: "blocked-ready", Status: "TODO", DependsOn: []string{"missing"}}}, "", true); err == nil || !strings.Contains(err.Error(), "no executable workflow task") {
-		t.Fatalf("no executable resolveTask err = %v", err)
-	}
-
-	child, index, ok := runtime.workflowExecutor().firstBlockingTaskChild(ctx, parent)
-	if !ok || child.ID != "pending-child" || index != 3 {
-		t.Fatalf("firstBlockingTaskChild = %+v index=%d ok=%v, want pending child at index 3", child, index, ok)
-	}
-	cleanParent := parent
-	cleanParent.WorkflowPlan = []WorkflowStepState{{TaskID: "blank-child"}, {TaskID: "done-child", ChildRunID: "done-child"}}
-	mustSaveRun(t, runtime, Run{
-		ID: "done-child", SessionID: parent.SessionID, AgentID: parent.AgentID, ParentRunID: parent.ID,
-		Status: RunStatusCompleted, CreatedAt: now, UpdatedAt: now,
-	})
-	if child, index, ok := runtime.workflowExecutor().firstBlockingTaskChild(ctx, cleanParent); ok || child.ID != "" || index != -1 {
-		t.Fatalf("clean firstBlockingTaskChild = %+v index=%d ok=%v, want none", child, index, ok)
-	}
-
-	blockers, err := toolset.workflowCompletionBlockers(ctx, parent, []Task{{ID: "done", Status: "DONE"}})
-	if err != nil {
-		t.Fatalf("workflowCompletionBlockers: %v", err)
-	}
-	if len(blockers) != 0 {
-		t.Fatalf("blank/self child IDs should not block completion: %+v", blockers)
-	}
-
-	dir := t.TempDir()
-	closedStore, err := NewStore(filepath.Join(dir, "adk.db"), filepath.Join(dir, "secrets", "adk.json"), filepath.Join(dir, "skills"))
-	if err != nil {
-		t.Fatalf("NewStore closed workflow task lookup: %v", err)
-	}
-	closedRuntime := NewRuntime(closedStore, NewToolRegistry())
-	closedToolset := &workflowTaskToolset{executor: closedRuntime.workflowExecutor(), parentID: parent.ID}
-	jftradeCheckTestError(t, closedStore.Close())
-	if _, _, err := closedToolset.parentAndTasks(ctx); err == nil {
-		t.Fatal("closed parentAndTasks err = nil, want error")
-	}
-	if task, ok, err := closedToolset.taskByID(ctx, current.ID); err == nil || ok || task.ID != "" {
-		t.Fatalf("closed taskByID = %+v/%v err=%v, want read error", task, ok, err)
-	}
-	if task, err := closedToolset.resolveTask(ctx, parent, nil, current.ID, true); err == nil || task.ID != "" {
-		t.Fatalf("closed resolveTask = %+v/%v, want read error", task, err)
-	}
-	if err := closedToolset.saveParentPlan(ctx, parent, nil); err == nil {
-		t.Fatal("closed saveParentPlan err = nil, want error")
-	}
-	for _, tc := range []struct {
-		name string
-		call func() (map[string]any, error)
-	}{
-		{name: "list", call: func() (map[string]any, error) { return closedToolset.list(nil) }},
-		{name: "add", call: func() (map[string]any, error) { return closedToolset.add(map[string]any{"title": "x"}) }},
-		{name: "claim", call: func() (map[string]any, error) { return closedToolset.claim(map[string]any{"taskId": current.ID}) }},
-		{name: "complete", call: func() (map[string]any, error) { return closedToolset.complete(map[string]any{"taskId": current.ID}) }},
-		{name: "block", call: func() (map[string]any, error) { return closedToolset.block(map[string]any{"taskId": current.ID}) }},
-		{name: "delegate", call: func() (map[string]any, error) { return closedToolset.delegate(map[string]any{"taskId": current.ID}) }},
-		{name: "goalComplete", call: func() (map[string]any, error) { return closedToolset.goalComplete(map[string]any{"summary": "done"}) }},
-	} {
-		t.Run("closed "+tc.name, func(t *testing.T) {
-			if result, err := tc.call(); err == nil || result != nil {
-				t.Fatalf("%s closed result = %#v err=%v, want nil/error", tc.name, result, err)
-			}
-		})
-	}
-}
-
-func TestWorkflowTaskToolsetMethodErrorAndFallbackBranches(t *testing.T) {
-	ctx := t.Context()
-	runtime := newTestRuntime(t)
-	now := nowString()
-	parent := mustSaveRun(t, runtime, Run{
-		ID: "workflow-method-branches-parent", SessionID: "workflow-method-branches-session", AgentID: "workflow-method-agent",
-		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		CreatedAt: now, UpdatedAt: now,
-	})
-	done, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
-		ID: "workflow-method-done", Title: "Done task", Status: "DONE", AgentID: parent.AgentID, RunID: parent.ID, Order: 1, WorkflowMode: parent.WorkMode,
-	})
-	if err != nil {
-		t.Fatalf("SaveTask done: %v", err)
-	}
-	ready, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
-		ID: "workflow-method-ready", Title: "Ready task", Status: "TODO", AgentID: parent.AgentID, RunID: parent.ID, Order: 2, WorkflowMode: parent.WorkMode,
-	})
-	if err != nil {
-		t.Fatalf("SaveTask ready: %v", err)
-	}
-	parent.WorkflowPlan = workflowPlanFromTasks([]Task{done, ready}, nil)
-	mustSaveRun(t, runtime, parent)
-	toolset := &workflowTaskToolset{
-		executor: runtime.workflowExecutor(),
-		parentID: parent.ID,
-		req:      workflowRequest{Mode: WorkModeLoop, GoalDecision: &workflowGoalDecision{}},
-	}
-	for _, tc := range []struct {
-		name string
-		call func() (map[string]any, error)
-	}{
-		{name: "claim missing", call: func() (map[string]any, error) { return toolset.claim(map[string]any{"taskId": "missing-task"}) }},
-		{name: "complete missing", call: func() (map[string]any, error) { return toolset.complete(map[string]any{"taskId": "missing-task"}) }},
-		{name: "block missing", call: func() (map[string]any, error) { return toolset.block(map[string]any{"taskId": "missing-task"}) }},
-		{name: "delegate missing", call: func() (map[string]any, error) { return toolset.delegate(map[string]any{"taskId": "missing-task"}) }},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if result, err := tc.call(); err == nil || result != nil || !strings.Contains(err.Error(), "task not found") {
-				t.Fatalf("%s result = %#v err=%v, want task not found", tc.name, result, err)
-			}
-		})
-	}
-	complete, err := toolset.goalComplete(map[string]any{"resultSummary": "done via result summary"})
-	if err != nil {
-		t.Fatalf("goalComplete resultSummary: %v", err)
-	}
-	if complete["success"] != false || complete["status"] != "blocked" {
-		t.Fatalf("goalComplete with open task = %#v, want blocked", complete)
-	}
-	doneStatus := "DONE"
-	if _, err := runtime.Store().UpdateTask(ctx, ready.ID, TaskPatchRequest{Status: &doneStatus}); err != nil {
-		t.Fatalf("UpdateTask ready done: %v", err)
-	}
-	complete, err = toolset.goalComplete(map[string]any{"resultSummary": "done via result summary"})
-	if err != nil {
-		t.Fatalf("goalComplete success resultSummary: %v", err)
-	}
-	if complete["success"] != true || complete["summary"] != "done via result summary" {
-		t.Fatalf("goalComplete success = %#v, want resultSummary fallback", complete)
-	}
-	if snap := toolset.req.GoalDecision.snapshot(); snap.status != "complete" || snap.summary != "done via result summary" {
-		t.Fatalf("goal decision = status:%q summary:%q", snap.status, snap.summary)
-	}
-}
-
 func TestWorkflowPlannerAdditionalBoundaryBranches(t *testing.T) {
-	tool, err := newWorkflowMapFunctionTool(workflowMapToolSpec{
-		name:        "workflow.coverage.nil",
-		description: "coverage",
-		schema:      emptyObjectSchema(),
+	tool, err := NewWorkflowMapFunctionTool(WorkflowMapToolSpec{
+		Name:        "workflow.coverage.nil",
+		Description: "coverage",
+		Schema:      jfadkmodel.EmptyObjectSchema(),
 	})
 	if err != nil {
 		t.Fatalf("newWorkflowMapFunctionTool: %v", err)
@@ -482,13 +263,13 @@ func TestWorkflowPlannerAdditionalBoundaryBranches(t *testing.T) {
 		t.Fatalf("bad workflow tool args result = %#v err=%v, want args type error", result, err)
 	}
 
-	if got := plannerStringArg(map[string]any{"x": nil}, "x"); got != "" {
+	if got := jfadkmodel.PlannerStringArg(map[string]any{"x": nil}, "x"); got != "" {
 		t.Fatalf("plannerStringArg nil = %q, want empty", got)
 	}
-	if got := plannerStringArg(map[string]any{"x": "<nil>"}, "x"); got != "" {
+	if got := jfadkmodel.PlannerStringArg(map[string]any{"x": "<nil>"}, "x"); got != "" {
 		t.Fatalf("plannerStringArg <nil> = %q, want empty", got)
 	}
-	if got := plannerStringArg(map[string]any{"x": "  value  "}, "x"); got != "value" {
+	if got := jfadkmodel.PlannerStringArg(map[string]any{"x": "  value  "}, "x"); got != "value" {
 		t.Fatalf("plannerStringArg trim = %q, want value", got)
 	}
 	for _, tc := range []struct {
@@ -504,7 +285,7 @@ func TestWorkflowPlannerAdditionalBoundaryBranches(t *testing.T) {
 		{name: "bad", args: map[string]any{"x": "not-a-number"}, want: 0},
 		{name: "nil string", args: map[string]any{"x": "<nil>"}, want: 0},
 	} {
-		if got := plannerIntArg(tc.args, "x"); got != tc.want {
+		if got := jfadkmodel.PlannerIntArg(tc.args, "x"); got != tc.want {
 			t.Fatalf("plannerIntArg %s = %d, want %d", tc.name, got, tc.want)
 		}
 	}
@@ -567,25 +348,25 @@ func TestWorkflowPlannerAdditionalBoundaryBranches(t *testing.T) {
 func TestTimelineAdditionalBoundaryBranches(t *testing.T) {
 	t1 := "2026-01-01T00:00:00Z"
 	t2 := "2026-01-01T00:00:01Z"
-	prompt := classifyWorkflowUserPrompt("请推进这个目标。\n总体目标：ship\n用户请求：build it")
-	if !prompt.isInternal || prompt.isHidden || prompt.userMessage != "build it" || prompt.objective != "ship" {
+	prompt := jfadkmodel.ClassifyWorkflowUserPrompt("请推进这个目标。\n总体目标：ship\n用户请求：build it")
+	if !prompt.IsInternal || prompt.IsHidden || prompt.UserMessage != "build it" || prompt.Objective != "ship" {
 		t.Fatalf("goal workflow prompt = %+v", prompt)
 	}
-	hidden := classifyWorkflowUserPrompt("请判断是否完成目标")
-	if !hidden.isInternal || !hidden.isHidden {
+	hidden := jfadkmodel.ClassifyWorkflowUserPrompt("请判断是否完成目标")
+	if !hidden.IsInternal || !hidden.IsHidden {
 		t.Fatalf("hidden prompt = %+v, want hidden internal", hidden)
 	}
-	if got := extractWorkflowPromptField("no marker", "missing:", ""); got != "" {
+	if got := jfadkmodel.ExtractWorkflowPromptField("no marker", "missing:", ""); got != "" {
 		t.Fatalf("missing prompt field = %q, want empty", got)
 	}
 	runs := []Run{
 		{ID: "old", UserMessage: "build it", Objective: "ship", CreatedAt: t1, UpdatedAt: t1},
 		{ID: "new", UserMessage: "build it", Objective: "ship", CreatedAt: t2, UpdatedAt: t2},
 	}
-	if run, ok := matchWorkflowPromptRun(prompt, runs); !ok || run.ID != "new" {
+	if run, ok := jfadkmodel.MatchWorkflowPromptRun(prompt, runs); !ok || run.ID != "new" {
 		t.Fatalf("matched run = %+v ok=%v, want newest", run, ok)
 	}
-	if _, ok := matchWorkflowPromptRun(workflowUserPrompt{isInternal: true, isHidden: true, userMessage: "build it"}, runs); ok {
+	if _, ok := jfadkmodel.MatchWorkflowPromptRun(jfadkmodel.WorkflowUserPrompt{IsInternal: true, IsHidden: true, UserMessage: "build it"}, runs); ok {
 		t.Fatal("hidden workflow prompt should not match")
 	}
 	session := Session{ID: "timeline-session"}
@@ -596,7 +377,7 @@ func TestTimelineAdditionalBoundaryBranches(t *testing.T) {
 		{ID: "assistant-loose", SessionID: session.ID, Role: "assistant", Content: " loose final ", ReasoningContent: " loose reasoning ", CreatedAt: t2},
 	}
 	notice := TimelineEntry{ID: "notice", Kind: "", Text: "notice text", CreatedAt: t1, Status: "streaming"}
-	entries := buildSessionTimeline(session, messages, runs, []TimelineEntry{notice, TimelineEntry{ID: "blank", Text: "   "}})
+	entries := jfadkmodel.BuildSessionTimeline(session, messages, runs, []TimelineEntry{notice, TimelineEntry{ID: "blank", Text: "   "}})
 	var sawNotice, sawOriginal, sawLooseReasoning, sawLooseFinal bool
 	for _, entry := range entries {
 		switch {
@@ -630,8 +411,8 @@ func TestTimelineAdditionalBoundaryBranches(t *testing.T) {
 		},
 		PreToolContent: "pre content", PreToolReasoning: "pre reasoning",
 	}
-	orphan := timelinePrimitivesForOrphanRun(session.ID, run)
-	grouped := groupTimelinePrimitives(orphan)
+	orphan := jfadkmodel.TimelinePrimitivesForOrphanRun(session.ID, run)
+	grouped := jfadkmodel.GroupTimelinePrimitives(orphan)
 	var toolGroup, approvalGroup *TimelineEntry
 	for index := range grouped {
 		switch grouped[index].Kind {
@@ -651,28 +432,28 @@ func TestTimelineAdditionalBoundaryBranches(t *testing.T) {
 	if approvalGroup == nil || len(approvalGroup.Approvals) != 1 || approvalGroup.Approvals[0].ID != "approval-1" {
 		t.Fatalf("first approval group = %+v, want earliest pending approval", approvalGroup)
 	}
-	merged := groupTimelinePrimitives([]timelinePrimitive{
-		{id: "tool:a", sessionID: session.ID, runID: "merge", kind: TimelineKindToolGroup, createdAt: t1, order: 40, toolCall: &ToolCall{ID: "a"}},
-		{id: "tool:b", sessionID: session.ID, runID: "merge", kind: TimelineKindToolGroup, createdAt: t1, order: 40, toolCall: &ToolCall{ID: "b"}},
-		{id: "approval:a", sessionID: session.ID, runID: "merge", kind: TimelineKindApprovalGroup, createdAt: t1, order: 50, approval: &Approval{ID: "a"}},
-		{id: "approval:b", sessionID: session.ID, runID: "merge", kind: TimelineKindApprovalGroup, createdAt: t1, order: 50, approval: &Approval{ID: "b"}},
+	merged := jfadkmodel.GroupTimelinePrimitives([]jfadkmodel.TimelinePrimitive{
+		{ID: "tool:a", SessionID: session.ID, RunID: "merge", Kind: TimelineKindToolGroup, CreatedAt: t1, Order: 40, ToolCall: &ToolCall{ID: "a"}},
+		{ID: "tool:b", SessionID: session.ID, RunID: "merge", Kind: TimelineKindToolGroup, CreatedAt: t1, Order: 40, ToolCall: &ToolCall{ID: "b"}},
+		{ID: "approval:a", SessionID: session.ID, RunID: "merge", Kind: TimelineKindApprovalGroup, CreatedAt: t1, Order: 50, Approval: &Approval{ID: "a"}},
+		{ID: "approval:b", SessionID: session.ID, RunID: "merge", Kind: TimelineKindApprovalGroup, CreatedAt: t1, Order: 50, Approval: &Approval{ID: "b"}},
 	})
 	if len(merged) != 2 || len(merged[0].ToolCalls) != 2 || len(merged[1].Approvals) != 2 {
 		t.Fatalf("merged primitives = %#v, want grouped tools and approvals", merged)
 	}
-	if got := runTextAnchor(Run{}, ""); got == "" {
+	if got := jfadkmodel.RunTextAnchor(Run{}, ""); got == "" {
 		t.Fatal("empty runTextAnchor should fall back to nowString")
 	}
-	if got := stripTimelinePrefix("prefix rest", "prefix"); got != "rest" {
+	if got := jfadkmodel.StripTimelinePrefix("prefix rest", "prefix"); got != "rest" {
 		t.Fatalf("stripTimelinePrefix partial = %q, want rest", got)
 	}
-	if got := stripTimelinePrefix("same", "same"); got != "" {
+	if got := jfadkmodel.StripTimelinePrefix("same", "same"); got != "" {
 		t.Fatalf("stripTimelinePrefix exact = %q, want empty", got)
 	}
-	if !compareTimelineKeys("bad-a", 2, "b", "bad-b", 1, "a") {
+	if !jfadkmodel.CompareTimelineKeys("bad-a", 2, "b", "bad-b", 1, "a") {
 		t.Fatal("invalid time keys should fall back to lexical time before order")
 	}
-	if compareTimelineKeys("", 1, "b", t1, 1, "a") {
+	if jfadkmodel.CompareTimelineKeys("", 1, "b", t1, 1, "a") {
 		t.Fatal("valid right timestamp should sort before empty left timestamp")
 	}
 }

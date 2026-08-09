@@ -57,7 +57,7 @@ func TestLiveWebSocketUsesActivePollOnlyProviderBehindLegacyFutuSelection(t *tes
 		Source:       "yfinance",
 	})
 
-	backend := liveWebSocketBackend{server: server}
+	backend := newLiveWebSocketBackend(server)
 	heartbeat := backend.Heartbeat(
 		time.Second,
 		apilive.ClientStats{},
@@ -80,9 +80,6 @@ func TestLiveWebSocketUsesActivePollOnlyProviderBehindLegacyFutuSelection(t *tes
 		ticks[0].Payload["brokerId"] != "futu" ||
 		ticks[0].Payload["marketDataProviderId"] != marketdataapp.ProviderYFinance {
 		t.Fatalf("yfinance live ticks = %#v, err=%v", ticks, err)
-	}
-	if _, native := backend.nativeMarketDataProvider("yfinance"); !native {
-		t.Fatal("active yfinance id did not route through native market-data service")
 	}
 	details, err := backend.SecurityDetails(t.Context(), "futu", "US", "AAPL")
 	if err != nil || details["meta"].(map[string]any)["source"] != "yfinance" {
@@ -115,7 +112,7 @@ func (reader *liveSnapshotReader) QuerySecuritySnapshot(context.Context, broker.
 }
 
 func TestLiveWebSocketBackendProviderAndNilBoundaries(t *testing.T) {
-	nilBackend := liveWebSocketBackend{}
+	nilBackend := newLiveWebSocketBackend(nil)
 	if got := nilBackend.ConnectionLimit(); got != defaultMaxWebSocketClients {
 		t.Fatalf("nil backend connection limit = %d", got)
 	}
@@ -128,7 +125,7 @@ func TestLiveWebSocketBackendProviderAndNilBoundaries(t *testing.T) {
 	if _, err := nilBackend.Depth(t.Context(), "ibkr", "US", "AAPL", 10); err == nil {
 		t.Fatal("nil backend read broker depth")
 	}
-	if count, limit, atLimit := (*serverApplication)(nil).liveStreamStats(); count != 0 || limit != defaultMaxWebSocketClients || atLimit {
+	if count, limit, atLimit := liveStreamStats((*serverApplication)(nil)); count != 0 || limit != defaultMaxWebSocketClients || atLimit {
 		t.Fatalf("nil live stats = %d/%d/%v", count, limit, atLimit)
 	}
 
@@ -137,7 +134,7 @@ func TestLiveWebSocketBackendProviderAndNilBoundaries(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	backend := liveWebSocketBackend{server: server}
+	backend := newLiveWebSocketBackend(server)
 	if got := backend.ConnectionLimit(); got != defaultMaxWebSocketClients {
 		t.Fatalf("default connection limit = %d", got)
 	}
@@ -168,17 +165,8 @@ func TestLiveWebSocketBackendProviderAndNilBoundaries(t *testing.T) {
 	_ = backend.NotificationsAfter(0)
 	unsubscribe := backend.SubscribeDepthUpdates(func(string) {})
 	unsubscribe()
-	server.liveStreamStats()
+	liveStreamStats(&server.serverApplication)
 
-	if normalizeProviderBrokerID(" ") != "" || normalizeProviderBrokerID(" IBKR ") != "ibkr" {
-		t.Fatal("provider normalization mismatch")
-	}
-	if !usesNativeFutuLiveProvider(" FUTU ") || usesNativeFutuLiveProvider("ibkr") {
-		t.Fatal("native provider classification mismatch")
-	}
-	if got := stringMapValue(map[string]any{"value": " trimmed "}, "value"); got != "trimmed" {
-		t.Fatalf("string map value = %q", got)
-	}
 }
 
 func TestLiveWebSocketBackendPollsExplicitBrokerSnapshots(t *testing.T) {
@@ -194,9 +182,9 @@ func TestLiveWebSocketBackendPollsExplicitBrokerSnapshots(t *testing.T) {
 	server := &Server{}
 	server.runtimes.SetBrokerRegistry(registry)
 	server.productFeaturesSvc = productsrv.NewService(registry, "ibkr", nil, nil)
-	backend := liveWebSocketBackend{server: server}
+	backend := newLiveWebSocketBackend(server)
 
-	ticks, err := backend.pollBrokerMarketTicks(t.Context(), "ibkr", []string{"invalid", "US.AAPL"})
+	ticks, err := backend.MarketTicks(t.Context(), "ibkr", []string{"invalid", "US.AAPL"}, "")
 	if err != nil || len(ticks) != 1 || ticks[0].InstrumentID != "US.AAPL" || ticks[0].ObservedAt == "" {
 		t.Fatalf("broker snapshot ticks = %#v, err=%v", ticks, err)
 	}

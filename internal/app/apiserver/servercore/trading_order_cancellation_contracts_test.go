@@ -100,33 +100,33 @@ func TestTradingOrderCancellationRejectsInvalidPersistedOrders(t *testing.T) {
 	stub := newStrategyRuntimeStubExchange()
 	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return stub })
 
-	if _, err := server.cancelExecutionOrder(t.Context(), "missing"); err == nil || !strings.Contains(err.Error(), "not found") {
+	if _, err := cancelExecutionOrder(&server.serverApplication, t.Context(), "missing"); err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("missing cancel error = %v", err)
 	}
 
 	terminal := recordCancelableExecutionOrder(server, "1001", "US.AAPL", "FILLED")
-	if _, err := server.cancelExecutionOrder(t.Context(), terminal.InternalOrderID); err == nil || !strings.Contains(err.Error(), "already terminal") {
+	if _, err := cancelExecutionOrder(&server.serverApplication, t.Context(), terminal.InternalOrderID); err == nil || !strings.Contains(err.Error(), "already terminal") {
 		t.Fatalf("terminal cancel error = %v", err)
 	}
 
 	missingBrokerID := recordCancelableExecutionOrder(server, "", "US.AAPL", "SUBMITTED")
-	if _, err := server.cancelExecutionOrder(t.Context(), missingBrokerID.InternalOrderID); err == nil || !strings.Contains(err.Error(), "missing broker order id") {
+	if _, err := cancelExecutionOrder(&server.serverApplication, t.Context(), missingBrokerID.InternalOrderID); err == nil || !strings.Contains(err.Error(), "missing broker order id") {
 		t.Fatalf("missing broker id error = %v", err)
 	}
 
 	invalidBrokerID := recordCancelableExecutionOrder(server, "not-a-number", "US.AAPL", "SUBMITTED")
-	if _, err := server.cancelExecutionOrder(t.Context(), invalidBrokerID.InternalOrderID); err == nil || !strings.Contains(err.Error(), "invalid broker order id") {
+	if _, err := cancelExecutionOrder(&server.serverApplication, t.Context(), invalidBrokerID.InternalOrderID); err == nil || !strings.Contains(err.Error(), "invalid broker order id") {
 		t.Fatalf("invalid broker id error = %v", err)
 	}
 
 	missingSymbol := recordCancelableExecutionOrder(server, "1002", "", "SUBMITTED")
-	if _, err := server.cancelExecutionOrder(t.Context(), missingSymbol.InternalOrderID); err == nil || !strings.Contains(err.Error(), "missing symbol") {
+	if _, err := cancelExecutionOrder(&server.serverApplication, t.Context(), missingSymbol.InternalOrderID); err == nil || !strings.Contains(err.Error(), "missing symbol") {
 		t.Fatalf("missing symbol error = %v", err)
 	}
 
 	valid := recordCancelableExecutionOrder(server, "1003", "US.AAPL", "SUBMITTED")
 	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return nil })
-	if _, err := server.cancelExecutionOrder(t.Context(), valid.InternalOrderID); err == nil || !strings.Contains(err.Error(), "unavailable") {
+	if _, err := cancelExecutionOrder(&server.serverApplication, t.Context(), valid.InternalOrderID); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("unavailable exchange error = %v", err)
 	}
 }
@@ -138,7 +138,7 @@ func TestTradingOrderCancellationPropagatesBrokerFailuresAndPersistsAcceptedCanc
 	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return failing })
 	server.runtimes.Brokers().Replace(&cancellationBrokerStub{exchange: failing})
 
-	if _, err := server.placeExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{
+	if _, err := placeExecutionOrder(&server.serverApplication, t.Context(), trdsrv.ExecutionOrderCommand{
 		Symbol: "US.AAPL",
 		Query:  broker.PlaceOrderQuery{ReadQuery: broker.ReadQuery{BrokerID: "futu", Market: "US"}, Symbol: "US.AAPL", Quantity: 1},
 	}); !errors.Is(err, backendFailure) {
@@ -147,7 +147,7 @@ func TestTradingOrderCancellationPropagatesBrokerFailuresAndPersistsAcceptedCanc
 
 	failing.placeErr = nil
 	accepted := recordCancelableExecutionOrder(server, "2001", "US.AAPL", "SUBMITTED")
-	if _, err := server.cancelExecutionOrder(t.Context(), accepted.InternalOrderID); err != nil {
+	if _, err := cancelExecutionOrder(&server.serverApplication, t.Context(), accepted.InternalOrderID); err != nil {
 		t.Fatalf("accepted cancel error = %v", err)
 	}
 	updated, ok := server.stores.ExecutionOrders.Order(accepted.InternalOrderID)
@@ -161,15 +161,14 @@ func TestTradingOrderCancellationPropagatesBrokerFailuresAndPersistsAcceptedCanc
 	if !ok {
 		t.Fatal("expected pending order before failed cancellation")
 	}
-	if _, err := server.cancelExecutionOrder(t.Context(), next.InternalOrderID); !errors.Is(err, backendFailure) {
+	if _, err := cancelExecutionOrder(&server.serverApplication, t.Context(), next.InternalOrderID); !errors.Is(err, backendFailure) {
 		t.Fatalf("cancel broker failure = %v, want %v", err, backendFailure)
 	}
 	if unchanged, ok := server.stores.ExecutionOrders.Order(next.InternalOrderID); !ok || unchanged.Status != before.Status {
 		t.Fatalf("failed cancel mutated persisted order = %#v / found=%v", unchanged, ok)
 	}
 
-	var nilServer *Server
-	if got := nilServer.defaultTradingEnvironment(); got != "SIMULATE" {
+	if got := defaultTradingEnvironment((*serverApplication)(nil)); got != "SIMULATE" {
 		t.Fatalf("nil server default environment = %q", got)
 	}
 }

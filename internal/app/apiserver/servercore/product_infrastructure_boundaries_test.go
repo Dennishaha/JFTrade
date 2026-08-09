@@ -8,7 +8,6 @@ import (
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	tradingstore "github.com/jftrade/jftrade-main/internal/store/trading"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 func TestServerTradingStoreAndGatewaySmallBoundaries(t *testing.T) {
@@ -26,16 +25,7 @@ func TestServerTradingStoreAndGatewaySmallBoundaries(t *testing.T) {
 	if err := emptyStore.ConsumePreview("", "", "", "", ""); err != nil {
 		t.Fatalf("empty preview consume: %v", err)
 	}
-	if comboOrderQuantityMode(broker.OrderKindEventParlay) != broker.QuantityModeAmount ||
-		comboOrderQuantityMode(broker.OrderKindOptionCombo) != broker.QuantityModeContracts {
-		t.Fatal("server combo quantity mode mismatch")
-	}
-	if got := normalizedBrokerComboIntent(broker.ComboOrderIntent{
-		ClientOrderID: "client",
-	}); !strings.Contains(got, "client") {
-		t.Fatalf("normalized broker combo = %s", got)
-	}
-	if got := (*Server)(nil).defaultTradingEnvironment(); got != "SIMULATE" {
+	if got := defaultTradingEnvironment((*serverApplication)(nil)); got != "SIMULATE" {
 		t.Fatalf("nil default trading environment = %q", got)
 	}
 }
@@ -66,10 +56,10 @@ func TestProductInfrastructureRemainingNilAndFallbackBoundaries(t *testing.T) {
 		t.Fatal("nil request classified as write")
 	}
 	server.recordExchangeCalendarAlert(exchangecalendar.SourceAlert{})
-	if summary := server.marketdataRuntimeSummary(); summary["status"] != "unavailable" {
+	if summary := marketdataRuntimeSummary(&server.serverApplication); summary["status"] != "unavailable" {
 		t.Fatalf("nil marketdata runtime summary = %#v", summary)
 	}
-	if summary := server.strategyRuntimeSummary(); summary["status"] != "idle" {
+	if summary := strategyRuntimeSummary(&server.serverApplication); summary["status"] != "idle" {
 		t.Fatalf("nil strategy runtime summary = %#v", summary)
 	}
 	if watched := server.workflowWatchedInstruments(); watched != nil {

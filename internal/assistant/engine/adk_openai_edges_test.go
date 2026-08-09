@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
 )
 
 func TestOpenAIMessageNormalizationAndStreamingBoundaryBranches(t *testing.T) {
@@ -72,7 +74,7 @@ func TestOpenAIMessageNormalizationAndStreamingBoundaryBranches(t *testing.T) {
 	if err != nil || result.Reply != "answer" || result.ReasoningContent != "think" || len(deltas) == 0 {
 		t.Fatalf("stream result=%+v deltas=%#v err=%v", result, deltas, err)
 	}
-	if err := appendStreamChoice(&legacyAssistantContentSplitter{}, &strings.Builder{}, &strings.Builder{}, "x", "", "", func(ChatDelta) error {
+	if err := appendStreamChoice(providers.NewLegacyAssistantContentSplitter(providers.ReasoningModeReply), &strings.Builder{}, &strings.Builder{}, "x", "", "", func(ChatDelta) error {
 		return errors.New("delta failed")
 	}); err == nil || !strings.Contains(err.Error(), "delta failed") {
 		t.Fatalf("appendStreamChoice err = %v, want delta failed", err)

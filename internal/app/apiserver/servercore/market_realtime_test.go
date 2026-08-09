@@ -58,7 +58,7 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 	disableTestExchangeCalendarAutoRefresh(t, store)
 	server := NewServer(store)
 	if server.auth != nil {
-		server.auth.enabled = false
+		server.auth.Configure(jfsettings.SecuritySettings{})
 	}
 	t.Cleanup(func() {
 		jftradeCheckTestError(t, server.Close())

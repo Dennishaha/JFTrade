@@ -3,7 +3,7 @@ package assembly
 import (
 	"context"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 // The exported registration slices let focused callers install only the tool

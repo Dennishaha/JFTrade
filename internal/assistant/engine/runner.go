@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkartifact "google.golang.org/adk/v2/artifact"
 	adkmemory "google.golang.org/adk/v2/memory"
@@ -19,17 +22,19 @@ type Runtime struct {
 	store              *Store
 	tools              *ToolRegistry
 	skills             *SkillRegistry
+	executor           WorkflowExecution
 	sessionService     adksession.Service
 	rawSessionService  adksession.Service
 	artifactService    adkartifact.Service
 	memoryService      adkmemory.Service
 	contextManager     *SessionContextManager
 	openai             openAIClient
-	limitsProvider     RuntimeLimitsProvider
+	limitsProvider     jfadkmodel.RuntimeLimitsProvider
 	activeMu           sync.Mutex
 	activeRuns         map[string]context.CancelFunc
 	adkMu              sync.Mutex
 	adkRuns            map[string]*googleADKExecution
+	startupReconcile   bool
 	workflowChildMu    sync.Mutex
 	approvalMu         sync.Mutex
 	approvalRuns       map[string]struct{}
@@ -44,7 +49,7 @@ type Runtime struct {
 	executorID         string
 	runLeaseTTL        time.Duration
 	runLeaseHeartbeat  time.Duration
-	runLeases          map[string]RunLease
+	runLeases          map[string]enginepersistence.RunLease
 	runLeaseWG         sync.WaitGroup
 }
 
@@ -64,7 +69,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	if store != nil {
 		skillsPath = store.SkillsPath()
 	}
-	artifactService, err := newGoogleADKArtifactService(deriveGoogleADKArtifactPathFromSessionService(sessionService))
+	artifactService, err := enginepersistence.NewGoogleADKArtifactService(enginepersistence.DeriveGoogleADKArtifactPathFromSessionService(sessionService))
 	if err != nil {
 		besteffort.LogError(err)
 		artifactService = adkartifact.InMemoryService()
@@ -74,7 +79,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{}, inputRuns: map[string]struct{}{}, compactionSessions: map[string]struct{}{},
 		backgroundCtx: backgroundCtx, backgroundCancel: backgroundCancel, runSem: make(chan struct{}, MaxConcurrentRuns),
 		executorID: "executor-" + uuid.NewString(), runLeaseTTL: defaultADKRunLeaseTTL,
-		runLeaseHeartbeat: defaultADKRunLeaseHeartbeat, runLeases: map[string]RunLease{},
+		runLeaseHeartbeat: defaultADKRunLeaseHeartbeat, runLeases: map[string]enginepersistence.RunLease{},
 	}
 	if store != nil {
 		store.SetSessionService(sessionService)
@@ -112,15 +117,15 @@ func (r *Runtime) beginSessionCompaction(sessionID string) (func(), bool) {
 	return release, true
 }
 
-func (r *Runtime) SetRuntimeLimitsProvider(provider RuntimeLimitsProvider) {
+func (r *Runtime) SetRuntimeLimitsProvider(provider jfadkmodel.RuntimeLimitsProvider) {
 	if r == nil {
 		return
 	}
 	r.limitsProvider = provider
 }
 
-func (r *Runtime) runtimeLimits() RuntimeLimits {
-	limits := RuntimeLimits{RunTimeout: DefaultRunTimeout}
+func (r *Runtime) runtimeLimits() jfadkmodel.RuntimeLimits {
+	limits := jfadkmodel.RuntimeLimits{RunTimeout: DefaultRunTimeout}
 	if r == nil || r.limitsProvider == nil {
 		return limits
 	}
@@ -132,6 +137,13 @@ func (r *Runtime) runtimeLimits() RuntimeLimits {
 }
 
 func (r *Runtime) Store() *Store {
+	if r == nil {
+		return nil
+	}
+	return r.store
+}
+
+func (r *Runtime) WorkflowStore() jfadkmodel.WorkflowStore {
 	if r == nil {
 		return nil
 	}
@@ -173,22 +185,18 @@ func (r *Runtime) CompactSessionDatabase(ctx context.Context) error {
 	if r == nil {
 		return fmt.Errorf("adk runtime is unavailable")
 	}
-	return CompactSQLiteSessionService(ctx, r.rawSessionService)
+	return enginepersistence.CompactSQLiteSessionService(ctx, r.rawSessionService)
 }
 
 func (r *Runtime) CompactArtifactDatabase(ctx context.Context) error {
 	if r == nil {
 		return fmt.Errorf("adk runtime is unavailable")
 	}
-	service, ok := r.artifactService.(*googleADKArtifactService)
-	if !ok || service == nil || service.db == nil {
+	service, ok := r.artifactService.(interface{ Compact(context.Context) error })
+	if !ok || service == nil {
 		return fmt.Errorf("ADK artifact database is unavailable")
 	}
-	if _, err := service.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
-		return err
-	}
-	_, err := service.db.ExecContext(ctx, `VACUUM`)
-	return err
+	return service.Compact(ctx)
 }
 
 func (r *Runtime) SessionContext(ctx context.Context, sessionID string) (SessionContextSnapshot, error) {
@@ -351,11 +359,11 @@ func (r *Runtime) CloseSessionServices() error {
 	if r == nil {
 		return nil
 	}
-	sessionErr := CloseSessionService(r.sessionService)
+	sessionErr := enginepersistence.CloseSessionService(r.sessionService)
 	if r.rawSessionService != nil && r.rawSessionService != r.sessionService {
-		sessionErr = errors.Join(sessionErr, CloseSessionService(r.rawSessionService))
+		sessionErr = errors.Join(sessionErr, enginepersistence.CloseSessionService(r.rawSessionService))
 	}
-	return errors.Join(sessionErr, CloseArtifactService(r.artifactService))
+	return errors.Join(sessionErr, enginepersistence.CloseArtifactService(r.artifactService))
 }
 
 func (r *Runtime) Tools() *ToolRegistry {
@@ -433,7 +441,7 @@ func providerProbeTimeout(provider Provider) time.Duration {
 
 func (r *Runtime) testProviderConnectivity(ctx context.Context, provider Provider, apiKey string) (string, error) {
 	if provider.APIProtocol == ProviderAPIProtocolResponses {
-		return probeOpenAIResponsesProvider(ctx, provider, apiKey, false)
+		return providers.ProbeOpenAIResponsesProvider(ctx, provider, apiKey, false)
 	}
 	return r.openai.chat(ctx, provider, apiKey, provider.Model, []openAIChatMessage{
 		{Role: "system", Content: "Reply with a short health check sentence."},
@@ -443,7 +451,7 @@ func (r *Runtime) testProviderConnectivity(ctx context.Context, provider Provide
 
 func (r *Runtime) testProviderTools(ctx context.Context, provider Provider, apiKey string) error {
 	if provider.APIProtocol == ProviderAPIProtocolResponses {
-		_, err := probeOpenAIResponsesProvider(ctx, provider, apiKey, true)
+		_, err := providers.ProbeOpenAIResponsesProvider(ctx, provider, apiKey, true)
 		return err
 	}
 	_, err := r.openai.selectTools(ctx, provider, apiKey, provider.Model, []openAIChatMessage{
@@ -588,7 +596,7 @@ func (r *Runtime) DeleteSession(ctx context.Context, sessionID string) error {
 	}
 	if r.sessionService != nil {
 		if err := r.sessionService.Delete(ctx, &adksession.DeleteRequest{
-			AppName:   googleADKAppName(session.AgentID),
+			AppName:   GoogleADKAppName(session.AgentID),
 			UserID:    googleADKUserID,
 			SessionID: session.ID,
 		}); err != nil && !strings.Contains(strings.ToLower(err.Error()), "not found") {
@@ -660,37 +668,9 @@ func (r *Runtime) RecordAudit(ctx context.Context, kind string, subjectID string
 }
 
 func approvalResolutionSummary(run Run, approval Approval, approved bool) string {
-	if !approved {
-		return fmt.Sprintf("已拒绝工具调用 `%s`。本次 run 已结束，未执行该操作。", approval.ToolName)
-	}
-	var lines []string
-	lines = append(lines, fmt.Sprintf("已批准并执行工具调用 `%s`。", approval.ToolName))
-	for _, call := range run.ToolCalls {
-		if call.ToolName != approval.ToolName {
-			continue
-		}
-		if call.Status == "SUCCEEDED" {
-			lines = append(lines, "执行结果：")
-			lines = append(lines, summarizeToolOutput(call.ToolName, call.Output))
-		}
-		if call.Status == "FAILED" && call.Error != nil {
-			lines = append(lines, "执行失败："+*call.Error)
-		}
-	}
-	return strings.Join(lines, "\n")
+	return jfadkmodel.ApprovalResolutionSummary(run, approval, approved)
 }
 
 func userFacingADKError(err error) string {
-	if err == nil {
-		return ""
-	}
-	lower := strings.ToLower(err.Error())
-	switch {
-	case strings.Contains(lower, "wrote more than the declared content-length"):
-		return "模型服务响应异常，请检查模型服务配置或稍后重试。"
-	case strings.Contains(lower, "database is locked") || strings.Contains(lower, "sqlite_busy"):
-		return "数据库繁忙，请稍后重试。"
-	default:
-		return err.Error()
-	}
+	return jfadkmodel.UserFacingADKError(err)
 }

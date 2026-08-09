@@ -9,17 +9,17 @@ func (s *Server) Close() error {
 	if s == nil {
 		return nil
 	}
-	s.registerOwnedResources()
+	registerOwnedResources(s)
 	return s.lifecycle.Close()
 }
 
-func (s *Server) registerOwnedResources() {
+func registerOwnedResources(s *Server) {
 	s.lifecycle.EnsureOwnedResources(
 		func() {
 			s.registerPersistentResources()
 			s.registerResource("web authentication", func() error {
 				if s.auth != nil {
-					s.auth.close()
+					s.auth.Close()
 				}
 				return nil
 			})

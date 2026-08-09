@@ -41,13 +41,13 @@ func TestGoogleRunnerSurfacesModelAndChildConstructionFailures(t *testing.T) {
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "coverage runner construction")
 
-	if _, err := runtime.googleADKModelForAgent(ctx, Agent{ID: "coverage98-unknown-provider", ProviderID: "coverage98-provider-missing"}); err == nil || !strings.Contains(err.Error(), "provider") {
+	if _, err := runtime.GoogleADKModelForAgent(ctx, Agent{ID: "coverage98-unknown-provider", ProviderID: "coverage98-provider-missing"}); err == nil || !strings.Contains(err.Error(), "provider") {
 		t.Fatalf("googleADKModelForAgent unknown provider = %v", err)
 	}
 	mustSaveProvider(t, runtime, ProviderWriteRequest{
 		ID: "coverage98-no-key-provider", DisplayName: "No Key", BaseURL: "https://example.test/v1", Model: "test-model", Enabled: true,
 	})
-	if _, err := runtime.googleADKModelForAgent(ctx, Agent{ID: "coverage98-no-key-agent", ProviderID: "coverage98-no-key-provider", Model: "test-model"}); err == nil || !strings.Contains(err.Error(), "API key is not configured") {
+	if _, err := runtime.GoogleADKModelForAgent(ctx, Agent{ID: "coverage98-no-key-agent", ProviderID: "coverage98-no-key-provider", Model: "test-model"}); err == nil || !strings.Contains(err.Error(), "API key is not configured") {
 		t.Fatalf("googleADKModelForAgent no key = %v", err)
 	}
 
@@ -73,7 +73,7 @@ func TestGoogleRunnerSurfacesModelAndChildConstructionFailures(t *testing.T) {
 	}
 
 	loaderRuntime := newTestRuntime(t)
-	if _, err := loaderRuntime.Store().db.ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
+	if _, err := loaderRuntime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
 		t.Fatalf("drop runs for loader: %v", err)
 	}
 	if _, _, err := loaderRuntime.googleADKExecutionRunLoader()(ctx, "coverage98-missing-run"); err == nil || !strings.Contains(err.Error(), tableRuns) {

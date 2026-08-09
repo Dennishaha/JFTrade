@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jftrade/jftrade-main/pkg/besteffort"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func (r *Runtime) syncParentWorkflowFromChild(ctx context.Context, child Run) (*Run, error) {
@@ -29,7 +29,7 @@ func (r *Runtime) workflowParentForChild(ctx context.Context, child Run) (Run, b
 	if err != nil || !ok {
 		return Run{}, false, err
 	}
-	if normalizeWorkMode(parent.WorkMode) == WorkModeChat || strings.TrimSpace(parent.WorkflowStatus) == "" {
+	if jfadkmodel.NormalizeWorkMode(parent.WorkMode) == WorkModeChat || strings.TrimSpace(parent.WorkflowStatus) == "" {
 		return Run{}, false, nil
 	}
 	return parent, true, nil
@@ -37,14 +37,14 @@ func (r *Runtime) workflowParentForChild(ctx context.Context, child Run) (Run, b
 
 func (r *Runtime) syncClaimedParentWorkflowFromChild(ctx context.Context, parent Run, child Run) (*Run, error) {
 	if strings.TrimSpace(parent.WorkflowEngine) == "" {
-		parent.WorkflowEngine = workflowEngineForMode(parent.WorkMode)
+		parent.WorkflowEngine = jfadkmodel.WorkflowEngineForMode(parent.WorkMode)
 	}
-	parent.ChildRunIDs = appendUniqueString(parent.ChildRunIDs, child.ID)
-	parent = updateWorkflowPlanForChild(parent, child)
-	parent.PendingApprovals = pendingApprovalsOnly(child.PendingApprovals)
+	parent.ChildRunIDs = jfadkmodel.AppendUniqueString(parent.ChildRunIDs, child.ID)
+	parent = jfadkmodel.UpdateWorkflowPlanForChild(parent, child)
+	parent.PendingApprovals = PendingApprovalsOnly(child.PendingApprovals)
 	parent.InputRequest = normalizeInputRequest(child.InputRequest)
 	if userPausedGoalParent(parent) {
-		if _, err := r.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
+		if _, err := r.SaveRunPreservingUserGoalPause(ctx, parent); err != nil {
 			return nil, err
 		}
 		return &parent, nil
@@ -65,7 +65,7 @@ func (r *Runtime) syncClaimedParentWorkflowFromChild(ctx context.Context, parent
 	default:
 		if userPauseRequestedGoalParent(parent) {
 			parent = markUserPausedGoalParent(parent)
-			if _, err := r.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
+			if _, err := r.SaveRunPreservingUserGoalPause(ctx, parent); err != nil {
 				return nil, err
 			}
 			return &parent, nil
@@ -76,7 +76,7 @@ func (r *Runtime) syncClaimedParentWorkflowFromChild(ctx context.Context, parent
 			parent.Message = "workflow resumed"
 		}
 	}
-	if _, err := r.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
+	if _, err := r.SaveRunPreservingUserGoalPause(ctx, parent); err != nil {
 		return nil, err
 	}
 	return &parent, nil
@@ -101,7 +101,7 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 	}
 	if userPausedGoalParent(*parent) {
 		paused := markUserPausedGoalParent(*parent)
-		if _, saveErr := r.saveRunPreservingUserGoalPause(resumeCtx, paused); saveErr != nil {
+		if _, saveErr := r.SaveRunPreservingUserGoalPause(resumeCtx, paused); saveErr != nil {
 			return nil, saveErr
 		}
 		return &paused, nil
@@ -111,13 +111,13 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 	}
 	if userPauseRequestedGoalParent(*parent) {
 		paused := markUserPausedGoalParent(*parent)
-		if _, saveErr := r.saveRunPreservingUserGoalPause(resumeCtx, paused); saveErr != nil {
+		if _, saveErr := r.SaveRunPreservingUserGoalPause(resumeCtx, paused); saveErr != nil {
 			return nil, saveErr
 		}
 		return &paused, nil
 	}
 	if child.Status != RunStatusCompleted {
-		terminated, terminateErr := r.terminateParentWorkflowFromChild(resumeCtx, *parent, child)
+		terminated, terminateErr := r.TerminateParentWorkflowFromChild(resumeCtx, *parent, child)
 		if terminateErr != nil {
 			return nil, terminateErr
 		}
@@ -125,22 +125,29 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 	}
 	session, _, err := r.workflowResumeContext(resumeCtx, *parent)
 	if err != nil {
-		failed, persistErr := (&WorkflowExecutor{runtime: r}).failParent(resumeCtx, *parent, err)
+		executor, executorErr := r.workflowExecutor()
+		if executorErr != nil {
+			return nil, executorErr
+		}
+		failed, persistErr := executor.FailParent(resumeCtx, *parent, err)
 		if persistErr != nil {
 			return nil, persistErr
 		}
 		return &failed, nil
 	}
-	executor := &WorkflowExecutor{runtime: r}
+	executor, executorErr := r.workflowExecutor()
+	if executorErr != nil {
+		return nil, executorErr
+	}
 	var updated Run
-	switch normalizeWorkMode(parent.WorkMode) {
+	switch jfadkmodel.NormalizeWorkMode(parent.WorkMode) {
 	case WorkModeLoop:
-		updated, err = executor.resumeLoopWorkflow(resumeCtx, session, *parent)
+		updated, err = executor.ResumeLoopWorkflow(resumeCtx, session, *parent)
 	default:
 		updated = *parent
 	}
 	if err != nil {
-		failed, persistErr := executor.failParent(resumeCtx, *parent, err)
+		failed, persistErr := executor.FailParent(resumeCtx, *parent, err)
 		if persistErr != nil {
 			return nil, persistErr
 		}
@@ -168,12 +175,12 @@ func (r *Runtime) workflowResumeContext(ctx context.Context, parent Run) (Sessio
 	if validPermissionMode(parent.PermissionMode) {
 		agent.PermissionMode = normalizePermissionMode(parent.PermissionMode)
 	}
-	agent.WorkMode = normalizeWorkMode(parent.WorkMode)
+	agent.WorkMode = jfadkmodel.NormalizeWorkMode(parent.WorkMode)
 	return session, agent, nil
 }
 
-func (r *Runtime) terminateParentWorkflowFromChild(ctx context.Context, parent Run, child Run) (Run, error) {
-	parent = updateWorkflowPlanForChild(parent, child)
+func (r *Runtime) TerminateParentWorkflowFromChild(ctx context.Context, parent Run, child Run) (Run, error) {
+	parent = jfadkmodel.UpdateWorkflowPlanForChild(parent, child)
 	parent.Status = child.Status
 	parent.Message = child.Message
 	parent.FailureReason = child.FailureReason
@@ -208,144 +215,18 @@ func (r *Runtime) terminateParentWorkflowFromChild(ctx context.Context, parent R
 	if err := r.store.SaveRunAndDenyPendingApprovals(ctx, parent); err != nil {
 		return parent, fmt.Errorf("persist terminal parent workflow state: %w", err)
 	}
-	r.cancelUnfinishedWorkflowChildren(context.Background(), parent)
+	r.CancelUnfinishedWorkflowChildren(context.Background(), parent)
 	return parent, nil
-}
-
-func (e *WorkflowExecutor) resumeLoopWorkflow(ctx context.Context, session Session, parent Run) (Run, error) {
-	if userPausedGoalParent(parent) {
-		parent = markUserPausedGoalParent(parent)
-		if _, err := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
-			return Run{}, err
-		}
-		return parent, nil
-	}
-	parent, blocked, err := e.reconcileWorkflowChildren(ctx, parent)
-	if err != nil {
-		return Run{}, err
-	}
-	if blocked {
-		return parent, nil
-	}
-	if userPauseRequestedGoalParent(parent) {
-		parent = markUserPausedGoalParent(parent)
-		if _, err := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
-			return Run{}, err
-		}
-		return parent, nil
-	}
-	replies := make([]string, 0, len(parent.WorkflowPlan))
-	for _, state := range parent.WorkflowPlan {
-		if strings.TrimSpace(state.ChildRunID) != "" {
-			replies = append(replies, fmt.Sprintf("%s 已完成", state.Title))
-		}
-	}
-	return e.completeResumedWorkflow(ctx, session, parent, workflowSummary(parent, replies))
-}
-
-func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent Run) (Run, bool, error) {
-	if userPausedGoalParent(parent) {
-		parent = markUserPausedGoalParent(parent)
-		if _, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); saveErr != nil {
-			return Run{}, false, saveErr
-		}
-		return parent, true, nil
-	}
-	for _, state := range parent.WorkflowPlan {
-		childRunID := strings.TrimSpace(state.ChildRunID)
-		if childRunID == "" {
-			continue
-		}
-		child, ok, err := e.runtime.store.Run(ctx, childRunID)
-		if err != nil {
-			return Run{}, false, err
-		}
-		if !ok {
-			continue
-		}
-		if !isDirectWorkflowChild(parent, child) {
-			continue
-		}
-		parent = updateWorkflowPlanForChild(parent, child)
-		switch child.Status {
-		case RunStatusCompleted:
-			if strings.TrimSpace(state.TaskID) != "" {
-				_, jftradeErr2 := e.runtime.store.UpdateTask(ctx, state.TaskID, TaskPatchRequest{
-					Status:        new("DONE"),
-					RunID:         new(child.ID),
-					Executor:      new(workflowTaskExecutorChild),
-					ResultSummary: new(strings.TrimSpace(child.Message)),
-				})
-				besteffort.LogError(jftradeErr2)
-			}
-			continue
-		case RunStatusPending, RunStatusPendingInput:
-			parent.Status = child.Status
-			parent.WorkflowStatus = workflowStatusPaused
-			parent.PendingApprovals = pendingApprovalsOnly(child.PendingApprovals)
-			parent.InputRequest = normalizeInputRequest(child.InputRequest)
-			parent.Message = defaultString(child.Message, workflowPendingReply(parent))
-			if _, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); saveErr != nil {
-				return Run{}, false, saveErr
-			}
-			return parent, true, nil
-		case RunStatusRunning:
-			parent.Status = RunStatusRunning
-			parent.WorkflowStatus = workflowStatusRunning
-			parent.Message = defaultString(child.Message, "工作流正在等待子运行完成。")
-			parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
-			if _, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); saveErr != nil {
-				return Run{}, false, saveErr
-			}
-			return parent, true, nil
-		default:
-			terminated, err := e.runtime.terminateParentWorkflowFromChild(ctx, parent, child)
-			return terminated, true, err
-		}
-	}
-	return parent, false, nil
 }
 
 func userPauseRequestedGoalParent(run Run) bool {
-	return normalizeWorkMode(run.WorkMode) == WorkModeLoop &&
-		strings.TrimSpace(run.ParentRunID) == "" &&
-		run.PauseRequestedAt != nil
+	return jfadkmodel.UserPauseRequestedGoalParent(run)
 }
 
 func userPausedGoalParent(run Run) bool {
-	return normalizeWorkMode(run.WorkMode) == WorkModeLoop &&
-		strings.TrimSpace(run.ParentRunID) == "" &&
-		run.Status == RunStatusPaused &&
-		run.PausedReason == "user"
+	return jfadkmodel.UserPausedGoalParent(run)
 }
 
 func markUserPausedGoalParent(run Run) Run {
-	pausedAt := nowString()
-	run.Status = RunStatusPaused
-	run.WorkflowStatus = workflowStatusPaused
-	if run.PausedAt == nil {
-		run.PausedAt = &pausedAt
-	}
-	run.PausedReason = "user"
-	run.ResumeState = "user_paused"
-	run.Message = "目标已暂停。"
-	run.PendingApprovals = pendingApprovalsOnly(run.PendingApprovals)
-	return run
-}
-
-func (e *WorkflowExecutor) completeResumedWorkflow(ctx context.Context, session Session, parent Run, reply string) (Run, error) {
-	parent.Status = RunStatusCompleted
-	parent.Message = "workflow completed"
-	parent.WorkflowStatus = workflowStatusComplete
-	parent.PendingApprovals = nil
-	parent.CompletedAt = new(nowString())
-	finalizeRunUsage(&parent)
-	message, err := e.runtime.ensureAssistantMessage(ctx, session, parent, assistantExecutionResult{Reply: reply, SyntheticKind: "workflow_resume_summary"})
-	if err == nil {
-		parent.FinalMessageID = message.ID
-	}
-	if _, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); saveErr != nil {
-		return Run{}, saveErr
-	}
-	return parent, nil
+	return jfadkmodel.MarkUserPausedGoalParent(run)
 }

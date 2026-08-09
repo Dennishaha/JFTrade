@@ -217,19 +217,19 @@ func TestCancelRunTreeAndRunLifecycleHelpers(t *testing.T) {
 	}
 
 	activeRuntime := &Runtime{activeRuns: map[string]context.CancelFunc{}, approvalRuns: map[string]struct{}{}}
-	if activeRuntime.runExecutionInFlight(" ") {
+	if activeRuntime.RunExecutionInFlight(" ") {
 		t.Fatal("blank run should not be in-flight")
 	}
 	activeRuntime.activeRuns["active"] = func() {}
-	if !activeRuntime.runExecutionInFlight(" active ") {
+	if !activeRuntime.RunExecutionInFlight(" active ") {
 		t.Fatal("active run was not detected")
 	}
 	delete(activeRuntime.activeRuns, "active")
 	activeRuntime.approvalRuns["approval"] = struct{}{}
-	if !activeRuntime.runExecutionInFlight("approval") {
+	if !activeRuntime.RunExecutionInFlight("approval") {
 		t.Fatal("approval run was not detected")
 	}
-	if (*Runtime)(nil).runExecutionInFlight("run") {
+	if (*Runtime)(nil).RunExecutionInFlight("run") {
 		t.Fatal("nil runtime should not report in-flight")
 	}
 

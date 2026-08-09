@@ -63,7 +63,7 @@ func TestResumedExecutionFailurePersistenceIsObservable(t *testing.T) {
 		runtime = newTestRuntime(t)
 		_, _, run, execution = newApprovalRun(t, runtime, "coverage98-resume-direct-save")
 		execution.reply.WriteString("the confirmed action completed")
-		if _, err := runtime.Store().db.ExecContext(ctx, `CREATE TRIGGER coverage98_fail_direct_resumed_save BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+run.ID+`' BEGIN SELECT RAISE(FAIL, 'direct resumed save failed'); END`); err != nil {
+		if _, err := runtime.Store().DB().ExecContext(ctx, `CREATE TRIGGER coverage98_fail_direct_resumed_save BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+run.ID+`' BEGIN SELECT RAISE(FAIL, 'direct resumed save failed'); END`); err != nil {
 			t.Fatalf("create direct resume trigger: %v", err)
 		}
 		updated, message, handled, err := runtime.completeDirectResumedExecution(ctx, run, execution)
@@ -76,7 +76,7 @@ func TestResumedExecutionFailurePersistenceIsObservable(t *testing.T) {
 		runtime := newTestRuntime(t)
 		_, _, run, execution := newApprovalRun(t, runtime, "coverage98-resume-terminal-save")
 		runtime.adkRuns[run.ID] = execution
-		if _, err := runtime.Store().db.ExecContext(ctx, `CREATE TRIGGER coverage98_fail_resumed_terminal_save BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+run.ID+`' BEGIN SELECT RAISE(FAIL, 'terminal resumed save failed'); END`); err != nil {
+		if _, err := runtime.Store().DB().ExecContext(ctx, `CREATE TRIGGER coverage98_fail_resumed_terminal_save BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+run.ID+`' BEGIN SELECT RAISE(FAIL, 'terminal resumed save failed'); END`); err != nil {
 			t.Fatalf("create terminal resume trigger: %v", err)
 		}
 		updated, message, handled, err := runtime.failResumedExecution(ctx, run, execution, errors.New("provider resume failed"))
@@ -139,7 +139,7 @@ func TestChildApprovalResumeFallsBackToDirectRecovery(t *testing.T) {
 	// it truthfully instead of leaving it permanently pending.
 	live := newBareGoogleADKExecution(run.ID)
 	live.sessionID = session.ID
-	live.appName = googleADKAppName(agent.ID)
+	live.appName = GoogleADKAppName(agent.ID)
 	live.agent = agent
 	live.runBlocking = func(_ context.Context, _ *genai.Content) error {
 		return adkworkflow.ErrNothingToResume

@@ -67,10 +67,6 @@ func (s *SettingsStore) SaveIntegration(input jftsettings.BrokerIntegration) (jf
 	return integration, nil
 }
 
-func normalizeExecutionSettings(input jftsettings.ExecutionSettings) jftsettings.ExecutionSettings {
-	return settingsfile.NormalizeExecutionSettings(input)
-}
-
 func normalizeSecuritySettings(input jftsettings.SecuritySettings) jftsettings.SecuritySettings {
 	return settingsfile.NormalizeSecuritySettings(input)
 }

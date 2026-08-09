@@ -41,7 +41,7 @@ func TestAnsweredInputFailuresRemainObservable(t *testing.T) {
 				runtime, agent, session, run := newAnsweredInputRun(t, tc.name)
 				execution := newBareGoogleADKExecution(run.ID)
 				execution.sessionID = session.ID
-				execution.appName = googleADKAppName(agent.ID)
+				execution.appName = GoogleADKAppName(agent.ID)
 				execution.agent = agent
 				tc.setup(execution)
 				runtime.adkRuns[run.ID] = execution
@@ -65,7 +65,7 @@ func TestAnsweredInputFailuresRemainObservable(t *testing.T) {
 			runtime, agent, session, run := newAnsweredInputRun(t, "input-fallback")
 			execution := newBareGoogleADKExecution(run.ID)
 			execution.sessionID = session.ID
-			execution.appName = googleADKAppName(agent.ID)
+			execution.appName = GoogleADKAppName(agent.ID)
 			execution.agent = agent
 
 			if err := runtime.completeInputContinuation(ctx, run, execution); err != nil {
@@ -85,7 +85,7 @@ func TestAnsweredInputFailuresRemainObservable(t *testing.T) {
 			runtime, agent, session, run := newAnsweredInputRun(t, "input-message-write")
 			execution := newBareGoogleADKExecution(run.ID)
 			execution.sessionID = session.ID
-			execution.appName = googleADKAppName(agent.ID)
+			execution.appName = GoogleADKAppName(agent.ID)
 			execution.agent = agent
 			runtime.rawSessionService = createErrorSessionService{err: errors.New("assistant input completion event rejected")}
 			if err := runtime.completeInputContinuation(ctx, run, execution); err == nil || !strings.Contains(err.Error(), "assistant input completion event rejected") {
@@ -95,9 +95,9 @@ func TestAnsweredInputFailuresRemainObservable(t *testing.T) {
 			runtime, agent, session, run = newAnsweredInputRun(t, "input-run-write")
 			execution = newBareGoogleADKExecution(run.ID)
 			execution.sessionID = session.ID
-			execution.appName = googleADKAppName(agent.ID)
+			execution.appName = GoogleADKAppName(agent.ID)
 			execution.agent = agent
-			if _, err := runtime.Store().db.ExecContext(ctx, `CREATE TRIGGER coverage98_reject_input_terminal_run BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+run.ID+`' BEGIN SELECT RAISE(FAIL, 'input terminal run write rejected'); END`); err != nil {
+			if _, err := runtime.Store().DB().ExecContext(ctx, `CREATE TRIGGER coverage98_reject_input_terminal_run BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+run.ID+`' BEGIN SELECT RAISE(FAIL, 'input terminal run write rejected'); END`); err != nil {
 				t.Fatalf("create terminal run trigger: %v", err)
 			}
 			if err := runtime.completeInputContinuation(ctx, run, execution); err == nil || !strings.Contains(err.Error(), "input terminal run write rejected") {
@@ -120,7 +120,7 @@ func TestInputResolutionExposesParentProjectionWriteFailure(t *testing.T) {
 	if err := runtime.Store().SaveRun(ctx, child); err != nil {
 		t.Fatalf("link child to parent: %v", err)
 	}
-	if _, err := runtime.Store().db.ExecContext(ctx, `CREATE TRIGGER coverage98_reject_input_parent_projection BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+parent.ID+`' BEGIN SELECT RAISE(FAIL, 'input parent projection rejected'); END`); err != nil {
+	if _, err := runtime.Store().DB().ExecContext(ctx, `CREATE TRIGGER coverage98_reject_input_parent_projection BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+parent.ID+`' BEGIN SELECT RAISE(FAIL, 'input parent projection rejected'); END`); err != nil {
 		t.Fatalf("create parent trigger: %v", err)
 	}
 

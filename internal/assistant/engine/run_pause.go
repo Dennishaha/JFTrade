@@ -3,20 +3,22 @@ package adk
 import (
 	"context"
 	"strings"
+
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
-func (r *Runtime) saveRunPreservingUserGoalPause(ctx context.Context, run Run) (Run, error) {
+func (r *Runtime) SaveRunPreservingUserGoalPause(ctx context.Context, run Run) (Run, error) {
 	if r == nil || r.store == nil || !isRootLoopGoalRun(run) {
 		if r != nil && r.store != nil {
 			return run, r.store.SaveRun(ctx, run)
 		}
 		return run, nil
 	}
-	prepared, err := r.store.prepareRunForSave(ctx, run)
+	prepared, err := r.store.PrepareRunForSave(ctx, run)
 	if err != nil {
 		return Run{}, err
 	}
-	if err := r.store.savePreparedRun(ctx, prepared); err != nil {
+	if err := r.store.SavePreparedRun(ctx, prepared); err != nil {
 		return Run{}, err
 	}
 	return prepared, nil
@@ -58,5 +60,5 @@ func preserveUserGoalPauseLifecycle(latest Run, candidate Run) Run {
 func isRootLoopGoalRun(run Run) bool {
 	return strings.TrimSpace(run.ID) != "" &&
 		strings.TrimSpace(run.ParentRunID) == "" &&
-		normalizeWorkMode(run.WorkMode) == WorkModeLoop
+		jfadkmodel.NormalizeWorkMode(run.WorkMode) == WorkModeLoop
 }

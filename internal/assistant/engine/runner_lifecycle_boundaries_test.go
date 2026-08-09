@@ -2,87 +2,162 @@ package adk
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
-	"time"
+
+	adksession "google.golang.org/adk/v2/session"
 )
 
-func TestRunnerLifecycleProtectsDormantChildrenAndObjectiveBoundaries(t *testing.T) {
-	ctx := context.Background()
-	runtime := newTestRuntime(t)
-	now := time.Now().UTC().Format(time.RFC3339Nano)
-	parent := mustSaveRun(t, runtime, Run{
-		ID: "dormant-parent", SessionID: "dormant-session", AgentID: "dormant-agent", Status: RunStatusRunning,
-		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, ChildRunIDs: []string{"dormant-child"},
-		WorkflowPlan: []WorkflowStepState{{ChildRunID: "dormant-child", Status: "IN_PROGRESS"}},
-		StartedAt:    now, CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
-	})
-	old := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339Nano)
-	dormant := mustSaveRun(t, runtime, Run{
-		ID: "dormant-child", SessionID: parent.SessionID, AgentID: parent.AgentID, ParentRunID: parent.ID,
-		Status: RunStatusRunning, WorkMode: WorkModeChat, StartedAt: old, CreatedAt: old, UpdatedAt: old, MaxDurationMs: 1, Usage: &RunUsage{},
-	})
-	if !runtime.isDormantWorkflowChildRun(ctx, dormant) {
-		t.Fatal("unstarted workflow child referenced by an active parent should be protected from expiry")
-	}
-	if err := runtime.ReconcileExpiredRuns(ctx); err != nil {
-		t.Fatalf("ReconcileExpiredRuns: %v", err)
-	}
-	storedDormant, ok, err := runtime.Store().Run(ctx, dormant.ID)
-	if err != nil || !ok || storedDormant.Status != RunStatusRunning {
-		t.Fatalf("dormant child after expiry reconciliation = %+v ok=%v err=%v", storedDormant, ok, err)
-	}
-	dormant.ToolCalls = []ToolCall{{ID: "active", Status: "RUNNING"}}
-	if runtime.isDormantWorkflowChildRun(ctx, dormant) {
-		t.Fatal("a child with actual tool activity must no longer be treated as dormant")
-	}
-
-	goal := mustSaveRun(t, runtime, Run{
-		ID: "objective-goal", SessionID: parent.SessionID, AgentID: parent.AgentID, Status: RunStatusRunning,
-		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, Objective: "old", CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
-	})
-	updated, err := runtime.UpdateRunObjective(ctx, goal.ID, "  verified new objective  ")
-	if err != nil || updated.Objective != "verified new objective" {
-		t.Fatalf("UpdateRunObjective = %+v err=%v", updated, err)
-	}
-	if _, err := runtime.UpdateRunObjective(ctx, goal.ID, " "); err == nil || !strings.Contains(err.Error(), "objective is required") {
-		t.Fatalf("blank objective err = %v", err)
-	}
-	chat := mustSaveRun(t, runtime, Run{ID: "objective-chat", Status: RunStatusRunning, WorkMode: WorkModeChat, CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{}})
-	if _, err := runtime.UpdateRunObjective(ctx, chat.ID, "x"); err == nil || !strings.Contains(err.Error(), "goal runs") {
-		t.Fatalf("chat objective err = %v", err)
-	}
-	childGoal := mustSaveRun(t, runtime, Run{ID: "objective-child", ParentRunID: goal.ID, Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{}})
-	if _, err := runtime.UpdateRunObjective(ctx, childGoal.ID, "x"); err == nil || !strings.Contains(err.Error(), "child run") {
-		t.Fatalf("child objective err = %v", err)
-	}
-	goal.Status = RunStatusCompleted
-	mustSaveRun(t, runtime, goal)
-	if _, err := runtime.UpdateRunObjective(ctx, goal.ID, "x"); err == nil || !strings.Contains(err.Error(), "terminal") {
-		t.Fatalf("terminal objective err = %v", err)
-	}
+type deleteErrorSessionService struct {
+	adksession.Service
+	err error
 }
 
-func TestApprovalRecoveryRecognizesBusySQLiteAndResolvableContexts(t *testing.T) {
-	busy := errors.New("append event to SessionService failed: database is locked")
-	if !isRetryableADKSessionBusy(busy) || !isRetryableADKSessionBusy(errors.New("Append Event To SessionService: SQLITE_BUSY")) {
-		t.Fatal("SQLite session busy errors should be recognized for bounded retry")
-	}
-	if isRetryableADKSessionBusy(errors.New("database is locked")) || isRetryableADKSessionBusy(nil) {
-		t.Fatal("unrelated or nil errors must not be retried as ADK session contention")
-	}
-	pending := Approval{Status: ApprovalStatusPending, FunctionCallID: "call", ConfirmationCallID: "confirmation"}
-	if !runHasRecoverableApprovalContext(Run{PendingApprovals: []Approval{pending}}) {
-		t.Fatal("pending approval with both call IDs should be recoverable")
-	}
-	if runHasRecoverableApprovalContext(Run{PendingApprovals: []Approval{{Status: ApprovalStatusPending, FunctionCallID: "call"}}}) {
-		t.Fatal("approval without a confirmation call cannot be rehydrated")
-	}
-	if !runCanContinueResolvedApproval(Run{Status: RunStatusRunning, ResumeState: "approval_resuming", PendingApprovals: []Approval{{Status: ApprovalStatusApproved, FunctionCallID: "call", ConfirmationCallID: "confirmation"}}}) {
-		t.Fatal("running resolved approval context should remain continuable")
-	}
-	if runCanContinueResolvedApproval(Run{Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning}) {
-		t.Fatal("workflow parents must be continued through their child workflow, not direct approval resume")
-	}
+func (service deleteErrorSessionService) Delete(context.Context, *adksession.DeleteRequest) error {
+	return service.err
+}
+
+func TestRunnerLifecycleBoundaryBranches(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("CompactSessionContext surfaces active-run lookup resolve-agent and prepareAgent errors", func(t *testing.T) {
+		activeRuntime := newTestRuntime(t)
+		activeAgent := mustSaveAgent(t, activeRuntime, AgentWriteRequest{
+			ID: "compact-active-lookup-agent", Name: "Compact Active Lookup", ProviderID: testProviderID, Status: AgentStatusEnabled,
+		})
+		activeSession := mustCreateSession(t, activeRuntime, activeAgent.ID, "compact active lookup")
+		if _, err := activeRuntime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
+			t.Fatalf("drop runs table(active lookup): %v", err)
+		}
+		if _, err := activeRuntime.CompactSessionContext(ctx, activeSession.ID, "normal", "manual", "lookup error"); err == nil || !strings.Contains(err.Error(), tableRuns) {
+			t.Fatalf("CompactSessionContext active lookup err = %v, want %s failure", err, tableRuns)
+		}
+
+		resolveRuntime := newTestRuntime(t)
+		resolveAgent, err := resolveRuntime.Store().SaveAgent(ctx, AgentWriteRequest{
+			ID: "compact-resolve-agent", Name: "Compact Resolve Agent", ProviderID: "", Status: AgentStatusEnabled,
+		})
+		if err != nil {
+			t.Fatalf("SaveAgent compact resolve: %v", err)
+		}
+		resolveSession := mustCreateSession(t, resolveRuntime, resolveAgent.ID, "compact resolve")
+		overrideProvider := "missing-provider"
+		if _, err := resolveRuntime.Store().SaveSessionComposerState(ctx, resolveSession.ID, SessionComposerStatePatch{
+			ProviderIDOverride: &overrideProvider,
+		}); err != nil {
+			t.Fatalf("SaveSessionComposerState override: %v", err)
+		}
+		if _, err := resolveRuntime.CompactSessionContext(ctx, resolveSession.ID, "normal", "manual", "resolve error"); err == nil || !strings.Contains(err.Error(), "provider") {
+			t.Fatalf("CompactSessionContext resolve err = %v, want provider error", err)
+		}
+
+		skillRuntime := newTestRuntime(t)
+		skillAgent := mustSaveAgent(t, skillRuntime, AgentWriteRequest{
+			ID: "compact-skill-agent", Name: "Compact Skill Agent", ProviderID: testProviderID, Status: AgentStatusEnabled,
+			Skills: []string{"missing-skill"},
+		})
+		skillSession := mustCreateSession(t, skillRuntime, skillAgent.ID, "compact skill")
+		if _, err := skillRuntime.CompactSessionContext(ctx, skillSession.ID, "normal", "manual", "prepare agent error"); err == nil || !strings.Contains(err.Error(), "skill not found") {
+			t.Fatalf("CompactSessionContext prepareAgent err = %v, want skill not found", err)
+		}
+	})
+
+	t.Run("TestProvider surfaces API key and capability update errors", func(t *testing.T) {
+		keyRuntime := newTestRuntime(t)
+		keyProvider := mustSaveProvider(t, keyRuntime, ProviderWriteRequest{
+			ID: "test-provider-bad-secrets", DisplayName: "Bad Secrets", BaseURL: "http://127.0.0.1:1/v1", Model: "model", APIKey: "sk-test", Enabled: true,
+		})
+		if err := os.WriteFile(keyRuntime.Store().SecretsPath(), []byte("{"), 0o600); err != nil {
+			t.Fatalf("write bad secrets file: %v", err)
+		}
+		if _, err := keyRuntime.TestProvider(ctx, keyProvider.ID); err == nil {
+			t.Fatal("TestProvider accepted malformed secrets file")
+		}
+	})
+
+	t.Run("TestProvider capability update and runtime delete session surface storage/session-service errors", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() { _ = r.Body.Close() }()
+			var req openAIChatRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(openAIChatResponse{
+				Choices: []struct {
+					Message openAIChatMessage `json:"message"`
+				}{{
+					Message: openAIChatMessage{Role: "assistant", Content: "health check ok"},
+				}},
+			}); err != nil {
+				t.Fatalf("Encode response: %v", err)
+			}
+		}))
+		defer server.Close()
+
+		updateRuntime := newTestRuntime(t)
+		updateProvider := mustSaveProvider(t, updateRuntime, ProviderWriteRequest{
+			ID: "test-provider-capability-update", DisplayName: "Capability Update", BaseURL: server.URL, Model: "model", APIKey: "sk-test", Enabled: true,
+		})
+		installFailTrigger(t, updateRuntime, "fail_provider_capability_update", tableProviders, "UPDATE", "provider capability update failed")
+		if _, err := updateRuntime.TestProvider(ctx, updateProvider.ID); err == nil || !strings.Contains(err.Error(), "provider capability update failed") {
+			t.Fatalf("TestProvider update err = %v, want capability update failure", err)
+		}
+
+		deleteLookupRuntime := newTestRuntime(t)
+		if _, err := deleteLookupRuntime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableSessions); err != nil {
+			t.Fatalf("drop sessions table(delete lookup): %v", err)
+		}
+		if err := deleteLookupRuntime.DeleteSession(ctx, "session"); err == nil || !strings.Contains(err.Error(), tableSessions) {
+			t.Fatalf("DeleteSession lookup err = %v, want %s failure", err, tableSessions)
+		}
+
+		deleteRuntime := newTestRuntime(t)
+		deleteAgent := mustSaveAgent(t, deleteRuntime, AgentWriteRequest{
+			ID: "delete-error-agent", Name: "Delete Error Agent", ProviderID: testProviderID, Status: AgentStatusEnabled,
+		})
+		deleteSession := mustCreateSession(t, deleteRuntime, deleteAgent.ID, "delete session service error")
+		deleteRuntime.sessionService = deleteErrorSessionService{Service: deleteRuntime.sessionService, err: errors.New("remote delete failed")}
+		if err := deleteRuntime.DeleteSession(ctx, deleteSession.ID); err == nil || !strings.Contains(err.Error(), "remote delete failed") {
+			t.Fatalf("DeleteSession remote err = %v, want remote delete failed", err)
+		}
+
+		notFoundRuntime := newTestRuntime(t)
+		notFoundAgent := mustSaveAgent(t, notFoundRuntime, AgentWriteRequest{
+			ID: "delete-not-found-agent", Name: "Delete Not Found Agent", ProviderID: testProviderID, Status: AgentStatusEnabled,
+		})
+		notFoundSession := mustCreateSession(t, notFoundRuntime, notFoundAgent.ID, "delete session service not found")
+		notFoundRuntime.sessionService = deleteErrorSessionService{Service: notFoundRuntime.sessionService, err: errors.New("remote session not found")}
+		if err := notFoundRuntime.DeleteSession(ctx, notFoundSession.ID); err != nil {
+			t.Fatalf("DeleteSession remote not found err = %v, want nil", err)
+		}
+		if _, ok, err := notFoundRuntime.Store().Session(ctx, notFoundSession.ID); err != nil || ok {
+			t.Fatalf("session after DeleteSession not found = ok:%v err:%v, want deleted", ok, err)
+		}
+	})
+
+	t.Run("resolveAgentDefinition and prepareAgent surface default and skill lookup failures", func(t *testing.T) {
+		defaultLookupRuntime := newTestRuntime(t)
+		if _, err := defaultLookupRuntime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableAgents); err != nil {
+			t.Fatalf("drop agents table(default lookup): %v", err)
+		}
+		if _, err := defaultLookupRuntime.resolveAgentDefinition(ctx, ""); err == nil || !strings.Contains(err.Error(), tableAgents) {
+			t.Fatalf("resolveAgentDefinition default lookup err = %v, want %s failure", err, tableAgents)
+		}
+
+		errorRuntime := newTestRuntime(t)
+		writeSkillDocument(t, errorRuntime.Store().SkillsPath(), "carrier", "---\nname: malformed-skill\n---\nCarrier.")
+		if err := os.MkdirAll(errorRuntime.Store().SkillsPath()+"/malformed-skill/SKILL.md", 0o755); err != nil {
+			t.Fatalf("MkdirAll malformed-skill/SKILL.md: %v", err)
+		}
+		if _, err := errorRuntime.prepareAgent(ctx, Agent{ID: "skill-lookup-error", Skills: []string{"malformed-skill"}}); err == nil {
+			t.Fatal("prepareAgent accepted malformed skill install path")
+		}
+	})
 }

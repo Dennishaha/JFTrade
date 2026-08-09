@@ -152,7 +152,7 @@ func TestModelsListToolReturnsCallableModelsWithoutKeys(t *testing.T) {
 		t.Fatalf("UpdateProviderCapabilities: %v", err)
 	}
 
-	raw, err := runtime.modelsListTool(ctx, map[string]any{"limit": 10})
+	raw, err := runtime.ModelsListTool(ctx, map[string]any{"limit": 10})
 	if err != nil {
 		t.Fatalf("models.list: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestModelsListToolReturnsCallableModelsWithoutKeys(t *testing.T) {
 	if strings.Contains(strings.ToLower(string(encoded)), "sk-") {
 		t.Fatalf("models.list leaked key material: %s", string(encoded))
 	}
-	rawAll, err := runtime.modelsListTool(ctx, map[string]any{"callableOnly": false, "limit": 10})
+	rawAll, err := runtime.ModelsListTool(ctx, map[string]any{"callableOnly": false, "limit": 10})
 	if err != nil {
 		t.Fatalf("models.list all: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestModelsListToolReturnsCallableModelsWithoutKeys(t *testing.T) {
 	if seen["disabled-provider"]["callable"] != false || seen["no-key-provider"]["hasApiKey"] != false || seen["no-key-provider"]["callable"] != false {
 		t.Fatalf("all models = %#v, want disabled/no-key diagnostics", allModels)
 	}
-	rawDisabled, err := runtime.modelsListTool(ctx, map[string]any{"providerId": "disabled-provider", "callableOnly": false})
+	rawDisabled, err := runtime.ModelsListTool(ctx, map[string]any{"providerId": "disabled-provider", "callableOnly": false})
 	if err != nil {
 		t.Fatalf("models.list disabled provider: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestModelsListToolReturnsCallableModelsWithoutKeys(t *testing.T) {
 	if len(disabledModels) != 1 || disabledModels[0]["providerId"] != "disabled-provider" || disabledModels[0]["callable"] != false {
 		t.Fatalf("disabled provider models = %#v, want disabled provider diagnostic", disabledModels)
 	}
-	rawVision, err := runtime.modelsListTool(ctx, map[string]any{"query": "vision"})
+	rawVision, err := runtime.ModelsListTool(ctx, map[string]any{"query": "vision"})
 	if err != nil {
 		t.Fatalf("models.list vision query: %v", err)
 	}
@@ -278,7 +278,7 @@ func TestRuntimeSnapshotProviderProbeAndDeleteSession(t *testing.T) {
 
 	session := mustCreateSession(t, runtime, agent.ID, "Runtime Delete Session")
 	if _, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	}); err != nil {
@@ -291,7 +291,7 @@ func TestRuntimeSnapshotProviderProbeAndDeleteSession(t *testing.T) {
 		t.Fatalf("deleted session lookup ok=%v err=%v", ok, err)
 	}
 	if _, err := runtime.rawSessionService.Get(ctx, &adksession.GetRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	}); err == nil {

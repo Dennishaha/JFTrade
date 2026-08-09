@@ -142,12 +142,12 @@ func newDesktopSecuritySettingsServer(t *testing.T) (*Server, *httptest.Server, 
 	store, err := NewSettingsStore(settingsPath)
 	jftradeCheckTestError(t, err)
 	server := newTestServer(t, store)
-	server.auth.enforceAccess = true
+	server.auth.SetEnforceAccess(true)
 	server.desktopAPIToken = "test-desktop-capability"
 	server.ApplySecuritySettings(store.SecuritySettings())
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
-	server.auth.configureOrigins(srv.URL)
+	server.auth.ConfigureOrigins(srv.URL)
 	return server, srv, settingsPath
 }
 

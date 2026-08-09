@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/futuapp"
+	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
@@ -18,9 +19,9 @@ func newFutuRuntimeCoordinator(s *serverApplication) *futuapp.Coordinator {
 		Registry:          s.runtimes.Brokers(),
 		MarketDataRuntime: func() futuapp.MarketDataRuntime { return s.runtimes.MarketData() },
 		RuntimeDependencies: func(ctx context.Context) map[string]any {
-			return s.runtimeDependencies(ctx)
+			return apiruntime.Dependencies(ctx, s.pineWorkerSettings())
 		},
-		LiveStreamStats: s.liveStreamStats,
+		LiveStreamStats: func() (int, int, bool) { return liveStreamStats(s) },
 		MarketDataState: func() mdsrv.RuntimeState {
 			if s.marketdataSvc == nil {
 				return mdsrv.RuntimeState{}

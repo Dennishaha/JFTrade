@@ -11,6 +11,7 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
@@ -66,19 +67,23 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 		return ChatResponse{}, err
 	}
 	if workMode != WorkModeChat {
-		return r.workflowExecutor().Run(ctx, workflowRequest{
+		executor, err := r.workflowExecutor()
+		if err != nil {
+			return ChatResponse{}, err
+		}
+		return executor.Run(ctx, workflowRequest{
 			Agent: agent, Session: session, Message: text, Mode: workMode, Objective: objective,
 			RunOptions: runOptions, OnDelta: onDelta, EmitRun: emitRun,
 			ClientRequestID: req.ClientRequestID, RequestFingerprint: requestFingerprint,
 		})
 	}
-	run, runCtx, finishRun, err := r.startRunWithOptions(ctx, session.ID, agent, text, runStartOptions{
+	run, runCtx, finishRun, err := r.StartRunWithOptions(ctx, session.ID, agent, text, RunStartOptions{
 		WorkMode: agent.WorkMode, ClientRequestID: req.ClientRequestID, RequestFingerprint: requestFingerprint,
 	})
 	if err != nil {
-		var reused *reusedChatRequestError
+		var reused *ReusedChatRequestError
 		if errors.As(err, &reused) {
-			return r.chatResponseForExistingRun(ctx, reused.Run)
+			return r.ChatResponseForExistingRun(ctx, reused.Run)
 		}
 		return ChatResponse{}, err
 	}
@@ -88,9 +93,9 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 			return ChatResponse{}, err
 		}
 	}
-	toolContext, approvals, replyResult, preToolContent, preToolReasoning, adkErr := r.executeGoogleADK(runCtx, agent, session, run.ID, text, onDelta)
-	run = hydrateRunExecutionResult(run, toolContext, approvals, preToolContent, preToolReasoning)
-	return r.completeChatRun(runCtx, session, run, text, toolContext, approvals, replyResult, adkErr)
+	toolContext, approvals, replyResult, preToolContent, preToolReasoning, adkErr := r.ExecuteGoogleADK(runCtx, agent, session, run.ID, text, onDelta)
+	run = HydrateRunExecutionResult(run, toolContext, approvals, preToolContent, preToolReasoning)
+	return r.CompleteChatRun(runCtx, session, run, text, toolContext, approvals, replyResult, adkErr)
 }
 
 func (r *Runtime) reusedChatResponse(ctx context.Context, req ChatRequest, requestFingerprint string) (ChatResponse, bool, error) {
@@ -111,11 +116,11 @@ func (r *Runtime) reusedChatResponse(ctx context.Context, req ChatRequest, reque
 	}
 	observability.InfoWithImportance(ctx, observability.ImportanceNormal, "adk chat request reused",
 		"request_state", "reused", "client_request_id", req.ClientRequestID, "run_id", existing.ID)
-	response, err := r.chatResponseForExistingRun(ctx, existing)
+	response, err := r.ChatResponseForExistingRun(ctx, existing)
 	return response, true, err
 }
 
-func (r *Runtime) chatResponseForExistingRun(ctx context.Context, run Run) (ChatResponse, error) {
+func (r *Runtime) ChatResponseForExistingRun(ctx context.Context, run Run) (ChatResponse, error) {
 	session, ok, err := r.store.Session(ctx, run.SessionID)
 	if err != nil {
 		return ChatResponse{}, err
@@ -123,56 +128,22 @@ func (r *Runtime) chatResponseForExistingRun(ctx context.Context, run Run) (Chat
 	if !ok {
 		return ChatResponse{}, fmt.Errorf("session not found: %s", run.SessionID)
 	}
-	return r.projectedChatResponse(ctx, session, run, assistantExecutionResult{}), nil
+	return r.ProjectedChatResponse(ctx, session, run, assistantExecutionResult{}), nil
 }
 
-func resolveChatWorkflowOptions(req ChatRequest, agent Agent) (string, RunOptions, string, error) {
-	if !validWorkMode(req.WorkModeOverride) {
-		return "", RunOptions{}, "", fmt.Errorf("invalid work mode %q", req.WorkModeOverride)
-	}
-	mode := normalizeWorkMode(agent.WorkMode)
-	if strings.TrimSpace(req.WorkModeOverride) != "" {
-		mode = normalizeWorkMode(req.WorkModeOverride)
-	}
-	options := RunOptions{
-		LoopMaxIterations: normalizeLoopMaxIterations(agent.LoopMaxIterations),
-	}
-	if req.RunOptions != nil {
-		if req.RunOptions.LoopMaxIterations > 0 {
-			options.LoopMaxIterations = normalizeLoopMaxIterations(req.RunOptions.LoopMaxIterations)
-		}
-	}
-	objective := strings.TrimSpace(req.Objective)
-	if objective == "" {
-		objective = strings.TrimSpace(req.Message)
-	}
-	return mode, options, objective, nil
-}
-
-func validateChatOverrides(req ChatRequest) (string, error) {
-	if !validWorkMode(req.WorkModeOverride) {
-		return "", fmt.Errorf("invalid work mode %q", req.WorkModeOverride)
-	}
-	permissionMode := strings.TrimSpace(req.PermissionModeOverride)
-	if permissionMode != "" && !validPermissionMode(permissionMode) {
-		return "", fmt.Errorf("invalid permission mode %q", permissionMode)
-	}
-	return permissionMode, nil
-}
-
-func (r *Runtime) completeChatRun(
+func (r *Runtime) CompleteChatRun(
 	ctx context.Context,
 	session Session,
 	run Run,
 	text string,
-	toolContext toolExecutionContext,
+	toolContext ToolExecutionContext,
 	approvals []Approval,
 	replyResult assistantExecutionResult,
 	adkErr error,
 ) (ChatResponse, error) {
 	ctx = adkRunObservabilityContext(ctx, run)
-	if toolContext.inputRequest != nil {
-		return r.finishPendingInputRun(ctx, session, run, toolContext.inputRequest)
+	if toolContext.InputRequest != nil {
+		return r.FinishPendingInputRun(ctx, session, run, toolContext.InputRequest)
 	}
 	if len(approvals) > 0 {
 		return r.finishPendingApprovalRun(ctx, session, run, approvals)
@@ -180,7 +151,7 @@ func (r *Runtime) completeChatRun(
 	if adkErr != nil {
 		observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "adk run failed", adkErr, "status", RunStatusFailed)
 		run = markFailedChatRun(ctx, run, adkErr)
-		if err := r.persistRunTerminalState(ctx, run); err != nil {
+		if err := r.PersistRunTerminalState(ctx, run); err != nil {
 			return ChatResponse{}, err
 		}
 		replyResult = assistantExecutionResult{Reply: userFacingADKError(adkErr), SyntheticKind: "provider_error"}
@@ -190,22 +161,22 @@ func (r *Runtime) completeChatRun(
 		if toolFailure != "" && strings.TrimSpace(replyResult.Reply) == "" {
 			replyResult = assistantExecutionResult{Reply: toolFailure, SyntheticKind: "tool_failure"}
 		}
-		if err := r.persistRunTerminalState(ctx, run); err != nil {
+		if err := r.PersistRunTerminalState(ctx, run); err != nil {
 			return ChatResponse{}, err
 		}
 		observability.InfoWithImportance(ctx, observability.ImportanceNormal, "adk run finished", "status", run.Status, "tool_calls", len(run.ToolCalls))
 	}
 	var err error
-	run, err = r.attachFinalAssistantMessage(ctx, session, run, replyResult)
+	run, err = r.AttachFinalAssistantMessage(ctx, session, run, replyResult)
 	if err != nil {
 		return ChatResponse{}, err
 	}
-	return r.projectedChatResponse(ctx, session, run, replyResult), nil
+	return r.ProjectedChatResponse(ctx, session, run, replyResult), nil
 }
 
 func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session, run Run, approvals []Approval) (ChatResponse, error) {
 	ctx = adkRunObservabilityContext(ctx, run)
-	run.PendingApprovals = pendingApprovalsOnly(approvals)
+	run.PendingApprovals = PendingApprovalsOnly(approvals)
 	run.Status = RunStatusPending
 	run.ResumeState = "waiting_approval"
 	run.Message = "等待用户审批后继续执行。"
@@ -217,17 +188,7 @@ func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session,
 	})
 	observability.InfoWithImportance(ctx, observability.ImportanceNormal, "adk run awaiting approval", "status", run.Status, "pending_approvals", len(run.PendingApprovals))
 	reply := "我已经准备好执行需要授权的操作，请先在 ADK 审批队列里确认或拒绝。"
-	return r.projectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: reply}), nil
-}
-
-func applyChatModelOverride(agent Agent, req ChatRequest) Agent {
-	if providerID := strings.TrimSpace(req.ProviderID); providerID != "" {
-		agent.ProviderID = providerID
-	}
-	if model := strings.TrimSpace(req.Model); model != "" {
-		agent.Model = model
-	}
-	return agent
+	return r.ProjectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: reply}), nil
 }
 
 func (r *Runtime) prepareChatRequest(ctx context.Context, req ChatRequest) (string, error) {
@@ -252,27 +213,17 @@ func (r *Runtime) prepareChatRequest(ctx context.Context, req ChatRequest) (stri
 	}
 }
 
-func hydrateRunExecutionResult(
+func HydrateRunExecutionResult(
 	run Run,
-	toolContext toolExecutionContext,
+	toolContext ToolExecutionContext,
 	approvals []Approval,
 	preToolContent string,
 	preToolReasoning string,
 ) Run {
-	run.ToolCalls = toolContext.calls
-	run.ToolSummaries = toolContext.summaries
-	run.PreToolContent = preToolContent
-	run.PreToolReasoning = preToolReasoning
-	run.OptimizationTaskID = optimizationTaskID(toolContext.calls)
-	run.PendingApprovals = approvals
-	run.InputRequest = normalizeInputRequest(toolContext.inputRequest)
-	if run.Usage != nil {
-		run.Usage.ToolCallsTotal = len(toolContext.calls)
-	}
-	return run
+	return jfadkmodel.HydrateRunExecutionResult(run, toolContext, approvals, preToolContent, preToolReasoning)
 }
 
-func (r *Runtime) finishPendingInputRun(ctx context.Context, session Session, run Run, request *InputRequest) (ChatResponse, error) {
+func (r *Runtime) FinishPendingInputRun(ctx context.Context, session Session, run Run, request *InputRequest) (ChatResponse, error) {
 	run.InputRequest = normalizeInputRequest(request)
 	run.InputRequests = appendInputRequestIfMissing(run.InputRequests, *request)
 	run.Status = RunStatusPendingInput
@@ -284,34 +235,15 @@ func (r *Runtime) finishPendingInputRun(ctx context.Context, session Session, ru
 	r.audit(ctx, "run.awaiting_input", run.ID, "Agent run is waiting for user input.", map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "requestId": request.ID,
 	})
-	return r.projectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: "我需要你确认几个选择，回答后会继续执行。"}), nil
+	return r.ProjectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: "我需要你确认几个选择，回答后会继续执行。"}), nil
 }
 
 func markFailedChatRun(ctx context.Context, run Run, adkErr error) Run {
-	run.Status = runStatusForContext(ctx, adkErr)
-	run.Message = adkErr.Error()
-	run.FailureReason = adkErr.Error()
-	run.ErrorCode = runErrorCode(run.Status, adkErr)
-	run.Degraded = true
-	completedAt := nowString()
-	run.CompletedAt = &completedAt
-	if run.Status == RunStatusCancelled {
-		run.CancelledAt = &completedAt
-	}
-	finalizeRunUsage(&run)
-	return run
+	return jfadkmodel.MarkFailedChatRun(ctx, run, adkErr)
 }
 
 func markCompletedChatRun(run Run) (Run, string) {
-	run.Status = RunStatusCompleted
-	run.CompletedAt = new(nowString())
-	run.Message = "completed"
-	run.FailureReason = ""
-	run.ErrorCode = ""
-	toolFailure := firstToolCallFailure(&run)
-	run.Degraded = toolFailure != ""
-	finalizeRunUsage(&run)
-	return run, toolFailure
+	return jfadkmodel.MarkCompletedChatRun(run)
 }
 
 func (r *Runtime) persistRunActivitySnapshot(ctx context.Context, snapshot Run) (Run, error) {
@@ -324,12 +256,12 @@ func (r *Runtime) persistRunActivitySnapshot(ctx context.Context, snapshot Run) 
 	}
 	if ok {
 		mergeRunActivitySnapshot(&run, snapshot)
-		return r.saveRunPreservingUserGoalPause(ctx, run)
+		return r.SaveRunPreservingUserGoalPause(ctx, run)
 	}
-	return r.saveRunPreservingUserGoalPause(ctx, snapshot)
+	return r.SaveRunPreservingUserGoalPause(ctx, snapshot)
 }
 
-func (r *Runtime) authoritativeRunSnapshot(ctx context.Context, run Run) Run {
+func (r *Runtime) AuthoritativeRunSnapshot(ctx context.Context, run Run) Run {
 	run = NormalizeRun(run)
 	if r == nil || r.store == nil || strings.TrimSpace(run.ID) == "" {
 		return run
@@ -341,73 +273,7 @@ func (r *Runtime) authoritativeRunSnapshot(ctx context.Context, run Run) Run {
 	return NormalizeRun(stored)
 }
 
-func mergeRunActivitySnapshot(run *Run, snapshot Run) {
-	if run == nil {
-		return
-	}
-	if strings.TrimSpace(snapshot.SessionID) != "" {
-		run.SessionID = snapshot.SessionID
-	}
-	if strings.TrimSpace(snapshot.AgentID) != "" {
-		run.AgentID = snapshot.AgentID
-	}
-	if strings.TrimSpace(snapshot.ProviderID) != "" {
-		run.ProviderID = snapshot.ProviderID
-	}
-	if strings.TrimSpace(snapshot.Status) != "" {
-		run.Status = snapshot.Status
-	}
-	if strings.TrimSpace(snapshot.Message) != "" {
-		run.Message = snapshot.Message
-	}
-	if strings.TrimSpace(snapshot.FailureReason) != "" {
-		run.FailureReason = snapshot.FailureReason
-	}
-	if strings.TrimSpace(snapshot.ErrorCode) != "" {
-		run.ErrorCode = snapshot.ErrorCode
-	}
-	if snapshot.Degraded {
-		run.Degraded = true
-	}
-	if strings.TrimSpace(snapshot.PreToolContent) != "" {
-		run.PreToolContent = snapshot.PreToolContent
-	}
-	if strings.TrimSpace(snapshot.PreToolReasoning) != "" {
-		run.PreToolReasoning = snapshot.PreToolReasoning
-	}
-	if len(snapshot.ToolSummaries) > 0 {
-		run.ToolSummaries = append([]string(nil), snapshot.ToolSummaries...)
-	}
-	if len(snapshot.ToolCalls) > 0 {
-		run.ToolCalls = append([]ToolCall(nil), snapshot.ToolCalls...)
-	}
-	if len(snapshot.PendingApprovals) > 0 {
-		run.PendingApprovals = append([]Approval(nil), snapshot.PendingApprovals...)
-	}
-	if strings.TrimSpace(snapshot.ResumeState) != "" {
-		run.ResumeState = snapshot.ResumeState
-	}
-	if strings.TrimSpace(snapshot.FinalMessageID) != "" {
-		run.FinalMessageID = snapshot.FinalMessageID
-	}
-	if snapshot.Usage != nil {
-		run.Usage = new(*snapshot.Usage)
-	}
-	if strings.TrimSpace(snapshot.StartedAt) != "" {
-		run.StartedAt = snapshot.StartedAt
-	}
-	if snapshot.CompletedAt != nil {
-		run.CompletedAt = new(*snapshot.CompletedAt)
-	}
-	if snapshot.CancelledAt != nil {
-		run.CancelledAt = new(*snapshot.CancelledAt)
-	}
-	if strings.TrimSpace(snapshot.OptimizationTaskID) != "" {
-		run.OptimizationTaskID = snapshot.OptimizationTaskID
-	}
-}
-
-func (r *Runtime) persistRunTerminalState(ctx context.Context, run Run) error {
+func (r *Runtime) PersistRunTerminalState(ctx context.Context, run Run) error {
 	if err := r.store.SaveRun(ctx, run); err != nil {
 		return err
 	}
@@ -415,7 +281,7 @@ func (r *Runtime) persistRunTerminalState(ctx context.Context, run Run) error {
 	return nil
 }
 
-func (r *Runtime) attachFinalAssistantMessage(
+func (r *Runtime) AttachFinalAssistantMessage(
 	ctx context.Context,
 	session Session,
 	run Run,
@@ -424,7 +290,7 @@ func (r *Runtime) attachFinalAssistantMessage(
 	if strings.TrimSpace(replyResult.SourceEventID) == "" && strings.TrimSpace(replyResult.SyntheticKind) == "" {
 		replyResult.SyntheticKind = "local_fallback"
 	}
-	message, err := r.ensureAssistantMessage(ctx, session, run, replyResult)
+	message, err := r.EnsureAssistantMessage(ctx, session, run, replyResult)
 	if err != nil {
 		return run, err
 	}
@@ -441,7 +307,7 @@ func (r *Runtime) attachFinalAssistantMessage(
 	return run, nil
 }
 
-func (r *Runtime) ensureAssistantMessage(
+func (r *Runtime) EnsureAssistantMessage(
 	ctx context.Context,
 	session Session,
 	run Run,
@@ -466,7 +332,7 @@ func (r *Runtime) assistantMessageByID(ctx context.Context, session Session, mes
 	}
 	if r.rawSessionService != nil {
 		response, err := r.rawSessionService.Get(ctx, &adksession.GetRequest{
-			AppName: googleADKAppName(session.AgentID), UserID: googleADKUserID, SessionID: session.ID,
+			AppName: GoogleADKAppName(session.AgentID), UserID: googleADKUserID, SessionID: session.ID,
 		})
 		if err != nil && !isADKSessionNotFound(err) {
 			return TranscriptEntry{}, false, err
@@ -510,13 +376,13 @@ func (r *Runtime) appendAssistantMessageEvent(
 		return TranscriptEntry{}, fmt.Errorf("adk session service is unavailable")
 	}
 	response, err := r.rawSessionService.Get(ctx, &adksession.GetRequest{
-		AppName:   googleADKAppName(defaultString(session.AgentID, run.AgentID)),
+		AppName:   GoogleADKAppName(defaultString(session.AgentID, run.AgentID)),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
 	if err != nil {
 		created, createErr := r.rawSessionService.Create(ctx, &adksession.CreateRequest{
-			AppName:   googleADKAppName(defaultString(session.AgentID, run.AgentID)),
+			AppName:   GoogleADKAppName(defaultString(session.AgentID, run.AgentID)),
 			UserID:    googleADKUserID,
 			SessionID: session.ID,
 		})
@@ -559,19 +425,19 @@ func syntheticAssistantMessageID(runID string, result assistantExecutionResult) 
 	return fmt.Sprintf("jftrade-%s-%s-%x", strings.TrimSpace(runID), kind, digest[:8])
 }
 
-func (r *Runtime) projectedChatResponse(
+func (r *Runtime) ProjectedChatResponse(
 	ctx context.Context,
 	session Session,
 	run Run,
 	replyResult assistantExecutionResult,
 ) ChatResponse {
-	run = r.authoritativeRunSnapshot(ctx, run)
+	run = r.AuthoritativeRunSnapshot(ctx, run)
 	response := ChatResponse{
 		Reply:            replyResult.Reply,
 		ReasoningContent: replyResult.ReasoningContent,
 		Session:          session,
 		Run:              run,
-		PendingApprovals: pendingApprovalsOnly(run.PendingApprovals),
+		PendingApprovals: PendingApprovalsOnly(run.PendingApprovals),
 		InputRequest:     normalizeInputRequest(run.InputRequest),
 		Timeline:         []TimelineEntry{},
 		Context:          r.contextSnapshotForRunOrNil(ctx, session, run),
@@ -588,7 +454,7 @@ func (r *Runtime) projectedChatResponse(
 		response.ReasoningContent = message.ReasoningContent
 	}
 	if len(response.PendingApprovals) == 0 && len(projection.PendingApprovals) > 0 {
-		response.PendingApprovals = pendingApprovalsOnly(projection.PendingApprovals)
+		response.PendingApprovals = PendingApprovalsOnly(projection.PendingApprovals)
 	}
 	response.Run = applySessionProjectionToRun(response.Run, projection)
 	response.Run.PendingApprovals = append([]Approval(nil), response.PendingApprovals...)
@@ -598,31 +464,12 @@ func (r *Runtime) projectedChatResponse(
 	return NormalizeChatResponse(response)
 }
 
-func projectedAssistantMessageForRun(projection SessionProjection, run Run) *TranscriptEntry {
-	finalMessageID := strings.TrimSpace(run.FinalMessageID)
-	if finalMessageID != "" {
-		if message, ok := projection.MessagesByEventID[finalMessageID]; ok {
-			return new(message)
-		}
-	}
-	for index := range projection.Messages {
-		message := &projection.Messages[index]
-		if finalMessageID != "" && message.ID == finalMessageID {
-			return message
-		}
-		if finalMessageID == "" && strings.TrimSpace(message.RunID) == strings.TrimSpace(run.ID) {
-			return message
-		}
-	}
-	return nil
-}
-
 func normalizedTimelineEntries(entries []TimelineEntry) []TimelineEntry {
 	return normalizeTimelineEntries(entries)
 }
 
 func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
-	run.PendingApprovals = pendingApprovalsOnly(run.PendingApprovals)
+	run.PendingApprovals = PendingApprovalsOnly(run.PendingApprovals)
 	if strings.TrimSpace(run.FinalMessageID) == "" && strings.TrimSpace(projection.FinalMessageID) != "" {
 		run.FinalMessageID = projection.FinalMessageID
 	}
@@ -632,7 +479,7 @@ func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
 	if strings.TrimSpace(projection.PreToolReasoning) != "" {
 		run.PreToolReasoning = projection.PreToolReasoning
 	}
-	projectedPendingApprovals := pendingApprovalsOnly(projection.PendingApprovals)
+	projectedPendingApprovals := PendingApprovalsOnly(projection.PendingApprovals)
 	if len(projectedPendingApprovals) > 0 {
 		run.PendingApprovals = projectedPendingApprovals
 	}
@@ -647,83 +494,16 @@ func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
 		}
 	}
 	if run.Status == RunStatusPaused && run.PausedReason == "user" {
-		run, _ = pruneInterruptedGoalWorkflowToolCalls(run)
+		run, _ = jfadkmodel.PruneInterruptedGoalWorkflowToolCalls(run)
 	}
 	return NormalizeRun(run)
-}
-
-func shouldPreferProjectedToolCalls(run Run, projected []ToolCall) bool {
-	current := run.ToolCalls
-	if len(projected) == 0 {
-		return false
-	}
-	if len(current) == 0 {
-		if strings.TrimSpace(run.ParentRunID) == "" && normalizeWorkMode(run.WorkMode) != WorkModeChat {
-			return false
-		}
-		return true
-	}
-	projectedTerminal := terminalToolCallCount(projected)
-	currentTerminal := terminalToolCallCount(current)
-	if projectedTerminal != currentTerminal {
-		return projectedTerminal > currentTerminal
-	}
-	projectedPending := pendingApprovalToolCallCount(projected)
-	currentPending := pendingApprovalToolCallCount(current)
-	if projectedPending != currentPending {
-		return projectedPending > currentPending
-	}
-	return len(projected) > len(current)
-}
-
-func terminalToolCallCount(calls []ToolCall) int {
-	count := 0
-	for _, call := range calls {
-		switch call.Status {
-		case "SUCCEEDED", "FAILED", "DENIED", "COMPLETED", "CANCELLED", "TIMED_OUT":
-			count++
-		}
-	}
-	return count
-}
-
-func pendingApprovalToolCallCount(calls []ToolCall) int {
-	count := 0
-	for _, call := range calls {
-		if call.Status == "PENDING_APPROVAL" {
-			count++
-		}
-	}
-	return count
-}
-
-func terminalAuditMessage(status string) string {
-	if status == RunStatusCompleted {
-		return "Agent run completed."
-	}
-	return "Agent run finished with a terminal status."
-}
-
-func terminalAuditFields(run Run) map[string]any {
-	fields := map[string]any{
-		"runId":   run.ID,
-		"agentId": run.AgentID,
-		"status":  run.Status,
-	}
-	if run.ErrorCode != "" {
-		fields["errorCode"] = run.ErrorCode
-	}
-	if run.FailureReason != "" {
-		fields["failureReason"] = run.FailureReason
-	}
-	return fields
 }
 
 func (r *Runtime) maybeAutoCompactSession(ctx context.Context, session Session, agent Agent, pendingUserText string, onDelta func(ChatDelta) error) error {
 	return r.maybeAutoCompactSessionWithOptions(ctx, session, agent, pendingUserText, onDelta, false)
 }
 
-func (r *Runtime) maybeAutoCompactSessionDuringWorkflow(ctx context.Context, session Session, agent Agent, pendingUserText string, onDelta func(ChatDelta) error) error {
+func (r *Runtime) MaybeAutoCompactSessionDuringWorkflow(ctx context.Context, session Session, agent Agent, pendingUserText string, onDelta func(ChatDelta) error) error {
 	return r.maybeAutoCompactSessionWithOptions(ctx, session, agent, pendingUserText, onDelta, true)
 }
 
@@ -813,4 +593,44 @@ func (r *Runtime) contextSnapshotForRunOrNil(ctx context.Context, session Sessio
 		return r.contextSnapshotOrNil(ctx, session.ID)
 	}
 	return &snapshot
+}
+
+func resolveChatWorkflowOptions(req ChatRequest, agent Agent) (string, RunOptions, string, error) {
+	return jfadkmodel.ResolveChatWorkflowOptions(req, agent)
+}
+
+func validateChatOverrides(req ChatRequest) (string, error) {
+	return jfadkmodel.ValidateChatOverrides(req)
+}
+
+func applyChatModelOverride(agent Agent, req ChatRequest) Agent {
+	return jfadkmodel.ApplyChatModelOverride(agent, req)
+}
+
+func mergeRunActivitySnapshot(run *Run, snapshot Run) {
+	jfadkmodel.MergeRunActivitySnapshot(run, snapshot)
+}
+
+func projectedAssistantMessageForRun(projection SessionProjection, run Run) *TranscriptEntry {
+	return jfadkmodel.ProjectedAssistantMessageForRun(projection, run)
+}
+
+func shouldPreferProjectedToolCalls(run Run, projected []ToolCall) bool {
+	return jfadkmodel.ShouldPreferProjectedToolCalls(run, projected)
+}
+
+func terminalToolCallCount(calls []ToolCall) int {
+	return jfadkmodel.TerminalToolCallCount(calls)
+}
+
+func pendingApprovalToolCallCount(calls []ToolCall) int {
+	return jfadkmodel.PendingApprovalToolCallCount(calls)
+}
+
+func terminalAuditMessage(status string) string {
+	return jfadkmodel.TerminalAuditMessage(status)
+}
+
+func terminalAuditFields(run Run) map[string]any {
+	return jfadkmodel.TerminalAuditFields(run)
 }

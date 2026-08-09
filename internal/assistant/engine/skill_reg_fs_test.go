@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
+
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
 )
 
 func TestSkillRegistryListSortsBySourceAndDefaultsFilesystemMetadata(t *testing.T) {
@@ -138,7 +140,7 @@ func TestSkillRegistryAdditionalBoundaryBranches(t *testing.T) {
 		instructions: map[string]string{"allowed": "allowed instructions"},
 		resources:    map[string]map[string]string{"allowed": {"guide.md": "guide"}},
 	}
-	filtered := &filteredSkillSource{base: base, allowed: map[string]struct{}{"allowed": {}}}
+	filtered := &filteredSkillSource{Base: base, Allowed: map[string]struct{}{"allowed": {}}}
 	frontmatters, err := filtered.ListFrontmatters(ctx)
 	if err != nil || len(frontmatters) != 1 || frontmatters[0].Name != "allowed" {
 		t.Fatalf("filtered ListFrontmatters = %#v err=%v", frontmatters, err)
@@ -156,8 +158,8 @@ func TestSkillRegistryAdditionalBoundaryBranches(t *testing.T) {
 		t.Fatalf("filtered resource = %q err=%v", string(raw), err)
 	}
 	filteredErr := &filteredSkillSource{
-		base:    &googleADKFakeSkillSource{frontmatterErr: errors.New("frontmatter list failed")},
-		allowed: map[string]struct{}{"allowed": {}},
+		Base:    &googleADKFakeSkillSource{frontmatterErr: errors.New("frontmatter list failed")},
+		Allowed: map[string]struct{}{"allowed": {}},
 	}
 	if _, err := filteredErr.ListFrontmatters(ctx); err == nil || !strings.Contains(err.Error(), "frontmatter list failed") {
 		t.Fatalf("filtered ListFrontmatters error = %v", err)
@@ -177,11 +179,11 @@ func TestSkillRegistryAdditionalBoundaryBranches(t *testing.T) {
 		t.Fatal("skillFromFrontmatter directory read err = nil, want error")
 	}
 
-	originalBuiltinSpecs := builtinSkillSpecs
-	builtinSkillSpecs = []builtinSkillSpec{{Name: "broken-builtin", BuildBundle: func() (map[string]string, error) {
+	originalBuiltinSpecs := skillsruntime.BuiltinSkillSpecs
+	skillsruntime.BuiltinSkillSpecs = []skillsruntime.BuiltinSkillSpec{{Name: "broken-builtin", BuildBundle: func() (map[string]string, error) {
 		return nil, errors.New("build bundle failed")
 	}}}
-	t.Cleanup(func() { builtinSkillSpecs = originalBuiltinSpecs })
+	t.Cleanup(func() { skillsruntime.BuiltinSkillSpecs = originalBuiltinSpecs })
 	if err := (&SkillRegistry{skillsPath: t.TempDir()}).ensureBuiltins(); err == nil || !strings.Contains(err.Error(), "build bundle failed") {
 		t.Fatalf("ensureBuiltins build error = %v", err)
 	}

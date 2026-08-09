@@ -14,6 +14,8 @@ import (
 	"testing"
 
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
+
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
 )
 
 func TestSkillRegistryFilteredSourceExposesOnlyAllowedResources(t *testing.T) {
@@ -83,23 +85,23 @@ func TestBuiltinSkillMetadataRejectsInvalidBundles(t *testing.T) {
 	sentinel := errors.New("bundle failed")
 	tests := []struct {
 		name string
-		spec builtinSkillSpec
+		spec skillsruntime.BuiltinSkillSpec
 	}{
-		{name: "build error", spec: builtinSkillSpec{Name: "broken", BuildBundle: func() (map[string]string, error) { return nil, sentinel }}},
-		{name: "missing document", spec: builtinSkillSpec{Name: "missing", BuildBundle: func() (map[string]string, error) { return map[string]string{}, nil }}},
-		{name: "invalid document", spec: builtinSkillSpec{Name: "invalid", BuildBundle: func() (map[string]string, error) { return map[string]string{"SKILL.md": "---\nname: [\n---"}, nil }}},
-		{name: "name mismatch", spec: builtinSkillSpec{Name: "expected", BuildBundle: func() (map[string]string, error) {
+		{name: "build error", spec: skillsruntime.BuiltinSkillSpec{Name: "broken", BuildBundle: func() (map[string]string, error) { return nil, sentinel }}},
+		{name: "missing document", spec: skillsruntime.BuiltinSkillSpec{Name: "missing", BuildBundle: func() (map[string]string, error) { return map[string]string{}, nil }}},
+		{name: "invalid document", spec: skillsruntime.BuiltinSkillSpec{Name: "invalid", BuildBundle: func() (map[string]string, error) { return map[string]string{"SKILL.md": "---\nname: [\n---"}, nil }}},
+		{name: "name mismatch", spec: skillsruntime.BuiltinSkillSpec{Name: "expected", BuildBundle: func() (map[string]string, error) {
 			return map[string]string{"SKILL.md": "---\nname: actual\ndescription: test\n---\nBody"}, nil
 		}}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := builtinSkillMetadata(test.spec); err == nil {
+			if _, err := skillsruntime.BuiltinSkillMetadata(test.spec); err == nil {
 				t.Fatal("builtinSkillMetadata() error = nil")
 			}
 		})
 	}
-	skill, err := builtinSkillMetadata(builtinSkillSpec{
+	skill, err := skillsruntime.BuiltinSkillMetadata(skillsruntime.BuiltinSkillSpec{
 		Name: "fallback-display",
 		BuildBundle: func() (map[string]string, error) {
 			return map[string]string{"SKILL.md": "---\nname: fallback-display\ndescription: test\n---\nBody"}, nil
@@ -143,14 +145,14 @@ func TestSkillRegistryArchiveRejectsUnsafeOrAmbiguousBundles(t *testing.T) {
 
 	_, err = runtime.Skills().installArchive(ctx, "https://example.com/huge.zip", zipArchive(t, map[string]string{
 		"huge/SKILL.md": "---\nname: huge\n---\nHuge.",
-		"huge/blob.bin": strings.Repeat("x", maxSkillArchiveSize+1),
+		"huge/blob.bin": strings.Repeat("x", skillsruntime.MaxSkillArchiveSize+1),
 	}))
 	if err == nil || !strings.Contains(err.Error(), "after extraction") {
 		t.Fatalf("huge archive err = %v", err)
 	}
 
 	_, err = runtime.Skills().installArchive(ctx, "https://example.com/huge-skill.zip", zipArchive(t, map[string]string{
-		"huge-skill/SKILL.md": "---\nname: huge-skill\n---\n" + strings.Repeat("x", maxSkillFileSize+1),
+		"huge-skill/SKILL.md": "---\nname: huge-skill\n---\n" + strings.Repeat("x", skillsruntime.MaxSkillFileSize+1),
 	}))
 	if err == nil || !strings.Contains(err.Error(), "skill file exceeds") {
 		t.Fatalf("huge skill document archive err = %v", err)
@@ -170,14 +172,14 @@ func TestSkillRegistryInstallURLAndDirectoryBoundaries(t *testing.T) {
 		t.Fatalf("invalid URL err = %v", err)
 	}
 
-	originalValidator := skillInstallHostValidator
-	skillInstallHostValidator = func(_ context.Context, host string) error {
+	originalValidator := skillsruntime.SkillInstallHostValidator
+	skillsruntime.SkillInstallHostValidator = func(_ context.Context, host string) error {
 		if host == "blocked.example" {
 			return errors.New("blocked initial host")
 		}
 		return nil
 	}
-	t.Cleanup(func() { skillInstallHostValidator = originalValidator })
+	t.Cleanup(func() { skillsruntime.SkillInstallHostValidator = originalValidator })
 	if _, err := runtime.Skills().InstallURL(ctx, "https://blocked.example/SKILL.md"); err == nil || !strings.Contains(err.Error(), "blocked initial host") {
 		t.Fatalf("blocked host err = %v", err)
 	}
@@ -233,14 +235,14 @@ func TestSkillRegistryInstallURLAndDirectoryBoundaries(t *testing.T) {
 func TestSkillRegistryInstallURLPlainDocumentAndRedirectSafety(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	originalValidator := skillInstallHostValidator
-	skillInstallHostValidator = func(_ context.Context, host string) error {
+	originalValidator := skillsruntime.SkillInstallHostValidator
+	skillsruntime.SkillInstallHostValidator = func(_ context.Context, host string) error {
 		if host == "blocked.example" {
 			return errors.New("blocked host")
 		}
 		return nil
 	}
-	t.Cleanup(func() { skillInstallHostValidator = originalValidator })
+	t.Cleanup(func() { skillsruntime.SkillInstallHostValidator = originalValidator })
 
 	plainDoc := []byte(`---
 name: plain-skill
@@ -284,9 +286,9 @@ Use the plain downloaded skill.`)
 func TestSkillRegistryInstallURLSupportsArchivesAndUninstallProtections(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	originalValidator := skillInstallHostValidator
-	skillInstallHostValidator = func(context.Context, string) error { return nil }
-	t.Cleanup(func() { skillInstallHostValidator = originalValidator })
+	originalValidator := skillsruntime.SkillInstallHostValidator
+	skillsruntime.SkillInstallHostValidator = func(context.Context, string) error { return nil }
+	t.Cleanup(func() { skillsruntime.SkillInstallHostValidator = originalValidator })
 
 	archive := zipArchive(t, map[string]string{
 		"archive-skill/SKILL.md":                "---\nname: archive-skill\ndescription: Archive Skill\nallowed-tools: [http.fetch]\n---\nUse the bundled archive instructions.",
@@ -297,8 +299,8 @@ func TestSkillRegistryInstallURLSupportsArchivesAndUninstallProtections(t *testi
 		"large-archive-skill/references/a": strings.Repeat("a", 300<<10),
 		"large-archive-skill/references/b": strings.Repeat("b", 300<<10),
 	})
-	if len(largeArchive) <= maxSkillFileSize || len(largeArchive) > maxSkillArchiveSize {
-		t.Fatalf("large archive size = %d, want (%d, %d]", len(largeArchive), maxSkillFileSize, maxSkillArchiveSize)
+	if len(largeArchive) <= skillsruntime.MaxSkillFileSize || len(largeArchive) > skillsruntime.MaxSkillArchiveSize {
+		t.Fatalf("large archive size = %d, want (%d, %d]", len(largeArchive), skillsruntime.MaxSkillFileSize, skillsruntime.MaxSkillArchiveSize)
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -312,7 +314,7 @@ func TestSkillRegistryInstallURLSupportsArchivesAndUninstallProtections(t *testi
 			jftradeCheckTestError(t, jftradeErr1)
 		case "/too-large.md":
 			w.Header().Set("Content-Type", "text/markdown")
-			_, jftradeErr2 := w.Write(bytes.Repeat([]byte("x"), maxSkillFileSize+1))
+			_, jftradeErr2 := w.Write(bytes.Repeat([]byte("x"), skillsruntime.MaxSkillFileSize+1))
 			jftradeCheckTestError(t, jftradeErr2)
 		default:
 			http.NotFound(w, r)

@@ -1,44 +1,8 @@
 package adk
 
 import (
-	"strings"
 	"testing"
 )
-
-func TestApprovalByConfirmationCallIDQueryUsesPartialIndex(t *testing.T) {
-	store := newBusinessStore(t)
-
-	rows, err := store.db.QueryxContext(
-		t.Context(),
-		`EXPLAIN QUERY PLAN `+approvalByConfirmationCallIDQuery,
-		"confirmation-plan",
-	)
-	if err != nil {
-		t.Fatalf("explain approval lookup: %v", err)
-	}
-	defer func() { jftradeCheckTestError(t, rows.Close()) }()
-
-	details := make([]string, 0, 2)
-	for rows.Next() {
-		var id, parent, unused int
-		var detail string
-		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
-			t.Fatalf("scan approval query plan: %v", err)
-		}
-		details = append(details, detail)
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatalf("read approval query plan: %v", err)
-	}
-	plan := strings.Join(details, "\n")
-	t.Logf("approval lookup query plan:\n%s", plan)
-	if !strings.Contains(plan, "idx_adk_approvals_confirmation_call") {
-		t.Fatalf("approval query plan does not use confirmation-call index:\n%s", plan)
-	}
-	if strings.Contains(plan, "SCAN "+tableApprovals) {
-		t.Fatalf("approval query plan performs a full table scan:\n%s", plan)
-	}
-}
 
 func TestStoreListAuditEventsPageFiltersCountsAndOrdersInSQL(t *testing.T) {
 	ctx := t.Context()
@@ -54,7 +18,7 @@ func TestStoreListAuditEventsPageFiltersCountsAndOrdersInSQL(t *testing.T) {
 			t.Fatalf("AddAuditEvent %s: %v", event.ID, err)
 		}
 	}
-	if _, err := store.db.ExecContext(
+	if _, err := store.DB().ExecContext(
 		ctx,
 		`INSERT INTO `+tableAudit+` (id, kind, subject_id, payload_json, created_at) VALUES (?, ?, ?, ?, ?)`,
 		"audit-corrupt-other-kind", "provider.saved", "wanted", "{not-json", "2026-01-02T03:04:09Z",

@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
 	"slices"
 	"testing"
 )
@@ -14,7 +15,7 @@ func TestWorkflowManagementToolSchemasAreStrictAndConvertible(t *testing.T) {
 	}
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
-			schema := defaultToolInputSchema(name)
+			schema := skillsruntime.DefaultToolInputSchema(name)
 			if schema["type"] != "object" || schema["additionalProperties"] != false {
 				t.Fatalf("schema = %#v, want strict object", schema)
 			}
@@ -58,7 +59,7 @@ func (c toolSessionTestContext) SessionID() string { return c.sessionID }
 
 func assertWorkflowSchemaRequired(t *testing.T, name string, fields ...string) {
 	t.Helper()
-	schema := defaultToolInputSchema(name)
+	schema := skillsruntime.DefaultToolInputSchema(name)
 	required, ok := schema["required"].([]string)
 	if !ok {
 		t.Fatalf("%s required = %#v", name, schema["required"])

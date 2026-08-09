@@ -8,10 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -23,11 +23,6 @@ type WorkflowEvent struct {
 	EntityID string
 	At       string
 	Payload  map[string]any
-}
-
-// RuntimeLimits is the dynamic runtime limits snapshot consumed by ADK.
-type RuntimeLimits struct {
-	RunTimeout time.Duration
 }
 
 // Paths are application-derived persistent locations. Keeping derivation in
@@ -42,7 +37,7 @@ type Paths struct {
 // Options describes one assistant runtime assembly.
 type Options struct {
 	Paths          Paths
-	RuntimeLimits  func() RuntimeLimits
+	RuntimeLimits  func() jfadkmodel.RuntimeLimits
 	Tools          *ToolDeps
 	ServiceOptions []assistant.Option
 }
@@ -112,11 +107,9 @@ func openRuntime(options Options) (*jfadk.Runtime, error) {
 		return nil, errors.Join(fmt.Errorf("open ADK session service: %w", err), closeStoreAfterOpenFailure(store))
 	}
 	runtime := jfadk.NewRuntimeWithSessionService(store, registry, sessionService)
+	runtime.SetWorkflowExecutor(jfadk.NewWorkflowExecutor(runtime))
 	if options.RuntimeLimits != nil {
-		runtime.SetRuntimeLimitsProvider(func() jfadk.RuntimeLimits {
-			limits := options.RuntimeLimits()
-			return jfadk.RuntimeLimits{RunTimeout: limits.RunTimeout}
-		})
+		runtime.SetRuntimeLimitsProvider(options.RuntimeLimits)
 	}
 	return runtime, nil
 }

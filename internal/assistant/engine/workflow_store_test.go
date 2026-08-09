@@ -17,7 +17,7 @@ func TestWorkflowStoreCRUDSoftDeleteAndLogs(t *testing.T) {
 
 	for _, table := range []string{tableWorkflows, tableWorkflowTriggers, tableWorkflowTriggerLog} {
 		var count int
-		if err := store.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table); err != nil {
+		if err := store.DB().GetContext(ctx, &count, `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table); err != nil {
 			t.Fatalf("check workflow schema table %s: %v", table, err)
 		}
 		if count != 1 {

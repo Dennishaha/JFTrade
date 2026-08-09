@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -144,7 +145,7 @@ func TestGoalWorkflowPauseAfterContinueAndResume(t *testing.T) {
 				runs, jftradeErr1 := runtime.Store().ListRuns(ctx)
 				jftradeCheckTestError(t, jftradeErr1)
 				for _, run := range runs {
-					if normalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
+					if jfadkmodel.NormalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
 						_, jftradeErr2 := runtime.PauseGoalRun(ctx, run.ID)
 						jftradeCheckTestError(t, jftradeErr2)
 						break
@@ -205,10 +206,10 @@ func TestGoalWorkflowPauseAfterContinueAndResume(t *testing.T) {
 		t.Fatalf("completed run = %+v, want goal completed", completed)
 	}
 	deadline := time.Now().Add(2 * time.Second)
-	for runtime.runExecutionInFlight(response.Run.ID) && time.Now().Before(deadline) {
+	for runtime.RunExecutionInFlight(response.Run.ID) && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
-	if runtime.runExecutionInFlight(response.Run.ID) {
+	if runtime.RunExecutionInFlight(response.Run.ID) {
 		t.Fatal("resumed goal execution did not leave the runtime before test cleanup")
 	}
 	mu.Lock()
@@ -233,7 +234,7 @@ func TestGoalWorkflowPauseRequestedBeforeCompleteDecisionPausesInsteadOfCompleti
 				runs, jftradeErr3 := runtime.Store().ListRuns(ctx)
 				jftradeCheckTestError(t, jftradeErr3)
 				for _, run := range runs {
-					if normalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
+					if jfadkmodel.NormalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
 						_, jftradeErr4 := runtime.PauseGoalRun(ctx, run.ID)
 						jftradeCheckTestError(t, jftradeErr4)
 						break
@@ -275,50 +276,6 @@ func TestGoalWorkflowPauseRequestedBeforeCompleteDecisionPausesInsteadOfCompleti
 	}
 	if runHasToolCall(response.Run, workflowGoalCompleteTool) {
 		t.Fatalf("tool calls = %+v, want interrupted goal.complete pruned from paused snapshot", response.Run.ToolCalls)
-	}
-}
-
-func TestGoalWorkflowPauseRequestBeforeNextTurnDoesNotCallModel(t *testing.T) {
-	ctx := context.Background()
-	runtime := newTestRuntime(t)
-	providerID := saveGoalWorkflowProvider(t, runtime, "goal-pause-before-next-turn-provider", func(req openAIChatRequest) openAIChatMessage {
-		t.Fatalf("provider called after pause request: last user=%q", testGoalWorkflowLastUserMessage(req))
-		return openAIChatMessage{}
-	})
-	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
-		ID: "goal-pause-before-next-turn-agent", Name: "Goal Pause Before Next Turn", ProviderID: providerID,
-		Status: AgentStatusEnabled, WorkMode: WorkModeLoop, LoopMaxIterations: 3,
-	})
-	session := mustCreateSession(t, runtime, agent.ID, "pause before next turn")
-	now := nowString()
-	run := mustSaveRun(t, runtime, Run{
-		ID: "run-goal-pause-before-next-turn", SessionID: session.ID, AgentID: agent.ID, ProviderID: providerID,
-		Status: RunStatusRunning, Message: "goal continues", UserMessage: "继续目标", WorkMode: WorkModeLoop,
-		Objective: "继续目标", Iteration: 1, WorkflowStatus: workflowStatusRunning,
-		PauseRequestedAt: &now, CreatedAt: now, StartedAt: now, UpdatedAt: now,
-		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{}, Usage: &RunUsage{},
-	})
-	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
-		Title: "继续目标", Status: "DONE", AgentID: agent.ID, RunID: run.ID,
-		Order: 1, ModeHint: WorkModeLoop, PlanSource: workflowPlanSourceRuntime, WorkflowMode: WorkModeLoop,
-		Objective: run.Objective, Message: run.UserMessage,
-	})
-	if err != nil {
-		t.Fatalf("SaveTask: %v", err)
-	}
-	run.WorkflowPlan = workflowPlanFromTasks([]Task{task}, run.WorkflowPlan)
-	if err := runtime.Store().SaveRun(ctx, run); err != nil {
-		t.Fatalf("SaveRun with plan: %v", err)
-	}
-	response, err := (&WorkflowExecutor{runtime: runtime}).continueADKGoalWorkflow(ctx, workflowRequest{
-		Agent: agent, Session: session, Message: run.UserMessage, Mode: WorkModeLoop, Objective: run.Objective,
-		RunOptions: RunOptions{LoopMaxIterations: 3},
-	}, run, []Task{task}, goalOrchestratorContinueNudge(run, "继续推进。"), 2, 3)
-	if err != nil {
-		t.Fatalf("continueADKGoalWorkflow: %v", err)
-	}
-	if response.Run.Status != RunStatusPaused || response.Run.ResumeState != "user_paused" || response.Run.PausedReason != "user" {
-		t.Fatalf("run = %+v, want user-paused without another model call", response.Run)
 	}
 }
 
@@ -461,7 +418,7 @@ func TestGoalWorkflowDecisionPromptUsesUpdatedObjective(t *testing.T) {
 				return openAIChatMessage{Role: "assistant", Content: "读取 run 失败。"}
 			}
 			for _, run := range runs {
-				if normalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
+				if jfadkmodel.NormalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
 					_, jftradeErr5 := runtime.UpdateRunObjective(ctx, run.ID, "更新后的目标")
 					jftradeCheckTestError(t, jftradeErr5)
 					break
@@ -494,38 +451,6 @@ func TestGoalWorkflowDecisionPromptUsesUpdatedObjective(t *testing.T) {
 	}
 	if !strings.Contains(decisionPrompts[0], "更新后的目标") {
 		t.Fatalf("decision prompt = %q, want updated objective", decisionPrompts[0])
-	}
-}
-
-func TestWorkflowResponseUsesAuthoritativePauseRequestedParent(t *testing.T) {
-	ctx := context.Background()
-	runtime := newTestRuntime(t)
-	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
-		ID: "goal-response-pause-agent", Name: "Goal Response Pause", Status: AgentStatusEnabled,
-		WorkMode: WorkModeLoop,
-	})
-	session := mustCreateSession(t, runtime, agent.ID, "pause response")
-	now := nowString()
-	parent := mustSaveRun(t, runtime, Run{
-		ID: "run-goal-response-pause-parent", SessionID: session.ID, AgentID: agent.ID,
-		Status: RunStatusRunning, Message: "目标将在当前轮结束后暂停。", UserMessage: "推进目标", WorkMode: WorkModeLoop,
-		Objective: "推进目标", WorkflowStatus: workflowStatusRunning, PauseRequestedAt: &now, ResumeState: "user_pause_requested",
-		CreatedAt: now, StartedAt: now, UpdatedAt: now, ToolCalls: []ToolCall{}, PendingApprovals: []Approval{}, Usage: &RunUsage{},
-	})
-	stale := parent
-	stale.Message = "goal running"
-	stale.PauseRequestedAt = nil
-	stale.ResumeState = ""
-
-	response := (&WorkflowExecutor{runtime: runtime}).workflowResponse(
-		ctx,
-		session,
-		stale,
-		assistantExecutionResult{Reply: "still running"},
-	)
-
-	if response.Run.PauseRequestedAt == nil || response.Run.ResumeState != "user_pause_requested" {
-		t.Fatalf("response run = %+v, want authoritative pause request fields", response.Run)
 	}
 }
 

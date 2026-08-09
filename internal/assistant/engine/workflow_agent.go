@@ -5,6 +5,7 @@ import (
 	"iter"
 	"strings"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/workflowagent"
 	adksession "google.golang.org/adk/v2/session"
@@ -155,7 +156,7 @@ func googleADKWorkflowRunNode(
 		googleADKWorkflowObserveVisibleReply(&observedReply, &sawPartialText, event)
 		if ids := googleADKWorkflowInterruptIDs(event); len(ids) > 0 {
 			for _, id := range ids {
-				event.LongRunningToolIDs = appendUniqueString(event.LongRunningToolIDs, id)
+				event.LongRunningToolIDs = jfadkmodel.AppendUniqueString(event.LongRunningToolIDs, id)
 			}
 			paused = true
 		}
@@ -201,7 +202,7 @@ func googleADKWorkflowRunGenericAgent(
 		googleADKWorkflowObserveVisibleReply(&observedReply, &sawPartialText, event)
 		if ids := googleADKWorkflowInterruptIDs(event); len(ids) > 0 {
 			for _, id := range ids {
-				event.LongRunningToolIDs = appendUniqueString(event.LongRunningToolIDs, id)
+				event.LongRunningToolIDs = jfadkmodel.AppendUniqueString(event.LongRunningToolIDs, id)
 			}
 			paused = true
 		}
@@ -271,7 +272,7 @@ func googleADKWorkflowInterruptIDs(event *adksession.Event) []string {
 	if event == nil {
 		return nil
 	}
-	ids := normalizeStringSlice(event.LongRunningToolIDs)
+	ids := jfadkmodel.NormalizeStringSlice(event.LongRunningToolIDs)
 	if event.Content == nil {
 		return ids
 	}
@@ -281,10 +282,10 @@ func googleADKWorkflowInterruptIDs(event *adksession.Event) []string {
 		}
 		if part.FunctionCall.Name == toolconfirmation.FunctionCallName ||
 			part.FunctionCall.Name == adkworkflow.WorkflowInputFunctionCallName {
-			ids = appendUniqueString(ids, part.FunctionCall.ID)
+			ids = jfadkmodel.AppendUniqueString(ids, part.FunctionCall.ID)
 		}
 	}
-	return normalizeStringSlice(ids)
+	return jfadkmodel.NormalizeStringSlice(ids)
 }
 
 func googleADKWorkflowObserveVisibleReply(builder *strings.Builder, sawPartialText *bool, event *adksession.Event) {

@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	appstores "github.com/jftrade/jftrade-main/internal/app/apiserver/stores"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/pineworkerassets"
@@ -149,7 +151,7 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 	backtestRunner := &closeTrackingPineWorkerRunner{}
 	instanceRunner := &closeTrackingPineWorkerRunner{}
 	server := &Server{
-		auth:     newWebAuth(jfsettings.SecuritySettings{}),
+		auth:     webaccess.NewAuth(jfsettings.SecuritySettings{}),
 		frontend: newFrontendServerWithRuntimeConfig(os.DirFS(frontendDir), "http://127.0.0.1:3000"),
 		serverApplication: serverApplication{
 			stores: appstores.Handle{ExecutionOrders: newExecutionOrderStore()},
@@ -159,7 +161,7 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 	runtime := liveruntime.NewManager(liveruntime.Dependencies{})
 	server.runtimes.SetStrategyRuntime(runtime, runtime)
 
-	sideEffects := server.settingsSideEffects()
+	sideEffects := settingsSideEffects(server)
 	integration := jfsettings.BrokerIntegration{
 		Enabled: true,
 		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
@@ -183,7 +185,7 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 	if err := sideEffects.OnSecurityChanged(webSecuritySettings(t, false)); err != nil {
 		t.Fatalf("OnSecurityChanged enable: %v", err)
 	}
-	if server.auth == nil || !server.auth.enabled {
+	if server.auth == nil || !server.auth.WebAccessEnabled() {
 		t.Fatal("OnSecurityChanged should enable Web password auth")
 	}
 	recorder := httptest.NewRecorder()
@@ -195,7 +197,7 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 	if err := sideEffects.OnSecurityChanged(jfsettings.SecuritySettings{}); err != nil {
 		t.Fatalf("OnSecurityChanged disable: %v", err)
 	}
-	if server.auth.enabled {
+	if server.auth.WebAccessEnabled() {
 		t.Fatal("OnSecurityChanged should disable Web access")
 	}
 
@@ -227,12 +229,11 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 }
 
 func TestDataManagementBackendNilManagerBoundaries(t *testing.T) {
-	var nilServer *Server
-	if service := nilServer.newDataManagementService(); service == nil {
-		t.Fatal("newDataManagementService() = nil")
+	if service := datamigration.NewService(nil); service == nil {
+		t.Fatal("datamigration.NewService(nil) = nil")
 	}
 
-	backend := dataManagementBackend{}
+	backend := datamigration.NewBackend(nil)
 	overview, err := backend.Overview(context.Background(), dmsrv.OverviewRequest{})
 	if err != nil {
 		t.Fatalf("Overview: %v", err)

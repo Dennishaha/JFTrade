@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"google.golang.org/genai"
 )
@@ -156,14 +157,6 @@ func (r *Runtime) continueResolvedInput(ctx context.Context, runID string) error
 	return nil
 }
 
-func runHasRecoverableAnsweredInputContext(run Run) bool {
-	return run.Status == RunStatusRunning &&
-		strings.TrimSpace(run.ResumeState) == "input_resuming" &&
-		run.InputRequest != nil &&
-		run.InputRequest.Status == InputRequestStatusAnswered &&
-		strings.TrimSpace(run.InputRequest.FunctionCallID) != ""
-}
-
 func (r *Runtime) resumeAnsweredInput(ctx context.Context, run Run) (*googleADKExecution, error) {
 	execution, handled, err := r.loadResumedExecution(ctx, run)
 	if err != nil || !handled || execution == nil {
@@ -176,14 +169,14 @@ func (r *Runtime) resumeAnsweredInput(ctx context.Context, run Run) (*googleADKE
 	content := &genai.Content{Role: genai.RoleUser, Parts: []*genai.Part{{FunctionResponse: &genai.FunctionResponse{
 		ID: run.InputRequest.FunctionCallID, Name: interactionRequestUserTool, Response: inputResponsePayload(*run.InputRequest),
 	}}}}
-	if err := execution.run(ctx, content); err != nil {
+	if err := execution.Run(ctx, content); err != nil {
 		return nil, err
 	}
 	return execution, nil
 }
 
 func (r *Runtime) pauseForNextInput(ctx context.Context, run Run, execution *googleADKExecution) (bool, error) {
-	inputRequests, err := r.pendingInputRequests(ctx, execution)
+	inputRequests, err := r.PendingInputRequests(ctx, execution)
 	if err != nil {
 		return false, err
 	}
@@ -191,12 +184,12 @@ func (r *Runtime) pauseForNextInput(ctx context.Context, run Run, execution *goo
 	if nextRequest == nil {
 		return false, nil
 	}
-	execution.setInputRequests(inputRequests)
-	toolContext := execution.toolContextForRun(run.ID)
-	run.ToolCalls = toolContext.calls
-	run.ToolSummaries = toolContext.summaries
+	execution.SetInputRequests(inputRequests)
+	toolContext := execution.ToolContextForRun(run.ID)
+	run.ToolCalls = toolContext.Calls
+	run.ToolSummaries = toolContext.Summaries
 	run.PreToolContent, run.PreToolReasoning = execution.preToolState()
-	if _, err := r.finishPendingInputRun(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, nextRequest); err != nil {
+	if _, err := r.FinishPendingInputRun(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, nextRequest); err != nil {
 		return false, err
 	}
 	if refreshed, ok, _ := r.store.Run(ctx, run.ID); ok {
@@ -206,7 +199,7 @@ func (r *Runtime) pauseForNextInput(ctx context.Context, run Run, execution *goo
 }
 
 func (r *Runtime) pauseForApprovalAfterInput(ctx context.Context, run Run, execution *googleADKExecution) (bool, error) {
-	approvals, err := execution.pendingApprovals(ctx, r.store)
+	approvals, err := execution.PendingApprovals(ctx, r.store)
 	if err != nil || len(approvals) == 0 {
 		return false, err
 	}
@@ -226,11 +219,11 @@ func (r *Runtime) completeInputContinuation(ctx context.Context, run Run, execut
 	if err := r.ensureGoogleADKFinalReply(ctx, execution.agent, Session{ID: run.SessionID, AgentID: run.AgentID}, execution, run.ID, run.UserMessage); err != nil {
 		return err
 	}
-	toolContext := execution.toolContextForRun(run.ID)
-	run.ToolCalls = toolContext.calls
-	run.ToolSummaries = toolContext.summaries
+	toolContext := execution.ToolContextForRun(run.ID)
+	run.ToolCalls = toolContext.Calls
+	run.ToolSummaries = toolContext.Summaries
 	run.PreToolContent, run.PreToolReasoning = execution.preToolState()
-	run.OptimizationTaskID = optimizationTaskID(toolContext.calls)
+	run.OptimizationTaskID = optimizationTaskID(toolContext.Calls)
 	run.Status = RunStatusCompleted
 	run.ResumeState = "input_resolved"
 	run.Message = "completed"
@@ -239,11 +232,11 @@ func (r *Runtime) completeInputContinuation(ctx context.Context, run Run, execut
 	run.ErrorCode = ""
 	run.Degraded = firstToolCallFailure(&run) != ""
 	finalizeRunUsage(&run)
-	result := execution.resultForRun(run.ID)
+	result := execution.ResultForRun(run.ID)
 	if strings.TrimSpace(result.Reply) == "" {
 		result.Reply = "已根据你的选择继续执行。"
 	}
-	message, err := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
+	message, err := r.EnsureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
 	if err != nil {
 		return err
 	}
@@ -263,14 +256,15 @@ func (r *Runtime) failInputContinuation(ctx context.Context, run Run, cause erro
 	}
 	run = markFailedChatRun(ctx, run, cause)
 	run.ResumeState = "input_resume_failed"
-	_ = r.persistRunTerminalState(ctx, run)
+	_ = r.PersistRunTerminalState(ctx, run)
 	r.deleteADKRun(run.ID)
 	_, _ = r.continueParentWorkflowAfterChild(ctx, run)
 }
 
+func runHasRecoverableAnsweredInputContext(run Run) bool {
+	return jfadkmodel.RunHasRecoverableAnsweredInputContext(run)
+}
+
 func defaultError(err error, message string) error {
-	if err != nil {
-		return err
-	}
-	return fmt.Errorf("%s", message)
+	return jfadkmodel.DefaultError(err, message)
 }

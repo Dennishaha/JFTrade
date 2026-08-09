@@ -240,3 +240,10 @@ type LaunchDefaults struct {
 	SettingsPath   string
 	BacktestDBPath string
 }
+
+const (
+	DefaultDevelopmentAPIBind = "127.0.0.1:3000"
+	DefaultReleaseHTTPBind    = "127.0.0.1:6688"
+	DefaultReleaseAPIBind     = DefaultReleaseHTTPBind
+	DefaultReleaseGUIBind     = DefaultReleaseHTTPBind
+)

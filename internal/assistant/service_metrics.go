@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 // GetMetrics 聚合 ADK 运行指标（runs/tools/approvals/usage）。

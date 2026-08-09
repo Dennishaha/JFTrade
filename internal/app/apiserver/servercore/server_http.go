@@ -1,16 +1,14 @@
 package servercore
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
 )
-
-type webAccessSurfaceContextKey struct{}
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s == nil || s.router == nil {
@@ -24,13 +22,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // browser listener. The desktop sidecar listener remains capability-only.
 func (s *Server) WebAccessHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), webAccessSurfaceContextKey{}, true)
-		s.ServeHTTP(w, r.WithContext(ctx))
+		s.ServeHTTP(w, webaccess.WithAccessSurface(r))
 	})
 }
 
 func isWebAccessSurfaceRequest(r *http.Request) bool {
-	return r != nil && r.Context().Value(webAccessSurfaceContextKey{}) == true
+	return webaccess.IsAccessSurfaceRequest(r)
 }
 
 var _ middleware.WriteMethodDetector = (*Server)(nil)
@@ -42,6 +39,6 @@ func (s *Server) IsWriteMethod(r *http.Request) bool {
 	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch || r.Method == http.MethodDelete
 }
 
-func (s *Server) writeError(c *gin.Context, status int, code string, message string) {
+func writeError(s *Server, c *gin.Context, status int, code string, message string) {
 	httpserver.WriteError(c, status, code, message)
 }

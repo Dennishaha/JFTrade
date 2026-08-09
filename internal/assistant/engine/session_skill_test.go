@@ -65,20 +65,6 @@ func TestWrappedAndEmptySessionAccessorsPreserveProjectedState(t *testing.T) {
 	}
 }
 
-func TestAppendByModeRoutesVisibleAndReasoningText(t *testing.T) {
-	var reply strings.Builder
-	var reasoning strings.Builder
-
-	appendByMode(&reply, &reasoning, reasoningModeReply, "visible")
-	appendByMode(&reply, &reasoning, reasoningModeReasoning, "why")
-	appendRuneByMode(&reply, &reasoning, reasoningModeReply, '!')
-	appendRuneByMode(&reply, &reasoning, reasoningModeReasoning, '?')
-
-	if reply.String() != "visible!" || reasoning.String() != "why?" {
-		t.Fatalf("reply/reasoning = %q/%q", reply.String(), reasoning.String())
-	}
-}
-
 func TestStoreListSkillsSortsBuiltinFirstAndDeleteProtectsBuiltins(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()

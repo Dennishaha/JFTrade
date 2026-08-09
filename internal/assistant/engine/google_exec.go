@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkagent "google.golang.org/adk/v2/agent"
 	adksession "google.golang.org/adk/v2/session"
@@ -38,7 +39,7 @@ func (e *googleADKExecution) descriptorForTool(tool adktool.Tool) (ToolDescripto
 	return descriptor, ok
 }
 
-func (e *googleADKExecution) run(ctx context.Context, content *genai.Content) error {
+func (e *googleADKExecution) Run(ctx context.Context, content *genai.Content) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -171,6 +172,12 @@ func (e *googleADKExecution) runIDForAgentName(agentName string) string {
 		}
 	}
 	return e.runID
+}
+
+func (e *googleADKExecution) SetRunIDByAgentName(agentName string, runID string) {
+	if e != nil {
+		e.runIDByAgentName[agentName] = runID
+	}
 }
 
 func (e *googleADKExecution) agentNameForRunID(runID string) string {
@@ -308,7 +315,7 @@ func (e *googleADKExecution) consumeFunctionResponse(response *genai.FunctionRes
 	}
 }
 
-func (e *googleADKExecution) pendingApprovals(ctx context.Context, store *Store) ([]Approval, error) {
+func (e *googleADKExecution) PendingApprovals(ctx context.Context, store jfadkmodel.WorkflowStore) ([]Approval, error) {
 	response, err := e.sessionService.Get(ctx, &adksession.GetRequest{
 		AppName: e.appName, UserID: googleADKUserID, SessionID: e.sessionID,
 	})
@@ -414,11 +421,11 @@ func (e *googleADKExecution) markCallWaitingForInput(functionCallID string) {
 	e.emitRunSnapshotDeltas(deltas)
 }
 
-func (e *googleADKExecution) toolContext() toolExecutionContext {
-	return e.toolContextForRun("")
+func (e *googleADKExecution) toolContext() ToolExecutionContext {
+	return e.ToolContextForRun("")
 }
 
-func (e *googleADKExecution) toolContextForRun(runID string) toolExecutionContext {
+func (e *googleADKExecution) ToolContextForRun(runID string) ToolExecutionContext {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	runID = strings.TrimSpace(runID)
@@ -444,10 +451,10 @@ func (e *googleADKExecution) toolContextForRun(runID string) toolExecutionContex
 	if base, ok := e.runSnapshotBaseByID[requestRunID]; ok {
 		inputRequest = normalizeInputRequest(base.InputRequest)
 	}
-	return toolExecutionContext{calls: calls, summaries: summaries, inputRequest: inputRequest}
+	return ToolExecutionContext{Calls: calls, Summaries: summaries, InputRequest: inputRequest}
 }
 
-func (e *googleADKExecution) setInputRequests(requests map[string]*InputRequest) {
+func (e *googleADKExecution) SetInputRequests(requests map[string]*InputRequest) {
 	if e == nil || len(requests) == 0 {
 		return
 	}
@@ -464,10 +471,10 @@ func (e *googleADKExecution) setInputRequests(requests map[string]*InputRequest)
 }
 
 func (e *googleADKExecution) result() assistantExecutionResult {
-	return e.resultForRun(e.runID)
+	return e.ResultForRun(e.runID)
 }
 
-func (e *googleADKExecution) resultForRun(runID string) assistantExecutionResult {
+func (e *googleADKExecution) ResultForRun(runID string) assistantExecutionResult {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.ensureTextMapsLocked()
@@ -527,12 +534,55 @@ func (e *googleADKExecution) preToolState() (string, string) {
 	return strings.TrimSpace(e.preToolContent.String()), strings.TrimSpace(e.preToolReasoning.String())
 }
 
-func (e *googleADKExecution) detachDeltaSink() {
+func (e *googleADKExecution) DetachDeltaSink() {
 	e.deltaMu.Lock()
 	defer e.deltaMu.Unlock()
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.onDelta = nil
+}
+
+func (e *googleADKExecution) SessionService() adksession.Service {
+	if e == nil {
+		return nil
+	}
+	return e.sessionService
+}
+
+func (e *googleADKExecution) AppName() string {
+	if e == nil {
+		return ""
+	}
+	return e.appName
+}
+
+func (e *googleADKExecution) SessionID() string {
+	if e == nil {
+		return ""
+	}
+	return e.sessionID
+}
+
+func (e *googleADKExecution) RunID() string {
+	if e == nil {
+		return ""
+	}
+	return e.runID
+}
+
+func (e *googleADKExecution) AgentDefinition() Agent {
+	if e == nil {
+		return Agent{}
+	}
+	return e.agent
+}
+
+func (e *googleADKExecution) TrackedRunIDForFunctionCall(callID string) (string, bool) {
+	return e.trackedRunIDForFunctionCall(callID)
+}
+
+func (e *googleADKExecution) MarkCallWaitingForInput(callID string) {
+	e.markCallWaitingForInput(callID)
 }
 
 func (e *googleADKExecution) emitToolProgress(callID string, toolName string) {

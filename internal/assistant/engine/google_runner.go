@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	adkartifact "google.golang.org/adk/v2/artifact"
@@ -22,8 +24,7 @@ import (
 
 const googleADKUserID = "jftrade-user"
 
-var errUserGoalPauseRequested = errors.New("user goal pause requested")
-var errADKInputUnsupported = errors.New("GO-ADK requested input is unsupported; configure the agent/workflow to collect required input before running")
+var errADKInputUnsupported = jfadkmodel.ErrADKInputUnsupported
 
 type googleADKExecution struct {
 	mu                       sync.Mutex
@@ -64,36 +65,36 @@ type googleADKExecution struct {
 	runtime                  *Runtime
 }
 
-func (r *Runtime) executeGoogleADK(
+func (r *Runtime) ExecuteGoogleADK(
 	ctx context.Context,
 	agent Agent,
 	session Session,
 	runID string,
 	text string,
 	onDelta func(ChatDelta) error,
-) (toolExecutionContext, []Approval, assistantExecutionResult, string, string, error) {
+) (ToolExecutionContext, []Approval, assistantExecutionResult, string, string, error) {
 	execution, err := r.newGoogleADKExecution(ctx, agent, session, runID, onDelta)
 	if err != nil {
-		return toolExecutionContext{}, nil, assistantExecutionResult{}, "", "", err
+		return ToolExecutionContext{}, nil, assistantExecutionResult{}, "", "", err
 	}
-	if err := execution.run(ctx, genai.NewContentFromText(text, genai.RoleUser)); err != nil {
+	if err := execution.Run(ctx, genai.NewContentFromText(text, genai.RoleUser)); err != nil {
 		preToolContent, preToolReasoning := execution.preToolState()
 		toolContext := execution.toolContext()
 		return toolContext, nil, execution.result(), preToolContent, preToolReasoning, err
 	}
-	approvals, err := execution.pendingApprovals(ctx, r.store)
+	approvals, err := execution.PendingApprovals(ctx, r.store)
 	if err != nil {
 		preToolContent, preToolReasoning := execution.preToolState()
 		return execution.toolContext(), nil, execution.result(), preToolContent, preToolReasoning, err
 	}
-	inputRequests, err := r.pendingInputRequests(ctx, execution)
+	inputRequests, err := r.PendingInputRequests(ctx, execution)
 	if err != nil {
 		preToolContent, preToolReasoning := execution.preToolState()
 		return execution.toolContext(), nil, execution.result(), preToolContent, preToolReasoning, err
 	}
-	execution.setInputRequests(inputRequests)
+	execution.SetInputRequests(inputRequests)
 	if len(approvals) > 0 || len(inputRequests) > 0 {
-		execution.detachDeltaSink()
+		execution.DetachDeltaSink()
 		r.adkMu.Lock()
 		r.adkRuns[runID] = execution
 		r.adkMu.Unlock()
@@ -210,79 +211,6 @@ func seedResumedExecutionState(execution *googleADKExecution, run Run) {
 	execution.summaries = append(execution.summaries, run.ToolSummaries...)
 }
 
-func classifyToolExecutionError(err error) (string, string) {
-	if err == nil {
-		return "SUCCEEDED", ""
-	}
-	return classifyToolErrorText(err.Error())
-}
-
-func classifyToolErrorText(text string) (string, string) {
-	trimmed := strings.TrimSpace(text)
-	lower := strings.ToLower(trimmed)
-	switch {
-	case strings.Contains(lower, "context deadline exceeded"):
-		return "TIMED_OUT", prefixedToolError(trimmed, "tool execution timed out")
-	case strings.Contains(lower, "context canceled"):
-		return "CANCELLED", prefixedToolError(trimmed, "tool execution cancelled")
-	default:
-		return "FAILED", trimmed
-	}
-}
-
-func prefixedToolError(text string, prefix string) string {
-	trimmed := strings.TrimSpace(text)
-	if trimmed == "" {
-		return prefix
-	}
-	lower := strings.ToLower(trimmed)
-	if strings.Contains(lower, prefix) {
-		return trimmed
-	}
-	return prefix + ": " + trimmed
-}
-
-func firstToolCallByStatus(calls []ToolCall, statuses ...string) *ToolCall {
-	if len(calls) == 0 || len(statuses) == 0 {
-		return nil
-	}
-	allowed := make(map[string]struct{}, len(statuses))
-	for _, status := range statuses {
-		allowed[strings.ToUpper(strings.TrimSpace(status))] = struct{}{}
-	}
-	for index := range calls {
-		if _, ok := allowed[strings.ToUpper(strings.TrimSpace(calls[index].Status))]; ok {
-			return &calls[index]
-		}
-	}
-	return nil
-}
-
-func toolCallFailureMessage(call *ToolCall) string {
-	if call == nil {
-		return ""
-	}
-	if call.Error != nil && strings.TrimSpace(*call.Error) != "" {
-		return strings.TrimSpace(*call.Error)
-	}
-	switch strings.ToUpper(strings.TrimSpace(call.Status)) {
-	case "TIMED_OUT":
-		return "tool execution timed out"
-	case "CANCELLED":
-		return "tool execution cancelled"
-	default:
-		return "tool execution failed"
-	}
-}
-
-func firstToolCallFailure(run *Run) string {
-	if run == nil {
-		return ""
-	}
-	call := firstToolCallByStatus(run.ToolCalls, "TIMED_OUT", "FAILED", "CANCELLED")
-	return toolCallFailureMessage(call)
-}
-
 func (r *Runtime) newGoogleADKExecution(
 	ctx context.Context,
 	definition Agent,
@@ -290,7 +218,7 @@ func (r *Runtime) newGoogleADKExecution(
 	runID string,
 	onDelta func(ChatDelta) error,
 ) (*googleADKExecution, error) {
-	llm, err := r.googleADKModelForAgent(ctx, definition)
+	llm, err := r.GoogleADKModelForAgent(ctx, definition)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +226,7 @@ func (r *Runtime) newGoogleADKExecution(
 	execution := &googleADKExecution{
 		runtime:         r,
 		sessionID:       productSession.ID,
-		appName:         googleADKAppName(definition.ID),
+		appName:         GoogleADKAppName(definition.ID),
 		artifactService: r.artifactService,
 		agent:           definition,
 		runID:           runID,
@@ -343,7 +271,27 @@ func (r *Runtime) newGoogleADKExecution(
 	return r.attachGoogleADKRunner(ctx, execution, productSession, adkAgent)
 }
 
-func (r *Runtime) newGoogleADKWorkflowExecution(
+func classifyToolExecutionError(err error) (string, string) {
+	return jfadkmodel.ClassifyToolExecutionError(err)
+}
+
+func classifyToolErrorText(text string) (string, string) {
+	return jfadkmodel.ClassifyToolErrorText(text)
+}
+
+func prefixedToolError(text string, prefix string) string {
+	return jfadkmodel.PrefixedToolError(text, prefix)
+}
+
+func toolCallFailureMessage(call *ToolCall) string {
+	return jfadkmodel.ToolCallFailureMessage(call)
+}
+
+func firstToolCallFailure(run *Run) string {
+	return jfadkmodel.FirstToolCallFailure(run)
+}
+
+func (r *Runtime) NewGoogleADKWorkflowExecution(
 	ctx context.Context,
 	definition Agent,
 	productSession Session,
@@ -353,8 +301,8 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 	mode string,
 	options RunOptions,
 	onDelta func(ChatDelta) error,
-) (*googleADKExecution, error) {
-	rootName := googleADKWorkflowRootName(parent.ID)
+) (WorkflowExecutionHandle, error) {
+	rootName := GoogleADKWorkflowRootName(parent.ID)
 	execution := r.newGoogleADKWorkflowExecutionState(ctx, definition, productSession, parent, rootName, onDelta)
 	childNodes, err := r.newGoogleADKWorkflowChildNodes(ctx, definition, parent.ID, childRuns, steps, execution)
 	if err != nil {
@@ -393,7 +341,7 @@ func (r *Runtime) newGoogleADKWorkflowExecutionState(
 	execution := &googleADKExecution{
 		runtime:         r,
 		sessionID:       productSession.ID,
-		appName:         googleADKAppName(definition.ID),
+		appName:         GoogleADKAppName(definition.ID),
 		artifactService: r.artifactService,
 		agent:           definition,
 		runID:           parent.ID,
@@ -433,7 +381,7 @@ func (r *Runtime) googleADKExecutionRunLoader() func(context.Context, string) (R
 func (r *Runtime) googleADKExecutionSnapshotPersister(ctx context.Context) func(Run) (Run, error) {
 	baseCtx := context.WithoutCancel(ctx)
 	return func(snapshot Run) (Run, error) {
-		snapshotCtx, err := r.activeRunExecutionContext(baseCtx, snapshot.ID)
+		snapshotCtx, err := r.ActiveRunExecutionContext(baseCtx, snapshot.ID)
 		if err != nil {
 			return Run{}, err
 		}
@@ -472,16 +420,16 @@ func (r *Runtime) newGoogleADKWorkflowChildNode(
 	index int,
 	execution *googleADKExecution,
 ) (adkworkflow.Node, error) {
-	name := googleADKWorkflowChildName(parentID, index)
+	name := GoogleADKWorkflowChildName(parentID, index)
 	execution.runIDByAgentName[name] = child.ID
 	execution.runSnapshotBaseByID[child.ID] = child
-	childDefinition, err := r.workflowChildAgentForStep(ctx, definition, step)
+	childDefinition, err := r.WorkflowChildAgentForStep(ctx, definition, step)
 	if err != nil {
 		return nil, err
 	}
 	childDefinition.WorkMode = WorkModeChat
 	childDefinition.Instruction = workflowChildInstruction(childDefinition.Instruction, workflowChildInstructionTask(step))
-	childLLM, err := r.googleADKModelForAgent(ctx, childDefinition)
+	childLLM, err := r.GoogleADKModelForAgent(ctx, childDefinition)
 	if err != nil {
 		return nil, err
 	}
@@ -496,14 +444,16 @@ func compileGoogleADKWorkflowEdges(steps []workflowStep, nodes []adkworkflow.Nod
 	return newWorkflowCompiler().CompileEdges(steps, nodes)
 }
 
-func (r *Runtime) runGoogleADKWorkflowChildFinalSynthesis(
+func (e *googleADKExecution) RunGoogleADKWorkflowChildFinalSynthesis(
 	ctx context.Context,
 	definition Agent,
 	productSession Session,
-	execution *googleADKExecution,
 	child Run,
 ) error {
-	return r.runGoogleADKFinalSynthesis(ctx, definition, productSession, execution, child.ID, child.UserMessage)
+	if e.runtime == nil {
+		return fmt.Errorf("workflow execution handle is not resumable")
+	}
+	return e.runtime.runGoogleADKFinalSynthesis(ctx, definition, productSession, e, child.ID, child.UserMessage)
 }
 
 func (r *Runtime) ensureGoogleADKFinalReply(
@@ -514,13 +464,13 @@ func (r *Runtime) ensureGoogleADKFinalReply(
 	runID string,
 	task string,
 ) error {
-	if !execution.runNeedsFinalSynthesis(runID) {
+	if !execution.RunNeedsFinalSynthesis(runID) {
 		return nil
 	}
 	if err := r.runGoogleADKFinalSynthesis(ctx, definition, productSession, execution, runID, task); err != nil {
 		return err
 	}
-	if execution.runNeedsFinalSynthesis(runID) || !execution.runHasPostToolText(runID) {
+	if execution.RunNeedsFinalSynthesis(runID) || !execution.RunHasPostToolText(runID) {
 		return errADKMissingFinalReply()
 	}
 	return nil
@@ -538,10 +488,10 @@ func (r *Runtime) runGoogleADKFinalSynthesis(
 	noToolDefinition.WorkMode = WorkModeChat
 	noToolDefinition.Tools = nil
 	noToolDefinition.Skills = nil
-	if err := r.maybeAutoCompactSessionDuringWorkflow(ctx, productSession, noToolDefinition, task, nil); err != nil {
+	if err := r.MaybeAutoCompactSessionDuringWorkflow(ctx, productSession, noToolDefinition, task, nil); err != nil {
 		return err
 	}
-	llm, err := r.googleADKModelForAgent(ctx, noToolDefinition)
+	llm, err := r.GoogleADKModelForAgent(ctx, noToolDefinition)
 	if err != nil {
 		return err
 	}
@@ -593,7 +543,7 @@ func (r *Runtime) runGoogleADKFinalSynthesis(
 	return nil
 }
 
-func (r *Runtime) googleADKModelForAgent(ctx context.Context, definition Agent) (adkmodel.LLM, error) {
+func (r *Runtime) GoogleADKModelForAgent(ctx context.Context, definition Agent) (adkmodel.LLM, error) {
 	definition, err := r.resolveAgentProvider(ctx, definition)
 	if err != nil {
 		return nil, err
@@ -610,7 +560,7 @@ func (r *Runtime) googleADKModelForAgent(ctx context.Context, definition Agent) 
 		return nil, fmt.Errorf("agent provider API key is not configured")
 	}
 	if provider.APIProtocol == ProviderAPIProtocolResponses {
-		return newOpenAIResponsesADKModel(ctx, provider, apiKey, definition.Model)
+		return providers.NewOpenAIResponsesADKModel(ctx, provider, apiKey, definition.Model)
 	}
 	return newOpenAICompatibleADKModel(provider, apiKey, definition.Model), nil
 }

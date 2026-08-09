@@ -42,7 +42,7 @@ func TestWorkflowObservationProjectsNodeLifecycleOntoParentAndChildRuns(t *testi
 	if got := updatedChild.WorkflowPlan[0]; got.NodeName != "worker" || got.NodeStatus != "COMPLETED" {
 		t.Fatalf("child snapshot did not receive parent plan projection: %+v", got)
 	}
-	if !execution.workflowRunObserved(child.ID) {
+	if !execution.WorkflowRunObserved(child.ID) {
 		t.Fatal("child workflow run should be marked observed after its node emits output")
 	}
 	if len(deltas) != 2 {
@@ -113,7 +113,7 @@ func TestWorkflowObservationHelperBoundaries(t *testing.T) {
 	execution := &googleADKExecution{runID: "parent", runSnapshotBaseByID: map[string]Run{"parent": {ID: "parent"}}}
 	execution.observeWorkflowEvent(nil)
 	execution.observeWorkflowEvent(&adksession.Event{Author: "worker"})
-	if execution.workflowRunObserved("missing") || execution.workflowRunObserved("  ") || ((*googleADKExecution)(nil)).workflowRunObserved("child") {
+	if execution.WorkflowRunObserved("missing") || execution.WorkflowRunObserved("  ") || ((*googleADKExecution)(nil)).WorkflowRunObserved("child") {
 		t.Fatal("unobserved or nil execution should not report a workflow child event")
 	}
 }

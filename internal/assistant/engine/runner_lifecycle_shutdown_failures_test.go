@@ -24,7 +24,7 @@ func TestLifecycleFailsClosedWhenStorageStopsDuringReconciliation(t *testing.T) 
 	// Parent cleanup is best-effort after a terminal transition. If storage
 	// closes between parent and child cleanup, it must simply skip unreadable
 	// children; it must not manufacture terminal child records.
-	runtime.cancelUnfinishedWorkflowChildren(ctx, Run{
+	runtime.CancelUnfinishedWorkflowChildren(ctx, Run{
 		ID:           "shutdown-parent",
 		ChildRunIDs:  []string{"shutdown-child"},
 		WorkflowPlan: []WorkflowStepState{{ChildRunID: "shutdown-child"}},

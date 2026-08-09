@@ -46,7 +46,7 @@ func TestSessionContextAndCompactionRejectMissingResourcesAndConflicts(t *testin
 	release()
 
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})

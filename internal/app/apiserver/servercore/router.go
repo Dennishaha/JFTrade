@@ -36,17 +36,17 @@ func (s *Server) buildRouter() *gin.Engine {
 	router.Use(s.desktopTokenMiddleware())
 	router.Use(s.webAccessMiddleware())
 	router.Use(middleware.Auth(s.auth, s.auth, s, s.auth))
-	router.Use(s.databaseAvailabilityMiddleware())
+	router.Use(databaseAvailabilityMiddleware(s))
 
-	router.GET("/swagger", s.handleSwaggerRoot)
-	router.GET("/swagger/*any", s.handleSwaggerUI)
+	router.GET("/swagger", handleSwaggerRoot)
+	router.GET("/swagger/*any", handleSwaggerUI)
 
 	api := router.Group("/api/v1")
 
 	auth := api.Group("/auth")
-	auth.POST("/login", s.auth.login)
-	auth.POST("/logout", s.auth.logout)
-	auth.GET("/session", s.auth.status)
+	auth.POST("/login", s.auth.Login)
+	auth.POST("/logout", s.auth.Logout)
+	auth.GET("/session", s.auth.Status)
 
 	api.GET("/ws/live", gin.WrapH(liveHandlerOrNotFound(s.runtimes.LiveWebSocket())))
 
@@ -68,7 +68,7 @@ func (s *Server) buildRouter() *gin.Engine {
 	return router
 }
 
-func (s *Server) databaseAvailabilityMiddleware() gin.HandlerFunc {
+func databaseAvailabilityMiddleware(s *Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 		required := []string{}
@@ -105,15 +105,15 @@ func liveHandlerOrNotFound(handler *apilive.Handler) http.Handler {
 
 func (s *Server) handleNoRoute(c *gin.Context) {
 	if strings.HasPrefix(c.Request.URL.Path, "/api/") {
-		s.notFound(c)
+		notFound(s, c)
 		return
 	}
 	if s.frontend != nil && s.frontend.serveRequest(c.Writer, c.Request) {
 		return
 	}
-	s.notFound(c)
+	notFound(s, c)
 }
 
-func (s *Server) notFound(c *gin.Context) {
-	s.writeError(c, http.StatusNotFound, "NOT_FOUND", fmt.Sprintf("unknown endpoint %s", c.Request.URL.Path))
+func notFound(s *Server, c *gin.Context) {
+	writeError(s, c, http.StatusNotFound, "NOT_FOUND", fmt.Sprintf("unknown endpoint %s", c.Request.URL.Path))
 }

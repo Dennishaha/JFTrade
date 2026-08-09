@@ -24,93 +24,27 @@ export interface components {
     updatedAt: string;
     workMode: string;
   };
-    "adk.AgentWriteRequest": {
-    id?: string;
-    instruction: string;
-    loopMaxIterations?: number;
-    memoryEnabled: boolean;
-    model?: string;
-    name: string;
-    permissionMode: string;
-    providerId: string;
-    recentUserWindow?: number;
-    skills?: Array<string>;
-    status: string;
-    tools?: Array<string>;
-    workMode?: string;
-  };
-    "adk.Approval": {
-    agentId: string;
-    confirmationCallId?: string;
-    createdAt: string;
-    functionCallId?: string;
-    id: string;
-    input?: Record<string, unknown>;
-    reason: string;
-    runId: string;
-    status: string;
-    toolName: string;
-    updatedAt: string;
-  };
     "adk.ApprovalResolution": {
-    approval: components["schemas"]["adk.Approval"];
-    message?: components["schemas"]["adk.TranscriptEntry"];
-    parentRun?: components["schemas"]["adk.Run"];
-    run?: components["schemas"]["adk.Run"];
-  };
-    "adk.AuditEvent": {
-    createdAt: string;
-    detail: string;
-    id: string;
-    kind: string;
-    metadata?: Record<string, unknown>;
-    subjectId?: string;
+    approval: components["schemas"]["model.Approval"];
+    message?: components["schemas"]["model.TranscriptEntry"];
+    parentRun?: components["schemas"]["model.Run"];
+    run?: components["schemas"]["model.Run"];
   };
     "adk.ChatResponse": {
-    context?: components["schemas"]["adk.SessionContextSnapshot"];
-    inputRequest?: components["schemas"]["adk.InputRequest"];
-    pendingApprovals: Array<components["schemas"]["adk.Approval"]>;
+    context?: components["schemas"]["model.SessionContextSnapshot"];
+    inputRequest?: components["schemas"]["model.InputRequest"];
+    pendingApprovals: Array<components["schemas"]["model.Approval"]>;
     reasoningContent?: string;
     reply: string;
-    run: components["schemas"]["adk.Run"];
-    session: components["schemas"]["adk.Session"];
-    timeline: Array<components["schemas"]["adk.TimelineEntry"]>;
-  };
-    "adk.InputAnswer": {
-    optionId?: string;
-    otherText?: string;
-    questionId: string;
-  };
-    "adk.InputOption": {
-    description?: string;
-    id: string;
-    label: string;
-    recommended?: boolean;
-  };
-    "adk.InputQuestion": {
-    allowOther: boolean;
-    id: string;
-    options: Array<components["schemas"]["adk.InputOption"]>;
-    question: string;
-  };
-    "adk.InputRequest": {
-    agentId: string;
-    answeredAt?: string;
-    answers?: Array<components["schemas"]["adk.InputAnswer"]>;
-    createdAt: string;
-    functionCallId: string;
-    id: string;
-    questions: Array<components["schemas"]["adk.InputQuestion"]>;
-    runId: string;
-    status: string;
-    title?: string;
-    updatedAt: string;
+    run: components["schemas"]["model.Run"];
+    session: components["schemas"]["model.Session"];
+    timeline: Array<components["schemas"]["model.TimelineEntry"]>;
   };
     "adk.InputResolution": {
-    message?: components["schemas"]["adk.TranscriptEntry"];
-    parentRun?: components["schemas"]["adk.Run"];
-    request: components["schemas"]["adk.InputRequest"];
-    run?: components["schemas"]["adk.Run"];
+    message?: components["schemas"]["model.TranscriptEntry"];
+    parentRun?: components["schemas"]["model.Run"];
+    request: components["schemas"]["model.InputRequest"];
+    run?: components["schemas"]["model.Run"];
   };
     "adk.MemoryEntry": {
     agentId?: string;
@@ -148,8 +82,8 @@ export interface components {
     failureReason?: string;
     finalMessageId?: string;
     id: string;
-    inputRequest?: components["schemas"]["adk.InputRequest"];
-    inputRequests?: Array<components["schemas"]["adk.InputRequest"]>;
+    inputRequest?: components["schemas"]["model.InputRequest"];
+    inputRequests?: Array<components["schemas"]["model.InputRequest"]>;
     iteration?: number;
     maxDurationMs: number;
     message: string;
@@ -160,7 +94,7 @@ export interface components {
     pauseRequestedAt?: string;
     pausedAt?: string;
     pausedReason?: string;
-    pendingApprovals: Array<components["schemas"]["adk.Approval"]>;
+    pendingApprovals: Array<components["schemas"]["model.Approval"]>;
     permissionMode?: string;
     preToolContent?: string;
     preToolReasoning?: string;
@@ -170,26 +104,16 @@ export interface components {
     sessionId: string;
     startedAt?: string;
     status: string;
-    toolCalls: Array<components["schemas"]["adk.ToolCall"]>;
+    toolCalls: Array<components["schemas"]["model.ToolCall"]>;
     toolSummaries?: Array<string>;
     updatedAt: string;
-    usage?: components["schemas"]["adk.RunUsage"];
+    usage?: components["schemas"]["model.RunUsage"];
     userMessage?: string;
     workMode?: string;
     workflowCursor?: number;
     workflowEngine?: string;
-    workflowPlan?: Array<components["schemas"]["adk.WorkflowStepState"]>;
+    workflowPlan?: Array<components["schemas"]["model.WorkflowStepState"]>;
     workflowStatus?: string;
-  };
-    "adk.RunOptions": {
-    loopMaxIterations?: number;
-  };
-    "adk.RunUsage": {
-    durationMs?: number;
-    modelCalls: number;
-    tokensIn?: number;
-    tokensOut?: number;
-    toolCallsTotal: number;
   };
     "adk.Session": {
     agentId: string;
@@ -211,19 +135,10 @@ export interface components {
     updatedAt: string;
     workModeOverride: string;
   };
-    "adk.SessionContextBreakdown": {
-    handoffTokens: number;
-    instructionTokens: number;
-    otherVisibleTokens: number;
-    pendingUserTokens: number;
-    protectedTailTokens: number;
-    recentUserTokens: number;
-    toolDeclarationTokens: number;
-  };
     "adk.SessionContextSnapshot": {
     activeHandoffCount: number;
     autoCompacted: boolean;
-    breakdown: components["schemas"]["adk.SessionContextBreakdown"];
+    breakdown: components["schemas"]["model.SessionContextBreakdown"];
     compactedEventCount?: number;
     contextRevisionCreatedAt?: string;
     contextRevisionId?: string;
@@ -238,7 +153,7 @@ export interface components {
     previousContextRevisionId?: string;
     projectedNextTurnTokens: number;
     protectedRecentCount?: number;
-    rawBreakdown: components["schemas"]["adk.SessionContextBreakdown"];
+    rawBreakdown: components["schemas"]["model.SessionContextBreakdown"];
     rawCurrentInputTokens?: number;
     rawEventCount?: number;
     rawProjectedNextTurnTokens?: number;
@@ -252,10 +167,10 @@ export interface components {
     usageRatio: number;
   };
     "adk.SessionsResponse": {
-    composerState: components["schemas"]["adk.SessionComposerState"];
-    runs?: Array<components["schemas"]["adk.Run"]>;
-    session: components["schemas"]["adk.Session"];
-    timeline: Array<components["schemas"]["adk.TimelineEntry"]>;
+    composerState: components["schemas"]["model.SessionComposerState"];
+    runs?: Array<components["schemas"]["model.Run"]>;
+    session: components["schemas"]["model.Session"];
+    timeline: Array<components["schemas"]["model.TimelineEntry"]>;
   };
     "adk.Skill": {
     builtin: boolean;
@@ -299,92 +214,10 @@ export interface components {
     updatedAt: string;
     workflowMode?: string;
   };
-    "adk.TimelineEntry": {
-    approvals?: Array<components["schemas"]["adk.Approval"]>;
-    createdAt: string;
-    id: string;
-    inputRequest?: components["schemas"]["adk.InputRequest"];
-    kind: string;
-    originalText?: string;
-    processedText?: string;
-    runId?: string;
-    sequence: number;
-    sessionId: string;
-    status?: string;
-    text?: string;
-    toolCalls?: Array<components["schemas"]["adk.ToolCall"]>;
-    updatedAt?: string;
-  };
-    "adk.ToolCall": {
-    completedAt?: string;
-    createdAt: string;
-    durationMs?: number;
-    error?: string;
-    id: string;
-    idempotencyKey?: string;
-    input?: Record<string, unknown>;
-    output?: unknown;
-    permission: string;
-    requiresUser: boolean;
-    runId: string;
-    startedAt?: string;
-    status: string;
-    toolName: string;
-    updatedAt: string;
-  };
-    "adk.ToolDescriptor": {
-    allowedModes: Array<string>;
-    category: string;
-    description: string;
-    displayName: string;
-    idempotencyMode?: string;
-    inputSchema?: Record<string, unknown>;
-    name: string;
-    outputSummary?: string;
-    permission: string;
-    requiredSkills?: Array<string>;
-    requiresApprovalIn: Array<string>;
-    riskLevel?: string;
-  };
-    "adk.TranscriptEntry": {
-    content: string;
-    createdAt: string;
-    id: string;
-    kind: string;
-    reasoningContent?: string;
-    role: string;
-    runId?: string;
-    sessionId: string;
-  };
-    "adk.WorkflowCanvasEdge": {
-    data?: Record<string, unknown>;
-    id: string;
-    source: string;
-    sourceHandle?: string;
-    target: string;
-    targetHandle?: string;
-    type?: string;
-  };
-    "adk.WorkflowCanvasGraph": {
-    edges?: Array<components["schemas"]["adk.WorkflowCanvasEdge"]>;
-    nodes?: Array<components["schemas"]["adk.WorkflowCanvasNode"]>;
-    version?: string;
-    viewport?: Record<string, unknown>;
-  };
-    "adk.WorkflowCanvasNode": {
-    data?: Record<string, unknown>;
-    id: string;
-    position: components["schemas"]["adk.WorkflowCanvasPoint"];
-    type: string;
-  };
-    "adk.WorkflowCanvasPoint": {
-    x: number;
-    y: number;
-  };
     "adk.WorkflowDefinition": {
     agentId: string;
     builtinTemplate?: boolean;
-    canvasGraph?: components["schemas"]["adk.WorkflowCanvasGraph"];
+    canvasGraph?: components["schemas"]["model.WorkflowCanvasGraph"];
     createdAt: string;
     defaultInputs?: Record<string, unknown>;
     deletedAt?: string;
@@ -401,96 +234,16 @@ export interface components {
     updatedAt: string;
     workMode: string;
   };
-    "adk.WorkflowNodeRun": {
-    error?: string;
-    finishedAt?: string;
-    inputs?: Record<string, unknown>;
-    nodeId: string;
-    nodeType: string;
-    outputs?: Record<string, unknown>;
-    startedAt?: string;
-    status: string;
-    title?: string;
-  };
-    "adk.WorkflowResult": {
-    format?: string;
-    json?: Record<string, unknown>;
-    markdown?: string;
-    rawResponse?: components["schemas"]["adk.ChatResponse"];
-  };
-    "adk.WorkflowStepState": {
-    agentRole?: string;
-    childAgentId?: string;
-    childModel?: string;
-    childPermissionMode?: string;
-    childProviderId?: string;
-    childRunId?: string;
-    dependsOn?: Array<string>;
-    description?: string;
-    executor?: string;
-    iteration?: number;
-    message?: string;
-    modeHint?: string;
-    nodeName?: string;
-    nodeStatus?: string;
-    objective?: string;
-    order?: number;
-    outputSummary?: string;
-    planSource?: string;
-    plannerStepId?: string;
-    plannerWarnings?: Array<string>;
-    resultSummary?: string;
-    routes?: Array<string>;
-    status: string;
-    taskId?: string;
-    title: string;
-    workflowMode?: string;
-  };
-    "adk.WorkflowTrigger": {
-    config?: Record<string, unknown>;
-    createdAt: string;
-    deletedAt?: string;
-    hasSecret?: boolean;
-    id: string;
-    lastError?: string;
-    lastRunAt?: string;
-    lastRunId?: string;
-    nextRunAt?: string;
-    secretHash?: string;
-    status: string;
-    title: string;
-    type: string;
-    updatedAt: string;
-    workflowId: string;
-  };
-    "adk.WorkflowTriggerLog": {
-    createdAt: string;
-    error?: string;
-    finishedAt?: string;
-    id: string;
-    inputs?: Record<string, unknown>;
-    matchedEvent?: Record<string, unknown>;
-    nodeRuns?: Array<components["schemas"]["adk.WorkflowNodeRun"]>;
-    result?: components["schemas"]["adk.WorkflowResult"];
-    runId?: string;
-    sessionId?: string;
-    startedAt?: string;
-    status: string;
-    triggerId?: string;
-    triggerType: string;
-    updatedAt: string;
-    workflowId: string;
-  };
     "assistant.ADKActivityCountData": {
     last7Days: number;
     total: number;
   };
     "assistant.ADKAgentsData": {
-    agents: Array<components["schemas"]["adk.Agent"]>;
+    agents: Array<components["schemas"]["workflowruntime.Agent"]>;
     page: components["schemas"]["assistant.ADKPageData"];
   };
     "assistant.ADKAgentTemplatesData": {
-    templates: Array<components["schemas"]["adk.AgentWriteRequest"]>;
+    templates: Array<components["schemas"]["workflowruntime.AgentWriteRequest"]>;
   };
     "assistant.ADKAgentWriteRequest": {
     id?: string;
@@ -518,11 +271,11 @@ export interface components {
     total: number;
   };
     "assistant.ADKApprovalsData": {
-    approvals: Array<components["schemas"]["adk.Approval"]>;
+    approvals: Array<components["schemas"]["workflowruntime.Approval"]>;
     page: components["schemas"]["assistant.ADKPageData"];
   };
     "assistant.ADKAuditData": {
-    events: Array<components["schemas"]["adk.AuditEvent"]>;
+    events: Array<components["schemas"]["workflowruntime.AuditEvent"]>;
     page: components["schemas"]["assistant.ADKPageData"];
   };
     "assistant.ADKChatRequest": {
@@ -533,7 +286,7 @@ export interface components {
     objective?: string;
     permissionModeOverride?: string;
     providerId?: string;
-    runOptions?: components["schemas"]["adk.RunOptions"];
+    runOptions?: components["schemas"]["workflowruntime.RunOptions"];
     sessionId?: string;
     workModeOverride?: string;
   };
@@ -550,7 +303,7 @@ export interface components {
     id: string;
   };
     "assistant.ADKInputResponseRequest": {
-    answers: Array<components["schemas"]["adk.InputAnswer"]>;
+    answers: Array<components["schemas"]["workflowruntime.InputAnswer"]>;
     requestId: string;
   };
     "assistant.ADKInstallSkillRequest": {
@@ -561,7 +314,7 @@ export interface components {
     since: string;
   };
     "assistant.ADKMemoryData": {
-    entries: Array<components["schemas"]["adk.MemoryEntry"]>;
+    entries: Array<components["schemas"]["workflowruntime.MemoryEntry"]>;
   };
     "assistant.ADKMemoryWriteRequest": {
     agentId?: string;
@@ -613,7 +366,7 @@ export interface components {
     total: number;
   };
     "assistant.ADKProvidersData": {
-    providers: Array<components["schemas"]["adk.Provider"]>;
+    providers: Array<components["schemas"]["workflowruntime.Provider"]>;
   };
     "assistant.ADKProviderTestData": {
     capabilities: Record<string, boolean>;
@@ -646,7 +399,7 @@ export interface components {
   };
     "assistant.ADKRunsData": {
     page: components["schemas"]["assistant.ADKPageData"];
-    runs: Array<components["schemas"]["adk.Run"]>;
+    runs: Array<components["schemas"]["workflowruntime.Run"]>;
   };
     "assistant.ADKSessionComposerStatePatch": {
     chatDraft?: string;
@@ -659,17 +412,17 @@ export interface components {
   };
     "assistant.ADKSessionsData": {
     page: components["schemas"]["assistant.ADKPageData"];
-    sessions: Array<components["schemas"]["adk.Session"]>;
+    sessions: Array<components["schemas"]["workflowruntime.Session"]>;
   };
     "assistant.ADKSkillsData": {
-    skills: Array<components["schemas"]["adk.Skill"]>;
+    skills: Array<components["schemas"]["workflowruntime.Skill"]>;
   };
     "assistant.ADKSnapshotData": {
-    agents: Array<components["schemas"]["adk.Agent"]>;
-    providers: Array<components["schemas"]["adk.Provider"]>;
+    agents: Array<components["schemas"]["workflowruntime.Agent"]>;
+    providers: Array<components["schemas"]["workflowruntime.Provider"]>;
     runtimeSettings?: components["schemas"]["jftsettings.ADKRuntimeSettings"];
-    skills: Array<components["schemas"]["adk.Skill"]>;
-    tools: Array<components["schemas"]["adk.ToolDescriptor"]>;
+    skills: Array<components["schemas"]["workflowruntime.Skill"]>;
+    tools: Array<components["schemas"]["workflowruntime.ToolDescriptor"]>;
   };
     "assistant.ADKTaskPatchRequest": {
     agentId?: string;
@@ -696,7 +449,7 @@ export interface components {
   };
     "assistant.ADKTasksData": {
     page: components["schemas"]["assistant.ADKPageData"];
-    tasks: Array<components["schemas"]["adk.Task"]>;
+    tasks: Array<components["schemas"]["workflowruntime.Task"]>;
   };
     "assistant.ADKTaskWriteRequest": {
     agentId?: string;
@@ -730,7 +483,7 @@ export interface components {
     total: number;
   };
     "assistant.ADKToolsData": {
-    tools: Array<components["schemas"]["adk.ToolDescriptor"]>;
+    tools: Array<components["schemas"]["workflowruntime.ToolDescriptor"]>;
   };
     "assistant.ADKUpdateRunObjectiveRequest": {
     objective: string;
@@ -749,7 +502,7 @@ export interface components {
   };
     "assistant.ADKWorkflowDefinitionWriteRequest": {
     agentId: string;
-    canvasGraph?: components["schemas"]["adk.WorkflowCanvasGraph"];
+    canvasGraph?: components["schemas"]["workflowruntime.WorkflowCanvasGraph"];
     defaultInputs?: Record<string, unknown>;
     description?: string;
     id?: string;
@@ -765,16 +518,16 @@ export interface components {
   };
     "assistant.ADKWorkflowDeleteData": {
     deleted: boolean;
-    workflow: components["schemas"]["adk.WorkflowDefinition"];
+    workflow: components["schemas"]["workflowruntime.WorkflowDefinition"];
   };
     "assistant.ADKWorkflowInputsRequest": {
     inputs?: Record<string, unknown>;
   };
     "assistant.ADKWorkflowInvocationData": {
-    log: components["schemas"]["adk.WorkflowTriggerLog"];
-    response?: components["schemas"]["adk.ChatResponse"];
-    trigger?: components["schemas"]["adk.WorkflowTrigger"];
-    workflow: components["schemas"]["adk.WorkflowDefinition"];
+    log: components["schemas"]["workflowruntime.WorkflowTriggerLog"];
+    response?: components["schemas"]["workflowruntime.ChatResponse"];
+    trigger?: components["schemas"]["workflowruntime.WorkflowTrigger"];
+    workflow: components["schemas"]["workflowruntime.WorkflowDefinition"];
   };
     "assistant.ADKWorkflowMetricsData": {
     byStatus: Record<string, number>;
@@ -788,22 +541,22 @@ export interface components {
   };
     "assistant.ADKWorkflowsData": {
     page: components["schemas"]["assistant.ADKPageData"];
-    workflows: Array<components["schemas"]["adk.WorkflowDefinition"]>;
+    workflows: Array<components["schemas"]["workflowruntime.WorkflowDefinition"]>;
   };
     "assistant.ADKWorkflowTriggerDeleteData": {
     deleted: boolean;
-    trigger: components["schemas"]["adk.WorkflowTrigger"];
+    trigger: components["schemas"]["workflowruntime.WorkflowTrigger"];
   };
     "assistant.ADKWorkflowTriggerLogsData": {
-    logs: Array<components["schemas"]["adk.WorkflowTriggerLog"]>;
+    logs: Array<components["schemas"]["workflowruntime.WorkflowTriggerLog"]>;
     page: components["schemas"]["assistant.ADKPageData"];
   };
     "assistant.ADKWorkflowTriggerSaveData": {
     secret?: string;
-    trigger: components["schemas"]["adk.WorkflowTrigger"];
+    trigger: components["schemas"]["workflowruntime.WorkflowTrigger"];
   };
     "assistant.ADKWorkflowTriggersData": {
-    triggers: Array<components["schemas"]["adk.WorkflowTrigger"]>;
+    triggers: Array<components["schemas"]["workflowruntime.WorkflowTrigger"]>;
   };
     "assistant.ADKWorkflowTriggerWriteRequest": {
     config?: Record<string, unknown>;
@@ -1822,6 +1575,283 @@ export interface components {
     transport?: Record<string, unknown>;
   };
     "marketdata.SubscriptionsSnapshot": Record<string, unknown>;
+    "model.Approval": {
+    agentId: string;
+    confirmationCallId?: string;
+    createdAt: string;
+    functionCallId?: string;
+    id: string;
+    input?: Record<string, unknown>;
+    reason: string;
+    runId: string;
+    status: string;
+    toolName: string;
+    updatedAt: string;
+  };
+    "model.ChatResponse": {
+    context?: components["schemas"]["model.SessionContextSnapshot"];
+    inputRequest?: components["schemas"]["model.InputRequest"];
+    pendingApprovals: Array<components["schemas"]["model.Approval"]>;
+    reasoningContent?: string;
+    reply: string;
+    run: components["schemas"]["model.Run"];
+    session: components["schemas"]["model.Session"];
+    timeline: Array<components["schemas"]["model.TimelineEntry"]>;
+  };
+    "model.InputAnswer": {
+    optionId?: string;
+    otherText?: string;
+    questionId: string;
+  };
+    "model.InputOption": {
+    description?: string;
+    id: string;
+    label: string;
+    recommended?: boolean;
+  };
+    "model.InputQuestion": {
+    allowOther: boolean;
+    id: string;
+    options: Array<components["schemas"]["model.InputOption"]>;
+    question: string;
+  };
+    "model.InputRequest": {
+    agentId: string;
+    answeredAt?: string;
+    answers?: Array<components["schemas"]["model.InputAnswer"]>;
+    createdAt: string;
+    functionCallId: string;
+    id: string;
+    questions: Array<components["schemas"]["model.InputQuestion"]>;
+    runId: string;
+    status: string;
+    title?: string;
+    updatedAt: string;
+  };
+    "model.Run": {
+    agentId: string;
+    cancelledAt?: string;
+    childRunIds?: Array<string>;
+    completedAt?: string;
+    createdAt: string;
+    degraded?: boolean;
+    errorCode?: string;
+    failureReason?: string;
+    finalMessageId?: string;
+    id: string;
+    inputRequest?: components["schemas"]["model.InputRequest"];
+    inputRequests?: Array<components["schemas"]["model.InputRequest"]>;
+    iteration?: number;
+    maxDurationMs: number;
+    message: string;
+    model?: string;
+    objective?: string;
+    optimizationTaskId?: string;
+    parentRunId?: string;
+    pauseRequestedAt?: string;
+    pausedAt?: string;
+    pausedReason?: string;
+    pendingApprovals: Array<components["schemas"]["model.Approval"]>;
+    permissionMode?: string;
+    preToolContent?: string;
+    preToolReasoning?: string;
+    providerId?: string;
+    providerName?: string;
+    resumeState?: string;
+    sessionId: string;
+    startedAt?: string;
+    status: string;
+    toolCalls: Array<components["schemas"]["model.ToolCall"]>;
+    toolSummaries?: Array<string>;
+    updatedAt: string;
+    usage?: components["schemas"]["model.RunUsage"];
+    userMessage?: string;
+    workMode?: string;
+    workflowCursor?: number;
+    workflowEngine?: string;
+    workflowPlan?: Array<components["schemas"]["model.WorkflowStepState"]>;
+    workflowStatus?: string;
+  };
+    "model.RunUsage": {
+    durationMs?: number;
+    modelCalls: number;
+    tokensIn?: number;
+    tokensOut?: number;
+    toolCallsTotal: number;
+  };
+    "model.Session": {
+    agentId: string;
+    createdAt: string;
+    id: string;
+    title: string;
+    updatedAt: string;
+    workflowId?: string;
+    workflowName?: string;
+  };
+    "model.SessionComposerState": {
+    chatDraft: string;
+    goalObjectiveDraft: string;
+    goalObjectiveTouched: boolean;
+    modelOverride: string;
+    permissionModeOverride: string;
+    providerIdOverride: string;
+    sessionId: string;
+    updatedAt: string;
+    workModeOverride: string;
+  };
+    "model.SessionContextBreakdown": {
+    handoffTokens: number;
+    instructionTokens: number;
+    otherVisibleTokens: number;
+    pendingUserTokens: number;
+    protectedTailTokens: number;
+    recentUserTokens: number;
+    toolDeclarationTokens: number;
+  };
+    "model.SessionContextSnapshot": {
+    activeHandoffCount: number;
+    autoCompacted: boolean;
+    breakdown: components["schemas"]["model.SessionContextBreakdown"];
+    compactedEventCount?: number;
+    contextRevisionCreatedAt?: string;
+    contextRevisionId?: string;
+    contextWindowTokens: number;
+    currentInputTokens: number;
+    degradedSummary: boolean;
+    estimatedInputTokens?: number;
+    lastCompactedAt?: string;
+    lastCompactionMode?: string;
+    lastCompactionReason?: string;
+    latestHandoffPreview?: string;
+    previousContextRevisionId?: string;
+    projectedNextTurnTokens: number;
+    protectedRecentCount?: number;
+    rawBreakdown: components["schemas"]["model.SessionContextBreakdown"];
+    rawCurrentInputTokens?: number;
+    rawEventCount?: number;
+    rawProjectedNextTurnTokens?: number;
+    recentUserWindow: number;
+    retainedRecentUserCount: number;
+    sessionId: string;
+    status: string;
+    summaryBoundaryEventIndex?: number;
+    summaryPreview?: string;
+    trimmedToolResponseCount?: number;
+    usageRatio: number;
+  };
+    "model.TimelineEntry": {
+    approvals?: Array<components["schemas"]["model.Approval"]>;
+    createdAt: string;
+    id: string;
+    inputRequest?: components["schemas"]["model.InputRequest"];
+    kind: string;
+    originalText?: string;
+    processedText?: string;
+    runId?: string;
+    sequence: number;
+    sessionId: string;
+    status?: string;
+    text?: string;
+    toolCalls?: Array<components["schemas"]["model.ToolCall"]>;
+    updatedAt?: string;
+  };
+    "model.ToolCall": {
+    completedAt?: string;
+    createdAt: string;
+    durationMs?: number;
+    error?: string;
+    id: string;
+    idempotencyKey?: string;
+    input?: Record<string, unknown>;
+    output?: unknown;
+    permission: string;
+    requiresUser: boolean;
+    runId: string;
+    startedAt?: string;
+    status: string;
+    toolName: string;
+    updatedAt: string;
+  };
+    "model.TranscriptEntry": {
+    content: string;
+    createdAt: string;
+    id: string;
+    kind: string;
+    reasoningContent?: string;
+    role: string;
+    runId?: string;
+    sessionId: string;
+  };
+    "model.WorkflowCanvasEdge": {
+    data?: Record<string, unknown>;
+    id: string;
+    source: string;
+    sourceHandle?: string;
+    target: string;
+    targetHandle?: string;
+    type?: string;
+  };
+    "model.WorkflowCanvasGraph": {
+    edges?: Array<components["schemas"]["model.WorkflowCanvasEdge"]>;
+    nodes?: Array<components["schemas"]["model.WorkflowCanvasNode"]>;
+    version?: string;
+    viewport?: Record<string, unknown>;
+  };
+    "model.WorkflowCanvasNode": {
+    data?: Record<string, unknown>;
+    id: string;
+    position: components["schemas"]["model.WorkflowCanvasPoint"];
+    type: string;
+  };
+    "model.WorkflowCanvasPoint": {
+    x: number;
+    y: number;
+  };
+    "model.WorkflowNodeRun": {
+    error?: string;
+    finishedAt?: string;
+    inputs?: Record<string, unknown>;
+    nodeId: string;
+    nodeType: string;
+    outputs?: Record<string, unknown>;
+    startedAt?: string;
+    status: string;
+    title?: string;
+  };
+    "model.WorkflowResult": {
+    format?: string;
+    json?: Record<string, unknown>;
+    markdown?: string;
+    rawResponse?: components["schemas"]["model.ChatResponse"];
+  };
+    "model.WorkflowStepState": {
+    agentRole?: string;
+    childAgentId?: string;
+    childModel?: string;
+    childPermissionMode?: string;
+    childProviderId?: string;
+    childRunId?: string;
+    dependsOn?: Array<string>;
+    description?: string;
+    executor?: string;
+    iteration?: number;
+    message?: string;
+    modeHint?: string;
+    nodeName?: string;
+    nodeStatus?: string;
+    objective?: string;
+    order?: number;
+    outputSummary?: string;
+    planSource?: string;
+    plannerStepId?: string;
+    plannerWarnings?: Array<string>;
+    resultSummary?: string;
+    routes?: Array<string>;
+    status: string;
+    taskId?: string;
+    title: string;
+    workflowMode?: string;
+  };
     "observability.Event": {
     accountId?: string;
     at: string;
@@ -2084,14 +2114,6 @@ export interface components {
     "runmodel.TradingCosts": {
     brokerFees: components["schemas"]["runmodel.FeeSchedule"];
     marketFees: components["schemas"]["runmodel.FeeSchedule"];
-  };
-    "servercore.webLoginRequest": {
-    password: string;
-  };
-    "servercore.WebSessionData": {
-    authenticated: boolean;
-    csrfToken?: string;
-    expiresAt?: string;
   };
     "settings.ADKRuntimeSettingsWriteRequest": {
     runTimeoutMs: number;
@@ -3768,6 +3790,282 @@ export interface components {
   };
     "watchlist.WatchlistSourcesData": {
     sources: Array<components["schemas"]["watchlist.WatchlistSource"]>;
+  };
+    "webaccess.webLoginRequest": {
+    password: string;
+  };
+    "webaccess.WebSessionData": {
+    authenticated: boolean;
+    csrfToken?: string;
+    expiresAt?: string;
+  };
+    "workflowruntime.Agent": {
+    builtin?: boolean;
+    createdAt: string;
+    deletedAt?: string;
+    id: string;
+    instruction: string;
+    loopMaxIterations: number;
+    memoryEnabled: boolean;
+    model: string;
+    name: string;
+    permissionMode: string;
+    providerId: string;
+    recentUserWindow: number;
+    skills: Array<string>;
+    status: string;
+    tools: Array<string>;
+    updatedAt: string;
+    workMode: string;
+  };
+    "workflowruntime.AgentWriteRequest": {
+    id?: string;
+    instruction: string;
+    loopMaxIterations?: number;
+    memoryEnabled: boolean;
+    model?: string;
+    name: string;
+    permissionMode: string;
+    providerId: string;
+    recentUserWindow?: number;
+    skills?: Array<string>;
+    status: string;
+    tools?: Array<string>;
+    workMode?: string;
+  };
+    "workflowruntime.Approval": {
+    agentId: string;
+    confirmationCallId?: string;
+    createdAt: string;
+    functionCallId?: string;
+    id: string;
+    input?: Record<string, unknown>;
+    reason: string;
+    runId: string;
+    status: string;
+    toolName: string;
+    updatedAt: string;
+  };
+    "workflowruntime.AuditEvent": {
+    createdAt: string;
+    detail: string;
+    id: string;
+    kind: string;
+    metadata?: Record<string, unknown>;
+    subjectId?: string;
+  };
+    "workflowruntime.ChatResponse": {
+    context?: components["schemas"]["model.SessionContextSnapshot"];
+    inputRequest?: components["schemas"]["model.InputRequest"];
+    pendingApprovals: Array<components["schemas"]["model.Approval"]>;
+    reasoningContent?: string;
+    reply: string;
+    run: components["schemas"]["model.Run"];
+    session: components["schemas"]["model.Session"];
+    timeline: Array<components["schemas"]["model.TimelineEntry"]>;
+  };
+    "workflowruntime.InputAnswer": {
+    optionId?: string;
+    otherText?: string;
+    questionId: string;
+  };
+    "workflowruntime.MemoryEntry": {
+    agentId?: string;
+    createdAt: string;
+    id: string;
+    key: string;
+    scope: string;
+    updatedAt: string;
+    value: string;
+  };
+    "workflowruntime.Provider": {
+    apiProtocol: "chat_completions" | "responses";
+    baseUrl: string;
+    capabilities?: Record<string, boolean>;
+    contextWindowTokens?: number;
+    createdAt: string;
+    default: boolean;
+    defaultHeaders?: Record<string, string>;
+    displayName: string;
+    enabled: boolean;
+    hasApiKey: boolean;
+    id: string;
+    model: string;
+    requestTimeoutMs: number;
+    updatedAt: string;
+  };
+    "workflowruntime.Run": {
+    agentId: string;
+    cancelledAt?: string;
+    childRunIds?: Array<string>;
+    completedAt?: string;
+    createdAt: string;
+    degraded?: boolean;
+    errorCode?: string;
+    failureReason?: string;
+    finalMessageId?: string;
+    id: string;
+    inputRequest?: components["schemas"]["model.InputRequest"];
+    inputRequests?: Array<components["schemas"]["model.InputRequest"]>;
+    iteration?: number;
+    maxDurationMs: number;
+    message: string;
+    model?: string;
+    objective?: string;
+    optimizationTaskId?: string;
+    parentRunId?: string;
+    pauseRequestedAt?: string;
+    pausedAt?: string;
+    pausedReason?: string;
+    pendingApprovals: Array<components["schemas"]["model.Approval"]>;
+    permissionMode?: string;
+    preToolContent?: string;
+    preToolReasoning?: string;
+    providerId?: string;
+    providerName?: string;
+    resumeState?: string;
+    sessionId: string;
+    startedAt?: string;
+    status: string;
+    toolCalls: Array<components["schemas"]["model.ToolCall"]>;
+    toolSummaries?: Array<string>;
+    updatedAt: string;
+    usage?: components["schemas"]["model.RunUsage"];
+    userMessage?: string;
+    workMode?: string;
+    workflowCursor?: number;
+    workflowEngine?: string;
+    workflowPlan?: Array<components["schemas"]["model.WorkflowStepState"]>;
+    workflowStatus?: string;
+  };
+    "workflowruntime.RunOptions": {
+    loopMaxIterations?: number;
+  };
+    "workflowruntime.Session": {
+    agentId: string;
+    createdAt: string;
+    id: string;
+    title: string;
+    updatedAt: string;
+    workflowId?: string;
+    workflowName?: string;
+  };
+    "workflowruntime.Skill": {
+    builtin: boolean;
+    contentHash?: string;
+    createdAt: string;
+    description: string;
+    displayName: string;
+    enabled: boolean;
+    id: string;
+    installPath: string;
+    source: string;
+    tools: Array<string>;
+    updatedAt: string;
+    validationError?: string;
+    validationStatus?: string;
+    version?: string;
+  };
+    "workflowruntime.Task": {
+    agentId?: string;
+    agentRole?: string;
+    childAgentId?: string;
+    childModel?: string;
+    childPermissionMode?: string;
+    childProviderId?: string;
+    createdAt: string;
+    dependsOn?: Array<string>;
+    description?: string;
+    executor?: string;
+    id: string;
+    message?: string;
+    modeHint?: string;
+    objective?: string;
+    order?: number;
+    planSource?: string;
+    plannerStepId?: string;
+    plannerWarnings?: Array<string>;
+    resultSummary?: string;
+    runId?: string;
+    status: string;
+    title: string;
+    updatedAt: string;
+    workflowMode?: string;
+  };
+    "workflowruntime.ToolDescriptor": {
+    allowedModes: Array<string>;
+    category: string;
+    description: string;
+    displayName: string;
+    idempotencyMode?: string;
+    inputSchema?: Record<string, unknown>;
+    name: string;
+    outputSummary?: string;
+    permission: string;
+    requiredSkills?: Array<string>;
+    requiresApprovalIn: Array<string>;
+    riskLevel?: string;
+  };
+    "workflowruntime.WorkflowCanvasGraph": {
+    edges?: Array<components["schemas"]["model.WorkflowCanvasEdge"]>;
+    nodes?: Array<components["schemas"]["model.WorkflowCanvasNode"]>;
+    version?: string;
+    viewport?: Record<string, unknown>;
+  };
+    "workflowruntime.WorkflowDefinition": {
+    agentId: string;
+    builtinTemplate?: boolean;
+    canvasGraph?: components["schemas"]["model.WorkflowCanvasGraph"];
+    createdAt: string;
+    defaultInputs?: Record<string, unknown>;
+    deletedAt?: string;
+    description?: string;
+    id: string;
+    model?: string;
+    name: string;
+    objectiveTemplate?: string;
+    permissionMode?: string;
+    promptTemplate: string;
+    providerId?: string;
+    status: string;
+    tags?: Array<string>;
+    updatedAt: string;
+    workMode: string;
+  };
+    "workflowruntime.WorkflowTrigger": {
+    config?: Record<string, unknown>;
+    createdAt: string;
+    deletedAt?: string;
+    hasSecret?: boolean;
+    id: string;
+    lastError?: string;
+    lastRunAt?: string;
+    lastRunId?: string;
+    nextRunAt?: string;
+    secretHash?: string;
+    status: string;
+    title: string;
+    type: string;
+    updatedAt: string;
+    workflowId: string;
+  };
+    "workflowruntime.WorkflowTriggerLog": {
+    createdAt: string;
+    error?: string;
+    finishedAt?: string;
+    id: string;
+    inputs?: Record<string, unknown>;
+    matchedEvent?: Record<string, unknown>;
+    nodeRuns?: Array<components["schemas"]["model.WorkflowNodeRun"]>;
+    result?: components["schemas"]["model.WorkflowResult"];
+    runId?: string;
+    sessionId?: string;
+    startedAt?: string;
+    status: string;
+    triggerId?: string;
+    triggerType: string;
+    updatedAt: string;
+    workflowId: string;
   };
   };
 }
@@ -6055,7 +6353,7 @@ export interface paths {
     post: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["servercore.webLoginRequest"];
+          "application/json": components["schemas"]["webaccess.webLoginRequest"];
         };
       };
       responses: {
@@ -6063,7 +6361,7 @@ export interface paths {
           description: "OK";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"] & {
-    data?: components["schemas"]["servercore.WebSessionData"];
+    data?: components["schemas"]["webaccess.WebSessionData"];
   };
           };
         };
@@ -6125,7 +6423,7 @@ export interface paths {
           description: "OK";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"] & {
-    data?: components["schemas"]["servercore.WebSessionData"];
+    data?: components["schemas"]["webaccess.WebSessionData"];
   };
           };
         };
@@ -6151,7 +6449,7 @@ export interface paths {
           description: "OK";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"] & {
-    data?: components["schemas"]["servercore.WebSessionData"];
+    data?: components["schemas"]["webaccess.WebSessionData"];
   };
           };
         };

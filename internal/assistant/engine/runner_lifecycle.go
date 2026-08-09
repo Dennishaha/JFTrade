@@ -10,16 +10,11 @@ import (
 
 	"github.com/google/uuid"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
-func runTimeoutForRun(run Run) time.Duration {
-	if run.MaxDurationMs > 0 {
-		return time.Duration(run.MaxDurationMs) * time.Millisecond
-	}
-	return DefaultRunTimeout
-}
 func (r *Runtime) reconcileStaleRuns(ctx context.Context) error {
 	if r == nil || r.store == nil {
 		return nil
@@ -28,7 +23,13 @@ func (r *Runtime) reconcileStaleRuns(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	executor := &WorkflowExecutor{runtime: r}
+	executor, err := r.workflowExecutor()
+	if err != nil {
+		r.adkMu.Lock()
+		r.startupReconcile = true
+		r.adkMu.Unlock()
+		return nil
+	}
 	var reconcileErr error
 	for _, run := range runs {
 		reconcileErr = errors.Join(reconcileErr, r.reconcileStaleRun(ctx, executor, run))
@@ -36,7 +37,7 @@ func (r *Runtime) reconcileStaleRuns(ctx context.Context) error {
 	return reconcileErr
 }
 
-func (r *Runtime) reconcileStaleRun(ctx context.Context, executor *WorkflowExecutor, run Run) error {
+func (r *Runtime) reconcileStaleRun(ctx context.Context, executor WorkflowExecution, run Run) error {
 	latest, ok, err := r.loadStaleRunForReconcile(ctx, run.ID)
 	if err != nil {
 		return err
@@ -102,29 +103,29 @@ func (r *Runtime) loadStaleRunForReconcile(ctx context.Context, runID string) (R
 	return latest, ok, nil
 }
 
-func (r *Runtime) reconcileCompletedWorkflowParent(ctx context.Context, executor *WorkflowExecutor, run Run) (bool, error) {
+func (r *Runtime) reconcileCompletedWorkflowParent(ctx context.Context, executor WorkflowExecution, run Run) (bool, error) {
 	if !isCompletedRunningWorkflowParent(run) {
 		return false, nil
 	}
-	_, _, err := executor.reconcileWorkflowChildren(ctx, run)
+	_, _, err := executor.ReconcileWorkflowChildren(ctx, run)
 	return true, err
 }
 
-func (r *Runtime) reconcileTerminalStaleRun(ctx context.Context, executor *WorkflowExecutor, run Run) (bool, error) {
+func (r *Runtime) reconcileTerminalStaleRun(ctx context.Context, executor WorkflowExecution, run Run) (bool, error) {
 	if !isTerminalLifecycleRunStatus(run.Status) {
 		return false, nil
 	}
 	changed := len(run.PendingApprovals) > 0
 	run.PendingApprovals = nil
 	if isWorkflowParentRun(run) {
-		if tasks, err := executor.workflowTasks(ctx, run, nil); err == nil && len(tasks) > 0 {
-			refreshed := workflowPlanFromTasks(tasks, run.WorkflowPlan)
+		if tasks, err := executor.WorkflowTasks(ctx, run, nil); err == nil && len(tasks) > 0 {
+			refreshed := jfadkmodel.WorkflowPlanFromTasks(tasks, run.WorkflowPlan)
 			if !reflect.DeepEqual(refreshed, run.WorkflowPlan) {
 				run.WorkflowPlan = refreshed
 				changed = true
 			}
 		}
-		r.cancelUnfinishedWorkflowChildren(ctx, run)
+		r.CancelUnfinishedWorkflowChildren(ctx, run)
 	}
 	if changed {
 		if err := r.store.SaveRunAndDenyPendingApprovals(ctx, run); err != nil {
@@ -132,10 +133,6 @@ func (r *Runtime) reconcileTerminalStaleRun(ctx context.Context, executor *Workf
 		}
 	}
 	return true, nil
-}
-
-func isRecoverableReconcileStatus(status string) bool {
-	return status == RunStatusRunning || status == RunStatusPending || status == RunStatusPendingInput || status == RunStatusPaused
 }
 
 func (r *Runtime) cancelChildOfTerminalParent(ctx context.Context, run Run) (bool, error) {
@@ -261,57 +258,15 @@ func (r *Runtime) isDormantWorkflowChildRun(ctx context.Context, run Run) bool {
 	return workflowParentReferencesChild(parent, run.ID)
 }
 
-func workflowChildRunHasNoExecutionActivity(run Run) bool {
-	return strings.TrimSpace(run.ParentRunID) != "" &&
-		run.Status == RunStatusRunning &&
-		len(run.ToolCalls) == 0 &&
-		len(run.PendingApprovals) == 0 &&
-		strings.TrimSpace(run.PreToolContent) == "" &&
-		strings.TrimSpace(run.PreToolReasoning) == "" &&
-		strings.TrimSpace(run.FinalMessageID) == ""
-}
+type ToolExecutionContext = jfadkmodel.ToolExecutionContext
 
-func workflowParentReferencesChild(parent Run, childRunID string) bool {
-	childRunID = strings.TrimSpace(childRunID)
-	if childRunID == "" {
-		return false
-	}
-	for _, id := range parent.ChildRunIDs {
-		if strings.TrimSpace(id) == childRunID {
-			return true
-		}
-	}
-	for _, step := range parent.WorkflowPlan {
-		if strings.TrimSpace(step.ChildRunID) == childRunID {
-			return true
-		}
-	}
-	return false
-}
-
-type toolExecutionContext struct {
-	calls        []ToolCall
-	summaries    []string
-	inputRequest *InputRequest
-}
-
-type runStartOptions struct {
-	WorkMode           string
-	Objective          string
-	ClientRequestID    string
-	RequestFingerprint string
-	ParentRunID        string
-	ChildRunIDs        []string
-	Iteration          int
-	WorkflowStatus     string
-	WorkflowEngine     string
-}
+type RunStartOptions = jfadkmodel.RunStartOptions
 
 func (r *Runtime) startRun(ctx context.Context, sessionID string, agent Agent, text string) (Run, context.Context, func(), error) {
-	return r.startRunWithOptions(ctx, sessionID, agent, text, runStartOptions{WorkMode: agent.WorkMode})
+	return r.StartRunWithOptions(ctx, sessionID, agent, text, RunStartOptions{WorkMode: agent.WorkMode})
 }
 
-func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, agent Agent, text string, options runStartOptions) (Run, context.Context, func(), error) {
+func (r *Runtime) StartRunWithOptions(ctx context.Context, sessionID string, agent Agent, text string, options RunStartOptions) (Run, context.Context, func(), error) {
 	resolvedAgent, err := r.resolveAgentProvider(ctx, agent)
 	if err != nil {
 		return Run{}, nil, nil, err
@@ -319,7 +274,7 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 	agent = resolvedAgent
 	now := nowString()
 	timeout := r.runtimeLimits().RunTimeout
-	workMode := normalizeWorkMode(options.WorkMode)
+	workMode := jfadkmodel.NormalizeWorkMode(options.WorkMode)
 	providerName, modelName := r.runModelSnapshot(ctx, agent)
 	run := Run{
 		ID: "run-" + uuid.NewString(), SessionID: sessionID, AgentID: agent.ID, ProviderID: strings.TrimSpace(agent.ProviderID),
@@ -327,7 +282,7 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 		MaxDurationMs: timeout.Milliseconds(),
 		Status:        RunStatusRunning, UserMessage: text, Message: "running",
 		WorkMode: workMode, PermissionMode: normalizePermissionMode(agent.PermissionMode), Objective: strings.TrimSpace(options.Objective),
-		ParentRunID: strings.TrimSpace(options.ParentRunID), ChildRunIDs: normalizeStringSlice(options.ChildRunIDs),
+		ParentRunID: strings.TrimSpace(options.ParentRunID), ChildRunIDs: jfadkmodel.NormalizeStringSlice(options.ChildRunIDs),
 		Iteration: options.Iteration, WorkflowStatus: strings.TrimSpace(options.WorkflowStatus), WorkflowEngine: strings.TrimSpace(options.WorkflowEngine),
 		CreatedAt: now, StartedAt: now, UpdatedAt: now,
 		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
@@ -351,7 +306,7 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 		if !created {
 			observability.InfoWithImportance(runContext, observability.ImportanceNormal, "adk chat request reused",
 				"request_state", "reused", "client_request_id", options.ClientRequestID, "run_id", claimed.ID)
-			return Run{}, nil, nil, &reusedChatRequestError{Run: claimed}
+			return Run{}, nil, nil, &ReusedChatRequestError{Run: claimed}
 		}
 		run = claimed
 		observability.InfoWithImportance(runContext, observability.ImportanceNormal, "adk chat request claimed",
@@ -504,7 +459,7 @@ func (r *Runtime) cancelRunTree(ctx context.Context, run Run, reason string, err
 	return run, nil
 }
 
-func (r *Runtime) cancelUnfinishedWorkflowChildren(ctx context.Context, parent Run) {
+func (r *Runtime) CancelUnfinishedWorkflowChildren(ctx context.Context, parent Run) {
 	childRunIDs := make(map[string]struct{}, len(parent.ChildRunIDs))
 	for _, childRunID := range parent.ChildRunIDs {
 		if childRunID = strings.TrimSpace(childRunID); childRunID != "" {
@@ -535,7 +490,7 @@ func (r *Runtime) cancelUnfinishedWorkflowChildren(ctx context.Context, parent R
 	}
 }
 
-func (r *Runtime) runExecutionInFlight(runID string) bool {
+func (r *Runtime) RunExecutionInFlight(runID string) bool {
 	if r == nil || strings.TrimSpace(runID) == "" {
 		return false
 	}
@@ -611,7 +566,7 @@ func (r *Runtime) repairWorkflowSelfReference(ctx context.Context, parent *Run) 
 	parent.CompletedAt = nil
 	parent.ErrorCode = ""
 	parent.FailureReason = ""
-	if _, err := r.saveRunPreservingUserGoalPause(ctx, *parent); err != nil {
+	if _, err := r.SaveRunPreservingUserGoalPause(ctx, *parent); err != nil {
 		return false, err
 	}
 	r.audit(ctx, "run.workflow.self_reference_recovered", parent.ID, "Invalid workflow child self-reference was repaired.", map[string]any{
@@ -701,7 +656,7 @@ func validateUserGoalPauseRun(run Run) error {
 	if strings.TrimSpace(run.ParentRunID) != "" {
 		return fmt.Errorf("only root goal runs can be paused")
 	}
-	if normalizeWorkMode(run.WorkMode) != WorkModeLoop || strings.TrimSpace(run.WorkflowStatus) == "" {
+	if jfadkmodel.NormalizeWorkMode(run.WorkMode) != WorkModeLoop || strings.TrimSpace(run.WorkflowStatus) == "" {
 		return fmt.Errorf("only loop goal runs can be paused")
 	}
 	if isTerminalLifecycleRunStatus(run.Status) {
@@ -720,7 +675,7 @@ func validateUserGoalResumeRun(run Run) error {
 	if strings.TrimSpace(run.ParentRunID) != "" {
 		return fmt.Errorf("only root goal runs can be resumed")
 	}
-	if normalizeWorkMode(run.WorkMode) != WorkModeLoop || strings.TrimSpace(run.WorkflowStatus) == "" {
+	if jfadkmodel.NormalizeWorkMode(run.WorkMode) != WorkModeLoop || strings.TrimSpace(run.WorkflowStatus) == "" {
 		return fmt.Errorf("only loop goal runs can be resumed")
 	}
 	if run.Status == RunStatusTimedOut {
@@ -762,7 +717,7 @@ func (r *Runtime) UpdateRunObjective(ctx context.Context, runID string, objectiv
 	if !ok {
 		return Run{}, fmt.Errorf("run not found")
 	}
-	if normalizeWorkMode(run.WorkMode) != WorkModeLoop {
+	if jfadkmodel.NormalizeWorkMode(run.WorkMode) != WorkModeLoop {
 		return Run{}, fmt.Errorf("objective can only be updated for goal runs")
 	}
 	if strings.TrimSpace(run.ParentRunID) != "" {
@@ -818,4 +773,20 @@ func recentOpenAIMessages(messages []TranscriptEntry, maxMessages int, maxChars 
 func isIntermediateApprovalMessage(content string) bool {
 	return strings.Contains(content, "等待用户审批") ||
 		strings.Contains(content, "请先在 ADK 审批队列")
+}
+
+func runTimeoutForRun(run Run) time.Duration {
+	return jfadkmodel.RunTimeoutForRun(run)
+}
+
+func isRecoverableReconcileStatus(status string) bool {
+	return jfadkmodel.IsRecoverableReconcileStatus(status)
+}
+
+func workflowChildRunHasNoExecutionActivity(run Run) bool {
+	return jfadkmodel.WorkflowChildRunHasNoExecutionActivity(run)
+}
+
+func workflowParentReferencesChild(parent Run, childRunID string) bool {
+	return jfadkmodel.WorkflowParentReferencesChild(parent, childRunID)
 }

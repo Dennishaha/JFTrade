@@ -606,24 +606,6 @@ func TestStoreDefaultSelectionSecretsAndListBoundaries(t *testing.T) {
 		t.Fatalf("updated alpha = %#v original=%#v", updatedAlpha, alpha)
 	}
 
-	rawProviders := []Provider{
-		{ID: "p1", DisplayName: "P1", BaseURL: "https://p1.example/v1", Default: false},
-		{ID: "p2", DisplayName: "P2", BaseURL: "https://p2.example/v1", Default: true},
-		{ID: "p3", DisplayName: "P3", BaseURL: "https://p3.example/v1", Default: true},
-	}
-	if !normalizeDefaultProviderSelection(rawProviders) {
-		t.Fatal("normalizeDefaultProviderSelection with duplicate defaults changed=false, want true")
-	}
-	if !rawProviders[1].Default || rawProviders[2].Default {
-		t.Fatalf("duplicate default normalization = %#v", rawProviders)
-	}
-	noDefaultProviders := []Provider{{ID: "p1", DisplayName: "P1", BaseURL: "https://p1.example/v1"}}
-	if !normalizeDefaultProviderSelection(noDefaultProviders) || !noDefaultProviders[0].Default {
-		t.Fatalf("missing default normalization = %#v", noDefaultProviders)
-	}
-	if normalizeDefaultProviderSelection(nil) {
-		t.Fatal("empty provider normalization changed=true, want false")
-	}
 	if err := currentErrOrNotFound(nil, false); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("currentErrOrNotFound missing = %v", err)
 	}

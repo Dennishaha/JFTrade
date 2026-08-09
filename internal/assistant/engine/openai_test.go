@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
 	adkmodel "google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 )
@@ -53,8 +54,8 @@ func TestToolNameSanitizeRestoreRoundTrip(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.original, func(t *testing.T) {
-			sanitized := sanitizeToolNameForOpenAI(test.original)
-			restored := restoreToolNameFromOpenAI(sanitized)
+			sanitized := providers.SanitizeToolNameForOpenAI(test.original)
+			restored := providers.RestoreToolNameFromOpenAI(sanitized)
 			if sanitized != test.sanitized {
 				t.Errorf("sanitize(%q) = %q, want %q", test.original, sanitized, test.sanitized)
 			}
@@ -517,8 +518,8 @@ func TestNormalizeMessagesForProviderRepairsInterruptedToolExchange(t *testing.T
 
 func TestOpenAICompatibleADKModelBuildChatRequestRepairsInterruptedApprovalHistory(t *testing.T) {
 	model := &openAICompatibleADKModel{
-		provider: Provider{Model: "test-model"},
-		model:    "test-model",
+		Provider: Provider{Model: "test-model"},
+		Model:    "test-model",
 	}
 	request := &adkmodel.LLMRequest{
 		Model: "test-model",
@@ -540,7 +541,7 @@ func TestOpenAICompatibleADKModelBuildChatRequestRepairsInterruptedApprovalHisto
 		},
 	}
 
-	payload := model.buildChatRequest(request, false)
+	payload := model.BuildChatRequest(request, false)
 	assertValidOpenAIToolMessageSequence(t, payload.Messages)
 	toolIndex := indexOfToolMessage(payload.Messages, "approval-call")
 	if toolIndex <= 0 {

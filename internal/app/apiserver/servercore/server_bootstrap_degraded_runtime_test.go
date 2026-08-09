@@ -1,14 +1,14 @@
 package servercore
 
 import (
-	"os"
-	"path/filepath"
-	"testing"
-
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/futuapp"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	settingssvc "github.com/jftrade/jftrade-main/internal/settings"
 	"github.com/jftrade/jftrade-main/internal/system"
+	"os"
+	"path/filepath"
+	"testing"
 )
 
 func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
@@ -41,7 +41,7 @@ func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, datamigration.RebuildMarkerFilename), []byte("{"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	failedInspection.refreshUnavailableDatabaseStatuses()
+	refreshUnavailableDatabaseStatuses(failedInspection)
 	if len(failedInspection.unavailableDatabases) != 0 {
 		t.Fatalf("failed status inspection must not manufacture database states: %#v", failedInspection.unavailableDatabases)
 	}
@@ -53,7 +53,7 @@ func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
 			unavailableDatabases: map[string]error{},
 		},
 	}
-	missingData.refreshUnavailableDatabaseStatuses()
+	refreshUnavailableDatabaseStatuses(missingData)
 	if reason := missingData.unavailableDatabases[datamigration.DatabaseBacktest]; reason == nil || reason.Error() != "database was not initialized" {
 		t.Fatalf("missing backtest reason = %v", reason)
 	}
@@ -61,7 +61,7 @@ func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
 
 func TestServerOptionCallbacksExposeNilRuntimeStatesSafely(t *testing.T) {
 	server := &Server{}
-	riskService := system.NewService(server.systemRuntimeOptions()...)
+	riskService := system.NewService(systemRuntimeOptions(server)...)
 	if limits := riskService.RealTradeRiskLimits(); limits.RiskEnabled || limits.Entry != nil {
 		t.Fatalf("nil real-trade gateway limits = %#v", limits)
 	}
@@ -70,7 +70,7 @@ func TestServerOptionCallbacksExposeNilRuntimeStatesSafely(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	settingsService := settingssvc.NewService(settings, server.settingsServiceOptions()...)
+	settingsService := settingssvc.NewService(settings, settingsServiceOptions(server)...)
 	if snapshot := settingsService.GetMCPServerSettingsSnapshot(); snapshot.Status.Running || snapshot.Status.Endpoint != "" {
 		t.Fatalf("nil MCP manager status = %#v", snapshot.Status)
 	}
@@ -86,15 +86,15 @@ func TestServerBootstrapBuildsBrokerBridgeForEnabledIntegration(t *testing.T) {
 	}
 	server := newTestServer(t, settings)
 
-	bridge, ok := server.brokerExecutionExchange().(*strategyRuntimeBrokerBridge)
+	bridge, ok := brokerExecutionExchangeFor(&server.serverApplication).(*strategyRuntimeBrokerBridge)
 	if !ok || bridge == nil || bridge.RuntimeExchange == nil || bridge.broker == nil {
 		t.Fatalf("enabled broker execution bridge = %#v", bridge)
 	}
-	if _, err := server.futuExchangeOrError(); err != nil {
+	if _, err := futuapp.ExchangeOrError(server.futuCoordinator()); err != nil {
 		t.Fatalf("enabled Futu exchange: %v", err)
 	}
-	if _, err := server.futuBrokerOrError(); err != nil {
+	if _, err := futuapp.BrokerOrError(server.futuCoordinator()); err != nil {
 		t.Fatalf("enabled Futu broker: %v", err)
 	}
-	server.settingsSideEffects().OnExchangeCalendarsChanged(jfsettings.ExchangeCalendarSettings{})
+	settingsSideEffects(server).OnExchangeCalendarsChanged(jfsettings.ExchangeCalendarSettings{})
 }

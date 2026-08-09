@@ -11,7 +11,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 const defaultMarketThresholdCooldown = 900

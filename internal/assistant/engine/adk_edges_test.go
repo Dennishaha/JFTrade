@@ -3,13 +3,15 @@ package adk
 import (
 	"errors"
 	"fmt"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+	adkmemory "google.golang.org/adk/v2/memory"
+	adksession "google.golang.org/adk/v2/session"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	adkmemory "google.golang.org/adk/v2/memory"
-	adksession "google.golang.org/adk/v2/session"
 )
 
 type invalidArtifactPathSessionService struct {
@@ -20,13 +22,12 @@ type invalidArtifactPathSessionService struct {
 func (s invalidArtifactPathSessionService) DatabasePath() string {
 	return s.path
 }
-
 func TestGoogleADKMemoryServiceBoundaryBranches(t *testing.T) {
 	ctx := t.Context()
 	if service := newGoogleADKMemoryService(nil); service != nil {
 		t.Fatalf("newGoogleADKMemoryService(nil) = %#v, want nil", service)
 	}
-	service := &googleADKMemoryService{}
+	service := &providers.MemoryService{}
 	if err := service.AddSessionToMemory(ctx, nil); err != nil {
 		t.Fatalf("AddSessionToMemory: %v", err)
 	}
@@ -44,8 +45,8 @@ func TestGoogleADKMemoryServiceBoundaryBranches(t *testing.T) {
 	if googleADKMemoryMatches(MemoryEntry{Key: "Risk", Value: "small", Scope: "agent"}, "macro") {
 		t.Fatal("memory query matched unrelated token")
 	}
-	if got := googleADKAppName(""); got != "jftrade-default" {
-		t.Fatalf("googleADKAppName(empty) = %q", got)
+	if got := GoogleADKAppName(""); got != "jftrade-default" {
+		t.Fatalf("GoogleADKAppName(empty) = %q", got)
 	}
 	if got := googleADKAgentIDFromAppName("  "); got != "" {
 		t.Fatalf("blank app name agent id = %q", got)
@@ -61,7 +62,7 @@ func TestModelCatalogToolBoundaryBranches(t *testing.T) {
 	ctx := t.Context()
 	var nilRuntime *Runtime
 	nilRuntime.registerModelCatalogTool()
-	if _, err := nilRuntime.modelsListTool(ctx, nil); err == nil || !strings.Contains(err.Error(), "runtime") {
+	if _, err := nilRuntime.ModelsListTool(ctx, nil); err == nil || !strings.Contains(err.Error(), "runtime") {
 		t.Fatalf("nil runtime modelsListTool err = %v", err)
 	}
 	(&Runtime{}).registerModelCatalogTool()
@@ -87,7 +88,7 @@ func TestModelCatalogToolBoundaryBranches(t *testing.T) {
 	}
 
 	runtime := newTestRuntime(t)
-	raw, err := runtime.modelsListTool(ctx, map[string]any{"query": "does-not-match", "limit": 0})
+	raw, err := runtime.ModelsListTool(ctx, map[string]any{"query": "does-not-match", "limit": 0})
 	if err != nil {
 		t.Fatalf("modelsListTool unmatched query: %v", err)
 	}
@@ -96,7 +97,7 @@ func TestModelCatalogToolBoundaryBranches(t *testing.T) {
 		t.Fatalf("unmatched models payload = %#v, want empty", payload)
 	}
 	jftradeCheckTestError(t, runtime.Store().Close())
-	if _, err := runtime.modelsListTool(ctx, nil); err == nil {
+	if _, err := runtime.ModelsListTool(ctx, nil); err == nil {
 		t.Fatal("modelsListTool on closed store err = nil, want error")
 	}
 }
@@ -152,12 +153,12 @@ func TestContextCompactionNoticeBoundaryBranches(t *testing.T) {
 func TestPauseGuardBoundaryBranches(t *testing.T) {
 	ctx := t.Context()
 	run := Run{ID: "chat-run", Status: RunStatusRunning, WorkMode: WorkModeChat}
-	if saved, err := (*Runtime)(nil).saveRunPreservingUserGoalPause(ctx, run); err != nil || saved.ID != run.ID {
+	if saved, err := (*Runtime)(nil).SaveRunPreservingUserGoalPause(ctx, run); err != nil || saved.ID != run.ID {
 		t.Fatalf("nil runtime save = %+v/%v", saved, err)
 	}
 	runtime := newTestRuntime(t)
 	session := mustCreateSession(t, runtime, testProviderID, "Pause guard")
-	if saved, err := runtime.saveRunPreservingUserGoalPause(ctx, Run{
+	if saved, err := runtime.SaveRunPreservingUserGoalPause(ctx, Run{
 		ID: "chat-save", SessionID: session.ID, AgentID: testProviderID, Status: RunStatusRunning, WorkMode: WorkModeChat,
 	}); err != nil || saved.ID != "chat-save" {
 		t.Fatalf("non-loop save = %+v/%v", saved, err)
@@ -208,7 +209,7 @@ func TestSchemaConversionReportsMarshalError(t *testing.T) {
 func TestSQLiteGormPoolBoundaryBranches(t *testing.T) {
 	ctx := t.Context()
 	store := newBusinessStore(t)
-	pool := newSQLiteGormPool(store.db)
+	pool := persistence.NewSQLiteGormPool(store.DB())
 	stmt, err := pool.PrepareContext(ctx, `SELECT 1`)
 	if err != nil {
 		t.Fatalf("PrepareContext: %v", err)
@@ -218,7 +219,7 @@ func TestSQLiteGormPoolBoundaryBranches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BeginTx: %v", err)
 	}
-	tx := txPool.(*sqliteGormTx)
+	tx := txPool.(*persistence.SQLiteGormTx)
 	jftradeCheckTestError(t, tx.Rollback())
 
 	dir := t.TempDir()
@@ -226,7 +227,7 @@ func TestSQLiteGormPoolBoundaryBranches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	closedPool := newSQLiteGormPool(closedStore.db)
+	closedPool := persistence.NewSQLiteGormPool(closedStore.DB())
 	jftradeCheckTestError(t, closedStore.Close())
 	if _, err := closedPool.BeginTx(ctx, nil); err == nil {
 		t.Fatal("BeginTx on closed store err = nil, want error")
@@ -293,8 +294,8 @@ func TestStoreMaintenanceBoundaryBranches(t *testing.T) {
 func TestRuntimeFacadeBoundaryBranches(t *testing.T) {
 	ctx := t.Context()
 	var nilRuntime *Runtime
-	nilRuntime.SetRuntimeLimitsProvider(func() RuntimeLimits {
-		return RuntimeLimits{RunTimeout: 99}
+	nilRuntime.SetRuntimeLimitsProvider(func() jfadkmodel.RuntimeLimits {
+		return jfadkmodel.RuntimeLimits{RunTimeout: 99}
 	})
 	if got := nilRuntime.runtimeLimits().RunTimeout; got != DefaultRunTimeout {
 		t.Fatalf("nil runtime timeout = %v, want default", got)
@@ -309,14 +310,14 @@ func TestRuntimeFacadeBoundaryBranches(t *testing.T) {
 		t.Fatalf("nil CompactSessionDatabase err = %v", err)
 	}
 	runtime := newTestRuntime(t)
-	runtime.SetRuntimeLimitsProvider(func() RuntimeLimits {
-		return RuntimeLimits{RunTimeout: 42}
+	runtime.SetRuntimeLimitsProvider(func() jfadkmodel.RuntimeLimits {
+		return jfadkmodel.RuntimeLimits{RunTimeout: 42}
 	})
 	if got := runtime.runtimeLimits().RunTimeout; got != 42 {
 		t.Fatalf("runtime timeout = %v, want provider override", got)
 	}
-	runtime.SetRuntimeLimitsProvider(func() RuntimeLimits {
-		return RuntimeLimits{}
+	runtime.SetRuntimeLimitsProvider(func() jfadkmodel.RuntimeLimits {
+		return jfadkmodel.RuntimeLimits{}
 	})
 	if got := runtime.runtimeLimits().RunTimeout; got != DefaultRunTimeout {
 		t.Fatalf("zero runtime timeout = %v, want default", got)
@@ -393,9 +394,9 @@ func TestRuntimeConstructionCompactionAndCloseBoundaryBranches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore close runtime: %v", err)
 	}
-	sessionService, err := NewSQLiteSessionService(filepath.Join(closeDir, "adk-session.db"))
+	sessionService, err := persistence.NewSQLiteSessionService(filepath.Join(closeDir, "adk-session.db"))
 	if err != nil {
-		t.Fatalf("NewSQLiteSessionService close runtime: %v", err)
+		t.Fatalf("persistence.NewSQLiteSessionService close runtime: %v", err)
 	}
 	closeRuntime := NewRuntimeWithSessionService(store, NewToolRegistry(), sessionService)
 	cancelled := false
@@ -495,7 +496,7 @@ func TestRuntimeSessionContextBoundaryBranches(t *testing.T) {
 		ID: "context-error-agent", Name: "Context Error Agent", ProviderID: testProviderID, Status: AgentStatusEnabled,
 	})
 	errorSession := mustCreateSession(t, errorRuntime, errorAgent.ID, "Context errors")
-	if _, err := errorRuntime.Store().db.ExecContext(ctx, `DROP TABLE `+tableSessions); err != nil {
+	if _, err := errorRuntime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableSessions); err != nil {
 		t.Fatalf("drop sessions for context errors: %v", err)
 	}
 	if _, err := errorRuntime.SessionContext(ctx, errorSession.ID); err == nil {
@@ -520,7 +521,7 @@ func TestRuntimeSessionContextBoundaryBranches(t *testing.T) {
 		ID: "composer-error-agent", Name: "Composer Error Agent", ProviderID: testProviderID, Status: AgentStatusEnabled,
 	})
 	composerSession := mustCreateSession(t, composerErrorRuntime, composerAgent.ID, "Composer error")
-	if _, err := composerErrorRuntime.Store().db.ExecContext(ctx, `DROP TABLE `+tableSessionComposer); err != nil {
+	if _, err := composerErrorRuntime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableSessionComposer); err != nil {
 		t.Fatalf("drop session composer: %v", err)
 	}
 	if overridden, ok := composerErrorRuntime.applySessionComposerModelOverride(ctx, composerSession.ID, composerAgent); ok || overridden.ID != composerAgent.ID {
@@ -557,7 +558,7 @@ func TestRuntimeAgentProviderSessionAndMemoryBoundaryBranches(t *testing.T) {
 	if err := runtime.Store().DeleteAgent(ctx, deleted.ID); err != nil {
 		t.Fatalf("DeleteAgent: %v", err)
 	}
-	if _, err := runtime.Store().db.ExecContext(ctx, `UPDATE `+tableAgents+` SET payload_json = json_set(payload_json, '$.status', ?, '$.deletedAt', ?), updated_at = ? WHERE id = ?`,
+	if _, err := runtime.Store().DB().ExecContext(ctx, `UPDATE `+tableAgents+` SET payload_json = json_set(payload_json, '$.status', ?, '$.deletedAt', ?), updated_at = ? WHERE id = ?`,
 		AgentStatusEnabled, nowString(), nowString(), deleted.ID); err != nil {
 		t.Fatalf("force enabled deleted agent: %v", err)
 	}
@@ -579,7 +580,7 @@ func TestRuntimeAgentProviderSessionAndMemoryBoundaryBranches(t *testing.T) {
 	if _, err := runtime.effectiveProvider(ctx, "missing-provider"); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("missing effectiveProvider err = %v, want unavailable", err)
 	}
-	if err := os.WriteFile(runtime.Store().secrets.path, []byte("{"), 0o600); err != nil {
+	if err := os.WriteFile(runtime.Store().SecretsPath(), []byte("{"), 0o600); err != nil {
 		t.Fatalf("write bad provider secrets: %v", err)
 	}
 	if _, err := runtime.resolveAgentProvider(ctx, Agent{ProviderID: testProviderID}); err == nil {
@@ -655,14 +656,14 @@ func TestRuntimeAgentProviderSessionAndMemoryBoundaryBranches(t *testing.T) {
 	}
 
 	tableErrorRuntime := newTestRuntime(t)
-	if _, err := tableErrorRuntime.Store().db.ExecContext(ctx, `DROP TABLE `+tableAgents); err != nil {
+	if _, err := tableErrorRuntime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableAgents); err != nil {
 		t.Fatalf("drop agents table: %v", err)
 	}
 	if _, err := tableErrorRuntime.resolveAgentDefinition(ctx, "agent"); err == nil {
 		t.Fatal("resolveAgentDefinition missing agents table err = nil, want error")
 	}
 	providerErrorRuntime := newTestRuntime(t)
-	if _, err := providerErrorRuntime.Store().db.ExecContext(ctx, `DROP TABLE `+tableProviders); err != nil {
+	if _, err := providerErrorRuntime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableProviders); err != nil {
 		t.Fatalf("drop providers table: %v", err)
 	}
 	if _, err := providerErrorRuntime.effectiveProvider(ctx, ""); err == nil {
@@ -672,7 +673,7 @@ func TestRuntimeAgentProviderSessionAndMemoryBoundaryBranches(t *testing.T) {
 		t.Fatal("effectiveProvider explicit missing providers table err = nil, want error")
 	}
 	sessionErrorRuntime := newTestRuntime(t)
-	if _, err := sessionErrorRuntime.Store().db.ExecContext(ctx, `DROP TABLE `+tableSessions); err != nil {
+	if _, err := sessionErrorRuntime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableSessions); err != nil {
 		t.Fatalf("drop sessions table: %v", err)
 	}
 	if _, err := sessionErrorRuntime.resolveSession(ctx, "session", Agent{ID: "agent"}, "text"); err == nil {
@@ -694,7 +695,7 @@ func TestRuntimeSnapshotAndProviderTestBoundaryBranches(t *testing.T) {
 		t.Fatalf("NewStore agent table: %v", err)
 	}
 	t.Cleanup(func() { jftradeCheckTestError(t, agentTableStore.Close()) })
-	if _, err := agentTableStore.db.ExecContext(ctx, `DROP TABLE `+tableAgents); err != nil {
+	if _, err := agentTableStore.DB().ExecContext(ctx, `DROP TABLE `+tableAgents); err != nil {
 		t.Fatalf("drop agents: %v", err)
 	}
 	agentTableRuntime := &Runtime{store: agentTableStore, skills: NewSkillRegistry(agentTableStore.SkillsPath()), tools: NewToolRegistry()}

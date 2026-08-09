@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	DefaultDevelopmentAPIBind    = "127.0.0.1:3000"
-	DefaultReleaseHTTPBind       = "127.0.0.1:6688"
+	DefaultDevelopmentAPIBind    = jfsettings.DefaultDevelopmentAPIBind
+	DefaultReleaseHTTPBind       = jfsettings.DefaultReleaseHTTPBind
 	DefaultDesktopReleaseAPIBind = "127.0.0.1:6699"
-	DefaultReleaseAPIBind        = DefaultReleaseHTTPBind
-	DefaultReleaseGUIBind        = DefaultReleaseHTTPBind
+	DefaultReleaseAPIBind        = jfsettings.DefaultReleaseAPIBind
+	DefaultReleaseGUIBind        = jfsettings.DefaultReleaseGUIBind
 	DefaultRuntimeDir            = "var/jftrade-api"
 	DefaultSettingsFilename      = "settings.json"
 	DefaultBacktestDBFilename    = "backtest.db"

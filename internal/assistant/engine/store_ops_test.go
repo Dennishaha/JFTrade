@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
@@ -44,8 +45,8 @@ func TestBuiltinSkillStoreMetadataComesFromBundleRegistry(t *testing.T) {
 		"jftrade-trading":     false,
 	}
 
-	for _, spec := range builtinSkillSpecs {
-		want, err := builtinSkillMetadata(spec)
+	for _, spec := range skillsruntime.BuiltinSkillSpecs {
+		want, err := skillsruntime.BuiltinSkillMetadata(spec)
 		if err != nil {
 			t.Fatalf("builtinSkillMetadata(%s): %v", spec.Name, err)
 		}
@@ -223,9 +224,9 @@ func TestInstallSkillArchivePreservesResources(t *testing.T) {
 func TestInstallSkillURLInstallsNeodataFinancialSearch(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	originalValidator := skillInstallHostValidator
-	skillInstallHostValidator = func(context.Context, string) error { return nil }
-	t.Cleanup(func() { skillInstallHostValidator = originalValidator })
+	originalValidator := skillsruntime.SkillInstallHostValidator
+	skillsruntime.SkillInstallHostValidator = func(context.Context, string) error { return nil }
+	t.Cleanup(func() { skillsruntime.SkillInstallHostValidator = originalValidator })
 	skillServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/skills/neodata-financial-search/SKILL.md" {
 			http.NotFound(w, r)

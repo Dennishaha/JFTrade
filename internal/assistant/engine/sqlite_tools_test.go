@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -80,7 +82,7 @@ func TestSQLiteDialectorDataTypesDefaultsAndQuoting(t *testing.T) {
 	if err := stmt.Parse(&sqliteDialectBoundaryModel{}); err != nil {
 		t.Fatalf("Parse model: %v", err)
 	}
-	dialector := sqliteDialector{}
+	dialector := persistence.SQLiteDialector{}
 	for _, tc := range []struct {
 		field string
 		want  string
@@ -142,7 +144,7 @@ func TestSQLiteDialectorDataTypesDefaultsAndQuoting(t *testing.T) {
 
 func TestSQLiteDialectorClauseBuildersAndVersionCompare(t *testing.T) {
 	db := openTestSQLiteGORM(t)
-	dialector := sqliteDialector{}
+	dialector := persistence.SQLiteDialector{}
 	builders := dialector.ClauseBuilders()
 
 	insertStmt := &gorm.Statement{DB: db}
@@ -182,8 +184,8 @@ func TestSQLiteDialectorClauseBuildersAndVersionCompare(t *testing.T) {
 		{version: "3..35-alpha", required: "3.0.35", want: 0},
 	} {
 		t.Run(fmt.Sprintf("%s_vs_%s", tc.version, tc.required), func(t *testing.T) {
-			if got := compareSQLiteVersion(tc.version, tc.required); got != tc.want {
-				t.Fatalf("compareSQLiteVersion(%q, %q) = %d, want %d", tc.version, tc.required, got, tc.want)
+			if got := persistence.CompareSQLiteVersion(tc.version, tc.required); got != tc.want {
+				t.Fatalf("persistence.CompareSQLiteVersion(%q, %q) = %d, want %d", tc.version, tc.required, got, tc.want)
 			}
 		})
 	}
@@ -304,7 +306,7 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 		"unknown.tool",
 	} {
 		t.Run(name, func(t *testing.T) {
-			schema := defaultToolInputSchema(name)
+			schema := skillsruntime.DefaultToolInputSchema(name)
 			if schema["type"] != "object" {
 				t.Fatalf("%s schema type = %#v, want object", name, schema["type"])
 			}
@@ -343,9 +345,9 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 		{name: "strategy.update_instance_mode", required: []string{"instanceId", "executionMode"}},
 	} {
 		t.Run(tc.name+"_required", func(t *testing.T) {
-			got, ok := defaultToolInputSchema(tc.name)["required"].([]string)
+			got, ok := skillsruntime.DefaultToolInputSchema(tc.name)["required"].([]string)
 			if !ok {
-				t.Fatalf("%s required = %#v, want []string", tc.name, defaultToolInputSchema(tc.name)["required"])
+				t.Fatalf("%s required = %#v, want []string", tc.name, skillsruntime.DefaultToolInputSchema(tc.name)["required"])
 			}
 			for _, required := range tc.required {
 				if !slices.Contains(got, required) {
@@ -355,7 +357,7 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 		})
 	}
 
-	candles := schemaPropertiesForBoundaryTest(t, defaultToolInputSchema("market.candles"))
+	candles := schemaPropertiesForBoundaryTest(t, skillsruntime.DefaultToolInputSchema("market.candles"))
 	if _, ok := candles["period"]; !ok {
 		t.Fatalf("market.candles missing period: %#v", candles)
 	}
@@ -363,7 +365,7 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 		t.Fatalf("market.candles limit schema = %#v, want maximum 500", limit)
 	}
 
-	wait := schemaPropertiesForBoundaryTest(t, defaultToolInputSchema("workflow.wait"))
+	wait := schemaPropertiesForBoundaryTest(t, skillsruntime.DefaultToolInputSchema("workflow.wait"))
 	if seconds := wait["seconds"].(map[string]any); seconds["maximum"] != 25 {
 		t.Fatalf("workflow.wait seconds schema = %#v, want max 25", seconds)
 	}
@@ -371,7 +373,7 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 		t.Fatalf("workflow.wait durationMs schema = %#v, want max 25000", durationMs)
 	}
 
-	research := schemaPropertiesForBoundaryTest(t, defaultToolInputSchema("strategy.research_backtest"))
+	research := schemaPropertiesForBoundaryTest(t, skillsruntime.DefaultToolInputSchema("strategy.research_backtest"))
 	resultView := research["resultView"].(map[string]any)
 	if resultView["additionalProperties"] != false {
 		t.Fatalf("research resultView schema = %#v, want closed nested schema", resultView)
@@ -380,7 +382,7 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 		t.Fatalf("research waitForCompletionMs schema = %#v, want max 25000", waitForCompletion)
 	}
 
-	backtestRuns := schemaPropertiesForBoundaryTest(t, defaultToolInputSchema("backtest.runs"))
+	backtestRuns := schemaPropertiesForBoundaryTest(t, skillsruntime.DefaultToolInputSchema("backtest.runs"))
 	for _, key := range []string{"definitionId", "definitionVersion", "status", "limit"} {
 		if _, ok := backtestRuns[key]; !ok {
 			t.Fatalf("backtest.runs missing %s: %#v", key, backtestRuns)
@@ -390,12 +392,12 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 		t.Fatalf("backtest.runs limit schema = %#v, want maximum 200", limit)
 	}
 
-	modelsList := fmt.Sprint(defaultToolInputSchema("models.list"))
+	modelsList := fmt.Sprint(skillsruntime.DefaultToolInputSchema("models.list"))
 	if strings.Contains(modelsList, "apiKey") {
 		t.Fatalf("models.list schema leaks api key fields: %s", modelsList)
 	}
 
-	watchlist := schemaPropertiesForBoundaryTest(t, defaultToolInputSchema("watchlist.list"))
+	watchlist := schemaPropertiesForBoundaryTest(t, skillsruntime.DefaultToolInputSchema("watchlist.list"))
 	if includeQuotes := watchlist["includeQuotes"].(map[string]any); includeQuotes["default"] != false {
 		t.Fatalf("watchlist.list includeQuotes schema = %#v, want default false", includeQuotes)
 	}
@@ -445,20 +447,20 @@ func TestToolRegistryAliasesModesAndNumericInputs(t *testing.T) {
 		"string":  " 42 ",
 		"invalid": "soon",
 	}
-	if got := toolIntValue(input, "float", 1); got != 12 {
-		t.Fatalf("float toolIntValue = %d, want 12", got)
+	if got := skillsruntime.IntValue(input, "float", 1); got != 12 {
+		t.Fatalf("float skillsruntime.IntValue = %d, want 12", got)
 	}
-	if got := toolIntValue(input, "int", 1); got != 7 {
-		t.Fatalf("int toolIntValue = %d, want 7", got)
+	if got := skillsruntime.IntValue(input, "int", 1); got != 7 {
+		t.Fatalf("int skillsruntime.IntValue = %d, want 7", got)
 	}
-	if got := toolIntValue(input, "string", 1); got != 42 {
-		t.Fatalf("string toolIntValue = %d, want 42", got)
+	if got := skillsruntime.IntValue(input, "string", 1); got != 42 {
+		t.Fatalf("string skillsruntime.IntValue = %d, want 42", got)
 	}
-	if got := toolIntValue(input, "invalid", 99); got != 99 {
-		t.Fatalf("invalid toolIntValue = %d, want default 99", got)
+	if got := skillsruntime.IntValue(input, "invalid", 99); got != 99 {
+		t.Fatalf("invalid skillsruntime.IntValue = %d, want default 99", got)
 	}
-	if got := toolStringValue(map[string]any{"name": "agent"}, "name"); got != "agent" {
-		t.Fatalf("toolStringValue = %q, want agent", got)
+	if got := skillsruntime.StringValue(map[string]any{"name": "agent"}, "name"); got != "agent" {
+		t.Fatalf("skillsruntime.StringValue = %q, want agent", got)
 	}
 }
 
@@ -469,7 +471,7 @@ func openTestSQLiteGORM(t *testing.T) *gorm.DB {
 		t.Fatalf("sqliteconn.Open: %v", err)
 	}
 	t.Cleanup(func() { jftradeCheckTestError(t, managed.Close()) })
-	db, err := gorm.Open(sqliteDialector{Conn: newSQLiteGormPool(managed)}, &gorm.Config{})
+	db, err := gorm.Open(persistence.SQLiteDialector{Conn: persistence.NewSQLiteGormPool(managed)}, &gorm.Config{})
 	if err != nil {
 		t.Fatalf("gorm.Open: %v", err)
 	}

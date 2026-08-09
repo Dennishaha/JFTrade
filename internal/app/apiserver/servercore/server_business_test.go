@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	strategystore "github.com/jftrade/jftrade-main/internal/store/strategy"
@@ -20,38 +21,6 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 	"github.com/shopspring/decimal"
 )
-
-func TestRuntimeDefaultsAndLayoutBoundaries(t *testing.T) {
-	development := ResolveLaunchDefaults(false)
-	if development.APIBind != defaultDevelopmentAPIBind || development.GUIBind != "" {
-		t.Fatalf("development defaults = %#v", development)
-	}
-	release := ResolveLaunchDefaults(true)
-	if release.APIBind != defaultReleaseAPIBind || release.GUIBind != defaultReleaseGUIBind {
-		t.Fatalf("release defaults = %#v", release)
-	}
-	if got := APIBaseURLForBind(":3000"); got != "http://127.0.0.1:3000" {
-		t.Fatalf("APIBaseURLForBind(:3000) = %q", got)
-	}
-	if got := PortFromBind("127.0.0.1:3003", 3000); got != 3003 {
-		t.Fatalf("PortFromBind = %d, want 3003", got)
-	}
-	if got := PortFromBind("invalid", 3000); got != 3000 {
-		t.Fatalf("PortFromBind invalid = %d, want default", got)
-	}
-
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "runtime", "settings.json")
-	backtestPath := filepath.Join(root, "data", "backtest.db")
-	if err := EnsureRuntimeLayout(settingsPath, backtestPath); err != nil {
-		t.Fatalf("EnsureRuntimeLayout: %v", err)
-	}
-	for _, dir := range []string{filepath.Dir(settingsPath), filepath.Dir(backtestPath)} {
-		if !directoryExists(dir) {
-			t.Fatalf("runtime directory %s was not created", dir)
-		}
-	}
-}
 
 func TestWorkflowAndMarketRuntimeBoundaryHelpers(t *testing.T) {
 	panicked := false
@@ -70,80 +39,8 @@ func TestWorkflowAndMarketRuntimeBoundaryHelpers(t *testing.T) {
 	}
 }
 
-func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
+func TestStrategyRuntimeBrokerBridgeDelegates(t *testing.T) {
 	ctx := context.Background()
-	expectedErr := errors.New("details failed")
-	provider := &marketdataProvider{
-		descriptor: func(context.Context) (mdsrv.ProviderDescriptor, error) {
-			return mdsrv.ProviderDescriptor{ProviderID: "futu-opend", DisplayName: "Futu OpenD", Source: "bbgo:futu"}, nil
-		},
-		getMarkets: func(context.Context) ([]mdsrv.MarketProfile, error) {
-			return []mdsrv.MarketProfile{{"code": "US"}}, nil
-		},
-		normalizeInstrument: func(_ context.Context, input map[string]any) (map[string]any, error) {
-			return map[string]any{"instrumentId": strings.ToUpper(input["instrumentId"].(string))}, nil
-		},
-		getSecurityDetails: func(context.Context, string, string) (mdsrv.SecurityDetails, error) {
-			return nil, expectedErr
-		},
-		lookupInstrument: func(_ context.Context, market, code string) ([]mdsrv.InstrumentCandidate, error) {
-			return []mdsrv.InstrumentCandidate{{Market: market, Code: code, InstrumentID: market + "." + code}}, nil
-		},
-		searchInstruments: func(_ context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error) {
-			return []mdsrv.InstrumentCandidate{{Market: "US", Code: "AAPL", InstrumentID: "US.AAPL", Name: query, Selectable: true, LotSize: int32(limit)}}, nil
-		},
-		querySnapshot: func(context.Context, string) (*mdsrv.Tick, error) {
-			return &mdsrv.Tick{InstrumentID: "US.AAPL", Kind: mdsrv.TickKindTrade}, nil
-		},
-		queryTicker: func(context.Context, string) (*mdsrv.Tick, error) {
-			return &mdsrv.Tick{InstrumentID: "US.MSFT", Kind: mdsrv.TickKindQuote}, nil
-		},
-		getHistoricalCandles: func(context.Context, mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error) {
-			return mdsrv.CandlesResponse{"period": "1m"}, nil
-		},
-		getDepth: func(context.Context, string, string, int) (mdsrv.DepthResponse, error) {
-			return mdsrv.DepthResponse{"asks": 1}, nil
-		},
-		health: func(context.Context) (mdsrv.HealthStatus, error) {
-			return mdsrv.HealthStatus{Connected: true, ActiveCount: 2}, nil
-		},
-	}
-
-	if markets, err := provider.GetMarkets(ctx); err != nil || len(markets) != 1 || markets[0]["code"] != "US" {
-		t.Fatalf("GetMarkets() = %#v err=%v", markets, err)
-	}
-	if descriptor, err := provider.Descriptor(ctx); err != nil || descriptor.ProviderID != "futu-opend" {
-		t.Fatalf("Descriptor() = %+v err=%v", descriptor, err)
-	}
-	normalized, err := provider.NormalizeInstrument(ctx, map[string]any{"instrumentId": "us.aapl"})
-	if err != nil || normalized["instrumentId"] != "US.AAPL" {
-		t.Fatalf("NormalizeInstrument() = %#v err=%v", normalized, err)
-	}
-	if _, err := provider.GetSecurityDetails(ctx, "US", "AAPL"); !errors.Is(err, expectedErr) {
-		t.Fatalf("GetSecurityDetails() err=%v, want %v", err, expectedErr)
-	}
-	if candidates, err := provider.LookupInstrument(ctx, "US", "AAPL"); err != nil || len(candidates) != 1 || candidates[0].InstrumentID != "US.AAPL" {
-		t.Fatalf("LookupInstrument() = %#v err=%v", candidates, err)
-	}
-	if candidates, err := provider.SearchInstruments(ctx, "Apple", 100); err != nil || len(candidates) != 1 || candidates[0].Name != "Apple" || candidates[0].LotSize != 100 {
-		t.Fatalf("SearchInstruments() = %#v err=%v", candidates, err)
-	}
-	if tick, err := provider.QuerySnapshot(ctx, "US.AAPL"); err != nil || tick.InstrumentID != "US.AAPL" {
-		t.Fatalf("QuerySnapshot() = %#v err=%v", tick, err)
-	}
-	if tick, err := provider.QueryTicker(ctx, "US.MSFT"); err != nil || tick.Kind != mdsrv.TickKindQuote {
-		t.Fatalf("QueryTicker() = %#v err=%v", tick, err)
-	}
-	if candles, err := provider.GetHistoricalCandles(ctx, mdsrv.HistoricalCandlesQuery{Market: "US", Symbol: "AAPL", Period: "1m", Limit: 10}); err != nil || candles["period"] != "1m" {
-		t.Fatalf("GetHistoricalCandles() = %#v err=%v", candles, err)
-	}
-	if depth, err := provider.GetDepth(ctx, "US", "AAPL", 5); err != nil || depth["asks"] != 1 {
-		t.Fatalf("GetDepth() = %#v err=%v", depth, err)
-	}
-	if health, err := provider.Health(ctx); err != nil || !health.Connected || health.ActiveCount != 2 {
-		t.Fatalf("Health() = %#v err=%v", health, err)
-	}
-
 	funds := &broker.FundsSnapshot{AccountID: "acct-1", Market: "US"}
 	positions := []broker.PositionSnapshot{{AccountID: "acct-1", Symbol: "US.AAPL", Quantity: 3}}
 	reader := &servercoreFakeBrokerReader{funds: funds, positions: positions}
@@ -363,31 +260,6 @@ func (t *servercoreFakeBrokerTrading) CancelOrders(context.Context, broker.ReadQ
 	return nil
 }
 
-func TestServerSidecarBoundaryMethodsAreNilSafe(t *testing.T) {
-	var server *Server
-	server.SetAPIPort(3001)
-	server.ConfigureAuthOrigins("http://127.0.0.1:3003")
-	server.SetFrontendFS(os.DirFS(t.TempDir()), "http://127.0.0.1:3000")
-	server.ApplySecuritySettings(jfsettings.SecuritySettings{WebAccessEnabled: true})
-	if err := server.Close(); err != nil {
-		t.Fatalf("nil Close = %v", err)
-	}
-
-	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/status", nil)
-	server.ServeHTTP(recorder, req)
-	if recorder.Code != http.StatusNotFound {
-		t.Fatalf("nil ServeHTTP status = %d, want 404", recorder.Code)
-	}
-
-	empty := &Server{}
-	recorder = httptest.NewRecorder()
-	empty.ServeHTTP(recorder, req)
-	if recorder.Code != http.StatusNotFound {
-		t.Fatalf("empty ServeHTTP status = %d, want 404", recorder.Code)
-	}
-}
-
 func TestServerCloseAggregatesPineWorkerRunnerErrorsOnce(t *testing.T) {
 	backtestErr := errors.New("backtest runner stopped with in-flight work")
 	instanceErr := errors.New("instance runner transport close failed")
@@ -423,13 +295,13 @@ func TestServerSidecarFrontendRuntimeConfigFollowsSecuritySettings(t *testing.T)
 		t.Fatalf("WriteFile index.html: %v", err)
 	}
 
-	server := &Server{auth: newWebAuth(jfsettings.SecuritySettings{})}
+	server := &Server{auth: webaccess.NewAuth(jfsettings.SecuritySettings{})}
 	server.SetFrontendFS(os.DirFS(frontendDir), " http://127.0.0.1:3000/api/ ")
 	server.ApplySecuritySettings(webSecuritySettings(t, false))
 	if server.frontend == nil {
 		t.Fatalf("SetFrontendFS did not mount frontend")
 	}
-	if server.auth == nil || !server.auth.enabled {
+	if server.auth == nil || !server.auth.WebAccessEnabled() {
 		t.Fatalf("ApplySecuritySettings did not enable Web password auth")
 	}
 
@@ -444,7 +316,7 @@ func TestServerSidecarFrontendRuntimeConfigFollowsSecuritySettings(t *testing.T)
 	}
 
 	server.ApplySecuritySettings(jfsettings.SecuritySettings{})
-	if server.auth.enabled {
+	if server.auth.WebAccessEnabled() {
 		t.Fatalf("ApplySecuritySettings should disable Web access")
 	}
 	recorder = httptest.NewRecorder()
@@ -462,7 +334,7 @@ func TestBrokerExecutionExchangePrefersRuntimeProviderAndRespectsDisabledIntegra
 	server := &Server{serverApplication: serverApplication{
 		store: store,
 	}}
-	if got := server.brokerExecutionExchange(); got != nil {
+	if got := brokerExecutionExchangeFor(&server.serverApplication); got != nil {
 		t.Fatalf("brokerExecutionExchange disabled integration = %#v, want nil", got)
 	}
 
@@ -471,12 +343,12 @@ func TestBrokerExecutionExchangePrefersRuntimeProviderAndRespectsDisabledIntegra
 		ExchangeProvider: func() liveruntime.Exchange { return stub },
 	})
 	server.runtimes.SetStrategyRuntime(runtime, runtime)
-	if got := server.brokerExecutionExchange(); got != stub {
+	if got := brokerExecutionExchangeFor(&server.serverApplication); got != stub {
 		t.Fatalf("brokerExecutionExchange should prefer runtime provider, got %#v", got)
 	}
 
 	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return nil })
-	if got := server.brokerExecutionExchange(); got != nil {
+	if got := brokerExecutionExchangeFor(&server.serverApplication); got != nil {
 		t.Fatalf("brokerExecutionExchange nil provider with disabled integration = %#v, want nil", got)
 	}
 }
@@ -493,9 +365,4 @@ func (runner *errorClosingPineWorkerRunner) RunScript(context.Context, pineworke
 func (runner *errorClosingPineWorkerRunner) Close(context.Context) error {
 	runner.closed++
 	return runner.err
-}
-
-func directoryExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.IsDir()
 }

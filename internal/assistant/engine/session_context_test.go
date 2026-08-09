@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
@@ -31,7 +32,7 @@ func TestSessionContextCompactionShrinksSessionView(t *testing.T) {
 		t.Fatalf("CreateSession: %v", err)
 	}
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -76,7 +77,7 @@ func TestSessionContextCompactionShrinksSessionView(t *testing.T) {
 		t.Fatalf("SummaryPreview is empty")
 	}
 	rawAfterCompact, err := runtime.rawSessionService.Get(ctx, &adksession.GetRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -99,7 +100,7 @@ func TestSessionContextCompactionShrinksSessionView(t *testing.T) {
 	}
 
 	response, err := runtime.sessionService.Get(ctx, &adksession.GetRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -146,7 +147,7 @@ func TestSessionContextUsesSessionProviderOverrideWindow(t *testing.T) {
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Context Provider Override")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -192,7 +193,7 @@ func TestSessionContextCompactionCreatesCurrentRevision(t *testing.T) {
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Context Revision")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -231,7 +232,7 @@ func TestSessionContextCompactionCreatesCurrentRevision(t *testing.T) {
 	}
 
 	latest, err := runtime.rawSessionService.Get(ctx, &adksession.GetRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -296,7 +297,7 @@ func TestCompactSessionContextWritesContextNotice(t *testing.T) {
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Context Notice Session")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -364,7 +365,7 @@ func TestMaybeAutoCompactSessionEmitsContextNoticeDeltas(t *testing.T) {
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Context Auto Notice Session")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -469,7 +470,7 @@ func TestMaybeAutoCompactSessionSkipsWhenSessionCompactionAlreadyRunning(t *test
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Context Auto Gate Session")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+		AppName: GoogleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
 	})
 	if err != nil {
 		t.Fatalf("Create raw session: %v", err)
@@ -482,7 +483,7 @@ func TestMaybeAutoCompactSessionSkipsWhenSessionCompactionAlreadyRunning(t *test
 	}
 	defer release()
 	var deltas []ChatDelta
-	if err := runtime.maybeAutoCompactSessionDuringWorkflow(ctx, session, agent, strings.Repeat("pending input ", 200), func(delta ChatDelta) error {
+	if err := runtime.MaybeAutoCompactSessionDuringWorkflow(ctx, session, agent, strings.Repeat("pending input ", 200), func(delta ChatDelta) error {
 		deltas = append(deltas, delta)
 		return nil
 	}); err != nil {
@@ -529,7 +530,7 @@ func TestSessionServiceAutoCompactionUsesSessionGate(t *testing.T) {
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Context Service Gate Session")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+		AppName: GoogleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
 	})
 	if err != nil {
 		t.Fatalf("Create raw session: %v", err)
@@ -540,7 +541,7 @@ func TestSessionServiceAutoCompactionUsesSessionGate(t *testing.T) {
 	if !acquired {
 		t.Fatal("beginSessionCompaction acquired = false, want true")
 	}
-	request := &adksession.GetRequest{AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID}
+	request := &adksession.GetRequest{AppName: GoogleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID}
 	if _, err := runtime.sessionService.Get(ctx, request); err != nil {
 		t.Fatalf("Get while gate held: %v", err)
 	}
@@ -592,7 +593,7 @@ func TestMaybeAutoCompactSessionDuringWorkflowAllowsActiveParent(t *testing.T) {
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Context Workflow Auto Session")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -622,7 +623,7 @@ func TestMaybeAutoCompactSessionDuringWorkflowAllowsActiveParent(t *testing.T) {
 	}
 
 	var deltas []ChatDelta
-	if err := runtime.maybeAutoCompactSessionDuringWorkflow(ctx, session, agent, strings.Repeat("pending input ", 200), func(delta ChatDelta) error {
+	if err := runtime.MaybeAutoCompactSessionDuringWorkflow(ctx, session, agent, strings.Repeat("pending input ", 200), func(delta ChatDelta) error {
 		deltas = append(deltas, delta)
 		return nil
 	}); err != nil {
@@ -674,7 +675,7 @@ func TestSessionContextViewDoesNotAutoCompact(t *testing.T) {
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Context View No Write")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -726,7 +727,7 @@ func TestModelContextReadAutoCompactsBeforeProviderPayload(t *testing.T) {
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Context Model Auto")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -743,7 +744,7 @@ func TestModelContextReadAutoCompactsBeforeProviderPayload(t *testing.T) {
 	}
 
 	response, err := runtime.sessionService.Get(ctx, &adksession.GetRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -835,7 +836,7 @@ func TestSessionContextIgnoresHandoffSegmentsWithoutRevision(t *testing.T) {
 		Status:           AgentStatusEnabled,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "No Legacy Context")
-	_, err := runtime.Store().db.ExecContext(ctx,
+	_, err := runtime.Store().DB().ExecContext(ctx,
 		`INSERT INTO `+tableHandoffSegments+` (id, session_id, active, sequence_no, created_at, updated_at, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		"old-handoff-without-revision", session.ID, 1, 1, nowString(), nowString(),
 		`{"id":"old-handoff-without-revision","sessionId":"`+session.ID+`","sequence":1,"startEventIndex":0,"endEventIndex":1,"summary":"old summary","mode":"manual","estimatedTokens":2,"active":true,"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}`,
@@ -844,7 +845,7 @@ func TestSessionContextIgnoresHandoffSegmentsWithoutRevision(t *testing.T) {
 		t.Fatalf("insert old handoff: %v", err)
 	}
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName:   googleADKAppName(agent.ID),
+		AppName:   GoogleADKAppName(agent.ID),
 		UserID:    googleADKUserID,
 		SessionID: session.ID,
 	})
@@ -866,13 +867,16 @@ func TestSessionContextIgnoresHandoffSegmentsWithoutRevision(t *testing.T) {
 
 func TestAppendADKEventWithStaleRetryRefreshesSession(t *testing.T) {
 	ctx := context.Background()
-	service, err := NewSQLiteSessionService(t.TempDir() + "/adk-session.db")
+	service, err := enginepersistence.NewSQLiteSessionService(t.TempDir() + "/adk-session.db")
 	if err != nil {
-		t.Fatalf("NewSQLiteSessionService: %v", err)
+		t.Fatalf("enginepersistence.NewSQLiteSessionService: %v", err)
 	}
-	t.Cleanup(func() { jftradeErr1 := CloseSessionService(service); jftradeCheckTestError(t, jftradeErr1) })
-	if err := ValidateSQLiteSessionService(service); err != nil {
-		t.Fatalf("ValidateSQLiteSessionService: %v", err)
+	t.Cleanup(func() {
+		jftradeErr1 := enginepersistence.CloseSessionService(service)
+		jftradeCheckTestError(t, jftradeErr1)
+	})
+	if err := enginepersistence.ValidateSQLiteSessionService(service); err != nil {
+		t.Fatalf("enginepersistence.ValidateSQLiteSessionService: %v", err)
 	}
 	created, err := service.Create(ctx, &adksession.CreateRequest{
 		AppName: "app", UserID: "user", SessionID: "session-stale-retry",
@@ -924,7 +928,7 @@ func TestCompactedSessionViewTracksEventsAppendedDuringInvocation(t *testing.T) 
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Live projected context")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+		AppName: GoogleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
 	})
 	if err != nil {
 		t.Fatalf("Create raw session: %v", err)
@@ -937,7 +941,7 @@ func TestCompactedSessionViewTracksEventsAppendedDuringInvocation(t *testing.T) 
 	}
 
 	response, err := runtime.sessionService.Get(ctx, &adksession.GetRequest{
-		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+		AppName: GoogleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
 	})
 	if err != nil {
 		t.Fatalf("Get wrapped session: %v", err)
@@ -1011,7 +1015,7 @@ func TestCompactedSessionPreservesOriginalCallForPendingApproval(t *testing.T) {
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "Pending approval pair")
 	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
-		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+		AppName: GoogleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
 	})
 	if err != nil {
 		t.Fatalf("Create raw session: %v", err)
@@ -1033,7 +1037,7 @@ func TestCompactedSessionPreservesOriginalCallForPendingApproval(t *testing.T) {
 		t.Fatalf("Compact: %v", err)
 	}
 	response, err := runtime.sessionService.Get(ctx, &adksession.GetRequest{
-		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+		AppName: GoogleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
 	})
 	if err != nil {
 		t.Fatalf("Get projected session: %v", err)

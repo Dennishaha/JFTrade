@@ -1,6 +1,6 @@
 package main
 
-//go:generate go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g docs.go -d .,../../internal/app/apiserver/servercore,../../internal/api/system,../../internal/api/marketdata,../../internal/api/live,../../internal/api/productfeatures,../../internal/api/assistant,../../internal/api/backtest,../../internal/api/settings,../../internal/api/strategy,../../internal/api/trading,../../internal/api/watchlist,../../internal/api/research -o ../../docs/swagger --parseDependency --parseInternal --requiredByDefault
+//go:generate node ../../scripts/generate-openapi.mjs
 
 // @title JFTrade Debug API
 // @version 1.0.0

@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	adksession "google.golang.org/adk/v2/session"
+	"google.golang.org/genai"
 	"os"
 	"strings"
 	"testing"
-
-	adksession "google.golang.org/adk/v2/session"
-	"google.golang.org/genai"
 )
 
 func TestWorkflowApprovalParentChildBoundaryBranches(t *testing.T) {
@@ -74,7 +73,7 @@ func TestWorkflowApprovalParentChildBoundaryBranches(t *testing.T) {
 	} {
 		parent := newParent("wf-terminal-"+tc.status, WorkModeLoop)
 		child := saveChild(parent, tc.status, "child "+tc.status)
-		terminated, err := runtime.terminateParentWorkflowFromChild(ctx, parent, child)
+		terminated, err := runtime.TerminateParentWorkflowFromChild(ctx, parent, child)
 		if err != nil {
 			t.Fatalf("terminate %s parent: %v", tc.status, err)
 		}
@@ -180,7 +179,7 @@ func TestRunnerChatAndStoreAdditionalBoundaryBranches(t *testing.T) {
 		CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 	})
 	pendingApproval := Approval{ID: "runner-boundary-approval", RunID: baseRun.ID, AgentID: agent.ID, ToolName: "write", Status: ApprovalStatusPending, CreatedAt: now, UpdatedAt: now}
-	pendingResponse, err := runtime.completeChatRun(ctx, session, baseRun, "approve", toolExecutionContext{}, []Approval{pendingApproval}, assistantExecutionResult{}, nil)
+	pendingResponse, err := runtime.CompleteChatRun(ctx, session, baseRun, "approve", ToolExecutionContext{}, []Approval{pendingApproval}, assistantExecutionResult{}, nil)
 	if err != nil || pendingResponse.Run.Status != RunStatusPending || len(pendingResponse.PendingApprovals) != 1 {
 		t.Fatalf("pending completeChatRun response=%+v err=%v", pendingResponse, err)
 	}
@@ -188,7 +187,7 @@ func TestRunnerChatAndStoreAdditionalBoundaryBranches(t *testing.T) {
 	failedRun.ID = "runner-boundary-failed"
 	failedRun.Status = RunStatusRunning
 	mustSaveRun(t, runtime, failedRun)
-	failedResponse, err := runtime.completeChatRun(ctx, session, failedRun, "fail", toolExecutionContext{}, nil, assistantExecutionResult{}, fmt.Errorf("model failed"))
+	failedResponse, err := runtime.CompleteChatRun(ctx, session, failedRun, "fail", ToolExecutionContext{}, nil, assistantExecutionResult{}, fmt.Errorf("model failed"))
 	if err != nil || failedResponse.Run.Status != RunStatusFailed || failedResponse.Run.ErrorCode == "" || failedResponse.Reply == "" {
 		t.Fatalf("failed completeChatRun response=%+v err=%v", failedResponse, err)
 	}
@@ -197,7 +196,7 @@ func TestRunnerChatAndStoreAdditionalBoundaryBranches(t *testing.T) {
 	completedRun.Status = RunStatusRunning
 	completedRun.ToolCalls = []ToolCall{{ID: "call-failed", RunID: completedRun.ID, ToolName: "tool", Status: "FAILED", Error: new("tool failed")}}
 	mustSaveRun(t, runtime, completedRun)
-	completedResponse, err := runtime.completeChatRun(ctx, session, completedRun, "done", toolExecutionContext{calls: completedRun.ToolCalls}, nil, assistantExecutionResult{}, nil)
+	completedResponse, err := runtime.CompleteChatRun(ctx, session, completedRun, "done", ToolExecutionContext{Calls: completedRun.ToolCalls}, nil, assistantExecutionResult{}, nil)
 	if err != nil || completedResponse.Run.Status != RunStatusCompleted || !completedResponse.Run.Degraded || !strings.Contains(completedResponse.Reply, "tool failed") {
 		t.Fatalf("completed degraded response=%+v err=%v", completedResponse, err)
 	}
@@ -241,7 +240,7 @@ func TestResumeGoogleADKFakeExecutionBoundaryBranches(t *testing.T) {
 		WorkMode: WorkModeChat, PermissionMode: PermissionModeApproval,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "resume google")
-	appName := googleADKAppName(agent.ID)
+	appName := GoogleADKAppName(agent.ID)
 	if _, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{AppName: appName, UserID: googleADKUserID, SessionID: session.ID}); err != nil {
 		t.Fatalf("Create ADK session: %v", err)
 	}
@@ -347,85 +346,6 @@ func TestResumeGoogleADKFakeExecutionBoundaryBranches(t *testing.T) {
 	errored, message, handled, err := runtime.resumeGoogleADK(ctx, errorRun)
 	if err == nil || !handled || message != nil || errored.ID != errorRun.ID {
 		t.Fatalf("resume error run=%+v message=%+v handled=%v err=%v", errored, message, handled, err)
-	}
-}
-
-func TestWorkflowExecutorAdditionalBoundaryBranches(t *testing.T) {
-	ctx := t.Context()
-	if _, err := ((*WorkflowExecutor)(nil)).Run(ctx, workflowRequest{}); err == nil || !strings.Contains(err.Error(), "unavailable") {
-		t.Fatalf("nil workflow executor err = %v, want unavailable", err)
-	}
-	runtime := newTestRuntime(t)
-	executor := runtime.workflowExecutor()
-	if _, err := executor.Run(ctx, workflowRequest{Mode: WorkModeChat}); err == nil || !strings.Contains(err.Error(), "workflow mode") {
-		t.Fatalf("chat workflow err = %v, want workflow mode required", err)
-	}
-	ensureTestProvider(t, runtime)
-	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
-		ID: "workflow-executor-agent", Name: "Workflow Executor", Status: AgentStatusEnabled,
-		WorkMode: WorkModeLoop,
-	})
-	session := mustCreateSession(t, runtime, agent.ID, "workflow executor")
-	if _, err := executor.Run(ctx, workflowRequest{
-		Agent: agent, Session: session, Mode: WorkModeLoop, Message: "loop objective", Objective: "loop objective", EmitRun: true,
-		OnDelta: func(ChatDelta) error { return errors.New("emit failed") },
-	}); err == nil || !strings.Contains(err.Error(), "emit failed") {
-		t.Fatalf("emit workflow err = %v, want emit failed", err)
-	}
-	if _, _, err := executor.planWorkflowSteps(ctx, workflowRequest{Agent: Agent{ID: "missing", ProviderID: "missing"}}, WorkModeLoop, "objective"); err == nil || !strings.Contains(err.Error(), "workflow planner failed") {
-		t.Fatalf("planWorkflowSteps err = %v, want planner failed", err)
-	}
-
-	parent := mustSaveRun(t, runtime, Run{
-		ID: "workflow-executor-parent", SessionID: session.ID, AgentID: agent.ID,
-		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
-	})
-	steps := []workflowStep{
-		{Title: "First", Description: "Desc", Message: "First message", DependencyID: "first", Order: 1, AgentRole: "researcher", ModeHint: WorkModeChat, PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
-		{Title: "Second", Message: "Second message", DependsOn: []string{"first", "__previous_step_1"}, DependencyID: "second", Order: 2, PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
-	}
-	tasks, err := executor.persistWorkflowTasks(ctx, parent, agent, steps)
-	if err != nil {
-		t.Fatalf("persistWorkflowTasks: %v", err)
-	}
-	if len(tasks) != 2 || tasks[1].DependsOn[0] != tasks[0].ID || !strings.Contains(tasks[0].Description, "Agent role: researcher") {
-		t.Fatalf("persisted tasks = %+v", tasks)
-	}
-	failingParent := parent
-	failingParent.ID = "workflow-executor-failing-parent"
-	mustSaveRun(t, runtime, failingParent)
-	response, err := executor.runPlannedGoogleADKWorkflow(ctx, workflowRequest{
-		Agent:   Agent{ID: "bad-child-agent", Name: "Bad Child", ProviderID: "missing-provider"},
-		Session: session, Message: "run children", Mode: WorkModeLoop,
-	}, failingParent, []workflowStep{{Title: "Bad", Message: "bad child"}}, nil)
-	if err != nil || response.Run.Status != RunStatusFailed || response.Run.FailureReason == "" {
-		t.Fatalf("runPlannedGoogleADKWorkflow response=%+v err=%v, want failed response", response, err)
-	}
-	if _, _, err := executor.startWorkflowChildRuns(ctx, workflowRequest{
-		Agent:   Agent{ID: "bad-child-agent", Name: "Bad Child", ProviderID: "missing-provider"},
-		Session: session, Message: "run child", Mode: WorkModeLoop,
-	}, parent, []workflowStep{{Title: "Bad", Message: "bad child"}}, nil); err == nil {
-		t.Fatal("startWorkflowChildRuns bad provider err = nil, want error")
-	}
-	ordered := []Task{
-		{ID: "zero", Order: 0, CreatedAt: "b"},
-		{ID: "two", Order: 2, CreatedAt: "a"},
-		{ID: "one", Order: 1, CreatedAt: "c"},
-		{ID: "zero-a", Order: 0, CreatedAt: "a"},
-	}
-	sortWorkflowTasks(ordered)
-	if got := []string{ordered[0].ID, ordered[1].ID, ordered[2].ID, ordered[3].ID}; strings.Join(got, ",") != "one,two,zero-a,zero" {
-		t.Fatalf("sortWorkflowTasks order = %v", got)
-	}
-	if got := workflowDescriptionWithoutAgentRole("Agent role: only role"); got != "" {
-		t.Fatalf("workflowDescriptionWithoutAgentRole prefix = %q, want empty", got)
-	}
-	if got := workflowDescriptionWithoutAgentRole("body\n\nAgent role: worker"); got != "body" {
-		t.Fatalf("workflowDescriptionWithoutAgentRole suffix = %q, want body", got)
-	}
-	if got := workflowDescriptionWithoutAgentRole("body"); got != "body" {
-		t.Fatalf("workflowDescriptionWithoutAgentRole plain = %q, want body", got)
 	}
 }
 

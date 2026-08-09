@@ -105,7 +105,7 @@ func newProjectionEvent(id string, invocationID string, author string, role gena
 
 func TestProjectionApprovalMemoryAndCanvasBoundarySemantics(t *testing.T) {
 	t.Run("approval projection only retains unique pending work", func(t *testing.T) {
-		pending := pendingApprovalsOnly([]Approval{
+		pending := PendingApprovalsOnly([]Approval{
 			{ID: "first", Status: ApprovalStatusPending},
 			{ID: " first ", Status: "pending"},
 			{ConfirmationCallID: "confirmation", Status: " PENDING "},
@@ -115,9 +115,6 @@ func TestProjectionApprovalMemoryAndCanvasBoundarySemantics(t *testing.T) {
 		})
 		if len(pending) != 4 {
 			t.Fatalf("pending approvals = %#v, want four unique pending entries", pending)
-		}
-		if pendingApprovalKey(Approval{}) != "" || isPendingApprovalStatus("approved") {
-			t.Fatal("approval helper accepted an empty or approved record as pending")
 		}
 	})
 
@@ -192,8 +189,8 @@ func TestProjectionApprovalMemoryAndCanvasBoundarySemantics(t *testing.T) {
 		if step.Title != "Worker" || step.Message != "prompt" || step.Objective != "objective" || step.AgentRole != "7" || step.Description != "true" || step.ChildAgentID != "parent" {
 			t.Fatalf("canvas step data = %+v", step)
 		}
-		if workflowCanvasNodeDataString(WorkflowCanvasNode{}, "missing") != "" || workflowCanvasNodeType(canvasNode("x", "", nil)) != "" {
-			t.Fatal("canvas node helper did not preserve empty data/type semantics")
+		if _, err := compileWorkflowCanvasSteps(WorkflowDefinition{CanvasGraph: &WorkflowCanvasGraph{Nodes: []WorkflowCanvasNode{canvasNode("x", "", nil)}}}, "message", "objective"); err == nil || !strings.Contains(err.Error(), "unsupported type") {
+			t.Fatal("canvas node type/data semantics changed")
 		}
 	})
 
@@ -226,18 +223,18 @@ func TestProjectionApprovalMemoryAndCanvasBoundarySemantics(t *testing.T) {
 }
 
 func TestDirectApprovalResumeErrorRequiresTerminalToolStates(t *testing.T) {
-	if isIgnorableDirectApprovalResumeError(nil, toolExecutionContext{}) {
+	if isIgnorableDirectApprovalResumeError(nil, ToolExecutionContext{}) {
 		t.Fatal("nil direct resume error should not be ignored")
 	}
 	err := errors.New("no function call event found for function responses ids [confirmation]")
-	if isIgnorableDirectApprovalResumeError(err, toolExecutionContext{}) {
+	if isIgnorableDirectApprovalResumeError(err, ToolExecutionContext{}) {
 		t.Fatal("resume error without tool history should not be ignored")
 	}
-	terminal := toolExecutionContext{calls: []ToolCall{{Status: "SUCCEEDED"}, {Status: "denied"}, {Status: "TIMED_OUT"}}}
+	terminal := ToolExecutionContext{Calls: []ToolCall{{Status: "SUCCEEDED"}, {Status: "denied"}, {Status: "TIMED_OUT"}}}
 	if !isIgnorableDirectApprovalResumeError(err, terminal) {
 		t.Fatal("terminal direct approval state should ignore a replay-only response error")
 	}
-	if isIgnorableDirectApprovalResumeError(err, toolExecutionContext{calls: []ToolCall{{Status: "RUNNING"}}}) {
+	if isIgnorableDirectApprovalResumeError(err, ToolExecutionContext{Calls: []ToolCall{{Status: "RUNNING"}}}) {
 		t.Fatal("active tool state must not ignore a direct approval resume error")
 	}
 }

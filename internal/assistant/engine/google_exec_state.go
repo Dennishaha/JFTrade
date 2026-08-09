@@ -1,8 +1,9 @@
 package adk
 
 import (
-	"fmt"
 	"strings"
+
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func (e *googleADKExecution) markToolResponseSeenLocked(runID string) {
@@ -148,13 +149,25 @@ func (e *googleADKExecution) runHasPostToolTextLocked(runID string) bool {
 	return e.postToolTextByRunID[runID] && e.postToolTextSeqByRunID[runID] >= toolSeq
 }
 
-func (e *googleADKExecution) runHasPostToolText(runID string) bool {
+func (e *googleADKExecution) RunHasPostToolText(runID string) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.runHasPostToolTextLocked(runID)
 }
 
-func (e *googleADKExecution) runNeedsFinalSynthesis(runID string) bool {
+func (e *googleADKExecution) HasFinalReplyForRun(runID string, visibleReply string) bool {
+	if e == nil || strings.TrimSpace(visibleReply) == "" || e.activeToolCallCountForRun(runID) > 0 {
+		return false
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if len(e.callsForRunLocked(runID)) == 0 {
+		return true
+	}
+	return e.runHasPostToolTextLocked(runID)
+}
+
+func (e *googleADKExecution) RunNeedsFinalSynthesis(runID string) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	runID = strings.TrimSpace(runID)
@@ -287,66 +300,22 @@ func googleADKAgentName(id string) string {
 	return name
 }
 
-func googleADKWorkflowRootName(parentRunID string) string {
-	name := "workflow_" + strings.ReplaceAll(normalizeID(parentRunID), "-", "_")
-	if name == "workflow_" {
-		return "workflow_root"
-	}
-	return name
+func GoogleADKWorkflowRootName(parentRunID string) string {
+	return jfadkmodel.GoogleADKWorkflowRootName(parentRunID)
 }
 
-func googleADKWorkflowChildName(parentRunID string, index int) string {
-	return fmt.Sprintf("%s_child_%d", googleADKWorkflowRootName(parentRunID), index+1)
+func GoogleADKWorkflowChildName(parentRunID string, index int) string {
+	return jfadkmodel.GoogleADKWorkflowChildName(parentRunID, index)
 }
 
 func workflowChildInstruction(base string, task string) string {
-	task = strings.TrimSpace(task)
-	instruction := strings.TrimSpace(base)
-	marker := "JFTRADE_WORKFLOW_TASK: " + task
-	if instruction == "" {
-		return marker
-	}
-	if task == "" {
-		return instruction
-	}
-	return instruction + "\n\n" + marker + "\n请只完成上述 JFTRADE_WORKFLOW_TASK 指定的子任务。"
+	return jfadkmodel.WorkflowChildInstruction(base, task)
 }
 
 func workflowChildInstructionTask(step workflowStep) string {
-	var builder strings.Builder
-	if objective := strings.TrimSpace(step.Objective); objective != "" {
-		builder.WriteString("总体目标：")
-		builder.WriteString(objective)
-	}
-	if task := strings.TrimSpace(step.Message); task != "" {
-		if builder.Len() > 0 {
-			builder.WriteString("\n\n")
-		}
-		builder.WriteString("当前子任务：")
-		builder.WriteString(task)
-	}
-	if description := strings.TrimSpace(step.Description); description != "" && description != strings.TrimSpace(step.Message) {
-		if builder.Len() > 0 {
-			builder.WriteString("\n\n")
-		}
-		builder.WriteString("子任务说明：")
-		builder.WriteString(description)
-	}
-	if role := strings.TrimSpace(step.AgentRole); role != "" {
-		if builder.Len() > 0 {
-			builder.WriteString("\n\n")
-		}
-		builder.WriteString("子 Agent 角色：")
-		builder.WriteString(role)
-	}
-	if builder.Len() == 0 {
-		return strings.TrimSpace(step.Message)
-	}
-	builder.WriteString("\n\n请只基于以上明确给出的目标和子任务工作；不要假设自己能看到父对话的其他上下文。")
-	return builder.String()
+	return jfadkmodel.WorkflowChildInstructionTask(step)
 }
 
 func workflowFinalSynthesisInstruction(base string, task string) string {
-	instruction := workflowChildInstruction(base, task)
-	return instruction + "\n\n工具调用已经完成。现在必须基于已有工具结果输出最终回复。不要再调用工具，不要请求审批，不要只说明准备继续。"
+	return jfadkmodel.WorkflowFinalSynthesisInstruction(base, task)
 }

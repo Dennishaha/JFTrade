@@ -10,10 +10,10 @@ import (
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
-func (s *Server) applySecuritySettings(settings jfsettings.SecuritySettings) {
+func applySecuritySettings(s *Server, settings jfsettings.SecuritySettings) {
 	normalized := normalizeSecuritySettings(settings)
 	if s.auth != nil {
-		s.auth.configure(normalized)
+		s.auth.Configure(normalized)
 	}
 	if s.frontend != nil {
 		s.frontend.setAuthRequired(normalized.WebAccessEnabled)
@@ -22,16 +22,16 @@ func (s *Server) applySecuritySettings(settings jfsettings.SecuritySettings) {
 
 func (s *Server) webAccessMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if s == nil || s.auth == nil || !s.auth.enforceAccess || isDesktopRequest(c.Request) {
+		if s == nil || s.auth == nil || !s.auth.EnforceAccess() || isDesktopRequest(c.Request) {
 			c.Next()
 			return
 		}
 		if s.desktopMode && !isWebAccessSurfaceRequest(c.Request) {
-			s.writeError(c, http.StatusForbidden, "DESKTOP_API_CREDENTIALS_REQUIRED", "this local API listener is reserved for the JFTrade desktop app")
+			writeError(s, c, http.StatusForbidden, "DESKTOP_API_CREDENTIALS_REQUIRED", "this local API listener is reserved for the JFTrade desktop app")
 			return
 		}
-		if s.auth.browserAccessAllowed(c.Request) {
-			accessContext := s.auth.currentAccessContext()
+		if s.auth.BrowserAccessAllowed(c.Request) {
+			accessContext := s.auth.CurrentAccessContext()
 			requestContext, cancelRequest := context.WithCancel(c.Request.Context())
 			defer cancelRequest()
 			go func() {
@@ -45,19 +45,19 @@ func (s *Server) webAccessMiddleware() gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		if !s.auth.webAccessEnabled() {
+		if !s.auth.WebAccessEnabled() {
 			if acceptsWebAccessStatusPage(c.Request) {
 				writeWebAccessStatusPage(c, "Web 访问尚未开启", "请打开 JFTrade 桌面应用，在“设置 → Web 访问”中设置密码并主动开启。")
 				return
 			}
-			s.writeError(c, http.StatusForbidden, "WEB_ACCESS_DISABLED", "Web access is disabled; enable it in the JFTrade desktop settings")
+			writeError(s, c, http.StatusForbidden, "WEB_ACCESS_DISABLED", "Web access is disabled; enable it in the JFTrade desktop settings")
 			return
 		}
 		if acceptsWebAccessStatusPage(c.Request) {
 			writeWebAccessStatusPage(c, "当前仅允许本机访问", "请在运行 JFTrade 的这台电脑上打开浏览器，或从桌面设置中明确允许其他设备访问。")
 			return
 		}
-		s.writeError(c, http.StatusForbidden, "REMOTE_WEB_ACCESS_DISABLED", "Web access is limited to this computer")
+		writeError(s, c, http.StatusForbidden, "REMOTE_WEB_ACCESS_DISABLED", "Web access is limited to this computer")
 	}
 }
 

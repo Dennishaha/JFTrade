@@ -11,6 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adksession "google.golang.org/adk/v2/session"
 )
 
@@ -137,7 +140,7 @@ func ToolInvocationSkillActive(ctx context.Context, skillName string) bool {
 // ToolInvocationAnySkillActive reports whether any required skill was loaded
 // for the current agent in this invocation.
 func ToolInvocationAnySkillActive(ctx context.Context, skillNames []string) bool {
-	for _, skillName := range normalizeStringSlice(skillNames) {
+	for _, skillName := range jfadkmodel.NormalizeStringSlice(skillNames) {
 		if ToolInvocationSkillActive(ctx, skillName) {
 			return true
 		}
@@ -148,7 +151,7 @@ func ToolInvocationAnySkillActive(ctx context.Context, skillNames []string) bool
 // ToolRequiredSkillNames returns the normalized set of skills that can unlock
 // a tool. Any one of the listed skills is sufficient.
 func ToolRequiredSkillNames(descriptor ToolDescriptor) []string {
-	return normalizeStringSlice(descriptor.RequiredSkills)
+	return jfadkmodel.NormalizeStringSlice(descriptor.RequiredSkills)
 }
 
 type RegisteredTool struct {
@@ -199,9 +202,9 @@ func NewToolRegistry() *ToolRegistry {
 		OutputSummary:      "匹配到的工具 descriptor、风险等级与输入 schema。",
 		RiskLevel:          "low",
 	}, func(ctx context.Context, input map[string]any) (any, error) {
-		query := strings.ToLower(strings.TrimSpace(toolStringValue(input, "query")))
-		category := strings.ToLower(strings.TrimSpace(toolStringValue(input, "category")))
-		limit := min(max(toolIntValue(input, "limit", 12), 1), 50)
+		query := strings.ToLower(strings.TrimSpace(skillsruntime.StringValue(input, "query")))
+		category := strings.ToLower(strings.TrimSpace(skillsruntime.StringValue(input, "category")))
+		limit := min(max(skillsruntime.IntValue(input, "limit", 12), 1), 50)
 		descriptors := registry.List()
 		if agent, ok := toolAgentFromContext(ctx); ok {
 			descriptors = ToolDescriptorsForAgent(agent, registry)
@@ -258,7 +261,7 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 	descriptor.Name = strings.TrimSpace(descriptor.Name)
 	descriptor.Permission = strings.TrimSpace(descriptor.Permission)
 	descriptor.IdempotencyMode = normalizeToolIdempotencyMode(descriptor.IdempotencyMode, descriptor.Permission)
-	descriptor.RequiredSkills = normalizeStringSlice(descriptor.RequiredSkills)
+	descriptor.RequiredSkills = jfadkmodel.NormalizeStringSlice(descriptor.RequiredSkills)
 	if descriptor.RequiresApprovalIn == nil {
 		descriptor.RequiresApprovalIn = []string{}
 	}
@@ -270,10 +273,10 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 		}
 	}
 	if descriptor.InputSchema == nil {
-		descriptor.InputSchema = defaultToolInputSchema(descriptor.Name)
+		descriptor.InputSchema = skillsruntime.DefaultToolInputSchema(descriptor.Name)
 	}
 	if descriptor.RiskLevel == "" {
-		descriptor.RiskLevel = defaultToolRiskLevelForTool(descriptor.Name, descriptor.Permission)
+		descriptor.RiskLevel = skillsruntime.DefaultToolRiskLevelForTool(descriptor.Name, descriptor.Permission)
 	}
 	r.mu.Lock()
 	if r.tools == nil {
@@ -349,11 +352,6 @@ func (r *ToolRegistry) AvailableNames() []string {
 	return names
 }
 
-type ToolInvocation struct {
-	Name  string
-	Input map[string]any
-}
-
 func ToolDescriptorsForAgent(agent Agent, registry *ToolRegistry) []ToolDescriptor {
 	if registry == nil {
 		return nil
@@ -396,7 +394,7 @@ func (r *ToolRegistry) CanonicalName(name string) (string, bool) {
 	if _, ok := r.tools[raw]; ok {
 		return raw, true
 	}
-	normalized := normalizeToolAlias(raw)
+	normalized := skillsruntime.NormalizeToolAlias(raw)
 	if normalized == "" {
 		return "", false
 	}
@@ -404,7 +402,7 @@ func (r *ToolRegistry) CanonicalName(name string) (string, bool) {
 		return normalized, true
 	}
 	for _, tool := range r.tools {
-		if normalizeToolAlias(tool.Descriptor.DisplayName) == normalized {
+		if skillsruntime.NormalizeToolAlias(tool.Descriptor.DisplayName) == normalized {
 			return tool.Descriptor.Name, true
 		}
 	}
@@ -457,20 +455,6 @@ func ToolAllowedInMode(descriptor ToolDescriptor, mode string) bool {
 	return slices.Contains(descriptor.AllowedModes, mode)
 }
 
-func finishToolCall(call *ToolCall) {
-	if call == nil {
-		return
-	}
-	completedAt := nowString()
-	call.CompletedAt = &completedAt
-	call.UpdatedAt = completedAt
-	startedAt, startErr := time.Parse(time.RFC3339Nano, call.StartedAt)
-	completed, completedErr := time.Parse(time.RFC3339Nano, completedAt)
-	if startErr == nil && completedErr == nil {
-		call.DurationMs = completed.Sub(startedAt).Milliseconds()
-	}
-}
-
 func executeRegisteredTool(ctx context.Context, registered RegisteredTool, input map[string]any) (output any, err error) {
 	ctx = contextWithToolInvocationMetadata(ctx)
 	toolCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -508,26 +492,7 @@ func limitToolOutput(output any) any {
 }
 
 func summarizeToolOutput(toolName string, output any) string {
-	raw, err := json.Marshal(output)
-	if err != nil {
-		return fmt.Sprintf("%s: %v", toolName, output)
-	}
-	text := string(raw)
-	if len(text) > 1800 {
-		text = text[:1800] + "...(truncated)"
-	}
-	return fmt.Sprintf("%s => %s", toolName, text)
-}
-
-// sanitizeToolNameForOpenAI replaces characters that OpenAI-compatible providers
-// reject in function names. The API requires names matching ^[a-zA-Z0-9_-]+$.
-func sanitizeToolNameForOpenAI(name string) string {
-	return strings.ReplaceAll(name, ".", "-")
-}
-
-// restoreToolNameFromOpenAI reverses the sanitization applied by sanitizeToolNameForOpenAI.
-func restoreToolNameFromOpenAI(name string) string {
-	return strings.ReplaceAll(name, "-", ".")
+	return jfadkmodel.SummarizeToolOutput(toolName, output)
 }
 
 func openAIToolsFromDescriptors(descriptors []ToolDescriptor) []openAITool {
@@ -538,7 +503,7 @@ func openAIToolsFromDescriptors(descriptors []ToolDescriptor) []openAITool {
 		}
 		schema := descriptor.InputSchema
 		if schema == nil {
-			schema = defaultToolInputSchema(descriptor.Name)
+			schema = skillsruntime.DefaultToolInputSchema(descriptor.Name)
 		}
 		schema = sanitizeSchemaForOpenAI(schema)
 		description := strings.TrimSpace(descriptor.Description)
@@ -551,7 +516,7 @@ func openAIToolsFromDescriptors(descriptors []ToolDescriptor) []openAITool {
 		tools = append(tools, openAITool{
 			Type: "function",
 			Function: openAIToolFunction{
-				Name:        sanitizeToolNameForOpenAI(descriptor.Name),
+				Name:        providers.SanitizeToolNameForOpenAI(descriptor.Name),
 				Description: strings.TrimSpace(description),
 				Parameters:  schema,
 			},
@@ -560,23 +525,6 @@ func openAIToolsFromDescriptors(descriptors []ToolDescriptor) []openAITool {
 	return tools
 }
 
-func toolInvocationsFromOpenAI(calls []openAIToolCall) []ToolInvocation {
-	invocations := make([]ToolInvocation, 0, len(calls))
-	for _, call := range calls {
-		name := restoreToolNameFromOpenAI(strings.TrimSpace(call.Function.Name))
-		if name == "" {
-			continue
-		}
-		input := map[string]any{}
-		if strings.TrimSpace(call.Function.Arguments) != "" {
-			if err := json.Unmarshal([]byte(call.Function.Arguments), &input); err != nil {
-				input = map[string]any{"rawParameters": call.Function.Arguments, "parseError": err.Error()}
-			}
-		}
-		invocations = append(invocations, ToolInvocation{Name: name, Input: input})
-		if len(invocations) >= 5 {
-			break
-		}
-	}
-	return invocations
+func toolInvocationsFromOpenAI(calls []openAIToolCall) []jfadkmodel.ToolInvocation {
+	return providers.ToolInvocationsFromOpenAI(calls)
 }

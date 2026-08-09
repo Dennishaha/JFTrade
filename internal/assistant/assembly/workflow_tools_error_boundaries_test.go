@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 )
 
 type errorWorkflowToolManager struct{ err error }

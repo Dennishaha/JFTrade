@@ -4,29 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"slices"
 	"testing"
 
 	fututestkit "github.com/jftrade/jftrade-main/internal/integration/futu/testkit"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
-
-func TestBrokerSearchInstrumentPartsPreservesDottedCodes(t *testing.T) {
-	for _, test := range []struct {
-		market string
-		symbol string
-		want   []string
-	}{
-		{market: "US", symbol: "US.BRK.B", want: []string{"US", "BRK.B"}},
-		{market: "US", symbol: "BRK.B", want: []string{"US", "BRK.B"}},
-		{market: "SH", symbol: "CNSH.600519", want: []string{"SH", "600519"}},
-	} {
-		marketCode, code := brokerSearchInstrumentParts(test.market, test.symbol)
-		if got := []string{marketCode, code}; !slices.Equal(got, test.want) {
-			t.Errorf("brokerSearchInstrumentParts(%q, %q) = %#v, want %#v", test.market, test.symbol, got, test.want)
-		}
-	}
-}
 
 func TestMarketInstrumentResolverEndpointUsesSearchWithoutQuoteSubscription(t *testing.T) {
 	quoteServer := fututestkit.StartQuoteServer(t)

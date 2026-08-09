@@ -9,7 +9,7 @@ import (
 func TestStaleRunReconciliationCoversTerminalPlanAndSelfReferenceRecovery(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	executor := runtime.workflowExecutor()
+	executor := mustWorkflowExecutor(t, runtime)
 	now := nowString()
 
 	// A stale row can disappear between ListRuns and Run; recovery must simply
@@ -143,7 +143,7 @@ func TestLifecycleStoreFailuresAreReturnedToTheCaller(t *testing.T) {
 				run.UpdatedAt = nowString()
 				run.Usage = &RunUsage{}
 				mustSaveRun(t, runtime, run)
-				if _, err := runtime.Store().db.ExecContext(ctx, `CREATE TRIGGER reject_`+tc.name+`_run_update BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+run.ID+`' BEGIN SELECT RAISE(FAIL, 'run write rejected'); END`); err != nil {
+				if _, err := runtime.Store().DB().ExecContext(ctx, `CREATE TRIGGER reject_`+tc.name+`_run_update BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+run.ID+`' BEGIN SELECT RAISE(FAIL, 'run write rejected'); END`); err != nil {
 					t.Fatalf("create write rejection trigger: %v", err)
 				}
 				if err := tc.call(runtime, run.ID); err == nil || !strings.Contains(err.Error(), "run write rejected") {
@@ -161,7 +161,7 @@ func TestLifecycleStoreFailuresAreReturnedToTheCaller(t *testing.T) {
 			CreatedAt:    nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		}
 		mustSaveRun(t, runtime, parent)
-		if _, err := runtime.Store().db.ExecContext(ctx, `DROP TABLE `+tableTasks); err != nil {
+		if _, err := runtime.Store().DB().ExecContext(ctx, `DROP TABLE `+tableTasks); err != nil {
 			t.Fatalf("drop task table: %v", err)
 		}
 		if repaired, err := runtime.repairWorkflowSelfReference(ctx, &parent); err == nil || repaired {

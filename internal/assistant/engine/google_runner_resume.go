@@ -24,7 +24,7 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Transcrip
 	if err := r.prepareResumedExecution(ctx, run, execution); err != nil {
 		return run, nil, true, err
 	}
-	if err := execution.run(ctx, genai.NewContentFromParts(parts, genai.RoleUser)); err != nil {
+	if err := execution.Run(ctx, genai.NewContentFromParts(parts, genai.RoleUser)); err != nil {
 		if errors.Is(err, adkworkflow.ErrNothingToResume) && strings.TrimSpace(run.ParentRunID) != "" {
 			return r.resumeGoogleADKDirect(ctx, run)
 		}
@@ -58,8 +58,8 @@ func (r *Runtime) resumeGoogleADKDirect(ctx context.Context, run Run) (Run, *Tra
 	if err := r.prepareResumedExecution(ctx, run, execution); err != nil {
 		return run, nil, true, err
 	}
-	if err := classifyGoogleADKRunnerError(execution.run(ctx, genai.NewContentFromParts(parts, genai.RoleUser))); err != nil {
-		if !isIgnorableDirectApprovalResumeError(err, execution.toolContextForRun(run.ID)) {
+	if err := classifyGoogleADKRunnerError(execution.Run(ctx, genai.NewContentFromParts(parts, genai.RoleUser))); err != nil {
+		if !isIgnorableDirectApprovalResumeError(err, execution.ToolContextForRun(run.ID)) {
 			return run, nil, true, err
 		}
 	}
@@ -72,15 +72,15 @@ func (r *Runtime) resumeGoogleADKDirect(ctx context.Context, run Run) (Run, *Tra
 	return r.completeDirectResumedExecution(ctx, run, execution)
 }
 
-func isIgnorableDirectApprovalResumeError(err error, toolContext toolExecutionContext) bool {
+func isIgnorableDirectApprovalResumeError(err error, toolContext ToolExecutionContext) bool {
 	err = classifyGoogleADKRunnerError(err)
 	if !errors.Is(err, errGoogleADKFunctionCallEventMissing) {
 		return false
 	}
-	if len(toolContext.calls) == 0 {
+	if len(toolContext.Calls) == 0 {
 		return false
 	}
-	for _, call := range toolContext.calls {
+	for _, call := range toolContext.Calls {
 		switch strings.ToUpper(strings.TrimSpace(call.Status)) {
 		case "SUCCEEDED", "COMPLETED", "FAILED", "TIMED_OUT", "DENIED", "CANCELLED":
 			continue
@@ -109,7 +109,7 @@ func (r *Runtime) loadResumedExecution(ctx context.Context, run Run) (*googleADK
 }
 
 func (r *Runtime) prepareResumedExecution(ctx context.Context, run Run, execution *googleADKExecution) error {
-	execution.detachDeltaSink()
+	execution.DetachDeltaSink()
 	// Only reset reply buffers when this is a fresh (rehydrated) execution.
 	// When the execution carries over from a previous approval round we
 	// keep accumulating text so the final assistant message contains the
@@ -120,7 +120,7 @@ func (r *Runtime) prepareResumedExecution(ctx context.Context, run Run, executio
 		execution.reasoning.Reset()
 	}
 	execution.mu.Unlock()
-	return r.maybeAutoCompactSessionDuringWorkflow(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, execution.agent, run.UserMessage, nil)
+	return r.MaybeAutoCompactSessionDuringWorkflow(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, execution.agent, run.UserMessage, nil)
 }
 
 func seedResumedConfirmationIDs(execution *googleADKExecution, approvals []Approval) {
@@ -137,7 +137,7 @@ func seedResumedConfirmationIDs(execution *googleADKExecution, approvals []Appro
 }
 
 func (r *Runtime) handleResumedApprovals(ctx context.Context, run Run, execution *googleADKExecution) (Run, bool, error) {
-	newApprovals, err := execution.pendingApprovals(ctx, r.store)
+	newApprovals, err := execution.PendingApprovals(ctx, r.store)
 	if err != nil {
 		return run, false, err
 	}
@@ -161,11 +161,11 @@ func (r *Runtime) handleResumedApprovals(ctx context.Context, run Run, execution
 func persistResumedApprovalMessage(ctx context.Context, r *Runtime, run Run, execution *googleADKExecution) Run {
 	// Save the assistant message accumulated so far so the timeline
 	// renders the LLM's analysis between approval rounds.
-	result := execution.resultForRun(run.ID)
+	result := execution.ResultForRun(run.ID)
 	if strings.TrimSpace(result.Reply) == "" && strings.TrimSpace(result.ReasoningContent) == "" {
 		return run
 	}
-	message, err := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
+	message, err := r.EnsureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
 	if err == nil {
 		run.FinalMessageID = message.ID
 	}
@@ -180,7 +180,7 @@ func (r *Runtime) completeResumedExecution(ctx context.Context, run Run, executi
 		}
 	}
 	run, denied := hydrateResumedRun(run, execution)
-	result := finalizeResumedResult(run, execution.resultForRun(run.ID), denied)
+	result := finalizeResumedResult(run, execution.ResultForRun(run.ID), denied)
 	run.CompletedAt = new(nowString())
 	message, err := r.persistResumedRunResult(ctx, run, result)
 	if err != nil {
@@ -194,7 +194,7 @@ func (r *Runtime) completeResumedExecution(ctx context.Context, run Run, executi
 
 func (r *Runtime) completeDirectResumedExecution(ctx context.Context, run Run, execution *googleADKExecution) (Run, *TranscriptEntry, bool, error) {
 	run, denied := hydrateResumedRun(run, execution)
-	result := finalizeResumedResult(run, execution.resultForRun(run.ID), denied)
+	result := finalizeResumedResult(run, execution.ResultForRun(run.ID), denied)
 	run.CompletedAt = new(nowString())
 	message, err := r.persistResumedRunResult(ctx, run, result)
 	if err != nil {
@@ -209,7 +209,7 @@ func (r *Runtime) completeDirectResumedExecution(ctx context.Context, run Run, e
 func (r *Runtime) failResumedExecution(ctx context.Context, run Run, execution *googleADKExecution, cause error) (Run, *TranscriptEntry, bool, error) {
 	run, _ = hydrateResumedRun(run, execution)
 	run = markFailedChatRun(ctx, run, cause)
-	if err := r.persistRunTerminalState(ctx, run); err != nil {
+	if err := r.PersistRunTerminalState(ctx, run); err != nil {
 		return run, nil, true, err
 	}
 	r.deleteADKRun(run.ID)
@@ -254,11 +254,11 @@ func approvalResolutionParts(approvals []Approval) []*genai.Part {
 }
 
 func hydrateResumedRun(run Run, execution *googleADKExecution) (Run, bool) {
-	toolContext := execution.toolContextForRun(run.ID)
-	run.ToolCalls = toolContext.calls
-	run.ToolSummaries = toolContext.summaries
+	toolContext := execution.ToolContextForRun(run.ID)
+	run.ToolCalls = toolContext.Calls
+	run.ToolSummaries = toolContext.Summaries
 	run.PreToolContent, run.PreToolReasoning = execution.preToolState()
-	run.OptimizationTaskID = optimizationTaskID(toolContext.calls)
+	run.OptimizationTaskID = optimizationTaskID(toolContext.Calls)
 	run.ResumeState = "adk_confirmation_resolved"
 	run.Status = RunStatusCompleted
 	run.Message = "completed"
@@ -276,11 +276,11 @@ func hydrateResumedRun(run Run, execution *googleADKExecution) (Run, bool) {
 // while keeping the run in a pending-approval state so further confirmation
 // rounds can be processed.
 func hydrateResumedRunWithApprovals(run Run, execution *googleADKExecution, newApprovals []Approval) Run {
-	toolContext := execution.toolContextForRun(run.ID)
-	run.ToolCalls = toolContext.calls
-	run.ToolSummaries = toolContext.summaries
+	toolContext := execution.ToolContextForRun(run.ID)
+	run.ToolCalls = toolContext.Calls
+	run.ToolSummaries = toolContext.Summaries
 	run.PreToolContent, run.PreToolReasoning = execution.preToolState()
-	run.OptimizationTaskID = optimizationTaskID(toolContext.calls)
+	run.OptimizationTaskID = optimizationTaskID(toolContext.Calls)
 	run.PendingApprovals = newApprovals
 	run.ResumeState = "waiting_approval"
 	return run
@@ -304,7 +304,7 @@ func markDeniedResumedRun(run Run) Run {
 	for index := range run.ToolCalls {
 		call := &run.ToolCalls[index]
 		if call.Status == "FAILED" && call.Error != nil &&
-			errors.Is(errorFromSerializedADKText(*call.Error), adktool.ErrConfirmationRejected) {
+			errors.Is(ErrorFromSerializedADKText(*call.Error), adktool.ErrConfirmationRejected) {
 			call.Status = "DENIED"
 			call.Error = nil
 			call.RequiresUser = false
@@ -321,7 +321,7 @@ func markFailedResumedRunIfNeeded(run Run) Run {
 }
 
 func (r *Runtime) persistResumedRunResult(ctx context.Context, run Run, result assistantExecutionResult) (*TranscriptEntry, error) {
-	message, err := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
+	message, err := r.EnsureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	adkmodel "google.golang.org/adk/v2/model"
 	"google.golang.org/adk/v2/plugin"
@@ -70,7 +71,7 @@ func (e *googleADKExecution) onToolErrorCallback(
 
 func (e *googleADKExecution) beforeToolCallback(ctx adkagent.Context, tool adktool.Tool, args map[string]any) (map[string]any, error) {
 	if e.shouldInterruptForUserGoalPause(e.runIDForAgentName(ctx.AgentName())) {
-		return nil, errUserGoalPauseRequested
+		return nil, jfadkmodel.ErrUserGoalPauseRequested
 	}
 	descriptor, ok := e.descriptorForTool(tool)
 	if !ok {

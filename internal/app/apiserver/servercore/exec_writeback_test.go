@@ -32,7 +32,7 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})
 
-	(&tradingExecutionOrderUpdates{server: server}).ApplyFill(t.Context(), "futu", trdsrv.Fill{
+	newTradingExecutionOrderUpdates(server).ApplyFill(t.Context(), "futu", trdsrv.Fill{
 		AccountID:          "1001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",
@@ -85,7 +85,7 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 		EventType:          "COMMAND_CANCEL_ACCEPTED",
 	})
 
-	(&tradingExecutionOrderUpdates{server: server}).ApplyOrder(t.Context(), "futu", trdsrv.Order{
+	newTradingExecutionOrderUpdates(server).ApplyOrder(t.Context(), "futu", trdsrv.Order{
 		AccountID:          "1001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",
@@ -131,7 +131,7 @@ func TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	(&tradingExecutionOrderUpdates{server: server}).ApplyOrder(t.Context(), "futu", trdsrv.Order{
+	newTradingExecutionOrderUpdates(server).ApplyOrder(t.Context(), "futu", trdsrv.Order{
 		AccountID:          "1001",
 		TradingEnvironment: "SIMULATE",
 		Market:             "HK",

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/futuapp"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -76,26 +77,26 @@ func TestServerRemainingPublicSettersAndRuntimeBoundaries(t *testing.T) {
 	if server.webAccessReconfigure == nil {
 		t.Fatal("web access reconfigure callback was not installed")
 	}
-	if err := server.settingsSideEffects().OnSecurityChanged(jfsettings.SecuritySettings{}); err == nil || !called {
+	if err := settingsSideEffects(server).OnSecurityChanged(jfsettings.SecuritySettings{}); err == nil || !called {
 		t.Fatalf("security side effect = %v, called=%v", err, called)
 	}
 
-	if got := server.liveWebSocketDemand(); got != nil {
+	if got := liveWebSocketDemand(server); got != nil {
 		t.Fatalf("nil live websocket demand = %#v", got)
 	}
-	if got := server.strategyRuntimeDemand(); got != nil {
+	if got := strategyRuntimeDemand(server); got != nil {
 		t.Fatalf("nil strategy runtime demand = %#v", got)
 	}
-	server.startAssistantWorkflowScheduler()
+	startAssistantWorkflowScheduler(server)
 
-	options := server.settingsServiceOptions()
+	options := settingsServiceOptions(server)
 	if len(options) == 0 {
 		t.Fatal("settings service options are empty")
 	}
-	if err := server.settingsSideEffects().OnMCPServerChanged(jfsettings.MCPServerSettings{}); err == nil {
+	if err := settingsSideEffects(server).OnMCPServerChanged(jfsettings.MCPServerSettings{}); err == nil {
 		t.Fatal("nil MCP manager change error = nil")
 	}
-	server.settingsSideEffects().OnExchangeCalendarsChanged(jfsettings.ExchangeCalendarSettings{})
+	settingsSideEffects(server).OnExchangeCalendarsChanged(jfsettings.ExchangeCalendarSettings{})
 
 	if persistenceOnlySettingsStore(nil) != nil {
 		t.Fatal("nil persistence settings store became non-nil")
@@ -109,19 +110,19 @@ func TestServerRemainingBrokerAndSystemOptionBoundaries(t *testing.T) {
 		t.Fatal(err)
 	}
 	server := newTestServer(t, settings)
-	if _, err := server.futuExchangeOrError(); !errors.Is(err, errFutuIntegrationNotEnabled) {
+	if _, err := futuapp.ExchangeOrError(server.futuCoordinator()); !errors.Is(err, futuapp.ErrFutuIntegrationNotEnabled) {
 		t.Fatalf("disabled Futu exchange error = %v", err)
 	}
-	if server.brokerExecutionExchange() != nil {
+	if brokerExecutionExchangeFor(&server.serverApplication) != nil {
 		t.Fatal("disabled broker execution exchange was non-nil")
 	}
 
 	bare := &Server{}
-	core := bare.systemCoreOptions(settings.Path(), filepath.Join(root, "backtest.db"))
-	runtime := bare.systemRuntimeOptions()
+	core := systemCoreOptions(bare, settings.Path(), filepath.Join(root, "backtest.db"))
+	runtime := systemRuntimeOptions(bare)
 	if len(core) == 0 || len(runtime) == 0 {
 		t.Fatalf("system options core/runtime = %d/%d", len(core), len(runtime))
 	}
 	bare.runtimes.SetRealTradeControl(nil, nil)
-	_ = bare.systemRuntimeOptions()
+	_ = systemRuntimeOptions(bare)
 }

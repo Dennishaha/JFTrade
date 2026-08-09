@@ -74,9 +74,7 @@ func TestSessionProjectionPropagatesADKSessionReadFailures(t *testing.T) {
 	session := mustCreateSession(t, runtime, "projection-read-error-agent", "projection read error")
 	store := runtime.Store()
 	want := errors.New("ADK session store unavailable")
-	store.mu.Lock()
-	store.sessions = getErrorADKSessionService{Service: store.sessions, err: want}
-	store.mu.Unlock()
+	store.SetSessionService(getErrorADKSessionService{Service: store.SessionService(), err: want})
 
 	if _, _, err := store.SessionProjection(t.Context(), session.ID); !errors.Is(err, want) {
 		t.Fatalf("SessionProjection error = %v, want %v", err, want)

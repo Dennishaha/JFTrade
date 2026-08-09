@@ -8,13 +8,13 @@ import (
 func TestResolveAndStageApprovalBoundaryStates(t *testing.T) {
 	ctx := context.Background()
 	var nilStore *Store
-	if approval, changed, run, resumed, err := nilStore.resolveAndStageApproval(ctx, "missing", ApprovalStatusApproved); err != nil || changed || run != nil || resumed || approval.ID != "" {
+	if approval, changed, run, resumed, err := nilStore.ResolveAndStageApproval(ctx, "missing", ApprovalStatusApproved); err != nil || changed || run != nil || resumed || approval.ID != "" {
 		t.Fatalf("nil store resolution = %+v/%v/%+v/%v/%v", approval, changed, run, resumed, err)
 	}
 
 	t.Run("missing approval", func(t *testing.T) {
 		store := newTestRuntime(t).Store()
-		if approval, changed, run, resumed, err := store.resolveAndStageApproval(ctx, "missing", ApprovalStatusApproved); err != nil || changed || run != nil || resumed || approval.ID != "" {
+		if approval, changed, run, resumed, err := store.ResolveAndStageApproval(ctx, "missing", ApprovalStatusApproved); err != nil || changed || run != nil || resumed || approval.ID != "" {
 			t.Fatalf("missing approval resolution = %+v/%v/%+v/%v/%v", approval, changed, run, resumed, err)
 		}
 	})
@@ -25,7 +25,7 @@ func TestResolveAndStageApprovalBoundaryStates(t *testing.T) {
 		if err := store.SaveApproval(ctx, approval); err != nil {
 			t.Fatalf("SaveApproval: %v", err)
 		}
-		resolved, changed, run, resumed, err := store.resolveAndStageApproval(ctx, approval.ID, ApprovalStatusDenied)
+		resolved, changed, run, resumed, err := store.ResolveAndStageApproval(ctx, approval.ID, ApprovalStatusDenied)
 		if err != nil || changed || run != nil || resumed || resolved.Status != ApprovalStatusApproved {
 			t.Fatalf("already-resolved resolution = %+v/%v/%+v/%v/%v", resolved, changed, run, resumed, err)
 		}
@@ -37,7 +37,7 @@ func TestResolveAndStageApprovalBoundaryStates(t *testing.T) {
 		if err := store.SaveApproval(ctx, approval); err != nil {
 			t.Fatalf("SaveApproval: %v", err)
 		}
-		_, changed, run, resumed, err := store.resolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved)
+		_, changed, run, resumed, err := store.ResolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved)
 		if err != nil || !changed || run != nil || resumed {
 			t.Fatalf("missing-run resolution = %v/%+v/%v/%v", changed, run, resumed, err)
 		}
@@ -51,7 +51,7 @@ func TestResolveAndStageApprovalBoundaryStates(t *testing.T) {
 		if err := store.SaveApproval(ctx, approval); err != nil {
 			t.Fatalf("SaveApproval: %v", err)
 		}
-		_, changed, run, resumed, err := store.resolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved)
+		_, changed, run, resumed, err := store.ResolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved)
 		if err != nil || !changed || run != nil || resumed {
 			t.Fatalf("completed-run resolution = %v/%+v/%v/%v", changed, run, resumed, err)
 		}
@@ -65,7 +65,7 @@ func TestResolveAndStageApprovalBoundaryStates(t *testing.T) {
 		if err := store.SaveApproval(ctx, approval); err != nil {
 			t.Fatalf("SaveApproval: %v", err)
 		}
-		_, changed, run, resumed, err := store.resolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved)
+		_, changed, run, resumed, err := store.ResolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved)
 		if err != nil || !changed || run == nil || resumed {
 			t.Fatalf("not-embedded resolution = %v/%+v/%v/%v", changed, run, resumed, err)
 		}
@@ -80,10 +80,10 @@ func TestResolveAndStageApprovalRejectsCorruptDurablePayloads(t *testing.T) {
 		if err := store.SaveApproval(ctx, approval); err != nil {
 			t.Fatalf("SaveApproval: %v", err)
 		}
-		if _, err := store.db.ExecContext(ctx, `UPDATE `+tableApprovals+` SET payload_json = '{"id":[],"status":"PENDING"}' WHERE id = ?`, approval.ID); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `UPDATE `+tableApprovals+` SET payload_json = '{"id":[],"status":"PENDING"}' WHERE id = ?`, approval.ID); err != nil {
 			t.Fatalf("corrupt approval: %v", err)
 		}
-		if _, _, _, _, err := store.resolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved); err == nil {
+		if _, _, _, _, err := store.ResolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved); err == nil {
 			t.Fatal("corrupt approval payload was accepted")
 		}
 	})
@@ -96,10 +96,10 @@ func TestResolveAndStageApprovalRejectsCorruptDurablePayloads(t *testing.T) {
 		if err := store.SaveApproval(ctx, approval); err != nil {
 			t.Fatalf("SaveApproval: %v", err)
 		}
-		if _, err := store.db.ExecContext(ctx, `UPDATE `+tableRuns+` SET payload_json = '{' WHERE id = ?`, approval.RunID); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `UPDATE `+tableRuns+` SET payload_json = '{' WHERE id = ?`, approval.RunID); err != nil {
 			t.Fatalf("corrupt run: %v", err)
 		}
-		if _, _, _, _, err := store.resolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved); err == nil {
+		if _, _, _, _, err := store.ResolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved); err == nil {
 			t.Fatal("corrupt run payload was accepted")
 		}
 	})
@@ -118,10 +118,10 @@ func TestResolveAndStageApprovalRejectsCorruptDurablePayloads(t *testing.T) {
 				t.Fatalf("SaveApproval(%s): %v", item.ID, err)
 			}
 		}
-		if _, err := store.db.ExecContext(ctx, `UPDATE `+tableApprovals+` SET payload_json = '{"id":[],"status":"PENDING"}' WHERE id = ?`, sibling.ID); err != nil {
+		if _, err := store.DB().ExecContext(ctx, `UPDATE `+tableApprovals+` SET payload_json = '{"id":[],"status":"PENDING"}' WHERE id = ?`, sibling.ID); err != nil {
 			t.Fatalf("corrupt sibling: %v", err)
 		}
-		if _, _, _, _, err := store.resolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved); err == nil {
+		if _, _, _, _, err := store.ResolveAndStageApproval(ctx, approval.ID, ApprovalStatusApproved); err == nil {
 			t.Fatal("corrupt sibling approval payload was accepted")
 		}
 	})
