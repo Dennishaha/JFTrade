@@ -33,8 +33,8 @@ export function resolveFallbackChecks(files) {
   return checks;
 }
 
-export function changedFiles(root = repoRoot, base, { gitCommand = git } = {}) {
-  const comparisonBase = base ?? resolveBase(root, { gitCommand });
+export function changedFiles(root = repoRoot, base, { env = process.env, gitCommand = git } = {}) {
+  const comparisonBase = base ?? resolveBase(root, { env, gitCommand });
   const names = gitCommand(root, ["diff", "--name-only", "--diff-filter=ACMRD", comparisonBase]);
   const untracked = gitCommand(root, ["ls-files", "--others", "--exclude-standard", "-z"])
     .split("\0")

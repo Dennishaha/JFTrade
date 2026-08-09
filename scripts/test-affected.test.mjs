@@ -62,7 +62,7 @@ test("returns no files for a clean checkout without probing a fixture repository
     return "";
   };
 
-  assert.deepEqual(changedFiles("/tmp/repo", undefined, { gitCommand: fakeGit }), []);
+  assert.deepEqual(changedFiles("/tmp/repo", undefined, { env: {}, gitCommand: fakeGit }), []);
   assert.deepEqual(calls, [
     ["rev-parse", "--verify", "origin/main"],
     ["merge-base", "HEAD", "origin/main"],
