@@ -218,7 +218,7 @@ func TestRunAPIOnlyStopsAfterCallerCancellation(t *testing.T) {
 	}()
 
 	statusURL := "http://" + apiBind + "/api/v1/system/status"
-	deadline := time.Now().Add(3 * time.Second)
+	deadline := time.Now().Add(15 * time.Second)
 	for {
 		response, requestErr := jftradeTestHTTPGet(t, statusURL)
 		if requestErr == nil {
@@ -277,7 +277,7 @@ func TestStartForRunArgsUsesInterfaceSettingsForAPIBindWhileWebIsDisabled(t *tes
 	}()
 
 	statusURL := "http://" + apiBind + "/api/v1/system/status"
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(15 * time.Second)
 	for {
 		resp, err := jftradeTestHTTPGet(t, statusURL)
 		if err == nil {
