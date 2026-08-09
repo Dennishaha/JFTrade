@@ -101,6 +101,10 @@ pnpm run test:web
 pnpm run typecheck:web
 pnpm run build:web
 pnpm run build:docs
+pnpm run test:affected -- --print
+pnpm run check:quick
+pnpm run check:generated
+pnpm run check:all
 ```
 
 文档和接口说明生成：
@@ -118,6 +122,8 @@ pnpm run generate:docs
 - `generate:contracts` 统一生成 OpenAPI、Web API 类型和契约基线
 - `generate:reference` 生成 `docs/reference/generated/*`
 - `generate:docs` 在契约生成后刷新参考文档
+- `check:generated` 在临时目录生成并比较所有契约产物，不修改工作树
+- `test:affected` 依据 merge-base 和模块映射选择受影响测试；`check:quick` 在其上增加静态检查
 
 `docs/swagger/*`、`apps/web/src/generated/openapi.ts`、`tests/fixtures/openapi-baseline.json` 和 `docs/reference/generated/*` 是生成产物，不要手工改。
 

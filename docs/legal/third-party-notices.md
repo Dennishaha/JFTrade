@@ -215,13 +215,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## JetBrains HTML inspection assets
 
-- Component: `script.js`
-- Copyright: Copyright 2000-2016 JetBrains s.r.o.
-- Component: `styles.css`
-- Copyright: Copyright 2000-2024 JetBrains s.r.o. and contributors
-- License: `Apache-2.0`
++## Apache License 2.0
+
+The complete license text applies to the Apache-2.0 components listed above.
 
 ```text
 
@@ -427,6 +424,7 @@ SOFTWARE.
    See the License for the specific language governing permissions and
    limitations under the License.
 ```
+
 
 ## Corresponding Source
 
