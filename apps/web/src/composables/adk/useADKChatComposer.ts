@@ -16,7 +16,12 @@ import type {
 } from "@/types";
 
 import type { QueuedChatMessage } from "@/composables/adk/adkChatRuntime";
-import { formatNumber } from "@/utils/numberFormat";
+import {
+  compactionModeLabel,
+  contextRevisionLabel,
+  contextWindowLabel,
+  formatTokenCount,
+} from "@/composables/adk/adkChatComposerPresentation";
 
 export interface SlashCommandItem {
   id: "context" | "compact" | "compact-aggressive";
@@ -25,7 +30,6 @@ export interface SlashCommandItem {
   description: string;
   disabled?: boolean;
 }
-
 export interface ProviderOption {
   title: string;
   value: string;
@@ -680,40 +684,6 @@ function handleKeydown(event: KeyboardEvent): void {
     }
   }
   props.handleComposerKeydown?.(event);
-}
-
-function formatTokenCount(value: number): string {
-  return formatNumber(Math.max(0, value), { maximumFractionDigits: 3 });
-}
-
-function contextWindowLabel(
-  snapshot: ADKSessionContextSnapshot | null | undefined,
-): string {
-  if (!snapshot || snapshot.contextWindowTokens <= 0) {
-    return "未配置";
-  }
-  return formatTokenCount(snapshot.contextWindowTokens);
-}
-
-function contextRevisionLabel(
-  snapshot: ADKSessionContextSnapshot | null | undefined,
-): string {
-  const revision = snapshot?.contextRevisionId?.trim() ?? "";
-  if (revision === "") return "未生成";
-  return revision.length > 18 ? `${revision.slice(0, 18)}...` : revision;
-}
-
-function compactionModeLabel(mode?: string): string {
-  switch (mode) {
-    case "manual":
-      return "手动";
-    case "auto":
-      return "自动";
-    case "aggressive":
-      return "激进";
-    default:
-      return "未执行";
-  }
 }
 
 function queueItemBadge(item: QueuedChatMessage, index: number): string {

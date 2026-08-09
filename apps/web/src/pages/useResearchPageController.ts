@@ -1,10 +1,7 @@
-import type { SplitpanesResizedPayload } from "splitpanes";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import {
-  normalizeQuoteWorkbenchPeriod,
-  normalizeQuoteWorkbenchProductClass,
   type QuoteWorkbenchPeriod,
   type QuoteWorkbenchTab,
 } from "../components/domain/market-data/quoteWorkbench";
@@ -20,7 +17,6 @@ import {
   validResearchSection,
 } from "../components/research/researchNavigation";
 import {
-  normalizeResearchQuoteTarget,
   researchQuoteSeedFromEntry,
   researchQuoteTargetFromEntry,
   type QuoteSeed,
@@ -28,13 +24,28 @@ import {
 } from "../components/research/researchQuote";
 import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
 import { useConsoleData } from "@/composables/workspace/useConsoleData";
-import {
-  clampResearchPaneSizesForWidth,
-  readResearchViewState,
-  researchPaneBoundsForWidth,
-  writeResearchViewState,
-} from "@/composables/research/useResearchViewState";
 import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
+import {
+  activeScreenMarketFor,
+  arkResearchOperation as resolveArkResearchOperation,
+  configFor,
+  derivativeScreenOperation as resolveDerivativeScreenOperation,
+  firstQueryValue,
+  instrumentResearchOperation as resolveInstrumentResearchOperation,
+  macroResearchOperation as resolveMacroResearchOperation,
+  operationFor,
+  optionResearchOperation as resolveOptionResearchOperation,
+  predictionContractViewFromQuery,
+  queryMarketFor,
+  queryWith as mergeResearchQuery,
+  quoteTargetWorkspaceProductClass,
+  researchWorkspaceDestination,
+  quotePeriodFromQuery,
+  quoteTabFromQuery,
+  quoteTargetFromQuery,
+  researchEntry,
+} from "./researchPageRouting";
+import { useResearchPageLayout } from "./useResearchPageLayout";
 
 export function useResearchPageController() {
   const sections = RESEARCH_SECTIONS;
@@ -45,75 +56,7 @@ export function useResearchPageController() {
   const { selectedBrokerAccount, systemStatus } = useConsoleData();
   const { selectedBrokerId, selectBrokerProvider } =
     useBrokerProviderSelection();
-  function configFor(section: ResearchSection) {
-    return sections.find((item) => item.value === section)!;
-  }
-
-  function operationFor(section: ResearchSection, value: unknown): string {
-    const config = configFor(section);
-    const rawCandidate = String(value ?? "");
-    const candidate =
-      section === "industries" &&
-        ["chain_detail", "chains_by_plate"].includes(rawCandidate)
-        ? "chains"
-        : rawCandidate;
-    return config.operations.some((item) => item.value === candidate)
-      ? candidate
-      : config.operations[0]?.value ?? "";
-  }
-
-  function firstQueryValue(value: unknown): string {
-    if (Array.isArray(value)) return String(value[0] ?? "").trim();
-    return String(value ?? "").trim();
-  }
-
-  function quotePeriodFromQuery(value: unknown): QuoteWorkbenchPeriod {
-    return normalizeQuoteWorkbenchPeriod(firstQueryValue(value));
-  }
-
-  type PredictionContractView =
-    | "snapshot"
-    | "depth"
-    | "candles"
-    | "ticks"
-    | "milestones";
-
-  function predictionContractViewFromQuery(
-    value: unknown,
-  ): PredictionContractView {
-    const candidate = firstQueryValue(value);
-    return ["snapshot", "depth", "candles", "ticks", "milestones"].includes(
-      candidate,
-    )
-      ? (candidate as PredictionContractView)
-      : "snapshot";
-  }
-
-  function quoteTargetFromQuery(): ResearchQuoteTarget | null {
-    const instrumentId = firstQueryValue(route.query.quote);
-    if (instrumentId === "") return null;
-    return normalizeResearchQuoteTarget({
-      kind: firstQueryValue(route.query.quoteKind) === "plate"
-        ? "plate"
-        : "instrument",
-      instrumentId,
-      name: firstQueryValue(route.query.quoteName),
-      productClass: normalizeQuoteWorkbenchProductClass(
-        firstQueryValue(route.query.quoteClass),
-      ),
-    });
-  }
-
-  function quoteTabFromQuery(
-    target: ResearchQuoteTarget | null,
-  ): QuoteWorkbenchTab {
-    return target?.kind !== "plate" && firstQueryValue(route.query.quoteTab) === "news"
-      ? "news"
-      : "quote";
-  }
-
-  const initialResearchViewState = readResearchViewState();
-  const initialQuoteTarget = quoteTargetFromQuery();
+  const initialQuoteTarget = quoteTargetFromQuery(route.query);
 
   const activeSection = ref<ResearchSection>(
     validResearchSection(route.query.section),
@@ -154,109 +97,36 @@ export function useResearchPageController() {
   const activePredictionContractView = computed(() =>
     predictionContractViewFromQuery(route.query.contractView),
   );
-  const activeScreenMarket = computed<"US" | "HK" | "SH" | "SZ">(() => {
-    const candidate = firstQueryValue(route.query.screenMarket).toUpperCase();
-    if (candidate === "US" || candidate === "HK" || candidate === "SH" || candidate === "SZ") {
-      return candidate;
-    }
-    return activeMarketCode.value === "HK"
-      ? "HK"
-      : activeMarketCode.value === "CN"
-        ? "SH"
-        : "US";
-  });
+  const activeScreenMarket = computed(() =>
+    activeScreenMarketFor(route.query.screenMarket, activeMarketCode.value),
+  );
   const selectedQuoteTarget = ref<ResearchQuoteTarget | null>(initialQuoteTarget);
   const selectedQuoteSeed = ref<QuoteSeed | null>(null);
   const selectedQuotePeriod = ref<QuoteWorkbenchPeriod>(
     quotePeriodFromQuery(route.query.quotePeriod),
   );
   const selectedQuoteTab = ref<QuoteWorkbenchTab>(
-    quoteTabFromQuery(initialQuoteTarget),
-  );
-  const marketRailCollapsed = ref(initialResearchViewState.railCollapsed);
-  const marketRailDrawer = ref(false);
-  const marketPaneSizes = ref<[number, number]>(
-    initialResearchViewState.paneSizes,
-  );
-  const researchPageRef = ref<HTMLElement | null>(null);
-  const researchPageWidth = ref(0);
-  const researchPaneBounds = computed(() =>
-    researchPaneBoundsForWidth(researchPageWidth.value),
+    quoteTabFromQuery(route.query, initialQuoteTarget),
   );
   const rankingInitialOperation = ref("top_gainers");
-  let railMediaQuery: MediaQueryList | null = null;
-  let researchResizeObserver: ResizeObserver | null = null;
-  let suppressRailPersistence = false;
-
-  function syncRailMode(matches: boolean): void {
-    const becameNarrow = matches && !marketRailDrawer.value;
-    marketRailDrawer.value = matches;
-    if (becameNarrow && selectedQuoteTarget.value == null) {
-      suppressRailPersistence = true;
-      marketRailCollapsed.value = true;
-      queueMicrotask(() => {
-        suppressRailPersistence = false;
-      });
-    }
-  }
-
-  function handleRailMediaChange(event: MediaQueryListEvent): void { syncRailMode(event.matches); }
-
-  function syncResearchPageWidth(width: number): void {
-    if (!Number.isFinite(width) || width <= 0) return;
-    researchPageWidth.value = width;
-    if (marketRailDrawer.value || marketRailCollapsed.value) return;
-    const normalized = clampResearchPaneSizesForWidth(
-      marketPaneSizes.value,
-      width,
-    );
-    if (
-      Math.abs(normalized[0] - marketPaneSizes.value[0]) < 0.01 &&
-      Math.abs(normalized[1] - marketPaneSizes.value[1]) < 0.01
-    ) {
-      return;
-    }
-    marketPaneSizes.value = normalized;
-    persistResearchView();
-  }
-
-  onMounted(() => {
-    if (typeof window.matchMedia === "function") {
-      railMediaQuery = window.matchMedia("(max-width: 1100px)");
-      syncRailMode(railMediaQuery.matches);
-      railMediaQuery.addEventListener("change", handleRailMediaChange);
-    }
-    const element = researchPageRef.value;
-    if (element == null) return;
-    syncResearchPageWidth(element.getBoundingClientRect().width);
-    if (typeof ResizeObserver !== "undefined") {
-      researchResizeObserver = new ResizeObserver((entries) => {
-        const width =
-          entries[0]?.contentRect.width ??
-          researchPageRef.value?.getBoundingClientRect().width ??
-          0;
-        syncResearchPageWidth(width);
-      });
-      researchResizeObserver.observe(element);
-    }
-  });
-
-  onBeforeUnmount(() => {
-    railMediaQuery?.removeEventListener("change", handleRailMediaChange);
-    railMediaQuery = null;
-    researchResizeObserver?.disconnect();
-    researchResizeObserver = null;
-  });
+  const {
+    handleMarketPaneResized,
+    handleRailMediaChange,
+    marketPaneSizes,
+    marketRailCollapsed,
+    marketRailDrawer,
+    persistResearchView,
+    researchPageRef,
+    researchPageWidth,
+    researchPaneBounds,
+    syncRailMode,
+    syncResearchPageWidth,
+  } = useResearchPageLayout(selectedQuoteTarget);
 
   function queryWith(
     patch: Record<string, string | undefined>,
   ): Record<string, string | string[]> {
-    const next: Record<string, string | string[]> = {};
-    for (const [key, value] of Object.entries({ ...route.query, ...patch })) {
-      if (value == null || value === "") continue;
-      next[key] = Array.isArray(value) ? value.map(String) : String(value);
-    }
-    return next;
+    return mergeResearchQuery(route.query, patch);
   }
 
   const emptyQuoteQuery = {
@@ -295,19 +165,6 @@ export function useResearchPageController() {
     selectedQuoteTab.value = "quote";
     marketRailCollapsed.value = true;
   }
-
-  function persistResearchView(): void {
-    writeResearchViewState({
-      railCollapsed: marketRailCollapsed.value,
-      paneSizes: marketPaneSizes.value,
-    });
-  }
-
-  watch(marketRailCollapsed, () => {
-    if (!suppressRailPersistence) {
-      persistResearchView();
-    }
-  });
 
   function normalizeInvalidResearchRoute(): boolean {
     const requestedSection = firstQueryValue(route.query.section);
@@ -644,36 +501,25 @@ export function useResearchPageController() {
       route.query.quoteTab,
     ] as const,
     () => {
-      const target = quoteTargetFromQuery();
+      const target = quoteTargetFromQuery(route.query);
       selectedQuoteTarget.value = target;
       selectedQuoteSeed.value = null;
       selectedQuotePeriod.value = quotePeriodFromQuery(route.query.quotePeriod);
-      selectedQuoteTab.value = quoteTabFromQuery(target);
+      selectedQuoteTab.value = quoteTabFromQuery(route.query, target);
     },
     { immediate: true },
   );
 
-  const queryMarket = computed(() => {
-    if (activeSection.value === "market" || activeSection.value === "calendar") {
-      return activeMarketCode.value;
-    }
-    if (activeSection.value === "screens") {
-      return activeScreenMarket.value;
-    }
-    if (activeSection.value === "derivatives") {
-      return activeOperation.value === "warrant" ? "HK" : "US";
-    }
-    if (activeSection.value === "institutions") {
-      return activeMarketCode.value === "HK" ? "HK" : "US";
-    }
-    if (activeSection.value === "industries") {
-      return activeMarketCode.value;
-    }
-    if (activeSection.value === "instrument") {
-      return activeInstrumentId.value.split(".", 1)[0] || workspacePrefs.value.market;
-    }
-    return "US";
-  });
+  const queryMarket = computed(() =>
+    queryMarketFor({
+      section: activeSection.value,
+      operation: activeOperation.value,
+      activeMarketCode: activeMarketCode.value,
+      activeScreenMarket: activeScreenMarket.value,
+      activeInstrumentId: activeInstrumentId.value,
+      workspaceMarket: workspacePrefs.value.market,
+    }),
+  );
 
   const sectionMarketOptions = computed(() =>
     activeSection.value === "institutions"
@@ -713,78 +559,20 @@ export function useResearchPageController() {
     }
   }, { immediate: true });
 
-  function handleMarketPaneResized(payload: SplitpanesResizedPayload): void {
-    if (marketRailDrawer.value || marketRailCollapsed.value) return;
-    const sizes = payload.panes?.map((pane) => pane.size);
-    if (
-      sizes == null ||
-      sizes.length !== 2 ||
-      !sizes.every((size) => Number.isFinite(size) && size > 0 && size <= 100)
-    ) {
-      return;
-    }
-    marketPaneSizes.value = clampResearchPaneSizesForWidth(
-      [sizes[0]!, sizes[1]!],
-      researchPageWidth.value,
-    );
-    persistResearchView();
-  }
-
-  const optionResearchOperation = computed(
-    () =>
-      (["unusual", "zero_dte", "earnings", "seller"].includes(
-        activeOperation.value,
-      )
-        ? activeOperation.value
-        : "unusual") as "unusual" | "zero_dte" | "earnings" | "seller",
+  const optionResearchOperation = computed(() =>
+    resolveOptionResearchOperation(activeOperation.value),
   );
-  const macroResearchOperation = computed(
-    () =>
-      (["indicators", "fed_target_rate", "fed_dot_plot"].includes(
-        activeOperation.value,
-      )
-        ? activeOperation.value
-        : "indicators") as
-      | "indicators"
-      | "fed_target_rate"
-      | "fed_dot_plot",
+  const macroResearchOperation = computed(() =>
+    resolveMacroResearchOperation(activeOperation.value),
   );
-  const arkResearchOperation = computed(
-    () =>
-      (activeOperation.value === "ark_fund_holdings"
-        ? "ark_fund_holdings"
-        : "ark_transactions") as
-      | "ark_fund_holdings"
-      | "ark_transactions",
+  const arkResearchOperation = computed(() =>
+    resolveArkResearchOperation(activeOperation.value),
   );
-  const derivativeScreenOperation = computed(
-    () =>
-      (activeOperation.value === "warrant"
-        ? "warrant"
-        : "option_screen") as "option_screen" | "warrant",
+  const derivativeScreenOperation = computed(() =>
+    resolveDerivativeScreenOperation(activeOperation.value),
   );
-  const instrumentResearchOperation = computed(
-    () =>
-      ([
-        "profile",
-        "financials",
-        "valuation",
-        "analyst",
-        "ownership",
-        "corporate_actions",
-        "short_interest",
-        "news",
-      ].includes(activeOperation.value)
-        ? activeOperation.value
-        : "profile") as
-      | "profile"
-      | "financials"
-      | "valuation"
-      | "analyst"
-      | "ownership"
-      | "corporate_actions"
-      | "short_interest"
-      | "news",
+  const instrumentResearchOperation = computed(() =>
+    resolveInstrumentResearchOperation(activeOperation.value),
   );
   const activeFeatureIDs = computed(() => researchFeatureIds(
     activeSection.value, activeOperation.value, activeMarketView.value));
@@ -876,26 +664,11 @@ export function useResearchPageController() {
 
   function openQuoteTargetInWorkspace(target: ResearchQuoteTarget): void {
     if (target.kind === "plate") return;
-    const productClass = (
-      [
-        "equity",
-        "fund",
-        "warrant",
-        "cbbc",
-        "index",
-        "bond",
-      ].includes(target.productClass)
-        ? target.productClass
-        : "unknown"
-    ) as
-      | "equity"
-      | "fund"
-      | "warrant"
-      | "cbbc"
-      | "index"
-      | "bond"
-      | "unknown";
-    openWorkspaceInstrument(target.instrumentId, "securities", productClass);
+    openWorkspaceInstrument(
+      target.instrumentId,
+      "securities",
+      quoteTargetWorkspaceProductClass(target.productClass),
+    );
   }
 
   function openOptionResearchInstrument(
@@ -907,12 +680,6 @@ export function useResearchPageController() {
       return;
     }
     openWorkspaceInstrument(instrumentID, "derivatives", productClass);
-  }
-
-  function researchEntry(value: unknown): Record<string, unknown> | null {
-    return value != null && typeof value === "object" && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : null;
   }
 
   function selectResearchEntry(value: unknown): void {
@@ -930,23 +697,14 @@ export function useResearchPageController() {
       target?.instrumentId ||
       (activeSection.value === "instrument" ? activeInstrumentId.value : "");
     if (!instrumentId) return;
-    const productClass =
-      productClassHint !== "unknown"
-        ? productClassHint
-        : "equity";
-    if (productClass === "option") {
-      openWorkspaceInstrument(instrumentId, "derivatives", "option");
-      return;
-    }
+    const destination = researchWorkspaceDestination(
+      productClassHint,
+      target?.productClass ?? "",
+    );
     openWorkspaceInstrument(
       instrumentId,
-      "securities",
-      target?.productClass === "fund" ||
-        target?.productClass === "warrant" ||
-        target?.productClass === "cbbc" ||
-        target?.productClass === "index"
-        ? target.productClass
-        : "equity",
+      destination.marketSegment,
+      destination.productClass,
     );
   }
 

@@ -110,6 +110,23 @@ const preset: StockScreenPreset = {
   updatedAt: "2026-07-24",
 };
 
+function presetWithoutConditionId(): StockScreenPreset {
+  return {
+    ...preset,
+    definition: {
+      ...preset.definition,
+      conditions: [
+        {
+          factor: { instanceId: "price-filter", factorKey: "simple.price" },
+          operator: "between",
+          value: { min: 10, max: 100 },
+          id: undefined as unknown as string,
+        },
+      ],
+    },
+  };
+}
+
 type ScreenerState = {
   catalog: StockScreenCatalog | null;
   catalogError: string;
@@ -536,6 +553,18 @@ describe("StockScreenerView controller boundaries", () => {
     await select.setValue("");
     await flushPromises();
     expect(state.selectedPresetId).toBe("");
+  });
+
+  it("derives filter ids when a preset condition omits its server id", async () => {
+    mocks.presets.mockResolvedValueOnce({
+      presets: [presetWithoutConditionId()],
+    });
+    const { state } = await mountScreener({
+      initialPresetId: "preset-1",
+    });
+
+    expect(state.filters).toHaveLength(1);
+    expect(state.filters[0]?.id).toMatch(/^simple\.price-/);
   });
 
   it("renders live toolbar and dialog state after controller transitions", async () => {

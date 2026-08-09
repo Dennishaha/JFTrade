@@ -1,7 +1,6 @@
 import { computed, onUnmounted, ref, watch } from "vue";
 
-import type { ExecutionOrderEventResponse } from "@/contracts";
-import { apiGetPath, apiPost } from "@/composables/shared/apiClient";
+import { apiPost } from "@/composables/shared/apiClient";
 import {
   formatExecutionEventTypeLabel,
   formatExecutionOrderStatusLabel,
@@ -18,9 +17,35 @@ import {
 } from "@/composables/market-data/instrumentPresentation";
 import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import { useNotifications } from "@/composables/shared/useNotifications";
-import { usePolling } from "@/composables/shared/usePolling";
 import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
-import { mapExecutionOrderDetails } from "@/composables/trading/tradingApiMappers";
+import {
+  alignPriceToStep,
+  canCancelFeedbackOrder,
+  countDecimalPlaces,
+  createClientOrderId,
+  formatBrokerAcceptance,
+  formatFeedbackCheckedAt,
+  formatFeedbackOrderStatus,
+  formatInitialMargin,
+  formatMetric,
+  formatOrderSession,
+  normalizeOptionalText,
+  orderFeedbackAccountHref,
+  resolveLatestOrderMarketPrice,
+  resolveMaxTradeQuantityHint,
+  resolveOrderFailureReason,
+  resolveOrderProductClass,
+  resolveOrderSessionCaution,
+  resolvePendingOrderSummary,
+  type ExecutionOrderPayload,
+  type OrderFeedbackLevel,
+  type OrderSession,
+  type OrderType,
+  type PendingRealTradeSubmission,
+  type Side,
+  type TIF,
+} from "./orderEntryModels";
+import { useOrderFeedback } from "./useOrderFeedback";
 
 export function useOrderEntryPanel() {
 const {
@@ -39,61 +64,18 @@ const {
 const { prefs } = useWorkspaceTradingPrefs();
 const notifications = useNotifications();
 const { supportsExtendedHoursForMarket } = useMarketProfiles();
-
-type Side = "BUY" | "SELL";
-type OrderType = "LIMIT" | "MARKET" | "STOP" | "STOP_LIMIT";
-type TIF = "DAY" | "GTC" | "IOC" | "FOK";
-type OrderSession = "RTH" | "ETH" | "ALL" | "OVERNIGHT";
-type OrderFeedbackLevel = "success" | "error";
-
-interface OrderFeedback {
-  level: OrderFeedbackLevel;
-  title: string;
-  message: string;
-  internalOrderId: string | null;
-  brokerOrderId: string | null;
-  brokerOrderIdEx: string | null;
-  orderStatus: string | null;
-  rawBrokerStatus: string | null;
-  latestEvent: ExecutionOrderEventResponse | null;
-  checkedAt: string | null;
-}
-interface ExecutionOrderPayload {
-  brokerId: string;
-  tradingEnvironment: string;
-  accountId: string;
-  market: string;
-  code: string;
-  symbol: string;
-  side: Side;
-  orderType: OrderType;
-  timeInForce: TIF;
-  session?: OrderSession;
-  quantity: number;
-  productClass:
-    | "equity"
-    | "fund"
-    | "option"
-    | "warrant"
-    | "cbbc"
-    | "future"
-    | "event_contract";
-  quantityMode: "units" | "contracts" | "amount";
-  orderKind: "single" | "event_single";
-  clientOrderId: string;
-  previewId?: string;
-  amount?: number;
-  predictionSide?: "YES" | "NO";
-  price?: number;
-  stopPrice?: number;
-  env: string;
-}
-
-interface PendingRealTradeSubmission {
-  payload: ExecutionOrderPayload;
-  feedbackTitle: string;
-  orderSummary: string;
-}
+const {
+  isRefreshingOrderFeedback,
+  lastOrderFeedback,
+  orderFeedbackMaxPolls,
+  orderFeedbackPollIntervalMs,
+  orderFeedbackPolling,
+  refreshOrderFeedback,
+  refreshOrderFeedbackOnce,
+  scheduleOrderFeedbackRefresh,
+  startOrderFeedbackPolling,
+  stopOrderFeedbackPolling,
+} = useOrderFeedback(notifications.push);
 
 const side = ref<Side>("BUY");
 const orderType = ref<OrderType>("LIMIT");
@@ -105,32 +87,11 @@ const stopPrice = ref<number>(0);
 const predictionSide = ref<"YES" | "NO">("YES");
 const hasEditedPrice = ref(false);
 const submitting = ref(false);
-const lastOrderFeedback = ref<OrderFeedback | null>(null);
-const isRefreshingOrderFeedback = ref(false);
 const realTradeConfirmationOpen = ref(false);
 const realTradeConfirmationText = ref("");
 const pendingRealTradeSubmission = ref<PendingRealTradeSubmission | null>(null);
 const draftClientOrderId = ref("");
 let maxTradeQuantityTimer: ReturnType<typeof setTimeout> | null = null;
-let pollingOrderFeedbackId = "";
-
-const orderFeedbackPollIntervalMs = 2_000;
-const orderFeedbackMaxPolls = 60;
-const orderFeedbackPolling = usePolling(
-  async () => {
-    if (pollingOrderFeedbackId === "") return false;
-    const shouldContinue = await refreshOrderFeedbackOnce(
-      pollingOrderFeedbackId,
-      false,
-    );
-    if (!shouldContinue) pollingOrderFeedbackId = "";
-    return shouldContinue;
-  },
-  {
-    intervalMs: orderFeedbackPollIntervalMs,
-    maxRuns: orderFeedbackMaxPolls,
-  },
-);
 
 const isRealMode = computed(
   () =>
@@ -157,36 +118,14 @@ const security = computed(() => marketSecurityDetails.value?.security ?? null);
 const normalizedSecurityType = computed(() =>
   normalizeInstrumentSecurityType(security.value?.securityType),
 );
-const productClass = computed<ExecutionOrderPayload["productClass"]>(() => {
-  if (
-    prefs.value.marketSegment === "prediction" ||
-    prefs.value.productClass === "event_contract"
-  ) {
-    return "event_contract";
-  }
-  if (prefs.value.productClass === "option") return "option";
-  if (prefs.value.productClass === "future") return "future";
-  if (prefs.value.productClass === "cbbc") return "cbbc";
-  if (prefs.value.productClass === "warrant") return "warrant";
-  if (prefs.value.productClass === "fund") return "fund";
-  const securityType = normalizedSecurityType.value;
-  const symbol = prefs.value.symbol.trim().toUpperCase();
-  if (securityType.includes("EVENT") || symbol.startsWith("EC.")) {
-    return "event_contract";
-  }
-  if (securityType.includes("OPTION")) return "option";
-  if (securityType.includes("FUTURE")) return "future";
-  if (securityType.includes("CBBC")) return "cbbc";
-  if (securityType.includes("WARRANT")) return "warrant";
-  if (
-    securityType.includes("ETF") ||
-    securityType.includes("FUND") ||
-    securityType.includes("TRUST")
-  ) {
-    return "fund";
-  }
-  return "equity";
-});
+const productClass = computed<ExecutionOrderPayload["productClass"]>(() =>
+  resolveOrderProductClass({
+    marketSegment: prefs.value.marketSegment,
+    preferredProductClass: prefs.value.productClass,
+    securityType: normalizedSecurityType.value,
+    symbol: prefs.value.symbol.trim().toUpperCase(),
+  }),
+);
 const isEventContract = computed(() => productClass.value === "event_contract");
 const latestSnapshot = computed(() => {
   const snapshotResult = marketDataSnapshot.value;
@@ -200,22 +139,14 @@ const latestSnapshot = computed(() => {
   }
   return snapshotResult.snapshot;
 });
-const latestMarketPrice = computed(() => {
-  const snapshotPrice = latestSnapshot.value?.price;
-  if (typeof snapshotPrice === "number" && snapshotPrice > 0) {
-    return snapshotPrice;
-  }
-  const currentPrice = security.value?.currentPrice;
-  if (typeof currentPrice === "number" && currentPrice > 0) {
-    return currentPrice;
-  }
-  const bidPrice = security.value?.bidPrice;
-  const askPrice = security.value?.askPrice;
-  if (typeof bidPrice === "number" && bidPrice > 0 && typeof askPrice === "number" && askPrice > 0) {
-    return (bidPrice + askPrice) / 2;
-  }
-  return null;
-});
+const latestMarketPrice = computed(() =>
+  resolveLatestOrderMarketPrice({
+    snapshotPrice: latestSnapshot.value?.price,
+    currentPrice: security.value?.currentPrice,
+    bidPrice: security.value?.bidPrice,
+    askPrice: security.value?.askPrice,
+  }),
+);
 const limitPriceStep = computed(() => resolveOrderPriceStep(price.value));
 const stopPriceStep = computed(() => resolveOrderPriceStep(stopPrice.value));
 const tradeQuantityUnit = computed(() => {
@@ -324,28 +255,14 @@ const maxTradeQuantityPrimaryValue = computed(() => {
   }
   return snapshot.maxSellShort ?? snapshot.maxPositionSell;
 });
-const maxTradeQuantityHint = computed(() => {
-  if (!supportsBrokerMaxTradeQuantity.value) {
-    return "当前券商未为该交易环境声明最大可交易数量能力。";
-  }
-  if (maxTradeQuantityRequiresPrice.value && orderType.value === "MARKET") {
-    return "市价单当前没有参考价输入，暂不估算最大可交易数量。";
-  }
-  if (
-    maxTradeQuantityRequiresPrice.value &&
-    orderType.value === "STOP" &&
-    maxTradeQuantityReferencePrice.value <= 0
-  ) {
-    return "输入止损价后可估算最大可交易数量。";
-  }
-  if (
-    maxTradeQuantityRequiresPrice.value &&
-    maxTradeQuantityReferencePrice.value <= 0
-  ) {
-    return "输入价格后可估算最大可交易数量。";
-  }
-  return "根据当前账户、订单类型和价格估算最大可交易数量。";
-});
+const maxTradeQuantityHint = computed(() =>
+  resolveMaxTradeQuantityHint({
+    supported: supportsBrokerMaxTradeQuantity.value,
+    requiresPrice: maxTradeQuantityRequiresPrice.value,
+    orderType: orderType.value,
+    referencePrice: maxTradeQuantityReferencePrice.value,
+  }),
+);
 const currentMarketSessionLabel = computed(() => {
   const session = latestSnapshot.value?.session;
   if (typeof session !== "string" || session.trim() === "") {
@@ -364,48 +281,19 @@ const orderSessionSummary = computed(() => {
   summary.push(`下单时段：${formatOrderSession(orderSession.value)}`);
   return summary.join(" · ");
 });
-const orderSessionCaution = computed(() => {
-  if (!supportsOrderSessionSelection.value) {
-    return "";
-  }
-  const currentSession = (latestSnapshot.value?.session ?? "").toString().trim().toLowerCase();
-  if (
-    orderSession.value === "RTH" &&
-    ["pre", "after", "overnight"].includes(currentSession)
-  ) {
-    return "当前不是常规交易时段，RTH 订单通常要等盘中才会撮合。";
-  }
-  if (
-    activeTradingEnvironment.value === "SIMULATE" &&
-    orderSession.value === "OVERNIGHT"
-  ) {
-    return "模拟盘夜盘支持通常受限，提交成功也可能暂时不会成交。";
-  }
-  return "";
-});
+const orderSessionCaution = computed(() =>
+  resolveOrderSessionCaution({
+    supported: supportsOrderSessionSelection.value,
+    currentSession: String(latestSnapshot.value?.session ?? ""),
+    orderSession: orderSession.value,
+    tradingEnvironment: activeTradingEnvironment.value,
+  }),
+);
 
 function estimate(): string {
   const px = isLimit.value ? price.value : 0;
   if (!px || !quantity.value) return "—";
   return (px * quantity.value).toFixed(2);
-}
-
-function formatMetric(value: number | null | undefined): string {
-  if (value == null) {
-    return "—";
-  }
-  return new Intl.NumberFormat("zh-CN", {
-    maximumFractionDigits: 4,
-  }).format(value);
-}
-
-function countDecimalPlaces(value: number): number {
-  const text = value.toString().toLowerCase();
-  if (!text.includes("e")) {
-    return text.includes(".") ? (text.split(".")[1] ?? "").length : 0;
-  }
-  const [, exponentText] = text.split("e-");
-  return Number.parseInt(exponentText ?? "0", 10) || 0;
 }
 
 function resolveReferencePrice(value: number): number | null {
@@ -434,14 +322,6 @@ function resolveOrderPriceStep(value: number): number {
     return referencePrice != null && referencePrice < 1 ? 0.0001 : 0.01;
   }
   return market === "HK" ? 0.001 : 0.01;
-}
-
-function alignPriceToStep(value: number, step: number): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    return 0;
-  }
-  const decimals = Math.min(8, countDecimalPlaces(step));
-  return Number((Math.round(value / step) * step).toFixed(decimals));
 }
 
 function resolveAlignedMarketPrice(): number | null {
@@ -481,22 +361,6 @@ function alignStopPriceInput(): void {
   stopPrice.value = alignPriceToStep(stopPrice.value, stopPriceStep.value);
 }
 
-function formatOrderSession(session: string): string {
-  const normalized = session.trim().toUpperCase();
-  if (normalized === "RTH") return "常规交易时段（RTH）";
-  if (normalized === "ETH") return "扩展交易时段（ETH）";
-  if (normalized === "ALL") return "全时段（ALL）";
-  if (normalized === "OVERNIGHT") return "夜盘（OVERNIGHT）";
-  return session;
-}
-
-function formatInitialMargin(value: number | null | undefined): string {
-  if (value == null) {
-    return "股票通常不返回";
-  }
-  return formatMetric(value);
-}
-
 function resolveOrderRequestTitle(): string {
   const market = activeMarket.value.trim();
   const symbol = prefs.value.symbol.trim();
@@ -507,172 +371,11 @@ function resolveOrderRequestTitle(): string {
   return `${formatOrderSideLabel(side.value)} ${quantity.value} ${instrumentLabel}`;
 }
 
-function createClientOrderId(): string {
-  const suffix =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return `jftrade-${suffix}`;
-}
-
 function currentClientOrderId(): string {
   if (draftClientOrderId.value === "") {
     draftClientOrderId.value = createClientOrderId();
   }
   return draftClientOrderId.value;
-}
-
-function resolvePendingOrderSummary(payload: ExecutionOrderPayload): string {
-  const parts = [
-    `${formatOrderSideLabel(payload.side)} ${payload.quantity} ${formatInstrumentIdentityText({
-      market: payload.market,
-      code: payload.code,
-      instrumentId: payload.symbol,
-    })}`,
-    formatOrderTypeLabel(payload.orderType),
-    formatTimeInForceLabel(payload.timeInForce),
-  ];
-  if (payload.price != null) {
-    parts.push(`限价 ${payload.price}`);
-  }
-  if (payload.stopPrice != null) {
-    parts.push(`止损价 ${payload.stopPrice}`);
-  }
-  if (payload.session != null) {
-    parts.push(formatOrderSession(payload.session));
-  }
-  return parts.join(" / ");
-}
-
-function resolveOrderFailureReason(error: unknown): string {
-  if (error instanceof Error && error.message.trim() !== "") {
-    return error.message.trim();
-  }
-  return "下单请求失败，请稍后重试。";
-}
-
-function normalizeOptionalText(value: string | null | undefined): string | null {
-  const trimmed = value?.trim() ?? "";
-  return trimmed === "" ? null : trimmed;
-}
-
-function orderFeedbackAccountHref(feedback: OrderFeedback): string {
-  if (feedback.internalOrderId == null) {
-    return "/account";
-  }
-  const params = new URLSearchParams();
-  params.set("tab", "history");
-  params.set("orderId", feedback.internalOrderId);
-  return `/account?${params.toString()}`;
-}
-
-function canCancelFeedbackOrder(feedback: OrderFeedback): boolean {
-  if (feedback.level !== "success" || feedback.internalOrderId == null) {
-    return false;
-  }
-  const status = feedback.orderStatus?.trim();
-  if (status == null || status === "") {
-    return true;
-  }
-  return !isFinalExecutionOrderStatus(status);
-}
-
-function formatFeedbackOrderStatus(feedback: OrderFeedback): string {
-  if (feedback.orderStatus == null) {
-    return feedback.level === "success" ? "待券商回报" : "未接受";
-  }
-  return formatExecutionOrderStatusLabel(feedback.orderStatus);
-}
-
-function formatBrokerAcceptance(feedback: OrderFeedback): string {
-  const status = feedback.orderStatus?.trim().toUpperCase() ?? "";
-  if (["BROKER_ACCEPTED", "PARTIALLY_FILLED", "FILLED", "CANCEL_REQUESTED", "CANCELLED"].includes(status)) {
-    return "已接受";
-  }
-  if (status === "REJECTED" || status === "EXPIRED") {
-    return "未接受";
-  }
-  return "待确认";
-}
-
-function formatFeedbackCheckedAt(value: string | null): string {
-  if (value == null || value.trim() === "") {
-    return "";
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-  return parsed.toLocaleTimeString("zh-CN", { hour12: false });
-}
-
-function stopOrderFeedbackPolling(): void {
-  pollingOrderFeedbackId = "";
-  orderFeedbackPolling.stop();
-}
-
-function scheduleOrderFeedbackRefresh(
-  internalOrderId: string,
-  resetRunCount = false,
-): void {
-  pollingOrderFeedbackId = internalOrderId;
-  orderFeedbackPolling.start({ resetRunCount });
-}
-
-async function refreshOrderFeedbackOnce(
-  internalOrderId: string,
-  manual: boolean,
-): Promise<boolean> {
-  if (internalOrderId === "") return false;
-  if (isRefreshingOrderFeedback.value) return true;
-  isRefreshingOrderFeedback.value = true;
-  try {
-    const details = mapExecutionOrderDetails(
-      await apiGetPath(
-        "/api/v1/execution/orders/{internalOrderId}",
-        `/api/v1/execution/orders/${encodeURIComponent(internalOrderId)}`,
-      ),
-    );
-    const feedback = lastOrderFeedback.value;
-    if (feedback == null || feedback.internalOrderId !== internalOrderId) {
-      return false;
-    }
-    feedback.brokerOrderId = normalizeOptionalText(details.order.brokerOrderId);
-    feedback.brokerOrderIdEx = normalizeOptionalText(details.order.brokerOrderIdEx);
-    feedback.orderStatus = normalizeOptionalText(details.order.status);
-    feedback.rawBrokerStatus = normalizeOptionalText(details.order.rawBrokerStatus);
-    feedback.latestEvent = details.recentEvents.at(-1) ?? null;
-    feedback.checkedAt = normalizeOptionalText(details.checkedAt);
-    return !isFinalExecutionOrderStatus(feedback.orderStatus);
-  } catch (error) {
-    if (manual) {
-      notifications.push({
-        level: "warn",
-        title: "订单状态刷新失败",
-        message: resolveOrderFailureReason(error),
-        source: "order-entry",
-      });
-    }
-    return true;
-  } finally {
-    isRefreshingOrderFeedback.value = false;
-  }
-}
-
-async function refreshOrderFeedback(
-  internalOrderId: string,
-  manual = false,
-): Promise<void> {
-  const shouldContinue = await refreshOrderFeedbackOnce(internalOrderId, manual);
-  if (shouldContinue) {
-    scheduleOrderFeedbackRefresh(internalOrderId);
-  } else {
-    stopOrderFeedbackPolling();
-  }
-}
-
-function startOrderFeedbackPolling(internalOrderId: string): void {
-  scheduleOrderFeedbackRefresh(internalOrderId, true);
 }
 
 async function loadMaxTradeQuantity(): Promise<void> {

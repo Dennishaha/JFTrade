@@ -1,5 +1,5 @@
 import type { BrokerFeatureCapabilityDto } from "@/contracts";
-import type { BrokerCapabilityDescriptor } from "./brokerProviderSelection";
+import type { BrokerCapabilityDescriptor } from "./brokerProviderModels";
 
 export type BrokerCandleSession = "regular" | "extended" | "overnight";
 export interface BrokerCandleSessionCapability {

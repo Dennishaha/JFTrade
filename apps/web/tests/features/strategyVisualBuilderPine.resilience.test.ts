@@ -21,7 +21,7 @@ function node(
   };
 }
 
-describe("strategyVisualBuilderPine additional business boundaries", () => {
+describe("strategyVisualBuilderPine resilience boundaries", () => {
   it("renders fallback Pine for empty models and input-driven control chains", () => {
     const empty = buildStrategyPineFromVisualModel(null, { name: "  " });
     expect(empty).toContain('strategy("未命名策略"');

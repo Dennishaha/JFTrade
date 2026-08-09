@@ -1,14 +1,10 @@
-import type { SplitpanesResizedPayload } from "splitpanes";
 import {
   computed,
-  inject,
   nextTick,
   onMounted,
   onUnmounted,
-  provide,
   ref,
   watch,
-  type InjectionKey,
 } from "vue";
 
 import {
@@ -22,15 +18,9 @@ import {
 } from "./stockScreenApi";
 import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
 import {
-  createStockScreenFilter,
-  factorEnumName,
-  factorRefKey,
-  moveItem,
   normalizeScreenMarket,
-  sameStockScreenFactorRef,
   stockScreenCSV,
   stockScreenDraftFromDefinitionV2,
-  stockScreenFactorInstanceId,
   stockScreenQueryFingerprint,
   toStockScreenDefinitionV2,
   toStockScreenDraftFilter,
@@ -42,32 +32,30 @@ import type {
   StockScreenDraft,
   StockScreenEditorFilter,
   StockScreenEntry,
-  StockScreenFactor,
-  StockScreenFactorRef,
   StockScreenPreset,
   StockScreenSort,
 } from "./stockScreenTypes";
+import {
+  defaultColumnsForCatalog,
+  errorMessage,
+  pendingDraftActionLabel as resolvePendingDraftActionLabel,
+  stockScreenerStatus,
+  stockScreenerStatusLabel,
+  validationErrorFrom,
+  type PendingDraftAction,
+  type StockScreenerControllerEmit,
+  type StockScreenerControllerProps,
+} from "./stockScreenerControllerModels";
+import { useStockScreenerFactorBuilder } from "./useStockScreenerFactorBuilder";
 
-export interface StockScreenerControllerProps {
-  market: string;
-  brokerId: string;
-  initialPresetId: string;
-  active: boolean;
-}
-
-export interface StockScreenerControllerEmit {
-  (event: "select", entry: StockScreenEntry): void;
-  (event: "open", entry: StockScreenEntry): void;
-  (event: "presetChange", presetId: string): void;
-  (
-    event: "contextChange",
-    context: { market: string; brokerId?: string },
-  ): void;
-}
-
-type PendingDraftAction =
-  | { kind: "preset"; preset: StockScreenPreset }
-  | { kind: "new" };
+export type {
+  StockScreenerControllerEmit,
+  StockScreenerControllerProps,
+} from "./stockScreenerControllerModels";
+export {
+  provideStockScreenerController,
+  useStockScreenerControllerContext,
+} from "./stockScreenerControllerContext";
 
 const PAGE_SIZE = 50;
 
@@ -84,15 +72,6 @@ export function useStockScreenerController(
   const loading = ref(false);
   const loadingMore = ref(false);
   const savingPreset = ref(false);
-  const factorDialogOpen = ref(false);
-  const catalogSearch = ref("");
-  const activeCategory = ref("");
-  const activeFactorRole = ref<"filter" | "column" | "sort">("filter");
-  const addFactorButton = ref<HTMLButtonElement | null>(null);
-  const factorSearchInput = ref<HTMLInputElement | null>(null);
-  const categoryScroller = ref<HTMLDivElement | null>(null);
-  const canScrollCategoriesLeft = ref(false);
-  const canScrollCategoriesRight = ref(false);
   const queryMarket = ref(normalizeScreenMarket(props.market));
   const filters = ref<StockScreenEditorFilter[]>([]);
   const columns = ref<StockScreenColumn[]>([]);
@@ -124,102 +103,68 @@ export function useStockScreenerController(
   const presetName = ref("");
   const selectedInstrumentId = ref("");
   const mobilePane = ref<"builder" | "results">("builder");
-  const screenerOuterPaneSizes = ref<[number, number]>([18, 82]);
-  const screenerInnerPaneSizes = ref<[number, number]>([39, 61]);
-  const screenerOuterPaneMinSizes: [number, number] = [12, 70];
-  const screenerInnerPaneMinSizes: [number, number] = [28, 45];
   const pendingDraftAction = ref<PendingDraftAction | null>(null);
   const actionConfirmation = useActionConfirmation();
   let retryTimer: ReturnType<typeof setInterval> | undefined;
-  let filterSerial = 0;
   let catalogToken = 0;
   let queryToken = 0;
   let initialPresetLoaded = "";
   let loadedContextKey = "";
-  let categoryResizeObserver: ResizeObserver | null = null;
-
-  function resizedPanePair(
-    payload: SplitpanesResizedPayload,
-  ): [number, number] | null {
-    const sizes = payload.panes?.map((pane) => pane.size);
-    if (
-      sizes == null ||
-      sizes.length !== 2 ||
-      !sizes.every((size) => Number.isFinite(size) && size > 0 && size <= 100)
-    ) {
-      return null;
-    }
-    return [sizes[0]!, sizes[1]!];
-  }
-
-  function handleScreenerOuterPaneResized(
-    payload: SplitpanesResizedPayload,
-  ): void {
-    const sizes = resizedPanePair(payload);
-    if (sizes) screenerOuterPaneSizes.value = sizes;
-  }
-
-  function handleScreenerInnerPaneResized(
-    payload: SplitpanesResizedPayload,
-  ): void {
-    const sizes = resizedPanePair(payload);
-    if (sizes) screenerInnerPaneSizes.value = sizes;
-  }
-
-  const factorMap = computed(
-    () =>
-      new Map(
-        (catalog.value?.factors ?? []).map((factor) => [factor.key, factor]),
-      ),
-  );
-  const commonFactors = computed(() =>
-    (catalog.value?.factors ?? []).filter(
-      (factor) =>
-        [
-          "simple.price",
-          "simple.market_cap",
-          "simple.pe_ttm",
-          "simple.pb",
-        ].includes(factor.key) &&
-        factor.filter &&
-        factor.availability !== "unsupported",
-    ),
-  );
-  const retrievableFactors = computed(() =>
-    (catalog.value?.factors ?? []).filter(
-      (factor) => factor.retrieve && factor.availability !== "unsupported",
-    ),
-  );
-  const sortableFactors = computed(() =>
-    (catalog.value?.factors ?? []).filter(
-      (factor) => factor.sort && factor.availability !== "unsupported",
-    ),
-  );
-  const visibleCatalogFactors = computed(() => {
-    const keyword = catalogSearch.value.trim().toLocaleLowerCase();
-    return (catalog.value?.factors ?? []).filter((factor) => {
-      const roleSupported =
-        activeFactorRole.value === "filter"
-          ? factor.filter
-          : activeFactorRole.value === "column"
-            ? factor.retrieve
-            : factor.sort;
-      if (!roleSupported && factor.availability !== "unsupported") {
-        return false;
-      }
-      if (
-        !keyword &&
-        activeCategory.value &&
-        factor.category !== activeCategory.value
-      ) {
-        return false;
-      }
-      if (!keyword) return true;
-      return `${factor.label} ${factor.key} ${factor.help ?? ""} ${(factor.searchKeywords ?? []).join(" ")} ${factor.reason ?? ""}`
-        .toLocaleLowerCase()
-        .includes(keyword);
-    });
+  const factorBuilder = useStockScreenerFactorBuilder({
+    catalog,
+    columns,
+    filters,
+    mobilePane,
+    queryError,
+    queryMarket,
+    sorts,
   });
+  const {
+    activeCategory,
+    activeFactorRole,
+    addColumn,
+    addFactorButton,
+    addFilter,
+    addSort,
+    boundaryInput,
+    canScrollCategoriesLeft,
+    canScrollCategoriesRight,
+    catalogSearch,
+    categoryScroller,
+    closeFactorDialog,
+    columnExists,
+    columnIdentity,
+    commonFactors,
+    enumOptionsForFactor,
+    factorDialogOpen,
+    factorFor,
+    factorMap,
+    factorSearchInput,
+    handleScreenerInnerPaneResized,
+    handleScreenerOuterPaneResized,
+    hasDuplicateRef,
+    moveColumn,
+    nextFactorSerial,
+    openFactorDialog,
+    removeColumn,
+    removeFilter,
+    retrievableFactors,
+    screenerInnerPaneMinSizes,
+    screenerInnerPaneSizes,
+    screenerOuterPaneMinSizes,
+    screenerOuterPaneSizes,
+    scrollCategories,
+    secondFactorInput,
+    singleValueInput,
+    sortFactorInput,
+    sortIdentity,
+    sortableFactors,
+    updateCategoryScrollState,
+    useIntervalFilter,
+    useSetFilter,
+    valuesInput,
+    visibleCatalogFactors,
+  } = factorBuilder;
   const selectedPreset = computed(() =>
     presets.value.find((preset) => preset.presetId === selectedPresetId.value),
   );
@@ -248,40 +193,21 @@ export function useStockScreenerController(
       Boolean(lastExecutedFingerprint.value) &&
       lastExecutedFingerprint.value !== queryFingerprint.value,
   );
-  const screenStatus = computed(() => {
-    if (loading.value) return "running";
-    if (queryError.value || validationErrors.value.length) return "error";
-    if (resultStale.value) return "待更新";
-    if (draftDirty.value) return "有未保存修改";
-    if (selectedPresetId.value) return "已保存";
-    return "未保存";
-  });
-  const screenStatusLabel = computed(() => {
-    switch (screenStatus.value) {
-      case "running":
-        return "执行中";
-      case "error":
-        return "需要修正";
-      case "待更新":
-        return "结果待更新";
-      case "有未保存修改":
-        return "有未保存修改";
-      case "已保存":
-        return "已保存";
-      default:
-        return "未保存";
-    }
-  });
-  const pendingDraftActionLabel = computed(() => {
-    const action = pendingDraftAction.value;
-    if (!action) return "";
-    switch (action.kind) {
-      case "preset":
-        return `切换到“${action.preset.name}”`;
-      case "new":
-        return "新建策略";
-    }
-  });
+  const screenStatus = computed(() =>
+    stockScreenerStatus({
+      loading: loading.value,
+      hasQueryError: Boolean(queryError.value || validationErrors.value.length),
+      resultStale: resultStale.value,
+      draftDirty: draftDirty.value,
+      selectedPresetId: selectedPresetId.value,
+    }),
+  );
+  const screenStatusLabel = computed(() =>
+    stockScreenerStatusLabel(screenStatus.value),
+  );
+  const pendingDraftActionLabel = computed(() =>
+    resolvePendingDraftActionLabel(pendingDraftAction.value),
+  );
   const displayColumns = computed(() =>
     entries.value.length && executedColumns.value.length
       ? executedColumns.value
@@ -291,94 +217,6 @@ export function useStockScreenerController(
     validationErrors.value.find(
       (error) => error.path === path || error.path.startsWith(`${path}.`),
     )?.message ?? "";
-
-  function errorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-  }
-
-  function validationErrorFrom(
-    error: unknown,
-  ): { path: string; message: string } | null {
-    const message = errorMessage(error);
-    const match = message.match(
-      /^((?:conditions|columns|sorts)\[\d+\](?:\.[A-Za-z][A-Za-z0-9]*)+):\s*(.+)$/,
-    );
-    if (!match) return null;
-    const path = match[1]!
-      .replaceAll(/\[(\d+)\]/g, ".$1")
-      .replace(".factor.params.", ".params.")
-      .replace(".factor.factorKey", ".factor")
-      .replace(".secondFactor.factorKey", ".secondFactor");
-    return { path, message: match[2]! };
-  }
-
-  function factorFor(key: string): StockScreenFactor | undefined {
-    return factorMap.value.get(key);
-  }
-
-  function columnExists(key: string): boolean {
-    const factor = factorFor(key);
-    if (!factor || !catalog.value) return false;
-    const params = createStockScreenFilter(
-      factor,
-      0,
-      catalog.value,
-      queryMarket.value,
-    ).params;
-    return hasDuplicateRef(columns.value, {
-      factor: key,
-      ...(params ? { params } : {}),
-    });
-  }
-
-  function hasDuplicateRef(
-    refs: StockScreenFactorRef[],
-    candidate: StockScreenFactorRef,
-  ): boolean {
-    return refs.some((reference) =>
-      sameStockScreenFactorRef(reference, candidate),
-    );
-  }
-
-  function defaultColumnsForCatalog(
-    nextCatalog: StockScreenCatalog,
-  ): StockScreenColumn[] {
-    return nextCatalog.factors
-      .filter(
-        (factor) =>
-          [
-            "basic.code",
-            "basic.name",
-            "simple.price",
-            "simple.market_cap",
-          ].includes(factor.key) &&
-          factor.retrieve &&
-          factor.availability !== "unsupported",
-      )
-      .map((factor, index) => ({
-        factor: factor.key,
-        factorKey: factor.key,
-        instanceId: `default-${factor.key}`,
-        columnId: `column-${factor.key}-${index}`,
-      }));
-  }
-
-  function columnIdentity(column: StockScreenColumn, index: number): string {
-    return (
-      column.columnId ??
-      stockScreenFactorInstanceId(
-        column,
-        `${factorRefKey(column)}-${index}`,
-      )
-    );
-  }
-
-  function sortIdentity(sort: StockScreenSort, index: number): string {
-    return (
-      sort.sortId ??
-      stockScreenFactorInstanceId(sort, `${factorRefKey(sort)}-${index}`)
-    );
-  }
 
   function markSavedBaseline(): void {
     baselineInitialized.value = true;
@@ -412,267 +250,6 @@ export function useStockScreenerController(
     }, 1000);
   }
 
-  function enumOptionsForFactor(factor: StockScreenFactor | undefined) {
-    if (!factor || !catalog.value) return [];
-    const name = factorEnumName(factor);
-    return name ? (catalog.value.enums[name] ?? []) : [];
-  }
-
-  async function addFilter(factor: StockScreenFactor): Promise<void> {
-    if (
-      !factor.filter ||
-      factor.availability === "unsupported" ||
-      !catalog.value
-    ) {
-      return;
-    }
-    const serial = ++filterSerial;
-    const instanceId = `${factor.key}-${serial}`;
-    const nextFilter = createStockScreenFilter(
-      factor,
-      serial,
-      catalog.value,
-      queryMarket.value,
-      instanceId,
-    );
-    if (hasDuplicateRef(filters.value, nextFilter)) {
-      queryError.value = `已存在相同参数的“${factor.label}”条件`;
-      return;
-    }
-    filters.value.push(nextFilter);
-    mobilePane.value = "builder";
-    queryError.value = "";
-    factorDialogOpen.value = false;
-    await nextTick();
-    const row = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-filter-id]"),
-    ).find((candidate) => candidate.dataset.filterId === nextFilter.id);
-    row?.querySelector<HTMLElement>("input, select")?.focus();
-  }
-
-  async function openFactorDialog(): Promise<void> {
-    factorDialogOpen.value = true;
-    await nextTick();
-    observeCategoryScroller();
-    factorSearchInput.value?.focus();
-  }
-
-  async function closeFactorDialog(): Promise<void> {
-    factorDialogOpen.value = false;
-    await nextTick();
-    addFactorButton.value?.focus();
-  }
-
-  function updateCategoryScrollState(): void {
-    const scroller = categoryScroller.value;
-    if (!scroller) {
-      canScrollCategoriesLeft.value = false;
-      canScrollCategoriesRight.value = false;
-      return;
-    }
-    const maxScrollLeft = Math.max(
-      0,
-      scroller.scrollWidth - scroller.clientWidth,
-    );
-    canScrollCategoriesLeft.value = scroller.scrollLeft > 1;
-    canScrollCategoriesRight.value = scroller.scrollLeft < maxScrollLeft - 1;
-  }
-
-  function observeCategoryScroller(): void {
-    categoryResizeObserver?.disconnect();
-    categoryResizeObserver = null;
-    const scroller = categoryScroller.value;
-    if (scroller && typeof ResizeObserver !== "undefined") {
-      categoryResizeObserver = new ResizeObserver(updateCategoryScrollState);
-      categoryResizeObserver.observe(scroller);
-    }
-    updateCategoryScrollState();
-  }
-
-  function scrollCategories(direction: -1 | 1): void {
-    const scroller = categoryScroller.value;
-    if (!scroller) return;
-    const distance = direction * Math.max(120, scroller.clientWidth * 0.75);
-    if (typeof scroller.scrollBy === "function") {
-      scroller.scrollBy({ left: distance, behavior: "smooth" });
-      return;
-    }
-    scroller.scrollLeft += distance;
-    updateCategoryScrollState();
-  }
-
-  function removeFilter(id: string): void {
-    filters.value = filters.value.filter((filter) => filter.id !== id);
-  }
-
-  async function addColumn(key: string): Promise<void> {
-    const factor = factorFor(key);
-    if (!factor || !catalog.value) return;
-    const params = createStockScreenFilter(
-      factor,
-      0,
-      catalog.value,
-      queryMarket.value,
-    ).params;
-    const nextColumn: StockScreenColumn = {
-      factor: key,
-      factorKey: key,
-      instanceId: `column-${key}-${++filterSerial}`,
-      ...(params ? { params } : {}),
-      columnId: `column-${key}-${filterSerial}`,
-    };
-    if (hasDuplicateRef(columns.value, nextColumn)) {
-      queryError.value = `已存在相同参数的“${factor.label}”结果列`;
-      return;
-    }
-    columns.value.push(nextColumn);
-    queryError.value = "";
-    factorDialogOpen.value = false;
-    await nextTick();
-    const identity = columnIdentity(nextColumn, columns.value.length - 1);
-    const row = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-column-id]"),
-    ).find((candidate) => candidate.dataset.columnId === identity);
-    row?.querySelector<HTMLElement>("input, select")?.focus();
-  }
-
-  function removeColumn(column: StockScreenColumn): void {
-    columns.value = columns.value.filter((item) => item !== column);
-  }
-
-  function moveColumn(index: number, delta: number): void {
-    columns.value = moveItem(columns.value, index, delta);
-  }
-
-  async function addSort(preferredKey?: string): Promise<void> {
-    if (!catalog.value) return;
-    const candidates = preferredKey
-      ? sortableFactors.value.filter(
-          (candidate) => candidate.key === preferredKey,
-        )
-      : sortableFactors.value;
-    const factor = candidates.find((candidate) => {
-      const params = createStockScreenFilter(
-        candidate,
-        0,
-        catalog.value!,
-        queryMarket.value,
-      ).params;
-      return !hasDuplicateRef(sorts.value, {
-        factor: candidate.key,
-        ...(params ? { params } : {}),
-      });
-    });
-    if (!factor) return;
-    const params = createStockScreenFilter(
-      factor,
-      0,
-      catalog.value,
-      queryMarket.value,
-    ).params;
-    const nextSort: StockScreenSort = {
-      factor: factor.key,
-      factorKey: factor.key,
-      instanceId: `sort-${factor.key}-${++filterSerial}`,
-      direction: "desc",
-      ...(params ? { params } : {}),
-      sortId: `sort-${factor.key}-${filterSerial}`,
-    };
-    if (hasDuplicateRef(sorts.value, nextSort)) return;
-    sorts.value.push(nextSort);
-    factorDialogOpen.value = false;
-    await nextTick();
-    const identity = sortIdentity(nextSort, sorts.value.length - 1);
-    const row = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-sort-id]"),
-    ).find((candidate) => candidate.dataset.sortId === identity);
-    row?.querySelector<HTMLElement>("input, select")?.focus();
-  }
-
-  function sortFactorInput(sort: StockScreenSort, event: Event): void {
-    const key = (event.target as HTMLSelectElement).value;
-    const factor = factorFor(key);
-    if (!factor || !catalog.value) return;
-    const params = createStockScreenFilter(
-      factor,
-      0,
-      catalog.value,
-      queryMarket.value,
-    ).params;
-    sort.factor = key;
-    sort.factorKey = key;
-    sort.instanceId = `sort-${key}-${++filterSerial}`;
-    if (params) sort.params = params;
-    else delete sort.params;
-    sort.sortId ??= `sort-${key}-${filterSerial}`;
-  }
-
-  function boundaryInput(
-    filter: StockScreenEditorFilter,
-    event: Event,
-    field: "min" | "max",
-  ): void {
-    const raw = (event.target as HTMLInputElement).value;
-    if (raw === "") delete filter[field];
-    else filter[field] = { value: Number(raw), includes: true };
-  }
-
-  function valuesInput(
-    filter: StockScreenEditorFilter,
-    event: Event,
-  ): void {
-    const raw = (event.target as HTMLInputElement).value;
-    filter.values = raw
-      .split(",")
-      .map((value) => Number(value.trim()))
-      .filter(Number.isFinite);
-  }
-
-  function singleValueInput(
-    filter: StockScreenEditorFilter,
-    event: Event,
-  ): void {
-    filter.values = [Number((event.target as HTMLSelectElement).value)];
-  }
-
-  function useSetFilter(filter: StockScreenEditorFilter): void {
-    delete filter.min;
-    delete filter.max;
-    delete filter.intervals;
-    filter.values = [0];
-  }
-
-  function useIntervalFilter(filter: StockScreenEditorFilter): void {
-    delete filter.values;
-    delete filter.intervals;
-  }
-
-  function secondFactorInput(
-    filter: StockScreenEditorFilter,
-    event: Event,
-  ): void {
-    const factorKey = (event.target as HTMLSelectElement).value;
-    if (!factorKey) {
-      delete filter.secondFactor;
-      return;
-    }
-    const factor = factorFor(factorKey);
-    if (!factor || !catalog.value) return;
-    const params = createStockScreenFilter(
-      factor,
-      0,
-      catalog.value,
-      queryMarket.value,
-    ).params;
-    filter.secondFactor = {
-      factor: factorKey,
-      instanceId: `second-${factorKey}-${++filterSerial}`,
-      factorKey,
-      ...(params ? { params } : {}),
-    };
-    delete filter.secondValue;
-  }
-
   function currentDraft(): StockScreenDraft {
     return {
       brokerId: screenBrokerId.value,
@@ -688,7 +265,7 @@ export function useStockScreenerController(
     queryMarket.value = normalizeScreenMarket(query.market);
     filters.value = (query.filters ?? []).map((filter) => ({
       ...filter,
-      id: filter.conditionId ?? `${filter.factor}-${++filterSerial}`,
+      id: filter.conditionId ?? `${filter.factor}-${nextFactorSerial()}`,
     }));
     columns.value = (query.columns ?? []).map((column) => ({ ...column }));
     sorts.value = (query.sort ?? []).map((sort) => ({ ...sort }));
@@ -1089,30 +666,12 @@ export function useStockScreenerController(
     },
   );
 
-  watch(factorDialogOpen, (open) => {
-    if (open) return;
-    categoryResizeObserver?.disconnect();
-    categoryResizeObserver = null;
-    canScrollCategoriesLeft.value = false;
-    canScrollCategoriesRight.value = false;
-  });
-
-  watch(
-    () => catalog.value?.categories.length ?? 0,
-    async () => {
-      if (!factorDialogOpen.value) return;
-      await nextTick();
-      updateCategoryScrollState();
-    },
-  );
-
   onMounted(() => {
     void loadCatalogAndPresets();
   });
 
   onUnmounted(() => {
     if (retryTimer) clearInterval(retryTimer);
-    categoryResizeObserver?.disconnect();
   });
 
   return {
@@ -1229,20 +788,3 @@ export function useStockScreenerController(
 export type StockScreenerController = ReturnType<
   typeof useStockScreenerController
 >;
-
-const stockScreenerControllerKey: InjectionKey<StockScreenerController> =
-  Symbol("stock-screener-controller");
-
-export function provideStockScreenerController(
-  controller: StockScreenerController,
-): void {
-  provide(stockScreenerControllerKey, controller);
-}
-
-export function useStockScreenerControllerContext(): StockScreenerController {
-  const controller = inject(stockScreenerControllerKey);
-  if (!controller) {
-    throw new Error("Stock screener controller is not available");
-  }
-  return controller;
-}

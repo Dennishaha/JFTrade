@@ -1078,4 +1078,29 @@ describe("ResearchPage information architecture and quote rail", () => {
     expect(disconnect).toHaveBeenCalled();
     Reflect.deleteProperty(window, "matchMedia");
   });
+
+  it("opens a workspace instrument from a research entry target", async () => {
+    const { page, router } = await mountResearchPage();
+    const setup = page.vm.$.setupState as Record<string, unknown>;
+    (
+      setup.openResearchEntry as (
+        value: Record<string, unknown>,
+      ) => void
+    )({
+      instrumentId: "US.AAPL",
+      name: "Apple",
+      productClass: "equity",
+    });
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.path).toBe("/workspace");
+    });
+    expect(router.currentRoute.value.query.tab).toBe("chart");
+
+    (setup.activeSection as string) = "instrument";
+    (setup.activeInstrumentId as string) = "US.MSFT";
+    (setup.openResearchEntry as (value: unknown) => void)(null);
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.marketSegment).toBe("securities");
+    });
+  });
 });

@@ -8,8 +8,9 @@ catalog:
 
 overrides:
   "@vue/test-utils>js-beautify": 2.0.3
-  "monaco-editor>dompurify": 3.4.12
   brace-expansion: ">=5.0.9"
+  dompurify: ">=3.4.13"
+  nanoid: "3.3.17"
   postcss: ">=8.5.23"
   undici: ">=7.29.0"
   vue: "catalog:"

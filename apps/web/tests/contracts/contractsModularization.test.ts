@@ -73,7 +73,7 @@ describe("contract and view-model boundaries", () => {
       components["schemas"]["trading.RealTradeRiskSnapshot"]
     >();
     expectTypeOf<WebSession>().toEqualTypeOf<
-      components["schemas"]["servercore.WebSessionData"]
+      components["schemas"]["webaccess.WebSessionData"]
     >();
     expectTypeOf<BacktestSyncRequestDto>().toEqualTypeOf<
       components["schemas"]["backtest.SyncRequest"]

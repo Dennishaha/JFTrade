@@ -498,9 +498,7 @@ const parlayContracts = computed(() => {
 const selectedLegCount = computed(() => Object.keys(selectedLegs.value).length);
 const mvc = computed(() => String(eligible.value?.metadata?.mvc ?? ""));
 const quoteID = computed(() => String(quote.value?.metadata?.quoteId ?? ""));
-const quoteExpiresAt = computed(() =>
-  String(quote.value?.metadata?.quoteExpiresAt ?? ""),
-);
+const quoteExpiresAt = computed(() => String(quote.value?.metadata?.quoteExpiresAt ?? ""));
 const quoteExpired = computed(() => {
   const timestamp = Date.parse(quoteExpiresAt.value);
   return !Number.isFinite(timestamp) || quoteClock.value >= timestamp;

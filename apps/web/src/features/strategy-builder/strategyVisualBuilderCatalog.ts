@@ -15,7 +15,25 @@ import {
   type TechnicalIndicatorPatternType,
   type TechnicalIndicatorType,
 } from "./strategyVisualBuilderIndicatorBlock";
-import { RISK_RULE_BLOCK_DEFINITION } from "./strategyVisualBuilderRiskBlock";
+import { STRATEGY_BLOCK_CATALOG } from "./strategyVisualBuilderCatalogData";
+import { dayOfWeekLabel, sessionScopeLabel } from "./strategyVisualBuilderCatalogLabels";
+import {
+  formatClock,
+  isOneOf,
+  normalizeClockHour,
+  normalizeClockMinute,
+  normalizeDayOfWeek,
+  normalizeInputDefaultValue,
+  normalizeIntegerValue,
+  normalizeNonNegativeInteger,
+  normalizePineField,
+  normalizePineName,
+  normalizeSafeExpression,
+  normalizeStateInitialValue,
+  normalizeStopLossDecimal,
+  normalizeStopLossInteger,
+  normalizeTimeframe,
+} from "./strategyVisualBuilderCatalogNormalization";
 
 export type StrategyBlockKind =
   | "onInit"
@@ -79,21 +97,21 @@ export type TradingSessionScope = "market" | "premarket" | "postmarket";
 
 export interface SeriesConditionBlockProperties {
   blockKind: "seriesCondition";
-  mode?: SeriesConditionMode;
-  source?: StrategySeriesSource;
-  operator?: SeriesConditionOperator;
-  threshold?: number;
-  length?: number;
-  eventSource?: StrategySeriesSource;
-  eventOperator?: SeriesConditionOperator;
-  eventThreshold?: number;
-  valueSource?: StrategySeriesSource;
-  occurrence?: number;
-  sourceExpressionAst?: VisualExpression;
-  leftExpressionAst?: VisualExpression;
-  rightExpressionAst?: VisualExpression;
-  eventExpressionAst?: VisualExpression;
-  valueExpressionAst?: VisualExpression;
+  mode: SeriesConditionMode;
+  source: StrategySeriesSource;
+  operator: SeriesConditionOperator;
+  threshold: number;
+  length: number;
+  eventSource: StrategySeriesSource;
+  eventOperator: SeriesConditionOperator;
+  eventThreshold: number;
+  valueSource: StrategySeriesSource;
+  occurrence: number;
+  sourceExpressionAst: VisualExpression;
+  leftExpressionAst: VisualExpression;
+  rightExpressionAst: VisualExpression;
+  eventExpressionAst: VisualExpression;
+  valueExpressionAst: VisualExpression;
 }
 
 export const SERIES_SOURCE_OPTIONS: Array<{ value: StrategySeriesSource; label: string }> = [
@@ -126,67 +144,67 @@ export const STRATEGY_INPUT_TYPE_OPTIONS: Array<{ value: StrategyInputType; labe
 
 export interface StrategyInputBlockProperties {
   blockKind: "strategyInput";
-  variableName?: string;
-  inputType?: StrategyInputType;
-  title?: string;
-  defaultValue?: number | string;
+  variableName: string;
+  inputType: StrategyInputType;
+  title: string;
+  defaultValue: number | string;
 }
 
 export interface DerivedSeriesBlockProperties {
   blockKind: "derivedSeries";
-  variableName?: string;
-  mode?: DerivedSeriesMode;
-  source?: StrategySeriesSource;
-  historyOffset?: number;
-  fallbackValue?: number;
-  mathFunction?: DerivedSeriesMathFunction;
-  leftExpression?: string;
-  leftExpressionAst?: VisualExpression;
-  operator?: "+" | "-" | "*" | "/";
-  rightExpression?: string;
-  rightExpressionAst?: VisualExpression;
-  crossFunction?: DerivedSeriesCrossFunction;
-  sourceExpressionAst?: VisualExpression;
-  fallbackExpressionAst?: VisualExpression;
+  variableName: string;
+  mode: DerivedSeriesMode;
+  source: StrategySeriesSource;
+  historyOffset: number;
+  fallbackValue: number;
+  mathFunction: DerivedSeriesMathFunction;
+  leftExpression: string;
+  leftExpressionAst: VisualExpression;
+  operator: "+" | "-" | "*" | "/";
+  rightExpression: string;
+  rightExpressionAst: VisualExpression;
+  crossFunction: DerivedSeriesCrossFunction;
+  sourceExpressionAst: VisualExpression;
+  fallbackExpressionAst: VisualExpression;
 }
 
 export interface MtfSeriesBlockProperties {
   blockKind: "mtfSeries";
-  variableName?: string;
-  timeframe?: string;
-  expressionType?: MtfSeriesExpressionType;
-  source?: StrategySeriesSource;
-  historyOffset?: number;
-  indicatorExpression?: string;
+  variableName: string;
+  timeframe: string;
+  expressionType: MtfSeriesExpressionType;
+  source: StrategySeriesSource;
+  historyOffset: number;
+  indicatorExpression: string;
   indicatorExpressionAst?: VisualExpression;
   mtfField?: string;
 }
 
 export interface StateVariableBlockProperties {
   blockKind: "stateVariable";
-  variableName?: string;
-  valueType?: StateValueType;
-  initialValue?: number | boolean | string;
+  variableName: string;
+  valueType: StateValueType;
+  initialValue: number | boolean | string;
 }
 
 export interface StateUpdateBlockProperties {
   blockKind: "stateUpdate";
-  variableName?: string;
-  expression?: string;
+  variableName: string;
+  expression: string;
   expressionAst?: VisualExpression;
 }
 
 export interface CollectionStatBlockProperties {
   blockKind: "collectionStat";
-  variableName?: string;
-  statFunction?: CollectionStatFunction;
-  sourceA?: StrategySeriesSource;
-  sourceB?: StrategySeriesSource;
-  sourceC?: StrategySeriesSource;
-  sourceAExpressionAst?: VisualExpression;
-  sourceBExpressionAst?: VisualExpression;
-  sourceCExpressionAst?: VisualExpression;
-  percentile?: number;
+  variableName: string;
+  statFunction: CollectionStatFunction;
+  sourceA: StrategySeriesSource;
+  sourceB: StrategySeriesSource;
+  sourceC: StrategySeriesSource;
+  sourceAExpressionAst: VisualExpression;
+  sourceBExpressionAst: VisualExpression;
+  sourceCExpressionAst: VisualExpression;
+  percentile: number;
 }
 
 export const COLLECTION_STAT_FUNCTION_OPTIONS: Array<{ value: CollectionStatFunction; label: string }> = [
@@ -242,17 +260,17 @@ export interface StopLossBlockProperties {
 
 export interface TimeFilterBlockProperties {
   blockKind: "timeFilter";
-  mode?: TimeFilterMode;
-  startHour?: number;
-  startMinute?: number;
-  endHour?: number;
-  endMinute?: number;
-  dayOfWeek?: number;
+  mode: TimeFilterMode;
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+  dayOfWeek: number;
 }
 
 export interface SessionFilterBlockProperties {
   blockKind: "sessionFilter";
-  scope?: TradingSessionScope;
+  scope: TradingSessionScope;
 }
 
 export const STOP_LOSS_MODE_OPTIONS: Array<{ value: StopLossMode; label: string }> = [
@@ -292,302 +310,6 @@ export interface StrategyBlockDefinition {
   accent: string;
   paletteVisible?: boolean;
 }
-
-const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
-  {
-    kind: "onInit",
-    label: "策略启动",
-    description: "策略启动时执行一次，适合打印上下文或做预热。",
-    shape: "circle",
-    text: "策略启动",
-    properties: { blockKind: "onInit" },
-    accent: "#0f766e",
-  },
-  {
-    kind: "onKLineClosed",
-    label: "K 线收盘",
-    description: "每次 K 线收盘触发，是当前 Pine 策略的核心入口。",
-    shape: "circle",
-    text: "K 线收盘",
-    properties: { blockKind: "onKLineClosed" },
-    accent: "#1d4ed8",
-  },
-  {
-    kind: "getTechnicalIndicator",
-    label: "指标数据",
-    description: "加载一个技术指标结果，供后续判断节点或动作节点复用。",
-    shape: "rect",
-    text: nextGetTechnicalIndicatorNodeText({
-      blockKind: "getTechnicalIndicator",
-      indicatorType: "rsi",
-      period: 14,
-    }),
-    properties: {
-      blockKind: "getTechnicalIndicator",
-      indicatorType: "rsi",
-      period: 14,
-    },
-    accent: "#0f766e",
-    paletteVisible: false,
-  },
-  {
-    kind: "technicalIndicatorCondition",
-    label: "指标条件判断",
-    description: "基于已定义变量里的指标结果做数值或形态判断，并提供 true / false 两个后续分支。",
-    shape: "diamond",
-    text: nextTechnicalIndicatorConditionNodeText({
-      blockKind: "technicalIndicatorCondition",
-      indicatorType: "rsi",
-      conditionMode: "numeric",
-      operator: "<",
-      threshold: 30,
-    }),
-    properties: {
-      blockKind: "technicalIndicatorCondition",
-      indicatorType: "rsi",
-      conditionMode: "numeric",
-      operator: "<",
-      threshold: 30,
-    },
-    accent: "#ca8a04",
-    paletteVisible: true,
-  },
-  {
-    kind: "seriesCondition",
-    label: "序列条件判断",
-    description: "基于价格、成交量或派生序列做比较、ta.rising/ta.falling、ta.barssince/ta.valuewhen 判断。",
-    shape: "diamond",
-    text: "Close > 阈值",
-    properties: {
-      blockKind: "seriesCondition",
-      mode: "compare",
-      source: "close",
-      operator: ">",
-      threshold: 520,
-      length: 3,
-      eventSource: "close",
-      eventOperator: ">",
-      eventThreshold: 520,
-      valueSource: "close",
-      occurrence: 0,
-    },
-    accent: "#7c3aed",
-    paletteVisible: true,
-  },
-  {
-    kind: "strategyInput",
-    label: "策略参数",
-    description: "声明 Pine input 默认参数，供指标、条件、MTF 或自定义表达式引用。",
-    shape: "rect",
-    text: "参数 length = 20",
-    properties: {
-      blockKind: "strategyInput",
-      variableName: "length",
-      inputType: "int",
-      title: "Length",
-      defaultValue: 20,
-    },
-    accent: "#2563eb",
-  },
-  {
-    kind: "derivedSeries",
-    label: "派生序列",
-    description: "生成 history、nz、math、四则表达式或 cross 系列派生变量。",
-    shape: "rect",
-    text: "派生序列 signal",
-    properties: {
-      blockKind: "derivedSeries",
-      variableName: "signal",
-      mode: "history",
-      source: "close",
-      historyOffset: 1,
-      fallbackValue: 0,
-      mathFunction: "max",
-      leftExpression: "close",
-      operator: "-",
-      rightExpression: "open",
-      crossFunction: "crossover",
-    },
-    accent: "#0891b2",
-  },
-  {
-    kind: "mtfSeries",
-    label: "高周期序列",
-    description: "生成同标的静态 timeframe request.security 一阶序列。",
-    shape: "rect",
-    text: "MTF 日线 close",
-    properties: {
-      blockKind: "mtfSeries",
-      variableName: "mtf_close",
-      timeframe: "D",
-      expressionType: "source",
-      source: "close",
-      historyOffset: 1,
-      indicatorExpression: "ta.ema(close, 20)",
-    },
-    accent: "#4f46e5",
-  },
-  {
-    kind: "stateVariable",
-    label: "持久状态",
-    description: "声明 var 标量状态，支持 number/bool/string 默认值。",
-    shape: "rect",
-    text: "状态 armed = false",
-    properties: {
-      blockKind: "stateVariable",
-      variableName: "armed",
-      valueType: "bool",
-      initialValue: false,
-    },
-    accent: "#64748b",
-  },
-  {
-    kind: "stateUpdate",
-    label: "更新状态",
-    description: "对已声明的标量状态执行 := 更新。",
-    shape: "rect",
-    text: "更新状态 armed",
-    properties: {
-      blockKind: "stateUpdate",
-      variableName: "armed",
-      expression: "close > open",
-    },
-    accent: "#64748b",
-  },
-  {
-    kind: "collectionStat",
-    label: "集合统计",
-    description: "对固定 source 列表执行 array.from(...).min/max/avg/sum/median/stdev/variance/percentile 只读统计。",
-    shape: "rect",
-    text: "集合统计 range_median",
-    properties: {
-      blockKind: "collectionStat",
-      variableName: "range_median",
-      statFunction: "median",
-      sourceA: "close",
-      sourceB: "open",
-      sourceC: "high",
-      percentile: 50,
-    },
-    accent: "#0369a1",
-  },
-  {
-    kind: "timeFilter",
-    label: "时间过滤",
-    description: "基于闭盘 K 线 hour/minute/dayofweek 生成安全时间条件。",
-    shape: "diamond",
-    text: "时间过滤",
-    properties: {
-      blockKind: "timeFilter",
-      mode: "between",
-      startHour: 9,
-      startMinute: 30,
-      endHour: 16,
-      endMinute: 0,
-      dayOfWeek: 2,
-    },
-    accent: "#0e7490",
-  },
-  {
-    kind: "sessionFilter",
-    label: "交易时段过滤",
-    description: "基于 PineTS worker 的 session.ismarket / ispremarket / ispostmarket 状态过滤。",
-    shape: "diamond",
-    text: "交易时段过滤",
-    properties: {
-      blockKind: "sessionFilter",
-      scope: "market",
-    },
-    accent: "#0e7490",
-  },
-  {
-    kind: "ifCloseAbove",
-    label: "收盘价高于",
-    description: "当 ctx.kline.close 高于阈值时执行后续动作。",
-    shape: "diamond",
-    text: "收盘价 > 阈值",
-    properties: {
-      blockKind: "ifCloseAbove",
-      threshold: 520,
-    },
-    accent: "#d97706",
-  },
-  {
-    kind: "ifCloseBelow",
-    label: "收盘价低于",
-    description: "当 ctx.kline.close 低于阈值时执行后续动作。",
-    shape: "diamond",
-    text: "收盘价 < 阈值",
-    properties: {
-      blockKind: "ifCloseBelow",
-      threshold: 480,
-    },
-    accent: "#b45309",
-  },
-  {
-    kind: "log",
-    label: "输出日志",
-    description: "调用 console.log，把上下文或信号写入运行日志。",
-    shape: "rect",
-    text: "输出日志",
-    properties: {
-      blockKind: "log",
-      message: "观察到新的策略事件",
-    },
-    accent: "#475569",
-  },
-  {
-    kind: "notify",
-    label: "发送通知",
-    description: "生成 alert()，把策略信号发到控制台通知流。",
-    shape: "rect",
-    text: "发送通知",
-    properties: {
-      blockKind: "notify",
-      message: "策略条件命中，准备处理后续动作",
-    },
-    accent: "#be123c",
-  },
-  {
-    kind: "placeOrder",
-    label: "下单",
-    description: "向券商提交买入或卖出订单，支持固定股数、固定金额和账户权益百分比三种 Pine 对齐数量模式。",
-    shape: "rect",
-    text: "下单",
-    properties: {
-      blockKind: "placeOrder",
-      orderAction: "entry",
-      orderId: "Long",
-      side: "BUY",
-      orderType: "MARKET",
-      entryPositionPolicy: "sameDirection",
-      quantityMode: "shares",
-      quantityValue: 100,
-      limitPrice: 0,
-      stopPrice: 0,
-      riskAllowedDirection: "all",
-    },
-    accent: "#0f766e",
-  },
-  RISK_RULE_BLOCK_DEFINITION,
-  {
-    kind: "stopLoss",
-    label: "止损",
-    description: "基于 Go 预计算的风险快照，对当前多空仓位执行止损、止盈或追踪止损平仓。",
-    shape: "rect",
-    text: "自动止损 1柱 2%",
-    properties: {
-      blockKind: "stopLoss",
-      mode: "stopLoss",
-      direction: "auto",
-      timeValue: 1,
-      timeUnit: "bar",
-      percentage: 2,
-      windowPolicy: "continuous",
-    },
-    accent: "#b91c1c",
-  },
-];
 
 export function normalizeStopLossMode(value: unknown): StopLossMode {
   return STOP_LOSS_MODE_OPTIONS.some((option) => option.value === value)
@@ -1029,38 +751,6 @@ export function stopLossRuleLabel(properties: StopLossBlockProperties): string {
   }
 }
 
-export function dayOfWeekLabel(value: number): string {
-  switch (normalizeDayOfWeek(value, 2)) {
-    case 1:
-      return "周日";
-    case 2:
-      return "周一";
-    case 3:
-      return "周二";
-    case 4:
-      return "周三";
-    case 5:
-      return "周四";
-    case 6:
-      return "周五";
-    case 7:
-    default:
-      return "周六";
-  }
-}
-
-export function sessionScopeLabel(value: TradingSessionScope): string {
-  switch (value) {
-    case "premarket":
-      return "盘前";
-    case "postmarket":
-      return "盘后";
-    case "market":
-    default:
-      return "常规交易时段";
-  }
-}
-
 export function nextStopLossNodeText(rawProperties: Record<string, unknown>): string {
   const properties = normalizeStopLossBlockProperties(rawProperties);
   return `${stopLossDirectionLabel(properties.direction ?? "auto")}${stopLossModeLabel(properties.mode ?? "stopLoss")} ${properties.timeValue ?? 1}${stopLossTimeUnitLabel(properties.timeUnit ?? "bar")} ${properties.percentage ?? 2}%${properties.windowPolicy === "session" ? " 时段感知" : ""}`;
@@ -1085,180 +775,5 @@ export function getStrategyBlockKind(
   const value = node?.properties.blockKind;
   return typeof value === "string" ? (value as StrategyBlockKind) : null;
 }
-
-export function createStrategyPaletteItems(): Array<{
-  type: string;
-  text: string;
-  label: string;
-  icon: string;
-  properties: Record<string, unknown>;
-}> {
-  return STRATEGY_BLOCK_CATALOG
-    .filter((block) => block.paletteVisible !== false)
-    .map((block) => ({
-      type: block.shape,
-      text: block.text,
-      label: block.label,
-      icon: buildPaletteIcon(block.accent, block.label.slice(0, 2)),
-      properties: {
-        ...block.properties,
-      },
-    }));
-}
-
-function buildPaletteIcon(fill: string, text: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72"><rect width="72" height="72" rx="18" fill="${fill}"/><text x="36" y="41" text-anchor="middle" font-size="22" font-family="Georgia, serif" fill="white">${escapeXml(text)}</text></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-function normalizeStopLossInteger(value: unknown, fallback: number): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.max(1, Math.round(value));
-  }
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return Math.max(1, Math.round(parsed));
-    }
-  }
-  return fallback;
-}
-
-function normalizeNonNegativeInteger(value: unknown, fallback: number): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.max(0, Math.round(value));
-  }
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return Math.max(0, Math.round(parsed));
-    }
-  }
-  return fallback;
-}
-
-function normalizeClockHour(value: unknown, fallback: number): number {
-  return Math.min(23, Math.max(0, normalizeIntegerValue(value, fallback)));
-}
-
-function normalizeClockMinute(value: unknown, fallback: number): number {
-  return Math.min(59, Math.max(0, normalizeIntegerValue(value, fallback)));
-}
-
-function normalizeDayOfWeek(value: unknown, fallback: number): number {
-  return Math.min(7, Math.max(1, normalizeIntegerValue(value, fallback)));
-}
-
-function formatClock(hour: number, minute: number): string {
-  return `${String(normalizeClockHour(hour, 0)).padStart(2, "0")}:${String(normalizeClockMinute(minute, 0)).padStart(2, "0")}`;
-}
-
-function normalizeIntegerValue(value: unknown, fallback: number): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.round(value);
-  }
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return Math.round(parsed);
-    }
-  }
-  return fallback;
-}
-
-function normalizeStopLossDecimal(value: unknown, fallback: number): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-  return fallback;
-}
-
-function normalizePineName(value: unknown, fallback: string): string {
-  const raw = typeof value === "string" ? value.trim() : "";
-  const normalized = raw
-    .replace(/[^A-Za-z0-9_]+/g, "_")
-    .replace(/^([0-9])/, "_$1")
-    .replace(/^_+|_+$/g, "");
-  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(normalized) ? normalized : fallback;
-}
-
-function normalizePineField(value: unknown): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(trimmed) ? trimmed : undefined;
-}
-
-function normalizeSafeExpression(value: unknown, fallback: string): string {
-  const raw = typeof value === "string" ? value.trim() : "";
-  if (raw === "" || /(?:array\.|map\.|matrix\.|request\.security|strategy\.|line\.|label\.|table\.|:=|\bfor\b|\bwhile\b)/i.test(raw)) {
-    return fallback;
-  }
-  return raw.replace(/[\r\n]+/g, " ");
-}
-
-function normalizeTimeframe(value: unknown): string {
-  const raw = typeof value === "string" ? value.trim().toUpperCase() : "";
-  return ["1", "5", "15", "30", "45", "60", "120", "240", "D", "W", "M"].includes(raw)
-    ? raw
-    : "D";
-}
-
-function normalizeInputDefaultValue(
-  inputType: StrategyInputType,
-  value: unknown,
-): number | string {
-  switch (inputType) {
-    case "float":
-      return normalizeStopLossDecimal(value, 2);
-    case "source":
-      return normalizeSeriesSource(value);
-    case "timeframe":
-      return normalizeTimeframe(value);
-    case "time":
-      return typeof value === "string" && value.trim() !== "" ? value.trim() : "timestamp(2026, 1, 1)";
-    case "color":
-      return typeof value === "string" && value.trim() !== "" ? value.trim() : "color.green";
-    case "int":
-    default:
-      return normalizeStopLossInteger(value, 20);
-  }
-}
-
-function normalizeStateInitialValue(
-  valueType: StateValueType,
-  value: unknown,
-): number | boolean | string {
-  switch (valueType) {
-    case "number":
-      return normalizeStopLossDecimal(value, 0);
-    case "string":
-      return typeof value === "string" ? value : "";
-    case "bool":
-    default:
-      return value === true || value === "true";
-  }
-}
-
-function isOneOf<const T extends string>(
-  value: unknown,
-  options: readonly T[],
-): value is T {
-  return typeof value === "string" && (options as readonly string[]).includes(value);
-}
+export { createStrategyPaletteItems } from "./strategyVisualBuilderCatalogPalette";
+export { dayOfWeekLabel, sessionScopeLabel } from "./strategyVisualBuilderCatalogLabels";

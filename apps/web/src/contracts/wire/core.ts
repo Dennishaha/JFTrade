@@ -7,7 +7,7 @@ export type ApiErrorEnvelopeDto =
   components["schemas"]["httpserver.ErrorEnvelope"];
 
 export type WebSession =
-  components["schemas"]["servercore.WebSessionData"];
+  components["schemas"]["webaccess.WebSessionData"];
 
 export type WebLoginRequest =
-  components["schemas"]["servercore.webLoginRequest"];
+  components["schemas"]["webaccess.webLoginRequest"];

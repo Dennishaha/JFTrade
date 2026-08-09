@@ -9,6 +9,13 @@ import type {
   StrategyRuntimeRiskSettings,
 } from "@/types";
 
+import {
+  isRecord,
+  readNullableNumber,
+  readPositiveInteger,
+  readString,
+} from "./pineV6WorkflowValues";
+
 export interface PineV6WorkflowDiagnostic {
   blockId?: string;
   severity: "info" | "warning" | "error";
@@ -781,25 +788,4 @@ function sanitizeIdentifier(value: string, fallback: string): string {
     return candidate;
   }
   return fallback;
-}
-
-function readString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function readPositiveInteger(value: unknown, fallback: number): number {
-  const numeric = typeof value === "number" ? value : Number(value);
-  return Number.isInteger(numeric) && numeric > 0 ? numeric : fallback;
-}
-
-function readNullableNumber(value: unknown, fallback: number | null): number | null {
-  if (value === null || value === undefined || value === "") {
-    return fallback;
-  }
-  const numeric = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(numeric) ? numeric : fallback;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
