@@ -3,7 +3,6 @@ package adk
 import (
 	"context"
 	"errors"
-	"iter"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -429,43 +428,6 @@ func TestGoogleWorkflowAgentConcurrencyResume(t *testing.T) {
 	if !sawHandled {
 		t.Fatal("capped workflow resume did not deliver handled output")
 	}
-}
-
-func TestGoogleWorkflowAgentFailureBranches(t *testing.T) {
-	t.Run("node error returns explicit message", func(t *testing.T) {
-		if got := (&googleADKWorkflowNodeError{message: "boom"}).Error(); got != "boom" {
-			t.Fatalf("node error text = %q, want boom", got)
-		}
-	})
-
-	t.Run("node runner pause and generic agent run errors are surfaced", func(t *testing.T) {
-		testCtx := &googleADKWorkflowAgentTestContext{
-			StrictContextMock: adkagent.NewStrictContextMock(context.Background()),
-			invocationID:      "invocation",
-		}
-
-		pausingRunner := &googleADKWorkflowNodeRunnerErrorDouble{
-			events: []*adksession.Event{{LongRunningToolIDs: []string{"approval"}}},
-		}
-		if _, err := googleADKWorkflowRunNode(pausingRunner, testCtx, "task", false, func(*adksession.Event) error { return nil }); !errors.Is(err, adkworkflow.ErrNodeInterrupted) {
-			t.Fatalf("googleADKWorkflowRunNode pause err = %v, want ErrNodeInterrupted", err)
-		}
-
-		agent, err := adkagent.New(adkagent.Config{
-			Name: "generic-error",
-			Run: func(adkagent.InvocationContext) iter.Seq2[*adksession.Event, error] {
-				return func(yield func(*adksession.Event, error) bool) {
-					yield(nil, errors.New("generic agent failed"))
-				}
-			},
-		})
-		if err != nil {
-			t.Fatalf("agent.New: %v", err)
-		}
-		if _, err := googleADKWorkflowRunGenericAgent(agent, testCtx, "task", false, func(*adksession.Event) error { return nil }); err == nil || err.Error() != "generic agent failed" {
-			t.Fatalf("googleADKWorkflowRunGenericAgent err = %v, want generic agent failed", err)
-		}
-	})
 }
 
 func TestGoogleRunnerBoundaries(t *testing.T) {

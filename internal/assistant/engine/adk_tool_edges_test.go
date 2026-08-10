@@ -15,9 +15,7 @@ import (
 	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	adksession "google.golang.org/adk/v2/session"
-	"google.golang.org/adk/v2/tool/toolconfirmation"
 	adkworkflow "google.golang.org/adk/v2/workflow"
-	"google.golang.org/genai"
 )
 
 func TestSmallADKBoundaryTailBranches(t *testing.T) {
@@ -455,109 +453,5 @@ func TestTimelineAdditionalBoundaryBranches(t *testing.T) {
 	}
 	if jfadkmodel.CompareTimelineKeys("", 1, "b", t1, 1, "a") {
 		t.Fatal("valid right timestamp should sort before empty left timestamp")
-	}
-}
-
-func TestGoogleADKWorkflowInputResponseBoundaryBranches(t *testing.T) {
-	if got := googleADKWorkflowInputToUserContent(nil); got != nil {
-		t.Fatalf("nil input content = %#v, want nil", got)
-	}
-	if got := googleADKWorkflowInputToUserContent(""); got != nil {
-		t.Fatalf("empty input content = %#v, want nil", got)
-	}
-	content := genai.NewContentFromText("hello", genai.RoleUser)
-	if got := googleADKWorkflowInputToUserContent(content); got != content {
-		t.Fatal("content input should be returned unchanged")
-	}
-	if got := googleADKWorkflowInputToUserContent(func() {}); got != nil {
-		t.Fatalf("unmarshalable input content = %#v, want nil", got)
-	}
-	jsonContent := googleADKWorkflowInputToUserContent(map[string]any{"a": 1})
-	if jsonContent == nil || len(jsonContent.Parts) != 1 || !strings.Contains(jsonContent.Parts[0].Text, `"a":1`) {
-		t.Fatalf("json input content = %+v", jsonContent)
-	}
-	mixed := genai.NewContentFromParts([]*genai.Part{
-		nil,
-		{Text: "ignore"},
-		{FunctionResponse: &genai.FunctionResponse{ID: "", Name: adkworkflow.WorkflowInputFunctionCallName, Response: map[string]any{"response": "ignored"}}},
-		{FunctionResponse: &genai.FunctionResponse{ID: "ask", Name: adkworkflow.WorkflowInputFunctionCallName, Response: map[string]any{"response": `{"ok":true}`}}},
-		{FunctionResponse: &genai.FunctionResponse{ID: "approval", Name: toolconfirmation.FunctionCallName, Response: map[string]any{"payload": map[string]any{"confirmed": true}}}},
-	}, genai.RoleUser)
-	if !googleADKWorkflowHasFunctionResponse(mixed) {
-		t.Fatal("mixed content should have function response")
-	}
-	inputs := googleADKWorkflowInputResponses(mixed)
-	if decoded, ok := inputs["ask"].(map[string]any); !ok || decoded["ok"] != true {
-		t.Fatalf("workflow input responses = %#v, want decoded ask response", inputs)
-	}
-	state := &adkworkflow.RunState{Nodes: map[string]*adkworkflow.NodeState{
-		"nil":       nil,
-		"completed": {Status: adkworkflow.NodeCompleted, Interrupts: []string{"done"}},
-		"waiting":   {Status: adkworkflow.NodeWaiting, Interrupts: []string{"ask", ""}},
-	}}
-	resume := googleADKWorkflowResumeResponses(mixed, state, nil)
-	if _, ok := resume["ask"]; !ok {
-		t.Fatalf("resume responses = %#v, want ask", resume)
-	}
-	if _, ok := resume["approval"]; ok {
-		t.Fatalf("resume responses = %#v, did not expect approval without open session call", resume)
-	}
-	ctx := context.Background()
-	service := adksession.InMemoryService()
-	created, err := service.Create(ctx, &adksession.CreateRequest{AppName: "app", UserID: "user", SessionID: "session"})
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-	request := adksession.NewEvent(ctx, "invocation")
-	request.Content = genai.NewContentFromParts([]*genai.Part{{FunctionCall: &genai.FunctionCall{ID: "approval", Name: toolconfirmation.FunctionCallName}}}, genai.RoleModel)
-	request.LongRunningToolIDs = []string{"approval", ""}
-	if err := service.AppendEvent(ctx, created.Session, request); err != nil {
-		t.Fatalf("Append request: %v", err)
-	}
-	sess := created.Session
-	open := googleADKWorkflowOpenLongRunningCallIDs(sess)
-	if _, ok := open["approval"]; !ok {
-		t.Fatalf("open long-running ids = %#v, want approval", open)
-	}
-	resume = googleADKWorkflowResumeResponses(mixed, nil, sess)
-	if decoded, ok := resume["approval"].(map[string]any); !ok || decoded["confirmed"] != true {
-		t.Fatalf("long-running resume responses = %#v, want approval payload", resume)
-	}
-	answeredBefore := googleADKWorkflowAnsweredOpenInterrupts(sess)
-	if answeredBefore["approval"] {
-		t.Fatalf("answered before response = %#v, want false", answeredBefore)
-	}
-	response := adksession.NewEvent(ctx, "invocation")
-	response.Content = genai.NewContentFromParts([]*genai.Part{{FunctionResponse: &genai.FunctionResponse{
-		ID: "approval", Name: toolconfirmation.FunctionCallName, Response: map[string]any{"confirmed": true},
-	}}}, genai.RoleUser)
-	if err := service.AppendEvent(ctx, sess, response); err != nil {
-		t.Fatalf("Append response: %v", err)
-	}
-	answered := googleADKWorkflowAnsweredOpenInterrupts(sess)
-	if !answered["approval"] {
-		t.Fatalf("answered ids = %#v, want approval", answered)
-	}
-	if open := googleADKWorkflowOpenLongRunningCallIDs(sess); len(open) != 0 {
-		t.Fatalf("open long-running after response = %#v, want empty", open)
-	}
-	if got := googleADKDecodeWorkflowInputResponse(&genai.FunctionResponse{Response: map[string]any{"response": "plain text"}}); got != "plain text" {
-		t.Fatalf("plain response decode = %#v, want plain text", got)
-	}
-	if got := googleADKDecodeWorkflowInputResponse(&genai.FunctionResponse{Response: map[string]any{"other": "value"}}); fmt.Sprint(got) == "" {
-		t.Fatalf("fallback response decode = %#v, want response map", got)
-	}
-	if got := googleADKWorkflowInputResponses(nil); got != nil {
-		t.Fatalf("nil input responses = %#v, want nil", got)
-	}
-	if got := googleADKWorkflowResumeResponses(genai.NewContentFromText("none", genai.RoleUser), nil, nil); got != nil {
-		t.Fatalf("no pending resume responses = %#v, want nil", got)
-	}
-	var nilSession adksession.Session
-	if open := googleADKWorkflowOpenLongRunningCallIDs(nilSession); len(open) != 0 {
-		t.Fatalf("nil session open ids = %#v, want empty", open)
-	}
-	if answered := googleADKWorkflowAnsweredOpenInterrupts(nilSession); len(answered) != 0 {
-		t.Fatalf("nil session answered ids = %#v, want empty", answered)
 	}
 }

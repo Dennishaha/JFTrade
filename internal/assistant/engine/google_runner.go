@@ -437,7 +437,9 @@ func (r *Runtime) newGoogleADKWorkflowChildNode(
 	if err != nil {
 		return nil, err
 	}
-	return newGoogleADKWorkflowAgentNode(childAgent)
+	return adkworkflow.NewAgentNode(childAgent, adkworkflow.NodeConfig{
+		RerunOnResume: &googleADKWorkflowRerunOnResume,
+	})
 }
 
 func compileGoogleADKWorkflowEdges(steps []workflowStep, nodes []adkworkflow.Node) ([]adkworkflow.Edge, error) {
@@ -530,7 +532,8 @@ func (r *Runtime) runGoogleADKFinalSynthesis(
 		return fmt.Errorf("create GO-ADK final synthesis runner: %w", err)
 	}
 	execution.markToolResponseSeenForRun(runID)
-	for event, runErr := range synthesisRunner.Run(ctx, googleADKUserID, execution.sessionID, nil, adkagent.RunConfig{
+	runCtx := googleADKTaskRunnerContext(ctx)
+	for event, runErr := range synthesisRunner.Run(runCtx, googleADKUserID, execution.sessionID, nil, adkagent.RunConfig{
 		StreamingMode: adkagent.StreamingModeSSE,
 	}) {
 		if runErr != nil {

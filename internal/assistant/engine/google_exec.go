@@ -60,6 +60,7 @@ func (e *googleADKExecution) Run(ctx context.Context, content *genai.Content) er
 }
 
 func (e *googleADKExecution) runBlockingWithRunner(ctx context.Context, content *genai.Content) error {
+	ctx = googleADKTaskRunnerContext(ctx)
 	for event, err := range e.runner.Run(ctx, googleADKUserID, e.sessionID, content, adkagent.RunConfig{
 		StreamingMode: adkagent.StreamingModeSSE,
 	}) {

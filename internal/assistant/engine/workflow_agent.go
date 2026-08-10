@@ -2,23 +2,17 @@ package adk
 
 import (
 	"encoding/json"
+	"errors"
 	"iter"
-	"strings"
 
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/workflowagent"
 	adksession "google.golang.org/adk/v2/session"
-	"google.golang.org/adk/v2/tool/toolconfirmation"
 	adkworkflow "google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
 )
 
 var googleADKWorkflowRerunOnResume = true
-
-type googleADKNodeRunner interface {
-	RunNode(adkagent.Context, any) iter.Seq2[*adksession.Event, error]
-}
 
 type googleADKWorkflowAgentConfig struct {
 	Name           string
@@ -59,32 +53,30 @@ func (a *googleADKWorkflowAgent) run(ctx adkagent.InvocationContext) iter.Seq2[*
 	return func(yield func(*adksession.Event, error) bool) {
 		containsResponse := googleADKWorkflowHasFunctionResponse(ctx.UserContent())
 		if containsResponse {
-			state, err := a.workflow.ReconstructRunState(ctx.Session(), ctx.InvocationID())
+			resumeSession := googleADKWorkflowSessionBeforeCurrentResponse(ctx.Session(), ctx.UserContent())
+			state, err := a.workflow.ReconstructRunState(resumeSession, ctx.InvocationID())
 			if err != nil {
 				yield(nil, err)
 				return
 			}
-			responses := googleADKWorkflowResumeResponses(ctx.UserContent(), state, ctx.Session())
-			if len(responses) == 0 {
-				fallbackState, fallbackErr := a.workflow.ReconstructRunState(ctx.Session(), "")
-				if fallbackErr != nil {
-					yield(nil, fallbackErr)
+			responses := googleADKWorkflowResumeResponses(ctx.UserContent(), state, nil)
+			if len(responses) > 0 && state != nil {
+				matched, keepGoing := a.yieldResume(ctx, state, responses, yield)
+				if !keepGoing || matched {
 					return
 				}
-				if fallbackState != nil {
-					if fallbackResponses := googleADKWorkflowResumeResponses(ctx.UserContent(), fallbackState, ctx.Session()); len(fallbackResponses) > 0 {
-						state = fallbackState
-						responses = fallbackResponses
-					}
-				}
 			}
-			if len(responses) > 0 && state != nil {
-				for event, err := range a.workflow.Resume(adkagent.Promote(ctx), state, responses) {
-					if !yield(event, err) {
-						return
-					}
-				}
+			fallbackState, fallbackErr := a.workflow.ReconstructRunState(resumeSession, "")
+			if fallbackErr != nil {
+				yield(nil, fallbackErr)
 				return
+			}
+			fallbackResponses := googleADKWorkflowResumeResponses(ctx.UserContent(), fallbackState, resumeSession)
+			if len(fallbackResponses) > 0 && fallbackState != nil {
+				matched, keepGoing := a.yieldResume(ctx, fallbackState, fallbackResponses, yield)
+				if !keepGoing || matched {
+					return
+				}
 			}
 			yield(nil, adkworkflow.ErrNothingToResume)
 			return
@@ -97,166 +89,65 @@ func (a *googleADKWorkflowAgent) run(ctx adkagent.InvocationContext) iter.Seq2[*
 	}
 }
 
-func newGoogleADKWorkflowAgentNode(a adkagent.Agent) (adkworkflow.Node, error) {
-	if a == nil {
-		return nil, errNilGoogleADKWorkflowAgentNode()
+func googleADKWorkflowSessionBeforeCurrentResponse(sess adksession.Session, content *genai.Content) adksession.Session {
+	if sess == nil || content == nil {
+		return sess
 	}
-	return adkworkflow.NewDynamicNode(a.Name(), googleADKWorkflowAgentNodeBody(a), adkworkflow.NodeConfig{
-		EmitsOwnSpan:  true,
-		RerunOnResume: &googleADKWorkflowRerunOnResume,
-	}), nil
-}
-
-func googleADKWorkflowAgentNodeBody(a adkagent.Agent) adkworkflow.DynamicFn[any, any] {
-	return func(ctx adkagent.Context, input any, emit func(*adksession.Event) error) (any, error) {
-		isResume := len(googleADKWorkflowAnsweredOpenInterrupts(ctx.Session())) > 0
-		if runner, ok := a.(googleADKNodeRunner); ok {
-			return googleADKWorkflowRunNode(runner, ctx, input, isResume, emit)
+	responseIDs := make(map[string]struct{})
+	for _, response := range googleADKWorkflowFunctionResponses(content) {
+		if response != nil && response.ID != "" {
+			responseIDs[response.ID] = struct{}{}
 		}
-		return googleADKWorkflowRunGenericAgent(a, ctx, input, isResume, emit)
 	}
-}
-
-func errNilGoogleADKWorkflowAgentNode() error {
-	return &googleADKWorkflowNodeError{message: "GO-ADK workflow node: agent cannot be nil"}
-}
-
-type googleADKWorkflowNodeError struct {
-	message string
-}
-
-func (e *googleADKWorkflowNodeError) Error() string {
-	if e == nil {
-		return ""
+	if len(responseIDs) == 0 {
+		return sess
 	}
-	return e.message
-}
-
-func googleADKWorkflowRunNode(
-	runner googleADKNodeRunner,
-	ctx adkagent.Context,
-	input any,
-	isResume bool,
-	emit func(*adksession.Event) error,
-) (any, error) {
-	var nodeInput any
-	if !isResume {
-		nodeInput = input
+	events := sess.Events()
+	lastIndex := events.Len() - 1
+	for lastIndex >= 0 && events.At(lastIndex) == nil {
+		lastIndex--
 	}
-	paused := false
-	var observedReply strings.Builder
-	sawPartialText := false
-	for event, err := range runner.RunNode(ctx, nodeInput) {
-		if err != nil {
-			return nil, err
+	if lastIndex < 0 || !googleADKWorkflowEventAnswers(events.At(lastIndex), responseIDs) {
+		return sess
+	}
+	items := make([]*adksession.Event, 0, events.Len()-1)
+	for index := 0; index < events.Len(); index++ {
+		if index != lastIndex {
+			items = append(items, events.At(index))
 		}
-		if event == nil {
-			continue
-		}
-		googleADKWorkflowObserveVisibleReply(&observedReply, &sawPartialText, event)
-		if ids := googleADKWorkflowInterruptIDs(event); len(ids) > 0 {
-			for _, id := range ids {
-				event.LongRunningToolIDs = jfadkmodel.AppendUniqueString(event.LongRunningToolIDs, id)
+	}
+	return &wrappedSession{base: sess, events: &wrappedEvents{items: items}}
+}
+
+func googleADKWorkflowEventAnswers(event *adksession.Event, responseIDs map[string]struct{}) bool {
+	if event == nil || event.Author != "user" {
+		return false
+	}
+	for _, response := range googleADKWorkflowFunctionResponses(event.Content) {
+		if response != nil {
+			if _, ok := responseIDs[response.ID]; ok {
+				return true
 			}
-			paused = true
-		}
-		if emitErr := emit(event); emitErr != nil {
-			return nil, emitErr
 		}
 	}
-	if !paused {
-		if interrupted, err := googleADKWorkflowMaybeInterruptForImplicitInput(ctx, observedReply.String(), emit); err != nil {
-			return nil, err
-		} else if interrupted {
-			return nil, adkworkflow.ErrNodeInterrupted
-		}
-	}
-	if paused {
-		return nil, adkworkflow.ErrNodeInterrupted
-	}
-	return nil, nil
+	return false
 }
 
-func googleADKWorkflowRunGenericAgent(
-	a adkagent.Agent,
-	ctx adkagent.Context,
-	input any,
-	isResume bool,
-	emit func(*adksession.Event) error,
-) (any, error) {
-	var userContent *genai.Content
-	if !isResume {
-		userContent = googleADKWorkflowInputToUserContent(input)
-	}
-	agentCtx := googleADKWorkflowAgentContext(ctx, a, userContent)
-	paused := false
-	var observedReply strings.Builder
-	sawPartialText := false
-	for event, err := range a.Run(agentCtx) {
-		if err != nil {
-			return nil, err
+func (a *googleADKWorkflowAgent) yieldResume(
+	ctx adkagent.InvocationContext,
+	state *adkworkflow.RunState,
+	responses map[string]any,
+	yield func(*adksession.Event, error) bool,
+) (matched bool, keepGoing bool) {
+	for event, err := range a.workflow.Resume(adkagent.Promote(ctx), state, responses) {
+		if errors.Is(err, adkworkflow.ErrNothingToResume) {
+			return false, true
 		}
-		if event == nil {
-			continue
-		}
-		googleADKWorkflowObserveVisibleReply(&observedReply, &sawPartialText, event)
-		if ids := googleADKWorkflowInterruptIDs(event); len(ids) > 0 {
-			for _, id := range ids {
-				event.LongRunningToolIDs = jfadkmodel.AppendUniqueString(event.LongRunningToolIDs, id)
-			}
-			paused = true
-		}
-		if emitErr := emit(event); emitErr != nil {
-			return nil, emitErr
+		if !yield(event, err) {
+			return true, false
 		}
 	}
-	if !paused {
-		if interrupted, err := googleADKWorkflowMaybeInterruptForImplicitInput(ctx, observedReply.String(), emit); err != nil {
-			return nil, err
-		} else if interrupted {
-			return nil, adkworkflow.ErrNodeInterrupted
-		}
-	}
-	if paused {
-		return nil, adkworkflow.ErrNodeInterrupted
-	}
-	return nil, nil
-}
-
-func googleADKWorkflowAgentContext(ctx adkagent.Context, a adkagent.Agent, userContent *genai.Content) adkagent.InvocationContext {
-	path := ""
-	runID := ""
-	outputForAncestors := []string{}
-	delta := &adkagent.CommonContextDelta{
-		InvocationContextDelta: &adkagent.InvocationContextDelta{
-			Agent:       &a,
-			UserContent: &userContent,
-		},
-		RunID:              &runID,
-		Path:               &path,
-		OutputForAncestors: &outputForAncestors,
-	}
-	return ctx.WithDelta(delta)
-}
-
-func googleADKWorkflowInputToUserContent(input any) *genai.Content {
-	switch value := input.(type) {
-	case nil:
-		return nil
-	case *genai.Content:
-		return value
-	case string:
-		if value == "" {
-			return nil
-		}
-		return genai.NewContentFromText(value, genai.RoleUser)
-	default:
-		raw, err := json.Marshal(value)
-		if err != nil {
-			return nil
-		}
-		return genai.NewContentFromText(string(raw), genai.RoleUser)
-	}
+	return true, true
 }
 
 func googleADKWorkflowHasFunctionResponse(content *genai.Content) bool {
@@ -268,65 +159,9 @@ func googleADKWorkflowHasFunctionResponse(content *genai.Content) bool {
 	return false
 }
 
-func googleADKWorkflowInterruptIDs(event *adksession.Event) []string {
-	if event == nil {
-		return nil
-	}
-	ids := jfadkmodel.NormalizeStringSlice(event.LongRunningToolIDs)
-	if event.Content == nil {
-		return ids
-	}
-	for _, part := range event.Content.Parts {
-		if part == nil || part.FunctionCall == nil {
-			continue
-		}
-		if part.FunctionCall.Name == toolconfirmation.FunctionCallName ||
-			part.FunctionCall.Name == adkworkflow.WorkflowInputFunctionCallName {
-			ids = jfadkmodel.AppendUniqueString(ids, part.FunctionCall.ID)
-		}
-	}
-	return jfadkmodel.NormalizeStringSlice(ids)
-}
-
-func googleADKWorkflowObserveVisibleReply(builder *strings.Builder, sawPartialText *bool, event *adksession.Event) {
-	if builder == nil || sawPartialText == nil {
-		return
-	}
-	if event == nil || event.Content == nil {
-		if event != nil && !event.Partial {
-			*sawPartialText = false
-		}
-		return
-	}
-	emitText := true
-	if event.Partial {
-		*sawPartialText = *sawPartialText || contentHasText(event.Content)
-	} else if *sawPartialText {
-		emitText = false
-	}
-	if emitText {
-		reply, _ := rawVisibleTextFromParts(event.Content.Parts)
-		builder.WriteString(reply)
-	}
-	if !event.Partial {
-		*sawPartialText = false
-	}
-}
-
-func googleADKWorkflowMaybeInterruptForImplicitInput(
-	ctx adkagent.Context,
-	reply string,
-	emit func(*adksession.Event) error,
-) (bool, error) {
-	_ = ctx
-	_ = reply
-	_ = emit
-	return false, nil
-}
-
 func googleADKWorkflowResumeResponses(content *genai.Content, state *adkworkflow.RunState, sess adksession.Session) map[string]any {
 	pending := make(map[string]struct{})
-	for id := range googleADKWorkflowWaitingInterruptIDs(state) {
+	for id := range googleADKWorkflowPendingInterruptIDs(state) {
 		pending[id] = struct{}{}
 	}
 	for id := range googleADKWorkflowOpenLongRunningCallIDs(sess) {
@@ -351,23 +186,6 @@ func googleADKWorkflowResumeResponses(content *genai.Content, state *adkworkflow
 	return responses
 }
 
-func googleADKWorkflowInputResponses(content *genai.Content) map[string]any {
-	if content == nil {
-		return nil
-	}
-	responses := make(map[string]any)
-	for _, response := range googleADKWorkflowFunctionResponses(content) {
-		if response.Name != adkworkflow.WorkflowInputFunctionCallName || response.ID == "" {
-			continue
-		}
-		responses[response.ID] = googleADKDecodeWorkflowInputResponse(response)
-	}
-	if len(responses) == 0 {
-		return nil
-	}
-	return responses
-}
-
 func googleADKWorkflowFunctionResponses(content *genai.Content) []*genai.FunctionResponse {
 	if content == nil {
 		return nil
@@ -382,13 +200,13 @@ func googleADKWorkflowFunctionResponses(content *genai.Content) []*genai.Functio
 	return responses
 }
 
-func googleADKWorkflowWaitingInterruptIDs(state *adkworkflow.RunState) map[string]struct{} {
+func googleADKWorkflowPendingInterruptIDs(state *adkworkflow.RunState) map[string]struct{} {
 	ids := make(map[string]struct{})
 	if state == nil {
 		return ids
 	}
 	for _, nodeState := range state.Nodes {
-		if nodeState == nil || nodeState.Status != adkworkflow.NodeWaiting {
+		if nodeState == nil {
 			continue
 		}
 		for _, id := range nodeState.Interrupts {
@@ -427,35 +245,6 @@ func googleADKWorkflowOpenLongRunningCallIDs(sess adksession.Session) map[string
 		delete(open, id)
 	}
 	return open
-}
-
-func googleADKWorkflowAnsweredOpenInterrupts(sess adksession.Session) map[string]bool {
-	answered := make(map[string]bool)
-	if sess == nil {
-		return answered
-	}
-	longRunning := make(map[string]struct{})
-	events := sess.Events()
-	for index := 0; index < events.Len(); index++ {
-		event := events.At(index)
-		if event == nil {
-			continue
-		}
-		for _, id := range event.LongRunningToolIDs {
-			if id != "" {
-				longRunning[id] = struct{}{}
-			}
-		}
-		for _, response := range googleADKWorkflowFunctionResponses(event.Content) {
-			if response == nil || response.ID == "" {
-				continue
-			}
-			if _, ok := longRunning[response.ID]; ok {
-				answered[response.ID] = true
-			}
-		}
-	}
-	return answered
 }
 
 func googleADKDecodeWorkflowInputResponse(response *genai.FunctionResponse) any {

@@ -91,7 +91,8 @@ func (r *Runtime) PlanWorkflowWithADK(
 	if err != nil {
 		return nil, nil, fmt.Errorf("create GO-ADK workflow planner runner: %w", err)
 	}
-	for event, runErr := range runner.Run(ctx, googleADKUserID, plannerSessionID, genai.NewContentFromText(workflowPlannerUserMessage(mode, objective, message), genai.RoleUser), adkagent.RunConfig{
+	runCtx := googleADKTaskRunnerContext(ctx)
+	for event, runErr := range runner.Run(runCtx, googleADKUserID, plannerSessionID, genai.NewContentFromText(workflowPlannerUserMessage(mode, objective, message), genai.RoleUser), adkagent.RunConfig{
 		StreamingMode: adkagent.StreamingModeSSE,
 	}) {
 		if runErr != nil {

@@ -7,59 +7,16 @@ import (
 	"testing"
 
 	adkagent "google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	adkmodel "google.golang.org/adk/v2/model"
 	adkrunner "google.golang.org/adk/v2/runner"
 	adksession "google.golang.org/adk/v2/session"
+	adktool "google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
 	adkworkflow "google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
 )
-
-func TestGoogleADKWorkflowInputResponsesDecodeADKRequestInput(t *testing.T) {
-	content := genai.NewContentFromParts([]*genai.Part{
-		{FunctionResponse: &genai.FunctionResponse{
-			ID: "ask-json", Name: adkworkflow.WorkflowInputFunctionCallName,
-			Response: map[string]any{"response": `{"approved":true}`},
-		}},
-		{FunctionResponse: &genai.FunctionResponse{
-			ID: "ask-text", Name: adkworkflow.WorkflowInputFunctionCallName,
-			Response: map[string]any{"response": "plain yes"},
-		}},
-		{FunctionResponse: &genai.FunctionResponse{
-			ID: "ask-payload", Name: adkworkflow.WorkflowInputFunctionCallName,
-			Response: map[string]any{"payload": map[string]any{"choice": "continue"}},
-		}},
-		{FunctionResponse: &genai.FunctionResponse{
-			ID: "ignored", Name: "other_tool",
-			Response: map[string]any{"response": "ignore"},
-		}},
-	}, genai.RoleUser)
-
-	responses := googleADKWorkflowInputResponses(content)
-	if len(responses) != 3 {
-		t.Fatalf("responses = %#v, want 3 request-input responses", responses)
-	}
-	approved, ok := responses["ask-json"].(map[string]any)
-	if !ok || approved["approved"] != true {
-		t.Fatalf("json response = %#v", responses["ask-json"])
-	}
-	if responses["ask-text"] != "plain yes" {
-		t.Fatalf("text response = %#v", responses["ask-text"])
-	}
-	payload, ok := responses["ask-payload"].(map[string]any)
-	if !ok || payload["choice"] != "continue" {
-		t.Fatalf("payload response = %#v", responses["ask-payload"])
-	}
-}
-
-func TestGoogleADKWorkflowInputResponsesIgnoreMissingContent(t *testing.T) {
-	if got := googleADKWorkflowInputResponses(nil); got != nil {
-		t.Fatalf("nil content responses = %#v", got)
-	}
-	content := genai.NewContentFromText("hello", genai.RoleUser)
-	if got := googleADKWorkflowInputResponses(content); got != nil {
-		t.Fatalf("text content responses = %#v", got)
-	}
-}
 
 func TestGoogleADKWorkflowResumeResponsesMatchToolConfirmationByInterruptID(t *testing.T) {
 	state := adkworkflow.NewRunState()
@@ -136,6 +93,43 @@ func TestGoogleADKWorkflowResumeResponsesIgnoreUnmatchedFunctionResponse(t *test
 
 	if responses := googleADKWorkflowResumeResponses(content, state, nil); responses != nil {
 		t.Fatalf("responses = %#v, want nil for unmatched function response", responses)
+	}
+}
+
+func TestGoogleADKWorkflowResumeResponsesIgnoreAlreadyConsumedInterrupt(t *testing.T) {
+	state := adkworkflow.NewRunState()
+	state.Nodes["write_step"] = &adkworkflow.NodeState{
+		Status:        adkworkflow.NodePending,
+		Interrupts:    []string{"next-approval"},
+		ResumedInputs: map[string]any{"prior-approval": map[string]any{"confirmed": true}},
+	}
+	content := genai.NewContentFromParts([]*genai.Part{{
+		FunctionResponse: &genai.FunctionResponse{
+			ID: "prior-approval", Name: toolconfirmation.FunctionCallName,
+			Response: map[string]any{"confirmed": true},
+		},
+	}}, genai.RoleUser)
+
+	if responses := googleADKWorkflowResumeResponses(content, state, nil); responses != nil {
+		t.Fatalf("responses = %#v, want nil for an already consumed interrupt", responses)
+	}
+}
+
+func TestGoogleADKWorkflowResumeBoundaryHelpersFailClosed(t *testing.T) {
+	if got := googleADKWorkflowSessionBeforeCurrentResponse(nil, nil); got != nil {
+		t.Fatalf("nil session boundary = %#v, want nil", got)
+	}
+	sess := workflowAgentTestSession{id: "boundary"}
+	if got := googleADKWorkflowSessionBeforeCurrentResponse(sess, genai.NewContentFromText("plain", genai.RoleUser)); got.ID() != sess.ID() {
+		t.Fatal("content without a response ID should preserve the session")
+	}
+	if googleADKWorkflowEventAnswers(&adksession.Event{Author: "user"}, map[string]struct{}{"answer": {}}) {
+		t.Fatal("event without a matching function response was treated as an answer")
+	}
+	state := adkworkflow.NewRunState()
+	state.Nodes["missing"] = nil
+	if got := googleADKWorkflowPendingInterruptIDs(state); len(got) != 0 {
+		t.Fatalf("pending interrupt IDs = %#v, want none", got)
 	}
 }
 
@@ -256,148 +250,191 @@ func TestNewGoogleADKWorkflowAgentUsesNativeWorkflowAgentWithoutConcurrencyCap(t
 	}
 }
 
-func TestGoogleADKWorkflowRunNodeOmitsOriginalInputOnResume(t *testing.T) {
-	ctx := context.Background()
-	service := adksession.InMemoryService()
-	created, err := service.Create(ctx, &adksession.CreateRequest{
-		AppName: "app", UserID: "user", SessionID: "session",
+func TestGoogleADKWorkflowChildNodeUsesNativeAgentNodeConfiguration(t *testing.T) {
+	child, err := adkagent.New(adkagent.Config{
+		Name: "native_child",
+		Run: func(adkagent.InvocationContext) iter.Seq2[*adksession.Event, error] {
+			return func(func(*adksession.Event, error) bool) {}
+		},
 	})
 	if err != nil {
-		t.Fatalf("Create: %v", err)
+		t.Fatalf("agent.New: %v", err)
 	}
-	request := adksession.NewEvent(ctx, "invocation")
-	request.Content = genai.NewContentFromParts([]*genai.Part{{
-		FunctionCall: &genai.FunctionCall{ID: "approval-call", Name: toolconfirmation.FunctionCallName},
-	}}, genai.RoleModel)
-	request.LongRunningToolIDs = []string{"approval-call"}
-	if err := service.AppendEvent(ctx, created.Session, request); err != nil {
-		t.Fatalf("Append request: %v", err)
-	}
-	response := adksession.NewEvent(ctx, "invocation")
-	response.Content = genai.NewContentFromParts([]*genai.Part{{
-		FunctionResponse: &genai.FunctionResponse{
-			ID: "approval-call", Name: toolconfirmation.FunctionCallName,
-			Response: map[string]any{"confirmed": true},
-		},
-	}}, genai.RoleUser)
-	if err := service.AppendEvent(ctx, created.Session, response); err != nil {
-		t.Fatalf("Append response: %v", err)
-	}
-	testCtx := &googleADKWorkflowAgentTestContext{
-		StrictContextMock: adkagent.NewStrictContextMock(ctx),
-		session:           created.Session,
-		invocationID:      "invocation",
-	}
-	runner := &googleADKWorkflowNodeRunnerTestDouble{}
-
-	output, err := googleADKWorkflowRunNode(runner, testCtx, "original task", false, func(*adksession.Event) error { return nil })
+	node, err := adkworkflow.NewAgentNode(child, adkworkflow.NodeConfig{
+		RerunOnResume: &googleADKWorkflowRerunOnResume,
+	})
 	if err != nil {
-		t.Fatalf("fresh RunNode: %v", err)
+		t.Fatalf("workflow.NewAgentNode: %v", err)
 	}
-	if output != nil {
-		t.Fatalf("fresh output = %#v, want nil because forwarded events carry node output", output)
-	}
-	if runner.inputs[len(runner.inputs)-1] != "original task" {
-		t.Fatalf("fresh input = %#v, want original task", runner.inputs[len(runner.inputs)-1])
-	}
-	output, err = googleADKWorkflowRunNode(runner, testCtx, "original task", true, func(*adksession.Event) error { return nil })
-	if err != nil {
-		t.Fatalf("resume RunNode: %v", err)
-	}
-	if output != nil {
-		t.Fatalf("resume output = %#v, want nil because forwarded events carry node output", output)
-	}
-	if runner.inputs[len(runner.inputs)-1] != nil {
-		t.Fatalf("resume input = %#v, want nil", runner.inputs[len(runner.inputs)-1])
+	if !node.Config().EmitsOwnSpan || node.Config().RerunOnResume == nil || !*node.Config().RerunOnResume {
+		t.Fatalf("native agent node config = %+v, want own span and rerun on resume", node.Config())
 	}
 }
 
-func TestGoogleADKWorkflowGenericAgentNodeCoversFreshResumeAndPause(t *testing.T) {
+func TestGoogleADKWorkflowNativeAgentNodeResumesToolConfirmation(t *testing.T) {
+	for _, test := range []struct {
+		name             string
+		confirmed        bool
+		finalText        string
+		expectedToolRuns int
+	}{
+		{name: "approved", confirmed: true, finalText: "approved complete", expectedToolRuns: 1},
+		{name: "rejected", confirmed: false, finalText: "rejected complete", expectedToolRuns: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			testGoogleADKWorkflowNativeAgentNodeToolConfirmation(t, test.confirmed, test.finalText, test.expectedToolRuns)
+		})
+	}
+}
+
+func testGoogleADKWorkflowNativeAgentNodeToolConfirmation(t *testing.T, confirmed bool, finalText string, expectedToolRuns int) {
+	t.Helper()
+	toolRuns := 0
+	secureTool, err := functiontool.New(functiontool.Config{
+		Name:                "secure_action",
+		Description:         "performs an action after approval",
+		RequireConfirmation: true,
+	}, func(_ adkagent.Context, _ struct{}) (map[string]any, error) {
+		toolRuns++
+		return map[string]any{"approved": true}, nil
+	})
+	if err != nil {
+		t.Fatalf("functiontool.New: %v", err)
+	}
+	model := &nativeConfirmationModel{finalText: finalText}
+	child, err := llmagent.New(llmagent.Config{
+		Name:        "native_confirmation_child",
+		Description: "runs an approved action",
+		Model:       model,
+		Tools:       []adktool.Tool{secureTool},
+	})
+	if err != nil {
+		t.Fatalf("llmagent.New: %v", err)
+	}
+	childNode, err := adkworkflow.NewAgentNode(child, adkworkflow.NodeConfig{
+		RerunOnResume: &googleADKWorkflowRerunOnResume,
+	})
+	if err != nil {
+		t.Fatalf("workflow.NewAgentNode: %v", err)
+	}
+	handlerRuns := 0
+	handler := adkworkflow.NewFunctionNode("confirmation_handler", func(_ adkagent.Context, input any) (any, error) {
+		handlerRuns++
+		return map[string]any{"handled": input}, nil
+	}, adkworkflow.NodeConfig{})
+	edges := []adkworkflow.Edge{
+		{From: adkworkflow.Start, To: childNode},
+		{From: childNode, To: handler},
+	}
+	workflow, err := adkworkflow.New("native_confirmation_workflow", edges, adkworkflow.WithMaxConcurrency(1))
+	if err != nil {
+		t.Fatalf("workflow.New: %v", err)
+	}
+	adapter := &googleADKWorkflowAgent{workflow: workflow}
+	root, err := adkagent.New(adkagent.Config{
+		Name: "native_confirmation_workflow", Description: "native confirmation workflow", Run: adapter.run,
+	})
+	if err != nil {
+		t.Fatalf("agent.New root: %v", err)
+	}
 	ctx := context.Background()
 	service := adksession.InMemoryService()
-	created, err := service.Create(ctx, &adksession.CreateRequest{
-		AppName: "app", UserID: "user", SessionID: "session",
-	})
-	if err != nil {
+	if _, err := service.Create(ctx, &adksession.CreateRequest{
+		AppName: "app", UserID: "user", SessionID: "confirmation-session",
+	}); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	testCtx := &googleADKWorkflowAgentTestContext{
-		StrictContextMock: adkagent.NewStrictContextMock(ctx),
-		session:           created.Session,
-		invocationID:      "invocation",
-		path:              "root",
-		runID:             "run",
-	}
-	var seenFresh *genai.Content
-	agent, err := adkagent.New(adkagent.Config{
-		Name: "generic",
-		Run: func(ctx adkagent.InvocationContext) iter.Seq2[*adksession.Event, error] {
-			seenFresh = ctx.UserContent()
-			return func(yield func(*adksession.Event, error) bool) {
-				yield(adksession.NewEvent(ctx, ctx.InvocationID()), nil)
-			}
-		},
+	runner, err := adkrunner.New(adkrunner.Config{
+		AppName: "app", Agent: root, SessionService: service,
 	})
 	if err != nil {
-		t.Fatalf("agent.New generic: %v", err)
+		t.Fatalf("runner.New: %v", err)
 	}
-	var emitted int
-	if _, err := googleADKWorkflowRunGenericAgent(agent, testCtx, map[string]any{"task": "fresh"}, false, func(event *adksession.Event) error {
-		if event != nil {
-			emitted++
+
+	var pendingID string
+	for event, runErr := range runner.Run(ctx, "user", "confirmation-session", genai.NewContentFromText("start", genai.RoleUser), adkagent.RunConfig{}) {
+		if runErr != nil {
+			t.Fatalf("fresh workflow run: %v", runErr)
 		}
-		return nil
-	}); err != nil {
-		t.Fatalf("fresh generic agent: %v", err)
-	}
-	if emitted != 1 || seenFresh == nil || seenFresh.Parts[0].Text != `{"task":"fresh"}` {
-		t.Fatalf("fresh emitted=%d userContent=%#v", emitted, seenFresh)
-	}
-
-	var seenResume *genai.Content
-	resumeAgent, err := adkagent.New(adkagent.Config{
-		Name: "resume_generic",
-		Run: func(ctx adkagent.InvocationContext) iter.Seq2[*adksession.Event, error] {
-			seenResume = ctx.UserContent()
-			return func(yield func(*adksession.Event, error) bool) {}
-		},
-	})
-	if err != nil {
-		t.Fatalf("agent.New resume: %v", err)
-	}
-	if _, err := googleADKWorkflowRunGenericAgent(resumeAgent, testCtx, "ignored on resume", true, func(*adksession.Event) error {
-		return nil
-	}); err != nil {
-		t.Fatalf("resume generic agent: %v", err)
-	}
-	if seenResume != nil {
-		t.Fatalf("resume userContent = %#v, want nil", seenResume)
-	}
-
-	pausingAgent, err := adkagent.New(adkagent.Config{
-		Name: "pause_generic",
-		Run: func(ctx adkagent.InvocationContext) iter.Seq2[*adksession.Event, error] {
-			return func(yield func(*adksession.Event, error) bool) {
-				event := adksession.NewEvent(ctx, ctx.InvocationID())
-				event.LongRunningToolIDs = []string{"approval-call"}
-				yield(event, nil)
+		if event == nil {
+			continue
+		}
+		for _, part := range event.Content.Parts {
+			if part != nil && part.FunctionCall != nil && part.FunctionCall.Name == toolconfirmation.FunctionCallName {
+				pendingID = part.FunctionCall.ID
 			}
-		},
+		}
+	}
+	if pendingID == "" || model.calls != 1 || toolRuns != 0 || handlerRuns != 0 {
+		t.Fatalf("fresh workflow pendingID=%q modelCalls=%d toolRuns=%d handlerRuns=%d", pendingID, model.calls, toolRuns, handlerRuns)
+	}
+	stored, err := service.Get(ctx, &adksession.GetRequest{
+		AppName: "app", UserID: "user", SessionID: "confirmation-session",
 	})
 	if err != nil {
-		t.Fatalf("agent.New pausing: %v", err)
+		t.Fatalf("Get: %v", err)
 	}
-	if _, err := googleADKWorkflowRunGenericAgent(pausingAgent, testCtx, "pause", false, func(*adksession.Event) error {
-		return nil
-	}); !errors.Is(err, adkworkflow.ErrNodeInterrupted) {
-		t.Fatalf("pausing generic err = %v, want ErrNodeInterrupted", err)
+	state, err := workflow.ReconstructRunState(stored.Session, "")
+	if err != nil {
+		t.Fatalf("ReconstructRunState: %v", err)
+	}
+	nodeState := state.Nodes[childNode.Name()]
+	if nodeState == nil || nodeState.Status != adkworkflow.NodeWaiting || len(nodeState.Interrupts) != 1 || nodeState.Interrupts[0] != pendingID {
+		t.Fatalf("native child state = %+v, want waiting %q", nodeState, pendingID)
 	}
 
-	if node, err := newGoogleADKWorkflowAgentNode(nil); err == nil || node != nil {
-		t.Fatalf("nil workflow node = %#v/%v, want error", node, err)
+	response := genai.NewContentFromParts([]*genai.Part{{FunctionResponse: &genai.FunctionResponse{
+		ID: pendingID, Name: toolconfirmation.FunctionCallName,
+		Response: map[string]any{"confirmed": confirmed},
+	}}}, genai.RoleUser)
+	var sawHandled bool
+	for event, runErr := range runner.Run(ctx, "user", "confirmation-session", response, adkagent.RunConfig{}) {
+		if runErr != nil {
+			t.Fatalf("resume workflow run: %v", runErr)
+		}
+		if event == nil {
+			continue
+		}
+		output, ok := event.Output.(map[string]any)
+		if ok && output["handled"] == finalText {
+			sawHandled = true
+		}
 	}
-	if got := (*googleADKWorkflowNodeError)(nil).Error(); got != "" {
-		t.Fatalf("nil node error text = %q, want empty", got)
+	if !sawHandled || model.calls != 2 || toolRuns != expectedToolRuns || handlerRuns != 1 {
+		t.Fatalf("resumed workflow handled=%v modelCalls=%d toolRuns=%d handlerRuns=%d", sawHandled, model.calls, toolRuns, handlerRuns)
+	}
+	var duplicateErr error
+	for _, runErr := range runner.Run(ctx, "user", "confirmation-session", response, adkagent.RunConfig{}) {
+		if runErr != nil {
+			duplicateErr = runErr
+			break
+		}
+	}
+	if !errors.Is(duplicateErr, adkworkflow.ErrNothingToResume) {
+		t.Fatalf("duplicate confirmation error = %v, want ErrNothingToResume", duplicateErr)
+	}
+	if model.calls != 2 || toolRuns != expectedToolRuns || handlerRuns != 1 {
+		t.Fatalf("duplicate confirmation reran work: modelCalls=%d toolRuns=%d handlerRuns=%d", model.calls, toolRuns, handlerRuns)
+	}
+}
+
+type nativeConfirmationModel struct {
+	calls     int
+	finalText string
+}
+
+func (m *nativeConfirmationModel) Name() string { return "native-confirmation-model" }
+
+func (m *nativeConfirmationModel) GenerateContent(_ context.Context, _ *adkmodel.LLMRequest, _ bool) iter.Seq2[*adkmodel.LLMResponse, error] {
+	return func(yield func(*adkmodel.LLMResponse, error) bool) {
+		m.calls++
+		if m.calls == 1 {
+			yield(&adkmodel.LLMResponse{Content: genai.NewContentFromParts([]*genai.Part{{FunctionCall: &genai.FunctionCall{
+				ID: "secure-call", Name: "secure_action", Args: map[string]any{},
+			}}}, genai.RoleModel)}, nil)
+			return
+		}
+		yield(&adkmodel.LLMResponse{Content: genai.NewContentFromText(m.finalText, genai.RoleModel)}, nil)
 	}
 }
 
@@ -408,17 +445,6 @@ func mustGoogleADKWorkflow(t *testing.T, edges []adkworkflow.Edge) *adkworkflow.
 		t.Fatalf("workflow.New: %v", err)
 	}
 	return workflow
-}
-
-type googleADKWorkflowNodeRunnerTestDouble struct {
-	inputs []any
-}
-
-func (r *googleADKWorkflowNodeRunnerTestDouble) RunNode(_ adkagent.Context, input any) iter.Seq2[*adksession.Event, error] {
-	r.inputs = append(r.inputs, input)
-	return func(yield func(*adksession.Event, error) bool) {
-		yield(&adksession.Event{Output: "forwarded-output"}, nil)
-	}
 }
 
 type googleADKWorkflowAgentTestContext struct {
