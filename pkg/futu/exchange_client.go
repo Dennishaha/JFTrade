@@ -80,34 +80,37 @@ func (e *Exchange) withClientAttempts(ctx context.Context, attempts int, fn func
 func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.closed {
-		return nil, opend.ErrClosed
-	}
-
-	if e.client == nil {
-		e.installClientLocked(e.newClient())
-	}
-	if e.ready {
-		select {
-		case <-e.client.Done():
-			log.Printf("futu OpenD client done; reconnecting to %s", e.addr)
-			jftradeErr6 := e.invalidateClientLocked()
-			besteffort.LogError(jftradeErr6)
-			e.installClientLocked(e.newClient())
-		default:
-			e.bindOrderBookNotifyLocked(e.client)
-			e.bindSystemNotifyLocked(e.client)
-			e.bindTradeUpdateNotifyLocked(e.client)
-			return e.client, nil
+	for {
+		if e.closed {
+			return nil, opend.ErrClosed
 		}
+		if e.client == nil {
+			e.installClientLocked(e.newClient())
+		}
+		if e.ready {
+			select {
+			case <-e.client.Done():
+				log.Printf("futu OpenD client done; reconnecting to %s", e.addr)
+				besteffort.LogError(e.detachAndCloseClientLocked())
+				continue
+			default:
+				e.bindOrderBookNotifyLocked(e.client)
+				e.bindSystemNotifyLocked(e.client)
+				e.bindTradeUpdateNotifyLocked(e.client)
+				return e.client, nil
+			}
+		}
+		return e.connectClientLocked(ctx)
 	}
+}
+
+func (e *Exchange) connectClientLocked(ctx context.Context) (*opend.Client, error) {
 	log.Printf("futu OpenD connecting new session to %s (ready=%v clientNil=%v)",
 		e.addr, e.ready, e.client == nil)
 
 	connectStart := time.Now()
 	if err := e.client.Connect(ctx); err != nil {
-		jftradeErr2 := e.invalidateClientLocked()
-		besteffort.LogError(jftradeErr2)
+		besteffort.LogError(e.detachAndCloseClientLocked())
 		log.Printf("futu OpenD connect to %s failed after %v: %v", e.addr, time.Since(connectStart), err)
 		return nil, err
 	}
@@ -116,8 +119,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	initStart := time.Now()
 	initState, err := e.initializeOpenDSessionLocked(ctx, connectElapsed)
 	if err != nil {
-		jftradeErr1 := e.invalidateClientLocked()
-		besteffort.LogError(jftradeErr1)
+		besteffort.LogError(e.detachAndCloseClientLocked())
 		log.Printf("futu OpenD session initialization to %s failed after %v (connect=%v): %v",
 			e.addr, time.Since(initStart), connectElapsed, err)
 		return nil, err
@@ -131,8 +133,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	e.bindSystemNotifyLocked(e.client)
 	e.bindTradeUpdateNotifyLocked(e.client)
 	if err := e.resubscribeTradeAccountPushLocked(ctx, e.client); err != nil {
-		jftradeErr5 := e.invalidateClientLocked()
-		besteffort.LogError(jftradeErr5)
+		besteffort.LogError(e.detachAndCloseClientLocked())
 		log.Printf("futu OpenD trade account push resubscribe failed after reconnect: %v", err)
 		return nil, err
 	}
@@ -394,13 +395,24 @@ func (e *Exchange) queryQuoteRights(
 
 func (e *Exchange) invalidateClient() {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	log.Printf("futu OpenD invalidateClient (public) addr=%s", e.addr)
-	jftradeErr4 := e.invalidateClientLocked()
-	besteffort.LogError(jftradeErr4)
+	client := e.detachClientLocked()
+	e.mu.Unlock()
+	besteffort.LogError(closeOpenDClient(client))
 }
 
-func (e *Exchange) invalidateClientLocked() error {
+// detachAndCloseClientLocked temporarily releases e.mu while Client.Close
+// joins the OpenD read worker. Notification callbacks may themselves need
+// e.mu, so waiting for the worker while holding that lock deadlocks reconnects.
+func (e *Exchange) detachAndCloseClientLocked() error {
+	client := e.detachClientLocked()
+	e.mu.Unlock()
+	err := closeOpenDClient(client)
+	e.mu.Lock()
+	return err
+}
+
+func (e *Exchange) detachClientLocked() *opend.Client {
 	client := e.client
 	if e.ready {
 		e.connectionGeneration++
@@ -414,10 +426,14 @@ func (e *Exchange) invalidateClientLocked() error {
 	e.systemNotifyClient = nil
 	e.orderUpdateNotifyClient = nil
 	e.tradeAccountPushClient = nil
-	if client != nil {
-		return client.Close()
+	return client
+}
+
+func closeOpenDClient(client *opend.Client) error {
+	if client == nil {
+		return nil
 	}
-	return nil
+	return client.Close()
 }
 
 func isRecoverableOpenDErr(err error) bool {

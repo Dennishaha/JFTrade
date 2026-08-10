@@ -23,6 +23,10 @@ const defaults = runDevDesktop({
   JFTRADE_YFINANCE_SIDECAR: "",
   JFTRADE_YFINANCE_DEV_PYTHON: "",
   JFTRADE_YFINANCE_DEV_PYTHONPATH: "",
+  JFTRADE_PINEWORKER_BUNDLE: "",
+  JFTRADE_PINEWORKER_RUNTIME: "",
+  JFTRADE_PINEWORKER_DISABLED: "",
+  JFTRADE_PINEWORKER_DEV_OUT_DIR: "",
   VITE_API_BASE_URL: "",
   VITE_DEV_API_TARGET: "",
 });
@@ -70,6 +74,14 @@ assert(
   defaults.stdout.includes("JFTRADE_MARKETDATA_DEV_MODE="),
   "desktop dev did not report its market-data runtime selection",
 );
+assert(
+  defaults.stdout.includes(
+    `JFTRADE_PINEWORKER_BUNDLE=${path.join(rootDir, "var", "pineworker", "worker.mjs")}`,
+  ) &&
+    defaults.stdout.includes(`JFTRADE_PINEWORKER_RUNTIME=${process.execPath}`) &&
+    defaults.stdout.includes("JFTRADE_PINEWORKER_DEV_MODE=development"),
+  "desktop dev did not configure the PineTS development worker",
+);
 
 const overrides = runDevDesktop({
   JFTRADE_SETTINGS_PATH: path.join(rootDir, "tmp", "settings.json"),
@@ -77,6 +89,8 @@ const overrides = runDevDesktop({
   JFTRADE_API_BIND: "127.0.0.1:7788",
   DISABLE_MARKETS_CACHE: "0",
   JFTRADE_MARKETDATA_SIDECAR: path.join(rootDir, "tmp", "marketdata-sidecar"),
+  JFTRADE_PINEWORKER_BUNDLE: path.join(rootDir, "tmp", "worker.mjs"),
+  JFTRADE_PINEWORKER_RUNTIME: path.join(rootDir, "tmp", "node"),
   VITE_API_BASE_URL: "http://127.0.0.1:8899",
   VITE_DEV_API_TARGET: "http://127.0.0.1:8899",
 });
@@ -147,6 +161,28 @@ assert(
   overrides.stdout.includes("VITE_DEV_API_TARGET=http://127.0.0.1:8899"),
   "desktop dev did not preserve the Vite proxy target override",
 );
+assert(
+  overrides.stdout.includes(
+    `JFTRADE_PINEWORKER_BUNDLE=${path.join(rootDir, "tmp", "worker.mjs")}`,
+  ) &&
+    overrides.stdout.includes(
+      `JFTRADE_PINEWORKER_RUNTIME=${path.join(rootDir, "tmp", "node")}`,
+    ) &&
+    overrides.stdout.includes("JFTRADE_PINEWORKER_DEV_MODE=configured"),
+  "desktop dev did not preserve the explicit Pine worker runtime",
+);
+
+const pineWorkerDisabled = runDevDesktop({
+  JFTRADE_PINEWORKER_BUNDLE: "",
+  JFTRADE_PINEWORKER_RUNTIME: "",
+  JFTRADE_PINEWORKER_DISABLED: "true",
+});
+assert(
+  pineWorkerDisabled.status === 0 &&
+    pineWorkerDisabled.stdout.includes("JFTRADE_PINEWORKER_DEV_MODE=disabled") &&
+    !pineWorkerDisabled.stdout.includes("JFTRADE_PINEWORKER_BUNDLE="),
+  "desktop dev did not honor the Pine worker disabled override",
+);
 
 const implementation = readFileSync(
   path.join(rootDir, "scripts", "dev-desktop.mjs"),
@@ -182,6 +218,12 @@ assert(
     implementation.includes("validCodeSignature") &&
     implementation.includes("JFTrade native development bundle cache hit"),
   "desktop dev native fingerprint/signature cache is missing",
+);
+assert(
+  implementation.includes("buildDevWorker") &&
+    implementation.includes("preparePineWorkerRuntime()") &&
+    implementation.includes("pineWorkerPreparation"),
+  "desktop dev does not prepare the PineTS worker before launching the app",
 );
 assert(
   !implementation.includes("build-marketdata-sidecar.mjs"),

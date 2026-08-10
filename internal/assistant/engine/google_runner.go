@@ -62,6 +62,7 @@ type googleADKExecution struct {
 	loadRun                  func(context.Context, string) (Run, bool, error)
 	persistRunSnapshot       func(Run) (Run, error)
 	processedConfirmationIDs map[string]struct{}
+	workflowGraphFingerprint string
 	runtime                  *Runtime
 }
 
@@ -312,6 +313,10 @@ func (r *Runtime) NewGoogleADKWorkflowExecution(
 		return nil, fmt.Errorf("workflow requires at least one sub-agent")
 	}
 	edges, err := compileGoogleADKWorkflowEdges(steps, childNodes)
+	if err != nil {
+		return nil, err
+	}
+	execution.workflowGraphFingerprint, err = r.googleADKWorkflowGraphFingerprint(ctx, definition, parent, steps)
 	if err != nil {
 		return nil, err
 	}
@@ -613,18 +618,32 @@ func (r *Runtime) attachGoogleADKRunner(
 	if service == nil {
 		service = adksession.InMemoryService()
 	}
-	if _, err := service.Get(ctx, &adksession.GetRequest{
+	sessionResponse, err := service.Get(ctx, &adksession.GetRequest{
 		AppName: execution.appName, UserID: googleADKUserID, SessionID: productSession.ID,
-	}); err != nil {
+	})
+	var adkSession adksession.Session
+	if err != nil {
 		lowerErr := strings.ToLower(err.Error())
 		if !errors.Is(err, gorm.ErrRecordNotFound) && !strings.Contains(lowerErr, "record not found") && !strings.Contains(lowerErr, "not found") {
 			return nil, fmt.Errorf("get GO-ADK session: %w", err)
 		}
-		if _, createErr := service.Create(ctx, &adksession.CreateRequest{
+		createResponse, createErr := service.Create(ctx, &adksession.CreateRequest{
 			AppName: execution.appName, UserID: googleADKUserID, SessionID: productSession.ID,
-		}); createErr != nil {
+		})
+		if createErr != nil {
 			return nil, fmt.Errorf("create GO-ADK session: %w", createErr)
 		}
+		if createResponse != nil {
+			adkSession = createResponse.Session
+		}
+	} else if sessionResponse != nil {
+		adkSession = sessionResponse.Session
+	}
+	if adkSession == nil {
+		return nil, fmt.Errorf("GO-ADK session is unavailable")
+	}
+	if err := r.persistGoogleADKWorkflowGraph(ctx, service, adkSession, execution); err != nil {
+		return nil, err
 	}
 	executionPlugin, err := execution.plugin()
 	if err != nil {

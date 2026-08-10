@@ -17,7 +17,6 @@ const (
 	workflowStatusComplete = jfadkmodel.WorkflowStatusComplete
 	workflowStatusFailed   = jfadkmodel.WorkflowStatusFailed
 
-	workflowPlanSourcePlanner = jfadkmodel.WorkflowPlanSourcePlanner
 	workflowPlanSourceRuntime = jfadkmodel.WorkflowPlanSourceRuntime
 	workflowPlanSourceCanvas  = jfadkmodel.WorkflowPlanSourceCanvas
 
@@ -111,20 +110,6 @@ func (e *WorkflowExecutor) createInitialGoalTask(ctx context.Context, parent Run
 	})
 }
 
-func (e *WorkflowExecutor) PlanWorkflowSteps(ctx context.Context, req workflowRequest, mode string, objective string) ([]workflowStep, []string, error) {
-	steps, warnings, err := e.runtime.PlanWorkflowWithADK(ctx, req.Agent, req.Session, mode, req.Message, objective, req.RunOptions)
-	if err == nil && len(steps) > 0 {
-		for index := range steps {
-			steps[index].PlanSource = workflowPlanSourcePlanner
-		}
-		return steps, warnings, nil
-	}
-	if err != nil {
-		return nil, warnings, fmt.Errorf("workflow planner failed: %w", err)
-	}
-	return nil, warnings, fmt.Errorf("workflow planner returned no steps")
-}
-
 func (e *WorkflowExecutor) PersistWorkflowTasks(ctx context.Context, parent Run, agent Agent, steps []workflowStep) ([]Task, error) {
 	tasks := make([]Task, 0, len(steps))
 	taskIDByDependencyID := make(map[string]string, len(steps))
@@ -183,37 +168,6 @@ type workflowExecutionResult struct {
 	execution     jfadkmodel.WorkflowExecutionHandle
 	approvals     []Approval
 	inputRequests map[string]*InputRequest
-}
-
-func (e *WorkflowExecutor) RunNativeTaskGraphWorkflow(ctx context.Context, req workflowRequest, parent Run, steps []workflowStep, tasks []Task) (ChatResponse, error) {
-	childRuns, finishes, err := e.StartWorkflowChildRuns(ctx, req, parent, steps, tasks)
-	defer finishWorkflowChildren(finishes)
-	if err != nil {
-		return e.failedWorkflowResponse(ctx, req, parent, err)
-	}
-	parent, err = e.PrepareWorkflowParent(ctx, req, parent, childRuns)
-	if err != nil {
-		return e.failedWorkflowResponse(ctx, req, parent, err)
-	}
-	execution, err := e.runtime.NewGoogleADKWorkflowExecution(ctx, req.Agent, req.Session, parent, childRuns, steps, parent.WorkMode, req.RunOptions, req.OnDelta)
-	if err != nil {
-		return e.failedWorkflowResponse(ctx, req, parent, err)
-	}
-	executionResult, parent, err := e.ExecuteStartedWorkflowGraph(ctx, req, parent, childRuns, steps, execution)
-	if err != nil {
-		return e.failedWorkflowResponse(ctx, req, parent, err)
-	}
-	if len(executionResult.inputRequests) > 0 {
-		return e.finishWorkflowPendingInputs(ctx, req, parent, tasks, childRuns, executionResult)
-	}
-	if err := e.EnsureWorkflowChildrenFinalReplies(ctx, req, executionResult.execution, childRuns, steps, executionResult.approvals); err != nil {
-		return e.failedWorkflowResponse(ctx, req, parent, err)
-	}
-	responses, err := e.CompleteWorkflowChildrenFromADK(ctx, req, executionResult.execution, childRuns, executionResult.approvals)
-	if err != nil {
-		return e.failedWorkflowResponse(ctx, req, parent, err)
-	}
-	return e.FinalizePlannedWorkflow(ctx, req, parent, tasks, responses, executionResult.approvals)
 }
 
 func (e *WorkflowExecutor) RunPlannedGoogleADKWorkflow(ctx context.Context, req workflowRequest, parent Run, steps []workflowStep, tasks []Task) (ChatResponse, error) {

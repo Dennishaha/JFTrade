@@ -30,18 +30,14 @@ func TestWorkflowExecutorAdditionalBoundaryBranches(t *testing.T) {
 	}); err == nil || !strings.Contains(err.Error(), "emit failed") {
 		t.Fatalf("emit workflow err = %v, want emit failed", err)
 	}
-	if _, _, err := executor.PlanWorkflowSteps(ctx, workflowRequest{Agent: Agent{ID: "missing", ProviderID: "missing"}}, WorkModeLoop, "objective"); err == nil || !strings.Contains(err.Error(), "workflow planner failed") {
-		t.Fatalf("PlanWorkflowSteps err = %v, want planner failed", err)
-	}
-
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "workflow-executor-parent", SessionID: session.ID, AgentID: agent.ID,
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
 	})
 	steps := []workflowStep{
-		{Title: "First", Description: "Desc", Message: "First message", DependencyID: "first", Order: 1, AgentRole: "researcher", ModeHint: WorkModeChat, PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
-		{Title: "Second", Message: "Second message", DependsOn: []string{"first", "__previous_step_1"}, DependencyID: "second", Order: 2, PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
+		{Title: "First", Description: "Desc", Message: "First message", DependencyID: "first", Order: 1, AgentRole: "researcher", ModeHint: WorkModeChat, PlanSource: jfadkmodel.WorkflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
+		{Title: "Second", Message: "Second message", DependsOn: []string{"first", "__previous_step_1"}, DependencyID: "second", Order: 2, PlanSource: jfadkmodel.WorkflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
 	}
 	tasks, err := executor.PersistWorkflowTasks(ctx, parent, agent, steps)
 	if err != nil {

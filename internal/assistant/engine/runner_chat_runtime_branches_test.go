@@ -334,16 +334,15 @@ func TestGoogleADKResumeRuntimeBranches(t *testing.T) {
 		}
 	})
 }
-
 func TestGoogleADKRunnerConstructionAndSynthesisBranches(t *testing.T) {
 	ctx := t.Context()
-
 	t.Run("attach runner handles missing session service, raw override and setup errors", func(t *testing.T) {
-		execution := &googleADKExecution{appName: "attach-app", runID: "attach-run", agent: Agent{ID: "agent"}}
+		execution := &googleADKExecution{
+			appName: "attach-app", runID: "attach-run", agent: Agent{ID: "agent"}, workflowGraphFingerprint: "graph-one",
+		}
 		productSession := Session{ID: "attach-session", AgentID: "agent"}
 		noopAgent := newNoopADKAgent(t, "attach_noop")
-
-		runtime := &Runtime{}
+		runtime := &Runtime{sessionService: adksession.InMemoryService()}
 		attached, err := runtime.attachGoogleADKRunner(ctx, execution, productSession, noopAgent)
 		if err != nil {
 			t.Fatalf("attachGoogleADKRunner default service: %v", err)
@@ -351,18 +350,13 @@ func TestGoogleADKRunnerConstructionAndSynthesisBranches(t *testing.T) {
 		if attached.runner == nil || attached.sessionService == nil {
 			t.Fatalf("attached execution = %#v, want runner and session service", attached)
 		}
-
-		raw := adksession.InMemoryService()
-		attached, err = (&Runtime{sessionService: adksession.InMemoryService(), rawSessionService: raw}).attachGoogleADKRunner(ctx, &googleADKExecution{
-			appName: "attach-app-raw", runID: "attach-run-raw", agent: Agent{ID: "agent"},
-		}, Session{ID: "attach-session-raw", AgentID: "agent"}, noopAgent)
-		if err != nil {
-			t.Fatalf("attachGoogleADKRunner raw override: %v", err)
+		if _, err := runtime.attachGoogleADKRunner(ctx, execution, productSession, noopAgent); err != nil {
+			t.Fatalf("attachGoogleADKRunner same graph: %v", err)
 		}
-		if attached.sessionService != raw {
-			t.Fatalf("attached session service = %#v, want raw override %#v", attached.sessionService, raw)
+		execution.workflowGraphFingerprint = "graph-two"
+		if _, err := runtime.attachGoogleADKRunner(ctx, execution, productSession, noopAgent); err == nil || !strings.Contains(err.Error(), "workflow graph changed") {
+			t.Fatalf("attachGoogleADKRunner drifted graph = %v", err)
 		}
-
 		if _, err := (&Runtime{sessionService: getErrorADKSessionService{Service: adksession.InMemoryService(), err: errors.New("session unavailable")}}).attachGoogleADKRunner(
 			ctx,
 			&googleADKExecution{appName: "attach-app-get-error", runID: "attach-run-get-error", agent: Agent{ID: "agent"}},
@@ -371,7 +365,6 @@ func TestGoogleADKRunnerConstructionAndSynthesisBranches(t *testing.T) {
 		); err == nil || !strings.Contains(err.Error(), "get GO-ADK session") {
 			t.Fatalf("attachGoogleADKRunner get error = %v", err)
 		}
-
 		if _, err := (&Runtime{sessionService: notFoundCreateErrorSessionService{Service: adksession.InMemoryService(), err: errors.New("create session failed")}}).attachGoogleADKRunner(
 			ctx,
 			&googleADKExecution{appName: "attach-app-create-error", runID: "attach-run-create-error", agent: Agent{ID: "agent"}},
@@ -380,7 +373,6 @@ func TestGoogleADKRunnerConstructionAndSynthesisBranches(t *testing.T) {
 		); err == nil || !strings.Contains(err.Error(), "create GO-ADK session") {
 			t.Fatalf("attachGoogleADKRunner create error = %v", err)
 		}
-
 		if _, err := (&Runtime{sessionService: adksession.InMemoryService()}).attachGoogleADKRunner(
 			ctx,
 			&googleADKExecution{appName: "attach-app-runner-error", runID: "attach-runner-error", agent: Agent{ID: "agent"}},
@@ -390,7 +382,6 @@ func TestGoogleADKRunnerConstructionAndSynthesisBranches(t *testing.T) {
 			t.Fatalf("attachGoogleADKRunner runner error = %v", err)
 		}
 	})
-
 	t.Run("final synthesis surfaces mapping and event projection errors", func(t *testing.T) {
 		runtime := newTestRuntime(t)
 		agent := mustSaveAgent(t, runtime, AgentWriteRequest{
@@ -398,7 +389,6 @@ func TestGoogleADKRunnerConstructionAndSynthesisBranches(t *testing.T) {
 		})
 		session := mustCreateSession(t, runtime, agent.ID, "final synthesis extra")
 		mustCreateADKSessionForAgent(t, runtime, agent.ID, session.ID)
-
 		err := runtime.runGoogleADKFinalSynthesis(ctx, agent, session, &googleADKExecution{
 			appName:        GoogleADKAppName(agent.ID),
 			sessionID:      session.ID,
@@ -409,7 +399,6 @@ func TestGoogleADKRunnerConstructionAndSynthesisBranches(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "mapping missing") {
 			t.Fatalf("runGoogleADKFinalSynthesis mapping err = %v", err)
 		}
-
 		err = runtime.runGoogleADKFinalSynthesis(ctx, agent, session, &googleADKExecution{
 			appName:        GoogleADKAppName(agent.ID),
 			sessionID:      session.ID,

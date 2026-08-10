@@ -142,12 +142,12 @@ func TestNativeTaskGraphPersistsCompletedAndPendingInputOutcomes(t *testing.T) {
 			parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{task}, nil)
 			mustSaveRun(t, runtime, parent)
 
-			response, err := workflowexec.NewWorkflowExecutor(runtime).RunNativeTaskGraphWorkflow(
+			response, err := workflowexec.NewWorkflowExecutor(runtime).RunPlannedGoogleADKWorkflow(
 				t.Context(), workflowRequest{Agent: agent, Session: session, Message: tc.message, Mode: WorkModeLoop},
 				parent, []workflowStep{step}, []Task{task},
 			)
 			if err != nil {
-				t.Fatalf("RunNativeTaskGraphWorkflow: %v", err)
+				t.Fatalf("RunPlannedGoogleADKWorkflow: %v", err)
 			}
 			if response.Run.Status != tc.wantStatus || len(response.Run.ChildRunIDs) != 1 {
 				t.Fatalf("native task graph response = %+v, want status %s", response, tc.wantStatus)

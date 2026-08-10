@@ -138,6 +138,7 @@ type quoteOpenDServer struct {
 	advancedResponses     map[uint32]proto.Message
 	notifyMu              sync.Mutex
 	notifyAfterInit       *notifypb.Response
+	notifyAfterState      *notifypb.Response
 	listener              net.Listener
 	stopOnce              sync.Once
 	shutdownCompleted     chan struct{}
@@ -211,6 +212,12 @@ func (s *quoteOpenDServer) setNotifyAfterInit(response *notifypb.Response) {
 	s.notifyMu.Lock()
 	defer s.notifyMu.Unlock()
 	s.notifyAfterInit = response
+}
+
+func (s *quoteOpenDServer) setNotifyAfterGlobalState(response *notifypb.Response) {
+	s.notifyMu.Lock()
+	defer s.notifyMu.Unlock()
+	s.notifyAfterState = response
 }
 
 func (s *quoteOpenDServer) setUserInfoResponse(response *getuserinfopb.Response) {
@@ -569,6 +576,11 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 				return
 			}
 		}
+		if frame.Header.ProtoID == opend.ProtoGetGlobalState {
+			if err := s.writeNotifyAfterGlobalState(conn); err != nil {
+				return
+			}
+		}
 		if frame.Header.ProtoID == opend.ProtoQotSub {
 			request := &qotsubpb.Request{}
 			jftradeErr6 := proto.Unmarshal(frame.Body, request)
@@ -637,6 +649,26 @@ func (s *quoteOpenDServer) writeNotifyAfterInit(conn net.Conn) error {
 	}
 
 	time.Sleep(25 * time.Millisecond)
+	body, err := proto.Marshal(response)
+	if err != nil {
+		return err
+	}
+	packet, err := codec.Encode(opend.ProtoNotify, 0, body)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Write(packet)
+	return err
+}
+
+func (s *quoteOpenDServer) writeNotifyAfterGlobalState(conn net.Conn) error {
+	s.notifyMu.Lock()
+	response := s.notifyAfterState
+	s.notifyMu.Unlock()
+	if response == nil {
+		return nil
+	}
+
 	body, err := proto.Marshal(response)
 	if err != nil {
 		return err

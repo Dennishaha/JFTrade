@@ -221,11 +221,11 @@ func TestWorkflowExecutorSaveAndCancelBranches(t *testing.T) {
 		if err != nil {
 			t.Fatalf("SaveTask(prepare): %v", err)
 		}
-		response, err := executor.RunNativeTaskGraphWorkflow(ctx, workflowRequest{
+		response, err := executor.RunPlannedGoogleADKWorkflow(ctx, workflowRequest{
 			Agent: agent, Session: session, Message: "run native workflow prepare failure",
 		}, prepareParent, []workflowStep{prepareStep}, []Task{prepareTask})
-		if err == nil || !strings.Contains(err.Error(), "persist failed workflow state") {
-			t.Fatalf("RunNativeTaskGraphWorkflow prepare err = %v, want durable failure-state error", err)
+		if err == nil || !strings.Contains(err.Error(), "unsupported type: chan int") {
+			t.Fatalf("RunPlannedGoogleADKWorkflow prepare err = %v, want snapshot encoding error", err)
 		}
 		if response.Run.ID != "" {
 			t.Fatalf("prepare failure response = %+v, want no successful response", response)
@@ -252,11 +252,11 @@ func TestWorkflowExecutorSaveAndCancelBranches(t *testing.T) {
 		if err != nil {
 			t.Fatalf("SaveTask(compile): %v", err)
 		}
-		response, err = executor.RunNativeTaskGraphWorkflow(ctx, workflowRequest{
+		response, err = executor.RunPlannedGoogleADKWorkflow(ctx, workflowRequest{
 			Agent: agent, Session: session, Message: "run native workflow compile failure",
 		}, compileParent, []workflowStep{compileStep}, []Task{compileTask})
 		if err != nil {
-			t.Fatalf("RunNativeTaskGraphWorkflow compile err = %v", err)
+			t.Fatalf("RunPlannedGoogleADKWorkflow compile err = %v", err)
 		}
 		if response.Run.Status != RunStatusFailed || !strings.Contains(response.Reply, "unknown dependency") {
 			t.Fatalf("compile failure response = %+v", response)

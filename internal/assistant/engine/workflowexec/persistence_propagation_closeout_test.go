@@ -153,7 +153,7 @@ func TestNativeTaskGraphProviderFailurePersistsTheParent(t *testing.T) {
 	parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{task}, nil)
 	mustSaveRun(t, runtime, parent)
 
-	response, err := (&WorkflowExecutor{runtime: runtime}).RunNativeTaskGraphWorkflow(
+	response, err := (&WorkflowExecutor{runtime: runtime}).RunPlannedGoogleADKWorkflow(
 		t.Context(), workflowRequest{Agent: agent, Session: session, Message: step.Message, Mode: WorkModeLoop},
 		parent, []workflowStep{step}, []Task{task},
 	)

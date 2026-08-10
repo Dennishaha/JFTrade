@@ -53,8 +53,10 @@ func TestWorkflowCanvasCompilerSequentialFanOutAndJoin(t *testing.T) {
 	if strings.Join(report.DependsOn, ",") != "fetch,risk" || report.ChildProviderID != "provider-b" || report.ChildModel != "model-b" {
 		t.Fatalf("report step = %+v, want fan-in dependencies and overrides", report)
 	}
+	if got := googleADKWorkflowFingerprintSteps(nil, []workflowStep{{Title: "fallback"}}); len(got) != 1 || got[0].Title != "fallback" {
+		t.Fatalf("workflow fingerprint fallback steps = %+v", got)
+	}
 }
-
 func TestWorkflowCanvasCompilerRejectsInvalidGraphs(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -128,7 +130,6 @@ func TestWorkflowCanvasCompilerRejectsInvalidGraphs(t *testing.T) {
 		})
 	}
 }
-
 func TestRunCanvasWorkflowExecutesAReachableAgentGraph(t *testing.T) {
 	runtime := newTestRuntime(t)
 	ensureTestProvider(t, runtime)
@@ -136,7 +137,6 @@ func TestRunCanvasWorkflowExecutesAReachableAgentGraph(t *testing.T) {
 		ID: "canvas-run-agent", Name: "Canvas Run Agent", Status: AgentStatusEnabled,
 		WorkMode: WorkModeChat, PermissionMode: PermissionModeLessApproval,
 	})
-
 	response, err := runtime.RunCanvasWorkflow(context.Background(), WorkflowCanvasRunRequest{
 		Workflow: WorkflowDefinition{
 			ID: "run-canvas", Name: "Run Canvas", AgentID: agent.ID,
@@ -164,14 +164,12 @@ func TestRunCanvasWorkflowExecutesAReachableAgentGraph(t *testing.T) {
 		t.Fatalf("canvas response = %+v", response)
 	}
 }
-
 func TestRunCanvasWorkflowPausesForAChildInputRequest(t *testing.T) {
 	runtime := newTestRuntime(t)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "canvas-input-agent", Name: "Canvas Input Agent", Status: AgentStatusEnabled,
 		WorkMode: WorkModeChat, PermissionMode: PermissionModeAll,
 	})
-
 	response, err := runtime.RunCanvasWorkflow(t.Context(), WorkflowCanvasRunRequest{
 		Workflow: WorkflowDefinition{
 			ID: "canvas-input", Name: "Canvas Input", AgentID: agent.ID,
@@ -205,8 +203,23 @@ func TestRunCanvasWorkflowPausesForAChildInputRequest(t *testing.T) {
 	if runtime.adkRuns[response.Run.ID] == nil || runtime.adkRuns[childID] == nil {
 		t.Fatalf("paused canvas execution must remain resumable: parent=%p child=%p", runtime.adkRuns[response.Run.ID], runtime.adkRuns[childID])
 	}
+	if err := runtime.validateGoogleADKWorkflowResume(t.Context(), child); err != nil {
+		t.Fatalf("unchanged canvas graph resume guard: %v", err)
+	}
+	rawService := runtime.rawSessionService
+	runtime.rawSessionService = nil
+	if err := runtime.validateGoogleADKWorkflowResume(t.Context(), child); err != nil {
+		t.Fatalf("wrapped canvas graph resume guard: %v", err)
+	}
+	runtime.rawSessionService = rawService
+	response.Run.WorkflowPlan[0].Message = "changed after the workflow paused"
+	if err := runtime.Store().SaveRun(t.Context(), response.Run); err != nil {
+		t.Fatalf("SaveRun drifted canvas graph: %v", err)
+	}
+	if err := runtime.validateGoogleADKWorkflowResume(t.Context(), child); err == nil || !strings.Contains(err.Error(), "workflow graph changed") {
+		t.Fatalf("drifted canvas graph resume guard = %v", err)
+	}
 }
-
 func TestRunCanvasWorkflowFailsClosedWhenTheChildProviderIsUnavailable(t *testing.T) {
 	runtime := newTestRuntime(t)
 	unavailable := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -222,7 +235,6 @@ func TestRunCanvasWorkflowFailsClosedWhenTheChildProviderIsUnavailable(t *testin
 		ID: "canvas-unavailable-agent", Name: "Canvas Unavailable Agent", ProviderID: providerID,
 		Status: AgentStatusEnabled, WorkMode: WorkModeChat, PermissionMode: PermissionModeLessApproval,
 	})
-
 	response, err := runtime.RunCanvasWorkflow(t.Context(), WorkflowCanvasRunRequest{
 		Workflow: WorkflowDefinition{
 			ID: "canvas-unavailable", Name: "Canvas Unavailable", AgentID: agent.ID,
@@ -247,7 +259,6 @@ func TestRunCanvasWorkflowFailsClosedWhenTheChildProviderIsUnavailable(t *testin
 		t.Fatalf("stored provider outage run = %+v ok=%v err=%v", stored, ok, err)
 	}
 }
-
 func canvasNode(id string, nodeType string, data map[string]any) WorkflowCanvasNode {
 	return WorkflowCanvasNode{ID: id, Type: nodeType, Position: WorkflowCanvasPoint{}, Data: data}
 }

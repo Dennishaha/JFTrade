@@ -143,15 +143,16 @@ func (e *Exchange) ConnectionGeneration() uint64 {
 		return 0
 	}
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	if e.ready && e.client != nil {
 		select {
 		case <-e.client.Done():
-			besteffort.LogError(e.invalidateClientLocked())
+			besteffort.LogError(e.detachAndCloseClientLocked())
 		default:
 		}
 	}
-	return e.connectionGeneration
+	generation := e.connectionGeneration
+	e.mu.Unlock()
+	return generation
 }
 
 // OnSystemNotify registers a handler for OpenD system notifications (protocol
@@ -478,12 +479,14 @@ func (e *Exchange) Connect(ctx context.Context) error {
 // Close terminates the cached OpenD session.
 func (e *Exchange) Close() error {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	if e.closed {
+		e.mu.Unlock()
 		return nil
 	}
 	e.closed = true
-	return e.invalidateClientLocked()
+	client := e.detachClientLocked()
+	e.mu.Unlock()
+	return closeOpenDClient(client)
 }
 
 func init() {

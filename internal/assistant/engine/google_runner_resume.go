@@ -92,6 +92,9 @@ func isIgnorableDirectApprovalResumeError(err error, toolContext ToolExecutionCo
 }
 
 func (r *Runtime) loadResumedExecution(ctx context.Context, run Run) (*googleADKExecution, bool, error) {
+	if err := r.validateGoogleADKWorkflowResume(ctx, run); err != nil {
+		return nil, true, err
+	}
 	r.adkMu.Lock()
 	execution := r.adkRuns[run.ID]
 	r.adkMu.Unlock()

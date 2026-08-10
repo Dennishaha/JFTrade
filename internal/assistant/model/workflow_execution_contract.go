@@ -66,7 +66,6 @@ type WorkflowExecutorRuntime interface {
 	SaveRunPreservingUserGoalPause(ctx context.Context, run Run) (Run, error)
 	StartRunWithOptions(ctx context.Context, sessionID string, agent Agent, text string, options RunStartOptions) (Run, context.Context, func(), error)
 	ChatResponseForExistingRun(ctx context.Context, run Run) (ChatResponse, error)
-	PlanWorkflowWithADK(ctx context.Context, agent Agent, session Session, mode string, message string, objective string, options RunOptions) ([]WorkflowStep, []string, error)
 	NewGoogleADKWorkflowExecution(ctx context.Context, agent Agent, session Session, parent Run, childRuns []Run, steps []WorkflowStep, mode string, options RunOptions, onDelta func(ChatDelta) error) (WorkflowExecutionHandle, error)
 	MaybeAutoCompactSessionDuringWorkflow(ctx context.Context, session Session, agent Agent, pendingUserText string, onDelta func(ChatDelta) error) error
 	PendingInputRequests(ctx context.Context, execution WorkflowExecutionHandle) (map[string]*InputRequest, error)

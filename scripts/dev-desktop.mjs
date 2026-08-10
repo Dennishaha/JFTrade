@@ -13,6 +13,7 @@ import {
 import path from "node:path";
 import process from "node:process";
 
+import { buildDevWorker, nodeRuntimePath } from "./build-pineworker-dev.mjs";
 import {
   nativeBundleCacheReusable,
   selectMarketDataDevelopmentRuntime,
@@ -33,6 +34,7 @@ const apiBaseUrl = apiBaseURLForBind(apiBind);
 const frontendURL =
   process.env.FRONTEND_DEVSERVER_URL || "http://127.0.0.1:3003";
 const marketDataRuntime = resolveMarketDataRuntime();
+const pineWorkerRuntime = resolvePineWorkerDevelopmentRuntime();
 const devEnv = {
   JFTRADE_DESKTOP_MODE: "1",
   FRONTEND_DEVSERVER_URL: frontendURL,
@@ -45,10 +47,11 @@ const devEnv = {
   VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || apiBaseUrl,
   VITE_DEV_API_TARGET: process.env.VITE_DEV_API_TARGET || apiBaseUrl,
   ...marketDataRuntime.environment,
+  ...pineWorkerRuntime.environment,
 };
 
 if (dryRun) {
-  printDryRun(devEnv, marketDataRuntime.mode);
+  printDryRun(devEnv, marketDataRuntime.mode, pineWorkerRuntime.mode);
   process.exit(0);
 }
 
@@ -65,7 +68,12 @@ try {
   children.push(web);
 
   const nativePreparation = prepareDesktopExecutable();
-  await Promise.all([nativePreparation, waitForURL(frontendURL, web)]);
+  const pineWorkerPreparation = preparePineWorkerRuntime();
+  await Promise.all([
+    nativePreparation,
+    pineWorkerPreparation,
+    waitForURL(frontendURL, web),
+  ]);
   const desktop = await nativePreparation;
   const app = launchLongRunning(desktop.command, desktop.args, devEnv);
   children.push(app);
@@ -340,6 +348,12 @@ async function prepareFrontendDependencies() {
   );
 }
 
+async function preparePineWorkerRuntime() {
+  if (!pineWorkerRuntime.build) return;
+  const bundle = await buildDevWorker({ printPath: false });
+  devEnv.JFTRADE_PINEWORKER_BUNDLE = bundle;
+}
+
 async function waitForURL(url, processToWatch) {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
@@ -415,6 +429,34 @@ function resolveMarketDataRuntime() {
   return { mode: "unavailable", environment: {} };
 }
 
+function resolvePineWorkerDevelopmentRuntime() {
+  if (environmentFlagEnabled("JFTRADE_PINEWORKER_DISABLED")) {
+    return { mode: "disabled", build: false, environment: {} };
+  }
+  const configuredBundle = process.env.JFTRADE_PINEWORKER_BUNDLE?.trim();
+  const build = !configuredBundle;
+  const bundle =
+    configuredBundle ||
+    path.resolve(
+      process.env.JFTRADE_PINEWORKER_DEV_OUT_DIR ||
+        path.join(rootDir, "var", "pineworker"),
+      "worker.mjs",
+    );
+  return {
+    mode: build ? "development" : "configured",
+    build,
+    environment: {
+      JFTRADE_PINEWORKER_BUNDLE: bundle,
+      JFTRADE_PINEWORKER_RUNTIME:
+        process.env.JFTRADE_PINEWORKER_RUNTIME?.trim() || nodeRuntimePath(),
+    },
+  };
+}
+
+function environmentFlagEnabled(name) {
+  return /^(?:1|true|yes|on)$/i.test(process.env[name]?.trim() || "");
+}
+
 function usableRegularFile(file) {
   try {
     return statSync(file).isFile();
@@ -464,7 +506,7 @@ function stagedMarketDataSidecarPath() {
   );
 }
 
-function printDryRun(environment, mode) {
+function printDryRun(environment, marketDataMode, pineWorkerMode) {
   for (const key of [
     "FRONTEND_DEVSERVER_URL",
     "JFTRADE_DESKTOP_MODE",
@@ -478,12 +520,15 @@ function printDryRun(environment, mode) {
     "JFTRADE_YFINANCE_SIDECAR",
     "JFTRADE_YFINANCE_DEV_PYTHON",
     "JFTRADE_YFINANCE_DEV_PYTHONPATH",
+    "JFTRADE_PINEWORKER_BUNDLE",
+    "JFTRADE_PINEWORKER_RUNTIME",
     "VITE_API_BASE_URL",
     "VITE_DEV_API_TARGET",
   ]) {
     if (environment[key]) console.log(`${key}=${environment[key]}`);
   }
-  console.log(`JFTRADE_MARKETDATA_DEV_MODE=${mode}`);
+  console.log(`JFTRADE_MARKETDATA_DEV_MODE=${marketDataMode}`);
+  console.log(`JFTRADE_PINEWORKER_DEV_MODE=${pineWorkerMode}`);
 }
 
 function apiBaseURLForBind(bind) {

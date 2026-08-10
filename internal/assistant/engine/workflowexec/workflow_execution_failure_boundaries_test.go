@@ -1,16 +1,12 @@
 package workflowexec
 
 import (
-	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
 	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
@@ -112,21 +108,6 @@ func TestWorkflowResponseIndexProtectsTaskState(t *testing.T) {
 func TestWorkflowExecutionSetupSurfacesRecoverableFailures(t *testing.T) {
 	ctx := t.Context()
 
-	t.Run("planner projects executable steps through the production tool loop", func(t *testing.T) {
-		runtime := newTestRuntime(t)
-		providerID := saveWorkflowPlanProvider(t, runtime, "coverage98-workflow-plan-provider", workflowPlanCompletionResponder)
-		agent := mustSaveAgent(t, runtime, jfadk.AgentWriteRequest{
-			ID: "coverage98-workflow-plan-agent", Name: "Workflow Planner", ProviderID: providerID, Status: jfadk.AgentStatusEnabled, WorkMode: jfadk.WorkModeLoop,
-		})
-		session := mustCreateSession(t, runtime, agent.ID, "workflow planner step projection")
-		steps, warnings, err := (&WorkflowExecutor{runtime: runtime}).PlanWorkflowSteps(ctx, workflowRequest{
-			Agent: agent, Session: session, Message: "审查风险并给出结论", Objective: "审查风险并给出结论", Mode: WorkModeLoop,
-		}, WorkModeLoop, "审查风险并给出结论")
-		if err != nil || len(steps) == 0 || steps[0].PlanSource != workflowPlanSourcePlanner {
-			t.Fatalf("planner step projection = %#v warnings=%#v err=%v", steps, warnings, err)
-		}
-	})
-
 	t.Run("native graph start and execution setup failures become failed parent responses", func(t *testing.T) {
 		runtime := newTestRuntime(t)
 		agent := mustSaveAgent(t, runtime, jfadk.AgentWriteRequest{
@@ -139,7 +120,7 @@ func TestWorkflowExecutionSetupSurfacesRecoverableFailures(t *testing.T) {
 			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
 		})
 		req := workflowRequest{Agent: agent, Session: session, Message: "start child", Mode: WorkModeLoop}
-		response, err := (&WorkflowExecutor{runtime: runtime}).RunNativeTaskGraphWorkflow(ctx, req, parent, []workflowStep{{
+		response, err := (&WorkflowExecutor{runtime: runtime}).RunPlannedGoogleADKWorkflow(ctx, req, parent, []workflowStep{{
 			Title: "Missing child", Message: "do not start", ChildAgentID: "coverage98-child-agent-missing",
 		}}, nil)
 		if err != nil || response.Run.Status != RunStatusFailed || !strings.Contains(response.Run.FailureReason, "agent not found") {
@@ -177,71 +158,4 @@ func TestWorkflowExecutionSetupSurfacesRecoverableFailures(t *testing.T) {
 			t.Fatalf("started workflow runner error = %v", err)
 		}
 	})
-}
-
-func workflowPlanCompletionResponder(req providers.OpenAIChatRequest) providers.OpenAIChatMessage {
-	names := map[string]bool{}
-	for _, tool := range req.Tools {
-		name := providers.RestoreToolNameFromOpenAI(tool.Function.Name)
-		if name != "" {
-			names[name] = true
-		}
-	}
-	seen := map[string]bool{}
-	for _, message := range req.Messages {
-		if message.Role == "tool" {
-			name := providers.RestoreToolNameFromOpenAI(message.Name)
-			if name != "" {
-				seen[name] = true
-			}
-		}
-	}
-	call := func(name string, args map[string]any) providers.OpenAIChatMessage {
-		rawArgs, marshalErr := json.Marshal(args)
-		if marshalErr != nil {
-			return providers.OpenAIChatMessage{Role: "assistant", Content: "bad args"}
-		}
-		toolCall := providers.OpenAIToolCall{ID: "call-" + name, Type: "function"}
-		toolCall.Function.Name = providers.SanitizeToolNameForOpenAI(name)
-		toolCall.Function.Arguments = string(rawArgs)
-		return providers.OpenAIChatMessage{Role: "assistant", ToolCalls: []providers.OpenAIToolCall{toolCall}}
-	}
-	switch {
-	case names[jfadkmodel.WorkflowPlanResetTool] && !seen[jfadkmodel.WorkflowPlanResetTool]:
-		return call(jfadkmodel.WorkflowPlanResetTool, map[string]any{})
-	case names[jfadkmodel.WorkflowPlanAddStepTool] && !seen[jfadkmodel.WorkflowPlanAddStepTool]:
-		return call(jfadkmodel.WorkflowPlanAddStepTool, map[string]any{
-			"order": 1, "title": "审查风险", "message": "审查风险并给出结论", "description": "审查风险并给出结论",
-			"modeHint": WorkModeLoop, "agentRole": "执行子 Agent",
-		})
-	case names[jfadkmodel.WorkflowPlanFinishTool] && !seen[jfadkmodel.WorkflowPlanFinishTool]:
-		return call(jfadkmodel.WorkflowPlanFinishTool, map[string]any{})
-	default:
-		return providers.OpenAIChatMessage{Role: "assistant", Content: "已完成审查。"}
-	}
-}
-
-func saveWorkflowPlanProvider(t *testing.T, runtime *jfadk.Runtime, providerID string, responder func(providers.OpenAIChatRequest) providers.OpenAIChatMessage) string {
-	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
-			http.NotFound(w, r)
-			return
-		}
-		defer func() { _ = r.Body.Close() }()
-		var req providers.OpenAIChatRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(providers.OpenAIChatResponse{Choices: []struct {
-			Message providers.OpenAIChatMessage `json:"message"`
-		}{{Message: responder(req)}}})
-	}))
-	t.Cleanup(server.Close)
-	mustSaveProvider(t, runtime, ProviderWriteRequest{
-		ID: providerID, DisplayName: providerID, BaseURL: server.URL, Model: "test-model", APIKey: "sk-test", Enabled: true,
-	})
-	return providerID
 }

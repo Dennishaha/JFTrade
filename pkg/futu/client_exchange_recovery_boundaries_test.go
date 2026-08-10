@@ -1,6 +1,7 @@
 package futu
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -100,6 +101,97 @@ func TestExchangeReconnectsClosedReadyClientAndCoversHandlerBoundaries(t *testin
 	empty.tradeAccountPushIDs = []uint64{1}
 	if err := empty.resubscribeTradeAccountPushLocked(t.Context(), closed); err == nil {
 		t.Fatal("closed-client trade push resubscribe error = nil")
+	}
+}
+
+func TestReconnectDoesNotDeadlockWithInFlightNotification(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setNotifyAfterGlobalState(&notifypb.Response{
+		RetType: new(int32(0)),
+		S2C: &notifypb.S2C{
+			Type: new(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
+			ConnectStatus: &notifypb.ConnectStatus{
+				QotLogined: new(true),
+				TrdLogined: new(true),
+			},
+		},
+	})
+	t.Cleanup(server.stop)
+
+	exchange := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: time.Second})
+	t.Cleanup(func() { jftradeCheckTestError(t, exchange.Close()) })
+
+	handlerStarted := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	handlerDone := make(chan struct{})
+	exchange.OnSystemNotify(func(*notifypb.Response) {
+		close(handlerStarted)
+		<-releaseHandler
+		_ = exchange.ConnectionGeneration()
+		close(handlerDone)
+	})
+	if err := exchange.Connect(t.Context()); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	select {
+	case <-handlerStarted:
+	case <-time.After(time.Second):
+		t.Fatal("OpenD notification handler did not start")
+	}
+	server.setNotifyAfterGlobalState(nil)
+
+	client := exchange.Client()
+	closeDone := make(chan error, 1)
+	go func() { closeDone <- client.Close() }()
+	select {
+	case <-client.Done():
+	case <-time.After(time.Second):
+		t.Fatal("OpenD client did not begin closing")
+	}
+
+	reconnectDone := make(chan error, 1)
+	go func() { reconnectDone <- exchange.Connect(t.Context()) }()
+	waitForDetachedOpenDClient(t, exchange)
+	close(releaseHandler)
+
+	select {
+	case err := <-reconnectDone:
+		if err != nil {
+			t.Fatalf("Connect() after transport close error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("OpenD reconnect deadlocked while closing the notification worker")
+	}
+	select {
+	case err := <-closeDone:
+		if err != nil {
+			t.Fatalf("client.Close() error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("OpenD client close did not join the notification worker")
+	}
+	select {
+	case <-handlerDone:
+	case <-time.After(time.Second):
+		t.Fatal("OpenD notification handler did not finish")
+	}
+	if generation := exchange.ConnectionGeneration(); generation < 3 {
+		t.Fatalf("connection generation = %d, want reconnect generation", generation)
+	}
+}
+
+func waitForDetachedOpenDClient(t *testing.T, exchange *Exchange) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for exchange.activeClient.Load() != nil {
+		select {
+		case <-ctx.Done():
+			t.Fatal("OpenD client was not detached")
+		case <-ticker.C:
+		}
 	}
 }
 
