@@ -28,6 +28,8 @@ ADK 是 JFTrade 的核心差异化能力，不是可以随时裁掉的辅助模�
 - HITL：需要审批的工具使用 ADK `RequestConfirmation` 和 `adk_request_confirmation` 协议。模型需要用户做方案决策时使用自动注入的 long-running tool `interaction.request_user`，Run 进入 `PENDING_INPUT`，回答通过原 function-call ID 恢复。原始 ADK workflow `RequestInput` 仍不是公开产品入口；非 `interaction.request_user` 的 requested-input 事件继续返回 `ADK_INPUT_UNSUPPORTED`。
 - Model：Provider 默认通过 ADK `model.LLM` 适配器调用 OpenAI-compatible `/chat/completions`；设置 `apiProtocol=responses` 时改用 ADK 官方 `openaimodel` 的 Responses API 适配器。两种协议都复用 Provider 的请求超时、默认请求头和 SSRF 防护；Responses 请求会对工具名做线上的安全字符适配，并在返回时恢复 JFTrade 原始名称。Agent 必须显式绑定启用状态的 Provider，且该 Provider 必须配置 API Key。不再提供本地确定性模型回复或 Provider 不可用时的本地文本兜底。
 
+Run usage 直接消费 ADK Go v2.2 最终、非 partial 事件上的 `UsageMetadata`：按事件 author 归属到 parent 或对应 child run，以事件 ID 去重，并把 prompt/candidate tokens 累加到已有 `tokensIn` / `tokensOut`，每个有效 usage 事件计为一次 `modelCalls`。审批或用户输入恢复从持久化 Run 的累计值继续，不重置历史统计。Responses adapter 会提供该元数据；当前 Chat Completions adapter 不额外发送私有 usage 请求参数，没有元数据时这些字段保持零值。
+
 公共思考等级固定为 `low`、`medium`、`high`、`xhigh`、`max` 五档。Agent 可以选择一个默认等级，也可以留空表示模型默认；会话覆盖为空表示跟随 Agent，不是一个额外的等级。有效优先级是会话覆盖、Agent 默认、模型默认。Provider 的 `reasoningConfig` 声明支持的公共等级、请求 JSON 点路径和实际枚举值：Responses 只默认填写 `reasoning.effort`，Chat Completions 只默认填写 `reasoning_effort`，映射默认均为空；未配置映射表示该 Provider 不支持显式推理等级。
 
 Chat Completions 和 Responses 各自由自己的 Provider adapter 注入映射后的请求字段，不再经过通用 GenAI `ThinkingConfig`。普通对话、目标规划、子 Agent、循环任务和最终汇总使用各自 Agent/Provider 解析出的等级。Run 在启动时私有持久化公共等级、请求字段和值，审批或用户输入恢复继续使用该快照；公开 Run 响应只返回公共等级。Provider 不支持 Agent 或会话要求的等级时立即返回清晰错误，不静默降级。普通后台健康检查和上下文压缩不发送推理字段。
@@ -203,6 +205,7 @@ workflow UI 是产品层投影，不改变 ADK Go v2 的执行语义。`/adk` �
 
 - JFTrade 的 `adk_sessions` / `adk_messages` 仍作为前端列表与最终消息投影视图使用，但不再是执行真相源。
 - 目标模式、parent/child run、审批队列、执行计划和 child view 都是 JFTrade 产品层投影。
+- ADK Go v2.2 的 `workflowagent.Config` 不能传入 workflow 并发选项，也只识别原生 `RequestInput` 恢复。JFTrade 暂时保留薄 workflow agent adapter，以维持 `WithMaxConcurrency`、工具审批响应、invocation 回退和恢复前会话裁剪；后续只有在原生入口能够等价表达这些语义时才移除。
 - Workflow task 工具是内部控制面工具，用于维护目标推进 TODO/DAG，不作为公开 task 模式或直接调用 child agent 的兼容层。
 - Provider tool calling 是工具执行的唯一入口；后端保留权限、审批、审计和投影控制面，并把 ADK Go v2 confirmation 与 `interaction.request_user` long-running 事件分别投影到 JFTrade Approval、InputRequest 和 timeline；其他 requested-input 事件仍直接失败为 `ADK_INPUT_UNSUPPORTED`。
 - Optimization task、Run/Audit 展示、前端 SSE 和审批列表都属于 JFTrade 产品控制面，而不是 ADK Go v2 自带控制面。

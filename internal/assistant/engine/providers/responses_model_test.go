@@ -19,7 +19,7 @@ func TestResponsesModelSendsSanitizedToolsAndRestoresCalls(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		assertResponsesProviderRequest(t, request)
 		w.Header().Set("Content-Type", "application/json")
-		_, err := w.Write([]byte(`{"id":"resp_1","model":"test-model","output":[{"type":"function_call","call_id":"call_1","name":"market-data","arguments":"{\"symbol\":\"AAPL\"}"}]}`))
+		_, err := w.Write([]byte(`{"id":"resp_1","model":"test-model","output":[{"type":"function_call","call_id":"call_1","name":"market-data","arguments":{"symbol":"AAPL"}}],"usage":{"input_tokens":12,"input_tokens_details":{"cached_tokens":2},"output_tokens":4,"output_tokens_details":{"reasoning_tokens":1},"total_tokens":16}}`))
 		if err != nil {
 			t.Errorf("write response: %v", err)
 		}
@@ -36,6 +36,51 @@ func TestResponsesModelSendsSanitizedToolsAndRestoresCalls(t *testing.T) {
 	call := response.Content.Parts[0].FunctionCall
 	if call == nil || call.Name != "market.data" || call.ID != "call_1" {
 		t.Fatalf("restored function call = %+v, want market.data/call_1", call)
+	}
+	if call.Args["symbol"] != "AAPL" {
+		t.Fatalf("restored function arguments = %#v, want symbol AAPL", call.Args)
+	}
+	if response.UsageMetadata == nil || response.UsageMetadata.PromptTokenCount != 12 || response.UsageMetadata.CandidatesTokenCount != 4 || response.UsageMetadata.ThoughtsTokenCount != 1 {
+		t.Fatalf("Responses usage = %+v, want input=12 output=4 thoughts=1", response.UsageMetadata)
+	}
+}
+
+func TestResponsesModelRetainsStreamingUsageMetadata(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		events := []string{
+			`{"type":"response.created","response":{"id":"resp_stream","model":"test-model"}}`,
+			`{"type":"response.output_text.delta","delta":"done"}`,
+			`{"type":"response.completed","response":{"id":"resp_stream","model":"test-model","usage":{"input_tokens":9,"input_tokens_details":{"cached_tokens":0},"output_tokens":3,"output_tokens_details":{"reasoning_tokens":1},"total_tokens":12}}}`,
+			`[DONE]`,
+		}
+		for _, event := range events {
+			if _, err := w.Write([]byte("data: " + event + "\n\n")); err != nil {
+				t.Errorf("write stream event: %v", err)
+				return
+			}
+		}
+	}))
+	defer server.Close()
+
+	llm, err := NewOpenAIResponsesADKModel(t.Context(), jfadkmodel.Provider{
+		BaseURL: server.URL + "/v1", Model: "test-model",
+	}, "secret", "")
+	if err != nil {
+		t.Fatalf("NewOpenAIResponsesADKModel: %v", err)
+	}
+	var final *model.LLMResponse
+	for response, responseErr := range llm.GenerateContent(t.Context(), responsesToolRequest(), true) {
+		if responseErr != nil {
+			t.Fatalf("GenerateContent: %v", responseErr)
+		}
+		final = response
+	}
+	if final == nil || final.Partial || final.UsageMetadata == nil {
+		t.Fatalf("final streaming response = %+v, want final usage", final)
+	}
+	if final.UsageMetadata.PromptTokenCount != 9 || final.UsageMetadata.CandidatesTokenCount != 3 || final.UsageMetadata.TotalTokenCount != 12 {
+		t.Fatalf("final streaming usage = %+v, want input=9 output=3 total=12", final.UsageMetadata)
 	}
 }
 

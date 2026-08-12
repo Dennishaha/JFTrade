@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/usageprojection"
 	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
@@ -62,6 +63,7 @@ type googleADKExecution struct {
 	loadRun                  func(context.Context, string) (Run, bool, error)
 	persistRunSnapshot       func(Run) (Run, error)
 	processedConfirmationIDs map[string]struct{}
+	usageProjection          usageprojection.Tracker
 	workflowGraphFingerprint string
 	runtime                  *Runtime
 }

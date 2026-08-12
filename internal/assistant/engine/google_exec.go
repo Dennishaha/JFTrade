@@ -78,6 +78,7 @@ func (e *googleADKExecution) consumeEvent(event *adksession.Event) error {
 	if requestedInputUnsupported(event) {
 		return errADKInputUnsupported
 	}
+	e.consumeUsage(event)
 	if event == nil || event.Content == nil {
 		if event != nil && !event.Partial {
 			e.mu.Lock()

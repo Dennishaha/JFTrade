@@ -41,21 +41,26 @@ func newBareGoogleADKExecution(runID string) *googleADKExecution {
 func nowUTCForCoverage() time.Time {
 	return time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC)
 }
-
 func TestGoogleADKExecutionProjectsToolResponseLifecycle(t *testing.T) {
 	execution := newBareGoogleADKExecution("root-run")
 	execution.runIDByAgentName["child-agent"] = "child-run"
 	execution.runSnapshotBaseByID["child-run"] = Run{ID: "child-run", SessionID: execution.sessionID, AgentID: execution.agent.ID, Status: RunStatusRunning, Usage: &RunUsage{}}
+	persisted := map[string]Run{}
+	execution.persistRunSnapshot = func(run Run) (Run, error) { persisted[run.ID] = run; return run, nil }
 	execution.reply.WriteString("before tools")
 	execution.reasoning.WriteString("initial reasoning")
-
-	if err := execution.consumeEvent(newProjectionEvent("call-event", "root-run", "child-agent", genai.RoleModel, []*genai.Part{{
+	callEvent := newProjectionEvent("call-event", "root-run", "child-agent", genai.RoleModel, []*genai.Part{{
 		FunctionCall: &genai.FunctionCall{ID: "price", Name: "market.price", Args: map[string]any{"symbol": "AAPL"}},
-	}}, nowUTCForCoverage(), false)); err != nil {
+	}}, nowUTCForCoverage(), false)
+	callEvent.UsageMetadata = &genai.GenerateContentResponseUsageMetadata{PromptTokenCount: 7, CandidatesTokenCount: 5}
+	if err := execution.consumeEvent(callEvent); err != nil {
 		t.Fatalf("consume tool call event: %v", err)
 	}
 	if len(execution.calls) != 1 || execution.calls[0].RunID != "child-run" || execution.calls[0].Status != "RUNNING" {
 		t.Fatalf("tool call projection = %+v", execution.calls)
+	}
+	if usage := persisted["child-run"].Usage; usage == nil || usage.ModelCalls != 1 || usage.TokensIn != 7 || usage.TokensOut != 5 {
+		t.Fatalf("persisted child usage = %+v, want calls=1 in=7 out=5", usage)
 	}
 	if reply, reasoning := execution.preToolState(); reply != "before tools" || reasoning != "initial reasoning" {
 		t.Fatalf("pre-tool state = %q/%q", reply, reasoning)
@@ -70,25 +75,21 @@ func TestGoogleADKExecutionProjectsToolResponseLifecycle(t *testing.T) {
 	if result := execution.ResultForRun("child-run"); result.Reply != "final answer" || result.ReasoningContent != "final reasoning" || !execution.RunHasPostToolText("child-run") {
 		t.Fatalf("post-tool child result = %+v, hasPost=%v", result, execution.RunHasPostToolText("child-run"))
 	}
-
 	timedOut := execution.ensureCallForRun("timeout", ToolDescriptor{Name: "market.history"}, nil, "root-run")
 	execution.consumeFunctionResponse(&genai.FunctionResponse{ID: "timeout", Name: "market.history", Response: map[string]any{"error": "context deadline exceeded"}})
 	if timedOut.Status != "TIMED_OUT" || timedOut.Error == nil || !strings.Contains(*timedOut.Error, "timed out") || timedOut.CompletedAt == nil {
 		t.Fatalf("timeout response = %+v", timedOut)
 	}
-
 	cancelled := execution.ensureCallForRun("cancel", ToolDescriptor{Name: "market.stream"}, nil, "root-run")
 	execution.consumeFunctionResponse(&genai.FunctionResponse{ID: "cancel", Name: "market.stream", Response: map[string]any{"error": "context canceled by caller"}})
 	if cancelled.Status != "CANCELLED" || cancelled.Error == nil || !strings.Contains(*cancelled.Error, "cancelled") {
 		t.Fatalf("cancelled response = %+v", cancelled)
 	}
-
 	pending := execution.ensureCallForRun("approval", ToolDescriptor{Name: "trade.submit"}, nil, "root-run")
 	execution.consumeFunctionResponse(&genai.FunctionResponse{ID: "approval", Name: "trade.submit", Response: map[string]any{"error": adktool.ErrConfirmationRequired.Error()}})
 	if pending.Status != "PENDING_APPROVAL" || !pending.RequiresUser || pending.CompletedAt != nil {
 		t.Fatalf("confirmation-required response = %+v", pending)
 	}
-
 	if err := execution.consumeEvent(newProjectionEvent("input-event", "root-run", "child-agent", genai.RoleModel, []*genai.Part{{
 		FunctionCall: &genai.FunctionCall{ID: "input", Name: adkworkflow.WorkflowInputFunctionCallName},
 	}}, nowUTCForCoverage(), false)); !errors.Is(err, errADKInputUnsupported) {
