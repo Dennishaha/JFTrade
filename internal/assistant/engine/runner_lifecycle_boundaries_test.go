@@ -2,7 +2,6 @@ package adk
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -83,21 +82,12 @@ func TestRunnerLifecycleBoundaryBranches(t *testing.T) {
 	t.Run("TestProvider capability update and runtime delete session surface storage/session-service errors", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() { _ = r.Body.Close() }()
-			var req openAIChatRequest
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			req, err := decodeTestResponsesRequest(r)
+			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(openAIChatResponse{
-				Choices: []struct {
-					Message openAIChatMessage `json:"message"`
-				}{{
-					Message: openAIChatMessage{Role: "assistant", Content: "health check ok"},
-				}},
-			}); err != nil {
-				t.Fatalf("Encode response: %v", err)
-			}
+			writeTestResponsesMessage(w, openAIChatMessage{Role: "assistant", Content: "health check ok"}, req.Stream)
 		}))
 		defer server.Close()
 

@@ -237,7 +237,7 @@ func TestProviderAndAgentValidationContracts(t *testing.T) {
 
 	providerTest := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/providers/test-provider/test", nil)
 	if providerTest.Code != http.StatusOK || !strings.Contains(providerTest.Body.String(), `"mode":"quick"`) ||
-		!strings.Contains(providerTest.Body.String(), `"requestField":"reasoning_effort"`) {
+		!strings.Contains(providerTest.Body.String(), `"requestField":"reasoning.effort"`) {
 		t.Fatalf("provider test status=%d body=%s", providerTest.Code, providerTest.Body.String())
 	}
 	fullProviderTest := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/providers/test-provider/test", []byte(`{"mode":"full"}`))

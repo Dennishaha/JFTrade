@@ -20,6 +20,47 @@ import (
 
 const testProviderID = "test-openai-compatible"
 
+// The runtime speaks Responses exclusively. These compact test-only shapes
+// keep the existing deterministic responder logic readable while requests are
+// decoded from, and replies encoded to, the Responses wire format.
+type openAIChatMessage struct {
+	Role       string
+	Content    string
+	Name       string
+	ToolCallID string
+	ToolCalls  []openAIToolCall
+}
+
+type openAIChatRequest struct {
+	Model    string
+	Stream   bool
+	Messages []openAIChatMessage
+	Tools    []openAITool
+}
+
+type openAITool struct {
+	Function openAIToolFunction
+}
+
+type openAIToolFunction struct {
+	Name        string
+	Description string
+	Parameters  map[string]any
+}
+
+type openAIToolCall struct {
+	ID       string
+	Type     string
+	Function struct {
+		Name      string
+		Arguments string
+	}
+}
+
+type streamErrorReader struct{ err error }
+
+func (r streamErrorReader) Read([]byte) (int, error) { return 0, r.err }
+
 func ensureTestProvider(t *testing.T, runtime *Runtime) {
 	t.Helper()
 	ensureTestProviderForStore(t, runtime.Store())
@@ -116,23 +157,17 @@ type workflowDeclaredTool interface {
 func saveGoalWorkflowProvider(t *testing.T, runtime *Runtime, providerID string, responder func(openAIChatRequest) openAIChatMessage) string {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/responses") {
 			http.NotFound(w, r)
 			return
 		}
 		defer func() { jftradePanicOnError(r.Body.Close()) }()
-		var req openAIChatRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		req, err := decodeTestResponsesRequest(r)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		jftradeErr := json.NewEncoder(w).Encode(openAIChatResponse{
-			Choices: []struct {
-				Message openAIChatMessage `json:"message"`
-			}{{Message: responder(req)}},
-		})
-		jftradePanicOnError(jftradeErr)
+		writeTestResponsesMessage(w, responder(req), req.Stream)
 	}))
 	t.Cleanup(server.Close)
 	mustSaveProvider(t, runtime, ProviderWriteRequest{
@@ -278,23 +313,132 @@ func testGoalWorkflowTaskProgressCalls(req openAIChatRequest) []openAIToolCall {
 }
 
 func testProviderChatHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+	if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/responses") {
 		http.NotFound(w, r)
 		return
 	}
 	defer func() { jftradePanicOnError(r.Body.Close()) }()
-	var req openAIChatRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	req, err := decodeTestResponsesRequest(r)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	jftradeErr1 := json.NewEncoder(w).Encode(openAIChatResponse{
-		Choices: []struct {
-			Message openAIChatMessage `json:"message"`
-		}{{Message: testProviderMessage(req)}},
-	})
-	jftradePanicOnError(jftradeErr1)
+	writeTestResponsesMessage(w, testProviderMessage(req), req.Stream)
+}
+
+func decodeTestResponsesRequest(r *http.Request) (openAIChatRequest, error) {
+	var body map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		return openAIChatRequest{}, err
+	}
+	request := openAIChatRequest{}
+	request.Model, _ = body["model"].(string)
+	request.Stream, _ = body["stream"].(bool)
+	if instructions, _ := body["instructions"].(string); instructions != "" {
+		request.Messages = append(request.Messages, openAIChatMessage{Role: "system", Content: instructions})
+	}
+	callNames := map[string]string{}
+	for _, rawItem := range testAnySlice(body["input"]) {
+		item, _ := rawItem.(map[string]any)
+		switch item["type"] {
+		case "message":
+			request.Messages = append(request.Messages, openAIChatMessage{
+				Role: fmt.Sprint(item["role"]), Content: testResponsesMessageText(item["content"]),
+			})
+		case "function_call":
+			callID, name := fmt.Sprint(item["call_id"]), fmt.Sprint(item["name"])
+			callNames[callID] = name
+			call := openAIToolCall{ID: callID, Type: "function"}
+			call.Function.Name = name
+			call.Function.Arguments = fmt.Sprint(item["arguments"])
+			request.Messages = append(request.Messages, openAIChatMessage{Role: "assistant", ToolCalls: []openAIToolCall{call}})
+		case "function_call_output":
+			callID := fmt.Sprint(item["call_id"])
+			request.Messages = append(request.Messages, openAIChatMessage{
+				Role: "tool", Name: callNames[callID], ToolCallID: callID, Content: fmt.Sprint(item["output"]),
+			})
+		}
+	}
+	for _, rawTool := range testAnySlice(body["tools"]) {
+		item, _ := rawTool.(map[string]any)
+		tool := openAITool{}
+		tool.Function.Name = fmt.Sprint(item["name"])
+		tool.Function.Description = fmt.Sprint(item["description"])
+		tool.Function.Parameters, _ = item["parameters"].(map[string]any)
+		request.Tools = append(request.Tools, tool)
+	}
+	return request, nil
+}
+
+func testAnySlice(value any) []any {
+	items, _ := value.([]any)
+	return items
+}
+
+func testResponsesMessageText(value any) string {
+	if text, ok := value.(string); ok {
+		return text
+	}
+	var parts []string
+	for _, rawPart := range testAnySlice(value) {
+		part, _ := rawPart.(map[string]any)
+		if text, _ := part["text"].(string); text != "" {
+			parts = append(parts, text)
+		}
+	}
+	return strings.Join(parts, "")
+}
+
+func writeTestResponsesMessage(w http.ResponseWriter, message openAIChatMessage, streaming ...bool) {
+	if len(streaming) > 0 && !streaming[0] {
+		output := make([]map[string]any, 0, max(1, len(message.ToolCalls)))
+		if len(message.ToolCalls) == 0 {
+			output = append(output, map[string]any{
+				"type": "message", "role": "assistant",
+				"content": []map[string]any{{"type": "output_text", "text": message.Content, "annotations": []any{}}},
+			})
+		} else {
+			for _, call := range message.ToolCalls {
+				output = append(output, map[string]any{
+					"type": "function_call", "call_id": call.ID, "name": call.Function.Name, "arguments": call.Function.Arguments,
+				})
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		jftradePanicOnError(json.NewEncoder(w).Encode(map[string]any{
+			"id": "resp-test", "model": "test-model", "output": output,
+			"usage": map[string]any{"input_tokens": 1, "output_tokens": 1, "total_tokens": 2},
+		}))
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	write := func(event any) {
+		raw, err := json.Marshal(event)
+		jftradePanicOnError(err)
+		_, err = fmt.Fprintf(w, "data: %s\n\n", raw)
+		jftradePanicOnError(err)
+	}
+	write(map[string]any{"type": "response.created", "response": map[string]any{"id": "resp-test", "model": "test-model"}})
+	if len(message.ToolCalls) == 0 {
+		write(map[string]any{"type": "response.output_text.delta", "delta": message.Content})
+	} else {
+		for index, call := range message.ToolCalls {
+			itemID := fmt.Sprintf("fc-%d", index)
+			write(map[string]any{"type": "response.output_item.added", "item": map[string]any{
+				"type": "function_call", "id": itemID, "call_id": call.ID, "name": call.Function.Name,
+			}})
+			write(map[string]any{
+				"type": "response.function_call_arguments.done", "item_id": itemID,
+				"name": call.Function.Name, "arguments": call.Function.Arguments,
+			})
+		}
+	}
+	write(map[string]any{"type": "response.completed", "response": map[string]any{
+		"id": "resp-test", "model": "test-model",
+		"usage": map[string]any{"input_tokens": 1, "output_tokens": 1, "total_tokens": 2},
+	}})
+	_, err := fmt.Fprint(w, "data: [DONE]\n\n")
+	jftradePanicOnError(err)
 }
 
 func testProviderMessage(req openAIChatRequest) openAIChatMessage {
@@ -561,7 +705,7 @@ func testProviderExecuteToolCalls(toolNames []string, text string) []openAIToolC
 			jftradeErr2 := json.Unmarshal([]byte(rawParams), &args)
 			jftradePanicOnError(jftradeErr2)
 		}
-		for _, key := range []string{"title", "key", "value"} {
+		for _, key := range []string{"title", "key", "value", "id", "status", "script"} {
 			if value := testProviderTagAttr(tag, key); value != "" {
 				args[key] = value
 			}
@@ -612,7 +756,7 @@ func testProviderArgsForTool(name string, text string) map[string]any {
 	case "tools.search":
 		return map[string]any{"query": strings.TrimSpace(text)}
 	case "strategy.save_draft":
-		return map[string]any{"name": "测试策略", "source": "strategy('test')"}
+		return map[string]any{"name": "测试策略", "script": "strategy('test')"}
 	default:
 		return map[string]any{}
 	}
@@ -732,5 +876,12 @@ func containsTool(names []string, want string) bool {
 func jftradePanicOnError(err error) {
 	if err != nil {
 		panic(err)
+	}
+}
+
+func jftradeCheckTestError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
 	}
 }

@@ -1045,10 +1045,10 @@ func TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskWrites(t *testing.T) 
 		t.Fatalf("Chat: %v", err)
 	}
 	if taskCreates != 1 {
-		t.Fatalf("task creates = %d, want executed without approval", taskCreates)
+		t.Fatalf("task creates = %d, want executed without approval; calls=%+v", taskCreates, response.Run.ToolCalls)
 	}
 	if taskUpdates != 1 {
-		t.Fatalf("task updates = %d, want executed without approval", taskUpdates)
+		t.Fatalf("task updates = %d, want executed without approval; calls=%+v", taskUpdates, response.Run.ToolCalls)
 	}
 	if taskDeletes != 1 {
 		t.Fatalf("task deletes = %d, want executed without approval", taskDeletes)

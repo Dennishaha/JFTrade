@@ -9,7 +9,6 @@ var (
 	ErrBuiltinAgentProtected       = jfadkmodel.ErrBuiltinAgentProtected
 	ErrCleanupCandidatesChanged    = jfadkmodel.ErrCleanupCandidatesChanged
 	ErrInvalidTaskStatus           = jfadkmodel.ErrInvalidTaskStatus
-	ErrInvalidProviderAPIProtocol  = jfadkmodel.ErrInvalidProviderAPIProtocol
 	ErrProviderInUse               = jfadkmodel.ErrProviderInUse
 	errInputRequestNotFound        = jfadkmodel.ErrInputRequestNotFound
 	errInputRequestInvalid         = jfadkmodel.ErrInputRequestInvalid

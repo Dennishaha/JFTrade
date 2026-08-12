@@ -6,13 +6,17 @@ const {
   canInterruptChat,
   canSendChat,
   cancelActiveRun,
+  effectiveReasoningEffort,
+  effectiveReasoningOption,
   handlePrimaryAction,
   interruptAndQueueChat,
   isMobileLayout,
   loading,
   mobileControlsExpanded,
+  normalizedDefaultReasoningEffort,
   openProviderSettings,
   providerOptions,
+  reasoningEffortOptions,
   savingProviderSelection,
   selectedAgentId,
   selectedProviderId,
@@ -22,6 +26,7 @@ const {
   showInterruptButton,
   showStopButton,
   updateProviderSelection,
+  updateReasoningEffortSelection,
 } = useADKChatComposerContext();
 </script>
 
@@ -75,6 +80,41 @@ const {
                     </v-chip>
                   </v-list-item-title>
                   <v-list-item-subtitle>{{ provider.title }}</v-list-item-subtitle>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+            <v-menu location="top end">
+              <template #activator="{ props: menuProps }">
+                <button
+                  v-bind="menuProps"
+                  type="button"
+                  class="adk-inline-trigger adk-reasoning-trigger"
+                  :title="`思考等级：${effectiveReasoningOption.title}`"
+                >
+                  <v-icon size="14">fa-solid fa-brain</v-icon>
+                  <span>{{ effectiveReasoningOption.title }}</span>
+                  <v-icon size="12">fa-solid fa-chevron-down</v-icon>
+                </button>
+              </template>
+              <v-list class="adk-compact-menu adk-reasoning-menu" density="compact">
+                <v-list-item
+                  v-for="option in reasoningEffortOptions"
+                  :key="option.value"
+                  :active="option.value === effectiveReasoningEffort"
+                  @click="updateReasoningEffortSelection(option.value)"
+                >
+                  <v-list-item-title>
+                    {{ option.title }}
+                    <v-chip
+                      v-if="option.value === normalizedDefaultReasoningEffort"
+                      size="x-small"
+                      variant="tonal"
+                      class="ml-1"
+                    >
+                      Agent 默认
+                    </v-chip>
+                  </v-list-item-title>
+                  <v-list-item-subtitle>{{ option.description }}</v-list-item-subtitle>
                 </v-list-item>
               </v-list>
             </v-menu>
@@ -165,6 +205,13 @@ const {
 </template>
 
 <style scoped>
+.adk-compact-menu {
+  min-width: 220px;
+  max-width: min(360px, 92vw);
+  border-radius: 12px;
+  padding: 6px;
+}
+
 .adk-provider-menu {
   min-width: 280px;
   max-width: min(360px, 92vw);

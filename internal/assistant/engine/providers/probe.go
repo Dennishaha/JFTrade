@@ -55,7 +55,7 @@ func probeProviderReasoning(
 	apiKey string,
 	mode jfadkmodel.ProviderTestMode,
 ) (jfadkmodel.ProviderReasoningTestResponse, error) {
-	config := jfadkmodel.NormalizeProviderReasoningConfig(provider.ReasoningConfig, provider.APIProtocol)
+	config := jfadkmodel.NormalizeProviderReasoningConfig(provider.ReasoningConfig)
 	if err := jfadkmodel.ValidateProviderReasoningConfig(config); err != nil {
 		return jfadkmodel.ProviderReasoningTestResponse{}, err
 	}
@@ -101,16 +101,10 @@ func probeProviderRequest(
 ) (string, error) {
 	probeCtx, cancel := context.WithTimeout(ctx, ProviderProbeTimeout(provider))
 	defer cancel()
-	if provider.APIProtocol == jfadkmodel.ProviderAPIProtocolResponses {
-		if effort != "" {
-			return ProbeOpenAIResponsesProviderReasoning(probeCtx, provider, apiKey, effort)
-		}
-		return ProbeOpenAIResponsesProvider(probeCtx, provider, apiKey, includeTool)
-	}
 	if effort != "" {
-		return ProbeOpenAICompatibleProviderReasoning(probeCtx, provider, apiKey, effort)
+		return ProbeOpenAIResponsesProviderReasoning(probeCtx, provider, apiKey, effort)
 	}
-	return ProbeOpenAICompatibleProvider(probeCtx, provider, apiKey, includeTool)
+	return ProbeOpenAIResponsesProvider(probeCtx, provider, apiKey, includeTool)
 }
 
 func allReasoningProbesPassed(results []jfadkmodel.ProviderReasoningTestResult) bool {

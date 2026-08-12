@@ -293,21 +293,6 @@ func TestUpdateRunObjectiveAndRecentMessageBranches(t *testing.T) {
 		t.Fatalf("UpdateRunObjective success = %+v err=%v", updated, err)
 	}
 
-	if recent := recentOpenAIMessages(nil, 10, 100); recent != nil {
-		t.Fatalf("recent nil = %#v, want nil", recent)
-	}
-	messages := []TranscriptEntry{
-		{Role: "assistant", Content: "  "},
-		{Role: "assistant", Content: "等待用户审批"},
-		{Role: "user", Content: "first user"},
-		{Role: "assistant", Content: "assistant answer"},
-		{Role: "tool", Content: "tool says hello"},
-		{Role: "user", Content: strings.Repeat("x", 20)},
-	}
-	recent := recentOpenAIMessages(messages, 4, 18)
-	if len(recent) != 2 || recent[0].Role != "user" || recent[0].Content != "first user" || recent[1].Role != "assistant" || recent[1].Content != "assistan" {
-		t.Fatalf("recent messages = %#v", recent)
-	}
 }
 
 func withLifecycleRun(run Run, mutate func(*Run)) Run {

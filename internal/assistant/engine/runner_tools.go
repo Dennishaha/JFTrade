@@ -11,7 +11,6 @@ import (
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	adkagent "google.golang.org/adk/v2/agent"
 	adkartifact "google.golang.org/adk/v2/artifact"
-	adkmodel "google.golang.org/adk/v2/model"
 	adktool "google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/functiontool"
 	"google.golang.org/adk/v2/tool/loadartifactstool"
@@ -19,14 +18,11 @@ import (
 	"google.golang.org/adk/v2/tool/preloadmemorytool"
 	"google.golang.org/adk/v2/tool/skilltoolset"
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
-	"google.golang.org/adk/v2/tool/toolutils"
-	"google.golang.org/genai"
 )
 
 type googleADKTool struct {
 	descriptor ToolDescriptor
 	registered RegisteredTool
-	tool       googleADKRunnableTool
 	agent      Agent
 	execution  *googleADKExecution
 }
@@ -37,11 +33,6 @@ type googleADKRunnableTool interface {
 }
 
 type googleADKProductToolset struct {
-	name  string
-	tools []adktool.Tool
-}
-
-type googleADKStaticToolset struct {
 	name  string
 	tools []adktool.Tool
 }
@@ -58,23 +49,7 @@ func (r *Runtime) googleADKToolsets(ctx context.Context, definition Agent, execu
 	}
 	toolsets := make([]adktool.Toolset, 0, 4)
 	if baseToolset != nil {
-		filtered := adktool.FilterToolset(baseToolset, func(_ adkagent.ReadonlyContext, tool adktool.Tool) bool {
-			if descriptor, ok := descriptorFromADKTool(tool); ok {
-				return ToolAllowedInMode(descriptor, definition.PermissionMode)
-			}
-			return false
-		})
-		confirmed := adktool.WithConfirmation(filtered, false, func(toolName string, _ any) bool {
-			registered, ok := r.tools.Get(toolName)
-			if !ok {
-				return false
-			}
-			return ToolRequiresApproval(registered.Descriptor, definition.PermissionMode)
-		})
-		toolsets = append(toolsets, newGoogleADKSkillGatedToolset(confirmed, ToolDescriptorsForAgent(definition, r.tools)))
-	}
-	if definition.MemoryEnabled && r.memoryService != nil {
-		toolsets = append(toolsets, googleADKStaticToolset{name: "jftrade-adk-memory-tools", tools: []adktool.Tool{preloadmemorytool.New(), loadmemorytool.New()}})
+		toolsets = append(toolsets, baseToolset)
 	}
 	if r.artifactService != nil {
 		toolsets = append(toolsets, googleADKArtifactToolset{name: "jftrade-adk-artifact-tools", service: r.artifactService})
@@ -96,6 +71,13 @@ func (r *Runtime) googleADKToolsets(ctx context.Context, definition Agent, execu
 	}
 	toolsets = append(toolsets, toolset)
 	return toolsets, nil
+}
+
+func (r *Runtime) googleADKDirectTools(definition Agent) []adktool.Tool {
+	if !definition.MemoryEnabled || r.memoryService == nil {
+		return nil
+	}
+	return []adktool.Tool{preloadmemorytool.New(), loadmemorytool.New()}
 }
 
 func (r *Runtime) filteredSkillSourceForAgent(ctx context.Context, source adkskill.Source, definition Agent) (adkskill.Source, error) {
@@ -252,6 +234,9 @@ func (r *Runtime) googleADKProductToolset(definition Agent, executions ...*googl
 	}
 	tools := make([]adktool.Tool, 0, len(descriptors))
 	for _, descriptor := range descriptors {
+		if !ToolAllowedInMode(descriptor, definition.PermissionMode) {
+			continue
+		}
 		if descriptor.Name == interactionRequestUserTool {
 			tool, err := newGoogleADKInputTool()
 			if err != nil {
@@ -261,69 +246,55 @@ func (r *Runtime) googleADKProductToolset(definition Agent, executions ...*googl
 			continue
 		}
 		registered, _ := r.tools.Get(descriptor.Name)
-		tool, err := newGoogleADKTool(descriptor, registered, execution)
+		tool, err := newGoogleADKTool(descriptor, registered, definition, execution)
 		if err != nil {
 			return nil, err
 		}
-		tool.agent = definition
 		tools = append(tools, tool)
 	}
 	return &googleADKProductToolset{name: "jftrade-tools", tools: tools}, nil
 }
 
-func newGoogleADKTool(descriptor ToolDescriptor, registered RegisteredTool, executions ...*googleADKExecution) (*googleADKTool, error) {
+func newGoogleADKTool(
+	descriptor ToolDescriptor,
+	registered RegisteredTool,
+	agent Agent,
+	executions ...*googleADKExecution,
+) (googleADKRunnableTool, error) {
 	schema := descriptor.InputSchema
 	if schema == nil {
 		schema = map[string]any{"type": "object", "properties": map[string]any{}}
 	}
-	if _, err := googleADKJSONSchemaFromMap(sanitizeSchemaForOpenAI(schema)); err != nil {
+	inputSchema, err := googleADKJSONSchemaFromMap(sanitizeSchemaForOpenAI(schema))
+	if err != nil {
 		return nil, fmt.Errorf("convert GO-ADK product tool schema %q: %w", descriptor.Name, err)
 	}
 	var execution *googleADKExecution
 	if len(executions) > 0 {
 		execution = executions[0]
 	}
-	wrapper := &googleADKTool{descriptor: descriptor, registered: registered, execution: execution}
+	executor := &googleADKTool{descriptor: descriptor, registered: registered, agent: agent, execution: execution}
 	inner, err := functiontool.New[map[string]any, map[string]any](functiontool.Config{
-		Name:        descriptor.Name,
-		Description: descriptor.Description,
-		// Product tools preserve JFTrade's historical argument tolerance at
-		// execution time; the stricter descriptor schema is still exposed by
-		// Declaration for model guidance.
-	}, wrapper.run)
+		Name:                descriptor.Name,
+		Description:         descriptor.Description,
+		InputSchema:         inputSchema,
+		RequireConfirmation: ToolRequiresApproval(descriptor, agent.PermissionMode),
+	}, executor.run)
 	if err != nil {
 		return nil, fmt.Errorf("create GO-ADK product function tool %q: %w", descriptor.Name, err)
 	}
-	wrapper.tool = inner.(googleADKRunnableTool)
-	return wrapper, nil
+	runnable, ok := inner.(googleADKRunnableTool)
+	if !ok {
+		return nil, fmt.Errorf("GO-ADK product function tool %q is not runnable", descriptor.Name)
+	}
+	return runnable, nil
 }
 
 func (t *googleADKTool) Name() string {
 	if t == nil {
 		return ""
 	}
-	if t.tool != nil {
-		return t.tool.Name()
-	}
 	return t.descriptor.Name
-}
-
-func (t *googleADKTool) Description() string {
-	if t == nil {
-		return ""
-	}
-	if t.tool != nil {
-		return t.tool.Description()
-	}
-	return t.descriptor.Description
-}
-
-func (t *googleADKTool) IsLongRunning() bool {
-	return t != nil && t.tool != nil && t.tool.IsLongRunning()
-}
-
-func (t *googleADKTool) googleADKToolDescriptor() ToolDescriptor {
-	return t.descriptor
 }
 
 func (t *googleADKProductToolset) Name() string { return t.name }
@@ -335,12 +306,6 @@ func (t *googleADKProductToolset) Tools(_ adkagent.ReadonlyContext) ([]adktool.T
 	tools := make([]adktool.Tool, 0, len(t.tools))
 	tools = append(tools, t.tools...)
 	return tools, nil
-}
-
-func (t googleADKStaticToolset) Name() string { return t.name }
-
-func (t googleADKStaticToolset) Tools(_ adkagent.ReadonlyContext) ([]adktool.Tool, error) {
-	return append([]adktool.Tool(nil), t.tools...), nil
 }
 
 func (t googleADKArtifactToolset) Name() string { return t.name }
@@ -361,16 +326,6 @@ func (t googleADKArtifactToolset) Tools(ctx adkagent.ReadonlyContext) ([]adktool
 	return []adktool.Tool{loadartifactstool.New()}, nil
 }
 
-func descriptorFromADKTool(tool adktool.Tool) (ToolDescriptor, bool) {
-	typed, ok := tool.(interface {
-		googleADKToolDescriptor() ToolDescriptor
-	})
-	if !ok || typed == nil {
-		return ToolDescriptor{}, false
-	}
-	return typed.googleADKToolDescriptor(), true
-}
-
 func toolDescriptorIndex(descriptors []ToolDescriptor) map[string]ToolDescriptor {
 	if len(descriptors) == 0 {
 		return nil
@@ -380,43 +335,6 @@ func toolDescriptorIndex(descriptors []ToolDescriptor) map[string]ToolDescriptor
 		index[descriptor.Name] = descriptor
 	}
 	return index
-}
-
-func (t *googleADKTool) Declaration() *genai.FunctionDeclaration {
-	if t == nil {
-		return nil
-	}
-	schema := t.descriptor.InputSchema
-	if schema == nil {
-		schema = map[string]any{"type": "object", "properties": map[string]any{}}
-	}
-	return &genai.FunctionDeclaration{
-		Name: t.Name(), Description: t.Description(), ParametersJsonSchema: sanitizeSchemaForOpenAI(schema),
-	}
-}
-
-func (t *googleADKTool) ProcessRequest(ctx adkagent.Context, req *adkmodel.LLMRequest) error {
-	return packGoogleADKTool(req, t)
-}
-
-type googleADKDeclaredRunnableTool interface {
-	adktool.Tool
-	Declaration() *genai.FunctionDeclaration
-	Run(adkagent.Context, any) (map[string]any, error)
-}
-
-func packGoogleADKTool(req *adkmodel.LLMRequest, tool googleADKDeclaredRunnableTool) error {
-	if req == nil || tool == nil {
-		return fmt.Errorf("GO-ADK tool request is unavailable")
-	}
-	return toolutils.PackTool(req, tool)
-}
-
-func (t *googleADKTool) Run(ctx adkagent.Context, args any) (map[string]any, error) {
-	if t == nil || t.tool == nil {
-		return nil, fmt.Errorf("GO-ADK product tool %q is not runnable", t.Name())
-	}
-	return t.tool.Run(ctx, args)
 }
 
 func (t *googleADKTool) run(ctx adkagent.Context, input map[string]any) (map[string]any, error) {

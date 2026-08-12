@@ -303,7 +303,6 @@ export async function saveADKProvider(provider: {
   displayName: string;
   baseUrl: string;
   model: string;
-  apiProtocol?: "chat_completions" | "responses";
   reasoningConfig?: ADKProviderReasoningConfig;
   contextWindowTokens: number;
   requestTimeoutMs: number;

@@ -13,6 +13,8 @@ import (
 	"google.golang.org/genai"
 )
 
+const GoogleADKModule = "google.golang.org/adk/v2"
+
 // ResponsesToolNameModel wraps the OpenAI Responses ADK model so that
 // sanitized wire tool names are restored before JFTrade tool dispatch.
 type ResponsesToolNameModel struct {

@@ -8,6 +8,7 @@ import (
 	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/agent/workflowagents/loopagent"
 	adktool "google.golang.org/adk/v2/tool"
 )
 
@@ -15,13 +16,8 @@ import (
 // workflow executor. The task toolset is supplied by the executor so the
 // engine root package does not own a workflow execution implementation.
 func (r *Runtime) NewGoogleADKTaskExecution(
-	ctx context.Context,
-	definition Agent,
-	productSession Session,
-	parent Run,
-	req workflowRequest,
-	taskTools adktool.Toolset,
-	onDelta func(ChatDelta) error,
+	ctx context.Context, definition Agent, productSession Session, parent Run,
+	req workflowRequest, taskTools adktool.Toolset, onDelta func(ChatDelta) error,
 ) (WorkflowExecutionHandle, error) {
 	llm, err := r.GoogleADKModelForAgent(ctx, definition)
 	if err != nil {
@@ -70,8 +66,8 @@ func (r *Runtime) NewGoogleADKTaskExecution(
 	orchestratorName := rootName + "_iteration"
 	execution.SetRunIDByAgentName(orchestratorName, parent.ID)
 	orchestrator, err := llmagent.New(llmagent.Config{
-		Name:                  orchestratorName,
-		Description:           definition.Name + " goal orchestrator",
+		Name:        orchestratorName,
+		Description: definition.Name + " goal orchestrator",
 		InstructionProvider: func(ctx adkagent.ReadonlyContext) (string, error) {
 			instruction := jfadkmodel.GoalOrchestratorInstruction(definition.Instruction)
 			if r.contextManager == nil || ctx == nil {
@@ -90,7 +86,10 @@ func (r *Runtime) NewGoogleADKTaskExecution(
 	if err != nil {
 		return nil, fmt.Errorf("create GO-ADK goal orchestrator agent: %w", err)
 	}
-	root, err := newGoogleADKLoopWorkflowAgent(rootName, definition.Name+" goal loop", []adkagent.Agent{orchestrator}, 1)
+	root, err := loopagent.New(loopagent.Config{
+		AgentConfig:   adkagent.Config{Name: rootName, Description: definition.Name + " goal loop", SubAgents: []adkagent.Agent{orchestrator}},
+		MaxIterations: 1,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create GO-ADK goal loop agent: %w", err)
 	}

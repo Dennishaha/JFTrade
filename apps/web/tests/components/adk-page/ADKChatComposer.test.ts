@@ -157,6 +157,16 @@ describe("ADKChatComposer", () => {
     expect(wrapper.text()).toContain("gpt-4o");
     expect(wrapper.text()).toContain("默认");
     expect(wrapper.text()).not.toContain("默认模型");
+    expect(wrapper.find(".adk-composer-left .adk-reasoning-trigger").exists()).toBe(
+      false,
+    );
+    const utility = wrapper.get(".adk-composer-utility");
+    const providerTrigger = utility.get(".adk-provider-trigger");
+    const reasoningTrigger = utility.get(".adk-reasoning-trigger");
+    expect(
+      providerTrigger.element.compareDocumentPosition(reasoningTrigger.element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
   });
 
   it("expands mobile model controls while provider selection is being saved", async () => {

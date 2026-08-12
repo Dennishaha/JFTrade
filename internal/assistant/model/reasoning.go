@@ -55,19 +55,15 @@ func NormalizeProviderTestMode(mode ProviderTestMode) (ProviderTestMode, error) 
 	return mode, nil
 }
 
-// DefaultProviderReasoningConfig supplies only the protocol field. Supported
-// levels are always opt-in through explicit mappings.
-func DefaultProviderReasoningConfig(protocol string) ProviderReasoningConfig {
-	field := "reasoning_effort"
-	if NormalizeProviderAPIProtocol(protocol) == ProviderAPIProtocolResponses {
-		field = "reasoning.effort"
-	}
-	return ProviderReasoningConfig{RequestField: field, Mappings: []ProviderReasoningMapping{}}
+// DefaultProviderReasoningConfig supplies the Responses request field.
+// Supported levels are always opt-in through explicit mappings.
+func DefaultProviderReasoningConfig() ProviderReasoningConfig {
+	return ProviderReasoningConfig{RequestField: "reasoning.effort", Mappings: []ProviderReasoningMapping{}}
 }
 
-func NormalizeProviderReasoningConfig(config ProviderReasoningConfig, protocol string) ProviderReasoningConfig {
+func NormalizeProviderReasoningConfig(config ProviderReasoningConfig) ProviderReasoningConfig {
 	if strings.TrimSpace(config.RequestField) == "" {
-		config.RequestField = DefaultProviderReasoningConfig(protocol).RequestField
+		config.RequestField = DefaultProviderReasoningConfig().RequestField
 	} else {
 		config.RequestField = strings.TrimSpace(config.RequestField)
 	}
@@ -106,7 +102,7 @@ func ResolveProviderReasoning(provider Provider, effort ReasoningEffort) (string
 	if effort == "" {
 		return "", "", fmt.Errorf("invalid reasoning effort %q", rawEffort)
 	}
-	config := NormalizeProviderReasoningConfig(provider.ReasoningConfig, provider.APIProtocol)
+	config := NormalizeProviderReasoningConfig(provider.ReasoningConfig)
 	if err := ValidateProviderReasoningConfig(config); err != nil {
 		return "", "", err
 	}

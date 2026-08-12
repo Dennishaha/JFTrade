@@ -1,6 +1,5 @@
 import type {
   ADKProvider,
-  ADKProviderAPIProtocol,
   ADKProviderReasoningConfig,
   ADKReasoningEffort,
 } from "@/types";
@@ -21,19 +20,17 @@ export const ADK_REASONING_EFFORT_LABELS: Record<ADKReasoningEffort, string> = {
   max: "最大",
 };
 
-export function defaultADKProviderReasoningConfig(
-  protocol: ADKProviderAPIProtocol | string = "chat_completions",
-): ADKProviderReasoningConfig {
+export function defaultADKProviderReasoningConfig(): ADKProviderReasoningConfig {
   return {
-    requestField: protocol === "responses" ? "reasoning.effort" : "reasoning_effort",
+    requestField: "reasoning.effort",
     mappings: [],
   };
 }
 
 export function normalizedADKProviderReasoningConfig(
-  provider: Pick<ADKProvider, "apiProtocol" | "reasoningConfig">,
+  provider: Pick<ADKProvider, "reasoningConfig">,
 ): ADKProviderReasoningConfig {
-  const fallback = defaultADKProviderReasoningConfig(provider.apiProtocol);
+  const fallback = defaultADKProviderReasoningConfig();
   const config = provider.reasoningConfig;
   if (!config) return fallback;
   return {
@@ -46,7 +43,7 @@ export function normalizedADKProviderReasoningConfig(
 }
 
 export function supportedADKReasoningEfforts(
-  provider: Pick<ADKProvider, "apiProtocol" | "reasoningConfig"> | undefined,
+  provider: Pick<ADKProvider, "reasoningConfig"> | undefined,
 ): ADKReasoningEffort[] {
   if (!provider) return [];
   return normalizedADKProviderReasoningConfig(provider).mappings.map(
@@ -55,7 +52,7 @@ export function supportedADKReasoningEfforts(
 }
 
 export function isADKReasoningEffortSupported(
-  provider: Pick<ADKProvider, "apiProtocol" | "reasoningConfig"> | undefined,
+  provider: Pick<ADKProvider, "reasoningConfig"> | undefined,
   effort: string | undefined,
 ): effort is ADKReasoningEffort {
   return (

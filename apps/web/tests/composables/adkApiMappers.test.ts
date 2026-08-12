@@ -142,7 +142,7 @@ describe("ADK API wire mappers", () => {
     ).toThrow("ADK API response is invalid: agent templates");
   });
 
-  it("accepts both Provider API protocols while retaining a strict provider contract", () => {
+  it("accepts the Responses-only Provider contract without a transport discriminator", () => {
     const provider = {
       id: "provider-1",
       displayName: "Local provider",
@@ -156,15 +156,10 @@ describe("ADK API wire mappers", () => {
       updatedAt: NOW,
     };
 
-    expect(requireADKProvider({ ...provider, apiProtocol: "chat_completions" })).toMatchObject({
-      apiProtocol: "chat_completions",
+    expect(requireADKProvider(provider)).toMatchObject({
+      id: "provider-1",
+      model: "model-a",
     });
-    expect(requireADKProvider({ ...provider, apiProtocol: "responses" })).toMatchObject({
-      apiProtocol: "responses",
-    });
-    expect(() =>
-      requireADKProvider({ ...provider, apiProtocol: "unsupported" }),
-    ).toThrow("ADK API response is invalid: provider");
   });
 
   it("validates Provider reasoning mappings and test modes at the wire boundary", () => {
@@ -173,7 +168,6 @@ describe("ADK API wire mappers", () => {
       displayName: "Reasoning provider",
       baseUrl: "https://llm.example/v1",
       model: "model-a",
-      apiProtocol: "responses",
       reasoningConfig: {
         requestField: "reasoning.effort",
         mappings: [{ effort: "high", value: "deep" }],

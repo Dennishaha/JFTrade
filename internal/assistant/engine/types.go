@@ -67,10 +67,8 @@ const (
 	MaxToolOutputBytes            = jfadkmodel.MaxToolOutputBytes
 	MaxMessageLength              = jfadkmodel.MaxMessageLength
 
-	ProviderAPIProtocolChatCompletions = jfadkmodel.ProviderAPIProtocolChatCompletions
-	ProviderAPIProtocolResponses       = jfadkmodel.ProviderAPIProtocolResponses
-	ProviderTestModeQuick              = jfadkmodel.ProviderTestModeQuick
-	ProviderTestModeFull               = jfadkmodel.ProviderTestModeFull
+	ProviderTestModeQuick = jfadkmodel.ProviderTestModeQuick
+	ProviderTestModeFull  = jfadkmodel.ProviderTestModeFull
 
 	TimelineKindUserMessage        = jfadkmodel.TimelineKindUserMessage
 	TimelineKindAssistantMessage   = jfadkmodel.TimelineKindAssistantMessage

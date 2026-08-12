@@ -71,8 +71,7 @@ func TestRuntimeUsesInjectedWorkflowExecutionForLoopChat(t *testing.T) {
 	ctx := t.Context()
 	if _, err := store.SaveProvider(ctx, jfadkmodel.ProviderWriteRequest{
 		ID: "inject-test", DisplayName: "Inject Test",
-		APIProtocol: jfadkmodel.ProviderAPIProtocolChatCompletions,
-		Enabled:     true, APIKey: "sk-test",
+		Enabled: true, APIKey: "sk-test",
 	}); err != nil {
 		t.Fatalf("SaveProvider: %v", err)
 	}

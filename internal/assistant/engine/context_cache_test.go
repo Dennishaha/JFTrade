@@ -23,26 +23,20 @@ func newCapturedChatProvider(t *testing.T, runtime *Runtime, id string) *capture
 	t.Helper()
 	captured := &capturedChatProvider{}
 	captured.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/responses") {
 			http.NotFound(w, r)
 			return
 		}
 		defer func() { jftradeCheckTestError(t, r.Body.Close()) }()
-		var req openAIChatRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		req, err := decodeTestResponsesRequest(r)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		captured.mu.Lock()
 		captured.requests = append(captured.requests, req)
 		captured.mu.Unlock()
-		w.Header().Set("Content-Type", "application/json")
-		jftradeErr1 := json.NewEncoder(w).Encode(openAIChatResponse{
-			Choices: []struct {
-				Message openAIChatMessage `json:"message"`
-			}{{Message: openAIChatMessage{Role: "assistant", Content: testProviderFinalReply(req)}}},
-		})
-		jftradeCheckTestError(t, jftradeErr1)
+		writeTestResponsesMessage(w, openAIChatMessage{Role: "assistant", Content: testProviderFinalReply(req)}, req.Stream)
 	}))
 	t.Cleanup(captured.server.Close)
 	mustSaveProvider(t, runtime, ProviderWriteRequest{

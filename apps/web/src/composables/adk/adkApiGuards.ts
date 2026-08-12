@@ -122,7 +122,6 @@ export function isADKProvider(value: unknown): value is ADKProvider {
     isString(value.displayName) &&
     isString(value.baseUrl) &&
     isString(value.model) &&
-    (value.apiProtocol === undefined || value.apiProtocol === "chat_completions" || value.apiProtocol === "responses") &&
     isOptional(value.reasoningConfig, isADKProviderReasoningConfig) &&
     isNumber(value.requestTimeoutMs) &&
     isBoolean(value.enabled) &&

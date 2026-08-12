@@ -481,13 +481,6 @@
     },
     "adk.Provider": {
       "properties": {
-        "apiProtocol": {
-          "enum": [
-            "chat_completions",
-            "responses"
-          ],
-          "type": "string"
-        },
         "baseUrl": {
           "type": "string"
         },
@@ -538,7 +531,6 @@
         }
       },
       "required": [
-        "apiProtocol",
         "baseUrl",
         "createdAt",
         "default",
@@ -2552,13 +2544,6 @@
     "assistant.ADKProviderWriteRequest": {
       "properties": {
         "apiKey": {
-          "type": "string"
-        },
-        "apiProtocol": {
-          "enum": [
-            "chat_completions",
-            "responses"
-          ],
           "type": "string"
         },
         "baseUrl": {

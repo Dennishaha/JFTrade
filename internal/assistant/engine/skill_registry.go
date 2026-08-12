@@ -16,7 +16,7 @@ const WorkflowManagementSkillName = skillsruntime.WorkflowManagementSkillName
 
 type filteredSkillSource = skillsruntime.FilteredSkillSource
 
-// WorkflowManagementToolNames returns the tools unlocked by the builtin
+// WorkflowManagementToolNames returns the tools documented by the builtin
 // workflow-management skill.
 func WorkflowManagementToolNames() []string {
 	return skillsruntime.WorkflowManagementToolNames()

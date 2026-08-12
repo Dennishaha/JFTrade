@@ -13,19 +13,16 @@ import (
 func TestRunChildBlocksDelegatedApprovalTask(t *testing.T) {
 	ctx := context.Background()
 	runtime, executions := newWorkflowApprovalRuntime(t, WorkModeLoop)
-	providerID := saveGoalWorkflowProvider(t, runtime, "run-child-approval-provider", func(req providers.OpenAIChatRequest) providers.OpenAIChatMessage {
+	providerID := saveGoalWorkflowProvider(t, runtime, "run-child-approval-provider", func(req responsesTestRequest) responsesTestMessage {
 		for _, tool := range req.Tools {
 			if providers.RestoreToolNameFromOpenAI(tool.Function.Name) == "approval.required" {
-				return providers.OpenAIChatMessage{Role: "assistant", ToolCalls: []providers.OpenAIToolCall{{
+				return responsesTestMessage{Role: "assistant", ToolCalls: []responsesTestToolCall{{
 					ID: "call-approval-required", Type: "function",
-					Function: struct {
-						Name      string `json:"name"`
-						Arguments string `json:"arguments"`
-					}{Name: providers.SanitizeToolNameForOpenAI("approval.required"), Arguments: "{}"},
+					Function: responsesTestFunction{Name: providers.SanitizeToolNameForOpenAI("approval.required"), Arguments: "{}"},
 				}}}
 			}
 		}
-		return providers.OpenAIChatMessage{Role: "assistant", Content: "完成。"}
+		return responsesTestMessage{Role: "assistant", Content: "完成。"}
 	})
 	agent := mustSaveAgent(t, runtime, jfadk.AgentWriteRequest{
 		ID:             "run-child-approval-agent",

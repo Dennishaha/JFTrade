@@ -37,7 +37,7 @@ type SessionCompactRequest struct {
 type SessionContextManager struct {
 	store       *Store
 	rawService  adksession.Service
-	openai      openAIClient
+	responses   responsesClient
 	tools       *ToolRegistry
 	appendLocks *adkSessionAppendLockMap
 }
@@ -94,11 +94,11 @@ type projectedVisibleSession struct {
 	trimmedToolResponseCount int
 }
 
-func NewSessionContextManager(store *Store, rawService adksession.Service, openai openAIClient, tools *ToolRegistry) *SessionContextManager {
+func NewSessionContextManager(store *Store, rawService adksession.Service, responses responsesClient, tools *ToolRegistry) *SessionContextManager {
 	if store == nil || rawService == nil {
 		return nil
 	}
-	return &SessionContextManager{store: store, rawService: rawService, openai: openai, tools: tools, appendLocks: newADKSessionAppendLockMap()}
+	return &SessionContextManager{store: store, rawService: rawService, responses: responses, tools: tools, appendLocks: newADKSessionAppendLockMap()}
 }
 
 func (m *SessionContextManager) WrapService(service adksession.Service, gates ...func(string) (func(), bool)) adksession.Service {
@@ -581,10 +581,14 @@ func (m *SessionContextManager) mergeSummary(ctx context.Context, agent Agent, d
 	if mode == "aggressive" {
 		targetStyle = "Compress aggressively. Keep only durable facts, user goals, approvals, critical tool outcomes, and unresolved work."
 	}
-	reply, err := m.openai.chat(ctx, provider, apiKey, defaultString(agent.Model, provider.Model), []openAIChatMessage{
-		{Role: "system", Content: "You compress chat context for future model turns. Output plain text only. " + targetStyle},
-		{Role: "user", Content: "Existing handoff:\n" + strings.TrimSpace(existing) + "\n\nCandidate handoff:\n" + deterministic},
-	})
+	reply, err := m.responses.generateText(
+		ctx,
+		provider,
+		apiKey,
+		defaultString(agent.Model, provider.Model),
+		"You compress chat context for future model turns. Output plain text only. "+targetStyle,
+		"Existing handoff:\n"+strings.TrimSpace(existing)+"\n\nCandidate handoff:\n"+deterministic,
+	)
 	if err != nil {
 		return deterministic, true
 	}

@@ -1,8 +1,7 @@
-import { ref, watch } from "vue";
+import { ref } from "vue";
 
 import type {
   ADKProvider,
-  ADKProviderAPIProtocol,
   ADKProviderTestMode,
   ADKProviderTestResponse,
   ADKReasoningEffort,
@@ -31,7 +30,6 @@ type ADKProviderForm = {
   displayName: string;
   baseUrl: string;
   model: string;
-  apiProtocol: ADKProviderAPIProtocol;
   reasoningRequestField: string;
   reasoningMappings: Array<{
     effort: ADKReasoningEffort;
@@ -45,13 +43,12 @@ type ADKProviderForm = {
 };
 
 function createProviderForm(): ADKProviderForm {
-  const reasoningConfig = defaultADKProviderReasoningConfig("chat_completions");
+  const reasoningConfig = defaultADKProviderReasoningConfig();
   return {
     id: "",
     displayName: "OpenAI Compatible",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
-    apiProtocol: "chat_completions",
     reasoningRequestField: reasoningConfig.requestField,
     reasoningMappings: ADK_REASONING_EFFORTS.map((effort) => ({
       effort,
@@ -71,20 +68,6 @@ export function useADKProviderForm(
   errorMessage: { value: string },
 ) {
   const providerForm = ref(createProviderForm());
-
-  watch(
-    () => providerForm.value.apiProtocol,
-    (protocol, previousProtocol) => {
-      const currentField = providerForm.value.reasoningRequestField.trim();
-      const previousDefault = defaultADKProviderReasoningConfig(
-        previousProtocol,
-      ).requestField;
-      if (currentField === "" || currentField === previousDefault) {
-        providerForm.value.reasoningRequestField =
-          defaultADKProviderReasoningConfig(protocol).requestField;
-      }
-    },
-  );
 
   async function saveProvider(): Promise<boolean> {
     successMessage.value = "";
@@ -195,7 +178,6 @@ export function useADKProviderForm(
       displayName: provider.displayName,
       baseUrl: provider.baseUrl,
       model: provider.model,
-      apiProtocol: provider.apiProtocol ?? "chat_completions",
       reasoningRequestField: reasoningConfig.requestField,
       reasoningMappings: ADK_REASONING_EFFORTS.map((effort) => {
         const mapping = reasoningConfig.mappings.find((item) => item.effort === effort);

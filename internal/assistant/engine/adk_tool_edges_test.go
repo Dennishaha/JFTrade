@@ -42,12 +42,6 @@ func TestSmallADKBoundaryTailBranches(t *testing.T) {
 		t.Fatal("toolBoolValue true string = false, want true")
 	}
 
-	splitter := providers.NewLegacyAssistantContentSplitter(providers.ReasoningModeReply)
-	reply, reasoning := splitter.Push("visible <not-a-tag> tail")
-	if !strings.Contains(reply, "<not-a-tag>") || reasoning != "" {
-		t.Fatalf("legacy splitter unknown tag = reply:%q reasoning:%q", reply, reasoning)
-	}
-
 	execution := &googleADKExecution{
 		runID: "plugin-run",
 		agent: Agent{PermissionMode: PermissionModeApproval},

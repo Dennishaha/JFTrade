@@ -478,6 +478,10 @@ func (c *googleADKWorkflowAgentTestContext) InvocationID() string {
 	return c.invocationID
 }
 
+func (c *googleADKWorkflowAgentTestContext) Branch() string {
+	return ""
+}
+
 func (c *googleADKWorkflowAgentTestContext) UserContent() *genai.Content {
 	return c.userContent
 }

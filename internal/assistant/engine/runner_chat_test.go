@@ -2,7 +2,6 @@ package adk
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -613,22 +612,18 @@ func TestChatRequestProviderOverrideRunsWithoutEditingAgent(t *testing.T) {
 	ensureTestProvider(t, runtime)
 	var captured openAIChatRequest
 	overrideServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/responses") {
 			http.NotFound(w, r)
 			return
 		}
 		defer func() { jftradePanicOnError(r.Body.Close()) }()
-		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+		var err error
+		captured, err = decodeTestResponsesRequest(r)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		jftradeErr1 := json.NewEncoder(w).Encode(openAIChatResponse{
-			Choices: []struct {
-				Message openAIChatMessage `json:"message"`
-			}{{Message: openAIChatMessage{Role: "assistant", Content: "override ok"}}},
-		})
-		jftradePanicOnError(jftradeErr1)
+		writeTestResponsesMessage(w, openAIChatMessage{Role: "assistant", Content: "override ok"}, captured.Stream)
 	}))
 	t.Cleanup(overrideServer.Close)
 	mustSaveProvider(t, runtime, ProviderWriteRequest{
@@ -698,22 +693,18 @@ func TestAgentWithoutProviderDynamicallyUsesDefaultProvider(t *testing.T) {
 
 	var capturedSecond openAIChatRequest
 	secondServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/responses") {
 			http.NotFound(w, r)
 			return
 		}
 		defer func() { jftradePanicOnError(r.Body.Close()) }()
-		if err := json.NewDecoder(r.Body).Decode(&capturedSecond); err != nil {
+		var err error
+		capturedSecond, err = decodeTestResponsesRequest(r)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		jftradeErr := json.NewEncoder(w).Encode(openAIChatResponse{
-			Choices: []struct {
-				Message openAIChatMessage `json:"message"`
-			}{{Message: openAIChatMessage{Role: "assistant", Content: "second default ok"}}},
-		})
-		jftradePanicOnError(jftradeErr)
+		writeTestResponsesMessage(w, openAIChatMessage{Role: "assistant", Content: "second default ok"}, capturedSecond.Stream)
 	}))
 	t.Cleanup(secondServer.Close)
 	mustSaveProvider(t, runtime, ProviderWriteRequest{

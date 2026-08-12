@@ -382,19 +382,34 @@ func assistantServiceProvider(t *testing.T, runtime *jfadk.Runtime) {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() { _ = r.Body.Close() }()
-		var payload struct {
-			Messages []struct {
-				Role    string `json:"role"`
-				Content string `json:"content"`
-				Name    string `json:"name"`
-			} `json:"messages"`
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/responses") {
+			http.NotFound(w, r)
+			return
 		}
+		var payload map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			t.Fatalf("decode provider payload: %v", err)
 		}
-		message := map[string]any{"role": "assistant", "content": "ok"}
+		if streaming, _ := payload["stream"].(bool); streaming {
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, err := w.Write([]byte("data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp-test\",\"model\":\"test-model\"}}\n\n" +
+				"data: {\"type\":\"response.output_text.delta\",\"delta\":\"ok\"}\n\n" +
+				"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp-test\",\"model\":\"test-model\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n" +
+				"data: [DONE]\n\n"))
+			if err != nil {
+				t.Fatalf("encode streaming provider response: %v", err)
+			}
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": message}}}); err != nil {
+		if err := json.NewEncoder(w).Encode(map[string]any{
+			"id": "resp-test", "model": "test-model",
+			"output": []map[string]any{{
+				"type": "message", "role": "assistant",
+				"content": []map[string]any{{"type": "output_text", "text": "ok", "annotations": []any{}}},
+			}},
+			"usage": map[string]any{"input_tokens": 1, "output_tokens": 1, "total_tokens": 2},
+		}); err != nil {
 			t.Fatalf("encode provider response: %v", err)
 		}
 	}))

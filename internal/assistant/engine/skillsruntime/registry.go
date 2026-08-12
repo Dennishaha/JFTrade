@@ -263,7 +263,7 @@ var workflowManagementToolNames = []string{
 	"workflow_runs.list", "workflow_runs.get",
 }
 
-// WorkflowManagementToolNames returns the tools unlocked by the builtin
+// WorkflowManagementToolNames returns the tools documented by the builtin
 // workflow-management skill.
 func WorkflowManagementToolNames() []string {
 	return append([]string(nil), workflowManagementToolNames...)

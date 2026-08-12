@@ -6,24 +6,20 @@ import (
 )
 
 func TestProviderReasoningPresetsAndExplicitEmptyMappings(t *testing.T) {
-	chat := DefaultProviderReasoningConfig(ProviderAPIProtocolChatCompletions)
-	if chat.RequestField != "reasoning_effort" || len(chat.Mappings) != 0 {
-		t.Fatalf("chat preset = %+v, want reasoning_effort and no assumed mappings", chat)
-	}
-	responses := DefaultProviderReasoningConfig(ProviderAPIProtocolResponses)
+	responses := DefaultProviderReasoningConfig()
 	if responses.RequestField != "reasoning.effort" || len(responses.Mappings) != 0 {
 		t.Fatalf("responses preset = %+v, want reasoning.effort and no assumed mappings", responses)
 	}
 
-	missing := NormalizeProviderReasoningConfig(ProviderReasoningConfig{}, ProviderAPIProtocolResponses)
+	missing := NormalizeProviderReasoningConfig(ProviderReasoningConfig{})
 	if missing.RequestField != responses.RequestField || len(missing.Mappings) != 0 {
 		t.Fatalf("missing provider config = %+v, want protocol field with empty support", missing)
 	}
-	empty := NormalizeProviderReasoningConfig(ProviderReasoningConfig{RequestField: "provider.reasoning", Mappings: []ProviderReasoningMapping{}}, ProviderAPIProtocolChatCompletions)
+	empty := NormalizeProviderReasoningConfig(ProviderReasoningConfig{RequestField: "provider.reasoning", Mappings: []ProviderReasoningMapping{}})
 	if empty.RequestField != "provider.reasoning" || empty.Mappings == nil || len(empty.Mappings) != 0 {
 		t.Fatalf("explicit empty mappings = %+v, want empty support set", empty)
 	}
-	if _, _, err := ResolveProviderReasoning(Provider{APIProtocol: ProviderAPIProtocolChatCompletions, ReasoningConfig: empty}, ReasoningEffortHigh); !errors.Is(err, ErrProviderReasoningUnsupported) {
+	if _, _, err := ResolveProviderReasoning(Provider{ReasoningConfig: empty}, ReasoningEffortHigh); !errors.Is(err, ErrProviderReasoningUnsupported) {
 		t.Fatalf("empty mapping resolution error = %v, want unsupported", err)
 	}
 }

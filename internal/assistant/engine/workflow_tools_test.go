@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
 	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
@@ -86,12 +87,6 @@ func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T)
 	if readTool.Description() != "Read a symbol for a delegated ADK agent." || readTool.IsLongRunning() {
 		t.Fatalf("read tool metadata description=%q long=%v", readTool.Description(), readTool.IsLongRunning())
 	}
-	if descriptor, ok := descriptorFromADKTool(readTool); !ok || descriptor.Name != "test.read" {
-		t.Fatalf("descriptorFromADKTool = %+v ok=%v", descriptor, ok)
-	}
-	if _, ok := descriptorFromADKTool(nil); ok {
-		t.Fatal("nil tool should not expose a descriptor")
-	}
 	declaration := readTool.Declaration()
 	if declaration == nil || declaration.Name != "test.read" || declaration.ParametersJsonSchema == nil {
 		t.Fatalf("Declaration = %#v", declaration)
@@ -145,6 +140,7 @@ func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T)
 func TestGoogleADKProductToolsetFunctionToolBoundaries(t *testing.T) {
 	ctx := newGoogleADKToolTestContext()
 	registry := NewToolRegistry()
+	handlerCalls := 0
 	registry.Register(ToolDescriptor{
 		Name: "test.strict", Description: "Strict schema", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes(),
 		InputSchema: map[string]any{
@@ -156,6 +152,7 @@ func TestGoogleADKProductToolsetFunctionToolBoundaries(t *testing.T) {
 			"additionalProperties": false,
 		},
 	}, func(_ context.Context, input map[string]any) (any, error) {
+		handlerCalls++
 		return map[string]any{"limit": input["limit"]}, nil
 	})
 	runtime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), registry)
@@ -169,29 +166,33 @@ func TestGoogleADKProductToolsetFunctionToolBoundaries(t *testing.T) {
 		t.Fatalf("Tools len=%d err=%v", len(tools), err)
 	}
 	strict := googleToolByName(t, tools, "test.strict")
-	if descriptor, ok := descriptorFromADKTool(strict); !ok || descriptor.Name != "test.strict" {
-		t.Fatalf("descriptorFromADKTool(strict) = %+v ok=%v", descriptor, ok)
+	output, err := strict.Run(ctx, map[string]any{"limit": 2})
+	if err != nil || fmt.Sprint(output["limit"]) != "2" || handlerCalls != 1 {
+		t.Fatalf("valid strict Run output=%#v err=%v handlerCalls=%d", output, err, handlerCalls)
 	}
-	output, err := strict.Run(ctx, map[string]any{"limit": "2", "extra": true})
-	if err != nil || output["limit"] != "2" {
-		t.Fatalf("strict Run output=%#v err=%v, want tolerant product args", output, err)
+	for name, input := range map[string]map[string]any{
+		"invalid type":        {"limit": "2"},
+		"missing required":    {},
+		"additional property": {"limit": 2, "extra": true},
+	} {
+		output, err = strict.Run(ctx, input)
+		if err == nil || output != nil {
+			t.Fatalf("%s strict Run output=%#v err=%v, want schema rejection", name, output, err)
+		}
 	}
-
-	wrapped := adktool.WithConfirmation(toolset, false, func(string, any) bool { return false })
-	wrappedTools, err := wrapped.Tools(ctx)
-	if err != nil || len(wrappedTools) != 1 {
-		t.Fatalf("wrapped Tools len=%d err=%v", len(wrappedTools), err)
+	if handlerCalls != 1 {
+		t.Fatalf("invalid strict inputs entered business handler %d times, want 0", handlerCalls-1)
 	}
 	execution := &googleADKExecution{descriptors: toolDescriptorIndex([]ToolDescriptor{{Name: "test.strict", Permission: "read_internal"}})}
-	if descriptor, ok := execution.descriptorForTool(wrappedTools[0]); !ok || descriptor.Name != "test.strict" {
-		t.Fatalf("descriptorForTool(wrapped) = %+v ok=%v", descriptor, ok)
+	if descriptor, ok := execution.descriptorForTool(strict); !ok || descriptor.Name != "test.strict" {
+		t.Fatalf("descriptorForTool(native) = %+v ok=%v", descriptor, ok)
 	}
 
 	defaultSchemaTool, err := newGoogleADKTool(ToolDescriptor{Name: "test.default", Description: "Default schema"}, RegisteredTool{
 		Handler: func(_ context.Context, input map[string]any) (any, error) {
 			return input, nil
 		},
-	})
+	}, Agent{PermissionMode: PermissionModeAll})
 	if err != nil {
 		t.Fatalf("newGoogleADKTool default schema: %v", err)
 	}
@@ -200,20 +201,6 @@ func TestGoogleADKProductToolsetFunctionToolBoundaries(t *testing.T) {
 		t.Fatalf("default schema product Run output=%#v err=%v", output, err)
 	}
 
-	var nilTool *googleADKTool
-	if nilTool.Name() != "" || nilTool.Description() != "" || nilTool.IsLongRunning() || nilTool.Declaration() != nil {
-		t.Fatalf("nil googleADKTool metadata name=%q description=%q long=%v declaration=%#v", nilTool.Name(), nilTool.Description(), nilTool.IsLongRunning(), nilTool.Declaration())
-	}
-	if _, err := nilTool.Run(ctx, map[string]any{}); err == nil || !strings.Contains(err.Error(), "not runnable") {
-		t.Fatalf("nil googleADKTool Run err = %v", err)
-	}
-	uninitialized := &googleADKTool{descriptor: ToolDescriptor{Name: "test.uninitialized", Description: "Uninitialized"}}
-	if uninitialized.Name() != "test.uninitialized" || uninitialized.Description() != "Uninitialized" || uninitialized.Declaration() == nil {
-		t.Fatalf("uninitialized googleADKTool metadata name=%q description=%q declaration=%#v", uninitialized.Name(), uninitialized.Description(), uninitialized.Declaration())
-	}
-	if _, err := uninitialized.Run(ctx, map[string]any{}); err == nil || !strings.Contains(err.Error(), "not runnable") {
-		t.Fatalf("uninitialized googleADKTool Run err = %v", err)
-	}
 }
 
 func TestGoogleADKProductToolsetRejectsInvalidFunctionSchema(t *testing.T) {
@@ -277,7 +264,7 @@ func TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions(t *testing.T)
 	ctx := context.Background()
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "test.read", DisplayName: "测试读取", Description: "Read", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes(),
+		Name: "test.read", DisplayName: "测试读取", Description: "Read", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes(), RequiredSkills: []string{"resource-skill"},
 	}, func(context.Context, map[string]any) (any, error) { return map[string]any{"ok": true}, nil })
 	registry.Register(ToolDescriptor{
 		Name: "test.trade", Description: "Trade", Permission: "live_trading", AllowedModes: []string{PermissionModeAll},
@@ -408,22 +395,26 @@ func TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions(t *testing.T)
 	if !toolsetsContainTool(t, toolsets, "test.read") {
 		t.Fatalf("filtered toolsets did not include test.read")
 	}
+	toolCtx := newGoogleADKToolTestContext()
+	before, loadSkill := toolsetNamesAndRunnable(t, toolsets, "load_skill", toolCtx)
+	if loadSkill == nil || !slices.Contains(before, "test.read") {
+		t.Fatalf("pre-load tools=%#v load_skill=%T", before, loadSkill)
+	}
+	loaded, err := loadSkill.Run(toolCtx, map[string]any{"name": "resource-skill"})
+	if err != nil || !strings.Contains(fmt.Sprint(loaded), "Use this resource skill") {
+		t.Fatalf("load_skill output=%#v err=%v", loaded, err)
+	}
+	after, _ := toolsetNamesAndRunnable(t, toolsets, "load_skill", toolCtx)
+	if !slices.Equal(before, after) {
+		t.Fatalf("tool declarations changed after load_skill: before=%#v after=%#v", before, after)
+	}
 	if toolsetsContainTool(t, toolsets, "load_artifacts", newGoogleADKToolTestContext()) {
 		t.Fatalf("empty artifact toolset should not expose load_artifacts")
 	}
 }
 
-func TestGoogleADKToolsetsBoundaryErrorsAndStaticToolsets(t *testing.T) {
+func TestGoogleADKToolsetsBoundaryErrorsAndArtifactToolsets(t *testing.T) {
 	ctx := context.Background()
-	static := googleADKStaticToolset{name: "static-tools", tools: []adktool.Tool{preloadmemorytoolForBoundary{}}}
-	if static.Name() != "static-tools" {
-		t.Fatalf("static Name = %q", static.Name())
-	}
-	staticTools, err := static.Tools(newGoogleADKToolTestContext())
-	if err != nil || len(staticTools) != 1 || staticTools[0].Name() != "boundary.preload" {
-		t.Fatalf("static Tools = %#v err=%v", staticTools, err)
-	}
-
 	artifactSet := googleADKArtifactToolset{name: "artifact-tools"}
 	if artifactSet.Name() != "artifact-tools" {
 		t.Fatalf("artifact Name = %q", artifactSet.Name())
@@ -458,29 +449,14 @@ func TestGoogleADKToolsetsBoundaryErrorsAndStaticToolsets(t *testing.T) {
 	}
 }
 
-func TestGoogleADKToolsetsIncludeADKMemoryToolsWhenEnabled(t *testing.T) {
-	ctx := context.Background()
+func TestGoogleADKLLMAgentDirectToolsIncludeMemoryWhenEnabled(t *testing.T) {
 	runtime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), NewToolRegistry())
-	toolsets, err := runtime.googleADKToolsets(ctx, Agent{ID: "memory-agent", MemoryEnabled: true})
-	if err != nil {
-		t.Fatalf("googleADKToolsets memory enabled: %v", err)
+	tools := runtime.googleADKDirectTools(Agent{ID: "memory-agent", MemoryEnabled: true})
+	if len(tools) != 2 || tools[0].Name() != "preload_memory" || tools[1].Name() != "load_memory" {
+		t.Fatalf("memory-enabled direct tools = %#v", tools)
 	}
-	if !toolsetsContainTool(t, toolsets, "preload_memory") {
-		t.Fatalf("memory-enabled toolsets did not include preload_memory")
-	}
-	if !toolsetsContainTool(t, toolsets, "load_memory") {
-		t.Fatalf("memory-enabled toolsets did not include load_memory")
-	}
-
-	toolsets, err = runtime.googleADKToolsets(ctx, Agent{ID: "memory-agent", MemoryEnabled: false})
-	if err != nil {
-		t.Fatalf("googleADKToolsets memory disabled: %v", err)
-	}
-	if toolsetsContainTool(t, toolsets, "preload_memory") {
-		t.Fatalf("memory-disabled toolsets included preload_memory")
-	}
-	if toolsetsContainTool(t, toolsets, "load_memory") {
-		t.Fatalf("memory-disabled toolsets included load_memory")
+	if disabled := runtime.googleADKDirectTools(Agent{ID: "memory-agent"}); disabled != nil {
+		t.Fatalf("memory-disabled direct tools = %#v", disabled)
 	}
 }
 
@@ -524,6 +500,31 @@ func toolsetsContainTool(t *testing.T, toolsets []adktool.Toolset, name string, 
 		}
 	}
 	return false
+}
+
+func toolsetNamesAndRunnable(
+	t *testing.T,
+	toolsets []adktool.Toolset,
+	name string,
+	ctx adkagent.Context,
+) ([]string, googleADKRunnableTool) {
+	t.Helper()
+	var runnable googleADKRunnableTool
+	var names []string
+	for _, toolset := range toolsets {
+		tools, err := toolset.Tools(ctx)
+		if err != nil {
+			t.Fatalf("Tools(%s): %v", toolset.Name(), err)
+		}
+		for _, item := range tools {
+			names = append(names, item.Name())
+			if item.Name() == name {
+				runnable, _ = item.(googleADKRunnableTool)
+			}
+		}
+	}
+	slices.Sort(names)
+	return names, runnable
 }
 
 func TestWorkflowStoreTriggerDeletionAndLogLookupBoundaries(t *testing.T) {
@@ -632,11 +633,17 @@ func TestWorkflowStoreTriggerDeletionAndLogLookupBoundaries(t *testing.T) {
 	}
 }
 
-func googleToolByName(t *testing.T, tools []adktool.Tool, name string) *googleADKTool {
+type googleADKFunctionTool interface {
+	googleADKRunnableTool
+	Declaration() *genai.FunctionDeclaration
+	ProcessRequest(adkagent.Context, *adkmodel.LLMRequest) error
+}
+
+func googleToolByName(t *testing.T, tools []adktool.Tool, name string) googleADKFunctionTool {
 	t.Helper()
 	for _, tool := range tools {
 		if tool.Name() == name {
-			typed, ok := tool.(*googleADKTool)
+			typed, ok := tool.(googleADKFunctionTool)
 			if !ok {
 				t.Fatalf("tool %s has type %T", name, tool)
 			}
@@ -737,12 +744,6 @@ type googleADKFakeSkillSource struct {
 	instructions   map[string]string
 	resources      map[string]map[string]string
 }
-
-type preloadmemorytoolForBoundary struct{}
-
-func (preloadmemorytoolForBoundary) Name() string        { return "boundary.preload" }
-func (preloadmemorytoolForBoundary) Description() string { return "boundary preload" }
-func (preloadmemorytoolForBoundary) IsLongRunning() bool { return false }
 
 type listErrorArtifactService struct {
 	adkartifact.Service

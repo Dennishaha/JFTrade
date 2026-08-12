@@ -638,44 +638,6 @@ func TestListOptimizationTasksSortsByUpdatedAtDesc(t *testing.T) {
 	}
 }
 
-func TestRecentOpenAIMessagesKeepsLatestConversation(t *testing.T) {
-	messages := []TranscriptEntry{
-		{Role: "user", Content: "first"},
-		{Role: "assistant", Content: "second"},
-		{Role: "user", Content: "third"},
-	}
-	history := recentOpenAIMessages(messages, 2, 100)
-	if len(history) != 2 {
-		t.Fatalf("history len = %d, want 2", len(history))
-	}
-	if history[0].Role != "assistant" || history[0].Content != "second" || history[1].Content != "third" {
-		t.Fatalf("history = %+v, want latest assistant/user pair", history)
-	}
-}
-
-func TestOpenAIToolsFromDescriptorsIncludesSchemaAndRisk(t *testing.T) {
-	tools := openAIToolsFromDescriptors([]ToolDescriptor{{
-		Name:          "market.snapshot",
-		DisplayName:   "Snapshot",
-		Description:   "read snapshot",
-		Permission:    "read_internal",
-		OutputSummary: "snapshot output",
-		RiskLevel:     "low",
-	}})
-	if len(tools) != 1 {
-		t.Fatalf("tools len = %d, want 1", len(tools))
-	}
-	if tools[0].Function.Name != "market-snapshot" {
-		t.Fatalf("tool name = %q", tools[0].Function.Name)
-	}
-	if tools[0].Function.Parameters["type"] != "object" {
-		t.Fatalf("tool parameters = %#v, want object schema", tools[0].Function.Parameters)
-	}
-	if !strings.Contains(tools[0].Function.Description, "Risk: low") {
-		t.Fatalf("tool description = %q, want risk annotation", tools[0].Function.Description)
-	}
-}
-
 func TestExecuteToolTagInvokesCanonicalToolWithParameters(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -692,6 +654,14 @@ func TestExecuteToolTagInvokesCanonicalToolWithParameters(t *testing.T) {
 		Description: "test portfolio summary",
 		Category:    "portfolio",
 		Permission:  "read_internal",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"showDetails":   map[string]any{"type": "boolean"},
+				"showPositions": map[string]any{"type": "boolean"},
+			},
+			"additionalProperties": false,
+		},
 	}, func(_ context.Context, input map[string]any) (any, error) {
 		received = input
 		return map[string]any{"ok": true}, nil

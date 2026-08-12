@@ -9,7 +9,7 @@ import ADKProvidersPanel from "../../../src/components/adk-settings/ADKProviders
 const slotStub = defineComponent({ template: "<section><slot /></section>" });
 const buttonStub = defineComponent({
   emits: ["click"],
-  template: "<button type='button' @click='$emit(\"click\")'><slot /></button>",
+  template: "<button type='button' @click='$emit(\"click\", $event)'><slot /></button>",
 });
 const dialogStub = defineComponent({
   props: ["modelValue"],
@@ -40,8 +40,7 @@ describe("ADK providers panel configuration", () => {
       displayName: "",
       baseUrl: "",
       model: "",
-      apiProtocol: "chat_completions" as const,
-      reasoningRequestField: "reasoning_effort",
+      reasoningRequestField: "reasoning.effort",
       reasoningMappings: buildReasoningMappings({
         medium: "medium",
         high: "high",
@@ -92,6 +91,12 @@ describe("ADK providers panel configuration", () => {
     await wrapper.findAll("button").find((button) => button.text() === "新增模型服务")!.trigger("click");
     expect(newProviderForm).toHaveBeenCalledOnce();
     expect(wrapper.get(".provider-dialog").exists()).toBe(true);
+    const reasoningShortcut = wrapper.get(
+      '[data-testid="provider-reasoning-shortcut"]',
+    );
+    expect(reasoningShortcut.text()).toContain("思考等级 · 2 档已启用");
+    expect(reasoningShortcut.text()).toContain("中 · medium、高 · high");
+    expect(reasoningShortcut.text()).toContain("下方表单可滚动");
     const reasoningSettings = wrapper.get(
       '[data-testid="provider-reasoning-settings"]',
     );
@@ -100,6 +105,19 @@ describe("ADK providers panel configuration", () => {
     for (const label of ["低", "中", "高", "极高", "最大"]) {
       expect(reasoningSettings.text()).toContain(label);
     }
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(reasoningSettings.element, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "维护思考等级")!
+      .trigger("click");
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
     const advancedButton = wrapper
       .findAll("button")
       .find((button) => button.text() === "高级配置")!;
@@ -124,8 +142,7 @@ describe("ADK providers panel configuration", () => {
       displayName: "研究模型",
       baseUrl: "https://provider.example/v1",
       model: "research-model",
-      apiProtocol: "chat_completions",
-      reasoningRequestField: "reasoning_effort",
+      reasoningRequestField: "reasoning.effort",
       reasoningMappings: [
         { effort: "low", value: "minimal", enabled: true },
         { effort: "medium", value: "balanced", enabled: true },
@@ -156,7 +173,6 @@ describe("ADK providers panel configuration", () => {
       displayName: "Provider",
       baseUrl: "https://provider.example/v1",
       model: "reasoning-model",
-      apiProtocol: "responses" as const,
       reasoningRequestField: "reasoning.effort",
       reasoningMappings: buildReasoningMappings({ high: "high" }),
       contextWindowTokens: 128_000,
@@ -174,7 +190,6 @@ describe("ADK providers panel configuration", () => {
             displayName: "Provider",
             baseUrl: "https://provider.example/v1",
             model: "reasoning-model",
-            apiProtocol: "responses",
             reasoningConfig: {
               requestField: "reasoning.effort",
               mappings: [{ effort: "high", value: "high" }],

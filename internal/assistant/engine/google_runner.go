@@ -118,7 +118,8 @@ func (r *Runtime) rehydrateGoogleADKExecution(ctx context.Context, run Run) (*go
 		return nil, err
 	}
 	seedResumedExecutionState(execution, run)
-	parts := make([]*genai.Part, 0, len(run.PendingApprovals))
+	originalParts := make([]*genai.Part, 0, len(run.PendingApprovals))
+	confirmationParts := make([]*genai.Part, 0, len(run.PendingApprovals))
 	for _, approval := range run.PendingApprovals {
 		if approval.ConfirmationCallID == "" || approval.FunctionCallID == "" {
 			continue
@@ -126,7 +127,8 @@ func (r *Runtime) rehydrateGoogleADKExecution(ctx context.Context, run Run) (*go
 		original := &genai.FunctionCall{
 			ID: approval.FunctionCallID, Name: approval.ToolName, Args: approval.Input,
 		}
-		parts = append(parts, &genai.Part{FunctionCall: &genai.FunctionCall{
+		originalParts = append(originalParts, &genai.Part{FunctionCall: original})
+		confirmationParts = append(confirmationParts, &genai.Part{FunctionCall: &genai.FunctionCall{
 			ID: approval.ConfirmationCallID, Name: toolconfirmation.FunctionCallName,
 			Args: map[string]any{
 				"originalFunctionCall": original,
@@ -136,13 +138,91 @@ func (r *Runtime) rehydrateGoogleADKExecution(ctx context.Context, run Run) (*go
 			},
 		}})
 	}
-	if len(parts) == 0 {
+	if len(confirmationParts) == 0 {
 		if run.InputRequest != nil && strings.TrimSpace(run.InputRequest.FunctionCallID) != "" {
 			return execution, nil
 		}
 		return nil, nil
 	}
+	if err := r.ensureResumedConfirmationContext(ctx, run, execution, originalParts, confirmationParts); err != nil {
+		return nil, err
+	}
 	return execution, nil
+}
+
+func (r *Runtime) ensureResumedConfirmationContext(
+	ctx context.Context,
+	run Run,
+	execution *googleADKExecution,
+	originalParts []*genai.Part,
+	confirmationParts []*genai.Part,
+) error {
+	response, err := execution.sessionService.Get(ctx, &adksession.GetRequest{
+		AppName: execution.appName, UserID: googleADKUserID, SessionID: execution.sessionID,
+	})
+	if err != nil {
+		return fmt.Errorf("read GO-ADK approval session: %w", err)
+	}
+	if response == nil || response.Session == nil {
+		return fmt.Errorf("GO-ADK approval session is unavailable")
+	}
+	missingOriginals := missingFunctionCallParts(response.Session.Events(), originalParts)
+	if len(missingOriginals) > 0 {
+		if err := r.appendResumedFunctionCallContext(ctx, run, execution, response.Session, "original-calls", missingOriginals); err != nil {
+			return err
+		}
+	}
+	missingConfirmations := missingFunctionCallParts(response.Session.Events(), confirmationParts)
+	if len(missingConfirmations) == 0 {
+		return nil
+	}
+	return r.appendResumedFunctionCallContext(ctx, run, execution, response.Session, "confirmations", missingConfirmations)
+}
+
+func (r *Runtime) appendResumedFunctionCallContext(
+	ctx context.Context,
+	run Run,
+	execution *googleADKExecution,
+	sess adksession.Session,
+	kind string,
+	parts []*genai.Part,
+) error {
+	event := adksession.NewEvent(ctx, run.ID)
+	event.ID = "jftrade-resume-" + kind + "-" + run.ID
+	event.Author = googleADKAgentName(run.AgentID)
+	event.LLMResponse = adkmodel.LLMResponse{
+		Content: genai.NewContentFromParts(parts, genai.RoleModel), TurnComplete: true,
+	}
+	if err := appendADKEventWithStaleRetry(ctx, runtimeAppendLocks(r), execution.sessionService, sess, event); err != nil {
+		return fmt.Errorf("restore GO-ADK approval context: %w", err)
+	}
+	return nil
+}
+
+func missingFunctionCallParts(events adksession.Events, parts []*genai.Part) []*genai.Part {
+	existing := make(map[string]struct{})
+	if events != nil {
+		for event := range events.All() {
+			if event == nil || event.Content == nil {
+				continue
+			}
+			for _, part := range event.Content.Parts {
+				if part != nil && part.FunctionCall != nil && strings.TrimSpace(part.FunctionCall.ID) != "" {
+					existing[part.FunctionCall.ID] = struct{}{}
+				}
+			}
+		}
+	}
+	missing := make([]*genai.Part, 0, len(parts))
+	for _, part := range parts {
+		if part == nil || part.FunctionCall == nil {
+			continue
+		}
+		if _, ok := existing[part.FunctionCall.ID]; !ok {
+			missing = append(missing, part)
+		}
+	}
+	return missing
 }
 
 func (r *Runtime) newResumedGoogleADKExecution(ctx context.Context, run Run) (*googleADKExecution, error) {
@@ -543,7 +623,8 @@ func (r *Runtime) runGoogleADKFinalSynthesis(
 	}
 	execution.markToolResponseSeenForRun(runID)
 	runCtx := googleADKTaskRunnerContext(ctx)
-	for event, runErr := range synthesisRunner.Run(runCtx, googleADKUserID, execution.sessionID, nil, adkagent.RunConfig{
+	synthesisPrompt := genai.NewContentFromText("请根据以上工具结果给出最终答复。", genai.RoleUser)
+	for event, runErr := range synthesisRunner.Run(runCtx, googleADKUserID, execution.sessionID, synthesisPrompt, adkagent.RunConfig{
 		StreamingMode: adkagent.StreamingModeSSE,
 	}) {
 		if runErr != nil {
@@ -597,10 +678,7 @@ func (r *Runtime) GoogleADKModelForAgent(ctx context.Context, definition Agent) 
 			}},
 		}
 	}
-	if provider.APIProtocol == ProviderAPIProtocolResponses {
-		return providers.NewOpenAIResponsesADKModel(ctx, provider, apiKey, definition.Model, definition.ReasoningEffort)
-	}
-	return newOpenAICompatibleADKModel(provider, apiKey, definition.Model, definition.ReasoningEffort), nil
+	return providers.NewOpenAIResponsesADKModel(ctx, provider, apiKey, definition.Model, definition.ReasoningEffort)
 }
 
 func (r *Runtime) newGoogleADKLLMAgent(
@@ -633,6 +711,7 @@ func (r *Runtime) newGoogleADKLLMAgent(
 			return instruction + "\n\n" + suffix, nil
 		},
 		Model:           llm,
+		Tools:           r.googleADKDirectTools(definition),
 		Toolsets:        toolsets,
 		IncludeContents: llmagent.IncludeContentsDefault,
 	})

@@ -45,81 +45,72 @@ func TestChatRequestIdentityValidationAndFingerprintConflict(t *testing.T) {
 	}
 }
 
-func TestConcurrentChatRequestReusesOneRunAndNativeAssistantEvent(t *testing.T) {
-	for _, protocol := range []string{ProviderAPIProtocolChatCompletions, ProviderAPIProtocolResponses} {
-		t.Run(protocol, func(t *testing.T) {
-			runtime := newTestRuntime(t)
-			var calls atomic.Int64
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
-				calls.Add(1)
-				time.Sleep(40 * time.Millisecond)
-				w.Header().Set("Content-Type", "text/event-stream")
-				if protocol == ProviderAPIProtocolResponses {
-					writeResponsesChatEvents(w)
-					return
-				}
-				_, _ = fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"single answer\"}}]}\n\ndata: [DONE]\n\n")
-			}))
-			defer server.Close()
+func TestConcurrentResponsesRequestReusesOneRunAndNativeAssistantEvent(t *testing.T) {
+	t.Run("responses", func(t *testing.T) {
+		runtime := newTestRuntime(t)
+		var calls atomic.Int64
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+			calls.Add(1)
+			time.Sleep(40 * time.Millisecond)
+			w.Header().Set("Content-Type", "text/event-stream")
+			writeResponsesChatEvents(w)
+		}))
+		defer server.Close()
 
-			baseURL := server.URL
-			if protocol == ProviderAPIProtocolResponses {
-				baseURL += "/v1"
-			}
-			provider := mustSaveProvider(t, runtime, ProviderWriteRequest{
-				ID: "idempotency-" + protocol, DisplayName: protocol, BaseURL: baseURL, Model: "test-model",
-				APIKey: "secret", APIProtocol: protocol, Enabled: true,
-			})
-			agent := mustSaveAgent(t, runtime, AgentWriteRequest{
-				ID: "idempotency-agent-" + protocol, Name: protocol, ProviderID: provider.ID, Model: provider.Model, Status: AgentStatusEnabled,
-			})
-			session := mustCreateSession(t, runtime, agent.ID, "idempotency")
-			request := ChatRequest{ClientRequestID: uuid.NewString(), AgentID: agent.ID, SessionID: session.ID, Message: "hello"}
-
-			responses := make([]ChatResponse, 2)
-			errs := make([]error, 2)
-			var wg sync.WaitGroup
-			for index := range responses {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					responses[index], errs[index] = runtime.Chat(t.Context(), request)
-				}()
-			}
-			wg.Wait()
-			for index, err := range errs {
-				if err != nil {
-					t.Fatalf("Chat[%d]: %v", index, err)
-				}
-			}
-			if responses[0].Run.ID == "" || responses[0].Run.ID != responses[1].Run.ID || calls.Load() != 1 {
-				t.Fatalf("responses run IDs=(%q,%q) model calls=%d", responses[0].Run.ID, responses[1].Run.ID, calls.Load())
-			}
-
-			run, ok, err := runtime.Store().Run(t.Context(), responses[0].Run.ID)
-			if err != nil || !ok || run.FinalMessageID == "" {
-				t.Fatalf("stored run ok=%v err=%v run=%+v", ok, err, run)
-			}
-			projection, ok, err := runtime.Store().SessionProjection(t.Context(), session.ID)
-			if err != nil || !ok {
-				t.Fatalf("SessionProjection ok=%v err=%v", ok, err)
-			}
-			message, found := projection.MessagesByEventID[run.FinalMessageID]
-			if !found || message.Content != "single answer" || len(mustAssistantMessages(t, runtime, session.ID)) != 1 {
-				t.Fatalf("native final message found=%v message=%+v projected=%+v", found, message, projection.Messages)
-			}
-
-			replayed, err := runtime.Chat(t.Context(), request)
-			if err != nil || replayed.Run.ID != run.ID || calls.Load() != 1 {
-				t.Fatalf("replayed response=%+v err=%v calls=%d", replayed, err, calls.Load())
-			}
-			conflicting := request
-			conflicting.Message = "different"
-			if _, err := runtime.Chat(t.Context(), conflicting); !errors.Is(err, ErrChatRequestConflict) {
-				t.Fatalf("conflicting Chat err=%v", err)
-			}
+		baseURL := server.URL + "/v1"
+		provider := mustSaveProvider(t, runtime, ProviderWriteRequest{
+			ID: "idempotency-responses", DisplayName: "responses", BaseURL: baseURL, Model: "test-model",
+			APIKey: "secret", Enabled: true,
 		})
-	}
+		agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+			ID: "idempotency-agent-responses", Name: "responses", ProviderID: provider.ID, Model: provider.Model, Status: AgentStatusEnabled,
+		})
+		session := mustCreateSession(t, runtime, agent.ID, "idempotency")
+		request := ChatRequest{ClientRequestID: uuid.NewString(), AgentID: agent.ID, SessionID: session.ID, Message: "hello"}
+
+		responses := make([]ChatResponse, 2)
+		errs := make([]error, 2)
+		var wg sync.WaitGroup
+		for index := range responses {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				responses[index], errs[index] = runtime.Chat(t.Context(), request)
+			}()
+		}
+		wg.Wait()
+		for index, err := range errs {
+			if err != nil {
+				t.Fatalf("Chat[%d]: %v", index, err)
+			}
+		}
+		if responses[0].Run.ID == "" || responses[0].Run.ID != responses[1].Run.ID || calls.Load() != 1 {
+			t.Fatalf("responses run IDs=(%q,%q) model calls=%d", responses[0].Run.ID, responses[1].Run.ID, calls.Load())
+		}
+
+		run, ok, err := runtime.Store().Run(t.Context(), responses[0].Run.ID)
+		if err != nil || !ok || run.FinalMessageID == "" {
+			t.Fatalf("stored run ok=%v err=%v run=%+v", ok, err, run)
+		}
+		projection, ok, err := runtime.Store().SessionProjection(t.Context(), session.ID)
+		if err != nil || !ok {
+			t.Fatalf("SessionProjection ok=%v err=%v", ok, err)
+		}
+		message, found := projection.MessagesByEventID[run.FinalMessageID]
+		if !found || message.Content != "single answer" || len(mustAssistantMessages(t, runtime, session.ID)) != 1 {
+			t.Fatalf("native final message found=%v message=%+v projected=%+v", found, message, projection.Messages)
+		}
+
+		replayed, err := runtime.Chat(t.Context(), request)
+		if err != nil || replayed.Run.ID != run.ID || calls.Load() != 1 {
+			t.Fatalf("replayed response=%+v err=%v calls=%d", replayed, err, calls.Load())
+		}
+		conflicting := request
+		conflicting.Message = "different"
+		if _, err := runtime.Chat(t.Context(), conflicting); !errors.Is(err, ErrChatRequestConflict) {
+			t.Fatalf("conflicting Chat err=%v", err)
+		}
+	})
 }
 
 func writeResponsesChatEvents(w http.ResponseWriter) {

@@ -20,14 +20,18 @@ func TestProbeProviderQuickAndFullRequestCounts(t *testing.T) {
 		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if effort, ok := body["reasoning_effort"].(string); ok {
+		if request.URL.Path != "/v1/responses" {
+			t.Fatalf("probe path = %q", request.URL.Path)
+		}
+		reasoning, _ := body["reasoning"].(map[string]any)
+		if effort, ok := reasoning["effort"].(string); ok {
 			efforts = append(efforts, effort)
 			if effort == "DEEP" {
 				http.Error(w, "deep unavailable", http.StatusBadRequest)
 				return
 			}
 		}
-		writeChatProbeResponse(t, w)
+		writeResponsesProbeResponse(t, w)
 	}))
 	defer server.Close()
 	provider := probeTestProvider(server.URL, []jfadkmodel.ProviderReasoningMapping{
@@ -83,10 +87,10 @@ func TestProbeProviderWithoutMappingsSendsNoReasoningField(t *testing.T) {
 		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if _, ok := body["reasoning_effort"]; ok {
+		if _, ok := body["reasoning"]; ok {
 			t.Fatalf("unexpected reasoning field: %#v", body)
 		}
-		writeChatProbeResponse(t, w)
+		writeResponsesProbeResponse(t, w)
 	}))
 	defer server.Close()
 	result, err := ProbeProvider(t.Context(), probeTestProvider(server.URL, nil), "secret", "")
@@ -116,16 +120,20 @@ func TestProviderProbeTimeoutCapsConfiguredRequestTimeout(t *testing.T) {
 
 func probeTestProvider(baseURL string, mappings []jfadkmodel.ProviderReasoningMapping) jfadkmodel.Provider {
 	return jfadkmodel.Provider{
-		BaseURL: baseURL, Model: "test-model", APIProtocol: jfadkmodel.ProviderAPIProtocolChatCompletions,
-		ReasoningConfig: jfadkmodel.ProviderReasoningConfig{RequestField: "reasoning_effort", Mappings: mappings},
+		BaseURL: baseURL + "/v1", Model: "test-model",
+		ReasoningConfig: jfadkmodel.ProviderReasoningConfig{RequestField: "reasoning.effort", Mappings: mappings},
 	}
 }
 
-func writeChatProbeResponse(t *testing.T, w http.ResponseWriter) {
+func writeResponsesProbeResponse(t *testing.T, w http.ResponseWriter) {
 	t.Helper()
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]any{
-		"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": "health check ok"}}},
+		"id": "resp_probe", "model": "test-model",
+		"output": []map[string]any{{
+			"type": "message", "role": "assistant",
+			"content": []map[string]any{{"type": "output_text", "text": "health check ok", "annotations": []any{}}},
+		}},
 	}); err != nil {
 		t.Fatalf("encode response: %v", err)
 	}

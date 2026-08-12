@@ -5,16 +5,15 @@ import (
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
-	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
 	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestGoalWorkflowPauseRequestBeforeNextTurnDoesNotCallModel(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	providerID := saveGoalWorkflowProvider(t, runtime, "goal-pause-before-next-turn-provider", func(req providers.OpenAIChatRequest) providers.OpenAIChatMessage {
+	providerID := saveGoalWorkflowProvider(t, runtime, "goal-pause-before-next-turn-provider", func(req responsesTestRequest) responsesTestMessage {
 		t.Fatalf("provider called after pause request: last user=%q", lastUserMessage(req))
-		return providers.OpenAIChatMessage{}
+		return responsesTestMessage{}
 	})
 	agent := mustSaveAgent(t, runtime, jfadk.AgentWriteRequest{
 		ID: "goal-pause-before-next-turn-agent", Name: "Goal Pause Before Next Turn", ProviderID: providerID,
@@ -85,7 +84,7 @@ func TestWorkflowResponseUsesAuthoritativePauseRequestedParent(t *testing.T) {
 	}
 }
 
-func lastUserMessage(req providers.OpenAIChatRequest) string {
+func lastUserMessage(req responsesTestRequest) string {
 	for index := len(req.Messages) - 1; index >= 0; index-- {
 		if req.Messages[index].Role == "user" {
 			return req.Messages[index].Content

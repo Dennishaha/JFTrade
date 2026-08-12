@@ -24,15 +24,15 @@ ADK 是 JFTrade 的核心差异化能力，不是可以随时裁掉的辅助模�
 - Runner：聊天、工具循环和审批恢复通过 `runner.Run` 驱动。
 - Workflow Agent：当前对外工作模式是 `chat`、`loop`。`loop` 使用 JFTrade parent/child run facade、执行计划投影和 runtime task toolset 推进目标；公开 `task` 模式已经移除，旧的 `sequential`、`parallel` 和 `task` 请求值不再作为运行模式接收。
 - Session：使用 ADK `session/database` 持久化事件；执行真相源是独立的 ADK session SQLite，不再从 JFTrade 历史消息回灌。`adk-session.db` schema 不兼容时会按 v2 结构重建，旧 ADK 原始对话事件不迁移。
-- Tool：JFTrade `ToolRegistry` 中的工具会包装为 ADK Function Tool，并由 Runner 调用；工具是否执行由 Provider 返回的 tool/function call 决定，后端不再按关键词或 `<execute-tool>` 文本标签做本地工具选择兜底。
-- HITL：需要审批的工具使用 ADK `RequestConfirmation` 和 `adk_request_confirmation` 协议。模型需要用户做方案决策时使用自动注入的 long-running tool `interaction.request_user`，Run 进入 `PENDING_INPUT`，回答通过原 function-call ID 恢复。原始 ADK workflow `RequestInput` 仍不是公开产品入口；非 `interaction.request_user` 的 requested-input 事件继续返回 `ADK_INPUT_UNSUPPORTED`。
-- Model：Provider 默认通过 ADK `model.LLM` 适配器调用 OpenAI-compatible `/chat/completions`；设置 `apiProtocol=responses` 时改用 ADK 官方 `openaimodel` 的 Responses API 适配器。两种协议都复用 Provider 的请求超时、默认请求头和 SSRF 防护；Responses 请求会对工具名做线上的安全字符适配，并在返回时恢复 JFTrade 原始名称。Agent 必须显式绑定启用状态的 Provider，且该 Provider 必须配置 API Key。不再提供本地确定性模型回复或 Provider 不可用时的本地文本兜底。
+- Tool：JFTrade `ToolRegistry` 中经 Agent 白名单和权限模式筛选后的工具直接构造成 ADK 原生 `FunctionTool`。清洗后的 JSON Schema 由原生工具在业务 handler 前严格校验，审批策略通过原生 `RequireConfirmation` 声明；执行租约、幂等、心跳、审计和结果投影仍由产品控制面负责。工具是否执行由 Provider 返回的 function call 决定，后端不再按关键词或 `<execute-tool>` 文本标签做本地工具选择兜底。
+- HITL：需要审批的工具使用 ADK `RequireConfirmation`、`RequestConfirmation` 和 `adk_request_confirmation` 协议。模型需要用户做方案决策时使用自动注入的 long-running tool `interaction.request_user`，Run 进入 `PENDING_INPUT`，回答通过原 function-call ID 恢复。原始 ADK workflow `RequestInput` 仍不是公开产品入口；非 `interaction.request_user` 的 requested-input 事件继续返回 `ADK_INPUT_UNSUPPORTED`。
+- Model：所有 Provider 统一通过 ADK Go v2.2 原生 `openaimodel` 调用 OpenAI-compatible Responses API。Provider 的 BaseURL、请求超时、默认请求头和 SSRF 防护继续生效；薄 adapter 只负责思考字段映射和工具名的线上安全字符适配/恢复。Agent 必须显式绑定启用状态的 Provider，且该 Provider 必须配置 API Key。不再提供 Chat Completions 分支、本地确定性模型回复或 Provider 不可用时的本地文本兜底。
 
-Run usage 直接消费 ADK Go v2.2 最终、非 partial 事件上的 `UsageMetadata`：按事件 author 归属到 parent 或对应 child run，以事件 ID 去重，并把 prompt/candidate tokens 累加到已有 `tokensIn` / `tokensOut`，每个有效 usage 事件计为一次 `modelCalls`。审批或用户输入恢复从持久化 Run 的累计值继续，不重置历史统计。Responses adapter 会提供该元数据；当前 Chat Completions adapter 不额外发送私有 usage 请求参数，没有元数据时这些字段保持零值。
+Run usage 直接消费 ADK Go v2.2 最终、非 partial 事件上的 `UsageMetadata`：按事件 author 归属到 parent 或对应 child run，以事件 ID 去重，并把 prompt/candidate tokens 累加到已有 `tokensIn` / `tokensOut`，每个有效 usage 事件计为一次 `modelCalls`。审批或用户输入恢复从持久化 Run 的累计值继续，不重置历史统计。Responses model 提供该元数据；Provider 没有返回元数据时这些字段保持零值。
 
-公共思考等级固定为 `low`、`medium`、`high`、`xhigh`、`max` 五档。Agent 可以选择一个默认等级，也可以留空表示模型默认；会话覆盖为空表示跟随 Agent，不是一个额外的等级。有效优先级是会话覆盖、Agent 默认、模型默认。Provider 的 `reasoningConfig` 声明支持的公共等级、请求 JSON 点路径和实际枚举值：Responses 只默认填写 `reasoning.effort`，Chat Completions 只默认填写 `reasoning_effort`，映射默认均为空；未配置映射表示该 Provider 不支持显式推理等级。
+公共思考等级固定为 `low`、`medium`、`high`、`xhigh`、`max` 五档。Agent 可以选择一个默认等级，也可以留空表示模型默认；会话覆盖为空表示跟随 Agent，不是一个额外的等级。有效优先级是会话覆盖、Agent 默认、模型默认。Provider 的 `reasoningConfig` 声明支持的公共等级、请求 JSON 点路径和实际枚举值；请求字段默认是 `reasoning.effort`，映射默认均为空。未配置映射表示该 Provider 不支持显式推理等级。
 
-Chat Completions 和 Responses 各自由自己的 Provider adapter 注入映射后的请求字段，不再经过通用 GenAI `ThinkingConfig`。普通对话、目标规划、子 Agent、循环任务和最终汇总使用各自 Agent/Provider 解析出的等级。Run 在启动时私有持久化公共等级、请求字段和值，审批或用户输入恢复继续使用该快照；公开 Run 响应只返回公共等级。Provider 不支持 Agent 或会话要求的等级时立即返回清晰错误，不静默降级。普通后台健康检查和上下文压缩不发送推理字段。
+Responses 薄 adapter 注入映射后的请求字段，不经过通用 GenAI `ThinkingConfig`。普通对话、目标规划、子 Agent、循环任务和最终汇总使用各自 Agent/Provider 解析出的等级。Run 在启动时私有持久化公共等级、请求字段和值，审批或用户输入恢复继续使用该快照；公开 Run 响应只返回公共等级。Provider 不支持 Agent 或会话要求的等级时立即返回清晰错误，不静默降级。Provider 健康检查和上下文压缩同样走 Responses，但不发送显式推理字段。
 
 `POST /api/v1/adk/providers/{providerId}/test` 接受可选的 `mode`。缺失或 `quick` 时验证连通性、工具能力和一个代表档位（优先 `medium`，否则按公共顺序取第一个已配置档位）；`full` 时串行验证全部映射并保留逐档结果。无映射时两种模式都不发送推理请求。完整验证会产生额外模型调用，控制台在执行前提示耗时和费用。
 
@@ -100,15 +100,15 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 
 `watchlist.list` 是只读工具：不指定 group 时返回本地分组摘要，指定 group 后按 market、query、cursor/limit 返回成员、来源和最近导入状态。它默认 `includeQuotes=false`，不会触发券商导入或行情订阅；完整参数和数据边界见 [自选系统](watchlist.md)。
 
-工作流管理 tools 复用工作流 Studio 的业务 Service、校验、脱敏和审计。14 个工具归属内置 `jftrade-workflow-management` Skill：设置页工具目录始终展示其 descriptor，但模型必须在当前 invocation 先调用 `load_skill` 加载该 Skill，之后的模型请求才会获得工具声明，`tools.search` 也只在加载后返回这些工具。临时激活按 agent 隔离，下一条用户消息必须重新加载；自定义 agent 还必须显式绑定该 Skill 并在工具白名单中授权所需工具。
+工作流管理 tools 复用工作流 Studio 的业务 Service、校验、脱敏和审计。14 个工具由内置 `jftrade-workflow-management` Skill 提供使用说明；已通过 Agent 白名单和权限筛选的工具从构建开始就会声明给模型，`tools.search` 也会返回这些工具。`load_skill` 只按需加载工作规范和资源；自定义 Agent 仍须绑定该 Skill 才能读取说明，并在工具白名单中授权所需工具。
 
-`update` 使用补丁语义，未提供字段保持不变；列表返回紧凑摘要，`get` 返回完整资源。创建、更新、删除和运行只在 `approval` 模式请求确认，在 `less_approval` 与 `all` 模式直接执行。已进入审批流程的工作流调用可以在后续 invocation 恢复，不要求重新加载 Skill，但新的调用仍必须先加载。
+`update` 使用补丁语义，未提供字段保持不变；列表返回紧凑摘要，`get` 返回完整资源。创建、更新、删除和运行只在 `approval` 模式请求确认，在 `less_approval` 与 `all` 模式直接执行。已进入审批流程的工作流调用可以在后续 invocation 恢复，不要求重新加载 Skill。
 
 `workflows.run` 和 `workflow_triggers.run` 会先持久化 `QUEUED` 运行日志并立即返回；agent 可用 `workflow_runs.get`、`workflow_runs.list` 配合 `workflow.wait` 轮询后续状态，不受单次工具调用 30 秒上限影响。只有可解析的普通交互会话能够启动工作流；工作流来源会话禁止再次启动工作流，以避免递归和跨工作流环路。
 
 Webhook secret 不进入模型上下文或 ADK 工具记录。tools 可以查看、启停和编辑已有 Webhook 触发器的非密钥元数据，但不能创建 Webhook 触发器、重置或读取 secret；这些操作仍只通过工作流 Studio/API 完成。
 
-策略内置 skill 已拆分为 `jftrade-strategy-research` 和 `jftrade-strategy-publish`。前者用于临时研究回测、不可变历史版本比较与结果查看，不写入策略定义；后者用于用户明确要求的保存、发布、历史版本恢复、实例模式调整和已保存定义优化。策略专属 tools 与工作流管理 tools 一样必须先在当前 invocation `load_skill` 后才会声明、可搜索或调用；设置页工具目录仍显示 descriptor。`strategy.validate_pine`、`strategy.definition_versions.list/get`、`backtest.runs` 和 `backtest.kline_sync_status` 是两条流程的共享工具，加载任一策略 skill 即可解锁；研究或发布专属工具仍只随各自 skill 出现。历史版本读取只返回不可变快照；恢复必须由用户明确要求，重新校验后通过受审批的 `strategy.save_definition` 以相同 definitionId 创建新版本，不能原地修改历史。旧的 `jftrade-strategy` 不再作为内置 skill 同步。
+策略内置 skill 已拆分为 `jftrade-strategy-research` 和 `jftrade-strategy-publish`。前者用于临时研究回测、不可变历史版本比较与结果查看，不写入策略定义；后者用于用户明确要求的保存、发布、历史版本恢复、实例模式调整和已保存定义优化。策略 tools 同样按 Agent 白名单和权限在构建时声明，Skill 只提供各自的操作规范和资源。`strategy.validate_pine`、`strategy.definition_versions.list/get`、`backtest.runs` 和 `backtest.kline_sync_status` 由两条流程共享；研究或发布专属工具的说明仍归对应 Skill。历史版本读取只返回不可变快照；恢复必须由用户明确要求，重新校验后通过受审批的 `strategy.save_definition` 以相同 definitionId 创建新版本，不能原地修改历史。旧的 `jftrade-strategy` 不再作为内置 skill 同步。
 
 ADK 发起研究回测或策略优化前会先检查本地 K 线覆盖，并把指标 warmup 纳入检查范围。覆盖不足时自动启动历史数据同步，工具返回 `syncing_data` 和同步 `taskId`，不会提前创建回测 run；skill 使用 `backtest.kline_sync_status` 等待完成后，以相同参数重试原回测工具。同步失败、取消或完成后覆盖仍不足时停止自动重试并返回原因。
 
@@ -116,7 +116,7 @@ ADK 发起研究回测或策略优化前会先检查本地 K 线覆盖，并把�
 
 - Skill 真相源是文件系统中的 `adk/skills/<skill-name>/SKILL.md` 目录树，直接使用 ADK 原生 `skill.NewFileSystemSource` + `skilltoolset`。
 - Agent 绑定的是 skill 目录名；模型通过 `list_skills`、`load_skill`、`load_skill_resource` 按需读取说明和资源。
-- ADK Go v2 的原生 `skilltoolset` 不会根据 `allowed-tools` 动态安装产品工具；JFTrade 使用 Toolset 请求处理器和 `temp:` invocation state 实现声明门控，支持一个或多个可解锁该工具的 Skill，保持工具调度、权限与审批仍走原有产品控制面。
+- ADK Go v2 的原生 `skilltoolset` 提供 Skill 指令和资源，不负责产品工具装配；JFTrade 在构建 Agent 时按工具白名单和权限模式过滤业务工具，并把它们作为原生 FunctionTool 声明。`load_skill` 不再维护额外的工具解锁状态。
 - `SKILL.md` 使用 ADK 原生 frontmatter：`name`、`description`、`allowed-tools`、`metadata`。
 - 不再保留产品级 `enabled` 开关或 Skill 数据库存储；`allowed-tools` 用于校验 Skill 是否能在当前 agent/权限模式下使用，不能绕过 agent 工具白名单。
 - 外部 Skill 只提供工作规范与资源目录，不执行任意代码；安装时限制文件大小并阻止不安全主机与文件路径引用。
@@ -207,7 +207,7 @@ workflow UI 是产品层投影，不改变 ADK Go v2 的执行语义。`/adk` �
 - 目标模式、parent/child run、审批队列、执行计划和 child view 都是 JFTrade 产品层投影。
 - ADK Go v2.2 的 `workflowagent.Config` 不能传入 workflow 并发选项，也只识别原生 `RequestInput` 恢复。JFTrade 暂时保留薄 workflow agent adapter，以维持 `WithMaxConcurrency`、工具审批响应、invocation 回退和恢复前会话裁剪；后续只有在原生入口能够等价表达这些语义时才移除。
 - Workflow task 工具是内部控制面工具，用于维护目标推进 TODO/DAG，不作为公开 task 模式或直接调用 child agent 的兼容层。
-- Provider tool calling 是工具执行的唯一入口；后端保留权限、审批、审计和投影控制面，并把 ADK Go v2 confirmation 与 `interaction.request_user` long-running 事件分别投影到 JFTrade Approval、InputRequest 和 timeline；其他 requested-input 事件仍直接失败为 `ADK_INPUT_UNSUPPORTED`。
+- Provider tool calling 是工具执行的唯一入口；业务工具在构建 Agent 时按白名单和权限筛选，并始终声明给模型。`load_skill` 只加载原生 Skill 指令和资源，不再动态解锁业务工具。后端保留权限、审批、审计和投影控制面，并把 ADK Go v2 confirmation 与 `interaction.request_user` long-running 事件分别投影到 JFTrade Approval、InputRequest 和 timeline；其他 requested-input 事件仍直接失败为 `ADK_INPUT_UNSUPPORTED`。
 - Optimization task、Run/Audit 展示、前端 SSE 和审批列表都属于 JFTrade 产品控制面，而不是 ADK Go v2 自带控制面。
 
 ## 验证

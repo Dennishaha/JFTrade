@@ -83,10 +83,8 @@ const (
 	MaxToolOutputBytes            = jfadk.MaxToolOutputBytes
 	MaxMessageLength              = jfadk.MaxMessageLength
 
-	ProviderAPIProtocolChatCompletions = jfadk.ProviderAPIProtocolChatCompletions
-	ProviderAPIProtocolResponses       = jfadk.ProviderAPIProtocolResponses
-	ProviderTestModeQuick              = jfadk.ProviderTestModeQuick
-	ProviderTestModeFull               = jfadk.ProviderTestModeFull
+	ProviderTestModeQuick = jfadk.ProviderTestModeQuick
+	ProviderTestModeFull  = jfadk.ProviderTestModeFull
 
 	TimelineKindUserMessage        = jfadk.TimelineKindUserMessage
 	TimelineKindAssistantMessage   = jfadk.TimelineKindAssistantMessage
@@ -196,13 +194,12 @@ type (
 )
 
 var (
-	ErrChatRequestConflict        = jfadk.ErrChatRequestConflict
-	ErrBuiltinAgentProtected      = jfadk.ErrBuiltinAgentProtected
-	ErrCleanupCandidatesChanged   = jfadk.ErrCleanupCandidatesChanged
-	ErrInvalidTaskStatus          = jfadk.ErrInvalidTaskStatus
-	ErrInvalidProviderAPIProtocol = jfadk.ErrInvalidProviderAPIProtocol
-	ErrProviderInUse              = jfadk.ErrProviderInUse
-	LocalMCPReadOnlyToolNames     = jfadk.LocalMCPReadOnlyToolNames
+	ErrChatRequestConflict      = jfadk.ErrChatRequestConflict
+	ErrBuiltinAgentProtected    = jfadk.ErrBuiltinAgentProtected
+	ErrCleanupCandidatesChanged = jfadk.ErrCleanupCandidatesChanged
+	ErrInvalidTaskStatus        = jfadk.ErrInvalidTaskStatus
+	ErrProviderInUse            = jfadk.ErrProviderInUse
+	LocalMCPReadOnlyToolNames   = jfadk.LocalMCPReadOnlyToolNames
 )
 
 func NewRuntime(store *Store, tools *ToolRegistry) *Runtime {

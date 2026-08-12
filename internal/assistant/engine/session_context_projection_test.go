@@ -116,10 +116,10 @@ func TestSessionContextSummaryAndBoundaryHelpersUseBusinessSemantics(t *testing.
 }
 
 func TestSessionContextManagerAndWrappedEventsBoundaryHelpers(t *testing.T) {
-	if NewSessionContextManager(nil, adksession.InMemoryService(), openAIClient{}, nil) != nil {
+	if NewSessionContextManager(nil, adksession.InMemoryService(), responsesClient{}, nil) != nil {
 		t.Fatal("manager with nil store should be unavailable")
 	}
-	if NewSessionContextManager(&Store{}, nil, openAIClient{}, nil) != nil {
+	if NewSessionContextManager(&Store{}, nil, responsesClient{}, nil) != nil {
 		t.Fatal("manager with nil raw session service should be unavailable")
 	}
 	base := adksession.InMemoryService()

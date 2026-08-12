@@ -625,62 +625,9 @@ func TestADKProviderSaveReturnsRequestTimeoutMs(t *testing.T) {
 	if !envelope.OK || envelope.Data.RequestTimeoutMs != 250_000 {
 		t.Fatalf("provider save envelope = %+v", envelope)
 	}
-	if envelope.Data.APIProtocol != "chat_completions" {
-		t.Fatalf("provider API protocol = %q, want chat_completions", envelope.Data.APIProtocol)
-	}
-}
-
-func TestADKProviderSaveRejectsUnknownAPIProtocol(t *testing.T) {
-	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
-	if err != nil {
-		t.Fatalf("NewSettingsStore: %v", err)
-	}
-	srv := newHTTPTestServer(t, store)
-
-	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/providers", "application/json", strings.NewReader(`{"displayName":"Invalid","apiProtocol":"legacy","enabled":true}`))
-	if err != nil {
-		t.Fatalf("POST provider: %v", err)
-	}
-	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
-	status, code, _ := decodeAPIErrorEnvelope(t, resp)
-	if status != http.StatusBadRequest || code != "ADK_PROVIDER_SAVE_FAILED" {
-		t.Fatalf("provider protocol error = %d/%s", status, code)
-	}
-}
-
-func TestADKProviderUpdatePreservesOmittedAPIProtocol(t *testing.T) {
-	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
-	if err != nil {
-		t.Fatalf("NewSettingsStore: %v", err)
-	}
-	srv := newHTTPTestServer(t, store)
-	saveProvider := func(payload string) asst.Provider {
-		t.Helper()
-		resp, requestErr := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/providers", "application/json", strings.NewReader(payload))
-		if requestErr != nil {
-			t.Fatalf("POST provider: %v", requestErr)
-		}
-		defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("POST provider status = %d", resp.StatusCode)
-		}
-		var envelope struct {
-			OK   bool          `json:"ok"`
-			Data asst.Provider `json:"data"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-			t.Fatalf("decode provider: %v", err)
-		}
-		if !envelope.OK {
-			t.Fatalf("provider response = %+v", envelope)
-		}
-		return envelope.Data
-	}
-
-	created := saveProvider(`{"id":"responses-update","displayName":"Responses","baseUrl":"https://api.openai.com/v1","model":"gpt-5","apiProtocol":"responses","enabled":true}`)
-	updated := saveProvider(`{"id":"responses-update","displayName":"Responses Updated","baseUrl":"https://api.openai.com/v1","model":"gpt-5.1","enabled":true}`)
-	if created.APIProtocol != "responses" || updated.APIProtocol != "responses" {
-		t.Fatalf("provider protocols create=%q update=%q", created.APIProtocol, updated.APIProtocol)
+	wire, err := json.Marshal(envelope.Data)
+	if err != nil || strings.Contains(string(wire), "apiProtocol") {
+		t.Fatalf("provider response leaked removed apiProtocol: %s err=%v", wire, err)
 	}
 }
 

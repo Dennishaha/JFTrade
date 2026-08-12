@@ -284,39 +284,7 @@ func configureTestADKProvider(t *testing.T, server *assistantRouteServer) {
 		return
 	}
 	providerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() { jftradeCheckTestError(t, r.Body.Close()) }()
-		var payload struct {
-			Messages []struct {
-				Role    string `json:"role"`
-				Content string `json:"content"`
-			} `json:"messages"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Errorf("decode provider request: %v", err)
-			return
-		}
-		var text strings.Builder
-		hasToolResponse := false
-		for _, message := range payload.Messages {
-			if message.Role == "tool" {
-				hasToolResponse = true
-			}
-			text.WriteString("\n" + message.Content)
-		}
-		message := map[string]any{"role": "assistant", "content": "ok"}
-		if !hasToolResponse {
-			if tool := testADKToolNameFromText(text.String()); tool != "" {
-				message["content"] = ""
-				message["tool_calls"] = []map[string]any{{
-					"id": "call-" + strings.ReplaceAll(tool, ".", "-"), "type": "function",
-					"function": map[string]any{"name": strings.ReplaceAll(tool, ".", "-"), "arguments": `{}`},
-				}}
-			}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": message}}}); err != nil {
-			t.Errorf("encode provider response: %v", err)
-		}
+		serveAssistantResponsesFixture(t, w, r, testADKToolNameFromText)
 	}))
 	t.Cleanup(providerServer.Close)
 	if _, err := server.runtime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
@@ -347,6 +315,119 @@ func testADKToolNameFromText(text string) string {
 		}
 	}
 	return ""
+}
+
+func serveAssistantResponsesFixture(
+	t *testing.T,
+	w http.ResponseWriter,
+	r *http.Request,
+	selectTool func(string) string,
+) {
+	t.Helper()
+	defer func() { jftradeCheckTestError(t, r.Body.Close()) }()
+	if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/responses") {
+		http.NotFound(w, r)
+		return
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		t.Errorf("decode provider request: %v", err)
+		return
+	}
+	text, hasToolResponse := assistantResponsesFixtureInput(payload["input"])
+	tool := ""
+	if !hasToolResponse && selectTool != nil {
+		tool = selectTool(text)
+	}
+	stream, _ := payload["stream"].(bool)
+	writeAssistantResponsesFixture(t, w, tool, stream)
+}
+
+func assistantResponsesFixtureInput(value any) (string, bool) {
+	items, _ := value.([]any)
+	var text strings.Builder
+	hasToolResponse := false
+	for _, rawItem := range items {
+		item, _ := rawItem.(map[string]any)
+		switch item["type"] {
+		case "message":
+			text.WriteString("\n" + assistantResponsesFixtureText(item["content"]))
+		case "function_call_output":
+			hasToolResponse = true
+			text.WriteString("\n" + assistantResponsesFixtureText(item["output"]))
+		}
+	}
+	return text.String(), hasToolResponse
+}
+
+func assistantResponsesFixtureText(value any) string {
+	if text, ok := value.(string); ok {
+		return text
+	}
+	items, _ := value.([]any)
+	var text strings.Builder
+	for _, rawItem := range items {
+		item, _ := rawItem.(map[string]any)
+		if value, _ := item["text"].(string); value != "" {
+			text.WriteString(value)
+		}
+	}
+	return text.String()
+}
+
+func writeAssistantResponsesFixture(t *testing.T, w http.ResponseWriter, tool string, stream bool) {
+	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
+	if !stream {
+		output := []map[string]any{{
+			"type": "message", "role": "assistant",
+			"content": []map[string]any{{"type": "output_text", "text": "ok", "annotations": []any{}}},
+		}}
+		if tool != "" {
+			wireName := strings.ReplaceAll(tool, ".", "-")
+			output = []map[string]any{{
+				"type": "function_call", "call_id": "call-" + wireName,
+				"name": wireName, "arguments": `{}`,
+			}}
+		}
+		if err := json.NewEncoder(w).Encode(map[string]any{
+			"id": "resp-test", "model": "test-model", "output": output,
+			"usage": map[string]any{"input_tokens": 1, "output_tokens": 1, "total_tokens": 2},
+		}); err != nil {
+			t.Errorf("encode provider response: %v", err)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	writeEvent := func(event map[string]any) {
+		raw, err := json.Marshal(event)
+		if err != nil {
+			t.Errorf("encode provider stream event: %v", err)
+			return
+		}
+		_, err = w.Write(append(append([]byte("data: "), raw...), []byte("\n\n")...))
+		jftradeCheckTestError(t, err)
+	}
+	writeEvent(map[string]any{"type": "response.created", "response": map[string]any{"id": "resp-test", "model": "test-model"}})
+	if tool == "" {
+		writeEvent(map[string]any{"type": "response.output_text.delta", "delta": "ok"})
+	} else {
+		wireName := strings.ReplaceAll(tool, ".", "-")
+		writeEvent(map[string]any{"type": "response.output_item.added", "item": map[string]any{
+			"type": "function_call", "id": "fc-test", "call_id": "call-" + wireName, "name": wireName,
+		}})
+		writeEvent(map[string]any{
+			"type": "response.function_call_arguments.done", "item_id": "fc-test",
+			"name": wireName, "arguments": `{}`,
+		})
+	}
+	writeEvent(map[string]any{"type": "response.completed", "response": map[string]any{
+		"id": "resp-test", "model": "test-model",
+		"usage": map[string]any{"input_tokens": 1, "output_tokens": 1, "total_tokens": 2},
+	}})
+	_, err := w.Write([]byte("data: [DONE]\n\n"))
+	jftradeCheckTestError(t, err)
 }
 
 func jftradeTestHTTPGet(t testing.TB, target string) (*http.Response, error) {

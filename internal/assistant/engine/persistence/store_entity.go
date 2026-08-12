@@ -40,11 +40,7 @@ func (s *StoreCore) SaveProvider(ctx context.Context, req jfadkmodel.ProviderWri
 	if err != nil {
 		return jfadkmodel.Provider{}, err
 	}
-	validationProtocol := req.APIProtocol
-	if strings.TrimSpace(validationProtocol) == "" && ok {
-		validationProtocol = existing.APIProtocol
-	}
-	if err := validateProviderWriteRequest(req, validationProtocol); err != nil {
+	if err := validateProviderWriteRequest(req); err != nil {
 		return jfadkmodel.Provider{}, err
 	}
 	now := jfadkmodel.NowString()
@@ -57,8 +53,7 @@ func (s *StoreCore) SaveProvider(ctx context.Context, req jfadkmodel.ProviderWri
 		DisplayName:         jfadkmodel.DefaultString(req.DisplayName, id),
 		BaseURL:             jfadkmodel.NormalizeBaseURL(req.BaseURL),
 		Model:               jfadkmodel.DefaultString(req.Model, "gpt-4o-mini"),
-		APIProtocol:         jfadkmodel.NormalizeProviderAPIProtocol(req.APIProtocol),
-		ReasoningConfig:     jfadkmodel.DefaultProviderReasoningConfig(req.APIProtocol),
+		ReasoningConfig:     jfadkmodel.DefaultProviderReasoningConfig(),
 		ContextWindowTokens: jfadkmodel.NormalizeContextWindowTokens(req.ContextWindowTokens),
 		RequestTimeoutMs:    jfadkmodel.NormalizeProviderRequestTimeoutMs(req.RequestTimeoutMs),
 		DefaultHeaders:      jfadkmodel.NormalizeHeaders(req.DefaultHeaders),
@@ -70,9 +65,6 @@ func (s *StoreCore) SaveProvider(ctx context.Context, req jfadkmodel.ProviderWri
 	if ok {
 		provider.Capabilities = existing.Capabilities
 		provider.ReasoningConfig = existing.ReasoningConfig
-		if strings.TrimSpace(req.APIProtocol) == "" {
-			provider.APIProtocol = existing.APIProtocol
-		}
 		if req.RequestTimeoutMs == 0 {
 			provider.RequestTimeoutMs = existing.RequestTimeoutMs
 		}
@@ -81,7 +73,7 @@ func (s *StoreCore) SaveProvider(ctx context.Context, req jfadkmodel.ProviderWri
 		}
 	}
 	if req.ReasoningConfig != nil {
-		provider.ReasoningConfig = jfadkmodel.NormalizeProviderReasoningConfig(*req.ReasoningConfig, provider.APIProtocol)
+		provider.ReasoningConfig = jfadkmodel.NormalizeProviderReasoningConfig(*req.ReasoningConfig)
 	}
 	provider = jfadkmodel.NormalizeProvider(provider)
 	if strings.TrimSpace(provider.BaseURL) == "" {
@@ -127,17 +119,14 @@ func providerWriteID(req jfadkmodel.ProviderWriteRequest) string {
 	return id
 }
 
-func validateProviderWriteRequest(req jfadkmodel.ProviderWriteRequest, protocol string) error {
+func validateProviderWriteRequest(req jfadkmodel.ProviderWriteRequest) error {
 	if strings.TrimSpace(req.BaseURL) != "" {
 		if err := ValidateProviderBaseURL(req.BaseURL); err != nil {
 			return err
 		}
 	}
-	if err := jfadkmodel.ValidateProviderAPIProtocol(protocol); err != nil {
-		return err
-	}
 	if req.ReasoningConfig != nil {
-		config := jfadkmodel.NormalizeProviderReasoningConfig(*req.ReasoningConfig, protocol)
+		config := jfadkmodel.NormalizeProviderReasoningConfig(*req.ReasoningConfig)
 		if err := jfadkmodel.ValidateProviderReasoningConfig(config); err != nil {
 			return fmt.Errorf("%w: %w", jfadkmodel.ErrInvalidProviderReasoning, err)
 		}

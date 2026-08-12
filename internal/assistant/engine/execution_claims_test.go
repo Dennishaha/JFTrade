@@ -57,6 +57,7 @@ func TestGoogleADKToolUsesDurableInvocationKeyAndReplay(t *testing.T) {
 	var observedKey string
 	registry.Register(ToolDescriptor{
 		Name: "test.durable_read", Description: "durable read", Permission: "read_internal",
+		InputSchema: testStringValueSchema(),
 	}, func(ctx context.Context, input map[string]any) (any, error) {
 		calls.Add(1)
 		key, ok := ToolInvocationIdempotencyKey(ctx)
@@ -80,7 +81,7 @@ func TestGoogleADKToolUsesDurableInvocationKeyAndReplay(t *testing.T) {
 		runIDByAgentName: map[string]string{"agent-test": "run-wrapper"},
 	}
 	registered, _ := registry.Get("test.durable_read")
-	tool, err := newGoogleADKTool(registered.Descriptor, registered, execution)
+	tool, err := newGoogleADKTool(registered.Descriptor, registered, Agent{PermissionMode: PermissionModeAll}, execution)
 	if err != nil {
 		t.Fatalf("newGoogleADKTool: %v", err)
 	}
@@ -109,6 +110,7 @@ func TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover(t *testing.T) {
 	var calls atomic.Int32
 	registry.Register(ToolDescriptor{
 		Name: "test.stale_read", Description: "stale read", Permission: "read_internal",
+		InputSchema: testStringValueSchema(),
 	}, func(context.Context, map[string]any) (any, error) {
 		calls.Add(1)
 		return map[string]any{"ok": true}, nil
@@ -137,11 +139,11 @@ func TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover(t *testing.T) {
 		runIDByAgentName: map[string]string{"agent-test": "run-stale-context"},
 	}
 	registered, _ := registry.Get("test.stale_read")
-	tool, err := newGoogleADKTool(registered.Descriptor, registered, execution)
+	tool, err := newGoogleADKTool(registered.Descriptor, registered, Agent{PermissionMode: PermissionModeAll}, execution)
 	if err != nil {
 		t.Fatalf("newGoogleADKTool: %v", err)
 	}
-	if _, err := tool.run(oldToolCtx, map[string]any{"value": "stale"}); !errors.Is(err, enginepersistence.ErrRunLeaseLost) {
+	if _, err := tool.Run(oldToolCtx, map[string]any{"value": "stale"}); !errors.Is(err, enginepersistence.ErrRunLeaseLost) {
 		t.Fatalf("stale tool context err = %v, want ErrRunLeaseLost", err)
 	}
 	if calls.Load() != 0 {
@@ -155,7 +157,7 @@ func TestGoogleADKKeyedToolFailsClosedWhenHandlerIgnoresKey(t *testing.T) {
 	var calls atomic.Int32
 	registry.Register(ToolDescriptor{
 		Name: "test.key_ignored", Description: "key ignored", Permission: "write_internal",
-		IdempotencyMode: ToolIdempotencyKeyed,
+		IdempotencyMode: ToolIdempotencyKeyed, InputSchema: testStringValueSchema(),
 	}, func(context.Context, map[string]any) (any, error) {
 		calls.Add(1)
 		return map[string]any{"ok": true}, nil
@@ -174,19 +176,29 @@ func TestGoogleADKKeyedToolFailsClosedWhenHandlerIgnoresKey(t *testing.T) {
 		runIDByAgentName: map[string]string{"agent-test": "run-key-ignored"},
 	}
 	registered, _ := registry.Get("test.key_ignored")
-	tool, err := newGoogleADKTool(registered.Descriptor, registered, execution)
+	tool, err := newGoogleADKTool(registered.Descriptor, registered, Agent{PermissionMode: PermissionModeAll}, execution)
 	if err != nil {
 		t.Fatalf("newGoogleADKTool: %v", err)
 	}
 	mock := adkagent.NewStrictContextMock(leaseCtx)
 	toolCtx := googleADKToolTestContext{StrictContextMock: &mock}
 	for attempt := range 2 {
-		if _, err := tool.run(toolCtx, map[string]any{"value": "once"}); !errors.Is(err, enginepersistence.ErrToolOutcomeUnknown) {
+		if _, err := tool.Run(toolCtx, map[string]any{"value": "once"}); !errors.Is(err, enginepersistence.ErrToolOutcomeUnknown) {
 			t.Fatalf("attempt %d err = %v, want ErrToolOutcomeUnknown", attempt, err)
 		}
 	}
 	if calls.Load() != 1 {
 		t.Fatalf("handler calls = %d, want 1", calls.Load())
+	}
+}
+
+func testStringValueSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"value": map[string]any{"type": "string"},
+		},
+		"required": []string{"value"}, "additionalProperties": false,
 	}
 }
 

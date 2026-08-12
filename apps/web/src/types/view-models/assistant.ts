@@ -2,7 +2,6 @@ import type { MCPServerStatus } from "../../contracts/wire/settings";
 
 export type ADKPermissionMode = "approval" | "less_approval" | "all";
 export type ADKWorkMode = "chat" | "loop";
-export type ADKProviderAPIProtocol = "chat_completions" | "responses";
 export type ADKReasoningEffort =
   | "low"
   | "medium"
@@ -48,7 +47,6 @@ export interface ADKProvider {
   displayName: string;
   baseUrl: string;
   model: string;
-  apiProtocol: ADKProviderAPIProtocol;
   reasoningConfig?: ADKProviderReasoningConfig;
   contextWindowTokens?: number;
   requestTimeoutMs: number;

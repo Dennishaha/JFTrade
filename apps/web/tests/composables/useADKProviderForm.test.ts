@@ -24,7 +24,6 @@ const provider: ADKProvider = {
   displayName: "Private Gateway",
   baseUrl: "https://llm.example/v1",
   model: "reasoning-large",
-  apiProtocol: "responses",
   contextWindowTokens: 128_000,
   requestTimeoutMs: 245_500,
   enabled: true,
@@ -72,7 +71,7 @@ describe("useADKProviderForm", () => {
         requestTimeoutMs: 1,
         apiKey: "secret",
         reasoningConfig: {
-          requestField: "reasoning_effort",
+          requestField: "reasoning.effort",
           mappings: [
             { effort: "medium", value: "medium" },
             { effort: "high", value: "high" },
@@ -96,7 +95,6 @@ describe("useADKProviderForm", () => {
       displayName: "Private Gateway",
       baseUrl: "https://llm.example/v1",
       model: "reasoning-large",
-      apiProtocol: "responses",
       contextWindowTokens: 128_000,
       requestTimeoutSeconds: 246,
       apiKey: "",
@@ -152,26 +150,6 @@ describe("useADKProviderForm", () => {
     ]);
   });
 
-  it("updates protocol default fields without replacing custom paths", async () => {
-    const state = createState();
-
-    state.providerForm.value.apiProtocol = "responses";
-    await nextTick();
-    expect(state.providerForm.value.reasoningRequestField).toBe("reasoning.effort");
-
-    state.providerForm.value.reasoningRequestField = "vendor.reasoning.level";
-    state.providerForm.value.apiProtocol = "chat_completions";
-    await nextTick();
-    expect(state.providerForm.value.reasoningRequestField).toBe(
-      "vendor.reasoning.level",
-    );
-
-    state.providerForm.value.reasoningRequestField = "";
-    state.providerForm.value.apiProtocol = "responses";
-    await nextTick();
-    expect(state.providerForm.value.reasoningRequestField).toBe("reasoning.effort");
-  });
-
   it("rejects enabled empty mappings before issuing a save request", async () => {
     const state = createState();
     const medium = state.providerForm.value.reasoningMappings.find(
@@ -195,25 +173,23 @@ describe("useADKProviderForm", () => {
     expect(saveADKProvider).toHaveBeenCalledWith(
       expect.objectContaining({
         reasoningConfig: {
-          requestField: "reasoning_effort",
+          requestField: "reasoning.effort",
           mappings: [],
         },
       }),
     );
   });
 
-  it("defaults incomplete provider payloads to Chat Completions with no mappings", () => {
+  it("defaults incomplete provider payloads to Responses with no mappings", () => {
     const state = createState();
     const legacyProvider = {
       ...provider,
-      apiProtocol: undefined,
       contextWindowTokens: undefined,
       requestTimeoutMs: undefined,
     } as unknown as ADKProvider;
 
     state.editProvider(legacyProvider);
 
-    expect(state.providerForm.value.apiProtocol).toBe("chat_completions");
     expect(state.providerForm.value.contextWindowTokens).toBe(0);
     expect(state.providerForm.value.requestTimeoutSeconds).toBe(180);
     expect(state.providerForm.value.reasoningMappings.every((mapping) => !mapping.enabled)).toBe(true);

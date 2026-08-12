@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -14,12 +15,37 @@ import (
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 )
 
 const testProviderID = "test-openai-compatible"
+
+type responsesTestMessage struct {
+	Role      string
+	Content   string
+	ToolCalls []responsesTestToolCall
+}
+
+type responsesTestRequest struct {
+	Messages []responsesTestMessage
+	Tools    []responsesTestTool
+}
+
+type responsesTestTool struct {
+	Function responsesTestFunction
+}
+
+type responsesTestFunction struct {
+	Name      string
+	Arguments string
+}
+
+type responsesTestToolCall struct {
+	ID       string
+	Type     string
+	Function responsesTestFunction
+}
 
 type fakeWorkflowExecutionHandle struct {
 	jfadk.WorkflowExecutionHandle
@@ -114,29 +140,91 @@ func mustSaveProvider(t *testing.T, runtime *jfadk.Runtime, req jfadk.ProviderWr
 	return provider
 }
 
-func saveGoalWorkflowProvider(t *testing.T, runtime *jfadk.Runtime, providerID string, responder func(providers.OpenAIChatRequest) providers.OpenAIChatMessage) string {
+func saveGoalWorkflowProvider(t *testing.T, runtime *jfadk.Runtime, providerID string, responder func(responsesTestRequest) responsesTestMessage) string {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/responses") {
 			http.NotFound(w, r)
 			return
 		}
 		defer func() { _ = r.Body.Close() }()
-		var req providers.OpenAIChatRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		req, err := decodeWorkflowResponsesRequest(r)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(providers.OpenAIChatResponse{Choices: []struct {
-			Message providers.OpenAIChatMessage `json:"message"`
-		}{{Message: responder(req)}}})
+		writeWorkflowResponsesMessage(w, responder(req))
 	}))
 	t.Cleanup(server.Close)
 	mustSaveProvider(t, runtime, ProviderWriteRequest{
 		ID: providerID, DisplayName: providerID, BaseURL: server.URL, Model: "test-model", APIKey: "sk-test", Enabled: true,
 	})
 	return providerID
+}
+
+func decodeWorkflowResponsesRequest(r *http.Request) (responsesTestRequest, error) {
+	var body map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		return responsesTestRequest{}, err
+	}
+	request := responsesTestRequest{}
+	if instructions, _ := body["instructions"].(string); instructions != "" {
+		request.Messages = append(request.Messages, responsesTestMessage{Role: "system", Content: instructions})
+	}
+	for _, rawItem := range workflowAnySlice(body["input"]) {
+		item, _ := rawItem.(map[string]any)
+		if item["type"] != "message" {
+			continue
+		}
+		request.Messages = append(request.Messages, responsesTestMessage{
+			Role: fmt.Sprint(item["role"]), Content: workflowResponsesText(item["content"]),
+		})
+	}
+	for _, rawTool := range workflowAnySlice(body["tools"]) {
+		item, _ := rawTool.(map[string]any)
+		request.Tools = append(request.Tools, responsesTestTool{Function: responsesTestFunction{Name: fmt.Sprint(item["name"])}})
+	}
+	return request, nil
+}
+
+func workflowAnySlice(value any) []any {
+	items, _ := value.([]any)
+	return items
+}
+
+func workflowResponsesText(value any) string {
+	var parts []string
+	for _, rawPart := range workflowAnySlice(value) {
+		part, _ := rawPart.(map[string]any)
+		if text, _ := part["text"].(string); text != "" {
+			parts = append(parts, text)
+		}
+	}
+	return strings.Join(parts, "")
+}
+
+func writeWorkflowResponsesMessage(w http.ResponseWriter, message responsesTestMessage) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	write := func(event any) {
+		raw, _ := json.Marshal(event)
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", raw)
+	}
+	write(map[string]any{"type": "response.created", "response": map[string]any{"id": "resp-workflow", "model": "test-model"}})
+	if len(message.ToolCalls) == 0 {
+		write(map[string]any{"type": "response.output_text.delta", "delta": message.Content})
+	} else {
+		for index, call := range message.ToolCalls {
+			itemID := fmt.Sprintf("fc-%d", index)
+			write(map[string]any{"type": "response.output_item.added", "item": map[string]any{
+				"type": "function_call", "id": itemID, "call_id": call.ID, "name": call.Function.Name,
+			}})
+			write(map[string]any{"type": "response.function_call_arguments.done", "item_id": itemID, "name": call.Function.Name, "arguments": call.Function.Arguments})
+		}
+	}
+	write(map[string]any{"type": "response.completed", "response": map[string]any{
+		"id": "resp-workflow", "model": "test-model", "usage": map[string]any{"input_tokens": 1, "output_tokens": 1, "total_tokens": 2},
+	}})
+	_, _ = fmt.Fprint(w, "data: [DONE]\n\n")
 }
 
 func newRuntimeWithRegistry(t *testing.T, store *jfadk.Store, registry *jfadk.ToolRegistry) *jfadk.Runtime {

@@ -81,45 +81,6 @@ func isCompletedRunningWorkflowParent(run Run) bool {
 		strings.EqualFold(strings.TrimSpace(run.WorkflowStatus), workflowStatusRunning)
 }
 
-func recentOpenAIMessages(messages []TranscriptEntry, maxMessages int, maxChars int) []openAIChatMessage {
-	if maxMessages <= 0 || maxChars <= 0 || len(messages) == 0 {
-		return nil
-	}
-	start := 0
-	if len(messages) > maxMessages {
-		start = len(messages) - maxMessages
-	}
-	out := make([]openAIChatMessage, 0, len(messages)-start)
-	remaining := maxChars
-	for _, message := range messages[start:] {
-		role := "assistant"
-		if message.Role == "user" {
-			role = "user"
-		}
-		content := strings.TrimSpace(message.Content)
-		if content == "" {
-			continue
-		}
-		if role == "assistant" && isIntermediateApprovalMessage(content) {
-			continue
-		}
-		if len([]rune(content)) > remaining {
-			content = string([]rune(content)[:remaining])
-		}
-		out = append(out, openAIChatMessage{Role: role, Content: content})
-		remaining -= len([]rune(content))
-		if remaining <= 0 {
-			break
-		}
-	}
-	return out
-}
-
-func isIntermediateApprovalMessage(content string) bool {
-	return strings.Contains(content, "等待用户审批") ||
-		strings.Contains(content, "请先在 ADK 审批队列")
-}
-
 func runTimeoutForRun(run Run) time.Duration { return jfadkmodel.RunTimeoutForRun(run) }
 
 func isRecoverableReconcileStatus(status string) bool {

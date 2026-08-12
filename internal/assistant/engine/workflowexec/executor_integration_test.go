@@ -2,7 +2,6 @@ package workflowexec
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -11,7 +10,6 @@ import (
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
 	adksession "google.golang.org/adk/v2/session"
 )
 
@@ -36,16 +34,11 @@ func newTestRuntimeWithSessionService(t *testing.T, sessionService adksession.Se
 		t.Fatalf("NewStore: %v", err)
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/responses") {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(chatCompletionResponse{
-			Choices: []struct {
-				Message providers.OpenAIChatMessage `json:"message"`
-			}{{Message: providers.OpenAIChatMessage{Role: "assistant", Content: "目标推进正常。"}}},
-		})
+		writeWorkflowResponsesMessage(w, responsesTestMessage{Role: "assistant", Content: "目标推进正常。"})
 	}))
 	t.Cleanup(server.Close)
 	if _, err := store.SaveProvider(context.Background(), jfadk.ProviderWriteRequest{
@@ -58,12 +51,6 @@ func newTestRuntimeWithSessionService(t *testing.T, sessionService adksession.Se
 	runtime.SetWorkflowExecutor(NewWorkflowExecutor(runtime))
 	t.Cleanup(func() { _ = runtime.Close() })
 	return runtime
-}
-
-type chatCompletionResponse struct {
-	Choices []struct {
-		Message providers.OpenAIChatMessage `json:"message"`
-	} `json:"choices"`
 }
 
 func TestWorkflowExecutorRunsLoopChatEndToEnd(t *testing.T) {

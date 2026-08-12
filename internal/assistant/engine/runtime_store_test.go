@@ -307,8 +307,8 @@ func TestRuntimeTestProviderMarksToolsUnsupportedWhenSelectionFails(t *testing.T
 	runtime := newTestRuntime(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() { _ = r.Body.Close() }()
-		var req openAIChatRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		req, err := decodeTestResponsesRequest(r)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -316,16 +316,7 @@ func TestRuntimeTestProviderMarksToolsUnsupportedWhenSelectionFails(t *testing.T
 			http.Error(w, "tool calling unavailable", http.StatusBadGateway)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(openAIChatResponse{
-			Choices: []struct {
-				Message openAIChatMessage `json:"message"`
-			}{{
-				Message: openAIChatMessage{Role: "assistant", Content: "health check ok"},
-			}},
-		}); err != nil {
-			t.Fatalf("Encode response: %v", err)
-		}
+		writeTestResponsesMessage(w, openAIChatMessage{Role: "assistant", Content: "health check ok"}, req.Stream)
 	}))
 	defer server.Close()
 

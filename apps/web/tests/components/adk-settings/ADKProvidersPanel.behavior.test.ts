@@ -34,8 +34,7 @@ describe("ADKProvidersPanel business flows", () => {
       displayName: "OpenAI",
       baseUrl: "https://api.openai.com/v1",
       model: "gpt-4.1",
-      apiProtocol: "chat_completions" as const,
-      reasoningRequestField: "reasoning_effort",
+      reasoningRequestField: "reasoning.effort",
       reasoningMappings: buildReasoningMappings({ medium: "balanced" }),
       contextWindowTokens: 128000,
       requestTimeoutSeconds: 180,
@@ -60,7 +59,7 @@ describe("ADKProvidersPanel business flows", () => {
             vision: false,
           },
           reasoningConfig: {
-            requestField: "reasoning_effort",
+            requestField: "reasoning.effort",
             mappings: [{ effort: "medium", value: "balanced" }],
           },
         }),
@@ -68,7 +67,6 @@ describe("ADKProvidersPanel business flows", () => {
           id: "provider-other",
           displayName: "Claude",
           model: "claude-sonnet",
-          apiProtocol: "responses",
           enabled: false,
           default: false,
           contextWindowTokens: 0,
@@ -126,7 +124,7 @@ describe("ADKProvidersPanel business flows", () => {
       .findAll("button")
       .find((button) => button.text() === "恢复协议默认字段")!
       .trigger("click");
-    expect(providerForm.reasoningRequestField).toBe("reasoning_effort");
+    expect(providerForm.reasoningRequestField).toBe("reasoning.effort");
 
     await wrapper
       .findAll("button")
@@ -337,7 +335,6 @@ function mountProvidersPanel(
       displayName: string;
       baseUrl: string;
       model: string;
-      apiProtocol: "chat_completions" | "responses";
       reasoningRequestField: string;
       reasoningMappings: Array<{
         effort: "low" | "medium" | "high" | "xhigh" | "max";
@@ -371,8 +368,7 @@ function mountProvidersPanel(
         displayName: "OpenAI Compatible",
         baseUrl: "https://api.openai.com/v1",
         model: "gpt-4o-mini",
-        apiProtocol: "chat_completions",
-        reasoningRequestField: "reasoning_effort",
+        reasoningRequestField: "reasoning.effort",
         reasoningMappings: buildReasoningMappings({
           medium: "medium",
           high: "high",

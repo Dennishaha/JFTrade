@@ -5,23 +5,18 @@ const {
   agentOptions,
   effectivePermissionMode,
   effectivePermissionOption,
-  effectiveReasoningEffort,
-  effectiveReasoningOption,
   effectiveWorkModeSelection,
   isMobileLayout,
   mobileControlsExpanded,
   normalizedDefaultPermissionMode,
-  normalizedDefaultReasoningEffort,
   openProviderSettings,
   permissionModeOptions,
-  reasoningEffortOptions,
   reasoningOverrideNotice,
   selectedAgentId,
   selectedAgentLabel,
   selectedWorkModeLabel,
   updateAgentSelection,
   updatePermissionModeSelection,
-  updateReasoningEffortSelection,
   updateWorkModeSelection,
   workModeOptions,
 } = useADKChatComposerContext();
@@ -91,41 +86,6 @@ const {
               </v-list-item>
             </v-list>
           </v-menu>
-          <v-menu location="top start">
-            <template #activator="{ props: menuProps }">
-              <button
-                v-bind="menuProps"
-                type="button"
-                class="adk-inline-trigger adk-reasoning-trigger"
-                :title="`思考等级：${effectiveReasoningOption.title}`"
-              >
-                <v-icon size="14">fa-solid fa-brain</v-icon>
-                <span>{{ effectiveReasoningOption.title }}</span>
-                <v-icon size="12">fa-solid fa-chevron-down</v-icon>
-              </button>
-            </template>
-            <v-list class="adk-compact-menu" density="compact">
-              <v-list-item
-                v-for="option in reasoningEffortOptions"
-                :key="option.value"
-                :active="option.value === effectiveReasoningEffort"
-                @click="updateReasoningEffortSelection(option.value)"
-              >
-                <v-list-item-title>
-                  {{ option.title }}
-                  <v-chip
-                    v-if="option.value === normalizedDefaultReasoningEffort"
-                    size="x-small"
-                    variant="tonal"
-                    class="ml-1"
-                  >
-                    Agent 默认
-                  </v-chip>
-                </v-list-item-title>
-                <v-list-item-subtitle>{{ option.description }}</v-list-item-subtitle>
-              </v-list-item>
-            </v-list>
-          </v-menu>
           <select
             class="adk-compat-select adk-agent-select"
             :value="selectedAgentId"
@@ -157,7 +117,7 @@ const {
                 <v-icon size="12">fa-solid fa-chevron-down</v-icon>
               </button>
             </template>
-            <v-list class="adk-compact-menu" density="compact">
+            <v-list class="adk-compact-menu adk-agent-menu" density="compact">
               <v-list-item
                 v-for="agent in agentOptions"
                 :key="agent.value"
@@ -181,7 +141,7 @@ const {
                 <v-icon size="12">fa-solid fa-chevron-down</v-icon>
               </button>
             </template>
-            <v-list class="adk-compact-menu" density="compact">
+            <v-list class="adk-compact-menu adk-work-mode-menu" density="compact">
               <v-list-item
                 v-for="mode in workModeOptions"
                 :key="mode.value"
@@ -225,13 +185,6 @@ const {
 </template>
 
 <style scoped>
-.adk-compact-menu {
-  min-width: 220px;
-  max-width: min(360px, 92vw);
-  border-radius: 12px;
-  padding: 6px;
-}
-
 .adk-permission-option.is-approval :deep(.v-icon) {
   color: rgb(22 163 74);
 }

@@ -16,7 +16,6 @@ var (
 	ErrBuiltinAgentProtected        = errors.New("builtin agent is protected")
 	ErrCleanupCandidatesChanged     = errors.New("cleanup candidates changed")
 	ErrInvalidTaskStatus            = errors.New("invalid task status")
-	ErrInvalidProviderAPIProtocol   = errors.New("invalid provider API protocol")
 	ErrInvalidProviderReasoning     = errors.New("invalid provider reasoning configuration")
 	ErrProviderReasoningUnsupported = errors.New("provider does not support reasoning effort")
 	ErrProviderInUse                = errors.New("provider is used by agent")
@@ -87,31 +86,10 @@ func NormalizeBaseURL(value string) string {
 
 // NormalizeProvider applies the shared provider field normalization rules.
 func NormalizeProvider(provider Provider) Provider {
-	provider.APIProtocol = NormalizeProviderAPIProtocol(provider.APIProtocol)
-	provider.ReasoningConfig = NormalizeProviderReasoningConfig(provider.ReasoningConfig, provider.APIProtocol)
+	provider.ReasoningConfig = NormalizeProviderReasoningConfig(provider.ReasoningConfig)
 	provider.RequestTimeoutMs = NormalizeProviderRequestTimeoutMs(provider.RequestTimeoutMs)
 	provider.ContextWindowTokens = NormalizeContextWindowTokens(provider.ContextWindowTokens)
 	return provider
-}
-
-// NormalizeProviderAPIProtocol lowercases the provider protocol value and
-// defaults blank values to chat completions.
-func NormalizeProviderAPIProtocol(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	if value == "" {
-		return ProviderAPIProtocolChatCompletions
-	}
-	return value
-}
-
-// ValidateProviderAPIProtocol rejects unsupported provider protocol values.
-func ValidateProviderAPIProtocol(value string) error {
-	switch NormalizeProviderAPIProtocol(value) {
-	case ProviderAPIProtocolChatCompletions, ProviderAPIProtocolResponses:
-		return nil
-	default:
-		return fmt.Errorf("%w %q", ErrInvalidProviderAPIProtocol, value)
-	}
 }
 
 // NormalizeContextWindowTokens clamps the provider context window into the

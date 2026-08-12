@@ -29,9 +29,6 @@ func (e *googleADKExecution) shouldInterruptForUserGoalPause(runID string) bool 
 }
 
 func (e *googleADKExecution) descriptorForTool(tool adktool.Tool) (ToolDescriptor, bool) {
-	if descriptor, ok := descriptorFromADKTool(tool); ok {
-		return descriptor, true
-	}
 	if tool == nil || len(e.descriptors) == 0 {
 		return ToolDescriptor{}, false
 	}
@@ -593,7 +590,7 @@ func (e *googleADKExecution) emitToolProgress(callID string, toolName string) {
 }
 
 func (e *googleADKExecution) appendVisibleTextForRun(runID string, reply string, reasoning string) error {
-	if reply == "" && reasoning == "" {
+	if strings.TrimSpace(reply) == "" && strings.TrimSpace(reasoning) == "" {
 		return nil
 	}
 	e.mu.Lock()

@@ -316,7 +316,6 @@ type ADKProviderWriteRequest struct {
 	DisplayName         string                                  `json:"displayName"`
 	BaseURL             string                                  `json:"baseUrl"`
 	Model               string                                  `json:"model"`
-	APIProtocol         string                                  `json:"apiProtocol,omitempty" enums:"chat_completions,responses"`
 	ReasoningConfig     *assistantmodel.ProviderReasoningConfig `json:"reasoningConfig,omitempty"`
 	ContextWindowTokens int                                     `json:"contextWindowTokens,omitempty"`
 	RequestTimeoutMs    int                                     `json:"requestTimeoutMs,omitempty"`

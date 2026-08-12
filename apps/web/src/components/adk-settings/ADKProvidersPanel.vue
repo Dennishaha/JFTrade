@@ -18,7 +18,6 @@ const props = defineProps<{
     displayName: string;
     baseUrl: string;
     model: string;
-    apiProtocol: "chat_completions" | "responses";
     reasoningRequestField: string;
     reasoningMappings: Array<{
       effort: ADKReasoningEffort;
@@ -60,6 +59,17 @@ const providerTestFeedback = ref<{
 const enabledReasoningMappings = computed(() =>
   props.providerForm.reasoningMappings.filter((mapping) => mapping.enabled),
 );
+const enabledReasoningSummary = computed(() => {
+  if (enabledReasoningMappings.value.length === 0) {
+    return "未启用显式思考等级";
+  }
+  return enabledReasoningMappings.value
+    .map(
+      (mapping) =>
+        `${ADK_REASONING_EFFORT_LABELS[mapping.effort]} · ${mapping.value}`,
+    )
+    .join("、");
+});
 
 function openNewProviderDialog(): void {
   props.newProviderForm();
@@ -121,9 +131,18 @@ function disableReasoningEfforts(): void {
 }
 
 function resetReasoningRequestField(): void {
-  props.providerForm.reasoningRequestField = defaultADKProviderReasoningConfig(
-    props.providerForm.apiProtocol,
-  ).requestField;
+  props.providerForm.reasoningRequestField =
+    defaultADKProviderReasoningConfig().requestField;
+}
+
+function showReasoningSettings(event: Event): void {
+  const trigger = event.currentTarget as HTMLElement | null;
+  const settings = trigger
+    ?.closest(".adk-provider-dialog")
+    ?.querySelector<HTMLElement>("#provider-reasoning-settings");
+  if (typeof settings?.scrollIntoView === "function") {
+    settings.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function reasoningMappingError(mapping: {
@@ -144,7 +163,7 @@ function reasoningMappingError(mapping: {
           <div>
             <div class="text-base font-semibold text-slate-900">模型服务</div>
             <div class="mt-1 text-xs text-slate-500">
-              管理 OpenAI 兼容模型服务，并为上下文占用监控配置 context window。
+              管理 Responses 模型服务，并为上下文占用监控配置 context window。
             </div>
           </div>
         </v-card-title>
@@ -189,7 +208,7 @@ function reasoningMappingError(mapping: {
                   {{ provider.baseUrl }} · {{ provider.model }}
                 </div>
                 <div class="text-xs text-slate-500">
-                  协议：{{ provider.apiProtocol === "responses" ? "Responses" : "Chat Completions" }}
+                  协议：Responses
                 </div>
                 <div class="text-xs text-slate-500">
                   上下文窗口：{{ provider.contextWindowTokens || "未配置" }}
@@ -401,7 +420,32 @@ function reasoningMappingError(mapping: {
             @click="providerDialogOpen = false"
           />
         </v-card-title>
-        <v-card-text class="adk-provider-dialog__body grid gap-3">
+        <div
+          class="flex flex-wrap items-center justify-between gap-2 border-y border-slate-200 px-6 py-2"
+          data-testid="provider-reasoning-shortcut"
+        >
+          <div class="min-w-0">
+            <div class="text-sm font-semibold text-slate-900">
+              思考等级 · {{ enabledReasoningMappings.length }} 档已启用
+            </div>
+            <div class="truncate text-xs text-slate-500">
+              {{ enabledReasoningSummary }}；下方表单可滚动
+            </div>
+          </div>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click="showReasoningSettings"
+          >
+            维护思考等级
+          </v-btn>
+        </div>
+        <v-card-text
+          class="adk-provider-dialog__body grid gap-3 [scrollbar-gutter:stable]"
+          aria-label="模型服务配置，可上下滚动"
+          data-testid="provider-dialog-scroll-region"
+        >
           <v-switch
             v-model="providerForm.enabled"
             label="启用"
@@ -423,16 +467,14 @@ function reasoningMappingError(mapping: {
             label="默认模型"
             density="comfortable"
           />
-          <v-select
-            v-model="providerForm.apiProtocol"
+          <v-text-field
+            model-value="Responses"
             label="API 协议"
-            :items="[
-              { title: 'Chat Completions', value: 'chat_completions' },
-              { title: 'Responses', value: 'responses' },
-            ]"
             density="comfortable"
+            readonly
           />
           <v-card
+            id="provider-reasoning-settings"
             flat
             class="border border-slate-200"
             data-testid="provider-reasoning-settings"

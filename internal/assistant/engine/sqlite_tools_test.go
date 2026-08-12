@@ -191,82 +191,6 @@ func TestSQLiteDialectorClauseBuildersAndVersionCompare(t *testing.T) {
 	}
 }
 
-func TestOpenAIToolInvocationParsingRestoresNamesAndCapsProviderOutput(t *testing.T) {
-	calls := []openAIToolCall{
-		openAIToolCallForBoundaryTest("   ", `{"ignored":true}`),
-		openAIToolCallForBoundaryTest("market-snapshot", `{"market":"HK","limit":3}`),
-		openAIToolCallForBoundaryTest("http-fetch", `not-json`),
-		openAIToolCallForBoundaryTest("workflow-wait", ""),
-		openAIToolCallForBoundaryTest("tools-search", `{"query":"strategy","limit":2}`),
-		openAIToolCallForBoundaryTest("strategy-research_backtest", `{"script":"strategy('x')"}`),
-		openAIToolCallForBoundaryTest("tasks-create", `{"title":"overflow should be capped"}`),
-	}
-
-	invocations := toolInvocationsFromOpenAI(calls)
-	if len(invocations) != 5 {
-		t.Fatalf("invocations len = %d, want cap of 5", len(invocations))
-	}
-	wantNames := []string{"market.snapshot", "http.fetch", "workflow.wait", "tools.search", "strategy.research_backtest"}
-	for i, want := range wantNames {
-		if invocations[i].Name != want {
-			t.Fatalf("invocation[%d].Name = %q, want %q", i, invocations[i].Name, want)
-		}
-	}
-	if got := invocations[0].Input["limit"]; got != float64(3) {
-		t.Fatalf("parsed numeric JSON arg = %#v, want float64(3)", got)
-	}
-	if invocations[1].Input["rawParameters"] != "not-json" || !strings.Contains(fmt.Sprint(invocations[1].Input["parseError"]), "invalid character") {
-		t.Fatalf("invalid JSON input = %#v, want rawParameters and parseError", invocations[1].Input)
-	}
-	if len(invocations[2].Input) != 0 {
-		t.Fatalf("empty arguments input = %#v, want empty map", invocations[2].Input)
-	}
-}
-
-func TestOpenAIToolsFromDescriptorsSanitizesProviderContract(t *testing.T) {
-	tools := openAIToolsFromDescriptors([]ToolDescriptor{
-		{Name: "   "},
-		{
-			Name:          "market.snapshot",
-			Description:   "Fetch snapshot",
-			OutputSummary: "latest quote",
-			RiskLevel:     "low",
-			InputSchema: map[string]any{
-				"type":                 "object",
-				"additionalProperties": true,
-				"properties": map[string]any{
-					"query": map[string]any{"type": "string", "additionalProperties": true},
-				},
-			},
-		},
-		{Name: "workflow.wait"},
-	})
-	if len(tools) != 2 {
-		t.Fatalf("tools len = %d, want blank descriptor skipped", len(tools))
-	}
-	first := tools[0]
-	if first.Type != "function" || first.Function.Name != "market-snapshot" {
-		t.Fatalf("first tool = %+v, want sanitized function name", first)
-	}
-	if !strings.Contains(first.Function.Description, "Output: latest quote") || !strings.Contains(first.Function.Description, "Risk: low") {
-		t.Fatalf("description = %q, want output and risk metadata", first.Function.Description)
-	}
-	if _, ok := first.Function.Parameters["additionalProperties"]; ok {
-		t.Fatalf("schema kept additionalProperties:true: %#v", first.Function.Parameters)
-	}
-	properties := schemaPropertiesForBoundaryTest(t, first.Function.Parameters)
-	querySchema, ok := properties["query"].(map[string]any)
-	if !ok {
-		t.Fatalf("query schema = %#v, want object", properties["query"])
-	}
-	if _, ok := querySchema["additionalProperties"]; ok {
-		t.Fatalf("nested schema kept additionalProperties:true: %#v", querySchema)
-	}
-	if tools[1].Function.Parameters == nil || tools[1].Function.Parameters["type"] != "object" {
-		t.Fatalf("workflow.wait default schema = %#v, want generated object schema", tools[1].Function.Parameters)
-	}
-}
-
 func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 	for _, name := range []string{
 		"http.fetch",
@@ -476,13 +400,6 @@ func openTestSQLiteGORM(t *testing.T) *gorm.DB {
 		t.Fatalf("gorm.Open: %v", err)
 	}
 	return db
-}
-
-func openAIToolCallForBoundaryTest(name string, arguments string) openAIToolCall {
-	var call openAIToolCall
-	call.Function.Name = name
-	call.Function.Arguments = arguments
-	return call
 }
 
 func schemaPropertiesForBoundaryTest(t *testing.T, schema map[string]any) map[string]any {

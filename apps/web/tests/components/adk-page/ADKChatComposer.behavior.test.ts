@@ -229,12 +229,11 @@ describe("ADKChatComposer business flows", () => {
       sendChat: async () => {},
     });
 
-    const compactMenus = wrapper.findAll(".adk-compact-menu");
-    await compactMenus[1]!.findAll("button")[1]!.trigger("click");
+    await wrapper.get(".adk-agent-menu").findAll("button")[1]!.trigger("click");
     expect(wrapper.emitted("update:selectedAgentId")?.at(-1)).toEqual(["agent-2"]);
     expect(handleAgentChange).toHaveBeenCalledOnce();
 
-    await compactMenus[2]!.findAll("button")[1]!.trigger("click");
+    await wrapper.get(".adk-work-mode-menu").findAll("button")[1]!.trigger("click");
     expect(wrapper.emitted("update:workModeOverride")?.at(-1)).toEqual(["loop"]);
     expect(wrapper.text()).toContain("上下文");
   });
@@ -263,7 +262,7 @@ describe("ADKChatComposer business flows", () => {
     expect(wrapper.get(".adk-reasoning-trigger").attributes("title")).toBe(
       "思考等级：最大",
     );
-    const reasoningItems = wrapper.get(".adk-compact-menu").findAll("button");
+    const reasoningItems = wrapper.get(".adk-reasoning-menu").findAll("button");
     expect(reasoningItems).toHaveLength(6);
     await reasoningItems[5]!.trigger("click");
     expect(wrapper.emitted("update:reasoningEffortOverride")?.at(-1)).toEqual([

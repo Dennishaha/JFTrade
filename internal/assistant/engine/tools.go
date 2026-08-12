@@ -11,10 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
 	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
 	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
-	adksession "google.golang.org/adk/v2/session"
 )
 
 // ToolFunc implementations must stop promptly when the supplied context is
@@ -28,14 +26,7 @@ const toolContextAgentKey toolContextKey = "adkToolAgent"
 
 const toolContextSessionIDKey toolContextKey = "adkToolSessionID"
 
-const toolContextSkillActivationKey toolContextKey = "adkToolSkillActivation"
-
 const toolContextIdempotencyKey toolContextKey = "adkToolIdempotencyKey"
-
-type toolInvocationSkillActivation struct {
-	agentName string
-	state     adksession.ReadonlyState
-}
 
 type toolInvocationIdempotency struct {
 	key      string
@@ -105,51 +96,11 @@ func contextWithToolInvocationMetadata(ctx context.Context) context.Context {
 			}
 		}
 	}
-	if _, ok := ctx.Value(toolContextSkillActivationKey).(toolInvocationSkillActivation); !ok {
-		if source, sourceOK := ctx.(interface {
-			AgentName() string
-			ReadonlyState() adksession.ReadonlyState
-		}); sourceOK && source.ReadonlyState() != nil {
-			activation := toolInvocationSkillActivation{
-				agentName: strings.TrimSpace(source.AgentName()),
-				state:     source.ReadonlyState(),
-			}
-			out = context.WithValue(out, toolContextSkillActivationKey, activation)
-		}
-	}
 	return out
 }
 
-// ToolInvocationSkillActive reports whether a skill was loaded for the
-// current agent in this invocation. The state projection survives the generic
-// tool timeout wrapper, which otherwise hides GO-ADK's extended context API.
-func ToolInvocationSkillActive(ctx context.Context, skillName string) bool {
-	if ctx == nil {
-		return false
-	}
-	if activation, ok := ctx.Value(toolContextSkillActivationKey).(toolInvocationSkillActivation); ok {
-		return skillActiveInState(activation.state, activation.agentName, skillName)
-	}
-	source, ok := ctx.(interface {
-		AgentName() string
-		ReadonlyState() adksession.ReadonlyState
-	})
-	return ok && skillActiveInState(source.ReadonlyState(), source.AgentName(), skillName)
-}
-
-// ToolInvocationAnySkillActive reports whether any required skill was loaded
-// for the current agent in this invocation.
-func ToolInvocationAnySkillActive(ctx context.Context, skillNames []string) bool {
-	for _, skillName := range jfadkmodel.NormalizeStringSlice(skillNames) {
-		if ToolInvocationSkillActive(ctx, skillName) {
-			return true
-		}
-	}
-	return false
-}
-
-// ToolRequiredSkillNames returns the normalized set of skills that can unlock
-// a tool. Any one of the listed skills is sufficient.
+// ToolRequiredSkillNames returns the normalized skills that document how a
+// tool should be used. They do not control whether the tool is declared.
 func ToolRequiredSkillNames(descriptor ToolDescriptor) []string {
 	return jfadkmodel.NormalizeStringSlice(descriptor.RequiredSkills)
 }
@@ -215,9 +166,6 @@ func NewToolRegistry() *ToolRegistry {
 				continue
 			}
 			requiredSkills := ToolRequiredSkillNames(descriptor)
-			if len(requiredSkills) > 0 && !ToolInvocationAnySkillActive(ctx, requiredSkills) {
-				continue
-			}
 			if category != "" && strings.ToLower(descriptor.Category) != category {
 				continue
 			}
@@ -493,38 +441,4 @@ func limitToolOutput(output any) any {
 
 func summarizeToolOutput(toolName string, output any) string {
 	return jfadkmodel.SummarizeToolOutput(toolName, output)
-}
-
-func openAIToolsFromDescriptors(descriptors []ToolDescriptor) []openAITool {
-	tools := make([]openAITool, 0, len(descriptors))
-	for _, descriptor := range descriptors {
-		if strings.TrimSpace(descriptor.Name) == "" {
-			continue
-		}
-		schema := descriptor.InputSchema
-		if schema == nil {
-			schema = skillsruntime.DefaultToolInputSchema(descriptor.Name)
-		}
-		schema = sanitizeSchemaForOpenAI(schema)
-		description := strings.TrimSpace(descriptor.Description)
-		if descriptor.OutputSummary != "" {
-			description += "\nOutput: " + descriptor.OutputSummary
-		}
-		if descriptor.RiskLevel != "" {
-			description += "\nRisk: " + descriptor.RiskLevel
-		}
-		tools = append(tools, openAITool{
-			Type: "function",
-			Function: openAIToolFunction{
-				Name:        providers.SanitizeToolNameForOpenAI(descriptor.Name),
-				Description: strings.TrimSpace(description),
-				Parameters:  schema,
-			},
-		})
-	}
-	return tools
-}
-
-func toolInvocationsFromOpenAI(calls []openAIToolCall) []jfadkmodel.ToolInvocation {
-	return providers.ToolInvocationsFromOpenAI(calls)
 }

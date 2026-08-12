@@ -48,7 +48,7 @@ func TestProviderReasoningPersistenceAllowsMappingChanges(t *testing.T) {
 func TestProviderReasoningPersistenceDefaultsToEmptyMappings(t *testing.T) {
 	store := newReasoningTestStore(t)
 	provider, err := store.SaveProvider(t.Context(), jfadkmodel.ProviderWriteRequest{
-		ID: "empty-reasoning", APIProtocol: jfadkmodel.ProviderAPIProtocolResponses, Enabled: true,
+		ID: "empty-reasoning", Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("SaveProvider: %v", err)

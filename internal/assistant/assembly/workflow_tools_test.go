@@ -57,8 +57,8 @@ func TestWorkflowManagementToolCatalogAndApprovalMatrix(t *testing.T) {
 			break
 		}
 	}
-	if foundRunTool {
-		t.Fatalf("tools.search exposed workflow tools before skill activation: %#v", searchOutput)
+	if !foundRunTool {
+		t.Fatalf("tools.search omitted an authorized workflow tool before skill loading: %#v", searchOutput)
 	}
 }
 

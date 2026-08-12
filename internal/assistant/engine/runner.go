@@ -28,7 +28,7 @@ type Runtime struct {
 	artifactService    adkartifact.Service
 	memoryService      adkmemory.Service
 	contextManager     *SessionContextManager
-	openai             openAIClient
+	responses          responsesClient
 	limitsProvider     jfadkmodel.RuntimeLimitsProvider
 	activeMu           sync.Mutex
 	activeRuns         map[string]context.CancelFunc
@@ -75,7 +75,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 		artifactService = adkartifact.InMemoryService()
 	}
 	r := &Runtime{
-		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, artifactService: artifactService, memoryService: newGoogleADKMemoryService(store), openai: newOpenAIClient(),
+		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, artifactService: artifactService, memoryService: newGoogleADKMemoryService(store), responses: newResponsesClient(),
 		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{}, inputRuns: map[string]struct{}{}, compactionSessions: map[string]struct{}{},
 		backgroundCtx: backgroundCtx, backgroundCancel: backgroundCancel, runSem: make(chan struct{}, MaxConcurrentRuns),
 		executorID: "executor-" + uuid.NewString(), runLeaseTTL: defaultADKRunLeaseTTL,
@@ -85,7 +85,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 		store.SetSessionService(sessionService)
 	}
 	if store != nil {
-		r.contextManager = NewSessionContextManager(store, sessionService, r.openai, tools)
+		r.contextManager = NewSessionContextManager(store, sessionService, r.responses, tools)
 		r.sessionService = r.contextManager.WrapService(sessionService, r.beginSessionCompaction)
 		store.SetSessionService(sessionService)
 	}

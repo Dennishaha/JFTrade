@@ -1079,9 +1079,8 @@ function buildProvider(overrides: Partial<ADKProvider> = {}): ADKProvider {
     displayName: "Provider",
     baseUrl: "https://llm.example/v1",
     model: "model-1",
-    apiProtocol: "chat_completions",
     reasoningConfig: {
-      requestField: "reasoning_effort",
+	  requestField: "reasoning.effort",
       mappings: [
         { effort: "low", value: "low" },
         { effort: "medium", value: "medium" },

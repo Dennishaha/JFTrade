@@ -445,35 +445,12 @@ func newAssistantTestRouter(t *testing.T) (*jfadk.Runtime, *gin.Engine) {
 func assistantTestProvider(t *testing.T, runtime *jfadk.Runtime) {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() { jftradeCheckTestError(t, r.Body.Close()) }()
-		var payload struct {
-			Messages []struct {
-				Role    string `json:"role"`
-				Content string `json:"content"`
-				Name    string `json:"name"`
-			} `json:"messages"`
-		}
-		jftradeErr1 := json.NewDecoder(r.Body).Decode(&payload)
-		jftradeCheckTestError(t, jftradeErr1)
-		hasToolResponse := false
-		var text strings.Builder
-		for _, message := range payload.Messages {
-			if message.Role == "tool" {
-				hasToolResponse = true
+		serveAssistantResponsesFixture(t, w, r, func(text string) string {
+			if strings.Contains(text, "@contract.write") {
+				return "contract.write"
 			}
-			text.WriteString("\n" + message.Content)
-		}
-		message := map[string]any{"role": "assistant", "content": "ok"}
-		if !hasToolResponse && strings.Contains(text.String(), "@contract.write") {
-			message["content"] = ""
-			message["tool_calls"] = []map[string]any{{
-				"id": "call-contract-write", "type": "function",
-				"function": map[string]any{"name": "contract-write", "arguments": `{}`},
-			}}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		jftradeErr2 := json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": message}}})
-		jftradeCheckTestError(t, jftradeErr2)
+			return ""
+		})
 	}))
 	t.Cleanup(server.Close)
 	if _, err := runtime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{

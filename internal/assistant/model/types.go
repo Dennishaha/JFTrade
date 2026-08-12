@@ -66,11 +66,6 @@ const (
 	MaxMessageLength              = 50000     // Maximum user message length in runes
 )
 
-const (
-	ProviderAPIProtocolChatCompletions = "chat_completions"
-	ProviderAPIProtocolResponses       = "responses"
-)
-
 type ReasoningEffort string // @name adk.ReasoningEffort
 
 const (
@@ -138,7 +133,6 @@ type Provider struct {
 	DisplayName         string                  `json:"displayName"`
 	BaseURL             string                  `json:"baseUrl"`
 	Model               string                  `json:"model"`
-	APIProtocol         string                  `json:"apiProtocol" enums:"chat_completions,responses"`
 	ReasoningConfig     ProviderReasoningConfig `json:"reasoningConfig"`
 	ContextWindowTokens int                     `json:"contextWindowTokens,omitempty"`
 	RequestTimeoutMs    int                     `json:"requestTimeoutMs"`
@@ -181,7 +175,6 @@ type ProviderWriteRequest struct {
 	DisplayName         string                   `json:"displayName"`
 	BaseURL             string                   `json:"baseUrl"`
 	Model               string                   `json:"model"`
-	APIProtocol         string                   `json:"apiProtocol,omitempty" enums:"chat_completions,responses"`
 	ReasoningConfig     *ProviderReasoningConfig `json:"reasoningConfig,omitempty"`
 	ContextWindowTokens int                      `json:"contextWindowTokens,omitempty"`
 	RequestTimeoutMs    int                      `json:"requestTimeoutMs,omitempty"`
