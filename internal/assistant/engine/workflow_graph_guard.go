@@ -114,6 +114,7 @@ func (r *Runtime) validateGoogleADKWorkflowResume(ctx context.Context, run Run) 
 	if err != nil {
 		return err
 	}
+	root = jfadkmodel.ApplyRunModelSnapshot(root, parent)
 	fingerprint, err := r.googleADKWorkflowGraphFingerprint(ctx, root, parent, nil)
 	if err != nil {
 		return err

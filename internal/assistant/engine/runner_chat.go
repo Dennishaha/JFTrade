@@ -538,6 +538,7 @@ func (r *Runtime) maybeAutoCompactSessionWithOptions(ctx context.Context, sessio
 	if err := emitContextCompactionNotice(onDelta, notice); err != nil {
 		return err
 	}
+	agent.ReasoningEffort = ""
 	compacted, err := r.contextManager.Compact(ctx, session, agent, SessionCompactRequest{
 		Mode:    mode,
 		Trigger: "auto",

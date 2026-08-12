@@ -257,6 +257,7 @@ func (r *Runtime) CompactSessionContext(ctx context.Context, sessionID string, m
 	if err != nil {
 		return fail(err)
 	}
+	agent.ReasoningEffort = ""
 	snapshot, err := r.contextManager.Compact(ctx, session, agent, SessionCompactRequest{
 		Mode:    normalizeCompactMode(mode),
 		Trigger: defaultString(strings.TrimSpace(trigger), "manual"),
@@ -396,7 +397,7 @@ func (r *Runtime) Snapshot(ctx context.Context) (Snapshot, error) {
 	return Snapshot{Providers: providers, Agents: agents, Skills: skills, Tools: r.tools.List()}, nil
 }
 
-func (r *Runtime) TestProvider(ctx context.Context, providerID string) (map[string]any, error) {
+func (r *Runtime) TestProvider(ctx context.Context, providerID string, modes ...ProviderTestMode) (map[string]any, error) {
 	provider, ok, err := r.store.Provider(ctx, providerID)
 	if err != nil {
 		return nil, err
@@ -404,62 +405,35 @@ func (r *Runtime) TestProvider(ctx context.Context, providerID string) (map[stri
 	if !ok {
 		return nil, fmt.Errorf("provider not found")
 	}
-	apiKey, _, err := r.store.ProviderAPIKey(provider.ID)
+	apiKey, hasKey, err := r.store.ProviderAPIKey(provider.ID)
 	if err != nil {
 		return nil, err
 	}
-	probeCtx, cancel := context.WithTimeout(ctx, providerProbeTimeout(provider))
-	defer cancel()
-	reply, err := r.testProviderConnectivity(probeCtx, provider, apiKey)
+	if !hasKey || strings.TrimSpace(apiKey) == "" {
+		return nil, fmt.Errorf("provider API key is not configured")
+	}
+	mode := ProviderTestMode("")
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
+	result, err := providers.ProbeProvider(ctx, provider, apiKey, mode)
 	if err != nil {
 		return nil, err
 	}
-	toolErr := r.testProviderTools(probeCtx, provider, apiKey)
-	capabilities := map[string]bool{
-		"streaming": true,
-		"tools":     toolErr == nil,
-		"reasoning": false,
-	}
-	updated, updateErr := r.store.UpdateProviderCapabilities(ctx, provider.ID, capabilities)
+	updated, updateErr := r.store.UpdateProviderCapabilities(ctx, provider.ID, result.Capabilities)
 	if updateErr != nil {
 		return nil, updateErr
 	}
-	r.audit(ctx, "provider.tested", provider.ID, "Provider capability test completed.", map[string]any{"capabilities": capabilities})
-	return map[string]any{"ok": true, "reply": reply, "capabilities": updated.Capabilities, "checkedAt": nowString()}, nil
-}
-
-// Provider probes are UI health checks, so they should not inherit long inference timeouts.
-const maxProviderProbeTimeout = 30 * time.Second
-
-func providerProbeTimeout(provider Provider) time.Duration {
-	configured := providerRequestTimeout(provider)
-	if configured < maxProviderProbeTimeout {
-		return configured
-	}
-	return maxProviderProbeTimeout
-}
-
-func (r *Runtime) testProviderConnectivity(ctx context.Context, provider Provider, apiKey string) (string, error) {
-	if provider.APIProtocol == ProviderAPIProtocolResponses {
-		return providers.ProbeOpenAIResponsesProvider(ctx, provider, apiKey, false)
-	}
-	return r.openai.chat(ctx, provider, apiKey, provider.Model, []openAIChatMessage{
-		{Role: "system", Content: "Reply with a short health check sentence."},
-		{Role: "user", Content: "JFTrade ADK provider connectivity test."},
+	result.Capabilities = updated.Capabilities
+	result.CheckedAt = nowString()
+	r.audit(ctx, "provider.tested", provider.ID, "Provider capability test completed.", map[string]any{
+		"capabilities": result.Capabilities, "mode": result.Reasoning.Mode,
+		"reasoningOK": result.Reasoning.OK, "reasoningResults": len(result.Reasoning.Results),
 	})
-}
-
-func (r *Runtime) testProviderTools(ctx context.Context, provider Provider, apiKey string) error {
-	if provider.APIProtocol == ProviderAPIProtocolResponses {
-		_, err := providers.ProbeOpenAIResponsesProvider(ctx, provider, apiKey, true)
-		return err
-	}
-	_, err := r.openai.selectTools(ctx, provider, apiKey, provider.Model, []openAIChatMessage{
-		{Role: "user", Content: "Do not call a tool."},
-	}, []ToolDescriptor{{
-		Name: "system.health_probe", DisplayName: "健康探测", Description: "用于探测 provider 工具能力的内部工具。", Permission: "read_internal",
-	}})
-	return err
+	return map[string]any{
+		"ok": result.OK, "reply": result.Reply, "capabilities": result.Capabilities,
+		"reasoning": result.Reasoning, "checkedAt": result.CheckedAt,
+	}, nil
 }
 
 func (r *Runtime) Chat(ctx context.Context, req ChatRequest) (ChatResponse, error) {
@@ -532,7 +506,14 @@ func (r *Runtime) resolveAgentProvider(ctx context.Context, agent Agent) (Agent,
 	} else if !hasKey {
 		return Agent{}, fmt.Errorf("agent provider API key is not configured")
 	}
+	field, value, reasoningErr := jfadkmodel.ResolveProviderReasoning(provider, agent.ReasoningEffort)
+	if reasoningErr != nil {
+		return Agent{}, reasoningErr
+	}
 	agent.ProviderID = provider.ID
+	agent.ReasoningEffort = jfadkmodel.NormalizeReasoningEffort(agent.ReasoningEffort)
+	agent.ReasoningEffortField = field
+	agent.ReasoningEffortValue = value
 	return agent, nil
 }
 

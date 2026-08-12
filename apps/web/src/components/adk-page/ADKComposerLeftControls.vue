@@ -5,17 +5,23 @@ const {
   agentOptions,
   effectivePermissionMode,
   effectivePermissionOption,
+  effectiveReasoningEffort,
+  effectiveReasoningOption,
   effectiveWorkModeSelection,
   isMobileLayout,
   mobileControlsExpanded,
   normalizedDefaultPermissionMode,
+  normalizedDefaultReasoningEffort,
   openProviderSettings,
   permissionModeOptions,
+  reasoningEffortOptions,
+  reasoningOverrideNotice,
   selectedAgentId,
   selectedAgentLabel,
   selectedWorkModeLabel,
   updateAgentSelection,
   updatePermissionModeSelection,
+  updateReasoningEffortSelection,
   updateWorkModeSelection,
   workModeOptions,
 } = useADKChatComposerContext();
@@ -27,6 +33,14 @@ const {
           class="adk-composer-left"
           :data-testid="isMobileLayout ? 'adk-mobile-controls-panel' : undefined"
         >
+          <div
+            v-if="reasoningOverrideNotice"
+            class="inline-flex items-center gap-1 text-xs leading-tight text-amber-700"
+            role="status"
+          >
+            <v-icon size="13">fa-solid fa-circle-info</v-icon>
+            <span>{{ reasoningOverrideNotice }}</span>
+          </div>
           <v-btn
             icon="fa-solid fa-plus"
             variant="text"
@@ -71,6 +85,41 @@ const {
                     class="ml-1"
                   >
                     默认
+                  </v-chip>
+                </v-list-item-title>
+                <v-list-item-subtitle>{{ option.description }}</v-list-item-subtitle>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+          <v-menu location="top start">
+            <template #activator="{ props: menuProps }">
+              <button
+                v-bind="menuProps"
+                type="button"
+                class="adk-inline-trigger adk-reasoning-trigger"
+                :title="`思考等级：${effectiveReasoningOption.title}`"
+              >
+                <v-icon size="14">fa-solid fa-brain</v-icon>
+                <span>{{ effectiveReasoningOption.title }}</span>
+                <v-icon size="12">fa-solid fa-chevron-down</v-icon>
+              </button>
+            </template>
+            <v-list class="adk-compact-menu" density="compact">
+              <v-list-item
+                v-for="option in reasoningEffortOptions"
+                :key="option.value"
+                :active="option.value === effectiveReasoningEffort"
+                @click="updateReasoningEffortSelection(option.value)"
+              >
+                <v-list-item-title>
+                  {{ option.title }}
+                  <v-chip
+                    v-if="option.value === normalizedDefaultReasoningEffort"
+                    size="x-small"
+                    variant="tonal"
+                    class="ml-1"
+                  >
+                    Agent 默认
                   </v-chip>
                 </v-list-item-title>
                 <v-list-item-subtitle>{{ option.description }}</v-list-item-subtitle>

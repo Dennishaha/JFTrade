@@ -228,6 +228,7 @@ describe("ADK settings API business contracts", () => {
       instruction: "Run toward the goal.",
       providerId: "provider-loop",
       model: "",
+      reasoningEffort: "max" as const,
       tools: ["strategy.backtest"],
       skills: ["risk-review"],
       permissionMode: "approval",
@@ -247,6 +248,7 @@ describe("ADK settings API business contracts", () => {
     expect(await fetchADKRuntimeSettings()).toEqual(runtime);
     await saveADKRuntimeSettings(runtime);
     await saveADKAgent(agent);
+    await saveADKAgent({ ...agent, reasoningEffort: "" });
 
     expect(JSON.parse(String(requestInit(fetchMock, 0).body))).toEqual(provider);
     expect(requestInit(fetchMock, 1).method).toBe("GET");
@@ -256,11 +258,25 @@ describe("ADK settings API business contracts", () => {
       loopMaxIterations: 9,
       tools: ["strategy.backtest"],
     });
+    expect(JSON.parse(String(requestInit(fetchMock, 4).body))).not.toHaveProperty(
+      "reasoningEffort",
+    );
   });
 
   it("encodes provider and agent lifecycle actions", async () => {
     const fetchMock = installRouteFetch({
-      "/api/v1/adk/providers/provider%2Fone/test": { reply: "ready" },
+      "/api/v1/adk/providers/provider%2Fone/test": {
+        ok: true,
+        reply: "ready",
+        capabilities: { streaming: true, tools: true, reasoning: true },
+        reasoning: {
+          mode: "full",
+          requestField: "reasoning.effort",
+          ok: true,
+          results: [{ effort: "xhigh", value: "xhigh", ok: true }],
+        },
+        checkedAt: "2026-08-11T00:00:00Z",
+      },
       "/api/v1/adk/providers/provider%2Fone/default": buildProvider({
         id: "provider/one",
       }),
@@ -268,7 +284,11 @@ describe("ADK settings API business contracts", () => {
       "/api/v1/adk/agents/agent%2Fone": undefined,
     });
 
-    expect(await testADKProvider("provider/one")).toEqual({ reply: "ready" });
+    expect(await testADKProvider("provider/one", "full")).toMatchObject({
+      ok: true,
+      reply: "ready",
+      reasoning: { ok: true },
+    });
     await setADKDefaultProvider("provider/one");
     await deleteADKProvider("provider/one");
     await deleteADKAgent("agent/one");
@@ -285,6 +305,9 @@ describe("ADK settings API business contracts", () => {
       "DELETE",
       "DELETE",
     ]);
+    expect(JSON.parse(String(requestInit(fetchMock, 0).body))).toEqual({
+      mode: "full",
+    });
   });
 
   it("normalizes run control responses and handles skill and optimization actions", async () => {
@@ -412,6 +435,7 @@ function buildAgent(overrides: Record<string, unknown> = {}) {
     instruction: "Help the user.",
     providerId: "provider-1",
     model: "model-a",
+    reasoningEffort: "",
     tools: [],
     skills: [],
     permissionMode: "approval",
@@ -493,6 +517,7 @@ function buildRun(overrides: Record<string, unknown> = {}) {
     id: "run-1",
     sessionId: "session-1",
     agentId: "agent-1",
+    reasoningEffort: "",
     status: "RUNNING",
     message: "working",
     toolCalls: [],

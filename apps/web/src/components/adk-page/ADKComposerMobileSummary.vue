@@ -3,6 +3,7 @@ import { useADKChatComposerContext } from "@/composables/adk/useADKChatComposer"
 
 const {
   effectivePermissionOption,
+  effectiveReasoningOption,
   isMobileLayout,
   mobileContextSummaryLabel,
   mobileControlsExpanded,
@@ -53,6 +54,15 @@ const {
             <span class="adk-mobile-composer-summary__label">模式</span>
             <span class="adk-mobile-composer-summary__value">{{
               selectedWorkModeLabel
+            }}</span>
+          </span>
+          <span
+            class="adk-mobile-composer-summary__chip"
+            :title="`思考 · ${effectiveReasoningOption.title}`"
+          >
+            <span class="adk-mobile-composer-summary__label">思考</span>
+            <span class="adk-mobile-composer-summary__value">{{
+              effectiveReasoningOption.title
             }}</span>
           </span>
           <span

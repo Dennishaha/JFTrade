@@ -15,6 +15,7 @@ import type {
   ADKOptimizationTask,
   ADKPermissionMode,
   ADKProvider,
+  ADKProviderTestResponse,
   ADKRun,
   ADKSession,
   ADKSessionComposerState,
@@ -53,6 +54,10 @@ export const requireADKProvider = (value: unknown): ADKProvider =>
   guards.requireValue(value, guards.isADKProvider, "provider");
 export const requireADKProviders = (value: unknown): ADKProvider[] =>
   guards.requireList(value, guards.isADKProvider, "providers");
+export const requireADKProviderTestResponse = (
+  value: unknown,
+): ADKProviderTestResponse =>
+  guards.requireValue(value, guards.isADKProviderTestResponse, "provider test");
 export const requireADKAgent = (value: unknown): ADKAgent =>
   guards.requireValue(value, guards.isADKAgent, "agent");
 export const requireADKAgents = (value: unknown): ADKAgent[] =>

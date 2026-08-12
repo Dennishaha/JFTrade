@@ -236,8 +236,21 @@ func TestProviderAndAgentValidationContracts(t *testing.T) {
 	}
 
 	providerTest := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/providers/test-provider/test", nil)
-	if providerTest.Code != http.StatusOK || !strings.Contains(providerTest.Body.String(), `"ok":true`) {
+	if providerTest.Code != http.StatusOK || !strings.Contains(providerTest.Body.String(), `"mode":"quick"`) ||
+		!strings.Contains(providerTest.Body.String(), `"requestField":"reasoning_effort"`) {
 		t.Fatalf("provider test status=%d body=%s", providerTest.Code, providerTest.Body.String())
+	}
+	fullProviderTest := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/providers/test-provider/test", []byte(`{"mode":"full"}`))
+	if fullProviderTest.Code != http.StatusOK || !strings.Contains(fullProviderTest.Body.String(), `"mode":"full"`) {
+		t.Fatalf("full provider test status=%d body=%s", fullProviderTest.Code, fullProviderTest.Body.String())
+	}
+	invalidProviderTest := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/providers/test-provider/test", []byte(`{"mode":"slow"}`))
+	if invalidProviderTest.Code != http.StatusBadRequest {
+		t.Fatalf("invalid provider test status=%d body=%s", invalidProviderTest.Code, invalidProviderTest.Body.String())
+	}
+	removedReasoningTest := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/providers/test-provider/reasoning/test", nil)
+	if removedReasoningTest.Code != http.StatusNotFound {
+		t.Fatalf("removed reasoning test status=%d body=%s", removedReasoningTest.Code, removedReasoningTest.Body.String())
 	}
 	missingProviderTest := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/providers/provider-missing/test", nil)
 	if missingProviderTest.Code != http.StatusBadGateway || !strings.Contains(missingProviderTest.Body.String(), "provider not found") {

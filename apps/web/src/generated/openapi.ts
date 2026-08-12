@@ -17,6 +17,7 @@ export interface components {
     name: string;
     permissionMode: string;
     providerId: string;
+    reasoningEffort?: components["schemas"]["adk.ReasoningEffort"];
     recentUserWindow: number;
     skills: Array<string>;
     status: string;
@@ -33,6 +34,7 @@ export interface components {
     name: string;
     permissionMode: string;
     providerId: string;
+    reasoningEffort?: components["schemas"]["adk.ReasoningEffort"];
     recentUserWindow?: number;
     skills?: Array<string>;
     status: string;
@@ -134,9 +136,32 @@ export interface components {
     hasApiKey: boolean;
     id: string;
     model: string;
+    reasoningConfig: components["schemas"]["adk.ProviderReasoningConfig"];
     requestTimeoutMs: number;
     updatedAt: string;
   };
+    "adk.ProviderReasoningConfig": {
+    mappings: Array<components["schemas"]["adk.ProviderReasoningMapping"]>;
+    requestField: string;
+  };
+    "adk.ProviderReasoningMapping": {
+    effort: components["schemas"]["adk.ReasoningEffort"];
+    value: string;
+  };
+    "adk.ProviderReasoningTestResponse": {
+    mode: components["schemas"]["adk.ProviderTestMode"];
+    ok: boolean;
+    requestField: string;
+    results: Array<components["schemas"]["adk.ProviderReasoningTestResult"]>;
+  };
+    "adk.ProviderReasoningTestResult": {
+    effort: components["schemas"]["adk.ReasoningEffort"];
+    error?: string;
+    ok: boolean;
+    value: string;
+  };
+    "adk.ProviderTestMode": "quick" | "full";
+    "adk.ReasoningEffort": "low" | "medium" | "high" | "xhigh" | "max";
     "adk.Run": {
     agentId: string;
     cancelledAt?: string;
@@ -166,6 +191,7 @@ export interface components {
     preToolReasoning?: string;
     providerId?: string;
     providerName?: string;
+    reasoningEffort?: components["schemas"]["adk.ReasoningEffort"];
     resumeState?: string;
     sessionId: string;
     startedAt?: string;
@@ -207,6 +233,7 @@ export interface components {
     modelOverride: string;
     permissionModeOverride: string;
     providerIdOverride: string;
+    reasoningEffortOverride: string;
     sessionId: string;
     updatedAt: string;
     workModeOverride: string;
@@ -501,6 +528,7 @@ export interface components {
     name: string;
     permissionMode: string;
     providerId: string;
+    reasoningEffort?: components["schemas"]["adk.ReasoningEffort"];
     recentUserWindow?: number;
     skills?: Array<string>;
     status: string;
@@ -533,6 +561,7 @@ export interface components {
     objective?: string;
     permissionModeOverride?: string;
     providerId?: string;
+    reasoningEffortOverride?: components["schemas"]["adk.ReasoningEffort"];
     runOptions?: components["schemas"]["adk.RunOptions"];
     sessionId?: string;
     workModeOverride?: string;
@@ -619,7 +648,11 @@ export interface components {
     capabilities: Record<string, boolean>;
     checkedAt: string;
     ok: boolean;
+    reasoning: components["schemas"]["adk.ProviderReasoningTestResponse"];
     reply: string;
+  };
+    "assistant.ADKProviderTestRequest": {
+    mode?: components["schemas"]["adk.ProviderTestMode"];
   };
     "assistant.ADKProviderWriteRequest": {
     apiKey?: string;
@@ -631,6 +664,7 @@ export interface components {
     enabled: boolean;
     id?: string;
     model: string;
+    reasoningConfig?: components["schemas"]["adk.ProviderReasoningConfig"];
     requestTimeoutMs?: number;
   };
     "assistant.ADKRenameSessionRequest": {
@@ -655,6 +689,7 @@ export interface components {
     modelOverride?: string;
     permissionModeOverride?: string;
     providerIdOverride?: string;
+    reasoningEffortOverride?: string;
     workModeOverride?: string;
   };
     "assistant.ADKSessionsData": {
@@ -4524,6 +4559,11 @@ export interface paths {
         path: {
         providerId: string;
       };
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["assistant.ADKProviderTestRequest"];
+        };
       };
       responses: {
         "200": {

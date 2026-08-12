@@ -172,6 +172,7 @@ func (r *Runtime) workflowResumeContext(ctx context.Context, parent Run) (Sessio
 	if err != nil {
 		return Session{}, Agent{}, err
 	}
+	agent = jfadkmodel.ApplyRunModelSnapshot(agent, parent)
 	if validPermissionMode(parent.PermissionMode) {
 		agent.PermissionMode = normalizePermissionMode(parent.PermissionMode)
 	}

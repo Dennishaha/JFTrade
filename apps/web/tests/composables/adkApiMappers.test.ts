@@ -18,6 +18,7 @@ import {
   requireADKOptimizationTasks,
   requireADKPage,
   requireADKProvider,
+  requireADKProviderTestResponse,
   requireADKProviders,
   requireADKRun,
   requireADKRuns,
@@ -43,12 +44,17 @@ import {
 
 describe("ADK API wire mappers", () => {
   it("accepts a complete agent and preserves supported enum values", () => {
-    const agent = buildAgent({ permissionMode: "less_approval", workMode: "loop" });
+    const agent = buildAgent({
+      permissionMode: "less_approval",
+      workMode: "loop",
+      reasoningEffort: "max",
+    });
 
     expect(requireADKAgent(agent)).toBe(agent);
     expect(requireADKAgent(agent)).toMatchObject({
       permissionMode: "less_approval",
       workMode: "loop",
+      reasoningEffort: "max",
     });
   });
 
@@ -66,6 +72,9 @@ describe("ADK API wire mappers", () => {
       requireADKAgent(buildAgent({ permissionMode: "unrestricted" })),
     ).toThrow("ADK API response is invalid: agent");
     expect(() => requireADKAgent(buildAgent({ workMode: "autopilot" }))).toThrow(
+      "ADK API response is invalid: agent",
+    );
+    expect(() => requireADKAgent(buildAgent({ reasoningEffort: "extreme" }))).toThrow(
       "ADK API response is invalid: agent",
     );
   });
@@ -119,6 +128,7 @@ describe("ADK API wire mappers", () => {
       {
         ...template,
         model: "",
+        reasoningEffort: "",
         tools: [],
         skills: [],
         recentUserWindow: 6,
@@ -126,6 +136,10 @@ describe("ADK API wire mappers", () => {
         loopMaxIterations: 5,
       },
     ]);
+
+    expect(() =>
+      requireADKAgentTemplates([{ ...template, reasoningEffort: "default" }]),
+    ).toThrow("ADK API response is invalid: agent templates");
   });
 
   it("accepts both Provider API protocols while retaining a strict provider contract", () => {
@@ -151,6 +165,60 @@ describe("ADK API wire mappers", () => {
     expect(() =>
       requireADKProvider({ ...provider, apiProtocol: "unsupported" }),
     ).toThrow("ADK API response is invalid: provider");
+  });
+
+  it("validates Provider reasoning mappings and test modes at the wire boundary", () => {
+    const provider = {
+      id: "provider-1",
+      displayName: "Reasoning provider",
+      baseUrl: "https://llm.example/v1",
+      model: "model-a",
+      apiProtocol: "responses",
+      reasoningConfig: {
+        requestField: "reasoning.effort",
+        mappings: [{ effort: "high", value: "deep" }],
+      },
+      requestTimeoutMs: 30_000,
+      enabled: true,
+      default: true,
+      hasApiKey: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    expect(requireADKProvider(provider).reasoningConfig?.mappings).toEqual([
+      { effort: "high", value: "deep" },
+    ]);
+    expect(() =>
+      requireADKProvider({
+        ...provider,
+        reasoningConfig: {
+          requestField: "reasoning.effort",
+          mappings: [{ effort: "high", value: "" }],
+        },
+      }),
+    ).toThrow("ADK API response is invalid: provider");
+
+    const response = {
+      ok: true,
+      reply: "ready",
+      capabilities: { streaming: true, tools: true, reasoning: true },
+      reasoning: {
+        mode: "quick",
+        requestField: "reasoning.effort",
+        ok: true,
+        results: [{ effort: "high", value: "deep", ok: true }],
+      },
+      checkedAt: NOW,
+    };
+    expect(requireADKProviderTestResponse(response)).toMatchObject({
+      reasoning: { mode: "quick" },
+    });
+    expect(() =>
+      requireADKProviderTestResponse({
+        ...response,
+        reasoning: { ...response.reasoning, mode: "default" },
+      }),
+    ).toThrow("ADK API response is invalid: provider test");
   });
 
   it("rejects malformed required and optional agent template fields", () => {
@@ -366,6 +434,7 @@ describe("ADK API wire mappers", () => {
       chatDraft: "Compare the two strategies",
       providerIdOverride: "provider-1",
       modelOverride: "model-a",
+      reasoningEffortOverride: "max",
       workModeOverride: "loop",
       permissionModeOverride: "approval",
       goalObjectiveDraft: "Choose the more robust strategy",
@@ -610,6 +679,7 @@ function buildAgent(overrides: Record<string, unknown> = {}) {
     instruction: "Research the selected market.",
     providerId: "provider-1",
     model: "model-a",
+    reasoningEffort: "",
     tools: ["market.quote"],
     skills: ["research"],
     permissionMode: "approval",
@@ -686,6 +756,7 @@ function buildRun(overrides: Record<string, unknown> = {}) {
     id: "run-1",
     sessionId: "session-1",
     agentId: "agent-1",
+    reasoningEffort: "",
     status: "completed",
     message: "Research completed.",
     toolCalls: [],

@@ -25,6 +25,7 @@ function buildAgent(workMode: ADKAgent["workMode"] | "sequential" | "parallel"):
     instruction: "Instruction",
     providerId: "provider",
     model: "model",
+    reasoningEffort: "max",
     tools: [],
     skills: [],
     permissionMode: "approval",
@@ -46,6 +47,7 @@ describe("useADKAgentForm", () => {
 
     expect(state.agentForm.value.workMode).toBe("chat");
     expect(state.agentForm.value.loopMaxIterations).toBe(5);
+    expect(state.agentForm.value.reasoningEffort).toBe("");
   });
 
   it("keeps new agents on the dynamic default provider", () => {
@@ -93,6 +95,29 @@ describe("useADKAgentForm", () => {
       state.duplicateAgent(buildAgent(mode));
       expect(state.agentForm.value.workMode).toBe(mode);
     }
+  });
+
+  it("preserves the Agent reasoning default when editing and duplicating", () => {
+    const state = createState();
+    const agent = buildAgent("chat");
+
+    state.editAgent(agent);
+    expect(state.agentForm.value.reasoningEffort).toBe("max");
+
+    state.duplicateAgent(agent);
+    expect(state.agentForm.value.reasoningEffort).toBe("max");
+  });
+
+  it("treats an omitted Agent reasoning default as no explicit level", () => {
+    const state = createState();
+    const agent = buildAgent("chat");
+    delete agent.reasoningEffort;
+
+    state.editAgent(agent);
+    expect(state.agentForm.value.reasoningEffort).toBe("");
+
+    state.duplicateAgent(agent);
+    expect(state.agentForm.value.reasoningEffort).toBe("");
   });
 
   it("selects installed skills for a new agent while leaving tools backend-managed", () => {

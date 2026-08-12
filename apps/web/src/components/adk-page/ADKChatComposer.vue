@@ -51,7 +51,9 @@ const props = withDefaults(defineProps<ADKChatComposerProps>(), {
   suggestions: () => [],
   defaultWorkMode: "chat",
   defaultPermissionMode: "approval",
+  defaultReasoningEffort: "",
   permissionModeOverride: "",
+  reasoningEffortOverride: "",
   workModeOverride: "",
 });
 const emit = defineEmits<ADKChatComposerEmit>();

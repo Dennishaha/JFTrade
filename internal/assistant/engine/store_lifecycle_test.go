@@ -512,18 +512,19 @@ func TestSessionComposerStatePersistsAndDeletesWithSession(t *testing.T) {
 	}
 
 	saved, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{
-		ChatDraft:              new(strings.Repeat("x", MaxMessageLength+20)),
-		ProviderIDOverride:     new(" provider-session "),
-		ModelOverride:          new(" model-session "),
-		WorkModeOverride:       new(WorkModeLoop),
-		PermissionModeOverride: new(PermissionModeLessApproval),
-		GoalObjectiveDraft:     new("目标草稿"),
-		GoalObjectiveTouched:   new(true),
+		ChatDraft:               new(strings.Repeat("x", MaxMessageLength+20)),
+		ProviderIDOverride:      new(" provider-session "),
+		ModelOverride:           new(" model-session "),
+		ReasoningEffortOverride: new(string(ReasoningEffortHigh)),
+		WorkModeOverride:        new(WorkModeLoop),
+		PermissionModeOverride:  new(PermissionModeLessApproval),
+		GoalObjectiveDraft:      new("目标草稿"),
+		GoalObjectiveTouched:    new(true),
 	})
 	if err != nil {
 		t.Fatalf("SaveSessionComposerState: %v", err)
 	}
-	if len([]rune(saved.ChatDraft)) != MaxMessageLength || saved.ProviderIDOverride != "provider-session" || saved.ModelOverride != "model-session" || saved.WorkModeOverride != WorkModeLoop || saved.PermissionModeOverride != PermissionModeLessApproval || !saved.GoalObjectiveTouched {
+	if len([]rune(saved.ChatDraft)) != MaxMessageLength || saved.ProviderIDOverride != "provider-session" || saved.ModelOverride != "model-session" || saved.ReasoningEffortOverride != string(ReasoningEffortHigh) || saved.WorkModeOverride != WorkModeLoop || saved.PermissionModeOverride != PermissionModeLessApproval || !saved.GoalObjectiveTouched {
 		t.Fatalf("saved composer state = %+v", saved)
 	}
 
@@ -532,6 +533,9 @@ func TestSessionComposerStatePersistsAndDeletesWithSession(t *testing.T) {
 	}
 	if _, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{PermissionModeOverride: new("root")}); err == nil {
 		t.Fatal("SaveSessionComposerState invalid permission mode err = nil")
+	}
+	if _, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{ReasoningEffortOverride: new("extreme")}); err == nil {
+		t.Fatal("SaveSessionComposerState invalid reasoning effort err = nil")
 	}
 
 	if err := runtime.Store().DeleteSession(ctx, session.ID); err != nil {

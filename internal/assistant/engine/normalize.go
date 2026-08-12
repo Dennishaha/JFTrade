@@ -23,6 +23,7 @@ func NormalizeAgent(agent Agent) Agent {
 	agent.Tools = jfadkmodel.NormalizeStringSlice(agent.Tools)
 	agent.Skills = jfadkmodel.NormalizeStringSlice(agent.Skills)
 	agent.PermissionMode = normalizePermissionMode(agent.PermissionMode)
+	agent.ReasoningEffort = jfadkmodel.NormalizeReasoningEffort(agent.ReasoningEffort)
 	agent.RecentUserWindow = normalizeRecentUserWindow(agent.RecentUserWindow)
 	agent.WorkMode = normalizeAgentDefaultWorkMode(agent.WorkMode)
 	agent.LoopMaxIterations = jfadkmodel.NormalizeLoopMaxIterations(agent.LoopMaxIterations)

@@ -95,6 +95,7 @@ beforeEach(() => {
       chatDraft: "",
       providerIdOverride: "",
       modelOverride: "",
+      reasoningEffortOverride: "",
       workModeOverride: "",
       permissionModeOverride: "",
       goalObjectiveDraft: "",
@@ -358,6 +359,7 @@ describe("useADKPageChatState boundaries", () => {
     harness.state.chatDraft.value = "draft";
     harness.selectedProviderId.value = "provider-2";
     harness.selectedProvider.value = buildProvider({ id: "provider-2", model: "model-2" });
+    harness.state.reasoningEffortOverride.value = "max";
     await nextTick();
 
     await harness.state.flushComposerState({ keepalive: true });
@@ -368,14 +370,39 @@ describe("useADKPageChatState boundaries", () => {
         chatDraft: "draft",
         providerIdOverride: "provider-2",
         modelOverride: "model-2",
+        reasoningEffortOverride: "max",
       }),
       { keepalive: true },
     );
 
     harness.state.resetComposerState();
     expect(harness.state.chatDraft.value).toBe("");
+    expect(harness.state.reasoningEffortOverride.value).toBe("");
     await vi.runAllTimersAsync();
     expect(saveADKSessionComposerState).toHaveBeenCalledTimes(2);
+    harness.unmount();
+  });
+
+  it("blocks sending when saved Agent or session reasoning levels lose Provider support", async () => {
+    const harness = mountHarness();
+    harness.selectedProvider.value = buildProvider({
+      reasoningConfig: { requestField: "reasoning_effort", mappings: [] },
+    });
+    await nextTick();
+
+    expect(harness.state.composerBlockMessage.value).toBe(
+      "当前 Provider 不支持该 Agent 默认推理等级，请选择受支持等级或更换 Provider。",
+    );
+
+    harness.state.reasoningEffortOverride.value = "max";
+    await nextTick();
+    expect(harness.state.composerBlockMessage.value).toBe(
+      "当前会话推理等级已被 Provider 移除，请选择受支持等级或跟随 Agent。",
+    );
+
+    harness.selectedProvider.value = null;
+    await nextTick();
+    expect(harness.state.composerBlockMessage.value).toBe("");
     harness.unmount();
   });
 
@@ -715,6 +742,20 @@ describe("useADKPageChatState boundaries", () => {
     harness.unmount();
   });
 
+  it("includes reasoning overrides in the streamed request", async () => {
+    vi.mocked(streamADKChat).mockResolvedValue(buildResponse(buildRun()));
+    const harness = mountHarness();
+    harness.state.reasoningEffortOverride.value = "xhigh";
+    harness.state.chatDraft.value = "use extra-high reasoning for this run";
+
+    await harness.state.sendChat();
+
+    expect(vi.mocked(streamADKChat).mock.calls[0]?.[0]).toMatchObject({
+      reasoningEffortOverride: "xhigh",
+    });
+    harness.unmount();
+  });
+
   it("does not schedule a context refresh for empty session ids in run events", async () => {
     vi.mocked(streamADKChat).mockImplementationOnce(async (_payload, onEvent) => {
       await onEvent({
@@ -1018,6 +1059,7 @@ function buildAgent(): ADKAgent {
     instruction: "Review account risk",
     providerId: "provider-1",
     model: "model-1",
+    reasoningEffort: "medium",
     tools: [],
     skills: [],
     permissionMode: "approval",
@@ -1037,6 +1079,17 @@ function buildProvider(overrides: Partial<ADKProvider> = {}): ADKProvider {
     displayName: "Provider",
     baseUrl: "https://llm.example/v1",
     model: "model-1",
+    apiProtocol: "chat_completions",
+    reasoningConfig: {
+      requestField: "reasoning_effort",
+      mappings: [
+        { effort: "low", value: "low" },
+        { effort: "medium", value: "medium" },
+        { effort: "high", value: "high" },
+        { effort: "xhigh", value: "xhigh" },
+        { effort: "max", value: "max" },
+      ],
+    },
     requestTimeoutMs: 180_000,
     enabled: true,
     default: true,
@@ -1052,6 +1105,7 @@ function buildRun(overrides: Partial<ADKRun> = {}): ADKRun {
     id: "run-1",
     sessionId: "session-1",
     agentId: "agent-1",
+    reasoningEffort: "",
     status: "COMPLETED",
     message: "done",
     toolCalls: [],

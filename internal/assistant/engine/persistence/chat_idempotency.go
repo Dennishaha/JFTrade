@@ -32,15 +32,16 @@ func (e *ChatRequestConflictError) Unwrap() error {
 }
 
 type canonicalChatRequest struct {
-	AgentID                string `json:"agentId"`
-	SessionID              string `json:"sessionId"`
-	Message                string `json:"message"`
-	ProviderID             string `json:"providerId"`
-	Model                  string `json:"model"`
-	WorkModeOverride       string `json:"workModeOverride"`
-	PermissionModeOverride string `json:"permissionModeOverride"`
-	Objective              string `json:"objective"`
-	LoopMaxIterations      int    `json:"loopMaxIterations"`
+	AgentID                 string `json:"agentId"`
+	SessionID               string `json:"sessionId"`
+	Message                 string `json:"message"`
+	ProviderID              string `json:"providerId"`
+	Model                   string `json:"model"`
+	ReasoningEffortOverride string `json:"reasoningEffortOverride"`
+	WorkModeOverride        string `json:"workModeOverride"`
+	PermissionModeOverride  string `json:"permissionModeOverride"`
+	Objective               string `json:"objective"`
+	LoopMaxIterations       int    `json:"loopMaxIterations"`
 }
 
 // NormalizeChatRequestIdentity validates and canonicalizes the idempotency
@@ -52,15 +53,16 @@ func NormalizeChatRequestIdentity(req model.ChatRequest) (model.ChatRequest, str
 	}
 	req.ClientRequestID = parsed.String()
 	canonical := canonicalChatRequest{
-		AgentID:                strings.TrimSpace(req.AgentID),
-		SessionID:              strings.TrimSpace(req.SessionID),
-		Message:                strings.TrimSpace(req.Message),
-		ProviderID:             strings.TrimSpace(req.ProviderID),
-		Model:                  strings.TrimSpace(req.Model),
-		WorkModeOverride:       canonicalWorkMode(req.WorkModeOverride),
-		PermissionModeOverride: canonicalPermissionMode(req.PermissionModeOverride),
-		Objective:              strings.TrimSpace(req.Objective),
-		LoopMaxIterations:      model.NormalizeLoopMaxIterations(0),
+		AgentID:                 strings.TrimSpace(req.AgentID),
+		SessionID:               strings.TrimSpace(req.SessionID),
+		Message:                 strings.TrimSpace(req.Message),
+		ProviderID:              strings.TrimSpace(req.ProviderID),
+		Model:                   strings.TrimSpace(req.Model),
+		ReasoningEffortOverride: string(model.NormalizeOptionalReasoningEffort(req.ReasoningEffortOverride)),
+		WorkModeOverride:        canonicalWorkMode(req.WorkModeOverride),
+		PermissionModeOverride:  canonicalPermissionMode(req.PermissionModeOverride),
+		Objective:               strings.TrimSpace(req.Objective),
+		LoopMaxIterations:       model.NormalizeLoopMaxIterations(0),
 	}
 	if canonical.Objective == "" {
 		canonical.Objective = canonical.Message
@@ -128,8 +130,8 @@ func (s *StoreCore) chatRunByClientRequestID(ctx context.Context, queryer runReq
 	if err != nil {
 		return model.Run{}, "", false, err
 	}
-	var run model.Run
-	if err := json.Unmarshal([]byte(payload), &run); err != nil {
+	run, err := decodeRun([]byte(payload))
+	if err != nil {
 		return model.Run{}, "", false, err
 	}
 	return s.normalizeRun(run), fingerprint, true, nil
@@ -145,7 +147,7 @@ func (s *StoreCore) ClaimChatRun(ctx context.Context, run model.Run, clientReque
 	if err != nil {
 		return model.Run{}, false, err
 	}
-	payload, err := json.Marshal(run)
+	payload, err := encodeRun(run)
 	if err != nil {
 		return model.Run{}, false, err
 	}

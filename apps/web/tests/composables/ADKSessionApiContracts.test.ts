@@ -45,6 +45,7 @@ describe("ADK session and agent API contracts", () => {
       instruction: "检查交易假设",
       providerId: "old-provider",
       model: "model-a",
+      reasoningEffort: "xhigh",
       tools: ["market.snapshot"],
       skills: ["research"],
       permissionMode: "approval",
@@ -81,8 +82,40 @@ describe("ADK session and agent API contracts", () => {
           permissionMode: "approval",
           memoryEnabled: true,
           status: "ENABLED",
+          reasoningEffort: "xhigh",
         }),
       }),
+    );
+  });
+
+  it("omits an unset Agent reasoning default when changing Providers", async () => {
+    const agent: ADKAgent = {
+      id: "researcher",
+      name: "策略研究员",
+      instruction: "检查交易假设",
+      providerId: "old-provider",
+      model: "model-a",
+      tools: [],
+      skills: [],
+      permissionMode: "approval",
+      memoryEnabled: true,
+      recentUserWindow: 6,
+      workMode: "chat",
+      loopMaxIterations: 5,
+      status: "ENABLED",
+      createdAt: "2026-07-16T00:00:00Z",
+      updatedAt: "2026-07-16T00:00:00Z",
+    };
+    const fetchMock = vi.fn(async () => createResponse({
+      ...agent,
+      providerId: "new-provider",
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await updateADKPageAgentProvider(agent, "new-provider");
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).not.toHaveProperty(
+      "reasoningEffort",
     );
   });
 

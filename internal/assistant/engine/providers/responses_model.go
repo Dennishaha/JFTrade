@@ -21,12 +21,25 @@ type ResponsesToolNameModel struct {
 
 // NewOpenAIResponsesADKModel builds the OpenAI Responses adapter for a
 // JFTrade provider definition.
-func NewOpenAIResponsesADKModel(ctx context.Context, provider jfadkmodel.Provider, apiKey string, modelName string) (model.LLM, error) {
+func NewOpenAIResponsesADKModel(
+	ctx context.Context,
+	provider jfadkmodel.Provider,
+	apiKey string,
+	modelName string,
+	reasoningEfforts ...jfadkmodel.ReasoningEffort,
+) (model.LLM, error) {
+	var reasoningEffort jfadkmodel.ReasoningEffort
+	if len(reasoningEfforts) > 0 {
+		reasoningEffort = reasoningEfforts[0]
+	}
+	if _, _, err := jfadkmodel.ResolveProviderReasoning(provider, reasoningEffort); err != nil {
+		return nil, err
+	}
 	inner, err := openaimodel.NewModel(ctx, jfadkmodel.DefaultString(modelName, provider.Model), &openaimodel.ClientConfig{
 		APIKey:     strings.TrimSpace(apiKey),
 		BaseURL:    provider.BaseURL,
 		HTTPClient: NewHTTPClient(provider.RequestTimeout()),
-		Options:    providerResponseOptions(provider),
+		Options:    providerResponseOptions(provider, reasoningEffort),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create OpenAI Responses ADK model: %w", err)
@@ -34,12 +47,16 @@ func NewOpenAIResponsesADKModel(ctx context.Context, provider jfadkmodel.Provide
 	return &ResponsesToolNameModel{inner: inner}, nil
 }
 
-func providerResponseOptions(provider jfadkmodel.Provider) []option.RequestOption {
-	options := make([]option.RequestOption, 0, len(provider.DefaultHeaders))
+func providerResponseOptions(provider jfadkmodel.Provider, reasoningEffort jfadkmodel.ReasoningEffort) []option.RequestOption {
+	options := make([]option.RequestOption, 0, len(provider.DefaultHeaders)+1)
 	for key, value := range provider.DefaultHeaders {
 		if strings.TrimSpace(key) != "" && strings.TrimSpace(value) != "" {
 			options = append(options, option.WithHeader(key, value))
 		}
+	}
+	field, value, err := jfadkmodel.ResolveProviderReasoning(provider, reasoningEffort)
+	if err == nil && field != "" && value != "" {
+		options = append(options, option.WithJSONSet(field, value))
 	}
 	return options
 }
@@ -47,7 +64,28 @@ func providerResponseOptions(provider jfadkmodel.Provider) []option.RequestOptio
 // ProbeOpenAIResponsesProvider performs a connectivity and optional tool
 // support probe against an OpenAI Responses-compatible endpoint.
 func ProbeOpenAIResponsesProvider(ctx context.Context, provider jfadkmodel.Provider, apiKey string, includeTool bool) (string, error) {
-	llm, err := NewOpenAIResponsesADKModel(ctx, provider, apiKey, provider.Model)
+	return probeOpenAIResponsesProvider(ctx, provider, apiKey, includeTool)
+}
+
+// ProbeOpenAIResponsesProviderReasoning performs the same minimal probe while
+// applying one configured reasoning level.
+func ProbeOpenAIResponsesProviderReasoning(
+	ctx context.Context,
+	provider jfadkmodel.Provider,
+	apiKey string,
+	effort jfadkmodel.ReasoningEffort,
+) (string, error) {
+	return probeOpenAIResponsesProvider(ctx, provider, apiKey, false, effort)
+}
+
+func probeOpenAIResponsesProvider(
+	ctx context.Context,
+	provider jfadkmodel.Provider,
+	apiKey string,
+	includeTool bool,
+	reasoningEfforts ...jfadkmodel.ReasoningEffort,
+) (string, error) {
+	llm, err := NewOpenAIResponsesADKModel(ctx, provider, apiKey, provider.Model, reasoningEfforts...)
 	if err != nil {
 		return "", err
 	}

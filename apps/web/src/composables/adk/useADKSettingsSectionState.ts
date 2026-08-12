@@ -327,6 +327,7 @@ export function useADKSettingsSectionState() {
       instruction: template.instruction,
       providerId: "",
       model: template.model ?? "",
+      reasoningEffort: template.reasoningEffort ?? "",
       tools: [...template.tools],
       skills: [...template.skills],
       permissionMode: template.permissionMode,

@@ -22,21 +22,91 @@ import (
 const GoogleADKModule = "google.golang.org/adk/v2"
 
 type OpenAICompatibleADKModel struct {
-	Provider jfadkmodel.Provider
-	APIKey   string
-	Model    string
+	Provider        jfadkmodel.Provider
+	APIKey          string
+	Model           string
+	ReasoningEffort jfadkmodel.ReasoningEffort
+	ReasoningField  string
+	ReasoningValue  string
 }
 
-func NewOpenAICompatibleADKModel(provider jfadkmodel.Provider, apiKey string, modelName string) model.LLM {
+func NewOpenAICompatibleADKModel(
+	provider jfadkmodel.Provider,
+	apiKey string,
+	modelName string,
+	reasoningEfforts ...jfadkmodel.ReasoningEffort,
+) model.LLM {
+	var reasoningEffort jfadkmodel.ReasoningEffort
+	if len(reasoningEfforts) > 0 {
+		reasoningEffort = reasoningEfforts[0]
+	}
+	reasoningField, reasoningValue, _ := jfadkmodel.ResolveProviderReasoning(provider, reasoningEffort)
 	return &OpenAICompatibleADKModel{
-		Provider: provider,
-		APIKey:   strings.TrimSpace(apiKey),
-		Model:    jfadkmodel.DefaultString(modelName, provider.Model),
+		Provider:        provider,
+		APIKey:          strings.TrimSpace(apiKey),
+		Model:           jfadkmodel.DefaultString(modelName, provider.Model),
+		ReasoningEffort: jfadkmodel.NormalizeReasoningEffort(reasoningEffort),
+		ReasoningField:  reasoningField,
+		ReasoningValue:  reasoningValue,
 	}
 }
 
 func (m *OpenAICompatibleADKModel) Name() string {
 	return m.Model
+}
+
+func ProbeOpenAICompatibleProvider(
+	ctx context.Context,
+	provider jfadkmodel.Provider,
+	apiKey string,
+	includeTool bool,
+) (string, error) {
+	return probeOpenAICompatibleProvider(ctx, provider, apiKey, includeTool)
+}
+
+func ProbeOpenAICompatibleProviderReasoning(
+	ctx context.Context,
+	provider jfadkmodel.Provider,
+	apiKey string,
+	effort jfadkmodel.ReasoningEffort,
+) (string, error) {
+	return probeOpenAICompatibleProvider(ctx, provider, apiKey, false, effort)
+}
+
+func probeOpenAICompatibleProvider(
+	ctx context.Context,
+	provider jfadkmodel.Provider,
+	apiKey string,
+	includeTool bool,
+	reasoningEfforts ...jfadkmodel.ReasoningEffort,
+) (string, error) {
+	llm := NewOpenAICompatibleADKModel(provider, apiKey, provider.Model, reasoningEfforts...)
+	request := &model.LLMRequest{
+		Config: &genai.GenerateContentConfig{
+			SystemInstruction: genai.NewContentFromText("Reply with a short health check sentence.", genai.RoleUser),
+		},
+		Contents: []*genai.Content{genai.NewContentFromText("JFTrade ADK provider connectivity test.", genai.RoleUser)},
+	}
+	if includeTool {
+		request.Config.Tools = []*genai.Tool{{FunctionDeclarations: []*genai.FunctionDeclaration{{
+			Name: "system.health_probe", Description: "Probe provider tool support.",
+		}}}}
+	}
+	var reply strings.Builder
+	for response, responseErr := range llm.GenerateContent(ctx, request, false) {
+		if responseErr != nil {
+			return "", responseErr
+		}
+		if response == nil || response.Content == nil {
+			continue
+		}
+		for _, part := range response.Content.Parts {
+			if part != nil {
+				reply.WriteString(part.Text)
+			}
+		}
+	}
+	return strings.TrimSpace(reply.String()), nil
 }
 
 func (m *OpenAICompatibleADKModel) GenerateContent(ctx context.Context, req *model.LLMRequest, stream bool) iter.Seq2[*model.LLMResponse, error] {
@@ -223,11 +293,13 @@ func (m *OpenAICompatibleADKModel) BuildChatRequest(req *model.LLMRequest, strea
 	messages = TrimMessagesForProvider(messages, MaxProviderPayloadBytes)
 
 	payload := OpenAIChatRequest{
-		Model:       jfadkmodel.DefaultString(req.Model, m.Model),
-		Messages:    messages,
-		Temperature: 0.2,
-		Stream:      stream,
-		Tools:       OpenAIToolsFromGenAIConfig(req.Config),
+		Model:          jfadkmodel.DefaultString(req.Model, m.Model),
+		Messages:       messages,
+		ReasoningField: m.ReasoningField,
+		ReasoningValue: m.ReasoningValue,
+		Temperature:    0.2,
+		Stream:         stream,
+		Tools:          OpenAIToolsFromGenAIConfig(req.Config),
 	}
 	if len(payload.Tools) > 0 {
 		payload.ToolChoice = "auto"
@@ -263,6 +335,12 @@ func (m *OpenAICompatibleADKModel) NewChatRequest(ctx context.Context, payload O
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
+	}
+	if payload.ReasoningField != "" && payload.ReasoningValue != "" {
+		raw, err = InjectJSONPath(raw, payload.ReasoningField, payload.ReasoningValue)
+		if err != nil {
+			return nil, fmt.Errorf("inject provider reasoning field: %w", err)
+		}
 	}
 	endpoint := strings.TrimRight(m.Provider.BaseURL, "/") + "/chat/completions"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))

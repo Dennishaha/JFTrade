@@ -10,6 +10,32 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// persistedRun keeps provider wire details in the store without exposing them
+// through the public Run JSON contract.
+type persistedRun struct {
+	jfadkmodel.Run
+	ReasoningEffortField string `json:"reasoningEffortField,omitempty"`
+	ReasoningEffortValue string `json:"reasoningEffortValue,omitempty"`
+}
+
+func encodeRun(run jfadkmodel.Run) ([]byte, error) {
+	return json.Marshal(persistedRun{
+		Run: run, ReasoningEffortField: run.ReasoningEffortField,
+		ReasoningEffortValue: run.ReasoningEffortValue,
+	})
+}
+
+func decodeRun(payload []byte) (jfadkmodel.Run, error) {
+	var stored persistedRun
+	if err := json.Unmarshal(payload, &stored); err != nil {
+		return jfadkmodel.Run{}, err
+	}
+	run := stored.Run
+	run.ReasoningEffortField = stored.ReasoningEffortField
+	run.ReasoningEffortValue = stored.ReasoningEffortValue
+	return run, nil
+}
+
 func (s *StoreCore) SaveRun(ctx context.Context, run jfadkmodel.Run) error {
 	run, err := s.PrepareRunForSave(ctx, run)
 	if err != nil {
@@ -59,7 +85,7 @@ func (s *StoreCore) SavePreparedRun(ctx context.Context, run jfadkmodel.Run) err
 }
 
 func savePreparedRunWithExecutor(ctx context.Context, executor sqlx.ExtContext, run jfadkmodel.Run) error {
-	payload, err := json.Marshal(run)
+	payload, err := encodeRun(run)
 	if err != nil {
 		return err
 	}
@@ -128,21 +154,27 @@ func (s *StoreCore) SaveRunAndDenyPendingApprovals(ctx context.Context, run jfad
 }
 
 func (s *StoreCore) Run(ctx context.Context, id string) (jfadkmodel.Run, bool, error) {
-	var run jfadkmodel.Run
-	ok, err := s.GetJSON(ctx, tableRuns, id, &run)
+	var stored persistedRun
+	ok, err := s.GetJSON(ctx, tableRuns, id, &stored)
 	if err != nil || !ok {
 		return jfadkmodel.Run{}, ok, err
 	}
+	run := stored.Run
+	run.ReasoningEffortField = stored.ReasoningEffortField
+	run.ReasoningEffortValue = stored.ReasoningEffortValue
 	return s.normalizeRun(run), true, nil
 }
 
 func (s *StoreCore) ListRuns(ctx context.Context) ([]jfadkmodel.Run, error) {
-	var runs []jfadkmodel.Run
-	if err := s.ListJSON(ctx, tableRuns, "created_at DESC, id ASC", &runs); err != nil {
+	var stored []persistedRun
+	if err := s.ListJSON(ctx, tableRuns, "created_at DESC, id ASC", &stored); err != nil {
 		return nil, err
 	}
-	for index := range runs {
-		runs[index] = s.normalizeRun(runs[index])
+	runs := make([]jfadkmodel.Run, 0, len(stored))
+	for _, item := range stored {
+		item.Run.ReasoningEffortField = item.ReasoningEffortField
+		item.Run.ReasoningEffortValue = item.ReasoningEffortValue
+		runs = append(runs, s.normalizeRun(item.Run))
 	}
 	return runs, nil
 }
@@ -162,10 +194,13 @@ func (s *StoreCore) ListRunsPage(ctx context.Context, status string, agentID str
 		clauses = append(clauses, "session_id = ?")
 		args = append(args, sessionID)
 	}
-	var runs []jfadkmodel.Run
-	total, err := s.ListJSONPage(ctx, tableRuns, clauses, args, "created_at DESC, id ASC", limit, offset, &runs)
-	for index := range runs {
-		runs[index] = s.normalizeRun(runs[index])
+	var stored []persistedRun
+	total, err := s.ListJSONPage(ctx, tableRuns, clauses, args, "created_at DESC, id ASC", limit, offset, &stored)
+	runs := make([]jfadkmodel.Run, 0, len(stored))
+	for _, item := range stored {
+		item.Run.ReasoningEffortField = item.ReasoningEffortField
+		item.Run.ReasoningEffortValue = item.ReasoningEffortValue
+		runs = append(runs, s.normalizeRun(item.Run))
 	}
 	return runs, total, err
 }

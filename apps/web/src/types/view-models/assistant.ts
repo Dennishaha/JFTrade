@@ -3,6 +3,45 @@ import type { MCPServerStatus } from "../../contracts/wire/settings";
 export type ADKPermissionMode = "approval" | "less_approval" | "all";
 export type ADKWorkMode = "chat" | "loop";
 export type ADKProviderAPIProtocol = "chat_completions" | "responses";
+export type ADKReasoningEffort =
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
+export type ADKProviderTestMode = "quick" | "full";
+
+export interface ADKProviderReasoningMapping {
+  effort: ADKReasoningEffort;
+  value: string;
+}
+
+export interface ADKProviderReasoningConfig {
+  requestField: string;
+  mappings: ADKProviderReasoningMapping[];
+}
+
+export interface ADKProviderReasoningTestResult {
+  effort: ADKReasoningEffort;
+  value: string;
+  ok: boolean;
+  error?: string;
+}
+
+export interface ADKProviderReasoningTestResponse {
+  mode: ADKProviderTestMode;
+  requestField: string;
+  ok: boolean;
+  results: ADKProviderReasoningTestResult[];
+}
+
+export interface ADKProviderTestResponse {
+  ok: boolean;
+  reply: string;
+  capabilities: Record<string, boolean>;
+  reasoning: ADKProviderReasoningTestResponse;
+  checkedAt: string;
+}
 
 export interface ADKProvider {
   id: string;
@@ -10,6 +49,7 @@ export interface ADKProvider {
   baseUrl: string;
   model: string;
   apiProtocol: ADKProviderAPIProtocol;
+  reasoningConfig?: ADKProviderReasoningConfig;
   contextWindowTokens?: number;
   requestTimeoutMs: number;
   defaultHeaders?: Record<string, string>;
@@ -74,6 +114,7 @@ export interface ADKAgent {
   instruction: string;
   providerId: string;
   model: string;
+  reasoningEffort?: ADKReasoningEffort;
   tools: string[];
   skills: string[];
   permissionMode: ADKPermissionMode;
@@ -203,6 +244,7 @@ export interface ADKSessionComposerState {
   chatDraft: string;
   providerIdOverride: string;
   modelOverride: string;
+  reasoningEffortOverride: ADKReasoningEffort | "" | string;
   workModeOverride: ADKWorkMode | "" | string;
   permissionModeOverride: ADKPermissionMode | "" | string;
   goalObjectiveDraft: string;
@@ -320,6 +362,7 @@ export interface ADKRun {
   providerId?: string;
   providerName?: string;
   model?: string;
+  reasoningEffort?: ADKReasoningEffort;
   maxDurationMs?: number;
   status: string;
   message: string;

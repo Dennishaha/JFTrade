@@ -32,12 +32,14 @@ type OpenAIChatMessage struct {
 }
 
 type OpenAIChatRequest struct {
-	Model       string              `json:"model"`
-	Messages    []OpenAIChatMessage `json:"messages"`
-	Temperature float64             `json:"temperature,omitempty"`
-	Stream      bool                `json:"stream,omitempty"`
-	Tools       []OpenAITool        `json:"tools,omitempty"`
-	ToolChoice  any                 `json:"tool_choice,omitempty"`
+	Model          string              `json:"model"`
+	Messages       []OpenAIChatMessage `json:"messages"`
+	ReasoningField string              `json:"-"`
+	ReasoningValue string              `json:"-"`
+	Temperature    float64             `json:"temperature,omitempty"`
+	Stream         bool                `json:"stream,omitempty"`
+	Tools          []OpenAITool        `json:"tools,omitempty"`
+	ToolChoice     any                 `json:"tool_choice,omitempty"`
 }
 
 type OpenAITool struct {

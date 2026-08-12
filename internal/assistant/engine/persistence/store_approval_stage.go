@@ -78,8 +78,8 @@ func (s *approvalStage) pendingRun(ctx context.Context, runID string) (jfadkmode
 		}
 		return jfadkmodel.Run{}, false, err
 	}
-	var run jfadkmodel.Run
-	if err := json.Unmarshal([]byte(payload), &run); err != nil {
+	run, err := decodeRun([]byte(payload))
+	if err != nil {
 		return jfadkmodel.Run{}, false, err
 	}
 	run = s.normalizeRun(run)
@@ -173,7 +173,7 @@ func prepareApprovalContinuation(run *jfadkmodel.Run, denied bool) bool {
 func (s *approvalStage) savePendingRun(ctx context.Context, run *jfadkmodel.Run) error {
 	*run = s.normalizeRun(*run)
 	run.UpdatedAt = jfadkmodel.NowString()
-	payload, err := json.Marshal(*run)
+	payload, err := encodeRun(*run)
 	if err != nil {
 		return err
 	}

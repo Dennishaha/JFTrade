@@ -230,13 +230,90 @@ describe("ADKChatComposer business flows", () => {
     });
 
     const compactMenus = wrapper.findAll(".adk-compact-menu");
-    await compactMenus[0]!.findAll("button")[1]!.trigger("click");
+    await compactMenus[1]!.findAll("button")[1]!.trigger("click");
     expect(wrapper.emitted("update:selectedAgentId")?.at(-1)).toEqual(["agent-2"]);
     expect(handleAgentChange).toHaveBeenCalledOnce();
 
-    await compactMenus[1]!.findAll("button")[1]!.trigger("click");
+    await compactMenus[2]!.findAll("button")[1]!.trigger("click");
     expect(wrapper.emitted("update:workModeOverride")?.at(-1)).toEqual(["loop"]);
     expect(wrapper.text()).toContain("上下文");
+  });
+
+  it("shows the effective reasoning effort and emits session overrides", async () => {
+    const wrapper = mountComposer({
+      canSendChat: true,
+      chatDraft: "",
+      defaultReasoningEffort: "max",
+      reasoningEffortOverride: "",
+      selectedProvider: buildProvider({
+        reasoningConfig: {
+          requestField: "reasoning_effort",
+          mappings: [
+            { effort: "low", value: "low" },
+            { effort: "medium", value: "medium" },
+            { effort: "high", value: "high" },
+            { effort: "xhigh", value: "xhigh" },
+            { effort: "max", value: "max" },
+          ],
+        },
+      }),
+      sendChat: async () => {},
+    });
+
+    expect(wrapper.get(".adk-reasoning-trigger").attributes("title")).toBe(
+      "思考等级：最大",
+    );
+    const reasoningItems = wrapper.get(".adk-compact-menu").findAll("button");
+    expect(reasoningItems).toHaveLength(6);
+    await reasoningItems[5]!.trigger("click");
+    expect(wrapper.emitted("update:reasoningEffortOverride")?.at(-1)).toEqual([
+      "",
+    ]);
+    await reasoningItems[4]!.trigger("click");
+    expect(wrapper.emitted("update:reasoningEffortOverride")?.at(-1)).toEqual([
+      "xhigh",
+    ]);
+  });
+
+  it("clears a reasoning override when the selected Provider removes its mapping", async () => {
+    const supportingProvider = buildProvider({
+      reasoningConfig: {
+        requestField: "reasoning_effort",
+        mappings: [
+          { effort: "high", value: "high" },
+          { effort: "max", value: "max" },
+        ],
+      },
+    });
+    const wrapper = mountComposer({
+      canSendChat: true,
+      chatDraft: "",
+      defaultReasoningEffort: "medium",
+      reasoningEffortOverride: "max",
+      selectedProvider: supportingProvider,
+      sendChat: async () => {},
+    });
+
+    expect(wrapper.get(".adk-reasoning-trigger").attributes("title")).toBe(
+      "思考等级：最大",
+    );
+
+    await wrapper.setProps({
+      selectedProvider: buildProvider({
+        reasoningConfig: { requestField: "reasoning_effort", mappings: [] },
+      }),
+    });
+    await nextTick();
+
+    expect(wrapper.text()).toContain("当前 Provider 不支持已选择的推理等级");
+    expect(wrapper.emitted("update:reasoningEffortOverride")?.at(-1)).toEqual([""]);
+
+    await wrapper.setProps({
+      reasoningEffortOverride: "high",
+      selectedProvider: supportingProvider,
+    });
+    await nextTick();
+    expect(wrapper.text()).not.toContain("当前 Provider 不支持已选择的推理等级");
   });
 
   it("covers goal lifecycle actions, context warning states, and stop handling", async () => {

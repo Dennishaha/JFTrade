@@ -389,6 +389,7 @@ describe("useADKWorkflowQueueState", () => {
       buildRun({
         id: "run-parent",
         workMode: "loop",
+        reasoningEffort: "high",
         childRunIds: ["child-1"],
         workflowPlan: [
           buildWorkflowStep({

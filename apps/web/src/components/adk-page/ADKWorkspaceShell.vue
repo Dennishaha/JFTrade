@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-  computed,
-  nextTick,
-  ref,
-  watch,
-} from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import ADKApprovalQueuePanel from "./ADKApprovalQueuePanel.vue";
@@ -108,6 +103,7 @@ const {
   selectedAgentId,
   selectedProvider,
   selectedProviderId,
+  reasoningEffortOverride,
   selectedSessionId,
   sendingChat,
   sessionContext,
@@ -495,7 +491,9 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
             :default-permission-mode="
               selectedAgent?.permissionMode ?? 'approval'
             "
+            :default-reasoning-effort="selectedAgent?.reasoningEffort ?? ''"
             :permission-mode-override="permissionModeOverride"
+            :reasoning-effort-override="reasoningEffortOverride"
             :work-mode-override="workModeOverride"
             :cancel-active-run="cancelActiveRun"
             :handle-agent-change="handleAgentChange"
@@ -516,6 +514,7 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
             @update:selected-agent-id="selectedAgentId = $event"
             @update:selected-provider-id="selectedProviderId = $event"
             @update:permission-mode-override="permissionModeOverride = $event"
+            @update:reasoning-effort-override="reasoningEffortOverride = $event"
             @update:work-mode-override="workModeOverride = $event"
           />
         </div>

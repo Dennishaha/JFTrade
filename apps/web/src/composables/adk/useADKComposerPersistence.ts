@@ -3,6 +3,7 @@ import { nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import type {
   ADKAgent,
   ADKProvider,
+  ADKReasoningEffort,
   ADKRun,
   ADKSessionComposerState,
 } from "@/types";
@@ -20,6 +21,7 @@ interface ComposerPersistenceInput {
   goalObjectiveError: Ref<string>;
   goalObjectiveTouched: Ref<boolean>;
   permissionModeOverride: Ref<string>;
+  reasoningEffortOverride: Ref<ADKReasoningEffort | "">;
   selectedAgentId: Ref<string>;
   selectedProvider: Ref<ADKProvider | null>;
   selectedProviderId: Ref<string>;
@@ -64,6 +66,7 @@ export function useADKComposerPersistence(input: ComposerPersistenceInput) {
       chatDraft: input.chatDraft.value,
       providerIdOverride: providerOverride.providerId,
       modelOverride: providerOverride.model,
+      reasoningEffortOverride: input.reasoningEffortOverride.value,
       workModeOverride: input.workModeOverride.value,
       permissionModeOverride: input.permissionModeOverride.value,
       goalObjectiveDraft: input.goalObjectiveDraft.value,
@@ -108,6 +111,7 @@ export function useADKComposerPersistence(input: ComposerPersistenceInput) {
           chatDraft: state.chatDraft,
           providerIdOverride: state.providerIdOverride,
           modelOverride: state.modelOverride,
+          reasoningEffortOverride: state.reasoningEffortOverride,
           workModeOverride: state.workModeOverride,
           permissionModeOverride: state.permissionModeOverride,
           goalObjectiveDraft: state.goalObjectiveDraft,
@@ -140,6 +144,7 @@ export function useADKComposerPersistence(input: ComposerPersistenceInput) {
       chatDraft: "",
       providerIdOverride: "",
       modelOverride: "",
+      reasoningEffortOverride: "",
       workModeOverride: "",
       permissionModeOverride: "",
       goalObjectiveDraft: "",
@@ -156,6 +161,8 @@ export function useADKComposerPersistence(input: ComposerPersistenceInput) {
       normalized.providerIdOverride || defaultProviderIdForSelectedAgent();
     input.workModeOverride.value = normalized.workModeOverride;
     input.permissionModeOverride.value = normalized.permissionModeOverride;
+    input.reasoningEffortOverride.value =
+      normalized.reasoningEffortOverride as ADKReasoningEffort | "";
     input.chatDraft.value = normalized.chatDraft;
     input.goalObjectiveTouched.value = normalized.goalObjectiveTouched;
     input.goalObjectiveDraft.value =
@@ -215,6 +222,7 @@ export function useADKComposerPersistence(input: ComposerPersistenceInput) {
       input.selectedProviderId.value,
       input.workModeOverride.value,
       input.permissionModeOverride.value,
+      input.reasoningEffortOverride.value,
       input.goalObjectiveDraft.value,
       input.goalObjectiveTouched.value,
     ],

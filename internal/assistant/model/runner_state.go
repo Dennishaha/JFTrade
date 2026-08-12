@@ -83,6 +83,9 @@ func ValidateChatOverrides(req ChatRequest) (string, error) {
 	if permissionMode != "" && !ValidPermissionMode(permissionMode) {
 		return "", fmt.Errorf("invalid permission mode %q", permissionMode)
 	}
+	if err := ValidateOptionalReasoningEffort(req.ReasoningEffortOverride); err != nil {
+		return "", err
+	}
 	return permissionMode, nil
 }
 
@@ -94,7 +97,30 @@ func ApplyChatModelOverride(agent Agent, req ChatRequest) Agent {
 	if model := strings.TrimSpace(req.Model); model != "" {
 		agent.Model = model
 	}
+	if effort := NormalizeOptionalReasoningEffort(req.ReasoningEffortOverride); effort != "" {
+		agent.ReasoningEffort = effort
+	}
 	return agent
+}
+
+// ApplyRunModelSnapshot restores the immutable provider/model/reasoning
+// selection captured when a run started.
+func ApplyRunModelSnapshot(agent Agent, run Run) Agent {
+	if providerID := strings.TrimSpace(run.ProviderID); providerID != "" {
+		agent.ProviderID = providerID
+	}
+	if modelName := strings.TrimSpace(run.Model); modelName != "" {
+		agent.Model = modelName
+	}
+	agent.ReasoningEffort = NormalizeReasoningEffort(run.ReasoningEffort)
+	agent.ReasoningEffortField = strings.TrimSpace(run.ReasoningEffortField)
+	agent.ReasoningEffortValue = strings.TrimSpace(run.ReasoningEffortValue)
+	return agent
+}
+
+func HasResolvedReasoningSnapshot(agent Agent) bool {
+	return strings.TrimSpace(agent.ReasoningEffortField) != "" &&
+		strings.TrimSpace(agent.ReasoningEffortValue) != ""
 }
 
 // MergeRunActivitySnapshot merges non-empty activity fields from a snapshot

@@ -70,8 +70,8 @@ func (r *Runtime) NewGoogleADKTaskExecution(
 	orchestratorName := rootName + "_iteration"
 	execution.SetRunIDByAgentName(orchestratorName, parent.ID)
 	orchestrator, err := llmagent.New(llmagent.Config{
-		Name:        orchestratorName,
-		Description: definition.Name + " goal orchestrator",
+		Name:                  orchestratorName,
+		Description:           definition.Name + " goal orchestrator",
 		InstructionProvider: func(ctx adkagent.ReadonlyContext) (string, error) {
 			instruction := jfadkmodel.GoalOrchestratorInstruction(definition.Instruction)
 			if r.contextManager == nil || ctx == nil {

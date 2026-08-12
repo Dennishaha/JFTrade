@@ -11,6 +11,7 @@ import type {
   ADKAgent,
   ADKPermissionMode,
   ADKProvider,
+  ADKReasoningEffort,
   ADKSessionContextSnapshot,
   ADKWorkMode,
 } from "@/types";
@@ -22,6 +23,7 @@ import {
   contextWindowLabel,
   formatTokenCount,
 } from "@/composables/adk/adkChatComposerPresentation";
+import { useADKComposerModes } from "@/composables/adk/useADKComposerModes";
 
 export interface SlashCommandItem {
   id: "context" | "compact" | "compact-aggressive";
@@ -81,7 +83,9 @@ export interface ADKChatComposerProps {
     suggestions?: string[];
     defaultWorkMode?: ADKWorkMode | string;
     defaultPermissionMode?: ADKPermissionMode | string;
+    defaultReasoningEffort?: ADKReasoningEffort | string;
     permissionModeOverride?: string;
+    reasoningEffortOverride?: ADKReasoningEffort | "" | string;
     workModeOverride?: string;
     cancelActiveRun?: () => void | Promise<void>;
     handleAgentChange?: () => void;
@@ -107,6 +111,7 @@ export interface ADKChatComposerEmit {
   (event: "update:selectedAgentId", value: string): void;
   (event: "update:selectedProviderId", value: string): void;
   (event: "update:permissionModeOverride", value: string): void;
+  (event: "update:reasoningEffortOverride", value: ADKReasoningEffort | ""): void;
   (event: "update:workModeOverride", value: string): void;
 }
 
@@ -151,7 +156,9 @@ type ADKChatComposerResolvedKey =
   | "suggestions"
   | "defaultWorkMode"
   | "defaultPermissionMode"
+  | "defaultReasoningEffort"
   | "permissionModeOverride"
+  | "reasoningEffortOverride"
   | "workModeOverride"
   | "sendChat";
 
@@ -174,97 +181,24 @@ const selectedSlashIndex = ref(0);
 const dismissedSlashDraft = ref("");
 const goalEditorExpanded = ref(false);
 const isMobileLayout = computed(() => props.layout === "mobile");
-const supportedWorkModes: Array<{ title: string; value: ADKWorkMode }> = [
-  { title: "对话", value: "chat" },
-  { title: "目标", value: "loop" },
-];
-const normalizedDefaultWorkMode = computed<ADKWorkMode>(() => {
-  if (props.defaultWorkMode === "loop") {
-    return props.defaultWorkMode;
-  }
-  return "chat";
-});
-const workModeOptions = computed(() =>
-  supportedWorkModes.map((mode) => ({
-    ...mode,
-    isDefault: mode.value === normalizedDefaultWorkMode.value,
-  })),
-);
-const effectiveWorkModeSelection = computed(
-  () => props.workModeOverride || normalizedDefaultWorkMode.value,
-);
-
-interface PermissionModeOption {
-  title: string;
-  value: ADKPermissionMode;
-  icon: string;
-  tone: "approval" | "less" | "all";
-  description: string;
-}
-
-const permissionModeOptions: PermissionModeOption[] = [
-  {
-    title: "请求批准",
-    value: "approval",
-    icon: "fa-solid fa-shield-halved",
-    tone: "approval",
-    description: "低风险操作自动执行，敏感操作请求确认",
-  },
-  {
-    title: "减少审批",
-    value: "less_approval",
-    icon: "fa-solid fa-shield",
-    tone: "less",
-    description: "减少中等风险操作的确认次数",
-  },
-  {
-    title: "完全访问",
-    value: "all",
-    icon: "fa-solid fa-triangle-exclamation",
-    tone: "all",
-    description: "不受限制地访问互联网和本机文件",
-  },
-];
-
-const normalizedDefaultPermissionMode = computed<ADKPermissionMode>(() => {
-  if (
-    props.defaultPermissionMode === "less_approval" ||
-    props.defaultPermissionMode === "all"
-  ) {
-    return props.defaultPermissionMode;
-  }
-  return "approval";
-});
-const effectivePermissionMode = computed<ADKPermissionMode>(() => {
-  if (
-    props.permissionModeOverride === "less_approval" ||
-    props.permissionModeOverride === "all"
-  ) {
-    return props.permissionModeOverride;
-  }
-  if (props.permissionModeOverride === "approval") return "approval";
-  return normalizedDefaultPermissionMode.value;
-});
-const effectivePermissionOption = computed(
-  () =>
-    permissionModeOptions.find(
-      (option) => option.value === effectivePermissionMode.value,
-    ) ?? permissionModeOptions[0]!,
-);
-
-function updatePermissionModeSelection(mode: ADKPermissionMode): void {
-  emit(
-    "update:permissionModeOverride",
-    mode === normalizedDefaultPermissionMode.value ? "" : mode,
-  );
-}
-
-function updateWorkModeSelection(mode?: string | null): void {
-  emit(
-    "update:workModeOverride",
-    mode === normalizedDefaultWorkMode.value ? "" : (mode ?? ""),
-  );
-}
+const {
+  supportedWorkModes,
+  normalizedDefaultWorkMode,
+  workModeOptions,
+  effectiveWorkModeSelection,
+  permissionModeOptions,
+  normalizedDefaultPermissionMode,
+  effectivePermissionMode,
+  effectivePermissionOption,
+  reasoningEffortOptions,
+  normalizedDefaultReasoningEffort,
+  effectiveReasoningEffort,
+  effectiveReasoningOption,
+  reasoningOverrideNotice,
+  updatePermissionModeSelection,
+  updateReasoningEffortSelection,
+  updateWorkModeSelection,
+} = useADKComposerModes(props, emit);
 
 function updateAgentSelection(agentId: string): void {
   emit("update:selectedAgentId", agentId);
@@ -722,6 +656,11 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
     normalizedDefaultPermissionMode,
     effectivePermissionMode,
     effectivePermissionOption,
+    reasoningEffortOptions,
+    normalizedDefaultReasoningEffort,
+    effectiveReasoningEffort,
+    effectiveReasoningOption,
+    reasoningOverrideNotice,
     contextMenuOpen,
     slashDraft,
     filteredSlashCommands,
@@ -758,6 +697,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
     rawBreakdownRows,
     rawContextDiagnosticsVisible,
     updatePermissionModeSelection,
+    updateReasoningEffortSelection,
     updateWorkModeSelection,
     updateAgentSelection,
     updateProviderSelection,

@@ -31,6 +31,18 @@ func TestChatRequestIdentityValidationAndFingerprintConflict(t *testing.T) {
 	if err != nil || changedFingerprint == fingerprint {
 		t.Fatalf("changed request fingerprint = %q err=%v, original=%q", changedFingerprint, err, fingerprint)
 	}
+	_, lowFingerprint, err := NormalizeChatRequestIdentity(ChatRequest{
+		ClientRequestID: requestID, Message: "hello", ReasoningEffortOverride: ReasoningEffortLow,
+	})
+	if err != nil {
+		t.Fatalf("low reasoning fingerprint: %v", err)
+	}
+	_, highFingerprint, err := NormalizeChatRequestIdentity(ChatRequest{
+		ClientRequestID: requestID, Message: "hello", ReasoningEffortOverride: ReasoningEffortHigh,
+	})
+	if err != nil || highFingerprint == lowFingerprint {
+		t.Fatalf("reasoning fingerprints low=%q high=%q err=%v", lowFingerprint, highFingerprint, err)
+	}
 }
 
 func TestConcurrentChatRequestReusesOneRunAndNativeAssistantEvent(t *testing.T) {

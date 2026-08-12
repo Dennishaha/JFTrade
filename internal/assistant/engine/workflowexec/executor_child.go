@@ -173,21 +173,22 @@ func (e *WorkflowExecutor) BlockedWorkflowChildResult(
 		agentID = strings.TrimSpace(fallbackAgentID)
 	}
 	failed := Run{
-		ID:             parent.ID,
-		SessionID:      req.Session.ID,
-		AgentID:        agentID,
-		ProviderID:     childAgent.ProviderID,
-		Model:          childAgent.Model,
-		ParentRunID:    parent.ID,
-		Status:         RunStatusFailed,
-		Message:        reason,
-		FailureReason:  reason,
-		ErrorCode:      jfadkmodel.RunErrorCode(RunStatusFailed),
-		WorkMode:       WorkModeChat,
-		WorkflowEngine: jfadkmodel.DefaultString(parent.WorkflowEngine, jfadkmodel.WorkflowEngineForMode(parent.WorkMode)),
-		CreatedAt:      jfadkmodel.NowString(),
-		UpdatedAt:      jfadkmodel.NowString(),
-		Usage:          &RunUsage{},
+		ID:              parent.ID,
+		SessionID:       req.Session.ID,
+		AgentID:         agentID,
+		ProviderID:      childAgent.ProviderID,
+		Model:           childAgent.Model,
+		ReasoningEffort: childAgent.ReasoningEffort,
+		ParentRunID:     parent.ID,
+		Status:          RunStatusFailed,
+		Message:         reason,
+		FailureReason:   reason,
+		ErrorCode:       jfadkmodel.RunErrorCode(RunStatusFailed),
+		WorkMode:        WorkModeChat,
+		WorkflowEngine:  jfadkmodel.DefaultString(parent.WorkflowEngine, jfadkmodel.WorkflowEngineForMode(parent.WorkMode)),
+		CreatedAt:       jfadkmodel.NowString(),
+		UpdatedAt:       jfadkmodel.NowString(),
+		Usage:           &RunUsage{},
 	}
 	return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: ChatResponse{Reply: reason, Session: req.Session, Run: failed}}
 }

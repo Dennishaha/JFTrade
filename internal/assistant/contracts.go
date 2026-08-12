@@ -17,6 +17,11 @@ type (
 	OptimizationRunRef             = jfadk.OptimizationRunRef
 	OptimizationTask               = jfadk.OptimizationTask
 	Provider                       = jfadk.Provider
+	ProviderReasoningConfig        = jfadk.ProviderReasoningConfig
+	ProviderReasoningMapping       = jfadk.ProviderReasoningMapping
+	ProviderReasoningTestResponse  = jfadk.ProviderReasoningTestResponse
+	ProviderTestMode               = jfadk.ProviderTestMode
+	ProviderTestResponse           = jfadk.ProviderTestResponse
 	ProviderWriteRequest           = jfadk.ProviderWriteRequest
 	Run                            = jfadk.Run
 	RunUsage                       = jfadk.RunUsage

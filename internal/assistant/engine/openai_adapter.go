@@ -76,8 +76,8 @@ func (c openAIClient) emitStructuredMessage(message openAIChatMessage, onDelta f
 	return c.impl.EmitStructuredMessage(message, onDelta)
 }
 
-func newOpenAICompatibleADKModel(provider Provider, apiKey string, modelName string) adkmodel.LLM {
-	return providers.NewOpenAICompatibleADKModel(provider, apiKey, modelName)
+func newOpenAICompatibleADKModel(provider Provider, apiKey string, modelName string, reasoningEfforts ...ReasoningEffort) adkmodel.LLM {
+	return providers.NewOpenAICompatibleADKModel(provider, apiKey, modelName, reasoningEfforts...)
 }
 
 func providerResponseError(resp *http.Response) error {

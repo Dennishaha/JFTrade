@@ -71,6 +71,61 @@ const (
 	ProviderAPIProtocolResponses       = "responses"
 )
 
+type ReasoningEffort string // @name adk.ReasoningEffort
+
+const (
+	ReasoningEffortLow    ReasoningEffort = "low"
+	ReasoningEffortMedium ReasoningEffort = "medium"
+	ReasoningEffortHigh   ReasoningEffort = "high"
+	ReasoningEffortXHigh  ReasoningEffort = "xhigh"
+	ReasoningEffortMax    ReasoningEffort = "max"
+)
+
+// ProviderReasoningMapping maps a provider-neutral reasoning level to the
+// provider's exact request enum value. Presence in the provider mapping list
+// declares that the level is supported.
+type ProviderReasoningMapping struct {
+	Effort ReasoningEffort `json:"effort" enums:"low,medium,high,xhigh,max"`
+	Value  string          `json:"value"`
+} // @name adk.ProviderReasoningMapping
+
+// ProviderReasoningConfig controls the request field and supported reasoning
+// enum values for one provider. An empty mapping list means no explicit level
+// is supported; an empty Agent level still uses the model default.
+type ProviderReasoningConfig struct {
+	RequestField string                     `json:"requestField"`
+	Mappings     []ProviderReasoningMapping `json:"mappings"`
+} // @name adk.ProviderReasoningConfig
+
+type ProviderReasoningTestResult struct {
+	Effort ReasoningEffort `json:"effort" enums:"low,medium,high,xhigh,max"`
+	Value  string          `json:"value"`
+	OK     bool            `json:"ok"`
+	Error  string          `json:"error,omitempty"`
+} // @name adk.ProviderReasoningTestResult
+
+type ProviderReasoningTestResponse struct {
+	Mode         ProviderTestMode              `json:"mode" enums:"quick,full"`
+	RequestField string                        `json:"requestField"`
+	OK           bool                          `json:"ok"`
+	Results      []ProviderReasoningTestResult `json:"results"`
+} // @name adk.ProviderReasoningTestResponse
+
+type ProviderTestMode string // @name adk.ProviderTestMode
+
+const (
+	ProviderTestModeQuick ProviderTestMode = "quick"
+	ProviderTestModeFull  ProviderTestMode = "full"
+)
+
+type ProviderTestResponse struct {
+	OK           bool                          `json:"ok"`
+	Reply        string                        `json:"reply"`
+	Capabilities map[string]bool               `json:"capabilities"`
+	Reasoning    ProviderReasoningTestResponse `json:"reasoning"`
+	CheckedAt    string                        `json:"checkedAt"`
+} // @name adk.ProviderTestResponse
+
 // RuntimeLimits is the dynamic runtime limits snapshot consumed by ADK.
 type RuntimeLimits struct {
 	RunTimeout time.Duration `json:"-"`
@@ -79,20 +134,21 @@ type RuntimeLimits struct {
 type RuntimeLimitsProvider func() RuntimeLimits
 
 type Provider struct {
-	ID                  string            `json:"id"`
-	DisplayName         string            `json:"displayName"`
-	BaseURL             string            `json:"baseUrl"`
-	Model               string            `json:"model"`
-	APIProtocol         string            `json:"apiProtocol" enums:"chat_completions,responses"`
-	ContextWindowTokens int               `json:"contextWindowTokens,omitempty"`
-	RequestTimeoutMs    int               `json:"requestTimeoutMs"`
-	DefaultHeaders      map[string]string `json:"defaultHeaders,omitempty"`
-	Enabled             bool              `json:"enabled"`
-	Default             bool              `json:"default"`
-	HasAPIKey           bool              `json:"hasApiKey"`
-	Capabilities        map[string]bool   `json:"capabilities,omitempty"`
-	CreatedAt           string            `json:"createdAt"`
-	UpdatedAt           string            `json:"updatedAt"`
+	ID                  string                  `json:"id"`
+	DisplayName         string                  `json:"displayName"`
+	BaseURL             string                  `json:"baseUrl"`
+	Model               string                  `json:"model"`
+	APIProtocol         string                  `json:"apiProtocol" enums:"chat_completions,responses"`
+	ReasoningConfig     ProviderReasoningConfig `json:"reasoningConfig"`
+	ContextWindowTokens int                     `json:"contextWindowTokens,omitempty"`
+	RequestTimeoutMs    int                     `json:"requestTimeoutMs"`
+	DefaultHeaders      map[string]string       `json:"defaultHeaders,omitempty"`
+	Enabled             bool                    `json:"enabled"`
+	Default             bool                    `json:"default"`
+	HasAPIKey           bool                    `json:"hasApiKey"`
+	Capabilities        map[string]bool         `json:"capabilities,omitempty"`
+	CreatedAt           string                  `json:"createdAt"`
+	UpdatedAt           string                  `json:"updatedAt"`
 } // @name adk.Provider
 
 // RequestTimeout returns the effective provider request timeout after
@@ -121,52 +177,57 @@ func DefaultString(value string, defaultValue string) string {
 }
 
 type ProviderWriteRequest struct {
-	ID                  string            `json:"id,omitempty"`
-	DisplayName         string            `json:"displayName"`
-	BaseURL             string            `json:"baseUrl"`
-	Model               string            `json:"model"`
-	APIProtocol         string            `json:"apiProtocol,omitempty" enums:"chat_completions,responses"`
-	ContextWindowTokens int               `json:"contextWindowTokens,omitempty"`
-	RequestTimeoutMs    int               `json:"requestTimeoutMs,omitempty"`
-	DefaultHeaders      map[string]string `json:"defaultHeaders,omitempty"`
-	APIKey              string            `json:"apiKey,omitempty"`
-	Enabled             bool              `json:"enabled"`
+	ID                  string                   `json:"id,omitempty"`
+	DisplayName         string                   `json:"displayName"`
+	BaseURL             string                   `json:"baseUrl"`
+	Model               string                   `json:"model"`
+	APIProtocol         string                   `json:"apiProtocol,omitempty" enums:"chat_completions,responses"`
+	ReasoningConfig     *ProviderReasoningConfig `json:"reasoningConfig,omitempty"`
+	ContextWindowTokens int                      `json:"contextWindowTokens,omitempty"`
+	RequestTimeoutMs    int                      `json:"requestTimeoutMs,omitempty"`
+	DefaultHeaders      map[string]string        `json:"defaultHeaders,omitempty"`
+	APIKey              string                   `json:"apiKey,omitempty"`
+	Enabled             bool                     `json:"enabled"`
 }
 
 type Agent struct {
-	ID                string   `json:"id"`
-	Name              string   `json:"name"`
-	Instruction       string   `json:"instruction"`
-	ProviderID        string   `json:"providerId"`
-	Model             string   `json:"model"`
-	Tools             []string `json:"tools"`
-	Skills            []string `json:"skills"`
-	PermissionMode    string   `json:"permissionMode"`
-	MemoryEnabled     bool     `json:"memoryEnabled"`
-	RecentUserWindow  int      `json:"recentUserWindow"`
-	WorkMode          string   `json:"workMode"`
-	LoopMaxIterations int      `json:"loopMaxIterations"`
-	Status            string   `json:"status"`
-	Builtin           bool     `json:"builtin,omitempty"`
-	CreatedAt         string   `json:"createdAt"`
-	UpdatedAt         string   `json:"updatedAt"`
-	DeletedAt         *string  `json:"deletedAt,omitempty"`
+	ID                   string          `json:"id"`
+	Name                 string          `json:"name"`
+	Instruction          string          `json:"instruction"`
+	ProviderID           string          `json:"providerId"`
+	Model                string          `json:"model"`
+	ReasoningEffort      ReasoningEffort `json:"reasoningEffort,omitempty" enums:"low,medium,high,xhigh,max"`
+	ReasoningEffortField string          `json:"-"`
+	ReasoningEffortValue string          `json:"-"`
+	Tools                []string        `json:"tools"`
+	Skills               []string        `json:"skills"`
+	PermissionMode       string          `json:"permissionMode"`
+	MemoryEnabled        bool            `json:"memoryEnabled"`
+	RecentUserWindow     int             `json:"recentUserWindow"`
+	WorkMode             string          `json:"workMode"`
+	LoopMaxIterations    int             `json:"loopMaxIterations"`
+	Status               string          `json:"status"`
+	Builtin              bool            `json:"builtin,omitempty"`
+	CreatedAt            string          `json:"createdAt"`
+	UpdatedAt            string          `json:"updatedAt"`
+	DeletedAt            *string         `json:"deletedAt,omitempty"`
 } // @name adk.Agent
 
 type AgentWriteRequest struct {
-	ID                string   `json:"id,omitempty"`
-	Name              string   `json:"name"`
-	Instruction       string   `json:"instruction"`
-	ProviderID        string   `json:"providerId"`
-	Model             string   `json:"model,omitempty"`
-	Tools             []string `json:"tools,omitempty"`
-	Skills            []string `json:"skills,omitempty"`
-	PermissionMode    string   `json:"permissionMode"`
-	MemoryEnabled     bool     `json:"memoryEnabled"`
-	RecentUserWindow  int      `json:"recentUserWindow,omitempty"`
-	WorkMode          string   `json:"workMode,omitempty"`
-	LoopMaxIterations int      `json:"loopMaxIterations,omitempty"`
-	Status            string   `json:"status"`
+	ID                string          `json:"id,omitempty"`
+	Name              string          `json:"name"`
+	Instruction       string          `json:"instruction"`
+	ProviderID        string          `json:"providerId"`
+	Model             string          `json:"model,omitempty"`
+	ReasoningEffort   ReasoningEffort `json:"reasoningEffort,omitempty" enums:"low,medium,high,xhigh,max"`
+	Tools             []string        `json:"tools,omitempty"`
+	Skills            []string        `json:"skills,omitempty"`
+	PermissionMode    string          `json:"permissionMode"`
+	MemoryEnabled     bool            `json:"memoryEnabled"`
+	RecentUserWindow  int             `json:"recentUserWindow,omitempty"`
+	WorkMode          string          `json:"workMode,omitempty"`
+	LoopMaxIterations int             `json:"loopMaxIterations,omitempty"`
+	Status            string          `json:"status"`
 } // @name adk.AgentWriteRequest
 
 type Session struct {
@@ -180,25 +241,27 @@ type Session struct {
 } // @name adk.Session
 
 type SessionComposerState struct {
-	SessionID              string `json:"sessionId"`
-	ChatDraft              string `json:"chatDraft"`
-	ProviderIDOverride     string `json:"providerIdOverride"`
-	ModelOverride          string `json:"modelOverride"`
-	WorkModeOverride       string `json:"workModeOverride"`
-	PermissionModeOverride string `json:"permissionModeOverride"`
-	GoalObjectiveDraft     string `json:"goalObjectiveDraft"`
-	GoalObjectiveTouched   bool   `json:"goalObjectiveTouched"`
-	UpdatedAt              string `json:"updatedAt"`
+	SessionID               string `json:"sessionId"`
+	ChatDraft               string `json:"chatDraft"`
+	ProviderIDOverride      string `json:"providerIdOverride"`
+	ModelOverride           string `json:"modelOverride"`
+	ReasoningEffortOverride string `json:"reasoningEffortOverride"`
+	WorkModeOverride        string `json:"workModeOverride"`
+	PermissionModeOverride  string `json:"permissionModeOverride"`
+	GoalObjectiveDraft      string `json:"goalObjectiveDraft"`
+	GoalObjectiveTouched    bool   `json:"goalObjectiveTouched"`
+	UpdatedAt               string `json:"updatedAt"`
 } // @name adk.SessionComposerState
 
 type SessionComposerStatePatch struct {
-	ChatDraft              *string `json:"chatDraft,omitempty"`
-	ProviderIDOverride     *string `json:"providerIdOverride,omitempty"`
-	ModelOverride          *string `json:"modelOverride,omitempty"`
-	WorkModeOverride       *string `json:"workModeOverride,omitempty"`
-	PermissionModeOverride *string `json:"permissionModeOverride,omitempty"`
-	GoalObjectiveDraft     *string `json:"goalObjectiveDraft,omitempty"`
-	GoalObjectiveTouched   *bool   `json:"goalObjectiveTouched,omitempty"`
+	ChatDraft               *string `json:"chatDraft,omitempty"`
+	ProviderIDOverride      *string `json:"providerIdOverride,omitempty"`
+	ModelOverride           *string `json:"modelOverride,omitempty"`
+	ReasoningEffortOverride *string `json:"reasoningEffortOverride,omitempty"`
+	WorkModeOverride        *string `json:"workModeOverride,omitempty"`
+	PermissionModeOverride  *string `json:"permissionModeOverride,omitempty"`
+	GoalObjectiveDraft      *string `json:"goalObjectiveDraft,omitempty"`
+	GoalObjectiveTouched    *bool   `json:"goalObjectiveTouched,omitempty"`
 }
 
 const (
@@ -260,48 +323,51 @@ type SessionProjection struct {
 }
 
 type Run struct {
-	ID                 string              `json:"id"`
-	SessionID          string              `json:"sessionId"`
-	AgentID            string              `json:"agentId"`
-	ProviderID         string              `json:"providerId,omitempty"`
-	ProviderName       string              `json:"providerName,omitempty"`
-	Model              string              `json:"model,omitempty"`
-	MaxDurationMs      int64               `json:"maxDurationMs"`
-	Status             string              `json:"status"`
-	Message            string              `json:"message"`
-	UserMessage        string              `json:"userMessage,omitempty"`
-	PreToolContent     string              `json:"preToolContent,omitempty"`
-	PreToolReasoning   string              `json:"preToolReasoning,omitempty"`
-	ToolSummaries      []string            `json:"toolSummaries,omitempty"`
-	FailureReason      string              `json:"failureReason,omitempty"`
-	ErrorCode          string              `json:"errorCode,omitempty"`
-	Degraded           bool                `json:"degraded,omitempty"`
-	OptimizationTaskID string              `json:"optimizationTaskId,omitempty"`
-	WorkMode           string              `json:"workMode,omitempty"`
-	PermissionMode     string              `json:"permissionMode,omitempty"`
-	Objective          string              `json:"objective,omitempty"`
-	ParentRunID        string              `json:"parentRunId,omitempty"`
-	ChildRunIDs        []string            `json:"childRunIds,omitempty"`
-	Iteration          int                 `json:"iteration,omitempty"`
-	WorkflowStatus     string              `json:"workflowStatus,omitempty"`
-	WorkflowEngine     string              `json:"workflowEngine,omitempty"`
-	WorkflowCursor     int                 `json:"workflowCursor,omitempty"`
-	WorkflowPlan       []WorkflowStepState `json:"workflowPlan,omitempty"`
-	ToolCalls          []ToolCall          `json:"toolCalls"`
-	PendingApprovals   []Approval          `json:"pendingApprovals"`
-	InputRequest       *InputRequest       `json:"inputRequest,omitempty"`
-	InputRequests      []InputRequest      `json:"inputRequests,omitempty"`
-	ResumeState        string              `json:"resumeState,omitempty"`
-	PauseRequestedAt   *string             `json:"pauseRequestedAt,omitempty"`
-	PausedAt           *string             `json:"pausedAt,omitempty"`
-	PausedReason       string              `json:"pausedReason,omitempty"`
-	FinalMessageID     string              `json:"finalMessageId,omitempty"`
-	Usage              *RunUsage           `json:"usage,omitempty"`
-	CreatedAt          string              `json:"createdAt"`
-	StartedAt          string              `json:"startedAt,omitempty"`
-	UpdatedAt          string              `json:"updatedAt"`
-	CompletedAt        *string             `json:"completedAt,omitempty"`
-	CancelledAt        *string             `json:"cancelledAt,omitempty"`
+	ID                   string              `json:"id"`
+	SessionID            string              `json:"sessionId"`
+	AgentID              string              `json:"agentId"`
+	ProviderID           string              `json:"providerId,omitempty"`
+	ProviderName         string              `json:"providerName,omitempty"`
+	Model                string              `json:"model,omitempty"`
+	ReasoningEffort      ReasoningEffort     `json:"reasoningEffort,omitempty" enums:"low,medium,high,xhigh,max"`
+	ReasoningEffortField string              `json:"-"`
+	ReasoningEffortValue string              `json:"-"`
+	MaxDurationMs        int64               `json:"maxDurationMs"`
+	Status               string              `json:"status"`
+	Message              string              `json:"message"`
+	UserMessage          string              `json:"userMessage,omitempty"`
+	PreToolContent       string              `json:"preToolContent,omitempty"`
+	PreToolReasoning     string              `json:"preToolReasoning,omitempty"`
+	ToolSummaries        []string            `json:"toolSummaries,omitempty"`
+	FailureReason        string              `json:"failureReason,omitempty"`
+	ErrorCode            string              `json:"errorCode,omitempty"`
+	Degraded             bool                `json:"degraded,omitempty"`
+	OptimizationTaskID   string              `json:"optimizationTaskId,omitempty"`
+	WorkMode             string              `json:"workMode,omitempty"`
+	PermissionMode       string              `json:"permissionMode,omitempty"`
+	Objective            string              `json:"objective,omitempty"`
+	ParentRunID          string              `json:"parentRunId,omitempty"`
+	ChildRunIDs          []string            `json:"childRunIds,omitempty"`
+	Iteration            int                 `json:"iteration,omitempty"`
+	WorkflowStatus       string              `json:"workflowStatus,omitempty"`
+	WorkflowEngine       string              `json:"workflowEngine,omitempty"`
+	WorkflowCursor       int                 `json:"workflowCursor,omitempty"`
+	WorkflowPlan         []WorkflowStepState `json:"workflowPlan,omitempty"`
+	ToolCalls            []ToolCall          `json:"toolCalls"`
+	PendingApprovals     []Approval          `json:"pendingApprovals"`
+	InputRequest         *InputRequest       `json:"inputRequest,omitempty"`
+	InputRequests        []InputRequest      `json:"inputRequests,omitempty"`
+	ResumeState          string              `json:"resumeState,omitempty"`
+	PauseRequestedAt     *string             `json:"pauseRequestedAt,omitempty"`
+	PausedAt             *string             `json:"pausedAt,omitempty"`
+	PausedReason         string              `json:"pausedReason,omitempty"`
+	FinalMessageID       string              `json:"finalMessageId,omitempty"`
+	Usage                *RunUsage           `json:"usage,omitempty"`
+	CreatedAt            string              `json:"createdAt"`
+	StartedAt            string              `json:"startedAt,omitempty"`
+	UpdatedAt            string              `json:"updatedAt"`
+	CompletedAt          *string             `json:"completedAt,omitempty"`
+	CancelledAt          *string             `json:"cancelledAt,omitempty"`
 } // @name adk.Run
 
 type WorkflowStepState struct {

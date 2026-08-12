@@ -3,6 +3,7 @@ import type { Ref } from "vue";
 import type {
   ADKChatResponse,
   ADKProvider,
+  ADKReasoningEffort,
   ADKRun,
   ADKSessionContextSnapshot,
 } from "@/types";
@@ -35,6 +36,7 @@ interface ADKPageChatExecutionInput {
   goalObjectiveDraft: Ref<string>;
   goalPauseRequested: Ref<boolean>;
   permissionModeOverride: Ref<string>;
+  reasoningEffortOverride: Ref<ADKReasoningEffort | "">;
   refreshAll: () => Promise<void>;
   refreshSessionContext: (sessionId?: string) => Promise<void>;
   reloadSessionTimeline: (sessionId: string) => Promise<void>;
@@ -75,6 +77,9 @@ export function useADKPageChatExecution(input: ADKPageChatExecutionInput) {
     if (model !== "") payload.model = model;
     if (input.permissionModeOverride.value) {
       payload.permissionModeOverride = input.permissionModeOverride.value;
+    }
+    if (input.reasoningEffortOverride.value) {
+      payload.reasoningEffortOverride = input.reasoningEffortOverride.value;
     }
     const mode = input.effectiveWorkMode.value;
     if (options.forceChat) {

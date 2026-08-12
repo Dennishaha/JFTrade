@@ -198,10 +198,13 @@ describe("ADKAgentsPanel business flows", () => {
 
   it("shows empty/template states and protects the primary default agent controls", async () => {
     const applyAgentTemplate = vi.fn();
+    const editAgent = vi.fn();
     const duplicateAgent = vi.fn();
     const deleteAgent = vi.fn();
     const agentForm = buildAgentForm({ id: "jftrade-default", status: "ENABLED" });
-    const newAgentForm = vi.fn();
+    const newAgentForm = vi.fn(() => {
+      agentForm.id = "";
+    });
     const wrapper = mountAgentsPanel({
       agentForm,
       agents: [
@@ -215,14 +218,27 @@ describe("ADKAgentsPanel business flows", () => {
       ],
       agentTemplates: [],
       applyAgentTemplate,
+      editAgent,
       duplicateAgent,
       deleteAgent,
       newAgentForm,
     });
 
     expect(wrapper.text()).toContain("记忆已关闭");
-    expect(wrapper.findAll("button").some((button) => button.text() === "编辑")).toBe(false);
+    expect(wrapper.findAll("button").some((button) => button.text() === "编辑")).toBe(true);
     expect(wrapper.findAll("button").some((button) => button.text() === "删除")).toBe(false);
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "编辑")!
+      .trigger("click");
+    expect(editAgent).toHaveBeenCalledWith(expect.objectContaining({ id: "jftrade-default" }));
+    expect(wrapper.text()).toContain("仅允许修改模型服务、覆盖模型和默认思考等级");
+    expect(wrapper.find("textarea").exists()).toBe(false);
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "取消")!
+      .trigger("click");
 
     await wrapper
       .findAll("button")
@@ -239,14 +255,14 @@ describe("ADKAgentsPanel business flows", () => {
       .findAll("button")
       .find((button) => button.text().includes("自定义新建"))!
       .trigger("click");
-    expect(wrapper.text()).toContain("编辑智能体");
+    expect(wrapper.text()).toContain("新建智能体");
     await wrapper.find("textarea").setValue("审计所有持久化变更");
     expect(agentForm.instruction).toBe("审计所有持久化变更");
     const switches = wrapper.findAll("input[type='checkbox']");
     await switches[switches.length - 2]!.setValue(false);
     expect(agentForm.memoryEnabled).toBe(false);
     expect(wrapper.text()).toContain("记忆");
-    expect(switches[switches.length - 1]?.attributes("disabled")).toBeDefined();
+    expect(switches[switches.length - 1]?.attributes("disabled")).toBeUndefined();
     expect(agentForm.status).toBe("ENABLED");
 
     await wrapper
@@ -517,6 +533,7 @@ function mountAgentsPanel(
         "v-card-actions": singleSlotStub,
         "v-card-title": singleSlotStub,
         "v-card-text": singleSlotStub,
+        "v-alert": singleSlotStub,
         "v-checkbox": checkboxStub,
         "v-chip": { template: "<span><slot /></span>" },
         "v-dialog": dialogStub,
@@ -560,6 +577,7 @@ function buildAgentForm(overrides: Partial<ADKAgent> = {}) {
     instruction: "",
     providerId: "provider-1",
     model: "",
+    reasoningEffort: "" as const,
     tools: [] as string[],
     skills: [] as string[],
     permissionMode: "approval" as const,

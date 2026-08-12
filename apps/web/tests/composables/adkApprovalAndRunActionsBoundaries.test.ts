@@ -283,6 +283,7 @@ function buildRun(overrides: Partial<ADKRun> = {}): ADKRun {
     id: "run-1",
     sessionId: "session-1",
     agentId: "agent-1",
+    reasoningEffort: "",
     status: "RUNNING",
     message: "running",
     toolCalls: [],

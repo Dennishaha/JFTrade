@@ -152,11 +152,12 @@ func (r *Runtime) newResumedGoogleADKExecution(ctx context.Context, run Run) (*g
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(run.ProviderID) != "" {
-		agentDefinition.ProviderID = strings.TrimSpace(run.ProviderID)
-	}
-	if strings.TrimSpace(run.Model) != "" {
-		agentDefinition.Model = strings.TrimSpace(run.Model)
+	agentDefinition = jfadkmodel.ApplyRunModelSnapshot(agentDefinition, run)
+	if agentDefinition.ReasoningEffort != "" && !jfadkmodel.HasResolvedReasoningSnapshot(agentDefinition) {
+		agentDefinition, err = r.resolveAgentProvider(ctx, agentDefinition)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if validPermissionMode(run.PermissionMode) {
 		agentDefinition.PermissionMode = normalizePermissionMode(run.PermissionMode)
@@ -432,6 +433,7 @@ func (r *Runtime) newGoogleADKWorkflowChildNode(
 	if err != nil {
 		return nil, err
 	}
+	childDefinition = jfadkmodel.ApplyRunModelSnapshot(childDefinition, child)
 	childDefinition.WorkMode = WorkModeChat
 	childDefinition.Instruction = workflowChildInstruction(childDefinition.Instruction, workflowChildInstructionTask(step))
 	childLLM, err := r.GoogleADKModelForAgent(ctx, childDefinition)
@@ -460,6 +462,7 @@ func (e *googleADKExecution) RunGoogleADKWorkflowChildFinalSynthesis(
 	if e.runtime == nil {
 		return fmt.Errorf("workflow execution handle is not resumable")
 	}
+	definition = jfadkmodel.ApplyRunModelSnapshot(definition, child)
 	return e.runtime.runGoogleADKFinalSynthesis(ctx, definition, productSession, e, child.ID, child.UserMessage)
 }
 
@@ -552,9 +555,25 @@ func (r *Runtime) runGoogleADKFinalSynthesis(
 }
 
 func (r *Runtime) GoogleADKModelForAgent(ctx context.Context, definition Agent) (adkmodel.LLM, error) {
-	definition, err := r.resolveAgentProvider(ctx, definition)
-	if err != nil {
-		return nil, err
+	snapshotField := strings.TrimSpace(definition.ReasoningEffortField)
+	snapshotValue := strings.TrimSpace(definition.ReasoningEffortValue)
+	var err error
+	if snapshotField == "" || snapshotValue == "" {
+		definition, err = r.resolveAgentProvider(ctx, definition)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		provider, providerErr := r.effectiveProvider(ctx, definition.ProviderID)
+		if providerErr != nil {
+			return nil, providerErr
+		}
+		if !provider.Enabled {
+			return nil, fmt.Errorf("agent provider is unavailable")
+		}
+		definition.ProviderID = provider.ID
+		definition.ReasoningEffortField = snapshotField
+		definition.ReasoningEffortValue = snapshotValue
 	}
 	provider, err := r.effectiveProvider(ctx, definition.ProviderID)
 	if err != nil {
@@ -567,10 +586,19 @@ func (r *Runtime) GoogleADKModelForAgent(ctx context.Context, definition Agent) 
 	if !hasKey || strings.TrimSpace(apiKey) == "" {
 		return nil, fmt.Errorf("agent provider API key is not configured")
 	}
-	if provider.APIProtocol == ProviderAPIProtocolResponses {
-		return providers.NewOpenAIResponsesADKModel(ctx, provider, apiKey, definition.Model)
+	if definition.ReasoningEffortField != "" && definition.ReasoningEffortValue != "" {
+		provider.ReasoningConfig = jfadkmodel.ProviderReasoningConfig{
+			RequestField: definition.ReasoningEffortField,
+			Mappings: []jfadkmodel.ProviderReasoningMapping{{
+				Effort: definition.ReasoningEffort,
+				Value:  definition.ReasoningEffortValue,
+			}},
+		}
 	}
-	return newOpenAICompatibleADKModel(provider, apiKey, definition.Model), nil
+	if provider.APIProtocol == ProviderAPIProtocolResponses {
+		return providers.NewOpenAIResponsesADKModel(ctx, provider, apiKey, definition.Model, definition.ReasoningEffort)
+	}
+	return newOpenAICompatibleADKModel(provider, apiKey, definition.Model, definition.ReasoningEffort), nil
 }
 
 func (r *Runtime) newGoogleADKLLMAgent(

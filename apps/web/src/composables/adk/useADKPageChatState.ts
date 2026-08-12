@@ -1,8 +1,9 @@
-import { onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 
 import type {
   ADKAgent,
   ADKProvider,
+  ADKReasoningEffort,
   ADKRun,
   ADKSession,
 } from "@/types";
@@ -36,6 +37,7 @@ import {
   setSelectedSessionId as setADKSelectedSessionId,
 } from "@/composables/adk/adkChatQueue";
 import { useADKRunProjection } from "@/composables/adk/useADKRunProjection";
+import { isADKReasoningEffortSupported } from "@/composables/adk/adkReasoning";
 
 interface SessionState {
   agents: Ref<ADKAgent[]>;
@@ -61,6 +63,31 @@ export function useADKPageChatState(
   const chatDraft = ref("");
   const workModeOverride = ref("");
   const permissionModeOverride = ref("");
+  const reasoningEffortOverride = ref<ADKReasoningEffort | "">("");
+  const effectiveComposerBlockMessage = computed(() => {
+    const baseMessage = composerBlockMessage.value;
+    if (baseMessage !== "") return baseMessage;
+    const agent = sessionState.agents.value.find(
+      (candidate) => candidate.id === sessionState.selectedAgentId.value,
+    );
+    const provider = sessionState.selectedProvider.value;
+    if (!agent || !provider) return "";
+    const override = reasoningEffortOverride.value;
+    if (
+      override !== "" &&
+      !isADKReasoningEffortSupported(provider, override)
+    ) {
+      return "当前会话推理等级已被 Provider 移除，请选择受支持等级或跟随 Agent。";
+    }
+    if (
+      override === "" &&
+      agent.reasoningEffort &&
+      !isADKReasoningEffortSupported(provider, agent.reasoningEffort)
+    ) {
+      return "当前 Provider 不支持该 Agent 默认推理等级，请选择受支持等级或更换 Provider。";
+    }
+    return "";
+  });
   const sendingChat = ref(false);
   const activeRun = ref<ActiveChatRunState | null>(null);
   const activeRunSnapshot = ref<ADKRun | null>(null);
@@ -166,7 +193,7 @@ export function useADKPageChatState(
     activeRunSnapshot,
     agents: sessionState.agents,
     chatDraft,
-    composerBlockMessage,
+    composerBlockMessage: effectiveComposerBlockMessage,
     goalLifecycleBusy,
     goalObjectiveDraft,
     goalObjectiveSaving,
@@ -193,6 +220,7 @@ export function useADKPageChatState(
     goalObjectiveError,
     goalObjectiveTouched,
     permissionModeOverride,
+    reasoningEffortOverride,
     selectedAgentId: sessionState.selectedAgentId,
     selectedProvider: sessionState.selectedProvider,
     selectedProviderId: sessionState.selectedProviderId,
@@ -210,6 +238,7 @@ export function useADKPageChatState(
     goalObjectiveDraft,
     goalPauseRequested,
     permissionModeOverride,
+    reasoningEffortOverride,
     refreshAll: sessionState.refreshAll,
     refreshSessionContext,
     reloadSessionTimeline,
@@ -390,7 +419,7 @@ export function useADKPageChatState(
     if (
       text === "" ||
       sessionState.selectedAgentId.value === "" ||
-      composerBlockMessage.value !== ""
+      effectiveComposerBlockMessage.value !== ""
     ) {
       return;
     }
@@ -462,7 +491,7 @@ export function useADKPageChatState(
     if (
       text === "" ||
       sessionState.selectedAgentId.value === "" ||
-      composerBlockMessage.value !== ""
+      effectiveComposerBlockMessage.value !== ""
     ) {
       return;
     }
@@ -558,7 +587,9 @@ export function useADKPageChatState(
     updateGoalObjectiveDraft,
     workModeOverride,
     permissionModeOverride,
+    reasoningEffortOverride,
     pendingInputRequest,
+    composerBlockMessage: effectiveComposerBlockMessage,
   };
 
   async function reloadSessionTimeline(sessionId: string): Promise<void> {
@@ -606,7 +637,7 @@ export function useADKPageChatState(
         goalPaused: goalPaused.value,
         queueDispatchingId: queueDispatchingId.value,
       }) ||
-      composerBlockMessage.value !== "" ||
+      effectiveComposerBlockMessage.value !== "" ||
       sessionState.selectedAgentId.value === ""
     ) {
       return;

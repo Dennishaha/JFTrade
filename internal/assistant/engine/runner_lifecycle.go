@@ -278,7 +278,8 @@ func (r *Runtime) StartRunWithOptions(ctx context.Context, sessionID string, age
 	providerName, modelName := r.runModelSnapshot(ctx, agent)
 	run := Run{
 		ID: "run-" + uuid.NewString(), SessionID: sessionID, AgentID: agent.ID, ProviderID: strings.TrimSpace(agent.ProviderID),
-		ProviderName: providerName, Model: modelName,
+		ProviderName: providerName, Model: modelName, ReasoningEffort: jfadkmodel.NormalizeReasoningEffort(agent.ReasoningEffort),
+		ReasoningEffortField: strings.TrimSpace(agent.ReasoningEffortField), ReasoningEffortValue: strings.TrimSpace(agent.ReasoningEffortValue),
 		MaxDurationMs: timeout.Milliseconds(),
 		Status:        RunStatusRunning, UserMessage: text, Message: "running",
 		WorkMode: workMode, PermissionMode: normalizePermissionMode(agent.PermissionMode), Objective: strings.TrimSpace(options.Objective),
@@ -315,7 +316,8 @@ func (r *Runtime) StartRunWithOptions(ctx context.Context, sessionID string, age
 		return Run{}, nil, nil, err
 	}
 	r.audit(runContext, "run.started", run.ID, "Agent run started.", map[string]any{
-		"runId": run.ID, "agentId": run.AgentID, "providerId": run.ProviderID, "status": run.Status, "maxDurationMs": run.MaxDurationMs,
+		"runId": run.ID, "agentId": run.AgentID, "providerId": run.ProviderID, "reasoningEffort": run.ReasoningEffort,
+		"status": run.Status, "maxDurationMs": run.MaxDurationMs,
 	})
 	observability.InfoWithImportance(runContext, observability.ImportanceNormal, "adk run started", "agent_id", run.AgentID, "status", run.Status)
 	timeoutCtx, timeoutCancel := context.WithTimeout(runContext, timeout)

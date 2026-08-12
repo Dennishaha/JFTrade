@@ -296,6 +296,7 @@ function memoryScopeHint(scope: string): string {
           :action-confirmation="agentActionConfirmation"
           :agent-form="agentForm"
           :agents="agents"
+          :providers="providers"
           :agent-templates="agentTemplates"
           :agent-template-notice="agentTemplateNotice"
           :provider-options="providerOptions"

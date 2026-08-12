@@ -81,6 +81,7 @@ export async function saveADKSessionComposerState(
       | "chatDraft"
       | "providerIdOverride"
       | "modelOverride"
+      | "reasoningEffortOverride"
       | "workModeOverride"
       | "permissionModeOverride"
       | "goalObjectiveDraft"
@@ -100,18 +101,22 @@ export async function saveADKSessionComposerState(
 }
 
 export async function updateADKPageAgentProvider(agent: ADKAgent, providerId: string): Promise<ADKAgent> {
+  const payload = {
+    id: agent.id,
+    name: agent.name,
+    instruction: agent.instruction,
+    providerId,
+    model: agent.model,
+    tools: agent.tools,
+    skills: agent.skills,
+    permissionMode: agent.permissionMode,
+    memoryEnabled: agent.memoryEnabled,
+    status: agent.status,
+    ...(agent.reasoningEffort === undefined
+      ? {}
+      : { reasoningEffort: agent.reasoningEffort }),
+  };
   return requireADKAgent(
-    await apiPost("/api/v1/adk/agents", {
-      id: agent.id,
-      name: agent.name,
-      instruction: agent.instruction,
-      providerId,
-      model: agent.model,
-      tools: agent.tools,
-      skills: agent.skills,
-      permissionMode: agent.permissionMode,
-      memoryEnabled: agent.memoryEnabled,
-      status: agent.status,
-    }),
+    await apiPost("/api/v1/adk/agents", payload),
   );
 }

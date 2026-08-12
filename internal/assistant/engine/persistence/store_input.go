@@ -3,7 +3,6 @@ package persistence
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -40,15 +39,15 @@ func (s *StoreCore) ResolveRunInput(ctx context.Context, runID string, payload j
 		}
 		return jfadkmodel.Run{}, false, err
 	}
-	var run jfadkmodel.Run
-	if err := json.Unmarshal([]byte(raw), &run); err != nil {
+	run, err := decodeRun([]byte(raw))
+	if err != nil {
 		return jfadkmodel.Run{}, false, err
 	}
 	run, changed, err := s.resolveRunInputState(s.normalizeRun(run), requestID, payload.Answers)
 	if err != nil || !changed {
 		return run, changed, err
 	}
-	encoded, err := json.Marshal(run)
+	encoded, err := encodeRun(run)
 	if err != nil {
 		return jfadkmodel.Run{}, false, err
 	}

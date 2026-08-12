@@ -53,6 +53,13 @@ func (s *StoreCore) SaveSessionComposerState(ctx context.Context, sessionID stri
 	if patch.ModelOverride != nil {
 		state.ModelOverride = strings.TrimSpace(*patch.ModelOverride)
 	}
+	if patch.ReasoningEffortOverride != nil {
+		effort := jfadkmodel.ReasoningEffort(*patch.ReasoningEffortOverride)
+		if err := jfadkmodel.ValidateOptionalReasoningEffort(effort); err != nil {
+			return jfadkmodel.SessionComposerState{}, err
+		}
+		state.ReasoningEffortOverride = string(jfadkmodel.NormalizeOptionalReasoningEffort(effort))
+	}
 	if patch.WorkModeOverride != nil {
 		mode, err := normalizeSessionComposerWorkMode(*patch.WorkModeOverride)
 		if err != nil {
@@ -102,6 +109,7 @@ func NormalizeSessionComposerState(sessionID string, state jfadkmodel.SessionCom
 	state.WorkModeOverride = mode
 	state.ProviderIDOverride = strings.TrimSpace(state.ProviderIDOverride)
 	state.ModelOverride = strings.TrimSpace(state.ModelOverride)
+	state.ReasoningEffortOverride = string(jfadkmodel.NormalizeOptionalReasoningEffort(jfadkmodel.ReasoningEffort(state.ReasoningEffortOverride)))
 	permissionMode, err := normalizeSessionComposerPermissionMode(state.PermissionModeOverride)
 	if err != nil {
 		permissionMode = ""

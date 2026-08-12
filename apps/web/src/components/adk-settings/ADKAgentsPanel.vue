@@ -4,6 +4,8 @@ import { computed, ref, watch } from "vue";
 import type {
   ADKAgent,
   ADKPermissionMode,
+  ADKProvider,
+  ADKReasoningEffort,
   ADKToolDescriptor,
   ADKWorkMode,
 } from "@/types";
@@ -11,6 +13,10 @@ import type { ActionConfirmationController } from "@/composables/shared/useActio
 
 import ActionConfirmationHost from "../shared/ActionConfirmationHost.vue";
 import StatusChip from "../shared/StatusChip.vue";
+import {
+  ADK_REASONING_EFFORT_LABELS,
+  supportedADKReasoningEfforts,
+} from "@/composables/adk/adkReasoning";
 
 const props = defineProps<{
   actionConfirmation: ActionConfirmationController;
@@ -20,6 +26,7 @@ const props = defineProps<{
     instruction: string;
     providerId: string;
     model: string;
+    reasoningEffort: ADKReasoningEffort | "";
     tools: string[];
     skills: string[];
     permissionMode: ADKPermissionMode;
@@ -30,6 +37,7 @@ const props = defineProps<{
     status: string;
   };
   agents: ADKAgent[];
+  providers?: ADKProvider[];
   agentTemplates: Array<Omit<ADKAgent, "createdAt" | "updatedAt">>;
   agentTemplateNotice: string;
   providerOptions: Array<{ title: string; value: string }>;
@@ -65,6 +73,19 @@ const workModeOptions: Array<{ title: string; value: ADKWorkMode }> = [
   { title: "对话", value: "chat" },
   { title: "目标", value: "loop" },
 ];
+const reasoningEffortOptions = computed<Array<{ title: string; value: ADKReasoningEffort | "" }>>(() => {
+  const provider =
+    props.providers?.find((item) => item.id === props.agentForm.providerId) ??
+    props.providers?.find((item) => item.default) ??
+    props.providers?.[0];
+  return [
+    { title: "未配置（模型默认）", value: "" },
+    ...supportedADKReasoningEfforts(provider).map((value) => ({
+      title: ADK_REASONING_EFFORT_LABELS[value],
+      value,
+    })),
+  ];
+});
 
 function workModeLabel(mode: string): string {
   switch (mode) {
@@ -77,6 +98,12 @@ function workModeLabel(mode: string): string {
 
 function enabledToolCountLabel(agent: Pick<ADKAgent, "tools">): string {
   return agent.tools.length === 0 ? "全部工具" : `${agent.tools.length} 个工具`;
+}
+
+function reasoningEffortLabel(agent: Pick<ADKAgent, "reasoningEffort">): string {
+  return agent.reasoningEffort
+    ? ADK_REASONING_EFFORT_LABELS[agent.reasoningEffort]
+    : "模型默认";
 }
 
 function templateToolCountLabel(template: Pick<ADKAgent, "tools">): string {
@@ -241,6 +268,9 @@ watch(
                 <v-chip size="x-small" variant="tonal">
                   默认：{{ workModeLabel(agent.workMode) }}
                 </v-chip>
+                <v-chip size="x-small" variant="tonal" color="primary">
+                  推理：{{ reasoningEffortLabel(agent) }}
+                </v-chip>
                 <v-chip v-if="agent.builtin" size="x-small" variant="tonal" color="info">
                   系统默认
                 </v-chip>
@@ -262,7 +292,6 @@ watch(
             </div>
             <div class="flex shrink-0 flex-col gap-1">
               <v-btn
-                v-if="!primaryDefaultAgent(agent)"
                 size="x-small"
                 variant="outlined"
                 @click="openEditAgentDialog(agent)"
@@ -334,13 +363,39 @@ watch(
           <v-btn icon="mdi-close" variant="text" size="small" @click="agentDialogOpen = false" />
         </v-card-title>
         <v-card-text class="adk-agent-dialog__body grid gap-4">
+          <v-alert
+            v-if="primaryDefaultAgentForm()"
+            type="info"
+            variant="tonal"
+            density="compact"
+          >
+            系统默认智能体仅允许修改模型服务、覆盖模型和默认思考等级。
+          </v-alert>
           <div class="grid gap-3 md:grid-cols-2">
-            <v-text-field v-model="agentForm.name" label="名称" density="comfortable" />
+            <v-text-field
+              v-if="!primaryDefaultAgentForm()"
+              v-model="agentForm.name"
+              label="名称"
+              density="comfortable"
+            />
             <v-select v-model="agentForm.providerId" :items="providerOptions" label="模型服务" density="comfortable"
               clearable />
             <v-text-field v-model="agentForm.model" label="覆盖模型（可选）" density="comfortable" />
-            <v-select v-model="agentForm.permissionMode" :items="permissionModes" label="默认审批等级" density="comfortable" />
+            <v-select
+              v-model="agentForm.reasoningEffort"
+              :items="reasoningEffortOptions"
+              label="默认思考等级"
+              density="comfortable"
+            />
+            <v-select
+              v-if="!primaryDefaultAgentForm()"
+              v-model="agentForm.permissionMode"
+              :items="permissionModes"
+              label="默认审批等级"
+              density="comfortable"
+            />
             <v-radio-group
+              v-if="!primaryDefaultAgentForm()"
               v-model="agentForm.workMode"
               class="md:col-span-2"
               label="默认工作模式"
@@ -355,6 +410,7 @@ watch(
               />
             </v-radio-group>
             <v-text-field
+              v-if="!primaryDefaultAgentForm()"
               v-model.number="agentForm.recentUserWindow"
               label="保留最近用户消息条数"
               type="number"
@@ -363,7 +419,7 @@ watch(
               max="100"
             />
             <v-text-field
-              v-if="agentForm.workMode === 'loop'"
+              v-if="!primaryDefaultAgentForm() && agentForm.workMode === 'loop'"
               v-model.number="agentForm.loopMaxIterations"
               label="目标循环最大轮次"
               type="number"
@@ -373,7 +429,7 @@ watch(
             />
           </div>
 
-          <div class="adk-tool-transfer rounded-lg border p-3">
+          <div v-if="!primaryDefaultAgentForm()" class="adk-tool-transfer rounded-lg border p-3">
             <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <div class="adk-tool-transfer__title text-sm font-semibold">运行时工具穿梭框</div>
@@ -502,10 +558,10 @@ watch(
               </div>
             </div>
           </div>
-          <v-select v-model="agentForm.skills" :items="skillOptions" label="启用技能" density="comfortable" multiple chips
+          <v-select v-if="!primaryDefaultAgentForm()" v-model="agentForm.skills" :items="skillOptions" label="启用技能" density="comfortable" multiple chips
             closable-chips />
-          <v-textarea v-model="agentForm.instruction" label="系统指令" :rows="5" density="comfortable" />
-          <div class="flex gap-6">
+          <v-textarea v-if="!primaryDefaultAgentForm()" v-model="agentForm.instruction" label="系统指令" :rows="5" density="comfortable" />
+          <div v-if="!primaryDefaultAgentForm()" class="flex gap-6">
             <v-switch v-model="agentForm.memoryEnabled" label="记忆" color="primary" hide-details />
             <v-switch
               v-model="agentForm.status"
@@ -514,7 +570,6 @@ watch(
               label="启用"
               color="primary"
               hide-details
-              :disabled="primaryDefaultAgentForm()"
             />
           </div>
         </v-card-text>

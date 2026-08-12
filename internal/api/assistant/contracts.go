@@ -2,6 +2,7 @@ package assistant
 
 import (
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -42,11 +43,16 @@ type ADKProvidersData struct {
 	Providers []jfadk.Provider `json:"providers"`
 }
 
+type ADKProviderTestRequest struct {
+	Mode assistantmodel.ProviderTestMode `json:"mode,omitempty" enums:"quick,full"`
+}
+
 type ADKProviderTestData struct {
-	OK           bool            `json:"ok"`
-	Reply        string          `json:"reply"`
-	Capabilities map[string]bool `json:"capabilities"`
-	CheckedAt    string          `json:"checkedAt"`
+	OK           bool                                         `json:"ok"`
+	Reply        string                                       `json:"reply"`
+	Capabilities map[string]bool                              `json:"capabilities"`
+	Reasoning    assistantmodel.ProviderReasoningTestResponse `json:"reasoning"`
+	CheckedAt    string                                       `json:"checkedAt"`
 }
 
 type ADKAgentsData struct {
@@ -306,55 +312,59 @@ type ADKMemoryWriteRequest struct {
 }
 
 type ADKProviderWriteRequest struct {
-	ID                  string            `json:"id,omitempty"`
-	DisplayName         string            `json:"displayName"`
-	BaseURL             string            `json:"baseUrl"`
-	Model               string            `json:"model"`
-	APIProtocol         string            `json:"apiProtocol,omitempty" enums:"chat_completions,responses"`
-	ContextWindowTokens int               `json:"contextWindowTokens,omitempty"`
-	RequestTimeoutMs    int               `json:"requestTimeoutMs,omitempty"`
-	DefaultHeaders      map[string]string `json:"defaultHeaders,omitempty"`
-	APIKey              string            `json:"apiKey,omitempty"`
-	Enabled             bool              `json:"enabled"`
+	ID                  string                                  `json:"id,omitempty"`
+	DisplayName         string                                  `json:"displayName"`
+	BaseURL             string                                  `json:"baseUrl"`
+	Model               string                                  `json:"model"`
+	APIProtocol         string                                  `json:"apiProtocol,omitempty" enums:"chat_completions,responses"`
+	ReasoningConfig     *assistantmodel.ProviderReasoningConfig `json:"reasoningConfig,omitempty"`
+	ContextWindowTokens int                                     `json:"contextWindowTokens,omitempty"`
+	RequestTimeoutMs    int                                     `json:"requestTimeoutMs,omitempty"`
+	DefaultHeaders      map[string]string                       `json:"defaultHeaders,omitempty"`
+	APIKey              string                                  `json:"apiKey,omitempty"`
+	Enabled             bool                                    `json:"enabled"`
 }
 
 type ADKAgentWriteRequest struct {
-	ID                string   `json:"id,omitempty"`
-	Name              string   `json:"name"`
-	Instruction       string   `json:"instruction"`
-	ProviderID        string   `json:"providerId"`
-	Model             string   `json:"model,omitempty"`
-	Tools             []string `json:"tools,omitempty"`
-	Skills            []string `json:"skills,omitempty"`
-	PermissionMode    string   `json:"permissionMode"`
-	MemoryEnabled     bool     `json:"memoryEnabled"`
-	RecentUserWindow  int      `json:"recentUserWindow,omitempty"`
-	WorkMode          string   `json:"workMode,omitempty"`
-	LoopMaxIterations int      `json:"loopMaxIterations,omitempty"`
-	Status            string   `json:"status"`
+	ID                string                         `json:"id,omitempty"`
+	Name              string                         `json:"name"`
+	Instruction       string                         `json:"instruction"`
+	ProviderID        string                         `json:"providerId"`
+	Model             string                         `json:"model,omitempty"`
+	ReasoningEffort   assistantmodel.ReasoningEffort `json:"reasoningEffort,omitempty" enums:"low,medium,high,xhigh,max"`
+	Tools             []string                       `json:"tools,omitempty"`
+	Skills            []string                       `json:"skills,omitempty"`
+	PermissionMode    string                         `json:"permissionMode"`
+	MemoryEnabled     bool                           `json:"memoryEnabled"`
+	RecentUserWindow  int                            `json:"recentUserWindow,omitempty"`
+	WorkMode          string                         `json:"workMode,omitempty"`
+	LoopMaxIterations int                            `json:"loopMaxIterations,omitempty"`
+	Status            string                         `json:"status"`
 }
 
 type ADKSessionComposerStatePatch struct {
-	ChatDraft              *string `json:"chatDraft,omitempty"`
-	ProviderIDOverride     *string `json:"providerIdOverride,omitempty"`
-	ModelOverride          *string `json:"modelOverride,omitempty"`
-	WorkModeOverride       *string `json:"workModeOverride,omitempty"`
-	PermissionModeOverride *string `json:"permissionModeOverride,omitempty"`
-	GoalObjectiveDraft     *string `json:"goalObjectiveDraft,omitempty"`
-	GoalObjectiveTouched   *bool   `json:"goalObjectiveTouched,omitempty"`
+	ChatDraft               *string `json:"chatDraft,omitempty"`
+	ProviderIDOverride      *string `json:"providerIdOverride,omitempty"`
+	ModelOverride           *string `json:"modelOverride,omitempty"`
+	ReasoningEffortOverride *string `json:"reasoningEffortOverride,omitempty"`
+	WorkModeOverride        *string `json:"workModeOverride,omitempty"`
+	PermissionModeOverride  *string `json:"permissionModeOverride,omitempty"`
+	GoalObjectiveDraft      *string `json:"goalObjectiveDraft,omitempty"`
+	GoalObjectiveTouched    *bool   `json:"goalObjectiveTouched,omitempty"`
 }
 
 type ADKChatRequest struct {
-	ClientRequestID        string            `json:"clientRequestId" format:"uuid"`
-	AgentID                string            `json:"agentId,omitempty"`
-	SessionID              string            `json:"sessionId,omitempty"`
-	Message                string            `json:"message"`
-	ProviderID             string            `json:"providerId,omitempty"`
-	Model                  string            `json:"model,omitempty"`
-	WorkModeOverride       string            `json:"workModeOverride,omitempty"`
-	PermissionModeOverride string            `json:"permissionModeOverride,omitempty"`
-	Objective              string            `json:"objective,omitempty"`
-	RunOptions             *jfadk.RunOptions `json:"runOptions,omitempty"`
+	ClientRequestID         string                         `json:"clientRequestId" format:"uuid"`
+	AgentID                 string                         `json:"agentId,omitempty"`
+	SessionID               string                         `json:"sessionId,omitempty"`
+	Message                 string                         `json:"message"`
+	ProviderID              string                         `json:"providerId,omitempty"`
+	Model                   string                         `json:"model,omitempty"`
+	ReasoningEffortOverride assistantmodel.ReasoningEffort `json:"reasoningEffortOverride,omitempty" enums:"low,medium,high,xhigh,max"`
+	WorkModeOverride        string                         `json:"workModeOverride,omitempty"`
+	PermissionModeOverride  string                         `json:"permissionModeOverride,omitempty"`
+	Objective               string                         `json:"objective,omitempty"`
+	RunOptions              *jfadk.RunOptions              `json:"runOptions,omitempty"`
 }
 
 type ADKInputResponseRequest struct {

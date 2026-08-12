@@ -16,6 +16,11 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 )
 
+var (
+	ErrInvalidProviderReasoning     = jfadk.ErrInvalidProviderReasoning
+	ErrProviderReasoningUnsupported = jfadk.ErrProviderReasoningUnsupported
+)
+
 const (
 	PermissionModeApproval     = jfadk.PermissionModeApproval
 	PermissionModeLessApproval = jfadk.PermissionModeLessApproval
@@ -80,6 +85,8 @@ const (
 
 	ProviderAPIProtocolChatCompletions = jfadk.ProviderAPIProtocolChatCompletions
 	ProviderAPIProtocolResponses       = jfadk.ProviderAPIProtocolResponses
+	ProviderTestModeQuick              = jfadk.ProviderTestModeQuick
+	ProviderTestModeFull               = jfadk.ProviderTestModeFull
 
 	TimelineKindUserMessage        = jfadk.TimelineKindUserMessage
 	TimelineKindAssistantMessage   = jfadk.TimelineKindAssistantMessage
@@ -109,6 +116,12 @@ const (
 )
 
 type (
+	ProviderReasoningMapping       = jfadk.ProviderReasoningMapping
+	ProviderReasoningConfig        = jfadk.ProviderReasoningConfig
+	ProviderReasoningTestResult    = jfadk.ProviderReasoningTestResult
+	ProviderReasoningTestResponse  = jfadk.ProviderReasoningTestResponse
+	ProviderTestMode               = jfadk.ProviderTestMode
+	ProviderTestResponse           = jfadk.ProviderTestResponse
 	Provider                       = jfadk.Provider // @name adk.Provider
 	ProviderWriteRequest           = jfadk.ProviderWriteRequest
 	Agent                          = jfadk.Agent                // @name adk.Agent

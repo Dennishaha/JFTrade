@@ -277,6 +277,9 @@ export function useADKWorkflowQueueState(options: {
         createdAt: run.createdAt,
         updatedAt: run.updatedAt,
         parentRunId: run.id,
+        ...(run.reasoningEffort === undefined
+          ? {}
+          : { reasoningEffort: run.reasoningEffort }),
       } satisfies ADKRun);
     }
     childRunSnapshots.value = retained;

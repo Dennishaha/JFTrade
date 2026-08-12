@@ -48,6 +48,8 @@ function mountProvidersPanel(
         baseUrl: "",
         model: "",
         apiProtocol: "chat_completions",
+        reasoningRequestField: "reasoning_effort",
+        reasoningMappings: [],
         contextWindowTokens: 0,
         requestTimeoutSeconds: 180,
         apiKey: "",

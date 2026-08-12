@@ -187,8 +187,10 @@ func documentADKSetDefaultProvider() {}
 // documentADKTestProvider godoc
 // @Summary 测试 ADK Provider 连通性
 // @Tags adk
+// @Accept json
 // @Produce json
 // @Param providerId path string true "Provider ID"
+// @Param request body ADKProviderTestRequest false "Provider test mode"
 // @Success 200 {object} httpserver.Envelope{data=ADKProviderTestData}
 // @Failure 400 {object} httpserver.ErrorEnvelope
 // @Failure 502 {object} httpserver.ErrorEnvelope

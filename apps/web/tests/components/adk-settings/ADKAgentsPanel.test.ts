@@ -74,7 +74,7 @@ describe("ADKAgentsPanel", () => {
   it("shows the saved default mode on every agent card", () => {
     const wrapper = mountAgentsPanel({
       agents: [
-        buildAgent("chat"),
+        { ...buildAgent("chat"), reasoningEffort: "max" },
         buildAgent("loop"),
         buildAgent("loop"),
       ],
@@ -82,6 +82,7 @@ describe("ADKAgentsPanel", () => {
 
     expect(wrapper.text()).toContain("默认：对话");
     expect(wrapper.text()).toContain("默认：目标");
+    expect(wrapper.text()).toContain("推理：最大");
     expect(wrapper.text()).not.toContain("默认：任务");
     expect(wrapper.text()).toContain("审批制");
   });
@@ -102,7 +103,7 @@ describe("ADKAgentsPanel", () => {
     expect(wrapper.text()).toContain("系统默认");
     expect(wrapper.text()).toContain("全部工具");
     expect(wrapper.findAll("button").some((button) => button.text().includes("删除"))).toBe(false);
-    expect(wrapper.findAll("button").some((button) => button.text().includes("编辑"))).toBe(false);
+    expect(wrapper.findAll("button").some((button) => button.text().includes("编辑"))).toBe(true);
   });
 
   it("sorts the primary default agent first", () => {
@@ -182,6 +183,7 @@ function mountAgentsPanel(
     instruction: "",
     providerId: "provider",
     model: "",
+    reasoningEffort: "" as const,
     tools: [],
     skills: [],
     permissionMode: "approval" as const,

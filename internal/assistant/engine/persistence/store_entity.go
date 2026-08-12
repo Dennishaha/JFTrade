@@ -35,21 +35,19 @@ func (s *StoreCore) ListProviders(ctx context.Context) ([]jfadkmodel.Provider, e
 }
 
 func (s *StoreCore) SaveProvider(ctx context.Context, req jfadkmodel.ProviderWriteRequest) (jfadkmodel.Provider, error) {
-	id := jfadkmodel.NormalizeID(req.ID)
-	if id == "" {
-		id = jfadkmodel.NormalizeID(req.DisplayName)
-	}
-	if id == "" {
-		id = "provider-" + uuid.NewString()
-	}
-	if err := validateProviderWriteRequest(req); err != nil {
-		return jfadkmodel.Provider{}, err
-	}
-	now := jfadkmodel.NowString()
+	id := providerWriteID(req)
 	existing, ok, err := s.Provider(ctx, id)
 	if err != nil {
 		return jfadkmodel.Provider{}, err
 	}
+	validationProtocol := req.APIProtocol
+	if strings.TrimSpace(validationProtocol) == "" && ok {
+		validationProtocol = existing.APIProtocol
+	}
+	if err := validateProviderWriteRequest(req, validationProtocol); err != nil {
+		return jfadkmodel.Provider{}, err
+	}
+	now := jfadkmodel.NowString()
 	createdAt := now
 	if ok {
 		createdAt = existing.CreatedAt
@@ -60,6 +58,7 @@ func (s *StoreCore) SaveProvider(ctx context.Context, req jfadkmodel.ProviderWri
 		BaseURL:             jfadkmodel.NormalizeBaseURL(req.BaseURL),
 		Model:               jfadkmodel.DefaultString(req.Model, "gpt-4o-mini"),
 		APIProtocol:         jfadkmodel.NormalizeProviderAPIProtocol(req.APIProtocol),
+		ReasoningConfig:     jfadkmodel.DefaultProviderReasoningConfig(req.APIProtocol),
 		ContextWindowTokens: jfadkmodel.NormalizeContextWindowTokens(req.ContextWindowTokens),
 		RequestTimeoutMs:    jfadkmodel.NormalizeProviderRequestTimeoutMs(req.RequestTimeoutMs),
 		DefaultHeaders:      jfadkmodel.NormalizeHeaders(req.DefaultHeaders),
@@ -70,6 +69,7 @@ func (s *StoreCore) SaveProvider(ctx context.Context, req jfadkmodel.ProviderWri
 	}
 	if ok {
 		provider.Capabilities = existing.Capabilities
+		provider.ReasoningConfig = existing.ReasoningConfig
 		if strings.TrimSpace(req.APIProtocol) == "" {
 			provider.APIProtocol = existing.APIProtocol
 		}
@@ -79,6 +79,9 @@ func (s *StoreCore) SaveProvider(ctx context.Context, req jfadkmodel.ProviderWri
 		if req.ContextWindowTokens == 0 {
 			provider.ContextWindowTokens = existing.ContextWindowTokens
 		}
+	}
+	if req.ReasoningConfig != nil {
+		provider.ReasoningConfig = jfadkmodel.NormalizeProviderReasoningConfig(*req.ReasoningConfig, provider.APIProtocol)
 	}
 	provider = jfadkmodel.NormalizeProvider(provider)
 	if strings.TrimSpace(provider.BaseURL) == "" {
@@ -113,14 +116,31 @@ func (s *StoreCore) SaveProvider(ctx context.Context, req jfadkmodel.ProviderWri
 	return provider, nil
 }
 
-func validateProviderWriteRequest(req jfadkmodel.ProviderWriteRequest) error {
+func providerWriteID(req jfadkmodel.ProviderWriteRequest) string {
+	id := jfadkmodel.NormalizeID(req.ID)
+	if id == "" {
+		id = jfadkmodel.NormalizeID(req.DisplayName)
+	}
+	if id == "" {
+		return "provider-" + uuid.NewString()
+	}
+	return id
+}
+
+func validateProviderWriteRequest(req jfadkmodel.ProviderWriteRequest, protocol string) error {
 	if strings.TrimSpace(req.BaseURL) != "" {
 		if err := ValidateProviderBaseURL(req.BaseURL); err != nil {
 			return err
 		}
 	}
-	if err := jfadkmodel.ValidateProviderAPIProtocol(req.APIProtocol); err != nil {
+	if err := jfadkmodel.ValidateProviderAPIProtocol(protocol); err != nil {
 		return err
+	}
+	if req.ReasoningConfig != nil {
+		config := jfadkmodel.NormalizeProviderReasoningConfig(*req.ReasoningConfig, protocol)
+		if err := jfadkmodel.ValidateProviderReasoningConfig(config); err != nil {
+			return fmt.Errorf("%w: %w", jfadkmodel.ErrInvalidProviderReasoning, err)
+		}
 	}
 	return validateProviderHeaders(req.DefaultHeaders)
 }
@@ -336,6 +356,9 @@ func (s *StoreCore) ListAllAgents(ctx context.Context) ([]jfadkmodel.Agent, erro
 }
 
 func (s *StoreCore) SaveAgent(ctx context.Context, req jfadkmodel.AgentWriteRequest) (jfadkmodel.Agent, error) {
+	if err := jfadkmodel.ValidateOptionalReasoningEffort(req.ReasoningEffort); err != nil {
+		return jfadkmodel.Agent{}, err
+	}
 	id := jfadkmodel.NormalizeID(req.ID)
 	if id == "" {
 		id = jfadkmodel.NormalizeID(req.Name)
@@ -368,6 +391,7 @@ func (s *StoreCore) SaveAgent(ctx context.Context, req jfadkmodel.AgentWriteRequ
 		Instruction:       strings.TrimSpace(req.Instruction),
 		ProviderID:        strings.TrimSpace(req.ProviderID),
 		Model:             strings.TrimSpace(req.Model),
+		ReasoningEffort:   jfadkmodel.NormalizeReasoningEffort(req.ReasoningEffort),
 		Tools:             jfadkmodel.NormalizeStringSlice(req.Tools),
 		Skills:            jfadkmodel.NormalizeStringSlice(req.Skills),
 		PermissionMode:    jfadkmodel.NormalizePermissionMode(req.PermissionMode),
@@ -382,6 +406,18 @@ func (s *StoreCore) SaveAgent(ctx context.Context, req jfadkmodel.AgentWriteRequ
 	}
 	if ok {
 		agent.Builtin = existing.Builtin || agent.Builtin
+	}
+	provider, providerOK, providerErr := s.Provider(ctx, agent.ProviderID)
+	if strings.TrimSpace(agent.ProviderID) == "" && providerErr == nil {
+		provider, providerOK, providerErr = s.DefaultProvider(ctx)
+	}
+	if providerErr != nil {
+		return jfadkmodel.Agent{}, providerErr
+	}
+	if providerOK && agent.ReasoningEffort != "" {
+		if _, supported := jfadkmodel.ProviderReasoningMappingValue(provider.ReasoningConfig, agent.ReasoningEffort); !supported {
+			return jfadkmodel.Agent{}, fmt.Errorf("%w: %s", jfadkmodel.ErrProviderReasoningUnsupported, agent.ReasoningEffort)
+		}
 	}
 	if agent.Instruction == "" {
 		agent.Instruction = jfadkmodel.DefaultAgentInstruction()

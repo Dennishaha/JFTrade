@@ -36,6 +36,20 @@
         "providerId": {
           "type": "string"
         },
+        "reasoningEffort": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/adk.ReasoningEffort"
+            }
+          ],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
         "recentUserWindow": {
           "type": "integer"
         },
@@ -105,6 +119,20 @@
         },
         "providerId": {
           "type": "string"
+        },
+        "reasoningEffort": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/adk.ReasoningEffort"
+            }
+          ],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
         },
         "recentUserWindow": {
           "type": "integer"
@@ -499,6 +527,9 @@
         "model": {
           "type": "string"
         },
+        "reasoningConfig": {
+          "$ref": "#/definitions/adk.ProviderReasoningConfig"
+        },
         "requestTimeoutMs": {
           "type": "integer"
         },
@@ -516,10 +547,150 @@
         "hasApiKey",
         "id",
         "model",
+        "reasoningConfig",
         "requestTimeoutMs",
         "updatedAt"
       ],
       "type": "object"
+    },
+    "adk.ProviderReasoningConfig": {
+      "properties": {
+        "mappings": {
+          "items": {
+            "$ref": "#/definitions/adk.ProviderReasoningMapping"
+          },
+          "type": "array"
+        },
+        "requestField": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "mappings",
+        "requestField"
+      ],
+      "type": "object"
+    },
+    "adk.ProviderReasoningMapping": {
+      "properties": {
+        "effort": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/adk.ReasoningEffort"
+            }
+          ],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effort",
+        "value"
+      ],
+      "type": "object"
+    },
+    "adk.ProviderReasoningTestResponse": {
+      "properties": {
+        "mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/adk.ProviderTestMode"
+            }
+          ],
+          "enum": [
+            "quick",
+            "full"
+          ]
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "requestField": {
+          "type": "string"
+        },
+        "results": {
+          "items": {
+            "$ref": "#/definitions/adk.ProviderReasoningTestResult"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "mode",
+        "ok",
+        "requestField",
+        "results"
+      ],
+      "type": "object"
+    },
+    "adk.ProviderReasoningTestResult": {
+      "properties": {
+        "effort": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/adk.ReasoningEffort"
+            }
+          ],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
+        "error": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effort",
+        "ok",
+        "value"
+      ],
+      "type": "object"
+    },
+    "adk.ProviderTestMode": {
+      "enum": [
+        "quick",
+        "full"
+      ],
+      "type": "string",
+      "x-enum-varnames": [
+        "ProviderTestModeQuick",
+        "ProviderTestModeFull"
+      ]
+    },
+    "adk.ReasoningEffort": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "type": "string",
+      "x-enum-varnames": [
+        "ReasoningEffortLow",
+        "ReasoningEffortMedium",
+        "ReasoningEffortHigh",
+        "ReasoningEffortXHigh",
+        "ReasoningEffortMax"
+      ]
     },
     "adk.Run": {
       "properties": {
@@ -615,6 +786,20 @@
         },
         "providerName": {
           "type": "string"
+        },
+        "reasoningEffort": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/adk.ReasoningEffort"
+            }
+          ],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
         },
         "resumeState": {
           "type": "string"
@@ -767,6 +952,9 @@
         "providerIdOverride": {
           "type": "string"
         },
+        "reasoningEffortOverride": {
+          "type": "string"
+        },
         "sessionId": {
           "type": "string"
         },
@@ -784,6 +972,7 @@
         "modelOverride",
         "permissionModeOverride",
         "providerIdOverride",
+        "reasoningEffortOverride",
         "sessionId",
         "updatedAt",
         "workModeOverride"
@@ -1829,6 +2018,20 @@
         "providerId": {
           "type": "string"
         },
+        "reasoningEffort": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/adk.ReasoningEffort"
+            }
+          ],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
         "recentUserWindow": {
           "type": "integer"
         },
@@ -1977,6 +2180,20 @@
         },
         "providerId": {
           "type": "string"
+        },
+        "reasoningEffortOverride": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/adk.ReasoningEffort"
+            }
+          ],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
         },
         "runOptions": {
           "$ref": "#/definitions/adk.RunOptions"
@@ -2300,6 +2517,9 @@
         "ok": {
           "type": "boolean"
         },
+        "reasoning": {
+          "$ref": "#/definitions/adk.ProviderReasoningTestResponse"
+        },
         "reply": {
           "type": "string"
         }
@@ -2308,8 +2528,25 @@
         "capabilities",
         "checkedAt",
         "ok",
+        "reasoning",
         "reply"
       ],
+      "type": "object"
+    },
+    "assistant.ADKProviderTestRequest": {
+      "properties": {
+        "mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/adk.ProviderTestMode"
+            }
+          ],
+          "enum": [
+            "quick",
+            "full"
+          ]
+        }
+      },
       "type": "object"
     },
     "assistant.ADKProviderWriteRequest": {
@@ -2347,6 +2584,9 @@
         },
         "model": {
           "type": "string"
+        },
+        "reasoningConfig": {
+          "$ref": "#/definitions/adk.ProviderReasoningConfig"
         },
         "requestTimeoutMs": {
           "type": "integer"
@@ -2464,6 +2704,9 @@
           "type": "string"
         },
         "providerIdOverride": {
+          "type": "string"
+        },
+        "reasoningEffortOverride": {
           "type": "string"
         },
         "workModeOverride": {
@@ -16517,6 +16760,9 @@
     },
     "/api/v1/adk/providers/{providerId}/test": {
       "post": {
+        "consumes": [
+          "application/json"
+        ],
         "parameters": [
           {
             "description": "Provider ID",
@@ -16524,6 +16770,14 @@
             "name": "providerId",
             "required": true,
             "type": "string"
+          },
+          {
+            "description": "Provider test mode",
+            "in": "body",
+            "name": "request",
+            "schema": {
+              "$ref": "#/definitions/assistant.ADKProviderTestRequest"
+            }
           }
         ],
         "produces": [

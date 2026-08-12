@@ -22,6 +22,7 @@ func (r *Runtime) WorkflowChildAgentForStep(ctx context.Context, agent Agent, st
 		child = resolved
 	}
 	child = jfadkmodel.WorkflowChildAgentForStep(child, step)
+	child.ReasoningEffort = jfadkmodel.NormalizeReasoningEffort(child.ReasoningEffort)
 	child.WorkMode = WorkModeChat
 	if strings.TrimSpace(child.PermissionMode) == "" {
 		child.PermissionMode = agent.PermissionMode

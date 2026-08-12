@@ -1,6 +1,35 @@
 package providers
 
-import "strings"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
+
+// InjectJSONPath sets a string value at a validated dot-separated object path.
+// The path is validated by the assistant model layer before it reaches this
+// transport helper; this function still rejects malformed paths defensively.
+func InjectJSONPath(raw []byte, path string, value string) ([]byte, error) {
+	segments := strings.Split(strings.TrimSpace(path), ".")
+	if len(segments) == 0 || segments[0] == "" {
+		return nil, fmt.Errorf("reasoning request field is empty")
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, err
+	}
+	current := payload
+	for _, segment := range segments[:len(segments)-1] {
+		child, ok := current[segment].(map[string]any)
+		if !ok {
+			child = make(map[string]any)
+			current[segment] = child
+		}
+		current = child
+	}
+	current[segments[len(segments)-1]] = value
+	return json.Marshal(payload)
+}
 
 // Legacy providers may inline reasoning inside assistant text using custom tags.
 // The ADK-native path should rely on genai.Part.Thought instead; this parser is

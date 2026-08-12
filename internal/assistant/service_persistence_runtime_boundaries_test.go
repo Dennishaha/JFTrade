@@ -225,7 +225,7 @@ func TestWorkflowEntryPointsRejectUnavailableRuntimeBeforePersistingAnything(t *
 func TestAgentValidationAndSchedulerBoundariesProtectRuntimeResources(t *testing.T) {
 	_, service, _ := newAssistantServiceHarness(t)
 	ctx := t.Context()
-	if _, err := service.SaveAgent(ctx, adk.AgentWriteRequest{ID: adk.DefaultBuiltinAgentID}); err == nil || !strings.Contains(err.Error(), "cannot be edited") {
+	if _, err := service.SaveAgent(ctx, adk.AgentWriteRequest{ID: adk.DefaultBuiltinAgentID}); err == nil || !strings.Contains(err.Error(), "only provider") {
 		t.Fatalf("primary builtin agent update error = %v", err)
 	}
 	if _, err := service.SaveAgent(ctx, adk.AgentWriteRequest{ID: "invalid-status", Name: "Invalid", Status: "broken"}); err == nil || !strings.Contains(err.Error(), "status") {

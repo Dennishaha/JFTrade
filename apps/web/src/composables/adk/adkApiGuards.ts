@@ -39,12 +39,24 @@ import type {
   MCPServerSettingsSnapshot,
   MCPServerTokenResetResult,
 } from "@/types";
-import type {
-  ADKAgentWriteRequestDto,
-  ADKRuntimeSettings,
-} from "@/contracts";
+import type { ADKRuntimeSettings } from "@/contracts";
 
 import type { ADKMetricsView, ADKPageEnvelope } from "./adkApiMapperModels";
+import {
+  isADKProviderReasoningConfig,
+  isOptionalReasoningEffortWire,
+} from "./adkApiReasoningGuards";
+
+export {
+  isADKProviderReasoningConfig,
+  isADKProviderReasoningMapping,
+  isADKProviderReasoningTestResponse,
+  isADKProviderReasoningTestResult,
+  isADKProviderTestResponse,
+  isOptionalReasoningEffortWire,
+  isReasoningEffort,
+  normalizeADKAgentTemplateWire,
+} from "./adkApiReasoningGuards";
 
 type TypeGuard<T> = (value: unknown) => value is T;
 
@@ -111,6 +123,7 @@ export function isADKProvider(value: unknown): value is ADKProvider {
     isString(value.baseUrl) &&
     isString(value.model) &&
     (value.apiProtocol === undefined || value.apiProtocol === "chat_completions" || value.apiProtocol === "responses") &&
+    isOptional(value.reasoningConfig, isADKProviderReasoningConfig) &&
     isNumber(value.requestTimeoutMs) &&
     isBoolean(value.enabled) &&
     isBoolean(value.default) &&
@@ -129,6 +142,7 @@ export function isADKAgent(value: unknown): value is ADKAgent {
     isString(value.instruction) &&
     isString(value.providerId) &&
     isString(value.model) &&
+    isOptionalReasoningEffortWire(value.reasoningEffort) &&
     isArrayOf(value.tools, isString) &&
     isArrayOf(value.skills, isString) &&
     isPermissionMode(value.permissionMode) &&
@@ -152,6 +166,7 @@ export function isADKAgentTemplate(
     isString(value.instruction) &&
     isString(value.providerId) &&
     isString(value.model) &&
+    isOptionalReasoningEffortWire(value.reasoningEffort) &&
     isArrayOf(value.tools, isString) &&
     isArrayOf(value.skills, isString) &&
     isPermissionMode(value.permissionMode) &&
@@ -161,22 +176,6 @@ export function isADKAgentTemplate(
     isNumber(value.loopMaxIterations) &&
     isString(value.status)
   );
-}
-
-export function normalizeADKAgentTemplateWire(value: unknown): unknown {
-  if (!isRecord(value)) return value;
-  const template = value as Partial<ADKAgentWriteRequestDto>;
-  return {
-    ...value,
-    model: template.model === undefined ? "" : template.model,
-    tools: template.tools === undefined ? [] : template.tools,
-    skills: template.skills === undefined ? [] : template.skills,
-    recentUserWindow:
-      template.recentUserWindow === undefined ? 6 : template.recentUserWindow,
-    workMode: template.workMode === undefined ? "chat" : template.workMode,
-    loopMaxIterations:
-      template.loopMaxIterations === undefined ? 5 : template.loopMaxIterations,
-  };
 }
 
 export function isADKToolDescriptor(value: unknown): value is ADKToolDescriptor {
@@ -308,6 +307,7 @@ export function isADKRun(value: unknown): value is ADKRun {
     isString(value.agentId) &&
     isString(value.status) &&
     isString(value.message) &&
+    isOptionalReasoningEffortWire(value.reasoningEffort) &&
     isArrayOf(value.toolCalls, isADKToolCall) &&
     isArrayOf(value.pendingApprovals, isADKApproval) &&
     isOptional(value.inputRequest, isADKInputRequest) &&
@@ -342,6 +342,7 @@ export function isADKSessionComposerState(
     isString(value.chatDraft) &&
     isString(value.providerIdOverride) &&
     isString(value.modelOverride) &&
+    isString(value.reasoningEffortOverride) &&
     isString(value.workModeOverride) &&
     isString(value.permissionModeOverride) &&
     isString(value.goalObjectiveDraft) &&

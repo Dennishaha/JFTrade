@@ -12,6 +12,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	asstsvc "github.com/jftrade/jftrade-main/internal/assistant"
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func (h *Handler) handleADKAgentTemplates(c *gin.Context) {
@@ -201,7 +202,17 @@ func (h *Handler) handleADKTestProvider(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "providerId is invalid")
 		return
 	}
-	result, err := h.service.TestProvider(c.Request.Context(), uri.ProviderID)
+	var payload ADKProviderTestRequest
+	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	mode, err := assistantmodel.NormalizeProviderTestMode(payload.Mode)
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	result, err := h.service.TestProvider(c.Request.Context(), uri.ProviderID, jfadk.ProviderTestMode(mode))
 	if err != nil {
 		h.writeError(c, http.StatusBadGateway, "ADK_PROVIDER_TEST_FAILED", err.Error())
 		return
@@ -334,7 +345,7 @@ func (h *Handler) handleADKSaveProvider(c *gin.Context) {
 	provider, err := h.service.SaveProvider(c.Request.Context(), jfadk.ProviderWriteRequest(payload))
 	if err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, jfadk.ErrInvalidProviderAPIProtocol) {
+		if errors.Is(err, jfadk.ErrInvalidProviderAPIProtocol) || errors.Is(err, jfadk.ErrInvalidProviderReasoning) {
 			status = http.StatusBadRequest
 		}
 		h.writeError(c, status, "ADK_PROVIDER_SAVE_FAILED", err.Error())
@@ -383,6 +394,7 @@ func isADKAgentValidationError(err error) bool {
 		strings.Contains(message, "provider not found") ||
 		strings.Contains(message, "provider is disabled") ||
 		strings.Contains(message, "provider api key is not configured") ||
+		errors.Is(err, jfadk.ErrProviderReasoningUnsupported) ||
 		strings.Contains(message, "unknown adk tool") ||
 		strings.Contains(message, "unknown adk skill")
 }

@@ -63,7 +63,7 @@ export function useADKPageController(
     if (chatState.activeRunStatus.value === "PENDING_INPUT") {
       return "请先完成 Agent 提问，提交后将自动继续执行。";
     }
-    return composerBlockMessage.value;
+    return chatState.composerBlockMessage.value;
   });
   const effectiveCanSendChat = computed(
     () => chatState.canSendChat.value && !chatState.activeChildRunId.value,
@@ -189,6 +189,7 @@ export function useADKPageController(
     visibleSessions: sessionState.visibleSessions,
     workModeOverride: chatState.workModeOverride,
     permissionModeOverride: chatState.permissionModeOverride,
+    reasoningEffortOverride: chatState.reasoningEffortOverride,
     openContextDetails: chatState.openContextDetails,
   };
 }

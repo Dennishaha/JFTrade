@@ -202,12 +202,16 @@ func (s *Service) DeleteProvider(ctx context.Context, providerID string) error {
 	return s.runtime.Store().DeleteProvider(ctx, providerID)
 }
 
-// TestProvider 测试 Provider 连通性与工具能力。
-func (s *Service) TestProvider(ctx context.Context, providerID string) (any, error) {
+// TestProvider 测试 Provider 连通性、工具能力与推理映射。
+func (s *Service) TestProvider(
+	ctx context.Context,
+	providerID string,
+	modes ...jfadk.ProviderTestMode,
+) (any, error) {
 	if s.runtime == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
 	}
-	return s.runtime.TestProvider(ctx, providerID)
+	return s.runtime.TestProvider(ctx, providerID, modes...)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -241,7 +245,9 @@ func (s *Service) SaveAgent(ctx context.Context, req jfadk.AgentWriteRequest) (j
 		return jfadk.Agent{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	if jfadk.IsPrimaryBuiltinAgentID(strings.TrimSpace(req.ID)) {
-		return jfadk.Agent{}, fmt.Errorf("%w: primary builtin agent cannot be edited", jfadk.ErrBuiltinAgentProtected)
+		if err := s.validatePrimaryBuiltinAgentUpdate(ctx, req); err != nil {
+			return jfadk.Agent{}, err
+		}
 	}
 	if err := s.validateAgent(ctx, req); err != nil {
 		return jfadk.Agent{}, err

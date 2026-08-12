@@ -13,15 +13,17 @@ import (
 )
 
 var (
-	ErrBuiltinAgentProtected       = errors.New("builtin agent is protected")
-	ErrCleanupCandidatesChanged    = errors.New("cleanup candidates changed")
-	ErrInvalidTaskStatus           = errors.New("invalid task status")
-	ErrInvalidProviderAPIProtocol  = errors.New("invalid provider API protocol")
-	ErrProviderInUse               = errors.New("provider is used by agent")
-	ErrInputRequestNotFound        = errors.New("input request not found")
-	ErrInputRequestInvalid         = errors.New("input response is invalid")
-	ErrInputRequestConflict        = errors.New("input request conflict")
-	ErrInputRequestAlreadyAnswered = errors.New("input request already answered")
+	ErrBuiltinAgentProtected        = errors.New("builtin agent is protected")
+	ErrCleanupCandidatesChanged     = errors.New("cleanup candidates changed")
+	ErrInvalidTaskStatus            = errors.New("invalid task status")
+	ErrInvalidProviderAPIProtocol   = errors.New("invalid provider API protocol")
+	ErrInvalidProviderReasoning     = errors.New("invalid provider reasoning configuration")
+	ErrProviderReasoningUnsupported = errors.New("provider does not support reasoning effort")
+	ErrProviderInUse                = errors.New("provider is used by agent")
+	ErrInputRequestNotFound         = errors.New("input request not found")
+	ErrInputRequestInvalid          = errors.New("input response is invalid")
+	ErrInputRequestConflict         = errors.New("input request conflict")
+	ErrInputRequestAlreadyAnswered  = errors.New("input request already answered")
 )
 
 // sortableTimestampLayout retains nanosecond precision instead of trimming
@@ -86,6 +88,7 @@ func NormalizeBaseURL(value string) string {
 // NormalizeProvider applies the shared provider field normalization rules.
 func NormalizeProvider(provider Provider) Provider {
 	provider.APIProtocol = NormalizeProviderAPIProtocol(provider.APIProtocol)
+	provider.ReasoningConfig = NormalizeProviderReasoningConfig(provider.ReasoningConfig, provider.APIProtocol)
 	provider.RequestTimeoutMs = NormalizeProviderRequestTimeoutMs(provider.RequestTimeoutMs)
 	provider.ContextWindowTokens = NormalizeContextWindowTokens(provider.ContextWindowTokens)
 	return provider
@@ -280,6 +283,9 @@ func NormalizeRun(run Run) Run {
 	run.ProviderID = strings.TrimSpace(run.ProviderID)
 	run.ProviderName = strings.TrimSpace(run.ProviderName)
 	run.Model = strings.TrimSpace(run.Model)
+	run.ReasoningEffort = NormalizeReasoningEffort(run.ReasoningEffort)
+	run.ReasoningEffortField = strings.TrimSpace(run.ReasoningEffortField)
+	run.ReasoningEffortValue = strings.TrimSpace(run.ReasoningEffortValue)
 	run.WorkflowEngine = strings.TrimSpace(run.WorkflowEngine)
 	if len(run.ChildRunIDs) == 0 {
 		run.ChildRunIDs = []string{}

@@ -69,6 +69,8 @@ const (
 
 	ProviderAPIProtocolChatCompletions = jfadkmodel.ProviderAPIProtocolChatCompletions
 	ProviderAPIProtocolResponses       = jfadkmodel.ProviderAPIProtocolResponses
+	ProviderTestModeQuick              = jfadkmodel.ProviderTestModeQuick
+	ProviderTestModeFull               = jfadkmodel.ProviderTestModeFull
 
 	TimelineKindUserMessage        = jfadkmodel.TimelineKindUserMessage
 	TimelineKindAssistantMessage   = jfadkmodel.TimelineKindAssistantMessage
@@ -84,6 +86,13 @@ const (
 )
 
 type (
+	ReasoningEffort                = jfadkmodel.ReasoningEffort
+	ProviderReasoningMapping       = jfadkmodel.ProviderReasoningMapping
+	ProviderReasoningConfig        = jfadkmodel.ProviderReasoningConfig
+	ProviderReasoningTestResult    = jfadkmodel.ProviderReasoningTestResult
+	ProviderReasoningTestResponse  = jfadkmodel.ProviderReasoningTestResponse
+	ProviderTestMode               = jfadkmodel.ProviderTestMode
+	ProviderTestResponse           = jfadkmodel.ProviderTestResponse
 	Provider                       = jfadkmodel.Provider
 	ProviderWriteRequest           = jfadkmodel.ProviderWriteRequest
 	Agent                          = jfadkmodel.Agent
@@ -138,6 +147,11 @@ type (
 	SessionContextBreakdown        = jfadkmodel.SessionContextBreakdown
 	SessionContextState            = jfadkmodel.SessionContextState
 	SessionContextSnapshot         = jfadkmodel.SessionContextSnapshot
+)
+
+var (
+	ErrInvalidProviderReasoning     = jfadkmodel.ErrInvalidProviderReasoning
+	ErrProviderReasoningUnsupported = jfadkmodel.ErrProviderReasoningUnsupported
 )
 
 const transcriptKindMessage = "message"

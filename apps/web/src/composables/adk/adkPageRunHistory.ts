@@ -55,11 +55,20 @@ export function normalizeSessionComposerState(
 ): ADKSessionComposerState {
   const mode = String(state?.workModeOverride ?? "").trim();
   const permissionMode = String(state?.permissionModeOverride ?? "").trim();
+  const reasoningEffort = String(state?.reasoningEffortOverride ?? "").trim();
   return {
     sessionId: String(state?.sessionId || sessionId).trim(),
     chatDraft: state?.chatDraft ?? "",
     providerIdOverride: String(state?.providerIdOverride ?? "").trim(),
     modelOverride: String(state?.modelOverride ?? "").trim(),
+    reasoningEffortOverride:
+      reasoningEffort === "low" ||
+      reasoningEffort === "medium" ||
+      reasoningEffort === "high" ||
+      reasoningEffort === "xhigh" ||
+      reasoningEffort === "max"
+        ? reasoningEffort
+        : "",
     workModeOverride:
       mode === "chat" || mode === "loop" ? mode : "",
     permissionModeOverride:

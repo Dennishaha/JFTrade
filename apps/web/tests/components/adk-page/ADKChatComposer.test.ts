@@ -72,7 +72,7 @@ describe("ADKChatComposer", () => {
     });
 
     const text = wrapper.text();
-    expect(text).not.toContain("跟随 Agent");
+    expect(text).toContain("跟随 Agent");
     expect(text).toContain("对话");
     expect(text).toContain("目标");
     expect(text).not.toContain("任务");

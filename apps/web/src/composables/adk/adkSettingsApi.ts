@@ -6,6 +6,10 @@ import type {
   ADKMemoryEntry,
   ADKOptimizationTask,
   ADKProvider,
+  ADKProviderReasoningConfig,
+  ADKProviderTestResponse,
+  ADKProviderTestMode,
+  ADKReasoningEffort,
   ADKRun,
   ADKSkill,
   ADKTask,
@@ -23,6 +27,7 @@ import {
   apiGet,
   apiGetPath,
   apiPost,
+  apiPostPath,
   apiPostAction,
   apiPostPathAction,
   apiPut,
@@ -41,6 +46,7 @@ import {
   requireADKOptimizationTasks,
   requireADKPage,
   requireADKProvider,
+  requireADKProviderTestResponse,
   requireADKProviders,
   requireADKRun,
   requireADKRuns,
@@ -298,6 +304,7 @@ export async function saveADKProvider(provider: {
   baseUrl: string;
   model: string;
   apiProtocol?: "chat_completions" | "responses";
+  reasoningConfig?: ADKProviderReasoningConfig;
   contextWindowTokens: number;
   requestTimeoutMs: number;
   apiKey: string;
@@ -336,13 +343,15 @@ export async function resetMCPServerToken(): Promise<MCPServerTokenResetResult> 
 
 export async function testADKProvider(
   providerId: string,
-): Promise<Record<string, unknown>> {
-  return {
-    ...(await apiPostPathAction(
-    "/api/v1/adk/providers/{providerId}/test",
-    `/api/v1/adk/providers/${encodeURIComponent(providerId)}/test`,
-    )),
-  };
+  mode: ADKProviderTestMode = "quick",
+): Promise<ADKProviderTestResponse> {
+  return requireADKProviderTestResponse(
+    await apiPostPath(
+      "/api/v1/adk/providers/{providerId}/test",
+      `/api/v1/adk/providers/${encodeURIComponent(providerId)}/test`,
+      { mode },
+    ),
+  );
 }
 
 export async function setADKDefaultProvider(
@@ -369,6 +378,7 @@ export async function saveADKAgent(agent: {
   instruction: string;
   providerId: string;
   model: string;
+  reasoningEffort: ADKReasoningEffort | "";
   tools: string[];
   skills: string[];
   permissionMode: string;
@@ -378,7 +388,13 @@ export async function saveADKAgent(agent: {
   loopMaxIterations: number;
   status: string;
 }): Promise<ADKAgent> {
-  return requireADKAgent(await apiPost("/api/v1/adk/agents", agent));
+  const { reasoningEffort, ...agentFields } = agent;
+  return requireADKAgent(
+    await apiPost("/api/v1/adk/agents", {
+      ...agentFields,
+      ...(reasoningEffort === "" ? {} : { reasoningEffort }),
+    }),
+  );
 }
 
 export async function deleteADKAgent(agentId: string): Promise<void> {

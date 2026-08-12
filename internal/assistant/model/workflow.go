@@ -37,16 +37,17 @@ type WorkflowStep struct {
 }
 
 type ChatRequest struct {
-	ClientRequestID        string      `json:"clientRequestId"`
-	AgentID                string      `json:"agentId,omitempty"`
-	SessionID              string      `json:"sessionId,omitempty"`
-	Message                string      `json:"message"`
-	ProviderID             string      `json:"providerId,omitempty"`
-	Model                  string      `json:"model,omitempty"`
-	WorkModeOverride       string      `json:"workModeOverride,omitempty"`
-	PermissionModeOverride string      `json:"permissionModeOverride,omitempty"`
-	Objective              string      `json:"objective,omitempty"`
-	RunOptions             *RunOptions `json:"runOptions,omitempty"`
+	ClientRequestID         string          `json:"clientRequestId"`
+	AgentID                 string          `json:"agentId,omitempty"`
+	SessionID               string          `json:"sessionId,omitempty"`
+	Message                 string          `json:"message"`
+	ProviderID              string          `json:"providerId,omitempty"`
+	Model                   string          `json:"model,omitempty"`
+	ReasoningEffortOverride ReasoningEffort `json:"reasoningEffortOverride,omitempty"`
+	WorkModeOverride        string          `json:"workModeOverride,omitempty"`
+	PermissionModeOverride  string          `json:"permissionModeOverride,omitempty"`
+	Objective               string          `json:"objective,omitempty"`
+	RunOptions              *RunOptions     `json:"runOptions,omitempty"`
 }
 
 type RunOptions struct {
