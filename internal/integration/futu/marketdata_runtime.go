@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net"
 	"strconv"
@@ -506,9 +507,7 @@ func (r *MarketDataRuntime) queryTickers(
 			}
 			return nil, err
 		}
-		for instrumentID, tick := range fallbackTicks {
-			result[instrumentID] = tick
-		}
+		maps.Copy(result, fallbackTicks)
 	}
 	return result, nil
 }

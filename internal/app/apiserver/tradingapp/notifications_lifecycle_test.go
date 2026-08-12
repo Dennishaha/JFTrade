@@ -12,7 +12,7 @@ func TestOrderPlacedNotificationMapsBrokerLabelAndMessage(t *testing.T) {
 	quantity := 100.0
 	note := OrderPlacedNotification(trdsrv.ExecutionOrder{
 		BrokerID: " futu ", TradingEnvironment: "SIMULATE", Symbol: &symbol,
-		Side: ptr("BUY"), RequestedQuantity: &quantity, BrokerOrderID: &brokerID,
+		Side: new("BUY"), RequestedQuantity: &quantity, BrokerOrderID: &brokerID,
 	})
 	if note.Level != "success" || note.Category != "broker.order.place" || note.Title != "FUTU 订单已提交" {
 		t.Fatalf("placed notification = %#v", note)
@@ -70,8 +70,4 @@ func TestExecutionOrderNotificationMessageOmitsBlankParts(t *testing.T) {
 	if message != "SIMULATE" {
 		t.Fatalf("blank-part message = %q", message)
 	}
-}
-
-func ptr[T any](value T) *T {
-	return &value
 }

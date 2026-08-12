@@ -16,10 +16,6 @@ func number(value string) *json.Number {
 	return &result
 }
 
-func boolPointer(value bool) *bool {
-	return &value
-}
-
 func validSnapshot() remoteSnapshot {
 	return remoteSnapshot{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL",
@@ -36,7 +32,7 @@ func validSnapshot() remoteSnapshot {
 func validRemoteCandles() remoteCandles {
 	return remoteCandles{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Period: "1d",
-		ExtendedHours: true, TotalReturned: 1, HasMore: boolPointer(false), Source: "",
+		ExtendedHours: true, TotalReturned: 1, HasMore: new(false), Source: "",
 		Candles: []remoteCandle{{
 			At: "2026-07-29T13:30:00Z", Open: number("99"), High: number("102"),
 			Low: number("98"), Close: number("101.5"), Volume: number("500"),
@@ -379,13 +375,13 @@ func TestCandleConversionRejectsInvalidPaginationMetadata(t *testing.T) {
 		{
 			name: "continued page missing cursor",
 			mutate: func(value *remoteCandles) {
-				value.HasMore = boolPointer(true)
+				value.HasMore = new(true)
 			},
 		},
 		{
 			name: "continued page cursor mismatches earliest candle",
 			mutate: func(value *remoteCandles) {
-				value.HasMore = boolPointer(true)
+				value.HasMore = new(true)
 				value.NextBefore = "2026-07-28T13:30:00Z"
 			},
 		},
@@ -424,7 +420,7 @@ func TestCandleConversionRejectsInvalidPaginationMetadata(t *testing.T) {
 	}
 
 	continued := valid
-	continued.HasMore = boolPointer(true)
+	continued.HasMore = new(true)
 	continued.NextBefore = continued.Candles[0].At
 	response, err := convertCandles(continued, expected, "1d", 10, testNow)
 	if err != nil {
@@ -486,7 +482,7 @@ func TestCandleConversionUsesEarlyCloseCalendarAndDropsClosedBars(t *testing.T) 
 	expected := normalizedInstrument{market: "US", symbol: "AAPL", id: "US.AAPL"}
 	response := remoteCandles{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Period: "1m",
-		ExtendedHours: true, TotalReturned: 3, HasMore: boolPointer(false), Source: sourceID,
+		ExtendedHours: true, TotalReturned: 3, HasMore: new(false), Source: sourceID,
 		Candles: []remoteCandle{
 			{At: "2026-11-27T17:59:00Z", Open: number("100"), High: number("101"), Low: number("99"), Close: number("100"), Volume: number("10")},
 			{At: "2026-11-27T21:59:00Z", Open: number("101"), High: number("102"), Low: number("100"), Close: number("101"), Volume: number("11")},
@@ -509,7 +505,7 @@ func TestCandleConversionMarksYahooExtendedVolumeUnavailable(t *testing.T) {
 	expected := normalizedInstrument{market: "US", symbol: "BABA", id: "US.BABA"}
 	response := remoteCandles{
 		Market: "US", Symbol: "BABA", InstrumentID: "US.BABA", Period: "1m",
-		ExtendedHours: true, TotalReturned: 3, HasMore: boolPointer(false), Source: sourceID,
+		ExtendedHours: true, TotalReturned: 3, HasMore: new(false), Source: sourceID,
 		Candles: []remoteCandle{
 			{At: "2026-07-31T12:00:00Z", Open: number("119"), High: number("120"), Low: number("118"), Close: number("119.5"), Volume: number("0")},
 			{At: "2026-07-31T14:00:00Z", Open: number("120"), High: number("121"), Low: number("119"), Close: number("120.5"), Volume: number("2500")},

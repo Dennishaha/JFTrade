@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -492,12 +493,7 @@ func normalizeSupportedPeriods(values []string) ([]string, error) {
 }
 
 func supportedCandlePeriod(period string) bool {
-	for _, supported := range candlePeriodOrder {
-		if period == supported {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(candlePeriodOrder, period)
 }
 
 func requiredPositiveDecimal(field string, value *json.Number) (decimal.Decimal, error) {

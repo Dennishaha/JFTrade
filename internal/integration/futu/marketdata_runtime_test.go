@@ -833,10 +833,10 @@ func TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots(t *testing.T) {
 				Symbol: "US.AAPL", LastPrice: &last, BidPrice: &bid, AskPrice: &invalid,
 				HighPrice: &high, PreviousClose: &previousClose, Volume: &volume, Session: &session,
 			},
-			{Symbol: "SH.600519", LastPrice: fallbackFloat(1500)},
-			{Symbol: "US.MSFT", LastPrice: fallbackFloat(300)},
-			{Symbol: "US.GOOG", LastPrice: fallbackFloat(0)},
-			{Symbol: "invalid", LastPrice: fallbackFloat(1)},
+			{Symbol: "SH.600519", LastPrice: new(float64(1500))},
+			{Symbol: "US.MSFT", LastPrice: new(float64(300))},
+			{Symbol: "US.GOOG", LastPrice: new(float64(0))},
+			{Symbol: "invalid", LastPrice: new(float64(1))},
 		}},
 		observedAt,
 	)
@@ -871,7 +871,7 @@ func TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification(t *
 	if got := tickFromFallbackSnapshot("US.AAPL", broker.SecuritySnapshotItem{}, observedAt); got != nil {
 		t.Fatalf("empty fallback snapshot = %#v", got)
 	}
-	if got := tickFromFallbackSnapshot("invalid", broker.SecuritySnapshotItem{LastPrice: fallbackFloat(1)}, observedAt); got != nil {
+	if got := tickFromFallbackSnapshot("invalid", broker.SecuritySnapshotItem{LastPrice: new(float64(1))}, observedAt); got != nil {
 		t.Fatalf("invalid fallback instrument = %#v", got)
 	}
 	last, open, low, turnover := 10.0, math.NaN(), -1.0, math.Inf(1)
@@ -890,12 +890,12 @@ func TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification(t *
 		want  market.Session
 	}{
 		{name: "nil", want: market.SessionRegular},
-		{name: "closed", value: fallbackString("closed"), want: market.SessionClosed},
-		{name: "pre", value: fallbackString(" pre "), want: market.SessionPre},
-		{name: "regular", value: fallbackString("regular"), want: market.SessionRegular},
-		{name: "after", value: fallbackString("after"), want: market.SessionAfter},
-		{name: "overnight", value: fallbackString("overnight"), want: market.SessionOvernight},
-		{name: "unknown", value: fallbackString("unrecognized"), want: market.SessionRegular},
+		{name: "closed", value: new("closed"), want: market.SessionClosed},
+		{name: "pre", value: new(" pre "), want: market.SessionPre},
+		{name: "regular", value: new("regular"), want: market.SessionRegular},
+		{name: "after", value: new("after"), want: market.SessionAfter},
+		{name: "overnight", value: new("overnight"), want: market.SessionOvernight},
+		{name: "unknown", value: new("unrecognized"), want: market.SessionRegular},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if got := fallbackSnapshotSession(test.value, "US.AAPL", observedAt); got != test.want {
@@ -903,33 +903,33 @@ func TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification(t *
 			}
 		})
 	}
-	if stringValue(nil) != "" || stringValue(fallbackString("text")) != "text" {
+	if stringValue(nil) != "" || stringValue(new("text")) != "text" {
 		t.Fatal("stringValue did not preserve optional text")
 	}
-	for _, value := range []*float64{nil, fallbackFloat(math.NaN()), fallbackFloat(math.Inf(1)), fallbackFloat(-1), fallbackFloat(0)} {
+	for _, value := range []*float64{nil, new(math.NaN()), new(math.Inf(1)), new(float64(-1)), new(float64(0))} {
 		if usableFallbackPrice(value) {
 			t.Fatalf("unusable fallback price accepted: %#v", value)
 		}
 	}
-	if !usableFallbackPrice(fallbackFloat(1)) || !usableFallbackNumber(fallbackFloat(-1)) || usableFallbackNumber(fallbackFloat(math.NaN())) {
+	if !usableFallbackPrice(new(float64(1))) || !usableFallbackNumber(new(float64(-1))) || usableFallbackNumber(new(math.NaN())) {
 		t.Fatal("fallback value predicates are inconsistent")
 	}
-	if got := fallbackBidOrAsk(fallbackFloat(2), decimal.NewFromInt(1)); !got.Equal(decimal.NewFromInt(2)) {
+	if got := fallbackBidOrAsk(new(float64(2)), decimal.NewFromInt(1)); !got.Equal(decimal.NewFromInt(2)) {
 		t.Fatalf("fallbackBidOrAsk(valid) = %s", got)
 	}
-	if got := fallbackBidOrAsk(fallbackFloat(0), decimal.NewFromInt(1)); !got.Equal(decimal.NewFromInt(1)) {
+	if got := fallbackBidOrAsk(new(float64(0)), decimal.NewFromInt(1)); !got.Equal(decimal.NewFromInt(1)) {
 		t.Fatalf("fallbackBidOrAsk(default) = %s", got)
 	}
-	if got := fallbackOptionalDecimal(fallbackFloat(math.Inf(1))); got != nil {
+	if got := fallbackOptionalDecimal(new(math.Inf(1))); got != nil {
 		t.Fatalf("fallbackOptionalDecimal(inf) = %v", got)
 	}
-	if got := fallbackOptionalDecimal(fallbackFloat(2)); got == nil || !got.Equal(decimal.NewFromInt(2)) {
+	if got := fallbackOptionalDecimal(new(float64(2))); got == nil || !got.Equal(decimal.NewFromInt(2)) {
 		t.Fatalf("fallbackOptionalDecimal(valid) = %v", got)
 	}
-	if got := fallbackNonNegativeDecimal(fallbackFloat(-1)); !got.IsZero() {
+	if got := fallbackNonNegativeDecimal(new(float64(-1))); !got.IsZero() {
 		t.Fatalf("fallbackNonNegativeDecimal(negative) = %s", got)
 	}
-	if got := fallbackNonNegativeDecimal(fallbackFloat(2)); !got.Equal(decimal.NewFromInt(2)) {
+	if got := fallbackNonNegativeDecimal(new(float64(2))); !got.Equal(decimal.NewFromInt(2)) {
 		t.Fatalf("fallbackNonNegativeDecimal(valid) = %s", got)
 	}
 }
@@ -999,10 +999,6 @@ func (b *successfulSnapshotFallbackBroker) QuerySnapshotFallback(
 ) (*broker.SecuritySnapshotResult, error) {
 	return b.result, b.err
 }
-
-func fallbackFloat(value float64) *float64 { return &value }
-
-func fallbackString(value string) *string { return &value }
 
 func fixedpointValue(t *testing.T, value string) fixedpoint.Value {
 	t.Helper()

@@ -72,11 +72,9 @@ func TestConcurrentResponsesRequestReusesOneRunAndNativeAssistantEvent(t *testin
 		errs := make([]error, 2)
 		var wg sync.WaitGroup
 		for index := range responses {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				responses[index], errs[index] = runtime.Chat(t.Context(), request)
-			}()
+			})
 		}
 		wg.Wait()
 		for index, err := range errs {

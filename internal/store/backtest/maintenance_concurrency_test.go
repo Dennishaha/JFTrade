@@ -63,7 +63,6 @@ func TestStoreConcurrentReadersAndWritersKeepIndependentState(t *testing.T) {
 	const runs = 24
 	var writers sync.WaitGroup
 	for index := range runs {
-		index := index
 		writers.Go(func() {
 			id := fmt.Sprintf("run-%02d", index)
 			if addErr := store.Add(&btsrv.RunState{ID: id, Status: "queued"}); addErr != nil {

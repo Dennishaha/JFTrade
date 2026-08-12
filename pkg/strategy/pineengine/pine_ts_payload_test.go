@@ -237,12 +237,10 @@ func TestPinetsWorkerClientCloseWaitsForOwnedWorkers(t *testing.T) {
 	client := &PinetsWorkerClient{}
 	workerStarted := make(chan struct{})
 	releaseWorker := make(chan struct{})
-	client.workerWG.Add(1)
-	go func() {
+	client.workerWG.Go(func() {
 		close(workerStarted)
 		<-releaseWorker
-		client.workerWG.Done()
-	}()
+	})
 	<-workerStarted
 
 	closeDone := make(chan error, 1)

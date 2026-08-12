@@ -114,11 +114,9 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 	m.handler = handler
 	m.settings = settings
 	m.lastErr = ""
-	m.serveWG.Add(1)
-	go func() {
-		defer m.serveWG.Done()
+	m.serveWG.Go(func() {
 		m.serve(server, listener)
-	}()
+	})
 	if oldServer != nil {
 		if err := closeMCPHTTPServer(oldServer); err != nil {
 			// The new listener is already serving the requested configuration. Keep

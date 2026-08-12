@@ -63,11 +63,9 @@ func (h *Handler) startBackground(run func(context.Context)) bool {
 	}
 	h.ensureBackgroundContextLocked()
 	ctx := h.backgroundCtx
-	h.backgroundWG.Add(1)
-	go func() {
-		defer h.backgroundWG.Done()
+	h.backgroundWG.Go(func() {
 		run(ctx)
-	}()
+	})
 	h.backgroundMu.Unlock()
 	return true
 }

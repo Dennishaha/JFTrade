@@ -129,7 +129,7 @@ func TestStockScreenFallbackParsesRowsAndMarketGroups(t *testing.T) {
 				map[string]any{"simplePropertyResult": map[string]any{"property": "bad"}},
 			},
 		},
-	}}, map[uint64]string{1: "US.AAPL"}, map[string]*string{"US.AAPL": fallbackTestString("Apple")}, observedAt)
+	}}, map[uint64]string{1: "US.AAPL"}, map[string]*string{"US.AAPL": new("Apple")}, observedAt)
 	item, ok := items["US.AAPL"]
 	if !ok || len(items) != 1 || item.LastPrice == nil || *item.LastPrice != 100 || item.PreviousClose == nil || *item.PreviousClose != 98 {
 		t.Fatalf("stockScreenSnapshotItems = %#v", items)
@@ -202,5 +202,3 @@ func stockScreenTestSimpleResult(property int32, value any) map[string]any {
 		"property": map[string]any{"name": property}, "dval": value,
 	}}
 }
-
-func fallbackTestString(value string) *string { return &value }

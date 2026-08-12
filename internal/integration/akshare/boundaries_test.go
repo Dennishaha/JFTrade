@@ -291,7 +291,7 @@ func TestConversionRejectsInvalidCandleContracts(t *testing.T) {
 	expected, _ := normalizeIdentity("US", "AAPL", "")
 	valid := remoteCandles{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Period: "1d",
-		TotalReturned: 1, HasMore: boolPointer(false), Candles: []remoteCandle{validRemoteCandle()},
+		TotalReturned: 1, HasMore: new(false), Candles: []remoteCandle{validRemoteCandle()},
 	}
 	response, err := convertCandles(valid, expected, "1d", 1, time.Now())
 	if err != nil || response["totalReturned"] != 1 {
@@ -327,7 +327,7 @@ func TestConversionRejectsInvalidCandlePaginationMetadata(t *testing.T) {
 	expected, _ := normalizeIdentity("US", "AAPL", "")
 	valid := remoteCandles{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Period: "1d",
-		TotalReturned: 1, HasMore: boolPointer(false), Candles: []remoteCandle{validRemoteCandle()},
+		TotalReturned: 1, HasMore: new(false), Candles: []remoteCandle{validRemoteCandle()},
 	}
 
 	for _, test := range []struct {
@@ -350,13 +350,13 @@ func TestConversionRejectsInvalidCandlePaginationMetadata(t *testing.T) {
 		{
 			name: "continued page missing cursor",
 			mutate: func(value *remoteCandles) {
-				value.HasMore = boolPointer(true)
+				value.HasMore = new(true)
 			},
 		},
 		{
 			name: "continued page cursor mismatches earliest candle",
 			mutate: func(value *remoteCandles) {
-				value.HasMore = boolPointer(true)
+				value.HasMore = new(true)
 				value.NextBefore = "2026-08-01T04:01:00Z"
 			},
 		},
@@ -395,7 +395,7 @@ func TestConversionRejectsInvalidCandlePaginationMetadata(t *testing.T) {
 	}
 
 	continued := valid
-	continued.HasMore = boolPointer(true)
+	continued.HasMore = new(true)
 	continued.NextBefore = continued.Candles[0].At
 	response, err := convertCandles(continued, expected, "1d", 10, time.Now())
 	if err != nil {
@@ -498,10 +498,6 @@ func validRemoteCandle() remoteCandle {
 		At: "2026-08-01T04:00:00Z", Open: number("10"), High: number("12"),
 		Low: number("9"), Close: number("11"), Volume: number("100"),
 	}
-}
-
-func boolPointer(value bool) *bool {
-	return &value
 }
 
 func number(value string) *json.Number {

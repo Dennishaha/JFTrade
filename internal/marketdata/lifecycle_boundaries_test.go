@@ -269,8 +269,7 @@ func (s *collectorInactiveCleanerStub) ReconcileInactiveSubscriptions(context.Co
 }
 
 func TestCollectorAdvancesInactiveSubscriptionCleanupAfterActiveDemand(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	cleanupErr := errors.New("inactive cleanup deferred")
 	reconciler := &collectorInactiveCleanerStub{
 		fakeSubscriptionReconciler: &fakeSubscriptionReconciler{},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -181,9 +182,7 @@ func (p *Provider) QueryTickers(
 	for offset := 0; offset < len(instruments); offset += maxBatchSize {
 		end := min(offset+maxBatchSize, len(instruments))
 		batchTicks, batchFailures := p.queryTickerBatch(ctx, instruments[offset:end])
-		for key, tick := range batchTicks {
-			ticks[key] = tick
-		}
+		maps.Copy(ticks, batchTicks)
 		failures = append(failures, batchFailures...)
 		if ctx.Err() != nil {
 			break

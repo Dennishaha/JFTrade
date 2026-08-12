@@ -29,11 +29,9 @@ func TestServiceCloseCancelsAndJoinsAdmittedWorkflowBackground(t *testing.T) {
 	closeResults := make(chan error, closeCallers)
 	var closeWG sync.WaitGroup
 	for range closeCallers {
-		closeWG.Add(1)
-		go func() {
-			defer closeWG.Done()
+		closeWG.Go(func() {
 			closeResults <- service.Close()
-		}()
+		})
 	}
 	<-cancelled
 	select {

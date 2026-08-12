@@ -45,7 +45,7 @@ func (s *fakeGatewayStore) RecordPlacedOrder(record trdsrv.ExecutionPlacedOrderR
 	s.placed = append(s.placed, record)
 	order := trdsrv.ExecutionOrder{
 		InternalOrderID: record.InternalOrderID, BrokerID: record.BrokerID,
-		BrokerOrderID: ptr(record.BrokerOrderID), Status: record.Status, Symbol: ptr(record.Symbol),
+		BrokerOrderID: new(record.BrokerOrderID), Status: record.Status, Symbol: new(record.Symbol),
 	}
 	s.orders[record.InternalOrderID] = order
 	return order
@@ -219,18 +219,18 @@ func TestExecutionGatewayCancelOrderBoundaries(t *testing.T) {
 	if _, err := gateway.CancelOrder(context.Background(), "o1"); err == nil || !strings.Contains(err.Error(), "missing broker order id") {
 		t.Fatalf("missing broker id error = %v", err)
 	}
-	store.orders["o1"] = trdsrv.ExecutionOrder{Status: "SUBMITTED", BrokerOrderID: ptr("not-a-number")}
+	store.orders["o1"] = trdsrv.ExecutionOrder{Status: "SUBMITTED", BrokerOrderID: new("not-a-number")}
 	if _, err := gateway.CancelOrder(context.Background(), "o1"); err == nil || !strings.Contains(err.Error(), "invalid broker order id") {
 		t.Fatalf("invalid broker id error = %v", err)
 	}
 	store.orders["o1"] = trdsrv.ExecutionOrder{
-		Status: "SUBMITTED", BrokerOrderID: ptr("9001"), BrokerID: "futu",
+		Status: "SUBMITTED", BrokerOrderID: new("9001"), BrokerID: "futu",
 	}
 	if _, err := gateway.CancelOrder(context.Background(), "o1"); err == nil || !strings.Contains(err.Error(), "missing symbol") {
 		t.Fatalf("missing symbol error = %v", err)
 	}
 	store.orders["o1"] = trdsrv.ExecutionOrder{
-		Status: "SUBMITTED", BrokerOrderID: ptr("9001"), BrokerID: "futu", Symbol: ptr("US.AAPL"),
+		Status: "SUBMITTED", BrokerOrderID: new("9001"), BrokerID: "futu", Symbol: new("US.AAPL"),
 	}
 	trading.cancelErr = errors.New("cancel failed")
 	if _, err := gateway.CancelOrder(context.Background(), "o1"); !errors.Is(err, trading.cancelErr) {
@@ -257,7 +257,7 @@ func TestExecutionGatewayPlaceComboBoundaries(t *testing.T) {
 	intent := broker.ComboOrderIntent{
 		ReadQuery: broker.ReadQuery{BrokerID: "futu", AccountID: "acct-1", Market: "US"},
 		OrderKind: broker.OrderKindEventParlay, Legs: []broker.OrderLegIntent{{
-			InstrumentID: "US.EVENT.ONE", Side: "BUY", Quantity: ptr(100.0),
+			InstrumentID: "US.EVENT.ONE", Side: "BUY", Quantity: new(100.0),
 		}},
 	}
 	if _, err := gateway.PlaceCombo(context.Background(), intent); err == nil || !strings.Contains(err.Error(), "combo trading service is unavailable") {
@@ -306,7 +306,7 @@ func TestExecutionGatewayCancelComboBoundaries(t *testing.T) {
 	if _, err := gateway.CancelCombo(context.Background(), "c1"); err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("missing combo error = %v", err)
 	}
-	store.orders["c1"] = trdsrv.ExecutionOrder{BrokerID: "futu", BrokerOrderID: ptr("C-1")}
+	store.orders["c1"] = trdsrv.ExecutionOrder{BrokerID: "futu", BrokerOrderID: new("C-1")}
 	if _, err := gateway.CancelCombo(context.Background(), "c1"); err == nil || !strings.Contains(err.Error(), "combo trading service is unavailable") {
 		t.Fatalf("non-combo cancel error = %v", err)
 	}
@@ -316,7 +316,7 @@ func TestExecutionGatewayCancelComboBoundaries(t *testing.T) {
 	if _, err := gateway.CancelCombo(context.Background(), "c1"); err == nil || !strings.Contains(err.Error(), "missing broker order id") {
 		t.Fatalf("missing combo broker id error = %v", err)
 	}
-	store.orders["c1"] = trdsrv.ExecutionOrder{BrokerID: "futu", BrokerOrderID: ptr("C-1")}
+	store.orders["c1"] = trdsrv.ExecutionOrder{BrokerID: "futu", BrokerOrderID: new("C-1")}
 	trading.comboCancelErr = errors.New("combo cancel failed")
 	if _, err := gateway.CancelCombo(context.Background(), "c1"); !errors.Is(err, trading.comboCancelErr) {
 		t.Fatalf("combo cancel error = %v", err)

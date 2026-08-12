@@ -26,7 +26,7 @@ func TestBrokerOrderMappingsPreserveLifecycleFields(t *testing.T) {
 	fillExternalID := "FILL-EXT-1"
 	fromBroker := broker.OrderSnapshot{
 		AccountID: "SIM-001", TradingEnvironment: "SIMULATE", Market: "US",
-		BrokerOrderID: "101", BrokerOrderIDEx: &externalID, Symbol: "US.AAPL", SymbolName: testPointer("Apple"),
+		BrokerOrderID: "101", BrokerOrderIDEx: &externalID, Symbol: "US.AAPL", SymbolName: new("Apple"),
 		Side: "BUY", OrderType: "LIMIT", Status: "SUBMITTED", Quantity: 2, FilledQuantity: &filledQuantity,
 		OrderKind: broker.OrderKindEventParlay, ProductClass: broker.ProductClassEventContract,
 		QuantityMode: broker.QuantityModeAmount, Amount: &amount,
@@ -36,7 +36,7 @@ func TestBrokerOrderMappingsPreserveLifecycleFields(t *testing.T) {
 			Status: "SUBMITTED", RequestedAmount: amount,
 		}},
 		Price: &price, FilledAveragePrice: &price, SubmittedAt: "2026-07-01T10:00:00Z", UpdatedAt: "2026-07-01T10:01:00Z",
-		Remark: testPointer("lifecycle"), LastError: testPointer("none"), TimeInForce: testPointer("DAY"), Currency: testPointer("USD"),
+		Remark: new("lifecycle"), LastError: new("none"), TimeInForce: new("DAY"), Currency: new("USD"),
 	}
 
 	mapped := tradingOrdersFromBroker("futu", []broker.OrderSnapshot{fromBroker})
@@ -56,8 +56,8 @@ func TestBrokerOrderMappingsPreserveLifecycleFields(t *testing.T) {
 
 	fill := trdsrv.Fill{
 		AccountID: "SIM-001", TradingEnvironment: "SIMULATE", Market: "US", BrokerOrderID: "101", BrokerOrderIDEx: &externalID,
-		BrokerFillID: "900", BrokerFillIDEx: &fillExternalID, Symbol: "US.AAPL", SymbolName: testPointer("Apple"), Side: "BUY",
-		FilledQuantity: 1, FillPrice: &price, FilledAt: "2026-07-01T10:01:00Z", Status: testPointer("FILLED"), Payout: &payout,
+		BrokerFillID: "900", BrokerFillIDEx: &fillExternalID, Symbol: "US.AAPL", SymbolName: new("Apple"), Side: "BUY",
+		FilledQuantity: 1, FillPrice: &price, FilledAt: "2026-07-01T10:01:00Z", Status: new("FILLED"), Payout: &payout,
 	}
 	mappedFill := brokerFillFromTrading(fill)
 	if mappedFill.BrokerFillIDEx == nil || *mappedFill.BrokerFillIDEx != fillExternalID ||
@@ -87,10 +87,6 @@ func TestExecutionOrderUpdatesIgnoreMissingLedger(t *testing.T) {
 	updates.ApplyOrder(t.Context(), "futu", trdsrv.Order{}, trdsrv.OrderWriteMetadata{})
 	updates.ApplyFill(t.Context(), "futu", trdsrv.Fill{})
 	updates.ApplyFees(t.Context(), "futu", nil)
-}
-
-func testPointer[T any](value T) *T {
-	return &value
 }
 
 func TestOrderUpdateSourceDegradesCleanlyWithoutActiveFutuRuntime(t *testing.T) {
@@ -125,7 +121,7 @@ func TestExecutionOrderUpdatesPersistBrokerLifecycleFields(t *testing.T) {
 	order := trdsrv.Order{
 		BrokerID:  "futu",
 		AccountID: "SIM-001", TradingEnvironment: "SIMULATE", Market: "US",
-		BrokerOrderID: "101", BrokerOrderIDEx: &externalID, Symbol: "US.AAPL", SymbolName: testPointer("Apple"),
+		BrokerOrderID: "101", BrokerOrderIDEx: &externalID, Symbol: "US.AAPL", SymbolName: new("Apple"),
 		Side: "BUY", OrderType: "LIMIT", Status: "SUBMITTED", Quantity: 2, FilledQuantity: &filledQuantity,
 		OrderKind: broker.OrderKindEventParlay, ProductClass: broker.ProductClassEventContract,
 		QuantityMode: broker.QuantityModeAmount, Amount: &amount,
@@ -135,13 +131,13 @@ func TestExecutionOrderUpdatesPersistBrokerLifecycleFields(t *testing.T) {
 			Status: "SUBMITTED", RequestedAmount: amount,
 		}},
 		Price: &price, FilledAveragePrice: &price, SubmittedAt: "2026-07-01T10:00:00Z", UpdatedAt: "2026-07-01T10:01:00Z",
-		Remark: testPointer("lifecycle"), LastError: testPointer("none"), TimeInForce: testPointer("DAY"), Currency: testPointer("USD"),
+		Remark: new("lifecycle"), LastError: new("none"), TimeInForce: new("DAY"), Currency: new("USD"),
 	}
 
 	fill := trdsrv.Fill{
 		AccountID: "SIM-001", TradingEnvironment: "SIMULATE", Market: "US", BrokerOrderID: "101", BrokerOrderIDEx: &externalID,
-		BrokerFillID: "900", BrokerFillIDEx: &fillsID, Symbol: "US.AAPL", SymbolName: testPointer("Apple"), Side: "BUY",
-		FilledQuantity: 1, FillPrice: &price, FilledAt: "2026-07-01T10:01:00Z", Status: testPointer("FILLED"),
+		BrokerFillID: "900", BrokerFillIDEx: &fillsID, Symbol: "US.AAPL", SymbolName: new("Apple"), Side: "BUY",
+		FilledQuantity: 1, FillPrice: &price, FilledAt: "2026-07-01T10:01:00Z", Status: new("FILLED"),
 		Payout: &payout,
 	}
 	store := tradingstore.NewInMemory()

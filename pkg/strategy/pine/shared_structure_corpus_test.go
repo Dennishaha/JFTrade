@@ -38,7 +38,6 @@ func TestSharedPineStructureCorpusMatchesBackendIR(t *testing.T) {
 	corpus := loadSharedStructureCorpus(t)
 	assertSharedCorpusCoverage(t, corpus)
 	for _, corpusCase := range corpus {
-		corpusCase := corpusCase
 		t.Run(corpusCase.ID, func(t *testing.T) {
 			t.Parallel()
 

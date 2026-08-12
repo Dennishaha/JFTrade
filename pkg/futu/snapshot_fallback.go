@@ -3,6 +3,7 @@ package futu
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
 	"sort"
 	"strconv"
@@ -275,9 +276,7 @@ func (a *futuAdapter) fetchStockScreenSnapshots(
 			if queryErr != nil {
 				return nil, queryErr
 			}
-			for symbol, item := range stockScreenSnapshotItems(payload, group.symbols, group.names, time.Now().UTC()) {
-				result[symbol] = item
-			}
+			maps.Copy(result, stockScreenSnapshotItems(payload, group.symbols, group.names, time.Now().UTC()))
 		}
 	}
 	return result, nil

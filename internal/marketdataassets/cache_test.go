@@ -88,16 +88,14 @@ func TestMaterializeCachedAssetPublishesConcurrently(t *testing.T) {
 	errs := make(chan error, workers)
 	var wait sync.WaitGroup
 	for range workers {
-		wait.Add(1)
-		go func() {
-			defer wait.Done()
+		wait.Go(func() {
 			materialized, available, err := materializeCachedAsset(asset, cacheRoot, time.Now())
 			if err != nil || !available || materialized == nil {
 				errs <- err
 				return
 			}
 			paths <- materialized.Path
-		}()
+		})
 	}
 	wait.Wait()
 	close(paths)

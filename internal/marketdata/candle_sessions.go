@@ -23,12 +23,12 @@ var candleSessionOrder = []CandleSession{
 // HistoricalCandlesQuery keeps every request dimension together so provider
 // adapters cannot accidentally omit session scope during pagination.
 type HistoricalCandlesQuery struct {
-	Market            string
-	Symbol            string
-	Period            string
-	Limit             int
-	FromTime          string
-	ToTime            string
+	Market   string
+	Symbol   string
+	Period   string
+	Limit    int
+	FromTime string
+	ToTime   string
 	// BeforeTime is an exclusive historical-page cursor. It must remain
 	// distinct from ToTime because upstream providers can use coarser time
 	// precision than the public RFC3339 value.
@@ -41,7 +41,7 @@ func ParseCandleSessions(values []string) ([]CandleSession, error) {
 	seen := make(map[CandleSession]struct{}, len(candleSessionOrder))
 	provided := false
 	for _, value := range values {
-		for _, token := range strings.Split(value, ",") {
+		for token := range strings.SplitSeq(value, ",") {
 			provided = true
 			token = strings.TrimSpace(token)
 			if token == "" {

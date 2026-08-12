@@ -172,7 +172,7 @@ func resolveBrokerKLineSessions(values []string, extendedHours bool) ([]market.S
 	}
 	seen := make(map[market.Session]struct{}, 3)
 	for _, value := range values {
-		for _, token := range strings.Split(value, ",") {
+		for token := range strings.SplitSeq(value, ",") {
 			switch strings.ToLower(strings.TrimSpace(token)) {
 			case "regular":
 				seen[market.SessionRegular] = struct{}{}
