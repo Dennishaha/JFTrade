@@ -11,11 +11,13 @@ import (
 
 type contractProductFeatures struct {
 	queries        []broker.FeatureQuery
+	capabilities   []productfeatures.CapabilityQuery
 	snapshots      []string
 	customizations []broker.CustomizationAction
 }
 
-func (s *contractProductFeatures) CapabilitiesContext(context.Context, productfeatures.CapabilityQuery) map[string]any {
+func (s *contractProductFeatures) CapabilitiesContext(_ context.Context, query productfeatures.CapabilityQuery) map[string]any {
+	s.capabilities = append(s.capabilities, query)
 	return map[string]any{"available": true}
 }
 
@@ -89,10 +91,22 @@ func TestProductExecutionAdapterPreservesProductAndExecutionBoundaries(t *testin
 	if err != nil || capabilities.(map[string]any)["available"] != true {
 		t.Fatalf("market.capabilities = %#v, err=%v", capabilities, err)
 	}
+	if len(products.capabilities) != 1 || products.capabilities[0].Market != "US" {
+		t.Fatalf("capability query = %#v", products.capabilities)
+	}
+	if _, err := adapter.InvokeProductTool(ctx, "research.news", map[string]any{
+		"instrumentId": "US.AAPL", "market": "US", "tradingEnvironment": "REAL",
+	}); err != nil {
+		t.Fatalf("research.news with legacy routing field: %v", err)
+	}
+	legacyResearch := products.queries[len(products.queries)-1]
+	if _, exists := legacyResearch.Params["tradingEnvironment"]; exists {
+		t.Fatalf("legacy routing field leaked into provider params: %#v", legacyResearch.Params)
+	}
 	if _, err := adapter.InvokeProductTool(ctx, "market.search", map[string]any{"brokerId": "futu", "market": "us", "query": "apple", "pageSize": 500}); err != nil {
 		t.Fatalf("market.search: %v", err)
 	}
-	if len(products.queries) != 1 || products.queries[0].Market != "US" || products.queries[0].PageSize != 100 || products.queries[0].Params["keyword"] != "apple" {
+	if len(products.queries) != 2 || products.queries[1].Market != "US" || products.queries[1].PageSize != 100 || products.queries[1].Params["keyword"] != "apple" {
 		t.Fatalf("search query = %#v", products.queries)
 	}
 	if _, err := adapter.InvokeProductTool(ctx, "market.snapshots", map[string]any{"market": "us", "symbols": []any{"aapl", "MSFT"}}); err != nil {

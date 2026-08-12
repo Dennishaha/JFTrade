@@ -148,7 +148,8 @@ func (a *ProductExecutionAdapter) InvokeProductTool(
 	}
 	query := broker.FeatureQuery{
 		BrokerID: toolMapString(input, "brokerId"), AccountID: toolMapString(input, "accountId"),
-		Market: strings.ToUpper(toolMapString(input, "market")), InstrumentID: toolInstrumentID(input),
+		TradingEnvironment: strings.ToUpper(toolMapString(input, "tradingEnvironment")),
+		Market:             strings.ToUpper(toolMapString(input, "market")), InstrumentID: toolInstrumentID(input),
 		FeatureID: featureID, Cursor: toolMapString(input, "cursor"),
 		PageSize: min(max(toolMapInt(input, "pageSize", 50), 1), 100), Params: cloneToolInput(input),
 	}
@@ -158,6 +159,8 @@ func (a *ProductExecutionAdapter) InvokeProductTool(
 	delete(query.Params, "instrumentId")
 	delete(query.Params, "cursor")
 	delete(query.Params, "pageSize")
+	delete(query.Params, "tradingEnvironment")
+	delete(query.Params, "featureId")
 	if strings.HasPrefix(name, "derivatives.") {
 		query.MarketSegment = broker.MarketSegmentDerivatives
 	}

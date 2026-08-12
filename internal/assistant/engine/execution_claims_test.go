@@ -11,6 +11,7 @@ import (
 
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	adkagent "google.golang.org/adk/v2/agent"
+	"google.golang.org/genai"
 )
 
 func newExecutionClaimTestStore(t *testing.T) *Store {
@@ -101,6 +102,65 @@ func TestGoogleADKToolUsesDurableInvocationKeyAndReplay(t *testing.T) {
 	}
 	if observedKey == "" || !strings.Contains(observedKey, "run-wrapper") || first["key"] != second["key"] {
 		t.Fatalf("stable keys: observed=%q first=%#v second=%#v", observedKey, first, second)
+	}
+}
+
+func TestFailedReadIsDurablyCompletedButProjectedAsFailedToolCall(t *testing.T) {
+	store := newExecutionClaimTestStore(t)
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{
+		Name: "test.failed_read", Description: "failed read", Permission: "read_internal",
+		InputSchema: testStringValueSchema(),
+	}, func(context.Context, map[string]any) (any, error) {
+		return nil, errors.New("provider rejected the request")
+	})
+	runtime := NewRuntime(store, registry)
+	leaseCtx, cancel, waitForLease, err := runtime.beginRunExecutionLease(t.Context(), "run-failed-read")
+	if err != nil {
+		t.Fatalf("beginRunExecutionLease: %v", err)
+	}
+	defer func() {
+		cancel()
+		waitForLease()
+	}()
+	execution := &googleADKExecution{
+		runtime: runtime, runID: "run-failed-read",
+		runIDByAgentName: map[string]string{"agent-test": "run-failed-read"},
+		calls: []ToolCall{{
+			ID: "call-failed-read", RunID: "run-failed-read", ToolName: "test.failed_read",
+			Status: "RUNNING", IdempotencyKey: "function-call-test", StartedAt: nowString(), UpdatedAt: nowString(),
+		}},
+	}
+	registered, _ := registry.Get("test.failed_read")
+	tool, err := newGoogleADKTool(registered.Descriptor, registered, Agent{PermissionMode: PermissionModeAll}, execution)
+	if err != nil {
+		t.Fatalf("newGoogleADKTool: %v", err)
+	}
+	mock := adkagent.NewStrictContextMock(leaseCtx)
+	toolCtx := googleADKToolTestContext{StrictContextMock: &mock}
+	output, err := tool.Run(toolCtx, map[string]any{"value": "invalid"})
+	if err != nil || output["success"] != false {
+		t.Fatalf("tool output = %#v, err=%v", output, err)
+	}
+
+	var invocation struct {
+		Status     string `db:"status"`
+		OutputJSON string `db:"output_json"`
+	}
+	if err := store.DB().GetContext(t.Context(), &invocation,
+		`SELECT status, output_json FROM `+tableToolInvocations+` WHERE run_id = ? AND idempotency_key = ?`,
+		"run-failed-read", "function-call-test"); err != nil {
+		t.Fatalf("load durable invocation: %v", err)
+	}
+	if invocation.Status != "COMPLETED" || !strings.Contains(invocation.OutputJSON, `"success":false`) {
+		t.Fatalf("durable invocation = %#v", invocation)
+	}
+
+	execution.consumeFunctionResponse(&genai.FunctionResponse{
+		ID: "function-call-test", Name: "test.failed_read", Response: output,
+	})
+	if call := execution.calls[0]; call.Status != "FAILED" || call.Error == nil || !strings.Contains(*call.Error, "provider rejected") {
+		t.Fatalf("projected tool call = %+v", call)
 	}
 }
 

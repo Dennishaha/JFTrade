@@ -16,7 +16,7 @@ import (
 func TestApplicationAdapterReportsUnavailableDomainServices(t *testing.T) {
 	deps := NewApplicationAdapter(ApplicationPorts{}).ToolDeps()
 
-	if _, err := deps.ExecutionOrders(); err == nil {
+	if _, _, err := deps.ExecutionOrders(t.Context(), BrokerReadInput{}); err == nil {
 		t.Fatal("execution orders unavailable error = nil")
 	}
 	if _, err := deps.ExecutionOrderEvents("order-1"); err == nil {
@@ -69,7 +69,7 @@ func TestApplicationAdapterPropagatesExecutionProjectionFailures(t *testing.T) {
 	}})
 	deps := adapter.ToolDeps()
 	for name, call := range map[string]func() error{
-		"orders": func() error { _, err := deps.ExecutionOrders(); return err },
+		"orders": func() error { _, _, err := deps.ExecutionOrders(t.Context(), BrokerReadInput{}); return err },
 		"events": func() error { _, err := deps.ExecutionOrderEvents("order-1"); return err },
 	} {
 		if !errors.Is(call(), want) {

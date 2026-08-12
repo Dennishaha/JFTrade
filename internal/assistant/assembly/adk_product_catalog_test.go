@@ -117,3 +117,34 @@ func TestProductToolRegistryAndOperationSchemasAreCatalogBacked(t *testing.T) {
 		}
 	}
 }
+
+func TestProductReadSchemasRejectInvalidRoutingAndFreeTextFields(t *testing.T) {
+	registry := assistanttestkit.NewToolRegistry()
+	RegisterJFTradeADKTools(nil, registry, ToolDeps{})
+
+	capabilities, _ := registry.Get("market.capabilities")
+	capabilityProperties := capabilities.Descriptor.InputSchema["properties"].(map[string]any)
+	if _, ok := capabilityProperties["tradingEnvironment"]; !ok {
+		t.Fatal("market.capabilities schema lost structured tradingEnvironment")
+	}
+	if _, ok := capabilityProperties["query"]; ok {
+		t.Fatal("market.capabilities schema exposed free-text query")
+	}
+
+	for _, name := range []string{"market.snapshot", "research.news", "research.calendar"} {
+		tool, _ := registry.Get(name)
+		properties := tool.Descriptor.InputSchema["properties"].(map[string]any)
+		if _, ok := properties["tradingEnvironment"]; ok {
+			t.Errorf("%s schema exposed invalid tradingEnvironment", name)
+		}
+	}
+
+	orders, _ := registry.Get("account.orders")
+	orderProperties := orders.Descriptor.InputSchema["properties"].(map[string]any)
+	if _, ok := orderProperties["activeOnly"]; !ok {
+		t.Fatal("account.orders schema missing activeOnly")
+	}
+	if _, ok := orderProperties["query"]; ok {
+		t.Fatal("account.orders schema exposed ignored query")
+	}
+}

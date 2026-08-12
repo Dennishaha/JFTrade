@@ -131,7 +131,7 @@ func RegisterProductTools(registry *jfadk.ToolRegistry, deps ProductToolDeps) {
 		}
 		registry.Register(jfadk.ToolDescriptor{
 			Name: item.name, DisplayName: item.displayName,
-			Description: "通过券商抽象和统一产品服务读取数据；支持 brokerId、分页和权限归因。",
+			Description: productReadToolDescription(item.name),
 			Category:    item.category, Permission: "read_internal", RiskLevel: "low",
 			OutputSummary:  "返回实际券商、能力状态、数据时间、分页、warnings 和 partial errors。",
 			RequiredSkills: []string{item.skill}, InputSchema: productToolInputSchema(item.name),
@@ -173,6 +173,17 @@ func RegisterProductTools(registry *jfadk.ToolRegistry, deps ProductToolDeps) {
 			}
 			return deps.ProductTool(ctx, item.name, input)
 		})
+	}
+}
+
+func productReadToolDescription(name string) string {
+	switch name {
+	case "market.capabilities":
+		return "通过结构化 brokerId、accountId、tradingEnvironment、market 和 featureId 参数读取能力目录；不接受自由文本 query。"
+	case "research.news", "research.calendar":
+		return "通过结构化研究参数读取券商数据；tradingEnvironment 不是研究请求参数。"
+	default:
+		return "通过券商抽象和统一产品服务读取数据；支持 brokerId、分页和权限归因。"
 	}
 }
 

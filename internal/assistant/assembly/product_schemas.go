@@ -125,7 +125,11 @@ func commonCapabilityProperties() map[string]any {
 }
 
 func readProperties(extra map[string]any) map[string]any {
-	properties := commonCapabilityProperties()
+	properties := map[string]any{
+		"brokerId":  stringSchema(1, 64),
+		"accountId": stringSchema(1, 128),
+		"market":    enumSchema(productMarketEnum...),
+	}
 	properties["cursor"] = stringSchema(1, 512)
 	properties["pageSize"] = map[string]any{"type": "integer", "minimum": 1, "maximum": 100}
 	properties["refresh"] = map[string]any{"type": "boolean"}

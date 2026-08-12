@@ -37,9 +37,9 @@ type ToolDeps struct {
 	ManagedAccounts                func() any
 	BrokerEnabled                  func() bool
 	DefaultTradeMarket             func() string
-	BrokerFunds                    func(context.Context, broker.ReadQuery, time.Duration) any
-	BrokerPositions                func(context.Context, broker.ReadQuery, time.Duration) any
-	ExecutionOrders                func() (any, error)
+	BrokerRuntime                  func(context.Context) (BrokerRuntimeView, error)
+	BrokerAccountRead              func(context.Context, broker.ReadQuery, time.Duration) BrokerAccountReadResult
+	ExecutionOrders                func(context.Context, BrokerReadInput) (any, int, error)
 	ExecutionOrderEvents           func(string) (any, error)
 	BrokerOrders                   func(context.Context, BrokerReadInput) (any, error)
 	BrokerFills                    func(context.Context, BrokerReadInput) (any, error)
@@ -96,6 +96,7 @@ type BrokerReadInput struct {
 	Direction          string
 	OrderIDEx          []string
 	OrderIDExList      []string
+	ActiveOnly         bool
 }
 
 type StrategyDefinitionSummary struct {
@@ -179,26 +180,7 @@ func RegisterJFTradeADKTools(store *jfadk.Store, registry *jfadk.ToolRegistry, d
 		return deps.PluginCatalog(), nil
 	})
 	registerJFTradeADKMarketTools(registry, deps)
-	registry.Register(jfadk.ToolDescriptor{Name: "portfolio.summary", DisplayName: "组合摘要", Description: "读取托管账户、资金、订单和持仓的控制台摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "托管账户、broker 状态、执行订单摘要和当前检查时间。"}, func(ctx context.Context, input map[string]any) (any, error) {
-		query := broker.ReadQuery{
-			BrokerID:           "futu",
-			AccountID:          strings.TrimSpace(stringValue(input, "accountId")),
-			TradingEnvironment: strings.ToUpper(strings.TrimSpace(stringValue(input, "tradingEnvironment"))),
-			Market:             strings.ToUpper(stringOrDefault(stringValue(input, "market"), deps.DefaultTradeMarket())),
-		}
-		orders, err := deps.ExecutionOrders()
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"accounts": deps.ManagedAccounts(), "brokerEnabled": deps.BrokerEnabled(), "orders": orders, "orderCount": collectionLen(orders), "funds": deps.BrokerFunds(ctx, query, 8*time.Second), "positions": deps.BrokerPositions(ctx, query, 8*time.Second), "checkedAt": nowStringRFC3339Nano()}, nil
-	})
-	registry.Register(jfadk.ToolDescriptor{Name: "account.orders", DisplayName: "订单摘要", Description: "读取执行订单视图摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单列表和数量。"}, func(context.Context, map[string]any) (any, error) {
-		orders, err := deps.ExecutionOrders()
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"orders": orders, "count": collectionLen(orders), "checkedAt": nowStringRFC3339Nano()}, nil
-	})
+	registerJFTradeADKPortfolioTools(registry, deps)
 	registerJFTradeADKWorkflowTools(store, registry, deps)
 	registerJFTradeADKReadTools(registry, deps)
 	registerJFTradeProductTools(registry, deps)
@@ -578,10 +560,11 @@ func registerJFTradeADKReadTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registry.Register(jfadk.ToolDescriptor{Name: "risk.events", DisplayName: "风险事件", Description: "读取近期实盘风险事件状态。", Category: "risk", Permission: "read_internal", OutputSummary: "风险事件摘要。"}, func(context.Context, map[string]any) (any, error) {
 		return deps.RiskEvents(), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "execution.order_events", DisplayName: "执行订单事件", Description: "按内部订单 ID 读取执行订单事件历史；未提供 ID 时返回订单列表。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单事件时间线。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "execution.order_events", DisplayName: "执行订单事件", Description: "按内部订单 ID 读取执行订单事件历史；未提供 ID 时返回订单列表。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单事件时间线。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		internalOrderID := strings.TrimSpace(stringValue(input, "internalOrderId"))
 		if internalOrderID == "" {
-			return deps.ExecutionOrders()
+			orders, _, err := deps.ExecutionOrders(ctx, BrokerReadInput{})
+			return orders, err
 		}
 		return deps.ExecutionOrderEvents(internalOrderID)
 	})

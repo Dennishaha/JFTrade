@@ -13,10 +13,6 @@ import (
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
-type adkTestLenOnly struct{}
-
-func (adkTestLenOnly) Len() int { return 4 }
-
 func TestADKRuntimeHelperInputNormalization(t *testing.T) {
 	trueValue := true
 	falseValue := false
@@ -299,8 +295,8 @@ func TestADKReadToolsNormalizeInputsAndExposeBusinessHandlers(t *testing.T) {
 		},
 		RiskState:  func() any { return map[string]any{"killSwitch": false} },
 		RiskEvents: func() any { return []string{"none"} },
-		ExecutionOrders: func() (any, error) {
-			return []map[string]any{{"id": "exec-1"}}, nil
+		ExecutionOrders: func(context.Context, BrokerReadInput) (any, int, error) {
+			return []map[string]any{{"id": "exec-1"}}, 1, nil
 		},
 		ExecutionOrderEvents: func(internalOrderID string) (any, error) {
 			return map[string]any{"internalOrderId": internalOrderID, "events": []string{"accepted"}}, nil
@@ -517,19 +513,6 @@ func TestADKRuntimeMiscHelpersAndMetadata(t *testing.T) {
 		t.Fatalf("lastBacktestCandle() = %#v, want latest candle", got)
 	}
 
-	if collectionLen([]any{"a", "b"}) != 2 {
-		t.Fatal("collectionLen([]any) != 2")
-	}
-	if collectionLen([]map[string]any{{"id": 1}}) != 1 {
-		t.Fatal("collectionLen([]map[string]any) != 1")
-	}
-	if collectionLen(adkTestLenOnly{}) != 4 {
-		t.Fatal("collectionLen(Len()) != 4")
-	}
-	if collectionLen("plain") != 0 {
-		t.Fatal("collectionLen(plain) != 0")
-	}
-
 	if got := callMap(nil); len(got) != 0 {
 		t.Fatalf("callMap(nil) = %#v, want empty map", got)
 	}
@@ -557,7 +540,7 @@ func TestADKCoreToolHandlersNormalizeMarketAndPortfolioFlows(t *testing.T) {
 	var snapshotMarket, snapshotSymbol string
 	var candlesMarket, candlesSymbol, candlesPeriod string
 	var candlesLimit int
-	var fundsQuery, positionsQuery any
+	var accountQuery broker.ReadQuery
 
 	RegisterJFTradeADKTools(nil, registry, ToolDeps{
 		FutuOpenDHealth: func(context.Context) (any, error) {
@@ -582,16 +565,20 @@ func TestADKCoreToolHandlersNormalizeMarketAndPortfolioFlows(t *testing.T) {
 		DefaultTradeMarket: func() string {
 			return "US"
 		},
-		ExecutionOrders: func() (any, error) {
-			return []map[string]any{{"id": "ord-1"}, {"id": "ord-2"}}, nil
+		BrokerRuntime: func(context.Context) (BrokerRuntimeView, error) {
+			return BrokerRuntimeView{Connectivity: "connected", Accounts: []BrokerAccountView{{
+				AccountID: "acct-1", TradingEnvironment: "REAL", MarketAuthorities: []string{"US"},
+			}}}, nil
 		},
-		BrokerFunds: func(_ context.Context, query broker.ReadQuery, _ time.Duration) any {
-			fundsQuery = query
-			return map[string]any{"cash": 1000}
+		ExecutionOrders: func(_ context.Context, _ BrokerReadInput) (any, int, error) {
+			return []map[string]any{{"id": "ord-1"}, {"id": "ord-2"}}, 2, nil
 		},
-		BrokerPositions: func(_ context.Context, query broker.ReadQuery, _ time.Duration) any {
-			positionsQuery = query
-			return []map[string]any{{"symbol": "AAPL"}}
+		BrokerAccountRead: func(_ context.Context, query broker.ReadQuery, _ time.Duration) BrokerAccountReadResult {
+			accountQuery = query
+			return BrokerAccountReadResult{
+				Funds: map[string]any{"cash": 1000}, Positions: []map[string]any{{"symbol": "AAPL"}},
+				PositionCount: 1, HasAssetsOrPositions: true, Errors: []string{},
+			}
 		},
 	})
 
@@ -655,15 +642,12 @@ func TestADKCoreToolHandlersNormalizeMarketAndPortfolioFlows(t *testing.T) {
 	if portfolioPayload["orderCount"] != 2 || portfolioPayload["brokerEnabled"] != true {
 		t.Fatalf("portfolio.summary payload = %#v, want broker summary", portfolioPayload)
 	}
-	if fundsQuery != (broker.ReadQuery{BrokerID: "futu", AccountID: "acct-1", TradingEnvironment: "REAL", Market: "US"}) {
-		t.Fatalf("fundsQuery = %#v, want normalized broker read query", fundsQuery)
-	}
-	if positionsQuery != fundsQuery {
-		t.Fatalf("positionsQuery = %#v, want same query as funds", positionsQuery)
+	if accountQuery != (broker.ReadQuery{BrokerID: "futu", AccountID: "acct-1", TradingEnvironment: "REAL", Market: "US"}) {
+		t.Fatalf("accountQuery = %#v, want normalized broker read query", accountQuery)
 	}
 
 	ordersTool, _ := registry.Get("account.orders")
-	ordersOutput, err := ordersTool.Handler(context.Background(), map[string]any{})
+	ordersOutput, err := ordersTool.Handler(context.Background(), map[string]any{"tradingEnvironment": "REAL"})
 	if err != nil {
 		t.Fatalf("account.orders Handler: %v", err)
 	}
@@ -713,12 +697,11 @@ func TestExecutionReadToolsPropagateProjectionFailures(t *testing.T) {
 	registry := jfadk.NewToolRegistry()
 	RegisterJFTradeADKTools(nil, registry, ToolDeps{
 		DefaultTradeMarket:   func() string { return "US" },
-		ExecutionOrders:      func() (any, error) { return nil, want },
+		ExecutionOrders:      func(context.Context, BrokerReadInput) (any, int, error) { return nil, 0, want },
 		ExecutionOrderEvents: func(string) (any, error) { return nil, want },
 	})
 	for name, input := range map[string]map[string]any{
-		"portfolio.summary":        {},
-		"account.orders":           {},
+		"account.orders":           {"tradingEnvironment": "REAL"},
 		"execution.order_events":   {},
 		"execution.order_events/1": {"internalOrderId": "order-1"},
 	} {

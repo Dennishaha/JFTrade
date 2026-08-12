@@ -15,7 +15,6 @@ import (
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/internal/watchlist"
-	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 // ApplicationPorts are the domain services and application projections used
@@ -114,8 +113,8 @@ func (a *ApplicationAdapter) ToolDeps() ToolDeps {
 		ManagedAccounts:                a.managedAccounts,
 		BrokerEnabled:                  a.brokerEnabled,
 		DefaultTradeMarket:             a.defaultTradeMarket,
-		BrokerFunds:                    a.brokerFunds,
-		BrokerPositions:                a.brokerPositions,
+		BrokerRuntime:                  a.brokerRuntime,
+		BrokerAccountRead:              a.brokerAccountRead,
 		ExecutionOrders:                a.executionOrders,
 		ExecutionOrderEvents:           a.executionOrderEvents,
 		BrokerOrders:                   a.brokerOrders,
@@ -240,20 +239,6 @@ func (a *ApplicationAdapter) defaultTradeMarket() string {
 		return ""
 	}
 	return a.ports.BrokerIntegration().Config.TradeMarket
-}
-
-func (a *ApplicationAdapter) brokerFunds(ctx context.Context, query broker.ReadQuery, timeout time.Duration) any {
-	if service := a.trading(); service != nil {
-		return service.FundsWithTimeout(ctx, query, timeout)
-	}
-	return nil
-}
-
-func (a *ApplicationAdapter) brokerPositions(ctx context.Context, query broker.ReadQuery, timeout time.Duration) any {
-	if service := a.trading(); service != nil {
-		return service.PositionsWithTimeout(ctx, query, timeout)
-	}
-	return nil
 }
 
 func (a *ApplicationAdapter) riskState() any {

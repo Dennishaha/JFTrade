@@ -9,16 +9,39 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-func (a *ApplicationAdapter) executionOrders() (any, error) {
+func (a *ApplicationAdapter) executionOrders(ctx context.Context, input BrokerReadInput) (any, int, error) {
 	service := a.trading()
 	if service == nil {
-		return nil, fmt.Errorf("trading service is unavailable")
+		return nil, 0, fmt.Errorf("trading service is unavailable")
 	}
-	orders, err := service.ExecutionOrdersSnapshot(context.Background())
+	orders, err := service.ExecutionOrdersSnapshot(ctx)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return orders.Orders, nil
+	filtered := make([]trdsrv.ExecutionOrder, 0, len(orders.Orders))
+	for _, order := range orders.Orders {
+		if !executionOrderMatchesInput(order, input) {
+			continue
+		}
+		if input.ActiveOnly && trdsrv.IsCanonicalTerminalOrderStatus(order.Status) {
+			continue
+		}
+		filtered = append(filtered, order)
+	}
+	return filtered, len(filtered), nil
+}
+
+func executionOrderMatchesInput(order trdsrv.ExecutionOrder, input BrokerReadInput) bool {
+	if !strings.EqualFold(strings.TrimSpace(order.BrokerID), "futu") {
+		return false
+	}
+	if input.TradingEnvironment != "" && !strings.EqualFold(order.TradingEnvironment, input.TradingEnvironment) {
+		return false
+	}
+	if input.AccountID != "" && strings.TrimSpace(order.AccountID) != strings.TrimSpace(input.AccountID) {
+		return false
+	}
+	return input.Market == "" || strings.EqualFold(order.Market, input.Market)
 }
 
 func (a *ApplicationAdapter) executionOrderEvents(internalOrderID string) (any, error) {

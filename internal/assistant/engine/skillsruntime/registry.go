@@ -64,7 +64,7 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 				"jftrade-market",
 				"通过券商抽象读取 JFTrade 行情、微观结构、提醒和远程自选；必须说明实际提供者、市场、产品和数据时间。",
 				"使用行情数据时，始终确认 market、instrumentId 和 marketSegment。"+
-					"先用 market.capabilities 判断当前券商、账户及行情权限，再请求受限数据。"+
+					"先用 market.capabilities 判断当前券商、账户及行情权限；该工具只接受结构化参数，例如 {\"brokerId\":\"futu\",\"tradingEnvironment\":\"REAL\",\"market\":\"US\"}，不得传 query。"+
 					"批量快照优先使用 market.snapshots，盘口和逐笔仅用于当前可见标的。"+
 					"如果用户请求存在歧义，先补齐缺失的市场或代码。最终回答必须保留 provider、asOf、warnings 和 partialErrors。",
 				[]string{
@@ -74,7 +74,7 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 					"market.subscriptions", "watchlist.list", "watchlist.remote.list",
 					"watchlist.remote.modify", "alerts.price.list", "alerts.price.set",
 				},
-				"4",
+				"5",
 			)
 		},
 	},
@@ -107,6 +107,7 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 				"读取 JFTrade 公司、财务、估值、机构、宏观、日历、榜单和筛选研究。",
 				"研究结果必须保留 provider、asOf、分页、warnings 和 partialErrors。"+
 					"公司与新闻查询使用对应正股代码；不要把缺少权限、部分失败或空结果描述为没有数据。"+
+					"研究工具使用 instrumentId、market、operation 和日期等业务参数，不得传 tradingEnvironment；例如 research.news 使用 {\"instrumentId\":\"US.AAPL\",\"market\":\"US\"}。"+
 					"筛选和榜单结果应带回统一工作区继续分析，不建立另一套行情事实来源。",
 				[]string{
 					"research.instrument", "research.financials", "research.valuation",
@@ -115,7 +116,7 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 					"research.calendar", "research.macro", "research.rankings",
 					"research.institutions", "research.industry", "research.technical_indicators",
 				},
-				"1",
+				"2",
 			)
 		},
 	},
@@ -164,9 +165,11 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 				"jftrade-portfolio",
 				"谨慎使用 JFTrade 账户与组合数据，必须区分模拟结果和真实资产。",
 				"讨论账户状态时，要说明账户、交易环境，以及数据来自真实还是模拟来源。"+
-					"不要把模拟持仓描述成真实资产。",
+					"未指定账户时，portfolio.summary 会扫描指定环境的全部券商账户并分账户返回，非空账户优先；不得跨账户聚合。"+
+					"accountId 可以使用完整 ID 或唯一尾号。partial、账户发现失败、单账户读取失败或超时都不能解释为全账户无持仓。"+
+					"不要把模拟持仓描述成真实资产。合法示例：{\"tradingEnvironment\":\"REAL\"} 或 {\"tradingEnvironment\":\"REAL\",\"accountId\":\"8240\"}。",
 				[]string{"portfolio.summary", "account.orders"},
-				"2",
+				"3",
 			)
 		},
 	},

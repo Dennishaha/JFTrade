@@ -423,19 +423,6 @@ func nowStringRFC3339Nano() string {
 	return time.Now().UTC().Format(time.RFC3339Nano)
 }
 
-func collectionLen(value any) int {
-	switch typed := value.(type) {
-	case []any:
-		return len(typed)
-	case []map[string]any:
-		return len(typed)
-	case interface{ Len() int }:
-		return typed.Len()
-	default:
-		return 0
-	}
-}
-
 func callMap(fn func() map[string]any) map[string]any {
 	if fn == nil {
 		return map[string]any{}

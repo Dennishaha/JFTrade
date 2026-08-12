@@ -44,8 +44,11 @@ func TestApplicationAdapterKeepsNilPortsCallable(t *testing.T) {
 			t.Fatalf("%s error = nil, want unavailable", name)
 		}
 	}
-	if deps.BrokerFunds(ctx, broker.ReadQuery{}, time.Second) != nil || deps.BrokerPositions(ctx, broker.ReadQuery{}, time.Second) != nil {
-		t.Fatal("nil trading ports returned broker state")
+	if read := deps.BrokerAccountRead(ctx, broker.ReadQuery{}, time.Second); !read.Partial {
+		t.Fatal("nil trading ports did not report a partial broker account read")
+	}
+	if _, err := deps.BrokerRuntime(ctx); err == nil {
+		t.Fatal("nil trading ports reported broker account discovery")
 	}
 	if deps.RiskState() == nil || deps.RiskEvents() != nil {
 		t.Fatal("nil system ports returned invalid risk fallbacks")
@@ -123,7 +126,7 @@ func TestApplicationAdapterValidatesDomainInputsBeforeDelegation(t *testing.T) {
 	tradingService := trdsrv.NewService()
 	adapter := NewApplicationAdapter(ApplicationPorts{Trading: func() *trdsrv.Service { return tradingService }})
 	ctx := t.Context()
-	if _, err := adapter.executionOrders(); err == nil {
+	if _, _, err := adapter.executionOrders(ctx, BrokerReadInput{}); err == nil {
 		t.Fatal("executionOrders unavailable error = nil")
 	}
 	if _, err := adapter.executionOrderEvents("order-1"); err == nil {
