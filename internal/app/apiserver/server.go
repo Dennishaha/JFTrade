@@ -248,7 +248,10 @@ func waitDesktopAPIReady(ctx context.Context, apiBaseURL string, apiToken string
 				return nil
 			}
 			lastErr = fmt.Errorf("desktop API readiness status %d", resp.StatusCode)
-		} else {
+		} else if waitCtx.Err() == nil || lastErr == nil {
+			// Keep the last completed readiness response when the overall wait
+			// deadline cancels an in-flight retry. It is more actionable than the
+			// cancellation produced by the retry itself.
 			lastErr = err
 		}
 

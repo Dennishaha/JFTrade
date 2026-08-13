@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -117,8 +118,13 @@ func TestWaitDesktopAPIReadyCoversAuthorizationAndTimeout(t *testing.T) {
 		t.Fatal("empty API base URL succeeded")
 	}
 
-	unready := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
+	var unreadyRequests atomic.Int32
+	unready := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		if unreadyRequests.Add(1) == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		<-request.Context().Done()
 	}))
 	t.Cleanup(unready.Close)
 	previousTimeout := desktopAPIReadyTimeout
