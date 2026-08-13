@@ -28,11 +28,16 @@ func (s *Service) syncWithProvider(
 	if err != nil {
 		return nil, err
 	}
+	params := syncParams(prepared, providerID)
+	if s.klineSyncPreflightFn != nil {
+		if err := s.klineSyncPreflightFn(ctx, params); err != nil {
+			return nil, err
+		}
+	}
 	syncer, err := s.newSyncerForProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	params := syncParams(prepared, providerID)
 	if validator, ok := syncer.(KLineSyncValidator); ok {
 		if err := validator.Validate(params); err != nil {
 			besteffort.LogError(syncer.Close())

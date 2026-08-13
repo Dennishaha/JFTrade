@@ -20,6 +20,40 @@ type providerHistoricalSource struct {
 	descriptor marketdata.ProviderDescriptor
 }
 
+// NewKLineSyncPreflight builds a validator from the runtime's static provider
+// catalog, without starting Python helpers or contacting OpenD.
+func NewKLineSyncPreflight(
+	runtime *marketdataapp.Runtime,
+) backtestservice.KLineSyncPreflight {
+	return func(ctx context.Context, params backtestservice.KLineSyncParams) error {
+		descriptor, err := historicalProviderDescriptor(ctx, runtime, params.MarketDataProvider)
+		if err != nil {
+			return err
+		}
+		return backtestservice.ValidateHistoricalKLineSync(
+			params,
+			&providerHistoricalSource{descriptor: descriptor},
+		)
+	}
+}
+
+func historicalProviderDescriptor(
+	ctx context.Context,
+	runtime *marketdataapp.Runtime,
+	providerID string,
+) (marketdata.ProviderDescriptor, error) {
+	descriptors, err := runtime.AvailableProviderDescriptors(ctx)
+	if err != nil {
+		return marketdata.ProviderDescriptor{}, fmt.Errorf("load market-data provider capabilities: %w", err)
+	}
+	for _, descriptor := range descriptors {
+		if strings.EqualFold(strings.TrimSpace(descriptor.SelectionID), strings.TrimSpace(providerID)) {
+			return descriptor, nil
+		}
+	}
+	return marketdata.ProviderDescriptor{}, fmt.Errorf("market-data provider %s is unavailable", providerID)
+}
+
 func NewKLineSyncer(
 	ctx context.Context,
 	runtime *marketdataapp.Runtime,

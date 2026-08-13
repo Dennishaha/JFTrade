@@ -196,6 +196,10 @@ type KLineSyncValidator interface {
 	Validate(params KLineSyncParams) error
 }
 
+// KLineSyncPreflight validates provider capabilities without acquiring the
+// provider runtime or opening its storage adapter.
+type KLineSyncPreflight func(context.Context, KLineSyncParams) error
+
 // RequestError identifies invalid user input that API transports should expose
 // as a client error.
 type RequestError struct {
@@ -280,6 +284,7 @@ type Service struct {
 
 	newKLineSyncerFn         func(dbPath string) (KLineSyncer, error)
 	newProviderKLineSyncerFn func(ctx context.Context, dbPath, providerID string) (KLineSyncer, error)
+	klineSyncPreflightFn     KLineSyncPreflight
 	backtestProviderIDFn     func() string
 
 	checkKLineCoverageFn         func(dbPath, symbol, interval string, since, until time.Time, rehabType, sessionScope string) error
@@ -358,6 +363,12 @@ func WithProviderKLineSyncerFn(
 	fn func(context.Context, string, string) (KLineSyncer, error),
 ) Option {
 	return func(s *Service) { s.newProviderKLineSyncerFn = fn }
+}
+
+// WithKLineSyncPreflight installs provider capability validation that runs
+// before provider runtime acquisition.
+func WithKLineSyncPreflight(fn KLineSyncPreflight) Option {
+	return func(s *Service) { s.klineSyncPreflightFn = fn }
 }
 
 func WithBacktestProviderIDFn(fn func() string) Option {

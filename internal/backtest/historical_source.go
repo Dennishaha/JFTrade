@@ -20,7 +20,8 @@ type HistoricalCandleSource interface {
 	FetchHistoricalCandles(context.Context, HistoricalCandleQuery) (HistoricalCandlePage, error)
 }
 
-type historicalCandleSourceValidator interface {
+// HistoricalCandleQueryValidator validates one normalized provider query.
+type HistoricalCandleQueryValidator interface {
 	ValidateHistoricalCandleQuery(HistoricalCandleQuery) error
 }
 
@@ -68,8 +69,20 @@ func (s *HistoricalKLineSyncer) Validate(params KLineSyncParams) error {
 	if s == nil || s.store == nil || s.source == nil {
 		return fmt.Errorf("historical candle syncer is unavailable")
 	}
-	validator, ok := s.source.(historicalCandleSourceValidator)
+	validator, ok := s.source.(HistoricalCandleQueryValidator)
 	if !ok {
+		return nil
+	}
+	return ValidateHistoricalKLineSync(params, validator)
+}
+
+// ValidateHistoricalKLineSync checks a provider's static historical-candle
+// capabilities before the provider runtime is acquired.
+func ValidateHistoricalKLineSync(
+	params KLineSyncParams,
+	validator HistoricalCandleQueryValidator,
+) error {
+	if validator == nil {
 		return nil
 	}
 	for _, interval := range params.Intervals {

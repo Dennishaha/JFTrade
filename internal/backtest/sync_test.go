@@ -243,12 +243,16 @@ func TestSyncClosesAdapterWhenTaskStoreMissing(t *testing.T) {
 
 func TestSyncRejectsUnsupportedProviderCombinationBeforeAcceptingTask(t *testing.T) {
 	tasks := newMemorySyncTaskStore()
-	syncer := &validatingKLineSyncer{validateErr: requestErrorf("provider yfinance does not support forward price adjustment")}
+	factoryCalled := false
 	svc := NewService(
 		WithSyncTaskStore(tasks),
 		WithBacktestProviderIDFn(func() string { return "yfinance" }),
+		WithKLineSyncPreflight(func(context.Context, KLineSyncParams) error {
+			return requestErrorf("provider yfinance does not support forward price adjustment")
+		}),
 		WithProviderKLineSyncerFn(func(context.Context, string, string) (KLineSyncer, error) {
-			return syncer, nil
+			factoryCalled = true
+			return &fakeKLineSyncer{}, nil
 		}),
 	)
 
@@ -263,8 +267,31 @@ func TestSyncRejectsUnsupportedProviderCombinationBeforeAcceptingTask(t *testing
 	if len(tasks.tasks) != 0 {
 		t.Fatalf("unsupported sync accepted tasks = %d", len(tasks.tasks))
 	}
-	if !syncer.closed {
-		t.Fatal("rejected provider adapter was not closed")
+	if factoryCalled {
+		t.Fatal("unsupported sync acquired the provider adapter")
+	}
+}
+
+func TestSyncRetainsConstructedAdapterValidation(t *testing.T) {
+	tasks := newMemorySyncTaskStore()
+	syncer := &validatingKLineSyncer{validateErr: requestErrorf("provider capabilities changed")}
+	svc := NewService(
+		WithSyncTaskStore(tasks),
+		WithKLineSyncPreflight(func(context.Context, KLineSyncParams) error { return nil }),
+		WithProviderKLineSyncerFn(func(context.Context, string, string) (KLineSyncer, error) {
+			return syncer, nil
+		}),
+	)
+
+	started, err := svc.Sync(t.Context(), SyncRequest{
+		Market: "US", Code: "AAPL", Intervals: []string{"1m"},
+		Since: "2026-01-02T14:30:00Z", Until: "2026-01-02T14:31:00Z",
+	})
+	if started != nil || !IsRequestError(err) {
+		t.Fatalf("Sync result = %#v, err=%v", started, err)
+	}
+	if len(tasks.tasks) != 0 || !syncer.closed {
+		t.Fatalf("adapter validation cleanup = tasks:%d closed:%t", len(tasks.tasks), syncer.closed)
 	}
 }
 

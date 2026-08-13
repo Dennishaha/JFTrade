@@ -195,6 +195,12 @@ func TestHistoricalKLineSyncerRejectsEmptyProviderResult(t *testing.T) {
 	}
 }
 
+func TestValidateHistoricalKLineSyncAllowsMissingCapabilityValidator(t *testing.T) {
+	if err := ValidateHistoricalKLineSync(KLineSyncParams{}, nil); err != nil {
+		t.Fatalf("ValidateHistoricalKLineSync without validator: %v", err)
+	}
+}
+
 func TestHistoricalKLineSyncerValidatesLifecycleAndTerminalProviderFailures(t *testing.T) {
 	if err := (*HistoricalKLineSyncer)(nil).Validate(KLineSyncParams{}); err == nil {
 		t.Fatal("nil syncer validation error = nil")

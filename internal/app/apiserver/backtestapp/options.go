@@ -22,6 +22,7 @@ func ProviderOptions(
 		backtestservice.WithProviderKLineSyncerFn(func(ctx context.Context, path, provider string) (backtestservice.KLineSyncer, error) {
 			return NewKLineSyncer(ctx, runtime, path, provider)
 		}),
+		backtestservice.WithKLineSyncPreflight(NewKLineSyncPreflight(runtime)),
 		backtestservice.WithProviderKLineCoverageCheckFn(backteststore.CheckKLineCoverageForProvider),
 		backtestservice.WithInstrumentSpecResolver(NewInstrumentSpecResolver(runtime)),
 	}

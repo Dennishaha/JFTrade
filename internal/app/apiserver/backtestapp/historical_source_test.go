@@ -6,6 +6,7 @@ import (
 	"errors"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -153,6 +154,26 @@ func TestProviderHistoricalSourceAppliesMarketScopedLookback(t *testing.T) {
 	query.Market = "HK"
 	if err := source.ValidateHistoricalCandleQuery(query); err != nil {
 		t.Fatalf("AKShare HK 5m request inherited US-only limit: %v", err)
+	}
+}
+
+func TestKLineSyncPreflightRejectsStaticCapabilityMismatchAndUnknownProvider(t *testing.T) {
+	runtime := newBacktestRuntime(t, &backtestProviderStub{})
+	preflight := NewKLineSyncPreflight(runtime)
+	now := time.Now().UTC()
+	err := preflight(t.Context(), backtestservice.KLineSyncParams{
+		Market: "US", MarketDataProvider: marketdataapp.ProviderAKShare, Symbol: "US.AAPL",
+		Intervals: []bbgotypes.Interval{bbgotypes.Interval5m}, Since: now.AddDate(0, 0, -6),
+		Until: now, RehabType: backtestservice.RehabTypeNone, SessionScope: "regular",
+	})
+	if !backtestservice.IsRequestError(err) ||
+		!strings.Contains(err.Error(), "provider akshare limits 5m history to 5 days") {
+		t.Fatalf("AKShare preflight error = %v", err)
+	}
+
+	err = preflight(t.Context(), backtestservice.KLineSyncParams{MarketDataProvider: "unknown"})
+	if err == nil || !strings.Contains(err.Error(), "market-data provider unknown is unavailable") {
+		t.Fatalf("unknown provider preflight error = %v", err)
 	}
 }
 
@@ -310,8 +331,8 @@ func TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks(t *testing.T) {
 	if us := conservativeInstrumentSpec(backtestserviceInstrumentSpec("US.AAPL")); us.LotSize != 1 || us.TickSize != 0.01 {
 		t.Fatalf("US conservative spec = %+v", us)
 	}
-	if options := ProviderOptions(runtime, func() string { return "db" }, func() string { return "futu" }); len(options) != 5 {
-		t.Fatalf("provider options = %d, want 5", len(options))
+	if options := ProviderOptions(runtime, func() string { return "db" }, func() string { return "futu" }); len(options) != 6 {
+		t.Fatalf("provider options = %d, want 6", len(options))
 	}
 }
 
