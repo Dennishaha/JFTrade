@@ -12,20 +12,21 @@ import (
 	"time"
 
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	"github.com/jftrade/jftrade-main/internal/datamanagement"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 )
 
 const (
-	DatabaseBacktest      = sqliteschema.DatabaseBacktest
-	DatabaseBacktestRuns  = sqliteschema.DatabaseBacktestRuns
-	DatabaseStrategy      = sqliteschema.DatabaseStrategy
-	DatabaseExecution     = sqliteschema.DatabaseExecution
-	DatabaseADK           = sqliteschema.DatabaseADK
-	DatabaseADKSession    = sqliteschema.DatabaseADKSession
-	DatabaseADKArtifact   = sqliteschema.DatabaseADKArtifact
-	DatabaseWatchlist     = sqliteschema.DatabaseWatchlist
-	DatabaseResearch      = sqliteschema.DatabaseResearch
+	DatabaseBacktest      = string(datamanagement.DatabaseBacktest)
+	DatabaseBacktestRuns  = string(datamanagement.DatabaseBacktestRuns)
+	DatabaseStrategy      = string(datamanagement.DatabaseStrategy)
+	DatabaseExecution     = string(datamanagement.DatabaseExecution)
+	DatabaseADK           = string(datamanagement.DatabaseADK)
+	DatabaseADKSession    = string(datamanagement.DatabaseADKSession)
+	DatabaseADKArtifact   = string(datamanagement.DatabaseADKArtifact)
+	DatabaseWatchlist     = string(datamanagement.DatabaseWatchlist)
+	DatabaseResearch      = string(datamanagement.DatabaseResearch)
 	RebuildMarkerFilename = "database-rebuild.json"
 	BatchConfirmationText = "REBUILD INCOMPATIBLE DATABASES"
 )

@@ -386,11 +386,11 @@ func newSystemRouteTestRouter() (*gin.Engine, *bool) {
 	refreshCalled := ""
 	svc := sysservice.NewService(
 		sysservice.WithAPIPort(6699),
-		sysservice.WithExchangeCalendarStatus(func() map[string]any {
-			return map[string]any{"autoRefreshEnabled": true}
+		sysservice.WithExchangeCalendarStatus(func() *sysservice.CalendarStatus {
+			return &sysservice.CalendarStatus{AutoRefreshEnabled: true}
 		}),
-		sysservice.WithExchangeCalendarSources(func() []map[string]any {
-			return []map[string]any{{"id": "builtin_rules"}}
+		sysservice.WithExchangeCalendarSources(func() []sysservice.CalendarSource {
+			return []sysservice.CalendarSource{{ID: "builtin_rules"}}
 		}),
 		sysservice.WithRefreshExchangeCalendars(func(context.Context, string) map[string]any {
 			refreshCalled = "all"

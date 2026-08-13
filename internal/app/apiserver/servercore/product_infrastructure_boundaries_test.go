@@ -56,10 +56,10 @@ func TestProductInfrastructureRemainingNilAndFallbackBoundaries(t *testing.T) {
 		t.Fatal("nil request classified as write")
 	}
 	server.recordExchangeCalendarAlert(exchangecalendar.SourceAlert{})
-	if summary := marketdataRuntimeSummary(&server.serverApplication); summary["status"] != "unavailable" {
+	if summary := marketdataRuntimeSummary(&server.serverApplication); summary.Status != "unavailable" {
 		t.Fatalf("nil marketdata runtime summary = %#v", summary)
 	}
-	if summary := strategyRuntimeSummary(&server.serverApplication); summary["status"] != "idle" {
+	if summary := strategyRuntimeSummary(&server.serverApplication); summary.Status != "idle" {
 		t.Fatalf("nil strategy runtime summary = %#v", summary)
 	}
 	if watched := server.workflowWatchedInstruments(); watched != nil {

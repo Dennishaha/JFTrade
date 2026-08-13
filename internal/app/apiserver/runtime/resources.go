@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/jftrade/jftrade-main/internal/system"
 )
 
 const defaultRealTradeControlFilename = "real-trade-control.json"
@@ -121,13 +123,18 @@ func runtimeOptionalResources(settingsPath string) []ResourceDescriptor {
 	}
 }
 
-func RuntimeResourceSummary(settingsPath string, backtestDBPath string) map[string]any {
+func RuntimeResourceSummary(settingsPath string, backtestDBPath string) system.RuntimeResources {
 	resources := RuntimeResources(settingsPath, backtestDBPath)
-	return map[string]any{
-		"checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
-		"count":     len(resources),
-		"items":     resources,
+	items := make([]system.RuntimeResourceDescriptor, 0, len(resources))
+	for _, resource := range resources {
+		items = append(items, system.RuntimeResourceDescriptor{
+			ID: resource.ID, Owner: resource.Owner, Kind: resource.Kind, Path: resource.Path,
+			InitializedBy: resource.InitializedBy, SchemaOwner: resource.SchemaOwner,
+			CloseOwner: resource.CloseOwner, HealthProvider: resource.HealthProvider,
+			EnvironmentOverride: resource.EnvironmentOverride, Critical: resource.Critical,
+		})
 	}
+	return system.RuntimeResources{CheckedAt: time.Now().UTC().Format(time.RFC3339Nano), Count: len(items), Items: items}
 }
 
 func deriveRealTradeControlPath(settingsPath string) string {

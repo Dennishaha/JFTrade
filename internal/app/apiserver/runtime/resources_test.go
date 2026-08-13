@@ -77,11 +77,10 @@ func TestRuntimeResourcesHonorRealTradeControlPathOverride(t *testing.T) {
 
 func TestRuntimeResourceSummaryIncludesCountAndItems(t *testing.T) {
 	summary := RuntimeResourceSummary("/tmp/jftrade/settings.json", "/tmp/jftrade/backtest.db")
-	if summary["checkedAt"] == "" {
+	if summary.CheckedAt == "" {
 		t.Fatalf("summary checkedAt empty: %#v", summary)
 	}
-	items, ok := summary["items"].([]ResourceDescriptor)
-	if !ok || len(items) == 0 || summary["count"] != len(items) {
+	if items := summary.Items; len(items) == 0 || summary.Count != len(items) {
 		t.Fatalf("summary items/count = %#v", summary)
 	}
 }

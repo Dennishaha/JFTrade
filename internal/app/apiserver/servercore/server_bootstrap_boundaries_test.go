@@ -8,6 +8,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/futuapp"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -22,11 +23,11 @@ func TestServerBootstrapRemainingFailureAndFallbackPaths(t *testing.T) {
 		settingsPath:         settingsPath,
 		backtestDBPath:       blocker,
 		dataMigration:        datamigration.NewManager(settingsPath, blocker),
-		unavailableDatabases: map[string]error{},
+		unavailableDatabases: dmsrv.NewAvailabilitySnapshot(),
 	}
-	bootstrap.recordUnavailable("ignored", nil)
+	bootstrap.recordUnavailable(dmsrv.DatabaseID("ignored"), nil)
 	bootstrap.probeBacktestDatabase()
-	if bootstrap.unavailableDatabases[datamigration.DatabaseBacktest] == nil {
+	if bootstrap.unavailableDatabases.Unavailable(dmsrv.DatabaseBacktest) == nil {
 		t.Fatal("backtest probe failure was not recorded")
 	}
 

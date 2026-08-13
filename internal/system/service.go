@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/buildinfo"
+	"github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
 var errRealTradeControlUnavailable = errors.New("real-trade control plane is not configured")
@@ -19,21 +21,21 @@ type Service struct {
 	settingsPath                string
 	defaultTradingEnvironment   string
 	defaultTradingEnvironmentFn func() string
-	brokerDescriptor            func() map[string]any
-	strategyRuntimeSummary      func() map[string]any
-	liveStats                   func() map[string]any
-	marketdataRuntimeSummary    func() map[string]any
-	runtimeResourcesFn          func() map[string]any
+	brokerDescriptor            func() *trading.BrokerRuntimeDescriptor
+	strategyRuntimeSummary      func() *strategy.RuntimeSummary
+	liveStats                   func() *LiveStats
+	marketdataRuntimeSummary    func() *MarketDataRuntime
+	runtimeResourcesFn          func() RuntimeResources
 	brokerOrderSnapshot         func() map[string]any
-	exchangeCalendarStatusFn    func() map[string]any
-	exchangeCalendarSourcesFn   func() []map[string]any
+	exchangeCalendarStatusFn    func() *CalendarStatus
+	exchangeCalendarSourcesFn   func() []CalendarSource
 	refreshExchangeCalendarsFn  func(ctx context.Context, market string) map[string]any
 	probeExchangeCalendarsFn    func(ctx context.Context, market string) map[string]any
 	brokerRuntimeHealthFn       func(ctx context.Context) map[string]any
 	brokerInstallGuideFn        func() map[string]any
 	resetBrokerRuntimeFn        func()
 	runtimeDependenciesFn       func(ctx context.Context) map[string]any
-	requestObservabilityFn      func() any
+	requestObservabilityFn      func() observability.Snapshot
 	realTradeRiskStateFn        func() *trading.RealTradeRiskSnapshot
 	updateRiskConfigFn          func(context.Context, RealTradeRuntimeRiskCommand) (trading.RealTradeRiskSnapshot, error)
 	disableRiskConfigFn         func(context.Context, RealTradeRuntimeRiskCommand) (trading.RealTradeRiskSnapshot, error)
@@ -81,27 +83,27 @@ func WithDefaultTradingEnvironmentFunc(fn func() string) Option {
 }
 
 // WithBrokerDescriptor 设置 broker 描述符提供者。
-func WithBrokerDescriptor(fn func() map[string]any) Option {
+func WithBrokerDescriptor(fn func() *trading.BrokerRuntimeDescriptor) Option {
 	return func(s *Service) { s.brokerDescriptor = fn }
 }
 
 // WithStrategyRuntimeSummary 设置策略运行时摘要提供者。
-func WithStrategyRuntimeSummary(fn func() map[string]any) Option {
+func WithStrategyRuntimeSummary(fn func() *strategy.RuntimeSummary) Option {
 	return func(s *Service) { s.strategyRuntimeSummary = fn }
 }
 
 // WithLiveStats 设置实时连接统计提供者。
-func WithLiveStats(fn func() map[string]any) Option {
+func WithLiveStats(fn func() *LiveStats) Option {
 	return func(s *Service) { s.liveStats = fn }
 }
 
 // WithMarketdataRuntimeSummary 设置行情采集运行时摘要提供者。
-func WithMarketdataRuntimeSummary(fn func() map[string]any) Option {
+func WithMarketdataRuntimeSummary(fn func() *MarketDataRuntime) Option {
 	return func(s *Service) { s.marketdataRuntimeSummary = fn }
 }
 
 // WithRuntimeResources 设置运行时资源 owner 清单提供者。
-func WithRuntimeResources(fn func() map[string]any) Option {
+func WithRuntimeResources(fn func() RuntimeResources) Option {
 	return func(s *Service) { s.runtimeResourcesFn = fn }
 }
 
@@ -111,12 +113,12 @@ func WithBrokerOrderSnapshot(fn func() map[string]any) Option {
 }
 
 // WithExchangeCalendarStatus 设置交易所日历状态提供者。
-func WithExchangeCalendarStatus(fn func() map[string]any) Option {
+func WithExchangeCalendarStatus(fn func() *CalendarStatus) Option {
 	return func(s *Service) { s.exchangeCalendarStatusFn = fn }
 }
 
 // WithExchangeCalendarSources 设置交易所日历数据源提供者。
-func WithExchangeCalendarSources(fn func() []map[string]any) Option {
+func WithExchangeCalendarSources(fn func() []CalendarSource) Option {
 	return func(s *Service) { s.exchangeCalendarSourcesFn = fn }
 }
 
@@ -151,7 +153,7 @@ func WithRuntimeDependencies(fn func(ctx context.Context) map[string]any) Option
 }
 
 // WithRequestObservability sets the bounded request and dependency summary provider.
-func WithRequestObservability(fn func() any) Option {
+func WithRequestObservability(fn func() observability.Snapshot) Option {
 	return func(s *Service) { s.requestObservabilityFn = fn }
 }
 
@@ -220,7 +222,7 @@ type RealTradeRuntimeRiskCommand struct {
 // ── 系统状态 ──
 
 // Status 返回系统整体状态摘要。
-func (s *Service) Status() map[string]any {
+func (s *Service) Status() Status {
 	now := time.Now().UTC()
 	apiPort := s.currentAPIPort()
 	defaultTradingEnvironment := s.currentDefaultTradingEnvironment()
@@ -232,53 +234,37 @@ func (s *Service) Status() map[string]any {
 	exchangeCalendars := s.optionalExchangeCalendarStatus()
 	requestObservability := s.optionalRequestObservability()
 	realTrade := s.realTradeRiskState()
-	status := map[string]any{
-		"name":                      "JFTrade",
-		"apiPort":                   apiPort,
-		"defaultBroker":             "futu",
-		"defaultTradingEnvironment": defaultTradingEnvironment,
-		"realTradingEnabled":        realTrade.RealTradingEnabled,
-		"realTradingKillSwitch": map[string]any{
-			"active": realTrade.KillSwitchActive, "runtimeActive": realTrade.RuntimeKillSwitchActive,
-			"blockedOperations": []string{"PLACE", "MODIFY"}, "allowsCancel": true,
+	return Status{
+		Name:                      "JFTrade",
+		APIPort:                   apiPort,
+		DefaultBroker:             "futu",
+		DefaultTradingEnvironment: defaultTradingEnvironment,
+		RealTradingEnabled:        realTrade.RealTradingEnabled,
+		RealTradingKillSwitch: RealTradingKillSwitch{
+			Active: realTrade.KillSwitchActive, RuntimeActive: realTrade.RuntimeKillSwitchActive,
+			BlockedOperations: []string{"PLACE", "MODIFY"}, AllowsCancel: true,
 		},
-		"realTradingRisk": map[string]any{
-			"enabled": realTrade.RiskEnabled, "maxOrderQuantity": realTrade.EffectiveMaxOrderQuantity, "maxOrderNotional": realTrade.EffectiveMaxOrderNotional,
-			"runtimeConfiguredMaxOrderQuantity": realTrade.RuntimeConfiguredMaxOrderQuantity, "runtimeConfiguredMaxOrderNotional": realTrade.RuntimeConfiguredMaxOrderNotional,
-			"runtimeRiskConfigured": realTrade.RuntimeRiskConfigured,
+		RealTradingRisk: RealTradingRisk{
+			Enabled: realTrade.RiskEnabled, MaxOrderQuantity: realTrade.EffectiveMaxOrderQuantity, MaxOrderNotional: realTrade.EffectiveMaxOrderNotional,
+			RuntimeConfiguredMaxOrderQuantity: realTrade.RuntimeConfiguredMaxOrderQuantity, RuntimeConfiguredMaxOrderNotional: realTrade.RuntimeConfiguredMaxOrderNotional,
+			RuntimeRiskConfigured: realTrade.RuntimeRiskConfigured,
 		},
-		"realTradeAccess": map[string]any{
-			"approverAllowlistEnabled": false, "approverCount": 0,
-			"adminAllowlistEnabled": false, "adminCount": 0,
+		RealTradeAccess: RealTradeAccess{},
+		Build:           buildinfo.Snapshot(),
+		Persistence: Persistence{
+			Engine: "json", DatabasePath: s.settingsPath, Status: "ok", Migrated: true,
+			PendingMigrations: []string{}, Tables: []string{"broker_integrations", "broker_accounts"},
+			CheckedAt: now.Format(time.RFC3339Nano),
 		},
-		"build": buildinfo.Snapshot(),
-		"persistence": map[string]any{
-			"engine":            "json",
-			"databasePath":      s.settingsPath,
-			"status":            "ok",
-			"migrated":          true,
-			"pendingMigrations": []any{},
-			"tables":            []string{"broker_integrations", "broker_accounts"},
-			"checkedAt":         time.Now().UTC().Format(time.RFC3339Nano),
+		Observability: Observability{
+			API:  APIObservability{StartedAt: s.startedAt.Format(time.RFC3339Nano), UptimeMS: now.Sub(s.startedAt).Milliseconds()},
+			Live: live, MarketData: marketdata, ExchangeCalendars: exchangeCalendars,
+			Broker: broker, StrategyRuntime: strategyRuntime, Requests: requestObservability,
 		},
-		"observability": map[string]any{
-			"api": map[string]any{
-				"startedAt": s.startedAt.Format(time.RFC3339Nano),
-				"uptimeMs":  now.Sub(s.startedAt).Milliseconds(),
-			},
-			"live":              live,
-			"marketdata":        marketdata,
-			"exchangeCalendars": exchangeCalendars,
-			"broker":            broker,
-			"strategyRuntime":   strategyRuntime,
-			"requests":          requestObservability,
-		},
-		"runtimeResources": runtimeResources,
-		"message":          "JFTrade API adapter is running.",
+		RuntimeResources: runtimeResources,
+		Broker:           broker, StrategyRuntime: strategyRuntime,
+		Message: "JFTrade API adapter is running.",
 	}
-
-	attachOptionalSystemStatus(status, broker, strategyRuntime)
-	return status
 }
 
 func (s *Service) currentAPIPort() int {
@@ -297,90 +283,93 @@ func (s *Service) currentDefaultTradingEnvironment() string {
 	return environment
 }
 
-func (s *Service) optionalBrokerDescriptor() map[string]any {
+func (s *Service) optionalBrokerDescriptor() *trading.BrokerRuntimeDescriptor {
 	if s.brokerDescriptor == nil {
 		return nil
 	}
 	return s.brokerDescriptor()
 }
 
-func (s *Service) optionalStrategyRuntimeSummary() map[string]any {
+func (s *Service) optionalStrategyRuntimeSummary() *strategy.RuntimeSummary {
 	if s.strategyRuntimeSummary == nil {
 		return nil
 	}
 	return s.strategyRuntimeSummary()
 }
 
-func (s *Service) optionalLiveStats() map[string]any {
+func (s *Service) optionalLiveStats() *LiveStats {
 	if s.liveStats == nil {
 		return nil
 	}
 	return s.liveStats()
 }
 
-func (s *Service) optionalMarketdataRuntimeSummary() map[string]any {
+func (s *Service) optionalMarketdataRuntimeSummary() *MarketDataRuntime {
 	if s.marketdataRuntimeSummary == nil {
 		return nil
 	}
 	return s.marketdataRuntimeSummary()
 }
 
-func (s *Service) currentRuntimeResources(now time.Time) map[string]any {
+func (s *Service) currentRuntimeResources(now time.Time) RuntimeResources {
 	if s.runtimeResourcesFn == nil {
-		return map[string]any{"checkedAt": now.Format(time.RFC3339Nano), "count": 0, "items": []any{}}
+		return RuntimeResources{CheckedAt: now.Format(time.RFC3339Nano), Items: []RuntimeResourceDescriptor{}}
 	}
 	return s.runtimeResourcesFn()
 }
 
-func (s *Service) optionalExchangeCalendarStatus() map[string]any {
+func (s *Service) optionalExchangeCalendarStatus() *CalendarStatus {
 	if s.exchangeCalendarStatusFn == nil {
 		return nil
 	}
 	return s.exchangeCalendarStatusFn()
 }
 
-func (s *Service) optionalRequestObservability() any {
+func (s *Service) optionalRequestObservability() observability.Snapshot {
 	if s.requestObservabilityFn == nil {
 		return defaultRequestObservabilitySummary()
 	}
-	if summary := s.requestObservabilityFn(); summary != nil {
-		return summary
-	}
-	return defaultRequestObservabilitySummary()
+	return normalizeRequestObservability(s.requestObservabilityFn())
 }
 
-func defaultRequestObservabilitySummary() map[string]any {
-	return map[string]any{
-		"recentErrors":       []any{},
-		"recentSlowRequests": []any{},
-		"openD": map[string]any{
-			"totalCalls":  0,
-			"failedCalls": 0,
-		},
-		"slowThresholdMs":   750,
-		"minimumImportance": "low",
+func defaultRequestObservabilitySummary() observability.Snapshot {
+	return observability.Snapshot{
+		RecentErrors: []observability.Event{}, RecentSlowRequests: []observability.Event{},
+		SlowThresholdMS: 750, MinimumImportance: "low",
 	}
 }
 
-func attachOptionalSystemStatus(status map[string]any, broker map[string]any, strategyRuntime map[string]any) {
-	if broker != nil {
-		status["broker"] = broker
+func normalizeRequestObservability(summary observability.Snapshot) observability.Snapshot {
+	defaults := defaultRequestObservabilitySummary()
+	if summary.RecentErrors == nil {
+		summary.RecentErrors = defaults.RecentErrors
 	}
-	if strategyRuntime != nil {
-		status["strategyRuntime"] = strategyRuntime
+	if summary.RecentSlowRequests == nil {
+		summary.RecentSlowRequests = defaults.RecentSlowRequests
 	}
+	if summary.SlowThresholdMS <= 0 {
+		summary.SlowThresholdMS = defaults.SlowThresholdMS
+	}
+	if summary.MinimumImportance == "" {
+		summary.MinimumImportance = defaults.MinimumImportance
+	}
+	return summary
 }
 
 // ExchangeCalendarStatus 返回交易所日历状态。
-func (s *Service) ExchangeCalendarStatus() map[string]any {
+func (s *Service) ExchangeCalendarStatus() CalendarStatus {
 	if s.exchangeCalendarStatusFn == nil {
-		return map[string]any{}
+		return CalendarStatus{}
 	}
-	return s.exchangeCalendarStatusFn()
+	status := s.exchangeCalendarStatusFn()
+	if status == nil {
+		return CalendarStatus{}
+	}
+	return *status
 }
 
 // ExchangeCalendarSources 返回交易所日历数据源状态。
-func (s *Service) ExchangeCalendarSources() []map[string]any {
+func (s *Service) ExchangeCalendarSources() []CalendarSource {
 	if s.exchangeCalendarSourcesFn == nil {
 		return nil
 	}

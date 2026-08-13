@@ -107,7 +107,7 @@ func handleRuntimeDependencies(svc *sys.Service) gin.HandlerFunc {
 // @Router /api/v1/system/status [get]
 func handleSystemStatus(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		httpserver.WriteOK(c, svc.Status())
+		httpserver.WriteOK(c, toSystemStatusResponse(svc.Status()))
 	}
 }
 

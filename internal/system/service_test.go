@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/trading"
 )
 
@@ -14,54 +15,44 @@ func TestStatusDefaultsAndInjectedSummaries(t *testing.T) {
 		WithAPIPort(3900),
 		WithSettingsPath("/tmp/jftrade/settings.json"),
 		WithDefaultTradingEnvironment("SIMULATE"),
-		WithBrokerDescriptor(func() map[string]any {
-			return map[string]any{"id": "futu", "status": "ready"}
+		WithBrokerDescriptor(func() *trading.BrokerRuntimeDescriptor {
+			return &trading.BrokerRuntimeDescriptor{ID: "futu"}
 		}),
-		WithStrategyRuntimeSummary(func() map[string]any {
-			return map[string]any{"status": "idle", "activeStrategies": 0}
+		WithStrategyRuntimeSummary(func() *strategy.RuntimeSummary {
+			return &strategy.RuntimeSummary{Status: "idle", ActiveInstances: []strategy.RuntimeActiveInstanceSummary{}}
 		}),
-		WithRuntimeResources(func() map[string]any {
-			return map[string]any{"checkedAt": "2026-07-04T00:00:00Z", "count": 1, "items": []any{map[string]any{"id": "settings-file", "owner": "settings"}}}
+		WithRuntimeResources(func() RuntimeResources {
+			return RuntimeResources{CheckedAt: "2026-07-04T00:00:00Z", Count: 1, Items: []RuntimeResourceDescriptor{{ID: "settings-file", Owner: "settings"}}}
 		}),
 	)
 
 	status := svc.Status()
-	if status["name"] != "JFTrade" {
-		t.Fatalf("name = %v, want JFTrade", status["name"])
+	if status.Name != "JFTrade" {
+		t.Fatalf("name = %v, want JFTrade", status.Name)
 	}
-	if status["apiPort"] != 3900 {
-		t.Fatalf("apiPort = %v, want 3900", status["apiPort"])
+	if status.APIPort != 3900 {
+		t.Fatalf("apiPort = %v, want 3900", status.APIPort)
 	}
-	if status["defaultTradingEnvironment"] != "SIMULATE" {
-		t.Fatalf("defaultTradingEnvironment = %v", status["defaultTradingEnvironment"])
+	if status.DefaultTradingEnvironment != "SIMULATE" {
+		t.Fatalf("defaultTradingEnvironment = %v", status.DefaultTradingEnvironment)
 	}
-
-	persistence, ok := status["persistence"].(map[string]any)
-	if !ok {
-		t.Fatalf("persistence = %#v, want map", status["persistence"])
+	if status.Persistence.DatabasePath != "/tmp/jftrade/settings.json" {
+		t.Fatalf("databasePath = %v", status.Persistence.DatabasePath)
 	}
-	if persistence["databasePath"] != "/tmp/jftrade/settings.json" {
-		t.Fatalf("databasePath = %v", persistence["databasePath"])
-	}
-	if persistence["checkedAt"] == "" {
+	if status.Persistence.CheckedAt == "" {
 		t.Fatal("checkedAt is empty")
 	}
-
-	broker, ok := status["broker"].(map[string]any)
-	if !ok || broker["id"] != "futu" || broker["status"] != "ready" {
-		t.Fatalf("broker = %#v", status["broker"])
+	if status.Broker == nil || status.Broker.ID != "futu" {
+		t.Fatalf("broker = %#v", status.Broker)
 	}
-	runtime, ok := status["strategyRuntime"].(map[string]any)
-	if !ok || runtime["status"] != "idle" || runtime["activeStrategies"] != 0 {
-		t.Fatalf("strategyRuntime = %#v", status["strategyRuntime"])
+	if status.StrategyRuntime == nil || status.StrategyRuntime.Status != "idle" || status.StrategyRuntime.ActiveStrategies != 0 {
+		t.Fatalf("strategyRuntime = %#v", status.StrategyRuntime)
 	}
-	resources, ok := status["runtimeResources"].(map[string]any)
-	if !ok || resources["count"] != 1 {
-		t.Fatalf("runtimeResources = %#v", status["runtimeResources"])
+	if status.RuntimeResources.Count != 1 {
+		t.Fatalf("runtimeResources = %#v", status.RuntimeResources)
 	}
-	items, ok := resources["items"].([]any)
-	if !ok || len(items) != 1 || items[0].(map[string]any)["owner"] != "settings" {
-		t.Fatalf("runtimeResources items = %#v", resources["items"])
+	if items := status.RuntimeResources.Items; len(items) != 1 || items[0].Owner != "settings" {
+		t.Fatalf("runtimeResources items = %#v", items)
 	}
 }
 
@@ -74,18 +65,18 @@ func TestStatusUsesDynamicPortAndTradingEnvironmentProviders(t *testing.T) {
 	)
 
 	status := svc.Status()
-	if status["apiPort"] != 3000 || status["defaultTradingEnvironment"] != "SIMULATE" {
+	if status.APIPort != 3000 || status.DefaultTradingEnvironment != "SIMULATE" {
 		t.Fatalf("initial status = %#v", status)
 	}
 
 	apiPort = 38401
 	tradingEnvironment = "REAL"
 	status = svc.Status()
-	if status["apiPort"] != 38401 {
-		t.Fatalf("apiPort = %v, want 38401", status["apiPort"])
+	if status.APIPort != 38401 {
+		t.Fatalf("apiPort = %v, want 38401", status.APIPort)
 	}
-	if status["defaultTradingEnvironment"] != "REAL" {
-		t.Fatalf("defaultTradingEnvironment = %v, want REAL", status["defaultTradingEnvironment"])
+	if status.DefaultTradingEnvironment != "REAL" {
+		t.Fatalf("defaultTradingEnvironment = %v, want REAL", status.DefaultTradingEnvironment)
 	}
 }
 
@@ -169,15 +160,15 @@ func TestRealTradeStateUsesInjectedRiskGatewaySnapshot(t *testing.T) {
 	}))
 
 	status := svc.Status()
-	if status["realTradingEnabled"] != true {
-		t.Fatalf("status realTradingEnabled = %v, want true", status["realTradingEnabled"])
+	if !status.RealTradingEnabled {
+		t.Fatalf("status realTradingEnabled = %v, want true", status.RealTradingEnabled)
 	}
-	killSwitch := status["realTradingKillSwitch"].(map[string]any)
-	if killSwitch["active"] != true || killSwitch["runtimeActive"] != true || killSwitch["allowsCancel"] != true {
+	killSwitch := status.RealTradingKillSwitch
+	if !killSwitch.Active || !killSwitch.RuntimeActive || !killSwitch.AllowsCancel {
 		t.Fatalf("status killSwitch = %#v", killSwitch)
 	}
-	risk := status["realTradingRisk"].(map[string]any)
-	if risk["enabled"] != true || risk["runtimeRiskConfigured"] != true || risk["maxOrderQuantity"] != &maxQty || risk["maxOrderNotional"] != &maxNotional {
+	risk := status.RealTradingRisk
+	if !risk.Enabled || !risk.RuntimeRiskConfigured || risk.MaxOrderQuantity != &maxQty || risk.MaxOrderNotional != &maxNotional {
 		t.Fatalf("status risk = %#v", risk)
 	}
 

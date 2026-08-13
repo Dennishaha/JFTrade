@@ -3,79 +3,65 @@ package system
 import (
 	"context"
 	"testing"
+
+	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
 func TestStatusIncludesInjectedObservabilitySummaries(t *testing.T) {
 	svc := NewService(
-		WithLiveStats(func() map[string]any {
-			return map[string]any{"connections": 3}
+		WithLiveStats(func() *LiveStats {
+			return &LiveStats{Connected: 3}
 		}),
-		WithMarketdataRuntimeSummary(func() map[string]any {
-			return map[string]any{"workers": 2, "status": "running"}
+		WithMarketdataRuntimeSummary(func() *MarketDataRuntime {
+			return &MarketDataRuntime{ActiveCount: 2, Status: "running"}
 		}),
-		WithExchangeCalendarStatus(func() map[string]any {
-			return map[string]any{"healthy": true, "sources": 4}
+		WithExchangeCalendarStatus(func() *CalendarStatus {
+			return &CalendarStatus{AutoRefreshEnabled: true, Sources: []CalendarSource{{ID: "builtin"}}}
 		}),
-		WithRequestObservability(func() any {
-			return map[string]any{"recentErrors": []any{"failure"}, "slowThresholdMs": 750}
+		WithRequestObservability(func() observability.Snapshot {
+			return observability.Snapshot{RecentErrors: []observability.Event{{Message: "failure"}}, SlowThresholdMS: 750}
 		}),
 	)
 
 	status := svc.Status()
-	observability, ok := status["observability"].(map[string]any)
-	if !ok {
-		t.Fatalf("observability = %#v, want map", status["observability"])
+	if status.Observability.Live == nil || status.Observability.Live.Connected != 3 {
+		t.Fatalf("live = %#v", status.Observability.Live)
 	}
-	live, ok := observability["live"].(map[string]any)
-	if !ok || live["connections"] != 3 {
-		t.Fatalf("live = %#v", observability["live"])
+	if status.Observability.MarketData == nil || status.Observability.MarketData.ActiveCount != 2 || status.Observability.MarketData.Status != "running" {
+		t.Fatalf("marketdata = %#v", status.Observability.MarketData)
 	}
-	marketdata, ok := observability["marketdata"].(map[string]any)
-	if !ok || marketdata["workers"] != 2 || marketdata["status"] != "running" {
-		t.Fatalf("marketdata = %#v", observability["marketdata"])
+	if calendars := status.Observability.ExchangeCalendars; calendars == nil || !calendars.AutoRefreshEnabled || len(calendars.Sources) != 1 {
+		t.Fatalf("exchangeCalendars = %#v", calendars)
 	}
-	calendars, ok := observability["exchangeCalendars"].(map[string]any)
-	if !ok || calendars["healthy"] != true || calendars["sources"] != 4 {
-		t.Fatalf("exchangeCalendars = %#v", observability["exchangeCalendars"])
-	}
-	requests, ok := observability["requests"].(map[string]any)
-	if !ok || requests["slowThresholdMs"] != 750 {
-		t.Fatalf("requests = %#v", observability["requests"])
+	if requests := status.Observability.Requests; requests.SlowThresholdMS != 750 || len(requests.RecentErrors) != 1 {
+		t.Fatalf("requests = %#v", requests)
 	}
 }
 
 func TestStatusProvidesDefaultRequestObservabilitySummary(t *testing.T) {
 	status := NewService().Status()
-	observability, ok := status["observability"].(map[string]any)
-	if !ok {
-		t.Fatalf("observability = %#v, want map", status["observability"])
-	}
-	requests, ok := observability["requests"].(map[string]any)
-	if !ok {
-		t.Fatalf("requests = %#v, want map", observability["requests"])
-	}
-	if got := requests["slowThresholdMs"]; got != 750 {
+	requests := status.Observability.Requests
+	if got := requests.SlowThresholdMS; got != 750 {
 		t.Fatalf("slowThresholdMs = %#v, want 750", got)
 	}
-	if got := requests["minimumImportance"]; got != "low" {
+	if got := requests.MinimumImportance; got != "low" {
 		t.Fatalf("minimumImportance = %#v, want low", got)
 	}
-	if errors, ok := requests["recentErrors"].([]any); !ok || len(errors) != 0 {
-		t.Fatalf("recentErrors = %#v, want empty slice", requests["recentErrors"])
+	if requests.RecentErrors == nil || len(requests.RecentErrors) != 0 {
+		t.Fatalf("recentErrors = %#v, want empty slice", requests.RecentErrors)
 	}
-	if slowRequests, ok := requests["recentSlowRequests"].([]any); !ok || len(slowRequests) != 0 {
-		t.Fatalf("recentSlowRequests = %#v, want empty slice", requests["recentSlowRequests"])
+	if requests.RecentSlowRequests == nil || len(requests.RecentSlowRequests) != 0 {
+		t.Fatalf("recentSlowRequests = %#v, want empty slice", requests.RecentSlowRequests)
 	}
-	openD, ok := requests["openD"].(map[string]any)
-	if !ok || openD["totalCalls"] != 0 || openD["failedCalls"] != 0 {
-		t.Fatalf("openD = %#v, want zero call counters", requests["openD"])
+	if requests.OpenD.TotalCalls != 0 || requests.OpenD.FailedCalls != 0 {
+		t.Fatalf("openD = %#v, want zero call counters", requests.OpenD)
 	}
 }
 
 func TestExchangeCalendarDelegatesAndFallbacks(t *testing.T) {
 	svc := NewService()
-	if got := svc.ExchangeCalendarStatus(); len(got) != 0 {
-		t.Fatalf("ExchangeCalendarStatus default = %#v, want empty map", got)
+	if got := svc.ExchangeCalendarStatus(); got.AutoRefreshEnabled || got.Markets != nil || got.Sources != nil {
+		t.Fatalf("ExchangeCalendarStatus default = %#v, want zero value", got)
 	}
 	if got := svc.ExchangeCalendarSources(); got != nil {
 		t.Fatalf("ExchangeCalendarSources default = %#v, want nil", got)
@@ -90,11 +76,11 @@ func TestExchangeCalendarDelegatesAndFallbacks(t *testing.T) {
 	var refreshedMarket string
 	var probedMarket string
 	delegated := NewService(
-		WithExchangeCalendarStatus(func() map[string]any {
-			return map[string]any{"state": "ready"}
+		WithExchangeCalendarStatus(func() *CalendarStatus {
+			return &CalendarStatus{AutoRefreshEnabled: true}
 		}),
-		WithExchangeCalendarSources(func() []map[string]any {
-			return []map[string]any{{"id": "nyse_official"}, {"id": "builtin_rules"}}
+		WithExchangeCalendarSources(func() []CalendarSource {
+			return []CalendarSource{{ID: "nyse_official"}, {ID: "builtin_rules"}}
 		}),
 		WithRefreshExchangeCalendars(func(ctx context.Context, market string) map[string]any {
 			refreshedMarket = market
@@ -106,10 +92,10 @@ func TestExchangeCalendarDelegatesAndFallbacks(t *testing.T) {
 		}),
 	)
 
-	if got := delegated.ExchangeCalendarStatus(); got["state"] != "ready" {
+	if got := delegated.ExchangeCalendarStatus(); !got.AutoRefreshEnabled {
 		t.Fatalf("ExchangeCalendarStatus delegated = %#v", got)
 	}
-	if got := delegated.ExchangeCalendarSources(); len(got) != 2 || got[0]["id"] != "nyse_official" {
+	if got := delegated.ExchangeCalendarSources(); len(got) != 2 || got[0].ID != "nyse_official" {
 		t.Fatalf("ExchangeCalendarSources delegated = %#v", got)
 	}
 	if got := delegated.RefreshExchangeCalendars(context.Background(), "US"); got["accepted"] != true || got["market"] != "US" || refreshedMarket != "US" {

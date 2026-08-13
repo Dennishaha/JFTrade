@@ -1,7 +1,7 @@
 import type { ExecutionSettingsResponse } from "../../contracts/wire/settings";
 import type {
   RuntimeResourcesSummary,
-  SystemBuildInformation,
+  SystemStatusResponseDto,
 } from "../../contracts/wire/system";
 import type { StrategyRuntimeActiveInstanceSummary } from "./strategy";
 
@@ -108,55 +108,27 @@ export interface RequestObservabilitySummary {
   };
 }
 
-export interface SystemStatusResponse {
-  name: string;
-  apiPort: number;
-  build: SystemBuildInformation;
-  defaultBroker: string;
-  defaultTradingEnvironment: string;
-  realTradingEnabled: boolean;
-  realTradingKillSwitch: {
-    active: boolean;
-    runtimeActive: boolean;
-    blockedOperations: string[];
-    allowsCancel: boolean;
-  };
-  realTradingRisk: {
-    enabled: boolean;
-    maxOrderQuantity: number | null;
-    maxOrderNotional: number | null;
-    runtimeConfiguredMaxOrderQuantity: number | null;
-    runtimeConfiguredMaxOrderNotional: number | null;
-    runtimeRiskConfigured: boolean;
-  };
-  realTradeAccess?: {
-    approverAllowlistEnabled: boolean;
-    approverCount: number;
-    adminAllowlistEnabled: boolean;
-    adminCount: number;
-  };
+type SystemStatusWire = SystemStatusResponseDto;
+type StrategyRuntimeWire = NonNullable<SystemStatusWire["strategyRuntime"]>;
+
+export type SystemStatusResponse = Omit<
+  SystemStatusWire,
+  | "broker"
+  | "observability"
+  | "realTradeAccess"
+  | "runtimeResources"
+  | "strategyRuntime"
+> & {
   broker: BrokerDescriptor;
-  persistence: {
-    engine: string;
-    databasePath: string;
-    status: string;
-    migrated: boolean;
-    pendingMigrations: string[];
-    tables: string[];
-    checkedAt: string;
-  };
-  strategyRuntime: {
-    status: string;
-    activeStrategies: number;
-    supportsBacktestParity: boolean;
+  realTradeAccess?: SystemStatusWire["realTradeAccess"];
+  strategyRuntime: Omit<StrategyRuntimeWire, "activeInstances"> & {
     activeInstances?: StrategyRuntimeActiveInstanceSummary[];
   };
   runtimeResources?: RuntimeResourcesSummary;
   observability: {
     requests: RequestObservabilitySummary;
   };
-  message: string;
-}
+};
 
 export interface FutuBrokerIntegrationConfig {
   type: "futu";

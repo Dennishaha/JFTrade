@@ -4,9 +4,9 @@ import (
 	"errors"
 
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
-	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	appstores "github.com/jftrade/jftrade-main/internal/app/apiserver/stores"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	backteststore "github.com/jftrade/jftrade-main/internal/store/backtest"
 	researchstore "github.com/jftrade/jftrade-main/internal/store/research"
@@ -103,7 +103,7 @@ func (b *serverBootstrap) loadStrategyCatalog() strategystore.CatalogResource {
 	path := strategystore.DeriveCatalogPath(b.settingsPath)
 	store, err := strategystore.NewCatalog(path, strategystore.DerivePluginTargetDir(b.settingsPath))
 	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseStrategy, err)
+		b.recordUnavailable(dmsrv.DatabaseStrategy, err)
 		return strategystore.NewUnavailableCatalog(path, strategystore.DerivePluginTargetDir(b.settingsPath))
 	}
 	return store
@@ -113,7 +113,7 @@ func (b *serverBootstrap) loadDesignStore() strategystore.Resource {
 	path := strategystore.DerivePath(b.settingsPath)
 	store, err := strategystore.New(path)
 	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseStrategy, err)
+		b.recordUnavailable(dmsrv.DatabaseStrategy, err)
 		return strategystore.NewUnavailable(path)
 	}
 	return store
@@ -122,7 +122,7 @@ func (b *serverBootstrap) loadDesignStore() strategystore.Resource {
 func (b *serverBootstrap) loadBacktestRunStore() backtestRunStore {
 	store, err := backteststore.New(backteststore.DerivePath(b.settingsPath))
 	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseBacktestRuns, err)
+		b.recordUnavailable(dmsrv.DatabaseBacktestRuns, err)
 		return backteststore.NewInMemory()
 	}
 	return store
@@ -131,7 +131,7 @@ func (b *serverBootstrap) loadBacktestRunStore() backtestRunStore {
 func (b *serverBootstrap) loadExecutionOrderStore(settings jfsettings.ExecutionSettings) executionOrderStore {
 	store, err := newExecutionOrderStoreWithDB(deriveExecutionOrderDBPath(b.settingsPath))
 	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseExecution, err)
+		b.recordUnavailable(dmsrv.DatabaseExecution, err)
 		store = newExecutionOrderStore()
 	}
 	store.ConfigureSeenFillRetention(settings.SeenFillRetentionDays)

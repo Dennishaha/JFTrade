@@ -42,7 +42,7 @@ type serverApplication struct {
 	tradingSvc         *trdsrv.Service
 
 	dataMigration        *datamigration.Manager
-	unavailableDatabases map[string]error
+	unavailableDatabases dmsrv.AvailabilitySnapshot
 	observability        *observability.Recorder
 	lifecycle            appcomposition.Lifecycle
 }

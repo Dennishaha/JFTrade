@@ -164,11 +164,11 @@ func TestStrategyRuntimeObservationPersistsAcrossServerRestart(t *testing.T) {
 	if observation.LastClosedKLineAt == nil || observation.LastSignalAt == nil {
 		t.Fatalf("expected persisted timestamps after reload, got %+v", observation)
 	}
-	strategyRuntime, ok := reloadedServer.sysSvc.Status()["strategyRuntime"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected strategyRuntime summary, got %+v", reloadedServer.sysSvc.Status()["strategyRuntime"])
+	strategyRuntime := reloadedServer.sysSvc.Status().StrategyRuntime
+	if strategyRuntime == nil {
+		t.Fatalf("expected strategyRuntime summary, got %+v", reloadedServer.sysSvc.Status().StrategyRuntime)
 	}
-	if got := jftradeCheckedTypeAssertion[int](strategyRuntime["activeStrategies"]); got != 0 {
+	if got := strategyRuntime.ActiveStrategies; got != 0 {
 		t.Fatalf("activeStrategies after reload = %d, want 0", got)
 	}
 }
@@ -241,11 +241,11 @@ func TestStrategyRuntimePanicAutoReconcilesToStopped(t *testing.T) {
 		t.Fatalf("expected runtime_exited audit entry, got %+v", audit.Entries)
 	}
 
-	strategyRuntime, ok := server.sysSvc.Status()["strategyRuntime"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected strategyRuntime summary, got %+v", server.sysSvc.Status()["strategyRuntime"])
+	strategyRuntime := server.sysSvc.Status().StrategyRuntime
+	if strategyRuntime == nil {
+		t.Fatalf("expected strategyRuntime summary, got %+v", server.sysSvc.Status().StrategyRuntime)
 	}
-	if got := jftradeCheckedTypeAssertion[int](strategyRuntime["activeStrategies"]); got != 0 {
+	if got := strategyRuntime.ActiveStrategies; got != 0 {
 		t.Fatalf("activeStrategies after panic = %d, want 0", got)
 	}
 }

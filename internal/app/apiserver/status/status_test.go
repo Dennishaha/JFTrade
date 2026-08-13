@@ -6,29 +6,29 @@ import (
 	"time"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 )
 
 func TestLiveStatsSortsActiveInstruments(t *testing.T) {
 	stats := LiveStats(3, 20, true, []string{"HK.00700", "US.AAPL", "HK.00700"})
-	if stats["connected"] != 3 || stats["limit"] != 20 || stats["atLimit"] != true {
+	if stats.Connected != 3 || stats.Limit != 20 || !stats.AtLimit {
 		t.Fatalf("live stats = %#v", stats)
 	}
-	instruments, ok := stats["activeInstruments"].([]string)
-	if !ok || !sort.StringsAreSorted(instruments) || len(instruments) != 3 {
-		t.Fatalf("activeInstruments = %#v", stats["activeInstruments"])
+	if instruments := stats.ActiveInstruments; !sort.StringsAreSorted(instruments) || len(instruments) != 3 {
+		t.Fatalf("activeInstruments = %#v", instruments)
 	}
 	stats = LiveStats(0, 0, false, nil)
-	if _, ok := stats["activeInstruments"].([]string); !ok {
+	if stats.ActiveInstruments == nil {
 		t.Fatal("activeInstruments must remain a string slice")
 	}
 }
 
 func TestMarketDataRuntimeSummaryStates(t *testing.T) {
-	if got := MarketDataRuntimeSummary(nil); got["status"] != "unavailable" {
+	if got := MarketDataRuntimeSummary(nil); got.Status != "unavailable" {
 		t.Fatalf("nil service summary = %#v", got)
 	}
 
-	if got := marketDataRuntimeSummary(mdsrv.RuntimeState{}); got["status"] != "idle" {
+	if got := marketDataRuntimeSummary(mdsrv.RuntimeState{}); got.Status != "idle" {
 		t.Fatalf("idle summary = %#v", got)
 	}
 
@@ -43,45 +43,44 @@ func TestMarketDataRuntimeSummaryStates(t *testing.T) {
 		StreamFailures:  3,
 		StreamLastError: " stream down ",
 	})
-	if got["status"] != "closed" || got["connected"] != false || got["generation"] != uint64(7) || got["activeCount"] != 2 {
+	if got.Status != "closed" || got.Connected || got.Generation != uint64(7) || got.ActiveCount != 2 {
 		t.Fatalf("closed summary = %#v", got)
 	}
-	if got["quoteLastError"].(*string) == nil || *got["quoteLastError"].(*string) != "quote down" ||
-		got["streamLastError"].(*string) == nil || *got["streamLastError"].(*string) != "stream down" {
+	if got.QuoteLastError == nil || *got.QuoteLastError != "quote down" ||
+		got.StreamLastError == nil || *got.StreamLastError != "stream down" {
 		t.Fatalf("trimmed error summaries = %#v", got)
 	}
-	if got["lastRefreshAt"] == nil || got["streamRetryAt"] == nil {
+	if got.LastRefreshAt == nil || got.StreamRetryAt == nil {
 		t.Fatalf("time pointers missing = %#v", got)
 	}
 
-	if got := marketDataRuntimeSummary(mdsrv.RuntimeState{Connected: true, ActiveCount: 4}); got["status"] != "connected" {
+	if got := marketDataRuntimeSummary(mdsrv.RuntimeState{Connected: true, ActiveCount: 4}); got.Status != "connected" {
 		t.Fatalf("connected summary = %#v", got)
 	}
-	if got := marketDataRuntimeSummary(mdsrv.RuntimeState{QuoteLastError: "boom"}); got["status"] != "degraded" {
+	if got := marketDataRuntimeSummary(mdsrv.RuntimeState{QuoteLastError: "boom"}); got.Status != "degraded" {
 		t.Fatalf("degraded summary = %#v", got)
 	}
-	if got := marketDataRuntimeSummary(mdsrv.RuntimeState{ActiveCount: 1}); got["status"] != "connecting" {
+	if got := marketDataRuntimeSummary(mdsrv.RuntimeState{ActiveCount: 1}); got.Status != "connecting" {
 		t.Fatalf("connecting summary = %#v", got)
 	}
 }
 
 type fakeStrategyRuntimeSummary struct {
-	summary map[string]any
+	summary stratsrv.RuntimeSummary
 }
 
-func (f fakeStrategyRuntimeSummary) SummaryMap() map[string]any {
+func (f fakeStrategyRuntimeSummary) RuntimeSummary() stratsrv.RuntimeSummary {
 	return f.summary
 }
 
 func TestStrategyRuntimeSummaryDelegatesAndDefaults(t *testing.T) {
 	got := StrategyRuntimeSummary(nil)
-	if got["status"] != "idle" || got["activeStrategies"] != 0 ||
-		got["supportsBacktestParity"] != true ||
-		len(got["activeInstances"].([]map[string]any)) != 0 {
+	if got.Status != "idle" || got.ActiveStrategies != 0 ||
+		!got.SupportsBacktestParity || len(got.ActiveInstances) != 0 {
 		t.Fatalf("nil runtime summary = %#v", got)
 	}
-	source := fakeStrategyRuntimeSummary{summary: map[string]any{"status": "running", "activeStrategies": 2}}
-	if got := StrategyRuntimeSummary(source); got["activeStrategies"] != 2 {
+	source := fakeStrategyRuntimeSummary{summary: stratsrv.RuntimeSummary{Status: "running", ActiveStrategies: 2}}
+	if got := StrategyRuntimeSummary(source); got.ActiveStrategies != 2 {
 		t.Fatalf("delegated summary = %#v", got)
 	}
 }

@@ -17,12 +17,14 @@ import (
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/backtestapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/futuapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/liveapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
@@ -191,7 +193,7 @@ type serverBootstrap struct {
 	settingsPath         string
 	backtestDBPath       string
 	dataMigration        *datamigration.Manager
-	unavailableDatabases map[string]error
+	unavailableDatabases dmsrv.AvailabilitySnapshot
 }
 
 func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer) *Server {
@@ -209,7 +211,7 @@ func newServerBootstrap(store SidecarSettingsStore) serverBootstrap {
 	bootstrap := serverBootstrap{
 		settingsPath:         store.Path(),
 		backtestDBPath:       deriveBacktestDBPath(),
-		unavailableDatabases: make(map[string]error),
+		unavailableDatabases: dmsrv.NewAvailabilitySnapshot(),
 	}
 	bootstrap.dataMigration = datamigration.NewManager(bootstrap.settingsPath, bootstrap.backtestDBPath)
 	if err := ensureRuntimeLayout(bootstrap.settingsPath, bootstrap.backtestDBPath); err != nil {
@@ -219,19 +221,19 @@ func newServerBootstrap(store SidecarSettingsStore) serverBootstrap {
 	return bootstrap
 }
 
-func (b *serverBootstrap) recordUnavailable(id string, err error) {
+func (b *serverBootstrap) recordUnavailable(id dmsrv.DatabaseID, err error) {
 	if err == nil {
 		return
 	}
-	b.unavailableDatabases[id] = err
-	b.dataMigration.SetUnavailable(id, err)
+	b.unavailableDatabases.Record(id, err)
+	b.dataMigration.SetUnavailable(string(id), err)
 	log.Printf("JFTrade %s database unavailable: %v", id, err)
 }
 
 func (b *serverBootstrap) probeBacktestDatabase() {
 	backtestStore, err := backteststore.OpenKLineDatabase(b.backtestDBPath)
 	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseBacktest, err)
+		b.recordUnavailable(dmsrv.DatabaseBacktest, err)
 		return
 	}
 	if err := backtestStore.Close(); err != nil {
@@ -300,8 +302,8 @@ func initializeSecurityAndCalendars(s *Server, store SidecarSettingsStore, setti
 func initializeADKRuntime(s *Server, bootstrap serverBootstrap) {
 	bootstrap.probeADKDatabase()
 	bootstrap.probeADKSessionDatabase()
-	if bootstrap.unavailableDatabases[datamigration.DatabaseADK] == nil &&
-		bootstrap.unavailableDatabases[datamigration.DatabaseADKSession] == nil {
+	if bootstrap.unavailableDatabases.Unavailable(dmsrv.DatabaseADK) == nil &&
+		bootstrap.unavailableDatabases.Unavailable(dmsrv.DatabaseADKSession) == nil {
 		assembly, err := appcomposition.OpenAssistant(appcomposition.AssistantOptions{
 			SettingsPath:    bootstrap.settingsPath,
 			Settings:        s.store,
@@ -327,7 +329,7 @@ func initializeADKRuntime(s *Server, bootstrap serverBootstrap) {
 func (b *serverBootstrap) probeADKDatabase() {
 	probe := appcomposition.InspectAssistantRuntimeDatabase(b.settingsPath)
 	if probe.OpenError != nil {
-		b.recordUnavailable(datamigration.DatabaseADK, probe.OpenError)
+		b.recordUnavailable(dmsrv.DatabaseADK, probe.OpenError)
 		return
 	}
 	if probe.CloseError != nil {
@@ -338,7 +340,7 @@ func (b *serverBootstrap) probeADKDatabase() {
 func (b *serverBootstrap) probeADKSessionDatabase() {
 	probe := appcomposition.InspectAssistantSessionDatabase(b.settingsPath)
 	if probe.OpenError != nil {
-		b.recordUnavailable(datamigration.DatabaseADKSession, probe.OpenError)
+		b.recordUnavailable(dmsrv.DatabaseADKSession, probe.OpenError)
 		return
 	}
 	if probe.CloseError != nil {
@@ -360,7 +362,7 @@ func refreshUnavailableDatabaseStatuses(s *Server) {
 		if strings.TrimSpace(reason) == "" {
 			reason = "database was not initialized"
 		}
-		s.unavailableDatabases[status.ID] = fmt.Errorf("%s", reason)
+		s.unavailableDatabases.Record(dmsrv.DatabaseID(status.ID), fmt.Errorf("%s", reason))
 	}
 }
 
@@ -391,7 +393,7 @@ func initializeMarketdataRuntime(s *Server) {
 }
 
 func reconcileStrategyRuntimeStates(s *Server) {
-	if _, unavailable := s.unavailableDatabases[datamigration.DatabaseStrategy]; unavailable {
+	if s.unavailableDatabases.Unavailable(dmsrv.DatabaseStrategy) != nil {
 		return
 	}
 	reconciled, err := s.stores.StrategyCatalog.ReconcileOnStartup()
@@ -413,7 +415,7 @@ func startLiveNotifications(s *Server) {
 func initializeRealTradeControl(s *Server, bootstrap serverBootstrap) {
 	controlPlane, err := trdsrv.NewRealTradeControlPlane(deriveRealTradeControlPath(bootstrap.settingsPath))
 	if err != nil {
-		bootstrap.recordUnavailable("real-trade-control", err)
+		bootstrap.recordUnavailable(dmsrv.DatabaseRealTradeControl, err)
 	}
 	s.runtimes.SetRealTradeControl(controlPlane, controlPlane)
 }
@@ -430,11 +432,14 @@ func systemCoreOptions(s *Server, settingsPath string, backtestDBPath string) []
 		system.WithAPIPortFunc(func() int { return s.apiPort }),
 		system.WithSettingsPath(settingsPath),
 		system.WithDefaultTradingEnvironmentFunc(func() string { return defaultTradingEnvironment(&s.serverApplication) }),
-		system.WithBrokerDescriptor(func() map[string]any { return s.futuCoordinator().Descriptor() }),
-		system.WithStrategyRuntimeSummary(func() map[string]any { return strategyRuntimeSummary(&s.serverApplication) }),
-		system.WithLiveStats(func() map[string]any { return liveStatsSummary(&s.serverApplication) }),
-		system.WithMarketdataRuntimeSummary(func() map[string]any { return marketdataRuntimeSummary(&s.serverApplication) }),
-		system.WithRuntimeResources(func() map[string]any {
+		system.WithBrokerDescriptor(func() *trdsrv.BrokerRuntimeDescriptor {
+			descriptor := futuapp.BrokerRuntimeDescriptor()
+			return &descriptor
+		}),
+		system.WithStrategyRuntimeSummary(func() *stratsrv.RuntimeSummary { return strategyRuntimeSummary(&s.serverApplication) }),
+		system.WithLiveStats(func() *system.LiveStats { return liveStatsSummary(&s.serverApplication) }),
+		system.WithMarketdataRuntimeSummary(func() *system.MarketDataRuntime { return marketdataRuntimeSummary(&s.serverApplication) }),
+		system.WithRuntimeResources(func() system.RuntimeResources {
 			return apiruntime.RuntimeResourceSummary(settingsPath, backtestDBPath)
 		}),
 		system.WithBrokerOrderSnapshot(func() map[string]any {
@@ -454,7 +459,7 @@ func systemRuntimeOptions(s *Server) []system.Option {
 		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any {
 			return apiruntime.Dependencies(ctx, s.pineWorkerSettings())
 		}),
-		system.WithRequestObservability(func() any { return s.observability.Snapshot() }),
+		system.WithRequestObservability(func() observability.Snapshot { return s.observability.Snapshot() }),
 		system.WithRealTradeRiskState(func() *trdsrv.RealTradeRiskSnapshot {
 			riskGateway := s.runtimes.PreTradeRisk()
 			if riskGateway == nil {

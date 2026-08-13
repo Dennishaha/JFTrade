@@ -9,27 +9,26 @@ import (
 	"time"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/internal/system"
 )
 
-func LiveStats(connected int, limit int, atLimit bool, activeInstruments []string) map[string]any {
-	sorted := append([]string(nil), activeInstruments...)
+func LiveStats(connected int, limit int, atLimit bool, activeInstruments []string) *system.LiveStats {
+	sorted := append([]string{}, activeInstruments...)
 	sort.Strings(sorted)
-	return map[string]any{
-		"connected":         connected,
-		"limit":             limit,
-		"atLimit":           atLimit,
-		"activeInstruments": sorted,
+	return &system.LiveStats{
+		Connected: connected, Limit: limit, AtLimit: atLimit, ActiveInstruments: sorted,
 	}
 }
 
-func MarketDataRuntimeSummary(service *mdsrv.Service) map[string]any {
+func MarketDataRuntimeSummary(service *mdsrv.Service) *system.MarketDataRuntime {
 	if service == nil {
-		return map[string]any{"status": "unavailable"}
+		return &system.MarketDataRuntime{Status: "unavailable"}
 	}
 	return marketDataRuntimeSummary(service.RuntimeState())
 }
 
-func marketDataRuntimeSummary(state mdsrv.RuntimeState) map[string]any {
+func marketDataRuntimeSummary(state mdsrv.RuntimeState) *system.MarketDataRuntime {
 	stateStatus := "idle"
 	switch {
 	case state.Closed:
@@ -41,38 +40,31 @@ func marketDataRuntimeSummary(state mdsrv.RuntimeState) map[string]any {
 	case state.ActiveCount > 0:
 		stateStatus = "connecting"
 	}
-	return map[string]any{
-		"status":          stateStatus,
-		"connected":       state.Connected,
-		"closed":          state.Closed,
-		"generation":      state.Generation,
-		"activeCount":     state.ActiveCount,
-		"lastRefreshAt":   OptionalTimeString(state.LastRefreshAt),
-		"quoteRetryAt":    OptionalTimeString(state.QuoteRetryAt),
-		"quoteFailures":   state.QuoteFailures,
-		"quoteLastError":  StringPointerOrNil(state.QuoteLastError),
-		"streamRetryAt":   OptionalTimeString(state.StreamRetryAt),
-		"streamFailures":  state.StreamFailures,
-		"streamLastError": StringPointerOrNil(state.StreamLastError),
+	return &system.MarketDataRuntime{
+		Status: stateStatus, Connected: state.Connected, Closed: state.Closed,
+		Generation: state.Generation, ActiveCount: state.ActiveCount,
+		LastRefreshAt: OptionalTimeString(state.LastRefreshAt), QuoteRetryAt: OptionalTimeString(state.QuoteRetryAt),
+		QuoteFailures: state.QuoteFailures, QuoteLastError: StringPointerOrNil(state.QuoteLastError),
+		StreamRetryAt: OptionalTimeString(state.StreamRetryAt), StreamFailures: state.StreamFailures,
+		StreamLastError: StringPointerOrNil(state.StreamLastError),
 	}
 }
 
 // StrategyRuntimeSummarySource is the small strategy-runtime surface needed
 // by the system status route.
 type StrategyRuntimeSummarySource interface {
-	SummaryMap() map[string]any
+	RuntimeSummary() stratsrv.RuntimeSummary
 }
 
-func StrategyRuntimeSummary(runtime StrategyRuntimeSummarySource) map[string]any {
+func StrategyRuntimeSummary(runtime StrategyRuntimeSummarySource) *stratsrv.RuntimeSummary {
 	if runtime == nil {
-		return map[string]any{
-			"status":                 "idle",
-			"activeStrategies":       0,
-			"supportsBacktestParity": true,
-			"activeInstances":        []map[string]any{},
-		}
+		return &stratsrv.RuntimeSummary{Status: "idle", SupportsBacktestParity: true, ActiveInstances: []stratsrv.RuntimeActiveInstanceSummary{}}
 	}
-	return runtime.SummaryMap()
+	summary := runtime.RuntimeSummary()
+	if summary.ActiveInstances == nil {
+		summary.ActiveInstances = []stratsrv.RuntimeActiveInstanceSummary{}
+	}
+	return &summary
 }
 
 func OptionalTimeString(value time.Time) *string {

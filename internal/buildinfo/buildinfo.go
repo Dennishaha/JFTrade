@@ -11,17 +11,25 @@ var (
 	BuildTime = ""
 )
 
-func Snapshot() map[string]any {
+type Information struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	BuildTime string `json:"buildTime"`
+	GOOS      string `json:"goos"`
+	GOARCH    string `json:"goarch"`
+}
+
+func Snapshot() Information {
 	buildTime := strings.TrimSpace(BuildTime)
 	if buildTime == "" {
 		buildTime = "dev"
 	}
 
-	return map[string]any{
-		"version":   strings.TrimSpace(Version),
-		"commit":    strings.TrimSpace(Commit),
-		"buildTime": buildTime,
-		"goos":      runtime.GOOS,
-		"goarch":    runtime.GOARCH,
+	return Information{
+		Version:   strings.TrimSpace(Version),
+		Commit:    strings.TrimSpace(Commit),
+		BuildTime: buildTime,
+		GOOS:      runtime.GOOS,
+		GOARCH:    runtime.GOARCH,
 	}
 }

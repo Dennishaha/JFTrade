@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/liveapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
 	"github.com/jftrade/jftrade-main/internal/watchlist"
@@ -18,7 +18,7 @@ import (
 func (b *serverBootstrap) loadWatchlistStore() *watchliststore.Store {
 	store, err := watchliststore.Open(context.Background(), apiruntime.DeriveWatchlistDBPath(b.settingsPath))
 	if err != nil {
-		b.recordUnavailable(datamigration.DatabaseWatchlist, err)
+		b.recordUnavailable(dmsrv.DatabaseWatchlist, err)
 		return nil
 	}
 	return store

@@ -2,6 +2,7 @@ package assembly
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -148,7 +149,14 @@ func (a *ApplicationAdapter) ToolDeps() ToolDeps {
 
 func (a *ApplicationAdapter) systemStatus() map[string]any {
 	if service := a.system(); service != nil {
-		return service.Status()
+		encoded, err := json.Marshal(service.Status())
+		if err != nil {
+			return map[string]any{}
+		}
+		var status map[string]any
+		if err := json.Unmarshal(encoded, &status); err == nil {
+			return status
+		}
 	}
 	return map[string]any{}
 }

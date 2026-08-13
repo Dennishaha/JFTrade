@@ -2,9 +2,11 @@ package servercore
 
 import (
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/status"
+	"github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/internal/system"
 )
 
-func liveStatsSummary(s *serverApplication) map[string]any {
+func liveStatsSummary(s *serverApplication) *system.LiveStats {
 	if s == nil {
 		return status.LiveStats(0, 0, false, nil)
 	}
@@ -17,11 +19,11 @@ func liveStatsSummary(s *serverApplication) map[string]any {
 	return status.LiveStats(stats.Connected, stats.Limit, stats.AtLimit, activeInstruments)
 }
 
-func marketdataRuntimeSummary(s *serverApplication) map[string]any {
+func marketdataRuntimeSummary(s *serverApplication) *system.MarketDataRuntime {
 	return status.MarketDataRuntimeSummary(s.marketdataSvc)
 }
 
-func strategyRuntimeSummary(s *serverApplication) map[string]any {
+func strategyRuntimeSummary(s *serverApplication) *strategy.RuntimeSummary {
 	if s == nil {
 		return status.StrategyRuntimeSummary(nil)
 	}

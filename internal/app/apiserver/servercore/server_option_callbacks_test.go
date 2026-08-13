@@ -20,7 +20,7 @@ func TestServerSystemAndSettingsOptionCallbacks(t *testing.T) {
 
 	options := append(systemCoreOptions(server, settings.Path(), deriveBacktestDBPath()), systemRuntimeOptions(server)...)
 	service := system.NewService(options...)
-	if got := service.Status(); got["name"] != "JFTrade" {
+	if got := service.Status(); got.Name != "JFTrade" {
 		t.Fatalf("system status = %#v", got)
 	}
 	if got := service.BrokerOrderUpdatesSnapshot(); len(got) != 0 {

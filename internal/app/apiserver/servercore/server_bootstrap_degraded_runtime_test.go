@@ -3,6 +3,7 @@ package servercore
 import (
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/futuapp"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	settingssvc "github.com/jftrade/jftrade-main/internal/settings"
 	"github.com/jftrade/jftrade-main/internal/system"
@@ -22,12 +23,12 @@ func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
 		settingsPath:         settingsPath,
 		backtestDBPath:       blocker,
 		dataMigration:        datamigration.NewManager(settingsPath, blocker),
-		unavailableDatabases: map[string]error{},
+		unavailableDatabases: dmsrv.NewAvailabilitySnapshot(),
 	}
 	bootstrap.probeADKDatabase()
 	bootstrap.probeADKSessionDatabase()
-	for _, databaseID := range []string{datamigration.DatabaseADK, datamigration.DatabaseADKSession} {
-		if bootstrap.unavailableDatabases[databaseID] == nil {
+	for _, databaseID := range []dmsrv.DatabaseID{dmsrv.DatabaseADK, dmsrv.DatabaseADKSession} {
+		if bootstrap.unavailableDatabases.Unavailable(databaseID) == nil {
 			t.Fatalf("%s probe failure was not persisted", databaseID)
 		}
 	}
@@ -35,7 +36,7 @@ func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
 	failedInspection := &Server{
 		serverApplication: serverApplication{
 			dataMigration:        datamigration.NewManager(filepath.Join(root, "failed-settings.json"), filepath.Join(root, "failed-backtest.db")),
-			unavailableDatabases: map[string]error{},
+			unavailableDatabases: dmsrv.NewAvailabilitySnapshot(),
 		},
 	}
 	if err := os.WriteFile(filepath.Join(root, datamigration.RebuildMarkerFilename), []byte("{"), 0o600); err != nil {
@@ -50,11 +51,11 @@ func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
 	missingData := &Server{
 		serverApplication: serverApplication{
 			dataMigration:        datamigration.NewManager(filepath.Join(missingRoot, "settings.json"), filepath.Join(missingRoot, "backtest.db")),
-			unavailableDatabases: map[string]error{},
+			unavailableDatabases: dmsrv.NewAvailabilitySnapshot(),
 		},
 	}
 	refreshUnavailableDatabaseStatuses(missingData)
-	if reason := missingData.unavailableDatabases[datamigration.DatabaseBacktest]; reason == nil || reason.Error() != "database was not initialized" {
+	if reason := missingData.unavailableDatabases.Unavailable(dmsrv.DatabaseBacktest); reason == nil || reason.Error() != "database was not initialized" {
 		t.Fatalf("missing backtest reason = %v", reason)
 	}
 }

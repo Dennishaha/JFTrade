@@ -56,14 +56,14 @@ func TestNewServerReconcilesPersistedActiveStrategyStates(t *testing.T) {
 		t.Fatalf("expected reconciliation audit entry, got %+v", audit.Entries)
 	}
 
-	strategyRuntime, ok := reloadedServer.sysSvc.Status()["strategyRuntime"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected strategyRuntime summary, got %+v", reloadedServer.sysSvc.Status()["strategyRuntime"])
+	strategyRuntime := reloadedServer.sysSvc.Status().StrategyRuntime
+	if strategyRuntime == nil {
+		t.Fatalf("expected strategyRuntime summary, got %+v", reloadedServer.sysSvc.Status().StrategyRuntime)
 	}
-	if got := jftradeCheckedTypeAssertion[int](strategyRuntime["activeStrategies"]); got != 0 {
+	if got := strategyRuntime.ActiveStrategies; got != 0 {
 		t.Fatalf("activeStrategies after restart = %d, want 0", got)
 	}
-	if got := strategyRuntime["status"]; got != "idle" {
+	if got := strategyRuntime.Status; got != "idle" {
 		t.Fatalf("runtime status after restart = %v, want idle", got)
 	}
 }

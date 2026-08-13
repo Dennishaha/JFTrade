@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/jftrade/jftrade-main/internal/system"
@@ -16,19 +17,23 @@ func exchangeCalendarOperationContext(parent context.Context) (context.Context, 
 
 func (s *serverApplication) systemCalendarOptions() []system.Option {
 	return []system.Option{
-		system.WithExchangeCalendarStatus(func() map[string]any {
-			calendars := s.runtimes.ExchangeCalendars()
-			if calendars == nil {
-				return map[string]any{}
-			}
-			return calendars.Status()
-		}),
-		system.WithExchangeCalendarSources(func() []map[string]any {
+		system.WithExchangeCalendarStatus(func() *system.CalendarStatus {
 			calendars := s.runtimes.ExchangeCalendars()
 			if calendars == nil {
 				return nil
 			}
-			return calendars.Sources()
+			return systemCalendarStatus(calendars.Status())
+		}),
+		system.WithExchangeCalendarSources(func() []system.CalendarSource {
+			calendars := s.runtimes.ExchangeCalendars()
+			if calendars == nil {
+				return nil
+			}
+			status := systemCalendarStatus(calendars.Status())
+			if status == nil {
+				return nil
+			}
+			return status.Sources
 		}),
 		system.WithRefreshExchangeCalendars(func(ctx context.Context, market string) map[string]any {
 			return s.handleExchangeCalendarOperation(ctx, market, true)
@@ -37,6 +42,18 @@ func (s *serverApplication) systemCalendarOptions() []system.Option {
 			return s.handleExchangeCalendarOperation(ctx, market, false)
 		}),
 	}
+}
+
+func systemCalendarStatus(projection map[string]any) *system.CalendarStatus {
+	encoded, err := json.Marshal(projection)
+	if err != nil {
+		return nil
+	}
+	var status system.CalendarStatus
+	if err := json.Unmarshal(encoded, &status); err != nil {
+		return nil
+	}
+	return &status
 }
 
 func (s *serverApplication) handleExchangeCalendarOperation(ctx context.Context, market string, refresh bool) map[string]any {

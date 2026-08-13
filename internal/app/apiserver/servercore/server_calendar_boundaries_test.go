@@ -19,7 +19,7 @@ func TestServerCalendarOptionsAndOperationsRemainingBoundaries(t *testing.T) {
 
 	emptyServer := &Server{}
 	emptyService := system.NewService(emptyServer.systemCalendarOptions()...)
-	if got := emptyService.ExchangeCalendarStatus(); len(got) != 0 {
+	if got := emptyService.ExchangeCalendarStatus(); got.Markets != nil || got.Sources != nil {
 		t.Fatalf("empty calendar status = %#v", got)
 	}
 	if got := emptyService.ExchangeCalendarSources(); got != nil {
@@ -36,8 +36,8 @@ func TestServerCalendarOptionsAndOperationsRemainingBoundaries(t *testing.T) {
 	server := &Server{}
 	server.runtimes.SetExchangeCalendars(manager, nil)
 	service := system.NewService(server.systemCalendarOptions()...)
-	if got := service.ExchangeCalendarStatus(); got == nil {
-		t.Fatal("configured calendar status is nil")
+	if got := service.ExchangeCalendarStatus(); len(got.Markets) == 0 {
+		t.Fatal("configured calendar status has no markets")
 	}
 	if got := service.ExchangeCalendarSources(); got == nil {
 		t.Fatal("configured calendar sources is nil")

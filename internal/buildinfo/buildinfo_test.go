@@ -16,15 +16,15 @@ func TestSnapshotTrimsBuildMetadataAndDefaultsBuildTime(t *testing.T) {
 	BuildTime = " "
 
 	snapshot := Snapshot()
-	if snapshot["version"] != "1.2.3" || snapshot["commit"] != "abc123" || snapshot["buildTime"] != "dev" {
+	if snapshot.Version != "1.2.3" || snapshot.Commit != "abc123" || snapshot.BuildTime != "dev" {
 		t.Fatalf("Snapshot metadata = %#v", snapshot)
 	}
-	if snapshot["goos"] != runtime.GOOS || snapshot["goarch"] != runtime.GOARCH {
+	if snapshot.GOOS != runtime.GOOS || snapshot.GOARCH != runtime.GOARCH {
 		t.Fatalf("Snapshot runtime = %#v, want %s/%s", snapshot, runtime.GOOS, runtime.GOARCH)
 	}
 
 	BuildTime = "2026-07-02T00:00:00Z"
-	if got := Snapshot()["buildTime"]; got != "2026-07-02T00:00:00Z" {
+	if got := Snapshot().BuildTime; got != "2026-07-02T00:00:00Z" {
 		t.Fatalf("Snapshot buildTime = %#v", got)
 	}
 }
