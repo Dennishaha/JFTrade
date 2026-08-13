@@ -1,32 +1,35 @@
 {
-  "version": 1,
+  "version": 2,
+  "sourceRoots": [
+    "cmd",
+    "internal",
+    "pkg",
+    "apps",
+    "workers"
+  ],
+  "sourceExtensions": [
+    ".go",
+    ".js",
+    ".mjs",
+    ".py",
+    ".ts",
+    ".tsx",
+    ".vue"
+  ],
+  "ignoredSourcePaths": [],
   "modules": [
     {
       "id": "apiserver",
       "paths": [
+        "cmd/jftrade-api",
         "internal/app/apiserver",
-        "internal/api",
-        "internal/app/apiserver/application",
-		"internal/app/apiserver/backtestapp",
-        "internal/app/apiserver/datamigration",
-        "internal/app/apiserver/futuapp",
-        "internal/app/apiserver/lifecycle",
-        "internal/app/apiserver/liveapp",
-        "internal/app/apiserver/marketdataapp",
-        "internal/app/apiserver/runtime",
-        "internal/app/apiserver/runtimes",
-        "internal/app/apiserver/status",
-        "internal/app/apiserver/stores",
-        "internal/app/apiserver/tradingapp",
-        "internal/app/apiserver/webaccess"
+        "internal/api"
       ],
       "entrypoints": [
         "cmd/jftrade-api",
         "cmd/jftrade-desktop"
       ],
-      "affectedTests": [
-        "go test -p=4 ./internal/app/apiserver/... ./internal/api/... -count=1"
-      ],
+      "affectedTests": [],
       "generatedPaths": [
         "docs/swagger",
         "apps/web/src/generated/openapi.ts",
@@ -47,9 +50,7 @@
         "/api/v1/adk/*",
         "apps/web/src/pages/ADKPage.vue"
       ],
-      "affectedTests": [
-        "go test -p=4 ./internal/assistant/... ./internal/api/assistant -count=1"
-      ],
+      "affectedTests": [],
       "vetPackages": [
         "./internal/assistant/...",
         "./internal/api/assistant"
@@ -58,22 +59,23 @@
     {
       "id": "marketdata",
       "paths": [
+        "internal/integration",
+        "internal/live",
         "internal/marketdata",
-        "internal/integration/futu",
-        "internal/integration/yfinance"
+        "pkg/market"
       ],
       "entrypoints": [
         "/api/v1/stream/live",
         "/api/v1/marketdata/*"
       ],
-      "affectedTests": [
-        "go test ./internal/marketdata/... ./internal/integration/... ./internal/api/live ./internal/api/marketdata -count=1"
-      ],
+      "affectedTests": [],
       "vetPackages": [
-        "./internal/marketdata/...",
         "./internal/integration/...",
+        "./internal/live/...",
+        "./internal/marketdata/...",
         "./internal/api/live",
-        "./internal/api/marketdata"
+        "./internal/api/marketdata",
+        "./pkg/market/..."
       ]
     },
     {
@@ -86,9 +88,7 @@
       "entrypoints": [
         "/api/v1/trading/*"
       ],
-      "affectedTests": [
-        "go test ./internal/trading/... ./internal/api/trading ./pkg/futu/... -count=1"
-      ],
+      "affectedTests": [],
       "vetPackages": [
         "./internal/trading/...",
         "./internal/api/trading",
@@ -98,33 +98,131 @@
     {
       "id": "strategy-backtest",
       "paths": [
-        "internal/strategy",
-        "pkg/strategy",
         "internal/backtest",
+        "internal/strategy",
         "pkg/backtest",
+        "pkg/strategy",
         "apps/web/src/features/strategy-builder",
         "apps/web/src/composables/backtest"
       ],
       "entrypoints": [
         "/api/v1/strategy/*",
-		"/api/v1/backtests/*",
-		"/api/v1/settings/backtest-market-data-provider"
+        "/api/v1/backtests/*",
+        "/api/v1/settings/backtest-market-data-provider"
       ],
-      "affectedTests": [
-        "go test ./internal/strategy/... ./pkg/strategy/... ./internal/backtest/... ./pkg/backtest/... -count=1"
-      ],
+      "affectedTests": [],
       "vetPackages": [
-        "./internal/strategy/...",
-        "./pkg/strategy/...",
         "./internal/backtest/...",
-        "./pkg/backtest/..."
+        "./internal/strategy/...",
+        "./pkg/backtest/...",
+        "./pkg/strategy/..."
+      ]
+    },
+    {
+      "id": "product-features",
+      "paths": [
+        "internal/productfeatures",
+        "internal/research",
+        "internal/store/research",
+        "pkg/researchscreen"
+      ],
+      "entrypoints": [
+        "/api/v1/research/*",
+        "/api/v1/market/*",
+        "/api/v1/prediction/*"
+      ],
+      "affectedTests": [],
+      "vetPackages": [
+        "./internal/productfeatures/...",
+        "./internal/research/...",
+        "./internal/api/productfeatures",
+        "./internal/api/research",
+        "./pkg/researchscreen/..."
+      ]
+    },
+    {
+      "id": "broker-core",
+      "paths": [
+        "pkg/bbgo",
+        "pkg/broker"
+      ],
+      "entrypoints": [],
+      "affectedTests": [],
+      "vetPackages": [
+        "./pkg/bbgo/...",
+        "./pkg/broker/..."
+      ]
+    },
+    {
+      "id": "platform",
+      "paths": [
+        "internal/buildinfo",
+        "internal/datamanagement",
+        "internal/exchangecalendar",
+        "internal/jftsettings",
+        "internal/retry",
+        "internal/security",
+        "internal/settings",
+        "internal/store",
+        "internal/system",
+        "internal/watchlist",
+        "pkg/besteffort",
+        "pkg/chart",
+        "pkg/observability"
+      ],
+      "entrypoints": [
+        "/api/v1/system/*",
+        "/api/v1/settings/*",
+        "/api/v1/watchlist/*"
+      ],
+      "affectedTests": [],
+      "vetPackages": [
+        "./internal/datamanagement/...",
+        "./internal/exchangecalendar/...",
+        "./internal/settings/...",
+        "./internal/store/...",
+        "./internal/system/...",
+        "./internal/watchlist/..."
+      ]
+    },
+    {
+      "id": "desktop-assets",
+      "paths": [
+        "cmd/jftrade-desktop",
+        "internal/desktop",
+        "internal/frontendassets",
+        "internal/marketdataassets",
+        "internal/pineworkerassets",
+        "internal/yfinanceassets"
+      ],
+      "entrypoints": [
+        "cmd/jftrade-desktop"
+      ],
+      "affectedTests": [],
+      "vetPackages": [
+        "./cmd/jftrade-desktop",
+        "./internal/desktop/..."
+      ]
+    },
+    {
+      "id": "go-tooling",
+      "paths": [
+        "cmd/check-go-coverage",
+        "cmd/generate-futu-proto",
+        "cmd/generate-pine-spec-docs",
+        "cmd/generate-pineworker-proto",
+        "cmd/internal"
+      ],
+      "entrypoints": [],
+      "affectedTests": [],
+      "vetPackages": [
+        "./cmd/..."
       ]
     },
     {
       "id": "web",
       "paths": [
-        "apps/web/src",
-        "apps/web/tests"
+        "apps/web"
       ],
       "entrypoints": [
         "apps/web/src/pages"
@@ -142,8 +240,7 @@
         "workers/pineworker/src/main.ts"
       ],
       "affectedTests": [
-        "pnpm --filter @jftrade/pineworker run test",
-        "go test ./pkg/strategy/pineworker -count=1"
+        "pnpm --filter @jftrade/pineworker run test"
       ],
       "vetPackages": [
         "./pkg/strategy/pineworker"

@@ -24,3 +24,26 @@ test("AI context validation rejects stale package references", (t) => {
   });
   assert.deepEqual(errors, ["AGENTS.md 仍引用已删除路径 pkg/jftradeapi"]);
 });
+
+test("AI context validation requires every controlled source to have an owner or explicit ignore", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "jftrade-ai-context-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, "internal", "known"), { recursive: true });
+
+  const errors = validateAiContext(root, {
+    sourceRoots: ["internal"],
+    sourceExtensions: [".go"],
+    ignoredSourcePaths: ["internal/generated"],
+    modules: [{ id: "known", paths: ["internal/known"] }],
+    requiredInstructionFiles: [],
+  }, {
+    trackedFiles: [
+      "internal/known/service.go",
+      "internal/generated/wire.go",
+      "internal/missed/service.go",
+      "internal/missed/README.md",
+    ],
+  });
+
+  assert.deepEqual(errors, ["源码未归属任何模块且未显式忽略 internal/missed/service.go"]);
+});
