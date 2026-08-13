@@ -49,8 +49,7 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	now := fmt.Sprintf("%d", 0)
-	store.mu.Lock()
-	store.data.Integration = &jfsettings.BrokerIntegration{
+	saveTestIntegration(t, store, jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
 		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
@@ -64,8 +63,7 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 		}),
 		UpdatedAt: now,
 		CreatedAt: now,
-	}
-	store.mu.Unlock()
+	})
 
 	server := newTestServer(t, store)
 	acquireTestDepthSubscription(t, server, "US", "TME")
@@ -128,8 +126,7 @@ func TestMarketDepthOpenDError(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	now := fmt.Sprintf("%d", 0)
-	store.mu.Lock()
-	store.data.Integration = &jfsettings.BrokerIntegration{
+	saveTestIntegration(t, store, jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
 		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
@@ -143,8 +140,7 @@ func TestMarketDepthOpenDError(t *testing.T) {
 		}),
 		UpdatedAt: now,
 		CreatedAt: now,
-	}
-	store.mu.Unlock()
+	})
 
 	server := newTestServer(t, store)
 	acquireTestDepthSubscription(t, server, "US", "NVDA")

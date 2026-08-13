@@ -32,7 +32,7 @@ func TestStartupIntegrationRemainsEffectiveWithoutPersistedBrokerSettings(t *tes
 		SidecarSettingsStore: store,
 		startupIntegration:   integration,
 	}
-	server := &Server{serverApplication: serverApplication{store: wrapped}}
+	server := &Server{serverApplication: serverApplication{RouteDependencies: RouteDependencies{store: wrapped}}}
 	server.runtimes.SetBrokerRegistry(broker.NewRegistry())
 	initializeMarketdataRuntime(server)
 	t.Cleanup(func() {
@@ -162,7 +162,7 @@ func TestActiveBrokerWaitsForFutuRuntimeResetInvalidation(t *testing.T) {
 		t.Fatalf("SaveIntegration: %v", err)
 	}
 
-	server := &Server{serverApplication: serverApplication{store: store}}
+	server := &Server{serverApplication: serverApplication{RouteDependencies: RouteDependencies{store: store}}}
 	registry := broker.NewRegistry()
 	server.runtimes.SetBrokerRegistry(registry)
 	closeStarted := make(chan struct{}, 1)

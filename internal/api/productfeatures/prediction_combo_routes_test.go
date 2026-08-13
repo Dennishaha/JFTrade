@@ -20,8 +20,8 @@ func TestPredictionComboQuoteAcceptsContextFromQueryAndMapsFailures(t *testing.T
 	}}}
 	registry := broker.NewRegistry()
 	registry.Register(adapter)
-	svc := service.NewService(registry, adapter.ID(), nil, nil)
-	svc.SetPredictionQuoteStore(&apiPredictionQuoteStore{})
+	svc := service.NewService(registry, adapter.ID(), nil, nil,
+		service.WithPredictionQuoteStore(&apiPredictionQuoteStore{}))
 	router := gin.New()
 	RegisterRoutes(router.Group("/api/v1"), svc)
 	legs := `"mvc":"mvc-1","legs":[` +

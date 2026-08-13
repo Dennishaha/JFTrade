@@ -36,8 +36,10 @@ func TestLiveHeartbeatActiveInstrumentDeduplicationBoundaries(t *testing.T) {
 	runtime := &heartbeatRuntimeStub{activeInstrumentIDs: []string{"US.AAPL", "HK.00700"}}
 	server := &Server{
 		serverApplication: serverApplication{
-			marketdataSvc: service,
-			strategySvc:   stratsrv.NewService(nil, nil, runtime),
+			Services: Services{
+				marketdataSvc: service,
+				strategySvc:   stratsrv.NewService(nil, nil, runtime),
+			},
 		},
 	}
 	got := server.activeLiveStreamInstrumentIDs([]string{"US.AAPL", "HK.00700", "SH.600000", "SH.600000"})

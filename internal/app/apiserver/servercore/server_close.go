@@ -50,10 +50,20 @@ func (a *serverApplication) registerServiceResources() {
 }
 
 func (a *serverApplication) registerResource(name string, closeFn func() error) {
-	if closeFn == nil {
-		return
+	_ = ownResource(a, name, closeFn)
+}
+
+// ownResource registers cleanup before the constructed dependency is
+// published from its installer.
+func ownResource(a *serverApplication, name string, closeFn func() error) error {
+	if a == nil || closeFn == nil {
+		return nil
 	}
-	a.lifecycle.Register(name, closeFn)
+	err := a.lifecycle.Resources().Register(name, closeFn)
+	if err != nil {
+		a.lifecycle.AddSetupError(err)
+	}
+	return err
 }
 
 func (a *serverApplication) ownsAssistantRuntimeComponents() bool {

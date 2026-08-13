@@ -32,8 +32,7 @@ func newMarketDataTestServerWithQuoteRuntime(t *testing.T, addr string) *Server 
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	store.mu.Lock()
-	store.data.Integration = &jfsettings.BrokerIntegration{
+	saveTestIntegration(t, store, jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
 		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
@@ -47,8 +46,7 @@ func newMarketDataTestServerWithQuoteRuntime(t *testing.T, addr string) *Server 
 		}),
 		UpdatedAt: now,
 		CreatedAt: now,
-	}
-	store.mu.Unlock()
+	})
 	return newTestServer(t, store)
 }
 

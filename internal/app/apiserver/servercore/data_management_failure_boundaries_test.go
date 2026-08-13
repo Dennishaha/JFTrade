@@ -62,7 +62,7 @@ func TestDatabaseMaintenanceRemainingBusyReasons(t *testing.T) {
 	syncTasks := newBacktestSyncTaskStore()
 	syncTasks.Add("sync", nil, func() {})
 	syncServer := &Server{serverApplication: serverApplication{
-		stores: appstores.Handle{BacktestTasks: syncTasks},
+		RouteDependencies: RouteDependencies{stores: appstores.Handle{BacktestTasks: syncTasks}},
 	}}
 	if reason := syncServer.newMaintenanceRegistry().BusyReason(t.Context(), datamigration.DatabaseBacktest); !strings.Contains(reason, "行情同步") {
 		t.Fatalf("sync busy reason = %q", reason)
@@ -82,7 +82,7 @@ func TestDatabaseMaintenanceRemainingBusyReasons(t *testing.T) {
 		Status:          trdsrv.OrderStatusSubmitted,
 	})
 	executionServer := &Server{serverApplication: serverApplication{
-		stores: appstores.Handle{ExecutionOrders: orders},
+		RouteDependencies: RouteDependencies{stores: appstores.Handle{ExecutionOrders: orders}},
 	}}
 	if reason := executionServer.newMaintenanceRegistry().BusyReason(t.Context(), datamigration.DatabaseExecution); !strings.Contains(reason, "非终态") {
 		t.Fatalf("execution busy reason = %q", reason)
@@ -182,7 +182,7 @@ func TestCompactBacktestRejectsInvalidDatabasePath(t *testing.T) {
 		t.Fatal(err)
 	}
 	manager := datamigration.NewManager(filepath.Join(root, "settings.json"), directoryPath)
-	server := &Server{serverApplication: serverApplication{dataMigration: manager}}
+	server := &Server{serverApplication: serverApplication{RouteDependencies: RouteDependencies{dataMigration: manager}}}
 	if err := server.newMaintenanceRegistry().Compact(t.Context(), datamigration.DatabaseBacktest); err == nil {
 		t.Fatal("directory backtest path compact error = nil")
 	}
@@ -203,7 +203,7 @@ func TestDataManagementStatusErrorIsIgnoredByPathLookup(t *testing.T) {
 		t.Fatalf("errored statuses = %#v, want nil", statuses)
 	}
 	if got := (&Server{serverApplication: serverApplication{
-		dataMigration: manager,
+		RouteDependencies: RouteDependencies{dataMigration: manager},
 	}}).dataMigrationPath(datamigration.DatabaseStrategy); got != "" {
 		t.Fatalf("path with errored statuses = %q", got)
 	}

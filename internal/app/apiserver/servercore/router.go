@@ -9,7 +9,6 @@ import (
 
 	apiassistant "github.com/jftrade/jftrade-main/internal/api/assistant"
 	apibacktest "github.com/jftrade/jftrade-main/internal/api/backtest"
-	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
 	apimd "github.com/jftrade/jftrade-main/internal/api/marketdata"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
@@ -20,7 +19,7 @@ import (
 	apiroutes "github.com/jftrade/jftrade-main/internal/api/system"
 	apitrading "github.com/jftrade/jftrade-main/internal/api/trading"
 	apiwatchlist "github.com/jftrade/jftrade-main/internal/api/watchlist"
-	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/databaseguard"
 )
 
 // buildRouter is the single route-assembly list for the console API. Domain
@@ -42,6 +41,7 @@ func (s *Server) buildRouter() *gin.Engine {
 	router.GET("/swagger/*any", handleSwaggerUI)
 
 	api := router.Group("/api/v1")
+	databaseRoutes := databaseguard.New(api, s.unavailableDatabases)
 
 	auth := api.Group("/auth")
 	auth.POST("/login", s.auth.Login)
@@ -52,39 +52,20 @@ func (s *Server) buildRouter() *gin.Engine {
 
 	apimd.RegisterRoutes(api, s.marketdataSvc, s.productFeaturesSvc)
 	apiproducts.RegisterRoutes(api, s.productFeaturesSvc)
-	apiresearch.RegisterRoutes(databaseGroup(api, s.unavailableDatabases, dmsrv.DatabaseResearch), s.researchSvc)
+	apiresearch.RegisterRoutes(databaseRoutes.Research, s.researchSvc)
 	apiset.RegisterRoutes(api, s.settingsSvc, s.dataManagementSvc)
 	apiroutes.RegisterRoutes(api, s.sysSvc)
-	assistantAPI := databaseGroup(api, s.unavailableDatabases, dmsrv.DatabaseADK, dmsrv.DatabaseADKSession)
-	s.registerResource("assistant HTTP transport", apiassistant.RegisterRoutes(assistantAPI, s.assistantSvc).Close)
-	strategyAPI := databaseGroup(api, s.unavailableDatabases, dmsrv.DatabaseStrategy)
-	apistrat.RegisterPluginRoutes(strategyAPI, s.strategySvc)
-	apistrat.RegisterRoutes(strategyAPI, s.strategySvc)
-	backtestAPI := databaseGroup(api, s.unavailableDatabases, dmsrv.DatabaseBacktest, dmsrv.DatabaseBacktestRuns)
-	apibacktest.RegisterRoutes(backtestAPI, s.backtestSvc)
+	s.registerResource("assistant HTTP transport", apiassistant.RegisterRoutes(databaseRoutes.Assistant, s.assistantSvc).Close)
+	apistrat.RegisterPluginRoutes(databaseRoutes.Strategy, s.strategySvc)
+	apistrat.RegisterRoutes(databaseRoutes.Strategy, s.strategySvc)
+	apibacktest.RegisterRoutes(databaseRoutes.Backtest, s.backtestSvc)
 	apitrading.RegisterRoutes(api, s.tradingSvc)
 	apitrading.RegisterPortfolioRoutes(api, s.tradingSvc)
-	apitrading.RegisterExecutionRoutes(databaseGroup(api, s.unavailableDatabases, dmsrv.DatabaseExecution), s.tradingSvc)
-	apiwatchlist.RegisterRoutes(databaseGroup(api, s.unavailableDatabases, dmsrv.DatabaseWatchlist), s.watchlistSvc)
+	apitrading.RegisterExecutionRoutes(databaseRoutes.Execution, s.tradingSvc)
+	apiwatchlist.RegisterRoutes(databaseRoutes.Watchlist, s.watchlistSvc)
 
 	router.NoRoute(s.handleNoRoute)
 	return router
-}
-
-func databaseGroup(api *gin.RouterGroup, availability dmsrv.Availability, ids ...dmsrv.DatabaseID) *gin.RouterGroup {
-	return api.Group("", requireDatabases(availability, ids...))
-}
-
-func requireDatabases(availability dmsrv.Availability, ids ...dmsrv.DatabaseID) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		for _, id := range ids {
-			if availability != nil && availability.Unavailable(id) != nil {
-				httpserver.WriteError(c, http.StatusServiceUnavailable, "DATABASE_INCOMPATIBLE", fmt.Sprintf("%s database is unavailable; rebuild it in Settings > 数据库重建 and restart JFTrade", id))
-				return
-			}
-		}
-		c.Next()
-	}
 }
 
 func liveHandlerOrNotFound(handler *apilive.Handler) http.Handler {

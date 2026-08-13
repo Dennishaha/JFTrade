@@ -154,7 +154,7 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 		auth:     webaccess.NewAuth(jfsettings.SecuritySettings{}),
 		frontend: newFrontendServerWithRuntimeConfig(os.DirFS(frontendDir), "http://127.0.0.1:3000"),
 		serverApplication: serverApplication{
-			stores: appstores.Handle{ExecutionOrders: newExecutionOrderStore()},
+			RouteDependencies: RouteDependencies{stores: appstores.Handle{ExecutionOrders: newExecutionOrderStore()}},
 		},
 	}
 	server.runtimes.SetPineWorkerRunners(backtestRunner, instanceRunner)

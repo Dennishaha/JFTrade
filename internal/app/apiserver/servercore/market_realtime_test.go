@@ -34,8 +34,7 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	store.mu.Lock()
-	store.data.Integration = &jfsettings.BrokerIntegration{
+	saveTestIntegration(t, store, jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
 		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
@@ -49,8 +48,7 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 		}),
 		UpdatedAt: now,
 		CreatedAt: now,
-	}
-	store.mu.Unlock()
+	})
 	if err := store.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderFutu); err != nil {
 		t.Fatalf("SaveActiveMarketDataProvider: %v", err)
 	}

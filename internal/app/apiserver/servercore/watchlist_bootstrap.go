@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jftrade/jftrade-main/internal/app/apiserver/liveapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
-	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
 	"github.com/jftrade/jftrade-main/internal/watchlist"
 	futuwatchlist "github.com/jftrade/jftrade-main/internal/watchlist/futu"
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -22,33 +20,6 @@ func (b *serverBootstrap) loadWatchlistStore() *watchliststore.Store {
 		return nil
 	}
 	return store
-}
-
-func initializeBootstrapState(s *Server, store SidecarSettingsStore, bootstrap serverBootstrap, state serverPersistentState) {
-	initializeSecurityAndCalendars(s, store, bootstrap.settingsPath)
-	initializeMarketdataRuntime(s)
-	initializeMarketdataService(s)
-	s.initializeWatchlistService()
-	s.initializeResearchService()
-	startLiveNotifications(s)
-	initializeRealTradeControl(s, bootstrap)
-	s.tradingSvc = newTradingService(s)
-	s.registerResource("trading order updates", s.stopTradingOrderUpdates)
-	initializeBacktestService(s, state)
-	liveWebSocket := liveapp.NewHandler(newLiveWebSocketBackend(s), liveapp.Options{
-		DataInterval:            liveTickDispatchInterval,
-		SecurityDetailsInterval: marketdataapp.MarketSecurityDetailsStreamInterval,
-		DepthRefreshInterval:    marketdataapp.MarketDepthStreamRefreshInterval,
-	})
-	strategyRuntime := liveruntime.NewManager(newStrategyRuntimeDependencies(s))
-	s.runtimes.SetStrategyRuntime(strategyRuntime, strategyRuntime)
-	reconcileStrategyRuntimeStates(s)
-	initializeStrategyService(s, state)
-	s.runtimes.SetLiveWebSocket(liveWebSocket)
-	initializeSystemService(s, bootstrap)
-	initializeADKRuntime(s, bootstrap)
-	initializeRuntimeServices(s, store)
-	startAssistantWorkflowScheduler(s)
 }
 
 func (s *serverApplication) initializeWatchlistService() {

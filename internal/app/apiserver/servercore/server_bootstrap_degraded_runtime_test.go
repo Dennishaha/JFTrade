@@ -35,8 +35,10 @@ func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
 
 	failedInspection := &Server{
 		serverApplication: serverApplication{
-			dataMigration:        datamigration.NewManager(filepath.Join(root, "failed-settings.json"), filepath.Join(root, "failed-backtest.db")),
-			unavailableDatabases: dmsrv.NewAvailabilitySnapshot(),
+			RouteDependencies: RouteDependencies{
+				dataMigration:        datamigration.NewManager(filepath.Join(root, "failed-settings.json"), filepath.Join(root, "failed-backtest.db")),
+				unavailableDatabases: dmsrv.NewAvailabilitySnapshot(),
+			},
 		},
 	}
 	if err := os.WriteFile(filepath.Join(root, datamigration.RebuildMarkerFilename), []byte("{"), 0o600); err != nil {
@@ -50,8 +52,10 @@ func TestServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
 	missingRoot := t.TempDir()
 	missingData := &Server{
 		serverApplication: serverApplication{
-			dataMigration:        datamigration.NewManager(filepath.Join(missingRoot, "settings.json"), filepath.Join(missingRoot, "backtest.db")),
-			unavailableDatabases: dmsrv.NewAvailabilitySnapshot(),
+			RouteDependencies: RouteDependencies{
+				dataMigration:        datamigration.NewManager(filepath.Join(missingRoot, "settings.json"), filepath.Join(missingRoot, "backtest.db")),
+				unavailableDatabases: dmsrv.NewAvailabilitySnapshot(),
+			},
 		},
 	}
 	refreshUnavailableDatabaseStatuses(missingData)

@@ -92,6 +92,10 @@ flowchart LR
 - `marketdataapp`：在稳定的 `internal/marketdata.Service` 下原子切换 Futu/yfinance/AKShare Provider，撤销旧 Provider demand 并按 broker 保留规则回收物理订阅，同时管理内置 PyInstaller helper 的持久缓存/临时降级、动态 loopback 端口、预热 readiness、停止和过期清理。
 - `servercore`：HTTP/security/frontend shell 与兼容入口；业务路由直接注册 `internal/api/*` handler，领域状态和生命周期由应用依赖入口持有。
 
+`servercore` 的启动依赖由五段显式 installer 链表达：platform/store/calendar/observability → market data → trading → strategy/backtest → assistant/HTTP。每段只接受前一段的强类型 bundle；可关闭资源必须先登记到 application lifecycle，再把 service 或 controller 发布到应用依赖图。阶段失败会按成功初始化的反向顺序回滚；数据库不可用仍是显式 degraded 状态，不阻断无关服务和路由。
+
+`serverApplication` 只保存三组依赖：不可变的 `Services`、运行时 `RuntimeControllers` 和路由/状态使用的 `RouteDependencies`。静态 service 在构造时一次性接收依赖；只有 OpenD/Futu、provider runtime、Pine runner 等可重连或切换控制器保留可变 handle。
+
 运行时按生命周期明确分成三类：
 
 | 类别 | 运行时 | 设置变更与关闭规则 |
@@ -100,7 +104,7 @@ flowchart LR
 | 可缺省/延后装配 | Live WebSocket、策略 runtime manager、Assistant assembly | 允许降级启动或窄测试装配；存在时由 `runtimes.Handle` 统一登记和关闭 |
 | 可重置 | market-data Provider router/Futu coordinator/Python helper、Pine worker manager 与 runner | 只响应本领域设置；Provider 切换清缓存并撤销旧 demand，受 broker 保留规则约束的物理订阅由 collector 后台回收；helper 在任一 Python Provider 活跃期间复用，新 runner 发布后释放旧 runner |
 
-应用资源先停 trading updates、market-data/backtest service，再关闭 runtime handle，最后关闭 stores；runtime handle 内部继续按实际成功登记的反序关闭 Assistant、实时入口、策略 runtime、Pine/Futu 与启动根。所有关闭错误保留资源名并聚合返回。
+应用关闭按实际安装反序执行：先停 HTTP/Assistant、runtime consumers、strategy/backtest 和 trading，再关闭 market-data service/runtime、runtime providers 与 platform stores；runtime handle 内部继续按成功登记的反序关闭 Assistant、实时入口、策略 runtime、Pine/Futu 与启动根。所有关闭错误保留资源名并聚合返回。
 
 ### 3. `internal/api/*`
 

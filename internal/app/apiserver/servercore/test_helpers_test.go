@@ -18,13 +18,17 @@ import (
 
 const testADKProviderID = "test-provider"
 
+func saveTestIntegration(t *testing.T, store *SettingsStore, integration jfsettings.BrokerIntegration) {
+	t.Helper()
+	if _, err := store.SaveIntegration(integration); err != nil {
+		t.Fatalf("SaveIntegration: %v", err)
+	}
+}
+
 func stringPointerOrNil(value string) *string {
 	return status.StringPointerOrNil(value)
 }
 
-// newTestServer creates a Server with the given SettingsStore and registers its
-// Close on t.Cleanup. Prefer this over bare NewServer(store) in tests so that
-// SQLite database connections are released even when tests fail.
 func newTestServer(t *testing.T, store *SettingsStore) *Server {
 	t.Helper()
 	isolateTestBacktestDatabase(t, store)

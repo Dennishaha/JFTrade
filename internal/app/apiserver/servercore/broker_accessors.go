@@ -13,10 +13,6 @@ func persistenceOnlySettingsStore(store SidecarSettingsStore) SidecarSettingsSto
 			return nil
 		}
 		return persistenceOnlySettingsStore(current.SidecarSettingsStore)
-	case *SettingsStore:
-		if current != nil && current.Store != nil {
-			return persistenceOnlySettingsStore(current.Store)
-		}
 	}
 	return store
 }

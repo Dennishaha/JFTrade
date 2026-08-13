@@ -46,10 +46,10 @@ func TestBacktestRunMaintenanceKeepsMemoryAndDatabaseInSync(t *testing.T) {
 		t.Fatalf("running purge err = %v", err)
 	}
 	server := &Server{serverApplication: serverApplication{
-		stores: appstores.Handle{
+		RouteDependencies: RouteDependencies{stores: appstores.Handle{
 			BacktestRuns:  store,
 			BacktestTasks: newBacktestSyncTaskStore(),
-		},
+		}},
 	}}
 	if reason := server.newMaintenanceRegistry().BusyReason(t.Context(), datamigration.DatabaseBacktestRuns); reason == "" {
 		t.Fatal("running backtest did not block maintenance")

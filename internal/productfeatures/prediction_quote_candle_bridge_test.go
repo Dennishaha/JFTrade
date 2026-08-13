@@ -25,9 +25,8 @@ func TestQuotePredictionComboValidatesPersistsAndPublishesServerExpiry(t *testin
 	}
 	registry := broker.NewRegistry()
 	registry.Register(adapter)
-	service := NewService(registry, adapter.id, nil, nil)
 	store := &recordingPredictionQuoteStore{}
-	service.SetPredictionQuoteStore(store)
+	service := NewService(registry, adapter.id, nil, nil, WithPredictionQuoteStore(store))
 	receivedAt := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
 	service.now = func() time.Time { return receivedAt }
 
@@ -117,8 +116,10 @@ func TestQuotePredictionComboRejectsInvalidAndUnpersistableQuotes(t *testing.T) 
 	); err == nil || !strings.Contains(err.Error(), "persistence") {
 		t.Fatalf("missing persistence error = %v", err)
 	}
-	service.SetPredictionQuoteStore(&recordingPredictionQuoteStore{err: errors.New("disk full")})
-	if _, err := service.QuotePredictionCombo(
+	serviceWithFailingStore := NewService(registry, adapter.id, nil, nil, WithPredictionQuoteStore(
+		&recordingPredictionQuoteStore{err: errors.New("disk full")},
+	))
+	if _, err := serviceWithFailingStore.QuotePredictionCombo(
 		t.Context(),
 		validPredictionComboQuoteRequest(adapter.id),
 	); err == nil || !strings.Contains(err.Error(), "disk full") {

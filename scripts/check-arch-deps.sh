@@ -545,6 +545,16 @@ check_source_no_match \
   "*.go" \
   'type (strategyRuntimeManager|managedStrategyRuntime|strategySymbolRuntime) struct|func \([^)]*\) (startStrategy|stopStrategy|handleMarketTrade|syncClosedKLinesLoop)\(' \
   "servercore must not regain the live strategy state machine"
+check_source_no_match \
+  "internal/app/apiserver/servercore" \
+  "*.go" \
+  'func initializeBootstrapState\(' \
+  "server startup must remain split into typed installers"
+check_source_no_match \
+  "internal/productfeatures" \
+  "*.go" \
+  'func \([^)]*\*Service\) SetPredictionQuoteStore\(' \
+  "static product feature dependencies must be constructor-injected"
 echo ""
 
 # Rule 10: settings persistence must not depend on concrete broker integrations.

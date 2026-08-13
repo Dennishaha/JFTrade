@@ -19,16 +19,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
-// serverApplication is the single application dependency entry owned by
-// Server. It holds domain stores, runtimes, facades, maintenance state and the
-// resource lifecycle; HTTP, security and frontend plumbing remain on Server.
-// The zero value is intentionally usable so narrow Server literals in tests
-// retain their nil-safe behavior.
-type serverApplication struct {
-	store    SidecarSettingsStore
-	stores   appstores.Handle
-	runtimes appruntimes.Handle
-
+type Services struct {
 	assistantSvc       *asst.Service
 	sysSvc             *system.Service
 	settingsSvc        *settings.Service
@@ -40,9 +31,23 @@ type serverApplication struct {
 	watchlistSvc       *watchlist.Service
 	researchSvc        *research.Service
 	tradingSvc         *trdsrv.Service
+}
 
+type RuntimeControllers struct {
+	runtimes appruntimes.Handle
+}
+
+type RouteDependencies struct {
+	store                SidecarSettingsStore
+	stores               appstores.Handle
 	dataMigration        *datamigration.Manager
 	unavailableDatabases dmsrv.AvailabilitySnapshot
 	observability        *observability.Recorder
-	lifecycle            appcomposition.Lifecycle
+}
+
+type serverApplication struct {
+	Services
+	RuntimeControllers
+	RouteDependencies
+	lifecycle appcomposition.Lifecycle
 }

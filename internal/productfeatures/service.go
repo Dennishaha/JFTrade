@@ -46,14 +46,6 @@ type Service struct {
 	predictionPushUnsubscribe    map[string]func()
 }
 
-type PredictionComboQuoteRequest struct {
-	BrokerID           string                  `json:"brokerId"`
-	AccountID          string                  `json:"accountId"`
-	TradingEnvironment string                  `json:"tradingEnvironment"`
-	MVC                string                  `json:"mvc"`
-	Legs               []broker.OrderLegIntent `json:"legs"`
-}
-
 type cacheEntry struct {
 	expiresAt time.Time
 	result    *broker.FeatureResult
@@ -75,8 +67,8 @@ type PredictionSubscriptionLease struct {
 	Provider     broker.ProviderAttribution `json:"provider"`
 }
 
-func NewService(registry *broker.Registry, defaultBroker string, fallbackOrder []string, ensure func()) *Service {
-	return &Service{
+func NewService(registry *broker.Registry, defaultBroker string, fallbackOrder []string, ensure func(), options ...Option) *Service {
+	service := &Service{
 		registry:                     registry,
 		router:                       broker.NewBrokerFeatureRouter(registry, defaultBroker, fallbackOrder),
 		ensure:                       ensure,
@@ -87,6 +79,12 @@ func NewService(registry *broker.Registry, defaultBroker string, fallbackOrder [
 		predictionPushCache:          make(map[string]broker.PredictionMarketUpdate),
 		predictionPushUnsubscribe:    make(map[string]func()),
 	}
+	for _, option := range options {
+		if option != nil {
+			option(service)
+		}
+	}
+	return service
 }
 
 func stringParam(values map[string]any, key string) string {

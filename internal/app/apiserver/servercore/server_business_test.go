@@ -332,7 +332,7 @@ func TestBrokerExecutionExchangeDoesNotReuseStrategyMarketDataOverride(t *testin
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := &Server{serverApplication: serverApplication{
-		store: store,
+		RouteDependencies: RouteDependencies{store: store},
 	}}
 	if got := brokerExecutionExchangeFor(&server.serverApplication); got != nil {
 		t.Fatalf("brokerExecutionExchange disabled integration = %#v, want nil", got)

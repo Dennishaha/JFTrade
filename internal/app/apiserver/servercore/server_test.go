@@ -23,13 +23,13 @@ func TestShouldStartForAPIOnlyArgs(t *testing.T) {
 	}
 }
 
-func TestPersistenceOnlySettingsStoreUnwrapsCompatibilityStore(t *testing.T) {
+func TestPersistenceOnlySettingsStoreKeepsConcreteStore(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	if got := persistenceOnlySettingsStore(store); got != store.Store {
-		t.Fatalf("persistenceOnlySettingsStore() = %T, want embedded settingsfile store", got)
+	if got := persistenceOnlySettingsStore(store); got != store {
+		t.Fatalf("persistenceOnlySettingsStore() = %T, want concrete settingsfile store", got)
 	}
 }
 
@@ -62,7 +62,7 @@ func TestNewServerUsesStrategyRuntimeDBEnvOverride(t *testing.T) {
 	if _, err := os.Stat(customRuntimeDBPath); err != nil {
 		t.Fatalf("expected runtime db file at env override path, got error: %v", err)
 	}
-	if got := apruntime.DeriveStrategyRuntimeDBPath(store.path); got != customRuntimeDBPath {
+	if got := apruntime.DeriveStrategyRuntimeDBPath(store.Path()); got != customRuntimeDBPath {
 		t.Fatalf("DeriveStrategyRuntimeDBPath() = %s, want %s", got, customRuntimeDBPath)
 	}
 }
@@ -73,8 +73,7 @@ func TestServerCloseStopsMarketdataAndPreventsExchangeRevival(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	store.mu.Lock()
-	store.data.Integration = &jfsettings.BrokerIntegration{
+	saveTestIntegration(t, store, jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
 		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
@@ -84,8 +83,7 @@ func TestServerCloseStopsMarketdataAndPreventsExchangeRevival(t *testing.T) {
 		}),
 		CreatedAt: now,
 		UpdatedAt: now,
-	}
-	store.mu.Unlock()
+	})
 
 	server := newTestServer(t, store)
 	if exchange := server.futuCoordinator().Exchange(); exchange == nil {

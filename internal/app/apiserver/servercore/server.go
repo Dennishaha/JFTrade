@@ -34,6 +34,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/settings"
 	backteststore "github.com/jftrade/jftrade-main/internal/store/backtest"
 	exchangecalendarstore "github.com/jftrade/jftrade-main/internal/store/exchangecalendar"
+	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategycatalog "github.com/jftrade/jftrade-main/internal/strategy/catalog"
 	"github.com/jftrade/jftrade-main/internal/system"
@@ -94,10 +95,10 @@ type SidecarOptions struct {
 	DesktopAPIToken    string
 }
 
-// SidecarSettingsStore is the settings surface required by the legacy HTTP server.
-type SidecarSettingsStore interface {
-	settings.Store
-}
+type SidecarSettingsStore = settings.Store
+type SettingsStore = settingsfile.Store
+
+func NewSettingsStore(path string) (*SettingsStore, error) { return settingsfile.New(path) }
 
 type opendProbe = futuintegration.Probe
 
@@ -200,8 +201,9 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 	bootstrap := newServerBootstrap(store)
 	state := bootstrap.loadPersistentState(store)
 	server := newBootstrapServer(store, frontend, bootstrap, state)
-	initializeBootstrapState(server, store, bootstrap, state)
-	server.registerResource("runtime consumers", server.runtimes.CloseConsumers)
+	if err := installApplication(server, store, bootstrap, state); err != nil {
+		panic(fmt.Sprintf("assemble API server: %v", err))
+	}
 	registerOwnedResources(server)
 	server.router = server.buildRouter()
 	return server
@@ -250,21 +252,23 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 	}
 	server := &Server{
 		serverApplication: serverApplication{
-			store:                store,
-			stores:               state.stores,
-			dataMigration:        bootstrap.dataMigration,
-			unavailableDatabases: bootstrap.unavailableDatabases,
+			RouteDependencies: RouteDependencies{
+				store:                store,
+				stores:               state.stores,
+				dataMigration:        bootstrap.dataMigration,
+				unavailableDatabases: bootstrap.unavailableDatabases,
+				observability: observability.NewRecorderWithConfig(observability.RecorderConfig{
+					EventLimit:        20,
+					SlowThreshold:     750 * time.Millisecond,
+					MinimumImportance: minimumImportance,
+				}),
+			},
 			lifecycle: appcomposition.NewLifecycle(
 				ownedResources,
 				state.resourceSetupErr,
 				true,
 				true,
 			),
-			observability: observability.NewRecorderWithConfig(observability.RecorderConfig{
-				EventLimit:        20,
-				SlowThreshold:     750 * time.Millisecond,
-				MinimumImportance: minimumImportance,
-			}),
 		},
 		apiPort:  portFromBind(defaultDevelopmentAPIBind, 3000),
 		frontend: frontend,
@@ -274,11 +278,10 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 	server.runtimes.SetBrokerRegistry(broker.NewRegistry())
 	server.runtimes.SetFutuCoordinator(newFutuRuntimeCoordinator(&server.serverApplication))
 	server.registerResource("runtime providers", server.runtimes.CloseProviders)
-	server.productFeaturesSvc = productsrv.NewService(server.runtimes.Brokers(), futuintegration.BrokerID, nil, func() {
-		_ = server.futuCoordinator().ActiveBroker()
-	})
-	server.productFeaturesSvc.SetPredictionQuoteStore(
-		server.stores.ExecutionOrders,
+	server.productFeaturesSvc = productsrv.NewService(
+		server.runtimes.Brokers(), futuintegration.BrokerID, nil,
+		func() { _ = server.futuCoordinator().ActiveBroker() },
+		productsrv.WithPredictionQuoteStore(server.stores.ExecutionOrders),
 	)
 	return server
 }
@@ -471,13 +474,15 @@ func systemRuntimeOptions(s *Server) []system.Option {
 	}
 }
 
-func initializeBacktestService(s *Server, state serverPersistentState) {
+func initializeBacktestService(s *Server, state serverPersistentState) error {
 	backtestRunner, instanceRunner := s.startPineWorkerManagers()
 	s.runtimes.SetPineWorkerRunners(backtestRunner, instanceRunner)
-	s.backtestSvc = btsrv.NewService(backtestServiceOptions(s, state, backtestRunner)...)
-	s.registerResource("backtest service", func() error {
-		return closeApplicationResource(s.backtestSvc)
-	})
+	service := btsrv.NewService(backtestServiceOptions(s, state, backtestRunner)...)
+	if err := ownResource(&s.serverApplication, "backtest service", func() error { return closeApplicationResource(service) }); err != nil {
+		return err
+	}
+	s.backtestSvc = service
+	return s.runtimes.SetupError()
 }
 
 func backtestServiceOptions(s *Server, state serverPersistentState, runner pineWorkerRunner) []btsrv.Option {
@@ -549,7 +554,7 @@ func (s *Server) analyzePineScript(input stratsrv.PineAnalyzeInput) (stratsrv.Pi
 	return response, nil
 }
 
-func initializeMarketdataService(s *Server) {
+func initializeMarketdataService(s *Server) error {
 	dataPlane, err := marketdataapp.NewDataPlane(marketdataapp.RuntimeOptions{
 		FutuProvider:      newMarketdataProvider(s),
 		FutuQuotes:        s.runtimes.MarketData(),
@@ -562,13 +567,19 @@ func initializeMarketdataService(s *Server) {
 		),
 	}, s.store)
 	if err != nil {
-		panic(fmt.Sprintf("assemble market-data provider runtime: %v", err))
+		return fmt.Errorf("assemble market-data provider runtime: %w", err)
+	}
+	if err := ownResource(&s.serverApplication, "market data provider runtime", dataPlane.Runtime.Close); err != nil {
+		_ = closeApplicationResource(dataPlane.Service)
+		return err
+	}
+	if err := ownResource(&s.serverApplication, "market data service", func() error {
+		return closeApplicationResource(dataPlane.Service)
+	}); err != nil {
+		return err
 	}
 	s.marketdataSvc = dataPlane.Service
-	s.registerResource("market data provider runtime", dataPlane.Runtime.Close)
-	s.registerResource("market data service", func() error {
-		return closeApplicationResource(s.marketdataSvc)
-	})
+	return nil
 }
 
 func liveWebSocketDemand(s *Server) []string {

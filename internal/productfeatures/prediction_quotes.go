@@ -10,10 +10,6 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-func (s *Service) SetPredictionQuoteStore(store broker.PredictionQuoteStore) {
-	s.predictionQuotes = store
-}
-
 func (s *Service) QuotePredictionCombo(
 	ctx context.Context,
 	request PredictionComboQuoteRequest,
