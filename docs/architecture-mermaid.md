@@ -246,7 +246,7 @@ flowchart TB
         DesktopProduct["JFTrade<br/>Wails API sidecar 6699<br/>自动管理 marketdata helper"]
         OptionalWeb["用户主动开启的 Web 入口<br/>默认 127.0.0.1:6688 / 端口可设置"]
         MacDMG["macOS ARM64<br/>unsigned DMG"]
-        WinNSIS["Windows x64 + ARM64 preview<br/>unsigned per-user NSIS"]
+        WinNSIS["Windows x64 + ARM64<br/>unsigned per-user NSIS"]
     end
 
     DevWeb --> Proxy --> DevAPI

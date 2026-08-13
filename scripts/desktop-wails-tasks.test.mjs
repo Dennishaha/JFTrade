@@ -10,6 +10,7 @@ const config = read("build/config.yml");
 const darwin = read("build/darwin/Taskfile.yml");
 const windows = read("build/windows/Taskfile.yml");
 const linux = read("build/linux/Taskfile.yml");
+const releaseWorkflow = read(".github/workflows/desktop-release.yml");
 const packageJson = read("package.json");
 const prepareRelease = read("scripts/prepare-desktop-release.mjs");
 const verifyWindowsReleaseInputs = read(
@@ -93,6 +94,14 @@ test("platform taskfiles use bin outputs and official Wails tools", () => {
   assert(linux.includes("go tool wails3 generate appimage"));
   assert(linux.includes("go tool wails3 tool package"));
   assert(linux.includes("production,release_assets,gtk3"));
+  assert(
+    linux.includes("cp build/desktop/appicon.png") &&
+      linux.includes('-icon "{{.WAILS_BUILD_DIR}}/linux/appimage/JFTrade.png"'),
+  );
+  assert(linux.includes("LDAI_COMP=xz"));
+  assert(releaseWorkflow.includes("Compression[[:space:]]+xz"));
+  assert(windows.includes("INSTALLER_ARCH") && windows.includes("arm64{{end}}"));
+  assert(!windows.includes("arm64-preview"));
 });
 
 test("package scripts call the pinned Wails tool directly", () => {
@@ -176,4 +185,10 @@ test("Windows Task commands delegate PowerShell state to scripts", () => {
   assert(verifyWindowsReleaseInputs.includes("JFTRADE_DESKTOP_PREPARED"));
   assert(packageWindowsNsis.includes("$makensis"));
   assert(signWindowsRelease.includes("JFTRADE_WINDOWS_CERTIFICATE"));
+});
+
+test("Windows ARM64 release artifacts use the stable installer name", () => {
+  assert(releaseWorkflow.includes("Windows ARM64 Installer"));
+  assert(releaseWorkflow.includes("bin/JFTrade-*-arm64-*-setup.exe"));
+  assert(!releaseWorkflow.includes("arm64-preview"));
 });

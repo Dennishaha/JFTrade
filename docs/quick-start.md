@@ -94,7 +94,7 @@ $env:VERSION = "1.2.3"
 go tool wails3 package
 ```
 
-Windows ARM64 使用同一命令的 `windows-arm64` 目标，生成标记为 preview 的无签名 per-user NSIS 安装器：
+Windows ARM64 使用同一命令的 `windows-arm64` 目标，生成无签名 per-user NSIS 安装器：
 
 ```powershell
 $env:JFTRADE_DESKTOP_PREPARED = "1"

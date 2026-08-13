@@ -74,7 +74,7 @@ tasks:
       ARCH: '{{.ARCH | default "amd64"}}'
       QUALIFIER: '{{.QUALIFIER | default "unsigned"}}'
       ARG_FLAG: '{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}'
-      INSTALLER_ARCH: '{{if eq .ARCH "amd64"}}x64{{else}}arm64-preview{{end}}'
+      INSTALLER_ARCH: '{{if eq .ARCH "amd64"}}x64{{else}}arm64{{end}}'
       INSTALLER: '{{.INSTALLER | default (printf "%s-%s-windows-%s-%s-setup.exe" .APP_NAME .VERSION .INSTALLER_ARCH .QUALIFIER)}}'
 
   package:msix:

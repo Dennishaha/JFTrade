@@ -95,10 +95,11 @@ tasks:
       - task: generate:desktop
       - rm -rf "{{.WAILS_BUILD_DIR}}/linux/appimage"
       - mkdir -p "{{.WAILS_BUILD_DIR}}/linux/appimage/output" "{{.WAILS_BUILD_DIR}}/linux/appimage/build"
+      - cp build/desktop/appicon.png "{{.WAILS_BUILD_DIR}}/linux/appimage/JFTrade.png"
       - >-
-        go tool wails3 generate appimage
+        LDAI_COMP=xz go tool wails3 generate appimage
         -binary "{{.BIN_DIR}}/{{.APP_NAME}}"
-        -icon build/desktop/appicon.png
+        -icon "{{.WAILS_BUILD_DIR}}/linux/appimage/JFTrade.png"
         -desktopfile "{{.WAILS_BUILD_DIR}}/linux/JFTrade.desktop"
         -outputdir "{{.WAILS_BUILD_DIR}}/linux/appimage/output"
         -builddir "{{.WAILS_BUILD_DIR}}/linux/appimage/build"

@@ -395,7 +395,7 @@ jobs:
           if-no-files-found: error
 
   windows_arm64:
-    name: Windows ARM64 Preview Installer
+    name: Windows ARM64 Installer
     needs: release-inputs
     runs-on: windows-11-arm
     timeout-minutes: 35
@@ -467,7 +467,7 @@ jobs:
       - name: Test Windows ARM64 desktop package
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
-      - name: Build ARM64 preview NSIS installer
+      - name: Build ARM64 NSIS installer
         shell: pwsh
         run: |
           $env:VERSION = $env:JFTRADE_DESKTOP_RELEASE_TAG.TrimStart('v')
@@ -479,8 +479,8 @@ jobs:
         id: artifact
         shell: pwsh
         run: |
-          $artifact = Get-ChildItem bin/JFTrade-*-arm64-preview-*-setup.exe | Select-Object -First 1
-          if (-not $artifact) { throw "Windows ARM64 preview installer was not produced" }
+          $artifact = Get-ChildItem bin/JFTrade-*-arm64-*-setup.exe | Select-Object -First 1
+          if (-not $artifact) { throw "Windows ARM64 installer was not produced" }
           "path=$($artifact.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Generate Windows ARM64 SBOM
@@ -588,6 +588,7 @@ jobs:
           appimage_offset="$("$appimage" --appimage-offset)"
           test "$appimage_offset" -gt 0
           unsquashfs -s -offset "$appimage_offset" "$appimage" | tee /tmp/jftrade-appimage-squashfs.txt
+          grep -Eq '^Compression[[:space:]]+xz$' /tmp/jftrade-appimage-squashfs.txt
           extract_dir="$RUNNER_TEMP/jftrade-appimage-extract"
           mkdir -p "$extract_dir"
           (cd "$extract_dir" && "$appimage" --appimage-extract >/dev/null)

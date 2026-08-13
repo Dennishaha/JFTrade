@@ -47,7 +47,7 @@ CI 使用同一个 `JFTRADE_DESKTOP_PREPARED=1` 校验开关，并从共享 arti
 
 - macOS：`bin/JFTrade`、`bin/JFTrade.app`、`bin/JFTrade-<version>-macos-arm64-<qualifier>.dmg`；
 - Windows：`bin/JFTrade.exe`、`bin/JFTrade-<version>-windows-x64-<qualifier>-setup.exe`；
-- Windows ARM64：`bin/JFTrade-<version>-windows-arm64-preview-<qualifier>-setup.exe`；
+- Windows ARM64：`bin/JFTrade-<version>-windows-arm64-<qualifier>-setup.exe`；
 - Linux：`bin/JFTrade`、`bin/JFTrade-<version>-linux-x64.AppImage`、`.deb` 和 `.rpm`。
 
 `qualifier` 在没有签名凭据时为 `unsigned`，凭据完整配置时为 `signed`。构建目录 `var/wails-build/` 只保存本次任务生成的 Wails metadata、icons、manifest 和临时打包 staging。
@@ -74,7 +74,7 @@ go tool wails3 task linux:package:linux FORMAT=rpm
 `windows:package:msix` 暂不可执行；默认 Windows 发布路径仍使用 NSIS。待 Wails
 修复或升级后，直接复用该 Task 即可，不要恢复旧的 Node 安装器包装层。
 
-Windows NSIS 使用 Wails 生成的 `wails_tools.nsh` 和官方 `makensis` 调用；Linux AppImage、deb、rpm 使用 Wails generator/packager；macOS DMG 使用 `go tool wails3 tool package --format dmg`。仓库不再维护自定义 hdiutil DMG wrapper、Node NSIS 编译 wrapper 或 release orchestrator。
+Windows NSIS 使用 Wails 生成的 `wails_tools.nsh` 和官方 `makensis` 调用；Linux AppImage、deb、rpm 使用 Wails generator/packager，AppImage 的 SquashFS 显式使用 XZ 压缩；macOS DMG 使用 `go tool wails3 tool package --format dmg`。仓库不再维护自定义 hdiutil DMG wrapper、Node NSIS 编译 wrapper 或 release orchestrator。
 
 ## 签名与验证
 
