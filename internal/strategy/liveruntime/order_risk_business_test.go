@@ -18,9 +18,11 @@ import (
 func TestLiveOrderPassesStopPriceToExecutionGateway(t *testing.T) {
 	var captured trdsrv.ExecutionOrderCommand
 	manager := NewManager(Dependencies{
-		PlaceExecutionOrder: func(_ context.Context, command trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
-			captured = command
-			return trdsrv.ExecutionOrder{InternalOrderID: "internal-stop"}, nil
+		TradeCommands: TradeCommandFuncs{
+			Place: func(_ context.Context, command trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
+				captured = command
+				return trdsrv.ExecutionOrder{InternalOrderID: "internal-stop"}, nil
+			},
 		},
 		AppendRuntimeEvent: func(string, string, string, string) error { return nil },
 	})
@@ -134,9 +136,11 @@ func TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders(t *testing.T) {
 	t.Run("tracked orders", func(t *testing.T) {
 		cancelled := []string{}
 		manager := NewManager(Dependencies{
-			CancelExecutionOrder: func(_ context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
-				cancelled = append(cancelled, internalOrderID)
-				return trdsrv.ExecutionOrder{InternalOrderID: internalOrderID}, nil
+			TradeCommands: TradeCommandFuncs{
+				Cancel: func(_ context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
+					cancelled = append(cancelled, internalOrderID)
+					return trdsrv.ExecutionOrder{InternalOrderID: internalOrderID}, nil
+				},
 			},
 			AppendRuntimeEvent: func(string, string, string, string) error { return nil },
 		})
@@ -166,8 +170,10 @@ func TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders(t *testing.T) {
 	t.Run("gateway failure preserves tracking", func(t *testing.T) {
 		cancelErr := errors.New("cancel failed")
 		manager := NewManager(Dependencies{
-			CancelExecutionOrder: func(context.Context, string) (trdsrv.ExecutionOrder, error) {
-				return trdsrv.ExecutionOrder{}, cancelErr
+			TradeCommands: TradeCommandFuncs{
+				Cancel: func(context.Context, string) (trdsrv.ExecutionOrder, error) {
+					return trdsrv.ExecutionOrder{}, cancelErr
+				},
 			},
 			AppendRuntimeEvent: func(string, string, string, string) error { return nil },
 		})
@@ -185,9 +191,11 @@ func TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders(t *testing.T) {
 	t.Run("untracked order is ignored", func(t *testing.T) {
 		cancelled := false
 		manager := NewManager(Dependencies{
-			CancelExecutionOrder: func(context.Context, string) (trdsrv.ExecutionOrder, error) {
-				cancelled = true
-				return trdsrv.ExecutionOrder{}, nil
+			TradeCommands: TradeCommandFuncs{
+				Cancel: func(context.Context, string) (trdsrv.ExecutionOrder, error) {
+					cancelled = true
+					return trdsrv.ExecutionOrder{}, nil
+				},
 			},
 			AppendRuntimeEvent: func(string, string, string, string) error { return nil },
 		})

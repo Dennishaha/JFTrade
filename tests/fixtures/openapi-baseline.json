@@ -3482,6 +3482,9 @@
           },
           "type": "array"
         },
+        "marketDataProvider": {
+          "type": "string"
+        },
         "maxDrawdown": {
           "type": "number"
         },
@@ -3577,6 +3580,7 @@
         "finalBalance",
         "interval",
         "logs",
+        "marketDataProvider",
         "maxDrawdown",
         "pnl",
         "quoteCurrency",
@@ -3596,6 +3600,9 @@
         "id": {
           "type": "string"
         },
+        "marketDataProvider": {
+          "type": "string"
+        },
         "request": {
           "$ref": "#/definitions/backtest.StartRequest"
         },
@@ -3613,6 +3620,7 @@
       "required": [
         "createdAt",
         "id",
+        "marketDataProvider",
         "request",
         "status",
         "updatedAt"
@@ -3742,6 +3750,9 @@
           },
           "type": "array"
         },
+        "marketDataProvider": {
+          "type": "string"
+        },
         "message": {
           "type": "string"
         },
@@ -3763,6 +3774,7 @@
       },
       "required": [
         "intervals",
+        "marketDataProvider",
         "message",
         "sessionScope",
         "since",
@@ -6728,6 +6740,12 @@
         "historicalCandles": {
           "type": "boolean"
         },
+        "historicalLookbackDays": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
         "instrumentSearch": {
           "type": "boolean"
         },
@@ -6740,6 +6758,12 @@
           },
           "type": "array"
         },
+        "priceAdjustments": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "sessions": {
           "items": {
             "type": "string"
@@ -6747,6 +6771,9 @@
           "type": "array"
         },
         "snapshots": {
+          "type": "boolean"
+        },
+        "streamingCandles": {
           "type": "boolean"
         },
         "streamingDepth": {
@@ -6766,8 +6793,10 @@
         "instrumentSearch",
         "orderBookDepth",
         "orderBookLevels",
+        "priceAdjustments",
         "sessions",
         "snapshots",
+        "streamingCandles",
         "streamingDepth",
         "streamingQuotes",
         "tickCandles"
@@ -6819,6 +6848,9 @@
         "providerId": {
           "type": "string"
         },
+        "selectionId": {
+          "type": "string"
+        },
         "source": {
           "type": "string"
         },
@@ -6841,6 +6873,7 @@
         "defaultMarket",
         "displayName",
         "providerId",
+        "selectionId",
         "source",
         "supportedMarkets",
         "transports"
@@ -8501,6 +8534,33 @@
       "required": [
         "runTimeoutMs",
         "streamIdleTimeoutMs"
+      ],
+      "type": "object"
+    },
+    "settings.BacktestMarketDataProviderSettingsResponse": {
+      "properties": {
+        "activeProvider": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/jftsettings.ActiveMarketDataProvider"
+            }
+          ],
+          "enum": [
+            "futu",
+            "yfinance",
+            "akshare"
+          ]
+        },
+        "availableProviders": {
+          "items": {
+            "$ref": "#/definitions/marketdata.ProviderDescriptor"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "activeProvider",
+        "availableProviders"
       ],
       "type": "object"
     },
@@ -26571,6 +26631,104 @@
           }
         },
         "summary": "重置本机 MCP Server Bearer Token",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/backtest-market-data-provider": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/settings.BacktestMarketDataProviderSettingsResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          }
+        },
+        "summary": "读取回测历史行情数据源",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "回测行情数据源选择",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/settings.MarketDataProviderWriteRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/settings.BacktestMarketDataProviderSettingsResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          }
+        },
+        "summary": "切换回测历史行情数据源",
         "tags": [
           "settings"
         ]

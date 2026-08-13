@@ -51,6 +51,23 @@ function installBacktestFetch(): PendingWarmupRequest[] {
     const url = String(input);
     if (url.includes("/api/v1/system/status")) return createResponse(emptySystemStatus);
     if (url.includes("/api/v1/settings/onboarding")) return createResponse(emptyOnboardingState);
+    if (url.includes("/api/v1/settings/backtest-market-data-provider")) {
+      return createResponse({
+        activeProvider: "futu",
+        availableProviders: [{
+          selectionId: "futu",
+          providerId: "futu-opend",
+          displayName: "Futu OpenD",
+          capabilities: {
+            historicalCandles: true,
+            streamingCandles: true,
+            extendedHours: true,
+            candleIntervals: ["tick", "1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"],
+            priceAdjustments: ["none", "forward", "backward"],
+          },
+        }],
+      });
+    }
     if (url.includes("/api/v1/settings/brokers")) return createResponse(emptyBrokerSettings);
     if (url.includes("/api/v1/plugins")) return createResponse(emptyPluginCatalog);
     if (url.includes("/api/v1/market-data/subscriptions")) return createResponse(emptyMarketDataSubscriptions);

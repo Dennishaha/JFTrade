@@ -9,6 +9,7 @@ import (
 
 type serverKLineSeedStore interface {
 	InsertKLines([]bbgotypes.KLine, string) error
+	SetWriteSessionScope(string)
 	Close() error
 }
 

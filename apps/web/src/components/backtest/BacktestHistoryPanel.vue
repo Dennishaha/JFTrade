@@ -97,7 +97,8 @@ const {
                           </div>
                           <div class="bt-history-run__id" :title="run.id">
                             {{ run.id }} · {{ resolveRunSessionMode(run) }} · {{
-                              formatBacktestRehabType(run.request.rehabType) }}
+                                formatBacktestRehabType(run.request.rehabType) }} · {{
+                                run.marketDataProvider || "futu" }}
                           </div>
                           <div v-if="run.status === 'running' || run.status === 'queued'"
                             class="mt-2 flex items-center gap-3">

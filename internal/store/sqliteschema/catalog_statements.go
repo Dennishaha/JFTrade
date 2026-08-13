@@ -1,12 +1,12 @@
 package sqliteschema
 
 func backtestDefinition() Definition {
-	const prototype = "local_klines__manifest__1m__forward__r__00000000"
+	const prototype = "local_klines__manifest__symbol__1m__forward__r__00000000"
 	return Definition{
 		ID:      DatabaseBacktest,
 		Version: BacktestVersion,
 		DynamicTable: &DynamicTableDefinition{
-			Pattern:       `^local_klines__[a-z0-9_]+__[a-z0-9_]+__(forward|backward|none)__(r|x)__[0-9a-f]{8}$`,
+			Pattern:       `^local_klines__[a-z0-9_]+__[a-z0-9_]+__[a-z0-9_]+__(forward|backward|none)__(r|x)__[0-9a-f]{8}$`,
 			PrototypeName: prototype,
 			Statement: `CREATE TABLE ` + prototype + ` (
 				end_time INTEGER NOT NULL,

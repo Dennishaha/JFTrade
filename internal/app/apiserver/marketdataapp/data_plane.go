@@ -55,6 +55,23 @@ func RuntimeFromService(service *marketdata.Service) *Runtime {
 	return runtime
 }
 
+func ProviderCatalog(service *marketdata.Service) func(context.Context) ([]marketdata.ProviderDescriptor, error) {
+	return func(ctx context.Context) ([]marketdata.ProviderDescriptor, error) {
+		return RuntimeFromService(service).AvailableProviderDescriptors(ctx)
+	}
+}
+
+func BacktestProviderPreparer(service *marketdata.Service) func(jfsettings.ActiveMarketDataProvider) error {
+	return func(providerID jfsettings.ActiveMarketDataProvider) error {
+		lease, err := RuntimeFromService(service).AcquireProvider(context.Background(), string(providerID), true)
+		if err != nil {
+			return err
+		}
+		lease.Release()
+		return nil
+	}
+}
+
 // ApplyProviderSettings atomically serializes provider switching with managed
 // subscription leases. A concurrent live strategy either owns its Futu lease
 // first and blocks the switch, or observes the poll-only provider and cannot

@@ -277,6 +277,7 @@ export function normalizeRunResult(result: BacktestRunResultTransport): Backtest
   const heikinAshiSeed = normalizeHeikinAshiSeed(rawResult.heikinAshiSeed);
   return {
     symbol: result.symbol ?? "",
+    marketDataProvider: (result as { marketDataProvider?: string }).marketDataProvider,
     interval: result.interval ?? "",
     ...(hasResultChartType
       ? { chartType: normalizeChartType(rawResult.chartType) }
@@ -326,6 +327,7 @@ export function normalizeRun(run: BacktestRunTransport): BacktestRun {
   return {
     id: run.id ?? "",
     status: run.status ?? "",
+    marketDataProvider: (run as { marketDataProvider?: string }).marketDataProvider,
     request: {
       definitionId: request.definitionId ?? "",
       ...(request.definitionVersion == null

@@ -26,9 +26,10 @@ func (b *serverBootstrap) loadWatchlistStore() *watchliststore.Store {
 
 func initializeBootstrapState(s *Server, store SidecarSettingsStore, bootstrap serverBootstrap, state serverPersistentState) {
 	initializeSecurityAndCalendars(s, store, bootstrap.settingsPath)
+	initializeMarketdataRuntime(s)
+	initializeMarketdataService(s)
 	s.initializeWatchlistService()
 	s.initializeResearchService()
-	initializeMarketdataRuntime(s)
 	startLiveNotifications(s)
 	initializeRealTradeControl(s, bootstrap)
 	s.tradingSvc = newTradingService(s)
@@ -39,7 +40,6 @@ func initializeBootstrapState(s *Server, store SidecarSettingsStore, bootstrap s
 		SecurityDetailsInterval: marketdataapp.MarketSecurityDetailsStreamInterval,
 		DepthRefreshInterval:    marketdataapp.MarketDepthStreamRefreshInterval,
 	})
-	initializeMarketdataService(s)
 	strategyRuntime := liveruntime.NewManager(newStrategyRuntimeDependencies(s))
 	s.runtimes.SetStrategyRuntime(strategyRuntime, strategyRuntime)
 	reconcileStrategyRuntimeStates(s)

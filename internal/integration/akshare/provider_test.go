@@ -47,6 +47,26 @@ func TestProviderExposesPollingOnlyAKShareBoundary(t *testing.T) {
 	}
 }
 
+func TestProviderAdvertisesAndEnforcesUnadjustedHistoricalCandles(t *testing.T) {
+	descriptor := ProviderDescriptor()
+	if descriptor.SelectionID != "akshare" ||
+		!slices.Equal(descriptor.Capabilities.PriceAdjustments, []string{"none"}) ||
+		descriptor.Capabilities.HistoricalLookbackDays["1m"] != 5 ||
+		descriptor.Capabilities.HistoricalLookbackDays["US:5m"] != 5 {
+		t.Fatalf("AKShare historical capabilities = %+v", descriptor)
+	}
+	provider, err := NewProvider("http://127.0.0.1:7788")
+	if err != nil {
+		t.Fatalf("NewProvider: %v", err)
+	}
+	_, err = provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
+		Market: "US", Symbol: "AAPL", Period: "1d", Adjustment: "backward",
+	})
+	if !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("backward adjustment error = %v, want ErrUnsupported", err)
+	}
+}
+
 func TestProviderConvertsNamespacedSidecarContract(t *testing.T) {
 	server := newContractServer(t)
 	defer server.Close()

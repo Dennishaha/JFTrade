@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,8 +16,6 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/chart"
 
-	"github.com/jftrade/jftrade-main/pkg/futu"
-	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorwarmup"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
@@ -28,10 +25,10 @@ import (
 type pineWorkerBacktestPreparation struct {
 	cfg                            RunConfig
 	result                         *RunResult
-	store                          *FutuKLineStore
+	store                          *KLineStore
 	replayStore                    service.BackTestable
 	streamer                       klineRangeStreamer
-	sourceExchange                 *futu.Exchange
+	sourceExchange                 *backtestSourceExchange
 	compilation                    strategypine.Compilation
 	strategyInterval               types.Interval
 	warmupUntil                    time.Time
@@ -88,12 +85,12 @@ func normalizePineWorkerRunConfig(cfg RunConfig, runner PineWorkerRunner, result
 	return cfg, true
 }
 
-func openPineWorkerBacktestStore(cfg RunConfig, result *RunResult) (*FutuKLineStore, bool) {
+func openPineWorkerBacktestStore(cfg RunConfig, result *RunResult) (*KLineStore, bool) {
 	if _, err := os.Stat(cfg.DBPath); os.IsNotExist(err) {
 		result.Error = fmt.Sprintf("backtest database not found: %s (run 'jftrade kline-sync' first)", cfg.DBPath)
 		return nil, false
 	}
-	store, err := NewFutuKLineStore(cfg.DBPath)
+	store, err := NewKLineStore(cfg.DBPath, cfg.MarketDataProvider)
 	if err != nil {
 		result.Error = fmt.Sprintf("open backtest store: %v", err)
 		return nil, false
@@ -106,7 +103,7 @@ func openPineWorkerBacktestStore(cfg RunConfig, result *RunResult) (*FutuKLineSt
 	return store, true
 }
 
-func preparePineWorkerBacktest(ctx context.Context, cfg RunConfig, result *RunResult, store *FutuKLineStore) (*pineWorkerBacktestPreparation, bool) {
+func preparePineWorkerBacktest(ctx context.Context, cfg RunConfig, result *RunResult, store *KLineStore) (*pineWorkerBacktestPreparation, bool) {
 	cfg, compilation, strategyInterval, warmupUntil, queryStartTime, ok := preparePineWorkerStrategy(ctx, cfg, result, store)
 	if !ok {
 		return nil, false
@@ -117,9 +114,12 @@ func preparePineWorkerBacktest(ctx context.Context, cfg RunConfig, result *RunRe
 		result.Error = "pine worker backtest replay store does not support streaming"
 		return nil, false
 	}
-	sourceExchange := newBacktestFutuSourceExchange()
-	rejectOrdersWithoutMarketRules := ensureBacktestSourceMarket(ctx, result, sourceExchange, cfg.Symbol)
-	removeFutuMarketCache()
+	spec := resolveInstrumentSpec(cfg.Symbol, cfg.InstrumentSpec)
+	for _, warning := range spec.Warnings {
+		result.AddWarning(warning)
+	}
+	sourceExchange := newBacktestSourceExchange(spec)
+	rejectOrdersWithoutMarketRules := spec.MissingCriticalRules
 	quoteCurrency := resolveBacktestQuoteCurrency(cfg.Symbol, cfg.QuoteCurrency)
 	result.QuoteCurrency = quoteCurrency
 	cfg.TradingCosts = resolveBacktestTradingCosts(cfg, quoteCurrency, compilation.Program.Metadata)
@@ -143,7 +143,7 @@ func preparePineWorkerBacktest(ctx context.Context, cfg RunConfig, result *RunRe
 	}, true
 }
 
-func preparePineWorkerStrategy(ctx context.Context, cfg RunConfig, result *RunResult, store *FutuKLineStore) (RunConfig, strategypine.Compilation, types.Interval, time.Time, time.Time, bool) {
+func preparePineWorkerStrategy(ctx context.Context, cfg RunConfig, result *RunResult, store *KLineStore) (RunConfig, strategypine.Compilation, types.Interval, time.Time, time.Time, bool) {
 	sourceFormat := strategydefinition.NormalizeSourceFormat(cfg.SourceFormat)
 	if sourceFormat != strategydefinition.SourceFormatPineV6 {
 		result.Error = fmt.Sprintf("unsupported strategy source format: %s", sourceFormat)
@@ -219,7 +219,7 @@ func newPineWorkerBacktestSession(ctx context.Context, prep *pineWorkerBacktestP
 		return nil, nil, false
 	}
 	environ := bbgo2.NewEnvironment()
-	session := environ.AddExchange("futu", btExchange)
+	session := environ.AddExchange("backtest", btExchange)
 	environ.SetStartTime(prep.cfg.StartTime)
 	if markets, err := btExchange.QueryMarkets(ctx); err == nil {
 		session.SetMarkets(markets)
@@ -316,18 +316,6 @@ func consumePineWorkerReplay(prep *pineWorkerBacktestPreparation, execution *pin
 	}
 }
 
-func newBacktestFutuSourceExchange() *futu.Exchange {
-	addr := strings.TrimSpace(os.Getenv(futu.EnvOpenDAddr))
-	if addr == "" {
-		addr = futu.DefaultOpenDAddr
-	}
-	webSocketKey := strings.TrimSpace(os.Getenv(futu.EnvOpenDWebSocketKey))
-	if webSocketKey == "" {
-		webSocketKey = strings.TrimSpace(os.Getenv("JFTRADE_FUTU_WEBSOCKET_KEY"))
-	}
-	return futu.NewExchangeWithConfig(opend.Config{Addr: addr, WebSocketKey: webSocketKey})
-}
-
 type backtestSourceMarketEnsurer interface {
 	EnsureMarket(symbol string)
 	EnsureMarketWithDiagnostics(ctx context.Context, symbol string) (types.Market, []string, error)
@@ -356,12 +344,13 @@ func isHKBacktestSymbol(symbol string) bool {
 func newRunResult(cfg RunConfig) *RunResult {
 	executionModel, _ := NormalizeExecutionModelName(cfg.ExecutionModel)
 	return &RunResult{
-		Symbol:         cfg.Symbol,
-		Interval:       cfg.Interval,
-		StartTime:      cfg.StartTime.UTC().Format(time.RFC3339Nano),
-		EndTime:        cfg.EndTime.UTC().Format(time.RFC3339Nano),
-		ExecutionModel: executionModel,
-		ChartType:      chart.NormalizeChartType(string(cfg.ChartType)),
+		Symbol:             cfg.Symbol,
+		MarketDataProvider: cfg.MarketDataProvider,
+		Interval:           cfg.Interval,
+		StartTime:          cfg.StartTime.UTC().Format(time.RFC3339Nano),
+		EndTime:            cfg.EndTime.UTC().Format(time.RFC3339Nano),
+		ExecutionModel:     executionModel,
+		ChartType:          chart.NormalizeChartType(string(cfg.ChartType)),
 	}
 }
 
@@ -399,22 +388,18 @@ func resolveBacktestQuoteCurrency(symbol string, requested string) string {
 	return "HKD"
 }
 
-func removeFutuMarketCache() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return
-	}
-	besteffort.LogError(os.Remove(filepath.Join(home, ".bbgo", "cache", "futu-markets.json")))
-}
+// removeFutuMarketCache remains as a no-op compatibility helper. Backtests no
+// longer instantiate Futu or read its market cache.
+func removeFutuMarketCache() {}
 
 func pineWorkerBacktestConfig(cfg RunConfig, quoteCurrency string, metadata strategyir.StrategyMetadata) *bbgo2.Backtest {
 	return &bbgo2.Backtest{
 		StartTime: types.LooseFormatTime(cfg.StartTime),
 		EndTime:   (*types.LooseFormatTime)(&cfg.EndTime),
 		Symbols:   []string{cfg.Symbol},
-		Sessions:  []string{"futu"},
+		Sessions:  []string{"backtest"},
 		Accounts: map[string]bbgo2.BacktestAccount{
-			"futu": {
+			"backtest": {
 				MakerFeeRate: pineCommissionRate(metadata),
 				TakerFeeRate: pineCommissionRate(metadata),
 				Balances: bbgo2.BacktestAccountBalanceMap{

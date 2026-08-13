@@ -80,6 +80,10 @@ func (r *futuMarketDataReader) QueryKLines(ctx context.Context, query broker.KLi
 	if err != nil {
 		return nil, err
 	}
+	rehabType, err := brokerKLineRehabType(query.Adjustment)
+	if err != nil {
+		return nil, err
+	}
 	limit := int(query.Limit)
 	if limit < 1 {
 		limit = 500
@@ -98,52 +102,86 @@ func (r *futuMarketDataReader) QueryKLines(ctx context.Context, query broker.KLi
 		return nil, err
 	}
 	session := brokerKLineSessionLabel(requestedSessions, extendedHours)
-
-	var klines []bbgotypes.KLine
-	hasMore := false
-	beforeTime := strings.TrimSpace(query.BeforeTime)
-	if beforeTime != "" {
-		beforeAt, parseErr := parseFutuKLineQueryTime(beforeTime, location)
-		if parseErr != nil {
-			return nil, fmt.Errorf("futu: invalid beforeTime: %w", parseErr)
-		}
-		klines, hasMore, err = r.queryAdaptiveKLinePage(
-			ctx, query.Symbol, interval, lowerBound, beforeAt, limit, requestedSessions,
-		)
-	} else if strings.TrimSpace(query.FromTime) != "" || strings.TrimSpace(query.ToTime) != "" {
-		beginAt := lowerBound
-		endAt := time.Now().In(location)
-		if value := strings.TrimSpace(query.FromTime); value != "" {
-			beginAt, err = parseFutuKLineQueryTime(value, location)
-			if err != nil {
-				return nil, fmt.Errorf("futu: invalid fromTime: %w", err)
-			}
-		}
-		if value := strings.TrimSpace(query.ToTime); value != "" {
-			endAt, err = parseFutuKLineQueryTime(value, location)
-			if err != nil {
-				return nil, fmt.Errorf("futu: invalid toTime: %w", err)
-			}
-		}
-		if beginAt.After(endAt) {
-			return nil, fmt.Errorf("futu: fromTime must be earlier than or equal to toTime")
-		}
-		klines, err = r.exchange.QueryKLinesForSessions(
-			ctx, query.Symbol, interval, bbgotypes.KLineQueryOptions{
-				StartTime: &beginAt, EndTime: &endAt, Limit: limit,
-			}, requestedSessions,
-		)
-		klines = normalizeBrokerKLineRange(klines, beginAt, endAt, limit)
-	} else {
-		klines, hasMore, err = r.queryAdaptiveKLinePage(
-			ctx, query.Symbol, interval, lowerBound, time.Now().In(location), limit, requestedSessions,
-		)
-	}
+	klines, hasMore, err := r.queryBrokerKLines(
+		ctx, query, interval, rehabType, limit, location, lowerBound, requestedSessions,
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	return r.buildBrokerKLineSnapshot(query, interval, klines, hasMore, hasNonRegularBrokerSession(requestedSessions, extendedHours), session, requestedSessions), nil
+}
+
+func (r *futuMarketDataReader) queryBrokerKLines(
+	ctx context.Context,
+	query broker.KLineQuery,
+	interval bbgotypes.Interval,
+	rehabType qotcommonpb.RehabType,
+	limit int,
+	location *time.Location,
+	lowerBound time.Time,
+	requestedSessions []market.Session,
+) ([]bbgotypes.KLine, bool, error) {
+	beforeTime := strings.TrimSpace(query.BeforeTime)
+	if beforeTime != "" {
+		beforeAt, parseErr := parseFutuKLineQueryTime(beforeTime, location)
+		if parseErr != nil {
+			return nil, false, fmt.Errorf("futu: invalid beforeTime: %w", parseErr)
+		}
+		return r.queryAdaptiveKLinePageWithRehab(
+			ctx, query.Symbol, interval, lowerBound, beforeAt, limit, rehabType, requestedSessions,
+		)
+	}
+	if strings.TrimSpace(query.FromTime) != "" || strings.TrimSpace(query.ToTime) != "" {
+		beginAt := lowerBound
+		endAt := time.Now().In(location)
+		var err error
+		if value := strings.TrimSpace(query.FromTime); value != "" {
+			beginAt, err = parseFutuKLineQueryTime(value, location)
+			if err != nil {
+				return nil, false, fmt.Errorf("futu: invalid fromTime: %w", err)
+			}
+		}
+		if value := strings.TrimSpace(query.ToTime); value != "" {
+			endAt, err = parseFutuKLineQueryTime(value, location)
+			if err != nil {
+				return nil, false, fmt.Errorf("futu: invalid toTime: %w", err)
+			}
+		}
+		if beginAt.After(endAt) {
+			return nil, false, fmt.Errorf("futu: fromTime must be earlier than or equal to toTime")
+		}
+		var klines []bbgotypes.KLine
+		if strings.TrimSpace(query.Adjustment) == "" {
+			klines, err = r.exchange.QueryKLinesForSessions(
+				ctx, query.Symbol, interval, bbgotypes.KLineQueryOptions{
+					StartTime: &beginAt, EndTime: &endAt, Limit: limit,
+				}, requestedSessions,
+			)
+		} else {
+			klines, err = r.exchange.QueryAllKLinesForSessions(
+				ctx, query.Symbol, interval, beginAt, endAt, rehabType, requestedSessions,
+			)
+		}
+		klines = normalizeBrokerKLineRange(klines, beginAt, endAt, limit)
+		return klines, false, err
+	}
+	return r.queryAdaptiveKLinePageWithRehab(
+		ctx, query.Symbol, interval, lowerBound, time.Now().In(location), limit, rehabType, requestedSessions,
+	)
+}
+
+func brokerKLineRehabType(value string) (qotcommonpb.RehabType, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "forward":
+		return qotcommonpb.RehabType_RehabType_Forward, nil
+	case "none":
+		return qotcommonpb.RehabType_RehabType_None, nil
+	case "backward":
+		return qotcommonpb.RehabType_RehabType_Backward, nil
+	default:
+		return 0, fmt.Errorf("futu: unsupported price adjustment %q", value)
+	}
 }
 
 func hasNonRegularBrokerSession(sessions []market.Session, extendedHours bool) bool {
@@ -302,6 +340,22 @@ func (r *futuMarketDataReader) queryAdaptiveKLinePage(
 	limit int,
 	sessions ...[]market.Session,
 ) ([]bbgotypes.KLine, bool, error) {
+	return r.queryAdaptiveKLinePageWithRehab(
+		ctx, symbol, interval, lowerBound, endExclusive, limit,
+		qotcommonpb.RehabType_RehabType_Forward, sessions...,
+	)
+}
+
+func (r *futuMarketDataReader) queryAdaptiveKLinePageWithRehab(
+	ctx context.Context,
+	symbol string,
+	interval bbgotypes.Interval,
+	lowerBound time.Time,
+	endExclusive time.Time,
+	limit int,
+	rehabType qotcommonpb.RehabType,
+	sessions ...[]market.Session,
+) ([]bbgotypes.KLine, bool, error) {
 	var requested []market.Session
 	if len(sessions) > 0 {
 		requested = sessions[0]
@@ -321,7 +375,7 @@ func (r *futuMarketDataReader) queryAdaptiveKLinePage(
 		}
 		klines, err := r.exchange.QueryAllKLinesForSessions(
 			ctx, symbol, interval, beginAt, endExclusive,
-			qotcommonpb.RehabType_RehabType_Forward, requested,
+			rehabType, requested,
 		)
 		if err != nil {
 			return nil, false, err

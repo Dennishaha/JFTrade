@@ -10,7 +10,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
-func (s *FutuKLineStore) ensureKLineTable(tableName string) error {
+func (s *KLineStore) ensureKLineTable(tableName string) error {
 	_, err := s.db.ExecContext(context.Background(), strings.Join([]string{
 		`CREATE TABLE IF NOT EXISTS ` + quoteIdentifier(tableName) + ` (`,
 		`  end_time    INTEGER NOT NULL,`,
@@ -30,7 +30,7 @@ func (s *FutuKLineStore) ensureKLineTable(tableName string) error {
 	return s.ensureCompactSchema(tableName)
 }
 
-func (s *FutuKLineStore) ensureCompactSchema(tableName string) error {
+func (s *KLineStore) ensureCompactSchema(tableName string) error {
 	rows, err := s.db.QueryContext(context.Background(), `PRAGMA table_info(`+quoteIdentifier(tableName)+`)`)
 	if err != nil {
 		return fmt.Errorf("inspect %s schema: %w", tableName, err)
@@ -72,7 +72,7 @@ func (s *FutuKLineStore) ensureCompactSchema(tableName string) error {
 	return nil
 }
 
-func (s *FutuKLineStore) klineTableExists(tableName string) (bool, error) {
+func (s *KLineStore) klineTableExists(tableName string) (bool, error) {
 	if cached, ok := s.tableExistsCache.Load(tableName); ok {
 		return jftradeCheckedTypeAssertion[bool](cached), nil
 	}
@@ -85,13 +85,13 @@ func (s *FutuKLineStore) klineTableExists(tableName string) (bool, error) {
 	return exists, nil
 }
 
-func (s *FutuKLineStore) writeTableName(symbol string, interval types.Interval, rehabType string) string {
-	return klineTableNameForSessionScope(symbol, interval, rehabType, s.writeSessionScopeName())
+func (s *KLineStore) writeTableName(symbol string, interval types.Interval, rehabType string) string {
+	return klineTableNameForProviderAndSessionScope(s.providerIDName(), symbol, interval, rehabType, s.writeSessionScopeName())
 }
 
-func (s *FutuKLineStore) readTableNames(symbol string, interval types.Interval, rehabType string) ([3]string, int) {
+func (s *KLineStore) readTableNames(symbol string, interval types.Interval, rehabType string) ([3]string, int) {
 	var tableNames [3]string
-	tableNames[0] = klineTableNameForSessionScope(symbol, interval, rehabType, normalizeReadSessionScopeName(s.readSessionScopeName()))
+	tableNames[0] = klineTableNameForProviderAndSessionScope(s.providerIDName(), symbol, interval, rehabType, normalizeReadSessionScopeName(s.readSessionScopeName()))
 	return tableNames, 1
 }
 

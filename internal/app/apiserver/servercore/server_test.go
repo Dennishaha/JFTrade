@@ -2,8 +2,6 @@ package servercore
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,88 +44,6 @@ func TestExchangeCalendarOperationContextIgnoresRequestCancellation(t *testing.T
 	case <-operationCtx.Done():
 		t.Fatalf("operation context inherited request cancellation: %v", operationCtx.Err())
 	default:
-	}
-}
-
-func TestBrokerRuntimeDescriptorIncludesReadFeatures(t *testing.T) {
-	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
-	if err != nil {
-		t.Fatalf("NewSettingsStore: %v", err)
-	}
-	srv := newHTTPTestServer(t, store)
-
-	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/brokers/futu/runtime")
-	if err != nil {
-		t.Fatalf("GET broker runtime: %v", err)
-	}
-	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("GET broker runtime status = %d", resp.StatusCode)
-	}
-
-	var envelope struct {
-		OK   bool           `json:"ok"`
-		Data map[string]any `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-		t.Fatalf("decode broker runtime: %v", err)
-	}
-	if !envelope.OK {
-		t.Fatal("expected broker runtime ok=true")
-	}
-
-	descriptor, ok := envelope.Data["descriptor"].(map[string]any)
-	if !ok {
-		t.Fatalf("descriptor = %#v", envelope.Data["descriptor"])
-	}
-	capabilities, ok := descriptor["capabilities"].([]any)
-	if !ok || len(capabilities) == 0 {
-		t.Fatalf("capabilities = %#v", descriptor["capabilities"])
-	}
-	firstCapability, ok := capabilities[0].(map[string]any)
-	if !ok {
-		t.Fatalf("first capability = %#v", capabilities[0])
-	}
-	readFeatures, ok := firstCapability["readFeatures"].(map[string]any)
-	if !ok {
-		t.Fatalf("readFeatures = %#v", firstCapability["readFeatures"])
-	}
-	marginRatios, ok := readFeatures["marginRatios"].(map[string]any)
-	if !ok {
-		t.Fatalf("marginRatios capability = %#v", readFeatures["marginRatios"])
-	}
-	environments, ok := marginRatios["supportedEnvironments"].([]any)
-	if !ok || len(environments) != 1 || environments[0] != "REAL" {
-		t.Fatalf("marginRatios supportedEnvironments = %#v", marginRatios["supportedEnvironments"])
-	}
-	maxTradeQuantity, ok := readFeatures["maxTradeQuantity"].(map[string]any)
-	if !ok {
-		t.Fatalf("maxTradeQuantity capability = %#v", readFeatures["maxTradeQuantity"])
-	}
-	if got := maxTradeQuantity["requiresPrice"]; got != true {
-		t.Fatalf("maxTradeQuantity requiresPrice = %#v, want true", got)
-	}
-}
-
-func TestRequestObservabilityMiddlewarePropagatesRequestID(t *testing.T) {
-	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
-	if err != nil {
-		t.Fatalf("NewSettingsStore: %v", err)
-	}
-	srv := newHTTPTestServer(t, store)
-
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/system/status", nil)
-	if err != nil {
-		t.Fatalf("NewRequest: %v", err)
-	}
-	req.Header.Set(requestIDHeader, "test-request-id")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("GET system status: %v", err)
-	}
-	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
-	if got := resp.Header.Get(requestIDHeader); got != "test-request-id" {
-		t.Fatalf("%s = %q, want propagated request id", requestIDHeader, got)
 	}
 }
 

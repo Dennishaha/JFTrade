@@ -160,6 +160,12 @@ func (s *Store) GetFull(runID string) (*btsrv.RunState, bool, error) {
 	}
 	if found && result != nil {
 		snapshot.Result = result
+		if strings.TrimSpace(snapshot.MarketDataProvider) == "" {
+			snapshot.MarketDataProvider = result.MarketDataProvider
+		}
+		if strings.TrimSpace(result.MarketDataProvider) == "" {
+			result.MarketDataProvider = snapshot.MarketDataProvider
+		}
 	}
 	return snapshot, true, nil
 }

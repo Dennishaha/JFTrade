@@ -7,7 +7,14 @@ const {
   BACKTEST_BROKER_FEE_MODE_OPTIONS,
   BACKTEST_MARKET_FEE_MODE_OPTIONS,
   KLINE_CHART_TYPES,
-  KLINE_PERIODS,
+  availableKlinePeriods,
+  availableRehabTypes,
+  backtestMarketDataProvider,
+  backtestProviderDescriptors,
+  backtestProviderSaving,
+  backtestProviderError,
+  backtestRangeError,
+  saveBacktestProviderSettings,
   brokerFeeMode,
   brokerFeeRulesText,
   cancelSync,
@@ -89,9 +96,28 @@ const {
                       <section class="grid gap-1.5 border-t bt-border pt-2">
                         <div class="text-sm font-semibold bt-text-strong">数据范围</div>
                         <div class="bt-form-row">
+                          <label class="bt-form-row__label" for="bt-field-provider">历史行情源</label>
+                          <select id="bt-field-provider" v-model="backtestMarketDataProvider"
+                            class="bt-native-select" :disabled="backtestProviderSaving"
+                            @change="saveBacktestProviderSettings">
+                            <option v-for="provider in backtestProviderDescriptors" :key="provider.selectionId"
+                              :value="provider.selectionId">
+                              {{ provider.displayName }}
+                            </option>
+                          </select>
+                        </div>
+                        <div v-if="backtestProviderError" class="bt-inline-warning">
+                          {{ backtestProviderError }}
+                        </div>
+                        <div v-if="backtestRangeError" class="bt-inline-warning"
+                          data-testid="backtest-provider-range-error">
+                          {{ backtestRangeError }}
+                        </div>
+                        <div class="bt-form-row">
                           <label class="bt-form-row__label" for="bt-field-interval">K线周期</label>
                           <select id="bt-field-interval" v-model="interval" class="bt-native-select">
-                            <option v-for="period in KLINE_PERIODS" :key="period.value" :value="period.value">
+                            <option v-for="period in availableKlinePeriods" :key="period.value"
+                              :value="period.value">
                               {{ period.label }}
                             </option>
                           </select>
@@ -116,9 +142,10 @@ const {
                         <div class="bt-form-row">
                           <label class="bt-form-row__label" for="bt-field-rehab">复权方式</label>
                           <select id="bt-field-rehab" v-model="rehabType" class="bt-native-select">
-                            <option value="forward">前复权</option>
-                            <option value="backward">后复权</option>
-                            <option value="none">不复权</option>
+                            <option v-for="option in availableRehabTypes" :key="option.value"
+                              :value="option.value">
+                              {{ option.label }}
+                            </option>
                           </select>
                         </div>
                         <div v-if="extendedHoursSupported"
@@ -197,6 +224,9 @@ const {
                           <div class="bt-sync-block__head">
                             <span class="bt-sync-block__title">
                               同步中 · {{ syncProgress.currentInterval || "准备" }}
+                                <span v-if="syncProgress.marketDataProvider">
+                                  · {{ syncProgress.marketDataProvider }}
+                                </span>
                             </span>
                             <button class="bt-sync-block__cancel" type="button" @click="cancelSync">
                               取消
@@ -224,7 +254,8 @@ const {
                           同步已取消 · {{ syncProgress.completedBatches }} 批已完成
                         </div>
                         <!-- Sync button -->
-                        <button v-else class="bt-run-btn" :disabled="running || !instrumentSelectionResolved"
+                        <button v-else class="bt-run-btn"
+                          :disabled="running || !instrumentSelectionResolved || !!backtestRangeError"
                           type="button" @click="syncKlines">
                           <v-icon size="13">fa-solid fa-cloud-arrow-down</v-icon>
                           同步K线
@@ -232,7 +263,8 @@ const {
 
                         <!-- Run button -->
                         <button class="bt-run-btn bt-run-btn--primary"
-                          :disabled="running || !selectedDefinitionId || !instrumentSelectionResolved" type="button"
+                          :disabled="running || !selectedDefinitionId || !instrumentSelectionResolved || !!backtestRangeError"
+                          type="button"
                           @click="startBacktest">
                           <v-progress-circular v-if="running" indeterminate :size="16" :width="2" color="white" />
                           <v-icon v-else size="13">fa-solid fa-play</v-icon>

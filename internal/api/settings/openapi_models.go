@@ -3,6 +3,7 @@ package settings
 import (
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
+	"github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
 type UIAppearanceResponse struct {
@@ -15,6 +16,11 @@ type ExchangeCalendarSettingsResponse struct {
 
 type MarketDataProviderSettingsResponse struct {
 	ActiveProvider jfsettings.ActiveMarketDataProvider `json:"activeProvider" enums:"futu,yfinance,akshare"`
+}
+
+type BacktestMarketDataProviderSettingsResponse struct {
+	ActiveProvider     jfsettings.ActiveMarketDataProvider `json:"activeProvider" enums:"futu,yfinance,akshare"`
+	AvailableProviders []marketdata.ProviderDescriptor     `json:"availableProviders"`
 }
 
 type OnboardingReason struct {

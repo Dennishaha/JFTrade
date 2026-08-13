@@ -23,12 +23,13 @@ var candleSessionOrder = []CandleSession{
 // HistoricalCandlesQuery keeps every request dimension together so provider
 // adapters cannot accidentally omit session scope during pagination.
 type HistoricalCandlesQuery struct {
-	Market   string
-	Symbol   string
-	Period   string
-	Limit    int
-	FromTime string
-	ToTime   string
+	Market     string
+	Symbol     string
+	Period     string
+	Adjustment string
+	Limit      int
+	FromTime   string
+	ToTime     string
 	// BeforeTime is an exclusive historical-page cursor. It must remain
 	// distinct from ToTime because upstream providers can use coarser time
 	// precision than the public RFC3339 value.

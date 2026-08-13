@@ -52,6 +52,57 @@ func handleSaveActiveMarketDataProvider(svc *srv.Service) gin.HandlerFunc {
 	}
 }
 
+// handleBacktestMarketDataProvider godoc
+// @Summary 读取回测历史行情数据源
+// @Tags settings
+// @Produce json
+// @Success 200 {object} httpserver.Envelope{data=BacktestMarketDataProviderSettingsResponse}
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/settings/backtest-market-data-provider [get]
+func handleBacktestMarketDataProvider(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		result, err := svc.GetBacktestMarketDataProvider(c.Request.Context())
+		if err != nil {
+			httpserver.WriteError(c, http.StatusInternalServerError, "SETTINGS_READ_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, BacktestMarketDataProviderSettingsResponse{
+			ActiveProvider:     result.ActiveProvider,
+			AvailableProviders: result.AvailableProviders,
+		})
+	}
+}
+
+// handleSaveBacktestMarketDataProvider godoc
+// @Summary 切换回测历史行情数据源
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body MarketDataProviderWriteRequest true "回测行情数据源选择"
+// @Success 200 {object} httpserver.Envelope{data=BacktestMarketDataProviderSettingsResponse}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 500 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/settings/backtest-market-data-provider [put]
+func handleSaveBacktestMarketDataProvider(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input MarketDataProviderWriteRequest
+		if err := c.ShouldBindJSON(&input); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid market-data provider payload")
+			return
+		}
+		result, err := svc.SaveBacktestMarketDataProvider(input.ActiveProvider)
+		if err != nil {
+			writeMarketDataSettingsError(c, err, "BACKTEST_MARKET_DATA_PROVIDER_INVALID")
+			return
+		}
+		httpserver.WriteOK(c, BacktestMarketDataProviderSettingsResponse{
+			ActiveProvider:     result.ActiveProvider,
+			AvailableProviders: result.AvailableProviders,
+		})
+	}
+}
+
 func writeMarketDataSettingsError(c *gin.Context, err error, invalidCode string) {
 	switch {
 	case errors.Is(err, srv.ErrProviderRuntimeUpdate):

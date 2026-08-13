@@ -79,13 +79,13 @@ func newStrategyRuntimePineWorkerLive(
 	return live, nil
 }
 
-func (live *pineWorkerLive) loadWarmup(ctx context.Context, exchange Exchange) ([]bbgotypes.KLine, error) {
+func (live *pineWorkerLive) loadWarmup(ctx context.Context, source MarketDataSource) ([]bbgotypes.KLine, error) {
 	warmupBars, err := strategyindicatorwarmup.WarmupBarsFromScriptForSymbol(live.source, live.interval, live.symbol)
 	if err != nil {
 		return nil, fmt.Errorf("analyze strategy warmup for %s: %w", live.symbol, err)
 	}
 	queryLimit := strategyRuntimeMaxInt(warmupBars+2, 2)
-	klines, err := exchange.QueryKLines(ctx, live.symbol, live.interval, bbgotypes.KLineQueryOptions{Limit: queryLimit})
+	klines, err := source.QueryKLines(ctx, live.symbol, live.interval, bbgotypes.KLineQueryOptions{Limit: queryLimit})
 	if err != nil {
 		return nil, fmt.Errorf("load warmup klines for %s: %w", live.symbol, err)
 	}

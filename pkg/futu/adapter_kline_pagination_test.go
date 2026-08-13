@@ -236,6 +236,11 @@ func TestBrokerKLineQueryRejectsCursorAndTimeBoundaryErrors(t *testing.T) {
 			want: "beforeTime cannot be combined",
 		},
 		{
+			name:  "invalid adjustment",
+			query: broker.KLineQuery{Symbol: "HK.00700", Period: "5m", Adjustment: "split-only"},
+			want:  "unsupported price adjustment",
+		},
+		{
 			name: "invalid cursor and capped limit with extended hours",
 			query: broker.KLineQuery{
 				Symbol: "US.AAPL", Period: "1m", Limit: 501, BeforeTime: "bad",

@@ -7,6 +7,7 @@
         "internal/app/apiserver",
         "internal/api",
         "internal/app/apiserver/application",
+		"internal/app/apiserver/backtestapp",
         "internal/app/apiserver/datamigration",
         "internal/app/apiserver/futuapp",
         "internal/app/apiserver/lifecycle",
@@ -106,7 +107,8 @@
       ],
       "entrypoints": [
         "/api/v1/strategy/*",
-        "/api/v1/backtest/*"
+		"/api/v1/backtests/*",
+		"/api/v1/settings/backtest-market-data-provider"
       ],
       "affectedTests": [
         "go test ./internal/strategy/... ./pkg/strategy/... ./internal/backtest/... ./pkg/backtest/... -count=1"

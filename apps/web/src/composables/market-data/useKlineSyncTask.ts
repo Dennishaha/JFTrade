@@ -21,6 +21,7 @@ export interface KlineSyncProgress {
   taskId: string;
   status: string;
   symbol: string;
+  marketDataProvider?: string;
   currentInterval: string;
   totalIntervals: number;
   completedIntervals: number;

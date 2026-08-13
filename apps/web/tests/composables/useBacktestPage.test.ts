@@ -7,6 +7,7 @@ import { defineComponent, h, reactive } from "vue";
 const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
   apiGetPath: vi.fn(),
+  apiPut: vi.fn(),
   apiPost: vi.fn(),
   apiDeletePath: vi.fn(),
   routerReplace: vi.fn(),
@@ -53,6 +54,7 @@ vi.mock("@/composables/shared/apiClient", async (importOriginal) => {
     ...actual,
     apiGet: mocks.apiGet,
     apiGetPath: mocks.apiGetPath,
+    apiPut: mocks.apiPut,
     apiPost: mocks.apiPost,
     apiDeletePath: mocks.apiDeletePath,
   };
@@ -90,6 +92,24 @@ const DEFAULT_DEFINITIONS = [
   { id: "def-1", name: "策略一", version: "2.0.0", symbol: "US.AAPL" },
   { id: "def-2", name: "策略二", version: "1.5.0" },
 ];
+
+const FUTU_BACKTEST_PROVIDER_SETTINGS = {
+  activeProvider: "futu",
+  availableProviders: [
+    {
+      selectionId: "futu",
+      providerId: "futu-opend",
+      displayName: "Futu OpenD",
+      capabilities: {
+        historicalCandles: true,
+        streamingCandles: true,
+        extendedHours: true,
+        candleIntervals: ["tick", "1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"],
+        priceAdjustments: ["none", "forward", "backward"],
+      },
+    },
+  ],
+};
 
 function makeRun(fixture: RunFixture) {
   const symbol = fixture.symbol ?? "US.AAPL";
@@ -166,6 +186,9 @@ function installApiMock(options: {
   const runsById = new Map(runs.map((run) => [String(run.id), run]));
 
   mocks.apiGet.mockImplementation(async (path: string) => {
+    if (path === "/api/v1/settings/backtest-market-data-provider") {
+      return FUTU_BACKTEST_PROVIDER_SETTINGS;
+    }
     if (path === "/api/v1/strategy-definitions") return definitions;
     if (path === "/api/v1/backtests") return { runs };
     throw new Error(`unexpected apiGet ${path}`);
@@ -196,6 +219,7 @@ function installApiMock(options: {
     throw new Error(`unexpected apiGetPath ${url}`);
   });
   mocks.apiPost.mockResolvedValue({});
+  mocks.apiPut.mockResolvedValue(FUTU_BACKTEST_PROVIDER_SETTINGS);
   mocks.apiDeletePath.mockImplementation(async (_path: string, url: string) => ({
     deleted: true,
     id: decodeURIComponent(url.split("/").pop() ?? ""),
@@ -321,6 +345,128 @@ describe("useBacktestPage default form state", () => {
     expect(stored.interval).toBe("15m");
     expect(stored.selectedMarket).toBe("HK");
     expect(stored.codeInput).toBe("00700");
+  });
+
+  it("loads and atomically saves the module-specific provider selection", async () => {
+    installApiMock();
+    const page = mountBacktestPage();
+    await flushPromises();
+
+    expect(page.backtestMarketDataProvider.value).toBe("futu");
+    expect(page.availableRehabTypes.value.map((option) => option.value)).toEqual([
+      "forward",
+      "backward",
+      "none",
+    ]);
+
+    const yfinanceSettings = {
+      activeProvider: "yfinance",
+      availableProviders: [
+        ...FUTU_BACKTEST_PROVIDER_SETTINGS.availableProviders,
+        {
+          selectionId: "yfinance",
+          providerId: "yahoo-finance",
+          displayName: "Yahoo Finance (yfinance)",
+          capabilities: {
+            historicalCandles: true,
+            streamingCandles: false,
+            extendedHours: true,
+            candleIntervals: ["1m", "5m", "1d"],
+            priceAdjustments: ["none"],
+            historicalLookbackDays: { "1m": 7 },
+          },
+        },
+      ],
+    };
+    mocks.apiPut.mockResolvedValueOnce(yfinanceSettings);
+    page.backtestMarketDataProvider.value = "yfinance";
+    await page.saveBacktestProviderSettings();
+    await flushPromises();
+
+    expect(mocks.apiPut).toHaveBeenCalledWith(
+      "/api/v1/settings/backtest-market-data-provider",
+      { activeProvider: "yfinance" },
+    );
+    expect(page.rehabType.value).toBe("none");
+    expect(page.availableKlinePeriods.value.map((period) => period.value)).toEqual([
+      "1m",
+      "5m",
+      "1d",
+    ]);
+
+    const akshareSettings = {
+      activeProvider: "akshare",
+      availableProviders: [
+        ...yfinanceSettings.availableProviders,
+        {
+          selectionId: "akshare",
+          providerId: "akshare",
+          displayName: "AKShare",
+          capabilities: {
+            historicalCandles: true,
+            streamingCandles: false,
+            extendedHours: false,
+            candleIntervals: ["1m", "5m", "1d"],
+            priceAdjustments: ["none"],
+            historicalLookbackDays: { "1m": 5, "US:5m": 5 },
+          },
+        },
+      ],
+    };
+    mocks.apiPut.mockResolvedValueOnce(akshareSettings);
+    page.selectedMarket.value = "US";
+    page.interval.value = "5m";
+    page.startDate.value = "2025-07-13";
+    page.backtestMarketDataProvider.value = "akshare";
+    await page.saveBacktestProviderSettings();
+    await flushPromises();
+
+    expect(page.backtestRangeError.value).toContain("最近 5 天");
+  });
+
+  it("rejects an unsupported provider returned by the settings service", async () => {
+    installApiMock();
+    mocks.apiGet.mockResolvedValueOnce({
+      activeProvider: "unsupported",
+      availableProviders: [],
+    });
+
+    const page = mountBacktestPage();
+    await flushPromises();
+
+    expect(page.backtestMarketDataProvider.value).toBe("yfinance");
+    expect(page.selectedBacktestProvider.value).toBeNull();
+    expect(page.backtestProviderError.value).toBe(
+      "服务端返回了不支持的回测行情提供者",
+    );
+  });
+
+  it("rolls back a failed provider switch when descriptors are unavailable", async () => {
+    installApiMock();
+    mocks.apiGet.mockResolvedValueOnce({
+      activeProvider: "futu",
+      availableProviders: null,
+    });
+    const page = mountBacktestPage();
+    await flushPromises();
+
+    expect(page.backtestProviderDescriptors.value).toEqual([]);
+    expect(page.selectedBacktestProvider.value).toBeNull();
+
+    page.backtestMarketDataProvider.value = "akshare";
+    mocks.apiPut.mockRejectedValueOnce("provider preparation failed");
+    await page.saveBacktestProviderSettings();
+
+    expect(page.backtestMarketDataProvider.value).toBe("futu");
+    expect(page.backtestProviderSaving.value).toBe(false);
+    expect(page.backtestProviderError.value).toBe("provider preparation failed");
+
+    page.backtestMarketDataProvider.value = "yfinance";
+    mocks.apiPut.mockRejectedValueOnce(new Error("provider health check failed"));
+    await page.saveBacktestProviderSettings();
+
+    expect(page.backtestMarketDataProvider.value).toBe("futu");
+    expect(page.backtestProviderError.value).toBe("provider health check failed");
   });
 
   it("gates the submittable instrument on the search query matching the selection", async () => {

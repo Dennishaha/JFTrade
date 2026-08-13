@@ -35,7 +35,9 @@ func TestBacktestExecutionRecoversRunnerPanicIntoFailedRun(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 	finished := waitForRunStatus(t, runs, started.ID, "failed")
-	if finished.Result == nil || !strings.Contains(finished.Result.Error, "backtest panic: indicator state corrupted") {
+	if finished.Result == nil ||
+		!strings.Contains(finished.Result.Error, "backtest panic: indicator state corrupted") ||
+		finished.MarketDataProvider != "futu" || finished.Result.MarketDataProvider != "futu" {
 		t.Fatalf("panic recovery result = %#v", finished.Result)
 	}
 }

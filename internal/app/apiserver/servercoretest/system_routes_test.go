@@ -86,6 +86,29 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 	}
 }
 
+func TestRequestObservabilityMiddlewarePropagatesRequestID(t *testing.T) {
+	store, err := servercore.NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	srv := newHTTPTestServer(t, store)
+
+	const requestIDHeader = "X-Request-ID"
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/system/status", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set(requestIDHeader, "test-request-id")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET system status: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
+	if got := resp.Header.Get(requestIDHeader); got != "test-request-id" {
+		t.Fatalf("%s = %q, want propagated request id", requestIDHeader, got)
+	}
+}
+
 func TestSystemStatusReflectsUpdatedAPIPort(t *testing.T) {
 	store, err := servercore.NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {

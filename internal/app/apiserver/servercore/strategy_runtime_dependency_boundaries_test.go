@@ -26,10 +26,10 @@ func TestStrategyRuntimeRemainingDependencyBoundaries(t *testing.T) {
 	if err := deps.ReconcileRuntimeFailure("missing", "detail"); err != nil {
 		t.Fatalf("nil reconcile error = %v", err)
 	}
-	if _, err := deps.PlaceExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{}); err == nil {
+	if _, err := deps.TradeCommands.PlaceExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{}); err == nil {
 		t.Fatal("nil trading placement error = nil")
 	}
-	if _, err := deps.CancelExecutionOrder(t.Context(), "missing"); err == nil {
+	if _, err := deps.TradeCommands.CancelExecutionOrder(t.Context(), "missing"); err == nil {
 		t.Fatal("nil trading cancellation error = nil")
 	}
 	if count, err := deps.CountRuntimeAudit(t.Context(), runtimeactivity.AuditQuery{}); err != nil || count != 0 {

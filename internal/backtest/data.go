@@ -70,19 +70,20 @@ func (s *Service) ensurePreparedData(ctx context.Context, prepared []preparedBac
 	rehabType := normalizeRehabTypeName(base.request.RehabType)
 	readSessionScope := backtestReadSessionScope(base.request.UseExtendedHours)
 	syncSessionScope := backtestSyncSessionScope(base.request.UseExtendedHours)
-	covered, coverageErr := s.hasKLineCoverage(base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, readSessionScope)
+	providerID := s.backtestProviderID()
+	covered, coverageErr := s.hasKLineCoverageForProvider(providerID, base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, readSessionScope)
 	if coverageErr != nil && !isMissingKLineCoverageError(coverageErr) {
 		return nil, coverageErr
 	}
 	if covered {
-		key := dataSyncKey(base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, syncSessionScope)
+		key := providerDataSyncKey(providerID, base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, syncSessionScope)
 		s.dataSyncMu.Lock()
 		delete(s.dataSyncTasks, key)
 		s.pruneDataSyncTasksLocked("")
 		s.dataSyncMu.Unlock()
 		return &DataReadiness{Status: DataStatusReady, Ready: true}, nil
 	}
-	return s.ensureMissingCoverage(ctx, base, queryStart, endTime, rehabType, syncSessionScope, coverageErr)
+	return s.ensureMissingCoverage(ctx, base, queryStart, endTime, rehabType, syncSessionScope, coverageErr, providerID)
 }
 
 func combinePreparedBacktests(prepared []preparedBacktest) (preparedBacktest, time.Time, time.Time, error) {
@@ -111,8 +112,9 @@ func (s *Service) ensureMissingCoverage(
 	rehabType string,
 	syncSessionScope string,
 	coverageErr error,
+	providerID string,
 ) (*DataReadiness, error) {
-	key := dataSyncKey(base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, syncSessionScope)
+	key := providerDataSyncKey(providerID, base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, syncSessionScope)
 	s.dataSyncMu.Lock()
 	defer s.dataSyncMu.Unlock()
 	s.pruneDataSyncTasksLocked(key)
@@ -122,11 +124,11 @@ func (s *Service) ensureMissingCoverage(
 			return ready, nil
 		}
 	}
-	started, err := s.Sync(ctx, SyncRequest{
+	started, err := s.syncWithProvider(ctx, SyncRequest{
 		Symbol: base.request.Symbol, Intervals: []string{base.request.Interval},
 		Since: queryStart.UTC().Format(time.RFC3339Nano), Until: endTime.UTC().Format(time.RFC3339Nano),
 		RehabType: rehabType, SessionScope: syncSessionScope,
-	})
+	}, providerID)
 	if err != nil {
 		return nil, err
 	}
@@ -170,12 +172,20 @@ func (s *Service) pruneDataSyncTasksLocked(currentKey string) {
 	}
 }
 
-func (s *Service) hasKLineCoverage(symbol, interval string, since, until time.Time, rehabType, sessionScope string) (bool, error) {
+func (s *Service) hasKLineCoverageForProvider(providerID, symbol, interval string, since, until time.Time, rehabType, sessionScope string) (bool, error) {
+	if s.checkProviderKLineCoverageFn != nil {
+		err := s.checkProviderKLineCoverageFn(s.dbPath(), providerID, symbol, interval, since, until, rehabType, sessionScope)
+		return err == nil, err
+	}
 	if s.checkKLineCoverageFn == nil {
 		return false, errKLineCoverageCheckerUnavailable
 	}
 	err := s.checkKLineCoverageFn(s.dbPath(), symbol, interval, since, until, rehabType, sessionScope)
 	return err == nil, err
+}
+
+func (s *Service) hasKLineCoverage(symbol, interval string, since, until time.Time, rehabType, sessionScope string) (bool, error) {
+	return s.hasKLineCoverageForProvider(s.backtestProviderID(), symbol, interval, since, until, rehabType, sessionScope)
 }
 
 func readinessForSyncProgress(progress *bt.SyncProgress, started *SyncStarted) *DataReadiness {
@@ -213,8 +223,12 @@ func backtestSyncSessionScope(useExtendedHours *bool) string {
 	return backtestReadSessionScope(useExtendedHours)
 }
 
+func providerDataSyncKey(providerID, symbol, interval string, since, until time.Time, rehabType, sessionScope string) string {
+	return strings.Join([]string{providerID, symbol, interval, since.UTC().Format(time.RFC3339Nano), until.UTC().Format(time.RFC3339Nano), rehabType, sessionScope}, "|")
+}
+
 func dataSyncKey(symbol, interval string, since, until time.Time, rehabType, sessionScope string) string {
-	return strings.Join([]string{symbol, interval, since.UTC().Format(time.RFC3339Nano), until.UTC().Format(time.RFC3339Nano), rehabType, sessionScope}, "|")
+	return providerDataSyncKey("futu", symbol, interval, since, until, rehabType, sessionScope)
 }
 
 func isMissingKLineCoverageError(err error) bool {

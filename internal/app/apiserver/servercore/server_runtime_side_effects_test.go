@@ -215,10 +215,7 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 	err := server.runtimes.StrategyRuntime().Start(t.Context(), stratsrv.ManagedInstance{
 		ID:         "disabled-pine-worker",
 		Definition: stratsrv.DefinitionSummary{Name: "Disabled Pine Worker"},
-		Binding: stratsrv.InstanceBinding{
-			Symbols:  []string{"US.AAPL"},
-			Interval: "1m",
-		},
+		Binding:    stratsrv.InstanceBinding{Symbols: []string{"US.AAPL"}, Interval: "1m", ExecutionMode: "notify_only"},
 		Params: map[string]any{
 			"script": "//@version=6\nstrategy(\"Disabled Pine Worker\")",
 		},

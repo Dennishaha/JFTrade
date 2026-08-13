@@ -16,21 +16,36 @@ import (
 
 // Sync 启动 K 线历史数据同步。打开 SQLite 存储 → 创建 broker 同步器 → 启动异步同步 goroutine。
 func (s *Service) Sync(ctx context.Context, req SyncRequest) (*SyncStarted, error) {
+	return s.syncWithProvider(ctx, req, s.backtestProviderID())
+}
+
+func (s *Service) syncWithProvider(
+	ctx context.Context,
+	req SyncRequest,
+	providerID string,
+) (*SyncStarted, error) {
 	prepared, err := prepareSyncRequest(req)
 	if err != nil {
 		return nil, err
 	}
-	syncer, err := s.newSyncer()
+	syncer, err := s.newSyncerForProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	taskID, progress, syncCtx, syncCancel, err := s.startSyncTask(ctx, prepared.request.Symbol, len(prepared.intervals))
+	params := syncParams(prepared, providerID)
+	if validator, ok := syncer.(KLineSyncValidator); ok {
+		if err := validator.Validate(params); err != nil {
+			besteffort.LogError(syncer.Close())
+			return nil, err
+		}
+	}
+	taskID, progress, syncCtx, syncCancel, err := s.startSyncTask(ctx, prepared.request.Symbol, providerID, len(prepared.intervals))
 	if err != nil {
 		besteffort.LogError(syncer.Close())
 		return nil, err
 	}
-	go s.runSyncTask(syncCtx, syncer, taskID, progress, syncCancel, prepared)
-	return buildSyncStarted(taskID, prepared), nil
+	go s.runSyncTask(syncCtx, syncer, taskID, progress, syncCancel, params)
+	return buildSyncStarted(taskID, prepared, providerID), nil
 }
 
 func prepareSyncRequest(req SyncRequest) (preparedSync, error) {
@@ -101,7 +116,14 @@ func parseSyncRehabType(value string) RehabType {
 	}
 }
 
-func (s *Service) newSyncer() (KLineSyncer, error) {
+func (s *Service) newSyncerForProvider(ctx context.Context, providerID string) (KLineSyncer, error) {
+	if s.newProviderKLineSyncerFn != nil {
+		syncer, err := s.newProviderKLineSyncerFn(ctx, s.dbPath(), providerID)
+		if err != nil {
+			return nil, fmt.Errorf("open %s kline sync adapter: %w", providerID, err)
+		}
+		return syncer, nil
+	}
 	if s.newKLineSyncerFn == nil {
 		return nil, fmt.Errorf("kline sync adapter not configured")
 	}
@@ -112,9 +134,14 @@ func (s *Service) newSyncer() (KLineSyncer, error) {
 	return syncer, nil
 }
 
-func (s *Service) startSyncTask(ctx context.Context, symbol string, intervalCount int) (string, *bt.SyncProgress, context.Context, context.CancelFunc, error) {
+func (s *Service) newSyncer() (KLineSyncer, error) {
+	return s.newSyncerForProvider(context.Background(), s.backtestProviderID())
+}
+
+func (s *Service) startSyncTask(ctx context.Context, symbol, providerID string, intervalCount int) (string, *bt.SyncProgress, context.Context, context.CancelFunc, error) {
 	taskID := fmt.Sprintf("sync-%s-%d", time.Now().UTC().Format("20060102T150405.000000000"), atomic.AddUint64(&s.syncTaskSeq, 1))
 	progress := bt.NewSyncProgress(taskID, symbol, time.Now().UTC())
+	progress.MarketDataProvider = providerID
 	if s.syncTasks == nil {
 		return "", nil, nil, nil, fmt.Errorf("sync task store not configured")
 	}
@@ -138,23 +165,28 @@ func (s *Service) runSyncTask(
 	taskID string,
 	progress *bt.SyncProgress,
 	syncCancel context.CancelFunc,
-	prepared preparedSync,
+	params KLineSyncParams,
 ) {
 	defer s.finishTask(syncCancel)
 	defer func() { besteffort.LogError(syncer.Close()) }()
 	defer s.syncTasks.Finish(taskID)
 
-	params := KLineSyncParams{
-		Symbol:       prepared.request.Symbol,
-		Intervals:    prepared.intervals,
-		Since:        prepared.sinceTime,
-		Until:        prepared.untilTime,
-		RehabType:    prepared.rehabType,
-		SessionScope: prepared.request.SessionScope,
-	}
 	syncErr := syncer.Sync(syncCtx, params, progress)
 	finalizeSyncProgress(syncCtx, progress, syncErr, time.Now().UTC())
 	logSyncCompletion(syncCtx, progress)
+}
+
+func syncParams(prepared preparedSync, providerID string) KLineSyncParams {
+	return KLineSyncParams{
+		Market:             prepared.request.Market,
+		MarketDataProvider: providerID,
+		Symbol:             prepared.request.Symbol,
+		Intervals:          prepared.intervals,
+		Since:              prepared.sinceTime,
+		Until:              prepared.untilTime,
+		RehabType:          prepared.rehabType,
+		SessionScope:       prepared.request.SessionScope,
+	}
 }
 
 func finalizeSyncProgress(ctx context.Context, progress *bt.SyncProgress, syncErr error, now time.Time) {
@@ -184,15 +216,16 @@ func logSyncCompletion(ctx context.Context, progress *bt.SyncProgress) {
 	}
 }
 
-func buildSyncStarted(taskID string, prepared preparedSync) *SyncStarted {
+func buildSyncStarted(taskID string, prepared preparedSync, providerID string) *SyncStarted {
 	return &SyncStarted{
-		TaskID:       taskID,
-		Symbol:       prepared.request.Symbol,
-		Intervals:    prepared.intervals,
-		Since:        prepared.sinceTime.UTC().Format(time.RFC3339Nano),
-		Until:        prepared.untilTime.UTC().Format(time.RFC3339Nano),
-		SessionScope: prepared.request.SessionScope,
-		Message:      "sync started",
+		TaskID:             taskID,
+		Symbol:             prepared.request.Symbol,
+		Intervals:          prepared.intervals,
+		Since:              prepared.sinceTime.UTC().Format(time.RFC3339Nano),
+		Until:              prepared.untilTime.UTC().Format(time.RFC3339Nano),
+		SessionScope:       prepared.request.SessionScope,
+		Message:            "sync started",
+		MarketDataProvider: providerID,
 	}
 }
 
@@ -253,10 +286,10 @@ func planSyncIntervals(symbol string, requested []bbgotypes.Interval, sessionSco
 
 // planSyncInterval 根据标的和会话范围调整单个 K 线周期。
 func planSyncInterval(symbol string, interval bbgotypes.Interval, sessionScope string) bbgotypes.Interval {
-	duration := interval.Duration()
 	if interval == bbgotypes.Interval("3d") || interval == bbgotypes.Interval("2w") {
-		return bbgotypes.Interval1d
+		interval = bbgotypes.Interval1d
 	}
+	duration := interval.Duration()
 	if duration > time.Hour && duration < 24*time.Hour {
 		return bbgotypes.Interval1h
 	}

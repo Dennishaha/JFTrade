@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/backtestapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/liveapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
@@ -479,10 +480,11 @@ func backtestServiceOptions(s *Server, state serverPersistentState, runner pineW
 		btsrv.WithRunStore(state.stores.BacktestRuns),
 		btsrv.WithSyncTaskStore(s.stores.BacktestTasks),
 		btsrv.WithStrategyProvider(&strategyProviderAdapter{store: state.stores.Design}),
-		btsrv.WithDBPathFn(func() string { return deriveBacktestDBPath() }),
-		btsrv.WithNewKLineSyncerFn(futuintegration.NewKLineSyncer),
-		btsrv.WithKLineCoverageCheckFn(backteststore.CheckKLineCoverage),
 	}
+	opts = append(opts, backtestapp.ProviderOptions(
+		marketdataapp.RuntimeFromService(s.marketdataSvc), deriveBacktestDBPath,
+		func() string { return settings.BacktestMarketDataProviderID(persistenceOnlySettingsStore(s.store)) },
+	)...)
 	if runner != nil {
 		opts = append(opts, btsrv.WithPineWorkerRunner(runner))
 	}
@@ -590,6 +592,9 @@ func initializeRuntimeServices(s *Server, store SidecarSettingsStore) {
 	configureDataManagement(s)
 	s.dataManagementSvc = datamigration.NewService(s.dataMigration)
 	persistenceStore := persistenceOnlySettingsStore(store)
+	if err := settings.EnsureBacktestMarketDataProvider(persistenceStore); err != nil {
+		log.Printf("JFTrade backtest market-data provider upgrade failed: %v", err)
+	}
 	s.settingsSvc = settings.NewService(persistenceStore, settingsServiceOptions(s)...)
 	if mcpStore, ok := persistenceStore.(settings.MCPServerStore); ok {
 		assistantRuntime := s.runtimes.Assistant()
@@ -616,6 +621,7 @@ func settingsServiceOptions(s *Server) []settings.Option {
 		settings.WithSideEffects(settingsSideEffects(s)),
 		settings.WithBrokerDescriptor(func() map[string]any { return s.futuCoordinator().Descriptor() }),
 		settings.WithBrokerSettings(func() map[string]any { return s.futuCoordinator().BrokerSettings() }),
+		settings.WithMarketDataProviderCatalog(marketdataapp.ProviderCatalog(s.marketdataSvc)),
 		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return s.futuCoordinator().OnboardingState(ctx) }),
 		settings.WithDefaultTradingEnvironment(defaultTradingEnvironment(&s.serverApplication)),
 		settings.WithMCPServerStatus(func() jfsettings.MCPServerStatus {
@@ -667,6 +673,7 @@ func settingsSideEffects(s *Server) settings.SideEffects {
 				context.Background(), s.marketdataSvc, s.store, s.watchlistSvc, providerID, true,
 			)
 		},
+		OnBacktestProviderChanged: marketdataapp.BacktestProviderPreparer(s.marketdataSvc),
 		OnMCPServerChanged: func(settings jfsettings.MCPServerSettings) error {
 			assistantRuntime := s.runtimes.Assistant()
 			if assistantRuntime == nil {

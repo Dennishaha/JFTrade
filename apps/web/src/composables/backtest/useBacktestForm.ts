@@ -13,6 +13,7 @@ import type { InstrumentResolutionCandidate } from "@/types";
 import type { BacktestFormState } from "./useBacktestRuns";
 import type { BacktestStrategyDefinition } from "./useBacktestComparison";
 import { formatStrategyVersion } from "./useBacktestComparison";
+import type { BacktestProviderCapabilities } from "./backtestProviderSettings";
 import {
   BACKTEST_BROKER_FEE_MODE_OPTIONS,
   BACKTEST_MARKET_FEE_MODE_OPTIONS,
@@ -28,6 +29,7 @@ interface BacktestFormInput {
   definitions: Ref<BacktestStrategyDefinition[]>;
   quoteCurrencyForMarket: (market: string) => string;
   supportsExtendedHoursForMarket: (market: string) => boolean;
+  providerCapabilities: Ref<BacktestProviderCapabilities | null>;
 }
 
 export function useBacktestForm(input: BacktestFormInput) {
@@ -90,8 +92,25 @@ export function useBacktestForm(input: BacktestFormInput) {
       input.supportsExtendedHoursForMarket,
     );
   const extendedHoursSupported = computed(() =>
+    input.providerCapabilities.value?.extendedHours === true &&
     supportsExtendedHoursForInterval(selectedMarket.value, interval.value),
   );
+  const availableKlinePeriods = computed(() => {
+    const supported = input.providerCapabilities.value?.candleIntervals ?? [];
+    if (supported.length === 0) return KLINE_PERIODS;
+    return KLINE_PERIODS.filter((period) => supported.includes(period.value));
+  });
+  const availableRehabTypes = computed(() => {
+    const options = [
+      { value: "forward", label: "前复权" },
+      { value: "backward", label: "后复权" },
+      { value: "none", label: "不复权" },
+    ];
+    const supported = input.providerCapabilities.value?.priceAdjustments;
+    return supported == null
+      ? options
+      : options.filter((option) => supported.includes(option.value));
+  });
   const extendedHoursHint = computed(() => {
     if (!extendedHoursSupported.value) {
       return "当前市场或周期不支持扩展交易时段回放与对应同步版本。";
@@ -213,12 +232,46 @@ export function useBacktestForm(input: BacktestFormInput) {
     return `旧版本策略回测结果：当时策略 ${formatStrategyVersion(recordedVersion)}，当前已更新到 ${formatStrategyVersion(currentVersion)}。`;
   }
 
-  watch(extendedHoursSupported, (supported) => {
-    if (!supported) useExtendedHours.value = false;
-  }, { immediate: true });
+  watch(
+    [extendedHoursSupported, input.providerCapabilities],
+    ([supported, capabilities]) => {
+      const marketAndIntervalSupported = supportsExtendedHoursForInterval(
+        selectedMarket.value,
+        interval.value,
+      );
+      if (!supported && (capabilities != null || !marketAndIntervalSupported)) {
+        useExtendedHours.value = false;
+      }
+    },
+    { immediate: true },
+  );
   watch(interval, (value) => {
     if (value === "tick") chartType.value = "standard";
   }, { immediate: true });
+  watch(
+    availableKlinePeriods,
+    (periods) => {
+      if (
+        periods.length > 0 &&
+        !periods.some((period) => period.value === interval.value)
+      ) {
+        interval.value = periods[0]!.value;
+      }
+    },
+    { immediate: true },
+  );
+  watch(
+    availableRehabTypes,
+    (options) => {
+      if (
+        options.length > 0 &&
+        !options.some((option) => option.value === rehabType.value)
+      ) {
+        rehabType.value = options[0]!.value;
+      }
+    },
+    { immediate: true },
+  );
   watch(
     [
       selectedDefinitionId,
@@ -279,6 +332,8 @@ export function useBacktestForm(input: BacktestFormInput) {
 
   return {
     backtestFormState,
+    availableKlinePeriods,
+    availableRehabTypes,
     brokerFeeMode,
     brokerFeeRules,
     brokerFeeRulesText,

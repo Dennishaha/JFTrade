@@ -4,28 +4,24 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/strategyapp"
+
 	"github.com/jftrade/jftrade-main/internal/live"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/strategy/liveruntime"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
-	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 )
 
 func newStrategyRuntimeDependencies(server *Server) liveruntime.Dependencies {
 	dependencies := liveruntime.Dependencies{
-		ExchangeProvider: func() liveruntime.Exchange {
+		MarketDataProvider: func() liveruntime.MarketDataSource {
 			exchange := server.futuCoordinator().Exchange()
-			activeBroker := server.futuCoordinator().ActiveBroker()
-			if exchange == nil || activeBroker == nil {
-				return nil
-			}
-			return &strategyRuntimeBrokerBridge{
-				RuntimeExchange: exchange,
-				broker:          activeBroker,
-			}
+			return exchange
 		},
+		AccountResolver:        strategyapp.AccountResolver(server.futuCoordinator().ResolveBroker),
+		MarketDataCapabilities: strategyapp.MarketDataCapabilities(server.marketdataSvc),
 		PineWorker: func() pineWorkerRunner {
 			_, runner := server.runtimes.PineWorkerRunners()
 			return runner
@@ -64,25 +60,7 @@ func newStrategyRuntimeDependencies(server *Server) liveruntime.Dependencies {
 			return server.stores.StrategyCatalog.ReconcileRuntimeFailure(instanceID, detail)
 		},
 		RecordNotification: server.recordStrategyRuntimeNotification,
-		PlaceExecutionOrder: func(ctx context.Context, command trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
-			if server.tradingSvc == nil {
-				return trdsrv.ExecutionOrder{}, fmt.Errorf("trading service is unavailable")
-			}
-			return server.tradingSvc.PlaceExecutionOrder(ctx, command)
-		},
-		CancelExecutionOrder: func(ctx context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
-			if server.tradingSvc == nil {
-				return trdsrv.ExecutionOrder{}, fmt.Errorf("trading service is unavailable")
-			}
-			response, err := server.tradingSvc.CancelExecutionOrder(ctx, internalOrderID)
-			if err != nil {
-				return trdsrv.ExecutionOrder{}, err
-			}
-			if response.InternalOrderID == nil {
-				return trdsrv.ExecutionOrder{}, fmt.Errorf("cancel execution order response missing internal order id")
-			}
-			return trdsrv.ExecutionOrder{InternalOrderID: *response.InternalOrderID}, nil
-		},
+		TradeCommands:      strategyapp.TradeCommands(server.tradingSvc),
 	}
 	configureStrategyRuntimeStorageDependencies(&dependencies, server)
 	return dependencies

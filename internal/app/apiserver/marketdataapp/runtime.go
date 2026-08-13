@@ -69,13 +69,24 @@ type runtimeState struct {
 
 // Runtime is the stable adapter held by marketdata.Service and Collector.
 type Runtime struct {
-	mu          sync.RWMutex
-	switchMu    sync.Mutex
-	futu        runtimeState
-	active      runtimeState
-	sidecar     sidecarLifecycle
-	healthCheck func(context.Context, marketdata.Provider, bool) error
-	closed      bool
+	mu             sync.RWMutex
+	switchMu       sync.Mutex
+	futu           runtimeState
+	active         runtimeState
+	sidecar        sidecarLifecycle
+	healthCheck    func(context.Context, marketdata.Provider, bool) error
+	closed         bool
+	providerLeases map[string]int
+	providerPool   map[string]runtimeState
+}
+
+// ProviderLease pins a concrete provider instance for a module operation. A
+// global provider switch only changes Runtime.active and cannot invalidate a
+// lease already accepted by backtest or another consumer.
+type ProviderLease struct {
+	runtime *Runtime
+	state   runtimeState
+	once    sync.Once
 }
 
 var (
@@ -103,10 +114,12 @@ func NewRuntime(options RuntimeOptions) (*Runtime, error) {
 		subscriptions: options.FutuSubscriptions,
 	}
 	return &Runtime{
-		futu:        futu,
-		active:      futu,
-		sidecar:     newSidecarManager(runtimeSidecarCacheDir(options)),
-		healthCheck: waitForProviderHealth,
+		futu:           futu,
+		active:         futu,
+		sidecar:        newSidecarManager(runtimeSidecarCacheDir(options)),
+		healthCheck:    waitForProviderHealth,
+		providerLeases: make(map[string]int),
+		providerPool:   map[string]runtimeState{ProviderFutu: futu},
 	}, nil
 }
 
@@ -174,7 +187,12 @@ func (r *Runtime) Activate(ctx context.Context, activation Activation) error {
 			return r.rollbackPreparedSidecar(previous, next.providerID, err)
 		}
 	}
-	if next.providerID == ProviderFutu {
+	r.mu.Lock()
+	r.active = next
+	r.mu.Unlock()
+	r.releaseIdleProviderLocked(previous.providerID)
+	if next.providerID == ProviderFutu && !r.hasPythonLeasesLocked() {
+		r.releaseIdlePythonProvidersLocked()
 		if err := r.sidecar.Stop(); err != nil {
 			// Futu is already prepared and does not depend on the sidecar. Keep
 			// the provider switch committed while retaining the sidecar state for
@@ -182,9 +200,6 @@ func (r *Runtime) Activate(ctx context.Context, activation Activation) error {
 			log.Printf("JFTrade market-data sidecar cleanup deferred after switching to Futu: %v", err)
 		}
 	}
-	r.mu.Lock()
-	r.active = next
-	r.mu.Unlock()
 	return nil
 }
 
@@ -249,7 +264,8 @@ func (r *Runtime) rollbackPreparedSidecar(
 	targetProviderID string,
 	activationErr error,
 ) error {
-	if !isPythonProvider(targetProviderID) || isPythonProvider(previous.providerID) {
+	r.releaseIdleProviderLocked(targetProviderID)
+	if !isPythonProvider(targetProviderID) || isPythonProvider(previous.providerID) || r.hasPythonLeasesLocked() {
 		return activationErr
 	}
 	if stopErr := r.sidecar.Stop(); stopErr != nil {
@@ -259,6 +275,122 @@ func (r *Runtime) rollbackPreparedSidecar(
 		)
 	}
 	return activationErr
+}
+
+// AcquireProvider prepares and pins a provider without changing the global
+// active selection. The returned lease must be released by its owner.
+func (r *Runtime) AcquireProvider(
+	ctx context.Context,
+	providerID string,
+	requireHealthy bool,
+) (*ProviderLease, error) {
+	if r == nil {
+		return nil, fmt.Errorf("market-data provider runtime is unavailable")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	activationCtx, cancel := context.WithTimeout(ctx, providerActivationTimeout)
+	defer cancel()
+	r.switchMu.Lock()
+	defer r.switchMu.Unlock()
+	if r.closed {
+		return nil, ErrRuntimeClosed
+	}
+	previous := r.snapshot()
+	targetID := normalizeProviderID(providerID)
+	state, err := r.resolveActivation(Activation{ProviderID: targetID})
+	if err != nil {
+		return nil, r.rollbackPreparedSidecar(previous, targetID, err)
+	}
+	if requireHealthy {
+		if err := r.checkHealth(activationCtx, state.provider, true); err != nil {
+			return nil, r.rollbackPreparedSidecar(previous, targetID,
+				fmt.Errorf("verify %s market-data provider: %w", targetID, err))
+		}
+	}
+	if r.providerLeases == nil {
+		r.providerLeases = make(map[string]int)
+	}
+	r.providerLeases[state.providerID]++
+	return &ProviderLease{runtime: r, state: state}, nil
+}
+
+func (l *ProviderLease) ProviderID() string {
+	if l == nil {
+		return ""
+	}
+	return l.state.providerID
+}
+
+func (l *ProviderLease) Provider() marketdata.Provider {
+	if l == nil {
+		return nil
+	}
+	return l.state.provider
+}
+
+func (l *ProviderLease) Descriptor(ctx context.Context) (marketdata.ProviderDescriptor, error) {
+	if l == nil || l.state.provider == nil {
+		return marketdata.ProviderDescriptor{}, fmt.Errorf("market-data provider lease is unavailable")
+	}
+	return l.state.provider.Descriptor(ctx)
+}
+
+func (l *ProviderLease) Release() {
+	if l == nil || l.runtime == nil {
+		return
+	}
+	l.once.Do(func() { l.runtime.releaseProviderLease(l.state.providerID) })
+}
+
+func (r *Runtime) releaseProviderLease(providerID string) {
+	r.switchMu.Lock()
+	defer r.switchMu.Unlock()
+	if count := r.providerLeases[providerID]; count > 1 {
+		r.providerLeases[providerID] = count - 1
+	} else {
+		delete(r.providerLeases, providerID)
+	}
+	r.releaseIdleProviderLocked(providerID)
+	if !r.closed && !isPythonProvider(r.snapshot().providerID) && !r.hasPythonLeasesLocked() {
+		r.releaseIdlePythonProvidersLocked()
+		if err := r.sidecar.Stop(); err != nil {
+			log.Printf("JFTrade market-data sidecar lease cleanup deferred: %v", err)
+		}
+	}
+}
+
+func (r *Runtime) releaseIdleProviderLocked(providerID string) {
+	providerID = normalizeProviderID(providerID)
+	if providerID == ProviderFutu || r.providerLeases[providerID] > 0 ||
+		r.snapshot().providerID == providerID {
+		return
+	}
+	delete(r.providerPool, providerID)
+}
+
+func (r *Runtime) releaseIdlePythonProvidersLocked() {
+	r.releaseIdleProviderLocked(ProviderYFinance)
+	r.releaseIdleProviderLocked(ProviderAKShare)
+}
+
+func (r *Runtime) hasPythonLeasesLocked() bool {
+	return r.providerLeases[ProviderYFinance] > 0 || r.providerLeases[ProviderAKShare] > 0
+}
+
+// AvailableProviderDescriptors returns static selection metadata without
+// starting Python helpers or contacting OpenD.
+func (r *Runtime) AvailableProviderDescriptors(ctx context.Context) ([]marketdata.ProviderDescriptor, error) {
+	futu, err := FutuProviderDescriptor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return []marketdata.ProviderDescriptor{
+		futu,
+		yfinanceintegration.ProviderDescriptor(),
+		akshareintegration.ProviderDescriptor(),
+	}, nil
 }
 
 func releaseProviderSubscriptions(
@@ -344,9 +476,22 @@ func nextProviderHealthRetryDelay(current time.Duration) time.Duration {
 }
 
 func (r *Runtime) resolveActivation(activation Activation) (runtimeState, error) {
-	switch normalizeProviderID(activation.ProviderID) {
-	case ProviderFutu:
+	providerID := normalizeProviderID(activation.ProviderID)
+	if r.providerPool == nil {
+		r.providerPool = map[string]runtimeState{ProviderFutu: r.futu}
+	}
+	if providerID == ProviderFutu {
 		return r.futu, nil
+	}
+	customEndpoint := strings.TrimSpace(activation.YFinanceEndpoint) != "" ||
+		strings.TrimSpace(activation.AKShareEndpoint) != ""
+	if !customEndpoint {
+		if pooled, ok := r.providerPool[providerID]; ok {
+			return pooled, nil
+		}
+	}
+	var state runtimeState
+	switch providerID {
 	case ProviderYFinance:
 		endpoint := strings.TrimSpace(activation.YFinanceEndpoint)
 		if endpoint == "" {
@@ -360,11 +505,11 @@ func (r *Runtime) resolveActivation(activation Activation) (runtimeState, error)
 		if err != nil {
 			return runtimeState{}, err
 		}
-		return runtimeState{
+		state = runtimeState{
 			providerID: ProviderYFinance,
 			provider:   provider,
 			quotes:     provider,
-		}, nil
+		}
 	case ProviderAKShare:
 		endpoint := strings.TrimSpace(activation.AKShareEndpoint)
 		if endpoint == "" {
@@ -378,14 +523,18 @@ func (r *Runtime) resolveActivation(activation Activation) (runtimeState, error)
 		if err != nil {
 			return runtimeState{}, err
 		}
-		return runtimeState{
+		state = runtimeState{
 			providerID: ProviderAKShare,
 			provider:   provider,
 			quotes:     provider,
-		}, nil
+		}
 	default:
 		return runtimeState{}, fmt.Errorf("unsupported market-data provider %q", activation.ProviderID)
 	}
+	if !customEndpoint {
+		r.providerPool[providerID] = state
+	}
+	return state, nil
 }
 
 func normalizeProviderID(value string) string {

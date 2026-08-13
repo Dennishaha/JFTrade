@@ -269,9 +269,16 @@ func HistoricalCandles(
 	if limit > 1000 {
 		limit = 1000
 	}
-	marketCode := strings.ToUpper(strings.TrimSpace(request.Market))
-	symbol := strings.ToUpper(strings.TrimSpace(request.Symbol))
-	instrumentID := marketCode + "." + symbol
+	instrument, err := market.ParseInstrument(market.InstrumentInput{
+		Market: request.Market,
+		Symbol: request.Symbol,
+	})
+	if err != nil {
+		return nil, err
+	}
+	marketCode := instrument.Market
+	symbol := instrument.Code
+	instrumentID := instrument.Symbol
 	sessions, err := resolveCandleSessions(request, includeSession)
 	if err != nil {
 		return nil, err
@@ -282,7 +289,8 @@ func HistoricalCandles(
 	}
 	snapshot, err := reader.QueryKLines(ctx, broker.KLineQuery{
 		ReadQuery: broker.ReadQuery{BrokerID: brokerID, Market: marketCode},
-		Symbol:    instrumentID, Period: period, FromTime: request.FromTime, ToTime: request.ToTime,
+		Symbol:    instrumentID, Period: period, Adjustment: request.Adjustment,
+		FromTime: request.FromTime, ToTime: request.ToTime,
 		BeforeTime: request.BeforeTime, Limit: int32(limit), Sessions: mdsrv.CandleSessionStrings(sessions),
 	})
 	if err != nil {

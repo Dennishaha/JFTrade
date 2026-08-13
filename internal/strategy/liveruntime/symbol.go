@@ -32,7 +32,7 @@ func (r *symbolRuntime) syncClosedKLinesLoop() {
 }
 
 func (r *symbolRuntime) syncClosedKLines() {
-	if r == nil || r.runtimeExchange == nil {
+	if r == nil || r.marketDataSource == nil {
 		return
 	}
 	ctx := r.ctx
@@ -43,7 +43,7 @@ func (r *symbolRuntime) syncClosedKLines() {
 	if limit <= 0 {
 		limit = 8
 	}
-	klines, err := r.runtimeExchange.QueryKLines(ctx, r.symbol, r.interval, bbgotypes.KLineQueryOptions{Limit: limit})
+	klines, err := r.marketDataSource.QueryKLines(ctx, r.symbol, r.interval, bbgotypes.KLineQueryOptions{Limit: limit})
 	if err != nil {
 		r.handleRuntimeError(fmt.Errorf("refresh strategy klines for %s: %w", r.symbol, err))
 		return
@@ -155,7 +155,7 @@ func (r *symbolRuntime) handleRuntimeError(err error) {
 }
 
 func (r *symbolRuntime) refreshBrokerAccount() error {
-	if r == nil || r.runtimeExchange == nil || r.session == nil {
+	if r == nil || r.accountSource == nil || r.session == nil {
 		return nil
 	}
 	r.accountRefreshMu.Lock()
@@ -169,7 +169,7 @@ func (r *symbolRuntime) refreshBrokerAccount() error {
 	funds := cloneStrategyRuntimeFundsSnapshot(r.cachedFunds)
 	positions := cloneStrategyRuntimePositions(r.cachedPositions)
 	r.accountMu.RUnlock()
-	freshFunds, err := r.runtimeExchange.QueryBrokerFunds(ctx, r.brokerQuery)
+	freshFunds, err := r.accountSource.QueryBrokerFunds(ctx, r.brokerQuery)
 	if err != nil {
 		if connectivityFromBrokerReadError(err) != "disconnected" {
 			return fmt.Errorf("refresh strategy broker funds for %s: %w", r.symbol, err)
@@ -178,7 +178,7 @@ func (r *symbolRuntime) refreshBrokerAccount() error {
 	} else {
 		funds = cloneStrategyRuntimeFundsSnapshot(freshFunds)
 	}
-	freshPositions, err := r.runtimeExchange.QueryBrokerPositions(ctx, r.brokerQuery)
+	freshPositions, err := r.accountSource.QueryBrokerPositions(ctx, r.brokerQuery)
 	if err != nil {
 		if connectivityFromBrokerReadError(err) != "disconnected" {
 			return fmt.Errorf("refresh strategy broker positions for %s: %w", r.symbol, err)

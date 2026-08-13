@@ -19,7 +19,22 @@ type KLineDatabase interface {
 // OpenKLineDatabase hides the reusable pkg/backtest SQLite implementation
 // behind the storage boundary used by startup probes and data maintenance.
 func OpenKLineDatabase(path string) (KLineDatabase, error) {
-	return bt.NewFutuKLineStore(path)
+	return bt.NewKLineStore(path, "futu")
+}
+
+func CheckKLineCoverageForProvider(
+	dbPath, providerID, symbol, interval string,
+	since, until time.Time,
+	rehabType, sessionScope string,
+) error {
+	store, err := bt.NewKLineStore(dbPath, providerID)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = store.Close() }()
+	store.SetRehabType(rehabType)
+	store.SetReadSessionScope(sessionScope)
+	return store.EnsureCoverage(symbol, bbgotypes.Interval(interval), since, until)
 }
 
 // CheckKLineCoverage keeps the concrete SQLite history store behind the

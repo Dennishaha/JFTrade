@@ -151,9 +151,11 @@ func realPineTSBacktestSmokeScript() string {
 strategy("PineTS Backtest Smoke", overlay=true, default_qty_type=strategy.fixed, default_qty_value=1)
 fast = ta.ema(close, 3)
 slow = ta.ema(close, 8)
+atr = ta.atr(10)
 nowValue = timenow
 if bar_index == 10 and nowValue >= time
     strategy.entry("SmokeLong", strategy.long, qty=1)
+    strategy.exit("XL", "SmokeLong", profit=3 * atr, loss=atr)
 if bar_index == 20
     strategy.close("SmokeLong")
 if bar_index == 30

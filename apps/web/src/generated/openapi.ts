@@ -894,6 +894,7 @@ export interface components {
     ignoredOrders?: number;
     interval: string;
     logs: Array<string>;
+    marketDataProvider: string;
     maxDrawdown: number;
     orderBook?: Array<components["schemas"]["runmodel.OrderBookEntry"]>;
     pnl: number;
@@ -921,6 +922,7 @@ export interface components {
     "backtest.RunState": {
     createdAt: string;
     id: string;
+    marketDataProvider: string;
     request: components["schemas"]["backtest.StartRequest"];
     result?: components["schemas"]["backtest.RunResult"];
     status: string;
@@ -960,6 +962,7 @@ export interface components {
   };
     "backtest.SyncStarted": {
     intervals: Array<string>;
+    marketDataProvider: string;
     message: string;
     sessionScope: string;
     since: string;
@@ -1687,11 +1690,14 @@ export interface components {
     candleIntervals: Array<string>;
     extendedHours: boolean;
     historicalCandles: boolean;
+    historicalLookbackDays?: Record<string, number>;
     instrumentSearch: boolean;
     orderBookDepth: boolean;
     orderBookLevels: Array<number>;
+    priceAdjustments: Array<string>;
     sessions: Array<string>;
     snapshots: boolean;
+    streamingCandles: boolean;
     streamingDepth: boolean;
     streamingQuotes: boolean;
     tickCandles: boolean;
@@ -1709,6 +1715,7 @@ export interface components {
     displayName: string;
     notes?: Array<string>;
     providerId: string;
+    selectionId: string;
     source: string;
     supportedMarkets: Array<string>;
     transports: Array<string>;
@@ -2129,6 +2136,10 @@ export interface components {
     "settings.ADKRuntimeSettingsWriteRequest": {
     runTimeoutMs: number;
     streamIdleTimeoutMs: number;
+  };
+    "settings.BacktestMarketDataProviderSettingsResponse": {
+    activeProvider: components["schemas"]["jftsettings.ActiveMarketDataProvider"];
+    availableProviders: Array<components["schemas"]["marketdata.ProviderDescriptor"]>;
   };
     "settings.BrokerIntegrationSaveRequest": {
     config: components["schemas"]["jftsettings.FutuIntegrationConfig"];
@@ -9908,6 +9919,61 @@ export interface paths {
             "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["jftsettings.MCPServerTokenResetResult"];
   };
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/backtest-market-data-provider": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.BacktestMarketDataProviderSettingsResponse"];
+  };
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+      };
+    };
+    put: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["settings.MarketDataProviderWriteRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["settings.BacktestMarketDataProviderSettingsResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };
         };
         "500": {

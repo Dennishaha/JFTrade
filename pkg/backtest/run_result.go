@@ -3,6 +3,7 @@ package backtest
 import internalrunmodel "github.com/jftrade/jftrade-main/pkg/backtest/internal/runmodel"
 
 type RunConfig = internalrunmodel.RunConfig
+type InstrumentSpec = internalrunmodel.InstrumentSpec
 type TradeEvent = internalrunmodel.TradeEvent
 type OrderBookEntry = internalrunmodel.OrderBookEntry
 type PnLPoint = internalrunmodel.PnLPoint

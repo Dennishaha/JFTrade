@@ -372,6 +372,7 @@ type KLineQuery struct {
 	ReadQuery
 	Symbol     string   `json:"symbol"`
 	Period     string   `json:"period"` // 1m, 3m, 5m, 10m, 15m, 30m, 1h, 1d, 1w, 1mo
+	Adjustment string   `json:"adjustment,omitempty"`
 	FromTime   string   `json:"fromTime,omitempty"`
 	ToTime     string   `json:"toTime,omitempty"`
 	BeforeTime string   `json:"beforeTime,omitempty"`

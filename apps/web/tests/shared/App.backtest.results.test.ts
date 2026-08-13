@@ -157,9 +157,7 @@ describe("Backtest page", () => {
     await nextTick();
 
     expect(readSetupValue<string>(setup.chartType)).toBe("standard");
-    expect(
-      page.findAll("select")[2]?.element.hasAttribute("disabled"),
-    ).toBe(true);
+    expect(page.get("#bt-field-chart-type").element.hasAttribute("disabled")).toBe(true);
     expect(
       JSON.parse(window.localStorage.getItem(backtestFormStorageKey) ?? "{}"),
     ).toMatchObject({ interval: "tick", chartType: "standard" });
@@ -194,6 +192,23 @@ describe("Backtest page", () => {
 
     expect(wrapper.text()).toContain("暂无权益曲线数据。");
     expect(wrapper.find('[data-testid="backtest-chart"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("shows a failed run error in the default report tab", async () => {
+    const failedRun = buildDetailedBacktestRun();
+    failedRun.status = "failed";
+    failedRun.result.pnlCurve = [];
+    failedRun.result.error = "missing K-line coverage for US.AAPL 5m";
+    installBacktestPageFetch({ runs: [failedRun] });
+
+    const { wrapper } = await mountApp("/backtest");
+    await flushRequests();
+    await flushRequests();
+
+    expect(wrapper.get('[data-testid="backtest-run-error"]').text()).toContain(
+      "missing K-line coverage for US.AAPL 5m",
+    );
     wrapper.unmount();
   });
 
@@ -422,14 +437,13 @@ describe("Backtest page", () => {
     await call<Promise<void>>("startBacktest");
     expect(readSetupValue<boolean>(setup.running)).toBe(false);
 
-    const formSelects = page.findAll("select");
-    expect(formSelects.length).toBeGreaterThanOrEqual(8);
-    await formSelects[0]!.setValue("strategy-1");
-    await formSelects[1]!.setValue("1d");
-    await formSelects[2]!.setValue("heikinashi");
-    await formSelects[3]!.setValue("backward");
-    await formSelects[4]!.setValue("custom");
-    await formSelects[5]!.setValue("custom");
+    expect(page.findAll("select").length).toBeGreaterThanOrEqual(9);
+    await page.get("#bt-field-definition").setValue("strategy-1");
+    await page.get("#bt-field-interval").setValue("1d");
+    await page.get("#bt-field-chart-type").setValue("heikinashi");
+    await page.get("#bt-field-rehab").setValue("backward");
+    await page.get("#bt-field-broker-fee").setValue("custom");
+    await page.get("#bt-field-market-fee").setValue("custom");
     await nextTick();
     const formTextareas = page.findAll("textarea");
     expect(formTextareas).toHaveLength(2);
@@ -465,8 +479,8 @@ describe("Backtest page", () => {
     );
     expect(resultSearch).toBeDefined();
     await resultSearch!.setValue("US.AAPL");
-    await formSelects[5]!.setValue("completed");
-    await formSelects[6]!.setValue("strategy-1");
+    await page.get('select[aria-label="按状态筛选"]').setValue("completed");
+    await page.get('select[aria-label="按策略筛选"]').setValue("strategy-1");
 
     expect(call("statusChip", "completed")).toMatchObject({ color: "success" });
     expect(call("statusChip", "failed")).toMatchObject({ color: "error" });
@@ -657,6 +671,23 @@ function installBacktestPageFetch(options: {
       }
       if (url.includes("/api/v1/settings/brokers")) {
         return createResponse(emptyBrokerSettings);
+      }
+      if (url.includes("/api/v1/settings/backtest-market-data-provider")) {
+        return createResponse({
+          activeProvider: "futu",
+          availableProviders: [{
+            selectionId: "futu",
+            providerId: "futu-opend",
+            displayName: "Futu OpenD",
+            capabilities: {
+              historicalCandles: true,
+              streamingCandles: true,
+              extendedHours: true,
+              candleIntervals: ["tick", "1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"],
+              priceAdjustments: ["none", "forward", "backward"],
+            },
+          }],
+        });
       }
       if (url.includes("/api/v1/plugins")) {
         return createResponse(emptyPluginCatalog);

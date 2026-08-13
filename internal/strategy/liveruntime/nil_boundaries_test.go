@@ -1,6 +1,7 @@
 package liveruntime
 
 import (
+	"context"
 	"testing"
 
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
@@ -36,5 +37,29 @@ func TestNilRuntimeBoundariesReturnEmptyState(t *testing.T) {
 	}
 	if err := manager.Close(); err != nil {
 		t.Fatalf("nil manager close error = %v", err)
+	}
+}
+
+func TestTradeCommandFuncsRequireCallbacksAndDelegateCommands(t *testing.T) {
+	empty := TradeCommandFuncs{}
+	if _, err := empty.PlaceExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{}); err == nil {
+		t.Fatal("empty place callback error = nil")
+	}
+	if _, err := empty.CancelExecutionOrder(t.Context(), "order-1"); err == nil {
+		t.Fatal("empty cancel callback error = nil")
+	}
+	commands := TradeCommandFuncs{
+		Place: func(context.Context, trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
+			return trdsrv.ExecutionOrder{InternalOrderID: "order-1"}, nil
+		},
+		Cancel: func(context.Context, string) (trdsrv.ExecutionOrder, error) {
+			return trdsrv.ExecutionOrder{InternalOrderID: "order-1"}, nil
+		},
+	}
+	if order, err := commands.PlaceExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{}); err != nil || order.InternalOrderID != "order-1" {
+		t.Fatalf("delegated place = %+v, %v", order, err)
+	}
+	if order, err := commands.CancelExecutionOrder(t.Context(), "order-1"); err != nil || order.InternalOrderID != "order-1" {
+		t.Fatalf("delegated cancel = %+v, %v", order, err)
 	}
 }

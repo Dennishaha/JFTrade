@@ -13,6 +13,7 @@ type SyncProgress struct {
 	TaskID             string `json:"taskId"`
 	Status             string `json:"status"`
 	Symbol             string `json:"symbol"`
+	MarketDataProvider string `json:"marketDataProvider"`
 	CurrentInterval    string `json:"currentInterval"`
 	TotalIntervals     int    `json:"totalIntervals"`
 	CompletedIntervals int    `json:"completedIntervals"`
@@ -45,6 +46,7 @@ func (p *SyncProgress) Snapshot() *SyncProgress {
 		TaskID:             p.TaskID,
 		Status:             p.Status,
 		Symbol:             p.Symbol,
+		MarketDataProvider: p.MarketDataProvider,
 		CurrentInterval:    p.CurrentInterval,
 		TotalIntervals:     p.TotalIntervals,
 		CompletedIntervals: p.CompletedIntervals,

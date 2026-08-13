@@ -55,19 +55,34 @@ func TestConservativeBarExecutorValidationErrors(t *testing.T) {
 	if _, err := nilExecutor.SubmitOrders(context.Background(), types.SubmitOrder{}); err == nil || !strings.Contains(err.Error(), "conservative bar executor is required") {
 		t.Fatalf("nil SubmitOrders error = %v", err)
 	}
+	if _, err := nilExecutor.SubmitAtomicPineOrders(context.Background(), "group", PineWorkerAtomicOrder{}, PineWorkerAtomicOrder{}); err == nil || !strings.Contains(err.Error(), "conservative bar executor is required") {
+		t.Fatalf("nil SubmitAtomicPineOrders error = %v", err)
+	}
 	if err := nilExecutor.CancelOrders(context.Background(), types.Order{}); err == nil || !strings.Contains(err.Error(), "conservative bar executor is required") {
 		t.Fatalf("nil CancelOrders error = %v", err)
 	}
 
 	stream := types.NewStandardStream()
-	if _, err := newConservativeBarExecutor(nil, &stream, conservativeBarExecutorOptions{}).SubmitOrders(context.Background(), types.SubmitOrder{}); err == nil || !strings.Contains(err.Error(), "account is required") {
+	missingAccount := newConservativeBarExecutor(nil, &stream, conservativeBarExecutorOptions{})
+	if _, err := missingAccount.SubmitOrders(context.Background(), types.SubmitOrder{}); err == nil || !strings.Contains(err.Error(), "account is required") {
 		t.Fatalf("missing account error = %v", err)
 	}
-	if _, err := newConservativeBarExecutor(types.NewAccount(), nil, conservativeBarExecutorOptions{}).SubmitOrders(context.Background(), types.SubmitOrder{}); err == nil || !strings.Contains(err.Error(), "stream is required") {
+	if _, err := missingAccount.SubmitAtomicPineOrders(context.Background(), "group", PineWorkerAtomicOrder{}, PineWorkerAtomicOrder{}); err == nil || !strings.Contains(err.Error(), "account is required") {
+		t.Fatalf("missing atomic account error = %v", err)
+	}
+	missingStream := newConservativeBarExecutor(types.NewAccount(), nil, conservativeBarExecutorOptions{})
+	if _, err := missingStream.SubmitOrders(context.Background(), types.SubmitOrder{}); err == nil || !strings.Contains(err.Error(), "stream is required") {
 		t.Fatalf("missing stream submit error = %v", err)
 	}
-	if err := newConservativeBarExecutor(types.NewAccount(), nil, conservativeBarExecutorOptions{}).CancelOrders(context.Background(), types.Order{}); err == nil || !strings.Contains(err.Error(), "stream is required") {
+	if _, err := missingStream.SubmitAtomicPineOrders(context.Background(), "group", PineWorkerAtomicOrder{}, PineWorkerAtomicOrder{}); err == nil || !strings.Contains(err.Error(), "stream is required") {
+		t.Fatalf("missing atomic stream error = %v", err)
+	}
+	if err := missingStream.CancelOrders(context.Background(), types.Order{}); err == nil || !strings.Contains(err.Error(), "stream is required") {
 		t.Fatalf("missing stream cancel error = %v", err)
+	}
+	valid := newConservativeBarExecutor(types.NewAccount(), &stream, conservativeBarExecutorOptions{})
+	if _, err := valid.SubmitAtomicPineOrders(context.Background(), "", PineWorkerAtomicOrder{}); err == nil || !strings.Contains(err.Error(), "requires an id and at least two orders") {
+		t.Fatalf("invalid atomic group error = %v", err)
 	}
 }
 
@@ -126,6 +141,195 @@ func TestConservativeBarExecutorFillsMarketOrderOnNextOpenWithLiquidityCap(t *te
 	baseBalance, _ := account.Balance("AAPL")
 	if baseBalance.Available.String() != "50" {
 		t.Fatalf("AAPL balance = %s, want 50", baseBalance.Available)
+	}
+}
+
+func TestConservativeBarExecutorRunsParentBracketAtomicallyAndStopFirst(t *testing.T) {
+	account := types.NewAccount()
+	account.UpdateBalances(types.BalanceMap{
+		"USD": {Currency: "USD", Available: fixedpoint.NewFromFloat(10000)},
+	})
+	stream := types.NewStandardStream()
+	var orders []types.Order
+	var trades []types.Trade
+	stream.OnOrderUpdate(func(order types.Order) { orders = append(orders, order) })
+	stream.OnTradeUpdate(func(trade types.Trade) { trades = append(trades, trade) })
+
+	matcher := newConservativeBarExecutor(account, &stream, conservativeBarExecutorOptions{})
+	commands := &PineWorkerCommandExecutor{
+		Symbol:         "US.AAPL",
+		OrderExecutor:  matcher,
+		MarketResolver: fakeWorkerMarketResolver{"US.AAPL": testPineWorkerShortReplayMarket()},
+	}
+	base := time.Date(2026, time.June, 29, 9, 30, 0, 0, time.UTC)
+	matcher.onKLineClosed(testConservativeBarKLine(base, 100, 101, 99, 100, 1000))
+	if err := commands.ExecuteBarCommands(context.Background(), []WorkerOrderCommand{
+		{Kind: "entry", ID: "Long", IntentID: "Long", Side: types.SideTypeBuy, Quantity: 1, AtomicGroupID: "parent-bracket"},
+		{Kind: "exit", ID: "XL:limit", IntentID: "XL", ParentID: "Long", Side: types.SideTypeSell, OrderType: types.OrderTypeLimit, Quantity: 1, LimitPrice: 100.3, AtomicGroupID: "parent-bracket", OCOGroupID: "XL-oco", ReduceOnly: true},
+		{Kind: "exit", ID: "XL:stop", IntentID: "XL", ParentID: "Long", Side: types.SideTypeSell, OrderType: types.OrderTypeStopMarket, Quantity: 1, StopPrice: 99.9, AtomicGroupID: "parent-bracket", OCOGroupID: "XL-oco", ReduceOnly: true},
+	}); err != nil {
+		t.Fatalf("ExecuteBarCommands: %v", err)
+	}
+
+	// Both protective prices are inside this bar. conservative-bar-v1 must
+	// fill the stop and cancel the take-profit instead of reversing exposure.
+	matcher.onKLineClosed(testConservativeBarKLine(base.Add(time.Minute), 100, 101, 99, 100, 1000))
+	if len(trades) != 2 || trades[0].Side != types.SideTypeBuy || trades[1].Side != types.SideTypeSell {
+		t.Fatalf("trades = %#v, want parent buy then one protective sell", trades)
+	}
+	if trades[0].Price.String() != "100" || trades[1].Price.String() != "99.9" {
+		t.Fatalf("fill prices = %s, %s; want 100 then conservative stop 99.9", trades[0].Price, trades[1].Price)
+	}
+	baseBalance, _ := account.Balance("AAPL")
+	if !baseBalance.Available.IsZero() {
+		t.Fatalf("AAPL balance = %s, want flat after reduce-only exit", baseBalance.Available)
+	}
+	latest := make(map[string]types.OrderStatus)
+	for _, order := range orders {
+		latest[order.ClientOrderID] = order.Status
+	}
+	if latest["XL:stop"] != types.OrderStatusFilled || latest["XL:limit"] != types.OrderStatusCanceled {
+		t.Fatalf("protective statuses = %#v", latest)
+	}
+}
+
+func TestConservativeBarExecutorRejectsAtomicChildWithoutParent(t *testing.T) {
+	stream := types.NewStandardStream()
+	executor := newConservativeBarExecutor(types.NewAccount(), &stream, conservativeBarExecutorOptions{})
+	market := testPineWorkerShortReplayMarket()
+	_, err := executor.SubmitAtomicPineOrders(
+		context.Background(),
+		"broken-bracket",
+		PineWorkerAtomicOrder{CommandID: "entry", Order: types.SubmitOrder{Symbol: "US.AAPL", Side: types.SideTypeBuy, Quantity: fixedpoint.One, Market: market}},
+		PineWorkerAtomicOrder{CommandID: "exit", ParentID: "missing", Order: types.SubmitOrder{Symbol: "US.AAPL", Side: types.SideTypeSell, Quantity: fixedpoint.One, Market: market}},
+	)
+	if err == nil || !strings.Contains(err.Error(), `child "exit" has no parent "missing"`) {
+		t.Fatalf("SubmitAtomicPineOrders error = %v", err)
+	}
+	if len(executor.pending) != 0 {
+		t.Fatalf("pending len = %d, want no partially installed bracket", len(executor.pending))
+	}
+}
+
+func TestConservativeBarExecutorFillsAtomicBracketOnSignalClose(t *testing.T) {
+	account := types.NewAccount()
+	account.UpdateBalances(types.BalanceMap{"USD": {Currency: "USD", Available: fixedpoint.NewFromFloat(1000)}})
+	stream := types.NewStandardStream()
+	var trades []types.Trade
+	stream.OnTradeUpdate(func(trade types.Trade) { trades = append(trades, trade) })
+	executor := newConservativeBarExecutor(account, &stream, conservativeBarExecutorOptions{ProcessOrdersOnClose: true})
+	bar := testConservativeBarKLine(time.Date(2026, time.June, 29, 9, 30, 0, 0, time.UTC), 100, 101, 99, 100, 1000)
+	executor.onKLineClosed(bar)
+	market := testPineWorkerShortReplayMarket()
+	created, err := executor.SubmitAtomicPineOrders(
+		context.Background(),
+		"close-bracket",
+		PineWorkerAtomicOrder{CommandID: "entry", Order: types.SubmitOrder{ClientOrderID: "entry", Symbol: "US.AAPL", Side: types.SideTypeBuy, Type: types.OrderTypeMarket, Quantity: fixedpoint.One, Market: market}},
+		PineWorkerAtomicOrder{CommandID: "stop", ParentID: "entry", OCOGroupID: "protect", Order: types.SubmitOrder{ClientOrderID: "stop", Symbol: "US.AAPL", Side: types.SideTypeSell, Type: types.OrderTypeStopMarket, StopPrice: fixedpoint.NewFromFloat(101), Quantity: fixedpoint.One, ReduceOnly: true, Market: market}},
+		PineWorkerAtomicOrder{CommandID: "limit", ParentID: "entry", OCOGroupID: "protect", Order: types.SubmitOrder{ClientOrderID: "limit", Symbol: "US.AAPL", Side: types.SideTypeSell, Type: types.OrderTypeLimit, Price: fixedpoint.NewFromFloat(99), Quantity: fixedpoint.One, ReduceOnly: true, Market: market}},
+	)
+	if err != nil {
+		t.Fatalf("SubmitAtomicPineOrders error = %v", err)
+	}
+	if len(created) != 3 || len(trades) != 2 {
+		t.Fatalf("created=%d trades=%#v, want three orders and two close fills", len(created), trades)
+	}
+	if trades[0].Price.String() != "100" || trades[1].Price.String() != "100" || !trades[1].Time.Time().Equal(bar.EndTime.Time()) {
+		t.Fatalf("close fills = %#v, want entry and stop at signal close", trades)
+	}
+	if len(executor.pending) != 0 {
+		t.Fatalf("pending len = %d, want completed bracket", len(executor.pending))
+	}
+}
+
+func TestConservativeBarExecutorCancelParentCancelsProtectiveChildren(t *testing.T) {
+	stream := types.NewStandardStream()
+	var updates []types.Order
+	stream.OnOrderUpdate(func(order types.Order) { updates = append(updates, order) })
+	executor := newConservativeBarExecutor(types.NewAccount(), &stream, conservativeBarExecutorOptions{})
+	market := testPineWorkerShortReplayMarket()
+	created, err := executor.SubmitAtomicPineOrders(
+		context.Background(),
+		"cancel-bracket",
+		PineWorkerAtomicOrder{CommandID: "entry", Order: types.SubmitOrder{ClientOrderID: "entry", Symbol: "US.AAPL", Side: types.SideTypeBuy, Quantity: fixedpoint.One, Market: market}},
+		PineWorkerAtomicOrder{CommandID: "stop", ParentID: "entry", OCOGroupID: "protect", Order: types.SubmitOrder{ClientOrderID: "stop", Symbol: "US.AAPL", Side: types.SideTypeSell, Quantity: fixedpoint.One, ReduceOnly: true, Market: market}},
+		PineWorkerAtomicOrder{CommandID: "limit", ParentID: "entry", OCOGroupID: "protect", Order: types.SubmitOrder{ClientOrderID: "limit", Symbol: "US.AAPL", Side: types.SideTypeSell, Quantity: fixedpoint.One, ReduceOnly: true, Market: market}},
+	)
+	if err != nil {
+		t.Fatalf("SubmitAtomicPineOrders error = %v", err)
+	}
+	if err := executor.CancelOrders(context.Background(), created[0]); err != nil {
+		t.Fatalf("CancelOrders parent error = %v", err)
+	}
+	latest := make(map[string]types.OrderStatus)
+	for _, order := range updates {
+		latest[order.ClientOrderID] = order.Status
+	}
+	if latest["entry"] != types.OrderStatusCanceled || latest["stop"] != types.OrderStatusCanceled || latest["limit"] != types.OrderStatusCanceled {
+		t.Fatalf("cancelled bracket statuses = %#v", latest)
+	}
+	if len(executor.pending) != 0 {
+		t.Fatalf("pending len = %d, want canceled bracket removed", len(executor.pending))
+	}
+}
+
+func TestConservativeBarExecutorCancelsReduceOnlyOrderWithoutPosition(t *testing.T) {
+	stream := types.NewStandardStream()
+	var updates []types.Order
+	var trades []types.Trade
+	stream.OnOrderUpdate(func(order types.Order) { updates = append(updates, order) })
+	stream.OnTradeUpdate(func(trade types.Trade) { trades = append(trades, trade) })
+	executor := newConservativeBarExecutor(types.NewAccount(), &stream, conservativeBarExecutorOptions{})
+	base := time.Date(2026, time.June, 29, 9, 30, 0, 0, time.UTC)
+	executor.onKLineClosed(testConservativeBarKLine(base, 100, 101, 99, 100, 1000))
+	if _, err := executor.SubmitOrders(context.Background(), types.SubmitOrder{
+		ClientOrderID: "reduce-only",
+		Symbol:        "US.AAPL",
+		Side:          types.SideTypeSell,
+		Type:          types.OrderTypeMarket,
+		Quantity:      fixedpoint.One,
+		ReduceOnly:    true,
+		Market:        testPineWorkerShortReplayMarket(),
+	}); err != nil {
+		t.Fatalf("SubmitOrders error = %v", err)
+	}
+	executor.onKLineClosed(testConservativeBarKLine(base.Add(time.Minute), 100, 101, 99, 100, 1000))
+	if len(trades) != 0 || updates[len(updates)-1].Status != types.OrderStatusCanceled {
+		t.Fatalf("trades=%#v updates=%#v, want canceled reduce-only order", trades, updates)
+	}
+}
+
+func TestConservativeBarExecutorLimitsReduceOnlyFillToOpenPosition(t *testing.T) {
+	account := types.NewAccount()
+	account.UpdateBalances(types.BalanceMap{"AAPL": {Currency: "AAPL", Available: fixedpoint.One}})
+	stream := types.NewStandardStream()
+	var updates []types.Order
+	var trades []types.Trade
+	stream.OnOrderUpdate(func(order types.Order) { updates = append(updates, order) })
+	stream.OnTradeUpdate(func(trade types.Trade) { trades = append(trades, trade) })
+	executor := newConservativeBarExecutor(account, &stream, conservativeBarExecutorOptions{})
+	base := time.Date(2026, time.June, 29, 9, 30, 0, 0, time.UTC)
+	executor.onKLineClosed(testConservativeBarKLine(base, 100, 101, 99, 100, 1000))
+	if _, err := executor.SubmitOrders(context.Background(), types.SubmitOrder{
+		ClientOrderID: "oversized-reduce-only",
+		Symbol:        "US.AAPL",
+		Side:          types.SideTypeSell,
+		Type:          types.OrderTypeMarket,
+		Quantity:      fixedpoint.NewFromFloat(2),
+		ReduceOnly:    true,
+		Market:        testPineWorkerShortReplayMarket(),
+	}); err != nil {
+		t.Fatalf("SubmitOrders error = %v", err)
+	}
+	executor.onKLineClosed(testConservativeBarKLine(base.Add(time.Minute), 100, 101, 99, 100, 1000))
+	executor.onKLineClosed(testConservativeBarKLine(base.Add(2*time.Minute), 100, 101, 99, 100, 1000))
+	baseBalance, _ := account.Balance("AAPL")
+	if len(trades) != 1 || trades[0].Quantity.String() != "1" || !baseBalance.Available.IsZero() {
+		t.Fatalf("trades=%#v AAPL=%s, want one-share reduction to flat", trades, baseBalance.Available)
+	}
+	latest := updates[len(updates)-1]
+	if latest.Status != types.OrderStatusCanceled || latest.ExecutedQuantity.String() != "1" {
+		t.Fatalf("latest order = %#v, want partially executed remainder canceled", latest)
 	}
 }
 

@@ -178,8 +178,8 @@ func TestStrategySymbolRuntimeTradeBucketsAndOrderSignals(t *testing.T) {
 }
 
 func TestStrategyRuntimeAccountAndFormattingBoundaries(t *testing.T) {
-	if got := strategyRuntimeBrokerID(stratsrv.InstanceBinding{}); got != "futu" {
-		t.Fatalf("default broker id = %q, want futu", got)
+	if got := strategyRuntimeBrokerID(stratsrv.InstanceBinding{}); got != "" {
+		t.Fatalf("default broker id = %q, want empty", got)
 	}
 	if got := strategyRuntimeBrokerID(stratsrv.InstanceBinding{BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "  Futu-Sim  "}}); got != "futu-sim" {
 		t.Fatalf("normalized broker id = %q", got)
@@ -279,14 +279,15 @@ func TestStrategyRuntimeRefreshAndSyncErrorBoundaries(t *testing.T) {
 	stream := bbgotypes.NewStandardStream()
 	session := newStrategyRuntimeTestSession(stub)
 	runner := &symbolRuntime{
-		symbol:          "US.AAPL",
-		interval:        bbgotypes.Interval1m,
-		ctx:             nil,
-		runtimeExchange: stub,
-		market:          bbgotypes.Market{Symbol: "US.AAPL", BaseCurrency: "AAPL", QuoteCurrency: "USD"},
-		cachedFunds:     stub.funds,
-		session:         session,
-		emitter:         &stream,
+		symbol:           "US.AAPL",
+		interval:         bbgotypes.Interval1m,
+		ctx:              nil,
+		marketDataSource: stub,
+		accountSource:    stub,
+		market:           bbgotypes.Market{Symbol: "US.AAPL", BaseCurrency: "AAPL", QuoteCurrency: "USD"},
+		cachedFunds:      stub.funds,
+		session:          session,
+		emitter:          &stream,
 	}
 
 	stub.queryFundsErr = errors.New("funds permission denied")
@@ -331,7 +332,7 @@ func TestStrategyRuntimeRefreshAndSyncErrorBoundaries(t *testing.T) {
 	}
 }
 
-func newStrategyRuntimeTestSession(exchange Exchange) *bbgo.ExchangeSession {
+func newStrategyRuntimeTestSession(exchange bbgotypes.Exchange) *bbgo.ExchangeSession {
 	session := bbgo.NewExchangeSession("strategy-runtime-test", exchange)
 	session.SetMarkets(bbgotypes.MarketMap{
 		"US.AAPL": {Symbol: "US.AAPL", BaseCurrency: "AAPL", QuoteCurrency: "USD"},

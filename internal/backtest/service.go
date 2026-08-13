@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,12 +65,13 @@ type ScriptStartRequest struct {
 
 // RunState 是回测运行状态的纯数据结构。
 type RunState struct {
-	ID        string        `json:"id"`
-	Status    string        `json:"status"` // "queued" | "running" | "completed" | "failed" | "cancelled"
-	Request   StartRequest  `json:"request"`
-	Result    *bt.RunResult `json:"result,omitempty"`
-	CreatedAt string        `json:"createdAt"`
-	UpdatedAt string        `json:"updatedAt"`
+	ID                 string        `json:"id"`
+	Status             string        `json:"status"` // "queued" | "running" | "completed" | "failed" | "cancelled"
+	Request            StartRequest  `json:"request"`
+	Result             *bt.RunResult `json:"result,omitempty"`
+	CreatedAt          string        `json:"createdAt"`
+	UpdatedAt          string        `json:"updatedAt"`
+	MarketDataProvider string        `json:"marketDataProvider"`
 }
 
 // ResultViewRequest describes a bounded result slice suitable for agent tools.
@@ -100,13 +102,14 @@ type SyncRequest struct {
 
 // SyncStarted 同步启动响应。
 type SyncStarted struct {
-	TaskID       string               `json:"taskId"`
-	Symbol       string               `json:"symbol"`
-	Intervals    []bbgotypes.Interval `json:"intervals"`
-	Since        string               `json:"since"`
-	Until        string               `json:"until"`
-	SessionScope string               `json:"sessionScope"`
-	Message      string               `json:"message"`
+	TaskID             string               `json:"taskId"`
+	Symbol             string               `json:"symbol"`
+	Intervals          []bbgotypes.Interval `json:"intervals"`
+	Since              string               `json:"since"`
+	Until              string               `json:"until"`
+	SessionScope       string               `json:"sessionScope"`
+	Message            string               `json:"message"`
+	MarketDataProvider string               `json:"marketDataProvider"`
 }
 
 const (
@@ -170,12 +173,14 @@ var errKLineCoverageCheckerUnavailable = errors.New("k-line coverage checker is 
 // KLineSyncParams contains the stable business parameters passed to a K-line
 // synchronization adapter.
 type KLineSyncParams struct {
-	Symbol       string
-	Intervals    []bbgotypes.Interval
-	Since        time.Time
-	Until        time.Time
-	RehabType    RehabType
-	SessionScope string
+	Market             string
+	MarketDataProvider string
+	Symbol             string
+	Intervals          []bbgotypes.Interval
+	Since              time.Time
+	Until              time.Time
+	RehabType          RehabType
+	SessionScope       string
 }
 
 // KLineSyncer hides broker clients, protobuf enums, and concrete storage from
@@ -183,6 +188,12 @@ type KLineSyncParams struct {
 type KLineSyncer interface {
 	Sync(ctx context.Context, params KLineSyncParams, progress *bt.SyncProgress) error
 	Close() error
+}
+
+// KLineSyncValidator lets provider adapters reject unsupported combinations
+// before a task is accepted and exposed to callers.
+type KLineSyncValidator interface {
+	Validate(params KLineSyncParams) error
 }
 
 // RequestError identifies invalid user input that API transports should expose
@@ -261,14 +272,18 @@ type Service struct {
 
 	dbPathFn func() string
 
-	runBacktestFn func(ctx context.Context, config bt.RunConfig) *bt.RunResult
+	runBacktestFn           func(ctx context.Context, config bt.RunConfig) *bt.RunResult
+	resolveInstrumentSpecFn func(context.Context, string, string, string) (bt.InstrumentSpec, error)
 
 	pineWorkerMu     sync.RWMutex
 	pineWorkerRunner bt.PineWorkerRunner
 
-	newKLineSyncerFn func(dbPath string) (KLineSyncer, error)
+	newKLineSyncerFn         func(dbPath string) (KLineSyncer, error)
+	newProviderKLineSyncerFn func(ctx context.Context, dbPath, providerID string) (KLineSyncer, error)
+	backtestProviderIDFn     func() string
 
-	checkKLineCoverageFn func(dbPath, symbol, interval string, since, until time.Time, rehabType, sessionScope string) error
+	checkKLineCoverageFn         func(dbPath, symbol, interval string, since, until time.Time, rehabType, sessionScope string) error
+	checkProviderKLineCoverageFn func(dbPath, providerID, symbol, interval string, since, until time.Time, rehabType, sessionScope string) error
 }
 
 // NewService 创建回测服务。所有依赖通过 Option 注入。
@@ -313,6 +328,12 @@ func WithRunBacktestFn(fn func(ctx context.Context, config bt.RunConfig) *bt.Run
 	return func(s *Service) { s.runBacktestFn = fn }
 }
 
+func WithInstrumentSpecResolver(
+	fn func(context.Context, string, string, string) (bt.InstrumentSpec, error),
+) Option {
+	return func(s *Service) { s.resolveInstrumentSpecFn = fn }
+}
+
 // WithPineWorkerRunner sets the PineTS worker runner used by default backtests.
 func WithPineWorkerRunner(runner bt.PineWorkerRunner) Option {
 	return func(s *Service) { s.SetPineWorkerRunner(runner) }
@@ -333,9 +354,34 @@ func WithNewKLineSyncerFn(fn func(dbPath string) (KLineSyncer, error)) Option {
 	return func(s *Service) { s.newKLineSyncerFn = fn }
 }
 
+func WithProviderKLineSyncerFn(
+	fn func(context.Context, string, string) (KLineSyncer, error),
+) Option {
+	return func(s *Service) { s.newProviderKLineSyncerFn = fn }
+}
+
+func WithBacktestProviderIDFn(fn func() string) Option {
+	return func(s *Service) { s.backtestProviderIDFn = fn }
+}
+
 // WithKLineCoverageCheckFn overrides local K-line coverage checks.
 func WithKLineCoverageCheckFn(fn func(dbPath, symbol, interval string, since, until time.Time, rehabType, sessionScope string) error) Option {
 	return func(s *Service) { s.checkKLineCoverageFn = fn }
+}
+
+func WithProviderKLineCoverageCheckFn(
+	fn func(dbPath, providerID, symbol, interval string, since, until time.Time, rehabType, sessionScope string) error,
+) Option {
+	return func(s *Service) { s.checkProviderKLineCoverageFn = fn }
+}
+
+func (s *Service) backtestProviderID() string {
+	if s.backtestProviderIDFn != nil {
+		if providerID := strings.ToLower(strings.TrimSpace(s.backtestProviderIDFn())); providerID != "" {
+			return providerID
+		}
+	}
+	return "futu"
 }
 
 // List 列出所有回测运行记录（不含结果详情，仅元数据）。

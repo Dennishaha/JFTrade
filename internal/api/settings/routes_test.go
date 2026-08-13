@@ -33,6 +33,7 @@ type routeStore struct {
 	pineWorker          jfsettings.PineWorkerSettings
 	calendars           jfsettings.ExchangeCalendarSettings
 	activeProvider      jfsettings.ActiveMarketDataProvider
+	backtestProvider    jfsettings.ActiveMarketDataProvider
 	updateErr           error
 	deleteErr           error
 	saveErr             error
@@ -123,6 +124,12 @@ func (s *routeStore) ActiveMarketDataProvider() jfsettings.ActiveMarketDataProvi
 	}
 	return s.activeProvider
 }
+func (s *routeStore) BacktestMarketDataProvider() jfsettings.ActiveMarketDataProvider {
+	if s.backtestProvider == "" {
+		return s.ActiveMarketDataProvider()
+	}
+	return s.backtestProvider
+}
 func (s *routeStore) Integration() jfsettings.BrokerIntegration {
 	return s.integration
 }
@@ -199,6 +206,13 @@ func (s *routeStore) SaveActiveMarketDataProvider(input jfsettings.ActiveMarketD
 		return s.saveErr
 	}
 	s.activeProvider = input
+	return nil
+}
+func (s *routeStore) SaveBacktestMarketDataProvider(input jfsettings.ActiveMarketDataProvider) error {
+	if s.saveErr != nil {
+		return s.saveErr
+	}
+	s.backtestProvider = input
 	return nil
 }
 func (s *routeStore) SaveIntegration(input jfsettings.BrokerIntegration) (jfsettings.BrokerIntegration, error) {

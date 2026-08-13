@@ -309,6 +309,15 @@ type fakeKLineSyncer struct {
 	fields        observability.Fields
 }
 
+type validatingKLineSyncer struct {
+	fakeKLineSyncer
+	validateErr error
+}
+
+func (s *validatingKLineSyncer) Validate(KLineSyncParams) error {
+	return s.validateErr
+}
+
 func (s *fakeKLineSyncer) Sync(ctx context.Context, params KLineSyncParams, progress *bt.SyncProgress) error {
 	s.mu.Lock()
 	s.params = params

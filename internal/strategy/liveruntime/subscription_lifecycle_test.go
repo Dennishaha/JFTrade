@@ -39,6 +39,7 @@ func TestSubscriptionLeaseAndWarmupFailuresRollBackRuntime(t *testing.T) {
 	_, err := manager.buildManagedStrategyRuntime(
 		t.Context(),
 		stub,
+		stub,
 		map[string]bbgotypes.Market{},
 		nil,
 		nil,

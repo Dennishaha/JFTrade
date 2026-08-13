@@ -22,10 +22,10 @@ func TestStrategyRuntimeSymbolKeepsPollingAndLateTradeFailuresVisible(t *testing
 	stub.queryKLinesErr = errors.New("market-data connection reset")
 	var reported []string
 	runner := &symbolRuntime{
-		symbol:          "US.AAPL",
-		interval:        bbgotypes.Interval1m,
-		runtimeExchange: stub,
-		onError:         func(message string) { reported = append(reported, message) },
+		symbol:           "US.AAPL",
+		interval:         bbgotypes.Interval1m,
+		marketDataSource: stub,
+		onError:          func(message string) { reported = append(reported, message) },
 	}
 	runner.syncClosedKLines()
 	if len(reported) != 1 || !strings.Contains(reported[0], "market-data connection reset") {

@@ -33,6 +33,13 @@ func TestStartQueuesRunAndExecutesWithInjectedRunner(t *testing.T) {
 		WithRunStore(runs),
 		WithStrategyProvider(provider),
 		WithDBPathFn(func() string { return "/tmp/backtest.db" }),
+		WithBacktestProviderIDFn(func() string { return "yfinance" }),
+		WithInstrumentSpecResolver(func(_ context.Context, providerID, market, symbol string) (bt.InstrumentSpec, error) {
+			if providerID != "yfinance" || market != "US" || symbol != "US.AAPL" {
+				t.Fatalf("instrument resolver args = %q %q %q", providerID, market, symbol)
+			}
+			return bt.InstrumentSpec{Symbol: symbol, QuoteCurrency: "USD", LotSize: 1, QuantityStep: 1}, errors.New("tick size unavailable")
+		}),
 		WithRunBacktestFn(func(ctx context.Context, config bt.RunConfig) *bt.RunResult {
 			gotConfig = config
 			gotFields = observability.FieldsFromContext(ctx)
@@ -103,6 +110,10 @@ func TestStartQueuesRunAndExecutesWithInjectedRunner(t *testing.T) {
 	}
 	if gotConfig.DBPath != "/tmp/backtest.db" {
 		t.Fatalf("DBPath = %q, want /tmp/backtest.db", gotConfig.DBPath)
+	}
+	if gotConfig.MarketDataProvider != "yfinance" || gotConfig.InstrumentSpec.Symbol != "US.AAPL" ||
+		len(gotConfig.InstrumentSpec.Warnings) != 1 {
+		t.Fatalf("provider/instrument config = %q / %+v", gotConfig.MarketDataProvider, gotConfig.InstrumentSpec)
 	}
 	if gotConfig.Symbol != "US.AAPL" || gotConfig.Interval != "1m" {
 		t.Fatalf("config symbol/interval = %q/%q, want US.AAPL/1m", gotConfig.Symbol, gotConfig.Interval)

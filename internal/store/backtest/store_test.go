@@ -102,6 +102,9 @@ func TestStorePersistsResultsAndRecoversTransientRuns(t *testing.T) {
 		metadata.Request.MarketTimezone != completed.Request.MarketTimezone {
 		t.Fatalf("date metadata changed: %+v", metadata.Request)
 	}
+	if metadata.MarketDataProvider != "akshare" {
+		t.Fatalf("reloaded provider = %q", metadata.MarketDataProvider)
+	}
 	full, ok, err := reloaded.GetFull(completed.ID)
 	if err != nil || !ok || full.Result == nil || full.Result.FinalBalance != 123456 {
 		t.Fatalf("reloaded full run = %+v ok=%v err=%v", full, ok, err)
@@ -210,10 +213,12 @@ func completeRun(id, status string) *btsrv.RunState {
 		Request: btsrv.StartRequest{DefinitionID: "def-1", Symbol: "HK.00700", Interval: "1m"},
 		Result: &bt.RunResult{
 			Symbol: "HK.00700", Interval: "1m", FinalBalance: 123456,
-			Trades:   []bt.TradeEvent{{Time: "2026-01-02T00:00:00Z", Side: "BUY", Price: "100", Qty: "1"}},
-			PnLCurve: []bt.PnLPoint{{Time: "2026-01-02T00:00:00Z", Equity: 100000}},
-			Logs:     []string{"ready"},
+			MarketDataProvider: "akshare",
+			Trades:             []bt.TradeEvent{{Time: "2026-01-02T00:00:00Z", Side: "BUY", Price: "100", Qty: "1"}},
+			PnLCurve:           []bt.PnLPoint{{Time: "2026-01-02T00:00:00Z", Equity: 100000}},
+			Logs:               []string{"ready"},
 		},
 		CreatedAt: "2026-05-30T00:00:00Z", UpdatedAt: "2026-05-30T00:00:01Z",
+		MarketDataProvider: "akshare",
 	}
 }

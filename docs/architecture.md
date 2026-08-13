@@ -131,7 +131,7 @@ Handler 只做参数绑定、校验、调用 service、错误映射和响应转�
 
 持久化按领域位于 `internal/store/{strategy,backtest,trading,watchlist,research,...}`。数据维护只通过 `internal/datamanagement` 的 busy、purge、compact 窄端口访问这些资源，不读取 store 的锁、map 或数据库连接。
 
-`pkg/futu` 仍是 Futu exchange adapter，保留 bbgo `types.Exchange` 兼容面以服务 sidecar、回测和策略 runtime。`pkg/strategy`、`pkg/backtest`、`pkg/broker`、`pkg/market` 等被保留的包承担稳定共享类型或被其他公开包暴露；仓库专属 ADK 引擎已内移至 `internal/assistant/engine`。具体判定和破坏性变更规则见 [public-package-policy.md](architecture/public-package-policy.md)。
+`pkg/futu` 仍是 Futu exchange adapter，保留 bbgo `types.Exchange` 兼容面以服务 Futu 行情和实时策略的应用适配层；通用历史同步和回测运行不再引用它。`pkg/strategy`、`pkg/backtest`、`pkg/broker`、`pkg/market` 等被保留的包承担稳定共享类型或被其他公开包暴露；仓库专属 ADK 引擎已内移至 `internal/assistant/engine`。具体判定和破坏性变更规则见 [public-package-policy.md](architecture/public-package-policy.md)。
 
 ### 6. 桌面专属边界
 
@@ -179,7 +179,19 @@ apps/web
      -> yfinance: QueryTickers() polling -> embedded PyInstaller helper (dynamic loopback) -> Yahoo Finance
 ```
 
-`internal/marketdata` 拥有 demand、cache、freshness、fallback polling、backoff、health/reset/close。稳定 router 让已有 service/lease 不随 Provider 切换而被替换；切换时清理旧缓存并重建 collector 的物理连接。显式切到 yfinance 会先启动内置 helper 并等待 `ready` 健康门禁，失败则保持当前 Provider 并由设置 API 返回冲突；启动恢复持久化选择只要求 helper 已连接，允许 Yahoo 在后台 `warming`，其间数据请求通过 `Retry-After` 进入既有退避路径。helper 缺失或进程/健康端点失败仍回退并持久化 Futu。逻辑切换成功后不会再被旧 Futu 清理失败回滚：OpenD 要求物理订阅至少保留一分钟，collector 会在非活跃 Futu demand 归零后按各订阅的实际建立时间延迟退订，并对暂时失败使用既有退避重试；到期前切回 Futu 会复用仍有效的物理订阅。Futu 支持 push 时优先流式更新，yfinance 明确报告无实时推流能力，因此 collector 只走轮询，不会反复尝试建立伪流连接；yfinance 也不提供 Level 2。实盘策略仍依赖 Futu 的推流与执行闭环：存在活跃策略时切源会被拒绝，yfinance 激活期间也不会授予新的实盘策略行情 lease。
+`internal/marketdata` 拥有 demand、cache、freshness、fallback polling、backoff、health/reset/close。`marketdataapp.Runtime` 同时是应用级 Provider 实例池：全局行情和回测分别持有租约，逻辑切换只替换 active 引用，不会使已接受任务失效；共享 Python helper 在最后一个 Python Provider 租约释放后才停止。显式切到 yfinance 会先启动内置 helper 并等待 `ready` 健康门禁，失败则保持当前 Provider 并由设置 API 返回冲突。逻辑切换成功后不会再被旧 Futu 清理失败回滚：OpenD 要求物理订阅至少保留一分钟，collector 会在非活跃 Futu demand 归零后延迟退订并重试。Futu 支持 push 时优先流式更新，yfinance/AKShare 只走轮询。策略 runtime 分别消费实时市场源、账户查询和交易命令端口：live 与 notify-only 均要求 `streamingCandles=true`，首期只有 Futu 可启动；notify-only 不解析账户，live 才按实例绑定的 `brokerId` 精确解析可交易 broker，订单命令统一经过 `internal/trading`。
+
+### 回测历史数据链路
+
+```text
+apps/web -> /api/v1/backtests/*
+  -> internal/backtest HistoricalCandleSource
+  -> internal/app/apiserver/backtestapp
+  -> marketdataapp Provider lease -> Futu / yfinance / AKShare
+  -> pkg/backtest KLineStore schema v3
+```
+
+回测 Provider 设置独立于全局行情设置，首次升级复制全局值，之后独立变化。同步器统一负责倒序分页、范围裁剪、去重、重试和取消；缓存表键含 provider、symbol、interval、adjustment、session。运行接受时固定 Provider，并以中立 `InstrumentSpec` 和 `backtest` session 完成本地撮合，不构造 Futu Exchange。`backtest.db` v2 被识别为 incompatible 并走统一备份重建流程；`backtest-runs.db` 保持独立且不重建。
 
 ### K 线、快照与盘口深度
 
@@ -251,12 +263,12 @@ Futu OpenD protocol 1003 / bbgo.Notify(...)
 
 任何需求如果直接假设“前端应改去接 bbgo 原生接口”，都需要先重新审查是否破坏现有控制台契约。
 
-### Futu 适配层是共享依赖
+### Futu 适配层只服务需要 OpenD 的边界
 
-`pkg/futu` 同时服务 sidecar、PineTS worker 调度前后的行情/交易边界和回测。改这里时必须先判断是：
+`pkg/futu` 服务 Futu 行情、交易和实时策略适配。回测历史同步经通用 Provider 端口，回测撮合不依赖 Futu Exchange。改这里时必须先判断是：
 
 - 改 sidecar 行情/连接行为
-- 改策略执行调度 / 回测依赖的 exchange 行为
+- 改实时策略执行依赖的 exchange 行为
 - 还是同时影响多个调用方
 
 ## 后续开发入口

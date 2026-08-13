@@ -125,6 +125,27 @@ func TestFutuAdvancedAdapterReaderSurfaceAndPredictionSubscriptions(t *testing.T
 	}
 }
 
+func TestBrokerKLineAdjustmentMapping(t *testing.T) {
+	tests := []struct {
+		input string
+		want  qotcommonpb.RehabType
+	}{
+		{"", qotcommonpb.RehabType_RehabType_Forward},
+		{"none", qotcommonpb.RehabType_RehabType_None},
+		{"forward", qotcommonpb.RehabType_RehabType_Forward},
+		{"backward", qotcommonpb.RehabType_RehabType_Backward},
+	}
+	for _, test := range tests {
+		got, err := brokerKLineRehabType(test.input)
+		if err != nil || got != test.want {
+			t.Fatalf("brokerKLineRehabType(%q) = %v, %v; want %v", test.input, got, err, test.want)
+		}
+	}
+	if _, err := brokerKLineRehabType("split-adjusted"); err == nil {
+		t.Fatal("unsupported adjustment error = nil")
+	}
+}
+
 func TestFutuAdvancedAdapterProtocolValidationDefaultsAndPayloadHelpers(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	defer server.stop()

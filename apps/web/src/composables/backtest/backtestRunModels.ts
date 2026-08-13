@@ -51,6 +51,7 @@ export interface BacktestFeeBreakdownEntry {
 
 export interface BacktestRunResult {
   symbol: string;
+  marketDataProvider?: string | undefined;
   interval: string;
   chartType?: ChartType | undefined;
   startTime: string;
@@ -91,6 +92,7 @@ export interface BacktestRunResult {
 export interface BacktestRun {
   id: string;
   status: string;
+  marketDataProvider?: string | undefined;
   request: {
     definitionId: string;
     definitionVersion?: string;

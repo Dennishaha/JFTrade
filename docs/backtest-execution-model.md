@@ -7,6 +7,9 @@ JFTrade 当前只接受 `executionModel=conservative-bar-v1`。请求省略该�
 - PineTS worker 执行 Pine 脚本，产出信号、图形输出和 order intents。
 - Go 负责撮合、订单/成交事件、账户余额、费用、资金曲线、结果持久化和风险边界。
 - 回测结果记录 `executionModel`，用于区分未来可能出现的其他成交模型。
+- 回测请求接受时固定模块级 `marketDataProvider`，运行只读取该来源在 schema v3 中隔离的历史缓存。
+- 本地 `InstrumentSpec` 提供 tick size、lot size、quantity step 和 quote currency；运行器使用 `backtest` exchange/session 身份，不创建 Futu Exchange 或连接 OpenD。
+- Futu 手续费 preset 是独立的交易成本假设，不随历史行情 Provider 自动变化。
 
 主要实现位于：
 
@@ -22,6 +25,7 @@ JFTrade 当前只接受 `executionModel=conservative-bar-v1`。请求省略该�
 - 每个 symbol、每根 bar 共享按成交量计算的流动性预算；订单按提交顺序消耗预算。
 - 超出预算的数量保持 pending，后续 bar 继续撮合；零成交量 bar 不会成交。
 - 数量会按市场 quantity step 和最小数量约束归一，预算不足时保留 pending 并记录 warning。
+- Provider 无法提供关键市场规则时使用保守默认；港股 lot size 缺失会明确告警并拒绝相关订单，避免伪造可成交结果。
 - market 与 stop-market 按 open/close 或触发价规则成交，并应用 Pine slippage tick。
 - limit 单允许跳空价格改善，但成交价不会劣于 limit。
 - stop-limit 先进入 triggered 状态，再从后续撮合机会按 limit 规则处理。

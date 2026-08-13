@@ -87,7 +87,24 @@ func (s *Service) startResolvedBacktest(ctx context.Context, req StartRequest, d
 	if err != nil {
 		return nil, err
 	}
-	run := newQueuedRun(prepared.request)
+	providerID := s.backtestProviderID()
+	if err := s.validatePreparedBacktestCoverage(prepared, providerID); err != nil {
+		return nil, err
+	}
+	instrumentSpec := bt.InstrumentSpec{Symbol: prepared.request.Symbol}
+	if s.resolveInstrumentSpecFn != nil {
+		resolved, resolveErr := s.resolveInstrumentSpecFn(
+			ctx, providerID, prepared.request.Market, prepared.request.Symbol,
+		)
+		if strings.TrimSpace(resolved.Symbol) != "" {
+			instrumentSpec = resolved
+		}
+		if resolveErr != nil {
+			instrumentSpec.Warnings = append(instrumentSpec.Warnings,
+				fmt.Sprintf("market rule warning for %s: %v", prepared.request.Symbol, resolveErr))
+		}
+	}
+	run := newQueuedRun(prepared.request, providerID)
 	if s.runs == nil {
 		return nil, fmt.Errorf("run store not configured")
 	}
@@ -99,19 +116,52 @@ func (s *Service) startResolvedBacktest(ctx context.Context, req StartRequest, d
 		s.finishTask(cancel)
 		return nil, err
 	}
-	go s.executeBacktest(runCtx, run.ID, prepared.request, def, prepared.startTime, prepared.endTime, cancel)
+	go s.executeBacktest(runCtx, run.ID, prepared.request, def, prepared.startTime, prepared.endTime, providerID, instrumentSpec, cancel)
 	return run, nil
 }
 
-func newQueuedRun(req StartRequest) *RunState {
+func (s *Service) validatePreparedBacktestCoverage(prepared preparedBacktest, providerID string) error {
+	if s.checkProviderKLineCoverageFn == nil && s.checkKLineCoverageFn == nil {
+		return nil
+	}
+	covered, err := s.hasKLineCoverageForProvider(
+		providerID,
+		prepared.request.Symbol,
+		prepared.request.Interval,
+		prepared.queryStart,
+		prepared.endTime,
+		normalizeRehabTypeName(prepared.request.RehabType),
+		backtestReadSessionScope(prepared.request.UseExtendedHours),
+	)
+	if covered {
+		return nil
+	}
+	if err == nil {
+		err = fmt.Errorf("missing K-line coverage")
+	}
+	if isMissingKLineCoverageError(err) {
+		return requestErrorf("backtest K-line data is not ready: %v; sync historical K-lines and retry", err)
+	}
+	return err
+}
+
+func newQueuedRun(req StartRequest, providerID ...string) *RunState {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	return &RunState{
-		ID:        "bt-" + time.Now().UTC().Format("20060102T150405.000000000"),
-		Status:    "queued",
-		Request:   req,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:                 "bt-" + time.Now().UTC().Format("20060102T150405.000000000"),
+		Status:             "queued",
+		Request:            req,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+		MarketDataProvider: firstProviderID(providerID),
 	}
+}
+
+func firstProviderID(values []string) string {
+	if len(values) > 0 && strings.TrimSpace(values[0]) != "" {
+		return strings.TrimSpace(values[0])
+	}
+	return "futu"
 }
 
 func (s *Service) beginBacktestTask(ctx context.Context, runID string, symbol string) (context.Context, context.CancelFunc, error) {
@@ -224,41 +274,48 @@ func (s *Service) executeBacktest(
 	req StartRequest,
 	def StrategyDef,
 	startTime, endTime time.Time,
+	providerID string,
+	instrumentSpec bt.InstrumentSpec,
 	cancel context.CancelFunc,
 ) {
 	defer s.finishTask(cancel)
 	defer s.runs.SetCancel(runID, nil)
-	defer s.recoverBacktestPanic(ctx, runID, req)
+	defer s.recoverBacktestPanic(ctx, runID, req, providerID)
 
 	s.markBacktestRunning(ctx, runID)
 	result := s.runBacktest(ctx, bt.RunConfig{
-		DBPath:           s.dbPath(),
-		Market:           req.Market,
-		Symbol:           req.Symbol,
-		Interval:         req.Interval,
-		SourceFormat:     def.SourceFormat,
-		StartTime:        startTime,
-		EndTime:          endTime,
-		StrategyScript:   def.Script,
-		InitialBalance:   req.InitialBalance,
-		RehabType:        req.RehabType,
-		UseExtendedHours: req.UseExtendedHours,
-		InstrumentType:   req.InstrumentType,
-		TradingCosts:     req.TradingCosts,
-		ExecutionModel:   req.ExecutionModel,
-		ChartType:        req.ChartType,
+		DBPath:             s.dbPath(),
+		MarketDataProvider: providerID,
+		Market:             req.Market,
+		Symbol:             req.Symbol,
+		Interval:           req.Interval,
+		SourceFormat:       def.SourceFormat,
+		StartTime:          startTime,
+		EndTime:            endTime,
+		StrategyScript:     def.Script,
+		InitialBalance:     req.InitialBalance,
+		RehabType:          req.RehabType,
+		UseExtendedHours:   req.UseExtendedHours,
+		InstrumentType:     req.InstrumentType,
+		TradingCosts:       req.TradingCosts,
+		ExecutionModel:     req.ExecutionModel,
+		ChartType:          req.ChartType,
+		InstrumentSpec:     instrumentSpec,
 	})
 	result = ensureBacktestResult(req, result)
+	result.MarketDataProvider = providerID
 	status := backtestResultStatus(ctx, result)
 	s.finishRun(runID, status, result)
 	logBacktestCompletion(ctx, status, result)
 }
 
-func (s *Service) recoverBacktestPanic(ctx context.Context, runID string, req StartRequest) {
+func (s *Service) recoverBacktestPanic(ctx context.Context, runID string, req StartRequest, providerID string) {
 	if recovered := recover(); recovered != nil {
 		panicErr := fmt.Errorf("backtest panic: %v", recovered)
 		observability.ErrorWithImportance(ctx, observability.ImportanceCritical, "backtest run panicked", panicErr, "stack", string(debug.Stack()))
-		s.finishRun(runID, "failed", failureResult(req, fmt.Sprintf("backtest panic: %v", recovered)))
+		result := failureResult(req, fmt.Sprintf("backtest panic: %v", recovered))
+		result.MarketDataProvider = providerID
+		s.finishRun(runID, "failed", result)
 	}
 }
 

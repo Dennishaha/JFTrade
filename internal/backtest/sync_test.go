@@ -241,6 +241,33 @@ func TestSyncClosesAdapterWhenTaskStoreMissing(t *testing.T) {
 	}
 }
 
+func TestSyncRejectsUnsupportedProviderCombinationBeforeAcceptingTask(t *testing.T) {
+	tasks := newMemorySyncTaskStore()
+	syncer := &validatingKLineSyncer{validateErr: requestErrorf("provider yfinance does not support forward price adjustment")}
+	svc := NewService(
+		WithSyncTaskStore(tasks),
+		WithBacktestProviderIDFn(func() string { return "yfinance" }),
+		WithProviderKLineSyncerFn(func(context.Context, string, string) (KLineSyncer, error) {
+			return syncer, nil
+		}),
+	)
+
+	started, err := svc.Sync(t.Context(), SyncRequest{
+		Market: "US", Code: "AAPL", Intervals: []string{"1m"},
+		Since: "2026-01-02T14:30:00Z", Until: "2026-01-02T14:31:00Z",
+		RehabType: "forward",
+	})
+	if started != nil || !IsRequestError(err) {
+		t.Fatalf("Sync result = %#v, err=%v", started, err)
+	}
+	if len(tasks.tasks) != 0 {
+		t.Fatalf("unsupported sync accepted tasks = %d", len(tasks.tasks))
+	}
+	if !syncer.closed {
+		t.Fatal("rejected provider adapter was not closed")
+	}
+}
+
 func TestSyncRequestErrors(t *testing.T) {
 	svc := NewService()
 	tests := []struct {
@@ -333,7 +360,7 @@ func TestPlanSyncIntervals(t *testing.T) {
 		{
 			name:         "uses hourly data for us extended daily sessions",
 			symbol:       "US.AAPL",
-			requested:    []bbgotypes.Interval{"1d", "1w"},
+			requested:    []bbgotypes.Interval{"1d", "3d", "1w"},
 			sessionScope: "extended",
 			want:         []bbgotypes.Interval{"1h"},
 		},

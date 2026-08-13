@@ -84,6 +84,30 @@ func TestBacktestDataPreparationRejectsInvalidCandidatesBeforeStartingSync(t *te
 	}
 }
 
+func TestBacktestStartRejectsMissingCoverageBeforePersistingRun(t *testing.T) {
+	runs := newMemoryRunStore()
+	service := NewService(
+		WithRunStore(runs),
+		WithStrategyProvider(fakeStrategyProvider{defs: map[string]StrategyDef{
+			"def-1": {ID: "def-1", Version: "1", SourceFormat: "pine-v6", Script: testPineScript},
+		}}),
+		WithProviderKLineCoverageCheckFn(func(
+			_, _, _, _ string, _, _ time.Time, _, _ string,
+		) error {
+			return errors.New("missing K-line coverage for US.AAPL 5m")
+		}),
+	)
+	request := validStartRequest()
+	request.Interval = "5m"
+	if _, err := service.Start(t.Context(), request); err == nil || !IsRequestError(err) ||
+		!strings.Contains(err.Error(), "data is not ready") {
+		t.Fatalf("Start missing coverage error = %v", err)
+	}
+	if got := runs.List(); len(got) != 0 {
+		t.Fatalf("missing-coverage run persisted: %+v", got)
+	}
+}
+
 func TestBacktestSyncHelpersHandleDefaultsAndAdapterSetupFailures(t *testing.T) {
 	defaulted := applyDefaultSyncInstrument(SyncRequest{})
 	if defaulted.Market != "HK" || defaulted.Code != "00700" {
@@ -227,5 +251,55 @@ func TestDataReadinessPropagatesCoverageFailuresAndExistingSyncTerminalStates(t 
 	}
 	if len(service.dataSyncTasks) != 0 {
 		t.Fatalf("data sync task map was not cleared on Close: %#v", service.dataSyncTasks)
+	}
+}
+
+func TestDataReadinessPinsProviderAcrossCoverageAndSyncAcceptance(t *testing.T) {
+	start := time.Date(2026, time.January, 2, 14, 30, 0, 0, time.UTC)
+	tasks := newMemorySyncTaskStore()
+	providerCalls := 0
+	factoryProvider := ""
+	service := NewService(
+		WithSyncTaskStore(tasks),
+		WithBacktestProviderIDFn(func() string {
+			providerCalls++
+			if providerCalls == 1 {
+				return "yfinance"
+			}
+			return "akshare"
+		}),
+		WithProviderKLineCoverageCheckFn(func(
+			_, providerID, _, _ string,
+			_, _ time.Time,
+			_, _ string,
+		) error {
+			if providerID != "yfinance" {
+				t.Fatalf("coverage provider = %q, want yfinance", providerID)
+			}
+			return errors.New("missing k-line coverage")
+		}),
+		WithProviderKLineSyncerFn(func(_ context.Context, _, providerID string) (KLineSyncer, error) {
+			factoryProvider = providerID
+			return &fakeKLineSyncer{}, nil
+		}),
+	)
+	readiness, err := service.ensurePreparedData(t.Context(), []preparedBacktest{{
+		request: StartRequest{
+			Market: "US", Symbol: "US.AAPL", Interval: "1m", RehabType: "none",
+		},
+		queryStart: start,
+		endTime:    start.Add(time.Hour),
+	}})
+	if err != nil {
+		t.Fatalf("ensurePreparedData: %v", err)
+	}
+	if readiness.Sync == nil || readiness.Sync.MarketDataProvider != "yfinance" || factoryProvider != "yfinance" {
+		t.Fatalf("pinned sync = %+v, factory provider=%q", readiness.Sync, factoryProvider)
+	}
+	if providerCalls != 1 {
+		t.Fatalf("provider resolver calls = %d, want one acceptance snapshot", providerCalls)
+	}
+	if err := service.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
 	}
 }

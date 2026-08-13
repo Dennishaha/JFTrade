@@ -11,6 +11,8 @@ import (
 
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -39,6 +41,7 @@ strategy.entry("Long", strategy.long, qty=1)`,
 	}); err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
+	seedServerBacktestCoverage(t, dbPath, "extended", time.Date(2026, time.March, 8, 5, 0, 0, 0, time.UTC), time.Date(2026, time.March, 9, 3, 59, 59, 999999999, time.UTC))
 
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
@@ -93,7 +96,8 @@ strategy.entry("Long", strategy.long, qty=1)`,
 
 func TestEnqueueBacktestUsesPineInitialCapitalWhenRequestOmitsBalance(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("JFTRADE_BACKTEST_DB", filepath.Join(t.TempDir(), "missing.db"))
+	dbPath := filepath.Join(t.TempDir(), "initial-capital.db")
+	t.Setenv("JFTRADE_BACKTEST_DB", dbPath)
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -113,12 +117,14 @@ log.info("ready")`,
 	}); err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
+	startTime, endTime := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC), time.Date(2026, time.May, 26, 9, 31, 0, 0, time.UTC)
+	seedServerBacktestCoverage(t, dbPath, "regular", startTime, endTime)
 	run, err := server.backtestSvc.Start(t.Context(), btsrv.StartRequest{
 		DefinitionID: "pine-initial-capital",
 		Symbol:       "US.AAPL",
 		Interval:     "1m",
-		StartTime:    time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC).Format(time.RFC3339),
-		EndTime:      time.Date(2026, time.May, 26, 9, 31, 0, 0, time.UTC).Format(time.RFC3339),
+		StartTime:    startTime.Format(time.RFC3339),
+		EndTime:      endTime.Format(time.RFC3339),
 	})
 	if err != nil {
 		t.Fatalf("backtestSvc.Start: %v", err)
@@ -126,5 +132,17 @@ log.info("ready")`,
 	server.backtestSvc.Cancel(run.ID)
 	if run.Request.InitialBalance != 250000 {
 		t.Fatalf("initialBalance = %v, want 250000", run.Request.InitialBalance)
+	}
+}
+
+func seedServerBacktestCoverage(t *testing.T, dbPath, sessionScope string, startTime, endTime time.Time) {
+	store := openServerKLineSeedStore(t, dbPath)
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
+	store.SetWriteSessionScope(sessionScope)
+	row := func(at time.Time) bbgotypes.KLine {
+		return bbgotypes.KLine{StartTime: bbgotypes.Time(at), EndTime: bbgotypes.Time(at.Add(time.Minute - time.Millisecond)), Interval: bbgotypes.Interval1m, Symbol: "US.AAPL", Open: fixedpoint.NewFromInt(100), High: fixedpoint.NewFromInt(101), Low: fixedpoint.NewFromInt(99), Close: fixedpoint.NewFromInt(100), Volume: fixedpoint.NewFromInt(1000)}
+	}
+	if err := store.InsertKLines([]bbgotypes.KLine{row(startTime), row(endTime.Truncate(time.Minute))}, "forward"); err != nil {
+		t.Fatalf("InsertKLines: %v", err)
 	}
 }

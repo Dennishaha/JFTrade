@@ -8,23 +8,40 @@ import (
 
 // RunConfig describes a single backtest run.
 type RunConfig struct {
-	DBPath           string          `json:"dbPath"`
-	Market           string          `json:"market,omitempty"`
-	Symbol           string          `json:"symbol"`
-	Interval         string          `json:"interval"`
-	SourceFormat     string          `json:"sourceFormat"`
-	StartTime        time.Time       `json:"startTime"`
-	EndTime          time.Time       `json:"endTime"`
-	StrategyScript   string          `json:"strategyScript"`
-	InitialBalance   float64         `json:"initialBalance"`
-	WarmupCandles    int             `json:"warmupCandles"`
-	QuoteCurrency    string          `json:"quoteCurrency"`
-	RehabType        string          `json:"rehabType"`
-	UseExtendedHours *bool           `json:"useExtendedHours,omitempty"`
-	InstrumentType   string          `json:"instrumentType,omitempty"`
-	TradingCosts     TradingCosts    `json:"tradingCosts"`
-	ExecutionModel   string          `json:"executionModel,omitempty"`
-	ChartType        chart.ChartType `json:"chartType"`
+	DBPath             string          `json:"dbPath"`
+	MarketDataProvider string          `json:"marketDataProvider"`
+	Market             string          `json:"market,omitempty"`
+	Symbol             string          `json:"symbol"`
+	Interval           string          `json:"interval"`
+	SourceFormat       string          `json:"sourceFormat"`
+	StartTime          time.Time       `json:"startTime"`
+	EndTime            time.Time       `json:"endTime"`
+	StrategyScript     string          `json:"strategyScript"`
+	InitialBalance     float64         `json:"initialBalance"`
+	WarmupCandles      int             `json:"warmupCandles"`
+	QuoteCurrency      string          `json:"quoteCurrency"`
+	RehabType          string          `json:"rehabType"`
+	UseExtendedHours   *bool           `json:"useExtendedHours,omitempty"`
+	InstrumentType     string          `json:"instrumentType,omitempty"`
+	TradingCosts       TradingCosts    `json:"tradingCosts"`
+	ExecutionModel     string          `json:"executionModel,omitempty"`
+	ChartType          chart.ChartType `json:"chartType"`
+	InstrumentSpec     InstrumentSpec  `json:"instrumentSpec"`
+}
+
+// InstrumentSpec is the broker-neutral market-rule snapshot pinned when a run
+// is accepted. Warnings document conservative fallbacks used by the runner.
+type InstrumentSpec struct {
+	Symbol               string   `json:"symbol"`
+	QuoteCurrency        string   `json:"quoteCurrency"`
+	PricePrecision       int      `json:"pricePrecision"`
+	QuotePrecision       int      `json:"quotePrecision"`
+	VolumePrecision      int      `json:"volumePrecision"`
+	TickSize             float64  `json:"tickSize"`
+	LotSize              float64  `json:"lotSize"`
+	QuantityStep         float64  `json:"quantityStep"`
+	MissingCriticalRules bool     `json:"missingCriticalRules,omitempty"`
+	Warnings             []string `json:"warnings,omitempty"`
 }
 
 // TradingCosts describes broker-side and market-side costs for a backtest run.

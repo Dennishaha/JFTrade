@@ -11,7 +11,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
-func (s *FutuKLineStore) QueryKLine(
+func (s *KLineStore) QueryKLine(
 	ex types.Exchange, symbol string, interval types.Interval,
 	orderBy string, limit int,
 ) (*types.KLine, error) {
@@ -22,7 +22,7 @@ func (s *FutuKLineStore) QueryKLine(
 	return s.queryKLine(symbol, interval, normalizedOrder, limit)
 }
 
-func (s *FutuKLineStore) queryKLine(
+func (s *KLineStore) queryKLine(
 	symbol string, interval types.Interval, orderBy string, limit int,
 ) (*types.KLine, error) {
 	normalizedOrder := strings.ToUpper(strings.TrimSpace(orderBy))
@@ -44,14 +44,14 @@ func (s *FutuKLineStore) queryKLine(
 	return scanKLine(row, symbol, interval)
 }
 
-func (s *FutuKLineStore) QueryKLinesForward(
+func (s *KLineStore) QueryKLinesForward(
 	exchange types.Exchange, symbol string, interval types.Interval,
 	startTime time.Time, limit int,
 ) ([]types.KLine, error) {
 	return s.queryKLinesForwardLocked(symbol, interval, startTime, limit)
 }
 
-func (s *FutuKLineStore) queryKLinesForwardLocked(
+func (s *KLineStore) queryKLinesForwardLocked(
 	symbol string, interval types.Interval,
 	startTime time.Time, limit int,
 ) ([]types.KLine, error) {
@@ -86,14 +86,14 @@ func (s *FutuKLineStore) queryKLinesForwardLocked(
 	return aggregated, nil
 }
 
-func (s *FutuKLineStore) QueryKLinesBackward(
+func (s *KLineStore) QueryKLinesBackward(
 	exchange types.Exchange, symbol string, interval types.Interval,
 	endTime time.Time, limit int,
 ) ([]types.KLine, error) {
 	return s.queryKLinesBackwardLocked(symbol, interval, endTime, limit)
 }
 
-func (s *FutuKLineStore) queryKLinesBackwardLocked(
+func (s *KLineStore) queryKLinesBackwardLocked(
 	symbol string, interval types.Interval,
 	endTime time.Time, limit int,
 ) ([]types.KLine, error) {
@@ -131,7 +131,7 @@ func (s *FutuKLineStore) queryKLinesBackwardLocked(
 }
 
 //nolint:funlen
-func (s *FutuKLineStore) QueryKLinesCh(
+func (s *KLineStore) QueryKLinesCh(
 	since, until time.Time, exchange types.Exchange,
 	symbols []string, intervals []types.Interval,
 ) (chan types.KLine, chan error) {
@@ -218,7 +218,7 @@ func (s *FutuKLineStore) QueryKLinesCh(
 	return ch, errCh
 }
 
-func (s *FutuKLineStore) StreamKLines(
+func (s *KLineStore) StreamKLines(
 	since, until time.Time, exchange types.Exchange,
 	symbols []string, intervals []types.Interval,
 	emit func(types.KLine),
@@ -288,7 +288,7 @@ func (s *FutuKLineStore) StreamKLines(
 	}
 	return nil
 }
-func (s *FutuKLineStore) queryStoredKLinesForward(symbol string, interval types.Interval, rehabType string, startTime time.Time, limit int) ([]types.KLine, error) {
+func (s *KLineStore) queryStoredKLinesForward(symbol string, interval types.Interval, rehabType string, startTime time.Time, limit int) ([]types.KLine, error) {
 	var firstNonEmpty []types.KLine
 	tableNames, tableCount := s.readTableNames(symbol, interval, rehabType)
 	for index := range tableCount {
@@ -317,7 +317,7 @@ func (s *FutuKLineStore) queryStoredKLinesForward(symbol string, interval types.
 	return firstNonEmpty, nil
 }
 
-func (s *FutuKLineStore) queryStoredKLinesForwardFromTable(tableName string, symbol string, interval types.Interval, startTime time.Time, limit int) ([]types.KLine, error) {
+func (s *KLineStore) queryStoredKLinesForwardFromTable(tableName string, symbol string, interval types.Interval, startTime time.Time, limit int) ([]types.KLine, error) {
 
 	query := fmt.Sprintf(
 		`SELECT %s FROM %s WHERE end_time >= ? ORDER BY end_time ASC LIMIT ?`,
@@ -332,7 +332,7 @@ func (s *FutuKLineStore) queryStoredKLinesForwardFromTable(tableName string, sym
 	return scanKLinesWithCapacity(rows, symbol, interval, limit)
 }
 
-func (s *FutuKLineStore) queryStoredKLinesBackward(symbol string, interval types.Interval, rehabType string, endTime time.Time, limit int) ([]types.KLine, error) {
+func (s *KLineStore) queryStoredKLinesBackward(symbol string, interval types.Interval, rehabType string, endTime time.Time, limit int) ([]types.KLine, error) {
 	var firstNonEmpty []types.KLine
 	tableNames, tableCount := s.readTableNames(symbol, interval, rehabType)
 	for index := range tableCount {
@@ -361,7 +361,7 @@ func (s *FutuKLineStore) queryStoredKLinesBackward(symbol string, interval types
 	return firstNonEmpty, nil
 }
 
-func (s *FutuKLineStore) queryStoredKLinesBackwardFromTable(tableName string, symbol string, interval types.Interval, endTime time.Time, limit int) ([]types.KLine, error) {
+func (s *KLineStore) queryStoredKLinesBackwardFromTable(tableName string, symbol string, interval types.Interval, endTime time.Time, limit int) ([]types.KLine, error) {
 
 	query := fmt.Sprintf(
 		`SELECT %s FROM %s WHERE end_time <= ? ORDER BY end_time DESC LIMIT ?`,
@@ -382,7 +382,7 @@ func (s *FutuKLineStore) queryStoredKLinesBackwardFromTable(tableName string, sy
 	return klines, nil
 }
 
-func (s *FutuKLineStore) queryStoredKLinesInRange(symbol string, interval types.Interval, rehabType string, since, until time.Time) ([]types.KLine, error) {
+func (s *KLineStore) queryStoredKLinesInRange(symbol string, interval types.Interval, rehabType string, since, until time.Time) ([]types.KLine, error) {
 	tableName, err := s.selectReadTableName(symbol, interval, rehabType, since, until)
 	if err != nil || tableName == "" {
 		return nil, err
@@ -390,7 +390,7 @@ func (s *FutuKLineStore) queryStoredKLinesInRange(symbol string, interval types.
 	return s.queryStoredKLinesInRangeFromTable(tableName, symbol, interval, since, until)
 }
 
-func (s *FutuKLineStore) streamStoredKLinesInRange(symbol string, interval types.Interval, rehabType string, since, until time.Time, emit func(types.KLine)) error {
+func (s *KLineStore) streamStoredKLinesInRange(symbol string, interval types.Interval, rehabType string, since, until time.Time, emit func(types.KLine)) error {
 	tableName, err := s.selectReadTableName(symbol, interval, rehabType, since, until)
 	if err != nil || tableName == "" {
 		return err
@@ -398,13 +398,13 @@ func (s *FutuKLineStore) streamStoredKLinesInRange(symbol string, interval types
 	return s.streamStoredKLinesInRangeFromTable(tableName, symbol, interval, since, until, emit)
 }
 
-func (s *FutuKLineStore) streamStoredKLinesInRangeToChannel(symbol string, interval types.Interval, rehabType string, since, until time.Time, ch chan<- types.KLine) error {
+func (s *KLineStore) streamStoredKLinesInRangeToChannel(symbol string, interval types.Interval, rehabType string, since, until time.Time, ch chan<- types.KLine) error {
 	return s.streamStoredKLinesInRange(symbol, interval, rehabType, since, until, func(kline types.KLine) {
 		ch <- kline
 	})
 }
 
-func (s *FutuKLineStore) queryStoredKLinesInRangeFromTable(tableName string, symbol string, interval types.Interval, since, until time.Time) ([]types.KLine, error) {
+func (s *KLineStore) queryStoredKLinesInRangeFromTable(tableName string, symbol string, interval types.Interval, since, until time.Time) ([]types.KLine, error) {
 
 	query := fmt.Sprintf(
 		`SELECT %s FROM %s WHERE end_time >= ? AND end_time <= ? ORDER BY end_time ASC`,
@@ -419,7 +419,7 @@ func (s *FutuKLineStore) queryStoredKLinesInRangeFromTable(tableName string, sym
 	return scanKLines(rows, symbol, interval)
 }
 
-func (s *FutuKLineStore) streamStoredKLinesInRangeFromTable(tableName string, symbol string, interval types.Interval, since, until time.Time, emit func(types.KLine)) error {
+func (s *KLineStore) streamStoredKLinesInRangeFromTable(tableName string, symbol string, interval types.Interval, since, until time.Time, emit func(types.KLine)) error {
 	query := fmt.Sprintf(
 		`SELECT %s FROM %s WHERE end_time >= ? AND end_time <= ? ORDER BY end_time ASC`,
 		selectKLineColumns,

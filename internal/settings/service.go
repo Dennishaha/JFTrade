@@ -12,6 +12,7 @@ import (
 
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/live"
+	"github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
 )
 
@@ -82,6 +83,17 @@ type MCPServerStore interface {
 	SaveMCPServerSettings(jfsettings.MCPServerSettings) (jfsettings.MCPServerSettings, error)
 }
 
+// BacktestMarketDataProviderStore is an optional settings extension so custom
+// or test stores are not forced to implement a module they do not own.
+type BacktestMarketDataProviderStore interface {
+	BacktestMarketDataProvider() jfsettings.ActiveMarketDataProvider
+	SaveBacktestMarketDataProvider(jfsettings.ActiveMarketDataProvider) error
+}
+
+type BacktestMarketDataProviderUpgradeStore interface {
+	EnsureBacktestMarketDataProvider() error
+}
+
 // SideEffects 定义 settings 写操作触发的跨模块回调。
 // 由 Server 实现并注入，避免 settings 包直接依赖 Futu/execution/frontend。
 type SideEffects struct {
@@ -99,6 +111,9 @@ type SideEffects struct {
 	OnMCPServerChanged func(jfsettings.MCPServerSettings) error
 	// OnProviderChanged 在行情数据源选择变更时调用。
 	OnProviderChanged func(jfsettings.ActiveMarketDataProvider) error
+	// OnBacktestProviderChanged prepares and verifies a module provider. It is
+	// called before persistence because accepted jobs resolve the stored value.
+	OnBacktestProviderChanged func(jfsettings.ActiveMarketDataProvider) error
 }
 
 // Service 提供 settings 业务逻辑：读取、持久化、副作用编排。
@@ -109,16 +124,18 @@ type Service struct {
 	securityMu             sync.Mutex
 	mcpServerMu            sync.Mutex
 	marketDataProviderMu   sync.RWMutex
+	backtestProviderMu     sync.RWMutex
 	hashPassword           func(string) (string, error)
 	newMCPToken            func() (string, error)
 	mcpStatus              func() jfsettings.MCPServerStatus
 	testSystemNotification func() (*live.Event, live.NotificationDelivery)
 
 	// 来自 Server 的委托（不在 Store 中的聚合信息）
-	brokerDescriptor  func() map[string]any
-	brokerSettingsFn  func() map[string]any
-	onboardingStateFn func(ctx context.Context) map[string]any
-	defaultTradingEnv string
+	brokerDescriptor          func() map[string]any
+	brokerSettingsFn          func() map[string]any
+	onboardingStateFn         func(ctx context.Context) map[string]any
+	marketDataProviderCatalog func(context.Context) ([]marketdata.ProviderDescriptor, error)
+	defaultTradingEnv         string
 }
 
 // NewService 创建 settings 服务。
@@ -150,6 +167,12 @@ func WithBrokerDescriptor(fn func() map[string]any) Option {
 // WithBrokerSettings 设置 broker 设置聚合提供者。
 func WithBrokerSettings(fn func() map[string]any) Option {
 	return func(s *Service) { s.brokerSettingsFn = fn }
+}
+
+func WithMarketDataProviderCatalog(
+	fn func(context.Context) ([]marketdata.ProviderDescriptor, error),
+) Option {
+	return func(s *Service) { s.marketDataProviderCatalog = fn }
 }
 
 // WithOnboardingState 设置新手引导状态提供者。

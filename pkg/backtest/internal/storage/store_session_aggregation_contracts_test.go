@@ -28,8 +28,14 @@ func TestSchemaHelpersExposeStableStorageContracts(t *testing.T) {
 	}
 
 	regularDefault := KLineTableName("US:AAPL", types.Interval1m, "forward")
-	if !strings.HasPrefix(regularDefault, KLineTable+"__us_aapl__1m__forward__r__") {
+	if !strings.HasPrefix(regularDefault, KLineTable+"__futu__us_aapl__1m__forward__r__") {
 		t.Fatalf("regular KLineTableName = %q", regularDefault)
+	}
+	yfinance := KLineTableNameForProviderAndSessionScope(
+		"yfinance", "US:AAPL", types.Interval1m, "none", KLineSessionScopeRegular,
+	)
+	if !strings.HasPrefix(yfinance, KLineTable+"__yfinance__us_aapl__1m__none__r__") {
+		t.Fatalf("provider-qualified table name = %q", yfinance)
 	}
 
 	regular := KLineTableNameForSessionScope("US:AAPL", types.Interval1m, "backward", KLineSessionScopeRegular)

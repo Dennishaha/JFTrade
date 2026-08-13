@@ -246,6 +246,26 @@ func TestMarketDataProviderCandleParsingRemainingBoundaries(t *testing.T) {
 	if !ok || pagination["hasMore"] != true || pagination["nextBefore"] != "2026-07-15T01:00:00Z" {
 		t.Fatalf("default Futu pagination = %#v", response["pagination"])
 	}
+
+	response, err = provider.GetHistoricalCandles(context.Background(), mdsrv.HistoricalCandlesQuery{
+		Market: "US", Symbol: "US.BABA", Period: "1d", Adjustment: "none", Limit: 1000,
+		BeforeTime: "2026-08-13T04:00:00Z", Sessions: []mdsrv.CandleSession{mdsrv.CandleSessionRegular},
+		SessionsSpecified: true,
+	})
+	if err != nil {
+		t.Fatalf("canonical Futu candles: %v", err)
+	}
+	if reader.klineQuery.Symbol != "US.BABA" || reader.klineQuery.Market != "US" ||
+		reader.klineQuery.Adjustment != "none" {
+		t.Fatalf("canonical broker candle query = %#v", reader.klineQuery)
+	}
+	meta, _ := response["meta"].(map[string]any)
+	requestMeta, _ := response["request"].(map[string]any)
+	requestInstrument, _ := requestMeta["instrument"].(map[string]any)
+	if meta["instrumentId"] != "US.BABA" || requestInstrument["market"] != "US" ||
+		requestInstrument["symbol"] != "BABA" || requestInstrument["instrumentId"] != "US.BABA" {
+		t.Fatalf("canonical Futu candle response identity = %#v", response)
+	}
 }
 
 func TestBrokerSearchInstrumentPartsPreservesDottedCodes(t *testing.T) {

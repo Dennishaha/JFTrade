@@ -1,8 +1,11 @@
 package backtest
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +42,7 @@ type conservativeBarExecutor struct {
 	currentBarBudget       fixedpoint.Value
 	currentBarBudgetSymbol string
 	warned                 map[string]struct{}
+	filledParentPrices     map[uint64]fixedpoint.Value
 }
 
 type conservativeBarPendingOrder struct {
@@ -47,16 +51,20 @@ type conservativeBarPendingOrder struct {
 	filled         fixedpoint.Value
 	filledNotional fixedpoint.Value
 	stopTriggered  bool
+	parentOrderID  uint64
+	ocoGroupID     string
+	hasChildren    bool
 }
 
 func newConservativeBarExecutor(account *types.Account, stream types.StandardStreamEmitter, options conservativeBarExecutorOptions) *conservativeBarExecutor {
 	return &conservativeBarExecutor{
-		account:     account,
-		stream:      stream,
-		options:     options,
-		nextOrderID: conservativeBarInitialOrderID,
-		nextTradeID: conservativeBarInitialTradeID,
-		warned:      map[string]struct{}{},
+		account:            account,
+		stream:             stream,
+		options:            options,
+		nextOrderID:        conservativeBarInitialOrderID,
+		nextTradeID:        conservativeBarInitialTradeID,
+		warned:             map[string]struct{}{},
+		filledParentPrices: map[uint64]fixedpoint.Value{},
 	}
 }
 
@@ -93,6 +101,92 @@ func (executor *conservativeBarExecutor) SubmitOrders(ctx context.Context, order
 	return created, nil
 }
 
+// SubmitAtomicPineOrders installs a parent and its protective children under
+// one lock. Children stay inactive until the parent has filled, and OCO legs
+// are evaluated stop-first when both sides are reachable in one bar.
+func (executor *conservativeBarExecutor) SubmitAtomicPineOrders(
+	ctx context.Context,
+	groupID string,
+	atomicOrders ...PineWorkerAtomicOrder,
+) (types.OrderSlice, error) {
+	_ = ctx
+	if executor == nil {
+		return nil, fmt.Errorf("conservative bar executor is required")
+	}
+	if executor.account == nil {
+		return nil, fmt.Errorf("conservative bar executor account is required")
+	}
+	if executor.stream == nil {
+		return nil, fmt.Errorf("conservative bar executor stream is required")
+	}
+	if groupID == "" || len(atomicOrders) < 2 {
+		return nil, fmt.Errorf("conservative bar atomic group requires an id and at least two orders")
+	}
+
+	executor.mu.Lock()
+	defer executor.mu.Unlock()
+
+	created := make(types.OrderSlice, len(atomicOrders))
+	pendingByCommand := make(map[string]*conservativeBarPendingOrder, len(atomicOrders))
+	pending := make([]*conservativeBarPendingOrder, len(atomicOrders))
+	for index, atomicOrder := range atomicOrders {
+		order := executor.newOrderLocked(atomicOrder.Order)
+		created[index] = order
+		pending[index] = &conservativeBarPendingOrder{
+			order:      order,
+			remaining:  order.Quantity,
+			ocoGroupID: strings.TrimSpace(atomicOrder.OCOGroupID),
+		}
+		if commandID := strings.TrimSpace(atomicOrder.CommandID); commandID != "" {
+			pendingByCommand[commandID] = pending[index]
+		}
+	}
+	for index, atomicOrder := range atomicOrders {
+		parentID := strings.TrimSpace(atomicOrder.ParentID)
+		if parentID == "" {
+			continue
+		}
+		parent, ok := pendingByCommand[parentID]
+		if !ok {
+			return nil, fmt.Errorf("conservative bar atomic group %q child %q has no parent %q", groupID, atomicOrder.CommandID, parentID)
+		}
+		pending[index].parentOrderID = parent.order.OrderID
+		parent.hasChildren = true
+	}
+
+	executor.pending = append(executor.pending, orderAtomicPendingForMatching(pending)...)
+	for _, order := range created {
+		executor.stream.EmitOrderUpdate(order)
+	}
+	if executor.options.ProcessOrdersOnClose && executor.currentBarReady {
+		for _, item := range orderAtomicPendingForMatching(pending) {
+			if executor.currentBar.Symbol == item.order.Symbol {
+				executor.fillPendingOrderLocked(item, executor.currentBar, conservativeBarClosePoint)
+			}
+		}
+		executor.compactPendingLocked()
+	}
+	return created, nil
+}
+
+func orderAtomicPendingForMatching(orders []*conservativeBarPendingOrder) []*conservativeBarPendingOrder {
+	ordered := append([]*conservativeBarPendingOrder(nil), orders...)
+	slices.SortStableFunc(ordered, func(left, right *conservativeBarPendingOrder) int {
+		return cmp.Compare(atomicPendingPriority(left), atomicPendingPriority(right))
+	})
+	return ordered
+}
+
+func atomicPendingPriority(order *conservativeBarPendingOrder) int {
+	if order == nil || order.parentOrderID == 0 {
+		return 0
+	}
+	if order.order.Type == types.OrderTypeStopMarket {
+		return 1
+	}
+	return 2
+}
+
 func (executor *conservativeBarExecutor) CancelOrders(ctx context.Context, orders ...types.Order) error {
 	if executor == nil {
 		return fmt.Errorf("conservative bar executor is required")
@@ -115,6 +209,7 @@ func (executor *conservativeBarExecutor) CancelOrders(ctx context.Context, order
 			pending.order.IsWorking = false
 			pending.order.UpdateTime = types.Time(eventTime)
 			executor.stream.EmitOrderUpdate(pending.order)
+			executor.cancelDependentPendingLocked(pending.order.OrderID, eventTime)
 			break
 		}
 	}
@@ -186,6 +281,11 @@ func (executor *conservativeBarExecutor) fillPendingOrderLocked(
 	if pending == nil || pending.remaining.Sign() <= 0 {
 		return
 	}
+	if pending.parentOrderID != 0 {
+		if _, filled := executor.filledParentPrices[pending.parentOrderID]; !filled {
+			return
+		}
+	}
 	if executor.currentBarBudgetSymbol != kline.Symbol {
 		executor.currentBarBudget = conservativeBarLiquidityBudget(kline)
 		executor.currentBarBudgetSymbol = kline.Symbol
@@ -201,6 +301,16 @@ func (executor *conservativeBarExecutor) fillPendingOrderLocked(
 	quantity := pending.remaining
 	if quantity.Compare(executor.currentBarBudget) > 0 {
 		quantity = executor.currentBarBudget
+	}
+	if pending.order.ReduceOnly {
+		reducible := executor.reduceOnlyQuantityLocked(pending.order)
+		if reducible.Sign() <= 0 {
+			executor.cancelPendingLocked(pending, conservativeBarEventTime(kline, mode))
+			return
+		}
+		if quantity.Compare(reducible) > 0 {
+			quantity = reducible
+		}
 	}
 	quantity = normalizePineWorkerOrderQuantity(pending.order.Market, quantity)
 	if quantity.Sign() <= 0 {
@@ -257,6 +367,9 @@ func (executor *conservativeBarExecutor) applyFillLocked(
 		pending.order.Status = types.OrderStatusPartiallyFilled
 	} else {
 		pending.order.Status = types.OrderStatusFilled
+		if pending.hasChildren {
+			executor.filledParentPrices[pending.order.OrderID] = averagePrice
+		}
 	}
 
 	executor.stream.EmitTradeUpdate(types.Trade{
@@ -275,6 +388,70 @@ func (executor *conservativeBarExecutor) applyFillLocked(
 		IsMargin:      true,
 	})
 	executor.stream.EmitOrderUpdate(pending.order)
+	if pending.ocoGroupID != "" && pending.filled.Sign() > 0 {
+		executor.cancelOCOSiblingsLocked(pending, eventTime)
+	}
+	executor.releaseFilledParentIfUnusedLocked(pending.parentOrderID)
+}
+
+func (executor *conservativeBarExecutor) reduceOnlyQuantityLocked(order types.Order) fixedpoint.Value {
+	balance, _ := executor.account.Balance(order.Market.BaseCurrency)
+	net := balance.Net()
+	switch order.Side {
+	case types.SideTypeSell:
+		if net.Sign() > 0 {
+			return net
+		}
+	case types.SideTypeBuy:
+		if net.Sign() < 0 {
+			return net.Neg()
+		}
+	}
+	return fixedpoint.Zero
+}
+
+func (executor *conservativeBarExecutor) cancelOCOSiblingsLocked(
+	filled *conservativeBarPendingOrder,
+	eventTime time.Time,
+) {
+	for _, sibling := range executor.pending {
+		if sibling == nil || sibling == filled || sibling.remaining.Sign() <= 0 || sibling.ocoGroupID != filled.ocoGroupID {
+			continue
+		}
+		executor.cancelPendingLocked(sibling, eventTime)
+	}
+}
+
+func (executor *conservativeBarExecutor) cancelDependentPendingLocked(parentOrderID uint64, eventTime time.Time) {
+	if parentOrderID == 0 {
+		return
+	}
+	for _, child := range executor.pending {
+		if child != nil && child.remaining.Sign() > 0 && child.parentOrderID == parentOrderID {
+			executor.cancelPendingLocked(child, eventTime)
+		}
+	}
+}
+
+func (executor *conservativeBarExecutor) cancelPendingLocked(pending *conservativeBarPendingOrder, eventTime time.Time) {
+	pending.remaining = fixedpoint.Zero
+	pending.order.Status = types.OrderStatusCanceled
+	pending.order.IsWorking = false
+	pending.order.UpdateTime = types.Time(eventTime)
+	executor.stream.EmitOrderUpdate(pending.order)
+	executor.releaseFilledParentIfUnusedLocked(pending.parentOrderID)
+}
+
+func (executor *conservativeBarExecutor) releaseFilledParentIfUnusedLocked(parentOrderID uint64) {
+	if parentOrderID == 0 {
+		return
+	}
+	for _, pending := range executor.pending {
+		if pending != nil && pending.parentOrderID == parentOrderID && pending.remaining.Sign() > 0 {
+			return
+		}
+	}
+	delete(executor.filledParentPrices, parentOrderID)
 }
 
 func (executor *conservativeBarExecutor) matchPriceLocked(

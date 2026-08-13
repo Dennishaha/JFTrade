@@ -51,6 +51,14 @@ import {
   useBacktestResultList,
 } from "./useBacktestResultList";
 import { useBacktestForm } from "./useBacktestForm";
+import {
+  backtestHistoricalRangeError,
+  getBacktestProviderSettings,
+  putBacktestProviderSettings,
+  type BacktestProviderCapabilities,
+  type BacktestProviderDescriptor,
+  type BacktestProviderID,
+} from "./backtestProviderSettings";
 
 export function useBacktestPage() {
 const {
@@ -72,10 +80,25 @@ const strategyDefinitionsReady = ref(false);
 const warmupPreviewBars = ref<number | null>(null);
 const warmupPreviewPending = ref(false);
 const warmupPreviewInterval = ref("");
+const backtestMarketDataProvider = ref<BacktestProviderID>("yfinance");
+const persistedBacktestMarketDataProvider = ref<BacktestProviderID>("yfinance");
+const backtestProviderDescriptors = ref<BacktestProviderDescriptor[]>([]);
+const backtestProviderSaving = ref(false);
+const backtestProviderError = ref("");
+const selectedBacktestProvider = computed(() =>
+  backtestProviderDescriptors.value.find(
+    (provider) => provider.selectionId === backtestMarketDataProvider.value,
+  ) ?? null,
+);
+const backtestProviderCapabilities = computed<BacktestProviderCapabilities | null>(
+  () => selectedBacktestProvider.value?.capabilities ?? null,
+);
 let warmupPreviewRequestId = 0;
 
 const {
   backtestFormState,
+  availableKlinePeriods,
+  availableRehabTypes,
   brokerFeeMode,
   brokerFeeRules,
   brokerFeeRulesText,
@@ -115,6 +138,7 @@ const {
   definitions,
   quoteCurrencyForMarket,
   supportsExtendedHoursForMarket,
+  providerCapabilities: backtestProviderCapabilities,
 });
 
 const warmupPreviewValue = computed(() => {
@@ -146,6 +170,15 @@ const warmupPreviewSymbol = computed(
     "",
 );
 
+const backtestRangeError = computed(() =>
+  backtestHistoricalRangeError(
+    selectedBacktestProvider.value,
+    backtestFormState.value.market,
+    interval.value,
+    startDate.value,
+  ),
+);
+
 const {
   runs,
   running,
@@ -163,6 +196,7 @@ const {
   startBacktest,
 } = useBacktestRuns({
   formState: backtestFormState,
+  validateRange: () => backtestRangeError.value,
   normalizeInstrument: async (input) => {
     const candidate = (input.instrumentId || input.code).trim();
     const request =
@@ -374,6 +408,7 @@ function ensureSelectedMarketProfile() {
 
 onMounted(async () => {
   await Promise.all([
+    loadBacktestProviderSettings(),
     loadMarketProfiles(),
     loadDefinitions(),
     loadRuns(),
@@ -387,6 +422,38 @@ onMounted(async () => {
     }
   }
 });
+
+async function loadBacktestProviderSettings() {
+  try {
+    const settings = await getBacktestProviderSettings();
+    backtestMarketDataProvider.value = settings.activeProvider;
+    persistedBacktestMarketDataProvider.value = settings.activeProvider;
+    backtestProviderDescriptors.value = settings.availableProviders;
+    backtestProviderError.value = "";
+  } catch (cause) {
+    backtestProviderError.value =
+      cause instanceof Error ? cause.message : String(cause);
+  }
+}
+
+async function saveBacktestProviderSettings() {
+  const requested = backtestMarketDataProvider.value;
+  backtestProviderSaving.value = true;
+  try {
+    const settings = await putBacktestProviderSettings(requested);
+    backtestMarketDataProvider.value = settings.activeProvider;
+    persistedBacktestMarketDataProvider.value = settings.activeProvider;
+    backtestProviderDescriptors.value = settings.availableProviders;
+    backtestProviderError.value = "";
+  } catch (cause) {
+    backtestMarketDataProvider.value =
+      persistedBacktestMarketDataProvider.value;
+    backtestProviderError.value =
+      cause instanceof Error ? cause.message : String(cause);
+  } finally {
+    backtestProviderSaving.value = false;
+  }
+}
 
 async function loadDefinitions() {
   strategyDefinitionsReady.value = false;
@@ -529,6 +596,15 @@ watch(
     warmupPreviewBars,
     warmupPreviewPending,
     warmupPreviewInterval,
+    backtestMarketDataProvider,
+    backtestProviderDescriptors,
+    backtestProviderSaving,
+    backtestProviderError,
+    selectedBacktestProvider,
+    backtestProviderCapabilities,
+    backtestRangeError,
+    loadBacktestProviderSettings,
+    saveBacktestProviderSettings,
     resultsPage,
     resultsSearchQuery,
     resultsStatusFilter,
@@ -579,6 +655,8 @@ watch(
     marketFeeRules,
     costModeSummary,
     backtestFormState,
+    availableKlinePeriods,
+    availableRehabTypes,
     BACKTEST_MEDIUM_WORKBENCH_QUERY,
     activeReportTab,
     selectedRunId,
@@ -707,7 +785,6 @@ watch(
     isTerminalBacktestStatus,
   };
 }
-
 export type BacktestPageContext = ReturnType<typeof useBacktestPage>;
 
 export const backtestPageContextKey: InjectionKey<BacktestPageContext> = Symbol(

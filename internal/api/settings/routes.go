@@ -50,6 +50,8 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, dataManagementServic
 	// Market Data Providers
 	settings.GET("/market-data-provider", handleActiveMarketDataProvider(svc))
 	settings.PUT("/market-data-provider", handleSaveActiveMarketDataProvider(svc))
+	settings.GET("/backtest-market-data-provider", handleBacktestMarketDataProvider(svc))
+	settings.PUT("/backtest-market-data-provider", handleSaveBacktestMarketDataProvider(svc))
 
 	settings.GET("/data-management/databases", handleDataMigrationDatabases(dataManagementSvc))
 	settings.POST("/data-management/cleanup/preview", handleDataCleanupPreview(dataManagementSvc))

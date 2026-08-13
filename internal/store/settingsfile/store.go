@@ -13,19 +13,20 @@ import (
 )
 
 type fileData struct {
-	Interfaces               *jfsettings.InterfaceSettings          `json:"interfaces,omitempty"`
-	Integration              *jfsettings.BrokerIntegration          `json:"integration,omitempty"`
-	ActiveMarketDataProvider *jfsettings.ActiveMarketDataProvider   `json:"activeMarketDataProvider,omitempty"`
-	Accounts                 []jfsettings.ManagedBrokerAccount      `json:"accounts,omitempty"`
-	Appearance               *jfsettings.UIAppearanceSettings       `json:"appearance,omitempty"`
-	Onboarding               *jfsettings.OnboardingSettings         `json:"onboarding,omitempty"`
-	Execution                *jfsettings.ExecutionSettings          `json:"execution,omitempty"`
-	Security                 *storedSecuritySettings                `json:"security,omitempty"`
-	SystemNotifications      *jfsettings.SystemNotificationSettings `json:"systemNotifications,omitempty"`
-	ADK                      *jfsettings.ADKRuntimeSettings         `json:"adk,omitempty"`
-	MCPServer                *storedMCPServerSettings               `json:"mcpServer,omitempty"`
-	PineWorker               *jfsettings.PineWorkerSettings         `json:"pineWorker,omitempty"`
-	Calendars                *jfsettings.ExchangeCalendarSettings   `json:"exchangeCalendars,omitempty"`
+	Interfaces                 *jfsettings.InterfaceSettings          `json:"interfaces,omitempty"`
+	Integration                *jfsettings.BrokerIntegration          `json:"integration,omitempty"`
+	ActiveMarketDataProvider   *jfsettings.ActiveMarketDataProvider   `json:"activeMarketDataProvider,omitempty"`
+	BacktestMarketDataProvider *jfsettings.ActiveMarketDataProvider   `json:"backtestMarketDataProvider,omitempty"`
+	Accounts                   []jfsettings.ManagedBrokerAccount      `json:"accounts,omitempty"`
+	Appearance                 *jfsettings.UIAppearanceSettings       `json:"appearance,omitempty"`
+	Onboarding                 *jfsettings.OnboardingSettings         `json:"onboarding,omitempty"`
+	Execution                  *jfsettings.ExecutionSettings          `json:"execution,omitempty"`
+	Security                   *storedSecuritySettings                `json:"security,omitempty"`
+	SystemNotifications        *jfsettings.SystemNotificationSettings `json:"systemNotifications,omitempty"`
+	ADK                        *jfsettings.ADKRuntimeSettings         `json:"adk,omitempty"`
+	MCPServer                  *storedMCPServerSettings               `json:"mcpServer,omitempty"`
+	PineWorker                 *jfsettings.PineWorkerSettings         `json:"pineWorker,omitempty"`
+	Calendars                  *jfsettings.ExchangeCalendarSettings   `json:"exchangeCalendars,omitempty"`
 }
 
 // storedSecuritySettings deliberately differs from the public API model so a

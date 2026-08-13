@@ -108,6 +108,7 @@ const (
 // ProviderDescriptor describes the active market-data provider without leaking
 // broker SDK or protocol implementation details into transport/UI layers.
 type ProviderDescriptor struct {
+	SelectionID      string               `json:"selectionId"`
 	ProviderID       string               `json:"providerId"`
 	DisplayName      string               `json:"displayName"`
 	BrokerID         string               `json:"brokerId,omitempty"`
@@ -122,17 +123,20 @@ type ProviderDescriptor struct {
 
 // ProviderCapabilities records the data-plane features a provider can supply.
 type ProviderCapabilities struct {
-	Snapshots         bool     `json:"snapshots"`
-	StreamingQuotes   bool     `json:"streamingQuotes"`
-	StreamingDepth    bool     `json:"streamingDepth"`
-	HistoricalCandles bool     `json:"historicalCandles"`
-	TickCandles       bool     `json:"tickCandles"`
-	OrderBookDepth    bool     `json:"orderBookDepth"`
-	InstrumentSearch  bool     `json:"instrumentSearch"`
-	ExtendedHours     bool     `json:"extendedHours"`
-	CandleIntervals   []string `json:"candleIntervals"`
-	OrderBookLevels   []int    `json:"orderBookLevels"`
-	Sessions          []string `json:"sessions"`
+	Snapshots              bool           `json:"snapshots"`
+	StreamingQuotes        bool           `json:"streamingQuotes"`
+	StreamingCandles       bool           `json:"streamingCandles"`
+	StreamingDepth         bool           `json:"streamingDepth"`
+	HistoricalCandles      bool           `json:"historicalCandles"`
+	TickCandles            bool           `json:"tickCandles"`
+	OrderBookDepth         bool           `json:"orderBookDepth"`
+	InstrumentSearch       bool           `json:"instrumentSearch"`
+	ExtendedHours          bool           `json:"extendedHours"`
+	CandleIntervals        []string       `json:"candleIntervals"`
+	OrderBookLevels        []int          `json:"orderBookLevels"`
+	Sessions               []string       `json:"sessions"`
+	PriceAdjustments       []string       `json:"priceAdjustments"`
+	HistoricalLookbackDays map[string]int `json:"historicalLookbackDays,omitempty"`
 }
 
 // ProviderConstraints records operational limits and setup prerequisites.

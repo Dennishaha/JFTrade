@@ -97,38 +97,39 @@ type FeeBreakdownEntry struct {
 
 // RunResult holds the output of a backtest run.
 type RunResult struct {
-	Symbol            string              `json:"symbol"`
-	Interval          string              `json:"interval"`
-	StartTime         string              `json:"startTime"`
-	EndTime           string              `json:"endTime"`
-	QuoteCurrency     string              `json:"quoteCurrency"`
-	FinalBalance      float64             `json:"finalBalance"`
-	PnL               float64             `json:"pnl"`
-	TotalBrokerFees   float64             `json:"totalBrokerFees,omitempty"`
-	TotalMarketFees   float64             `json:"totalMarketFees,omitempty"`
-	TotalFees         float64             `json:"totalFees,omitempty"`
-	FeeBreakdown      []FeeBreakdownEntry `json:"feeBreakdown,omitempty"`
-	TradingCosts      TradingCosts        `json:"tradingCosts"`
-	MaxDrawdown       float64             `json:"maxDrawdown"`
-	CurrentDrawdown   float64             `json:"currentDrawdown"`
-	TradeStatsVersion int                 `json:"tradeStatsVersion,omitempty"`
-	TotalFills        int                 `json:"totalFills,omitempty"`
-	TotalTrades       int                 `json:"totalTrades"`
-	WinRate           float64             `json:"winRate"`
-	Trades            []TradeEvent        `json:"trades,omitempty"`
-	OrderBook         []OrderBookEntry    `json:"orderBook,omitempty"`
-	PnLCurve          []PnLPoint          `json:"pnlCurve,omitempty"`
-	DrawdownCurve     []DrawdownPoint     `json:"drawdownCurve,omitempty"`
-	Candles           []Candle            `json:"candles,omitempty"`
-	HeikinAshiSeed    *HeikinAshiSeed     `json:"heikinAshiSeed,omitempty"`
-	Logs              []string            `json:"logs"`
-	Warnings          []string            `json:"warnings,omitempty"`
-	WarningTotal      int                 `json:"warningTotal,omitempty"`
-	WarningsTruncated bool                `json:"warningsTruncated,omitempty"`
-	IgnoredOrders     int                 `json:"ignoredOrders,omitempty"`
-	ExecutionModel    string              `json:"executionModel,omitempty"`
-	ChartType         chart.ChartType     `json:"chartType"`
-	Error             string              `json:"error,omitempty"`
+	Symbol             string              `json:"symbol"`
+	MarketDataProvider string              `json:"marketDataProvider"`
+	Interval           string              `json:"interval"`
+	StartTime          string              `json:"startTime"`
+	EndTime            string              `json:"endTime"`
+	QuoteCurrency      string              `json:"quoteCurrency"`
+	FinalBalance       float64             `json:"finalBalance"`
+	PnL                float64             `json:"pnl"`
+	TotalBrokerFees    float64             `json:"totalBrokerFees,omitempty"`
+	TotalMarketFees    float64             `json:"totalMarketFees,omitempty"`
+	TotalFees          float64             `json:"totalFees,omitempty"`
+	FeeBreakdown       []FeeBreakdownEntry `json:"feeBreakdown,omitempty"`
+	TradingCosts       TradingCosts        `json:"tradingCosts"`
+	MaxDrawdown        float64             `json:"maxDrawdown"`
+	CurrentDrawdown    float64             `json:"currentDrawdown"`
+	TradeStatsVersion  int                 `json:"tradeStatsVersion,omitempty"`
+	TotalFills         int                 `json:"totalFills,omitempty"`
+	TotalTrades        int                 `json:"totalTrades"`
+	WinRate            float64             `json:"winRate"`
+	Trades             []TradeEvent        `json:"trades,omitempty"`
+	OrderBook          []OrderBookEntry    `json:"orderBook,omitempty"`
+	PnLCurve           []PnLPoint          `json:"pnlCurve,omitempty"`
+	DrawdownCurve      []DrawdownPoint     `json:"drawdownCurve,omitempty"`
+	Candles            []Candle            `json:"candles,omitempty"`
+	HeikinAshiSeed     *HeikinAshiSeed     `json:"heikinAshiSeed,omitempty"`
+	Logs               []string            `json:"logs"`
+	Warnings           []string            `json:"warnings,omitempty"`
+	WarningTotal       int                 `json:"warningTotal,omitempty"`
+	WarningsTruncated  bool                `json:"warningsTruncated,omitempty"`
+	IgnoredOrders      int                 `json:"ignoredOrders,omitempty"`
+	ExecutionModel     string              `json:"executionModel,omitempty"`
+	ChartType          chart.ChartType     `json:"chartType"`
+	Error              string              `json:"error,omitempty"`
 
 	mu                     sync.Mutex
 	RuntimeErrors          []string       `json:"runtimeErrors,omitempty"`
@@ -150,29 +151,30 @@ func (r *RunResult) Snapshot() *RunResult {
 	defer r.mu.Unlock()
 
 	return &RunResult{
-		Symbol:            r.Symbol,
-		Interval:          r.Interval,
-		StartTime:         r.StartTime,
-		EndTime:           r.EndTime,
-		QuoteCurrency:     r.QuoteCurrency,
-		FinalBalance:      r.FinalBalance,
-		PnL:               r.PnL,
-		TotalBrokerFees:   r.TotalBrokerFees,
-		TotalMarketFees:   r.TotalMarketFees,
-		TotalFees:         r.TotalFees,
-		FeeBreakdown:      append([]FeeBreakdownEntry(nil), r.FeeBreakdown...),
-		TradingCosts:      cloneTradingCosts(r.TradingCosts),
-		MaxDrawdown:       r.MaxDrawdown,
-		CurrentDrawdown:   r.CurrentDrawdown,
-		TradeStatsVersion: r.TradeStatsVersion,
-		TotalFills:        r.TotalFills,
-		TotalTrades:       r.TotalTrades,
-		WinRate:           r.WinRate,
-		Trades:            append([]TradeEvent(nil), r.Trades...),
-		OrderBook:         append([]OrderBookEntry(nil), r.OrderBook...),
-		PnLCurve:          append([]PnLPoint(nil), r.PnLCurve...),
-		DrawdownCurve:     append([]DrawdownPoint(nil), r.DrawdownCurve...),
-		Candles:           append([]Candle(nil), r.Candles...),
+		Symbol:             r.Symbol,
+		MarketDataProvider: r.MarketDataProvider,
+		Interval:           r.Interval,
+		StartTime:          r.StartTime,
+		EndTime:            r.EndTime,
+		QuoteCurrency:      r.QuoteCurrency,
+		FinalBalance:       r.FinalBalance,
+		PnL:                r.PnL,
+		TotalBrokerFees:    r.TotalBrokerFees,
+		TotalMarketFees:    r.TotalMarketFees,
+		TotalFees:          r.TotalFees,
+		FeeBreakdown:       append([]FeeBreakdownEntry(nil), r.FeeBreakdown...),
+		TradingCosts:       cloneTradingCosts(r.TradingCosts),
+		MaxDrawdown:        r.MaxDrawdown,
+		CurrentDrawdown:    r.CurrentDrawdown,
+		TradeStatsVersion:  r.TradeStatsVersion,
+		TotalFills:         r.TotalFills,
+		TotalTrades:        r.TotalTrades,
+		WinRate:            r.WinRate,
+		Trades:             append([]TradeEvent(nil), r.Trades...),
+		OrderBook:          append([]OrderBookEntry(nil), r.OrderBook...),
+		PnLCurve:           append([]PnLPoint(nil), r.PnLCurve...),
+		DrawdownCurve:      append([]DrawdownPoint(nil), r.DrawdownCurve...),
+		Candles:            append([]Candle(nil), r.Candles...),
 		HeikinAshiSeed: func() *HeikinAshiSeed {
 			if r.HeikinAshiSeed == nil {
 				return nil

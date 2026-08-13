@@ -1,6 +1,7 @@
 package settings_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	apisettings "github.com/jftrade/jftrade-main/internal/api/settings"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
+	"github.com/jftrade/jftrade-main/internal/marketdata"
 	srvsettings "github.com/jftrade/jftrade-main/internal/settings"
 )
 
@@ -55,6 +57,58 @@ func TestMarketDataSettingsRoutesReadSaveAndApplyProvider(t *testing.T) {
 		!strings.Contains(switched.Body.String(), `"activeProvider":"yfinance"`) ||
 		len(applied) != 2 || applied[1] != jfsettings.MarketDataProviderYFinance {
 		t.Fatalf("provider switch to yfinance = %d %s, callbacks=%#v", switched.Code, switched.Body.String(), applied)
+	}
+}
+
+func TestBacktestMarketDataSettingsRoutesExposeCatalogAndRollbackPreparationFailure(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	store := &routeStore{activeProvider: jfsettings.MarketDataProviderFutu}
+	prepareErr := errors.New("akshare helper unavailable")
+	service := srvsettings.NewService(
+		store,
+		srvsettings.WithMarketDataProviderCatalog(func(context.Context) ([]marketdata.ProviderDescriptor, error) {
+			return []marketdata.ProviderDescriptor{{
+				ProviderID: "yfinance", SelectionID: "yfinance",
+				Capabilities: marketdata.ProviderCapabilities{
+					HistoricalCandles: true, PriceAdjustments: []string{"none"},
+				},
+			}}, nil
+		}),
+		srvsettings.WithSideEffects(srvsettings.SideEffects{
+			OnBacktestProviderChanged: func(provider jfsettings.ActiveMarketDataProvider) error {
+				if provider == jfsettings.MarketDataProviderAKShare {
+					return prepareErr
+				}
+				return nil
+			},
+		}),
+	)
+	router := gin.New()
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+
+	read := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/backtest-market-data-provider", "")
+	if read.Code != http.StatusOK ||
+		!strings.Contains(read.Body.String(), `"activeProvider":"futu"`) ||
+		!strings.Contains(read.Body.String(), `"priceAdjustments":["none"]`) {
+		t.Fatalf("backtest provider read = %d %s", read.Code, read.Body.String())
+	}
+
+	failed := performSettingsRequest(t, router, http.MethodPut,
+		"/api/v1/settings/backtest-market-data-provider", `{"activeProvider":"akshare"}`)
+	if failed.Code != http.StatusConflict ||
+		!strings.Contains(failed.Body.String(), `"code":"MARKET_DATA_PROVIDER_UPDATE_FAILED"`) ||
+		store.BacktestMarketDataProvider() != jfsettings.MarketDataProviderFutu {
+		t.Fatalf("failed backtest switch = %d %s, stored=%q",
+			failed.Code, failed.Body.String(), store.BacktestMarketDataProvider())
+	}
+
+	switched := performSettingsRequest(t, router, http.MethodPut,
+		"/api/v1/settings/backtest-market-data-provider", `{"activeProvider":"yfinance"}`)
+	if switched.Code != http.StatusOK ||
+		!strings.Contains(switched.Body.String(), `"activeProvider":"yfinance"`) ||
+		store.BacktestMarketDataProvider() != jfsettings.MarketDataProviderYFinance {
+		t.Fatalf("successful backtest switch = %d %s, stored=%q",
+			switched.Code, switched.Body.String(), store.BacktestMarketDataProvider())
 	}
 }
 

@@ -56,14 +56,24 @@ func (p *Provider) QuotePollingPolicy() marketdata.QuotePollingPolicy {
 }
 
 func (p *Provider) Descriptor(context.Context) (marketdata.ProviderDescriptor, error) {
+	return ProviderDescriptor(), nil
+}
+
+func ProviderDescriptor() marketdata.ProviderDescriptor {
 	return marketdata.ProviderDescriptor{
-		ProviderID: sourceID, DisplayName: "AKShare", BrokerID: sourceID, Source: sourceID,
+		SelectionID: "akshare",
+		ProviderID:  sourceID, DisplayName: "AKShare", BrokerID: sourceID, Source: sourceID,
 		DefaultMarket: defaultMarket, SupportedMarkets: []string{"US", "HK", "SH", "SZ"},
 		Transports: []string{"http-poll"},
 		Capabilities: marketdata.ProviderCapabilities{
 			Snapshots: true, HistoricalCandles: true, InstrumentSearch: true,
-			CandleIntervals: append([]string(nil), candlePeriodOrder...),
-			Sessions:        []string{"regular", "closed"},
+			CandleIntervals:  append([]string(nil), candlePeriodOrder...),
+			Sessions:         []string{"regular", "closed"},
+			PriceAdjustments: []string{"none"},
+			HistoricalLookbackDays: map[string]int{
+				"1m":    5,
+				"US:5m": 5, "US:15m": 5, "US:30m": 5, "US:1h": 5,
+			},
 		},
 		Constraints: marketdata.ProviderConstraints{},
 		Notes: []string{
@@ -71,7 +81,7 @@ func (p *Provider) Descriptor(context.Context) (marketdata.ProviderDescriptor, e
 			"US, HK, SH, and SZ securities and historical candles are available through HTTP polling.",
 			"Streaming quotes, order book depth, extended hours, and trading are unavailable.",
 		},
-	}, nil
+	}
 }
 
 func (p *Provider) GetMarkets(ctx context.Context) ([]marketdata.MarketProfile, error) {
@@ -258,6 +268,9 @@ func (p *Provider) GetHistoricalCandles(
 	ctx context.Context,
 	query marketdata.HistoricalCandlesQuery,
 ) (marketdata.CandlesResponse, error) {
+	if adjustment := strings.ToLower(strings.TrimSpace(query.Adjustment)); adjustment != "" && adjustment != "none" {
+		return nil, fmt.Errorf("%w: price adjustment %q", ErrUnsupported, adjustment)
+	}
 	marketValue, symbol, period := query.Market, query.Symbol, query.Period
 	limit, fromTime, toTime, beforeTime := query.Limit, query.FromTime, query.ToTime, query.BeforeTime
 	instrument, err := normalizeIdentity(marketValue, symbol, "")

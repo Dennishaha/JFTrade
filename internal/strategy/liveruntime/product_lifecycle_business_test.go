@@ -108,11 +108,13 @@ func TestRuntimePropagatesGatewayFailureAndSortsObservations(t *testing.T) {
 			},
 		},
 		deps: Dependencies{
-			PlaceExecutionOrder: func(
-				context.Context,
-				trdsrv.ExecutionOrderCommand,
-			) (trdsrv.ExecutionOrder, error) {
-				return trdsrv.ExecutionOrder{}, gatewayErr
+			TradeCommands: TradeCommandFuncs{
+				Place: func(
+					context.Context,
+					trdsrv.ExecutionOrderCommand,
+				) (trdsrv.ExecutionOrder, error) {
+					return trdsrv.ExecutionOrder{}, gatewayErr
+				},
 			},
 			AppendRuntimeEvent: func(_ string, _ string, kind string, _ string) error {
 				kinds = append(kinds, kind)

@@ -96,6 +96,7 @@ function makeRun(id: string, overrides: Record<string, unknown> = {}) {
 function mountBacktestRuns(input: {
   form?: Partial<BacktestFormState>;
   normalizeInstrument?: ReturnType<typeof vi.fn>;
+  validateRange?: () => string;
 } = {}) {
   const form = ref<BacktestFormState>({ ...baseForm, ...input.form });
   const normalizeInstrument = input.normalizeInstrument ?? vi.fn(async () => ({
@@ -107,7 +108,11 @@ function mountBacktestRuns(input: {
   let state: BacktestState | undefined;
   const wrapper = mount(defineComponent({
     setup() {
-      state = useBacktestRuns({ formState: computed(() => form.value), normalizeInstrument });
+      state = useBacktestRuns({
+        formState: computed(() => form.value),
+        normalizeInstrument,
+        validateRange: input.validateRange,
+      });
       return () => h("div");
     },
   }));
@@ -658,7 +663,20 @@ describe("useBacktestRuns", () => {
       .mockResolvedValueOnce({ runs: [makeRun("run-new", { status: "completed" }), makeRun("other")] });
     apiGetPath
       .mockResolvedValueOnce({ id: "run-new", status: "running" })
-      .mockResolvedValueOnce({ id: "run-new", status: "completed" });
+      .mockResolvedValueOnce({ id: "run-new", status: "completed" })
+      .mockResolvedValueOnce(makeRun("run-new", {
+        status: "completed",
+        result: {
+          symbol: "US.AAPL",
+          interval: "5m",
+          startTime: "2026-06-01T00:00:00Z",
+          endTime: "2026-06-30T00:00:00Z",
+          finalBalance: 100010,
+          pnl: 10,
+          totalTrades: 1,
+          winRate: 1,
+        },
+      }));
     const { state } = mountBacktestRuns();
 
     const start = state.startBacktest();
@@ -678,10 +696,65 @@ describe("useBacktestRuns", () => {
       "/api/v1/backtests/{runId}/status",
       "/api/v1/backtests/run-new/status",
     );
+    expect(apiGetPath).toHaveBeenCalledWith(
+      "/api/v1/backtests/{runId}",
+      "/api/v1/backtests/run-new",
+    );
     expect(apiGet).toHaveBeenCalledTimes(2);
-    const cachedRuns = queryClient.getQueryData<Array<{ id: string; status: string }>>(queryKeys.backtestRuns());
+    const cachedRuns = queryClient.getQueryData<Array<{ id: string; status: string; result?: unknown }>>(queryKeys.backtestRuns());
     expect(cachedRuns?.find((run) => run.id === "run-new")?.status).toBe("completed");
+    expect(cachedRuns?.find((run) => run.id === "run-new")?.result).toBeDefined();
     expect(cachedRuns?.find((run) => run.id === "other")?.status).toBe("completed");
+  });
+
+  it("blocks unsupported provider ranges and syncs missing data before retrying start", async () => {
+    const invalid = mountBacktestRuns({
+      validateRange: () => "AKShare 的 US 5m 历史数据仅提供最近 5 天",
+    });
+    await invalid.state.syncKlines();
+    await invalid.state.startBacktest();
+    expect(invalid.state.error.value).toContain("最近 5 天");
+    expect(apiPost).not.toHaveBeenCalled();
+    expect(startSync).not.toHaveBeenCalled();
+
+    vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue(undefined);
+    apiPost
+      .mockRejectedValueOnce({
+        status: 400,
+        message: "backtest K-line data is not ready: missing K-line coverage",
+      })
+      .mockResolvedValueOnce({ id: "run-after-sync", status: "queued" });
+    startSync.mockResolvedValueOnce({ status: "completed" });
+    apiGet.mockResolvedValue({
+      runs: [makeRun("run-after-sync", { status: "queued" })],
+    });
+    const ready = mountBacktestRuns();
+    await ready.state.startBacktest();
+    expect(startSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        market: "US",
+        symbol: "US.AAPL",
+        intervals: ["5m"],
+      }),
+    );
+    expect(apiPost).toHaveBeenCalledTimes(2);
+    expect(ready.state.error.value).toBe("");
+  });
+
+  it("surfaces an incomplete automatic sync without submitting a second backtest", async () => {
+    apiPost.mockRejectedValueOnce({
+      status: 400,
+      message: "missing K-line coverage for US.AAPL",
+    });
+    syncError.value = "AKShare 上游同步失败";
+    startSync.mockResolvedValueOnce({ status: "failed" });
+    const { state } = mountBacktestRuns();
+
+    await state.startBacktest();
+
+    expect(apiPost).toHaveBeenCalledTimes(1);
+    expect(startSync).toHaveBeenCalledOnce();
+    expect(state.error.value).toBe("启动回测失败: AKShare 上游同步失败");
   });
 
   it("handles missing definitions, invalid instruments, start errors, and polling exhaustion", async () => {

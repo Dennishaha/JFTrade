@@ -129,7 +129,7 @@ func TestValidateCurrentDetectsManifestDrift(t *testing.T) {
 
 func TestValidateDefinitionSupportsOnlyMatchingDynamicTables(t *testing.T) {
 	definition := MustDefinition(DatabaseBacktest)
-	validName := "local_klines__hk_00700__5m__forward__r__1234abcd"
+	validName := "local_klines__futu__hk_00700__5m__forward__r__1234abcd"
 	validStatement := strings.Replace(definition.DynamicTable.Statement, definition.DynamicTable.PrototypeName, validName, 1)
 
 	path := filepath.Join(t.TempDir(), "backtest.db")
@@ -353,6 +353,22 @@ func TestValidateCurrentPropagatesMetadataVersionDrift(t *testing.T) {
 	}
 	if err := ValidateCurrent(t.Context(), db, path, DatabaseResearch); !IsIncompatible(err) || !strings.Contains(err.Error(), "schema version") {
 		t.Fatalf("ValidateCurrent(version drift) error = %v", err)
+	}
+}
+
+func TestBacktestV2MetadataRequiresRebuildForV3(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "backtest-v2.db")
+	db := openTestDB(t, path)
+	defer closeTestDB(t, db)
+	if err := InitializeCurrent(t.Context(), db, path, DatabaseBacktest); err != nil {
+		t.Fatalf("InitializeCurrent() error = %v", err)
+	}
+	if _, err := db.Exec(`UPDATE `+MetadataTable+` SET version = 2 WHERE component_id = ?`, DatabaseBacktest); err != nil {
+		t.Fatalf("set v2 metadata: %v", err)
+	}
+	err := ValidateCurrent(t.Context(), db, path, DatabaseBacktest)
+	if !IsIncompatible(err) || !strings.Contains(err.Error(), "schema version 2 does not match required version 3") {
+		t.Fatalf("ValidateCurrent(v2) error = %v", err)
 	}
 }
 

@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 )
 
@@ -49,6 +51,117 @@ func TestManagerMaintenanceStateAndPollingConfiguration(t *testing.T) {
 	manager.Stop("missing")
 }
 
+func TestManagerCompatibilityResolversAndCommandBoundariesFailClosed(t *testing.T) {
+	stub := newStrategyRuntimeStubExchange()
+	manager := NewManager(Dependencies{ExchangeProvider: func() Exchange { return stub }})
+	if account := manager.resolveAccount(stratsrv.InstanceBinding{}); account != stub {
+		t.Fatalf("compatibility account source = %#v", account)
+	}
+	if _, err := manager.placeExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{}); err == nil {
+		t.Fatal("manager without trade commands accepted placement")
+	}
+	if _, err := manager.cancelExecutionOrder(t.Context(), "order-1"); err == nil {
+		t.Fatal("manager without trade commands accepted cancellation")
+	}
+	manager.SetExchangeProvider(nil)
+	if account := manager.resolveAccount(stratsrv.InstanceBinding{}); account != nil {
+		t.Fatalf("nil compatibility provider account = %#v", account)
+	}
+	empty := NewManager(Dependencies{})
+	if account := empty.resolveAccount(stratsrv.InstanceBinding{}); account != nil {
+		t.Fatalf("missing account resolver = %#v", account)
+	}
+	var nilManager *Manager
+	if account := nilManager.resolveAccount(stratsrv.InstanceBinding{}); account != nil {
+		t.Fatalf("nil manager account resolver = %#v", account)
+	}
+
+	wantErr := errors.New("capabilities unavailable")
+	capabilityManager := NewManager(Dependencies{MarketDataCapabilities: func(context.Context) (mdsrv.ProviderCapabilities, error) {
+		return mdsrv.ProviderCapabilities{}, wantErr
+	}})
+	if err := capabilityManager.validateMarketDataCapabilities(t.Context()); !errors.Is(err, wantErr) {
+		t.Fatalf("capability error = %v", err)
+	}
+	capabilityManager.deps.MarketDataCapabilities = func(context.Context) (mdsrv.ProviderCapabilities, error) {
+		return mdsrv.ProviderCapabilities{StreamingCandles: true}, nil
+	}
+	if err := capabilityManager.validateMarketDataCapabilities(t.Context()); err != nil {
+		t.Fatalf("streaming capability rejected: %v", err)
+	}
+}
+
+func TestStrategyRuntimeRequiresStreamingCandlesForLiveAndNotifyOnly(t *testing.T) {
+	for _, executionMode := range []string{"live", "notify_only"} {
+		t.Run(executionMode, func(t *testing.T) {
+			manager := NewManager(Dependencies{
+				MarketDataCapabilities: func(context.Context) (mdsrv.ProviderCapabilities, error) {
+					return mdsrv.ProviderCapabilities{HistoricalCandles: true, StreamingCandles: false}, nil
+				},
+			})
+			err := manager.Start(t.Context(), stratsrv.ManagedInstance{
+				ID: "poll-only-" + executionMode,
+				Binding: stratsrv.InstanceBinding{
+					Symbols: []string{"US.AAPL"}, Interval: "1m", ExecutionMode: executionMode,
+				},
+				Params: map[string]any{"script": `strategy.entry("Long", strategy.long)`},
+			})
+			if err == nil || !strings.Contains(err.Error(), "streaming candles") {
+				t.Fatalf("Start error = %v, want streaming capability rejection", err)
+			}
+		})
+	}
+}
+
+func TestStrategyRuntimeResolvesExactBoundBrokerWithoutLegacyFallback(t *testing.T) {
+	stub := newStrategyRuntimeStubExchange()
+	resolvedBrokerID := ""
+	manager := NewManager(Dependencies{
+		ExchangeProvider: func() Exchange { return stub },
+		ExchangeResolver: func(binding stratsrv.InstanceBinding) Exchange {
+			if binding.BrokerAccount != nil {
+				resolvedBrokerID = binding.BrokerAccount.BrokerID
+			}
+			return nil
+		},
+	})
+	instance := stratsrv.ManagedInstance{Binding: stratsrv.InstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "paper-broker"},
+	}}
+	if _, _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil {
+		t.Fatal("exact broker resolution unexpectedly used legacy fallback")
+	}
+	if resolvedBrokerID != "paper-broker" {
+		t.Fatalf("resolved broker = %q, want paper-broker", resolvedBrokerID)
+	}
+}
+
+func TestNotifyOnlyLoadsRealtimeMarketDataWithoutBrokerAccount(t *testing.T) {
+	stub := newStrategyRuntimeStubExchange()
+	accountResolved := false
+	manager := NewManager(Dependencies{
+		MarketDataProvider: func() MarketDataSource { return stub },
+		AccountResolver: func(stratsrv.InstanceBinding) AccountSource {
+			accountResolved = true
+			return nil
+		},
+	})
+	instance := stratsrv.ManagedInstance{Binding: stratsrv.InstanceBinding{
+		Symbols: []string{"US.AAPL"}, ExecutionMode: "notify_only",
+	}}
+	marketData, account, markets, funds, positions, err := manager.loadStrategyRuntimeInputs(t.Context(), instance)
+	if err != nil {
+		t.Fatalf("load notify-only inputs: %v", err)
+	}
+	if marketData != stub || account != nil || funds != nil || positions != nil || len(markets) == 0 {
+		t.Fatalf("notify-only inputs = marketData:%#v account:%#v markets:%#v funds:%#v positions:%#v", marketData, account, markets, funds, positions)
+	}
+	if accountResolved {
+		t.Fatal("notify-only runtime resolved a broker account")
+	}
+}
+
 func TestManagerInputLoadingReportsEachUnavailableDependency(t *testing.T) {
 	instance := stratsrv.ManagedInstance{Binding: stratsrv.InstanceBinding{
 		Symbols: []string{"US.AAPL"},
@@ -57,27 +170,27 @@ func TestManagerInputLoadingReportsEachUnavailableDependency(t *testing.T) {
 		},
 	}}
 	manager := NewManager(Dependencies{ExchangeProvider: func() Exchange { return nil }})
-	if _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil ||
-		!strings.Contains(err.Error(), "exchange") {
-		t.Fatalf("nil exchange load error = %v", err)
+	if _, _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil ||
+		!strings.Contains(err.Error(), "market-data") {
+		t.Fatalf("nil market-data load error = %v", err)
 	}
 
 	stub := newStrategyRuntimeStubExchange()
 	manager.SetExchangeProvider(func() Exchange { return stub })
 	stub.queryMarketsErr = errors.New("markets failed")
-	if _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil ||
+	if _, _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil ||
 		!strings.Contains(err.Error(), "markets") {
 		t.Fatalf("market load error = %v", err)
 	}
 	stub.queryMarketsErr = nil
 	stub.queryFundsErr = errors.New("funds failed")
-	if _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil ||
+	if _, _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil ||
 		!strings.Contains(err.Error(), "funds") {
 		t.Fatalf("fund load error = %v", err)
 	}
 	stub.queryFundsErr = nil
 	stub.queryPositionsErr = errors.New("positions failed")
-	if _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil ||
+	if _, _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil ||
 		!strings.Contains(err.Error(), "positions") {
 		t.Fatalf("position load error = %v", err)
 	}
@@ -122,6 +235,7 @@ func TestManagerBuildSymbolRequiresMarketAndPineWorker(t *testing.T) {
 		t.Context(),
 		context.Background(),
 		stub,
+		stub,
 		bbgotypes.MarketMap{},
 		stub.funds,
 		nil,
@@ -136,6 +250,7 @@ func TestManagerBuildSymbolRequiresMarketAndPineWorker(t *testing.T) {
 		t.Context(),
 		context.Background(),
 		stub,
+		stub,
 		stub.markets,
 		stub.funds,
 		nil,
@@ -145,5 +260,50 @@ func TestManagerBuildSymbolRequiresMarketAndPineWorker(t *testing.T) {
 		bbgotypes.Interval1m,
 	); err == nil {
 		t.Fatal("missing Pine worker error = nil")
+	}
+	stub.nilStream = true
+	if _, err := manager.buildSymbolRuntime(
+		t.Context(), context.Background(), stub, stub, stub.markets, stub.funds, nil,
+		instance, "strategy.entry(\"Long\", strategy.long)", "US.AAPL", bbgotypes.Interval1m,
+	); err == nil || !strings.Contains(err.Error(), "nil stream") {
+		t.Fatalf("nil market stream error = %v", err)
+	}
+	stub.nilStream = false
+	standard := bbgotypes.NewStandardStream()
+	stub.stream = &struct{ bbgotypes.Stream }{Stream: &standard}
+	if _, _, err := newStrategyRuntimeSession(stub, stub.markets, stub.funds, nil, stub.markets["US.AAPL"], "US.AAPL"); err == nil ||
+		!strings.Contains(err.Error(), "kline emission") {
+		t.Fatalf("non-emitter stream error = %v", err)
+	}
+}
+
+func TestRuntimeBuildCallbacksRecordErrorsAndIgnoredOrders(t *testing.T) {
+	events := make([]string, 0, 2)
+	manager := NewManager(Dependencies{AppendRuntimeEvent: func(_ string, _ string, kind string, detail string) error {
+		events = append(events, kind+":"+detail)
+		return nil
+	}})
+	stub := newStrategyRuntimeStubExchange()
+	session, emitter, err := newStrategyRuntimeSession(stub, stub.markets, stub.funds, nil, stub.markets["US.AAPL"], "US.AAPL")
+	if err != nil {
+		t.Fatalf("newStrategyRuntimeSession: %v", err)
+	}
+	instance := stratsrv.ManagedInstance{
+		ID: "instance", Definition: stratsrv.DefinitionSummary{Name: " Callback Test "},
+		Binding: stratsrv.InstanceBinding{Symbols: []string{"US.AAPL"}, Interval: "1m"},
+	}
+	runner := manager.newSymbolRuntime(
+		t.Context(), stub, stub, instance, "US.AAPL", bbgotypes.Interval1m,
+		stub.markets["US.AAPL"], session, emitter, stub.funds, nil,
+	)
+	if runner.name != "Callback Test" || runner.exchange != stub.Name() {
+		t.Fatalf("symbol runtime = %+v", runner)
+	}
+	runner.onClosedKLine(time.Now().UTC())
+	runner.onError(" ")
+	runner.onError("provider disconnected")
+	manager.recordIgnoredOrder(instance.ID, "US.AAPL", "notify-only")
+	if len(events) != 2 || !strings.HasPrefix(events[0], "runtime_error:") || events[1] != "order_ignored:notify-only" {
+		t.Fatalf("runtime callback events = %#v", events)
 	}
 }

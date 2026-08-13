@@ -11,14 +11,14 @@ import (
 // FutuProviderDependencies are the composition-root callbacks needed to
 // assemble the Futu OpenD provider without reaching into Server internals.
 type FutuProviderDependencies struct {
-	SecurityDetails    func(ctx context.Context, marketCode, symbol string) (mdsrv.SecurityDetails, error)
-	LookupInstrument   func(ctx context.Context, marketCode, code string) ([]mdsrv.InstrumentCandidate, error)
-	SearchInstruments  func(ctx context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error)
-	QuerySnapshot      func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error)
-	QueryTicker        func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error)
-	HistoricalCandles  func(ctx context.Context, request mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error)
-	Depth              func(ctx context.Context, marketCode, symbol string, num int) (mdsrv.DepthResponse, error)
-	Health             func(ctx context.Context) (mdsrv.HealthStatus, error)
+	SecurityDetails   func(ctx context.Context, marketCode, symbol string) (mdsrv.SecurityDetails, error)
+	LookupInstrument  func(ctx context.Context, marketCode, code string) ([]mdsrv.InstrumentCandidate, error)
+	SearchInstruments func(ctx context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error)
+	QuerySnapshot     func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error)
+	QueryTicker       func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error)
+	HistoricalCandles func(ctx context.Context, request mdsrv.HistoricalCandlesQuery) (mdsrv.CandlesResponse, error)
+	Depth             func(ctx context.Context, marketCode, symbol string, num int) (mdsrv.DepthResponse, error)
+	Health            func(ctx context.Context) (mdsrv.HealthStatus, error)
 }
 
 // NewFutuProvider assembles the Futu OpenD provider from narrow callbacks.
@@ -51,9 +51,9 @@ type ServerHTTPAdapterDependencies struct {
 
 func NewServerHTTPAdapters(deps ServerHTTPAdapterDependencies) *HTTPAdapters {
 	return NewHTTPAdapters(HTTPAdapterDependencies{
-		Service:            deps.MarketDataService,
-		MarketDataRuntime:  deps.MarketDataRuntime,
-		FutuEnabled:        deps.FutuEnabled,
+		Service:           deps.MarketDataService,
+		MarketDataRuntime: deps.MarketDataRuntime,
+		FutuEnabled:       deps.FutuEnabled,
 	})
 }
 
@@ -64,6 +64,7 @@ func FutuProviderDescriptor(context.Context) (mdsrv.ProviderDescriptor, error) {
 		supportedMarkets = append(supportedMarkets, strings.ToUpper(strings.TrimSpace(profile.Code)))
 	}
 	return mdsrv.ProviderDescriptor{
+		SelectionID:      ProviderFutu,
 		ProviderID:       "futu-opend",
 		DisplayName:      "Futu OpenD",
 		BrokerID:         "futu",
@@ -72,12 +73,13 @@ func FutuProviderDescriptor(context.Context) (mdsrv.ProviderDescriptor, error) {
 		SupportedMarkets: supportedMarkets,
 		Transports:       []string{"opend-tcp", "push-stream", "snapshot-poll-fallback"},
 		Capabilities: mdsrv.ProviderCapabilities{
-			Snapshots: true, StreamingQuotes: true, StreamingDepth: true,
+			Snapshots: true, StreamingQuotes: true, StreamingCandles: true, StreamingDepth: true,
 			HistoricalCandles: true, TickCandles: true, OrderBookDepth: true,
 			InstrumentSearch: true, ExtendedHours: true,
-			CandleIntervals: []string{"tick", "1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"},
-			OrderBookLevels: []int{1, 5, 10, 25, 50},
-			Sessions:        []string{"RTH", "ETH", "ALL", "OVERNIGHT"},
+			CandleIntervals:  []string{"tick", "1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"},
+			OrderBookLevels:  []int{1, 5, 10, 25, 50},
+			Sessions:         []string{"RTH", "ETH", "ALL", "OVERNIGHT"},
+			PriceAdjustments: []string{"none", "forward", "backward"},
 		},
 		Constraints: mdsrv.ProviderConstraints{
 			RequiresOpenD: true, RequiresMarketDataRight: true, UsesSubscriptionQuota: true,

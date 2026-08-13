@@ -326,7 +326,7 @@ func TestServerSidecarFrontendRuntimeConfigFollowsSecuritySettings(t *testing.T)
 	}
 }
 
-func TestBrokerExecutionExchangePrefersRuntimeProviderAndRespectsDisabledIntegration(t *testing.T) {
+func TestBrokerExecutionExchangeDoesNotReuseStrategyMarketDataOverride(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -343,8 +343,8 @@ func TestBrokerExecutionExchangePrefersRuntimeProviderAndRespectsDisabledIntegra
 		ExchangeProvider: func() liveruntime.Exchange { return stub },
 	})
 	server.runtimes.SetStrategyRuntime(runtime, runtime)
-	if got := brokerExecutionExchangeFor(&server.serverApplication); got != stub {
-		t.Fatalf("brokerExecutionExchange should prefer runtime provider, got %#v", got)
+	if got := brokerExecutionExchangeFor(&server.serverApplication); got != nil {
+		t.Fatalf("brokerExecutionExchange reused strategy market data override: %#v", got)
 	}
 
 	server.runtimes.StrategyRuntime().SetExchangeProvider(func() liveruntime.Exchange { return nil })

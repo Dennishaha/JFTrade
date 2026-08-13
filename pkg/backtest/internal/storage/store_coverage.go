@@ -10,7 +10,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 )
 
-func (s *FutuKLineStore) selectReadTableName(symbol string, interval types.Interval, rehabType string, since, until time.Time) (string, error) {
+func (s *KLineStore) selectReadTableName(symbol string, interval types.Interval, rehabType string, since, until time.Time) (string, error) {
 	var firstExisting string
 	tableNames, tableCount := s.readTableNames(symbol, interval, rehabType)
 	for index := range tableCount {
@@ -39,7 +39,7 @@ func (s *FutuKLineStore) selectReadTableName(symbol string, interval types.Inter
 	return firstExisting, nil
 }
 
-func (s *FutuKLineStore) findSelectionMissingRangesInPhysicalTable(
+func (s *KLineStore) findSelectionMissingRangesInPhysicalTable(
 	tableName string, interval types.Interval, startTime, endTime time.Time,
 ) ([]string, error) {
 	exists, err := s.klineTableExists(tableName)
@@ -68,7 +68,7 @@ func (s *FutuKLineStore) findSelectionMissingRangesInPhysicalTable(
 
 // --- service.BackTestable implementation ---
 
-func (s *FutuKLineStore) Verify(
+func (s *KLineStore) Verify(
 	sourceExchange types.Exchange, symbols []string, startTime time.Time, endTime time.Time,
 ) error {
 	for _, symbol := range symbols {
@@ -86,7 +86,7 @@ func (s *FutuKLineStore) Verify(
 	return nil
 }
 
-func (s *FutuKLineStore) findMissingRanges(
+func (s *KLineStore) findMissingRanges(
 	symbol string, interval types.Interval, startTime, endTime time.Time,
 ) ([]string, error) {
 	directMissing, err := s.findMissingRangesInTable(symbol, interval, s.rehabTypeName(), startTime, endTime)
@@ -126,7 +126,7 @@ func (s *FutuKLineStore) findMissingRanges(
 	return directMissing, nil
 }
 
-func (s *FutuKLineStore) findMissingRangesInTable(
+func (s *KLineStore) findMissingRangesInTable(
 	symbol string, interval types.Interval, rehabType string, startTime, endTime time.Time,
 ) ([]string, error) {
 	var firstMissing []string
@@ -157,7 +157,7 @@ func (s *FutuKLineStore) findMissingRangesInTable(
 	return fullWindowMissingRange(startTime, endTime), nil
 }
 
-func (s *FutuKLineStore) findMissingRangesInPhysicalTable(
+func (s *KLineStore) findMissingRangesInPhysicalTable(
 	tableName string, interval types.Interval, startTime, endTime time.Time,
 ) ([]string, error) {
 	exists, err := s.klineTableExists(tableName)
@@ -190,7 +190,7 @@ func (s *FutuKLineStore) findMissingRangesInPhysicalTable(
 	return nil, nil
 }
 
-func (s *FutuKLineStore) hasKLineEndingAtOrAfter(tableName string, at time.Time) (bool, error) {
+func (s *KLineStore) hasKLineEndingAtOrAfter(tableName string, at time.Time) (bool, error) {
 	var endTimeMillis int64
 	err := s.db.QueryRowContext(context.Background(),
 		`SELECT end_time FROM `+quoteIdentifier(tableName)+` WHERE end_time >= ? ORDER BY end_time ASC LIMIT 1`,
@@ -205,7 +205,7 @@ func (s *FutuKLineStore) hasKLineEndingAtOrAfter(tableName string, at time.Time)
 	return true, nil
 }
 
-func (s *FutuKLineStore) hasKLineEndingAtOrBefore(tableName string, at time.Time) (bool, error) {
+func (s *KLineStore) hasKLineEndingAtOrBefore(tableName string, at time.Time) (bool, error) {
 	var endTimeMillis int64
 	err := s.db.QueryRowContext(context.Background(),
 		`SELECT end_time FROM `+quoteIdentifier(tableName)+` WHERE end_time <= ? ORDER BY end_time DESC LIMIT 1`,
@@ -220,7 +220,7 @@ func (s *FutuKLineStore) hasKLineEndingAtOrBefore(tableName string, at time.Time
 	return true, nil
 }
 
-func (s *FutuKLineStore) hasKLineBoundaryPair(tableName string, left, right time.Time) (bool, error) {
+func (s *KLineStore) hasKLineBoundaryPair(tableName string, left, right time.Time) (bool, error) {
 	leftMillis := timeToUnixMillis(left)
 	rightMillis := timeToUnixMillis(right)
 	expectedCount := 2
@@ -252,12 +252,12 @@ type klineReadSource struct {
 	baseInterval types.Interval
 }
 
-func (s *FutuKLineStore) EnsureCoverage(symbol string, interval types.Interval, since, until time.Time) error {
+func (s *KLineStore) EnsureCoverage(symbol string, interval types.Interval, since, until time.Time) error {
 	_, err := s.resolveReadSource(symbol, interval, since, until)
 	return err
 }
 
-func (s *FutuKLineStore) resolveReadSource(symbol string, interval types.Interval, since, until time.Time) (klineReadSource, error) {
+func (s *KLineStore) resolveReadSource(symbol string, interval types.Interval, since, until time.Time) (klineReadSource, error) {
 	directMissing, err := s.findMissingRangesInTable(symbol, interval, s.rehabTypeName(), since, until)
 	if err != nil {
 		return klineReadSource{}, err
@@ -289,7 +289,7 @@ func (s *FutuKLineStore) resolveReadSource(symbol string, interval types.Interva
 	return klineReadSource{}, fmt.Errorf("missing K-line coverage for %s %s [%s, %s]; download %s data covering the full range", symbol, interval, since.UTC().Format(time.RFC3339), until.UTC().Format(time.RFC3339), interval)
 }
 
-func (s *FutuKLineStore) Sync(
+func (s *KLineStore) Sync(
 	ctx context.Context, ex types.Exchange, symbol string,
 	intervals []types.Interval, since, until time.Time,
 ) error {
@@ -306,7 +306,7 @@ func (s *FutuKLineStore) Sync(
 // This allows syncInterval to skip batches that were already fetched in a
 // previous sync run — without being fooled by data that sits entirely
 // outside the batch.
-func (s *FutuKLineStore) isBatchCovered(
+func (s *KLineStore) isBatchCovered(
 	symbol string, interval types.Interval,
 	cursor, batchEnd time.Time,
 	rehabType string,

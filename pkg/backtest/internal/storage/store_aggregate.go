@@ -11,19 +11,19 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
-func (s *FutuKLineStore) QueryTradingPeriodKLinesInRange(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) QueryTradingPeriodKLinesInRange(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	return s.queryTradingPeriodKLinesInRangeLocked(symbol, interval, since, until, includeExtendedHours)
 }
 
-func (s *FutuKLineStore) QuerySessionAwareIntradayKLinesInRange(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) QuerySessionAwareIntradayKLinesInRange(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	return s.querySessionAwareIntradayKLinesInRangeLocked(symbol, interval, since, until, includeExtendedHours)
 }
 
-func (s *FutuKLineStore) QueryDailyKLinesInRange(symbol string, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) QueryDailyKLinesInRange(symbol string, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	return s.queryDailyKLinesInRangeLocked(symbol, since, until, includeExtendedHours)
 }
 
-func (s *FutuKLineStore) queryAggregatedKLinesInRange(symbol string, interval, baseInterval types.Interval, since, until time.Time) ([]types.KLine, error) {
+func (s *KLineStore) queryAggregatedKLinesInRange(symbol string, interval, baseInterval types.Interval, since, until time.Time) ([]types.KLine, error) {
 	if interval == types.Interval1d {
 		return s.queryDailyKLinesInRangeLocked(symbol, since, until, false)
 	}
@@ -44,7 +44,7 @@ func (s *FutuKLineStore) queryAggregatedKLinesInRange(symbol string, interval, b
 	return aggregateKLinesFromBase(symbol, interval, baseInterval, baseRows, since, until), nil
 }
 
-func (s *FutuKLineStore) queryDailyKLinesInRangeLocked(symbol string, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) queryDailyKLinesInRangeLocked(symbol string, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	dailySince := alignTimeToIntervalStart(since, types.Interval1d)
 	dailyUntil := latestClosedKLineEndAtOrBefore(until, types.Interval1d)
 	if dailyUntil.Before(dailySince) {
@@ -78,7 +78,7 @@ func (s *FutuKLineStore) queryDailyKLinesInRangeLocked(symbol string, since, unt
 	return s.queryAggregatedDailyKLinesInRangeLocked(symbol, baseInterval, dailySince, dailyUntil, includeExtendedHours)
 }
 
-func (s *FutuKLineStore) queryTradingPeriodKLinesInRangeLocked(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) queryTradingPeriodKLinesInRangeLocked(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	if interval == types.Interval1d {
 		return s.queryDailyKLinesInRangeLocked(symbol, since, until, includeExtendedHours)
 	}
@@ -93,7 +93,7 @@ func (s *FutuKLineStore) queryTradingPeriodKLinesInRangeLocked(symbol string, in
 	return s.queryAggregatedTradingPeriodKLinesInRangeLocked(symbol, interval, baseInterval, since, until, includeExtendedHours)
 }
 
-func (s *FutuKLineStore) querySessionAwareIntradayKLinesInRangeLocked(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) querySessionAwareIntradayKLinesInRangeLocked(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	if !shouldUseSessionAwareIntradayAggregation(symbol, interval) {
 		return nil, nil
 	}
@@ -105,7 +105,7 @@ func (s *FutuKLineStore) querySessionAwareIntradayKLinesInRangeLocked(symbol str
 	return s.queryAggregatedSessionAwareIntradayKLinesInRangeLocked(symbol, interval, baseInterval, since, until, includeExtendedHours)
 }
 
-func (s *FutuKLineStore) resolveSessionAwareIntradayAggregationBaseInterval(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) (types.Interval, error) {
+func (s *KLineStore) resolveSessionAwareIntradayAggregationBaseInterval(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) (types.Interval, error) {
 	candidates := aggregationBaseIntervals(interval)
 	if includeExtendedHours {
 		filtered := make([]types.Interval, 0, len(candidates))
@@ -138,7 +138,7 @@ func (s *FutuKLineStore) resolveSessionAwareIntradayAggregationBaseInterval(symb
 	return "", fmt.Errorf("missing K-line coverage for %s %s [%s, %s]; download %s data covering the full range", symbol, interval, since.UTC().Format(time.RFC3339), until.UTC().Format(time.RFC3339), preferred)
 }
 
-func (s *FutuKLineStore) queryAggregatedSessionAwareIntradayKLinesInRangeLocked(symbol string, interval, baseInterval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) queryAggregatedSessionAwareIntradayKLinesInRangeLocked(symbol string, interval, baseInterval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	baseSince, baseUntil := sessionAwareIntradayAggregationBaseRange(symbol, interval, since, until, includeExtendedHours)
 	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 	if err != nil {
@@ -147,7 +147,7 @@ func (s *FutuKLineStore) queryAggregatedSessionAwareIntradayKLinesInRangeLocked(
 	return aggregateSessionAwareIntradayKLinesFromBase(symbol, interval, baseRows, since, until, includeExtendedHours), nil
 }
 
-func (s *FutuKLineStore) resolveTradingPeriodAggregationBaseInterval(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) (types.Interval, error) {
+func (s *KLineStore) resolveTradingPeriodAggregationBaseInterval(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) (types.Interval, error) {
 	candidates := aggregationBaseIntervals(interval)
 	if includeExtendedHours {
 		filtered := make([]types.Interval, 0, len(candidates))
@@ -180,7 +180,7 @@ func (s *FutuKLineStore) resolveTradingPeriodAggregationBaseInterval(symbol stri
 	return "", fmt.Errorf("missing K-line coverage for %s %s [%s, %s]; download %s data covering the full range", symbol, interval, since.UTC().Format(time.RFC3339), until.UTC().Format(time.RFC3339), preferred)
 }
 
-func (s *FutuKLineStore) queryAggregatedTradingPeriodKLinesInRangeLocked(symbol string, interval, baseInterval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) queryAggregatedTradingPeriodKLinesInRangeLocked(symbol string, interval, baseInterval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	baseSince, baseUntil := tradingPeriodAggregationBaseRange(symbol, interval, since, until, includeExtendedHours)
 	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 	if err != nil {
@@ -189,7 +189,7 @@ func (s *FutuKLineStore) queryAggregatedTradingPeriodKLinesInRangeLocked(symbol 
 	return aggregateTradingPeriodKLinesFromBase(symbol, interval, baseRows, since, until, includeExtendedHours), nil
 }
 
-func (s *FutuKLineStore) resolveDailyAggregationBaseInterval(symbol string, since, until time.Time, includeExtendedHours bool) (types.Interval, error) {
+func (s *KLineStore) resolveDailyAggregationBaseInterval(symbol string, since, until time.Time, includeExtendedHours bool) (types.Interval, error) {
 	candidates := prioritizeDailyAggregationBaseIntervals(aggregationBaseIntervals(types.Interval1d), includeExtendedHours)
 	if len(candidates) == 0 {
 		return "", fmt.Errorf("missing K-line coverage for %s 1d [%s, %s]; download 1d data covering the full range", symbol, since.UTC().Format(time.RFC3339), until.UTC().Format(time.RFC3339))
@@ -213,7 +213,7 @@ func (s *FutuKLineStore) resolveDailyAggregationBaseInterval(symbol string, sinc
 	return "", fmt.Errorf("missing K-line coverage for %s 1d [%s, %s]; download %s data covering the full range", symbol, since.UTC().Format(time.RFC3339), until.UTC().Format(time.RFC3339), preferred)
 }
 
-func (s *FutuKLineStore) queryAggregatedDailyKLinesInRangeLocked(symbol string, baseInterval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) queryAggregatedDailyKLinesInRangeLocked(symbol string, baseInterval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	baseSince, baseUntil := dailyAggregationBaseRange(symbol, since, until, includeExtendedHours)
 	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 	if err != nil {
@@ -474,7 +474,7 @@ func tradingPeriodLabelForBaseKLine(symbol string, kline types.KLine, unit strin
 	return market.TradingPeriodLabelStart(symbol, dailyAggregationObservedAt(kline), unit, includeExtendedHours)
 }
 
-func (s *FutuKLineStore) queryAggregatedTradingPeriodKLinesForwardLocked(symbol string, interval types.Interval, startTime time.Time, limit int) ([]types.KLine, error) {
+func (s *KLineStore) queryAggregatedTradingPeriodKLinesForwardLocked(symbol string, interval types.Interval, startTime time.Time, limit int) ([]types.KLine, error) {
 	normalizedLimit := limit
 	if normalizedLimit <= 0 {
 		normalizedLimit = 1
@@ -505,7 +505,7 @@ func (s *FutuKLineStore) queryAggregatedTradingPeriodKLinesForwardLocked(symbol 
 	return aggregated, nil
 }
 
-func (s *FutuKLineStore) queryAggregatedTradingPeriodKLinesBackwardLocked(symbol string, interval types.Interval, endTime time.Time, limit int) ([]types.KLine, error) {
+func (s *KLineStore) queryAggregatedTradingPeriodKLinesBackwardLocked(symbol string, interval types.Interval, endTime time.Time, limit int) ([]types.KLine, error) {
 	normalizedLimit := limit
 	if normalizedLimit <= 0 {
 		normalizedLimit = 1
@@ -538,7 +538,7 @@ func (s *FutuKLineStore) queryAggregatedTradingPeriodKLinesBackwardLocked(symbol
 	return aggregated, nil
 }
 
-func (s *FutuKLineStore) queryAggregatedSessionAwareIntradayKLinesForwardLocked(symbol string, interval types.Interval, startTime time.Time, limit int, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) queryAggregatedSessionAwareIntradayKLinesForwardLocked(symbol string, interval types.Interval, startTime time.Time, limit int, includeExtendedHours bool) ([]types.KLine, error) {
 	normalizedLimit := limit
 	if normalizedLimit <= 0 {
 		normalizedLimit = 1
@@ -581,7 +581,7 @@ func (s *FutuKLineStore) queryAggregatedSessionAwareIntradayKLinesForwardLocked(
 	return rows, nil
 }
 
-func (s *FutuKLineStore) queryAggregatedSessionAwareIntradayKLinesBackwardLocked(symbol string, interval types.Interval, endTime time.Time, limit int, includeExtendedHours bool) ([]types.KLine, error) {
+func (s *KLineStore) queryAggregatedSessionAwareIntradayKLinesBackwardLocked(symbol string, interval types.Interval, endTime time.Time, limit int, includeExtendedHours bool) ([]types.KLine, error) {
 	normalizedLimit := limit
 	if normalizedLimit <= 0 {
 		normalizedLimit = 1

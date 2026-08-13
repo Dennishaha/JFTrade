@@ -118,3 +118,37 @@ func TestMarketDataProviderPersistsAKShareSelection(t *testing.T) {
 		t.Fatalf("reloaded AKShare provider = %q, err=%v", reloaded.ActiveMarketDataProvider(), err)
 	}
 }
+
+func TestBacktestProviderUpgradeCopiesGlobalSelectionOnce(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	store, err := New(path)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := store.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderAKShare); err != nil {
+		t.Fatalf("save global provider: %v", err)
+	}
+	if err := store.EnsureBacktestMarketDataProvider(); err != nil {
+		t.Fatalf("upgrade backtest provider: %v", err)
+	}
+	if got := store.BacktestMarketDataProvider(); got != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("copied backtest provider = %q, want akshare", got)
+	}
+	if err := store.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderFutu); err != nil {
+		t.Fatalf("switch global provider: %v", err)
+	}
+	if err := store.EnsureBacktestMarketDataProvider(); err != nil {
+		t.Fatalf("repeat upgrade: %v", err)
+	}
+	if got := store.BacktestMarketDataProvider(); got != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("independent backtest provider = %q, want akshare", got)
+	}
+
+	reloaded, err := New(path)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if got := reloaded.BacktestMarketDataProvider(); got != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("reloaded backtest provider = %q, want akshare", got)
+	}
+}

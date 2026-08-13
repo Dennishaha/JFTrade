@@ -18,12 +18,13 @@ import (
 const runTable = "backtest_runs"
 
 type runStateRow struct {
-	ID          string `db:"id"`
-	Status      string `db:"status"`
-	RequestJSON string `db:"request_json"`
-	ResultJSON  string `db:"result_json"`
-	CreatedAt   string `db:"created_at"`
-	UpdatedAt   string `db:"updated_at"`
+	ID                 string `db:"id"`
+	Status             string `db:"status"`
+	RequestJSON        string `db:"request_json"`
+	ResultJSON         string `db:"result_json"`
+	CreatedAt          string `db:"created_at"`
+	UpdatedAt          string `db:"updated_at"`
+	MarketDataProvider string `db:"market_data_provider"`
 }
 
 func (s *Store) initializeOrValidateSchema() error {
@@ -61,7 +62,8 @@ func (s *Store) loadFromDB() error {
 	}
 	rows := []runStateRow{}
 	if err := s.db.Select(&rows,
-		`SELECT id, status, request_json, '' AS result_json, created_at, updated_at `+
+		`SELECT id, status, request_json, '' AS result_json, created_at, updated_at, `+
+			`CASE WHEN json_valid(result_json) THEN COALESCE(json_extract(result_json, '$.marketDataProvider'), '') ELSE '' END AS market_data_provider `+
 			`FROM `+runTable+` ORDER BY updated_at DESC, id ASC`); err != nil {
 		return err
 	}
@@ -97,6 +99,7 @@ func runStateFromRow(row runStateRow) (*btsrv.RunState, error) {
 	return &btsrv.RunState{
 		ID: row.ID, Status: row.Status, Request: request, Result: result,
 		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+		MarketDataProvider: row.MarketDataProvider,
 	}, nil
 }
 

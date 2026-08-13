@@ -814,10 +814,10 @@ describe("NativePineTSExecutor", () => {
     ]);
   });
 
-  test("fails closed for tick-based exits that the order protocol cannot express", async () => {
+  test("converts tick-based exits from an open trade into broker prices", async () => {
     const executor = await createNativePineTSExecutor("pinets-test");
 
-    await expect(executor.run(preparedRequest({
+    const result = await executor.run(preparedRequest({
       jobId: "profit-exit",
       source: [
         `//@version=6`,
@@ -830,7 +830,88 @@ describe("NativePineTSExecutor", () => {
       symbol: "US.AAPL",
       timeframe: "1",
       candles: conditionalOrderCandles(),
-    }))).rejects.toThrow("unsupported conditional fields: profit");
+    }));
+
+    expect(result.orderIntents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: "exit", id: "ProfitTicks", fromEntry: "Long", direction: "long",
+        limitPrice: 100.1, parentId: "Long", reduceOnly: true,
+      }),
+    ]));
+  });
+
+  test("converts same-bar profit and loss ticks into an atomic OCO bracket", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+
+    const result = await executor.run(preparedRequest({
+      jobId: "same-bar-tick-bracket",
+      source: [
+        `//@version=6`,
+        `strategy("same bar tick bracket", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `    strategy.exit("XL", from_entry="Long", profit=30, loss=10)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: conditionalOrderCandles(),
+    }));
+
+    expect(result.orderIntents).toEqual([
+      expect.objectContaining({
+        kind: "entry", id: "Long", atomicGroupId: "pine:US.AAPL:0:parent:Long",
+      }),
+      expect.objectContaining({
+        kind: "exit", id: "XL", fromEntry: "Long", direction: "long",
+        limitPrice: 100.3, stopPrice: 99.9, parentId: "Long", reduceOnly: true,
+        atomicGroupId: "pine:US.AAPL:0:parent:Long", ocoGroupId: "pine:US.AAPL:0:oco:XL",
+      }),
+    ]);
+  });
+
+  test("converts short profit and loss ticks on the correct sides of entry", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+
+    const result = await executor.run(preparedRequest({
+      jobId: "same-bar-short-tick-bracket",
+      source: [
+        `//@version=6`,
+        `strategy("same bar short tick bracket", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Short", strategy.short, qty=1)`,
+        `    strategy.exit("XS", from_entry="Short", profit=30, loss=10)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: conditionalOrderCandles(),
+    }));
+
+    expect(result.orderIntents).toEqual([
+      expect.objectContaining({ kind: "entry", id: "Short", direction: "short" }),
+      expect.objectContaining({
+        kind: "exit", id: "XS", direction: "short", limitPrice: 99.7, stopPrice: 100.1,
+        parentId: "Short", reduceOnly: true,
+      }),
+    ]);
+  });
+
+  test("continues to fail closed for trailing exits", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+
+    await expect(executor.run(preparedRequest({
+      jobId: "trailing-exit",
+      source: [
+        `//@version=6`,
+        `strategy("trailing exit", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `if strategy.position_size > 0`,
+        `    strategy.exit("Trail", from_entry="Long", trail_points=10, trail_offset=5)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: conditionalOrderCandles(),
+    }))).rejects.toThrow("unsupported conditional fields: trail_points, trail_offset");
   });
 
   test("keeps PineTS integer division semantics at the adapter boundary", async () => {

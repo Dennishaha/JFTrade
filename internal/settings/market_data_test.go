@@ -14,6 +14,26 @@ type marketDataErrorStore struct {
 	providerErrors []error
 }
 
+type backtestMarketDataStore struct {
+	*fakeStore
+	backtestProvider jfsettings.ActiveMarketDataProvider
+	saveErr          error
+}
+
+func (s *backtestMarketDataStore) BacktestMarketDataProvider() jfsettings.ActiveMarketDataProvider {
+	return s.backtestProvider
+}
+
+func (s *backtestMarketDataStore) SaveBacktestMarketDataProvider(
+	provider jfsettings.ActiveMarketDataProvider,
+) error {
+	if s.saveErr != nil {
+		return s.saveErr
+	}
+	s.backtestProvider = provider
+	return nil
+}
+
 func (s *marketDataErrorStore) SaveActiveMarketDataProvider(
 	input jfsettings.ActiveMarketDataProvider,
 ) error {
@@ -91,6 +111,48 @@ func TestMarketDataProviderSettingsAcceptAKShare(t *testing.T) {
 		applied != jfsettings.MarketDataProviderAKShare {
 		t.Fatalf("AKShare provider save = %q stored=%q applied=%q err=%v",
 			provider, store.ActiveMarketDataProvider(), applied, err)
+	}
+}
+
+func TestBacktestProviderIsPreparedBeforeAtomicPersistence(t *testing.T) {
+	store := &backtestMarketDataStore{
+		fakeStore:        &fakeStore{activeProvider: jfsettings.MarketDataProviderFutu},
+		backtestProvider: jfsettings.MarketDataProviderYFinance,
+	}
+	prepareErr := errors.New("provider health failed")
+	var prepared []jfsettings.ActiveMarketDataProvider
+	service := NewService(store, WithSideEffects(SideEffects{
+		OnBacktestProviderChanged: func(provider jfsettings.ActiveMarketDataProvider) error {
+			prepared = append(prepared, provider)
+			if got := store.BacktestMarketDataProvider(); got != jfsettings.MarketDataProviderYFinance {
+				t.Fatalf("provider persisted before preparation = %q", got)
+			}
+			return prepareErr
+		},
+	}))
+
+	result, err := service.SaveBacktestMarketDataProvider(jfsettings.MarketDataProviderAKShare)
+	if !errors.Is(err, ErrProviderRuntimeUpdate) || result.ActiveProvider != jfsettings.MarketDataProviderYFinance {
+		t.Fatalf("failed preparation result = %+v, err=%v", result, err)
+	}
+	if got := store.BacktestMarketDataProvider(); got != jfsettings.MarketDataProviderYFinance {
+		t.Fatalf("failed preparation changed provider = %q", got)
+	}
+	if len(prepared) != 1 || prepared[0] != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("prepared providers = %#v", prepared)
+	}
+
+	service = NewService(store, WithSideEffects(SideEffects{
+		OnBacktestProviderChanged: func(provider jfsettings.ActiveMarketDataProvider) error {
+			prepared = append(prepared, provider)
+			return nil
+		},
+	}))
+	result, err = service.SaveBacktestMarketDataProvider(jfsettings.MarketDataProviderAKShare)
+	if err != nil || result.ActiveProvider != jfsettings.MarketDataProviderAKShare ||
+		store.BacktestMarketDataProvider() != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("successful preparation result = %+v, stored=%q, err=%v",
+			result, store.BacktestMarketDataProvider(), err)
 	}
 }
 

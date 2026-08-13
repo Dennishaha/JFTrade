@@ -46,6 +46,8 @@ type strategyRuntimeStubExchange struct {
 	queryKLinesErr    error
 	queryFundsErr     error
 	queryPositionsErr error
+	stream            bbgotypes.Stream
+	nilStream         bool
 }
 
 func newStrategyRuntimeStubExchange() *strategyRuntimeStubExchange {
@@ -75,6 +77,12 @@ func (e *strategyRuntimeStubExchange) PlatformFeeCurrency() string {
 }
 
 func (e *strategyRuntimeStubExchange) NewStream() bbgotypes.Stream {
+	if e.nilStream {
+		return nil
+	}
+	if e.stream != nil {
+		return e.stream
+	}
 	stream := bbgotypes.NewStandardStream()
 	return &stream
 }
@@ -181,7 +189,6 @@ func (e *strategyRuntimeStubExchange) CancelBrokerOrder(
 func (e *strategyRuntimeStubExchange) appendHistory(symbol string, klines ...bbgotypes.KLine) {
 	e.history[symbol] = append(e.history[symbol], klines...)
 }
-
 
 func strategyRuntimeHistoricalKLine(
 	symbol string,

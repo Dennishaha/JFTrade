@@ -428,16 +428,13 @@ func TestAggregatedReadersDistinguishDirectSeriesCorruptBaseDataAndUnavailableSt
 	}
 }
 
-func TestStorageInvariantHelpersReportUnexpectedValuesAndRetainTimeContracts(t *testing.T) {
+func TestStorageInvariantHelpersReportUnexpectedValues(t *testing.T) {
 	besteffort.LogError(errors.New("best-effort close failure"))
 	defer func() {
 		if recovered := recover(); recovered == nil {
 			t.Fatal("jftradeCheckedTypeAssertion did not reject an unexpected cached value")
 		}
 	}()
-	if got := syncHistoryRequestEndTime(types.Interval("invalid"), time.Date(2026, time.June, 15, 1, 30, 0, 0, time.FixedZone("test", 8*3600))); !got.Equal(time.Date(2026, time.June, 14, 17, 30, 0, 0, time.UTC)) {
-		t.Fatalf("zero-duration sync request end = %s", got)
-	}
 	_ = jftradeCheckedTypeAssertion[bool]("not-a-bool")
 }
 

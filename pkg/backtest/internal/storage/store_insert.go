@@ -11,14 +11,14 @@ import (
 
 // InsertKLine inserts a single K-line into the store. Duplicates (same
 // end_time in the same series table) are replaced.
-func (s *FutuKLineStore) InsertKLine(kline types.KLine, rehabType string) error {
+func (s *KLineStore) InsertKLine(kline types.KLine, rehabType string) error {
 	if s == nil {
 		return nil
 	}
 	return s.insertKLinesQueued([]types.KLine{kline}, rehabType)
 }
 
-func (s *FutuKLineStore) insertKLineLocked(kline types.KLine, rehabType string, ensuredTables map[string]struct{}) error {
+func (s *KLineStore) insertKLineLocked(kline types.KLine, rehabType string, ensuredTables map[string]struct{}) error {
 	tableName := s.writeTableName(kline.Symbol, kline.Interval, rehabType)
 	if ensuredTables != nil {
 		if _, ok := ensuredTables[tableName]; !ok {
@@ -53,7 +53,7 @@ func klineInsertStatement(tableName string) string {
 }
 
 // InsertKLines batch-inserts K-lines into the store.
-func (s *FutuKLineStore) InsertKLines(klines []types.KLine, rehabType string) error {
+func (s *KLineStore) InsertKLines(klines []types.KLine, rehabType string) error {
 	if s == nil || len(klines) == 0 {
 		return nil
 	}
@@ -61,11 +61,11 @@ func (s *FutuKLineStore) InsertKLines(klines []types.KLine, rehabType string) er
 	return s.insertKLinesQueued(copied, rehabType)
 }
 
-func (s *FutuKLineStore) insertKLinesQueued(klines []types.KLine, rehabType string) error {
+func (s *KLineStore) insertKLinesQueued(klines []types.KLine, rehabType string) error {
 	return s.insertKLinesLocked(klines, rehabType)
 }
 
-func (s *FutuKLineStore) insertKLinesLocked(klines []types.KLine, rehabType string) error {
+func (s *KLineStore) insertKLinesLocked(klines []types.KLine, rehabType string) error {
 	if len(klines) == 0 {
 		return nil
 	}

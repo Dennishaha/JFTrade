@@ -37,7 +37,7 @@ func strategyRuntimeBrokerPlaceOrderQuery(binding stratsrv.InstanceBinding, symb
 
 func strategyRuntimeBrokerID(binding stratsrv.InstanceBinding) string {
 	if binding.BrokerAccount == nil || strings.TrimSpace(binding.BrokerAccount.BrokerID) == "" {
-		return "futu"
+		return ""
 	}
 	return strings.ToLower(strings.TrimSpace(binding.BrokerAccount.BrokerID))
 }

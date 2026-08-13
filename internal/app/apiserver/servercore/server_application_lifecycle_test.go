@@ -1,13 +1,38 @@
 package servercore
 
 import (
+	"context"
 	"errors"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	appcomposition "github.com/jftrade/jftrade-main/internal/app/apiserver/application"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
+	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 )
+
+type shutdownOrderSyncer struct {
+	runtime  *marketdataapp.Runtime
+	started  chan struct{}
+	closeErr error
+}
+
+func (s *shutdownOrderSyncer) Sync(ctx context.Context, _ btsrv.KLineSyncParams, _ *btsrv.SyncProgress) error {
+	close(s.started)
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (s *shutdownOrderSyncer) Close() error {
+	lease, err := s.runtime.AcquireProvider(context.Background(), marketdataapp.ProviderFutu, false)
+	s.closeErr = err
+	if lease != nil {
+		lease.Release()
+	}
+	return nil
+}
 
 func TestServerCloseUsesApplicationResourceOrderAndStableAggregation(t *testing.T) {
 	server := &Server{}
@@ -44,6 +69,49 @@ func TestServerCloseUsesApplicationResourceOrderAndStableAggregation(t *testing.
 	}
 	if !reflect.DeepEqual(closed, []string{"second", "first"}) {
 		t.Fatalf("repeat Close ran resources again: %v", closed)
+	}
+}
+
+func TestServerCloseStopsBacktestBeforeMarketDataRuntime(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	if err := server.backtestSvc.Close(); err != nil {
+		t.Fatalf("close original backtest service: %v", err)
+	}
+
+	syncer := &shutdownOrderSyncer{
+		runtime: marketdataapp.RuntimeFromService(server.marketdataSvc),
+		started: make(chan struct{}),
+	}
+	server.backtestSvc = btsrv.NewService(
+		btsrv.WithSyncTaskStore(newBacktestSyncTaskStore()),
+		btsrv.WithDBPathFn(func() string { return filepath.Join(t.TempDir(), "backtest.db") }),
+		btsrv.WithBacktestProviderIDFn(func() string { return marketdataapp.ProviderFutu }),
+		btsrv.WithProviderKLineSyncerFn(func(context.Context, string, string) (btsrv.KLineSyncer, error) {
+			return syncer, nil
+		}),
+	)
+	started, err := server.backtestSvc.Sync(t.Context(), btsrv.SyncRequest{
+		Market: "US", Code: "AAPL", Intervals: []string{"1d"},
+		Since: "2026-08-03T00:00:00Z", Until: "2026-08-04T00:00:00Z",
+		RehabType: "none", SessionScope: "regular",
+	})
+	if err != nil {
+		t.Fatalf("start blocking sync: %v", err)
+	}
+	if started.MarketDataProvider != marketdataapp.ProviderFutu {
+		t.Fatalf("sync provider = %q", started.MarketDataProvider)
+	}
+	<-syncer.started
+
+	if err := server.Close(); err != nil {
+		t.Fatalf("Server.Close: %v", err)
+	}
+	if syncer.closeErr != nil {
+		t.Fatalf("syncer released after market-data runtime closed: %v", syncer.closeErr)
 	}
 }
 

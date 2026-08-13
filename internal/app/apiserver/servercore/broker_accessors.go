@@ -22,11 +22,6 @@ func persistenceOnlySettingsStore(store SidecarSettingsStore) SidecarSettingsSto
 }
 
 func brokerExecutionExchangeFor(s *serverApplication) liveruntime.Exchange {
-	if strategyRuntime := s.runtimes.StrategyRuntime(); strategyRuntime != nil {
-		if exchange := strategyRuntime.CurrentExchange(); exchange != nil {
-			return exchange
-		}
-	}
 	if !s.futuCoordinator().Enabled() {
 		return nil
 	}

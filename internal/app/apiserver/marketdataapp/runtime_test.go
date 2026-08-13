@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
@@ -585,6 +586,174 @@ func TestRuntimeReportsBothBoundedSidecarCleanupFailures(t *testing.T) {
 	if sidecar.closeCalls != 2 {
 		t.Fatalf("sidecar close calls = %d", sidecar.closeCalls)
 	}
+}
+
+func TestProviderLeasesKeepSharedPythonSidecarUntilLastRelease(t *testing.T) {
+	runtime, err := NewRuntime(RuntimeOptions{FutuProvider: &providerStub{id: ProviderFutu}})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	sidecar := &sidecarLifecycleStub{}
+	installHealthySidecar(runtime, sidecar)
+
+	yfinanceLease, err := runtime.AcquireProvider(t.Context(), ProviderYFinance, false)
+	if err != nil {
+		t.Fatalf("AcquireProvider(yfinance): %v", err)
+	}
+	secondYFinanceLease, err := runtime.AcquireProvider(t.Context(), ProviderYFinance, false)
+	if err != nil {
+		t.Fatalf("AcquireProvider(yfinance second): %v", err)
+	}
+	if yfinanceLease.Provider() != secondYFinanceLease.Provider() {
+		t.Fatal("concurrent yfinance leases did not share one provider instance")
+	}
+	akshareLease, err := runtime.AcquireProvider(t.Context(), ProviderAKShare, false)
+	if err != nil {
+		t.Fatalf("AcquireProvider(akshare): %v", err)
+	}
+	yfinanceLease.Release()
+	if sidecar.stopCalls != 0 || !sidecar.running {
+		t.Fatalf("sidecar after first release = running %t, stops %d", sidecar.running, sidecar.stopCalls)
+	}
+	secondYFinanceLease.Release()
+	if sidecar.stopCalls != 0 || !sidecar.running {
+		t.Fatalf("sidecar with AKShare lease = running %t, stops %d", sidecar.running, sidecar.stopCalls)
+	}
+	akshareLease.Release()
+	if sidecar.stopCalls != 1 || sidecar.running {
+		t.Fatalf("sidecar after final release = running %t, stops %d", sidecar.running, sidecar.stopCalls)
+	}
+	// Release is idempotent and must not alter refcounts.
+	akshareLease.Release()
+	if sidecar.stopCalls != 1 {
+		t.Fatalf("sidecar stops after duplicate release = %d", sidecar.stopCalls)
+	}
+}
+
+func TestProviderSwitchKeepsAcceptedLeaseOnOldInstance(t *testing.T) {
+	runtime, err := NewRuntime(RuntimeOptions{FutuProvider: &providerStub{id: ProviderFutu}})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	sidecar := &sidecarLifecycleStub{}
+	installHealthySidecar(runtime, sidecar)
+	if err := runtime.Activate(t.Context(), Activation{ProviderID: ProviderYFinance}); err != nil {
+		t.Fatalf("Activate(yfinance): %v", err)
+	}
+	lease, err := runtime.AcquireProvider(t.Context(), ProviderYFinance, false)
+	if err != nil {
+		t.Fatalf("AcquireProvider(yfinance): %v", err)
+	}
+	acceptedProvider := lease.Provider()
+	if acceptedProvider != runtime.snapshot().provider {
+		t.Fatal("accepted lease did not pin the active provider instance")
+	}
+	if err := runtime.Activate(t.Context(), Activation{ProviderID: ProviderFutu}); err != nil {
+		t.Fatalf("Activate(futu): %v", err)
+	}
+	if runtime.ActiveProviderID() != ProviderFutu || lease.Provider() != acceptedProvider {
+		t.Fatalf("switch changed accepted lease: active=%q lease=%p want=%p",
+			runtime.ActiveProviderID(), lease.Provider(), acceptedProvider)
+	}
+	if !sidecar.running || sidecar.stopCalls != 0 {
+		t.Fatalf("old lease lost sidecar: running=%t stops=%d", sidecar.running, sidecar.stopCalls)
+	}
+	lease.Release()
+	if sidecar.running || sidecar.stopCalls != 1 {
+		t.Fatalf("released old lease retained sidecar: running=%t stops=%d", sidecar.running, sidecar.stopCalls)
+	}
+}
+
+func TestBacktestProviderHelpersListAndPrepareProviders(t *testing.T) {
+	runtime, err := NewRuntime(RuntimeOptions{FutuProvider: &providerStub{id: ProviderFutu}})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	sidecar := &sidecarLifecycleStub{}
+	installHealthySidecar(runtime, sidecar)
+	service := marketdata.NewService(runtime)
+
+	descriptors, err := ProviderCatalog(service)(t.Context())
+	if err != nil {
+		t.Fatalf("ProviderCatalog: %v", err)
+	}
+	wantIDs := []string{ProviderFutu, ProviderYFinance, ProviderAKShare}
+	if len(descriptors) != len(wantIDs) {
+		t.Fatalf("provider descriptor count = %d, want %d", len(descriptors), len(wantIDs))
+	}
+	for index, wantID := range wantIDs {
+		if descriptors[index].SelectionID != wantID {
+			t.Fatalf("descriptor[%d].SelectionID = %q, want %q",
+				index, descriptors[index].SelectionID, wantID)
+		}
+	}
+
+	prepare := BacktestProviderPreparer(service)
+	if err := prepare(jfsettings.MarketDataProviderYFinance); err != nil {
+		t.Fatalf("prepare yfinance: %v", err)
+	}
+	if sidecar.ensureCalls != 1 || sidecar.stopCalls != 1 || sidecar.running {
+		t.Fatalf("prepared lease lifecycle = ensure %d stop %d running %t",
+			sidecar.ensureCalls, sidecar.stopCalls, sidecar.running)
+	}
+	if len(runtime.providerLeases) != 0 {
+		t.Fatalf("released provider leases = %#v", runtime.providerLeases)
+	}
+}
+
+func TestBacktestProviderPreparerReturnsPreparationFailure(t *testing.T) {
+	runtime, err := NewRuntime(RuntimeOptions{FutuProvider: &providerStub{id: ProviderFutu}})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	healthErr := errors.New("provider is unavailable")
+	runtime.healthCheck = func(context.Context, marketdata.Provider, bool) error {
+		return healthErr
+	}
+	service := marketdata.NewService(runtime)
+
+	err = BacktestProviderPreparer(service)(jfsettings.MarketDataProviderFutu)
+	if !errors.Is(err, healthErr) {
+		t.Fatalf("prepare error = %v, want %v", err, healthErr)
+	}
+	if len(runtime.providerLeases) != 0 {
+		t.Fatalf("failed preparation retained leases = %#v", runtime.providerLeases)
+	}
+}
+
+func TestProviderLeaseNilBoundariesAndRuntimeInitialization(t *testing.T) {
+	var missingRuntime *Runtime
+	var missingContext context.Context
+	if _, err := missingRuntime.AcquireProvider(missingContext, ProviderFutu, false); err == nil {
+		t.Fatal("nil runtime acquired a provider")
+	}
+	var missingLease *ProviderLease
+	if missingLease.ProviderID() != "" || missingLease.Provider() != nil {
+		t.Fatal("nil lease exposed provider state")
+	}
+	if _, err := missingLease.Descriptor(t.Context()); err == nil {
+		t.Fatal("nil lease returned a descriptor")
+	}
+	missingLease.Release()
+
+	runtime, err := NewRuntime(RuntimeOptions{FutuProvider: &providerStub{id: ProviderFutu}})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	runtime.providerPool = nil
+	runtime.providerLeases = nil
+	lease, err := runtime.AcquireProvider(missingContext, ProviderFutu, false)
+	if err != nil {
+		t.Fatalf("AcquireProvider: %v", err)
+	}
+	if lease.ProviderID() != ProviderFutu || lease.Provider() == nil {
+		t.Fatalf("initialized lease = id %q provider %v", lease.ProviderID(), lease.Provider())
+	}
+	descriptor, err := lease.Descriptor(t.Context())
+	if err != nil || descriptor.ProviderID != ProviderFutu {
+		t.Fatalf("lease descriptor = %#v, %v", descriptor, err)
+	}
+	lease.Release()
 }
 
 type providerStub struct {

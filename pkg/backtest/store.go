@@ -13,7 +13,12 @@ const (
 	rehabTypeForwardCode      = internalstorage.RehabTypeForwardCode
 )
 
-type FutuKLineStore = internalstorage.FutuKLineStore
+type KLineStore = internalstorage.KLineStore
+type FutuKLineStore = KLineStore
+
+func NewKLineStore(dbPath, providerID string) (*KLineStore, error) {
+	return internalstorage.NewKLineStore(dbPath, providerID)
+}
 
 func NewFutuKLineStore(dbPath string) (*FutuKLineStore, error) {
 	return internalstorage.NewFutuKLineStore(dbPath)
@@ -41,6 +46,10 @@ func KLineTableName(symbol string, interval types.Interval, rehabType string) st
 
 func KLineTableNameForSessionScope(symbol string, interval types.Interval, rehabType string, sessionScope string) string {
 	return internalstorage.KLineTableNameForSessionScope(symbol, interval, rehabType, sessionScope)
+}
+
+func KLineTableNameForProviderAndSessionScope(providerID, symbol string, interval types.Interval, rehabType string, sessionScope string) string {
+	return internalstorage.KLineTableNameForProviderAndSessionScope(providerID, symbol, interval, rehabType, sessionScope)
 }
 
 func NormalizeKLineSessionScopeName(scope string) string {

@@ -29,7 +29,7 @@ func TestStrategyRuntimeOrderUsesSharedPreTradeRiskGateway(t *testing.T) {
 	)
 	deps := newStrategyRuntimeDependencies(server)
 	price := 100.0
-	_, err := deps.PlaceExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{
+	_, err := deps.TradeCommands.PlaceExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{
 		Symbol: "US.AAPL",
 		Query: broker.PlaceOrderQuery{
 			ReadQuery: broker.ReadQuery{TradingEnvironment: "REAL", Market: "US"},

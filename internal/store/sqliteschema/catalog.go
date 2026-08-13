@@ -27,7 +27,7 @@ const (
 )
 
 const (
-	BacktestVersion     = 2
+	BacktestVersion     = 3
 	BacktestRunsVersion = 1
 	StrategyVersion     = 2
 	ExecutionVersion    = 5

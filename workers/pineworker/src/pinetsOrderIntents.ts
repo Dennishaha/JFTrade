@@ -4,7 +4,16 @@ type PendingOrderRecord = Record<string, unknown>;
 
 type PineTSOrderExecutionContext = {
   idx?: number;
+  pine?: {
+    syminfo?: {
+      mintick?: unknown;
+    };
+  };
   strategy?: {
+    config?: {
+      process_orders_on_close?: unknown;
+      slippage?: unknown;
+    };
     pending_orders?: unknown[];
     opentrades?: unknown[];
     position_size?: unknown;
@@ -221,7 +230,7 @@ function orderIntentFromPendingOrder(
   barIndex: number,
 ): Record<string, unknown> {
   const id = optionalString(order.id) ?? "";
-  rejectUnsupportedConditionalExit(order, id);
+  rejectUnsupportedTrailingExit(order, id);
 
   const category = optionalString(order.category) ?? "entry";
   validatePendingOrderPriceFields(order, id);
@@ -229,6 +238,9 @@ function orderIntentFromPendingOrder(
     throw new Error(`Pine strategy entry order ${JSON.stringify(id)} has no positive quantity`);
   }
   const resolved = resolvePendingOrder(order, category, context);
+  const exitPrices = category === "exit"
+    ? resolveConditionalExitPrices(order, context, request, barIndex, resolved.direction)
+    : {};
   const intent: Record<string, unknown> = {
     kind: category === "exit" ? "exit" : "entry",
     id,
@@ -239,8 +251,8 @@ function orderIntentFromPendingOrder(
   setIntentString(intent, "fromEntry", order.from_entry);
   setPositiveIntentNumber(intent, "quantity", resolved.quantity);
   setPositiveIntentNumber(intent, "quantityPct", resolved.quantityPct);
-  setIntentNumber(intent, "limitPrice", order.limit);
-  setIntentNumber(intent, "stopPrice", order.stop);
+  setIntentNumber(intent, "limitPrice", exitPrices.limitPrice ?? order.limit);
+  setIntentNumber(intent, "stopPrice", exitPrices.stopPrice ?? order.stop);
   setIntentString(intent, "comment", order.comment);
   setIntentString(intent, "alertMessage", order.alert_message);
   if (typeof order.disable_alert === "boolean") {
@@ -268,7 +280,7 @@ function annotateAtomicOrderSemantics(
         intent.atomicGroupId = atomicGroupID(request, barIndex, fromEntry);
       }
     }
-    if (optionalPositiveNumber(order.limit) !== undefined && optionalPositiveNumber(order.stop) !== undefined) {
+    if (optionalPositiveNumber(intent.limitPrice) !== undefined && optionalPositiveNumber(intent.stopPrice) !== undefined) {
       intent.ocoGroupId = ocoGroupID(request, barIndex, id);
       if (intent.atomicGroupId === undefined) {
         intent.atomicGroupId = intent.ocoGroupId;
@@ -292,18 +304,160 @@ function ocoGroupID(request: PreparedRunScriptRequest, barIndex: number, exitId:
   return ["pine", request.symbol, String(barIndex), "oco", exitId].join(":");
 }
 
-function rejectUnsupportedConditionalExit(order: PendingOrderRecord, id: string): void {
+function rejectUnsupportedTrailingExit(order: PendingOrderRecord, id: string): void {
   if ((optionalString(order.category) ?? "entry") !== "exit") {
     return;
   }
-  const unsupported = ["profit", "loss", "trail_price", "trail_points", "trail_offset"]
+  const unsupported = ["trail_price", "trail_points", "trail_offset"]
     .filter((field) => order[field] !== undefined);
   if (unsupported.length > 0) {
     throw new Error(
       `Pine strategy exit ${JSON.stringify(id)} uses unsupported conditional fields: ${unsupported.join(", ")}; ` +
-      "the worker cannot safely convert tick-based or trailing exits to broker prices",
+      "the worker cannot safely convert trailing exits to broker prices",
     );
   }
+}
+
+function resolveConditionalExitPrices(
+  order: PendingOrderRecord,
+  context: PineTSOrderExecutionContext,
+  request: PreparedRunScriptRequest,
+  barIndex: number,
+  direction: "long" | "short",
+): { limitPrice?: number; stopPrice?: number } {
+  const profitTicks = order.limit === undefined ? requiredPositiveTicks(order.profit, order, "profit") : undefined;
+  const lossTicks = order.stop === undefined ? requiredPositiveTicks(order.loss, order, "loss") : undefined;
+  if (profitTicks === undefined && lossTicks === undefined) {
+    return {};
+  }
+
+  const mintick = optionalPositiveNumber(context.pine?.syminfo?.mintick) ?? 0.01;
+  const entryPrice = conditionalExitEntryPrice(order, context, request, barIndex, mintick);
+  const prices: { limitPrice?: number; stopPrice?: number } = {};
+  if (profitTicks !== undefined) {
+    prices.limitPrice = direction === "long"
+      ? entryPrice + profitTicks * mintick
+      : entryPrice - profitTicks * mintick;
+  }
+  if (lossTicks !== undefined) {
+    prices.stopPrice = direction === "long"
+      ? entryPrice - lossTicks * mintick
+      : entryPrice + lossTicks * mintick;
+  }
+  for (const [kind, price] of Object.entries(prices)) {
+    if (!(typeof price === "number" && Number.isFinite(price) && price > 0)) {
+      throw new Error(
+        `Pine strategy exit ${JSON.stringify(optionalString(order.id) ?? "")} resolves ${kind} to an invalid broker price`,
+      );
+    }
+  }
+  return prices;
+}
+
+function requiredPositiveTicks(
+  value: unknown,
+  order: PendingOrderRecord,
+  field: "profit" | "loss",
+): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const ticks = optionalPositiveNumber(value);
+  if (ticks === undefined) {
+    throw new Error(
+      `Pine strategy exit ${JSON.stringify(optionalString(order.id) ?? "")} has invalid ${field} ticks`,
+    );
+  }
+  return ticks;
+}
+
+function conditionalExitEntryPrice(
+  order: PendingOrderRecord,
+  context: PineTSOrderExecutionContext,
+  request: PreparedRunScriptRequest,
+  barIndex: number,
+  mintick: number,
+): number {
+  const matchingTrades = matchingOpenTrades(order, context);
+  if (matchingTrades.length > 0) {
+    const prices = matchingTrades.map((trade) =>
+      optionalPositiveNumber(trade._bracket_entry) ?? optionalPositiveNumber(trade.entry_price)
+    );
+    if (prices.some((price) => price === undefined)) {
+      throw new Error(`Pine strategy exit ${JSON.stringify(optionalString(order.id) ?? "")} has an invalid entry price`);
+    }
+    const first = prices[0]!;
+    if (prices.some((price) => Math.abs(price! - first) > 1e-9)) {
+      throw new Error(
+        `Pine strategy exit ${JSON.stringify(optionalString(order.id) ?? "")} spans entries with different fill prices; ` +
+        "one broker bracket cannot preserve per-entry tick exits",
+      );
+    }
+    return first;
+  }
+
+  const fromEntry = optionalString(order.from_entry);
+  const pendingEntries = pendingEntryOrders(context).filter((entry) =>
+    fromEntry === undefined || optionalString(entry.id) === fromEntry
+  );
+  if (pendingEntries.length !== 1) {
+    throw new Error(
+      `Pine strategy exit ${JSON.stringify(optionalString(order.id) ?? "")} cannot resolve one pending parent entry for tick exits`,
+    );
+  }
+  return expectedPendingMarketEntryPrice(pendingEntries[0]!, context, request, barIndex, mintick);
+}
+
+function matchingOpenTrades(
+  order: PendingOrderRecord,
+  context: PineTSOrderExecutionContext,
+): PendingOrderRecord[] {
+  const openTrades = recordArray(context.strategy?.opentrades);
+  const intendedTradeIDs = stringArray(order._intended_trade_ids);
+  if (intendedTradeIDs.length > 0) {
+    const intended = new Set(intendedTradeIDs);
+    return openTrades.filter((trade) => intended.has(optionalString(trade.id) ?? ""));
+  }
+  const fromEntry = optionalString(order.from_entry);
+  return fromEntry === undefined
+    ? openTrades
+    : openTrades.filter((trade) => optionalString(trade.entry_id) === fromEntry);
+}
+
+function expectedPendingMarketEntryPrice(
+  entry: PendingOrderRecord,
+  context: PineTSOrderExecutionContext,
+  request: PreparedRunScriptRequest,
+  barIndex: number,
+  mintick: number,
+): number {
+  if ((optionalString(entry.type) ?? "market") !== "market") {
+    throw new Error(
+      `Pine strategy exit references pending ${JSON.stringify(optionalString(entry.type) ?? "market")} entry ` +
+      "whose broker fill price cannot be known when converting tick exits",
+    );
+  }
+  const processOnClose = context.strategy?.config?.process_orders_on_close === true;
+  const candle = processOnClose ? request.candles[barIndex] : request.candles[barIndex + 1];
+  const basePrice = processOnClose ? candle?.close : candle?.open;
+  if (!(typeof basePrice === "number" && Number.isFinite(basePrice) && basePrice > 0)) {
+    throw new Error(
+      `Pine strategy exit ${JSON.stringify(optionalString(entry.id) ?? "")} depends on a pending market entry ` +
+      "whose next broker fill price is not available",
+    );
+  }
+  const slippageTicks = optionalNonNegativeNumber(context.strategy?.config?.slippage) ?? 0;
+  const direction = directionFromPendingEntry(entry);
+  return basePrice + direction * slippageTicks * mintick;
+}
+
+function directionFromPendingEntry(entry: PendingOrderRecord): 1 | -1 {
+  const direction = entry.direction;
+  if (direction === 1 || direction === "long" || direction === "buy") return 1;
+  if (direction === -1 || direction === "short" || direction === "sell") return -1;
+  throw new Error(
+    `Pine strategy entry ${JSON.stringify(optionalString(entry.id) ?? "")} has unsupported direction for tick exits`,
+  );
 }
 
 function validatePendingOrderPriceFields(order: PendingOrderRecord, id: string): void {
@@ -472,6 +626,10 @@ function directionFromSignedNumber(value: unknown): "long" | "short" | undefined
 
 function optionalPositiveNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function optionalNonNegativeNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
 function recordArray(value: unknown): PendingOrderRecord[] {

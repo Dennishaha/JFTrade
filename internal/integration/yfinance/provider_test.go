@@ -30,6 +30,27 @@ func newTestProvider(t *testing.T, server *testkit.Server) *Provider {
 	return provider
 }
 
+func TestProviderAdvertisesAndEnforcesUnadjustedHistoricalCandles(t *testing.T) {
+	descriptor := ProviderDescriptor()
+	if descriptor.SelectionID != "yfinance" ||
+		!slices.Equal(descriptor.Capabilities.PriceAdjustments, []string{"none"}) ||
+		descriptor.Capabilities.HistoricalLookbackDays["1m"] != 7 ||
+		descriptor.Capabilities.HistoricalLookbackDays["5m"] != 60 ||
+		descriptor.Capabilities.HistoricalLookbackDays["1h"] != 730 {
+		t.Fatalf("yfinance historical capabilities = %+v", descriptor)
+	}
+	provider, err := NewProvider("http://127.0.0.1:7788")
+	if err != nil {
+		t.Fatalf("NewProvider: %v", err)
+	}
+	_, err = provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
+		Market: "US", Symbol: "AAPL", Period: "1d", Adjustment: "forward",
+	})
+	if !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("forward adjustment error = %v, want ErrUnsupported", err)
+	}
+}
+
 func TestProviderDescriptorReflectsActualYahooPollingBoundary(t *testing.T) {
 	provider, err := NewProvider("http://127.0.0.1:7788")
 	if err != nil {

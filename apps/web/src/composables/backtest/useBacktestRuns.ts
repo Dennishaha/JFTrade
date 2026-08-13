@@ -68,6 +68,7 @@ export interface BacktestFormState {
 
 interface UseBacktestRunsOptions {
   formState: ComputedRef<BacktestFormState>;
+  validateRange?: () => string;
   normalizeInstrument: (
     input: Pick<BacktestFormState, "market" | "code" | "instrumentId">,
   ) => Promise<{ market: string; prefix: string; code: string; instrumentId: string }>;
@@ -262,6 +263,10 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
 
   async function toggleRun(runId: string) {
     expandedRuns[runId] = true;
+    await loadRunDetail(runId);
+  }
+
+  async function loadRunDetail(runId: string): Promise<void> {
     const current = runs.value.find((run) => run.id === runId);
     if (current?.result) {
       return;
@@ -402,6 +407,11 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   async function syncKlines() {
     const formState = options.formState.value;
     error.value = "";
+    const rangeError = options.validateRange?.() ?? "";
+    if (rangeError !== "") {
+      error.value = `同步启动失败: ${rangeError}`;
+      return;
+    }
 
     try {
       const instrument = await resolveBacktestInstrumentPayload(
@@ -435,6 +445,12 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
 
     running.value = true;
     error.value = "";
+    const rangeError = options.validateRange?.() ?? "";
+    if (rangeError !== "") {
+      error.value = `启动回测失败: ${rangeError}`;
+      running.value = false;
+      return;
+    }
     try {
       const instrument = await resolveBacktestInstrumentPayload(
         formState,
@@ -445,10 +461,21 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
         return;
       }
       const payload = buildBacktestStartRequestPayload(formState, instrument);
-      const data = await apiPost(
-        "/api/v1/backtests",
-        toBacktestStartRequestWire(payload),
-      );
+      const wire = toBacktestStartRequestWire(payload);
+      const submitBacktest = () => apiPost("/api/v1/backtests", wire);
+      let data: Awaited<ReturnType<typeof submitBacktest>>;
+      try {
+        data = await submitBacktest();
+      } catch (cause) {
+        if (!isMissingBacktestDataError(cause)) throw cause;
+        const progress = await startSync(
+          buildBacktestSyncRequestPayload(formState, instrument),
+        );
+        if (progress?.status !== "completed") {
+          throw new Error(syncError.value || "历史 K 线同步未完成");
+        }
+        data = await submitBacktest();
+      }
       startPolling(data.id);
       await queryClient.invalidateQueries({ queryKey: backtestRunsQueryKey });
       await refreshRuns();
@@ -488,6 +515,10 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
             return;
           }
           await refreshRuns();
+          if (disposed) {
+            return;
+          }
+          await loadRunDetail(runId);
           return;
         }
       } catch (cause) {
@@ -534,6 +565,18 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     cancelSync,
     startBacktest,
   };
+}
+
+function isMissingBacktestDataError(cause: unknown): boolean {
+  const candidate = cause as { status?: unknown; message?: unknown } | null;
+  if (candidate?.status !== 400 || typeof candidate.message !== "string") {
+    return false;
+  }
+  const message = candidate.message.toLowerCase();
+  return (
+    message.includes("k-line data is not ready") ||
+    message.includes("missing k-line coverage")
+  );
 }
 
 function isTerminalBacktestStatus(status: string | undefined): boolean {

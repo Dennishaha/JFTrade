@@ -57,7 +57,7 @@ const reportTabs = [
       <span>{{ formatNumber(run.request.initialBalance, { maximumFractionDigits: 3 }) }} {{ quoteCurrency }}</span>
     </div>
 
-    <div v-if="run.status === 'running' || run.status === 'queued' || versionNotice || detailLoading || detailError"
+    <div v-if="run.status === 'running' || run.status === 'queued' || run.result?.error || versionNotice || detailLoading || detailError"
       class="bt-report-notices">
       <div v-if="run.status === 'running' || run.status === 'queued'" class="bt-report-notice flex items-center gap-3">
         <v-progress-linear :color="backtestRunProgressColor(run.status)" indeterminate rounded :height="4" class="flex-1" />
@@ -66,6 +66,8 @@ const reportTabs = [
         </span>
       </div>
       <div v-if="versionNotice" class="bt-report-notice bt-report-notice--warning">{{ versionNotice }}</div>
+      <div v-if="run.result?.error" class="bt-report-notice bt-report-notice--error"
+        data-testid="backtest-run-error">回测失败：{{ run.result.error }}</div>
       <div v-if="detailLoading" class="bt-report-notice">正在加载完整回测详情…</div>
       <div v-if="detailError" class="bt-report-notice bt-report-notice--error">{{ detailError }}</div>
     </div>

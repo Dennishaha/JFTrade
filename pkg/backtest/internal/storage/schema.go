@@ -11,7 +11,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 )
 
-// KLineTable is the SQLite table-name prefix for Futu historical K-lines.
+// KLineTable is the SQLite table-name prefix for historical K-lines.
 const KLineTable = "local_klines"
 
 const selectKLineColumns = "start_time, end_time, open, high, low, close, volume"
@@ -38,8 +38,7 @@ func normalizeRehabTypeName(rehabType string) string {
 	}
 }
 
-// RehabTypeName converts a qotcommonpb.RehabType enum to the store's string
-// representation: "forward", "backward", or "none".
+// RehabTypeName preserves the published legacy adjustment-code mapping.
 func RehabTypeName(rehabType int32) string {
 	switch rehabType {
 	case 1:
@@ -149,24 +148,41 @@ func klineTableName(symbol string, interval types.Interval, rehabType string) st
 }
 
 func klineTableNameForSessionScope(symbol string, interval types.Interval, rehabType string, sessionScope string) string {
+	return klineTableNameForProviderAndSessionScope("futu", symbol, interval, rehabType, sessionScope)
+}
+
+func klineTableNameForProviderAndSessionScope(providerID, symbol string, interval types.Interval, rehabType string, sessionScope string) string {
+	normalizedProviderID := normalizeProviderID(providerID)
 	normalizedSymbol := strings.ToLower(strings.TrimSpace(symbol))
 	normalizedInterval := strings.ToLower(strings.TrimSpace(string(interval)))
 	normalizedRehabType := normalizeRehabTypeName(rehabType)
 	normalizedSessionScope := normalizeKLineSessionScopeName(sessionScope)
 
 	hasher := fnv.New32a()
-	_, _ = hasher.Write([]byte(normalizedSymbol))
+	_, _ = hasher.Write([]byte(normalizedProviderID + "|" + normalizedSymbol))
 	// Keep the suffix deterministic (not random): it avoids table-name collisions
 	// when different symbols normalize to the same sanitized identifier.
 	return fmt.Sprintf(
-		"%s__%s__%s__%s__%s__%08x",
+		"%s__%s__%s__%s__%s__%s__%08x",
 		KLineTable,
+		sanitizeIdentifierComponent(normalizedProviderID),
 		sanitizeIdentifierComponent(normalizedSymbol),
 		sanitizeIdentifierComponent(normalizedInterval),
 		normalizedRehabType,
 		klineSessionScopeStorageTag(normalizedSessionScope),
 		hasher.Sum32(),
 	)
+}
+
+func normalizeProviderID(providerID string) string {
+	switch strings.ToLower(strings.TrimSpace(providerID)) {
+	case "yfinance":
+		return "yfinance"
+	case "akshare":
+		return "akshare"
+	default:
+		return "futu"
+	}
 }
 
 func normalizeKLineSessionScopeName(scope string) string {
@@ -333,6 +349,10 @@ func KLineTableName(symbol string, interval types.Interval, rehabType string) st
 
 func KLineTableNameForSessionScope(symbol string, interval types.Interval, rehabType string, sessionScope string) string {
 	return klineTableNameForSessionScope(symbol, interval, rehabType, sessionScope)
+}
+
+func KLineTableNameForProviderAndSessionScope(providerID, symbol string, interval types.Interval, rehabType string, sessionScope string) string {
+	return klineTableNameForProviderAndSessionScope(providerID, symbol, interval, rehabType, sessionScope)
 }
 
 func NormalizeKLineSessionScopeName(scope string) string {

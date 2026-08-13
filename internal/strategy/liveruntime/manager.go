@@ -9,15 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
-	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
-	"github.com/jftrade/jftrade-main/pkg/besteffort"
-
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/strategy/instancebinding"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -37,22 +35,59 @@ const (
 	strategyStatusStopped = "STOPPED"
 )
 
-type Exchange interface {
-	bbgotypes.Exchange
+// MarketDataSource is the realtime market-data port consumed by strategy
+// runtimes. It deliberately excludes account and order operations.
+type MarketDataSource interface {
+	bbgotypes.ExchangeMinimal
+	bbgotypes.ExchangeMarketDataService
+}
+
+// AccountSource is the broker-account read port used only by live execution.
+type AccountSource interface {
 	QueryBrokerFunds(ctx context.Context, query broker.ReadQuery) (*broker.FundsSnapshot, error)
 	QueryBrokerPositions(ctx context.Context, query broker.ReadQuery) ([]broker.PositionSnapshot, error)
-	PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error)
-	CancelBrokerOrder(ctx context.Context, query broker.ReadQuery, order broker.CancelOrder) error
 }
+
+// TradeCommandPort routes live strategy commands through the application
+// trading boundary instead of exposing broker order methods to the runtime.
+type TradeCommandPort interface {
+	PlaceExecutionOrder(context.Context, trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error)
+	CancelExecutionOrder(context.Context, string) (trdsrv.ExecutionOrder, error)
+}
+
+// TradeCommandFuncs adapts function-based composition and tests to the command
+// port without adding broker operations to the market-data source.
+type TradeCommandFuncs struct {
+	Place  func(context.Context, trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error)
+	Cancel func(context.Context, string) (trdsrv.ExecutionOrder, error)
+}
+
+func (commands TradeCommandFuncs) PlaceExecutionOrder(ctx context.Context, command trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
+	if commands.Place == nil {
+		return trdsrv.ExecutionOrder{}, fmt.Errorf("strategy runtime order placement is unavailable")
+	}
+	return commands.Place(ctx, command)
+}
+
+func (commands TradeCommandFuncs) CancelExecutionOrder(ctx context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
+	if commands.Cancel == nil {
+		return trdsrv.ExecutionOrder{}, fmt.Errorf("strategy runtime order cancellation is unavailable")
+	}
+	return commands.Cancel(ctx, internalOrderID)
+}
+
+// Exchange retains the previous runtime override name for compatibility.
+type Exchange = MarketDataSource
 
 type marketEnsurer interface {
 	EnsureMarket(symbol string)
 }
 
 type Manager struct {
-	exchangeProvider func() Exchange
-	pineWorkerRunner PineWorker
-	deps             Dependencies
+	marketDataProvider func() MarketDataSource
+	accountResolver    func(stratsrv.InstanceBinding) AccountSource
+	pineWorkerRunner   PineWorker
+	deps               Dependencies
 
 	exchangeMu   sync.RWMutex
 	pineWorkerMu sync.RWMutex
@@ -83,7 +118,14 @@ type SubscriptionLease interface {
 // strategy runtime. It intentionally exposes no server, store, or broker
 // implementation.
 type Dependencies struct {
+	MarketDataProvider func() MarketDataSource
+	AccountResolver    func(stratsrv.InstanceBinding) AccountSource
+	TradeCommands      TradeCommandPort
+	// ExchangeProvider and ExchangeResolver are compatibility inputs for
+	// tests and embedders that have not yet split market data from accounts.
 	ExchangeProvider        func() Exchange
+	ExchangeResolver        func(stratsrv.InstanceBinding) Exchange
+	MarketDataCapabilities  func(context.Context) (mdsrv.ProviderCapabilities, error)
 	PineWorker              PineWorker
 	PineWorkerLimit         func() int
 	WakeMarketDataCollector func()
@@ -92,8 +134,6 @@ type Dependencies struct {
 	TransitionInstance      func(instanceID string, nextStatus string, kind string, detail string) error
 	ReconcileRuntimeFailure func(instanceID string, detail string) error
 	RecordNotification      func(Notification)
-	PlaceExecutionOrder     func(context.Context, trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error)
-	CancelExecutionOrder    func(context.Context, string) (trdsrv.ExecutionOrder, error)
 	CountRuntimeAudit       func(context.Context, runtimeactivity.AuditQuery) (int, error)
 	UpsertObservation       func(context.Context, runtimeactivity.ObservationSnapshot) error
 	AcquireMarketDataLease  func(context.Context, string, []mdsrv.InstrumentRef) (SubscriptionLease, error)
@@ -101,8 +141,27 @@ type Dependencies struct {
 
 // NewManager creates the process-owned live strategy runtime manager.
 func NewManager(deps Dependencies) *Manager {
+	marketDataProvider := deps.MarketDataProvider
+	if marketDataProvider == nil {
+		marketDataProvider = deps.ExchangeProvider
+	}
+	accountResolver := deps.AccountResolver
+	if accountResolver == nil && deps.ExchangeResolver != nil {
+		accountResolver = func(binding stratsrv.InstanceBinding) AccountSource {
+			resolved := deps.ExchangeResolver(binding)
+			account, _ := resolved.(AccountSource)
+			return account
+		}
+	}
+	if accountResolver == nil && deps.ExchangeProvider != nil {
+		accountResolver = func(stratsrv.InstanceBinding) AccountSource {
+			account, _ := deps.ExchangeProvider().(AccountSource)
+			return account
+		}
+	}
 	return &Manager{
-		exchangeProvider:        deps.ExchangeProvider,
+		marketDataProvider:      marketDataProvider,
+		accountResolver:         accountResolver,
 		pineWorkerRunner:        deps.PineWorker,
 		deps:                    deps,
 		runtimes:                map[string]*managedRuntime{},
@@ -111,14 +170,22 @@ func NewManager(deps Dependencies) *Manager {
 	}
 }
 
-// SetExchangeProvider atomically replaces the application-owned integration
-// bridge used by future starts.
+// SetExchangeProvider atomically installs an explicit runtime bridge override
+// used by future starts. Application composition uses ExchangeResolver so a
+// strategy binding is still resolved by its exact broker ID.
 func (m *Manager) SetExchangeProvider(provider func() Exchange) {
 	if m == nil {
 		return
 	}
 	m.exchangeMu.Lock()
-	m.exchangeProvider = provider
+	m.marketDataProvider = provider
+	m.accountResolver = func(stratsrv.InstanceBinding) AccountSource {
+		if provider == nil {
+			return nil
+		}
+		account, _ := provider().(AccountSource)
+		return account
+	}
 	m.exchangeMu.Unlock()
 }
 
@@ -197,7 +264,8 @@ type symbolRuntime struct {
 	interval                bbgotypes.Interval
 	exchange                bbgotypes.ExchangeName
 	ctx                     context.Context
-	runtimeExchange         Exchange
+	marketDataSource        MarketDataSource
+	accountSource           AccountSource
 	brokerQuery             broker.ReadQuery
 	market                  bbgotypes.Market
 	accountRefreshMu        sync.Mutex
@@ -284,32 +352,51 @@ func (m *Manager) recordNotification(note Notification) {
 }
 
 func (m *Manager) placeExecutionOrder(ctx context.Context, command trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
-	if m == nil || m.deps.PlaceExecutionOrder == nil {
+	if m == nil {
 		return trdsrv.ExecutionOrder{}, fmt.Errorf("strategy runtime order placement is unavailable")
 	}
-	return m.deps.PlaceExecutionOrder(ctx, command)
+	if m.deps.TradeCommands == nil {
+		return trdsrv.ExecutionOrder{}, fmt.Errorf("strategy runtime order placement is unavailable")
+	}
+	return m.deps.TradeCommands.PlaceExecutionOrder(ctx, command)
 }
 
 func (m *Manager) cancelExecutionOrder(ctx context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
-	if m == nil || m.deps.CancelExecutionOrder == nil {
+	if m == nil {
 		return trdsrv.ExecutionOrder{}, fmt.Errorf("strategy runtime order cancellation is unavailable")
 	}
-	return m.deps.CancelExecutionOrder(ctx, internalOrderID)
+	if m.deps.TradeCommands == nil {
+		return trdsrv.ExecutionOrder{}, fmt.Errorf("strategy runtime order cancellation is unavailable")
+	}
+	return m.deps.TradeCommands.CancelExecutionOrder(ctx, internalOrderID)
 }
 
-// CurrentExchange returns the broker-neutral runtime exchange assembled by the
-// application. Callers must treat nil as an unavailable broker runtime.
+// CurrentExchange returns the realtime market-data source assembled by the
+// application. It is retained as a compatibility name for existing callers.
 func (m *Manager) CurrentExchange() Exchange {
 	if m == nil {
 		return nil
 	}
 	m.exchangeMu.RLock()
-	provider := m.exchangeProvider
+	provider := m.marketDataProvider
 	m.exchangeMu.RUnlock()
 	if provider == nil {
 		return nil
 	}
 	return provider()
+}
+
+func (m *Manager) resolveAccount(binding stratsrv.InstanceBinding) AccountSource {
+	if m == nil {
+		return nil
+	}
+	m.exchangeMu.RLock()
+	resolver := m.accountResolver
+	m.exchangeMu.RUnlock()
+	if resolver == nil {
+		return nil
+	}
+	return resolver(binding)
 }
 
 // ActiveInstrumentIDs implements strategy.RuntimeManager.
@@ -380,20 +467,37 @@ func (m *Manager) startStrategy(ctx context.Context, instance stratsrv.ManagedIn
 	if err := m.ensureStrategyStopped(instance.ID); err != nil {
 		return err
 	}
+	if err := m.validateMarketDataCapabilities(ctx); err != nil {
+		return err
+	}
 	releaseStartReservation, err := m.reserveRuntimeStart(instance.ID)
 	if err != nil {
 		return err
 	}
 	defer releaseStartReservation()
-	exchange, markets, funds, positions, err := m.loadStrategyRuntimeInputs(ctx, instance)
+	marketData, account, markets, funds, positions, err := m.loadStrategyRuntimeInputs(ctx, instance)
 	if err != nil {
 		return err
 	}
-	managed, err := m.buildManagedStrategyRuntime(ctx, exchange, markets, funds, positions, instance, script, interval)
+	managed, err := m.buildManagedStrategyRuntime(ctx, marketData, account, markets, funds, positions, instance, script, interval)
 	if err != nil {
 		return err
 	}
 	return m.activateStrategyRuntime(instance.ID, managed)
+}
+
+func (m *Manager) validateMarketDataCapabilities(ctx context.Context) error {
+	if m == nil || m.deps.MarketDataCapabilities == nil {
+		return nil
+	}
+	capabilities, err := m.deps.MarketDataCapabilities(ctx)
+	if err != nil {
+		return fmt.Errorf("load market-data capabilities: %w", err)
+	}
+	if !capabilities.StreamingCandles {
+		return fmt.Errorf("active market-data provider does not support streaming candles")
+	}
+	return nil
 }
 
 func validateStrategyRuntimeInstance(instance stratsrv.ManagedInstance) (bbgotypes.Interval, string, error) {
@@ -423,33 +527,44 @@ func (m *Manager) ensureStrategyStopped(instanceID string) error {
 	return nil
 }
 
-func (m *Manager) loadStrategyRuntimeInputs(ctx context.Context, instance stratsrv.ManagedInstance) (Exchange, map[string]bbgotypes.Market, *broker.FundsSnapshot, []broker.PositionSnapshot, error) {
-	exchange := m.CurrentExchange()
-	if exchange == nil {
-		return nil, nil, nil, nil, fmt.Errorf("strategy runtime exchange is unavailable")
+func (m *Manager) loadStrategyRuntimeInputs(ctx context.Context, instance stratsrv.ManagedInstance) (MarketDataSource, AccountSource, map[string]bbgotypes.Market, *broker.FundsSnapshot, []broker.PositionSnapshot, error) {
+	marketData := m.CurrentExchange()
+	if marketData == nil {
+		return nil, nil, nil, nil, nil, fmt.Errorf("strategy realtime market-data source is unavailable")
 	}
-	if marketEnsurer, ok := exchange.(marketEnsurer); ok {
+	if marketEnsurer, ok := marketData.(marketEnsurer); ok {
 		for _, symbol := range instance.Binding.Symbols {
 			marketEnsurer.EnsureMarket(symbol)
 		}
 	}
-	markets, err := exchange.QueryMarkets(ctx)
+	markets, err := marketData.QueryMarkets(ctx)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("load strategy markets: %w", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("load strategy markets: %w", err)
+	}
+	if instancebinding.NormalizeExecutionMode(instance.Binding.ExecutionMode) == instancebinding.ExecutionModeNotifyOnly {
+		return marketData, nil, markets, nil, nil, nil
+	}
+	brokerID := strategyRuntimeBrokerID(instance.Binding)
+	if brokerID == "" {
+		return nil, nil, nil, nil, nil, fmt.Errorf("live strategy requires a bound tradable broker")
+	}
+	account := m.resolveAccount(instance.Binding)
+	if account == nil {
+		return nil, nil, nil, nil, nil, fmt.Errorf("live strategy broker %q is unavailable or not tradable", brokerID)
 	}
 	brokerQuery := strategyRuntimeBrokerReadQuery(instance.Binding)
-	funds, err := exchange.QueryBrokerFunds(ctx, brokerQuery)
+	funds, err := account.QueryBrokerFunds(ctx, brokerQuery)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("load strategy broker funds: %w", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("load strategy broker funds: %w", err)
 	}
-	positions, err := exchange.QueryBrokerPositions(ctx, brokerQuery)
+	positions, err := account.QueryBrokerPositions(ctx, brokerQuery)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("load strategy broker positions: %w", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("load strategy broker positions: %w", err)
 	}
-	return exchange, markets, funds, positions, nil
+	return marketData, account, markets, funds, positions, nil
 }
 
-func (m *Manager) buildManagedStrategyRuntime(ctx context.Context, exchange Exchange, markets map[string]bbgotypes.Market, funds *broker.FundsSnapshot, positions []broker.PositionSnapshot, instance stratsrv.ManagedInstance, script string, interval bbgotypes.Interval) (*managedRuntime, error) {
+func (m *Manager) buildManagedStrategyRuntime(ctx context.Context, marketData MarketDataSource, account AccountSource, markets map[string]bbgotypes.Market, funds *broker.FundsSnapshot, positions []broker.PositionSnapshot, instance stratsrv.ManagedInstance, script string, interval bbgotypes.Interval) (*managedRuntime, error) {
 	runtimeCtx, cancel := context.WithCancel(context.Background())
 	managed := &managedRuntime{
 		instanceID: instance.ID,
@@ -467,7 +582,7 @@ func (m *Manager) buildManagedStrategyRuntime(ctx context.Context, exchange Exch
 		managed.subscriptionLease = lease
 	}
 	for _, symbol := range instance.Binding.Symbols {
-		runner, err := m.buildSymbolRuntime(ctx, runtimeCtx, exchange, markets, funds, positions, instance, script, symbol, interval)
+		runner, err := m.buildSymbolRuntime(ctx, runtimeCtx, marketData, account, markets, funds, positions, instance, script, symbol, interval)
 		if err != nil {
 			closeErr := managed.close(context.Background())
 			return nil, errors.Join(err, closeErr)
@@ -563,7 +678,8 @@ func (m *Manager) HandleMarketTrade(trade bbgotypes.Trade) {
 func (m *Manager) buildSymbolRuntime(
 	ctx context.Context,
 	runtimeCtx context.Context,
-	exchange Exchange,
+	marketData MarketDataSource,
+	account AccountSource,
 	markets bbgotypes.MarketMap,
 	funds *broker.FundsSnapshot,
 	positions []broker.PositionSnapshot,
@@ -576,65 +692,21 @@ func (m *Manager) buildSymbolRuntime(
 	if !ok {
 		return nil, fmt.Errorf("market metadata for %s is unavailable", symbol)
 	}
-
-	session := bbgo.NewExchangeSession("strategy-runtime", exchange)
-	session.SetMarkets(markets)
-	session.Account = buildStrategyRuntimeAccount(funds, positions, market, symbol)
-
-	emitter, ok := session.MarketDataStream.(bbgotypes.StandardStreamEmitter)
-	if !ok {
-		return nil, fmt.Errorf("strategy market stream does not support kline emission")
+	session, emitter, err := newStrategyRuntimeSession(marketData, markets, funds, positions, market, symbol)
+	if err != nil {
+		return nil, err
 	}
-
-	runner := &symbolRuntime{
-		instanceID:              instance.ID,
-		name:                    strings.TrimSpace(instance.Definition.Name),
-		symbol:                  symbol,
-		interval:                interval,
-		exchange:                exchange.Name(),
-		ctx:                     runtimeCtx,
-		runtimeExchange:         exchange,
-		brokerQuery:             strategyRuntimeBrokerReadQuery(instance.Binding),
-		market:                  market,
-		cachedFunds:             cloneStrategyRuntimeFundsSnapshot(funds),
-		cachedPositions:         cloneStrategyRuntimePositions(positions),
-		session:                 session,
-		emitter:                 emitter,
-		closedKLineSyncInterval: m.currentClosedKLineSyncInterval(),
-		onClosedKLine: func(at time.Time) {
-			m.recordClosedKLine(instance.ID, at)
-		},
-		onError: func(message string) {
-			message = strings.TrimSpace(message)
-			if message == "" {
-				return
-			}
-			m.recordError(instance.ID, message, time.Now().UTC())
-			jftradeErr2 := m.appendRuntimeEvent(
-				instance.ID,
-				fmt.Sprintf("runtime error %s: %s", symbol, message),
-				"runtime_error",
-				fmt.Sprintf("%s: %s", symbol, message),
-			)
-			besteffort.LogError(jftradeErr2)
-		},
-	}
-
-	recordIgnoredOrder := func(message string) {
-		jftradeErr := m.appendRuntimeEvent(
-			instance.ID,
-			fmt.Sprintf("live order ignored %s", symbol),
-			"order_ignored",
-			message,
-		)
-		besteffort.LogError(jftradeErr)
-	}
-	live, err := newStrategyRuntimePineWorkerLive(m.currentPineWorkerRunner(), instance, symbol, interval, script, m.newOrderExecutor(instance, runner), runner, recordIgnoredOrder)
+	runner := m.newSymbolRuntime(runtimeCtx, marketData, account, instance, symbol, interval, market, session, emitter, funds, positions)
+	live, err := newStrategyRuntimePineWorkerLive(
+		m.currentPineWorkerRunner(), instance, symbol, interval, script,
+		m.newOrderExecutor(instance, runner), runner,
+		func(message string) { m.recordIgnoredOrder(instance.ID, symbol, message) },
+	)
 	if err != nil {
 		return nil, fmt.Errorf("start strategy runtime for %s: %w", symbol, err)
 	}
 	runner.pineWorkerLive = live
-	if err := m.seedSymbolRuntime(ctx, exchange, live, runner); err != nil {
+	if err := m.seedSymbolRuntime(ctx, marketData, live, runner); err != nil {
 		return nil, err
 	}
 	if err := live.openSession(runtimeCtx); err != nil {
@@ -643,8 +715,8 @@ func (m *Manager) buildSymbolRuntime(
 	return runner, nil
 }
 
-func (m *Manager) seedSymbolRuntime(ctx context.Context, exchange Exchange, live *pineWorkerLive, runner *symbolRuntime) error {
-	klines, err := live.loadWarmup(ctx, exchange)
+func (m *Manager) seedSymbolRuntime(ctx context.Context, marketData MarketDataSource, live *pineWorkerLive, runner *symbolRuntime) error {
+	klines, err := live.loadWarmup(ctx, marketData)
 	if err != nil {
 		return err
 	}

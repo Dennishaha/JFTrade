@@ -465,6 +465,23 @@ function installBacktestPageFetch(options: {
       if (url.includes("/api/v1/settings/onboarding")) {
         return createResponse(emptyOnboardingState);
       }
+      if (url.includes("/api/v1/settings/backtest-market-data-provider")) {
+        return createResponse({
+          activeProvider: "futu",
+          availableProviders: [{
+            selectionId: "futu",
+            providerId: "futu-opend",
+            displayName: "Futu OpenD",
+            capabilities: {
+              historicalCandles: true,
+              streamingCandles: true,
+              extendedHours: true,
+              candleIntervals: ["tick", "1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"],
+              priceAdjustments: ["none", "forward", "backward"],
+            },
+          }],
+        });
+      }
       if (url.includes("/api/v1/settings/brokers")) {
         return createResponse(emptyBrokerSettings);
       }
