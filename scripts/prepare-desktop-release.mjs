@@ -13,7 +13,7 @@ if (usesPreparedDesktopReleaseInputs()) {
 }
 
 for (const [command, args] of [
-  ["pnpm", ["run", "prepare:desktop-release"]],
+  ["pnpm", ["run", "build:frontend-assets"]],
   ["pnpm", ["run", "generate:wails-bindings"]],
   ["pnpm", ["run", "build:pineworker"]],
   ["pnpm", ["run", "build:marketdata-sidecar"]],

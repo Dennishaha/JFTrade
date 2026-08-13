@@ -11,7 +11,10 @@ JFTrade 是 Go 后端、Vue 3 控制台、Wails v3 桌面壳、Node PineTS worke
 ## 日常入口
 
 ```bash
-pnpm run desktop:dev       # 桌面联调，包含 Vue、API sidecar 和 Pine worker
+pnpm run prepare:desktop-dev  # 显式构建桌面开发使用的外部 PineTS worker
+go tool wails3 dev -config ./build/config.yml -port 3003  # Wails 原生桌面联调
+pnpm run prepare:desktop-release  # 显式准备发布版前端、bindings、Pine 与 market-data 资产
+JFTRADE_DESKTOP_PREPARED=1 go tool wails3 build  # 使用已准备的发布资产构建 bin/JFTrade
 go run ./cmd/jftrade-api   # 独立 API，默认 127.0.0.1:3000
 pnpm run dev:web           # 浏览器前端，默认 127.0.0.1:3003
 pnpm run check:quick       # 变更范围快速检查，不能修改工作树

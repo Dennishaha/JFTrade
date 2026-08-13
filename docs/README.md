@@ -18,7 +18,7 @@ JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工�
 - 开发端口：API `127.0.0.1:3000`，Web `127.0.0.1:3003`，Docs `127.0.0.1:3001`。
 - 桌面内部端口：`JFTrade Dev` sidecar 为 `127.0.0.1:3008`，正式 `JFTrade` sidecar 为 `127.0.0.1:6699`；两者仅供 Wails 使用且可同时运行。
 - 可选 Web 端口：默认 `127.0.0.1:6688`，可在桌面设置中修改；Web 关闭时桌面产品不创建该监听器。
-- 内置 Python 行情 helper：发布版随 `release_assets` 嵌入并由 JFTrade 自动启动，yfinance 与 AKShare 在同一进程中隔离运行；提供 `US`、`HK`、`SH`、`SZ` 的延迟查询与历史 K 线，不提供实时推流、Level 2 或实盘策略行情。bundle 按 SHA-256 缓存；`pnpm run desktop:dev` 默认使用仓库 `.venv` 源码运行时。
+- 内置 Python 行情 helper：发布版随 `release_assets` 嵌入并由 JFTrade 自动启动，yfinance 与 AKShare 在同一进程中隔离运行；提供 `US`、`HK`、`SH`、`SZ` 的延迟查询与历史 K 线，不提供实时推流、Level 2 或实盘策略行情。发布资产必须显式准备；Wails 开发启动不再自动选择或构建 Python helper。
 - 数据隔离：桌面开发版继续使用仓库 `var/jftrade-api`；正式产品使用系统用户数据目录，不扫描或迁移开发数据。
 - 自选系统：`watchlists.db` 是本地唯一主数据，支持多分组、Futu 只读预览导入、可见行快照行情和 ADK 只读查询。
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。

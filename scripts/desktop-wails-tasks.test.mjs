@@ -1,329 +1,159 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import path from "node:path";
-
-import { resolveWindowsNSISInvocation } from "./lib/windows-nsis.mjs";
+import test from "node:test";
 
 const read = (file) => fs.readFileSync(file, "utf8");
+
 const root = read("Taskfile.yml");
-const packageJson = read("package.json");
 const common = read("build/Taskfile.yml");
+const config = read("build/config.yml");
 const darwin = read("build/darwin/Taskfile.yml");
 const windows = read("build/windows/Taskfile.yml");
 const linux = read("build/linux/Taskfile.yml");
-const nsisProject = read("build/windows/nsis/project.nsi");
-const releaseWorkflow = read(".github/workflows/desktop-release.yml");
-const ciWorkflow = read(".github/workflows/ci.yml");
-const sidecarAction = read(".github/actions/build-marketdata-sidecar/action.yml");
-const prepareDesktopRelease = read("scripts/prepare-desktop-release.mjs");
-const occurrences = (source, needle) => source.split(needle).length - 1;
+const packageJson = read("package.json");
+const prepareRelease = read("scripts/prepare-desktop-release.mjs");
+const msix = JSON.parse(read("build/windows/msix.json"));
 
-for (const standardTask of ["build:", "package:", "dev:"]) {
-  assert(
-    root.includes(`  ${standardTask}`),
-    `root Taskfile is missing standard Wails task ${standardTask}`,
-  );
-}
-
-for (const include of [
-  "build/Taskfile.yml",
-  "build/darwin/Taskfile.yml",
-  "build/windows/Taskfile.yml",
-  "build/linux/Taskfile.yml",
-]) {
-  assert(root.includes(include), `root Taskfile does not include ${include}`);
-}
-assert(
-  packageJson.includes(
-    '"build:marketdata-sidecar": "node scripts/build-marketdata-sidecar.mjs"',
-  ) &&
-    packageJson.includes(
-      '"smoke:marketdata-sidecar": "node scripts/smoke-marketdata-sidecar.mjs"',
-    ) &&
-    packageJson.includes(
-      '"build:yfinance-sidecar": "pnpm run build:marketdata-sidecar"',
-    ) &&
-    packageJson.includes(
-      '"smoke:yfinance-sidecar": "pnpm run smoke:marketdata-sidecar"',
-    ) &&
-    prepareDesktopRelease.includes('"build:marketdata-sidecar"'),
-  "desktop preparation does not build the current native market-data helper",
-);
-for (const taskfile of [darwin, windows]) {
-  assert(
-    taskfile.includes("production,release_assets"),
-    "release build is missing Wails production tag",
-  );
-  assert(
-    taskfile.includes("-trimpath") && taskfile.includes("-w -s"),
-    "release build is missing Wails production flags",
-  );
-}
-assert(
-  linux.includes("production,release_assets,gtk3"),
-  "Linux release is missing production/release_assets/gtk3 tags",
-);
-assert(
-  windows.includes("-H windowsgui"),
-  "Windows release is not a GUI subsystem build",
-);
-assert(
-  windows.includes("defer:") &&
-    windows.includes("jftrade_windows_{{.ARCH}}.syso"),
-  "Windows generated syso is not cleaned on build failure",
-);
-assert(
-  windows.includes("generate syso") &&
-    windows.includes("generate webview2bootstrapper"),
-  "Windows does not use Wails resource and WebView2 tools",
-);
-assert(
-  windows.includes(
-    "node scripts/compile-windows-nsis.mjs {{.ARCH}} {{.INSTALLER}}",
-  ) && !windows.includes("{{.MAKENSIS}}"),
-  "Windows NSIS command must bypass Task shell argument parsing",
-);
-const nsisInvocation = resolveWindowsNSISInvocation({
-  arch: "arm64",
-  installer: "JFTrade-0.2.2-windows-arm64-preview-unsigned-setup.exe",
-  makensis: "C:\\Program Files (x86)\\NSIS\\makensis.exe",
-  rootDir: path.resolve("test workspace"),
+test("root Taskfile follows the Wails native dispatch shape", () => {
+  for (const variable of [
+    'APP_NAME: "JFTrade"',
+    'BIN_DIR: "bin"',
+    'PACKAGE_MANAGER: "pnpm"',
+    "VITE_PORT:",
+    "GOOS:",
+  ]) {
+    assert(root.includes(variable), `root Taskfile is missing ${variable}`);
+  }
+  for (const task of ["build", "package", "run", "dev"]) {
+    assert(root.includes(`  ${task}:`), `root Taskfile is missing ${task}`);
+  }
+  assert(root.includes('task: "{{.GOOS}}:build"'));
+  assert(root.includes('task: "{{.GOOS}}:package"'));
+  assert(root.includes('task: "{{.GOOS}}:run"'));
+  assert(root.includes("go tool wails3 dev -config ./build/config.yml"));
+  assert(!root.includes("scripts/dev-desktop.mjs"));
+  assert(!root.includes("scripts/build-desktop.mjs"));
+  assert(!root.includes("scripts/release-desktop.mjs"));
 });
-assert.equal(
-  nsisInvocation.command,
-  "C:\\Program Files (x86)\\NSIS\\makensis.exe",
-);
-assert(nsisInvocation.cwd.endsWith(path.join("windows-arm64", "nsis")));
-assert(
-  nsisInvocation.args.some(
-    (argument) =>
-      argument.startsWith("/DARG_WAILS_ARM64_BINARY=") &&
-      argument.includes("test workspace") &&
-      argument.endsWith("jftrade-desktop-windows-arm64.exe"),
-  ),
-  "Windows NSIS wrapper does not preserve the absolute ARM64 binary path",
-);
-assert(
-  nsisInvocation.args.some(
-    (argument) =>
-      argument.startsWith("/DJFTRADE_LICENSE_FILE=") &&
-      argument.endsWith("LICENSE"),
-  ) &&
-    nsisInvocation.args.some(
-      (argument) =>
-        argument.startsWith("/DJFTRADE_THIRD_PARTY_NOTICES_FILE=") &&
-        argument.endsWith("third-party-notices.md"),
-    ),
-  "Windows NSIS wrapper does not pass legal notice inputs",
-);
-assert(
-  nsisInvocation.args.some(
-    (argument) =>
-      argument.startsWith("/DOUTPUT_EXE=") &&
-      argument.endsWith(
-        "JFTrade-0.2.2-windows-arm64-preview-unsigned-setup.exe",
-      ),
-  ),
-  "Windows NSIS wrapper does not preserve the absolute output path",
-);
-assert(
-  darwin.includes("codesign --verify --deep --strict"),
-  "macOS bundle sealing is not verified",
-);
-const macHelperIndex = darwin.indexOf(
-  "marketdata-sidecar-darwin-{{.ARCH}}",
-);
-const macGoBuildIndex = darwin.indexOf("go build -trimpath -buildvcs=false");
-assert(
-    macHelperIndex >= 0 &&
-    macHelperIndex < macGoBuildIndex &&
-    darwin.includes("codesign --force --options runtime --timestamp --deep") &&
-    darwin.includes("codesign --force --deep --sign - \"$helper\"") &&
-    darwin.includes("codesign --verify --strict --verbose=2 \"$helper\""),
-  "macOS native market-data onedir helper is not recursively signed before Go embedding",
-);
-assert(
-  darwin.includes("Contents/Resources/licenses/LICENSE") &&
-    darwin.includes("Contents/Resources/licenses/THIRD-PARTY-NOTICES.md"),
-  "macOS bundles do not carry the project license and third-party notices",
-);
-assert(
-  nsisProject.includes("$INSTDIR\\licenses") &&
-    nsisProject.includes("/oname=LICENSE") &&
-    nsisProject.includes("/oname=THIRD-PARTY-NOTICES.md"),
-  "Windows installer does not carry the project license and third-party notices",
-);
-assert(
-  darwin.includes("package-dmg.sh") && darwin.includes("verify-dmg.sh"),
-  "macOS release does not build and verify the drag-install DMG",
-);
-const dmgPackager = read("build/darwin/package-dmg.sh");
-const dmgBackground = read("build/darwin/dmg-background.svg");
-assert(
-  dmgPackager.includes("ln -s /Applications") &&
-    dmgPackager.includes("background picture") &&
-    dmgPackager.includes('position of item "JFTrade.app"') &&
-    dmgPackager.includes('position of item "Applications"'),
-  "macOS DMG is missing the Applications shortcut or Finder drag layout",
-);
-assert(
-  dmgBackground.includes('width="1320"') &&
-    dmgBackground.includes('height="800"') &&
-    dmgPackager.includes("dpiWidth 144") &&
-    dmgPackager.includes("dpiHeight 144"),
-  "macOS DMG background is not generated from a Retina 2x vector source",
-);
-assert(
-  dmgPackager.includes("for attempt in 1 2 3 4 5") &&
-    dmgPackager.includes('hdiutil detach "$device" -force'),
-  "macOS DMG packaging does not recover from a temporarily busy mounted image",
-);
-assert(
-  darwin.includes("build:dev") &&
-    read("build/darwin/Info.dev.plist").includes("com.jftrade.desktop.dev"),
-  "macOS development bundle is not isolated through Wails tasks",
-);
-assert(
-  linux.includes("generate appimage") && linux.includes("tool package"),
-  "Linux does not use Wails packaging tools",
-);
-assert(
-  !linux.includes("LDAI_COMP=") &&
-    linux.includes("FORMAT: deb") &&
-    linux.includes("FORMAT: rpm"),
-  "Linux release must use compatible AppImage defaults and build deb and rpm artifacts",
-);
-assert(
-  linux.includes("manage-linux-release-artifacts.mjs verify") &&
-    linux.includes("dist/desktop-release/.staging/linux-{{.ARCH}}"),
-  "Linux release does not isolate staging or verify its final artifact set",
-);
-assert(
-  !linux.includes("archlinux") &&
-    !root.includes("desktop:package:linux-arch") &&
-    !packageJson.includes("desktop:package:linux-arch"),
-  "Arch Linux packaging entrypoints must not remain",
-);
-assert(
-  !linux.includes(
-    "cp dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}} dist/desktop-release",
-  ),
-  "Linux raw binary must not be copied into the release directory",
-);
-assert(
-  linux.includes("tool package -name jftrade"),
-  "Linux package name must remain lowercase for Debian compatibility",
-);
-assert(
-  common.includes("update build-assets") && common.includes("generate icons"),
-  "common task does not use Wails build asset generation",
-);
-assert(
-  common.includes("Copyright (C) 2026 JFTrade Contributors"),
-  "desktop metadata does not use the project copyright notice",
-);
-assert(
-  releaseWorkflow.includes("release/LICENSE") &&
-    releaseWorkflow.includes("release/THIRD-PARTY-NOTICES.md"),
-  "GitHub Release does not publish the legal notice files",
-);
-const sharedInputStart = releaseWorkflow.indexOf(
-  "- name: Upload prepared release inputs",
-);
-const firstPlatformStart = releaseWorkflow.indexOf("  macos:");
-const sharedInputBlock = releaseWorkflow.slice(
-  sharedInputStart,
-  firstPlatformStart,
-);
-assert(
-  sharedInputStart >= 0 &&
-    firstPlatformStart > sharedInputStart &&
-    !sharedInputBlock.includes("internal/marketdataassets"),
-  "native market-data helpers must be built by target runners, not shared from Linux",
-);
-assert(
-  occurrences(releaseWorkflow, "- name: Setup Python") >= 4 &&
-    occurrences(releaseWorkflow, "uses: ./.github/actions/build-marketdata-sidecar") >= 4 &&
-    sidecarAction.includes(
-      'python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"',
-    ) &&
-    sidecarAction.includes("pnpm run build:marketdata-sidecar") &&
-    sidecarAction.includes("pnpm run smoke:marketdata-sidecar"),
-  "desktop release jobs do not build and smoke native market-data helpers on every target runner",
-);
-const macWorkflowStart = releaseWorkflow.indexOf("  macos:");
-const windowsWorkflowStart = releaseWorkflow.indexOf("  windows:");
-const macWorkflow = releaseWorkflow.slice(
-  macWorkflowStart,
-  windowsWorkflowStart,
-);
-assert(
-  macWorkflow.indexOf("Sign native market-data helper before embedding") >= 0 &&
-    macWorkflow.indexOf("Sign native market-data helper before embedding") <
-      macWorkflow.indexOf("Test macOS desktop package") &&
-    macWorkflow.indexOf("Test macOS desktop package") <
-      macWorkflow.indexOf("Build ARM64 DMG"),
-  "macOS release does not sign the native helper before release_assets embedding",
-);
-assert(
-  ciWorkflow.includes("Build Linux native market-data helper") &&
-    ciWorkflow.includes(
-      "go test -tags release_assets ./internal/marketdataassets -count=1",
-    ) &&
-    occurrences(ciWorkflow, "uses: ./.github/actions/build-marketdata-sidecar") >= 2 &&
-    sidecarAction.includes("pnpm run build:marketdata-sidecar") &&
-    sidecarAction.includes("pnpm run smoke:marketdata-sidecar"),
-  "CI does not build, smoke and verify native market-data release assets",
-);
-assert(
-  releaseWorkflow.includes("sha256sum > SHA256SUMS") &&
-    releaseWorkflow.includes("gh release upload") &&
-    releaseWorkflow.includes("gh release delete-asset") &&
-    releaseWorkflow.includes("release/*"),
-  "GitHub Release does not clean legacy assets, checksum and upload every release asset",
-);
-assert(
-  releaseWorkflow.includes('base="JFTrade-${version}-linux-x64"') &&
-    releaseWorkflow.includes("outputs.rpm") &&
-    releaseWorkflow.includes("sudo apt-get install -y rpm squashfs-tools") &&
-    releaseWorkflow.includes("unsquashfs -s -offset") &&
-    releaseWorkflow.includes('rpm -qpR "$rpm"'),
-  "GitHub Release does not verify the canonical Linux package set and AppImage",
-);
-assert(
-  !releaseWorkflow.includes("linux-amd64/*.AppImage") &&
-    !releaseWorkflow.includes("linux-amd64/*.deb") &&
-    !releaseWorkflow.includes(
-      "dist/desktop-release/linux-amd64/jftrade-desktop-linux-amd64",
-    ),
-  "GitHub Release must use exact Linux package paths without a raw binary",
-);
 
-const nfpm = read("build/linux/nfpm.yaml");
-assert(nfpm.includes("name: jftrade"), "Linux package name is not lowercase");
-assert(
-  /maintainer: .+<[^<>\s]+@[^<>\s]+>/.test(nfpm),
-  "Linux package maintainer is missing a valid email address",
-);
-assert(
-  nfpm.includes("homepage: https://github.com/Dennishaha/jftrade"),
-  "Linux package homepage does not match the source repository",
-);
-assert(
-  nfpm.includes("license: AGPL-3.0-only") &&
-    !nfpm.includes("LicenseRef-Proprietary"),
-  "Linux package metadata is not AGPL-3.0-only",
-);
-assert(
-  nfpm.includes("/usr/share/licenses/jftrade/LICENSE") &&
-    nfpm.includes("/usr/share/licenses/jftrade/THIRD-PARTY-NOTICES.md"),
-  "Linux package does not carry the project license and third-party notices",
-);
-assert(
-  nfpm.includes("libgtk-3-0") && nfpm.includes("libwebkit2gtk-4.1-0"),
-  "Linux package dependencies do not match GTK3 build",
-);
-assert(
-  !nfpm.includes("archlinux"),
-  "Linux package metadata must not retain an Arch override",
-);
+test("Wails dev mode owns frontend, build and app lifecycle", () => {
+  for (const command of [
+    "go tool wails3 build DEV=true",
+    "go tool wails3 task common:dev:frontend",
+    "go tool wails3 task run",
+  ]) {
+    assert(config.includes(command), `dev_mode is missing ${command}`);
+  }
+  assert(common.includes("pnpm run dev:web"));
+  assert(common.includes("WAILS_VITE_PORT"));
+  assert(common.includes('JFTRADE_DESKTOP_MODE: "1"'));
+  assert(common.includes("VITE_DEV_API_TARGET:"));
+  assert(!common.includes("build-pineworker-dev"));
+  assert(!common.includes("build-marketdata-sidecar"));
+  assert(!common.includes("desktop-dev-fast-path"));
+  assert(root.includes("PINEWORKER_BUNDLE:"));
+  assert(root.includes("pnpm run build:pineworker:dev"));
+  assert(packageJson.includes('"prepare:desktop-dev": "go tool wails3 task prepare:dev"'));
+  for (const taskfile of [darwin, windows, linux]) {
+    assert(taskfile.includes("JFTRADE_PINEWORKER_BUNDLE"));
+  }
+});
+
+test("release preparation is explicit and outside native build tasks", () => {
+  assert(packageJson.includes('"prepare:desktop-release": "node scripts/prepare-desktop-release.mjs"'));
+  assert(prepareRelease.includes('"build:frontend-assets"'));
+  assert(prepareRelease.includes('"generate:wails-bindings"'));
+  assert(prepareRelease.includes('"build:pineworker"'));
+  assert(prepareRelease.includes('"build:marketdata-sidecar"'));
+  assert(common.includes("JFTRADE_DESKTOP_PREPARED"));
+  assert(common.includes("node scripts/prepare-desktop-release.mjs"));
+  for (const taskfile of [darwin, windows, linux]) {
+    assert(taskfile.includes("common:verify:release-inputs"));
+  }
+});
+
+test("platform taskfiles use bin outputs and official Wails tools", () => {
+  for (const taskfile of [darwin, windows, linux]) {
+    assert(taskfile.includes("{{.BIN_DIR}}"));
+    assert(!taskfile.includes("dist/desktop"));
+    assert(!taskfile.includes("scripts/sign-desktop-release.mjs"));
+  }
+  assert(common.includes("go tool wails3 update build-assets"));
+  assert(darwin.includes("go tool wails3 tool package"));
+  assert(darwin.includes("--format dmg"));
+  assert(darwin.includes('{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS/{{.APP_NAME}}'));
+  assert(windows.includes("go tool wails3 generate syso"));
+  assert(windows.includes("go tool wails3 generate webview2bootstrapper"));
+  assert(windows.includes("makensis"));
+  assert(linux.includes("go tool wails3 generate appimage"));
+  assert(linux.includes("go tool wails3 tool package"));
+  assert(linux.includes("production,release_assets,gtk3"));
+});
+
+test("package scripts call the pinned Wails tool directly", () => {
+  assert(packageJson.includes('"desktop:dev": "go tool wails3 dev'));
+  assert(packageJson.includes('"desktop:build": "go tool wails3 build"'));
+  assert(packageJson.includes('"desktop:package": "go tool wails3 package"'));
+  assert(packageJson.includes('"desktop:doctor": "go tool wails3 doctor"'));
+  for (const script of [
+    "scripts/wails3.mjs",
+    "scripts/dev-desktop.mjs",
+    "scripts/build-desktop.mjs",
+    "scripts/release-desktop.mjs",
+  ]) {
+    assert(!packageJson.includes(script), `${script} remains in package scripts`);
+  }
+});
+
+test("legacy desktop wrappers and dist outputs are absent", () => {
+  for (const file of [
+    "scripts/wails3.mjs",
+    "scripts/dev-desktop.mjs",
+    "scripts/build-desktop.mjs",
+    "scripts/release-desktop.mjs",
+    "scripts/compile-windows-nsis.mjs",
+    "scripts/sign-desktop-release.mjs",
+    "scripts/lib/desktop-dev-fast-path.mjs",
+    "scripts/lib/windows-nsis.mjs",
+    "build/darwin/package-dmg.sh",
+    "build/darwin/verify-dmg.sh",
+  ]) {
+    assert(!fs.existsSync(file), `${file} should have been removed`);
+  }
+
+  for (const file of [
+    ".vscode/tasks.json",
+    ".vscode/launch.json",
+    ".github/workflows/ci.yml",
+    ".github/workflows/desktop-release.yml",
+    "Taskfile.yml",
+    "build/Taskfile.yml",
+    "build/darwin/Taskfile.yml",
+    "build/windows/Taskfile.yml",
+    "build/linux/Taskfile.yml",
+    "package.json",
+  ]) {
+    const content = read(file);
+    for (const marker of [
+      "dist/desktop",
+      "desktop:release:",
+      "desktop:build:",
+      "desktop:package:",
+      "scripts/wails3.mjs",
+      "scripts/dev-desktop.mjs",
+      "scripts/build-desktop.mjs",
+      "scripts/release-desktop.mjs",
+      "scripts/compile-windows-nsis.mjs",
+      "scripts/sign-desktop-release.mjs",
+      "desktop-dev-fast-path",
+    ]) {
+      assert(!content.includes(marker), `${file} still contains ${marker}`);
+    }
+  }
+});
+
+test("Windows MSIX metadata keeps the JFTrade application identity", () => {
+  assert.equal(msix.info.productName, "JFTrade");
+  assert.equal(msix.info.productIdentifier, "com.jftrade.desktop");
+  assert.deepEqual(msix.fileAssociations, []);
+});

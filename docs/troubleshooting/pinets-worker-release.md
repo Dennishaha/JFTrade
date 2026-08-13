@@ -20,7 +20,16 @@
 
 ## 运行模式
 
-开发态优先使用外部 worker：
+Wails 桌面开发使用仓库内固定的外部 worker 路径。首次开发或修改 worker 后显式准备一次，再启动 Wails：
+
+```bash
+pnpm run prepare:desktop-dev
+go tool wails3 dev -config ./build/config.yml -port 3003
+```
+
+官方 Wails `run` 任务会把 `JFTRADE_PINEWORKER_BUNDLE=var/pineworker/worker.mjs` 传给桌面 sidecar；它不会在 `dev`、`build` 或 `run` 生命周期中自动构建、发现或选择 worker。也可以在启动前设置 `JFTRADE_PINEWORKER_BUNDLE` 覆盖这个固定路径。
+
+独立 API 开发仍可直接使用外部 worker：
 
 ```bash
 pnpm run dev:api:pineworker
@@ -33,7 +42,7 @@ $env:JFTRADE_PINEWORKER_BUNDLE = (pnpm --silent run build:pineworker:dev | Selec
 go run ./cmd/jftrade-api
 ```
 
-`pnpm run build:pineworker:dev` 和 `pnpm run dev:api:pineworker` 都走 Node 入口，不需要 Git Bash 或 WSL。设置 `JFTRADE_PINEWORKER_DEV_ENV_FILE` 时，dev build 会写出 `JFTRADE_PINEWORKER_BUNDLE=...` 和 `JFTRADE_PINEWORKER_RUNTIME=...` 供 VS Code launch 配置读取。
+`pnpm run prepare:desktop-dev`、`pnpm run build:pineworker:dev` 和 `pnpm run dev:api:pineworker` 都走 Node 入口，不需要 Git Bash 或 WSL。设置 `JFTRADE_PINEWORKER_DEV_ENV_FILE` 时，dev build 会写出 `JFTRADE_PINEWORKER_BUNDLE=...` 和 `JFTRADE_PINEWORKER_RUNTIME=...` 供 VS Code launch 配置读取。
 
 发布态使用 embedded worker：
 
@@ -57,7 +66,7 @@ API 启动时会先读 `JFTRADE_PINEWORKER_BUNDLE`。未配置外部 bundle 时�
 | 变量 | 默认值 | 用途 |
 | --- | --- | --- |
 | `JFTRADE_PINEWORKER_DISABLED` | `false` | 显式关闭 worker manager。 |
-| `JFTRADE_PINEWORKER_BUNDLE` | 空 | 外部 `worker.mjs` bundle 路径；配置后优先于 embedded asset。 |
+| `JFTRADE_PINEWORKER_BUNDLE` | Wails 桌面开发为 `var/pineworker/worker.mjs`；独立 API 为空 | 外部 `worker.mjs` bundle 路径；配置后优先于 embedded asset。 |
 | `JFTRADE_PINEWORKER_RUNTIME` | `node` | Node 可执行文件路径。 |
 | `JFTRADE_PINEWORKER_SHA256` | embedded asset hash 或运行时计算值 | 校验外部 worker bundle。 |
 | `JFTRADE_PINEWORKER_BACKTEST_WORKERS` | `2` | 回测 worker 进程最大值；回测请求超过池容量时等待排队。 |

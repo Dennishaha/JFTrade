@@ -55,7 +55,7 @@ flowchart LR
 | 模式           | 入口                       | 主要用途                                         | 核心组件                                                                                      |
 | -------------- | -------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | API 后端服务   | `go run ./cmd/jftrade-api` | 前端开发、配置调试、行情、策略运行控制与通知调试 | `cmd/jftrade-api` -> `internal/app/apiserver` -> `internal/api/*` -> services -> integrations |
-| Wails 桌面开发 | `pnpm run desktop:dev`      | 桌面联调，同时保留仓库开发数据                   | `JFTrade Dev` -> Vite -> loopback sidecar `3008`；可选 Web 监听器使用用户端口                  |
+| Wails 桌面开发 | `pnpm run prepare:desktop-dev` 后执行 `go tool wails3 dev -config ./build/config.yml -port 3003` | 桌面联调，同时保留仓库开发数据 | Wails `dev_mode.executes` -> Vite -> `run` -> loopback sidecar `3008`；Pine worker 由生命周期外的显式命令准备，不自动准备 Pine/Python 运行时 |
 | Wails 正式产品 | `release_assets` 构建      | 独立安装的桌面产品                               | `JFTrade` -> embedded frontend -> loopback API sidecar `6699`；按需自动管理内置行情 helper；可选 Web 默认 `6688` |
 
 当前默认按下面理解：

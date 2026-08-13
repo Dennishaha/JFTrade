@@ -10,8 +10,11 @@ JFTrade 是一个面向 Futu OpenD 的交易研发控制台。它把行情查看
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm run desktop:dev
+pnpm run prepare:desktop-dev
+go tool wails3 dev -config ./build/config.yml -port 3003
 ```
+
+`prepare:desktop-dev` 只显式生成 `var/pineworker/worker.mjs`；Wails 开发生命周期会使用这个固定路径，但不会自动构建或发现 Pine worker、Python helper 或 frozen sidecar。
 
 只有进行纯浏览器前端开发时，才需要另外开两个终端。先在 `JFTrade Dev` 的“设置 → Web 访问”中设置密码并主动开启；独立 API 默认不会开放浏览器控制台。
 
@@ -78,13 +81,15 @@ Windows PowerShell:
 
 发布脚本会构建 `cmd/jftrade-api`，并把前端静态资源和文档站一起放进 `dist/`。
 
-Wails 正式产品使用 `vX.Y.Z` tag 作为唯一版本源。macOS 只发布 Apple Silicon ARM64 无签名 DMG：
+Wails 正式产品使用 `vX.Y.Z` tag 作为唯一版本源。先显式准备发布资产，再由原生 Wails Taskfile 构建：
 
 ```bash
-JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 pnpm run desktop:release:darwin
+pnpm run prepare:desktop-release
+JFTRADE_DESKTOP_PREPARED=1 VERSION=1.2.3 COMMIT="$(git rev-parse HEAD)" \
+  go tool wails3 package GOOS=darwin GOARCH=arm64 QUALIFIER=unsigned
 ```
 
-Windows x64 无签名 NSIS 安装器使用 `pnpm run desktop:release:windows`；tag CI 还会在原生 ARM64 runner 上生成 Windows ARM64 preview 无签名 NSIS 安装器。完整发布约束见 [桌面发布与通道隔离](docs/troubleshooting/desktop-release.md)。
+Windows 和 Linux 在各自原生 runner 上使用相同的 `go tool wails3 package` 入口；产物写入 `bin/`。完整发布约束见 [桌面发布与通道隔离](docs/troubleshooting/desktop-release.md)。
 
 推送正式桌面 tag 会自动触发 GitHub Actions，在全部平台构建通过后创建或更新同名 GitHub Release，并上传可下载二进制、SBOM 和 `SHA256SUMS`：
 

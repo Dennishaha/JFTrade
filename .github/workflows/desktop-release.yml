@@ -115,7 +115,7 @@ jobs:
       - name: Verify Wails host
         env:
           GOFLAGS: "-tags=gtk3"
-        run: pnpm run desktop:doctor
+        run: go tool wails3 doctor
 
       - name: Build release inputs
         run: |
@@ -206,6 +206,7 @@ jobs:
           for value in "${values[@]}"; do test -n "$value" && configured=$((configured + 1)); done
           if [ "$configured" -eq 0 ]; then
             echo "Signing credentials are not configured; producing an unsigned macOS release with an ad-hoc signature."
+            echo "QUALIFIER=unsigned" >> "$GITHUB_ENV"
             exit 0
           fi
           if [ "$configured" -ne "${#values[@]}" ]; then echo "macOS signing secrets must be all set or all unset" >&2; exit 1; fi
@@ -222,6 +223,7 @@ jobs:
           xcrun notarytool store-credentials jftrade-ci --apple-id "$NOTARY_APPLE_ID" --password "$NOTARY_PASSWORD" --team-id "$NOTARY_TEAM_ID"
           echo "JFTRADE_MACOS_SIGN_IDENTITY=$SIGN_IDENTITY" >> "$GITHUB_ENV"
           echo "JFTRADE_MACOS_NOTARY_PROFILE=jftrade-ci" >> "$GITHUB_ENV"
+          echo "QUALIFIER=signed" >> "$GITHUB_ENV"
 
       - name: Sign native market-data helper before embedding
         run: |
@@ -241,30 +243,31 @@ jobs:
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build ARM64 DMG
-        run: pnpm run desktop:release:darwin
+        run: |
+          version="${JFTRADE_DESKTOP_RELEASE_TAG#v}"
+          VERSION="$version" COMMIT="$GITHUB_SHA" BUILD_TIME="$JFTRADE_DESKTOP_BUILD_TIME" QUALIFIER="${QUALIFIER:-unsigned}" go tool wails3 package
 
       - name: Locate macOS artifact
         id: artifact
         run: |
-          artifact="$(find dist/desktop-release/darwin-arm64 -maxdepth 1 -name '*.dmg' -print -quit)"
+          artifact="$(find bin -maxdepth 1 -name 'JFTrade-*.dmg' -print -quit)"
           test -n "$artifact"
           echo "path=$artifact" >> "$GITHUB_OUTPUT"
 
       - name: Verify sealed macOS bundle
         run: |
-          bundle="dist/desktop-release/darwin-arm64/JFTrade.app"
+          bundle="bin/JFTrade.app"
           codesign --verify --deep --strict --verbose=2 "$bundle"
           test "$(lipo -archs "$bundle/Contents/MacOS/JFTrade")" = "arm64"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$bundle/Contents/Info.plist")" = "com.jftrade.desktop"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$bundle/Contents/Info.plist")" = "${JFTRADE_DESKTOP_RELEASE_TAG#v}"
-          bash build/darwin/verify-dmg.sh "${{ steps.artifact.outputs.path }}"
 
       - name: Generate macOS SBOM
         uses: anchore/sbom-action@v0
         with:
-          path: dist/desktop-release/darwin-arm64/JFTrade.app
+          path: bin/JFTrade.app
           format: spdx-json
-          output-file: dist/desktop-release/JFTrade-macos-arm64.spdx.json
+          output-file: bin/JFTrade-macos-arm64.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
@@ -280,7 +283,7 @@ jobs:
           name: desktop-release-macos
           path: |
             ${{ steps.artifact.outputs.path }}
-            dist/desktop-release/JFTrade-macos-arm64.spdx.json
+            bin/JFTrade-macos-arm64.spdx.json
           if-no-files-found: error
 
   windows:
@@ -335,6 +338,7 @@ jobs:
           $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
           if ($configured.Count -eq 0) {
             Write-Host "Authenticode credentials are not configured; producing an unsigned Windows installer."
+            "QUALIFIER=unsigned" | Out-File -FilePath $env:GITHUB_ENV -Append
             exit 0
           }
           if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
@@ -342,6 +346,7 @@ jobs:
           [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
           "JFTRADE_WINDOWS_CERTIFICATE=$certificate" | Out-File -FilePath $env:GITHUB_ENV -Append
           "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "QUALIFIER=signed" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
@@ -350,22 +355,27 @@ jobs:
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build per-user NSIS installer
-        run: pnpm run desktop:release:windows
+        shell: pwsh
+        run: |
+          $env:VERSION = $env:JFTRADE_DESKTOP_RELEASE_TAG.TrimStart('v')
+          $env:COMMIT = $env:GITHUB_SHA
+          $env:BUILD_TIME = $env:JFTRADE_DESKTOP_BUILD_TIME
+          go tool wails3 package
 
       - name: Locate Windows artifact
         id: artifact
         shell: pwsh
         run: |
-          $artifact = Get-ChildItem dist/desktop-release/windows-amd64/*-setup.exe | Select-Object -First 1
+          $artifact = Get-ChildItem bin/JFTrade-*-setup.exe | Select-Object -First 1
           if (-not $artifact) { throw "Windows installer was not produced" }
           "path=$($artifact.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Generate Windows SBOM
         uses: anchore/sbom-action@v0
         with:
-          file: dist/desktop/windows-amd64/jftrade-desktop-windows-amd64.exe
+          file: bin/JFTrade.exe
           format: spdx-json
-          output-file: dist/desktop-release/JFTrade-windows-x64.spdx.json
+          output-file: bin/JFTrade-windows-x64.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
@@ -381,7 +391,7 @@ jobs:
           name: desktop-release-windows
           path: |
             ${{ steps.artifact.outputs.path }}
-            dist/desktop-release/JFTrade-windows-x64.spdx.json
+            bin/JFTrade-windows-x64.spdx.json
           if-no-files-found: error
 
   windows_arm64:
@@ -441,6 +451,7 @@ jobs:
           $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
           if ($configured.Count -eq 0) {
             Write-Host "Authenticode credentials are not configured; producing an unsigned Windows installer."
+            "QUALIFIER=unsigned" | Out-File -FilePath $env:GITHUB_ENV -Append
             exit 0
           }
           if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
@@ -448,6 +459,7 @@ jobs:
           [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
           "JFTRADE_WINDOWS_CERTIFICATE=$certificate" | Out-File -FilePath $env:GITHUB_ENV -Append
           "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "QUALIFIER=signed" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
@@ -456,13 +468,18 @@ jobs:
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build ARM64 preview NSIS installer
-        run: pnpm run desktop:release:windows-arm64
+        shell: pwsh
+        run: |
+          $env:VERSION = $env:JFTRADE_DESKTOP_RELEASE_TAG.TrimStart('v')
+          $env:COMMIT = $env:GITHUB_SHA
+          $env:BUILD_TIME = $env:JFTRADE_DESKTOP_BUILD_TIME
+          go tool wails3 package
 
       - name: Locate Windows ARM64 artifact
         id: artifact
         shell: pwsh
         run: |
-          $artifact = Get-ChildItem dist/desktop-release/windows-arm64/*-preview-*-setup.exe | Select-Object -First 1
+          $artifact = Get-ChildItem bin/JFTrade-*-arm64-preview-*-setup.exe | Select-Object -First 1
           if (-not $artifact) { throw "Windows ARM64 preview installer was not produced" }
           "path=$($artifact.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
@@ -471,7 +488,7 @@ jobs:
         with:
           file: ${{ steps.artifact.outputs.path }}
           format: spdx-json
-          output-file: dist/desktop-release/JFTrade-windows-arm64.spdx.json
+          output-file: bin/JFTrade-windows-arm64.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
@@ -487,7 +504,7 @@ jobs:
           name: desktop-release-windows-arm64
           path: |
             ${{ steps.artifact.outputs.path }}
-            dist/desktop-release/JFTrade-windows-arm64.spdx.json
+            bin/JFTrade-windows-arm64.spdx.json
           if-no-files-found: error
 
   linux:
@@ -539,26 +556,27 @@ jobs:
         run: |
           version="${JFTRADE_DESKTOP_RELEASE_TAG#v}"
           base="JFTrade-${version}-linux-x64"
-          dir="dist/desktop-release/linux-amd64"
+          dir="bin"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "appimage=$dir/$base.AppImage" >> "$GITHUB_OUTPUT"
           echo "deb=$dir/$base.deb" >> "$GITHUB_OUTPUT"
           echo "rpm=$dir/$base.rpm" >> "$GITHUB_OUTPUT"
-          echo "sbom=dist/desktop-release/$base.spdx.json" >> "$GITHUB_OUTPUT"
+          echo "sbom=bin/$base.spdx.json" >> "$GITHUB_OUTPUT"
 
       - name: Build Linux x64 release packages
-        run: pnpm run desktop:release:linux
+        run: |
+          VERSION="${JFTRADE_DESKTOP_RELEASE_TAG#v}" \
+          COMMIT="$GITHUB_SHA" \
+          BUILD_TIME="$JFTRADE_DESKTOP_BUILD_TIME" \
+          go tool wails3 package
 
       - name: Verify Linux x64 release packages
         id: artifact
         run: |
-          artifact="dist/desktop/linux-amd64/jftrade-desktop-linux-amd64"
+          artifact="bin/JFTrade"
           appimage="$(realpath '${{ steps.linux_artifacts.outputs.appimage }}')"
           deb="${{ steps.linux_artifacts.outputs.deb }}"
           rpm="${{ steps.linux_artifacts.outputs.rpm }}"
-          node scripts/manage-linux-release-artifacts.mjs verify \
-            "${{ steps.linux_artifacts.outputs.version }}" amd64 \
-            dist/desktop-release/linux-amd64
           test -x "$artifact" && test -x "$appimage"
           test -s "$deb" && test -s "$rpm"
           file "$artifact" | grep -q 'ELF 64-bit'
@@ -652,7 +670,7 @@ jobs:
           test -s "release/$base.deb"
           test -s "release/$base.rpm"
           test -s "release/$base.spdx.json"
-          test ! -e release/jftrade-desktop-linux-amd64
+          test ! -e release/JFTrade
           test -z "$(find release -maxdepth 1 -type f -name '*.pkg.tar.zst' -print -quit)"
           # Linux contributes AppImage, deb, rpm and SBOM; all platforms share the legal notice assets.
           test "$(find release -maxdepth 1 -type f | wc -l)" -ge 10
@@ -677,7 +695,7 @@ jobs:
             is_draft="$(gh release view "$JFTRADE_DESKTOP_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
             while IFS= read -r asset; do
               case "$asset" in
-                jftrade-desktop-linux-*|jftrade.deb|jftrade.rpm|*.pkg.tar.zst|JFTrade-linux-x64.spdx.json)
+                jftrade-desktop-linux-*|jftrade.deb|jftrade.rpm|*.pkg.tar.zst|JFTrade-*linux-*.spdx.json|JFTrade-*windows-*.spdx.json|JFTrade-macos-*.spdx.json|JFTrade-*-linux-*.AppImage|JFTrade-*-linux-*.deb|JFTrade-*-linux-*.rpm|JFTrade-*-windows-*-setup.exe|JFTrade-*-macos-*.dmg)
                   gh release delete-asset "$JFTRADE_DESKTOP_RELEASE_TAG" "$asset" --yes --repo "$GITHUB_REPOSITORY"
                   ;;
               esac

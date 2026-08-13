@@ -213,7 +213,7 @@ jobs:
         run: pnpm run check:wails-bindings
 
       - name: Wails doctor
-        run: pnpm run desktop:doctor
+        run: go tool wails3 doctor
 
       - name: Go vulnerability check
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
@@ -630,7 +630,7 @@ jobs:
         run: go test -tags production,release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build Linux desktop application
-        run: pnpm run desktop:build:linux
+        run: go tool wails3 build
 
       - name: Verify Linux desktop binary
         uses: ./.github/actions/verify-linux-desktop-binary
@@ -639,7 +639,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ci-desktop-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: dist/desktop/linux-amd64/jftrade-desktop-linux-amd64
+          path: bin/JFTrade
           if-no-files-found: error
           retention-days: 1
 
@@ -655,23 +655,23 @@ jobs:
             runner: ubuntu-24.04
             platform: linux
             test_tags: production,release_assets,gtk3
-            build_script: desktop:build:linux
+            build_command: go tool wails3 build
             artifact_id: linux-x64
-            artifact_path: dist/desktop/linux-amd64/jftrade-desktop-linux-amd64
+            artifact_path: bin/JFTrade
           - label: macOS ARM64
             runner: macos-15
             platform: macos
             test_tags: production,release_assets
-            build_script: desktop:build:darwin-arm64
+            build_command: go tool wails3 build
             artifact_id: macos-arm64
-            artifact_path: dist/desktop/darwin-arm64/JFTrade.app
+            artifact_path: bin/JFTrade.app
           - label: Windows x64
             runner: windows-latest
             platform: windows
             test_tags: production,release_assets
-            build_script: desktop:build:windows
+            build_command: go tool wails3 build
             artifact_id: windows-x64
-            artifact_path: dist/desktop/windows-amd64/jftrade-desktop-windows-amd64.exe
+            artifact_path: bin/JFTrade.exe
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     env:
@@ -718,7 +718,7 @@ jobs:
         run: go test -tags "${{ matrix.test_tags }}" ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build desktop application
-        run: pnpm run ${{ matrix.build_script }}
+        run: ${{ matrix.build_command }}
 
       - name: Verify Linux desktop binary
         if: ${{ matrix.platform == 'linux' }}
@@ -727,7 +727,7 @@ jobs:
       - name: Verify macOS desktop application
         if: ${{ matrix.platform == 'macos' }}
         run: |
-          bundle="dist/desktop/darwin-arm64/JFTrade.app"
+          bundle="bin/JFTrade.app"
           binary="$bundle/Contents/MacOS/JFTrade"
           plist="$bundle/Contents/Info.plist"
           test -d "$bundle"
@@ -746,7 +746,7 @@ jobs:
         if: ${{ matrix.platform == 'windows' }}
         shell: pwsh
         run: |
-          $artifact = (Resolve-Path "dist/desktop/windows-amd64/jftrade-desktop-windows-amd64.exe").Path
+          $artifact = (Resolve-Path "bin/JFTrade.exe").Path
           if ((Get-Item $artifact).Length -le 0) {
             throw "Windows desktop executable is empty"
           }

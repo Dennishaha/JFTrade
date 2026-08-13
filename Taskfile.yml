@@ -1,67 +1,51 @@
 version: "3"
 
+vars:
+  APP_NAME: "JFTrade"
+  BIN_DIR: "bin"
+  PACKAGE_MANAGER: "pnpm"
+  VITE_PORT: '{{.WAILS_VITE_PORT | default "3003"}}'
+  GOOS: '{{.GOOS | default OS}}'
+  PINEWORKER_BUNDLE: '{{.JFTRADE_PINEWORKER_BUNDLE | default "var/pineworker/worker.mjs"}}'
+
 includes:
   common: ./build/Taskfile.yml
-  darwin: ./build/darwin/Taskfile.yml
   windows: ./build/windows/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
   linux: ./build/linux/Taskfile.yml
 
 tasks:
   build:
-    desc: Standard Wails build entrypoint for the current platform
+    desc: Builds the application for the current platform
     cmds:
-      - node scripts/build-desktop.mjs
+      - task: "{{.GOOS}}:build"
 
   package:
-    desc: Standard Wails package entrypoint for the current platform
+    desc: Packages a production build of the application
     cmds:
-      - node scripts/release-desktop.mjs
+      - task: "{{.GOOS}}:package"
+
+  run:
+    desc: Runs the application
+    cmds:
+      - task: "{{.GOOS}}:run"
 
   dev:
-    desc: Standard Wails development entrypoint
+    desc: Runs the application in Wails development mode
     cmds:
-      - node scripts/dev-desktop.mjs
+      - go tool wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
 
-  desktop:dev:
-    desc: Run the Wails v3 desktop app with the Vue dev server
+  prepare:release:
+    desc: Explicitly prepares frontend, bindings, Pine and market-data release inputs
     cmds:
-      - node scripts/dev-desktop.mjs
+      - pnpm run prepare:desktop-release
 
-  desktop:doctor:
-    desc: Verify the pinned Wails v3 CLI and host desktop prerequisites
+  prepare:dev:
+    desc: Explicitly builds the external PineTS worker used by desktop development
     cmds:
-      - pnpm run desktop:doctor
+      - pnpm run build:pineworker:dev
 
-  desktop:build:
-    desc: Build the Wails v3 desktop artifact for the current platform
+  doctor:
+    desc: Verifies the pinned Wails CLI and host desktop prerequisites
     cmds:
-      - node scripts/build-desktop.mjs
-
-  desktop:build:darwin-arm64:
-    cmds: [node scripts/build-desktop.mjs darwin-arm64]
-  desktop:build:windows:
-    cmds: [node scripts/build-desktop.mjs windows-amd64]
-  desktop:build:windows-arm64:
-    cmds: [node scripts/build-desktop.mjs windows-arm64]
-  desktop:build:linux:
-    cmds: [node scripts/build-desktop.mjs linux-amd64]
-
-  desktop:release:
-    cmds: [node scripts/release-desktop.mjs]
-  desktop:release:darwin:
-    cmds: [node scripts/release-desktop.mjs darwin-arm64]
-  desktop:release:windows:
-    cmds: [node scripts/release-desktop.mjs windows-amd64]
-  desktop:release:windows-arm64:
-    cmds: [node scripts/release-desktop.mjs windows-arm64]
-  desktop:release:linux:
-    cmds: [node scripts/release-desktop.mjs linux-amd64]
-
-  desktop:package:windows-msix:
-    cmds: [node scripts/release-desktop.mjs windows-amd64 msix]
-  desktop:package:linux-appimage:
-    cmds: [node scripts/release-desktop.mjs linux-amd64 appimage]
-  desktop:package:linux-deb:
-    cmds: [node scripts/release-desktop.mjs linux-amd64 deb]
-  desktop:package:linux-rpm:
-    cmds: [node scripts/release-desktop.mjs linux-amd64 rpm]
+      - go tool wails3 doctor

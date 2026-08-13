@@ -1,45 +1,116 @@
 version: "3"
 
 vars:
-  GENERATED_DIR: dist/desktop/.wails-build
+  WAILS_BUILD_DIR: '{{.WAILS_BUILD_DIR | default "var/wails-build"}}'
+  VERSION: '{{.VERSION | default "0.0.0"}}'
+  COMMIT: '{{.COMMIT | default "unknown"}}'
+  BUILD_TIME: '{{.BUILD_TIME | default "dev"}}'
 
 tasks:
-  prepare:
-    internal: true
-    run: once
+  dev:frontend:
+    desc: Runs the Vue development server under Wails supervision
+    dir: .
+    env:
+      JFTRADE_DESKTOP_MODE: "1"
+      WAILS_VITE_PORT: '{{.WAILS_VITE_PORT | default "3003"}}'
+      VITE_DEV_API_TARGET: '{{.VITE_DEV_API_TARGET | default "http://127.0.0.1:3008"}}'
     cmds:
-      - node scripts/prepare-desktop-release.mjs
+      - pnpm run dev:web
 
-  generate:assets:
-    internal: true
-    run: once
+  build:frontend:
+    desc: Builds release frontend assets when explicitly requested
     cmds:
-      - cmd: rm -rf {{.GENERATED_DIR}} && mkdir -p {{.GENERATED_DIR}}
+      - pnpm run build:frontend-assets
+
+  prepare:release-assets:
+    desc: Explicitly prepares all embedded release assets
+    cmds:
+      - pnpm run prepare:desktop-release
+
+  generate:bindings:
+    desc: Generates the checked-in Wails TypeScript bindings
+    cmds:
+      - go tool wails3 generate bindings -ts -i -noevents -d apps/web/src/wails ./cmd/jftrade-desktop
+
+  generate:icons:
+    desc: Generates Wails platform icons into the ignored build directory
+    cmds:
+      - cmd: mkdir -p "{{.WAILS_BUILD_DIR}}/darwin" "{{.WAILS_BUILD_DIR}}/windows"
         platforms: [linux, darwin]
-      - cmd: powershell -NoProfile -Command "Remove-Item -Recurse -Force '{{.GENERATED_DIR}}' -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force '{{.GENERATED_DIR}}' | Out-Null"
+      - cmd: >-
+          powershell -NoProfile -Command
+          "New-Item -ItemType Directory -Force -Path '{{.WAILS_BUILD_DIR}}/darwin','{{.WAILS_BUILD_DIR}}/windows' | Out-Null"
         platforms: [windows]
-      - >-
-        go tool wails3 update build-assets
-        -name JFTrade -binaryname JFTrade
-        -config build/config.yml -dir {{.GENERATED_DIR}}
-        -productname JFTrade -productidentifier com.jftrade.desktop
-        -productcompany JFTrade -productdescription "JFTrade desktop application"
-        -productcomments "Wails v3 desktop shell for JFTrade; commit {{.COMMIT}}; built {{.BUILD_TIME}}"
-        -productcopyright "Copyright (C) 2026 JFTrade Contributors"
-        -productversion {{.VERSION}} -silent
       - >-
         go tool wails3 generate icons
         -input build/desktop/appicon.png
-        -macfilename {{.GENERATED_DIR}}/darwin/icons.icns
-        -windowsfilename {{.GENERATED_DIR}}/windows/icon.ico
-    vars:
-      GENERATED_DIR: '{{.GENERATED_DIR | default "dist/desktop/.wails-build"}}'
-      VERSION: '{{.VERSION | default "0.0.0"}}'
-      COMMIT: '{{.COMMIT | default "unknown"}}'
-      BUILD_TIME: '{{.BUILD_TIME | default "dev"}}'
+        -macfilename "{{.WAILS_BUILD_DIR}}/darwin/icons.icns"
+        -windowsfilename "{{.WAILS_BUILD_DIR}}/windows/icon.ico"
 
-  verify:metadata:
+  update:build-assets:
+    desc: Generates versioned Wails platform assets in the ignored build directory
+    cmds:
+      - cmd: rm -rf "{{.WAILS_BUILD_DIR}}"
+        platforms: [linux, darwin]
+      - cmd: >-
+          powershell -NoProfile -Command
+          "Remove-Item -Recurse -Force '{{.WAILS_BUILD_DIR}}' -ErrorAction SilentlyContinue;
+          New-Item -ItemType Directory -Force '{{.WAILS_BUILD_DIR}}' | Out-Null"
+        platforms: [windows]
+      - cmd: mkdir -p "{{.WAILS_BUILD_DIR}}"
+        platforms: [linux, darwin]
+      - >-
+        go tool wails3 update build-assets
+        -name "{{.APP_NAME}}"
+        -binaryname "{{.APP_NAME}}"
+        -config build/config.yml
+        -dir "{{.WAILS_BUILD_DIR}}"
+        -productname "{{.APP_NAME}}"
+        -productidentifier com.jftrade.desktop
+        -productcompany JFTrade
+        -productdescription "JFTrade desktop application"
+        -productcomments "Wails v3 desktop shell for JFTrade; commit {{.COMMIT}}; built {{.BUILD_TIME}}"
+        -productcopyright "Copyright (C) 2026 JFTrade Contributors"
+        -productversion "{{.VERSION}}"
+        -silent
+      - cmd: mkdir -p "{{.WAILS_BUILD_DIR}}/darwin" "{{.WAILS_BUILD_DIR}}/windows"
+        platforms: [linux, darwin]
+      - cmd: >-
+          powershell -NoProfile -Command
+          "New-Item -ItemType Directory -Force -Path '{{.WAILS_BUILD_DIR}}/darwin','{{.WAILS_BUILD_DIR}}/windows' | Out-Null"
+        platforms: [windows]
+      - >-
+        go tool wails3 generate icons
+        -input build/desktop/appicon.png
+        -macfilename "{{.WAILS_BUILD_DIR}}/darwin/icons.icns"
+        -windowsfilename "{{.WAILS_BUILD_DIR}}/windows/icon.ico"
+
+  verify:release-inputs:
+    desc: Verifies that release assets were prepared explicitly
+    cmds:
+      - cmd: >-
+          if [ "{{.DEV}}" = "true" ]; then
+          exit 0;
+          fi;
+          if [ "${JFTRADE_DESKTOP_PREPARED:-}" != "1" ]; then
+          echo "Release assets are not prepared. Run 'pnpm run prepare:desktop-release' first, then set JFTRADE_DESKTOP_PREPARED=1." >&2;
+          exit 1;
+          fi;
+          node scripts/prepare-desktop-release.mjs
+        platforms: [linux, darwin]
+      - cmd: >-
+          powershell -NoProfile -Command
+          "if ('{{.DEV}}' -eq 'true') { exit 0 };
+          if ($env:JFTRADE_DESKTOP_PREPARED -ne '1') {
+          Write-Error 'Release assets are not prepared. Run pnpm run prepare:desktop-release first, then set JFTRADE_DESKTOP_PREPARED=1.';
+          exit 1
+          };
+          node scripts/prepare-desktop-release.mjs;
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+        platforms: [windows]
+
+  go:mod:tidy:
+    desc: Runs go mod tidy explicitly
     internal: true
-    preconditions:
-      - sh: test -n "{{.VERSION}}" && test -n "{{.COMMIT}}" && test -n "{{.BUILD_TIME}}"
-        msg: VERSION, COMMIT and BUILD_TIME are required
+    cmds:
+      - go mod tidy

@@ -30,8 +30,16 @@
     {
       "label": "desktop:dev",
       "type": "shell",
-      "command": "pnpm",
-      "args": ["run", "desktop:dev"],
+      "command": "go",
+      "args": [
+        "tool",
+        "wails3",
+        "dev",
+        "-config",
+        "./build/config.yml",
+        "-port",
+        "3003"
+      ],
       "problemMatcher": [
         "$go"
       ],
@@ -45,8 +53,8 @@
     {
       "label": "desktop:doctor",
       "type": "shell",
-      "command": "pnpm",
-      "args": ["run", "desktop:doctor"],
+      "command": "go",
+      "args": ["tool", "wails3", "doctor"],
       "group": "test",
       "problemMatcher": []
     },
@@ -276,10 +284,32 @@
       }
     },
     {
+      "label": "desktop:dev",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "tool",
+        "wails3",
+        "dev",
+        "-config",
+        "./build/config.yml",
+        "-port",
+        "3003"
+      ],
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
       "label": "desktop:build",
       "type": "shell",
-      "command": "pnpm",
-      "args": ["run", "desktop:build"],
+      "command": "go",
+      "args": ["tool", "wails3", "build"],
       "group": "build",
       "problemMatcher": [
         "$go"
@@ -292,40 +322,22 @@
       }
     },
     {
-      "label": "desktop:release:darwin",
+      "label": "desktop:package",
       "type": "shell",
-      "command": "pnpm",
-      "args": ["run", "desktop:release:darwin"],
-      "group": "build",
-      "problemMatcher": [
-        "$go"
-      ],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "showReuseMessage": true,
-        "close": false
-      }
-    },
-    {
-      "label": "desktop:release:windows",
-      "type": "shell",
-      "command": "pnpm",
-      "args": ["run", "desktop:release:windows"],
+      "command": "go",
+      "args": ["tool", "wails3", "package"],
       "group": "build",
       "problemMatcher": [
         "$go"
       ]
     },
     {
-      "label": "desktop:release:windows-arm64",
+      "label": "desktop:prepare-release",
       "type": "shell",
       "command": "pnpm",
-      "args": ["run", "desktop:release:windows-arm64"],
+      "args": ["run", "prepare:desktop-release"],
       "group": "build",
-      "problemMatcher": [
-        "$go"
-      ]
+      "problemMatcher": []
     },
     {
       "label": "build",

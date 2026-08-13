@@ -479,7 +479,7 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"JFTRADE_PINEWORKER_INSTANCE_WORKERS",
 		},
 		"internal/app/apiserver/servercore/pineworker_runtime.go": {
-			"pnpm run dev:api:pineworker",
+			"pnpm run prepare:desktop-dev",
 			"pineruntime.EnvBundle",
 			"pineruntime.EnvRuntime",
 			"/absolute/path/to/worker.mjs",

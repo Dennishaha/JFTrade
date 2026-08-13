@@ -9,9 +9,10 @@ const bindingsDir = path.join(rootDir, "apps", "web", "src", "wails");
 const before = snapshotDirectory(bindingsDir);
 
 const generateStatus = spawnChecked(
-  process.execPath,
+  "go",
   [
-    "scripts/wails3.mjs",
+    "tool",
+    "wails3",
     "generate",
     "bindings",
     "-ts",

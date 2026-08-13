@@ -78,7 +78,7 @@
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "command": "pnpm run desktop:dev"
+            "command": "go tool wails3 dev -config ./build/config.yml -port 3003"
         }
     ]
 }

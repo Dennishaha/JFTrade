@@ -3,53 +3,21 @@ version: "3"
 includes:
   common: ../Taskfile.yml
 
-vars:
-  GENERATED_DIR: dist/desktop/.wails-build
-
 tasks:
-  build:dev:
-    desc: Build the isolated macOS development bundle
-    platforms: [darwin]
-    deps:
-      - task: common:generate:assets
-        vars: { VERSION: "0.0.0" }
-    cmds:
-      - rm -rf "dist/dev/JFTrade Dev.app.next"
-      - mkdir -p "dist/dev/JFTrade Dev.app.next/Contents/MacOS" "dist/dev/JFTrade Dev.app.next/Contents/Resources"
-      - go build -buildvcs=false -o "dist/dev/JFTrade Dev.app.next/Contents/MacOS/JFTrade Dev" ./cmd/jftrade-desktop
-      - cp build/darwin/Info.dev.plist "dist/dev/JFTrade Dev.app.next/Contents/Info.plist"
-      - cp "{{.GENERATED_DIR}}/darwin/icons.icns" "dist/dev/JFTrade Dev.app.next/Contents/Resources/icons.icns"
-      - mkdir -p "dist/dev/JFTrade Dev.app.next/Contents/Resources/licenses"
-      - cp LICENSE "dist/dev/JFTrade Dev.app.next/Contents/Resources/licenses/LICENSE"
-      - cp docs/legal/third-party-notices.md "dist/dev/JFTrade Dev.app.next/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md"
-      - codesign --force --deep --sign - "dist/dev/JFTrade Dev.app.next"
-      - codesign --verify --deep --strict "dist/dev/JFTrade Dev.app.next"
-      - rm -rf "dist/dev/JFTrade Dev.app" && mv "dist/dev/JFTrade Dev.app.next" "dist/dev/JFTrade Dev.app"
-
   build:
-    desc: Build the production macOS application bundle with Wails assets
-    platforms: [darwin]
+    desc: Builds the JFTrade macOS app bundle
     deps:
-      - task: common:prepare
-      - task: common:verify:metadata
+      - task: common:update:build-assets
         vars:
-          {
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-          }
-      - task: common:generate:assets
-        vars:
-          {
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-          }
+          VERSION: "{{.VERSION}}"
+          COMMIT: "{{.COMMIT}}"
+          BUILD_TIME: "{{.BUILD_TIME}}"
+      - task: common:verify:release-inputs
     cmds:
-      - rm -rf dist/desktop/darwin-{{.ARCH}}
-      - mkdir -p dist/desktop/darwin-{{.ARCH}}/.build
+      - mkdir -p "{{.BIN_DIR}}"
       - >-
-        helper_dir=internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-{{.ARCH}};
+        if [ "{{.DEV}}" != "true" ]; then
+        helper_dir="internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-{{.ARCH}}";
         helper="$helper_dir/marketdata-sidecar-darwin-{{.ARCH}}";
         test -d "$helper_dir" && test -s "$helper" || { echo "Missing native market-data helper: $helper" >&2; exit 1; };
         if [ -n "${JFTRADE_MACOS_SIGN_IDENTITY:-}" ]; then
@@ -57,19 +25,21 @@ tasks:
         else
         codesign --force --deep --sign - "$helper";
         fi;
-        codesign --verify --strict --verbose=2 "$helper"
+        codesign --verify --strict --verbose=2 "$helper";
+        fi
       - >-
-        go build -trimpath -buildvcs=false
-        -tags production,release_assets
-        -ldflags "-w -s -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"
-        -o dist/desktop/darwin-{{.ARCH}}/.build/JFTrade ./cmd/jftrade-desktop
-      - task: create:app
-        vars:
-          {
-            ARCH: "{{.ARCH}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-          }
+        go build
+        {{if .BUILD_TAGS}}-tags "{{.BUILD_TAGS}}"{{end}}
+        -buildvcs=false
+        {{if ne .DEV "true"}}-trimpath -ldflags "-w -s -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"{{end}}
+        -o "{{.BIN_DIR}}/{{.APP_NAME}}"
+        ./cmd/jftrade-desktop
+      - rm -rf "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS/{{.APP_NAME}}"
+      - cp "{{.WAILS_BUILD_DIR}}/darwin/Info.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
+      - cp "{{.WAILS_BUILD_DIR}}/darwin/icons.icns" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/icons.icns"
+      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app"
     env:
       GOOS: darwin
       GOARCH: "{{.ARCH}}"
@@ -79,49 +49,57 @@ tasks:
       CGO_LDFLAGS: -mmacosx-version-min=12.0
     vars:
       ARCH: '{{.ARCH | default "arm64"}}'
-
-  create:app:
-    internal: true
-    cmds:
-      - mkdir -p "{{.APP}}/Contents/MacOS" "{{.APP}}/Contents/Resources"
-      - cp "dist/desktop/darwin-{{.ARCH}}/.build/JFTrade" "{{.APP}}/Contents/MacOS/JFTrade"
-      - cp "{{.GENERATED_DIR}}/darwin/Info.plist" "{{.APP}}/Contents/Info.plist"
-      - /usr/libexec/PlistBuddy -c "Add :JFTradeCommit string {{.COMMIT}}" "{{.APP}}/Contents/Info.plist"
-      - /usr/libexec/PlistBuddy -c "Add :JFTradeBuildTime string {{.BUILD_TIME}}" "{{.APP}}/Contents/Info.plist"
-      - cp "{{.GENERATED_DIR}}/darwin/icons.icns" "{{.APP}}/Contents/Resources/icons.icns"
-      - mkdir -p "{{.APP}}/Contents/Resources/licenses"
-      - cp LICENSE "{{.APP}}/Contents/Resources/licenses/LICENSE"
-      - cp docs/legal/third-party-notices.md "{{.APP}}/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md"
-      - codesign --force --deep --sign - "{{.APP}}"
-      - codesign --verify --deep --strict --verbose=2 "{{.APP}}"
-    vars:
-      ARCH: '{{.ARCH | default "arm64"}}'
-      APP: dist/desktop/darwin-{{.ARCH}}/JFTrade.app
+      BUILD_TAGS: '{{if eq .DEV "true"}}{{.EXTRA_TAGS}}{{else}}production,release_assets{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}}{{end}}'
 
   package:
-    desc: Package the sealed macOS app in a DMG
+    desc: Packages the macOS app as an official Wails DMG
     deps:
       - task: build
         vars:
-          {
-            ARCH: "{{.ARCH}}",
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-          }
+          VERSION: "{{.VERSION}}"
+          COMMIT: "{{.COMMIT}}"
+          BUILD_TIME: "{{.BUILD_TIME}}"
+          DEV: "false"
     cmds:
-      - rm -rf dist/desktop-release/darwin-{{.ARCH}}
-      - mkdir -p dist/desktop-release/darwin-{{.ARCH}}
-      - node scripts/sign-desktop-release.mjs macos dist/desktop/darwin-{{.ARCH}}/JFTrade.app
-      - cp -R dist/desktop/darwin-{{.ARCH}}/JFTrade.app dist/desktop-release/darwin-{{.ARCH}}/JFTrade.app
-      # Wails v3 beta.4 supports dmg packaging, but JFTrade keeps the branded hdiutil flow below.
+      - rm -rf "{{.BIN_DIR}}/{{.APP_NAME}}.dmg"
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/licenses"
+      - cp LICENSE "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/licenses/LICENSE"
+      - cp docs/legal/third-party-notices.md "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md"
       - >-
-        bash build/darwin/package-dmg.sh
-        dist/desktop-release/darwin-{{.ARCH}}/JFTrade.app
-        dist/desktop-release/darwin-{{.ARCH}}/JFTrade-{{.VERSION}}-macos-{{.ARCH}}-{{.QUALIFIER}}.dmg
+        if [ -n "${JFTRADE_MACOS_SIGN_IDENTITY:-}" ] || [ -n "${JFTRADE_MACOS_NOTARY_PROFILE:-}" ]; then
+        test -n "${JFTRADE_MACOS_SIGN_IDENTITY:-}" && test -n "${JFTRADE_MACOS_NOTARY_PROFILE:-}" || { echo "macOS signing credentials must be all set or all unset" >&2; exit 1; };
+        go tool wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" --identity "$JFTRADE_MACOS_SIGN_IDENTITY" --keychain-profile "$JFTRADE_MACOS_NOTARY_PROFILE" --notarize --hardened-runtime;
+        else
+        codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app";
+        fi
       - >-
-        bash build/darwin/verify-dmg.sh
-        dist/desktop-release/darwin-{{.ARCH}}/JFTrade-{{.VERSION}}-macos-{{.ARCH}}-{{.QUALIFIER}}.dmg
+        go tool wails3 tool package
+        --format dmg
+        --name "{{.APP_NAME}}"
+        --out "{{.BIN_DIR}}"
+        --volume-icon "{{.WAILS_BUILD_DIR}}/darwin/icons.icns"
+        --window-width 540
+        --window-height 380
+      - mv "{{.BIN_DIR}}/{{.APP_NAME}}.dmg" "{{.BIN_DIR}}/{{.OUTPUT_DMG}}"
     vars:
       ARCH: '{{.ARCH | default "arm64"}}'
       QUALIFIER: '{{.QUALIFIER | default "unsigned"}}'
+      OUTPUT_DMG: '{{.OUTPUT_DMG | default (printf "%s-%s-macos-%s-%s.dmg" .APP_NAME .VERSION .ARCH .QUALIFIER)}}'
+
+  run:
+    desc: Runs the Wails development app under the native watcher
+    cmds:
+      - rm -rf "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/JFTrade Dev"
+      - cp build/darwin/Info.dev.plist "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      - cp "{{.WAILS_BUILD_DIR}}/darwin/icons.icns" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources/icons.icns"
+      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
+      - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/JFTrade Dev"'
+    env:
+      JFTRADE_DESKTOP_MODE: "1"
+      JFTRADE_API_BIND: "127.0.0.1:3008"
+      JFTRADE_SETTINGS_PATH: "var/jftrade-api/settings.json"
+      JFTRADE_BACKTEST_DB: "var/jftrade-api/backtest.db"
+      JFTRADE_PINEWORKER_BUNDLE: "{{.PINEWORKER_BUNDLE}}"
+      DISABLE_MARKETS_CACHE: "1"

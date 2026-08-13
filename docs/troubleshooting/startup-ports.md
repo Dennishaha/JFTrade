@@ -11,7 +11,7 @@
 | 模式           | 命令                       | 适用场景                                   | 关键差异                                                      |
 | -------------- | -------------------------- | ------------------------------------------ | ------------------------------------------------------------- |
 | API sidecar    | `go run ./cmd/jftrade-api` | 前端开发、设置调试、行情调试、策略运行控制 | 启动 JFTrade `/api/v1/*` 控制台后端                           |
-| Wails 桌面开发 | `pnpm run desktop:dev`      | 桌面壳、菜单、bindings、窗口与产品联调     | 启动 `JFTrade Dev`、Vite 和内置 sidecar，保留仓库数据路径     |
+| Wails 桌面开发 | `pnpm run prepare:desktop-dev` 后执行 `go tool wails3 dev -config ./build/config.yml -port 3003` | 桌面壳、菜单、bindings、窗口与产品联调 | Wails 原生监督 Vite、Go 构建和 `JFTrade Dev`，保留仓库数据路径；Pine worker 由生命周期外的显式命令准备，不自动准备 Pine/Python 运行时 |
 | Wails 正式产品 | `release_assets` 构建产物  | 日常桌面使用                               | `JFTrade` 独立单实例，使用系统用户数据目录和临时桌面 API 凭证 |
 
 [cmd/jftrade-api/main.go](../../cmd/jftrade-api/main.go) 在进程入口会默认写入 `DISABLE_MARKETS_CACHE=1`，避免旧 market cache 影响 Futu market metadata。
@@ -25,7 +25,7 @@
 | `JFTrade Dev` sidecar                     | `127.0.0.1:3008`  | Wails 开发窗口直接访问 `/api/v1/*`、SSE、WS        |
 | 可选 Web 访问监听器                        | `127.0.0.1:6688`  | 端口可在设置中修改；桌面 Web 关闭时不创建，开启后提供前端、API、SSE、WS 和 Swagger |
 | 正式 Wails 桌面 sidecar                    | `127.0.0.1:6699`  | 仅供正式 Wails WebView 无感访问，始终保持 loopback               |
-| 内置 market-data helper                    | 动态 `127.0.0.1:<port>` | 发布版自动释放并启动；仅供 Go Provider 使用，`JFTRADE_MARKETDATA_SIDECAR` 仅用于开发/测试 |
+| 内置 market-data helper                    | 动态 `127.0.0.1:<port>` | 仅发布版从 `release_assets` 运行；开发版需显式配置 helper，`JFTRADE_MARKETDATA_SIDECAR` 仅用于开发/测试 |
 | Futu OpenD API                            | `127.0.0.1:11110` | Go 原生 TCP/protobuf 查询与探针                    |
 | Futu OpenD WebSocket                      | `127.0.0.1:11111` | FTWebSocket / JavaScript API                       |
 
@@ -43,7 +43,7 @@
 
 Wails 桌面的可选 Web 端口不使用 `interfaces.apiBind` 或 sidecar 端口，而由“设置 → Web 访问”的 `security.webPort` 控制。它允许 `1024`–`65535`，默认 `6688`，保存后立即切换。若提示 `WEB_ACCESS_LISTENER_UPDATE_FAILED` 或日志出现 `Web access port conflict`，原端口仍会继续服务；用 `lsof` 查占用进程或换一个空闲端口。
 
-在 `JFTrade Dev` 中访问该端口时，UI 由 Gin 安全代理本机 Vite `3003`。如果返回 `502` 和“development UI is not available”，确认是用 `pnpm run desktop:dev` 启动，并检查 Vite 是否仍在监听；正式产品使用内嵌资源，不依赖 `3003`。
+在 `JFTrade Dev` 中访问该端口时，UI 由 Gin 安全代理 Wails 原生 `dev_mode.executes` 启动的本机 Vite `3003`。如果返回 `502` 和“development UI is not available”，确认是用 `go tool wails3 dev` 启动，并检查 Wails background frontend task 是否仍在监听；正式产品使用内嵌资源，不依赖 `3003`。
 
 ## 快速检查
 

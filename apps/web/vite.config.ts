@@ -41,6 +41,7 @@ if (typeof launchEditor === "string") {
 
 const developmentApiTarget = "http://127.0.0.1:3000";
 const developmentDocsTarget = "http://127.0.0.1:3001";
+const defaultDevelopmentVitePort = 3003;
 const apiProxyTargets = ["/api", "/swagger"];
 
 type ProxyEventEmitter = {
@@ -68,6 +69,13 @@ function runtimeEnv(): Record<string, string | undefined> {
       }
     )["process"]?.env ?? {}
   );
+}
+
+function resolveDevelopmentVitePort(): number {
+  const value = Number(runtimeEnv().WAILS_VITE_PORT);
+  return Number.isInteger(value) && value > 0 && value < 65536
+    ? value
+    : defaultDevelopmentVitePort;
 }
 
 function apiTargetFromBind(bind: string | undefined): string | null {
@@ -250,10 +258,10 @@ export default defineConfig({
     setupFiles: ["./tests/setup.ts"],
   },
   server: {
-    port: 3003,
-    // Wails loads FRONTEND_DEVSERVER_URL on this exact port. Silently moving
-    // to 3004 when an old Vite process still owns 3003 makes the desktop load
-    // the stale frontend and proxy API requests to the wrong backend.
+    port: resolveDevelopmentVitePort(),
+    // Wails exports WAILS_VITE_PORT and FRONTEND_DEVSERVER_URL. Strict mode
+    // keeps the desktop from silently loading a stale frontend on another
+    // port when the configured listener is already in use.
     strictPort: true,
     proxy: {
       ...Object.fromEntries(

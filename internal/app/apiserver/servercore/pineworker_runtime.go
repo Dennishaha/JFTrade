@@ -40,7 +40,7 @@ func (s *serverApplication) startPineWorkerManagers() (pineWorkerRunner, pineWor
 		return nil, nil
 	}
 	if !enabled {
-		log.Printf("JFTrade PineTS worker manager not started: %s is not configured and no embedded worker asset is available; run `pnpm run dev:api:pineworker` or set %s=/absolute/path/to/worker.mjs", envPineWorkerBundle, envPineWorkerBundle)
+		log.Printf("JFTrade PineTS worker manager not started: %s is not configured and no embedded worker asset is available; run `pnpm run prepare:desktop-dev` before Wails desktop development or set %s=/absolute/path/to/worker.mjs", envPineWorkerBundle, envPineWorkerBundle)
 		return nil, nil
 	}
 	log.Printf("JFTrade PineTS worker managers configured: source=%s runtime=%s backtestLimit=%d instanceLimit=%d host=%s mode=ephemeral proto=%s cwd=%s", config.Source(), config.RuntimePath, config.BacktestWorkers, config.InstanceWorkers, config.Host, config.ProtoPath, config.WorkDir)

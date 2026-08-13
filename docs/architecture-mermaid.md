@@ -226,7 +226,7 @@ flowchart TB
         DevWeb["pnpm run dev:web<br/>Vite 127.0.0.1:3003"]
         DevDocs["pnpm run dev:docs<br/>VitePress 127.0.0.1:3001"]
         Proxy["Vite proxy<br/>/api /swagger -> 3000<br/>/docs -> 3001"]
-        DesktopDev["pnpm run desktop:dev<br/>JFTrade Dev / sidecar 3008<br/>仓库 var/jftrade-api"]
+        DesktopDev["go tool wails3 dev<br/>Wails dev_mode.executes / sidecar 3008<br/>仓库 var/jftrade-api"]
         DevMarketData["JFTRADE_MARKETDATA_SIDECAR<br/>开发/测试绝对路径 helper 覆盖"]
     end
 

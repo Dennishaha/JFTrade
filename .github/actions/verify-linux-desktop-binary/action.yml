@@ -5,7 +5,7 @@ inputs:
   artifact_path:
     description: Path to the Linux desktop binary
     required: false
-    default: dist/desktop/linux-amd64/jftrade-desktop-linux-amd64
+    default: bin/JFTrade
 
 runs:
   using: composite

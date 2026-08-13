@@ -1,117 +1,99 @@
-# Wails v3 桌面发布与通道隔离
+# Wails v3 桌面构建与发布
 
-桌面壳固定使用 Wails `v3.0.0-beta.4` 和 `@wailsio/runtime@3.0.0-beta.1`。仓库脚本只调用 `go tool wails3`，不读取全局安装的 `wails3`。
+桌面壳固定使用 Wails `v3.0.0-beta.4` 和 `@wailsio/runtime@3.0.0-beta.1`。CLI 由 Go toolchain 固定，调用方式是 `go tool wails3`，不依赖全局安装的 `wails3`。
 
-桌面构建的事实来源是根 `Taskfile.yml`、`build/config.yml` 和三个平台 Taskfile。Node 入口只校验 tag、解析 Version/Commit/BuildTime 并调用 Wails task；平台资源、production flags、应用 bundle、NSIS、AppImage 和 Linux 包均由 Wails task/tool 生成。
+## 构建事实源
 
-`go tool wails3 build`、`go tool wails3 package` 和 `go tool wails3 task desktop:*` 都通过同一套任务工作；仓库继续保留 pnpm 脚本作为日常入口。
+构建入口完全采用 Wails v3 的 Taskfile 模型：
 
-## 开发版与产品版
+- 根 `Taskfile.yml` 负责 `build`、`package`、`run` 和 `dev` 分发；
+- `build/Taskfile.yml` 负责 Vite、bindings、icons、Wails build assets 和发布输入校验；
+- `build/config.yml` 的 `dev_mode.executes` 负责 blocking Go build、background Vite 和 primary `run`；
+- `build/darwin/Taskfile.yml`、`build/windows/Taskfile.yml`、`build/linux/Taskfile.yml` 负责平台编译和官方打包工具。
 
-`pnpm run desktop:dev` 是 `JFTrade Dev`，默认使用 `127.0.0.1:3008` 和仓库内 `var/jftrade-api`。启动脚本会并行启动 Vite 与准备原生 bundle；原生输入指纹和签名都命中时直接复用 `.app`，仅修改前端不会触发 Go rebuild 或 codesign。正式 `release_assets` 产品是 `JFTrade`，默认使用 `127.0.0.1:6699` 和系统用户数据目录。两者的 bundle/product ID 与 SingleInstance ID 不同，可以同时运行；同一通道重复启动只恢复已有窗口。
-
-| 属性                        | `JFTrade Dev`             | 正式 `JFTrade`                   |
-| --------------------------- | ------------------------- | -------------------------------- |
-| 编译条件                    | 默认构建                  | `production,release_assets`      |
-| Product / SingleInstance ID | `com.jftrade.desktop.dev` | `com.jftrade.desktop`            |
-| 默认 API                    | `127.0.0.1:3008`          | `127.0.0.1:6699`                 |
-| 可选 Web 入口               | 用户设置，默认 `127.0.0.1:6688` | 用户设置，默认 `127.0.0.1:6688` |
-| 数据目录                    | 仓库 `var/jftrade-api`    | 系统用户数据目录                 |
-| 更新检查                    | 禁用                      | 每日后台一次，并支持菜单手动检查 |
-
-桌面化没有迁移业务 API：Vue 前端仍直接访问 REST/OpenAPI、SSE 和业务 WebSocket。Wails 窗口先显示启动页，`ApplicationStarted` 后才异步启动 API；`DesktopStartupService` 暴露阶段，ready 后挂载主界面，失败时只提供日志目录和退出。bindings 还包括 `DesktopLinkService`、`DesktopLogService` 和 `DesktopUpdateService`，全部由仓库脚本生成并提交，不维护手写方法 ID。
-
-正式产品通过 Wails `production` tag 关闭 DevTools、调试 runtime 和开发资源代理，并统一启用 `-trimpath`、`-s -w`；Linux 额外使用 `gtk3`，Windows 使用 GUI subsystem。正式产品不会扫描、复制或移动开发数据。`desktop-state.json` 只写入正式产品数据目录。显式 `JFTRADE_API_BIND` 仍可覆盖端口，但端口已被占用时启动会返回 `API port conflict`，不会关闭或接管现有进程。
-
-正式产品数据目录：
-
-- macOS：`~/Library/Application Support/JFTrade`
-- Windows：`%LOCALAPPDATA%/JFTrade`
-- Linux：`${XDG_DATA_HOME:-~/.local/share}/jftrade`
-
-正式 sidecar 只允许监听 loopback，也不会接受浏览器密码登录。可选 Web 入口是第二个 Gin HTTP 监听器：仅在用户已设置密码并主动开启时创建，默认也只监听 loopback；允许其他设备访问后才监听所有接口。启停、端口和网络范围保存后立即作用于监听器；新端口冲突时会保留原监听器和原设置。如果手工把 sidecar、Web 或两个通道配置成同一端口，后启动的一方会明确失败，另一方继续运行。
-
-## 版本与本地验证
-
-正式发布只接受 `vX.Y.Z`：
+常用命令：
 
 ```bash
-JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 pnpm run desktop:release:darwin
+go tool wails3 doctor
+go tool wails3 dev -config ./build/config.yml -port 3003
+go tool wails3 build
+go tool wails3 package
+go tool wails3 task --list-all
 ```
 
-`dev`、`v0.0.0`、分支名和其他 tag 都会被 release 脚本拒绝。版本、提交号和构建时间会同时注入 Go buildinfo、macOS Info.plist 和 Windows version resource。
+开发启动由 Wails watcher 管理，不再使用 Node supervisor、Vite 等待脚本、原生 app 缓存指纹或开发签名缓存。桌面开发前先运行 `pnpm run prepare:desktop-dev` 显式生成外部 Pine worker；Wails 启动本身不会自动构建、发现或选择 Pine worker、Python helper 或 frozen sidecar。
 
-推送 tag 会启动 `.github/workflows/desktop-release.yml`。正式发布先确认该 tag 的准确提交已经通过 main CI，再从同一提交集中生成一次 Swagger/契约、前端压缩包和 Pineworker bundle，并对实际 bundle 运行非 mock 回测 smoke；平台任务复用同一组输入，不重复安装前端依赖或生成平台无关资产，也不重复执行完整 Web、Go 和 Pine 测试。`publish` 会等待四个平台任务结束，macOS、Windows x64 和 Linux 全部通过后创建或更新同名 GitHub Release，并上传二进制、SBOM 和 `SHA256SUMS`。Windows ARM64 是预览构建，失败不会阻塞这三套正式资产：
+## 开发版与正式版
+
+`go tool wails3 dev` 运行 `JFTrade Dev`，默认 API 为 `127.0.0.1:3008`，数据目录为仓库内 `var/jftrade-api/`。Wails 通过 `WAILS_VITE_PORT` 把 Vite 端口传给 `apps/web/vite.config.ts`，默认端口为 `3003`。
+
+正式构建使用 `production,release_assets`，默认 API 为 `127.0.0.1:6699`，数据写入系统用户数据目录。发布版的 Pine、前端压缩包、Swagger 和 platform market-data helper 必须在构建前显式准备：
 
 ```bash
-git tag v1.2.3
-git push origin v1.2.3
+pnpm run prepare:desktop-release
+export JFTRADE_DESKTOP_PREPARED=1
+export VERSION=1.2.3
+export COMMIT="$(git rev-parse HEAD)"
+export BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+go tool wails3 build
+go tool wails3 package
 ```
 
-也可以从 Actions 的 `Desktop Release` 工作流手动输入已通过同 SHA main CI 的提交或已有 `vX.Y.Z` tag；手动路径默认与 tag 推送一样发布 Release。勾选 `dry_run` 时仍会完成四个平台构建并保留 workflow artifacts，但不会写入 provenance 或修改 GitHub Release；dry run 同样拒绝未进入 main 或没有成功 CI 记录的提交。相同 tag 的发布会串行执行，重跑时使用本次构建结果覆盖同名 assets，并清理旧命名 Linux 包、裸二进制和 Arch 包，无论 Release 当前是 draft 还是已发布状态。直接在 Releases 页面创建或发布 Release 不会触发构建。
+CI 使用同一个 `JFTRADE_DESKTOP_PREPARED=1` 校验开关，并从共享 artifact 下载前端、Swagger 和 Pine 输入；各平台 runner 独立构建和 smoke-test 自己的 Python helper。Wails build/package 任务不会隐式执行资产准备。
 
-开发构建与 bindings：
+## 产物布局
+
+所有 Wails 二进制和平台包写入 `bin/`：
+
+- macOS：`bin/JFTrade`、`bin/JFTrade.app`、`bin/JFTrade-<version>-macos-arm64-<qualifier>.dmg`；
+- Windows：`bin/JFTrade.exe`、`bin/JFTrade-<version>-windows-x64-<qualifier>-setup.exe`；
+- Windows ARM64：`bin/JFTrade-<version>-windows-arm64-preview-<qualifier>-setup.exe`；
+- Linux：`bin/JFTrade`、`bin/JFTrade-<version>-linux-x64.AppImage`、`.deb` 和 `.rpm`。
+
+`qualifier` 在没有签名凭据时为 `unsigned`，凭据完整配置时为 `signed`。构建目录 `var/wails-build/` 只保存本次任务生成的 Wails metadata、icons、manifest 和临时打包 staging。
+
+## 单独打包
+
+默认平台包：
 
 ```bash
-pnpm run desktop:dev
+go tool wails3 package
+```
+
+可选格式使用平台 Taskfile：
+
+```bash
+go tool wails3 task windows:package:msix
+go tool wails3 task linux:package:appimage
+go tool wails3 task linux:package:linux FORMAT=deb
+go tool wails3 task linux:package:linux FORMAT=rpm
+```
+
+注意：Wails `v3.0.0-beta.4` 的官方 Taskfile 已包含 MSIX 任务，但该版本的
+`wails3` CLI 尚未注册 `tool msix` 子命令。因此 beta.4 上的
+`windows:package:msix` 暂不可执行；默认 Windows 发布路径仍使用 NSIS。待 Wails
+修复或升级后，直接复用该 Task 即可，不要恢复旧的 Node 安装器包装层。
+
+Windows NSIS 使用 Wails 生成的 `wails_tools.nsh` 和官方 `makensis` 调用；Linux AppImage、deb、rpm 使用 Wails generator/packager；macOS DMG 使用 `go tool wails3 tool package --format dmg`。仓库不再维护自定义 hdiutil DMG wrapper、Node NSIS 编译 wrapper 或 release orchestrator。
+
+## 签名与验证
+
+签名凭据必须全部配置或全部留空：
+
+- macOS：`JFTRADE_MACOS_SIGN_IDENTITY`、`JFTRADE_MACOS_NOTARY_PROFILE`；
+- Windows：`JFTRADE_WINDOWS_CERTIFICATE`、`JFTRADE_WINDOWS_CERTIFICATE_PASSWORD`。
+
+没有凭据时仍执行 ad-hoc macOS bundle sealing，并生成带 `unsigned` 标记的包。配置完整时由 Wails `tool sign` 负责 macOS notarization 或 Windows Authenticode。
+
+本地验证：
+
+```bash
+go tool wails3 task --list
 pnpm run generate:wails-bindings
 pnpm run check:wails-bindings
+pnpm run test:scripts -- desktop
+pnpm run check:quick
+git diff --check
 ```
 
-常用验证命令：
-
-```bash
-pnpm run desktop:doctor
-pnpm run check:desktop
-pnpm run typecheck:web
-```
-
-桌面窗口、API 与 Yahoo helper 冷/热启动的本地墙钟结果和复测方法见 [桌面启动性能基准](desktop-startup-performance.md)。
-
-各安装包也可以按需单独生成。Windows MSIX 不进入默认 GitHub Release；三个 Linux 命令对应默认 Release 中的 AppImage、deb 和 rpm：
-
-```bash
-pnpm run desktop:package:windows-msix
-pnpm run desktop:package:linux-appimage
-pnpm run desktop:package:linux-deb
-pnpm run desktop:package:linux-rpm
-```
-
-## CI 发布与可选签名
-
-`.github/workflows/desktop-release.yml` 从准确的 `vX.Y.Z` tag checkout 并构建：
-
-- macOS：固定使用 `macos-15` ARM64 runner。无证书时仍执行 ad-hoc bundle sealing 和严格 codesign 校验；完整配置 secrets 时通过 Wails sign tool 执行 Developer ID 签名与公证。
-- Windows：生成带 WebView2 bootstrapper 的 x64 per-user Wails NSIS；完整配置 secrets 时通过 Wails sign tool 对应用和安装器执行 Authenticode。
-- Linux x64：使用 GTK3/WebKitGTK 4.1，默认生成 AppImage、deb 和 rpm；AppImage 使用 Wails/linuxdeploy 的兼容默认压缩，裸二进制只保留在内部构建目录，不进入 GitHub Release。
-
-平台 job 通过内部环境变量 `JFTRADE_DESKTOP_PREPARED=1` 使用共享输入，并会在编译前拒绝缺失或空的 Swagger、前端压缩包和 Pineworker bundle。该变量只供 CI 使用；本地 `desktop:build` / `desktop:release:*` 仍会完整准备所需资产。
-
-普通 CI 的 `Desktop Build` 矩阵会复用 Web 与 Pine job 生成的资产，在原生 runner 上构建 Linux x64、macOS ARM64 和 Windows x64 应用。各平台验证二进制格式、目标架构和 Go 构建元数据，Linux 额外检查动态库解析，最终仍由 required check `Build & Test` 汇总门禁。
-
-签名采用“全部配置或全部不配置”：部分配置会立即失败，禁止静默降级。macOS secrets 为 `JFTRADE_MACOS_CERTIFICATE_BASE64`、`JFTRADE_MACOS_CERTIFICATE_PASSWORD`、`JFTRADE_MACOS_SIGN_IDENTITY`、`JFTRADE_MACOS_NOTARY_APPLE_ID`、`JFTRADE_MACOS_NOTARY_PASSWORD`、`JFTRADE_MACOS_NOTARY_TEAM_ID`；Windows secrets 为 `JFTRADE_WINDOWS_CERTIFICATE_BASE64` 和 `JFTRADE_WINDOWS_CERTIFICATE_PASSWORD`。完全未配置时仍发布带 `unsigned` 的产物，可能触发 Gatekeeper 或 SmartScreen 提示。
-
-Windows ARM64 会在原生 `windows-11-arm` runner 上生成带 `preview` 标记的无签名 per-user NSIS 安装器，作为独立 asset 进入 GitHub Release。该 runner 当前处于 GitHub public preview。
-
-当前主要产物名：
-
-- macOS：`JFTrade-X.Y.Z-macos-arm64-unsigned.dmg`
-- Windows：`JFTrade-X.Y.Z-windows-x64-unsigned-setup.exe`
-- Windows ARM64 预览：`JFTrade-X.Y.Z-windows-arm64-preview-unsigned-setup.exe`
-- Linux：`JFTrade-X.Y.Z-linux-x64.AppImage`、`JFTrade-X.Y.Z-linux-x64.deb`、`JFTrade-X.Y.Z-linux-x64.rpm`
-
-证书启用后 macOS/Windows 文件名中的 `unsigned` 变为 `signed`。Windows MSIX 只提供显式 Wails task；Linux 的 AppImage、deb、rpm 均由默认 Linux release task 生成。
-
-macOS DMG 只包含 ARM64 `JFTrade.app`，不包含 Rosetta/x86_64 slice。CI 固定运行在 `macos-15` ARM64 runner，并在构建前检查 runner 架构。
-
-DMG 使用标准拖拽安装布局：左侧为 `JFTrade.app`，右侧为指向 `/Applications` 的文件夹快捷方式，背景箭头和说明文字引导用户将应用拖入 Applications。背景保留可审查的 SVG 矢量源，并在打包时生成 1320×800、144 DPI 的 Retina 2× PNG。发布任务会重新挂载 DMG，验证应用、快捷方式、背景分辨率和 Finder `.DS_Store` 布局都已写入。
-
-## 验收要点
-
-- 同时运行 `pnpm run desktop:dev` 和正式产品：3008、6699、窗口、托盘、日志和退出生命周期互不影响。
-- 分别二次启动两个通道：只聚焦同通道已有窗口，不启动第二个 sidecar。
-- 开发版继续读取仓库数据；正式产品只读取系统用户数据目录。
-- 退出任意一方，另一方继续运行。
-- macOS 用 `file`/`lipo` 确认仅 ARM64；Windows 确认 x64 与 ARM64 per-user NSIS 都可安装覆盖。
-- macOS 必须通过 `codesign --verify --deep --strict`；Windows PE subsystem 必须为 GUI；Linux AppImage 必须可读取 SquashFS 元数据并可解包，deb/rpm 必须声明对应的 GTK3/WebKitGTK 依赖。
-- 未签名包出现 Gatekeeper 或 SmartScreen 提示属于当前发布策略的预期行为。
+公开业务 API、SQLite schema、Wails bindings 签名和 `pkg/*` API 不随构建系统迁移改变。

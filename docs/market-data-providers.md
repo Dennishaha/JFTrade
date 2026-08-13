@@ -59,7 +59,7 @@ collector 每 250 毫秒推进一次非活跃 Futu 清理；每条订阅从 Open
 
 前端会按 descriptor 在同步或回测前拦截超出历史窗口的组合；后端仍执行同一校验，避免旧客户端绕过。缓存缺失但请求范围有效时，“开始回测”会先同步当前范围并在同步完成后重试一次。Provider 返回零根 K 线时同步任务标记失败，不再以“完成”掩盖无数据结果；已失败运行的真实错误会直接显示在默认报告页。
 
-`pnpm run desktop:dev` 默认直接使用 `workers/marketdata-sidecar/.venv` 和源码目录；只有显式 helper、开发 venv 均不可用时才复用已构建的 frozen helper，启动脚本不会隐式运行 PyInstaller。没有可用运行时会立即给出安装命令。独立运行 `cmd/jftrade-api` 时，可通过绝对路径指定本地 helper：
+Wails 原生桌面开发不会自动选择、构建或启动 Python helper。需要在开发/测试环境显式提供 `JFTRADE_MARKETDATA_SIDECAR`，或先执行发布资产准备命令；没有可用运行时会沿用现有明确错误。独立运行 `cmd/jftrade-api` 时，可通过绝对路径指定本地 helper：
 
 ```bash
 JFTRADE_MARKETDATA_SIDECAR=/absolute/path/to/marketdata-sidecar-darwin-arm64/marketdata-sidecar-darwin-arm64 \

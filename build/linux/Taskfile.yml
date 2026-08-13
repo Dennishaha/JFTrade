@@ -3,170 +3,172 @@ version: "3"
 includes:
   common: ../Taskfile.yml
 
-vars:
-  GENERATED_DIR: dist/desktop/.wails-build
-
 tasks:
   build:
-    desc: Build the production GTK3 Linux executable
-    platforms: [linux]
-    run: once
+    desc: Builds the JFTrade GTK3 Linux executable
     deps:
-      - task: common:prepare
-      - task: common:verify:metadata
+      - task: common:update:build-assets
         vars:
-          {
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-          }
-      - task: common:generate:assets
-        vars:
-          {
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-          }
+          VERSION: "{{.VERSION}}"
+          COMMIT: "{{.COMMIT}}"
+          BUILD_TIME: "{{.BUILD_TIME}}"
+      - task: common:verify:release-inputs
     cmds:
-      - rm -rf dist/desktop/linux-{{.ARCH}} && mkdir -p dist/desktop/linux-{{.ARCH}}
+      - mkdir -p "{{.BIN_DIR}}"
       - >-
-        go build -trimpath -buildvcs=false
-        -tags production,release_assets,gtk3
-        -ldflags "-w -s -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"
-        -o dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}} ./cmd/jftrade-desktop
+        go build
+        {{if .BUILD_TAGS}}-tags "{{.BUILD_TAGS}}"{{end}}
+        -buildvcs=false
+        {{if ne .DEV "true"}}-trimpath -ldflags "-w -s -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"{{end}}
+        -o "{{.BIN_DIR}}/{{.APP_NAME}}"
+        ./cmd/jftrade-desktop
     env:
       GOOS: linux
       GOARCH: "{{.ARCH}}"
       CGO_ENABLED: "1"
     vars:
       ARCH: '{{.ARCH | default "amd64"}}'
+      BUILD_TAGS: '{{if eq .DEV "true"}}gtk3{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}}{{else}}production,release_assets,gtk3{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}}{{end}}'
 
   generate:desktop:
-    internal: true
-    run: once
+    desc: Generates the official Linux desktop entry
     cmds:
-      - mkdir -p dist/desktop-release/.staging/linux-{{.ARCH}}
+      - mkdir -p "{{.WAILS_BUILD_DIR}}/linux"
       - >-
-        go tool wails3 generate .desktop -name JFTrade -exec jftrade-desktop
-        -icon JFTrade -outputfile dist/desktop-release/.staging/linux-{{.ARCH}}/JFTrade.desktop
+        go tool wails3 generate .desktop
+        -name "{{.APP_NAME}}"
+        -exec jftrade-desktop
+        -icon JFTrade
+        -outputfile "{{.WAILS_BUILD_DIR}}/linux/JFTrade.desktop"
         -categories "Finance;Development;"
-    vars:
-      ARCH: '{{.ARCH | default "amd64"}}'
 
   package:
-    desc: Build AppImage, deb and rpm Linux release assets
+    desc: Packages the Linux executable as AppImage, deb and rpm assets
     deps:
       - task: build
         vars:
-          {
-            ARCH: "{{.ARCH}}",
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-          }
+          VERSION: "{{.VERSION}}"
+          COMMIT: "{{.COMMIT}}"
+          BUILD_TIME: "{{.BUILD_TIME}}"
+          DEV: "false"
     cmds:
-      - rm -rf dist/desktop-release/linux-{{.ARCH}} dist/desktop-release/.staging/linux-{{.ARCH}}
-      - task: package:appimage
+      - rm -rf "{{.PACKAGE_RELEASE_DIR}}"
+      - mkdir -p "{{.PACKAGE_RELEASE_DIR}}"
+      - task: package:appimage:prepared
         vars:
-          {
-            ARCH: "{{.ARCH}}",
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-          }
-      - task: package:linux
+          RELEASE_DIR: "{{.PACKAGE_RELEASE_DIR}}"
+      - task: package:linux:prepared
         vars:
-          {
-            ARCH: "{{.ARCH}}",
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-            FORMAT: deb,
-          }
-      - task: package:linux
+          FORMAT: deb
+          RELEASE_DIR: "{{.PACKAGE_RELEASE_DIR}}"
+      - task: package:linux:prepared
         vars:
-          {
-            ARCH: "{{.ARCH}}",
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-            FORMAT: rpm,
-          }
+          FORMAT: rpm
+          RELEASE_DIR: "{{.PACKAGE_RELEASE_DIR}}"
       - >-
         node scripts/manage-linux-release-artifacts.mjs verify
-        {{.VERSION}} {{.ARCH}} dist/desktop-release/linux-{{.ARCH}}
+        {{.VERSION}} {{.ARCH}} "{{.PACKAGE_RELEASE_DIR}}"
+      - mkdir -p "{{.BIN_DIR}}"
+      - cp "{{.PACKAGE_RELEASE_DIR}}"/* "{{.BIN_DIR}}/"
     vars:
       ARCH: '{{.ARCH | default "amd64"}}'
+      PACKAGE_RELEASE_DIR: '{{.PACKAGE_RELEASE_DIR | default (printf "%s/linux-release-%s" .WAILS_BUILD_DIR .ARCH)}}'
 
   package:appimage:
-    desc: Build an AppImage with the Wails generator
+    desc: Creates an AppImage with the Wails generator
     deps:
       - task: build
         vars:
-          {
-            ARCH: "{{.ARCH}}",
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-          }
-      - task: generate:desktop
-        vars: { ARCH: "{{.ARCH}}" }
+          VERSION: "{{.VERSION}}"
+          COMMIT: "{{.COMMIT}}"
+          BUILD_TIME: "{{.BUILD_TIME}}"
+          DEV: "false"
     cmds:
-      - rm -rf dist/desktop-release/.staging/linux-{{.ARCH}}/appimage
-      - mkdir -p dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/output
-      - cp build/desktop/appicon.png dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/JFTrade.png
+      - task: package:appimage:prepared
+        vars:
+          RELEASE_DIR: "{{.RELEASE_DIR}}"
+
+  package:appimage:prepared:
+    desc: Creates an AppImage after the platform binary is built
+    internal: true
+    cmds:
+      - task: generate:desktop
+      - rm -rf "{{.WAILS_BUILD_DIR}}/linux/appimage"
+      - mkdir -p "{{.WAILS_BUILD_DIR}}/linux/appimage/output" "{{.WAILS_BUILD_DIR}}/linux/appimage/build"
       - >-
         go tool wails3 generate appimage
-        -binary dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}}
-        -icon dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/JFTrade.png
-        -desktopfile dist/desktop-release/.staging/linux-{{.ARCH}}/JFTrade.desktop
-        -outputdir dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/output
-        -builddir dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/build
+        -binary "{{.BIN_DIR}}/{{.APP_NAME}}"
+        -icon build/desktop/appicon.png
+        -desktopfile "{{.WAILS_BUILD_DIR}}/linux/JFTrade.desktop"
+        -outputdir "{{.WAILS_BUILD_DIR}}/linux/appimage/output"
+        -builddir "{{.WAILS_BUILD_DIR}}/linux/appimage/build"
       - >-
         node scripts/manage-linux-release-artifacts.mjs finalize
         appimage {{.VERSION}} {{.ARCH}}
-        dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/output
-        dist/desktop-release/linux-{{.ARCH}}
+        "{{.WAILS_BUILD_DIR}}/linux/appimage/output"
+        "{{.RELEASE_DIR}}"
     vars:
       ARCH: '{{.ARCH | default "amd64"}}'
+      RELEASE_DIR: '{{.RELEASE_DIR | default .BIN_DIR}}'
 
   package:linux:
-    desc: Build a deb or rpm package with the Wails packager
+    desc: Creates a deb or rpm package with the Wails packager
     deps:
       - task: build
         vars:
-          {
-            ARCH: "{{.ARCH}}",
-            VERSION: "{{.VERSION}}",
-            COMMIT: "{{.COMMIT}}",
-            BUILD_TIME: "{{.BUILD_TIME}}",
-          }
-      - task: generate:desktop
-        vars: { ARCH: "{{.ARCH}}" }
+          VERSION: "{{.VERSION}}"
+          COMMIT: "{{.COMMIT}}"
+          BUILD_TIME: "{{.BUILD_TIME}}"
+          DEV: "false"
     cmds:
-      - rm -rf dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}
-      - mkdir -p dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}
+      - task: package:linux:prepared
+        vars:
+          FORMAT: "{{.FORMAT}}"
+          RELEASE_DIR: "{{.RELEASE_DIR}}"
+
+  package:linux:prepared:
+    desc: Creates a deb or rpm package after the platform binary is built
+    internal: true
+    cmds:
+      - task: generate:desktop
+      - rm -rf "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}"
+      - mkdir -p "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}/output"
       - >-
         node scripts/prepare-linux-package-config.mjs
-        build/linux/nfpm.yaml dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}/nfpm.yaml
+        build/linux/nfpm.yaml "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}/nfpm.yaml"
         {{.VERSION}} {{.ARCH}}
-        {{.ROOT_DIR}}/dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}}
-        {{.ROOT_DIR}}/dist/desktop-release/.staging/linux-{{.ARCH}}/JFTrade.desktop
-        {{.ROOT_DIR}}/build/desktop/appicon.png
-        {{.ROOT_DIR}}/LICENSE
-        {{.ROOT_DIR}}/docs/legal/third-party-notices.md
+        "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}"
+        "{{.ROOT_DIR}}/{{.WAILS_BUILD_DIR}}/linux/JFTrade.desktop"
+        "{{.ROOT_DIR}}/build/desktop/appicon.png"
+        "{{.ROOT_DIR}}/LICENSE"
+        "{{.ROOT_DIR}}/docs/legal/third-party-notices.md"
       - >-
-        go tool wails3 tool package -name jftrade -format {{.FORMAT}}
-        -config dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}/nfpm.yaml
-        -out dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}
+        go tool wails3 tool package
+        -name jftrade
+        -format {{.FORMAT}}
+        -config "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}/nfpm.yaml"
+        -out "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}/output"
       - >-
         node scripts/manage-linux-release-artifacts.mjs finalize
         {{.FORMAT}} {{.VERSION}} {{.ARCH}}
-        dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}
-        dist/desktop-release/linux-{{.ARCH}}
+        "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}/output"
+        "{{.RELEASE_DIR}}"
     preconditions:
       - sh: test "{{.FORMAT}}" = "deb" || test "{{.FORMAT}}" = "rpm"
         msg: FORMAT must be deb or rpm
     vars:
       ARCH: '{{.ARCH | default "amd64"}}'
       FORMAT: '{{.FORMAT | default "deb"}}'
+      RELEASE_DIR: '{{.RELEASE_DIR | default .BIN_DIR}}'
+
+  run:
+    desc: Runs the Linux development executable
+    cmds:
+      - '"{{.BIN_DIR}}/{{.APP_NAME}}"'
+    env:
+      JFTRADE_DESKTOP_MODE: "1"
+      JFTRADE_API_BIND: "127.0.0.1:3008"
+      JFTRADE_SETTINGS_PATH: "var/jftrade-api/settings.json"
+      JFTRADE_BACKTEST_DB: "var/jftrade-api/backtest.db"
+      JFTRADE_PINEWORKER_BUNDLE: "{{.PINEWORKER_BUNDLE}}"
+      DISABLE_MARKETS_CACHE: "1"
