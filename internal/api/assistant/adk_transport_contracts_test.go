@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestADKChatStreamTransportPreservesEventIdentityAndPayload(t *testing.T) {
 	event := adkChatStreamEvent{
 		Type: "run", StreamID: "stream-1", Sequence: 7, RunID: "run-1",
-		Run: &jfadk.Run{ID: "run-1", Status: jfadk.RunStatusRunning},
+		Run: &assistantmodel.Run{ID: "run-1", Status: assistantmodel.RunStatusRunning},
 	}
 	encoded, err := json.Marshal(event)
 	if err != nil {
@@ -23,7 +23,7 @@ func TestADKChatStreamTransportPreservesEventIdentityAndPayload(t *testing.T) {
 	if decoded.Type != "run" || decoded.StreamID != "stream-1" || decoded.Sequence != 7 || decoded.RunID != "run-1" {
 		t.Fatalf("decoded event identity = %#v", decoded)
 	}
-	if decoded.Run == nil || decoded.Run.ID != "run-1" || decoded.Run.Status != jfadk.RunStatusRunning {
+	if decoded.Run == nil || decoded.Run.ID != "run-1" || decoded.Run.Status != assistantmodel.RunStatusRunning {
 		t.Fatalf("decoded run payload = %#v", decoded.Run)
 	}
 }

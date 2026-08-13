@@ -15,7 +15,8 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestServiceProviderChatAndSkillWrappers(t *testing.T) {
@@ -35,13 +36,13 @@ func TestServiceProviderChatAndSkillWrappers(t *testing.T) {
 		t.Fatalf("TestProvider missing err = %v, want provider not found", err)
 	}
 
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-chat-wrapper", Name: "Chat Wrapper", Status: jfadk.AgentStatusEnabled, ProviderID: "test-provider",
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-chat-wrapper", Name: "Chat Wrapper", Status: assistantmodel.AgentStatusEnabled, ProviderID: "test-provider",
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	response, err := service.Chat(ctx, jfadk.ChatRequest{AgentID: agent.ID, Message: "hello"})
+	response, err := service.Chat(ctx, assistantmodel.ChatRequest{AgentID: agent.ID, Message: "hello"})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -50,7 +51,7 @@ func TestServiceProviderChatAndSkillWrappers(t *testing.T) {
 	}
 
 	deltaCount := 0
-	streamResponse, err := service.ChatStream(ctx, jfadk.ChatRequest{AgentID: agent.ID, Message: "hello stream"}, func(delta jfadk.ChatDelta) error {
+	streamResponse, err := service.ChatStream(ctx, assistantmodel.ChatRequest{AgentID: agent.ID, Message: "hello stream"}, func(delta assistantmodel.ChatDelta) error {
 		deltaCount++
 		return nil
 	})
@@ -106,8 +107,8 @@ func TestServiceSessionContextCompactionWrapper(t *testing.T) {
 	assistantServiceProvider(t, runtime)
 	ctx := t.Context()
 
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-context-wrapper", Name: "Context Wrapper", Status: jfadk.AgentStatusEnabled, ProviderID: "test-provider",
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-context-wrapper", Name: "Context Wrapper", Status: assistantmodel.AgentStatusEnabled, ProviderID: "test-provider",
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -151,10 +152,10 @@ func TestServiceRuntimeUnavailableErrorBranches(t *testing.T) {
 	if _, err := service.CompactSessionContext(ctx, "session-1", "normal", "manual", "reason"); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("CompactSessionContext err = %v, want unavailable", err)
 	}
-	if _, err := service.Chat(ctx, jfadk.ChatRequest{Message: "hello"}); err == nil || !strings.Contains(err.Error(), "unavailable") {
+	if _, err := service.Chat(ctx, assistantmodel.ChatRequest{Message: "hello"}); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("Chat err = %v, want unavailable", err)
 	}
-	if _, err := service.ChatStream(ctx, jfadk.ChatRequest{Message: "hello"}, nil); err == nil || !strings.Contains(err.Error(), "unavailable") {
+	if _, err := service.ChatStream(ctx, assistantmodel.ChatRequest{Message: "hello"}, nil); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("ChatStream err = %v, want unavailable", err)
 	}
 	if _, err := service.CancelRun(ctx, "run-1"); err == nil || !strings.Contains(err.Error(), "unavailable") {
@@ -195,88 +196,88 @@ func TestServiceOptimizationTaskLifecycleAndMetrics(t *testing.T) {
 	)))
 	ctx := t.Context()
 
-	provider, err := runtime.Store().SaveProvider(ctx, jfadk.ProviderWriteRequest{
+	provider, err := runtime.Store().SaveProvider(ctx, assistantmodel.ProviderWriteRequest{
 		ID: "provider-metrics", DisplayName: "Metrics Provider", Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("SaveProvider: %v", err)
 	}
-	agentBound, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-metrics-bound", Name: "Metrics Bound", Status: jfadk.AgentStatusEnabled, ProviderID: provider.ID,
+	agentBound, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-metrics-bound", Name: "Metrics Bound", Status: assistantmodel.AgentStatusEnabled, ProviderID: provider.ID,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent bound: %v", err)
 	}
-	agentUnbound, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-metrics-unbound", Name: "Metrics Unbound", Status: jfadk.AgentStatusEnabled,
+	agentUnbound, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-metrics-unbound", Name: "Metrics Unbound", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent unbound: %v", err)
 	}
 
 	now := time.Now().UTC()
-	runCompleted := jfadk.Run{
+	runCompleted := assistantmodel.Run{
 		ID:          "run-metrics-completed",
 		SessionID:   "session-metrics-1",
 		AgentID:     agentBound.ID,
-		Status:      jfadk.RunStatusCompleted,
+		Status:      assistantmodel.RunStatusCompleted,
 		ResumeState: "adk_confirmation_resolved",
-		ToolCalls: []jfadk.ToolCall{
+		ToolCalls: []assistantmodel.ToolCall{
 			{ID: "tool-1", RunID: "run-metrics-completed", ToolName: "market.read", Status: "SUCCEEDED", DurationMs: 120, CreatedAt: now.Format(time.RFC3339Nano), UpdatedAt: now.Format(time.RFC3339Nano)},
 			{ID: "tool-2", RunID: "run-metrics-completed", ToolName: "strategy.write", Status: "FAILED", DurationMs: 30, CreatedAt: now.Format(time.RFC3339Nano), UpdatedAt: now.Format(time.RFC3339Nano)},
 		},
-		Usage:     &jfadk.RunUsage{TokensIn: 120, TokensOut: 60},
+		Usage:     &assistantmodel.RunUsage{TokensIn: 120, TokensOut: 60},
 		CreatedAt: now.Format(time.RFC3339Nano),
 		UpdatedAt: now.Format(time.RFC3339Nano),
 	}
-	runFailed := jfadk.Run{
+	runFailed := assistantmodel.Run{
 		ID:         "run-metrics-failed",
 		SessionID:  "session-metrics-2",
 		AgentID:    agentBound.ID,
-		Status:     jfadk.RunStatusFailed,
+		Status:     assistantmodel.RunStatusFailed,
 		ErrorCode:  "RUN_ORPHANED",
 		ProviderID: provider.ID,
 		CreatedAt:  now.Add(-time.Minute).Format(time.RFC3339Nano),
 		UpdatedAt:  now.Add(-time.Minute).Format(time.RFC3339Nano),
 	}
-	runCancelled := jfadk.Run{
+	runCancelled := assistantmodel.Run{
 		ID:        "run-metrics-cancelled",
 		SessionID: "session-metrics-3",
 		AgentID:   agentUnbound.ID,
-		Status:    jfadk.RunStatusCancelled,
+		Status:    assistantmodel.RunStatusCancelled,
 		CreatedAt: now.Add(-2 * time.Minute).Format(time.RFC3339Nano),
 		UpdatedAt: now.Add(-2 * time.Minute).Format(time.RFC3339Nano),
 	}
-	for _, run := range []jfadk.Run{runCompleted, runFailed, runCancelled} {
+	for _, run := range []assistantmodel.Run{runCompleted, runFailed, runCancelled} {
 		if err := runtime.Store().SaveRun(ctx, run); err != nil {
 			t.Fatalf("SaveRun(%s): %v", run.ID, err)
 		}
 	}
 
-	pendingApproval := jfadk.Approval{
+	pendingApproval := assistantmodel.Approval{
 		ID: "approval-pending", RunID: runCompleted.ID, AgentID: agentBound.ID, ToolName: "strategy.write",
-		Status: jfadk.ApprovalStatusPending, FunctionCallID: "call-1", ConfirmationCallID: "confirm-1",
+		Status: assistantmodel.ApprovalStatusPending, FunctionCallID: "call-1", ConfirmationCallID: "confirm-1",
 		CreatedAt: now.Add(-5 * time.Minute).Format(time.RFC3339Nano), UpdatedAt: now.Add(-5 * time.Minute).Format(time.RFC3339Nano),
 	}
-	approvedApproval := jfadk.Approval{
+	approvedApproval := assistantmodel.Approval{
 		ID: "approval-approved", RunID: runCompleted.ID, AgentID: agentBound.ID, ToolName: "strategy.write",
-		Status:    jfadk.ApprovalStatusApproved,
+		Status:    assistantmodel.ApprovalStatusApproved,
 		CreatedAt: now.Add(-10 * time.Minute).Format(time.RFC3339Nano), UpdatedAt: now.Add(-8 * time.Minute).Format(time.RFC3339Nano),
 	}
-	deniedApproval := jfadk.Approval{
+	deniedApproval := assistantmodel.Approval{
 		ID: "approval-denied", RunID: runFailed.ID, AgentID: agentBound.ID, ToolName: "strategy.write",
-		Status:    jfadk.ApprovalStatusDenied,
+		Status:    assistantmodel.ApprovalStatusDenied,
 		CreatedAt: now.Add(-7 * time.Minute).Format(time.RFC3339Nano), UpdatedAt: now.Add(-6 * time.Minute).Format(time.RFC3339Nano),
 	}
-	for _, approval := range []jfadk.Approval{pendingApproval, approvedApproval, deniedApproval} {
+	for _, approval := range []assistantmodel.Approval{pendingApproval, approvedApproval, deniedApproval} {
 		if err := runtime.Store().SaveApproval(ctx, approval); err != nil {
 			t.Fatalf("SaveApproval(%s): %v", approval.ID, err)
 		}
 	}
 
-	task, err := runtime.Store().SaveOptimizationTask(ctx, jfadk.OptimizationTask{
+	task, err := runtime.Store().SaveOptimizationTask(ctx, assistantmodel.OptimizationTask{
 		ID: "optimization-lifecycle", Status: "queued", Objective: "maximize sharpe",
-		Runs: []jfadk.OptimizationRunRef{
+		Runs: []assistantmodel.OptimizationRunRef{
 			{DefinitionID: "def-running", RunID: "run-opt-running"},
 			{DefinitionID: "def-completed", RunID: "run-opt-completed"},
 			{DefinitionID: "def-missing", RunID: "run-opt-missing"},
@@ -361,15 +362,15 @@ func TestServiceOptimizationTaskLifecycleAndMetrics(t *testing.T) {
 	}
 }
 
-func newAssistantServiceHarness(t *testing.T, options ...Option) (*jfadk.Runtime, *Service, adksession.Service) {
+func newAssistantServiceHarness(t *testing.T, options ...Option) (*jfadkruntime.Runtime, *Service, adksession.Service) {
 	t.Helper()
 	root := t.TempDir()
-	store, err := jfadk.NewStore(root+"/adk.db", root+"/secrets.json", root+"/skills")
+	store, err := jfadkruntime.NewStore(root+"/adk.db", root+"/secrets.json", root+"/skills")
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
 	sessionService := adksession.InMemoryService()
-	runtime := jfadk.NewRuntimeWithSessionService(store, jfadk.NewToolRegistry(), sessionService)
+	runtime := jfadkruntime.NewRuntimeWithSessionService(store, jfadkruntime.NewToolRegistry(), sessionService)
 	t.Cleanup(func() {
 		if err := runtime.Close(); err != nil {
 			t.Errorf("runtime.Close(): %v", err)
@@ -378,7 +379,7 @@ func newAssistantServiceHarness(t *testing.T, options ...Option) (*jfadk.Runtime
 	return runtime, NewService(runtime, options...), sessionService
 }
 
-func assistantServiceProvider(t *testing.T, runtime *jfadk.Runtime) {
+func assistantServiceProvider(t *testing.T, runtime *jfadkruntime.Runtime) {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() { _ = r.Body.Close() }()
@@ -414,7 +415,7 @@ func assistantServiceProvider(t *testing.T, runtime *jfadk.Runtime) {
 		}
 	}))
 	t.Cleanup(server.Close)
-	if _, err := runtime.Store().SaveProvider(context.Background(), jfadk.ProviderWriteRequest{
+	if _, err := runtime.Store().SaveProvider(context.Background(), assistantmodel.ProviderWriteRequest{
 		ID: "test-provider", DisplayName: "Test Provider", BaseURL: server.URL, Model: "test-model", APIKey: "sk-test", Enabled: true,
 	}); err != nil {
 		t.Fatalf("SaveProvider test provider: %v", err)

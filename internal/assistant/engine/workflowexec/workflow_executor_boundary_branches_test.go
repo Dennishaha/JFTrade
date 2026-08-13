@@ -3,10 +3,9 @@ package workflowexec
 import (
 	"context"
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowExecutorAdditionalBoundaryBranches(t *testing.T) {
@@ -33,11 +32,11 @@ func TestWorkflowExecutorAdditionalBoundaryBranches(t *testing.T) {
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "workflow-executor-parent", SessionID: session.ID, AgentID: agent.ID,
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	steps := []workflowStep{
-		{Title: "First", Description: "Desc", Message: "First message", DependencyID: "first", Order: 1, AgentRole: "researcher", ModeHint: WorkModeChat, PlanSource: jfadkmodel.WorkflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
-		{Title: "Second", Message: "Second message", DependsOn: []string{"first", "__previous_step_1"}, DependencyID: "second", Order: 2, PlanSource: jfadkmodel.WorkflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
+		{Title: "First", Description: "Desc", Message: "First message", DependencyID: "first", Order: 1, AgentRole: "researcher", ModeHint: WorkModeChat, PlanSource: assistantmodel.WorkflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
+		{Title: "Second", Message: "Second message", DependsOn: []string{"first", "__previous_step_1"}, DependencyID: "second", Order: 2, PlanSource: assistantmodel.WorkflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
 	}
 	tasks, err := executor.PersistWorkflowTasks(ctx, parent, agent, steps)
 	if err != nil {
@@ -68,17 +67,17 @@ func TestWorkflowExecutorAdditionalBoundaryBranches(t *testing.T) {
 		{ID: "one", Order: 1, CreatedAt: "c"},
 		{ID: "zero-a", Order: 0, CreatedAt: "a"},
 	}
-	jfadkmodel.SortWorkflowTasks(ordered)
+	assistantmodel.SortWorkflowTasks(ordered)
 	if got := []string{ordered[0].ID, ordered[1].ID, ordered[2].ID, ordered[3].ID}; strings.Join(got, ",") != "one,two,zero-a,zero" {
 		t.Fatalf("sortWorkflowTasks order = %v", got)
 	}
-	if got := jfadkmodel.WorkflowDescriptionWithoutAgentRole("Agent role: only role"); got != "" {
+	if got := assistantmodel.WorkflowDescriptionWithoutAgentRole("Agent role: only role"); got != "" {
 		t.Fatalf("workflowDescriptionWithoutAgentRole prefix = %q, want empty", got)
 	}
-	if got := jfadkmodel.WorkflowDescriptionWithoutAgentRole("body\n\nAgent role: worker"); got != "body" {
+	if got := assistantmodel.WorkflowDescriptionWithoutAgentRole("body\n\nAgent role: worker"); got != "body" {
 		t.Fatalf("workflowDescriptionWithoutAgentRole suffix = %q, want body", got)
 	}
-	if got := jfadkmodel.WorkflowDescriptionWithoutAgentRole("body"); got != "body" {
+	if got := assistantmodel.WorkflowDescriptionWithoutAgentRole("body"); got != "body" {
 		t.Fatalf("workflowDescriptionWithoutAgentRole plain = %q, want body", got)
 	}
 }

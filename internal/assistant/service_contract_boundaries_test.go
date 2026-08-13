@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestServiceCatalogCRUDRecordsBusinessAudit(t *testing.T) {
@@ -21,7 +21,7 @@ func TestServiceCatalogCRUDRecordsBusinessAudit(t *testing.T) {
 		t.Fatalf("Tools = %#v, %v", tools, err)
 	}
 
-	backup, err := service.SaveProvider(ctx, jfadk.ProviderWriteRequest{
+	backup, err := service.SaveProvider(ctx, assistantmodel.ProviderWriteRequest{
 		ID: "backup-provider", DisplayName: "Backup Provider", BaseURL: "https://example.test/v1",
 		Model: "backup-model", APIKey: "sk-backup", Enabled: true,
 	})
@@ -36,31 +36,31 @@ func TestServiceCatalogCRUDRecordsBusinessAudit(t *testing.T) {
 		t.Fatalf("default provider = %#v", defaultProvider)
 	}
 
-	agent, err := service.SaveAgent(ctx, jfadk.AgentWriteRequest{
+	agent, err := service.SaveAgent(ctx, assistantmodel.AgentWriteRequest{
 		ID: "service-crud-agent", Name: "Service CRUD Agent",
-		Status: jfadk.AgentStatusEnabled, ProviderID: backup.ID,
+		Status: assistantmodel.AgentStatusEnabled, ProviderID: backup.ID,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	enabledAgents, err := service.ListAgents(ctx, AgentQuery{Status: strings.ToLower(jfadk.AgentStatusEnabled)})
+	enabledAgents, err := service.ListAgents(ctx, AgentQuery{Status: strings.ToLower(assistantmodel.AgentStatusEnabled)})
 	if err != nil {
 		t.Fatalf("ListAgents: %v", err)
 	}
 	if !assistantAgentIDs(enabledAgents)[agent.ID] {
 		t.Fatalf("enabled agents missing %q: %#v", agent.ID, enabledAgents)
 	}
-	if err := service.DeleteProvider(ctx, backup.ID); !errors.Is(err, jfadk.ErrProviderInUse) || !strings.Contains(err.Error(), "used by agent") {
+	if err := service.DeleteProvider(ctx, backup.ID); !errors.Is(err, assistantmodel.ErrProviderInUse) || !strings.Contains(err.Error(), "used by agent") {
 		t.Fatalf("DeleteProvider in use err = %v", err)
 	}
 
-	task, err := service.SaveTask(ctx, jfadk.TaskWriteRequest{
+	task, err := service.SaveTask(ctx, assistantmodel.TaskWriteRequest{
 		ID: "service-task", Title: "Check market data", Status: "TODO", AgentID: agent.ID,
 	})
 	if err != nil {
 		t.Fatalf("SaveTask: %v", err)
 	}
-	patched, err := service.UpdateTask(ctx, task.ID, jfadk.TaskPatchRequest{
+	patched, err := service.UpdateTask(ctx, task.ID, assistantmodel.TaskPatchRequest{
 		Status: new("DONE"), ResultSummary: new("checked"),
 	})
 	if err != nil {
@@ -90,7 +90,7 @@ func TestServiceCatalogCRUDRecordsBusinessAudit(t *testing.T) {
 		t.Fatalf("GetTask deleted err = %v", err)
 	}
 
-	memory, err := service.SaveMemory(ctx, jfadk.MemoryWriteRequest{Scope: "agent", AgentID: agent.ID, Key: "Risk Rule", Value: "Use simulate before real trade"})
+	memory, err := service.SaveMemory(ctx, assistantmodel.MemoryWriteRequest{Scope: "agent", AgentID: agent.ID, Key: "Risk Rule", Value: "Use simulate before real trade"})
 	if err != nil {
 		t.Fatalf("SaveMemory: %v", err)
 	}
@@ -133,8 +133,8 @@ func TestServiceCatalogCRUDRecordsBusinessAudit(t *testing.T) {
 func TestServiceSessionAndRunReadBoundaries(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	ctx := t.Context()
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "session-boundary-agent", Name: "Session Boundary", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "session-boundary-agent", Name: "Session Boundary", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -157,7 +157,7 @@ func TestServiceSessionAndRunReadBoundaries(t *testing.T) {
 	if renamed.Title != "Renamed" {
 		t.Fatalf("renamed session = %#v", renamed)
 	}
-	composer, err := service.UpdateSessionComposerState(ctx, session.ID, jfadk.SessionComposerStatePatch{
+	composer, err := service.UpdateSessionComposerState(ctx, session.ID, assistantmodel.SessionComposerStatePatch{
 		ChatDraft: new("draft"),
 	})
 	if err != nil {
@@ -181,7 +181,7 @@ func TestServiceSessionAndRunReadBoundaries(t *testing.T) {
 		t.Fatalf("session page = %#v", page)
 	}
 
-	run := jfadk.Run{ID: "run-session-boundary", SessionID: session.ID, AgentID: agent.ID, WorkMode: jfadk.WorkModeLoop, Status: jfadk.RunStatusRunning}
+	run := assistantmodel.Run{ID: "run-session-boundary", SessionID: session.ID, AgentID: agent.ID, WorkMode: assistantmodel.WorkModeLoop, Status: assistantmodel.RunStatusRunning}
 	if err := runtime.Store().SaveRun(ctx, run); err != nil {
 		t.Fatalf("SaveRun: %v", err)
 	}
@@ -189,10 +189,10 @@ func TestServiceSessionAndRunReadBoundaries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRun: %v", err)
 	}
-	if loadedRun.ID != run.ID || loadedRun.Status != jfadk.RunStatusRunning {
+	if loadedRun.ID != run.ID || loadedRun.Status != assistantmodel.RunStatusRunning {
 		t.Fatalf("loaded run = %#v", loadedRun)
 	}
-	runs, err := service.ListRuns(ctx, RunQuery{Status: jfadk.RunStatusRunning, AgentID: agent.ID, SessionID: session.ID, Limit: 10})
+	runs, err := service.ListRuns(ctx, RunQuery{Status: assistantmodel.RunStatusRunning, AgentID: agent.ID, SessionID: session.ID, Limit: 10})
 	if err != nil {
 		t.Fatalf("ListRuns: %v", err)
 	}
@@ -232,22 +232,31 @@ func TestServiceRuntimeUnavailableCatalogAndReadWriteBoundaries(t *testing.T) {
 		{"tools", func() error { _, err := service.Tools(ctx); return err }},
 		{"list tasks", func() error { _, err := service.ListTasks(ctx, TaskQuery{}); return err }},
 		{"get task", func() error { _, err := service.GetTask(ctx, "task"); return err }},
-		{"save task", func() error { _, err := service.SaveTask(ctx, jfadk.TaskWriteRequest{Title: "task"}); return err }},
-		{"update task", func() error { _, err := service.UpdateTask(ctx, "task", jfadk.TaskPatchRequest{}); return err }},
+		{"save task", func() error {
+			_, err := service.SaveTask(ctx, assistantmodel.TaskWriteRequest{Title: "task"})
+			return err
+		}},
+		{"update task", func() error { _, err := service.UpdateTask(ctx, "task", assistantmodel.TaskPatchRequest{}); return err }},
 		{"delete task", func() error { return service.DeleteTask(ctx, "task") }},
 		{"list memory", func() error { _, err := service.ListMemory(ctx, MemoryQuery{}); return err }},
-		{"save memory", func() error { _, err := service.SaveMemory(ctx, jfadk.MemoryWriteRequest{Key: "k"}); return err }},
+		{"save memory", func() error {
+			_, err := service.SaveMemory(ctx, assistantmodel.MemoryWriteRequest{Key: "k"})
+			return err
+		}},
 		{"delete memory", func() error { return service.DeleteMemory(ctx, "memory") }},
 		{"list providers", func() error { _, err := service.ListProviders(ctx); return err }},
 		{"save provider", func() error {
-			_, err := service.SaveProvider(ctx, jfadk.ProviderWriteRequest{ID: "provider"})
+			_, err := service.SaveProvider(ctx, assistantmodel.ProviderWriteRequest{ID: "provider"})
 			return err
 		}},
 		{"set default provider", func() error { _, err := service.SetDefaultProvider(ctx, "provider"); return err }},
 		{"delete provider", func() error { return service.DeleteProvider(ctx, "provider") }},
 		{"test provider", func() error { _, err := service.TestProvider(ctx, "provider"); return err }},
 		{"list agents", func() error { _, err := service.ListAgents(ctx, AgentQuery{}); return err }},
-		{"save agent", func() error { _, err := service.SaveAgent(ctx, jfadk.AgentWriteRequest{ID: "agent"}); return err }},
+		{"save agent", func() error {
+			_, err := service.SaveAgent(ctx, assistantmodel.AgentWriteRequest{ID: "agent"})
+			return err
+		}},
 		{"delete agent", func() error { return service.DeleteAgent(ctx, "agent") }},
 		{"list sessions", func() error { _, err := service.ListSessions(ctx, SessionQuery{}); return err }},
 		{"create session", func() error { _, err := service.CreateSession(ctx, CreateSessionRequest{AgentID: "agent"}); return err }},
@@ -255,7 +264,7 @@ func TestServiceRuntimeUnavailableCatalogAndReadWriteBoundaries(t *testing.T) {
 		{"get session detail", func() error { _, err := service.GetSessionDetail(ctx, "session"); return err }},
 		{"rename session", func() error { _, err := service.RenameSession(ctx, "session", "title"); return err }},
 		{"update composer", func() error {
-			_, err := service.UpdateSessionComposerState(ctx, "session", jfadk.SessionComposerStatePatch{})
+			_, err := service.UpdateSessionComposerState(ctx, "session", assistantmodel.SessionComposerStatePatch{})
 			return err
 		}},
 		{"delete session", func() error { return service.DeleteSession(ctx, "session") }},
@@ -264,12 +273,15 @@ func TestServiceRuntimeUnavailableCatalogAndReadWriteBoundaries(t *testing.T) {
 			_, err := service.CompactSessionContext(ctx, "session", "balanced", "manual", "too large")
 			return err
 		}},
-		{"chat", func() error { _, err := service.Chat(ctx, jfadk.ChatRequest{Message: "ping"}); return err }},
+		{"chat", func() error { _, err := service.Chat(ctx, assistantmodel.ChatRequest{Message: "ping"}); return err }},
 		{"chat stream", func() error {
-			_, err := service.ChatStream(ctx, jfadk.ChatRequest{Message: "ping"}, nil)
+			_, err := service.ChatStream(ctx, assistantmodel.ChatRequest{Message: "ping"}, nil)
 			return err
 		}},
-		{"preview session", func() error { _, err := service.PreviewSession(ctx, jfadk.ChatRequest{Message: "ping"}); return err }},
+		{"preview session", func() error {
+			_, err := service.PreviewSession(ctx, assistantmodel.ChatRequest{Message: "ping"})
+			return err
+		}},
 		{"list runs", func() error { _, err := service.ListRuns(ctx, RunQuery{}); return err }},
 		{"get run", func() error { _, err := service.GetRun(ctx, "run"); return err }},
 		{"cancel run", func() error { _, err := service.CancelRun(ctx, "run"); return err }},
@@ -307,7 +319,7 @@ func TestServiceCloseClosesRuntimeOwnedResources(t *testing.T) {
 	}
 }
 
-func assistantAgentIDs(agents []jfadk.Agent) map[string]bool {
+func assistantAgentIDs(agents []assistantmodel.Agent) map[string]bool {
 	ids := make(map[string]bool, len(agents))
 	for _, agent := range agents {
 		ids[agent.ID] = true

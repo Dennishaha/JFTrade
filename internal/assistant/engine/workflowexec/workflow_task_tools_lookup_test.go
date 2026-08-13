@@ -1,17 +1,16 @@
 package workflowexec
 
 import (
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowTaskToolsetLookupBoundaryBranches(t *testing.T) {
 	ctx := t.Context()
 	runtime := newTestRuntime(t)
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "workflow-helper-parent", SessionID: "workflow-helper-session", AgentID: "workflow-helper-agent",
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
@@ -136,7 +135,7 @@ func TestWorkflowTaskToolsetLookupBoundaryBranches(t *testing.T) {
 func TestWorkflowTaskToolsetMethodErrorAndFallbackBranches(t *testing.T) {
 	ctx := t.Context()
 	runtime := newTestRuntime(t)
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "workflow-method-branches-parent", SessionID: "workflow-method-branches-session", AgentID: "workflow-method-agent",
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
@@ -154,7 +153,7 @@ func TestWorkflowTaskToolsetMethodErrorAndFallbackBranches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveTask ready: %v", err)
 	}
-	parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{done, ready}, nil)
+	parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{done, ready}, nil)
 	mustSaveRun(t, runtime, parent)
 	toolset := NewWorkflowTaskToolset(&WorkflowExecutor{runtime: runtime}, parent.ID, "")
 	toolset.Req = workflowRequest{Mode: WorkModeLoop, GoalDecision: &workflowGoalDecision{}}

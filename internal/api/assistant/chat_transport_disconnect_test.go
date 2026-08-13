@@ -13,7 +13,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 // coverage98FailingSSEWriter models a client that disconnects while the
@@ -117,8 +117,8 @@ func TestChatStreamReconnectAndReplayRespectClientDisconnect(t *testing.T) {
 	handler.streams.publish(record, adkChatStreamEvent{
 		Type:  "final",
 		RunID: "run-disconnected-client",
-		Response: &jfadk.ChatResponse{
-			Run: jfadk.Run{ID: "run-disconnected-client"},
+		Response: &assistantmodel.ChatResponse{
+			Run: assistantmodel.Run{ID: "run-disconnected-client"},
 		},
 	})
 

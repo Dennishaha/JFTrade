@@ -1,13 +1,12 @@
 package persistence
 
 import (
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestNormalizeSessionComposerStateClearsInvalidModes(t *testing.T) {
-	normalized := NormalizeSessionComposerState("session", jfadkmodel.SessionComposerState{
+	normalized := NormalizeSessionComposerState("session", assistantmodel.SessionComposerState{
 		WorkModeOverride:       "bad-mode",
 		PermissionModeOverride: "bad-permission",
 	})

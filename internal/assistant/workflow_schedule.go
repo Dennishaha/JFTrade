@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	workflowrules "github.com/jftrade/jftrade-main/internal/assistant/workflow"
 )
 
@@ -71,7 +71,7 @@ func (scheduler *WorkflowScheduler) tick(ctx context.Context) {
 	if err == nil {
 		for _, trigger := range triggers {
 			workflow, wfErr := service.GetWorkflow(ctx, trigger.WorkflowID)
-			if wfErr != nil || workflow.Status != jfadk.WorkflowStatusEnabled {
+			if wfErr != nil || workflow.Status != assistantmodel.WorkflowStatusEnabled {
 				trigger.LastError = errorString(wfErr)
 				trigger.NextRunAt = workflowrules.NextRunAtString(trigger.Config, now)
 				_, _ = store.SaveWorkflowTrigger(ctx, trigger)
@@ -99,7 +99,7 @@ func (scheduler *WorkflowScheduler) pollMarketThresholds(ctx context.Context, no
 		return
 	}
 	store := service.runtime.Store()
-	triggers, err := store.ListEnabledWorkflowTriggersByType(ctx, jfadk.WorkflowTriggerTypeMarketThreshold)
+	triggers, err := store.ListEnabledWorkflowTriggersByType(ctx, assistantmodel.WorkflowTriggerTypeMarketThreshold)
 	if err != nil {
 		return
 	}
@@ -129,7 +129,7 @@ func (scheduler *WorkflowScheduler) pollMarketThresholds(ctx context.Context, no
 		}
 		for _, matched := range matches {
 			workflow, wfErr := service.GetWorkflow(ctx, trigger.WorkflowID)
-			if wfErr != nil || workflow.Status != jfadk.WorkflowStatusEnabled {
+			if wfErr != nil || workflow.Status != assistantmodel.WorkflowStatusEnabled {
 				continue
 			}
 			service.launchWorkflowInvocation(ctx, workflow, trigger, matched)
@@ -137,18 +137,18 @@ func (scheduler *WorkflowScheduler) pollMarketThresholds(ctx context.Context, no
 	}
 }
 
-func (s *Service) invokeWorkflowBackground(workflow jfadk.WorkflowDefinition, trigger jfadk.WorkflowTrigger, matchedEvent map[string]any) {
+func (s *Service) invokeWorkflowBackground(workflow assistantmodel.WorkflowDefinition, trigger assistantmodel.WorkflowTrigger, matchedEvent map[string]any) {
 	s.invokeWorkflowBackgroundContext(context.Background(), workflow, trigger, matchedEvent)
 }
 
-func (s *Service) launchWorkflowInvocation(ctx context.Context, workflow jfadk.WorkflowDefinition, trigger jfadk.WorkflowTrigger, matchedEvent map[string]any) bool {
+func (s *Service) launchWorkflowInvocation(ctx context.Context, workflow assistantmodel.WorkflowDefinition, trigger assistantmodel.WorkflowTrigger, matchedEvent map[string]any) bool {
 	return s.goWorkflowBackground(ctx, func(runCtx context.Context) {
 		s.invokeWorkflowBackgroundContext(runCtx, workflow, trigger, matchedEvent)
 	})
 }
 
-func (s *Service) invokeWorkflowBackgroundContext(ctx context.Context, workflow jfadk.WorkflowDefinition, trigger jfadk.WorkflowTrigger, matchedEvent map[string]any) {
-	ctx, cancel := context.WithTimeout(ctx, jfadk.DefaultRunTimeout+time.Minute)
+func (s *Service) invokeWorkflowBackgroundContext(ctx context.Context, workflow assistantmodel.WorkflowDefinition, trigger assistantmodel.WorkflowTrigger, matchedEvent map[string]any) {
+	ctx, cancel := context.WithTimeout(ctx, assistantmodel.DefaultRunTimeout+time.Minute)
 	defer cancel()
 	_, _ = s.invokeWorkflow(ctx, workflow, &trigger, trigger.Type, map[string]any{"event": matchedEvent}, matchedEvent)
 }

@@ -203,6 +203,20 @@ workflow UI 是产品层投影，不改变 ADK Go v2 的执行语义。`/adk` �
 
 ## 当前非原生 ADK 边界
 
+ADK Go v2.2.0 的能力审计按“原生机制存在”与“JFTrade 产品语义可等价替换”分开判断：
+
+| 能力 | v2.2 原生机制 | JFTrade 等价性要求与结论 |
+| --- | --- | --- |
+| workflow graph | `workflow.Workflow`、`workflowagent`、静态/动态节点 | 原生图已用于底层执行，但不表达 run lease、parent/child run、计划投影、图指纹与 SSE；保留产品控制面。 |
+| resume | `Workflow.Resume`、`RequestInput`、按 interrupt ID 恢复 | 原生 round-trip 与事件顺序由 `adk22regression` 锁定；工具审批、`interaction.request_user`、恢复前裁剪和失败投影仍经 JFTrade adapter。 |
+| tool confirmation | `RequireConfirmation`、`adk_request_confirmation` | 已原生化工具确认协议；请求顺序、审批持久化、异步恢复、取消和审计继续由 JFTrade 回归测试保护。 |
+| session | `session.Service` 与 `session/database` | 已使用原生 database service；JFTrade wrapper 只负责 SQLite 连接、schema 校验、备份/维护和关闭，重启恢复由 `session_sqlite_test.go` 锁定。 |
+| artifact | `artifact.Service`，内存与 GCS 实现 | 本地工作台需要 SQLite、版本、维护和重启恢复，v2.2 没有等价 SQLite 实现；保留实现该原生接口的 JFTrade adapter。 |
+| memory | `memory.Service`，内存与 Vertex AI 实现 | JFTrade 需要本地 workspace/agent scope、排序与既有 CRUD；保留实现原生接口的本地 adapter，不迁移到云服务。 |
+| plugin | Runner `PluginConfig` 与生命周期 callbacks | 能提供 hook，但不能替代 run lease、父子运行、计划、审批/输入状态、SSE、调度、审计和指标；只保留现有窄 plugin 使用，不把产品控制面改写为 plugin。 |
+
+原生化判定必须同时覆盖恢复结果、审批状态、事件顺序、SQLite 重启、取消与父子运行。单项存在原生 API 或上游单元测试，不构成删除 JFTrade 控制面的依据；每个可替换项必须在独立提交中先增加等价回归，再移除对应胶水。
+
 - JFTrade 的 `adk_sessions` / `adk_messages` 仍作为前端列表与最终消息投影视图使用，但不再是执行真相源。
 - 目标模式、parent/child run、审批队列、执行计划和 child view 都是 JFTrade 产品层投影。
 - ADK Go v2.2 的 `workflowagent.Config` 不能传入 workflow 并发选项，也只识别原生 `RequestInput` 恢复。JFTrade 暂时保留薄 workflow agent adapter，以维持 `WithMaxConcurrency`、工具审批响应、invocation 回退和恢复前会话裁剪；后续只有在原生入口能够等价表达这些语义时才移除。

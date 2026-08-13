@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 	adksession "google.golang.org/adk/v2/session"
 )
@@ -16,22 +16,22 @@ func TestWorkflowManagerProjectsServiceCRUDAndRuns(t *testing.T) {
 	manager := NewWorkflowToolManager(func() *assistant.Service { return service })
 	ctx := t.Context()
 
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "workflow-bridge-agent", Name: "Workflow Bridge Agent", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "workflow-bridge-agent", Name: "Workflow Bridge Agent", Status: assistantmodel.AgentStatusEnabled,
 		ProviderID: "test-provider", Model: "test-model",
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	workflow, err := manager.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{
-		ID: "workflow-bridge", Name: "Workflow Bridge", Status: jfadk.WorkflowStatusDisabled,
-		AgentID: agent.ID, WorkMode: jfadk.WorkModeLoop, PromptTemplate: "Review {{symbol}}",
+	workflow, err := manager.SaveWorkflow(ctx, "", assistantmodel.WorkflowDefinitionWriteRequest{
+		ID: "workflow-bridge", Name: "Workflow Bridge", Status: assistantmodel.WorkflowStatusDisabled,
+		AgentID: agent.ID, WorkMode: assistantmodel.WorkModeLoop, PromptTemplate: "Review {{symbol}}",
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow: %v", err)
 	}
 
-	page, err := manager.ListWorkflows(ctx, jfadk.WorkflowStatusDisabled, 5, 0)
+	page, err := manager.ListWorkflows(ctx, assistantmodel.WorkflowStatusDisabled, 5, 0)
 	if err != nil || page.Total != 1 || page.Limit != 5 || page.Offset != 0 || len(page.Items) != 1 {
 		t.Fatalf("ListWorkflows = %+v, err=%v", page, err)
 	}
@@ -45,9 +45,9 @@ func TestWorkflowManagerProjectsServiceCRUDAndRuns(t *testing.T) {
 		t.Fatalf("update workflow = %+v, err=%v", updated, err)
 	}
 
-	trigger, err := manager.SaveWorkflowTrigger(ctx, workflow.ID, "", jfadk.WorkflowTriggerWriteRequest{
-		ID: "workflow-bridge-trigger", Type: jfadk.WorkflowTriggerTypeManual,
-		Title: "Manual bridge", Status: jfadk.WorkflowTriggerStatusDisabled,
+	trigger, err := manager.SaveWorkflowTrigger(ctx, workflow.ID, "", assistantmodel.WorkflowTriggerWriteRequest{
+		ID: "workflow-bridge-trigger", Type: assistantmodel.WorkflowTriggerTypeManual,
+		Title: "Manual bridge", Status: assistantmodel.WorkflowTriggerStatusDisabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflowTrigger: %v", err)
@@ -61,16 +61,16 @@ func TestWorkflowManagerProjectsServiceCRUDAndRuns(t *testing.T) {
 		t.Fatalf("GetWorkflowTrigger = %+v, err=%v", gotTrigger, err)
 	}
 	trigger.Title = "Updated bridge trigger"
-	trigger, err = manager.SaveWorkflowTrigger(ctx, workflow.ID, trigger.ID, jfadk.WorkflowTriggerWriteRequest{
+	trigger, err = manager.SaveWorkflowTrigger(ctx, workflow.ID, trigger.ID, assistantmodel.WorkflowTriggerWriteRequest{
 		Type: trigger.Type, Title: trigger.Title, Status: trigger.Status, Config: trigger.Config,
 	})
 	if err != nil || trigger.Title != "Updated bridge trigger" {
 		t.Fatalf("update workflow trigger = %+v, err=%v", trigger, err)
 	}
 
-	logEntry, err := runtime.Store().SaveWorkflowTriggerLog(ctx, jfadk.WorkflowTriggerLog{
+	logEntry, err := runtime.Store().SaveWorkflowTriggerLog(ctx, assistantmodel.WorkflowTriggerLog{
 		ID: "workflow-bridge-run", WorkflowID: workflow.ID, TriggerID: trigger.ID,
-		TriggerType: trigger.Type, Status: jfadk.WorkflowTriggerLogStatusSucceeded,
+		TriggerType: trigger.Type, Status: assistantmodel.WorkflowTriggerLogStatusSucceeded,
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflowTriggerLog: %v", err)
@@ -107,14 +107,14 @@ func TestWorkflowManagerRejectsUnavailableServicesAcrossOperations(t *testing.T)
 		"list workflows": func() error { _, err := unavailable.ListWorkflows(ctx, "", 10, 0); return err },
 		"get workflow":   func() error { _, err := unavailable.GetWorkflow(ctx, "workflow"); return err },
 		"save workflow": func() error {
-			_, err := unavailable.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{})
+			_, err := unavailable.SaveWorkflow(ctx, "", assistantmodel.WorkflowDefinitionWriteRequest{})
 			return err
 		},
 		"delete workflow": func() error { _, err := unavailable.DeleteWorkflow(ctx, "workflow"); return err },
 		"list triggers":   func() error { _, err := unavailable.ListWorkflowTriggers(ctx, "workflow"); return err },
 		"get trigger":     func() error { _, err := unavailable.GetWorkflowTrigger(ctx, "workflow", "trigger"); return err },
 		"save trigger": func() error {
-			_, err := unavailable.SaveWorkflowTrigger(ctx, "workflow", "", jfadk.WorkflowTriggerWriteRequest{})
+			_, err := unavailable.SaveWorkflowTrigger(ctx, "workflow", "", assistantmodel.WorkflowTriggerWriteRequest{})
 			return err
 		},
 		"delete trigger": func() error { _, err := unavailable.DeleteWorkflowTrigger(ctx, "workflow", "trigger"); return err },
@@ -167,8 +167,8 @@ func newWorkflowBridgeService(t *testing.T) (*assistanttestkit.Runtime, *assista
 	return runtime, assistant.NewService(runtime)
 }
 
-func workflowWriteRequest(workflow jfadk.WorkflowDefinition) jfadk.WorkflowDefinitionWriteRequest {
-	return jfadk.WorkflowDefinitionWriteRequest{
+func workflowWriteRequest(workflow assistantmodel.WorkflowDefinition) assistantmodel.WorkflowDefinitionWriteRequest {
+	return assistantmodel.WorkflowDefinitionWriteRequest{
 		ID: workflow.ID, Name: workflow.Name, Description: workflow.Description, Status: workflow.Status,
 		AgentID: workflow.AgentID, WorkMode: workflow.WorkMode, ProviderID: workflow.ProviderID,
 		Model: workflow.Model, PermissionMode: workflow.PermissionMode, PromptTemplate: workflow.PromptTemplate,

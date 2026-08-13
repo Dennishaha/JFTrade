@@ -3,6 +3,7 @@ package adk
 import (
 	"errors"
 	"fmt"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -12,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adktool "google.golang.org/adk/v2/tool"
 	adkworkflow "google.golang.org/adk/v2/workflow"
 )
@@ -22,7 +22,7 @@ func TestSerializedADKErrorRestoresKnownSentinelIdentity(t *testing.T) {
 		adktool.ErrConfirmationRequired,
 		adktool.ErrConfirmationRejected,
 		adkworkflow.ErrNodeInterrupted,
-		jfadkmodel.ErrUserGoalPauseRequested,
+		assistantmodel.ErrUserGoalPauseRequested,
 	} {
 		t.Run(sentinel.Error(), func(t *testing.T) {
 			text := "serialized tool failure: " + sentinel.Error()

@@ -2,11 +2,10 @@ package persistence
 
 import (
 	"encoding/json"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestSavePreparedRunWithExecutorRejectsUnsupportedPayload(t *testing.T) {
@@ -21,9 +20,9 @@ func TestSavePreparedRunWithExecutorRejectsUnsupportedPayload(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	if err := savePreparedRunWithExecutor(t.Context(), store.DB(), jfadkmodel.Run{
-		ID: "prepared-bad-json", SessionID: "session", AgentID: "agent", Status: jfadkmodel.RunStatusRunning,
-		ToolCalls: []jfadkmodel.ToolCall{{ID: "tool", Output: func() {}}},
+	if err := savePreparedRunWithExecutor(t.Context(), store.DB(), assistantmodel.Run{
+		ID: "prepared-bad-json", SessionID: "session", AgentID: "agent", Status: assistantmodel.RunStatusRunning,
+		ToolCalls: []assistantmodel.ToolCall{{ID: "tool", Output: func() {}}},
 	}); err == nil {
 		t.Fatal("savePreparedRunWithExecutor marshal err = nil, want error")
 	}
@@ -31,9 +30,9 @@ func TestSavePreparedRunWithExecutorRejectsUnsupportedPayload(t *testing.T) {
 
 func TestRunReasoningSnapshotIsPrivateAndRestored(t *testing.T) {
 	store := newReasoningTestStore(t)
-	run := jfadkmodel.Run{
+	run := assistantmodel.Run{
 		ID: "private-reasoning-run", SessionID: "session", AgentID: "agent",
-		Status: jfadkmodel.RunStatusPending, ReasoningEffort: jfadkmodel.ReasoningEffortHigh,
+		Status: assistantmodel.RunStatusPending, ReasoningEffort: assistantmodel.ReasoningEffortHigh,
 		ReasoningEffortField: "provider.reasoning.level", ReasoningEffortValue: "DEEP",
 	}
 	if err := store.SaveRun(t.Context(), run); err != nil {

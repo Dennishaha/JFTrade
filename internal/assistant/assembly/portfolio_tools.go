@@ -8,7 +8,8 @@ import (
 	"sync"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -67,8 +68,8 @@ type portfolioAccountSummary struct {
 	Errors               []string          `json:"errors"`
 }
 
-func registerJFTradeADKPortfolioTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
-	registry.Register(jfadk.ToolDescriptor{
+func registerJFTradeADKPortfolioTools(registry *jfadkruntime.ToolRegistry, deps ToolDeps) {
+	registry.Register(assistantmodel.ToolDescriptor{
 		Name: "portfolio.summary", DisplayName: "组合摘要",
 		Description: "从券商 runtime 发现账户并按账户读取资金、持仓和订单；未指定 accountId 时扫描指定环境的全部账户。",
 		Category:    "portfolio", Permission: "read_internal", RiskLevel: "low",
@@ -77,7 +78,7 @@ func registerJFTradeADKPortfolioTools(registry *jfadk.ToolRegistry, deps ToolDep
 	}, func(ctx context.Context, input map[string]any) (any, error) {
 		return portfolioSummary(ctx, input, deps)
 	})
-	registry.Register(jfadk.ToolDescriptor{
+	registry.Register(assistantmodel.ToolDescriptor{
 		Name: "account.orders", DisplayName: "订单摘要",
 		Description: "按账户、交易环境、可选市场和 activeOnly 读取结构化执行订单；不接受自由文本 query。",
 		Category:    "portfolio", Permission: "read_internal", RiskLevel: "low",

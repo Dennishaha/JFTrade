@@ -7,20 +7,21 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowResourceCrudPaginationAndLogs(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	ctx := t.Context()
-	agent, workflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-resource", jfadk.WorkflowStatusEnabled)
+	agent, workflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-resource", assistantmodel.WorkflowStatusEnabled)
 
-	updated, err := service.SaveWorkflow(ctx, workflow.ID, jfadk.WorkflowDefinitionWriteRequest{
+	updated, err := service.SaveWorkflow(ctx, workflow.ID, assistantmodel.WorkflowDefinitionWriteRequest{
 		Name:           " Updated Workflow ",
 		Status:         "disabled",
 		AgentID:        agent.ID,
 		WorkMode:       "loop",
-		PermissionMode: jfadk.PermissionModeAll,
+		PermissionMode: assistantmodel.PermissionModeAll,
 		PromptTemplate: " run updated ",
 		DefaultInputs:  map[string]any{"symbol": "US.AAPL"},
 		Tags:           []string{" daily ", "daily", "", "risk"},
@@ -28,14 +29,14 @@ func TestWorkflowResourceCrudPaginationAndLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveWorkflow update: %v", err)
 	}
-	if updated.Name != "Updated Workflow" || updated.Status != jfadk.WorkflowStatusDisabled || updated.WorkMode != jfadk.WorkModeLoop {
+	if updated.Name != "Updated Workflow" || updated.Status != assistantmodel.WorkflowStatusDisabled || updated.WorkMode != assistantmodel.WorkModeLoop {
 		t.Fatalf("updated workflow = %+v", updated)
 	}
 	if got := strings.Join(updated.Tags, ","); got != "daily,risk" {
 		t.Fatalf("updated tags = %q, want normalized unique tags", got)
 	}
 
-	page, err := service.ListWorkflows(ctx, WorkflowQuery{Status: jfadk.WorkflowStatusDisabled, Limit: 200, Offset: -10})
+	page, err := service.ListWorkflows(ctx, WorkflowQuery{Status: assistantmodel.WorkflowStatusDisabled, Limit: 200, Offset: -10})
 	if err != nil {
 		t.Fatalf("ListWorkflows: %v", err)
 	}
@@ -43,7 +44,7 @@ func TestWorkflowResourceCrudPaginationAndLogs(t *testing.T) {
 		t.Fatalf("workflow page = %+v, want normalized limit/offset with items", page)
 	}
 
-	triggerResult, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", jfadk.WorkflowTriggerWriteRequest{
+	triggerResult, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", assistantmodel.WorkflowTriggerWriteRequest{
 		ID:     "workflow-resource-trigger",
 		Type:   "",
 		Title:  "",
@@ -53,7 +54,7 @@ func TestWorkflowResourceCrudPaginationAndLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveWorkflowTrigger manual fallback: %v", err)
 	}
-	if triggerResult.Trigger.Type != jfadk.WorkflowTriggerTypeManual || triggerResult.Trigger.Title != "手动触发" || triggerResult.Trigger.Status != jfadk.WorkflowTriggerStatusError {
+	if triggerResult.Trigger.Type != assistantmodel.WorkflowTriggerTypeManual || triggerResult.Trigger.Title != "手动触发" || triggerResult.Trigger.Status != assistantmodel.WorkflowTriggerStatusError {
 		t.Fatalf("manual trigger result = %+v", triggerResult.Trigger)
 	}
 
@@ -65,11 +66,11 @@ func TestWorkflowResourceCrudPaginationAndLogs(t *testing.T) {
 		t.Fatalf("triggers = %+v, want sanitized trigger", triggers)
 	}
 
-	log, err := runtime.Store().SaveWorkflowTriggerLog(ctx, jfadk.WorkflowTriggerLog{
+	log, err := runtime.Store().SaveWorkflowTriggerLog(ctx, assistantmodel.WorkflowTriggerLog{
 		WorkflowID:  workflow.ID,
 		TriggerID:   triggerResult.Trigger.ID,
 		TriggerType: triggerResult.Trigger.Type,
-		Status:      jfadk.WorkflowTriggerLogStatusFailed,
+		Status:      assistantmodel.WorkflowTriggerLogStatusFailed,
 		Error:       "unit failure",
 	})
 	if err != nil {
@@ -78,7 +79,7 @@ func TestWorkflowResourceCrudPaginationAndLogs(t *testing.T) {
 	logs, err := service.ListWorkflowTriggerLogs(ctx, WorkflowTriggerLogQuery{
 		WorkflowID: workflow.ID,
 		TriggerID:  triggerResult.Trigger.ID,
-		Status:     jfadk.WorkflowTriggerLogStatusFailed,
+		Status:     assistantmodel.WorkflowTriggerLogStatusFailed,
 		Limit:      0,
 		Offset:     -1,
 	})
@@ -93,7 +94,7 @@ func TestWorkflowResourceCrudPaginationAndLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteWorkflowTrigger: %v", err)
 	}
-	if deletedTrigger.DeletedAt == nil || deletedTrigger.Status != jfadk.WorkflowTriggerStatusDisabled {
+	if deletedTrigger.DeletedAt == nil || deletedTrigger.Status != assistantmodel.WorkflowTriggerStatusDisabled {
 		t.Fatalf("deleted trigger = %+v, want disabled soft-delete", deletedTrigger)
 	}
 	if _, err := service.DeleteWorkflowTrigger(ctx, workflow.ID, triggerResult.Trigger.ID); err == nil {
@@ -104,7 +105,7 @@ func TestWorkflowResourceCrudPaginationAndLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteWorkflow: %v", err)
 	}
-	if deletedWorkflow.DeletedAt == nil || deletedWorkflow.Status != jfadk.WorkflowStatusDisabled {
+	if deletedWorkflow.DeletedAt == nil || deletedWorkflow.Status != assistantmodel.WorkflowStatusDisabled {
 		t.Fatalf("deleted workflow = %+v, want disabled soft-delete", deletedWorkflow)
 	}
 	if _, err := service.GetWorkflow(ctx, workflow.ID); err == nil {
@@ -116,13 +117,13 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	assistantServiceProvider(t, runtime)
 	ctx := t.Context()
-	agent, workflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-run-trigger", jfadk.WorkflowStatusEnabled)
-	workflow, err := service.SaveWorkflow(ctx, workflow.ID, jfadk.WorkflowDefinitionWriteRequest{
+	agent, workflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-run-trigger", assistantmodel.WorkflowStatusEnabled)
+	workflow, err := service.SaveWorkflow(ctx, workflow.ID, assistantmodel.WorkflowDefinitionWriteRequest{
 		Name:           workflow.Name,
-		Status:         jfadk.WorkflowStatusEnabled,
+		Status:         assistantmodel.WorkflowStatusEnabled,
 		AgentID:        agent.ID,
-		WorkMode:       jfadk.WorkModeChat,
-		PermissionMode: jfadk.PermissionModeApproval,
+		WorkMode:       assistantmodel.WorkModeChat,
+		PermissionMode: assistantmodel.PermissionModeApproval,
 		PromptTemplate: workflow.PromptTemplate,
 		DefaultInputs:  workflow.DefaultInputs,
 		CanvasGraph:    workflowTestCanvasGraph(),
@@ -131,10 +132,10 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 		t.Fatalf("SaveWorkflow chat mode: %v", err)
 	}
 
-	manual, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", jfadk.WorkflowTriggerWriteRequest{
+	manual, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", assistantmodel.WorkflowTriggerWriteRequest{
 		ID:     "workflow-run-trigger-manual",
-		Type:   jfadk.WorkflowTriggerTypeManual,
-		Status: jfadk.WorkflowTriggerStatusEnabled,
+		Type:   assistantmodel.WorkflowTriggerTypeManual,
+		Status: assistantmodel.WorkflowTriggerStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflowTrigger manual: %v", err)
@@ -143,15 +144,15 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunWorkflowTrigger manual: %v", err)
 	}
-	if result.Trigger == nil || result.Trigger.ID != manual.Trigger.ID || result.Log.TriggerID != manual.Trigger.ID || result.Log.Status != jfadk.WorkflowTriggerLogStatusSucceeded {
+	if result.Trigger == nil || result.Trigger.ID != manual.Trigger.ID || result.Log.TriggerID != manual.Trigger.ID || result.Log.Status != assistantmodel.WorkflowTriggerLogStatusSucceeded {
 		t.Fatalf("manual trigger result = %+v", result)
 	}
 	assertWorkflowSessionSource(t, runtime, result.Log.SessionID, workflow.ID, workflow.Name)
 
-	disabledWebhook, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", jfadk.WorkflowTriggerWriteRequest{
+	disabledWebhook, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", assistantmodel.WorkflowTriggerWriteRequest{
 		ID:     "workflow-disabled-webhook",
-		Type:   jfadk.WorkflowTriggerTypeWebhook,
-		Status: jfadk.WorkflowTriggerStatusDisabled,
+		Type:   assistantmodel.WorkflowTriggerTypeWebhook,
+		Status: assistantmodel.WorkflowTriggerStatusDisabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflowTrigger disabled webhook: %v", err)
@@ -160,11 +161,11 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 		t.Fatalf("RunWorkflowWebhook disabled err = %v, want disabled", err)
 	}
 
-	enabledWebhook, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", jfadk.WorkflowTriggerWriteRequest{
+	enabledWebhook, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", assistantmodel.WorkflowTriggerWriteRequest{
 		ID:     "workflow-enabled-webhook",
-		Type:   jfadk.WorkflowTriggerTypeWebhook,
+		Type:   assistantmodel.WorkflowTriggerTypeWebhook,
 		Title:  "External webhook",
-		Status: jfadk.WorkflowTriggerStatusEnabled,
+		Status: assistantmodel.WorkflowTriggerStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflowTrigger enabled webhook: %v", err)
@@ -176,7 +177,7 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunWorkflowWebhook enabled: %v", err)
 	}
-	if webhookResult.Trigger == nil || webhookResult.Trigger.ID != enabledWebhook.Trigger.ID || webhookResult.Log.Status != jfadk.WorkflowTriggerLogStatusSucceeded {
+	if webhookResult.Trigger == nil || webhookResult.Trigger.ID != enabledWebhook.Trigger.ID || webhookResult.Log.Status != assistantmodel.WorkflowTriggerLogStatusSucceeded {
 		t.Fatalf("webhook invocation result = %+v, want succeeded trigger log", webhookResult)
 	}
 	assertWorkflowSessionSource(t, runtime, webhookResult.Log.SessionID, workflow.ID, workflow.Name)
@@ -187,12 +188,12 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 	if _, err := service.RunWorkflowWebhook(ctx, "missing-webhook", enabledWebhook.Secret, nil); err == nil || !strings.Contains(err.Error(), "webhook") {
 		t.Fatalf("RunWorkflowWebhook missing err = %v, want webhook not found", err)
 	}
-	missingWorkflowWebhook, err := runtime.Store().SaveWorkflowTrigger(ctx, jfadk.WorkflowTrigger{
+	missingWorkflowWebhook, err := runtime.Store().SaveWorkflowTrigger(ctx, assistantmodel.WorkflowTrigger{
 		ID:         "workflow-webhook-missing-workflow",
 		WorkflowID: "missing-workflow",
-		Type:       jfadk.WorkflowTriggerTypeWebhook,
+		Type:       assistantmodel.WorkflowTriggerTypeWebhook,
 		Title:      "Missing workflow webhook",
-		Status:     jfadk.WorkflowTriggerStatusEnabled,
+		Status:     assistantmodel.WorkflowTriggerStatusEnabled,
 		SecretHash: hashWorkflowSecret("missing-workflow-secret"),
 	})
 	if err != nil {
@@ -208,16 +209,16 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 	if _, err := service.RunWorkflowWebhook(ctx, manual.Trigger.ID, "secret", nil); err == nil || !strings.Contains(err.Error(), "webhook") {
 		t.Fatalf("RunWorkflowWebhook non-webhook err = %v, want webhook not found", err)
 	}
-	if _, err := service.SaveWorkflowTrigger(ctx, workflow.ID, manual.Trigger.ID, jfadk.WorkflowTriggerWriteRequest{
-		Type:   jfadk.WorkflowTriggerTypeSchedule,
-		Status: jfadk.WorkflowTriggerStatusEnabled,
+	if _, err := service.SaveWorkflowTrigger(ctx, workflow.ID, manual.Trigger.ID, assistantmodel.WorkflowTriggerWriteRequest{
+		Type:   assistantmodel.WorkflowTriggerTypeSchedule,
+		Status: assistantmodel.WorkflowTriggerStatusEnabled,
 		Config: map[string]any{"cron": "bad"},
 	}); err == nil {
 		t.Fatal("SaveWorkflowTrigger invalid schedule succeeded, want cron error")
 	}
-	if _, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", jfadk.WorkflowTriggerWriteRequest{
-		Type:   jfadk.WorkflowTriggerTypeMarketThreshold,
-		Status: jfadk.WorkflowTriggerStatusEnabled,
+	if _, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", assistantmodel.WorkflowTriggerWriteRequest{
+		Type:   assistantmodel.WorkflowTriggerTypeMarketThreshold,
+		Status: assistantmodel.WorkflowTriggerStatusEnabled,
 		Config: map[string]any{"instrumentIds": []string{"US.AAPL"}},
 	}); err == nil || !strings.Contains(err.Error(), "numeric value") {
 		t.Fatalf("SaveWorkflowTrigger invalid market err = %v, want numeric value", err)
@@ -227,15 +228,15 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 func TestWorkflowDefinitionValidationAndMissingResourceErrors(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	ctx := t.Context()
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "workflow-validation-agent", Name: "Validation Agent", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "workflow-validation-agent", Name: "Validation Agent", Status: assistantmodel.AgentStatusEnabled,
 		ProviderID: "test-provider", Model: "test-model",
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	disabledAgent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "workflow-disabled-agent", Name: "Disabled Agent", Status: jfadk.AgentStatusDisabled,
+	disabledAgent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "workflow-disabled-agent", Name: "Disabled Agent", Status: assistantmodel.AgentStatusDisabled,
 		ProviderID: "test-provider", Model: "test-model",
 	})
 	if err != nil {
@@ -244,41 +245,41 @@ func TestWorkflowDefinitionValidationAndMissingResourceErrors(t *testing.T) {
 
 	for _, tc := range []struct {
 		name    string
-		payload jfadk.WorkflowDefinitionWriteRequest
+		payload assistantmodel.WorkflowDefinitionWriteRequest
 		want    string
 	}{
 		{
 			name: "missing name",
-			payload: jfadk.WorkflowDefinitionWriteRequest{
+			payload: assistantmodel.WorkflowDefinitionWriteRequest{
 				AgentID: agent.ID, PromptTemplate: "run",
 			},
 			want: "name",
 		},
 		{
 			name: "missing agent id",
-			payload: jfadk.WorkflowDefinitionWriteRequest{
+			payload: assistantmodel.WorkflowDefinitionWriteRequest{
 				Name: "Missing Agent ID", PromptTemplate: "run",
 			},
 			want: "agentId",
 		},
 		{
 			name: "missing agent",
-			payload: jfadk.WorkflowDefinitionWriteRequest{
+			payload: assistantmodel.WorkflowDefinitionWriteRequest{
 				Name: "Missing Agent", AgentID: "missing-agent", PromptTemplate: "run",
 			},
 			want: "agent not found",
 		},
 		{
 			name: "enabled workflow requires enabled agent",
-			payload: jfadk.WorkflowDefinitionWriteRequest{
-				Name: "Disabled Agent Workflow", Status: jfadk.WorkflowStatusEnabled,
+			payload: assistantmodel.WorkflowDefinitionWriteRequest{
+				Name: "Disabled Agent Workflow", Status: assistantmodel.WorkflowStatusEnabled,
 				AgentID: disabledAgent.ID, PromptTemplate: "run",
 			},
 			want: "enabled agent",
 		},
 		{
 			name: "missing prompt",
-			payload: jfadk.WorkflowDefinitionWriteRequest{
+			payload: assistantmodel.WorkflowDefinitionWriteRequest{
 				Name: "Missing Prompt", AgentID: agent.ID,
 			},
 			want: "promptTemplate",
@@ -304,7 +305,7 @@ func TestWorkflowDefinitionValidationAndMissingResourceErrors(t *testing.T) {
 		t.Fatalf("DeleteWorkflowTrigger missing err = %v, want not found", err)
 	}
 
-	_, disabledWorkflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-disabled-run", jfadk.WorkflowStatusDisabled)
+	_, disabledWorkflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-disabled-run", assistantmodel.WorkflowStatusDisabled)
 	if _, err := service.RunWorkflow(ctx, disabledWorkflow.ID, nil); err == nil || !strings.Contains(err.Error(), "disabled") {
 		t.Fatalf("RunWorkflow disabled err = %v, want disabled", err)
 	}
@@ -314,27 +315,27 @@ func TestWorkflowInvocationFailureAndBackgroundPaths(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	assistantServiceProvider(t, runtime)
 	ctx := t.Context()
-	agent, workflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-invoke-failures", jfadk.WorkflowStatusEnabled)
+	agent, workflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-invoke-failures", assistantmodel.WorkflowStatusEnabled)
 
-	invalidPrompt, err := service.SaveWorkflow(ctx, workflow.ID, jfadk.WorkflowDefinitionWriteRequest{
-		Name: "Invalid Prompt Workflow", Status: jfadk.WorkflowStatusEnabled, AgentID: agent.ID,
-		WorkMode: jfadk.WorkModeChat, PermissionMode: jfadk.PermissionModeApproval,
+	invalidPrompt, err := service.SaveWorkflow(ctx, workflow.ID, assistantmodel.WorkflowDefinitionWriteRequest{
+		Name: "Invalid Prompt Workflow", Status: assistantmodel.WorkflowStatusEnabled, AgentID: agent.ID,
+		WorkMode: assistantmodel.WorkModeChat, PermissionMode: assistantmodel.PermissionModeApproval,
 		PromptTemplate: "run {{",
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow invalid prompt template: %v", err)
 	}
 	result, err := service.RunWorkflow(ctx, invalidPrompt.ID, nil)
-	if err == nil || result.Log.Status != jfadk.WorkflowTriggerLogStatusFailed || result.Log.Result == nil {
+	if err == nil || result.Log.Status != assistantmodel.WorkflowTriggerLogStatusFailed || result.Log.Result == nil {
 		t.Fatalf("RunWorkflow invalid prompt result=%+v err=%v, want failed log with result", result, err)
 	}
-	if len(result.Log.NodeRuns) < 2 || result.Log.NodeRuns[1].Status != jfadk.WorkflowTriggerLogStatusFailed {
+	if len(result.Log.NodeRuns) < 2 || result.Log.NodeRuns[1].Status != assistantmodel.WorkflowTriggerLogStatusFailed {
 		t.Fatalf("invalid prompt node runs = %+v, want failed Start node", result.Log.NodeRuns)
 	}
 
-	invalidObjective, err := service.SaveWorkflow(ctx, workflow.ID, jfadk.WorkflowDefinitionWriteRequest{
-		Name: "Invalid Objective Workflow", Status: jfadk.WorkflowStatusEnabled, AgentID: agent.ID,
-		WorkMode: jfadk.WorkModeChat, PermissionMode: jfadk.PermissionModeApproval,
+	invalidObjective, err := service.SaveWorkflow(ctx, workflow.ID, assistantmodel.WorkflowDefinitionWriteRequest{
+		Name: "Invalid Objective Workflow", Status: assistantmodel.WorkflowStatusEnabled, AgentID: agent.ID,
+		WorkMode: assistantmodel.WorkModeChat, PermissionMode: assistantmodel.PermissionModeApproval,
 		PromptTemplate: "run {{ .symbol }}", ObjectiveTemplate: "objective {{",
 		DefaultInputs: map[string]any{"symbol": "US.AAPL"},
 	})
@@ -342,51 +343,51 @@ func TestWorkflowInvocationFailureAndBackgroundPaths(t *testing.T) {
 		t.Fatalf("SaveWorkflow invalid objective template: %v", err)
 	}
 	result, err = service.RunWorkflow(ctx, invalidObjective.ID, nil)
-	if err == nil || result.Log.Status != jfadk.WorkflowTriggerLogStatusFailed || !strings.Contains(result.Log.Error, "template") {
+	if err == nil || result.Log.Status != assistantmodel.WorkflowTriggerLogStatusFailed || !strings.Contains(result.Log.Error, "template") {
 		t.Fatalf("RunWorkflow invalid objective result=%+v err=%v, want template failure", result, err)
 	}
 
-	brokenAgent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
+	brokenAgent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
 		ID: "workflow-broken-provider-agent", Name: "Broken Provider Agent",
-		Status: jfadk.AgentStatusEnabled, ProviderID: "missing-provider", Model: "test-model",
+		Status: assistantmodel.AgentStatusEnabled, ProviderID: "missing-provider", Model: "test-model",
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent broken provider: %v", err)
 	}
-	brokenWorkflow, err := service.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{
-		ID: "workflow-broken-provider", Name: "Broken Provider Workflow", Status: jfadk.WorkflowStatusEnabled,
-		AgentID: brokenAgent.ID, WorkMode: jfadk.WorkModeChat, PromptTemplate: "run",
+	brokenWorkflow, err := service.SaveWorkflow(ctx, "", assistantmodel.WorkflowDefinitionWriteRequest{
+		ID: "workflow-broken-provider", Name: "Broken Provider Workflow", Status: assistantmodel.WorkflowStatusEnabled,
+		AgentID: brokenAgent.ID, WorkMode: assistantmodel.WorkModeChat, PromptTemplate: "run",
 		CanvasGraph: workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow broken provider: %v", err)
 	}
 	result, err = service.RunWorkflow(ctx, brokenWorkflow.ID, nil)
-	if err == nil || result.Log.SessionID == "" || result.Log.Status != jfadk.WorkflowTriggerLogStatusFailed {
+	if err == nil || result.Log.SessionID == "" || result.Log.Status != assistantmodel.WorkflowTriggerLogStatusFailed {
 		t.Fatalf("RunWorkflow broken provider result=%+v err=%v, want chat failure after session creation", result, err)
 	}
 	assertWorkflowSessionSource(t, runtime, result.Log.SessionID, brokenWorkflow.ID, brokenWorkflow.Name)
 
-	agent, workflow = saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-background", jfadk.WorkflowStatusEnabled)
-	workflow, err = service.SaveWorkflow(ctx, workflow.ID, jfadk.WorkflowDefinitionWriteRequest{
-		Name: workflow.Name, Status: jfadk.WorkflowStatusEnabled, AgentID: agent.ID,
-		WorkMode: jfadk.WorkModeChat, PermissionMode: jfadk.PermissionModeApproval,
+	agent, workflow = saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-background", assistantmodel.WorkflowStatusEnabled)
+	workflow, err = service.SaveWorkflow(ctx, workflow.ID, assistantmodel.WorkflowDefinitionWriteRequest{
+		Name: workflow.Name, Status: assistantmodel.WorkflowStatusEnabled, AgentID: agent.ID,
+		WorkMode: assistantmodel.WorkModeChat, PermissionMode: assistantmodel.PermissionModeApproval,
 		PromptTemplate: "event {{ .event.price }} for {{ .trigger.title }}",
 		CanvasGraph:    workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow background: %v", err)
 	}
-	triggerResult, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", jfadk.WorkflowTriggerWriteRequest{
-		ID: "workflow-background-event", Type: jfadk.WorkflowTriggerTypeEvent,
-		Title: "Background Event", Status: jfadk.WorkflowTriggerStatusEnabled,
+	triggerResult, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", assistantmodel.WorkflowTriggerWriteRequest{
+		ID: "workflow-background-event", Type: assistantmodel.WorkflowTriggerTypeEvent,
+		Title: "Background Event", Status: assistantmodel.WorkflowTriggerStatusEnabled,
 		Config: map[string]any{"eventType": "unit.event"},
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflowTrigger background: %v", err)
 	}
 	service.invokeWorkflowBackground(workflow, triggerResult.Trigger, map[string]any{"type": "unit.event", "price": 101})
-	logs := workflowLogsForTrigger(t, runtime, triggerResult.Trigger.ID, jfadk.WorkflowTriggerLogStatusSucceeded)
+	logs := workflowLogsForTrigger(t, runtime, triggerResult.Trigger.ID, assistantmodel.WorkflowTriggerLogStatusSucceeded)
 	if len(logs) != 1 {
 		t.Fatalf("background logs = %+v, want one succeeded log with matched event", logs)
 	}
@@ -400,16 +401,16 @@ func TestWorkflowInvocationPreflightAndStaleResourcePaths(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	assistantServiceProvider(t, runtime)
 	ctx := t.Context()
-	agent, workflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-preflight", jfadk.WorkflowStatusEnabled)
+	agent, workflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-preflight", assistantmodel.WorkflowStatusEnabled)
 
-	if _, err := (&Service{}).invokeWorkflow(ctx, workflow, nil, jfadk.WorkflowTriggerTypeManual, nil, nil); err == nil || !strings.Contains(err.Error(), "unavailable") {
+	if _, err := (&Service{}).invokeWorkflow(ctx, workflow, nil, assistantmodel.WorkflowTriggerTypeManual, nil, nil); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("invokeWorkflow unavailable service err = %v, want unavailable", err)
 	}
-	disabledTrigger := jfadk.WorkflowTrigger{
+	disabledTrigger := assistantmodel.WorkflowTrigger{
 		ID:         "workflow-preflight-disabled-trigger",
 		WorkflowID: workflow.ID,
-		Type:       jfadk.WorkflowTriggerTypeEvent,
-		Status:     jfadk.WorkflowTriggerStatusDisabled,
+		Type:       assistantmodel.WorkflowTriggerTypeEvent,
+		Status:     assistantmodel.WorkflowTriggerStatusDisabled,
 	}
 	if _, err := service.invokeWorkflow(ctx, workflow, &disabledTrigger, disabledTrigger.Type, nil, nil); err == nil || !strings.Contains(err.Error(), "trigger is disabled") {
 		t.Fatalf("invokeWorkflow disabled trigger err = %v, want disabled", err)
@@ -418,8 +419,8 @@ func TestWorkflowInvocationPreflightAndStaleResourcePaths(t *testing.T) {
 	emptyPrompt := workflow
 	emptyPrompt.ID = "workflow-preflight-empty-prompt"
 	emptyPrompt.PromptTemplate = "   "
-	result, err := service.invokeWorkflow(ctx, emptyPrompt, nil, jfadk.WorkflowTriggerTypeManual, nil, nil)
-	if err == nil || result.Log.Status != jfadk.WorkflowTriggerLogStatusFailed || !strings.Contains(err.Error(), "empty message") {
+	result, err := service.invokeWorkflow(ctx, emptyPrompt, nil, assistantmodel.WorkflowTriggerTypeManual, nil, nil)
+	if err == nil || result.Log.Status != assistantmodel.WorkflowTriggerLogStatusFailed || !strings.Contains(err.Error(), "empty message") {
 		t.Fatalf("invokeWorkflow empty prompt result=%+v err=%v", result, err)
 	}
 
@@ -427,14 +428,14 @@ func TestWorkflowInvocationPreflightAndStaleResourcePaths(t *testing.T) {
 	staleAgent.ID = "workflow-preflight-stale-agent"
 	staleAgent.AgentID = "missing-agent"
 	staleAgent.PromptTemplate = "run"
-	result, err = service.invokeWorkflow(ctx, staleAgent, nil, jfadk.WorkflowTriggerTypeManual, nil, nil)
-	if err == nil || result.Log.Status != jfadk.WorkflowTriggerLogStatusFailed || !strings.Contains(err.Error(), "agent") {
+	result, err = service.invokeWorkflow(ctx, staleAgent, nil, assistantmodel.WorkflowTriggerTypeManual, nil, nil)
+	if err == nil || result.Log.Status != assistantmodel.WorkflowTriggerLogStatusFailed || !strings.Contains(err.Error(), "agent") {
 		t.Fatalf("invokeWorkflow stale agent result=%+v err=%v", result, err)
 	}
 
-	withObjective, err := service.SaveWorkflow(ctx, workflow.ID, jfadk.WorkflowDefinitionWriteRequest{
-		Name: workflow.Name, Status: jfadk.WorkflowStatusEnabled, AgentID: agent.ID,
-		WorkMode: jfadk.WorkModeChat, PromptTemplate: "run {{ .symbol }}",
+	withObjective, err := service.SaveWorkflow(ctx, workflow.ID, assistantmodel.WorkflowDefinitionWriteRequest{
+		Name: workflow.Name, Status: assistantmodel.WorkflowStatusEnabled, AgentID: agent.ID,
+		WorkMode: assistantmodel.WorkModeChat, PromptTemplate: "run {{ .symbol }}",
 		ObjectiveTemplate: "review {{ .symbol }}", DefaultInputs: map[string]any{"symbol": "US.AAPL"},
 		CanvasGraph: workflowTestCanvasGraph(),
 	})
@@ -442,7 +443,7 @@ func TestWorkflowInvocationPreflightAndStaleResourcePaths(t *testing.T) {
 		t.Fatalf("SaveWorkflow objective: %v", err)
 	}
 	result, err = service.RunWorkflow(ctx, withObjective.ID, nil)
-	if err != nil || result.Log.Status != jfadk.WorkflowTriggerLogStatusSucceeded {
+	if err != nil || result.Log.Status != assistantmodel.WorkflowTriggerLogStatusSucceeded {
 		t.Fatalf("RunWorkflow objective result=%+v err=%v", result, err)
 	}
 	assertWorkflowSessionSource(t, runtime, result.Log.SessionID, withObjective.ID, withObjective.Name)
@@ -455,13 +456,13 @@ func TestWorkflowInvocationPersistsOrReturnsEachLogWriteFailure(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	assistantServiceProvider(t, runtime)
 	ctx := t.Context()
-	_, workflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-log-write-failure", jfadk.WorkflowStatusEnabled)
-	trigger := jfadk.WorkflowTrigger{
+	_, workflow := saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-log-write-failure", assistantmodel.WorkflowStatusEnabled)
+	trigger := assistantmodel.WorkflowTrigger{
 		ID:         "workflow-log-write-failure-trigger",
 		WorkflowID: workflow.ID,
-		Type:       jfadk.WorkflowTriggerTypeEvent,
+		Type:       assistantmodel.WorkflowTriggerTypeEvent,
 		Title:      "Failure injection event",
-		Status:     jfadk.WorkflowTriggerStatusEnabled,
+		Status:     assistantmodel.WorkflowTriggerStatusEnabled,
 	}
 
 	listFailure := &workflowInvocationFaultStore{base: runtime.Store(), listErr: errors.New("list active logs failed")}
@@ -472,8 +473,8 @@ func TestWorkflowInvocationPersistsOrReturnsEachLogWriteFailure(t *testing.T) {
 	activeSaveFailure := &workflowInvocationFaultStore{
 		base:          runtime.Store(),
 		activeLogsSet: true,
-		activeLogs: []jfadk.WorkflowTriggerLog{{
-			ID: "active-log", TriggerID: trigger.ID, Status: jfadk.WorkflowTriggerLogStatusRunning,
+		activeLogs: []assistantmodel.WorkflowTriggerLog{{
+			ID: "active-log", TriggerID: trigger.ID, Status: assistantmodel.WorkflowTriggerLogStatusRunning,
 		}},
 		failSaveAt: 1,
 	}
@@ -483,7 +484,7 @@ func TestWorkflowInvocationPersistsOrReturnsEachLogWriteFailure(t *testing.T) {
 
 	for _, failSaveAt := range []int{1, 2, 3} {
 		faultStore := &workflowInvocationFaultStore{base: runtime.Store(), failSaveAt: failSaveAt}
-		_, err := service.invokeWorkflowWithStore(ctx, faultStore, workflow, nil, jfadk.WorkflowTriggerTypeManual, nil, nil)
+		_, err := service.invokeWorkflowWithStore(ctx, faultStore, workflow, nil, assistantmodel.WorkflowTriggerTypeManual, nil, nil)
 		if !errors.Is(err, errWorkflowLogWriteInjected) {
 			t.Fatalf("save call %d err = %v, want injected write failure", failSaveAt, err)
 		}
@@ -499,7 +500,7 @@ func TestWorkflowActiveRunGuardHandlesStoredRunStates(t *testing.T) {
 
 	runReadFailure := &workflowInvocationFaultStore{
 		base: runtime.Store(), activeLogsSet: true,
-		activeLogs: []jfadk.WorkflowTriggerLog{{ID: "run-read-failure", RunID: "run-1"}},
+		activeLogs: []assistantmodel.WorkflowTriggerLog{{ID: "run-read-failure", RunID: "run-1"}},
 		runErr:     errors.New("run read failed"),
 	}
 	if active, err := workflowTriggerHasActiveRun(ctx, runReadFailure, "trigger-1"); active || !errors.Is(err, runReadFailure.runErr) {
@@ -508,9 +509,9 @@ func TestWorkflowActiveRunGuardHandlesStoredRunStates(t *testing.T) {
 
 	missingRun := &workflowInvocationFaultStore{
 		base: runtime.Store(), activeLogsSet: true,
-		activeLogs: []jfadk.WorkflowTriggerLog{{ID: "missing-run", RunID: "missing"}},
+		activeLogs: []assistantmodel.WorkflowTriggerLog{{ID: "missing-run", RunID: "missing"}},
 		runsSet:    true,
-		runs:       map[string]jfadk.Run{},
+		runs:       map[string]assistantmodel.Run{},
 	}
 	if active, err := workflowTriggerHasActiveRun(ctx, missingRun, "trigger-1"); err != nil || active || missingRun.saveCalls != 1 {
 		t.Fatalf("missing run active=%v err=%v saveCalls=%d", active, err, missingRun.saveCalls)
@@ -518,10 +519,10 @@ func TestWorkflowActiveRunGuardHandlesStoredRunStates(t *testing.T) {
 
 	pendingRun := &workflowInvocationFaultStore{
 		base: runtime.Store(), activeLogsSet: true,
-		activeLogs: []jfadk.WorkflowTriggerLog{{ID: "pending-run", RunID: "run-pending"}},
+		activeLogs: []assistantmodel.WorkflowTriggerLog{{ID: "pending-run", RunID: "run-pending"}},
 		runsSet:    true,
-		runs: map[string]jfadk.Run{
-			"run-pending": {ID: "run-pending", Status: jfadk.RunStatusPending},
+		runs: map[string]assistantmodel.Run{
+			"run-pending": {ID: "run-pending", Status: assistantmodel.RunStatusPending},
 		},
 	}
 	if active, err := workflowTriggerHasActiveRun(ctx, pendingRun, "trigger-1"); err != nil || !active || pendingRun.saveCalls != 0 {
@@ -530,30 +531,30 @@ func TestWorkflowActiveRunGuardHandlesStoredRunStates(t *testing.T) {
 
 	failedRun := &workflowInvocationFaultStore{
 		base: runtime.Store(), activeLogsSet: true,
-		activeLogs: []jfadk.WorkflowTriggerLog{{ID: "failed-run", RunID: "run-failed"}},
+		activeLogs: []assistantmodel.WorkflowTriggerLog{{ID: "failed-run", RunID: "run-failed"}},
 		runsSet:    true,
-		runs: map[string]jfadk.Run{
-			"run-failed": {ID: "run-failed", Status: jfadk.RunStatusFailed, FailureReason: "provider down"},
+		runs: map[string]assistantmodel.Run{
+			"run-failed": {ID: "run-failed", Status: assistantmodel.RunStatusFailed, FailureReason: "provider down"},
 		},
 	}
 	if active, err := workflowTriggerHasActiveRun(ctx, failedRun, "trigger-1"); err != nil || active {
 		t.Fatalf("failed run active=%v err=%v", active, err)
 	}
-	if len(failedRun.savedLogs) != 1 || failedRun.savedLogs[0].Status != jfadk.WorkflowTriggerLogStatusFailed || failedRun.savedLogs[0].Error != "provider down" {
+	if len(failedRun.savedLogs) != 1 || failedRun.savedLogs[0].Status != assistantmodel.WorkflowTriggerLogStatusFailed || failedRun.savedLogs[0].Error != "provider down" {
 		t.Fatalf("failed run saved logs = %+v", failedRun.savedLogs)
 	}
 
 	finishFailure := &workflowInvocationFaultStore{base: runtime.Store(), failSaveAt: 1}
-	original := jfadk.WorkflowTriggerLog{ID: "finish-failure", Status: jfadk.WorkflowTriggerLogStatusRunning}
-	finished := finishWorkflowLog(ctx, finishFailure, original, jfadk.WorkflowTriggerLogStatusFailed, "write failed")
-	if finished.Status != jfadk.WorkflowTriggerLogStatusFailed || finished.Error != "write failed" || finished.FinishedAt == "" {
+	original := assistantmodel.WorkflowTriggerLog{ID: "finish-failure", Status: assistantmodel.WorkflowTriggerLogStatusRunning}
+	finished := finishWorkflowLog(ctx, finishFailure, original, assistantmodel.WorkflowTriggerLogStatusFailed, "write failed")
+	if finished.Status != assistantmodel.WorkflowTriggerLogStatusFailed || finished.Error != "write failed" || finished.FinishedAt == "" {
 		t.Fatalf("finishWorkflowLog save failure = %+v", finished)
 	}
 }
 
 func TestWorkflowEventMatchingCooldownAndUtilityBoundaries(t *testing.T) {
 	now := time.Date(2026, 7, 1, 1, 0, 0, 0, time.UTC)
-	event := jfadk.WorkflowEvent{
+	event := assistantmodel.WorkflowEvent{
 		ID:       "event-1",
 		Type:     "system.notification",
 		Source:   "notification",
@@ -586,7 +587,7 @@ func TestWorkflowEventMatchingCooldownAndUtilityBoundaries(t *testing.T) {
 		}
 	}
 
-	trigger := jfadk.WorkflowTrigger{Config: cloneMap(config)}
+	trigger := assistantmodel.WorkflowTrigger{Config: cloneMap(config)}
 	if !eventTriggerCooldownAllows(&trigger, now) {
 		t.Fatal("first cooldownAllows = false, want true")
 	}
@@ -614,7 +615,7 @@ func TestWorkflowEventMatchingCooldownAndUtilityBoundaries(t *testing.T) {
 
 func TestWorkflowMarketThresholdAndConfigHelpersCoverEdges(t *testing.T) {
 	now := time.Date(2026, 7, 1, 1, 0, 0, 0, time.UTC)
-	trigger := jfadk.WorkflowTrigger{Config: map[string]any{
+	trigger := assistantmodel.WorkflowTrigger{Config: map[string]any{
 		"instrumentIds": "US.AAPL, hk.00700, US.AAPL",
 		"snapshotPath":  "price",
 		"value":         json.Number("100"),
@@ -680,22 +681,22 @@ func TestWorkflowCoreHelpersAndUnavailableService(t *testing.T) {
 	}
 	service.StartWorkflowScheduler(t.Context())
 
-	if normalizeWorkflowStatus("", jfadk.WorkflowStatusDisabled) != jfadk.WorkflowStatusDisabled {
+	if normalizeWorkflowStatus("", assistantmodel.WorkflowStatusDisabled) != assistantmodel.WorkflowStatusDisabled {
 		t.Fatal("normalizeWorkflowStatus fallback disabled failed")
 	}
-	if normalizeTriggerStatus("", jfadk.WorkflowTriggerStatusError) != jfadk.WorkflowTriggerStatusError {
+	if normalizeTriggerStatus("", assistantmodel.WorkflowTriggerStatusError) != assistantmodel.WorkflowTriggerStatusError {
 		t.Fatal("normalizeTriggerStatus fallback error failed")
 	}
-	if normalizeWorkflowWorkMode("", jfadk.WorkModeChat) != jfadk.WorkModeChat {
+	if normalizeWorkflowWorkMode("", assistantmodel.WorkModeChat) != assistantmodel.WorkModeChat {
 		t.Fatal("normalizeWorkflowWorkMode fallback chat failed")
 	}
-	if normalizeWorkflowPermissionMode("bad", "") != jfadk.PermissionModeApproval {
+	if normalizeWorkflowPermissionMode("bad", "") != assistantmodel.PermissionModeApproval {
 		t.Fatal("normalizeWorkflowPermissionMode bad value did not fall back to approval")
 	}
-	if normalizeTriggerType("", jfadk.WorkflowTriggerTypeWebhook) != jfadk.WorkflowTriggerTypeWebhook {
+	if normalizeTriggerType("", assistantmodel.WorkflowTriggerTypeWebhook) != assistantmodel.WorkflowTriggerTypeWebhook {
 		t.Fatal("normalizeTriggerType fallback webhook failed")
 	}
-	if defaultTriggerTitle(jfadk.WorkflowTriggerTypeEvent) != "事件触发" || defaultTriggerTitle(jfadk.WorkflowTriggerTypeMarketThreshold) != "行情阈值" {
+	if defaultTriggerTitle(assistantmodel.WorkflowTriggerTypeEvent) != "事件触发" || defaultTriggerTitle(assistantmodel.WorkflowTriggerTypeMarketThreshold) != "行情阈值" {
 		t.Fatal("defaultTriggerTitle event/market mismatch")
 	}
 	if workflowSessionTitle("", time.Date(2026, 7, 1, 1, 2, 0, 0, time.UTC)) != "ADK 工作流 - 2026-07-01 01:02" {
@@ -715,7 +716,7 @@ func TestWorkflowCoreHelpersAndUnavailableService(t *testing.T) {
 	}
 }
 
-func assertWorkflowSessionSource(t *testing.T, runtime *jfadk.Runtime, sessionID string, workflowID string, workflowName string) {
+func assertWorkflowSessionSource(t *testing.T, runtime *jfadkruntime.Runtime, sessionID string, workflowID string, workflowName string) {
 	t.Helper()
 	session, ok, err := runtime.Store().Session(t.Context(), sessionID)
 	if err != nil || !ok {

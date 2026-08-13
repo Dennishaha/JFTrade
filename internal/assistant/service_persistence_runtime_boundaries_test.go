@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	adk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestServicePropagatesCancelledPersistenceContextAcrossAssistantResources(t *testing.T) {
@@ -22,26 +22,26 @@ func TestServicePropagatesCancelledPersistenceContextAcrossAssistantResources(t 
 		{"list tasks", func() error { _, err := service.ListTasks(ctx, TaskQuery{}); return err }},
 		{"get task", func() error { _, err := service.GetTask(ctx, "task"); return err }},
 		{"save task", func() error {
-			_, err := service.SaveTask(ctx, adk.TaskWriteRequest{ID: "cancelled-task", Title: "Cancelled task", Status: "TODO"})
+			_, err := service.SaveTask(ctx, assistantmodel.TaskWriteRequest{ID: "cancelled-task", Title: "Cancelled task", Status: "TODO"})
 			return err
 		}},
-		{"update task", func() error { _, err := service.UpdateTask(ctx, "task", adk.TaskPatchRequest{}); return err }},
+		{"update task", func() error { _, err := service.UpdateTask(ctx, "task", assistantmodel.TaskPatchRequest{}); return err }},
 		{"delete task", func() error { return service.DeleteTask(ctx, "task") }},
 		{"list memory", func() error { _, err := service.ListMemory(ctx, MemoryQuery{}); return err }},
 		{"save memory", func() error {
-			_, err := service.SaveMemory(ctx, adk.MemoryWriteRequest{Scope: "global", Key: "cancelled", Value: "value"})
+			_, err := service.SaveMemory(ctx, assistantmodel.MemoryWriteRequest{Scope: "global", Key: "cancelled", Value: "value"})
 			return err
 		}},
 		{"delete memory", func() error { return service.DeleteMemory(ctx, "memory") }},
 		{"list providers", func() error { _, err := service.ListProviders(ctx); return err }},
 		{"save provider", func() error {
-			_, err := service.SaveProvider(ctx, adk.ProviderWriteRequest{ID: "cancelled-provider", DisplayName: "Cancelled", Enabled: true})
+			_, err := service.SaveProvider(ctx, assistantmodel.ProviderWriteRequest{ID: "cancelled-provider", DisplayName: "Cancelled", Enabled: true})
 			return err
 		}},
 		{"set default provider", func() error { _, err := service.SetDefaultProvider(ctx, "provider"); return err }},
 		{"list agents", func() error { _, err := service.ListAgents(ctx, AgentQuery{}); return err }},
 		{"save agent", func() error {
-			_, err := service.SaveAgent(ctx, adk.AgentWriteRequest{ID: "cancelled-agent", Name: "Cancelled", Status: adk.AgentStatusDisabled})
+			_, err := service.SaveAgent(ctx, assistantmodel.AgentWriteRequest{ID: "cancelled-agent", Name: "Cancelled", Status: assistantmodel.AgentStatusDisabled})
 			return err
 		}},
 		{"delete agent", func() error { return service.DeleteAgent(ctx, "agent") }},
@@ -51,13 +51,16 @@ func TestServicePropagatesCancelledPersistenceContextAcrossAssistantResources(t 
 		{"get session detail", func() error { _, err := service.GetSessionDetail(ctx, "session"); return err }},
 		{"rename session", func() error { _, err := service.RenameSession(ctx, "session", "title"); return err }},
 		{"update composer", func() error {
-			_, err := service.UpdateSessionComposerState(ctx, "session", adk.SessionComposerStatePatch{})
+			_, err := service.UpdateSessionComposerState(ctx, "session", assistantmodel.SessionComposerStatePatch{})
 			return err
 		}},
 		{"delete session", func() error { return service.DeleteSession(ctx, "session") }},
-		{"preview default session", func() error { _, err := service.PreviewSession(ctx, adk.ChatRequest{Message: "hello"}); return err }},
+		{"preview default session", func() error {
+			_, err := service.PreviewSession(ctx, assistantmodel.ChatRequest{Message: "hello"})
+			return err
+		}},
 		{"preview selected agent", func() error {
-			_, err := service.PreviewSession(ctx, adk.ChatRequest{AgentID: "agent", Message: "hello"})
+			_, err := service.PreviewSession(ctx, assistantmodel.ChatRequest{AgentID: "agent", Message: "hello"})
 			return err
 		}},
 		{"recover terminal response", func() error { _, err := service.RecoverTerminalChatResponse(ctx, "run"); return err }},
@@ -71,7 +74,7 @@ func TestServicePropagatesCancelledPersistenceContextAcrossAssistantResources(t 
 		{"resolve approval", func() error { _, err := service.ResolveApproval(ctx, "approval", true); return err }},
 		{"resolve approval asynchronously", func() error { _, err := service.ResolveApprovalAsync(ctx, "approval", false); return err }},
 		{"resolve input asynchronously", func() error {
-			_, err := service.ResolveInputAsync(ctx, "run", adk.InputResponseRequest{})
+			_, err := service.ResolveInputAsync(ctx, "run", assistantmodel.InputResponseRequest{})
 			return err
 		}},
 		{"get metrics", func() error { _, err := service.GetMetrics(ctx); return err }},
@@ -82,13 +85,13 @@ func TestServicePropagatesCancelledPersistenceContextAcrossAssistantResources(t 
 		{"list workflows", func() error { _, err := service.ListWorkflows(ctx, WorkflowQuery{}); return err }},
 		{"get workflow", func() error { _, err := service.GetWorkflow(ctx, "workflow"); return err }},
 		{"save workflow", func() error {
-			_, err := service.SaveWorkflow(ctx, "workflow", adk.WorkflowDefinitionWriteRequest{Name: "Workflow", AgentID: "agent", PromptTemplate: "run"})
+			_, err := service.SaveWorkflow(ctx, "workflow", assistantmodel.WorkflowDefinitionWriteRequest{Name: "Workflow", AgentID: "agent", PromptTemplate: "run"})
 			return err
 		}},
 		{"list workflow triggers", func() error { _, err := service.ListWorkflowTriggers(ctx, "workflow"); return err }},
 		{"get workflow trigger", func() error { _, err := service.GetWorkflowTrigger(ctx, "workflow", "trigger"); return err }},
 		{"save workflow trigger", func() error {
-			_, err := service.SaveWorkflowTrigger(ctx, "workflow", "", adk.WorkflowTriggerWriteRequest{Type: adk.WorkflowTriggerTypeManual})
+			_, err := service.SaveWorkflowTrigger(ctx, "workflow", "", assistantmodel.WorkflowTriggerWriteRequest{Type: assistantmodel.WorkflowTriggerTypeManual})
 			return err
 		}},
 		{"delete workflow trigger", func() error { _, err := service.DeleteWorkflowTrigger(ctx, "workflow", "trigger"); return err }},
@@ -114,27 +117,27 @@ func TestServicePropagatesCancelledPersistenceContextAcrossAssistantResources(t 
 }
 
 func TestCanvasWorkflowNodeProjectionPreservesNodeSpecificBusinessState(t *testing.T) {
-	workflow := adk.WorkflowDefinition{
+	workflow := assistantmodel.WorkflowDefinition{
 		ID:   "canvas-projection",
 		Name: "Canvas projection",
-		CanvasGraph: &adk.WorkflowCanvasGraph{Nodes: []adk.WorkflowCanvasNode{
+		CanvasGraph: &assistantmodel.WorkflowCanvasGraph{Nodes: []assistantmodel.WorkflowCanvasNode{
 			{ID: "trigger-node", Type: "trigger", Data: map[string]any{"title": "Incoming event"}},
 			{ID: "start-node", Type: "start", Data: map[string]any{"title": "Prepare inputs"}},
 			{ID: "agent-node", Type: "agent", Data: map[string]any{"title": "Research"}},
 			{ID: "monitor-node", Type: "monitor", Data: map[string]any{"title": "Review"}},
 		}},
 	}
-	trigger := &adk.WorkflowTrigger{ID: "trigger-1", Title: "Manual review", Type: adk.WorkflowTriggerTypeManual, Status: adk.WorkflowTriggerStatusEnabled}
-	response := &adk.ChatResponse{Run: adk.Run{WorkflowPlan: []adk.WorkflowStepState{{
+	trigger := &assistantmodel.WorkflowTrigger{ID: "trigger-1", Title: "Manual review", Type: assistantmodel.WorkflowTriggerTypeManual, Status: assistantmodel.WorkflowTriggerStatusEnabled}
+	response := &assistantmodel.ChatResponse{Run: assistantmodel.Run{WorkflowPlan: []assistantmodel.WorkflowStepState{{
 		PlannerStepID: "agent-node", Status: "BLOCKED", ChildRunID: "child-run", ChildAgentID: "research-agent",
 		ChildProviderID: "provider", ChildModel: "model", Message: "research US.AAPL", ResultSummary: "blocked by limit",
 	}}}}
-	runs := workflowCanvasNodeRuns(workflow, trigger, trigger.Type, map[string]any{"symbol": "US.AAPL"}, map[string]any{"type": "manual"}, "research", "objective", response, adk.WorkflowTriggerLogStatusFailed, "risk limit", "started", "finished")
+	runs := workflowCanvasNodeRuns(workflow, trigger, trigger.Type, map[string]any{"symbol": "US.AAPL"}, map[string]any{"type": "manual"}, "research", "objective", response, assistantmodel.WorkflowTriggerLogStatusFailed, "risk limit", "started", "finished")
 	if len(runs) != 4 || runs[0].Title != "Incoming event" || runs[1].Title != "Prepare inputs" || runs[2].Title != "Research" || runs[3].Title != "Review" {
 		t.Fatalf("canvas projection titles = %#v", runs)
 	}
 	agentRun := runs[2]
-	if agentRun.Status != adk.WorkflowTriggerLogStatusFailed || agentRun.Outputs["runId"] != "child-run" || agentRun.Outputs["reply"] != "blocked by limit" || agentRun.Outputs["error"] != "risk limit" {
+	if agentRun.Status != assistantmodel.WorkflowTriggerLogStatusFailed || agentRun.Outputs["runId"] != "child-run" || agentRun.Outputs["reply"] != "blocked by limit" || agentRun.Outputs["error"] != "risk limit" {
 		t.Fatalf("canvas agent projection = %#v", agentRun)
 	}
 
@@ -142,15 +145,15 @@ func TestCanvasWorkflowNodeProjectionPreservesNodeSpecificBusinessState(t *testi
 		stepStatus string
 		want       string
 	}{
-		{"DONE", adk.WorkflowTriggerLogStatusSucceeded},
-		{"IN_PROGRESS", adk.WorkflowTriggerLogStatusRunning},
-		{"TODO", adk.WorkflowTriggerLogStatusQueued},
-		{"CANCELLED", adk.WorkflowTriggerLogStatusFailed},
+		{"DONE", assistantmodel.WorkflowTriggerLogStatusSucceeded},
+		{"IN_PROGRESS", assistantmodel.WorkflowTriggerLogStatusRunning},
+		{"TODO", assistantmodel.WorkflowTriggerLogStatusQueued},
+		{"CANCELLED", assistantmodel.WorkflowTriggerLogStatusFailed},
 		{"custom", "CUSTOM"},
-		{"", adk.WorkflowTriggerLogStatusSkipped},
+		{"", assistantmodel.WorkflowTriggerLogStatusSkipped},
 	} {
 		t.Run(tc.stepStatus, func(t *testing.T) {
-			run := canvasAgentNodeRun(adk.WorkflowCanvasNode{ID: "agent", Type: "agent"}, adk.WorkflowStepState{Status: tc.stepStatus}, "failure", "started", "finished")
+			run := canvasAgentNodeRun(assistantmodel.WorkflowCanvasNode{ID: "agent", Type: "agent"}, assistantmodel.WorkflowStepState{Status: tc.stepStatus}, "failure", "started", "finished")
 			if run.Status != tc.want {
 				t.Fatalf("status %q = %q, want %q", tc.stepStatus, run.Status, tc.want)
 			}
@@ -159,7 +162,7 @@ func TestCanvasWorkflowNodeProjectionPreservesNodeSpecificBusinessState(t *testi
 }
 
 func TestWorkflowUtilityAndUnavailableInputResolutionBoundaries(t *testing.T) {
-	if _, err := (&Service{}).ResolveInputAsync(t.Context(), "run", adk.InputResponseRequest{}); err == nil || !strings.Contains(err.Error(), "unavailable") {
+	if _, err := (&Service{}).ResolveInputAsync(t.Context(), "run", assistantmodel.InputResponseRequest{}); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("ResolveInputAsync without runtime error = %v", err)
 	}
 	if verifyWorkflowSecret("", hashWorkflowSecret("secret")) || verifyWorkflowSecret("secret", "") || verifyWorkflowSecret("wrong", hashWorkflowSecret("secret")) {
@@ -177,8 +180,8 @@ func TestWorkflowUtilityAndUnavailableInputResolutionBoundaries(t *testing.T) {
 func TestWorkflowEntryPointsRejectUnavailableRuntimeBeforePersistingAnything(t *testing.T) {
 	service := &Service{}
 	ctx := t.Context()
-	workflow := adk.WorkflowDefinition{ID: "workflow", Name: "Workflow", Status: adk.WorkflowStatusEnabled, AgentID: "agent", PromptTemplate: "run"}
-	trigger := &adk.WorkflowTrigger{ID: "trigger", WorkflowID: workflow.ID, Type: adk.WorkflowTriggerTypeManual, Status: adk.WorkflowTriggerStatusEnabled}
+	workflow := assistantmodel.WorkflowDefinition{ID: "workflow", Name: "Workflow", Status: assistantmodel.WorkflowStatusEnabled, AgentID: "agent", PromptTemplate: "run"}
+	trigger := &assistantmodel.WorkflowTrigger{ID: "trigger", WorkflowID: workflow.ID, Type: assistantmodel.WorkflowTriggerTypeManual, Status: assistantmodel.WorkflowTriggerStatusEnabled}
 
 	cases := []struct {
 		name string
@@ -186,14 +189,14 @@ func TestWorkflowEntryPointsRejectUnavailableRuntimeBeforePersistingAnything(t *
 	}{
 		{"get workflow", func() error { _, err := service.GetWorkflow(ctx, workflow.ID); return err }},
 		{"save workflow", func() error {
-			_, err := service.SaveWorkflow(ctx, workflow.ID, adk.WorkflowDefinitionWriteRequest{Name: workflow.Name, AgentID: workflow.AgentID, PromptTemplate: workflow.PromptTemplate})
+			_, err := service.SaveWorkflow(ctx, workflow.ID, assistantmodel.WorkflowDefinitionWriteRequest{Name: workflow.Name, AgentID: workflow.AgentID, PromptTemplate: workflow.PromptTemplate})
 			return err
 		}},
 		{"delete workflow", func() error { _, err := service.DeleteWorkflow(ctx, workflow.ID); return err }},
 		{"list triggers", func() error { _, err := service.ListWorkflowTriggers(ctx, workflow.ID); return err }},
 		{"get trigger", func() error { _, err := service.GetWorkflowTrigger(ctx, workflow.ID, trigger.ID); return err }},
 		{"save trigger", func() error {
-			_, err := service.SaveWorkflowTrigger(ctx, workflow.ID, trigger.ID, adk.WorkflowTriggerWriteRequest{Type: trigger.Type})
+			_, err := service.SaveWorkflowTrigger(ctx, workflow.ID, trigger.ID, assistantmodel.WorkflowTriggerWriteRequest{Type: trigger.Type})
 			return err
 		}},
 		{"delete trigger", func() error { _, err := service.DeleteWorkflowTrigger(ctx, workflow.ID, trigger.ID); return err }},
@@ -225,21 +228,21 @@ func TestWorkflowEntryPointsRejectUnavailableRuntimeBeforePersistingAnything(t *
 func TestAgentValidationAndSchedulerBoundariesProtectRuntimeResources(t *testing.T) {
 	_, service, _ := newAssistantServiceHarness(t)
 	ctx := t.Context()
-	if _, err := service.SaveAgent(ctx, adk.AgentWriteRequest{ID: adk.DefaultBuiltinAgentID}); err == nil || !strings.Contains(err.Error(), "only provider") {
+	if _, err := service.SaveAgent(ctx, assistantmodel.AgentWriteRequest{ID: assistantmodel.DefaultBuiltinAgentID}); err == nil || !strings.Contains(err.Error(), "only provider") {
 		t.Fatalf("primary builtin agent update error = %v", err)
 	}
-	if _, err := service.SaveAgent(ctx, adk.AgentWriteRequest{ID: "invalid-status", Name: "Invalid", Status: "broken"}); err == nil || !strings.Contains(err.Error(), "status") {
+	if _, err := service.SaveAgent(ctx, assistantmodel.AgentWriteRequest{ID: "invalid-status", Name: "Invalid", Status: "broken"}); err == nil || !strings.Contains(err.Error(), "status") {
 		t.Fatalf("invalid agent status error = %v", err)
 	}
-	if _, err := service.SaveAgent(ctx, adk.AgentWriteRequest{ID: "invalid-mode", Name: "Invalid", WorkMode: "broken"}); err == nil || !strings.Contains(err.Error(), "work mode") {
+	if _, err := service.SaveAgent(ctx, assistantmodel.AgentWriteRequest{ID: "invalid-mode", Name: "Invalid", WorkMode: "broken"}); err == nil || !strings.Contains(err.Error(), "work mode") {
 		t.Fatalf("invalid agent work mode error = %v", err)
 	}
-	if _, err := service.SaveAgent(ctx, adk.AgentWriteRequest{ID: "unknown-skill", Name: "Unknown skill", Status: adk.AgentStatusDisabled, Skills: []string{"missing"}}); err == nil || !strings.Contains(err.Error(), "unknown ADK skill") {
+	if _, err := service.SaveAgent(ctx, assistantmodel.AgentWriteRequest{ID: "unknown-skill", Name: "Unknown skill", Status: assistantmodel.AgentStatusDisabled, Skills: []string{"missing"}}); err == nil || !strings.Contains(err.Error(), "unknown ADK skill") {
 		t.Fatalf("unknown skill error = %v", err)
 	}
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
-	if _, err := service.SaveAgent(cancelled, adk.AgentWriteRequest{ID: "cancelled-provider", Name: "Cancelled provider", ProviderID: "provider"}); err == nil {
+	if _, err := service.SaveAgent(cancelled, assistantmodel.AgentWriteRequest{ID: "cancelled-provider", Name: "Cancelled provider", ProviderID: "provider"}); err == nil {
 		t.Fatal("provider lookup accepted a cancelled context")
 	}
 

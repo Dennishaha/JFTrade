@@ -6,22 +6,22 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestRunInputResponseErrorAndRetryContracts(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	run := jfadk.Run{
+	run := assistantmodel.Run{
 		ID: "run-input-errors", SessionID: "session-input-errors", AgentID: "agent-input-errors",
-		Status: jfadk.RunStatusPendingInput, ResumeState: "waiting_input", CreatedAt: now, UpdatedAt: now,
-		ToolCalls: []jfadk.ToolCall{}, PendingApprovals: []jfadk.Approval{},
-		InputRequest: &jfadk.InputRequest{
+		Status: assistantmodel.RunStatusPendingInput, ResumeState: "waiting_input", CreatedAt: now, UpdatedAt: now,
+		ToolCalls: []assistantmodel.ToolCall{}, PendingApprovals: []assistantmodel.Approval{},
+		InputRequest: &assistantmodel.InputRequest{
 			ID: "input-errors", RunID: "run-input-errors", AgentID: "agent-input-errors", FunctionCallID: "call-input-errors",
-			Status: jfadk.InputRequestStatusPending, CreatedAt: now, UpdatedAt: now,
-			Questions: []jfadk.InputQuestion{{
+			Status: assistantmodel.InputRequestStatusPending, CreatedAt: now, UpdatedAt: now,
+			Questions: []assistantmodel.InputQuestion{{
 				ID: "q1", Question: "Choose", AllowOther: false,
-				Options: []jfadk.InputOption{{ID: "q1-o1", Label: "A"}, {ID: "q1-o2", Label: "B"}},
+				Options: []assistantmodel.InputOption{{ID: "q1-o1", Label: "A"}, {ID: "q1-o2", Label: "B"}},
 			}},
 		},
 	}

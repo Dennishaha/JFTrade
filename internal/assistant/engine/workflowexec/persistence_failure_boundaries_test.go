@@ -2,13 +2,13 @@ package workflowexec
 
 import (
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestGoalTurnPersistenceFailuresBubbleThroughTheOrchestrator(t *testing.T) {
@@ -18,7 +18,7 @@ func TestGoalTurnPersistenceFailuresBubbleThroughTheOrchestrator(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "goal-model-write-parent", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_goal_model_terminal_write")
 
@@ -40,7 +40,7 @@ func TestGoalTurnPersistenceFailuresBubbleThroughTheOrchestrator(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "goal-running-write-parent", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_goal_running_write")
 
@@ -68,7 +68,7 @@ func TestGoalTurnPersistenceFailuresBubbleThroughTheOrchestrator(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "goal-complete-write-parent", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_goal_complete_write")
 		service.fail = true
@@ -91,7 +91,7 @@ func TestGoalTurnPersistenceFailuresBubbleThroughTheOrchestrator(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "goal-continue-write-parent", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_goal_continue_write")
 
@@ -116,7 +116,7 @@ func TestWorkflowTerminalProjectionPersistenceFailuresDoNotDisappear(t *testing.
 			ID: "blocked-parent-write-run", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 			WorkflowPlan: []WorkflowStepState{{TaskID: "blocked-parent-write-task", Status: "IN_PROGRESS"}},
-			CreatedAt:    jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt:    assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_blocked_parent_write")
 		child := Run{
@@ -141,7 +141,7 @@ func TestWorkflowTerminalProjectionPersistenceFailuresDoNotDisappear(t *testing.
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "scheduler-failure-write-run", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		task, err := runtime.Store().SaveTask(t.Context(), TaskWriteRequest{
 			ID: "scheduler-failure-write-task", Title: "Still pending", Status: "TODO", RunID: parent.ID,
@@ -168,7 +168,7 @@ func TestWorkflowTerminalProjectionPersistenceFailuresDoNotDisappear(t *testing.
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "scheduler-code-write-run", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		task, err := runtime.Store().SaveTask(t.Context(), TaskWriteRequest{
 			ID: "scheduler-code-write-task", Title: "Still pending", Status: "TODO", RunID: parent.ID,
@@ -201,7 +201,7 @@ func TestWorkflowTerminalProjectionPersistenceFailuresDoNotDisappear(t *testing.
 		child := mustSaveRun(t, runtime, Run{
 			ID: "missing-final-write-child", SessionID: "missing-final-session", AgentID: "missing-final-agent",
 			Status: RunStatusRunning, ParentRunID: "missing-final-parent",
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, child.ID, "reject_missing_final_child_write")
 
@@ -218,14 +218,14 @@ func TestGoalProjectionPersistenceFailuresStopAtTheirBoundary(t *testing.T) {
 	t.Run("pause cleanup failure is returned", func(t *testing.T) {
 		runtime := newTestRuntime(t)
 		session := mustCreateSession(t, runtime, "paused-cleanup-write-agent", "paused cleanup write")
-		pauseRequestedAt := jfadkmodel.NowString()
-		pauseError := jfadkmodel.ErrUserGoalPauseRequested.Error()
+		pauseRequestedAt := assistantmodel.NowString()
+		pauseError := assistantmodel.ErrUserGoalPauseRequested.Error()
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "paused-cleanup-write-run", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusPaused, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusPaused,
 			PausedReason: "user", PauseRequestedAt: &pauseRequestedAt,
 			ToolCalls: []ToolCall{{ID: "interrupted-task-call", ToolName: workflowTaskClaimTool, Status: "FAILED", Error: &pauseError}},
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_paused_cleanup_write")
 
@@ -240,17 +240,17 @@ func TestGoalProjectionPersistenceFailuresStopAtTheirBoundary(t *testing.T) {
 	t.Run("pause failure bubbles through final turn resolution", func(t *testing.T) {
 		runtime := newTestRuntime(t)
 		session := mustCreateSession(t, runtime, "turn-pause-write-agent", "turn pause write")
-		pauseRequestedAt := jfadkmodel.NowString()
+		pauseRequestedAt := assistantmodel.NowString()
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "turn-pause-write-run", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			PauseRequestedAt: &pauseRequestedAt, CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			PauseRequestedAt: &pauseRequestedAt, CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_turn_pause_write")
 
 		_, _, _, _, err := (&WorkflowExecutor{runtime: runtime}).FinishADKGoalWorkflowTurn(
 			t.Context(), workflowRequest{Session: session}, parent, nil, &fakeWorkflowExecutionHandle{},
-			&workflowGoalDecision{}, jfadkmodel.ErrUserGoalPauseRequested, 1, false,
+			&workflowGoalDecision{}, assistantmodel.ErrUserGoalPauseRequested, 1, false,
 		)
 		if err == nil || !strings.Contains(err.Error(), "persist user-paused goal state") {
 			t.Fatalf("FinishADKGoalWorkflowTurn error = %v, want pause persistence failure", err)
@@ -263,13 +263,13 @@ func TestGoalProjectionPersistenceFailuresStopAtTheirBoundary(t *testing.T) {
 		child := mustSaveRun(t, runtime, Run{
 			ID: "child-pause-write-child", SessionID: session.ID, AgentID: session.AgentID,
 			ParentRunID: "child-pause-write-parent", Status: RunStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		parent := mustSaveRun(t, runtime, Run{
 			ID: child.ParentRunID, SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 			WorkflowPlan: []WorkflowStepState{{TaskID: "child-pause-write-task", ChildRunID: child.ID, Status: "IN_PROGRESS"}},
-			CreatedAt:    jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt:    assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		if _, err := runtime.Store().SaveTask(t.Context(), TaskWriteRequest{
 			ID: "child-pause-write-task", Title: "Active child", Status: "IN_PROGRESS", RunID: parent.ID,
@@ -293,7 +293,7 @@ func TestGoalProjectionPersistenceFailuresStopAtTheirBoundary(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "blocked-task-write-parent", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		task, err := runtime.Store().SaveTask(t.Context(), TaskWriteRequest{
 			ID: "blocked-task-write-task", Title: "Blocked task", Status: "BLOCKED", RunID: parent.ID, ResultSummary: "dependency failed",

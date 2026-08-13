@@ -3,10 +3,9 @@ package adk
 import (
 	"context"
 	"fmt"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestTimelineProjectionHelperBranches(t *testing.T) {
@@ -26,7 +25,7 @@ func TestTimelineProjectionHelperBranches(t *testing.T) {
 			Content: "pre content\nfinal answer", ReasoningContent: "pre reasoning\nfinal reasoning",
 			CreatedAt: t2,
 		}
-		entries := jfadkmodel.GroupTimelinePrimitives(jfadkmodel.TimelinePrimitivesForRunMessage(sessionID, run, message))
+		entries := assistantmodel.GroupTimelinePrimitives(assistantmodel.TimelinePrimitivesForRunMessage(sessionID, run, message))
 		seen := map[string]bool{}
 		for _, entry := range entries {
 			if entry.ID == "timeline-more-assistant:reasoning" && entry.Text == "final reasoning" {
@@ -50,21 +49,21 @@ func TestTimelineProjectionHelperBranches(t *testing.T) {
 	})
 
 	t.Run("prompt matching rejects mismatched objectives and blank internals", func(t *testing.T) {
-		if _, ok := jfadkmodel.MatchWorkflowPromptRun(jfadkmodel.WorkflowUserPrompt{IsInternal: true}, []Run{{ID: "run"}}); ok {
+		if _, ok := assistantmodel.MatchWorkflowPromptRun(assistantmodel.WorkflowUserPrompt{IsInternal: true}, []Run{{ID: "run"}}); ok {
 			t.Fatal("blank internal workflow prompt should not match a run")
 		}
-		prompt := jfadkmodel.WorkflowUserPrompt{IsInternal: true, UserMessage: "build", Objective: "target"}
-		if _, ok := jfadkmodel.MatchWorkflowPromptRun(prompt, []Run{{ID: "run", UserMessage: "build", Objective: "other"}}); ok {
+		prompt := assistantmodel.WorkflowUserPrompt{IsInternal: true, UserMessage: "build", Objective: "target"}
+		if _, ok := assistantmodel.MatchWorkflowPromptRun(prompt, []Run{{ID: "run", UserMessage: "build", Objective: "other"}}); ok {
 			t.Fatal("workflow prompt with mismatched objective should not match")
 		}
-		taskPrompt := jfadkmodel.ClassifyWorkflowUserPrompt("请推进这个任务编排。\n总体目标：ship\n用户请求：build task")
+		taskPrompt := assistantmodel.ClassifyWorkflowUserPrompt("请推进这个任务编排。\n总体目标：ship\n用户请求：build task")
 		if !taskPrompt.IsInternal || taskPrompt.Objective != "ship" || taskPrompt.UserMessage != "build task" {
 			t.Fatalf("task workflow prompt = %+v", taskPrompt)
 		}
 	})
 
 	t.Run("grouping drops blank text primitives and sorts invalid keys by id", func(t *testing.T) {
-		entries := jfadkmodel.GroupTimelinePrimitives([]jfadkmodel.TimelinePrimitive{
+		entries := assistantmodel.GroupTimelinePrimitives([]assistantmodel.TimelinePrimitive{
 			{ID: "blank", SessionID: sessionID, Kind: TimelineKindAssistantMessage, Text: "   ", CreatedAt: t1},
 			{ID: "b", SessionID: sessionID, Kind: TimelineKindAssistantMessage, Text: "second", CreatedAt: "bad"},
 			{ID: "a", SessionID: sessionID, Kind: TimelineKindAssistantMessage, Text: "first", CreatedAt: "bad"},
@@ -85,7 +84,7 @@ func TestTimelineProjectionHelperBranches(t *testing.T) {
 				Status: RunStatusCompleted, CreatedAt: t1, UpdatedAt: t1,
 			})
 		}
-		runs, err := jfadkmodel.SessionRuns(ctx, runtime.Store(), session.ID)
+		runs, err := assistantmodel.SessionRuns(ctx, runtime.Store(), session.ID)
 		if err != nil {
 			t.Fatalf("sessionRuns: %v", err)
 		}
@@ -145,16 +144,16 @@ func TestTimelineProjectionHelperBranches(t *testing.T) {
 		if err != nil || ok || timeline != nil {
 			t.Fatalf("SessionTimeline empty timeline=%+v ok=%v err=%v, want nil false nil", timeline, ok, err)
 		}
-		if got := jfadkmodel.StripTimelinePrefix("unchanged text", "prefix"); got != "unchanged text" {
+		if got := assistantmodel.StripTimelinePrefix("unchanged text", "prefix"); got != "unchanged text" {
 			t.Fatalf("stripTimelinePrefix no prefix = %q, want unchanged text", got)
 		}
-		if !jfadkmodel.CompareTimelineKeys(t1, 1, "left", "bad-time", 1, "right") {
+		if !assistantmodel.CompareTimelineKeys(t1, 1, "left", "bad-time", 1, "right") {
 			t.Fatal("compareTimelineKeys should prefer valid RFC3339 time over invalid time")
 		}
-		if prompt := jfadkmodel.ClassifyWorkflowUserPrompt(" "); prompt.IsInternal || prompt.IsHidden || prompt.UserMessage != "" || prompt.Objective != "" {
+		if prompt := assistantmodel.ClassifyWorkflowUserPrompt(" "); prompt.IsInternal || prompt.IsHidden || prompt.UserMessage != "" || prompt.Objective != "" {
 			t.Fatalf("blank classifyWorkflowUserPrompt = %+v, want zero value prompt", prompt)
 		}
-		if _, ok := jfadkmodel.MatchWorkflowPromptRun(jfadkmodel.WorkflowUserPrompt{IsInternal: true, UserMessage: "wanted"}, []Run{{ID: "other", UserMessage: "different"}}); ok {
+		if _, ok := assistantmodel.MatchWorkflowPromptRun(assistantmodel.WorkflowUserPrompt{IsInternal: true, UserMessage: "wanted"}, []Run{{ID: "other", UserMessage: "different"}}); ok {
 			t.Fatal("matchWorkflowPromptRun matched a run with a different user message")
 		}
 	})

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkmemory "google.golang.org/adk/v2/memory"
 	adksession "google.golang.org/adk/v2/session"
 	"os"
@@ -294,8 +294,8 @@ func TestStoreMaintenanceBoundaryBranches(t *testing.T) {
 func TestRuntimeFacadeBoundaryBranches(t *testing.T) {
 	ctx := t.Context()
 	var nilRuntime *Runtime
-	nilRuntime.SetRuntimeLimitsProvider(func() jfadkmodel.RuntimeLimits {
-		return jfadkmodel.RuntimeLimits{RunTimeout: 99}
+	nilRuntime.SetRuntimeLimitsProvider(func() assistantmodel.RuntimeLimits {
+		return assistantmodel.RuntimeLimits{RunTimeout: 99}
 	})
 	if got := nilRuntime.runtimeLimits().RunTimeout; got != DefaultRunTimeout {
 		t.Fatalf("nil runtime timeout = %v, want default", got)
@@ -310,14 +310,14 @@ func TestRuntimeFacadeBoundaryBranches(t *testing.T) {
 		t.Fatalf("nil CompactSessionDatabase err = %v", err)
 	}
 	runtime := newTestRuntime(t)
-	runtime.SetRuntimeLimitsProvider(func() jfadkmodel.RuntimeLimits {
-		return jfadkmodel.RuntimeLimits{RunTimeout: 42}
+	runtime.SetRuntimeLimitsProvider(func() assistantmodel.RuntimeLimits {
+		return assistantmodel.RuntimeLimits{RunTimeout: 42}
 	})
 	if got := runtime.runtimeLimits().RunTimeout; got != 42 {
 		t.Fatalf("runtime timeout = %v, want provider override", got)
 	}
-	runtime.SetRuntimeLimitsProvider(func() jfadkmodel.RuntimeLimits {
-		return jfadkmodel.RuntimeLimits{}
+	runtime.SetRuntimeLimitsProvider(func() assistantmodel.RuntimeLimits {
+		return assistantmodel.RuntimeLimits{}
 	})
 	if got := runtime.runtimeLimits().RunTimeout; got != DefaultRunTimeout {
 		t.Fatalf("zero runtime timeout = %v, want default", got)

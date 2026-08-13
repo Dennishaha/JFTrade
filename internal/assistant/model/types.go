@@ -6,6 +6,10 @@ import (
 )
 
 const (
+	DefaultBuiltinAgentID       = "jftrade-default"
+	GoogleADKModule             = "google.golang.org/adk/v2"
+	WorkflowManagementSkillName = "jftrade-workflow-management"
+
 	PermissionModeApproval     = "approval"
 	PermissionModeLessApproval = "less_approval"
 	PermissionModeAll          = "all"
@@ -54,6 +58,12 @@ const (
 	ApprovalStatusPending  = "PENDING"
 	ApprovalStatusApproved = "APPROVED"
 	ApprovalStatusDenied   = "DENIED"
+
+	ContextStatusUnknown   = "unknown"
+	ContextStatusHealthy   = "healthy"
+	ContextStatusWarning   = "warning"
+	ContextStatusNearLimit = "near_limit"
+	ContextStatusCritical  = "critical"
 
 	// Runtime safety limits
 	DefaultProviderRequestTimeout = 180 * time.Second

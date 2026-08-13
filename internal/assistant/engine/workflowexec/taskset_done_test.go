@@ -2,15 +2,14 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowTaskToolsetCompleteHonorsTaskAndChildRunBoundaries(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "run-complete-boundaries", SessionID: "session-complete-boundaries", AgentID: "agent-complete",
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
@@ -108,7 +107,7 @@ func TestWorkflowTaskToolsetCompleteHonorsTaskAndChildRunBoundaries(t *testing.T
 func TestWorkflowGoalCompleteBlocksUnfinishedChildrenAndApprovals(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "run-goal-completion-blockers", SessionID: "session-goal-completion-blockers", AgentID: "agent-goal",
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,

@@ -2,12 +2,12 @@ package workflowexec
 
 import (
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowTaskStorageFailuresFailClosed(t *testing.T) {
@@ -22,7 +22,7 @@ func TestWorkflowTaskStorageFailuresFailClosed(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-workflow-storage-parent", SessionID: "coverage98-workflow-storage-session", AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		if _, err := runtime.Store().DB().ExecContext(ctx, `DROP TABLE `+enginepersistence.TableTasks); err != nil {
 			t.Fatalf("drop workflow task table: %v", err)
@@ -46,7 +46,7 @@ func TestWorkflowTaskStorageFailuresFailClosed(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-workflow-scheduler-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		knownDone := Task{ID: "coverage98-known-done", Status: "DONE", RunID: parent.ID}
 		if _, err := runtime.Store().DB().ExecContext(ctx, `DROP TABLE `+enginepersistence.TableTasks); err != nil {
@@ -77,7 +77,7 @@ func TestWorkflowResponseIndexProtectsTaskState(t *testing.T) {
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "coverage98-workflow-index-parent", SessionID: "coverage98-workflow-index-session", AgentID: "coverage98-workflow-index-agent",
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
 		ID: "coverage98-workflow-index-task", Title: "Keep task ordering", Status: "TODO", AgentID: parent.AgentID, RunID: parent.ID, Order: 1,
@@ -86,10 +86,10 @@ func TestWorkflowResponseIndexProtectsTaskState(t *testing.T) {
 		t.Fatalf("SaveTask: %v", err)
 	}
 
-	if got := jfadkmodel.WorkflowResponsePlanIndex(4, Run{}); got != 4 {
+	if got := assistantmodel.WorkflowResponsePlanIndex(4, Run{}); got != 4 {
 		t.Fatalf("response index without persisted iteration = %d, want fallback", got)
 	}
-	if got := jfadkmodel.WorkflowResponsePlanIndex(4, Run{Iteration: 2}); got != 1 {
+	if got := assistantmodel.WorkflowResponsePlanIndex(4, Run{Iteration: 2}); got != 1 {
 		t.Fatalf("response index with persisted iteration = %d, want 1", got)
 	}
 	executor.UpdateWorkflowTaskResult(ctx, []Task{task}, 3, Run{ID: "coverage98-out-of-range-child", Status: RunStatusCompleted}, "must not overwrite another task")
@@ -117,7 +117,7 @@ func TestWorkflowExecutionSetupSurfacesRecoverableFailures(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-workflow-native-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		req := workflowRequest{Agent: agent, Session: session, Message: "start child", Mode: WorkModeLoop}
 		response, err := (&WorkflowExecutor{runtime: runtime}).RunPlannedGoogleADKWorkflow(ctx, req, parent, []workflowStep{{
@@ -143,7 +143,7 @@ func TestWorkflowExecutionSetupSurfacesRecoverableFailures(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-workflow-snapshot-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		_, err := (&WorkflowExecutor{runtime: runtime}).PrepareWorkflowParent(ctx, workflowRequest{
 			Agent: agent, Session: session, Mode: WorkModeLoop, EmitRun: true,

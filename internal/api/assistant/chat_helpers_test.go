@@ -6,19 +6,19 @@ import (
 	"time"
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func TestTimelineStreamStateTracksSessionRunAndToolTiming(t *testing.T) {
 	state := &adkTimelineStreamState{}
-	state.observeSession(jfadk.Session{ID: "session-1"})
-	state.observeTimeline(jfadk.TimelineEntry{SessionID: "session-2", RunID: "run-1", Sequence: 3})
+	state.observeSession(assistantmodel.Session{ID: "session-1"})
+	state.observeTimeline(assistantmodel.TimelineEntry{SessionID: "session-2", RunID: "run-1", Sequence: 3})
 
-	run := &jfadk.Run{
+	run := &assistantmodel.Run{
 		ID:        "run-2",
 		SessionID: "session-3",
-		ToolCalls: []jfadk.ToolCall{
+		ToolCalls: []assistantmodel.ToolCall{
 			{ID: "tool-1", CreatedAt: "2026-06-21T00:00:03Z", UpdatedAt: "2026-06-21T00:00:04Z"},
 			{ID: "tool-2", CreatedAt: "2026-06-21T00:00:01Z", UpdatedAt: "2026-06-21T00:00:02Z"},
 		},
@@ -34,14 +34,14 @@ func TestTimelineStreamStateTracksSessionRunAndToolTiming(t *testing.T) {
 
 	reasoning := state.appendReasoning(run, "先推理")
 	message := state.appendMessage(run, "再回答")
-	if reasoning == nil || reasoning.Kind != jfadk.TimelineKindAssistantReasoning || reasoning.Text != "先推理" {
+	if reasoning == nil || reasoning.Kind != assistantmodel.TimelineKindAssistantReasoning || reasoning.Text != "先推理" {
 		t.Fatalf("reasoning timeline = %+v", reasoning)
 	}
-	if message == nil || message.Kind != jfadk.TimelineKindAssistantMessage || message.Text != "再回答" {
+	if message == nil || message.Kind != assistantmodel.TimelineKindAssistantMessage || message.Text != "再回答" {
 		t.Fatalf("message timeline = %+v", message)
 	}
 
-	if got := firstTimelineToolTime([]jfadk.ToolCall{{UpdatedAt: "2026-06-21T00:00:05Z"}}, ""); got != "2026-06-21T00:00:05Z" {
+	if got := firstTimelineToolTime([]assistantmodel.ToolCall{{UpdatedAt: "2026-06-21T00:00:05Z"}}, ""); got != "2026-06-21T00:00:05Z" {
 		t.Fatalf("firstTimelineToolTime() = %q, want updatedAt fallback", got)
 	}
 }
@@ -49,7 +49,7 @@ func TestTimelineStreamStateTracksSessionRunAndToolTiming(t *testing.T) {
 func TestChatStreamRecordCurrentRunID(t *testing.T) {
 	hub := newADKChatStreamHub()
 	record := hub.create()
-	hub.publish(record, adkChatStreamEvent{Type: "run", Run: &jfadk.Run{ID: "run-current"}})
+	hub.publish(record, adkChatStreamEvent{Type: "run", Run: &assistantmodel.Run{ID: "run-current"}})
 
 	if got := record.currentRunID(); got != "run-current" {
 		t.Fatalf("currentRunID() = %q, want run-current", got)
@@ -74,7 +74,7 @@ func TestTimelineStreamStateEmptyAndCloneBoundaries(t *testing.T) {
 		t.Fatal("firstTimelineToolTime without candidates should fall back to current time")
 	}
 
-	run := &jfadk.Run{ID: "run-empty-tools", SessionID: "session-empty-tools"}
+	run := &assistantmodel.Run{ID: "run-empty-tools", SessionID: "session-empty-tools"}
 	state.observeRun(run)
 	message := state.appendMessage(run, "first")
 	message.Text = "mutated clone"
@@ -95,7 +95,7 @@ func TestChatStreamHubRetentionRunLookupAndCloneBoundaries(t *testing.T) {
 
 	hub.publish(nil, adkChatStreamEvent{Type: "run", RunID: "nil-record"})
 	record := hub.create()
-	timeline := &jfadk.TimelineEntry{RunID: "run-clone", Text: "original"}
+	timeline := &assistantmodel.TimelineEntry{RunID: "run-clone", Text: "original"}
 	hub.publish(record, adkChatStreamEvent{Type: "timeline", Timeline: timeline})
 	timeline.Text = "mutated after publish"
 	events, terminal, _ := record.snapshot(0)
@@ -125,25 +125,25 @@ func TestChatStreamHubRetentionRunLookupAndCloneBoundaries(t *testing.T) {
 	}
 
 	unknownRun := hub.create()
-	unknownRun.startedAt = time.Now().Add(-jfadk.DefaultRunTimeout).Add(-2 * adkChatStreamRetention)
+	unknownRun.startedAt = time.Now().Add(-assistantmodel.DefaultRunTimeout).Add(-2 * adkChatStreamRetention)
 	hub.cleanup()
 	if _, ok := hub.get(unknownRun.id); ok {
 		t.Fatal("stream without run id should expire after runtime timeout plus retention")
 	}
 
-	running := jfadk.Run{ID: "run-active", Status: jfadk.RunStatusRunning, StartedAt: time.Now().Format(time.RFC3339Nano)}
+	running := assistantmodel.Run{ID: "run-active", Status: assistantmodel.RunStatusRunning, StartedAt: time.Now().Format(time.RFC3339Nano)}
 	if streamRunExpired(time.Now(), running, time.Now()) {
 		t.Fatal("fresh running stream should not be expired")
 	}
-	completed := jfadk.Run{ID: "run-complete", Status: jfadk.RunStatusCompleted}
+	completed := assistantmodel.Run{ID: "run-complete", Status: assistantmodel.RunStatusCompleted}
 	if streamRunExpired(time.Now(), completed, time.Now()) {
 		t.Fatal("recent terminal stream should stay during retention")
 	}
 	if !streamRunExpired(time.Now(), completed, time.Now().Add(-adkChatStreamRetention-time.Second)) {
 		t.Fatal("old terminal stream should expire")
 	}
-	unparseable := jfadk.Run{ID: "run-unparseable", Status: jfadk.RunStatusRunning, StartedAt: "bad-time"}
-	if !streamRunExpired(time.Now(), unparseable, time.Now().Add(-jfadk.DefaultRunTimeout-adkChatStreamRetention-time.Second)) {
+	unparseable := assistantmodel.Run{ID: "run-unparseable", Status: assistantmodel.RunStatusRunning, StartedAt: "bad-time"}
+	if !streamRunExpired(time.Now(), unparseable, time.Now().Add(-assistantmodel.DefaultRunTimeout-adkChatStreamRetention-time.Second)) {
 		t.Fatal("unparseable run time should fall back to last event timeout")
 	}
 }
@@ -152,10 +152,10 @@ func TestStreamHelpersRunIDAndBestEffortLogging(t *testing.T) {
 	(*Handler)(nil).cleanupADKChatStreams(t.Context())
 	(&Handler{}).cleanupADKChatStreams(t.Context())
 
-	if got := streamEventRunID(adkChatStreamEvent{Response: &jfadk.ChatResponse{Run: jfadk.Run{ID: " response-run "}}}); got != "response-run" {
+	if got := streamEventRunID(adkChatStreamEvent{Response: &assistantmodel.ChatResponse{Run: assistantmodel.Run{ID: " response-run "}}}); got != "response-run" {
 		t.Fatalf("streamEventRunID(response) = %q", got)
 	}
-	if got := streamEventRunID(adkChatStreamEvent{Timeline: &jfadk.TimelineEntry{RunID: " timeline-run "}}); got != "timeline-run" {
+	if got := streamEventRunID(adkChatStreamEvent{Timeline: &assistantmodel.TimelineEntry{RunID: " timeline-run "}}); got != "timeline-run" {
 		t.Fatalf("streamEventRunID(timeline) = %q", got)
 	}
 	if got := streamEventRunID(adkChatStreamEvent{RunID: " explicit-run "}); got != "explicit-run" {
@@ -167,37 +167,37 @@ func TestStreamHelpersRunIDAndBestEffortLogging(t *testing.T) {
 func TestChatStreamExecutionPublishesDeltaAndFinalVariants(t *testing.T) {
 	hub := newADKChatStreamHub()
 	record := hub.create()
-	execution := newADKChatStreamExecution(&Handler{streams: hub}, record, jfadk.ChatRequest{})
+	execution := newADKChatStreamExecution(&Handler{streams: hub}, record, assistantmodel.ChatRequest{})
 
-	if execution.publishTimelineDelta(jfadk.ChatDelta{}) {
+	if execution.publishTimelineDelta(assistantmodel.ChatDelta{}) {
 		t.Fatal("empty delta reported as timeline-only")
 	}
-	timeline := jfadk.TimelineEntry{RunID: "run-1", Kind: jfadk.TimelineKindAssistantMessage, Text: "timeline"}
-	if !execution.publishTimelineDelta(jfadk.ChatDelta{Timeline: &timeline}) {
+	timeline := assistantmodel.TimelineEntry{RunID: "run-1", Kind: assistantmodel.TimelineKindAssistantMessage, Text: "timeline"}
+	if !execution.publishTimelineDelta(assistantmodel.ChatDelta{Timeline: &timeline}) {
 		t.Fatal("timeline-only delta was not consumed")
 	}
-	if execution.publishTimelineDelta(jfadk.ChatDelta{Timeline: &timeline, Reply: "reply"}) {
+	if execution.publishTimelineDelta(assistantmodel.ChatDelta{Timeline: &timeline, Reply: "reply"}) {
 		t.Fatal("mixed timeline delta was reported as timeline-only")
 	}
-	if execution.publishRunDelta(&jfadk.ChatDelta{}) {
+	if execution.publishRunDelta(&assistantmodel.ChatDelta{}) {
 		t.Fatal("delta without run reported as run delta")
 	}
-	run := jfadk.Run{ID: "run-1", SessionID: "session-1", ToolCalls: []jfadk.ToolCall{{ID: "tool-1"}}}
-	if !execution.publishRunDelta(&jfadk.ChatDelta{Run: &run}) {
+	run := assistantmodel.Run{ID: "run-1", SessionID: "session-1", ToolCalls: []assistantmodel.ToolCall{{ID: "tool-1"}}}
+	if !execution.publishRunDelta(&assistantmodel.ChatDelta{Run: &run}) {
 		t.Fatal("run delta was not published")
 	}
 
 	execution.publishContextDelta(nil)
-	snapshot := &jfadk.SessionContextSnapshot{SessionID: "session-1"}
+	snapshot := &assistantmodel.SessionContextSnapshot{SessionID: "session-1"}
 	execution.publishContextDelta(snapshot)
-	execution.publishSession(jfadk.Session{ID: "session-1"})
+	execution.publishSession(assistantmodel.Session{ID: "session-1"})
 	execution.ensureSessionAndContext()
-	execution.publishNarrativeDeltas(jfadk.ChatDelta{Run: &run, ReasoningContent: "reason", Reply: "answer"})
+	execution.publishNarrativeDeltas(assistantmodel.ChatDelta{Run: &run, ReasoningContent: "reason", Reply: "answer"})
 
-	response := jfadk.ChatResponse{
+	response := assistantmodel.ChatResponse{
 		Reply:   "done",
-		Session: jfadk.Session{ID: "session-1"},
-		Run: jfadk.Run{ID: "run-1", ToolCalls: []jfadk.ToolCall{{
+		Session: assistantmodel.Session{ID: "session-1"},
+		Run: assistantmodel.Run{ID: "run-1", ToolCalls: []assistantmodel.ToolCall{{
 			ID: "tool-1", Output: map[string]any{"large": true},
 		}}},
 		Context: snapshot,
@@ -215,8 +215,8 @@ func TestChatStreamExecutionPublishesDeltaAndFinalVariants(t *testing.T) {
 
 func TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest(t *testing.T) {
 	runtime, _ := newAssistantTestRouter(t)
-	agent, err := runtime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
-		ID: "preview-agent", Name: "Preview Agent", ProviderID: "test-provider", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(t.Context(), assistantmodel.AgentWriteRequest{
+		ID: "preview-agent", Name: "Preview Agent", ProviderID: "test-provider", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -230,7 +230,7 @@ func TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest(t *testing.
 		streams: newADKChatStreamHub(),
 	}
 	record := handler.streams.create()
-	handler.executeADKChatStream(t.Context(), record, jfadk.ChatRequest{})
+	handler.executeADKChatStream(t.Context(), record, assistantmodel.ChatRequest{})
 
 	events, terminal, _ := record.snapshot(0)
 	if !terminal || len(events) == 0 {
@@ -242,14 +242,14 @@ func TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest(t *testing.
 	}
 
 	previewRecord := handler.streams.create()
-	previewExecution := newADKChatStreamExecution(handler, previewRecord, jfadk.ChatRequest{SessionID: session.ID, Message: "preview"})
+	previewExecution := newADKChatStreamExecution(handler, previewRecord, assistantmodel.ChatRequest{SessionID: session.ID, Message: "preview"})
 	previewExecution.ensureSessionAndContext()
 	if !previewExecution.sessionSent {
 		t.Fatal("ensureSessionAndContext did not publish a preview session")
 	}
 
 	missingRecord := handler.streams.create()
-	missingExecution := newADKChatStreamExecution(handler, missingRecord, jfadk.ChatRequest{AgentID: "missing-agent", Message: "preview"})
+	missingExecution := newADKChatStreamExecution(handler, missingRecord, assistantmodel.ChatRequest{AgentID: "missing-agent", Message: "preview"})
 	missingExecution.previewSession()
 	missingEvents, _, _ := missingRecord.snapshot(0)
 	if len(missingEvents) != 0 {
@@ -274,7 +274,7 @@ func TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs(t *testing.T) {
 
 	for _, err := range []error{
 		errors.New("invalid agent configuration"),
-		jfadk.ErrBuiltinAgentProtected,
+		assistantmodel.ErrBuiltinAgentProtected,
 		errors.New("provider not found"),
 		errors.New("provider is disabled"),
 		errors.New("provider API key is not configured"),

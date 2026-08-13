@@ -2,9 +2,8 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestReconcileWorkflowChildrenIgnoresMissingAndForeignRuns(t *testing.T) {
@@ -15,7 +14,7 @@ func TestReconcileWorkflowChildrenIgnoresMissingAndForeignRuns(t *testing.T) {
 		WorkMode: WorkModeLoop,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "reconcile ignore")
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID:             "run-reconcile-ignore",
 		SessionID:      session.ID,

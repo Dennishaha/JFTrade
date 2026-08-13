@@ -2,11 +2,11 @@ package providers
 
 import (
 	"encoding/json"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	jadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkmodel "google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 )
@@ -14,15 +14,15 @@ import (
 func TestResponsesReasoningEffortRequestField(t *testing.T) {
 	for _, test := range []struct {
 		name       string
-		effort     jadkmodel.ReasoningEffort
+		effort     assistantmodel.ReasoningEffort
 		wantEffort string
 	}{
 		{name: "model default"},
-		{name: "low", effort: jadkmodel.ReasoningEffortLow, wantEffort: "low"},
-		{name: "medium", effort: jadkmodel.ReasoningEffortMedium, wantEffort: "medium"},
-		{name: "high", effort: jadkmodel.ReasoningEffortHigh, wantEffort: "high"},
-		{name: "xhigh", effort: jadkmodel.ReasoningEffortXHigh, wantEffort: "xhigh"},
-		{name: "max", effort: jadkmodel.ReasoningEffortMax, wantEffort: "max"},
+		{name: "low", effort: assistantmodel.ReasoningEffortLow, wantEffort: "low"},
+		{name: "medium", effort: assistantmodel.ReasoningEffortMedium, wantEffort: "medium"},
+		{name: "high", effort: assistantmodel.ReasoningEffortHigh, wantEffort: "high"},
+		{name: "xhigh", effort: assistantmodel.ReasoningEffortXHigh, wantEffort: "xhigh"},
+		{name: "max", effort: assistantmodel.ReasoningEffortMax, wantEffort: "max"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
@@ -47,7 +47,7 @@ func TestResponsesReasoningEffortRequestField(t *testing.T) {
 			}))
 			defer server.Close()
 
-			llm, err := NewOpenAIResponsesADKModel(t.Context(), jadkmodel.Provider{
+			llm, err := NewOpenAIResponsesADKModel(t.Context(), assistantmodel.Provider{
 				BaseURL: server.URL + "/v1", Model: "test-model",
 				ReasoningConfig: identityReasoningConfig("reasoning.effort"),
 			}, "secret", "", test.effort)
@@ -82,13 +82,13 @@ func TestResponsesCustomReasoningMappingInjectsNestedField(t *testing.T) {
 	}))
 	defer server.Close()
 
-	llm, err := NewOpenAIResponsesADKModel(t.Context(), jadkmodel.Provider{
+	llm, err := NewOpenAIResponsesADKModel(t.Context(), assistantmodel.Provider{
 		BaseURL: server.URL + "/v1", Model: "test-model",
-		ReasoningConfig: jadkmodel.ProviderReasoningConfig{
+		ReasoningConfig: assistantmodel.ProviderReasoningConfig{
 			RequestField: "provider.reasoning.level",
-			Mappings:     []jadkmodel.ProviderReasoningMapping{{Effort: jadkmodel.ReasoningEffortHigh, Value: "BALANCED"}},
+			Mappings:     []assistantmodel.ProviderReasoningMapping{{Effort: assistantmodel.ReasoningEffortHigh, Value: "BALANCED"}},
 		},
-	}, "secret", "", jadkmodel.ReasoningEffortHigh)
+	}, "secret", "", assistantmodel.ReasoningEffortHigh)
 	if err != nil {
 		t.Fatalf("NewOpenAIResponsesADKModel: %v", err)
 	}
@@ -101,14 +101,14 @@ func textRequest() *adkmodel.LLMRequest {
 	return &adkmodel.LLMRequest{Contents: []*genai.Content{genai.NewContentFromText("hello", genai.RoleUser)}}
 }
 
-func identityReasoningConfig(field string) jadkmodel.ProviderReasoningConfig {
-	efforts := []jadkmodel.ReasoningEffort{
-		jadkmodel.ReasoningEffortLow, jadkmodel.ReasoningEffortMedium, jadkmodel.ReasoningEffortHigh,
-		jadkmodel.ReasoningEffortXHigh, jadkmodel.ReasoningEffortMax,
+func identityReasoningConfig(field string) assistantmodel.ProviderReasoningConfig {
+	efforts := []assistantmodel.ReasoningEffort{
+		assistantmodel.ReasoningEffortLow, assistantmodel.ReasoningEffortMedium, assistantmodel.ReasoningEffortHigh,
+		assistantmodel.ReasoningEffortXHigh, assistantmodel.ReasoningEffortMax,
 	}
-	mappings := make([]jadkmodel.ProviderReasoningMapping, 0, len(efforts))
+	mappings := make([]assistantmodel.ProviderReasoningMapping, 0, len(efforts))
 	for _, effort := range efforts {
-		mappings = append(mappings, jadkmodel.ProviderReasoningMapping{Effort: effort, Value: string(effort)})
+		mappings = append(mappings, assistantmodel.ProviderReasoningMapping{Effort: effort, Value: string(effort)})
 	}
-	return jadkmodel.ProviderReasoningConfig{RequestField: field, Mappings: mappings}
+	return assistantmodel.ProviderReasoningConfig{RequestField: field, Mappings: mappings}
 }

@@ -2,11 +2,11 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestGoalWorkflowTerminalHelpersPersistCompletionContinuationAndStablePause(t *testing.T) {
@@ -17,13 +17,13 @@ func TestGoalWorkflowTerminalHelpersPersistCompletionContinuationAndStablePause(
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "goal-terminal-parent", SessionID: session.ID, AgentID: session.AgentID, Status: RunStatusRunning,
 		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, Objective: "verify terminal behavior",
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{ID: "goal-terminal-task", Title: "Verify", Description: "collect result", Status: "DONE", RunID: parent.ID, Order: 1})
 	if err != nil {
 		t.Fatalf("SaveTask: %v", err)
 	}
-	parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{task}, nil)
+	parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{task}, nil)
 	mustSaveRun(t, runtime, parent)
 
 	if got := executor.CompleteGoalReply(ctx, parent, []Task{task}, workflowGoalDecisionSnapshot{Summary: " explicit summary "}, "visible reply"); got != "explicit summary" {
@@ -46,7 +46,7 @@ func TestGoalWorkflowTerminalHelpersPersistCompletionContinuationAndStablePause(
 
 	continuingParent := mustSaveRun(t, runtime, Run{
 		ID: "goal-continue-parent", SessionID: session.ID, AgentID: session.AgentID, Status: RunStatusRunning,
-		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	continued, emptyResponse, paused, nudge, err := executor.FinishContinueGoalWorkflow(ctx, workflowRequest{Session: session}, continuingParent, jfadk.AssistantExecutionResult{}, workflowGoalDecisionSnapshot{Reason: "need one more verification"}, "", 3)
 	if err != nil {
@@ -66,14 +66,14 @@ func TestGoalWorkflowTerminalHelpersPersistCompletionContinuationAndStablePause(
 		t.Fatalf("already-recorded goal decision = %+v done=%v", snapshot, done)
 	}
 
-	pauseErr := jfadkmodel.ErrUserGoalPauseRequested.Error()
-	pauseRequestedAt := jfadkmodel.NowString()
+	pauseErr := assistantmodel.ErrUserGoalPauseRequested.Error()
+	pauseRequestedAt := assistantmodel.NowString()
 	pausedParent := mustSaveRun(t, runtime, Run{
 		ID: "goal-already-paused", SessionID: session.ID, AgentID: session.AgentID, Status: RunStatusPaused,
 		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusPaused, PausedReason: "user", Message: "already paused",
 		PauseRequestedAt: &pauseRequestedAt,
 		ToolCalls:        []ToolCall{{ID: "drop", RunID: "goal-already-paused", ToolName: workflowTasksListTool, Status: "FAILED", Error: &pauseErr}},
-		CreatedAt:        jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt:        assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	stable, stableResponse, didPause, err := executor.PauseADKGoalWorkflowIfRequested(ctx, workflowRequest{Session: session}, pausedParent, 1, "")
 	if err != nil {

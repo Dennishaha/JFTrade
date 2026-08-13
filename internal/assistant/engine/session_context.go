@@ -6,16 +6,17 @@ import (
 	"strings"
 	"sync"
 
+	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adksession "google.golang.org/adk/v2/session"
 )
 
 const (
-	ContextStatusUnknown   = "unknown"
-	ContextStatusHealthy   = "healthy"
-	ContextStatusWarning   = "warning"
-	ContextStatusNearLimit = "near_limit"
-	ContextStatusCritical  = "critical"
+	ContextStatusUnknown   = jfadkmodel.ContextStatusUnknown
+	ContextStatusHealthy   = jfadkmodel.ContextStatusHealthy
+	ContextStatusWarning   = jfadkmodel.ContextStatusWarning
+	ContextStatusNearLimit = jfadkmodel.ContextStatusNearLimit
+	ContextStatusCritical  = jfadkmodel.ContextStatusCritical
 
 	contextWarnThreshold       = 0.70
 	contextAutoCompactThresh   = 0.85

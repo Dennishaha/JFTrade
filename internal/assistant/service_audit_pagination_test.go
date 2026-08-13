@@ -3,14 +3,14 @@ package assistant
 import (
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestServiceGetAuditPagePreservesFilteredPagination(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	ctx := t.Context()
 
-	for _, event := range []jfadk.AuditEvent{
+	for _, event := range []assistantmodel.AuditEvent{
 		{ID: "audit-new", Kind: "agent.saved", SubjectID: "wanted", CreatedAt: "2026-01-02T03:04:07Z"},
 		{ID: "audit-old", Kind: "agent.saved", SubjectID: "wanted", CreatedAt: "2026-01-02T03:04:05Z"},
 		{ID: "audit-other", Kind: "agent.saved", SubjectID: "other", CreatedAt: "2026-01-02T03:04:08Z"},

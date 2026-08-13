@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestServiceLifecycleAndTimeoutBoundaryHelpers(t *testing.T) {
@@ -26,23 +26,23 @@ func TestApprovalWaitDurationMsHandlesBoundaryTimestamps(t *testing.T) {
 	now := time.Date(2026, 7, 3, 1, 2, 3, 0, time.UTC)
 	cases := []struct {
 		name     string
-		approval jfadk.Approval
+		approval assistantmodel.Approval
 		wantMs   int64
 	}{
-		{name: "missing createdAt", approval: jfadk.Approval{}, wantMs: 0},
-		{name: "invalid createdAt", approval: jfadk.Approval{CreatedAt: "not-a-time"}, wantMs: 0},
+		{name: "missing createdAt", approval: assistantmodel.Approval{}, wantMs: 0},
+		{name: "invalid createdAt", approval: assistantmodel.Approval{CreatedAt: "not-a-time"}, wantMs: 0},
 		{
 			name: "pending uses current time",
-			approval: jfadk.Approval{
-				Status:    jfadk.ApprovalStatusPending,
+			approval: assistantmodel.Approval{
+				Status:    assistantmodel.ApprovalStatusPending,
 				CreatedAt: now.Add(-1500 * time.Millisecond).Format(time.RFC3339Nano),
 			},
 			wantMs: 1500,
 		},
 		{
 			name: "resolved uses updated time",
-			approval: jfadk.Approval{
-				Status:    jfadk.ApprovalStatusApproved,
+			approval: assistantmodel.Approval{
+				Status:    assistantmodel.ApprovalStatusApproved,
 				CreatedAt: now.Add(-2 * time.Second).Format(time.RFC3339Nano),
 				UpdatedAt: now.Add(-500 * time.Millisecond).Format(time.RFC3339Nano),
 			},
@@ -50,8 +50,8 @@ func TestApprovalWaitDurationMsHandlesBoundaryTimestamps(t *testing.T) {
 		},
 		{
 			name: "updated before created clamps to zero",
-			approval: jfadk.Approval{
-				Status:    jfadk.ApprovalStatusDenied,
+			approval: assistantmodel.Approval{
+				Status:    assistantmodel.ApprovalStatusDenied,
 				CreatedAt: now.Format(time.RFC3339Nano),
 				UpdatedAt: now.Add(-time.Second).Format(time.RFC3339Nano),
 			},
@@ -72,14 +72,14 @@ func TestServicePreviewSessionFallsBackWhenRequestedSessionIsMissing(t *testing.
 	runtime, service, _ := newAssistantServiceHarness(t)
 	ctx := t.Context()
 
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-preview-fallback", Name: "Preview Fallback", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-preview-fallback", Name: "Preview Fallback", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	preview, err := service.PreviewSession(ctx, jfadk.ChatRequest{
+	preview, err := service.PreviewSession(ctx, assistantmodel.ChatRequest{
 		AgentID:   agent.ID,
 		SessionID: "missing-session",
 		Message:   "Use fallback preview",
@@ -100,8 +100,8 @@ func TestServiceRecoverTerminalChatResponseHandlesBlankRunIDAndMissingProjection
 		t.Fatalf("RecoverTerminalChatResponse(blank) = %#v, %v, want nil nil", response, err)
 	}
 
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-recover-empty", Name: "Recover Empty", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-recover-empty", Name: "Recover Empty", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -110,11 +110,11 @@ func TestServiceRecoverTerminalChatResponseHandlesBlankRunIDAndMissingProjection
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
-	run := jfadk.Run{
+	run := assistantmodel.Run{
 		ID:        "run-recover-empty",
 		SessionID: session.ID,
 		AgentID:   agent.ID,
-		Status:    jfadk.RunStatusCompleted,
+		Status:    assistantmodel.RunStatusCompleted,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}

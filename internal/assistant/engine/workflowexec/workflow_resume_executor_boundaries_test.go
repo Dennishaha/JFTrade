@@ -3,9 +3,8 @@ package workflowexec
 import (
 	"context"
 	"fmt"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestResumeLoopWorkflowKeepsUserPausedParentPaused(t *testing.T) {
@@ -21,7 +20,7 @@ func TestResumeLoopWorkflowKeepsUserPausedParentPaused(t *testing.T) {
 		Status: RunStatusPaused, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusPaused,
 		Objective: "暂停中的目标", PausedReason: "user", ResumeState: "user_paused",
 		WorkflowPlan: []WorkflowStepState{{TaskID: "task-resume-loop-paused", Title: "暂停任务", Status: "DONE"}},
-		CreatedAt:    jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt:    assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 
 	updated, err := (&WorkflowExecutor{runtime: runtime}).ResumeLoopWorkflow(ctx, session, parent)
@@ -41,7 +40,7 @@ func TestRunChildSurfacesDeltaSinkErrorsAfterChildLaunchSnapshot(t *testing.T) {
 		WorkMode: WorkModeLoop,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "run child delta error")
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID:             "run-child-delta-error-parent",
 		SessionID:      session.ID,
@@ -69,7 +68,7 @@ func TestRunChildSurfacesDeltaSinkErrorsAfterChildLaunchSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveTask: %v", err)
 	}
-	parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{task}, parent.WorkflowPlan)
+	parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{task}, parent.WorkflowPlan)
 	if err := runtime.Store().SaveRun(ctx, parent); err != nil {
 		t.Fatalf("SaveRun parent with plan: %v", err)
 	}
@@ -112,7 +111,7 @@ func TestRunChildBlocksTaskWhenChildExecutionFailsImmediately(t *testing.T) {
 		WorkMode: WorkModeLoop,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "run child immediate fail")
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID:             "run-child-immediate-fail-parent",
 		SessionID:      session.ID,
@@ -140,7 +139,7 @@ func TestRunChildBlocksTaskWhenChildExecutionFailsImmediately(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveTask: %v", err)
 	}
-	parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{task}, parent.WorkflowPlan)
+	parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{task}, parent.WorkflowPlan)
 	if err := runtime.Store().SaveRun(ctx, parent); err != nil {
 		t.Fatalf("SaveRun parent with plan: %v", err)
 	}
@@ -179,7 +178,7 @@ func TestResumeLoopWorkflowHonorsPauseRequestAfterChildCompletion(t *testing.T) 
 		WorkMode: WorkModeLoop,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "resume loop pause request")
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID:               "run-resume-loop-pause-request",
 		SessionID:        session.ID,
@@ -205,7 +204,7 @@ func TestResumeLoopWorkflowHonorsPauseRequestAfterChildCompletion(t *testing.T) 
 	}); err != nil {
 		t.Fatalf("SaveTask: %v", err)
 	}
-	completedAt := jfadkmodel.NowString()
+	completedAt := assistantmodel.NowString()
 	mustSaveRun(t, runtime, Run{
 		ID:          "run-resume-loop-pause-request-child",
 		SessionID:   session.ID,

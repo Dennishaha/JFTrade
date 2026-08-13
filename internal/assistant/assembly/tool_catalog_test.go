@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
@@ -258,7 +258,7 @@ func TestADKRuntimePollingAndPayloadHelpers(t *testing.T) {
 }
 
 func TestADKReadToolsNormalizeInputsAndExposeBusinessHandlers(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
+	registry := jfadkruntime.NewToolRegistry()
 	var ordersInput BrokerReadInput
 	var fillsInput BrokerReadInput
 	var cashFlowsInput BrokerReadInput
@@ -536,7 +536,7 @@ func TestADKRuntimeMiscHelpersAndMetadata(t *testing.T) {
 }
 
 func TestADKCoreToolHandlersNormalizeMarketAndPortfolioFlows(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
+	registry := jfadkruntime.NewToolRegistry()
 	var snapshotMarket, snapshotSymbol string
 	var candlesMarket, candlesSymbol, candlesPeriod string
 	var candlesLimit int
@@ -658,7 +658,7 @@ func TestADKCoreToolHandlersNormalizeMarketAndPortfolioFlows(t *testing.T) {
 }
 
 func TestWatchlistListToolDefaultsToReadOnlyMetadataAndNormalizesPaging(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
+	registry := jfadkruntime.NewToolRegistry()
 	var captured WatchlistListInput
 	RegisterJFTradeADKTools(nil, registry, ToolDeps{
 		WatchlistList: func(_ context.Context, input WatchlistListInput) (any, error) {
@@ -694,7 +694,7 @@ func TestWatchlistListToolDefaultsToReadOnlyMetadataAndNormalizesPaging(t *testi
 
 func TestExecutionReadToolsPropagateProjectionFailures(t *testing.T) {
 	want := errors.New("execution store unavailable")
-	registry := jfadk.NewToolRegistry()
+	registry := jfadkruntime.NewToolRegistry()
 	RegisterJFTradeADKTools(nil, registry, ToolDeps{
 		DefaultTradeMarket:   func() string { return "US" },
 		ExecutionOrders:      func(context.Context, BrokerReadInput) (any, int, error) { return nil, 0, want },

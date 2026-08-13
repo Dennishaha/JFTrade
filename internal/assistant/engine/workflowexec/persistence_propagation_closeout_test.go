@@ -2,13 +2,13 @@ package workflowexec
 
 import (
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestGoalPausePersistenceErrorsPropagateAcrossDecisionBoundaries(t *testing.T) {
@@ -56,7 +56,7 @@ func TestGoalDecisionAndChildTerminationWritesFailClosed(t *testing.T) {
 			ID: "goal-terminal-child-parent", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 			WorkflowPlan: []WorkflowStepState{{TaskID: "goal-terminal-child-task", ChildRunID: "goal-terminal-child", Status: "IN_PROGRESS"}},
-			CreatedAt:    jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt:    assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		if _, err := runtime.Store().SaveTask(t.Context(), TaskWriteRequest{
 			ID: "goal-terminal-child-task", Title: "Terminal child", Status: "IN_PROGRESS", RunID: parent.ID,
@@ -67,7 +67,7 @@ func TestGoalDecisionAndChildTerminationWritesFailClosed(t *testing.T) {
 		mustSaveRun(t, runtime, Run{
 			ID: "goal-terminal-child", ParentRunID: parent.ID, SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusFailed, FailureReason: "child execution failed", ErrorCode: "CHILD_FAILED",
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_goal_terminal_child_projection")
 
@@ -89,7 +89,7 @@ func TestGoalDecisionAndChildTerminationWritesFailClosed(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "goal-bootstrap-write-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_goal_bootstrap_terminal_write")
 
@@ -107,7 +107,7 @@ func TestGoalDecisionAndChildTerminationWritesFailClosed(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "goal-decision-write-parent", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_goal_decision_terminal_write")
 		execution := &fakeWorkflowExecutionHandle{runErr: errors.New("decision provider unavailable")}
@@ -140,7 +140,7 @@ func TestNativeTaskGraphProviderFailurePersistsTheParent(t *testing.T) {
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "native-unavailable-parent", SessionID: session.ID, AgentID: agent.ID,
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	step := workflowStep{Order: 1, DependencyID: "native-outage-step", Title: "Provider outage", Message: "Fetch provider response", WorkflowMode: WorkModeLoop}
 	task, err := runtime.Store().SaveTask(t.Context(), TaskWriteRequest{
@@ -150,7 +150,7 @@ func TestNativeTaskGraphProviderFailurePersistsTheParent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveTask: %v", err)
 	}
-	parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{task}, nil)
+	parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{task}, nil)
 	mustSaveRun(t, runtime, parent)
 
 	response, err := (&WorkflowExecutor{runtime: runtime}).RunPlannedGoogleADKWorkflow(
@@ -181,7 +181,7 @@ func TestWorkflowResumePausedPersistenceFailureRemainsObservable(t *testing.T) {
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "resume-paused-write-parent", Status: RunStatusPaused, WorkMode: WorkModeLoop,
 		WorkflowStatus: workflowStatusPaused, PausedReason: "user",
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_resume_paused_write")
 	_, blocked, err := (&WorkflowExecutor{runtime: runtime}).ReconcileWorkflowChildren(t.Context(), parent)
@@ -209,11 +209,11 @@ func newGoalPausePersistenceFixture(t *testing.T, suffix string) (*Runtime, Sess
 	t.Helper()
 	runtime := newTestRuntime(t)
 	session := mustCreateSession(t, runtime, "pause-boundary-agent-"+suffix, "pause boundary "+suffix)
-	pauseRequestedAt := jfadkmodel.NowString()
+	pauseRequestedAt := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "pause-boundary-parent-" + suffix, SessionID: session.ID, AgentID: session.AgentID,
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		PauseRequestedAt: &pauseRequestedAt, CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		PauseRequestedAt: &pauseRequestedAt, CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	installRunUpdateRejectTrigger(t, runtime, parent.ID, "reject_pause_boundary_"+strings.ReplaceAll(suffix, "-", "_"))
 	return runtime, session, parent

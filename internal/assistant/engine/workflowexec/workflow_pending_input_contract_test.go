@@ -2,10 +2,9 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowExecutorProjectsPendingInputAndPersistsChildState(t *testing.T) {
@@ -15,7 +14,7 @@ func TestWorkflowExecutorProjectsPendingInputAndPersistsChildState(t *testing.T)
 	executor := &WorkflowExecutor{runtime: runtime}
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "workflow-input-parent", SessionID: session.ID, AgentID: session.AgentID, Status: RunStatusRunning,
-		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	taskAwaitingInput, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{ID: "workflow-input-task", Title: "Need user choice", Status: "TODO", RunID: parent.ID, Order: 1})
 	if err != nil {
@@ -25,7 +24,7 @@ func TestWorkflowExecutorProjectsPendingInputAndPersistsChildState(t *testing.T)
 	if err != nil {
 		t.Fatalf("SaveTask passive: %v", err)
 	}
-	parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{taskAwaitingInput, passiveTask}, nil)
+	parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{taskAwaitingInput, passiveTask}, nil)
 	mustSaveRun(t, runtime, parent)
 	awaiting := Run{ID: "workflow-input-child", SessionID: session.ID, AgentID: session.AgentID, ParentRunID: parent.ID, Iteration: 1, Status: RunStatusRunning, Usage: &RunUsage{}}
 	passive := Run{ID: "workflow-passive-child", SessionID: session.ID, AgentID: session.AgentID, ParentRunID: parent.ID, Iteration: 2, Status: RunStatusCompleted, Usage: &RunUsage{}}

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	adkartifact "google.golang.org/adk/v2/artifact"
 	adkmemory "google.golang.org/adk/v2/memory"
@@ -34,7 +34,7 @@ func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T)
 		Description:  "Read a symbol for a delegated ADK agent.",
 		Category:     "test",
 		Permission:   "read_internal",
-		AllowedModes: jfadkmodel.AllPermissionModes(),
+		AllowedModes: assistantmodel.AllPermissionModes(),
 		InputSchema: map[string]any{
 			"type":                 "object",
 			"additionalProperties": false,
@@ -46,19 +46,19 @@ func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T)
 	}, func(_ context.Context, input map[string]any) (any, error) {
 		return map[string]any{"success": true, "symbol": strings.TrimSpace(skillsruntime.StringValue(input, "symbol"))}, nil
 	})
-	registry.Register(ToolDescriptor{Name: "test.scalar", Description: "Return a scalar", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: "test.scalar", Description: "Return a scalar", Permission: "read_internal", AllowedModes: assistantmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
 		return "ok", nil
 	})
-	registry.Register(ToolDescriptor{Name: "test.error", Description: "Fail hard", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: "test.error", Description: "Fail hard", Permission: "read_internal", AllowedModes: assistantmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
 		return nil, errors.New("provider failed")
 	})
-	registry.Register(ToolDescriptor{Name: "test.structured", Description: "Return structured failure", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: "test.structured", Description: "Return structured failure", Permission: "read_internal", AllowedModes: assistantmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"success": false, "message": "risk check failed"}, nil
 	})
-	registry.Register(ToolDescriptor{Name: "test.legacy", Description: "Return legacy failure", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: "test.legacy", Description: "Return legacy failure", Permission: "read_internal", AllowedModes: assistantmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"error": "legacy failed"}, nil
 	})
-	registry.Register(ToolDescriptor{Name: "test.confirm", Description: "Needs HITL confirmation", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: "test.confirm", Description: "Needs HITL confirmation", Permission: "read_internal", AllowedModes: assistantmodel.AllPermissionModes()}, func(context.Context, map[string]any) (any, error) {
 		return nil, adktool.ErrConfirmationRequired
 	})
 
@@ -142,7 +142,7 @@ func TestGoogleADKProductToolsetFunctionToolBoundaries(t *testing.T) {
 	registry := NewToolRegistry()
 	handlerCalls := 0
 	registry.Register(ToolDescriptor{
-		Name: "test.strict", Description: "Strict schema", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes(),
+		Name: "test.strict", Description: "Strict schema", Permission: "read_internal", AllowedModes: assistantmodel.AllPermissionModes(),
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -206,7 +206,7 @@ func TestGoogleADKProductToolsetFunctionToolBoundaries(t *testing.T) {
 func TestGoogleADKProductToolsetRejectsInvalidFunctionSchema(t *testing.T) {
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "test.invalid_schema", Description: "Invalid schema", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes(),
+		Name: "test.invalid_schema", Description: "Invalid schema", Permission: "read_internal", AllowedModes: assistantmodel.AllPermissionModes(),
 		InputSchema: map[string]any{
 			"type": make(chan int),
 		},
@@ -264,7 +264,7 @@ func TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions(t *testing.T)
 	ctx := context.Background()
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "test.read", DisplayName: "测试读取", Description: "Read", Permission: "read_internal", AllowedModes: jfadkmodel.AllPermissionModes(), RequiredSkills: []string{"resource-skill"},
+		Name: "test.read", DisplayName: "测试读取", Description: "Read", Permission: "read_internal", AllowedModes: assistantmodel.AllPermissionModes(), RequiredSkills: []string{"resource-skill"},
 	}, func(context.Context, map[string]any) (any, error) { return map[string]any{"ok": true}, nil })
 	registry.Register(ToolDescriptor{
 		Name: "test.trade", Description: "Trade", Permission: "live_trading", AllowedModes: []string{PermissionModeAll},
@@ -433,7 +433,7 @@ func TestGoogleADKToolsetsBoundaryErrorsAndArtifactToolsets(t *testing.T) {
 		Name:         "test.invalid_toolset_schema",
 		Description:  "Invalid schema for aggregate toolset",
 		Permission:   "read_internal",
-		AllowedModes: jfadkmodel.AllPermissionModes(),
+		AllowedModes: assistantmodel.AllPermissionModes(),
 		InputSchema:  map[string]any{"type": make(chan int)},
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"ok": true}, nil

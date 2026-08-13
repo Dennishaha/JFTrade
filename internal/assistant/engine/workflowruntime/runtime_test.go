@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestFacadeConstructorsAndSessionService(t *testing.T) {
@@ -45,30 +45,12 @@ func TestFacadeConstructorsAndSessionService(t *testing.T) {
 	}
 }
 
-func TestFacadeNormalizersAndHelpers(t *testing.T) {
-	_ = NormalizeRun(jfadk.Run{})
-	_ = NormalizeAgent(jfadk.Agent{})
-	_ = NormalizeTimelineEntry(jfadk.TimelineEntry{})
-	_ = NormalizeChatResponse(jfadk.ChatResponse{})
-	_ = NormalizeWorkflowDefinition(jfadk.WorkflowDefinition{})
-	_ = NormalizeWorkflowTrigger(jfadk.WorkflowTrigger{})
-	_ = NormalizeWorkflowTriggerLog(jfadk.WorkflowTriggerLog{})
-	_ = NormalizeApprovalResolution(jfadk.ApprovalResolution{})
-	_ = NormalizeSessionsResponse(jfadk.SessionsResponse{})
-	_, _, _ = NormalizeChatRequestIdentity(jfadk.ChatRequest{})
-	if got := ToolRequiredSkillNames(jfadk.ToolDescriptor{}); got == nil {
-		t.Fatal("ToolRequiredSkillNames returned nil")
-	}
-	_ = ToolRequiresApproval(jfadk.ToolDescriptor{}, PermissionModeApproval)
-	_ = ToolRequiresApproval(jfadk.ToolDescriptor{}, PermissionModeAll)
-	if got := ToolDescriptorsForAgent(jfadk.Agent{}, nil); got != nil {
+func TestFacadeKeepsRuntimeAssemblyHelpers(t *testing.T) {
+	if got := ToolDescriptorsForAgent(assistantmodel.Agent{}, nil); got != nil {
 		t.Fatalf("ToolDescriptorsForAgent with nil registry = %#v", got)
 	}
 	if _, ok := ToolInvocationSessionID(context.Background()); ok {
 		t.Fatal("empty context should not carry a tool invocation session")
-	}
-	if got := InputRequestErrorKind(nil); got == "" {
-		t.Fatal("InputRequestErrorKind(nil) should return a kind")
 	}
 	if len(BuiltinAgentTemplates()) == 0 {
 		t.Fatal("BuiltinAgentTemplates should not be empty")
@@ -81,14 +63,5 @@ func TestFacadeNormalizersAndHelpers(t *testing.T) {
 	}
 	if IsPrimaryBuiltinAgentID("") {
 		t.Fatal("empty agent id should not be primary builtin")
-	}
-}
-
-func TestFacadeConstantsRemainBoundToEngine(t *testing.T) {
-	if PermissionModeApproval != jfadk.PermissionModeApproval ||
-		WorkModeChat != jfadk.WorkModeChat ||
-		RunStatusRunning != jfadk.RunStatusRunning ||
-		ToolIdempotencyFailClosed != jfadk.ToolIdempotencyFailClosed {
-		t.Fatal("facade constants drifted from engine")
 	}
 }

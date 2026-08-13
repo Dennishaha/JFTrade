@@ -10,7 +10,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	asstsvc "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func (h *Handler) handleADKSessions(c *gin.Context) {
@@ -158,7 +158,7 @@ func (h *Handler) handleADKUpdateSessionComposerState(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid composer state payload")
 		return
 	}
-	state, err := h.service.UpdateSessionComposerState(c.Request.Context(), uri.SessionID, jfadk.SessionComposerStatePatch(payload))
+	state, err := h.service.UpdateSessionComposerState(c.Request.Context(), uri.SessionID, assistantmodel.SessionComposerStatePatch(payload))
 	if err != nil {
 		lower := strings.ToLower(err.Error())
 		if strings.Contains(lower, "not exist") || strings.Contains(lower, "not found") {
@@ -205,7 +205,7 @@ func (h *Handler) handleADKRuns(c *gin.Context) {
 		return
 	}
 	for index := range page.Items {
-		page.Items[index] = jfadk.NormalizeRun(page.Items[index])
+		page.Items[index] = assistantmodel.NormalizeRun(page.Items[index])
 	}
 	h.writeOK(c, map[string]any{"runs": page.Items, "page": pageEnvelope(page.Limit, page.Offset, page.Total, len(page.Items))})
 }
@@ -221,7 +221,7 @@ func (h *Handler) handleADKCancelRun(c *gin.Context) {
 		h.writeError(c, http.StatusNotFound, "ADK_RUN_CANCEL_FAILED", err.Error())
 		return
 	}
-	h.writeOK(c, jfadk.NormalizeRun(run))
+	h.writeOK(c, assistantmodel.NormalizeRun(run))
 }
 
 func (h *Handler) handleADKPauseRun(c *gin.Context) {
@@ -240,7 +240,7 @@ func (h *Handler) handleADKPauseRun(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "ADK_RUN_PAUSE_FAILED", message)
 		return
 	}
-	h.writeOK(c, jfadk.NormalizeRun(run))
+	h.writeOK(c, assistantmodel.NormalizeRun(run))
 }
 
 func (h *Handler) handleADKResumeRun(c *gin.Context) {
@@ -259,7 +259,7 @@ func (h *Handler) handleADKResumeRun(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "ADK_RUN_RESUME_FAILED", message)
 		return
 	}
-	h.writeOK(c, jfadk.NormalizeRun(run))
+	h.writeOK(c, assistantmodel.NormalizeRun(run))
 }
 
 func (h *Handler) handleADKUpdateRunObjective(c *gin.Context) {
@@ -283,7 +283,7 @@ func (h *Handler) handleADKUpdateRunObjective(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "ADK_RUN_OBJECTIVE_UPDATE_FAILED", message)
 		return
 	}
-	h.writeOK(c, jfadk.NormalizeRun(run))
+	h.writeOK(c, assistantmodel.NormalizeRun(run))
 }
 
 func (h *Handler) handleADKRun(c *gin.Context) {
@@ -306,7 +306,7 @@ func (h *Handler) handleADKRun(c *gin.Context) {
 		h.writeError(c, http.StatusInternalServerError, "ADK_RUN_GET_FAILED", err.Error())
 		return
 	}
-	h.writeOK(c, jfadk.NormalizeRun(run))
+	h.writeOK(c, assistantmodel.NormalizeRun(run))
 }
 
 func (h *Handler) handleADKApprovals(c *gin.Context) {
@@ -341,7 +341,7 @@ func (h *Handler) handleADKApproval(c *gin.Context, approved bool) {
 		h.writeError(c, http.StatusInternalServerError, "ADK_APPROVAL_RESOLVE_FAILED", err.Error())
 		return
 	}
-	h.writeOK(c, jfadk.NormalizeApprovalResolution(resolution))
+	h.writeOK(c, assistantmodel.NormalizeApprovalResolution(resolution))
 }
 
 func (h *Handler) handleADKInputResponse(c *gin.Context) {
@@ -355,9 +355,9 @@ func (h *Handler) handleADKInputResponse(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "input response payload is invalid")
 		return
 	}
-	resolution, err := h.service.ResolveInputAsync(context.WithoutCancel(c.Request.Context()), uri.RunID, jfadk.InputResponseRequest(payload))
+	resolution, err := h.service.ResolveInputAsync(context.WithoutCancel(c.Request.Context()), uri.RunID, assistantmodel.InputResponseRequest(payload))
 	if err != nil {
-		switch jfadk.InputRequestErrorKind(err) {
+		switch assistantmodel.InputRequestErrorKind(err) {
 		case "invalid":
 			h.writeError(c, http.StatusBadRequest, "ADK_INPUT_RESPONSE_INVALID", err.Error())
 		case "not_found":

@@ -12,18 +12,19 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestMCPServerManagerEnforcesBearerAndSupportsTokenRotation(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
-	registry.Register(jfadk.ToolDescriptor{Name: "system.status", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
+	registry := jfadkruntime.NewToolRegistry()
+	registry.Register(assistantmodel.ToolDescriptor{Name: "system.status", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"ok": true}, nil
 	})
-	runtime := jfadk.NewRuntime(nil, registry)
+	runtime := jfadkruntime.NewRuntime(nil, registry)
 	manager := newMCPServerManager(runtime)
 	firstHash, err := passwordhash.Hash("first-token")
 	if err != nil {
@@ -73,8 +74,8 @@ func TestMCPServerManagerEnforcesBearerAndSupportsTokenRotation(t *testing.T) {
 }
 
 func TestMCPServerManagerStartsAndStopsOnLoopback(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
-	registry.Register(jfadk.ToolDescriptor{Name: "system.status", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
+	registry := jfadkruntime.NewToolRegistry()
+	registry.Register(assistantmodel.ToolDescriptor{Name: "system.status", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"ok": true}, nil
 	})
 	reservation, err := net.Listen("tcp", "127.0.0.1:0")
@@ -85,7 +86,7 @@ func TestMCPServerManagerStartsAndStopsOnLoopback(t *testing.T) {
 	if err := reservation.Close(); err != nil {
 		t.Fatalf("release loopback port: %v", err)
 	}
-	manager := newMCPServerManager(jfadk.NewRuntime(nil, registry))
+	manager := newMCPServerManager(jfadkruntime.NewRuntime(nil, registry))
 	settings := jfsettings.MCPServerSettings{Enabled: true, Port: port, AuthMode: "none"}
 	if err := manager.Reconfigure(settings); err != nil {
 		t.Fatalf("start MCP manager: %v", err)
@@ -103,8 +104,8 @@ func TestMCPServerManagerStartsAndStopsOnLoopback(t *testing.T) {
 }
 
 func TestMCPServerManagerServesAuthenticatedStreamableMCP(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
-	registry.Register(jfadk.ToolDescriptor{
+	registry := jfadkruntime.NewToolRegistry()
+	registry.Register(assistantmodel.ToolDescriptor{
 		Name: "system.status", DisplayName: "System Status", Description: "Returns system status", Permission: "read_internal",
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"healthy": true}, nil
@@ -122,7 +123,7 @@ func TestMCPServerManagerServesAuthenticatedStreamableMCP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hash token: %v", err)
 	}
-	manager := newMCPServerManager(jfadk.NewRuntime(nil, registry))
+	manager := newMCPServerManager(jfadkruntime.NewRuntime(nil, registry))
 	t.Cleanup(func() { _ = manager.Close() })
 	if err := manager.Reconfigure(jfsettings.MCPServerSettings{
 		Enabled: true, Port: port, AuthMode: "token", TokenHash: tokenHash,
@@ -178,13 +179,13 @@ func TestMCPServerManagerServesAuthenticatedStreamableMCP(t *testing.T) {
 }
 
 func TestMCPServerManagerListenerFailurePreservesRunningState(t *testing.T) {
-	registry := jfadk.NewToolRegistry()
-	registry.Register(jfadk.ToolDescriptor{Name: "system.status", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
+	registry := jfadkruntime.NewToolRegistry()
+	registry.Register(assistantmodel.ToolDescriptor{Name: "system.status", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"ok": true}, nil
 	})
-	manager := newMCPServerManager(jfadk.NewRuntime(nil, registry))
+	manager := newMCPServerManager(jfadkruntime.NewRuntime(nil, registry))
 	handler := newTrackingMCPHandler()
-	manager.newHandler = func(*jfadk.Runtime) (mcpLifecycleHandler, error) { return handler, nil }
+	manager.newHandler = func(*jfadkruntime.Runtime) (mcpLifecycleHandler, error) { return handler, nil }
 	manager.listen = func(string, string) (net.Listener, error) { return nil, errors.New("address already in use") }
 	settings := jfsettings.MCPServerSettings{Enabled: true, Port: 6697, AuthMode: "none"}
 	if err := manager.Reconfigure(settings); err == nil || !strings.Contains(err.Error(), "address already in use") {
@@ -201,9 +202,9 @@ func TestMCPServerManagerListenerFailurePreservesRunningState(t *testing.T) {
 
 func TestMCPServerManagerReleasesHandlersOnReplacementDisableAndClose(t *testing.T) {
 	ports := reserveMCPTestPorts(t, 3)
-	manager := newMCPServerManager(jfadk.NewRuntime(nil, jfadk.NewToolRegistry()))
+	manager := newMCPServerManager(jfadkruntime.NewRuntime(nil, jfadkruntime.NewToolRegistry()))
 	handlers := make([]*trackingMCPHandler, 0, 2)
-	manager.newHandler = func(*jfadk.Runtime) (mcpLifecycleHandler, error) {
+	manager.newHandler = func(*jfadkruntime.Runtime) (mcpLifecycleHandler, error) {
 		handler := newTrackingMCPHandler()
 		handlers = append(handlers, handler)
 		return handler, nil
@@ -239,9 +240,9 @@ func TestMCPServerManagerReleasesHandlersOnReplacementDisableAndClose(t *testing
 		t.Fatalf("close disabled MCP manager: %v", err)
 	}
 
-	closeManager := newMCPServerManager(jfadk.NewRuntime(nil, jfadk.NewToolRegistry()))
+	closeManager := newMCPServerManager(jfadkruntime.NewRuntime(nil, jfadkruntime.NewToolRegistry()))
 	closeHandler := newTrackingMCPHandler()
-	closeManager.newHandler = func(*jfadk.Runtime) (mcpLifecycleHandler, error) { return closeHandler, nil }
+	closeManager.newHandler = func(*jfadkruntime.Runtime) (mcpLifecycleHandler, error) { return closeHandler, nil }
 	if err := closeManager.Reconfigure(jfsettings.MCPServerSettings{Enabled: true, Port: ports[2], AuthMode: "none"}); err != nil {
 		t.Fatalf("start close-path MCP listener: %v", err)
 	}
@@ -254,9 +255,9 @@ func TestMCPServerManagerReleasesHandlersOnReplacementDisableAndClose(t *testing
 }
 
 func TestMCPServerManagerReleasesHandlerOnUnexpectedServeExit(t *testing.T) {
-	manager := newMCPServerManager(jfadk.NewRuntime(nil, jfadk.NewToolRegistry()))
+	manager := newMCPServerManager(jfadkruntime.NewRuntime(nil, jfadkruntime.NewToolRegistry()))
 	handler := newTrackingMCPHandler()
-	manager.newHandler = func(*jfadk.Runtime) (mcpLifecycleHandler, error) { return handler, nil }
+	manager.newHandler = func(*jfadkruntime.Runtime) (mcpLifecycleHandler, error) { return handler, nil }
 	manager.listen = func(string, string) (net.Listener, error) {
 		return failingMCPListener{err: errors.New("accept failed")}, nil
 	}

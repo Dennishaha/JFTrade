@@ -4,15 +4,15 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestServiceRecoverTerminalChatResponseFallsBackToLatestAssistant(t *testing.T) {
 	runtime, service, sessionService := newAssistantServiceHarness(t)
 	ctx := t.Context()
 
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-recover-latest", Name: "Recover Latest Agent", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-recover-latest", Name: "Recover Latest Agent", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -25,11 +25,11 @@ func TestServiceRecoverTerminalChatResponseFallsBackToLatestAssistant(t *testing
 	appendAssistantSessionEvent(t, sessionService, agent.ID, session.ID, newUserSessionEvent("run-recover-latest", "继续恢复", time.Unix(20, 0)))
 	appendAssistantSessionEvent(t, sessionService, agent.ID, session.ID, newAssistantSessionEvent("run-recover-latest", "assistant-latest", "最新终态答复", "最新推理", time.Unix(22, 0)))
 
-	completed := jfadk.Run{
+	completed := assistantmodel.Run{
 		ID:             "run-recover-latest",
 		SessionID:      session.ID,
 		AgentID:        agent.ID,
-		Status:         jfadk.RunStatusCompleted,
+		Status:         assistantmodel.RunStatusCompleted,
 		FinalMessageID: "assistant-missing-after-append-failure",
 		CreatedAt:      time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt:      time.Now().UTC().Format(time.RFC3339Nano),

@@ -6,26 +6,27 @@ import (
 	"strings"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	workflowrules "github.com/jftrade/jftrade-main/internal/assistant/workflow"
 )
 
 func applyWorkflowResponse(
-	log jfadk.WorkflowTriggerLog,
-	workflow jfadk.WorkflowDefinition,
-	trigger *jfadk.WorkflowTrigger,
+	log assistantmodel.WorkflowTriggerLog,
+	workflow assistantmodel.WorkflowDefinition,
+	trigger *assistantmodel.WorkflowTrigger,
 	inputs map[string]any,
 	matchedEvent map[string]any,
 	message string,
 	objective string,
-	response jfadk.ChatResponse,
+	response assistantmodel.ChatResponse,
 	started string,
 	finishedAt time.Time,
-) jfadk.WorkflowTriggerLog {
+) assistantmodel.WorkflowTriggerLog {
 	log.SessionID = response.Session.ID
 	log.RunID = response.Run.ID
 	log.Status = workflowLogStatusFromRun(response.Run)
-	if log.Status != jfadk.WorkflowTriggerLogStatusRunning && log.Status != jfadk.WorkflowTriggerLogStatusPendingApproval {
+	if log.Status != assistantmodel.WorkflowTriggerLogStatusRunning && log.Status != assistantmodel.WorkflowTriggerLogStatusPendingApproval {
 		log.FinishedAt = finishedAt.Format(time.RFC3339Nano)
 	}
 	if response.Run.FailureReason != "" {
@@ -36,8 +37,8 @@ func applyWorkflowResponse(
 	return log
 }
 
-func workflowResultFromResponse(response jfadk.ChatResponse) *jfadk.WorkflowResult {
-	result := &jfadk.WorkflowResult{
+func workflowResultFromResponse(response assistantmodel.ChatResponse) *assistantmodel.WorkflowResult {
+	result := &assistantmodel.WorkflowResult{
 		Format:      "markdown",
 		Markdown:    strings.TrimSpace(response.Reply),
 		RawResponse: &response,
@@ -48,11 +49,11 @@ func workflowResultFromResponse(response jfadk.ChatResponse) *jfadk.WorkflowResu
 	return result
 }
 
-func workflowResultFromError(err error) *jfadk.WorkflowResult {
+func workflowResultFromError(err error) *assistantmodel.WorkflowResult {
 	if err == nil {
 		return nil
 	}
-	return &jfadk.WorkflowResult{
+	return &assistantmodel.WorkflowResult{
 		Format:   "markdown",
 		Markdown: strings.TrimSpace(err.Error()),
 		JSON: map[string]any{
@@ -62,24 +63,24 @@ func workflowResultFromError(err error) *jfadk.WorkflowResult {
 }
 
 func workflowNodeRuns(
-	workflow jfadk.WorkflowDefinition,
-	trigger *jfadk.WorkflowTrigger,
+	workflow assistantmodel.WorkflowDefinition,
+	trigger *assistantmodel.WorkflowTrigger,
 	triggerType string,
 	inputs map[string]any,
 	matchedEvent map[string]any,
 	message string,
 	objective string,
-	response *jfadk.ChatResponse,
+	response *assistantmodel.ChatResponse,
 	status string,
 	errorMessage string,
 	startedAt string,
 	finishedAt string,
-) []jfadk.WorkflowNodeRun {
+) []assistantmodel.WorkflowNodeRun {
 	if workflow.CanvasGraph != nil {
 		return workflowCanvasNodeRuns(workflow, trigger, triggerType, inputs, matchedEvent, message, objective, response, status, errorMessage, startedAt, finishedAt)
 	}
 	context := newWorkflowNodeRunContext(workflow, trigger, triggerType, message, objective, response, status, errorMessage)
-	return []jfadk.WorkflowNodeRun{
+	return []assistantmodel.WorkflowNodeRun{
 		context.triggerNode(inputs, matchedEvent, startedAt, finishedAt),
 		context.startNode(inputs, startedAt, finishedAt),
 		context.agentNode(startedAt, finishedAt),
@@ -88,21 +89,21 @@ func workflowNodeRuns(
 }
 
 func workflowCanvasNodeRuns(
-	workflow jfadk.WorkflowDefinition,
-	trigger *jfadk.WorkflowTrigger,
+	workflow assistantmodel.WorkflowDefinition,
+	trigger *assistantmodel.WorkflowTrigger,
 	triggerType string,
 	inputs map[string]any,
 	matchedEvent map[string]any,
 	message string,
 	objective string,
-	response *jfadk.ChatResponse,
+	response *assistantmodel.ChatResponse,
 	status string,
 	errorMessage string,
 	startedAt string,
 	finishedAt string,
-) []jfadk.WorkflowNodeRun {
+) []assistantmodel.WorkflowNodeRun {
 	context := newWorkflowNodeRunContext(workflow, trigger, triggerType, message, objective, response, status, errorMessage)
-	planByNodeID := map[string]jfadk.WorkflowStepState{}
+	planByNodeID := map[string]assistantmodel.WorkflowStepState{}
 	if response != nil {
 		for _, step := range response.Run.WorkflowPlan {
 			if strings.TrimSpace(step.PlannerStepID) != "" {
@@ -110,7 +111,7 @@ func workflowCanvasNodeRuns(
 			}
 		}
 	}
-	runs := make([]jfadk.WorkflowNodeRun, 0, len(workflow.CanvasGraph.Nodes)+2)
+	runs := make([]assistantmodel.WorkflowNodeRun, 0, len(workflow.CanvasGraph.Nodes)+2)
 	for _, node := range workflow.CanvasGraph.Nodes {
 		nodeType := strings.ToLower(strings.TrimSpace(node.Type))
 		switch nodeType {
@@ -128,7 +129,7 @@ func workflowCanvasNodeRuns(
 }
 
 type workflowNodeRunContext struct {
-	workflow       jfadk.WorkflowDefinition
+	workflow       assistantmodel.WorkflowDefinition
 	triggerNodeID  string
 	triggerTitle   string
 	triggerStatus  string
@@ -143,16 +144,16 @@ type workflowNodeRunContext struct {
 }
 
 func newWorkflowNodeRunContext(
-	workflow jfadk.WorkflowDefinition,
-	trigger *jfadk.WorkflowTrigger,
+	workflow assistantmodel.WorkflowDefinition,
+	trigger *assistantmodel.WorkflowTrigger,
 	triggerType string,
 	message string,
 	objective string,
-	response *jfadk.ChatResponse,
+	response *assistantmodel.ChatResponse,
 	status string,
 	errorMessage string,
 ) workflowNodeRunContext {
-	status = defaultString(strings.ToUpper(strings.TrimSpace(status)), jfadk.WorkflowTriggerLogStatusRunning)
+	status = defaultString(strings.ToUpper(strings.TrimSpace(status)), assistantmodel.WorkflowTriggerLogStatusRunning)
 	errorMessage = strings.TrimSpace(errorMessage)
 	context := workflowNodeRunContext{
 		workflow:      workflow,
@@ -165,7 +166,7 @@ func newWorkflowNodeRunContext(
 		context.triggerTitle = strings.TrimSpace(trigger.Title)
 	}
 	if context.triggerTitle == "" {
-		context.triggerTitle = workflowrules.DefaultTriggerTitle(defaultString(triggerType, jfadk.WorkflowTriggerTypeManual))
+		context.triggerTitle = workflowrules.DefaultTriggerTitle(defaultString(triggerType, assistantmodel.WorkflowTriggerTypeManual))
 	}
 	context.applyStatuses(status, message)
 	context.startOutputs = workflowStartOutputs(message, objective)
@@ -175,20 +176,20 @@ func newWorkflowNodeRunContext(
 }
 
 func (c *workflowNodeRunContext) applyStatuses(status string, message string) {
-	c.triggerStatus = jfadk.WorkflowTriggerLogStatusSucceeded
-	c.startStatus = jfadk.WorkflowTriggerLogStatusSucceeded
+	c.triggerStatus = assistantmodel.WorkflowTriggerLogStatusSucceeded
+	c.startStatus = assistantmodel.WorkflowTriggerLogStatusSucceeded
 	c.agentStatus = status
 	c.monitorStatus = status
-	if status == jfadk.WorkflowTriggerLogStatusSkipped {
+	if status == assistantmodel.WorkflowTriggerLogStatusSkipped {
 		c.triggerStatus = status
 		c.startStatus = status
 		c.agentStatus = status
 		c.monitorStatus = status
 	}
 	if strings.TrimSpace(message) == "" && c.errorMessage != "" {
-		c.startStatus = jfadk.WorkflowTriggerLogStatusFailed
-		c.agentStatus = jfadk.WorkflowTriggerLogStatusSkipped
-		c.monitorStatus = jfadk.WorkflowTriggerLogStatusSkipped
+		c.startStatus = assistantmodel.WorkflowTriggerLogStatusFailed
+		c.agentStatus = assistantmodel.WorkflowTriggerLogStatusSkipped
+		c.monitorStatus = assistantmodel.WorkflowTriggerLogStatusSkipped
 	}
 }
 
@@ -203,7 +204,7 @@ func workflowStartOutputs(message string, objective string) map[string]any {
 	return startOutputs
 }
 
-func workflowAgentInputs(workflow jfadk.WorkflowDefinition, message string) map[string]any {
+func workflowAgentInputs(workflow assistantmodel.WorkflowDefinition, message string) map[string]any {
 	agentInputs := map[string]any{}
 	if strings.TrimSpace(message) != "" {
 		agentInputs["message"] = message
@@ -217,7 +218,7 @@ func workflowAgentInputs(workflow jfadk.WorkflowDefinition, message string) map[
 	return agentInputs
 }
 
-func workflowResponseOutputs(response *jfadk.ChatResponse, errorMessage string) (map[string]any, map[string]any) {
+func workflowResponseOutputs(response *assistantmodel.ChatResponse, errorMessage string) (map[string]any, map[string]any) {
 	agentOutputs := map[string]any{}
 	monitorOutputs := map[string]any{}
 	if response != nil {
@@ -234,8 +235,8 @@ func workflowResponseOutputs(response *jfadk.ChatResponse, errorMessage string) 
 	return agentOutputs, monitorOutputs
 }
 
-func (c workflowNodeRunContext) triggerNode(inputs map[string]any, matchedEvent map[string]any, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
-	return jfadk.WorkflowNodeRun{
+func (c workflowNodeRunContext) triggerNode(inputs map[string]any, matchedEvent map[string]any, startedAt string, finishedAt string) assistantmodel.WorkflowNodeRun {
+	return assistantmodel.WorkflowNodeRun{
 		NodeID:     c.triggerNodeID,
 		NodeType:   "trigger",
 		Title:      c.triggerTitle,
@@ -248,15 +249,15 @@ func (c workflowNodeRunContext) triggerNode(inputs map[string]any, matchedEvent 
 	}
 }
 
-func (c workflowNodeRunContext) canvasTriggerNode(node jfadk.WorkflowCanvasNode, inputs map[string]any, matchedEvent map[string]any, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+func (c workflowNodeRunContext) canvasTriggerNode(node assistantmodel.WorkflowCanvasNode, inputs map[string]any, matchedEvent map[string]any, startedAt string, finishedAt string) assistantmodel.WorkflowNodeRun {
 	run := c.triggerNode(inputs, matchedEvent, startedAt, finishedAt)
 	run.NodeID = node.ID
 	run.Title = canvasNodeTitle(node, run.Title)
 	return run
 }
 
-func (c workflowNodeRunContext) startNode(inputs map[string]any, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
-	return jfadk.WorkflowNodeRun{
+func (c workflowNodeRunContext) startNode(inputs map[string]any, startedAt string, finishedAt string) assistantmodel.WorkflowNodeRun {
+	return assistantmodel.WorkflowNodeRun{
 		NodeID:     "start",
 		NodeType:   "start",
 		Title:      "Start",
@@ -269,15 +270,15 @@ func (c workflowNodeRunContext) startNode(inputs map[string]any, startedAt strin
 	}
 }
 
-func (c workflowNodeRunContext) canvasStartNode(node jfadk.WorkflowCanvasNode, inputs map[string]any, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+func (c workflowNodeRunContext) canvasStartNode(node assistantmodel.WorkflowCanvasNode, inputs map[string]any, startedAt string, finishedAt string) assistantmodel.WorkflowNodeRun {
 	run := c.startNode(inputs, startedAt, finishedAt)
 	run.NodeID = node.ID
 	run.Title = canvasNodeTitle(node, run.Title)
 	return run
 }
 
-func (c workflowNodeRunContext) agentNode(startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
-	return jfadk.WorkflowNodeRun{
+func (c workflowNodeRunContext) agentNode(startedAt string, finishedAt string) assistantmodel.WorkflowNodeRun {
+	return assistantmodel.WorkflowNodeRun{
 		NodeID:     "agent",
 		NodeType:   "agent",
 		Title:      c.workflow.Name,
@@ -290,8 +291,8 @@ func (c workflowNodeRunContext) agentNode(startedAt string, finishedAt string) j
 	}
 }
 
-func (c workflowNodeRunContext) monitorNode(startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
-	return jfadk.WorkflowNodeRun{
+func (c workflowNodeRunContext) monitorNode(startedAt string, finishedAt string) assistantmodel.WorkflowNodeRun {
+	return assistantmodel.WorkflowNodeRun{
 		NodeID:     "monitor",
 		NodeType:   "monitor",
 		Title:      "Monitor",
@@ -303,17 +304,17 @@ func (c workflowNodeRunContext) monitorNode(startedAt string, finishedAt string)
 	}
 }
 
-func (c workflowNodeRunContext) canvasMonitorNode(node jfadk.WorkflowCanvasNode, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+func (c workflowNodeRunContext) canvasMonitorNode(node assistantmodel.WorkflowCanvasNode, startedAt string, finishedAt string) assistantmodel.WorkflowNodeRun {
 	run := c.monitorNode(startedAt, finishedAt)
 	run.NodeID = node.ID
 	run.Title = canvasNodeTitle(node, run.Title)
 	return run
 }
 
-func canvasAgentNodeRun(node jfadk.WorkflowCanvasNode, step jfadk.WorkflowStepState, errorMessage string, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+func canvasAgentNodeRun(node assistantmodel.WorkflowCanvasNode, step assistantmodel.WorkflowStepState, errorMessage string, startedAt string, finishedAt string) assistantmodel.WorkflowNodeRun {
 	status := workflowNodeStatusFromStep(step.Status)
 	if strings.TrimSpace(step.Status) == "" {
-		status = jfadk.WorkflowTriggerLogStatusSkipped
+		status = assistantmodel.WorkflowTriggerLogStatusSkipped
 	}
 	outputs := map[string]any{}
 	if strings.TrimSpace(step.ChildRunID) != "" {
@@ -326,7 +327,7 @@ func canvasAgentNodeRun(node jfadk.WorkflowCanvasNode, step jfadk.WorkflowStepSt
 		outputs["reply"] = step.ResultSummary
 	}
 	outputs["status"] = step.Status
-	if status != jfadk.WorkflowTriggerLogStatusSucceeded && strings.TrimSpace(errorMessage) != "" {
+	if status != assistantmodel.WorkflowTriggerLogStatusSucceeded && strings.TrimSpace(errorMessage) != "" {
 		outputs["error"] = errorMessage
 	}
 	outputs["toolCalls"] = []any{}
@@ -343,7 +344,7 @@ func canvasAgentNodeRun(node jfadk.WorkflowCanvasNode, step jfadk.WorkflowStepSt
 	if strings.TrimSpace(step.ChildModel) != "" {
 		inputs["model"] = step.ChildModel
 	}
-	return jfadk.WorkflowNodeRun{
+	return assistantmodel.WorkflowNodeRun{
 		NodeID: node.ID, NodeType: "agent", Title: canvasNodeTitle(node, defaultString(step.Title, node.ID)),
 		Status: status, StartedAt: startedAt, FinishedAt: finishedAt, Inputs: inputs, Outputs: outputs,
 		Error: errorForNode(status, errorMessage),
@@ -353,19 +354,19 @@ func canvasAgentNodeRun(node jfadk.WorkflowCanvasNode, step jfadk.WorkflowStepSt
 func workflowNodeStatusFromStep(status string) string {
 	switch strings.ToUpper(strings.TrimSpace(status)) {
 	case "DONE":
-		return jfadk.WorkflowTriggerLogStatusSucceeded
+		return assistantmodel.WorkflowTriggerLogStatusSucceeded
 	case "IN_PROGRESS":
-		return jfadk.WorkflowTriggerLogStatusRunning
+		return assistantmodel.WorkflowTriggerLogStatusRunning
 	case "TODO":
-		return jfadk.WorkflowTriggerLogStatusQueued
+		return assistantmodel.WorkflowTriggerLogStatusQueued
 	case "BLOCKED", "CANCELLED":
-		return jfadk.WorkflowTriggerLogStatusFailed
+		return assistantmodel.WorkflowTriggerLogStatusFailed
 	default:
 		return strings.ToUpper(strings.TrimSpace(status))
 	}
 }
 
-func canvasNodeTitle(node jfadk.WorkflowCanvasNode, fallback string) string {
+func canvasNodeTitle(node assistantmodel.WorkflowCanvasNode, fallback string) string {
 	if node.Data != nil {
 		if title := strings.TrimSpace(fmt.Sprint(node.Data["title"])); title != "" && title != "<nil>" {
 			return title
@@ -376,21 +377,21 @@ func canvasNodeTitle(node jfadk.WorkflowCanvasNode, fallback string) string {
 
 func errorForNode(status string, message string) string {
 	switch status {
-	case jfadk.WorkflowTriggerLogStatusFailed, jfadk.WorkflowTriggerLogStatusCancelled, jfadk.WorkflowTriggerLogStatusSkipped:
+	case assistantmodel.WorkflowTriggerLogStatusFailed, assistantmodel.WorkflowTriggerLogStatusCancelled, assistantmodel.WorkflowTriggerLogStatusSkipped:
 		return strings.TrimSpace(message)
 	default:
 		return ""
 	}
 }
 
-func (s *Service) workflowStore() (*jfadk.Store, error) {
+func (s *Service) workflowStore() (*jfadkruntime.Store, error) {
 	if s == nil || s.runtime == nil || s.runtime.Store() == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.Store(), nil
 }
 
-func (s *Service) validateWorkflowDefinition(ctx context.Context, workflow jfadk.WorkflowDefinition) error {
+func (s *Service) validateWorkflowDefinition(ctx context.Context, workflow assistantmodel.WorkflowDefinition) error {
 	if strings.TrimSpace(workflow.Name) == "" {
 		return fmt.Errorf("workflow name is required")
 	}
@@ -404,11 +405,11 @@ func (s *Service) validateWorkflowDefinition(ctx context.Context, workflow jfadk
 	if !ok || agent.DeletedAt != nil {
 		return fmt.Errorf("workflow agent not found")
 	}
-	if workflow.Status == jfadk.WorkflowStatusEnabled && agent.Status != jfadk.AgentStatusEnabled {
+	if workflow.Status == assistantmodel.WorkflowStatusEnabled && agent.Status != assistantmodel.AgentStatusEnabled {
 		return fmt.Errorf("enabled workflow requires an enabled agent")
 	}
 	switch strings.ToLower(strings.TrimSpace(workflow.WorkMode)) {
-	case jfadk.WorkModeChat, jfadk.WorkModeLoop:
+	case assistantmodel.WorkModeChat, assistantmodel.WorkModeLoop:
 	default:
 		return fmt.Errorf("invalid workflow work mode")
 	}
@@ -418,8 +419,8 @@ func (s *Service) validateWorkflowDefinition(ctx context.Context, workflow jfadk
 	return nil
 }
 
-func (s *Service) prepareWorkflowTriggerSchedule(trigger *jfadk.WorkflowTrigger, now time.Time) error {
-	if trigger == nil || trigger.Type != jfadk.WorkflowTriggerTypeSchedule {
+func (s *Service) prepareWorkflowTriggerSchedule(trigger *assistantmodel.WorkflowTrigger, now time.Time) error {
+	if trigger == nil || trigger.Type != assistantmodel.WorkflowTriggerTypeSchedule {
 		if trigger != nil {
 			trigger.NextRunAt = ""
 		}
@@ -429,7 +430,7 @@ func (s *Service) prepareWorkflowTriggerSchedule(trigger *jfadk.WorkflowTrigger,
 	if err != nil {
 		return err
 	}
-	if trigger.Status == jfadk.WorkflowTriggerStatusEnabled {
+	if trigger.Status == assistantmodel.WorkflowTriggerStatusEnabled {
 		trigger.NextRunAt = next.Format(time.RFC3339Nano)
 	} else {
 		trigger.NextRunAt = ""
@@ -457,11 +458,11 @@ func workflowTriggerHasActiveRun(ctx context.Context, store workflowInvocationSt
 			return false, err
 		}
 		if !ok {
-			log = finishWorkflowLog(ctx, store, log, jfadk.WorkflowTriggerLogStatusFailed, "run not found")
+			log = finishWorkflowLog(ctx, store, log, assistantmodel.WorkflowTriggerLogStatusFailed, "run not found")
 			continue
 		}
 		status := workflowLogStatusFromRun(run)
-		if status == jfadk.WorkflowTriggerLogStatusRunning || status == jfadk.WorkflowTriggerLogStatusPendingApproval {
+		if status == assistantmodel.WorkflowTriggerLogStatusRunning || status == assistantmodel.WorkflowTriggerLogStatusPendingApproval {
 			active = true
 			continue
 		}
@@ -480,9 +481,9 @@ func workflowTriggerHasActiveRun(ctx context.Context, store workflowInvocationSt
 func (s *Service) reconcileActiveWorkflowLogs(ctx context.Context) {
 	store := s.runtime.Store()
 	for _, status := range []string{
-		jfadk.WorkflowTriggerLogStatusQueued,
-		jfadk.WorkflowTriggerLogStatusRunning,
-		jfadk.WorkflowTriggerLogStatusPendingApproval,
+		assistantmodel.WorkflowTriggerLogStatusQueued,
+		assistantmodel.WorkflowTriggerLogStatusRunning,
+		assistantmodel.WorkflowTriggerLogStatusPendingApproval,
 	} {
 		logs, _, err := store.ListWorkflowTriggerLogsPage(ctx, "", "", status, 100, 0)
 		if err != nil {
@@ -497,7 +498,7 @@ func (s *Service) reconcileActiveWorkflowLogs(ctx context.Context) {
 	}
 }
 
-func (s *Service) updateTriggerAfterRun(ctx context.Context, trigger *jfadk.WorkflowTrigger, runID string, lastError string) {
+func (s *Service) updateTriggerAfterRun(ctx context.Context, trigger *assistantmodel.WorkflowTrigger, runID string, lastError string) {
 	if trigger == nil || s == nil || s.runtime == nil || s.runtime.Store() == nil {
 		return
 	}
@@ -511,7 +512,7 @@ func (s *Service) updateTriggerAfterRun(ctx context.Context, trigger *jfadk.Work
 	_, _ = s.runtime.Store().SaveWorkflowTrigger(ctx, current)
 }
 
-func finishWorkflowLog(ctx context.Context, store workflowInvocationStore, log jfadk.WorkflowTriggerLog, status string, message string) jfadk.WorkflowTriggerLog {
+func finishWorkflowLog(ctx context.Context, store workflowInvocationStore, log assistantmodel.WorkflowTriggerLog, status string, message string) assistantmodel.WorkflowTriggerLog {
 	log.Status = status
 	log.Error = strings.TrimSpace(message)
 	if log.FinishedAt == "" {
@@ -524,17 +525,17 @@ func finishWorkflowLog(ctx context.Context, store workflowInvocationStore, log j
 	return updated
 }
 
-func workflowLogStatusFromRun(run jfadk.Run) string {
+func workflowLogStatusFromRun(run assistantmodel.Run) string {
 	switch run.Status {
-	case jfadk.RunStatusCompleted:
-		return jfadk.WorkflowTriggerLogStatusSucceeded
-	case jfadk.RunStatusPending:
-		return jfadk.WorkflowTriggerLogStatusPendingApproval
-	case jfadk.RunStatusCancelled, jfadk.RunStatusDenied:
-		return jfadk.WorkflowTriggerLogStatusCancelled
-	case jfadk.RunStatusFailed, jfadk.RunStatusTimedOut:
-		return jfadk.WorkflowTriggerLogStatusFailed
+	case assistantmodel.RunStatusCompleted:
+		return assistantmodel.WorkflowTriggerLogStatusSucceeded
+	case assistantmodel.RunStatusPending:
+		return assistantmodel.WorkflowTriggerLogStatusPendingApproval
+	case assistantmodel.RunStatusCancelled, assistantmodel.RunStatusDenied:
+		return assistantmodel.WorkflowTriggerLogStatusCancelled
+	case assistantmodel.RunStatusFailed, assistantmodel.RunStatusTimedOut:
+		return assistantmodel.WorkflowTriggerLogStatusFailed
 	default:
-		return jfadk.WorkflowTriggerLogStatusRunning
+		return assistantmodel.WorkflowTriggerLogStatusRunning
 	}
 }

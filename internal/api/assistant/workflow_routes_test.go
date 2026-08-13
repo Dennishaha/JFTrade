@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	ctx := t.Context()
-	if _, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
+	if _, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
 		ID: "agent-workflow-route", Name: "Workflow Route Agent", ProviderID: "test-provider",
-		Status: jfadk.AgentStatusEnabled, WorkMode: jfadk.WorkModeChat, PermissionMode: jfadk.PermissionModeAll,
+		Status: assistantmodel.AgentStatusEnabled, WorkMode: assistantmodel.WorkModeChat, PermissionMode: assistantmodel.PermissionModeAll,
 	}); err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
@@ -50,8 +50,8 @@ func TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts(t *testing.T
 		t.Fatalf("create workflow status=%d body=%s", createWorkflow.Code, createWorkflow.Body.String())
 	}
 	var workflowEnvelope struct {
-		OK   bool                     `json:"ok"`
-		Data jfadk.WorkflowDefinition `json:"data"`
+		OK   bool                              `json:"ok"`
+		Data assistantmodel.WorkflowDefinition `json:"data"`
 	}
 	if err := json.Unmarshal(createWorkflow.Body.Bytes(), &workflowEnvelope); err != nil {
 		t.Fatalf("decode workflow create: %v", err)
@@ -101,14 +101,14 @@ func TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts(t *testing.T
 	var runEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Log      jfadk.WorkflowTriggerLog `json:"log"`
-			Response *jfadk.ChatResponse      `json:"response"`
+			Log      assistantmodel.WorkflowTriggerLog `json:"log"`
+			Response *assistantmodel.ChatResponse      `json:"response"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(runWorkflow.Body.Bytes(), &runEnvelope); err != nil {
 		t.Fatalf("decode workflow run: %v", err)
 	}
-	if !runEnvelope.OK || runEnvelope.Data.Log.Status != jfadk.WorkflowTriggerLogStatusSucceeded || runEnvelope.Data.Response == nil {
+	if !runEnvelope.OK || runEnvelope.Data.Log.Status != assistantmodel.WorkflowTriggerLogStatusSucceeded || runEnvelope.Data.Response == nil {
 		t.Fatalf("run workflow envelope=%s", runWorkflow.Body.String())
 	}
 
@@ -138,8 +138,8 @@ func TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts(t *testing.T
 	var webhookEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Trigger jfadk.WorkflowTrigger `json:"trigger"`
-			Secret  string                `json:"secret"`
+			Trigger assistantmodel.WorkflowTrigger `json:"trigger"`
+			Secret  string                         `json:"secret"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(webhookTrigger.Body.Bytes(), &webhookEnvelope); err != nil {
@@ -185,9 +185,9 @@ func TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts(t *testing.T
 func TestWorkflowRoutesClassifyInvalidPayloadsAndUnavailableRuns(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	ctx := t.Context()
-	if _, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
+	if _, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
 		ID: "agent-workflow-errors", Name: "Workflow Error Agent", ProviderID: "test-provider",
-		Status: jfadk.AgentStatusEnabled, WorkMode: jfadk.WorkModeChat, PermissionMode: jfadk.PermissionModeAll,
+		Status: assistantmodel.AgentStatusEnabled, WorkMode: assistantmodel.WorkModeChat, PermissionMode: assistantmodel.PermissionModeAll,
 	}); err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}

@@ -2,10 +2,9 @@ package workflowexec
 
 import (
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowChildrenFailClosedForMissingAgentsAndFinalReplies(t *testing.T) {
@@ -18,7 +17,7 @@ func TestWorkflowChildrenFailClosedForMissingAgentsAndFinalReplies(t *testing.T)
 	session := mustCreateSession(t, runtime, agent.ID, "coverage child recovery")
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "coverage98-child-parent", SessionID: session.ID, AgentID: agent.ID, Status: RunStatusRunning,
-		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	executor := (&WorkflowExecutor{runtime: runtime})
 
@@ -47,7 +46,7 @@ func TestWorkflowChildrenFailClosedForMissingAgentsAndFinalReplies(t *testing.T)
 
 	child := Run{
 		ID: "coverage98-child-without-final", SessionID: session.ID, AgentID: agent.ID, ParentRunID: parent.ID,
-		Status: RunStatusRunning, UserMessage: "publish an audited conclusion", CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		Status: RunStatusRunning, UserMessage: "publish an audited conclusion", CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	}
 	execution := &fakeWorkflowExecutionHandle{
 		calls:             []ToolCall{{ID: "coverage98-finished-tool", RunID: child.ID, ToolName: "market.snapshot", Status: "SUCCEEDED"}},

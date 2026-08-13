@@ -1,10 +1,9 @@
 package workflowexec
 
 import (
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowTaskToolsetBusinessLifecycle(t *testing.T) {
@@ -30,7 +29,7 @@ func TestWorkflowTaskToolsetBusinessLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveTask second: %v", err)
 	}
-	parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{first, second}, nil)
+	parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{first, second}, nil)
 	mustSaveRun(t, runtime, parent)
 
 	decision := &workflowGoalDecision{}

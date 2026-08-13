@@ -3,10 +3,9 @@ package workflowexec
 import (
 	"context"
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowHelperBranches(t *testing.T) {
@@ -15,18 +14,18 @@ func TestWorkflowHelperBranches(t *testing.T) {
 			TaskID: "task-1", Title: "Prior Title", Description: "Prior Desc", Message: "Prior Message",
 			PlanSource: "prior", WorkflowMode: WorkModeLoop, Objective: "Prior Objective", ChildRunID: "child-1",
 		}}
-		plan := jfadkmodel.WorkflowPlanFromTasks([]Task{{ID: "task-1", Status: "TODO"}}, existing)
+		plan := assistantmodel.WorkflowPlanFromTasks([]Task{{ID: "task-1", Status: "TODO"}}, existing)
 		if len(plan) != 1 || plan[0].Title != "Prior Title" || plan[0].Description != "Prior Desc" || plan[0].Message != "Prior Message" || plan[0].ChildRunID != "child-1" {
 			t.Fatalf("workflowPlanFromTasks fallback = %+v", plan)
 		}
 
-		if got := jfadkmodel.WorkflowStepDescription(workflowStep{AgentRole: "Research Agent"}); got != "Agent role: Research Agent" {
+		if got := assistantmodel.WorkflowStepDescription(workflowStep{AgentRole: "Research Agent"}); got != "Agent role: Research Agent" {
 			t.Fatalf("workflowStepDescription role-only = %q", got)
 		}
-		if got := jfadkmodel.WorkflowDescriptionWithoutAgentRole("Agent role: Research Agent"); got != "" {
+		if got := assistantmodel.WorkflowDescriptionWithoutAgentRole("Agent role: Research Agent"); got != "" {
 			t.Fatalf("workflowDescriptionWithoutAgentRole prefix-only = %q, want empty", got)
 		}
-		if got := jfadkmodel.WorkflowDescriptionWithoutAgentRole("Desc\n\nAgent role: Research Agent"); got != "Desc" {
+		if got := assistantmodel.WorkflowDescriptionWithoutAgentRole("Desc\n\nAgent role: Research Agent"); got != "Desc" {
 			t.Fatalf("workflowDescriptionWithoutAgentRole suffix strip = %q", got)
 		}
 	})
@@ -42,8 +41,8 @@ func TestWorkflowHelperBranches(t *testing.T) {
 			WorkMode:       WorkModeLoop,
 			WorkflowStatus: workflowStatusRunning,
 			Objective:      "推进目标",
-			CreatedAt:      jfadkmodel.NowString(),
-			UpdatedAt:      jfadkmodel.NowString(),
+			CreatedAt:      assistantmodel.NowString(),
+			UpdatedAt:      assistantmodel.NowString(),
 		})
 		seed, err := runtime.Store().SaveTask(context.Background(), TaskWriteRequest{
 			ID:           "seed-task",
@@ -77,10 +76,10 @@ func TestWorkflowHelperBranches(t *testing.T) {
 			t.Fatalf("AddRuntimeWorkflowTask message fallback = %+v", added)
 		}
 
-		if !jfadkmodel.WorkflowTasksHaveCycle([]Task{{ID: "a", DependsOn: []string{"b"}}, {ID: "b", DependsOn: []string{"a"}}}) {
+		if !assistantmodel.WorkflowTasksHaveCycle([]Task{{ID: "a", DependsOn: []string{"b"}}, {ID: "b", DependsOn: []string{"a"}}}) {
 			t.Fatal("workflowTasksHaveCycle missed simple cycle")
 		}
-		if jfadkmodel.WorkflowTasksHaveCycle([]Task{{ID: "a", DependsOn: []string{"missing"}}}) {
+		if assistantmodel.WorkflowTasksHaveCycle([]Task{{ID: "a", DependsOn: []string{"missing"}}}) {
 			t.Fatal("workflowTasksHaveCycle treated missing dependency as cycle")
 		}
 
@@ -95,12 +94,12 @@ func TestWorkflowHelperBranches(t *testing.T) {
 			WorkflowPlan: []WorkflowStepState{{TaskID: "task-1", ChildRunID: "child-1", Status: "TODO"}},
 			ChildRunIDs:  []string{"child-1"},
 		}
-		noChange := jfadkmodel.UpdateWorkflowPlanForChildAt(parent, Run{}, 0)
+		noChange := assistantmodel.UpdateWorkflowPlanForChildAt(parent, Run{}, 0)
 		if noChange.WorkflowPlan[0].ChildRunID != "child-1" {
 			t.Fatalf("updateWorkflowPlanForChildAt empty child mutated plan = %+v", noChange.WorkflowPlan)
 		}
 
-		paused := jfadkmodel.PauseParentForChild(Run{WorkflowPlan: []WorkflowStepState{{TaskID: "task-1"}}}, Run{
+		paused := assistantmodel.PauseParentForChild(Run{WorkflowPlan: []WorkflowStepState{{TaskID: "task-1"}}}, Run{
 			ID:               "child-2",
 			Status:           RunStatusPending,
 			Message:          "waiting approval",
@@ -110,7 +109,7 @@ func TestWorkflowHelperBranches(t *testing.T) {
 			t.Fatalf("pauseParentForChild = %+v", paused)
 		}
 
-		filtered := jfadkmodel.ApprovalsForRun([]Approval{
+		filtered := assistantmodel.ApprovalsForRun([]Approval{
 			{ID: "pending", RunID: "run", Status: ApprovalStatusPending},
 			{ID: "done", RunID: "run", Status: ApprovalStatusApproved},
 			{ID: "other", RunID: "other", Status: ApprovalStatusPending},

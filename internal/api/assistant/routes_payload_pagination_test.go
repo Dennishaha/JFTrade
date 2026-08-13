@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	jadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestAssistantChatRoutesRejectMalformedOrUnresolvableRequests(t *testing.T) {
@@ -80,8 +80,8 @@ func TestAssistantRoutesClampPaginationBeyondAvailableItems(t *testing.T) {
 func TestAssistantRunMutationRoutesEnforceGoalLifecycleRules(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	ctx := t.Context()
-	agent, err := runtime.Store().SaveAgent(ctx, jadk.AgentWriteRequest{
-		ID: "agent-run-route-lifecycle", Name: "Run Route Lifecycle", Status: jadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-run-route-lifecycle", Name: "Run Route Lifecycle", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -96,9 +96,9 @@ func TestAssistantRunMutationRoutesEnforceGoalLifecycleRules(t *testing.T) {
 		t.Fatalf("CreateSession: %v", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	goalRun := jadk.Run{
+	goalRun := assistantmodel.Run{
 		ID: "run-route-pause", SessionID: session.ID, AgentID: agent.ID,
-		Status: jadk.RunStatusRunning, WorkMode: jadk.WorkModeLoop, WorkflowStatus: "running",
+		Status: assistantmodel.RunStatusRunning, WorkMode: assistantmodel.WorkModeLoop, WorkflowStatus: "running",
 		CreatedAt: now, UpdatedAt: now,
 	}
 	if err := runtime.Store().SaveRun(ctx, goalRun); err != nil {
@@ -109,9 +109,9 @@ func TestAssistantRunMutationRoutesEnforceGoalLifecycleRules(t *testing.T) {
 		t.Fatalf("pause goal run status=%d body=%s", pause.Code, pause.Body.String())
 	}
 
-	chatRun := jadk.Run{
+	chatRun := assistantmodel.Run{
 		ID: "run-route-chat", SessionID: session.ID, AgentID: agent.ID,
-		Status: jadk.RunStatusRunning, WorkMode: jadk.WorkModeChat,
+		Status: assistantmodel.RunStatusRunning, WorkMode: assistantmodel.WorkModeChat,
 		CreatedAt: now, UpdatedAt: now,
 	}
 	if err := runtime.Store().SaveRun(ctx, chatRun); err != nil {
@@ -142,7 +142,7 @@ func TestAssistantRoutesClassifyMissingMutationTargets(t *testing.T) {
 		performAssistantRequest(router, http.MethodPatch, "/api/v1/adk/runs/run-missing/objective", []byte(`{"objective":"new objective"}`)),
 		http.StatusNotFound, "NOT_FOUND",
 	)
-	if _, err := runtime.Store().SaveTask(t.Context(), jadk.TaskWriteRequest{ID: "task-invalid-patch", Title: "Valid title", Status: "TODO"}); err != nil {
+	if _, err := runtime.Store().SaveTask(t.Context(), assistantmodel.TaskWriteRequest{ID: "task-invalid-patch", Title: "Valid title", Status: "TODO"}); err != nil {
 		t.Fatalf("SaveTask: %v", err)
 	}
 	assertAssistantErrorCode(t,

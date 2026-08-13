@@ -83,6 +83,75 @@ func TestConfirmedToolsResumeInRequestOrder(t *testing.T) {
 	}
 }
 
+func TestWorkflowGraphResumesByInterruptIDAndPreservesEventOrder(t *testing.T) {
+	var handled atomic.Value
+	asker := &requestInputNode{BaseNode: adkworkflow.NewBaseNode("request_review", "", adkworkflow.NodeConfig{}), interruptID: "review-1"}
+	handler := adkworkflow.NewFunctionNode("record_review", func(_ adkagent.Context, input string) (string, error) {
+		handled.Store(input)
+		return "handled:" + input, nil
+	}, adkworkflow.NodeConfig{})
+	root, err := workflowagent.New(workflowagent.Config{Name: "resume_graph", Edges: adkworkflow.Chain(adkworkflow.Start, asker, handler)})
+	if err != nil {
+		t.Fatalf("workflowagent.New: %v", err)
+	}
+	service := adksession.InMemoryService()
+	if _, err := service.Create(t.Context(), &adksession.CreateRequest{AppName: "app", UserID: "user", SessionID: "workflow-resume"}); err != nil {
+		t.Fatalf("session.Create: %v", err)
+	}
+	runner, err := adkrunner.New(adkrunner.Config{AppName: "app", Agent: root, SessionService: service})
+	if err != nil {
+		t.Fatalf("runner.New: %v", err)
+	}
+
+	turnOne := collectEvents(t, runner, "workflow-resume", genai.NewContentFromText("draft", genai.RoleUser))
+	callID, callName := workflowInterrupt(turnOne)
+	if callID != "review-1" || callName != adkworkflow.WorkflowInputFunctionCallName {
+		t.Fatalf("workflow interrupt = %q/%q", callID, callName)
+	}
+	if handled.Load() != nil {
+		t.Fatal("successor ran before workflow input was resumed")
+	}
+
+	resume := genai.NewContentFromParts([]*genai.Part{{FunctionResponse: &genai.FunctionResponse{
+		ID: callID, Name: callName, Response: map[string]any{"payload": "approved"},
+	}}}, genai.RoleUser)
+	turnTwo := collectEvents(t, runner, "workflow-resume", resume)
+	if nextID, _ := workflowInterrupt(turnTwo); nextID != "" {
+		t.Fatalf("resume emitted another interrupt %q", nextID)
+	}
+	if got := handled.Load(); got != "approved" {
+		t.Fatalf("successor input = %v, want approved", got)
+	}
+
+	stored, err := service.Get(t.Context(), &adksession.GetRequest{AppName: "app", UserID: "user", SessionID: "workflow-resume"})
+	if err != nil {
+		t.Fatalf("session.Get: %v", err)
+	}
+	callIndex, responseIndex, outputIndex := -1, -1, -1
+	index := 0
+	for event := range stored.Session.Events().All() {
+		if event != nil {
+			if event.Output == "handled:approved" {
+				outputIndex = index
+			}
+			if event.Content != nil {
+				for _, part := range event.Content.Parts {
+					switch {
+					case part != nil && part.FunctionCall != nil && part.FunctionCall.ID == callID:
+						callIndex = index
+					case part != nil && part.FunctionResponse != nil && part.FunctionResponse.ID == callID:
+						responseIndex = index
+					}
+				}
+			}
+		}
+		index++
+	}
+	if callIndex < 0 || responseIndex <= callIndex || outputIndex <= responseIndex {
+		t.Fatalf("persisted event order call=%d response=%d output=%d", callIndex, responseIndex, outputIndex)
+	}
+}
+
 func TestWorkflowPropagatesExternalCancellationWithoutSuccessorOrRetry(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -166,6 +235,49 @@ func newConfirmedTool(t *testing.T, name string, runs *atomic.Int32) adktool.Too
 		t.Fatalf("functiontool.New(%s): %v", name, err)
 	}
 	return tool
+}
+
+type requestInputNode struct {
+	adkworkflow.BaseNode
+	interruptID string
+}
+
+func (n *requestInputNode) Run(ctx adkagent.Context, input any) iter.Seq2[*adksession.Event, error] {
+	return func(yield func(*adksession.Event, error) bool) {
+		yield(adkworkflow.NewRequestInputEvent(ctx, adksession.RequestInput{
+			InterruptID: n.interruptID,
+			Message:     "review the workflow output",
+			Payload:     input,
+		}), nil)
+	}
+}
+
+func collectEvents(t *testing.T, runner *adkrunner.Runner, sessionID string, content *genai.Content) []*adksession.Event {
+	t.Helper()
+	events := make([]*adksession.Event, 0)
+	for event, err := range runner.Run(t.Context(), "user", sessionID, content, adkagent.RunConfig{}) {
+		if err != nil {
+			t.Fatalf("runner.Run: %v", err)
+		}
+		if event != nil {
+			events = append(events, event)
+		}
+	}
+	return events
+}
+
+func workflowInterrupt(events []*adksession.Event) (string, string) {
+	for _, event := range events {
+		if event == nil || event.Content == nil {
+			continue
+		}
+		for _, part := range event.Content.Parts {
+			if part != nil && part.FunctionCall != nil && part.FunctionCall.Name == adkworkflow.WorkflowInputFunctionCallName {
+				return part.FunctionCall.ID, part.FunctionCall.Name
+			}
+		}
+	}
+	return "", ""
 }
 
 func newRunner(t *testing.T, root adkagent.Agent, sessionID string) *adkrunner.Runner {

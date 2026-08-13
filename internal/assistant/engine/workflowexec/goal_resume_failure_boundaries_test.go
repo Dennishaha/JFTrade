@@ -3,13 +3,13 @@ package workflowexec
 import (
 	"context"
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adksession "google.golang.org/adk/v2/session"
 )
 
@@ -32,7 +32,7 @@ func TestGoalResumeSurfacesReconcileAndPersistenceFaults(t *testing.T) {
 			ID: "coverage98-resume-reconcile-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 			WorkflowPlan: []WorkflowStepState{{ChildRunID: "coverage98-resume-reconcile-child"}},
-			CreatedAt:    jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt:    assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		if _, err := runtime.Store().DB().ExecContext(ctx, `DROP TABLE `+enginepersistence.TableRuns); err != nil {
 			t.Fatalf("drop runs table: %v", err)
@@ -42,11 +42,11 @@ func TestGoalResumeSurfacesReconcileAndPersistenceFaults(t *testing.T) {
 		}
 
 		runtime, agent, session = newWorkflowApprovalFixture(t, "resume-paused")
-		pausedAt := jfadkmodel.NowString()
+		pausedAt := assistantmodel.NowString()
 		pausedParent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-resume-blocked-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusPaused, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusPaused,
-			PausedAt: &pausedAt, PausedReason: "user", CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			PausedAt: &pausedAt, PausedReason: "user", CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		resumed, err := (&WorkflowExecutor{runtime: runtime}).ResumeLoopWorkflow(ctx, session, pausedParent)
 		if err != nil || resumed.Status != RunStatusPaused || resumed.PausedReason != "user" {
@@ -59,7 +59,7 @@ func TestGoalResumeSurfacesReconcileAndPersistenceFaults(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-resume-save-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		if _, err := runtime.Store().DB().ExecContext(ctx, `CREATE TRIGGER coverage98_reject_resume_parent BEFORE UPDATE ON `+enginepersistence.TableRuns+` WHEN NEW.id = '`+parent.ID+`' BEGIN SELECT RAISE(FAIL, 'resume parent write rejected'); END`); err != nil {
 			t.Fatalf("create resume write trigger: %v", err)
@@ -72,7 +72,7 @@ func TestGoalResumeSurfacesReconcileAndPersistenceFaults(t *testing.T) {
 		parent = mustSaveRun(t, runtime, Run{
 			ID: "coverage98-resume-task-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		if _, err := runtime.Store().DB().ExecContext(ctx, `DROP TABLE `+enginepersistence.TableTasks); err != nil {
 			t.Fatalf("drop tasks table: %v", err)
@@ -91,7 +91,7 @@ func TestGoalDecisionErrorsAndTerminalFallbacksStayObservable(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-decision-error-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		execution := &fakeWorkflowExecutionHandle{runErr: errors.New("decision provider unavailable")}
 		updated, _, _, done, response, _, err := (&WorkflowExecutor{runtime: runtime}).RunGoalWorkflowDecision(ctx, workflowRequest{Session: session}, parent, nil,
@@ -106,11 +106,11 @@ func TestGoalDecisionErrorsAndTerminalFallbacksStayObservable(t *testing.T) {
 
 	t.Run("completion keeps a user pause and falls back when the assistant-message write fails", func(t *testing.T) {
 		runtime, agent, session := newWorkflowApprovalFixture(t, "completion-pause")
-		pauseRequestedAt := jfadkmodel.NowString()
+		pauseRequestedAt := assistantmodel.NowString()
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-completion-pause-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, PauseRequestedAt: &pauseRequestedAt,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		updated, response, done, prompt, err := (&WorkflowExecutor{runtime: runtime}).FinishCompleteGoalWorkflow(ctx, workflowRequest{Session: session}, parent, nil,
 			jfadk.AssistantExecutionResult{Reply: "complete reply"}, workflowGoalDecisionSnapshot{Summary: "complete reply"}, "complete reply", 1)
@@ -134,7 +134,7 @@ func TestGoalDecisionErrorsAndTerminalFallbacksStayObservable(t *testing.T) {
 		parent = mustSaveRun(t, runtime, Run{
 			ID: "coverage98-completion-message-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		service.fail = true
 		updated, response, done, prompt, err = (&WorkflowExecutor{runtime: runtime}).FinishCompleteGoalWorkflow(ctx, workflowRequest{Session: session}, parent, nil,

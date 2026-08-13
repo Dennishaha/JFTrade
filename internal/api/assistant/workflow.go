@@ -11,7 +11,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	asstsvc "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func (h *Handler) handleADKWorkflows(c *gin.Context) {
@@ -60,7 +60,7 @@ func (h *Handler) handleADKSaveWorkflow(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid workflow payload")
 		return
 	}
-	workflow, err := h.service.SaveWorkflow(c.Request.Context(), workflowID, jfadk.WorkflowDefinitionWriteRequest(payload))
+	workflow, err := h.service.SaveWorkflow(c.Request.Context(), workflowID, assistantmodel.WorkflowDefinitionWriteRequest(payload))
 	if err != nil {
 		h.writeWorkflowError(c, err, "ADK_WORKFLOW_SAVE_FAILED")
 		return
@@ -135,7 +135,7 @@ func (h *Handler) handleADKSaveWorkflowTrigger(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid workflow trigger payload")
 		return
 	}
-	result, err := h.service.SaveWorkflowTrigger(c.Request.Context(), workflowID, triggerID, jfadk.WorkflowTriggerWriteRequest(payload))
+	result, err := h.service.SaveWorkflowTrigger(c.Request.Context(), workflowID, triggerID, assistantmodel.WorkflowTriggerWriteRequest(payload))
 	if err != nil {
 		h.writeWorkflowError(c, err, "ADK_WORKFLOW_TRIGGER_SAVE_FAILED")
 		return

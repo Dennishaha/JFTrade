@@ -2,52 +2,51 @@ package persistence
 
 import (
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"path/filepath"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestProviderReasoningPersistenceAllowsMappingChanges(t *testing.T) {
 	store := newReasoningTestStore(t)
 	ctx := t.Context()
-	provider, err := store.SaveProvider(ctx, jfadkmodel.ProviderWriteRequest{
+	provider, err := store.SaveProvider(ctx, assistantmodel.ProviderWriteRequest{
 		ID: "reasoning", APIKey: "secret", Enabled: true,
-		ReasoningConfig: &jfadkmodel.ProviderReasoningConfig{RequestField: "reasoning.level", Mappings: []jfadkmodel.ProviderReasoningMapping{
-			{Effort: jfadkmodel.ReasoningEffortLow, Value: "LOW"},
-			{Effort: jfadkmodel.ReasoningEffortHigh, Value: "HIGH"},
+		ReasoningConfig: &assistantmodel.ProviderReasoningConfig{RequestField: "reasoning.level", Mappings: []assistantmodel.ProviderReasoningMapping{
+			{Effort: assistantmodel.ReasoningEffortLow, Value: "LOW"},
+			{Effort: assistantmodel.ReasoningEffortHigh, Value: "HIGH"},
 		}},
 	})
 	if err != nil {
 		t.Fatalf("SaveProvider: %v", err)
 	}
-	if _, err := store.SaveAgent(ctx, jfadkmodel.AgentWriteRequest{
+	if _, err := store.SaveAgent(ctx, assistantmodel.AgentWriteRequest{
 		ID: "bound-agent", Name: "Bound agent", ProviderID: provider.ID,
-		ReasoningEffort: jfadkmodel.ReasoningEffortHigh, Status: jfadkmodel.AgentStatusEnabled,
+		ReasoningEffort: assistantmodel.ReasoningEffortHigh, Status: assistantmodel.AgentStatusEnabled,
 	}); err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	updated, err := store.SaveProvider(ctx, jfadkmodel.ProviderWriteRequest{
+	updated, err := store.SaveProvider(ctx, assistantmodel.ProviderWriteRequest{
 		ID: provider.ID,
-		ReasoningConfig: &jfadkmodel.ProviderReasoningConfig{RequestField: "reasoning.level", Mappings: []jfadkmodel.ProviderReasoningMapping{
-			{Effort: jfadkmodel.ReasoningEffortLow, Value: "FAST"},
+		ReasoningConfig: &assistantmodel.ProviderReasoningConfig{RequestField: "reasoning.level", Mappings: []assistantmodel.ProviderReasoningMapping{
+			{Effort: assistantmodel.ReasoningEffortLow, Value: "FAST"},
 		}},
 	})
 	if err != nil || len(updated.ReasoningConfig.Mappings) != 1 {
 		t.Fatalf("remove referenced mapping = %+v err=%v", updated.ReasoningConfig, err)
 	}
-	if _, err := store.SaveAgent(ctx, jfadkmodel.AgentWriteRequest{
+	if _, err := store.SaveAgent(ctx, assistantmodel.AgentWriteRequest{
 		ID: "invalid-agent", Name: "Invalid agent", ProviderID: provider.ID,
-		ReasoningEffort: jfadkmodel.ReasoningEffortHigh, Status: jfadkmodel.AgentStatusEnabled,
-	}); !errors.Is(err, jfadkmodel.ErrProviderReasoningUnsupported) {
+		ReasoningEffort: assistantmodel.ReasoningEffortHigh, Status: assistantmodel.AgentStatusEnabled,
+	}); !errors.Is(err, assistantmodel.ErrProviderReasoningUnsupported) {
 		t.Fatalf("unsupported agent effort error = %v", err)
 	}
 }
 
 func TestProviderReasoningPersistenceDefaultsToEmptyMappings(t *testing.T) {
 	store := newReasoningTestStore(t)
-	provider, err := store.SaveProvider(t.Context(), jfadkmodel.ProviderWriteRequest{
+	provider, err := store.SaveProvider(t.Context(), assistantmodel.ProviderWriteRequest{
 		ID: "empty-reasoning", Enabled: true,
 	})
 	if err != nil {

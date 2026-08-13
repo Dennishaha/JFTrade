@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 )
 
@@ -88,7 +88,7 @@ func TestADKToolDependencyClosuresFailClosedWhenPortsAreMissing(t *testing.T) {
 	}
 }
 
-func getAssemblyTool(t *testing.T, registry *jfadk.ToolRegistry, name string) jfadk.RegisteredTool {
+func getAssemblyTool(t *testing.T, registry *jfadkruntime.ToolRegistry, name string) jfadkruntime.RegisteredTool {
 	t.Helper()
 	tool, ok := registry.Get(name)
 	if !ok {

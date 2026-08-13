@@ -2,10 +2,10 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestGoalWorkflowPauseRequestBeforeNextTurnDoesNotCallModel(t *testing.T) {
@@ -20,7 +20,7 @@ func TestGoalWorkflowPauseRequestBeforeNextTurnDoesNotCallModel(t *testing.T) {
 		Status: AgentStatusEnabled, WorkMode: WorkModeLoop, LoopMaxIterations: 3,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "pause before next turn")
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	run := mustSaveRun(t, runtime, Run{
 		ID: "run-goal-pause-before-next-turn", SessionID: session.ID, AgentID: agent.ID, ProviderID: providerID,
 		Status: RunStatusRunning, Message: "goal continues", UserMessage: "继续目标", WorkMode: WorkModeLoop,
@@ -36,14 +36,14 @@ func TestGoalWorkflowPauseRequestBeforeNextTurnDoesNotCallModel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveTask: %v", err)
 	}
-	run.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{task}, run.WorkflowPlan)
+	run.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{task}, run.WorkflowPlan)
 	if err := runtime.Store().SaveRun(ctx, run); err != nil {
 		t.Fatalf("SaveRun with plan: %v", err)
 	}
 	response, err := (&WorkflowExecutor{runtime: runtime}).ContinueADKGoalWorkflow(ctx, workflowRequest{
 		Agent: agent, Session: session, Message: run.UserMessage, Mode: WorkModeLoop, Objective: run.Objective,
 		RunOptions: RunOptions{LoopMaxIterations: 3},
-	}, run, []Task{task}, jfadkmodel.GoalOrchestratorContinueNudge(run, "继续推进。"), 2, 3)
+	}, run, []Task{task}, assistantmodel.GoalOrchestratorContinueNudge(run, "继续推进。"), 2, 3)
 	if err != nil {
 		t.Fatalf("ContinueADKGoalWorkflow: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestWorkflowResponseUsesAuthoritativePauseRequestedParent(t *testing.T) {
 		WorkMode: WorkModeLoop,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "pause response")
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "run-goal-response-pause-parent", SessionID: session.ID, AgentID: agent.ID,
 		Status: RunStatusRunning, Message: "目标将在当前轮结束后暂停。", UserMessage: "推进目标", WorkMode: WorkModeLoop,

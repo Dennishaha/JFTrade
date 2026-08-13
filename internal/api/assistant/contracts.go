@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/internal/jftsettings"
 )
@@ -15,32 +14,32 @@ type ADKPageData struct {
 }
 
 type ADKSnapshotData struct {
-	Providers       []jfadk.Provider                `json:"providers"`
-	Agents          []jfadk.Agent                   `json:"agents"`
-	Skills          []jfadk.Skill                   `json:"skills"`
-	Tools           []jfadk.ToolDescriptor          `json:"tools"`
+	Providers       []assistantmodel.Provider       `json:"providers"`
+	Agents          []assistantmodel.Agent          `json:"agents"`
+	Skills          []assistantmodel.Skill          `json:"skills"`
+	Tools           []assistantmodel.ToolDescriptor `json:"tools"`
 	RuntimeSettings *jftsettings.ADKRuntimeSettings `json:"runtimeSettings,omitempty"`
 }
 
 type ADKToolsData struct {
-	Tools []jfadk.ToolDescriptor `json:"tools"`
+	Tools []assistantmodel.ToolDescriptor `json:"tools"`
 }
 
 type ADKAgentTemplatesData struct {
-	Templates []jfadk.AgentWriteRequest `json:"templates"`
+	Templates []assistantmodel.AgentWriteRequest `json:"templates"`
 }
 
 type ADKTasksData struct {
-	Tasks []jfadk.Task `json:"tasks"`
-	Page  ADKPageData  `json:"page"`
+	Tasks []assistantmodel.Task `json:"tasks"`
+	Page  ADKPageData           `json:"page"`
 }
 
 type ADKMemoryData struct {
-	Entries []jfadk.MemoryEntry `json:"entries"`
+	Entries []assistantmodel.MemoryEntry `json:"entries"`
 }
 
 type ADKProvidersData struct {
-	Providers []jfadk.Provider `json:"providers"`
+	Providers []assistantmodel.Provider `json:"providers"`
 }
 
 type ADKProviderTestRequest struct {
@@ -56,12 +55,12 @@ type ADKProviderTestData struct {
 }
 
 type ADKAgentsData struct {
-	Agents []jfadk.Agent `json:"agents"`
-	Page   ADKPageData   `json:"page"`
+	Agents []assistantmodel.Agent `json:"agents"`
+	Page   ADKPageData            `json:"page"`
 }
 
 type ADKSkillsData struct {
-	Skills []jfadk.Skill `json:"skills"`
+	Skills []assistantmodel.Skill `json:"skills"`
 }
 
 type ADKDeletedIDData struct {
@@ -70,23 +69,23 @@ type ADKDeletedIDData struct {
 }
 
 type ADKSessionsData struct {
-	Sessions []jfadk.Session `json:"sessions"`
-	Page     ADKPageData     `json:"page"`
+	Sessions []assistantmodel.Session `json:"sessions"`
+	Page     ADKPageData              `json:"page"`
 }
 
 type ADKRunsData struct {
-	Runs []jfadk.Run `json:"runs"`
-	Page ADKPageData `json:"page"`
+	Runs []assistantmodel.Run `json:"runs"`
+	Page ADKPageData          `json:"page"`
 }
 
 type ADKApprovalsData struct {
-	Approvals []jfadk.Approval `json:"approvals"`
-	Page      ADKPageData      `json:"page"`
+	Approvals []assistantmodel.Approval `json:"approvals"`
+	Page      ADKPageData               `json:"page"`
 }
 
 type ADKAuditData struct {
-	Events []jfadk.AuditEvent `json:"events"`
-	Page   ADKPageData        `json:"page"`
+	Events []assistantmodel.AuditEvent `json:"events"`
+	Page   ADKPageData                 `json:"page"`
 }
 
 type ADKMetricsData struct {
@@ -194,39 +193,39 @@ type ADKOptimizationProgress struct {
 }
 
 type ADKWorkflowsData struct {
-	Workflows []jfadk.WorkflowDefinition `json:"workflows"`
-	Page      ADKPageData                `json:"page"`
+	Workflows []assistantmodel.WorkflowDefinition `json:"workflows"`
+	Page      ADKPageData                         `json:"page"`
 }
 
 type ADKWorkflowDeleteData struct {
-	Deleted  bool                     `json:"deleted"`
-	Workflow jfadk.WorkflowDefinition `json:"workflow"`
+	Deleted  bool                              `json:"deleted"`
+	Workflow assistantmodel.WorkflowDefinition `json:"workflow"`
 }
 
 type ADKWorkflowTriggersData struct {
-	Triggers []jfadk.WorkflowTrigger `json:"triggers"`
+	Triggers []assistantmodel.WorkflowTrigger `json:"triggers"`
 }
 
 type ADKWorkflowTriggerSaveData struct {
-	Trigger jfadk.WorkflowTrigger `json:"trigger"`
-	Secret  string                `json:"secret,omitempty"`
+	Trigger assistantmodel.WorkflowTrigger `json:"trigger"`
+	Secret  string                         `json:"secret,omitempty"`
 }
 
 type ADKWorkflowTriggerDeleteData struct {
-	Deleted bool                  `json:"deleted"`
-	Trigger jfadk.WorkflowTrigger `json:"trigger"`
+	Deleted bool                           `json:"deleted"`
+	Trigger assistantmodel.WorkflowTrigger `json:"trigger"`
 }
 
 type ADKWorkflowInvocationData struct {
-	Workflow jfadk.WorkflowDefinition `json:"workflow"`
-	Trigger  *jfadk.WorkflowTrigger   `json:"trigger,omitempty"`
-	Log      jfadk.WorkflowTriggerLog `json:"log"`
-	Response *jfadk.ChatResponse      `json:"response,omitempty"`
+	Workflow assistantmodel.WorkflowDefinition `json:"workflow"`
+	Trigger  *assistantmodel.WorkflowTrigger   `json:"trigger,omitempty"`
+	Log      assistantmodel.WorkflowTriggerLog `json:"log"`
+	Response *assistantmodel.ChatResponse      `json:"response,omitempty"`
 }
 
 type ADKWorkflowTriggerLogsData struct {
-	Logs []jfadk.WorkflowTriggerLog `json:"logs"`
-	Page ADKPageData                `json:"page"`
+	Logs []assistantmodel.WorkflowTriggerLog `json:"logs"`
+	Page ADKPageData                         `json:"page"`
 }
 
 type ADKCreateSessionRequest struct {
@@ -363,29 +362,29 @@ type ADKChatRequest struct {
 	WorkModeOverride        string                         `json:"workModeOverride,omitempty"`
 	PermissionModeOverride  string                         `json:"permissionModeOverride,omitempty"`
 	Objective               string                         `json:"objective,omitempty"`
-	RunOptions              *jfadk.RunOptions              `json:"runOptions,omitempty"`
+	RunOptions              *assistantmodel.RunOptions     `json:"runOptions,omitempty"`
 }
 
 type ADKInputResponseRequest struct {
-	RequestID string              `json:"requestId"`
-	Answers   []jfadk.InputAnswer `json:"answers"`
+	RequestID string                       `json:"requestId"`
+	Answers   []assistantmodel.InputAnswer `json:"answers"`
 }
 
 type ADKWorkflowDefinitionWriteRequest struct {
-	ID                string                     `json:"id,omitempty"`
-	Name              string                     `json:"name"`
-	Description       string                     `json:"description,omitempty"`
-	Status            string                     `json:"status,omitempty"`
-	AgentID           string                     `json:"agentId"`
-	WorkMode          string                     `json:"workMode,omitempty"`
-	ProviderID        string                     `json:"providerId,omitempty"`
-	Model             string                     `json:"model,omitempty"`
-	PermissionMode    string                     `json:"permissionMode,omitempty"`
-	PromptTemplate    string                     `json:"promptTemplate"`
-	ObjectiveTemplate string                     `json:"objectiveTemplate,omitempty"`
-	DefaultInputs     map[string]any             `json:"defaultInputs,omitempty"`
-	CanvasGraph       *jfadk.WorkflowCanvasGraph `json:"canvasGraph,omitempty"`
-	Tags              []string                   `json:"tags,omitempty"`
+	ID                string                              `json:"id,omitempty"`
+	Name              string                              `json:"name"`
+	Description       string                              `json:"description,omitempty"`
+	Status            string                              `json:"status,omitempty"`
+	AgentID           string                              `json:"agentId"`
+	WorkMode          string                              `json:"workMode,omitempty"`
+	ProviderID        string                              `json:"providerId,omitempty"`
+	Model             string                              `json:"model,omitempty"`
+	PermissionMode    string                              `json:"permissionMode,omitempty"`
+	PromptTemplate    string                              `json:"promptTemplate"`
+	ObjectiveTemplate string                              `json:"objectiveTemplate,omitempty"`
+	DefaultInputs     map[string]any                      `json:"defaultInputs,omitempty"`
+	CanvasGraph       *assistantmodel.WorkflowCanvasGraph `json:"canvasGraph,omitempty"`
+	Tags              []string                            `json:"tags,omitempty"`
 }
 
 type ADKWorkflowTriggerWriteRequest struct {

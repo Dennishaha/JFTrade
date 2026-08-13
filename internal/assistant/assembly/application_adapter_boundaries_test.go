@@ -2,12 +2,12 @@ package assembly
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"path/filepath"
 	"testing"
 	"time"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
@@ -56,7 +56,7 @@ func TestApplicationAdapterKeepsNilPortsCallable(t *testing.T) {
 	deps.RecordAudit(ctx, "ignored", "", "", nil)
 
 	assertUnavailableApplicationOperations(t, deps)
-	if adapter.runtimeSettings() != (jfsettings.ADKRuntimeSettings{}) || adapter.streamIdleTimeout() != 0 || adapter.runtimeLimits() != (jfadkmodel.RuntimeLimits{}) {
+	if adapter.runtimeSettings() != (jfsettings.ADKRuntimeSettings{}) || adapter.streamIdleTimeout() != 0 || adapter.runtimeLimits() != (assistantmodel.RuntimeLimits{}) {
 		t.Fatal("nil runtime settings returned non-zero values")
 	}
 	if adapter.assistantService() != nil || adapter.runtime() != nil || adapter.system() != nil || adapter.marketData() != nil ||

@@ -3,9 +3,8 @@ package workflowexec
 import (
 	"context"
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowChildFailurePersistsTerminalStateAndFallbackAgent(t *testing.T) {
@@ -14,11 +13,11 @@ func TestWorkflowChildFailurePersistsTerminalStateAndFallbackAgent(t *testing.T)
 	executor := (&WorkflowExecutor{runtime: runtime})
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "child-failure-parent", SessionID: "child-failure-session", AgentID: "parent-agent", Status: RunStatusRunning,
-		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	child := mustSaveRun(t, runtime, Run{
 		ID: "child-failure-run", SessionID: parent.SessionID, AgentID: "child-agent", ParentRunID: parent.ID,
-		Status: RunStatusRunning, CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		Status: RunStatusRunning, CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	execution := &fakeWorkflowExecutionHandle{calls: []ToolCall{{ID: "child-tool", RunID: child.ID, ToolName: "market.candles", Status: "SUCCEEDED", Output: map[string]any{"count": 10}}}}
 	cause := errors.New("final assistant response was missing")

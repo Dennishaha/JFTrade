@@ -20,7 +20,8 @@ import (
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
@@ -106,7 +107,7 @@ type assistantRuntimeTestAdapter struct {
 	runtime *assistanttestkit.Runtime
 }
 
-func (r *assistantRuntimeTestAdapter) RegisterTool(descriptor jfadk.ToolDescriptor, handler jfadk.ToolFunc) error {
+func (r *assistantRuntimeTestAdapter) RegisterTool(descriptor assistantmodel.ToolDescriptor, handler jfadkruntime.ToolFunc) error {
 	if r == nil || r.runtime == nil || r.runtime.Tools() == nil {
 		return errors.New("ADK runtime is unavailable")
 	}
@@ -114,9 +115,9 @@ func (r *assistantRuntimeTestAdapter) RegisterTool(descriptor jfadk.ToolDescript
 	return nil
 }
 
-func (r *assistantRuntimeTestAdapter) Tool(name string) (jfadk.RegisteredTool, bool) {
+func (r *assistantRuntimeTestAdapter) Tool(name string) (jfadkruntime.RegisteredTool, bool) {
 	if r == nil || r.runtime == nil || r.runtime.Tools() == nil {
-		return jfadk.RegisteredTool{}, false
+		return jfadkruntime.RegisteredTool{}, false
 	}
 	return r.runtime.Tools().Get(name)
 }
@@ -186,8 +187,8 @@ func openAssistantRouteServer(settings *SettingsStore) *assistantRouteServer {
 	assistantassembly.RegisterJFTradeADKTools(store, registry, deps)
 	sessionService := adksession.InMemoryService()
 	runtime := assistanttestkit.NewRuntimeWithSessionService(store, registry, sessionService)
-	runtime.SetRuntimeLimitsProvider(func() jfadk.RuntimeLimits {
-		return jfadk.RuntimeLimits{RunTimeout: time.Duration(settings.ADKSettings().RunTimeoutMs) * time.Millisecond}
+	runtime.SetRuntimeLimitsProvider(func() assistantmodel.RuntimeLimits {
+		return assistantmodel.RuntimeLimits{RunTimeout: time.Duration(settings.ADKSettings().RunTimeoutMs) * time.Millisecond}
 	})
 	server.runtime = runtime
 	server.assistantSvc = assistantservice.NewService(
@@ -287,14 +288,14 @@ func configureTestADKProvider(t *testing.T, server *assistantRouteServer) {
 		serveAssistantResponsesFixture(t, w, r, testADKToolNameFromText)
 	}))
 	t.Cleanup(providerServer.Close)
-	if _, err := server.runtime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
+	if _, err := server.runtime.Store().SaveProvider(t.Context(), assistantmodel.ProviderWriteRequest{
 		ID: testADKProviderID, DisplayName: "Test Provider", BaseURL: providerServer.URL,
 		Model: "test-model", APIKey: "sk-test", Enabled: true,
 	}); err != nil {
 		t.Fatalf("SaveProvider test: %v", err)
 	}
 	if agent, err := server.runtime.Store().DefaultAgent(t.Context()); err == nil {
-		_, err := server.runtime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+		_, err := server.runtime.Store().SaveAgent(t.Context(), assistantmodel.AgentWriteRequest{
 			ID: agent.ID, Name: agent.Name, ProviderID: testADKProviderID, Model: agent.Model,
 			Instruction: agent.Instruction, Tools: agent.Tools, PermissionMode: agent.PermissionMode,
 			Status: agent.Status, WorkMode: agent.WorkMode, LoopMaxIterations: agent.LoopMaxIterations,

@@ -14,22 +14,22 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 type adkChatStreamEvent struct {
-	Type     string                        `json:"type"`
-	StreamID string                        `json:"streamId,omitempty"`
-	Sequence int64                         `json:"sequence,omitempty"`
-	RunID    string                        `json:"runId,omitempty"`
-	Replay   bool                          `json:"replay,omitempty"`
-	Timeline *jfadk.TimelineEntry          `json:"timeline,omitempty"`
-	Response *jfadk.ChatResponse           `json:"response,omitempty"`
-	Session  *jfadk.Session                `json:"session,omitempty"`
-	Run      *jfadk.Run                    `json:"run,omitempty"`
-	Context  *jfadk.SessionContextSnapshot `json:"context,omitempty"`
-	Message  string                        `json:"message,omitempty"`
+	Type     string                                 `json:"type"`
+	StreamID string                                 `json:"streamId,omitempty"`
+	Sequence int64                                  `json:"sequence,omitempty"`
+	RunID    string                                 `json:"runId,omitempty"`
+	Replay   bool                                   `json:"replay,omitempty"`
+	Timeline *assistantmodel.TimelineEntry          `json:"timeline,omitempty"`
+	Response *assistantmodel.ChatResponse           `json:"response,omitempty"`
+	Session  *assistantmodel.Session                `json:"session,omitempty"`
+	Run      *assistantmodel.Run                    `json:"run,omitempty"`
+	Context  *assistantmodel.SessionContextSnapshot `json:"context,omitempty"`
+	Message  string                                 `json:"message,omitempty"`
 }
 
 type adkTimelineStreamState struct {
@@ -39,9 +39,9 @@ type adkTimelineStreamState struct {
 	reasoningIndex int
 	messageIndex   int
 	toolIndex      int
-	reasoning      *jfadk.TimelineEntry
-	message        *jfadk.TimelineEntry
-	toolGroup      *jfadk.TimelineEntry
+	reasoning      *assistantmodel.TimelineEntry
+	message        *assistantmodel.TimelineEntry
+	toolGroup      *assistantmodel.TimelineEntry
 }
 
 func (h *Handler) handleADKChat(c *gin.Context) {
@@ -50,21 +50,21 @@ func (h *Handler) handleADKChat(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid chat payload")
 		return
 	}
-	request, _, err := jfadk.NormalizeChatRequestIdentity(jfadk.ChatRequest(payload))
+	request, _, err := assistantmodel.NormalizeChatRequestIdentity(assistantmodel.ChatRequest(payload))
 	if err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
 	result, err := h.service.Chat(c.Request.Context(), request)
 	if err != nil {
-		if errors.Is(err, jfadk.ErrChatRequestConflict) {
+		if errors.Is(err, assistantmodel.ErrChatRequestConflict) {
 			h.writeError(c, http.StatusConflict, "ADK_CHAT_IDEMPOTENCY_CONFLICT", err.Error())
 			return
 		}
 		h.writeError(c, http.StatusBadRequest, "ADK_CHAT_FAILED", err.Error())
 		return
 	}
-	h.writeOK(c, jfadk.NormalizeChatResponse(result))
+	h.writeOK(c, assistantmodel.NormalizeChatResponse(result))
 }
 
 // handleADKChatStream godoc
@@ -95,7 +95,7 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 		besteffort.LogError(jftradeErr1)
 		return
 	}
-	request, fingerprint, err := jfadk.NormalizeChatRequestIdentity(jfadk.ChatRequest(payload))
+	request, fingerprint, err := assistantmodel.NormalizeChatRequestIdentity(assistantmodel.ChatRequest(payload))
 	if err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
@@ -113,7 +113,7 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 		return
 	}
 	if err := h.service.CheckChatRequestConflict(context.WithoutCancel(c.Request.Context()), request.ClientRequestID, fingerprint); err != nil {
-		if errors.Is(err, jfadk.ErrChatRequestConflict) {
+		if errors.Is(err, assistantmodel.ErrChatRequestConflict) {
 			h.writeError(c, http.StatusConflict, "ADK_CHAT_IDEMPOTENCY_CONFLICT", err.Error())
 			return
 		}
@@ -127,7 +127,7 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 	}
 	record, created, err := h.startOrReuseADKChatStream(request, fingerprint)
 	if err != nil {
-		if errors.Is(err, jfadk.ErrChatRequestConflict) {
+		if errors.Is(err, assistantmodel.ErrChatRequestConflict) {
 			h.writeError(c, http.StatusConflict, "ADK_CHAT_IDEMPOTENCY_CONFLICT", err.Error())
 			return
 		}
@@ -235,13 +235,13 @@ func decodeADKChatRequest(body io.Reader) (ADKChatRequest, error) {
 	return payload, nil
 }
 
-func (s *adkTimelineStreamState) observeSession(session jfadk.Session) {
+func (s *adkTimelineStreamState) observeSession(session assistantmodel.Session) {
 	if strings.TrimSpace(session.ID) != "" {
 		s.sessionID = session.ID
 	}
 }
 
-func (s *adkTimelineStreamState) observeRun(run *jfadk.Run) {
+func (s *adkTimelineStreamState) observeRun(run *assistantmodel.Run) {
 	if run == nil {
 		return
 	}
@@ -258,24 +258,24 @@ func (s *adkTimelineStreamState) observeRun(run *jfadk.Run) {
 	s.message = nil
 	if s.toolGroup == nil {
 		s.toolIndex++
-		s.toolGroup = &jfadk.TimelineEntry{
+		s.toolGroup = &assistantmodel.TimelineEntry{
 			ID:        fmt.Sprintf("stream-tool-group:%s:%d", defaultTimelineRunID(s.runID), s.toolIndex),
 			SessionID: s.sessionID,
 			RunID:     defaultTimelineRunID(s.runID),
-			Kind:      jfadk.TimelineKindToolGroup,
+			Kind:      assistantmodel.TimelineKindToolGroup,
 			CreatedAt: firstTimelineToolTime(run.ToolCalls, streamTimelineNow()),
 			Sequence:  s.nextTimelineSequence(),
-			Status:    jfadk.TimelineStatusStreaming,
+			Status:    assistantmodel.TimelineStatusStreaming,
 		}
 	}
 	s.toolGroup.SessionID = defaultTimelineSessionID(s.sessionID)
 	s.toolGroup.RunID = defaultTimelineRunID(s.runID)
 	s.toolGroup.CreatedAt = firstTimelineToolTime(run.ToolCalls, s.toolGroup.CreatedAt)
-	s.toolGroup.ToolCalls = append([]jfadk.ToolCall(nil), run.ToolCalls...)
-	s.toolGroup.Status = jfadk.TimelineStatusStreaming
+	s.toolGroup.ToolCalls = append([]assistantmodel.ToolCall(nil), run.ToolCalls...)
+	s.toolGroup.Status = assistantmodel.TimelineStatusStreaming
 }
 
-func (s *adkTimelineStreamState) observeTimeline(entry jfadk.TimelineEntry) {
+func (s *adkTimelineStreamState) observeTimeline(entry assistantmodel.TimelineEntry) {
 	if strings.TrimSpace(entry.SessionID) != "" {
 		s.sessionID = entry.SessionID
 	}
@@ -287,7 +287,7 @@ func (s *adkTimelineStreamState) observeTimeline(entry jfadk.TimelineEntry) {
 	}
 }
 
-func (s *adkTimelineStreamState) appendReasoning(run *jfadk.Run, delta string) *jfadk.TimelineEntry {
+func (s *adkTimelineStreamState) appendReasoning(run *assistantmodel.Run, delta string) *assistantmodel.TimelineEntry {
 	if delta == "" {
 		return nil
 	}
@@ -295,21 +295,21 @@ func (s *adkTimelineStreamState) appendReasoning(run *jfadk.Run, delta string) *
 	s.toolGroup = nil
 	if s.reasoning == nil {
 		s.reasoningIndex++
-		s.reasoning = &jfadk.TimelineEntry{
+		s.reasoning = &assistantmodel.TimelineEntry{
 			ID:        fmt.Sprintf("stream-reasoning:%s:%d", defaultTimelineRunID(s.runID), s.reasoningIndex),
 			SessionID: defaultTimelineSessionID(s.sessionID),
 			RunID:     defaultTimelineRunID(s.runID),
-			Kind:      jfadk.TimelineKindAssistantReasoning,
+			Kind:      assistantmodel.TimelineKindAssistantReasoning,
 			CreatedAt: streamTimelineNow(),
 			Sequence:  s.nextTimelineSequence(),
-			Status:    jfadk.TimelineStatusStreaming,
+			Status:    assistantmodel.TimelineStatusStreaming,
 		}
 	}
 	s.reasoning.Text += delta
 	return cloneTimelineEntry(s.reasoning)
 }
 
-func (s *adkTimelineStreamState) appendMessage(run *jfadk.Run, delta string) *jfadk.TimelineEntry {
+func (s *adkTimelineStreamState) appendMessage(run *assistantmodel.Run, delta string) *assistantmodel.TimelineEntry {
 	if delta == "" {
 		return nil
 	}
@@ -317,21 +317,21 @@ func (s *adkTimelineStreamState) appendMessage(run *jfadk.Run, delta string) *jf
 	s.toolGroup = nil
 	if s.message == nil {
 		s.messageIndex++
-		s.message = &jfadk.TimelineEntry{
+		s.message = &assistantmodel.TimelineEntry{
 			ID:        fmt.Sprintf("stream-message:%s:%d", defaultTimelineRunID(s.runID), s.messageIndex),
 			SessionID: defaultTimelineSessionID(s.sessionID),
 			RunID:     defaultTimelineRunID(s.runID),
-			Kind:      jfadk.TimelineKindAssistantMessage,
+			Kind:      assistantmodel.TimelineKindAssistantMessage,
 			CreatedAt: streamTimelineNow(),
 			Sequence:  s.nextTimelineSequence(),
-			Status:    jfadk.TimelineStatusStreaming,
+			Status:    assistantmodel.TimelineStatusStreaming,
 		}
 	}
 	s.message.Text += delta
 	return cloneTimelineEntry(s.message)
 }
 
-func (s *adkTimelineStreamState) toolGroupSnapshot() *jfadk.TimelineEntry {
+func (s *adkTimelineStreamState) toolGroupSnapshot() *assistantmodel.TimelineEntry {
 	if s.toolGroup == nil {
 		return nil
 	}
@@ -343,11 +343,11 @@ func (s *adkTimelineStreamState) nextTimelineSequence() int {
 	return s.nextSequence
 }
 
-func cloneTimelineEntry(entry *jfadk.TimelineEntry) *jfadk.TimelineEntry {
+func cloneTimelineEntry(entry *assistantmodel.TimelineEntry) *assistantmodel.TimelineEntry {
 	if entry == nil {
 		return nil
 	}
-	return new(jfadk.NormalizeTimelineEntry(*entry))
+	return new(assistantmodel.NormalizeTimelineEntry(*entry))
 }
 
 func defaultTimelineSessionID(sessionID string) string {
@@ -361,7 +361,7 @@ func defaultTimelineRunID(runID string) string {
 	return "stream"
 }
 
-func firstTimelineToolTime(toolCalls []jfadk.ToolCall, currentTime string) string {
+func firstTimelineToolTime(toolCalls []assistantmodel.ToolCall, currentTime string) string {
 	best := strings.TrimSpace(currentTime)
 	for _, toolCall := range toolCalls {
 		candidate := strings.TrimSpace(toolCall.CreatedAt)

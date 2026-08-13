@@ -54,8 +54,8 @@ func (r *Runtime) PlanWorkflowWithADK(
 		return nil, nil, err
 	}
 	planner, err := llmagent.New(llmagent.Config{
-		Name:                  googleADKWorkflowPlannerName(definition.ID),
-		Description:           "Plans a fixed ADK workflow agent tree before execution.",
+		Name:        googleADKWorkflowPlannerName(definition.ID),
+		Description: "Plans a fixed ADK workflow agent tree before execution.",
 		InstructionProvider: func(adkagent.ReadonlyContext) (string, error) {
 			return workflowPlannerInstruction(mode, objective, message, options), nil
 		},

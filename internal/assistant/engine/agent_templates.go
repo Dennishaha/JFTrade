@@ -1,6 +1,8 @@
 package adk
 
-const DefaultBuiltinAgentID = "jftrade-default"
+import jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+
+const DefaultBuiltinAgentID = jfadkmodel.DefaultBuiltinAgentID
 
 func BuiltinAgentTemplates() []AgentWriteRequest {
 	return []AgentWriteRequest{

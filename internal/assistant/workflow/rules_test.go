@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestNextScheduleRunUsesFiveFieldCronAndTimezone(t *testing.T) {
@@ -39,7 +39,7 @@ func TestNextScheduleRunUsesFiveFieldCronAndTimezone(t *testing.T) {
 
 func TestEvaluateMarketThresholdTriggerEdgesAndCooldown(t *testing.T) {
 	now := time.Date(2026, 7, 1, 1, 0, 0, 0, time.UTC)
-	trigger := jfadk.WorkflowTrigger{
+	trigger := assistantmodel.WorkflowTrigger{
 		Config: map[string]any{
 			"instrumentIds": []string{"US.AAPL"},
 			"snapshotPath":  "snapshot.price",
@@ -62,7 +62,7 @@ func TestEvaluateMarketThresholdTriggerEdgesAndCooldown(t *testing.T) {
 		t.Fatalf("matched threshold payload = %+v", matches[0]["threshold"])
 	}
 
-	above := jfadk.WorkflowTrigger{
+	above := assistantmodel.WorkflowTrigger{
 		Config: map[string]any{
 			"instrumentIds": []string{"US.AAPL"},
 			"snapshotPath":  "snapshot.price",
@@ -87,7 +87,7 @@ func TestEvaluateMarketThresholdTriggerEdgesAndCooldown(t *testing.T) {
 }
 
 func TestEventRulesNormalizeAndValidate(t *testing.T) {
-	event := jfadk.WorkflowEvent{
+	event := assistantmodel.WorkflowEvent{
 		Type:     "risk.alert",
 		Source:   "strategy",
 		EntityID: "runtime-1",
@@ -101,7 +101,7 @@ func TestEventRulesNormalizeAndValidate(t *testing.T) {
 	}
 
 	now := time.Date(2026, 7, 1, 1, 0, 0, 0, time.UTC)
-	trigger := jfadk.WorkflowTrigger{Config: map[string]any{"cooldownSec": 600}}
+	trigger := assistantmodel.WorkflowTrigger{Config: map[string]any{"cooldownSec": 600}}
 	if !EventCooldownAllows(&trigger, now) {
 		t.Fatal("first EventCooldownAllows = false, want true")
 	}
@@ -112,22 +112,22 @@ func TestEventRulesNormalizeAndValidate(t *testing.T) {
 		t.Fatal("EventCooldownAllows after cooldown = false, want true")
 	}
 
-	if NormalizeWorkflowStatus("", jfadk.WorkflowStatusDisabled) != jfadk.WorkflowStatusDisabled {
+	if NormalizeWorkflowStatus("", assistantmodel.WorkflowStatusDisabled) != assistantmodel.WorkflowStatusDisabled {
 		t.Fatal("NormalizeWorkflowStatus fallback disabled failed")
 	}
-	if NormalizeTriggerStatus("", jfadk.WorkflowTriggerStatusError) != jfadk.WorkflowTriggerStatusError {
+	if NormalizeTriggerStatus("", assistantmodel.WorkflowTriggerStatusError) != assistantmodel.WorkflowTriggerStatusError {
 		t.Fatal("NormalizeTriggerStatus fallback error failed")
 	}
-	if NormalizeWorkflowWorkMode("", jfadk.WorkModeChat) != jfadk.WorkModeChat {
+	if NormalizeWorkflowWorkMode("", assistantmodel.WorkModeChat) != assistantmodel.WorkModeChat {
 		t.Fatal("NormalizeWorkflowWorkMode fallback chat failed")
 	}
-	if NormalizeWorkflowPermissionMode("bad", "") != jfadk.PermissionModeApproval {
+	if NormalizeWorkflowPermissionMode("bad", "") != assistantmodel.PermissionModeApproval {
 		t.Fatal("NormalizeWorkflowPermissionMode bad value did not fall back to approval")
 	}
-	if NormalizeTriggerType("", jfadk.WorkflowTriggerTypeWebhook) != jfadk.WorkflowTriggerTypeWebhook {
+	if NormalizeTriggerType("", assistantmodel.WorkflowTriggerTypeWebhook) != assistantmodel.WorkflowTriggerTypeWebhook {
 		t.Fatal("NormalizeTriggerType fallback webhook failed")
 	}
-	if DefaultTriggerTitle(jfadk.WorkflowTriggerTypeEvent) != "事件触发" || DefaultTriggerTitle(jfadk.WorkflowTriggerTypeMarketThreshold) != "行情阈值" {
+	if DefaultTriggerTitle(assistantmodel.WorkflowTriggerTypeEvent) != "事件触发" || DefaultTriggerTitle(assistantmodel.WorkflowTriggerTypeMarketThreshold) != "行情阈值" {
 		t.Fatal("DefaultTriggerTitle event/market mismatch")
 	}
 }
@@ -135,13 +135,13 @@ func TestEventRulesNormalizeAndValidate(t *testing.T) {
 func TestRuleHelpersAndValidationEdges(t *testing.T) {
 	now := time.Date(2026, 7, 1, 1, 0, 0, 0, time.UTC)
 	for _, test := range []struct {
-		trigger jfadk.WorkflowTrigger
+		trigger assistantmodel.WorkflowTrigger
 		want    string
 	}{
-		{trigger: jfadk.WorkflowTrigger{Type: jfadk.WorkflowTriggerTypeManual}, want: "workflowId"},
-		{trigger: jfadk.WorkflowTrigger{WorkflowID: "wf", Type: jfadk.WorkflowTriggerTypeSchedule, Config: map[string]any{}}, want: "cron"},
-		{trigger: jfadk.WorkflowTrigger{WorkflowID: "wf", Type: jfadk.WorkflowTriggerTypeMarketThreshold, Config: map[string]any{"value": 1}}, want: "instrumentIds"},
-		{trigger: jfadk.WorkflowTrigger{WorkflowID: "wf", Type: jfadk.WorkflowTriggerTypeMarketThreshold, Config: map[string]any{"instrumentIds": []string{"US.AAPL"}}}, want: "numeric value"},
+		{trigger: assistantmodel.WorkflowTrigger{Type: assistantmodel.WorkflowTriggerTypeManual}, want: "workflowId"},
+		{trigger: assistantmodel.WorkflowTrigger{WorkflowID: "wf", Type: assistantmodel.WorkflowTriggerTypeSchedule, Config: map[string]any{}}, want: "cron"},
+		{trigger: assistantmodel.WorkflowTrigger{WorkflowID: "wf", Type: assistantmodel.WorkflowTriggerTypeMarketThreshold, Config: map[string]any{"value": 1}}, want: "instrumentIds"},
+		{trigger: assistantmodel.WorkflowTrigger{WorkflowID: "wf", Type: assistantmodel.WorkflowTriggerTypeMarketThreshold, Config: map[string]any{"instrumentIds": []string{"US.AAPL"}}}, want: "numeric value"},
 	} {
 		if err := ValidateTrigger(test.trigger); err == nil || !strings.Contains(err.Error(), test.want) {
 			t.Fatalf("ValidateTrigger err = %v, want containing %q", err, test.want)
@@ -216,18 +216,18 @@ func TestRuleFallbacksMismatchesAndValidVariants(t *testing.T) {
 		t.Fatal("default-timezone schedule returned empty next run")
 	}
 
-	if matches, changed := EvaluateMarketThresholdTrigger(jfadk.WorkflowTrigger{}, nil, now); matches != nil || changed {
+	if matches, changed := EvaluateMarketThresholdTrigger(assistantmodel.WorkflowTrigger{}, nil, now); matches != nil || changed {
 		t.Fatalf("empty threshold trigger = %#v, %v", matches, changed)
 	}
-	missingValue := jfadk.WorkflowTrigger{Config: map[string]any{"instrumentIds": []string{"US.AAPL"}}}
+	missingValue := assistantmodel.WorkflowTrigger{Config: map[string]any{"instrumentIds": []string{"US.AAPL"}}}
 	if matches, changed := EvaluateMarketThresholdTrigger(missingValue, nil, now); matches != nil || changed {
 		t.Fatalf("missing threshold value = %#v, %v", matches, changed)
 	}
-	defaultEdge := jfadk.WorkflowTrigger{Config: map[string]any{"instrumentIds": []string{"US.AAPL"}, "value": 100}}
+	defaultEdge := assistantmodel.WorkflowTrigger{Config: map[string]any{"instrumentIds": []string{"US.AAPL"}, "value": 100}}
 	if matches, changed := EvaluateMarketThresholdTrigger(defaultEdge, nil, now); len(matches) != 0 || changed {
 		t.Fatalf("default-edge empty events = %#v, %v", matches, changed)
 	}
-	crossDown := jfadk.WorkflowTrigger{Config: map[string]any{
+	crossDown := assistantmodel.WorkflowTrigger{Config: map[string]any{
 		"instrumentIds": []string{"US.AAPL"},
 		"value":         100,
 		"edge":          "cross_down",
@@ -249,7 +249,7 @@ func TestRuleFallbacksMismatchesAndValidVariants(t *testing.T) {
 		t.Fatalf("cross-down firing = %#v, %v", matches, changed)
 	}
 
-	event := jfadk.WorkflowEvent{Type: "risk.alert", Source: "strategy", EntityID: "instance-1", Payload: map[string]any{"category": "risk", "level": "warn"}}
+	event := assistantmodel.WorkflowEvent{Type: "risk.alert", Source: "strategy", EntityID: "instance-1", Payload: map[string]any{"category": "risk", "level": "warn"}}
 	for _, config := range []map[string]any{
 		{"source": "broker"},
 		{"eventType": "order.fill"},
@@ -267,41 +267,41 @@ func TestRuleFallbacksMismatchesAndValidVariants(t *testing.T) {
 		t.Fatal("above threshold should use the default greater-than operator")
 	}
 
-	validTriggers := []jfadk.WorkflowTrigger{
-		{WorkflowID: "wf", Type: jfadk.WorkflowTriggerTypeSchedule, Config: map[string]any{"cron": "0 8 * * *"}},
-		{WorkflowID: "wf", Type: jfadk.WorkflowTriggerTypeManual},
-		{WorkflowID: "wf", Type: jfadk.WorkflowTriggerTypeWebhook},
-		{WorkflowID: "wf", Type: jfadk.WorkflowTriggerTypeEvent},
-		{WorkflowID: "wf", Type: jfadk.WorkflowTriggerTypeMarketThreshold, Config: map[string]any{"instrumentIds": "US.AAPL", "value": 100}},
+	validTriggers := []assistantmodel.WorkflowTrigger{
+		{WorkflowID: "wf", Type: assistantmodel.WorkflowTriggerTypeSchedule, Config: map[string]any{"cron": "0 8 * * *"}},
+		{WorkflowID: "wf", Type: assistantmodel.WorkflowTriggerTypeManual},
+		{WorkflowID: "wf", Type: assistantmodel.WorkflowTriggerTypeWebhook},
+		{WorkflowID: "wf", Type: assistantmodel.WorkflowTriggerTypeEvent},
+		{WorkflowID: "wf", Type: assistantmodel.WorkflowTriggerTypeMarketThreshold, Config: map[string]any{"instrumentIds": "US.AAPL", "value": 100}},
 	}
 	for _, trigger := range validTriggers {
 		if err := ValidateTrigger(trigger); err != nil {
 			t.Fatalf("ValidateTrigger(%s): %v", trigger.Type, err)
 		}
 	}
-	if err := ValidateTrigger(jfadk.WorkflowTrigger{WorkflowID: "wf", Type: "unsupported"}); err == nil {
+	if err := ValidateTrigger(assistantmodel.WorkflowTrigger{WorkflowID: "wf", Type: "unsupported"}); err == nil {
 		t.Fatal("unsupported trigger type should fail")
 	}
 
-	if NormalizeWorkflowStatus("disabled", "") != jfadk.WorkflowStatusDisabled || NormalizeWorkflowStatus("unknown", "") != jfadk.WorkflowStatusEnabled {
+	if NormalizeWorkflowStatus("disabled", "") != assistantmodel.WorkflowStatusDisabled || NormalizeWorkflowStatus("unknown", "") != assistantmodel.WorkflowStatusEnabled {
 		t.Fatal("workflow status variants mismatch")
 	}
-	if NormalizeTriggerStatus("disabled", "") != jfadk.WorkflowTriggerStatusDisabled || NormalizeTriggerStatus("unknown", "") != jfadk.WorkflowTriggerStatusEnabled {
+	if NormalizeTriggerStatus("disabled", "") != assistantmodel.WorkflowTriggerStatusDisabled || NormalizeTriggerStatus("unknown", "") != assistantmodel.WorkflowTriggerStatusEnabled {
 		t.Fatal("trigger status variants mismatch")
 	}
-	if NormalizeWorkflowWorkMode("loop", "") != jfadk.WorkModeLoop || NormalizeWorkflowWorkMode("unknown", "") != jfadk.WorkModeLoop {
+	if NormalizeWorkflowWorkMode("loop", "") != assistantmodel.WorkModeLoop || NormalizeWorkflowWorkMode("unknown", "") != assistantmodel.WorkModeLoop {
 		t.Fatal("work mode variants mismatch")
 	}
-	if NormalizeWorkflowPermissionMode("all", "") != jfadk.PermissionModeAll || NormalizeWorkflowPermissionMode("", "") != "" {
+	if NormalizeWorkflowPermissionMode("all", "") != assistantmodel.PermissionModeAll || NormalizeWorkflowPermissionMode("", "") != "" {
 		t.Fatal("permission mode variants mismatch")
 	}
-	if NormalizeTriggerType("schedule", "") != jfadk.WorkflowTriggerTypeSchedule || NormalizeTriggerType("unknown", "") != jfadk.WorkflowTriggerTypeManual {
+	if NormalizeTriggerType("schedule", "") != assistantmodel.WorkflowTriggerTypeSchedule || NormalizeTriggerType("unknown", "") != assistantmodel.WorkflowTriggerTypeManual {
 		t.Fatal("trigger type variants mismatch")
 	}
 	for triggerType, want := range map[string]string{
-		jfadk.WorkflowTriggerTypeSchedule: "定时触发",
-		jfadk.WorkflowTriggerTypeWebhook:  "Webhook",
-		jfadk.WorkflowTriggerTypeManual:   "手动触发",
+		assistantmodel.WorkflowTriggerTypeSchedule: "定时触发",
+		assistantmodel.WorkflowTriggerTypeWebhook:  "Webhook",
+		assistantmodel.WorkflowTriggerTypeManual:   "手动触发",
 	} {
 		if got := DefaultTriggerTitle(triggerType); got != want {
 			t.Fatalf("DefaultTriggerTitle(%q) = %q", triggerType, got)

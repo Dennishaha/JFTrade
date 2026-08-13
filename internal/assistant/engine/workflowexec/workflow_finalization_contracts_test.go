@@ -2,10 +2,9 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowExecutorPersistsFinalizedAndIncompletePlans(t *testing.T) {
@@ -17,7 +16,7 @@ func TestWorkflowExecutorPersistsFinalizedAndIncompletePlans(t *testing.T) {
 
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "workflow-final-parent", SessionID: session.ID, AgentID: agent.ID, Status: RunStatusRunning,
-		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	doneTask, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
 		ID: "workflow-final-task", Title: "Publish conclusion", Status: "DONE", AgentID: agent.ID, RunID: parent.ID, Order: 1,
@@ -25,11 +24,11 @@ func TestWorkflowExecutorPersistsFinalizedAndIncompletePlans(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveTask done: %v", err)
 	}
-	parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{doneTask}, nil)
+	parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{doneTask}, nil)
 	mustSaveRun(t, runtime, parent)
 	child := mustSaveRun(t, runtime, Run{
 		ID: "workflow-final-child", SessionID: session.ID, AgentID: agent.ID, ParentRunID: parent.ID, Iteration: 1,
-		Status: RunStatusCompleted, Message: "child complete", CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		Status: RunStatusCompleted, Message: "child complete", CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	completed, err := executor.FinalizePlannedWorkflow(ctx, workflowRequest{Session: session}, parent, []Task{doneTask}, []ChatResponse{{Reply: "verified conclusion", Run: child}}, nil)
 	if err != nil {
@@ -44,7 +43,7 @@ func TestWorkflowExecutorPersistsFinalizedAndIncompletePlans(t *testing.T) {
 
 	incompleteParent := mustSaveRun(t, runtime, Run{
 		ID: "workflow-incomplete-parent", SessionID: session.ID, AgentID: agent.ID, Status: RunStatusRunning,
-		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	incompleteTask, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
 		ID: "workflow-incomplete-task", Title: "Still pending", Status: "TODO", AgentID: agent.ID, RunID: incompleteParent.ID,
@@ -52,7 +51,7 @@ func TestWorkflowExecutorPersistsFinalizedAndIncompletePlans(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveTask incomplete: %v", err)
 	}
-	incompleteParent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{incompleteTask}, nil)
+	incompleteParent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{incompleteTask}, nil)
 	mustSaveRun(t, runtime, incompleteParent)
 	incomplete, err := executor.FinalizePlannedWorkflow(ctx, workflowRequest{Session: session}, incompleteParent, []Task{incompleteTask}, nil, nil)
 	if err != nil {
@@ -72,7 +71,7 @@ func TestWorkflowExecutorPreparesParentPlanAndEmitsAuthoritativeSnapshot(t *test
 		ID: "workflow-prepare-parent", SessionID: session.ID, AgentID: session.AgentID, Status: RunStatusRunning,
 		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 		WorkflowPlan: []WorkflowStepState{{TaskID: "prepare-task", Title: "Prepare", Status: "TODO"}},
-		CreatedAt:    jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt:    assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	child := Run{ID: "workflow-prepare-child", SessionID: session.ID, AgentID: session.AgentID, ParentRunID: parent.ID, Status: RunStatusRunning}
 	var snapshots []Run
@@ -88,7 +87,7 @@ func TestWorkflowExecutorPreparesParentPlanAndEmitsAuthoritativeSnapshot(t *test
 	if err != nil {
 		t.Fatalf("PrepareWorkflowParent: %v", err)
 	}
-	if prepared.WorkflowEngine != WorkflowEngineADK2Loop || len(prepared.ChildRunIDs) != 1 || prepared.ChildRunIDs[0] != child.ID || prepared.WorkflowPlan[0].NodeName != jfadkmodel.GoogleADKWorkflowChildName(parent.ID, 0) {
+	if prepared.WorkflowEngine != WorkflowEngineADK2Loop || len(prepared.ChildRunIDs) != 1 || prepared.ChildRunIDs[0] != child.ID || prepared.WorkflowPlan[0].NodeName != assistantmodel.GoogleADKWorkflowChildName(parent.ID, 0) {
 		t.Fatalf("prepared parent = %+v", prepared)
 	}
 	if len(snapshots) != 1 || snapshots[0].ID != parent.ID {

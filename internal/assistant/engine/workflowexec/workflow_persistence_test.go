@@ -2,11 +2,11 @@ package workflowexec
 
 import (
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestGoalWorkflowFailsWhenInitialStateCannotBePersisted(t *testing.T) {
@@ -38,7 +38,7 @@ func TestCompletedWorkflowFailsWhenTerminalStateCannotBePersisted(t *testing.T) 
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "workflow-terminal-persist-run", SessionID: session.ID, AgentID: session.AgentID,
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	task, err := runtime.Store().SaveTask(t.Context(), TaskWriteRequest{
 		ID: "workflow-terminal-persist-task", Title: "done", Status: "DONE", RunID: parent.ID,
@@ -67,11 +67,11 @@ func TestCompletedWorkflowFailsWhenTerminalStateCannotBePersisted(t *testing.T) 
 func TestUserPauseFailsWhenPausedStateCannotBePersisted(t *testing.T) {
 	runtime := newTestRuntime(t)
 	session := mustCreateSession(t, runtime, "goal-pause-persist-agent", "persist user pause")
-	pauseRequestedAt := jfadkmodel.NowString()
+	pauseRequestedAt := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "goal-pause-persist-run", SessionID: session.ID, AgentID: session.AgentID,
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		PauseRequestedAt: &pauseRequestedAt, CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		PauseRequestedAt: &pauseRequestedAt, CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	if _, err := runtime.Store().DB().ExecContext(t.Context(), `
 		CREATE TRIGGER fail_user_pause_state
@@ -103,7 +103,7 @@ func TestGoalWorkflowFailsWhenIterationLimitPauseCannotBePersisted(t *testing.T)
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "goal-persist-limit-run", SessionID: session.ID, AgentID: session.AgentID,
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	if _, err := runtime.Store().DB().ExecContext(t.Context(), `
 		CREATE TRIGGER fail_iteration_limit_pause

@@ -7,8 +7,7 @@ import (
 	"time"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -21,8 +20,8 @@ func TestOpenBuildsToolsServiceAndIdempotentLifecycle(t *testing.T) {
 	}
 	handle, err := Open(Options{
 		Paths: paths,
-		RuntimeLimits: func() jfadkmodel.RuntimeLimits {
-			return jfadkmodel.RuntimeLimits{RunTimeout: time.Second}
+		RuntimeLimits: func() assistantmodel.RuntimeLimits {
+			return assistantmodel.RuntimeLimits{RunTimeout: time.Second}
 		},
 		Tools: &tools,
 	})
@@ -101,7 +100,7 @@ func TestHandleExposesNarrowAuditAndToolOperations(t *testing.T) {
 		t.Fatalf("audit events = %#v", events)
 	}
 
-	err = handle.RegisterTool(jfadk.ToolDescriptor{
+	err = handle.RegisterTool(assistantmodel.ToolDescriptor{
 		Name:        "integration.echo",
 		DisplayName: "Echo",
 	}, func(_ context.Context, input map[string]any) (any, error) {
@@ -137,7 +136,7 @@ func TestNilHandleLifecycleIsSafe(t *testing.T) {
 	if _, ok := handle.Tool("system.status"); ok {
 		t.Fatal("nil handle returned a tool")
 	}
-	if err := handle.RegisterTool(jfadk.ToolDescriptor{Name: "test"}, func(context.Context, map[string]any) (any, error) {
+	if err := handle.RegisterTool(assistantmodel.ToolDescriptor{Name: "test"}, func(context.Context, map[string]any) (any, error) {
 		return nil, nil
 	}); err == nil {
 		t.Fatal("nil RegisterTool error = nil")

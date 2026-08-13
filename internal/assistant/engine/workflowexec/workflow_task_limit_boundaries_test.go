@@ -3,10 +3,9 @@ package workflowexec
 import (
 	"context"
 	"fmt"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowExecutorRejectsRuntimeTaskOverflow(t *testing.T) {
@@ -20,8 +19,8 @@ func TestWorkflowExecutorRejectsRuntimeTaskOverflow(t *testing.T) {
 		WorkMode:       WorkModeLoop,
 		WorkflowStatus: workflowStatusRunning,
 		Objective:      "目标",
-		CreatedAt:      jfadkmodel.NowString(),
-		UpdatedAt:      jfadkmodel.NowString(),
+		CreatedAt:      assistantmodel.NowString(),
+		UpdatedAt:      assistantmodel.NowString(),
 	})
 	for i := range maxRuntimeWorkflowTasks {
 		if _, err := runtime.Store().SaveTask(context.Background(), TaskWriteRequest{

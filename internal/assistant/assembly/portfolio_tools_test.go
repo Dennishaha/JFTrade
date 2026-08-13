@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
@@ -325,8 +325,8 @@ func (portfolioBroker) Trading() broker.TradingService { return nil }
 
 func (b portfolioBroker) MarketData() broker.MarketDataReader { return b.reader }
 
-func newPortfolioTestRegistry(deps ToolDeps) *jfadk.ToolRegistry {
-	registry := jfadk.NewToolRegistry()
+func newPortfolioTestRegistry(deps ToolDeps) *jfadkruntime.ToolRegistry {
+	registry := jfadkruntime.NewToolRegistry()
 	registerJFTradeADKPortfolioTools(registry, deps)
 	return registry
 }

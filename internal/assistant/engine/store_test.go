@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,7 +15,6 @@ import (
 
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	workflowexec "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowexec"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"google.golang.org/genai"
 )
 
@@ -880,8 +880,8 @@ func TestGoogleADKExecutionRunHonorsContextDeadline(t *testing.T) {
 
 func TestStartRunUsesConfiguredRuntimeTimeout(t *testing.T) {
 	runtime := newTestRuntime(t)
-	runtime.SetRuntimeLimitsProvider(func() jfadkmodel.RuntimeLimits {
-		return jfadkmodel.RuntimeLimits{RunTimeout: 12 * time.Minute}
+	runtime.SetRuntimeLimitsProvider(func() assistantmodel.RuntimeLimits {
+		return assistantmodel.RuntimeLimits{RunTimeout: 12 * time.Minute}
 	})
 
 	run, _, finish, err := runtime.startRun(context.Background(), "session-1", Agent{ID: "agent-1"}, "hello")
@@ -898,8 +898,8 @@ func TestStartRunUsesConfiguredRuntimeTimeout(t *testing.T) {
 func TestResumeGoalRunAllowsTimedOutGoalWithFreshTimeoutWindow(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	runtime.SetRuntimeLimitsProvider(func() jfadkmodel.RuntimeLimits {
-		return jfadkmodel.RuntimeLimits{RunTimeout: 45 * time.Minute}
+	runtime.SetRuntimeLimitsProvider(func() assistantmodel.RuntimeLimits {
+		return assistantmodel.RuntimeLimits{RunTimeout: 45 * time.Minute}
 	})
 
 	completedAt := time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano)

@@ -8,7 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestAssistantRoutesReturnUnavailableWhenRuntimeMissing(t *testing.T) {
@@ -90,7 +91,7 @@ func TestAssistantRoutesReturnUnavailableWhenRuntimeMissing(t *testing.T) {
 
 func TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose(t *testing.T) {
 	root := t.TempDir()
-	store, err := jfadk.NewStore(
+	store, err := jfadkruntime.NewStore(
 		filepath.Join(root, "adk.db"),
 		filepath.Join(root, "secrets.json"),
 		filepath.Join(root, "skills"),
@@ -98,7 +99,7 @@ func TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	runtime := jfadk.NewRuntime(store, jfadk.NewToolRegistry())
+	runtime := jfadkruntime.NewRuntime(store, jfadkruntime.NewToolRegistry())
 	assistantTestProvider(t, runtime)
 	service := assistantservice.NewService(runtime)
 	gin.SetMode(gin.TestMode)
@@ -179,22 +180,22 @@ func TestAssistantCatalogSessionAndObservabilitySuccessContracts(t *testing.T) {
 	ctx := t.Context()
 	store := runtime.Store()
 
-	provider, err := store.SaveProvider(ctx, jfadk.ProviderWriteRequest{
+	provider, err := store.SaveProvider(ctx, assistantmodel.ProviderWriteRequest{
 		ID: "success-provider", DisplayName: "Success Provider", BaseURL: "https://example.test/v1",
 		Model: "model", APIKey: "sk-test", Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("SaveProvider: %v", err)
 	}
-	standaloneProvider, err := store.SaveProvider(ctx, jfadk.ProviderWriteRequest{
+	standaloneProvider, err := store.SaveProvider(ctx, assistantmodel.ProviderWriteRequest{
 		ID: "delete-provider", DisplayName: "Delete Provider", BaseURL: "https://delete.example/v1",
 		Model: "model", APIKey: "sk-delete", Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("SaveProvider standalone: %v", err)
 	}
-	agent, err := store.SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "success-agent", Name: "Success Agent", ProviderID: provider.ID, Status: jfadk.AgentStatusEnabled,
+	agent, err := store.SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "success-agent", Name: "Success Agent", ProviderID: provider.ID, Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -203,27 +204,27 @@ func TestAssistantCatalogSessionAndObservabilitySuccessContracts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
-	run := jfadk.Run{ID: "success-run", SessionID: session.ID, AgentID: agent.ID, Status: jfadk.RunStatusRunning, WorkMode: jfadk.WorkModeLoop}
+	run := assistantmodel.Run{ID: "success-run", SessionID: session.ID, AgentID: agent.ID, Status: assistantmodel.RunStatusRunning, WorkMode: assistantmodel.WorkModeLoop}
 	if err := store.SaveRun(ctx, run); err != nil {
 		t.Fatalf("SaveRun: %v", err)
 	}
-	approval := jfadk.Approval{ID: "success-approval", RunID: run.ID, AgentID: agent.ID, Status: jfadk.ApprovalStatusPending}
+	approval := assistantmodel.Approval{ID: "success-approval", RunID: run.ID, AgentID: agent.ID, Status: assistantmodel.ApprovalStatusPending}
 	if err := store.SaveApproval(ctx, approval); err != nil {
 		t.Fatalf("SaveApproval: %v", err)
 	}
-	task, err := store.SaveTask(ctx, jfadk.TaskWriteRequest{ID: "success-task", Title: "Do work", Status: "TODO", AgentID: agent.ID, RunID: run.ID})
+	task, err := store.SaveTask(ctx, assistantmodel.TaskWriteRequest{ID: "success-task", Title: "Do work", Status: "TODO", AgentID: agent.ID, RunID: run.ID})
 	if err != nil {
 		t.Fatalf("SaveTask: %v", err)
 	}
-	memory, err := store.SaveMemory(ctx, jfadk.MemoryWriteRequest{Key: "Success Note", Value: "remember this", Scope: "workspace"})
+	memory, err := store.SaveMemory(ctx, assistantmodel.MemoryWriteRequest{Key: "Success Note", Value: "remember this", Scope: "workspace"})
 	if err != nil {
 		t.Fatalf("SaveMemory: %v", err)
 	}
-	optimization, err := store.SaveOptimizationTask(ctx, jfadk.OptimizationTask{ID: "success-optimization", Status: "RUNNING", Objective: "Improve returns"})
+	optimization, err := store.SaveOptimizationTask(ctx, assistantmodel.OptimizationTask{ID: "success-optimization", Status: "RUNNING", Objective: "Improve returns"})
 	if err != nil {
 		t.Fatalf("SaveOptimizationTask: %v", err)
 	}
-	if err := store.AddAuditEvent(ctx, jfadk.AuditEvent{ID: "audit-success", Kind: "provider_saved", SubjectID: provider.ID, Detail: "saved"}); err != nil {
+	if err := store.AddAuditEvent(ctx, assistantmodel.AuditEvent{ID: "audit-success", Kind: "provider_saved", SubjectID: provider.ID, Detail: "saved"}); err != nil {
 		t.Fatalf("AddAuditEvent: %v", err)
 	}
 
@@ -278,15 +279,15 @@ func TestAssistantCatalogBoundaryStatusCodes(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	ctx := t.Context()
 
-	provider, err := runtime.Store().SaveProvider(ctx, jfadk.ProviderWriteRequest{
+	provider, err := runtime.Store().SaveProvider(ctx, assistantmodel.ProviderWriteRequest{
 		ID: "provider-in-use", DisplayName: "Provider In Use", BaseURL: "https://example.test/v1",
 		Model: "model", APIKey: "sk-test", Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("SaveProvider: %v", err)
 	}
-	if _, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-uses-provider", Name: "Provider User", ProviderID: provider.ID, Status: jfadk.AgentStatusEnabled,
+	if _, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-uses-provider", Name: "Provider User", ProviderID: provider.ID, Status: assistantmodel.AgentStatusEnabled,
 	}); err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
@@ -308,8 +309,8 @@ func TestAssistantCatalogBoundaryStatusCodes(t *testing.T) {
 		{"missing memory delete", http.MethodDelete, "/api/v1/adk/memory/missing-memory", nil, http.StatusNotFound},
 		{"missing default provider", http.MethodPost, "/api/v1/adk/providers/missing-provider/default", nil, http.StatusNotFound},
 		{"provider in use delete", http.MethodDelete, "/api/v1/adk/providers/" + provider.ID, nil, http.StatusConflict},
-		{"builtin agent delete", http.MethodDelete, "/api/v1/adk/agents/" + jfadk.DefaultBuiltinAgentID, nil, http.StatusConflict},
-		{"builtin agent disable", http.MethodPut, "/api/v1/adk/agents/" + jfadk.DefaultBuiltinAgentID, []byte(`{"status":"DISABLED"}`), http.StatusConflict},
+		{"builtin agent delete", http.MethodDelete, "/api/v1/adk/agents/" + assistantmodel.DefaultBuiltinAgentID, nil, http.StatusConflict},
+		{"builtin agent disable", http.MethodPut, "/api/v1/adk/agents/" + assistantmodel.DefaultBuiltinAgentID, []byte(`{"status":"DISABLED"}`), http.StatusConflict},
 		{"invalid provider payload", http.MethodPost, "/api/v1/adk/providers", []byte(`{`), http.StatusBadRequest},
 		{"invalid agent payload", http.MethodPost, "/api/v1/adk/agents", []byte(`{`), http.StatusBadRequest},
 		{"invalid skill install payload", http.MethodPost, "/api/v1/adk/skills", []byte(`{`), http.StatusBadRequest},

@@ -3,18 +3,17 @@ package workflowexec
 import (
 	"context"
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestPauseGoalWorkflowPrunesInterruptedInternalToolCalls(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 	executor := (&WorkflowExecutor{runtime: runtime})
-	pauseRequestedAt := jfadkmodel.NowString()
-	pauseError := jfadkmodel.ErrUserGoalPauseRequested.Error()
+	pauseRequestedAt := assistantmodel.NowString()
+	pauseError := assistantmodel.ErrUserGoalPauseRequested.Error()
 	parent := Run{
 		ID: "pause-prune-parent", SessionID: "pause-prune-session", AgentID: "pause-prune-agent",
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
@@ -25,7 +24,7 @@ func TestPauseGoalWorkflowPrunesInterruptedInternalToolCalls(t *testing.T) {
 			{ID: "failed-goal", RunID: "pause-prune-parent", ToolName: workflowGoalCompleteTool, Status: "FAILED", Error: &pauseError},
 			{ID: "finished", RunID: "pause-prune-parent", ToolName: workflowTasksListTool, Status: "SUCCEEDED"},
 		},
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	}
 	mustSaveRun(t, runtime, parent)
 
@@ -39,10 +38,10 @@ func TestPauseGoalWorkflowPrunesInterruptedInternalToolCalls(t *testing.T) {
 	if len(paused.ToolCalls) != 2 || paused.ToolCalls[0].ID != "running-child" || paused.ToolCalls[1].ID != "finished" {
 		t.Fatalf("paused calls = %+v", paused.ToolCalls)
 	}
-	if _, changed := jfadkmodel.PruneInterruptedGoalWorkflowToolCalls(paused); changed {
+	if _, changed := assistantmodel.PruneInterruptedGoalWorkflowToolCalls(paused); changed {
 		t.Fatal("already pruned goal should not change a second time")
 	}
-	if jfadkmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: "market.snapshot", Status: "RUNNING"}) {
+	if assistantmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: "market.snapshot", Status: "RUNNING"}) {
 		t.Fatal("non-workflow tool must not be pruned during a user pause")
 	}
 }
@@ -52,7 +51,7 @@ func TestPrepareGoalWorkflowTurnHandlesPendingChildrenBlockedTasksAndErrors(t *t
 	runtime := newTestRuntime(t)
 	executor := (&WorkflowExecutor{runtime: runtime})
 	session := Session{ID: "goal-turn-session", AgentID: "goal-turn-agent"}
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 
 	pendingParent := Run{
 		ID: "goal-turn-parent-pending", SessionID: session.ID, AgentID: session.AgentID,

@@ -3,7 +3,7 @@ package assistant
 import (
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 // A workflow service must surface an unavailable persistence backend instead of
@@ -25,14 +25,14 @@ func TestWorkflowOperationsPropagateClosedStoreFailures(t *testing.T) {
 		{"list workflows", func() error { _, err := service.ListWorkflows(ctx, WorkflowQuery{}); return err }},
 		{"get workflow", func() error { _, err := service.GetWorkflow(ctx, "workflow"); return err }},
 		{"save workflow", func() error {
-			_, err := service.SaveWorkflow(ctx, "workflow", jfadk.WorkflowDefinitionWriteRequest{})
+			_, err := service.SaveWorkflow(ctx, "workflow", assistantmodel.WorkflowDefinitionWriteRequest{})
 			return err
 		}},
 		{"delete workflow", func() error { _, err := service.DeleteWorkflow(ctx, "workflow"); return err }},
 		{"list workflow triggers", func() error { _, err := service.ListWorkflowTriggers(ctx, "workflow"); return err }},
 		{"get workflow trigger", func() error { _, err := service.GetWorkflowTrigger(ctx, "workflow", "trigger"); return err }},
 		{"save workflow trigger", func() error {
-			_, err := service.SaveWorkflowTrigger(ctx, "workflow", "", jfadk.WorkflowTriggerWriteRequest{Type: jfadk.WorkflowTriggerTypeManual})
+			_, err := service.SaveWorkflowTrigger(ctx, "workflow", "", assistantmodel.WorkflowTriggerWriteRequest{Type: assistantmodel.WorkflowTriggerTypeManual})
 			return err
 		}},
 		{"delete workflow trigger", func() error { _, err := service.DeleteWorkflowTrigger(ctx, "workflow", "trigger"); return err }},
@@ -57,5 +57,5 @@ func TestWorkflowOperationsPropagateClosedStoreFailures(t *testing.T) {
 	}
 	// Event delivery is best-effort. A persistence outage must be absorbed here
 	// so a market-data fan-out cannot be brought down by one workflow store.
-	service.HandleWorkflowEvent(ctx, jfadk.WorkflowEvent{Type: "market-data.tick"})
+	service.HandleWorkflowEvent(ctx, assistantmodel.WorkflowEvent{Type: "market-data.tick"})
 }

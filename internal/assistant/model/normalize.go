@@ -289,6 +289,70 @@ func NormalizeRun(run Run) Run {
 	return run
 }
 
+// NormalizeChatResponse canonicalizes the public chat projection.
+func NormalizeChatResponse(response ChatResponse) ChatResponse {
+	response.Run = NormalizeRun(response.Run)
+	response.PendingApprovals = NormalizeApprovals(response.PendingApprovals)
+	response.InputRequest = NormalizeInputRequest(response.InputRequest)
+	response.Timeline = NormalizeTimelineEntries(response.Timeline)
+	return response
+}
+
+// NormalizeApprovalResolution canonicalizes embedded run projections.
+func NormalizeApprovalResolution(resolution ApprovalResolution) ApprovalResolution {
+	if resolution.Run != nil {
+		resolution.Run = new(NormalizeRun(*resolution.Run))
+	}
+	if resolution.ParentRun != nil {
+		resolution.ParentRun = new(NormalizeRun(*resolution.ParentRun))
+	}
+	return resolution
+}
+
+// NormalizeSessionComposerState canonicalizes persisted composer overrides.
+func NormalizeSessionComposerState(sessionID string, state SessionComposerState) SessionComposerState {
+	state.SessionID = strings.TrimSpace(DefaultString(state.SessionID, sessionID))
+	state.ChatDraft = limitComposerText(state.ChatDraft)
+	state.ProviderIDOverride = strings.TrimSpace(state.ProviderIDOverride)
+	state.ModelOverride = strings.TrimSpace(state.ModelOverride)
+	state.ReasoningEffortOverride = string(NormalizeOptionalReasoningEffort(ReasoningEffort(state.ReasoningEffortOverride)))
+	workMode := strings.TrimSpace(state.WorkModeOverride)
+	if workMode != "" && ValidWorkMode(workMode) {
+		state.WorkModeOverride = NormalizeWorkMode(workMode)
+	} else {
+		state.WorkModeOverride = ""
+	}
+	permissionMode := strings.ToLower(strings.TrimSpace(state.PermissionModeOverride))
+	if permissionMode != "" && ValidPermissionMode(permissionMode) {
+		state.PermissionModeOverride = NormalizePermissionMode(permissionMode)
+	} else {
+		state.PermissionModeOverride = ""
+	}
+	state.GoalObjectiveDraft = limitComposerText(state.GoalObjectiveDraft)
+	return state
+}
+
+// NormalizeSessionsResponse canonicalizes a session aggregate projection.
+func NormalizeSessionsResponse(response SessionsResponse) SessionsResponse {
+	response.Timeline = NormalizeTimelineEntries(response.Timeline)
+	if len(response.Runs) == 0 {
+		response.Runs = []Run{}
+	} else {
+		for index := range response.Runs {
+			response.Runs[index] = NormalizeRun(response.Runs[index])
+		}
+	}
+	response.ComposerState = NormalizeSessionComposerState(response.Session.ID, response.ComposerState)
+	return response
+}
+
+func limitComposerText(value string) string {
+	if len([]rune(value)) <= MaxMessageLength {
+		return value
+	}
+	return string([]rune(value)[:MaxMessageLength])
+}
+
 // NormalizeInputRequests normalizes every input request in the slice.
 func NormalizeInputRequests(requests []InputRequest) []InputRequest {
 	if len(requests) == 0 {

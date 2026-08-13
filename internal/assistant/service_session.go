@@ -4,75 +4,75 @@ import (
 	"context"
 	"fmt"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
-func (s *Service) ListSessions(ctx context.Context, query SessionQuery) (Page[jfadk.Session], error) {
+func (s *Service) ListSessions(ctx context.Context, query SessionQuery) (Page[assistantmodel.Session], error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return Page[jfadk.Session]{}, fmt.Errorf("adk runtime is unavailable")
+		return Page[assistantmodel.Session]{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	sessions, total, err := s.runtime.Store().ListSessionsPage(ctx, query.AgentID, query.Query, query.Limit, query.Offset)
 	if err != nil {
-		return Page[jfadk.Session]{}, err
+		return Page[assistantmodel.Session]{}, err
 	}
-	return Page[jfadk.Session]{Items: sessions, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
+	return Page[assistantmodel.Session]{Items: sessions, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
 }
 
 // CreateSession 为指定 agent 创建会话。
-func (s *Service) CreateSession(ctx context.Context, req CreateSessionRequest) (jfadk.Session, error) {
+func (s *Service) CreateSession(ctx context.Context, req CreateSessionRequest) (assistantmodel.Session, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Session{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Session{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	agent, ok, err := s.runtime.Store().Agent(ctx, req.AgentID)
-	if err != nil || !ok || agent.Status != jfadk.AgentStatusEnabled || agent.DeletedAt != nil {
-		return jfadk.Session{}, fmt.Errorf("enabled agent is required")
+	if err != nil || !ok || agent.Status != assistantmodel.AgentStatusEnabled || agent.DeletedAt != nil {
+		return assistantmodel.Session{}, fmt.Errorf("enabled agent is required")
 	}
 	return s.runtime.Store().CreateSessionWithSource(ctx, req.AgentID, req.Title, req.WorkflowID, req.WorkflowName)
 }
 
 // GetSession 按 ID 获取会话。
-func (s *Service) GetSession(ctx context.Context, sessionID string) (jfadk.Session, error) {
+func (s *Service) GetSession(ctx context.Context, sessionID string) (assistantmodel.Session, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Session{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Session{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	session, ok, err := s.runtime.Store().Session(ctx, sessionID)
 	if err != nil {
-		return jfadk.Session{}, err
+		return assistantmodel.Session{}, err
 	}
 	if !ok {
-		return jfadk.Session{}, fmt.Errorf("session not found")
+		return assistantmodel.Session{}, fmt.Errorf("session not found")
 	}
 	return session, nil
 }
 
 // GetSessionDetail returns the normalized session and timeline contract.
-func (s *Service) GetSessionDetail(ctx context.Context, sessionID string) (jfadk.SessionsResponse, error) {
+func (s *Service) GetSessionDetail(ctx context.Context, sessionID string) (assistantmodel.SessionsResponse, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.SessionsResponse{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.SessionsResponse{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	session, ok, err := s.runtime.Store().Session(ctx, sessionID)
 	if err != nil {
-		return jfadk.SessionsResponse{}, err
+		return assistantmodel.SessionsResponse{}, err
 	}
 	if !ok {
-		return jfadk.SessionsResponse{}, fmt.Errorf("session not found")
+		return assistantmodel.SessionsResponse{}, fmt.Errorf("session not found")
 	}
 	timeline, _, err := s.runtime.Store().SessionTimeline(ctx, sessionID)
 	if err != nil {
-		return jfadk.SessionsResponse{}, wrapSessionTimelineError(err)
+		return assistantmodel.SessionsResponse{}, wrapSessionTimelineError(err)
 	}
 	if timeline == nil {
-		timeline = []jfadk.TimelineEntry{}
+		timeline = []assistantmodel.TimelineEntry{}
 	}
 	runs, err := s.runtime.Store().SessionRuns(ctx, sessionID)
 	if err != nil {
-		return jfadk.SessionsResponse{}, err
+		return assistantmodel.SessionsResponse{}, err
 	}
 	composerState, _, err := s.runtime.Store().SessionComposerState(ctx, sessionID)
 	if err != nil {
-		return jfadk.SessionsResponse{}, err
+		return assistantmodel.SessionsResponse{}, err
 	}
-	return jfadk.NormalizeSessionsResponse(jfadk.SessionsResponse{
+	return assistantmodel.NormalizeSessionsResponse(assistantmodel.SessionsResponse{
 		Session:       session,
 		Timeline:      timeline,
 		Runs:          runs,
@@ -81,16 +81,16 @@ func (s *Service) GetSessionDetail(ctx context.Context, sessionID string) (jfadk
 }
 
 // RenameSession 重命名会话。
-func (s *Service) RenameSession(ctx context.Context, sessionID string, title string) (jfadk.Session, error) {
+func (s *Service) RenameSession(ctx context.Context, sessionID string, title string) (assistantmodel.Session, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Session{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Session{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.Store().RenameSession(ctx, sessionID, title)
 }
 
-func (s *Service) UpdateSessionComposerState(ctx context.Context, sessionID string, patch jfadk.SessionComposerStatePatch) (jfadk.SessionComposerState, error) {
+func (s *Service) UpdateSessionComposerState(ctx context.Context, sessionID string, patch assistantmodel.SessionComposerStatePatch) (assistantmodel.SessionComposerState, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.SessionComposerState{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.SessionComposerState{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.Store().SaveSessionComposerState(ctx, sessionID, patch)
 }
@@ -104,17 +104,17 @@ func (s *Service) DeleteSession(ctx context.Context, sessionID string) error {
 }
 
 // GetSessionContext 获取会话上下文快照。
-func (s *Service) GetSessionContext(ctx context.Context, sessionID string) (jfadk.SessionContextSnapshot, error) {
+func (s *Service) GetSessionContext(ctx context.Context, sessionID string) (assistantmodel.SessionContextSnapshot, error) {
 	if s.runtime == nil {
-		return jfadk.SessionContextSnapshot{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.SessionContextSnapshot{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.SessionContext(ctx, sessionID)
 }
 
 // CompactSessionContext 压缩会话上下文。
-func (s *Service) CompactSessionContext(ctx context.Context, sessionID string, mode string, trigger string, reason string) (jfadk.SessionContextSnapshot, error) {
+func (s *Service) CompactSessionContext(ctx context.Context, sessionID string, mode string, trigger string, reason string) (assistantmodel.SessionContextSnapshot, error) {
 	if s.runtime == nil {
-		return jfadk.SessionContextSnapshot{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.SessionContextSnapshot{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.CompactSessionContext(ctx, sessionID, mode, trigger, reason)
 }

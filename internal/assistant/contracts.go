@@ -1,80 +1,83 @@
 package assistant
 
-import jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+import (
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+)
 
 // Assistant-facing models are re-exported by the business boundary so
 // application and transport tests do not depend on runtime assembly details.
 type (
-	Agent                          = jfadk.Agent
-	AgentWriteRequest              = jfadk.AgentWriteRequest
-	Approval                       = jfadk.Approval
-	ApprovalResolution             = jfadk.ApprovalResolution
-	AuditEvent                     = jfadk.AuditEvent
-	ChatDelta                      = jfadk.ChatDelta
-	ChatRequest                    = jfadk.ChatRequest
-	ChatResponse                   = jfadk.ChatResponse
-	MemoryEntry                    = jfadk.MemoryEntry
-	OptimizationRunRef             = jfadk.OptimizationRunRef
-	OptimizationTask               = jfadk.OptimizationTask
-	Provider                       = jfadk.Provider
-	ProviderReasoningConfig        = jfadk.ProviderReasoningConfig
-	ProviderReasoningMapping       = jfadk.ProviderReasoningMapping
-	ProviderReasoningTestResponse  = jfadk.ProviderReasoningTestResponse
-	ProviderTestMode               = jfadk.ProviderTestMode
-	ProviderTestResponse           = jfadk.ProviderTestResponse
-	ProviderWriteRequest           = jfadk.ProviderWriteRequest
-	Run                            = jfadk.Run
-	RunUsage                       = jfadk.RunUsage
-	Session                        = jfadk.Session
-	SessionComposerState           = jfadk.SessionComposerState
-	SessionContextSnapshot         = jfadk.SessionContextSnapshot
-	Skill                          = jfadk.Skill
-	Task                           = jfadk.Task
-	TimelineEntry                  = jfadk.TimelineEntry
-	ToolCall                       = jfadk.ToolCall
-	ToolDescriptor                 = jfadk.ToolDescriptor
-	ToolFunc                       = jfadk.ToolFunc
-	WorkflowCanvasEdge             = jfadk.WorkflowCanvasEdge
-	WorkflowCanvasGraph            = jfadk.WorkflowCanvasGraph
-	WorkflowCanvasNode             = jfadk.WorkflowCanvasNode
-	WorkflowDefinition             = jfadk.WorkflowDefinition
-	WorkflowDefinitionWriteRequest = jfadk.WorkflowDefinitionWriteRequest
-	WorkflowTrigger                = jfadk.WorkflowTrigger
-	WorkflowTriggerLog             = jfadk.WorkflowTriggerLog
-	WorkflowTriggerWriteRequest    = jfadk.WorkflowTriggerWriteRequest
+	Agent                          = assistantmodel.Agent
+	AgentWriteRequest              = assistantmodel.AgentWriteRequest
+	Approval                       = assistantmodel.Approval
+	ApprovalResolution             = assistantmodel.ApprovalResolution
+	AuditEvent                     = assistantmodel.AuditEvent
+	ChatDelta                      = assistantmodel.ChatDelta
+	ChatRequest                    = assistantmodel.ChatRequest
+	ChatResponse                   = assistantmodel.ChatResponse
+	MemoryEntry                    = assistantmodel.MemoryEntry
+	OptimizationRunRef             = assistantmodel.OptimizationRunRef
+	OptimizationTask               = assistantmodel.OptimizationTask
+	Provider                       = assistantmodel.Provider
+	ProviderReasoningConfig        = assistantmodel.ProviderReasoningConfig
+	ProviderReasoningMapping       = assistantmodel.ProviderReasoningMapping
+	ProviderReasoningTestResponse  = assistantmodel.ProviderReasoningTestResponse
+	ProviderTestMode               = assistantmodel.ProviderTestMode
+	ProviderTestResponse           = assistantmodel.ProviderTestResponse
+	ProviderWriteRequest           = assistantmodel.ProviderWriteRequest
+	Run                            = assistantmodel.Run
+	RunUsage                       = assistantmodel.RunUsage
+	Session                        = assistantmodel.Session
+	SessionComposerState           = assistantmodel.SessionComposerState
+	SessionContextSnapshot         = assistantmodel.SessionContextSnapshot
+	Skill                          = assistantmodel.Skill
+	Task                           = assistantmodel.Task
+	TimelineEntry                  = assistantmodel.TimelineEntry
+	ToolCall                       = assistantmodel.ToolCall
+	ToolDescriptor                 = assistantmodel.ToolDescriptor
+	ToolFunc                       = jfadkruntime.ToolFunc
+	WorkflowCanvasEdge             = assistantmodel.WorkflowCanvasEdge
+	WorkflowCanvasGraph            = assistantmodel.WorkflowCanvasGraph
+	WorkflowCanvasNode             = assistantmodel.WorkflowCanvasNode
+	WorkflowDefinition             = assistantmodel.WorkflowDefinition
+	WorkflowDefinitionWriteRequest = assistantmodel.WorkflowDefinitionWriteRequest
+	WorkflowTrigger                = assistantmodel.WorkflowTrigger
+	WorkflowTriggerLog             = assistantmodel.WorkflowTriggerLog
+	WorkflowTriggerWriteRequest    = assistantmodel.WorkflowTriggerWriteRequest
 )
 
 const (
-	AgentStatusEnabled                = jfadk.AgentStatusEnabled
-	ApprovalStatusApproved            = jfadk.ApprovalStatusApproved
-	ApprovalStatusDenied              = jfadk.ApprovalStatusDenied
-	ApprovalStatusPending             = jfadk.ApprovalStatusPending
-	PermissionModeApproval            = jfadk.PermissionModeApproval
-	PermissionModeLessApproval        = jfadk.PermissionModeLessApproval
-	RunStatusCancelled                = jfadk.RunStatusCancelled
-	RunStatusCompleted                = jfadk.RunStatusCompleted
-	RunStatusDenied                   = jfadk.RunStatusDenied
-	RunStatusFailed                   = jfadk.RunStatusFailed
-	RunStatusPaused                   = jfadk.RunStatusPaused
-	RunStatusPending                  = jfadk.RunStatusPending
-	RunStatusRunning                  = jfadk.RunStatusRunning
-	TimelineKindApprovalGroup         = jfadk.TimelineKindApprovalGroup
-	TimelineKindToolGroup             = jfadk.TimelineKindToolGroup
-	WorkflowStatusEnabled             = jfadk.WorkflowStatusEnabled
-	WorkflowTriggerStatusEnabled      = jfadk.WorkflowTriggerStatusEnabled
-	WorkflowTriggerLogStatusSucceeded = jfadk.WorkflowTriggerLogStatusSucceeded
-	WorkflowTriggerTypeManual         = jfadk.WorkflowTriggerTypeManual
-	WorkflowTriggerTypeWebhook        = jfadk.WorkflowTriggerTypeWebhook
-	WorkModeChat                      = jfadk.WorkModeChat
-	WorkModeLoop                      = jfadk.WorkModeLoop
+	AgentStatusEnabled                = assistantmodel.AgentStatusEnabled
+	ApprovalStatusApproved            = assistantmodel.ApprovalStatusApproved
+	ApprovalStatusDenied              = assistantmodel.ApprovalStatusDenied
+	ApprovalStatusPending             = assistantmodel.ApprovalStatusPending
+	PermissionModeApproval            = assistantmodel.PermissionModeApproval
+	PermissionModeLessApproval        = assistantmodel.PermissionModeLessApproval
+	RunStatusCancelled                = assistantmodel.RunStatusCancelled
+	RunStatusCompleted                = assistantmodel.RunStatusCompleted
+	RunStatusDenied                   = assistantmodel.RunStatusDenied
+	RunStatusFailed                   = assistantmodel.RunStatusFailed
+	RunStatusPaused                   = assistantmodel.RunStatusPaused
+	RunStatusPending                  = assistantmodel.RunStatusPending
+	RunStatusRunning                  = assistantmodel.RunStatusRunning
+	TimelineKindApprovalGroup         = assistantmodel.TimelineKindApprovalGroup
+	TimelineKindToolGroup             = assistantmodel.TimelineKindToolGroup
+	WorkflowStatusEnabled             = assistantmodel.WorkflowStatusEnabled
+	WorkflowTriggerStatusEnabled      = assistantmodel.WorkflowTriggerStatusEnabled
+	WorkflowTriggerLogStatusSucceeded = assistantmodel.WorkflowTriggerLogStatusSucceeded
+	WorkflowTriggerTypeManual         = assistantmodel.WorkflowTriggerTypeManual
+	WorkflowTriggerTypeWebhook        = assistantmodel.WorkflowTriggerTypeWebhook
+	WorkModeChat                      = assistantmodel.WorkModeChat
+	WorkModeLoop                      = assistantmodel.WorkModeLoop
 )
 
-var LocalMCPReadOnlyToolNames = jfadk.LocalMCPReadOnlyToolNames
+var LocalMCPReadOnlyToolNames = jfadkruntime.LocalMCPReadOnlyToolNames
 
 func ToolRequiredSkillNames(descriptor ToolDescriptor) []string {
-	return jfadk.ToolRequiredSkillNames(descriptor)
+	return assistantmodel.ToolRequiredSkillNames(descriptor)
 }
 
 func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
-	return jfadk.ToolRequiresApproval(descriptor, mode)
+	return assistantmodel.ToolRequiresApproval(descriptor, mode)
 }

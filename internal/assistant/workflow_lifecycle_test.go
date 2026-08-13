@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestServiceCloseCancelsAndJoinsAdmittedWorkflowBackground(t *testing.T) {
@@ -60,7 +60,7 @@ func TestServiceCloseKeepsStoreOpenUntilWorkflowCleanupFinishes(t *testing.T) {
 	writeResult := make(chan error, 1)
 	if admitted := service.goWorkflowBackground(t.Context(), func(ctx context.Context) {
 		<-ctx.Done()
-		writeResult <- runtime.Store().AddAuditEvent(context.Background(), jfadk.AuditEvent{
+		writeResult <- runtime.Store().AddAuditEvent(context.Background(), assistantmodel.AuditEvent{
 			Kind:      "workflow.shutdown.cleanup",
 			SubjectID: "workflow-lifecycle-test",
 		})
@@ -78,16 +78,16 @@ func TestServiceCloseKeepsStoreOpenUntilWorkflowCleanupFinishes(t *testing.T) {
 	if err := <-closeResult; err != nil {
 		t.Fatalf("Service.Close: %v", err)
 	}
-	if err := runtime.Store().AddAuditEvent(context.Background(), jfadk.AuditEvent{
+	if err := runtime.Store().AddAuditEvent(context.Background(), assistantmodel.AuditEvent{
 		Kind: "workflow.shutdown.after-close",
 	}); err == nil {
 		t.Fatal("runtime store remained writable after Service.Close")
 	}
 	if _, err := service.startWorkflowAsync(
 		t.Context(),
-		jfadk.WorkflowDefinition{Status: jfadk.WorkflowStatusEnabled},
+		assistantmodel.WorkflowDefinition{Status: assistantmodel.WorkflowStatusEnabled},
 		nil,
-		jfadk.WorkflowTriggerTypeManual,
+		assistantmodel.WorkflowTriggerTypeManual,
 		nil,
 		nil,
 	); !errors.Is(err, errAssistantServiceClosing) {
@@ -108,11 +108,11 @@ func TestWorkflowSchedulerStopCancelsAndJoinsInFlightTick(t *testing.T) {
 			return nil, ctx.Err()
 		},
 	))
-	if _, err := runtime.Store().SaveWorkflowTrigger(t.Context(), jfadk.WorkflowTrigger{
+	if _, err := runtime.Store().SaveWorkflowTrigger(t.Context(), assistantmodel.WorkflowTrigger{
 		ID:         "workflow-scheduler-lifecycle",
 		WorkflowID: "workflow-scheduler-lifecycle",
-		Type:       jfadk.WorkflowTriggerTypeMarketThreshold,
-		Status:     jfadk.WorkflowTriggerStatusEnabled,
+		Type:       assistantmodel.WorkflowTriggerTypeMarketThreshold,
+		Status:     assistantmodel.WorkflowTriggerStatusEnabled,
 		Config: map[string]any{
 			"instrumentIds": []string{"US.AAPL"},
 			"snapshotPath":  "snapshot.price",

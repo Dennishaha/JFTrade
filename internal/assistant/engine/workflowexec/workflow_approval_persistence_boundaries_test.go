@@ -2,11 +2,11 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowResumeAndCompletePersistenceFailures(t *testing.T) {
@@ -14,7 +14,7 @@ func TestWorkflowResumeAndCompletePersistenceFailures(t *testing.T) {
 
 	runtime := newTestRuntime(t)
 	executor := (&WorkflowExecutor{runtime: runtime})
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	session := mustCreateSession(t, runtime, "agent", "resume loop failure")
 	parent := mustSaveRun(t, runtime, Run{
 		ID:               "goal-parent-resume-fail",
@@ -47,8 +47,8 @@ func TestWorkflowResumeAndCompletePersistenceFailures(t *testing.T) {
 		Status:         RunStatusRunning,
 		WorkMode:       WorkModeLoop,
 		WorkflowStatus: workflowStatusRunning,
-		CreatedAt:      jfadkmodel.NowString(),
-		UpdatedAt:      jfadkmodel.NowString(),
+		CreatedAt:      assistantmodel.NowString(),
+		UpdatedAt:      assistantmodel.NowString(),
 		Usage:          &RunUsage{},
 	})
 	installFailTrigger(t, runtime2, "fail_runs_update_complete_resumed", enginepersistence.TableRuns, "UPDATE", "complete resumed save failed")

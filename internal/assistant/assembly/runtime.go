@@ -10,8 +10,8 @@ import (
 	"sync"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -37,7 +37,7 @@ type Paths struct {
 // Options describes one assistant runtime assembly.
 type Options struct {
 	Paths          Paths
-	RuntimeLimits  func() jfadkmodel.RuntimeLimits
+	RuntimeLimits  func() assistantmodel.RuntimeLimits
 	Tools          *ToolDeps
 	ServiceOptions []assistant.Option
 }
@@ -48,8 +48,8 @@ type Runtime interface {
 	Service() *assistant.Service
 	Available() bool
 	RecordAudit(context.Context, string, string, string, map[string]any)
-	RegisterTool(jfadk.ToolDescriptor, jfadk.ToolFunc) error
-	Tool(string) (jfadk.RegisteredTool, bool)
+	RegisterTool(assistantmodel.ToolDescriptor, jfadkruntime.ToolFunc) error
+	Tool(string) (jfadkruntime.RegisteredTool, bool)
 	HasTool(string) bool
 	StartWorkflowScheduler(context.Context)
 	WatchedWorkflowInstruments(context.Context) []string
@@ -64,7 +64,7 @@ type Runtime interface {
 // safe to call repeatedly and always shuts down the listener before the service
 // closes the shared runtime.
 type Handle struct {
-	runtime *jfadk.Runtime
+	runtime *jfadkruntime.Runtime
 	service *assistant.Service
 	mcp     *mcpServerManager
 
@@ -89,8 +89,8 @@ func Open(options Options) (*Handle, error) {
 	}, nil
 }
 
-func openRuntime(options Options) (*jfadk.Runtime, error) {
-	store, err := jfadk.NewStore(
+func openRuntime(options Options) (*jfadkruntime.Runtime, error) {
+	store, err := jfadkruntime.NewStore(
 		options.Paths.Database,
 		options.Paths.Secrets,
 		options.Paths.Skills,
@@ -98,23 +98,23 @@ func openRuntime(options Options) (*jfadk.Runtime, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open ADK store: %w", err)
 	}
-	registry := jfadk.NewToolRegistry()
+	registry := jfadkruntime.NewToolRegistry()
 	if options.Tools != nil {
 		RegisterJFTradeADKTools(store, registry, *options.Tools)
 	}
-	sessionService, err := jfadk.NewSQLiteSessionService(options.Paths.Session)
+	sessionService, err := jfadkruntime.NewSQLiteSessionService(options.Paths.Session)
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("open ADK session service: %w", err), closeStoreAfterOpenFailure(store))
 	}
-	runtime := jfadk.NewRuntimeWithSessionService(store, registry, sessionService)
-	runtime.SetWorkflowExecutor(jfadk.NewWorkflowExecutor(runtime))
+	runtime := jfadkruntime.NewRuntimeWithSessionService(store, registry, sessionService)
+	runtime.SetWorkflowExecutor(jfadkruntime.NewWorkflowExecutor(runtime))
 	if options.RuntimeLimits != nil {
 		runtime.SetRuntimeLimitsProvider(options.RuntimeLimits)
 	}
 	return runtime, nil
 }
 
-func closeStoreAfterOpenFailure(store *jfadk.Store) error {
+func closeStoreAfterOpenFailure(store *jfadkruntime.Store) error {
 	if store == nil {
 		return nil
 	}
@@ -134,7 +134,7 @@ type DatabaseProbe struct {
 // InspectRuntimeDatabase verifies that the ADK configuration database can be
 // opened and reports cleanup separately.
 func InspectRuntimeDatabase(paths Paths) DatabaseProbe {
-	store, err := jfadk.NewStore(
+	store, err := jfadkruntime.NewStore(
 		paths.Database,
 		paths.Secrets,
 		paths.Skills,
@@ -148,11 +148,11 @@ func InspectRuntimeDatabase(paths Paths) DatabaseProbe {
 // InspectSessionDatabase verifies that the ADK session database can be opened
 // and reports cleanup separately.
 func InspectSessionDatabase(paths Paths) DatabaseProbe {
-	service, err := jfadk.NewSQLiteSessionService(paths.Session)
+	service, err := jfadkruntime.NewSQLiteSessionService(paths.Session)
 	if err != nil {
 		return DatabaseProbe{OpenError: err}
 	}
-	return DatabaseProbe{CloseError: jfadk.CloseSessionService(service)}
+	return DatabaseProbe{CloseError: jfadkruntime.CloseSessionService(service)}
 }
 
 // ProbeRuntimeDatabase is a compact probe for tests and simple callers.
@@ -196,8 +196,8 @@ func (h *Handle) RecordAudit(
 
 // RegisterTool installs one integration tool without exposing ToolRegistry.
 func (h *Handle) RegisterTool(
-	descriptor jfadk.ToolDescriptor,
-	handler jfadk.ToolFunc,
+	descriptor assistantmodel.ToolDescriptor,
+	handler jfadkruntime.ToolFunc,
 ) error {
 	if h == nil || h.runtime == nil || h.runtime.Tools() == nil {
 		return errors.New("ADK tool registry is unavailable")
@@ -207,9 +207,9 @@ func (h *Handle) RegisterTool(
 }
 
 // Tool returns one registered integration tool without exposing ToolRegistry.
-func (h *Handle) Tool(name string) (jfadk.RegisteredTool, bool) {
+func (h *Handle) Tool(name string) (jfadkruntime.RegisteredTool, bool) {
 	if h == nil || h.runtime == nil || h.runtime.Tools() == nil {
-		return jfadk.RegisteredTool{}, false
+		return jfadkruntime.RegisteredTool{}, false
 	}
 	return h.runtime.Tools().Get(name)
 }
@@ -242,7 +242,7 @@ func (h *Handle) HandleWorkflowEvent(ctx context.Context, event WorkflowEvent) {
 	if h == nil || h.service == nil {
 		return
 	}
-	h.service.HandleWorkflowEvent(ctx, jfadk.WorkflowEvent{
+	h.service.HandleWorkflowEvent(ctx, assistantmodel.WorkflowEvent{
 		ID:       event.ID,
 		Type:     event.Type,
 		Source:   event.Source,

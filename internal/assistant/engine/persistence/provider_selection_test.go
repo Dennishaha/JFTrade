@@ -1,13 +1,12 @@
 package persistence
 
 import (
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestNormalizeDefaultProviderSelection(t *testing.T) {
-	rawProviders := []jfadkmodel.Provider{
+	rawProviders := []assistantmodel.Provider{
 		{ID: "p1", DisplayName: "P1", BaseURL: "https://p1.example/v1", Default: false},
 		{ID: "p2", DisplayName: "P2", BaseURL: "https://p2.example/v1", Default: true},
 		{ID: "p3", DisplayName: "P3", BaseURL: "https://p3.example/v1", Default: true},
@@ -18,7 +17,7 @@ func TestNormalizeDefaultProviderSelection(t *testing.T) {
 	if !rawProviders[1].Default || rawProviders[2].Default {
 		t.Fatalf("duplicate default normalization = %#v", rawProviders)
 	}
-	noDefaultProviders := []jfadkmodel.Provider{{ID: "p1", DisplayName: "P1", BaseURL: "https://p1.example/v1"}}
+	noDefaultProviders := []assistantmodel.Provider{{ID: "p1", DisplayName: "P1", BaseURL: "https://p1.example/v1"}}
 	if !NormalizeDefaultProviderSelection(noDefaultProviders) || !noDefaultProviders[0].Default {
 		t.Fatalf("missing default normalization = %#v", noDefaultProviders)
 	}
@@ -28,7 +27,7 @@ func TestNormalizeDefaultProviderSelection(t *testing.T) {
 }
 
 func TestSortProvidersDefaultFirst(t *testing.T) {
-	providers := []jfadkmodel.Provider{
+	providers := []assistantmodel.Provider{
 		{ID: "b", CreatedAt: "same", Default: false},
 		{ID: "a", CreatedAt: "same", Default: false},
 		{ID: "default", CreatedAt: "later", Default: true},

@@ -2,11 +2,11 @@ package adk
 
 import (
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	workflowexec "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowexec"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestCanvasWorkflowPersistenceFailuresDoNotReportSuccess(t *testing.T) {
@@ -139,7 +139,7 @@ func TestNativeTaskGraphPersistsCompletedAndPendingInputOutcomes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("SaveTask: %v", err)
 			}
-			parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{task}, nil)
+			parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{task}, nil)
 			mustSaveRun(t, runtime, parent)
 
 			response, err := workflowexec.NewWorkflowExecutor(runtime).RunPlannedGoogleADKWorkflow(

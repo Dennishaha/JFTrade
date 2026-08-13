@@ -2,7 +2,7 @@ package adk
 
 import (
 	"context"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -145,7 +145,7 @@ func TestGoalWorkflowPauseAfterContinueAndResume(t *testing.T) {
 				runs, jftradeErr1 := runtime.Store().ListRuns(ctx)
 				jftradeCheckTestError(t, jftradeErr1)
 				for _, run := range runs {
-					if jfadkmodel.NormalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
+					if assistantmodel.NormalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
 						_, jftradeErr2 := runtime.PauseGoalRun(ctx, run.ID)
 						jftradeCheckTestError(t, jftradeErr2)
 						break
@@ -234,7 +234,7 @@ func TestGoalWorkflowPauseRequestedBeforeCompleteDecisionPausesInsteadOfCompleti
 				runs, jftradeErr3 := runtime.Store().ListRuns(ctx)
 				jftradeCheckTestError(t, jftradeErr3)
 				for _, run := range runs {
-					if jfadkmodel.NormalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
+					if assistantmodel.NormalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
 						_, jftradeErr4 := runtime.PauseGoalRun(ctx, run.ID)
 						jftradeCheckTestError(t, jftradeErr4)
 						break
@@ -418,7 +418,7 @@ func TestGoalWorkflowDecisionPromptUsesUpdatedObjective(t *testing.T) {
 				return openAIChatMessage{Role: "assistant", Content: "读取 run 失败。"}
 			}
 			for _, run := range runs {
-				if jfadkmodel.NormalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
+				if assistantmodel.NormalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
 					_, jftradeErr5 := runtime.UpdateRunObjective(ctx, run.ID, "更新后的目标")
 					jftradeCheckTestError(t, jftradeErr5)
 					break

@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"slices"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 var productReadTools = []struct {
@@ -117,7 +118,7 @@ func ProductWriteToolDefinitions() []ProductToolDefinition {
 }
 
 // RegisterProductTools installs broker-routed product and execution tools.
-func RegisterProductTools(registry *jfadk.ToolRegistry, deps ProductToolDeps) {
+func RegisterProductTools(registry *jfadkruntime.ToolRegistry, deps ProductToolDeps) {
 	for _, definition := range productReadTools {
 		item := definition
 		// These tools have legacy core-market handlers for isolated runtime
@@ -129,7 +130,7 @@ func RegisterProductTools(registry *jfadk.ToolRegistry, deps ProductToolDeps) {
 		) {
 			continue
 		}
-		registry.Register(jfadk.ToolDescriptor{
+		registry.Register(assistantmodel.ToolDescriptor{
 			Name: item.name, DisplayName: item.displayName,
 			Description: productReadToolDescription(item.name),
 			Category:    item.category, Permission: "read_internal", RiskLevel: "low",
@@ -144,7 +145,7 @@ func RegisterProductTools(registry *jfadk.ToolRegistry, deps ProductToolDeps) {
 	}
 	for _, definition := range productTradeTools {
 		item := definition
-		registry.Register(jfadk.ToolDescriptor{
+		registry.Register(assistantmodel.ToolDescriptor{
 			Name: item.name, DisplayName: item.displayName,
 			Description: "执行统一单腿、期权组合或预测市场订单操作；每次调用均要求审批。",
 			Category:    "execution", Permission: "live_trading", RiskLevel: "critical",
@@ -160,7 +161,7 @@ func RegisterProductTools(registry *jfadk.ToolRegistry, deps ProductToolDeps) {
 	}
 	for _, definition := range productWriteTools {
 		item := definition
-		registry.Register(jfadk.ToolDescriptor{
+		registry.Register(assistantmodel.ToolDescriptor{
 			Name: item.name, DisplayName: item.displayName,
 			Description: "修改券商侧提醒或自选数据；每次调用均要求审批。",
 			Category:    "customization", Permission: "write_external", RiskLevel: "high",
@@ -189,8 +190,8 @@ func productReadToolDescription(name string) string {
 
 func approvalModes() []string {
 	return []string{
-		jfadk.PermissionModeApproval,
-		jfadk.PermissionModeLessApproval,
-		jfadk.PermissionModeAll,
+		assistantmodel.PermissionModeApproval,
+		assistantmodel.PermissionModeLessApproval,
+		assistantmodel.PermissionModeAll,
 	}
 }

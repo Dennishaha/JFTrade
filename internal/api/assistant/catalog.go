@@ -11,7 +11,6 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	asstsvc "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
@@ -55,7 +54,7 @@ func (h *Handler) handleADKTasks(c *gin.Context) {
 	})
 	if err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, jfadk.ErrInvalidTaskStatus) {
+		if errors.Is(err, assistantmodel.ErrInvalidTaskStatus) {
 			status = http.StatusBadRequest
 		}
 		h.writeError(c, status, "ADK_TASK_LIST_FAILED", err.Error())
@@ -92,7 +91,7 @@ func (h *Handler) handleADKSaveTask(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid task payload")
 		return
 	}
-	task, err := h.service.SaveTask(c.Request.Context(), jfadk.TaskWriteRequest(payload))
+	task, err := h.service.SaveTask(c.Request.Context(), assistantmodel.TaskWriteRequest(payload))
 	if err != nil {
 		h.writeError(c, http.StatusBadRequest, "ADK_TASK_SAVE_FAILED", err.Error())
 		return
@@ -111,7 +110,7 @@ func (h *Handler) handleADKPatchTask(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid task payload")
 		return
 	}
-	task, err := h.service.UpdateTask(c.Request.Context(), uri.TaskID, jfadk.TaskPatchRequest(payload))
+	task, err := h.service.UpdateTask(c.Request.Context(), uri.TaskID, assistantmodel.TaskPatchRequest(payload))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			h.writeError(c, http.StatusNotFound, "ADK_TASK_NOT_FOUND", "task not found")
@@ -162,7 +161,7 @@ func (h *Handler) handleADKSaveMemory(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid memory payload")
 		return
 	}
-	entry, err := h.service.SaveMemory(c.Request.Context(), jfadk.MemoryWriteRequest(payload))
+	entry, err := h.service.SaveMemory(c.Request.Context(), assistantmodel.MemoryWriteRequest(payload))
 	if err != nil {
 		h.writeError(c, http.StatusBadRequest, "ADK_MEMORY_SAVE_FAILED", err.Error())
 		return
@@ -212,7 +211,7 @@ func (h *Handler) handleADKTestProvider(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
-	result, err := h.service.TestProvider(c.Request.Context(), uri.ProviderID, jfadk.ProviderTestMode(mode))
+	result, err := h.service.TestProvider(c.Request.Context(), uri.ProviderID, assistantmodel.ProviderTestMode(mode))
 	if err != nil {
 		h.writeError(c, http.StatusBadGateway, "ADK_PROVIDER_TEST_FAILED", err.Error())
 		return
@@ -246,7 +245,7 @@ func (h *Handler) handleADKDeleteProvider(c *gin.Context) {
 	}
 	if err := h.service.DeleteProvider(c.Request.Context(), uri.ProviderID); err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, jfadk.ErrProviderInUse) {
+		if errors.Is(err, assistantmodel.ErrProviderInUse) {
 			status = http.StatusConflict
 		}
 		h.writeError(c, status, "ADK_PROVIDER_DELETE_FAILED", err.Error())
@@ -282,7 +281,7 @@ func (h *Handler) handleADKDeleteAgent(c *gin.Context) {
 		return
 	}
 	if err := h.service.DeleteAgent(c.Request.Context(), uri.AgentID); err != nil {
-		if errors.Is(err, jfadk.ErrBuiltinAgentProtected) {
+		if errors.Is(err, assistantmodel.ErrBuiltinAgentProtected) {
 			h.writeError(c, http.StatusConflict, "ADK_AGENT_PROTECTED", err.Error())
 			return
 		}
@@ -342,10 +341,10 @@ func (h *Handler) handleADKSaveProvider(c *gin.Context) {
 		}
 		payload.ID = uri.ProviderID
 	}
-	provider, err := h.service.SaveProvider(c.Request.Context(), jfadk.ProviderWriteRequest(payload))
+	provider, err := h.service.SaveProvider(c.Request.Context(), assistantmodel.ProviderWriteRequest(payload))
 	if err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, jfadk.ErrInvalidProviderReasoning) {
+		if errors.Is(err, assistantmodel.ErrInvalidProviderReasoning) {
 			status = http.StatusBadRequest
 		}
 		h.writeError(c, status, "ADK_PROVIDER_SAVE_FAILED", err.Error())
@@ -368,9 +367,9 @@ func (h *Handler) handleADKSaveAgent(c *gin.Context) {
 		}
 		payload.ID = uri.AgentID
 	}
-	agent, err := h.service.SaveAgent(c.Request.Context(), jfadk.AgentWriteRequest(payload))
+	agent, err := h.service.SaveAgent(c.Request.Context(), assistantmodel.AgentWriteRequest(payload))
 	if err != nil {
-		if errors.Is(err, jfadk.ErrBuiltinAgentProtected) {
+		if errors.Is(err, assistantmodel.ErrBuiltinAgentProtected) {
 			h.writeError(c, http.StatusConflict, "ADK_AGENT_PROTECTED", err.Error())
 			return
 		}
@@ -390,11 +389,11 @@ func isADKAgentValidationError(err error) bool {
 	}
 	message := strings.ToLower(err.Error())
 	return strings.Contains(message, "invalid agent") ||
-		errors.Is(err, jfadk.ErrBuiltinAgentProtected) ||
+		errors.Is(err, assistantmodel.ErrBuiltinAgentProtected) ||
 		strings.Contains(message, "provider not found") ||
 		strings.Contains(message, "provider is disabled") ||
 		strings.Contains(message, "provider api key is not configured") ||
-		errors.Is(err, jfadk.ErrProviderReasoningUnsupported) ||
+		errors.Is(err, assistantmodel.ErrProviderReasoningUnsupported) ||
 		strings.Contains(message, "unknown adk tool") ||
 		strings.Contains(message, "unknown adk skill")
 }

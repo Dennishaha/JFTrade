@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 // TestCoverage98ServiceSkillRecoveryContracts verifies that the façade keeps
@@ -93,9 +93,9 @@ func TestServiceAuditAndOptimizationStateRecovery(t *testing.T) {
 		{name: "cancelled run determines task state", runID: "coverage98-cancelled", want: "cancelled"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			response := service.optimizationTaskResponse(ctx, jfadk.OptimizationTask{
+			response := service.optimizationTaskResponse(ctx, assistantmodel.OptimizationTask{
 				ID: "coverage98-state-" + tc.want, Status: "queued", Objective: "preserve terminal state",
-				Runs: []jfadk.OptimizationRunRef{{DefinitionID: "definition-" + tc.want, RunID: tc.runID}},
+				Runs: []assistantmodel.OptimizationRunRef{{DefinitionID: "definition-" + tc.want, RunID: tc.runID}},
 			})
 			if response["status"] != tc.want {
 				t.Fatalf("optimization response = %#v, want status %q", response, tc.want)
@@ -107,9 +107,9 @@ func TestServiceAuditAndOptimizationStateRecovery(t *testing.T) {
 	// cannot write because the request has already been cancelled.
 	cancelledCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	response := service.optimizationTaskResponse(cancelledCtx, jfadk.OptimizationTask{
+	response := service.optimizationTaskResponse(cancelledCtx, assistantmodel.OptimizationTask{
 		ID: "coverage98-cancelled-save", Status: "queued", Objective: "fail closed",
-		Runs: []jfadk.OptimizationRunRef{{DefinitionID: "definition-failed", RunID: "coverage98-failed"}},
+		Runs: []assistantmodel.OptimizationRunRef{{DefinitionID: "definition-failed", RunID: "coverage98-failed"}},
 	})
 	if response["status"] != "failed" {
 		t.Fatalf("cancelled persistence response = %#v, want failed state", response)
@@ -121,9 +121,9 @@ func TestCancelOptimizationTaskPropagatesPersistenceFailure(t *testing.T) {
 	runs := &coverage98CancellingOptimizationRuns{cancel: cancel}
 	runtime, service, _ := newAssistantServiceHarness(t, WithOptimizationRuns(runs))
 
-	task, err := runtime.Store().SaveOptimizationTask(t.Context(), jfadk.OptimizationTask{
+	task, err := runtime.Store().SaveOptimizationTask(t.Context(), assistantmodel.OptimizationTask{
 		ID: "coverage98-cancel-persistence", Status: "queued", Objective: "surface persistence errors",
-		Runs: []jfadk.OptimizationRunRef{{DefinitionID: "definition", RunID: "coverage98-active-run"}},
+		Runs: []assistantmodel.OptimizationRunRef{{DefinitionID: "definition", RunID: "coverage98-active-run"}},
 	})
 	if err != nil {
 		t.Fatalf("SaveOptimizationTask: %v", err)

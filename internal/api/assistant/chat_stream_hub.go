@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 const (
@@ -77,7 +77,7 @@ func (h *adkChatStreamHub) claim(clientRequestID string, fingerprint string) (*a
 		record := h.streams[streamID]
 		if record != nil {
 			if record.requestFingerprint != fingerprint {
-				return nil, false, &jfadk.ChatRequestConflictError{ClientRequestID: clientRequestID}
+				return nil, false, &assistantmodel.ChatRequestConflictError{ClientRequestID: clientRequestID}
 			}
 			return record, false, nil
 		}
@@ -160,7 +160,7 @@ func (h *adkChatStreamHub) cleanup() {
 	h.cleanupWithRunLookup(nil)
 }
 
-func (h *adkChatStreamHub) cleanupWithRunLookup(runLookup func(string) (jfadk.Run, bool)) {
+func (h *adkChatStreamHub) cleanupWithRunLookup(runLookup func(string) (assistantmodel.Run, bool)) {
 	now := time.Now()
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -176,7 +176,7 @@ func (h *adkChatStreamHub) cleanupWithRunLookup(runLookup func(string) (jfadk.Ru
 				expired = streamRunExpired(now, run, updatedAt)
 			}
 		}
-		if !expired && runID == "" && !startedAt.IsZero() && now.Sub(startedAt) > jfadk.DefaultRunTimeout+adkChatStreamRetention {
+		if !expired && runID == "" && !startedAt.IsZero() && now.Sub(startedAt) > assistantmodel.DefaultRunTimeout+adkChatStreamRetention {
 			expired = true
 		}
 		if !expired {
@@ -229,7 +229,7 @@ func streamEventRunID(event adkChatStreamEvent) string {
 	return strings.TrimSpace(event.RunID)
 }
 
-func (h *Handler) startOrReuseADKChatStream(payload jfadk.ChatRequest, fingerprint string) (*adkChatStreamRecord, bool, error) {
+func (h *Handler) startOrReuseADKChatStream(payload assistantmodel.ChatRequest, fingerprint string) (*adkChatStreamRecord, bool, error) {
 	record, created, err := h.streams.claim(payload.ClientRequestID, fingerprint)
 	if err != nil || !created {
 		return record, created, err
@@ -255,19 +255,19 @@ func (h *Handler) cleanupADKChatStreams(ctx context.Context) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	h.streams.cleanupWithRunLookup(func(runID string) (jfadk.Run, bool) {
+	h.streams.cleanupWithRunLookup(func(runID string) (assistantmodel.Run, bool) {
 		if h.service == nil {
-			return jfadk.Run{}, false
+			return assistantmodel.Run{}, false
 		}
 		run, err := h.service.GetRun(ctx, runID)
 		if err != nil {
-			return jfadk.Run{}, false
+			return assistantmodel.Run{}, false
 		}
 		return run, true
 	})
 }
 
-func (h *Handler) executeADKChatStream(ctx context.Context, record *adkChatStreamRecord, payload jfadk.ChatRequest) {
+func (h *Handler) executeADKChatStream(ctx context.Context, record *adkChatStreamRecord, payload assistantmodel.ChatRequest) {
 	execution := newADKChatStreamExecution(h, record, payload)
 	if ctx != nil {
 		execution.ctx = ctx
@@ -284,14 +284,14 @@ func (h *Handler) executeADKChatStream(ctx context.Context, record *adkChatStrea
 type adkChatStreamExecution struct {
 	handler       *Handler
 	record        *adkChatStreamRecord
-	payload       jfadk.ChatRequest
+	payload       assistantmodel.ChatRequest
 	ctx           context.Context
 	sessionSent   bool
 	contextSent   bool
 	timelineState *adkTimelineStreamState
 }
 
-func newADKChatStreamExecution(h *Handler, record *adkChatStreamRecord, payload jfadk.ChatRequest) *adkChatStreamExecution {
+func newADKChatStreamExecution(h *Handler, record *adkChatStreamRecord, payload assistantmodel.ChatRequest) *adkChatStreamExecution {
 	return &adkChatStreamExecution{
 		handler:       h,
 		record:        record,
@@ -313,21 +313,21 @@ func (e *adkChatStreamExecution) previewSession() {
 	e.publishSession(session)
 }
 
-func (e *adkChatStreamExecution) fetchPreviewSession() (jfadk.Session, bool) {
+func (e *adkChatStreamExecution) fetchPreviewSession() (assistantmodel.Session, bool) {
 	session, err := e.handler.service.PreviewSession(e.ctx, e.payload)
 	if err != nil || strings.TrimSpace(session.ID) == "" {
-		return jfadk.Session{}, false
+		return assistantmodel.Session{}, false
 	}
 	return session, true
 }
 
-func (e *adkChatStreamExecution) publishSession(session jfadk.Session) {
+func (e *adkChatStreamExecution) publishSession(session assistantmodel.Session) {
 	e.publish(adkChatStreamEvent{Type: "session", Session: &session})
 	e.sessionSent = true
 	e.timelineState.observeSession(session)
 }
 
-func (e *adkChatStreamExecution) handleDelta(delta jfadk.ChatDelta) error {
+func (e *adkChatStreamExecution) handleDelta(delta assistantmodel.ChatDelta) error {
 	if e.publishTimelineDelta(delta) {
 		return nil
 	}
@@ -340,21 +340,21 @@ func (e *adkChatStreamExecution) handleDelta(delta jfadk.ChatDelta) error {
 	return nil
 }
 
-func (e *adkChatStreamExecution) publishTimelineDelta(delta jfadk.ChatDelta) bool {
+func (e *adkChatStreamExecution) publishTimelineDelta(delta assistantmodel.ChatDelta) bool {
 	if delta.Timeline == nil {
 		return false
 	}
-	timeline := jfadk.NormalizeTimelineEntry(*delta.Timeline)
+	timeline := assistantmodel.NormalizeTimelineEntry(*delta.Timeline)
 	e.timelineState.observeTimeline(timeline)
 	e.publish(adkChatStreamEvent{Type: "timeline", Timeline: &timeline})
 	return delta.Run == nil && delta.Context == nil && delta.Reply == "" && delta.ReasoningContent == ""
 }
 
-func (e *adkChatStreamExecution) publishRunDelta(delta *jfadk.ChatDelta) bool {
+func (e *adkChatStreamExecution) publishRunDelta(delta *assistantmodel.ChatDelta) bool {
 	if delta.Run == nil {
 		return false
 	}
-	normalizedRun := jfadk.NormalizeRun(*delta.Run)
+	normalizedRun := assistantmodel.NormalizeRun(*delta.Run)
 	delta.Run = &normalizedRun
 	e.timelineState.observeRun(delta.Run)
 	e.publish(adkChatStreamEvent{Type: "run", Run: delta.Run})
@@ -364,7 +364,7 @@ func (e *adkChatStreamExecution) publishRunDelta(delta *jfadk.ChatDelta) bool {
 	return true
 }
 
-func (e *adkChatStreamExecution) publishContextDelta(snapshot *jfadk.SessionContextSnapshot) {
+func (e *adkChatStreamExecution) publishContextDelta(snapshot *assistantmodel.SessionContextSnapshot) {
 	if snapshot == nil {
 		return
 	}
@@ -392,7 +392,7 @@ func (e *adkChatStreamExecution) ensureSessionAndContext() {
 	e.contextSent = true
 }
 
-func (e *adkChatStreamExecution) publishNarrativeDeltas(delta jfadk.ChatDelta) {
+func (e *adkChatStreamExecution) publishNarrativeDeltas(delta assistantmodel.ChatDelta) {
 	if reasoningTimeline := e.timelineState.appendReasoning(delta.Run, delta.ReasoningContent); reasoningTimeline != nil {
 		e.publish(adkChatStreamEvent{Type: "timeline", Timeline: reasoningTimeline})
 	}
@@ -410,7 +410,7 @@ func (e *adkChatStreamExecution) publishTerminalError(err error) {
 	e.publish(adkChatStreamEvent{Type: "error", Message: err.Error()})
 }
 
-func (e *adkChatStreamExecution) publishFinal(response jfadk.ChatResponse) {
+func (e *adkChatStreamExecution) publishFinal(response assistantmodel.ChatResponse) {
 	if !e.sessionSent {
 		e.publish(adkChatStreamEvent{Type: "session", Session: &response.Session})
 	}
@@ -421,12 +421,12 @@ func (e *adkChatStreamExecution) publishFinal(response jfadk.ChatResponse) {
 	e.publish(adkChatStreamEvent{Type: "final", Response: &finalResponse})
 }
 
-func trimFinalChatResponse(response jfadk.ChatResponse) jfadk.ChatResponse {
+func trimFinalChatResponse(response assistantmodel.ChatResponse) assistantmodel.ChatResponse {
 	trimmedRun := response.Run
 	for i := range trimmedRun.ToolCalls {
 		trimmedRun.ToolCalls[i].Output = nil
 	}
-	return jfadk.NormalizeChatResponse(jfadk.ChatResponse{
+	return assistantmodel.NormalizeChatResponse(assistantmodel.ChatResponse{
 		Reply:            response.Reply,
 		ReasoningContent: response.ReasoningContent,
 		Session:          response.Session,
@@ -485,7 +485,7 @@ func parseADKStreamAfter(c *gin.Context) (int64, error) {
 	return after, nil
 }
 
-func streamRunExpired(now time.Time, run jfadk.Run, lastEventAt time.Time) bool {
+func streamRunExpired(now time.Time, run assistantmodel.Run, lastEventAt time.Time) bool {
 	if isStreamRunTerminal(run) {
 		return !lastEventAt.IsZero() && now.Sub(lastEventAt) > adkChatStreamRetention
 	}
@@ -494,18 +494,18 @@ func streamRunExpired(now time.Time, run jfadk.Run, lastEventAt time.Time) bool 
 		startedAt, err = time.Parse(time.RFC3339Nano, strings.TrimSpace(run.CreatedAt))
 	}
 	if err != nil {
-		return !lastEventAt.IsZero() && now.Sub(lastEventAt) > jfadk.DefaultRunTimeout+adkChatStreamRetention
+		return !lastEventAt.IsZero() && now.Sub(lastEventAt) > assistantmodel.DefaultRunTimeout+adkChatStreamRetention
 	}
-	timeout := jfadk.DefaultRunTimeout
+	timeout := assistantmodel.DefaultRunTimeout
 	if run.MaxDurationMs > 0 {
 		timeout = time.Duration(run.MaxDurationMs) * time.Millisecond
 	}
 	return now.After(startedAt.Add(timeout).Add(adkChatStreamRetention))
 }
 
-func isStreamRunTerminal(run jfadk.Run) bool {
+func isStreamRunTerminal(run assistantmodel.Run) bool {
 	switch run.Status {
-	case jfadk.RunStatusCompleted, jfadk.RunStatusFailed, jfadk.RunStatusCancelled, jfadk.RunStatusTimedOut, jfadk.RunStatusDenied:
+	case assistantmodel.RunStatusCompleted, assistantmodel.RunStatusFailed, assistantmodel.RunStatusCancelled, assistantmodel.RunStatusTimedOut, assistantmodel.RunStatusDenied:
 		return true
 	default:
 		return false

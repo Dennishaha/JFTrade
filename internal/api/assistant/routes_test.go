@@ -22,21 +22,22 @@ import (
 	_ "modernc.org/sqlite"
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestCatalogSessionRunAndObservabilityContracts(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	ctx := t.Context()
 
-	provider, err := runtime.Store().SaveProvider(ctx, jfadk.ProviderWriteRequest{
+	provider, err := runtime.Store().SaveProvider(ctx, assistantmodel.ProviderWriteRequest{
 		ID: "provider-disabled", DisplayName: "Disabled", Enabled: false,
 	})
 	if err != nil {
 		t.Fatalf("SaveProvider: %v", err)
 	}
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-catalog", Name: "Catalog Agent", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-catalog", Name: "Catalog Agent", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -45,15 +46,15 @@ func TestCatalogSessionRunAndObservabilityContracts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
-	run := jfadk.Run{
+	run := assistantmodel.Run{
 		ID: "run-contract", SessionID: session.ID, AgentID: agent.ID,
-		Status: jfadk.RunStatusCompleted, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		Status: assistantmodel.RunStatusCompleted, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	if err := runtime.Store().SaveRun(ctx, run); err != nil {
 		t.Fatalf("SaveRun: %v", err)
 	}
 	runtime.RecordAudit(ctx, "agent.saved", agent.ID, "saved", nil)
-	if _, err := runtime.Store().SaveOptimizationTask(ctx, jfadk.OptimizationTask{
+	if _, err := runtime.Store().SaveOptimizationTask(ctx, assistantmodel.OptimizationTask{
 		ID: "optimization-contract", Status: "queued", Objective: "return",
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
@@ -100,16 +101,16 @@ func TestAgentSaveErrorClassification(t *testing.T) {
 func TestRunInputResponseContract(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	run := jfadk.Run{
+	run := assistantmodel.Run{
 		ID: "run-input-contract", SessionID: "session-input-contract", AgentID: "agent-input-contract",
-		Status: jfadk.RunStatusPendingInput, ResumeState: "waiting_input", CreatedAt: now, UpdatedAt: now,
-		ToolCalls: []jfadk.ToolCall{}, PendingApprovals: []jfadk.Approval{},
-		InputRequest: &jfadk.InputRequest{
+		Status: assistantmodel.RunStatusPendingInput, ResumeState: "waiting_input", CreatedAt: now, UpdatedAt: now,
+		ToolCalls: []assistantmodel.ToolCall{}, PendingApprovals: []assistantmodel.Approval{},
+		InputRequest: &assistantmodel.InputRequest{
 			ID: "input-contract", RunID: "run-input-contract", AgentID: "agent-input-contract", FunctionCallID: "call-input-contract",
-			Status: jfadk.InputRequestStatusPending, CreatedAt: now, UpdatedAt: now,
-			Questions: []jfadk.InputQuestion{{
+			Status: assistantmodel.InputRequestStatusPending, CreatedAt: now, UpdatedAt: now,
+			Questions: []assistantmodel.InputQuestion{{
 				ID: "q1", Question: "Choose", AllowOther: true,
-				Options: []jfadk.InputOption{{ID: "q1-o1", Label: "A"}, {ID: "q1-o2", Label: "B"}},
+				Options: []assistantmodel.InputOption{{ID: "q1-o1", Label: "A"}, {ID: "q1-o2", Label: "B"}},
 			}},
 		},
 	}
@@ -135,11 +136,11 @@ func TestRunInputResponseContract(t *testing.T) {
 func TestChatStreamHubReplayAndCleanupBoundaries(t *testing.T) {
 	hub := newADKChatStreamHub()
 	record := hub.create()
-	hub.publish(record, adkChatStreamEvent{Type: "run", Run: &jfadk.Run{
-		ID: "run-replay", Status: jfadk.RunStatusRunning,
+	hub.publish(record, adkChatStreamEvent{Type: "run", Run: &assistantmodel.Run{
+		ID: "run-replay", Status: assistantmodel.RunStatusRunning,
 	}})
 	replayUntil := record.currentSequence()
-	hub.publish(record, adkChatStreamEvent{Type: "timeline", Timeline: &jfadk.TimelineEntry{
+	hub.publish(record, adkChatStreamEvent{Type: "timeline", Timeline: &assistantmodel.TimelineEntry{
 		ID: "live-after-reconnect", RunID: "run-replay",
 	}})
 
@@ -159,16 +160,16 @@ func TestChatStreamHubReplayAndCleanupBoundaries(t *testing.T) {
 		t.Fatalf("live event should not be replayed: %+v", events[1])
 	}
 
-	oldStartedAt := time.Now().Add(-2 * jfadk.DefaultRunTimeout).Add(-2 * adkChatStreamRetention).UTC()
-	hub.cleanupWithRunLookup(func(runID string) (jfadk.Run, bool) {
+	oldStartedAt := time.Now().Add(-2 * assistantmodel.DefaultRunTimeout).Add(-2 * adkChatStreamRetention).UTC()
+	hub.cleanupWithRunLookup(func(runID string) (assistantmodel.Run, bool) {
 		if runID != "run-replay" {
-			return jfadk.Run{}, false
+			return assistantmodel.Run{}, false
 		}
-		return jfadk.Run{
+		return assistantmodel.Run{
 			ID:            runID,
-			Status:        jfadk.RunStatusRunning,
+			Status:        assistantmodel.RunStatusRunning,
 			StartedAt:     oldStartedAt.Format(time.RFC3339Nano),
-			MaxDurationMs: int64(jfadk.DefaultRunTimeout / time.Millisecond),
+			MaxDurationMs: int64(assistantmodel.DefaultRunTimeout / time.Millisecond),
 		}, true
 	})
 	if _, ok := hub.get(record.id); ok {
@@ -179,8 +180,8 @@ func TestChatStreamHubReplayAndCleanupBoundaries(t *testing.T) {
 func TestSessionTimelineFailureKeepsLegacyErrorCode(t *testing.T) {
 	runtime, router, dbPath, sessionService := newAssistantTestRouterWithDBPath(t)
 	ctx := t.Context()
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-timeline-fail", Name: "Timeline Fail", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-timeline-fail", Name: "Timeline Fail", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -235,11 +236,11 @@ func TestSessionTimelineFailureKeepsLegacyErrorCode(t *testing.T) {
 	}
 }
 
-func newAssistantTestRouterWithDBPath(t *testing.T) (*jfadk.Runtime, *gin.Engine, string, adksession.Service) {
+func newAssistantTestRouterWithDBPath(t *testing.T) (*jfadkruntime.Runtime, *gin.Engine, string, adksession.Service) {
 	t.Helper()
 	root := t.TempDir()
 	dbPath := filepath.Join(root, "adk.db")
-	store, err := jfadk.NewStore(
+	store, err := jfadkruntime.NewStore(
 		dbPath,
 		filepath.Join(root, "secrets.json"),
 		filepath.Join(root, "skills"),
@@ -248,7 +249,7 @@ func newAssistantTestRouterWithDBPath(t *testing.T) (*jfadk.Runtime, *gin.Engine
 		t.Fatalf("NewStore: %v", err)
 	}
 	sessionService := adksession.InMemoryService()
-	runtime := jfadk.NewRuntimeWithSessionService(store, jfadk.NewToolRegistry(), sessionService)
+	runtime := jfadkruntime.NewRuntimeWithSessionService(store, jfadkruntime.NewToolRegistry(), sessionService)
 	assistantTestProvider(t, runtime)
 	t.Cleanup(func() {
 		jftradeErr1 := runtime.Close()
@@ -263,11 +264,11 @@ func newAssistantTestRouterWithDBPath(t *testing.T) (*jfadk.Runtime, *gin.Engine
 
 func TestChatAndSSEContracts(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
-	agent, err := runtime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := runtime.Store().SaveAgent(t.Context(), assistantmodel.AgentWriteRequest{
 		ID: "agent-stream", Name: "Stream Agent",
 		ProviderID:     "test-provider",
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: assistantmodel.PermissionModeApproval,
+		Status:         assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -299,8 +300,8 @@ func TestChatAndSSEContracts(t *testing.T) {
 
 func TestChatRequestIdempotencyContracts(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
-	agent, err := runtime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
-		ID: "agent-idempotency", Name: "Idempotency Agent", ProviderID: "test-provider", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(t.Context(), assistantmodel.AgentWriteRequest{
+		ID: "agent-idempotency", Name: "Idempotency Agent", ProviderID: "test-provider", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -364,18 +365,18 @@ func TestChatRequestUsesDeclaredMessageFieldOnly(t *testing.T) {
 
 func TestApprovalContract(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
-	runtime.Tools().Register(jfadk.ToolDescriptor{
+	runtime.Tools().Register(assistantmodel.ToolDescriptor{
 		Name: "contract.write", Permission: "write_strategy",
-		AllowedModes: []string{jfadk.PermissionModeApproval},
+		AllowedModes: []string{assistantmodel.PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"saved": true}, nil
 	})
-	agent, err := runtime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := runtime.Store().SaveAgent(t.Context(), assistantmodel.AgentWriteRequest{
 		ID: "agent-approval", Name: "Approval Agent",
 		ProviderID:     "test-provider",
 		Tools:          []string{"contract.write"},
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
+		PermissionMode: assistantmodel.PermissionModeApproval,
+		Status:         assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -389,7 +390,7 @@ func TestApprovalContract(t *testing.T) {
 	var envelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			PendingApprovals []jfadk.Approval `json:"pendingApprovals"`
+			PendingApprovals []assistantmodel.Approval `json:"pendingApprovals"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(chat.Body.Bytes(), &envelope); err != nil {
@@ -411,10 +412,10 @@ func TestApprovalContract(t *testing.T) {
 	assertOKEnvelope(t, resolve)
 }
 
-func newAssistantTestRouter(t *testing.T) (*jfadk.Runtime, *gin.Engine) {
+func newAssistantTestRouter(t *testing.T) (*jfadkruntime.Runtime, *gin.Engine) {
 	t.Helper()
 	root := t.TempDir()
-	store, err := jfadk.NewStore(
+	store, err := jfadkruntime.NewStore(
 		filepath.Join(root, "adk.db"),
 		filepath.Join(root, "secrets.json"),
 		filepath.Join(root, "skills"),
@@ -422,7 +423,7 @@ func newAssistantTestRouter(t *testing.T) (*jfadk.Runtime, *gin.Engine) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	runtime := jfadk.NewRuntime(store, jfadk.NewToolRegistry())
+	runtime := jfadkruntime.NewRuntime(store, jfadkruntime.NewToolRegistry())
 	assistantTestProvider(t, runtime)
 	t.Cleanup(func() {
 		jftradeErr2 := runtime.Close()
@@ -442,7 +443,7 @@ func newAssistantTestRouter(t *testing.T) (*jfadk.Runtime, *gin.Engine) {
 	return runtime, router
 }
 
-func assistantTestProvider(t *testing.T, runtime *jfadk.Runtime) {
+func assistantTestProvider(t *testing.T, runtime *jfadkruntime.Runtime) {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		serveAssistantResponsesFixture(t, w, r, func(text string) string {
@@ -453,7 +454,7 @@ func assistantTestProvider(t *testing.T, runtime *jfadk.Runtime) {
 		})
 	}))
 	t.Cleanup(server.Close)
-	if _, err := runtime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
+	if _, err := runtime.Store().SaveProvider(t.Context(), assistantmodel.ProviderWriteRequest{
 		ID: "test-provider", DisplayName: "Test Provider", BaseURL: server.URL, Model: "test-model", APIKey: "sk-test", Enabled: true,
 	}); err != nil {
 		t.Fatalf("SaveProvider test: %v", err)

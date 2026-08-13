@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func (s *Service) Snapshot(ctx context.Context) (any, error) {
@@ -39,7 +40,7 @@ func (s *Service) Tools(ctx context.Context) (any, error) {
 
 // AgentTemplates 返回内置 agent 模板。
 func (s *Service) AgentTemplates(ctx context.Context) (any, error) {
-	return jfadk.BuiltinAgentTemplates(), nil
+	return jfadkruntime.BuiltinAgentTemplates(), nil
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -47,53 +48,53 @@ func (s *Service) AgentTemplates(ctx context.Context) (any, error) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ListTasks 分页列出任务，支持 status/agentId/runId 过滤。
-func (s *Service) ListTasks(ctx context.Context, query TaskQuery) (Page[jfadk.Task], error) {
+func (s *Service) ListTasks(ctx context.Context, query TaskQuery) (Page[assistantmodel.Task], error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return Page[jfadk.Task]{}, fmt.Errorf("adk runtime is unavailable")
+		return Page[assistantmodel.Task]{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	tasks, total, err := s.runtime.Store().ListTasksPage(ctx, query.Status, query.AgentID, query.RunID, query.Limit, query.Offset)
 	if err != nil {
-		return Page[jfadk.Task]{}, err
+		return Page[assistantmodel.Task]{}, err
 	}
-	return Page[jfadk.Task]{Items: tasks, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
+	return Page[assistantmodel.Task]{Items: tasks, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
 }
 
 // GetTask 按 ID 获取单个任务。
-func (s *Service) GetTask(ctx context.Context, taskID string) (jfadk.Task, error) {
+func (s *Service) GetTask(ctx context.Context, taskID string) (assistantmodel.Task, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Task{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Task{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	task, ok, err := s.runtime.Store().Task(ctx, taskID)
 	if err != nil {
-		return jfadk.Task{}, err
+		return assistantmodel.Task{}, err
 	}
 	if !ok {
-		return jfadk.Task{}, fmt.Errorf("task not found")
+		return assistantmodel.Task{}, fmt.Errorf("task not found")
 	}
 	return task, nil
 }
 
 // SaveTask 创建或更新任务。
-func (s *Service) SaveTask(ctx context.Context, req jfadk.TaskWriteRequest) (jfadk.Task, error) {
+func (s *Service) SaveTask(ctx context.Context, req assistantmodel.TaskWriteRequest) (assistantmodel.Task, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Task{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Task{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	saved, err := s.runtime.Store().SaveTask(ctx, req)
 	if err != nil {
-		return jfadk.Task{}, err
+		return assistantmodel.Task{}, err
 	}
 	s.runtime.RecordAudit(ctx, "task.saved", saved.ID, "ADK task saved.", map[string]any{"status": saved.Status})
 	return saved, nil
 }
 
 // UpdateTask 局部更新任务（PATCH 语义）。
-func (s *Service) UpdateTask(ctx context.Context, taskID string, req jfadk.TaskPatchRequest) (jfadk.Task, error) {
+func (s *Service) UpdateTask(ctx context.Context, taskID string, req assistantmodel.TaskPatchRequest) (assistantmodel.Task, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Task{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Task{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	updated, err := s.runtime.Store().UpdateTask(ctx, taskID, req)
 	if err != nil {
-		return jfadk.Task{}, err
+		return assistantmodel.Task{}, err
 	}
 	s.runtime.RecordAudit(ctx, "task.updated", updated.ID, "ADK task updated.", map[string]any{"status": updated.Status})
 	return updated, nil
@@ -116,7 +117,7 @@ func (s *Service) DeleteTask(ctx context.Context, taskID string) error {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ListMemory 列出记忆条目，支持 scope/agentId/key 过滤。
-func (s *Service) ListMemory(ctx context.Context, query MemoryQuery) ([]jfadk.MemoryEntry, error) {
+func (s *Service) ListMemory(ctx context.Context, query MemoryQuery) ([]assistantmodel.MemoryEntry, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
 	}
@@ -128,13 +129,13 @@ func (s *Service) ListMemory(ctx context.Context, query MemoryQuery) ([]jfadk.Me
 }
 
 // SaveMemory 创建或覆写记忆条目。
-func (s *Service) SaveMemory(ctx context.Context, req jfadk.MemoryWriteRequest) (jfadk.MemoryEntry, error) {
+func (s *Service) SaveMemory(ctx context.Context, req assistantmodel.MemoryWriteRequest) (assistantmodel.MemoryEntry, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.MemoryEntry{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.MemoryEntry{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	saved, err := s.runtime.Store().SaveMemory(ctx, req)
 	if err != nil {
-		return jfadk.MemoryEntry{}, err
+		return assistantmodel.MemoryEntry{}, err
 	}
 	s.runtime.RecordAudit(ctx, "memory.saved", saved.ID, "ADK memory saved.", map[string]any{"scope": saved.Scope, "key": saved.Key})
 	return saved, nil
@@ -157,7 +158,7 @@ func (s *Service) DeleteMemory(ctx context.Context, memoryID string) error {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ListProviders 列出所有 AI Provider。
-func (s *Service) ListProviders(ctx context.Context) ([]jfadk.Provider, error) {
+func (s *Service) ListProviders(ctx context.Context) ([]assistantmodel.Provider, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
 	}
@@ -169,26 +170,26 @@ func (s *Service) ListProviders(ctx context.Context) ([]jfadk.Provider, error) {
 }
 
 // SaveProvider 创建或更新 Provider。
-func (s *Service) SaveProvider(ctx context.Context, req jfadk.ProviderWriteRequest) (jfadk.Provider, error) {
+func (s *Service) SaveProvider(ctx context.Context, req assistantmodel.ProviderWriteRequest) (assistantmodel.Provider, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Provider{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Provider{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	saved, err := s.runtime.Store().SaveProvider(ctx, req)
 	if err != nil {
-		return jfadk.Provider{}, err
+		return assistantmodel.Provider{}, err
 	}
 	s.runtime.RecordAudit(ctx, "provider.saved", saved.ID, "ADK provider saved.", map[string]any{"enabled": saved.Enabled})
 	return saved, nil
 }
 
 // SetDefaultProvider 将指定 Provider 设为默认模型。
-func (s *Service) SetDefaultProvider(ctx context.Context, providerID string) (jfadk.Provider, error) {
+func (s *Service) SetDefaultProvider(ctx context.Context, providerID string) (assistantmodel.Provider, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Provider{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Provider{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	provider, err := s.runtime.Store().SetDefaultProvider(ctx, providerID)
 	if err != nil {
-		return jfadk.Provider{}, err
+		return assistantmodel.Provider{}, err
 	}
 	s.runtime.RecordAudit(ctx, "provider.default_set", provider.ID, "ADK default provider changed.", map[string]any{"providerId": provider.ID})
 	return provider, nil
@@ -206,7 +207,7 @@ func (s *Service) DeleteProvider(ctx context.Context, providerID string) error {
 func (s *Service) TestProvider(
 	ctx context.Context,
 	providerID string,
-	modes ...jfadk.ProviderTestMode,
+	modes ...assistantmodel.ProviderTestMode,
 ) (any, error) {
 	if s.runtime == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
@@ -219,7 +220,7 @@ func (s *Service) TestProvider(
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ListAgents 列出所有 Agent，支持按 status 过滤。
-func (s *Service) ListAgents(ctx context.Context, query AgentQuery) ([]jfadk.Agent, error) {
+func (s *Service) ListAgents(ctx context.Context, query AgentQuery) ([]assistantmodel.Agent, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
 	}
@@ -228,7 +229,7 @@ func (s *Service) ListAgents(ctx context.Context, query AgentQuery) ([]jfadk.Age
 		return nil, err
 	}
 	if query.Status != "" {
-		filtered := make([]jfadk.Agent, 0, len(items))
+		filtered := make([]assistantmodel.Agent, 0, len(items))
 		for _, a := range items {
 			if strings.EqualFold(a.Status, query.Status) {
 				filtered = append(filtered, a)
@@ -240,21 +241,21 @@ func (s *Service) ListAgents(ctx context.Context, query AgentQuery) ([]jfadk.Age
 }
 
 // SaveAgent 创建或更新 Agent。
-func (s *Service) SaveAgent(ctx context.Context, req jfadk.AgentWriteRequest) (jfadk.Agent, error) {
+func (s *Service) SaveAgent(ctx context.Context, req assistantmodel.AgentWriteRequest) (assistantmodel.Agent, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Agent{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Agent{}, fmt.Errorf("adk runtime is unavailable")
 	}
-	if jfadk.IsPrimaryBuiltinAgentID(strings.TrimSpace(req.ID)) {
+	if jfadkruntime.IsPrimaryBuiltinAgentID(strings.TrimSpace(req.ID)) {
 		if err := s.validatePrimaryBuiltinAgentUpdate(ctx, req); err != nil {
-			return jfadk.Agent{}, err
+			return assistantmodel.Agent{}, err
 		}
 	}
 	if err := s.validateAgent(ctx, req); err != nil {
-		return jfadk.Agent{}, err
+		return assistantmodel.Agent{}, err
 	}
 	saved, err := s.runtime.Store().SaveAgent(ctx, req)
 	if err != nil {
-		return jfadk.Agent{}, err
+		return assistantmodel.Agent{}, err
 	}
 	s.runtime.RecordAudit(ctx, "agent.saved", saved.ID, "ADK agent saved.", map[string]any{"status": saved.Status, "permissionMode": saved.PermissionMode})
 	return saved, nil
@@ -268,20 +269,20 @@ func (s *Service) DeleteAgent(ctx context.Context, agentID string) error {
 	return s.runtime.Store().DeleteAgent(ctx, agentID)
 }
 
-func (s *Service) validateAgent(ctx context.Context, payload jfadk.AgentWriteRequest) error {
+func (s *Service) validateAgent(ctx context.Context, payload assistantmodel.AgentWriteRequest) error {
 	status := strings.ToUpper(strings.TrimSpace(payload.Status))
-	if status != "" && status != jfadk.AgentStatusEnabled && status != jfadk.AgentStatusDisabled {
+	if status != "" && status != assistantmodel.AgentStatusEnabled && status != assistantmodel.AgentStatusDisabled {
 		return fmt.Errorf("invalid agent status")
 	}
 	if strings.TrimSpace(payload.WorkMode) != "" {
 		switch strings.ToLower(strings.TrimSpace(payload.WorkMode)) {
-		case jfadk.WorkModeChat, jfadk.WorkModeLoop:
+		case assistantmodel.WorkModeChat, assistantmodel.WorkModeLoop:
 		default:
 			return fmt.Errorf("invalid agent work mode")
 		}
 	}
-	if payload.LoopMaxIterations < 0 || payload.LoopMaxIterations > jfadk.MaxLoopIterations {
-		return fmt.Errorf("loop max iterations must be between 1 and %d", jfadk.MaxLoopIterations)
+	if payload.LoopMaxIterations < 0 || payload.LoopMaxIterations > assistantmodel.MaxLoopIterations {
+		return fmt.Errorf("loop max iterations must be between 1 and %d", assistantmodel.MaxLoopIterations)
 	}
 	if strings.TrimSpace(payload.ProviderID) != "" {
 		provider, ok, err := s.runtime.Store().Provider(ctx, payload.ProviderID)
@@ -291,7 +292,7 @@ func (s *Service) validateAgent(ctx context.Context, payload jfadk.AgentWriteReq
 		if !ok {
 			return fmt.Errorf("provider not found")
 		}
-		if status != jfadk.AgentStatusDisabled {
+		if status != assistantmodel.AgentStatusDisabled {
 			if !provider.Enabled {
 				return fmt.Errorf("provider is disabled")
 			}

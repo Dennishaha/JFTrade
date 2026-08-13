@@ -11,7 +11,7 @@ import (
 	"text/template"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	workflowrules "github.com/jftrade/jftrade-main/internal/assistant/workflow"
 )
 
@@ -35,7 +35,7 @@ func renderWorkflowTemplate(raw string, inputs map[string]any) (string, error) {
 	return strings.TrimSpace(buffer.String()), nil
 }
 
-func workflowInputs(workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any) map[string]any {
+func workflowInputs(workflow assistantmodel.WorkflowDefinition, trigger *assistantmodel.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any) map[string]any {
 	merged := cloneMap(workflow.DefaultInputs)
 	maps.Copy(merged, inputs)
 	merged["workflow"] = map[string]any{"id": workflow.ID, "name": workflow.Name}
@@ -49,14 +49,14 @@ func workflowInputs(workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTr
 	return merged
 }
 
-func renderWorkflowCanvasTemplates(workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any) (jfadk.WorkflowDefinition, error) {
+func renderWorkflowCanvasTemplates(workflow assistantmodel.WorkflowDefinition, trigger *assistantmodel.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any) (assistantmodel.WorkflowDefinition, error) {
 	if workflow.CanvasGraph == nil {
 		return workflow, nil
 	}
 	merged := workflowInputs(workflow, trigger, inputs, matchedEvent)
 	graph := *workflow.CanvasGraph
-	graph.Nodes = append([]jfadk.WorkflowCanvasNode(nil), workflow.CanvasGraph.Nodes...)
-	graph.Edges = append([]jfadk.WorkflowCanvasEdge(nil), workflow.CanvasGraph.Edges...)
+	graph.Nodes = append([]assistantmodel.WorkflowCanvasNode(nil), workflow.CanvasGraph.Nodes...)
+	graph.Edges = append([]assistantmodel.WorkflowCanvasEdge(nil), workflow.CanvasGraph.Edges...)
 	for index, node := range graph.Nodes {
 		if strings.ToLower(strings.TrimSpace(node.Type)) != "agent" {
 			continue
@@ -76,7 +76,7 @@ func renderWorkflowCanvasTemplates(workflow jfadk.WorkflowDefinition, trigger *j
 			}
 			rendered, err := renderWorkflowTemplate(raw, merged)
 			if err != nil {
-				return jfadk.WorkflowDefinition{}, fmt.Errorf("render canvas node %q %s: %w", node.ID, spec.source, err)
+				return assistantmodel.WorkflowDefinition{}, fmt.Errorf("render canvas node %q %s: %w", node.ID, spec.source, err)
 			}
 			data[spec.target] = rendered
 		}
@@ -87,15 +87,15 @@ func renderWorkflowCanvasTemplates(workflow jfadk.WorkflowDefinition, trigger *j
 	return workflow, nil
 }
 
-func evaluateMarketThresholdTrigger(trigger jfadk.WorkflowTrigger, events []map[string]any, now time.Time) ([]map[string]any, bool) {
+func evaluateMarketThresholdTrigger(trigger assistantmodel.WorkflowTrigger, events []map[string]any, now time.Time) ([]map[string]any, bool) {
 	return workflowrules.EvaluateMarketThresholdTrigger(trigger, events, now)
 }
 
-func workflowEventMatches(config map[string]any, event jfadk.WorkflowEvent) bool {
+func workflowEventMatches(config map[string]any, event assistantmodel.WorkflowEvent) bool {
 	return workflowrules.EventMatches(config, event)
 }
 
-func eventTriggerCooldownAllows(trigger *jfadk.WorkflowTrigger, now time.Time) bool {
+func eventTriggerCooldownAllows(trigger *assistantmodel.WorkflowTrigger, now time.Time) bool {
 	return workflowrules.EventCooldownAllows(trigger, now)
 }
 
@@ -107,7 +107,7 @@ func compareThreshold(operator string, current float64, threshold float64) bool 
 	return workflowrules.CompareThreshold(operator, current, threshold)
 }
 
-func validateWorkflowTrigger(trigger jfadk.WorkflowTrigger) error {
+func validateWorkflowTrigger(trigger assistantmodel.WorkflowTrigger) error {
 	return workflowrules.ValidateTrigger(trigger)
 }
 
@@ -148,25 +148,25 @@ func normalizedWorkflowPage(limit int, offset int) (int, int) {
 	return limit, offset
 }
 
-func sanitizeWorkflowTrigger(trigger jfadk.WorkflowTrigger) jfadk.WorkflowTrigger {
+func sanitizeWorkflowTrigger(trigger assistantmodel.WorkflowTrigger) assistantmodel.WorkflowTrigger {
 	trigger.HasSecret = trigger.HasSecret || strings.TrimSpace(trigger.SecretHash) != ""
 	trigger.SecretHash = ""
 	return trigger
 }
 
-func newSanitizedTrigger(trigger jfadk.WorkflowTrigger) *jfadk.WorkflowTrigger {
+func newSanitizedTrigger(trigger assistantmodel.WorkflowTrigger) *assistantmodel.WorkflowTrigger {
 	sanitized := sanitizeWorkflowTrigger(trigger)
 	return &sanitized
 }
 
-func newSanitizedTriggerPtr(trigger *jfadk.WorkflowTrigger) *jfadk.WorkflowTrigger {
+func newSanitizedTriggerPtr(trigger *assistantmodel.WorkflowTrigger) *assistantmodel.WorkflowTrigger {
 	if trigger == nil {
 		return nil
 	}
 	return newSanitizedTrigger(*trigger)
 }
 
-func triggerID(trigger *jfadk.WorkflowTrigger) string {
+func triggerID(trigger *assistantmodel.WorkflowTrigger) string {
 	if trigger == nil {
 		return ""
 	}
@@ -253,7 +253,7 @@ func cooldownAllows(value any, now time.Time, cooldownSec int) bool {
 	return workflowrules.CooldownAllows(value, now, cooldownSec)
 }
 
-func eventAsMap(event jfadk.WorkflowEvent) map[string]any {
+func eventAsMap(event assistantmodel.WorkflowEvent) map[string]any {
 	out := map[string]any{
 		"type":     event.Type,
 		"source":   event.Source,

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 // GetMetrics 聚合 ADK 运行指标（runs/tools/approvals/usage）。
@@ -87,8 +87,8 @@ const activityMeasurementWindow = 7 * 24 * time.Hour
 
 func (s *Service) loadActivityMetrics(
 	ctx context.Context,
-	runs []jfadk.Run,
-	approvals []jfadk.Approval,
+	runs []assistantmodel.Run,
+	approvals []assistantmodel.Approval,
 	now time.Time,
 ) (activityMetricsSummary, error) {
 	store := s.runtime.Store()
@@ -112,12 +112,12 @@ func (s *Service) loadActivityMetrics(
 }
 
 func aggregateActivityMetrics(
-	runs []jfadk.Run,
-	approvals []jfadk.Approval,
-	sessions []jfadk.Session,
-	workflows []jfadk.WorkflowDefinition,
-	triggers []jfadk.WorkflowTrigger,
-	logs []jfadk.WorkflowTriggerLog,
+	runs []assistantmodel.Run,
+	approvals []assistantmodel.Approval,
+	sessions []assistantmodel.Session,
+	workflows []assistantmodel.WorkflowDefinition,
+	triggers []assistantmodel.WorkflowTrigger,
+	logs []assistantmodel.WorkflowTriggerLog,
 	totalLogs int,
 	now time.Time,
 ) activityMetricsSummary {
@@ -135,12 +135,12 @@ func aggregateActivityMetrics(
 	metrics.approvalsRecent = countRecentApprovals(approvals, since)
 	metrics.sessionsRecent = countRecentSessions(sessions, since)
 	for _, workflow := range workflows {
-		if workflow.Status == jfadk.WorkflowStatusEnabled {
+		if workflow.Status == assistantmodel.WorkflowStatusEnabled {
 			metrics.workflowDefinitionsLive++
 		}
 	}
 	for _, trigger := range triggers {
-		if trigger.Status == jfadk.WorkflowTriggerStatusEnabled {
+		if trigger.Status == assistantmodel.WorkflowTriggerStatusEnabled {
 			metrics.workflowTriggersLive++
 		}
 	}
@@ -154,7 +154,7 @@ func aggregateActivityMetrics(
 	return metrics
 }
 
-func countRecentRuns(runs []jfadk.Run, since time.Time) int {
+func countRecentRuns(runs []assistantmodel.Run, since time.Time) int {
 	count := 0
 	for _, run := range runs {
 		if timestampInWindow(run.CreatedAt, since) {
@@ -164,7 +164,7 @@ func countRecentRuns(runs []jfadk.Run, since time.Time) int {
 	return count
 }
 
-func countRecentApprovals(approvals []jfadk.Approval, since time.Time) int {
+func countRecentApprovals(approvals []assistantmodel.Approval, since time.Time) int {
 	count := 0
 	for _, approval := range approvals {
 		if timestampInWindow(approval.CreatedAt, since) {
@@ -174,7 +174,7 @@ func countRecentApprovals(approvals []jfadk.Approval, since time.Time) int {
 	return count
 }
 
-func countRecentSessions(sessions []jfadk.Session, since time.Time) int {
+func countRecentSessions(sessions []assistantmodel.Session, since time.Time) int {
 	count := 0
 	for _, session := range sessions {
 		if timestampInWindow(session.CreatedAt, since) {
@@ -189,7 +189,7 @@ func timestampInWindow(value string, since time.Time) bool {
 	return err == nil && !parsed.Before(since)
 }
 
-func (s *Service) loadMetricsInputs(ctx context.Context) ([]jfadk.Run, map[string]string, []jfadk.Approval, error) {
+func (s *Service) loadMetricsInputs(ctx context.Context) ([]assistantmodel.Run, map[string]string, []assistantmodel.Approval, error) {
 	store := s.runtime.Store()
 	runs, err := store.ListRuns(ctx)
 	if err != nil {
@@ -206,7 +206,7 @@ func (s *Service) loadMetricsInputs(ctx context.Context) ([]jfadk.Run, map[strin
 	return runs, metricsAgentProviders(agents), approvals, nil
 }
 
-func metricsAgentProviders(agents []jfadk.Agent) map[string]string {
+func metricsAgentProviders(agents []assistantmodel.Agent) map[string]string {
 	agentProvider := make(map[string]string, len(agents))
 	for _, agent := range agents {
 		agentProvider[agent.ID] = strings.TrimSpace(agent.ProviderID)
@@ -214,7 +214,7 @@ func metricsAgentProviders(agents []jfadk.Agent) map[string]string {
 	return agentProvider
 }
 
-func aggregateRunMetrics(runs []jfadk.Run, agentProvider map[string]string) (runMetricsSummary, toolMetricsSummary, usageMetricsSummary) {
+func aggregateRunMetrics(runs []assistantmodel.Run, agentProvider map[string]string) (runMetricsSummary, toolMetricsSummary, usageMetricsSummary) {
 	runMetrics := runMetricsSummary{
 		statuses:   map[string]int{},
 		byAgent:    map[string]int{},
@@ -259,7 +259,7 @@ func aggregateRunMetrics(runs []jfadk.Run, agentProvider map[string]string) (run
 	return runMetrics, toolMetrics, finalizeUsageMetrics(tokensInTotal, tokensOutTotal, tokenSamples)
 }
 
-func metricsProviderID(run jfadk.Run, agentProvider map[string]string) string {
+func metricsProviderID(run assistantmodel.Run, agentProvider map[string]string) string {
 	providerID := strings.TrimSpace(run.ProviderID)
 	if providerID == "" {
 		providerID = agentProvider[run.AgentID]
@@ -270,13 +270,13 @@ func metricsProviderID(run jfadk.Run, agentProvider map[string]string) string {
 	return providerID
 }
 
-func accumulateRunLifecycle(metrics *runMetricsSummary, run jfadk.Run) {
+func accumulateRunLifecycle(metrics *runMetricsSummary, run assistantmodel.Run) {
 	switch run.Status {
-	case jfadk.RunStatusFailed:
+	case assistantmodel.RunStatusFailed:
 		metrics.failed++
-	case jfadk.RunStatusTimedOut:
+	case assistantmodel.RunStatusTimedOut:
 		metrics.timedOut++
-	case jfadk.RunStatusCancelled:
+	case assistantmodel.RunStatusCancelled:
 		metrics.cancelled++
 	}
 	if strings.TrimSpace(run.ResumeState) == "adk_confirmation_resolved" {
@@ -299,7 +299,7 @@ func finalizeUsageMetrics(tokensInTotal int, tokensOutTotal int, tokenSamples in
 	return usage
 }
 
-func aggregateApprovalMetrics(approvals []jfadk.Approval, now time.Time) approvalMetricsSummary {
+func aggregateApprovalMetrics(approvals []assistantmodel.Approval, now time.Time) approvalMetricsSummary {
 	var metrics approvalMetricsSummary
 	var pendingWaitTotal int64
 	var resolvedWaitTotal int64
@@ -307,7 +307,7 @@ func aggregateApprovalMetrics(approvals []jfadk.Approval, now time.Time) approva
 	for _, approval := range approvals {
 		waitMs := approvalWaitDurationMs(approval, now)
 		switch approval.Status {
-		case jfadk.ApprovalStatusPending:
+		case assistantmodel.ApprovalStatusPending:
 			metrics.pending++
 			pendingWaitTotal += waitMs
 			if waitMs > metrics.pendingWaitMax {
@@ -316,14 +316,14 @@ func aggregateApprovalMetrics(approvals []jfadk.Approval, now time.Time) approva
 			if strings.TrimSpace(approval.FunctionCallID) != "" && strings.TrimSpace(approval.ConfirmationCallID) != "" {
 				metrics.recoverable++
 			}
-		case jfadk.ApprovalStatusApproved:
+		case assistantmodel.ApprovalStatusApproved:
 			metrics.approved++
 			resolvedWaitTotal += waitMs
 			metrics.resolutionCount++
 			if waitMs > metrics.resolutionWaitMax {
 				metrics.resolutionWaitMax = waitMs
 			}
-		case jfadk.ApprovalStatusDenied:
+		case assistantmodel.ApprovalStatusDenied:
 			metrics.denied++
 			resolvedWaitTotal += waitMs
 			metrics.resolutionCount++
@@ -342,8 +342,8 @@ func aggregateApprovalMetrics(approvals []jfadk.Approval, now time.Time) approva
 }
 
 func buildMetricsPayload(
-	runs []jfadk.Run,
-	approvals []jfadk.Approval,
+	runs []assistantmodel.Run,
+	approvals []assistantmodel.Approval,
 	runMetrics runMetricsSummary,
 	toolMetrics toolMetricsSummary,
 	approvalMetrics approvalMetricsSummary,

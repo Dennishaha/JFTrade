@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"iter"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 )
@@ -26,7 +26,7 @@ func TestResponsesModelSendsSanitizedToolsAndRestoresCalls(t *testing.T) {
 	}))
 	defer server.Close()
 
-	llm, err := NewOpenAIResponsesADKModel(t.Context(), jfadkmodel.Provider{
+	llm, err := NewOpenAIResponsesADKModel(t.Context(), assistantmodel.Provider{
 		BaseURL: server.URL + "/v1", Model: "test-model", DefaultHeaders: map[string]string{"X-Desk": "research"},
 	}, "secret", "")
 	if err != nil {
@@ -63,7 +63,7 @@ func TestResponsesModelRetainsStreamingUsageMetadata(t *testing.T) {
 	}))
 	defer server.Close()
 
-	llm, err := NewOpenAIResponsesADKModel(t.Context(), jfadkmodel.Provider{
+	llm, err := NewOpenAIResponsesADKModel(t.Context(), assistantmodel.Provider{
 		BaseURL: server.URL + "/v1", Model: "test-model",
 	}, "secret", "")
 	if err != nil {
@@ -147,7 +147,7 @@ func TestProbeResponsesProviderReportsMalformedResponse(t *testing.T) {
 		_, _ = w.Write([]byte("not-json"))
 	}))
 	defer server.Close()
-	_, err := ProbeOpenAIResponsesProvider(t.Context(), jfadkmodel.Provider{BaseURL: server.URL + "/v1", Model: "model"}, "key", false)
+	_, err := ProbeOpenAIResponsesProvider(t.Context(), assistantmodel.Provider{BaseURL: server.URL + "/v1", Model: "model"}, "key", false)
 	if err == nil {
 		t.Fatal("malformed Responses response accepted")
 	}

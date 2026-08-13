@@ -2,7 +2,7 @@
 // 会话、聊天、工具、审批、任务、记忆、Provider、Agent、Skill、审计、指标等
 // 能力封装为统一 Service，Handler 层仅负责参数绑定与响应写入。
 //
-// Service 直接持有 *jfadk.Runtime——Runtime 聚合了 Store、ToolRegistry、
+// Service 直接持有 *jfadkruntime.Runtime——Runtime 聚合了 Store、ToolRegistry、
 // SkillRegistry，所有 CRUD 和运行时操作均通过 Runtime 或其子组件委托。
 // 业务输入输出使用明确类型；仅运行时设置、工具结果等动态数据保留 any。
 package assistant
@@ -15,7 +15,8 @@ import (
 	"sync"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
@@ -31,7 +32,7 @@ func wrapSessionTimelineError(err error) error {
 
 // Service ADK 助手业务门面。持有 Runtime 及其聚合的 Store/ToolRegistry/SkillRegistry。
 type Service struct {
-	runtime           *jfadk.Runtime
+	runtime           *jfadkruntime.Runtime
 	runtimeSettings   func() any
 	streamIdleTimeout func() int
 	optimizationRuns  OptimizationRuns
@@ -101,7 +102,7 @@ func WithWorkflowSchedulerInterval(interval time.Duration) Option {
 }
 
 // NewService 创建助手服务。
-func NewService(runtime *jfadk.Runtime, options ...Option) *Service {
+func NewService(runtime *jfadkruntime.Runtime, options ...Option) *Service {
 	service := &Service{runtime: runtime}
 	for _, option := range options {
 		option(service)
@@ -129,17 +130,17 @@ func (s *Service) StreamIdleTimeoutMillis() int {
 // Snapshot 返回 ADK 运行时快照（Providers + Agents + Skills + Tools）。
 
 // Chat 同步对话。
-func (s *Service) Chat(ctx context.Context, req jfadk.ChatRequest) (jfadk.ChatResponse, error) {
+func (s *Service) Chat(ctx context.Context, req assistantmodel.ChatRequest) (assistantmodel.ChatResponse, error) {
 	if s.runtime == nil {
-		return jfadk.ChatResponse{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.ChatResponse{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.Chat(ctx, req)
 }
 
 // ChatStream 流式对话。onDelta 接收每个 delta 事件。
-func (s *Service) ChatStream(ctx context.Context, req jfadk.ChatRequest, onDelta func(jfadk.ChatDelta) error) (jfadk.ChatResponse, error) {
+func (s *Service) ChatStream(ctx context.Context, req assistantmodel.ChatRequest, onDelta func(assistantmodel.ChatDelta) error) (assistantmodel.ChatResponse, error) {
 	if s.runtime == nil {
-		return jfadk.ChatResponse{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.ChatResponse{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.ChatStream(ctx, req, onDelta)
 }
@@ -154,34 +155,34 @@ func (s *Service) CheckChatRequestConflict(ctx context.Context, clientRequestID 
 		return err
 	}
 	if existingFingerprint != fingerprint {
-		return &jfadk.ChatRequestConflictError{ClientRequestID: clientRequestID}
+		return &assistantmodel.ChatRequestConflictError{ClientRequestID: clientRequestID}
 	}
 	return nil
 }
 
 // PreviewSession returns the existing or prospective session emitted at stream start.
-func (s *Service) PreviewSession(ctx context.Context, payload jfadk.ChatRequest) (jfadk.Session, error) {
+func (s *Service) PreviewSession(ctx context.Context, payload assistantmodel.ChatRequest) (assistantmodel.Session, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Session{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Session{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	agent, err := s.runtime.Store().DefaultAgent(ctx)
 	if strings.TrimSpace(payload.AgentID) != "" {
 		var ok bool
 		agent, ok, err = s.runtime.Store().Agent(ctx, payload.AgentID)
 		if err != nil {
-			return jfadk.Session{}, err
+			return assistantmodel.Session{}, err
 		}
 		if !ok {
-			return jfadk.Session{}, fmt.Errorf("agent not found")
+			return assistantmodel.Session{}, fmt.Errorf("agent not found")
 		}
 	}
 	if err != nil {
-		return jfadk.Session{}, err
+		return assistantmodel.Session{}, err
 	}
 	if strings.TrimSpace(payload.SessionID) != "" {
 		session, ok, sessionErr := s.runtime.Store().Session(ctx, payload.SessionID)
 		if sessionErr != nil {
-			return jfadk.Session{}, sessionErr
+			return assistantmodel.Session{}, sessionErr
 		}
 		if ok {
 			return session, nil
@@ -191,12 +192,12 @@ func (s *Service) PreviewSession(ctx context.Context, payload jfadk.ChatRequest)
 	if len([]rune(title)) > 28 {
 		title = string([]rune(title)[:28])
 	}
-	return jfadk.Session{AgentID: agent.ID, Title: title}, nil
+	return assistantmodel.Session{AgentID: agent.ID, Title: title}, nil
 }
 
 // RecoverTerminalChatResponse rebuilds a final stream response after a terminal
 // run was persisted but the final session message append failed.
-func (s *Service) RecoverTerminalChatResponse(ctx context.Context, runID string) (*jfadk.ChatResponse, error) {
+func (s *Service) RecoverTerminalChatResponse(ctx context.Context, runID string) (*assistantmodel.ChatResponse, error) {
 	if s.runtime == nil || s.runtime.Store() == nil || strings.TrimSpace(runID) == "" {
 		return nil, nil
 	}
@@ -213,10 +214,10 @@ func (s *Service) RecoverTerminalChatResponse(ctx context.Context, runID string)
 		return nil, err
 	}
 	if timeline == nil {
-		timeline = []jfadk.TimelineEntry{}
+		timeline = []assistantmodel.TimelineEntry{}
 	}
 	reply, reasoning := s.recoverAssistantReply(ctx, run)
-	response := jfadk.ChatResponse{
+	response := assistantmodel.ChatResponse{
 		Reply:            reply,
 		ReasoningContent: reasoning,
 		Session:          session,
@@ -227,10 +228,10 @@ func (s *Service) RecoverTerminalChatResponse(ctx context.Context, runID string)
 	if snapshot, snapshotErr := s.runtime.SessionContext(ctx, session.ID); snapshotErr == nil {
 		response.Context = &snapshot
 	}
-	return new(jfadk.NormalizeChatResponse(response)), nil
+	return new(assistantmodel.NormalizeChatResponse(response)), nil
 }
 
-func (s *Service) recoverAssistantReply(ctx context.Context, run jfadk.Run) (string, string) {
+func (s *Service) recoverAssistantReply(ctx context.Context, run assistantmodel.Run) (string, string) {
 	projection, ok, err := s.runtime.Store().SessionProjection(ctx, run.SessionID)
 	if err != nil || !ok {
 		return "", ""
@@ -253,7 +254,7 @@ func (s *Service) recoverAssistantReply(ctx context.Context, run jfadk.Run) (str
 
 func isTerminalRunStatus(status string) bool {
 	switch strings.ToUpper(strings.TrimSpace(status)) {
-	case jfadk.RunStatusCompleted, jfadk.RunStatusFailed, jfadk.RunStatusTimedOut, jfadk.RunStatusCancelled, jfadk.RunStatusDenied:
+	case assistantmodel.RunStatusCompleted, assistantmodel.RunStatusFailed, assistantmodel.RunStatusTimedOut, assistantmodel.RunStatusCancelled, assistantmodel.RunStatusDenied:
 		return true
 	default:
 		return false
@@ -265,57 +266,57 @@ func isTerminalRunStatus(status string) bool {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ListRuns 分页列出运行记录，支持 status/agentId/sessionId 过滤。
-func (s *Service) ListRuns(ctx context.Context, query RunQuery) (Page[jfadk.Run], error) {
+func (s *Service) ListRuns(ctx context.Context, query RunQuery) (Page[assistantmodel.Run], error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return Page[jfadk.Run]{}, fmt.Errorf("adk runtime is unavailable")
+		return Page[assistantmodel.Run]{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	runs, total, err := s.runtime.Store().ListRunsPage(ctx, query.Status, query.AgentID, query.SessionID, query.Limit, query.Offset)
 	if err != nil {
-		return Page[jfadk.Run]{}, err
+		return Page[assistantmodel.Run]{}, err
 	}
-	return Page[jfadk.Run]{Items: runs, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
+	return Page[assistantmodel.Run]{Items: runs, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
 }
 
 // GetRun 按 ID 获取单个运行记录。
-func (s *Service) GetRun(ctx context.Context, runID string) (jfadk.Run, error) {
+func (s *Service) GetRun(ctx context.Context, runID string) (assistantmodel.Run, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return jfadk.Run{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Run{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	run, ok, err := s.runtime.Store().Run(ctx, runID)
 	if err != nil {
-		return jfadk.Run{}, err
+		return assistantmodel.Run{}, err
 	}
 	if !ok {
-		return jfadk.Run{}, fmt.Errorf("run not found")
+		return assistantmodel.Run{}, fmt.Errorf("run not found")
 	}
 	return run, nil
 }
 
 // CancelRun 取消运行中的 run。
-func (s *Service) CancelRun(ctx context.Context, runID string) (jfadk.Run, error) {
+func (s *Service) CancelRun(ctx context.Context, runID string) (assistantmodel.Run, error) {
 	if s.runtime == nil {
-		return jfadk.Run{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Run{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.CancelRun(ctx, runID)
 }
 
-func (s *Service) PauseGoalRun(ctx context.Context, runID string) (jfadk.Run, error) {
+func (s *Service) PauseGoalRun(ctx context.Context, runID string) (assistantmodel.Run, error) {
 	if s.runtime == nil {
-		return jfadk.Run{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Run{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.PauseGoalRun(ctx, runID)
 }
 
-func (s *Service) ResumeGoalRun(ctx context.Context, runID string) (jfadk.Run, error) {
+func (s *Service) ResumeGoalRun(ctx context.Context, runID string) (assistantmodel.Run, error) {
 	if s.runtime == nil {
-		return jfadk.Run{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Run{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.ResumeGoalRun(ctx, runID)
 }
 
-func (s *Service) UpdateRunObjective(ctx context.Context, runID string, objective string) (jfadk.Run, error) {
+func (s *Service) UpdateRunObjective(ctx context.Context, runID string, objective string) (assistantmodel.Run, error) {
 	if s.runtime == nil {
-		return jfadk.Run{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Run{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.UpdateRunObjective(ctx, runID, objective)
 }
@@ -333,36 +334,36 @@ func (s *Service) ReconcileExpiredRuns(ctx context.Context) error {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ListApprovals 分页列出审批，支持 status/agentId 过滤。
-func (s *Service) ListApprovals(ctx context.Context, query ApprovalQuery) (Page[jfadk.Approval], error) {
+func (s *Service) ListApprovals(ctx context.Context, query ApprovalQuery) (Page[assistantmodel.Approval], error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return Page[jfadk.Approval]{}, fmt.Errorf("adk runtime is unavailable")
+		return Page[assistantmodel.Approval]{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	approvals, total, err := s.runtime.Store().ListApprovalsPage(ctx, query.Status, query.AgentID, query.Limit, query.Offset)
 	if err != nil {
-		return Page[jfadk.Approval]{}, err
+		return Page[assistantmodel.Approval]{}, err
 	}
-	return Page[jfadk.Approval]{Items: approvals, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
+	return Page[assistantmodel.Approval]{Items: approvals, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
 }
 
 // ResolveApproval 同步审批（批准或拒绝），等待后续 run 完成。
-func (s *Service) ResolveApproval(ctx context.Context, approvalID string, approved bool) (jfadk.ApprovalResolution, error) {
+func (s *Service) ResolveApproval(ctx context.Context, approvalID string, approved bool) (assistantmodel.ApprovalResolution, error) {
 	if s.runtime == nil {
-		return jfadk.ApprovalResolution{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.ApprovalResolution{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.ResolveApproval(ctx, approvalID, approved)
 }
 
 // ResolveApprovalAsync 异步审批，立即返回（后续 run 在后台继续）。
-func (s *Service) ResolveApprovalAsync(ctx context.Context, approvalID string, approved bool) (jfadk.ApprovalResolution, error) {
+func (s *Service) ResolveApprovalAsync(ctx context.Context, approvalID string, approved bool) (assistantmodel.ApprovalResolution, error) {
 	if s.runtime == nil {
-		return jfadk.ApprovalResolution{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.ApprovalResolution{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.ResolveApprovalAsync(ctx, approvalID, approved)
 }
 
-func (s *Service) ResolveInputAsync(ctx context.Context, runID string, payload jfadk.InputResponseRequest) (jfadk.InputResolution, error) {
+func (s *Service) ResolveInputAsync(ctx context.Context, runID string, payload assistantmodel.InputResponseRequest) (assistantmodel.InputResolution, error) {
 	if s == nil || s.runtime == nil {
-		return jfadk.InputResolution{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.InputResolution{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.ResolveInputAsync(ctx, runID, payload)
 }
@@ -379,7 +380,7 @@ func (s *Service) ReconcileResolvedApprovals(ctx context.Context) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ListSkills 列出所有已安装的 Skill。
-func (s *Service) ListSkills(ctx context.Context) ([]jfadk.Skill, error) {
+func (s *Service) ListSkills(ctx context.Context) ([]assistantmodel.Skill, error) {
 	if s.runtime == nil || s.runtime.Skills() == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
 	}
@@ -391,13 +392,13 @@ func (s *Service) ListSkills(ctx context.Context) ([]jfadk.Skill, error) {
 }
 
 // InstallSkill 通过 URL 安装 Skill。
-func (s *Service) InstallSkill(ctx context.Context, url string) (jfadk.Skill, error) {
+func (s *Service) InstallSkill(ctx context.Context, url string) (assistantmodel.Skill, error) {
 	if s.runtime == nil || s.runtime.Skills() == nil {
-		return jfadk.Skill{}, fmt.Errorf("adk runtime is unavailable")
+		return assistantmodel.Skill{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	skill, err := s.runtime.Skills().InstallURL(ctx, url)
 	if err != nil {
-		return jfadk.Skill{}, err
+		return assistantmodel.Skill{}, err
 	}
 	s.runtime.RecordAudit(ctx, "skill.installed", skill.ID, "ADK skill installed.", map[string]any{"source": skill.Source})
 	return skill, nil
@@ -420,7 +421,7 @@ func (s *Service) DeleteSkill(ctx context.Context, skillID string) error {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // GetAudit 列出审计事件，支持 kind/subjectId 过滤。
-func (s *Service) GetAudit(ctx context.Context, query AuditQuery) ([]jfadk.AuditEvent, error) {
+func (s *Service) GetAudit(ctx context.Context, query AuditQuery) ([]assistantmodel.AuditEvent, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
 	}
@@ -428,17 +429,17 @@ func (s *Service) GetAudit(ctx context.Context, query AuditQuery) ([]jfadk.Audit
 }
 
 // GetAuditPage 分页列出审计事件，过滤、计数和分页均由持久化层执行。
-func (s *Service) GetAuditPage(ctx context.Context, query AuditQuery) (Page[jfadk.AuditEvent], error) {
+func (s *Service) GetAuditPage(ctx context.Context, query AuditQuery) (Page[assistantmodel.AuditEvent], error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
-		return Page[jfadk.AuditEvent]{}, fmt.Errorf("adk runtime is unavailable")
+		return Page[assistantmodel.AuditEvent]{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	events, total, err := s.runtime.Store().ListAuditEventsPage(
 		ctx, query.Kind, query.SubjectID, query.Limit, query.Offset,
 	)
 	if err != nil {
-		return Page[jfadk.AuditEvent]{}, err
+		return Page[assistantmodel.AuditEvent]{}, err
 	}
-	return Page[jfadk.AuditEvent]{
+	return Page[assistantmodel.AuditEvent]{
 		Items: events, Total: total, Limit: query.Limit, Offset: min(max(query.Offset, 0), total),
 	}, nil
 }
@@ -505,7 +506,7 @@ func (s *Service) CancelOptimizationTask(ctx context.Context, taskID string) (an
 	return s.optimizationTaskResponse(ctx, saved), nil
 }
 
-func (s *Service) optimizationTaskResponse(ctx context.Context, task jfadk.OptimizationTask) map[string]any {
+func (s *Service) optimizationTaskResponse(ctx context.Context, task assistantmodel.OptimizationTask) map[string]any {
 	runs := make([]map[string]any, 0, len(task.Runs))
 	running := 0
 	completed := 0
@@ -595,7 +596,7 @@ func (s *Service) Close() error {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // approvalWaitDurationMs 计算审批等待时长（毫秒）。
-func approvalWaitDurationMs(approval jfadk.Approval, now time.Time) int64 {
+func approvalWaitDurationMs(approval assistantmodel.Approval, now time.Time) int64 {
 	createdAt := strings.TrimSpace(approval.CreatedAt)
 	if createdAt == "" {
 		return 0
@@ -605,7 +606,7 @@ func approvalWaitDurationMs(approval jfadk.Approval, now time.Time) int64 {
 		return 0
 	}
 	endedAt := now
-	if approval.Status != jfadk.ApprovalStatusPending {
+	if approval.Status != assistantmodel.ApprovalStatusPending {
 		if updatedAt := strings.TrimSpace(approval.UpdatedAt); updatedAt != "" {
 			if parsed, parseErr := time.Parse(time.RFC3339Nano, updatedAt); parseErr == nil {
 				endedAt = parsed

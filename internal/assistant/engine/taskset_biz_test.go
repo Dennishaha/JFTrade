@@ -1,7 +1,7 @@
 package adk
 
 import (
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 )
@@ -27,34 +27,34 @@ func TestWorkflowPlanningHelpersPreserveBusinessOrdering(t *testing.T) {
 		{ID: "ready-b", Title: "Ready B", Status: "TODO", DependsOn: []string{"done"}, Order: 2},
 		{ID: "blocked", Title: "Blocked", Status: "TODO", DependsOn: []string{"missing"}, Order: 4},
 	}
-	ready := jfadkmodel.ExecutableWorkflowTasks(tasks, WorkModeLoop)
+	ready := assistantmodel.ExecutableWorkflowTasks(tasks, WorkModeLoop)
 	if len(ready) != 1 || ready[0].ID != "ready-b" {
 		t.Fatalf("ready workflow tasks = %#v", ready)
 	}
-	if jfadkmodel.WorkflowTasksComplete(nil) || !jfadkmodel.WorkflowTasksComplete([]Task{{Status: "DONE"}, {Status: "DONE"}}) {
+	if assistantmodel.WorkflowTasksComplete(nil) || !assistantmodel.WorkflowTasksComplete([]Task{{Status: "DONE"}, {Status: "DONE"}}) {
 		t.Fatal("workflowTasksComplete business status handling changed")
 	}
-	if task, ok := jfadkmodel.FirstTerminalWorkflowTask([]Task{{Status: "TODO"}, {ID: "blocked", Status: "BLOCKED"}}); !ok || task.ID != "blocked" {
+	if task, ok := assistantmodel.FirstTerminalWorkflowTask([]Task{{Status: "TODO"}, {ID: "blocked", Status: "BLOCKED"}}); !ok || task.ID != "blocked" {
 		t.Fatalf("firstTerminalWorkflowTask = %#v/%v", task, ok)
 	}
-	if !jfadkmodel.WorkflowTasksHaveCycle([]Task{{ID: "a", DependsOn: []string{"b"}}, {ID: "b", DependsOn: []string{"a"}}}) {
+	if !assistantmodel.WorkflowTasksHaveCycle([]Task{{ID: "a", DependsOn: []string{"b"}}, {ID: "b", DependsOn: []string{"a"}}}) {
 		t.Fatal("workflowTasksHaveCycle missed direct cycle")
 	}
-	if jfadkmodel.WorkflowTasksHaveCycle([]Task{{ID: "a", DependsOn: []string{"missing"}}}) {
+	if assistantmodel.WorkflowTasksHaveCycle([]Task{{ID: "a", DependsOn: []string{"missing"}}}) {
 		t.Fatal("workflowTasksHaveCycle treated missing dependency as a cycle")
 	}
 
-	state := jfadkmodel.WorkflowStepFromTask(Task{
+	state := assistantmodel.WorkflowStepFromTask(Task{
 		ID: "task", Title: "Task", Description: "description\n\nAgent role: reviewer", Status: "TODO",
 		Message: "", DependsOn: []string{"done"}, AgentRole: "reviewer", PlannerWarnings: []string{"warn"},
 	})
 	if state.Message != "description\n\nAgent role: reviewer" || state.Description != "description" || len(state.PlannerWarnings) != 1 {
 		t.Fatalf("workflowStepFromTask = %#v", state)
 	}
-	if jfadkmodel.WorkflowTaskIteration(Task{}) != 1 || jfadkmodel.WorkflowTaskIteration(Task{Order: 7}) != 7 {
+	if assistantmodel.WorkflowTaskIteration(Task{}) != 1 || assistantmodel.WorkflowTaskIteration(Task{Order: 7}) != 7 {
 		t.Fatal("workflowTaskIteration no longer falls back to first iteration")
 	}
-	if !strings.Contains(jfadkmodel.WorkflowSelfTaskSummary(Task{Title: "Review", Description: strings.Repeat("x", 140)}), "...") {
+	if !strings.Contains(assistantmodel.WorkflowSelfTaskSummary(Task{Title: "Review", Description: strings.Repeat("x", 140)}), "...") {
 		t.Fatal("workflowSelfTaskSummary did not trim long task context")
 	}
 }

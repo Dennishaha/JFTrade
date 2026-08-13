@@ -2,12 +2,12 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowTaskToolsReturnParentPlanPersistenceFailures(t *testing.T) {
@@ -15,7 +15,7 @@ func TestWorkflowTaskToolsReturnParentPlanPersistenceFailures(t *testing.T) {
 	newFixture := func(t *testing.T, suffix string, taskStatus string) (*jfadk.Runtime, Run, Task, *WorkflowTaskToolset) {
 		t.Helper()
 		runtime := newTestRuntime(t)
-		now := jfadkmodel.NowString()
+		now := assistantmodel.NowString()
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "task-plan-persistence-parent-" + suffix, SessionID: "task-plan-persistence-session-" + suffix, AgentID: "agent",
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
@@ -114,7 +114,7 @@ func TestWorkflowTaskToolsReturnParentPlanRefreshFailures(t *testing.T) {
 	newFixture := func(t *testing.T, suffix string) (*jfadk.Runtime, Run, Task, *WorkflowTaskToolset) {
 		t.Helper()
 		runtime := newTestRuntime(t)
-		now := jfadkmodel.NowString()
+		now := assistantmodel.NowString()
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "task-plan-refresh-parent-" + suffix, SessionID: "task-plan-refresh-session-" + suffix, AgentID: "agent",
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,

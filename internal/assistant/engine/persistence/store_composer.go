@@ -100,23 +100,7 @@ func defaultSessionComposerState(sessionID string) jfadkmodel.SessionComposerSta
 
 // NormalizeSessionComposerState applies shared composer state normalization.
 func NormalizeSessionComposerState(sessionID string, state jfadkmodel.SessionComposerState) jfadkmodel.SessionComposerState {
-	state.SessionID = strings.TrimSpace(jfadkmodel.DefaultString(state.SessionID, sessionID))
-	state.ChatDraft = limitComposerText(state.ChatDraft)
-	mode, err := normalizeSessionComposerWorkMode(state.WorkModeOverride)
-	if err != nil {
-		mode = ""
-	}
-	state.WorkModeOverride = mode
-	state.ProviderIDOverride = strings.TrimSpace(state.ProviderIDOverride)
-	state.ModelOverride = strings.TrimSpace(state.ModelOverride)
-	state.ReasoningEffortOverride = string(jfadkmodel.NormalizeOptionalReasoningEffort(jfadkmodel.ReasoningEffort(state.ReasoningEffortOverride)))
-	permissionMode, err := normalizeSessionComposerPermissionMode(state.PermissionModeOverride)
-	if err != nil {
-		permissionMode = ""
-	}
-	state.PermissionModeOverride = permissionMode
-	state.GoalObjectiveDraft = limitComposerText(state.GoalObjectiveDraft)
-	return state
+	return jfadkmodel.NormalizeSessionComposerState(sessionID, state)
 }
 
 func normalizeSessionComposerPermissionMode(mode string) (string, error) {

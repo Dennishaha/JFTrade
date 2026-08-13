@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestNextWorkflowScheduleRunUsesFiveFieldCronAndTimezone(t *testing.T) {
@@ -38,7 +38,7 @@ func TestNextWorkflowScheduleRunUsesFiveFieldCronAndTimezone(t *testing.T) {
 
 func TestEvaluateMarketThresholdTriggerEdgesAndCooldown(t *testing.T) {
 	now := time.Date(2026, 7, 1, 1, 0, 0, 0, time.UTC)
-	trigger := jfadk.WorkflowTrigger{
+	trigger := assistantmodel.WorkflowTrigger{
 		Config: map[string]any{
 			"instrumentIds": []string{"US.AAPL"},
 			"snapshotPath":  "snapshot.price",
@@ -61,7 +61,7 @@ func TestEvaluateMarketThresholdTriggerEdgesAndCooldown(t *testing.T) {
 		t.Fatalf("matched threshold payload = %+v", matches[0]["threshold"])
 	}
 
-	above := jfadk.WorkflowTrigger{
+	above := assistantmodel.WorkflowTrigger{
 		Config: map[string]any{
 			"instrumentIds": []string{"US.AAPL"},
 			"snapshotPath":  "snapshot.price",
@@ -88,28 +88,28 @@ func TestEvaluateMarketThresholdTriggerEdgesAndCooldown(t *testing.T) {
 func TestWorkflowWebhookTriggerSecretLifecycle(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	ctx := t.Context()
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "workflow-webhook-agent", Name: "Workflow Webhook Agent", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "workflow-webhook-agent", Name: "Workflow Webhook Agent", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	workflow, err := service.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{
+	workflow, err := service.SaveWorkflow(ctx, "", assistantmodel.WorkflowDefinitionWriteRequest{
 		ID:             "workflow-webhook-secret",
 		Name:           "Webhook Secret",
-		Status:         jfadk.WorkflowStatusEnabled,
+		Status:         assistantmodel.WorkflowStatusEnabled,
 		AgentID:        agent.ID,
-		WorkMode:       jfadk.WorkModeLoop,
+		WorkMode:       assistantmodel.WorkModeLoop,
 		PromptTemplate: "run webhook",
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow: %v", err)
 	}
 
-	created, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", jfadk.WorkflowTriggerWriteRequest{
+	created, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", assistantmodel.WorkflowTriggerWriteRequest{
 		ID:     "workflow-webhook-secret-trigger",
-		Type:   jfadk.WorkflowTriggerTypeWebhook,
-		Status: jfadk.WorkflowTriggerStatusEnabled,
+		Type:   assistantmodel.WorkflowTriggerTypeWebhook,
+		Status: assistantmodel.WorkflowTriggerStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflowTrigger create: %v", err)
@@ -125,10 +125,10 @@ func TestWorkflowWebhookTriggerSecretLifecycle(t *testing.T) {
 		t.Fatalf("stored webhook hash not verifiable: %+v", raw)
 	}
 
-	updated, err := service.SaveWorkflowTrigger(ctx, workflow.ID, created.Trigger.ID, jfadk.WorkflowTriggerWriteRequest{
-		Type:   jfadk.WorkflowTriggerTypeWebhook,
+	updated, err := service.SaveWorkflowTrigger(ctx, workflow.ID, created.Trigger.ID, assistantmodel.WorkflowTriggerWriteRequest{
+		Type:   assistantmodel.WorkflowTriggerTypeWebhook,
 		Title:  "Webhook Secret Updated",
-		Status: jfadk.WorkflowTriggerStatusEnabled,
+		Status: assistantmodel.WorkflowTriggerStatusEnabled,
 		Config: map[string]any{"source": "unit-test"},
 	})
 	if err != nil {
@@ -141,9 +141,9 @@ func TestWorkflowWebhookTriggerSecretLifecycle(t *testing.T) {
 		t.Fatalf("RunWorkflowWebhook invalid secret err = %v, want secret rejection", err)
 	}
 
-	reset, err := service.SaveWorkflowTrigger(ctx, workflow.ID, created.Trigger.ID, jfadk.WorkflowTriggerWriteRequest{
-		Type:        jfadk.WorkflowTriggerTypeWebhook,
-		Status:      jfadk.WorkflowTriggerStatusEnabled,
+	reset, err := service.SaveWorkflowTrigger(ctx, workflow.ID, created.Trigger.ID, assistantmodel.WorkflowTriggerWriteRequest{
+		Type:        assistantmodel.WorkflowTriggerTypeWebhook,
+		Status:      assistantmodel.WorkflowTriggerStatusEnabled,
 		ResetSecret: true,
 	})
 	if err != nil {
@@ -157,27 +157,27 @@ func TestWorkflowWebhookTriggerSecretLifecycle(t *testing.T) {
 func TestSaveWorkflowRoundTripsCanvasGraph(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	ctx := t.Context()
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "workflow-canvas-agent", Name: "Workflow Canvas Agent", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "workflow-canvas-agent", Name: "Workflow Canvas Agent", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	workflow, err := service.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{
+	workflow, err := service.SaveWorkflow(ctx, "", assistantmodel.WorkflowDefinitionWriteRequest{
 		ID:             "workflow-canvas-roundtrip",
 		Name:           "Canvas Round Trip",
-		Status:         jfadk.WorkflowStatusDisabled,
+		Status:         assistantmodel.WorkflowStatusDisabled,
 		AgentID:        agent.ID,
-		WorkMode:       jfadk.WorkModeLoop,
+		WorkMode:       assistantmodel.WorkModeLoop,
 		PromptTemplate: "run canvas",
-		CanvasGraph: &jfadk.WorkflowCanvasGraph{
+		CanvasGraph: &assistantmodel.WorkflowCanvasGraph{
 			Version: "adk-workflow-canvas/v1",
-			Nodes: []jfadk.WorkflowCanvasNode{
-				{ID: "start", Type: "start", Position: jfadk.WorkflowCanvasPoint{X: 80, Y: 250}},
-				{ID: "agent", Type: "agent", Position: jfadk.WorkflowCanvasPoint{X: 385, Y: 250}},
+			Nodes: []assistantmodel.WorkflowCanvasNode{
+				{ID: "start", Type: "start", Position: assistantmodel.WorkflowCanvasPoint{X: 80, Y: 250}},
+				{ID: "agent", Type: "agent", Position: assistantmodel.WorkflowCanvasPoint{X: 385, Y: 250}},
 			},
-			Edges: []jfadk.WorkflowCanvasEdge{
+			Edges: []assistantmodel.WorkflowCanvasEdge{
 				{ID: "start->agent", Source: "start", Target: "agent", Type: "smoothstep"},
 			},
 		},
@@ -199,19 +199,19 @@ func TestRunWorkflowStoresResultAndNodeTrace(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	assistantServiceProvider(t, runtime)
 	ctx := t.Context()
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "workflow-trace-agent", Name: "Workflow Trace Agent", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "workflow-trace-agent", Name: "Workflow Trace Agent", Status: assistantmodel.AgentStatusEnabled,
 		ProviderID: "test-provider", Model: "test-model",
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	workflow, err := service.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{
+	workflow, err := service.SaveWorkflow(ctx, "", assistantmodel.WorkflowDefinitionWriteRequest{
 		ID:             "workflow-trace",
 		Name:           "Workflow Trace",
-		Status:         jfadk.WorkflowStatusEnabled,
+		Status:         assistantmodel.WorkflowStatusEnabled,
 		AgentID:        agent.ID,
-		WorkMode:       jfadk.WorkModeChat,
+		WorkMode:       assistantmodel.WorkModeChat,
 		PromptTemplate: "run {{ .symbol }}",
 		DefaultInputs:  map[string]any{"symbol": "US.AAPL"},
 		CanvasGraph:    workflowTestCanvasGraph(),
@@ -249,23 +249,23 @@ func TestRunWorkflowWithoutCanvasGraphFailsInsteadOfChatFallback(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	assistantServiceProvider(t, runtime)
 	ctx := t.Context()
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "workflow-no-canvas-agent", Name: "Workflow No Canvas Agent", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "workflow-no-canvas-agent", Name: "Workflow No Canvas Agent", Status: assistantmodel.AgentStatusEnabled,
 		ProviderID: "test-provider", Model: "test-model",
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	workflow, err := service.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{
-		ID: "workflow-no-canvas", Name: "Workflow No Canvas", Status: jfadk.WorkflowStatusEnabled,
-		AgentID: agent.ID, WorkMode: jfadk.WorkModeChat, PromptTemplate: "run",
+	workflow, err := service.SaveWorkflow(ctx, "", assistantmodel.WorkflowDefinitionWriteRequest{
+		ID: "workflow-no-canvas", Name: "Workflow No Canvas", Status: assistantmodel.WorkflowStatusEnabled,
+		AgentID: agent.ID, WorkMode: assistantmodel.WorkModeChat, PromptTemplate: "run",
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow: %v", err)
 	}
 
 	result, err := service.RunWorkflow(ctx, workflow.ID, nil)
-	if err == nil || result.Response != nil || result.Log.Status != jfadk.WorkflowTriggerLogStatusFailed {
+	if err == nil || result.Response != nil || result.Log.Status != assistantmodel.WorkflowTriggerLogStatusFailed {
 		t.Fatalf("RunWorkflow result=%+v err=%v, want failed log without response", result, err)
 	}
 	if !strings.Contains(err.Error(), "canvas graph is required") || !strings.Contains(result.Log.Error, "canvas graph is required") {
@@ -277,41 +277,41 @@ func TestRunWorkflowCanvasCompilesAndStoresNodeOutputs(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	assistantServiceProvider(t, runtime)
 	ctx := t.Context()
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "workflow-canvas-agent", Name: "Workflow Canvas Agent", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "workflow-canvas-agent", Name: "Workflow Canvas Agent", Status: assistantmodel.AgentStatusEnabled,
 		ProviderID: "test-provider", Model: "test-model",
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent parent: %v", err)
 	}
-	child, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "workflow-canvas-child", Name: "Workflow Canvas Child", Status: jfadk.AgentStatusEnabled,
+	child, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "workflow-canvas-child", Name: "Workflow Canvas Child", Status: assistantmodel.AgentStatusEnabled,
 		ProviderID: "test-provider", Model: "test-model",
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent child: %v", err)
 	}
-	workflow, err := service.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{
+	workflow, err := service.SaveWorkflow(ctx, "", assistantmodel.WorkflowDefinitionWriteRequest{
 		ID:             "workflow-canvas",
 		Name:           "Workflow Canvas",
-		Status:         jfadk.WorkflowStatusEnabled,
+		Status:         assistantmodel.WorkflowStatusEnabled,
 		AgentID:        agent.ID,
-		WorkMode:       jfadk.WorkModeLoop,
+		WorkMode:       assistantmodel.WorkModeLoop,
 		PromptTemplate: "fallback {{ .symbol }}",
 		DefaultInputs:  map[string]any{"symbol": "US.AAPL"},
-		CanvasGraph: &jfadk.WorkflowCanvasGraph{
+		CanvasGraph: &assistantmodel.WorkflowCanvasGraph{
 			Version: "adk-workflow-canvas/v1",
-			Nodes: []jfadk.WorkflowCanvasNode{
-				{ID: "start", Type: "start", Position: jfadk.WorkflowCanvasPoint{}},
-				{ID: "research", Type: "agent", Position: jfadk.WorkflowCanvasPoint{}, Data: map[string]any{
+			Nodes: []assistantmodel.WorkflowCanvasNode{
+				{ID: "start", Type: "start", Position: assistantmodel.WorkflowCanvasPoint{}},
+				{ID: "research", Type: "agent", Position: assistantmodel.WorkflowCanvasPoint{}, Data: map[string]any{
 					"title": "Research", "agentId": child.ID, "promptTemplate": "research {{ .symbol }}",
 				}},
-				{ID: "report", Type: "agent", Position: jfadk.WorkflowCanvasPoint{}, Data: map[string]any{
+				{ID: "report", Type: "agent", Position: assistantmodel.WorkflowCanvasPoint{}, Data: map[string]any{
 					"title": "Report", "promptTemplate": "report {{ .symbol }}",
 				}},
-				{ID: "monitor", Type: "monitor", Position: jfadk.WorkflowCanvasPoint{}},
+				{ID: "monitor", Type: "monitor", Position: assistantmodel.WorkflowCanvasPoint{}},
 			},
-			Edges: []jfadk.WorkflowCanvasEdge{
+			Edges: []assistantmodel.WorkflowCanvasEdge{
 				{ID: "start-research", Source: "start", Target: "research"},
 				{ID: "research-report", Source: "research", Target: "report"},
 				{ID: "report-monitor", Source: "report", Target: "monitor"},
@@ -326,10 +326,10 @@ func TestRunWorkflowCanvasCompilesAndStoresNodeOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunWorkflow canvas: %v", err)
 	}
-	if result.Log.Status != jfadk.WorkflowTriggerLogStatusSucceeded || result.Response == nil {
+	if result.Log.Status != assistantmodel.WorkflowTriggerLogStatusSucceeded || result.Response == nil {
 		t.Fatalf("canvas result = %+v, want succeeded response", result)
 	}
-	if result.Response.Run.WorkflowEngine != jfadk.WorkflowEngineADK2Canvas {
+	if result.Response.Run.WorkflowEngine != assistantmodel.WorkflowEngineADK2Canvas {
 		t.Fatalf("workflow engine = %q, want canvas", result.Response.Run.WorkflowEngine)
 	}
 	if len(result.Response.Run.ChildRunIDs) != 2 {
@@ -349,7 +349,7 @@ func TestRunWorkflowCanvasCompilesAndStoresNodeOutputs(t *testing.T) {
 	}
 }
 
-func workflowNodeRunByID(runs []jfadk.WorkflowNodeRun, id string) *jfadk.WorkflowNodeRun {
+func workflowNodeRunByID(runs []assistantmodel.WorkflowNodeRun, id string) *assistantmodel.WorkflowNodeRun {
 	for index := range runs {
 		if runs[index].NodeID == id {
 			return &runs[index]

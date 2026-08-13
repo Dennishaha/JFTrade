@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	adksession "google.golang.org/adk/v2/session"
 	adkworkflow "google.golang.org/adk/v2/workflow"
@@ -204,11 +204,11 @@ func TestWorkflowTaskLocalHelperBoundaryBranches(t *testing.T) {
 		t.Fatal("reset decision should leave decision phase")
 	}
 
-	if run, changed := jfadkmodel.PruneInterruptedGoalWorkflowToolCalls(Run{}); changed || len(run.ToolCalls) != 0 {
+	if run, changed := assistantmodel.PruneInterruptedGoalWorkflowToolCalls(Run{}); changed || len(run.ToolCalls) != 0 {
 		t.Fatalf("empty prune = %+v changed=%v", run, changed)
 	}
-	pauseErr := jfadkmodel.ErrUserGoalPauseRequested.Error()
-	run, changed := jfadkmodel.PruneInterruptedGoalWorkflowToolCalls(Run{
+	pauseErr := assistantmodel.ErrUserGoalPauseRequested.Error()
+	run, changed := assistantmodel.PruneInterruptedGoalWorkflowToolCalls(Run{
 		ID: "parent-run",
 		ToolCalls: []ToolCall{
 			{ID: "keep-other-run", RunID: "child-run", ToolName: workflowTasksListTool, Status: "RUNNING"},
@@ -236,7 +236,7 @@ func TestWorkflowPlannerAdditionalBoundaryBranches(t *testing.T) {
 	tool, err := NewWorkflowMapFunctionTool(WorkflowMapToolSpec{
 		Name:        "workflow.coverage.nil",
 		Description: "coverage",
-		Schema:      jfadkmodel.EmptyObjectSchema(),
+		Schema:      assistantmodel.EmptyObjectSchema(),
 	})
 	if err != nil {
 		t.Fatalf("newWorkflowMapFunctionTool: %v", err)
@@ -255,13 +255,13 @@ func TestWorkflowPlannerAdditionalBoundaryBranches(t *testing.T) {
 		t.Fatalf("bad workflow tool args result = %#v err=%v, want args type error", result, err)
 	}
 
-	if got := jfadkmodel.PlannerStringArg(map[string]any{"x": nil}, "x"); got != "" {
+	if got := assistantmodel.PlannerStringArg(map[string]any{"x": nil}, "x"); got != "" {
 		t.Fatalf("plannerStringArg nil = %q, want empty", got)
 	}
-	if got := jfadkmodel.PlannerStringArg(map[string]any{"x": "<nil>"}, "x"); got != "" {
+	if got := assistantmodel.PlannerStringArg(map[string]any{"x": "<nil>"}, "x"); got != "" {
 		t.Fatalf("plannerStringArg <nil> = %q, want empty", got)
 	}
-	if got := jfadkmodel.PlannerStringArg(map[string]any{"x": "  value  "}, "x"); got != "value" {
+	if got := assistantmodel.PlannerStringArg(map[string]any{"x": "  value  "}, "x"); got != "value" {
 		t.Fatalf("plannerStringArg trim = %q, want value", got)
 	}
 	for _, tc := range []struct {
@@ -277,7 +277,7 @@ func TestWorkflowPlannerAdditionalBoundaryBranches(t *testing.T) {
 		{name: "bad", args: map[string]any{"x": "not-a-number"}, want: 0},
 		{name: "nil string", args: map[string]any{"x": "<nil>"}, want: 0},
 	} {
-		if got := jfadkmodel.PlannerIntArg(tc.args, "x"); got != tc.want {
+		if got := assistantmodel.PlannerIntArg(tc.args, "x"); got != tc.want {
 			t.Fatalf("plannerIntArg %s = %d, want %d", tc.name, got, tc.want)
 		}
 	}
@@ -340,25 +340,25 @@ func TestWorkflowPlannerAdditionalBoundaryBranches(t *testing.T) {
 func TestTimelineAdditionalBoundaryBranches(t *testing.T) {
 	t1 := "2026-01-01T00:00:00Z"
 	t2 := "2026-01-01T00:00:01Z"
-	prompt := jfadkmodel.ClassifyWorkflowUserPrompt("请推进这个目标。\n总体目标：ship\n用户请求：build it")
+	prompt := assistantmodel.ClassifyWorkflowUserPrompt("请推进这个目标。\n总体目标：ship\n用户请求：build it")
 	if !prompt.IsInternal || prompt.IsHidden || prompt.UserMessage != "build it" || prompt.Objective != "ship" {
 		t.Fatalf("goal workflow prompt = %+v", prompt)
 	}
-	hidden := jfadkmodel.ClassifyWorkflowUserPrompt("请判断是否完成目标")
+	hidden := assistantmodel.ClassifyWorkflowUserPrompt("请判断是否完成目标")
 	if !hidden.IsInternal || !hidden.IsHidden {
 		t.Fatalf("hidden prompt = %+v, want hidden internal", hidden)
 	}
-	if got := jfadkmodel.ExtractWorkflowPromptField("no marker", "missing:", ""); got != "" {
+	if got := assistantmodel.ExtractWorkflowPromptField("no marker", "missing:", ""); got != "" {
 		t.Fatalf("missing prompt field = %q, want empty", got)
 	}
 	runs := []Run{
 		{ID: "old", UserMessage: "build it", Objective: "ship", CreatedAt: t1, UpdatedAt: t1},
 		{ID: "new", UserMessage: "build it", Objective: "ship", CreatedAt: t2, UpdatedAt: t2},
 	}
-	if run, ok := jfadkmodel.MatchWorkflowPromptRun(prompt, runs); !ok || run.ID != "new" {
+	if run, ok := assistantmodel.MatchWorkflowPromptRun(prompt, runs); !ok || run.ID != "new" {
 		t.Fatalf("matched run = %+v ok=%v, want newest", run, ok)
 	}
-	if _, ok := jfadkmodel.MatchWorkflowPromptRun(jfadkmodel.WorkflowUserPrompt{IsInternal: true, IsHidden: true, UserMessage: "build it"}, runs); ok {
+	if _, ok := assistantmodel.MatchWorkflowPromptRun(assistantmodel.WorkflowUserPrompt{IsInternal: true, IsHidden: true, UserMessage: "build it"}, runs); ok {
 		t.Fatal("hidden workflow prompt should not match")
 	}
 	session := Session{ID: "timeline-session"}
@@ -369,7 +369,7 @@ func TestTimelineAdditionalBoundaryBranches(t *testing.T) {
 		{ID: "assistant-loose", SessionID: session.ID, Role: "assistant", Content: " loose final ", ReasoningContent: " loose reasoning ", CreatedAt: t2},
 	}
 	notice := TimelineEntry{ID: "notice", Kind: "", Text: "notice text", CreatedAt: t1, Status: "streaming"}
-	entries := jfadkmodel.BuildSessionTimeline(session, messages, runs, []TimelineEntry{notice, TimelineEntry{ID: "blank", Text: "   "}})
+	entries := assistantmodel.BuildSessionTimeline(session, messages, runs, []TimelineEntry{notice, TimelineEntry{ID: "blank", Text: "   "}})
 	var sawNotice, sawOriginal, sawLooseReasoning, sawLooseFinal bool
 	for _, entry := range entries {
 		switch {
@@ -403,8 +403,8 @@ func TestTimelineAdditionalBoundaryBranches(t *testing.T) {
 		},
 		PreToolContent: "pre content", PreToolReasoning: "pre reasoning",
 	}
-	orphan := jfadkmodel.TimelinePrimitivesForOrphanRun(session.ID, run)
-	grouped := jfadkmodel.GroupTimelinePrimitives(orphan)
+	orphan := assistantmodel.TimelinePrimitivesForOrphanRun(session.ID, run)
+	grouped := assistantmodel.GroupTimelinePrimitives(orphan)
 	var toolGroup, approvalGroup *TimelineEntry
 	for index := range grouped {
 		switch grouped[index].Kind {
@@ -424,7 +424,7 @@ func TestTimelineAdditionalBoundaryBranches(t *testing.T) {
 	if approvalGroup == nil || len(approvalGroup.Approvals) != 1 || approvalGroup.Approvals[0].ID != "approval-1" {
 		t.Fatalf("first approval group = %+v, want earliest pending approval", approvalGroup)
 	}
-	merged := jfadkmodel.GroupTimelinePrimitives([]jfadkmodel.TimelinePrimitive{
+	merged := assistantmodel.GroupTimelinePrimitives([]assistantmodel.TimelinePrimitive{
 		{ID: "tool:a", SessionID: session.ID, RunID: "merge", Kind: TimelineKindToolGroup, CreatedAt: t1, Order: 40, ToolCall: &ToolCall{ID: "a"}},
 		{ID: "tool:b", SessionID: session.ID, RunID: "merge", Kind: TimelineKindToolGroup, CreatedAt: t1, Order: 40, ToolCall: &ToolCall{ID: "b"}},
 		{ID: "approval:a", SessionID: session.ID, RunID: "merge", Kind: TimelineKindApprovalGroup, CreatedAt: t1, Order: 50, Approval: &Approval{ID: "a"}},
@@ -433,19 +433,19 @@ func TestTimelineAdditionalBoundaryBranches(t *testing.T) {
 	if len(merged) != 2 || len(merged[0].ToolCalls) != 2 || len(merged[1].Approvals) != 2 {
 		t.Fatalf("merged primitives = %#v, want grouped tools and approvals", merged)
 	}
-	if got := jfadkmodel.RunTextAnchor(Run{}, ""); got == "" {
+	if got := assistantmodel.RunTextAnchor(Run{}, ""); got == "" {
 		t.Fatal("empty runTextAnchor should fall back to nowString")
 	}
-	if got := jfadkmodel.StripTimelinePrefix("prefix rest", "prefix"); got != "rest" {
+	if got := assistantmodel.StripTimelinePrefix("prefix rest", "prefix"); got != "rest" {
 		t.Fatalf("stripTimelinePrefix partial = %q, want rest", got)
 	}
-	if got := jfadkmodel.StripTimelinePrefix("same", "same"); got != "" {
+	if got := assistantmodel.StripTimelinePrefix("same", "same"); got != "" {
 		t.Fatalf("stripTimelinePrefix exact = %q, want empty", got)
 	}
-	if !jfadkmodel.CompareTimelineKeys("bad-a", 2, "b", "bad-b", 1, "a") {
+	if !assistantmodel.CompareTimelineKeys("bad-a", 2, "b", "bad-b", 1, "a") {
 		t.Fatal("invalid time keys should fall back to lexical time before order")
 	}
-	if jfadkmodel.CompareTimelineKeys("", 1, "b", t1, 1, "a") {
+	if assistantmodel.CompareTimelineKeys("", 1, "b", t1, 1, "a") {
 		t.Fatal("valid right timestamp should sort before empty left timestamp")
 	}
 }

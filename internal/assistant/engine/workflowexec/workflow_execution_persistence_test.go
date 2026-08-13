@@ -3,12 +3,12 @@ package workflowexec
 import (
 	"context"
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowExecutorRunAndFinalizePersistence(t *testing.T) {
@@ -84,7 +84,7 @@ func TestWorkflowExecutorRunAndFinalizePersistence(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "workflow-finalize-fallback-parent", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
 			ID: "workflow-finalize-fallback-task", Title: "Done", Status: "DONE", AgentID: parent.AgentID,
@@ -93,7 +93,7 @@ func TestWorkflowExecutorRunAndFinalizePersistence(t *testing.T) {
 		if err != nil {
 			t.Fatalf("SaveTask: %v", err)
 		}
-		parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{task}, nil)
+		parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{task}, nil)
 		mustSaveRun(t, runtime, parent)
 
 		response, err := executor.FinalizePlannedWorkflow(ctx, workflowRequest{
@@ -130,7 +130,7 @@ func TestWorkflowExecutorSaveAndCancelBranches(t *testing.T) {
 			ID: "workflow-prepare-save-error-agent", Name: "Workflow Prepare Save Error", ProviderID: testProviderID, Status: jfadk.AgentStatusEnabled, WorkMode: jfadk.WorkModeLoop,
 		})
 		session := mustCreateSession(t, runtime, agent.ID, "workflow prepare save error")
-		now := jfadkmodel.NowString()
+		now := assistantmodel.NowString()
 		parent := Run{
 			ID:             "workflow-prepare-save-error-parent",
 			SessionID:      session.ID,
@@ -179,8 +179,8 @@ func TestWorkflowExecutorSaveAndCancelBranches(t *testing.T) {
 			Status:         RunStatusRunning,
 			WorkMode:       WorkModeLoop,
 			WorkflowStatus: workflowStatusRunning,
-			CreatedAt:      jfadkmodel.NowString(),
-			UpdatedAt:      jfadkmodel.NowString(),
+			CreatedAt:      assistantmodel.NowString(),
+			UpdatedAt:      assistantmodel.NowString(),
 			Usage:          &RunUsage{},
 		}
 		failed, err := executor.FailParent(cancelledCtx, parent, errors.New("cancelled"))
@@ -199,7 +199,7 @@ func TestWorkflowExecutorSaveAndCancelBranches(t *testing.T) {
 			ID: "workflow-native-error-agent", Name: "Workflow Native Error", ProviderID: testProviderID, Status: jfadk.AgentStatusEnabled, WorkMode: jfadk.WorkModeLoop,
 		})
 		session := mustCreateSession(t, runtime, agent.ID, "workflow native error")
-		now := jfadkmodel.NowString()
+		now := assistantmodel.NowString()
 
 		prepareParent := Run{
 			ID:             "workflow-native-prepare-parent",

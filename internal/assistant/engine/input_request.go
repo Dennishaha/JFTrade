@@ -3,7 +3,6 @@ package adk
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -346,14 +345,5 @@ func sliceContainsExact(values []string, target string) bool {
 }
 
 func InputRequestErrorKind(err error) string {
-	switch {
-	case errors.Is(err, errInputRequestInvalid):
-		return "invalid"
-	case errors.Is(err, errInputRequestNotFound):
-		return "not_found"
-	case errors.Is(err, errInputRequestAlreadyAnswered), errors.Is(err, errInputRequestConflict):
-		return "conflict"
-	default:
-		return "internal"
-	}
+	return jfadkmodel.InputRequestErrorKind(err)
 }

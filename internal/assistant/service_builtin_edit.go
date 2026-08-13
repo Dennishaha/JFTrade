@@ -6,31 +6,30 @@ import (
 	"slices"
 	"strings"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 // validatePrimaryBuiltinAgentUpdate keeps the built-in agent's identity and
 // behavior immutable while allowing its provider-specific reasoning settings
 // to be changed through the normal Agent save contract.
-func (s *Service) validatePrimaryBuiltinAgentUpdate(ctx context.Context, req jfadk.AgentWriteRequest) error {
-	current, ok, err := s.runtime.Store().Agent(ctx, jfadk.DefaultBuiltinAgentID)
+func (s *Service) validatePrimaryBuiltinAgentUpdate(ctx context.Context, req assistantmodel.AgentWriteRequest) error {
+	current, ok, err := s.runtime.Store().Agent(ctx, assistantmodel.DefaultBuiltinAgentID)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("%w: primary builtin agent not found", jfadk.ErrBuiltinAgentProtected)
+		return fmt.Errorf("%w: primary builtin agent not found", assistantmodel.ErrBuiltinAgentProtected)
 	}
 	if primaryBuiltinProtectedFieldsMatch(req, current) {
 		return nil
 	}
-	return fmt.Errorf("%w: only provider, model, and reasoning effort can be edited", jfadk.ErrBuiltinAgentProtected)
+	return fmt.Errorf("%w: only provider, model, and reasoning effort can be edited", assistantmodel.ErrBuiltinAgentProtected)
 }
 
-func primaryBuiltinProtectedFieldsMatch(req jfadk.AgentWriteRequest, current jfadk.Agent) bool {
+func primaryBuiltinProtectedFieldsMatch(req assistantmodel.AgentWriteRequest, current assistantmodel.Agent) bool {
 	status := strings.ToUpper(strings.TrimSpace(req.Status))
 	if status == "" {
-		status = jfadk.AgentStatusEnabled
+		status = assistantmodel.AgentStatusEnabled
 	}
 	return strings.TrimSpace(req.Name) == current.Name &&
 		strings.TrimSpace(req.Instruction) == current.Instruction &&

@@ -9,15 +9,15 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestTaskAndMemoryCRUDContracts(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	ctx := t.Context()
 
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-contract-crud", Name: "CRUD Agent", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-contract-crud", Name: "CRUD Agent", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -35,8 +35,8 @@ func TestTaskAndMemoryCRUDContracts(t *testing.T) {
 		t.Fatalf("create task status=%d body=%s", taskResponse.Code, taskResponse.Body.String())
 	}
 	var taskEnvelope struct {
-		OK   bool       `json:"ok"`
-		Data jfadk.Task `json:"data"`
+		OK   bool                `json:"ok"`
+		Data assistantmodel.Task `json:"data"`
 	}
 	if err := json.Unmarshal(taskResponse.Body.Bytes(), &taskEnvelope); err != nil {
 		t.Fatalf("decode task create: %v", err)
@@ -87,8 +87,8 @@ func TestTaskAndMemoryCRUDContracts(t *testing.T) {
 		t.Fatalf("save memory status=%d body=%s", memoryResponse.Code, memoryResponse.Body.String())
 	}
 	var memoryEnvelope struct {
-		OK   bool              `json:"ok"`
-		Data jfadk.MemoryEntry `json:"data"`
+		OK   bool                       `json:"ok"`
+		Data assistantmodel.MemoryEntry `json:"data"`
 	}
 	if err := json.Unmarshal(memoryResponse.Body.Bytes(), &memoryEnvelope); err != nil {
 		t.Fatalf("decode memory create: %v", err)
@@ -128,20 +128,20 @@ func TestCatalogSnapshotToolsTemplatesAndDeleteAgentContracts(t *testing.T) {
 	if templates.Code != http.StatusOK || !strings.Contains(templates.Body.String(), "默认助手") || strings.Contains(templates.Body.String(), "investment-analyst") {
 		t.Fatalf("templates status=%d body=%s", templates.Code, templates.Body.String())
 	}
-	editDefault := performAssistantRequest(router, http.MethodPut, "/api/v1/adk/agents/"+jfadk.DefaultBuiltinAgentID, []byte(`{
+	editDefault := performAssistantRequest(router, http.MethodPut, "/api/v1/adk/agents/"+assistantmodel.DefaultBuiltinAgentID, []byte(`{
 		"name":"Edited Default",
 		"status":"ENABLED"
 	}`))
 	if editDefault.Code != http.StatusConflict || !strings.Contains(editDefault.Body.String(), "ADK_AGENT_PROTECTED") {
 		t.Fatalf("edit default agent status=%d body=%s", editDefault.Code, editDefault.Body.String())
 	}
-	deleteDefault := performAssistantRequest(router, http.MethodDelete, "/api/v1/adk/agents/"+jfadk.DefaultBuiltinAgentID, nil)
+	deleteDefault := performAssistantRequest(router, http.MethodDelete, "/api/v1/adk/agents/"+assistantmodel.DefaultBuiltinAgentID, nil)
 	if deleteDefault.Code != http.StatusConflict || !strings.Contains(deleteDefault.Body.String(), "ADK_AGENT_PROTECTED") {
 		t.Fatalf("delete default agent status=%d body=%s", deleteDefault.Code, deleteDefault.Body.String())
 	}
 
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-delete-route", Name: "Delete Route", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-delete-route", Name: "Delete Route", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -170,12 +170,12 @@ func TestProviderAndAgentValidationContracts(t *testing.T) {
 		t.Fatalf("create provider status=%d body=%s", providerCreate.Code, providerCreate.Body.String())
 	}
 
-	if _, err := runtime.Store().SaveProvider(ctx, jfadk.ProviderWriteRequest{
+	if _, err := runtime.Store().SaveProvider(ctx, assistantmodel.ProviderWriteRequest{
 		ID: "provider-route-disabled", DisplayName: "Route Disabled", Enabled: false,
 	}); err != nil {
 		t.Fatalf("SaveProvider disabled: %v", err)
 	}
-	if _, err := runtime.Store().SaveProvider(ctx, jfadk.ProviderWriteRequest{
+	if _, err := runtime.Store().SaveProvider(ctx, assistantmodel.ProviderWriteRequest{
 		ID: "provider-route-no-key", DisplayName: "Route No Key", Enabled: true,
 	}); err != nil {
 		t.Fatalf("SaveProvider no key: %v", err)
@@ -296,8 +296,8 @@ func TestSessionRunAndOptimizationRouteContracts(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	ctx := t.Context()
 
-	disabledAgent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-session-disabled", Name: "Disabled Agent", Status: jfadk.AgentStatusDisabled,
+	disabledAgent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-session-disabled", Name: "Disabled Agent", Status: assistantmodel.AgentStatusDisabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent disabled: %v", err)
@@ -310,8 +310,8 @@ func TestSessionRunAndOptimizationRouteContracts(t *testing.T) {
 		t.Fatalf("create disabled agent session status=%d body=%s", createDisabled.Code, createDisabled.Body.String())
 	}
 
-	enabledAgent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-session-enabled", Name: "Enabled Agent", Status: jfadk.AgentStatusEnabled, WorkMode: jfadk.WorkModeLoop,
+	enabledAgent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-session-enabled", Name: "Enabled Agent", Status: assistantmodel.AgentStatusEnabled, WorkMode: assistantmodel.WorkModeLoop,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent enabled: %v", err)
@@ -338,8 +338,8 @@ func TestSessionRunAndOptimizationRouteContracts(t *testing.T) {
 		t.Fatalf("rename session status=%d body=%s", renameSession.Code, renameSession.Body.String())
 	}
 
-	activeRun := jfadk.Run{
-		ID: "run-active-compact", SessionID: session.ID, AgentID: enabledAgent.ID, WorkMode: jfadk.WorkModeLoop, Status: jfadk.RunStatusRunning,
+	activeRun := assistantmodel.Run{
+		ID: "run-active-compact", SessionID: session.ID, AgentID: enabledAgent.ID, WorkMode: assistantmodel.WorkModeLoop, Status: assistantmodel.RunStatusRunning,
 		Objective: "monitor market", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	if err := runtime.Store().SaveRun(ctx, activeRun); err != nil {
@@ -365,11 +365,11 @@ func TestSessionRunAndOptimizationRouteContracts(t *testing.T) {
 		t.Fatalf("missing resume status=%d body=%s", response.Code, response.Body.String())
 	}
 
-	cancelRun := jfadk.Run{
+	cancelRun := assistantmodel.Run{
 		ID:        "run-cancel-route",
 		SessionID: session.ID,
 		AgentID:   enabledAgent.ID,
-		Status:    jfadk.RunStatusPending,
+		Status:    assistantmodel.RunStatusPending,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
@@ -377,11 +377,11 @@ func TestSessionRunAndOptimizationRouteContracts(t *testing.T) {
 		t.Fatalf("SaveRun cancel route: %v", err)
 	}
 	cancelResponse := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/runs/"+cancelRun.ID+"/cancel", nil)
-	if cancelResponse.Code != http.StatusOK || !strings.Contains(cancelResponse.Body.String(), jfadk.RunStatusCancelled) {
+	if cancelResponse.Code != http.StatusOK || !strings.Contains(cancelResponse.Body.String(), assistantmodel.RunStatusCancelled) {
 		t.Fatalf("cancel run status=%d body=%s", cancelResponse.Code, cancelResponse.Body.String())
 	}
 
-	if _, err := runtime.Store().SaveOptimizationTask(ctx, jfadk.OptimizationTask{
+	if _, err := runtime.Store().SaveOptimizationTask(ctx, assistantmodel.OptimizationTask{
 		ID: "optimization-route", Status: "queued", Objective: "maximize sharpe",
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}); err != nil {
@@ -411,8 +411,8 @@ func TestStreamReconnectAndSkillContracts(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	ctx := t.Context()
 
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-stream-reconnect", Name: "Stream Reconnect", ProviderID: "test-provider", Status: jfadk.AgentStatusEnabled,
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
+		ID: "agent-stream-reconnect", Name: "Stream Reconnect", ProviderID: "test-provider", Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)

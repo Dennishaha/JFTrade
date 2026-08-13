@@ -3,11 +3,11 @@ package workflowexec
 import (
 	"context"
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowTaskToolsetBusinessBranches(t *testing.T) {
@@ -15,7 +15,7 @@ func TestWorkflowTaskToolsetBusinessBranches(t *testing.T) {
 
 	t.Run("delegate reuses live child run", func(t *testing.T) {
 		runtime := newTestRuntime(t)
-		now := jfadkmodel.NowString()
+		now := assistantmodel.NowString()
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "task-tools-delegate-parent", SessionID: "task-tools-delegate-session", AgentID: "agent",
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
@@ -72,7 +72,7 @@ func TestWorkflowTaskToolsetErrorBranches(t *testing.T) {
 	newParentAndTask := func(t *testing.T, suffix string) (*Runtime, Run, Task, *WorkflowTaskToolset) {
 		t.Helper()
 		runtime := newTestRuntime(t)
-		now := jfadkmodel.NowString()
+		now := assistantmodel.NowString()
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "task-tools-error-parent-" + suffix, SessionID: "task-tools-error-session-" + suffix, AgentID: "agent",
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
@@ -145,7 +145,7 @@ func TestWorkflowTaskToolsetErrorBranches(t *testing.T) {
 				if _, err := runtime.Store().UpdateTask(ctx, task.ID, TaskPatchRequest{Executor: new(workflowTaskExecutorChild), RunID: &childRunID}); err != nil {
 					t.Fatalf("UpdateTask child metadata: %v", err)
 				}
-				now := jfadkmodel.NowString()
+				now := assistantmodel.NowString()
 				if _, err := runtime.Store().DB().ExecContext(ctx,
 					`INSERT INTO `+enginepersistence.TableRuns+` (id, session_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 					childRunID, parent.SessionID, parent.AgentID, RunStatusCompleted, `{`, now, now,

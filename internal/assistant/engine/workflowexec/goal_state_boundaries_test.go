@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkworkflow "google.golang.org/adk/v2/workflow"
 )
 
@@ -22,7 +22,7 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-goal-bootstrap-parent", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 
 		response, err := (&WorkflowExecutor{runtime: runtime}).ContinueADKGoalWorkflow(ctx, workflowRequest{
@@ -47,7 +47,7 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-goal-iteration-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 
 		response, err := (&WorkflowExecutor{runtime: runtime}).ContinueADKGoalWorkflow(ctx, workflowRequest{
@@ -72,7 +72,7 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-goal-no-final-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 
 		executionWithoutPostToolReply := &fakeWorkflowExecutionHandle{calls: []ToolCall{{ID: "coverage98-finished-tool", RunID: parent.ID, ToolName: workflowTasksListTool, Status: "SUCCEEDED"}}}
@@ -85,11 +85,11 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 			t.Fatalf("missing final reply resolution = parent:%+v decision:%+v done:%v response:%+v prompt:%q", updated, snapshot, done, response, prompt)
 		}
 
-		pauseRequestedAt := jfadkmodel.NowString()
+		pauseRequestedAt := assistantmodel.NowString()
 		pausedParent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-goal-pause-decision-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, PauseRequestedAt: &pauseRequestedAt,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		updated, _, _, done, response, prompt, err = executor.ResolveGoalWorkflowDecision(ctx, workflowRequest{Session: session}, pausedParent, nil,
 			&fakeWorkflowExecutionHandle{}, &workflowGoalDecision{}, jfadk.AssistantExecutionResult{}, "progress before pause", "", 1, false)
@@ -117,11 +117,11 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 			Status: AgentStatusEnabled, WorkMode: WorkModeLoop,
 		})
 		session := mustCreateSession(t, runtime, agent.ID, "goal continue boundary")
-		pauseRequestedAt := jfadkmodel.NowString()
+		pauseRequestedAt := assistantmodel.NowString()
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage98-goal-continue-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, PauseRequestedAt: &pauseRequestedAt,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		continued, response, paused, prompt, err := (&WorkflowExecutor{runtime: runtime}).FinishContinueGoalWorkflow(ctx, workflowRequest{Session: session}, parent,
 			jfadk.AssistantExecutionResult{}, workflowGoalDecisionSnapshot{Reason: "await review"}, "", 2)
@@ -132,24 +132,24 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 			t.Fatalf("continue while pausing = parent:%+v response:%+v paused:%v prompt:%q", continued, response, paused, prompt)
 		}
 
-		pauseErr := jfadkmodel.ErrUserGoalPauseRequested.Error()
-		if jfadkmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: workflowTaskClaimTool, Status: "FAILED"}) {
+		pauseErr := assistantmodel.ErrUserGoalPauseRequested.Error()
+		if assistantmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: workflowTaskClaimTool, Status: "FAILED"}) {
 			t.Fatal("failed workflow call without an interruption error must remain visible")
 		}
-		if jfadkmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: workflowTaskClaimTool, Status: "FAILED", Error: new("ordinary failure")}) {
+		if assistantmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: workflowTaskClaimTool, Status: "FAILED", Error: new("ordinary failure")}) {
 			t.Fatal("ordinary workflow failure must remain visible")
 		}
-		if jfadkmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: "market.snapshot", Status: "FAILED", Error: &pauseErr}) {
+		if assistantmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: "market.snapshot", Status: "FAILED", Error: &pauseErr}) {
 			t.Fatal("non-workflow interruption must remain visible")
 		}
-		if !jfadkmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: workflowTaskClaimTool, Status: "FAILED", Error: &pauseErr}) {
+		if !assistantmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: workflowTaskClaimTool, Status: "FAILED", Error: &pauseErr}) {
 			t.Fatal("goal pause sentinel must hide the interrupted workflow call")
 		}
 		interrupted := fmt.Sprintf("workflow child: %s", adkworkflow.ErrNodeInterrupted)
-		if !jfadkmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: workflowTaskClaimTool, Status: "FAILED", Error: &interrupted}) {
+		if !assistantmodel.InterruptedGoalWorkflowToolCall(parent, ToolCall{ToolName: workflowTaskClaimTool, Status: "FAILED", Error: &interrupted}) {
 			t.Fatal("GO-ADK interruption sentinel must hide the interrupted workflow call")
 		}
-		if !errors.Is(jfadkmodel.ErrorFromSerializedADKText(interrupted), adkworkflow.ErrNodeInterrupted) {
+		if !errors.Is(assistantmodel.ErrorFromSerializedADKText(interrupted), adkworkflow.ErrNodeInterrupted) {
 			t.Fatal("persisted GO-ADK interruption must restore sentinel identity")
 		}
 	})
@@ -158,11 +158,11 @@ func TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *testing.T) {
 func TestWorkflowResumeReconcilerPausesOnRequestAndExposesStoreFailures(t *testing.T) {
 	ctx := context.Background()
 	runtime, agent, session := newWorkflowApprovalFixture(t, "resume-and-store")
-	pauseRequestedAt := jfadkmodel.NowString()
+	pauseRequestedAt := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "coverage98-resume-requested-parent", SessionID: session.ID, AgentID: agent.ID,
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, PauseRequestedAt: &pauseRequestedAt,
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	resumed, err := (&WorkflowExecutor{runtime: runtime}).ResumeLoopWorkflow(ctx, session, parent)
 	if err != nil || resumed.Status != RunStatusPaused || resumed.PausedReason != "user" {
@@ -173,7 +173,7 @@ func TestWorkflowResumeReconcilerPausesOnRequestAndExposesStoreFailures(t *testi
 		ID: "coverage98-reconcile-store-parent", SessionID: session.ID, AgentID: agent.ID,
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 		WorkflowPlan: []WorkflowStepState{{ChildRunID: "coverage98-reconcile-store-child"}},
-		CreatedAt:    jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt:    assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	if _, err := runtime.Store().DB().ExecContext(ctx, `DROP TABLE `+enginepersistence.TableRuns); err != nil {
 		t.Fatalf("drop run table: %v", err)

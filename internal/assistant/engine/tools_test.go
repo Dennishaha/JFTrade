@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"io"
 	"net/http"
 	"net/netip"
@@ -128,7 +128,7 @@ func TestLowRiskWriteToolsCanSkipApproval(t *testing.T) {
 
 func TestApprovalModeRequiresMediumAndHigherRiskApproval(t *testing.T) {
 	for _, risk := range []string{"medium", "high", "critical"} {
-		descriptor := ToolDescriptor{Name: "risk." + risk, Permission: "write_external", RiskLevel: risk, AllowedModes: jfadkmodel.AllPermissionModes()}
+		descriptor := ToolDescriptor{Name: "risk." + risk, Permission: "write_external", RiskLevel: risk, AllowedModes: assistantmodel.AllPermissionModes()}
 		if !ToolRequiresApproval(descriptor, PermissionModeApproval) {
 			t.Fatalf("risk %s did not require approval in approval mode", risk)
 		}
@@ -136,7 +136,7 @@ func TestApprovalModeRequiresMediumAndHigherRiskApproval(t *testing.T) {
 			t.Fatalf("risk %s unexpectedly required approval in all mode", risk)
 		}
 	}
-	low := ToolDescriptor{Name: "risk.low", Permission: "write_external", RiskLevel: "low", AllowedModes: jfadkmodel.AllPermissionModes()}
+	low := ToolDescriptor{Name: "risk.low", Permission: "write_external", RiskLevel: "low", AllowedModes: assistantmodel.AllPermissionModes()}
 	if ToolRequiresApproval(low, PermissionModeApproval) {
 		t.Fatal("low risk tool unexpectedly requires approval in approval mode")
 	}
@@ -148,9 +148,9 @@ func TestResearchBacktestExplicitlySkipsApproval(t *testing.T) {
 		Permission:         "optimize_strategy",
 		RiskLevel:          "low",
 		RequiresApprovalIn: []string{PermissionModeApproval},
-		AllowedModes:       jfadkmodel.AllPermissionModes(),
+		AllowedModes:       assistantmodel.AllPermissionModes(),
 	}
-	for _, mode := range jfadkmodel.AllPermissionModes() {
+	for _, mode := range assistantmodel.AllPermissionModes() {
 		if ToolRequiresApproval(descriptor, mode) {
 			t.Fatalf("strategy.research_backtest requires approval in %s", mode)
 		}

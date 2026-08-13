@@ -2,12 +2,12 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestRunChildBlocksDelegatedApprovalTask(t *testing.T) {
@@ -34,7 +34,7 @@ func TestRunChildBlocksDelegatedApprovalTask(t *testing.T) {
 		Tools:          []string{"approval.required"},
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "run child approval")
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID:             "run-child-approval-parent",
 		SessionID:      session.ID,
@@ -62,7 +62,7 @@ func TestRunChildBlocksDelegatedApprovalTask(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveTask: %v", err)
 	}
-	parent.WorkflowPlan = jfadkmodel.WorkflowPlanFromTasks([]Task{task}, parent.WorkflowPlan)
+	parent.WorkflowPlan = assistantmodel.WorkflowPlanFromTasks([]Task{task}, parent.WorkflowPlan)
 	if err := runtime.Store().SaveRun(ctx, parent); err != nil {
 		t.Fatalf("SaveRun parent with plan: %v", err)
 	}

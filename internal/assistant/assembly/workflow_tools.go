@@ -6,17 +6,18 @@ import (
 	"fmt"
 	"strings"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 // RegisterWorkflowManagementTools installs workflow CRUD and run tools.
-func RegisterWorkflowManagementTools(store *jfadk.Store, registry *jfadk.ToolRegistry, manager WorkflowToolManager) {
+func RegisterWorkflowManagementTools(store *jfadkruntime.Store, registry *jfadkruntime.ToolRegistry, manager WorkflowToolManager) {
 	registerWorkflowDefinitionTools(registry, manager)
 	registerWorkflowTriggerTools(registry, manager)
 	registerWorkflowRunTools(store, registry, manager)
 }
 
-func registerWorkflowDefinitionTools(registry *jfadk.ToolRegistry, manager WorkflowToolManager) {
+func registerWorkflowDefinitionTools(registry *jfadkruntime.ToolRegistry, manager WorkflowToolManager) {
 	registry.Register(workflowReadToolDescriptor("workflows.list", "工作流列表", "分页列出 ADK 产品工作流摘要。", "工作流摘要和分页信息。"), func(ctx context.Context, input map[string]any) (any, error) {
 		limit, offset := workflowToolPageBounds(input)
 		page, err := workflowToolManagerRequired(manager).ListWorkflows(ctx, stringValue(input, "status"), limit, offset)
@@ -60,7 +61,7 @@ func registerWorkflowDefinitionTools(registry *jfadk.ToolRegistry, manager Workf
 	})
 }
 
-func registerWorkflowTriggerTools(registry *jfadk.ToolRegistry, manager WorkflowToolManager) {
+func registerWorkflowTriggerTools(registry *jfadkruntime.ToolRegistry, manager WorkflowToolManager) {
 	registry.Register(workflowReadToolDescriptor("workflow_triggers.list", "触发器列表", "列出指定工作流的触发器；不会返回 Webhook secret hash。", "脱敏后的工作流触发器。"), func(ctx context.Context, input map[string]any) (any, error) {
 		triggers, err := workflowToolManagerRequired(manager).ListWorkflowTriggers(ctx, stringValue(input, "workflowId"))
 		if err != nil {
@@ -73,7 +74,7 @@ func registerWorkflowTriggerTools(registry *jfadk.ToolRegistry, manager Workflow
 	})
 	registry.Register(workflowWriteToolDescriptor("workflow_triggers.create", "创建触发器", "为工作流创建非 Webhook 触发器；Webhook 密钥操作仅允许通过 UI/API。", "创建后的脱敏触发器。"), func(ctx context.Context, input map[string]any) (any, error) {
 		payload := workflowTriggerCreateRequest(input)
-		if payload.Type == jfadk.WorkflowTriggerTypeWebhook {
+		if payload.Type == assistantmodel.WorkflowTriggerTypeWebhook {
 			return nil, fmt.Errorf("webhook triggers must be created through the UI/API")
 		}
 		return workflowToolManagerRequired(manager).SaveWorkflowTrigger(ctx, stringValue(input, "workflowId"), "", payload)
@@ -99,7 +100,7 @@ func registerWorkflowTriggerTools(registry *jfadk.ToolRegistry, manager Workflow
 	})
 }
 
-func registerWorkflowRunTools(store *jfadk.Store, registry *jfadk.ToolRegistry, manager WorkflowToolManager) {
+func registerWorkflowRunTools(store *jfadkruntime.Store, registry *jfadkruntime.ToolRegistry, manager WorkflowToolManager) {
 	registry.Register(workflowRunToolDescriptor("workflows.run", "运行工作流", "从普通交互会话异步启动工作流，立即返回 QUEUED 日志。", "是否已接受以及工作流运行日志。"), func(ctx context.Context, input map[string]any) (any, error) {
 		if err := requireInteractiveWorkflowToolSession(ctx, store); err != nil {
 			return nil, err
@@ -129,16 +130,16 @@ func registerWorkflowRunTools(store *jfadk.Store, registry *jfadk.ToolRegistry, 
 	})
 }
 
-func workflowReadToolDescriptor(name string, displayName string, description string, output string) jfadk.ToolDescriptor {
-	return jfadk.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "read_internal", RiskLevel: "low", OutputSummary: output, RequiredSkills: []string{jfadk.WorkflowManagementSkillName}}
+func workflowReadToolDescriptor(name string, displayName string, description string, output string) assistantmodel.ToolDescriptor {
+	return assistantmodel.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "read_internal", RiskLevel: "low", OutputSummary: output, RequiredSkills: []string{assistantmodel.WorkflowManagementSkillName}}
 }
 
-func workflowWriteToolDescriptor(name string, displayName string, description string, output string) jfadk.ToolDescriptor {
-	return jfadk.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "write_workflow", RiskLevel: "high", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: output, RequiredSkills: []string{jfadk.WorkflowManagementSkillName}}
+func workflowWriteToolDescriptor(name string, displayName string, description string, output string) assistantmodel.ToolDescriptor {
+	return assistantmodel.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "write_workflow", RiskLevel: "high", RequiresApprovalIn: []string{assistantmodel.PermissionModeApproval}, OutputSummary: output, RequiredSkills: []string{assistantmodel.WorkflowManagementSkillName}}
 }
 
-func workflowRunToolDescriptor(name string, displayName string, description string, output string) jfadk.ToolDescriptor {
-	return jfadk.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "execute_workflow", RiskLevel: "high", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: output, RequiredSkills: []string{jfadk.WorkflowManagementSkillName}}
+func workflowRunToolDescriptor(name string, displayName string, description string, output string) assistantmodel.ToolDescriptor {
+	return assistantmodel.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "execute_workflow", RiskLevel: "high", RequiresApprovalIn: []string{assistantmodel.PermissionModeApproval}, OutputSummary: output, RequiredSkills: []string{assistantmodel.WorkflowManagementSkillName}}
 }
 
 func workflowToolManagerRequired(manager WorkflowToolManager) WorkflowToolManager {
@@ -153,35 +154,35 @@ type unavailableWorkflowToolManager struct{}
 func (unavailableWorkflowToolManager) unavailable() error {
 	return fmt.Errorf("workflow management is unavailable")
 }
-func (m unavailableWorkflowToolManager) ListWorkflows(context.Context, string, int, int) (WorkflowToolPage[jfadk.WorkflowDefinition], error) {
-	return WorkflowToolPage[jfadk.WorkflowDefinition]{}, m.unavailable()
+func (m unavailableWorkflowToolManager) ListWorkflows(context.Context, string, int, int) (WorkflowToolPage[assistantmodel.WorkflowDefinition], error) {
+	return WorkflowToolPage[assistantmodel.WorkflowDefinition]{}, m.unavailable()
 }
-func (m unavailableWorkflowToolManager) GetWorkflow(context.Context, string) (jfadk.WorkflowDefinition, error) {
-	return jfadk.WorkflowDefinition{}, m.unavailable()
+func (m unavailableWorkflowToolManager) GetWorkflow(context.Context, string) (assistantmodel.WorkflowDefinition, error) {
+	return assistantmodel.WorkflowDefinition{}, m.unavailable()
 }
-func (m unavailableWorkflowToolManager) SaveWorkflow(context.Context, string, jfadk.WorkflowDefinitionWriteRequest) (jfadk.WorkflowDefinition, error) {
-	return jfadk.WorkflowDefinition{}, m.unavailable()
+func (m unavailableWorkflowToolManager) SaveWorkflow(context.Context, string, assistantmodel.WorkflowDefinitionWriteRequest) (assistantmodel.WorkflowDefinition, error) {
+	return assistantmodel.WorkflowDefinition{}, m.unavailable()
 }
-func (m unavailableWorkflowToolManager) DeleteWorkflow(context.Context, string) (jfadk.WorkflowDefinition, error) {
-	return jfadk.WorkflowDefinition{}, m.unavailable()
+func (m unavailableWorkflowToolManager) DeleteWorkflow(context.Context, string) (assistantmodel.WorkflowDefinition, error) {
+	return assistantmodel.WorkflowDefinition{}, m.unavailable()
 }
-func (m unavailableWorkflowToolManager) ListWorkflowTriggers(context.Context, string) ([]jfadk.WorkflowTrigger, error) {
+func (m unavailableWorkflowToolManager) ListWorkflowTriggers(context.Context, string) ([]assistantmodel.WorkflowTrigger, error) {
 	return nil, m.unavailable()
 }
-func (m unavailableWorkflowToolManager) GetWorkflowTrigger(context.Context, string, string) (jfadk.WorkflowTrigger, error) {
-	return jfadk.WorkflowTrigger{}, m.unavailable()
+func (m unavailableWorkflowToolManager) GetWorkflowTrigger(context.Context, string, string) (assistantmodel.WorkflowTrigger, error) {
+	return assistantmodel.WorkflowTrigger{}, m.unavailable()
 }
-func (m unavailableWorkflowToolManager) SaveWorkflowTrigger(context.Context, string, string, jfadk.WorkflowTriggerWriteRequest) (jfadk.WorkflowTrigger, error) {
-	return jfadk.WorkflowTrigger{}, m.unavailable()
+func (m unavailableWorkflowToolManager) SaveWorkflowTrigger(context.Context, string, string, assistantmodel.WorkflowTriggerWriteRequest) (assistantmodel.WorkflowTrigger, error) {
+	return assistantmodel.WorkflowTrigger{}, m.unavailable()
 }
-func (m unavailableWorkflowToolManager) DeleteWorkflowTrigger(context.Context, string, string) (jfadk.WorkflowTrigger, error) {
-	return jfadk.WorkflowTrigger{}, m.unavailable()
+func (m unavailableWorkflowToolManager) DeleteWorkflowTrigger(context.Context, string, string) (assistantmodel.WorkflowTrigger, error) {
+	return assistantmodel.WorkflowTrigger{}, m.unavailable()
 }
-func (m unavailableWorkflowToolManager) ListWorkflowRuns(context.Context, string, string, string, int, int) (WorkflowToolPage[jfadk.WorkflowTriggerLog], error) {
-	return WorkflowToolPage[jfadk.WorkflowTriggerLog]{}, m.unavailable()
+func (m unavailableWorkflowToolManager) ListWorkflowRuns(context.Context, string, string, string, int, int) (WorkflowToolPage[assistantmodel.WorkflowTriggerLog], error) {
+	return WorkflowToolPage[assistantmodel.WorkflowTriggerLog]{}, m.unavailable()
 }
-func (m unavailableWorkflowToolManager) GetWorkflowRun(context.Context, string) (jfadk.WorkflowTriggerLog, error) {
-	return jfadk.WorkflowTriggerLog{}, m.unavailable()
+func (m unavailableWorkflowToolManager) GetWorkflowRun(context.Context, string) (assistantmodel.WorkflowTriggerLog, error) {
+	return assistantmodel.WorkflowTriggerLog{}, m.unavailable()
 }
 func (m unavailableWorkflowToolManager) StartWorkflow(context.Context, string, map[string]any) (WorkflowToolStartResult, error) {
 	return WorkflowToolStartResult{}, m.unavailable()
@@ -210,19 +211,19 @@ func normalizeBoundPage(limit int, offset int, defaultLimit int, maxLimit int) (
 	return limit, offset
 }
 
-func workflowToolSummary(workflow jfadk.WorkflowDefinition) map[string]any {
+func workflowToolSummary(workflow assistantmodel.WorkflowDefinition) map[string]any {
 	return map[string]any{"id": workflow.ID, "name": workflow.Name, "description": workflow.Description, "status": workflow.Status, "agentId": workflow.AgentID, "workMode": workflow.WorkMode, "permissionMode": workflow.PermissionMode, "tags": workflow.Tags, "builtinTemplate": workflow.BuiltinTemplate, "updatedAt": workflow.UpdatedAt}
 }
 
-func workflowRunToolSummary(log jfadk.WorkflowTriggerLog) map[string]any {
+func workflowRunToolSummary(log assistantmodel.WorkflowTriggerLog) map[string]any {
 	return map[string]any{"id": log.ID, "workflowId": log.WorkflowID, "triggerId": log.TriggerID, "triggerType": log.TriggerType, "status": log.Status, "runId": log.RunID, "sessionId": log.SessionID, "error": log.Error, "startedAt": log.StartedAt, "finishedAt": log.FinishedAt, "createdAt": log.CreatedAt, "updatedAt": log.UpdatedAt}
 }
 
-func requireInteractiveWorkflowToolSession(ctx context.Context, store *jfadk.Store) error {
+func requireInteractiveWorkflowToolSession(ctx context.Context, store *jfadkruntime.Store) error {
 	if store == nil {
 		return fmt.Errorf("ADK store is unavailable")
 	}
-	sessionID, ok := jfadk.ToolInvocationSessionID(ctx)
+	sessionID, ok := jfadkruntime.ToolInvocationSessionID(ctx)
 	if !ok {
 		return fmt.Errorf("workflow runs require a resolvable interactive ADK session")
 	}
@@ -239,27 +240,27 @@ func requireInteractiveWorkflowToolSession(ctx context.Context, store *jfadk.Sto
 	return nil
 }
 
-func workflowCreateRequest(input map[string]any) (jfadk.WorkflowDefinitionWriteRequest, error) {
-	payload := jfadk.WorkflowDefinitionWriteRequest{ID: stringValue(input, "id")}
+func workflowCreateRequest(input map[string]any) (assistantmodel.WorkflowDefinitionWriteRequest, error) {
+	payload := assistantmodel.WorkflowDefinitionWriteRequest{ID: stringValue(input, "id")}
 	applyWorkflowWriteFields(&payload, input)
 	if err := decodeWorkflowCanvasGraph(input, &payload); err != nil {
-		return jfadk.WorkflowDefinitionWriteRequest{}, err
+		return assistantmodel.WorkflowDefinitionWriteRequest{}, err
 	}
 	return payload, nil
 }
 
-func workflowUpdateRequest(current jfadk.WorkflowDefinition, input map[string]any) (jfadk.WorkflowDefinitionWriteRequest, error) {
-	payload := jfadk.WorkflowDefinitionWriteRequest{ID: current.ID, Name: current.Name, Description: current.Description, Status: current.Status, AgentID: current.AgentID, WorkMode: current.WorkMode, ProviderID: current.ProviderID, Model: current.Model, PermissionMode: current.PermissionMode, PromptTemplate: current.PromptTemplate, ObjectiveTemplate: current.ObjectiveTemplate, DefaultInputs: current.DefaultInputs, CanvasGraph: current.CanvasGraph, Tags: append([]string(nil), current.Tags...)}
+func workflowUpdateRequest(current assistantmodel.WorkflowDefinition, input map[string]any) (assistantmodel.WorkflowDefinitionWriteRequest, error) {
+	payload := assistantmodel.WorkflowDefinitionWriteRequest{ID: current.ID, Name: current.Name, Description: current.Description, Status: current.Status, AgentID: current.AgentID, WorkMode: current.WorkMode, ProviderID: current.ProviderID, Model: current.Model, PermissionMode: current.PermissionMode, PromptTemplate: current.PromptTemplate, ObjectiveTemplate: current.ObjectiveTemplate, DefaultInputs: current.DefaultInputs, CanvasGraph: current.CanvasGraph, Tags: append([]string(nil), current.Tags...)}
 	applyWorkflowWriteFields(&payload, input)
 	if toolBoolValue(input, "clearCanvasGraph") {
 		payload.CanvasGraph = nil
 	} else if err := decodeWorkflowCanvasGraph(input, &payload); err != nil {
-		return jfadk.WorkflowDefinitionWriteRequest{}, err
+		return assistantmodel.WorkflowDefinitionWriteRequest{}, err
 	}
 	return payload, nil
 }
 
-func applyWorkflowWriteFields(payload *jfadk.WorkflowDefinitionWriteRequest, input map[string]any) {
+func applyWorkflowWriteFields(payload *assistantmodel.WorkflowDefinitionWriteRequest, input map[string]any) {
 	applyPresentString(input, "name", &payload.Name)
 	applyPresentString(input, "description", &payload.Description)
 	applyPresentString(input, "status", &payload.Status)
@@ -278,7 +279,7 @@ func applyWorkflowWriteFields(payload *jfadk.WorkflowDefinitionWriteRequest, inp
 	}
 }
 
-func decodeWorkflowCanvasGraph(input map[string]any, payload *jfadk.WorkflowDefinitionWriteRequest) error {
+func decodeWorkflowCanvasGraph(input map[string]any, payload *assistantmodel.WorkflowDefinitionWriteRequest) error {
 	value, ok := input["canvasGraph"]
 	if !ok {
 		return nil
@@ -287,7 +288,7 @@ func decodeWorkflowCanvasGraph(input map[string]any, payload *jfadk.WorkflowDefi
 	if err != nil {
 		return fmt.Errorf("encode canvasGraph: %w", err)
 	}
-	var graph jfadk.WorkflowCanvasGraph
+	var graph assistantmodel.WorkflowCanvasGraph
 	if err := json.Unmarshal(raw, &graph); err != nil {
 		return fmt.Errorf("invalid canvasGraph: %w", err)
 	}
@@ -295,16 +296,16 @@ func decodeWorkflowCanvasGraph(input map[string]any, payload *jfadk.WorkflowDefi
 	return nil
 }
 
-func workflowTriggerCreateRequest(input map[string]any) jfadk.WorkflowTriggerWriteRequest {
-	return jfadk.WorkflowTriggerWriteRequest{ID: stringValue(input, "id"), Type: strings.ToLower(strings.TrimSpace(stringValue(input, "type"))), Title: stringValue(input, "title"), Status: stringValue(input, "status"), Config: toolObjectValue(input, "config")}
+func workflowTriggerCreateRequest(input map[string]any) assistantmodel.WorkflowTriggerWriteRequest {
+	return assistantmodel.WorkflowTriggerWriteRequest{ID: stringValue(input, "id"), Type: strings.ToLower(strings.TrimSpace(stringValue(input, "type"))), Title: stringValue(input, "title"), Status: stringValue(input, "status"), Config: toolObjectValue(input, "config")}
 }
 
-func workflowTriggerUpdateRequest(current jfadk.WorkflowTrigger, input map[string]any) (jfadk.WorkflowTriggerWriteRequest, error) {
-	payload := jfadk.WorkflowTriggerWriteRequest{ID: current.ID, Type: current.Type, Title: current.Title, Status: current.Status, Config: current.Config}
+func workflowTriggerUpdateRequest(current assistantmodel.WorkflowTrigger, input map[string]any) (assistantmodel.WorkflowTriggerWriteRequest, error) {
+	payload := assistantmodel.WorkflowTriggerWriteRequest{ID: current.ID, Type: current.Type, Title: current.Title, Status: current.Status, Config: current.Config}
 	if rawType, ok := input["type"]; ok {
 		requested := strings.ToLower(strings.TrimSpace(fmt.Sprint(rawType)))
-		if requested != current.Type && (requested == jfadk.WorkflowTriggerTypeWebhook || current.Type == jfadk.WorkflowTriggerTypeWebhook) {
-			return jfadk.WorkflowTriggerWriteRequest{}, fmt.Errorf("webhook trigger type changes must use the UI/API")
+		if requested != current.Type && (requested == assistantmodel.WorkflowTriggerTypeWebhook || current.Type == assistantmodel.WorkflowTriggerTypeWebhook) {
+			return assistantmodel.WorkflowTriggerWriteRequest{}, fmt.Errorf("webhook trigger type changes must use the UI/API")
 		}
 		payload.Type = requested
 	}

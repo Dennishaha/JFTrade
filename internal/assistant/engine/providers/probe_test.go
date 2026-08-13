@@ -2,13 +2,12 @@ package providers
 
 import (
 	"encoding/json"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"testing"
 	"time"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestProbeProviderQuickAndFullRequestCounts(t *testing.T) {
@@ -34,44 +33,44 @@ func TestProbeProviderQuickAndFullRequestCounts(t *testing.T) {
 		writeResponsesProbeResponse(t, w)
 	}))
 	defer server.Close()
-	provider := probeTestProvider(server.URL, []jfadkmodel.ProviderReasoningMapping{
-		{Effort: jfadkmodel.ReasoningEffortLow, Value: "FAST"},
-		{Effort: jfadkmodel.ReasoningEffortMedium, Value: "BALANCED"},
-		{Effort: jfadkmodel.ReasoningEffortHigh, Value: "DEEP"},
+	provider := probeTestProvider(server.URL, []assistantmodel.ProviderReasoningMapping{
+		{Effort: assistantmodel.ReasoningEffortLow, Value: "FAST"},
+		{Effort: assistantmodel.ReasoningEffortMedium, Value: "BALANCED"},
+		{Effort: assistantmodel.ReasoningEffortHigh, Value: "DEEP"},
 	})
 
-	quick, err := ProbeProvider(t.Context(), provider, "secret", jfadkmodel.ProviderTestModeQuick)
+	quick, err := ProbeProvider(t.Context(), provider, "secret", assistantmodel.ProviderTestModeQuick)
 	if err != nil {
 		t.Fatalf("quick probe: %v", err)
 	}
 	if requestCount != 3 || !slices.Equal(efforts, []string{"BALANCED"}) {
 		t.Fatalf("quick requests=%d efforts=%v", requestCount, efforts)
 	}
-	if quick.Reasoning.Mode != jfadkmodel.ProviderTestModeQuick || len(quick.Reasoning.Results) != 1 || !quick.Capabilities["reasoning"] {
+	if quick.Reasoning.Mode != assistantmodel.ProviderTestModeQuick || len(quick.Reasoning.Results) != 1 || !quick.Capabilities["reasoning"] {
 		t.Fatalf("quick result = %+v", quick)
 	}
 
 	requestCount = 0
 	efforts = nil
-	full, err := ProbeProvider(t.Context(), provider, "secret", jfadkmodel.ProviderTestModeFull)
+	full, err := ProbeProvider(t.Context(), provider, "secret", assistantmodel.ProviderTestModeFull)
 	if err != nil {
 		t.Fatalf("full probe: %v", err)
 	}
 	if requestCount != 5 || !slices.Equal(efforts, []string{"FAST", "BALANCED", "DEEP"}) {
 		t.Fatalf("full requests=%d efforts=%v", requestCount, efforts)
 	}
-	if full.Reasoning.Mode != jfadkmodel.ProviderTestModeFull || len(full.Reasoning.Results) != 3 ||
+	if full.Reasoning.Mode != assistantmodel.ProviderTestModeFull || len(full.Reasoning.Results) != 3 ||
 		full.Reasoning.Results[2].Error == "" || full.Capabilities["reasoning"] {
 		t.Fatalf("full result = %+v", full)
 	}
 
 	requestCount = 0
 	efforts = nil
-	withoutMedium := probeTestProvider(server.URL, []jfadkmodel.ProviderReasoningMapping{
-		{Effort: jfadkmodel.ReasoningEffortHigh, Value: "DEEP"},
-		{Effort: jfadkmodel.ReasoningEffortLow, Value: "FAST"},
+	withoutMedium := probeTestProvider(server.URL, []assistantmodel.ProviderReasoningMapping{
+		{Effort: assistantmodel.ReasoningEffortHigh, Value: "DEEP"},
+		{Effort: assistantmodel.ReasoningEffortLow, Value: "FAST"},
 	})
-	if _, err := ProbeProvider(t.Context(), withoutMedium, "secret", jfadkmodel.ProviderTestModeQuick); err != nil {
+	if _, err := ProbeProvider(t.Context(), withoutMedium, "secret", assistantmodel.ProviderTestModeQuick); err != nil {
 		t.Fatalf("quick canonical probe: %v", err)
 	}
 	if requestCount != 3 || !slices.Equal(efforts, []string{"FAST"}) {
@@ -97,7 +96,7 @@ func TestProbeProviderWithoutMappingsSendsNoReasoningField(t *testing.T) {
 	if err != nil {
 		t.Fatalf("probe: %v", err)
 	}
-	if requestCount != 2 || result.Reasoning.Mode != jfadkmodel.ProviderTestModeQuick ||
+	if requestCount != 2 || result.Reasoning.Mode != assistantmodel.ProviderTestModeQuick ||
 		len(result.Reasoning.Results) != 0 || result.Capabilities["reasoning"] {
 		t.Fatalf("requests=%d result=%+v", requestCount, result)
 	}
@@ -105,12 +104,12 @@ func TestProbeProviderWithoutMappingsSendsNoReasoningField(t *testing.T) {
 
 func TestProviderProbeTimeoutCapsConfiguredRequestTimeout(t *testing.T) {
 	for _, test := range []struct {
-		provider jfadkmodel.Provider
+		provider assistantmodel.Provider
 		want     time.Duration
 	}{
-		{provider: jfadkmodel.Provider{}, want: MaxProviderProbeTimeout},
-		{provider: jfadkmodel.Provider{RequestTimeoutMs: 15_000}, want: 15 * time.Second},
-		{provider: jfadkmodel.Provider{RequestTimeoutMs: 600_000}, want: MaxProviderProbeTimeout},
+		{provider: assistantmodel.Provider{}, want: MaxProviderProbeTimeout},
+		{provider: assistantmodel.Provider{RequestTimeoutMs: 15_000}, want: 15 * time.Second},
+		{provider: assistantmodel.Provider{RequestTimeoutMs: 600_000}, want: MaxProviderProbeTimeout},
 	} {
 		if got := ProviderProbeTimeout(test.provider); got != test.want {
 			t.Fatalf("ProviderProbeTimeout() = %s, want %s", got, test.want)
@@ -118,10 +117,10 @@ func TestProviderProbeTimeoutCapsConfiguredRequestTimeout(t *testing.T) {
 	}
 }
 
-func probeTestProvider(baseURL string, mappings []jfadkmodel.ProviderReasoningMapping) jfadkmodel.Provider {
-	return jfadkmodel.Provider{
+func probeTestProvider(baseURL string, mappings []assistantmodel.ProviderReasoningMapping) assistantmodel.Provider {
+	return assistantmodel.Provider{
 		BaseURL: baseURL + "/v1", Model: "test-model",
-		ReasoningConfig: jfadkmodel.ProviderReasoningConfig{RequestField: "reasoning.effort", Mappings: mappings},
+		ReasoningConfig: assistantmodel.ProviderReasoningConfig{RequestField: "reasoning.effort", Mappings: mappings},
 	}
 }
 

@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 )
 
@@ -20,12 +21,12 @@ const (
 // DatabaseMaintenance adapts one ADK-owned database to the data-management
 // ports without exposing Runtime.Store() to application assembly.
 type DatabaseMaintenance struct {
-	runtime  *jfadk.Runtime
+	runtime  *jfadkruntime.Runtime
 	resource MaintenanceResource
 }
 
 func newDatabaseMaintenance(
-	runtime *jfadk.Runtime,
+	runtime *jfadkruntime.Runtime,
 	resource MaintenanceResource,
 ) *DatabaseMaintenance {
 	return &DatabaseMaintenance{runtime: runtime, resource: resource}
@@ -52,7 +53,7 @@ func (m *DatabaseMaintenance) PurgeMaintenanceCandidates(
 	if m == nil || m.runtime == nil || m.resource != MaintenanceRuntimeDatabase {
 		return 0, fmt.Errorf("adk database is unavailable")
 	}
-	ids := jfadk.DeletedConfigIDs{}
+	ids := jfadkruntime.DeletedConfigIDs{}
 	for _, candidate := range candidates {
 		switch candidate.Category {
 		case "智能体":
@@ -64,7 +65,7 @@ func (m *DatabaseMaintenance) PurgeMaintenanceCandidates(
 		}
 	}
 	deleted, err := m.runtime.PurgeDeletedConfigs(ctx, ids)
-	if errors.Is(err, jfadk.ErrCleanupCandidatesChanged) {
+	if errors.Is(err, assistantmodel.ErrCleanupCandidatesChanged) {
 		return 0, fmt.Errorf("%w: %v", dmsrv.ErrCleanupCandidatesChanged, err)
 	}
 	if err != nil {

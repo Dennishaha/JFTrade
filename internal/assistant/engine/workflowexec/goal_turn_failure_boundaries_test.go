@@ -1,11 +1,11 @@
 package workflowexec
 
 import (
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestGoalTurnPersistsUserPauseAndTerminatesFailedChildren(t *testing.T) {
@@ -13,10 +13,10 @@ func TestGoalTurnPersistsUserPauseAndTerminatesFailedChildren(t *testing.T) {
 	runtime := newTestRuntime(t)
 	executor := (&WorkflowExecutor{runtime: runtime})
 	session := mustCreateSession(t, runtime, "coverage-goal-turn-agent", "goal turn recovery")
-	now := jfadkmodel.NowString()
+	now := assistantmodel.NowString()
 
 	t.Run("a model pause request honors an already persisted user pause", func(t *testing.T) {
-		pauseRequestedAt := jfadkmodel.NowString()
+		pauseRequestedAt := assistantmodel.NowString()
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "coverage-goal-turn-user-pause", SessionID: session.ID, AgentID: session.AgentID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
@@ -30,7 +30,7 @@ func TestGoalTurnPersistsUserPauseAndTerminatesFailedChildren(t *testing.T) {
 			parent,
 			nil,
 			&fakeWorkflowExecutionHandle{},
-			jfadkmodel.ErrUserGoalPauseRequested,
+			assistantmodel.ErrUserGoalPauseRequested,
 			3,
 		)
 		if err != nil {
@@ -89,7 +89,7 @@ func TestGoalTurnFailsClosedWhenTaskStateCannotBeRead(t *testing.T) {
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "coverage-goal-turn-task-store-failure", SessionID: session.ID, AgentID: session.AgentID,
 		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	if _, err := runtime.Store().DB().ExecContext(ctx, `DROP TABLE `+enginepersistence.TableTasks); err != nil {
 		t.Fatalf("drop task table: %v", err)
@@ -120,7 +120,7 @@ func TestGoalWorkflowSaveFailureReturnsFailedResponseWithoutRunningModel(t *test
 	parent := Run{
 		ID: "coverage-goal-initial-save-failure", SessionID: session.ID, AgentID: session.AgentID,
 		Status: RunStatusPending, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	}
 	if _, err := runtime.Store().DB().ExecContext(ctx, `CREATE TRIGGER coverage_fail_goal_initial_save BEFORE INSERT ON `+enginepersistence.TableRuns+` BEGIN SELECT RAISE(FAIL, 'goal initial save failed'); END`); err != nil {
 		t.Fatalf("create run-save failure trigger: %v", err)

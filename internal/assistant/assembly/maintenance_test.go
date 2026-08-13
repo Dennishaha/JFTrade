@@ -4,7 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 )
 
@@ -24,10 +25,10 @@ func TestDatabaseMaintenanceOwnsADKBusyPurgeAndCompactPaths(t *testing.T) {
 	session := handle.DatabaseMaintenance(MaintenanceSessionDatabase)
 	artifact := handle.DatabaseMaintenance(MaintenanceArtifactDatabase)
 
-	agent, err := runtime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+	agent, err := runtime.Store().SaveAgent(t.Context(), assistantmodel.AgentWriteRequest{
 		ID:     "cleanup-agent",
 		Name:   "Cleanup Agent",
-		Status: jfadk.AgentStatusEnabled,
+		Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -49,7 +50,7 @@ func TestDatabaseMaintenanceOwnsADKBusyPurgeAndCompactPaths(t *testing.T) {
 		t.Fatalf("unknown category error = %v", err)
 	}
 
-	run := jfadk.Run{ID: "active-run", Status: jfadk.RunStatusRunning}
+	run := assistantmodel.Run{ID: "active-run", Status: assistantmodel.RunStatusRunning}
 	if err := runtime.Store().SaveRun(t.Context(), run); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +59,7 @@ func TestDatabaseMaintenanceOwnsADKBusyPurgeAndCompactPaths(t *testing.T) {
 			t.Fatalf("%s maintenance did not report active run", maintenance.resource)
 		}
 	}
-	run.Status = jfadk.RunStatusCompleted
+	run.Status = assistantmodel.RunStatusCompleted
 	if err := runtime.Store().SaveRun(t.Context(), run); err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +95,7 @@ func TestDatabaseMaintenanceFailsClosedWithoutOwnedRuntime(t *testing.T) {
 	).PurgeMaintenanceCandidates(t.Context(), nil); err == nil {
 		t.Fatal("nil runtime purge succeeded")
 	}
-	if err := (&Handle{runtime: &jfadk.Runtime{}}).DatabaseMaintenance(
+	if err := (&Handle{runtime: &jfadkruntime.Runtime{}}).DatabaseMaintenance(
 		"unknown",
 	).CompactMaintenanceResource(t.Context()); err == nil {
 		t.Fatal("unknown resource compact succeeded")

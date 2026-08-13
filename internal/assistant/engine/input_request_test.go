@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 	"time"
 
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"google.golang.org/genai"
 )
 
@@ -468,7 +468,7 @@ func TestInputRequestTimelinePersistsAnsweredCard(t *testing.T) {
 	second.Answers = []InputAnswer{}
 	second.CreatedAt = "9999-01-01T00:00:00Z"
 	second.UpdatedAt = second.CreatedAt
-	entries := jfadkmodel.GroupTimelinePrimitives(jfadkmodel.TimelinePrimitivesForRunActivity("session", Run{
+	entries := assistantmodel.GroupTimelinePrimitives(assistantmodel.TimelinePrimitivesForRunActivity("session", Run{
 		ID: "timeline-run", InputRequest: &second, InputRequests: []InputRequest{*request, second},
 		ToolCalls: []ToolCall{{ID: "call", RunID: "timeline-run", ToolName: interactionRequestUserTool, Status: RunStatusPendingInput}},
 	}))

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 )
 
@@ -205,8 +205,8 @@ func brokerReadInput(input map[string]any, deps ToolDeps, defaultScope string) B
 	return BrokerReadInput{TradingEnvironment: stringValue(input, "tradingEnvironment"), AccountID: stringValue(input, "accountId"), Market: market, Scope: stringOrDefault(stringValue(input, "scope"), defaultScope), Symbol: stringValue(input, "symbol"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), Status: stringSliceValue(input, "status"), Statuses: stringSliceValue(input, "statuses")}
 }
 
-func taskPatchFromInput(input map[string]any) jfadk.TaskPatchRequest {
-	return jfadk.TaskPatchRequest{
+func taskPatchFromInput(input map[string]any) assistantmodel.TaskPatchRequest {
+	return assistantmodel.TaskPatchRequest{
 		Title:           stringPtrFromInput(input, "title"),
 		Description:     stringPtrFromInput(input, "description"),
 		Status:          stringPtrFromInput(input, "status"),

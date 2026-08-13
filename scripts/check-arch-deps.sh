@@ -605,6 +605,20 @@ echo ""
 
 # Rule 15: assistant transport and service boundaries must not regress.
 echo "Rule 15: assistant transport and business service boundaries"
+check_no_import \
+  "github.com/jftrade/jftrade-main/internal/api/assistant" \
+  "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime" \
+  "assistant transport contracts must come directly from model"
+check_source_no_match \
+  "internal/assistant/engine/workflowruntime" \
+  "*.go" \
+  'func Normalize[A-Z]|^[[:space:]]*(Provider|Agent|Session|TranscriptEntry|TimelineEntry|Run|WorkflowStepState|RunUsage|ToolCall|Approval|InputRequest|Skill|ToolDescriptor|ChatRequest|RunOptions|WorkflowDefinition|WorkflowTrigger|WorkflowResult|ChatResponse|SessionsResponse|AuditEvent|Task|MemoryEntry)[[:space:]]*=' \
+  "workflowruntime must not re-export model DTOs or normalizers"
+check_source_no_match \
+  "internal/assistant/engine/workflowruntime" \
+  "*.go" \
+  '^[[:space:]]*(PermissionMode|WorkMode|WorkflowEngine|AgentStatus|WorkflowStatus|WorkflowTriggerStatus|RunStatus|ApprovalStatus|InputRequestStatus|TimelineKind|TimelineStatus|ContextStatus|ToolIdempotency)[A-Za-z0-9_]*[[:space:]]*=' \
+  "workflowruntime must not re-export model status constants"
 for forbidden in \
   "github.com/jftrade/jftrade-main/pkg/futu" \
   "google.golang.org/protobuf"

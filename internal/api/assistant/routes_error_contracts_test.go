@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	ctx := t.Context()
 
-	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
+	agent, err := runtime.Store().SaveAgent(ctx, assistantmodel.AgentWriteRequest{
 		ID: "agent-errors", Name: "Error Contracts", ProviderID: "test-provider",
-		Status: jfadk.AgentStatusEnabled,
+		Status: assistantmodel.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
@@ -26,11 +26,11 @@ func TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources(t *testi
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
-	run := jfadk.Run{
+	run := assistantmodel.Run{
 		ID:        "run-errors",
 		SessionID: session.ID,
 		AgentID:   agent.ID,
-		Status:    jfadk.RunStatusCompleted,
+		Status:    assistantmodel.RunStatusCompleted,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	if err := runtime.Store().SaveRun(ctx, run); err != nil {
@@ -109,8 +109,8 @@ func TestAssistantRoutesEnforceBusinessValidationOnUpdates(t *testing.T) {
 		t.Fatalf("provider update status=%d body=%s", providerUpdate.Code, providerUpdate.Body.String())
 	}
 	var providerEnvelope struct {
-		OK   bool           `json:"ok"`
-		Data jfadk.Provider `json:"data"`
+		OK   bool                    `json:"ok"`
+		Data assistantmodel.Provider `json:"data"`
 	}
 	if err := json.Unmarshal(providerUpdate.Body.Bytes(), &providerEnvelope); err != nil {
 		t.Fatalf("decode provider update: %v body=%s", err, providerUpdate.Body.String())
@@ -130,8 +130,8 @@ func TestAssistantRoutesEnforceBusinessValidationOnUpdates(t *testing.T) {
 		t.Fatalf("agent update status=%d body=%s", agentUpdate.Code, agentUpdate.Body.String())
 	}
 	var agentEnvelope struct {
-		OK   bool        `json:"ok"`
-		Data jfadk.Agent `json:"data"`
+		OK   bool                 `json:"ok"`
+		Data assistantmodel.Agent `json:"data"`
 	}
 	if err := json.Unmarshal(agentUpdate.Body.Bytes(), &agentEnvelope); err != nil {
 		t.Fatalf("decode agent update: %v body=%s", err, agentUpdate.Body.String())
@@ -169,13 +169,13 @@ func TestAssistantRoutesEnforceBusinessValidationOnUpdates(t *testing.T) {
 		t.Fatalf("composer valid status=%d body=%s", composerValid.Code, composerValid.Body.String())
 	}
 	var composerEnvelope struct {
-		OK   bool                       `json:"ok"`
-		Data jfadk.SessionComposerState `json:"data"`
+		OK   bool                                `json:"ok"`
+		Data assistantmodel.SessionComposerState `json:"data"`
 	}
 	if err := json.Unmarshal(composerValid.Body.Bytes(), &composerEnvelope); err != nil {
 		t.Fatalf("decode composer state: %v body=%s", err, composerValid.Body.String())
 	}
-	if !composerEnvelope.OK || composerEnvelope.Data.WorkModeOverride != jfadk.WorkModeLoop || composerEnvelope.Data.PermissionModeOverride != jfadk.PermissionModeApproval || !composerEnvelope.Data.GoalObjectiveTouched {
+	if !composerEnvelope.OK || composerEnvelope.Data.WorkModeOverride != assistantmodel.WorkModeLoop || composerEnvelope.Data.PermissionModeOverride != assistantmodel.PermissionModeApproval || !composerEnvelope.Data.GoalObjectiveTouched {
 		t.Fatalf("composer state envelope=%s", composerValid.Body.String())
 	}
 
@@ -185,12 +185,12 @@ func TestAssistantRoutesEnforceBusinessValidationOnUpdates(t *testing.T) {
 	}`))
 	assertAssistantErrorCode(t, missingTaskPatch, http.StatusNotFound, "ADK_TASK_NOT_FOUND")
 
-	loopRun := jfadk.Run{
+	loopRun := assistantmodel.Run{
 		ID:        "run-objective-validation",
 		SessionID: session.ID,
 		AgentID:   agentEnvelope.Data.ID,
-		WorkMode:  jfadk.WorkModeLoop,
-		Status:    jfadk.RunStatusRunning,
+		WorkMode:  assistantmodel.WorkModeLoop,
+		Status:    assistantmodel.RunStatusRunning,
 		Objective: "盯盘并记录异常",
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
@@ -202,7 +202,7 @@ func TestAssistantRoutesEnforceBusinessValidationOnUpdates(t *testing.T) {
 	objectiveEmpty := performAssistantRequest(router, http.MethodPatch, "/api/v1/adk/runs/"+loopRun.ID+"/objective", []byte(`{"objective":"   "}`))
 	assertAssistantErrorCode(t, objectiveEmpty, http.StatusBadRequest, "ADK_RUN_OBJECTIVE_UPDATE_FAILED")
 
-	if _, err := runtime.Store().SaveOptimizationTask(ctx, jfadk.OptimizationTask{
+	if _, err := runtime.Store().SaveOptimizationTask(ctx, assistantmodel.OptimizationTask{
 		ID:        "optimization-cancel-route",
 		Status:    "queued",
 		Objective: "提高收益风险比",

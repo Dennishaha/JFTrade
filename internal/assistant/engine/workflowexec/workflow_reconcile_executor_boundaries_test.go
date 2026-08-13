@@ -2,9 +2,8 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"testing"
-
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestTaskResumeUsesStoredPendingChildBeforeCompletingParent(t *testing.T) {
@@ -18,7 +17,7 @@ func TestTaskResumeUsesStoredPendingChildBeforeCompletingParent(t *testing.T) {
 	approval := Approval{
 		ID: "approval-stale-child", RunID: "child-stale-pending", AgentID: agent.ID,
 		ToolName: "strategy.save_draft", Status: ApprovalStatusPending,
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(),
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(),
 	}
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "parent-stale-plan", SessionID: session.ID, AgentID: agent.ID,
@@ -27,13 +26,13 @@ func TestTaskResumeUsesStoredPendingChildBeforeCompletingParent(t *testing.T) {
 		WorkflowPlan: []WorkflowStepState{{
 			Title: "需要审批的步骤", Message: "保存策略", Status: "DONE", ChildRunID: "child-stale-pending",
 		}},
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	mustSaveRun(t, runtime, Run{
 		ID: "child-stale-pending", SessionID: session.ID, AgentID: agent.ID, ParentRunID: parent.ID,
 		Status: RunStatusPending, Message: "等待用户审批后继续执行。", UserMessage: "保存策略",
 		PendingApprovals: []Approval{approval},
-		CreatedAt:        jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt:        assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	if err := runtime.Store().SaveApproval(ctx, approval); err != nil {
 		t.Fatalf("SaveApproval: %v", err)
@@ -82,12 +81,12 @@ func TestTaskResumeUsesStoredRunningChildBeforeCompletingParent(t *testing.T) {
 		WorkflowPlan: []WorkflowStepState{{
 			Title: "仍在运行的步骤", Message: "继续运行", Status: "DONE", ChildRunID: "child-still-running",
 		}},
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 	mustSaveRun(t, runtime, Run{
 		ID: "child-still-running", SessionID: session.ID, AgentID: agent.ID, ParentRunID: parent.ID,
 		Status: RunStatusRunning, Message: "子运行仍在执行。", UserMessage: "继续运行",
-		CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 
 	updated, blocked, err := (&WorkflowExecutor{runtime: runtime}).ReconcileWorkflowChildren(ctx, parent)
@@ -134,12 +133,12 @@ func TestTaskResumeTerminatesParentForStoredTerminalChild(t *testing.T) {
 				WorkflowPlan: []WorkflowStepState{{
 					Title: "终止步骤", Message: "终止", Status: "DONE", ChildRunID: childID,
 				}},
-				CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+				CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 			})
 			mustSaveRun(t, runtime, Run{
 				ID: childID, SessionID: session.ID, AgentID: agent.ID, ParentRunID: parent.ID,
 				Status: tc.status, Message: "child terminal", FailureReason: "child terminal failure",
-				CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+				CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 			})
 
 			updated, blocked, err := (&WorkflowExecutor{runtime: runtime}).ReconcileWorkflowChildren(ctx, parent)
@@ -178,7 +177,7 @@ func TestCompleteResumedWorkflowClearsTerminalPendingApprovals(t *testing.T) {
 			{ID: "approval-resolved-on-parent", RunID: "run-complete-resumed-clear", AgentID: agent.ID, Status: ApprovalStatusApproved},
 		},
 		WorkflowPlan: []WorkflowStepState{{TaskID: "task-complete-resumed-clear", Title: "完成", Status: "DONE"}},
-		CreatedAt:    jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+		CreatedAt:    assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 	})
 
 	completed, err := (&WorkflowExecutor{runtime: runtime}).CompleteResumedWorkflow(ctx, session, parent, "done")

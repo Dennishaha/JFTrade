@@ -2,12 +2,12 @@ package workflowexec
 
 import (
 	"context"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
-	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 func TestWorkflowChildLifecycleBranches(t *testing.T) {
@@ -23,7 +23,7 @@ func TestWorkflowChildLifecycleBranches(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "workflow-child-start-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		_, finishes, err := (&WorkflowExecutor{runtime: runtime}).StartWorkflowChildRuns(ctx, workflowRequest{
 			Agent: agent, Session: session, Mode: WorkModeLoop,
@@ -58,7 +58,7 @@ func TestWorkflowChildLifecycleBranches(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "workflow-child-start-save-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installFailTrigger(t, runtime, "fail_workflow_child_start_insert", enginepersistence.TableRuns, "INSERT", "child start save failed")
 
@@ -83,7 +83,7 @@ func TestWorkflowChildLifecycleBranches(t *testing.T) {
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "workflow-child-run-save-parent", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
-			CreatedAt: jfadkmodel.NowString(), UpdatedAt: jfadkmodel.NowString(), Usage: &RunUsage{},
+			CreatedAt: assistantmodel.NowString(), UpdatedAt: assistantmodel.NowString(), Usage: &RunUsage{},
 		})
 		installFailTrigger(t, runtime, "fail_workflow_child_run_insert", enginepersistence.TableRuns, "INSERT", "run child start save failed")
 
@@ -120,8 +120,8 @@ func TestWorkflowChildLifecycleBranches(t *testing.T) {
 			AgentID:     agent.ID,
 			Status:      RunStatusRunning,
 			UserMessage: "finish child",
-			CreatedAt:   jfadkmodel.NowString(),
-			UpdatedAt:   jfadkmodel.NowString(),
+			CreatedAt:   assistantmodel.NowString(),
+			UpdatedAt:   assistantmodel.NowString(),
 			Usage:       &RunUsage{},
 		})
 		if _, err := runtime.Store().DB().ExecContext(ctx, `DROP TABLE `+enginepersistence.TableRuns); err != nil {
@@ -144,7 +144,7 @@ func TestWorkflowChildLifecycleBranches(t *testing.T) {
 			ProviderID: testProviderID, WorkMode: WorkModeLoop,
 		})
 		session := mustCreateSession(t, runtime, agent.ID, "workflow child parent save")
-		now := jfadkmodel.NowString()
+		now := assistantmodel.NowString()
 		parent := mustSaveRun(t, runtime, Run{
 			ID:             "workflow-child-parent-save-parent",
 			SessionID:      session.ID,

@@ -3,13 +3,8 @@ package adk
 import (
 	"strings"
 
-	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
-
-func normalizeApprovals(approvals []Approval) []Approval {
-	return jfadkmodel.NormalizeApprovals(approvals)
-}
 
 func normalizeTimelineEntries(entries []TimelineEntry) []TimelineEntry {
 	return jfadkmodel.NormalizeTimelineEntries(entries)
@@ -43,11 +38,7 @@ func NormalizeTimelineEntry(entry TimelineEntry) TimelineEntry {
 }
 
 func NormalizeChatResponse(response ChatResponse) ChatResponse {
-	response.Run = NormalizeRun(response.Run)
-	response.PendingApprovals = normalizeApprovals(response.PendingApprovals)
-	response.InputRequest = normalizeInputRequest(response.InputRequest)
-	response.Timeline = normalizeTimelineEntries(response.Timeline)
-	return response
+	return jfadkmodel.NormalizeChatResponse(response)
 }
 
 func normalizeInputRequest(request *InputRequest) *InputRequest {
@@ -189,26 +180,11 @@ func normalizeWorkflowNodeRuns(nodes []WorkflowNodeRun) []WorkflowNodeRun {
 }
 
 func NormalizeApprovalResolution(resolution ApprovalResolution) ApprovalResolution {
-	if resolution.Run != nil {
-		resolution.Run = new(NormalizeRun(*resolution.Run))
-	}
-	if resolution.ParentRun != nil {
-		resolution.ParentRun = new(NormalizeRun(*resolution.ParentRun))
-	}
-	return resolution
+	return jfadkmodel.NormalizeApprovalResolution(resolution)
 }
 
 func NormalizeSessionsResponse(response SessionsResponse) SessionsResponse {
-	response.Timeline = normalizeTimelineEntries(response.Timeline)
-	if len(response.Runs) == 0 {
-		response.Runs = []Run{}
-	} else {
-		for index := range response.Runs {
-			response.Runs[index] = NormalizeRun(response.Runs[index])
-		}
-	}
-	response.ComposerState = enginepersistence.NormalizeSessionComposerState(response.Session.ID, response.ComposerState)
-	return response
+	return jfadkmodel.NormalizeSessionsResponse(response)
 }
 
 func normalizeOptionalPermissionMode(mode string) string {

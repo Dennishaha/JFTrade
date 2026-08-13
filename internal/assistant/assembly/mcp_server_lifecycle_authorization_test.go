@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -40,7 +40,7 @@ func TestMCPServerManagerRemainingLifecycleBoundaries(t *testing.T) {
 	if err := manager.Reconfigure(jfsettings.MCPServerSettings{Enabled: true, AuthMode: "none"}); err == nil || !strings.Contains(err.Error(), "runtime") {
 		t.Fatalf("nil runtime reconfigure error = %v", err)
 	}
-	manager.runtime = jfadk.NewRuntime(nil, jfadk.NewToolRegistry())
+	manager.runtime = jfadkruntime.NewRuntime(nil, jfadkruntime.NewToolRegistry())
 	if err := manager.Reconfigure(jfsettings.MCPServerSettings{Enabled: true, AuthMode: "token"}); err == nil || !strings.Contains(err.Error(), "token") {
 		t.Fatalf("missing token reconfigure error = %v", err)
 	}
@@ -73,7 +73,7 @@ func TestMCPServerManagerRemainingLifecycleBoundaries(t *testing.T) {
 
 func TestMCPServerManagerRemainingServeFailureStates(t *testing.T) {
 	serveErr := errors.New("accept failed")
-	manager := newMCPServerManager(jfadk.NewRuntime(nil, jfadk.NewToolRegistry()))
+	manager := newMCPServerManager(jfadkruntime.NewRuntime(nil, jfadkruntime.NewToolRegistry()))
 	server := &http.Server{Handler: http.NotFoundHandler(), ReadHeaderTimeout: time.Second}
 	manager.server = server
 	manager.listener = failingMCPListener{err: serveErr}
@@ -93,7 +93,7 @@ func TestMCPServerManagerRemainingServeFailureStates(t *testing.T) {
 }
 
 func TestMCPAuthorizedHandlerRemainingRequestBoundaries(t *testing.T) {
-	manager := newMCPServerManager(jfadk.NewRuntime(nil, jfadk.NewToolRegistry()))
+	manager := newMCPServerManager(jfadkruntime.NewRuntime(nil, jfadkruntime.NewToolRegistry()))
 	nextCalls := 0
 	handler := manager.authorizedHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		nextCalls++

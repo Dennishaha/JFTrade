@@ -11,7 +11,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	jfadk "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 )
 
 const defaultMarketThresholdCooldown = 900
@@ -48,7 +48,7 @@ func NextRunAtString(config map[string]any, from time.Time) string {
 	return next.Format(time.RFC3339Nano)
 }
 
-func EvaluateMarketThresholdTrigger(trigger jfadk.WorkflowTrigger, events []map[string]any, now time.Time) ([]map[string]any, bool) {
+func EvaluateMarketThresholdTrigger(trigger assistantmodel.WorkflowTrigger, events []map[string]any, now time.Time) ([]map[string]any, bool) {
 	instruments := map[string]struct{}{}
 	for _, instrumentID := range ConfigStringSlice(trigger.Config, "instrumentIds") {
 		instruments[strings.ToUpper(strings.TrimSpace(instrumentID))] = struct{}{}
@@ -116,7 +116,7 @@ func EvaluateMarketThresholdTrigger(trigger jfadk.WorkflowTrigger, events []map[
 	return matches, changed
 }
 
-func EventMatches(config map[string]any, event jfadk.WorkflowEvent) bool {
+func EventMatches(config map[string]any, event assistantmodel.WorkflowEvent) bool {
 	if expected := strings.TrimSpace(ConfigString(config, "source")); expected != "" && expected != event.Source {
 		return false
 	}
@@ -135,7 +135,7 @@ func EventMatches(config map[string]any, event jfadk.WorkflowEvent) bool {
 	return true
 }
 
-func EventCooldownAllows(trigger *jfadk.WorkflowTrigger, now time.Time) bool {
+func EventCooldownAllows(trigger *assistantmodel.WorkflowTrigger, now time.Time) bool {
 	if trigger == nil {
 		return false
 	}
@@ -175,17 +175,17 @@ func CompareThreshold(operator string, current float64, threshold float64) bool 
 	}
 }
 
-func ValidateTrigger(trigger jfadk.WorkflowTrigger) error {
+func ValidateTrigger(trigger assistantmodel.WorkflowTrigger) error {
 	if strings.TrimSpace(trigger.WorkflowID) == "" {
 		return fmt.Errorf("workflowId is required")
 	}
 	switch trigger.Type {
-	case jfadk.WorkflowTriggerTypeSchedule:
+	case assistantmodel.WorkflowTriggerTypeSchedule:
 		_, err := NextScheduleRun(trigger.Config, time.Now().UTC())
 		return err
-	case jfadk.WorkflowTriggerTypeManual, jfadk.WorkflowTriggerTypeWebhook, jfadk.WorkflowTriggerTypeEvent:
+	case assistantmodel.WorkflowTriggerTypeManual, assistantmodel.WorkflowTriggerTypeWebhook, assistantmodel.WorkflowTriggerTypeEvent:
 		return nil
-	case jfadk.WorkflowTriggerTypeMarketThreshold:
+	case assistantmodel.WorkflowTriggerTypeMarketThreshold:
 		if len(ConfigStringSlice(trigger.Config, "instrumentIds")) == 0 {
 			return fmt.Errorf("market threshold trigger requires instrumentIds")
 		}
@@ -203,10 +203,10 @@ func NormalizeWorkflowStatus(input string, fallback string) string {
 	if status == "" {
 		status = strings.ToUpper(strings.TrimSpace(fallback))
 	}
-	if status == jfadk.WorkflowStatusDisabled {
-		return jfadk.WorkflowStatusDisabled
+	if status == assistantmodel.WorkflowStatusDisabled {
+		return assistantmodel.WorkflowStatusDisabled
 	}
-	return jfadk.WorkflowStatusEnabled
+	return assistantmodel.WorkflowStatusEnabled
 }
 
 func NormalizeTriggerStatus(input string, fallback string) string {
@@ -215,10 +215,10 @@ func NormalizeTriggerStatus(input string, fallback string) string {
 		status = strings.ToUpper(strings.TrimSpace(fallback))
 	}
 	switch status {
-	case jfadk.WorkflowTriggerStatusDisabled, jfadk.WorkflowTriggerStatusError:
+	case assistantmodel.WorkflowTriggerStatusDisabled, assistantmodel.WorkflowTriggerStatusError:
 		return status
 	default:
-		return jfadk.WorkflowTriggerStatusEnabled
+		return assistantmodel.WorkflowTriggerStatusEnabled
 	}
 }
 
@@ -228,10 +228,10 @@ func NormalizeWorkflowWorkMode(input string, fallback string) string {
 		mode = strings.ToLower(strings.TrimSpace(fallback))
 	}
 	switch mode {
-	case jfadk.WorkModeChat, jfadk.WorkModeLoop:
+	case assistantmodel.WorkModeChat, assistantmodel.WorkModeLoop:
 		return mode
 	default:
-		return jfadk.WorkModeLoop
+		return assistantmodel.WorkModeLoop
 	}
 }
 
@@ -241,10 +241,10 @@ func NormalizeWorkflowPermissionMode(input string, fallback string) string {
 		mode = strings.ToLower(strings.TrimSpace(fallback))
 	}
 	switch mode {
-	case "", jfadk.PermissionModeApproval, jfadk.PermissionModeLessApproval, jfadk.PermissionModeAll:
+	case "", assistantmodel.PermissionModeApproval, assistantmodel.PermissionModeLessApproval, assistantmodel.PermissionModeAll:
 		return mode
 	default:
-		return jfadk.PermissionModeApproval
+		return assistantmodel.PermissionModeApproval
 	}
 }
 
@@ -254,22 +254,22 @@ func NormalizeTriggerType(input string, fallback string) string {
 		value = strings.ToLower(strings.TrimSpace(fallback))
 	}
 	switch value {
-	case jfadk.WorkflowTriggerTypeSchedule, jfadk.WorkflowTriggerTypeWebhook, jfadk.WorkflowTriggerTypeEvent, jfadk.WorkflowTriggerTypeMarketThreshold:
+	case assistantmodel.WorkflowTriggerTypeSchedule, assistantmodel.WorkflowTriggerTypeWebhook, assistantmodel.WorkflowTriggerTypeEvent, assistantmodel.WorkflowTriggerTypeMarketThreshold:
 		return value
 	default:
-		return jfadk.WorkflowTriggerTypeManual
+		return assistantmodel.WorkflowTriggerTypeManual
 	}
 }
 
 func DefaultTriggerTitle(triggerType string) string {
 	switch triggerType {
-	case jfadk.WorkflowTriggerTypeSchedule:
+	case assistantmodel.WorkflowTriggerTypeSchedule:
 		return "定时触发"
-	case jfadk.WorkflowTriggerTypeWebhook:
+	case assistantmodel.WorkflowTriggerTypeWebhook:
 		return "Webhook"
-	case jfadk.WorkflowTriggerTypeEvent:
+	case assistantmodel.WorkflowTriggerTypeEvent:
 		return "事件触发"
-	case jfadk.WorkflowTriggerTypeMarketThreshold:
+	case assistantmodel.WorkflowTriggerTypeMarketThreshold:
 		return "行情阈值"
 	default:
 		return "手动触发"

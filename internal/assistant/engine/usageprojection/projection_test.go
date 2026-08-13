@@ -1,14 +1,14 @@
 package usageprojection
 
 import (
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"testing"
 
-	"github.com/jftrade/jftrade-main/internal/assistant/model"
 	"google.golang.org/genai"
 )
 
 func TestTrackerAccumulatesFinalUsageOnceAndPreservesHistory(t *testing.T) {
-	historical := &model.RunUsage{ModelCalls: 2, TokensIn: 10, TokensOut: 4}
+	historical := &assistantmodel.RunUsage{ModelCalls: 2, TokensIn: 10, TokensOut: 4}
 	metadata := &genai.GenerateContentResponseUsageMetadata{PromptTokenCount: 7, CandidatesTokenCount: 5}
 	var tracker Tracker
 
@@ -16,7 +16,7 @@ func TestTrackerAccumulatesFinalUsageOnceAndPreservesHistory(t *testing.T) {
 	if !changed || usage.ModelCalls != 3 || usage.TokensIn != 17 || usage.TokensOut != 9 {
 		t.Fatalf("usage=%+v changed=%v, want calls=3 in=17 out=9", usage, changed)
 	}
-	if *historical != (model.RunUsage{ModelCalls: 2, TokensIn: 10, TokensOut: 4}) {
+	if *historical != (assistantmodel.RunUsage{ModelCalls: 2, TokensIn: 10, TokensOut: 4}) {
 		t.Fatalf("historical usage mutated through alias: %+v", historical)
 	}
 	if duplicate, duplicateChanged := tracker.Accumulate("usage-event", false, metadata, usage); duplicateChanged || duplicate != usage {
@@ -39,7 +39,7 @@ func TestTrackerIgnoresPartialMissingAndUnidentifiedEvents(t *testing.T) {
 }
 
 func TestTrackerContinuesFromPersistedUsage(t *testing.T) {
-	persisted := &model.RunUsage{ModelCalls: 4, TokensIn: 100, TokensOut: 40}
+	persisted := &assistantmodel.RunUsage{ModelCalls: 4, TokensIn: 100, TokensOut: 40}
 	metadata := &genai.GenerateContentResponseUsageMetadata{PromptTokenCount: 25, CandidatesTokenCount: 9}
 	usage, changed := new(Tracker).Accumulate("resumed-usage", false, metadata, persisted)
 	if !changed || usage.ModelCalls != 5 || usage.TokensIn != 125 || usage.TokensOut != 49 {
