@@ -99,14 +99,8 @@ tasks:
           node scripts/prepare-desktop-release.mjs
         platforms: [linux, darwin]
       - cmd: >-
-          powershell -NoProfile -Command
-          "if ('{{.DEV}}' -eq 'true') { exit 0 };
-          if ($env:JFTRADE_DESKTOP_PREPARED -ne '1') {
-          Write-Error 'Release assets are not prepared. Run pnpm run prepare:desktop-release first, then set JFTRADE_DESKTOP_PREPARED=1.';
-          exit 1
-          };
-          node scripts/prepare-desktop-release.mjs;
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+          powershell -NoProfile -ExecutionPolicy Bypass -File
+          "scripts/windows/verify-release-inputs.ps1" -Dev "{{.DEV}}"
         platforms: [windows]
 
   go:mod:tidy:

@@ -58,26 +58,18 @@ tasks:
           DEV: "false"
     cmds:
       - >-
-        powershell -NoProfile -Command
-        "Copy-Item 'build/windows/nsis/project.nsi' '{{.WAILS_BUILD_DIR}}/windows/nsis/project.nsi' -Force;
-        go tool wails3 generate webview2bootstrapper -dir '{{.WAILS_BUILD_DIR}}/windows/nsis';
-        $binary=(Resolve-Path '{{.BIN_DIR}}/{{.APP_NAME}}.exe').Path;
-        $installer=(Join-Path (Resolve-Path '{{.BIN_DIR}}').Path '{{.INSTALLER}}');
-        $license=(Resolve-Path 'LICENSE').Path;
-        $notices=(Resolve-Path 'docs/legal/third-party-notices.md').Path;
-        $makensis=(Get-Command makensis).Source;
-        $args=@('/DARG_WAILS_{{.ARG_FLAG}}_BINARY='+$binary,'/DJFTRADE_LICENSE_FILE='+$license,'/DJFTRADE_THIRD_PARTY_NOTICES_FILE='+$notices,'/DOUTPUT_EXE='+$installer,'project.nsi');
-        & $makensis @args;
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+        powershell -NoProfile -ExecutionPolicy Bypass -File
+        "scripts/windows/package-nsis.ps1"
+        -WailsBuildDir '{{.WAILS_BUILD_DIR}}'
+        -BinDir '{{.BIN_DIR}}'
+        -AppName '{{.APP_NAME}}'
+        -Installer '{{.INSTALLER}}'
+        -ArgFlag '{{.ARG_FLAG}}'
       - >-
-        powershell -NoProfile -Command
-        "$certificate=[Environment]::GetEnvironmentVariable('JFTRADE_WINDOWS_CERTIFICATE');
-        $password=[Environment]::GetEnvironmentVariable('JFTRADE_WINDOWS_CERTIFICATE_PASSWORD');
-        if (([string]::IsNullOrWhiteSpace($certificate)) -xor ([string]::IsNullOrWhiteSpace($password))) { throw 'Windows signing credentials must be all set or all unset' };
-        if (-not [string]::IsNullOrWhiteSpace($certificate)) {
-        go tool wails3 tool sign --input '{{.BIN_DIR}}/{{.APP_NAME}}.exe' --certificate $certificate --password $password --timestamp http://timestamp.digicert.com;
-        go tool wails3 tool sign --input '{{.BIN_DIR}}/{{.INSTALLER}}' --certificate $certificate --password $password --timestamp http://timestamp.digicert.com;
-        }"
+        powershell -NoProfile -ExecutionPolicy Bypass -File
+        "scripts/windows/sign-release.ps1"
+        -Binary '{{.BIN_DIR}}/{{.APP_NAME}}.exe'
+        -Installer '{{.BIN_DIR}}/{{.INSTALLER}}'
     vars:
       ARCH: '{{.ARCH | default "amd64"}}'
       QUALIFIER: '{{.QUALIFIER | default "unsigned"}}'

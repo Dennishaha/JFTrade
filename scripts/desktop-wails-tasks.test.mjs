@@ -12,6 +12,11 @@ const windows = read("build/windows/Taskfile.yml");
 const linux = read("build/linux/Taskfile.yml");
 const packageJson = read("package.json");
 const prepareRelease = read("scripts/prepare-desktop-release.mjs");
+const verifyWindowsReleaseInputs = read(
+  "scripts/windows/verify-release-inputs.ps1",
+);
+const packageWindowsNsis = read("scripts/windows/package-nsis.ps1");
+const signWindowsRelease = read("scripts/windows/sign-release.ps1");
 const msix = JSON.parse(read("build/windows/msix.json"));
 
 test("root Taskfile follows the Wails native dispatch shape", () => {
@@ -83,8 +88,8 @@ test("platform taskfiles use bin outputs and official Wails tools", () => {
   assert(darwin.includes("--format dmg"));
   assert(darwin.includes('{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS/{{.APP_NAME}}'));
   assert(windows.includes("go tool wails3 generate syso"));
-  assert(windows.includes("go tool wails3 generate webview2bootstrapper"));
-  assert(windows.includes("makensis"));
+  assert(packageWindowsNsis.includes("go tool wails3 generate webview2bootstrapper"));
+  assert(packageWindowsNsis.includes("makensis"));
   assert(linux.includes("go tool wails3 generate appimage"));
   assert(linux.includes("go tool wails3 tool package"));
   assert(linux.includes("production,release_assets,gtk3"));
@@ -156,4 +161,19 @@ test("Windows MSIX metadata keeps the JFTrade application identity", () => {
   assert.equal(msix.info.productName, "JFTrade");
   assert.equal(msix.info.productIdentifier, "com.jftrade.desktop");
   assert.deepEqual(msix.fileAssociations, []);
+});
+
+test("Windows Task commands delegate PowerShell state to scripts", () => {
+  assert(common.includes("scripts/windows/verify-release-inputs.ps1"));
+  assert(windows.includes("scripts/windows/package-nsis.ps1"));
+  assert(windows.includes("scripts/windows/sign-release.ps1"));
+
+  for (const taskfile of [common, windows]) {
+    assert(!taskfile.includes("$env:"));
+    assert(!taskfile.includes("$LASTEXITCODE"));
+  }
+
+  assert(verifyWindowsReleaseInputs.includes("JFTRADE_DESKTOP_PREPARED"));
+  assert(packageWindowsNsis.includes("$makensis"));
+  assert(signWindowsRelease.includes("JFTRADE_WINDOWS_CERTIFICATE"));
 });
