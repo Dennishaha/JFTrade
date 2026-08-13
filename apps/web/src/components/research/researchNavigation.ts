@@ -17,7 +17,6 @@ export type ResearchSection =
 export interface ResearchOperation {
   value: string;
   label: string;
-  path: string;
 }
 
 export interface ResearchSectionConfig {
@@ -37,8 +36,8 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     description: "指数、榜单与行业概念板块",
     capabilities: ["指数快照", "市场榜单", "板块热力", "板块成分"],
     operations: [
-      { value: "top_movers", label: "涨跌榜", path: "/api/v1/research/rankings?market=US&operation=top_movers&pageSize=50" },
-      { value: "hot", label: "热门榜", path: "/api/v1/research/rankings?market=US&operation=hot&pageSize=50" },
+      { value: "top_movers", label: "涨跌榜" },
+      { value: "hot", label: "热门榜" },
     ],
   },
   {
@@ -48,7 +47,7 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     description: "按财务、行情和技术指标筛选证券",
     capabilities: ["完整因子目录", "筛选预设", "自选结果列"],
     operations: [
-      { value: "stock_v2", label: "股票筛选", path: "/api/v1/research/screens" },
+      { value: "stock_v2", label: "股票筛选" },
     ],
   },
   {
@@ -58,12 +57,12 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     description: "期权事件、期权筛选与港股轮证",
     capabilities: ["IV/HV", "0DTE", "财报期权", "港股轮证"],
     operations: [
-      { value: "unusual", label: "期权异动", path: "/api/v1/market-data/options/events?market=US&operation=unusual&pageSize=50" },
-      { value: "zero_dte", label: "0DTE", path: "/api/v1/market-data/options/events?market=US&operation=zero_dte&pageSize=50" },
-      { value: "earnings", label: "财报期权", path: "/api/v1/market-data/options/events?market=US&operation=earnings&pageSize=50" },
-      { value: "seller", label: "卖方筛选", path: "/api/v1/market-data/options/events?market=US&operation=seller&pageSize=50" },
-      { value: "option_screen", label: "期权筛选", path: "/api/v1/market-data/options/screens?market=US&operation=screen&pageSize=50" },
-      { value: "warrant", label: "港股轮证", path: "/api/v1/market-data/warrants?market=HK&operation=screen&pageSize=50" },
+      { value: "unusual", label: "期权异动" },
+      { value: "zero_dte", label: "0DTE" },
+      { value: "earnings", label: "财报期权" },
+      { value: "seller", label: "卖方筛选" },
+      { value: "option_screen", label: "期权筛选" },
+      { value: "warrant", label: "港股轮证" },
     ],
   },
   {
@@ -73,10 +72,10 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     description: "财报、派息、经济事件与 IPO",
     capabilities: ["财报", "派息", "经济事件", "IPO"],
     operations: [
-      { value: "earnings", label: "财报日历", path: "/api/v1/research/calendars?market=US&operation=earnings&pageSize=50" },
-      { value: "dividends", label: "派息日历", path: "/api/v1/research/calendars?market=US&operation=dividends&pageSize=50" },
-      { value: "economic", label: "经济事件", path: "/api/v1/research/calendars?market=US&operation=economic&pageSize=50" },
-      { value: "ipos", label: "IPO 日历", path: "/api/v1/research/calendars?market=US&operation=ipos&pageSize=50" },
+      { value: "earnings", label: "财报日历" },
+      { value: "dividends", label: "派息日历" },
+      { value: "economic", label: "经济事件" },
+      { value: "ipos", label: "IPO 日历" },
     ],
   },
   {
@@ -86,9 +85,9 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     description: "宏观指标、FedWatch 利率与点阵图",
     capabilities: ["宏观指标", "FedWatch", "点阵图"],
     operations: [
-      { value: "indicators", label: "宏观指标", path: "/api/v1/research/macro?market=US&operation=indicators&pageSize=50" },
-      { value: "fed_target_rate", label: "FedWatch 利率", path: "/api/v1/research/macro?market=US&operation=fed_target_rate&pageSize=50" },
-      { value: "fed_dot_plot", label: "点阵图", path: "/api/v1/research/macro?market=US&operation=fed_dot_plot&pageSize=50" },
+      { value: "indicators", label: "宏观指标" },
+      { value: "fed_target_rate", label: "FedWatch 利率" },
+      { value: "fed_dot_plot", label: "点阵图" },
     ],
   },
   {
@@ -98,10 +97,10 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     description: "美港机构资料、持仓与 ARK 动态",
     capabilities: ["机构资料", "持仓变化", "ARK 动态"],
     operations: [
-      { value: "list", label: "机构列表", path: "/api/v1/research/institutions?market=US&operation=list&pageSize=50" },
-      { value: "holding_changes", label: "持仓变化", path: "/api/v1/research/institutions?market=US&operation=holding_changes&pageSize=50" },
-      { value: "ark_fund_holdings", label: "ARK 持仓", path: "/api/v1/research/institutions?market=US&operation=ark_fund_holdings&pageSize=50" },
-      { value: "ark_transactions", label: "ARK 动态", path: "/api/v1/research/institutions?market=US&operation=ark_transactions&pageSize=50" },
+      { value: "list", label: "机构列表" },
+      { value: "holding_changes", label: "持仓变化" },
+      { value: "ark_fund_holdings", label: "ARK 持仓" },
+      { value: "ark_transactions", label: "ARK 动态" },
     ],
   },
   {
@@ -111,7 +110,7 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     description: "产业链关系、节点与关联证券",
     capabilities: ["产业链", "链路详情", "关联股票"],
     operations: [
-      { value: "chains", label: "产业链", path: "/api/v1/research/industries?market=US&operation=chains&pageSize=50" },
+      { value: "chains", label: "产业链" },
     ],
   },
   {
@@ -121,14 +120,14 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     description: "当前工作区标的的财务、估值、分析师与股权资料",
     capabilities: ["公司资料", "财务", "估值", "分析师", "股权", "资讯"],
     operations: [
-      { value: "profile", label: "公司资料", path: "/api/v1/research/instruments/:instrumentId?operation=profile&pageSize=50" },
-      { value: "financials", label: "财务", path: "/api/v1/research/financials/:instrumentId?operation=statements&pageSize=50" },
-      { value: "valuation", label: "估值", path: "/api/v1/research/valuation/:instrumentId?operation=detail&pageSize=50" },
-      { value: "analyst", label: "分析师", path: "/api/v1/research/analyst/:instrumentId?operation=consensus&pageSize=50" },
-      { value: "ownership", label: "股权", path: "/api/v1/research/ownership/:instrumentId?operation=overview&pageSize=50" },
-      { value: "corporate_actions", label: "公司行动", path: "/api/v1/research/corporate-actions/:instrumentId?operation=dividends&pageSize=50" },
-      { value: "short_interest", label: "卖空数据", path: "/api/v1/research/short-interest/:instrumentId?operation=daily_volume&pageSize=50" },
-      { value: "news", label: "资讯", path: "/api/v1/market-data/news?market=US&code=:instrumentId&operation=search&pageSize=30" },
+      { value: "profile", label: "公司资料" },
+      { value: "financials", label: "财务" },
+      { value: "valuation", label: "估值" },
+      { value: "analyst", label: "分析师" },
+      { value: "ownership", label: "股权" },
+      { value: "corporate_actions", label: "公司行动" },
+      { value: "short_interest", label: "卖空数据" },
+      { value: "news", label: "资讯" },
     ],
   },
   {
@@ -138,7 +137,7 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     description: "分类、赛事、系列、事件与合约",
     capabilities: ["事件发现", "YES/NO 合约", "Parlay RFQ"],
     operations: [
-      { value: "categories", label: "事件发现与 Parlay", path: "/api/v1/market-data/prediction/categories?pageSize=50" },
+      { value: "categories", label: "事件发现与 Parlay" },
     ],
   },
 ];

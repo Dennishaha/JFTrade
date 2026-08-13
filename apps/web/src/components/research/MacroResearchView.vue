@@ -49,8 +49,8 @@ function asRecords(value: unknown): Record<string, unknown>[] {
 const listFeature = useResearchFeature(
   () =>
     props.operation === "indicators"
-      ? "/api/v1/research/macro?market=US&operation=indicators&pageSize=100"
-      : "",
+      ? { scope: "research", family: "macro", market: "US", operation: "indicators", pageSize: 100 }
+      : null,
   { expandCN: false, brokerId: () => props.brokerId },
 );
 
@@ -117,16 +117,16 @@ function selectIndicator(indicator: MacroIndicator): void {
 const historyFeature = useResearchFeature(
   () =>
     props.operation === "indicators" && selectedIndicatorId.value
-      ? `/api/v1/research/macro?market=US&operation=indicator_history&indicatorId=${encodeURIComponent(selectedIndicatorId.value)}&pageSize=100`
-      : "",
+      ? { scope: "research", family: "macro", market: "US", operation: "indicator_history", indicatorId: selectedIndicatorId.value, pageSize: 100 }
+      : null,
   { expandCN: false, brokerId: () => props.brokerId },
 );
 
 const fedFeature = useResearchFeature(
   () =>
     props.operation !== "indicators"
-      ? `/api/v1/research/macro?market=US&operation=${encodeURIComponent(props.operation)}&pageSize=100`
-      : "",
+      ? { scope: "research", family: "macro", market: "US", operation: props.operation, pageSize: 100 }
+      : null,
   { expandCN: false, brokerId: () => props.brokerId },
 );
 

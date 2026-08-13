@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { productFeaturePath, type ProductFeatureRequest } from "@/composables/product/productFeatureApi";
 
 import { productCompactMenuProps } from "@/composables/product/productControlDensity";
 import AppTabs from "@/components/shared/AppTabs.vue";
@@ -103,31 +104,33 @@ const sections: Array<{
 const activeSection = computed(
   () => sections.find((item) => item.value === section.value) ?? sections[0]!,
 );
-const encodedInstrument = computed(() =>
-  encodeURIComponent(props.instrumentId),
-);
-const path = computed(() => {
-  if (!props.instrumentId.trim()) return "";
-  const operationQuery = `operation=${encodeURIComponent(operation.value)}&pageSize=50`;
+const request = computed<ProductFeatureRequest | null>(() => {
+  if (!props.instrumentId.trim()) return null;
+  const base = {
+    instrumentId: props.instrumentId,
+    operation: operation.value,
+    pageSize: 50,
+  };
   switch (section.value) {
     case "financials":
-      return `/api/v1/research/financials/${encodedInstrument.value}?${operationQuery}`;
+      return { scope: "research", family: "financials", ...base };
     case "valuation":
-      return `/api/v1/research/valuation/${encodedInstrument.value}?${operationQuery}`;
+      return { scope: "research", family: "valuation", ...base };
     case "analyst":
-      return `/api/v1/research/analyst/${encodedInstrument.value}?${operationQuery}`;
+      return { scope: "research", family: "analyst", ...base };
     case "ownership":
-      return `/api/v1/research/ownership/${encodedInstrument.value}?${operationQuery}`;
+      return { scope: "research", family: "ownership", ...base };
     case "actions":
-      return `/api/v1/research/corporate-actions/${encodedInstrument.value}?${operationQuery}`;
+      return { scope: "research", family: "corporate-actions", ...base };
     case "short":
-      return `/api/v1/research/short-interest/${encodedInstrument.value}?${operationQuery}`;
+      return { scope: "research", family: "short-interest", ...base };
     case "news":
-      return `/api/v1/market-data/news?market=${props.market}&code=${encodedInstrument.value}&operation=${operation.value}&pageSize=30`;
+      return { scope: "market-feature", resource: "news", market: props.market, code: props.instrumentId, operation: operation.value, pageSize: 30 };
     default:
-      return `/api/v1/research/instruments/${encodedInstrument.value}?${operationQuery}`;
+      return { scope: "research", family: "instrument", ...base };
   }
 });
+const path = computed(() => request.value == null ? "" : productFeaturePath(request.value));
 
 watch(
   section,
@@ -142,9 +145,9 @@ watch(
   <section class="company-workspace">
     <AppTabs v-model="section" :items="sections" label="公司研究视图" />
     <ProductFeaturePanel
-      :key="path"
+      :key="JSON.stringify(request)"
       :title="activeSection.label"
-      :path="path"
+      :request="request"
       @open-instrument="emit('openInstrument', $event)"
     >
       <template #controls>

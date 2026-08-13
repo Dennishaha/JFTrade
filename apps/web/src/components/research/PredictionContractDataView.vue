@@ -2,6 +2,7 @@
 import { computed } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
+import type { PredictionRequest } from "@/composables/research/predictionApi";
 import EmptyState from "@/components/shared/EmptyState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import {
@@ -20,7 +21,7 @@ type PredictionContractView =
   | "milestones";
 
 const props = defineProps<{
-  path: string;
+  request: PredictionRequest | null;
   view: PredictionContractView;
 }>();
 
@@ -38,7 +39,7 @@ function asRecords(value: unknown): Record<string, unknown>[] {
     : [];
 }
 
-const feature = useResearchFeature(() => props.path, { expandCN: false });
+const feature = useResearchFeature(() => props.request, { expandCN: false });
 const snapshot = computed(() => feature.entries.value[0] ?? {});
 
 function flattenNestedRows(

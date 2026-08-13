@@ -1,10 +1,8 @@
 package productfeatures
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -69,27 +67,9 @@ func handleResearchScreenQuery(svc *service.Service) gin.HandlerFunc {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 			return
 		}
-		query := broker.FeatureQuery{
-			BrokerID: body.BrokerID, AccountID: body.AccountID,
-			TradingEnvironment: body.TradingEnvironment,
-			Market:             body.Market,
-			FeatureID:          broker.FeatureResearchScreen,
-			Cursor:             strconv.Itoa(body.Page.Offset),
-			PageSize:           body.Page.Limit,
-			Params: map[string]any{
-				"operation":                "stock_v2",
-				"researchScreenDefinition": body.ScreenDefinitionV2,
-				"pageFrom":                 body.Page.Offset,
-			},
-		}
-		result, err := svc.Query(c.Request.Context(), query)
+		typed, err := svc.QueryScreen(c.Request.Context(), body)
 		if err != nil {
 			writeResearchScreenError(c, err)
-			return
-		}
-		typed, err := typedResearchScreenResult(result)
-		if err != nil {
-			httpserver.WriteError(c, http.StatusBadGateway, "BROKER_FEATURE_FAILED", err.Error())
 			return
 		}
 		typed.CatalogVersion = body.CatalogVersion
@@ -129,45 +109,7 @@ func researchScreenResultColumns(definition broker.ScreenDefinitionV2) []broker.
 }
 
 func typedResearchScreenResult(result *broker.FeatureResult) (broker.ResearchScreenResult, error) {
-	typed := broker.ResearchScreenResult{
-		Entries: []broker.ResearchScreenRow{},
-	}
-	if result == nil {
-		return typed, nil
-	}
-	typed.Provider = result.Provider
-	typed.AsOf = result.AsOf
-	typed.Warnings = append([]string(nil), result.Warnings...)
-	typed.PartialErrors = append([]broker.FeaturePartialError(nil), result.PartialErrors...)
-	if result.Total != nil {
-		total := *result.Total
-		typed.Total = &total
-	}
-	if result.HasMore != nil {
-		typed.HasMore = *result.HasMore
-	}
-	if typed.HasMore {
-		next, err := strconv.Atoi(result.NextCursor)
-		if err != nil || next < 0 {
-			return typed, errors.New("broker returned an invalid stock-screen offset")
-		}
-		typed.NextOffset = &next
-	}
-	for _, entry := range result.Entries {
-		content, err := json.Marshal(entry)
-		if err != nil {
-			return typed, errors.New("broker returned an invalid stock-screen row")
-		}
-		var row broker.ResearchScreenRow
-		if err := json.Unmarshal(content, &row); err != nil {
-			return typed, errors.New("broker returned an invalid stock-screen row")
-		}
-		if row.Cells == nil {
-			row.Cells = map[string]broker.ScreenResultCell{}
-		}
-		typed.Entries = append(typed.Entries, row)
-	}
-	return typed, nil
+	return service.ProjectScreenResult(result)
 }
 
 func writeResearchScreenError(c *gin.Context, err error) {

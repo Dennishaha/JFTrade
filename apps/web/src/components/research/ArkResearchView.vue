@@ -37,17 +37,16 @@ watch(
     cycleType.value = 0;
   },
 );
-const path = computed(() => {
-  const params = new URLSearchParams({
+const request = computed(() => ({
+    scope: "research" as const,
+    family: "institutions" as const,
     market: props.market,
     operation: props.operation,
-    pageSize: "50",
-    holdingType: String(holdingType.value),
-    cycleType: String(cycleType.value),
-  });
-  return `/api/v1/research/institutions?${params}`;
-});
-const feature = useResearchFeature(path, {
+    pageSize: 50,
+    holdingType: holdingType.value,
+    cycleType: cycleType.value,
+}));
+const feature = useResearchFeature(request, {
   expandCN: false,
   brokerId: () => props.brokerId,
 });

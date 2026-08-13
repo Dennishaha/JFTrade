@@ -33,6 +33,19 @@ export interface InstrumentResearchControllerEmit {
   (event: "open", entry: Record<string, unknown>): void;
 }
 
+const requestTargetByOperation = {
+  profile: ["instrument", "profile"],
+  financials: ["financials", "statements"],
+  valuation: ["valuation", "detail"],
+  analyst: ["analyst", "consensus"],
+  ownership: ["ownership", "overview"],
+  corporate_actions: ["corporate-actions", "dividends"],
+  short_interest: ["short-interest", "daily_volume"],
+} as const satisfies Record<
+  Exclude<InstrumentResearchOperation, "news">,
+  readonly [string, string]
+>;
+
 export function useInstrumentResearchController(
   props: Readonly<InstrumentResearchControllerProps>,
   emit: InstrumentResearchControllerEmit,
@@ -64,28 +77,19 @@ export function useInstrumentResearchController(
     emit("update:instrumentId", candidate.instrumentId.toUpperCase());
   }
 
-  const path = computed(() => {
-    const instrumentId = encodeURIComponent(props.instrumentId);
-    switch (props.operation) {
-      case "profile":
-        return `/api/v1/research/instruments/${instrumentId}?operation=profile&pageSize=100`;
-      case "financials":
-        return `/api/v1/research/financials/${instrumentId}?operation=statements&pageSize=100`;
-      case "valuation":
-        return `/api/v1/research/valuation/${instrumentId}?operation=detail&pageSize=100`;
-      case "analyst":
-        return `/api/v1/research/analyst/${instrumentId}?operation=consensus&pageSize=100`;
-      case "ownership":
-        return `/api/v1/research/ownership/${instrumentId}?operation=overview&pageSize=100`;
-      case "corporate_actions":
-        return `/api/v1/research/corporate-actions/${instrumentId}?operation=dividends&pageSize=100`;
-      case "short_interest":
-        return `/api/v1/research/short-interest/${instrumentId}?operation=daily_volume&pageSize=100`;
-      default:
-        return "";
-    }
+  const request = computed(() => {
+    const operation = props.operation;
+    if (operation === "news" || !props.instrumentId.trim()) return null;
+    const target = requestTargetByOperation[operation];
+    return {
+      scope: "research" as const,
+      family: target[0],
+      instrumentId: props.instrumentId,
+      operation: target[1],
+      pageSize: 100,
+    };
   });
-  const feature = useResearchFeature(path, {
+  const feature = useResearchFeature(request, {
     expandCN: false,
     brokerId: () => props.brokerId,
   });

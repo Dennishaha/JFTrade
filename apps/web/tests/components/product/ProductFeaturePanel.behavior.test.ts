@@ -210,18 +210,50 @@ describe("product feature normalization and panel", () => {
   it("re-routes the active request when the shared provider changes", async () => {
     featureMocks.fetch.mockResolvedValue(result);
     const wrapper = mount(ProductFeaturePanel, {
-      props: { title: "研究", path: "/api/data?x=1" },
+      props: { title: "研究", path: "/api/data" },
       global: { stubs: productGlobalStubs },
     });
     await flushPromises();
-    expect(featureMocks.fetch).toHaveBeenLastCalledWith("/api/data?x=1");
+    expect(featureMocks.fetch).toHaveBeenLastCalledWith("/api/data");
 
     useBrokerProviderSelection().selectBrokerProvider("alpha");
     await flushPromises();
     expect(featureMocks.fetch).toHaveBeenLastCalledWith(
-      "/api/data?x=1&brokerId=alpha",
+      "/api/data?brokerId=alpha",
     );
     wrapper.unmount();
+  });
+
+  it("loads typed feature requests and applies refresh after provider selection", async () => {
+    featureMocks.fetch.mockResolvedValue(result);
+    const wrapper = mount(ProductFeaturePanel, {
+      props: {
+        title: "排行榜",
+        request: {
+          scope: "research",
+          family: "rankings",
+          market: "US",
+          brokerId: "fallback",
+        },
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+    expect(featureMocks.fetch).toHaveBeenLastCalledWith(
+      "/api/v1/research/rankings?market=US&brokerId=fallback",
+    );
+
+    useBrokerProviderSelection().selectBrokerProvider("alpha");
+    await flushPromises();
+    expect(featureMocks.fetch).toHaveBeenLastCalledWith(
+      "/api/v1/research/rankings?market=US&brokerId=alpha",
+    );
+
+    await wrapper.get('button[title="刷新"]').trigger("click");
+    await flushPromises();
+    expect(featureMocks.fetch).toHaveBeenLastCalledWith(
+      "/api/v1/research/rankings?market=US&refresh=true&brokerId=alpha",
+    );
   });
 
   it("ignores stale failures and renders structure-only rows without optional envelopes", async () => {

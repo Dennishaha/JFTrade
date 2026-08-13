@@ -28,8 +28,7 @@ const emit = defineEmits<{
 }>();
 
 const feature = useResearchFeature(
-  () =>
-    `/api/v1/research/calendars?market=${encodeURIComponent(props.market)}&operation=ipos&pageSize=50`,
+  () => ({ scope: "research", family: "calendar", market: props.market, operation: "ipos", pageSize: 50 }),
   { brokerId: () => props.brokerId },
 );
 

@@ -1,13 +1,20 @@
 package assembly
 
-import "maps"
+import (
+	"maps"
+	"strings"
 
-import "strings"
+	"github.com/jftrade/jftrade-main/internal/productfeatures"
+)
 
 var productMarketEnum = []string{"HK", "US", "SH", "SZ"}
 
 func productToolInputSchema(name string) map[string]any {
-	switch strings.TrimSpace(name) {
+	name = strings.TrimSpace(name)
+	if description, ok := productfeatures.TypedCapabilityForTool(name); ok {
+		return typedCapabilityInputSchema(description)
+	}
+	switch name {
 	case "market.capabilities":
 		return objectSchema(commonCapabilityProperties(), nil)
 	case "market.search":
@@ -29,22 +36,13 @@ func productToolInputSchema(name string) map[string]any {
 		return marketSeriesToolSchema(false)
 	case "market.instrument_profile", "market.intraday", "market.ticks",
 		"market.broker_queue", "market.capital_flow", "derivatives.option_chain",
-		"derivatives.option_analysis", "research.instrument", "research.financials",
-		"research.valuation", "research.analyst", "research.ownership",
-		"research.corporate_actions", "research.short_interest", "research.news",
-		"research.technical_indicators", "prediction.snapshot", "prediction.depth",
-		"prediction.history":
+		"derivatives.option_analysis", "research.news", "research.technical_indicators":
 		return objectSchema(readProperties(instrumentOperationProperties(name)), []string{"instrumentId"})
 	case "derivatives.option_screen", "derivatives.option_events", "derivatives.warrants",
-		"derivatives.futures", "research.screen", "research.calendar", "research.macro",
-		"research.rankings", "research.institutions", "research.industry",
-		"prediction.combo_eligible", "alerts.price.list", "alerts.option_event.list",
+		"derivatives.futures", "research.macro", "research.institutions", "research.industry",
+		"alerts.price.list", "alerts.option_event.list",
 		"watchlist.remote.list":
 		return objectSchema(readProperties(operationProperties(name)), nil)
-	case "prediction.discover":
-		return objectSchema(readProperties(predictionDiscoveryProperties()), []string{"operation"})
-	case "prediction.combo_quote":
-		return objectSchema(readProperties(predictionQuoteProperties()), []string{"accountId", "mvc", "legs"})
 	case "execution.buying_power":
 		return objectSchema(productRuleProperties(), []string{
 			"accountId", "tradingEnvironment", "market", "instrument", "orderKind",
@@ -69,6 +67,27 @@ func productToolInputSchema(name string) map[string]any {
 		return comboToolSchema(true)
 	case "alerts.price.set", "alerts.option_event.set", "watchlist.remote.modify":
 		return objectSchema(writeCustomizationProperties(name), []string{"brokerId", "payload"})
+	default:
+		return objectSchema(readProperties(nil), nil)
+	}
+}
+
+func typedCapabilityInputSchema(description productfeatures.TypedCapabilityDescription) map[string]any {
+	switch description.SchemaKind {
+	case productfeatures.ToolSchemaInstrument:
+		return objectSchema(
+			readProperties(instrumentOperationProperties(description.ToolName)),
+			[]string{"instrumentId"},
+		)
+	case productfeatures.ToolSchemaCollection:
+		return objectSchema(readProperties(operationProperties(description.ToolName)), nil)
+	case productfeatures.ToolSchemaPredictionDiscovery:
+		return objectSchema(readProperties(predictionDiscoveryProperties()), []string{"operation"})
+	case productfeatures.ToolSchemaPredictionQuote:
+		return objectSchema(
+			readProperties(predictionQuoteProperties()),
+			[]string{"accountId", "mvc", "legs"},
+		)
 	default:
 		return objectSchema(readProperties(nil), nil)
 	}
@@ -145,7 +164,7 @@ func instrumentProperties() map[string]any {
 
 func instrumentOperationProperties(name string) map[string]any {
 	properties := instrumentProperties()
-	if values := productToolOperations[name]; len(values) > 0 {
+	if values := productToolOperationValues(name); len(values) > 0 {
 		properties["operation"] = enumSchema(values...)
 	}
 	properties["startTime"] = stringSchema(1, 40)
@@ -156,7 +175,7 @@ func instrumentOperationProperties(name string) map[string]any {
 
 func operationProperties(name string) map[string]any {
 	properties := map[string]any{}
-	if values := productToolOperations[name]; len(values) > 0 {
+	if values := productToolOperationValues(name); len(values) > 0 {
 		properties["operation"] = enumSchema(values...)
 	}
 	properties["instrumentId"] = stringSchema(3, 80)
@@ -366,22 +385,17 @@ var productToolOperations = map[string][]string{
 	"derivatives.option_analysis":   {"quote", "volatility", "exercise_probability", "strategy", "strategy_analysis", "strategy_spread", "market_statistics", "historical_statistics", "underlying_overview", "historical_volatility", "underlying_rank", "contract_rank"},
 	"derivatives.option_events":     {"unusual", "zero_dte", "zero_dte_contract", "earnings", "seller"},
 	"derivatives.warrants":          {"related", "list", "screen"},
-	"research.instrument":           {"profile", "executives", "executive_background", "operational_efficiency", "top_brokers"},
-	"research.financials":           {"statements", "revenue_breakdown", "earnings_price_move", "earnings_price_history"},
-	"research.valuation":            {"detail", "constituents"},
-	"research.analyst":              {"consensus", "ratings", "morningstar", "changes"},
-	"research.ownership":            {"overview", "changes", "holders", "institutional", "insider_holders", "insider_transactions", "management_changes"},
-	"research.corporate_actions":    {"dividends", "buybacks", "splits", "code_changes"},
-	"research.short_interest":       {"daily_volume", "short_interest"},
-	"research.screen":               {"stock_v1", "stock_v2"},
-	"research.calendar":             {"earnings", "dividends", "economic", "ipos", "trade_dates"},
 	"research.macro":                {"indicators", "indicator_history", "fed_target_rate", "fed_dot_plot"},
-	"research.rankings":             {"earnings_beat", "dividend", "pre_market", "after_hours", "overnight", "top_movers", "hot", "short_selling", "period_change", "high_dividend_state", "heatmap", "rise_fall_distribution", "market_state", "fund_catalog"},
 	"research.institutions":         {"list", "profile", "distribution", "holding_changes", "holdings", "ark_fund_holdings", "ark_stock_activity", "ark_transactions"},
 	"research.industry":             {"chains", "chain_detail", "chains_by_plate", "plate", "plate_stocks", "owner_plates", "plate_list", "plate_members"},
 	"research.technical_indicators": {"list", "calculate"},
-	"prediction.discover":           {"categories", "competitions", "series", "events", "contracts", "milestones"},
-	"prediction.history":            {"candles", "historical", "ticks"},
+}
+
+func productToolOperationValues(name string) []string {
+	if description, ok := productfeatures.TypedCapabilityForTool(name); ok {
+		return description.Operations
+	}
+	return productToolOperations[name]
 }
 
 // ProductToolOperations returns a defensive copy of the accepted operation
@@ -390,6 +404,11 @@ func ProductToolOperations() map[string][]string {
 	result := make(map[string][]string, len(productToolOperations))
 	for name, operations := range productToolOperations {
 		result[name] = append([]string(nil), operations...)
+	}
+	for _, description := range productfeatures.TypedCapabilityDescriptions() {
+		if len(description.Operations) > 0 {
+			result[description.ToolName] = append([]string(nil), description.Operations...)
+		}
 	}
 	return result
 }

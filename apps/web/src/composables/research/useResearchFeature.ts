@@ -2,12 +2,15 @@ import { computed, isRef, ref, watch, type Ref } from "vue";
 
 import {
   fetchProductFeature,
+  prepareProductFeature,
   type ProductFeatureProvider,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
-import { withBrokerProvider } from "@/composables/trading/brokerProviderSelection";
+import { type ProductFeatureRequest } from "@/composables/product/productFeatureApi";
 
-export type ResearchFeaturePathSource = Ref<string> | (() => string);
+export type ResearchFeatureRequestSource =
+  | Ref<ProductFeatureRequest | string | null>
+  | (() => ProductFeatureRequest | string | null);
 
 export interface ResearchFeatureOptions {
   /** Logical CN is a UI scope. OpenD must receive concrete SH and SZ markets. */
@@ -44,11 +47,13 @@ export interface UseResearchFeatureResult {
 
 interface BranchState {
   market: string;
-  path: string;
+  request: ProductFeatureRequest | string;
   result: ProductFeatureResult;
 }
 
-function pathValue(source: ResearchFeaturePathSource): string {
+function requestValue(
+  source: ResearchFeatureRequestSource,
+): ProductFeatureRequest | string | null {
   return isRef(source) ? source.value : source();
 }
 
@@ -56,6 +61,24 @@ function brokerValue(source: ResearchFeatureOptions["brokerId"]): string {
   if (typeof source === "function") return source().trim();
   if (isRef(source)) return source.value.trim();
   return String(source ?? "").trim();
+}
+
+function withBroker(
+  request: ProductFeatureRequest | string,
+  brokerId: string,
+): ProductFeatureRequest | string {
+  if (typeof request === "string") {
+    return brokerId ? updateQuery(request, "brokerId", brokerId) : request;
+  }
+  return brokerId ? { ...request, brokerId } : request;
+}
+
+function requestKey(request: ProductFeatureRequest | string | null): string {
+  return request == null
+    ? ""
+    : typeof request === "string"
+      ? request
+      : JSON.stringify(request);
 }
 
 function updateQuery(path: string, key: string, value: string): string {
@@ -94,6 +117,28 @@ export function researchFeaturePaths(
     }));
   }
   return [{ market, path }];
+}
+
+export function researchFeatureRequests(
+  request: ProductFeatureRequest | string,
+  options: ResearchFeatureOptions = {},
+): Array<{ market: string; request: ProductFeatureRequest | string }> {
+  if (typeof request === "string") {
+    return researchFeaturePaths(request, options).map(({ market, path }) => ({
+      market,
+      request: path,
+    }));
+  }
+  const market = "market" in request
+    ? request.market?.trim().toUpperCase() ?? ""
+    : "";
+  if (options.expandCN !== false && market === "CN") {
+    return ["SH", "SZ"].map((branchMarket) => ({
+      market: branchMarket,
+      request: { ...request, market: branchMarket },
+    }));
+  }
+  return [{ market, request }];
 }
 
 function entryKey(entry: Record<string, unknown>, index: number): string {
@@ -252,15 +297,19 @@ function numericField(
 
 function sortMergedEntries(
   entries: Record<string, unknown>[],
-  path: string,
+  request: ProductFeatureRequest | string,
   comparator?: ResearchFeatureOptions["mergeComparator"],
 ): Record<string, unknown>[] {
   if (comparator != null) return [...entries].sort(comparator);
-  const queryIndex = path.indexOf("?");
-  const params = new URLSearchParams(
-    queryIndex >= 0 ? path.slice(queryIndex + 1).split("#", 1)[0] : "",
-  );
-  const operation = params.get("operation") ?? "";
+  const params =
+    typeof request === "string"
+      ? new URLSearchParams(request.split("?", 2)[1]?.split("#", 1)[0] ?? "")
+      : null;
+  const operation =
+    params?.get("operation") ??
+    (typeof request !== "string" && "operation" in request
+      ? request.operation ?? ""
+      : "");
   const fields =
     operation === "top_movers"
       ? ["changeRate", "changeRatio"]
@@ -270,7 +319,11 @@ function sortMergedEntries(
           ? ["dividendYieldTTM"]
           : [];
   if (fields.length === 0) return entries;
-  const ascending = params.get("direction") === "down";
+  const ascending =
+    params?.get("direction") === "down" ||
+    (typeof request !== "string" &&
+      request.scope === "research" &&
+      request.direction === "down");
   return entries
     .map((entry, index) => ({ entry, index }))
     .sort((left, right) => {
@@ -289,14 +342,14 @@ function sortMergedEntries(
 
 function mergedResult(
   branches: BranchState[],
-  path: string,
+  request: ProductFeatureRequest | string,
   options: ResearchFeatureOptions,
 ): ProductFeatureResult | null {
   const merged = mergeBranchResults(branches);
   if (merged != null && branches.length > 1) {
     merged.entries = sortMergedEntries(
       merged.entries,
-      path,
+      request,
       options.mergeComparator,
     );
   }
@@ -305,11 +358,11 @@ function mergedResult(
 
 /**
  * Research feature loader with refresh, cursor pagination and last-request-wins
- * semantics. Logical CN paths are queried as concrete SH/SZ branches and merged
+ * semantics. Logical CN requests are queried as concrete SH/SZ branches and merged
  * by canonical instrumentId.
  */
 export function useResearchFeature(
-  pathSource: ResearchFeaturePathSource,
+  requestSource: ResearchFeatureRequestSource,
   options: ResearchFeatureOptions = {},
 ): UseResearchFeatureResult {
   const result = ref<ProductFeatureResult | null>(null);
@@ -332,12 +385,9 @@ export function useResearchFeature(
   const partialErrors = computed(() => result.value?.partialErrors ?? []);
 
   async function load(refresh = false): Promise<void> {
-    const path = withBrokerProvider(
-      pathValue(pathSource),
-      brokerValue(options.brokerId),
-    );
+    const source = requestValue(requestSource);
     const token = ++requestToken;
-    if (!path) {
+    if (source == null || (typeof source === "string" && source === "")) {
       branches = [];
       result.value = null;
       error.value = "";
@@ -346,15 +396,22 @@ export function useResearchFeature(
     }
     loading.value = true;
     error.value = "";
-    const targets = researchFeaturePaths(path, options);
+    const request = withBroker(source, brokerValue(options.brokerId));
+    const targets = researchFeatureRequests(request, options);
     const settled = await Promise.allSettled(
       targets.map(async (target) => {
-        const requestPath = refresh
-          ? updateQuery(target.path, "refresh", "true")
-          : target.path;
         return {
           ...target,
-          result: await fetchProductFeature(requestPath),
+          result: await fetchProductFeature(
+            typeof target.request === "string"
+              ? refresh
+                ? updateQuery(target.request, "refresh", "true")
+                : target.request
+              : prepareProductFeature({
+                  ...target.request,
+                  ...(refresh ? { refresh: true } : {}),
+                }),
+          ),
         } satisfies BranchState;
       }),
     );
@@ -382,7 +439,7 @@ export function useResearchFeature(
       error.value = branchErrors[0]?.message ?? "研究数据加载失败";
     } else {
       branches = nextBranches;
-      result.value = mergedResult(nextBranches, path, options);
+      result.value = mergedResult(nextBranches, request, options);
       if (branchErrors.length > 0 && result.value != null) {
         result.value.partialErrors = [
           ...(result.value.partialErrors ?? []),
@@ -394,7 +451,7 @@ export function useResearchFeature(
   }
 
   watch(
-    () => [pathValue(pathSource), brokerValue(options.brokerId)] as const,
+    () => [requestKey(requestValue(requestSource)), brokerValue(options.brokerId)] as const,
     (current, previous) => {
       if (current[0] !== previous?.[0] || current[1] !== previous?.[1]) {
         requestToken++;
@@ -424,7 +481,9 @@ export function useResearchFeature(
           const cursor = branch.result.nextCursor ?? "";
           if (!cursor) return branch;
           const page = await fetchProductFeature(
-            updateQuery(branch.path, "cursor", cursor),
+            typeof branch.request === "string"
+              ? updateQuery(branch.request, "cursor", cursor)
+              : prepareProductFeature({ ...branch.request, cursor }),
           );
           return appendBranchPage(branch, page);
         }),
@@ -448,10 +507,7 @@ export function useResearchFeature(
       });
       const merged = mergedResult(
         branches,
-        withBrokerProvider(
-          pathValue(pathSource),
-          brokerValue(options.brokerId),
-        ),
+        withBroker(requestValue(requestSource)!, brokerValue(options.brokerId)),
         options,
       );
       if (merged != null) {

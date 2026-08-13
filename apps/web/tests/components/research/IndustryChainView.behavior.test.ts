@@ -125,6 +125,20 @@ describe("industry-chain research workflow", () => {
     );
     await flushPromises();
 
+    const requestAt = (index: number) =>
+      (mocks.useResearchFeature.mock.calls[index]![0] as () => unknown)();
+    expect(requestAt(0)).toMatchObject({
+      scope: "research",
+      family: "industries",
+      operation: "chains",
+      market: "US",
+    });
+    expect(requestAt(1)).toMatchObject({
+      operation: "chain_detail",
+      chainId: "ai/core",
+    });
+    expect(requestAt(2)).toBeNull();
+
     expect(wrapper.text()).toContain("人工智能");
     expect(wrapper.text()).toContain("算力到应用");
     expect(wrapper.text()).toContain("行业报告");
@@ -144,6 +158,18 @@ describe("industry-chain research workflow", () => {
     await nodes[0]!.trigger("click");
     await flushPromises();
     expect(wrapper.emitted("update:plateId")?.at(-1)).toEqual(["BK.CHIP"]);
+    expect(requestAt(2)).toMatchObject({
+      operation: "chains_by_plate",
+      plateId: "BK.CHIP",
+    });
+    expect(requestAt(3)).toMatchObject({
+      operation: "plate",
+      plateId: "BK.CHIP",
+    });
+    expect(requestAt(4)).toMatchObject({
+      operation: "plate_stocks",
+      plateId: "BK.CHIP",
+    });
     expect(wrapper.text()).toContain("芯片板块覆盖设计与制造");
     expect(wrapper.text()).toContain("机器人");
     expect(wrapper.text()).toContain("台积电");

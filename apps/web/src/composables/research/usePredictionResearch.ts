@@ -6,19 +6,20 @@ import type {
 } from "@/contracts";
 
 import {
-  apiDeletePath,
   apiPost,
-  apiPostPath,
   apiPostPathAction,
 } from "@/composables/shared/apiClient";
-import {
-  useBrokerProviderSelection,
-  withBrokerProvider,
-} from "@/composables/trading/brokerProviderSelection";
+import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
 import {
   fetchProductFeature,
+  prepareProductFeature,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
+import {
+  predictionApi,
+  type PredictionRequest,
+} from "@/composables/research/predictionApi";
+import { productFeaturePath } from "@/composables/product/productFeatureApi";
 import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import { usePolling } from "@/composables/shared/usePolling";
 
@@ -174,6 +175,8 @@ function itemSubtitle(entry: Entry): string {
   ].filter((value) => value != null && value !== "");
   return values.map(String).join(" · ");
 }
+
+/** @deprecated Retained for setup-state compatibility; requests use predictionApi. */
 function queryString(values: Record<string, string>): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
@@ -197,18 +200,22 @@ async function loadDiscover(
   loading.value = true;
   error.value = "";
   try {
-    let path = "/api/v1/market-data/prediction/categories?pageSize=100";
+    let request: PredictionRequest = {
+      scope: "prediction",
+      resource: "categories",
+      pageSize: 100,
+    };
     if (nextStage === "competitions") {
-      path = `/api/v1/market-data/prediction/competitions?${queryString({ category: category.value })}`;
+      request = { ...request, resource: "competitions", category: category.value };
     } else if (nextStage === "series") {
-      path = `/api/v1/market-data/prediction/series?${queryString({ category: category.value, tag: tag.value })}`;
+      request = { ...request, resource: "series", category: category.value, tag: tag.value };
     } else if (nextStage === "events") {
-      path = `/api/v1/market-data/prediction/events?${queryString({ seriesId: seriesCode.value })}`;
+      request = { ...request, resource: "events", seriesId: seriesCode.value };
     } else if (nextStage === "contracts") {
-      path = `/api/v1/market-data/prediction/events/${encodeURIComponent(eventCode.value)}/contracts?pageSize=100`;
+      request = { ...request, resource: "event-contracts", eventId: eventCode.value };
     }
     result.value = await fetchProductFeature(
-      withBrokerProvider(path, selectedBrokerId.value),
+      prepareProductFeature({ ...request, brokerId: selectedBrokerId.value }),
     );
     stage.value = nextStage;
   } catch (cause) {
@@ -301,33 +308,16 @@ function selectContractView(view: PredictionContractView): void {
   emit("update:contractView", view);
 }
 
-const contractPath = computed(() => {
-  const base = `/api/v1/market-data/prediction/contracts/${encodeURIComponent(contractCode.value)}`;
-  switch (contractView.value) {
-    case "depth":
-      return withBrokerProvider(
-        `${base}/order-book?pageSize=20`,
-        selectedBrokerId.value,
-      );
-    case "candles":
-      return withBrokerProvider(
-        `${base}/candles?pageSize=100`,
-        selectedBrokerId.value,
-      );
-    case "ticks":
-      return withBrokerProvider(
-        `${base}/ticks?pageSize=100`,
-        selectedBrokerId.value,
-      );
-    case "milestones":
-      return withBrokerProvider(
-        `${base}/milestones?pageSize=100`,
-        selectedBrokerId.value,
-      );
-    default:
-      return withBrokerProvider(`${base}/snapshot`, selectedBrokerId.value);
-  }
-});
+const contractRequest = computed<PredictionRequest>(() => ({
+  scope: "prediction",
+  resource: contractView.value === "depth" ? "order-book" : contractView.value,
+  code: contractCode.value,
+  brokerId: selectedBrokerId.value,
+  ...(contractView.value === "snapshot"
+    ? {}
+    : { pageSize: contractView.value === "depth" ? 20 : 100 }),
+}));
+const contractPath = computed(() => productFeaturePath(contractRequest.value));
 const contractSubscriptionType = computed(() => {
   switch (contractView.value) {
     case "depth":
@@ -341,7 +331,7 @@ const contractSubscriptionType = computed(() => {
   }
 });
 const contractPanelKey = computed(
-  () => `${contractPath.value}:${contractRefresh.value}`,
+  () => `${JSON.stringify(contractRequest.value)}:${contractRefresh.value}`,
 );
 const subscriptionReady = computed(
   () =>
@@ -350,8 +340,7 @@ const subscriptionReady = computed(
       activeSubscription.value?.dataType === contractSubscriptionType.value),
 );
 
-function subscriptionQuery(): string {
-  const params = new URLSearchParams();
+function subscriptionAccount(): { brokerId: string; accountId: string } {
   const brokerId =
     selectedBrokerId.value ||
     selectedBrokerAccount.value?.brokerId ||
@@ -360,19 +349,18 @@ function subscriptionQuery(): string {
     selectedBrokerAccount.value?.brokerId === brokerId
       ? selectedBrokerAccount.value.accountId
       : "";
-  if (brokerId) params.set("brokerId", brokerId);
-  if (accountId) params.set("accountId", accountId);
-  const value = params.toString();
-  return value ? `?${value}` : "";
+  return { brokerId, accountId };
 }
 
-async function releaseContractSubscription(
+function subscriptionQuery(): string {
+  const params = new URLSearchParams(subscriptionAccount());
+  return params.toString() ? `?${params.toString()}` : "";
+}
+
+function releaseContractSubscription(
   subscription: NonNullable<typeof activeSubscription.value>,
 ): Promise<void> {
-  await apiDeletePath(
-    "/api/v1/market-data/prediction/contracts/{code}/subscriptions/{leaseId}",
-    `/api/v1/market-data/prediction/contracts/${encodeURIComponent(subscription.code)}/subscriptions/${encodeURIComponent(subscription.leaseId)}`,
-  );
+  return predictionApi.releaseSubscription(subscription.code, subscription.leaseId);
 }
 
 async function syncContractSubscription(): Promise<void> {
@@ -400,11 +388,11 @@ async function syncContractSubscription(): Promise<void> {
     return;
   }
   try {
-    const lease = await apiPostPath(
-      "/api/v1/market-data/prediction/contracts/{code}/subscriptions",
-      `/api/v1/market-data/prediction/contracts/${encodeURIComponent(code)}/subscriptions${subscriptionQuery()}`,
-      { dataTypes: [dataType] },
-    );
+    const lease = await predictionApi.acquireSubscription({
+      code,
+      ...subscriptionAccount(),
+      dataTypes: [dataType],
+    });
     const acquired = { leaseId: lease.leaseId, code, dataType };
     if (generation !== subscriptionGeneration) {
       await releaseContractSubscription(acquired);
@@ -530,12 +518,12 @@ async function loadEligible(): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    eligible.value = await fetchProductFeature(
-      withBrokerProvider(
-        "/api/v1/market-data/prediction/combos/eligible-events?pageSize=100",
-        selectedBrokerId.value,
-      ),
-    );
+    eligible.value = await fetchProductFeature(prepareProductFeature({
+      scope: "prediction",
+      resource: "eligible-events",
+      brokerId: selectedBrokerId.value,
+      pageSize: 100,
+    }));
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause);
     eligible.value = null;
@@ -564,9 +552,7 @@ async function requestRFQ(): Promise<void> {
       selectedBrokerId.value ||
       selectedBrokerAccount.value?.brokerId ||
       systemStatus.value.defaultBroker;
-    quote.value = await apiPost(
-      "/api/v1/market-data/prediction/combos/quotes",
-      {
+    quote.value = await predictionApi.quoteCombo({
         brokerId,
         accountId: selectedBrokerAccount.value?.accountId ?? "",
         tradingEnvironment:
@@ -574,8 +560,7 @@ async function requestRFQ(): Promise<void> {
           systemStatus.value.defaultTradingEnvironment,
         mvc: mvc.value,
         legs: comboLegs(),
-      },
-    );
+    });
     confirmed.value = false;
     parlayClientOrderID.value = clientOrderID();
     quoteClock.value = Date.now();
@@ -757,6 +742,7 @@ onUnmounted(() => {
     quoteClockPolling,
     contractRefreshPolling,
     stageLabels,
+    contractRequest,
     contractPath,
     contractSubscriptionType,
     contractPanelKey,
@@ -777,6 +763,7 @@ onUnmounted(() => {
     selectDiscoverEntry,
     backDiscover,
     selectContractView,
+    subscriptionAccount,
     subscriptionQuery,
     releaseContractSubscription,
     syncContractSubscription,

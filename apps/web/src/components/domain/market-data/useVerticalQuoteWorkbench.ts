@@ -7,14 +7,13 @@ import {
 } from "vue";
 
 import { apiGetPath } from "@/composables/shared/apiClient";
-import { withBrokerProvider } from "@/composables/trading/brokerProviderSelection";
 import {
   normalizeMarketDataSnapshotQueryResult,
   type MarketDataSnapshotQueryResult,
 } from "@/composables/market-data/marketDataRealtime";
 import { normalizeMarketSecurityDetailsQueryResult } from "@/composables/market-data/marketSecurityNormalization";
 import { resolveMarketSnapshotDisplay } from "@/composables/market-data/marketSessionDisplay";
-import { fetchProductFeature } from "@/composables/product/productFeatures";
+import { fetchProductFeature, prepareProductFeature } from "@/composables/product/productFeatures";
 import { getWatchlistMembership } from "@/composables/watchlist/watchlistApi";
 import type {
   MarketSecurityDetailsQueryResult,
@@ -444,18 +443,16 @@ export function useVerticalQuoteWorkbench(
     const parts = instrumentParts.value;
     if (target?.kind !== "plate" || parts == null) return;
     plateMembersLoading.value = true;
-    const params = new URLSearchParams({
-      operation: "plate_members",
-      market: parts.market,
-      instrumentId: target.instrumentId,
-      pageSize: String(PLATE_MEMBER_REQUEST_LIMIT),
-    });
-    const path = withBrokerProvider(
-      `/api/v1/research/industries?${params.toString()}`,
-      normalizedBrokerId.value,
-    );
     try {
-      const response = await fetchProductFeature(path);
+      const response = await fetchProductFeature(prepareProductFeature({
+        scope: "research",
+        family: "industries",
+        brokerId: normalizedBrokerId.value,
+        market: parts.market,
+        operation: "plate_members",
+        instrumentId: target.instrumentId,
+        pageSize: PLATE_MEMBER_REQUEST_LIMIT,
+      }));
       if (token !== requestToken) return;
       const seen = new Set<string>();
       const members = (response.entries ?? [])

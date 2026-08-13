@@ -3,7 +3,7 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
-import { defineComponent, h, nextTick } from "vue";
+import { computed, defineComponent, h, nextTick } from "vue";
 
 import CompanyWorkspacePanel from "../../src/components/product/CompanyWorkspacePanel.vue";
 import WorkspaceProductPane from "../../src/components/workspace/WorkspaceProductPane.vue";
@@ -19,6 +19,10 @@ import {
 import { provideConsoleDataStore } from "@/composables/workspace/useConsoleData";
 import type { MarketInstrumentReference } from "@/composables/settings/consoleDataSystemState";
 import {
+  productFeaturePath,
+  type ProductFeatureRequest,
+} from "@/composables/product/productFeatureApi";
+import {
   flushPromises,
   productGlobalStubs,
   setupState,
@@ -29,10 +33,18 @@ const panelStub = defineComponent({
   props: {
     title: String,
     description: String,
-    path: String,
+    request: Object,
     active: Boolean,
   },
   emits: ["openInstrument"],
+  setup(props) {
+    const path = computed(() =>
+      props.request == null
+        ? ""
+        : productFeaturePath(props.request as ProductFeatureRequest),
+    );
+    return { path };
+  },
   template: `
     <div>
       <button class="feature-panel" :data-path="path" @click="$emit('openInstrument', 'HK.00700')">{{ title }}</button>
@@ -74,9 +86,17 @@ const newsStub = defineComponent({
   name: "NewsWorkspacePanel",
   props: {
     instrumentId: String,
-    path: String,
+    request: Object,
   },
   emits: ["openInstrument"],
+  setup(props) {
+    const path = computed(() =>
+      props.request == null
+        ? ""
+        : productFeaturePath(props.request as ProductFeatureRequest),
+    );
+    return { path };
+  },
   template: `<button class="news-panel" :data-path="path" :data-instrument="instrumentId" @click="$emit('openInstrument', 'US.MSFT')">news</button>`,
 });
 const marketViewStub = (name: string) =>

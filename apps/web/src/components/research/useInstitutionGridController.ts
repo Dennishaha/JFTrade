@@ -23,8 +23,7 @@ export function useInstitutionGridController(
   emit: InstitutionGridControllerEmit,
 ) {
   const feature = useResearchFeature(
-    () =>
-      `/api/v1/research/institutions?market=${encodeURIComponent(props.market)}&operation=list&pageSize=50`,
+    () => ({ scope: "research", family: "institutions", market: props.market, operation: "list", pageSize: 50 }),
     { expandCN: false, brokerId: () => props.brokerId },
   );
 
@@ -45,25 +44,25 @@ export function useInstitutionGridController(
       institutionKey(selectedInstitution.value ?? {}),
   );
 
-  function detailPath(operation: string, enabled = true): string {
-    if (!enabled || !institutionId.value) return "";
-    return `/api/v1/research/institutions?market=${encodeURIComponent(props.market)}&operation=${operation}&institutionId=${encodeURIComponent(institutionId.value)}&pageSize=50`;
+  function detailRequest(operation: string, enabled = true) {
+    if (!enabled || !institutionId.value) return null;
+    return { scope: "research" as const, family: "institutions" as const, market: props.market, operation, institutionId: institutionId.value, pageSize: 50 };
   }
 
   const profile = useResearchFeature(
-    () => detailPath("profile", !isHoldingChanges.value),
+    () => detailRequest("profile", !isHoldingChanges.value),
     { expandCN: false, brokerId: () => props.brokerId },
   );
   const holdings = useResearchFeature(
-    () => detailPath("holdings", !isHoldingChanges.value),
+    () => detailRequest("holdings", !isHoldingChanges.value),
     { expandCN: false, brokerId: () => props.brokerId },
   );
   const distribution = useResearchFeature(
-    () => detailPath("distribution", !isHoldingChanges.value),
+    () => detailRequest("distribution", !isHoldingChanges.value),
     { expandCN: false, brokerId: () => props.brokerId },
   );
   const holdingChanges = useResearchFeature(
-    () => detailPath("holding_changes", isHoldingChanges.value),
+    () => detailRequest("holding_changes", isHoldingChanges.value),
     { expandCN: false, brokerId: () => props.brokerId },
   );
 

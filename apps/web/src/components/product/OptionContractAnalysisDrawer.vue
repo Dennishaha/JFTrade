@@ -3,7 +3,6 @@ import { computed, ref, watch } from "vue";
 
 import {
   useBrokerProviderSelection,
-  withBrokerProvider,
 } from "@/composables/trading/brokerProviderSelection";
 import {
   formatOptionMetric,
@@ -11,6 +10,7 @@ import {
 } from "@/composables/product/optionChainModel";
 import {
   fetchProductFeature,
+  prepareProductFeature,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
 import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
@@ -126,12 +126,15 @@ async function load(): Promise<void> {
   ];
   const settled = await Promise.allSettled(
     operations.map((operation) =>
-      fetchProductFeature(
-        withBrokerProvider(
-          `/api/v1/market-data/options/analysis/${encodeURIComponent(instrumentId)}?market=${encodeURIComponent(props.market)}&operation=${operation}&pageSize=30`,
-          selectedBrokerId.value,
-        ),
-      ),
+      fetchProductFeature(prepareProductFeature({
+        scope: "market-feature",
+        resource: "option-analysis",
+        brokerId: selectedBrokerId.value,
+        instrumentId,
+        market: props.market,
+        operation,
+        pageSize: 30,
+      })),
     ),
   );
   if (token !== requestToken) return;

@@ -1,4 +1,8 @@
 import { dayKeyOf } from "./researchEntry";
+import {
+  researchTarget,
+  type ResearchRequest,
+} from "@/composables/research/researchApi";
 
 export type EarningsCalendarMode = "day" | "week" | "month";
 export type EarningsCalendarSort =
@@ -256,47 +260,68 @@ export function validateEarningsCalendarFilters(
   return { valid: Object.keys(errors).length === 0, errors };
 }
 
-export function buildEarningsCalendarPath(options: {
+export function buildEarningsCalendarRequest(options: {
   market: string;
   range: Pick<EarningsCalendarRange, "beginDate" | "endDate">;
   sort: EarningsCalendarSort;
   filters: EarningsCalendarFilters;
-}): string {
+}): ResearchRequest {
   const { market, range, sort } = options;
   const filters = clearIncompatibleEarningsFilters(options.filters, market);
-  const params = new URLSearchParams({
+  const request: ResearchRequest = {
+    scope: "research",
+    family: "calendar",
     market,
     operation: "earnings",
     beginDate: range.beginDate,
     endDate: range.endDate,
     sort,
-  });
-  if (filters.stockScope !== "all") params.set("stockScope", filters.stockScope);
+  };
+  if (filters.stockScope !== "all") request.stockScope = filters.stockScope;
 
-  appendScaledRange(params, filters, "marketCapMin", "marketCapMax", MARKET_CAP_SCALE);
+  appendScaledRange(request, filters, "marketCapMin", "marketCapMax", MARKET_CAP_SCALE);
   if (isEarningsOptionMarket(market)) {
-    appendScaledRange(params, filters, "optionVolumeMin", "optionVolumeMax", OPTION_VOLUME_SCALE);
-    appendScaledRange(params, filters, "ivMin", "ivMax", 1);
-    appendScaledRange(params, filters, "ivRankMin", "ivRankMax", 1);
-    appendScaledRange(params, filters, "ivPercentileMin", "ivPercentileMax", 1);
+    appendScaledRange(request, filters, "optionVolumeMin", "optionVolumeMax", OPTION_VOLUME_SCALE);
+    appendScaledRange(request, filters, "ivMin", "ivMax", 1);
+    appendScaledRange(request, filters, "ivRankMin", "ivRankMax", 1);
+    appendScaledRange(request, filters, "ivPercentileMin", "ivPercentileMax", 1);
   }
-  return `/api/v1/research/calendars?${params.toString()}`;
+  return request;
+}
+
+/** @deprecated Production callers should pass the semantic request object. */
+export function buildEarningsCalendarPath(
+  options: Parameters<typeof buildEarningsCalendarRequest>[0],
+): string {
+  return researchTarget(buildEarningsCalendarRequest(options)).path;
 }
 
 function appendScaledRange(
-  params: URLSearchParams,
+  request: ResearchRequest,
   filters: EarningsCalendarFilters,
-  minKey: keyof EarningsCalendarFilters,
-  maxKey: keyof EarningsCalendarFilters,
+  minKey: EarningsRangeKey,
+  maxKey: EarningsRangeKey,
   scale: number,
 ): void {
   for (const key of [minKey, maxKey]) {
     const parsed = parseFilterNumber(filters[key]);
     if (parsed.value != null && !parsed.invalid) {
-      params.set(key, String(parsed.value * scale));
+      request[key] = parsed.value * scale;
     }
   }
 }
+
+type EarningsRangeKey =
+  | "marketCapMin"
+  | "marketCapMax"
+  | "optionVolumeMin"
+  | "optionVolumeMax"
+  | "ivMin"
+  | "ivMax"
+  | "ivRankMin"
+  | "ivRankMax"
+  | "ivPercentileMin"
+  | "ivPercentileMax";
 
 function parseFilterNumber(raw: string): { value: number | null; invalid: boolean } {
   // Vue normalizes values emitted by native number inputs to numbers in some

@@ -897,7 +897,7 @@ describe("option workspace", () => {
     apiMocks.fetchFeature.mockResolvedValue(feature([{}]));
     apiMocks.fetchWithInit.mockResolvedValue(feature([]));
     const wrapper = mount(OptionWorkspacePanel, {
-      props: { instrumentId: "", market: "US" },
+      props: { instrumentId: "HK.00700", market: "US" },
       global: {
         stubs: {
           ...productGlobalStubs,

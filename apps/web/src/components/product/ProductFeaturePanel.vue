@@ -5,12 +5,11 @@ import {
   featureEntryTitle,
   fetchProductFeature,
   instrumentIDFromFeatureEntry,
+  prepareProductFeature,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
-import {
-  useBrokerProviderSelection,
-  withBrokerProvider,
-} from "@/composables/trading/brokerProviderSelection";
+import { type ProductFeatureRequest } from "@/composables/product/productFeatureApi";
+import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
 import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
 import ProductPanelToolbar from "./ProductPanelToolbar.vue";
 import ProductToolbarRefreshButton from "./ProductToolbarRefreshButton.vue";
@@ -19,13 +18,16 @@ const props = withDefaults(
   defineProps<{
     title: string;
     description?: string;
-    path: string;
+    request?: ProductFeatureRequest | null;
+    path?: string;
     active?: boolean;
     actionLabel?: string;
     instrumentActionClasses?: string[] | null;
   }>(),
   {
     description: "",
+    request: null,
+    path: "",
     active: true,
     actionLabel: "工作区",
     instrumentActionClasses: null,
@@ -138,24 +140,39 @@ function actionInstrumentId(entry: Record<string, unknown>): string | null {
   return instrumentIDFromFeatureEntry(entry);
 }
 
-const requestPath = computed(() =>
-  withBrokerProvider(props.path, selectedBrokerId.value),
+const request = computed(() =>
+  props.request == null
+    ? null
+    : {
+        ...props.request,
+        ...(selectedBrokerId.value ? { brokerId: selectedBrokerId.value } : {}),
+      },
 );
+const legacyPath = computed(() => {
+  const path = props.path.trim();
+  if (!path) return "";
+  if (!selectedBrokerId.value) return path;
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}brokerId=${encodeURIComponent(selectedBrokerId.value)}`;
+});
 const entryCountLabel = computed(
   () => `${visibleEntries.value.length} / ${result.value?.entries.length ?? 0}`,
 );
 
 async function load(refresh = false): Promise<void> {
-  if (!props.active || !props.path) return;
+  if (!props.active || (request.value == null && !legacyPath.value)) return;
   const token = ++requestToken;
   loading.value = true;
   error.value = "";
   try {
-    const path = requestPath.value;
-    const separator = path.includes("?") ? "&" : "?";
-    const response = await fetchProductFeature(
-      refresh ? `${path}${separator}refresh=true` : path,
-    );
+    const path =
+      request.value == null
+        ? `${legacyPath.value}${refresh ? `${legacyPath.value.includes("?") ? "&" : "?"}refresh=true` : ""}`
+        : prepareProductFeature({
+            ...request.value,
+            ...(refresh ? { refresh: true } : {}),
+          });
+    const response = await fetchProductFeature(path);
     if (token === requestToken) result.value = response;
   } catch (cause) {
     if (token !== requestToken) return;
@@ -167,7 +184,7 @@ async function load(refresh = false): Promise<void> {
 }
 
 watch(
-  [() => props.path, selectedBrokerId],
+  [() => JSON.stringify(props.request), () => props.path, selectedBrokerId],
   () => {
     requestToken++;
     result.value = null;
@@ -176,8 +193,8 @@ watch(
 );
 
 watch(
-  () => [props.path, props.active, selectedBrokerId.value] as const,
-  ([, active]) => {
+  () => [JSON.stringify(props.request), props.path, props.active, selectedBrokerId.value] as const,
+  ([, , active]) => {
     if (active) {
       void load();
       return;

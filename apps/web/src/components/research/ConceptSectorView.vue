@@ -25,14 +25,17 @@ const emit = defineEmits<{
   select: [entry: Record<string, unknown>];
 }>();
 
-function industriesPath(operation: string): string {
-  return `/api/v1/research/industries?market=${encodeURIComponent(props.market)}&operation=${operation}&pageSize=50`;
-}
-
 const plateType = ref<"industry" | "concept" | "region">("concept");
 const connectOnly = ref(false);
 const plates = useResearchFeature(
-  () => `${industriesPath("plate_list")}&plateType=${plateType.value}`,
+  () => ({
+    scope: "research",
+    family: "industries",
+    market: props.market,
+    operation: "plate_list",
+    plateType: plateType.value,
+    pageSize: 50,
+  }),
   { brokerId: () => props.brokerId },
 );
 
@@ -77,15 +80,22 @@ function plateKey(entry: Record<string, unknown>): string {
   return pickString(entry, ["instrumentId", "name"]);
 }
 
-const stocksPath = computed(() => {
+const stocksRequest = computed(() => {
   const plate = selectedPlate.value;
-  if (plate == null) return "";
+  if (plate == null) return null;
   const instrumentId = pickString(plate, ["instrumentId"]);
-  if (!instrumentId.includes(".")) return "";
+  if (!instrumentId.includes(".")) return null;
   const concreteMarket = instrumentId.split(".")[0]!;
-  return `/api/v1/research/industries?market=${encodeURIComponent(concreteMarket)}&operation=plate_members&instrumentId=${encodeURIComponent(instrumentId)}&pageSize=50`;
+  return {
+    scope: "research" as const,
+    family: "industries" as const,
+    market: concreteMarket,
+    operation: "plate_members",
+    instrumentId,
+    pageSize: 50,
+  };
 });
-const stocks = useResearchFeature(() => stocksPath.value, {
+const stocks = useResearchFeature(stocksRequest, {
   brokerId: () => props.brokerId,
 });
 const stockSnapshots = useResearchSnapshots(

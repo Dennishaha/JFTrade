@@ -66,36 +66,35 @@ watch(
 );
 
 const list = useResearchFeature(
-  () =>
-    `/api/v1/research/industries?market=${encodeURIComponent(props.market)}&operation=chains&pageSize=50`,
+  () => ({ scope: "research", family: "industries", market: props.market, operation: "chains", pageSize: 50 }),
   { brokerId: () => props.brokerId },
 );
 const detail = useResearchFeature(
   () =>
     selectedChainId.value
-      ? `/api/v1/research/industries?market=${encodeURIComponent(props.market)}&operation=chain_detail&chainId=${encodeURIComponent(selectedChainId.value)}&pageSize=100`
-      : "",
+      ? { scope: "research", family: "industries", market: props.market, operation: "chain_detail", chainId: selectedChainId.value, pageSize: 100 }
+      : null,
   { brokerId: () => props.brokerId },
 );
 const related = useResearchFeature(
   () =>
     selectedPlateId.value
-      ? `/api/v1/research/industries?market=${encodeURIComponent(props.market)}&operation=chains_by_plate&plateId=${encodeURIComponent(selectedPlateId.value)}&pageSize=100`
-      : "",
+      ? { scope: "research", family: "industries", market: props.market, operation: "chains_by_plate", plateId: selectedPlateId.value, pageSize: 100 }
+      : null,
   { brokerId: () => props.brokerId },
 );
 const plateInfo = useResearchFeature(
   () =>
     selectedPlateId.value
-      ? `/api/v1/research/industries?market=${encodeURIComponent(props.market)}&operation=plate&plateId=${encodeURIComponent(selectedPlateId.value)}&pageSize=1`
-      : "",
+      ? { scope: "research", family: "industries", market: props.market, operation: "plate", plateId: selectedPlateId.value, pageSize: 1 }
+      : null,
   { brokerId: () => props.brokerId },
 );
 const plateStocks = useResearchFeature(
   () =>
     selectedPlateId.value
-      ? `/api/v1/research/industries?market=${encodeURIComponent(props.market)}&operation=plate_stocks&plateId=${encodeURIComponent(selectedPlateId.value)}&pageSize=100`
-      : "",
+      ? { scope: "research", family: "industries", market: props.market, operation: "plate_stocks", plateId: selectedPlateId.value, pageSize: 100 }
+      : null,
   { brokerId: () => props.brokerId },
 );
 

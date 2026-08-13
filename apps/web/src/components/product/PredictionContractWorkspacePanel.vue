@@ -1,18 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
-import {
-  apiDeletePath,
-  apiPostPath,
-} from "@/composables/shared/apiClient";
-import {
-  useBrokerProviderSelection,
-  withBrokerProvider,
-} from "@/composables/trading/brokerProviderSelection";
+import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
 import {
   fetchProductFeature,
+  prepareProductFeature,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
+import { predictionApi, type PredictionRequest } from "@/composables/research/predictionApi";
 import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
 import { formatNumber } from "@/utils/numberFormat";
@@ -40,16 +35,23 @@ let refreshTimer: ReturnType<typeof setInterval> | undefined;
 const code = computed(() =>
   props.instrumentId.trim().toUpperCase().replace(/^US\./, ""),
 );
-const endpoint = computed(() => {
-  const base = `/api/v1/market-data/prediction/contracts/${encodeURIComponent(code.value)}`;
-  const suffix: Record<PredictionView, string> = {
+const request = computed<PredictionRequest>(() => {
+  const resource: Record<PredictionView, PredictionRequest["resource"]> = {
     contract: "snapshot",
-    depth: "order-book?pageSize=20",
-    chart: "candles?pageSize=200",
-    ticks: "ticks?pageSize=100",
-    rules: "milestones?pageSize=100",
+    depth: "order-book",
+    chart: "candles",
+    ticks: "ticks",
+    rules: "milestones",
   };
-  return withBrokerProvider(`${base}/${suffix[props.view]}`, selectedBrokerId.value);
+  return {
+    scope: "prediction",
+    resource: resource[props.view],
+    code: code.value,
+    brokerId: selectedBrokerId.value,
+    ...(props.view === "contract"
+      ? {}
+      : { pageSize: props.view === "depth" ? 20 : props.view === "chart" ? 200 : 100 }),
+  };
 });
 const subscriptionType = computed(() => {
   if (props.view === "depth") return "ORDER_BOOK";
@@ -108,20 +110,19 @@ function joinPrice(bid: unknown, ask: unknown): string {
   return `${display(bid)} / ${display(ask)}`;
 }
 
-function accountQuery(): string {
-  const params = new URLSearchParams();
+function subscriptionAccount(): { brokerId: string; accountId: string } {
   const brokerId =
     selectedBrokerId.value ||
     selectedBrokerAccount.value?.brokerId ||
     systemStatus.value.defaultBroker;
-  if (brokerId) params.set("brokerId", brokerId);
+  let accountId = "";
   if (
     selectedBrokerAccount.value?.accountId &&
     selectedBrokerAccount.value.brokerId === brokerId
   ) {
-    params.set("accountId", selectedBrokerAccount.value.accountId);
+    accountId = selectedBrokerAccount.value.accountId;
   }
-  return params.toString() ? `?${params.toString()}` : "";
+  return { brokerId, accountId };
 }
 
 async function release(): Promise<void> {
@@ -129,10 +130,7 @@ async function release(): Promise<void> {
   lease.value = null;
   if (current == null) return;
   try {
-    await apiDeletePath(
-      "/api/v1/market-data/prediction/contracts/{code}/subscriptions/{leaseId}",
-      `/api/v1/market-data/prediction/contracts/${encodeURIComponent(current.instrumentId)}/subscriptions/${encodeURIComponent(current.leaseId)}`,
-    );
+    await predictionApi.releaseSubscription(current.instrumentId, current.leaseId);
   } catch {
     // Disconnecting OpenD releases its server-side subscriptions as well.
   }
@@ -142,11 +140,11 @@ async function synchronizeSubscription(): Promise<void> {
   const currentGeneration = ++generation;
   await release();
   if (!visible.value || !code.value || !subscriptionType.value) return;
-  const acquired = await apiPostPath(
-    "/api/v1/market-data/prediction/contracts/{code}/subscriptions",
-    `/api/v1/market-data/prediction/contracts/${encodeURIComponent(code.value)}/subscriptions${accountQuery()}`,
-    { dataTypes: [subscriptionType.value] },
-  );
+  const acquired = await predictionApi.acquireSubscription({
+    code: code.value,
+    ...subscriptionAccount(),
+    dataTypes: [subscriptionType.value],
+  });
   if (currentGeneration !== generation) {
     lease.value = acquired;
     await release();
@@ -160,7 +158,7 @@ async function load(): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    result.value = await fetchProductFeature(endpoint.value);
+    result.value = await fetchProductFeature(prepareProductFeature(request.value));
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause);
     result.value = null;

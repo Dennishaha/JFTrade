@@ -27,28 +27,36 @@ const emit = defineEmits<{
   more: [operation: string];
 }>();
 
-function rankingsPath(operation: string, extra = ""): string {
-  return `/api/v1/research/rankings?market=${encodeURIComponent(props.market)}&operation=${operation}&pageSize=50${extra}`;
+function rankingsRequest(operation: string, direction?: string, plateType?: string) {
+  return {
+    scope: "research" as const,
+    family: "rankings" as const,
+    market: props.market,
+    operation,
+    ...(direction ? { direction } : {}),
+    ...(plateType ? { plateType } : {}),
+    pageSize: 50,
+  };
 }
 
 const gainersFeature = useResearchFeature(() =>
-  props.market === "CN" ? "" : rankingsPath("top_movers", "&direction=up"),
+  props.market === "CN" ? null : rankingsRequest("top_movers", "up"),
   { brokerId: () => props.brokerId },
 );
 const losersFeature = useResearchFeature(() =>
-  props.market === "CN" ? "" : rankingsPath("top_movers", "&direction=down"),
+  props.market === "CN" ? null : rankingsRequest("top_movers", "down"),
   { brokerId: () => props.brokerId },
 );
-const hot = useResearchFeature(() => props.market === "CN" ? "" : rankingsPath("hot"), {
+const hot = useResearchFeature(() => props.market === "CN" ? null : rankingsRequest("hot"), {
   brokerId: () => props.brokerId,
 });
 const highDividend = useResearchFeature(() =>
-  props.market === "HK" ? rankingsPath("high_dividend_state") : "",
+  props.market === "HK" ? rankingsRequest("high_dividend_state") : null,
   { brokerId: () => props.brokerId },
 );
 const heatmapType = ref<"industry" | "concept" | "theme">("industry");
 const heatmap = useResearchFeature(() =>
-  rankingsPath("heatmap", `&plateType=${heatmapType.value}`),
+  rankingsRequest("heatmap", undefined, heatmapType.value),
   { brokerId: () => props.brokerId },
 );
 

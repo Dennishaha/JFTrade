@@ -89,6 +89,55 @@ func TestProductFeatureRoutesCoverReadWritePredictionAndSnapshots(t *testing.T) 
 	}
 }
 
+func TestTypedResearchRoutesPreserveQueriesAndWire(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adapter := &apiFeatureBroker{}
+	registry := broker.NewRegistry()
+	registry.Register(adapter)
+	svc := service.NewService(registry, adapter.ID(), nil, nil)
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), svc)
+
+	tests := []struct {
+		path         string
+		feature      broker.FeatureID
+		instrumentID string
+		operation    string
+		parameter    string
+		value        any
+	}{
+		{
+			path:    "/api/v1/research/calendars?brokerId=api-test&market=us&operation=earnings&beginDate=2026-08-01&refresh=true&pageSize=25",
+			feature: broker.FeatureResearchCalendar, operation: "earnings",
+			parameter: "beginDate", value: "2026-08-01",
+		},
+		{
+			path:    "/api/v1/research/rankings?brokerId=api-test&market=us&operation=top_movers&direction=up&plateType=industry",
+			feature: broker.FeatureResearchRankings, operation: "top_movers",
+			parameter: "direction", value: "up",
+		},
+		{
+			path:    "/api/v1/research/financials/us.aapl?brokerId=api-test&operation=statements&refresh=true",
+			feature: broker.FeatureResearchFinancials, instrumentID: "US.AAPL", operation: "statements",
+		},
+	}
+	for _, test := range tests {
+		recorder := performFeatureRequest(t, router, http.MethodGet, test.path, "")
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("GET %s status=%d body=%s", test.path, recorder.Code, recorder.Body.String())
+		}
+		if adapter.lastQuery.FeatureID != test.feature ||
+			adapter.lastQuery.InstrumentID != test.instrumentID ||
+			adapter.lastQuery.Params["operation"] != test.operation ||
+			(test.parameter != "" && adapter.lastQuery.Params[test.parameter] != test.value) {
+			t.Fatalf("GET %s query = %#v", test.path, adapter.lastQuery)
+		}
+		if !strings.Contains(recorder.Body.String(), `"feature":"`+string(test.feature)+`"`) {
+			t.Fatalf("GET %s changed response wire: %s", test.path, recorder.Body.String())
+		}
+	}
+}
+
 func TestProductFeatureRoutesMapValidationCapabilityEligibilityAndBrokerErrors(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	adapter := &apiFeatureBroker{}

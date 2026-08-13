@@ -134,12 +134,12 @@ function formatDerivativeDate(value: unknown): string {
 
 const keyword = ref("");
 const market = computed(() => (props.operation === "warrant" ? "HK" : "US"));
-const path = computed(() =>
+const request = computed(() =>
   props.operation === "warrant"
-    ? "/api/v1/market-data/warrants?market=HK&operation=screen&pageSize=50"
-    : "/api/v1/market-data/options/screens?market=US&operation=screen&pageSize=50",
+    ? { scope: "market-feature" as const, resource: "warrants" as const, market: "HK", operation: "screen", pageSize: 50 }
+    : { scope: "market-feature" as const, resource: "option-screens" as const, market: "US", operation: "screen", pageSize: 50 },
 );
-const feature = useResearchFeature(path, {
+const feature = useResearchFeature(request, {
   expandCN: false,
   brokerId: () => props.brokerId,
 });

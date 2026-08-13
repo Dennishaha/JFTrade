@@ -13,6 +13,10 @@ vi.mock("@/composables/research/useResearchFeature", () => ({
 }));
 
 import PredictionContractDataView from "../../../src/components/research/PredictionContractDataView.vue";
+import type {
+  PredictionRequest,
+  PredictionResource,
+} from "@/composables/research/predictionApi";
 
 function featureState(entries: Record<string, unknown>[] = []) {
   return {
@@ -22,6 +26,10 @@ function featureState(entries: Record<string, unknown>[] = []) {
     asOf: ref("2026-07-24 09:30:00"),
     refresh: vi.fn(),
   };
+}
+
+function request(resource: PredictionResource): PredictionRequest {
+  return { scope: "prediction", resource, code: "EC.HOME" };
 }
 
 beforeEach(() => {
@@ -42,10 +50,14 @@ describe("prediction contract market-data views", () => {
         openInterest: 8_800,
       },
     ]);
-    mocks.useResearchFeature.mockReturnValue(feature);
+    const snapshotRequest = request("snapshot");
+    mocks.useResearchFeature.mockImplementation((source: () => unknown) => {
+      expect(source()).toEqual(snapshotRequest);
+      return feature;
+    });
 
     const wrapper = mount(PredictionContractDataView, {
-      props: { path: "/contracts/EC.HOME/snapshot", view: "snapshot" },
+      props: { request: snapshotRequest, view: "snapshot" },
     });
     await flushPromises();
 
@@ -65,7 +77,7 @@ describe("prediction contract market-data views", () => {
     feature.asOf.value = "";
     mocks.useResearchFeature.mockReturnValue(feature);
     const wrapper = mount(PredictionContractDataView, {
-      props: { path: "/contracts/EC.HOME/depth", view: "depth" },
+      props: { request: request("order-book"), view: "depth" },
     });
 
     expect(wrapper.text()).toContain("加载中");
@@ -82,7 +94,7 @@ describe("prediction contract market-data views", () => {
     ]);
     mocks.useResearchFeature.mockReturnValue(feature);
     const wrapper = mount(PredictionContractDataView, {
-      props: { path: "/contracts/EC.HOME/depth", view: "depth" },
+      props: { request: request("order-book"), view: "depth" },
     });
 
     expect(wrapper.text()).toContain("YES 买盘");
@@ -133,7 +145,7 @@ describe("prediction contract market-data views", () => {
     ]);
     mocks.useResearchFeature.mockReturnValue(feature);
     const wrapper = mount(PredictionContractDataView, {
-      props: { path: "/contracts/EC.HOME/candles", view: "candles" },
+      props: { request: request("candles"), view: "candles" },
     });
 
     expect(wrapper.findAll("tbody tr")).toHaveLength(4);
@@ -148,7 +160,7 @@ describe("prediction contract market-data views", () => {
       },
       { code: { code: "EC.AWAY" }, ticks: [{ dateTime: "09:42", side: "NO", volume: 30 }] },
     ];
-    await wrapper.setProps({ path: "/contracts/EC.HOME/ticks", view: "ticks" });
+    await wrapper.setProps({ request: request("ticks"), view: "ticks" });
     await flushPromises();
     expect(wrapper.text()).toContain("逐笔成交");
     expect(wrapper.text()).toContain("YES");
@@ -163,7 +175,7 @@ describe("prediction contract market-data views", () => {
     ]);
     mocks.useResearchFeature.mockReturnValue(feature);
     const wrapper = mount(PredictionContractDataView, {
-      props: { path: "/contracts/EC.HOME/milestones", view: "milestones" },
+      props: { request: request("milestones"), view: "milestones" },
     });
 
     expect(wrapper.text()).toContain("事件里程碑");

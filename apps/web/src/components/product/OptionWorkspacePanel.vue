@@ -63,6 +63,7 @@ const {
   comboContracts,
   snapshotDependencyKey,
   encodedInstrument,
+  featureRequest,
   featurePath,
   snapshotForInstrument,
   selectExpiry,
@@ -330,10 +331,10 @@ const {
 
     <ProductFeaturePanel
       v-else
-      :key="featurePath"
+      :key="JSON.stringify(featureRequest)"
       :title="section === 'strategy' ? '合法价差与策略' : '期权研究'"
-      :path="featurePath"
-      :active="Boolean(featurePath)"
+      :request="featureRequest"
+      :active="featureRequest != null"
       @open-instrument="emit('openInstrument', $event)"
     />
 

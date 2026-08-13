@@ -68,8 +68,15 @@ const queryMarket = computed(() =>
   props.market.trim().toUpperCase() === "CN" ? "SH" : props.market,
 );
 const feature = useResearchFeature(
-  () =>
-    `/api/v1/research/calendars?market=${encodeURIComponent(queryMarket.value)}&operation=economic&beginDate=${rangeBounds.value.beginDate}&endDate=${rangeBounds.value.endDate}&pageSize=50`,
+  () => ({
+    scope: "research",
+    family: "calendar",
+    market: queryMarket.value,
+    operation: "economic",
+    beginDate: rangeBounds.value.beginDate,
+    endDate: rangeBounds.value.endDate,
+    pageSize: 50,
+  }),
   { brokerId: () => props.brokerId, expandCN: false },
 );
 

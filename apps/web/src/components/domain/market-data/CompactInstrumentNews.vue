@@ -8,9 +8,9 @@ import {
 } from "@/composables/research/newsPresentation";
 import {
   fetchProductFeature,
+  prepareProductFeature,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
-import { withBrokerProvider } from "@/composables/trading/brokerProviderSelection";
 import { useExternalLink } from "@/composables/shared/externalLink";
 import SegmentedControl from "@/components/shared/SegmentedControl.vue";
 import type { QuoteWorkbenchTarget } from "./quoteWorkbench";
@@ -99,20 +99,17 @@ async function load(refresh = false): Promise<void> {
   const token = ++requestToken;
   loading.value = true;
   error.value = "";
-  const params = new URLSearchParams({
-    market: parts.market,
-    code: normalizedInstrumentId.value,
-    operation: "search",
-    pageSize: "30",
-  });
-  const path = withBrokerProvider(
-    `/api/v1/market-data/news?${params.toString()}`,
-    normalizedBrokerId.value,
-  );
   try {
-    const response = await fetchProductFeature(
-      refresh ? `${path}&refresh=true` : path,
-    );
+    const response = await fetchProductFeature(prepareProductFeature({
+      scope: "market-feature",
+      resource: "news",
+      brokerId: normalizedBrokerId.value,
+      market: parts.market,
+      code: normalizedInstrumentId.value,
+      operation: "search",
+      pageSize: 30,
+      ...(refresh ? { refresh: true } : {}),
+    }));
     if (token !== requestToken) return;
     result.value = {
       ...response,

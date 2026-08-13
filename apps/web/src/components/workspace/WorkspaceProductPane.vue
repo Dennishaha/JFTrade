@@ -6,6 +6,7 @@ import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
 import { getSharedLiveSocketHub } from "@/composables/market-data/sharedLiveSocket";
 import { resolveProductUnderlying } from "@/composables/product/productUnderlying";
+import { productFeaturePath, type ProductFeatureRequest } from "@/composables/product/productFeatureApi";
 import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
 import AppTabs from "@/components/shared/AppTabs.vue";
 import {
@@ -43,7 +44,6 @@ const providerStatusBarAvailable = ref(false);
 const instrumentID = computed(
   () => `${prefs.value.market}.${prefs.value.symbol}`.toUpperCase(),
 );
-const encodedInstrument = computed(() => encodeURIComponent(instrumentID.value));
 const securityDetails = computed(() => {
   const result = currentMarketSecurityDetails.value;
   return result?.request.instrumentId.trim().toUpperCase() === instrumentID.value
@@ -87,9 +87,6 @@ const productUnderlying = computed(() =>
     productIdentityPending.value,
   ),
 );
-const encodedProductUnderlying = computed(() =>
-  encodeURIComponent(productUnderlying.value.instrumentId),
-);
 const productUnderlyingMarket = computed(() => {
   const [market = ""] = productUnderlying.value.instrumentId.split(".", 1);
   return market || prefs.value.market;
@@ -106,29 +103,32 @@ const activeSurfaceID = computed(
 const activeFeatureID = computed(
   () => tabs.value.find((tab) => tab.value === activeTab.value)?.featureId ?? "market.candles",
 );
-const featurePath = computed(() => {
+const featureRequest = computed<ProductFeatureRequest | null>(() => {
   if (!visibleTabValues.value.has(activeTab.value)) {
-    return "";
+    return null;
   }
   switch (activeTab.value) {
     case "options":
       return productUnderlying.value.instrumentId
-        ? `/api/v1/market-data/options/chains/${encodedProductUnderlying.value}?pageSize=50`
-        : "";
+        ? { scope: "market-feature", resource: "option-chains", instrumentId: productUnderlying.value.instrumentId, pageSize: 50 }
+        : null;
     case "warrants":
-      return `/api/v1/market-data/warrants?market=${prefs.value.market}&underlying=${encodedInstrument.value}&pageSize=50`;
+      return { scope: "market-feature", resource: "warrants", market: prefs.value.market, underlying: instrumentID.value, pageSize: 50 };
     case "news":
       return productUnderlying.value.instrumentId
-        ? `/api/v1/market-data/news?market=${encodeURIComponent(productUnderlyingMarket.value)}&code=${encodedProductUnderlying.value}&pageSize=30`
-        : "";
+        ? { scope: "market-feature", resource: "news", market: productUnderlyingMarket.value, code: productUnderlying.value.instrumentId, pageSize: 30 }
+        : null;
     case "company":
       return productUnderlying.value.instrumentId
-        ? `/api/v1/research/instruments/${encodedProductUnderlying.value}?pageSize=50`
-        : "";
+        ? { scope: "research", family: "instrument", instrumentId: productUnderlying.value.instrumentId, pageSize: 50 }
+        : null;
     default:
-      return "";
+      return null;
   }
 });
+const featurePath = computed(() =>
+  featureRequest.value == null ? "" : productFeaturePath(featureRequest.value),
+);
 
 function handleMarketDataProviderChanged(): void {
   // Provider invalidation increments the query generation. Complete the
@@ -276,9 +276,9 @@ onBeforeUnmount(() => {
       <CompanyWorkspacePanel v-else-if="activeTab === 'company'" :instrument-id="productUnderlying.instrumentId"
         :market="productUnderlyingMarket" @open-instrument="openInstrument" />
       <NewsWorkspacePanel v-else-if="activeTab === 'news'" :instrument-id="productUnderlying.instrumentId"
-        :path="featurePath" @open-instrument="openInstrument" />
+        :request="featureRequest" @open-instrument="openInstrument" />
       <ProductFeaturePanel v-else :title="tabs.find((item) => item.value === activeTab)?.label ?? ''"
-        :path="featurePath" @open-instrument="openInstrument" />
+        :request="featureRequest" @open-instrument="openInstrument" />
     </div>
   </div>
 </template>

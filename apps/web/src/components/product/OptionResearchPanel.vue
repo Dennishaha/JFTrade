@@ -2,15 +2,14 @@
 import { computed, ref, watch } from "vue";
 
 import { apiPostPath } from "@/composables/shared/apiClient";
-import {
-  useBrokerProviderSelection,
-  withBrokerProvider,
-} from "@/composables/trading/brokerProviderSelection";
+import { useBrokerProviderSelection, withBrokerProvider } from "@/composables/trading/brokerProviderSelection";
 import { productCompactMenuProps } from "@/composables/product/productControlDensity";
 import {
   fetchProductFeature,
+  prepareProductFeature,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
+import { type MarketFeatureRequest } from "@/composables/product/marketFeatureApi";
 import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import {
   formatOptionResearchCell as formatCell,
@@ -84,25 +83,26 @@ const drilldownContext = computed<DrilldownContext | null>(() => {
   return context as DrilldownContext;
 });
 
-function buildPath(refresh = false): string {
-  const params = new URLSearchParams({
+function buildRequest(refresh = false): MarketFeatureRequest {
+  return {
+    scope: "market-feature",
+    resource: "option-events",
+    brokerId: selectedBrokerId.value,
     market: normalizedMarket.value,
     operation: props.operation,
-    pageSize: "50",
-  });
-  if (cursor.value) params.set("cursor", cursor.value);
-  if (refresh) params.set("refresh", "true");
-  if (props.scope === "underlying") {
-    params.set("underlying", props.underlyingInstrumentId.trim().toUpperCase());
-    params.set("underlyingProductClass", props.underlyingProductClass);
-  }
-  if (props.operation === "seller") {
-    params.set("sellerStrategy", sellerStrategy.value);
-  }
-  return withBrokerProvider(
-    `/api/v1/market-data/options/events?${params}`,
-    selectedBrokerId.value,
-  );
+    pageSize: 50,
+    ...(cursor.value ? { cursor: cursor.value } : {}),
+    ...(refresh ? { refresh: true } : {}),
+    ...(props.scope === "underlying"
+      ? {
+          underlying: props.underlyingInstrumentId.trim().toUpperCase(),
+          underlyingProductClass: props.underlyingProductClass,
+        }
+      : {}),
+    ...(props.operation === "seller"
+      ? { sellerStrategy: sellerStrategy.value }
+      : {}),
+  };
 }
 
 async function load(refresh = false): Promise<void> {
@@ -118,7 +118,7 @@ async function load(refresh = false): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    const response = await fetchProductFeature(buildPath(refresh));
+    const response = await fetchProductFeature(prepareProductFeature(buildRequest(refresh)));
     if (token === requestToken) result.value = response;
   } catch (cause) {
     if (token !== requestToken) return;

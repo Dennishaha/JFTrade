@@ -18,8 +18,14 @@ const emit = defineEmits<{
 
 const selectedDate = ref(dayKeyOf(new Date()));
 const feature = useResearchFeature(
-  () =>
-    `/api/v1/research/calendars?market=${encodeURIComponent(props.market)}&operation=dividends&date=${selectedDate.value}&pageSize=50`,
+  () => ({
+    scope: "research",
+    family: "calendar",
+    market: props.market,
+    operation: "dividends",
+    date: selectedDate.value,
+    pageSize: 50,
+  }),
   { brokerId: () => props.brokerId },
 );
 

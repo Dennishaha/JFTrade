@@ -10,7 +10,7 @@ import EarningsCalendarFilterDrawer from "./EarningsCalendarFilterDrawer.vue";
 import EarningsCalendarToolbar from "./EarningsCalendarToolbar.vue";
 import {
   EARNINGS_CALENDAR_SORT_OPTIONS,
-  buildEarningsCalendarPath,
+  buildEarningsCalendarRequest,
   clearIncompatibleEarningsFilters,
   createEarningsCalendarFilters,
   earningsCalendarFilterCount,
@@ -82,7 +82,7 @@ watch(
 
 const feature = useResearchFeature(
   () =>
-    buildEarningsCalendarPath({
+    buildEarningsCalendarRequest({
       market: props.market,
       range: range.value,
       sort: selectedSort.value,

@@ -26,30 +26,20 @@ var productToolFeatureIDs = map[string]broker.FeatureID{
 	"derivatives.option_events":     broker.FeatureOptionEvents,
 	"derivatives.warrants":          broker.FeatureWarrants,
 	"derivatives.futures":           broker.FeatureFutures,
-	"research.instrument":           broker.FeatureResearchInstrument,
-	"research.financials":           broker.FeatureResearchFinancials,
-	"research.valuation":            broker.FeatureResearchValuation,
-	"research.analyst":              broker.FeatureResearchAnalyst,
-	"research.ownership":            broker.FeatureResearchOwnership,
-	"research.corporate_actions":    broker.FeatureResearchCorporateAction,
-	"research.short_interest":       broker.FeatureResearchShortInterest,
 	"research.news":                 broker.FeatureResearchNews,
-	"research.screen":               broker.FeatureResearchScreen,
-	"research.calendar":             broker.FeatureResearchCalendar,
 	"research.macro":                broker.FeatureResearchMacro,
-	"research.rankings":             broker.FeatureResearchRankings,
 	"research.institutions":         broker.FeatureResearchInstitutions,
 	"research.industry":             broker.FeatureResearchIndustry,
 	"research.technical_indicators": broker.FeatureTechnicalIndicator,
-	"prediction.discover":           broker.FeaturePredictionDiscover,
-	"prediction.snapshot":           broker.FeaturePredictionSnapshot,
-	"prediction.depth":              broker.FeaturePredictionDepth,
-	"prediction.history":            broker.FeaturePredictionHistory,
-	"prediction.combo_eligible":     broker.FeaturePredictionComboEligible,
-	"prediction.combo_quote":        broker.FeaturePredictionComboQuote,
 	"alerts.price.list":             broker.FeaturePriceAlertList,
 	"alerts.option_event.list":      broker.FeatureOptionEventAlertList,
 	"watchlist.remote.list":         broker.FeatureRemoteWatchlistList,
+}
+
+func init() {
+	for _, description := range productfeatures.TypedCapabilityDescriptions() {
+		productToolFeatureIDs[description.ToolName] = description.FeatureID
+	}
 }
 
 var customizationToolFeatureIDs = map[string]broker.FeatureID{

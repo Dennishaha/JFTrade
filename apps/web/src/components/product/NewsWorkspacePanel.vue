@@ -8,12 +8,11 @@ import {
 } from "@/composables/research/newsPresentation";
 import {
   fetchProductFeature,
+  prepareProductFeature,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
-import {
-  useBrokerProviderSelection,
-  withBrokerProvider,
-} from "@/composables/trading/brokerProviderSelection";
+import { type ProductFeatureRequest } from "@/composables/product/productFeatureApi";
+import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
 import { useExternalLink } from "@/composables/shared/externalLink";
 import AsyncPanelState from "@/components/shared/AsyncPanelState.vue";
 import ProductPanelToolbar from "./ProductPanelToolbar.vue";
@@ -21,7 +20,8 @@ import ProductToolbarRefreshButton from "./ProductToolbarRefreshButton.vue";
 
 const props = defineProps<{
   instrumentId: string;
-  path: string;
+  request?: ProductFeatureRequest | null;
+  path?: string;
 }>();
 const emit = defineEmits<{ openInstrument: [instrumentId: string] }>();
 
@@ -48,9 +48,6 @@ const items = computed(() =>
 const visibleItems = computed(() =>
   filterNewsItems(items.value, category.value, filter.value),
 );
-const requestPath = computed(() =>
-  withBrokerProvider(props.path, selectedBrokerId.value),
-);
 const asOfLabel = computed(() => {
   const value = result.value?.asOf;
   if (!value) return "";
@@ -67,7 +64,7 @@ const asOfLabel = computed(() => {
 
 async function load(refresh = false): Promise<void> {
   const token = ++requestToken;
-  if (!props.path) {
+  if (props.request == null && !props.path) {
     result.value = null;
     error.value = "";
     loading.value = false;
@@ -76,11 +73,25 @@ async function load(refresh = false): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    const path = requestPath.value;
-    const separator = path.includes("?") ? "&" : "?";
-    const response = await fetchProductFeature(
-      refresh ? `${path}${separator}refresh=true` : path,
-    );
+    let path: string;
+    if (props.request == null) {
+      const params = new URLSearchParams();
+      if (selectedBrokerId.value) params.set("brokerId", selectedBrokerId.value);
+      if (refresh) params.set("refresh", "true");
+      const query = params.toString();
+      path = query
+        ? `${props.path}${props.path!.includes("?") ? "&" : "?"}${query}`
+        : props.path!;
+    } else {
+      path = prepareProductFeature({
+          ...props.request,
+          ...(selectedBrokerId.value || props.request.brokerId
+            ? { brokerId: selectedBrokerId.value || props.request.brokerId }
+            : {}),
+          ...(refresh ? { refresh: true } : {}),
+        });
+    }
+    const response = await fetchProductFeature(path);
     if (token === requestToken) result.value = response;
   } catch (cause) {
     if (token !== requestToken) return;
@@ -92,7 +103,7 @@ async function load(refresh = false): Promise<void> {
 }
 
 watch(
-  () => [props.path, selectedBrokerId.value] as const,
+  () => [JSON.stringify(props.request), props.path, selectedBrokerId.value] as const,
   () => void load(),
   { immediate: true },
 );

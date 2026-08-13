@@ -65,24 +65,31 @@ watch([() => props.market, productScope], () => {
   }
 }, { immediate: true });
 
-function operationPath(): string {
+function operationRequest() {
   if (productScope.value === "fund") {
-    return `/api/v1/research/rankings?market=${encodeURIComponent(props.market)}&operation=fund_catalog&pageSize=50`;
+    return { scope: "research" as const, family: "rankings" as const, market: props.market, operation: "fund_catalog", pageSize: 50 };
   }
-  if (!operation.value) return "";
+  if (!operation.value) return null;
   const direction =
     operation.value === "top_gainers"
-      ? "&direction=up"
+      ? "up"
       : operation.value === "top_losers"
-        ? "&direction=down"
-        : "";
+        ? "down"
+        : undefined;
   const backendOperation = operation.value.startsWith("top_")
     ? "top_movers"
     : operation.value;
-  return `/api/v1/research/rankings?market=${encodeURIComponent(props.market)}&operation=${backendOperation}&pageSize=50${direction}`;
+  return {
+    scope: "research" as const,
+    family: "rankings" as const,
+    market: props.market,
+    operation: backendOperation,
+    ...(direction ? { direction } : {}),
+    pageSize: 50,
+  };
 }
 
-const feature = useResearchFeature(operationPath, {
+const feature = useResearchFeature(operationRequest, {
   brokerId: () => props.brokerId,
 });
 const snapshots = useResearchSnapshots(

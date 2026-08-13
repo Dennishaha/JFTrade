@@ -47,6 +47,7 @@ const {
   quoteClockPolling,
   contractRefreshPolling,
   stageLabels,
+  contractRequest,
   contractPath,
   contractSubscriptionType,
   contractPanelKey,
@@ -67,6 +68,7 @@ const {
   selectDiscoverEntry,
   backDiscover,
   selectContractView,
+  subscriptionAccount,
   subscriptionQuery,
   releaseContractSubscription,
   syncContractSubscription,
@@ -185,7 +187,7 @@ function selectDataView(value: string): void {
         <PredictionContractDataView
           v-if="subscriptionReady"
           :key="contractPanelKey"
-          :path="contractPath"
+          :request="contractRequest"
           :view="contractView"
         />
         <div v-else class="prediction-research__subscription">

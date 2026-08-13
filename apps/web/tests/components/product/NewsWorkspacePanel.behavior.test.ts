@@ -23,6 +23,10 @@ vi.mock("@/composables/shared/externalLink", () => ({
 
 import NewsWorkspacePanel from "../../../src/components/product/NewsWorkspacePanel.vue";
 import {
+  resetBrokerProviderSelectionForTests,
+  useBrokerProviderSelection,
+} from "@/composables/trading/brokerProviderSelection";
+import {
   flushPromises,
   productGlobalStubs,
   setupState,
@@ -65,6 +69,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   featureMocks.fetch.mockReset();
   externalLinkMocks.handleExternalLinkClick.mockClear();
+  resetBrokerProviderSelectionForTests();
 });
 
 describe("news workspace", () => {
@@ -151,5 +156,37 @@ describe("news workspace", () => {
     expect(featureMocks.fetch).toHaveBeenCalledTimes(callCount);
     const state = setupState<{ asOfLabel: string }>(wrapper);
     expect(state.asOfLabel).toBe("");
+  });
+
+  it("builds typed news requests with provider overrides and refresh intent", async () => {
+    featureMocks.fetch.mockResolvedValue(newsResult);
+    const wrapper = mount(NewsWorkspacePanel, {
+      props: {
+        instrumentId: "US.AAPL",
+        request: {
+          scope: "market-feature",
+          resource: "news",
+          market: "US",
+          brokerId: "fallback",
+        },
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+    expect(featureMocks.fetch).toHaveBeenLastCalledWith(
+      "/api/v1/market-data/news?market=US&brokerId=fallback",
+    );
+
+    useBrokerProviderSelection().selectBrokerProvider("alpha");
+    await flushPromises();
+    expect(featureMocks.fetch).toHaveBeenLastCalledWith(
+      "/api/v1/market-data/news?market=US&brokerId=alpha",
+    );
+
+    await wrapper.get('button[title="刷新"]').trigger("click");
+    await flushPromises();
+    expect(featureMocks.fetch).toHaveBeenLastCalledWith(
+      "/api/v1/market-data/news?market=US&refresh=true&brokerId=alpha",
+    );
   });
 });

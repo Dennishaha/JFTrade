@@ -20,9 +20,11 @@ import {
 } from "@/composables/product/optionComboDraft";
 import {
   fetchProductFeature,
+  prepareProductFeature,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
 import { usePolling } from "@/composables/shared/usePolling";
+import { productFeaturePath } from "@/composables/product/productFeatureApi";
 
 type Entry = Record<string, unknown>;
 type OptionSection = "chain" | "analysis" | "events" | "strategy";
@@ -233,19 +235,34 @@ const snapshotDependencyKey = computed(() => {
 const encodedInstrument = computed(() =>
   encodeURIComponent(normalizedUnderlying.value),
 );
-const featurePath = computed(() => {
-  let path = "";
+const featureRequest = computed(() => {
   if (section.value === "events") {
-    return "";
+    return null;
   }
-  if (!underlyingResolved.value) return "";
+  if (!underlyingResolved.value) return null;
   if (section.value === "analysis") {
-    path = `/api/v1/market-data/options/analysis/${encodedInstrument.value}?operation=${analysisOperation.value}&pageSize=100`;
-    return withBrokerProvider(path, selectedBrokerId.value);
+    return {
+      scope: "market-feature" as const,
+      resource: "option-analysis" as const,
+      brokerId: selectedBrokerId.value,
+      instrumentId: normalizedUnderlying.value,
+      operation: analysisOperation.value,
+      pageSize: 100,
+    };
   }
-  path = `/api/v1/market-data/options/analysis/${encodedInstrument.value}?operation=strategy&option_strategy=${strategyType.value}&pageSize=100`;
-  return withBrokerProvider(path, selectedBrokerId.value);
+  return {
+    scope: "market-feature" as const,
+    resource: "option-analysis" as const,
+    brokerId: selectedBrokerId.value,
+    instrumentId: normalizedUnderlying.value,
+    operation: "strategy",
+    optionStrategy: strategyType.value,
+    pageSize: 100,
+  };
 });
+const featurePath = computed(() =>
+  featureRequest.value == null ? "" : productFeaturePath(featureRequest.value),
+);
 
 function snapshotForInstrument(value: string): Entry {
   return snapshots.value[value.trim().toUpperCase()] ?? {};
@@ -297,17 +314,15 @@ function requestExpiryChain(
   const inFlight = chainRequests.get(expiry);
   if (inFlight != null) return inFlight;
 
-  const query = new URLSearchParams({
+  let request!: Promise<Entry | null>;
+  request = fetchProductFeature(prepareProductFeature({
+    scope: "market-feature",
+    resource: "option-chains",
+    brokerId: selectedBrokerId.value,
+    instrumentId: normalizedUnderlying.value,
     beginTime: expiry,
     endTime: expiry,
-  });
-  let request!: Promise<Entry | null>;
-  request = fetchProductFeature(
-    withBrokerProvider(
-      `/api/v1/market-data/options/chains/${encodedInstrument.value}?${query}`,
-      selectedBrokerId.value,
-    ),
-  )
+  }))
     .then((response) => {
       if (disposed || expirationToken !== expirationRequestToken) return null;
       const chain =
@@ -394,12 +409,12 @@ async function loadExpirationCatalog(): Promise<void> {
   }
   expirationLoading.value = true;
   try {
-    const response = await fetchProductFeature(
-      withBrokerProvider(
-        `/api/v1/market-data/options/expirations/${encodedInstrument.value}`,
-        selectedBrokerId.value,
-      ),
-    );
+    const response = await fetchProductFeature(prepareProductFeature({
+      scope: "market-feature",
+      resource: "option-expirations",
+      brokerId: selectedBrokerId.value,
+      instrumentId: normalizedUnderlying.value,
+    }));
     if (disposed || token !== expirationRequestToken) return;
     expirationResult.value = response;
     selectedExpiry.value =
@@ -599,6 +614,7 @@ onBeforeUnmount(() => {
     comboContracts,
     snapshotDependencyKey,
     encodedInstrument,
+    featureRequest,
     featurePath,
     snapshotForInstrument,
     selectExpiry,
