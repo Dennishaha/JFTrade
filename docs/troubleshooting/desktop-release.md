@@ -74,7 +74,7 @@ go tool wails3 task linux:package:linux FORMAT=rpm
 `windows:package:msix` 暂不可执行；默认 Windows 发布路径仍使用 NSIS。待 Wails
 修复或升级后，直接复用该 Task 即可，不要恢复旧的 Node 安装器包装层。
 
-Windows NSIS 使用 Wails 生成的 `wails_tools.nsh` 和官方 `makensis` 调用；Linux AppImage、deb、rpm 使用 Wails generator/packager，AppImage 的 SquashFS 显式使用 XZ 压缩；macOS DMG 使用 `go tool wails3 tool package --format dmg`。仓库不再维护自定义 hdiutil DMG wrapper、Node NSIS 编译 wrapper 或 release orchestrator。
+Windows NSIS 使用 Wails 生成的 `wails_tools.nsh` 和官方 `makensis` 调用；Linux AppImage、deb、rpm 使用 Wails generator/packager，AppImage 使用 Wails/linuxdeploy 的兼容默认压缩；macOS DMG 使用 `go tool wails3 tool package --format dmg`。仓库不再维护自定义 hdiutil DMG wrapper、Node NSIS 编译 wrapper 或 release orchestrator。
 
 ## 签名与验证
 

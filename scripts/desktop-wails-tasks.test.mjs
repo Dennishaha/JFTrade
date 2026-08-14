@@ -98,8 +98,8 @@ test("platform taskfiles use bin outputs and official Wails tools", () => {
     linux.includes("cp build/desktop/appicon.png") &&
       linux.includes('-icon "{{.WAILS_BUILD_DIR}}/linux/appimage/JFTrade.png"'),
   );
-  assert(linux.includes("LDAI_COMP=xz"));
-  assert(releaseWorkflow.includes("Compression[[:space:]]+xz"));
+  assert(!linux.includes("LDAI_COMP="));
+  assert(!releaseWorkflow.includes("Compression[[:space:]]+xz"));
   assert(windows.includes("INSTALLER_ARCH") && windows.includes("arm64{{end}}"));
   assert(!windows.includes("arm64-preview"));
 });

@@ -97,7 +97,7 @@ tasks:
       - mkdir -p "{{.WAILS_BUILD_DIR}}/linux/appimage/output" "{{.WAILS_BUILD_DIR}}/linux/appimage/build"
       - cp build/desktop/appicon.png "{{.WAILS_BUILD_DIR}}/linux/appimage/JFTrade.png"
       - >-
-        LDAI_COMP=xz go tool wails3 generate appimage
+        go tool wails3 generate appimage
         -binary "{{.BIN_DIR}}/{{.APP_NAME}}"
         -icon "{{.WAILS_BUILD_DIR}}/linux/appimage/JFTrade.png"
         -desktopfile "{{.WAILS_BUILD_DIR}}/linux/JFTrade.desktop"
