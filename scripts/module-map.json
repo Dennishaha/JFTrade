@@ -192,8 +192,7 @@
         "internal/desktop",
         "internal/frontendassets",
         "internal/marketdataassets",
-        "internal/pineworkerassets",
-        "internal/yfinanceassets"
+        "internal/pineworkerassets"
       ],
       "entrypoints": [
         "cmd/jftrade-desktop"

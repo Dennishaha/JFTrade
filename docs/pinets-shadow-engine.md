@@ -56,9 +56,12 @@ K lines. To use an operator-synced database instead, set:
 The report includes engine version, AGPL license, configured mode, data source,
 case totals, `goCompile`, `goBacktest`, `pinetsRun`, diagnostics, plot
 summaries, signals, unsupported reasons, runtime duration, and report-only plot
-parity metadata. Pinets runtime failures and parity mismatches are recorded in
-the report but do not fail the test; worker protocol failures, report write
-failures, and non-AGPL license metadata do fail.
+parity metadata. The summary's `pinetsFailed` count is reserved for real Pinets
+runtime failures; expected strategy cases that are compile-only are counted in
+`unsupported`. The EMA and MACD indicator probes are regression gates and must
+report matched parity. Other Pinets runtime failures and parity mismatches are
+recorded in the report without failing this test; worker protocol failures,
+report write failures, and non-AGPL license metadata do fail.
 
 CI runs the same command with `JFTRADE_PINETS_SHADOW_REPORT_PATH` set to an
 absolute workspace path ending in `artifacts/pinets-shadow/report.json` and

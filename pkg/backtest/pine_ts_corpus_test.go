@@ -77,6 +77,7 @@ func TestPinetsShadowCorpusReport(t *testing.T) {
 		t.Fatalf("write pinets shadow report: %v", err)
 	}
 	assertPinetsShadowReportFile(t, path, report.Summary.Total)
+	assertPinetsShadowCorpusExpectations(t, report)
 	t.Logf("pinets shadow corpus report: %s", path)
 	t.Logf("pinets shadow summary: total=%d pinetsOK=%d pinetsFailed=%d unsupported=%d plotComparable=%d plotMismatched=%d",
 		report.Summary.Total,
@@ -132,8 +133,8 @@ type pinetsShadowCorpusSummary struct {
 	GoCompileFailed   int `json:"goCompileFailed"`
 	GoBacktestSkipped int `json:"goBacktestSkipped"`
 	PinetsOK          int `json:"pinetsOk"`
-	PinetsFailed      int `json:"pinetsFailed"`
-	Unsupported       int `json:"unsupported"`
+	PinetsFailed      int `json:"pinetsFailed"` // runtime failures; expected unsupported cases are counted separately
+	Unsupported       int `json:"unsupported"`  // expected compile-only cases that did not invoke Pinets
 	PlotComparable    int `json:"plotComparable"`
 	PlotMismatched    int `json:"plotMismatched"`
 	PlotNotComparable int `json:"plotNotComparable"`
@@ -199,11 +200,10 @@ func (summary *pinetsShadowCorpusSummary) add(result pinetsShadowCorpusCaseResul
 	}
 	if result.PinetsRun {
 		summary.PinetsOK++
+	} else if result.UnsupportedReason != "" {
+		summary.Unsupported++
 	} else {
 		summary.PinetsFailed++
-		if result.UnsupportedReason != "" {
-			summary.Unsupported++
-		}
 	}
 	switch result.PlotParity.Status {
 	case "matched":
@@ -453,9 +453,8 @@ func runPinetsShadowCorpusCase(
 	})
 	if err != nil {
 		result.PinetsError = err.Error()
-		result.UnsupportedReason = err.Error()
 		if errors.Is(caseCtx.Err(), context.DeadlineExceeded) {
-			result.UnsupportedReason = "pinets shadow corpus context deadline exceeded"
+			result.PinetsError = "pinets shadow corpus context deadline exceeded"
 		}
 		return result
 	}
@@ -466,7 +465,7 @@ func runPinetsShadowCorpusCase(
 	result.Metadata = response.Metadata
 	result.RuntimeMS = response.RuntimeMS
 	if !response.OK {
-		result.UnsupportedReason = "pinets worker returned ok=false"
+		result.PinetsError = "pinets worker returned ok=false"
 		return result
 	}
 	if corpusCase.MTF && len(expected) == 0 {
@@ -511,6 +510,35 @@ func assertPinetsShadowReportFile(t *testing.T, path string, wantCases int) {
 		}
 		if item.Diagnostics == nil || item.Plots == nil || item.Signals == nil || item.Metadata == nil {
 			t.Fatalf("report case %s has nil collection fields", item.ID)
+		}
+	}
+}
+
+func assertPinetsShadowCorpusExpectations(t *testing.T, report pinetsShadowCorpusReport) {
+	t.Helper()
+	byID := make(map[string]pinetsShadowCorpusCaseResult, len(report.Cases))
+	strategyCases := 0
+	for _, item := range report.Cases {
+		byID[item.ID] = item
+		if item.Suite != "strategy_corpus" {
+			continue
+		}
+		strategyCases++
+		if item.PinetsRun || item.UnsupportedReason == "" || item.PinetsError != "" {
+			t.Errorf("strategy case %s = pinetsRun:%v unsupported:%q pinetsError:%q, want compile-only unsupported", item.ID, item.PinetsRun, item.UnsupportedReason, item.PinetsError)
+		}
+	}
+	if report.Summary.Unsupported != strategyCases {
+		t.Errorf("unsupported summary = %d, want %d strategy cases", report.Summary.Unsupported, strategyCases)
+	}
+	for _, id := range []string{"indicator-probe-ema", "indicator-probe-macd"} {
+		item, ok := byID[id]
+		if !ok {
+			t.Errorf("report is missing required oracle regression case %s", id)
+			continue
+		}
+		if !item.PinetsRun || item.PinetsError != "" || item.PlotParity.Status != "matched" {
+			t.Errorf("oracle regression case %s = pinetsRun:%v pinetsError:%q parity:%#v, want successful matched parity", id, item.PinetsRun, item.PinetsError, item.PlotParity)
 		}
 	}
 }
@@ -628,13 +656,28 @@ func pinetsShadowSMA(values []float64, length int) []float64 {
 
 func pinetsShadowEMA(values []float64, length int) []float64 {
 	out := pinetsShadowNaNSeries(len(values))
-	if len(values) == 0 {
+	if len(values) == 0 || length <= 0 {
 		return out
 	}
 	alpha := 2.0 / float64(length+1)
-	out[0] = values[0]
-	for index := 1; index < len(values); index++ {
-		out[index] = alpha*values[index] + (1-alpha)*out[index-1]
+	var initSum float64
+	initCount := 0
+	var previousEMA float64
+	for index, value := range values {
+		if math.IsNaN(value) {
+			continue
+		}
+		if initCount < length {
+			initSum += value
+			initCount++
+			if initCount == length {
+				previousEMA = initSum / float64(length)
+				out[index] = previousEMA
+			}
+			continue
+		}
+		previousEMA = alpha*value + (1-alpha)*previousEMA
+		out[index] = previousEMA
 	}
 	return out
 }
