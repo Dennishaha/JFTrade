@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/completionreview"
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	"github.com/jftrade/jftrade-main/internal/assistant/engine/providers"
 	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
@@ -19,38 +20,40 @@ import (
 )
 
 type Runtime struct {
-	store              *Store
-	tools              *ToolRegistry
-	skills             *SkillRegistry
-	executor           WorkflowExecution
-	sessionService     adksession.Service
-	rawSessionService  adksession.Service
-	artifactService    adkartifact.Service
-	memoryService      adkmemory.Service
-	contextManager     *SessionContextManager
-	responses          responsesClient
-	limitsProvider     jfadkmodel.RuntimeLimitsProvider
-	activeMu           sync.Mutex
-	activeRuns         map[string]context.CancelFunc
-	adkMu              sync.Mutex
-	adkRuns            map[string]*googleADKExecution
-	startupReconcile   bool
-	workflowChildMu    sync.Mutex
-	approvalMu         sync.Mutex
-	approvalRuns       map[string]struct{}
-	inputRuns          map[string]struct{}
-	approvalWG         sync.WaitGroup
-	closing            bool
-	backgroundCtx      context.Context
-	backgroundCancel   context.CancelFunc
-	compactionMu       sync.Mutex
-	compactionSessions map[string]struct{}
-	runSem             chan struct{} // Concurrency limiter for active runs
-	executorID         string
-	runLeaseTTL        time.Duration
-	runLeaseHeartbeat  time.Duration
-	runLeases          map[string]enginepersistence.RunLease
-	runLeaseWG         sync.WaitGroup
+	store                *Store
+	tools                *ToolRegistry
+	skills               *SkillRegistry
+	executor             WorkflowExecution
+	sessionService       adksession.Service
+	rawSessionService    adksession.Service
+	artifactService      adkartifact.Service
+	memoryService        adkmemory.Service
+	contextManager       *SessionContextManager
+	responses            responsesClient
+	limitsProvider       jfadkmodel.RuntimeLimitsProvider
+	activeMu             sync.Mutex
+	activeRuns           map[string]context.CancelFunc
+	adkMu                sync.Mutex
+	adkRuns              map[string]*googleADKExecution
+	startupReconcile     bool
+	workflowChildMu      sync.Mutex
+	approvalMu           sync.Mutex
+	approvalRuns         map[string]struct{}
+	inputRuns            map[string]struct{}
+	approvalWG           sync.WaitGroup
+	closing              bool
+	backgroundCtx        context.Context
+	backgroundCancel     context.CancelFunc
+	compactionMu         sync.Mutex
+	compactionSessions   map[string]struct{}
+	completionReviews    *completionreview.Coordinator
+	completionReviewText func(context.Context, Provider, string, string, string, string) (generatedTextResult, error)
+	runSem               chan struct{} // Concurrency limiter for active runs
+	executorID           string
+	runLeaseTTL          time.Duration
+	runLeaseHeartbeat    time.Duration
+	runLeases            map[string]enginepersistence.RunLease
+	runLeaseWG           sync.WaitGroup
 }
 
 func NewRuntime(store *Store, tools *ToolRegistry) *Runtime {
@@ -76,11 +79,12 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	}
 	r := &Runtime{
 		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, artifactService: artifactService, memoryService: newGoogleADKMemoryService(store), responses: newResponsesClient(),
-		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{}, inputRuns: map[string]struct{}{}, compactionSessions: map[string]struct{}{},
+		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{}, inputRuns: map[string]struct{}{}, compactionSessions: map[string]struct{}{}, completionReviews: completionreview.NewCoordinator(),
 		backgroundCtx: backgroundCtx, backgroundCancel: backgroundCancel, runSem: make(chan struct{}, MaxConcurrentRuns),
 		executorID: "executor-" + uuid.NewString(), runLeaseTTL: defaultADKRunLeaseTTL,
 		runLeaseHeartbeat: defaultADKRunLeaseHeartbeat, runLeases: map[string]enginepersistence.RunLease{},
 	}
+	r.completionReviewText = r.responses.generateCompletionReview
 	r.skills.setToolValidator(func(names []string) (string, string) {
 		unknown := make([]string, 0)
 		for _, name := range names {

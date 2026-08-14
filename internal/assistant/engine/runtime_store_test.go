@@ -114,6 +114,63 @@ func TestStoreDefaultAgentEnsureAgentAndSessionOrdering(t *testing.T) {
 	}
 }
 
+func TestStoreStartupRefreshesBuiltinPolicyAndPreservesModelSelection(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "adk.db")
+	secretsPath := filepath.Join(dir, "secrets", "adk.json")
+	skillsPath := filepath.Join(dir, "skills")
+	store, err := NewStore(dbPath, secretsPath, skillsPath)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	provider, err := store.SaveProvider(t.Context(), ProviderWriteRequest{
+		ID: "builtin-policy-provider", DisplayName: "Builtin Policy Provider", Model: "provider-default",
+		APIKey: "sk-test", Enabled: true,
+		ReasoningConfig: &ProviderReasoningConfig{RequestField: "reasoning_effort", Mappings: []ProviderReasoningMapping{
+			{Effort: ReasoningEffortHigh, Value: "high"},
+		}},
+	})
+	if err != nil {
+		_ = store.Close()
+		t.Fatalf("SaveProvider: %v", err)
+	}
+	legacy, err := store.SaveAgent(t.Context(), AgentWriteRequest{
+		ID: DefaultBuiltinAgentID, Name: "默认助手", Instruction: "legacy builtin policy",
+		ProviderID: provider.ID, Model: "user-selected-model", ReasoningEffort: ReasoningEffortHigh,
+		Tools: []string{"system.status"}, ToolAccessMode: ToolAccessModeSelected,
+		PermissionMode: PermissionModeAll, MemoryEnabled: false, WorkMode: WorkModeLoop,
+		LoopMaxIterations: 2, Status: AgentStatusEnabled,
+	})
+	if err != nil {
+		_ = store.Close()
+		t.Fatalf("SaveAgent legacy builtin: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("close legacy store: %v", err)
+	}
+
+	reopened, err := NewStore(dbPath, secretsPath, skillsPath)
+	if err != nil {
+		t.Fatalf("reopen store: %v", err)
+	}
+	t.Cleanup(func() { jftradeCheckTestError(t, reopened.Close()) })
+	refreshed, ok, err := reopened.Agent(t.Context(), DefaultBuiltinAgentID)
+	if err != nil || !ok {
+		t.Fatalf("Agent default ok=%v err=%v", ok, err)
+	}
+	if refreshed.Instruction != defaultAgentInstruction() || !sameStringSet(refreshed.Tools, DefaultBuiltinToolNames()) ||
+		refreshed.PermissionMode != PermissionModeApproval || !refreshed.MemoryEnabled || refreshed.WorkMode != WorkModeChat ||
+		refreshed.LoopMaxIterations != DefaultLoopMaxIterations {
+		t.Fatalf("refreshed protected builtin fields=%+v", refreshed)
+	}
+	if refreshed.ProviderID != provider.ID || refreshed.Model != "user-selected-model" || refreshed.ReasoningEffort != ReasoningEffortHigh {
+		t.Fatalf("refreshed editable model selection=%+v", refreshed)
+	}
+	if refreshed.CreatedAt != legacy.CreatedAt {
+		t.Fatalf("CreatedAt changed from %q to %q", legacy.CreatedAt, refreshed.CreatedAt)
+	}
+}
+
 func TestStoreBuiltinAgentsAreProtected(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)

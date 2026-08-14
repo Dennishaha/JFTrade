@@ -234,6 +234,7 @@ func newPendingInputRun(t *testing.T, suffix string) (*Runtime, Agent, Session, 
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "input recovery "+suffix)
 	request, err := buildInputRequest("coverage98-input-run-"+strings.ReplaceAll(suffix, " ", "-"), agent.ID, "coverage98-input-call-"+strings.ReplaceAll(suffix, " ", "-"), requestUserToolArgs{
+		DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "The execution mode changes the requested result.",
 		Questions: []requestUserToolQuestion{{
 			Question: "Choose the execution mode", Options: []requestUserToolOption{{Label: "Conservative"}, {Label: "Active"}},
 		}},

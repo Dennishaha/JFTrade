@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
 	jfadkmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
@@ -78,11 +80,37 @@ func (s *Store) ensureBuiltins(ctx context.Context) error {
 		}
 	}
 	for _, template := range BuiltinAgentTemplates() {
-		if _, err := s.EnsureAgent(ctx, template); err != nil {
+		if _, err := s.syncBuiltinAgent(ctx, template); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (s *Store) syncBuiltinAgent(ctx context.Context, template AgentWriteRequest) (Agent, error) {
+	existing, ok, err := s.Agent(ctx, template.ID)
+	if err != nil {
+		return Agent{}, err
+	}
+	if !ok {
+		return s.SaveAgent(ctx, template)
+	}
+	// Provider selection and model/reasoning controls remain user-editable. All
+	// other primary-builtin fields are policy-owned and are refreshed at startup.
+	candidate := NormalizeAgent(Agent{
+		ID: template.ID, Name: strings.TrimSpace(template.Name), Instruction: strings.TrimSpace(template.Instruction),
+		ProviderID: existing.ProviderID, Model: existing.Model, ReasoningEffort: existing.ReasoningEffort,
+		Tools: append([]string(nil), template.Tools...), ToolAccessMode: template.ToolAccessMode,
+		Skills: append([]string(nil), template.Skills...), PermissionMode: template.PermissionMode,
+		MemoryEnabled: template.MemoryEnabled, RecentUserWindow: template.RecentUserWindow,
+		WorkMode: template.WorkMode, LoopMaxIterations: template.LoopMaxIterations,
+		Status: template.Status, Builtin: true, CreatedAt: existing.CreatedAt, UpdatedAt: existing.UpdatedAt,
+	})
+	if reflect.DeepEqual(existing, candidate) {
+		return existing, nil
+	}
+	candidate.UpdatedAt = nowString()
+	return candidate, s.SaveJSON(ctx, tableAgents, candidate.ID, candidate.CreatedAt, candidate.UpdatedAt, candidate)
 }
 
 func (s *Store) Close() error {

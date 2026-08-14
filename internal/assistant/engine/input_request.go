@@ -21,6 +21,12 @@ const interactionRequestUserTool = "interaction.request_user"
 
 const maxInputRequestOptions = 3
 
+const (
+	inputDecisionMissingRequiredContext = "missing_required_context"
+	inputDecisionMaterialTradeoff       = "material_tradeoff"
+	inputDecisionScopeBoundary          = "scope_boundary"
+)
+
 type requestUserToolOption struct {
 	Label       string `json:"label"`
 	Description string `json:"description,omitempty"`
@@ -34,15 +40,17 @@ type requestUserToolQuestion struct {
 }
 
 type requestUserToolArgs struct {
-	Title     string                    `json:"title,omitempty"`
-	Questions []requestUserToolQuestion `json:"questions"`
+	DecisionKind   string                    `json:"decisionKind"`
+	BlockingReason string                    `json:"blockingReason"`
+	Title          string                    `json:"title,omitempty"`
+	Questions      []requestUserToolQuestion `json:"questions"`
 }
 
 func inputRequestToolDescriptor() ToolDescriptor {
 	return ToolDescriptor{
 		Name:         interactionRequestUserTool,
 		DisplayName:  "向用户提问",
-		Description:  "当任务确实需要用户偏好或方案决策时，一次性提交当前这一轮的所有问题并等待统一回答。每题必须提供 2 到 3 个选项；可接受自由回答时设置 allowOther。同一运行可在恢复后再次提问，但不能同时存在两个待回答请求。",
+		Description:  "仅当缺少用户独有的必要信息、存在无法合并的重大取舍，或继续会越过权限/范围边界时，一次性提交所有阻塞问题。禁止询问可选下一步、是否继续、先看哪部分，或用该工具代替写操作审批。每题必须提供 2 到 3 个选项；可接受自由回答时设置 allowOther。",
 		Category:     "interaction",
 		Permission:   "read_internal",
 		RiskLevel:    "low",
@@ -55,6 +63,16 @@ func inputRequestToolInputSchema() map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
+			"decisionKind": map[string]any{
+				"type":        "string",
+				"enum":        []string{inputDecisionMissingRequiredContext, inputDecisionMaterialTradeoff, inputDecisionScopeBoundary},
+				"description": "The genuine blocking boundary. Optional next steps and whether to continue are not blocking decisions.",
+			},
+			"blockingReason": map[string]any{
+				"type":        "string",
+				"minLength":   1,
+				"description": "Why the original task cannot safely continue without this user answer. Do not use workload reduction as a reason.",
+			},
 			"title": map[string]any{
 				"type":        "string",
 				"description": "Optional short title displayed above the questions.",
@@ -98,7 +116,7 @@ func inputRequestToolInputSchema() map[string]any {
 				},
 			},
 		},
-		"required": []string{"questions"},
+		"required": []string{"decisionKind", "blockingReason", "questions"},
 	}
 }
 
@@ -168,9 +186,10 @@ func newGoogleADKInputTool() (*googleADKInputTool, error) {
 	}
 	inner, err := functiontool.New(functiontool.Config{
 		Name: interactionRequestUserTool,
-		Description: "Ask the user for decisions that cannot be inferred or retrieved. " +
-			"Collect every required decision in one call. Each question must offer two or three options; " +
-			"set allowOther when a free-form alternative is acceptable. Wait for the current response before asking again.",
+		Description: "Ask only for genuinely blocking decisions that cannot be inferred or retrieved: missing user-only context, " +
+			"an irreconcilable material tradeoff, or a permission/scope boundary. Never ask about an optional next step, whether to continue, " +
+			"or which part to see first, and never substitute this tool for write approval. Collect every required decision in one call. " +
+			"Each question must offer two or three options; set allowOther when a free-form alternative is acceptable.",
 		InputSchema:   schema,
 		IsLongRunning: true,
 	}, func(_ adkagent.Context, args requestUserToolArgs) (map[string]any, error) {
@@ -195,6 +214,17 @@ func buildInputRequest(runID string, agentID string, functionCallID string, args
 	if runID == "" || functionCallID == "" {
 		return nil, fmt.Errorf("%w: run and function call are required", errInputRequestInvalid)
 	}
+	decisionKind := strings.TrimSpace(args.DecisionKind)
+	if !validInputDecisionKind(decisionKind) {
+		return nil, fmt.Errorf("%w: decisionKind must describe a supported blocking boundary", errInputRequestInvalid)
+	}
+	blockingReason := strings.TrimSpace(args.BlockingReason)
+	if blockingReason == "" {
+		return nil, fmt.Errorf("%w: blockingReason is required", errInputRequestInvalid)
+	}
+	if isNonBlockingOptionalPrompt(blockingReason) {
+		return nil, fmt.Errorf("%w: blockingReason describes a non-blocking optional next step", errInputRequestInvalid)
+	}
 	if len(args.Questions) == 0 {
 		return nil, fmt.Errorf("%w: at least one question is required", errInputRequestInvalid)
 	}
@@ -203,6 +233,9 @@ func buildInputRequest(runID string, agentID string, functionCallID string, args
 		questionText := strings.TrimSpace(source.Question)
 		if questionText == "" {
 			return nil, fmt.Errorf("%w: question %d is empty", errInputRequestInvalid, questionIndex+1)
+		}
+		if isNonBlockingOptionalPrompt(questionText) {
+			return nil, fmt.Errorf("%w: question %d asks about a non-blocking optional next step", errInputRequestInvalid, questionIndex+1)
 		}
 		if len(source.Options) < 2 || len(source.Options) > maxInputRequestOptions {
 			return nil, fmt.Errorf("%w: question %d requires two to %d options", errInputRequestInvalid, questionIndex+1, maxInputRequestOptions)
@@ -231,6 +264,29 @@ func buildInputRequest(runID string, agentID string, functionCallID string, args
 		FunctionCallID: functionCallID, Title: strings.TrimSpace(args.Title), Status: InputRequestStatusPending,
 		Questions: questions, Answers: []InputAnswer{}, CreatedAt: now, UpdatedAt: now,
 	}, nil
+}
+
+func validInputDecisionKind(value string) bool {
+	switch value {
+	case inputDecisionMissingRequiredContext, inputDecisionMaterialTradeoff, inputDecisionScopeBoundary:
+		return true
+	default:
+		return false
+	}
+}
+
+func isNonBlockingOptionalPrompt(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	for _, phrase := range []string{
+		"optional next step", "whether to continue", "do you want me to continue", "would you like me to continue",
+		"if you want, i can", "which part would you like", "what would you like to see first",
+		"是否继续", "要不要继续", "需要我继续", "如果需要我可以", "你想先做哪项", "你更想看哪部分", "先看哪部分",
+	} {
+		if strings.Contains(value, phrase) {
+			return true
+		}
+	}
+	return false
 }
 
 func requestUserToolArgsFromCall(call *genai.FunctionCall) (requestUserToolArgs, error) {

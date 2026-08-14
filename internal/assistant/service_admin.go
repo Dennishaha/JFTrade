@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
@@ -329,13 +330,7 @@ func (s *Service) validateAgent(ctx context.Context, payload assistantmodel.Agen
 
 func isDefaultBuiltinTool(name string, tools []string) bool {
 	name = strings.TrimSpace(name)
-	known := false
-	for _, candidate := range jfadkruntime.DefaultBuiltinToolNames() {
-		if candidate == name {
-			known = true
-			break
-		}
-	}
+	known := slices.Contains(jfadkruntime.DefaultBuiltinToolNames(), name)
 	if !known {
 		return false
 	}

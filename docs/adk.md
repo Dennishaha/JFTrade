@@ -36,7 +36,7 @@ Responses 薄 adapter 注入映射后的请求字段，不经过通用 GenAI `Th
 
 `POST /api/v1/adk/providers/{providerId}/test` 接受可选的 `mode`。缺失或 `quick` 时验证连通性、工具能力和一个代表档位（优先 `medium`，否则按公共顺序取第一个已配置档位）；`full` 时串行验证全部映射并保留逐档结果。无映射时两种模式都不发送推理请求。完整验证会产生额外模型调用，控制台在执行前提示耗时和费用。
 
-普通 Agent 可以编辑全部既有配置；内置 `jftrade-default` 也提供编辑入口，但只允许修改 Provider、覆盖模型和默认思考等级。其名称、指令、工具、技能、审批、记忆、工作模式和启用状态继续由后端保护，且不能删除。
+普通 Agent 可以编辑全部既有配置；内置 `jftrade-default` 也提供编辑入口，但只允许修改 Provider、覆盖模型和默认思考等级。其名称、指令、工具、技能、审批、记忆、工作模式和启用状态继续由后端保护，且不能删除。启动时会把这些受保护字段同步到当前内置模板，因此旧数据库立即获得最新版策略，同时保留用户选择的 Provider、Model 和 Reasoning Effort。
 
 JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 ADK Go v2 的 Agent、Runner、Session 或 Tool 执行语义。本次切换后不再为历史会话或旧 skill 数据提供兼容恢复逻辑。
 
@@ -44,6 +44,18 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 
 - `/api/v1/adk/chat`：同步 JSON chat。
 - `/api/v1/adk/chat/stream`：SSE 流式 chat。
+
+### 普通 chat 的端到端完成策略
+
+内置默认助手对目标明确的普通 `chat` 必须在同一个 Run 中连续完成诊断、结论和直接相关的可执行方案。安全、只读且能从当前证据推断的后续分析、检查单或计算不能以“是否继续”“想先看哪部分”或“如果需要我可以继续”推迟到下一轮；多个直接服务原始意图的安全分支应采用推荐默认值或合并覆盖。自定义 Agent 和 `loop` 目标模式保持各自配置与终态语义。
+
+`interaction.request_user` 只允许三类真正阻塞边界：`missing_required_context`（缺少用户独有的必要信息）、`material_tradeoff`（存在无法合并的重大取舍）和 `scope_boundary`（继续会越过权限或任务范围）。每次调用必须提交 `decisionKind` 和非空 `blockingReason`；可选下一步、是否继续、先看哪部分都不是合法暂停原因。实际写操作继续使用 Approval，不能用输入问题替代授权。
+
+为防止提示策略遗漏，内置默认助手的普通 `chat` 在终态写入前可以执行一次有界、无工具的完成度复核。只有本轮至少两个只读工具都成功结束、已有非空回复，且没有待输入、待审批、失败、超时、未知副作用或降级终态时才调用；复核沿用本 Run 的 Provider/Model，但不发送显式推理等级，最长 20 秒、最大约 1200 输出 token。复核只看到原始请求、最近一次输入回答、当前回复和工具名称/状态，不接收原始工具结果，也不能获取新事实或执行动作。
+
+复核只接受严格的 `complete` / `append` 结构。仅当 `append` 置信度不低于 `0.85` 且续篇非空、不超过 6000 字符时，才通过现有增量文本通道追加到同一 Run，并把合并后的全文保存为同一个最终消息；低置信度、超时、Provider 错误或解析失败全部 fail-open，保留原回复并正常完成。恢复路径不会重新写入已经关闭的旧 SSE，而是把合并全文持久化后由现有 Run/Session 刷新展示。
+
+审计记录不保存原始对话：输入暂停记录 `decisionKind`；完成度复核记录 `complete`、`append`、`skipped` 或 `failed`、稳定 reason code、耗时和是否追加；同一会话在完成后 10 分钟内只发送 `继续`、`continue` 或 `go on` 时，记录前一 Run ID，作为提前收尾治理指标。
 
 运行时文件默认位于 `var/jftrade-api/`：
 
@@ -104,7 +116,7 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 
 `http.fetch` 允许公网 HTTP/HTTPS，默认阻止本机、私网、link-local、multicast 和 metadata IP，且限制响应大小；它不是本机文件或 Shell 工具。
 
-`interaction.request_user` 只用于无法从工具或已有上下文确定的用户偏好和方案选择。模型必须在一次调用中集中提供当前决策阶段的全部问题；每题必须提供 2 到 3 个选项，可通过 `allowOther` 允许方案外自由输入。同一个 Run 可以在回答并恢复后再次提问，但任一时刻只允许一个待回答请求，不能并行提问。每轮问题、答案和状态都保存在 Run 的 `inputRequests` 历史中；刷新、切换会话或服务重启后仍可恢复。`POST /api/v1/adk/runs/{runId}/input-response` 对每个请求只消费一次有效回答，完全相同的重试幂等，不同的第二次回答返回冲突。
+`interaction.request_user` 只用于上文三类无法从工具或已有上下文消除的阻塞边界。模型必须在一次调用中集中提供当前决策阶段的全部问题；每题必须提供 2 到 3 个选项，可通过 `allowOther` 允许方案外自由输入。同一个 Run 可以在回答并恢复后再次提问，但任一时刻只允许一个待回答请求，不能并行提问。每轮问题、答案和状态都保存在 Run 的 `inputRequests` 历史中；刷新、切换会话或服务重启后仍可恢复。`POST /api/v1/adk/runs/{runId}/input-response` 对每个请求只消费一次有效回答，完全相同的重试幂等，不同的第二次回答返回冲突。
 
 `watchlist.list` 是只读工具：不指定 group 时返回本地分组摘要，指定 group 后按 market、query、cursor/limit 返回成员、来源和最近导入状态。它默认 `includeQuotes=false`，不会触发券商导入或行情订阅；完整参数和数据边界见 [自选系统](watchlist.md)。
 

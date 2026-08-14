@@ -790,7 +790,6 @@ func TestADKConcurrentResearchBacktestOverridesStayIsolated(t *testing.T) {
 	tool, _ := registry.Get("strategy.research_backtest")
 	results := make(chan error, 2)
 	for _, providerID := range []string{"yfinance", "akshare"} {
-		providerID := providerID
 		go func() {
 			_, err := tool.Handler(t.Context(), map[string]any{
 				"script": strategypinespec.Skeleton(), "market": "US", "symbol": "US.AAPL",

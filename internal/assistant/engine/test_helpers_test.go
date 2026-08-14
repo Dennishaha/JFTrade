@@ -521,7 +521,9 @@ func testProviderToolCalls(req openAIChatRequest) []openAIToolCall {
 
 func testProviderInputCalls(callID string, question string) []openAIToolCall {
 	return []openAIToolCall{testProviderToolCall(callID, interactionRequestUserTool, map[string]any{
-		"title": question,
+		"decisionKind":   inputDecisionMaterialTradeoff,
+		"blockingReason": "The requested choice materially changes the next execution step.",
+		"title":          question,
 		"questions": []any{map[string]any{
 			"question": question, "allowOther": true,
 			"options": []any{map[string]any{"label": "A"}, map[string]any{"label": "B"}},
@@ -629,7 +631,9 @@ func testProviderToolNames(req openAIChatRequest) []string {
 func testProviderBusinessToolCalls(toolNames []string, text string) []openAIToolCall {
 	if strings.Contains(strings.ToLower(text), "@input.required") && containsTool(toolNames, interactionRequestUserTool) {
 		return []openAIToolCall{testProviderToolCall("call-input-required", interactionRequestUserTool, map[string]any{
-			"title": "Choose settings",
+			"decisionKind":   inputDecisionMaterialTradeoff,
+			"blockingReason": "The requested mode and format materially change the resulting execution.",
+			"title":          "Choose settings",
 			"questions": []any{
 				map[string]any{
 					"question": "Mode?", "allowOther": true,

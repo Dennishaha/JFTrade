@@ -183,7 +183,8 @@ func (r *Runtime) completeResumedExecution(ctx context.Context, run Run, executi
 		}
 	}
 	run, denied := hydrateResumedRun(run, execution)
-	result := finalizeResumedResult(run, execution.ResultForRun(run.ID), denied)
+	run, reviewAppended := r.maybeReviewChatCompletion(ctx, execution.agent, run, execution)
+	result := finalizeResumedResult(run, reviewedExecutionResult(execution, run.ID, reviewAppended), denied)
 	run.CompletedAt = new(nowString())
 	message, err := r.persistResumedRunResult(ctx, run, result)
 	if err != nil {
@@ -191,13 +192,15 @@ func (r *Runtime) completeResumedExecution(ctx context.Context, run Run, executi
 	}
 	run.FinalMessageID = message.ID
 	r.auditResumedRun(ctx, run)
+	r.clearCompletionReview(run.ID)
 	r.deleteADKRun(run.ID)
 	return run, message, true, nil
 }
 
 func (r *Runtime) completeDirectResumedExecution(ctx context.Context, run Run, execution *googleADKExecution) (Run, *TranscriptEntry, bool, error) {
 	run, denied := hydrateResumedRun(run, execution)
-	result := finalizeResumedResult(run, execution.ResultForRun(run.ID), denied)
+	run, reviewAppended := r.maybeReviewChatCompletion(ctx, execution.agent, run, execution)
+	result := finalizeResumedResult(run, reviewedExecutionResult(execution, run.ID, reviewAppended), denied)
 	run.CompletedAt = new(nowString())
 	message, err := r.persistResumedRunResult(ctx, run, result)
 	if err != nil {
@@ -205,6 +208,7 @@ func (r *Runtime) completeDirectResumedExecution(ctx context.Context, run Run, e
 	}
 	run.FinalMessageID = message.ID
 	r.auditResumedRun(ctx, run)
+	r.clearCompletionReview(run.ID)
 	r.deleteADKRun(run.ID)
 	return run, message, true, nil
 }
@@ -224,10 +228,12 @@ func finalizeResumedResult(run Run, result assistantExecutionResult, denied bool
 		result.Reply = approvalResolutionSummary(run, run.PendingApprovals[0], false)
 		result.ReasoningContent = ""
 		result.SourceEventID = ""
+		result.SourceInvocationID = ""
 		result.SyntheticKind = "approval_denied"
 	} else if result.Reply == "" {
 		result.Reply = approvalResolutionSummary(run, run.PendingApprovals[0], true)
 		result.SourceEventID = ""
+		result.SourceInvocationID = ""
 		result.SyntheticKind = "approval_resolved"
 	}
 	return result

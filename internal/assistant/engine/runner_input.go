@@ -224,6 +224,8 @@ func (r *Runtime) completeInputContinuation(ctx context.Context, run Run, execut
 	run.ToolSummaries = toolContext.Summaries
 	run.PreToolContent, run.PreToolReasoning = execution.preToolState()
 	run.OptimizationTaskID = optimizationTaskID(toolContext.Calls)
+	var reviewAppended bool
+	run, reviewAppended = r.maybeReviewChatCompletion(ctx, execution.agent, run, execution)
 	run.Status = RunStatusCompleted
 	run.ResumeState = "input_resolved"
 	run.Message = "completed"
@@ -232,7 +234,7 @@ func (r *Runtime) completeInputContinuation(ctx context.Context, run Run, execut
 	run.ErrorCode = ""
 	run.Degraded = firstToolCallFailure(&run) != ""
 	finalizeRunUsage(&run)
-	result := execution.ResultForRun(run.ID)
+	result := reviewedExecutionResult(execution, run.ID, reviewAppended)
 	if strings.TrimSpace(result.Reply) == "" {
 		result.Reply = "已根据你的选择继续执行。"
 	}
@@ -244,6 +246,7 @@ func (r *Runtime) completeInputContinuation(ctx context.Context, run Run, execut
 	if err := r.store.SaveRun(ctx, run); err != nil {
 		return err
 	}
+	r.clearCompletionReview(run.ID)
 	r.deleteADKRun(run.ID)
 	r.audit(ctx, "run.input_resolved", run.ID, "Agent run completed after user input.", map[string]any{"runId": run.ID})
 	_, _ = r.continueParentWorkflowAfterChild(ctx, run)

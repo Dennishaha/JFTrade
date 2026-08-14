@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	adkmodel "google.golang.org/adk/v2/model"
 	adksession "google.golang.org/adk/v2/session"
@@ -16,9 +17,7 @@ import (
 )
 
 func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(ChatDelta) error, emitRun bool) (ChatResponse, error) {
-	var requestFingerprint string
-	var err error
-	req, requestFingerprint, err = ensureChatRequestIdentity(req)
+	req, requestFingerprint, err := ensureChatRequestIdentity(req)
 	if err != nil {
 		return ChatResponse{}, err
 	}
@@ -63,6 +62,7 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 	if err != nil {
 		return ChatResponse{}, err
 	}
+	previousRunID, continuationElapsedMs := r.recentContinuationSignal(ctx, session.ID, text)
 	if err := r.maybeAutoCompactSession(ctx, session, agent, text, onDelta); err != nil {
 		return ChatResponse{}, err
 	}
@@ -88,14 +88,54 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 		return ChatResponse{}, err
 	}
 	defer finishRun()
-	if emitRun && onDelta != nil {
-		if err := onDelta(ChatDelta{Run: &run}); err != nil {
-			return ChatResponse{}, err
-		}
+	r.auditRecentContinuation(runCtx, previousRunID, continuationElapsedMs, session, run)
+	if err := emitInitialChatRun(onDelta, emitRun, run); err != nil {
+		return ChatResponse{}, err
 	}
 	toolContext, approvals, replyResult, preToolContent, preToolReasoning, adkErr := r.ExecuteGoogleADK(runCtx, agent, session, run.ID, text, onDelta)
 	run = HydrateRunExecutionResult(run, toolContext, approvals, preToolContent, preToolReasoning)
 	return r.CompleteChatRun(runCtx, session, run, text, toolContext, approvals, replyResult, adkErr)
+}
+
+func (r *Runtime) auditRecentContinuation(ctx context.Context, previousRunID string, elapsedMs int64, session Session, run Run) {
+	if previousRunID == "" {
+		return
+	}
+	r.audit(ctx, "run.continuation_only", run.ID, "User continued a recently completed run with a continuation-only message.", map[string]any{
+		"runId": run.ID, "previousRunId": previousRunID, "sessionId": session.ID,
+		"agentId": run.AgentID, "elapsedMs": elapsedMs,
+	})
+}
+
+func emitInitialChatRun(onDelta func(ChatDelta) error, emitRun bool, run Run) error {
+	if !emitRun || onDelta == nil {
+		return nil
+	}
+	return onDelta(ChatDelta{Run: &run})
+}
+
+func (r *Runtime) recentContinuationSignal(ctx context.Context, sessionID string, message string) (string, int64) {
+	if r == nil || r.store == nil || !isContinuationOnlyMessage(message) {
+		return "", 0
+	}
+	previous, ok, err := r.store.latestRunBySession(ctx, sessionID)
+	if err != nil || !ok || previous.Status != RunStatusCompleted || previous.CompletedAt == nil {
+		return "", 0
+	}
+	completedAt, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(*previous.CompletedAt))
+	if err != nil {
+		return "", 0
+	}
+	elapsed := time.Since(completedAt)
+	if elapsed < 0 || elapsed > 10*time.Minute {
+		return "", 0
+	}
+	return previous.ID, elapsed.Milliseconds()
+}
+
+func isContinuationOnlyMessage(message string) bool {
+	normalized := strings.ToLower(strings.Join(strings.Fields(message), " "))
+	return normalized == "继续" || normalized == "continue" || normalized == "go on"
 }
 
 func (r *Runtime) reusedChatResponse(ctx context.Context, req ChatRequest, requestFingerprint string) (ChatResponse, bool, error) {
@@ -171,6 +211,7 @@ func (r *Runtime) CompleteChatRun(
 	if err != nil {
 		return ChatResponse{}, err
 	}
+	r.clearCompletionReview(run.ID)
 	return r.ProjectedChatResponse(ctx, session, run, replyResult), nil
 }
 
@@ -232,10 +273,29 @@ func (r *Runtime) FinishPendingInputRun(ctx context.Context, session Session, ru
 	if err := r.store.SaveRun(ctx, run); err != nil {
 		return ChatResponse{}, err
 	}
-	r.audit(ctx, "run.awaiting_input", run.ID, "Agent run is waiting for user input.", map[string]any{
+	metadata := map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "requestId": request.ID,
-	})
+	}
+	if decisionKind := decisionKindForInputRequest(run.ToolCalls, request.FunctionCallID); decisionKind != "" {
+		metadata["decisionKind"] = decisionKind
+	}
+	r.audit(ctx, "run.awaiting_input", run.ID, "Agent run is waiting for user input.", metadata)
 	return r.ProjectedChatResponse(ctx, session, run, assistantExecutionResult{Reply: "我需要你确认几个选择，回答后会继续执行。"}), nil
+}
+
+func decisionKindForInputRequest(calls []ToolCall, functionCallID string) string {
+	functionCallID = strings.TrimSpace(functionCallID)
+	for _, call := range calls {
+		if call.ToolName != interactionRequestUserTool || strings.TrimSpace(call.IdempotencyKey) != functionCallID {
+			continue
+		}
+		decisionKind, _ := call.Input["decisionKind"].(string)
+		decisionKind = strings.TrimSpace(decisionKind)
+		if validInputDecisionKind(decisionKind) {
+			return decisionKind
+		}
+	}
+	return ""
 }
 
 func markFailedChatRun(ctx context.Context, run Run, adkErr error) Run {
@@ -397,7 +457,8 @@ func (r *Runtime) appendAssistantMessageEvent(
 	} else if ok {
 		return existing, nil
 	}
-	event := adksession.NewEvent(ctx, run.ID)
+	invocationID := defaultString(strings.TrimSpace(replyResult.SourceInvocationID), run.ID)
+	event := adksession.NewEvent(ctx, invocationID)
 	event.ID = eventID
 	event.Author = googleADKAgentName(defaultString(run.AgentID, session.AgentID))
 	event.LLMResponse = adkmodel.LLMResponse{

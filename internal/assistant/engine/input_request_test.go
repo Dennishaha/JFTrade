@@ -14,7 +14,7 @@ import (
 
 func TestBuildInputRequestAndValidateAnswers(t *testing.T) {
 	request, err := buildInputRequest("run-1", "agent-1", "call-1", requestUserToolArgs{
-		Title: "Choose a plan",
+		DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "The deployment mode changes the requested result.", Title: "Choose a plan",
 		Questions: []requestUserToolQuestion{
 			{
 				Question: "Deployment mode?", AllowOther: true,
@@ -55,6 +55,7 @@ func TestBuildInputRequestAndValidateAnswers(t *testing.T) {
 		}
 	}
 	_, err = buildInputRequest("run-1", "agent-1", "call-too-many-options", requestUserToolArgs{
+		DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "The selected option changes the result.",
 		Questions: []requestUserToolQuestion{{
 			Question: "Too many choices?",
 			Options: []requestUserToolOption{
@@ -68,6 +69,21 @@ func TestBuildInputRequestAndValidateAnswers(t *testing.T) {
 }
 
 func TestInputRequestValidationAndErrorEdges(t *testing.T) {
+	t.Run("tool contract", func(t *testing.T) {
+		schema := inputRequestToolInputSchema()
+		required, ok := schema["required"].([]string)
+		if !ok || !containsTool(required, "decisionKind") || !containsTool(required, "blockingReason") || !containsTool(required, "questions") {
+			t.Fatalf("required fields=%#v", schema["required"])
+		}
+		properties := schema["properties"].(map[string]any)
+		decisionSchema := properties["decisionKind"].(map[string]any)
+		enums := decisionSchema["enum"].([]string)
+		if len(enums) != 3 || !containsTool(enums, inputDecisionMissingRequiredContext) ||
+			!containsTool(enums, inputDecisionMaterialTradeoff) || !containsTool(enums, inputDecisionScopeBoundary) {
+			t.Fatalf("decisionKind enum=%#v", enums)
+		}
+	})
+
 	t.Run("nil tool", func(t *testing.T) {
 		var tool *googleADKInputTool
 		if tool.Name() != interactionRequestUserTool || tool.Description() == "" || tool.IsLongRunning() || tool.Declaration() != nil {
@@ -87,9 +103,9 @@ func TestInputRequestValidationAndErrorEdges(t *testing.T) {
 	t.Run("build validation", func(t *testing.T) {
 		cases := []requestUserToolArgs{
 			{},
-			{Questions: []requestUserToolQuestion{{Question: " ", Options: []requestUserToolOption{{Label: "A"}, {Label: "B"}}}}},
-			{Questions: []requestUserToolQuestion{{Question: "Pick", Options: []requestUserToolOption{{Label: "A"}}}}},
-			{Questions: []requestUserToolQuestion{{Question: "Pick", Options: []requestUserToolOption{{Label: "A"}, {Label: " "}}}}},
+			{DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "Required.", Questions: []requestUserToolQuestion{{Question: " ", Options: []requestUserToolOption{{Label: "A"}, {Label: "B"}}}}},
+			{DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "Required.", Questions: []requestUserToolQuestion{{Question: "Pick", Options: []requestUserToolOption{{Label: "A"}}}}},
+			{DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "Required.", Questions: []requestUserToolQuestion{{Question: "Pick", Options: []requestUserToolOption{{Label: "A"}, {Label: " "}}}}},
 		}
 		if _, err := buildInputRequest("", "agent", "call", cases[0]); !errors.Is(err, errInputRequestInvalid) {
 			t.Fatalf("missing run error = %v", err)
@@ -97,6 +113,17 @@ func TestInputRequestValidationAndErrorEdges(t *testing.T) {
 		for _, args := range cases {
 			if _, err := buildInputRequest("run", "agent", "call", args); !errors.Is(err, errInputRequestInvalid) {
 				t.Fatalf("args %+v error = %v", args, err)
+			}
+		}
+		for _, args := range []requestUserToolArgs{
+			{BlockingReason: "Missing context.", Questions: []requestUserToolQuestion{{Question: "Choose", Options: []requestUserToolOption{{Label: "A"}, {Label: "B"}}}}},
+			{DecisionKind: inputDecisionMaterialTradeoff, Questions: []requestUserToolQuestion{{Question: "Choose", Options: []requestUserToolOption{{Label: "A"}, {Label: "B"}}}}},
+			{DecisionKind: "optional_next_step", BlockingReason: "Optional.", Questions: []requestUserToolQuestion{{Question: "Choose", Options: []requestUserToolOption{{Label: "A"}, {Label: "B"}}}}},
+			{DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "This is an optional next step.", Questions: []requestUserToolQuestion{{Question: "Choose", Options: []requestUserToolOption{{Label: "A"}, {Label: "B"}}}}},
+			{DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "Optional.", Questions: []requestUserToolQuestion{{Question: "Would you like me to continue?", Options: []requestUserToolOption{{Label: "Yes"}, {Label: "No"}}}}},
+		} {
+			if _, err := buildInputRequest("run", "agent", "call", args); !errors.Is(err, errInputRequestInvalid) {
+				t.Fatalf("non-blocking args %+v error=%v, want invalid", args, err)
 			}
 		}
 	})
@@ -210,6 +237,7 @@ func TestResolveRunInputStoreErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			broken := newTestRuntime(t)
 			request, err := buildInputRequest("trigger-run", "agent", "call", requestUserToolArgs{
+				DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "The answer changes the result.",
 				Questions: []requestUserToolQuestion{{Question: "Pick", Options: []requestUserToolOption{{Label: "A"}, {Label: "B"}}}},
 			})
 			if err != nil {
@@ -238,6 +266,7 @@ func TestPendingInputRequestConflictEdges(t *testing.T) {
 	}
 	session := mustCreateSession(t, runtime, "input-edge-agent", "Input edges")
 	validArgs := map[string]any{
+		"decisionKind": inputDecisionMaterialTradeoff, "blockingReason": "The answer changes the result.",
 		"questions": []any{map[string]any{
 			"question": "Pick", "options": []any{map[string]any{"label": "A"}, map[string]any{"label": "B"}},
 		}},
@@ -288,6 +317,7 @@ func TestPendingInputRequestConflictEdges(t *testing.T) {
 
 	t.Run("existing pending request", func(t *testing.T) {
 		storedRequest, err := buildInputRequest("input-edge-run", "input-edge-agent", "old-call", requestUserToolArgs{
+			DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "The answer changes the result.",
 			Questions: []requestUserToolQuestion{{Question: "Existing", Options: []requestUserToolOption{{Label: "A"}, {Label: "B"}}}},
 		})
 		if err != nil {
@@ -376,6 +406,7 @@ func TestInputContinuationFailureIsPersisted(t *testing.T) {
 func TestResolveRunInputIsValidatedAndIdempotent(t *testing.T) {
 	runtime := newTestRuntime(t)
 	request, err := buildInputRequest("input-run", "agent", "call", requestUserToolArgs{
+		DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "The answer changes the result.",
 		Questions: []requestUserToolQuestion{{
 			Question: "Pick one", AllowOther: true,
 			Options: []requestUserToolOption{{Label: "A"}, {Label: "B"}},
@@ -416,6 +447,7 @@ func TestResolveRunInputIsValidatedAndIdempotent(t *testing.T) {
 func TestCancelPendingInputRunCancelsRequestAndRejectsLateAnswer(t *testing.T) {
 	runtime := newTestRuntime(t)
 	request, err := buildInputRequest("input-cancel-run", "agent", "call", requestUserToolArgs{
+		DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "The answer changes the result.",
 		Questions: []requestUserToolQuestion{{
 			Question: "Pick one",
 			Options:  []requestUserToolOption{{Label: "A"}, {Label: "B"}},
@@ -454,6 +486,7 @@ func TestCancelPendingInputRunCancelsRequestAndRejectsLateAnswer(t *testing.T) {
 
 func TestInputRequestTimelinePersistsAnsweredCard(t *testing.T) {
 	request, err := buildInputRequest("timeline-run", "agent", "call", requestUserToolArgs{
+		DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "The answer changes the result.",
 		Questions: []requestUserToolQuestion{{Question: "Pick", Options: []requestUserToolOption{{Label: "A"}, {Label: "B"}}}},
 	})
 	if err != nil {
@@ -523,6 +556,22 @@ func TestRequestUserToolPausesAndResumesChatRun(t *testing.T) {
 	}
 	if response.InputRequest.Questions[0].Options[0].ID != "q1-o1" || !response.InputRequest.Questions[0].Options[0].Recommended {
 		t.Fatalf("questions = %+v", response.InputRequest.Questions)
+	}
+	inputAuditFound := false
+	for _, event := range mustAuditEvents(t, runtime) {
+		if event.Kind != "run.awaiting_input" || event.SubjectID != response.Run.ID {
+			continue
+		}
+		inputAuditFound = true
+		if event.Metadata["decisionKind"] != inputDecisionMaterialTradeoff {
+			t.Fatalf("awaiting-input decision kind=%#v", event.Metadata["decisionKind"])
+		}
+		if _, leaked := event.Metadata["blockingReason"]; leaked {
+			t.Fatalf("awaiting-input audit leaked blocking reason: %+v", event.Metadata)
+		}
+	}
+	if !inputAuditFound {
+		t.Fatal("run.awaiting_input audit event not found")
 	}
 	_, err = runtime.ResolveInputAsync(t.Context(), response.Run.ID, InputResponseRequest{
 		RequestID: response.InputRequest.ID,

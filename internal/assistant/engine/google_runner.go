@@ -51,6 +51,7 @@ type googleADKExecution struct {
 	toolResponseSeqByRunID   map[string]int
 	postToolTextSeqByRunID   map[string]int
 	finalMessageIDByRunID    map[string]string
+	finalInvocationIDByRunID map[string]string
 	reply                    strings.Builder
 	reasoning                strings.Builder
 	preToolContent           strings.Builder
@@ -108,8 +109,18 @@ func (r *Runtime) ExecuteGoogleADK(
 			return execution.toolContext(), nil, execution.result(), preToolContent, preToolReasoning, err
 		}
 	}
+	reviewAppended := false
+	if len(approvals) == 0 && len(inputRequests) == 0 {
+		if stored, ok, loadErr := r.store.Run(ctx, runID); loadErr == nil && ok {
+			toolContext := execution.ToolContextForRun(runID)
+			stored.ToolCalls = toolContext.Calls
+			stored.ToolSummaries = toolContext.Summaries
+			stored.InputRequest = normalizeInputRequest(toolContext.InputRequest)
+			_, reviewAppended = r.maybeReviewChatCompletion(ctx, agent, stored, execution)
+		}
+	}
 	preToolContent, preToolReasoning := execution.preToolState()
-	return execution.toolContext(), approvals, execution.result(), preToolContent, preToolReasoning, nil
+	return execution.toolContext(), approvals, reviewedExecutionResult(execution, runID, reviewAppended), preToolContent, preToolReasoning, nil
 }
 
 func (r *Runtime) rehydrateGoogleADKExecution(ctx context.Context, run Run) (*googleADKExecution, error) {

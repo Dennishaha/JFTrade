@@ -12,10 +12,11 @@ import (
 // AssistantExecutionResult is the exported assistant turn result shared by the
 // engine-root composition seam, provider adapters, and the workflow runtime.
 type AssistantExecutionResult struct {
-	Reply            string
-	ReasoningContent string
-	SourceEventID    string
-	SyntheticKind    string
+	Reply              string
+	ReasoningContent   string
+	SourceEventID      string
+	SourceInvocationID string
+	SyntheticKind      string
 }
 
 // WorkflowStore is the persistence surface the workflow executor and execution

@@ -375,11 +375,9 @@ func readPortfolioAccounts(
 	summaries := make([]portfolioAccountSummary, len(accounts))
 	var wait sync.WaitGroup
 	for index, account := range accounts {
-		wait.Add(1)
-		go func() {
-			defer wait.Done()
+		wait.Go(func() {
 			summaries[index] = readPortfolioAccount(ctx, account, explicitMarket, deps)
-		}()
+		})
 	}
 	wait.Wait()
 	sort.SliceStable(summaries, func(i, j int) bool {
@@ -400,11 +398,9 @@ func readPortfolioOverviews(
 	result := make([]portfolioAccountOverview, len(accounts))
 	var wait sync.WaitGroup
 	for index, account := range accounts {
-		wait.Add(1)
-		go func() {
-			defer wait.Done()
+		wait.Go(func() {
 			result[index] = readPortfolioOverview(ctx, account, explicitMarket, deps)
-		}()
+		})
 	}
 	wait.Wait()
 	sort.SliceStable(result, func(i, j int) bool {
@@ -445,9 +441,7 @@ func readPortfolioPositions(ctx context.Context, accounts []BrokerAccountView, e
 	result := make([]map[string]any, len(accounts))
 	var wait sync.WaitGroup
 	for index, account := range accounts {
-		wait.Add(1)
-		go func() {
-			defer wait.Done()
+		wait.Go(func() {
 			queryMarket := selectAccountReadMarket(account, explicitMarket, callString(deps.DefaultTradeMarket))
 			read := BrokerAccountReadResult{Errors: []string{}}
 			if deps.BrokerPositionsRead == nil {
@@ -463,7 +457,7 @@ func readPortfolioPositions(ctx context.Context, accounts []BrokerAccountView, e
 				"positionCount": read.PositionCount, "hasAssetsOrPositions": read.HasAssetsOrPositions,
 				"partial": read.Partial, "errors": nonNilStrings(read.Errors),
 			}
-		}()
+		})
 	}
 	wait.Wait()
 	sort.SliceStable(result, func(i, j int) bool {

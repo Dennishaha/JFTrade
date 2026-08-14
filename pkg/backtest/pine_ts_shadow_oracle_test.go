@@ -21,7 +21,7 @@ func TestPinetsShadowEMAUsesSMAInitialization(t *testing.T) {
 func TestPinetsShadowMACDSkipsNaNValuesForSignalInitialization(t *testing.T) {
 	macd, signal, hist := pinetsShadowMACD([]float64{1, 2, 3, 4, 5, 6, 7}, 3, 5, 2)
 
-	for index := 0; index < 4; index++ {
+	for index := range 4 {
 		if !math.IsNaN(macd[index]) {
 			t.Fatalf("MACD[%d] = %v, want NaN before slow EMA is initialized", index, macd[index])
 		}

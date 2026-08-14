@@ -2,6 +2,7 @@ package assembly
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/productfeatures"
@@ -9,7 +10,6 @@ import (
 
 func TestTypedProductCapabilitiesDriveFeatureAndAssistantSchemas(t *testing.T) {
 	for _, description := range productfeatures.TypedCapabilityDescriptions() {
-		description := description
 		t.Run(description.ToolName, func(t *testing.T) {
 			if got := productToolFeatureIDs[description.ToolName]; got != description.FeatureID {
 				t.Fatalf("feature ID = %q, want %q", got, description.FeatureID)
@@ -93,10 +93,8 @@ func assertRequiredField(t *testing.T, schema map[string]any, field string) {
 	if !ok {
 		t.Fatalf("required = %#v", schema["required"])
 	}
-	for _, candidate := range required {
-		if candidate == field {
-			return
-		}
+	if slices.Contains(required, field) {
+		return
 	}
 	t.Fatalf("required = %#v, missing %q", required, field)
 }
