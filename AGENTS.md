@@ -6,7 +6,7 @@
 
 JFTrade 是 Go 后端、Vue 3 控制台、Wails v3 桌面壳、Node PineTS worker 和 Python market-data helper 组成的本地量化工作台。入口和影响范围见 [`scripts/module-map.json`](scripts/module-map.json)。
 
-配置要求：Node `>=22.13`、pnpm `11.12.0`、Go `1.26.5`、protoc `34.1`。安装依赖统一使用 `pnpm install --frozen-lockfile`。
+配置要求：Node `>=22.13`、pnpm `11.12.0`、Go `1.26.6`、protoc `34.1`。安装依赖统一使用 `pnpm install --frozen-lockfile`。
 
 ## 日常入口
 
