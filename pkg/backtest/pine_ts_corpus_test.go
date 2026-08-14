@@ -534,11 +534,11 @@ func assertPinetsShadowCorpusExpectations(t *testing.T, report pinetsShadowCorpu
 	for _, id := range []string{"indicator-probe-ema", "indicator-probe-macd"} {
 		item, ok := byID[id]
 		if !ok {
-			t.Errorf("report is missing required oracle regression case %s", id)
+			t.Errorf("report is missing required reference regression case %s", id)
 			continue
 		}
 		if !item.PinetsRun || item.PinetsError != "" || item.PlotParity.Status != "matched" {
-			t.Errorf("oracle regression case %s = pinetsRun:%v pinetsError:%q parity:%#v, want successful matched parity", id, item.PinetsRun, item.PinetsError, item.PlotParity)
+			t.Errorf("reference regression case %s = pinetsRun:%v pinetsError:%q parity:%#v, want successful matched parity", id, item.PinetsRun, item.PinetsError, item.PlotParity)
 		}
 	}
 }
