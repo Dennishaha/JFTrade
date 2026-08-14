@@ -10,6 +10,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/productfeatures"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	"github.com/jftrade/jftrade-main/pkg/researchscreen"
 )
 
 var productToolFeatureIDs = map[string]broker.FeatureID{
@@ -63,6 +64,11 @@ type ProductFeatureService interface {
 	ApplyCustomization(context.Context, broker.CustomizationAction) (*broker.CustomizationResult, error)
 }
 
+type typedProductFeatureService interface {
+	QueryScreen(context.Context, broker.ScreenQueryV2) (broker.ResearchScreenResult, error)
+	QueryCalendar(context.Context, productfeatures.CalendarRequest) (*productfeatures.DocumentResult, error)
+}
+
 // ExecutionService is the trading surface consumed by assistant tool
 // assembly. The adapter never reaches into stores or broker implementations.
 type ExecutionService interface {
@@ -97,27 +103,65 @@ func (a *ProductExecutionAdapter) InvokeProductTool(
 	name string,
 	input map[string]any,
 ) (any, error) {
+	if result, handled, err := a.invokeSpecialProductTool(ctx, name, input); handled {
+		return result, err
+	}
+	return a.invokeGenericProductTool(ctx, name, input)
+}
+
+func (a *ProductExecutionAdapter) invokeSpecialProductTool(
+	ctx context.Context,
+	name string,
+	input map[string]any,
+) (any, bool, error) {
 	switch name {
 	case "market.capabilities":
 		service, err := a.productService()
 		if err != nil {
-			return nil, err
+			return nil, true, err
 		}
-		return service.CapabilitiesContext(ctx, productfeatures.CapabilityQuery{
+		result := service.CapabilitiesContext(ctx, productfeatures.CapabilityQuery{
 			BrokerID: toolMapString(input, "brokerId"), AccountID: toolMapString(input, "accountId"),
 			TradingEnvironment: toolMapString(input, "tradingEnvironment"),
 			Market:             strings.ToUpper(toolMapString(input, "market")),
 			FeatureID:          broker.FeatureID(toolMapString(input, "featureId")),
-		}), nil
+		})
+		return result, true, nil
 	case "market.search":
-		return a.productSearch(ctx, input)
+		result, err := a.productSearch(ctx, input)
+		return result, true, err
 	case "market.snapshot":
-		return a.productSnapshots(ctx, input, broker.FeatureMarketSnapshot)
+		result, err := a.productSnapshots(ctx, input, broker.FeatureMarketSnapshot)
+		return result, true, err
 	case "market.snapshots":
-		return a.productSnapshots(ctx, input, broker.FeatureMarketSnapshots)
+		result, err := a.productSnapshots(ctx, input, broker.FeatureMarketSnapshots)
+		return result, true, err
 	case "execution.buying_power":
-		return a.productBuyingPower(ctx, input)
+		result, err := a.productBuyingPower(ctx, input)
+		return result, true, err
+	case "research.screen":
+		typed, err := a.typedProductService()
+		if err != nil {
+			return nil, true, err
+		}
+		result, err := a.productScreen(ctx, input, typed)
+		return result, true, err
+	case "research.calendar":
+		typed, err := a.typedProductService()
+		if err != nil {
+			return nil, true, err
+		}
+		result, err := a.productCalendar(ctx, input, typed)
+		return result, true, err
 	}
+	return nil, false, nil
+}
+
+func (a *ProductExecutionAdapter) invokeGenericProductTool(
+	ctx context.Context,
+	name string,
+	input map[string]any,
+) (any, error) {
 	service, err := a.productService()
 	if err != nil {
 		return nil, err
@@ -269,11 +313,82 @@ func (a *ProductExecutionAdapter) productService() (ProductFeatureService, error
 	return a.productFeatures, nil
 }
 
+func (a *ProductExecutionAdapter) typedProductService() (typedProductFeatureService, error) {
+	service, err := a.productService()
+	if err != nil {
+		return nil, err
+	}
+	typed, ok := service.(typedProductFeatureService)
+	if !ok {
+		return nil, fmt.Errorf("typed product feature service is unavailable")
+	}
+	return typed, nil
+}
+
 func (a *ProductExecutionAdapter) executionService() (ExecutionService, error) {
 	if a == nil || a.execution == nil {
 		return nil, fmt.Errorf("trading service is unavailable")
 	}
 	return a.execution, nil
+}
+
+func (a *ProductExecutionAdapter) productScreen(ctx context.Context, input map[string]any, service typedProductFeatureService) (any, error) {
+	var query broker.ScreenQueryV2
+	if err := decodeToolInput(input, &query); err != nil {
+		return nil, fmt.Errorf("invalid research.screen definition: %w", err)
+	}
+	query.Market = strings.ToUpper(strings.TrimSpace(query.Market))
+	if query.Page.Limit == 0 {
+		query.Page.Limit = 50
+	}
+	if query.Page.Offset < 0 || query.Page.Limit < 1 || query.Page.Limit > 100 {
+		return nil, fmt.Errorf("page must use offset >= 0 and limit between 1 and 100")
+	}
+	normalized, err := researchscreen.NormalizeDefinitionV2(query.ScreenDefinitionV2)
+	if err != nil {
+		return nil, err
+	}
+	query.ScreenDefinitionV2 = normalized
+	result, err := service.QueryScreen(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	result.CatalogVersion = normalized.CatalogVersion
+	result.Columns = screenResultColumns(normalized)
+	return result, nil
+}
+
+func (a *ProductExecutionAdapter) productCalendar(ctx context.Context, input map[string]any, service typedProductFeatureService) (any, error) {
+	request := productfeatures.CalendarRequest{
+		ReadContext: productfeatures.ReadContext{
+			BrokerID: toolMapString(input, "brokerId"), AccountID: toolMapString(input, "accountId"),
+			Market: strings.ToUpper(toolMapString(input, "market")), Cursor: toolMapString(input, "cursor"),
+			PageSize: toolMapInt(input, "pageSize", 50), TradingEnvironment: toolMapString(input, "tradingEnvironment"),
+		},
+		Operation: toolMapString(input, "operation"), Date: toolMapString(input, "date"),
+		BeginDate: toolMapString(input, "beginDate"), EndDate: toolMapString(input, "endDate"),
+		Sort: toolMapString(input, "sort"), StockScope: toolMapString(input, "stockScope"),
+		MarketCapMin: toolMapString(input, "marketCapMin"), MarketCapMax: toolMapString(input, "marketCapMax"),
+		OptionVolumeMin: toolMapString(input, "optionVolumeMin"), OptionVolumeMax: toolMapString(input, "optionVolumeMax"),
+		IVMin: toolMapString(input, "ivMin"), IVMax: toolMapString(input, "ivMax"),
+		IVRankMin: toolMapString(input, "ivRankMin"), IVRankMax: toolMapString(input, "ivRankMax"),
+		IVPercentileMin: toolMapString(input, "ivPercentileMin"), IVPercentileMax: toolMapString(input, "ivPercentileMax"),
+		Refresh: boolInputValue(input, "refresh"),
+	}
+	result, err := service.QueryCalendar(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	return result.FeatureResult()
+}
+
+func screenResultColumns(definition broker.ScreenDefinitionV2) []broker.ScreenResultColumn {
+	columns := make([]broker.ScreenResultColumn, 0, len(definition.Columns))
+	for _, column := range definition.Columns {
+		factor, _ := researchscreen.Lookup(column.Factor.FactorKey)
+		columns = append(columns, broker.ScreenResultColumn{ColumnID: column.ID, InstanceID: column.Factor.InstanceID, FactorKey: column.Factor.FactorKey, Label: column.Label, Unit: factor.Unit})
+	}
+	return columns
 }
 
 func decodeToolInput(input map[string]any, output any) error {
@@ -283,6 +398,17 @@ func decodeToolInput(input map[string]any, output any) error {
 	}
 	if err := json.Unmarshal(content, output); err != nil {
 		return fmt.Errorf("decode tool input: %w", err)
+	}
+	return nil
+}
+
+func decodeToolInputValue(input any, output any) error {
+	content, err := json.Marshal(input)
+	if err != nil {
+		return fmt.Errorf("encode tool value: %w", err)
+	}
+	if err := json.Unmarshal(content, output); err != nil {
+		return fmt.Errorf("decode tool value: %w", err)
 	}
 	return nil
 }

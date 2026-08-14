@@ -319,6 +319,35 @@ func (s *Service) Stop(instanceID string) {
 	s.runtime.Stop(instanceID)
 }
 
+// PauseInstance records the paused state and stops the live runtime as one
+// service operation. HTTP and ADK callers therefore cannot diverge in the
+// ordering of the control-plane mutation and runtime cleanup.
+func (s *Service) PauseInstance(instanceID string) (InstanceView, error) {
+	result, err := s.catalog.TransitionInstance(instanceID, "PAUSED")
+	if err != nil {
+		return InstanceView{}, err
+	}
+	s.runtime.Stop(instanceID)
+	if s.refreshLiveMarketStream != nil {
+		s.refreshLiveMarketStream(context.Background())
+	}
+	return result, nil
+}
+
+// StopInstance records the stopped state and stops the live runtime as one
+// service operation.
+func (s *Service) StopInstance(instanceID string) (InstanceView, error) {
+	result, err := s.catalog.TransitionInstance(instanceID, "STOPPED")
+	if err != nil {
+		return InstanceView{}, err
+	}
+	s.runtime.Stop(instanceID)
+	if s.refreshLiveMarketStream != nil {
+		s.refreshLiveMarketStream(context.Background())
+	}
+	return result, nil
+}
+
 // GetObservation 获取实例的运行时观测状态。
 func (s *Service) GetObservation(id string) (RuntimeObservation, bool) {
 	return s.runtime.GetObservation(id)

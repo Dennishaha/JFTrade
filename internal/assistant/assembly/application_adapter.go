@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"strings"
 	"time"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
@@ -16,6 +18,8 @@ import (
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/internal/watchlist"
+	"github.com/jftrade/jftrade-main/pkg/broker"
+	"github.com/jftrade/jftrade-main/pkg/researchscreen"
 )
 
 // ApplicationPorts are the domain services and application projections used
@@ -32,10 +36,13 @@ type ApplicationPorts struct {
 	ProductFeatures func() *productsrv.Service
 	Watchlist       func() *watchlist.Service
 
-	RuntimeSettings   func() jfsettings.ADKRuntimeSettings
-	ManagedAccounts   func() []jfsettings.ManagedBrokerAccount
-	BrokerIntegration func() jfsettings.BrokerIntegration
-	FutuOpenDHealth   func(context.Context) (any, error)
+	RuntimeSettings      func() jfsettings.ADKRuntimeSettings
+	ManagedAccounts      func() []jfsettings.ManagedBrokerAccount
+	BrokerIntegration    func() jfsettings.BrokerIntegration
+	FutuOpenDHealth      func(context.Context) (any, error)
+	MarketProviders      func(context.Context) (any, error)
+	SelectMarketProvider func(context.Context, string, string) (any, error)
+	RuntimeDependencies  func(context.Context) any
 }
 
 // ApplicationOptions combines persistent paths with the application ports
@@ -110,6 +117,11 @@ func (a *ApplicationAdapter) ToolDeps() ToolDeps {
 		MarketSubscriptions:            a.marketSubscriptions,
 		MarketSnapshot:                 a.marketSnapshot,
 		MarketCandles:                  a.marketCandles,
+		MarketCandlesAdvanced:          a.marketCandlesAdvanced,
+		MarketProviders:                a.marketProviders,
+		SelectMarketProvider:           a.selectMarketProvider,
+		RuntimeDependencies:            a.runtimeDependencies,
+		ResearchScreenCatalog:          a.researchScreenCatalog,
 		WatchlistList:                  watchlistList,
 		ManagedAccounts:                a.managedAccounts,
 		BrokerEnabled:                  a.brokerEnabled,
@@ -134,14 +146,22 @@ func (a *ApplicationAdapter) ToolDeps() ToolDeps {
 		SaveStrategyDraft:              a.saveStrategyDraft,
 		SaveStrategyDefinition:         a.saveStrategyDefinition,
 		UpdateStrategyInstanceMode:     a.updateStrategyInstanceMode,
+		InstantiateStrategy:            a.instantiateStrategy,
+		StartStrategyInstance:          a.startStrategyInstance,
+		StopStrategyInstance:           a.stopStrategyInstance,
+		RefreshStrategyInstance:        a.refreshStrategyInstance,
+		UpdateStrategyInstanceRisk:     a.updateStrategyInstanceRisk,
+		StrategyInstanceActivity:       a.strategyInstanceActivity,
 		ListBacktestRuns:               a.backtestRunSummaries,
 		EnsureBacktestData:             a.ensureBacktestData,
 		EnsureResearchBacktestData:     a.ensureResearchBacktestData,
+		BacktestProviderID:             a.backtestProviderID,
 		BacktestKLineSyncProgress:      a.backtestKLineSyncProgress,
 		EnqueueBacktest:                a.enqueueBacktest,
 		StartResearchBacktest:          a.startResearchBacktest,
 		BacktestResultView:             a.backtestResultView,
 		CancelBacktest:                 a.cancelBacktest,
+		CancelBacktestResult:           a.cancelBacktestResult,
 		RecordAudit:                    a.recordAudit,
 		ProductTool:                    productTool,
 		ExecutionTool:                  executionTool,
@@ -218,6 +238,101 @@ func (a *ApplicationAdapter) marketCandles(
 		Market: market, Symbol: symbol, Period: period, Limit: limit,
 	})
 	return map[string]any(response), err
+}
+
+func (a *ApplicationAdapter) marketCandlesAdvanced(ctx context.Context, input map[string]any) (any, error) {
+	service := a.marketData()
+	if service == nil {
+		return nil, fmt.Errorf("market data service is unavailable")
+	}
+	market, symbol := inferMarketSymbol(input)
+	if market == "" || symbol == "" {
+		return nil, fmt.Errorf("market and symbol are required")
+	}
+	period := stringOrDefault(stringValue(input, "period"), "1m")
+	limit := intValue(input, "limit", 50)
+	if limit < 1 || limit > 500 {
+		return nil, fmt.Errorf("limit must be between 1 and 500")
+	}
+	normalizedPeriod, err := broker.NormalizeCandlePeriod(period)
+	if err != nil {
+		return nil, err
+	}
+	sessionValues := stringSliceValue(input, "sessions")
+	sessions, err := mdsrv.ParseCandleSessions(sessionValues)
+	if err != nil {
+		return nil, err
+	}
+	beforeTime := strings.TrimSpace(stringValue(input, "beforeTime"))
+	fromTime := strings.TrimSpace(stringValue(input, "startTime"))
+	toTime := strings.TrimSpace(stringValue(input, "endTime"))
+	if beforeTime != "" && (fromTime != "" || toTime != "") {
+		return nil, fmt.Errorf("beforeTime cannot be combined with startTime or endTime")
+	}
+	adjustment := strings.ToLower(strings.TrimSpace(stringValue(input, "adjustment")))
+	if adjustment == "" {
+		adjustment = "none"
+	}
+	switch adjustment {
+	case "none", "forward", "backward":
+	default:
+		return nil, fmt.Errorf("unsupported candle adjustment %q", adjustment)
+	}
+	response, err := service.GetCandles(ctx, mdsrv.HistoricalCandlesQuery{
+		Market: market, Symbol: symbol, Period: normalizedPeriod, Limit: limit,
+		Adjustment: adjustment, FromTime: fromTime, ToTime: toTime,
+		BeforeTime: beforeTime, Sessions: sessions, SessionsSpecified: len(sessionValues) > 0,
+	})
+	return map[string]any(response), err
+}
+
+func (a *ApplicationAdapter) marketProviders(ctx context.Context) (any, error) {
+	if a != nil && a.ports.MarketProviders != nil {
+		return a.ports.MarketProviders(ctx)
+	}
+	return map[string]any{"status": "unavailable", "providers": []any{}}, nil
+}
+
+func (a *ApplicationAdapter) selectMarketProvider(ctx context.Context, scope, providerID string) (any, error) {
+	if a == nil || a.ports.SelectMarketProvider == nil {
+		return nil, fmt.Errorf("market-data provider settings are unavailable")
+	}
+	return a.ports.SelectMarketProvider(ctx, scope, providerID)
+}
+
+func (a *ApplicationAdapter) runtimeDependencies(ctx context.Context) any {
+	var base any = map[string]any{
+		"checkedAt":            time.Now().UTC().Format(time.RFC3339Nano),
+		"allRequiredSatisfied": false,
+		"dependencies":         []any{},
+	}
+	if a != nil && a.ports.RuntimeDependencies != nil {
+		base = a.ports.RuntimeDependencies(ctx)
+	}
+	result, ok := base.(map[string]any)
+	if !ok {
+		result = map[string]any{"runtime": base}
+	} else {
+		result = maps.Clone(result)
+	}
+	result["openD"] = map[string]any{"status": "unavailable"}
+	if a != nil && a.ports.FutuOpenDHealth != nil {
+		openD, err := a.ports.FutuOpenDHealth(ctx)
+		if err != nil {
+			result["openD"] = map[string]any{"status": "error", "error": err.Error()}
+		} else {
+			result["openD"] = openD
+		}
+	}
+	return result
+}
+
+func (a *ApplicationAdapter) researchScreenCatalog(market string) (any, error) {
+	market = strings.ToUpper(strings.TrimSpace(market))
+	if market != "" && market != "HK" && market != "US" && market != "SH" && market != "SZ" {
+		return nil, fmt.Errorf("unsupported stock-screen market %q", market)
+	}
+	return researchscreen.CatalogForMarket(market), nil
 }
 
 func (a *ApplicationAdapter) marketDepth(ctx context.Context, market string, symbol string, num int) (any, error) {
@@ -361,6 +476,13 @@ func (a *ApplicationAdapter) backtest() *btsrv.Service {
 		return a.ports.Backtest()
 	}
 	return nil
+}
+
+func (a *ApplicationAdapter) backtestProviderID() string {
+	if service := a.backtest(); service != nil {
+		return service.CurrentBacktestProviderID()
+	}
+	return ""
 }
 
 func (a *ApplicationAdapter) productFeatures() *productsrv.Service {

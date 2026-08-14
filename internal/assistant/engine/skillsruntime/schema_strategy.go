@@ -6,6 +6,20 @@ func strategyToolInputSchema(name string) (map[string]any, bool) {
 		return strategyOptimizeInputSchema(), true
 	case "strategy.research_backtest":
 		return strategyResearchBacktestInputSchema(), true
+	case "strategy.instantiate":
+		return strategyInstantiateInputSchema(), true
+	case "strategy.instance_start":
+		return strategyInstanceIDInputSchema(), true
+	case "strategy.instance_stop":
+		return strategyInstanceStopInputSchema(), true
+	case "strategy.instance_refresh_definition":
+		return strategyInstanceIDInputSchema(), true
+	case "strategy.instance_risk.update":
+		return strategyInstanceRiskInputSchema(), true
+	case "strategy.instance_activity":
+		return strategyInstanceActivityInputSchema(), true
+	case "backtest.cancel":
+		return map[string]any{"type": "object", "properties": map[string]any{"runId": map[string]any{"type": "string", "minLength": 1}}, "required": []string{"runId"}, "additionalProperties": false}, true
 	case "strategy.definition_versions.list":
 		return strategyDefinitionVersionsListInputSchema(), true
 	case "strategy.definition_versions.get":

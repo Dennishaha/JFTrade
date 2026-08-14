@@ -34,6 +34,11 @@ type ToolDeps struct {
 	MarketSubscriptions            func(context.Context) (subscriptions any, activeInstruments any, err error)
 	MarketSnapshot                 func(context.Context, string, string) (any, error)
 	MarketCandles                  func(context.Context, string, string, string, int) (any, error)
+	MarketCandlesAdvanced          func(context.Context, map[string]any) (any, error)
+	MarketProviders                func(context.Context) (any, error)
+	SelectMarketProvider           func(context.Context, string, string) (any, error)
+	RuntimeDependencies            func(context.Context) any
+	ResearchScreenCatalog          func(string) (any, error)
 	WatchlistList                  func(context.Context, WatchlistListInput) (any, error)
 	ManagedAccounts                func() any
 	BrokerEnabled                  func() bool
@@ -58,14 +63,22 @@ type ToolDeps struct {
 	SaveStrategyDraft              func(StrategyDraftInput) (any, error)
 	SaveStrategyDefinition         func(StrategyDefinitionInput) (any, error)
 	UpdateStrategyInstanceMode     func(instanceID string, executionMode string) (any, error)
+	InstantiateStrategy            func(string, stratsrv.InstanceBinding) (any, error)
+	StartStrategyInstance          func(context.Context, string) (any, error)
+	StopStrategyInstance           func(string, string) (any, error)
+	RefreshStrategyInstance        func(string) (any, error)
+	UpdateStrategyInstanceRisk     func(string, stratsrv.RuntimeRiskSettings) (any, error)
+	StrategyInstanceActivity       func(string, string, int, int) (any, error)
 	ListBacktestRuns               func() []BacktestRunSummary
 	EnsureBacktestData             func([]string, BacktestStartInput) (BacktestDataReadiness, error)
 	EnsureResearchBacktestData     func(ResearchBacktestInput) (BacktestDataReadiness, error)
+	BacktestProviderID             func() string
 	BacktestKLineSyncProgress      func(string) (*backtest.SyncProgress, bool)
 	EnqueueBacktest                func(BacktestStartInput) (BacktestRunRef, error)
 	StartResearchBacktest          func(ResearchBacktestInput) (BacktestRunSummary, error)
 	BacktestResultView             func(BacktestResultViewInput) (any, error)
 	CancelBacktest                 func(string)
+	CancelBacktestResult           func(string) bool
 	RecordAudit                    func(context.Context, string, string, string, map[string]any)
 	ProductTool                    func(context.Context, string, map[string]any) (any, error)
 	ExecutionTool                  func(context.Context, string, map[string]any) (any, error)
@@ -110,7 +123,10 @@ type StrategyInstanceSummary struct {
 	ID, DefinitionID, DefinitionName, DefinitionVersion, Runtime, SourceFormat, Status, ActualStatus string
 	Startable                                                                                        bool
 	Symbols, ActiveSymbols                                                                           []string
-	Interval, ExecutionMode, Market, AccountID, CreatedAt, LatestLog, LastError                      string
+	Interval, ExecutionMode, Market, AccountID, CreatedAt, LatestLog, LastError, ChartType           string
+	DefinitionSyncStatus, RuntimeObservation                                                         any
+	BrokerAccount                                                                                    any
+	RuntimeRisk                                                                                      any
 	LogCount                                                                                         int
 }
 
@@ -127,13 +143,18 @@ type StrategyDefinitionInput struct {
 
 type BacktestStartInput struct {
 	DefinitionID, Market, Symbol, Code, Interval, StartDate, EndDate, StartTime, EndTime, RehabType, ChartType string
+	InstrumentType, ExecutionModel, MarketDataProvider                                                         string
 	InitialBalance                                                                                             float64
+	UseExtendedHours                                                                                           *bool
+	TradingCosts                                                                                               backtest.TradingCosts
 }
 
 type ResearchBacktestInput struct {
 	Script, Market, Symbol, Code, Interval, StartDate, EndDate, StartTime, EndTime, RehabType, ChartType string
+	InstrumentType, ExecutionModel, MarketDataProvider                                                   string
 	InitialBalance                                                                                       float64
 	UseExtendedHours                                                                                     *bool
+	TradingCosts                                                                                         backtest.TradingCosts
 }
 
 type BacktestResultViewInput struct {
@@ -147,22 +168,25 @@ type BacktestRunRef struct {
 }
 
 type BacktestDataReadiness struct {
-	Status   string
-	Ready    bool
-	DataSync *BacktestDataSync
-	Progress *backtest.SyncProgress
-	Error    string
+	Status             string
+	Ready              bool
+	MarketDataProvider string
+	DataSync           *BacktestDataSync
+	Progress           *backtest.SyncProgress
+	Error              string
 }
 
 type BacktestDataSync struct {
-	TaskID, Symbol, Since, Until, SessionScope, Status string
-	Intervals                                          []string
+	TaskID, Symbol, Since, Until, SessionScope, Status, MarketDataProvider string
+	Intervals                                                              []string
 }
 
 type BacktestRunSummary struct {
 	ID, Status, DefinitionID, DefinitionVersion, Market, Code, Symbol, Interval, ChartType  string
+	InstrumentType, MarketDataProvider, ExecutionModel                                      string
 	StartDate, EndDate, StartTime, EndTime, MarketTimezone, RehabType, CreatedAt, UpdatedAt string
 	InitialBalance                                                                          float64
+	TradingCosts                                                                            any
 	UseExtendedHours                                                                        *bool
 	Result                                                                                  *backtest.RunResult
 }
@@ -178,10 +202,17 @@ func RegisterJFTradeADKTools(store *jfadkruntime.Store, registry *jfadkruntime.T
 	registry.Register(assistantmodel.ToolDescriptor{Name: "system.futu_opend", DisplayName: "OpenD 健康", Description: "读取 Futu OpenD 连通性、登录态与诊断。", Category: "system", Permission: "read_internal", OutputSummary: "OpenD 连接、登录态、配置和诊断信息。", RequiredSkills: []string{"jftrade-operations"}}, func(ctx context.Context, _ map[string]any) (any, error) {
 		return deps.FutuOpenDHealth(ctx)
 	})
+	registry.Register(assistantmodel.ToolDescriptor{Name: "system.runtime_dependencies", DisplayName: "运行依赖诊断", Description: "诊断 OpenD、Python market-data sidecar、Pine Worker 等运行依赖；只读且不会主动修复。", Category: "system", Permission: "read_internal", RiskLevel: "low", OutputSummary: "依赖健康、版本、连接状态和失败原因。", RequiredSkills: []string{"jftrade-operations"}}, func(ctx context.Context, _ map[string]any) (any, error) {
+		if deps.RuntimeDependencies == nil {
+			return map[string]any{"status": "unavailable"}, nil
+		}
+		return deps.RuntimeDependencies(ctx), nil
+	})
 	registry.Register(assistantmodel.ToolDescriptor{Name: "plugins.catalog", DisplayName: "策略插件目录", Description: "读取现有策略插件安装状态。", Category: "system", Permission: "read_internal", OutputSummary: "策略插件目录与安装状态。", RequiredSkills: []string{"jftrade-operations"}}, func(context.Context, map[string]any) (any, error) {
 		return deps.PluginCatalog(), nil
 	})
 	registerJFTradeADKMarketTools(registry, deps)
+	registerJFTradeADKResearchScreenTools(registry, deps)
 	registerJFTradeADKPortfolioTools(registry, deps)
 	registerJFTradeADKWorkflowTools(store, registry, deps)
 	registerJFTradeADKReadTools(registry, deps)
@@ -190,6 +221,26 @@ func RegisterJFTradeADKTools(store *jfadkruntime.Store, registry *jfadkruntime.T
 }
 
 func registerJFTradeADKMarketTools(registry *jfadkruntime.ToolRegistry, deps ToolDeps) {
+	registry.Register(assistantmodel.ToolDescriptor{Name: "market.providers", DisplayName: "行情提供者", Description: "读取实时与回测行情提供者的当前选择、静态能力、约束和当前激活提供者健康；不会为未激活提供者启动 sidecar。", Category: "market", Permission: "read_internal", RiskLevel: "low", OutputSummary: "实时/回测提供者选择、能力、约束和健康状态。", RequiredSkills: []string{"jftrade-market", strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}}, func(ctx context.Context, _ map[string]any) (any, error) {
+		if deps.MarketProviders == nil {
+			return nil, fmt.Errorf("market provider settings are unavailable")
+		}
+		return deps.MarketProviders(ctx)
+	})
+	registry.Register(assistantmodel.ToolDescriptor{Name: "market.provider.select", DisplayName: "选择行情提供者", Description: "切换实时或默认回测行情提供者。该全局设置变更在所有权限模式下逐次要求审批，并返回变更前后状态。", Category: "market", Permission: "write_settings", RiskLevel: "high", AllowedModes: approvalModes(), RequiresApprovalIn: approvalModes(), OutputSummary: "提供者切换前后状态及回滚错误。", RequiredSkills: []string{"jftrade-market"}}, func(ctx context.Context, input map[string]any) (any, error) {
+		if deps.SelectMarketProvider == nil {
+			return nil, fmt.Errorf("market provider settings are unavailable")
+		}
+		scope := strings.ToLower(strings.TrimSpace(stringValue(input, "scope")))
+		if scope != "live" && scope != "backtest" {
+			return nil, fmt.Errorf("scope must be live or backtest")
+		}
+		providerID := strings.ToLower(strings.TrimSpace(stringValue(input, "providerId")))
+		if providerID == "" {
+			return nil, fmt.Errorf("providerId is required")
+		}
+		return deps.SelectMarketProvider(ctx, scope, providerID)
+	})
 	registry.Register(assistantmodel.ToolDescriptor{Name: "market.subscriptions", DisplayName: "行情订阅", Description: "读取当前行情订阅和配额摘要。", Category: "market", Permission: "read_internal", OutputSummary: "当前订阅、活跃标的和检查时间。", RequiredSkills: []string{"jftrade-market"}}, func(ctx context.Context, _ map[string]any) (any, error) {
 		subscriptions, activeInstruments, err := deps.MarketSubscriptions(ctx)
 		if err != nil {
@@ -208,6 +259,9 @@ func registerJFTradeADKMarketTools(registry *jfadkruntime.ToolRegistry, deps Too
 		market, symbol := inferMarketSymbol(input)
 		if market == "" || symbol == "" {
 			return nil, fmt.Errorf("market and symbol are required")
+		}
+		if deps.MarketCandlesAdvanced != nil {
+			return deps.MarketCandlesAdvanced(ctx, input)
 		}
 		period := stringOrDefault(stringValue(input, "period"), "1m")
 		limit := intValue(input, "limit", 50)
@@ -243,6 +297,7 @@ func registerJFTradeADKStrategyTools(store *jfadkruntime.Store, registry *jfadkr
 	registerADKStrategyDefinitionTools(registry, deps)
 	registerADKStrategyResearchTools(registry, deps)
 	registerADKStrategyWriteTools(registry, deps)
+	registerADKStrategyInstanceTools(registry, deps)
 	registerADKBacktestReadTools(registry, deps)
 	registerADKStrategyOptimizationTools(store, registry, deps)
 }
@@ -304,78 +359,103 @@ func registerADKStrategyDefinitionTools(registry *jfadkruntime.ToolRegistry, dep
 
 func registerADKStrategyResearchTools(registry *jfadkruntime.ToolRegistry, deps ToolDeps) {
 	registry.Register(assistantmodel.ToolDescriptor{Name: "strategy.research_backtest", DisplayName: "策略研究回测", Description: "用临时 Pine Script v6 脚本进行研究回测；会先校验脚本并启动临时回测，但不会保存策略草稿或定义。回测运行和结果会保留供后续查询。", Category: "strategy", Permission: "optimize_strategy", RiskLevel: "low", OutputSummary: "临时回测 runId、状态、脚本 hash、校验摘要和可选结果视图。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName}}, func(ctx context.Context, input map[string]any) (any, error) {
-		if deps.StartResearchBacktest == nil {
-			return nil, fmt.Errorf("research backtest is unavailable")
-		}
-		script := strings.TrimSpace(stringValue(input, "script"))
-		validation, err := ValidateADKStrategyScript("strategy.research_backtest", script)
-		if err != nil {
-			return nil, err
-		}
-		researchInput := ResearchBacktestInput{
-			Script:           validation.NormalizedScript,
-			Market:           stringValue(input, "market"),
-			Symbol:           stringValue(input, "symbol"),
-			Code:             stringValue(input, "code"),
-			Interval:         stringOrDefault(stringValue(input, "interval"), "1m"),
-			StartDate:        stringValue(input, "startDate"),
-			EndDate:          stringValue(input, "endDate"),
-			StartTime:        stringValue(input, "startTime"),
-			EndTime:          stringValue(input, "endTime"),
-			InitialBalance:   floatValue(input, "initialBalance", 0),
-			RehabType:        stringOrDefault(stringValue(input, "rehabType"), "forward"),
-			ChartType:        stringValue(input, "chartType"),
-			UseExtendedHours: optionalBoolInput(input, "useExtendedHours"),
-		}
-		if deps.EnsureResearchBacktestData != nil {
-			readiness, ensureErr := deps.EnsureResearchBacktestData(researchInput)
-			if ensureErr != nil {
-				return nil, ensureErr
-			}
-			if !readiness.Ready {
-				return backtestDataReadinessPayload(readiness), nil
-			}
-		}
-		run, err := deps.StartResearchBacktest(researchInput)
-		if err != nil {
-			return nil, err
-		}
-		waitMs := min(intValue(input, "waitForCompletionMs", 0), 25000)
-		if waitMs > 0 && deps.BacktestResultView != nil {
-			run.Status = waitForADKBacktestStatus(ctx, deps, run.ID, waitMs, run.Status)
-		}
-		viewInput := backtestResultViewInputFromNested(input["resultView"])
-		if viewInput.View == "" {
-			viewInput.View = "summary"
-		}
-		viewInput.RunID = run.ID
-		var viewOutput any
-		var viewErr error
-		if deps.BacktestResultView != nil {
-			viewOutput, viewErr = deps.BacktestResultView(viewInput)
-			if status := statusFromBacktestResultView(viewOutput); status != "" {
-				run.Status = status
-			}
-		}
-		payload := map[string]any{
-			"ok":         true,
-			"status":     run.Status,
-			"runId":      run.ID,
-			"scriptHash": researchScriptHash(validation.NormalizedScript),
-			"validation": map[string]any{
-				"metadata": strategyMetadataPayload(validation.Program),
-				"hooks":    BuildCompiledHookKinds(validation.Program),
-				"warnings": validation.Warnings,
-			},
-			"saveRecommendation": "仅当用户明确要求保存/发布/更新策略定义时，再调用 strategy.save_definition。",
-		}
-		if viewErr != nil {
-			payload["resultViewError"] = viewErr.Error()
-		} else if viewOutput != nil {
-			payload["resultView"] = viewOutput
-		}
-		return payload, nil
+		return runADKStrategyResearchBacktest(ctx, input, deps)
 	})
+}
+
+func runADKStrategyResearchBacktest(ctx context.Context, input map[string]any, deps ToolDeps) (any, error) {
+	if deps.StartResearchBacktest == nil {
+		return nil, fmt.Errorf("research backtest is unavailable")
+	}
+	validation, err := ValidateADKStrategyScript("strategy.research_backtest", strings.TrimSpace(stringValue(input, "script")))
+	if err != nil {
+		return nil, err
+	}
+	researchInput, err := researchBacktestInput(input, validation)
+	if err != nil {
+		return nil, err
+	}
+	researchInput.MarketDataProvider = freezeBacktestProviderID(researchInput.MarketDataProvider, deps.BacktestProviderID)
+	if deps.EnsureResearchBacktestData != nil {
+		readiness, ensureErr := deps.EnsureResearchBacktestData(researchInput)
+		if ensureErr != nil {
+			return nil, ensureErr
+		}
+		if !readiness.Ready {
+			return backtestDataReadinessPayload(readiness), nil
+		}
+	}
+	run, err := deps.StartResearchBacktest(researchInput)
+	if err != nil {
+		return nil, err
+	}
+	waitMs := min(intValue(input, "waitForCompletionMs", 0), 25000)
+	if waitMs > 0 && deps.BacktestResultView != nil {
+		run.Status = waitForADKBacktestStatus(ctx, deps, run.ID, waitMs, run.Status)
+	}
+	viewInput := backtestResultViewInputFromNested(input["resultView"])
+	if viewInput.View == "" {
+		viewInput.View = "summary"
+	}
+	viewInput.RunID = run.ID
+	var viewOutput any
+	var viewErr error
+	if deps.BacktestResultView != nil {
+		viewOutput, viewErr = deps.BacktestResultView(viewInput)
+		if status := statusFromBacktestResultView(viewOutput); status != "" {
+			run.Status = status
+		}
+	}
+	payload := map[string]any{
+		"ok": true, "status": run.Status, "runId": run.ID,
+		"marketDataProvider": run.MarketDataProvider, "chartType": run.ChartType,
+		"instrumentType": run.InstrumentType, "useExtendedHours": run.UseExtendedHours,
+		"executionModel": run.ExecutionModel, "tradingCosts": run.TradingCosts,
+		"scriptHash": researchScriptHash(validation.NormalizedScript),
+		"validation": map[string]any{
+			"metadata": strategyMetadataPayload(validation.Program),
+			"hooks":    BuildCompiledHookKinds(validation.Program), "warnings": validation.Warnings,
+		},
+		"saveRecommendation": "仅当用户明确要求保存/发布/更新策略定义时，再调用 strategy.save_definition。",
+	}
+	if viewErr != nil {
+		payload["resultViewError"] = viewErr.Error()
+	} else if viewOutput != nil {
+		payload["resultView"] = viewOutput
+	}
+	return payload, nil
+}
+
+func researchBacktestInput(input map[string]any, validation StrategyPineValidation) (ResearchBacktestInput, error) {
+	startInput, err := backtestStartInputFromMap(input)
+	if err != nil {
+		return ResearchBacktestInput{}, err
+	}
+	return ResearchBacktestInput{
+		Script: validation.NormalizedScript, Market: startInput.Market, Symbol: startInput.Symbol, Code: startInput.Code,
+		Interval: startInput.Interval, StartDate: startInput.StartDate, EndDate: startInput.EndDate,
+		StartTime: startInput.StartTime, EndTime: startInput.EndTime, InitialBalance: startInput.InitialBalance,
+		RehabType: startInput.RehabType, ChartType: startInput.ChartType, InstrumentType: startInput.InstrumentType,
+		ExecutionModel: startInput.ExecutionModel, MarketDataProvider: startInput.MarketDataProvider,
+		UseExtendedHours: startInput.UseExtendedHours, TradingCosts: startInput.TradingCosts,
+	}, nil
+}
+
+func backtestStartInputFromMap(input map[string]any) (BacktestStartInput, error) {
+	result := BacktestStartInput{
+		Market: stringValue(input, "market"), Symbol: stringValue(input, "symbol"), Code: stringValue(input, "code"),
+		Interval: stringOrDefault(stringValue(input, "interval"), "1m"), StartDate: stringValue(input, "startDate"), EndDate: stringValue(input, "endDate"),
+		StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), InitialBalance: floatValue(input, "initialBalance", 0),
+		RehabType: stringOrDefault(stringValue(input, "rehabType"), "forward"), ChartType: stringOrDefault(stringValue(input, "chartType"), "standard"),
+		InstrumentType: stringOrDefault(stringValue(input, "instrumentType"), "stock"), ExecutionModel: stringOrDefault(stringValue(input, "executionModel"), "conservative-bar-v1"),
+		MarketDataProvider: strings.ToLower(strings.TrimSpace(stringValue(input, "marketDataProvider"))), UseExtendedHours: optionalBoolInput(input, "useExtendedHours"),
+	}
+	if value, ok := input["tradingCosts"]; ok {
+		if err := decodeToolInputValue(value, &result.TradingCosts); err != nil {
+			return BacktestStartInput{}, fmt.Errorf("tradingCosts must be a valid object: %w", err)
+		}
+	}
+	return result, nil
 }
 
 func registerADKStrategyWriteTools(registry *jfadkruntime.ToolRegistry, deps ToolDeps) {
@@ -429,22 +509,37 @@ func registerADKStrategyWriteTools(registry *jfadkruntime.ToolRegistry, deps Too
 }
 
 func registerADKBacktestReadTools(registry *jfadkruntime.ToolRegistry, deps ToolDeps) {
-	registry.Register(assistantmodel.ToolDescriptor{Name: "backtest.runs", DisplayName: "回测结果", Description: "读取最近回测运行结果；可按策略定义、定义版本和状态过滤。", Category: "strategy", Permission: "read_internal", OutputSummary: "最近回测运行和数量。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(assistantmodel.ToolDescriptor{Name: "backtest.runs", DisplayName: "回测结果", Description: "读取最近回测运行结果；可按策略定义、定义版本、状态和行情提供者过滤。", Category: "strategy", Permission: "read_internal", OutputSummary: "最近回测运行和数量。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}}, func(_ context.Context, input map[string]any) (any, error) {
 		runs := deps.ListBacktestRuns()
 		definitionID := strings.TrimSpace(stringValue(input, "definitionId"))
 		definitionVersion := strings.TrimSpace(stringValue(input, "definitionVersion"))
 		status := strings.TrimSpace(stringValue(input, "status"))
+		provider := strings.TrimSpace(stringValue(input, "marketDataProvider"))
 		limit := intValue(input, "limit", 0)
-		if definitionID == "" && definitionVersion == "" && status == "" && limit <= 0 {
+		if definitionID == "" && definitionVersion == "" && status == "" && provider == "" && limit <= 0 {
 			return SummarizeADKBacktestRuns(runs), nil
 		}
-		filtered, totalMatched := FilterADKBacktestRuns(runs, definitionID, definitionVersion, status, limit)
+		filtered, totalMatched := FilterADKBacktestRunsByProvider(runs, definitionID, definitionVersion, status, provider, limit)
 		payload := SummarizeADKBacktestRuns(filtered)
 		payload["totalMatched"] = totalMatched
 		payload["truncated"] = len(filtered) < totalMatched
 		return payload, nil
 	})
-	registry.Register(assistantmodel.ToolDescriptor{Name: "backtest.result_view", DisplayName: "回测结果视图", Description: "按 runId 同步读取回测摘要、图表窗口、订单、日志或错误；支持按时间范围、精度和 limit 多次查询。", Category: "strategy", Permission: "read_internal", OutputSummary: "指定回测 run 的轻量摘要或窗口化结果序列。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName}}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(assistantmodel.ToolDescriptor{Name: "backtest.cancel", DisplayName: "取消回测", Description: "取消仍在 queued 或 running 状态的回测；已完成任务不会被删除。", Category: "strategy", Permission: "write_strategy", RiskLevel: "high", RequiresApprovalIn: []string{assistantmodel.PermissionModeApproval}, OutputSummary: "取消是否成功及当前状态。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}}, func(_ context.Context, input map[string]any) (any, error) {
+		if deps.CancelBacktest == nil && deps.CancelBacktestResult == nil {
+			return nil, fmt.Errorf("backtest cancellation is unavailable")
+		}
+		runID := strings.TrimSpace(stringValue(input, "runId"))
+		if runID == "" {
+			return nil, fmt.Errorf("runId is required")
+		}
+		if deps.CancelBacktestResult != nil {
+			return map[string]any{"runId": runID, "cancelled": deps.CancelBacktestResult(runID)}, nil
+		}
+		deps.CancelBacktest(runID)
+		return map[string]any{"runId": runID, "cancelRequested": true}, nil
+	})
+	registry.Register(assistantmodel.ToolDescriptor{Name: "backtest.result_view", DisplayName: "回测结果视图", Description: "按 runId 同步读取回测摘要、图表窗口、订单、日志、数据警告或错误；支持按时间范围、精度和 limit 多次查询。", Category: "strategy", Permission: "read_internal", OutputSummary: "指定回测 run 的轻量摘要或窗口化结果序列。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName}}, func(_ context.Context, input map[string]any) (any, error) {
 		if deps.BacktestResultView == nil {
 			return nil, fmt.Errorf("backtest result view is unavailable")
 		}
@@ -485,7 +580,11 @@ func registerADKStrategyOptimizationTools(store *jfadkruntime.Store, registry *j
 		if len(definitionIDs) > 12 {
 			return nil, fmt.Errorf("at most 12 optimization candidates are allowed")
 		}
-		startInput := BacktestStartInput{Market: stringValue(input, "market"), Symbol: stringValue(input, "symbol"), Code: stringValue(input, "code"), Interval: stringOrDefault(stringValue(input, "interval"), "1m"), StartDate: stringValue(input, "startDate"), EndDate: stringValue(input, "endDate"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), InitialBalance: floatValue(input, "initialBalance", 0), RehabType: stringOrDefault(stringValue(input, "rehabType"), "forward"), ChartType: stringValue(input, "chartType")}
+		startInput, err := backtestStartInputFromMap(input)
+		if err != nil {
+			return nil, err
+		}
+		startInput.MarketDataProvider = freezeBacktestProviderID(startInput.MarketDataProvider, deps.BacktestProviderID)
 		if deps.EnsureBacktestData != nil {
 			readiness, ensureErr := deps.EnsureBacktestData(definitionIDs, startInput)
 			if ensureErr != nil {
@@ -508,7 +607,12 @@ func registerADKStrategyOptimizationTools(store *jfadkruntime.Store, registry *j
 				}
 				return nil, fmt.Errorf("queue candidate %q: %w", definitionID, err)
 			}
-			runs = append(runs, map[string]any{"definitionId": definitionID, "runId": run.ID, "status": run.Status})
+			runs = append(runs, map[string]any{
+				"definitionId": definitionID, "runId": run.ID, "status": run.Status,
+				"marketDataProvider": startInput.MarketDataProvider, "chartType": startInput.ChartType,
+				"instrumentType": startInput.InstrumentType, "useExtendedHours": startInput.UseExtendedHours,
+				"tradingCosts": startInput.TradingCosts, "executionModel": startInput.ExecutionModel,
+			})
 			runRefs = append(runRefs, assistantmodel.OptimizationRunRef{DefinitionID: definitionID, RunID: run.ID})
 		}
 		task, err := store.SaveOptimizationTask(context.Background(), assistantmodel.OptimizationTask{ID: taskID, Status: "queued", Objective: stringOrDefault(stringValue(input, "objective"), "return"), Runs: runRefs})
@@ -520,6 +624,16 @@ func registerADKStrategyOptimizationTools(store *jfadkruntime.Store, registry *j
 		}
 		return map[string]any{"taskId": task.ID, "status": task.Status, "objective": task.Objective, "runs": runs, "message": "候选策略已进入真实回测队列；使用 backtest.runs 查询进度和结果。"}, nil
 	})
+}
+
+func freezeBacktestProviderID(requested string, current func() string) string {
+	if providerID := strings.ToLower(strings.TrimSpace(requested)); providerID != "" {
+		return providerID
+	}
+	if current == nil {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(current()))
 }
 
 func registerJFTradeADKReadTools(registry *jfadkruntime.ToolRegistry, deps ToolDeps) {

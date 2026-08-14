@@ -84,6 +84,56 @@ func TestBacktestDataPreparationRejectsInvalidCandidatesBeforeStartingSync(t *te
 	}
 }
 
+func TestBacktestProviderOverrideValidationAndResolution(t *testing.T) {
+	for _, provider := range []string{"", " futu ", "YFINANCE", "akshare"} {
+		if err := validateBacktestProviderOverride(provider); err != nil {
+			t.Fatalf("validateBacktestProviderOverride(%q) = %v", provider, err)
+		}
+	}
+	if err := validateBacktestProviderOverride("unsupported"); err == nil || !strings.Contains(err.Error(), "marketDataProvider") {
+		t.Fatalf("unsupported provider validation = %v", err)
+	}
+	service := NewService(WithBacktestProviderIDFn(func() string { return "futu" }))
+	if got := service.CurrentBacktestProviderID(); got != "futu" {
+		t.Fatalf("CurrentBacktestProviderID() = %q, want futu", got)
+	}
+	if got := (*Service)(nil).CurrentBacktestProviderID(); got != "futu" {
+		t.Fatalf("nil CurrentBacktestProviderID() = %q, want futu", got)
+	}
+	if got := service.resolveBacktestProviderID(" yfinance "); got != "yfinance" {
+		t.Fatalf("explicit provider resolution = %q", got)
+	}
+	if got := service.resolveBacktestProviderID(""); got != "futu" {
+		t.Fatalf("default provider resolution = %q", got)
+	}
+	if _, err := NewService().EnsureScriptData(context.Background(), ScriptStartRequest{
+		Script: testPineScript, Market: "US", Symbol: "US.AAPL", Interval: "1d",
+		MarketDataProviderOverride: "unsupported",
+	}); err == nil || !strings.Contains(err.Error(), "marketDataProvider") {
+		t.Fatalf("EnsureScriptData unsupported provider error = %v", err)
+	}
+	if _, err := NewService().EnsureDefinitionsData(context.Background(), StartRequest{
+		MarketDataProviderOverride: "unsupported",
+	}, []string{"def-1"}); err == nil || !strings.Contains(err.Error(), "marketDataProvider") {
+		t.Fatalf("EnsureDefinitionsData unsupported provider error = %v", err)
+	}
+}
+
+func TestBacktestStartRejectsUnsupportedProviderBeforeQueueing(t *testing.T) {
+	service := NewService(
+		WithRunStore(newMemoryRunStore()),
+		WithStrategyProvider(fakeStrategyProvider{defs: map[string]StrategyDef{
+			"def-1": {ID: "def-1", Version: "v1", SourceFormat: "pine-v6", Script: testPineScript},
+		}}),
+		WithProviderKLineCoverageCheckFn(func(string, string, string, string, time.Time, time.Time, string, string) error { return nil }),
+	)
+	request := validStartRequest()
+	request.MarketDataProviderOverride = "unknown"
+	if _, err := service.Start(context.Background(), request); err == nil || !strings.Contains(err.Error(), "unsupported marketDataProvider") {
+		t.Fatalf("unsupported provider Start error = %v", err)
+	}
+}
+
 func TestBacktestStartRejectsMissingCoverageBeforePersistingRun(t *testing.T) {
 	runs := newMemoryRunStore()
 	service := NewService(

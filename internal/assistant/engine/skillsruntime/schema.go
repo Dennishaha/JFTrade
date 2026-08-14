@@ -45,6 +45,14 @@ func DefaultToolInputSchema(name string) map[string]any {
 		return executionOrderEventsInputSchema()
 	case "market.snapshot", "market.candles":
 		return marketReadInputSchema(name)
+	case "market.providers":
+		return map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false}
+	case "market.provider.select":
+		return map[string]any{"type": "object", "properties": map[string]any{"scope": map[string]any{"type": "string", "enum": []string{"live", "backtest"}}, "providerId": map[string]any{"type": "string", "enum": []string{"futu", "yfinance", "akshare"}}}, "required": []string{"scope", "providerId"}, "additionalProperties": false}
+	case "system.runtime_dependencies":
+		return map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false}
+	case "research.screen_catalog":
+		return map[string]any{"type": "object", "properties": map[string]any{"market": map[string]any{"type": "string", "enum": []string{"HK", "US", "SH", "SZ"}}}, "additionalProperties": false}
 	case "watchlist.list":
 		return watchlistListInputSchema()
 	case "portfolio.accounts", "portfolio.overview", "portfolio.positions", "portfolio.summary":
@@ -301,6 +309,11 @@ func marketReadInputSchema(name string) map[string]any {
 	if name == "market.candles" {
 		properties["period"] = map[string]any{"type": "string", "description": "K 线周期，例如 1m、5m、1d。"}
 		properties["limit"] = map[string]any{"type": "integer", "minimum": 1, "maximum": 500}
+		properties["startTime"] = map[string]any{"type": "string"}
+		properties["endTime"] = map[string]any{"type": "string"}
+		properties["beforeTime"] = map[string]any{"type": "string"}
+		properties["sessions"] = map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": []string{"regular", "extended", "overnight"}}, "minItems": 1, "maxItems": 3}
+		properties["adjustment"] = map[string]any{"type": "string", "enum": []string{"none", "forward", "backward"}}
 	}
 	return map[string]any{
 		"type":                 "object",
@@ -326,14 +339,24 @@ func strategyOptimizeInputSchema() map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"definitionIds":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "maxItems": 12},
-			"market":         map[string]any{"type": "string"},
-			"symbol":         map[string]any{"type": "string"},
-			"interval":       map[string]any{"type": "string"},
-			"startTime":      map[string]any{"type": "string"},
-			"endTime":        map[string]any{"type": "string"},
-			"initialBalance": map[string]any{"type": "number", "exclusiveMinimum": 0},
-			"objective":      map[string]any{"type": "string", "enum": []string{"return", "sharpe", "drawdown"}},
+			"definitionIds":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "maxItems": 12},
+			"market":             map[string]any{"type": "string"},
+			"symbol":             map[string]any{"type": "string"},
+			"code":               map[string]any{"type": "string"},
+			"interval":           map[string]any{"type": "string"},
+			"instrumentType":     map[string]any{"type": "string", "enum": []string{"stock", "etf"}},
+			"startDate":          map[string]any{"type": "string"},
+			"endDate":            map[string]any{"type": "string"},
+			"startTime":          map[string]any{"type": "string"},
+			"endTime":            map[string]any{"type": "string"},
+			"initialBalance":     map[string]any{"type": "number", "exclusiveMinimum": 0},
+			"rehabType":          map[string]any{"type": "string", "enum": []string{"forward", "backward", "none"}},
+			"chartType":          map[string]any{"type": "string", "enum": []string{"standard", "heikinashi"}},
+			"useExtendedHours":   map[string]any{"type": "boolean"},
+			"tradingCosts":       tradingCostsInputSchema(),
+			"executionModel":     map[string]any{"type": "string", "enum": []string{"conservative-bar-v1"}},
+			"marketDataProvider": map[string]any{"type": "string", "enum": []string{"futu", "yfinance", "akshare"}},
+			"objective":          map[string]any{"type": "string", "enum": []string{"return", "sharpe", "drawdown"}},
 		},
 		"required":             []string{"definitionIds", "market", "symbol", "startTime", "endTime"},
 		"additionalProperties": false,
@@ -349,17 +372,87 @@ func strategyResearchBacktestInputSchema() map[string]any {
 			"symbol":              map[string]any{"type": "string"},
 			"code":                map[string]any{"type": "string"},
 			"interval":            map[string]any{"type": "string", "description": "回测原生周期，例如 1m、5m、1d；默认 1m。"},
+			"instrumentType":      map[string]any{"type": "string", "enum": []string{"stock", "etf"}},
+			"startDate":           map[string]any{"type": "string"},
+			"endDate":             map[string]any{"type": "string"},
 			"startTime":           map[string]any{"type": "string", "description": "RFC3339 开始时间。"},
 			"endTime":             map[string]any{"type": "string", "description": "RFC3339 结束时间。"},
 			"initialBalance":      map[string]any{"type": "number", "exclusiveMinimum": 0},
+			"chartType":           map[string]any{"type": "string", "enum": []string{"standard", "heikinashi"}},
 			"rehabType":           map[string]any{"type": "string", "enum": []string{"forward", "backward", "none"}},
 			"useExtendedHours":    map[string]any{"type": "boolean"},
+			"tradingCosts":        tradingCostsInputSchema(),
+			"executionModel":      map[string]any{"type": "string", "enum": []string{"conservative-bar-v1"}},
+			"marketDataProvider":  map[string]any{"type": "string", "enum": []string{"futu", "yfinance", "akshare"}},
 			"waitForCompletionMs": map[string]any{"type": "integer", "minimum": 0, "maximum": 25000, "description": "可选短等待，最多 25000ms；长轮询请用 workflow.wait 后再查 backtest.result_view。"},
 			"resultView":          backtestResultViewOptionsSchema(),
 		},
 		"required":             []string{"script", "market", "startTime", "endTime"},
 		"additionalProperties": false,
 	}
+}
+
+func tradingCostsInputSchema() map[string]any {
+	feeRule := map[string]any{"type": "object", "properties": map[string]any{
+		"id": map[string]any{"type": "string"}, "label": map[string]any{"type": "string"},
+		"category": map[string]any{"type": "string"}, "side": map[string]any{"type": "string"},
+		"basis": map[string]any{"type": "string"}, "rate": map[string]any{"type": "number"},
+		"fixedAmount": map[string]any{"type": "number"}, "minAmount": map[string]any{"type": "number"},
+		"maxAmount": map[string]any{"type": "number"}, "maxRate": map[string]any{"type": "number"},
+		"rounding": map[string]any{"type": "string"}, "currency": map[string]any{"type": "string"},
+		"appliesTo":     map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+		"effectiveFrom": map[string]any{"type": "string"}, "effectiveTo": map[string]any{"type": "string"},
+		"sourceUrl": map[string]any{"type": "string"},
+	}, "required": []string{"id", "label", "category", "basis"}, "additionalProperties": false}
+	feeSchedule := map[string]any{"type": "object", "properties": map[string]any{
+		"mode": map[string]any{"type": "string", "enum": []string{"none", "market_preset", "custom", "script"}}, "presetId": map[string]any{"type": "string"},
+		"rules": map[string]any{"type": "array", "items": feeRule},
+	}, "additionalProperties": false}
+	return map[string]any{"type": "object", "properties": map[string]any{"brokerFees": feeSchedule, "marketFees": feeSchedule}, "additionalProperties": false}
+}
+
+func strategyInstanceIDInputSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{"instanceId": map[string]any{"type": "string", "minLength": 1}}, "required": []string{"instanceId"}, "additionalProperties": false}
+}
+
+func strategyInstanceStopInputSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{"instanceId": map[string]any{"type": "string", "minLength": 1}, "action": map[string]any{"type": "string", "enum": []string{"pause", "stop"}}}, "required": []string{"instanceId", "action"}, "additionalProperties": false}
+}
+
+func strategyInstanceInstantiateBindingSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{
+		"symbols": map[string]any{"type": "array", "items": map[string]any{"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 100},
+		"instruments": map[string]any{"type": "array", "items": map[string]any{
+			"type": "object", "properties": map[string]any{"market": map[string]any{"type": "string", "minLength": 1}, "code": map[string]any{"type": "string", "minLength": 1}},
+			"required": []string{"market", "code"}, "additionalProperties": false,
+		}, "minItems": 1, "maxItems": 100},
+		"interval": map[string]any{"type": "string"}, "chartType": map[string]any{"type": "string", "enum": []string{"standard", "heikinashi"}}, "executionMode": map[string]any{"type": "string", "enum": []string{"live", "notify_only"}},
+		"brokerAccount": map[string]any{"type": "object", "properties": map[string]any{"brokerId": map[string]any{"type": "string", "minLength": 1}, "accountId": map[string]any{"type": "string", "minLength": 1}, "tradingEnvironment": map[string]any{"type": "string", "enum": []string{"SIMULATE", "REAL"}}, "market": map[string]any{"type": "string", "minLength": 1}}, "required": []string{"brokerId", "accountId", "tradingEnvironment", "market"}, "additionalProperties": false},
+		"runtimeRisk":   strategyRuntimeRiskSchema(),
+	}, "additionalProperties": false}
+}
+
+func strategyInstantiateInputSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{"definitionId": map[string]any{"type": "string", "minLength": 1}, "binding": strategyInstanceInstantiateBindingSchema()}, "required": []string{"definitionId", "binding"}, "additionalProperties": false}
+}
+
+func strategyInstanceRiskInputSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{"instanceId": map[string]any{"type": "string", "minLength": 1}, "risk": strategyRuntimeRiskSchema()}, "required": []string{"instanceId", "risk"}, "additionalProperties": false}
+}
+
+func strategyRuntimeRiskSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{
+		"mode":             map[string]any{"type": "string", "enum": []string{"off", "monitor", "enforce"}},
+		"closeOnly":        map[string]any{"type": "boolean"},
+		"maxOrderQuantity": map[string]any{"type": "number", "exclusiveMinimum": 0},
+		"maxOrderNotional": map[string]any{"type": "number", "exclusiveMinimum": 0},
+		"dailyMaxOrders":   map[string]any{"type": "integer", "minimum": 1},
+		"pauseOnReject":    map[string]any{"type": "boolean"},
+	}, "required": []string{"mode"}, "additionalProperties": false}
+}
+
+func strategyInstanceActivityInputSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{"instanceId": map[string]any{"type": "string", "minLength": 1}, "kind": map[string]any{"type": "string", "enum": []string{"logs", "audit"}}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 200}, "offset": map[string]any{"type": "integer", "minimum": 0}}, "required": []string{"instanceId"}, "additionalProperties": false}
 }
 
 func strategyDefinitionVersionsListInputSchema() map[string]any {
@@ -389,10 +482,11 @@ func backtestRunsInputSchema() map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"definitionId":      map[string]any{"type": "string", "description": "可选策略定义 ID 过滤。"},
-			"definitionVersion": map[string]any{"type": "string", "description": "可选不可变策略版本号过滤。"},
-			"status":            map[string]any{"type": "string", "description": "可选回测状态过滤，不区分大小写。"},
-			"limit":             map[string]any{"type": "integer", "minimum": 1, "maximum": 200, "description": "最多返回的匹配运行数。"},
+			"definitionId":       map[string]any{"type": "string", "description": "可选策略定义 ID 过滤。"},
+			"definitionVersion":  map[string]any{"type": "string", "description": "可选不可变策略版本号过滤。"},
+			"status":             map[string]any{"type": "string", "description": "可选回测状态过滤，不区分大小写。"},
+			"marketDataProvider": map[string]any{"type": "string", "enum": []string{"futu", "yfinance", "akshare"}, "description": "可选行情提供者过滤。"},
+			"limit":              map[string]any{"type": "integer", "minimum": 1, "maximum": 200, "description": "最多返回的匹配运行数。"},
 		},
 		"additionalProperties": false,
 	}
@@ -403,7 +497,7 @@ func backtestResultViewInputSchema() map[string]any {
 		"type": "object",
 		"properties": map[string]any{
 			"runId":      map[string]any{"type": "string"},
-			"view":       map[string]any{"type": "string", "enum": []string{"summary", "chart", "orders", "logs", "errors"}},
+			"view":       map[string]any{"type": "string", "enum": []string{"summary", "chart", "orders", "logs", "warnings", "errors"}},
 			"resolution": map[string]any{"type": "string", "description": "chart 视图精度，auto 或 1m/5m/1h/1d 等；不得细于原生周期。"},
 			"startTime":  map[string]any{"type": "string"},
 			"endTime":    map[string]any{"type": "string"},

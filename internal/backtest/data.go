@@ -17,12 +17,16 @@ func (s *Service) EnsureScriptData(ctx context.Context, req ScriptStartRequest) 
 	if script == "" {
 		return nil, requestErrorf("script is required")
 	}
+	if err := validateBacktestProviderOverride(req.MarketDataProviderOverride); err != nil {
+		return nil, err
+	}
 	prepared, err := prepareResolvedBacktest(StartRequest{
 		Market: req.Market, Code: req.Code, Symbol: req.Symbol, Interval: req.Interval,
 		StartDate: req.StartDate, EndDate: req.EndDate, StartTime: req.StartTime, EndTime: req.EndTime,
 		InitialBalance: req.InitialBalance, RehabType: req.RehabType, UseExtendedHours: req.UseExtendedHours,
 		InstrumentType: req.InstrumentType, TradingCosts: req.TradingCosts, ExecutionModel: req.ExecutionModel,
-		ChartType: chart.NormalizeChartType(string(req.ChartType)),
+		ChartType:                  chart.NormalizeChartType(string(req.ChartType)),
+		MarketDataProviderOverride: req.MarketDataProviderOverride,
 	}, transientStrategyDefinition(script))
 	if err != nil {
 		return nil, err
@@ -32,6 +36,9 @@ func (s *Service) EnsureScriptData(ctx context.Context, req ScriptStartRequest) 
 
 // EnsureDefinitionsData checks the union of K-line requirements for optimization candidates.
 func (s *Service) EnsureDefinitionsData(ctx context.Context, req StartRequest, definitionIDs []string) (*DataReadiness, error) {
+	if err := validateBacktestProviderOverride(req.MarketDataProviderOverride); err != nil {
+		return nil, err
+	}
 	if s.strategies == nil {
 		return nil, fmt.Errorf("strategy provider not configured")
 	}
@@ -62,6 +69,19 @@ func (s *Service) EnsureDefinitionsData(ctx context.Context, req StartRequest, d
 	return s.ensurePreparedData(ctx, prepared)
 }
 
+func validateBacktestProviderOverride(providerID string) error {
+	providerID = strings.ToLower(strings.TrimSpace(providerID))
+	if providerID == "" {
+		return nil
+	}
+	switch providerID {
+	case "futu", "yfinance", "akshare":
+		return nil
+	default:
+		return requestErrorf("unsupported marketDataProvider %q", providerID)
+	}
+}
+
 func (s *Service) ensurePreparedData(ctx context.Context, prepared []preparedBacktest) (*DataReadiness, error) {
 	base, queryStart, endTime, err := combinePreparedBacktests(prepared)
 	if err != nil {
@@ -70,7 +90,7 @@ func (s *Service) ensurePreparedData(ctx context.Context, prepared []preparedBac
 	rehabType := normalizeRehabTypeName(base.request.RehabType)
 	readSessionScope := backtestReadSessionScope(base.request.UseExtendedHours)
 	syncSessionScope := backtestSyncSessionScope(base.request.UseExtendedHours)
-	providerID := s.backtestProviderID()
+	providerID := s.resolveBacktestProviderID(base.request.MarketDataProviderOverride)
 	covered, coverageErr := s.hasKLineCoverageForProvider(providerID, base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, readSessionScope)
 	if coverageErr != nil && !isMissingKLineCoverageError(coverageErr) {
 		return nil, coverageErr
@@ -81,7 +101,11 @@ func (s *Service) ensurePreparedData(ctx context.Context, prepared []preparedBac
 		delete(s.dataSyncTasks, key)
 		s.pruneDataSyncTasksLocked("")
 		s.dataSyncMu.Unlock()
-		return &DataReadiness{Status: DataStatusReady, Ready: true}, nil
+		return &DataReadiness{
+			Status:             DataStatusReady,
+			Ready:              true,
+			MarketDataProvider: providerID,
+		}, nil
 	}
 	return s.ensureMissingCoverage(ctx, base, queryStart, endTime, rehabType, syncSessionScope, coverageErr, providerID)
 }
@@ -144,13 +168,31 @@ func (s *Service) readinessForExistingSync(key string, existing *SyncStarted, co
 			return readinessForSyncProgress(progress, existing), true
 		case "failed":
 			delete(s.dataSyncTasks, key)
-			return &DataReadiness{Status: DataStatusSyncFailed, Sync: existing, Progress: progress, Error: progress.Error}, true
+			return &DataReadiness{
+				Status:             DataStatusSyncFailed,
+				Sync:               existing,
+				Progress:           progress,
+				Error:              progress.Error,
+				MarketDataProvider: existing.MarketDataProvider,
+			}, true
 		case "cancelled":
 			delete(s.dataSyncTasks, key)
-			return &DataReadiness{Status: DataStatusSyncCancelled, Sync: existing, Progress: progress, Error: progress.Error}, true
+			return &DataReadiness{
+				Status:             DataStatusSyncCancelled,
+				Sync:               existing,
+				Progress:           progress,
+				Error:              progress.Error,
+				MarketDataProvider: existing.MarketDataProvider,
+			}, true
 		case "completed":
 			delete(s.dataSyncTasks, key)
-			return &DataReadiness{Status: DataStatusInsufficientAfterSync, Sync: existing, Progress: progress, Error: coverageErr.Error()}, true
+			return &DataReadiness{
+				Status:             DataStatusInsufficientAfterSync,
+				Sync:               existing,
+				Progress:           progress,
+				Error:              coverageErr.Error(),
+				MarketDataProvider: existing.MarketDataProvider,
+			}, true
 		}
 	}
 	delete(s.dataSyncTasks, key)
@@ -189,7 +231,17 @@ func (s *Service) hasKLineCoverage(symbol, interval string, since, until time.Ti
 }
 
 func readinessForSyncProgress(progress *bt.SyncProgress, started *SyncStarted) *DataReadiness {
-	return &DataReadiness{Status: DataStatusSyncing, Ready: false, Sync: started, Progress: progress}
+	providerID := ""
+	if started != nil {
+		providerID = started.MarketDataProvider
+	}
+	return &DataReadiness{
+		Status:             DataStatusSyncing,
+		Ready:              false,
+		Sync:               started,
+		Progress:           progress,
+		MarketDataProvider: providerID,
+	}
 }
 
 func normalizeRehabTypeName(value string) string {

@@ -67,9 +67,10 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 				"读取 JFTrade 系统、OpenD、ADK 和插件运行状态；先诊断事实，再提出修复建议。",
 				"系统诊断优先使用 system.status 和 system.futu_opend，并保留 checkedAt、connectivity、loginState、warnings 与 partial 状态。"+
 					"OpenD 连接或登录态未知时按不可用处理，不要把空结果解释为没有账户或没有持仓。"+
+					"需要运行环境诊断时使用 system.runtime_dependencies；切换行情提供者前使用 market.providers 确认能力和健康。"+
 					"plugins.catalog 只用于查看已安装能力，不把插件目录当作行情或交易事实来源。",
-				[]string{"system.status", "system.futu_opend", "plugins.catalog"},
-				"1",
+				[]string{"system.status", "system.futu_opend", "system.runtime_dependencies", "plugins.catalog"},
+				"2",
 			)
 		},
 	},
@@ -83,15 +84,16 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 				"使用行情数据时，始终确认 market、instrumentId 和 marketSegment。"+
 					"先用 market.capabilities 判断当前券商、账户及行情权限；该工具只接受结构化参数，例如 {\"brokerId\":\"futu\",\"tradingEnvironment\":\"REAL\",\"market\":\"US\"}，不得传 query。"+
 					"批量快照优先使用 market.snapshots，盘口和逐笔仅用于当前可见标的。"+
+					"回测或切换行情源前使用 market.providers 确认能力、约束和健康；全局切换使用 market.provider.select 并遵守逐次审批；yfinance/AKShare 只支持轮询历史数据，不能支撑实时策略。"+
 					"如果用户请求存在歧义，先补齐缺失的市场或代码。最终回答必须保留 provider、asOf、warnings 和 partialErrors。",
 				[]string{
 					"market.capabilities", "market.search", "market.instrument_profile",
 					"market.snapshot", "market.snapshots", "market.candles", "market.intraday",
 					"market.ticks", "market.depth", "market.broker_queue", "market.capital_flow",
-					"market.subscriptions", "watchlist.list", "watchlist.remote.list",
+					"market.subscriptions", "market.providers", "market.provider.select", "watchlist.list", "watchlist.remote.list",
 					"watchlist.remote.modify", "alerts.price.list", "alerts.price.set",
 				},
-				"5",
+				"7",
 			)
 		},
 	},
@@ -125,15 +127,16 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 				"研究结果必须保留 provider、asOf、分页、warnings 和 partialErrors。"+
 					"公司与新闻查询使用对应正股代码；不要把缺少权限、部分失败或空结果描述为没有数据。"+
 					"研究工具使用 instrumentId、market、operation 和日期等业务参数，不得传 tradingEnvironment；例如 research.news 使用 {\"instrumentId\":\"US.AAPL\",\"market\":\"US\"}。"+
+					"筛选先读取 research.screen_catalog，再提交 V2 定义；保留 catalogVersion、querySchemaVersion、分页和列投影。"+
 					"筛选和榜单结果应带回统一工作区继续分析，不建立另一套行情事实来源。",
 				[]string{
 					"research.instrument", "research.financials", "research.valuation",
 					"research.analyst", "research.ownership", "research.corporate_actions",
-					"research.short_interest", "research.news", "research.screen",
+					"research.short_interest", "research.news", "research.screen", "research.screen_catalog",
 					"research.calendar", "research.macro", "research.rankings",
 					"research.institutions", "research.industry", "research.technical_indicators",
 				},
-				"2",
+				"3",
 			)
 		},
 	},

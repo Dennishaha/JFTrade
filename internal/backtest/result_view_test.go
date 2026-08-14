@@ -6,7 +6,30 @@ import (
 	"time"
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/chart"
 )
+
+func TestResultViewRunPayloadPreservesProviderAndExecutionMetadata(t *testing.T) {
+	extendedHours := true
+	run := &RunState{ID: "run-1", Status: "completed", MarketDataProvider: "", Request: StartRequest{
+		MarketDataProviderOverride: "yfinance", ChartType: "heikinashi", InstrumentType: "etf",
+		ExecutionModel: "conservative-bar-v1", UseExtendedHours: &extendedHours,
+	}}
+	payload := resultViewRunPayload(run)
+	useExtendedHours, ok := payload["useExtendedHours"].(*bool)
+	if payload["marketDataProvider"] != "yfinance" || payload["chartType"] != chart.ChartType("heikinashi") || payload["instrumentType"] != "etf" || payload["executionModel"] != "conservative-bar-v1" || !ok || useExtendedHours == nil || !*useExtendedHours {
+		t.Fatalf("provider metadata payload = %#v", payload)
+	}
+	run.MarketDataProvider = "akshare"
+	run.Request.MarketDataProviderOverride = ""
+	if got := resultViewRunPayload(run)["marketDataProvider"]; got != "akshare" {
+		t.Fatalf("persisted provider payload = %v", got)
+	}
+	run.MarketDataProvider = ""
+	if got := resultViewRunPayload(run)["marketDataProvider"]; got != "futu" {
+		t.Fatalf("default provider payload = %v", got)
+	}
+}
 
 func TestResultViewOrdersLogsAndErrorsUseWindowAndCursor(t *testing.T) {
 	runs := newMemoryRunStore()

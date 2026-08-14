@@ -122,6 +122,26 @@ func TestMarketDataCapabilitiesReadsRuntimeDescriptor(t *testing.T) {
 	}
 }
 
+type strategyAppHealthProvider struct {
+	marketdata.Provider
+}
+
+func (strategyAppHealthProvider) Descriptor(context.Context) (marketdata.ProviderDescriptor, error) {
+	return marketdata.ProviderDescriptor{ProviderID: "fixture"}, nil
+}
+
+func (strategyAppHealthProvider) Health(context.Context) (marketdata.HealthStatus, error) {
+	return marketdata.HealthStatus{Connected: true, Readiness: marketdata.ProviderReadinessReady}, nil
+}
+
+func TestMarketDataHealthReturnsActiveProviderHealth(t *testing.T) {
+	service := marketdata.NewService(strategyAppHealthProvider{})
+	status, err := MarketDataHealth(service)(t.Context())
+	if err != nil || !status.Connected || status.Readiness != marketdata.ProviderReadinessReady {
+		t.Fatalf("MarketDataHealth = %#v, %v", status, err)
+	}
+}
+
 func TestTradeCommandsMapPlaceCancelAndDefensiveFailures(t *testing.T) {
 	commands := TradeCommands(nil)
 	if _, err := commands.PlaceExecutionOrder(t.Context(), trading.ExecutionOrderCommand{}); err == nil {

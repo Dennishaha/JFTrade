@@ -1,6 +1,7 @@
 package assembly
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -90,9 +91,92 @@ func strategyInstanceSummary(item stratsrv.InstanceView) StrategyInstanceSummary
 		Status: item.Status, ActualStatus: actualStatus, Startable: item.Startable,
 		Symbols: append([]string(nil), item.Binding.Symbols...), ActiveSymbols: activeSymbols,
 		Interval: item.Binding.Interval, ExecutionMode: item.Binding.ExecutionMode,
-		Market: brokerBindingMarket(item.Binding.BrokerAccount), AccountID: brokerBindingAccountID(item.Binding.BrokerAccount),
+		ChartType: string(item.Binding.ChartType), RuntimeRisk: item.Binding.RuntimeRisk,
+		DefinitionSyncStatus: item.DefinitionSync, RuntimeObservation: item.RuntimeObservation,
+		BrokerAccount: item.Binding.BrokerAccount,
+		Market:        brokerBindingMarket(item.Binding.BrokerAccount), AccountID: brokerBindingAccountID(item.Binding.BrokerAccount),
 		CreatedAt: item.CreatedAt, LogCount: len(item.Logs), LatestLog: lastLog, LastError: lastError,
 	}
+}
+
+func (a *ApplicationAdapter) instantiateStrategy(definitionID string, binding stratsrv.InstanceBinding) (any, error) {
+	service := a.strategy()
+	if service == nil {
+		return nil, fmt.Errorf("strategy service is unavailable")
+	}
+	definitionID = strings.TrimSpace(definitionID)
+	if definitionID == "" {
+		return nil, fmt.Errorf("definitionId is required")
+	}
+	definition, ok, err := service.GetDefinition(definitionID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("strategy definition %q not found", definitionID)
+	}
+	return service.CreateInstance(definition, binding)
+}
+
+func (a *ApplicationAdapter) startStrategyInstance(ctx context.Context, instanceID string) (any, error) {
+	service := a.strategy()
+	if service == nil {
+		return nil, fmt.Errorf("strategy service is unavailable")
+	}
+	return service.StartInstance(ctx, strings.TrimSpace(instanceID))
+}
+
+func (a *ApplicationAdapter) stopStrategyInstance(instanceID, action string) (any, error) {
+	service := a.strategy()
+	if service == nil {
+		return nil, fmt.Errorf("strategy service is unavailable")
+	}
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "pause":
+		return service.PauseInstance(strings.TrimSpace(instanceID))
+	case "stop":
+		return service.StopInstance(strings.TrimSpace(instanceID))
+	default:
+		return nil, fmt.Errorf("action must be pause or stop")
+	}
+}
+
+func (a *ApplicationAdapter) refreshStrategyInstance(instanceID string) (any, error) {
+	service := a.strategy()
+	if service == nil {
+		return nil, fmt.Errorf("strategy service is unavailable")
+	}
+	return service.RefreshInstanceDefinition(strings.TrimSpace(instanceID))
+}
+
+func (a *ApplicationAdapter) updateStrategyInstanceRisk(instanceID string, risk stratsrv.RuntimeRiskSettings) (any, error) {
+	service := a.strategy()
+	if service == nil {
+		return nil, fmt.Errorf("strategy service is unavailable")
+	}
+	return service.UpdateInstanceRuntimeRisk(strings.TrimSpace(instanceID), risk)
+}
+
+func (a *ApplicationAdapter) strategyInstanceActivity(instanceID, kind string, limit, offset int) (any, error) {
+	service := a.strategy()
+	if service == nil {
+		return nil, fmt.Errorf("strategy service is unavailable")
+	}
+	instanceID = strings.TrimSpace(instanceID)
+	limit = min(max(limit, 1), 200)
+	offset = max(offset, 0)
+	if strings.EqualFold(strings.TrimSpace(kind), "audit") {
+		result, ok := service.GetAudit(instanceID, stratsrv.AuditQuery{Limit: limit, Offset: offset})
+		if !ok {
+			return nil, fmt.Errorf("strategy instance %q not found", instanceID)
+		}
+		return result, nil
+	}
+	result, ok := service.GetLogs(instanceID, stratsrv.LogQuery{Limit: limit, Offset: offset})
+	if !ok {
+		return nil, fmt.Errorf("strategy instance %q not found", instanceID)
+	}
+	return result, nil
 }
 
 func strategySummaryDefinitionID(item stratsrv.InstanceView) string {

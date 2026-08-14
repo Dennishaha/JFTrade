@@ -111,6 +111,10 @@ func TestADKRuntimeHelperInputNormalization(t *testing.T) {
 	if got := backtestResultViewInputFromNested(func() {}); got.RunID != "" || got.View != "" || got.Limit != 0 || len(got.Include) != 0 {
 		t.Fatalf("backtestResultViewInputFromNested(func) = %#v, want zero value on marshal failure", got)
 	}
+	backtestInput, err := backtestStartInputFromMap(map[string]any{})
+	if err != nil || backtestInput.ChartType != "standard" {
+		t.Fatalf("backtestStartInputFromMap chart type = %q, %v, want standard", backtestInput.ChartType, err)
+	}
 
 	patch := taskPatchFromInput(input)
 	if patch.Title == nil || *patch.Title != "rebalance positions" {
@@ -233,12 +237,13 @@ func TestADKRuntimePollingAndPayloadHelpers(t *testing.T) {
 	}
 
 	syncingPayload := backtestDataReadinessPayload(BacktestDataReadiness{
-		Status: "syncing_data",
+		Status:             "syncing_data",
+		MarketDataProvider: "yfinance",
 		DataSync: &BacktestDataSync{
 			TaskID: "sync-1", Symbol: "US.AAPL", Intervals: []string{"1m", "5m"},
-			Since: "2025-01-01", Until: "2025-01-02", SessionScope: "regular", Status: "running",
+			Since: "2025-01-01", Until: "2025-01-02", SessionScope: "regular", Status: "running", MarketDataProvider: "yfinance",
 		},
-		Progress: &backtest.SyncProgress{TaskID: "sync-1", Status: "completed", Symbol: "US.AAPL"},
+		Progress: &backtest.SyncProgress{TaskID: "sync-1", Status: "completed", Symbol: "US.AAPL", MarketDataProvider: "yfinance"},
 	})
 	nextTool, ok := syncingPayload["nextTool"].(map[string]any)
 	if syncingPayload["ok"] != true || syncingPayload["status"] != "syncing_data" || !ok {
@@ -246,6 +251,13 @@ func TestADKRuntimePollingAndPayloadHelpers(t *testing.T) {
 	}
 	if nextTool["name"] != "backtest.kline_sync_status" {
 		t.Fatalf("nextTool = %#v, want kline status tool", nextTool)
+	}
+	if syncingPayload["marketDataProvider"] != "yfinance" {
+		t.Fatalf("readiness provider = %#v, want yfinance", syncingPayload["marketDataProvider"])
+	}
+	progressPayload, ok := syncingPayload["progress"].(map[string]any)
+	if !ok || progressPayload["marketDataProvider"] != "yfinance" {
+		t.Fatalf("progress provider = %#v, want yfinance", syncingPayload["progress"])
 	}
 
 	failedPayload := backtestDataReadinessPayload(BacktestDataReadiness{

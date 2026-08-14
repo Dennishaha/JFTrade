@@ -202,7 +202,7 @@ func summarizeADKStrategyDefinition(definition StrategyDefinitionSummary, linked
 }
 
 func summarizeADKStrategyInstance(item StrategyInstanceSummary) map[string]any {
-	return map[string]any{"id": item.ID, "definitionId": item.DefinitionID, "definitionName": item.DefinitionName, "definitionVersion": item.DefinitionVersion, "runtime": item.Runtime, "sourceFormat": item.SourceFormat, "status": item.Status, "actualStatus": item.ActualStatus, "startable": item.Startable, "symbols": append([]string(nil), item.Symbols...), "symbolCount": len(item.Symbols), "activeSymbols": append([]string(nil), item.ActiveSymbols...), "activeSymbolCount": len(item.ActiveSymbols), "interval": item.Interval, "executionMode": item.ExecutionMode, "market": item.Market, "accountId": item.AccountID, "createdAt": item.CreatedAt, "logCount": item.LogCount, "latestLog": summarizeADKText(item.LatestLog, 220), "lastError": summarizeADKText(item.LastError, 220)}
+	return map[string]any{"id": item.ID, "definitionId": item.DefinitionID, "definitionName": item.DefinitionName, "definitionVersion": item.DefinitionVersion, "runtime": item.Runtime, "sourceFormat": item.SourceFormat, "status": item.Status, "actualStatus": item.ActualStatus, "startable": item.Startable, "symbols": append([]string(nil), item.Symbols...), "symbolCount": len(item.Symbols), "activeSymbols": append([]string(nil), item.ActiveSymbols...), "activeSymbolCount": len(item.ActiveSymbols), "interval": item.Interval, "chartType": item.ChartType, "executionMode": item.ExecutionMode, "market": item.Market, "accountId": item.AccountID, "brokerAccount": item.BrokerAccount, "runtimeRisk": item.RuntimeRisk, "definitionSync": item.DefinitionSyncStatus, "runtimeObservation": item.RuntimeObservation, "createdAt": item.CreatedAt, "logCount": item.LogCount, "latestLog": summarizeADKText(item.LatestLog, 220), "lastError": summarizeADKText(item.LastError, 220)}
 }
 
 func SummarizeADKBacktestRuns(runs []BacktestRunSummary) map[string]any {
@@ -214,9 +214,18 @@ func SummarizeADKBacktestRuns(runs []BacktestRunSummary) map[string]any {
 }
 
 func FilterADKBacktestRuns(runs []BacktestRunSummary, definitionID string, definitionVersion string, status string, limit int) ([]BacktestRunSummary, int) {
+	return filterADKBacktestRuns(runs, definitionID, definitionVersion, status, "", limit)
+}
+
+func FilterADKBacktestRunsByProvider(runs []BacktestRunSummary, definitionID, definitionVersion, status, provider string, limit int) ([]BacktestRunSummary, int) {
+	return filterADKBacktestRuns(runs, definitionID, definitionVersion, status, provider, limit)
+}
+
+func filterADKBacktestRuns(runs []BacktestRunSummary, definitionID string, definitionVersion string, status string, provider string, limit int) ([]BacktestRunSummary, int) {
 	definitionID = strings.TrimSpace(definitionID)
 	definitionVersion = strings.TrimSpace(definitionVersion)
 	status = strings.TrimSpace(status)
+	provider = strings.TrimSpace(provider)
 	filtered := make([]BacktestRunSummary, 0, len(runs))
 	for _, run := range runs {
 		if definitionID != "" && strings.TrimSpace(run.DefinitionID) != definitionID {
@@ -226,6 +235,9 @@ func FilterADKBacktestRuns(runs []BacktestRunSummary, definitionID string, defin
 			continue
 		}
 		if status != "" && !strings.EqualFold(strings.TrimSpace(run.Status), status) {
+			continue
+		}
+		if provider != "" && !strings.EqualFold(strings.TrimSpace(run.MarketDataProvider), provider) {
 			continue
 		}
 		filtered = append(filtered, run)
@@ -238,7 +250,7 @@ func FilterADKBacktestRuns(runs []BacktestRunSummary, definitionID string, defin
 }
 
 func summarizeADKBacktestRun(run BacktestRunSummary) map[string]any {
-	summary := map[string]any{"id": run.ID, "status": run.Status, "definitionId": run.DefinitionID, "definitionVersion": run.DefinitionVersion, "market": run.Market, "code": run.Code, "symbol": run.Symbol, "interval": run.Interval, "startDate": run.StartDate, "endDate": run.EndDate, "startTime": run.StartTime, "endTime": run.EndTime, "marketTimezone": run.MarketTimezone, "initialBalance": run.InitialBalance, "rehabType": run.RehabType, "createdAt": run.CreatedAt, "updatedAt": run.UpdatedAt}
+	summary := map[string]any{"id": run.ID, "status": run.Status, "definitionId": run.DefinitionID, "definitionVersion": run.DefinitionVersion, "market": run.Market, "code": run.Code, "symbol": run.Symbol, "instrumentType": run.InstrumentType, "interval": run.Interval, "marketDataProvider": run.MarketDataProvider, "startDate": run.StartDate, "endDate": run.EndDate, "startTime": run.StartTime, "endTime": run.EndTime, "marketTimezone": run.MarketTimezone, "initialBalance": run.InitialBalance, "rehabType": run.RehabType, "chartType": run.ChartType, "executionModel": run.ExecutionModel, "tradingCosts": run.TradingCosts, "createdAt": run.CreatedAt, "updatedAt": run.UpdatedAt}
 	if run.UseExtendedHours != nil {
 		summary["useExtendedHours"] = *run.UseExtendedHours
 	}
@@ -265,9 +277,13 @@ func summarizeADKBacktestRun(run BacktestRunSummary) map[string]any {
 	summary["pnlCurveCount"] = len(run.Result.PnLCurve)
 	summary["drawdownCurveCount"] = len(run.Result.DrawdownCurve)
 	summary["logsCount"] = len(run.Result.Logs)
+	summary["warningCount"] = len(run.Result.Warnings)
+	summary["warningTotal"] = run.Result.WarningTotal
+	summary["warningsTruncated"] = run.Result.WarningsTruncated
 	summary["runtimeErrorCount"] = len(run.Result.RuntimeErrors)
 	summary["error"] = summarizeADKText(run.Result.Error, 220)
 	summary["latestLog"] = summarizeADKText(lastString(run.Result.Logs), 220)
+	summary["latestWarning"] = summarizeADKText(lastString(run.Result.Warnings), 220)
 	summary["latestRuntimeError"] = summarizeADKText(lastString(run.Result.RuntimeErrors), 220)
 	if latestTrade := lastBacktestTrade(run.Result.Trades); latestTrade != nil {
 		summary["latestTradeAt"] = latestTrade.Time

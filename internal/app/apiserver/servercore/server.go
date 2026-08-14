@@ -307,17 +307,21 @@ func initializeADKRuntime(s *Server, bootstrap serverBootstrap) {
 	bootstrap.probeADKSessionDatabase()
 	if bootstrap.unavailableDatabases.Unavailable(dmsrv.DatabaseADK) == nil &&
 		bootstrap.unavailableDatabases.Unavailable(dmsrv.DatabaseADKSession) == nil {
+		providerPorts := marketdataapp.NewAssistantProviderPorts(s.marketdataSvc, s.settingsSvc)
 		assembly, err := appcomposition.OpenAssistant(appcomposition.AssistantOptions{
-			SettingsPath:    bootstrap.settingsPath,
-			Settings:        s.store,
-			Health:          s.futuCoordinator(),
-			System:          s.sysSvc,
-			MarketData:      s.marketdataSvc,
-			Strategy:        s.strategySvc,
-			Trading:         s.tradingSvc,
-			Backtest:        s.backtestSvc,
-			ProductFeatures: s.productFeaturesSvc,
-			Watchlist:       s.watchlistSvc,
+			SettingsPath:         bootstrap.settingsPath,
+			Settings:             s.store,
+			Health:               s.futuCoordinator(),
+			MarketProviders:      providerPorts.MarketProviders,
+			SelectMarketProvider: providerPorts.SelectMarketProvider,
+			RuntimeDependencies:  appcomposition.RuntimeDependencies(s.sysSvc),
+			System:               s.sysSvc,
+			MarketData:           s.marketdataSvc,
+			Strategy:             s.strategySvc,
+			Trading:              s.tradingSvc,
+			Backtest:             s.backtestSvc,
+			ProductFeatures:      s.productFeaturesSvc,
+			Watchlist:            s.watchlistSvc,
 		})
 		if err != nil {
 			log.Printf("JFTrade assistant runtime degraded: %v", err)

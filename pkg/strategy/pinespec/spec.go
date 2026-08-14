@@ -18,7 +18,7 @@ const (
 	ToolName                 = "strategy.pine_spec"
 	ResearchBuiltinSkillName = "jftrade-strategy-research"
 	PublishBuiltinSkillName  = "jftrade-strategy-publish"
-	BuiltinSkillVersion      = "11"
+	BuiltinSkillVersion      = "12"
 )
 
 type Section struct {

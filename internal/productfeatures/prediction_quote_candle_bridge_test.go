@@ -219,6 +219,11 @@ func TestCoreCandleBridgeValidatesBoundariesAndProductSemantics(t *testing.T) {
 	}); !errors.Is(err, ErrInvalidQuery) {
 		t.Fatalf("oversized limit error = %v", err)
 	}
+	if _, _, err := normalizeCoreCandleQuery(nil, broker.FeatureQuery{
+		InstrumentID: "US.AAPL", Params: map[string]any{"sessions": []any{"pre-market"}},
+	}); !errors.Is(err, ErrInvalidQuery) {
+		t.Fatalf("unsupported session option error = %v", err)
+	}
 	query, operation, err := normalizeCoreCandleQuery(nil, broker.FeatureQuery{
 		BrokerID: "fallback", InstrumentID: " us.aapl ",
 		Params: map[string]any{"limit": -1, "fromTime": "from", "toTime": "to"},

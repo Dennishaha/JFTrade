@@ -105,6 +105,13 @@ func (a *ApplicationAdapter) cancelBacktest(runID string) {
 	}
 }
 
+func (a *ApplicationAdapter) cancelBacktestResult(runID string) bool {
+	if service := a.backtest(); service != nil {
+		return service.Cancel(runID)
+	}
+	return false
+}
+
 func (a *ApplicationAdapter) optimizationRuns() assistant.OptimizationRuns {
 	return applicationOptimizationRuns{adapter: a}
 }
@@ -148,6 +155,9 @@ func backtestStartRequest(input BacktestStartInput) btsrv.StartRequest {
 		Code: input.Code, Interval: input.Interval, StartDate: input.StartDate, EndDate: input.EndDate,
 		StartTime: input.StartTime, EndTime: input.EndTime, InitialBalance: input.InitialBalance,
 		RehabType: input.RehabType, ChartType: chart.ChartType(input.ChartType),
+		InstrumentType: input.InstrumentType, UseExtendedHours: input.UseExtendedHours,
+		TradingCosts: input.TradingCosts, ExecutionModel: input.ExecutionModel,
+		MarketDataProviderOverride: input.MarketDataProvider,
 	}
 }
 
@@ -157,7 +167,9 @@ func researchBacktestRequest(input ResearchBacktestInput) btsrv.ScriptStartReque
 		Interval: input.Interval, StartDate: input.StartDate, EndDate: input.EndDate,
 		StartTime: input.StartTime, EndTime: input.EndTime, InitialBalance: input.InitialBalance,
 		RehabType: input.RehabType, UseExtendedHours: input.UseExtendedHours,
-		ChartType: chart.ChartType(input.ChartType),
+		ChartType: chart.ChartType(input.ChartType), InstrumentType: input.InstrumentType,
+		TradingCosts: input.TradingCosts, ExecutionModel: input.ExecutionModel,
+		MarketDataProviderOverride: input.MarketDataProvider,
 	}
 }
 
@@ -166,7 +178,11 @@ func backtestDataReadinessFromService(readiness *btsrv.DataReadiness) BacktestDa
 		return BacktestDataReadiness{}
 	}
 	result := BacktestDataReadiness{
-		Status: readiness.Status, Ready: readiness.Ready, Progress: readiness.Progress, Error: readiness.Error,
+		Status:             readiness.Status,
+		Ready:              readiness.Ready,
+		MarketDataProvider: readiness.MarketDataProvider,
+		Progress:           readiness.Progress,
+		Error:              readiness.Error,
 	}
 	if readiness.Sync == nil {
 		return result
@@ -183,6 +199,10 @@ func backtestDataReadinessFromService(readiness *btsrv.DataReadiness) BacktestDa
 		TaskID: readiness.Sync.TaskID, Symbol: readiness.Sync.Symbol, Intervals: intervals,
 		Since: readiness.Sync.Since, Until: readiness.Sync.Until,
 		SessionScope: readiness.Sync.SessionScope, Status: status,
+		MarketDataProvider: readiness.Sync.MarketDataProvider,
+	}
+	if result.MarketDataProvider == "" {
+		result.MarketDataProvider = result.DataSync.MarketDataProvider
 	}
 	return result
 }
@@ -190,6 +210,13 @@ func backtestDataReadinessFromService(readiness *btsrv.DataReadiness) BacktestDa
 func backtestRunSummaryFromService(run *btsrv.RunState) BacktestRunSummary {
 	if run == nil {
 		return BacktestRunSummary{}
+	}
+	provider := run.MarketDataProvider
+	if provider == "" {
+		provider = run.Request.MarketDataProviderOverride
+	}
+	if provider == "" {
+		provider = "futu"
 	}
 	return BacktestRunSummary{
 		ID: run.ID, Status: run.Status, DefinitionID: run.Request.DefinitionID,
@@ -199,6 +226,8 @@ func backtestRunSummaryFromService(run *btsrv.RunState) BacktestRunSummary {
 		StartTime: run.Request.StartTime, EndTime: run.Request.EndTime,
 		MarketTimezone: run.Request.MarketTimezone, InitialBalance: run.Request.InitialBalance,
 		RehabType: run.Request.RehabType, ChartType: string(run.Request.ChartType),
+		InstrumentType: run.Request.InstrumentType, MarketDataProvider: provider,
+		ExecutionModel: run.Request.ExecutionModel, TradingCosts: run.Request.TradingCosts,
 		UseExtendedHours: run.Request.UseExtendedHours, Result: run.Result,
 		CreatedAt: run.CreatedAt, UpdatedAt: run.UpdatedAt,
 	}

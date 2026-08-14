@@ -141,7 +141,8 @@ func klineSyncProgressPayload(progress *backtest.SyncProgress) map[string]any {
 	}
 	return map[string]any{
 		"taskId": progress.TaskID, "status": progress.Status, "symbol": progress.Symbol,
-		"currentInterval": progress.CurrentInterval, "totalIntervals": progress.TotalIntervals,
+		"marketDataProvider": progress.MarketDataProvider,
+		"currentInterval":    progress.CurrentInterval, "totalIntervals": progress.TotalIntervals,
 		"completedIntervals": progress.CompletedIntervals, "totalBatches": progress.TotalBatches,
 		"completedBatches": progress.CompletedBatches, "retries": progress.Retries,
 		"error": progress.Error, "startedAt": progress.StartedAt, "updatedAt": progress.UpdatedAt,
@@ -158,12 +159,16 @@ func backtestDataReadinessPayload(readiness BacktestDataReadiness) map[string]an
 	if readiness.Error != "" {
 		payload["error"] = readiness.Error
 	}
+	if readiness.MarketDataProvider != "" {
+		payload["marketDataProvider"] = readiness.MarketDataProvider
+	}
 	if readiness.DataSync != nil {
 		payload["dataSync"] = map[string]any{
 			"taskId": readiness.DataSync.TaskID, "symbol": readiness.DataSync.Symbol,
 			"intervals": readiness.DataSync.Intervals, "since": readiness.DataSync.Since,
 			"until": readiness.DataSync.Until, "sessionScope": readiness.DataSync.SessionScope,
-			"status": readiness.DataSync.Status,
+			"status":             readiness.DataSync.Status,
+			"marketDataProvider": readiness.DataSync.MarketDataProvider,
 		}
 		payload["nextTool"] = map[string]any{"name": "backtest.kline_sync_status", "input": map[string]any{"taskId": readiness.DataSync.TaskID, "waitForCompletionMs": 25000}}
 	}

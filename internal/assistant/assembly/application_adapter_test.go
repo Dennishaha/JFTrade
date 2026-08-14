@@ -135,6 +135,110 @@ func TestApplicationAdapterForwardsMarketCandles(t *testing.T) {
 	}
 }
 
+func TestApplicationAdapterForwardsAdvancedMarketCandles(t *testing.T) {
+	provider := &assistantMarketDataProvider{response: mdsrv.CandlesResponse{"source": "advanced"}}
+	adapter := NewApplicationAdapter(ApplicationPorts{
+		MarketData: func() *mdsrv.Service { return mdsrv.NewService(provider) },
+	})
+	result, err := adapter.ToolDeps().MarketCandlesAdvanced(t.Context(), map[string]any{
+		"market": "US", "symbol": "AAPL", "period": "1d", "limit": 10,
+		"sessions": []any{" regular ", "extended"}, "beforeTime": "2026-01-02T00:00:00Z",
+		"adjustment": "FORWARD",
+	})
+	if err != nil {
+		t.Fatalf("MarketCandlesAdvanced: %v", err)
+	}
+	if result.(map[string]any)["source"] != "advanced" || provider.query.BeforeTime == "" || provider.query.Adjustment != "forward" || len(provider.query.Sessions) != 2 {
+		t.Fatalf("advanced candle forwarding = %#v, query=%#v", result, provider.query)
+	}
+	for _, input := range []map[string]any{
+		{"market": "US", "symbol": "AAPL", "beforeTime": "t", "startTime": "u"},
+		{"market": "US", "symbol": "AAPL", "adjustment": "split"},
+	} {
+		if _, err := adapter.ToolDeps().MarketCandlesAdvanced(t.Context(), input); err == nil {
+			t.Fatalf("invalid advanced candle input %#v returned nil error", input)
+		}
+	}
+}
+
+func TestApplicationAdapterRejectsAdvancedCandleInputsBeforeProviderCall(t *testing.T) {
+	if _, err := NewApplicationAdapter(ApplicationPorts{}).ToolDeps().MarketCandlesAdvanced(t.Context(), map[string]any{}); err == nil {
+		t.Fatal("nil market data service error = nil")
+	}
+	adapter := NewApplicationAdapter(ApplicationPorts{
+		MarketData: func() *mdsrv.Service { return mdsrv.NewService(&assistantMarketDataProvider{}) },
+	})
+	for name, input := range map[string]map[string]any{
+		"missing instrument": {},
+		"invalid limit":      {"market": "US", "symbol": "AAPL", "limit": 0},
+		"invalid period":     {"market": "US", "symbol": "AAPL", "period": "bad"},
+		"invalid sessions":   {"market": "US", "symbol": "AAPL", "sessions": []any{"pre-market"}},
+		"cursor range":       {"market": "US", "symbol": "AAPL", "beforeTime": "cursor", "startTime": "from"},
+		"invalid adjustment": {"market": "US", "symbol": "AAPL", "adjustment": "split"},
+	} {
+		if _, err := adapter.ToolDeps().MarketCandlesAdvanced(t.Context(), input); err == nil {
+			t.Fatalf("%s input %#v returned nil error", name, input)
+		}
+	}
+}
+
+func TestApplicationAdapterExposesProviderAndRuntimePorts(t *testing.T) {
+	adapter := NewApplicationAdapter(ApplicationPorts{
+		MarketProviders: func(context.Context) (any, error) { return map[string]any{"provider": "futu"}, nil },
+		SelectMarketProvider: func(_ context.Context, scope, provider string) (any, error) {
+			return map[string]any{"scope": scope, "provider": provider}, nil
+		},
+		RuntimeDependencies: func(context.Context) any { return map[string]any{"status": "ready"} },
+		FutuOpenDHealth: func(context.Context) (any, error) {
+			return map[string]any{"status": "online"}, nil
+		},
+	})
+	deps := adapter.ToolDeps()
+	providers, err := deps.MarketProviders(t.Context())
+	if err != nil || providers.(map[string]any)["provider"] != "futu" {
+		t.Fatalf("MarketProviders = %#v, %v", providers, err)
+	}
+	selected, err := deps.SelectMarketProvider(t.Context(), "backtest", "yfinance")
+	if err != nil || selected.(map[string]any)["scope"] != "backtest" {
+		t.Fatalf("SelectMarketProvider = %#v, %v", selected, err)
+	}
+	runtimeDependencies := deps.RuntimeDependencies(t.Context()).(map[string]any)
+	if runtimeDependencies["status"] != "ready" || runtimeDependencies["openD"].(map[string]any)["status"] != "online" {
+		t.Fatalf("RuntimeDependencies = %#v", runtimeDependencies)
+	}
+	if _, err := NewApplicationAdapter(ApplicationPorts{}).ToolDeps().SelectMarketProvider(t.Context(), "live", "futu"); err == nil {
+		t.Fatal("unavailable provider selection error = nil")
+	}
+	if got := NewApplicationAdapter(ApplicationPorts{}).ToolDeps().RuntimeDependencies(t.Context()).(map[string]any)["allRequiredSatisfied"]; got != false {
+		t.Fatalf("default runtime dependencies = %#v", got)
+	}
+	if providers, err := NewApplicationAdapter(ApplicationPorts{}).ToolDeps().MarketProviders(t.Context()); err != nil || providers.(map[string]any)["status"] != "unavailable" {
+		t.Fatalf("default market providers = %#v, %v", providers, err)
+	}
+	failedHealth := NewApplicationAdapter(ApplicationPorts{
+		FutuOpenDHealth: func(context.Context) (any, error) { return nil, errors.New("probe failed") },
+	}).ToolDeps().RuntimeDependencies(t.Context()).(map[string]any)["openD"].(map[string]any)
+	if failedHealth["status"] != "error" || failedHealth["error"] != "probe failed" {
+		t.Fatalf("failed OpenD health = %#v", failedHealth)
+	}
+}
+
+func TestApplicationAdapterProvidesScreenCatalogAndCancelResult(t *testing.T) {
+	adapter := NewApplicationAdapter(ApplicationPorts{})
+	if catalog, err := adapter.ToolDeps().ResearchScreenCatalog(" us "); err != nil || catalog == nil {
+		t.Fatalf("ResearchScreenCatalog = %#v, %v", catalog, err)
+	}
+	if _, err := adapter.ToolDeps().ResearchScreenCatalog("CN"); err == nil {
+		t.Fatal("unsupported screen market error = nil")
+	}
+	if adapter.ToolDeps().CancelBacktestResult("missing") {
+		t.Fatal("CancelBacktestResult(nil service) = true")
+	}
+	if adapter := NewApplicationAdapter(ApplicationPorts{Backtest: func() *btsrv.Service { return btsrv.NewService() }}); adapter.ToolDeps().CancelBacktestResult("missing") {
+		t.Fatal("CancelBacktestResult(empty service) = true")
+	}
+}
+
 type assistantMarketDataProvider struct {
 	mdsrv.Provider
 	response mdsrv.CandlesResponse

@@ -22,6 +22,7 @@ func newStrategyRuntimeDependencies(server *Server) liveruntime.Dependencies {
 		},
 		AccountResolver:        strategyapp.AccountResolver(server.futuCoordinator().ResolveBroker),
 		MarketDataCapabilities: strategyapp.MarketDataCapabilities(server.marketdataSvc),
+		MarketDataHealth:       strategyapp.MarketDataHealth(server.marketdataSvc),
 		PineWorker: func() pineWorkerRunner {
 			_, runner := server.runtimes.PineWorkerRunners()
 			return runner

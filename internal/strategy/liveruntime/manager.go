@@ -95,7 +95,12 @@ type Manager struct {
 	runtimes     map[string]*managedRuntime
 	starting     map[string]struct{}
 	closed       bool
-	startWG      sync.WaitGroup
+	// marketDataHealthOverridden is set when an explicit exchange override is
+	// installed. Test/embedded callers use that bridge to supply a complete
+	// market-data fixture whose health is owned by the override rather than the
+	// process-level provider status callback.
+	marketDataHealthOverridden bool
+	startWG                    sync.WaitGroup
 
 	closeOnce sync.Once
 	closeErr  error
@@ -126,6 +131,7 @@ type Dependencies struct {
 	ExchangeProvider        func() Exchange
 	ExchangeResolver        func(stratsrv.InstanceBinding) Exchange
 	MarketDataCapabilities  func(context.Context) (mdsrv.ProviderCapabilities, error)
+	MarketDataHealth        func(context.Context) (mdsrv.HealthStatus, error)
 	PineWorker              PineWorker
 	PineWorkerLimit         func() int
 	WakeMarketDataCollector func()
@@ -179,6 +185,7 @@ func (m *Manager) SetExchangeProvider(provider func() Exchange) {
 	}
 	m.exchangeMu.Lock()
 	m.marketDataProvider = provider
+	m.marketDataHealthOverridden = true
 	m.accountResolver = func(stratsrv.InstanceBinding) AccountSource {
 		if provider == nil {
 			return nil
@@ -497,6 +504,21 @@ func (m *Manager) validateMarketDataCapabilities(ctx context.Context) error {
 	if !capabilities.StreamingCandles {
 		return fmt.Errorf("active market-data provider does not support streaming candles")
 	}
+	m.exchangeMu.RLock()
+	healthOverridden := m.marketDataHealthOverridden
+	m.exchangeMu.RUnlock()
+	if m.deps.MarketDataHealth != nil && !healthOverridden {
+		health, err := m.deps.MarketDataHealth(ctx)
+		if err != nil {
+			return fmt.Errorf("load market-data health: %w", err)
+		}
+		if !health.Connected || health.Readiness == mdsrv.ProviderReadinessFailed {
+			if health.LastError != "" {
+				return fmt.Errorf("active market-data provider is unhealthy: %s", health.LastError)
+			}
+			return fmt.Errorf("active market-data provider is unhealthy")
+		}
+	}
 	return nil
 }
 
@@ -544,10 +566,10 @@ func (m *Manager) loadStrategyRuntimeInputs(ctx context.Context, instance strats
 	if instancebinding.NormalizeExecutionMode(instance.Binding.ExecutionMode) == instancebinding.ExecutionModeNotifyOnly {
 		return marketData, nil, markets, nil, nil, nil
 	}
-	brokerID := strategyRuntimeBrokerID(instance.Binding)
-	if brokerID == "" {
-		return nil, nil, nil, nil, nil, fmt.Errorf("live strategy requires a bound tradable broker")
+	if err := validateLiveBrokerBinding(instance.Binding); err != nil {
+		return nil, nil, nil, nil, nil, err
 	}
+	brokerID := strategyRuntimeBrokerID(instance.Binding)
 	account := m.resolveAccount(instance.Binding)
 	if account == nil {
 		return nil, nil, nil, nil, nil, fmt.Errorf("live strategy broker %q is unavailable or not tradable", brokerID)

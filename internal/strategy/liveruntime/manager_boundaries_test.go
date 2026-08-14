@@ -113,6 +113,45 @@ func TestStrategyRuntimeRequiresStreamingCandlesForLiveAndNotifyOnly(t *testing.
 	}
 }
 
+func TestStrategyRuntimeRejectsUnhealthyActiveProviderUnlessExchangeOverrideOwnsHealth(t *testing.T) {
+	manager := NewManager(Dependencies{
+		MarketDataCapabilities: func(context.Context) (mdsrv.ProviderCapabilities, error) {
+			return mdsrv.ProviderCapabilities{StreamingCandles: true}, nil
+		},
+		MarketDataHealth: func(context.Context) (mdsrv.HealthStatus, error) {
+			return mdsrv.HealthStatus{Connected: true, Readiness: mdsrv.ProviderReadinessFailed, LastError: "sidecar unavailable"}, nil
+		},
+	})
+	if err := manager.validateMarketDataCapabilities(t.Context()); err == nil || !strings.Contains(err.Error(), "sidecar unavailable") {
+		t.Fatalf("unhealthy provider validation = %v", err)
+	}
+	manager.deps.MarketDataHealth = func(context.Context) (mdsrv.HealthStatus, error) {
+		return mdsrv.HealthStatus{}, errors.New("health callback failed")
+	}
+	if err := manager.validateMarketDataCapabilities(t.Context()); err == nil || !strings.Contains(err.Error(), "health callback failed") {
+		t.Fatalf("health callback error = %v", err)
+	}
+	manager.deps.MarketDataHealth = func(context.Context) (mdsrv.HealthStatus, error) {
+		return mdsrv.HealthStatus{}, nil
+	}
+	if err := manager.validateMarketDataCapabilities(t.Context()); err == nil || !strings.Contains(err.Error(), "provider is unhealthy") {
+		t.Fatalf("generic unhealthy provider error = %v", err)
+	}
+
+	healthCalls := 0
+	manager.deps.MarketDataHealth = func(context.Context) (mdsrv.HealthStatus, error) {
+		healthCalls++
+		return mdsrv.HealthStatus{}, errors.New("health probe should be bypassed")
+	}
+	manager.SetExchangeProvider(func() Exchange { return newStrategyRuntimeStubExchange() })
+	if err := manager.validateMarketDataCapabilities(t.Context()); err != nil {
+		t.Fatalf("explicit exchange health override validation = %v", err)
+	}
+	if healthCalls != 0 {
+		t.Fatalf("health callback calls under explicit exchange override = %d", healthCalls)
+	}
+}
+
 func TestStrategyRuntimeResolvesExactBoundBrokerWithoutLegacyFallback(t *testing.T) {
 	stub := newStrategyRuntimeStubExchange()
 	resolvedBrokerID := ""
@@ -126,14 +165,51 @@ func TestStrategyRuntimeResolvesExactBoundBrokerWithoutLegacyFallback(t *testing
 		},
 	})
 	instance := stratsrv.ManagedInstance{Binding: stratsrv.InstanceBinding{
-		Symbols:       []string{"US.AAPL"},
-		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "paper-broker"},
+		Symbols: []string{"US.AAPL"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{
+			BrokerID: "paper-broker", AccountID: "account-1",
+			TradingEnvironment: "SIMULATE", Market: "US",
+		},
 	}}
 	if _, _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil {
 		t.Fatal("exact broker resolution unexpectedly used legacy fallback")
 	}
 	if resolvedBrokerID != "paper-broker" {
 		t.Fatalf("resolved broker = %q, want paper-broker", resolvedBrokerID)
+	}
+}
+
+func TestLiveStrategyRequiresExplicitBrokerAccountBinding(t *testing.T) {
+	base := stratsrv.InstanceBinding{Symbols: []string{"US.AAPL"}}
+	tests := []struct {
+		name  string
+		value func() *stratsrv.BrokerAccountBinding
+		want  string
+	}{
+		{name: "missing binding", value: func() *stratsrv.BrokerAccountBinding { return nil }, want: "explicit broker account"},
+		{name: "missing broker", value: func() *stratsrv.BrokerAccountBinding {
+			return &stratsrv.BrokerAccountBinding{AccountID: "account-1", TradingEnvironment: "SIMULATE", Market: "US"}
+		}, want: "brokerId"},
+		{name: "missing account", value: func() *stratsrv.BrokerAccountBinding {
+			return &stratsrv.BrokerAccountBinding{BrokerID: "futu", TradingEnvironment: "SIMULATE", Market: "US"}
+		}, want: "accountId"},
+		{name: "missing environment", value: func() *stratsrv.BrokerAccountBinding {
+			return &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "account-1", Market: "US"}
+		}, want: "tradingEnvironment"},
+		{name: "missing market", value: func() *stratsrv.BrokerAccountBinding {
+			return &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "account-1", TradingEnvironment: "SIMULATE"}
+		}, want: "market"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			binding := base
+			binding.ExecutionMode = "live"
+			binding.BrokerAccount = test.value()
+			manager := NewManager(Dependencies{ExchangeProvider: func() Exchange { return newStrategyRuntimeStubExchange() }})
+			if _, _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), stratsrv.ManagedInstance{Binding: binding}); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("loadStrategyRuntimeInputs error = %v, want %q", err, test.want)
+			}
+		})
 	}
 }
 

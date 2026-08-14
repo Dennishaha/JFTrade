@@ -40,6 +40,10 @@ type StartRequest struct {
 	TradingCosts      bt.TradingCosts `json:"tradingCosts"`
 	ExecutionModel    string          `json:"executionModel,omitempty"`
 	ChartType         chart.ChartType `json:"chartType"`
+	// MarketDataProviderOverride is an assistant/application-only override.
+	// It is deliberately excluded from the public HTTP JSON contract and is
+	// frozen into the run when the request is accepted.
+	MarketDataProviderOverride string `json:"-"`
 }
 
 // ScriptStartRequest starts a transient research backtest from an inline Pine
@@ -61,6 +65,8 @@ type ScriptStartRequest struct {
 	TradingCosts     bt.TradingCosts `json:"tradingCosts"`
 	ExecutionModel   string          `json:"executionModel,omitempty"`
 	ChartType        chart.ChartType `json:"chartType"`
+	// MarketDataProviderOverride is not part of the public HTTP request.
+	MarketDataProviderOverride string `json:"-"`
 }
 
 // RunState 是回测运行状态的纯数据结构。
@@ -127,6 +133,9 @@ type DataReadiness struct {
 	Sync     *SyncStarted     `json:"dataSync,omitempty"`
 	Progress *bt.SyncProgress `json:"progress,omitempty"`
 	Error    string           `json:"error,omitempty"`
+	// MarketDataProvider is surfaced through the ADK readiness projection but
+	// stays out of the public HTTP JSON contract.
+	MarketDataProvider string `json:"-"`
 }
 
 type preparedBacktest struct {
@@ -393,6 +402,16 @@ func (s *Service) backtestProviderID() string {
 		}
 	}
 	return "futu"
+}
+
+// CurrentBacktestProviderID returns the default provider that a new backtest
+// would use at this instant. Assistant/application callers use it to freeze a
+// single provider across readiness, synchronization, queueing, and execution.
+func (s *Service) CurrentBacktestProviderID() string {
+	if s == nil {
+		return "futu"
+	}
+	return s.backtestProviderID()
 }
 
 // List 列出所有回测运行记录（不含结果详情，仅元数据）。

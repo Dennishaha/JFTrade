@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
@@ -395,8 +396,8 @@ func TestADKStrategyDefinitionVersionToolsExposeImmutableSnapshotsAndFailures(t 
 
 func TestADKBacktestRunsFiltersByDefinitionVersionStatusAndLimit(t *testing.T) {
 	runs := []BacktestRunSummary{
-		{ID: "run-newest", DefinitionID: "def-1", DefinitionVersion: "0.1.1", Status: "COMPLETED"},
-		{ID: "run-older", DefinitionID: "def-1", DefinitionVersion: "0.1.1", Status: "completed"},
+		{ID: "run-newest", DefinitionID: "def-1", DefinitionVersion: "0.1.1", Status: "COMPLETED", MarketDataProvider: "yfinance"},
+		{ID: "run-older", DefinitionID: "def-1", DefinitionVersion: "0.1.1", Status: "completed", MarketDataProvider: "futu"},
 		{ID: "run-baseline", DefinitionID: "def-1", DefinitionVersion: "0.1.0", Status: "COMPLETED"},
 		{ID: "run-other", DefinitionID: "def-2", DefinitionVersion: "0.1.1", Status: "FAILED"},
 	}
@@ -433,6 +434,15 @@ func TestADKBacktestRunsFiltersByDefinitionVersionStatusAndLimit(t *testing.T) {
 	baselineItems := baseline["runs"].([]map[string]any)
 	if baseline["runCount"] != 1 || baseline["totalMatched"] != 1 || baseline["truncated"] != false || baselineItems[0]["id"] != "run-baseline" {
 		t.Fatalf("version-only backtest.runs = %#v", baseline)
+	}
+	providerOutput, err := tool.Handler(context.Background(), map[string]any{"marketDataProvider": "YFINANCE"})
+	if err != nil {
+		t.Fatalf("provider-only backtest.runs: %v", err)
+	}
+	providerPayload := providerOutput.(map[string]any)
+	providerItems := providerPayload["runs"].([]map[string]any)
+	if providerPayload["runCount"] != 1 || providerItems[0]["id"] != "run-newest" {
+		t.Fatalf("provider-only backtest.runs = %#v", providerPayload)
 	}
 }
 
@@ -683,5 +693,139 @@ func TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure(t *testin
 		"definitionIds": []any{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"},
 	}); err == nil || !strings.Contains(err.Error(), "at most 12") {
 		t.Fatalf("strategy.optimize candidate limit error = %v, want max candidate validation", err)
+	}
+}
+
+func TestADKBacktestProviderFreezesDefaultAcrossPreparationAndQueue(t *testing.T) {
+	if got := freezeBacktestProviderID(" YFINANCE ", func() string { return "futu" }); got != "yfinance" {
+		t.Fatalf("explicit provider freeze = %q, want yfinance", got)
+	}
+	if got := freezeBacktestProviderID("", nil); got != "" {
+		t.Fatalf("missing provider freeze = %q, want empty", got)
+	}
+	store, err := assistanttestkit.NewStore(
+		filepath.Join(t.TempDir(), "adk.db"),
+		filepath.Join(t.TempDir(), "secrets"),
+		filepath.Join(t.TempDir(), "skills"),
+	)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := store.Close(); closeErr != nil {
+			t.Fatalf("store.Close: %v", closeErr)
+		}
+	})
+
+	current := "yfinance"
+	var researchPrepared, researchStarted string
+	registry := assistanttestkit.NewToolRegistry()
+	registerJFTradeADKStrategyTools(store, registry, ToolDeps{
+		BacktestProviderID: func() string { return current },
+		EnsureResearchBacktestData: func(input ResearchBacktestInput) (BacktestDataReadiness, error) {
+			researchPrepared = input.MarketDataProvider
+			current = "akshare"
+			return BacktestDataReadiness{Status: "ready", Ready: true}, nil
+		},
+		StartResearchBacktest: func(input ResearchBacktestInput) (BacktestRunSummary, error) {
+			researchStarted = input.MarketDataProvider
+			return BacktestRunSummary{ID: "research-frozen", Status: "queued", MarketDataProvider: input.MarketDataProvider}, nil
+		},
+	})
+	researchTool, _ := registry.Get("strategy.research_backtest")
+	if _, err := researchTool.Handler(context.Background(), map[string]any{
+		"script": strategypinespec.Skeleton(), "market": "US", "symbol": "US.AAPL",
+	}); err != nil {
+		t.Fatalf("research backtest: %v", err)
+	}
+	if researchPrepared != "yfinance" || researchStarted != "yfinance" {
+		t.Fatalf("research providers prepared=%q started=%q, want both yfinance", researchPrepared, researchStarted)
+	}
+
+	current = "futu"
+	var optimizePrepared string
+	var optimizeQueued []string
+	registry = assistanttestkit.NewToolRegistry()
+	registerJFTradeADKStrategyTools(store, registry, ToolDeps{
+		BacktestProviderID: func() string { return current },
+		EnsureBacktestData: func(_ []string, input BacktestStartInput) (BacktestDataReadiness, error) {
+			optimizePrepared = input.MarketDataProvider
+			current = "akshare"
+			return BacktestDataReadiness{Status: "ready", Ready: true}, nil
+		},
+		EnqueueBacktest: func(input BacktestStartInput) (BacktestRunRef, error) {
+			optimizeQueued = append(optimizeQueued, input.MarketDataProvider)
+			current = "yfinance"
+			return BacktestRunRef{ID: "run-" + input.DefinitionID, Status: "queued"}, nil
+		},
+		CancelBacktest: func(string) {},
+	})
+	optimizeTool, _ := registry.Get("strategy.optimize")
+	if _, err := optimizeTool.Handler(context.Background(), map[string]any{
+		"definitionIds": []any{"def-a", "def-b"}, "market": "US", "symbol": "US.AAPL",
+	}); err != nil {
+		t.Fatalf("strategy.optimize: %v", err)
+	}
+	if optimizePrepared != "futu" || len(optimizeQueued) != 2 || optimizeQueued[0] != "futu" || optimizeQueued[1] != "futu" {
+		t.Fatalf("optimization providers prepared=%q queued=%#v, want all futu", optimizePrepared, optimizeQueued)
+	}
+}
+
+func TestADKConcurrentResearchBacktestOverridesStayIsolated(t *testing.T) {
+	registry := assistanttestkit.NewToolRegistry()
+	seen := make(chan string, 2)
+	release := make(chan struct{})
+	defaultReads := make(chan struct{}, 2)
+	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{
+		BacktestProviderID: func() string {
+			defaultReads <- struct{}{}
+			return "futu"
+		},
+		StartResearchBacktest: func(input ResearchBacktestInput) (BacktestRunSummary, error) {
+			seen <- input.MarketDataProvider
+			<-release
+			return BacktestRunSummary{ID: "run-" + input.MarketDataProvider, Status: "queued", MarketDataProvider: input.MarketDataProvider}, nil
+		},
+	})
+	tool, _ := registry.Get("strategy.research_backtest")
+	results := make(chan error, 2)
+	for _, providerID := range []string{"yfinance", "akshare"} {
+		providerID := providerID
+		go func() {
+			_, err := tool.Handler(t.Context(), map[string]any{
+				"script": strategypinespec.Skeleton(), "market": "US", "symbol": "US.AAPL",
+				"startTime": "2026-01-02T00:00:00Z", "endTime": "2026-01-03T00:00:00Z",
+				"marketDataProvider": providerID,
+			})
+			results <- err
+		}()
+	}
+	want := map[string]bool{"yfinance": false, "akshare": false}
+	for range 2 {
+		select {
+		case providerID := <-seen:
+			if _, ok := want[providerID]; !ok || want[providerID] {
+				t.Fatalf("concurrent provider = %q, want one yfinance and one akshare", providerID)
+			}
+			want[providerID] = true
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for concurrent provider overrides")
+		}
+	}
+	close(release)
+	for range 2 {
+		select {
+		case err := <-results:
+			if err != nil {
+				t.Fatalf("concurrent research backtest: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for concurrent research backtest results")
+		}
+	}
+	select {
+	case <-defaultReads:
+		t.Fatal("explicit provider override read or changed the default provider")
+	default:
 	}
 }

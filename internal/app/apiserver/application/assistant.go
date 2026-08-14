@@ -33,10 +33,13 @@ type AssistantHealth interface {
 // Assistant assembly. Services are stable after bootstrap; their internal
 // runtime providers remain dynamic.
 type AssistantOptions struct {
-	SettingsPath string
-	Settings     AssistantSettings
-	Runtime      assistantassembly.Runtime
-	Health       AssistantHealth
+	SettingsPath         string
+	Settings             AssistantSettings
+	Runtime              assistantassembly.Runtime
+	Health               AssistantHealth
+	MarketProviders      func(context.Context) (any, error)
+	SelectMarketProvider func(context.Context, string, string) (any, error)
+	RuntimeDependencies  func(context.Context) any
 
 	System          *system.Service
 	MarketData      *mdsrv.Service
@@ -116,5 +119,8 @@ func AssistantPorts(options AssistantOptions) assistantassembly.ApplicationPorts
 			}
 			return options.Health.OpenDHealth(ctx), nil
 		},
+		MarketProviders:      options.MarketProviders,
+		SelectMarketProvider: options.SelectMarketProvider,
+		RuntimeDependencies:  options.RuntimeDependencies,
 	}
 }

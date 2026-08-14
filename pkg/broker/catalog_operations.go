@@ -126,6 +126,11 @@ type capabilityOperationSurfaceOverride struct {
 }
 
 var capabilityOperationSurfaceOverrides = map[FeatureID]map[string]capabilityOperationSurfaceOverride{
+	FeatureResearchScreen: {
+		// Keep the legacy protocol available to the HTTP adapter, but expose
+		// only the typed V2 definition to Assistant tools.
+		"stock_v1": {noTool: true},
+	},
 	FeatureOptionChain: {
 		"expirations": {api: "/api/v1/market-data/options/expirations/{instrumentId}"},
 	},

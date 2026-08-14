@@ -662,12 +662,11 @@ func handlePauseInstance(svc *srv.Service) gin.HandlerFunc {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid instance id")
 			return
 		}
-		instance, err := svc.TransitionInstance(uri.InstanceID, "PAUSED")
+		instance, err := svc.PauseInstance(uri.InstanceID)
 		if err != nil {
 			writeStrategyError(c, err, http.StatusInternalServerError, "STRATEGY_FAILED", "failed to pause strategy")
 			return
 		}
-		svc.Stop(uri.InstanceID)
 		httpserver.WriteOK(c, instance)
 	}
 }
@@ -691,12 +690,11 @@ func handleStopInstance(svc *srv.Service) gin.HandlerFunc {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid instance id")
 			return
 		}
-		instance, err := svc.TransitionInstance(uri.InstanceID, "STOPPED")
+		instance, err := svc.StopInstance(uri.InstanceID)
 		if err != nil {
 			writeStrategyError(c, err, http.StatusInternalServerError, "STRATEGY_FAILED", "failed to stop strategy")
 			return
 		}
-		svc.Stop(uri.InstanceID)
 		httpserver.WriteOK(c, instance)
 	}
 }

@@ -15,6 +15,8 @@ func productToolInputSchema(name string) map[string]any {
 		return typedCapabilityInputSchema(description)
 	}
 	switch name {
+	case "research.screen_catalog":
+		return objectSchema(readProperties(map[string]any{"market": enumSchema(productMarketEnum...)}), nil)
 	case "market.capabilities":
 		return objectSchema(commonCapabilityProperties(), nil)
 	case "market.search":
@@ -73,6 +75,9 @@ func productToolInputSchema(name string) map[string]any {
 }
 
 func typedCapabilityInputSchema(description productfeatures.TypedCapabilityDescription) map[string]any {
+	if description.ToolName == "research.screen" {
+		return researchScreenToolSchema()
+	}
 	switch description.SchemaKind {
 	case productfeatures.ToolSchemaInstrument:
 		return objectSchema(
@@ -104,6 +109,9 @@ func marketSeriesToolSchema(candles bool) map[string]any {
 		properties["limit"] = map[string]any{"type": "integer", "minimum": 1, "maximum": 500}
 		properties["startTime"] = stringSchema(1, 40)
 		properties["endTime"] = stringSchema(1, 40)
+		properties["beforeTime"] = stringSchema(1, 40)
+		properties["sessions"] = map[string]any{"type": "array", "items": enumSchema("regular", "extended", "overnight"), "minItems": 1, "maxItems": 3}
+		properties["adjustment"] = enumSchema("none", "forward", "backward")
 	} else {
 		properties["num"] = map[string]any{"type": "integer", "minimum": 1, "maximum": 50}
 	}
@@ -188,6 +196,14 @@ func operationProperties(name string) map[string]any {
 		properties["beginDate"] = stringSchema(10, 10)
 		properties["endDate"] = stringSchema(10, 10)
 		properties["date"] = stringSchema(10, 10)
+		properties["sort"] = enumSchema("hot", "market_cap", "option_volume", "iv", "iv_rank", "iv_percentile")
+		properties["stockScope"] = enumSchema("all", "watchlist", "position", "special")
+		for _, key := range []string{"marketCapMin", "marketCapMax", "optionVolumeMin", "optionVolumeMax"} {
+			properties[key] = calendarNumericFilterSchema()
+		}
+		for _, key := range []string{"ivMin", "ivMax", "ivRankMin", "ivRankMax", "ivPercentileMin", "ivPercentileMax"} {
+			properties[key] = calendarNumericFilterSchema(100)
+		}
 	case "research.institutions":
 		properties["institutionId"] = map[string]any{"type": "integer", "minimum": 1}
 	case "research.industry":
@@ -197,6 +213,61 @@ func operationProperties(name string) map[string]any {
 		properties["plateId"] = map[string]any{"type": "integer", "minimum": 1}
 	}
 	return properties
+}
+
+func calendarNumericFilterSchema(maximum ...float64) map[string]any {
+	number := map[string]any{"type": "number", "minimum": 0}
+	if len(maximum) > 0 {
+		number["maximum"] = maximum[0]
+	}
+	return map[string]any{"anyOf": []any{
+		number,
+		stringSchema(1, 40),
+	}}
+}
+
+func researchScreenToolSchema() map[string]any {
+	factorParams := map[string]any{"type": "object", "properties": map[string]any{
+		"days": map[string]any{"type": "integer"}, "periodAverage": map[string]any{"type": "integer"},
+		"term": map[string]any{"type": "integer"}, "duration": map[string]any{"type": "integer"},
+		"year": map[string]any{"type": "integer"}, "futureDuration": map[string]any{"type": "integer"},
+		"period": map[string]any{"type": "integer"}, "rangePeriod": map[string]any{"type": "integer"},
+		"firstCustomParam": map[string]any{"type": "integer"}, "indicatorParams": map[string]any{"type": "array", "items": map[string]any{"type": "integer"}},
+		"brokerParam": map[string]any{"type": "string"}, "optionParamType": map[string]any{"type": "integer"},
+		"optionParamString": map[string]any{"type": "string"}, "optionParamInteger": map[string]any{"type": "integer"},
+		"optionParamIntegers": map[string]any{"type": "array", "items": map[string]any{"type": "integer"}},
+		"optionHvPeriod":      map[string]any{"type": "integer"},
+	}, "additionalProperties": false}
+	factor := map[string]any{"type": "object", "properties": map[string]any{
+		"instanceId": stringSchema(1, 120), "factorKey": stringSchema(1, 160),
+		"params": factorParams,
+	}, "required": []string{"factorKey"}, "additionalProperties": false}
+	condition := map[string]any{"type": "object", "properties": map[string]any{
+		"id": stringSchema(1, 120), "factor": factor, "operator": stringSchema(1, 40), "value": map[string]any{},
+		"secondFactor": factor,
+	}, "required": []string{"factor", "operator"}, "additionalProperties": false}
+	column := map[string]any{"type": "object", "properties": map[string]any{
+		"columnId": stringSchema(1, 120), "factor": factor, "label": stringSchema(0, 160),
+	}, "required": []string{"columnId", "factor"}, "additionalProperties": false}
+	sort := map[string]any{"type": "object", "properties": map[string]any{
+		"sortId": stringSchema(0, 120), "columnId": stringSchema(0, 120), "factor": factor,
+		"direction": enumSchema("asc", "desc", "abs_asc", "abs_desc"),
+	}, "required": []string{"factor", "direction"}, "additionalProperties": false}
+	return objectSchema(readProperties(map[string]any{
+		"operation":          enumSchema("stock_v2"),
+		"tradingEnvironment": enumSchema("SIMULATE", "REAL"),
+		"pool": map[string]any{"type": "object", "properties": map[string]any{
+			"watchlistStockIds": map[string]any{"type": "array", "items": stringSchema(1, 120)},
+			"plates": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{
+				"parentPlateId": stringSchema(0, 80), "plateIds": map[string]any{"type": "array", "items": stringSchema(1, 80)},
+			}, "required": []string{"plateIds"}, "additionalProperties": false}},
+		}, "additionalProperties": false},
+		"conditions":     map[string]any{"type": "array", "items": condition, "maxItems": 50},
+		"columns":        map[string]any{"type": "array", "items": column, "maxItems": 50},
+		"sorts":          map[string]any{"type": "array", "items": sort, "maxItems": 20},
+		"catalogVersion": stringSchema(1, 120), "querySchemaVersion": map[string]any{"type": "integer", "minimum": 2},
+		"page": map[string]any{"type": "object", "properties": map[string]any{"offset": map[string]any{"type": "integer", "minimum": 0}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, "additionalProperties": false},
+	}), []string{"market", "pool", "catalogVersion", "querySchemaVersion"})
 }
 
 func predictionDiscoveryProperties() map[string]any {

@@ -275,6 +275,31 @@ func TestServiceStartInstanceRefreshesLiveMarketStreamAfterSuccess(t *testing.T)
 	}
 }
 
+func TestServicePauseAndStopInstancesStopRuntimeAfterStateTransition(t *testing.T) {
+	catalog := &fakeCatalogStore{}
+	runtime := &fakeRuntimeManager{}
+	refreshCount := 0
+	service := NewService(&fakeDesignStore{}, catalog, runtime, WithLiveMarketStreamRefresher(func(context.Context) {
+		refreshCount++
+	}))
+	if got, err := service.PauseInstance("instance-a"); err != nil || got.Status != "PAUSED" || runtime.stopped != "instance-a" {
+		t.Fatalf("PauseInstance() = %#v, %v stopped=%q", got, err, runtime.stopped)
+	}
+	if got, err := service.StopInstance("instance-a"); err != nil || got.Status != "STOPPED" || runtime.stopped != "instance-a" {
+		t.Fatalf("StopInstance() = %#v, %v stopped=%q", got, err, runtime.stopped)
+	}
+	if refreshCount != 2 {
+		t.Fatalf("live stream refresh count = %d, want 2", refreshCount)
+	}
+	transitionErr := errors.New("state transition failed")
+	if _, err := NewService(&fakeDesignStore{}, &fakeCatalogStore{transitionErr: transitionErr}, runtime).PauseInstance("instance-a"); !errors.Is(err, transitionErr) {
+		t.Fatalf("PauseInstance transition error = %v", err)
+	}
+	if _, err := NewService(&fakeDesignStore{}, &fakeCatalogStore{transitionErr: transitionErr}, runtime).StopInstance("instance-a"); !errors.Is(err, transitionErr) {
+		t.Fatalf("StopInstance transition error = %v", err)
+	}
+}
+
 //nolint:funlen
 func TestServiceDelegatesCatalogRuntimeAndLifecycleEntryPoints(t *testing.T) {
 	catalog := &fakeCatalogStore{

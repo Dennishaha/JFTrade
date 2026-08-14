@@ -1,6 +1,7 @@
 package liveruntime
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -40,6 +41,27 @@ func strategyRuntimeBrokerID(binding stratsrv.InstanceBinding) string {
 		return ""
 	}
 	return strings.ToLower(strings.TrimSpace(binding.BrokerAccount.BrokerID))
+}
+
+func validateLiveBrokerBinding(binding stratsrv.InstanceBinding) error {
+	account := binding.BrokerAccount
+	if account == nil {
+		return fmt.Errorf("live strategy requires an explicit broker account binding")
+	}
+	if strings.TrimSpace(account.BrokerID) == "" {
+		return fmt.Errorf("live strategy broker account requires brokerId")
+	}
+	if strings.TrimSpace(account.AccountID) == "" {
+		return fmt.Errorf("live strategy broker account requires accountId")
+	}
+	environment := strings.ToUpper(strings.TrimSpace(account.TradingEnvironment))
+	if environment != "SIMULATE" && environment != "REAL" {
+		return fmt.Errorf("live strategy broker account requires tradingEnvironment SIMULATE or REAL")
+	}
+	if strings.TrimSpace(account.Market) == "" {
+		return fmt.Errorf("live strategy broker account requires market")
+	}
+	return nil
 }
 
 func strategyRuntimeDefinitionID(instance stratsrv.ManagedInstance) string {

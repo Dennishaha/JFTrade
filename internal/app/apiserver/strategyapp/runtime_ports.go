@@ -53,6 +53,13 @@ func MarketDataCapabilities(service *marketdata.Service) func(context.Context) (
 	}
 }
 
+func MarketDataHealth(service *marketdata.Service) func(context.Context) (marketdata.HealthStatus, error) {
+	return func(ctx context.Context) (marketdata.HealthStatus, error) {
+		status, err := service.ProviderStatus(ctx)
+		return status.Health, err
+	}
+}
+
 func TradeCommands(service *trading.Service) liveruntime.TradeCommandPort {
 	if service == nil {
 		return tradeCommands(nil)

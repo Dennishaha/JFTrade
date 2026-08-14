@@ -227,27 +227,37 @@ func resultViewRunPayload(run *RunState) map[string]any {
 	if run == nil {
 		return map[string]any{}
 	}
+	provider := run.MarketDataProvider
+	if provider == "" {
+		provider = run.Request.MarketDataProviderOverride
+	}
+	if provider == "" {
+		provider = "futu"
+	}
 	return map[string]any{
-		"id":                run.ID,
-		"status":            run.Status,
-		"definitionId":      run.Request.DefinitionID,
-		"definitionVersion": run.Request.DefinitionVersion,
-		"market":            run.Request.Market,
-		"code":              run.Request.Code,
-		"symbol":            run.Request.Symbol,
-		"instrumentType":    run.Request.InstrumentType,
-		"interval":          run.Request.Interval,
-		"startDate":         run.Request.StartDate,
-		"endDate":           run.Request.EndDate,
-		"startTime":         run.Request.StartTime,
-		"endTime":           run.Request.EndTime,
-		"marketTimezone":    run.Request.MarketTimezone,
-		"initialBalance":    run.Request.InitialBalance,
-		"rehabType":         run.Request.RehabType,
-		"useExtendedHours":  run.Request.UseExtendedHours,
-		"tradingCosts":      run.Request.TradingCosts,
-		"createdAt":         run.CreatedAt,
-		"updatedAt":         run.UpdatedAt,
+		"id":                 run.ID,
+		"status":             run.Status,
+		"definitionId":       run.Request.DefinitionID,
+		"definitionVersion":  run.Request.DefinitionVersion,
+		"market":             run.Request.Market,
+		"code":               run.Request.Code,
+		"symbol":             run.Request.Symbol,
+		"instrumentType":     run.Request.InstrumentType,
+		"marketDataProvider": provider,
+		"interval":           run.Request.Interval,
+		"startDate":          run.Request.StartDate,
+		"endDate":            run.Request.EndDate,
+		"startTime":          run.Request.StartTime,
+		"endTime":            run.Request.EndTime,
+		"marketTimezone":     run.Request.MarketTimezone,
+		"initialBalance":     run.Request.InitialBalance,
+		"rehabType":          run.Request.RehabType,
+		"chartType":          run.Request.ChartType,
+		"executionModel":     run.Request.ExecutionModel,
+		"useExtendedHours":   run.Request.UseExtendedHours,
+		"tradingCosts":       run.Request.TradingCosts,
+		"createdAt":          run.CreatedAt,
+		"updatedAt":          run.UpdatedAt,
 	}
 }
 

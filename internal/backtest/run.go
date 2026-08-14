@@ -53,23 +53,24 @@ func (s *Service) StartScript(ctx context.Context, req ScriptStartRequest) (*Run
 	}
 	def := transientStrategyDefinition(script)
 	return s.startResolvedBacktest(ctx, StartRequest{
-		DefinitionID:      def.ID,
-		DefinitionVersion: def.Version,
-		Market:            req.Market,
-		Code:              req.Code,
-		Symbol:            req.Symbol,
-		InstrumentType:    req.InstrumentType,
-		Interval:          req.Interval,
-		StartDate:         req.StartDate,
-		EndDate:           req.EndDate,
-		StartTime:         req.StartTime,
-		EndTime:           req.EndTime,
-		InitialBalance:    req.InitialBalance,
-		RehabType:         req.RehabType,
-		UseExtendedHours:  req.UseExtendedHours,
-		TradingCosts:      req.TradingCosts,
-		ExecutionModel:    req.ExecutionModel,
-		ChartType:         req.ChartType,
+		DefinitionID:               def.ID,
+		DefinitionVersion:          def.Version,
+		Market:                     req.Market,
+		Code:                       req.Code,
+		Symbol:                     req.Symbol,
+		InstrumentType:             req.InstrumentType,
+		Interval:                   req.Interval,
+		StartDate:                  req.StartDate,
+		EndDate:                    req.EndDate,
+		StartTime:                  req.StartTime,
+		EndTime:                    req.EndTime,
+		InitialBalance:             req.InitialBalance,
+		RehabType:                  req.RehabType,
+		UseExtendedHours:           req.UseExtendedHours,
+		TradingCosts:               req.TradingCosts,
+		ExecutionModel:             req.ExecutionModel,
+		ChartType:                  req.ChartType,
+		MarketDataProviderOverride: req.MarketDataProviderOverride,
 	}, def)
 }
 
@@ -87,7 +88,14 @@ func (s *Service) startResolvedBacktest(ctx context.Context, req StartRequest, d
 	if err != nil {
 		return nil, err
 	}
-	providerID := s.backtestProviderID()
+	providerID := s.resolveBacktestProviderID(req.MarketDataProviderOverride)
+	if strings.TrimSpace(req.MarketDataProviderOverride) != "" {
+		switch providerID {
+		case "futu", "yfinance", "akshare":
+		default:
+			return nil, requestErrorf("unsupported marketDataProvider %q", req.MarketDataProviderOverride)
+		}
+	}
 	if err := s.validatePreparedBacktestCoverage(prepared, providerID); err != nil {
 		return nil, err
 	}
@@ -155,6 +163,13 @@ func newQueuedRun(req StartRequest, providerID ...string) *RunState {
 		UpdatedAt:          now,
 		MarketDataProvider: firstProviderID(providerID),
 	}
+}
+
+func (s *Service) resolveBacktestProviderID(override string) string {
+	if providerID := strings.ToLower(strings.TrimSpace(override)); providerID != "" {
+		return providerID
+	}
+	return s.backtestProviderID()
 }
 
 func firstProviderID(values []string) string {

@@ -56,7 +56,7 @@ var typedCapabilityDescriptions = []TypedCapabilityDescription{
 	},
 	{
 		ToolName: "research.screen", FeatureID: broker.FeatureResearchScreen,
-		SchemaKind: ToolSchemaCollection, Operations: []string{"stock_v1", "stock_v2"},
+		SchemaKind: ToolSchemaCollection, Operations: []string{"stock_v2"},
 	},
 	{
 		ToolName: "research.calendar", FeatureID: broker.FeatureResearchCalendar,

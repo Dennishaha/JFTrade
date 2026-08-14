@@ -21,8 +21,10 @@ const localMCPRuntimeStatusURI = "jftrade://runtime/status"
 var LocalMCPReadOnlyToolNames = []string{
 	"system.status",
 	"system.futu_opend",
+	"system.runtime_dependencies",
 	"plugins.catalog",
 	"market.subscriptions",
+	"market.providers",
 	"market.capabilities",
 	"market.search",
 	"market.instrument_profile",
@@ -49,6 +51,7 @@ var LocalMCPReadOnlyToolNames = []string{
 	"research.short_interest",
 	"research.news",
 	"research.screen",
+	"research.screen_catalog",
 	"research.calendar",
 	"research.macro",
 	"research.rankings",
@@ -84,6 +87,7 @@ var LocalMCPReadOnlyToolNames = []string{
 	"backtest.runs",
 	"backtest.result_view",
 	"backtest.kline_sync_status",
+	"strategy.instance_activity",
 }
 
 // LocalMCPHandler bridges the reviewed read-only ADK tools to MCP's Streamable

@@ -1,5 +1,14 @@
 import { formatNumber } from "@/utils/numberFormat";
 import { isRecord, labelFromKey, type UnknownRecord } from "./adkToolVisualizationHelpers";
+import {
+  buildBacktestResultView,
+  buildMarketProviders,
+  buildRuntimeDependencies,
+  buildResearchScreen,
+  buildRiskState,
+  buildScreenCatalog,
+  buildStrategyInstance,
+} from "./adkToolVisualizationsExtended";
 export type ADKToolVisualization =
   | ADKSummaryVisualization
   | ADKTableVisualization
@@ -62,6 +71,10 @@ export function buildADKToolVisualization(toolName: string, output: unknown): AD
       return buildPortfolioPositions(output);
     case "market.capabilities":
       return buildToolSummary("行情能力", output, ["provider", "broker", "market", "checkedAt", "warnings"]);
+    case "market.providers":
+      return buildMarketProviders(output);
+    case "system.runtime_dependencies":
+      return buildRuntimeDependencies(output);
     case "market.snapshot":
       return buildToolTable("行情快照", output, ["snapshot", "data", "items"], [
         ["instrumentId", "标的"], ["symbol", "代码"], ["market", "市场"],
@@ -82,7 +95,9 @@ export function buildADKToolVisualization(toolName: string, output: unknown): AD
     case "research.news":
       return buildToolTable("研究资讯", output, ["news", "items", "articles", "data"], [["publishedAt", "时间"], ["title", "标题"], ["source", "来源"], ["sentiment", "情绪"]]);
     case "research.screen":
-      return buildToolTable("研究筛选", output, ["results", "items", "data"], [["instrumentId", "标的"], ["name", "名称"], ["market", "市场"], ["score", "评分"]]);
+      return buildResearchScreen(output);
+    case "research.screen_catalog":
+      return buildScreenCatalog(output);
     case "execution.order_preview":
     case "execution.combo_preview":
       return buildToolSummary("下单预览", output, ["previewId", "status", "accountId", "tradingEnvironment", "market", "expiresAt", "warnings"]);
@@ -137,6 +152,12 @@ export function buildADKToolVisualization(toolName: string, output: unknown): AD
         ["status", "状态"],
         ["symbol", "标的"],
         ["interval", "周期"],
+        ["marketDataProvider", "行情提供者"],
+        ["chartType", "图表类型"],
+        ["instrumentType", "标的类型"],
+        ["useExtendedHours", "扩展时段"],
+        ["executionModel", "执行模型"],
+        ["tradingCosts", "交易费用"],
         ["totalReturn", "收益"],
         ["maxDrawdown", "回撤"],
         ["tradeCount", "成交笔数"],
@@ -144,11 +165,29 @@ export function buildADKToolVisualization(toolName: string, output: unknown): AD
       ]);
     case "backtest.result_view":
       return buildBacktestResultView(output);
+    case "backtest.cancel":
+      return buildToolSummary("回测取消", output, ["runId", "cancelled", "cancelRequested"]);
+    case "strategy.instance_start":
+    case "strategy.instance_stop":
+    case "strategy.instantiate":
+    case "strategy.instance_refresh_definition":
+    case "strategy.instance_risk.update":
+      return buildStrategyInstance(output);
+    case "strategy.instance_activity": {
+      const logs = findArray(output, ["logs"]).filter((item): item is string => typeof item === "string" && item.trim() !== "");
+      return buildTimeline("策略实例活动", output, ["entries", "events"])
+        ?? (logs.length > 0 ? buildStringTable("策略实例日志", output, logs) : null);
+    }
     case "strategy.optimize":
       return buildToolTable("优化候选", output, ["runs", "candidates", "tasks", "items", "data"], [
         ["definitionId", "策略定义"],
         ["runId", "运行 ID"],
         ["status", "状态"],
+        ["marketDataProvider", "行情提供者"],
+        ["chartType", "图表类型"],
+        ["instrumentType", "标的类型"],
+        ["useExtendedHours", "扩展时段"],
+        ["executionModel", "执行模型"],
         ["totalReturn", "收益"],
         ["maxDrawdown", "回撤"],
         ["tradeCount", "成交笔数"],
@@ -231,6 +270,12 @@ function buildStrategyResearchBacktest(output: UnknownRecord): ADKToolVisualizat
     row("策略名", metadata?.name),
     row("标的", metadata?.symbol),
     row("周期", metadata?.interval),
+    row("行情提供者", output.marketDataProvider),
+    row("图表类型", output.chartType),
+    row("标的类型", output.instrumentType),
+    row("扩展时段", output.useExtendedHours),
+    row("执行模型", output.executionModel),
+    row("交易费用", output.tradingCosts),
     row("Hook 数", hooks.length),
     row("结果视图错误", output.resultViewError),
     row("保存建议", output.saveRecommendation),
@@ -392,107 +437,13 @@ function buildPortfolioPositions(output: UnknownRecord): ADKToolVisualization | 
   };
 }
 
-function buildToolSummary(title: string, output: UnknownRecord, keys: string[]): ADKSummaryVisualization | null {
+export function buildToolSummary(title: string, output: UnknownRecord, keys: string[]): ADKSummaryVisualization | null {
   const cards = keys.map((key) => summaryCard(labelFromKey(key), pick(output, [key]))).filter((card): card is NonNullable<typeof card> => card !== null);
   if (cards.length === 0) return null;
   return { kind: "summary", title, cards };
 }
 
-function buildRiskState(output: UnknownRecord): ADKToolVisualization | null {
-  const killSwitch = pick(output, ["killSwitch", "kill_switch"]);
-  const riskLimits = pick(output, ["riskLimits", "limits"]);
-  const cards = [
-    summaryCard("熔断开关", killSwitch, toneForKillSwitch(killSwitch)),
-    summaryCard("风险限制", riskLimits),
-    summaryCard("实盘交易", pick(output, ["realTradingEnabled", "realTrading", "enabled"]), toneForValue(pick(output, ["realTradingEnabled", "realTrading", "enabled"]))),
-  ].filter((card): card is NonNullable<typeof card> => card !== null);
-  const rows = [
-    row("检查时间", pick(output, ["checkedAt", "updatedAt", "at"])),
-    row("来源", pick(output, ["riskConfigSource", "source"])),
-  ].filter((item): item is { label: string; value: string } => item !== null);
-
-  if (cards.length === 0 && rows.length === 0) return null;
-  return { kind: "summary", title: "风险状态", cards, rows };
-}
-
-function buildBacktestResultView(output: UnknownRecord): ADKToolVisualization | null {
-  const view = optionalValue(output.view) ?? "summary";
-  const series = isRecord(output.series) ? output.series : {};
-  if (view === "chart") {
-    const candles = findArray(series, ["candles"]);
-    if (candles.length > 0) {
-      return buildRecordTable("回测蜡烛窗口", output, candles, [
-        ["time", "时间"],
-        ["open", "开"],
-        ["high", "高"],
-        ["low", "低"],
-        ["close", "收"],
-        ["volume", "量"],
-      ]);
-    }
-    const trades = findArray(series, ["trades"]);
-    if (trades.length > 0) {
-      return buildRecordTable("回测交易窗口", output, trades, [
-        ["time", "时间"],
-        ["side", "方向"],
-        ["price", "价格"],
-        ["qty", "数量"],
-        ["positionQty", "持仓"],
-      ]);
-    }
-  }
-  if (view === "orders") {
-    const orders = findArray(series, ["orderBook"]);
-    if (orders.length > 0) {
-      return buildRecordTable("回测订单窗口", output, orders, [
-        ["orderId", "订单"],
-        ["symbol", "标的"],
-        ["side", "方向"],
-        ["status", "状态"],
-        ["quantity", "数量"],
-        ["price", "价格"],
-        ["submittedAt", "提交时间"],
-        ["filledAt", "成交时间"],
-      ]);
-    }
-  }
-  if (view === "logs" || view === "errors") {
-    const items = findArray(series, view === "logs" ? ["logs"] : ["runtimeErrors"]);
-    if (items.length > 0) {
-      return buildStringTable(view === "logs" ? "回测日志窗口" : "回测错误窗口", output, items);
-    }
-  }
-  return buildBacktestResultSummary(output);
-}
-
-function buildBacktestResultSummary(output: UnknownRecord): ADKToolVisualization | null {
-  const run = isRecord(output.run) ? output.run : {};
-  const summary = isRecord(output.summary) ? output.summary : {};
-  const cards = [
-    summaryCard("状态", run.status, toneForValue(run.status)),
-    summaryCard("最终资产", summary.finalBalance),
-    summaryCard("盈亏", summary.pnl),
-    summaryCard("收益", summary.totalReturn),
-    summaryCard("最大回撤", summary.maxDrawdown),
-    summaryCard("成交数", summary.totalTrades),
-  ].filter((card): card is NonNullable<typeof card> => card !== null);
-  const rows = [
-    row("运行 ID", run.id),
-    row("标的", run.symbol),
-    row("周期", run.interval),
-    row("开始", run.startTime),
-    row("结束", run.endTime),
-    row("错误", summary.error),
-    row("最新日志", summary.latestLog),
-  ].filter((item): item is { label: string; value: string } => item !== null);
-  if (cards.length === 0 && rows.length === 0) return null;
-  const visualization: ADKSummaryVisualization = { kind: "summary", title: "回测结果视图", cards, rows };
-  const subtitle = optionalValue(output.view);
-  if (subtitle) visualization.subtitle = subtitle;
-  return visualization;
-}
-
-function buildToolTable(
+export function buildToolTable(
   title: string,
   output: UnknownRecord,
   arrayKeys: string[],
@@ -517,7 +468,7 @@ function buildToolTable(
   };
 }
 
-function buildRecordTable(
+export function buildRecordTable(
   title: string,
   output: UnknownRecord,
   items: unknown[],
@@ -540,7 +491,7 @@ function buildRecordTable(
   };
 }
 
-function buildStringTable(title: string, output: UnknownRecord, items: unknown[]): ADKTableVisualization | null {
+export function buildStringTable(title: string, output: UnknownRecord, items: unknown[]): ADKTableVisualization | null {
   const rows = items.slice(0, 20).map((item, index) => ({ index: String(index + 1), message: formatValue(item) }));
   return {
     kind: "table",
@@ -554,7 +505,7 @@ function buildStringTable(title: string, output: UnknownRecord, items: unknown[]
   };
 }
 
-function backtestWindowSubtitle(output: UnknownRecord, returned: number, total: number): string {
+export function backtestWindowSubtitle(output: UnknownRecord, returned: number, total: number): string {
   const run = isRecord(output.run) ? output.run : {};
   const window = isRecord(output.window) ? output.window : {};
   const parts = [
@@ -623,7 +574,7 @@ function depthPercent(row: ADKDepthRow, maxQuantity: number): number {
   return Math.max(4, Math.min(100, Math.round((quantity / maxQuantity) * 100)));
 }
 
-function summaryCard(label: string, value: unknown, tone: ADKSummaryVisualization["cards"][number]["tone"] = undefined) {
+export function summaryCard(label: string, value: unknown, tone: ADKSummaryVisualization["cards"][number]["tone"] = undefined) {
   if (!hasDisplayValue(value)) return null;
   const card: ADKSummaryVisualization["cards"][number] = { label, value: formatValue(value) };
   const resolvedTone = tone ?? toneForValue(value);
@@ -631,12 +582,12 @@ function summaryCard(label: string, value: unknown, tone: ADKSummaryVisualizatio
   return card;
 }
 
-function row(label: string, value: unknown) {
+export function row(label: string, value: unknown) {
   if (!hasDisplayValue(value)) return null;
   return { label, value: formatValue(value) };
 }
 
-function findArray(record: UnknownRecord, keys: string[]): unknown[] {
+export function findArray(record: UnknownRecord, keys: string[]): unknown[] {
   for (const key of keys) {
     const value = record[key];
     if (Array.isArray(value)) return value;
@@ -650,29 +601,29 @@ function findArray(record: UnknownRecord, keys: string[]): unknown[] {
   return [];
 }
 
-function pick(record: UnknownRecord, keys: string[]): unknown {
+export function pick(record: UnknownRecord, keys: string[]): unknown {
   for (const key of keys) {
     if (hasDisplayValue(record[key])) return record[key];
   }
   return undefined;
 }
 
-function getRecordValue(record: UnknownRecord, key: string): unknown {
+export function getRecordValue(record: UnknownRecord, key: string): unknown {
   return key.split(".").reduce<unknown>((value, part) => (isRecord(value) ? value[part] : undefined), record);
 }
 
-function optionalValue(value: unknown): string | undefined {
+export function optionalValue(value: unknown): string | undefined {
   return hasDisplayValue(value) ? formatValue(value) : undefined;
 }
 
-function hasDisplayValue(value: unknown): boolean {
+export function hasDisplayValue(value: unknown): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value === "string") return value.trim() !== "";
   if (Array.isArray(value)) return value.length > 0;
   return true;
 }
 
-function formatValue(value: unknown): string {
+export function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "-";
   if (typeof value === "boolean") return value ? "是" : "否";
   if (typeof value === "number") return formatNumber(value, { maximumFractionDigits: 4, fallback: "-" });
@@ -689,7 +640,7 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-function toneForValue(value: unknown): "ok" | "warning" | "danger" | "muted" | undefined {
+export function toneForValue(value: unknown): "ok" | "warning" | "danger" | "muted" | undefined {
   const text = formatValue(value).toLowerCase();
   if (["yes", "是", "enabled", "已启用", "active", "活跃", "ok", "healthy", "正常", "connected", "已连接", "succeeded", "success", "成功", "completed", "已完成", "done"].includes(text)) return "ok";
   if (["no", "否", "disabled", "未启用", "inactive", "未激活", "pending", "待处理", "queued", "排队中", "running", "运行中", "todo", "已停止"].includes(text)) return "muted";
@@ -698,7 +649,7 @@ function toneForValue(value: unknown): "ok" | "warning" | "danger" | "muted" | u
   return undefined;
 }
 
-function toneForKillSwitch(value: unknown): "ok" | "warning" | "danger" | "muted" | undefined {
+export function toneForKillSwitch(value: unknown): "ok" | "warning" | "danger" | "muted" | undefined {
   if (typeof value === "boolean") return value ? "danger" : "ok";
   const text = formatValue(value).toLowerCase();
   if (["yes", "是", "true", "enabled", "已启用", "active", "活跃", "on", "engaged"].includes(text)) return "danger";

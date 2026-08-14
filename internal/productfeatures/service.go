@@ -568,7 +568,10 @@ func normalizeCoreCandleQuery(
 		stringParam(query.Params, "endTime"),
 		stringParam(query.Params, "toTime"),
 	)
-	sessions := stringSliceParam(query.Params, "sessions")
+	sessions, adjustment, err := normalizeCandleOptions(stringSliceParam(query.Params, "sessions"), stringParam(query.Params, "adjustment"))
+	if err != nil {
+		return broker.KLineQuery{}, "", err
+	}
 	if beforeTime != "" && (fromTime != "" || toTime != "") {
 		return broker.KLineQuery{}, "", fmt.Errorf(
 			"%w: before cannot be combined with fromTime or toTime",
@@ -582,7 +585,7 @@ func normalizeCoreCandleQuery(
 		},
 		Symbol: instrumentID, Period: period,
 		FromTime: fromTime, ToTime: toTime, BeforeTime: beforeTime, Limit: limit,
-		Sessions: sessions,
+		Sessions: sessions, Adjustment: adjustment,
 	}, operation, nil
 }
 

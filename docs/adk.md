@@ -89,17 +89,17 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 当前内置 tools 覆盖（完整目录仍以运行时 `tools.search`/`GET /api/v1/adk/tools` 返回的 descriptor、schema 和 Required Skill 为准）：
 
 - 用户交互：`interaction.request_user`（Registry 内置工具；需要在 Agent 工具清单中启用）
-- 系统运维：`system.status`、`system.futu_opend`、`plugins.catalog`
-- 行情：`market.capabilities`、`market.search`、`market.instrument_profile`、`market.subscriptions`、`market.snapshot`、`market.snapshots`、`market.candles`、`market.intraday`、`market.ticks`、`market.depth`、`market.broker_queue`、`market.capital_flow`、`watchlist.list`、`watchlist.remote.list`、`watchlist.remote.modify`、`alerts.price.list/set`
+- 系统运维：`system.status`、`system.futu_opend`、`system.runtime_dependencies`、`plugins.catalog`
+- 行情：`market.capabilities`、`market.providers`、`market.provider.select`、`market.search`、`market.instrument_profile`、`market.subscriptions`、`market.snapshot`、`market.snapshots`、`market.candles`、`market.intraday`、`market.ticks`、`market.depth`、`market.broker_queue`、`market.capital_flow`、`watchlist.list`、`watchlist.remote.list`、`watchlist.remote.modify`、`alerts.price.list/set`
 - 账户与风控：`portfolio.accounts`、`portfolio.overview`、`portfolio.positions`、`portfolio.summary`、`account.orders`、`broker.orders`、`broker.fills`、`broker.cash_flows`、`broker.fees`、`broker.margin_ratios`、`risk.state`、`risk.events`、`execution.order_events`
 - 衍生品与预测：`derivatives.option_chain/screen/analysis/events`、`derivatives.warrants`、`derivatives.futures`、`prediction.discover/snapshot/depth/history/combo_eligible/combo_quote`、`alerts.option_event.list/set`
-- 研究：`research.instrument`、`research.financials`、`research.valuation`、`research.analyst`、`research.ownership`、`research.corporate_actions`、`research.short_interest`、`research.news`、`research.screen`、`research.calendar`、`research.macro`、`research.rankings`、`research.institutions`、`research.industry`、`research.technical_indicators`
+- 研究：`research.instrument`、`research.financials`、`research.valuation`、`research.analyst`、`research.ownership`、`research.corporate_actions`、`research.short_interest`、`research.news`、`research.screen_catalog`、`research.screen`、`research.calendar`、`research.macro`、`research.rankings`、`research.institutions`、`research.industry`、`research.technical_indicators`
 - 工作流等待与任务：`workflow.wait`、`tasks.list/create/update/delete`、`memory.list/remember/forget`
 - 工作流定义：`workflows.list/get/create/update/delete/run`
 - 工作流触发器：`workflow_triggers.list/get/create/update/delete/run`
 - 工作流运行：`workflow_runs.list/get/wait`；`workflow_runs.wait` 在服务端按间隔等待，超时返回当前状态和下一次建议轮询间隔，避免模型忙轮询。
-- 策略：`strategy.definitions`、`strategy.definition_versions.list/get`、`strategy.pine_spec`、`strategy.validate_pine`、`strategy.research_backtest`、`strategy.save_draft`、`strategy.save_definition`、`strategy.update_instance_mode`、`strategy.optimize`
-- 回测：`backtest.runs`、`backtest.result_view`、`backtest.kline_sync_status`
+- 策略：`strategy.definitions`、`strategy.definition_versions.list/get`、`strategy.pine_spec`、`strategy.validate_pine`、`strategy.research_backtest`、`strategy.save_draft`、`strategy.save_definition`、`strategy.update_instance_mode`、`strategy.instantiate`、`strategy.instance_start`、`strategy.instance_stop`、`strategy.instance_refresh_definition`、`strategy.instance_risk.update`、`strategy.instance_activity`、`strategy.optimize`
+- 回测：`backtest.runs`、`backtest.result_view`、`backtest.kline_sync_status`、`backtest.cancel`
 - 外部：`http.fetch`（支持 `maxBytes`，响应返回 `finalUrl`、`bytes` 和 `truncated`）
 
 `http.fetch` 允许公网 HTTP/HTTPS，默认阻止本机、私网、link-local、multicast 和 metadata IP，且限制响应大小；它不是本机文件或 Shell 工具。
@@ -121,6 +121,10 @@ Webhook secret 不进入模型上下文或 ADK 工具记录。tools 可以查看
 策略内置 skill 已拆分为 `jftrade-strategy-research` 和 `jftrade-strategy-publish`。前者用于临时研究回测、不可变历史版本比较与结果查看，不写入策略定义；后者用于用户明确要求的保存、发布、历史版本恢复、实例模式调整和已保存定义优化。策略 tools 同样按 Agent 白名单和权限在构建时声明，Skill 只提供各自的操作规范和资源。`strategy.validate_pine`、`strategy.definition_versions.list/get`、`backtest.runs` 和 `backtest.kline_sync_status` 由两条流程共享；研究或发布专属工具的说明仍归对应 Skill。历史版本读取只返回不可变快照；恢复必须由用户明确要求，重新校验后通过受审批的 `strategy.save_definition` 以相同 definitionId 创建新版本，不能原地修改历史。旧的 `jftrade-strategy` 不再作为内置 skill 同步。
 
 ADK 发起研究回测或策略优化前会先检查本地 K 线覆盖，并把指标 warmup 纳入检查范围。覆盖不足时自动启动历史数据同步，工具返回 `syncing_data` 和同步 `taskId`，不会提前创建回测 run；skill 使用 `backtest.kline_sync_status` 等待完成后，以相同参数重试原回测工具。同步失败、取消或完成后覆盖仍不足时停止自动重试并返回原因。
+
+回测与策略研究的 `marketDataProvider` 是单次请求覆盖值：任务开始时冻结当前默认回测提供者，数据准备、同步、排队和所有候选运行沿用同一值，不会被并发的全局切换串改。`market.providers` 只返回静态能力和当前激活提供者健康；`market.provider.select` 修改实时或回测默认值，所有权限模式都逐次审批并在激活失败时回滚。yfinance、AKShare 是轮询历史数据源，不提供实时策略流。回测结果、同步状态、`backtest.runs` 和结果视图都保留 provider、图表类型、标的类型、时段、费用和执行模型。
+
+`market.candles` 支持 `sessions`、`beforeTime` 和 `adjustment`，游标与时间范围不能同时出现；`research.screen_catalog` 和 V2 `research.screen` 共享版本化因子目录、归一化、分页、限流和列投影；`research.calendar` 接受市值、期权量、IV、IV Rank 和 IV Percentile 等筛选参数。策略实例工具共用策略 Service 生命周期，启动前会拒绝未知/不健康/不支持实时流的提供者、缺少明确账户的 live 绑定和已满的 Pine Worker。
 
 ## Skill 运行时
 
