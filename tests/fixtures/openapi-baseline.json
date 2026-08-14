@@ -62,6 +62,9 @@
         "status": {
           "type": "string"
         },
+        "toolAccessMode": {
+          "type": "string"
+        },
         "tools": {
           "items": {
             "type": "string"
@@ -88,6 +91,7 @@
         "recentUserWindow",
         "skills",
         "status",
+        "toolAccessMode",
         "tools",
         "updatedAt",
         "workMode"
@@ -144,6 +148,9 @@
           "type": "array"
         },
         "status": {
+          "type": "string"
+        },
+        "toolAccessMode": {
           "type": "string"
         },
         "tools": {
@@ -2036,6 +2043,14 @@
         "status": {
           "type": "string"
         },
+        "toolAccessMode": {
+          "enum": [
+            "all",
+            "selected",
+            "none"
+          ],
+          "type": "string"
+        },
         "tools": {
           "items": {
             "type": "string"
@@ -2947,6 +2962,12 @@
         "averageDurationMs": {
           "type": "integer"
         },
+        "byErrorCode": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
         "byName": {
           "additionalProperties": {
             "type": "integer"
@@ -2959,19 +2980,40 @@
           },
           "type": "object"
         },
+        "errorCount": {
+          "type": "integer"
+        },
+        "outputBytesMax": {
+          "type": "integer"
+        },
+        "outputBytesTotal": {
+          "type": "integer"
+        },
+        "retryableErrors": {
+          "type": "integer"
+        },
         "successful": {
           "type": "integer"
         },
         "total": {
           "type": "integer"
+        },
+        "truncated": {
+          "type": "integer"
         }
       },
       "required": [
         "averageDurationMs",
+        "byErrorCode",
         "byName",
         "byStatus",
+        "errorCount",
+        "outputBytesMax",
+        "outputBytesTotal",
+        "retryableErrors",
         "successful",
-        "total"
+        "total",
+        "truncated"
       ],
       "type": "object"
     },

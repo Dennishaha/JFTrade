@@ -14,6 +14,10 @@ const (
 	PermissionModeLessApproval = "less_approval"
 	PermissionModeAll          = "all"
 
+	ToolAccessModeAll      = "all"
+	ToolAccessModeSelected = "selected"
+	ToolAccessModeNone     = "none"
+
 	WorkModeChat = "chat"
 	WorkModeLoop = "loop"
 
@@ -203,6 +207,7 @@ type Agent struct {
 	ReasoningEffortField string          `json:"-"`
 	ReasoningEffortValue string          `json:"-"`
 	Tools                []string        `json:"tools"`
+	ToolAccessMode       string          `json:"toolAccessMode"`
 	Skills               []string        `json:"skills"`
 	PermissionMode       string          `json:"permissionMode"`
 	MemoryEnabled        bool            `json:"memoryEnabled"`
@@ -224,6 +229,7 @@ type AgentWriteRequest struct {
 	Model             string          `json:"model,omitempty"`
 	ReasoningEffort   ReasoningEffort `json:"reasoningEffort,omitempty" enums:"low,medium,high,xhigh,max"`
 	Tools             []string        `json:"tools,omitempty"`
+	ToolAccessMode    string          `json:"toolAccessMode,omitempty"`
 	Skills            []string        `json:"skills,omitempty"`
 	PermissionMode    string          `json:"permissionMode"`
 	MemoryEnabled     bool            `json:"memoryEnabled"`

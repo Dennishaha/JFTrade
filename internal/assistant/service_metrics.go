@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -43,8 +44,14 @@ type toolMetricsSummary struct {
 	total             int
 	successful        int
 	averageDurationMs int64
+	outputBytesTotal  int64
+	outputBytesMax    int64
+	truncated         int
+	errorCount        int
+	retryableErrors   int
 	byName            map[string]int
 	byStatus          map[string]int
+	byErrorCode       map[string]int
 }
 
 type usageMetricsSummary struct {
@@ -221,8 +228,9 @@ func aggregateRunMetrics(runs []assistantmodel.Run, agentProvider map[string]str
 		byProvider: map[string]int{},
 	}
 	toolMetrics := toolMetricsSummary{
-		byName:   map[string]int{},
-		byStatus: map[string]int{},
+		byName:      map[string]int{},
+		byStatus:    map[string]int{},
+		byErrorCode: map[string]int{},
 	}
 	var totalDuration int64
 	var durationCount int64
@@ -247,6 +255,24 @@ func aggregateRunMetrics(runs []assistantmodel.Run, agentProvider map[string]str
 			if call.Status == "SUCCEEDED" {
 				toolMetrics.successful++
 			}
+			outputBytes, truncated, retryable, errorCode := summarizeToolOutput(call.Output)
+			toolMetrics.outputBytesTotal += outputBytes
+			if outputBytes > toolMetrics.outputBytesMax {
+				toolMetrics.outputBytesMax = outputBytes
+			}
+			if truncated {
+				toolMetrics.truncated++
+			}
+			if retryable {
+				toolMetrics.retryableErrors++
+			}
+			if toolCallCountsAsError(call, errorCode) {
+				toolMetrics.errorCount++
+				if errorCode == "" {
+					errorCode = toolCallErrorCode(call)
+				}
+				toolMetrics.byErrorCode[errorCode]++
+			}
 			if call.DurationMs > 0 {
 				totalDuration += call.DurationMs
 				durationCount++
@@ -257,6 +283,47 @@ func aggregateRunMetrics(runs []assistantmodel.Run, agentProvider map[string]str
 		toolMetrics.averageDurationMs = totalDuration / durationCount
 	}
 	return runMetrics, toolMetrics, finalizeUsageMetrics(tokensInTotal, tokensOutTotal, tokenSamples)
+}
+
+func toolCallCountsAsError(call assistantmodel.ToolCall, errorCode string) bool {
+	if call.Error != nil || strings.TrimSpace(errorCode) != "" {
+		return true
+	}
+	switch strings.ToUpper(strings.TrimSpace(call.Status)) {
+	case "FAILED", "TIMED_OUT", "DENIED", "CANCELLED", "ERROR":
+		return true
+	default:
+		return false
+	}
+}
+
+func toolCallErrorCode(call assistantmodel.ToolCall) string {
+	if call.Error != nil {
+		return "TOOL_EXECUTION_FAILED"
+	}
+	if strings.TrimSpace(call.Status) == "" {
+		return "TOOL_UNKNOWN"
+	}
+	return strings.ToUpper(strings.TrimSpace(call.Status))
+}
+
+func summarizeToolOutput(output any) (int64, bool, bool, string) {
+	if output == nil {
+		return 0, false, false, ""
+	}
+	raw, err := json.Marshal(output)
+	if err != nil {
+		return 0, false, false, ""
+	}
+	var envelope struct {
+		Truncated bool `json:"truncated"`
+		Error     struct {
+			Code      string `json:"code"`
+			Retryable bool   `json:"retryable"`
+		} `json:"error"`
+	}
+	_ = json.Unmarshal(raw, &envelope)
+	return int64(len(raw)), envelope.Truncated, envelope.Error.Retryable, strings.ToUpper(strings.TrimSpace(envelope.Error.Code))
 }
 
 func metricsProviderID(run assistantmodel.Run, agentProvider map[string]string) string {
@@ -366,13 +433,7 @@ func buildMetricsPayload(
 				"orphaned":  runMetrics.orphaned,
 			},
 		},
-		"tools": map[string]any{
-			"total":             toolMetrics.total,
-			"successful":        toolMetrics.successful,
-			"averageDurationMs": toolMetrics.averageDurationMs,
-			"byName":            toolMetrics.byName,
-			"byStatus":          toolMetrics.byStatus,
-		},
+		"tools": buildToolMetricsPayload(toolMetrics),
 		"approvals": map[string]any{
 			"pending":            approvalMetrics.pending,
 			"total":              len(approvals),
@@ -416,5 +477,21 @@ func buildMetricsPayload(
 			"since": activityMetrics.windowSince.Format(time.RFC3339Nano),
 		},
 		"checkedAt": now.Format(time.RFC3339Nano),
+	}
+}
+
+func buildToolMetricsPayload(metrics toolMetricsSummary) map[string]any {
+	return map[string]any{
+		"total":             metrics.total,
+		"successful":        metrics.successful,
+		"averageDurationMs": metrics.averageDurationMs,
+		"outputBytesTotal":  metrics.outputBytesTotal,
+		"outputBytesMax":    metrics.outputBytesMax,
+		"truncated":         metrics.truncated,
+		"errorCount":        metrics.errorCount,
+		"retryableErrors":   metrics.retryableErrors,
+		"byName":            metrics.byName,
+		"byStatus":          metrics.byStatus,
+		"byErrorCode":       metrics.byErrorCode,
 	}
 }

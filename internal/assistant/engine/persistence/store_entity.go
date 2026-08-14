@@ -382,6 +382,7 @@ func (s *StoreCore) SaveAgent(ctx context.Context, req jfadkmodel.AgentWriteRequ
 		Model:             strings.TrimSpace(req.Model),
 		ReasoningEffort:   jfadkmodel.NormalizeReasoningEffort(req.ReasoningEffort),
 		Tools:             jfadkmodel.NormalizeStringSlice(req.Tools),
+		ToolAccessMode:    jfadkmodel.NormalizeToolAccessMode(req.ToolAccessMode, req.Tools),
 		Skills:            jfadkmodel.NormalizeStringSlice(req.Skills),
 		PermissionMode:    jfadkmodel.NormalizePermissionMode(req.PermissionMode),
 		MemoryEnabled:     req.MemoryEnabled,

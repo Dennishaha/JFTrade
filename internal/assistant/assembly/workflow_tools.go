@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
@@ -128,6 +129,81 @@ func registerWorkflowRunTools(store *jfadkruntime.Store, registry *jfadkruntime.
 	registry.Register(workflowReadToolDescriptor("workflow_runs.get", "读取工作流运行", "按 logId 读取完整工作流运行日志、节点和结果。", "完整工作流运行日志。"), func(ctx context.Context, input map[string]any) (any, error) {
 		return workflowToolManagerRequired(manager).GetWorkflowRun(ctx, stringValue(input, "logId"))
 	})
+	registry.Register(workflowReadToolDescriptor("workflow_runs.wait", "等待工作流运行", "按 logId 阻塞等待工作流进入终态；最多等待 25 秒，超时返回当前状态和下一次建议轮询间隔。", "当前工作流运行状态、是否终态和等待元数据。"), func(ctx context.Context, input map[string]any) (any, error) {
+		return waitForWorkflowRun(ctx, manager, input)
+	})
+}
+
+func waitForWorkflowRun(ctx context.Context, manager WorkflowToolManager, input map[string]any) (any, error) {
+	logID := strings.TrimSpace(stringValue(input, "logId"))
+	if logID == "" {
+		return nil, fmt.Errorf("logId is required")
+	}
+	timeoutMs := intValue(input, "timeoutMs", 10000)
+	if timeoutMs < 0 || timeoutMs > 25000 {
+		return nil, fmt.Errorf("timeoutMs must be between 0 and 25000")
+	}
+	pollMs := intValue(input, "pollIntervalMs", 500)
+	if pollMs < 100 || pollMs > 5000 {
+		return nil, fmt.Errorf("pollIntervalMs must be between 100 and 5000")
+	}
+	started := time.Now()
+	if timeoutMs == 0 {
+		current, err := workflowToolManagerRequired(manager).GetWorkflowRun(ctx, logID)
+		if err != nil {
+			return nil, err
+		}
+		return workflowWaitResult(current, started, false), nil
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	defer cancel()
+	current, err := workflowToolManagerRequired(manager).GetWorkflowRun(waitCtx, logID)
+	if err != nil {
+		return nil, err
+	}
+	if workflowRunTerminal(current.Status) {
+		return workflowWaitResult(current, started, false), nil
+	}
+	ticker := time.NewTicker(time.Duration(pollMs) * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-waitCtx.Done():
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			return workflowWaitResult(current, started, true), nil
+		case <-ticker.C:
+			next, err := workflowToolManagerRequired(manager).GetWorkflowRun(waitCtx, logID)
+			if err != nil {
+				if ctx.Err() == nil && waitCtx.Err() != nil {
+					return workflowWaitResult(current, started, true), nil
+				}
+				return nil, err
+			}
+			current = next
+			if workflowRunTerminal(current.Status) {
+				return workflowWaitResult(current, started, false), nil
+			}
+		}
+	}
+}
+
+func workflowRunTerminal(status string) bool {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "SUCCEEDED", "COMPLETED", "FAILED", "CANCELLED", "SKIPPED", "ERROR":
+		return true
+	default:
+		return false
+	}
+}
+
+func workflowWaitResult(log assistantmodel.WorkflowTriggerLog, started time.Time, timedOut bool) map[string]any {
+	return map[string]any{
+		"run": log, "status": log.Status, "terminal": workflowRunTerminal(log.Status),
+		"timedOut": timedOut, "waitedMs": time.Since(started).Milliseconds(),
+		"nextPollMs": 1000,
+	}
 }
 
 func workflowReadToolDescriptor(name string, displayName string, description string, output string) assistantmodel.ToolDescriptor {

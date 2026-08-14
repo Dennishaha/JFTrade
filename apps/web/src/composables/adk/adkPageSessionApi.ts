@@ -108,6 +108,7 @@ export async function updateADKPageAgentProvider(agent: ADKAgent, providerId: st
     providerId,
     model: agent.model,
     tools: agent.tools,
+    toolAccessMode: agent.toolAccessMode,
     skills: agent.skills,
     permissionMode: agent.permissionMode,
     memoryEnabled: agent.memoryEnabled,

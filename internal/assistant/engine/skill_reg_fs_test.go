@@ -69,6 +69,23 @@ func TestSkillRegistryArchiveInstallsBundlesWithDirectoryEntries(t *testing.T) {
 	}
 }
 
+func TestSkillRegistryWarnsWhenExternalSkillReferencesUnknownTools(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	writeSkillDocument(t, runtime.Store().SkillsPath(), "future-skill", "---\nname: future-skill\ndescription: Skill for a future tool\nallowed-tools: [future.tool]\n---\nUse the future tool when available.")
+
+	skill, ok, err := runtime.Skills().Get(ctx, "future-skill")
+	if err != nil {
+		t.Fatalf("Get external skill: %v", err)
+	}
+	if !ok {
+		t.Fatal("Get external skill returned not found")
+	}
+	if skill.ValidationStatus != "WARNING" || !strings.Contains(skill.ValidationError, "future.tool") {
+		t.Fatalf("external skill validation = %+v, want warning for future.tool", skill)
+	}
+}
+
 func TestSkillRegistryFilesystemFailureBoundaries(t *testing.T) {
 	ctx := context.Background()
 	var nilRegistry *SkillRegistry

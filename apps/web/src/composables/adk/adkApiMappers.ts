@@ -47,6 +47,7 @@ import type {
 
 import * as guards from "./adkApiGuards";
 import type { ADKMetricsView, ADKPageEnvelope } from "./adkApiMapperModels";
+import { normalizeADKMetricsWire } from "./adkApiWireNormalization";
 
 export type { ADKMetricsView, ADKPageEnvelope } from "./adkApiMapperModels";
 
@@ -59,9 +60,13 @@ export const requireADKProviderTestResponse = (
 ): ADKProviderTestResponse =>
   guards.requireValue(value, guards.isADKProviderTestResponse, "provider test");
 export const requireADKAgent = (value: unknown): ADKAgent =>
-  guards.requireValue(value, guards.isADKAgent, "agent");
+  guards.requireValue(guards.normalizeADKAgentWire(value), guards.isADKAgent, "agent");
 export const requireADKAgents = (value: unknown): ADKAgent[] =>
-  guards.requireList(value, guards.isADKAgent, "agents");
+  guards.requireList(
+    Array.isArray(value) ? value.map(guards.normalizeADKAgentWire) : value,
+    guards.isADKAgent,
+    "agents",
+  );
 export const requireADKAgentTemplates = (
   value: unknown,
 ): Array<Omit<ADKAgent, "createdAt" | "updatedAt">> =>
@@ -157,7 +162,7 @@ export const requireMCPTokenResetResult = (
 ): MCPServerTokenResetResult =>
   guards.requireValue(value, guards.isMCPTokenResetResult, "MCP token reset");
 export const requireADKMetrics = (value: unknown): ADKMetricsView =>
-  guards.requireValue(value, guards.isMetricsView, "metrics");
+  guards.requireValue(normalizeADKMetricsWire(value), guards.isMetricsView, "metrics");
 export const requireADKWorkflowDefinition = (
   value: unknown,
 ): ADKWorkflowDefinition =>

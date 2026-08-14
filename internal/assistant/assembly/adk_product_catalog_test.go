@@ -5,9 +5,26 @@ import (
 	"testing"
 
 	assistant "github.com/jftrade/jftrade-main/internal/assistant"
+	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	assistanttestkit "github.com/jftrade/jftrade-main/internal/assistant/testkit"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
+
+func TestDefaultBuiltinAgentToolsExistInAssembledRegistry(t *testing.T) {
+	registry := assistanttestkit.NewToolRegistry()
+	runtime := jfadkruntime.NewRuntime(nil, registry)
+	t.Cleanup(func() {
+		if err := runtime.Close(); err != nil {
+			t.Errorf("runtime.Close: %v", err)
+		}
+	})
+	RegisterJFTradeADKTools(nil, registry, ToolDeps{})
+	for _, toolName := range jfadkruntime.DefaultBuiltinToolNames() {
+		if _, ok := registry.Get(toolName); !ok {
+			t.Errorf("default builtin agent references unregistered tool %q", toolName)
+		}
+	}
+}
 
 func TestCapabilityCatalogSurfacesAreRegisteredAndMCPBounded(t *testing.T) {
 	registry := assistanttestkit.NewToolRegistry()

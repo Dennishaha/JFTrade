@@ -119,11 +119,26 @@ export function normalizeADKAgentTemplateWire(value: unknown): unknown {
     reasoningEffort:
       template.reasoningEffort === undefined ? "" : template.reasoningEffort,
     tools: template.tools === undefined ? [] : template.tools,
+    toolAccessMode:
+      template.toolAccessMode === undefined
+        ? template.tools && template.tools.length > 0
+          ? "selected"
+          : "all"
+        : template.toolAccessMode,
     skills: template.skills === undefined ? [] : template.skills,
     recentUserWindow:
       template.recentUserWindow === undefined ? 6 : template.recentUserWindow,
     workMode: template.workMode === undefined ? "chat" : template.workMode,
     loopMaxIterations:
       template.loopMaxIterations === undefined ? 5 : template.loopMaxIterations,
+  };
+}
+
+export function normalizeADKAgentWire(value: unknown): unknown {
+  if (!isRecord(value) || value.toolAccessMode !== undefined) return value;
+  return {
+    ...value,
+    toolAccessMode:
+      Array.isArray(value.tools) && value.tools.length > 0 ? "selected" : "all",
   };
 }

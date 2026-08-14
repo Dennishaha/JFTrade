@@ -41,10 +41,20 @@ defineProps<{
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-slate-900">{{ skill.displayName }}</span>
                 <v-chip size="x-small" variant="tonal">{{ isInternalSkill(skill) ? "内部来源" : "外部" }}</v-chip>
+                <v-chip
+                  size="x-small"
+                  variant="tonal"
+                  :color="skill.validationStatus === 'WARNING' ? 'warning' : skill.validationStatus === 'INVALID' ? 'error' : 'success'"
+                >
+                  {{ skill.validationStatus ?? "VALID" }}
+                </v-chip>
               </div>
               <div class="mt-1 text-xs text-slate-500">{{ skill.description }}</div>
               <div class="mt-1 text-xs text-slate-500">
                 v{{ skill.version ?? "1" }} · {{ skill.source }}
+              </div>
+              <div v-if="skill.validationError" class="mt-1 text-xs text-warning">
+                {{ skill.validationError }}
               </div>
             </div>
           </div>

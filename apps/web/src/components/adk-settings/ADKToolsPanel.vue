@@ -58,8 +58,8 @@ function hasRequiredSkills(tool: ADKToolDescriptor | null): boolean {
 function requiredSkillLead(tool: ADKToolDescriptor | null): string {
   const names = requiredSkillNames(tool);
   return names.length > 1
-    ? "当前 invocation 必须先加载以下任一 Skill："
-    : "当前 invocation 必须先加载：";
+    ? "建议先加载以下任一 Skill 的操作规范："
+    : "建议先加载该 Skill 的操作规范：";
 }
 
 const toolPermissionLabels: Record<string, string> = {
@@ -177,7 +177,7 @@ function toolPermissionColor(permission?: string): string {
               <td>
                 <div class="flex justify-center">
                   <v-chip v-if="hasRequiredSkills(tool)" size="x-small" variant="tonal" color="info">
-                    需加载 Skill
+                    关联 Skill
                   </v-chip>
                   <span v-else class="text-body-2 text-medium-emphasis">无</span>
                 </div>
@@ -243,7 +243,7 @@ function toolPermissionColor(permission?: string): string {
             </div>
 
             <div v-if="hasRequiredSkills(selectedTool)" class="rounded border bg-surface p-2 text-high-emphasis">
-              <div class="text-caption text-medium-emphasis">调用前置 Skill</div>
+              <div class="text-caption text-medium-emphasis">关联操作规范</div>
               <div class="mt-1 text-body-2">
                 {{ requiredSkillLead(selectedTool) }}
               </div>

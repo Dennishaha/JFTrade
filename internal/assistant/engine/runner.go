@@ -81,6 +81,18 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 		executorID: "executor-" + uuid.NewString(), runLeaseTTL: defaultADKRunLeaseTTL,
 		runLeaseHeartbeat: defaultADKRunLeaseHeartbeat, runLeases: map[string]enginepersistence.RunLease{},
 	}
+	r.skills.setToolValidator(func(names []string) (string, string) {
+		unknown := make([]string, 0)
+		for _, name := range names {
+			if _, ok := r.tools.CanonicalName(name); !ok {
+				unknown = append(unknown, strings.TrimSpace(name))
+			}
+		}
+		if len(unknown) == 0 {
+			return "VALID", ""
+		}
+		return "WARNING", fmt.Sprintf("unknown allowed-tools: %s", strings.Join(unknown, ", "))
+	})
 	if store != nil {
 		store.SetSessionService(sessionService)
 	}

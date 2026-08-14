@@ -332,6 +332,13 @@ func (r *SkillRegistry) SkillFromFrontmatter(fm *adkskill.Frontmatter) (Skill, e
 	}
 	hash := sha256.Sum256(raw)
 	builtin := strings.EqualFold(sourceName, "builtin")
+	validationStatus, validationError := "VALID", ""
+	// Builtin bundles are shipped and versioned together with the product. A
+	// lightweight engine test registry may not register every assembly tool, so
+	// only externally installed documents are checked against the live registry.
+	if !builtin {
+		validationStatus, validationError = r.validateTools(fm.AllowedTools)
+	}
 	return Skill{
 		ID:               fm.Name,
 		DisplayName:      fm.Name,
@@ -343,7 +350,8 @@ func (r *SkillRegistry) SkillFromFrontmatter(fm *adkskill.Frontmatter) (Skill, e
 		Tools:            append([]string(nil), fm.AllowedTools...),
 		Version:          version,
 		ContentHash:      hex.EncodeToString(hash[:]),
-		ValidationStatus: "VALID",
+		ValidationStatus: validationStatus,
+		ValidationError:  validationError,
 		CreatedAt:        info.ModTime().UTC().Format(time.RFC3339Nano),
 		UpdatedAt:        info.ModTime().UTC().Format(time.RFC3339Nano),
 	}, nil

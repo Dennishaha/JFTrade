@@ -63,6 +63,8 @@ describe("ADKSkillsPanel", () => {
             description: "系统自带",
             source: "builtin",
             version: "1",
+            validationStatus: "WARNING",
+            validationError: "optional reference is missing",
             installPath: "",
             createdAt: "2026-07-01T00:00:00Z",
             updatedAt: "2026-07-01T00:00:00Z",
@@ -73,6 +75,17 @@ describe("ADKSkillsPanel", () => {
             description: "仓库安装",
             source: "https://skills.example/external",
             version: "2",
+            validationStatus: "INVALID",
+            installPath: "",
+            createdAt: "2026-07-01T00:00:00Z",
+            updatedAt: "2026-07-01T00:00:00Z",
+          },
+          {
+            id: "valid",
+            displayName: "有效技能",
+            description: "默认校验状态",
+            source: "builtin",
+            version: "1",
             installPath: "",
             createdAt: "2026-07-01T00:00:00Z",
             updatedAt: "2026-07-01T00:00:00Z",
@@ -103,6 +116,10 @@ describe("ADKSkillsPanel", () => {
     expect(wrapper.text()).toContain("内部来源");
     expect(wrapper.text()).toContain("外部");
     expect(wrapper.text()).toContain("v2");
+    expect(wrapper.text()).toContain("WARNING");
+    expect(wrapper.text()).toContain("INVALID");
+    expect(wrapper.text()).toContain("VALID");
+    expect(wrapper.text()).toContain("optional reference is missing");
     const buttons = wrapper.findAll("button").filter((button) =>
       button.text().includes("卸载") || button.text().includes("不可卸载"),
     );

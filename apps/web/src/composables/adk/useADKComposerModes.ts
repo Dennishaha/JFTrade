@@ -48,21 +48,21 @@ const permissionModeOptions: PermissionModeOption[] = [
     value: "approval",
     icon: "fa-solid fa-shield-halved",
     tone: "approval",
-    description: "低风险操作自动执行，敏感操作请求确认",
+    description: "低风险读取自动执行，中风险及以上操作请求确认",
   },
   {
     title: "减少审批",
     value: "less_approval",
     icon: "fa-solid fa-shield",
     tone: "less",
-    description: "减少中等风险操作的确认次数",
+    description: "减少普通写入和优化操作的确认次数，交易仍需确认",
   },
   {
     title: "完全访问",
     value: "all",
     icon: "fa-solid fa-triangle-exclamation",
     tone: "all",
-    description: "不受限制地访问互联网和本机文件",
+    description: "读取和普通写入自动执行，实盘下单与撤单仍逐次确认",
   },
 ];
 

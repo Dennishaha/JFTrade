@@ -31,6 +31,10 @@ func httpFetchTool(ctx context.Context, input map[string]any) (any, error) {
 	if err := rejectUnsafeHost(ctx, parsed.Hostname()); err != nil {
 		return nil, err
 	}
+	maxBytes := skillsruntime.IntValue(input, "maxBytes", 1<<20)
+	if maxBytes < 1 || maxBytes > 1<<20 {
+		return nil, fmt.Errorf("maxBytes must be between 1 and %d", 1<<20)
+	}
 	timeout := 12 * time.Second
 	client := providers.NewSafeHTTPClient(timeout, rejectUnsafeHost)
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -56,16 +60,27 @@ func httpFetchTool(ctx context.Context, input map[string]any) (any, error) {
 	if contentType != "" && (!strings.Contains(contentType, "text/") && !strings.Contains(contentType, "json") && !strings.Contains(contentType, "xml") && !strings.Contains(contentType, "rss")) {
 		return nil, fmt.Errorf("unsupported content type %q", contentType)
 	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, int64(maxBytes)+1))
 	if err != nil {
 		return nil, err
 	}
+	truncated := len(body) > maxBytes
+	if truncated {
+		body = body[:maxBytes]
+	}
+	finalURL := parsed.String()
+	if resp.Request != nil && resp.Request.URL != nil {
+		finalURL = resp.Request.URL.String()
+	}
 	return map[string]any{
 		"url":         parsed.String(),
+		"finalUrl":    finalURL,
 		"status":      resp.StatusCode,
 		"contentType": resp.Header.Get("Content-Type"),
 		"body":        string(body),
-		"truncated":   len(body) >= 1<<20,
+		"bytes":       len(body),
+		"maxBytes":    maxBytes,
+		"truncated":   truncated,
 		"fetchedAt":   nowString(),
 	}, nil
 }

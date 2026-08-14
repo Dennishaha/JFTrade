@@ -21,6 +21,7 @@ export interface components {
     recentUserWindow: number;
     skills: Array<string>;
     status: string;
+    toolAccessMode: string;
     tools: Array<string>;
     updatedAt: string;
     workMode: string;
@@ -38,6 +39,7 @@ export interface components {
     recentUserWindow?: number;
     skills?: Array<string>;
     status: string;
+    toolAccessMode?: string;
     tools?: Array<string>;
     workMode?: string;
   };
@@ -531,6 +533,7 @@ export interface components {
     recentUserWindow?: number;
     skills?: Array<string>;
     status: string;
+    toolAccessMode?: "all" | "selected" | "none";
     tools?: Array<string>;
     workMode?: string;
   };
@@ -757,10 +760,16 @@ export interface components {
   };
     "assistant.ADKToolMetricsData": {
     averageDurationMs: number;
+    byErrorCode: Record<string, number>;
     byName: Record<string, number>;
     byStatus: Record<string, number>;
+    errorCount: number;
+    outputBytesMax: number;
+    outputBytesTotal: number;
+    retryableErrors: number;
     successful: number;
     total: number;
+    truncated: number;
   };
     "assistant.ADKToolsData": {
     tools: Array<components["schemas"]["adk.ToolDescriptor"]>;

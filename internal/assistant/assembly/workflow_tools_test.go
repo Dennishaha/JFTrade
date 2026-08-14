@@ -2,9 +2,11 @@ package assembly
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	jfadkruntime "github.com/jftrade/jftrade-main/internal/assistant/engine/workflowruntime"
 	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
@@ -16,7 +18,7 @@ func TestWorkflowManagementToolCatalogAndApprovalMatrix(t *testing.T) {
 	names := []string{
 		"workflows.list", "workflows.get", "workflows.create", "workflows.update", "workflows.delete", "workflows.run",
 		"workflow_triggers.list", "workflow_triggers.get", "workflow_triggers.create", "workflow_triggers.update", "workflow_triggers.delete", "workflow_triggers.run",
-		"workflow_runs.list", "workflow_runs.get",
+		"workflow_runs.list", "workflow_runs.get", "workflow_runs.wait",
 	}
 	for _, name := range names {
 		tool, ok := registry.Get(name)
@@ -61,6 +63,70 @@ func TestWorkflowManagementToolCatalogAndApprovalMatrix(t *testing.T) {
 	if !foundRunTool {
 		t.Fatalf("tools.search omitted an authorized workflow tool before skill loading: %#v", searchOutput)
 	}
+}
+
+func TestWorkflowRunWaitReturnsBoundedStatusEnvelope(t *testing.T) {
+	spy := &workflowToolManagerSpy{run: assistantmodel.WorkflowTriggerLog{ID: "log-1", Status: assistantmodel.WorkflowTriggerLogStatusQueued}}
+	registry := jfadkruntime.NewToolRegistry()
+	RegisterWorkflowManagementTools(nil, registry, spy)
+	tool, ok := registry.Get("workflow_runs.wait")
+	if !ok {
+		t.Fatal("workflow_runs.wait is not registered")
+	}
+	result, err := tool.Handler(t.Context(), map[string]any{"logId": "log-1", "timeoutMs": 0})
+	if err != nil {
+		t.Fatalf("workflow_runs.wait: %v", err)
+	}
+	payload := result.(map[string]any)
+	if payload["terminal"] != false || payload["timedOut"] != false || payload["nextPollMs"] != 1000 {
+		t.Fatalf("workflow_runs.wait payload = %#v", payload)
+	}
+}
+
+func TestWorkflowRunWaitHonorsDeadlineAndCancellation(t *testing.T) {
+	t.Run("poll interval cannot extend deadline", func(t *testing.T) {
+		spy := &workflowToolManagerSpy{run: assistantmodel.WorkflowTriggerLog{ID: "log-timeout", Status: assistantmodel.WorkflowTriggerLogStatusQueued}}
+		started := time.Now()
+		result, err := waitForWorkflowRun(t.Context(), spy, map[string]any{
+			"logId": "log-timeout", "timeoutMs": 30, "pollIntervalMs": 5000,
+		})
+		if err != nil {
+			t.Fatalf("waitForWorkflowRun timeout: %v", err)
+		}
+		payload := result.(map[string]any)
+		if payload["timedOut"] != true || payload["terminal"] != false {
+			t.Fatalf("timeout payload = %#v", payload)
+		}
+		if elapsed := time.Since(started); elapsed > 500*time.Millisecond {
+			t.Fatalf("wait exceeded bounded timeout: %v", elapsed)
+		}
+	})
+
+	t.Run("terminal transition returns immediately after poll", func(t *testing.T) {
+		spy := &workflowToolManagerSpy{runSequence: []assistantmodel.WorkflowTriggerLog{
+			{ID: "log-terminal", Status: assistantmodel.WorkflowTriggerLogStatusQueued},
+			{ID: "log-terminal", Status: assistantmodel.WorkflowTriggerLogStatusSucceeded},
+		}}
+		result, err := waitForWorkflowRun(t.Context(), spy, map[string]any{
+			"logId": "log-terminal", "timeoutMs": 1000, "pollIntervalMs": 100,
+		})
+		if err != nil {
+			t.Fatalf("waitForWorkflowRun terminal: %v", err)
+		}
+		payload := result.(map[string]any)
+		if payload["timedOut"] != false || payload["terminal"] != true || payload["status"] != assistantmodel.WorkflowTriggerLogStatusSucceeded {
+			t.Fatalf("terminal payload = %#v", payload)
+		}
+	})
+
+	t.Run("caller cancellation remains cancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		spy := &workflowToolManagerSpy{run: assistantmodel.WorkflowTriggerLog{ID: "log-cancel", Status: assistantmodel.WorkflowTriggerLogStatusQueued}}
+		if _, err := waitForWorkflowRun(ctx, spy, map[string]any{"logId": "log-cancel", "timeoutMs": 1000}); !errors.Is(err, context.Canceled) {
+			t.Fatalf("waitForWorkflowRun cancellation err = %v", err)
+		}
+	})
 }
 
 func TestWorkflowManagementToolUpdatesUsePatchSemantics(t *testing.T) {
@@ -274,6 +340,8 @@ type workflowToolManagerSpy struct {
 	startedWorkflowID string
 	startedTriggerID  string
 	startedInputs     map[string]any
+	runSequence       []assistantmodel.WorkflowTriggerLog
+	runCalls          int
 }
 
 func (s *workflowToolManagerSpy) ListWorkflows(_ context.Context, _ string, limit int, offset int) (WorkflowToolPage[assistantmodel.WorkflowDefinition], error) {
@@ -315,6 +383,14 @@ func (s *workflowToolManagerSpy) ListWorkflowRuns(_ context.Context, _ string, _
 }
 
 func (s *workflowToolManagerSpy) GetWorkflowRun(context.Context, string) (assistantmodel.WorkflowTriggerLog, error) {
+	if len(s.runSequence) > 0 {
+		index := s.runCalls
+		if index >= len(s.runSequence) {
+			index = len(s.runSequence) - 1
+		}
+		s.runCalls++
+		return s.runSequence[index], nil
+	}
 	return s.run, nil
 }
 

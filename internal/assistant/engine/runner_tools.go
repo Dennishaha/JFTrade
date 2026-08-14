@@ -9,6 +9,7 @@ import (
 	"time"
 
 	enginepersistence "github.com/jftrade/jftrade-main/internal/assistant/engine/persistence"
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	adkagent "google.golang.org/adk/v2/agent"
 	adkartifact "google.golang.org/adk/v2/artifact"
 	adktool "google.golang.org/adk/v2/tool"
@@ -43,6 +44,9 @@ type googleADKArtifactToolset struct {
 }
 
 func (r *Runtime) googleADKToolsets(ctx context.Context, definition Agent, executions ...*googleADKExecution) ([]adktool.Toolset, error) {
+	if assistantmodel.NormalizeToolAccessMode(definition.ToolAccessMode, definition.Tools) == ToolAccessModeNone {
+		return nil, nil
+	}
 	baseToolset, err := r.googleADKProductToolset(definition, executions...)
 	if err != nil {
 		return nil, err
@@ -74,7 +78,8 @@ func (r *Runtime) googleADKToolsets(ctx context.Context, definition Agent, execu
 }
 
 func (r *Runtime) googleADKDirectTools(definition Agent) []adktool.Tool {
-	if !definition.MemoryEnabled || r.memoryService == nil {
+	if assistantmodel.NormalizeToolAccessMode(definition.ToolAccessMode, definition.Tools) == ToolAccessModeNone ||
+		!definition.MemoryEnabled || r.memoryService == nil {
 		return nil
 	}
 	return []adktool.Tool{preloadmemorytool.New(), loadmemorytool.New()}
@@ -426,21 +431,73 @@ func (t *googleADKTool) executeAndMap(toolCtx context.Context, input map[string]
 		// explanation) together with "success":false so our call-tracking
 		// can detect the failure without relying on the ADK framework's
 		// interpretation of an "error" key.
-		return map[string]any{
-			"success": false,
-			"message": fmt.Sprintf("工具 %s 执行失败: %s", t.Name(), execErr.Error()),
-		}, execErr
+		return toolErrorEnvelope(t.Name(), execErr, "执行失败"), execErr
 	}
 	if mapped, ok := output.(map[string]any); ok {
 		if structuredErr, ok := structuredToolError(mapped); ok {
-			return map[string]any{
-				"success": false,
-				"message": fmt.Sprintf("工具 %s 返回错误: %s", t.Name(), structuredErr),
-			}, nil
+			return structuredToolErrorEnvelope(t.Name(), mapped, structuredErr), nil
 		}
 		return mapped, nil
 	}
 	return map[string]any{"result": output}, nil
+}
+
+func toolErrorEnvelope(toolName string, err error, verb string) map[string]any {
+	code, retryable := classifyToolError(err)
+	return map[string]any{
+		"success": false,
+		"message": fmt.Sprintf("工具 %s %s: %s", toolName, verb, err.Error()),
+		"error": map[string]any{
+			"code": code, "message": err.Error(), "retryable": retryable,
+		},
+		"errorCode": code,
+		"retryable": retryable,
+	}
+}
+
+func structuredToolErrorEnvelope(toolName string, result map[string]any, message string) map[string]any {
+	code, retryable := structuredToolErrorMetadata(result)
+	if code == "" {
+		code = "TOOL_EXECUTION_FAILED"
+	}
+	return map[string]any{
+		"success": false,
+		"message": fmt.Sprintf("工具 %s 返回错误: %s", toolName, message),
+		"error": map[string]any{
+			"code": code, "message": message, "retryable": retryable,
+		},
+		"errorCode": code,
+		"retryable": retryable,
+	}
+}
+
+func structuredToolErrorMetadata(result map[string]any) (string, bool) {
+	value, ok := result["error"]
+	if !ok {
+		return "", false
+	}
+	if nested, ok := value.(map[string]any); ok {
+		return strings.ToUpper(strings.TrimSpace(fmt.Sprint(nested["code"]))), jftradeOptionalTypeAssertion[bool](nested["retryable"])
+	}
+	return "", false
+}
+
+func classifyToolError(err error) (string, bool) {
+	if err == nil {
+		return "", false
+	}
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "TIMEOUT", true
+	case errors.Is(err, context.Canceled):
+		return "CANCELLED", false
+	case errors.Is(err, enginepersistence.ErrToolOutcomeUnknown):
+		return "SUBMISSION_UNKNOWN", false
+	case errors.Is(err, enginepersistence.ErrRunLeaseLost):
+		return "RUN_LEASE_LOST", true
+	default:
+		return "TOOL_EXECUTION_FAILED", false
+	}
 }
 
 func structuredToolError(result map[string]any) (string, bool) {

@@ -212,6 +212,36 @@ func ValidPermissionMode(value string) bool {
 	}
 }
 
+// NormalizeToolAccessMode canonicalizes the explicit Agent tool access mode.
+// An omitted mode preserves the legacy meaning: an empty tool list exposes all
+// registered tools, while a non-empty list is an explicit allowlist.
+func NormalizeToolAccessMode(value string, tools []string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case ToolAccessModeSelected:
+		return ToolAccessModeSelected
+	case ToolAccessModeNone:
+		return ToolAccessModeNone
+	case ToolAccessModeAll:
+		return ToolAccessModeAll
+	default:
+		if len(NormalizeStringSlice(tools)) > 0 {
+			return ToolAccessModeSelected
+		}
+		return ToolAccessModeAll
+	}
+}
+
+// ValidToolAccessMode reports whether value names a supported explicit tool
+// access mode. The empty value remains valid for backwards-compatible payloads.
+func ValidToolAccessMode(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", ToolAccessModeAll, ToolAccessModeSelected, ToolAccessModeNone:
+		return true
+	default:
+		return false
+	}
+}
+
 // NormalizeWorkMode maps unknown modes to the chat default.
 func NormalizeWorkMode(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {

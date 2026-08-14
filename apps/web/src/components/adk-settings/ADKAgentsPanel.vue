@@ -6,6 +6,7 @@ import type {
   ADKPermissionMode,
   ADKProvider,
   ADKReasoningEffort,
+  ADKToolAccessMode,
   ADKToolDescriptor,
   ADKWorkMode,
 } from "@/types";
@@ -28,6 +29,7 @@ const props = defineProps<{
     model: string;
     reasoningEffort: ADKReasoningEffort | "";
     tools: string[];
+    toolAccessMode: ADKToolAccessMode;
     skills: string[];
     permissionMode: ADKPermissionMode;
     memoryEnabled: boolean;
@@ -86,6 +88,11 @@ const reasoningEffortOptions = computed<Array<{ title: string; value: ADKReasoni
     })),
   ];
 });
+const toolAccessModeOptions: Array<{ title: string; value: ADKToolAccessMode }> = [
+  { title: "全部工具", value: "all" },
+  { title: "按选择启用", value: "selected" },
+  { title: "不启用工具", value: "none" },
+];
 
 function workModeLabel(mode: string): string {
   switch (mode) {
@@ -96,8 +103,10 @@ function workModeLabel(mode: string): string {
   }
 }
 
-function enabledToolCountLabel(agent: Pick<ADKAgent, "tools">): string {
-  return agent.tools.length === 0 ? "全部工具" : `${agent.tools.length} 个工具`;
+function enabledToolCountLabel(agent: Pick<ADKAgent, "tools" | "toolAccessMode">): string {
+  if (agent.toolAccessMode === "none") return "无工具";
+  if (agent.toolAccessMode === "all" || agent.tools.length === 0) return "全部工具";
+  return `${agent.tools.length} 个工具`;
 }
 
 function reasoningEffortLabel(agent: Pick<ADKAgent, "reasoningEffort">): string {
@@ -106,8 +115,8 @@ function reasoningEffortLabel(agent: Pick<ADKAgent, "reasoningEffort">): string 
     : "模型默认";
 }
 
-function templateToolCountLabel(template: Pick<ADKAgent, "tools">): string {
-  return template.tools.length === 0 ? "全部工具" : `${template.tools.length} 个工具`;
+function templateToolCountLabel(template: Pick<ADKAgent, "tools" | "toolAccessMode">): string {
+  return enabledToolCountLabel(template);
 }
 
 function primaryDefaultAgentForm(): boolean {
@@ -119,6 +128,9 @@ function primaryDefaultAgent(agent: Pick<ADKAgent, "id">): boolean {
 }
 
 const enabledToolNameSet = computed(() => new Set(props.agentForm.tools));
+const toolAccessMode = computed(() => props.agentForm.toolAccessMode);
+const allToolsEnabled = computed(() => toolAccessMode.value === "all");
+const noToolsEnabled = computed(() => toolAccessMode.value === "none");
 const toolDescriptorByName = computed(
   () => new Map(props.tools.map((tool) => [tool.name, tool])),
 );
@@ -132,6 +144,7 @@ const displayedAgents = computed(() =>
 );
 const availableRuntimeTools = computed(() =>
   props.tools.filter((tool) => {
+    if (!allToolsEnabled.value && noToolsEnabled.value) return false;
     if (enabledToolNameSet.value.has(tool.name)) return false;
     if (props.toolCategoryFilter && tool.category !== props.toolCategoryFilter) return false;
     if (props.toolRiskFilter && tool.riskLevel !== props.toolRiskFilter) return false;
@@ -139,10 +152,12 @@ const availableRuntimeTools = computed(() =>
   }),
 );
 const enabledRuntimeTools = computed(() =>
-  props.agentForm.tools.map((toolName) => ({
-    name: toolName,
-    descriptor: toolDescriptorByName.value.get(toolName),
-  })),
+  allToolsEnabled.value
+    ? props.tools.map((tool) => ({ name: tool.name, descriptor: tool }))
+    : props.agentForm.tools.map((toolName) => ({
+        name: toolName,
+        descriptor: toolDescriptorByName.value.get(toolName),
+      })),
 );
 
 function stopButtonEvent(event?: Event): void {
@@ -185,6 +200,7 @@ async function submitAgentForm(): Promise<void> {
 }
 
 function addTools(toolNames: string[]): void {
+  props.agentForm.toolAccessMode = "selected";
   const currentTools = new Set(props.agentForm.tools);
   for (const toolName of toolNames) {
     if (!currentTools.has(toolName)) {
@@ -215,11 +231,21 @@ function removeSelectedTools(): void {
 }
 
 function removeAllTools(): void {
-  removeTools(props.agentForm.tools);
+  if (props.agentForm.toolAccessMode !== undefined) {
+    props.agentForm.toolAccessMode = "none";
+  }
+  props.agentForm.tools.splice(0, props.agentForm.tools.length);
+  checkedEnabledTools.value = [];
+}
+
+function enableAllTools(): void {
+  props.agentForm.toolAccessMode = "all";
+  checkedAvailableTools.value = [];
+  checkedEnabledTools.value = [];
 }
 
 watch(
-  () => [props.toolCategoryFilter, props.toolRiskFilter, props.agentForm.tools.join("\n")],
+  () => [props.toolCategoryFilter, props.toolRiskFilter, props.agentForm.toolAccessMode, props.agentForm.tools.join("\n")],
   () => {
     const availableToolNames = new Set(availableRuntimeTools.value.map((tool) => tool.name));
     const enabledToolNames = new Set(props.agentForm.tools);
@@ -279,8 +305,11 @@ watch(
                 {{ agent.memoryEnabled ? "记忆已开启" : "记忆已关闭" }} · {{ enabledToolCountLabel(agent) }}
               </div>
               <div class="mt-2 flex flex-wrap gap-1">
-                <v-chip v-if="agent.tools.length === 0" size="x-small" variant="outlined">
+                <v-chip v-if="agent.toolAccessMode === 'all' || (agent.toolAccessMode === undefined && agent.tools.length === 0)" size="x-small" variant="outlined">
                   全部工具
+                </v-chip>
+                <v-chip v-else-if="agent.toolAccessMode === 'none'" size="x-small" variant="outlined">
+                  无工具
                 </v-chip>
                 <v-chip v-for="tool in agent.tools.slice(0, 5)" :key="tool" size="x-small" variant="outlined">
                   {{ tool }}
@@ -394,6 +423,15 @@ watch(
               label="默认审批等级"
               density="comfortable"
             />
+            <v-select
+              v-if="!primaryDefaultAgentForm()"
+              v-model="agentForm.toolAccessMode"
+              :items="toolAccessModeOptions"
+              label="工具访问范围"
+              density="comfortable"
+              hint="空的选择列表不再代表全部工具"
+              persistent-hint
+            />
             <v-radio-group
               v-if="!primaryDefaultAgentForm()"
               v-model="agentForm.workMode"
@@ -438,7 +476,7 @@ watch(
                 </div>
               </div>
               <v-chip size="small" variant="tonal">
-                {{ agentForm.tools.length === 0 ? `全部工具 ${tools.length}` : `已启用 ${agentForm.tools.length}/${tools.length}` }}
+                {{ allToolsEnabled ? `全部工具 ${tools.length}` : noToolsEnabled ? "无工具" : `已启用 ${agentForm.tools.length}/${tools.length}` }}
               </v-chip>
             </div>
             <div class="grid gap-3 md:grid-cols-2">
@@ -448,7 +486,10 @@ watch(
                 :items="toolRiskOptions" @update:model-value="emit('update:toolRiskFilter', $event ?? '')" />
             </div>
 
-            <div class="adk-tool-transfer__grid">
+            <div v-if="allToolsEnabled || noToolsEnabled" class="rounded border bg-surface p-3 text-sm text-medium-emphasis">
+              {{ allToolsEnabled ? "当前智能体可使用全部运行时工具；如需收窄范围，请切换为“按选择启用”。" : "当前智能体不声明任何运行时工具；可切换为“按选择启用”后添加工具。" }}
+            </div>
+            <div v-if="!allToolsEnabled && !noToolsEnabled" class="adk-tool-transfer__grid">
               <div class="adk-tool-transfer__panel">
                 <div class="adk-tool-transfer__heading">
                   <span>可用运行时工具</span>
@@ -498,6 +539,14 @@ watch(
                   @click="addAllFilteredTools"
                 >
                   全部添加
+                </v-btn>
+                <v-btn
+                  size="small"
+                  variant="outlined"
+                  :disabled="tools.length === 0"
+                  @click="enableAllTools"
+                >
+                  启用全部
                 </v-btn>
                 <v-btn
                   size="small"
@@ -552,7 +601,7 @@ watch(
                     </v-chip>
                   </label>
                   <div v-if="enabledRuntimeTools.length === 0" class="adk-tool-transfer__empty">
-                    空列表表示该智能体可使用全部运行时工具。
+                    {{ agentForm.toolAccessMode === undefined ? "空列表表示该智能体可使用全部运行时工具。" : "尚未选择运行时工具。" }}
                   </div>
                 </div>
               </div>
@@ -584,189 +633,4 @@ watch(
   </section>
 </template>
 
-<style scoped>
-.adk-agent-dialog {
-  display: flex;
-  max-height: 80dvh;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--tv-bg-surface);
-  color: var(--card-text-1);
-}
-
-:global(.adk-agent-dialog-overlay) {
-  background: var(--tv-bg-surface);
-  border-radius: 4px;
-}
-
-.adk-agent-dialog__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  background: var(--tv-bg-surface);
-}
-
-.adk-agent-template-dialog {
-  display: flex;
-  max-height: 80dvh;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--tv-bg-surface);
-  color: var(--card-text-1);
-}
-
-:global(.adk-agent-template-dialog-overlay) {
-  background: var(--tv-bg-surface);
-  border-radius: 4px;
-}
-
-.adk-agent-template-dialog__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  background: var(--tv-bg-surface);
-}
-
-.adk-agent-template-dialog__title {
-  color: var(--card-text-1);
-}
-
-.adk-agent-template-dialog__hint,
-.adk-agent-template-dialog__empty {
-  color: var(--card-text-3);
-}
-
-.adk-agent-template-card {
-  display: grid;
-  gap: 0.35rem;
-  width: 100%;
-  cursor: pointer;
-  border: 1px solid var(--card-border);
-  border-radius: 0.9rem;
-  background: var(--tv-bg-surface-2);
-  color: var(--card-text-2);
-  padding: 0.85rem 0.95rem;
-  text-align: left;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-}
-
-.adk-agent-template-card:hover,
-.adk-agent-template-card:focus-visible {
-  border-color: var(--card-active-border);
-  background: var(--card-active-surface);
-  transform: translateY(-1px);
-  outline: none;
-}
-
-.adk-agent-template-card__name {
-  color: var(--card-text-1);
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.adk-agent-template-card__meta {
-  color: var(--card-text-3);
-  font-size: 0.75rem;
-}
-
-.adk-tool-transfer {
-  border-color: var(--card-border);
-  background: var(--tv-bg-surface-2);
-}
-
-.adk-tool-transfer__title {
-  color: var(--card-text-1);
-}
-
-.adk-tool-transfer__hint,
-.adk-tool-transfer__meta {
-  color: var(--card-text-3);
-}
-
-.adk-tool-transfer__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: 0.75rem;
-  align-items: stretch;
-}
-
-.adk-tool-transfer__panel {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--card-border);
-  border-radius: 0.75rem;
-  background: var(--tv-bg-surface);
-}
-
-.adk-tool-transfer__heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.65rem 0.75rem;
-  border-bottom: 1px solid var(--card-border);
-  color: var(--card-text-2);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.adk-tool-transfer__list {
-  display: grid;
-  gap: 0.4rem;
-  max-height: min(32dvh, 20rem);
-  overflow-y: auto;
-  padding: 0.5rem;
-}
-
-.adk-tool-transfer__item {
-  display: flex;
-  min-width: 0;
-  cursor: pointer;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: 0.65rem;
-  padding: 0.35rem 0.5rem 0.35rem 0.15rem;
-  color: var(--card-text-1);
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-
-.adk-tool-transfer__item:hover {
-  background: var(--card-active-surface);
-  transform: translateX(1px);
-}
-
-.adk-tool-transfer__checkbox {
-  flex: 0 0 auto;
-}
-
-.adk-tool-transfer__actions {
-  display: flex;
-  width: 7.5rem;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.adk-tool-transfer__empty {
-  padding: 1.25rem 0.75rem;
-  text-align: center;
-  font-size: 0.75rem;
-  color: var(--card-text-3);
-}
-
-@media (max-width: 760px) {
-  .adk-tool-transfer__grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .adk-tool-transfer__actions {
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .adk-tool-transfer__actions :deep(.v-btn) {
-    flex: 1 1 7rem;
-  }
-}
-</style>
+<style scoped src="./ADKAgentsPanel.css"></style>

@@ -1,11 +1,10 @@
 import { formatNumber } from "@/utils/numberFormat";
-
+import { isRecord, labelFromKey, type UnknownRecord } from "./adkToolVisualizationHelpers";
 export type ADKToolVisualization =
   | ADKSummaryVisualization
   | ADKTableVisualization
   | ADKDepthVisualization
   | ADKTimelineVisualization;
-
 export interface ADKSummaryVisualization {
   kind: "summary";
   title: string;
@@ -13,7 +12,6 @@ export interface ADKSummaryVisualization {
   cards: Array<{ label: string; value: string; tone?: "ok" | "warning" | "danger" | "muted" }>;
   rows?: Array<{ label: string; value: string }>;
 }
-
 export interface ADKTableVisualization {
   kind: "table";
   title: string;
@@ -21,7 +19,6 @@ export interface ADKTableVisualization {
   columns: Array<{ key: string; label: string }>;
   rows: Array<Record<string, string>>;
 }
-
 export interface ADKDepthVisualization {
   kind: "depth";
   title: string;
@@ -29,22 +26,17 @@ export interface ADKDepthVisualization {
   bids: ADKDepthRow[];
   asks: ADKDepthRow[];
 }
-
 export interface ADKDepthRow {
   price: string;
   quantity: string;
   percent: number;
 }
-
 export interface ADKTimelineVisualization {
   kind: "timeline";
   title: string;
   subtitle?: string;
   events: Array<{ label: string; time?: string; detail?: string; tone?: "ok" | "warning" | "danger" | "muted" }>;
 }
-
-type UnknownRecord = Record<string, unknown>;
-
 export function buildADKToolVisualization(toolName: string, output: unknown): ADKToolVisualization | null {
   const normalizedToolName = toolName.trim();
   if (!isRecord(output)) return null;
@@ -62,6 +54,38 @@ export function buildADKToolVisualization(toolName: string, output: unknown): AD
       return buildStrategyUpdateInstanceMode(output);
     case "portfolio.summary":
       return buildPortfolioSummary(output);
+    case "portfolio.accounts":
+      return buildPortfolioAccounts(output);
+    case "portfolio.overview":
+      return buildPortfolioOverview(output);
+    case "portfolio.positions":
+      return buildPortfolioPositions(output);
+    case "market.capabilities":
+      return buildToolSummary("行情能力", output, ["provider", "broker", "market", "checkedAt", "warnings"]);
+    case "market.snapshot":
+      return buildToolTable("行情快照", output, ["snapshot", "data", "items"], [
+        ["instrumentId", "标的"], ["symbol", "代码"], ["market", "市场"],
+        ["price", "价格"], ["change", "涨跌"], ["changePercent", "涨跌幅"], ["asOf", "时间"],
+      ]) ?? buildToolSummary("行情快照", output, ["instrumentId", "symbol", "market", "price", "asOf"]);
+    case "market.snapshots":
+      return buildToolTable("批量行情快照", output, ["snapshots", "items", "data"], [
+        ["instrumentId", "标的"], ["symbol", "代码"], ["market", "市场"], ["price", "价格"], ["changePercent", "涨跌幅"], ["asOf", "时间"],
+      ]);
+    case "market.candles":
+      return buildToolTable("行情 K 线", output, ["candles", "bars", "items", "data"], [
+        ["time", "时间"], ["open", "开"], ["high", "高"], ["low", "低"], ["close", "收"], ["volume", "量"],
+      ]);
+    case "market.search":
+      return buildToolTable("行情标的搜索", output, ["instruments", "items", "data"], [["instrumentId", "标的"], ["name", "名称"], ["market", "市场"], ["symbol", "代码"]]);
+    case "watchlist.list":
+      return buildToolTable("自选股", output, ["items", "members", "groups", "data"], [["group", "分组"], ["instrumentId", "标的"], ["name", "名称"], ["market", "市场"], ["source", "来源"]]);
+    case "research.news":
+      return buildToolTable("研究资讯", output, ["news", "items", "articles", "data"], [["publishedAt", "时间"], ["title", "标题"], ["source", "来源"], ["sentiment", "情绪"]]);
+    case "research.screen":
+      return buildToolTable("研究筛选", output, ["results", "items", "data"], [["instrumentId", "标的"], ["name", "名称"], ["market", "市场"], ["score", "评分"]]);
+    case "execution.order_preview":
+    case "execution.combo_preview":
+      return buildToolSummary("下单预览", output, ["previewId", "status", "accountId", "tradingEnvironment", "market", "expiresAt", "warnings"]);
     case "broker.orders":
       return buildToolTable("经纪商订单", output, ["orders", "items", "data"], [
         ["symbol", "标的"],
@@ -298,6 +322,82 @@ function buildPortfolioSummary(output: UnknownRecord): ADKToolVisualization | nu
   return { kind: "summary", title: "组合摘要", cards, rows };
 }
 
+function buildPortfolioAccounts(output: UnknownRecord): ADKToolVisualization | null {
+  const accounts = findArray(output, ["discoveredAccounts", "accounts"]);
+  const rows = accounts.filter(isRecord).slice(0, 20).map((account) => ({
+    accountId: formatValue(account.accountId),
+    tradingEnvironment: formatValue(account.tradingEnvironment),
+    accountType: formatValue(account.accountType),
+    marketAuthorities: formatValue(account.marketAuthorities),
+  }));
+  if (rows.length === 0) return buildToolSummary("账户发现", output, ["brokerRuntime", "selection", "partial", "warnings"]);
+  return {
+    kind: "table",
+    title: "账户发现",
+    subtitle: `${rows.length}${accounts.length > rows.length ? ` / ${accounts.length}` : ""} 个账户`,
+    columns: [
+      { key: "accountId", label: "账户" },
+      { key: "tradingEnvironment", label: "环境" },
+      { key: "accountType", label: "类型" },
+      { key: "marketAuthorities", label: "市场权限" },
+    ],
+    rows,
+  };
+}
+
+function buildPortfolioOverview(output: UnknownRecord): ADKToolVisualization | null {
+  return buildToolTable("组合概览", output, ["accountOverviews", "items", "data"], [
+    ["account.accountId", "账户"], ["queryMarket", "查询市场"], ["positionCount", "持仓数"],
+    ["orderCount", "订单数"], ["hasAssetsOrPositions", "有资产"], ["partial", "部分失败"],
+  ]) ?? buildToolSummary("组合概览", output, ["selection", "partial", "warnings"]);
+}
+
+function buildPortfolioPositions(output: UnknownRecord): ADKToolVisualization | null {
+  const accountPositions = findArray(output, ["accountPositions"]);
+  const rows: Array<Record<string, string>> = [];
+  for (const item of accountPositions) {
+    if (!isRecord(item)) continue;
+    const account = isRecord(item.account) ? item.account : {};
+    const positionsPayload = item.positions;
+    const positions = Array.isArray(positionsPayload)
+      ? positionsPayload
+      : isRecord(positionsPayload) && Array.isArray(positionsPayload.positions)
+        ? positionsPayload.positions
+        : [];
+    if (positions.length === 0) {
+      rows.push({ account: formatValue(account.accountId), positionCount: formatValue(item.positionCount), symbol: "-", quantity: "-", marketValue: "-" });
+      continue;
+    }
+    for (const position of positions.slice(0, 20)) {
+      const record = isRecord(position) ? position : {};
+      rows.push({
+        account: formatValue(account.accountId),
+        positionCount: formatValue(item.positionCount),
+        symbol: formatValue(pick(record, ["symbol", "instrumentId", "code"])),
+        quantity: formatValue(pick(record, ["quantity", "qty", "position"])),
+        marketValue: formatValue(pick(record, ["marketValue", "value", "amount"])),
+      });
+    }
+  }
+  if (rows.length === 0) return buildToolSummary("组合持仓", output, ["selection", "partial", "warnings"]);
+  return {
+    kind: "table",
+    title: "组合持仓",
+    subtitle: `${rows.length}${accountPositions.length > 0 ? ` / ${accountPositions.length} 个账户` : ""}`,
+    columns: [
+      { key: "account", label: "账户" }, { key: "positionCount", label: "持仓数" },
+      { key: "symbol", label: "标的" }, { key: "quantity", label: "数量" }, { key: "marketValue", label: "市值" },
+    ],
+    rows,
+  };
+}
+
+function buildToolSummary(title: string, output: UnknownRecord, keys: string[]): ADKSummaryVisualization | null {
+  const cards = keys.map((key) => summaryCard(labelFromKey(key), pick(output, [key]))).filter((card): card is NonNullable<typeof card> => card !== null);
+  if (cards.length === 0) return null;
+  return { kind: "summary", title, cards };
+}
+
 function buildRiskState(output: UnknownRecord): ADKToolVisualization | null {
   const killSwitch = pick(output, ["killSwitch", "kill_switch"]);
   const riskLimits = pick(output, ["riskLimits", "limits"]);
@@ -402,7 +502,7 @@ function buildToolTable(
   if (items.length === 0) return null;
   const records = items.filter(isRecord).slice(0, 20);
   if (records.length === 0) return null;
-  const columns = preferredColumns.filter(([key]) => records.some((record) => hasDisplayValue(record[key])));
+  const columns = preferredColumns.filter(([key]) => records.some((record) => hasDisplayValue(getRecordValue(record, key))));
   if (columns.length === 0) {
     for (const key of Object.keys(records[0]!).slice(0, 6)) {
       columns.push([key, labelFromKey(key)]);
@@ -413,7 +513,7 @@ function buildToolTable(
     title,
     subtitle: `${records.length}${items.length > records.length ? ` / ${items.length}` : ""} 行`,
     columns: columns.map(([key, label]) => ({ key, label })),
-    rows: records.map((record) => Object.fromEntries(columns.map(([key]) => [key, formatValue(record[key])]))),
+    rows: records.map((record) => Object.fromEntries(columns.map(([key]) => [key, formatValue(getRecordValue(record, key))]))),
   };
 }
 
@@ -425,7 +525,7 @@ function buildRecordTable(
 ): ADKTableVisualization | null {
   const records = items.filter(isRecord).slice(0, 20);
   if (records.length === 0) return null;
-  const columns = preferredColumns.filter(([key]) => records.some((record) => hasDisplayValue(record[key])));
+  const columns = preferredColumns.filter(([key]) => records.some((record) => hasDisplayValue(getRecordValue(record, key))));
   if (columns.length === 0) {
     for (const key of Object.keys(records[0]!).slice(0, 6)) {
       columns.push([key, labelFromKey(key)]);
@@ -436,7 +536,7 @@ function buildRecordTable(
     title,
     subtitle: backtestWindowSubtitle(output, records.length, items.length),
     columns: columns.map(([key, label]) => ({ key, label })),
-    rows: records.map((record) => Object.fromEntries(columns.map(([key]) => [key, formatValue(record[key])]))),
+    rows: records.map((record) => Object.fromEntries(columns.map(([key]) => [key, formatValue(getRecordValue(record, key))]))),
   };
 }
 
@@ -555,6 +655,10 @@ function pick(record: UnknownRecord, keys: string[]): unknown {
     if (hasDisplayValue(record[key])) return record[key];
   }
   return undefined;
+}
+
+function getRecordValue(record: UnknownRecord, key: string): unknown {
+  return key.split(".").reduce<unknown>((value, part) => (isRecord(value) ? value[part] : undefined), record);
 }
 
 function optionalValue(value: unknown): string | undefined {
@@ -689,12 +793,4 @@ function translateDisplayText(text: string): string {
     no: "否",
   };
   return exactMap[key] ?? text;
-}
-
-function labelFromKey(key: string): string {
-  return key.replace(/([A-Z])/g, " $1").replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()).trim();
-}
-
-function isRecord(value: unknown): value is UnknownRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -112,8 +112,14 @@ type ADKToolMetricsData struct {
 	Total             int            `json:"total"`
 	Successful        int            `json:"successful"`
 	AverageDurationMs int64          `json:"averageDurationMs"`
+	OutputBytesTotal  int64          `json:"outputBytesTotal"`
+	OutputBytesMax    int64          `json:"outputBytesMax"`
+	Truncated         int            `json:"truncated"`
+	ErrorCount        int            `json:"errorCount"`
+	RetryableErrors   int            `json:"retryableErrors"`
 	ByName            map[string]int `json:"byName"`
 	ByStatus          map[string]int `json:"byStatus"`
+	ByErrorCode       map[string]int `json:"byErrorCode"`
 }
 
 type ADKWaitMetricsData struct {
@@ -331,6 +337,7 @@ type ADKAgentWriteRequest struct {
 	Model             string                         `json:"model,omitempty"`
 	ReasoningEffort   assistantmodel.ReasoningEffort `json:"reasoningEffort,omitempty" enums:"low,medium,high,xhigh,max"`
 	Tools             []string                       `json:"tools,omitempty"`
+	ToolAccessMode    string                         `json:"toolAccessMode,omitempty" enums:"all,selected,none"`
 	Skills            []string                       `json:"skills,omitempty"`
 	PermissionMode    string                         `json:"permissionMode"`
 	MemoryEnabled     bool                           `json:"memoryEnabled"`

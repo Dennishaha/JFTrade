@@ -77,6 +77,18 @@ describe("ADK API wire mappers", () => {
     expect(() => requireADKAgent(buildAgent({ reasoningEffort: "extreme" }))).toThrow(
       "ADK API response is invalid: agent",
     );
+    expect(() => requireADKAgent(buildAgent({ toolAccessMode: "automatic" }))).toThrow(
+      "ADK API response is invalid: agent",
+    );
+  });
+
+  it("normalizes legacy agents that omit tool access mode", () => {
+    const { toolAccessMode: _selectedMode, ...selected } = buildAgent();
+    const { toolAccessMode: _allMode, ...all } = buildAgent({ tools: [] });
+
+    expect(requireADKAgent(selected).toolAccessMode).toBe("selected");
+    expect(requireADKAgents([all])[0]?.toolAccessMode).toBe("all");
+    expect(() => requireADKAgents({})).toThrow("ADK API response is invalid: agents");
   });
 
   it("normalizes nullable collection fields emitted by legacy sessions", () => {
@@ -130,6 +142,7 @@ describe("ADK API wire mappers", () => {
         model: "",
         reasoningEffort: "",
         tools: [],
+        toolAccessMode: "all",
         skills: [],
         recentUserWindow: 6,
         workMode: "chat",
@@ -261,6 +274,7 @@ describe("ADK API wire mappers", () => {
     };
     const template = {
       ...buildAgent(),
+      toolAccessMode: "selected",
       createdAt: undefined,
       updatedAt: undefined,
     };
@@ -563,8 +577,14 @@ describe("ADK API wire mappers", () => {
         total: 20,
         successful: 18,
         averageDurationMs: 125,
+        outputBytesTotal: 4096,
+        outputBytesMax: 2048,
+        truncated: 1,
+        errorCount: 2,
+        retryableErrors: 1,
         byName: { "market.quote": 20 },
         byStatus: { completed: 18, failed: 2 },
+        byErrorCode: { TIMEOUT: 2 },
       },
       approvals: {
         pending: 1,
@@ -597,9 +617,11 @@ describe("ADK API wire mappers", () => {
       measurementWindow: { days: 7, since: "2026-07-21T00:00:00Z" },
     })).toMatchObject({
       runs: { total: 10 },
+      tools: { outputBytesTotal: 4096, byErrorCode: { TIMEOUT: 2 } },
       approvals: { recoverablePending: 1 },
       usage: { tokensOutTotal: null },
     });
+    expect(() => requireADKMetrics(null)).toThrow("ADK API response is invalid: metrics");
   });
 
   it("rejects malformed nested records instead of accepting partial wire shapes", () => {
@@ -675,6 +697,7 @@ function buildAgent(overrides: Record<string, unknown> = {}) {
     model: "model-a",
     reasoningEffort: "",
     tools: ["market.quote"],
+    toolAccessMode: "selected",
     skills: ["research"],
     permissionMode: "approval",
     memoryEnabled: true,

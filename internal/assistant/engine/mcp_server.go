@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -282,7 +283,7 @@ func sanitizedMCPProviders(providers []Provider) []map[string]any {
 func sanitizedMCPAgents(agents []Agent) []map[string]any {
 	items := make([]map[string]any, 0, len(agents))
 	for _, agent := range agents {
-		items = append(items, map[string]any{"id": agent.ID, "name": agent.Name, "providerId": agent.ProviderID, "model": agent.Model, "tools": agent.Tools, "skills": agent.Skills, "permissionMode": agent.PermissionMode, "status": agent.Status, "builtin": agent.Builtin})
+		items = append(items, map[string]any{"id": agent.ID, "name": agent.Name, "providerId": agent.ProviderID, "model": agent.Model, "tools": agent.Tools, "toolAccessMode": assistantmodel.NormalizeToolAccessMode(agent.ToolAccessMode, agent.Tools), "skills": agent.Skills, "permissionMode": agent.PermissionMode, "status": agent.Status, "builtin": agent.Builtin})
 	}
 	return items
 }
@@ -290,7 +291,7 @@ func sanitizedMCPAgents(agents []Agent) []map[string]any {
 func sanitizedMCPSkills(skills []Skill) []map[string]any {
 	items := make([]map[string]any, 0, len(skills))
 	for _, skill := range skills {
-		items = append(items, map[string]any{"id": skill.ID, "displayName": skill.DisplayName, "description": skill.Description, "source": skill.Source, "enabled": skill.Enabled, "builtin": skill.Builtin, "tools": skill.Tools, "version": skill.Version, "validationStatus": skill.ValidationStatus})
+		items = append(items, map[string]any{"id": skill.ID, "displayName": skill.DisplayName, "description": skill.Description, "source": skill.Source, "enabled": skill.Enabled, "builtin": skill.Builtin, "tools": skill.Tools, "version": skill.Version, "validationStatus": skill.ValidationStatus, "validationError": skill.ValidationError})
 	}
 	return items
 }

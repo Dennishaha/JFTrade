@@ -357,9 +357,9 @@ func TestSanitizedMCPRuntimeStatusIncludesConfiguredDataAndErrors(t *testing.T) 
 
 func TestSanitizedMCPRuntimeStatusSerializesDescriptors(t *testing.T) {
 	providers := sanitizedMCPProviders([]Provider{{ID: "p", DisplayName: "Provider", Model: "model", Enabled: true, Default: true, HasAPIKey: true, Capabilities: map[string]bool{"tools": true}}})
-	agents := sanitizedMCPAgents([]Agent{{ID: "a", Name: "Agent", ProviderID: "p", Model: "model", Tools: []string{"system.status"}, Skills: []string{"skill"}, PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled, Builtin: true}})
-	skills := sanitizedMCPSkills([]Skill{{ID: "skill", DisplayName: "Skill", Description: "desc", Source: "builtin", Enabled: true, Builtin: true, Tools: []string{"system.status"}, Version: "1", ValidationStatus: "valid"}})
-	if providers[0]["id"] != "p" || agents[0]["providerId"] != "p" || skills[0]["validationStatus"] != "valid" {
+	agents := sanitizedMCPAgents([]Agent{{ID: "a", Name: "Agent", ProviderID: "p", Model: "model", Tools: []string{"system.status"}, ToolAccessMode: ToolAccessModeSelected, Skills: []string{"skill"}, PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled, Builtin: true}})
+	skills := sanitizedMCPSkills([]Skill{{ID: "skill", DisplayName: "Skill", Description: "desc", Source: "builtin", Enabled: true, Builtin: true, Tools: []string{"system.status"}, Version: "1", ValidationStatus: "warning", ValidationError: "future.tool is unavailable"}})
+	if providers[0]["id"] != "p" || agents[0]["providerId"] != "p" || agents[0]["toolAccessMode"] != ToolAccessModeSelected || skills[0]["validationStatus"] != "warning" || skills[0]["validationError"] != "future.tool is unavailable" {
 		t.Fatalf("sanitized descriptors = %#v %#v %#v", providers, agents, skills)
 	}
 }

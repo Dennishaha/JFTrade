@@ -25,8 +25,14 @@ export interface ADKMetricsView {
     total: number;
     successful: number;
     averageDurationMs: number;
+    outputBytesTotal: number;
+    outputBytesMax: number;
+    truncated: number;
+    errorCount: number;
+    retryableErrors: number;
     byName: Record<string, number>;
     byStatus: Record<string, number>;
+    byErrorCode: Record<string, number>;
   };
   approvals: {
     pending: number;

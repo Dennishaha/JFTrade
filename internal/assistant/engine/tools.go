@@ -305,11 +305,13 @@ func ToolDescriptorsForAgent(agent Agent, registry *ToolRegistry) []ToolDescript
 		return nil
 	}
 	allowed := map[string]struct{}{}
-	if len(agent.Tools) == 0 {
+	accessMode := jfadkmodel.NormalizeToolAccessMode(agent.ToolAccessMode, agent.Tools)
+	switch accessMode {
+	case jfadkmodel.ToolAccessModeAll:
 		for _, name := range registry.AvailableNames() {
 			allowed[name] = struct{}{}
 		}
-	} else {
+	case jfadkmodel.ToolAccessModeSelected:
 		for _, name := range agent.Tools {
 			if canonical, ok := registry.CanonicalName(name); ok {
 				allowed[canonical] = struct{}{}

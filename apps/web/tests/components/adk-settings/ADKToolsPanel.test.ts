@@ -124,8 +124,8 @@ describe("ADKToolsPanel", () => {
     expect(wrapper.text()).toContain("高度自动");
     expect(wrapper.text()).toContain("无额外审批模式限制");
     expect(wrapper.text()).toContain("未提供");
-    expect(wrapper.text()).toContain("需加载 Skill");
-    expect(wrapper.text()).toContain("当前 invocation 必须先加载以下任一 Skill：");
+    expect(wrapper.text()).toContain("关联 Skill");
+    expect(wrapper.text()).toContain("建议先加载以下任一 Skill 的操作规范：");
     expect(requiredSkillTagTexts(wrapper)).toEqual([
       "jftrade-workflow-management",
       "jftrade-strategy-research",
@@ -193,8 +193,8 @@ describe("ADKToolsPanel", () => {
       },
     });
 
-    expect(wrapper.text()).toContain("需加载 Skill");
-    expect(wrapper.text()).toContain("当前 invocation 必须先加载以下任一 Skill：");
+    expect(wrapper.text()).toContain("关联 Skill");
+    expect(wrapper.text()).toContain("建议先加载以下任一 Skill 的操作规范：");
     expect(requiredSkillTagTexts(wrapper)).toEqual([
       "jftrade-strategy-research",
       "jftrade-strategy-publish",
@@ -205,8 +205,8 @@ describe("ADKToolsPanel", () => {
       selectedTool: buildTool({ requiredSkill: "jftrade-workflow-management" }),
     });
     expect(wrapper.text()).toContain("jftrade-workflow-management");
-    expect(wrapper.text()).toContain("当前 invocation 必须先加载：");
-    expect(wrapper.text()).not.toContain("当前 invocation 必须先加载以下任一 Skill：");
+    expect(wrapper.text()).toContain("建议先加载该 Skill 的操作规范：");
+    expect(wrapper.text()).not.toContain("建议先加载以下任一 Skill 的操作规范：");
     expect(requiredSkillTagTexts(wrapper)).toEqual([
       "jftrade-workflow-management",
     ]);

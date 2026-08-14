@@ -345,6 +345,20 @@ describe("useADKSettingsSectionState", () => {
       loopMaxIterations: 9,
     });
     expect(state.agentTemplateNotice.value).toContain("策略模板");
+
+    state.applyAgentTemplate(buildTemplate({
+      name: "无工具模板",
+      toolAccessMode: "none",
+      tools: [],
+    }));
+    expect(state.agentForm.value.toolAccessMode).toBe("none");
+
+    state.applyAgentTemplate(buildTemplate({
+      name: "旧版全工具模板",
+      toolAccessMode: undefined,
+      tools: [],
+    }));
+    expect(state.agentForm.value.toolAccessMode).toBe("all");
   });
 
   it("reacts to filters, tasks, memory queries, and page navigation using the current live state", async () => {

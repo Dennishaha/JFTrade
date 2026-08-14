@@ -379,6 +379,7 @@ export async function saveADKAgent(agent: {
   model: string;
   reasoningEffort: ADKReasoningEffort | "";
   tools: string[];
+  toolAccessMode: ADKAgent["toolAccessMode"];
   skills: string[];
   permissionMode: string;
   memoryEnabled: boolean;

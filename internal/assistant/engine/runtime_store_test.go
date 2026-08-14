@@ -44,8 +44,8 @@ func TestStoreDefaultAgentEnsureAgentAndSessionOrdering(t *testing.T) {
 	if defaultAgent.ID == "" || defaultAgent.Status != AgentStatusEnabled || defaultAgent.PermissionMode != PermissionModeApproval {
 		t.Fatalf("default agent = %+v, want enabled approval-mode built-in agent", defaultAgent)
 	}
-	if defaultAgent.ID != DefaultBuiltinAgentID || defaultAgent.Name != "默认助手" || !defaultAgent.Builtin || len(defaultAgent.Tools) != 0 {
-		t.Fatalf("default agent = %+v, want primary builtin with all tools marker", defaultAgent)
+	if defaultAgent.ID != DefaultBuiltinAgentID || defaultAgent.Name != "默认助手" || !defaultAgent.Builtin || defaultAgent.ToolAccessMode != ToolAccessModeSelected || !sameStringSet(defaultAgent.Tools, DefaultBuiltinToolNames()) {
+		t.Fatalf("default agent = %+v, want primary builtin with curated selected tools", defaultAgent)
 	}
 	if !sameStringSet(defaultAgent.Skills, BuiltinSkillIDs()) {
 		t.Fatalf("default agent skills = %+v, want all builtin skills %+v", defaultAgent.Skills, BuiltinSkillIDs())

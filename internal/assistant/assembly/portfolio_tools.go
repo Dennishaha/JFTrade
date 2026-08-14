@@ -68,7 +68,35 @@ type portfolioAccountSummary struct {
 	Errors               []string          `json:"errors"`
 }
 
+type portfolioAccountOverview struct {
+	Account              BrokerAccountView `json:"account"`
+	QueryMarket          string            `json:"queryMarket"`
+	PositionCount        int               `json:"positionCount"`
+	OrderCount           int               `json:"orderCount"`
+	HasAssetsOrPositions bool              `json:"hasAssetsOrPositions"`
+	Partial              bool              `json:"partial"`
+	Errors               []string          `json:"errors"`
+}
+
 func registerJFTradeADKPortfolioTools(registry *jfadkruntime.ToolRegistry, deps ToolDeps) {
+	registry.Register(assistantmodel.ToolDescriptor{
+		Name: "portfolio.accounts", DisplayName: "账户发现",
+		Description: "仅从券商 runtime 发现并选择账户，不读取资金、持仓或订单明细。",
+		Category:    "portfolio", Permission: "read_internal", RiskLevel: "low",
+		OutputSummary:  "实际发现的账户、交易环境、市场权限和选择状态。",
+		RequiredSkills: []string{"jftrade-portfolio"}, InputSchema: portfolioAccountToolSchema(),
+	}, func(ctx context.Context, input map[string]any) (any, error) {
+		return portfolioAccounts(ctx, input, deps)
+	})
+	registry.Register(assistantmodel.ToolDescriptor{
+		Name: "portfolio.overview", DisplayName: "组合概览",
+		Description: "按账户返回轻量组合概览，只返回持仓/订单数量和连接完整性，不返回资金或明细列表。",
+		Category:    "portfolio", Permission: "read_internal", RiskLevel: "low",
+		OutputSummary:  "逐账户数量、非空状态、连接状态和 partial warnings。",
+		RequiredSkills: []string{"jftrade-portfolio"}, InputSchema: portfolioAccountToolSchema(),
+	}, func(ctx context.Context, input map[string]any) (any, error) {
+		return portfolioOverview(ctx, input, deps)
+	})
 	registry.Register(assistantmodel.ToolDescriptor{
 		Name: "portfolio.summary", DisplayName: "组合摘要",
 		Description: "从券商 runtime 发现账户并按账户读取资金、持仓和订单；未指定 accountId 时扫描指定环境的全部账户。",
@@ -87,6 +115,15 @@ func registerJFTradeADKPortfolioTools(registry *jfadkruntime.ToolRegistry, deps 
 	}, func(ctx context.Context, input map[string]any) (any, error) {
 		return accountOrders(ctx, input, deps)
 	})
+	registry.Register(assistantmodel.ToolDescriptor{
+		Name: "portfolio.positions", DisplayName: "组合持仓",
+		Description: "按账户读取持仓明细，不读取资金或订单；未指定 accountId 时按环境逐账户返回。",
+		Category:    "portfolio", Permission: "read_internal", RiskLevel: "low",
+		OutputSummary:  "逐账户持仓明细、数量、账户选择状态和 partial warnings。",
+		RequiredSkills: []string{"jftrade-portfolio"}, InputSchema: portfolioAccountToolSchema(),
+	}, func(ctx context.Context, input map[string]any) (any, error) {
+		return portfolioPositions(ctx, input, deps)
+	})
 }
 
 func portfolioToolSchema(orders bool) map[string]any {
@@ -99,6 +136,101 @@ func portfolioToolSchema(orders bool) map[string]any {
 		properties["activeOnly"] = map[string]any{"type": "boolean"}
 	}
 	return objectSchema(properties, []string{"tradingEnvironment"})
+}
+
+func portfolioAccountToolSchema() map[string]any {
+	return portfolioToolSchema(false)
+}
+
+func portfolioAccounts(ctx context.Context, input map[string]any, deps ToolDeps) (any, error) {
+	environment, market, accountID, err := portfolioInput(input)
+	if err != nil {
+		return nil, err
+	}
+	base := portfolioBaseResult(deps)
+	runtime, discoveryErr := discoverBrokerRuntime(ctx, deps)
+	base["discoveredAccounts"] = runtime.Accounts
+	base["brokerRuntime"] = map[string]any{"connectivity": runtime.Connectivity, "lastError": runtime.LastError}
+	if discoveryErr != nil {
+		base["selection"] = failedPortfolioSelection(environment, market, accountID, "discovery_failed", discoveryErr.Error())
+		base["partial"], base["warnings"] = true, []string{discoveryErr.Error()}
+		return base, nil
+	}
+	_, selection := resolvePortfolioAccounts(runtime.Accounts, environment, market, accountID)
+	base["selection"], base["partial"] = selection, strings.TrimSpace(runtime.LastError) != ""
+	if strings.TrimSpace(runtime.LastError) != "" {
+		base["warnings"] = []string{"broker runtime: " + runtime.LastError}
+	}
+	return base, nil
+}
+
+func portfolioOverview(ctx context.Context, input map[string]any, deps ToolDeps) (any, error) {
+	environment, market, accountID, err := portfolioInput(input)
+	if err != nil {
+		return nil, err
+	}
+	base, targets, selection, runtimeErr := resolvePortfolioRead(ctx, environment, market, accountID, deps)
+	if selection.Status != "resolved" {
+		base["accountOverviews"], base["partial"] = []portfolioAccountOverview{}, true
+		base["warnings"] = []string{selection.Message}
+		return base, nil
+	}
+	overviews := readPortfolioOverviews(ctx, targets, market, deps)
+	partial, warnings := portfolioOverviewStatus(runtimeErr, overviews)
+	base["accountOverviews"], base["partial"], base["warnings"] = overviews, partial, warnings
+	return base, nil
+}
+
+func portfolioPositions(ctx context.Context, input map[string]any, deps ToolDeps) (any, error) {
+	environment, market, accountID, err := portfolioInput(input)
+	if err != nil {
+		return nil, err
+	}
+	base, targets, selection, runtimeErr := resolvePortfolioRead(ctx, environment, market, accountID, deps)
+	if selection.Status != "resolved" {
+		base["accountPositions"], base["partial"] = []map[string]any{}, true
+		base["warnings"] = []string{selection.Message}
+		return base, nil
+	}
+	positions := readPortfolioPositions(ctx, targets, market, deps)
+	partial := strings.TrimSpace(runtimeErr) != ""
+	warnings := []string{}
+	if partial {
+		warnings = append(warnings, "broker runtime: "+runtimeErr)
+	}
+	for _, item := range positions {
+		if item["partial"] == true {
+			partial = true
+			if messages, ok := item["errors"].([]string); ok {
+				warnings = append(warnings, messages...)
+			}
+		}
+	}
+	base["accountPositions"], base["partial"], base["warnings"] = positions, partial, warnings
+	return base, nil
+}
+
+func portfolioInput(input map[string]any) (string, string, string, error) {
+	environment := strings.ToUpper(strings.TrimSpace(stringValue(input, "tradingEnvironment")))
+	if environment == "" {
+		return "", "", "", fmt.Errorf("tradingEnvironment is required")
+	}
+	return environment, strings.ToUpper(strings.TrimSpace(stringValue(input, "market"))), strings.TrimSpace(stringValue(input, "accountId")), nil
+}
+
+func resolvePortfolioRead(ctx context.Context, environment, market, accountID string, deps ToolDeps) (map[string]any, []BrokerAccountView, portfolioSelection, string) {
+	base := portfolioBaseResult(deps)
+	runtime, err := discoverBrokerRuntime(ctx, deps)
+	base["discoveredAccounts"] = runtime.Accounts
+	base["brokerRuntime"] = map[string]any{"connectivity": runtime.Connectivity, "lastError": runtime.LastError}
+	if err != nil {
+		selection := failedPortfolioSelection(environment, market, accountID, "discovery_failed", err.Error())
+		base["selection"] = selection
+		return base, nil, selection, err.Error()
+	}
+	targets, selection := resolvePortfolioAccounts(runtime.Accounts, environment, market, accountID)
+	base["selection"] = selection
+	return base, targets, selection, runtime.LastError
 }
 
 func portfolioSummary(ctx context.Context, input map[string]any, deps ToolDeps) (any, error) {
@@ -257,6 +389,112 @@ func readPortfolioAccounts(
 		return summaries[i].Account.AccountID < summaries[j].Account.AccountID
 	})
 	return summaries
+}
+
+func readPortfolioOverviews(
+	ctx context.Context,
+	accounts []BrokerAccountView,
+	explicitMarket string,
+	deps ToolDeps,
+) []portfolioAccountOverview {
+	result := make([]portfolioAccountOverview, len(accounts))
+	var wait sync.WaitGroup
+	for index, account := range accounts {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			result[index] = readPortfolioOverview(ctx, account, explicitMarket, deps)
+		}()
+	}
+	wait.Wait()
+	sort.SliceStable(result, func(i, j int) bool {
+		if result[i].HasAssetsOrPositions != result[j].HasAssetsOrPositions {
+			return result[i].HasAssetsOrPositions
+		}
+		return result[i].Account.AccountID < result[j].Account.AccountID
+	})
+	return result
+}
+
+func readPortfolioOverview(ctx context.Context, account BrokerAccountView, explicitMarket string, deps ToolDeps) portfolioAccountOverview {
+	queryMarket := selectAccountReadMarket(account, explicitMarket, callString(deps.DefaultTradeMarket))
+	read := BrokerAccountReadResult{Errors: []string{}}
+	if deps.BrokerAccountRead == nil {
+		read.Partial, read.Errors = true, []string{"broker funds and positions reader is unavailable"}
+	} else {
+		read = deps.BrokerAccountRead(ctx, broker.ReadQuery{
+			BrokerID: "futu", AccountID: account.AccountID,
+			TradingEnvironment: account.TradingEnvironment, Market: queryMarket,
+		}, 8*time.Second)
+	}
+	_, orderCount, orderErr := readExecutionOrders(ctx, deps, BrokerReadInput{
+		TradingEnvironment: account.TradingEnvironment, AccountID: account.AccountID, Market: explicitMarket,
+	})
+	if orderErr != nil {
+		read.Partial = true
+		read.Errors = append(read.Errors, "orders: "+orderErr.Error())
+	}
+	return portfolioAccountOverview{
+		Account: account, QueryMarket: queryMarket, PositionCount: read.PositionCount,
+		OrderCount: orderCount, HasAssetsOrPositions: read.HasAssetsOrPositions,
+		Partial: read.Partial, Errors: nonNilStrings(read.Errors),
+	}
+}
+
+func readPortfolioPositions(ctx context.Context, accounts []BrokerAccountView, explicitMarket string, deps ToolDeps) []map[string]any {
+	result := make([]map[string]any, len(accounts))
+	var wait sync.WaitGroup
+	for index, account := range accounts {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			queryMarket := selectAccountReadMarket(account, explicitMarket, callString(deps.DefaultTradeMarket))
+			read := BrokerAccountReadResult{Errors: []string{}}
+			if deps.BrokerPositionsRead == nil {
+				read.Partial, read.Errors = true, []string{"broker positions reader is unavailable"}
+			} else {
+				read = deps.BrokerPositionsRead(ctx, broker.ReadQuery{
+					BrokerID: "futu", AccountID: account.AccountID,
+					TradingEnvironment: account.TradingEnvironment, Market: queryMarket,
+				}, 8*time.Second)
+			}
+			result[index] = map[string]any{
+				"account": account, "queryMarket": queryMarket, "positions": read.Positions,
+				"positionCount": read.PositionCount, "hasAssetsOrPositions": read.HasAssetsOrPositions,
+				"partial": read.Partial, "errors": nonNilStrings(read.Errors),
+			}
+		}()
+	}
+	wait.Wait()
+	sort.SliceStable(result, func(i, j int) bool {
+		left, _ := result[i]["hasAssetsOrPositions"].(bool)
+		right, _ := result[j]["hasAssetsOrPositions"].(bool)
+		if left != right {
+			return left
+		}
+		leftAccount, _ := result[i]["account"].(BrokerAccountView)
+		rightAccount, _ := result[j]["account"].(BrokerAccountView)
+		return leftAccount.AccountID < rightAccount.AccountID
+	})
+	return result
+}
+
+func portfolioOverviewStatus(runtimeError string, overviews []portfolioAccountOverview) (bool, []string) {
+	partial := strings.TrimSpace(runtimeError) != ""
+	warnings := []string{}
+	if partial {
+		warnings = append(warnings, "broker runtime: "+runtimeError)
+	}
+	for _, overview := range overviews {
+		if !overview.Partial {
+			continue
+		}
+		partial = true
+		for _, message := range overview.Errors {
+			warnings = append(warnings, overview.Account.AccountID+": "+message)
+		}
+	}
+	return partial, warnings
 }
 
 func readPortfolioAccount(

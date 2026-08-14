@@ -173,7 +173,7 @@ describe("ADKAgentsPanel business flows", () => {
       .find((button) => button.text() === "全部移除")!
       .trigger("click");
     expect(agentForm.tools).toEqual([]);
-    expect(wrapper.text()).toContain("空列表表示该智能体可使用全部运行时工具。");
+    expect(wrapper.text()).toContain("当前智能体不声明任何运行时工具");
 
     const categorySelect = wrapper
       .findAll("select")
@@ -194,6 +194,47 @@ describe("ADKAgentsPanel business flows", () => {
       .trigger("click");
     expect(saveAgent).toHaveBeenCalledOnce();
     expect(wrapper.find(".v-dialog-stub").exists()).toBe(false);
+  });
+
+  it("switches explicitly between selected, all, none, and legacy tool access", async () => {
+    const agentForm = buildAgentForm({ toolAccessMode: "selected", tools: [] });
+    const wrapper = mountAgentsPanel({
+      agentForm,
+      agents: [
+        buildAgent({ id: "all-agent", name: "All Agent", toolAccessMode: "all" }),
+        buildAgent({ id: "none-agent", name: "None Agent", toolAccessMode: "none" }),
+      ],
+      tools: [buildTool({ name: "market.snapshot", displayName: "行情快照" })],
+    });
+
+    expect(wrapper.text()).toContain("无工具");
+    await wrapper.findAll("button").find((button) =>
+      button.text().includes("自定义新建"),
+    )!.trigger("click");
+
+    const accessSelect = wrapper.findAll("select").find((select) =>
+      select.text().includes("不启用工具"),
+    );
+    expect(accessSelect).toBeDefined();
+    await accessSelect!.setValue("none");
+    expect(agentForm.toolAccessMode).toBe("none");
+    expect(wrapper.text()).toContain("当前智能体不声明任何运行时工具");
+
+    await accessSelect!.setValue("selected");
+    await wrapper.findAll("button").find((button) =>
+      button.text() === "启用全部",
+    )!.trigger("click");
+    expect(agentForm.toolAccessMode).toBe("all");
+    expect(wrapper.text()).toContain("当前智能体可使用全部运行时工具");
+    expect(wrapper.text()).toContain("全部工具 1");
+
+    const legacyWrapper = mountAgentsPanel({
+      agentForm: buildAgentForm({ toolAccessMode: undefined, tools: [] }),
+    });
+    await legacyWrapper.findAll("button").find((button) =>
+      button.text().includes("自定义新建"),
+    )!.trigger("click");
+    expect(legacyWrapper.text()).toContain("空列表表示该智能体可使用全部运行时工具");
   });
 
   it("shows empty/template states and protects the primary default agent controls", async () => {

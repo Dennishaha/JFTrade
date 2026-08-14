@@ -224,7 +224,12 @@ func TestServiceOptimizationTaskLifecycleAndMetrics(t *testing.T) {
 		ResumeState: "adk_confirmation_resolved",
 		ToolCalls: []assistantmodel.ToolCall{
 			{ID: "tool-1", RunID: "run-metrics-completed", ToolName: "market.read", Status: "SUCCEEDED", DurationMs: 120, CreatedAt: now.Format(time.RFC3339Nano), UpdatedAt: now.Format(time.RFC3339Nano)},
-			{ID: "tool-2", RunID: "run-metrics-completed", ToolName: "strategy.write", Status: "FAILED", DurationMs: 30, CreatedAt: now.Format(time.RFC3339Nano), UpdatedAt: now.Format(time.RFC3339Nano)},
+			{ID: "tool-2", RunID: "run-metrics-completed", ToolName: "strategy.write", Status: "FAILED", Output: map[string]any{
+				"truncated": true,
+				"error":     map[string]any{"code": "timeout", "retryable": true},
+			}, DurationMs: 30, CreatedAt: now.Format(time.RFC3339Nano), UpdatedAt: now.Format(time.RFC3339Nano)},
+			{ID: "tool-3", RunID: "run-metrics-completed", ToolName: "market.pending", Status: "RUNNING", CreatedAt: now.Format(time.RFC3339Nano), UpdatedAt: now.Format(time.RFC3339Nano)},
+			{ID: "tool-4", RunID: "run-metrics-completed", ToolName: "strategy.pending", Status: "PENDING_APPROVAL", CreatedAt: now.Format(time.RFC3339Nano), UpdatedAt: now.Format(time.RFC3339Nano)},
 		},
 		Usage:     &assistantmodel.RunUsage{TokensIn: 120, TokensOut: 60},
 		CreatedAt: now.Format(time.RFC3339Nano),
@@ -343,8 +348,18 @@ func TestServiceOptimizationTaskLifecycleAndMetrics(t *testing.T) {
 	}
 
 	toolsMetrics := asMap(t, metrics["tools"])
-	if toolsMetrics["total"] != 2 || toolsMetrics["successful"] != 1 || toolsMetrics["averageDurationMs"] != int64(75) {
+	if toolsMetrics["total"] != 4 || toolsMetrics["successful"] != 1 || toolsMetrics["averageDurationMs"] != int64(75) {
 		t.Fatalf("tools metrics = %#v", toolsMetrics)
+	}
+	if toolsMetrics["outputBytesTotal"] == int64(0) || toolsMetrics["outputBytesMax"] == int64(0) || toolsMetrics["truncated"] != 1 || toolsMetrics["errorCount"] != 1 || toolsMetrics["retryableErrors"] != 1 {
+		t.Fatalf("tool payload/error metrics = %#v", toolsMetrics)
+	}
+	byErrorCode := asMap(t, toolsMetrics["byErrorCode"])
+	if byErrorCode["TIMEOUT"] != 1 {
+		t.Fatalf("tool error codes = %#v, want one TIMEOUT without duplicate status count", byErrorCode)
+	}
+	if byErrorCode["RUNNING"] != nil || byErrorCode["PENDING_APPROVAL"] != nil {
+		t.Fatalf("nonterminal tool calls counted as errors: %#v", byErrorCode)
 	}
 
 	approvalsMetrics := asMap(t, metrics["approvals"])

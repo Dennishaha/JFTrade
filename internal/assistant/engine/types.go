@@ -9,6 +9,10 @@ const (
 	PermissionModeLessApproval = jfadkmodel.PermissionModeLessApproval
 	PermissionModeAll          = jfadkmodel.PermissionModeAll
 
+	ToolAccessModeAll      = jfadkmodel.ToolAccessModeAll
+	ToolAccessModeSelected = jfadkmodel.ToolAccessModeSelected
+	ToolAccessModeNone     = jfadkmodel.ToolAccessModeNone
+
 	WorkModeChat = jfadkmodel.WorkModeChat
 	WorkModeLoop = jfadkmodel.WorkModeLoop
 

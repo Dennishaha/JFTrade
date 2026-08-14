@@ -116,6 +116,7 @@ func (a *ApplicationAdapter) ToolDeps() ToolDeps {
 		DefaultTradeMarket:             a.defaultTradeMarket,
 		BrokerRuntime:                  a.brokerRuntime,
 		BrokerAccountRead:              a.brokerAccountRead,
+		BrokerPositionsRead:            a.brokerPositionsRead,
 		ExecutionOrders:                a.executionOrders,
 		ExecutionOrderEvents:           a.executionOrderEvents,
 		BrokerOrders:                   a.brokerOrders,

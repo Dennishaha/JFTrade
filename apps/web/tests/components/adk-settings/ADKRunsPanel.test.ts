@@ -193,6 +193,14 @@ describe("ADKRunsPanel", () => {
     expect(wrapper.text()).toContain("2.5 s");
     expect(wrapper.text()).toContain("12 s");
     expect(wrapper.text()).toContain("950 ms");
+    expect(wrapper.text()).toContain("2.0 KB");
+    expect(wrapper.text()).toContain("2.0 MB");
+    const edgeMetrics = buildMetrics();
+    edgeMetrics.tools.outputBytesTotal = 512;
+    edgeMetrics.tools.outputBytesMax = Number.NaN;
+    await wrapper.setProps({ metrics: edgeMetrics });
+    expect(wrapper.text()).toContain("512 B");
+    expect(wrapper.text()).toContain("无数据");
     expect(wrapper.text()).toContain("OpenAI (provider-a) · gpt-4.1");
     expect(wrapper.text()).toContain("Anthropic (provider-b) · claude-sonnet");
     expect(wrapper.text()).toContain("未绑定模型服务");
@@ -363,8 +371,14 @@ function buildMetrics(
       total: 5,
       successful: 4,
       averageDurationMs: 900,
+      outputBytesTotal: 2 * 1024,
+      outputBytesMax: 2 * 1024 * 1024,
+      truncated: 1,
+      errorCount: 1,
+      retryableErrors: 0,
       byName: {},
       byStatus: {},
+      byErrorCode: { TOOL_EXECUTION_FAILED: 1 },
     },
     approvals: {
       pending: 2,

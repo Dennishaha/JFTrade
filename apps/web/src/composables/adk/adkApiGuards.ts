@@ -55,6 +55,7 @@ export {
   isADKProviderTestResponse,
   isOptionalReasoningEffortWire,
   isReasoningEffort,
+  normalizeADKAgentWire,
   normalizeADKAgentTemplateWire,
 } from "./adkApiReasoningGuards";
 
@@ -66,6 +67,10 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function isString(value: unknown): value is string {
   return typeof value === "string";
+}
+
+function isToolAccessMode(value: unknown): value is ADKAgent["toolAccessMode"] {
+  return value === "all" || value === "selected" || value === "none";
 }
 
 export function isNumber(value: unknown): value is number {
@@ -143,6 +148,7 @@ export function isADKAgent(value: unknown): value is ADKAgent {
     isString(value.model) &&
     isOptionalReasoningEffortWire(value.reasoningEffort) &&
     isArrayOf(value.tools, isString) &&
+    isToolAccessMode(value.toolAccessMode) &&
     isArrayOf(value.skills, isString) &&
     isPermissionMode(value.permissionMode) &&
     isBoolean(value.memoryEnabled) &&
@@ -167,6 +173,7 @@ export function isADKAgentTemplate(
     isString(value.model) &&
     isOptionalReasoningEffortWire(value.reasoningEffort) &&
     isArrayOf(value.tools, isString) &&
+    isToolAccessMode(value.toolAccessMode) &&
     isArrayOf(value.skills, isString) &&
     isPermissionMode(value.permissionMode) &&
     isBoolean(value.memoryEnabled) &&
@@ -710,8 +717,14 @@ export function isMetricsView(value: unknown): value is ADKMetricsView {
     isNumber(value.tools.total) &&
     isNumber(value.tools.successful) &&
     isNumber(value.tools.averageDurationMs) &&
+    isNumber(value.tools.outputBytesTotal) &&
+    isNumber(value.tools.outputBytesMax) &&
+    isNumber(value.tools.truncated) &&
+    isNumber(value.tools.errorCount) &&
+    isNumber(value.tools.retryableErrors) &&
     isNumberRecord(value.tools.byName) &&
     isNumberRecord(value.tools.byStatus) &&
+    isNumberRecord(value.tools.byErrorCode) &&
     ["pending", "total", "last7Days", "approved", "denied", "recoverablePending"].every(
       (key) => isNumber(approvals[key]),
     ) &&

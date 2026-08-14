@@ -108,6 +108,23 @@ describe("useADKAgentForm", () => {
     expect(state.agentForm.value.reasoningEffort).toBe("max");
   });
 
+  it("preserves explicit tool access and infers legacy selected tool access", () => {
+    const state = createState();
+    const explicitNone = { ...buildAgent("chat"), toolAccessMode: "none" as const };
+
+    state.editAgent(explicitNone);
+    expect(state.agentForm.value.toolAccessMode).toBe("none");
+    state.duplicateAgent(explicitNone);
+    expect(state.agentForm.value.toolAccessMode).toBe("none");
+
+    const legacySelected = buildAgent("chat");
+    legacySelected.tools = ["market.snapshot"];
+    state.editAgent(legacySelected);
+    expect(state.agentForm.value.toolAccessMode).toBe("selected");
+    state.duplicateAgent(legacySelected);
+    expect(state.agentForm.value.toolAccessMode).toBe("selected");
+  });
+
   it("treats an omitted Agent reasoning default as no explicit level", () => {
     const state = createState();
     const agent = buildAgent("chat");

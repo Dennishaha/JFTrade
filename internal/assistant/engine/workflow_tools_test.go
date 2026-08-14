@@ -260,6 +260,28 @@ func TestGoogleADKToolResponseErrorHelpers(t *testing.T) {
 	}
 }
 
+func TestGoogleADKToolErrorEnvelopeClassifiesRetryability(t *testing.T) {
+	envelope := toolErrorEnvelope("market.snapshot", context.DeadlineExceeded, "执行失败")
+	if envelope["success"] != false || envelope["errorCode"] != "TIMEOUT" || envelope["retryable"] != true {
+		t.Fatalf("timeout envelope = %#v", envelope)
+	}
+	nested, ok := envelope["error"].(map[string]any)
+	if !ok || nested["code"] != "TIMEOUT" || nested["retryable"] != true {
+		t.Fatalf("timeout nested error = %#v", envelope["error"])
+	}
+	structured := structuredToolErrorEnvelope("broker.orders", map[string]any{
+		"success": false,
+		"error":   map[string]any{"code": "RATE_LIMITED", "retryable": true},
+	}, "rate limited")
+	if structured["errorCode"] != "RATE_LIMITED" || structured["retryable"] != true {
+		t.Fatalf("structured envelope = %#v", structured)
+	}
+	cancelled := toolErrorEnvelope("market.snapshot", context.Canceled, "已取消")
+	if cancelled["errorCode"] != "CANCELLED" || cancelled["retryable"] != false {
+		t.Fatalf("cancelled envelope = %#v", cancelled)
+	}
+}
+
 func TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions(t *testing.T) {
 	ctx := context.Background()
 	registry := NewToolRegistry()
@@ -458,6 +480,9 @@ func TestGoogleADKLLMAgentDirectToolsIncludeMemoryWhenEnabled(t *testing.T) {
 	if disabled := runtime.googleADKDirectTools(Agent{ID: "memory-agent"}); disabled != nil {
 		t.Fatalf("memory-disabled direct tools = %#v", disabled)
 	}
+	if disabled := runtime.googleADKDirectTools(Agent{ID: "memory-agent", MemoryEnabled: true, ToolAccessMode: ToolAccessModeNone}); disabled != nil {
+		t.Fatalf("tool-disabled direct tools = %#v", disabled)
+	}
 }
 
 func TestGoogleADKToolsetsIncludeADKArtifactTools(t *testing.T) {
@@ -479,6 +504,10 @@ func TestGoogleADKToolsetsIncludeADKArtifactTools(t *testing.T) {
 	}
 	if !toolsetsContainTool(t, toolsets, "load_artifacts", requestContext) {
 		t.Fatalf("toolsets did not include load_artifacts")
+	}
+	disabled, err := runtime.googleADKToolsets(ctx, Agent{ID: "artifact-agent", ToolAccessMode: ToolAccessModeNone})
+	if err != nil || len(disabled) != 0 {
+		t.Fatalf("tool-disabled toolsets = %#v err=%v", disabled, err)
 	}
 }
 

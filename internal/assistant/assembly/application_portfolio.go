@@ -58,6 +58,18 @@ func (a *ApplicationAdapter) brokerAccountRead(
 	return summarizeBrokerAccountResponses(<-fundsReady, <-positionsReady)
 }
 
+func (a *ApplicationAdapter) brokerPositionsRead(
+	ctx context.Context,
+	query broker.ReadQuery,
+	timeout time.Duration,
+) BrokerAccountReadResult {
+	service := a.trading()
+	if service == nil {
+		return BrokerAccountReadResult{Partial: true, Errors: []string{"trading service is unavailable"}}
+	}
+	return summarizeBrokerPositionsResponse(service.PositionsWithTimeout(ctx, query, timeout))
+}
+
 func summarizeBrokerAccountResponses(
 	funds *trdsrv.BrokerFundsResponse,
 	positions *trdsrv.BrokerPositionsResponse,
@@ -83,6 +95,22 @@ func summarizeBrokerAccountResponses(
 			result.Partial = true
 			result.Errors = append(result.Errors, "positions: "+*positions.LastError)
 		}
+	}
+	return result
+}
+
+func summarizeBrokerPositionsResponse(positions *trdsrv.BrokerPositionsResponse) BrokerAccountReadResult {
+	result := BrokerAccountReadResult{Positions: positions, Errors: []string{}}
+	if positions == nil {
+		result.Partial = true
+		result.Errors = append(result.Errors, "positions: empty broker response")
+		return result
+	}
+	result.PositionCount = len(positions.Positions)
+	result.HasAssetsOrPositions = result.PositionCount > 0
+	if positions.LastError != nil {
+		result.Partial = true
+		result.Errors = append(result.Errors, "positions: "+*positions.LastError)
 	}
 	return result
 }

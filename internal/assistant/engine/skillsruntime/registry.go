@@ -30,7 +30,8 @@ type Skill = jfadkmodel.Skill
 var SkillInstallHostValidator = providers.RejectUnsafeHost
 
 type SkillRegistry struct {
-	skillsPath string
+	skillsPath        string
+	validateToolNames func([]string) (string, string)
 }
 
 type BuiltinSkillSpec struct {
@@ -46,12 +47,28 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 		BuildBundle: func() (map[string]string, error) {
 			return BuildSingleFileBuiltinSkill(
 				WorkflowManagementSkillName,
-				"管理 JFTrade ADK 工作流、触发器和运行记录；只有加载本 Skill 后才会提供对应工具。",
+				"管理 JFTrade ADK 工作流、触发器和运行记录；本 Skill 提供对应工具的操作规范。",
 				"先使用 list/get 工具读取当前状态，再执行创建、补丁更新、删除或运行。"+
 					"update 只修改显式提供的字段；空字符串、空数组或空对象表示清空可选字段，clearCanvasGraph=true 用于清除画布。"+
-					"工作流运行是异步的；启动后使用 workflow_runs.get 或 workflow_runs.list 查询状态，必要时用 workflow.wait 短暂等待后再次轮询。"+
-					"不得通过工具创建 Webhook、读取或重置 Webhook secret。不得从工作流来源会话再次启动工作流。",
+					"工作流运行是异步的；启动后对已知 logId 优先使用 workflow_runs.wait，未知或分页查询再使用 workflow_runs.get/workflow_runs.list；workflow.wait 仅用于没有运行 ID 的短暂等待。"+
+					"不得通过工具创建 Webhook、读取或重置 Webhook secret。不得从工作流来源会话再次启动工作流。"+
+					"tasks.* 和 memory.* 是轻量产品控制面记录；只有在用户明确要求跟踪任务或保存记忆时才调用，并保持最小字段。",
 				WorkflowManagementToolNames(),
+				"1",
+			)
+		},
+	},
+	{
+		DisplayName: "JFTrade 运行运维",
+		Name:        "jftrade-operations",
+		BuildBundle: func() (map[string]string, error) {
+			return BuildSingleFileBuiltinSkill(
+				"jftrade-operations",
+				"读取 JFTrade 系统、OpenD、ADK 和插件运行状态；先诊断事实，再提出修复建议。",
+				"系统诊断优先使用 system.status 和 system.futu_opend，并保留 checkedAt、connectivity、loginState、warnings 与 partial 状态。"+
+					"OpenD 连接或登录态未知时按不可用处理，不要把空结果解释为没有账户或没有持仓。"+
+					"plugins.catalog 只用于查看已安装能力，不把插件目录当作行情或交易事实来源。",
+				[]string{"system.status", "system.futu_opend", "plugins.catalog"},
 				"1",
 			)
 		},
@@ -165,10 +182,11 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 				"jftrade-portfolio",
 				"谨慎使用 JFTrade 账户与组合数据，必须区分模拟结果和真实资产。",
 				"讨论账户状态时，要说明账户、交易环境，以及数据来自真实还是模拟来源。"+
-					"未指定账户时，portfolio.summary 会扫描指定环境的全部券商账户并分账户返回，非空账户优先；不得跨账户聚合。"+
+					"先用 portfolio.accounts 发现并确认账户，再用 portfolio.overview 获取轻量数量概览；需要明细时使用 portfolio.positions 或 portfolio.summary。"+
+					"未指定账户时，工具会扫描指定环境的全部券商账户并分账户返回，非空账户优先；不得跨账户聚合。"+
 					"accountId 可以使用完整 ID 或唯一尾号。partial、账户发现失败、单账户读取失败或超时都不能解释为全账户无持仓。"+
 					"不要把模拟持仓描述成真实资产。合法示例：{\"tradingEnvironment\":\"REAL\"} 或 {\"tradingEnvironment\":\"REAL\",\"accountId\":\"8240\"}。",
-				[]string{"portfolio.summary", "account.orders"},
+				[]string{"portfolio.accounts", "portfolio.overview", "portfolio.summary", "portfolio.positions", "account.orders", "broker.orders", "broker.fills", "broker.cash_flows", "broker.fees", "broker.margin_ratios", "risk.state", "risk.events", "execution.order_events"},
 				"3",
 			)
 		},
@@ -263,7 +281,8 @@ const WorkflowManagementSkillName = "jftrade-workflow-management"
 var workflowManagementToolNames = []string{
 	"workflows.list", "workflows.get", "workflows.create", "workflows.update", "workflows.delete", "workflows.run",
 	"workflow_triggers.list", "workflow_triggers.get", "workflow_triggers.create", "workflow_triggers.update", "workflow_triggers.delete", "workflow_triggers.run",
-	"workflow_runs.list", "workflow_runs.get",
+	"workflow_runs.list", "workflow_runs.get", "workflow_runs.wait",
+	"tasks.list", "tasks.create", "tasks.update", "tasks.delete", "memory.list", "memory.remember", "memory.forget",
 }
 
 // WorkflowManagementToolNames returns the tools documented by the builtin
@@ -277,7 +296,10 @@ func BuiltinSkillAllowsAuthorizedToolSubset(name string) bool {
 	case WorkflowManagementSkillName, strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName:
 		return true
 	default:
-		return false
+		// Every builtin Skill is safe to use with an authorized subset. Its
+		// instructions must tell the model to use only tools present in the
+		// current Agent, while the runtime filters unavailable tools.
+		return strings.HasPrefix(strings.TrimSpace(name), "jftrade-") || strings.EqualFold(strings.TrimSpace(name), "external-http")
 	}
 }
 
@@ -296,6 +318,27 @@ func NewSkillRegistry(skillsPath string) *SkillRegistry {
 		besteffort.LogError(jftradeErr11)
 	}
 	return registry
+}
+
+// SetToolValidator installs the runtime registry validator used to surface
+// unknown allowed-tools entries as metadata warnings without rejecting a
+// remotely installed Skill that may target a future tool.
+func (r *SkillRegistry) SetToolValidator(validator func([]string) (string, string)) {
+	if r == nil {
+		return
+	}
+	r.validateToolNames = validator
+}
+
+func (r *SkillRegistry) validateTools(tools []string) (string, string) {
+	if r == nil || r.validateToolNames == nil {
+		return "VALID", ""
+	}
+	status, message := r.validateToolNames(tools)
+	if strings.TrimSpace(status) == "" {
+		status = "VALID"
+	}
+	return strings.ToUpper(strings.TrimSpace(status)), strings.TrimSpace(message)
 }
 
 // NewSkillRegistryFromPath opens the filesystem registry without syncing

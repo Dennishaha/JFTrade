@@ -24,6 +24,8 @@ func workflowManagementToolInputSchema(name string) (map[string]any, bool) {
 		return workflowRunsListInputSchema(), true
 	case "workflow_runs.get":
 		return workflowRunLogIDInputSchema(), true
+	case "workflow_runs.wait":
+		return workflowRunWaitInputSchema(), true
 	default:
 		return nil, false
 	}
@@ -129,6 +131,14 @@ func workflowRunsListInputSchema() map[string]any {
 func workflowRunLogIDInputSchema() map[string]any {
 	return strictObjectSchema(map[string]any{
 		"logId": map[string]any{"type": "string"},
+	}, []string{"logId"})
+}
+
+func workflowRunWaitInputSchema() map[string]any {
+	return strictObjectSchema(map[string]any{
+		"logId":          map[string]any{"type": "string", "description": "工作流运行日志 ID。"},
+		"timeoutMs":      map[string]any{"type": "integer", "minimum": 0, "maximum": 25000, "default": 10000, "description": "最多等待毫秒数；0 只读取当前状态。"},
+		"pollIntervalMs": map[string]any{"type": "integer", "minimum": 100, "maximum": 5000, "default": 500, "description": "服务端轮询间隔，避免模型忙轮询。"},
 	}, []string{"logId"})
 }
 

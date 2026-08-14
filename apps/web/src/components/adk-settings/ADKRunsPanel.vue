@@ -137,6 +137,13 @@ function formatDuration(ms: number | undefined): string {
   return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)} s`;
 }
 
+function formatBytes(bytes: number | undefined): string {
+  if (bytes == null || Number.isNaN(bytes)) return "无数据";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function auditKindLabel(kind: string): string {
   if (kind.startsWith("task.")) return `任务 · ${kind}`;
   if (kind.startsWith("memory.")) return `记忆 · ${kind}`;
@@ -182,6 +189,15 @@ function canResumeRun(run: ADKRun): boolean {
           <div class="text-2xl font-semibold">{{ formatDuration(metrics.tools.averageDurationMs) }}</div>
           <div class="mt-1 text-xs text-slate-500">
             成功率 {{ metrics.tools.total ? Math.round((metrics.tools.successful / metrics.tools.total) * 100) : 0 }}%
+          </div>
+        </v-card-text>
+      </v-card>
+      <v-card flat class="card-shell border-0">
+        <v-card-text>
+          <div class="text-xs text-slate-500">工具输出负载</div>
+          <div class="text-2xl font-semibold">{{ formatBytes(metrics.tools.outputBytesTotal) }}</div>
+          <div class="mt-1 text-xs text-slate-500">
+            最大 {{ formatBytes(metrics.tools.outputBytesMax) }} · 截断 {{ metrics.tools.truncated }} 次
           </div>
         </v-card-text>
       </v-card>

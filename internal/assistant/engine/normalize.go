@@ -16,6 +16,7 @@ func NormalizeRun(run Run) Run {
 
 func NormalizeAgent(agent Agent) Agent {
 	agent.Tools = jfadkmodel.NormalizeStringSlice(agent.Tools)
+	agent.ToolAccessMode = jfadkmodel.NormalizeToolAccessMode(agent.ToolAccessMode, agent.Tools)
 	agent.Skills = jfadkmodel.NormalizeStringSlice(agent.Skills)
 	agent.PermissionMode = normalizePermissionMode(agent.PermissionMode)
 	agent.ReasoningEffort = jfadkmodel.NormalizeReasoningEffort(agent.ReasoningEffort)
@@ -25,6 +26,10 @@ func NormalizeAgent(agent Agent) Agent {
 	agent.Builtin = agent.Builtin || IsBuiltinAgentID(agent.ID)
 	if IsPrimaryBuiltinAgentID(agent.ID) {
 		agent.Name = "默认助手"
+		if strings.TrimSpace(agent.ToolAccessMode) == "" || (agent.ToolAccessMode == ToolAccessModeAll && len(agent.Tools) == 0) {
+			agent.Tools = DefaultBuiltinToolNames()
+			agent.ToolAccessMode = ToolAccessModeSelected
+		}
 		agent.Skills = BuiltinSkillIDs()
 	}
 	if strings.TrimSpace(agent.Status) == "" {

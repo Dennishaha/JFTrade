@@ -281,6 +281,9 @@ func (s *Service) validateAgent(ctx context.Context, payload assistantmodel.Agen
 			return fmt.Errorf("invalid agent work mode")
 		}
 	}
+	if !assistantmodel.ValidToolAccessMode(payload.ToolAccessMode) {
+		return fmt.Errorf("invalid tool access mode")
+	}
 	if payload.LoopMaxIterations < 0 || payload.LoopMaxIterations > assistantmodel.MaxLoopIterations {
 		return fmt.Errorf("loop max iterations must be between 1 and %d", assistantmodel.MaxLoopIterations)
 	}
@@ -305,6 +308,12 @@ func (s *Service) validateAgent(ctx context.Context, payload assistantmodel.Agen
 	}
 	for _, name := range payload.Tools {
 		if _, ok := s.runtime.Tools().CanonicalName(name); !ok {
+			// The primary builtin template is composed in the application assembly
+			// and includes product tools that are intentionally absent from the
+			// small engine-only registry used by some callers and tests.
+			if payload.ID == assistantmodel.DefaultBuiltinAgentID && isDefaultBuiltinTool(name, payload.Tools) {
+				continue
+			}
 			return fmt.Errorf("unknown ADK tool: %s", strings.TrimSpace(name))
 		}
 	}
@@ -316,6 +325,31 @@ func (s *Service) validateAgent(ctx context.Context, payload assistantmodel.Agen
 		}
 	}
 	return nil
+}
+
+func isDefaultBuiltinTool(name string, tools []string) bool {
+	name = strings.TrimSpace(name)
+	known := false
+	for _, candidate := range jfadkruntime.DefaultBuiltinToolNames() {
+		if candidate == name {
+			known = true
+			break
+		}
+	}
+	if !known {
+		return false
+	}
+	allowed := assistantmodel.NormalizeStringSlice(jfadkruntime.DefaultBuiltinToolNames())
+	provided := assistantmodel.NormalizeStringSlice(tools)
+	if len(allowed) != len(provided) {
+		return false
+	}
+	for index := range allowed {
+		if allowed[index] != provided[index] {
+			return false
+		}
+	}
+	return true
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

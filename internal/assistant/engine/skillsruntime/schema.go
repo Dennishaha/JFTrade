@@ -47,7 +47,7 @@ func DefaultToolInputSchema(name string) map[string]any {
 		return marketReadInputSchema(name)
 	case "watchlist.list":
 		return watchlistListInputSchema()
-	case "portfolio.summary":
+	case "portfolio.accounts", "portfolio.overview", "portfolio.positions", "portfolio.summary":
 		return portfolioSummaryInputSchema()
 	default:
 		return defaultQueryInputSchema()
@@ -74,7 +74,8 @@ func httpFetchToolInputSchema() map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"url": map[string]any{"type": "string", "description": "Public http or https URL to fetch."},
+			"url":      map[string]any{"type": "string", "description": "Public http or https URL to fetch."},
+			"maxBytes": map[string]any{"type": "integer", "minimum": 1, "maximum": 1048576, "default": 1048576, "description": "Maximum response body bytes; capped at 1 MiB."},
 		},
 		"required":             []string{"url"},
 		"additionalProperties": false,

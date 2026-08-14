@@ -6,7 +6,7 @@ JFTrade 的 ADK 集成在现有 sidecar 内提供 Agent 控制面，不嵌入 Go
 
 ADK 是 JFTrade 的核心差异化能力，不是可以随时裁掉的辅助模块。当前保留 workflow 编排、child workflow、execution lease、goal state、approval 和工具幂等完整能力；实现已收口到仓库私有的 `internal/assistant/engine`，不再对外暗示稳定 Go API。
 
-`GET /api/v1/adk/metrics` 在现有运行指标上增加本机滚动 7 日使用窗口，包括 run、session、approval 和 workflow invocation，并同时返回 workflow definition/trigger 的启用数。设置页展示近 7 日 ADK 运行和 Workflow 调用，用于发版复盘功能接受度。这些指标只聚合本地 SQLite 中的业务记录，不上传用户数据，也不将“低频使用”自动等同于“应删除”。
+`GET /api/v1/adk/metrics` 在现有运行指标上增加本机滚动 7 日使用窗口，包括 run、session、approval 和 workflow invocation，并同时返回 workflow definition/trigger 的启用数。工具指标还记录输出字节数、最大输出、截断次数、错误数、可重试错误数和稳定错误码分布，不记录原始工具输出。设置页展示近 7 日 ADK 运行和 Workflow 调用，用于发版复盘功能接受度。这些指标只聚合本地 SQLite 中的业务记录，不上传用户数据，也不将“低频使用”自动等同于“应删除”。
 
 ## 后端边界
 
@@ -74,37 +74,47 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 
 ## 权限模式
 
-- `approval`：默认模式。读内部/外部资源自动执行；安装 skill、保存策略、运行优化、工作流管理和工作流启动等写动作进入审批。
-- `less_approval`：减少写入和优化类动作的审批；不允许调用 `live_trading` 工具。
-- `all`：允许全部 ADK 工具自动执行，包括 `live_trading`；实际交易仍必须通过交易系统自身的实盘开关、风控和熔断。
+- `approval`：默认模式。低风险读取自动执行；中风险及以上工具、安装 skill、保存策略、运行优化、工作流管理和工作流启动等动作进入审批。
+- `less_approval`：减少普通写入和优化类动作的审批；实盘下单与撤单仍逐次审批，并不会被此模式绕过。
+- `all`：内部/外部读取和普通写入尽量自动执行；`live_trading` 仍逐次审批，实际交易还必须通过交易系统自身的实盘开关、风控和熔断。
+
+## 工具访问范围
+
+- `all`：声明当前运行时中符合权限模式的全部工具。
+- `selected`：只声明 Agent 明确选择且符合权限模式的工具；空列表保持为空，不再隐式代表全部工具。
+- `none`：不向模型声明任何工具，包括 JFTrade 产品工具、ADK memory 工具、Skill toolset 和 artifact 加载工具；记忆持久化配置可以保留，但该 Agent 不能主动调用记忆工具。
 
 ## 内置 Tools
 
-当前内置 tools 覆盖：
+当前内置 tools 覆盖（完整目录仍以运行时 `tools.search`/`GET /api/v1/adk/tools` 返回的 descriptor、schema 和 Required Skill 为准）：
 
-- 用户交互：`interaction.request_user`（Registry 内置工具；需要在 Agent 工具清单中启用，未显式选择工具的 Agent 默认可用）
-- 系统：`system.status`、`system.futu_opend`、`plugins.catalog`
-- 行情：`market.subscriptions`、`market.snapshot`、`market.candles`、`watchlist.list`
-- 账户：`portfolio.summary`、`account.orders`
+- 用户交互：`interaction.request_user`（Registry 内置工具；需要在 Agent 工具清单中启用）
+- 系统运维：`system.status`、`system.futu_opend`、`plugins.catalog`
+- 行情：`market.capabilities`、`market.search`、`market.instrument_profile`、`market.subscriptions`、`market.snapshot`、`market.snapshots`、`market.candles`、`market.intraday`、`market.ticks`、`market.depth`、`market.broker_queue`、`market.capital_flow`、`watchlist.list`、`watchlist.remote.list`、`watchlist.remote.modify`、`alerts.price.list/set`
+- 账户与风控：`portfolio.accounts`、`portfolio.overview`、`portfolio.positions`、`portfolio.summary`、`account.orders`、`broker.orders`、`broker.fills`、`broker.cash_flows`、`broker.fees`、`broker.margin_ratios`、`risk.state`、`risk.events`、`execution.order_events`
+- 衍生品与预测：`derivatives.option_chain/screen/analysis/events`、`derivatives.warrants`、`derivatives.futures`、`prediction.discover/snapshot/depth/history/combo_eligible/combo_quote`、`alerts.option_event.list/set`
+- 研究：`research.instrument`、`research.financials`、`research.valuation`、`research.analyst`、`research.ownership`、`research.corporate_actions`、`research.short_interest`、`research.news`、`research.screen`、`research.calendar`、`research.macro`、`research.rankings`、`research.institutions`、`research.industry`、`research.technical_indicators`
 - 工作流等待与任务：`workflow.wait`、`tasks.list/create/update/delete`、`memory.list/remember/forget`
 - 工作流定义：`workflows.list/get/create/update/delete/run`
 - 工作流触发器：`workflow_triggers.list/get/create/update/delete/run`
-- 工作流运行：`workflow_runs.list/get`
+- 工作流运行：`workflow_runs.list/get/wait`；`workflow_runs.wait` 在服务端按间隔等待，超时返回当前状态和下一次建议轮询间隔，避免模型忙轮询。
 - 策略：`strategy.definitions`、`strategy.definition_versions.list/get`、`strategy.pine_spec`、`strategy.validate_pine`、`strategy.research_backtest`、`strategy.save_draft`、`strategy.save_definition`、`strategy.update_instance_mode`、`strategy.optimize`
 - 回测：`backtest.runs`、`backtest.result_view`、`backtest.kline_sync_status`
-- 外部：`http.fetch`
+- 外部：`http.fetch`（支持 `maxBytes`，响应返回 `finalUrl`、`bytes` 和 `truncated`）
 
-`http.fetch` 允许公网 HTTP/HTTPS，默认阻止本机、私网、link-local、multicast 和 metadata IP，且限制响应大小。
+`http.fetch` 允许公网 HTTP/HTTPS，默认阻止本机、私网、link-local、multicast 和 metadata IP，且限制响应大小；它不是本机文件或 Shell 工具。
 
 `interaction.request_user` 只用于无法从工具或已有上下文确定的用户偏好和方案选择。模型必须在一次调用中集中提供当前决策阶段的全部问题；每题必须提供 2 到 3 个选项，可通过 `allowOther` 允许方案外自由输入。同一个 Run 可以在回答并恢复后再次提问，但任一时刻只允许一个待回答请求，不能并行提问。每轮问题、答案和状态都保存在 Run 的 `inputRequests` 历史中；刷新、切换会话或服务重启后仍可恢复。`POST /api/v1/adk/runs/{runId}/input-response` 对每个请求只消费一次有效回答，完全相同的重试幂等，不同的第二次回答返回冲突。
 
 `watchlist.list` 是只读工具：不指定 group 时返回本地分组摘要，指定 group 后按 market、query、cursor/limit 返回成员、来源和最近导入状态。它默认 `includeQuotes=false`，不会触发券商导入或行情订阅；完整参数和数据边界见 [自选系统](watchlist.md)。
 
-工作流管理 tools 复用工作流 Studio 的业务 Service、校验、脱敏和审计。14 个工具由内置 `jftrade-workflow-management` Skill 提供使用说明；已通过 Agent 白名单和权限筛选的工具从构建开始就会声明给模型，`tools.search` 也会返回这些工具。`load_skill` 只按需加载工作规范和资源；自定义 Agent 仍须绑定该 Skill 才能读取说明，并在工具白名单中授权所需工具。
+组合查询按上下文大小分层：`portfolio.accounts` 只做 live account discovery；`portfolio.overview` 返回逐账户持仓/订单数量和 partial 状态；`portfolio.positions` 返回逐账户持仓明细；需要资金、持仓和订单完整载荷时才使用兼容工具 `portfolio.summary`。所有层级都保留 `accountId + tradingEnvironment + market` 选择事实，不跨账户聚合，也不会把发现失败或部分失败解释成“没有资产”。
+
+工作流管理 tools 复用工作流 Studio 的业务 Service、校验、脱敏和审计。工作流与轻量控制面工具由内置 `jftrade-workflow-management` Skill 提供使用说明；已通过 Agent 白名单和权限筛选的工具从构建开始就会声明给模型，`tools.search` 也会返回这些工具。`load_skill` 只按需加载工作规范和资源；Required Skill 是操作规范关联，不是运行时工具解锁门禁。自定义 Agent 仍须绑定该 Skill 才能读取说明，并至少授权其中一个可用工具。
 
 `update` 使用补丁语义，未提供字段保持不变；列表返回紧凑摘要，`get` 返回完整资源。创建、更新、删除和运行只在 `approval` 模式请求确认，在 `less_approval` 与 `all` 模式直接执行。已进入审批流程的工作流调用可以在后续 invocation 恢复，不要求重新加载 Skill。
 
-`workflows.run` 和 `workflow_triggers.run` 会先持久化 `QUEUED` 运行日志并立即返回；agent 可用 `workflow_runs.get`、`workflow_runs.list` 配合 `workflow.wait` 轮询后续状态，不受单次工具调用 30 秒上限影响。只有可解析的普通交互会话能够启动工作流；工作流来源会话禁止再次启动工作流，以避免递归和跨工作流环路。
+`workflows.run` 和 `workflow_triggers.run` 会先持久化 `QUEUED` 运行日志并立即返回；agent 对已知 `logId` 优先使用 `workflow_runs.wait`，未知或需要分页时使用 `workflow_runs.get`、`workflow_runs.list`，不受单次工具调用 30 秒上限影响。只有可解析的普通交互会话能够启动工作流；工作流来源会话禁止再次启动工作流，以避免递归和跨工作流环路。
 
 Webhook secret 不进入模型上下文或 ADK 工具记录。tools 可以查看、启停和编辑已有 Webhook 触发器的非密钥元数据，但不能创建 Webhook 触发器、重置或读取 secret；这些操作仍只通过工作流 Studio/API 完成。
 

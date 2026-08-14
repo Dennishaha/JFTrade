@@ -34,6 +34,7 @@ func primaryBuiltinProtectedFieldsMatch(req assistantmodel.AgentWriteRequest, cu
 	return strings.TrimSpace(req.Name) == current.Name &&
 		strings.TrimSpace(req.Instruction) == current.Instruction &&
 		slices.Equal(assistantmodel.NormalizeStringSlice(req.Tools), assistantmodel.NormalizeStringSlice(current.Tools)) &&
+		assistantmodel.NormalizeToolAccessMode(req.ToolAccessMode, req.Tools) == assistantmodel.NormalizeToolAccessMode(current.ToolAccessMode, current.Tools) &&
 		slices.Equal(assistantmodel.NormalizeStringSlice(req.Skills), assistantmodel.NormalizeStringSlice(current.Skills)) &&
 		assistantmodel.NormalizePermissionMode(req.PermissionMode) == current.PermissionMode &&
 		req.MemoryEnabled == current.MemoryEnabled &&

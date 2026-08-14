@@ -47,6 +47,9 @@ func TestApplicationAdapterKeepsNilPortsCallable(t *testing.T) {
 	if read := deps.BrokerAccountRead(ctx, broker.ReadQuery{}, time.Second); !read.Partial {
 		t.Fatal("nil trading ports did not report a partial broker account read")
 	}
+	if read := deps.BrokerPositionsRead(ctx, broker.ReadQuery{}, time.Second); !read.Partial {
+		t.Fatal("nil trading ports did not report a partial broker positions read")
+	}
 	if _, err := deps.BrokerRuntime(ctx); err == nil {
 		t.Fatal("nil trading ports reported broker account discovery")
 	}

@@ -71,6 +71,10 @@ func BuiltinAgentTemplates() []assistantmodel.AgentWriteRequest {
 	return jfadk.BuiltinAgentTemplates()
 }
 
+func DefaultBuiltinToolNames() []string {
+	return jfadk.DefaultBuiltinToolNames()
+}
+
 func BuiltinAgentTemplate(id string) (assistantmodel.AgentWriteRequest, bool) {
 	return jfadk.BuiltinAgentTemplate(id)
 }

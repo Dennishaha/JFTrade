@@ -329,6 +329,7 @@ export function useADKSettingsSectionState() {
       model: template.model ?? "",
       reasoningEffort: template.reasoningEffort ?? "",
       tools: [...template.tools],
+      toolAccessMode: template.toolAccessMode ?? (template.tools.length > 0 ? "selected" : "all"),
       skills: [...template.skills],
       permissionMode: template.permissionMode,
       memoryEnabled: template.memoryEnabled,

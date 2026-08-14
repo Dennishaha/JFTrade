@@ -52,6 +52,12 @@ func (r *SkillRegistry) registry() *skillsruntime.SkillRegistry {
 	return r.impl
 }
 
+func (r *SkillRegistry) setToolValidator(validator func([]string) (string, string)) {
+	if registry := r.registry(); registry != nil {
+		registry.SetToolValidator(validator)
+	}
+}
+
 func (r *SkillRegistry) List(ctx context.Context) ([]Skill, error) {
 	return r.registry().List(ctx)
 }

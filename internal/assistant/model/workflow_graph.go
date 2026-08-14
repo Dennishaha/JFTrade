@@ -17,10 +17,10 @@ type workflowGraphDocument struct {
 }
 
 type workflowGraphAgent struct {
-	ID, Name, Instruction, ProviderID, Model, PermissionMode, WorkMode string
-	LoopMaxIterations, RecentUserWindow                                int
-	MemoryEnabled                                                      bool
-	Tools, Skills                                                      []string
+	ID, Name, Instruction, ProviderID, Model, PermissionMode, ToolAccessMode, WorkMode string
+	LoopMaxIterations, RecentUserWindow                                                int
+	MemoryEnabled                                                                      bool
+	Tools, Skills                                                                      []string
 }
 
 type workflowGraphStep struct {
@@ -74,7 +74,7 @@ func workflowGraphAgentFrom(agent Agent) workflowGraphAgent {
 	return workflowGraphAgent{
 		ID: strings.TrimSpace(agent.ID), Name: strings.TrimSpace(agent.Name), Instruction: strings.TrimSpace(agent.Instruction),
 		ProviderID: strings.TrimSpace(agent.ProviderID), Model: strings.TrimSpace(agent.Model),
-		PermissionMode: NormalizePermissionMode(agent.PermissionMode), WorkMode: strings.TrimSpace(agent.WorkMode),
+		PermissionMode: NormalizePermissionMode(agent.PermissionMode), ToolAccessMode: NormalizeToolAccessMode(agent.ToolAccessMode, agent.Tools), WorkMode: strings.TrimSpace(agent.WorkMode),
 		LoopMaxIterations: agent.LoopMaxIterations, RecentUserWindow: agent.RecentUserWindow, MemoryEnabled: agent.MemoryEnabled,
 		Tools: workflowGraphStrings(agent.Tools), Skills: workflowGraphStrings(agent.Skills),
 	}

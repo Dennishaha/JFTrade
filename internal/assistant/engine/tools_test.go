@@ -369,8 +369,36 @@ func TestHTTPFetchToolHandlesResponsesWithoutRealNetwork(t *testing.T) {
 		if payload["status"] != http.StatusOK || payload["body"] != "market snapshot" || payload["truncated"] != false {
 			t.Fatalf("payload = %#v, want successful fetch payload", payload)
 		}
-		if payload["url"] != "http://8.8.8.8/report" {
+		if payload["url"] != "http://8.8.8.8/report" || payload["finalUrl"] != "http://8.8.8.8/report" || payload["bytes"] != len("market snapshot") || payload["maxBytes"] != 1<<20 {
 			t.Fatalf("payload url = %#v, want canonical request url", payload["url"])
+		}
+	})
+
+	t.Run("custom byte limit and final response url", func(t *testing.T) {
+		http.DefaultTransport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			finalRequest := req.Clone(req.Context())
+			finalRequest.URL.Path = "/final"
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader("12345678")),
+				Request:    finalRequest,
+			}, nil
+		})
+
+		output, err := httpFetchTool(context.Background(), map[string]any{"url": "http://8.8.8.8/start", "maxBytes": 4})
+		if err != nil {
+			t.Fatalf("httpFetchTool custom limit: %v", err)
+		}
+		payload := output.(map[string]any)
+		if payload["body"] != "1234" || payload["bytes"] != 4 || payload["maxBytes"] != 4 || payload["truncated"] != true || payload["finalUrl"] != "http://8.8.8.8/final" {
+			t.Fatalf("custom limit payload = %#v", payload)
+		}
+	})
+
+	t.Run("invalid byte limit rejected", func(t *testing.T) {
+		if _, err := httpFetchTool(context.Background(), map[string]any{"url": "http://8.8.8.8/report", "maxBytes": 0}); err == nil || !strings.Contains(err.Error(), "maxBytes") {
+			t.Fatalf("httpFetchTool invalid maxBytes err = %v", err)
 		}
 	})
 
@@ -709,6 +737,38 @@ func TestBacktestToolsIncludeRequiredKLineSyncStatusCompanion(t *testing.T) {
 	}
 	if !names["strategy.research_backtest"] || !names["backtest.kline_sync_status"] {
 		t.Fatalf("tool descriptors = %#v, want research and sync status companion", names)
+	}
+}
+
+func TestToolDescriptorsRespectExplicitAccessModes(t *testing.T) {
+	registry := NewToolRegistry()
+	for _, name := range []string{"market.snapshot", "orders.place"} {
+		registry.Register(ToolDescriptor{Name: name, Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
+			return nil, nil
+		})
+	}
+	allNames := registry.AvailableNames()
+
+	tests := []struct {
+		name  string
+		agent Agent
+		want  []string
+	}{
+		{name: "all", agent: Agent{ToolAccessMode: ToolAccessModeAll}, want: allNames},
+		{name: "selected", agent: Agent{ToolAccessMode: ToolAccessModeSelected, Tools: []string{"orders.place"}}, want: []string{"orders.place"}},
+		{name: "none", agent: Agent{ToolAccessMode: ToolAccessModeNone, Tools: []string{"orders.place"}}, want: []string{}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			descriptors := ToolDescriptorsForAgent(test.agent, registry)
+			got := make([]string, 0, len(descriptors))
+			for _, descriptor := range descriptors {
+				got = append(got, descriptor.Name)
+			}
+			if !sameStringSet(got, test.want) {
+				t.Fatalf("descriptors = %v, want %v", got, test.want)
+			}
+		})
 	}
 }
 

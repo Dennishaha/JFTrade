@@ -1,6 +1,7 @@
 import type { MCPServerStatus } from "../../contracts/wire/settings";
 
 export type ADKPermissionMode = "approval" | "less_approval" | "all";
+export type ADKToolAccessMode = "all" | "selected" | "none";
 export type ADKWorkMode = "chat" | "loop";
 export type ADKReasoningEffort =
   | "low"
@@ -114,6 +115,7 @@ export interface ADKAgent {
   model: string;
   reasoningEffort?: ADKReasoningEffort;
   tools: string[];
+  toolAccessMode: ADKToolAccessMode;
   skills: string[];
   permissionMode: ADKPermissionMode;
   memoryEnabled: boolean;
@@ -148,6 +150,9 @@ export interface ADKSkill {
   description: string;
   source: string;
   installPath: string;
+  tools?: string[];
+  validationStatus?: "VALID" | "WARNING" | "INVALID" | string;
+  validationError?: string;
   version?: string;
   createdAt: string;
   updatedAt: string;

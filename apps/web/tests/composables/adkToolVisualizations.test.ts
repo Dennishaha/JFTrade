@@ -18,6 +18,123 @@ describe("buildADKToolVisualization", () => {
     expect(visualization.rows?.[0]).toEqual({ label: "检查时间", value: "2026-06-08T10:00:00Z" });
   });
 
+  it("builds portfolio position rows from the real broker response envelope", () => {
+    const visualization = buildADKToolVisualization("portfolio.positions", {
+      accountPositions: [{
+        account: { accountId: "FULL-8240" },
+        positionCount: 1,
+        positions: {
+          positions: [{ symbol: "US.AAPL", quantity: 2, marketValue: 420 }],
+        },
+      }],
+    });
+
+    expect(visualization?.kind).toBe("table");
+    if (visualization?.kind !== "table") return;
+    expect(visualization.rows[0]).toMatchObject({
+      account: "FULL-8240",
+      symbol: "US.AAPL",
+      quantity: "2",
+      marketValue: "420",
+    });
+  });
+
+  it("renders layered portfolio discovery, overview, and partial position states", () => {
+    const accounts = Array.from({ length: 21 }, (_, index) => ({
+      accountId: `REAL-${index + 1}`,
+      tradingEnvironment: "REAL",
+      accountType: "CASH",
+      marketAuthorities: ["US"],
+    }));
+    const discovery = buildADKToolVisualization("portfolio.accounts", {
+      discoveredAccounts: accounts,
+    });
+    expect(discovery?.kind).toBe("table");
+    if (discovery?.kind !== "table") return;
+    expect(discovery.rows).toHaveLength(20);
+    expect(discovery.subtitle).toBe("20 / 21 个账户");
+
+    const discoveryFailure = buildADKToolVisualization("portfolio.accounts", {
+      selection: { status: "discovery_failed" },
+      partial: true,
+      warnings: ["OpenD unavailable"],
+    });
+    expect(discoveryFailure?.kind).toBe("summary");
+
+    const overview = buildADKToolVisualization("portfolio.overview", {
+      accountOverviews: [{
+        account: { accountId: "REAL-1" },
+        queryMarket: "US",
+        positionCount: 2,
+        orderCount: 1,
+        hasAssetsOrPositions: true,
+        partial: false,
+      }],
+    });
+    expect(overview?.kind).toBe("table");
+    if (overview?.kind !== "table") return;
+    expect(overview.rows[0]?.["account.accountId"]).toBe("REAL-1");
+    expect(buildADKToolVisualization("portfolio.overview", {
+      selection: { status: "not_found" },
+    })?.kind).toBe("summary");
+
+    const positions = buildADKToolVisualization("portfolio.positions", {
+      accountPositions: [
+        "invalid",
+        {
+          account: "unknown",
+          positionCount: 1,
+          positions: [{ instrumentId: "US.MSFT", qty: 3, value: 900 }],
+        },
+        {
+          account: { accountId: "REAL-2" },
+          positionCount: 1,
+          positions: [null],
+        },
+        {
+          account: { accountId: "REAL-3" },
+          positionCount: 0,
+          positions: { positions: "invalid" },
+        },
+      ],
+    });
+    expect(positions?.kind).toBe("table");
+    if (positions?.kind !== "table") return;
+    expect(positions.rows).toHaveLength(3);
+    expect(positions.rows[0]).toMatchObject({ symbol: "US.MSFT", quantity: "3", marketValue: "900" });
+    expect(positions.rows[2]).toMatchObject({ account: "REAL-3", symbol: "-" });
+    expect(buildADKToolVisualization("portfolio.positions", {
+      selection: { status: "not_found" },
+      warnings: ["no matching account"],
+    })?.kind).toBe("summary");
+  });
+
+  it("renders curated market, research, watchlist, and execution tool outputs", () => {
+    const cases = [
+      ["market.capabilities", { provider: "futu", market: "US" }, "行情能力", "summary"],
+      ["market.snapshot", { snapshot: [{ symbol: "AAPL", price: 210 }] }, "行情快照", "table"],
+      ["market.snapshots", { snapshots: [{ symbol: "MSFT", price: 500 }] }, "批量行情快照", "table"],
+      ["market.candles", { candles: [{ time: "10:00", open: 1, close: 2 }] }, "行情 K 线", "table"],
+      ["market.search", { instruments: [{ instrumentId: "US.AAPL", name: "Apple" }] }, "行情标的搜索", "table"],
+      ["watchlist.list", { items: [{ group: "关注", instrumentId: "US.AAPL" }] }, "自选股", "table"],
+      ["research.news", { news: [{ title: "Earnings", source: "wire" }] }, "研究资讯", "table"],
+      ["research.screen", { results: [{ instrumentId: "US.MSFT", score: 91 }] }, "研究筛选", "table"],
+      ["execution.order_preview", { previewId: "preview-1", status: "READY" }, "下单预览", "summary"],
+      ["execution.combo_preview", { previewId: "preview-2", warnings: ["wide spread"] }, "下单预览", "summary"],
+    ] as const;
+
+    for (const [toolName, output, title, kind] of cases) {
+      const visualization = buildADKToolVisualization(toolName, output);
+      expect(visualization).toMatchObject({ title, kind });
+    }
+
+    expect(buildADKToolVisualization("market.snapshot", {
+      symbol: "AAPL",
+      price: 210,
+    })).toMatchObject({ kind: "summary", title: "行情快照" });
+    expect(buildADKToolVisualization("market.capabilities", {})).toBeNull();
+  });
+
   it("builds broker order tables and keeps only available preferred columns", () => {
     const visualization = buildADKToolVisualization("broker.orders", {
       orders: [
