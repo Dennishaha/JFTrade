@@ -1,6 +1,6 @@
 # Wails v3 桌面构建与发布
 
-桌面壳固定使用 Wails `v3.0.0-beta.4` 和 `@wailsio/runtime@3.0.0-beta.1`。CLI 由 Go toolchain 固定，调用方式是 `go tool wails3`，不依赖全局安装的 `wails3`。
+桌面壳固定使用 Wails `v3.0.0-beta.8` 和 `@wailsio/runtime@3.0.0-beta.8`。CLI 由 Go toolchain 固定，调用方式是 `go tool wails3`，不依赖全局安装的 `wails3`。
 
 ## 构建事实源
 
@@ -69,8 +69,8 @@ go tool wails3 task linux:package:linux FORMAT=deb
 go tool wails3 task linux:package:linux FORMAT=rpm
 ```
 
-注意：Wails `v3.0.0-beta.4` 的官方 Taskfile 已包含 MSIX 任务，但该版本的
-`wails3` CLI 尚未注册 `tool msix` 子命令。因此 beta.4 上的
+注意：Wails `v3.0.0-beta.8` 的官方 Taskfile 已包含 MSIX 任务，但该版本的
+`wails3` CLI 仍尚未注册 `tool msix` 子命令。因此 beta.8 上的
 `windows:package:msix` 暂不可执行；默认 Windows 发布路径仍使用 NSIS。待 Wails
 修复或升级后，直接复用该 Task 即可，不要恢复旧的 Node 安装器包装层。
 

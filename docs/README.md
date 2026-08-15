@@ -13,7 +13,7 @@ JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工�
 当前主线事实：
 
 - 独立后端入口：`cmd/jftrade-api`，只支持 API sidecar 模式。
-- 桌面入口：`cmd/jftrade-desktop`，使用 Wails `v3.0.0-beta.4`，先显示窗口、再异步启动内置 API；仍通过 HTTP/SSE/WebSocket 访问 sidecar，并将启动状态、链接、日志和更新检查暴露为桌面 bindings。
+- 桌面入口：`cmd/jftrade-desktop`，使用 Wails `v3.0.0-beta.8`，先显示窗口、再异步启动内置 API；仍通过 HTTP/SSE/WebSocket 访问 sidecar，并将启动状态、链接、日志和更新检查暴露为桌面 bindings。
 - 前端入口：`apps/web`，Vue 3 + Vite；文档站使用 VitePress。
 - 开发端口：API `127.0.0.1:3000`，Web `127.0.0.1:3003`，Docs `127.0.0.1:3001`。
 - 桌面内部端口：`JFTrade Dev` sidecar 为 `127.0.0.1:3008`，正式 `JFTrade` sidecar 为 `127.0.0.1:6699`；两者仅供 Wails 使用且可同时运行。
