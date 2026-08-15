@@ -151,7 +151,7 @@ func TestClientDoesNotRetryExplicitPoolBackpressure(t *testing.T) {
 func TestClientHealthContractBoundaries(t *testing.T) {
 	responses := []string{
 		`{"ok":true,"provider_version":"","runtime_state":"ready"}`,
-		`{"ok":true,"provider_version":"1.18.81","runtime_state":"unknown"}`,
+		`{"ok":true,"provider_version":"1.18.91","runtime_state":"unknown"}`,
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		_, _ = writer.Write([]byte(responses[0]))
@@ -169,9 +169,9 @@ func TestClientHealthContractBoundaries(t *testing.T) {
 	}
 
 	for _, input := range []remoteHealth{
-		{OK: true, AKShareVersion: "1.18.81", RuntimeState: "ready"},
-		{OK: true, ProviderVersion: "1.18.81", RuntimeState: "warming"},
-		{OK: false, Version: "1.18.81", RuntimeState: "failed"},
+		{OK: true, AKShareVersion: "1.18.91", RuntimeState: "ready"},
+		{OK: true, ProviderVersion: "1.18.91", RuntimeState: "warming"},
+		{OK: false, Version: "1.18.91", RuntimeState: "failed"},
 	} {
 		body, _ := json.Marshal(input)
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {

@@ -145,7 +145,7 @@ func TestProviderPreservesErrorsAndPartialBatchResults(t *testing.T) {
 				_, _ = writer.Write([]byte(`{"error":{"code":"AKSHARE_RUNTIME_WARMING","message":"warming"}}`))
 				return
 			}
-			_, _ = writer.Write([]byte(`{"ok":true,"provider":"akshare","provider_version":"1.18.81","runtime_state":"ready"}`))
+			_, _ = writer.Write([]byte(`{"ok":true,"provider":"akshare","provider_version":"1.18.91","runtime_state":"ready"}`))
 		case strings.HasPrefix(request.URL.Path, "/providers/akshare/security/"):
 			writer.WriteHeader(http.StatusNotFound)
 			_, _ = writer.Write([]byte(`{"error":{"code":"NOT_FOUND","message":"missing"}}`))
@@ -279,7 +279,7 @@ func newContractServer(t *testing.T) *httptest.Server {
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case "/providers/akshare/health":
-			_, _ = writer.Write([]byte(`{"ok":true,"provider":"akshare","provider_version":"1.18.81","runtime_state":"ready","warmup_error":null}`))
+			_, _ = writer.Write([]byte(`{"ok":true,"provider":"akshare","provider_version":"1.18.91","runtime_state":"ready","warmup_error":null}`))
 		case "/providers/akshare/markets":
 			_, _ = writer.Write([]byte(marketsFixture()))
 		case "/providers/akshare/search":

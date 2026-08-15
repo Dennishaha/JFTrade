@@ -37,7 +37,7 @@ def health() -> ProviderHealthResponse | JSONResponse:
     try:
         provider_version = version("akshare")
     except PackageNotFoundError:
-        provider_version = "1.18.81"
+        provider_version = "1.18.91"
     return provider_health_response(
         "akshare",
         akshare_upstream,

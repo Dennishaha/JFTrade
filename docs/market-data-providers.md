@@ -17,7 +17,7 @@ JFTrade 的行情查询与交易执行是两个独立边界。运行时提供 Fu
 | Level 2 盘口 | 取决于权限 | 不支持 | 不支持 |
 | 盘前盘后 | 支持 | 美股由 Yahoo 实际报价决定 | 不支持 |
 | 实盘策略行情 | 支持 | 禁止 | 禁止 |
-| 外部依赖 | Futu OpenD `>= 10.9.6908` | 与 AKShare 共用内置 Python helper | 与 yfinance 共用内置 Python helper；固定 `akshare==1.18.81` |
+| 外部依赖 | Futu OpenD `>= 10.9.6908` | 与 AKShare 共用内置 Python helper | 与 yfinance 共用内置 Python helper；固定 `akshare==1.18.91` |
 
 AKShare 目录包含沪深股票与 ETF、美港通用证券、上证/深证/中证完整指数目录、港股行情指数，以及具有快照闭环的 `US..DJI`、`US..SPX`、`US..NDX`。恒生系列继续规范为 `HK.800000`、`HK.800100`、`HK.800700`；其他港股指数使用 `HK.<AKShare code>`，中证指数对外使用 `SH.<code>`。美港目录不能从 AKShare 明确判断品种时，`securityType` 保持 `null`；重复身份无法唯一判定时返回歧义错误，不按名称猜测。
 
@@ -99,7 +99,8 @@ yfinance 与 AKShare 由同一应用运行时管理，不持久化 Python、包�
 sidecar 测试会 mock 两个上游并阻止真实 socket 连接：
 
 ```bash
-python -m pytest workers/marketdata-sidecar/tests
+uv sync --locked --project workers/marketdata-sidecar --extra runtime --extra test
+uv run --locked --project workers/marketdata-sidecar --extra runtime --extra test pytest workers/marketdata-sidecar/tests
 ```
 
 Go 侧 Provider、运行时切换与统一行情 service 的测试分别位于：

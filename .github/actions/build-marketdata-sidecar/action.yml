@@ -4,9 +4,9 @@ description: Install sidecar build dependencies and verify the native helper bui
 runs:
   using: composite
   steps:
-    - name: Install PyInstaller build dependencies
+    - name: Sync locked sidecar build dependencies
       shell: bash
-      run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,build]"
+      run: uv sync --locked --project workers/marketdata-sidecar --extra runtime --extra build
 
     - name: Build native market-data helper
       shell: bash

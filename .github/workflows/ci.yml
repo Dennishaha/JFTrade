@@ -473,11 +473,11 @@ jobs:
       - name: Setup Go
         uses: ./.github/actions/setup-go
 
-      - name: Install pinned sidecar dependencies and PyInstaller
-        run: python -m pip install --disable-pip-version-check --editable "workers/marketdata-sidecar[runtime,test,build]"
+      - name: Sync locked sidecar dependencies
+        run: uv sync --locked --project workers/marketdata-sidecar --extra runtime --extra test --extra build
 
       - name: Test sidecar without external market-data access
-        run: python -m pytest workers/marketdata-sidecar/tests
+        run: uv run --locked --project workers/marketdata-sidecar --extra runtime --extra test pytest workers/marketdata-sidecar/tests
 
       - name: Test native helper build script
         if: ${{ matrix.python == '3.14' }}

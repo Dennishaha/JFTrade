@@ -207,7 +207,7 @@ def _configure_akshare_transport() -> None:
 
 
 def _rewrite_eastmoney_url(url: str) -> str:
-    """Use Eastmoney's current guest catalog endpoint for AKShare 1.18.81.
+    """Use Eastmoney's current guest catalog endpoint for AKShare 1.18.91.
 
     Eastmoney now closes the legacy public ``/api/qt/clist/get`` route for
     unauthenticated requests.  The web frontend uses the same data service

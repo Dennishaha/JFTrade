@@ -58,17 +58,17 @@ every installed distribution retains its own copyright and license files.
 
 | Package | Version | Purpose | Upstream license |
 | --- | --- | --- | --- |
-| `setuptools` | `80.9.0` | PEP 517 build backend | MIT |
-| `pyinstaller` | `6.21.0` | Native market-data helper builder | GPL-2.0-or-later with bootloader exception |
+| `setuptools` | `84.0.0` | PEP 517 build backend | MIT |
+| `pyinstaller` | `6.22.0` | Native market-data helper builder | GPL-2.0-or-later with bootloader exception |
 | `yfinance` | `0.2.61` | Yahoo Finance data adapter | Apache-2.0 |
-| `akshare` | `1.18.81` | AKShare market-data adapter | MIT |
-| `curl_cffi` | `0.15.0` | bounded Yahoo HTTP transport | MIT |
-| `fastapi` | `0.115.14` | local HTTP application | MIT |
-| `uvicorn` | `0.35.0` | local ASGI server (`asyncio` + `h11`, WebSocket disabled) | BSD-3-Clause |
-| `pydantic` | `2.12.2` | request and response validation | MIT |
+| `akshare` | `1.18.91` | AKShare market-data adapter | MIT |
+| `curl_cffi` | `0.16.0` | bounded Yahoo HTTP transport | MIT |
+| `fastapi` | `0.141.1` | local HTTP application | MIT |
+| `uvicorn` | `0.52.3` | local ASGI server (`asyncio` + `h11`, WebSocket disabled) | BSD-3-Clause |
+| `pydantic` | `2.13.4` | request and response validation | MIT |
 | `httpx` | `0.28.1` | in-process ASGI contract tests | BSD-3-Clause |
-| `pytest` | `8.4.1` | test runner | MIT |
-| `pytest-asyncio` | `1.0.0` | async test support | Apache-2.0 |
+| `pytest` | `9.1.1` | test runner | MIT |
+| `pytest-asyncio` | `1.4.0` | async test support | Apache-2.0 |
 
 Upstream sources:
 
@@ -451,8 +451,9 @@ Release and build commands for the PineTS integration include:
 
 Development and build environments may install the helper source with:
 
-- `python -m pip install --editable "workers/marketdata-sidecar[runtime,build,test]"`
-- `python -m pytest workers/marketdata-sidecar/tests`
+- `python3.11 -m pip install --disable-pip-version-check uv==0.12.5`
+- `uv sync --locked --project workers/marketdata-sidecar --extra runtime --extra build --extra test`
+- `uv run --locked --project workers/marketdata-sidecar --extra runtime --extra test pytest workers/marketdata-sidecar/tests`
 - `pnpm run build:marketdata-sidecar`
 
 Published deployments must expose the exact build source location, build

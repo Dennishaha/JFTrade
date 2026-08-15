@@ -9,17 +9,17 @@ const COPYRIGHT_NOTICE = "Copyright (C) 2026 JFTrade Contributors";
 const MARKETDATA_SIDECAR_EXTRAS = {
   runtime: [
     "yfinance==0.2.61",
-    "akshare==1.18.81",
-    "curl_cffi==0.15.0",
-    "fastapi==0.115.14",
-    "uvicorn==0.35.0",
-    "pydantic==2.12.2",
+    "akshare==1.18.91",
+    "curl_cffi==0.16.0",
+    "fastapi==0.141.1",
+    "uvicorn==0.52.3",
+    "pydantic==2.13.4",
   ],
-  build: ["pyinstaller==6.21.0"],
+  build: ["pyinstaller==6.22.0"],
   test: [
     "httpx==0.28.1",
-    "pytest==8.4.1",
-    "pytest-asyncio==1.0.0",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
   ],
 };
 
@@ -88,7 +88,7 @@ for (const needle of [
   'name = "marketdata-sidecar"',
   'requires-python = ">=3.11"',
   `license = "${PROJECT_LICENSE}"`,
-  'requires = ["setuptools==80.9.0"]',
+  'requires = ["setuptools==84.0.0"]',
 ]) {
   requireText(marketDataSidecarManifest, needle, marketDataSidecarManifestPath);
 }
@@ -129,7 +129,7 @@ for (const needle of [
   requireText(notice, needle, "docs/legal/third-party-notices.md");
 }
 for (const dependency of [
-  "setuptools==80.9.0",
+  "setuptools==84.0.0",
   ...Object.values(MARKETDATA_SIDECAR_EXTRAS).flat(),
 ]) {
   const separator = dependency.indexOf("==");

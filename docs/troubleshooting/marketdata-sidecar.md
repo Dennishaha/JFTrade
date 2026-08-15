@@ -39,7 +39,8 @@ JFTRADE_MARKETDATA_SIDECAR=/absolute/path/to/marketdata-sidecar-<platform>/marke
 构建开发 helper：
 
 ```bash
-python -m pip install --editable "workers/marketdata-sidecar[runtime,build]"
+python3.11 -m pip install --disable-pip-version-check uv==0.12.5
+uv sync --locked --project workers/marketdata-sidecar --extra runtime --extra build
 pnpm run build:marketdata-sidecar
 ```
 

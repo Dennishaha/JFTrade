@@ -30,9 +30,9 @@ volume 和 turnover 保持 `null`；沪深以“手”返回的成交量乘以 1
 ```bash
 cd workers/marketdata-sidecar
 python3.11 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install --editable '.[runtime]'
-.venv/bin/python -m marketdata_sidecar.main --host 127.0.0.1 --port 7788
+python3.11 -m pip install --disable-pip-version-check uv==0.12.5
+uv sync --locked --extra runtime
+uv run --locked --extra runtime marketdata-sidecar --host 127.0.0.1 --port 7788
 ```
 
 CLI 名为 `marketdata-sidecar`，默认端口仍为 `7788`。兼容入口
@@ -47,7 +47,7 @@ curl http://127.0.0.1:7788/healthz
 `internal/marketdataassets/assets/bin/<platform>`。构建使用：
 
 ```bash
-.venv/bin/python -m pip install --editable '.[runtime,build]'
+uv sync --locked --extra runtime --extra build
 JFTRADE_MARKETDATA_BUILD_PYTHON="$PWD/.venv/bin/python" \
   node ../../scripts/build-marketdata-sidecar.mjs
 ```
@@ -122,8 +122,8 @@ K 线参数为 `period`、`limit`、`from`、`to`、`before`。股票、沪深 E
 ## 测试
 
 ```bash
-.venv/bin/python -m pip install --editable '.[runtime,test]'
-.venv/bin/pytest
+uv sync --locked --extra runtime --extra test
+uv run --locked --extra runtime --extra test pytest
 ```
 
 测试通过 `httpx.ASGITransport` 和 pandas DataFrame fixture 模拟两个数据源，
@@ -133,7 +133,7 @@ K 线参数为 `period`、`limit`、`from`、`to`、`before`。股票、沪深 E
 
 ```bash
 JFTRADE_AKSHARE_LIVE_SMOKE=1 \
-  .venv/bin/python scripts/akshare_live_smoke.py
+  uv run --locked --extra runtime python scripts/akshare_live_smoke.py
 ```
 
 脚本验证 AKShare 导入/health，并真实调用 US.AAPL 的 search、snapshot 和日 K；

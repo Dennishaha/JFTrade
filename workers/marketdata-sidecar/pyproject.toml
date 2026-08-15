@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools==80.9.0"]
+requires = ["setuptools==84.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -14,19 +14,19 @@ dependencies = []
 [project.optional-dependencies]
 runtime = [
   "yfinance==0.2.61",
-  "akshare==1.18.81",
-  "curl_cffi==0.15.0",
-  "fastapi==0.115.14",
-  "uvicorn==0.35.0",
-  "pydantic==2.12.2",
+  "akshare==1.18.91",
+  "curl_cffi==0.16.0",
+  "fastapi==0.141.1",
+  "uvicorn==0.52.3",
+  "pydantic==2.13.4",
 ]
 build = [
-  "pyinstaller==6.21.0",
+  "pyinstaller==6.22.0",
 ]
 test = [
   "httpx==0.28.1",
-  "pytest==8.4.1",
-  "pytest-asyncio==1.0.0",
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
 ]
 
 [project.scripts]
