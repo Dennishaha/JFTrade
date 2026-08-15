@@ -363,6 +363,11 @@ describe("useADKPageSessionState", () => {
     expect(state.approvalTool(state.pendingApprovals.value[0]!)).toMatchObject({
       name: "tool.approve",
     });
+    expect(state.toolByName("tool.approve")).toMatchObject({
+      name: "tool.approve",
+      displayName: "Approve Tool",
+    });
+    expect(state.toolByName("tool.missing")).toBeUndefined();
     expect(state.visibleSessions.value.map((session) => session.id)).toEqual([
       "session-blank",
     ]);

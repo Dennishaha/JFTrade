@@ -4,6 +4,7 @@ import type { ADKToolCall } from "../../src/types";
 import {
   classifyToolAction,
   formatTraceDuration,
+  parseTraceTime,
   summarizeToolGroup,
   toolPrimaryArgument,
   toolResultMeta,
@@ -132,6 +133,77 @@ describe("adkToolTracePresentation", () => {
       }),
     ]);
     expect(waiting.status).toBe("PENDING_APPROVAL");
+  });
+
+  it("formats numeric, empty and short list arguments for tool rows", () => {
+    expect(toolPrimaryArgument({ runId: 42 })).toBe("42");
+    expect(toolPrimaryArgument({ runId: Number.NaN })).toBe("");
+    expect(toolPrimaryArgument({ symbols: [] })).toBe("");
+    expect(toolPrimaryArgument({ symbols: ["AAPL", "TSLA"] })).toBe("AAPL、TSLA");
+  });
+
+  it("summarizes array, scalar and nested-record tool outputs", () => {
+    expect(
+      toolResultMeta(
+        buildToolCall({ toolName: "market.news", output: [{}, {}] }),
+      ),
+    ).toBe("2 条");
+    expect(
+      toolResultMeta(buildToolCall({ toolName: "market.news", output: "done" })),
+    ).toBe("");
+    expect(
+      toolResultMeta(
+        buildToolCall({
+          toolName: "strategy.research_backtest",
+          output: { note: "finished", payload: { runs: [{}, {}, {}] } },
+        }),
+      ),
+    ).toBe("3 条");
+    expect(
+      toolResultMeta(
+        buildToolCall({ toolName: "portfolio.summary", output: { status: "done" } }),
+      ),
+    ).toBe("");
+    expect(
+      toolResultMeta(buildToolCall({ toolName: "market.candles", status: undefined })),
+    ).toBe("");
+  });
+
+  it("sums tool durations when timestamps are unavailable", () => {
+    const timeless = {
+      createdAt: undefined,
+      startedAt: undefined,
+      updatedAt: undefined,
+      completedAt: undefined,
+    };
+    const summary = summarizeToolGroup([
+      buildToolCall({ id: "c1", toolName: "market.candles", durationMs: 1200, ...timeless }),
+      buildToolCall({ id: "c2", toolName: "market.candles", durationMs: 800, ...timeless }),
+      buildToolCall({ id: "c3", toolName: "market.candles", durationMs: undefined, ...timeless }),
+    ]);
+
+    expect(summary.durationMs).toBe(2000);
+  });
+
+  it("omits the group duration when neither timestamps nor durations exist", () => {
+    const summary = summarizeToolGroup([
+      buildToolCall({
+        id: "c1",
+        toolName: "market.candles",
+        createdAt: undefined,
+        startedAt: undefined,
+        updatedAt: undefined,
+        completedAt: undefined,
+        durationMs: undefined,
+      }),
+    ]);
+
+    expect(summary.durationMs).toBeUndefined();
+  });
+
+  it("rejects unparseable trace timestamps", () => {
+    expect(parseTraceTime("not-a-date")).toBeNull();
+    expect(parseTraceTime(undefined)).toBeNull();
   });
 
   it("formats durations in the compact trace style", () => {
