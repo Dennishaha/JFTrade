@@ -3,7 +3,7 @@ packages:
   - workers/pineworker
 
 catalog:
-  vue: 3.5.40
+  vue: 3.5.41
   vitest: ^4.1.10
 
 overrides:
