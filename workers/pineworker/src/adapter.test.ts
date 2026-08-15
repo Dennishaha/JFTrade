@@ -133,7 +133,7 @@ describe("runScriptWithPineTS", () => {
       candles,
     }), {
       workerId: "worker-1",
-      executor: await createNativePineTSExecutor("0.9.30"),
+      executor: await createNativePineTSExecutor("0.9.31"),
       peakRSSBytes: () => 123,
     });
 
@@ -181,7 +181,7 @@ describe("runScriptWithPineTS", () => {
       candles,
     }), {
       workerId: "worker-1",
-      executor: await createNativePineTSExecutor("0.9.30"),
+      executor: await createNativePineTSExecutor("0.9.31"),
       peakRSSBytes: () => 123,
     });
 
@@ -211,7 +211,7 @@ describe("runScriptWithPineTS", () => {
       ].join("\n"),
     }), {
       workerId: "worker-1",
-      executor: await createNativePineTSExecutor("0.9.30"),
+      executor: await createNativePineTSExecutor("0.9.31"),
       peakRSSBytes: () => 123,
     });
 
@@ -347,7 +347,7 @@ describe("buildResponse", () => {
     expect(response.orderIntents).toEqual([]);
   });
 
-  test("normalizes PineTS strategy metrics from v0.9.30 state", () => {
+  test("normalizes PineTS strategy metrics from v0.9.31 state", () => {
     const response = buildResponse(validRequest(), {
       strategy: {
         buy_and_hold_pnl: 0,

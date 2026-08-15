@@ -7,7 +7,7 @@ third-party components listed below.
 ## PineTS / pinets
 
 - Package: `pinets`
-- Version: `0.9.30`
+- Version: `0.9.31`
 - Upstream: <https://github.com/LuxAlgo/PineTS>
 - npm: <https://www.npmjs.com/package/pinets>
 - License: `AGPL-3.0-only`

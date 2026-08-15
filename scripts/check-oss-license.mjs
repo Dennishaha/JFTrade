@@ -116,7 +116,7 @@ for (const needle of [
 const notice = read("docs/legal/third-party-notices.md");
 for (const needle of [
   "pinets",
-  "Version: `0.9.30`",
+  "Version: `0.9.31`",
   "github.com/c9s/bbgo@v1.64.2",
   "Copyright (c) 2016 Mark Chenoweth",
   "Copyright Suneido Software Corp.",
