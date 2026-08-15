@@ -1,3 +1,5 @@
+import { createRequire } from "node:module";
+import { dirname } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
 import vuetify from "vite-plugin-vuetify";
@@ -5,6 +7,17 @@ import vueDevTools from "vite-plugin-vue-devtools";
 import { defineConfig } from "vitest/config";
 import type { Plugin } from "vite";
 import coveragePolicy from "./coverage-policy.json" with { type: "json" };
+
+const require = createRequire(import.meta.url);
+const typescript6Package = require.resolve("@typescript/typescript6/package.json");
+const typescript6 = require(
+  require.resolve("@typescript/old", { paths: [dirname(typescript6Package)] }),
+);
+const compilerSfc = require("vue/compiler-sfc") as {
+  registerTS: (loadTypeScript: () => unknown) => void;
+};
+
+compilerSfc.registerTS(() => typescript6);
 
 type RuntimeProcess = {
   env?: Record<string, string | undefined>;

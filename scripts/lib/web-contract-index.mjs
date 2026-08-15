@@ -1,4 +1,4 @@
-import ts from "typescript";
+import ts from "./typescript6.mjs";
 
 export function contractIndexViolations(source, fileName = "index.ts") {
   const sourceFile = ts.createSourceFile(

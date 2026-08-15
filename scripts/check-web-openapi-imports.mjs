@@ -5,7 +5,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, extname, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import ts from "typescript";
+import ts from "./lib/typescript6.mjs";
 
 const defaultAllowlist = "scripts/web-openapi-import-allowlist.json";
 const sourceRoots = ["apps/web/src", "apps/web/tests"];

@@ -15,7 +15,7 @@
     "test:ci": "vitest run --fileParallelism --maxWorkers=2",
     "test:coverage": "vitest run --coverage --fileParallelism --maxWorkers=2",
     "test:watch": "vitest",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "typecheck": "node ../../scripts/run-vue-tsc.mjs --noEmit -p tsconfig.json",
     "typecheck:contracts": "tsc --noEmit -p tsconfig.type-tests.json"
   },
   "dependencies": {
@@ -36,13 +36,14 @@
     "vuetify": "4.1.9"
   },
   "devDependencies": {
+    "@typescript/typescript6": "6.0.2",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/coverage-v8": "^4.1.10",
     "@vue/test-utils": "^2.4.11",
     "jsdom": "^30.0.1",
     "tailwindcss": "^4.3.3",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vite": "8.2.1",
     "vite-plugin-vue-devtools": "^8.2.1",
     "vite-plugin-vuetify": "2.1.3",

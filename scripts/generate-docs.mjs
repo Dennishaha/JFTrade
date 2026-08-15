@@ -2,7 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import ts from "typescript";
+
+import ts from "./lib/typescript6.mjs";
 
 const sourceRoot = path.resolve(import.meta.dirname, "..");
 const generatedRoot = path.resolve(process.env.JFTRADE_GENERATED_ROOT || sourceRoot);

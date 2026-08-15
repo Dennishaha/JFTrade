@@ -1,4 +1,4 @@
-import ts from "typescript";
+import ts from "./typescript6.mjs";
 
 import { schemaToType } from "../generate-api-types.mjs";
 

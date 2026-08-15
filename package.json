@@ -106,7 +106,7 @@
   },
   "devDependencies": {
     "mermaid": "^11.16.1",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitepress": "2.0.0-alpha.18",
     "vue": "catalog:"
   }
