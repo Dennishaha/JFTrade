@@ -105,6 +105,8 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
   });
   const approvalTool = (approval: ADKApproval) =>
     tools.value.find((tool) => tool.name === approval.toolName);
+  const toolByName = (name: string) =>
+    tools.value.find((tool) => tool.name === name);
 
   onMounted(() => {
     void refreshAll();
@@ -332,6 +334,7 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
     sessions,
     sessionTitle,
     syncSelectedProviderFromAgent,
+    toolByName,
     tools,
     showSessionGroups,
     visibleSessionGroups,

@@ -116,7 +116,7 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 
 `http.fetch` 允许公网 HTTP/HTTPS，默认阻止本机、私网、link-local、multicast 和 metadata IP，且限制响应大小；它不是本机文件或 Shell 工具。
 
-`interaction.request_user` 只用于上文三类无法从工具或已有上下文消除的阻塞边界。模型必须在一次调用中集中提供当前决策阶段的全部问题；每题必须提供 2 到 3 个选项，可通过 `allowOther` 允许方案外自由输入。同一个 Run 可以在回答并恢复后再次提问，但任一时刻只允许一个待回答请求，不能并行提问。每轮问题、答案和状态都保存在 Run 的 `inputRequests` 历史中；刷新、切换会话或服务重启后仍可恢复。`POST /api/v1/adk/runs/{runId}/input-response` 对每个请求只消费一次有效回答，完全相同的重试幂等，不同的第二次回答返回冲突。
+`interaction.request_user` 只用于上文三类无法从工具或已有上下文消除的阻塞边界。模型必须在一次调用中集中提供当前决策阶段的全部问题；每题必须提供 2 到 3 个选项，可通过 `allowOther` 允许方案外自由输入。同一个 Run 可以在回答并恢复后再次提问，但任一时刻只允许一个待回答请求，不能并行提问。每轮问题、答案和状态都保存在 Run 的 `inputRequests` 历史中；刷新、切换会话或服务重启后仍可恢复。回答恢复时注入的 function response 除 `requestId` 和 `answers` 外还携带 `originalRequest`（原始请求全文）和 `continuationInstruction`（继续完成原始请求的指令），回答只解除阻塞，不代表任务完成。`POST /api/v1/adk/runs/{runId}/input-response` 对每个请求只消费一次有效回答，完全相同的重试幂等，不同的第二次回答返回冲突。
 
 `watchlist.list` 是只读工具：不指定 group 时返回本地分组摘要，指定 group 后按 market、query、cursor/limit 返回成员、来源和最近导入状态。它默认 `includeQuotes=false`，不会触发券商导入或行情订阅；完整参数和数据边界见 [自选系统](watchlist.md)。
 

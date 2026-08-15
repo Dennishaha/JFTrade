@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	assistantmodel "github.com/jftrade/jftrade-main/internal/assistant/model"
 	"strings"
 	"testing"
@@ -65,6 +66,48 @@ func TestBuildInputRequestAndValidateAnswers(t *testing.T) {
 	})
 	if !errors.Is(err, errInputRequestInvalid) {
 		t.Fatalf("four options error = %v, want invalid", err)
+	}
+}
+
+func TestInputRequestToolRunReturnsCorrectableFeedbackForInvalidArgs(t *testing.T) {
+	tool, err := newGoogleADKInputTool()
+	if err != nil {
+		t.Fatalf("newGoogleADKInputTool: %v", err)
+	}
+	option := func(label string) map[string]any { return map[string]any{"label": label} }
+	validArgs := func() map[string]any {
+		return map[string]any{
+			"decisionKind":   inputDecisionMaterialTradeoff,
+			"blockingReason": "The selected option changes the result.",
+			"questions": []any{map[string]any{
+				"question": "Pick one",
+				"options":  []any{option("A"), option("B")},
+			}},
+		}
+	}
+	if err := correctableInputArgsError(validArgs()); err != nil {
+		t.Fatalf("valid args rejection = %v, want nil", err)
+	}
+
+	invalid := validArgs()
+	invalid["questions"] = []any{map[string]any{
+		"question": "Too many choices?",
+		"options":  []any{option("A"), option("B"), option("C"), option("D")},
+	}}
+	result, err := tool.Run(nil, invalid)
+	if err != nil {
+		t.Fatalf("four options Run error = %v, want soft feedback result", err)
+	}
+	if result["status"] != "invalid_arguments" || !strings.Contains(fmt.Sprint(result["message"]), "requires two to 3 options") {
+		t.Fatalf("four options result = %+v, want invalid_arguments feedback", result)
+	}
+	if _, flagged := structuredToolError(result); flagged {
+		t.Fatalf("feedback result %+v must not be classified as a tool failure", result)
+	}
+
+	typed, err := tool.Run(nil, map[string]any{"decisionKind": 42})
+	if err != nil || typed["status"] != "invalid_arguments" {
+		t.Fatalf("type mismatch Run = %+v, %v, want invalid_arguments feedback", typed, err)
 	}
 }
 
@@ -725,6 +768,87 @@ func TestRequestUserToolResumesAfterRuntimeRestart(t *testing.T) {
 	}
 	run, _, _ := restarted.Store().Run(t.Context(), response.Run.ID)
 	t.Fatalf("restarted run did not complete: %+v", run)
+}
+
+func TestInputResponsePayloadAnchorsResumedRunToOriginalRequest(t *testing.T) {
+	request, err := buildInputRequest("run-anchor", "agent-anchor", "call-anchor", requestUserToolArgs{
+		DecisionKind: inputDecisionMaterialTradeoff, BlockingReason: "The execution mode changes the requested result.",
+		Questions: []requestUserToolQuestion{{
+			Question: "Choose the execution mode", Options: []requestUserToolOption{{Label: "Conservative"}, {Label: "Active"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("buildInputRequest: %v", err)
+	}
+	request.Answers = []InputAnswer{{QuestionID: "q1", OptionID: "q1-o1"}}
+
+	payload := inputResponsePayload(*request, "请帮我看看目前交易记录，并执行操作计划。")
+	if payload["requestId"] != request.ID {
+		t.Fatalf("requestId = %v, want %s", payload["requestId"], request.ID)
+	}
+	if payload["originalRequest"] != "请帮我看看目前交易记录，并执行操作计划。" {
+		t.Fatalf("originalRequest = %v", payload["originalRequest"])
+	}
+	instruction, ok := payload["continuationInstruction"].(string)
+	if !ok || strings.TrimSpace(instruction) == "" {
+		t.Fatalf("continuationInstruction missing: %v", payload["continuationInstruction"])
+	}
+	answers, ok := payload["answers"].([]map[string]any)
+	if !ok || len(answers) != 1 || answers[0]["answer"] != "Conservative" {
+		t.Fatalf("answers = %v", payload["answers"])
+	}
+}
+
+func TestResumedInputRunInjectsOriginalRequestAnchor(t *testing.T) {
+	ctx := t.Context()
+	runtime, agent, session, child := newPendingInputRun(t, "anchor-original-request")
+	child.UserMessage = "请帮我看看目前交易记录，并执行操作计划。"
+	if err := runtime.Store().SaveRun(ctx, child); err != nil {
+		t.Fatalf("save run with user message: %v", err)
+	}
+
+	captured := make(chan *genai.Content, 1)
+	release := make(chan struct{})
+	execution := newBareGoogleADKExecution(child.ID)
+	execution.sessionID = session.ID
+	execution.appName = GoogleADKAppName(agent.ID)
+	execution.agent = agent
+	execution.runBlocking = func(_ context.Context, content *genai.Content) error {
+		captured <- content
+		<-release
+		return errors.New("stop after capturing resume content")
+	}
+	runtime.adkRuns[child.ID] = execution
+
+	if _, err := runtime.ResolveInputAsync(ctx, child.ID, InputResponseRequest{
+		RequestID: child.InputRequest.ID,
+		Answers:   []InputAnswer{{QuestionID: child.InputRequest.Questions[0].ID, OptionID: child.InputRequest.Questions[0].Options[0].ID}},
+	}); err != nil {
+		t.Fatalf("ResolveInputAsync: %v", err)
+	}
+	var content *genai.Content
+	select {
+	case content = <-captured:
+	case <-time.After(2 * time.Second):
+		t.Fatal("input continuation did not start")
+	}
+	close(release)
+
+	if content == nil || len(content.Parts) != 1 || content.Parts[0].FunctionResponse == nil {
+		t.Fatalf("resumed content = %+v, want a single function response", content)
+	}
+	functionResponse := content.Parts[0].FunctionResponse
+	if functionResponse.ID != child.InputRequest.FunctionCallID || functionResponse.Name != interactionRequestUserTool {
+		t.Fatalf("function response = %+v", functionResponse)
+	}
+	if functionResponse.Response["originalRequest"] != child.UserMessage {
+		t.Fatalf("originalRequest = %v, want %q", functionResponse.Response["originalRequest"], child.UserMessage)
+	}
+	instruction, ok := functionResponse.Response["continuationInstruction"].(string)
+	if !ok || strings.TrimSpace(instruction) == "" {
+		t.Fatalf("continuationInstruction missing: %v", functionResponse.Response)
+	}
+	waitForRunStatus(t, runtime, child.ID, RunStatusFailed)
 }
 
 func waitForInputRequest(t *testing.T, runtime *Runtime, runID string, previousID string) InputRequest {

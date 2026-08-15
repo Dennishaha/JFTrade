@@ -3,6 +3,7 @@ package adk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -50,7 +51,7 @@ func inputRequestToolDescriptor() ToolDescriptor {
 	return ToolDescriptor{
 		Name:         interactionRequestUserTool,
 		DisplayName:  "向用户提问",
-		Description:  "仅当缺少用户独有的必要信息、存在无法合并的重大取舍，或继续会越过权限/范围边界时，一次性提交所有阻塞问题。禁止询问可选下一步、是否继续、先看哪部分，或用该工具代替写操作审批。每题必须提供 2 到 3 个选项；可接受自由回答时设置 allowOther。",
+		Description:  "仅当缺少用户独有的必要信息、存在无法合并的重大取舍，或继续会越过权限/范围边界时，一次性提交所有阻塞问题。禁止询问可选下一步、是否继续、先看哪部分，或用该工具代替写操作审批。每题必须提供 2 到 3 个选项；可接受自由回答时设置 allowOther。用户回答后工具结果会携带 originalRequest 和 continuationInstruction，必须据此继续完成原始请求。",
 		Category:     "interaction",
 		Permission:   "read_internal",
 		RiskLevel:    "low",
@@ -168,7 +169,44 @@ func (t *googleADKInputTool) Run(ctx adkagent.Context, args any) (map[string]any
 	if t == nil || t.tool == nil {
 		return nil, fmt.Errorf("GO-ADK input tool is unavailable")
 	}
+	if err := correctableInputArgsError(args); err != nil {
+		// Malformed interaction arguments are a model-correctable slip with no
+		// state written; return feedback the model can retry on instead of an
+		// error, so the call is not surfaced as a FAILED tool call.
+		return map[string]any{
+			"status":  "invalid_arguments",
+			"message": fmt.Sprintf("invalid arguments: %v. Fix the arguments and call %s again.", err, interactionRequestUserTool),
+		}, nil
+	}
 	return t.tool.Run(ctx, args)
+}
+
+// correctableInputArgsError reports whether args fail to parse or violate the
+// business rules of buildInputRequest. Such failures are correctable by the
+// model on retry and must not be treated as tool execution failures.
+func correctableInputArgsError(args any) error {
+	parsed, err := parseRequestUserArgs(args)
+	if err != nil {
+		return err
+	}
+	if _, err := buildInputRequest("validation", "validation", "validation", parsed); err != nil {
+		if errors.Is(err, errInputRequestInvalid) {
+			return err
+		}
+	}
+	return nil
+}
+
+func parseRequestUserArgs(args any) (requestUserToolArgs, error) {
+	raw, err := json.Marshal(args)
+	if err != nil {
+		return requestUserToolArgs{}, err
+	}
+	var parsed requestUserToolArgs
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return requestUserToolArgs{}, err
+	}
+	return parsed, nil
 }
 
 func (t *googleADKInputTool) googleADKToolDescriptor() ToolDescriptor {
@@ -189,7 +227,8 @@ func newGoogleADKInputTool() (*googleADKInputTool, error) {
 		Description: "Ask only for genuinely blocking decisions that cannot be inferred or retrieved: missing user-only context, " +
 			"an irreconcilable material tradeoff, or a permission/scope boundary. Never ask about an optional next step, whether to continue, " +
 			"or which part to see first, and never substitute this tool for write approval. Collect every required decision in one call. " +
-			"Each question must offer two or three options; set allowOther when a free-form alternative is acceptable.",
+			"Each question must offer two or three options; set allowOther when a free-form alternative is acceptable. " +
+			"When the user answers, the tool result carries originalRequest and continuationInstruction; you must follow them and continue the original request.",
 		InputSchema:   schema,
 		IsLongRunning: true,
 	}, func(_ adkagent.Context, args requestUserToolArgs) (map[string]any, error) {
@@ -293,18 +332,19 @@ func requestUserToolArgsFromCall(call *genai.FunctionCall) (requestUserToolArgs,
 	if call == nil || call.Name != interactionRequestUserTool {
 		return requestUserToolArgs{}, fmt.Errorf("%w: request-user call is missing", errInputRequestInvalid)
 	}
-	raw, err := json.Marshal(call.Args)
+	args, err := parseRequestUserArgs(call.Args)
 	if err != nil {
-		return requestUserToolArgs{}, fmt.Errorf("%w: %w", errInputRequestInvalid, err)
-	}
-	var args requestUserToolArgs
-	if err := json.Unmarshal(raw, &args); err != nil {
 		return requestUserToolArgs{}, fmt.Errorf("%w: %w", errInputRequestInvalid, err)
 	}
 	return args, nil
 }
 
-func inputResponsePayload(request InputRequest) map[string]any {
+// inputContinuationInstruction anchors the resumed agent loop to the
+// original task: an answer to interaction.request_user only unblocks the
+// run, it never completes the original request by itself.
+const inputContinuationInstruction = "用户已回答以上问题。回答只是解除阻塞，不代表原始请求已完成：必须基于回答继续完成 originalRequest 中的原始请求。安全、只读的下一步直接执行；需要写操作时调用相应工具并走审批流程。不得只总结、复述计划或询问是否继续后就结束运行。"
+
+func inputResponsePayload(request InputRequest, originalRequest string) map[string]any {
 	answers := make([]map[string]any, 0, len(request.Answers))
 	for _, answer := range request.Answers {
 		item := map[string]any{"questionId": answer.QuestionID}
@@ -328,7 +368,12 @@ func inputResponsePayload(request InputRequest) map[string]any {
 		}
 		answers = append(answers, item)
 	}
-	return map[string]any{"requestId": request.ID, "answers": answers}
+	return map[string]any{
+		"requestId":               request.ID,
+		"answers":                 answers,
+		"originalRequest":         strings.TrimSpace(originalRequest),
+		"continuationInstruction": inputContinuationInstruction,
+	}
 }
 
 func (r *Runtime) PendingInputRequests(ctx context.Context, execution WorkflowExecutionHandle) (map[string]*InputRequest, error) {

@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { ADKApproval, ADKRun, ADKToolDescriptor } from "@/types";
+import type { ADKApproval, ADKToolDescriptor } from "@/types";
 
-import {
-  buildTimelineRun,
-  type ADKTimelineEntryState,
-} from "@/composables/adk/adkTimeline";
+import { type ADKTimelineEntryState } from "@/composables/adk/adkTimeline";
+import { groupTurnTraceEntries } from "@/composables/adk/adkTurnTraceGrouping";
 import { useExternalLink } from "@/composables/shared/externalLink";
 import ADKChildRunTrace from "../shared/ADKChildRunTrace.vue";
-import ADKRunTrace from "../shared/ADKRunTrace.vue";
+import ADKTurnTrace from "./ADKTurnTrace.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -31,6 +29,7 @@ const props = withDefaults(
     timelineWindowEnd?: number;
     timelineAtLatest?: boolean;
     approvalTool: (approval: ADKApproval) => ADKToolDescriptor | undefined;
+    toolByName?: ((name: string) => ADKToolDescriptor | undefined) | undefined;
     clearErrorMessage: () => void;
     preview: (value: unknown) => string;
     renderMarkdown: (content: string) => string;
@@ -53,6 +52,7 @@ const props = withDefaults(
     timelineWindowStart: 0,
     timelineWindowEnd: 0,
     timelineAtLatest: true,
+    toolByName: undefined,
   },
 );
 
@@ -123,57 +123,16 @@ watch(
   },
 );
 
-function isEntryActiveRun(entry: ADKTimelineEntryState): boolean {
-  return !!entry.runId && props.hasBlockingRun && entry.runId === props.activeRunId;
+const threadItems = computed(() => groupTurnTraceEntries(props.timelineEntries));
+
+function threadItemKey(item: (typeof threadItems.value)[number]): string {
+  return item.type === "turn_trace" ? item.key : item.entry.id;
 }
 
 function handleMarkdownClick(event: MouseEvent): void {
   const link = (event.target as Element | null)?.closest("a[href]");
   if (!(link instanceof HTMLAnchorElement)) return;
   handleExternalLinkClick(event, link.getAttribute("href") || link.href);
-}
-
-function entryToolRun(entry: ADKTimelineEntryState): ADKRun {
-  const run = buildTimelineRun(entry);
-  const toolCalls = run.toolCalls ?? [];
-  if (!isEntryActiveRun(entry)) {
-    return { ...run, toolCalls };
-  }
-  return {
-    ...run,
-    status: props.activeRunStatus || run.status,
-    toolCalls: toolCalls.map((toolCall) => {
-      if (
-        props.activeRunStatus === "RUNNING" &&
-        (toolCall.status === "PENDING_APPROVAL" || toolCall.status === "PENDING")
-      ) {
-        return { ...toolCall, status: "RUNNING" };
-      }
-      return toolCall;
-    }),
-  };
-}
-
-function entryToolProgress(entry: ADKTimelineEntryState): string {
-  if (isEntryActiveRun(entry)) {
-    if (props.activeRunStatus === "PENDING_APPROVAL") {
-      return "等待审批...";
-    }
-    if (props.activeRunStatus === "PENDING") {
-      return "等待执行...";
-    }
-    return "工具执行中...";
-  }
-  return entry.status === "streaming" ? "工具执行中..." : "";
-}
-
-function entryToolBusy(entry: ADKTimelineEntryState): boolean {
-  return (
-    isEntryActiveRun(entry) ||
-    (props.timelineAtLatest &&
-      props.sendingChat &&
-      props.timelineEntries[props.timelineEntries.length - 1] === entry)
-  );
 }
 
 function contextNoticeClass(entry: ADKTimelineEntryState): Record<string, boolean> {
@@ -284,114 +243,113 @@ function showLatestTimeline(): void {
       </button>
     </div>
 
-    <template v-for="entry in timelineEntries" :key="entry.id">
-      <div v-if="entry.kind === 'user_message'" class="adk-msg adk-msg--user">
+    <template v-for="item in threadItems" :key="threadItemKey(item)">
+      <div v-if="item.type === 'turn_trace'" class="adk-msg adk-msg--assistant">
+        <ADKTurnTrace
+          :block="item"
+          :active-run-id="activeRunId"
+          :active-run-status="activeRunStatus"
+          :has-blocking-run="hasBlockingRun"
+          :compact="layout === 'mobile'"
+          :tool-by-name="toolByName"
+          :render-markdown="renderMarkdown"
+          :preview="preview"
+        />
+      </div>
+
+      <div v-else-if="item.entry.kind === 'user_message'" class="adk-msg adk-msg--user">
         <div class="adk-user-prompt-row">
           <div
-            v-if="hasProcessedUserPrompt(entry)"
+            v-if="hasProcessedUserPrompt(item.entry)"
             class="adk-user-prompt-toggle"
             aria-label="用户提示词可观测切换"
           >
             <button
               type="button"
-              :class="{ 'is-active': entry.userPromptVariant !== 'processed' }"
-              @click="entry.userPromptVariant = 'original'"
+              :class="{ 'is-active': item.entry.userPromptVariant !== 'processed' }"
+              @click="item.entry.userPromptVariant = 'original'"
             >
               原文
             </button>
             <button
               type="button"
-              :class="{ 'is-active': entry.userPromptVariant === 'processed' }"
-              @click="entry.userPromptVariant = 'processed'"
+              :class="{ 'is-active': item.entry.userPromptVariant === 'processed' }"
+              @click="item.entry.userPromptVariant = 'processed'"
             >
               可观测
             </button>
           </div>
-          <div :class="userBubbleClass(entry)">{{ userPromptText(entry) }}</div>
+          <div :class="userBubbleClass(item.entry)">{{ userPromptText(item.entry) }}</div>
         </div>
       </div>
 
-      <div v-else-if="entry.kind === 'context_notice'" class="adk-msg adk-msg--notice">
-        <div :class="contextNoticeClass(entry)">
+      <div v-else-if="item.entry.kind === 'context_notice'" class="adk-msg adk-msg--notice">
+        <div :class="contextNoticeClass(item.entry)">
           <v-progress-linear
-            v-if="entry.status === 'streaming'"
+            v-if="item.entry.status === 'streaming'"
             indeterminate
             rounded
             color="primary"
             class="adk-notice-progress"
           />
-          <v-icon v-else-if="entry.status === 'error'" size="13">
+          <v-icon v-else-if="item.entry.status === 'error'" size="13">
             fa-solid fa-circle-exclamation
           </v-icon>
           <v-icon v-else size="13">fa-solid fa-check</v-icon>
-          <span>{{ entry.text ?? "" }}</span>
+          <span>{{ item.entry.text ?? "" }}</span>
         </div>
       </div>
 
-      <div v-else-if="entry.kind === 'assistant_reasoning'" class="adk-msg adk-msg--assistant">
+      <div v-else-if="item.entry.kind === 'assistant_reasoning'" class="adk-msg adk-msg--assistant">
         <div class="adk-reasoning">
           <button
             type="button"
             class="adk-reasoning-toggle"
-            :aria-expanded="entry.reasoningExpanded ? 'true' : 'false'"
-            @click="entry.reasoningExpanded = !entry.reasoningExpanded"
+            :aria-expanded="item.entry.reasoningExpanded ? 'true' : 'false'"
+            @click="item.entry.reasoningExpanded = !item.entry.reasoningExpanded"
           >
             <v-icon size="12">
-              {{ entry.reasoningExpanded ? "fa-solid fa-chevron-down" : "fa-solid fa-chevron-right" }}
+              {{ item.entry.reasoningExpanded ? "fa-solid fa-chevron-down" : "fa-solid fa-chevron-right" }}
             </v-icon>
-            <span>{{ entry.reasoningExpanded ? "隐藏深度思考" : "查看深度思考" }}</span>
+            <span>{{ item.entry.reasoningExpanded ? "隐藏深度思考" : "查看深度思考" }}</span>
           </button>
           <div
-            v-if="entry.reasoningExpanded"
+            v-if="item.entry.reasoningExpanded"
             class="adk-bubble adk-bubble--assistant adk-reasoning-body"
           >
-            {{ entry.text ?? "" }}
+            {{ item.entry.text ?? "" }}
           </div>
         </div>
       </div>
 
-      <div v-else-if="entry.kind === 'tool_group'" class="adk-msg adk-msg--assistant">
-        <ADKRunTrace
-          :run="entryToolRun(entry)"
-          :tool-progress="entryToolProgress(entry)"
-          :busy="entryToolBusy(entry)"
-          :compact="layout === 'mobile'"
-          variant="timeline"
-          :summary-expanded="entry.toolSummaryExpanded"
-          :expanded-tool-call-ids="entry.expandedToolCallIds"
-          @update:summary-expanded="entry.toolSummaryExpanded = $event"
-          @update:expanded-tool-call-ids="entry.expandedToolCallIds = $event"
-        />
-      </div>
-
       <div
-        v-else-if="entry.kind === 'child_run_group' && entry.childRunItem"
+        v-else-if="item.entry.kind === 'child_run_group' && item.entry.childRunItem"
         class="adk-msg adk-msg--assistant"
       >
         <ADKChildRunTrace
-          :item="entry.childRunItem"
+          :item="item.entry.childRunItem"
           :compact="layout === 'mobile'"
           variant="timeline"
         />
       </div>
 
-      <template v-else-if="entry.kind === 'approval_group'" />
+      <template v-else-if="item.entry.kind === 'approval_group'" />
 
-      <div v-else-if="entry.kind === 'input_request' && entry.inputRequest" class="adk-msg adk-msg--assistant">
+      <div v-else-if="item.entry.kind === 'input_request' && item.entry.inputRequest" class="adk-msg adk-msg--assistant">
         <div
           class="adk-input-request-notice"
-          :class="{ 'is-pending': entry.inputRequest.status === 'PENDING' }"
+          :class="{ 'is-pending': item.entry.inputRequest.status === 'PENDING' }"
         >
           <v-icon size="13">fa-regular fa-circle-question</v-icon>
           <div>
-            <strong>{{ entry.inputRequest.title || "Agent 需要你的选择" }}</strong>
+            <strong>{{ item.entry.inputRequest.title || "Agent 需要你的选择" }}</strong>
             <span>
               {{
-                entry.inputRequest.status === "PENDING"
-                  ? entry.inputRequest.questions.length > 1
-                    ? `正在等待你的回答 · ${entry.inputRequest.questions.length} 个问题`
+                item.entry.inputRequest.status === "PENDING"
+                  ? item.entry.inputRequest.questions.length > 1
+                    ? `正在等待你的回答 · ${item.entry.inputRequest.questions.length} 个问题`
                     : "正在等待你的回答"
-                  : entry.inputRequest.status === "ANSWERED"
+                  : item.entry.inputRequest.status === "ANSWERED"
                     ? "已收到你的回答，继续执行中"
                     : "该提问已取消"
               }}
@@ -402,10 +360,10 @@ function showLatestTimeline(): void {
 
       <div v-else class="adk-msg adk-msg--assistant">
         <div
-          v-if="(entry.text ?? '').trim() !== ''"
+          v-if="(item.entry.text ?? '').trim() !== ''"
           class="adk-bubble adk-bubble--assistant adk-markdown"
           @click="handleMarkdownClick"
-          v-html="renderedMarkdown(entry)"
+          v-html="renderedMarkdown(item.entry)"
         />
       </div>
     </template>

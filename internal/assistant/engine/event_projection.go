@@ -21,6 +21,7 @@ type projectedRunState struct {
 	entryIndex       int
 	entryID          string
 	createdAt        string
+	lastTextAt       string
 	reply            strings.Builder
 	reasoning        strings.Builder
 	preToolContent   string
@@ -249,6 +250,10 @@ func projectProjectedTextPart(state *projectedRunState, part *genai.Part, event 
 	if textID := strings.TrimSpace(event.ID); textID != "" {
 		state.entryID = textID
 	}
+	// The merged entry represents the whole invocation's text; anchor it at
+	// the latest text event so the final reply sorts after the run's tool
+	// activity instead of at invocation start.
+	state.lastTextAt = eventTimeString(event)
 }
 
 func buildSessionProjection(entries []TranscriptEntry, runStates map[string]*projectedRunState, runOrder []string) SessionProjection {
@@ -269,6 +274,9 @@ func applyProjectedRunState(projection *SessionProjection, entries []TranscriptE
 		entry.ID = defaultString(strings.TrimSpace(state.entryID), entry.ID)
 		entry.Content = strings.TrimSpace(state.reply.String())
 		entry.ReasoningContent = strings.TrimSpace(state.reasoning.String())
+		if strings.TrimSpace(state.lastTextAt) != "" {
+			entry.CreatedAt = state.lastTextAt
+		}
 	}
 	if strings.TrimSpace(state.preToolContent) != "" || strings.TrimSpace(state.preToolReasoning) != "" {
 		projection.PreToolContent = strings.TrimSpace(state.preToolContent)

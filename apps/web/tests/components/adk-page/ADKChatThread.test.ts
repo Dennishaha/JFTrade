@@ -38,7 +38,7 @@ function mountThread(
     },
     global: {
       stubs: {
-        ADKRunTrace: { template: "<div />" },
+        ADKTurnTrace: { template: "<div />" },
         "v-alert": { template: "<div :class='$attrs.class'><slot /></div>" },
         "v-chip": { template: "<button><slot /></button>" },
         "v-icon": { template: "<span><slot /></span>" },
@@ -371,26 +371,15 @@ describe("ADKChatThread", () => {
     expect(wrapper.text()).toContain("这里是深度思考内容");
   });
 
-  it("passes active tool-group state through to the run trace and reacts to trace events", async () => {
-    const runTraceStub = defineComponent({
-      props: [
-        "run",
-        "toolProgress",
-        "busy",
-        "variant",
-        "summaryExpanded",
-        "expandedToolCallIds",
-      ],
-      emits: ["update:summaryExpanded", "update:expandedToolCallIds"],
+  it("passes active tool-group state through to the turn trace block", async () => {
+    const turnTraceStub = defineComponent({
+      props: ["block", "activeRunId", "activeRunStatus", "hasBlockingRun"],
       template: `
-        <div class="trace-stub">
-          <span class="trace-run-status">{{ run.status }}</span>
-          <span class="trace-tool-status">{{ run.toolCalls?.[0]?.status }}</span>
-          <span class="trace-progress">{{ toolProgress }}</span>
-          <span class="trace-busy">{{ busy ? 'busy' : 'idle' }}</span>
-          <span class="trace-variant">{{ variant }}</span>
-          <button type="button" class="emit-summary" @click="$emit('update:summaryExpanded', true)">summary</button>
-          <button type="button" class="emit-tools" @click="$emit('update:expandedToolCallIds', ['tool-1'])">tools</button>
+        <div class="turn-trace-stub">
+          <span class="trace-run-id">{{ block.runId }}</span>
+          <span class="trace-entry-count">{{ block.entries.length }}</span>
+          <span class="trace-tool-name">{{ block.entries[0]?.toolCalls?.[0]?.toolName }}</span>
+          <span class="trace-active">{{ activeRunId }} / {{ activeRunStatus }} / {{ hasBlockingRun }}</span>
         </div>
       `,
     });
@@ -418,6 +407,15 @@ describe("ADKChatThread", () => {
             },
           ],
         },
+        {
+          id: "entry-reply",
+          sessionId: "session-1",
+          runId: "run-1",
+          kind: "assistant_message",
+          createdAt: "2026-06-17T00:00:02Z",
+          sequence: 2,
+          text: "组合摘要如下",
+        },
       ],
       {
         props: {
@@ -428,110 +426,49 @@ describe("ADKChatThread", () => {
           timelineAtLatest: true,
         },
         stubs: {
-          ADKRunTrace: runTraceStub,
+          ADKTurnTrace: turnTraceStub,
         },
       },
     );
 
-    const trace = wrapper.findComponent(runTraceStub);
-    expect(trace.text()).toContain("RUNNING");
-    expect(trace.text()).toContain("工具执行中...");
-    expect(trace.text()).toContain("busy");
-    expect(trace.text()).toContain("RUNNING");
-    expect(trace.text()).toContain("timeline");
-
-    await trace.get(".emit-summary").trigger("click");
-    await nextTick();
-    expect(trace.props("summaryExpanded")).toBe(true);
-
-    await trace.get(".emit-tools").trigger("click");
-    await nextTick();
-    expect(trace.props("expandedToolCallIds")).toEqual(["tool-1"]);
+    const trace = wrapper.findComponent(turnTraceStub);
+    expect(trace.text()).toContain("run-1");
+    expect(trace.text()).toContain("portfolio.summary");
+    expect(trace.text()).toContain("RUNNING / true");
+    expect(wrapper.text()).toContain("组合摘要如下");
   });
 
-  it("derives waiting progress labels for pending tool groups", () => {
-    const runTraceStub = defineComponent({
-      props: ["toolProgress", "run"],
+  it("keeps streaming narrative text inside the trace block once tools follow", () => {
+    const turnTraceStub = defineComponent({
+      props: ["block"],
       template:
-        "<div class='trace-stub'>{{ toolProgress }} / {{ run.toolCalls?.[0]?.status }}</div>",
+        "<div class='turn-trace-stub'>{{ block.entries.map((entry) => entry.id).join(',') }}</div>",
     });
-
-    const pendingApproval = mountThread(
+    const wrapper = mountThread(
       [
         {
-          id: "entry-tool-approval",
+          id: "entry-narrative",
           sessionId: "session-1",
-          runId: "run-approval",
-          kind: "tool_group",
-          createdAt: "2026-06-17T00:00:00Z",
-          sequence: 1,
-          status: "idle",
-          toolCalls: [
-            {
-              id: "tool-approval",
-              runId: "run-approval",
-              toolName: "trade.submit",
-              permission: "write",
-              status: "PENDING_APPROVAL",
-              input: {},
-              requiresUser: true,
-              createdAt: "2026-06-17T00:00:00Z",
-              updatedAt: "2026-06-17T00:00:00Z",
-            },
-          ],
-        },
-      ],
-      {
-        props: {
-          activeRunId: "run-approval",
-          activeRunStatus: "PENDING_APPROVAL",
-          hasBlockingRun: true,
-        },
-        stubs: {
-          ADKRunTrace: runTraceStub,
-        },
-      },
-    );
-    expect(pendingApproval.text()).toContain("等待审批...");
-    expect(pendingApproval.text()).toContain("PENDING_APPROVAL");
-
-    const pendingExecution = mountThread(
-      [
-        {
-          id: "entry-tool-pending",
-          sessionId: "session-1",
-          runId: "run-pending",
-          kind: "tool_group",
+          runId: "run-1",
+          kind: "assistant_message",
           createdAt: "2026-06-17T00:00:00Z",
           sequence: 1,
           status: "streaming",
-          toolCalls: [
-            {
-              id: "tool-pending",
-              runId: "run-pending",
-              toolName: "trade.plan",
-              permission: "read",
-              status: "PENDING",
-              input: {},
-              requiresUser: false,
-              createdAt: "2026-06-17T00:00:00Z",
-              updatedAt: "2026-06-17T00:00:00Z",
-            },
-          ],
+          text: "我先查一下行情",
         },
         {
-          id: "entry-tool-streaming",
+          id: "entry-tool-group",
           sessionId: "session-1",
-          runId: "run-streaming",
+          runId: "run-1",
           kind: "tool_group",
           createdAt: "2026-06-17T00:00:01Z",
           sequence: 2,
           status: "streaming",
           toolCalls: [
             {
-              id: "tool-streaming",
-              runId: "run-streaming",
-              toolName: "market.scan",
+              id: "tool-1",
+              runId: "run-1",
+              toolName: "market.snapshot",
               permission: "read",
               status: "RUNNING",
               input: {},
@@ -544,16 +481,19 @@ describe("ADKChatThread", () => {
       ],
       {
         props: {
-          activeRunId: "run-pending",
-          activeRunStatus: "PENDING",
+          activeRunId: "run-1",
+          activeRunStatus: "RUNNING",
           hasBlockingRun: true,
+          sendingChat: true,
         },
         stubs: {
-          ADKRunTrace: runTraceStub,
+          ADKTurnTrace: turnTraceStub,
         },
       },
     );
-    expect(pendingExecution.text()).toContain("等待执行...");
-    expect(pendingExecution.text()).toContain("工具执行中...");
+
+    const trace = wrapper.findComponent(turnTraceStub);
+    expect(trace.text()).toContain("entry-narrative,entry-tool-group");
+    expect(wrapper.find(".adk-bubble--assistant").exists()).toBe(false);
   });
 });

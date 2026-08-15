@@ -17,6 +17,7 @@ export interface ADKTimelineEntryState extends ADKTimelineEntry {
   userPromptVariant?: "original" | "processed";
   toolSummaryExpanded?: boolean;
   expandedToolCallIds?: string[];
+  turnTraceExpanded?: boolean;
 }
 
 export function createTimelineEntryState(
@@ -291,7 +292,7 @@ function timelineEntryKey(entry: ADKTimelineEntryState, index: number): string {
   return `${entry.id}::${entry.runId ?? ""}::${index}`;
 }
 
-function deriveToolGroupStatus(toolCalls: ADKRun["toolCalls"]): string {
+export function deriveToolGroupStatus(toolCalls: ADKRun["toolCalls"]): string {
   if (toolCalls.some((toolCall) => toolCall.status === "PENDING_APPROVAL")) {
     return "PENDING_APPROVAL";
   }

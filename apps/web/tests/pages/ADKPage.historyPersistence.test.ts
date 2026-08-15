@@ -121,8 +121,14 @@ describe("ADKPage history and composer persistence", () => {
     document.querySelector<HTMLElement>(".adk-session-item")?.click();
     await flushRequests();
 
-    expect(document.body.textContent).toContain("先查组合，再整理系统状态。");
     expect(document.body.textContent).toContain("最终结论已经整理完成。");
+    expect(document.body.textContent).toContain("已工作");
+    expect(document.body.textContent).not.toContain("portfolio.summary");
+
+    document.querySelector<HTMLElement>(".adk-turn-trace__header")?.click();
+    await nextTick();
+
+    expect(document.body.textContent).toContain("先查组合，再整理系统状态。");
     expect(document.body.textContent).toContain("portfolio.summary");
   });
 
@@ -251,10 +257,15 @@ describe("ADKPage history and composer persistence", () => {
     expect(document.querySelector(".adk-thread")?.textContent).toContain(
       "本地兜底回复。",
     );
-    expect(document.body.textContent).toContain("disk full");
     expect(document.body.textContent).toContain(
       "运行失败",
     );
+    expect(document.body.textContent).not.toContain("disk full");
+
+    document.querySelector<HTMLElement>(".adk-turn-trace__header")?.click();
+    await nextTick();
+
+    expect(document.body.textContent).toContain("disk full");
     expect(document.body.textContent).not.toContain(
       "TOOL_EXECUTION_FAILED",
     );

@@ -120,6 +120,7 @@ const {
   selectSession,
   sendChat,
   setActiveChildRunId,
+  toolByName,
   updateGoalObjective,
   updateGoalObjectiveDraft,
   visibleSessions,
@@ -405,7 +406,7 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
               :empty-state-title="emptyStateTitle"
               :empty-state-hint="emptyStateHint"
               :empty-state-provider-hint="emptyStateProviderHint"
-              :approval-tool="approvalTool"
+              :approval-tool="approvalTool" :tool-by-name="toolByName"
               :clear-error-message="clearErrorMessage"
               :preview="preview"
               :render-markdown="renderMarkdown"

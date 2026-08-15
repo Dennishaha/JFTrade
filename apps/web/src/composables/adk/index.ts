@@ -13,7 +13,9 @@ export * from "@/composables/adk/adkSettingsApi";
 export * from "@/composables/adk/adkSettingsPresentation";
 export * from "@/composables/adk/adkThreadScroll";
 export * from "@/composables/adk/adkTimeline";
+export * from "@/composables/adk/adkToolTracePresentation";
 export * from "@/composables/adk/adkToolVisualizations";
+export * from "@/composables/adk/adkTurnTraceGrouping";
 export {
   deleteADKWorkflow,
   deleteADKWorkflowTrigger,

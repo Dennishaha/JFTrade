@@ -271,6 +271,11 @@ describe("ADKPage workflow, children, and context", () => {
     expect(document.body.textContent).toContain("child-run-drilldown");
     expect(document.body.textContent).toContain("42% 正常");
     expect(document.body.textContent).not.toContain("15% 正常");
+    expect(document.body.textContent).not.toContain("child filtered answer");
+
+    document.querySelector<HTMLElement>(".adk-turn-trace__header")?.click();
+    await nextTick();
+
     expect(document.body.textContent).toContain("child filtered answer");
     expect(document.body.textContent).toContain("strategy.inspect_child");
     expect(document.body.textContent).not.toContain(

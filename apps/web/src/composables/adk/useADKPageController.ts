@@ -180,6 +180,7 @@ export function useADKPageController(
     sendChat: chatState.sendChat,
     setActiveChildRunId: chatState.setActiveChildRunId,
     timelineEntries: chatState.timelineEntries,
+    toolByName: sessionState.toolByName,
     updateGoalObjective: chatState.updateGoalObjective,
     updateGoalObjectiveDraft: chatState.updateGoalObjectiveDraft,
     visibleTimelineEntries: chatState.visibleTimelineEntries,

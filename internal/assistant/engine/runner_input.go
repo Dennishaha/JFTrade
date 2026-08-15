@@ -167,7 +167,7 @@ func (r *Runtime) resumeAnsweredInput(ctx context.Context, run Run) (*googleADKE
 		return nil, err
 	}
 	content := &genai.Content{Role: genai.RoleUser, Parts: []*genai.Part{{FunctionResponse: &genai.FunctionResponse{
-		ID: run.InputRequest.FunctionCallID, Name: interactionRequestUserTool, Response: inputResponsePayload(*run.InputRequest),
+		ID: run.InputRequest.FunctionCallID, Name: interactionRequestUserTool, Response: inputResponsePayload(*run.InputRequest, run.UserMessage),
 	}}}}
 	if err := execution.Run(ctx, content); err != nil {
 		return nil, err
