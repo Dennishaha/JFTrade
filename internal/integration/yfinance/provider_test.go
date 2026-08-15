@@ -194,7 +194,7 @@ func TestProviderConvertsSnapshotsCandlesHealthAndUnsupportedDepth(t *testing.T)
 		health.Readiness != marketdata.ProviderReadinessReady {
 		t.Fatalf("Health = %#v, err=%v", health, err)
 	}
-	server.Queue("/health", testkit.Response{Body: `{"ok":false,"yfinance_version":"0.2.61","runtime_state":"failed","warmup_error":"import failed"}`})
+	server.Queue("/health", testkit.Response{Body: `{"ok":false,"yfinance_version":"1.6.0","runtime_state":"failed","warmup_error":"import failed"}`})
 	health, err = provider.Health(ctx)
 	if err != nil || health.Connected || health.Readiness != marketdata.ProviderReadinessFailed ||
 		health.LastError != "import failed" {

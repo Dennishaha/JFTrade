@@ -8,7 +8,7 @@ const PROJECT_LICENSE = "AGPL-3.0-only";
 const COPYRIGHT_NOTICE = "Copyright (C) 2026 JFTrade Contributors";
 const MARKETDATA_SIDECAR_EXTRAS = {
   runtime: [
-    "yfinance==0.2.61",
+    "yfinance==1.6.0",
     "akshare==1.18.91",
     "curl_cffi==0.16.0",
     "fastapi==0.141.1",

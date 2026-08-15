@@ -60,7 +60,7 @@ every installed distribution retains its own copyright and license files.
 | --- | --- | --- | --- |
 | `setuptools` | `84.0.0` | PEP 517 build backend | MIT |
 | `pyinstaller` | `6.22.0` | Native market-data helper builder | GPL-2.0-or-later with bootloader exception |
-| `yfinance` | `0.2.61` | Yahoo Finance data adapter | Apache-2.0 |
+| `yfinance` | `1.6.0` | Yahoo Finance data adapter | Apache-2.0 |
 | `akshare` | `1.18.91` | AKShare market-data adapter | MIT |
 | `curl_cffi` | `0.16.0` | bounded Yahoo HTTP transport | MIT |
 | `fastapi` | `0.141.1` | local HTTP application | MIT |

@@ -13,7 +13,7 @@ dependencies = []
 
 [project.optional-dependencies]
 runtime = [
-  "yfinance==0.2.61",
+  "yfinance==1.6.0",
   "akshare==1.18.91",
   "curl_cffi==0.16.0",
   "fastapi==0.141.1",

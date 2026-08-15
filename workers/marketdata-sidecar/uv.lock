@@ -6,10 +6,10 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'win32'",
-    "python_full_version < '3.12' and sys_platform == 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'emscripten'",
-    "python_full_version < '3.12' and sys_platform == 'emscripten'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.12' and sys_platform == 'win32'",
+    "python_full_version < '3.12' and sys_platform == 'emscripten'",
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
@@ -444,15 +444,6 @@ wheels = [
 ]
 
 [[package]]
-name = "frozendict"
-version = "2.4.7"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/90/b2/2a3d1374b7780999d3184e171e25439a8358c47b481f68be883c14086b4c/frozendict-2.4.7.tar.gz", hash = "sha256:e478fb2a1391a56c8a6e10cc97c4a9002b410ecd1ac28c18d780661762e271bd", size = 317082, upload-time = "2025-11-11T22:40:14.251Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/38/74/f94141b38a51a553efef7f510fc213894161ae49b88bffd037f8d2a7cb2f/frozendict-2.4.7-py3-none-any.whl", hash = "sha256:972af65924ea25cf5b4d9326d549e69a9a4918d8a76a9d3a7cd174d98b237550", size = 16264, upload-time = "2025-11-11T22:40:12.836Z" },
-]
-
-[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -674,7 +665,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'test'", specifier = "==9.1.1" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = "==1.4.0" },
     { name = "uvicorn", marker = "extra == 'runtime'", specifier = "==0.52.3" },
-    { name = "yfinance", marker = "extra == 'runtime'", specifier = "==0.2.61" },
+    { name = "yfinance", marker = "extra == 'runtime'", specifier = "==1.6.0" },
 ]
 provides-extras = ["runtime", "build", "test"]
 
@@ -1497,12 +1488,12 @@ wheels = [
 
 [[package]]
 name = "yfinance"
-version = "0.2.61"
+version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "curl-cffi" },
-    { name = "frozendict" },
+    { name = "lxml" },
     { name = "multitasking" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -1514,7 +1505,7 @@ dependencies = [
     { name = "requests" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/28/152c38b35453b7d08d56df8ebf81d85448655c5a99b56baae7424f0f8db6/yfinance-0.2.61.tar.gz", hash = "sha256:dc704a23776a43dbd97f352469e6cea8193e9e6cb69d82490bc1a4e6ada6ca37", size = 127391, upload-time = "2025-05-12T08:22:08.846Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/ab/55578b5b7f0ccb4862dc0ee2b03defc09062fb51937e3c83a0bf61eafe02/yfinance-1.6.0.tar.gz", hash = "sha256:c32c45b42480d64981e89d65da3f480fd6910fe1972d7e78f1e2d91b45d9ee1b", size = 173489, upload-time = "2026-08-13T13:38:52.295Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/b5/d50eec88bc731bb8570ae42a9b764a36144e217361c33fa068391ff59ba3/yfinance-0.2.61-py2.py3-none-any.whl", hash = "sha256:e52d0fea9deffa55b81496f548104418ca4e6aa5629335064c7d485d355b4dbf", size = 117870, upload-time = "2025-05-12T08:22:07.245Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/eb/7d0fefa48c2a6b1b192b08fc95af206e6e6d14359053670cb76b9ec1a817/yfinance-1.6.0-py3-none-any.whl", hash = "sha256:2ced6339a90e5721269a18d245757c7592163c897a7cd2b9a2dfd1d8fd30590e", size = 148022, upload-time = "2026-08-13T13:38:50.666Z" },
 ]

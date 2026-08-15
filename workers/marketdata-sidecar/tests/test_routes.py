@@ -96,7 +96,7 @@ async def test_health_and_markets_do_not_need_upstream(
 
     assert health.status_code == 200
     assert health.json()["ok"] is True
-    assert health.json()["yfinance_version"] == "0.2.61"
+    assert health.json()["yfinance_version"] == "1.6.0"
     assert health.json()["runtime_state"] == "ready"
     assert health.json()["warmup_error"] is None
     assert markets.status_code == 200

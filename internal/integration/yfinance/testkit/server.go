@@ -160,7 +160,7 @@ func defaultFixture(request *http.Request) (int, string) {
 	path := strings.TrimPrefix(request.URL.Path, "/providers/yfinance")
 	switch {
 	case path == "/health":
-		return http.StatusOK, `{"ok":true,"yfinance_version":"0.2.61","runtime_state":"ready","warmup_error":null}`
+		return http.StatusOK, `{"ok":true,"yfinance_version":"1.6.0","runtime_state":"ready","warmup_error":null}`
 	case path == "/markets":
 		return http.StatusOK, marketsFixture
 	case path == "/search":

@@ -37,7 +37,7 @@ func TestClientRetriesSafeServerFailuresThenReturnsDecodedResponse(t *testing.T)
 			Body:   `{"error":{"code":"RATE_LIMIT","message":"slow down"}}`,
 			Header: http.Header{"Retry-After": []string{"0"}},
 		},
-		testkit.Response{Body: `{"ok":true,"yfinance_version":"0.2.61","runtime_state":"ready"}`},
+		testkit.Response{Body: `{"ok":true,"yfinance_version":"1.6.0","runtime_state":"ready"}`},
 	)
 	client, err := NewClient(server.URL(), &http.Client{Timeout: time.Second})
 	if err != nil {
@@ -45,7 +45,7 @@ func TestClientRetriesSafeServerFailuresThenReturnsDecodedResponse(t *testing.T)
 	}
 	client.retryDelay = 0
 	response, err := client.health(context.Background())
-	if err != nil || !response.OK || response.YFinanceVersion != "0.2.61" {
+	if err != nil || !response.OK || response.YFinanceVersion != "1.6.0" {
 		t.Fatalf("health = %#v, err=%v", response, err)
 	}
 	if server.Count("/health") != 3 {
@@ -76,7 +76,7 @@ func TestClientHealthRequiresKnownRuntimeState(t *testing.T) {
 	server := testkit.New(t)
 	client, _ := NewClient(server.URL(), &http.Client{Timeout: time.Second})
 	for _, state := range []string{"", "starting", "READY"} {
-		server.Queue("/health", testkit.Response{Body: `{"ok":true,"yfinance_version":"0.2.61","runtime_state":"` + state + `"}`})
+		server.Queue("/health", testkit.Response{Body: `{"ok":true,"yfinance_version":"1.6.0","runtime_state":"` + state + `"}`})
 		if _, err := client.health(context.Background()); !errors.Is(err, ErrInvalidResponse) {
 			t.Fatalf("runtime_state %q error = %v", state, err)
 		}

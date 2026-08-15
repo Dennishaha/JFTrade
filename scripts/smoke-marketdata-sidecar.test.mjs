@@ -71,7 +71,7 @@ test("frozen smoke checks version and only provider health routes", async () => 
     });
 
     assert.equal(result.version, "marketdata-sidecar 0.2.0");
-    assert.equal(result.yfinanceVersion, "0.2.61");
+    assert.equal(result.yfinanceVersion, "1.6.0");
     assert.equal(result.akshareVersion, "1.18.91");
     assert.ok(result.bundleBytes > 0);
     assert.match(logs.at(-1), /smoke passed/);
@@ -81,7 +81,7 @@ test("frozen smoke checks version and only provider health routes", async () => 
       "/providers/yfinance/health",
       "/providers/akshare/health",
     ]));
-    assert.match(readFileSync(summary, "utf8"), /AKShare 1\.18\.81/);
+    assert.match(readFileSync(summary, "utf8"), /AKShare 1\.18\.91/);
     assertProcessStopped(pidFile);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -151,7 +151,7 @@ const portIndex = process.argv.indexOf("--port");
 const host = process.argv[hostIndex + 1];
 const port = Number(process.argv[portIndex + 1]);
 const hits = new Map();
-const versions = { yfinance: ["yfinance_version", "0.2.61"], akshare: ["provider_version", "1.18.91"] };
+const versions = { yfinance: ["yfinance_version", "1.6.0"], akshare: ["provider_version", "1.18.91"] };
 if (process.env.FAKE_PID_FILE) writeFileSync(process.env.FAKE_PID_FILE, String(process.pid));
 const server = createServer((request, response) => {
   if (process.env.FAKE_REQUEST_LOG) appendFileSync(process.env.FAKE_REQUEST_LOG, request.url + "\\n");
