@@ -150,7 +150,7 @@
 }
 
 /* Compact control modifiers. The compound selectors keep them above the
-   unlayered .tv-btn / .tv-select base rules from style.css. */
+   unlayered .tv-btn / .tv-select base rules from ./workspace.css. */
 .tv-select.jf-select-compact {
   height: 26px;
   font-size: var(--jf-text-5);

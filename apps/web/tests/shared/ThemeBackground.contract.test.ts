@@ -65,17 +65,18 @@ describe("application theme background contract", () => {
 
   it("keeps independent dark surfaces aligned with the global hierarchy", () => {
     const styles = source("style.css");
+    const workspaceStyles = source("styles/workspace.css");
     const vuetify = source("vuetifyTheme.ts");
     const kline = source("components/domain/market-data/KlineChart.vue");
     const backtest = source("components/backtest/BacktestChart.vue");
-    const workflow = source("styles/adk-workflow-studio.css");
+    const workflow = source("styles/adk-workflow-canvas.css");
 
     expect(styles).toContain(
       "linear-gradient(180deg, #0a0a0a 0%, #121212 45%, #0d0d0d 100%)",
     );
-    expect(styles).toContain(".auth-gate {");
-    expect(styles).toContain("background: #0a0a0a");
-    expect(styles).toContain("background: #141414");
+    expect(workspaceStyles).toContain(".auth-gate {");
+    expect(workspaceStyles).toContain("background: #0a0a0a");
+    expect(workspaceStyles).toContain("background: #141414");
     expect(vuetify).toContain('background: "#0a0a0a"');
     expect(vuetify).toContain('surface: "#141414"');
     expect(kline).toContain('bg: "#1a1a1a"');

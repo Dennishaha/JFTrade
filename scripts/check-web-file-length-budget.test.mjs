@@ -63,6 +63,31 @@ test("accepts files at or below their frozen exception", () => {
   assert.deepEqual(failures, []);
 });
 
+test("applies the same ratchet rules to css files", () => {
+  const failures = compareWebFileLengthBudget(
+    [
+      { name: "apps/web/src/new.css", lines: 801 },
+      { name: "apps/web/src/legacy.css", lines: 1251 },
+      { name: "apps/web/src/shrunk.css", lines: 800 },
+      { name: "apps/web/src/frozen.css", lines: 936 },
+    ],
+    {
+      srcMaxLines: 800,
+      testMaxLines: 1200,
+      exceptions: {
+        "apps/web/src/legacy.css": 1250,
+        "apps/web/src/shrunk.css": 900,
+        "apps/web/src/frozen.css": 936,
+      },
+    },
+  );
+  assert.deepEqual(failures, [
+    "apps/web/src/new.css has 801 lines, limit 800",
+    "apps/web/src/legacy.css grew to 1251 lines, budget 1250",
+    "apps/web/src/shrunk.css has a stale exception at 800 lines",
+  ]);
+});
+
 test("rejects slack ceilings that could hide growth", () => {
   const failures = compareWebFileLengthBudget(
     [{ name: "apps/web/src/legacy.ts", lines: 850 }],

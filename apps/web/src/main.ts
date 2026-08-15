@@ -20,8 +20,11 @@ import "./styles/tokens.css";
 import "./styles/adk-tokens.css";
 import "./styles/components.css";
 import "./styles/product-controls.css";
+import "./styles/adk-trace.css";
+import "./styles/adk-tool-visual.css";
 import "./styles/adk.css";
 import "./style.css";
+import "./styles/workspace.css";
 
 const vuetify = createVuetify({
   icons: fontAwesomeIcons,

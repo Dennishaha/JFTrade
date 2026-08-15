@@ -32,6 +32,9 @@ describe("directional color contract", () => {
     expect(source("style.css")).not.toMatch(
       /^\s*--tv-price-(?:up|down)\s*:/m,
     );
+    expect(source("styles/workspace.css")).not.toMatch(
+      /^\s*--tv-price-(?:up|down)\s*:/m,
+    );
 
     const preferences = source("composables/settings/useUIColorPreferences.ts");
     expect(preferences).toContain(
@@ -59,8 +62,8 @@ describe("directional color contract", () => {
       "components/workspace/InstrumentOverviewPanel.vue",
       "components/workspace/OrderBookPanel.vue",
       "composables/settings/useUIColorPreferences.ts",
-      "style.css",
       "styles/components.css",
+      "styles/workspace.css",
     ]);
 
     expect(matchingFiles(/\btv-(?:up|down)\b/)).toEqual([
@@ -78,7 +81,7 @@ describe("directional color contract", () => {
       "components/workspace/InstrumentOverviewPanel.vue",
       "components/workspace/OrderBookPanel.vue",
       "components/workspace/PositionsPanel.vue",
-      "style.css",
+      "styles/workspace.css",
     ]);
   });
 

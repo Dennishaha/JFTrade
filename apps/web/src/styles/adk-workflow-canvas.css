@@ -1,0 +1,147 @@
+/* ADK 工作流画布：状态色变量、vue-flow minimap/controls 主题、通知条。
+   Studio 布局样式在 ./adk-workflow-studio.css。 */
+.adk-workflow-studio {
+  --adk-workflow-status-success-fg: var(--adk-success-fg);
+  --adk-workflow-status-success-bg: var(--adk-success-bg);
+  --adk-workflow-status-info-fg: var(--adk-info-fg);
+  --adk-workflow-status-info-bg: var(--adk-info-bg);
+  --adk-workflow-status-warning-fg: var(--adk-warning-fg);
+  --adk-workflow-status-warning-bg: var(--adk-warning-bg);
+  --adk-workflow-status-error-fg: var(--adk-error-fg);
+  --adk-workflow-status-error-bg: var(--adk-error-bg);
+  --adk-workflow-status-muted-fg: var(--adk-muted-fg);
+  --adk-workflow-status-muted-bg: var(--adk-muted-bg);
+  --adk-workflow-canvas-bg:
+    linear-gradient(180deg, rgba(20, 20, 20, 0.96), rgba(10, 10, 10, 0.96));
+  --adk-workflow-minimap-bg: rgba(20, 20, 20, 0.94);
+  --adk-workflow-minimap-border: rgba(148, 163, 184, 0.26);
+  --adk-workflow-minimap-node: rgba(103, 232, 249, 0.48);
+  --adk-workflow-minimap-node-stroke: rgba(103, 232, 249, 0.8);
+  --adk-workflow-minimap-mask: rgba(0, 0, 0, 0.46);
+  --adk-workflow-control-bg: rgba(20, 20, 20, 0.92);
+  --adk-workflow-control-fg: #e2e8f0;
+  --adk-workflow-control-border: rgba(148, 163, 184, 0.22);
+}
+
+[data-theme="light"] .adk-workflow-studio {
+  --adk-workflow-canvas-bg:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.98));
+  --adk-workflow-minimap-bg: rgba(255, 255, 255, 0.96);
+  --adk-workflow-minimap-border: rgba(100, 116, 139, 0.28);
+  --adk-workflow-minimap-node: rgba(8, 145, 178, 0.42);
+  --adk-workflow-minimap-node-stroke: rgba(14, 116, 144, 0.72);
+  --adk-workflow-minimap-mask: rgba(226, 232, 240, 0.62);
+  --adk-workflow-control-bg: rgba(255, 255, 255, 0.94);
+  --adk-workflow-control-fg: #0f172a;
+  --adk-workflow-control-border: rgba(100, 116, 139, 0.24);
+}
+
+.adk-workflow-studio .vue-flow__minimap {
+  overflow: hidden;
+  border: 1px solid var(--adk-workflow-minimap-border);
+  border-radius: 8px;
+  background: var(--adk-workflow-minimap-bg);
+  box-shadow: 0 18px 46px rgba(2, 6, 23, 0.28);
+}
+
+.adk-workflow-studio .vue-flow__minimap svg {
+  background: var(--adk-workflow-minimap-bg);
+}
+
+.adk-workflow-studio .vue-flow__minimap-mask {
+  fill: var(--adk-workflow-minimap-mask) !important;
+}
+
+.adk-workflow-studio .vue-flow__minimap-node {
+  fill: var(--adk-workflow-minimap-node) !important;
+  stroke: var(--adk-workflow-minimap-node-stroke) !important;
+}
+
+.adk-workflow-studio .vue-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--adk-workflow-control-border);
+  border-radius: 8px;
+  background: var(--adk-workflow-control-bg);
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.24);
+}
+
+.adk-workflow-studio .vue-flow__controls-button {
+  border-bottom-color: var(--adk-workflow-control-border);
+  background: var(--adk-workflow-control-bg);
+  color: var(--adk-workflow-control-fg);
+}
+
+.adk-workflow-studio .vue-flow__controls-button:hover {
+  background: color-mix(in srgb, var(--adk-accent-fg) 12%, var(--adk-workflow-control-bg));
+}
+
+.adk-workflow-studio .vue-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.adk-workflow-notices {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.adk-workflow-notice {
+  display: flex;
+  min-height: 32px;
+  max-height: 40px;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 8px 6px 10px;
+  font-size: var(--jf-text-6);
+  line-height: 18px;
+}
+
+.adk-workflow-notice > span {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adk-workflow-notice.is-success {
+  border-color: var(--adk-success-border);
+  background: var(--adk-success-bg);
+  color: var(--adk-success-fg);
+}
+
+.adk-workflow-notice.is-warning {
+  border-color: var(--adk-warning-border);
+  background: var(--adk-warning-bg);
+  color: var(--adk-warning-fg);
+}
+
+.adk-workflow-notice .adk-workflow-link {
+  flex: 0 0 auto;
+  color: inherit;
+  font-weight: 700;
+}
+
+.adk-workflow-notice__close {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.78;
+}
+
+.adk-workflow-notice__close:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 1;
+}

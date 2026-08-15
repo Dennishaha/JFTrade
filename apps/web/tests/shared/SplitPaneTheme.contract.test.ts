@@ -18,7 +18,7 @@ function declarations(styles: string, selector: string): string {
 
 describe("split pane theme contract", () => {
   it("uses the strategy designer divider treatment for every splitter orientation", () => {
-    const styles = source("style.css");
+    const styles = source("styles/workspace.css");
 
     const sharedTrack = declarations(
       styles,

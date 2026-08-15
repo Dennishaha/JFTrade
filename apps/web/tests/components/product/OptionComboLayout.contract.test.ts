@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const productRoot = new URL("../../../src/components/product/", import.meta.url);
 const globalStyles = readFileSync(
-  new URL("../../../src/style.css", import.meta.url),
+  new URL("../../../src/styles/workspace.css", import.meta.url),
   "utf8",
 );
 const workspacePage = readFileSync(

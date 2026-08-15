@@ -2,6 +2,7 @@
 import type { Connection, NodeMouseEvent } from "@vue-flow/core";
 import type { SplitpanesResizedPayload } from "splitpanes";
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import "@/styles/adk-workflow-canvas.css";
 import "@/styles/adk-workflow-studio.css";
 
 import type {
