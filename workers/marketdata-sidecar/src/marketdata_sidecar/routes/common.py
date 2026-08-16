@@ -13,6 +13,30 @@ from ..errors import invalid_request
 CANDLE_SESSION_ORDER = ("regular", "extended", "overnight")
 CANDLE_INTRADAY_PERIODS = frozenset({"1m", "5m", "15m", "30m", "1h"})
 CANDLE_ADJUSTMENTS = ("none", "forward", "backward")
+RANKING_KINDS = ("gainers", "losers", "active")
+BOARD_KINDS = ("industry", "concept")
+
+
+def parse_ranking_kind(value: str) -> str:
+    """Normalize the ranking selector shared by all rankings routes."""
+    normalized = value.strip().lower()
+    if normalized not in RANKING_KINDS:
+        raise invalid_request(
+            "unsupported_kind",
+            f"unsupported ranking kind: {value}",
+        )
+    return normalized
+
+
+def parse_board_kind(value: str) -> str:
+    """Normalize the Eastmoney board selector for industry listings."""
+    normalized = value.strip().lower()
+    if normalized not in BOARD_KINDS:
+        raise invalid_request(
+            "unsupported_kind",
+            f"unsupported board kind: {value}",
+        )
+    return normalized
 
 
 def parse_candle_adjustment(value: str | None) -> str:

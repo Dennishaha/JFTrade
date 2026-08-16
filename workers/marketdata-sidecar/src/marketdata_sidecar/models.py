@@ -178,6 +178,26 @@ class CandlesResponse(WireModel):
     adjustment: str = "none"
 
 
+class RankingsEntry(WireModel):
+    instrument_id: str
+    name: str | None = None
+    price: float | None = None
+    change_rate: float | None = None
+    change_amount: float | None = None
+    volume: float | None = None
+    turnover: float | None = None
+    turnover_ratio: float | None = None
+    pe_ttm: float | None = None
+    market_cap: float | None = None
+
+
+class RankingsResponse(WireModel):
+    market: str
+    kind: str
+    entries: list[RankingsEntry]
+    source: str
+
+
 class NewsEntry(WireModel):
     title: str | None = None
     link: str | None = None

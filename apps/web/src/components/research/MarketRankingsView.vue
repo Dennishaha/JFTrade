@@ -49,7 +49,11 @@ const STOCK_OPERATIONS: Record<string, OperationOption[]> = {
     { value: "hot", label: "热门" },
     { value: "high_dividend_state", label: "高股息" },
   ],
-  CN: [],
+  CN: [
+    { value: "top_gainers", label: "领涨" },
+    { value: "top_losers", label: "领跌" },
+    { value: "hot", label: "热门" },
+  ],
 };
 
 const operationOptions = computed(
@@ -243,10 +247,7 @@ const valuePresentation = computed(() => {
         <span>{{ item.count }} 只</span>
       </button>
     </div>
-    <div v-if="productScope === 'stock' && market === 'CN'" class="market-rankings-view__status">
-      OpenD 10.9.6908 的专用高股息协议不接受市场参数且实测仅返回港股；沪深股票榜单不展示错配数据。
-    </div>
-    <ProviderUnsupportedState v-else-if="feature.providerUnsupported.value" :min-height="160" />
+    <ProviderUnsupportedState v-if="feature.providerUnsupported.value" :min-height="160" />
     <div v-else-if="feature.error.value" class="market-rankings-view__status">{{ feature.error.value }}</div>
     <RankListPanel
       v-else

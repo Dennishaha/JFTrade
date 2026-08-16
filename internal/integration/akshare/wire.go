@@ -195,3 +195,47 @@ type remoteIndexConstituent struct {
 	Name   string       `json:"name"`
 	Weight *json.Number `json:"weight"`
 }
+
+type remoteRankings struct {
+	Market  string               `json:"market"`
+	Kind    string               `json:"kind"`
+	Entries []remoteRankingEntry `json:"entries"`
+	Source  string               `json:"source"`
+}
+
+type remoteRankingEntry struct {
+	InstrumentID  string       `json:"instrument_id"`
+	Name          string       `json:"name"`
+	Price         *json.Number `json:"price"`
+	ChangeRate    *json.Number `json:"change_rate"`
+	ChangeAmount  *json.Number `json:"change_amount"`
+	Volume        *json.Number `json:"volume"`
+	Turnover      *json.Number `json:"turnover"`
+	TurnoverRatio *json.Number `json:"turnover_ratio"`
+	PETTM         *json.Number `json:"pe_ttm"`
+	MarketCap     *json.Number `json:"market_cap"`
+}
+
+type remoteIndustryBoards struct {
+	Market string                `json:"market"`
+	Kind   string                `json:"kind"`
+	Boards []remoteIndustryBoard `json:"boards"`
+	Source string                `json:"source"`
+}
+
+type remoteIndustryBoard struct {
+	Name                   string       `json:"name"`
+	ChangeRate             *json.Number `json:"change_rate"`
+	Turnover               *json.Number `json:"turnover"`
+	Volume                 *json.Number `json:"volume"`
+	LeadingStockName       string       `json:"leading_stock_name"`
+	LeadingStockChangeRate *json.Number `json:"leading_stock_change_rate"`
+}
+
+type remoteIndustryMembers struct {
+	Market  string               `json:"market"`
+	Kind    string               `json:"kind"`
+	Board   string               `json:"board"`
+	Entries []remoteRankingEntry `json:"entries"`
+	Source  string               `json:"source"`
+}

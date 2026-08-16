@@ -18,6 +18,7 @@ SNAPSHOT_CACHE_SECONDS = 15
 SECURITY_CACHE_SECONDS = 86400
 NEWS_CACHE_SECONDS = 300
 ACTIONS_CACHE_SECONDS = 3600
+SCREEN_CACHE_SECONDS = 60
 
 
 RuntimeState = Literal["warming", "ready", "failed"]
@@ -214,6 +215,43 @@ _ticker_info_cache = _TickerInfoCache()
 _ticker_fast_info_cache = _TickerInfoCache()
 _ticker_news_cache = _TickerInfoCache()
 _ticker_actions_cache = _TickerInfoCache()
+_screener_cache = _TickerInfoCache()
+
+
+def screen_quotes(query_id: str, count: int) -> list[dict[str, Any]]:
+    """Return cached Yahoo predefined-screener quotes.
+
+    yfinance 1.6.0 exposes predefined screens through the module-level
+    ``yfinance.screen`` function (there is no ``Screener`` class in this
+    version); ``query_id`` is one of ``PREDEFINED_SCREENER_QUERIES``.
+    """
+    runtime = require_runtime()
+    data = _screener_cache.get_or_fetch(
+        f"{query_id}:{count}",
+        SCREEN_CACHE_SECONDS,
+        lambda: {"quotes": _fetch_screen_quotes(runtime, query_id, count)},
+    )
+    return list(data.get("quotes") or [])
+
+
+def _fetch_screen_quotes(
+    runtime: _RuntimeComponents,
+    query_id: str,
+    count: int,
+) -> list[dict[str, Any]]:
+    result = runtime.yfinance.screen(
+        query_id,
+        count=count,
+        session=runtime.session,
+    )
+    quotes = result.get("quotes") if isinstance(result, dict) else None
+    if not isinstance(quotes, list):
+        raise SidecarError(
+            502,
+            "YFINANCE_SCHEMA_ERROR",
+            "Yahoo Finance screener response has an invalid schema",
+        )
+    return [dict(quote) for quote in quotes if isinstance(quote, dict)]
 
 
 def ticker_fast_info(symbol: str) -> dict[str, Any] | None:

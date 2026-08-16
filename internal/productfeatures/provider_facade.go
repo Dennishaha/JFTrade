@@ -11,8 +11,9 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-// EmbeddedResearchReader reads instrument news and corporate actions from the
-// embedded market-data provider. *marketdata.Service satisfies it.
+// EmbeddedResearchReader reads instrument news, corporate actions, market
+// rankings, and industry boards from the embedded market-data provider.
+// *marketdata.Service satisfies it.
 type EmbeddedResearchReader interface {
 	GetNews(ctx context.Context, market, symbol string, limit int) (marketdata.NewsResponse, error)
 	GetCorporateActions(
@@ -20,6 +21,13 @@ type EmbeddedResearchReader interface {
 		market, symbol string,
 		from, to time.Time,
 	) (marketdata.CorporateActionsResponse, error)
+	GetRankings(ctx context.Context, market, kind string, limit int) (marketdata.RankingsResponse, error)
+	GetIndustries(ctx context.Context, market, kind string) (marketdata.IndustryBoardsResponse, error)
+	GetIndustryMembers(
+		ctx context.Context,
+		market, kind, board string,
+		limit int,
+	) (marketdata.IndustryMembersResponse, error)
 }
 
 // WithEmbeddedProviderResearch lets the product feature pipeline serve
@@ -58,17 +66,19 @@ func WithLazyEmbeddedProviderResearch(serviceFn func() *marketdata.Service) Opti
 	)
 }
 
-// queryEmbeddedProviderResearch intercepts news and corporate-action reads
-// before broker routing when the embedded market-data provider owns them. The
-// boolean result reports whether the query was handled (a nil result with a
-// true flag still carries the returned error).
+// queryEmbeddedProviderResearch intercepts news, corporate-action, rankings,
+// and industry-board reads before broker routing when the embedded market-data
+// provider owns them. The boolean result reports whether the query was handled
+// (a nil result with a true flag still carries the returned error).
 func (s *Service) queryEmbeddedProviderResearch(
 	ctx context.Context,
 	query *broker.FeatureQuery,
 	rawPageSize int,
 ) (*broker.FeatureResult, bool, error) {
-	if query.FeatureID != broker.FeatureResearchNews &&
-		query.FeatureID != broker.FeatureResearchCorporateAction {
+	switch query.FeatureID {
+	case broker.FeatureResearchNews, broker.FeatureResearchCorporateAction,
+		broker.FeatureResearchRankings, broker.FeatureResearchIndustry:
+	default:
 		return nil, false, nil
 	}
 	if s.embeddedReader == nil || s.activeProvider == nil {
@@ -82,17 +92,28 @@ func (s *Service) queryEmbeddedProviderResearch(
 	if reader == nil {
 		return nil, false, nil
 	}
+	instrumentScoped := query.FeatureID == broker.FeatureResearchNews ||
+		query.FeatureID == broker.FeatureResearchCorporateAction
 	market, symbol, ok := embeddedResearchInstrument(query)
-	if !ok {
+	if instrumentScoped && !ok {
 		return nil, false, nil
+	}
+	if market == "" {
+		market = strings.ToUpper(strings.TrimSpace(query.Market))
+	}
+	if market == "" {
+		market = strings.ToUpper(strings.TrimSpace(descriptor.DefaultMarket))
 	}
 	now := s.now().UTC()
 	var result *broker.FeatureResult
 	var readErr error
-	if query.FeatureID == broker.FeatureResearchNews {
+	switch query.FeatureID {
+	case broker.FeatureResearchNews:
 		result, readErr = s.embeddedNews(ctx, reader, descriptor, query, market, symbol, rawPageSize, now)
-	} else {
+	case broker.FeatureResearchCorporateAction:
 		result, readErr = s.embeddedCorporateActions(ctx, reader, descriptor, query, market, symbol, now)
+	default:
+		result, readErr = s.embeddedMarketResearch(ctx, reader, descriptor, query, market, symbol, rawPageSize, now)
 	}
 	if readErr != nil {
 		return nil, true, mapEmbeddedProviderError(readErr, market)

@@ -162,10 +162,18 @@ const anyLoading = computed(
     highDividend.loading.value ||
     heatmap.loading.value,
 );
+// Only a full capability miss replaces the whole body; a single unsupported
+// branch (e.g. embedded providers have no US/HK board heatmap feed) degrades
+// per-section so the ranking panels that did load stay visible. Features whose
+// request is skipped for the market are excluded from the vote.
+const activeFeatures = computed(() => {
+  const features = [heatmap];
+  if (props.market !== "CN") features.push(gainersFeature, losersFeature, hot);
+  if (props.market === "HK") features.push(highDividend);
+  return features;
+});
 const providerUnsupported = computed(() =>
-  [gainersFeature, losersFeature, hot, highDividend, heatmap].some(
-    (feature) => feature.providerUnsupported.value,
-  ),
+  activeFeatures.value.every((feature) => feature.providerUnsupported.value),
 );
 // Provider-capability 409s degrade to an in-view empty state; the banner keeps
 // only genuine failures.
@@ -293,7 +301,13 @@ const anyError = computed(
               >主题</button>
             </span>
           </header>
+          <ProviderUnsupportedState
+            v-if="heatmap.providerUnsupported.value"
+            bordered
+            :min-height="120"
+          />
           <SectorHeatmap
+            v-else
             :entries="heatmap.entries.value"
             :height="420"
             @select="emit('select', $event)"

@@ -298,3 +298,13 @@ func yfinanceProviderSegments(values ...string) []string {
 	result := append([]string(nil), yfinanceProviderPath...)
 	return append(result, values...)
 }
+
+func (c *Client) rankings(ctx context.Context, market, kind string, limit int) (remoteRankings, error) {
+	values := url.Values{}
+	values.Set("market", market)
+	values.Set("kind", kind)
+	values.Set("limit", strconv.Itoa(limit))
+	var response remoteRankings
+	err := c.get(ctx, yfinanceProviderSegments("rankings"), values, &response)
+	return response, err
+}

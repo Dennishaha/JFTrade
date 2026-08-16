@@ -367,3 +367,39 @@ func (c *Client) corporateActions(
 	err := c.get(ctx, providerSegments("corporate-actions", marketValue, symbol), values, &response)
 	return response, err
 }
+
+func (c *Client) rankings(
+	ctx context.Context,
+	marketValue string,
+	kind string,
+	limit int,
+) (remoteRankings, error) {
+	values := url.Values{
+		"market": {marketValue}, "kind": {kind}, "limit": {strconv.Itoa(limit)},
+	}
+	var response remoteRankings
+	err := c.get(ctx, providerSegments("rankings"), values, &response)
+	return response, err
+}
+
+func (c *Client) industries(ctx context.Context, kind string) (remoteIndustryBoards, error) {
+	values := url.Values{"kind": {kind}}
+	var response remoteIndustryBoards
+	err := c.get(ctx, providerSegments("industries"), values, &response)
+	return response, err
+}
+
+func (c *Client) industryMembers(
+	ctx context.Context,
+	kind string,
+	board string,
+	limit int,
+) (remoteIndustryMembers, error) {
+	values := url.Values{"limit": {strconv.Itoa(limit)}}
+	if value := strings.TrimSpace(kind); value != "" {
+		values.Set("kind", value)
+	}
+	var response remoteIndustryMembers
+	err := c.get(ctx, providerSegments("industries", board, "members"), values, &response)
+	return response, err
+}

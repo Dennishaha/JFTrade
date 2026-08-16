@@ -265,6 +265,55 @@ describe("MarketHomeView", () => {
     expect(wrapper.text()).not.toContain("is not registered");
   });
 
+  it("keeps ranking panels when only the heatmap capability is unavailable", async () => {
+    mocks.fetch.mockImplementation((path: string) => {
+      const params = new URLSearchParams(String(path).split("?")[1]);
+      const operation = params.get("operation") ?? "";
+      if (operation === "heatmap") {
+        return Promise.reject(
+          new ApiClientError(
+            'broker feature capability is unavailable: embedded market-data provider does not serve research.rankings operation "heatmap" (market US)',
+            "BROKER_CAPABILITY_UNAVAILABLE",
+            409,
+          ),
+        );
+      }
+      if (operation === "top_movers") {
+        return Promise.resolve(
+          featureResult([
+            canonicalInstrument("US.GAIN", "领涨公司", { changeRate: 6, price: 10 }),
+          ]),
+        );
+      }
+      if (operation === "hot") {
+        return Promise.resolve(
+          featureResult([
+            canonicalInstrument("US.HOT", "热门公司", {
+              changeRate: 2,
+              price: 30,
+              turnover: 1e9,
+            }),
+          ]),
+        );
+      }
+      return Promise.resolve(featureResult([]));
+    });
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
+    const wrapper = mount(MarketHomeView, {
+      props: { market: "US", brokerId: "yfinance" },
+    });
+    await flushPromises();
+
+    // The unsupported heatmap degrades in its own section; loaded panels stay.
+    expect(wrapper.find(".market-home-view__body").exists()).toBe(true);
+    expect(wrapper.text()).toContain("领涨公司");
+    expect(wrapper.findAll(".rank-list-panel").length).toBeGreaterThan(0);
+    expect(wrapper.find(".market-home-view__heatmap").text()).toContain(
+      "当前数据源不支持该功能",
+    );
+    expect(wrapper.text()).not.toContain("部分数据加载失败");
+  });
+
   it("keeps the failure banner for genuine ranking errors", async () => {
     mocks.fetch.mockRejectedValue(
       new ApiClientError("服务内部错误", "INTERNAL", 500),

@@ -1,6 +1,7 @@
 package productfeatures
 
 import (
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -95,6 +96,116 @@ func corporateActionStatement(event marketdata.CorporateActionEvent) string {
 	return ""
 }
 
+// projectProviderRankings converts a provider-neutral ranking list into the
+// broker feature envelope using the keys the Futu path emits
+// (pkg/futu/adapter_research_normalization.go:119-151) and the research
+// rankings views read.
+func projectProviderRankings(
+	descriptor marketdata.ProviderDescriptor,
+	query *broker.FeatureQuery,
+	response marketdata.RankingsResponse,
+	market string,
+	now time.Time,
+) *broker.FeatureResult {
+	return embeddedFeatureResult(
+		descriptor, query, "", market, now, now,
+		rankingEntryDocuments(response.Entries), response.Source,
+	)
+}
+
+// rankingEntryDocuments keys match the frontend consumers:
+// apps/web/src/components/research/RankListPanel.vue:65-79 (instrumentId/
+// symbol/name/price/changeRate), apps/web/src/components/research/
+// ConceptSectorView.vue:123-129 SORT_FIELDS (price/changeAmount/changeRate/
+// volume/turnover), apps/web/src/composables/research/useResearchFeature.ts:
+// 317-324 (changeRate merge sorting).
+func rankingEntryDocuments(entries []marketdata.RankingEntry) []map[string]any {
+	documents := make([]map[string]any, 0, len(entries))
+	for _, entry := range entries {
+		projected := map[string]any{}
+		if id := strings.ToUpper(strings.TrimSpace(entry.InstrumentID)); id != "" {
+			projected["instrumentId"] = id
+			if prefix, code, found := strings.Cut(id, "."); found {
+				projected["market"] = prefix
+				projected["symbol"] = code
+			}
+		}
+		if name := strings.TrimSpace(entry.Name); name != "" {
+			projected["name"] = name
+		}
+		putProviderNumber(projected, "price", entry.Price)
+		putProviderNumber(projected, "changeRate", entry.ChangeRate)
+		putProviderNumber(projected, "changeAmount", entry.ChangeAmount)
+		putProviderNumber(projected, "volume", entry.Volume)
+		putProviderNumber(projected, "turnover", entry.Turnover)
+		putProviderNumber(projected, "turnoverRatio", entry.TurnoverRatio)
+		putProviderNumber(projected, "peTTM", entry.PETTM)
+		putProviderNumber(projected, "marketCap", entry.MarketCap)
+		documents = append(documents, projected)
+	}
+	return documents
+}
+
+// projectProviderIndustryBoards converts CN industry/concept boards into the
+// broker feature envelope. Keys match the frontend consumers:
+// apps/web/src/components/research/ConceptSectorView.vue:80-98 (instrumentId
+// must contain "." so plate_members can derive the market; name, price,
+// changeRate at :222-231) and apps/web/src/components/research/
+// SectorHeatmap.vue:8,72-89 (name, changeRate, turnover weight fallback).
+func projectProviderIndustryBoards(
+	descriptor marketdata.ProviderDescriptor,
+	query *broker.FeatureQuery,
+	response marketdata.IndustryBoardsResponse,
+	market string,
+	now time.Time,
+) *broker.FeatureResult {
+	boardMarket := strings.ToUpper(strings.TrimSpace(response.Market))
+	if boardMarket == "" {
+		boardMarket = market
+	}
+	entries := make([]map[string]any, 0, len(response.Boards))
+	for _, board := range response.Boards {
+		name := strings.TrimSpace(board.Name)
+		projected := map[string]any{
+			"instrumentId": boardMarket + "." + name,
+			"market":       boardMarket,
+			"name":         name,
+			"productClass": string(broker.ProductClassPlate),
+		}
+		putProviderNumber(projected, "changeRate", board.ChangeRate)
+		putProviderNumber(projected, "turnover", board.Turnover)
+		putProviderNumber(projected, "volume", board.Volume)
+		if leading := strings.TrimSpace(board.LeadingStockName); leading != "" {
+			projected["leadingStockName"] = leading
+		}
+		putProviderNumber(projected, "leadingStockChangeRate", board.LeadingStockChangeRate)
+		entries = append(entries, projected)
+	}
+	return embeddedFeatureResult(descriptor, query, "", market, now, now, entries, response.Source)
+}
+
+// projectProviderIndustryMembers converts board members into the ranking-entry
+// document shape the member tables read
+// (apps/web/src/components/research/ConceptSectorView.vue:275-306).
+func projectProviderIndustryMembers(
+	descriptor marketdata.ProviderDescriptor,
+	query *broker.FeatureQuery,
+	response marketdata.IndustryMembersResponse,
+	market string,
+	now time.Time,
+) *broker.FeatureResult {
+	return embeddedFeatureResult(
+		descriptor, query, "", market, now, now,
+		rankingEntryDocuments(response.Entries), response.Source,
+	)
+}
+
+func putProviderNumber(document map[string]any, key string, value *json.Number) {
+	if value != nil {
+		document[key] = *value
+	}
+}
+
 func embeddedFeatureResult(
 	descriptor marketdata.ProviderDescriptor,
 	query *broker.FeatureQuery,
@@ -110,6 +221,10 @@ func embeddedFeatureResult(
 	if instrumentID == "" {
 		instrumentID = strings.ToUpper(strings.TrimSpace(query.InstrumentID))
 	}
+	var resolved *broker.Instrument
+	if instrumentID != "" {
+		resolved = embeddedResolvedInstrument(query, instrumentID, market)
+	}
 	return &broker.FeatureResult{
 		Provider: broker.ProviderAttribution{
 			BrokerID:        strings.TrimSpace(descriptor.BrokerID),
@@ -119,7 +234,7 @@ func embeddedFeatureResult(
 			ResolvedAt:      now,
 			AsOf:            asOf,
 		},
-		ResolvedInstrument: embeddedResolvedInstrument(query, instrumentID, market),
+		ResolvedInstrument: resolved,
 		AsOf:               asOf,
 		Entries:            entries,
 		HasMore:            &hasMore,

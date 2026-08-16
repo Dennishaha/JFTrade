@@ -39,6 +39,13 @@ describe("embedded Python market-data providers", () => {
     expect(embeddedPythonMarketDataFeatureIDs.has("research.instrument")).toBe(false);
   });
 
+  it("marks facade-served rankings and industry boards as embedded-capable", () => {
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.rankings")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.industry")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.institutions")).toBe(false);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.macro")).toBe(false);
+  });
+
   it("keeps Yahoo aliases and provider-specific status identities", () => {
     expect(pythonMarketDataProviderName("yfinance")).toBe("Yahoo");
     expect(statusMatchesPythonMarketDataProvider("yfinance", "yahoo-finance")).toBe(true);

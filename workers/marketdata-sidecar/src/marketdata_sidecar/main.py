@@ -23,6 +23,7 @@ from .routes import (
     health,
     markets,
     news,
+    rankings,
     search,
     security,
     snapshot,
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
         candles.router,
         news.router,
         corporate_actions.router,
+        rankings.router,
     ):
         application.include_router(yahoo_router, prefix="/providers/yfinance")
     application.include_router(search.router)
@@ -68,6 +70,7 @@ def create_app() -> FastAPI:
     application.include_router(candles.router)
     application.include_router(news.router)
     application.include_router(corporate_actions.router)
+    application.include_router(rankings.router)
     application.include_router(akshare.router)
     return application
 
@@ -97,7 +100,15 @@ def _provider_for_data_path(path: str) -> str | None:
     if path in {"/health", "/healthz", "/markets"}:
         return None
     if path.startswith(
-        ("/search", "/security/", "/snapshot/", "/candles/", "/news/", "/corporate-actions/")
+        (
+            "/search",
+            "/security/",
+            "/snapshot/",
+            "/candles/",
+            "/news/",
+            "/corporate-actions/",
+            "/rankings",
+        )
     ):
         return "yfinance"
     return None

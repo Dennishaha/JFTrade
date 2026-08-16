@@ -177,3 +177,23 @@ type remoteCorporateAction struct {
 	Amount *json.Number `json:"amount"`
 	Ratio  *json.Number `json:"ratio"`
 }
+
+type remoteRankings struct {
+	Market  string               `json:"market"`
+	Kind    string               `json:"kind"`
+	Entries []remoteRankingEntry `json:"entries"`
+	Source  string               `json:"source"`
+}
+
+type remoteRankingEntry struct {
+	InstrumentID  string       `json:"instrument_id"`
+	Name          string       `json:"name"`
+	Price         *json.Number `json:"price"`
+	ChangeRate    *json.Number `json:"change_rate"`
+	ChangeAmount  *json.Number `json:"change_amount"`
+	Volume        *json.Number `json:"volume"`
+	Turnover      *json.Number `json:"turnover"`
+	TurnoverRatio *json.Number `json:"turnover_ratio"`
+	PETTM         *json.Number `json:"pe_ttm"`
+	MarketCap     *json.Number `json:"market_cap"`
+}

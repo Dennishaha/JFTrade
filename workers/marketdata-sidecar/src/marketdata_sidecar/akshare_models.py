@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .models import RankingsEntry
+
 
 class AKWireModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -117,6 +119,30 @@ class AKIndexConstituentsResponse(AKWireModel):
     instrument_id: str
     constituents: list[AKIndexConstituent]
     source: str = "akshare-index-constituents"
+
+
+class AKIndustryBoard(AKWireModel):
+    name: str
+    change_rate: float | None = None
+    turnover: float | None = None
+    volume: float | None = None
+    leading_stock_name: str | None = None
+    leading_stock_change_rate: float | None = None
+
+
+class AKIndustriesResponse(AKWireModel):
+    market: str
+    kind: str
+    boards: list[AKIndustryBoard]
+    source: str = "akshare-industries"
+
+
+class AKIndustryMembersResponse(AKWireModel):
+    market: str
+    kind: str
+    board: str
+    entries: list[RankingsEntry]
+    source: str = "akshare-industries"
 
 
 class AKBatchRequest(AKWireModel):

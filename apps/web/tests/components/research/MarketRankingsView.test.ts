@@ -106,15 +106,56 @@ describe("MarketRankingsView", () => {
     });
   });
 
-  it("does not issue the HK-only high-dividend request for logical CN", async () => {
-    installMocks();
-    const wrapper = mount(MarketRankingsView, { props: { market: "CN" } });
+  it("serves logical CN rankings via SH/SZ fan-out from facade-shaped entries", async () => {
+    mocks.fetch.mockImplementation((path: string) => {
+      const params = new URLSearchParams(String(path).split("?")[1]);
+      const market = params.get("market") ?? "";
+      const symbol = market === "SH" ? "600519" : "300750";
+      return Promise.resolve(featureResult([
+        {
+          instrumentId: `${market}.${symbol}`,
+          market,
+          symbol,
+          name: market === "SH" ? "贵州茅台" : "宁德时代",
+          price: market === "SH" ? 1700 : 190.5,
+          changeRate: 5.42,
+          changeAmount: 3.1,
+          volume: 123456,
+          turnover: 9876543,
+          turnoverRatio: 0.8,
+          peTTM: 22.5,
+          marketCap: 2.1e12,
+        },
+      ]));
+    });
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
+    const wrapper = mount(MarketRankingsView, {
+      props: { market: "CN", brokerId: "akshare" },
+    });
     await flushPromises();
-    expect(wrapper.findAll(".market-rankings-view__operations button")).toHaveLength(0);
+
+    const labels = wrapper
+      .findAll(".market-rankings-view__operations button")
+      .map((button) => button.text());
+    expect(labels).toEqual(["领涨", "领跌", "热门"]);
+    const requests = mocks.fetch.mock.calls.map(([path]) => {
+      const params = new URLSearchParams(String(path).split("?")[1]);
+      return { market: params.get("market"), operation: params.get("operation") };
+    });
+    expect(requests).toEqual(expect.arrayContaining([
+      { market: "SH", operation: "top_movers" },
+      { market: "SZ", operation: "top_movers" },
+    ]));
+    expect(requests.some((request) => request.operation === "high_dividend_state")).toBe(false);
     const paths = mocks.fetch.mock.calls.map(([path]) => String(path));
-    expect(paths.some((path) => path.includes("operation=high_dividend_state"))).toBe(false);
     expect(paths.some((path) => /pre_market|after_hours|overnight/.test(path))).toBe(false);
-    expect(wrapper.text()).toContain("不展示错配数据");
+
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain("贵州茅台");
+      expect(wrapper.text()).toContain("宁德时代");
+    });
+    expect(wrapper.text()).toContain("+5.42%");
+    expect(wrapper.text()).not.toContain("不展示错配数据");
   });
 
   it("offers the dedicated high-dividend state for its real HK result set", async () => {

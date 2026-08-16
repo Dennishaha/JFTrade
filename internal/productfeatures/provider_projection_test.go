@@ -216,3 +216,151 @@ func TestMapEmbeddedProviderErrorKeepsSentinels(t *testing.T) {
 		t.Fatalf("busy error = %v", busy)
 	}
 }
+
+// Rankings entry keys are consumed by:
+// apps/web/src/components/research/RankListPanel.vue:65-79 (instrumentId,
+// symbol, name, price, changeRate), apps/web/src/components/research/
+// ConceptSectorView.vue:123-129 SORT_FIELDS (price/changeAmount/changeRate/
+// volume/turnover), and apps/web/src/composables/research/
+// useResearchFeature.ts:317-324 (changeRate merge sorting).
+func TestProviderRankingsProjectionMapsFrontendKeys(t *testing.T) {
+	now := time.Date(2026, 8, 16, 7, 0, 0, 0, time.UTC)
+	number := func(value string) *json.Number { n := json.Number(value); return &n }
+	response := marketdata.RankingsResponse{
+		Market: "CN", Kind: "gainers", Source: "akshare-rankings",
+		Entries: []marketdata.RankingEntry{
+			{
+				InstrumentID: "sh.600519", Name: "贵州茅台",
+				Price: number("1680.5"), ChangeRate: number("5.42"), ChangeAmount: number("86.4"),
+				Volume: number("123456"), Turnover: number("207000000"), TurnoverRatio: number("0.98"),
+				PETTM: number("24.6"), MarketCap: number("2110000000000"),
+			},
+			{InstrumentID: "SZ.000001", Name: "平安银行"},
+		},
+	}
+	result := projectProviderRankings(
+		marketdata.ProviderDescriptor{BrokerID: "akshare"},
+		&broker.FeatureQuery{FeatureID: broker.FeatureResearchRankings},
+		response, "CN", now,
+	)
+	if len(result.Entries) != 2 {
+		t.Fatalf("entries = %#v", result.Entries)
+	}
+	first := result.Entries[0]
+	wantKeys := []string{
+		"instrumentId", "market", "symbol", "name", "price", "changeRate",
+		"changeAmount", "volume", "turnover", "turnoverRatio", "peTTM", "marketCap",
+	}
+	for _, key := range wantKeys {
+		if _, ok := first[key]; !ok {
+			t.Fatalf("first entry missing key %q: %#v", key, first)
+		}
+	}
+	if first["instrumentId"] != "SH.600519" || first["market"] != "SH" ||
+		first["symbol"] != "600519" || first["name"] != "贵州茅台" {
+		t.Fatalf("first entry = %#v", first)
+	}
+	if first["changeRate"] != json.Number("5.42") || first["peTTM"] != json.Number("24.6") {
+		t.Fatalf("numeric values = %#v", first)
+	}
+	second := result.Entries[1]
+	for _, key := range []string{"price", "changeRate", "turnover", "marketCap"} {
+		if _, ok := second[key]; ok {
+			t.Fatalf("nil field %q must be omitted: %#v", key, second)
+		}
+	}
+	if result.ResolvedInstrument != nil {
+		t.Fatalf("market-scoped result must not resolve an instrument: %#v", result.ResolvedInstrument)
+	}
+	if !result.AsOf.Equal(now) || result.Total == nil || *result.Total != 2 ||
+		result.HasMore == nil || *result.HasMore {
+		t.Fatalf("envelope AsOf=%v Total=%#v HasMore=%#v", result.AsOf, result.Total, result.HasMore)
+	}
+	if result.Metadata["source"] != "akshare-rankings" ||
+		result.Provider.SelectionReason != embeddedProviderSelectionReason {
+		t.Fatalf("metadata=%#v provider=%#v", result.Metadata, result.Provider)
+	}
+}
+
+// Board keys are consumed by:
+// apps/web/src/components/research/ConceptSectorView.vue:80-98 (instrumentId
+// must contain "." for plate_members market derivation), :222-231 (name,
+// price, changeRate), and apps/web/src/components/research/SectorHeatmap.vue:
+// 8,72-89 (name, changeRate, turnover as weight fallback).
+func TestProviderIndustryBoardsProjectionMapsFrontendKeys(t *testing.T) {
+	now := time.Date(2026, 8, 16, 7, 0, 0, 0, time.UTC)
+	changeRate := json.Number("2.31")
+	turnover := json.Number("1500000000")
+	leading := json.Number("7.02")
+	response := marketdata.IndustryBoardsResponse{
+		Market: "CN", Kind: "concept", Source: "akshare-industries",
+		Boards: []marketdata.IndustryBoard{{
+			Name: "人工智能", ChangeRate: &changeRate, Turnover: &turnover,
+			LeadingStockName: "宁德时代", LeadingStockChangeRate: &leading,
+		}},
+	}
+	result := projectProviderIndustryBoards(
+		marketdata.ProviderDescriptor{BrokerID: "akshare"},
+		&broker.FeatureQuery{FeatureID: broker.FeatureResearchIndustry},
+		response, "CN", now,
+	)
+	if len(result.Entries) != 1 {
+		t.Fatalf("entries = %#v", result.Entries)
+	}
+	entry := result.Entries[0]
+	if entry["instrumentId"] != "CN.人工智能" || entry["market"] != "CN" ||
+		entry["name"] != "人工智能" || entry["productClass"] != "plate" {
+		t.Fatalf("board identity = %#v", entry)
+	}
+	if entry["changeRate"] != changeRate || entry["turnover"] != turnover ||
+		entry["leadingStockName"] != "宁德时代" || entry["leadingStockChangeRate"] != leading {
+		t.Fatalf("board metrics = %#v", entry)
+	}
+	if result.Total == nil || *result.Total != 1 || result.HasMore == nil || *result.HasMore {
+		t.Fatalf("envelope Total=%#v HasMore=%#v", result.Total, result.HasMore)
+	}
+}
+
+// Member entries reuse the ranking keys read by the member table at
+// apps/web/src/components/research/ConceptSectorView.vue:275-306.
+func TestProviderIndustryMembersProjectionUsesRankingKeys(t *testing.T) {
+	now := time.Date(2026, 8, 16, 7, 0, 0, 0, time.UTC)
+	price := json.Number("92.4")
+	response := marketdata.IndustryMembersResponse{
+		Market: "CN", Kind: "industry", Board: "半导体", Source: "akshare-industries",
+		Entries: []marketdata.RankingEntry{{InstrumentID: "SH.688981", Name: "中芯国际", Price: &price}},
+	}
+	result := projectProviderIndustryMembers(
+		marketdata.ProviderDescriptor{BrokerID: "akshare"},
+		&broker.FeatureQuery{FeatureID: broker.FeatureResearchIndustry, InstrumentID: "CN.半导体"},
+		response, "CN", now,
+	)
+	if len(result.Entries) != 1 {
+		t.Fatalf("entries = %#v", result.Entries)
+	}
+	entry := result.Entries[0]
+	if entry["instrumentId"] != "SH.688981" || entry["symbol"] != "688981" ||
+		entry["name"] != "中芯国际" || entry["price"] != price {
+		t.Fatalf("member entry = %#v", entry)
+	}
+	if result.Metadata["source"] != "akshare-industries" {
+		t.Fatalf("metadata = %#v", result.Metadata)
+	}
+}
+
+func TestEmbeddedRankingsLimitPrecedenceAndClamp(t *testing.T) {
+	query := &broker.FeatureQuery{}
+	if got := embeddedRankingsLimit(query, 12); got != 12 {
+		t.Fatalf("explicit pageSize limit = %d", got)
+	}
+	if got := embeddedRankingsLimit(query, 500); got != marketdata.MaxRankingsLimit {
+		t.Fatalf("clamped limit = %d", got)
+	}
+	withParam := &broker.FeatureQuery{Params: map[string]any{"limit": int64(9)}}
+	if got := embeddedRankingsLimit(withParam, 0); got != 9 {
+		t.Fatalf("limit param = %d", got)
+	}
+	if got := embeddedRankingsLimit(query, 0); got != marketdata.DefaultRankingsLimit {
+		t.Fatalf("default limit = %d", got)
+	}
+}

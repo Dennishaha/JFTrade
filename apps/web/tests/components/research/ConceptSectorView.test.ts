@@ -227,6 +227,85 @@ describe("ConceptSectorView", () => {
     expect(wrapper.text()).toContain("暂无数据");
   });
 
+  it("renders CN facade boards and requests members by synthetic CN.<name> instrumentId", async () => {
+    const boards = [
+      {
+        instrumentId: "CN.半导体",
+        market: "CN",
+        name: "半导体",
+        productClass: "plate",
+        changeRate: 1.5,
+        turnover: 1.2e10,
+        volume: 8e8,
+        leadingStockName: "中芯国际",
+        leadingStockChangeRate: 3.2,
+      },
+      {
+        instrumentId: "CN.新能源",
+        market: "CN",
+        name: "新能源",
+        productClass: "plate",
+        changeRate: -0.8,
+        turnover: 9e9,
+      },
+    ];
+    const members = [
+      {
+        instrumentId: "SH.688981",
+        market: "SH",
+        symbol: "688981",
+        name: "中芯国际",
+        price: 90.5,
+        changeRate: 3.2,
+        changeAmount: 2.8,
+        volume: 1.2e6,
+        turnover: 9.7e7,
+      },
+    ];
+    mocks.fetch.mockImplementation((path: string) => {
+      const params = new URLSearchParams(String(path).split("?")[1]);
+      return Promise.resolve(
+        featureResult(params.get("operation") === "plate_list" ? boards : members),
+      );
+    });
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
+    const wrapper = mount(ConceptSectorView, {
+      props: { market: "CN", brokerId: "akshare" },
+    });
+    await flushPromises();
+
+    const plateRows = wrapper.findAll(".concept-sector-view__plates tbody tr");
+    expect(plateRows).toHaveLength(2);
+    expect(wrapper.text()).toContain("半导体");
+    expect(wrapper.text()).toContain("+1.50%");
+    // plate_list fans logical CN out to the concrete SH/SZ markets.
+    const listMarkets = mocks.fetch.mock.calls
+      .map(([path]) => new URLSearchParams(String(path).split("?")[1]))
+      .filter((params) => params.get("operation") === "plate_list")
+      .map((params) => params.get("market"));
+    expect(listMarkets.sort()).toEqual(["SH", "SZ"]);
+
+    await vi.waitFor(() => expect(wrapper.text()).toContain("中芯国际"));
+    const memberCalls = mocks.fetch.mock.calls
+      .map(([path]) => new URLSearchParams(String(path).split("?")[1]))
+      .filter((params) => params.get("operation") === "plate_members");
+    expect(memberCalls.length).toBeGreaterThan(0);
+    expect(
+      memberCalls.every((params) => params.get("instrumentId") === "CN.半导体"),
+    ).toBe(true);
+    expect(memberCalls.map((params) => params.get("market")).sort()).toEqual(["SH", "SZ"]);
+
+    await wrapper.findAll(".concept-sector-view__plates tbody tr")[1]!.trigger("click");
+    await flushPromises();
+    expect(
+      mocks.fetch.mock.calls.some(
+        ([path]) =>
+          new URLSearchParams(String(path).split("?")[1]).get("instrumentId") ===
+          "CN.新能源",
+      ),
+    ).toBe(true);
+  });
+
   it("shows plate request failures", async () => {
     mocks.fetch.mockRejectedValue(new Error("板块失败"));
     mocks.fetchWithInit.mockResolvedValue({ quotes: [] });

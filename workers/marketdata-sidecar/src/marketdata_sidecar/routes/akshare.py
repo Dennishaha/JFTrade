@@ -7,13 +7,22 @@ from importlib.metadata import PackageNotFoundError, version
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
-from .. import akshare_index_constituents, akshare_news, akshare_provider, akshare_upstream
+from .. import (
+    akshare_index_constituents,
+    akshare_industries,
+    akshare_news,
+    akshare_provider,
+    akshare_rankings,
+    akshare_upstream,
+)
 from ..akshare_models import (
     AKBatchError,
     AKBatchRequest,
     AKBatchResponse,
     AKCandlesResponse,
     AKIndexConstituentsResponse,
+    AKIndustriesResponse,
+    AKIndustryMembersResponse,
     AKSearchResponse,
     AKSecurityResponse,
     AKSnapshotResponse,
@@ -26,14 +35,17 @@ from ..models import (
     MarketsResponse,
     NewsResponse,
     ProviderHealthResponse,
+    RankingsResponse,
     TradingWindow,
 )
 from ..readiness import provider_health_response
 from .common import (
     MARKET_SPECS,
     action_window,
+    parse_board_kind,
     parse_candle_adjustment,
     parse_candle_sessions,
+    parse_ranking_kind,
 )
 from ..conversion import parse_rfc3339_utc
 
@@ -191,6 +203,54 @@ def index_constituents(
         akshare_index_constituents.index_constituents,
         market,
         symbol,
+        limit,
+    )
+
+
+@router.get("/rankings", response_model=RankingsResponse)
+def rankings(
+    market: str = Query(),
+    kind: str = Query(),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> RankingsResponse:
+    return _translate(
+        "rankings lookup",
+        akshare_rankings.rankings,
+        market,
+        parse_ranking_kind(kind),
+        limit,
+    )
+
+
+@router.get("/industries", response_model=AKIndustriesResponse)
+def industries(
+    kind: str = Query(default="industry"),
+    market: str = Query(default="CN"),
+) -> AKIndustriesResponse:
+    return _translate(
+        "industries lookup",
+        akshare_industries.industries,
+        market,
+        parse_board_kind(kind),
+    )
+
+
+@router.get(
+    "/industries/{name}/members",
+    response_model=AKIndustryMembersResponse,
+)
+def industry_members(
+    name: str,
+    kind: str | None = Query(default=None),
+    market: str = Query(default="CN"),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> AKIndustryMembersResponse:
+    return _translate(
+        "industry members lookup",
+        akshare_industries.industry_members,
+        market,
+        parse_board_kind(kind) if kind is not None else None,
+        name,
         limit,
     )
 

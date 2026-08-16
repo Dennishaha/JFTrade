@@ -10,9 +10,12 @@ export const embeddedPythonMarketDataFeatureIDs = new Set([
   "market.news",
   "market.corporate_actions",
   // Product-feature ids served by embedded providers through the backend
-  // facade (workspace 资讯 tab / research 公司行动 operation).
+  // facade (workspace 资讯 tab / research 公司行动 operation / 研究中心
+  // 榜单与板块 operations).
   "research.news",
   "research.corporate_actions",
+  "research.rankings",
+  "research.industry",
 ]);
 
 const supportedMarkets = new Set(["US", "HK", "CN", "SH", "SZ"]);

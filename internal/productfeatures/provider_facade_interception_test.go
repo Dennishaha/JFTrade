@@ -13,17 +13,35 @@ import (
 )
 
 type embeddedReaderStub struct {
-	newsResponse  marketdata.NewsResponse
-	newsErr       error
-	newsCalls     int
-	newsMarket    string
-	newsSymbol    string
-	newsLimit     int
-	actionsResult marketdata.CorporateActionsResponse
-	actionsErr    error
-	actionsCalls  int
-	actionsFrom   time.Time
-	actionsTo     time.Time
+	newsResponse   marketdata.NewsResponse
+	newsErr        error
+	newsCalls      int
+	newsMarket     string
+	newsSymbol     string
+	newsLimit      int
+	actionsResult  marketdata.CorporateActionsResponse
+	actionsErr     error
+	actionsCalls   int
+	actionsFrom    time.Time
+	actionsTo      time.Time
+	rankingsResult marketdata.RankingsResponse
+	rankingsErr    error
+	rankingsCalls  int
+	rankingsMarket string
+	rankingsKind   string
+	rankingsLimit  int
+	boardsResult   marketdata.IndustryBoardsResponse
+	boardsErr      error
+	boardsCalls    int
+	boardsMarket   string
+	boardsKind     string
+	membersResult  marketdata.IndustryMembersResponse
+	membersErr     error
+	membersCalls   int
+	membersMarket  string
+	membersKind    string
+	membersBoard   string
+	membersLimit   int
 }
 
 func (s *embeddedReaderStub) GetNews(
@@ -44,6 +62,35 @@ func (s *embeddedReaderStub) GetCorporateActions(
 	s.actionsCalls++
 	s.actionsFrom, s.actionsTo = from, to
 	return s.actionsResult, s.actionsErr
+}
+
+func (s *embeddedReaderStub) GetRankings(
+	_ context.Context,
+	market, kind string,
+	limit int,
+) (marketdata.RankingsResponse, error) {
+	s.rankingsCalls++
+	s.rankingsMarket, s.rankingsKind, s.rankingsLimit = market, kind, limit
+	return s.rankingsResult, s.rankingsErr
+}
+
+func (s *embeddedReaderStub) GetIndustries(
+	_ context.Context,
+	market, kind string,
+) (marketdata.IndustryBoardsResponse, error) {
+	s.boardsCalls++
+	s.boardsMarket, s.boardsKind = market, kind
+	return s.boardsResult, s.boardsErr
+}
+
+func (s *embeddedReaderStub) GetIndustryMembers(
+	_ context.Context,
+	market, kind, board string,
+	limit int,
+) (marketdata.IndustryMembersResponse, error) {
+	s.membersCalls++
+	s.membersMarket, s.membersKind, s.membersBoard, s.membersLimit = market, kind, board, limit
+	return s.membersResult, s.membersErr
 }
 
 func activeProviderStub(descriptor marketdata.ProviderDescriptor) func(context.Context) (marketdata.ProviderDescriptor, error) {
