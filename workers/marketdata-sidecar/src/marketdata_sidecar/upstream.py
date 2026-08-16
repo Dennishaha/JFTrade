@@ -19,6 +19,7 @@ SECURITY_CACHE_SECONDS = 86400
 NEWS_CACHE_SECONDS = 300
 ACTIONS_CACHE_SECONDS = 3600
 SCREEN_CACHE_SECONDS = 60
+RESEARCH_CACHE_SECONDS = 3600
 
 
 RuntimeState = Literal["warming", "ready", "failed"]
@@ -252,6 +253,123 @@ def _fetch_screen_quotes(
             "Yahoo Finance screener response has an invalid schema",
         )
     return [dict(quote) for quote in quotes if isinstance(quote, dict)]
+
+
+_ticker_financials_cache = _TickerInfoCache()
+_ticker_analyst_cache = _TickerInfoCache()
+_ticker_ownership_cache = _TickerInfoCache()
+
+# Ticker financial statement property per statement selector.
+_FINANCIAL_ACCESSORS = {
+    "income": "income_stmt",
+    "balance": "balance_sheet",
+    "cashflow": "cashflow",
+}
+
+
+def ticker_financials(symbol: str, statement: str) -> dict[str, Any]:
+    """Return cached yearly statement data as plain periods/rows records."""
+    runtime = require_runtime()
+    return _ticker_financials_cache.get_or_fetch(
+        f"{symbol}:{statement}",
+        RESEARCH_CACHE_SECONDS,
+        lambda: _fetch_financials(runtime, symbol, statement),
+    )
+
+
+def _fetch_financials(
+    runtime: _RuntimeComponents,
+    symbol: str,
+    statement: str,
+) -> dict[str, Any]:
+    ticker = runtime.yfinance.Ticker(symbol, session=runtime.session)
+    frame = getattr(ticker, _FINANCIAL_ACCESSORS[statement], None)
+    if frame is None or getattr(frame, "empty", True):
+        return {"periods": [], "rows": {}}
+    periods = [
+        column.date().isoformat() if hasattr(column, "date") else str(column)
+        for column in frame.columns
+    ]
+    rows = {
+        str(label): [_plain_value(value) for value in series.tolist()]
+        for label, series in frame.iterrows()
+    }
+    return {"periods": periods, "rows": rows}
+
+
+def ticker_analyst(symbol: str) -> dict[str, Any]:
+    """Return cached recommendation-trend rows and analyst price targets."""
+    runtime = require_runtime()
+    return _ticker_analyst_cache.get_or_fetch(
+        symbol,
+        RESEARCH_CACHE_SECONDS,
+        lambda: _fetch_analyst(runtime, symbol),
+    )
+
+
+def _fetch_analyst(runtime: _RuntimeComponents, symbol: str) -> dict[str, Any]:
+    ticker = runtime.yfinance.Ticker(symbol, session=runtime.session)
+    trend = getattr(ticker, "recommendations", None)
+    records = (
+        [
+            {str(key): _plain_value(value) for key, value in row.items()}
+            for _index, row in trend.iterrows()
+        ]
+        if trend is not None and not getattr(trend, "empty", True)
+        else []
+    )
+    targets = getattr(ticker, "analyst_price_targets", None) or {}
+    return {
+        "trend": records,
+        "targets": {
+            str(key): finite_float(value) for key, value in targets.items()
+        },
+    }
+
+
+def ticker_ownership(symbol: str) -> dict[str, list[dict[str, Any]]]:
+    """Return cached major/institutional/mutualfund holder records."""
+    runtime = require_runtime()
+    return _ticker_ownership_cache.get_or_fetch(
+        symbol,
+        RESEARCH_CACHE_SECONDS,
+        lambda: _fetch_ownership(runtime, symbol),
+    )
+
+
+def _fetch_ownership(
+    runtime: _RuntimeComponents,
+    symbol: str,
+) -> dict[str, list[dict[str, Any]]]:
+    ticker = runtime.yfinance.Ticker(symbol, session=runtime.session)
+    return {
+        "major": _holder_records(getattr(ticker, "major_holders", None)),
+        "institutional": _holder_records(getattr(ticker, "institutional_holders", None)),
+        "mutualfund": _holder_records(getattr(ticker, "mutualfund_holders", None)),
+    }
+
+
+def _holder_records(frame: Any) -> list[dict[str, Any]]:
+    if frame is None or getattr(frame, "empty", True):
+        return []
+    records: list[dict[str, Any]] = []
+    for index, row in frame.iterrows():
+        record = {str(key): _plain_value(value) for key, value in row.items()}
+        record["label"] = str(index)
+        records.append(record)
+    return records
+
+
+def _plain_value(value: Any) -> Any:
+    if hasattr(value, "date") and not isinstance(value, str):
+        try:
+            return value.date().isoformat()
+        except (TypeError, ValueError):
+            return None
+    number = finite_float(value)
+    if number is not None:
+        return number
+    return clean_text(value)
 
 
 def ticker_fast_info(symbol: str) -> dict[str, Any] | None:

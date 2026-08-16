@@ -198,6 +198,87 @@ class RankingsResponse(WireModel):
     source: str
 
 
+class ProfileField(WireModel):
+    name: str
+    value: str
+
+
+class ProfileGroup(WireModel):
+    title: str
+    fields: list[ProfileField]
+
+
+class ProfileResponse(WireModel):
+    instrument_id: str
+    market: str
+    symbol: str
+    currency: str | None = None
+    groups: list[ProfileGroup]
+
+
+class FinancialField(WireModel):
+    field_id: str
+    display_name: str
+
+
+class FinancialValue(WireModel):
+    data: float | None = None
+    yoy: float | None = None
+    qoq: float | None = None
+
+
+class FinancialPeriod(WireModel):
+    period_text: str
+    values: dict[str, FinancialValue]
+
+
+class FinancialsResponse(WireModel):
+    instrument_id: str
+    statement: str
+    currency: str | None = None
+    fields: list[FinancialField]
+    periods: list[FinancialPeriod]
+
+
+class AnalystTargetPrice(WireModel):
+    lowest: float | None = None
+    average: float | None = None
+    highest: float | None = None
+
+
+class AnalystDistribution(WireModel):
+    strong_buy: float
+    buy: float
+    hold: float
+    underperform: float
+    sell: float
+
+
+class AnalystResponse(WireModel):
+    instrument_id: str
+    rating: float | None = None
+    analyst_count: int | None = None
+    target_price: AnalystTargetPrice | None = None
+    distribution: AnalystDistribution | None = None
+    update_time: str | None = None
+
+
+class OwnershipItem(WireModel):
+    name: str
+    holder_pct: float | None = None
+
+
+class OwnershipGroup(WireModel):
+    kind: str
+    static_date: str | None = None
+    items: list[OwnershipItem]
+
+
+class OwnershipResponse(WireModel):
+    instrument_id: str
+    groups: list[OwnershipGroup]
+
+
 class NewsEntry(WireModel):
     title: str | None = None
     link: str | None = None

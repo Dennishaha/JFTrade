@@ -270,3 +270,152 @@ func embeddedResolvedInstrument(
 		QuantityMode:  broker.QuantityModeUnits,
 	}
 }
+
+// projectProviderCompanyProfile flattens grouped profile fields into the
+// entry stream the console reads: a {fieldType:"title",name} row opens a group
+// and {fieldType:"text",name,value} rows fill it
+// (apps/web/src/components/research/useInstrumentResearchController.ts:104-132).
+func projectProviderCompanyProfile(
+	descriptor marketdata.ProviderDescriptor,
+	query *broker.FeatureQuery,
+	response marketdata.CompanyProfileResponse,
+	market string,
+	now time.Time,
+) *broker.FeatureResult {
+	entries := make([]map[string]any, 0)
+	for _, group := range response.Groups {
+		if title := strings.TrimSpace(group.Title); title != "" {
+			entries = append(entries, map[string]any{"fieldType": "title", "name": title})
+		}
+		for _, field := range group.Fields {
+			name, value := strings.TrimSpace(field.Name), strings.TrimSpace(field.Value)
+			if name == "" && value == "" {
+				continue
+			}
+			entries = append(entries, map[string]any{"fieldType": "text", "name": name, "value": value})
+		}
+	}
+	return embeddedFeatureResult(
+		descriptor, query, response.InstrumentID, market, now, now, entries, response.Source,
+	)
+}
+
+// projectProviderFinancialStatements projects the statement table into
+// metadata.structureList plus one entry per period with itemList cells
+// (apps/web/src/components/research/useInstrumentResearchController.ts:134-181);
+// yoy/qoq keys are omitted when the upstream feed has no comparison.
+func projectProviderFinancialStatements(
+	descriptor marketdata.ProviderDescriptor,
+	query *broker.FeatureQuery,
+	response marketdata.FinancialStatementsResponse,
+	market string,
+	now time.Time,
+) *broker.FeatureResult {
+	structureList := make([]map[string]any, 0, len(response.Fields))
+	for _, field := range response.Fields {
+		structureList = append(structureList, map[string]any{
+			"fieldId": field.FieldID, "displayName": field.DisplayName,
+		})
+	}
+	entries := make([]map[string]any, 0, len(response.Periods))
+	for _, period := range response.Periods {
+		itemList := make([]map[string]any, 0, len(period.Values))
+		for _, field := range response.Fields {
+			value, ok := period.Values[field.FieldID]
+			if !ok {
+				continue
+			}
+			item := map[string]any{"fieldId": field.FieldID}
+			putProviderNumber(item, "data", value.Data)
+			putProviderNumber(item, "yoy", value.YoY)
+			putProviderNumber(item, "qoq", value.QoQ)
+			itemList = append(itemList, item)
+		}
+		entry := map[string]any{"periodText": period.PeriodText, "itemList": itemList}
+		if response.Currency != nil {
+			entry["currencyCode"] = *response.Currency
+		}
+		entries = append(entries, entry)
+	}
+	result := embeddedFeatureResult(
+		descriptor, query, response.InstrumentID, market, now, now, entries, response.Source,
+	)
+	result.Metadata["structureList"] = structureList
+	return result
+}
+
+// projectProviderAnalystConsensus projects the consensus into the single entry
+// the console reads at index 0
+// (apps/web/src/components/research/useInstrumentResearchController.ts:412-442,
+// apps/web/src/components/research/InstrumentResearchView.vue:66-99,280-282,309).
+// Nullable upstream fields are omitted from the entry.
+func projectProviderAnalystConsensus(
+	descriptor marketdata.ProviderDescriptor,
+	query *broker.FeatureQuery,
+	response marketdata.AnalystConsensusResponse,
+	market string,
+	now time.Time,
+) *broker.FeatureResult {
+	entry := map[string]any{}
+	putProviderNumber(entry, "rating", response.Rating)
+	putProviderNumber(entry, "analystCount", response.AnalystCount)
+	if target := response.TargetPrice; target != nil {
+		putProviderNumber(entry, "lowest", target.Lowest)
+		putProviderNumber(entry, "average", target.Average)
+		putProviderNumber(entry, "highest", target.Highest)
+	}
+	if distribution := response.Distribution; distribution != nil {
+		putProviderNumber(entry, "strongBuy", distribution.StrongBuy)
+		putProviderNumber(entry, "buy", distribution.Buy)
+		putProviderNumber(entry, "hold", distribution.Hold)
+		putProviderNumber(entry, "underperform", distribution.Underperform)
+		putProviderNumber(entry, "sell", distribution.Sell)
+	}
+	if response.UpdateTime != nil {
+		if updateTime := strings.TrimSpace(*response.UpdateTime); updateTime != "" {
+			entry["updateTimeStr"] = updateTime
+		}
+	}
+	return embeddedFeatureResult(
+		descriptor, query, response.InstrumentID, market, now, now,
+		[]map[string]any{entry}, response.Source,
+	)
+}
+
+// projectProviderOwnership splits ownership groups into the metadata lists the
+// console reads: mainHolderInfoList for major_holders and holderTypeInfoList
+// for holder_types
+// (apps/web/src/components/research/useInstrumentResearchController.ts:443-514).
+func projectProviderOwnership(
+	descriptor marketdata.ProviderDescriptor,
+	query *broker.FeatureQuery,
+	response marketdata.OwnershipResponse,
+	market string,
+	now time.Time,
+) *broker.FeatureResult {
+	mainHolderInfoList := make([]map[string]any, 0)
+	holderTypeInfoList := make([]map[string]any, 0)
+	for _, group := range response.Groups {
+		itemList := make([]map[string]any, 0, len(group.Items))
+		for _, item := range group.Items {
+			projected := map[string]any{"name": item.Name}
+			putProviderNumber(projected, "holderPct", item.HolderPct)
+			itemList = append(itemList, projected)
+		}
+		entry := map[string]any{"itemList": itemList}
+		if group.StaticDate != nil && strings.TrimSpace(*group.StaticDate) != "" {
+			entry["staticDateStr"] = strings.TrimSpace(*group.StaticDate)
+		}
+		if group.Kind == marketdata.OwnershipGroupHolderTypes {
+			holderTypeInfoList = append(holderTypeInfoList, entry)
+		} else {
+			mainHolderInfoList = append(mainHolderInfoList, entry)
+		}
+	}
+	result := embeddedFeatureResult(
+		descriptor, query, response.InstrumentID, market, now, now, []map[string]any{}, response.Source,
+	)
+	result.Metadata["mainHolderInfoList"] = mainHolderInfoList
+	result.Metadata["holderTypeInfoList"] = holderTypeInfoList
+	return result
+}

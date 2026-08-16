@@ -403,3 +403,33 @@ func (c *Client) industryMembers(
 	err := c.get(ctx, providerSegments("industries", board, "members"), values, &response)
 	return response, err
 }
+
+func (c *Client) companyProfile(ctx context.Context, marketValue, symbol string) (remoteCompanyProfile, error) {
+	var response remoteCompanyProfile
+	err := c.get(ctx, providerSegments("profile", marketValue, symbol), nil, &response)
+	return response, err
+}
+
+func (c *Client) financialStatements(
+	ctx context.Context,
+	marketValue string,
+	symbol string,
+	statement string,
+) (remoteFinancialStatements, error) {
+	values := url.Values{"statement": {statement}}
+	var response remoteFinancialStatements
+	err := c.get(ctx, providerSegments("financials", marketValue, symbol), values, &response)
+	return response, err
+}
+
+func (c *Client) ownership(ctx context.Context, marketValue, symbol string) (remoteOwnership, error) {
+	var response remoteOwnership
+	err := c.get(ctx, providerSegments("ownership", marketValue, symbol), nil, &response)
+	return response, err
+}
+
+func (c *Client) analystConsensus(ctx context.Context, marketValue, symbol string) (remoteAnalystConsensus, error) {
+	var response remoteAnalystConsensus
+	err := c.get(ctx, providerSegments("analyst", marketValue, symbol), nil, &response)
+	return response, err
+}

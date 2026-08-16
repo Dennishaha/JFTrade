@@ -27,6 +27,14 @@ type apiEmbeddedReader struct {
 	boardsErr    error
 	members      marketdatasrv.IndustryMembersResponse
 	membersErr   error
+	profile      marketdatasrv.CompanyProfileResponse
+	profileErr   error
+	statements   marketdatasrv.FinancialStatementsResponse
+	statementErr error
+	consensus    marketdatasrv.AnalystConsensusResponse
+	consensusErr error
+	ownership    marketdatasrv.OwnershipResponse
+	ownershipErr error
 }
 
 func (r *apiEmbeddedReader) GetNews(
@@ -60,6 +68,35 @@ func (r *apiEmbeddedReader) GetIndustryMembers(
 ) (marketdatasrv.IndustryMembersResponse, error) {
 	r.members.Board = board
 	return r.members, r.membersErr
+}
+
+func (r *apiEmbeddedReader) GetCompanyProfile(
+	_ context.Context, market, symbol string,
+) (marketdatasrv.CompanyProfileResponse, error) {
+	r.profile.Market, r.profile.Symbol = market, symbol
+	return r.profile, r.profileErr
+}
+
+func (r *apiEmbeddedReader) GetFinancialStatements(
+	_ context.Context, market, symbol, statement string,
+) (marketdatasrv.FinancialStatementsResponse, error) {
+	r.statements.Market, r.statements.Symbol = market, symbol
+	r.statements.Statement = statement
+	return r.statements, r.statementErr
+}
+
+func (r *apiEmbeddedReader) GetAnalystConsensus(
+	_ context.Context, market, symbol string,
+) (marketdatasrv.AnalystConsensusResponse, error) {
+	r.consensus.Market, r.consensus.Symbol = market, symbol
+	return r.consensus, r.consensusErr
+}
+
+func (r *apiEmbeddedReader) GetOwnership(
+	_ context.Context, market, symbol string,
+) (marketdatasrv.OwnershipResponse, error) {
+	r.ownership.Market, r.ownership.Symbol = market, symbol
+	return r.ownership, r.ownershipErr
 }
 
 func newEmbeddedProviderRouter(reader *apiEmbeddedReader) *gin.Engine {
@@ -269,5 +306,133 @@ func TestEmbeddedProviderRankingsRouteMapsUnsupportedOperations(t *testing.T) {
 	)
 	if busy.Code != http.StatusServiceUnavailable || busy.Header().Get("Retry-After") != "2" {
 		t.Fatalf("busy status=%d retry=%q", busy.Code, busy.Header().Get("Retry-After"))
+	}
+}
+
+func TestEmbeddedProviderCompanyResearchRoutes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	revenue := json.Number("416161000000")
+	rating := json.Number("4")
+	holderPct := json.Number("54.07")
+	reader := &apiEmbeddedReader{
+		profile: marketdatasrv.CompanyProfileResponse{
+			InstrumentID: "US.AAPL", Source: "yfinance-profile",
+			Groups: []marketdatasrv.CompanyProfileGroup{{
+				Title:  "公司概要",
+				Fields: []marketdatasrv.CompanyProfileField{{Name: "行业", Value: "消费电子"}},
+			}},
+		},
+		statements: marketdatasrv.FinancialStatementsResponse{
+			InstrumentID: "SH.600519", Source: "akshare-financials",
+			Fields: []marketdatasrv.FinancialStatementField{{FieldID: "total_revenue", DisplayName: "总营收"}},
+			Periods: []marketdatasrv.FinancialStatementPeriod{{
+				PeriodText: "2025财年",
+				Values:     map[string]marketdatasrv.FinancialStatementValue{"total_revenue": {Data: &revenue}},
+			}},
+		},
+		consensus: marketdatasrv.AnalystConsensusResponse{
+			InstrumentID: "US.AAPL", Source: "yfinance-analyst", Rating: &rating,
+		},
+		ownership: marketdatasrv.OwnershipResponse{
+			InstrumentID: "SH.600519", Source: "akshare-ownership",
+			Groups: []marketdatasrv.OwnershipGroup{{
+				Kind:  marketdatasrv.OwnershipGroupMajorHolders,
+				Items: []marketdatasrv.OwnershipItem{{Name: "茅台集团", HolderPct: &holderPct}},
+			}},
+		},
+	}
+	router := newEmbeddedProviderRouter(reader)
+
+	profile := performFeatureRequest(
+		t, router, http.MethodGet,
+		"/api/v1/research/instruments/US.AAPL?brokerId=yfinance&operation=profile", "",
+	)
+	if profile.Code != http.StatusOK {
+		t.Fatalf("profile status=%d body=%s", profile.Code, profile.Body.String())
+	}
+	if !strings.Contains(profile.Body.String(), `"fieldType":"title"`) ||
+		!strings.Contains(profile.Body.String(), `"fieldType":"text"`) {
+		t.Fatalf("profile entries missing from body=%s", profile.Body.String())
+	}
+	if reader.profile.Market != "US" || reader.profile.Symbol != "AAPL" {
+		t.Fatalf("profile instrument forwarded = %q %q", reader.profile.Market, reader.profile.Symbol)
+	}
+
+	financials := performFeatureRequest(
+		t, router, http.MethodGet,
+		"/api/v1/research/financials/SH.600519?brokerId=yfinance&operation=statements&statement=cashflow", "",
+	)
+	if financials.Code != http.StatusOK {
+		t.Fatalf("financials status=%d body=%s", financials.Code, financials.Body.String())
+	}
+	if !strings.Contains(financials.Body.String(), `"structureList"`) ||
+		!strings.Contains(financials.Body.String(), `"total_revenue"`) {
+		t.Fatalf("financials projection missing from body=%s", financials.Body.String())
+	}
+	if reader.statements.Statement != "cashflow" {
+		t.Fatalf("statement param forwarded = %q", reader.statements.Statement)
+	}
+
+	analyst := performFeatureRequest(
+		t, router, http.MethodGet,
+		"/api/v1/research/analyst/US.AAPL?brokerId=yfinance&operation=consensus", "",
+	)
+	if analyst.Code != http.StatusOK {
+		t.Fatalf("analyst status=%d body=%s", analyst.Code, analyst.Body.String())
+	}
+	if !strings.Contains(analyst.Body.String(), `"rating":4`) {
+		t.Fatalf("analyst rating missing from body=%s", analyst.Body.String())
+	}
+
+	ownership := performFeatureRequest(
+		t, router, http.MethodGet,
+		"/api/v1/research/ownership/SH.600519?brokerId=yfinance&operation=overview", "",
+	)
+	if ownership.Code != http.StatusOK {
+		t.Fatalf("ownership status=%d body=%s", ownership.Code, ownership.Body.String())
+	}
+	if !strings.Contains(ownership.Body.String(), `"mainHolderInfoList"`) ||
+		!strings.Contains(ownership.Body.String(), `"holderTypeInfoList"`) {
+		t.Fatalf("ownership metadata missing from body=%s", ownership.Body.String())
+	}
+}
+
+func TestEmbeddedProviderCompanyResearchRejectsUnsupportedOperations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	reader := &apiEmbeddedReader{}
+	router := newEmbeddedProviderRouter(reader)
+
+	// Each embedded research feature serves exactly one operation; anything
+	// else must answer 409 instead of leaking to the broker registry.
+	for _, path := range []string{
+		"/api/v1/research/instruments/US.AAPL?brokerId=yfinance&operation=deep_dive",
+		"/api/v1/research/financials/US.AAPL?brokerId=yfinance&operation=guidance",
+		"/api/v1/research/analyst/US.AAPL?brokerId=yfinance&operation=estimate_trend",
+		"/api/v1/research/ownership/US.AAPL?brokerId=yfinance&operation=holder_changes",
+	} {
+		response := performFeatureRequest(t, router, http.MethodGet, path, "")
+		if response.Code != http.StatusConflict {
+			t.Fatalf("%s status=%d body=%s", path, response.Code, response.Body.String())
+		}
+	}
+
+	reader.profileErr = fmt.Errorf("%w: active provider %q does not support company profile",
+		marketdatasrv.ErrCapabilityUnsupported, "yfinance")
+	unavailable := performFeatureRequest(
+		t, router, http.MethodGet,
+		"/api/v1/research/instruments/US.AAPL?brokerId=yfinance", "",
+	)
+	if unavailable.Code != http.StatusConflict {
+		t.Fatalf("capability error status=%d body=%s", unavailable.Code, unavailable.Body.String())
+	}
+
+	reader.profileErr = marketdatasrv.ErrProviderWarming
+	warming := performFeatureRequest(
+		t, router, http.MethodGet,
+		"/api/v1/research/instruments/US.AAPL?brokerId=yfinance&operation=profile", "",
+	)
+	if warming.Code != http.StatusServiceUnavailable ||
+		warming.Header().Get("Retry-After") != "1" {
+		t.Fatalf("warming status=%d retry=%q", warming.Code, warming.Header().Get("Retry-After"))
 	}
 }

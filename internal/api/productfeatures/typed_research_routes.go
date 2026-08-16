@@ -47,7 +47,8 @@ func handleInstrumentResearchQuery(
 		result, err := svc.QueryInstrumentResearch(c.Request.Context(), service.InstrumentResearchRequest{
 			ReadContext: typedReadContext(c), Family: family,
 			InstrumentID: strings.ToUpper(strings.TrimSpace(c.Param("instrumentId"))),
-			Operation:    c.Query("operation"), Refresh: c.Query("refresh") == "true",
+			Operation:    c.Query("operation"), Statement: c.Query("statement"),
+			Refresh: c.Query("refresh") == "true",
 		})
 		writeDocumentResult(c, result, err)
 	}

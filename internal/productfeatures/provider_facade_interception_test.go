@@ -42,6 +42,28 @@ type embeddedReaderStub struct {
 	membersKind    string
 	membersBoard   string
 	membersLimit   int
+
+	profileResult    marketdata.CompanyProfileResponse
+	profileErr       error
+	profileCalls     int
+	profileMarket    string
+	profileSymbol    string
+	statementsResult marketdata.FinancialStatementsResponse
+	statementsErr    error
+	statementsCalls  int
+	statementsMarket string
+	statementsSymbol string
+	statementsKind   string
+	analystResult    marketdata.AnalystConsensusResponse
+	analystErr       error
+	analystCalls     int
+	analystMarket    string
+	analystSymbol    string
+	ownershipResult  marketdata.OwnershipResponse
+	ownershipErr     error
+	ownershipCalls   int
+	ownershipMarket  string
+	ownershipSymbol  string
 }
 
 func (s *embeddedReaderStub) GetNews(
@@ -279,4 +301,40 @@ func mustJSONNumber(t *testing.T, value string) *json.Number {
 		t.Fatalf("invalid number %q: %v", value, err)
 	}
 	return &number
+}
+
+func (s *embeddedReaderStub) GetCompanyProfile(
+	_ context.Context,
+	market, symbol string,
+) (marketdata.CompanyProfileResponse, error) {
+	s.profileCalls++
+	s.profileMarket, s.profileSymbol = market, symbol
+	return s.profileResult, s.profileErr
+}
+
+func (s *embeddedReaderStub) GetFinancialStatements(
+	_ context.Context,
+	market, symbol, statement string,
+) (marketdata.FinancialStatementsResponse, error) {
+	s.statementsCalls++
+	s.statementsMarket, s.statementsSymbol, s.statementsKind = market, symbol, statement
+	return s.statementsResult, s.statementsErr
+}
+
+func (s *embeddedReaderStub) GetAnalystConsensus(
+	_ context.Context,
+	market, symbol string,
+) (marketdata.AnalystConsensusResponse, error) {
+	s.analystCalls++
+	s.analystMarket, s.analystSymbol = market, symbol
+	return s.analystResult, s.analystErr
+}
+
+func (s *embeddedReaderStub) GetOwnership(
+	_ context.Context,
+	market, symbol string,
+) (marketdata.OwnershipResponse, error) {
+	s.ownershipCalls++
+	s.ownershipMarket, s.ownershipSymbol = market, symbol
+	return s.ownershipResult, s.ownershipErr
 }

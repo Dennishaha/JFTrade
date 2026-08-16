@@ -226,8 +226,8 @@ describe("broker provider tag", () => {
     const wrapper = mount(BrokerProviderTag, {
       props: {
         market: "US",
-        featureId: "research.instrument",
-        featureIds: ["research.instrument"],
+        featureId: "research.valuation",
+        featureIds: ["research.valuation"],
         enableEmbeddedMarketDataProvider: true,
       },
       global: { stubs: productGlobalStubs },

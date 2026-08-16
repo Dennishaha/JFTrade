@@ -36,7 +36,6 @@ describe("embedded Python market-data providers", () => {
     expect(embeddedPythonMarketDataFeatureIDs.has("market.corporate_actions")).toBe(true);
     expect(embeddedPythonMarketDataFeatureIDs.has("research.news")).toBe(true);
     expect(embeddedPythonMarketDataFeatureIDs.has("research.corporate_actions")).toBe(true);
-    expect(embeddedPythonMarketDataFeatureIDs.has("research.instrument")).toBe(false);
   });
 
   it("marks facade-served rankings and industry boards as embedded-capable", () => {
@@ -44,6 +43,15 @@ describe("embedded Python market-data providers", () => {
     expect(embeddedPythonMarketDataFeatureIDs.has("research.industry")).toBe(true);
     expect(embeddedPythonMarketDataFeatureIDs.has("research.institutions")).toBe(false);
     expect(embeddedPythonMarketDataFeatureIDs.has("research.macro")).toBe(false);
+  });
+
+  it("marks instrument research tabs as embedded-capable except valuation and short interest", () => {
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.instrument")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.financials")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.analyst")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.ownership")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.valuation")).toBe(false);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.short_interest")).toBe(false);
   });
 
   it("keeps Yahoo aliases and provider-specific status identities", () => {

@@ -308,3 +308,32 @@ func (c *Client) rankings(ctx context.Context, market, kind string, limit int) (
 	err := c.get(ctx, yfinanceProviderSegments("rankings"), values, &response)
 	return response, err
 }
+
+func (c *Client) companyProfile(ctx context.Context, market, symbol string) (remoteCompanyProfile, error) {
+	var response remoteCompanyProfile
+	err := c.get(ctx, yfinanceProviderSegments("profile", market, symbol), nil, &response)
+	return response, err
+}
+
+func (c *Client) financialStatements(
+	ctx context.Context,
+	market, symbol, statement string,
+) (remoteFinancialStatements, error) {
+	values := url.Values{}
+	values.Set("statement", statement)
+	var response remoteFinancialStatements
+	err := c.get(ctx, yfinanceProviderSegments("financials", market, symbol), values, &response)
+	return response, err
+}
+
+func (c *Client) analystConsensus(ctx context.Context, market, symbol string) (remoteAnalystConsensus, error) {
+	var response remoteAnalystConsensus
+	err := c.get(ctx, yfinanceProviderSegments("analyst", market, symbol), nil, &response)
+	return response, err
+}
+
+func (c *Client) ownership(ctx context.Context, market, symbol string) (remoteOwnership, error) {
+	var response remoteOwnership
+	err := c.get(ctx, yfinanceProviderSegments("ownership", market, symbol), nil, &response)
+	return response, err
+}

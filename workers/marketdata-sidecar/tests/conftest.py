@@ -8,9 +8,13 @@ import httpx
 import pytest
 
 from marketdata_sidecar import (
+    akshare_analyst,
+    akshare_financials,
     akshare_index_constituents,
     akshare_industries,
     akshare_news,
+    akshare_ownership,
+    akshare_profile,
     akshare_provider,
     akshare_quotes,
     akshare_upstream,
@@ -42,6 +46,9 @@ def block_real_network(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(upstream, "ticker_news", blocked_yfinance)
     monkeypatch.setattr(upstream, "ticker_actions", blocked_yfinance)
     monkeypatch.setattr(upstream, "screen_quotes", blocked_yfinance)
+    monkeypatch.setattr(upstream, "ticker_financials", blocked_yfinance)
+    monkeypatch.setattr(upstream, "ticker_analyst", blocked_yfinance)
+    monkeypatch.setattr(upstream, "ticker_ownership", blocked_yfinance)
     monkeypatch.setattr(
         akshare_upstream,
         "runtime_snapshot",
@@ -57,11 +64,18 @@ def block_real_network(monkeypatch: pytest.MonkeyPatch) -> None:
     akshare_index_constituents._constituents_cache.clear()
     akshare_industries._boards_cache.clear()
     akshare_industries._members_cache.clear()
+    akshare_profile._profile_cache.clear()
+    akshare_financials._financials_cache.clear()
+    akshare_analyst._analyst_cache.clear()
+    akshare_ownership._ownership_cache.clear()
     upstream._ticker_info_cache.clear()
     upstream._ticker_fast_info_cache.clear()
     upstream._ticker_news_cache.clear()
     upstream._ticker_actions_cache.clear()
     upstream._screener_cache.clear()
+    upstream._ticker_financials_cache.clear()
+    upstream._ticker_analyst_cache.clear()
+    upstream._ticker_ownership_cache.clear()
 
 
 @pytest.fixture

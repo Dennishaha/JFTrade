@@ -364,3 +364,246 @@ func TestEmbeddedRankingsLimitPrecedenceAndClamp(t *testing.T) {
 		t.Fatalf("default limit = %d", got)
 	}
 }
+
+// Profile entry keys are consumed by the console's profile section builder at
+// apps/web/src/components/research/useInstrumentResearchController.ts:104-132
+// (fieldType "title" opens a group, fieldType "text" rows render name/value).
+func TestProviderCompanyProfileProjectionMapsFrontendKeys(t *testing.T) {
+	now := time.Date(2026, 8, 16, 7, 0, 0, 0, time.UTC)
+	response := marketdata.CompanyProfileResponse{
+		InstrumentID: "US.AAPL", Source: "yfinance-profile",
+		Groups: []marketdata.CompanyProfileGroup{
+			{
+				Title: "公司概要",
+				Fields: []marketdata.CompanyProfileField{
+					{Name: "行业", Value: "消费电子"},
+					{Name: "", Value: ""}, // fully empty rows are skipped
+				},
+			},
+			{Title: "", Fields: []marketdata.CompanyProfileField{{Name: "员工数", Value: "164000"}}},
+		},
+	}
+	result := projectProviderCompanyProfile(
+		marketdata.ProviderDescriptor{BrokerID: "yfinance"},
+		&broker.FeatureQuery{FeatureID: broker.FeatureResearchInstrument, InstrumentID: "US.AAPL"},
+		response, "US", now,
+	)
+	if len(result.Entries) != 3 {
+		t.Fatalf("entries = %#v", result.Entries)
+	}
+	if result.Entries[0]["fieldType"] != "title" || result.Entries[0]["name"] != "公司概要" {
+		t.Fatalf("title entry = %#v", result.Entries[0])
+	}
+	if _, ok := result.Entries[0]["value"]; ok {
+		t.Fatalf("title entry must not carry value: %#v", result.Entries[0])
+	}
+	if result.Entries[1]["fieldType"] != "text" || result.Entries[1]["name"] != "行业" ||
+		result.Entries[1]["value"] != "消费电子" {
+		t.Fatalf("text entry = %#v", result.Entries[1])
+	}
+	if result.Entries[2]["name"] != "员工数" {
+		t.Fatalf("title-less group fields must still project: %#v", result.Entries[2])
+	}
+	if result.ResolvedInstrument == nil || result.ResolvedInstrument.InstrumentID != "US.AAPL" ||
+		result.ResolvedInstrument.Code != "AAPL" {
+		t.Fatalf("resolved instrument = %#v", result.ResolvedInstrument)
+	}
+	if result.Metadata["source"] != "yfinance-profile" ||
+		result.Total == nil || *result.Total != 3 {
+		t.Fatalf("envelope metadata=%#v Total=%#v", result.Metadata, result.Total)
+	}
+}
+
+// Statement keys are consumed by the console's financial table at
+// apps/web/src/components/research/useInstrumentResearchController.ts:134-181
+// (metadata.structureList columns plus periodText/itemList entries; yoy/qoq
+// absent means the feed published no comparison).
+func TestProviderFinancialStatementsProjectionMapsFrontendKeys(t *testing.T) {
+	now := time.Date(2026, 8, 16, 7, 0, 0, 0, time.UTC)
+	number := func(value string) *json.Number { n := json.Number(value); return &n }
+	currency := "USD"
+	response := marketdata.FinancialStatementsResponse{
+		InstrumentID: "US.AAPL", Statement: marketdata.StatementIncome,
+		Currency: &currency, Source: "yfinance-financials",
+		Fields: []marketdata.FinancialStatementField{
+			{FieldID: "total_revenue", DisplayName: "总营收"},
+			{FieldID: "net_income", DisplayName: "净利润"},
+		},
+		Periods: []marketdata.FinancialStatementPeriod{
+			{
+				PeriodText: "2025财年",
+				Values: map[string]marketdata.FinancialStatementValue{
+					"total_revenue": {Data: number("416161000000"), YoY: number("0.02")},
+					"net_income":    {Data: number("112010000000")},
+				},
+			},
+			{PeriodText: "2024财年", Values: map[string]marketdata.FinancialStatementValue{}},
+		},
+	}
+	result := projectProviderFinancialStatements(
+		marketdata.ProviderDescriptor{BrokerID: "yfinance"},
+		&broker.FeatureQuery{FeatureID: broker.FeatureResearchFinancials, InstrumentID: "US.AAPL"},
+		response, "US", now,
+	)
+	structure, ok := result.Metadata["structureList"].([]map[string]any)
+	if !ok || len(structure) != 2 {
+		t.Fatalf("structureList = %#v", result.Metadata["structureList"])
+	}
+	if structure[0]["fieldId"] != "total_revenue" || structure[0]["displayName"] != "总营收" {
+		t.Fatalf("structureList[0] = %#v", structure[0])
+	}
+	if len(result.Entries) != 2 {
+		t.Fatalf("entries = %#v", result.Entries)
+	}
+	first := result.Entries[0]
+	if first["periodText"] != "2025财年" || first["currencyCode"] != "USD" {
+		t.Fatalf("period entry = %#v", first)
+	}
+	items, ok := first["itemList"].([]map[string]any)
+	if !ok || len(items) != 2 {
+		t.Fatalf("itemList = %#v", first["itemList"])
+	}
+	if items[0]["fieldId"] != "total_revenue" || items[0]["data"] != json.Number("416161000000") ||
+		items[0]["yoy"] != json.Number("0.02") {
+		t.Fatalf("revenue cell = %#v", items[0])
+	}
+	if _, ok := items[0]["qoq"]; ok {
+		t.Fatalf("nil qoq must be omitted: %#v", items[0])
+	}
+	if _, ok := items[1]["yoy"]; ok {
+		t.Fatalf("nil yoy must be omitted: %#v", items[1])
+	}
+	second := result.Entries[1]
+	if items, ok := second["itemList"].([]map[string]any); !ok || len(items) != 0 {
+		t.Fatalf("empty period must project empty itemList: %#v", second)
+	}
+}
+
+// Analyst keys are consumed by the rating dashboard at
+// apps/web/src/components/research/useInstrumentResearchController.ts:412-442
+// and apps/web/src/components/research/InstrumentResearchView.vue:66-99,
+// 280-282, 309 (single entry at index 0; nullable buckets are omitted).
+func TestProviderAnalystConsensusProjectionMapsFrontendKeys(t *testing.T) {
+	now := time.Date(2026, 8, 16, 7, 0, 0, 0, time.UTC)
+	number := func(value string) *json.Number { n := json.Number(value); return &n }
+	updateTime := "2026-08-15"
+	response := marketdata.AnalystConsensusResponse{
+		InstrumentID: "HK.00700", Source: "yfinance-analyst",
+		Rating: number("4"), AnalystCount: number("38"),
+		TargetPrice: &marketdata.AnalystTargetPrice{
+			Lowest: number("520"), Average: number("700.5"), Highest: number("860"),
+		},
+		Distribution: &marketdata.AnalystDistribution{
+			StrongBuy: number("45"), Buy: number("30"), Hold: number("20"),
+			// Underperform/Sell nil: the feed did not publish those buckets.
+		},
+		UpdateTime: &updateTime,
+	}
+	result := projectProviderAnalystConsensus(
+		marketdata.ProviderDescriptor{BrokerID: "yfinance"},
+		&broker.FeatureQuery{FeatureID: broker.FeatureResearchAnalyst, InstrumentID: "HK.00700"},
+		response, "HK", now,
+	)
+	if len(result.Entries) != 1 {
+		t.Fatalf("entries = %#v", result.Entries)
+	}
+	entry := result.Entries[0]
+	if entry["rating"] != json.Number("4") || entry["analystCount"] != json.Number("38") ||
+		entry["lowest"] != json.Number("520") || entry["average"] != json.Number("700.5") ||
+		entry["highest"] != json.Number("860") {
+		t.Fatalf("rating/target keys = %#v", entry)
+	}
+	if entry["strongBuy"] != json.Number("45") || entry["buy"] != json.Number("30") ||
+		entry["hold"] != json.Number("20") || entry["updateTimeStr"] != "2026-08-15" {
+		t.Fatalf("distribution/update keys = %#v", entry)
+	}
+	for _, key := range []string{"underperform", "sell"} {
+		if _, ok := entry[key]; ok {
+			t.Fatalf("nil bucket %q must be omitted: %#v", key, entry)
+		}
+	}
+	if result.Total == nil || *result.Total != 1 || result.HasMore == nil || *result.HasMore {
+		t.Fatalf("envelope Total=%#v HasMore=%#v", result.Total, result.HasMore)
+	}
+}
+
+func TestProviderAnalystConsensusProjectionOmitsAbsentSections(t *testing.T) {
+	now := time.Date(2026, 8, 16, 7, 0, 0, 0, time.UTC)
+	result := projectProviderAnalystConsensus(
+		marketdata.ProviderDescriptor{BrokerID: "yfinance"},
+		&broker.FeatureQuery{FeatureID: broker.FeatureResearchAnalyst, InstrumentID: "US.AAPL"},
+		marketdata.AnalystConsensusResponse{InstrumentID: "US.AAPL", Source: "yfinance-analyst"},
+		"US", now,
+	)
+	if len(result.Entries) != 1 || len(result.Entries[0]) != 0 {
+		t.Fatalf("fully null consensus must project one empty entry: %#v", result.Entries)
+	}
+}
+
+// Ownership keys are consumed by the holder panels at
+// apps/web/src/components/research/useInstrumentResearchController.ts:443-514
+// (metadata.mainHolderInfoList / metadata.holderTypeInfoList groups with
+// itemList rows; the entry stream itself stays empty).
+func TestProviderOwnershipProjectionMapsFrontendKeys(t *testing.T) {
+	now := time.Date(2026, 8, 16, 7, 0, 0, 0, time.UTC)
+	number := func(value string) *json.Number { n := json.Number(value); return &n }
+	staticDate := "2026-06-30"
+	response := marketdata.OwnershipResponse{
+		InstrumentID: "SH.600519", Source: "akshare-ownership",
+		Groups: []marketdata.OwnershipGroup{
+			{
+				Kind: marketdata.OwnershipGroupMajorHolders, StaticDate: &staticDate,
+				Items: []marketdata.OwnershipItem{
+					{Name: "中国贵州茅台酒厂(集团)", HolderPct: number("54.07")},
+					{Name: "香港中央结算有限公司"},
+				},
+			},
+			{
+				Kind: marketdata.OwnershipGroupHolderTypes,
+				Items: []marketdata.OwnershipItem{
+					{Name: "国有法人", HolderPct: number("60.1")},
+					{Name: "流通A股", HolderPct: number("39.9")},
+				},
+			},
+		},
+	}
+	result := projectProviderOwnership(
+		marketdata.ProviderDescriptor{BrokerID: "akshare"},
+		&broker.FeatureQuery{FeatureID: broker.FeatureResearchOwnership, InstrumentID: "SH.600519"},
+		response, "SH", now,
+	)
+	if len(result.Entries) != 0 {
+		t.Fatalf("ownership entry stream must stay empty: %#v", result.Entries)
+	}
+	if result.Total == nil || *result.Total != 0 {
+		t.Fatalf("Total = %#v, want 0", result.Total)
+	}
+	mainHolders, ok := result.Metadata["mainHolderInfoList"].([]map[string]any)
+	if !ok || len(mainHolders) != 1 {
+		t.Fatalf("mainHolderInfoList = %#v", result.Metadata["mainHolderInfoList"])
+	}
+	if mainHolders[0]["staticDateStr"] != "2026-06-30" {
+		t.Fatalf("major holder group = %#v", mainHolders[0])
+	}
+	mainItems, ok := mainHolders[0]["itemList"].([]map[string]any)
+	if !ok || len(mainItems) != 2 {
+		t.Fatalf("major holder itemList = %#v", mainHolders[0])
+	}
+	if mainItems[0]["name"] != "中国贵州茅台酒厂(集团)" || mainItems[0]["holderPct"] != json.Number("54.07") {
+		t.Fatalf("major holder item = %#v", mainItems[0])
+	}
+	if _, ok := mainItems[1]["holderPct"]; ok {
+		t.Fatalf("nil holderPct must be omitted: %#v", mainItems[1])
+	}
+	holderTypes, ok := result.Metadata["holderTypeInfoList"].([]map[string]any)
+	if !ok || len(holderTypes) != 1 {
+		t.Fatalf("holderTypeInfoList = %#v", result.Metadata["holderTypeInfoList"])
+	}
+	if _, ok := holderTypes[0]["staticDateStr"]; ok {
+		t.Fatalf("nil staticDate must be omitted: %#v", holderTypes[0])
+	}
+	typeItems, ok := holderTypes[0]["itemList"].([]map[string]any)
+	if !ok || len(typeItems) != 2 || typeItems[1]["name"] != "流通A股" {
+		t.Fatalf("holder type itemList = %#v", holderTypes[0])
+	}
+}

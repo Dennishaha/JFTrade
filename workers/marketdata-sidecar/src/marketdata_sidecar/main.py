@@ -24,6 +24,7 @@ from .routes import (
     markets,
     news,
     rankings,
+    research,
     search,
     security,
     snapshot,
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
         news.router,
         corporate_actions.router,
         rankings.router,
+        research.router,
     ):
         application.include_router(yahoo_router, prefix="/providers/yfinance")
     application.include_router(search.router)
@@ -71,7 +73,9 @@ def create_app() -> FastAPI:
     application.include_router(news.router)
     application.include_router(corporate_actions.router)
     application.include_router(rankings.router)
+    application.include_router(research.router)
     application.include_router(akshare.router)
+    application.include_router(research.akshare_router)
     return application
 
 
@@ -108,6 +112,10 @@ def _provider_for_data_path(path: str) -> str | None:
             "/news/",
             "/corporate-actions/",
             "/rankings",
+            "/profile/",
+            "/financials/",
+            "/analyst/",
+            "/ownership/",
         )
     ):
         return "yfinance"

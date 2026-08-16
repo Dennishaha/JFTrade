@@ -67,6 +67,7 @@ type InstrumentResearchRequest struct {
 	Family       InstrumentResearchFamily
 	InstrumentID string
 	Operation    string
+	Statement    string
 	Refresh      bool
 }
 
@@ -129,7 +130,10 @@ func (s *Service) QueryInstrumentResearch(
 		TradingEnvironment: request.TradingEnvironment, Market: request.Market,
 		InstrumentID: request.InstrumentID, FeatureID: feature,
 		Cursor: request.Cursor, PageSize: request.PageSize,
-		Params: compactParams([]paramValue{{"operation", request.Operation}, {"refresh", request.Refresh}}),
+		Params: compactParams([]paramValue{
+			{"operation", request.Operation}, {"statement", request.Statement},
+			{"refresh", request.Refresh},
+		}),
 	})
 }
 

@@ -24,6 +24,10 @@
   一次目录，再在本地解析最多 100 个标的，不逐标的请求上游。
 - AKShare 阻塞调用使用独立的四线程池，每次最多等待 12 秒。四个槽位都被
   在途或已超时但仍未结束的调用占用时立即返回 `AKSHARE_POOL_BUSY`。
+- 个股研究能力（profile/financials/analyst/ownership）两个 Provider 均提供：
+  yfinance 覆盖 US/HK（info、年度三表、recommendationTrend、holders），
+  AKShare 覆盖沪深（东财 F10 个股资料、年度三表、个股研报评级聚合、十大股东）
+  与港股公司资料；研究类数据进程内缓存 1 小时。
 
 AKShare 数值使用十进制字符串，避免经 JSON `float` 丢精度。缺失的 volume
 和 turnover 保持 `null`；买一/卖一仅在上游提供时填充，未服务市场保持
@@ -82,6 +86,13 @@ PyInstaller spec 使用 `JFTRADE_MARKETDATA_BINARY_NAME` 指定二进制名；�
 | GET | `/providers/{source}/news/{market}/{symbol}?limit=10` | 新闻条目，limit 为 1–50；AKShare 仅沪深 |
 | GET | `/providers/{source}/corporate-actions/{market}/{symbol}?from=&to=` | 分红/拆分事件，RFC3339 包含式边界，默认最近两年；AKShare 仅沪深 |
 | GET | `/providers/akshare/index-constituents/{market}/{symbol}?limit=200` | 中证/沪深交易所指数成分股，limit 为 1–1000；仅供 assistant 工具使用 |
+| GET | `/providers/akshare/rankings?market=&kind=&limit=20` | 沪深/港股涨跌幅、成交额榜单（本地排序目录快照），limit 为 1–100 |
+| GET | `/providers/yfinance/rankings?market=US&kind=&limit=20` | 美股 Yahoo 预定义榜单（day_gainers/day_losers/most_actives） |
+| GET | `/providers/akshare/industries?kind=industry\|concept` | 东财行业/概念板块列表；成员见 `/industries/{name}/members?limit=100` |
+| GET | `/providers/{source}/profile/{market}/{symbol}` | 公司资料分组；yfinance 限 US/HK，AKShare 限沪深/HK |
+| GET | `/providers/{source}/financials/{market}/{symbol}?statement=income\|balance\|cashflow` | 年度财务三表，近 4 期；AKShare 限沪深 |
+| GET | `/providers/{source}/analyst/{market}/{symbol}` | 分析师评级聚合；yfinance 限 US/HK，AKShare 限沪深（个股研报聚合） |
+| GET | `/providers/{source}/ownership/{market}/{symbol}` | 股权结构分组；yfinance 限 US/HK，AKShare 限沪深十大股东 |
 | POST | `/providers/akshare/snapshots` | 最多 100 个 AKShare 批量快照 |
 
 原有 `/health`、`/markets`、`/search`、`/security/...`、`/snapshot/...` 和

@@ -239,3 +239,87 @@ type remoteIndustryMembers struct {
 	Entries []remoteRankingEntry `json:"entries"`
 	Source  string               `json:"source"`
 }
+
+type remoteCompanyProfile struct {
+	InstrumentID string                      `json:"instrument_id"`
+	Market       string                      `json:"market"`
+	Symbol       string                      `json:"symbol"`
+	Currency     *string                     `json:"currency"`
+	Groups       []remoteCompanyProfileGroup `json:"groups"`
+}
+
+type remoteCompanyProfileGroup struct {
+	Title  string                      `json:"title"`
+	Fields []remoteCompanyProfileField `json:"fields"`
+}
+
+type remoteCompanyProfileField struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type remoteFinancialStatements struct {
+	InstrumentID string                           `json:"instrument_id"`
+	Statement    string                           `json:"statement"`
+	Currency     *string                          `json:"currency"`
+	Fields       []remoteFinancialStatementField  `json:"fields"`
+	Periods      []remoteFinancialStatementPeriod `json:"periods"`
+}
+
+type remoteFinancialStatementField struct {
+	FieldID     string `json:"field_id"`
+	DisplayName string `json:"display_name"`
+}
+
+type remoteFinancialStatementPeriod struct {
+	PeriodText string                                   `json:"period_text"`
+	Values     map[string]remoteFinancialStatementValue `json:"values"`
+}
+
+type remoteFinancialStatementValue struct {
+	Data *json.Number `json:"data"`
+	YoY  *json.Number `json:"yoy"`
+	QoQ  *json.Number `json:"qoq"`
+}
+
+type remoteOwnership struct {
+	InstrumentID string                 `json:"instrument_id"`
+	Groups       []remoteOwnershipGroup `json:"groups"`
+}
+
+type remoteOwnershipGroup struct {
+	Kind       string                `json:"kind"`
+	StaticDate *string               `json:"static_date"`
+	Items      []remoteOwnershipItem `json:"items"`
+}
+
+type remoteOwnershipItem struct {
+	Name      string       `json:"name"`
+	HolderPct *json.Number `json:"holder_pct"`
+}
+
+// remoteAnalystConsensus mirrors the sidecar AnalystResponse model; the
+// akshare route aggregates Eastmoney research reports, so target_price is
+// always null upstream.
+type remoteAnalystConsensus struct {
+	InstrumentID string                     `json:"instrument_id"`
+	Rating       *json.Number               `json:"rating"`
+	AnalystCount *json.Number               `json:"analyst_count"`
+	TargetPrice  *remoteAnalystTargetPrice  `json:"target_price"`
+	Distribution *remoteAnalystDistribution `json:"distribution"`
+	UpdateTime   *string                    `json:"update_time"`
+}
+
+type remoteAnalystTargetPrice struct {
+	Lowest  *json.Number `json:"lowest"`
+	Average *json.Number `json:"average"`
+	Highest *json.Number `json:"highest"`
+}
+
+type remoteAnalystDistribution struct {
+	StrongBuy    *json.Number `json:"strong_buy"`
+	Buy          *json.Number `json:"buy"`
+	Hold         *json.Number `json:"hold"`
+	Underperform *json.Number `json:"underperform"`
+	Sell         *json.Number `json:"sell"`
+}
