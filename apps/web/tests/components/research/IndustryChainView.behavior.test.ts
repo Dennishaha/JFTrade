@@ -19,6 +19,7 @@ function state(entries: Record<string, unknown>[] = []) {
     total: ref(0),
     loading: ref(false),
     error: ref(""),
+    providerUnsupported: ref(false),
     asOf: ref(""),
     hasMore: ref(false),
     loadingMore: ref(false),

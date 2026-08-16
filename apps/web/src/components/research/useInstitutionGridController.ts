@@ -151,6 +151,14 @@ export function useInstitutionGridController(
       distribution.error.value
     );
   });
+  const activeDetailUnsupported = computed(() => {
+    if (isHoldingChanges.value) return holdingChanges.providerUnsupported.value;
+    return (
+      profile.providerUnsupported.value ||
+      holdings.providerUnsupported.value ||
+      distribution.providerUnsupported.value
+    );
+  });
   const activeDetailEmptyLabel = computed(() =>
     isHoldingChanges.value ? "暂无持仓变化" : "暂无持仓明细",
   );
@@ -281,6 +289,7 @@ export function useInstitutionGridController(
     selectHolding,
     holdingIsQuoteable,
     activeDetailError,
+    activeDetailUnsupported,
     activeDetailEmptyLabel,
     activeLoadMoreLabel,
     activeLoadingMoreLabel,

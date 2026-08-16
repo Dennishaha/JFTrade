@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import {
   directionClass,
@@ -374,7 +375,14 @@ function openEntry(entry: Record<string, unknown>): void {
       <small v-if="feature.asOf.value">更新 {{ feature.asOf.value }}</small>
       <button type="button" @click="feature.refresh">刷新</button>
     </header>
+    <ProviderUnsupportedState
+      v-if="feature.providerUnsupported.value"
+      class="derivative-screen__status"
+      bordered
+      :min-height="140"
+    />
     <EmptyState
+      v-else
       :loading="feature.loading.value"
       :error="feature.error.value"
       class="derivative-screen__status"

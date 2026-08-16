@@ -8,6 +8,7 @@ import {
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import EarningsCalendarFilterDrawer from "./EarningsCalendarFilterDrawer.vue";
 import EarningsCalendarToolbar from "./EarningsCalendarToolbar.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import {
   EARNINGS_CALENDAR_SORT_OPTIONS,
   buildEarningsCalendarRequest,
@@ -200,7 +201,12 @@ function formatPercentage(value: number | null): string {
       @dismiss="filterDrawerOpen = false"
     />
 
-    <div v-if="feature.error.value" class="earnings-calendar-view__error" role="alert">
+    <ProviderUnsupportedState
+      v-if="feature.providerUnsupported.value"
+      class="earnings-calendar-view__error"
+      bordered
+    />
+    <div v-else-if="feature.error.value" class="earnings-calendar-view__error" role="alert">
       <span>{{ feature.error.value }}</span>
       <button type="button" class="tv-button" @click="feature.refresh">重试</button>
     </div>

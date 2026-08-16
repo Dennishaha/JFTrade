@@ -24,6 +24,7 @@ vi.mock("@/composables/shared/apiClient", async (importOriginal) => {
 });
 
 import MarketRankingsView from "../../../src/components/research/MarketRankingsView.vue";
+import { ApiClientError } from "../../../src/composables/shared/apiClient";
 import { flushPromises } from "../../productTestUtils";
 
 function featureResult(
@@ -218,6 +219,38 @@ describe("MarketRankingsView", () => {
     expect(
       wrapper.get(".rank-list-panel__sortable").attributes("aria-sort"),
     ).toBe("ascending");
+  });
+
+  it("degrades provider-capability 409s to an unsupported empty state", async () => {
+    mocks.fetch.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: broker "akshare" is not registered',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
+    const wrapper = mount(MarketRankingsView, {
+      props: { market: "US", brokerId: "akshare" },
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).toContain("切换行情提供者为 Futu 后可用");
+    expect(wrapper.text()).not.toContain("is not registered");
+    expect(wrapper.find(".rank-list-panel").exists()).toBe(false);
+  });
+
+  it("keeps 500 failures on the existing error path", async () => {
+    mocks.fetch.mockRejectedValue(
+      new ApiClientError("服务内部错误", "INTERNAL", 500),
+    );
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
+    const wrapper = mount(MarketRankingsView, {
+      props: { market: "US", brokerId: "akshare" },
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain("服务内部错误");
+    expect(wrapper.text()).not.toContain("当前数据源不支持该功能");
   });
 
   it("shows feature warnings, partial failures, snapshot failures, and feature errors", async () => {

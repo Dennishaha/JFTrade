@@ -2,6 +2,8 @@
 import { computed, ref } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
+import { isProviderCapabilityMessage } from "@/composables/research/providerCapabilityFallback";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import RankListPanel from "./RankListPanel.vue";
 import SectorHeatmap from "./SectorHeatmap.vue";
 import {
@@ -160,15 +162,25 @@ const anyLoading = computed(
     highDividend.loading.value ||
     heatmap.loading.value,
 );
+const providerUnsupported = computed(() =>
+  [gainersFeature, losersFeature, hot, highDividend, heatmap].some(
+    (feature) => feature.providerUnsupported.value,
+  ),
+);
+// Provider-capability 409s degrade to an in-view empty state; the banner keeps
+// only genuine failures.
 const anyError = computed(
   () =>
-    benchmarkSnapshots.error.value ||
-    enrichmentSnapshots.error.value ||
-    gainersFeature.error.value ||
-    losersFeature.error.value ||
-    hot.error.value ||
-    heatmap.error.value ||
-    highDividend.error.value,
+    [
+      benchmarkSnapshots.error.value,
+      enrichmentSnapshots.error.value,
+      gainersFeature.error.value,
+      losersFeature.error.value,
+      hot.error.value,
+      heatmap.error.value,
+      highDividend.error.value,
+    ].find((message) => message !== "" && !isProviderCapabilityMessage(message)) ??
+    "",
 );
 </script>
 
@@ -215,7 +227,8 @@ const anyError = computed(
         />
       </div>
 
-      <div class="market-home-view__body">
+      <ProviderUnsupportedState v-if="providerUnsupported" :min-height="200" />
+      <div v-else class="market-home-view__body">
         <div class="market-home-view__ranks">
           <div v-if="supportsMovers" class="market-home-view__panel">
             <RankListPanel

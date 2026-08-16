@@ -16,6 +16,7 @@ import {
 } from "./researchSnapshots";
 import { isResearchQuoteEntry } from "./researchQuote";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 
 const props = withDefaults(
   defineProps<{ market?: string; brokerId?: string }>(),
@@ -99,7 +100,13 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
 
 <template>
   <div class="ipo-center-view">
+    <ProviderUnsupportedState
+      v-if="feature.providerUnsupported.value"
+      class="ipo-center-view__status"
+      :min-height="96"
+    />
     <EmptyState
+      v-else
       :loading="feature.loading.value"
       :error="feature.error.value"
       class="ipo-center-view__status"

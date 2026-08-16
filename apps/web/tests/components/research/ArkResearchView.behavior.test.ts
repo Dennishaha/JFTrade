@@ -18,6 +18,7 @@ function state(entries: Record<string, unknown>[] = []) {
     total: ref(entries.length),
     loading: ref(false),
     error: ref(""),
+    providerUnsupported: ref(false),
     asOf: ref("2026-07-24"),
     hasMore: ref(false),
     loadingMore: ref(false),

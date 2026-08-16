@@ -17,6 +17,7 @@ import {
   researchFeaturePaths,
   useResearchFeature,
 } from "@/composables/research/useResearchFeature";
+import { ApiClientError } from "@/composables/shared/apiClient";
 import { flushPromises } from "../productTestUtils";
 
 function featureResult(
@@ -120,8 +121,82 @@ describe("useResearchFeature", () => {
     const state = useResearchFeature(ref("/api/broken"));
     await flushPromises();
     expect(state.error.value).toBe("网络失败");
+    expect(state.providerUnsupported.value).toBe(false);
     expect(state.entries.value).toEqual([]);
     expect(state.loading.value).toBe(false);
+  });
+
+  it("degrades provider-capability 409s to providerUnsupported without a raw error", async () => {
+    mocks.fetch.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: broker "akshare" is not registered',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    const state = useResearchFeature(ref("/api/research/rankings?market=US"), {
+      brokerId: "akshare",
+    });
+    await flushPromises();
+    expect(state.providerUnsupported.value).toBe(true);
+    expect(state.error.value).toBe("");
+    expect(state.entries.value).toEqual([]);
+    expect(state.loading.value).toBe(false);
+  });
+
+  it("degrades broker-not-registered message shapes even without an envelope code", async () => {
+    mocks.fetch.mockRejectedValue(
+      new Error('broker "yfinance" is not registered'),
+    );
+    const state = useResearchFeature(ref("/api/research/macro?market=US"));
+    await flushPromises();
+    expect(state.providerUnsupported.value).toBe(true);
+    expect(state.error.value).toBe("");
+  });
+
+  it("keeps mixed CN branch failures on the regular error path", async () => {
+    mocks.fetch.mockImplementation((path: string) => {
+      const market = new URLSearchParams(path.split("?")[1]).get("market");
+      return market === "SH"
+        ? Promise.reject(
+            new ApiClientError(
+              'broker feature capability is unavailable: broker "akshare" is not registered',
+              "BROKER_CAPABILITY_UNAVAILABLE",
+              409,
+            ),
+          )
+        : Promise.reject(new Error("SZ 网络失败"));
+    });
+    const state = useResearchFeature(ref("/api/research?market=CN"), {
+      brokerId: "akshare",
+    });
+    await flushPromises();
+    expect(state.providerUnsupported.value).toBe(false);
+    expect(state.error.value).not.toBe("");
+  });
+
+  it("recovers from providerUnsupported after the provider switches back to Futu", async () => {
+    const brokerId = ref("akshare");
+    mocks.fetch.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: broker "akshare" is not registered',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    const state = useResearchFeature(ref("/api/research/rankings?market=US"), {
+      brokerId,
+    });
+    await flushPromises();
+    expect(state.providerUnsupported.value).toBe(true);
+
+    mocks.fetch.mockResolvedValue(featureResult([{ name: "Apple" }]));
+    brokerId.value = "futu";
+    await nextTick();
+    await flushPromises();
+    expect(state.providerUnsupported.value).toBe(false);
+    expect(state.error.value).toBe("");
+    expect(state.entries.value).toEqual([{ name: "Apple" }]);
   });
 
   it("exposes the full feature envelope and propagates brokerId", async () => {

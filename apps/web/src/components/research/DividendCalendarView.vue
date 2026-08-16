@@ -3,6 +3,7 @@ import { ref } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import { dayKeyOf, pickString } from "./researchEntry";
 import type { ResearchTableColumn } from "./researchTable";
@@ -92,7 +93,13 @@ function rowKey(
       <small v-if="feature.asOf.value">更新 {{ feature.asOf.value }}</small>
       <button type="button" @click="feature.refresh">刷新</button>
     </header>
+    <ProviderUnsupportedState
+      v-if="feature.providerUnsupported.value"
+      class="dividend-calendar__status"
+      bordered
+    />
     <EmptyState
+      v-else
       :loading="feature.loading.value"
       :error="feature.error.value"
       loading-label="派息日历加载中…"

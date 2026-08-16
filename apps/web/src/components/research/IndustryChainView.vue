@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import {
   formatCompactNumber,
   pickNumber,
@@ -192,7 +193,12 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
         placeholder="搜索产业链"
         aria-label="搜索产业链"
       />
+      <ProviderUnsupportedState
+        v-if="list.providerUnsupported.value"
+        class="industry-chain__status"
+      />
       <EmptyState
+        v-else
         :loading="list.loading.value"
         :error="list.error.value"
         class="industry-chain__status"
@@ -236,6 +242,10 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
         empty-label="请选择产业链查看上下游结构"
         class="industry-chain__status"
         grow
+      />
+      <ProviderUnsupportedState
+        v-else-if="detail.providerUnsupported.value"
+        class="industry-chain__status"
       />
       <EmptyState
         v-else
@@ -317,7 +327,13 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
           <p v-if="pickString(plateInfo.entries.value[0] ?? {}, ['summary'])">
             {{ pickString(plateInfo.entries.value[0] ?? {}, ["summary"]) }}
           </p>
+          <ProviderUnsupportedState
+            v-if="related.providerUnsupported.value"
+            class="industry-chain__status"
+            :min-height="96"
+          />
           <EmptyState
+            v-else
             :loading="related.loading.value"
             :error="related.error.value"
             class="industry-chain__status"
@@ -344,7 +360,13 @@ function selectRelatedChain(entry: Record<string, unknown>): void {
             <strong>{{ selectedPlateId ? "板块成分" : "相关证券" }}</strong>
             <small>{{ selectedSecurities.length }} 只</small>
           </header>
+          <ProviderUnsupportedState
+            v-if="selectedPlateId && plateStocks.providerUnsupported.value"
+            class="industry-chain__status"
+            :min-height="96"
+          />
           <EmptyState
+            v-else
             :loading="!!selectedPlateId && plateStocks.loading.value"
             loading-label="板块成分加载中…"
             :error="selectedPlateId ? plateStocks.error.value : null"

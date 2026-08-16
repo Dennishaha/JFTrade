@@ -7,6 +7,7 @@ import {
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
 import { type ProductFeatureRequest } from "@/composables/product/productFeatureApi";
+import { isProviderCapabilityError } from "@/composables/research/providerCapabilityFallback";
 
 export type ResearchFeatureRequestSource =
   | Ref<ProductFeatureRequest | string | null>
@@ -41,6 +42,8 @@ export interface UseResearchFeatureResult {
   loading: Ref<boolean>;
   loadingMore: Ref<boolean>;
   error: Ref<string>;
+  /** True when every branch failed because the provider lacks the capability. */
+  providerUnsupported: Ref<boolean>;
   refresh: () => Promise<void>;
   loadMore: () => Promise<void>;
 }
@@ -369,6 +372,7 @@ export function useResearchFeature(
   const loading = ref(false);
   const loadingMore = ref(false);
   const error = ref("");
+  const providerUnsupported = ref(false);
   let branches: BranchState[] = [];
   let requestToken = 0;
 
@@ -391,11 +395,13 @@ export function useResearchFeature(
       branches = [];
       result.value = null;
       error.value = "";
+      providerUnsupported.value = false;
       loading.value = false;
       return;
     }
     loading.value = true;
     error.value = "";
+    providerUnsupported.value = false;
     const request = withBroker(source, brokerValue(options.brokerId));
     const targets = researchFeatureRequests(request, options);
     const settled = await Promise.allSettled(
@@ -418,12 +424,14 @@ export function useResearchFeature(
     if (token !== requestToken) return;
     const nextBranches: BranchState[] = [];
     const branchErrors: ResearchPartialError[] = [];
+    const branchReasons: unknown[] = [];
     settled.forEach((item, index) => {
       const target = targets[index]!;
       if (item.status === "fulfilled") {
         nextBranches.push(item.value);
         return;
       }
+      branchReasons.push(item.reason);
       branchErrors.push({
         scope: target.market || "research",
         code: "QUERY_FAILED",
@@ -436,7 +444,13 @@ export function useResearchFeature(
     if (nextBranches.length === 0) {
       branches = [];
       result.value = null;
-      error.value = branchErrors[0]?.message ?? "研究数据加载失败";
+      // A pure capability miss degrades to an in-view unsupported state instead
+      // of the raw broker error; mixed or genuine failures keep the error path.
+      providerUnsupported.value =
+        branchReasons.length > 0 && branchReasons.every(isProviderCapabilityError);
+      error.value = providerUnsupported.value
+        ? ""
+        : branchErrors[0]?.message ?? "研究数据加载失败";
     } else {
       branches = nextBranches;
       result.value = mergedResult(nextBranches, request, options);
@@ -458,6 +472,7 @@ export function useResearchFeature(
         branches = [];
         result.value = null;
         error.value = "";
+        providerUnsupported.value = false;
         loadingMore.value = false;
       }
       void load();
@@ -536,6 +551,7 @@ export function useResearchFeature(
     loading,
     loadingMore,
     error,
+    providerUnsupported,
     refresh,
     loadMore,
   };

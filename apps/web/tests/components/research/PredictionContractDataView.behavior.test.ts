@@ -23,6 +23,7 @@ function featureState(entries: Record<string, unknown>[] = []) {
     entries: ref(entries),
     loading: ref(false),
     error: ref(""),
+    providerUnsupported: ref(false),
     asOf: ref("2026-07-24 09:30:00"),
     refresh: vi.fn(),
   };

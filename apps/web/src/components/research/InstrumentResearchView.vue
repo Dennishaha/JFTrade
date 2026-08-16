@@ -4,6 +4,7 @@ import { computed } from "vue";
 import CompactInstrumentNews from "../domain/market-data/CompactInstrumentNews.vue";
 import InstrumentSearchBox from "../domain/market-data/InstrumentSearchBox.vue";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import { formatPrice, pickNumber, pickString } from "./researchEntry";
 import {
@@ -123,7 +124,14 @@ const analystRatings = computed(() =>
       </button>
     </header>
 
+    <ProviderUnsupportedState
+      v-if="operation !== 'news' && feature.providerUnsupported.value"
+      class="instrument-research__status"
+      bordered
+      :min-height="140"
+    />
     <EmptyState
+      v-else
       :loading="operation !== 'news' && feature.loading.value"
       loading-label="研究数据加载中…"
       :error="operation === 'news' ? null : feature.error.value"

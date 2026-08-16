@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import SparklineChart from "./SparklineChart.vue";
 import {
@@ -241,11 +242,24 @@ const statusError = computed(() =>
     ? listFeature.error.value || historyFeature.error.value
     : fedFeature.error.value,
 );
+const statusUnsupported = computed(() =>
+  props.operation === "indicators"
+    ? listFeature.providerUnsupported.value ||
+      historyFeature.providerUnsupported.value
+    : fedFeature.providerUnsupported.value,
+);
 </script>
 
 <template>
   <section class="macro-research">
+    <ProviderUnsupportedState
+      v-if="statusUnsupported"
+      class="macro-research__status col-span-full"
+      bordered
+      :min-height="160"
+    />
     <EmptyState
+      v-else
       :loading="statusLoading"
       :error="statusError"
       class="macro-research__status col-span-full"

@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import type { PredictionRequest } from "@/composables/research/predictionApi";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import {
   formatCompactNumber,
@@ -257,7 +258,13 @@ const rows = computed(() => {
       <small v-if="feature.asOf.value">更新 {{ feature.asOf.value }}</small>
       <button type="button" @click="feature.refresh">刷新</button>
     </header>
+    <ProviderUnsupportedState
+      v-if="feature.providerUnsupported.value"
+      class="prediction-contract-data__status"
+      bordered
+    />
     <EmptyState
+      v-else
       :loading="feature.loading.value"
       :error="feature.error.value"
       class="prediction-contract-data__status"

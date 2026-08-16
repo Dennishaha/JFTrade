@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import {
   entryDayKey,
   pickNumber,
@@ -208,7 +209,13 @@ function importance(entry: Record<string, unknown>): number {
       <span class="econ-calendar-view__count">共 {{ filteredEntries.length }} 条</span>
     </div>
 
+    <ProviderUnsupportedState
+      v-if="feature.providerUnsupported.value"
+      class="econ-calendar-view__status"
+      bordered
+    />
     <EmptyState
+      v-else
       :loading="feature.loading.value"
       :error="feature.error.value"
       :empty="groups.length === 0"

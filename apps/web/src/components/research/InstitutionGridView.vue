@@ -13,6 +13,7 @@ import {
   type InstitutionOperation,
 } from "./useInstitutionGridController";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import { formatPercent as formatSharedPercent } from "@/utils/numberFormat";
 
 const props = withDefaults(
@@ -46,6 +47,7 @@ const {
   selectHolding,
   holdingIsQuoteable,
   activeDetailError,
+  activeDetailUnsupported,
   activeDetailEmptyLabel,
   activeLoadMoreLabel,
   activeLoadingMoreLabel,
@@ -185,7 +187,13 @@ const hasProfileOverview = computed(
       </span>
     </div>
 
+    <ProviderUnsupportedState
+      v-if="feature.providerUnsupported.value"
+      class="institution-grid-view__status"
+      bordered
+    />
     <EmptyState
+      v-else
       :loading="feature.loading.value"
       :error="feature.error.value"
       :empty="visibleCards.length === 0"
@@ -260,6 +268,10 @@ const hasProfileOverview = computed(
       <div v-else class="institution-grid-view__summary">
         <span>持仓变化 {{ holdingChangesTotal }} 项</span>
       </div>
+      <ProviderUnsupportedState
+        v-if="activeDetailUnsupported"
+        :min-height="96"
+      />
       <div v-if="activeDetailError" class="institution-grid-view__detail-error">
         {{ activeDetailError }}
       </div>

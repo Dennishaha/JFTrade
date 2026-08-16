@@ -18,6 +18,7 @@ function state(entries: Record<string, unknown>[] = []) {
     metadata: ref<Record<string, unknown>>({}),
     loading: ref(false),
     error: ref(""),
+    providerUnsupported: ref(false),
     asOf: ref("2026-07-24"),
     refresh: vi.fn(),
   };

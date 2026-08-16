@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import RankListPanel from "./RankListPanel.vue";
 import { pickString } from "./researchEntry";
 import {
@@ -245,6 +246,7 @@ const valuePresentation = computed(() => {
     <div v-if="productScope === 'stock' && market === 'CN'" class="market-rankings-view__status">
       OpenD 10.9.6908 的专用高股息协议不接受市场参数且实测仅返回港股；沪深股票榜单不展示错配数据。
     </div>
+    <ProviderUnsupportedState v-else-if="feature.providerUnsupported.value" :min-height="160" />
     <div v-else-if="feature.error.value" class="market-rankings-view__status">{{ feature.error.value }}</div>
     <RankListPanel
       v-else

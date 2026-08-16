@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 
 import { useResearchFeature } from "@/composables/research/useResearchFeature";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import ResearchDataTable from "./ResearchDataTable.vue";
 import {
   directionClass,
@@ -167,7 +168,13 @@ function rowKey(
         <button type="button" @click="feature.refresh">刷新</button>
       </div>
     </header>
+    <ProviderUnsupportedState
+      v-if="feature.providerUnsupported.value"
+      class="ark-research__status"
+      bordered
+    />
     <EmptyState
+      v-else
       :loading="feature.loading.value"
       :error="feature.error.value"
       class="ark-research__status"

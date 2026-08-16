@@ -15,6 +15,7 @@ import {
   useResearchSnapshots,
 } from "./researchSnapshots";
 import EmptyState from "@/components/shared/EmptyState.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 
 const props = withDefaults(
   defineProps<{ market?: string; brokerId?: string }>(),
@@ -184,7 +185,13 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
           @click="connectOnly = !connectOnly"
         >港股通</button>
       </header>
+      <ProviderUnsupportedState
+        v-if="plates.providerUnsupported.value"
+        class="concept-sector-view__status"
+        :min-height="96"
+      />
       <EmptyState
+        v-else
         :loading="plates.loading.value"
         :error="plates.error.value"
         :empty="plateEntries.length === 0"
@@ -235,7 +242,13 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
           {{ pickString(selectedPlate, ["name"]) }}</span
         >
       </header>
+      <ProviderUnsupportedState
+        v-if="stocks.providerUnsupported.value"
+        class="concept-sector-view__status"
+        :min-height="96"
+      />
       <EmptyState
+        v-else
         :loading="stocks.loading.value"
         :error="stocks.error.value"
         :empty="sortedStocks.length === 0"
