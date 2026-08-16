@@ -19,8 +19,12 @@ MAX_WORKERS = 4
 CALL_TIMEOUT_SECONDS = 12
 EASTMONEY_TOKEN = "bd1d9ddb04089700cf9c27f6f7426281"
 EASTMONEY_SEARCH_TOKEN = "D43BF722C8E33BDC906FB84D85E326E8"
+# Field codes follow Eastmoney's push2 list-endpoint conventions (ulist/clist),
+# which differ from the single-quote ``stock/get`` endpoint: f9 is the dynamic
+# PE ratio, f20/f21 are total/float market cap, f23 is PB, and f31/f32 are the
+# level-1 bid/ask prices.  Unserved markets return ``-`` and normalize to None.
 EASTMONEY_SPOT_FIELDS = (
-    "f1,f2,f3,f4,f5,f6,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23"
+    "f1,f2,f3,f4,f5,f6,f9,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f31,f32"
 )
 SINA_US_MINUTE_URL = (
     "https://stock.finance.sina.com.cn/usstock/api/jsonp.php/"
@@ -462,6 +466,12 @@ def _normalize_spot_row(row: dict[str, Any]) -> dict[str, Any]:
         "最低": row.get("f16"),
         "今开": row.get("f17"),
         "昨收": row.get("f18"),
+        "市盈率": row.get("f9"),
+        "市净率": row.get("f23"),
+        "总市值": row.get("f20"),
+        "流通市值": row.get("f21"),
+        "买一": row.get("f31"),
+        "卖一": row.get("f32"),
     }
 
 

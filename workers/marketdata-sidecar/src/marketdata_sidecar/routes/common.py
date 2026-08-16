@@ -4,13 +4,28 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import date, datetime, timezone
 from typing import Any, Mapping
 
-from ..conversion import clean_text
+from ..conversion import clean_text, parse_rfc3339_utc
 from ..errors import invalid_request
 
 CANDLE_SESSION_ORDER = ("regular", "extended", "overnight")
 CANDLE_INTRADAY_PERIODS = frozenset({"1m", "5m", "15m", "30m", "1h"})
+CANDLE_ADJUSTMENTS = ("none", "forward", "backward")
+
+
+def parse_candle_adjustment(value: str | None) -> str:
+    """Normalize the optional candle price-adjustment mode."""
+    if value is None:
+        return "none"
+    normalized = value.strip().lower()
+    if normalized not in CANDLE_ADJUSTMENTS:
+        raise invalid_request(
+            "unsupported_adjustment",
+            f"unsupported candle adjustment: {value}",
+        )
+    return normalized
 
 
 def parse_candle_sessions(
@@ -213,6 +228,27 @@ SUPPORTED_QUOTE_TYPES = frozenset(
     }
 )
 SUPPORTED_PERIODS = ("1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo")
+
+
+def action_window(
+    from_value: str | None,
+    to_value: str | None,
+) -> tuple[date, date]:
+    """Resolve inclusive corporate-action bounds; defaults to the last 2 years."""
+    from_time = parse_rfc3339_utc(from_value, "from")
+    to_time = parse_rfc3339_utc(to_value, "to")
+    to_date = to_time.date() if to_time is not None else datetime.now(timezone.utc).date()
+    if from_time is not None:
+        from_date = from_time.date()
+    else:
+        try:
+            from_date = to_date.replace(year=to_date.year - 2)
+        except ValueError:
+            # February 29 has no counterpart two years earlier.
+            from_date = to_date.replace(year=to_date.year - 2, day=28)
+    if from_date > to_date:
+        raise invalid_request("invalid_time_range", "from must not be after to")
+    return from_date, to_date
 
 
 @dataclass(frozen=True)

@@ -69,7 +69,7 @@ func ProviderDescriptor() marketdata.ProviderDescriptor {
 			Snapshots: true, HistoricalCandles: true, InstrumentSearch: true,
 			CandleIntervals:  append([]string(nil), candlePeriodOrder...),
 			Sessions:         []string{"regular", "closed"},
-			PriceAdjustments: []string{"none"},
+			PriceAdjustments: []string{"none", "forward", "backward"},
 			HistoricalLookbackDays: map[string]int{
 				"1m":    5,
 				"US:5m": 5, "US:15m": 5, "US:30m": 5, "US:1h": 5,
@@ -268,9 +268,6 @@ func (p *Provider) GetHistoricalCandles(
 	ctx context.Context,
 	query marketdata.HistoricalCandlesQuery,
 ) (marketdata.CandlesResponse, error) {
-	if adjustment := strings.ToLower(strings.TrimSpace(query.Adjustment)); adjustment != "" && adjustment != "none" {
-		return nil, fmt.Errorf("%w: price adjustment %q", ErrUnsupported, adjustment)
-	}
 	marketValue, symbol, period := query.Market, query.Symbol, query.Period
 	limit, fromTime, toTime, beforeTime := query.Limit, query.FromTime, query.ToTime, query.BeforeTime
 	instrument, err := normalizeIdentity(marketValue, symbol, "")
@@ -280,6 +277,16 @@ func (p *Provider) GetHistoricalCandles(
 	period = strings.ToLower(strings.TrimSpace(period))
 	if !supportedCandlePeriod(period) {
 		return nil, fmt.Errorf("%w: candle period %q", ErrUnsupported, period)
+	}
+	adjustment := strings.ToLower(strings.TrimSpace(query.Adjustment))
+	switch adjustment {
+	case "", "none":
+	case "forward", "backward":
+		if isIntradayCandlePeriod(period) {
+			return nil, fmt.Errorf("%w: %s price adjustment for %q candles", ErrUnsupported, adjustment, period)
+		}
+	default:
+		return nil, fmt.Errorf("%w: price adjustment %q", ErrUnsupported, adjustment)
 	}
 	sessions, err := marketdata.ResolveCandleSessions(
 		query.Sessions,
@@ -291,7 +298,7 @@ func (p *Provider) GetHistoricalCandles(
 	}
 	limit = normalizeLimit(limit, defaultCandleLimit, maxCandleLimit)
 	response, err := p.client.candles(
-		ctx, instrument.market, instrument.symbol, period, limit, fromTime, toTime, beforeTime,
+		ctx, instrument.market, instrument.symbol, period, adjustment, limit, fromTime, toTime, beforeTime,
 		marketdata.CandleSessionStrings(sessions),
 	)
 	if err != nil {
@@ -302,6 +309,15 @@ func (p *Provider) GetHistoricalCandles(
 		return nil, err
 	}
 	return validateHistoricalCandleResponse(converted, beforeTime, fromTime, toTime)
+}
+
+func isIntradayCandlePeriod(period string) bool {
+	switch period {
+	case "1m", "5m", "15m", "30m", "1h":
+		return true
+	default:
+		return false
+	}
 }
 
 func (p *Provider) GetDepth(

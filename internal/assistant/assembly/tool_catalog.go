@@ -35,6 +35,9 @@ type ToolDeps struct {
 	MarketSnapshot                 func(context.Context, string, string) (any, error)
 	MarketCandles                  func(context.Context, string, string, string, int) (any, error)
 	MarketCandlesAdvanced          func(context.Context, map[string]any) (any, error)
+	MarketNews                     func(context.Context, string, string, int) (any, error)
+	MarketCorporateActions         func(context.Context, string, string, time.Time, time.Time) (any, error)
+	MarketIndexConstituents        func(context.Context, string, string, int) (any, error)
 	MarketProviders                func(context.Context) (any, error)
 	SelectMarketProvider           func(context.Context, string, string) (any, error)
 	RuntimeDependencies            func(context.Context) any
@@ -274,6 +277,7 @@ func registerJFTradeADKMarketTools(registry *jfadkruntime.ToolRegistry, deps Too
 		}
 		return deps.MarketCandles(ctx, market, symbol, normalizedPeriod, limit)
 	})
+	registerJFTradeADKMarketCapabilityTools(registry, deps)
 	registry.Register(assistantmodel.ToolDescriptor{Name: "watchlist.list", DisplayName: "查看自选股", Description: "读取 JFTrade 本地自选分组摘要或指定分组的分页成员；默认不请求实时行情。", Category: "market", Permission: "read_internal", OutputSummary: "本地自选分组，或成员、来源与最近导入状态的分页结果。", RequiredSkills: []string{"jftrade-market"}}, func(ctx context.Context, input map[string]any) (any, error) {
 		if deps.WatchlistList == nil {
 			return nil, fmt.Errorf("watchlist is unavailable")

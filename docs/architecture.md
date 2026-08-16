@@ -131,7 +131,7 @@ Handler 只做参数绑定、校验、调用 service、错误映射和响应转�
 
 `internal/integration/futu` 是 API sidecar 内部使用的 Futu/OpenD 适配层，负责 client 生命周期、exchange 创建、stream/query 调用、探测和协议到 broker-neutral DTO/事件的转换。`internal/integration/yfinance` 是轮询型 HTTP Provider，只接收由 `marketdataapp` 注入的内部 loopback endpoint，并转换同一套 broker-neutral DTO；它不拥有数据源选择、缓存、订阅或进程生命周期。
 
-`workers/marketdata-sidecar` 用 FastAPI 封装 Python yfinance 与 AKShare，通过 PyInstaller 打成 `onedir` helper，并由 `internal/marketdataassets` 按平台嵌入、校验 SHA-256 和管理内容寻址缓存。`/healthz` 不导入数据栈；两个 Provider 各自懒加载并独立报告健康，数据路由在 `warming` 时返回带 `Retry-After` 的 503。AKShare 阻塞调用由四槽线程池约束并设 12 秒请求截止。JFTrade 只在需要时启动 helper，Yahoo↔AKShare 切换复用进程，应用关闭或切回 Futu 时停止。它承诺四市场搜索、详情、延迟快照和品种级历史周期，不提供推流、深度、扩展时段或交易能力。详细契约见 [market-data-providers.md](market-data-providers.md)。
+`workers/marketdata-sidecar` 用 FastAPI 封装 Python yfinance 与 AKShare，通过 PyInstaller 打成 `onedir` helper，并由 `internal/marketdataassets` 按平台嵌入、校验 SHA-256 和管理内容寻址缓存。`/healthz` 不导入数据栈；两个 Provider 各自懒加载并独立报告健康，数据路由在 `warming` 时返回带 `Retry-After` 的 503。AKShare 阻塞调用由四槽线程池约束并设 12 秒请求截止。JFTrade 只在需要时启动 helper，Yahoo↔AKShare 切换复用进程，应用关闭或切回 Futu 时停止。它承诺四市场搜索、详情、延迟快照和品种级历史周期（含按 Provider 能力受限的复权日线），并提供新闻、公司行动和 AKShare 沪深指数成分股（成分股仅供 assistant 工具 `market.index_constituents`，无公开 HTTP API）；不提供推流、深度、扩展时段或交易能力。详细契约见 [market-data-providers.md](market-data-providers.md)。
 
 持久化按领域位于 `internal/store/{strategy,backtest,trading,watchlist,research,...}`。数据维护只通过 `internal/datamanagement` 的 busy、purge、compact 窄端口访问这些资源，不读取 store 的锁、map 或数据库连接。
 

@@ -146,3 +146,34 @@ type remoteCandle struct {
 	Close  *json.Number `json:"close"`
 	Volume *json.Number `json:"volume"`
 }
+
+type remoteNews struct {
+	Market       string            `json:"market"`
+	Symbol       string            `json:"symbol"`
+	InstrumentID string            `json:"instrument_id"`
+	Entries      []remoteNewsEntry `json:"entries"`
+	Source       string            `json:"source"`
+}
+
+type remoteNewsEntry struct {
+	Title       *string `json:"title"`
+	Link        *string `json:"link"`
+	Publisher   *string `json:"publisher"`
+	PublishedAt *string `json:"published_at"`
+	Summary     *string `json:"summary"`
+}
+
+type remoteCorporateActions struct {
+	Market       string                  `json:"market"`
+	Symbol       string                  `json:"symbol"`
+	InstrumentID string                  `json:"instrument_id"`
+	Events       []remoteCorporateAction `json:"events"`
+	Source       string                  `json:"source"`
+}
+
+type remoteCorporateAction struct {
+	Kind   string       `json:"kind"`
+	ExDate string       `json:"ex_date"`
+	Amount *json.Number `json:"amount"`
+	Ratio  *json.Number `json:"ratio"`
+}

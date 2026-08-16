@@ -7,10 +7,17 @@
 
 ## 能力边界
 
-- yfinance 保留 US、HK、SH、SZ 的搜索、详情、延迟快照和八种周期 K 线。
+- yfinance 保留 US、HK、SH、SZ 的搜索、详情、延迟快照和八种周期 K 线。快照优先
+  走 `Ticker.fast_info` 快速路径，字段缺失或出错时回退 `get_info`；K 线支持
+  `none/forward` 复权（`forward` 为 Yahoo auto_adjust）；另有新闻与公司行动路由。
 - AKShare 支持上述四市场的市场描述、搜索、详情、单/批量快照和 K 线；沪深
   另有 ETF 与上证/深证/中证指数，港股包含 AKShare 指数目录，美股指数限定
-  为 DJIA、SPX、NDX。
+  为 DJIA、SPX、NDX。沪深快照填充东财买一/卖一；详情含市值、动态市盈率（f9，
+  非 TTM）、市净率（f23）和总股本（沪深 A 股经 `stock_individual_info_em`
+  补全，24 小时缓存，失败静默降级）。沪深股票/ETF 的 `1d/1w/1mo` 支持
+  qfq/hfq 复权（ETF 经东财接口取数）；另有沪深新闻（`stock_news_em`）、
+  分红送转（`stock_fhps_em`）和指数成分股路由，美港标的返回
+  `AKSHARE_UNSUPPORTED`。
 - AKShare 不提供推流、Level 2、盘前盘后或交易能力。它失败时返回明确错误，
   不会在 sidecar 内回退到 yfinance 或 Futu。
 - AKShare 全市场目录缓存 15 秒，并按目录 singleflight。批量快照先按市场各取
@@ -18,10 +25,13 @@
 - AKShare 阻塞调用使用独立的四线程池，每次最多等待 12 秒。四个槽位都被
   在途或已超时但仍未结束的调用占用时立即返回 `AKSHARE_POOL_BUSY`。
 
-AKShare 数值使用十进制字符串，避免经 JSON `float` 丢精度。缺失的 bid、ask、
-volume 和 turnover 保持 `null`；沪深以“手”返回的成交量乘以 100 后输出。
+AKShare 数值使用十进制字符串，避免经 JSON `float` 丢精度。缺失的 volume
+和 turnover 保持 `null`；买一/卖一仅在上游提供时填充，未服务市场保持
+`null`；沪深以“手”返回的成交量乘以 100 后输出。
 时间统一为 RFC 3339 UTC，没有真实行情时间时只填 `observed_at`，不伪造
-`quote_at`。K 线使用 `adjust=""` 的不复权数据，非法/非有限 OHLC 会被丢弃。
+`quote_at`。K 线默认使用 `adjust=""` 的不复权数据，非法/非有限 OHLC 会被丢弃；
+沪深股票/ETF 的日线及以上可使用 qfq/hfq 复权，其余品种与分钟周期的非
+`none` 复权返回 400 `UNSUPPORTED_RANGE`。
 
 ## 安装和启动
 
@@ -69,6 +79,9 @@ PyInstaller spec 使用 `JFTRADE_MARKETDATA_BINARY_NAME` 指定二进制名；�
 | GET | `/providers/{source}/security/{market}/{symbol}` | 详情与品种支持周期 |
 | GET | `/providers/{source}/snapshot/{market}/{symbol}` | 延迟快照 |
 | GET | `/providers/{source}/candles/{market}/{symbol}` | 历史 K 线 |
+| GET | `/providers/{source}/news/{market}/{symbol}?limit=10` | 新闻条目，limit 为 1–50；AKShare 仅沪深 |
+| GET | `/providers/{source}/corporate-actions/{market}/{symbol}?from=&to=` | 分红/拆分事件，RFC3339 包含式边界，默认最近两年；AKShare 仅沪深 |
+| GET | `/providers/akshare/index-constituents/{market}/{symbol}?limit=200` | 中证/沪深交易所指数成分股，limit 为 1–1000；仅供 assistant 工具使用 |
 | POST | `/providers/akshare/snapshots` | 最多 100 个 AKShare 批量快照 |
 
 原有 `/health`、`/markets`、`/search`、`/security/...`、`/snapshot/...` 和
@@ -96,7 +109,10 @@ PyInstaller spec 使用 `JFTRADE_MARKETDATA_BINARY_NAME` 指定二进制名；�
 }
 ```
 
-K 线参数为 `period`、`limit`、`from`、`to`、`before`。股票、沪深 ETF/指数支持
+K 线参数为 `period`、`limit`、`from`、`to`、`before`、`adjustment`。`adjustment`
+取 `none`（默认）/`forward`/`backward`；yfinance 仅支持 `forward`，AKShare 仅
+沪深股票/ETF 的 `1d/1w/1mo` 支持 `forward`/`backward`，非法取值返回
+`unsupported_adjustment`。股票、沪深 ETF/指数支持
 `1m/5m/15m/30m/1h/1d/1w/1mo`；美港指数只支持 `1d/1w/1mo`。
 美股 5–60 分钟线由 1 分钟数据按纽约交易所时区确定性聚合，美港指数周/月线
 由日线按交易所时区聚合。1 分钟请求超出最近五天返回

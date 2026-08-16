@@ -942,3 +942,228 @@ async def test_complete_multicall_request_has_one_deadline_and_stops_next_call(
     assert first_finished.wait(timeout=1)
     time.sleep(0.01)
     assert len(calls) == 1
+
+
+def _sina_daily_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "date": date(2026, 8, 3),
+                "open": "1400",
+                "high": "1430",
+                "low": "1390",
+                "close": "1425",
+                "volume": "1000",
+            }
+        ]
+    )
+
+
+def _eastmoney_daily_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "日期": "2026-08-03",
+                "开盘": "1400",
+                "最高": "1430",
+                "最低": "1390",
+                "收盘": "1425",
+                "成交量": "1000",
+            }
+        ]
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("adjustment", "expected_adjust"),
+    [
+        (None, ""),
+        ("forward", "qfq"),
+        ("backward", "hfq"),
+    ],
+)
+async def test_akshare_cn_daily_adjustment_reaches_the_sina_history_call(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    adjustment: str | None,
+    expected_adjust: str,
+) -> None:
+    history_calls: list[dict[str, Any]] = []
+
+    def fake_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
+        if function_name == "stock_zh_a_daily":
+            history_calls.append(kwargs)
+            return _sina_daily_frame()
+        return _standard_catalog_call(function_name, **kwargs)
+
+    monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    params: dict[str, Any] = {"period": "1d", "limit": 1}
+    if adjustment is not None:
+        params["adjustment"] = adjustment
+
+    response = await client.get("/providers/akshare/candles/SH/600519", params=params)
+
+    assert response.status_code == 200
+    assert history_calls[0]["symbol"] == "sh600519"
+    assert history_calls[0]["adjust"] == expected_adjust
+    assert response.json()["adjustment"] == (adjustment or "none")
+
+
+@pytest.mark.asyncio
+async def test_akshare_adjusted_daily_falls_back_to_eastmoney_with_adjust(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fallback_calls: list[dict[str, Any]] = []
+
+    def fake_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
+        if function_name == "stock_zh_a_daily":
+            raise RuntimeError("sina unreachable")
+        if function_name == "stock_zh_a_hist":
+            fallback_calls.append(kwargs)
+            return _eastmoney_daily_frame()
+        return _standard_catalog_call(function_name, **kwargs)
+
+    monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    response = await client.get(
+        "/providers/akshare/candles/SH/600519",
+        params={"period": "1d", "limit": 1, "adjustment": "backward"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["source"] == "akshare:eastmoney"
+    assert response.json()["adjustment"] == "backward"
+    assert fallback_calls[0]["adjust"] == "hfq"
+
+
+@pytest.mark.asyncio
+async def test_akshare_adjusted_etf_daily_uses_eastmoney_history_directly(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    history_calls: list[tuple[str, dict[str, Any]]] = []
+
+    def fake_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
+        if function_name in {"fund_etf_hist_sina", "fund_etf_hist_em"}:
+            history_calls.append((function_name, kwargs))
+            return _eastmoney_daily_frame()
+        return _standard_catalog_call(function_name, **kwargs)
+
+    monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    response = await client.get(
+        "/providers/akshare/candles/SH/510300",
+        params={"period": "1d", "limit": 1, "adjustment": "forward"},
+    )
+
+    assert response.status_code == 200
+    # fund_etf_hist_sina has no adjust parameter; adjusted ETF history must
+    # come from the Eastmoney endpoint instead of an unadjusted Sina frame.
+    # The paged loader may refetch once from the history lower bound.
+    assert history_calls
+    assert {name for name, _kwargs in history_calls} == {"fund_etf_hist_em"}
+    assert all(kwargs["adjust"] == "qfq" for _name, kwargs in history_calls)
+    assert response.json()["source"] == "akshare:eastmoney"
+
+
+@pytest.mark.asyncio
+async def test_akshare_us_daily_backward_adjustment_reaches_sina_history(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    history_calls: list[dict[str, Any]] = []
+
+    def fake_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
+        if function_name == "stock_us_daily":
+            history_calls.append(kwargs)
+            return _sina_daily_frame()
+        return _standard_catalog_call(function_name, **kwargs)
+
+    monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    response = await client.get(
+        "/providers/akshare/candles/US/AAPL",
+        params={"period": "1d", "limit": 1, "adjustment": "backward"},
+    )
+
+    assert response.status_code == 200
+    assert history_calls[0] == {"symbol": "AAPL", "adjust": "hfq"}
+    assert response.json()["adjustment"] == "backward"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("market", "symbol", "period"),
+    [
+        ("SH", "600519", "1m"),
+        ("SH", "600519", "5m"),
+        ("US", "AAPL", "15m"),
+    ],
+)
+async def test_akshare_intraday_adjustment_is_rejected_without_history_calls(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    market: str,
+    symbol: str,
+    period: str,
+) -> None:
+    history_calls = 0
+
+    def fake_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
+        nonlocal history_calls
+        if "minute" in function_name or "hist_min" in function_name:
+            history_calls += 1
+            return _empty()
+        return _standard_catalog_call(function_name, **kwargs)
+
+    def fake_minute_rows(_symbol: str) -> list[dict[str, Any]]:
+        nonlocal history_calls
+        history_calls += 1
+        return []
+
+    monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    monkeypatch.setattr(akshare_upstream, "us_minute_rows", fake_minute_rows)
+    monkeypatch.setattr(akshare_upstream, "hk_minute_rows", fake_minute_rows)
+
+    response = await client.get(
+        f"/providers/akshare/candles/{market}/{symbol}",
+        params={"period": period, "adjustment": "forward"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "UNSUPPORTED_RANGE"
+    assert history_calls == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("market", "symbol"),
+    [("SH", "000001"), ("US", ".SPX"), ("HK", "800000")],
+)
+async def test_akshare_index_adjustment_is_rejected(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    market: str,
+    symbol: str,
+) -> None:
+    monkeypatch.setattr(akshare_upstream, "call", _standard_catalog_call)
+
+    response = await client.get(
+        f"/providers/akshare/candles/{market}/{symbol}",
+        params={"period": "1d", "adjustment": "backward"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "UNSUPPORTED_RANGE"
+
+
+@pytest.mark.asyncio
+async def test_akshare_invalid_adjustment_is_rejected(
+    client: httpx.AsyncClient,
+) -> None:
+    response = await client.get(
+        "/providers/akshare/candles/SH/600519",
+        params={"adjustment": "split"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "unsupported_adjustment"

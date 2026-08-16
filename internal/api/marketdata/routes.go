@@ -68,6 +68,11 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, brokerReaders ...Bro
 	market.GET("/snapshots/:market/:symbol", handleSnapshot(svc, brokerReader))
 	market.GET("/candles/:market/:symbol", handleCandles(svc, brokerReader))
 	market.GET("/depth/:market/:symbol", handleDepth(svc, brokerReader))
+	// /market-data/news and /research/corporate-actions/:instrumentId are owned
+	// by productfeatures broker research routes, so the provider-backed reads
+	// follow the :market/:symbol layout used by snapshots/candles/depth.
+	market.GET("/news/:market/:symbol", handleNews(svc))
+	market.GET("/corporate-actions/:market/:symbol", handleCorporateActions(svc))
 }
 
 // handleProvider godoc
@@ -282,7 +287,7 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 				Market: uri.Market, Symbol: uri.Symbol, Period: query.period,
 				Limit: query.limit, FromTime: query.fromTime, ToTime: query.toTime,
 				BeforeTime: query.beforeTime,
-				Sessions: query.sessions, SessionsSpecified: query.sessionsSpecified,
+				Sessions:   query.sessions, SessionsSpecified: query.sessionsSpecified,
 			})
 		}
 		if err == nil && (query.fromTime != "" || query.toTime != "") {
@@ -596,4 +601,110 @@ func handleNormalizeInstrument(svc *srv.Service) gin.HandlerFunc {
 		}
 		httpserver.WriteOK(c, result)
 	}
+}
+
+// handleNews godoc
+// @Summary 查询标的资讯
+// @Tags market-data
+// @Produce json
+// @Param market path string true "市场代码"
+// @Param symbol path string true "证券代码"
+// @Param limit query int false "数量，默认 10，范围 1..50"
+// @Success 200 {object} httpserver.Envelope{data=NewsData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/market-data/news/{market}/{symbol} [get]
+func handleNews(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var uri struct {
+			Market string `uri:"market" binding:"required"`
+			Symbol string `uri:"symbol" binding:"required"`
+		}
+		if err := httpserver.BindURI(c, &uri); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid instrument")
+			return
+		}
+		limit := 0
+		if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+			parsed := httpserver.OptionalIntValue{}
+			if err := parsed.UnmarshalText([]byte(raw)); err != nil {
+				httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "limit must be an integer")
+				return
+			}
+			limit = parsed.Int()
+			if limit < 1 || limit > srv.MaxNewsLimit {
+				httpserver.WriteError(
+					c, http.StatusBadRequest, "BAD_REQUEST",
+					"limit must be between 1 and "+strconv.Itoa(srv.MaxNewsLimit),
+				)
+				return
+			}
+		}
+		result, err := svc.GetNews(c.Request.Context(), uri.Market, uri.Symbol, limit)
+		if err != nil {
+			writeMarketDataReadError(c, "MARKET_NEWS_FAILED", err)
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+// handleCorporateActions godoc
+// @Summary 查询分红拆股等公司行动
+// @Tags market-data
+// @Produce json
+// @Param market path string true "市场代码"
+// @Param symbol path string true "证券代码"
+// @Param from query string false "起始时间（RFC3339，含当天）"
+// @Param to query string false "结束时间（RFC3339，含当天）"
+// @Success 200 {object} httpserver.Envelope{data=CorporateActionsData}
+// @Failure 400 {object} httpserver.ErrorEnvelope
+// @Failure 409 {object} httpserver.ErrorEnvelope
+// @Failure 503 {object} httpserver.ErrorEnvelope
+// @Failure 502 {object} httpserver.ErrorEnvelope
+// @Router /api/v1/market-data/corporate-actions/{market}/{symbol} [get]
+func handleCorporateActions(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var uri struct {
+			Market string `uri:"market" binding:"required"`
+			Symbol string `uri:"symbol" binding:"required"`
+		}
+		if err := httpserver.BindURI(c, &uri); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid instrument")
+			return
+		}
+		fromTime, err := parseOptionalRouteTime(c.Query("from"))
+		if err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "from must be a valid timestamp")
+			return
+		}
+		toTime, err := parseOptionalRouteTime(c.Query("to"))
+		if err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "to must be a valid timestamp")
+			return
+		}
+		if !fromTime.IsZero() && !toTime.IsZero() && fromTime.After(toTime) {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "from must not be after to")
+			return
+		}
+		result, err := svc.GetCorporateActions(c.Request.Context(), uri.Market, uri.Symbol, fromTime, toTime)
+		if err != nil {
+			writeMarketDataReadError(c, "MARKET_CORPORATE_ACTIONS_FAILED", err)
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+func parseOptionalRouteTime(value string) (time.Time, error) {
+	if strings.TrimSpace(value) == "" {
+		return time.Time{}, nil
+	}
+	parsed := httpserver.OptionalTimeValue{}
+	if err := parsed.UnmarshalText([]byte(value)); err != nil {
+		return time.Time{}, err
+	}
+	return parsed.UTC(), nil
 }

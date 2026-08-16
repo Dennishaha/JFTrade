@@ -157,7 +157,7 @@ func classifyRuntimeError(err error) error {
 		return fmt.Errorf("%w: %w", marketdata.ErrProviderWarming, remoteErr)
 	case "AKSHARE_POOL_BUSY", "AKSHARE_UPSTREAM_TIMEOUT":
 		return fmt.Errorf("%w: %w", marketdata.ErrProviderBusy, remoteErr)
-	case "UNSUPPORTED_RANGE", "UNSUPPORTED_PERIOD", "AKSHARE_UNSUPPORTED":
+	case "UNSUPPORTED_RANGE", "UNSUPPORTED_PERIOD", "UNSUPPORTED_ADJUSTMENT", "AKSHARE_UNSUPPORTED":
 		return fmt.Errorf("%w: %w", ErrUnsupported, remoteErr)
 	default:
 		return err
@@ -302,6 +302,7 @@ func (c *Client) candles(
 	marketValue string,
 	symbol string,
 	period string,
+	adjustment string,
 	limit int,
 	fromTime string,
 	toTime string,
@@ -309,6 +310,9 @@ func (c *Client) candles(
 	sessionSets ...[]string,
 ) (remoteCandles, error) {
 	values := url.Values{"period": {period}, "limit": {strconv.Itoa(limit)}}
+	if value := strings.ToLower(strings.TrimSpace(adjustment)); value != "" && value != "none" {
+		values.Set("adjustment", value)
+	}
 	if value := strings.TrimSpace(fromTime); value != "" {
 		values.Set("from", value)
 	}
@@ -323,5 +327,43 @@ func (c *Client) candles(
 	}
 	var response remoteCandles
 	err := c.get(ctx, providerSegments("candles", marketValue, symbol), values, &response)
+	return response, err
+}
+
+func (c *Client) news(ctx context.Context, marketValue, symbol string, limit int) (remoteNews, error) {
+	values := url.Values{"limit": {strconv.Itoa(limit)}}
+	var response remoteNews
+	err := c.get(ctx, providerSegments("news", marketValue, symbol), values, &response)
+	return response, err
+}
+
+func (c *Client) indexConstituents(
+	ctx context.Context,
+	marketValue string,
+	symbol string,
+	limit int,
+) (remoteIndexConstituents, error) {
+	values := url.Values{"limit": {strconv.Itoa(limit)}}
+	var response remoteIndexConstituents
+	err := c.get(ctx, providerSegments("index-constituents", marketValue, symbol), values, &response)
+	return response, err
+}
+
+func (c *Client) corporateActions(
+	ctx context.Context,
+	marketValue string,
+	symbol string,
+	from time.Time,
+	to time.Time,
+) (remoteCorporateActions, error) {
+	values := url.Values{}
+	if !from.IsZero() {
+		values.Set("from", from.UTC().Format(time.RFC3339))
+	}
+	if !to.IsZero() {
+		values.Set("to", to.UTC().Format(time.RFC3339))
+	}
+	var response remoteCorporateActions
+	err := c.get(ctx, providerSegments("corporate-actions", marketValue, symbol), values, &response)
 	return response, err
 }

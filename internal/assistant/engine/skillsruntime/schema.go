@@ -45,6 +45,12 @@ func DefaultToolInputSchema(name string) map[string]any {
 		return executionOrderEventsInputSchema()
 	case "market.snapshot", "market.candles":
 		return marketReadInputSchema(name)
+	case "market.news":
+		return marketNewsInputSchema()
+	case "market.corporate_actions":
+		return marketCorporateActionsInputSchema()
+	case "market.index_constituents":
+		return marketIndexConstituentsInputSchema()
 	case "market.providers":
 		return map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false}
 	case "market.provider.select":
@@ -318,6 +324,49 @@ func marketReadInputSchema(name string) map[string]any {
 	return map[string]any{
 		"type":                 "object",
 		"properties":           properties,
+		"required":             []string{"market", "symbol"},
+		"additionalProperties": false,
+	}
+}
+
+func marketNewsInputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"query":  map[string]any{"type": "string", "description": "原始用户请求，可包含类似 HK.00700 或 US.AAPL 的标的。"},
+			"market": map[string]any{"type": "string", "enum": []string{"HK", "US", "SH", "SZ"}},
+			"symbol": map[string]any{"type": "string"},
+			"limit":  map[string]any{"type": "integer", "minimum": 1, "maximum": 50, "default": 10},
+		},
+		"required":             []string{"market", "symbol"},
+		"additionalProperties": false,
+	}
+}
+
+func marketCorporateActionsInputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"query":  map[string]any{"type": "string", "description": "原始用户请求，可包含类似 HK.00700 或 US.AAPL 的标的。"},
+			"market": map[string]any{"type": "string", "enum": []string{"HK", "US", "SH", "SZ"}},
+			"symbol": map[string]any{"type": "string"},
+			"from":   map[string]any{"type": "string", "description": "可选起始时间（RFC3339），省略时默认最近两年。"},
+			"to":     map[string]any{"type": "string", "description": "可选结束时间（RFC3339）。"},
+		},
+		"required":             []string{"market", "symbol"},
+		"additionalProperties": false,
+	}
+}
+
+func marketIndexConstituentsInputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"query":  map[string]any{"type": "string", "description": "原始用户请求，可包含类似 SH.000300 或 SZ.399006 的指数。"},
+			"market": map[string]any{"type": "string", "enum": []string{"SH", "SZ"}},
+			"symbol": map[string]any{"type": "string"},
+			"limit":  map[string]any{"type": "integer", "minimum": 1, "maximum": 1000, "default": 200},
+		},
 		"required":             []string{"market", "symbol"},
 		"additionalProperties": false,
 	}

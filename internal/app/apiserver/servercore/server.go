@@ -282,6 +282,8 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 		server.runtimes.Brokers(), futuintegration.BrokerID, nil,
 		func() { _ = server.futuCoordinator().ActiveBroker() },
 		productsrv.WithPredictionQuoteStore(server.stores.ExecutionOrders),
+		// market-data service assembles later in installApplication; resolve lazily per query.
+		productsrv.WithLazyEmbeddedProviderResearch(func() *mdsrv.Service { return server.marketdataSvc }),
 	)
 	return server
 }
@@ -509,9 +511,7 @@ func initializeStrategyService(s *Server, state serverPersistentState) {
 	state.stores.StrategyCatalog.SetDefinitionStore(state.stores.Design)
 	strategyRuntime := s.runtimes.StrategyRuntime()
 	if strategyRuntime != nil {
-		state.stores.StrategyCatalog.SetObservationSource(
-			strategycatalog.ObservationSourceFunc(strategyRuntime.GetObservation),
-		)
+		state.stores.StrategyCatalog.SetObservationSource(strategycatalog.ObservationSourceFunc(strategyRuntime.GetObservation))
 	}
 	s.strategySvc = stratsrv.NewService(
 		state.stores.Design,

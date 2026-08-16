@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -33,6 +34,8 @@ type Service struct {
 	ensure           func()
 	now              func() time.Time
 	predictionQuotes broker.PredictionQuoteStore
+	embeddedReader   func() EmbeddedResearchReader
+	activeProvider   func(context.Context) (marketdata.ProviderDescriptor, error)
 
 	cacheMu sync.Mutex
 	cache   map[string]cacheEntry
@@ -117,9 +120,13 @@ func (s *Service) Query(ctx context.Context, query broker.FeatureQuery) (*broker
 	if s.ensure != nil {
 		s.ensure()
 	}
+	rawPageSize := query.PageSize
 	definition, err := prepareReadQuery(&query)
 	if err != nil {
 		return nil, err
+	}
+	if result, handled, facadeErr := s.queryEmbeddedProviderResearch(ctx, &query, rawPageSize); handled {
+		return result, facadeErr
 	}
 	resolution, err := s.router.ResolveContext(ctx, broker.FeatureRouteRequest{
 		BrokerID:           query.BrokerID,
@@ -421,76 +428,6 @@ func (s *Service) batchSnapshotResult(
 		AsOf:            result.AsOf,
 	}
 	return result
-}
-
-func queryResolvedFeature(
-	ctx context.Context,
-	selected broker.Broker,
-	adapterInterface string,
-	query broker.FeatureQuery,
-) (*broker.FeatureResult, error) {
-	switch adapterInterface {
-	case "MarketDataReader":
-		return queryCoreMarketDataFeature(ctx, selected, query)
-	case "BatchSnapshotSource":
-		return nil, fmt.Errorf("feature %q is served by the snapshot service", query.FeatureID)
-	case "MarketMicrostructureReader":
-		reader, ok := selected.(broker.MarketMicrostructureReader)
-		if !ok {
-			return nil, missingInterface(query.FeatureID, adapterInterface)
-		}
-		return reader.QueryMarketMicrostructure(ctx, query)
-	case "InstrumentProfileReader":
-		reader, ok := selected.(broker.InstrumentProfileReader)
-		if !ok {
-			return nil, missingInterface(query.FeatureID, adapterInterface)
-		}
-		return reader.QueryInstrumentProfile(ctx, query)
-	case "DerivativeCatalogReader":
-		reader, ok := selected.(broker.DerivativeCatalogReader)
-		if !ok {
-			return nil, missingInterface(query.FeatureID, adapterInterface)
-		}
-		return reader.QueryDerivativeCatalog(ctx, query)
-	case "OptionAnalyticsReader":
-		reader, ok := selected.(broker.OptionAnalyticsReader)
-		if !ok {
-			return nil, missingInterface(query.FeatureID, adapterInterface)
-		}
-		return reader.QueryOptionAnalytics(ctx, query)
-	case "InstrumentResearchReader":
-		reader, ok := selected.(broker.InstrumentResearchReader)
-		if !ok {
-			return nil, missingInterface(query.FeatureID, adapterInterface)
-		}
-		return reader.QueryInstrumentResearch(ctx, query)
-	case "MarketResearchReader":
-		reader, ok := selected.(broker.MarketResearchReader)
-		if !ok {
-			return nil, missingInterface(query.FeatureID, adapterInterface)
-		}
-		return reader.QueryMarketResearch(ctx, query)
-	case "PredictionMarketReader":
-		reader, ok := selected.(broker.PredictionMarketReader)
-		if !ok {
-			return nil, missingInterface(query.FeatureID, adapterInterface)
-		}
-		return reader.QueryPredictionMarket(ctx, query)
-	case "TechnicalIndicatorReader":
-		reader, ok := selected.(broker.TechnicalIndicatorReader)
-		if !ok {
-			return nil, missingInterface(query.FeatureID, adapterInterface)
-		}
-		return reader.QueryTechnicalIndicator(ctx, query)
-	case "CustomizationService":
-		reader, ok := selected.(broker.CustomizationService)
-		if !ok {
-			return nil, missingInterface(query.FeatureID, adapterInterface)
-		}
-		return reader.QueryCustomization(ctx, query)
-	default:
-		return nil, fmt.Errorf("feature %q has unsupported adapter interface %q", query.FeatureID, adapterInterface)
-	}
 }
 
 func queryCoreMarketDataFeature(

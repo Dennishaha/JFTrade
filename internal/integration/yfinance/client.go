@@ -237,6 +237,7 @@ func (c *Client) candles(
 	market string,
 	symbol string,
 	period string,
+	adjustment string,
 	limit int,
 	fromTime string,
 	toTime string,
@@ -246,6 +247,9 @@ func (c *Client) candles(
 	values := url.Values{}
 	values.Set("period", period)
 	values.Set("limit", strconv.Itoa(limit))
+	if value := strings.ToLower(strings.TrimSpace(adjustment)); value != "" && value != "none" {
+		values.Set("adjustment", value)
+	}
 	if value := strings.TrimSpace(fromTime); value != "" {
 		values.Set("from", value)
 	}
@@ -260,6 +264,33 @@ func (c *Client) candles(
 	}
 	var response remoteCandles
 	err := c.get(ctx, yfinanceProviderSegments("candles", market, symbol), values, &response)
+	return response, err
+}
+
+func (c *Client) news(ctx context.Context, market, symbol string, limit int) (remoteNews, error) {
+	values := url.Values{}
+	values.Set("limit", strconv.Itoa(limit))
+	var response remoteNews
+	err := c.get(ctx, yfinanceProviderSegments("news", market, symbol), values, &response)
+	return response, err
+}
+
+func (c *Client) corporateActions(
+	ctx context.Context,
+	market string,
+	symbol string,
+	from time.Time,
+	to time.Time,
+) (remoteCorporateActions, error) {
+	values := url.Values{}
+	if !from.IsZero() {
+		values.Set("from", from.UTC().Format(time.RFC3339))
+	}
+	if !to.IsZero() {
+		values.Set("to", to.UTC().Format(time.RFC3339))
+	}
+	var response remoteCorporateActions
+	err := c.get(ctx, yfinanceProviderSegments("corporate-actions", market, symbol), values, &response)
 	return response, err
 }
 

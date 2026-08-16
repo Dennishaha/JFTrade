@@ -16,7 +16,17 @@ from . import akshare_upstream, upstream
 from .errors import SidecarError
 from .models import ErrorBody, ErrorEnvelope
 from .readiness import runtime_unavailable_response
-from .routes import akshare, candles, health, markets, search, security, snapshot
+from .routes import (
+    akshare,
+    candles,
+    corporate_actions,
+    health,
+    markets,
+    news,
+    search,
+    security,
+    snapshot,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +58,16 @@ def create_app() -> FastAPI:
         security.router,
         snapshot.router,
         candles.router,
+        news.router,
+        corporate_actions.router,
     ):
         application.include_router(yahoo_router, prefix="/providers/yfinance")
     application.include_router(search.router)
     application.include_router(security.router)
     application.include_router(snapshot.router)
     application.include_router(candles.router)
+    application.include_router(news.router)
+    application.include_router(corporate_actions.router)
     application.include_router(akshare.router)
     return application
 
@@ -82,7 +96,9 @@ def _provider_for_data_path(path: str) -> str | None:
             return None if suffix in {"health", "markets"} else provider
     if path in {"/health", "/healthz", "/markets"}:
         return None
-    if path.startswith(("/search", "/security/", "/snapshot/", "/candles/")):
+    if path.startswith(
+        ("/search", "/security/", "/snapshot/", "/candles/", "/news/", "/corporate-actions/")
+    ):
         return "yfinance"
     return None
 

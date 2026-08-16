@@ -20,6 +20,10 @@ vi.mock("@/composables/shared/externalLink", () => ({
 
 import CompactInstrumentNews from "../../../src/components/domain/market-data/CompactInstrumentNews.vue";
 import SegmentedControl from "../../../src/components/shared/SegmentedControl.vue";
+import {
+  resetBrokerProviderSelectionForTests,
+  useBrokerProviderSelection,
+} from "@/composables/trading/brokerProviderSelection";
 import { flushPromises } from "../../productTestUtils";
 
 const target = {
@@ -48,6 +52,7 @@ function result(entries: Record<string, unknown>[], extra = {}) {
 afterEach(() => {
   mocks.fetch.mockReset();
   mocks.externalClick.mockReset();
+  resetBrokerProviderSelectionForTests();
 });
 
 describe("CompactInstrumentNews", () => {
@@ -75,6 +80,33 @@ describe("CompactInstrumentNews", () => {
     });
     await flushPromises();
     expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
+  it("loads without brokerId when a built-in embedded provider is selected", async () => {
+    useBrokerProviderSelection().selectBrokerProvider("yfinance");
+    mocks.fetch.mockResolvedValueOnce(result([]));
+    const wrapper = mount(CompactInstrumentNews, {
+      props: {
+        target,
+        active: true,
+        brokerId: "",
+        queryInstrumentId: "US.AAPL",
+      },
+    });
+    await flushPromises();
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    const path = String(mocks.fetch.mock.calls[0]?.[0] ?? "");
+    expect(path).toMatch(/market=US&code=US(?:\.|%2E)AAPL&operation=search&pageSize=30/);
+    expect(path).not.toContain("brokerId=");
+    expect(wrapper.text()).not.toContain("请选择支持资讯的数据源");
+    expect(wrapper.text()).toContain("暂无匹配资讯");
+
+    // Selecting an unrelated provider keeps the refusal unchanged.
+    resetBrokerProviderSelectionForTests();
+    await wrapper.setProps({ queryInstrumentId: "US.MSFT" });
+    await flushPromises();
+    expect(wrapper.text()).toContain("请选择支持资讯的数据源");
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("renders, filters, opens, and refreshes rich news entries", async () => {

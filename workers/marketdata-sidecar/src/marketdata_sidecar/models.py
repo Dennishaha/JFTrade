@@ -175,3 +175,35 @@ class CandlesResponse(WireModel):
     has_more: bool
     next_before: str | None = None
     source: str
+    adjustment: str = "none"
+
+
+class NewsEntry(WireModel):
+    title: str | None = None
+    link: str | None = None
+    publisher: str | None = None
+    published_at: str | None = None
+    summary: str | None = None
+
+
+class NewsResponse(WireModel):
+    market: str
+    symbol: str
+    instrument_id: str
+    entries: list[NewsEntry]
+    source: str
+
+
+class CorporateActionEvent(WireModel):
+    kind: Literal["dividend", "split"]
+    ex_date: str
+    amount: float | None = None
+    ratio: float | None = None
+
+
+class CorporateActionsResponse(WireModel):
+    market: str
+    symbol: str
+    instrument_id: str
+    events: list[CorporateActionEvent]
+    source: str

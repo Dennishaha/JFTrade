@@ -155,6 +155,14 @@ func convertSecurity(
 		"industry":     strings.TrimSpace(response.Industry), "sector": strings.TrimSpace(response.Sector),
 		"marketCap": marketCap, "averageVolume": averageVolume, "supportedPeriods": periods,
 	}
+	// Fundamentals are optional sidecar enrichments; omit them when the
+	// upstream source has no value, matching the canonical yfinance keys.
+	if response.TrailingPE != nil {
+		security["trailingPe"] = *response.TrailingPE
+	}
+	if response.SharesOutstanding != nil {
+		security["sharesOutstanding"] = *response.SharesOutstanding
+	}
 	return marketdata.SecurityDetails{
 		"request": map[string]any{
 			"market": expected.market, "symbol": expected.symbol, "instrumentId": expected.id,

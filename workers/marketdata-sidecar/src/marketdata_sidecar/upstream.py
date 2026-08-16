@@ -9,12 +9,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
+from .conversion import clean_text, finite_float, timestamp_as_utc
 from .errors import SidecarError
 
 UPSTREAM_TIMEOUT_SECONDS = 10
 UPSTREAM_IMPERSONATE = "chrome"
 SNAPSHOT_CACHE_SECONDS = 15
 SECURITY_CACHE_SECONDS = 86400
+NEWS_CACHE_SECONDS = 300
+ACTIONS_CACHE_SECONDS = 3600
 
 
 RuntimeState = Literal["warming", "ready", "failed"]
@@ -208,6 +211,120 @@ class _TickerInfoCache:
 
 
 _ticker_info_cache = _TickerInfoCache()
+_ticker_fast_info_cache = _TickerInfoCache()
+_ticker_news_cache = _TickerInfoCache()
+_ticker_actions_cache = _TickerInfoCache()
+
+
+def ticker_fast_info(symbol: str) -> dict[str, Any] | None:
+    """Return Yahoo-keyed quote metadata from ``fast_info``, or None.
+
+    The fast path is only usable when it can supply a price plus the
+    exchange/quote-type fields the snapshot validators require.  A ``None``
+    result (missing keys, upstream failure, or an unavailable runtime) sends
+    the caller to the regular :func:`ticker_info` path, which owns the
+    contractual error reporting.
+    """
+    try:
+        runtime = require_runtime()
+    except SidecarError:
+        return None
+    data = _ticker_fast_info_cache.get_or_fetch(
+        symbol,
+        SNAPSHOT_CACHE_SECONDS,
+        lambda: _fetch_fast_info(runtime, symbol),
+    )
+    return data or None
+
+
+def _fetch_fast_info(runtime: _RuntimeComponents, symbol: str) -> dict[str, Any]:
+    try:
+        fast = runtime.yfinance.Ticker(
+            symbol,
+            session=runtime.session,
+        ).get_fast_info()
+        mapped: dict[str, Any] = {}
+        for fast_key, info_key in FAST_INFO_KEY_MAP.items():
+            try:
+                value = fast[fast_key]
+            except Exception:
+                continue
+            if value is not None:
+                mapped[info_key] = value
+    except Exception:
+        return {}
+    if finite_float(mapped.get("regularMarketPrice")) is None:
+        return {}
+    if not clean_text(mapped.get("quoteType")) or not clean_text(
+        mapped.get("exchange")
+    ):
+        return {}
+    return mapped
+
+
+def ticker_news(symbol: str, limit: int) -> list[dict[str, Any]]:
+    """Return cached Yahoo news items for one ticker."""
+    runtime = require_runtime()
+    data = _ticker_news_cache.get_or_fetch(
+        f"{symbol}:{limit}",
+        NEWS_CACHE_SECONDS,
+        lambda: {
+            "items": runtime.yfinance.Ticker(
+                symbol,
+                session=runtime.session,
+            ).get_news(count=limit)
+            or []
+        },
+    )
+    return list(data.get("items") or [])
+
+
+def ticker_actions(symbol: str) -> dict[str, list[dict[str, Any]]]:
+    """Return cached dividend/split points as plain dated records."""
+    runtime = require_runtime()
+    return _ticker_actions_cache.get_or_fetch(
+        symbol,
+        ACTIONS_CACHE_SECONDS,
+        lambda: _fetch_actions(runtime, symbol),
+    )
+
+
+def _fetch_actions(
+    runtime: _RuntimeComponents,
+    symbol: str,
+) -> dict[str, list[dict[str, Any]]]:
+    ticker = runtime.yfinance.Ticker(symbol, session=runtime.session)
+    return {
+        "dividends": _series_points(ticker.dividends),
+        "splits": _series_points(ticker.splits),
+    }
+
+
+def _series_points(series: Any) -> list[dict[str, Any]]:
+    points: list[dict[str, Any]] = []
+    for index, value in getattr(series, "items", lambda: [])():
+        stamp = timestamp_as_utc(index)
+        number = finite_float(value)
+        if stamp is None or number is None:
+            continue
+        points.append({"date": stamp.date().isoformat(), "value": number})
+    return points
+
+# fast_info keys mapped onto the regular get_info key names so the snapshot
+# route keeps a single projection for both accessors.
+FAST_INFO_KEY_MAP = {
+    "last_price": "regularMarketPrice",
+    "previous_close": "regularMarketPreviousClose",
+    "open": "regularMarketOpen",
+    "day_high": "regularMarketDayHigh",
+    "day_low": "regularMarketDayLow",
+    "last_volume": "regularMarketVolume",
+    "market_cap": "marketCap",
+    "currency": "currency",
+    "exchange": "exchange",
+    "quote_type": "quoteType",
+    "timezone": "exchangeTimezoneName",
+}
 
 
 def search_quotes(query: str, limit: int) -> list[dict[str, Any]]:
@@ -253,12 +370,13 @@ def ticker_history(
     start: datetime | None,
     end: datetime | None,
     prepost: bool = True,
+    auto_adjust: bool = False,
 ) -> Any:
     runtime = require_runtime()
     options: dict[str, Any] = {
         "interval": interval,
         "prepost": prepost,
-        "auto_adjust": False,
+        "auto_adjust": auto_adjust,
         "actions": False,
         "repair": False,
         "timeout": UPSTREAM_TIMEOUT_SECONDS,

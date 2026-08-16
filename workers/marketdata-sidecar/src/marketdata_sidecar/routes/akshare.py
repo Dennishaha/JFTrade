@@ -7,26 +7,34 @@ from importlib.metadata import PackageNotFoundError, version
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
-from .. import akshare_provider, akshare_upstream
+from .. import akshare_index_constituents, akshare_news, akshare_provider, akshare_upstream
 from ..akshare_models import (
     AKBatchError,
     AKBatchRequest,
     AKBatchResponse,
     AKCandlesResponse,
+    AKIndexConstituentsResponse,
     AKSearchResponse,
     AKSecurityResponse,
     AKSnapshotResponse,
 )
 from ..errors import SidecarError
 from ..models import (
+    CorporateActionsResponse,
     MarketPrecision,
     MarketProfile,
     MarketsResponse,
+    NewsResponse,
     ProviderHealthResponse,
     TradingWindow,
 )
 from ..readiness import provider_health_response
-from .common import MARKET_SPECS, parse_candle_sessions
+from .common import (
+    MARKET_SPECS,
+    action_window,
+    parse_candle_adjustment,
+    parse_candle_sessions,
+)
 from ..conversion import parse_rfc3339_utc
 
 router = APIRouter(prefix="/providers/akshare")
@@ -139,6 +147,54 @@ def _snapshots(request: AKBatchRequest) -> AKBatchResponse:
     return AKBatchResponse(entries=entries, errors=errors)
 
 
+@router.get("/news/{market}/{symbol:path}", response_model=NewsResponse)
+def news(
+    market: str,
+    symbol: str,
+    limit: int = Query(default=10, ge=1, le=50),
+) -> NewsResponse:
+    return _translate("news lookup", akshare_news.news, market, symbol, limit)
+
+
+@router.get(
+    "/corporate-actions/{market}/{symbol:path}",
+    response_model=CorporateActionsResponse,
+)
+def corporate_actions(
+    market: str,
+    symbol: str,
+    from_value: str | None = Query(default=None, alias="from"),
+    to_value: str | None = Query(default=None, alias="to"),
+) -> CorporateActionsResponse:
+    from_date, to_date = action_window(from_value, to_value)
+    return _translate(
+        "corporate actions lookup",
+        akshare_news.corporate_actions,
+        market,
+        symbol,
+        from_date,
+        to_date,
+    )
+
+
+@router.get(
+    "/index-constituents/{market}/{symbol:path}",
+    response_model=AKIndexConstituentsResponse,
+)
+def index_constituents(
+    market: str,
+    symbol: str,
+    limit: int = Query(default=200, ge=1, le=1000),
+) -> AKIndexConstituentsResponse:
+    return _translate(
+        "index constituents lookup",
+        akshare_index_constituents.index_constituents,
+        market,
+        symbol,
+        limit,
+    )
+
+
 @router.get("/candles/{market}/{symbol:path}", response_model=AKCandlesResponse)
 def candles(
     market: str,
@@ -149,12 +205,14 @@ def candles(
     to_value: str | None = Query(default=None, alias="to"),
     before_value: str | None = Query(default=None, alias="before"),
     sessions: list[str] | None = Query(default=None),
+    adjustment: str | None = Query(default=None),
 ) -> AKCandlesResponse:
     from_time = parse_rfc3339_utc(from_value, "from")
     to_time = parse_rfc3339_utc(to_value, "to")
     before_time = parse_rfc3339_utc(before_value, "before")
     if before_time is not None and (from_time is not None or to_time is not None):
         raise SidecarError(400, "invalid_time_range", "before cannot be combined with from or to")
+    selected_adjustment = parse_candle_adjustment(adjustment)
     return _translate(
         "candle lookup",
         _candles,
@@ -166,6 +224,7 @@ def candles(
         to_time=to_time,
         before_time=before_time,
         sessions=sessions,
+        adjustment=selected_adjustment,
     )
 
 
@@ -204,6 +263,7 @@ def _candles(
     to_time,
     before_time,
     sessions,
+    adjustment: str = "none",
 ) -> AKCandlesResponse:
     selected_sessions = parse_candle_sessions(
         sessions,
@@ -231,6 +291,7 @@ def _candles(
         from_time=from_time,
         to_time=to_time,
         before_time=before_time,
+        adjustment=adjustment,
     )
 
 

@@ -543,6 +543,121 @@ describe("useBacktestPage default form state", () => {
   });
 });
 
+describe("useBacktestPage rehab options follow provider capabilities", () => {
+  function makeProviderDescriptor(
+    selectionId: string,
+    priceAdjustments?: string[],
+  ) {
+    return {
+      selectionId,
+      providerId: `${selectionId}-provider`,
+      displayName: selectionId,
+      capabilities: {
+        historicalCandles: true,
+        streamingCandles: false,
+        extendedHours: false,
+        candleIntervals: ["1m", "5m", "1d"],
+        ...(priceAdjustments == null ? {} : { priceAdjustments }),
+      },
+    };
+  }
+
+  function rehabOptionValues(page: BacktestPageState) {
+    return page.availableRehabTypes.value.map((option) => option.value);
+  }
+
+  it("offers all three adjustments for futu", async () => {
+    installApiMock();
+    const page = mountBacktestPage();
+    await flushPromises();
+
+    expect(page.backtestMarketDataProvider.value).toBe("futu");
+    expect(page.availableRehabTypes.value).toEqual([
+      { value: "forward", label: "前复权" },
+      { value: "backward", label: "后复权" },
+      { value: "none", label: "不复权" },
+    ]);
+  });
+
+  it("limits yfinance to none and forward while keeping a valid selection", async () => {
+    installApiMock();
+    const page = mountBacktestPage();
+    await flushPromises();
+
+    page.backtestProviderDescriptors.value = [
+      makeProviderDescriptor("yfinance", ["none", "forward"]),
+    ] as never;
+    page.backtestMarketDataProvider.value = "yfinance";
+    await flushPromises();
+
+    expect(rehabOptionValues(page)).toEqual(["forward", "none"]);
+    expect(page.rehabType.value).toBe("forward");
+  });
+
+  it("offers all three adjustments for akshare", async () => {
+    installApiMock();
+    const page = mountBacktestPage();
+    await flushPromises();
+
+    page.backtestProviderDescriptors.value = [
+      makeProviderDescriptor("akshare", ["none", "forward", "backward"]),
+    ] as never;
+    page.backtestMarketDataProvider.value = "akshare";
+    await flushPromises();
+
+    expect(rehabOptionValues(page)).toEqual(["forward", "backward", "none"]);
+  });
+
+  it("falls back to none when the provider does not advertise adjustments", async () => {
+    installApiMock();
+    const page = mountBacktestPage();
+    await flushPromises();
+
+    page.backtestProviderDescriptors.value = [
+      makeProviderDescriptor("akshare"),
+    ] as never;
+    page.backtestMarketDataProvider.value = "akshare";
+    await flushPromises();
+
+    expect(rehabOptionValues(page)).toEqual(["none"]);
+    expect(page.rehabType.value).toBe("none");
+  });
+
+  it("falls back to none for an unknown provider without dropping the stored selection early", async () => {
+    installApiMock();
+    const page = mountBacktestPage();
+    await flushPromises();
+
+    page.backtestProviderDescriptors.value = [];
+    page.backtestMarketDataProvider.value = "akshare";
+    await flushPromises();
+
+    expect(page.selectedBacktestProvider.value).toBeNull();
+    expect(rehabOptionValues(page)).toEqual(["none"]);
+    // 能力未加载时不清空已保存的选择，等待供应商能力恢复。
+    expect(page.rehabType.value).toBe("forward");
+  });
+
+  it("resets an unsupported selection to none after a provider switch", async () => {
+    installApiMock();
+    const page = mountBacktestPage();
+    await flushPromises();
+
+    page.rehabType.value = "backward";
+    await flushPromises();
+    expect(page.rehabType.value).toBe("backward");
+
+    page.backtestProviderDescriptors.value = [
+      makeProviderDescriptor("yfinance", ["none", "forward"]),
+    ] as never;
+    page.backtestMarketDataProvider.value = "yfinance";
+    await flushPromises();
+
+    expect(rehabOptionValues(page)).toEqual(["forward", "none"]);
+    expect(page.rehabType.value).toBe("none");
+  });
+});
+
 describe("useBacktestPage comparison metric derivation", () => {
   it("formats comparison metrics by kind with safe fallbacks", async () => {
     installApiMock();

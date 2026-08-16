@@ -107,9 +107,11 @@ export function useBacktestForm(input: BacktestFormInput) {
       { value: "none", label: "不复权" },
     ];
     const supported = input.providerCapabilities.value?.priceAdjustments;
-    return supported == null
-      ? options
-      : options.filter((option) => supported.includes(option.value));
+    // 能力未知（未加载或供应商未声明）时只保守提供不复权。
+    if (!Array.isArray(supported) || supported.length === 0) {
+      return options.filter((option) => option.value === "none");
+    }
+    return options.filter((option) => supported.includes(option.value));
   });
   const extendedHoursHint = computed(() => {
     if (!extendedHoursSupported.value) {
@@ -261,13 +263,17 @@ export function useBacktestForm(input: BacktestFormInput) {
     { immediate: true },
   );
   watch(
-    availableRehabTypes,
-    (options) => {
+    [availableRehabTypes, input.providerCapabilities],
+    ([options, capabilities]) => {
+      // 供应商能力尚未加载时不要清空本地保存的选择。
+      if (capabilities == null) return;
       if (
         options.length > 0 &&
         !options.some((option) => option.value === rehabType.value)
       ) {
-        rehabType.value = options[0]!.value;
+        rehabType.value = options.some((option) => option.value === "none")
+          ? "none"
+          : options[0]!.value;
       }
     },
     { immediate: true },

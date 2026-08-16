@@ -118,6 +118,9 @@ func (a *ApplicationAdapter) ToolDeps() ToolDeps {
 		MarketSnapshot:                 a.marketSnapshot,
 		MarketCandles:                  a.marketCandles,
 		MarketCandlesAdvanced:          a.marketCandlesAdvanced,
+		MarketNews:                     a.marketNews,
+		MarketCorporateActions:         a.marketCorporateActions,
+		MarketIndexConstituents:        a.marketIndexConstituents,
 		MarketProviders:                a.marketProviders,
 		SelectMarketProvider:           a.selectMarketProvider,
 		RuntimeDependencies:            a.runtimeDependencies,
@@ -284,6 +287,41 @@ func (a *ApplicationAdapter) marketCandlesAdvanced(ctx context.Context, input ma
 		BeforeTime: beforeTime, Sessions: sessions, SessionsSpecified: len(sessionValues) > 0,
 	})
 	return map[string]any(response), err
+}
+
+func (a *ApplicationAdapter) marketNews(ctx context.Context, market string, symbol string, limit int) (any, error) {
+	service := a.marketData()
+	if service == nil {
+		return nil, fmt.Errorf("market data service is unavailable")
+	}
+	return service.GetNews(ctx, market, symbol, limit)
+}
+
+func (a *ApplicationAdapter) marketCorporateActions(
+	ctx context.Context,
+	market string,
+	symbol string,
+	from time.Time,
+	to time.Time,
+) (any, error) {
+	service := a.marketData()
+	if service == nil {
+		return nil, fmt.Errorf("market data service is unavailable")
+	}
+	return service.GetCorporateActions(ctx, market, symbol, from, to)
+}
+
+func (a *ApplicationAdapter) marketIndexConstituents(
+	ctx context.Context,
+	market string,
+	symbol string,
+	limit int,
+) (any, error) {
+	service := a.marketData()
+	if service == nil {
+		return nil, fmt.Errorf("market data service is unavailable")
+	}
+	return service.GetIndexConstituents(ctx, market, symbol, limit)
 }
 
 func (a *ApplicationAdapter) marketProviders(ctx context.Context) (any, error) {

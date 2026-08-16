@@ -11,7 +11,9 @@ import {
   prepareProductFeature,
   type ProductFeatureResult,
 } from "@/composables/product/productFeatures";
+import { isPythonMarketDataProvider } from "@/composables/market-data/usePythonMarketDataRuntimeWarmup";
 import { useExternalLink } from "@/composables/shared/externalLink";
+import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
 import SegmentedControl from "@/components/shared/SegmentedControl.vue";
 import type { QuoteWorkbenchTarget } from "./quoteWorkbench";
 
@@ -54,8 +56,19 @@ const normalizedBrokerId = computed(() =>
 const normalizedInstrumentId = computed(() =>
   props.queryInstrumentId.trim().toUpperCase(),
 );
+const { selectedBrokerId } = useBrokerProviderSelection();
+// 内置行情提供者（yfinance/akshare）由后端门面按当前选择解析，前端不再传 brokerId。
+const embeddedNewsProviderId = computed(() =>
+  normalizedBrokerId.value === "" &&
+  isPythonMarketDataProvider(selectedBrokerId.value)
+    ? selectedBrokerId.value
+    : "",
+);
+const newsSourceKey = computed(
+  () => normalizedBrokerId.value || embeddedNewsProviderId.value,
+);
 const requestKey = computed(
-  () => `${normalizedBrokerId.value}:${normalizedInstrumentId.value}`,
+  () => `${newsSourceKey.value}:${normalizedInstrumentId.value}`,
 );
 const items = computed(() =>
   (result.value?.entries ?? [])
@@ -90,7 +103,7 @@ async function load(refresh = false): Promise<void> {
     props.target.kind === "plate" ||
     !props.active ||
     parts == null ||
-    normalizedBrokerId.value === ""
+    newsSourceKey.value === ""
   ) {
     return;
   }
@@ -103,7 +116,9 @@ async function load(refresh = false): Promise<void> {
     const response = await fetchProductFeature(prepareProductFeature({
       scope: "market-feature",
       resource: "news",
-      brokerId: normalizedBrokerId.value,
+      ...(normalizedBrokerId.value === ""
+        ? {}
+        : { brokerId: normalizedBrokerId.value }),
       market: parts.market,
       code: normalizedInstrumentId.value,
       operation: "search",
@@ -181,7 +196,7 @@ defineExpose({ refresh: () => load(true) });
       正在识别正股，识别完成后加载相关资讯…
     </div>
     <div
-      v-else-if="normalizedBrokerId === ''"
+      v-else-if="newsSourceKey === ''"
       class="compact-instrument-news__state"
     >
       请选择支持资讯的数据源

@@ -11,7 +11,13 @@ from .. import upstream
 from ..conversion import convert_history, parse_rfc3339_utc
 from ..errors import invalid_request, not_found, upstream_error
 from ..models import Candle, CandlesResponse
-from .common import normalize_instrument, parse_candle_sessions, quote_is_supported, quote_matches_instrument
+from .common import (
+    normalize_instrument,
+    parse_candle_adjustment,
+    parse_candle_sessions,
+    quote_is_supported,
+    quote_matches_instrument,
+)
 
 router = APIRouter()
 
@@ -68,6 +74,7 @@ def candles(
     to_value: str | None = Query(default=None, alias="to"),
     before_value: str | None = Query(default=None, alias="before"),
     sessions: list[str] | None = Query(default=None),
+    adjustment: str | None = Query(default=None),
 ) -> CandlesResponse:
     instrument = normalize_instrument(market, symbol)
     normalized_period = period.strip().lower()
@@ -75,6 +82,14 @@ def candles(
         raise invalid_request(
             "unsupported_period",
             f"unsupported candle period: {period}",
+        )
+    selected_adjustment = parse_candle_adjustment(adjustment)
+    if selected_adjustment == "backward":
+        # Yahoo Finance only exposes forward-adjusted (auto_adjust) history;
+        # backward-adjusted series cannot be reconstructed without actions.
+        raise invalid_request(
+            "unsupported_time_range",
+            "Yahoo Finance does not provide backward-adjusted candles",
         )
     selected_sessions = parse_candle_sessions(
         sessions,
@@ -124,6 +139,7 @@ def candles(
             to_time,
             selected_sessions,
             instrument.spec.timezone,
+            auto_adjust=selected_adjustment == "forward",
         )
         if not converted:
             raise not_found(
@@ -138,6 +154,7 @@ def candles(
             selected_sessions,
             converted,
             False,
+            selected_adjustment,
         )
 
     converted, has_more = paged_history(
@@ -147,6 +164,7 @@ def candles(
         before_time,
         selected_sessions,
         instrument.spec.timezone,
+        auto_adjust=selected_adjustment == "forward",
     )
     if not converted and before_time is None:
         raise not_found(
@@ -161,6 +179,7 @@ def candles(
         selected_sessions,
         converted,
         has_more,
+        selected_adjustment,
     )
 
 
@@ -172,6 +191,7 @@ def candle_response(
     sessions: tuple[str, ...],
     candles: list[Candle],
     has_more: bool,
+    adjustment: str,
 ) -> CandlesResponse:
     return CandlesResponse(
         market=market,
@@ -184,6 +204,7 @@ def candle_response(
         has_more=has_more,
         next_before=candles[0].at if has_more else None,
         source="yfinance",
+        adjustment=adjustment,
     )
 
 
@@ -195,6 +216,8 @@ def bounded_history(
     to_time: datetime | None,
     sessions: tuple[str, ...],
     exchange_timezone: str,
+    *,
+    auto_adjust: bool = False,
 ) -> list[Candle]:
     return read_history(
         symbol,
@@ -207,6 +230,7 @@ def bounded_history(
         None,
         sessions,
         exchange_timezone,
+        auto_adjust=auto_adjust,
     )
 
 
@@ -217,6 +241,8 @@ def paged_history(
     before_time: datetime | None,
     sessions: tuple[str, ...],
     exchange_timezone: str,
+    *,
+    auto_adjust: bool = False,
 ) -> tuple[list[Candle], bool]:
     now = datetime.now(timezone.utc)
     end_time = before_time or now
@@ -238,6 +264,7 @@ def paged_history(
         before_time,
         sessions,
         exchange_timezone,
+        auto_adjust=auto_adjust,
     )
     if len(converted) <= limit and start_time > lower_bound:
         converted = read_history(
@@ -251,6 +278,7 @@ def paged_history(
             before_time,
             sessions,
             exchange_timezone,
+            auto_adjust=auto_adjust,
         )
     has_more = len(converted) > limit
     if has_more:
@@ -269,6 +297,8 @@ def read_history(
     before_time: datetime | None,
     sessions: tuple[str, ...],
     exchange_timezone: str,
+    *,
+    auto_adjust: bool = False,
 ) -> list[Candle]:
     try:
         frame = upstream.ticker_history(
@@ -278,6 +308,7 @@ def read_history(
             start=start,
             end=end,
             prepost="extended" in sessions,
+            auto_adjust=auto_adjust,
         )
     except Exception as exc:
         raise upstream_error("Yahoo Finance candle lookup failed") from exc

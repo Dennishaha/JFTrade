@@ -246,3 +246,44 @@ def test_inclusive_end_advances_one_complete_interval(
     expected: datetime,
 ) -> None:
     assert inclusive_history_end(to_time, period) == expected
+
+
+@pytest.mark.parametrize(
+    ("auto_adjust", "expected"),
+    [(True, True), (None, False)],
+)
+def test_history_forwards_the_auto_adjust_option(
+    monkeypatch: pytest.MonkeyPatch,
+    auto_adjust: bool | None,
+    expected: bool,
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    class FakeTicker:
+        def __init__(self, _symbol: str, **_kwargs: Any) -> None:
+            pass
+
+        def history(self, **options: Any) -> str:
+            calls.append(options)
+            return "frame"
+
+    monkeypatch.setattr(
+        upstream,
+        "require_runtime",
+        lambda: SimpleNamespace(
+            yfinance=SimpleNamespace(Ticker=FakeTicker),
+            session=object(),
+        ),
+    )
+    kwargs: dict[str, Any] = {
+        "interval": "1d",
+        "fetch_period": "5y",
+        "start": None,
+        "end": None,
+    }
+    if auto_adjust is not None:
+        kwargs["auto_adjust"] = auto_adjust
+
+    TICKER_HISTORY("AAPL", **kwargs)
+
+    assert calls[0]["auto_adjust"] is expected

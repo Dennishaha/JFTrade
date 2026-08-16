@@ -27,6 +27,7 @@ def candles(
     from_time: datetime | None,
     to_time: datetime | None,
     before_time: datetime | None = None,
+    adjustment: str = "none",
 ) -> AKCandlesResponse:
     normalized_period = period.strip().lower()
     validate_candle_query(normalized_period, from_time, to_time)
@@ -51,6 +52,7 @@ def candles(
             from_time,
             to_time,
             None,
+            adjustment,
         )
         converted = converted[-limit:]
         if not converted:
@@ -58,13 +60,14 @@ def candles(
                 "candles_not_found",
                 f"candles not found: {instrument.instrument_id}",
             )
-        return _candle_response(instrument, normalized_period, converted, source, False)
+        return _candle_response(instrument, normalized_period, converted, source, False, adjustment)
 
     converted, source, has_more = _load_candle_page(
         instrument,
         normalized_period,
         limit,
         before_time,
+        adjustment,
     )
     if not converted and before_time is None:
         raise not_found(
@@ -72,7 +75,7 @@ def candles(
             f"candles not found: {instrument.instrument_id}",
         )
 
-    return _candle_response(instrument, normalized_period, converted, source, has_more)
+    return _candle_response(instrument, normalized_period, converted, source, has_more, adjustment)
 
 
 def _candle_response(
@@ -81,6 +84,7 @@ def _candle_response(
     candles: list[AKCandle],
     source: str,
     has_more: bool,
+    adjustment: str = "none",
 ) -> AKCandlesResponse:
     return AKCandlesResponse(
         market=instrument.market,
@@ -92,6 +96,7 @@ def _candle_response(
         has_more=has_more,
         next_before=candles[0].at if has_more else None,
         source=source,
+        adjustment=adjustment,
     )
 
 
@@ -100,6 +105,7 @@ def _load_candle_page(
     period: str,
     limit: int,
     before_time: datetime | None,
+    adjustment: str = "none",
 ) -> tuple[list[AKCandle], str, bool]:
     now = _utc_now()
     end_time = before_time or now
@@ -114,6 +120,7 @@ def _load_candle_page(
         start_time,
         end_time,
         before_time,
+        adjustment,
     )
     if len(converted) <= limit and start_time > lower_bound:
         converted, source = _load_candle_window(
@@ -122,6 +129,7 @@ def _load_candle_page(
             lower_bound,
             end_time,
             before_time,
+            adjustment,
         )
     has_more = len(converted) > limit
     if has_more:
@@ -135,12 +143,14 @@ def _load_candle_window(
     from_time: datetime | None,
     to_time: datetime | None,
     before_time: datetime | None,
+    adjustment: str = "none",
 ) -> tuple[list[AKCandle], str]:
     frame, fetched_period, source, volume_multiplier = _fetch_candle_frame(
         instrument,
         period,
         from_time,
         to_time,
+        adjustment,
     )
     converted = _convert_candle_frame(
         frame,

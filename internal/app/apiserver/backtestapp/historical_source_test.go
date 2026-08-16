@@ -12,6 +12,8 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	backtestservice "github.com/jftrade/jftrade-main/internal/backtest"
+	akshareintegration "github.com/jftrade/jftrade-main/internal/integration/akshare"
+	yfinanceintegration "github.com/jftrade/jftrade-main/internal/integration/yfinance"
 	"github.com/jftrade/jftrade-main/internal/marketdata"
 	backteststore "github.com/jftrade/jftrade-main/pkg/backtest"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
@@ -154,6 +156,50 @@ func TestProviderHistoricalSourceAppliesMarketScopedLookback(t *testing.T) {
 	query.Market = "HK"
 	if err := source.ValidateHistoricalCandleQuery(query); err != nil {
 		t.Fatalf("AKShare HK 5m request inherited US-only limit: %v", err)
+	}
+}
+
+func TestProviderHistoricalSourceEnforcesProviderAdjustmentMatrix(t *testing.T) {
+	yahoo, err := yfinanceintegration.NewProvider("http://127.0.0.1:9")
+	if err != nil {
+		t.Fatalf("yfinance NewProvider: %v", err)
+	}
+	akshareProvider, err := akshareintegration.NewProvider("http://127.0.0.1:9")
+	if err != nil {
+		t.Fatalf("akshare NewProvider: %v", err)
+	}
+	yahooSource := &providerHistoricalSource{provider: yahoo, descriptor: yfinanceintegration.ProviderDescriptor()}
+	akshareSource := &providerHistoricalSource{provider: akshareProvider, descriptor: akshareintegration.ProviderDescriptor()}
+	since := time.Now().UTC().Add(-time.Hour)
+
+	yahooQuery := backtestservice.HistoricalCandleQuery{
+		Market: "US", Symbol: "US.AAPL", Interval: "1d", Adjustment: backtestservice.RehabTypeForward,
+		Since: since, Sessions: []string{"regular"},
+	}
+	if err := yahooSource.ValidateHistoricalCandleQuery(yahooQuery); err != nil {
+		t.Fatalf("yfinance forward adjustment rejected: %v", err)
+	}
+	yahooQuery.Adjustment = backtestservice.RehabTypeBackward
+	if err := yahooSource.ValidateHistoricalCandleQuery(yahooQuery); err == nil {
+		t.Fatal("yfinance backward adjustment was accepted")
+	}
+
+	akshareQuery := backtestservice.HistoricalCandleQuery{
+		Market: "US", Symbol: "US.AAPL", Interval: "1d", Adjustment: backtestservice.RehabTypeBackward,
+		Since: since, Sessions: []string{"regular"},
+	}
+	if err := akshareSource.ValidateHistoricalCandleQuery(akshareQuery); err != nil {
+		t.Fatalf("akshare daily backward adjustment rejected: %v", err)
+	}
+	// Intraday adjustment passes descriptor validation but the provider must
+	// reject it before any sidecar request leaves the process.
+	akshareQuery.Interval = "5m"
+	if err := akshareSource.ValidateHistoricalCandleQuery(akshareQuery); err != nil {
+		t.Fatalf("akshare intraday descriptor validation: %v", err)
+	}
+	if _, err := akshareSource.FetchHistoricalCandles(t.Context(), akshareQuery); err == nil ||
+		!errors.Is(err, marketdata.ErrCapabilityUnsupported) || !strings.Contains(err.Error(), "price adjustment") {
+		t.Fatalf("akshare 5m backward adjustment error = %v", err)
 	}
 }
 

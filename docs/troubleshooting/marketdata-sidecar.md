@@ -25,7 +25,7 @@ Invoke-RestMethod http://127.0.0.1:3000/api/v1/market-data/provider
 - Provider health 为 `failed`：查看 `warmup_error`；Yahoo 导入失败不会阻断 AKShare，反之亦然。
 - health 为 `ready`，但查询返回 `502`：失败发生在当前上游请求或响应结构转换，不会自动换源。
 - AKShare 返回 `503 AKSHARE_POOL_BUSY` 或 `AKSHARE_UPSTREAM_TIMEOUT`：最多四个工作线程已占满或单次调用超过 12 秒；超时线程仍占用其原槽位，待实际返回后才释放。
-- 返回 `unsupported_market`、`unsupported_period` 或 `unsupported_capability`：请求超出当前明确支持的能力，不应靠重试解决。
+- 返回 `unsupported_market`、`unsupported_period`、`unsupported_adjustment` 或 `unsupported_capability`：请求超出当前明确支持的能力，不应靠重试解决。`unsupported_adjustment` 表示该 Provider 或品种/周期组合不支持请求的复权方式：yfinance 只支持 `none/forward`，AKShare 仅沪深股票与 ETF 的 `1d/1w/1mo` 支持 `forward/backward`。
 
 ## 自动启动后立即退出
 
@@ -86,7 +86,9 @@ sidecar 会把网络错误、限流和无法解析的上游响应转换为结构
 
 AKShare 请求没有 Yahoo/Futu 自动兜底。输入、周期或范围错误返回 `400`，标的不存在返回 `404`，上游或表结构异常返回 `502`，预热、导入失败、线程池饱和或 12 秒截止返回 `503`。目录和全市场 spot 按来源/市场缓存 15 秒并做 singleflight；批量快照按市场目录取数，单次最多 100 个标的，不逐证券请求上游。
 
-排查时确认目标身份属于支持目录。美股指数必须使用 `US..DJI`、`US..SPX` 或 `US..NDX`；恒生系列使用 `HK.800000`、`HK.800100`、`HK.800700`。超出分钟历史保留窗口的 `UNSUPPORTED_RANGE` 是能力边界，不应无限重试。
+排查时确认目标身份属于支持目录。美股指数必须使用 `US..DJI`、`US..SPX` 或 `US..NDX`；恒生系列使用 `HK.800000`、`HK.800100`、`HK.800700`。超出分钟历史保留窗口的 `UNSUPPORTED_RANGE` 是能力边界，不应无限重试。指数与分钟周期的非 `none` 复权同样返回 `UNSUPPORTED_RANGE`。
+
+新闻（`stock_news_em`）、公司行动（`stock_fhps_em`）和指数成分股路由只覆盖沪深标的；美港或非指数标的请求返回 400 `AKSHARE_UNSUPPORTED`。公司行动的冷缓存首次取数可能较慢，sidecar 可能返回 503 并附带 `Retry-After`，稍后重试即可命中缓存。
 
 ## 数据看起来不实时
 

@@ -1609,6 +1609,19 @@ export interface components {
     request: components["schemas"]["marketdata.CandleRequestData"];
     totalReturned: number;
   };
+    "marketdata.CorporateActionEventData": {
+    amount: number | null;
+    exDate: string;
+    kind: "dividend" | "split";
+    ratio: number | null;
+  };
+    "marketdata.CorporateActionsData": {
+    events: Array<components["schemas"]["marketdata.CorporateActionEventData"]>;
+    instrumentId: string;
+    market: string;
+    source: string;
+    symbol: string;
+  };
     "marketdata.DepthData": {
     depth: Record<string, unknown>;
     meta: components["schemas"]["marketdata.MarketQueryMeta"];
@@ -1680,6 +1693,20 @@ export interface components {
     "marketdata.MarketsData": {
     defaultMarket: string;
     markets: Array<Record<string, unknown>>;
+  };
+    "marketdata.NewsData": {
+    entries: Array<components["schemas"]["marketdata.NewsEntryData"]>;
+    instrumentId: string;
+    market: string;
+    source: string;
+    symbol: string;
+  };
+    "marketdata.NewsEntryData": {
+    link: string | null;
+    publishedAt: string | null;
+    publisher: string | null;
+    summary: string | null;
+    title: string | null;
   };
     "marketdata.NormalizeInstrumentData": {
     code: string;
@@ -7436,6 +7463,54 @@ export interface paths {
       };
     };
   };
+  "/api/v1/market-data/corporate-actions/{market}/{symbol}": {
+    get: {
+      parameters: {
+        path: {
+        market: string;
+        symbol: string;
+      };
+        query: {
+        from?: string;
+        to?: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.CorporateActionsData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/market-data/depth/{market}/{symbol}": {
     get: {
       parameters: {
@@ -7703,6 +7778,53 @@ export interface paths {
         };
         "502": {
           description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/news/{market}/{symbol}": {
+    get: {
+      parameters: {
+        path: {
+        market: string;
+        symbol: string;
+      };
+        query: {
+        limit?: number;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.NewsData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
           content: {
             "application/json": components["schemas"]["httpserver.ErrorEnvelope"];
           };

@@ -30,24 +30,36 @@ func newTestProvider(t *testing.T, server *testkit.Server) *Provider {
 	return provider
 }
 
-func TestProviderAdvertisesAndEnforcesUnadjustedHistoricalCandles(t *testing.T) {
+func TestProviderAdvertisesForwardAdjustmentAndRejectsBackward(t *testing.T) {
 	descriptor := ProviderDescriptor()
 	if descriptor.SelectionID != "yfinance" ||
-		!slices.Equal(descriptor.Capabilities.PriceAdjustments, []string{"none"}) ||
+		!slices.Equal(descriptor.Capabilities.PriceAdjustments, []string{"none", "forward"}) ||
 		descriptor.Capabilities.HistoricalLookbackDays["1m"] != 7 ||
 		descriptor.Capabilities.HistoricalLookbackDays["5m"] != 60 ||
 		descriptor.Capabilities.HistoricalLookbackDays["1h"] != 730 {
 		t.Fatalf("yfinance historical capabilities = %+v", descriptor)
 	}
-	provider, err := NewProvider("http://127.0.0.1:7788")
-	if err != nil {
-		t.Fatalf("NewProvider: %v", err)
-	}
-	_, err = provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
+	server := testkit.New(t)
+	provider := newTestProvider(t, server)
+	if _, err := provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
 		Market: "US", Symbol: "AAPL", Period: "1d", Adjustment: "forward",
-	})
-	if !errors.Is(err, ErrUnsupported) {
-		t.Fatalf("forward adjustment error = %v, want ErrUnsupported", err)
+	}); err != nil {
+		t.Fatalf("forward adjustment = %v", err)
+	}
+	request := requestForPath(t, server, "/candles/US/AAPL")
+	if request.Query.Get("adjustment") != "forward" {
+		t.Fatalf("forward adjustment query = %v", request.Query)
+	}
+	for _, adjustment := range []string{"backward", "sideways"} {
+		if _, err := provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
+			Market: "US", Symbol: "AAPL", Period: "1d", Adjustment: adjustment,
+		}); !errors.Is(err, ErrUnsupported) {
+			t.Fatalf("%s adjustment error = %v, want ErrUnsupported", adjustment, err)
+		}
+	}
+	if server.Count("/candles/US/AAPL") != 1 {
+		t.Fatalf("candles request count = %d, rejected adjustments must not reach the sidecar",
+			server.Count("/candles/US/AAPL"))
 	}
 }
 

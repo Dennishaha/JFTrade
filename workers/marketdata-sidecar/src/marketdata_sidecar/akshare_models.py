@@ -36,6 +36,11 @@ class AKSecurityResponse(AKWireModel):
     currency: str | None = None
     timezone: str
     security_type: str | None = None
+    industry: str | None = None
+    market_cap: int | None = None
+    trailing_pe: float | None = None
+    price_to_book: float | None = None
+    shares_outstanding: int | None = None
     supported_periods: list[str]
     source: str = "akshare:eastmoney"
 
@@ -97,6 +102,21 @@ class AKCandlesResponse(AKWireModel):
     has_more: bool
     next_before: str | None = None
     source: str = "akshare:eastmoney"
+    adjustment: str = "none"
+
+
+class AKIndexConstituent(AKWireModel):
+    code: str
+    name: str | None = None
+    weight: float | None = None
+
+
+class AKIndexConstituentsResponse(AKWireModel):
+    market: str
+    symbol: str
+    instrument_id: str
+    constituents: list[AKIndexConstituent]
+    source: str = "akshare-index-constituents"
 
 
 class AKBatchRequest(AKWireModel):

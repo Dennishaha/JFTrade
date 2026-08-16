@@ -171,6 +171,10 @@ func defaultFixture(request *http.Request) (int, string) {
 		return http.StatusOK, snapshotFixture(pathMarket(path), pathSymbol(path))
 	case strings.HasPrefix(path, "/candles/"):
 		return http.StatusOK, candlesFixture(pathMarket(path), pathSymbol(path), request.URL.Query().Get("period"))
+	case strings.HasPrefix(path, "/news/"):
+		return http.StatusOK, newsFixture(pathMarket(path), pathSymbol(path))
+	case strings.HasPrefix(path, "/corporate-actions/"):
+		return http.StatusOK, corporateActionsFixture(pathMarket(path), pathSymbol(path))
 	default:
 		return http.StatusNotFound, `{"error":{"code":"NOT_FOUND","message":"fixture route not found"}}`
 	}
@@ -236,6 +240,20 @@ func snapshotFixture(market, symbol string) string {
 	return fmt.Sprintf(
 		`{"market":"%[1]s","symbol":"%[2]s","instrument_id":"%[1]s.%[2]s","price":%[3]s,"bid":%[3]s,"ask":%[3]s,"open_price":187.5,"high_price":190.1,"low_price":186.9,"previous_close_price":188.2,"last_close_price":188.2,"regular_quote":{"price":188.5,"quote_at":"2026-07-29T14:30:00Z"},"pre_market_quote":null,"after_market_quote":null,"volume":1234567,"turnover":233456789.5,"quote_at":"2026-07-29T14:30:00Z","observed_at":"2026-07-29T14:45:00Z","source":"yfinance","delayed":true,"delay_minutes":15,"currency":"%[4]s","exchange":"%[5]s"}`,
 		market, symbol, price, currency, exchange,
+	)
+}
+
+func newsFixture(market, symbol string) string {
+	return fmt.Sprintf(
+		`{"market":"%[1]s","symbol":"%[2]s","instrument_id":"%[1]s.%[2]s","entries":[{"title":"%[2]s beats expectations","link":"https://example.test/news/1","publisher":"FixtureWire","published_at":"2026-08-10T15:30:00+02:00","summary":"Fixture summary"},{"title":null,"link":null,"publisher":null,"published_at":null,"summary":null}],"source":"yfinance-news"}`,
+		market, symbol,
+	)
+}
+
+func corporateActionsFixture(market, symbol string) string {
+	return fmt.Sprintf(
+		`{"market":"%[1]s","symbol":"%[2]s","instrument_id":"%[1]s.%[2]s","events":[{"kind":"split","ex_date":"2026-06-09","amount":null,"ratio":4},{"kind":"dividend","ex_date":"2026-05-11","amount":0.25,"ratio":null},{"kind":"dividend","ex_date":"2026-08-10","amount":0.26,"ratio":null}],"source":"yfinance-actions"}`,
+		market, symbol,
 	)
 }
 

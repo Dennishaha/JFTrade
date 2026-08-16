@@ -32,10 +32,12 @@ router = APIRouter()
 def snapshot(market: str, symbol: str) -> SnapshotResponse:
     instrument = normalize_instrument(market, symbol)
     try:
-        info = upstream.ticker_info(
-            instrument.yahoo_symbol,
-            max_age_seconds=upstream.SNAPSHOT_CACHE_SECONDS,
-        )
+        info = upstream.ticker_fast_info(instrument.yahoo_symbol)
+        if info is None:
+            info = upstream.ticker_info(
+                instrument.yahoo_symbol,
+                max_age_seconds=upstream.SNAPSHOT_CACHE_SECONDS,
+            )
     except Exception as exc:
         raise upstream_error("Yahoo Finance snapshot lookup failed") from exc
     if not quote_is_supported(info, instrument.market) or not quote_matches_instrument(

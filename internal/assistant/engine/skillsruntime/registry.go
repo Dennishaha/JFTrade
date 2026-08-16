@@ -84,16 +84,19 @@ var BuiltinSkillSpecs = []BuiltinSkillSpec{
 				"使用行情数据时，始终确认 market、instrumentId 和 marketSegment。"+
 					"先用 market.capabilities 判断当前券商、账户及行情权限；该工具只接受结构化参数，例如 {\"brokerId\":\"futu\",\"tradingEnvironment\":\"REAL\",\"market\":\"US\"}，不得传 query。"+
 					"批量快照优先使用 market.snapshots，盘口和逐笔仅用于当前可见标的。"+
+					"标的资讯和公司行动（分红、拆股）使用 market.news 与 market.corporate_actions；仅 yfinance/AKShare 提供者支持，Futu 会返回明确的不支持说明。"+
+					"中证及沪深交易所指数的成分股使用 market.index_constituents；仅 AKShare 提供者支持，其他提供者或不支持的指数会返回明确的不支持说明。"+
 					"回测或切换行情源前使用 market.providers 确认能力、约束和健康；全局切换使用 market.provider.select 并遵守逐次审批；yfinance/AKShare 只支持轮询历史数据，不能支撑实时策略。"+
 					"如果用户请求存在歧义，先补齐缺失的市场或代码。最终回答必须保留 provider、asOf、warnings 和 partialErrors。",
 				[]string{
 					"market.capabilities", "market.search", "market.instrument_profile",
 					"market.snapshot", "market.snapshots", "market.candles", "market.intraday",
 					"market.ticks", "market.depth", "market.broker_queue", "market.capital_flow",
+					"market.news", "market.corporate_actions", "market.index_constituents",
 					"market.subscriptions", "market.providers", "market.provider.select", "watchlist.list", "watchlist.remote.list",
 					"watchlist.remote.modify", "alerts.price.list", "alerts.price.set",
 				},
-				"7",
+				"9",
 			)
 		},
 	},

@@ -1033,3 +1033,104 @@ async def test_candles_empty_and_upstream_failure_are_distinct(
     assert failed.status_code == 502
     assert failed.json()["error"]["code"] == "upstream_error"
     assert "private yfinance failure" not in failed.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("params", "expected_auto_adjust", "expected_adjustment"),
+    [
+        ({}, False, "none"),
+        ({"adjustment": "none"}, False, "none"),
+        ({"adjustment": " FORWARD "}, True, "forward"),
+    ],
+)
+async def test_candles_adjustment_maps_to_yahoo_auto_adjust(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    supported_us_instrument: None,
+    params: dict[str, str],
+    expected_auto_adjust: bool,
+    expected_adjustment: str,
+) -> None:
+    calls: list[dict[str, Any]] = []
+    frame = pd.DataFrame(
+        {
+            "Open": [10.0],
+            "High": [11.0],
+            "Low": [9.0],
+            "Close": [10.5],
+            "Volume": [100],
+        },
+        index=pd.DatetimeIndex(["2026-07-28T13:30:00Z"]),
+    )
+
+    def fake_history(symbol: str, **kwargs: Any) -> pd.DataFrame:
+        calls.append({"symbol": symbol, **kwargs})
+        return frame
+
+    monkeypatch.setattr(upstream, "ticker_history", fake_history)
+
+    response = await client.get("/candles/US/AAPL", params=params)
+
+    assert response.status_code == 200
+    assert calls[0]["auto_adjust"] is expected_auto_adjust
+    assert response.json()["adjustment"] == expected_adjustment
+
+
+@pytest.mark.asyncio
+async def test_namespaced_yfinance_candles_accept_forward_adjustment(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    supported_us_instrument: None,
+) -> None:
+    calls: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        upstream,
+        "ticker_history",
+        lambda _symbol, **kwargs: calls.append(kwargs)
+        or pd.DataFrame(
+            {
+                "Open": [10.0],
+                "High": [11.0],
+                "Low": [9.0],
+                "Close": [10.5],
+                "Volume": [100],
+            },
+            index=pd.DatetimeIndex(["2026-07-28T13:30:00Z"]),
+        ),
+    )
+
+    response = await client.get(
+        "/providers/yfinance/candles/US/AAPL",
+        params={"adjustment": "forward"},
+    )
+
+    assert response.status_code == 200
+    assert calls[0]["auto_adjust"] is True
+    assert response.json()["adjustment"] == "forward"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("params", "code"),
+    [
+        ({"adjustment": "backward"}, "unsupported_time_range"),
+        ({"adjustment": "split"}, "unsupported_adjustment"),
+    ],
+)
+async def test_candles_reject_unsupported_adjustment_without_upstream_calls(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    params: dict[str, str],
+    code: str,
+) -> None:
+    def must_not_run(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError("unsupported adjustment must not reach Yahoo")
+
+    monkeypatch.setattr(upstream, "ticker_info", must_not_run)
+    monkeypatch.setattr(upstream, "ticker_history", must_not_run)
+
+    response = await client.get("/candles/US/AAPL", params=params)
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == code

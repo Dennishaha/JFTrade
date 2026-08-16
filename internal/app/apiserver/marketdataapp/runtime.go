@@ -93,6 +93,9 @@ var (
 	_ marketdata.Provider                    = (*Runtime)(nil)
 	_ marketdata.QuoteSource                 = (*Runtime)(nil)
 	_ marketdata.QuotePollingPolicySource    = (*Runtime)(nil)
+	_ marketdata.NewsSource                  = (*Runtime)(nil)
+	_ marketdata.CorporateActionsSource      = (*Runtime)(nil)
+	_ marketdata.IndexConstituentsSource     = (*Runtime)(nil)
 	_ marketdata.PushSource                  = (*Runtime)(nil)
 	_ marketdata.PushAvailability            = (*Runtime)(nil)
 	_ marketdata.PushInstrumentFilter        = (*Runtime)(nil)
@@ -628,6 +631,59 @@ func (r *Runtime) GetHistoricalCandles(
 
 func (r *Runtime) GetDepth(ctx context.Context, market, symbol string, num int) (marketdata.DepthResponse, error) {
 	return r.snapshot().provider.GetDepth(ctx, market, symbol, num)
+}
+
+// News forwards instrument news to the active provider only when it offers the
+// optional capability.
+func (r *Runtime) News(ctx context.Context, market, symbol string, limit int) (marketdata.NewsResponse, error) {
+	state := r.snapshot()
+	source, ok := state.provider.(marketdata.NewsSource)
+	if !ok {
+		return marketdata.NewsResponse{}, fmt.Errorf(
+			"%w: active provider %q does not support instrument news",
+			marketdata.ErrCapabilityUnsupported, state.providerID,
+		)
+	}
+	return source.News(ctx, market, symbol, limit)
+}
+
+// CorporateActions forwards dividend/split reads to the active provider only
+// when it offers the optional capability.
+func (r *Runtime) CorporateActions(
+	ctx context.Context,
+	market string,
+	symbol string,
+	from time.Time,
+	to time.Time,
+) (marketdata.CorporateActionsResponse, error) {
+	state := r.snapshot()
+	source, ok := state.provider.(marketdata.CorporateActionsSource)
+	if !ok {
+		return marketdata.CorporateActionsResponse{}, fmt.Errorf(
+			"%w: active provider %q does not support corporate actions",
+			marketdata.ErrCapabilityUnsupported, state.providerID,
+		)
+	}
+	return source.CorporateActions(ctx, market, symbol, from, to)
+}
+
+// IndexConstituents forwards index constituent reads to the active provider
+// only when it offers the optional capability.
+func (r *Runtime) IndexConstituents(
+	ctx context.Context,
+	market string,
+	symbol string,
+	limit int,
+) (marketdata.IndexConstituentsResponse, error) {
+	state := r.snapshot()
+	source, ok := state.provider.(marketdata.IndexConstituentsSource)
+	if !ok {
+		return marketdata.IndexConstituentsResponse{}, fmt.Errorf(
+			"%w: active provider %q does not support index constituents",
+			marketdata.ErrCapabilityUnsupported, state.providerID,
+		)
+	}
+	return source.IndexConstituents(ctx, market, symbol, limit)
 }
 
 func (r *Runtime) NormalizeInstrument(ctx context.Context, input map[string]any) (map[string]any, error) {

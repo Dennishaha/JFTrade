@@ -124,8 +124,8 @@ func TestOpenAPIDocumentsExplicitErrorResponses(t *testing.T) {
 			}
 		}
 	}
-	if operationCount != 276 {
-		t.Fatalf("OpenAPI operation count = %d, want 276", operationCount)
+	if operationCount != 278 {
+		t.Fatalf("OpenAPI operation count = %d, want 278", operationCount)
 	}
 	sort.Strings(missing)
 	if len(missing) > 0 {

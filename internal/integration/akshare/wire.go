@@ -69,20 +69,22 @@ type remoteInstrument struct {
 }
 
 type remoteSecurity struct {
-	Market           string       `json:"market"`
-	Symbol           string       `json:"symbol"`
-	InstrumentID     string       `json:"instrument_id"`
-	Name             string       `json:"name"`
-	Exchange         string       `json:"exchange"`
-	Currency         string       `json:"currency"`
-	Timezone         string       `json:"timezone"`
-	SecurityType     string       `json:"security_type"`
-	Industry         string       `json:"industry"`
-	Sector           string       `json:"sector"`
-	MarketCap        *json.Number `json:"market_cap"`
-	AverageVolume    *json.Number `json:"average_volume"`
-	Source           string       `json:"source"`
-	SupportedPeriods []string     `json:"supported_periods"`
+	Market            string       `json:"market"`
+	Symbol            string       `json:"symbol"`
+	InstrumentID      string       `json:"instrument_id"`
+	Name              string       `json:"name"`
+	Exchange          string       `json:"exchange"`
+	Currency          string       `json:"currency"`
+	Timezone          string       `json:"timezone"`
+	SecurityType      string       `json:"security_type"`
+	Industry          string       `json:"industry"`
+	Sector            string       `json:"sector"`
+	MarketCap         *json.Number `json:"market_cap"`
+	AverageVolume     *json.Number `json:"average_volume"`
+	TrailingPE        *json.Number `json:"trailing_pe"`
+	SharesOutstanding *json.Number `json:"shares_outstanding"`
+	Source            string       `json:"source"`
+	SupportedPeriods  []string     `json:"supported_periods"`
 }
 
 type remoteSnapshot struct {
@@ -147,4 +149,49 @@ type remoteCandle struct {
 	Low    *json.Number `json:"low"`
 	Close  *json.Number `json:"close"`
 	Volume *json.Number `json:"volume"`
+}
+
+type remoteNews struct {
+	Market       string            `json:"market"`
+	Symbol       string            `json:"symbol"`
+	InstrumentID string            `json:"instrument_id"`
+	Entries      []remoteNewsEntry `json:"entries"`
+	Source       string            `json:"source"`
+}
+
+type remoteNewsEntry struct {
+	Title       *string `json:"title"`
+	Link        *string `json:"link"`
+	Publisher   *string `json:"publisher"`
+	PublishedAt *string `json:"published_at"`
+	Summary     *string `json:"summary"`
+}
+
+type remoteCorporateActions struct {
+	Market       string                  `json:"market"`
+	Symbol       string                  `json:"symbol"`
+	InstrumentID string                  `json:"instrument_id"`
+	Events       []remoteCorporateAction `json:"events"`
+	Source       string                  `json:"source"`
+}
+
+type remoteCorporateAction struct {
+	Kind   string       `json:"kind"`
+	ExDate string       `json:"ex_date"`
+	Amount *json.Number `json:"amount"`
+	Ratio  *json.Number `json:"ratio"`
+}
+
+type remoteIndexConstituents struct {
+	Market       string                   `json:"market"`
+	Symbol       string                   `json:"symbol"`
+	InstrumentID string                   `json:"instrument_id"`
+	Constituents []remoteIndexConstituent `json:"constituents"`
+	Source       string                   `json:"source"`
+}
+
+type remoteIndexConstituent struct {
+	Code   string       `json:"code"`
+	Name   string       `json:"name"`
+	Weight *json.Number `json:"weight"`
 }

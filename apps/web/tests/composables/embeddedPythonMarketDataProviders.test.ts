@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  embeddedPythonMarketDataFeatureIDs,
   embeddedPythonMarketDataProviderOption,
   pythonMarketDataProviderName,
   statusMatchesPythonMarketDataProvider,
@@ -28,6 +29,14 @@ describe("embedded Python market-data providers", () => {
     expect(brokerSupportedChartPeriods("akshare", "SH", [])).toEqual([
       "1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo",
     ]);
+  });
+
+  it("marks news and corporate actions as embedded-capable features", () => {
+    expect(embeddedPythonMarketDataFeatureIDs.has("market.news")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("market.corporate_actions")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.news")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.corporate_actions")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.instrument")).toBe(false);
   });
 
   it("keeps Yahoo aliases and provider-specific status identities", () => {

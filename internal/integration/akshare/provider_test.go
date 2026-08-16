@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -47,23 +48,67 @@ func TestProviderExposesPollingOnlyAKShareBoundary(t *testing.T) {
 	}
 }
 
-func TestProviderAdvertisesAndEnforcesUnadjustedHistoricalCandles(t *testing.T) {
+func TestProviderAdvertisesDailyAdjustmentAndRejectsIntradayAdjustment(t *testing.T) {
 	descriptor := ProviderDescriptor()
 	if descriptor.SelectionID != "akshare" ||
-		!slices.Equal(descriptor.Capabilities.PriceAdjustments, []string{"none"}) ||
+		!slices.Equal(descriptor.Capabilities.PriceAdjustments, []string{"none", "forward", "backward"}) ||
 		descriptor.Capabilities.HistoricalLookbackDays["1m"] != 5 ||
 		descriptor.Capabilities.HistoricalLookbackDays["US:5m"] != 5 {
 		t.Fatalf("AKShare historical capabilities = %+v", descriptor)
 	}
-	provider, err := NewProvider("http://127.0.0.1:7788")
+
+	var mu sync.Mutex
+	queries := make([]url.Values, 0)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		if strings.HasPrefix(request.URL.Path, "/providers/akshare/candles/") {
+			mu.Lock()
+			queries = append(queries, request.URL.Query())
+			mu.Unlock()
+			body := strings.Replace(candlesFixture(), `"period":"1d"`,
+				`"period":"`+request.URL.Query().Get("period")+`"`, 1)
+			_, _ = writer.Write([]byte(body))
+			return
+		}
+		writer.WriteHeader(http.StatusNotFound)
+		_, _ = writer.Write([]byte(`{"error":{"code":"NOT_FOUND","message":"missing fixture"}}`))
+	}))
+	defer server.Close()
+	provider, err := NewProvider(server.URL)
 	if err != nil {
 		t.Fatalf("NewProvider: %v", err)
 	}
-	_, err = provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
+
+	if _, err := provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
 		Market: "US", Symbol: "AAPL", Period: "1d", Adjustment: "backward",
-	})
-	if !errors.Is(err, ErrUnsupported) {
-		t.Fatalf("backward adjustment error = %v, want ErrUnsupported", err)
+	}); err != nil {
+		t.Fatalf("backward daily adjustment = %v", err)
+	}
+	if _, err := provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
+		Market: "US", Symbol: "AAPL", Period: "1w", Adjustment: "forward",
+	}); err != nil {
+		t.Fatalf("forward weekly adjustment = %v", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(queries) != 2 || queries[0].Get("adjustment") != "backward" || queries[1].Get("adjustment") != "forward" {
+		t.Fatalf("adjustment queries = %#v", queries)
+	}
+
+	for _, period := range []string{"1m", "5m", "15m", "30m", "1h"} {
+		if _, err := provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
+			Market: "US", Symbol: "AAPL", Period: period, Adjustment: "forward",
+		}); !errors.Is(err, ErrUnsupported) {
+			t.Fatalf("%s forward adjustment error = %v, want ErrUnsupported", period, err)
+		}
+	}
+	if _, err := provider.GetHistoricalCandles(t.Context(), marketdata.HistoricalCandlesQuery{
+		Market: "US", Symbol: "AAPL", Period: "1d", Adjustment: "raw",
+	}); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("unknown adjustment error = %v, want ErrUnsupported", err)
+	}
+	if len(queries) != 2 {
+		t.Fatalf("candles request count = %d, rejected adjustments must not reach the sidecar", len(queries))
 	}
 }
 
@@ -102,6 +147,10 @@ func TestProviderConvertsNamespacedSidecarContract(t *testing.T) {
 	if err != nil || security["instrumentId"] != "US.AAPL" ||
 		!slices.Equal(security["supportedPeriods"].([]string), candlePeriodOrder) {
 		t.Fatalf("GetSecurityDetails = %#v, err=%v", details, err)
+	}
+	if security["trailingPe"] != json.Number("28.5") ||
+		security["sharesOutstanding"] != json.Number("15340000000") {
+		t.Fatalf("security fundamentals = %#v", security)
 	}
 
 	tick, err := provider.QuerySnapshot(t.Context(), "US.AAPL")
@@ -312,6 +361,7 @@ func securityFixture() string {
 	return `{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL","name":"Apple",` +
 		`"exchange":"NASDAQ","currency":"USD","timezone":"America/New_York",` +
 		`"security_type":"stock","market_cap":"3000000000000","average_volume":"55000000",` +
+		`"trailing_pe":"28.5","shares_outstanding":"15340000000",` +
 		`"source":"akshare:eastmoney","supported_periods":` + string(periods) + `}`
 }
 

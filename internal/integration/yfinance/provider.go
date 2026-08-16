@@ -86,7 +86,7 @@ func ProviderDescriptor() marketdata.ProviderDescriptor {
 			Snapshots: true, HistoricalCandles: true, InstrumentSearch: true, ExtendedHours: true,
 			CandleIntervals:  []string{"1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"},
 			Sessions:         []string{"regular", "pre", "after", "closed"},
-			PriceAdjustments: []string{"none"},
+			PriceAdjustments: []string{"none", "forward"},
 			HistoricalLookbackDays: map[string]int{
 				"1m": 7, "5m": 60, "15m": 60, "30m": 60, "1h": 730,
 			},
@@ -242,7 +242,10 @@ func (p *Provider) GetHistoricalCandles(
 	ctx context.Context,
 	query marketdata.HistoricalCandlesQuery,
 ) (marketdata.CandlesResponse, error) {
-	if adjustment := strings.ToLower(strings.TrimSpace(query.Adjustment)); adjustment != "" && adjustment != "none" {
+	adjustment := strings.ToLower(strings.TrimSpace(query.Adjustment))
+	switch adjustment {
+	case "", "none", "forward":
+	default:
 		return nil, fmt.Errorf("%w: price adjustment %q", ErrUnsupported, adjustment)
 	}
 	marketValue, symbol, period := query.Market, query.Symbol, query.Period
@@ -274,7 +277,7 @@ func (p *Provider) GetHistoricalCandles(
 	}
 	limit = normalizeLimit(limit, defaultCandleLimit, maxCandleLimit)
 	response, err := p.client.candles(
-		ctx, instrument.market, instrument.symbol, period, limit, fromTime, toTime, beforeTime,
+		ctx, instrument.market, instrument.symbol, period, adjustment, limit, fromTime, toTime, beforeTime,
 		marketdata.CandleSessionStrings(sessions),
 	)
 	if err != nil {

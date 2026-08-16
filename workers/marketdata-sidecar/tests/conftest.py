@@ -7,7 +7,14 @@ import socket
 import httpx
 import pytest
 
-from marketdata_sidecar import akshare_provider, akshare_upstream, upstream
+from marketdata_sidecar import (
+    akshare_index_constituents,
+    akshare_news,
+    akshare_provider,
+    akshare_quotes,
+    akshare_upstream,
+    upstream,
+)
 from marketdata_sidecar.main import app
 
 
@@ -31,6 +38,8 @@ def block_real_network(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(upstream, "search_quotes", blocked_yfinance)
     monkeypatch.setattr(upstream, "ticker_info", blocked_yfinance)
     monkeypatch.setattr(upstream, "ticker_history", blocked_yfinance)
+    monkeypatch.setattr(upstream, "ticker_news", blocked_yfinance)
+    monkeypatch.setattr(upstream, "ticker_actions", blocked_yfinance)
     monkeypatch.setattr(
         akshare_upstream,
         "runtime_snapshot",
@@ -40,6 +49,14 @@ def block_real_network(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(akshare_upstream, "us_minute_rows", blocked_akshare)
     monkeypatch.setattr(akshare_upstream, "hk_minute_rows", blocked_akshare)
     akshare_provider._catalog_cache.clear()
+    akshare_quotes._enrichment_cache.clear()
+    akshare_news._news_cache.clear()
+    akshare_news._fhps_cache.clear()
+    akshare_index_constituents._constituents_cache.clear()
+    upstream._ticker_info_cache.clear()
+    upstream._ticker_fast_info_cache.clear()
+    upstream._ticker_news_cache.clear()
+    upstream._ticker_actions_cache.clear()
 
 
 @pytest.fixture

@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
+	marketdatasrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	service "github.com/jftrade/jftrade-main/internal/productfeatures"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
@@ -476,6 +477,22 @@ func writeQueryError(c *gin.Context, err error) {
 		httpserver.WriteError(c, http.StatusUnprocessableEntity, "OPTION_ZERO_DTE_UNAVAILABLE", err.Error())
 	case errors.Is(err, service.ErrInvalidQuery):
 		httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+	case errors.Is(err, marketdatasrv.ErrProviderWarming):
+		c.Header("Retry-After", "1")
+		httpserver.WriteError(
+			c,
+			http.StatusServiceUnavailable,
+			"MARKET_DATA_PROVIDER_WARMING",
+			"行情服务正在预热，请稍后重试",
+		)
+	case errors.Is(err, marketdatasrv.ErrProviderBusy):
+		c.Header("Retry-After", "2")
+		httpserver.WriteError(
+			c,
+			http.StatusServiceUnavailable,
+			"MARKET_DATA_PROVIDER_BUSY",
+			"行情服务当前繁忙，请稍后重试",
+		)
 	case errors.Is(err, service.ErrPredictionIneligible):
 		httpserver.WriteError(c, http.StatusForbidden, "PREDICTION_MARKET_INELIGIBLE", err.Error())
 	case errors.Is(err, service.ErrCapabilityUnavailable):

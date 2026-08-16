@@ -187,6 +187,63 @@ describe("broker provider tag", () => {
     );
   });
 
+  it("offers embedded providers on the news surface served by the backend facade", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) =>
+      url.includes("/api/v1/settings/market-data-provider")
+        ? Promise.resolve({ activeProvider: "futu" })
+        : Promise.resolve(capabilities),
+    );
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "research.news",
+        featureIds: ["research.news"],
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    await wrapper.get(".broker-provider-tag").trigger("click");
+    const options = wrapper.findAll(
+      '.broker-provider-tag__menu button[role="option"]',
+    );
+    expect(options.some((button) => button.text().includes("Yahoo"))).toBe(
+      true,
+    );
+    expect(options.some((button) => button.text().includes("AKShare"))).toBe(
+      true,
+    );
+    wrapper.unmount();
+  });
+
+  it("keeps embedded providers off Futu-only research surfaces", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) =>
+      url.includes("/api/v1/settings/market-data-provider")
+        ? Promise.resolve({ activeProvider: "futu" })
+        : Promise.resolve(capabilities),
+    );
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "research.instrument",
+        featureIds: ["research.instrument"],
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    await wrapper.get(".broker-provider-tag").trigger("click");
+    const options = wrapper.findAll(
+      '.broker-provider-tag__menu button[role="option"]',
+    );
+    expect(options.some((button) => button.text().includes("Yahoo"))).toBe(
+      false,
+    );
+    wrapper.unmount();
+  });
+
   it("renders Yahoo's delayed HTTP polling as a normal green provider state", async () => {
     apiMocks.fetchEnvelope.mockImplementation((url: string) => {
       if (url.includes("/api/v1/settings/market-data-provider")) {

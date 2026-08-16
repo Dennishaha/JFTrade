@@ -312,6 +312,18 @@ func intValue(input map[string]any, key string, defaultValue int) int {
 	return defaultValue
 }
 
+func optionalToolTime(input map[string]any, key string) (time.Time, error) {
+	raw := strings.TrimSpace(stringValue(input, key))
+	if raw == "" {
+		return time.Time{}, nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%s must be an RFC3339 timestamp", key)
+	}
+	return parsed.UTC(), nil
+}
+
 func floatValue(input map[string]any, key string, defaultValue float64) float64 {
 	switch value := input[key].(type) {
 	case float64:

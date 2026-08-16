@@ -224,18 +224,33 @@ func TestClientEndpointMethodsEncodePathAndOptionalCandleQuery(t *testing.T) {
 	if _, err := client.snapshot(context.Background(), "US", "AAPL"); err != nil {
 		t.Fatalf("snapshot: %v", err)
 	}
-	if _, err := client.candles(context.Background(), "US", "AAPL", "1d", 5, "", "", ""); err != nil {
+	if _, err := client.candles(context.Background(), "US", "AAPL", "1d", "", 5, "", "", ""); err != nil {
 		t.Fatalf("candles: %v", err)
 	}
 	request := requestForPath(t, server, "/candles/US/AAPL")
 	if request.Query.Get("from") != "" || request.Query.Get("to") != "" || request.Query.Get("before") != "" ||
-		request.Query.Get("period") != "1d" || request.Query.Get("limit") != "5" {
+		request.Query.Get("adjustment") != "" || request.Query.Get("period") != "1d" || request.Query.Get("limit") != "5" {
 		t.Fatalf("optional candle query = %v", request.Query)
 	}
-	if _, err := client.candles(context.Background(), "US", "AAPL", "1d", 5, "", "", "2026-07-15T13:30:00Z"); err != nil {
-		t.Fatalf("candles before cursor: %v", err)
+	if _, err := client.candles(context.Background(), "US", "AAPL", "1d", "forward", 5, "", "", ""); err != nil {
+		t.Fatalf("forward-adjusted candles: %v", err)
 	}
 	requests := server.Requests()
+	request = requests[len(requests)-1]
+	if request.Query.Get("adjustment") != "forward" {
+		t.Fatalf("adjustment query = %v", request.Query)
+	}
+	if _, err := client.candles(context.Background(), "US", "AAPL", "1d", " NONE ", 5, "", "", ""); err != nil {
+		t.Fatalf("unadjusted candles: %v", err)
+	}
+	requests = server.Requests()
+	if request = requests[len(requests)-1]; request.Query.Get("adjustment") != "" {
+		t.Fatalf("none adjustment query = %v", request.Query)
+	}
+	if _, err := client.candles(context.Background(), "US", "AAPL", "1d", "", 5, "", "", "2026-07-15T13:30:00Z"); err != nil {
+		t.Fatalf("candles before cursor: %v", err)
+	}
+	requests = server.Requests()
 	request = requests[len(requests)-1]
 	if request.Query.Get("before") != "2026-07-15T13:30:00Z" {
 		t.Fatalf("before cursor query = %v", request.Query)

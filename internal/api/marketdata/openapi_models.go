@@ -230,3 +230,38 @@ type NormalizeInstrumentData struct {
 	InstrumentID   string `json:"instrumentId"`
 	ResolvedMarket string `json:"resolvedMarket"`
 }
+
+// NewsEntryData documents one nullable provider news item.
+type NewsEntryData struct {
+	Title       *string `json:"title" extensions:"x-nullable"`
+	Link        *string `json:"link" extensions:"x-nullable"`
+	Publisher   *string `json:"publisher" extensions:"x-nullable"`
+	PublishedAt *string `json:"publishedAt" extensions:"x-nullable"`
+	Summary     *string `json:"summary" extensions:"x-nullable"`
+}
+
+// NewsData documents the provider-neutral news payload.
+type NewsData struct {
+	Market       string          `json:"market"`
+	Symbol       string          `json:"symbol"`
+	InstrumentID string          `json:"instrumentId"`
+	Entries      []NewsEntryData `json:"entries"`
+	Source       string          `json:"source"`
+}
+
+// CorporateActionEventData documents one dividend or split event.
+type CorporateActionEventData struct {
+	Kind   string   `json:"kind" enums:"dividend,split"`
+	ExDate string   `json:"exDate"`
+	Amount *float64 `json:"amount" extensions:"x-nullable"`
+	Ratio  *float64 `json:"ratio" extensions:"x-nullable"`
+}
+
+// CorporateActionsData documents the provider-neutral corporate actions payload.
+type CorporateActionsData struct {
+	Market       string                     `json:"market"`
+	Symbol       string                     `json:"symbol"`
+	InstrumentID string                     `json:"instrumentId"`
+	Events       []CorporateActionEventData `json:"events"`
+	Source       string                     `json:"source"`
+}

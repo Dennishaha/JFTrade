@@ -6418,6 +6418,65 @@
       ],
       "type": "object"
     },
+    "marketdata.CorporateActionEventData": {
+      "properties": {
+        "amount": {
+          "type": "number",
+          "x-nullable": true
+        },
+        "exDate": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "dividend",
+            "split"
+          ],
+          "type": "string"
+        },
+        "ratio": {
+          "type": "number",
+          "x-nullable": true
+        }
+      },
+      "required": [
+        "amount",
+        "exDate",
+        "kind",
+        "ratio"
+      ],
+      "type": "object"
+    },
+    "marketdata.CorporateActionsData": {
+      "properties": {
+        "events": {
+          "items": {
+            "$ref": "#/definitions/marketdata.CorporateActionEventData"
+          },
+          "type": "array"
+        },
+        "instrumentId": {
+          "type": "string"
+        },
+        "market": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "events",
+        "instrumentId",
+        "market",
+        "source",
+        "symbol"
+      ],
+      "type": "object"
+    },
     "marketdata.DepthData": {
       "properties": {
         "depth": {
@@ -6717,6 +6776,68 @@
       "required": [
         "defaultMarket",
         "markets"
+      ],
+      "type": "object"
+    },
+    "marketdata.NewsData": {
+      "properties": {
+        "entries": {
+          "items": {
+            "$ref": "#/definitions/marketdata.NewsEntryData"
+          },
+          "type": "array"
+        },
+        "instrumentId": {
+          "type": "string"
+        },
+        "market": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entries",
+        "instrumentId",
+        "market",
+        "source",
+        "symbol"
+      ],
+      "type": "object"
+    },
+    "marketdata.NewsEntryData": {
+      "properties": {
+        "link": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "publishedAt": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "publisher": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "summary": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "title": {
+          "type": "string",
+          "x-nullable": true
+        }
+      },
+      "required": [
+        "link",
+        "publishedAt",
+        "publisher",
+        "summary",
+        "title"
       ],
       "type": "object"
     },
@@ -22205,6 +22326,89 @@
         ]
       }
     },
+    "/api/v1/market-data/corporate-actions/{market}/{symbol}": {
+      "get": {
+        "parameters": [
+          {
+            "description": "市场代码",
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "证券代码",
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "起始时间（RFC3339，含当天）",
+            "in": "query",
+            "name": "from",
+            "type": "string"
+          },
+          {
+            "description": "结束时间（RFC3339，含当天）",
+            "in": "query",
+            "name": "to",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/marketdata.CorporateActionsData"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          }
+        },
+        "summary": "查询分红拆股等公司行动",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
     "/api/v1/market-data/depth/{market}/{symbol}": {
       "get": {
         "parameters": [
@@ -22733,6 +22937,83 @@
         "summary": "查询衍生品目录与市场资讯",
         "tags": [
           "market-data-products"
+        ]
+      }
+    },
+    "/api/v1/market-data/news/{market}/{symbol}": {
+      "get": {
+        "parameters": [
+          {
+            "description": "市场代码",
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "证券代码",
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "数量，默认 10，范围 1..50",
+            "in": "query",
+            "name": "limit",
+            "type": "integer"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/marketdata.NewsData"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/httpserver.ErrorEnvelope"
+            }
+          }
+        },
+        "summary": "查询标的资讯",
+        "tags": [
+          "market-data"
         ]
       }
     },

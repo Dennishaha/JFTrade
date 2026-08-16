@@ -185,6 +185,37 @@ func TestClientHealthContractBoundaries(t *testing.T) {
 	}
 }
 
+func TestClientCandlesEncodeAdjustmentOnlyWhenRequested(t *testing.T) {
+	queries := make(chan url.Values, 8)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		queries <- request.URL.Query()
+		_, _ = writer.Write([]byte(candlesFixture()))
+	}))
+	defer server.Close()
+	client, err := NewClient(server.URL, nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	for _, test := range []struct {
+		adjustment string
+		want       string
+	}{
+		{"", ""},
+		{"none", ""},
+		{" NONE ", ""},
+		{"forward", "forward"},
+		{"Backward", "backward"},
+	} {
+		if _, err := client.candles(t.Context(), "US", "AAPL", "1d", test.adjustment, 5, "", "", ""); err != nil {
+			t.Fatalf("candles(%q): %v", test.adjustment, err)
+		}
+		if got := (<-queries).Get("adjustment"); got != test.want {
+			t.Fatalf("candles(%q) adjustment query = %q, want %q", test.adjustment, got, test.want)
+		}
+	}
+}
+
 func TestConversionRejectsInvalidMarketAndInstrumentContracts(t *testing.T) {
 	if _, err := convertMarkets(nil); !errors.Is(err, ErrInvalidResponse) {
 		t.Fatalf("empty markets error = %v", err)
@@ -284,6 +315,41 @@ func TestConversionRejectsInvalidSecurityAndSnapshotContracts(t *testing.T) {
 		if _, err := convertSnapshot(value, expected, time.Now()); !errors.Is(err, ErrInvalidResponse) {
 			t.Fatalf("invalid snapshot %#v error = %v", value, err)
 		}
+	}
+}
+
+func TestConversionProjectsFundamentalsOnlyWhenSidecarReportsThem(t *testing.T) {
+	expected, err := normalizeIdentity("US", "AAPL", "")
+	if err != nil {
+		t.Fatalf("normalizeIdentity: %v", err)
+	}
+	minimal := remoteSecurity{
+		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Name: "Apple",
+		SupportedPeriods: []string{"1d"},
+	}
+	details, err := convertSecurity(minimal, expected, time.Now())
+	if err != nil {
+		t.Fatalf("convertSecurity without fundamentals: %v", err)
+	}
+	security, _ := details["security"].(map[string]any)
+	if _, ok := security["trailingPe"]; ok {
+		t.Fatalf("trailingPe must be omitted when trailing_pe is null: %#v", security)
+	}
+	if _, ok := security["sharesOutstanding"]; ok {
+		t.Fatalf("sharesOutstanding must be omitted when shares_outstanding is null: %#v", security)
+	}
+
+	enriched := minimal
+	enriched.TrailingPE = number("28.5")
+	enriched.SharesOutstanding = number("15340000000")
+	details, err = convertSecurity(enriched, expected, time.Now())
+	if err != nil {
+		t.Fatalf("convertSecurity with fundamentals: %v", err)
+	}
+	security, _ = details["security"].(map[string]any)
+	if security["trailingPe"] != json.Number("28.5") ||
+		security["sharesOutstanding"] != json.Number("15340000000") {
+		t.Fatalf("projected fundamentals = %#v", security)
 	}
 }
 

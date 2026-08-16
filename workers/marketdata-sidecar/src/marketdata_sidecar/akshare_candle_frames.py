@@ -25,6 +25,17 @@ from .errors import SidecarError
 
 UTC = timezone.utc
 INTRADAY_PERIODS = frozenset({"1m", "5m", "15m", "30m", "1h"})
+AKSHARE_ADJUST = {"none": "", "forward": "qfq", "backward": "hfq"}
+
+
+def _require_unadjusted(adjustment: str, instrument: CandleInstrument) -> None:
+    """Reject adjustment modes the instrument's candle source cannot serve."""
+    if adjustment != "none":
+        raise SidecarError(
+            400,
+            "UNSUPPORTED_RANGE",
+            f"price adjustment {adjustment} is not supported for {instrument.instrument_id} candles",
+        )
 
 
 class CandleInstrument(Protocol):
@@ -54,13 +65,19 @@ def _fetch_candle_frame(
     period: str,
     from_time: datetime | None,
     to_time: datetime | None,
+    adjustment: str = "none",
 ) -> tuple[Any, str, str, Decimal]:
     start = from_time or (_utc_now() - timedelta(days=5 if period in INTRADAY_PERIODS else 365 * 5))
     end = to_time or _utc_now()
     if instrument.kind == "index" and instrument.market in {"US", "HK"}:
+        # Global index history has no adjustment-capable daily function.
+        _require_unadjusted(adjustment, instrument)
         frame, source, volume_multiplier = _global_index_daily_frame(instrument)
         return frame, "1d", source, volume_multiplier
     if period in INTRADAY_PERIODS:
+        # Minute sources (Sina/Eastmoney raw and *_hist_min_em) serve
+        # unadjusted prices only.
+        _require_unadjusted(adjustment, instrument)
         fetch_period = "1m" if instrument.market in {"US", "HK"} else period
         minute = "60" if fetch_period == "1h" else fetch_period.removesuffix("m")
         if instrument.market in {"SH", "SZ"}:
@@ -98,7 +115,7 @@ def _fetch_candle_frame(
             "akshare:eastmoney",
             instrument.volume_multiplier,
         )
-    frame, source, volume_multiplier = _daily_frame(instrument, start, end)
+    frame, source, volume_multiplier = _daily_frame(instrument, start, end, adjustment)
     return frame, "1d", source, volume_multiplier
 
 
@@ -106,9 +123,16 @@ def _daily_frame(
     instrument: CandleInstrument,
     start: datetime,
     end: datetime,
+    adjustment: str = "none",
 ) -> tuple[Any, str, Decimal]:
-    fallback_name, fallback_kwargs = _daily_call(instrument, "1d", start, end)
+    adjust = AKSHARE_ADJUST[adjustment]
+    fallback_name, fallback_kwargs = _daily_call(instrument, "1d", start, end, adjust)
     if instrument.kind == "etf":
+        if adjust:
+            # fund_etf_hist_sina has no adjust parameter; Eastmoney history
+            # is the only adjusted ETF daily source.
+            frame = akshare_upstream.call(fallback_name, **fallback_kwargs)
+            return frame, "akshare:eastmoney", instrument.volume_multiplier
         return _preferred_history_call(
             "fund_etf_hist_sina",
             {"symbol": _sina_cn_symbol(instrument)},
@@ -117,6 +141,8 @@ def _daily_frame(
             fallback_volume_multiplier=instrument.volume_multiplier,
         )
     if instrument.kind == "index":
+        # Neither stock_zh_index_daily nor index_zh_a_hist accepts adjust.
+        _require_unadjusted(adjustment, instrument)
         return _preferred_history_call(
             "stock_zh_index_daily",
             {"symbol": _sina_cn_symbol(instrument)},
@@ -127,14 +153,14 @@ def _daily_frame(
     if instrument.market == "US":
         return _preferred_history_call(
             "stock_us_daily",
-            {"symbol": instrument.symbol, "adjust": ""},
+            {"symbol": instrument.symbol, "adjust": adjust},
             fallback_name,
             fallback_kwargs,
         )
     if instrument.market == "HK":
         return _preferred_history_call(
             "stock_hk_daily",
-            {"symbol": instrument.symbol, "adjust": ""},
+            {"symbol": instrument.symbol, "adjust": adjust},
             fallback_name,
             fallback_kwargs,
         )
@@ -144,7 +170,7 @@ def _daily_frame(
             "symbol": _sina_cn_symbol(instrument),
             "start_date": _daily_bound(start, instrument.timezone),
             "end_date": _daily_bound(end, instrument.timezone),
-            "adjust": "",
+            "adjust": adjust,
         },
         fallback_name,
         fallback_kwargs,
@@ -252,6 +278,7 @@ def _daily_call(
     period: str,
     start: datetime,
     end: datetime,
+    adjust: str = "",
 ) -> tuple[str, dict[str, Any]]:
     upstream_period = {"1d": "daily", "1w": "weekly", "1mo": "monthly"}[period]
     kwargs = {
@@ -261,11 +288,11 @@ def _daily_call(
         "end_date": _daily_bound(end, instrument.timezone),
     }
     if instrument.kind == "etf":
-        kwargs["adjust"] = ""
+        kwargs["adjust"] = adjust
         return "fund_etf_hist_em", kwargs
     if instrument.kind == "index":
         return "index_zh_a_hist", kwargs
-    kwargs["adjust"] = ""
+    kwargs["adjust"] = adjust
     if instrument.market == "US":
         return "stock_us_hist", kwargs
     if instrument.market == "HK":

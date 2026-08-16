@@ -12,7 +12,12 @@ JFTrade 的行情查询与交易执行是两个独立边界。运行时提供 Fu
 | 证券搜索与详情 | 支持 | 支持 | 支持股票、沪深 ETF 和限定指数目录 |
 | 行情快照 | 支持，时效取决于行情权限 | 延迟 HTTP，按需轮询 | 延迟 HTTP，按需轮询；批量目录快照最多 100 个标的 |
 | 历史 K 线 | 支持 | 八个全局周期 | 品种级 `supportedPeriods` 为权威；美港指数仅 `1d/1w/1mo` |
-| 回测历史同步 | 支持 `none/forward/backward` | 支持，仅 `none`；`1m` 7 天、`5m/15m/30m` 60 天、`1h` 730 天 | 支持，仅 `none`；`1m` 5 天，美股全部分钟周期 5 天 |
+| 复权历史 K 线 | 支持 `none/forward/backward` | 支持 `none/forward`（`forward` 走 Yahoo auto_adjust）；`backward` 返回 400，非法值返回 400 `unsupported_adjustment` | 支持 `none/forward/backward`（qfq/hfq），仅沪深股票与沪深 ETF 的 `1d/1w/1mo`；指数与分钟周期仅 `none` |
+| 回测历史同步 | 支持 `none/forward/backward` | 支持 `none/forward`；`1m` 7 天、`5m/15m/30m` 60 天、`1h` 730 天 | 支持 `none/forward/backward`；`1m` 5 天，美股全部分钟周期 5 天 |
+| 基本面字段 | 不支持 | 支持 market_cap、trailing_pe、shares_outstanding | 支持 market_cap、trailing_pe（东财 f9 动态市盈率，非 TTM）、shares_outstanding；沪深 A 股总股本经 `stock_individual_info_em` 补全，24 小时缓存，失败静默降级为仅现货字段。sidecar 还返回 price_to_book（f23），但 Go 侧当前不投影进 SecurityDetails |
+| 快照买一/卖一 | 支持 | 取决于 Yahoo 上游字段，缺失保持 `null` | 支持（东财买一/卖一）；未服务市场保持 `null` |
+| 新闻与公司行动 | 不支持 | 支持；公开 API `GET /api/v1/market-data/news/{market}/{symbol}` 与 `/api/v1/market-data/corporate-actions/{market}/{symbol}` | 支持，新闻与分红/送转仅覆盖沪深；同一公开 API，美港返回 400 |
+| 指数成分股 | 不支持 | 不支持 | 支持中证指数（如 `SH.000300`）与沪深交易所指数（如 `SH.000001`）；仅经 assistant 工具 `market.index_constituents` 提供，无公开 HTTP API |
 | 实时推流 | 支持 | 不支持 | 不支持 |
 | Level 2 盘口 | 取决于权限 | 不支持 | 不支持 |
 | 盘前盘后 | 支持 | 美股由 Yahoo 实际报价决定 | 不支持 |
@@ -21,7 +26,7 @@ JFTrade 的行情查询与交易执行是两个独立边界。运行时提供 Fu
 
 AKShare 目录包含沪深股票与 ETF、美港通用证券、上证/深证/中证完整指数目录、港股行情指数，以及具有快照闭环的 `US..DJI`、`US..SPX`、`US..NDX`。恒生系列继续规范为 `HK.800000`、`HK.800100`、`HK.800700`；其他港股指数使用 `HK.<AKShare code>`，中证指数对外使用 `SH.<code>`。美港目录不能从 AKShare 明确判断品种时，`securityType` 保持 `null`；重复身份无法唯一判定时返回歧义错误，不按名称猜测。
 
-AKShare 沪深股票、ETF、指数及美港通用证券支持 `1m/5m/15m/30m/1h/1d/1w/1mo`；美股 `5m` 至 `1h` 由一分钟数据确定性聚合，美港指数的周/月线由日线按交易所时区聚合。回测 Provider descriptor 会在任务启动前声明并校验这些滚动窗口：普通 key（如 `1m`）作用于所有市场，`US:5m` 形式的 key 优先覆盖特定市场。历史查询统一不复权；沪深以“手”报告的成交量转换为股数。不存在的 bid、ask、volume、turnover 和真实报价时间保持 `null`。
+AKShare 沪深股票、ETF、指数及美港通用证券支持 `1m/5m/15m/30m/1h/1d/1w/1mo`；美股 `5m` 至 `1h` 由一分钟数据确定性聚合，美港指数的周/月线由日线按交易所时区聚合。回测 Provider descriptor 会在任务启动前声明并校验这些滚动窗口：普通 key（如 `1m`）作用于所有市场，`US:5m` 形式的 key 优先覆盖特定市场。历史查询默认不复权（`adjustment=none`）；AKShare 沪深股票与 ETF 的 `1d/1w/1mo` 额外支持 `forward`/`backward`（qfq/hfq，ETF 经东财接口取数），指数与分钟周期的非 `none` 复权返回 400。沪深以“手”报告的成交量转换为股数。不存在的 volume、turnover 和真实报价时间保持 `null`。
 
 ## 历史 K 线分页
 
@@ -30,6 +35,14 @@ AKShare 沪深股票、ETF、指数及美港通用证券支持 `1m/5m/15m/30m/1h
 `from`/`to` 是包含式边界，与 `before` 不可同时使用；所有显式范围查询都是有界查询，回应 `hasMore=false`。游标到达 Provider 最早可用数据或短周期保留边界时，会正常返回空页与 `hasMore=false`，而不是报错；上游、鉴权和响应格式故障仍按错误处理。
 
 Yahoo Finance 接口不是官方稳定 API，也没有实时性或可用性承诺。JFTrade 会把缺失值安全映射为 `null`，并把上游失败转换为结构化错误，但无法消除上游限流、字段变化或临时不可用。
+
+yfinance 快照优先读取 `Ticker.fast_info` 快速路径（15 秒缓存与 singleflight 不变），字段缺失或出错时才回退到 `get_info`；约 15 分钟延迟的契约不变。yfinance 历史 K 线的 `adjustment=forward` 映射为 Yahoo auto_adjust；`backward` 不支持，返回 400 `unsupported_time_range`；非法取值返回 400 `unsupported_adjustment`。
+
+## 新闻与公司行动
+
+yfinance 与 AKShare 都提供 `GET /api/v1/market-data/news/{market}/{symbol}?limit=`（`limit` 1–50，默认 10）和 `GET /api/v1/market-data/corporate-actions/{market}/{symbol}?from=&to=`（RFC3339 包含式边界，默认最近两年）。新闻条目含 `title`、`link`、`publisher`、`published_at`（RFC3339，可为 `null`）与 `summary`；公司行动事件含 `kind`（`dividend`/`split`）、`ex_date`（YYYY-MM-DD）、`amount`（每股，可空）与 `ratio`（可空），按 `(ex_date, kind)` 排序。AKShare 两项仅覆盖沪深：新闻经 `stock_news_em`（上游约 10 条），公司行动经 `stock_fhps_em`（半年报期 0630/1231，冷缓存可能较慢并返回 503 与 `Retry-After`）；美港请求返回 400 `AKSHARE_UNSUPPORTED`。Futu 不支持这两项，会返回明确的不支持错误。assistant 对应只读工具为 `market.news` 与 `market.corporate_actions`，都经过当前活跃 Provider；指数成分股另有 assistant 工具 `market.index_constituents`（仅 SH/SZ，经 AKShare），刻意不暴露公开 HTTP API。
+
+控制台"资讯"与个股研究"公司行动"界面始终走 broker product-feature 管线（查询式 `/api/v1/market-data/news`、`/api/v1/research/corporate-actions/{instrumentId}`）。当活跃（或显式指定）Provider 为 yfinance/AKShare 时，`internal/productfeatures` 的 facade 会把这两个 feature 委托给上述 Provider 能力并投影为 `broker.FeatureResult`（新闻保留 `title/link/publisher/publishedAt/summary`；公司行动投影 `exDate` 与合成 `statement`，Futu 专有的公告日/进度/登记日等列为空），前端无需按 Provider 分支；assistant 的 `research.news`/`research.corporate_actions` 工具走同一路径同样生效。AKShare 的美港请求在该管线下返回 409 不支持错误。
 
 Yahoo 的美股盘外分钟数据只作为价格样本使用：上游盘前成交量通常为零，盘后还可能把截至当时的累计成交量放进单根分钟 K，不能解释为该分钟增量。JFTrade 因此把 Yahoo 美股盘前、盘后分钟 K 的 `volume` 统一标记为 `null`，价格 K 仍保留；成交量柱和量价指标只使用成交量有效的常规时段 K。日成交量直接读取 Yahoo 日 K，不从盘外分钟 K 聚合。Futu OpenD 的每根 K 线成交量不受此规则影响。
 
@@ -57,7 +70,7 @@ collector 每 250 毫秒推进一次非活跃 Futu 清理；每条订阅从 Open
 
 同步请求和回测启动请求都不接受逐次 Provider 覆盖。请求被接受时固定模块当前 Provider；同步去重、覆盖检查、进度、运行状态和结果都携带 `marketDataProvider`。切换设置不会打断已接受任务，新任务立即使用新选择。历史缓存 schema v3 以 `provider + symbol + interval + adjustment + session` 隔离数据；v2 缓存由数据库管理页的备份、确认重建、重启流程统一重建，独立的 `backtest-runs.db` 不受影响。
 
-前端会按 descriptor 在同步或回测前拦截超出历史窗口的组合；后端仍执行同一校验，避免旧客户端绕过。缓存缺失但请求范围有效时，“开始回测”会先同步当前范围并在同步完成后重试一次。Provider 返回零根 K 线时同步任务标记失败，不再以“完成”掩盖无数据结果；已失败运行的真实错误会直接显示在默认报告页。
+前端会按 descriptor 在同步或回测前拦截超出历史窗口的组合；后端仍执行同一校验，避免旧客户端绕过。前端的复权（rehabType）选项由当前 Provider descriptor 声明的 `priceAdjustments` 决定（yfinance 为 `none/forward`，AKShare 为 `none/forward/backward`），未声明时回退为 `none`，切换 Provider 后失效的选择重置为 `none`；K 线缓存本身已按 rehabType 分区，无 schema 变更。Go 侧还会在执行前预检拒绝 AKShare 分钟周期加复权这类不支持组合。缓存缺失但请求范围有效时，“开始回测”会先同步当前范围并在同步完成后重试一次。Provider 返回零根 K 线时同步任务标记失败，不再以“完成”掩盖无数据结果；已失败运行的真实错误会直接显示在默认报告页。
 
 Wails 原生桌面开发不会自动选择、构建或启动 Python helper。需要在开发/测试环境显式提供 `JFTRADE_MARKETDATA_SIDECAR`，或先执行发布资产准备命令；没有可用运行时会沿用现有明确错误。独立运行 `cmd/jftrade-api` 时，可通过绝对路径指定本地 helper：
 
