@@ -460,6 +460,13 @@ async def _run_akshare_research(live: LiveClient) -> None:
             f"{prefix}/profile/{market}/{symbol}",
             validate=lambda body: _require_non_empty(body, "groups"),
         )
+    await live.request(
+        "AKShare rejects Beijing listing research",
+        "GET",
+        f"{prefix}/profile/CN/830799",
+        expected_status=(400,),
+        expected_code="unsupported_market",
+    )
     for route, name in (("financials", "financials"), ("analyst", "analyst"), ("ownership", "ownership")):
         await live.request(
             f"CN {name} research",

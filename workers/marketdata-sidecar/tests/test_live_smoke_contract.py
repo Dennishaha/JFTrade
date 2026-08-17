@@ -106,3 +106,28 @@ async def test_live_smoke_report_preserves_provider_error_code() -> None:
     assert report.failures[0].error_code == "YFINANCE_UPSTREAM_ERROR"
     assert report.failures[0].failure_category == "http_5xx"
     assert report.as_dict()["failure_categories"] == {"http_5xx": 1}
+
+
+@pytest.mark.asyncio
+async def test_live_smoke_expected_rejection_is_not_reported_as_failure() -> None:
+    transport = httpx.MockTransport(
+        lambda _request: httpx.Response(
+            400,
+            json={"error": {"code": "unsupported_market", "message": "BJ"}},
+        )
+    )
+    report = live_smoke.SmokeReport(provider="akshare", suite="research")
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://mock.live",
+    ) as client:
+        await live_smoke.LiveClient(client, report, "akshare").request(
+            "expected rejection",
+            "GET",
+            "/providers/akshare/profile/CN/830799",
+            expected_status=(400,),
+            expected_code="unsupported_market",
+        )
+
+    assert report.failures == []
+    assert report.checks[0].error_code == "unsupported_market"
