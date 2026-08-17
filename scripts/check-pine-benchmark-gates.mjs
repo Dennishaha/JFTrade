@@ -3,12 +3,16 @@ import { pathToFileURL } from "node:url";
 
 export function parseBenchmarkFile(path) {
   const rows = new Map();
-  for (const line of fs.readFileSync(path, "utf8").split("\n")) {
+  const content = fs.readFileSync(path, "utf8");
+  for (const line of content.split("\n")) {
     const match = line.match(/^(Benchmark\S+)-\d+\s+\d+\s+([\d.]+) ns\/op\s+([\d.]+) B\/op\s+([\d.]+) allocs\/op/);
     if (!match) continue;
     const values = rows.get(match[1]) ?? [];
     values.push({ ns: Number(match[2]), bytes: Number(match[3]), allocs: Number(match[4]) });
     rows.set(match[1], values);
+  }
+  if (rows.size === 0) {
+    throw new Error(`No benchmarks parsed from ${path}`);
   }
   return rows;
 }

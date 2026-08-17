@@ -76,21 +76,24 @@ jobs:
         env:
           COMPARE_SHA: ${{ steps.baseline.outputs.sha }}
         run: |
-          git checkout --detach "${COMPARE_SHA}"
+          git checkout --force --detach "${COMPARE_SHA}"
           cp /tmp/jftrade-pine-bench/public_benchmark_test.go pkg/strategy/pine/
           go test ./pkg/strategy/pine -run '^$' \
             -bench '^BenchmarkPine(AnalyzeScript|PlanRequirements)$' \
             -benchmem -count 8 | tee artifacts/performance/pine_compile_base.txt
+          grep -q '^BenchmarkPineAnalyzeScript/' artifacts/performance/pine_compile_base.txt
+          grep -q '^BenchmarkPinePlanRequirements/' artifacts/performance/pine_compile_base.txt
 
       - name: Run head Pine parse benchmarks
         env:
           HEAD_SHA: ${{ steps.revision.outputs.sha }}
         run: |
-          rm -f pkg/strategy/pine/public_benchmark_test.go
-          git checkout --detach "${HEAD_SHA}"
+          git checkout --force --detach "${HEAD_SHA}"
           go test ./pkg/strategy/pine -run '^$' \
             -bench '^BenchmarkPine(AnalyzeScript|PlanRequirements)$' \
             -benchmem -count 8 | tee artifacts/performance/pine_compile_head.txt
+          grep -q '^BenchmarkPineAnalyzeScript/' artifacts/performance/pine_compile_head.txt
+          grep -q '^BenchmarkPinePlanRequirements/' artifacts/performance/pine_compile_head.txt
 
       - name: Compare Pine parse benchmarks
         run: |

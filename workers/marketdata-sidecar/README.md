@@ -99,7 +99,7 @@ PyInstaller spec 使用 `JFTRADE_MARKETDATA_BINARY_NAME` 指定二进制名；�
 | GET | `/providers/akshare/calendar/ipos` | 沪深新股日历（东财新股申购）；北交所跳过，`issue_price_min`/`issue_price_max` 恒 null |
 | GET | `/providers/akshare/macro/indicators` | 宏观指标静态目录（16 个指标，中国/美国分组）；AKShare 1.18.x 无联邦基金利率接口，未收录 |
 | GET | `/providers/akshare/macro/indicator-history?indicator_id=&limit=100` | 单指标历史序列，`data_time` 统一 `YYYY-MM`，倒序；未知 `indicator_id` 返回 404 |
-| POST | `/providers/yfinance/screen` | 美股自定义筛选（EquityQuery 翻译，仅 US）；body `{"market","conditions":[{"factor_key","min","max"}],"sorts":[{"factor_key","direction"}],"offset","limit"}`；limit 1–250 且 offset+limit ≤250（Yahoo size 上限，超出 400）；仅首个 sort 生效 |
+| POST | `/providers/yfinance/screen` | 美股自定义筛选（EquityQuery 翻译，仅 US）；body `{"market","conditions":[{"factor_key","min","max"}],"sorts":[{"factor_key","direction"}],"offset","limit"}`；单页 limit 1–250，offset 独立直传；仅接受一个排序键，多个排序键返回 400 `unsupported_kind` |
 | POST | `/providers/akshare/screen` | 沪深/港股/美股筛选（CN/SH/SZ/HK/US），复用 15s 全市场现货目录本地过滤排序分页，零新上游请求；US/HK 现货帧由 `akshare_spot_clist` 直连东财 clist 构建（akshare 封装丢弃了 f23 市净率/f115 PE TTM 与 HK 总市值），六个因子全部市场可用；CN 成交量由手换算成股 |
 | POST | `/providers/akshare/snapshots` | 最多 100 个 AKShare 批量快照 |
 
