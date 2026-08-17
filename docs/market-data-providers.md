@@ -2,7 +2,7 @@
 
 JFTrade 的行情查询与交易执行是两个独立边界。运行时提供 Futu OpenD、Yahoo Finance（`yfinance`）和 AKShare（`akshare`）三个行情 Provider；首页/研究页的“行情提供者”菜单默认使用 yfinance。账户、持仓、订单与真实下单仍只走已配置的 Futu OpenD broker。
 
-新安装默认使用 Yahoo Finance。yfinance 与 AKShare 都适合美股、港股和沪深的证券搜索、延迟快照与历史 K 线分析，不应当作实时交易报价。已有明确选择的 `futu`、`yfinance` 或 `akshare` 会保留；任何 Python 上游失败都会作为当前 Provider 的结构化错误返回，不会静默回退到 Yahoo 或 Futu。
+新安装默认使用 Yahoo Finance。yfinance 与 AKShare 都适合美股、港股和沪深的证券搜索、延迟快照与历史 K 线分析，不应当作实时交易报价；两者还按下方能力矩阵承担研究中心的榜单、板块热力、个股研究、事件日历、宏观指标与股票筛选等只读能力。已有明确选择的 `futu`、`yfinance` 或 `akshare` 会保留；任何 Python 上游失败都会作为当前 Provider 的结构化错误返回，不会静默回退到 Yahoo 或 Futu。
 
 ## 能力对比
 
@@ -16,8 +16,16 @@ JFTrade 的行情查询与交易执行是两个独立边界。运行时提供 Fu
 | 回测历史同步 | 支持 `none/forward/backward` | 支持 `none/forward`；`1m` 7 天、`5m/15m/30m` 60 天、`1h` 730 天 | 支持 `none/forward/backward`；`1m` 5 天，美股全部分钟周期 5 天 |
 | 基本面字段 | 不支持 | 支持 market_cap、trailing_pe、shares_outstanding | 支持 market_cap、trailing_pe（东财 f9 动态市盈率，非 TTM）、shares_outstanding；沪深 A 股总股本经 `stock_individual_info_em` 补全，24 小时缓存，失败静默降级为仅现货字段。sidecar 还返回 price_to_book（f23），但 Go 侧当前不投影进 SecurityDetails |
 | 快照买一/卖一 | 支持 | 取决于 Yahoo 上游字段，缺失保持 `null` | 支持（东财买一/卖一）；未服务市场保持 `null` |
-| 新闻与公司行动 | 不支持 | 支持；公开 API `GET /api/v1/market-data/news/{market}/{symbol}` 与 `/api/v1/market-data/corporate-actions/{market}/{symbol}` | 支持，新闻与分红/送转仅覆盖沪深；同一公开 API，美港返回 400 |
+| 新闻与公司行动 | 支持（经 broker 查询管线） | 支持，覆盖全部四个市场；公开 API `GET /api/v1/market-data/news/{market}/{symbol}` 与 `/api/v1/market-data/corporate-actions/{market}/{symbol}` | 支持，新闻与分红/送转仅覆盖沪深；同一公开 API，美港返回 400 |
 | 指数成分股 | 不支持 | 不支持 | 支持中证指数（如 `SH.000300`）与沪深交易所指数（如 `SH.000001`）；仅经 assistant 工具 `market.index_constituents` 提供，无公开 HTTP API |
+| 榜单（领涨/领跌/成交活跃） | 支持 | 仅美股（Yahoo 预定义榜单 day_gainers/day_losers/most_actives） | 沪深/港股（`SH`/`SZ`/`CN`/`HK`，本地排序 15 秒全市场目录快照） |
+| 板块热力与成分 | 支持 | 不支持 | 沪深（东财行业/概念板块及成员） |
+| 个股资料/财务/分析师/股权 | 支持 | US/HK | CN/SH/SZ/BJ；港股仅公司资料；分析师为东财个股研报 180 天聚合，无目标价 |
+| 估值/卖空 | 支持 | 不支持 | 不支持 |
+| 事件日历（财报/派息/经济/IPO） | 支持 | 不支持 | 沪深全市场 |
+| 宏观指标 | 支持 | 不支持 | 16 个中美策划指标目录与历史序列（无联邦基金利率） |
+| FedWatch/点阵图/ARK/机构持仓 | 支持 | 不支持 | 不支持 |
+| 股票筛选 | 支持（402 因子目录） | 仅美股，9 因子子集（3 个 basic 标识 + 6 个 simple 数值），分页窗口 `offset+limit` ≤250 | CN/SH/SZ/HK，同一 9 因子子集；HK 无总市值因子 |
 | 实时推流 | 支持 | 不支持 | 不支持 |
 | Level 2 盘口 | 取决于权限 | 不支持 | 不支持 |
 | 盘前盘后 | 支持 | 美股由 Yahoo 实际报价决定 | 不支持 |
@@ -40,7 +48,7 @@ yfinance 快照优先读取 `Ticker.fast_info` 快速路径（15 秒缓存与 si
 
 ## 新闻与公司行动
 
-yfinance 与 AKShare 都提供 `GET /api/v1/market-data/news/{market}/{symbol}?limit=`（`limit` 1–50，默认 10）和 `GET /api/v1/market-data/corporate-actions/{market}/{symbol}?from=&to=`（RFC3339 包含式边界，默认最近两年）。新闻条目含 `title`、`link`、`publisher`、`published_at`（RFC3339，可为 `null`）与 `summary`；公司行动事件含 `kind`（`dividend`/`split`）、`ex_date`（YYYY-MM-DD）、`amount`（每股，可空）与 `ratio`（可空），按 `(ex_date, kind)` 排序。AKShare 两项仅覆盖沪深：新闻经 `stock_news_em`（上游约 10 条），公司行动经 `stock_fhps_em`（半年报期 0630/1231，冷缓存可能较慢并返回 503 与 `Retry-After`）；美港请求返回 400 `AKSHARE_UNSUPPORTED`。Futu 不支持这两项，会返回明确的不支持错误。assistant 对应只读工具为 `market.news` 与 `market.corporate_actions`，都经过当前活跃 Provider；指数成分股另有 assistant 工具 `market.index_constituents`（仅 SH/SZ，经 AKShare），刻意不暴露公开 HTTP API。
+yfinance 与 AKShare 都提供 `GET /api/v1/market-data/news/{market}/{symbol}?limit=`（`limit` 1–50，默认 10）和 `GET /api/v1/market-data/corporate-actions/{market}/{symbol}?from=&to=`（RFC3339 包含式边界，默认最近两年）。新闻条目含 `title`、`link`、`publisher`、`published_at`（RFC3339，可为 `null`）与 `summary`；公司行动事件含 `kind`（`dividend`/`split`）、`ex_date`（YYYY-MM-DD）、`amount`（每股，可空）与 `ratio`（可空），按 `(ex_date, kind)` 排序。AKShare 两项仅覆盖沪深：新闻经 `stock_news_em`（上游约 10 条），公司行动经 `stock_fhps_em`（半年报期 0630/1231，冷缓存可能较慢并返回 503 与 `Retry-After`）；美港请求返回 400 `AKSHARE_UNSUPPORTED`。Futu 经 broker 查询管线支持这两项。assistant 对应只读工具为 `market.news` 与 `market.corporate_actions`，都经过当前活跃 Provider；指数成分股另有 assistant 工具 `market.index_constituents`（仅 SH/SZ，经 AKShare），刻意不暴露公开 HTTP API。
 
 控制台"资讯"与个股研究"公司行动"界面始终走 broker product-feature 管线（查询式 `/api/v1/market-data/news`、`/api/v1/research/corporate-actions/{instrumentId}`）。当活跃（或显式指定）Provider 为 yfinance/AKShare 时，`internal/productfeatures` 的 facade 会把这两个 feature 委托给上述 Provider 能力并投影为 `broker.FeatureResult`（新闻保留 `title/link/publisher/publishedAt/summary`；公司行动投影 `exDate` 与合成 `statement`，Futu 专有的公告日/进度/登记日等列为空），前端无需按 Provider 分支；assistant 的 `research.news`/`research.corporate_actions` 工具走同一路径同样生效。AKShare 的美港请求在该管线下返回 409 不支持错误。
 
@@ -49,6 +57,22 @@ Yahoo 的美股盘外分钟数据只作为价格样本使用：上游盘前成�
 Yahoo 的 `postMarketPrice` / `postMarketTime` 是 Yahoo Provider 下的盘后价格与实际报价时间，不会用 Futu 数值覆盖。JFTrade 使用当前生效的交易所日历校验报价所属交易日和盘前/盘后窗口，并据此分类分钟 K 线；周末、节假日和早收市边界不由 Python helper 或前端硬编码。行情卡片分别展示实际“报价时间”和日历计划“截止时间”，两者均以交易所时区为主。Futu `PreAfterMarketData` 不携带独立时间戳，因此不会把 BasicQot 常规更新时间冒充盘外报价时间。
 
 Futu 的可见标的若 `BasicQot` 订阅因行情权限、不支持或订阅额度已满而无法建立，JFTrade 不会自动切换到 Yahoo/AKShare，也不会启动 Python helper。它会在同一 OpenD 连接上用 `Qot_GetStaticInfo` 获取 Stock ID，并用 `Qot_StockScreen` 读取延迟快照补全价格和可用的昨收；该路径不会创建 `Qot_Sub`，结果短暂缓存 15 秒。回退标的继续参与快照轮询，但不会加入实时推送流；订阅状态会标为 `fallback`，行情状态和自选价格旁会显示黄色的降级提示。盘口、K 线和实盘策略仍要求原生 Futu 订阅。
+
+## 研究中心只读能力
+
+榜单、板块热力、个股研究（资料/财务/分析师/股权）、事件日历、宏观指标和股票筛选与新闻一样走 broker product-feature 管线：Provider 为 yfinance/AKShare 时由 `internal/productfeatures` 的 facade 委托给嵌入式 Provider 并投影为统一的 `broker.FeatureResult`，控制台和 assistant 的 `research.*` 工具都无需按 Provider 分支。当前 Provider 不具备某能力时 facade 返回 409 capability 错误（如 AKShare 的估值/卖空、yfinance 的日历/宏观/板块），前端降级为研究页内置的 ProviderUnsupportedState 空态，不会报错中断页面。
+
+嵌入式筛选使用手写的 `embedded-stock-screen-v1` 因子目录，共 9 个因子：`basic.code`/`basic.name`/`basic.industry` 三个标识因子（仅取值/排序），加 `simple.price`、`simple.change_pct`、`simple.volume`、`simple.market_cap`、`simple.pe_ttm`、`simple.pb` 六个可过滤数值因子（区间条件）。yfinance 侧翻译成 Yahoo EquityQuery（仅 US，`offset+limit` 超过 Yahoo 250 的 size 上限返回 400）；AKShare 侧复用 15 秒全市场现货目录在本地过滤、排序、分页（CN/SH/SZ/HK），不产生新的上游请求。两个 Provider 都不支持 `in` 枚举条件。
+
+嵌入式研究能力有以下已知语义偏差，排期修复前以本文为准：
+
+- 东财"市盈率-动态"是动态 PE 近似值，字段名沿用 `pe_ttm` 但并非严格 TTM。
+- 沪深以"手"报告的成交量已由 sidecar 换算为股（×100）；港股成交量单位即股，不换算。
+- 财经日历（百度财经）的前值/预期/公布是数值字符串，丢失上游的百分号单位。
+- 财报日历的市值/现价、派息日历的派息日、新股日历的发行价区间恒为 `null`（上游帧无对应列）；财报日历的日期窗口按法定披露季映射报告期（年报次年 1–4 月、一季报 4 月、中报 7–8 月、三季报 10 月），经济日历窗口上限 31 天。
+- 筛选条目的 `industry` 恒为 `null`（东财现货帧无行业列）；yfinance 筛选只生效第一个排序键。
+- AKShare 分析师聚合约 180 天个股研报，`target_price` 恒为 `null`。
+- 宏观指标的 `data_time` 统一为 `YYYY-MM`；AKShare 1.18.x 无联邦基金利率接口，目录未收录。
 
 ## 内置 helper
 
