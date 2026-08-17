@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
@@ -49,6 +50,8 @@ class Check:
     ok: bool
     rows: int | None = None
     error: str | None = None
+    error_code: str | None = None
+    failure_category: str | None = None
 
 
 @dataclass
@@ -56,6 +59,9 @@ class SmokeReport:
     provider: str
     suite: str
     checks: list[Check] = field(default_factory=list)
+    sidecar_version: str | None = None
+    provider_versions: dict[str, str] = field(default_factory=dict)
+    started_at: float = field(default_factory=time.monotonic, repr=False)
 
     @property
     def failures(self) -> list[Check]:
@@ -65,12 +71,24 @@ class SmokeReport:
         self.checks.append(check)
 
     def as_dict(self) -> dict[str, Any]:
+        failures = self.failures
+        failure_categories = Counter(
+            check.failure_category or "unknown" for check in failures
+        )
         return {
+            "schema_version": 1,
             "provider": self.provider,
             "suite": self.suite,
+            "duration_ms": max(0, int((time.monotonic() - self.started_at) * 1000)),
+            "versions": {
+                "sidecar": self.sidecar_version,
+                "providers": dict(sorted(self.provider_versions.items())),
+            },
+            "endpoints": sorted({check.path for check in self.checks}),
             "ok": not self.failures,
             "checks": [check.__dict__ for check in self.checks],
-            "failure_count": len(self.failures),
+            "failure_count": len(failures),
+            "failure_categories": dict(sorted(failure_categories.items())),
         }
 
     def write(self, path: str | None) -> None:
@@ -114,6 +132,8 @@ class LiveClient:
         status: int | None = None
         rows: int | None = None
         error: str | None = None
+        error_code: str | None = None
+        failure_category: str | None = None
         body: dict[str, Any] | None = None
         try:
             response = await self.client.request(
@@ -128,13 +148,9 @@ class LiveClient:
                 raise ContractViolation("response body is not a JSON object")
             body = decoded
             rows = _row_count(body)
+            error_code = _error_code(body)
             if status not in expected_status:
-                error_body = body.get("error")
-                error_code = (
-                    str(error_body.get("code", ""))
-                    if isinstance(error_body, Mapping)
-                    else ""
-                )
+                failure_category = _status_failure_category(status) or "contract"
                 raise ContractViolation(
                     f"expected HTTP {tuple(expected_status)}, got {status}"
                     + (f" code={error_code}" if error_code else "")
@@ -147,8 +163,21 @@ class LiveClient:
                     )
             if validate is not None:
                 validate(body)
+        except ContractViolation as exc:
+            error = str(exc)
+            if failure_category is None:
+                failure_category = "contract"
+        except httpx.TimeoutException as exc:
+            error = type(exc).__name__
+            failure_category = "timeout"
+        except httpx.RequestError as exc:
+            error = type(exc).__name__
+            failure_category = "network"
         except Exception as exc:  # noqa: BLE001 - report every matrix row
             error = str(exc)
+            failure_category = "harness"
+        if error is not None and failure_category is None:
+            failure_category = _status_failure_category(status)
         self.report.add(
             Check(
                 provider=self.provider,
@@ -160,6 +189,8 @@ class LiveClient:
                 ok=error is None,
                 rows=rows,
                 error=error,
+                error_code=error_code,
+                failure_category=failure_category,
             )
         )
         return body if error is None else None
@@ -169,6 +200,7 @@ class LiveClient:
         deadline = time.monotonic() + HEALTH_TIMEOUT_SECONDS
         last: dict[str, Any] | None = None
         last_status: int | None = None
+        last_exception: BaseException | None = None
         started = time.monotonic()
         while time.monotonic() < deadline:
             try:
@@ -203,9 +235,12 @@ class LiveClient:
                                 ok=True,
                             )
                         )
+                        provider_version = _provider_version(decoded)
+                        if provider_version:
+                            self.report.provider_versions[provider] = provider_version
                         return decoded
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 - continue readiness polling
+                last_exception = exc
             await asyncio.sleep(HEALTH_POLL_SECONDS)
         state = last.get("runtime_state") if last else "unreachable"
         error = last.get("error") if last else None
@@ -213,6 +248,13 @@ class LiveClient:
             str(error.get("code", ""))
             if isinstance(error, Mapping)
             else f"state={state}"
+        )
+        if last_exception is not None and last is None:
+            detail = type(last_exception).__name__
+        error_code = (
+            str(error.get("code"))
+            if isinstance(error, Mapping) and error.get("code")
+            else None
         )
         self.report.add(
             Check(
@@ -224,6 +266,17 @@ class LiveClient:
                 duration_ms=max(0, int((time.monotonic() - started) * 1000)),
                 ok=False,
                 error=f"provider did not become ready ({detail})",
+                error_code=error_code,
+                failure_category=(
+                    "runtime"
+                    if last is not None
+                    else _status_failure_category(last_status)
+                    or (
+                        "timeout"
+                        if isinstance(last_exception, httpx.TimeoutException)
+                        else "network"
+                    )
+                ),
             )
         )
         return None
@@ -245,6 +298,15 @@ async def run_smoke(
         base_url=base_url or "http://marketdata.live",
         timeout=timeout_seconds,
     ) as client:
+        process = LiveClient(client, report, "sidecar")
+        process_health = await process.request(
+            "sidecar process health",
+            "GET",
+            "/healthz",
+            validate=lambda body: _require_keys(body, "ok", "version"),
+        )
+        if process_health is not None:
+            report.sidecar_version = str(process_health["version"])
         for selected in ("yfinance", "akshare") if provider == "all" else (provider,):
             live = LiveClient(client, report, selected)
             if await live.wait_for_provider(selected) is None:
@@ -258,7 +320,7 @@ async def run_smoke(
 
 async def _run_core(live: LiveClient, provider: str) -> None:
     prefix = f"/providers/{provider}"
-    market, symbol = ("US", "AAPL") if provider == "yfinance" else ("US", "AAPL")
+    market, symbol = "US", "AAPL"
     await live.request(
         "search returns an instrument",
         "GET",
@@ -414,23 +476,24 @@ async def _run_akshare_research(live: LiveClient) -> None:
             params={"market": market, "kind": kind, "limit": 5},
             validate=lambda body: _require_non_empty(body, "entries"),
         )
-    boards = await live.request(
-        "AKShare industry boards",
-        "GET",
-        f"{prefix}/industries",
-        params={"market": "CN", "kind": "industry"},
-        validate=lambda body: _require_non_empty(body, "boards"),
-    )
-    if boards is not None:
-        board = str(boards["boards"][0].get("name", "")).strip()
-        if board:
-            await live.request(
-                "AKShare industry members",
-                "GET",
-                f"{prefix}/industries/{board}/members",
-                params={"market": "CN", "kind": "industry", "limit": 5},
-                validate=lambda body: _require_list(body, "entries"),
-            )
+    for board_kind in ("industry", "concept"):
+        boards = await live.request(
+            f"AKShare {board_kind} boards",
+            "GET",
+            f"{prefix}/industries",
+            params={"market": "CN", "kind": board_kind},
+            validate=lambda body: _require_non_empty(body, "boards"),
+        )
+        if boards is not None:
+            board = str(boards["boards"][0].get("name", "")).strip()
+            if board:
+                await live.request(
+                    f"AKShare {board_kind} members",
+                    "GET",
+                    f"{prefix}/industries/{board}/members",
+                    params={"market": "CN", "kind": board_kind, "limit": 5},
+                    validate=lambda body: _require_list(body, "entries"),
+                )
     for market in ("CN", "SH", "SZ", "HK", "US"):
         await live.request(
             f"AKShare {market} screen",
@@ -541,6 +604,32 @@ def _row_count(body: Mapping[str, Any]) -> int | None:
     return None
 
 
+def _error_code(body: Mapping[str, Any]) -> str | None:
+    error = body.get("error")
+    if not isinstance(error, Mapping):
+        return None
+    value = str(error.get("code", "")).strip()
+    return value or None
+
+
+def _provider_version(body: Mapping[str, Any]) -> str | None:
+    for key in ("provider_version", "yfinance_version"):
+        value = str(body.get(key, "")).strip()
+        if value and value != "unavailable":
+            return value
+    return None
+
+
+def _status_failure_category(status: int | None) -> str | None:
+    if status is None:
+        return None
+    if 400 <= status < 500:
+        return "http_4xx"
+    if 500 <= status < 600:
+        return "http_5xx"
+    return "contract"
+
+
 def _record_failure(
     report: SmokeReport,
     name: str,
@@ -559,6 +648,7 @@ def _record_failure(
             duration_ms=0,
             ok=False,
             error=error,
+            failure_category="contract",
         )
     )
 

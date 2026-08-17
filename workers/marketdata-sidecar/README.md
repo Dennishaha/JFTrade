@@ -185,7 +185,8 @@ JFTRADE_MARKETDATA_LIVE_SMOKE=1 \
 ```
 
 脚本验证两个 Provider 的导入/health、核心行情、研究能力、筛选分页、错误拒绝和
-AKShare 31 天经济日历；报告只包含端点、状态、耗时和条目数，不保存原始行情或财务数据。
+AKShare 行业/概念板块及 31 天经济日历；报告只包含版本、端点、状态、耗时、条目数和
+失败分类，不保存原始行情或财务数据。
 未设置开关时直接拒绝运行，不会导入数据栈或访问网络。旧的
 `JFTRADE_AKSHARE_LIVE_SMOKE=1 python scripts/akshare_live_smoke.py` 入口仍作为
 AKShare 全量 smoke 的兼容包装保留。GitHub 手动 workflow 还要求输入

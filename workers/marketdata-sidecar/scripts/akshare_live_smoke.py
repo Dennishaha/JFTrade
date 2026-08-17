@@ -14,9 +14,4 @@ if __name__ == "__main__":
     if os.environ.get(ENABLE_ENV) != "1":
         if os.environ.get("JFTRADE_AKSHARE_LIVE_SMOKE") == "1":
             os.environ[ENABLE_ENV] = "1"
-        else:
-            print(
-                "SKIP: set JFTRADE_AKSHARE_LIVE_SMOKE=1 to run the live AKShare smoke"
-            )
-            raise SystemExit(0)
     raise SystemExit(main(["--provider", "akshare", "--suite", "full", *sys.argv[1:]]))

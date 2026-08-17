@@ -82,9 +82,9 @@ JFTRADE_DIFF_BASE=origin/main pnpm run test:coverage
 
 真实 Yahoo/AKShare 上游只通过手动 `.github/workflows/marketdata-live.yml` 或显式
 `JFTRADE_MARKETDATA_LIVE_SMOKE=1` 运行 `workers/marketdata-sidecar/scripts/marketdata_live_smoke.py`。
-该 smoke 覆盖核心行情、研究端点、yfinance 分页、AKShare 五市场筛选、错误拒绝和
-31 天经济日历；普通 pytest、PR 和 main CI 不访问真实网络。live 报告只保留端点、
-状态码、耗时和条目数，失败必须非零退出。
+该 smoke 覆盖核心行情、研究端点、yfinance 分页、AKShare 五市场筛选、行业/概念板块、
+错误拒绝和 31 天经济日历；普通 pytest、PR 和 main CI 不访问真实网络。live 报告只保留
+版本、端点、状态码、耗时、条目数和失败分类，失败必须非零退出。
 
 2026-08-04 的本机 macOS ARM64 样本按“递归累加 PyInstaller `onedir` 下所有普通文件的 `stat().st_size`，不计目录和文件系统分配块”测量：旧 yfinance bundle 为 89.20 MiB，新 market-data bundle 为 104.65 MiB，增加 15.45 MiB（17.3%）。这是单机迁移基线，不作为其他平台的固定体积上限；`smoke:marketdata-sidecar` 会在每个发布 runner 上报告该平台 bundle 的精确字节数和 MiB，并同时验证 frozen helper 的版本、loopback 健康与两个 Python Provider 的导入状态。
 

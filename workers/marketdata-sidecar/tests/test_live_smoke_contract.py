@@ -48,6 +48,10 @@ def test_live_smoke_report_contains_only_sanitized_check_metadata() -> None:
     payload = report.as_dict()
 
     assert payload["ok"] is True
+    assert payload["schema_version"] == 1
+    assert payload["endpoints"] == ["/providers/yfinance/profile/US/AAPL"]
+    assert payload["failure_categories"] == {}
+    assert payload["versions"] == {"sidecar": None, "providers": {}}
     assert payload["checks"][0] == {
         "provider": "yfinance",
         "name": "AAPL profile",
@@ -58,6 +62,8 @@ def test_live_smoke_report_contains_only_sanitized_check_metadata() -> None:
         "ok": True,
         "rows": 2,
         "error": None,
+        "error_code": None,
+        "failure_category": None,
     }
     assert "price" not in payload
     assert "business_summary" not in payload
@@ -97,3 +103,6 @@ async def test_live_smoke_report_preserves_provider_error_code() -> None:
 
     assert report.failures[0].provider == "yfinance"
     assert "YFINANCE_UPSTREAM_ERROR" in (report.failures[0].error or "")
+    assert report.failures[0].error_code == "YFINANCE_UPSTREAM_ERROR"
+    assert report.failures[0].failure_category == "http_5xx"
+    assert report.as_dict()["failure_categories"] == {"http_5xx": 1}
