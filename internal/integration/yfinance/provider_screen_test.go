@@ -81,7 +81,7 @@ func TestProviderScreenConvertsEntriesAndDerivesSymbol(t *testing.T) {
 				"quote_currency":" usd ","values":{"simple.price":189.25}},
 			{"instrument_id":"US.MSFT","name":"Microsoft","symbol":"msft",
 				"industry":"Software","quote_currency":"USD","values":{}}],
-		"total":7,"has_more":true,"as_of":"2026-08-15T20:00:00Z"}`})
+		"total":7,"has_more":true,"next_offset":2,"as_of":"2026-08-15T20:00:00Z"}`})
 	provider, err := NewProvider(server.URL())
 	if err != nil {
 		t.Fatalf("NewProvider: %v", err)
@@ -99,6 +99,9 @@ func TestProviderScreenConvertsEntriesAndDerivesSymbol(t *testing.T) {
 	if response.Total != 7 || !response.HasMore || response.AsOf != "2026-08-15T20:00:00Z" ||
 		response.Source != "yfinance-screen-us" {
 		t.Fatalf("response envelope = %#v", response)
+	}
+	if response.NextOffset == nil || *response.NextOffset != 2 {
+		t.Fatalf("next offset = %v", response.NextOffset)
 	}
 	first := response.Entries[0]
 	if first.InstrumentID != "US.AAPL" || first.Symbol != "AAPL" || first.Name != "Apple" ||

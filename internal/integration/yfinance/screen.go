@@ -98,11 +98,12 @@ func convertScreen(
 		})
 	}
 	return marketdata.ScreenResponse{
-		Entries: entries,
-		Total:   response.Total,
-		HasMore: response.HasMore,
-		AsOf:    strings.TrimSpace(response.AsOf),
-		Source:  screenSource(response.Source, expectedMarket),
+		Entries:    entries,
+		Total:      response.Total,
+		HasMore:    response.HasMore,
+		NextOffset: response.NextOffset,
+		AsOf:       strings.TrimSpace(response.AsOf),
+		Source:     screenSource(response.Source, expectedMarket),
 	}, nil
 }
 

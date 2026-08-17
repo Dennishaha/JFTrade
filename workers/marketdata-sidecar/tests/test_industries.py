@@ -20,6 +20,7 @@ def _industry_boards_frame() -> pd.DataFrame:
                 "板块代码": "BK1036",
                 "最新价": 1200.0,
                 "涨跌幅": 1.2,
+                "成交量": 1234,
                 "领涨股票": "中芯国际",
                 "领涨股票-涨跌幅": 5.5,
             },
@@ -128,7 +129,7 @@ async def test_industry_boards_map_available_fields(
             "name": "半导体",
             "change_rate": 1.2,
             "turnover": None,
-            "volume": None,
+            "volume": 123400.0,
             "leading_stock_name": "中芯国际",
             "leading_stock_change_rate": 5.5,
         },
@@ -195,7 +196,7 @@ async def test_industry_members_resolve_board_code_and_rankings_shape(
     assert first["price"] == 90.0
     assert first["change_rate"] == 5.5
     assert first["change_amount"] == 4.7
-    assert first["volume"] == 100000
+    assert first["volume"] == 10000000
     assert first["turnover"] == 9.0e9
     assert first["turnover_ratio"] == 3.1
     assert first["pe_ttm"] == 60.0

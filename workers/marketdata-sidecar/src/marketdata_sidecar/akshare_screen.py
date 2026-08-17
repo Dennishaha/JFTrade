@@ -51,6 +51,9 @@ FACTOR_COLUMNS = {
     "simple.pb": ("市净率",),
 }
 
+# basic.* identity factors sort on catalog text fields, not spot columns.
+TEXT_SORT_KEYS = {"basic.code", "basic.name"}
+
 SUPPORTED_MARKETS = frozenset({"CN", "SH", "SZ", "HK", "US"})
 
 
@@ -87,6 +90,11 @@ def screen(request: ScreenRequest) -> ScreenResponse:
         entries=entries,
         total=total,
         has_more=request.offset + len(page) < total,
+        next_offset=(
+            request.offset + len(page)
+            if request.offset + len(page) < total
+            else None
+        ),
         as_of=datetime.now(
             ZoneInfo(MARKET_SPECS[leaves[0]].timezone)
         ).isoformat(timespec="seconds"),
@@ -134,9 +142,14 @@ def _translate_condition(condition: ScreenCondition) -> ScreenCondition:
 def _translate_sort(sorts: list[ScreenSort]) -> tuple[str | None, bool]:
     if not sorts:
         return None, False
+    if len(sorts) > 1:
+        raise invalid_request(
+            "unsupported_kind",
+            "multiple sort keys are not supported by this catalog",
+        )
     first = sorts[0]
     key = first.factor_key.strip()
-    if key not in FACTOR_COLUMNS:
+    if key not in FACTOR_COLUMNS and key not in TEXT_SORT_KEYS:
         raise invalid_request(
             "unsupported_kind",
             f"unsupported screen sort factor: {first.factor_key}",
@@ -179,6 +192,10 @@ def _sort(
     sort_key: str,
     sort_desc: bool,
 ) -> None:
+    if sort_key in TEXT_SORT_KEYS:
+        _sort_text(matched, sort_key, sort_desc)
+        return
+
     def marker(item: tuple[AKInstrument, dict[str, float]]) -> tuple[Any, ...]:
         instrument, values = item
         value = values.get(sort_key)
@@ -188,5 +205,23 @@ def _sort(
         if sort_desc:
             return (present, rank, instrument.instrument_id)
         return (not present, rank, instrument.instrument_id)
+
+    matched.sort(key=marker, reverse=sort_desc)
+
+
+def _sort_text(
+    matched: list[tuple[AKInstrument, dict[str, float]]],
+    sort_key: str,
+    sort_desc: bool,
+) -> None:
+    """Sort by a basic.* identity text; empty names trail in both directions."""
+
+    def marker(item: tuple[AKInstrument, dict[str, float]]) -> tuple[Any, ...]:
+        instrument, _values = item
+        text = instrument.symbol if sort_key == "basic.code" else (instrument.name or "")
+        present = text != ""
+        if sort_desc:
+            return (present, text, instrument.instrument_id)
+        return (not present, text, instrument.instrument_id)
 
     matched.sort(key=marker, reverse=sort_desc)

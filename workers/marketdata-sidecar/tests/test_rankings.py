@@ -172,7 +172,7 @@ async def test_akshare_gainers_sort_cn_merge_by_change_rate_desc(
     assert first["price"] == 200.0
     assert first["change_rate"] == 3.0
     assert first["change_amount"] == 5.8
-    assert first["volume"] == 54321
+    assert first["volume"] == 5432100
     assert first["turnover"] == 1.1e10
     assert first["turnover_ratio"] == 2.3
     assert first["pe_ttm"] == 22.0
@@ -236,6 +236,7 @@ async def test_akshare_hk_rankings_use_hk_identity(
     body = response.json()
     assert _entry_ids(body) == ["HK.00700", "HK.00005"]
     entry = body["entries"][0]
+    assert entry["volume"] == 1000  # 港股现货成交量已经是股，不乘 100
     assert entry["turnover_ratio"] is None
     assert entry["pe_ttm"] is None
     assert entry["market_cap"] is None

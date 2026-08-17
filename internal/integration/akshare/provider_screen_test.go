@@ -94,7 +94,8 @@ func TestProviderScreenConvertsCNEntriesAndDerivesSymbol(t *testing.T) {
 					"industry": "银行", "quote_currency": "CNY", "values": map[string]any{},
 				},
 			},
-			"total": 9, "has_more": true, "as_of": "2026-08-15T08:00:00Z",
+			"total": 9, "has_more": true, "next_offset": 2,
+			"as_of": "2026-08-15T08:00:00Z",
 		})
 	})
 	provider, err := NewProvider(server.URL)
@@ -114,6 +115,9 @@ func TestProviderScreenConvertsCNEntriesAndDerivesSymbol(t *testing.T) {
 	if response.Total != 9 || !response.HasMore || response.AsOf != "2026-08-15T08:00:00Z" ||
 		response.Source != "akshare-screen-cn" {
 		t.Fatalf("response envelope = %#v", response)
+	}
+	if response.NextOffset == nil || *response.NextOffset != 2 {
+		t.Fatalf("next offset = %v", response.NextOffset)
 	}
 	first := response.Entries[0]
 	if first.InstrumentID != "SH.600519" || first.Symbol != "600519" || first.Name != "贵州茅台" ||
@@ -169,6 +173,29 @@ func TestProviderScreenClassifiesSidecarErrors(t *testing.T) {
 	}
 	if _, err := provider.Screen(context.Background(), marketdata.ScreenRequest{Market: "CN", Limit: 10}); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("unsupported_market: error = %v, want ErrUnsupported", err)
+	}
+}
+
+func TestProviderScreenClassifiesMultipleSortKeysAsCapabilityError(t *testing.T) {
+	server, _ := newNewsRecordingServer(t, func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(writer).Encode(map[string]any{
+			"error": map[string]any{"code": "unsupported_kind", "message": "multiple sort keys are not supported by this catalog"},
+		})
+	})
+	provider, err := NewProvider(server.URL)
+	if err != nil {
+		t.Fatalf("NewProvider: %v", err)
+	}
+	_, err = provider.Screen(context.Background(), marketdata.ScreenRequest{
+		Market: "CN", Limit: 10,
+		Sorts: []marketdata.ScreenSortRequest{
+			{FactorKey: "simple.price", Direction: "desc"},
+			{FactorKey: "simple.market_cap", Direction: "desc"},
+		},
+	})
+	if !errors.Is(err, ErrUnsupported) || !errors.Is(err, marketdata.ErrCapabilityUnsupported) {
+		t.Fatalf("multiple sort keys error = %v, want capability error", err)
 	}
 }
 

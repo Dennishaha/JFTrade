@@ -77,9 +77,10 @@ func projectProviderDividendCalendar(
 
 // projectProviderEconomicCalendar keys match the economic event feed at
 // apps/web/src/components/research/EconCalendarView.vue:94-184. eventDate and
-// eventTime derive from eventTimestamp in the Asia/Shanghai display frame; the
-// akshare feed returns the full requested range, so hasMore stays false and no
-// cursor is issued.
+// eventTime derive from eventTimestamp in the Asia/Shanghai display frame;
+// all-day events carry only eventDate and keep eventTime absent. The akshare
+// feed returns the full requested range, so hasMore stays false and no cursor
+// is issued.
 func projectProviderEconomicCalendar(
 	descriptor marketdata.ProviderDescriptor,
 	query *broker.FeatureQuery,
@@ -98,6 +99,8 @@ func projectProviderEconomicCalendar(
 			moment := time.Unix(event.EventTimestamp, 0).In(calendarEventLocation)
 			projected["eventDate"] = moment.Format(time.DateOnly)
 			projected["eventTime"] = moment.Format("15:04")
+		} else {
+			putCalendarText(projected, "eventDate", event.EventDate)
 		}
 		if event.Importance != nil {
 			projected["importance"] = *event.Importance

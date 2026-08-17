@@ -177,6 +177,28 @@ describe("InstrumentResearchView", () => {
     expect(buyRow.get("i b").attributes("style")).toContain("width: 55%");
   });
 
+  it("maps fractional analyst ratings to the nearest band", async () => {
+    mocks.fetch.mockResolvedValue(
+      result([
+        {
+          rating: 3.6,
+          total: 9,
+          strongBuy: 20,
+          buy: 30,
+          hold: 40,
+          underperform: 5,
+          sell: 5,
+        },
+      ]),
+    );
+
+    const wrapper = mountView("analyst");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("9 位分析师");
+    expect(wrapper.get(".instrument-research__rating-meta strong").text()).toBe("买入");
+  });
+
   it("flattens shareholders overview groups with their own static dates and holderPct", async () => {
     mocks.fetch.mockResolvedValue(
       result(

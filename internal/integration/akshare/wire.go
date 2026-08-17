@@ -363,6 +363,7 @@ type remoteEconomicEvent struct {
 	EventID        string  `json:"event_id"`
 	Title          string  `json:"title"`
 	Region         string  `json:"region"`
+	EventDate      string  `json:"event_date"`
 	EventTimestamp int64   `json:"event_timestamp"`
 	Importance     *int    `json:"importance"`
 	PreviousValue  *string `json:"previous_value"`
@@ -438,11 +439,12 @@ type remoteScreenSort struct {
 }
 
 type remoteScreenResponse struct {
-	Entries []remoteScreenEntry `json:"entries"`
-	Total   int                 `json:"total"`
-	HasMore bool                `json:"has_more"`
-	AsOf    string              `json:"as_of"`
-	Source  string              `json:"source"`
+	Entries    []remoteScreenEntry `json:"entries"`
+	Total      int                 `json:"total"`
+	HasMore    bool                `json:"has_more"`
+	NextOffset *int                `json:"next_offset"`
+	AsOf       string              `json:"as_of"`
+	Source     string              `json:"source"`
 }
 
 type remoteScreenEntry struct {

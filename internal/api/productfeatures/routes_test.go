@@ -3,6 +3,7 @@ package productfeatures
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -193,6 +194,27 @@ func TestProductFeatureRoutesMapValidationCapabilityEligibilityAndBrokerErrors(t
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("snapshot broker error status=%d body=%s", rec.Code, rec.Body.String())
 	}
+	// 嵌入式 Provider 的 4xx 业务错误必须透传原状态，不能折叠成 502。
+	adapter.queryErr = &httpStatusStub{status: http.StatusNotFound, message: "no analyst reports in window"}
+	rec = performFeatureRequest(t, router, http.MethodGet, "/api/v1/market-data/instruments/US.AAPL/profile?brokerId=api-test", "")
+	if rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), "PROVIDER_REQUEST_FAILED") {
+		t.Fatalf("provider 404 status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	adapter.queryErr = &httpStatusStub{status: http.StatusBadRequest, message: "invalid screen condition"}
+	rec = performFeatureRequest(t, router, http.MethodGet, "/api/v1/market-data/instruments/US.AAPL/profile?brokerId=api-test", "")
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "PROVIDER_REQUEST_FAILED") {
+		t.Fatalf("provider 400 status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	// capability 错误即使底层 sidecar 是 400 AKSHARE_UNSUPPORTED 也必须保持 409，
+	// 前端 ProviderUnsupportedState 降级依赖该状态码。
+	adapter.queryErr = fmt.Errorf("%w: %w",
+		service.ErrCapabilityUnavailable,
+		&httpStatusStub{status: http.StatusBadRequest, message: "AKSHARE_UNSUPPORTED: US news is not covered"})
+	rec = performFeatureRequest(t, router, http.MethodGet, "/api/v1/market-data/instruments/US.AAPL/profile?brokerId=api-test", "")
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "BROKER_CAPABILITY_UNAVAILABLE") {
+		t.Fatalf("capability error status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	adapter.queryErr = nil
 	adapter.snapshotErr = broker.NewSnapshotRateLimitError(6500*time.Millisecond, nil)
 	rec = performFeatureRequest(t, router, http.MethodPost, "/api/v1/market-data/snapshots", `{"symbols":["US.AAPL"]}`)
 	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") != "7" || !strings.Contains(rec.Body.String(), "MARKET_SNAPSHOT_RATE_LIMITED") {
@@ -385,6 +407,17 @@ func (b *apiFeatureBroker) SubscribePredictionMarket(context.Context, broker.Pre
 func (b *apiFeatureBroker) UnsubscribePredictionMarket(context.Context, broker.PredictionSubscription) error {
 	b.unsubscribeCalls++
 	return b.unsubscribeErr
+}
+
+// httpStatusStub 模拟嵌入式 Provider 携带上游 HTTP 状态码的业务错误。
+type httpStatusStub struct {
+	status  int
+	message string
+}
+
+func (e *httpStatusStub) Error() string { return e.message }
+func (e *httpStatusStub) HTTPStatus() int {
+	return e.status
 }
 
 type apiPredictionQuoteStore struct{}

@@ -106,7 +106,7 @@ func TestProviderCompanyProfileConvertsCNInstrument(t *testing.T) {
 func TestProviderFinancialStatementsConvertsPeriodsAndValidatesEcho(t *testing.T) {
 	server, requests := newNewsRecordingServer(t, func(writer http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(writer).Encode(map[string]any{
-			"instrument_id": "BJ.430047", "statement": "income", "currency": "CNY",
+			"instrument_id": "SH.600519", "statement": "income", "currency": "CNY",
 			"fields": []map[string]any{{"field_id": "revenue", "display_name": "营业收入"}},
 			"periods": []map[string]any{{
 				"period_text": "2025FY",
@@ -120,11 +120,11 @@ func TestProviderFinancialStatementsConvertsPeriodsAndValidatesEcho(t *testing.T
 	if err != nil {
 		t.Fatalf("NewProvider: %v", err)
 	}
-	response, err := provider.FinancialStatements(context.Background(), "bj", "430047", "")
+	response, err := provider.FinancialStatements(context.Background(), "sh", "600519", "")
 	if err != nil {
 		t.Fatalf("FinancialStatements: %v", err)
 	}
-	if response.InstrumentID != "BJ.430047" || response.Statement != "income" ||
+	if response.InstrumentID != "SH.600519" || response.Statement != "income" ||
 		response.Source != "akshare-financials" {
 		t.Fatalf("statements response = %#v", response)
 	}
@@ -133,7 +133,7 @@ func TestProviderFinancialStatementsConvertsPeriodsAndValidatesEcho(t *testing.T
 		t.Fatalf("period value = %#v", value)
 	}
 	seen := requests()
-	if seen[0].path != "/providers/akshare/financials/BJ/430047" ||
+	if seen[0].path != "/providers/akshare/financials/SH/600519" ||
 		seen[0].query.Get("statement") != "income" {
 		t.Fatalf("financials request = %#v", seen)
 	}
@@ -179,8 +179,8 @@ func TestProviderCompanyResearchRejectsUnsupportedMarketsAndStatement(t *testing
 		!errors.Is(err, marketdata.ErrCapabilityUnsupported) {
 		t.Fatalf("US profile error = %v", err)
 	}
-	if _, err := provider.Ownership(ctx, "HK", "00700"); !errors.Is(err, ErrUnsupported) {
-		t.Fatalf("HK ownership error = %v", err)
+	if _, err := provider.CompanyProfile(ctx, "BJ", "430047"); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("BJ profile error = %v", err)
 	}
 	if _, err := provider.FinancialStatements(ctx, "SH", "600519", "annual"); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("unknown statement error = %v", err)
@@ -190,16 +190,43 @@ func TestProviderCompanyResearchRejectsUnsupportedMarketsAndStatement(t *testing
 	}
 }
 
-func TestProviderCompanyResearchMapsSidecarUnsupportedMarket(t *testing.T) {
+func TestProviderCompanyProfileSupportsHK(t *testing.T) {
 	server, requests := newNewsRecordingServer(t, func(writer http.ResponseWriter, _ *http.Request) {
-		writer.WriteHeader(http.StatusBadRequest)
-		_, _ = writer.Write([]byte(`{"error":{"code":"unsupported_market","message":"BJ profile is not covered"}}`))
+		_ = json.NewEncoder(writer).Encode(map[string]any{
+			"instrument_id": "HK.00700", "market": "HK", "symbol": "00700", "currency": "HKD",
+			"groups": []map[string]any{{
+				"title": "公司资料", "fields": []map[string]any{{"name": "行业", "value": "互联网"}},
+			}},
+		})
 	})
 	provider, err := NewProvider(server.URL)
 	if err != nil {
 		t.Fatalf("NewProvider: %v", err)
 	}
-	if _, err := provider.CompanyProfile(context.Background(), "BJ", "430047"); !errors.Is(err, ErrUnsupported) ||
+	response, err := provider.CompanyProfile(context.Background(), "HK", "00700")
+	if err != nil {
+		t.Fatalf("CompanyProfile: %v", err)
+	}
+	if response.InstrumentID != "HK.00700" || response.Market != "HK" ||
+		response.Source != "akshare-profile" || len(response.Groups) != 1 {
+		t.Fatalf("profile response = %#v", response)
+	}
+	seen := requests()
+	if len(seen) != 1 || seen[0].path != "/providers/akshare/profile/HK/00700" {
+		t.Fatalf("HK profile request = %#v", seen)
+	}
+}
+
+func TestProviderCompanyResearchMapsSidecarUnsupportedMarket(t *testing.T) {
+	server, requests := newNewsRecordingServer(t, func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusBadRequest)
+		_, _ = writer.Write([]byte(`{"error":{"code":"unsupported_market","message":"HK ownership is not covered"}}`))
+	})
+	provider, err := NewProvider(server.URL)
+	if err != nil {
+		t.Fatalf("NewProvider: %v", err)
+	}
+	if _, err := provider.Ownership(context.Background(), "HK", "00700"); !errors.Is(err, ErrUnsupported) ||
 		!errors.Is(err, marketdata.ErrCapabilityUnsupported) {
 		t.Fatalf("sidecar unsupported error = %v", err)
 	}
@@ -271,13 +298,13 @@ func TestProviderAnalystConsensusConvertsEastmoneyAggregate(t *testing.T) {
 func TestProviderAnalystConsensusMapsSidecarUnsupportedMarket(t *testing.T) {
 	server, requests := newNewsRecordingServer(t, func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusBadRequest)
-		_, _ = writer.Write([]byte(`{"error":{"code":"unsupported_market","message":"BJ analyst is not covered"}}`))
+		_, _ = writer.Write([]byte(`{"error":{"code":"unsupported_market","message":"HK analyst is not covered"}}`))
 	})
 	provider, err := NewProvider(server.URL)
 	if err != nil {
 		t.Fatalf("NewProvider: %v", err)
 	}
-	if _, err := provider.AnalystConsensus(context.Background(), "BJ", "430047"); !errors.Is(err, ErrUnsupported) ||
+	if _, err := provider.AnalystConsensus(context.Background(), "HK", "00700"); !errors.Is(err, ErrUnsupported) ||
 		!errors.Is(err, marketdata.ErrCapabilityUnsupported) {
 		t.Fatalf("sidecar unsupported error = %v", err)
 	}
@@ -315,7 +342,7 @@ func TestProviderAnalystConsensusRejectsUnsupportedMarketsGoSide(t *testing.T) {
 		!errors.Is(err, marketdata.ErrCapabilityUnsupported) {
 		t.Fatalf("US analyst error = %v", err)
 	}
-	if _, err := provider.AnalystConsensus(ctx, "HK", "00700"); !errors.Is(err, ErrUnsupported) {
-		t.Fatalf("HK analyst error = %v", err)
+	if _, err := provider.AnalystConsensus(ctx, "BJ", "430047"); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("BJ analyst error = %v", err)
 	}
 }

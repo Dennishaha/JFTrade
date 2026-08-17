@@ -64,6 +64,10 @@ func TestEmbeddedCatalogShapeAndSemantics(t *testing.T) {
 	if !ok || code.Filter || !code.Retrieve || !code.Sort {
 		t.Fatalf("basic.code roles = %#v", code)
 	}
+	name, ok := LookupEmbedded("basic.name")
+	if !ok || name.Filter || !name.Retrieve || name.Sort {
+		t.Fatalf("basic.name roles = %#v", name)
+	}
 	industry, ok := LookupEmbedded("basic.industry")
 	if !ok || industry.Filter || industry.Sort || !industry.Retrieve {
 		t.Fatalf("basic.industry roles = %#v", industry)
@@ -76,6 +80,9 @@ func TestEmbeddedCatalogShapeAndSemantics(t *testing.T) {
 func TestEmbeddedCatalogValidationUseFlags(t *testing.T) {
 	if _, err := ValidateEmbeddedFactorUse("basic.code", true, false, false); err == nil {
 		t.Fatal("basic.code must reject filtering")
+	}
+	if _, err := ValidateEmbeddedFactorUse("basic.name", false, false, true); err == nil {
+		t.Fatal("basic.name must reject sorting: Yahoo has no name sortField")
 	}
 	if _, err := ValidateEmbeddedFactorUse("basic.industry", false, false, true); err == nil {
 		t.Fatal("basic.industry must reject sorting")

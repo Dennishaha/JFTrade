@@ -417,6 +417,8 @@ export function useInstrumentResearchController(
     const raw = analyst.value.rating;
     const numeric = typeof raw === "number" ? raw : Number(raw);
     if (Number.isFinite(numeric)) {
+      // 嵌入式 Provider 返回 1–5 加权平均（如 3.6），就近映射到整数档位。
+      const bucket = Math.round(numeric);
       return (
         ({
           1: "卖出",
@@ -424,7 +426,7 @@ export function useInstrumentResearchController(
           3: "持有",
           4: "买入",
           5: "强力推荐",
-        } as Record<number, string>)[numeric] ?? "--"
+        } as Record<number, string>)[bucket] ?? "--"
       );
     }
     const name = String(raw ?? "")

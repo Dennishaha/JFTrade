@@ -138,7 +138,7 @@ async def test_financials_periods_yoy_and_field_omission(
     assert [p["period_text"] for p in periods] == ["2025年报", "2024年报", "2023年报"]
     latest = periods[0]["values"]
     assert latest["total_revenue"]["data"] == 400.0
-    assert latest["total_revenue"]["yoy"] == pytest.approx(400.0 / 380.0 - 1)
+    assert latest["total_revenue"]["yoy"] == pytest.approx((400.0 / 380.0 - 1) * 100)
     assert latest["total_revenue"]["qoq"] is None
     assert "basic_eps" not in latest
     # The oldest period has no prior year to compare against.

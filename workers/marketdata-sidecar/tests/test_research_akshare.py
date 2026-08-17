@@ -159,7 +159,7 @@ async def test_financials_income_periods_and_yoy(
     ]
     latest = periods[0]["values"]
     assert latest["total_revenue"]["data"] == 1.7e11
-    assert latest["total_revenue"]["yoy"] == pytest.approx(1.7e11 / 1.5e11 - 1)
+    assert latest["total_revenue"]["yoy"] == pytest.approx((1.7e11 / 1.5e11 - 1) * 100)
     assert latest["total_revenue"]["qoq"] is None
     assert latest["net_profit_attributable"]["data"] == 8.6e10
     # Fields absent from the frame row are omitted from that period.

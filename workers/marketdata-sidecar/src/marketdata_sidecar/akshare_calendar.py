@@ -272,6 +272,7 @@ def _economic_entry(row: Mapping[str, Any]) -> CalendarEconomicEntry | None:
         ).hexdigest()[:16],
         title=title,
         region=region,
+        event_date=day,
         event_timestamp=timestamp,
         importance=importance,
         previous_value=_value_text(_row_value(row, "前值")),

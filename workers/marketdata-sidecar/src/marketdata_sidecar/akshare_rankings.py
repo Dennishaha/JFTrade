@@ -79,7 +79,7 @@ def _ranking_entry(instrument: AKInstrument) -> RankingsEntry | None:
         price=float(price),
         change_rate=float(change_rate),
         change_amount=_row_float(row, "涨跌额", "change_amount"),
-        volume=_row_float(row, "成交量", "volume"),
+        volume=_volume_row_float(row, instrument, "成交量", "volume"),
         turnover=_row_float(row, "成交额", "turnover"),
         turnover_ratio=_row_float(row, "换手率", "turnover_ratio"),
         pe_ttm=_row_float(row, "市盈率-动态", "市盈率", "pe"),
@@ -90,3 +90,13 @@ def _ranking_entry(instrument: AKInstrument) -> RankingsEntry | None:
 def _row_float(row: Mapping[str, Any], *names: str) -> float | None:
     value = _optional_decimal(row, *names)
     return float(value) if value is not None else None
+
+
+def _volume_row_float(
+    row: Mapping[str, Any], instrument: AKInstrument, *names: str
+) -> float | None:
+    # SH/SZ spot frames report lots; volume_multiplier converts to shares.
+    value = _optional_decimal(row, *names)
+    if value is None:
+        return None
+    return float(value * instrument.volume_multiplier)

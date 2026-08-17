@@ -172,7 +172,7 @@ def _board_entry(row: Mapping[str, Any]) -> AKIndustryBoard | None:
         name=name,
         change_rate=_row_float(row, "涨跌幅", "change_rate"),
         turnover=_row_float(row, "成交额", "turnover"),
-        volume=_row_float(row, "成交量", "volume"),
+        volume=_volume_in_shares(row, "成交量", "volume"),
         leading_stock_name=clean_text(_row_value(row, "领涨股票", "leading_stock")),
         leading_stock_change_rate=_row_float(row, "领涨股票-涨跌幅"),
     )
@@ -196,7 +196,7 @@ def _member_entry(row: Mapping[str, Any]) -> RankingsEntry | None:
         price=float(price),
         change_rate=float(change_rate),
         change_amount=_row_float(row, "涨跌额", "change_amount"),
-        volume=_row_float(row, "成交量", "volume"),
+        volume=_volume_in_shares(row, "成交量", "volume"),
         turnover=_row_float(row, "成交额", "turnover"),
         turnover_ratio=_row_float(row, "换手率", "turnover_ratio"),
         pe_ttm=_row_float(row, "市盈率-动态", "市盈率", "pe"),
@@ -215,3 +215,11 @@ def _member_market(code: str) -> str | None:
 def _row_float(row: Mapping[str, Any], *names: str) -> float | None:
     value = _optional_decimal(row, *names)
     return float(value) if value is not None else None
+
+
+def _volume_in_shares(row: Mapping[str, Any], *names: str) -> float | None:
+    # Eastmoney A-share board/member frames report lots; convert to shares.
+    value = _optional_decimal(row, *names)
+    if value is None:
+        return None
+    return float(value * 100)

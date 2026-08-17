@@ -269,6 +269,7 @@ async def test_economic_events_map_fields_and_timestamp(
     first = entries[0]
     assert first["title"] == "中国7月CPI年率"
     assert first["region"] == "中国"
+    assert first["event_date"] == "2026-08-17"
     assert first["importance"] == 3
     expected_ts = int(
         datetime(2026, 8, 17, 9, 30, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
@@ -279,6 +280,8 @@ async def test_economic_events_map_fields_and_timestamp(
     assert first["actual_value"] == "0.2"
     assert len(first["event_id"]) == 16
     second = entries[1]
+    assert second["event_date"] == "2026-08-17"
+    assert second["event_timestamp"] is None
     assert second["forecast_value"] is None
     assert second["actual_value"] is None
     assert second["importance"] == 1

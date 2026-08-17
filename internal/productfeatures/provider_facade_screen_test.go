@@ -45,6 +45,7 @@ func embeddedScreenDefinition() broker.ScreenDefinitionV2 {
 
 func embeddedScreenFixtures() *embeddedReaderStub {
 	industry := "Technology"
+	nextOffset := 75
 	return &embeddedReaderStub{screenResult: marketdata.ScreenResponse{
 		Entries: []marketdata.ScreenEntry{
 			{
@@ -64,10 +65,11 @@ func embeddedScreenFixtures() *embeddedReaderStub {
 				Values:        map[string]json.Number{},
 			},
 		},
-		Total:   7,
-		HasMore: true,
-		AsOf:    "2026-08-15T20:00:00Z",
-		Source:  "yfinance-screen-us",
+		Total:      7,
+		HasMore:    true,
+		NextOffset: &nextOffset,
+		AsOf:       "2026-08-15T20:00:00Z",
+		Source:     "yfinance-screen-us",
 	}}
 }
 
@@ -116,7 +118,7 @@ func TestEmbeddedProviderServesScreenAndProjectsRows(t *testing.T) {
 		t.Fatalf("provider attribution = %#v", result.Provider)
 	}
 	if result.Total == nil || *result.Total != 7 || !result.HasMore ||
-		result.NextOffset == nil || *result.NextOffset != 52 {
+		result.NextOffset == nil || *result.NextOffset != 75 {
 		t.Fatalf("paging = total %v hasMore %v next %v", result.Total, result.HasMore, result.NextOffset)
 	}
 	if result.AsOf.UTC().Format("2006-01-02T15:04:05Z") != "2026-08-15T20:00:00Z" {

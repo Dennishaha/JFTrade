@@ -14,8 +14,8 @@ locally with 400 unsupported_kind instead of reaching Yahoo:
 
 The screen response carries standard quote keys rather than screener field
 names, so values are projected back through QUOTE_VALUE_KEYS.  Yahoo caps a
-custom screen page at size=250, so offset+limit beyond 250 is a 400; the
-upstream call fetches size=offset+limit once and the route slices locally.
+custom screen page at size=250; offset and size are passed through to Yahoo
+independently, so the window may extend past 250 via pagination.
 """
 
 from __future__ import annotations
@@ -37,8 +37,9 @@ from .models import (
 from .routes.common import market_spec
 
 SCREEN_SOURCE = "yfinance-screen"
-# Yahoo caps custom-screen size at 250 (yfinance screener.py ValueError).
-MAX_SCREEN_WINDOW = 250
+# Yahoo caps a single custom-screen page at 250 (yfinance screener.py
+# ValueError); offset is independent, so only the page size is bounded.
+MAX_SCREEN_PAGE = 250
 
 FACTOR_FIELDS = {
     "simple.price": "intradayprice",
@@ -58,6 +59,9 @@ QUOTE_VALUE_KEYS = {
     "simple.pb": ("priceToBook",),
 }
 
+# Yahoo's default screener sort field is the ticker; basic.code sorts on it.
+TICKER_SORT_FIELD = "ticker"
+
 
 def screen(request: ScreenRequest) -> ScreenResponse:
     spec = market_spec(request.market)
@@ -68,31 +72,32 @@ def screen(request: ScreenRequest) -> ScreenResponse:
         )
     conditions = [_translate_condition(condition) for condition in request.conditions]
     sort_field, sort_asc = _translate_sort(request.sorts)
-    size = request.offset + request.limit
-    if size > MAX_SCREEN_WINDOW:
+    if request.limit > MAX_SCREEN_PAGE:
         raise invalid_request(
             "invalid_request",
-            f"screen offset+limit must not exceed {MAX_SCREEN_WINDOW}",
+            f"screen limit must not exceed {MAX_SCREEN_PAGE}",
         )
     # Pin region=us so the custom query never scans non-US listings.
     result = upstream.screen_custom(
         [("EQ", "region", ("us",)), *conditions],
         sort_field,
         sort_asc,
-        size,
+        request.limit,
+        request.offset,
     )
     quotes = [quote for quote in result["quotes"] if isinstance(quote, Mapping)]
-    page = quotes[request.offset : request.offset + request.limit]
+    consumed = len(quotes)
     entries = [
         entry
-        for quote in page
+        for quote in quotes
         if (entry := _screen_entry(quote, spec.quote_currency)) is not None
     ]
-    total, has_more = _page_meta(result.get("total"), request, len(quotes), len(page))
+    total, has_more = _page_meta(result.get("total"), request, consumed)
     return ScreenResponse(
         entries=entries,
         total=total,
         has_more=has_more,
+        next_offset=request.offset + consumed if has_more else None,
         as_of=datetime.now(ZoneInfo(spec.timezone)).isoformat(timespec="seconds"),
         source=SCREEN_SOURCE,
     )
@@ -130,14 +135,22 @@ def _translate_condition(condition: ScreenCondition) -> tuple[str, str, tuple[An
 def _translate_sort(sorts: list[ScreenSort]) -> tuple[str | None, bool]:
     if not sorts:
         return None, False
-    # Yahoo accepts a single sortField; only the first sort is honored.
-    first = sorts[0]
-    field = FACTOR_FIELDS.get(first.factor_key.strip())
-    if field is None:
+    if len(sorts) > 1:
         raise invalid_request(
             "unsupported_kind",
-            f"unsupported screen sort factor: {first.factor_key}",
+            "multiple sort keys are not supported by this catalog",
         )
+    first = sorts[0]
+    key = first.factor_key.strip()
+    if key == "basic.code":
+        field = TICKER_SORT_FIELD
+    else:
+        field = FACTOR_FIELDS.get(key)
+        if field is None:
+            raise invalid_request(
+                "unsupported_kind",
+                f"unsupported screen sort factor: {first.factor_key}",
+            )
     direction = first.direction.strip().lower()
     if direction not in ("asc", "desc"):
         raise invalid_request(
@@ -177,11 +190,10 @@ def _page_meta(
     raw_total: Any,
     request: ScreenRequest,
     fetched: int,
-    page_size: int,
 ) -> tuple[int, bool]:
     """Yahoo custom screens return a ``total`` count; when it is absent fall
     back to the fetched window and treat a full page as "probably more"."""
     total = raw_total if isinstance(raw_total, (int, float)) else None
     if total is not None:
-        return int(total), request.offset + page_size < int(total)
-    return request.offset + page_size, fetched >= request.offset + request.limit
+        return int(total), fetched > 0 and request.offset + fetched < int(total)
+    return request.offset + fetched, fetched >= request.limit

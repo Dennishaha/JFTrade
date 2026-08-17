@@ -73,10 +73,13 @@ type DividendCalendarResponse struct {
 
 // EconomicEvent is one provider-neutral economic calendar entry; event time is
 // carried as a unix timestamp because upstream feeds publish mixed timezones.
+// EventDate holds the calendar day (YYYY-MM-DD) independently so all-day
+// events without a concrete time stay visible.
 type EconomicEvent struct {
 	EventID        string  `json:"eventId"`
 	Title          string  `json:"title"`
 	Region         string  `json:"region"`
+	EventDate      string  `json:"eventDate"`
 	EventTimestamp int64   `json:"eventTimestamp"`
 	Importance     *int    `json:"importance"`
 	PreviousValue  *string `json:"previousValue"`

@@ -50,7 +50,12 @@ func projectProviderScreen(
 		Metadata: map[string]any{"source": response.Source},
 	}
 	if hasMore {
-		result.NextCursor = strconv.Itoa(embeddedScreenOffset(query) + len(entries))
+		currentOffset := embeddedScreenOffset(query)
+		nextOffset := currentOffset + len(entries)
+		if response.NextOffset != nil && *response.NextOffset > currentOffset {
+			nextOffset = *response.NextOffset
+		}
+		result.NextCursor = strconv.Itoa(nextOffset)
 	}
 	return result
 }

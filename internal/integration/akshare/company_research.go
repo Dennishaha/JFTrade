@@ -17,9 +17,12 @@ var (
 	_ marketdata.OwnershipSource           = (*Provider)(nil)
 )
 
-// CompanyProfile returns grouped company profile fields for a CN instrument.
-// The AKShare sidecar covers CN/SH/SZ/BJ securities; US and HK are rejected
-// Go-side as ErrUnsupported before any sidecar call.
+// CompanyProfile returns grouped company profile fields for a CN or HK
+// instrument. The AKShare sidecar covers CN/SH/SZ securities and HK company
+// profiles; US and BJ are rejected Go-side as ErrUnsupported before any
+// sidecar call. Financials/analyst/ownership remain CN-only: the sidecar
+// rejects HK with unsupported_market, which classifyCompanyResearchError
+// folds into the capability contract.
 func (p *Provider) CompanyProfile(
 	ctx context.Context,
 	marketValue string,
@@ -115,8 +118,8 @@ func (p *Provider) Ownership(
 	return converted, nil
 }
 
-// companyInstrument is the CN-scoped identity the company research endpoints
-// operate on; unlike normalizeIdentity it accepts the CN aggregate and BJ.
+// companyInstrument is the research-scoped identity the company research
+// endpoints operate on; unlike normalizeIdentity it accepts the CN aggregate.
 type companyInstrument struct {
 	market string
 	symbol string
@@ -146,23 +149,19 @@ func companyResearchInstrument(marketValue, symbol string) (companyInstrument, e
 	return companyInstrument{market: canonical, symbol: symbol}, nil
 }
 
-// companyResearchMarket accepts the CN aggregate, its SH/SZ leaves, and BJ,
-// which canonicalMarket does not know.
+// companyResearchMarket accepts the CN aggregate, its SH/SZ leaves, and HK.
+// US and BJ (including the BJSE/BSE aliases) stay unsupported: the sidecar
+// does not cover either market for stock research.
 func companyResearchMarket(marketValue string) (string, error) {
 	canonical, err := canonicalMarket(marketValue)
-	if err == nil {
-		switch canonical {
-		case "CN", "SH", "SZ":
-			return canonical, nil
-		default:
-			return "", fmt.Errorf("%w: company research market %q", ErrUnsupported, marketValue)
-		}
-	}
-	switch strings.ToUpper(strings.TrimSpace(marketValue)) {
-	case "BJ", "BJSE", "BSE":
-		return "BJ", nil
-	default:
+	if err != nil {
 		return "", err
+	}
+	switch canonical {
+	case "CN", "SH", "SZ", "HK":
+		return canonical, nil
+	default:
+		return "", fmt.Errorf("%w: company research market %q", ErrUnsupported, marketValue)
 	}
 }
 
@@ -189,8 +188,7 @@ func classifyCompanyResearchError(err error) error {
 }
 
 // verifyCompanySymbol checks the echoed symbol when the sidecar provides one;
-// instrument_id formats for BJ are not pinned by the contract, so the symbol
-// echo is the stable identity signal.
+// the symbol echo is the stable identity signal across markets.
 func verifyCompanySymbol(symbol string, expected companyInstrument) error {
 	if symbol == "" {
 		return nil

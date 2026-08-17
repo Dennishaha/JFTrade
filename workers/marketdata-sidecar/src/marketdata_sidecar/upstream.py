@@ -261,22 +261,26 @@ def screen_custom(
     sort_field: str | None,
     sort_asc: bool,
     size: int,
+    offset: int = 0,
 ) -> dict[str, Any]:
     """Run a Yahoo custom equity screen and return the raw result dict.
 
     ``conditions`` are ``(operator, field, values)`` triples already
     translated into EquityQuery operator names (EQ/BTWN/GTE/LTE); the
     yfinance boundary owns query object construction so callers never import
-    yfinance.  ``size`` is the upstream page window (Yahoo caps it at 250);
-    the caller slices offset/limit locally from the returned quotes.
+    yfinance.  ``size`` is the upstream page size (Yahoo caps it at 250) and
+    ``offset`` the result window start; both pass through to Yahoo, so
+    arbitrary pages are reachable even when the window end exceeds 250.
     """
     runtime = require_runtime()
-    key = repr((conditions, sort_field, sort_asc, size))
+    key = repr((conditions, sort_field, sort_asc, size, offset))
     data = _screen_custom_cache.get_or_fetch(
         key,
         SCREEN_CACHE_SECONDS,
         lambda: {
-            "result": _fetch_custom_screen(runtime, conditions, sort_field, sort_asc, size)
+            "result": _fetch_custom_screen(
+                runtime, conditions, sort_field, sort_asc, size, offset
+            )
         },
     )
     return dict(data.get("result") or {})
@@ -288,6 +292,7 @@ def _fetch_custom_screen(
     sort_field: str | None,
     sort_asc: bool,
     size: int,
+    offset: int,
 ) -> dict[str, Any]:
     equity_query = runtime.yfinance.EquityQuery
     queries = [
@@ -303,6 +308,7 @@ def _fetch_custom_screen(
     query = queries[0] if len(queries) == 1 else equity_query("AND", queries)
     result = runtime.yfinance.screen(
         query,
+        offset=offset,
         size=size,
         sortField=sort_field,
         sortAsc=sort_asc,

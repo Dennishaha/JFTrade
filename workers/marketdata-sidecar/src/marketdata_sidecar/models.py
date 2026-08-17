@@ -311,6 +311,7 @@ class CalendarEconomicEntry(WireModel):
     event_id: str
     title: str | None = None
     region: str | None = None
+    event_date: str | None = None
     event_timestamp: int | None = None
     importance: int | None = None
     previous_value: str | None = None
@@ -408,6 +409,7 @@ class ScreenResponse(WireModel):
     entries: list[ScreenEntry]
     total: int
     has_more: bool
+    next_offset: int | None = None
     as_of: str
     source: str
 

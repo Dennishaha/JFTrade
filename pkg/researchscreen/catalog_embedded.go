@@ -24,7 +24,9 @@ var embeddedScreenMarkets = map[string][]string{
 
 // embeddedFactors is the provider intersection both sidecars can compute.
 // Filter semantics are interval-only (operator between); basic.* identity
-// factors are retrieve/sort columns, never filters.
+// factors are retrieve/sort columns, never filters. basic.name sorts on the
+// provider intersection: akshare sorts locally by name, but Yahoo has no
+// name sortField, so the shared catalog keeps name retrieve-only.
 var embeddedFactors = []FactorDescriptor{
 	{
 		Key: "basic.code", Category: "basic", Label: "代码", ValueType: "string",
@@ -32,7 +34,7 @@ var embeddedFactors = []FactorDescriptor{
 	},
 	{
 		Key: "basic.name", Category: "basic", Label: "名称", ValueType: "string",
-		Retrieve: true, Sort: true,
+		Retrieve: true,
 	},
 	{
 		Key: "basic.industry", Category: "basic", Label: "所属行业", ValueType: "string",

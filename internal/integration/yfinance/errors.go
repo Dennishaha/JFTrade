@@ -50,6 +50,15 @@ func (e *HTTPError) Unwrap() error {
 	return nil
 }
 
+// HTTPStatus exposes a sidecar status to transport adapters without coupling
+// this integration package to the HTTP API layer.
+func (e *HTTPError) HTTPStatus() int {
+	if e == nil {
+		return 0
+	}
+	return e.StatusCode
+}
+
 func isNotFound(err error) bool {
 	var remoteErr *HTTPError
 	return errors.As(err, &remoteErr) && remoteErr.StatusCode == http.StatusNotFound

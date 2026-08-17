@@ -91,6 +91,7 @@ func (p *Provider) EconomicCalendar(
 			EventID:        eventID,
 			Title:          strings.TrimSpace(entry.Title),
 			Region:         strings.TrimSpace(entry.Region),
+			EventDate:      strings.TrimSpace(entry.EventDate),
 			EventTimestamp: entry.EventTimestamp,
 			Importance:     entry.Importance,
 			PreviousValue:  optionalText(entry.PreviousValue),

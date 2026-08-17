@@ -106,7 +106,7 @@ func TestProviderEconomicCalendarProjectionDerivesDateAndTime(t *testing.T) {
 				EventID: "econ-1", Title: "中国7月CPI同比", Region: "中国",
 				EventTimestamp: 1787004000, Importance: &importance, PreviousValue: &previous,
 			},
-			{EventID: "econ-2", Title: "无时间事件"},
+			{EventID: "econ-2", Title: "无时间事件", EventDate: "2026-08-20"},
 		},
 	}
 	result := projectProviderEconomicCalendar(
@@ -137,10 +137,13 @@ func TestProviderEconomicCalendarProjectionDerivesDateAndTime(t *testing.T) {
 		}
 	}
 	second := result.Entries[1]
-	for _, key := range []string{"eventTimestamp", "eventDate", "eventTime", "importance"} {
+	for _, key := range []string{"eventTimestamp", "eventTime", "importance"} {
 		if _, ok := second[key]; ok {
-			t.Fatalf("zero timestamp must omit %q: %#v", key, second)
+			t.Fatalf("all-day event must omit %q: %#v", key, second)
 		}
+	}
+	if second["eventDate"] != "2026-08-20" {
+		t.Fatalf("all-day event date = %#v", second["eventDate"])
 	}
 	if result.HasMore == nil || *result.HasMore || result.NextCursor != "" {
 		t.Fatalf("economic calendar returns the full range: HasMore=%#v cursor=%q",

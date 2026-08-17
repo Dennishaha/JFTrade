@@ -58,11 +58,12 @@ type ScreenEntry struct {
 
 // ScreenResponse is the provider-neutral stock-screen page.
 type ScreenResponse struct {
-	Entries []ScreenEntry `json:"entries"`
-	Total   int           `json:"total"`
-	HasMore bool          `json:"hasMore"`
-	AsOf    string        `json:"asOf"`
-	Source  string        `json:"source"`
+	Entries    []ScreenEntry `json:"entries"`
+	Total      int           `json:"total"`
+	HasMore    bool          `json:"hasMore"`
+	NextOffset *int          `json:"nextOffset,omitempty"`
+	AsOf       string        `json:"asOf"`
+	Source     string        `json:"source"`
 }
 
 // GetScreen 返回当前行情提供者的股票筛选结果页（嵌入式因子目录）。

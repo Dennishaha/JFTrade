@@ -93,7 +93,8 @@ func TestProviderCalendarConvertsEntriesAndKeepsNulls(t *testing.T) {
 			}}})
 		case "/providers/akshare/calendar/economic":
 			_ = json.NewEncoder(writer).Encode(map[string]any{"entries": []map[string]any{{
-				"event_id": "econ-1", "title": "CPI同比", "region": "中国", "event_timestamp": 1787000000,
+				"event_id": "econ-1", "title": "CPI同比", "region": "中国",
+				"event_date": "2026-08-20", "event_timestamp": 1787000000,
 				"importance": 3, "previous_value": "0.3%", "forecast_value": nil, "actual_value": nil,
 			}}})
 		case "/providers/akshare/calendar/ipos":
@@ -135,7 +136,8 @@ func TestProviderCalendarConvertsEntriesAndKeepsNulls(t *testing.T) {
 		t.Fatalf("economic = %#v, err=%v", economic, err)
 	}
 	econ := economic.Entries[0]
-	if econ.EventID != "econ-1" || econ.EventTimestamp != 1787000000 ||
+	if econ.EventID != "econ-1" || econ.EventDate != "2026-08-20" ||
+		econ.EventTimestamp != 1787000000 ||
 		econ.Importance == nil || *econ.Importance != 3 ||
 		econ.PreviousValue == nil || *econ.PreviousValue != "0.3%" || econ.ForecastValue != nil {
 		t.Fatalf("economic entry = %#v", econ)

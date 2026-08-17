@@ -498,8 +498,30 @@ func writeQueryError(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrCapabilityUnavailable):
 		httpserver.WriteError(c, http.StatusConflict, "BROKER_CAPABILITY_UNAVAILABLE", err.Error())
 	default:
+		if httpStatus, ok := httpStatusOf(err); ok && httpStatus >= 400 && httpStatus < 500 {
+			// 嵌入式 Provider（yfinance/akshare sidecar）的 4xx 业务错误
+			// 原样透传（404 无数据、400 非法参数），不折叠成上游失败 502。
+			// capability 不支持不在此列：上面的 ErrCapabilityUnavailable
+			// 分支先命中并保持 409，即使底层 sidecar 是 400 AKSHARE_UNSUPPORTED。
+			httpserver.WriteError(c, httpStatus, "PROVIDER_REQUEST_FAILED", err.Error())
+			return
+		}
 		httpserver.WriteError(c, http.StatusBadGateway, "BROKER_FEATURE_FAILED", err.Error())
 	}
+}
+
+// httpStatusOf extracts an upstream HTTP status preserved by a provider error.
+func httpStatusOf(err error) (int, bool) {
+	var statusErr interface {
+		error
+		HTTPStatus() int
+	}
+	if errors.As(err, &statusErr) {
+		if status := statusErr.HTTPStatus(); status > 0 {
+			return status, true
+		}
+	}
+	return 0, false
 }
 
 // marketInstrumentProductDocs godoc

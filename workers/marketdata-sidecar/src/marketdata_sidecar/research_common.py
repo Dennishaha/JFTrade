@@ -125,9 +125,10 @@ def financial_periods(
 
 
 def _growth(current: float, previous: float | None) -> float | None:
+    """Year-over-year growth in percent points (e.g. 0.0526 -> 5.26)."""
     if previous is None or previous == 0:
         return None
-    return current / previous - 1
+    return (current / previous - 1) * 100
 
 
 def research_not_found(capability: str, instrument_id: str) -> SidecarError:
