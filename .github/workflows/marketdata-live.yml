@@ -1,0 +1,95 @@
+name: Embedded Market-data Live Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type RUN_LIVE_MARKETDATA to contact Yahoo Finance and Eastmoney
+        required: true
+        type: string
+      ref:
+        description: Git ref or SHA to verify
+        required: true
+        default: main
+        type: string
+      provider:
+        description: Provider lane to verify
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - yfinance
+          - akshare
+      suite:
+        description: Smoke depth
+        required: true
+        default: full
+        type: choice
+        options:
+          - core
+          - research
+          - full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketdata-live-${{ inputs.ref }}-${{ inputs.provider }}-${{ inputs.suite }}
+  cancel-in-progress: false
+
+jobs:
+  live-provider:
+    name: Real provider contract checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Require explicit confirmation
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        shell: bash
+        run: |
+          if [[ "$CONFIRMATION" != "RUN_LIVE_MARKETDATA" ]]; then
+            echo "Refusing to contact external market-data providers without confirmation=RUN_LIVE_MARKETDATA." >&2
+            exit 1
+          fi
+
+      - name: Checkout requested ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.22"
+          enable-cache: true
+          cache-dependency-glob: workers/marketdata-sidecar/uv.lock
+
+      - name: Run live provider contract smoke
+        working-directory: workers/marketdata-sidecar
+        env:
+          JFTRADE_MARKETDATA_LIVE_SMOKE: "1"
+          PROVIDER: ${{ inputs.provider }}
+          SUITE: ${{ inputs.suite }}
+          REPORT: ${{ github.workspace }}/marketdata-live-report.json
+        run: |
+          uv run --locked --extra runtime --extra test \
+            python scripts/marketdata_live_smoke.py \
+            --provider "$PROVIDER" \
+            --suite "$SUITE" \
+            --report "$REPORT"
+
+      - name: Upload live smoke report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: marketdata-live-${{ github.run_id }}-${{ inputs.provider }}-${{ inputs.suite }}
+          path: marketdata-live-report.json
+          if-no-files-found: warn
+          retention-days: 14

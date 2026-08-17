@@ -80,6 +80,12 @@ JFTRADE_DIFF_BASE=origin/main pnpm run test:coverage
 - Web/API 测试确认行情提供者菜单和契约只暴露 Provider 选择、状态与能力，不请求或渲染历史连接配置；设置页不再包含行情 Provider 分类；能力断言明确 yfinance 为延迟快照/历史 K 线、无实时推流和 Level 2。
 - 发布 smoke 在 macOS ARM64、Linux AMD64、Windows AMD64、Windows ARM64 分别启动嵌入 helper 并验证 `--version`、`/healthz`、Yahoo/AKShare 导入、退出清理和 SHA-256。macOS 额外执行 helper 与应用深度签名校验；Windows 校验签名安装器；Linux 将 helper 摘要纳入 SBOM/校验清单。
 
+真实 Yahoo/AKShare 上游只通过手动 `.github/workflows/marketdata-live.yml` 或显式
+`JFTRADE_MARKETDATA_LIVE_SMOKE=1` 运行 `workers/marketdata-sidecar/scripts/marketdata_live_smoke.py`。
+该 smoke 覆盖核心行情、研究端点、yfinance 分页、AKShare 五市场筛选、错误拒绝和
+31 天经济日历；普通 pytest、PR 和 main CI 不访问真实网络。live 报告只保留端点、
+状态码、耗时和条目数，失败必须非零退出。
+
 2026-08-04 的本机 macOS ARM64 样本按“递归累加 PyInstaller `onedir` 下所有普通文件的 `stat().st_size`，不计目录和文件系统分配块”测量：旧 yfinance bundle 为 89.20 MiB，新 market-data bundle 为 104.65 MiB，增加 15.45 MiB（17.3%）。这是单机迁移基线，不作为其他平台的固定体积上限；`smoke:marketdata-sidecar` 会在每个发布 runner 上报告该平台 bundle 的精确字节数和 MiB，并同时验证 frozen helper 的版本、loopback 健康与两个 Python Provider 的导入状态。
 
 `test:preflight`、`test:pr` 和 `test:ci-local` 使用 `pnpm run check:generated` 在临时目录生成 Swagger、前端 OpenAPI 类型、契约基线和参考文档，并逐字节比较需要提交的 OpenAPI 类型、契约基线和 Pine 支持矩阵。Swagger runtime 快照只作为临时测试输入，不写入仓库。因此这些检查不会修改工作树；契约有意变化时才运行 `pnpm run generate:docs` 更新跟踪产物。

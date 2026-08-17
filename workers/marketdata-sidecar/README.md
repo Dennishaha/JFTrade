@@ -175,12 +175,18 @@ uv run --locked --extra runtime --extra test pytest
 测试通过 `httpx.ASGITransport` 和 pandas DataFrame fixture 模拟两个数据源，
 并全局阻止 socket 连接；普通测试不会访问 Yahoo Finance 或 AKShare 网络。
 
-真实 AKShare 闭环只通过显式开关手动运行，不进入普通 pytest/CI：
+真实 Yahoo/AKShare 闭环只通过显式开关手动运行，不进入普通 pytest/CI：
 
 ```bash
-JFTRADE_AKSHARE_LIVE_SMOKE=1 \
-  uv run --locked --extra runtime python scripts/akshare_live_smoke.py
+JFTRADE_MARKETDATA_LIVE_SMOKE=1 \
+  uv run --locked --extra runtime --extra test \
+  python scripts/marketdata_live_smoke.py --provider all --suite full \
+  --report /tmp/marketdata-live-report.json
 ```
 
-脚本验证 AKShare 导入/health，并真实调用 US.AAPL 的 search、snapshot 和日 K；
-未设置开关时只输出 `SKIP`，不会导入 AKShare 或访问网络。
+脚本验证两个 Provider 的导入/health、核心行情、研究能力、筛选分页、错误拒绝和
+AKShare 31 天经济日历；报告只包含端点、状态、耗时和条目数，不保存原始行情或财务数据。
+未设置开关时直接拒绝运行，不会导入数据栈或访问网络。旧的
+`JFTRADE_AKSHARE_LIVE_SMOKE=1 python scripts/akshare_live_smoke.py` 入口仍作为
+AKShare 全量 smoke 的兼容包装保留。GitHub 手动 workflow 还要求输入
+`RUN_LIVE_MARKETDATA` 确认文本，失败不会被转换为跳过。

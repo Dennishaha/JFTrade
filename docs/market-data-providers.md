@@ -117,6 +117,19 @@ helper 的健康路由不访问外部网络；只有开发者做 standalone smok
 
 如果 Provider 状态不可用或 helper 启动失败，请按 [Python 行情 sidecar 排障](./troubleshooting/marketdata-sidecar.md) 检查嵌入资产、运行时与上游网络。
 
+真实上游契约只通过显式 live smoke 验证，不进入普通 pytest/CI。该命令会检查两个
+Provider 的研究路由、筛选分页、预期拒绝和 AKShare 31 天经济日历，并把脱敏报告写入
+指定路径：
+
+```bash
+JFTRADE_MARKETDATA_LIVE_SMOKE=1 \
+  uv run --locked --project workers/marketdata-sidecar --extra runtime --extra test \
+  python workers/marketdata-sidecar/scripts/marketdata_live_smoke.py \
+  --provider all --suite full --report /tmp/marketdata-live-report.json
+```
+
+未设置开关时命令直接拒绝运行；真实验证失败不会被视为跳过或成功。
+
 ## 持久化配置
 
 普通用户无需配置 Python helper。新安装的 `settings.json` 只记录默认 Provider：
