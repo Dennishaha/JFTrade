@@ -82,6 +82,13 @@ def test_economic_event_without_date_is_rejected() -> None:
         )
 
 
+def test_screen_page_requires_stable_instrument_id() -> None:
+    with pytest.raises(live_smoke.ContractViolation, match="instrument_id"):
+        live_smoke._validate_screen_page(
+            {"entries": [{"code": "AAPL"}], "total": 1, "has_more": False}
+        )
+
+
 @pytest.mark.asyncio
 async def test_live_smoke_report_preserves_provider_error_code() -> None:
     transport = httpx.MockTransport(

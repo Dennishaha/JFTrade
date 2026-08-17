@@ -418,7 +418,7 @@ async def _check_yfinance_pages(live: LiveClient) -> None:
             "offset": 0,
             "limit": 20,
         },
-        validate=lambda body: _require_keys(body, "entries", "total", "has_more"),
+        validate=_validate_screen_page,
     )
     if first is None:
         return
@@ -432,7 +432,7 @@ async def _check_yfinance_pages(live: LiveClient) -> None:
             provider=live.provider,
         )
         return
-    first_ids = {str(item.get("instrument_id")) for item in first.get("entries", [])}
+    first_ids = _page_ids(first)
     second = await live.request(
         "Yahoo screen second page",
         "POST",
@@ -443,12 +443,32 @@ async def _check_yfinance_pages(live: LiveClient) -> None:
             "offset": next_offset,
             "limit": 20,
         },
-        validate=lambda body: _require_keys(body, "entries", "total", "has_more"),
+        validate=_validate_screen_page,
     )
     if second is not None:
-        second_ids = {str(item.get("instrument_id")) for item in second.get("entries", [])}
+        second_ids = _page_ids(second)
         if first_ids & second_ids:
             _record_failure(live.report, "Yahoo screen pages overlap", path, "page identities overlap")
+        second_next = second.get("next_offset")
+        if second.get("has_more"):
+            if not isinstance(second_next, int) or second_next <= next_offset:
+                _record_failure(
+                    live.report,
+                    "Yahoo screen cursor remains monotonic",
+                    path,
+                    "second page did not advance next_offset",
+                    provider=live.provider,
+                )
+        elif second_next is not None and (
+            not isinstance(second_next, int) or second_next <= next_offset
+        ):
+            _record_failure(
+                live.report,
+                "Yahoo screen terminal cursor is monotonic",
+                path,
+                "terminal page returned a non-forward next_offset",
+                provider=live.provider,
+            )
 
 
 async def _run_akshare_research(live: LiveClient) -> None:
@@ -601,6 +621,26 @@ def _require_non_empty(body: Mapping[str, Any], key: str) -> None:
     _require_list(body, key)
     if not body[key]:
         raise ContractViolation(f"response field {key} is empty")
+
+
+def _validate_screen_page(body: Mapping[str, Any]) -> None:
+    _require_keys(body, "entries", "total", "has_more")
+    _page_ids(body)
+
+
+def _page_ids(body: Mapping[str, Any]) -> set[str]:
+    entries = body.get("entries")
+    if not isinstance(entries, list):
+        raise ContractViolation("screen response entries is not a list")
+    identities: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, Mapping):
+            raise ContractViolation("screen entry is not an object")
+        identity = str(entry.get("instrument_id", "")).strip()
+        if not identity:
+            raise ContractViolation("screen entry has no instrument_id")
+        identities.add(identity)
+    return identities
 
 
 def _row_count(body: Mapping[str, Any]) -> int | None:
