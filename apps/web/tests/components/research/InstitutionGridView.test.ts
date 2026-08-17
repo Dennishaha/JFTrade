@@ -15,6 +15,7 @@ vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
 });
 
 import InstitutionGridView from "../../../src/components/research/InstitutionGridView.vue";
+import { ApiClientError } from "../../../src/composables/shared/apiClient";
 import { flushPromises } from "../../productTestUtils";
 
 const componentSource = readFileSync(
@@ -534,5 +535,51 @@ describe("InstitutionGridView", () => {
     await row.trigger("click");
     expect(wrapper.emitted("select")).toBeUndefined();
     expect(row.text()).toContain("--");
+  });
+
+  it("degrades institution-list provider-capability 409s to an unsupported empty state", async () => {
+    mocks.fetch.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: broker "akshare" is not registered',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    const wrapper = mount(InstitutionGridView, {
+      props: { market: "US", brokerId: "akshare" },
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).toContain("切换行情提供者为 Futu 后可用");
+    expect(wrapper.text()).not.toContain("is not registered");
+  });
+
+  it("degrades detail provider-capability 409s inside an opened institution panel", async () => {
+    mocks.fetch.mockImplementation((path: string) => {
+      const operation = new URLSearchParams(path.split("?")[1]).get("operation");
+      if (operation === "profile") {
+        return Promise.reject(
+          new ApiClientError(
+            'broker feature capability is unavailable: broker "akshare" is not registered',
+            "BROKER_CAPABILITY_UNAVAILABLE",
+            409,
+          ),
+        );
+      }
+      if (operation === "list") {
+        return Promise.resolve(featureResult(institutions, { currency: "USD" }));
+      }
+      return Promise.resolve(featureResult([]));
+    });
+    const wrapper = mount(InstitutionGridView, {
+      props: { market: "US", brokerId: "futu", institutionId: "202" },
+    });
+    await flushPromises();
+
+    const details = wrapper.get(".institution-grid-view__details");
+    expect(details.text()).toContain("当前数据源不支持该功能");
+    expect(details.text()).not.toContain("is not registered");
+    expect(wrapper.findAll(".institution-grid-view__card")).toHaveLength(2);
   });
 });

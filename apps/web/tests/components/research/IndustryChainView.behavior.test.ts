@@ -243,4 +243,47 @@ describe("industry-chain research workflow", () => {
     expect(wrapper.text()).toContain("关联产业链失败");
     expect(wrapper.text()).toContain("板块成分失败");
   });
+
+  it("renders the unsupported empty state when the provider lacks the chain catalog capability", async () => {
+    const list = state();
+    list.providerUnsupported.value = true;
+    const wrapper = mountIndustry([list, state(), state(), state(), state()]);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).toContain("切换行情提供者为 Futu 后可用");
+  });
+
+  it("renders the unsupported empty state when the provider lacks the chain detail capability", async () => {
+    const list = state([{ chainId: "ai/core", name: "人工智能" }]);
+    const detail = state();
+    detail.providerUnsupported.value = true;
+    const wrapper = mountIndustry([list, detail, state(), state(), state()], {
+      chainId: "ai/core",
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).not.toContain("上下游节点");
+  });
+
+  it("renders unsupported empty states for plate-related chains and plate members", async () => {
+    const list = state([{ chainId: "ai/core", name: "人工智能" }]);
+    const related = state();
+    related.providerUnsupported.value = true;
+    const plateStocks = state();
+    plateStocks.providerUnsupported.value = true;
+    const wrapper = mountIndustry(
+      [list, state(), related, state(), plateStocks],
+      { chainId: "ai/core", plateId: "BK.CHIP" },
+    );
+    await flushPromises();
+
+    expect(wrapper.find(".industry-chain__related").exists()).toBe(true);
+    expect(wrapper.find(".industry-chain__securities").exists()).toBe(true);
+    const unsupported = wrapper
+      .findAll(".industry-chain__status")
+      .filter((node) => node.text().includes("当前数据源不支持该功能"));
+    expect(unsupported).toHaveLength(2);
+  });
 });

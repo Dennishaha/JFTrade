@@ -12,6 +12,7 @@ vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
 });
 
 import ArkResearchView from "../../../src/components/research/ArkResearchView.vue";
+import { ApiClientError } from "../../../src/composables/shared/apiClient";
 import { flushPromises } from "../../productTestUtils";
 
 function featureResult(entries: Record<string, unknown>[]) {
@@ -69,5 +70,21 @@ describe("ArkResearchView", () => {
         String(path).includes("holdingType=1"),
       ),
     ).toBe(true);
+  });
+
+  it("degrades provider-capability 409s to an unsupported empty state", async () => {
+    mocks.fetch.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: broker "akshare" is not registered',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    const wrapper = mount(ArkResearchView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).toContain("切换行情提供者为 Futu 后可用");
+    expect(wrapper.text()).not.toContain("is not registered");
   });
 });

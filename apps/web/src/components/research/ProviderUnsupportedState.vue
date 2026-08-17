@@ -21,22 +21,5 @@ withDefaults(
   </div>
 </template>
 
-<style scoped>
-.provider-unsupported-state {
-  display: grid;
-  place-content: center;
-  gap: 4px;
-  color: var(--tv-text-dim);
-  text-align: center;
-}
-
-.provider-unsupported-state span {
-  font-size: var(--jf-text-4);
-}
-
-.provider-unsupported-state--bordered {
-  border: 1px solid var(--tv-border);
-  border-radius: var(--jf-radius-md);
-  background: var(--tv-bg-surface);
-}
-</style>
+<!-- 样式在 styles/components.css（共享空态样式，与 .jf-empty-panel 同处），
+     避免给 scoped 样式总量预算带来增量。 -->

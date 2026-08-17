@@ -26,6 +26,7 @@ vi.mock("@/composables/shared/apiClient", async (importOriginal) => {
 });
 
 import ConceptSectorView from "../../../src/components/research/ConceptSectorView.vue";
+import { ApiClientError } from "../../../src/composables/shared/apiClient";
 import { flushPromises } from "../../productTestUtils";
 
 function featureResult(entries: Record<string, unknown>[]) {
@@ -312,5 +313,50 @@ describe("ConceptSectorView", () => {
     const wrapper = mount(ConceptSectorView);
     await flushPromises();
     expect(wrapper.text()).toContain("板块失败");
+  });
+
+  it("degrades plate-list provider-capability 409s to an unsupported empty state", async () => {
+    mocks.fetch.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: broker "akshare" is not registered',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
+    const wrapper = mount(ConceptSectorView, {
+      props: { market: "US", brokerId: "akshare" },
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).not.toContain("is not registered");
+  });
+
+  it("degrades plate-member provider-capability 409s to an unsupported stocks panel", async () => {
+    mocks.fetch.mockImplementation((path: string) => {
+      const operation = new URLSearchParams(path.split("?")[1]).get("operation");
+      if (operation === "plate_members") {
+        return Promise.reject(
+          new ApiClientError(
+            'broker feature capability is unavailable: broker "akshare" is not registered',
+            "BROKER_CAPABILITY_UNAVAILABLE",
+            409,
+          ),
+        );
+      }
+      return Promise.resolve(featureResult(plates));
+    });
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
+    const wrapper = mount(ConceptSectorView, {
+      props: { market: "US", brokerId: "futu" },
+    });
+    await flushPromises();
+
+    expect(wrapper.findAll(".concept-sector-view__plates tbody tr")).toHaveLength(2);
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    });
+    expect(wrapper.text()).not.toContain("is not registered");
   });
 });

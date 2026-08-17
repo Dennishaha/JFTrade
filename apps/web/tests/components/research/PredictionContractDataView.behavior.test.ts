@@ -188,4 +188,17 @@ describe("prediction contract market-data views", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("暂无合约数据");
   });
+
+  it("renders the unsupported empty state when the provider lacks the contract capability", async () => {
+    const feature = featureState();
+    feature.providerUnsupported.value = true;
+    mocks.useResearchFeature.mockReturnValue(feature);
+    const wrapper = mount(PredictionContractDataView, {
+      props: { request: request("snapshot"), view: "snapshot" },
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).toContain("切换行情提供者为 Futu 后可用");
+  });
 });

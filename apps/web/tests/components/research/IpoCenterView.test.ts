@@ -23,6 +23,7 @@ vi.mock("@/composables/shared/apiClient", async (importOriginal) => {
 });
 
 import IpoCenterView from "../../../src/components/research/IpoCenterView.vue";
+import { ApiClientError } from "../../../src/composables/shared/apiClient";
 import { flushPromises } from "../../productTestUtils";
 
 function featureResult(
@@ -191,5 +192,21 @@ describe("IpoCenterView", () => {
     resolveMore?.(featureResult([entries[1]!], { total: 2, hasMore: false }));
     await flushPromises();
     expect(wrapper.find(".ipo-center-view__load-more").exists()).toBe(false);
+  });
+
+  it("degrades provider-capability 409s to an unsupported empty state", async () => {
+    mocks.fetch.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: broker "akshare" is not registered',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    mocks.fetchWithInit.mockResolvedValue({ quotes: [] });
+    const wrapper = mount(IpoCenterView, { props: { brokerId: "akshare" } });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).not.toContain("is not registered");
   });
 });

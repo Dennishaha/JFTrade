@@ -125,6 +125,25 @@
   text-align: center;
 }
 
+/* Provider-unsupported empty state shared by research views. */
+.provider-unsupported-state {
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  color: var(--tv-text-dim);
+  text-align: center;
+}
+
+.provider-unsupported-state span {
+  font-size: var(--jf-text-4);
+}
+
+.provider-unsupported-state--bordered {
+  border: 1px solid var(--tv-border);
+  border-radius: var(--jf-radius-md);
+  background: var(--tv-bg-surface);
+}
+
 /* Monospace identifier cells. */
 .jf-mono-sm {
   font-family: monospace;

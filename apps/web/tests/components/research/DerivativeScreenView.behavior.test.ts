@@ -154,4 +154,14 @@ describe("derivative screen business variants", () => {
     expect(wrapper.get(".derivative-screen__more").attributes("disabled")).toBeDefined();
     expect(wrapper.get(".derivative-screen__more").text()).toContain("加载中");
   });
+
+  it("renders the unsupported empty state when the provider lacks the screen capability", async () => {
+    const feature = state();
+    feature.providerUnsupported.value = true;
+    const wrapper = mountScreen(feature, { operation: "option_screen", brokerId: "futu" });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).toContain("切换行情提供者为 Futu 后可用");
+  });
 });

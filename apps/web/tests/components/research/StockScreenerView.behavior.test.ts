@@ -1068,4 +1068,57 @@ describe("StockScreenerView", () => {
     expect(wrapper.text()).toContain("目录服务不可用");
     expect(wrapper.text()).not.toContain("当前数据源不支持该功能");
   });
+
+  it("ignores a stale catalog failure after the market switched mid-load", async () => {
+    installDefaults();
+    let rejectStale!: (reason: unknown) => void;
+    mocks.catalog
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectStale = reject;
+          }),
+      )
+      .mockResolvedValue(catalog);
+    const wrapper = mount(StockScreenerView, {
+      props: { market: "US", brokerId: "futu" },
+    });
+    await flushPromises();
+
+    await wrapper.get('[aria-label="筛选市场"]').setValue("HK");
+    await flushPromises();
+    expect(mocks.catalog).toHaveBeenLastCalledWith("HK", "futu");
+
+    rejectStale(new Error("过期目录失败"));
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("过期目录失败");
+    expect(wrapper.text()).not.toContain("当前数据源不支持该功能");
+  });
+
+  it("ignores a stale screen-run failure after the market switched mid-run", async () => {
+    installDefaults();
+    const wrapper = mount(StockScreenerView, {
+      props: { market: "US", brokerId: "futu" },
+    });
+    await flushPromises();
+
+    let rejectStale!: (reason: unknown) => void;
+    mocks.run.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectStale = reject;
+        }),
+    );
+    await wrapper.get(".stock-screener-view__run").trigger("click");
+    await flushPromises();
+
+    await wrapper.get('[aria-label="筛选市场"]').setValue("HK");
+    await flushPromises();
+    expect(mocks.catalog).toHaveBeenLastCalledWith("HK", "futu");
+
+    rejectStale(new Error("过期筛选失败"));
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("过期筛选失败");
+    expect(wrapper.text()).not.toContain("当前数据源不支持该功能");
+  });
 });

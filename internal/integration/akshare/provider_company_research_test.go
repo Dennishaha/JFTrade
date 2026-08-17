@@ -13,21 +13,21 @@ import (
 
 func TestClientCompanyResearchEndpointsEncodePathAndStatement(t *testing.T) {
 	server, requests := newNewsRecordingServer(t, func(writer http.ResponseWriter, request *http.Request) {
-		switch {
-		case request.URL.Path == "/providers/akshare/profile/SH/600519":
+		switch request.URL.Path {
+		case "/providers/akshare/profile/SH/600519":
 			_ = json.NewEncoder(writer).Encode(map[string]any{
 				"instrument_id": "SH.600519", "market": "SH", "symbol": "600519", "currency": "CNY",
 				"groups": []map[string]any{{
 					"title": "公司资料", "fields": []map[string]any{{"name": "行业", "value": "白酒"}},
 				}},
 			})
-		case request.URL.Path == "/providers/akshare/financials/SH/600519":
+		case "/providers/akshare/financials/SH/600519":
 			_ = json.NewEncoder(writer).Encode(map[string]any{
 				"instrument_id": "SH.600519", "statement": "balance", "currency": "CNY",
 				"fields":  []map[string]any{{"field_id": "total_assets", "display_name": "总资产"}},
 				"periods": []map[string]any{},
 			})
-		case request.URL.Path == "/providers/akshare/ownership/SH/600519":
+		case "/providers/akshare/ownership/SH/600519":
 			_ = json.NewEncoder(writer).Encode(map[string]any{
 				"instrument_id": "SH.600519",
 				"groups": []map[string]any{{

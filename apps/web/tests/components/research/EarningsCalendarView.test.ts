@@ -21,6 +21,7 @@ vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
 });
 
 import EarningsCalendarView from "../../../src/components/research/EarningsCalendarView.vue";
+import { ApiClientError } from "../../../src/composables/shared/apiClient";
 import { flushPromises } from "../../productTestUtils";
 
 function featureResult(entries: Record<string, unknown>[]) {
@@ -381,5 +382,20 @@ describe("EarningsCalendarView", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     await flushPromises();
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+  });
+
+  it("degrades provider-capability 409s to an unsupported empty state", async () => {
+    mocks.fetch.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: broker "akshare" is not registered',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    const wrapper = mount(EarningsCalendarView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).not.toContain("is not registered");
   });
 });

@@ -170,4 +170,25 @@ describe("macro research protocol views", () => {
     await wrapper.get(".macro-research__toolbar button").trigger("click");
     expect(fed.refresh).toHaveBeenCalledOnce();
   });
+
+  it("renders the unsupported empty state when the provider lacks the FedWatch capability", async () => {
+    const fed = state();
+    fed.providerUnsupported.value = true;
+    const wrapper = mountMacro([state(), state(), fed], { operation: "fed_target_rate" });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).toContain("切换行情提供者为 Futu 后可用");
+    expect(wrapper.find(".macro-research__catalog").exists()).toBe(false);
+  });
+
+  it("renders the unsupported empty state when the indicator catalog capability is missing", async () => {
+    const list = state();
+    list.providerUnsupported.value = true;
+    const wrapper = mountMacro([list, state(), state()], { operation: "indicators" });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.find(".macro-research__catalog").exists()).toBe(false);
+  });
 });

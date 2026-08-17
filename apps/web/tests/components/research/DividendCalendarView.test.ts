@@ -12,6 +12,7 @@ vi.mock("@/composables/product/productFeatures", async (importOriginal) => {
 });
 
 import DividendCalendarView from "../../../src/components/research/DividendCalendarView.vue";
+import { ApiClientError } from "../../../src/composables/shared/apiClient";
 import { flushPromises } from "../../productTestUtils";
 
 function result(entries: Record<string, unknown>[]) {
@@ -95,5 +96,20 @@ describe("DividendCalendarView", () => {
     await wrapper.findAll("button").at(-1)!.trigger("click");
     await flushPromises();
     expect(wrapper.find(".dividend-calendar__status").exists()).toBe(false);
+  });
+
+  it("degrades provider-capability 409s to an unsupported empty state", async () => {
+    mocks.fetch.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: broker "akshare" is not registered',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    const wrapper = mount(DividendCalendarView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).not.toContain("is not registered");
   });
 });
