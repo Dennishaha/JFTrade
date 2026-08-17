@@ -24,9 +24,10 @@ US 版、``:1225`` HK 版),筛选需要的 US 市净率/PE 与 HK 总市值因�
 f12 本身(如 ``00700``)。序号列为本地按涨跌幅降序的 1 基排名,对齐
 akshare ``fetch_paginated_data`` 的行为;无消费方读取,仅为超集保真。
 
-分页照抄 akshare ``fetch_paginated_data`` 的方式(首页由 data.total 与每页
-条数定页数,pn 翻页),但 pz 提到 1000 且去掉礼貌性 sleep:目录请求运行在
-12 秒的池化 deadline 内,akshare 版 50 页 × 0.5–1.5s 睡眠必然超时。
+分页照抄 akshare ``fetch_paginated_data`` 的方式(首页由 data.total 与实际
+返回条数定页数,pn 翻页),并去掉礼貌性 sleep:目录请求运行在 12 秒的池化
+deadline 内,akshare 版每页随机等待 0.5–1.5s 必然超时。所有页面复用同一
+兼容 Session,避免每页重新建立连接。
 
 传输层:直接 ``requests.get`` 复用 akshare_upstream 安装的全进程兼容
 Session(自动把 push2 clist 重写为 webguest 访客端点);池化/取消由调用方
@@ -47,7 +48,7 @@ from .errors import SidecarError, invalid_request
 
 CLIST_URL = "https://72.push2.eastmoney.com/api/qt/clist/get"
 CLIST_FIELDS = "f2,f3,f4,f5,f6,f7,f8,f9,f12,f13,f14,f15,f16,f17,f18,f20,f23,f115"
-CLIST_PAGE_SIZE = 1000
+CLIST_PAGE_SIZE = 100
 CLIST_TIMEOUT_SECONDS = 10
 
 _MARKET_FS = {
@@ -110,22 +111,33 @@ def fetch_spot_frame_clist(market: str) -> pd.DataFrame:
 
 
 def _fetch_all_pages(fs: str) -> list[dict[str, Any]]:
-    first = _clist_page(fs, 1)
-    total = first[0]
-    records = first[1]
-    pages = math.ceil(total / CLIST_PAGE_SIZE) if total else 1
-    for page in range(2, pages + 1):
-        records.extend(_clist_page(fs, page)[1])
+    import requests
+
+    with requests.Session() as session:
+        total, records = _clist_page(fs, 1, session)
+        if total and not records:
+            raise _schema_error("Eastmoney clist first page is empty")
+        actual_page_size = len(records) or CLIST_PAGE_SIZE
+        pages = math.ceil(total / actual_page_size) if total else 1
+        for page in range(2, pages + 1):
+            records.extend(_clist_page(fs, page, session)[1])
+    if len(records) < total:
+        raise _schema_error("Eastmoney clist response is incomplete")
     return records
 
 
-def _clist_page(fs: str, page: int) -> tuple[int, list[dict[str, Any]]]:
+def _clist_page(
+    fs: str,
+    page: int,
+    session: Any | None = None,
+) -> tuple[int, list[dict[str, Any]]]:
     """Fetch one clist page; isolated so tests can mock the HTTP boundary."""
     akshare_upstream.ensure_request_active()
     akshare_upstream.require_runtime()
     import requests
 
-    response = requests.get(
+    requester = session if session is not None else requests
+    response = requester.get(
         CLIST_URL,
         params={
             "pn": str(page),
@@ -147,13 +159,13 @@ def _clist_page(fs: str, page: int) -> tuple[int, list[dict[str, Any]]]:
     diff = data.get("diff") if isinstance(data, dict) else None
     total = data.get("total") if isinstance(data, dict) else None
     if not isinstance(diff, list) or not all(isinstance(row, dict) for row in diff):
-        raise SidecarError(
-            502,
-            "AKSHARE_SCHEMA_ERROR",
-            "Eastmoney clist response has an invalid schema",
-        )
+        raise _schema_error("Eastmoney clist response has an invalid schema")
     akshare_upstream.ensure_request_active()
     return int(total or 0), diff
+
+
+def _schema_error(message: str) -> SidecarError:
+    return SidecarError(502, "AKSHARE_SCHEMA_ERROR", message)
 
 
 def _build_frame(market: str, records: list[dict[str, Any]]) -> pd.DataFrame:

@@ -44,20 +44,28 @@ def _us_row(**overrides: Any) -> dict[str, Any]:
 )
 def test_clist_fetch_all_pages_paginates_until_total(monkeypatch: pytest.MonkeyPatch, market: str) -> None:
     calls: list[int] = []
+    sessions: list[object] = []
     page_two_rows = [
         _us_row(f12="MSFT", f13=106) if market == "US" else {"f12": "00005", "f14": "汇丰控股"}
     ]
 
-    def fake_page(fs: str, page: int) -> tuple[int, list[dict[str, Any]]]:
+    def fake_page(
+        fs: str,
+        page: int,
+        session: object | None = None,
+    ) -> tuple[int, list[dict[str, Any]]]:
         assert fs == akshare_spot_clist._MARKET_FS[market]
         calls.append(page)
+        assert session is not None
+        sessions.append(session)
         if page == 1:
-            return 1500, [_us_row(), _us_row(f12="NVDA", f13=107)]
-        return 1500, page_two_rows
+            return 3, [_us_row(), _us_row(f12="NVDA", f13=107)]
+        return 3, page_two_rows
 
     monkeypatch.setattr(akshare_spot_clist, "_clist_page", fake_page)
     records = akshare_spot_clist._fetch_all_pages(akshare_spot_clist._MARKET_FS[market])
     assert calls == [1, 2]
+    assert sessions[0] is sessions[1]
     assert len(records) == 3
 
 
@@ -69,7 +77,7 @@ def test_clist_page_raises_on_invalid_schema(monkeypatch: pytest.MonkeyPatch) ->
         with pytest.raises(SidecarError) as exc:
             akshare_spot_clist._clist_page("m:105,m:106,m:107", 1)
     assert exc.value.code == "AKSHARE_SCHEMA_ERROR"
-    assert get.call_args.kwargs["params"]["pz"] == "1000"
+    assert get.call_args.kwargs["params"]["pz"] == "100"
 
 
 def test_clist_page_passes_expected_params(monkeypatch: pytest.MonkeyPatch) -> None:

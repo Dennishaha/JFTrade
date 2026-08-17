@@ -60,16 +60,9 @@ jobs:
           ref: ${{ inputs.ref }}
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: ./.github/actions/setup-python
         with:
           python-version: "3.14"
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          version: "0.8.22"
-          enable-cache: true
-          cache-dependency-glob: workers/marketdata-sidecar/uv.lock
 
       - name: Run live provider contract smoke
         working-directory: workers/marketdata-sidecar
@@ -91,5 +84,5 @@ jobs:
         with:
           name: marketdata-live-${{ github.run_id }}-${{ inputs.provider }}-${{ inputs.suite }}
           path: marketdata-live-report.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14

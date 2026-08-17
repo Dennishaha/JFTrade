@@ -19,15 +19,13 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 import httpx
 
 WORKER_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKER_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(WORKER_ROOT / "src"))
-
-from marketdata_sidecar.main import app  # noqa: E402
 
 ENABLE_ENV = "JFTRADE_MARKETDATA_LIVE_SMOKE"
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -156,7 +154,7 @@ class LiveClient:
                     + (f" code={error_code}" if error_code else "")
                 )
             if expected_code is not None:
-                code = str(body.get("error", {}).get("code", ""))
+                code = error_code or ""
                 if code != expected_code:
                     raise ContractViolation(
                         f"expected error code {expected_code}, got {code or '<empty>'}"
@@ -174,7 +172,7 @@ class LiveClient:
             error = type(exc).__name__
             failure_category = "network"
         except Exception as exc:  # noqa: BLE001 - report every matrix row
-            error = str(exc)
+            error = type(exc).__name__
             failure_category = "harness"
         if error is not None and failure_category is None:
             failure_category = _status_failure_category(status)
@@ -209,11 +207,11 @@ class LiveClient:
                 decoded = response.json()
                 if isinstance(decoded, dict):
                     last = decoded
+                    decoded_error_code = _error_code(decoded)
                     if (
                         response.status_code == 503
-                        and decoded.get("error", {}).get("code", "").endswith(
-                            "_RUNTIME_FAILED"
-                        )
+                        and decoded_error_code is not None
+                        and decoded_error_code.endswith("_RUNTIME_FAILED")
                     ):
                         break
                     if (
@@ -288,17 +286,18 @@ async def run_smoke(
     *,
     base_url: str | None = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    report: SmokeReport | None = None,
 ) -> SmokeReport:
-    report = SmokeReport(provider=provider, suite=suite)
+    active_report = report or SmokeReport(provider=provider, suite=suite)
     transport: httpx.AsyncBaseTransport | None = None
     if base_url is None:
-        transport = httpx.ASGITransport(app=app)
+        transport = httpx.ASGITransport(app=_source_app())
     async with httpx.AsyncClient(
         transport=transport,
         base_url=base_url or "http://marketdata.live",
         timeout=timeout_seconds,
     ) as client:
-        process = LiveClient(client, report, "sidecar")
+        process = LiveClient(client, active_report, "sidecar")
         process_health = await process.request(
             "sidecar process health",
             "GET",
@@ -306,16 +305,23 @@ async def run_smoke(
             validate=lambda body: _require_keys(body, "ok", "version"),
         )
         if process_health is not None:
-            report.sidecar_version = str(process_health["version"])
+            active_report.sidecar_version = str(process_health["version"])
         for selected in ("yfinance", "akshare") if provider == "all" else (provider,):
-            live = LiveClient(client, report, selected)
+            live = LiveClient(client, active_report, selected)
             if await live.wait_for_provider(selected) is None:
                 continue
             if suite in {"core", "full"}:
                 await _run_core(live, selected)
             if suite in {"research", "full"}:
                 await _run_research(live, selected)
-    return report
+    return active_report
+
+
+def _source_app() -> Any:
+    """Import the source data stack only after the explicit live opt-in gate."""
+    from marketdata_sidecar.main import app
+
+    return app
 
 
 async def _run_core(live: LiveClient, provider: str) -> None:
@@ -448,7 +454,13 @@ async def _check_yfinance_pages(live: LiveClient) -> None:
     if second is not None:
         second_ids = _page_ids(second)
         if first_ids & second_ids:
-            _record_failure(live.report, "Yahoo screen pages overlap", path, "page identities overlap")
+            _record_failure(
+                live.report,
+                "Yahoo screen pages overlap",
+                path,
+                "page identities overlap",
+                provider=live.provider,
+            )
         second_next = second.get("next_offset")
         if second.get("has_more"):
             if not isinstance(second_next, int) or second_next <= next_offset:
@@ -509,25 +521,24 @@ async def _run_akshare_research(live: LiveClient) -> None:
             "GET",
             f"{prefix}/industries",
             params={"market": "CN", "kind": board_kind},
-            validate=lambda body: _require_non_empty(body, "boards"),
+            validate=_validate_board_catalog,
         )
         if boards is not None:
-            board = str(boards["boards"][0].get("name", "")).strip()
-            if board:
-                await live.request(
-                    f"AKShare {board_kind} members",
-                    "GET",
-                    f"{prefix}/industries/{board}/members",
-                    params={"market": "CN", "kind": board_kind, "limit": 5},
-                    validate=lambda body: _require_list(body, "entries"),
-                )
+            board = _first_board_name(boards)
+            await live.request(
+                f"AKShare {board_kind} members",
+                "GET",
+                f"{prefix}/industries/{board}/members",
+                params={"market": "CN", "kind": board_kind, "limit": 5},
+                validate=lambda body: _require_non_empty(body, "entries"),
+            )
     for market in ("CN", "SH", "SZ", "HK", "US"):
         await live.request(
             f"AKShare {market} screen",
             "POST",
             f"{prefix}/screen",
             json_body={"market": market, "limit": 2},
-            validate=lambda body: _require_keys(body, "entries", "total", "has_more"),
+            validate=_validate_non_empty_screen_page,
         )
     await _run_akshare_calendar(live)
 
@@ -551,7 +562,7 @@ async def _run_akshare_calendar(live: LiveClient) -> None:
         params={"date": end.isoformat()},
         validate=lambda body: _require_list(body, "entries"),
     )
-    economic = await live.request(
+    await live.request(
         "AKShare 31-day economic calendar",
         "GET",
         f"{prefix}/calendar/economic",
@@ -568,7 +579,7 @@ async def _run_akshare_calendar(live: LiveClient) -> None:
         "AKShare macro indicator catalog",
         "GET",
         f"{prefix}/macro/indicators",
-        validate=lambda body: _require_non_empty(body, "categories"),
+        validate=_validate_macro_catalog,
     )
     indicator_id = _first_indicator_id(indicators)
     if indicator_id:
@@ -577,12 +588,14 @@ async def _run_akshare_calendar(live: LiveClient) -> None:
             "GET",
             f"{prefix}/macro/indicator-history",
             params={"indicator_id": indicator_id, "limit": 3},
-            validate=lambda body: _require_keys(body, "indicator_id", "entries"),
+            validate=_validate_macro_history,
         )
 
 
 def _research_validator(route: str) -> Validator:
-    key = {"financials": "periods", "analyst": "distribution", "ownership": "groups"}[route]
+    if route == "analyst":
+        return lambda body: _require_non_empty_mapping(body, "distribution")
+    key = {"financials": "periods", "ownership": "groups"}[route]
     return lambda body: _require_non_empty(body, key)
 
 
@@ -591,15 +604,62 @@ def _validate_economic_calendar(body: Mapping[str, Any]) -> None:
     if not isinstance(entries, list):
         raise ContractViolation("economic response entries is not a list")
     for entry in entries:
-        if not isinstance(entry, Mapping) or not entry.get("event_date"):
+        if (
+            not isinstance(entry, Mapping)
+            or not isinstance(entry.get("event_date"), str)
+            or not entry["event_date"].strip()
+        ):
             raise ContractViolation("economic entry has no event_date")
+        if "event_timestamp" not in entry:
+            raise ContractViolation("economic entry has no event_timestamp")
+        timestamp = entry["event_timestamp"]
+        if timestamp is not None and (
+            not isinstance(timestamp, int) or isinstance(timestamp, bool)
+        ):
+            raise ContractViolation("economic entry has an invalid event_timestamp")
+
+
+def _validate_board_catalog(body: Mapping[str, Any]) -> None:
+    _require_non_empty(body, "boards")
+    _first_board_name(body)
+
+
+def _first_board_name(body: Mapping[str, Any]) -> str:
+    first = body["boards"][0]
+    if not isinstance(first, Mapping):
+        raise ContractViolation("board catalog entry is not an object")
+    name = str(first.get("name", "")).strip()
+    if not name:
+        raise ContractViolation("board catalog entry has no name")
+    return name
+
+
+def _validate_macro_catalog(body: Mapping[str, Any]) -> None:
+    _require_non_empty(body, "categories")
+    if _first_indicator_id(body) is None:
+        raise ContractViolation("macro catalog has no indicator_id")
+
+
+def _validate_macro_history(body: Mapping[str, Any]) -> None:
+    _require_keys(body, "indicator_id")
+    _require_non_empty(body, "entries")
 
 
 def _first_indicator_id(body: Mapping[str, Any] | None) -> str | None:
     if body is None:
         return None
-    for category in body.get("categories", []):
-        for indicator in category.get("indicators", []):
+    categories = body.get("categories")
+    if not isinstance(categories, list):
+        return None
+    for category in categories:
+        if not isinstance(category, Mapping):
+            continue
+        indicators = category.get("indicators")
+        if not isinstance(indicators, list):
+            continue
+        for indicator in indicators:
+            if not isinstance(indicator, Mapping):
+                continue
             value = str(indicator.get("indicator_id", "")).strip()
             if value:
                 return value
@@ -623,9 +683,23 @@ def _require_non_empty(body: Mapping[str, Any], key: str) -> None:
         raise ContractViolation(f"response field {key} is empty")
 
 
+def _require_non_empty_mapping(body: Mapping[str, Any], key: str) -> None:
+    value = body.get(key)
+    if not isinstance(value, Mapping):
+        raise ContractViolation(f"response field {key} is not an object")
+    if not value:
+        raise ContractViolation(f"response field {key} is empty")
+
+
 def _validate_screen_page(body: Mapping[str, Any]) -> None:
     _require_keys(body, "entries", "total", "has_more")
     _page_ids(body)
+
+
+def _validate_non_empty_screen_page(body: Mapping[str, Any]) -> None:
+    _validate_screen_page(body)
+    if not body["entries"]:
+        raise ContractViolation("screen response entries is empty")
 
 
 def _page_ids(body: Mapping[str, Any]) -> set[str]:
@@ -639,6 +713,8 @@ def _page_ids(body: Mapping[str, Any]) -> set[str]:
         identity = str(entry.get("instrument_id", "")).strip()
         if not identity:
             raise ContractViolation("screen entry has no instrument_id")
+        if identity in identities:
+            raise ContractViolation("screen page contains duplicate instrument_id")
         identities.add(identity)
     return identities
 
@@ -648,6 +724,9 @@ def _row_count(body: Mapping[str, Any]) -> int | None:
         value = body.get(key)
         if isinstance(value, list):
             return len(value)
+    distribution = body.get("distribution")
+    if isinstance(distribution, Mapping):
+        return len(distribution)
     return None
 
 
@@ -684,6 +763,7 @@ def _record_failure(
     error: str,
     *,
     provider: str | None = None,
+    failure_category: str = "contract",
 ) -> None:
     report.add(
         Check(
@@ -695,7 +775,7 @@ def _record_failure(
             duration_ms=0,
             ok=False,
             error=error,
-            failure_category="contract",
+            failure_category=failure_category,
         )
     )
 
@@ -736,7 +816,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if os.environ.get(ENABLE_ENV) != "1":
         print(f"REFUSED: set {ENABLE_ENV}=1 to enable real provider network access", file=sys.stderr)
         return 2
-    report: SmokeReport | None = None
+    report = SmokeReport(provider=args.provider, suite=args.suite)
     try:
         report = asyncio.run(
             run_smoke(
@@ -744,16 +824,24 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.suite,
                 base_url=args.base_url,
                 timeout_seconds=args.timeout,
+                report=report,
             )
         )
         return 0 if not report.failures else 1
     except Exception as exc:  # noqa: BLE001 - preserve a report on harness failure
-        print(f"live smoke harness failed: {exc}", file=sys.stderr)
+        _record_failure(
+            report,
+            "live smoke harness",
+            "/",
+            type(exc).__name__,
+            provider="harness",
+            failure_category="harness",
+        )
+        print(f"live smoke harness failed: {type(exc).__name__}", file=sys.stderr)
         return 1
     finally:
-        if report is not None:
-            report.write(args.report)
-            print(json.dumps(report.as_dict(), ensure_ascii=False, sort_keys=True))
+        report.write(args.report)
+        print(json.dumps(report.as_dict(), ensure_ascii=False, sort_keys=True))
 
 
 if __name__ == "__main__":
