@@ -76,11 +76,11 @@ func normalizeDefinitionHeaderAndPool(def *broker.ScreenDefinitionV2) error {
 	if def.QuerySchemaVersion != broker.ScreenQuerySchemaVersionV2 {
 		return issue("querySchemaVersion", "unsupported_schema", fmt.Sprintf("must be %d", broker.ScreenQuerySchemaVersionV2))
 	}
-	if def.CatalogVersion != CatalogVersion {
+	if def.CatalogVersion != CatalogVersion && !IsEmbeddedCatalogVersion(def.CatalogVersion) {
 		return issue("catalogVersion", "unsupported_catalog", fmt.Sprintf("catalog %q is not executable", def.CatalogVersion))
 	}
-	if def.Market != "HK" && def.Market != "US" && def.Market != "SH" && def.Market != "SZ" {
-		return issue("market", "unsupported_market", "must be one of HK, US, SH or SZ")
+	if err := validateDefinitionMarket(def); err != nil {
+		return err
 	}
 	for index := range def.Pool.Plates {
 		def.Pool.Plates[index].ParentPlateID = strings.TrimSpace(def.Pool.Plates[index].ParentPlateID)
@@ -102,6 +102,25 @@ func normalizeDefinitionHeaderAndPool(def *broker.ScreenDefinitionV2) error {
 	return nil
 }
 
+// validateDefinitionMarket dispatches market validation by catalog version:
+// the Futu catalog keeps its HK/US/SH/SZ contract, while the embedded catalog
+// accepts the union of both embedded providers and lets the provider layer
+// reject markets it does not cover (yfinance US-only, akshare SH/SZ/CN/HK).
+func validateDefinitionMarket(def *broker.ScreenDefinitionV2) error {
+	if !IsEmbeddedCatalogVersion(def.CatalogVersion) {
+		if def.Market != "HK" && def.Market != "US" && def.Market != "SH" && def.Market != "SZ" {
+			return issue("market", "unsupported_market", "must be one of HK, US, SH or SZ")
+		}
+		return nil
+	}
+	switch def.Market {
+	case "HK", "US", "SH", "SZ", "CN":
+		return nil
+	default:
+		return issue("market", "unsupported_market", "must be one of HK, US, SH, SZ or CN")
+	}
+}
+
 func normalizeDefinitionConditions(def *broker.ScreenDefinitionV2) error {
 	seenConditions := make(map[string]struct{}, len(def.Conditions))
 	seenConditionFactors := make(map[string]struct{}, len(def.Conditions))
@@ -116,7 +135,7 @@ func normalizeDefinitionConditions(def *broker.ScreenDefinitionV2) error {
 			return issue(path+".id", "duplicate", "condition id must be unique")
 		}
 		seenConditions[condition.ID] = struct{}{}
-		if err := validateRef(path+".factor", condition.Factor, def.Market, true, false, false); err != nil {
+		if err := validateRef(path+".factor", def.CatalogVersion, condition.Factor, def.Market, true, false, false); err != nil {
 			return err
 		}
 		condition.Factor.Params = normalizeFactorParams(condition.Factor)
@@ -130,15 +149,15 @@ func normalizeDefinitionConditions(def *broker.ScreenDefinitionV2) error {
 		if condition.Operator == "" {
 			condition.Operator = inferOperator(condition.Value)
 		}
-		if err := validateConditionValue(path, condition); err != nil {
+		if err := validateConditionValue(path, def.CatalogVersion, condition); err != nil {
 			return err
 		}
 		if condition.SecondFactor != nil {
-			if err := validateRef(path+".secondFactor", *condition.SecondFactor, def.Market, true, false, false); err != nil {
+			if err := validateRef(path+".secondFactor", def.CatalogVersion, *condition.SecondFactor, def.Market, true, false, false); err != nil {
 				return err
 			}
-			firstFactor, firstOK := Lookup(condition.Factor.FactorKey)
-			secondFactor, secondOK := Lookup(condition.SecondFactor.FactorKey)
+			firstFactor, firstOK := lookupCatalogFactor(def.CatalogVersion, condition.Factor.FactorKey)
+			secondFactor, secondOK := lookupCatalogFactor(def.CatalogVersion, condition.SecondFactor.FactorKey)
 			if !firstOK || !secondOK || firstFactor.Category != "indicator" || secondFactor.Category != "indicator" {
 				return issue(path+".secondFactor.factorKey", "unsupported_factor", "second factor comparisons require two indicators")
 			}
@@ -165,7 +184,7 @@ func normalizeDefinitionColumns(def *broker.ScreenDefinitionV2) error {
 			return issue(path+".id", "duplicate", "column id must be unique")
 		}
 		seenColumns[column.ID] = struct{}{}
-		if err := validateRef(path+".factor", column.Factor, def.Market, false, true, false); err != nil {
+		if err := validateRef(path+".factor", def.CatalogVersion, column.Factor, def.Market, false, true, false); err != nil {
 			return err
 		}
 		column.Factor.Params = normalizeFactorParams(column.Factor)
@@ -196,7 +215,7 @@ func normalizeDefinitionSorts(def *broker.ScreenDefinitionV2) error {
 		default:
 			return issue(path+".direction", "invalid_operator", "must be asc, desc, abs_asc or abs_desc")
 		}
-		if err := validateRef(path+".factor", sortValue.Factor, def.Market, false, false, true); err != nil {
+		if err := validateRef(path+".factor", def.CatalogVersion, sortValue.Factor, def.Market, false, false, true); err != nil {
 			return err
 		}
 		sortValue.Factor.Params = normalizeFactorParams(sortValue.Factor)
@@ -205,22 +224,50 @@ func normalizeDefinitionSorts(def *broker.ScreenDefinitionV2) error {
 	return nil
 }
 
-func validateRef(path string, ref broker.FactorRef, market string, filter, retrieve, sort bool) error {
+func validateRef(path, version string, ref broker.FactorRef, market string, filter, retrieve, sort bool) error {
 	ref.FactorKey = strings.ToLower(strings.TrimSpace(ref.FactorKey))
 	if ref.FactorKey == "" {
 		return issue(path+".factorKey", "required", "factor key is required")
 	}
-	if _, err := ValidateFactorForMarket(ref.FactorKey, market, filter, retrieve, sort); err != nil {
+	if err := validateFactorRefUse(version, ref.FactorKey, market, filter, retrieve, sort); err != nil {
 		return issue(path+".factorKey", "unsupported_factor", err.Error())
 	}
-	if err := validateParams(path+".params", ref); err != nil {
+	if err := validateParams(path+".params", version, ref); err != nil {
 		return err
 	}
 	return nil
 }
 
-func validateParams(path string, ref broker.FactorRef) error {
-	factor, ok := Lookup(ref.FactorKey)
+// validateFactorRefUse dispatches factor validation by catalog version: the
+// generated Futu catalog enforces per-market availability, while the embedded
+// catalog checks the hand-written provider-intersection factor set.
+func validateFactorRefUse(version, key, market string, filter, retrieve, sort bool) error {
+	if IsEmbeddedCatalogVersion(version) {
+		_, err := ValidateEmbeddedFactorUse(key, filter, retrieve, sort)
+		return err
+	}
+	_, err := ValidateFactorForMarket(key, market, filter, retrieve, sort)
+	return err
+}
+
+// lookupCatalogFactor resolves a factor key against the catalog named by the
+// definition version so validation and decoration never mix the two sets.
+func lookupCatalogFactor(version, key string) (FactorDescriptor, bool) {
+	if IsEmbeddedCatalogVersion(version) {
+		return LookupEmbedded(key)
+	}
+	return Lookup(key)
+}
+
+// LookupForCatalog is the exported form of lookupCatalogFactor for transport
+// layers that decorate results with catalog metadata (for example the unit on
+// a stock-screen result column).
+func LookupForCatalog(version, key string) (FactorDescriptor, bool) {
+	return lookupCatalogFactor(version, key)
+}
+
+func validateParams(path, version string, ref broker.FactorRef) error {
+	factor, ok := lookupCatalogFactor(version, ref.FactorKey)
 	if !ok {
 		return issue(path, "unsupported_factor", "unknown factor")
 	}
@@ -369,8 +416,8 @@ func normalizeFactorParams(ref broker.FactorRef) broker.ResearchScreenFactorPara
 	return result
 }
 
-func validateConditionValue(path string, condition *broker.ScreenCondition) error {
-	if err := validateConditionOperator(path, condition); err != nil {
+func validateConditionValue(path, version string, condition *broker.ScreenCondition) error {
+	if err := validateConditionOperator(path, version, condition); err != nil {
 		return err
 	}
 	if condition.Value == nil {
@@ -390,13 +437,13 @@ func validateConditionValue(path string, condition *broker.ScreenCondition) erro
 	}
 }
 
-func validateConditionOperator(path string, condition *broker.ScreenCondition) error {
+func validateConditionOperator(path, version string, condition *broker.ScreenCondition) error {
 	switch condition.Operator {
 	case "", "is", "eq", "ne", "gt", "gte", "lt", "lte", "between", "in", "contains", "crosses", "position", "pattern":
 	default:
 		return issue(path+".operator", "unsupported_operator", "unsupported condition operator")
 	}
-	if factor, ok := Lookup(condition.Factor.FactorKey); ok {
+	if factor, ok := lookupCatalogFactor(version, condition.Factor.FactorKey); ok {
 		switch factor.FilterKind {
 		case "enum", "set":
 			if condition.Operator != "in" && condition.Operator != "eq" && condition.Operator != "is" {

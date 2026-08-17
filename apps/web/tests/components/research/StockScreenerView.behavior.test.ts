@@ -26,6 +26,7 @@ vi.mock("../../../src/components/research/stockScreenApi", () => ({
 }));
 
 import StockScreenerView from "../../../src/components/research/StockScreenerView.vue";
+import { ApiClientError } from "../../../src/composables/shared/apiClient";
 
 const catalog = {
   version: "futu-stock-screen-v1",
@@ -872,5 +873,199 @@ describe("StockScreenerView", () => {
     expect(wrapper.findAll(".stock-screener-view__condition")).toHaveLength(1);
     expect(wrapper.text()).toContain("当前 HK 市场不可用");
     expect(wrapper.find(".stock-screener-view__draft-dialog").exists()).toBe(false);
+  });
+
+  // 嵌入式提供者目录只含 interval 型因子子集，版本由后端响应给出。
+  const embeddedCatalog = {
+    version: "embedded-stock-screen-v1",
+    schemaVersion: 2,
+    querySchemaVersion: 2,
+    provider: "akshare",
+    providerVersion: "",
+    market: "SH",
+    markets: ["SH", "SZ"],
+    categories: [
+      { key: "basic", label: "基本信息", count: 2 },
+      { key: "simple", label: "基础行情", count: 2 },
+    ],
+    factors: [
+      {
+        key: "basic.code",
+        label: "代码",
+        category: "basic",
+        valueType: "string",
+        filterKind: "",
+        filter: false,
+        retrieve: true,
+        sort: false,
+        availability: "available",
+      },
+      {
+        key: "basic.name",
+        label: "名称",
+        category: "basic",
+        valueType: "string",
+        filterKind: "",
+        filter: false,
+        retrieve: true,
+        sort: false,
+        availability: "available",
+      },
+      {
+        key: "simple.price",
+        label: "最新价格",
+        category: "simple",
+        valueType: "number",
+        unit: "currency",
+        currencyBasis: "quote",
+        displayFormat: "price",
+        filterKind: "interval",
+        filter: true,
+        retrieve: true,
+        sort: true,
+        availability: "available",
+      },
+      {
+        key: "simple.market_cap",
+        label: "总市值",
+        category: "simple",
+        valueType: "number",
+        unit: "currency",
+        currencyBasis: "quote",
+        displayFormat: "compact_amount",
+        filterKind: "interval",
+        filter: true,
+        retrieve: true,
+        sort: true,
+        availability: "available",
+      },
+    ],
+    enums: { period: [], position: [] },
+  } as const;
+
+  it("propagates the embedded brokerId and echoes the embedded catalog version", async () => {
+    mocks.catalog.mockResolvedValue(embeddedCatalog);
+    mocks.presets.mockResolvedValue({ presets: [] });
+    mocks.run.mockResolvedValue({
+      provider: { asOf: "" },
+      asOf: "",
+      columns: [
+        {
+          columnId: "column-simple.price-2",
+          instanceId: "default-simple.price",
+          factorKey: "simple.price",
+        },
+        {
+          columnId: "column-simple.market_cap-3",
+          instanceId: "default-simple.market_cap",
+          factorKey: "simple.market_cap",
+        },
+      ],
+      entries: [
+        {
+          stockId: "1",
+          instrumentId: "SH.600519",
+          market: "SH",
+          symbol: "600519",
+          name: "贵州茅台",
+          productClass: "equity",
+          cells: {
+            "column-simple.price-2": {
+              columnId: "column-simple.price-2",
+              factorKey: "simple.price",
+              value: { type: "number", number: 1700 },
+            },
+            // simple.market_cap 缺 cell，应渲染为 — 而非报错。
+          },
+        },
+      ],
+      hasMore: false,
+      total: 1,
+    });
+    const wrapper = mount(StockScreenerView, {
+      props: { market: "CN", brokerId: "akshare" },
+    });
+    await flushPromises();
+
+    // catalog GET 与 screen POST 都带嵌入式 brokerId；版本回传 catalog 响应值。
+    expect(mocks.catalog).toHaveBeenCalledWith("SH", "akshare");
+    await wrapper
+      .findAll(".stock-screener-view__common button")
+      .find((button) => button.text().includes("最新价格"))!
+      .trigger("click");
+    await wrapper.get('[aria-label="条件下限"]').setValue("1000");
+    await wrapper.get('[aria-label="条件上限"]').setValue("2000");
+    await wrapper.get(".stock-screener-view__run").trigger("click");
+    await flushPromises();
+
+    expect(mocks.run.mock.calls[0]?.[0]).toMatchObject({
+      brokerId: "akshare",
+      market: "SH",
+      catalogVersion: "embedded-stock-screen-v1",
+      querySchemaVersion: 2,
+      conditions: [
+        expect.objectContaining({
+          operator: "between",
+          value: { min: 1000, minIncludes: true, max: 2000, maxIncludes: true },
+          factor: expect.objectContaining({ factorKey: "simple.price" }),
+        }),
+      ],
+    });
+    const row = wrapper.get("tbody tr");
+    expect(row.text()).toContain("600519");
+    expect(row.text()).toContain("贵州茅台");
+    expect(row.text()).toContain("1,700");
+    expect(row.text()).toContain("—");
+  });
+
+  it("degrades provider-capability 409 screen runs to the unsupported state", async () => {
+    mocks.catalog.mockResolvedValue(embeddedCatalog);
+    mocks.presets.mockResolvedValue({ presets: [] });
+    mocks.run.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: embedded provider does not serve catalogVersion "futu-stock-screen-v1"',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    const wrapper = mount(StockScreenerView, {
+      props: { market: "SH", brokerId: "akshare" },
+    });
+    await flushPromises();
+
+    await wrapper.get(".stock-screener-view__run").trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).not.toContain("futu-stock-screen-v1");
+  });
+
+  it("degrades provider-capability 409 catalog loads to the unsupported state", async () => {
+    mocks.catalog.mockRejectedValue(
+      new ApiClientError(
+        'broker feature capability is unavailable: broker "yfinance" does not serve the SH screen catalog',
+        "BROKER_CAPABILITY_UNAVAILABLE",
+        409,
+      ),
+    );
+    mocks.presets.mockResolvedValue({ presets: [] });
+    const wrapper = mount(StockScreenerView, {
+      props: { market: "SH", brokerId: "yfinance" },
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前数据源不支持该功能");
+    expect(wrapper.text()).not.toContain("does not serve");
+  });
+
+  it("keeps the raw notice for non-capability catalog failures", async () => {
+    mocks.catalog.mockRejectedValue(new Error("目录服务不可用"));
+    mocks.presets.mockResolvedValue({ presets: [] });
+    const wrapper = mount(StockScreenerView, {
+      props: { market: "US", brokerId: "akshare" },
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("目录服务不可用");
+    expect(wrapper.text()).not.toContain("当前数据源不支持该功能");
   });
 });

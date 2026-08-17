@@ -47,6 +47,9 @@ type apiEmbeddedReader struct {
 	history      marketdatasrv.MacroIndicatorHistoryResponse
 	historyID    string
 	historyLimit int
+	screen       marketdatasrv.ScreenResponse
+	screenErr    error
+	screenReq    marketdatasrv.ScreenRequest
 }
 
 func (r *apiEmbeddedReader) GetNews(
@@ -145,6 +148,13 @@ func (r *apiEmbeddedReader) GetMacroIndicatorHistory(
 ) (marketdatasrv.MacroIndicatorHistoryResponse, error) {
 	r.historyID, r.historyLimit = indicatorID, limit
 	return r.history, nil
+}
+
+func (r *apiEmbeddedReader) GetScreen(
+	_ context.Context, req marketdatasrv.ScreenRequest,
+) (marketdatasrv.ScreenResponse, error) {
+	r.screenReq = req
+	return r.screen, r.screenErr
 }
 
 func newEmbeddedProviderRouter(reader *apiEmbeddedReader) *gin.Engine {

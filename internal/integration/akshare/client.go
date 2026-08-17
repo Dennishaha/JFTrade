@@ -490,3 +490,9 @@ func (c *Client) macroIndicatorHistory(
 	err := c.get(ctx, providerSegments("macro", "indicator-history"), values, &response)
 	return response, err
 }
+
+func (c *Client) screen(ctx context.Context, req remoteScreenRequest) (remoteScreenResponse, error) {
+	var response remoteScreenResponse
+	err := c.post(ctx, providerSegments("screen"), req, &response)
+	return response, err
+}

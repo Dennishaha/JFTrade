@@ -417,3 +417,39 @@ type remoteMacroHistoryPoint struct {
 	Unit          string       `json:"unit"`
 	UnitType      *json.Number `json:"unit_type"`
 }
+
+type remoteScreenRequest struct {
+	Market     string                  `json:"market"`
+	Conditions []remoteScreenCondition `json:"conditions,omitempty"`
+	Sorts      []remoteScreenSort      `json:"sorts,omitempty"`
+	Offset     int                     `json:"offset"`
+	Limit      int                     `json:"limit"`
+}
+
+type remoteScreenCondition struct {
+	FactorKey string      `json:"factor_key"`
+	Min       json.Number `json:"min,omitempty"`
+	Max       json.Number `json:"max,omitempty"`
+}
+
+type remoteScreenSort struct {
+	FactorKey string `json:"factor_key"`
+	Direction string `json:"direction"`
+}
+
+type remoteScreenResponse struct {
+	Entries []remoteScreenEntry `json:"entries"`
+	Total   int                 `json:"total"`
+	HasMore bool                `json:"has_more"`
+	AsOf    string              `json:"as_of"`
+	Source  string              `json:"source"`
+}
+
+type remoteScreenEntry struct {
+	InstrumentID  string                 `json:"instrument_id"`
+	Name          string                 `json:"name"`
+	Symbol        *string                `json:"symbol"`
+	Industry      *string                `json:"industry"`
+	QuoteCurrency string                 `json:"quote_currency"`
+	Values        map[string]json.Number `json:"values"`
+}

@@ -13,8 +13,9 @@ import (
 
 // EmbeddedResearchReader reads instrument news, corporate actions, market
 // rankings, industry boards, company research (profile, financials, analyst
-// consensus, ownership), event calendars, and macro indicators from the
-// embedded market-data provider. *marketdata.Service satisfies it.
+// consensus, ownership), event calendars, macro indicators, and embedded-
+// catalog stock screens from the embedded market-data provider.
+// *marketdata.Service satisfies it.
 type EmbeddedResearchReader interface {
 	GetNews(ctx context.Context, market, symbol string, limit int) (marketdata.NewsResponse, error)
 	GetCorporateActions(
@@ -52,6 +53,7 @@ type EmbeddedResearchReader interface {
 		indicatorID string,
 		limit int,
 	) (marketdata.MacroIndicatorHistoryResponse, error)
+	GetScreen(ctx context.Context, req marketdata.ScreenRequest) (marketdata.ScreenResponse, error)
 }
 
 // WithEmbeddedProviderResearch lets the product feature pipeline serve
@@ -93,9 +95,10 @@ func WithLazyEmbeddedProviderResearch(serviceFn func() *marketdata.Service) Opti
 // queryEmbeddedProviderResearch intercepts instrument research reads (news,
 // corporate actions, profile, financials, analyst consensus, ownership) and
 // market-scoped reads (rankings, industry boards, event calendars, macro
-// indicators) before broker routing when the embedded market-data provider
-// owns them. The boolean result reports whether the query was handled (a nil
-// result with a true flag still carries the returned error).
+// indicators, embedded-catalog stock screens) before broker routing when the
+// embedded market-data provider owns them. The boolean result reports whether
+// the query was handled (a nil result with a true flag still carries the
+// returned error).
 func (s *Service) queryEmbeddedProviderResearch(
 	ctx context.Context,
 	query *broker.FeatureQuery,
@@ -106,7 +109,8 @@ func (s *Service) queryEmbeddedProviderResearch(
 		broker.FeatureResearchRankings, broker.FeatureResearchIndustry,
 		broker.FeatureResearchInstrument, broker.FeatureResearchFinancials,
 		broker.FeatureResearchAnalyst, broker.FeatureResearchOwnership,
-		broker.FeatureResearchCalendar, broker.FeatureResearchMacro:
+		broker.FeatureResearchCalendar, broker.FeatureResearchMacro,
+		broker.FeatureResearchScreen:
 	default:
 		return nil, false, nil
 	}
@@ -121,13 +125,15 @@ func (s *Service) queryEmbeddedProviderResearch(
 	if reader == nil {
 		return nil, false, nil
 	}
-	// Rankings, industry boards, calendars, and macro indicators are
-	// market-wide reads: no instrumentId is required and any market value is
-	// accepted without filtering (region filtering stays in the console).
+	// Rankings, industry boards, calendars, macro indicators, and stock
+	// screens are market-wide reads: no instrumentId is required and any
+	// market value is accepted without filtering (region filtering stays in
+	// the console).
 	marketScoped := query.FeatureID == broker.FeatureResearchRankings ||
 		query.FeatureID == broker.FeatureResearchIndustry ||
 		query.FeatureID == broker.FeatureResearchCalendar ||
-		query.FeatureID == broker.FeatureResearchMacro
+		query.FeatureID == broker.FeatureResearchMacro ||
+		query.FeatureID == broker.FeatureResearchScreen
 	market, symbol, ok := embeddedResearchInstrument(query)
 	if !marketScoped && !ok {
 		return nil, false, nil
@@ -152,6 +158,8 @@ func (s *Service) queryEmbeddedProviderResearch(
 		result, readErr = s.embeddedCalendar(ctx, reader, descriptor, query, market, now)
 	case broker.FeatureResearchMacro:
 		result, readErr = s.embeddedMacro(ctx, reader, descriptor, query, market, rawPageSize, now)
+	case broker.FeatureResearchScreen:
+		result, readErr = s.embeddedScreen(ctx, reader, descriptor, query, now)
 	default:
 		result, readErr = s.embeddedCompanyResearch(ctx, reader, descriptor, query, market, symbol, now)
 	}

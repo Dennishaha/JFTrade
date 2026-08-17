@@ -3,6 +3,7 @@ package productfeatures
 import (
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -26,21 +27,30 @@ import (
 func handleResearchScreenCatalog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		brokerID := strings.ToLower(strings.TrimSpace(c.Query("brokerId")))
-		if brokerID != "" && brokerID != "futu" {
-			httpserver.WriteError(
-				c, http.StatusConflict, "BROKER_CAPABILITY_UNAVAILABLE",
-				"the complete stock-screen factor catalog is currently available only for futu",
-			)
-			return
-		}
 		market := strings.ToUpper(strings.TrimSpace(c.Query("market")))
-		if market != "" {
-			if market != "HK" && market != "US" && market != "SH" && market != "SZ" {
-				httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "unsupported stock-screen market")
+		switch brokerID {
+		case "", "futu":
+			if market != "" {
+				if market != "HK" && market != "US" && market != "SH" && market != "SZ" {
+					httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "unsupported stock-screen market")
+					return
+				}
+			}
+			httpserver.WriteOK(c, researchscreen.CatalogForMarket(market))
+		case "yfinance", "akshare":
+			markets := researchscreen.EmbeddedScreenMarkets(brokerID)
+			if market != "" && !slices.Contains(markets, market) {
+				httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST",
+					"unsupported stock-screen market for "+brokerID)
 				return
 			}
+			httpserver.WriteOK(c, researchscreen.EmbeddedCatalog(brokerID, market))
+		default:
+			httpserver.WriteError(
+				c, http.StatusConflict, "BROKER_CAPABILITY_UNAVAILABLE",
+				"the stock-screen factor catalog is not available for broker "+brokerID,
+			)
 		}
-		httpserver.WriteOK(c, researchscreen.CatalogForMarket(market))
 	}
 }
 
@@ -99,7 +109,7 @@ func normalizeResearchScreenQuery(query *broker.ScreenQueryV2) error {
 func researchScreenResultColumns(definition broker.ScreenDefinitionV2) []broker.ScreenResultColumn {
 	columns := make([]broker.ScreenResultColumn, 0, len(definition.Columns))
 	for _, column := range definition.Columns {
-		factor, _ := researchscreen.Lookup(column.Factor.FactorKey)
+		factor, _ := researchscreen.LookupForCatalog(definition.CatalogVersion, column.Factor.FactorKey)
 		columns = append(columns, broker.ScreenResultColumn{
 			ColumnID: column.ID, InstanceID: column.Factor.InstanceID,
 			FactorKey: column.Factor.FactorKey, Label: column.Label, Unit: factor.Unit,

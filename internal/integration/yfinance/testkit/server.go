@@ -2,6 +2,7 @@ package testkit
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -24,6 +25,7 @@ type Request struct {
 	Method string
 	Path   string
 	Query  url.Values
+	Body   string
 }
 
 // Server implements the complete yfinance sidecar HTTP contract for tests.
@@ -118,12 +120,14 @@ func (s *Server) serveHTTP(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (s *Server) record(request *http.Request) {
+	body, _ := io.ReadAll(request.Body)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.requests = append(s.requests, Request{
 		Method: request.Method,
 		Path:   request.URL.Path,
 		Query:  request.URL.Query(),
+		Body:   string(body),
 	})
 }
 

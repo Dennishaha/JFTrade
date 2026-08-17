@@ -16,6 +16,7 @@ import {
   runStockScreen,
   updateStockScreenPreset,
 } from "./stockScreenApi";
+import { isProviderCapabilityError } from "@/composables/research/providerCapabilityFallback";
 import { useActionConfirmation } from "@/composables/shared/useActionConfirmation";
 import {
   normalizeScreenMarket,
@@ -69,6 +70,8 @@ export function useStockScreenerController(
   const catalogError = ref("");
   const presetError = ref("");
   const queryError = ref("");
+  // True on a provider-capability 409; the notice renders the phase-0 state.
+  const providerUnsupported = ref(false);
   const loading = ref(false);
   const loadingMore = ref(false);
   const savingPreset = ref(false);
@@ -353,6 +356,7 @@ export function useStockScreenerController(
     catalogLoading.value = true;
     catalogError.value = "";
     presetError.value = "";
+    providerUnsupported.value = false;
     try {
       const [nextCatalog, nextPresets] = await Promise.all([
         fetchStockScreenCatalog(queryMarket.value, screenBrokerId.value),
@@ -389,7 +393,10 @@ export function useStockScreenerController(
         }
       }
     } catch (error) {
-      if (token === catalogToken) catalogError.value = errorMessage(error);
+      if (token === catalogToken) {
+        providerUnsupported.value = isProviderCapabilityError(error);
+        catalogError.value = providerUnsupported.value ? "" : errorMessage(error);
+      }
     } finally {
       if (token === catalogToken) catalogLoading.value = false;
     }
@@ -412,6 +419,7 @@ export function useStockScreenerController(
     if (append) loadingMore.value = true;
     else loading.value = true;
     queryError.value = "";
+    providerUnsupported.value = false;
     setRetryCountdown(0);
     try {
       const definition = toStockScreenDefinitionV2(
@@ -441,7 +449,8 @@ export function useStockScreenerController(
       if (!append) mobilePane.value = "results";
     } catch (error) {
       if (token === queryToken) {
-        queryError.value = errorMessage(error);
+        providerUnsupported.value = isProviderCapabilityError(error);
+        queryError.value = providerUnsupported.value ? "" : errorMessage(error);
         const fieldIssue = validationErrorFrom(error);
         if (fieldIssue) validationErrors.value = [fieldIssue];
         const retry = (error as { retryAfterMs?: number }).retryAfterMs;
@@ -681,6 +690,7 @@ export function useStockScreenerController(
     catalogError,
     presetError,
     queryError,
+    providerUnsupported,
     loading,
     loadingMore,
     savingPreset,

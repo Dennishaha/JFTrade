@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppTabs from "../shared/AppTabs.vue";
+import ProviderUnsupportedState from "./ProviderUnsupportedState.vue";
 import { useStockScreenerControllerContext } from "./useStockScreenerController";
 
 const {
@@ -25,6 +26,7 @@ const {
   catalogError,
   presetError,
   queryError,
+  providerUnsupported,
   warnings,
   partialErrors,
   mobilePane,
@@ -118,8 +120,14 @@ function selectMobilePane(value: string): void {
     </button>
   </header>
 
+  <ProviderUnsupportedState
+    v-if="providerUnsupported"
+    class="stock-screener-view__notice"
+    bordered
+    :min-height="72"
+  />
   <div
-    v-if="catalogError || presetError || queryError"
+    v-else-if="catalogError || presetError || queryError"
     class="stock-screener-view__notice tv-status--error tv-status-surface"
   >
     {{ catalogError || presetError || queryError }}

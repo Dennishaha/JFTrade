@@ -370,6 +370,48 @@ class MacroHistoryResponse(WireModel):
     entries: list[MacroHistoryEntry]
 
 
+class ScreenCondition(WireModel):
+    """One screener range condition; ``in`` enumerations are parsed so the
+    provider modules can reject them with 400 unsupported_kind."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    factor_key: str
+    min: float | None = None
+    max: float | None = None
+    in_values: list[float] | None = Field(default=None, alias="in")
+
+
+class ScreenSort(WireModel):
+    factor_key: str
+    direction: str = "desc"
+
+
+class ScreenRequest(WireModel):
+    market: str
+    conditions: list[ScreenCondition] = Field(default_factory=list)
+    sorts: list[ScreenSort] = Field(default_factory=list)
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(default=50, ge=1, le=250)
+
+
+class ScreenEntry(WireModel):
+    instrument_id: str
+    name: str | None = None
+    symbol: str
+    industry: str | None = None
+    quote_currency: str
+    values: dict[str, float]
+
+
+class ScreenResponse(WireModel):
+    entries: list[ScreenEntry]
+    total: int
+    has_more: bool
+    as_of: str
+    source: str
+
+
 class NewsEntry(WireModel):
     title: str | None = None
     link: str | None = None

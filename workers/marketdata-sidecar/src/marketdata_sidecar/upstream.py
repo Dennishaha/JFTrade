@@ -217,6 +217,7 @@ _ticker_fast_info_cache = _TickerInfoCache()
 _ticker_news_cache = _TickerInfoCache()
 _ticker_actions_cache = _TickerInfoCache()
 _screener_cache = _TickerInfoCache()
+_screen_custom_cache = _TickerInfoCache()
 
 
 def screen_quotes(query_id: str, count: int) -> list[dict[str, Any]]:
@@ -253,6 +254,68 @@ def _fetch_screen_quotes(
             "Yahoo Finance screener response has an invalid schema",
         )
     return [dict(quote) for quote in quotes if isinstance(quote, dict)]
+
+
+def screen_custom(
+    conditions: list[tuple[str, str, tuple[Any, ...]]],
+    sort_field: str | None,
+    sort_asc: bool,
+    size: int,
+) -> dict[str, Any]:
+    """Run a Yahoo custom equity screen and return the raw result dict.
+
+    ``conditions`` are ``(operator, field, values)`` triples already
+    translated into EquityQuery operator names (EQ/BTWN/GTE/LTE); the
+    yfinance boundary owns query object construction so callers never import
+    yfinance.  ``size`` is the upstream page window (Yahoo caps it at 250);
+    the caller slices offset/limit locally from the returned quotes.
+    """
+    runtime = require_runtime()
+    key = repr((conditions, sort_field, sort_asc, size))
+    data = _screen_custom_cache.get_or_fetch(
+        key,
+        SCREEN_CACHE_SECONDS,
+        lambda: {
+            "result": _fetch_custom_screen(runtime, conditions, sort_field, sort_asc, size)
+        },
+    )
+    return dict(data.get("result") or {})
+
+
+def _fetch_custom_screen(
+    runtime: _RuntimeComponents,
+    conditions: list[tuple[str, str, tuple[Any, ...]]],
+    sort_field: str | None,
+    sort_asc: bool,
+    size: int,
+) -> dict[str, Any]:
+    equity_query = runtime.yfinance.EquityQuery
+    queries = [
+        equity_query(operator, [field, *values])
+        for operator, field, values in conditions
+    ]
+    if not queries:
+        raise SidecarError(
+            400,
+            "invalid_request",
+            "custom screen requires at least one condition",
+        )
+    query = queries[0] if len(queries) == 1 else equity_query("AND", queries)
+    result = runtime.yfinance.screen(
+        query,
+        size=size,
+        sortField=sort_field,
+        sortAsc=sort_asc,
+        session=runtime.session,
+    )
+    quotes = result.get("quotes") if isinstance(result, dict) else None
+    if not isinstance(quotes, list):
+        raise SidecarError(
+            502,
+            "YFINANCE_SCHEMA_ERROR",
+            "Yahoo Finance screener response has an invalid schema",
+        )
+    return result
 
 
 _ticker_financials_cache = _TickerInfoCache()

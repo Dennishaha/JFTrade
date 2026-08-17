@@ -44,10 +44,15 @@ describe("embedded Python market-data providers", () => {
     expect(embeddedPythonMarketDataFeatureIDs.has("research.institutions")).toBe(false);
   });
 
-  it("marks calendar and macro as embedded-capable while screens stay Futu-only", () => {
+  it("marks calendar and macro as embedded-capable", () => {
     expect(embeddedPythonMarketDataFeatureIDs.has("research.calendar")).toBe(true);
     expect(embeddedPythonMarketDataFeatureIDs.has("research.macro")).toBe(true);
-    expect(embeddedPythonMarketDataFeatureIDs.has("research.screen")).toBe(false);
+  });
+
+  it("marks the stock screener as embedded-capable", () => {
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.screen")).toBe(true);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.institutions")).toBe(false);
+    expect(embeddedPythonMarketDataFeatureIDs.has("research.technical_indicators")).toBe(false);
   });
 
   it("marks instrument research tabs as embedded-capable except valuation and short interest", () => {

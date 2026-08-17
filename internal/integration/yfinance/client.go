@@ -55,6 +55,25 @@ func NewClient(baseURL string, httpClient *http.Client) (*Client, error) {
 }
 
 func (c *Client) get(ctx context.Context, segments []string, query url.Values, target any) error {
+	return c.request(ctx, http.MethodGet, segments, query, nil, target)
+}
+
+func (c *Client) post(ctx context.Context, segments []string, input, target any) error {
+	payload, err := json.Marshal(input)
+	if err != nil {
+		return fmt.Errorf("%w: encode request body: %w", ErrInvalidResponse, err)
+	}
+	return c.request(ctx, http.MethodPost, segments, nil, payload, target)
+}
+
+func (c *Client) request(
+	ctx context.Context,
+	method string,
+	segments []string,
+	query url.Values,
+	payload []byte,
+	target any,
+) error {
 	if c == nil || c.baseURL == nil || c.httpClient == nil {
 		return ErrSidecarUnavailable
 	}
@@ -68,7 +87,7 @@ func (c *Client) get(ctx context.Context, segments []string, query url.Values, t
 	endpoint.RawQuery = query.Encode()
 	attempts := max(c.maxAttempts, 1)
 	for attempt := 1; attempt <= attempts; attempt++ {
-		body, status, header, err := c.getOnce(callCtx, endpoint.String())
+		body, status, header, err := c.requestOnce(callCtx, method, endpoint.String(), payload)
 		if err == nil && status >= http.StatusOK && status < http.StatusMultipleChoices {
 			return decodeResponse(body, target)
 		}
@@ -80,7 +99,7 @@ func (c *Client) get(ctx context.Context, segments []string, query url.Values, t
 				return err
 			}
 			if attempt == attempts {
-				return fmt.Errorf("%w: GET %s: %w", ErrSidecarUnavailable, endpoint.Redacted(), err)
+				return fmt.Errorf("%w: %s %s: %w", ErrSidecarUnavailable, method, endpoint.Redacted(), err)
 			}
 		} else if !isRetryableStatus(status) || attempt == attempts {
 			return classifyRuntimeError(decodeHTTPError(status, body))
@@ -101,12 +120,20 @@ func classifyRuntimeError(err error) error {
 	return err
 }
 
-func (c *Client) getOnce(ctx context.Context, endpoint string) ([]byte, int, http.Header, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+func (c *Client) requestOnce(
+	ctx context.Context,
+	method string,
+	endpoint string,
+	payload []byte,
+) ([]byte, int, http.Header, error) {
+	request, err := http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return nil, 0, nil, err
 	}
 	request.Header.Set("Accept", "application/json")
+	if len(payload) > 0 {
+		request.Header.Set("Content-Type", "application/json")
+	}
 	response, err := c.httpClient.Do(request)
 	if err != nil {
 		return nil, 0, nil, err
@@ -335,5 +362,11 @@ func (c *Client) analystConsensus(ctx context.Context, market, symbol string) (r
 func (c *Client) ownership(ctx context.Context, market, symbol string) (remoteOwnership, error) {
 	var response remoteOwnership
 	err := c.get(ctx, yfinanceProviderSegments("ownership", market, symbol), nil, &response)
+	return response, err
+}
+
+func (c *Client) screen(ctx context.Context, req remoteScreenRequest) (remoteScreenResponse, error) {
+	var response remoteScreenResponse
+	err := c.post(ctx, yfinanceProviderSegments("screen"), req, &response)
 	return response, err
 }

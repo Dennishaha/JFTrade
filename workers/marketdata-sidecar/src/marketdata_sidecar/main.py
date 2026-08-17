@@ -26,6 +26,7 @@ from .routes import (
     news,
     rankings,
     research,
+    screen,
     search,
     security,
     snapshot,
@@ -65,6 +66,7 @@ def create_app() -> FastAPI:
         corporate_actions.router,
         rankings.router,
         research.router,
+        screen.router,
     ):
         application.include_router(yahoo_router, prefix="/providers/yfinance")
     application.include_router(search.router)
@@ -78,6 +80,7 @@ def create_app() -> FastAPI:
     application.include_router(akshare.router)
     application.include_router(research.akshare_router)
     application.include_router(calendar.router)
+    application.include_router(screen.akshare_router)
     return application
 
 

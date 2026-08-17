@@ -90,6 +90,11 @@ type embeddedReaderStub struct {
 	historyCalls     int
 	historyID        string
 	historyLimit     int
+
+	screenResult marketdata.ScreenResponse
+	screenErr    error
+	screenCalls  int
+	screenReq    marketdata.ScreenRequest
 }
 
 func (s *embeddedReaderStub) GetNews(
@@ -410,4 +415,13 @@ func (s *embeddedReaderStub) GetMacroIndicatorHistory(
 	s.historyCalls++
 	s.historyID, s.historyLimit = indicatorID, limit
 	return s.historyResult, s.historyErr
+}
+
+func (s *embeddedReaderStub) GetScreen(
+	_ context.Context,
+	req marketdata.ScreenRequest,
+) (marketdata.ScreenResponse, error) {
+	s.screenCalls++
+	s.screenReq = req
+	return s.screenResult, s.screenErr
 }
