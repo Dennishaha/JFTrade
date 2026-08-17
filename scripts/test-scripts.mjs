@@ -8,6 +8,7 @@ export const scriptTestSuites = Object.freeze({
   policy: Object.freeze([
     "scripts/check-arch-deps.test.mjs",
     "scripts/check-ai-context.test.mjs",
+    "scripts/check-embedded-provider-capability-matrix.test.mjs",
     "scripts/check-go-file-length-budget.test.mjs",
     "scripts/check-assistant-budget.test.mjs",
     "scripts/test-affected.test.mjs",

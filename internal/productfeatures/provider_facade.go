@@ -56,6 +56,24 @@ type EmbeddedResearchReader interface {
 	GetScreen(ctx context.Context, req marketdata.ScreenRequest) (marketdata.ScreenResponse, error)
 }
 
+// embeddedResearchFeatureIDs is the single facade allow-list for reads that
+// an embedded yfinance/AKShare provider can own.  Keep this enumerable so the
+// routing test can compare the complete set instead of only checking a few
+// representative feature IDs.
+var embeddedResearchFeatureIDs = map[broker.FeatureID]struct{}{
+	broker.FeatureResearchNews:            {},
+	broker.FeatureResearchCorporateAction: {},
+	broker.FeatureResearchRankings:        {},
+	broker.FeatureResearchIndustry:        {},
+	broker.FeatureResearchInstrument:      {},
+	broker.FeatureResearchFinancials:      {},
+	broker.FeatureResearchAnalyst:         {},
+	broker.FeatureResearchOwnership:       {},
+	broker.FeatureResearchCalendar:        {},
+	broker.FeatureResearchMacro:           {},
+	broker.FeatureResearchScreen:          {},
+}
+
 // WithEmbeddedProviderResearch lets the product feature pipeline serve
 // instrument news and corporate actions from the embedded market-data provider
 // (yfinance/akshare) when that provider is active or explicitly requested. The
@@ -104,14 +122,7 @@ func (s *Service) queryEmbeddedProviderResearch(
 	query *broker.FeatureQuery,
 	rawPageSize int,
 ) (*broker.FeatureResult, bool, error) {
-	switch query.FeatureID {
-	case broker.FeatureResearchNews, broker.FeatureResearchCorporateAction,
-		broker.FeatureResearchRankings, broker.FeatureResearchIndustry,
-		broker.FeatureResearchInstrument, broker.FeatureResearchFinancials,
-		broker.FeatureResearchAnalyst, broker.FeatureResearchOwnership,
-		broker.FeatureResearchCalendar, broker.FeatureResearchMacro,
-		broker.FeatureResearchScreen:
-	default:
+	if _, ok := embeddedResearchFeatureIDs[query.FeatureID]; !ok {
 		return nil, false, nil
 	}
 	if s.embeddedReader == nil || s.activeProvider == nil {

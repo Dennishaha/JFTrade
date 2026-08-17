@@ -38,6 +38,29 @@ describe("embedded Python market-data providers", () => {
     expect(embeddedPythonMarketDataFeatureIDs.has("research.corporate_actions")).toBe(true);
   });
 
+  it("keeps the embedded feature set aligned with the facade allow-list", () => {
+    expect([...embeddedPythonMarketDataFeatureIDs].sort()).toEqual([
+      "market.candles",
+      "market.corporate_actions",
+      "market.instrument_profile",
+      "market.news",
+      "market.search",
+      "market.snapshot",
+      "market.snapshots",
+      "research.analyst",
+      "research.calendar",
+      "research.corporate_actions",
+      "research.financials",
+      "research.industry",
+      "research.instrument",
+      "research.macro",
+      "research.news",
+      "research.ownership",
+      "research.rankings",
+      "research.screen",
+    ]);
+  });
+
   it("marks facade-served rankings and industry boards as embedded-capable", () => {
     expect(embeddedPythonMarketDataFeatureIDs.has("research.rankings")).toBe(true);
     expect(embeddedPythonMarketDataFeatureIDs.has("research.industry")).toBe(true);
