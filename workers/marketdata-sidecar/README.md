@@ -100,7 +100,7 @@ PyInstaller spec 使用 `JFTRADE_MARKETDATA_BINARY_NAME` 指定二进制名；�
 | GET | `/providers/akshare/macro/indicators` | 宏观指标静态目录（16 个指标，中国/美国分组）；AKShare 1.18.x 无联邦基金利率接口，未收录 |
 | GET | `/providers/akshare/macro/indicator-history?indicator_id=&limit=100` | 单指标历史序列，`data_time` 统一 `YYYY-MM`，倒序；未知 `indicator_id` 返回 404 |
 | POST | `/providers/yfinance/screen` | 美股自定义筛选（EquityQuery 翻译，仅 US）；body `{"market","conditions":[{"factor_key","min","max"}],"sorts":[{"factor_key","direction"}],"offset","limit"}`；limit 1–250 且 offset+limit ≤250（Yahoo size 上限，超出 400）；仅首个 sort 生效 |
-| POST | `/providers/akshare/screen` | 沪深/港股筛选（CN/SH/SZ/HK），复用 15s 全市场现货目录本地过滤排序分页，零新上游请求；HK 不支持 `simple.market_cap`（东财港股帧无总市值列）；CN 成交量由手换算成股 |
+| POST | `/providers/akshare/screen` | 沪深/港股/美股筛选（CN/SH/SZ/HK/US），复用 15s 全市场现货目录本地过滤排序分页，零新上游请求；US/HK 现货帧由 `akshare_spot_clist` 直连东财 clist 构建（akshare 封装丢弃了 f23 市净率/f115 PE TTM 与 HK 总市值），六个因子全部市场可用；CN 成交量由手换算成股 |
 | POST | `/providers/akshare/snapshots` | 最多 100 个 AKShare 批量快照 |
 
 筛选因子目录（两 provider 统一，`in` 枚举条件暂不支持，收到即 400 unsupported_kind）：
@@ -109,8 +109,8 @@ PyInstaller spec 使用 `JFTRADE_MARKETDATA_BINARY_NAME` 指定二进制名；�
 | --- | --- | --- | --- |
 | `simple.price` | `intradayprice` | 最新价 | 当日最新价 |
 | `simple.change_pct` | `percentchange` | 涨跌幅 | % |
-| `simple.volume` | `dayvolume` | 成交量 | 股（CN 帧为手，×100 换算；HK 帧即股） |
-| `simple.market_cap` | `intradaymarketcap` | 总市值 | 盘中市值 |
+| `simple.volume` | `dayvolume` | 成交量 | 股（CN 帧为手，×100 换算；US/HK 帧即股） |
+| `simple.market_cap` | `intradaymarketcap` | 总市值 | 盘中市值（US/HK 经 clist 直连补齐） |
 | `simple.pe_ttm` | `peratio.lasttwelvemonths` | 市盈率-动态 | TTM/动态市盈率 |
 | `simple.pb` | `pricebookratio.quarterly` | 市净率 | 季度市净率 |
 

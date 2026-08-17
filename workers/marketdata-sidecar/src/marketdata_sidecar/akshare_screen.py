@@ -12,12 +12,13 @@ Factor mapping (Eastmoney spot column names, verified against akshare
 - simple.change_pct → 涨跌幅 (%)
 - simple.volume     → 成交量；SH/SZ 单位是手，输出前 ×100 换成股
   (AKInstrument.volume_multiplier)；HK 东财现货帧成交量单位即股，不换算
-- simple.market_cap → 总市值；HK spot 帧无此列 → HK 不支持该因子
+- simple.market_cap → 总市值
 - simple.pe_ttm     → 市盈率-动态
 - simple.pb         → 市净率
 
-US 不开放：stock_us_spot_em 缺市净率，且市盈率列为静态市盈率而非 TTM，
-语义不符。
+US/HK 的 spot 帧由 akshare_spot_clist 直连东财 clist 构建,补齐了
+akshare 封装丢弃的 f23(市净率)/f115(PE TTM) 与 HK 总市值,因此六个
+因子在全部支持市场(含 HK 的市值)可用。
 """
 
 from __future__ import annotations
@@ -50,17 +51,13 @@ FACTOR_COLUMNS = {
     "simple.pb": ("市净率",),
 }
 
-# Factors whose Eastmoney column is absent from the HK spot frame.
-HK_UNSUPPORTED_FACTORS = frozenset({"simple.market_cap"})
-
-SUPPORTED_MARKETS = frozenset({"CN", "SH", "SZ", "HK"})
+SUPPORTED_MARKETS = frozenset({"CN", "SH", "SZ", "HK", "US"})
 
 
 def screen(request: ScreenRequest) -> ScreenResponse:
     leaves = _screen_markets(request.market)
     conditions = [_translate_condition(condition) for condition in request.conditions]
     sort_key, sort_desc = _translate_sort(request.sorts)
-    _require_market_factors(leaves, [c.factor_key for c in conditions] + ([sort_key] if sort_key else []))
 
     matched: list[tuple[AKInstrument, dict[str, float]]] = []
     for leaf in leaves:
@@ -101,10 +98,10 @@ def _screen_markets(market: str) -> tuple[str, ...]:
     token = market.strip().upper()
     if token == "CN":
         return ("SH", "SZ")
-    if token not in {"SH", "SZ", "HK"}:
+    if token not in {"SH", "SZ", "HK", "US"}:
         raise invalid_request(
             "unsupported_market",
-            "AKShare screen is only available for markets: CN, SH, SZ, HK",
+            "AKShare screen is only available for markets: CN, SH, SZ, HK, US",
         )
     return (_normalize_market(token),)
 
@@ -153,21 +150,9 @@ def _translate_sort(sorts: list[ScreenSort]) -> tuple[str | None, bool]:
     return key, direction == "desc"
 
 
-def _require_market_factors(leaves: tuple[str, ...], factor_keys: list[str]) -> None:
-    if "HK" in leaves:
-        for key in factor_keys:
-            if key in HK_UNSUPPORTED_FACTORS:
-                raise invalid_request(
-                    "unsupported_kind",
-                    f"screen factor {key} is unavailable for HK spot frames",
-                )
-
-
 def _instrument_values(instrument: AKInstrument) -> dict[str, float]:
     values: dict[str, float] = {}
     for factor_key, columns in FACTOR_COLUMNS.items():
-        if instrument.market == "HK" and factor_key in HK_UNSUPPORTED_FACTORS:
-            continue
         number = _optional_decimal(instrument.row, *columns)
         if number is None:
             continue

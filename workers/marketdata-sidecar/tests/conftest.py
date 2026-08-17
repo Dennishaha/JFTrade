@@ -10,6 +10,7 @@ import pytest
 from marketdata_sidecar import (
     akshare_analyst,
     akshare_calendar,
+    akshare_catalog,
     akshare_financials,
     akshare_index_constituents,
     akshare_industries,
@@ -60,6 +61,8 @@ def block_real_network(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(akshare_upstream, "call", blocked_akshare)
     monkeypatch.setattr(akshare_upstream, "us_minute_rows", blocked_akshare)
     monkeypatch.setattr(akshare_upstream, "hk_minute_rows", blocked_akshare)
+    # The clist direct fetcher issues its own HTTP requests; tests must mock it.
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", blocked_akshare)
     akshare_provider._catalog_cache.clear()
     akshare_quotes._enrichment_cache.clear()
     akshare_news._news_cache.clear()

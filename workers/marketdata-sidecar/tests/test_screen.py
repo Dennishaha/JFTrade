@@ -8,7 +8,7 @@ import httpx
 import pandas as pd
 import pytest
 
-from marketdata_sidecar import akshare_upstream, upstream
+from marketdata_sidecar import akshare_catalog, akshare_upstream, upstream
 
 
 def _screen_payload(**overrides: Any) -> dict[str, Any]:
@@ -381,6 +381,7 @@ def _hk_spot_frame() -> pd.DataFrame:
                 "成交量": 1000,
                 "市盈率-动态": 18.0,
                 "市净率": 3.4,
+                "总市值": 3.5e12,
             },
             {
                 "代码": "00005",
@@ -390,9 +391,35 @@ def _hk_spot_frame() -> pd.DataFrame:
                 "成交量": 2000,
                 "市盈率-动态": 9.0,
                 "市净率": 0.9,
+                "总市值": 1.3e12,
             },
         ]
     )
+
+
+def _clist_call(calls: list[str]):
+    def fake_clist(market: str) -> pd.DataFrame:
+        calls.append(f"clist:{market}")
+        if market == "HK":
+            return _hk_spot_frame()
+        if market == "US":
+            return pd.DataFrame(
+                [
+                    {
+                        "代码": "105.AAPL",
+                        "名称": "Apple Inc.",
+                        "最新价": 210.125,
+                        "涨跌幅": 1.2,
+                        "成交量": 1234567,
+                        "市盈率-动态": 28.4,
+                        "市净率": 42.0,
+                        "总市值": 3.2e12,
+                    }
+                ]
+            )
+        raise AssertionError(f"unexpected clist market: {market}")
+
+    return fake_clist
 
 
 def _catalog_call(calls: list[str]):
@@ -402,12 +429,11 @@ def _catalog_call(calls: list[str]):
             return _sh_spot_frame()
         if function_name == "stock_sz_a_spot_em":
             return _sz_spot_frame()
-        if function_name == "stock_hk_spot_em":
-            return _hk_spot_frame()
         if function_name in {
             "fund_etf_spot_em",
             "stock_zh_index_spot_em",
             "stock_hk_index_spot_em",
+            "index_global_spot_em",
         }:
             return pd.DataFrame()
         raise AssertionError(f"unexpected AKShare call: {function_name}")
@@ -498,7 +524,9 @@ async def test_akshare_screen_hk_volume_stays_in_shares(
     client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(akshare_upstream, "call", _catalog_call([]))
+    calls: list[str] = []
+    monkeypatch.setattr(akshare_upstream, "call", _catalog_call(calls))
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _clist_call(calls))
 
     response = await client.post(
         "/providers/akshare/screen",
@@ -515,35 +543,51 @@ async def test_akshare_screen_hk_volume_stays_in_shares(
     assert entry["instrument_id"] == "HK.00005"
     assert entry["quote_currency"] == "HKD"
     assert entry["values"]["simple.volume"] == 2000  # HK 帧单位即股，不换算
-    assert "simple.market_cap" not in entry["values"]  # HK spot 无总市值列
+    assert entry["values"]["simple.market_cap"] == 1.3e12  # clist 帧补齐总市值
 
 
 @pytest.mark.asyncio
-async def test_akshare_screen_rejects_hk_market_cap_factor(
+async def test_akshare_screen_filters_hk_market_cap_factor(
     client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(akshare_upstream, "call", _catalog_call([]))
+    calls: list[str] = []
+    monkeypatch.setattr(akshare_upstream, "call", _catalog_call(calls))
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _clist_call(calls))
 
     response = await client.post(
         "/providers/akshare/screen",
         json=_ak_payload(
             market="HK",
-            conditions=[{"factor_key": "simple.market_cap", "min": 1}],
+            conditions=[{"factor_key": "simple.market_cap", "min": 2e12}],
         ),
     )
 
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "unsupported_kind"
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["entries"][0]["instrument_id"] == "HK.00700"
 
 
 @pytest.mark.asyncio
-async def test_akshare_screen_rejects_unsupported_market_and_factor(
+async def test_akshare_screen_serves_us_catalog_and_rejects_unknown_factors(
     client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    us = await client.post("/providers/akshare/screen", json=_ak_payload(market="US"))
-    assert us.status_code == 400
-    assert us.json()["error"]["code"] == "unsupported_market"
+    calls: list[str] = []
+    monkeypatch.setattr(akshare_upstream, "call", _catalog_call(calls))
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _clist_call(calls))
+
+    us = await client.post(
+        "/providers/akshare/screen",
+        json=_ak_payload(
+            market="US",
+            conditions=[{"factor_key": "simple.price", "min": 200}],
+        ),
+    )
+    assert us.status_code == 200
+    assert [entry["instrument_id"] for entry in us.json()["entries"]] == ["US.AAPL"]
+    assert us.json()["entries"][0]["values"]["simple.pe_ttm"] == 28.4
 
     unknown = await client.post(
         "/providers/akshare/screen",

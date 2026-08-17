@@ -302,8 +302,12 @@ func TestResearchScreenCatalogServesEmbeddedProviders(t *testing.T) {
 	if rec = get("/catalog?brokerId=yfinance&market=HK"); rec.Code != http.StatusBadRequest {
 		t.Fatalf("yfinance HK catalog status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	if rec = get("/catalog?brokerId=akshare&market=US"); rec.Code != http.StatusBadRequest {
+	if rec = get("/catalog?brokerId=akshare&market=US"); rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), `"market":"US"`) {
 		t.Fatalf("akshare US catalog status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if rec = get("/catalog?brokerId=akshare&market=MO"); rec.Code != http.StatusBadRequest {
+		t.Fatalf("akshare MO catalog status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	if rec = get("/catalog?brokerId=unknown"); rec.Code != http.StatusConflict {
 		t.Fatalf("unknown broker catalog status=%d body=%s", rec.Code, rec.Body.String())

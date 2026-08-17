@@ -12,9 +12,10 @@ import (
 var _ marketdata.ScreenerSource = (*Provider)(nil)
 
 // Screen executes an embedded-catalog stock screen against the AKShare
-// sidecar. CN, its SH/SZ leaves, and HK are forwarded; the CN aggregate is
-// passed through unchanged so the sidecar owns the SH/SZ merge. Other markets
-// are rejected Go-side as ErrUnsupported before any sidecar call.
+// sidecar. CN, its SH/SZ leaves, HK, and US are forwarded; the CN aggregate is
+// passed through unchanged so the sidecar owns the SH/SZ merge. US rows come
+// from the sidecar's Eastmoney clist feed with PB/PE TTM filled in. Other
+// markets are rejected Go-side as ErrUnsupported before any sidecar call.
 func (p *Provider) Screen(
 	ctx context.Context,
 	req marketdata.ScreenRequest,
@@ -47,7 +48,7 @@ func screenMarket(marketValue string) (string, error) {
 		return "", err
 	}
 	switch canonical {
-	case "CN", "SH", "SZ", "HK":
+	case "CN", "SH", "SZ", "HK", "US":
 		return canonical, nil
 	default:
 		return "", fmt.Errorf("%w: stock screen market %q", ErrUnsupported, marketValue)

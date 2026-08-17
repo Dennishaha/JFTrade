@@ -126,7 +126,7 @@ func TestProviderScreenConvertsCNEntriesAndDerivesSymbol(t *testing.T) {
 	}
 }
 
-func TestProviderScreenAcceptsCNSHSZHKAndRejectsOthers(t *testing.T) {
+func TestProviderScreenAcceptsCNSHSZHKUSAndRejectsOthers(t *testing.T) {
 	server, requests := newNewsRecordingServer(t, func(writer http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(writer).Encode(map[string]any{
 			"entries": []map[string]any{}, "total": 0, "has_more": false,
@@ -138,18 +138,18 @@ func TestProviderScreenAcceptsCNSHSZHKAndRejectsOthers(t *testing.T) {
 		t.Fatalf("NewProvider: %v", err)
 	}
 	ctx := context.Background()
-	for _, market := range []string{"CN", "SH", "SZ", "HK"} {
+	for _, market := range []string{"CN", "SH", "SZ", "HK", "US", "us"} {
 		if _, err := provider.Screen(ctx, marketdata.ScreenRequest{Market: market, Limit: 10}); err != nil {
 			t.Fatalf("%s: Screen: %v", market, err)
 		}
 	}
-	for _, market := range []string{"US", "MO", "BJ"} {
+	for _, market := range []string{"MO", "BJ"} {
 		if _, err := provider.Screen(ctx, marketdata.ScreenRequest{Market: market, Limit: 10}); !errors.Is(err, ErrUnsupported) {
 			t.Fatalf("%s: error = %v, want ErrUnsupported", market, err)
 		}
 	}
-	if got := len(requests()); got != 4 {
-		t.Fatalf("sidecar screen calls = %d, want 4", got)
+	if got := len(requests()); got != 6 {
+		t.Fatalf("sidecar screen calls = %d, want 6", got)
 	}
 }
 

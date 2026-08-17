@@ -8,7 +8,7 @@ import httpx
 import pandas as pd
 import pytest
 
-from marketdata_sidecar import akshare_upstream, upstream
+from marketdata_sidecar import akshare_catalog, akshare_upstream, upstream
 
 # Captured before conftest installs its network guard on the module.
 _REAL_SCREEN_QUOTES = upstream.screen_quotes
@@ -119,8 +119,6 @@ def _catalog_call(calls: list[str]):
             return _sh_spot_frame()
         if function_name == "stock_sz_a_spot_em":
             return _sz_spot_frame()
-        if function_name == "stock_hk_spot_em":
-            return _hk_spot_frame()
         if function_name in {
             "fund_etf_spot_em",
             "stock_zh_index_spot_em",
@@ -130,6 +128,16 @@ def _catalog_call(calls: list[str]):
         raise AssertionError(f"unexpected AKShare call: {function_name}")
 
     return fake_call
+
+
+def _clist_call(calls: list[str]):
+    def fake_clist(market: str) -> pd.DataFrame:
+        calls.append(f"clist:{market}")
+        if market == "HK":
+            return _hk_spot_frame()
+        raise AssertionError(f"unexpected clist market: {market}")
+
+    return fake_clist
 
 
 def _entry_ids(body: dict[str, Any]) -> list[str]:
@@ -215,7 +223,9 @@ async def test_akshare_hk_rankings_use_hk_identity(
     client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(akshare_upstream, "call", _catalog_call([]))
+    calls: list[str] = []
+    monkeypatch.setattr(akshare_upstream, "call", _catalog_call(calls))
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _clist_call(calls))
 
     response = await client.get(
         "/providers/akshare/rankings",

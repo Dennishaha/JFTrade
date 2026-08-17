@@ -25,7 +25,7 @@ JFTrade 的行情查询与交易执行是两个独立边界。运行时提供 Fu
 | 事件日历（财报/派息/经济/IPO） | 支持 | 不支持 | 沪深全市场 |
 | 宏观指标 | 支持 | 不支持 | 16 个中美策划指标目录与历史序列（无联邦基金利率） |
 | FedWatch/点阵图/ARK/机构持仓 | 支持 | 不支持 | 不支持 |
-| 股票筛选 | 支持（402 因子目录） | 仅美股，9 因子子集（3 个 basic 标识 + 6 个 simple 数值），分页窗口 `offset+limit` ≤250 | CN/SH/SZ/HK，同一 9 因子子集；HK 无总市值因子 |
+| 股票筛选 | 支持（402 因子目录） | 仅美股，9 因子子集（3 个 basic 标识 + 6 个 simple 数值），分页窗口 `offset+limit` ≤250 | CN/SH/SZ/HK/US，同一 9 因子子集（US/HK 现货帧经东财 clist 直连补齐市净率/PE TTM 与总市值） |
 | 实时推流 | 支持 | 不支持 | 不支持 |
 | Level 2 盘口 | 取决于权限 | 不支持 | 不支持 |
 | 盘前盘后 | 支持 | 美股由 Yahoo 实际报价决定 | 不支持 |
@@ -62,7 +62,7 @@ Futu 的可见标的若 `BasicQot` 订阅因行情权限、不支持或订阅额
 
 榜单、板块热力、个股研究（资料/财务/分析师/股权）、事件日历、宏观指标和股票筛选与新闻一样走 broker product-feature 管线：Provider 为 yfinance/AKShare 时由 `internal/productfeatures` 的 facade 委托给嵌入式 Provider 并投影为统一的 `broker.FeatureResult`，控制台和 assistant 的 `research.*` 工具都无需按 Provider 分支。当前 Provider 不具备某能力时 facade 返回 409 capability 错误（如 AKShare 的估值/卖空、yfinance 的日历/宏观/板块），前端降级为研究页内置的 ProviderUnsupportedState 空态，不会报错中断页面。
 
-嵌入式筛选使用手写的 `embedded-stock-screen-v1` 因子目录，共 9 个因子：`basic.code`/`basic.name`/`basic.industry` 三个标识因子（仅取值/排序），加 `simple.price`、`simple.change_pct`、`simple.volume`、`simple.market_cap`、`simple.pe_ttm`、`simple.pb` 六个可过滤数值因子（区间条件）。yfinance 侧翻译成 Yahoo EquityQuery（仅 US，`offset+limit` 超过 Yahoo 250 的 size 上限返回 400）；AKShare 侧复用 15 秒全市场现货目录在本地过滤、排序、分页（CN/SH/SZ/HK），不产生新的上游请求。两个 Provider 都不支持 `in` 枚举条件。
+嵌入式筛选使用手写的 `embedded-stock-screen-v1` 因子目录，共 9 个因子：`basic.code`/`basic.name`/`basic.industry` 三个标识因子（仅取值/排序），加 `simple.price`、`simple.change_pct`、`simple.volume`、`simple.market_cap`、`simple.pe_ttm`、`simple.pb` 六个可过滤数值因子（区间条件）。yfinance 侧翻译成 Yahoo EquityQuery（仅 US，`offset+limit` 超过 Yahoo 250 的 size 上限返回 400）；AKShare 侧复用 15 秒全市场现货目录在本地过滤、排序、分页（CN/SH/SZ/HK/US），不产生新的上游请求。US/HK 现货帧由 sidecar 直连东财 clist 构建（akshare 封装丢弃了 f23 市净率、f115 PE TTM 与港股总市值），因此六个数值因子在全部市场可用。两个 Provider 都不支持 `in` 枚举条件。
 
 嵌入式研究能力有以下已知语义偏差，排期修复前以本文为准：
 

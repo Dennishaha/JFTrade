@@ -261,3 +261,27 @@ func TestEmbeddedScreenDecodesMapDefinitionAndDefaultsPaging(t *testing.T) {
 		t.Fatalf("hasMore/nextCursor = %v %q", result.HasMore, result.NextCursor)
 	}
 }
+
+func TestEmbeddedProviderServesUSScreenViaAkshare(t *testing.T) {
+	adapter := researchBrokerAdapter()
+	reader := embeddedScreenFixtures()
+	svc := newEmbeddedResearchService(adapter, reader,
+		marketdata.ProviderDescriptor{BrokerID: "akshare", ProviderID: "akshare"})
+	definition := embeddedScreenDefinition()
+	definition.BrokerID = "akshare"
+
+	result, err := svc.QueryScreen(t.Context(), broker.ScreenQueryV2{
+		ScreenDefinitionV2: definition,
+		Page:               broker.ResearchScreenPagination{Limit: 25},
+	})
+	if err != nil {
+		t.Fatalf("akshare US screen query: %v", err)
+	}
+	if reader.screenCalls != 1 || reader.screenReq.Market != "US" || adapter.queryCalls != 0 {
+		t.Fatalf("reader calls = %d market %q, broker calls = %d",
+			reader.screenCalls, reader.screenReq.Market, adapter.queryCalls)
+	}
+	if result.Provider.BrokerID != "akshare" || len(result.Entries) != 2 {
+		t.Fatalf("result = %#v", result.Provider)
+	}
+}

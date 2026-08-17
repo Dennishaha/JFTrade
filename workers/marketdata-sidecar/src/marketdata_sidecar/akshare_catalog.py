@@ -23,6 +23,7 @@ from .akshare_identity import (
     normalize_identity,
 )
 from .akshare_provider_conversion import _frame_rows, _row_value
+from .akshare_spot_clist import fetch_spot_frame_clist
 from .conversion import clean_text
 from .errors import SidecarError
 from .routes.common import MARKET_SPECS
@@ -132,10 +133,10 @@ def catalog(market: str) -> list[AKInstrument]:
     normalized = _normalize_market(market)
     instruments: list[AKInstrument] = []
     if normalized == "US":
-        instruments.extend(_stock_catalog("US", "stock_us_spot_em"))
+        instruments.extend(_stock_catalog_frame("US", _cached_clist_call("stock:US", "US")))
         instruments.extend(_us_index_catalog())
     elif normalized == "HK":
-        instruments.extend(_stock_catalog("HK", "stock_hk_spot_em"))
+        instruments.extend(_stock_catalog_frame("HK", _cached_clist_call("stock:HK", "HK")))
         instruments.extend(_hk_index_catalog())
     else:
         function_name = "stock_sh_a_spot_em" if normalized == "SH" else "stock_sz_a_spot_em"
@@ -303,6 +304,15 @@ def _stock_catalog(
         function_name,
         **dict(call_kwargs or {}),
     )
+    return _stock_catalog_frame(market, frame, kind=kind)
+
+
+def _stock_catalog_frame(
+    market: str,
+    frame: Any,
+    *,
+    kind: str = "stock",
+) -> list[AKInstrument]:
     result: list[AKInstrument] = []
     for row in _frame_rows(frame):
         raw_code = clean_text(_row_value(row, "代码", "symbol", "code"))
@@ -459,4 +469,17 @@ def _cached_call(key: str, function_name: str, **kwargs: Any) -> Any:
     return _catalog_cache.get_or_fetch(
         key,
         lambda: akshare_upstream.call(function_name, **kwargs),
+    )
+
+
+def _cached_clist_call(key: str, market: str) -> Any:
+    """Full-market US/HK spot frames fetched via the clist direct fetcher.
+
+    ``fetch_spot_frame_clist`` issues its own HTTP requests (see its module
+    docstring), so it is bound to the worker pool through ``run`` instead of
+    ``call``.
+    """
+    return _catalog_cache.get_or_fetch(
+        key,
+        lambda: akshare_upstream.run(fetch_spot_frame_clist, market),
     )

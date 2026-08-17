@@ -37,7 +37,7 @@ func TestEmbeddedCatalogShapeAndSemantics(t *testing.T) {
 	if len(catalog.Factors) != 9 {
 		t.Fatalf("embedded factors = %d, want 9", len(catalog.Factors))
 	}
-	wantMarkets := []string{"SH", "SZ", "CN", "HK"}
+	wantMarkets := []string{"SH", "SZ", "CN", "HK", "US"}
 	if strings.Join(catalog.Markets, ",") != strings.Join(wantMarkets, ",") {
 		t.Fatalf("akshare markets = %v", catalog.Markets)
 	}

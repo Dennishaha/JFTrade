@@ -105,7 +105,7 @@ func normalizeDefinitionHeaderAndPool(def *broker.ScreenDefinitionV2) error {
 // validateDefinitionMarket dispatches market validation by catalog version:
 // the Futu catalog keeps its HK/US/SH/SZ contract, while the embedded catalog
 // accepts the union of both embedded providers and lets the provider layer
-// reject markets it does not cover (yfinance US-only, akshare SH/SZ/CN/HK).
+// reject markets it does not cover (yfinance US-only, akshare SH/SZ/CN/HK/US).
 func validateDefinitionMarket(def *broker.ScreenDefinitionV2) error {
 	if !IsEmbeddedCatalogVersion(def.CatalogVersion) {
 		if def.Market != "HK" && def.Market != "US" && def.Market != "SH" && def.Market != "SZ" {

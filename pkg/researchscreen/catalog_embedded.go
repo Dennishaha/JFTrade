@@ -15,10 +15,11 @@ const EmbeddedCatalogVersion = "embedded-stock-screen-v1"
 
 // embeddedScreenMarkets lists the markets each embedded provider screens.
 // yfinance covers US only; akshare covers the CN aggregate, its SH/SZ leaves,
-// and HK.
+// HK, and US (US rows come from the Eastmoney clist feed with PB/PE TTM
+// filled in by the sidecar).
 var embeddedScreenMarkets = map[string][]string{
 	"yfinance": {"US"},
-	"akshare":  {"SH", "SZ", "CN", "HK"},
+	"akshare":  {"SH", "SZ", "CN", "HK", "US"},
 }
 
 // embeddedFactors is the provider intersection both sidecars can compute.

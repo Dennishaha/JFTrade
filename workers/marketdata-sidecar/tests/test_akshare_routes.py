@@ -11,7 +11,12 @@ import httpx
 import pandas as pd
 import pytest
 
-from marketdata_sidecar import akshare_candles, akshare_provider, akshare_upstream
+from marketdata_sidecar import (
+    akshare_candles,
+    akshare_catalog,
+    akshare_provider,
+    akshare_upstream,
+)
 
 
 def _empty() -> pd.DataFrame:
@@ -69,11 +74,22 @@ def _standard_catalog_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
         if kwargs["symbol"] == "中证系列指数":
             return pd.DataFrame([{"代码": "000300", "名称": "沪深300", "最新价": "3900"}])
         return _empty()
-    if function_name == "stock_hk_spot_em":
-        return _empty()
     if function_name == "stock_hk_index_spot_em":
         return pd.DataFrame([{"代码": "HSI", "名称": "恒生指数", "最新价": "24500"}])
-    if function_name == "stock_us_spot_em":
+    if function_name == "index_global_spot_em":
+        return pd.DataFrame(
+            [
+                {"代码": "DJIA", "名称": "道琼斯指数", "最新价": "45000"},
+                {"代码": "SPX", "名称": "标普500指数", "最新价": "6200"},
+                {"代码": "NDX", "名称": "纳斯达克100指数", "最新价": "23000"},
+            ]
+        )
+    raise AssertionError(f"unexpected AKShare call: {function_name} {kwargs}")
+
+
+def _standard_clist_call(market: str) -> pd.DataFrame:
+    """Standard US/HK clist spot frames (replaces stock_{us,hk}_spot_em mocks)."""
+    if market == "US":
         return pd.DataFrame(
             [
                 {
@@ -84,15 +100,9 @@ def _standard_catalog_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
                 }
             ]
         )
-    if function_name == "index_global_spot_em":
-        return pd.DataFrame(
-            [
-                {"代码": "DJIA", "名称": "道琼斯指数", "最新价": "45000"},
-                {"代码": "SPX", "名称": "标普500指数", "最新价": "6200"},
-                {"代码": "NDX", "名称": "纳斯达克100指数", "最新价": "23000"},
-            ]
-        )
-    raise AssertionError(f"unexpected AKShare call: {function_name} {kwargs}")
+    if market == "HK":
+        return _empty()
+    raise AssertionError(f"unexpected clist market: {market}")
 
 
 @pytest.mark.parametrize(
@@ -300,6 +310,7 @@ async def test_akshare_us_identity_and_core_index_mappings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(akshare_upstream, "call", _standard_catalog_call)
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _standard_clist_call)
 
     stock = await client.get("/providers/akshare/security/US/AAPL")
     index = await client.get(
@@ -329,7 +340,12 @@ async def test_batch_prefetches_each_market_once_and_reports_invalid_ids(
         calls[function_name] += 1
         return _standard_catalog_call(function_name, **kwargs)
 
+    def fake_clist(market: str) -> pd.DataFrame:
+        calls[f"clist:{market}"] += 1
+        return _standard_clist_call(market)
+
     monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", fake_clist)
     response = await client.post(
         "/providers/akshare/snapshots",
         json={
@@ -346,7 +362,7 @@ async def test_batch_prefetches_each_market_once_and_reports_invalid_ids(
     body = response.json()
     assert [item["instrument_id"] for item in body["entries"]] == ["US.AAPL", "US..SPX"]
     assert [item["instrument_id"] for item in body["errors"]] == ["malformed", "US.MISSING"]
-    assert calls["stock_us_spot_em"] == 1
+    assert calls["clist:US"] == 1
     assert calls["index_global_spot_em"] == 1
 
 
@@ -472,6 +488,7 @@ async def test_sina_daily_history_keeps_share_volume_and_aggregates_periods(
         return _standard_catalog_call(function_name, **kwargs)
 
     monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _standard_clist_call)
     response = await client.get(
         "/providers/akshare/candles/US/AAPL",
         params={"period": "1w", "limit": 1},
@@ -519,6 +536,7 @@ async def test_akshare_candle_cursor_pages_are_strict_and_reach_the_history_boun
         return _standard_catalog_call(function_name, **kwargs)
 
     monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _standard_clist_call)
 
     first = await client.get(
         "/providers/akshare/candles/US/AAPL",
@@ -614,6 +632,7 @@ async def test_sina_us_index_symbol_mapping_uses_available_history_identity(
         return _standard_catalog_call(function_name, **kwargs)
 
     monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _standard_clist_call)
     response = await client.get(
         "/providers/akshare/candles/US/.SPX",
         params={"period": "1d", "limit": 1},
@@ -679,6 +698,7 @@ async def test_us_hk_minutes_and_hk_index_daily_are_deterministically_aggregated
         ]
 
     monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _standard_clist_call)
     monkeypatch.setattr(akshare_upstream, "us_minute_rows", fake_us_minutes)
     monkeypatch.setattr(akshare_upstream, "hk_minute_rows", fake_hk_minutes)
     us = await client.get(
@@ -797,12 +817,17 @@ def test_full_market_catalog_cache_singleflights_concurrent_requests(
 
     def fake_call(function_name: str, **kwargs: Any) -> pd.DataFrame:
         calls[function_name] += 1
-        if function_name == "stock_us_spot_em":
-            entered.set()
-            assert release.wait(timeout=2)
         return _standard_catalog_call(function_name, **kwargs)
 
+    def fake_clist(market: str) -> pd.DataFrame:
+        calls[f"clist:{market}"] += 1
+        if market == "US":
+            entered.set()
+            assert release.wait(timeout=2)
+        return _standard_clist_call(market)
+
     monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", fake_clist)
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [executor.submit(akshare_provider.catalog, "US") for _ in range(2)]
         assert entered.wait(timeout=2)
@@ -810,7 +835,7 @@ def test_full_market_catalog_cache_singleflights_concurrent_requests(
         results = [future.result(timeout=3) for future in futures]
 
     assert all(any(item.instrument_id == "US.AAPL" for item in result) for result in results)
-    assert calls["stock_us_spot_em"] == 1
+    assert calls["clist:US"] == 1
     assert calls["index_global_spot_em"] == 1
 
 
@@ -1080,6 +1105,7 @@ async def test_akshare_us_daily_backward_adjustment_reaches_sina_history(
         return _standard_catalog_call(function_name, **kwargs)
 
     monkeypatch.setattr(akshare_upstream, "call", fake_call)
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _standard_clist_call)
     response = await client.get(
         "/providers/akshare/candles/US/AAPL",
         params={"period": "1d", "limit": 1, "adjustment": "backward"},
@@ -1123,6 +1149,7 @@ async def test_akshare_intraday_adjustment_is_rejected_without_history_calls(
     monkeypatch.setattr(akshare_upstream, "call", fake_call)
     monkeypatch.setattr(akshare_upstream, "us_minute_rows", fake_minute_rows)
     monkeypatch.setattr(akshare_upstream, "hk_minute_rows", fake_minute_rows)
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _standard_clist_call)
 
     response = await client.get(
         f"/providers/akshare/candles/{market}/{symbol}",
@@ -1146,6 +1173,7 @@ async def test_akshare_index_adjustment_is_rejected(
     symbol: str,
 ) -> None:
     monkeypatch.setattr(akshare_upstream, "call", _standard_catalog_call)
+    monkeypatch.setattr(akshare_catalog, "fetch_spot_frame_clist", _standard_clist_call)
 
     response = await client.get(
         f"/providers/akshare/candles/{market}/{symbol}",
