@@ -9,9 +9,11 @@ import pytest
 
 from marketdata_sidecar import (
     akshare_analyst,
+    akshare_calendar,
     akshare_financials,
     akshare_index_constituents,
     akshare_industries,
+    akshare_macro,
     akshare_news,
     akshare_ownership,
     akshare_profile,
@@ -68,6 +70,10 @@ def block_real_network(monkeypatch: pytest.MonkeyPatch) -> None:
     akshare_financials._financials_cache.clear()
     akshare_analyst._analyst_cache.clear()
     akshare_ownership._ownership_cache.clear()
+    akshare_calendar._earnings_cache.clear()
+    akshare_calendar._economic_cache.clear()
+    akshare_calendar._ipos_cache.clear()
+    akshare_macro._history_cache.clear()
     upstream._ticker_info_cache.clear()
     upstream._ticker_fast_info_cache.clear()
     upstream._ticker_news_cache.clear()

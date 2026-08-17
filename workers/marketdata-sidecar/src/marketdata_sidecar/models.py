@@ -279,6 +279,97 @@ class OwnershipResponse(WireModel):
     groups: list[OwnershipGroup]
 
 
+class CalendarEarningsEntry(WireModel):
+    instrument_id: str
+    name: str | None = None
+    symbol: str
+    event_date: str | None = None
+    period_text: str | None = None
+    market_cap: float | None = None
+    price: float | None = None
+
+
+class CalendarEarningsResponse(WireModel):
+    entries: list[CalendarEarningsEntry]
+
+
+class CalendarDividendEntry(WireModel):
+    instrument_id: str
+    name: str | None = None
+    symbol: str
+    statement: str | None = None
+    ex_date: str | None = None
+    record_date: str | None = None
+    payable_date: str | None = None
+
+
+class CalendarDividendsResponse(WireModel):
+    entries: list[CalendarDividendEntry]
+
+
+class CalendarEconomicEntry(WireModel):
+    event_id: str
+    title: str | None = None
+    region: str | None = None
+    event_timestamp: int | None = None
+    importance: int | None = None
+    previous_value: str | None = None
+    forecast_value: str | None = None
+    actual_value: str | None = None
+
+
+class CalendarEconomicResponse(WireModel):
+    entries: list[CalendarEconomicEntry]
+
+
+class CalendarIpoEntry(WireModel):
+    instrument_id: str
+    name: str | None = None
+    symbol: str
+    status: str
+    listing_date: str | None = None
+    issue_volume: float | None = None
+    issue_price: float | None = None
+    issue_price_min: float | None = None
+    issue_price_max: float | None = None
+
+
+class CalendarIposResponse(WireModel):
+    entries: list[CalendarIpoEntry]
+
+
+class MacroIndicatorInfo(WireModel):
+    indicator_id: str
+    name: str
+    region: str
+    unit: str
+    unit_type: int
+    frequency: str
+
+
+class MacroCategory(WireModel):
+    category_name: str
+    indicators: list[MacroIndicatorInfo]
+
+
+class MacroIndicatorsResponse(WireModel):
+    categories: list[MacroCategory]
+
+
+class MacroHistoryEntry(WireModel):
+    data_time: str
+    value: float | None = None
+    predict_value: float | None = None
+    previous_value: float | None = None
+    unit: str
+    unit_type: int
+
+
+class MacroHistoryResponse(WireModel):
+    indicator_id: str
+    entries: list[MacroHistoryEntry]
+
+
 class NewsEntry(WireModel):
     title: str | None = None
     link: str | None = None

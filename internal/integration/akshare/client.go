@@ -433,3 +433,60 @@ func (c *Client) analystConsensus(ctx context.Context, marketValue, symbol strin
 	err := c.get(ctx, providerSegments("analyst", marketValue, symbol), nil, &response)
 	return response, err
 }
+
+func (c *Client) earningsCalendar(
+	ctx context.Context,
+	beginDate, endDate string,
+) (remoteEarningsCalendar, error) {
+	values := url.Values{}
+	values.Set("begin_date", beginDate)
+	values.Set("end_date", endDate)
+	var response remoteEarningsCalendar
+	err := c.get(ctx, providerSegments("calendar", "earnings"), values, &response)
+	return response, err
+}
+
+func (c *Client) dividendCalendar(ctx context.Context, date string) (remoteDividendCalendar, error) {
+	values := url.Values{}
+	values.Set("date", date)
+	var response remoteDividendCalendar
+	err := c.get(ctx, providerSegments("calendar", "dividends"), values, &response)
+	return response, err
+}
+
+func (c *Client) economicCalendar(
+	ctx context.Context,
+	beginDate, endDate string,
+) (remoteEconomicCalendar, error) {
+	values := url.Values{}
+	values.Set("begin_date", beginDate)
+	values.Set("end_date", endDate)
+	var response remoteEconomicCalendar
+	err := c.get(ctx, providerSegments("calendar", "economic"), values, &response)
+	return response, err
+}
+
+func (c *Client) ipoCalendar(ctx context.Context) (remoteIpoCalendar, error) {
+	var response remoteIpoCalendar
+	err := c.get(ctx, providerSegments("calendar", "ipos"), nil, &response)
+	return response, err
+}
+
+func (c *Client) macroIndicators(ctx context.Context) (remoteMacroIndicators, error) {
+	var response remoteMacroIndicators
+	err := c.get(ctx, providerSegments("macro", "indicators"), nil, &response)
+	return response, err
+}
+
+func (c *Client) macroIndicatorHistory(
+	ctx context.Context,
+	indicatorID string,
+	limit int,
+) (remoteMacroIndicatorHistory, error) {
+	values := url.Values{}
+	values.Set("indicator_id", indicatorID)
+	values.Set("limit", strconv.Itoa(limit))
+	var response remoteMacroIndicatorHistory
+	err := c.get(ctx, providerSegments("macro", "indicator-history"), values, &response)
+	return response, err
+}

@@ -93,6 +93,12 @@ PyInstaller spec 使用 `JFTRADE_MARKETDATA_BINARY_NAME` 指定二进制名；�
 | GET | `/providers/{source}/financials/{market}/{symbol}?statement=income\|balance\|cashflow` | 年度财务三表，近 4 期；AKShare 限沪深 |
 | GET | `/providers/{source}/analyst/{market}/{symbol}` | 分析师评级聚合；yfinance 限 US/HK，AKShare 限沪深（个股研报聚合） |
 | GET | `/providers/{source}/ownership/{market}/{symbol}` | 股权结构分组；yfinance 限 US/HK，AKShare 限沪深十大股东 |
+| GET | `/providers/akshare/calendar/earnings?begin_date=&end_date=` | 沪深财报披露日历（东财预约披露）；窗口按披露季映射报告期（年报次年 1–4 月、一季报 4 月、中报 7–8 月、三季报 10 月），最多跨 6 个报告期；`event_date` 取实际披露时间、回退首次预约；`market_cap`/`price` 恒 null |
+| GET | `/providers/akshare/calendar/dividends?date=` | 沪深单日除权除息日历（东财分红送配）；`payable_date` 恒 null（上游无派息日列） |
+| GET | `/providers/akshare/calendar/economic?begin_date=&end_date=` | 百度财经宏观事件日历，窗口 ≤31 天；`event_timestamp` 按 Asia/Shanghai 换算，无时刻的全天事件为 null；前值/预期/公布为数值字符串，不含单位 |
+| GET | `/providers/akshare/calendar/ipos` | 沪深新股日历（东财新股申购）；北交所跳过，`issue_price_min`/`issue_price_max` 恒 null |
+| GET | `/providers/akshare/macro/indicators` | 宏观指标静态目录（16 个指标，中国/美国分组）；AKShare 1.18.x 无联邦基金利率接口，未收录 |
+| GET | `/providers/akshare/macro/indicator-history?indicator_id=&limit=100` | 单指标历史序列，`data_time` 统一 `YYYY-MM`，倒序；未知 `indicator_id` 返回 404 |
 | POST | `/providers/akshare/snapshots` | 最多 100 个 AKShare 批量快照 |
 
 原有 `/health`、`/markets`、`/search`、`/security/...`、`/snapshot/...` 和

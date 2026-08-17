@@ -64,6 +64,32 @@ type embeddedReaderStub struct {
 	ownershipCalls   int
 	ownershipMarket  string
 	ownershipSymbol  string
+
+	earningsResult   marketdata.EarningsCalendarResponse
+	earningsErr      error
+	earningsCalls    int
+	earningsBegin    string
+	earningsEnd      string
+	dividendResult   marketdata.DividendCalendarResponse
+	dividendErr      error
+	dividendCalls    int
+	dividendDate     string
+	economicResult   marketdata.EconomicCalendarResponse
+	economicErr      error
+	economicCalls    int
+	economicBegin    string
+	economicEnd      string
+	ipoResult        marketdata.IpoCalendarResponse
+	ipoErr           error
+	ipoCalls         int
+	indicatorsResult marketdata.MacroIndicatorsResponse
+	indicatorsErr    error
+	indicatorsCalls  int
+	historyResult    marketdata.MacroIndicatorHistoryResponse
+	historyErr       error
+	historyCalls     int
+	historyID        string
+	historyLimit     int
 }
 
 func (s *embeddedReaderStub) GetNews(
@@ -337,4 +363,51 @@ func (s *embeddedReaderStub) GetOwnership(
 	s.ownershipCalls++
 	s.ownershipMarket, s.ownershipSymbol = market, symbol
 	return s.ownershipResult, s.ownershipErr
+}
+
+func (s *embeddedReaderStub) GetEarningsCalendar(
+	_ context.Context,
+	beginDate, endDate string,
+) (marketdata.EarningsCalendarResponse, error) {
+	s.earningsCalls++
+	s.earningsBegin, s.earningsEnd = beginDate, endDate
+	return s.earningsResult, s.earningsErr
+}
+
+func (s *embeddedReaderStub) GetDividendCalendar(
+	_ context.Context,
+	date string,
+) (marketdata.DividendCalendarResponse, error) {
+	s.dividendCalls++
+	s.dividendDate = date
+	return s.dividendResult, s.dividendErr
+}
+
+func (s *embeddedReaderStub) GetEconomicCalendar(
+	_ context.Context,
+	beginDate, endDate string,
+) (marketdata.EconomicCalendarResponse, error) {
+	s.economicCalls++
+	s.economicBegin, s.economicEnd = beginDate, endDate
+	return s.economicResult, s.economicErr
+}
+
+func (s *embeddedReaderStub) GetIpoCalendar(context.Context) (marketdata.IpoCalendarResponse, error) {
+	s.ipoCalls++
+	return s.ipoResult, s.ipoErr
+}
+
+func (s *embeddedReaderStub) GetMacroIndicators(context.Context) (marketdata.MacroIndicatorsResponse, error) {
+	s.indicatorsCalls++
+	return s.indicatorsResult, s.indicatorsErr
+}
+
+func (s *embeddedReaderStub) GetMacroIndicatorHistory(
+	_ context.Context,
+	indicatorID string,
+	limit int,
+) (marketdata.MacroIndicatorHistoryResponse, error) {
+	s.historyCalls++
+	s.historyID, s.historyLimit = indicatorID, limit
+	return s.historyResult, s.historyErr
 }

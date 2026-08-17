@@ -323,3 +323,97 @@ type remoteAnalystDistribution struct {
 	Underperform *json.Number `json:"underperform"`
 	Sell         *json.Number `json:"sell"`
 }
+
+// Calendar and macro wire shapes mirror the sidecar research calendar routes;
+// calendar reads are cross-market, so no market echo is expected.
+
+type remoteEarningsCalendar struct {
+	Entries []remoteEarningsEvent `json:"entries"`
+}
+
+type remoteEarningsEvent struct {
+	InstrumentID string       `json:"instrument_id"`
+	Name         string       `json:"name"`
+	Symbol       string       `json:"symbol"`
+	EventDate    string       `json:"event_date"`
+	PeriodText   string       `json:"period_text"`
+	MarketCap    *json.Number `json:"market_cap"`
+	Price        *json.Number `json:"price"`
+}
+
+type remoteDividendCalendar struct {
+	Entries []remoteDividendEvent `json:"entries"`
+}
+
+type remoteDividendEvent struct {
+	InstrumentID string  `json:"instrument_id"`
+	Name         string  `json:"name"`
+	Symbol       string  `json:"symbol"`
+	Statement    string  `json:"statement"`
+	ExDate       string  `json:"ex_date"`
+	RecordDate   string  `json:"record_date"`
+	PayableDate  *string `json:"payable_date"`
+}
+
+type remoteEconomicCalendar struct {
+	Entries []remoteEconomicEvent `json:"entries"`
+}
+
+type remoteEconomicEvent struct {
+	EventID        string  `json:"event_id"`
+	Title          string  `json:"title"`
+	Region         string  `json:"region"`
+	EventTimestamp int64   `json:"event_timestamp"`
+	Importance     *int    `json:"importance"`
+	PreviousValue  *string `json:"previous_value"`
+	ForecastValue  *string `json:"forecast_value"`
+	ActualValue    *string `json:"actual_value"`
+}
+
+type remoteIpoCalendar struct {
+	Entries []remoteIpoEntry `json:"entries"`
+}
+
+type remoteIpoEntry struct {
+	InstrumentID  string       `json:"instrument_id"`
+	Name          string       `json:"name"`
+	Symbol        string       `json:"symbol"`
+	Status        string       `json:"status"`
+	ListingDate   *string      `json:"listing_date"`
+	IssueVolume   *json.Number `json:"issue_volume"`
+	IssuePrice    *json.Number `json:"issue_price"`
+	IssuePriceMin *json.Number `json:"issue_price_min"`
+	IssuePriceMax *json.Number `json:"issue_price_max"`
+}
+
+type remoteMacroIndicators struct {
+	Categories []remoteMacroIndicatorCategory `json:"categories"`
+}
+
+type remoteMacroIndicatorCategory struct {
+	CategoryName string                 `json:"category_name"`
+	Indicators   []remoteMacroIndicator `json:"indicators"`
+}
+
+type remoteMacroIndicator struct {
+	IndicatorID string       `json:"indicator_id"`
+	Name        string       `json:"name"`
+	Region      string       `json:"region"`
+	Unit        string       `json:"unit"`
+	UnitType    *json.Number `json:"unit_type"`
+	Frequency   string       `json:"frequency"`
+}
+
+type remoteMacroIndicatorHistory struct {
+	IndicatorID string                    `json:"indicator_id"`
+	Entries     []remoteMacroHistoryPoint `json:"entries"`
+}
+
+type remoteMacroHistoryPoint struct {
+	DataTime      string       `json:"data_time"`
+	Value         *json.Number `json:"value"`
+	PredictValue  *json.Number `json:"predict_value"`
+	PreviousValue *json.Number `json:"previous_value"`
+	Unit          string       `json:"unit"`
+	UnitType      *json.Number `json:"unit_type"`
+}

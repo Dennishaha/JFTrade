@@ -18,6 +18,7 @@ from .models import ErrorBody, ErrorEnvelope
 from .readiness import runtime_unavailable_response
 from .routes import (
     akshare,
+    calendar,
     candles,
     corporate_actions,
     health,
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     application.include_router(research.router)
     application.include_router(akshare.router)
     application.include_router(research.akshare_router)
+    application.include_router(calendar.router)
     return application
 
 

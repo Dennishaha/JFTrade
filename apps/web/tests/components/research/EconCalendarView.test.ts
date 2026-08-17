@@ -210,6 +210,32 @@ describe("EconCalendarView", () => {
     expect(wrapper.findAll(".econ-calendar-view__item")).toHaveLength(1);
   });
 
+  it("serves akshare economic calendars with data-driven Chinese region filters", async () => {
+    mocks.fetch.mockResolvedValue(featureResult(entries));
+    const wrapper = mount(EconCalendarView, {
+      props: { market: "CN", brokerId: "akshare" },
+    });
+    await flushPromises();
+
+    // CN stays one concrete SH branch; the akshare backend ignores market.
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    const path = String(mocks.fetch.mock.calls[0]?.[0]);
+    expect(path).toContain("market=SH");
+    expect(path).toContain("brokerId=akshare");
+
+    // Region options come from the entries themselves, so akshare's Chinese
+    // region values (中国/美国) populate and filter without any mapping table.
+    const options = wrapper
+      .get("select.econ-calendar-view__region")
+      .findAll("option")
+      .map((option) => option.text());
+    expect(options).toEqual(["全部地区", "美国", "中国"]);
+    await wrapper.get("select.econ-calendar-view__region").setValue("中国");
+    expect(wrapper.text()).toContain("共 1 条");
+    expect(wrapper.text()).toContain("某新股上市");
+    expect(wrapper.text()).not.toContain("CPI 月率");
+  });
+
   it("shows empty state without data", async () => {
     mocks.fetch.mockResolvedValue(featureResult([]));
     const wrapper = mount(EconCalendarView);

@@ -11,7 +11,7 @@ export const embeddedPythonMarketDataFeatureIDs = new Set([
   "market.corporate_actions",
   // Product-feature ids served by embedded providers through the backend
   // facade (workspace 资讯 tab / research 公司行动 operation / 研究中心
-  // 榜单、板块与个股资料、财务、分析师、股权 operations).
+  // 榜单、板块、个股资料、财务、分析师、股权、日历与宏观 operations).
   "research.news",
   "research.corporate_actions",
   "research.rankings",
@@ -20,6 +20,8 @@ export const embeddedPythonMarketDataFeatureIDs = new Set([
   "research.financials",
   "research.analyst",
   "research.ownership",
+  "research.calendar",
+  "research.macro",
 ]);
 
 const supportedMarkets = new Set(["US", "HK", "CN", "SH", "SZ"]);
