@@ -59,6 +59,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
 - [troubleshooting.md](troubleshooting.md)：启动、端口、实时连接、OpenD、回测性能的排障入口。
 - [market-data-providers.md](market-data-providers.md)：Futu/yfinance 行情能力、内置 helper、进程生命周期与设置边界。
+- [market-data-provider-qualification.md](market-data-provider-qualification.md)：研究中心后续数据源资格门槛与扩展候选。
 - [adk.md](adk.md)：ADK Go v2 / Agent 控制面、权限模式、内置 tools 和运行时文件。
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口。
 - [watchlist.md](watchlist.md)：自选系统的使用方式、数据主权、Futu 导入、快照行情、API、ADK 和扩展边界。
