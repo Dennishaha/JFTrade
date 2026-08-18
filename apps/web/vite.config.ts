@@ -134,6 +134,12 @@ function vendorChunk(id: string): string | undefined {
   if (!id.includes("node_modules")) {
     return undefined;
   }
+  // The Wails runtime has internal modules that import each other through
+  // generated bindings. Keeping them in separate Rollup chunks creates a
+  // production-only cycle where calls.js evaluates before runtime.js.
+  if (/(?:^|[/\\])node_modules[/\\]@wailsio[/\\]runtime[/\\]/.test(id)) {
+    return "vendor-wails";
+  }
   if (/\/node_modules\/(vue|vue-router|@vue)\//.test(id)) {
     return "vendor-vue";
   }

@@ -11,6 +11,7 @@ const zipPath = join(rootDir, "internal/frontendassets/dist.zip");
 run("pnpm", ["run", "build:web:generated"]);
 run("pnpm", ["run", "build:docs:generated"]);
 run("pnpm", ["run", "stage:docs"]);
+run("pnpm", ["--filter", "@jftrade/web", "run", "test:production-bundle"]);
 rmSync(dstDir, { recursive: true, force: true });
 cpSync(srcDir, dstDir, { recursive: true });
 run("go", ["run", "./scripts/archive_frontend_assets.go", "-src", "internal/frontendassets/dist", "-dst", "internal/frontendassets/dist.zip"]);

@@ -13,6 +13,7 @@
     "build": "vite build",
     "test": "vitest run --fileParallelism --maxWorkers=4",
     "test:ci": "vitest run --fileParallelism --maxWorkers=2",
+    "test:production-bundle": "node ../../scripts/smoke-web-production-bundle.mjs",
     "test:coverage": "vitest run --coverage --fileParallelism --maxWorkers=2",
     "test:watch": "vitest",
     "typecheck": "node ../../scripts/run-vue-tsc.mjs --noEmit -p tsconfig.json",
