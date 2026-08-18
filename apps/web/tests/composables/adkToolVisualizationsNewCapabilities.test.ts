@@ -44,7 +44,6 @@ describe("ADK new capability visualizations", () => {
     const dependencies = buildADKToolVisualization("system.runtime_dependencies", {
       dependencies: [
         { id: "node", displayName: "Node.js", status: "ok", detectedVersion: "22.18.0", message: "available" },
-        { id: "python", displayName: "Python", status: "error", detectedVersion: "3.11.9", message: "missing module" },
       ],
       openD: {
         status: "online",
@@ -56,7 +55,7 @@ describe("ADK new capability visualizations", () => {
     expect(dependencies?.kind).toBe("table");
     if (dependencies?.kind !== "table") return;
     expect(dependencies.rows[0]).toMatchObject({ id: "node", name: "Node.js", version: "22.18.0" });
-    expect(dependencies.rows[2]).toMatchObject({ id: "opend", name: "Futu OpenD", status: "online", version: "9.0" });
+    expect(dependencies.rows[1]).toMatchObject({ id: "opend", name: "Futu OpenD", status: "online", version: "9.0" });
 
     const dependencySummary = buildADKToolVisualization("system.runtime_dependencies", {
       items: [null],

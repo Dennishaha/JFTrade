@@ -690,9 +690,9 @@ func settingsSideEffects(s *Server) settings.SideEffects {
 		},
 		OnProviderChanged: func(providerID jfsettings.ActiveMarketDataProvider) error {
 			return marketdataapp.ApplyProviderSettings(
-				context.Background(), s.marketdataSvc, s.store, s.watchlistSvc, providerID, true,
-			)
+				context.Background(), s.marketdataSvc, s.store, s.watchlistSvc, providerID, true)
 		},
+		ProviderNeedsActivation:   marketdataapp.ProviderNeedsActivation(s.marketdataSvc),
 		OnBacktestProviderChanged: marketdataapp.BacktestProviderPreparer(s.marketdataSvc),
 		OnMCPServerChanged: func(settings jfsettings.MCPServerSettings) error {
 			assistantRuntime := s.runtimes.Assistant()

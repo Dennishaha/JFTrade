@@ -673,6 +673,103 @@ describe("broker provider tag", () => {
     expect(wrapper.get(".broker-provider-tag").text()).toContain("Yahoo");
   });
 
+  it("uses AKShare while embedded settings load even when the broker default is Futu", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return Promise.resolve({ activeProvider: "akshare" });
+      }
+      return Promise.resolve(capabilities);
+    });
+    const selection = useBrokerProviderSelection();
+    configureBrokerProviderDefaults({ defaultBrokerId: "futu" });
+    await selection.loadBrokerProviders(true);
+    expect(selection.selectedBrokerId.value).toBe("futu");
+
+    let resolveSettings: (value: { activeProvider: "akshare" }) => void = () => {};
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return new Promise<{ activeProvider: "akshare" }>((resolve) => {
+          resolveSettings = resolve;
+        });
+      }
+      return Promise.resolve(capabilities);
+    });
+
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await nextTick();
+
+    expect(wrapper.get(".broker-provider-tag").text()).toContain("AKShare");
+    expect(wrapper.get(".broker-provider-tag").text()).not.toContain("Futu");
+
+    resolveSettings({ activeProvider: "akshare" });
+    await flushPromises();
+    expect(wrapper.get(".broker-provider-tag").text()).toContain("AKShare");
+    await wrapper.get(".broker-provider-tag").trigger("click");
+    const options = wrapper.findAll(
+      '.broker-provider-tag__menu button[role="option"]',
+    );
+    expect(
+      options.find((button) => button.text().includes("AKShare"))?.attributes(
+        "aria-selected",
+      ),
+    ).toBe("true");
+    expect(
+      options.find((button) => button.text().includes("Futu"))?.attributes(
+        "aria-selected",
+      ),
+    ).not.toBe("true");
+  });
+
+  it("keeps the AKShare fallback when embedded settings fail to load", async () => {
+    apiMocks.fetchEnvelope.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/settings/market-data-provider")) {
+        return Promise.reject(new Error("market-data settings unavailable"));
+      }
+      return Promise.resolve(capabilities);
+    });
+    const selection = useBrokerProviderSelection();
+    configureBrokerProviderDefaults({ defaultBrokerId: "futu" });
+    await selection.loadBrokerProviders(true);
+
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "market.candles",
+        enableEmbeddedMarketDataProvider: true,
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    const tag = wrapper.get(".broker-provider-tag");
+    expect(tag.text()).toContain("不可用");
+    expect(tag.text()).not.toContain("Futu");
+    expect(tag.attributes("title")).toContain(
+      "切换错误：market-data settings unavailable",
+    );
+    await tag.trigger("click");
+    const options = wrapper.findAll(
+      '.broker-provider-tag__menu button[role="option"]',
+    );
+    expect(
+      options.find((button) => button.text().includes("AKShare"))?.attributes(
+        "aria-selected",
+      ),
+    ).toBe("true");
+    expect(
+      options.find((button) => button.text().includes("Futu"))?.attributes(
+        "aria-selected",
+      ),
+    ).not.toBe("true");
+  });
+
   it("keeps the current provider selected while a switch is pending", async () => {
     apiMocks.fetchEnvelope.mockImplementation((url: string) =>
       url.includes("/api/v1/settings/market-data-provider")

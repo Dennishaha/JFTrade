@@ -3,13 +3,10 @@ package runtime
 import (
 	"context"
 	"errors"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	"github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
@@ -142,11 +139,6 @@ func TestCheckNodeRuntimeDependencyReportsOutdatedInvalidAndCommandError(t *test
 }
 
 func TestRuntimeDependenciesAggregatesRequiredStatus(t *testing.T) {
-	helper := filepath.Join(t.TempDir(), "yfinance-helper")
-	if err := os.WriteFile(helper, []byte("helper"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv(marketdataapp.EnvYFinanceSidecar, helper)
 	restoreRuntimeDependencyProbe(t,
 		func(path string) (string, error) { return path, nil },
 		func(context.Context, string, ...string) ([]byte, error) { return []byte("v21.0.0"), nil },
@@ -156,7 +148,7 @@ func TestRuntimeDependenciesAggregatesRequiredStatus(t *testing.T) {
 		t.Fatalf("allRequiredSatisfied = %#v, want false", result["allRequiredSatisfied"])
 	}
 	dependencies, ok := result["dependencies"].([]map[string]any)
-	if !ok || len(dependencies) != 2 || dependencies[0]["id"] != "node" || dependencies[1]["id"] != "python" {
+	if !ok || len(dependencies) != 1 || dependencies[0]["id"] != "node" {
 		t.Fatalf("dependencies = %#v", result["dependencies"])
 	}
 }

@@ -155,7 +155,7 @@ apps/web
 
 `/api/v1/system/status` 现在同时返回基础状态和轻量观测摘要，包括 API uptime、实时连接统计、行情 collector 状态、broker descriptor 与 strategy runtime summary。
 
-新安装且没有明确选择时，`activeMarketDataProvider` 默认为 `yfinance`；明确的 `futu`、`yfinance` 或 `akshare` 选择会保留。显式切换必须通过对应 Provider 的 `ready` 健康门禁，失败时保持原 Provider；启动恢复可在 `warming` 状态提交 Python Provider，从而不阻塞 API。helper 缺失、进程启动或健康端点失败时回退并持久化 `futu`，确保配置与运行态一致。
+新安装且没有明确选择时，`activeMarketDataProvider` 默认为 `akshare`；明确的 `futu`、`yfinance` 或 `akshare` 选择会保留。显式切换必须通过对应 Provider 的 `ready` 健康门禁，失败时保持原 Provider；启动恢复可在 `warming` 状态提交 Python Provider，从而不阻塞 API。helper 缺失、进程启动或健康端点失败时保留已配置的 Python Provider，并以不可用健康状态报告，绝不隐式回退或持久化为 `futu`。
 
 ### 策略设计与运行控制
 

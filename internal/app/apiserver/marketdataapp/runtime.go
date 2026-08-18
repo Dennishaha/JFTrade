@@ -78,6 +78,7 @@ type Runtime struct {
 	closed         bool
 	providerLeases map[string]int
 	providerPool   map[string]runtimeState
+	unavailable    map[string]struct{}
 }
 
 // ProviderLease pins a concrete provider instance for a module operation. A
@@ -123,6 +124,7 @@ func NewRuntime(options RuntimeOptions) (*Runtime, error) {
 		healthCheck:    waitForProviderHealth,
 		providerLeases: make(map[string]int),
 		providerPool:   map[string]runtimeState{ProviderFutu: futu},
+		unavailable:    make(map[string]struct{}),
 	}, nil
 }
 
@@ -192,6 +194,7 @@ func (r *Runtime) Activate(ctx context.Context, activation Activation) error {
 	}
 	r.mu.Lock()
 	r.active = next
+	delete(r.unavailable, next.providerID)
 	r.mu.Unlock()
 	r.releaseIdleProviderLocked(previous.providerID)
 	if next.providerID == ProviderFutu && !r.hasPythonLeasesLocked() {

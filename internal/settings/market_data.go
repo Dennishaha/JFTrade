@@ -109,7 +109,18 @@ func (s *Service) SaveActiveMarketDataProvider(
 	if err := s.store.SaveActiveMarketDataProvider(next); err != nil {
 		return current, err
 	}
-	if next == current || s.sideEffects.OnProviderChanged == nil {
+	if next == current {
+		if s.sideEffects.OnProviderChanged == nil ||
+			s.sideEffects.ProviderNeedsActivation == nil ||
+			!s.sideEffects.ProviderNeedsActivation(next) {
+			return next, nil
+		}
+		if err := s.sideEffects.OnProviderChanged(next); err != nil {
+			return current, fmt.Errorf("%w: %w", ErrProviderRuntimeUpdate, err)
+		}
+		return next, nil
+	}
+	if s.sideEffects.OnProviderChanged == nil {
 		return next, nil
 	}
 	if err := s.sideEffects.OnProviderChanged(next); err != nil {

@@ -12,7 +12,7 @@ func (s *Store) ActiveMarketDataProvider() jfsettings.ActiveMarketDataProvider {
 	if s.data.ActiveMarketDataProvider != nil {
 		return NormalizeActiveMarketDataProvider(*s.data.ActiveMarketDataProvider)
 	}
-	return jfsettings.MarketDataProviderYFinance
+	return jfsettings.MarketDataProviderAKShare
 }
 
 func (s *Store) SaveActiveMarketDataProvider(input jfsettings.ActiveMarketDataProvider) error {
@@ -37,7 +37,7 @@ func (s *Store) BacktestMarketDataProvider() jfsettings.ActiveMarketDataProvider
 	if s.data.ActiveMarketDataProvider != nil {
 		return NormalizeActiveMarketDataProvider(*s.data.ActiveMarketDataProvider)
 	}
-	return jfsettings.MarketDataProviderYFinance
+	return jfsettings.MarketDataProviderAKShare
 }
 
 func (s *Store) SaveBacktestMarketDataProvider(input jfsettings.ActiveMarketDataProvider) error {
@@ -58,7 +58,7 @@ func (s *Store) EnsureBacktestMarketDataProvider() error {
 	if s.data.BacktestMarketDataProvider != nil {
 		return nil
 	}
-	provider := jfsettings.MarketDataProviderYFinance
+	provider := jfsettings.MarketDataProviderAKShare
 	if s.data.ActiveMarketDataProvider != nil {
 		provider = NormalizeActiveMarketDataProvider(*s.data.ActiveMarketDataProvider)
 	}
@@ -73,7 +73,9 @@ func NormalizeActiveMarketDataProvider(input jfsettings.ActiveMarketDataProvider
 		return jfsettings.MarketDataProviderYFinance
 	case string(jfsettings.MarketDataProviderAKShare):
 		return jfsettings.MarketDataProviderAKShare
-	default:
+	case string(jfsettings.MarketDataProviderFutu):
 		return jfsettings.MarketDataProviderFutu
+	default:
+		return jfsettings.MarketDataProviderAKShare
 	}
 }

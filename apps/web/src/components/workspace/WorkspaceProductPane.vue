@@ -36,8 +36,6 @@ const {
   lastDataRefreshedAt,
   marketInstrumentReferences,
   reloadMarketDataProvider,
-  selectedBrokerAccount,
-  systemStatus,
 } = useConsoleData();
 const activeTab = ref<WorkspaceProductTab>("chart");
 const providerStatusBarAvailable = ref(false);
@@ -253,8 +251,6 @@ onBeforeUnmount(() => {
           :feature-id="activeFeatureID"
           :market="prefs.market"
           enable-embedded-market-data-provider
-          :preferred-broker-id="selectedBrokerAccount?.brokerId"
-          :default-broker-id="systemStatus.defaultBroker"
           :connection-state="liveHub.connectionState.value"
           :transport-mode="liveHub.lastHeartbeatEvent.value?.transport?.mode"
           menu-location="top end"

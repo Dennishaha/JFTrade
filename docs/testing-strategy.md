@@ -76,7 +76,7 @@ JFTRADE_DIFF_BASE=origin/main pnpm run test:coverage
 
 - Go 资产测试按 `GOOS/GOARCH` 选择 `release_assets` 中的 helper，拒绝缺失或空文件，校验 SHA-256，并验证释放目录和可执行文件权限受限；关闭 Provider 或应用时必须删除临时目录。
 - sidecar manager 测试动态分配 loopback 端口、传入内部 endpoint、探测 `/healthz` 与 Provider health、停止进程和清理资产。正式运行只允许 JFTrade 自动托管的嵌入 helper；`JFTRADE_MARKETDATA_SIDECAR` 仅用于开发/测试绝对路径覆盖。
-- 设置与运行时测试覆盖新安装默认 `yfinance`、明确的 Futu/yfinance 选择保留、历史 yfinance 连接配置不再参与运行时、启动恢复 helper 缺失或失败时回退 Futu，以及显式切换失败时保持旧 Provider。
+- 设置与运行时测试覆盖新安装默认 `akshare`、明确的 Futu/yfinance 选择保留、历史 yfinance 连接配置不再参与运行时、启动恢复 helper 缺失或失败时保留已配置 Provider 并报告不可用，以及显式切换失败时保持旧 Provider。
 - Web/API 测试确认行情提供者菜单和契约只暴露 Provider 选择、状态与能力，不请求或渲染历史连接配置；设置页不再包含行情 Provider 分类；能力断言明确 yfinance 为延迟快照/历史 K 线、无实时推流和 Level 2。
 - 发布 smoke 在 macOS ARM64、Linux AMD64、Windows AMD64、Windows ARM64 分别启动嵌入 helper 并验证 `--version`、`/healthz`、Yahoo/AKShare 导入、退出清理和 SHA-256。macOS 额外执行 helper 与应用深度签名校验；Windows 校验签名安装器；Linux 将 helper 摘要纳入 SBOM/校验清单。
 

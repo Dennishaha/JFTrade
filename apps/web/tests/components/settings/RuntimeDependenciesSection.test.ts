@@ -290,7 +290,7 @@ describe("RuntimeDependenciesSection", () => {
     expect(wrapper.text()).toContain("node");
   });
 
-  it("renders Python status and OOBE warnings without a path editor or settings request", async () => {
+  it("keeps Python out of OOBE dependency status and warnings", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
       if (url.includes("/api/v1/settings/pine-worker")) {
@@ -332,11 +332,8 @@ describe("RuntimeDependenciesSection", () => {
     const wrapper = mount(RuntimeDependenciesSection, { props: { mode: "oobe" } });
     await flushRequests();
 
-    expect(wrapper.text()).toContain("Python");
-    expect(wrapper.text()).toContain(
-      "Python 缺失、版本过低或运行模块不完整时，源码方式的 Yahoo/AKShare 行情不可用。",
-    );
-    expect(wrapper.find("[data-testid='runtime-dependency-python-path-input']").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Python");
+    expect(wrapper.find("[data-testid='runtime-dependency-python']").exists()).toBe(false);
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/api/v1/settings/runtime-dependencies"))).toBe(false);
   });
 

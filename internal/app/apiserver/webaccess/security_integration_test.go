@@ -51,7 +51,7 @@ func securityTestSettingsForPassword(t *testing.T, password string, public bool)
 }
 
 // forceWebAccessTestMarketDataProvider keeps web-access integration servers on
-// the in-process Futu data plane. The default provider is yfinance, whose
+// the in-process Futu data plane. The default provider is AKShare, whose
 // embedded Python sidecar would otherwise be cold-started once per test case.
 func forceWebAccessTestMarketDataProvider(t *testing.T, store *servercore.SettingsStore) {
 	t.Helper()

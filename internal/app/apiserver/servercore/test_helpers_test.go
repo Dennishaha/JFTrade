@@ -81,11 +81,11 @@ func newHTTPTestServer(t *testing.T, store *SettingsStore) *httptest.Server {
 
 func forceTestMarketDataProvider(t *testing.T, store *SettingsStore) {
 	t.Helper()
-	if store == nil {
+	if store == nil || store.ActiveMarketDataProvider() != jfsettings.MarketDataProviderAKShare {
 		return
 	}
 	// Keep the shared server fixture independent of whether the host has a
-	// compatible Python runtime that would make yfinance the default provider.
+	// usable embedded market-data helper and the AKShare default provider.
 	if err := store.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderFutu); err != nil {
 		t.Fatalf("SaveActiveMarketDataProvider: %v", err)
 	}

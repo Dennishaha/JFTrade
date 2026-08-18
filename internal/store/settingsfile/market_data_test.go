@@ -11,14 +11,34 @@ import (
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
 )
 
-func TestMarketDataProviderDefaultsToYFinanceAndPersistsSelection(t *testing.T) {
+func TestMarketDataProviderDefaultsToAKShareAndPersistsSelection(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	store, err := New(path)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if got := store.ActiveMarketDataProvider(); got != jfsettings.MarketDataProviderYFinance {
-		t.Fatalf("default active provider = %q, want yfinance", got)
+	if got := store.ActiveMarketDataProvider(); got != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("default active provider = %q, want akshare", got)
+	}
+	if got := store.BacktestMarketDataProvider(); got != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("default backtest provider = %q, want akshare", got)
+	}
+	for _, value := range []string{"", "unknown"} {
+		invalidPath := filepath.Join(t.TempDir(), "settings.json")
+		if err := os.WriteFile(
+			invalidPath,
+			[]byte(`{"activeMarketDataProvider":"`+value+`"}`),
+			0o600,
+		); err != nil {
+			t.Fatalf("write invalid provider %q: %v", value, err)
+		}
+		invalidStore, err := New(invalidPath)
+		if err != nil {
+			t.Fatalf("load invalid provider %q: %v", value, err)
+		}
+		if got := invalidStore.ActiveMarketDataProvider(); got != jfsettings.MarketDataProviderAKShare {
+			t.Fatalf("invalid provider %q = %q, want akshare", value, got)
+		}
 	}
 
 	if err := store.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderFutu); err != nil {
@@ -90,17 +110,20 @@ func TestMarketDataProviderSaveRollsBackOnAtomicReplaceFailure(t *testing.T) {
 	}
 }
 
-func TestNormalizeActiveMarketDataProviderFallsBackToFutu(t *testing.T) {
+func TestNormalizeActiveMarketDataProviderFallsBackToAKShare(t *testing.T) {
 	if got := NormalizeActiveMarketDataProvider(" yfinance "); got != jfsettings.MarketDataProviderYFinance {
 		t.Fatalf("normalized yfinance provider = %q", got)
 	}
 	if got := NormalizeActiveMarketDataProvider(" AKSHARE "); got != jfsettings.MarketDataProviderAKShare {
 		t.Fatalf("normalized AKShare provider = %q", got)
 	}
-	for _, input := range []jfsettings.ActiveMarketDataProvider{"", "unknown", "futu"} {
-		if got := NormalizeActiveMarketDataProvider(input); got != jfsettings.MarketDataProviderFutu {
-			t.Fatalf("normalized %q = %q, want futu", input, got)
+	for _, input := range []jfsettings.ActiveMarketDataProvider{"", "unknown"} {
+		if got := NormalizeActiveMarketDataProvider(input); got != jfsettings.MarketDataProviderAKShare {
+			t.Fatalf("normalized %q = %q, want akshare", input, got)
 		}
+	}
+	if got := NormalizeActiveMarketDataProvider(" FUTU "); got != jfsettings.MarketDataProviderFutu {
+		t.Fatalf("normalized futu provider = %q, want futu", got)
 	}
 }
 

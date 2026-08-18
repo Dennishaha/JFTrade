@@ -29,6 +29,7 @@ import {
   usePythonMarketDataRuntimeWarmup,
 } from "@/composables/market-data/usePythonMarketDataRuntimeWarmup";
 import {
+  defaultEmbeddedPythonMarketDataProviderID,
   embeddedPythonMarketDataFeatureIDs,
   embeddedPythonMarketDataProviderOption,
   pythonMarketDataProviderName,
@@ -43,7 +44,6 @@ const props = withDefaults(
     featureIds?: string[] | undefined;
     market?: string | undefined;
     preferredBrokerId?: string | undefined;
-    defaultBrokerId?: string | undefined;
     connectionState?: LiveSocketConnectionState | undefined;
     transportMode?: string | null | undefined;
     menuLocation?: "bottom end" | "top end";
@@ -55,7 +55,6 @@ const props = withDefaults(
     featureIds: () => [],
     market: "",
     preferredBrokerId: "",
-    defaultBrokerId: "",
     connectionState: undefined,
     transportMode: null,
     menuLocation: "bottom end",
@@ -221,11 +220,19 @@ const options = computed<BrokerProviderOption[]>(() => {
   );
 });
 const selectedOption = computed<BrokerProviderOption | null>(() => {
-  const selected =
-    embeddedProviderVisible.value && embeddedProviderID.value != null
-      ? embeddedProviderID.value
-      : selectedBrokerId.value;
+  const selected = embeddedProviderVisible.value
+    ? embeddedProviderID.value ?? defaultEmbeddedPythonMarketDataProviderID
+    : selectedBrokerId.value;
   const actual = props.provider?.brokerId?.trim().toLowerCase() ?? "";
+  if (embeddedProviderVisible.value) {
+    return (
+      options.value.find((option) => option.id === selected) ??
+      options.value.find(
+        (option) => option.id === defaultEmbeddedPythonMarketDataProviderID,
+      ) ??
+      null
+    );
+  }
   return (
     options.value.find((option) => option.id === selected) ??
     options.value.find((option) => option.id === actual) ??
@@ -473,7 +480,7 @@ async function loadFutuOpenDProviderHealth(
     futuOpenDHealth.value = health;
     futuOpenDHealthError.value = "";
     if (isFutuOpenDHealthy(health) && !wasHealthy) {
-      await loadBrokerProviders(true);
+      await loadBrokerProviders(true, !embeddedProviderVisible.value);
     }
   } catch (error: unknown) {
     if (revision !== embeddedProviderRevision) return;
@@ -590,12 +597,10 @@ async function selectEmbeddedProvider(providerID: MarketDataProviderID): Promise
 }
 
 watch(
-  () => [
-    props.preferredBrokerId,
-    props.defaultBrokerId,
-  ] as const,
-  ([accountBrokerId, defaultBrokerId]) => {
-    configureBrokerProviderDefaults({ accountBrokerId, defaultBrokerId });
+  () => [props.preferredBrokerId, embeddedProviderVisible.value] as const,
+  ([accountBrokerId, embeddedVisible]) => {
+    if (embeddedVisible) return;
+    configureBrokerProviderDefaults({ accountBrokerId });
   },
   { immediate: true },
 );
@@ -645,16 +650,13 @@ watch(
     embeddedProviderRefreshQueued = false;
     embeddedProviderRefreshQueuedFresh = false;
     embeddedProviderUnavailable.value = false;
-    configureBrokerProviderDefaults({
-      accountBrokerId: props.preferredBrokerId,
-      defaultBrokerId: props.defaultBrokerId,
-    });
+    configureBrokerProviderDefaults({ accountBrokerId: props.preferredBrokerId });
   },
   { immediate: true },
 );
 
 onMounted(() => {
-  void loadBrokerProviders();
+  void loadBrokerProviders(false, !embeddedProviderVisible.value);
   if (typeof document !== "undefined") {
     document.addEventListener(
       "visibilitychange",

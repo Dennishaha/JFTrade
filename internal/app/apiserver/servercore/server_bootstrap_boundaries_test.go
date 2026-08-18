@@ -97,7 +97,7 @@ func TestServerRemainingPublicSettersAndRuntimeBoundaries(t *testing.T) {
 	if err := settingsSideEffects(server).OnMCPServerChanged(jfsettings.MCPServerSettings{}); err == nil {
 		t.Fatal("nil MCP manager change error = nil")
 	}
-	settingsSideEffects(server).OnExchangeCalendarsChanged(jfsettings.ExchangeCalendarSettings{})
+	_ = settingsSideEffects(server).OnProviderChanged(jfsettings.MarketDataProviderAKShare)
 
 	if persistenceOnlySettingsStore(nil) != nil {
 		t.Fatal("nil persistence settings store became non-nil")

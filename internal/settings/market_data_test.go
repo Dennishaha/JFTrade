@@ -96,6 +96,50 @@ func TestMarketDataProviderSettingsNormalizeAndApply(t *testing.T) {
 	}
 }
 
+func TestMarketDataProviderRetriesDegradedCurrentSelection(t *testing.T) {
+	store := &fakeStore{activeProvider: jfsettings.MarketDataProviderAKShare}
+	needsActivation := true
+	var applied []jfsettings.ActiveMarketDataProvider
+	service := NewService(store, WithSideEffects(SideEffects{
+		ProviderNeedsActivation: func(provider jfsettings.ActiveMarketDataProvider) bool {
+			return needsActivation && provider == jfsettings.MarketDataProviderAKShare
+		},
+		OnProviderChanged: func(provider jfsettings.ActiveMarketDataProvider) error {
+			applied = append(applied, provider)
+			needsActivation = false
+			return nil
+		},
+	}))
+
+	provider, err := service.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderAKShare)
+	if err != nil || provider != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("retry current provider = %q, err=%v", provider, err)
+	}
+	if len(applied) != 1 || applied[0] != jfsettings.MarketDataProviderAKShare {
+		t.Fatalf("retry callbacks = %#v", applied)
+	}
+
+	if _, err := service.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderAKShare); err != nil {
+		t.Fatalf("healthy idempotent provider save: %v", err)
+	}
+	if len(applied) != 1 {
+		t.Fatalf("healthy idempotent provider save retried = %#v", applied)
+	}
+
+	retryErr := errors.New("retry failed")
+	service = NewService(store, WithSideEffects(SideEffects{
+		ProviderNeedsActivation: func(jfsettings.ActiveMarketDataProvider) bool { return true },
+		OnProviderChanged: func(jfsettings.ActiveMarketDataProvider) error {
+			return retryErr
+		},
+	}))
+	provider, err = service.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderAKShare)
+	if provider != jfsettings.MarketDataProviderAKShare || !errors.Is(err, ErrProviderRuntimeUpdate) ||
+		!errors.Is(err, retryErr) {
+		t.Fatalf("failed provider retry = %q, err=%v", provider, err)
+	}
+}
+
 func TestMarketDataProviderSettingsAcceptAKShare(t *testing.T) {
 	store := &fakeStore{activeProvider: jfsettings.MarketDataProviderYFinance}
 	var applied jfsettings.ActiveMarketDataProvider

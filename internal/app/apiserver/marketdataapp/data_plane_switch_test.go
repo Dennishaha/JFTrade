@@ -186,32 +186,87 @@ func TestApplyProviderSettingsRollsBackFailedFutuDemandRestore(t *testing.T) {
 	}
 }
 
-func TestNewDataPlaneFallsBackWhenYFinanceHelperIsUnavailable(t *testing.T) {
+func TestNewDataPlaneKeepsConfiguredPythonProviderWhenHelperIsUnavailable(t *testing.T) {
 	// Use the development-only override to exercise the unavailable-helper
-	// fallback on both dev and release-assets test builds without starting the
+	// state on both dev and release-assets test builds without starting the
 	// frozen helper.
-	t.Setenv("JFTRADE_YFINANCE_SIDECAR", filepath.Join(t.TempDir(), "missing-yfinance-sidecar"))
-	store := providerSettingsStoreStub{
-		active: jfsettings.MarketDataProviderYFinance,
+	for _, test := range []struct {
+		name     string
+		provider jfsettings.ActiveMarketDataProvider
+	}{
+		{name: "yfinance", provider: jfsettings.MarketDataProviderYFinance},
+		{name: "akshare", provider: jfsettings.MarketDataProviderAKShare},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv(EnvMarketDataSidecar, filepath.Join(t.TempDir(), "missing-sidecar"))
+			t.Setenv(EnvYFinanceSidecar, "")
+			store := providerSettingsStoreStub{active: test.provider}
+			plane, err := NewDataPlane(RuntimeOptions{
+				FutuProvider: &providerStub{id: ProviderFutu},
+			}, &store)
+			if err != nil {
+				t.Fatalf("NewDataPlane: %v", err)
+			}
+			t.Cleanup(func() {
+				if err := plane.Service.Close(); err != nil {
+					t.Errorf("service.Close: %v", err)
+				}
+				if err := plane.Runtime.Close(); err != nil {
+					t.Errorf("runtime.Close: %v", err)
+				}
+			})
+			if plane.Runtime.ActiveProviderID() != string(test.provider) ||
+				store.active != test.provider {
+				t.Fatalf("invalid startup provider = runtime %q, persisted %q",
+					plane.Runtime.ActiveProviderID(), store.active)
+			}
+			status, err := plane.Service.ProviderStatus(t.Context())
+			if err != nil {
+				t.Fatalf("ProviderStatus: %v", err)
+			}
+			if status.Descriptor.SelectionID != string(test.provider) ||
+				status.Health.Connected ||
+				status.Health.Readiness != marketdata.ProviderReadinessFailed ||
+				!strings.Contains(status.Health.LastError, "missing-sidecar") {
+				t.Fatalf("unavailable startup status = %#v", status)
+			}
+		})
 	}
-	plane, err := NewDataPlane(RuntimeOptions{
-		FutuProvider: &providerStub{id: ProviderFutu},
-	}, &store)
+}
+
+func TestProviderNeedsActivationReflectsUnavailableRuntime(t *testing.T) {
+	runtime, err := NewRuntime(RuntimeOptions{FutuProvider: &providerStub{id: ProviderFutu}})
 	if err != nil {
-		t.Fatalf("NewDataPlane: %v", err)
+		t.Fatalf("NewRuntime: %v", err)
 	}
+	service := marketdata.NewService(runtime)
 	t.Cleanup(func() {
-		if err := plane.Service.Close(); err != nil {
+		if err := service.Close(); err != nil {
 			t.Errorf("service.Close: %v", err)
 		}
-		if err := plane.Runtime.Close(); err != nil {
+		if err := runtime.Close(); err != nil {
 			t.Errorf("runtime.Close: %v", err)
 		}
 	})
-	if plane.Runtime.ActiveProviderID() != ProviderFutu ||
-		store.active != jfsettings.MarketDataProviderFutu {
-		t.Fatalf("invalid startup provider = runtime %q, persisted %q",
-			plane.Runtime.ActiveProviderID(), store.active)
+
+	if ProviderNeedsActivation(nil)(jfsettings.MarketDataProviderAKShare) {
+		t.Fatal("nil service reported provider activation is needed")
+	}
+	callback := ProviderNeedsActivation(service)
+	if callback(jfsettings.MarketDataProviderAKShare) {
+		t.Fatal("healthy provider reported provider activation is needed")
+	}
+	runtime.MarkProviderUnavailable(ProviderAKShare, errors.New("helper unavailable"))
+	if !callback(jfsettings.MarketDataProviderAKShare) || callback(jfsettings.MarketDataProviderYFinance) {
+		t.Fatal("callback did not reflect the unavailable active provider")
+	}
+}
+
+func TestRestoreConfiguredProviderSkipsUnavailableRuntime(t *testing.T) {
+	store := providerSettingsStoreStub{active: jfsettings.MarketDataProviderYFinance}
+	restoreConfiguredProvider(t.Context(), nil, &store)
+	if store.active != jfsettings.MarketDataProviderYFinance {
+		t.Fatalf("restore changed provider without a runtime = %q", store.active)
 	}
 }
 

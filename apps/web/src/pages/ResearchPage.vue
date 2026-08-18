@@ -26,8 +26,6 @@ const {
   sections,
   MARKET_VIEWS,
   MARKET_CODE_OPTIONS,
-  selectedBrokerAccount,
-  systemStatus,
   selectedBrokerId,
   configFor,
   operationFor,
@@ -124,10 +122,12 @@ const {
             <AppTabs class="research-page__tabs" :model-value="activeSection" :items="sections"
               label="研究中心视图" @update:model-value="selectSection" />
             <div class="research-page__navigation-actions">
-              <BrokerProviderTag :feature-id="activeFeatureIDs[0]" :feature-ids="activeFeatureIDs" :market="queryMarket"
+              <BrokerProviderTag
+                :feature-id="activeFeatureIDs[0]"
+                :feature-ids="activeFeatureIDs"
+                :market="queryMarket"
                 enable-embedded-market-data-provider
-                :preferred-broker-id="selectedBrokerAccount?.brokerId"
-                :default-broker-id="systemStatus.defaultBroker" />
+              />
               <button
                 type="button"
                 class="research-page__rail-toggle"

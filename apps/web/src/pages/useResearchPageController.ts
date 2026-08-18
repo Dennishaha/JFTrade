@@ -23,7 +23,6 @@ import {
   type ResearchQuoteTarget,
 } from "../components/research/researchQuote";
 import { useBrokerProviderSelection } from "@/composables/trading/brokerProviderSelection";
-import { useConsoleData } from "@/composables/workspace/useConsoleData";
 import { useWorkspaceTradingPrefs } from "@/composables/workspace/useWorkspaceLayout";
 import {
   activeScreenMarketFor,
@@ -53,7 +52,6 @@ export function useResearchPageController() {
   const route = useRoute();
   const router = useRouter();
   const { prefs: workspacePrefs, update } = useWorkspaceTradingPrefs();
-  const { selectedBrokerAccount, systemStatus } = useConsoleData();
   const { selectedBrokerId, selectBrokerProvider } =
     useBrokerProviderSelection();
   const initialQuoteTarget = quoteTargetFromQuery(route.query);
@@ -712,8 +710,6 @@ export function useResearchPageController() {
     sections,
     MARKET_VIEWS,
     MARKET_CODE_OPTIONS,
-    selectedBrokerAccount,
-    systemStatus,
     selectedBrokerId,
     configFor,
     operationFor,

@@ -205,7 +205,7 @@ func RegisterJFTradeADKTools(store *jfadkruntime.Store, registry *jfadkruntime.T
 	registry.Register(assistantmodel.ToolDescriptor{Name: "system.futu_opend", DisplayName: "OpenD 健康", Description: "读取 Futu OpenD 连通性、登录态与诊断。", Category: "system", Permission: "read_internal", OutputSummary: "OpenD 连接、登录态、配置和诊断信息。", RequiredSkills: []string{"jftrade-operations"}}, func(ctx context.Context, _ map[string]any) (any, error) {
 		return deps.FutuOpenDHealth(ctx)
 	})
-	registry.Register(assistantmodel.ToolDescriptor{Name: "system.runtime_dependencies", DisplayName: "运行依赖诊断", Description: "诊断 OpenD、Python market-data sidecar、Pine Worker 等运行依赖；只读且不会主动修复。", Category: "system", Permission: "read_internal", RiskLevel: "low", OutputSummary: "依赖健康、版本、连接状态和失败原因。", RequiredSkills: []string{"jftrade-operations"}}, func(ctx context.Context, _ map[string]any) (any, error) {
+	registry.Register(assistantmodel.ToolDescriptor{Name: "system.runtime_dependencies", DisplayName: "运行依赖诊断", Description: "诊断 Node.js、OpenD 与 Pine Worker 等运行依赖；只读且不会主动修复。", Category: "system", Permission: "read_internal", RiskLevel: "low", OutputSummary: "依赖健康、版本、连接状态和失败原因。", RequiredSkills: []string{"jftrade-operations"}}, func(ctx context.Context, _ map[string]any) (any, error) {
 		if deps.RuntimeDependencies == nil {
 			return map[string]any{"status": "unavailable"}, nil
 		}

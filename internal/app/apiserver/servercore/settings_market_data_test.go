@@ -14,7 +14,7 @@ func TestServerSettingsStoreDefaultsAndPersistsMarketDataSelection(t *testing.T)
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	if store.ActiveMarketDataProvider() != jfsettings.MarketDataProviderYFinance {
+	if store.ActiveMarketDataProvider() != jfsettings.MarketDataProviderAKShare {
 		t.Fatalf("default provider = %q", store.ActiveMarketDataProvider())
 	}
 	if err := store.SaveActiveMarketDataProvider(jfsettings.MarketDataProviderFutu); err != nil {
@@ -29,7 +29,7 @@ func TestServerSettingsStoreDefaultsAndPersistsMarketDataSelection(t *testing.T)
 	}
 }
 
-func TestStartupPersistsFutuFallbackWhenEmbeddedYFinanceCannotActivate(t *testing.T) {
+func TestStartupKeepsConfiguredYFinanceWhenHelperCannotActivate(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -38,10 +38,10 @@ func TestStartupPersistsFutuFallbackWhenEmbeddedYFinanceCannotActivate(t *testin
 		t.Fatalf("SaveActiveMarketDataProvider: %v", err)
 	}
 	server := newTestServer(t, store)
-	if active := marketdataapp.RuntimeFromService(server.marketdataSvc).ActiveProviderID(); active != marketdataapp.ProviderFutu {
+	if active := marketdataapp.RuntimeFromService(server.marketdataSvc).ActiveProviderID(); active != marketdataapp.ProviderYFinance {
 		t.Fatalf("runtime provider = %q", active)
 	}
-	if persisted := store.ActiveMarketDataProvider(); persisted != jfsettings.MarketDataProviderFutu {
+	if persisted := store.ActiveMarketDataProvider(); persisted != jfsettings.MarketDataProviderYFinance {
 		t.Fatalf("persisted provider = %q", persisted)
 	}
 }

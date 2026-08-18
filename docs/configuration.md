@@ -101,11 +101,11 @@ OpenD 连接配置位于 `integration.config`。常用字段包括：
 
 ### 行情数据源与 Python helper
 
-行情查询运行时包含 Futu OpenD、yfinance 和 AKShare，新的安装默认使用 `yfinance`。首页/研究页的“行情提供者”菜单负责切换当前行情源；这项切换不改变账户、订单和下单 broker：
+行情查询运行时包含 Futu OpenD、yfinance 和 AKShare，新的安装默认使用 `akshare`。首页/研究页的“行情提供者”菜单负责切换当前行情源；这项切换不改变账户、订单和下单 broker：
 
 ```json
 {
-  "activeMarketDataProvider": "yfinance"
+  "activeMarketDataProvider": "akshare"
 }
 ```
 

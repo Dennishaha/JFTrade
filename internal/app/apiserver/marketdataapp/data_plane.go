@@ -55,6 +55,13 @@ func RuntimeFromService(service *marketdata.Service) *Runtime {
 	return runtime
 }
 
+func ProviderNeedsActivation(service *marketdata.Service) func(jfsettings.ActiveMarketDataProvider) bool {
+	return func(providerID jfsettings.ActiveMarketDataProvider) bool {
+		runtime := RuntimeFromService(service)
+		return runtime != nil && runtime.NeedsProviderActivation(string(providerID))
+	}
+}
+
 func ProviderCatalog(service *marketdata.Service) func(context.Context) ([]marketdata.ProviderDescriptor, error) {
 	return func(ctx context.Context) ([]marketdata.ProviderDescriptor, error) {
 		return RuntimeFromService(service).AvailableProviderDescriptors(ctx)
@@ -120,12 +127,10 @@ func restoreConfiguredProvider(
 	if configured == jfsettings.MarketDataProviderFutu {
 		return
 	}
-	if persistErr := store.SaveActiveMarketDataProvider(
-		jfsettings.MarketDataProviderFutu,
-	); persistErr != nil {
-		log.Printf(
-			"JFTrade persist Futu market-data fallback after activation failure: %v",
-			persistErr,
-		)
+	runtime := RuntimeFromService(service)
+	if runtime == nil || !isPythonProvider(string(configured)) {
+		return
 	}
+	runtime.MarkProviderUnavailable(string(configured), err)
+	service.NotifyProviderChanged()
 }

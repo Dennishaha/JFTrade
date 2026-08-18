@@ -44,13 +44,13 @@ uv sync --locked --project workers/marketdata-sidecar --extra runtime --extra bu
 pnpm run build:marketdata-sidecar
 ```
 
-源码模式只检测依赖，不会自动执行 pip、升级或创建虚拟环境。设置页保留 Python 状态检查，但不提供解释器路径编辑。
+源码模式只检测依赖，不会自动执行 pip、升级或创建虚拟环境。Python 诊断不再显示在 OOBE 或设置页；需要排查源码模式时查看 sidecar 启动日志。
 
 桌面开发启动会优先保留显式 `JFTRADE_MARKETDATA_*` 覆盖；旧 `JFTRADE_YFINANCE_*` 仅在通用变量为空时生效。没有覆盖时检查 `workers/marketdata-sidecar/.venv/bin/python`（Windows 为 `.venv\\Scripts\\python.exe`）和源码目录，最后复用已构建 frozen helper。正式 profile 忽略开发覆盖。
 
 显式切换到 yfinance 或 AKShare 时，JFTrade 会等待对应 Provider 达到 `ready`（最长约 45 秒）。路径不存在、helper 缺失、启动失败、预热失败或超时都会返回 `409 MARKET_DATA_PROVIDER_UPDATE_FAILED` 并恢复原 Provider。若旧 Provider 也是 Python Provider，共用进程会保留；只有从 Futu 本次新启动的进程才会停止。
 
-应用启动时恢复已持久化的 Python Provider 只要求 helper 进程及轻量健康可用，不等待后台预热；主界面可以先进入并显示预热状态。helper 缺失或进程健康失败仍会回退并持久化 Futu。修复安装或开发路径后，再切回目标 Provider 以触发受 `ready` 门禁保护的新启动。
+应用启动时恢复已持久化的 Python Provider 只要求 helper 进程及轻量健康可用，不等待后台预热；主界面可以先进入并显示预热状态。helper 缺失或进程健康失败会保留已配置 Provider 并显示不可用状态，不会回退或持久化 Futu。修复安装或开发路径后，重新选择目标 Provider 以触发受 `ready` 门禁保护的新启动。
 
 ## 端口冲突
 

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	"github.com/jftrade/jftrade-main/internal/jftsettings"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 )
@@ -81,8 +80,7 @@ type nodeRuntimeResolution struct {
 
 func Dependencies(ctx context.Context, settings jftsettings.PineWorkerSettings) map[string]any {
 	node := checkNodeRuntimeDependency(ctx, settings)
-	python := marketdataapp.CheckPythonRuntimeDependency(ctx)
-	dependencies := []map[string]any{node, python}
+	dependencies := []map[string]any{node}
 	allRequiredSatisfied := true
 	for _, dependency := range dependencies {
 		required, _ := dependency["required"].(bool)

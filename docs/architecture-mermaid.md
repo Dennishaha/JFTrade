@@ -2,7 +2,7 @@
 
 本文用 Mermaid 图补充 [architecture.md](./architecture.md) 的文字说明。它偏向“快速看边界”，不是替代接口、配置或协议专题文档。
 
-行情 Provider 运行时包含 Futu OpenD、Yahoo Finance（yfinance）与 AKShare。新安装默认使用 yfinance；两个 Python Provider 共用随 `release_assets` 嵌入的 PyInstaller `marketdata-sidecar`，但运行时懒加载和健康状态相互隔离。Yahoo↔AKShare 切换复用同一进程，成功切回 Futu 后停止。`JFTRADE_MARKETDATA_SIDECAR` 仅用于开发/测试绝对路径覆盖，旧 yfinance 变量作为低优先级别名。两个 HTTP Provider 都只提供延迟轮询、快照和历史 K 线，不提供推流、Level 2 或实盘策略行情。
+行情 Provider 运行时包含 Futu OpenD、Yahoo Finance（yfinance）与 AKShare。新安装默认使用 AKShare；两个 Python Provider 共用随 `release_assets` 嵌入的 PyInstaller `marketdata-sidecar`，但运行时懒加载和健康状态相互隔离。Yahoo↔AKShare 切换复用同一进程，成功切回 Futu 后停止。`JFTRADE_MARKETDATA_SIDECAR` 仅用于开发/测试绝对路径覆盖，旧 yfinance 变量作为低优先级别名。两个 HTTP Provider 都只提供延迟轮询、快照和历史 K 线，不提供推流、Level 2 或实盘策略行情。
 
 ## 系统总览
 

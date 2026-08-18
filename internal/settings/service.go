@@ -111,6 +111,9 @@ type SideEffects struct {
 	OnMCPServerChanged func(jfsettings.MCPServerSettings) error
 	// OnProviderChanged 在行情数据源选择变更时调用。
 	OnProviderChanged func(jfsettings.ActiveMarketDataProvider) error
+	// ProviderNeedsActivation reports whether re-selecting the current provider
+	// should retry a previously degraded runtime activation.
+	ProviderNeedsActivation func(jfsettings.ActiveMarketDataProvider) bool
 	// OnBacktestProviderChanged prepares and verifies a module provider. It is
 	// called before persistence because accepted jobs resolve the stored value.
 	OnBacktestProviderChanged func(jfsettings.ActiveMarketDataProvider) error

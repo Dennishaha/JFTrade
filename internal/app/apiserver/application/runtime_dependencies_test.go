@@ -13,9 +13,9 @@ func TestRuntimeDependenciesDelegatesAndReportsUnavailableService(t *testing.T) 
 		t.Fatalf("RuntimeDependencies(nil) = %#v", got)
 	}
 	service := system.NewService(system.WithRuntimeDependencies(func(context.Context) map[string]any {
-		return map[string]any{"python": "ready"}
+		return map[string]any{"node": "ready"}
 	}))
-	if got := RuntimeDependencies(service)(context.Background()); !reflect.DeepEqual(got, map[string]any{"python": "ready"}) {
+	if got := RuntimeDependencies(service)(context.Background()); !reflect.DeepEqual(got, map[string]any{"node": "ready"}) {
 		t.Fatalf("RuntimeDependencies(service) = %#v", got)
 	}
 }

@@ -30,10 +30,15 @@ function mapRuntimeDependency(
 export function mapRuntimeDependencies(
   value: RuntimeDependenciesResponseDto,
 ): RuntimeDependenciesResponse {
+  const dependencies = (value.dependencies ?? [])
+    .map(mapRuntimeDependency)
+    // Python is bundled into the released helper and is not a user-managed
+    // dependency. Keep older backend payloads from reintroducing that card.
+    .filter((dependency) => dependency.id.trim().toLowerCase() !== "python");
   return {
     checkedAt: value.checkedAt ?? "",
     allRequiredSatisfied: value.allRequiredSatisfied ?? false,
-    dependencies: (value.dependencies ?? []).map(mapRuntimeDependency),
+    dependencies,
   };
 }
 

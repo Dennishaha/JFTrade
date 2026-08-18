@@ -23,21 +23,6 @@ describe("runtimeDependencyPresentation", () => {
       allRequiredSatisfied: false,
       dependencies: [
         {
-          id: "python",
-          displayName: "python",
-          required: false,
-          configurable: false,
-          status: "error",
-          minimumVersion: "",
-          detectedVersion: "",
-          configuredPath: "",
-          effectivePath: "",
-          resolvedPath: "",
-          source: "",
-          homepageUrl: "",
-          message: "",
-        },
-        {
           id: "",
           displayName: "",
           required: false,
@@ -54,6 +39,15 @@ describe("runtimeDependencyPresentation", () => {
         },
       ],
     });
+  });
+
+  it("does not expose Python from a legacy dependency payload", () => {
+    expect(
+      mapRuntimeDependencies({
+        allRequiredSatisfied: true,
+        dependencies: [{ id: "python", displayName: "Python", status: "ok" }],
+      }).dependencies,
+    ).toEqual([]);
   });
 
   it.each([

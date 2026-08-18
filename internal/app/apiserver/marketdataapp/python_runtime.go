@@ -68,8 +68,8 @@ type pythonRuntimeCandidate struct {
 	source string
 }
 
-// PythonRuntimeProbeResult is the shared source-runtime validation result used
-// by dependency status and sidecar startup.
+// PythonRuntimeProbeResult is the source-runtime validation result used by
+// sidecar startup.
 type PythonRuntimeProbeResult struct {
 	Available       bool
 	DetectedVersion string

@@ -1,8 +1,8 @@
 # 行情数据源
 
-JFTrade 的行情查询与交易执行是两个独立边界。运行时提供 Futu OpenD、Yahoo Finance（`yfinance`）和 AKShare（`akshare`）三个行情 Provider；首页/研究页的“行情提供者”菜单默认使用 yfinance。账户、持仓、订单与真实下单仍只走已配置的 Futu OpenD broker。
+JFTrade 的行情查询与交易执行是两个独立边界。运行时提供 Futu OpenD、Yahoo Finance（`yfinance`）和 AKShare（`akshare`）三个行情 Provider；首页/研究页的“行情提供者”菜单默认使用 AKShare。账户、持仓、订单与真实下单仍只走已配置的 Futu OpenD broker。
 
-新安装默认使用 Yahoo Finance。yfinance 与 AKShare 都适合美股、港股和沪深的证券搜索、延迟快照与历史 K 线分析，不应当作实时交易报价；两者还按下方能力矩阵承担研究中心的榜单、板块热力、个股研究、事件日历、宏观指标与股票筛选等只读能力。已有明确选择的 `futu`、`yfinance` 或 `akshare` 会保留；任何 Python 上游失败都会作为当前 Provider 的结构化错误返回，不会静默回退到 Yahoo 或 Futu。
+新安装默认使用 AKShare。yfinance 与 AKShare 都适合美股、港股和沪深的证券搜索、延迟快照与历史 K 线分析，不应当作实时交易报价；两者还按下方能力矩阵承担研究中心的榜单、板块热力、个股研究、事件日历、宏观指标与股票筛选等只读能力。已有明确选择的 `futu`、`yfinance` 或 `akshare` 会保留；任何 Python 上游失败都会作为当前 Provider 的结构化错误返回，不会静默回退到 Yahoo 或 Futu，启动失败时也不会隐式切换到 Futu。
 
 ## 能力对比
 
@@ -78,7 +78,7 @@ Futu 的可见标的若 `BasicQot` 订阅因行情权限、不支持或订阅额
 
 桌面版和带 `release_assets` 的 `cmd/jftrade-api` 会嵌入目标平台的 PyInstaller `onedir` helper（可执行文件及其依赖目录）。JFTrade 首次启用时把它原子发布到设置目录下的 `cache/marketdata-sidecar/<bundle-sha256>/`，逐文件校验摘要、类型和权限；后续启动完整校验后复用，不再重复写文件。损坏只重建当前摘要目录，缓存不可写时降级到权限受限的临时目录。全局行情、回测任务等消费者通过 Provider 租约共享 helper；切回 Futu 后只有最后一个 Python Provider 租约释放才停止进程，应用退出则统一取消任务并回收。helper 不会无限自动重启，也不会监听公网。
 
-设置页不提供行情 Provider 分类，也不提供 host、port、enabled、timeout 或 Python 路径配置。发布版及 frozen helper 自带 Python 3.14；源码开发模式仍可在“设置 → 依赖项管理”查看 Python 3.11+ 与运行模块状态，但解释器只通过环境变量、workspace `.venv` 或 PATH 自动选择。
+设置页不提供行情 Provider 分类，也不提供 host、port、enabled、timeout 或 Python 路径配置。发布版及 frozen helper 自带 Python 3.14；源码开发模式由 sidecar 启动流程通过环境变量、workspace `.venv` 或 PATH 自动选择解释器，用户界面不展示 Python 依赖诊断。
 
 ## Provider 切换与 Futu 退订
 
@@ -136,7 +136,7 @@ JFTRADE_MARKETDATA_LIVE_SMOKE=1 \
 
 ```json
 {
-  "activeMarketDataProvider": "yfinance"
+  "activeMarketDataProvider": "akshare"
 }
 ```
 

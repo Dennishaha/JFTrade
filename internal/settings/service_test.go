@@ -56,7 +56,7 @@ func (s *fakeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettin
 }
 func (s *fakeStore) ActiveMarketDataProvider() jfsettings.ActiveMarketDataProvider {
 	if s.activeProvider == "" {
-		return jfsettings.MarketDataProviderFutu
+		return jfsettings.MarketDataProviderAKShare
 	}
 	return s.activeProvider
 }

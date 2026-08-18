@@ -115,6 +115,7 @@ export function configureBrokerProviderDefaults(input: {
 
 async function loadBrokerProviders(
   force = false,
+  applyDefaults = true,
 ): Promise<BrokerCapabilityDescriptor[]> {
   if (!force && brokerDescriptors.value.length > 0) {
     return brokerDescriptors.value;
@@ -137,9 +138,11 @@ async function loadBrokerProviders(
           status.featureId.trim() &&
           status.market.trim(),
       );
-      const resolved = resolveDefaultBrokerProvider(brokerDescriptors.value);
-      if (resolved && resolved !== selectedBrokerId.value) {
-        commitBrokerProvider(resolved);
+      if (applyDefaults) {
+        const resolved = resolveDefaultBrokerProvider(brokerDescriptors.value);
+        if (resolved && resolved !== selectedBrokerId.value) {
+          commitBrokerProvider(resolved);
+        }
       }
       return brokerDescriptors.value;
     })

@@ -1,6 +1,8 @@
 import type { BrokerProviderOption } from "@/composables/trading/brokerProviderSelection";
 import type { PythonMarketDataProviderID } from "@/composables/market-data/usePythonMarketDataRuntimeWarmup";
 
+export const defaultEmbeddedPythonMarketDataProviderID: PythonMarketDataProviderID = "akshare";
+
 export const embeddedPythonMarketDataFeatureIDs = new Set([
   "market.search",
   "market.instrument_profile",

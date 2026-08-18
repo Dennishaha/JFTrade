@@ -94,6 +94,35 @@ func TestRuntimeStopsNewSidecarWhenInitialAKShareActivationFails(t *testing.T) {
 	}
 }
 
+func TestRuntimeRetriesAProviderMarkedUnavailable(t *testing.T) {
+	runtime, err := NewRuntime(RuntimeOptions{FutuProvider: &providerStub{id: ProviderFutu}})
+	if err != nil {
+		t.Fatalf("NewRuntime: %v", err)
+	}
+	sidecar := &sidecarLifecycleStub{}
+	runtime.sidecar = sidecar
+	runtime.healthCheck = func(context.Context, marketdata.Provider, bool) error { return nil }
+	activationErr := errors.New("AKShare helper unavailable")
+	runtime.MarkProviderUnavailable(ProviderAKShare, activationErr)
+
+	if runtime.ActiveProviderID() != ProviderAKShare ||
+		!runtime.NeedsProviderActivation(ProviderAKShare) {
+		t.Fatalf("marked unavailable state = provider %q, needs retry=%v",
+			runtime.ActiveProviderID(), runtime.NeedsProviderActivation(ProviderAKShare))
+	}
+	if err := runtime.Activate(t.Context(), Activation{
+		ProviderID:     ProviderAKShare,
+		RequireHealthy: true,
+	}); err != nil {
+		t.Fatalf("retry AKShare activation: %v", err)
+	}
+	if runtime.ActiveProviderID() != ProviderAKShare ||
+		runtime.NeedsProviderActivation(ProviderAKShare) || sidecar.ensureCalls != 1 {
+		t.Fatalf("retried provider state = provider %q, needs retry=%v, sidecar=%#v",
+			runtime.ActiveProviderID(), runtime.NeedsProviderActivation(ProviderAKShare), sidecar)
+	}
+}
+
 func TestRuntimeUsesGenericCacheDirectoryWithLegacyFallback(t *testing.T) {
 	if got := runtimeSidecarCacheDir(RuntimeOptions{
 		MarketDataCacheDir: " /new/cache ", YFinanceCacheDir: "/old/cache",
