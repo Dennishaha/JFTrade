@@ -1,6 +1,6 @@
 # JFTrade Go → Rust 完整迁移方案与守则
 
-状态：执行中。更新时间：2026-08-19。当前阶段：**阶段 7 API/control-plane 本地 shadow 工作包已完成；Go/Gin 仍是公开 API、生产 lifecycle、SQLite 和各能力写入的唯一 owner，真实 route-group 切流、长连接、发布资产与原生平台观察窗口仍待闭环；阶段 8 尚未启动**。
+状态：执行中。更新时间：2026-08-19。当前阶段：**阶段 8 Tauri desktop facade 本地 shadow 工作包已完成；Wails 仍是唯一生产桌面 owner，Tauri 不启动原生 WebView、不接管产品子进程或发布资产；四平台打包/安装、同 bundle 黑屏对照、签名、升级与孤儿进程观察窗口仍待闭环，阶段 9 尚未启动**。
 
 本文是 JFTrade 将 Go 后端与 Wails 桌面壳完整迁移到 Rust 的计划、边界和放行事实源。活动状态在 [roadmap.md](../roadmap.md) 汇总；当前生产架构仍以 [architecture.md](../architecture.md) 为准。任何阶段都不得用“已经写出 Rust 版本”代替兼容性、可靠性和资源验收。
 
@@ -70,7 +70,7 @@ Node PineTS worker        Python market-data helper
 
 ### 3.1 Rust 目标目录指引（强制）
 
-本节是迁移期间新增目录、crate 和跨目录依赖的强制放置规则。目录出现在蓝图中只表示名称、owner 和最早启用阶段已经预留，**不表示应立即创建**。阶段未启动、没有实际生产代码或没有行为测试时，不得创建空 crate、占位模块或未来依赖。当前 Rust 侧已经启用 `jftrade-engine`、`jftrade-kernel`、`jftrade-broker`、`jftrade-store-sqlite`、`jftrade-backtest`、`jftrade-marketdata`、`jftrade-strategy`、`jftrade-trading`、`jftrade-assistant`、`jftrade-research`、`jftrade-watchlist`、`jftrade-settings`、`jftrade-calendar`、`jftrade-datamanagement`、`jftrade-api`、`jftrade-integration-pine`、`jftrade-integration-marketdata-helper` 和 `jftrade-integration-futu`；其余 Rust/Tauri 目标目录仍是计划目录。
+本节是迁移期间新增目录、crate 和跨目录依赖的强制放置规则。目录出现在蓝图中只表示名称、owner 和最早启用阶段已经预留，**不表示应立即创建**。阶段未启动、没有实际生产代码或没有行为测试时，不得创建空 crate、占位模块或未来依赖。当前 Rust 侧已经启用 `jftrade-engine`、`jftrade-kernel`、`jftrade-broker`、`jftrade-store-sqlite`、`jftrade-backtest`、`jftrade-marketdata`、`jftrade-strategy`、`jftrade-trading`、`jftrade-assistant`、`jftrade-research`、`jftrade-watchlist`、`jftrade-settings`、`jftrade-calendar`、`jftrade-datamanagement`、`jftrade-api`、`jftrade-integration-pine`、`jftrade-integration-marketdata-helper`、`jftrade-integration-futu` 和 `apps/desktop/src-tauri`；其余目标目录仍是计划目录。
 
 ```text
 crates/
@@ -96,7 +96,7 @@ crates/
 
 apps/
   web/                                    # 已存在并保留：Vue 控制台
-  desktop/src-tauri/                      # 计划，仅阶段 8 创建
+  desktop/src-tauri/                      # 已启用，阶段 8：Tauri facade、桌面契约与受管生命周期
 
 workers/
   pineworker/                             # 已存在并保留：Node PineTS worker
@@ -232,7 +232,7 @@ jftrade-kernel / jftrade-broker
 | time/identity | [time 0.3.55](https://github.com/time-rs/time) / [uuid 1.24.1](https://github.com/uuid-rs/uuid) | `time` 阶段 2 已引入；UUID 后续候选 | `time` 仅启用 std/formatting/parsing/serde，保留 RFC3339Nano 与 Unix 毫秒语义；UUID 未被阶段 2 代码使用，不提前引入 |
 | CPU parallelism | [Rayon 1.12.0](https://github.com/rayon-rs/rayon) | 后续候选 | 只用于有基准证据的批量纯计算；不得与 Tokio task 无界叠加 |
 | Assistant | [Rig Core 0.42.0](https://github.com/0xPlaygrounds/rig) | 阶段 6 已引入 | 官方仓库、MIT；精确锁定且关闭默认 feature，只在 `rig_adapter` 内使用 provider-neutral request/message/tool 类型；不启用 Rig 的 `reqwest` 增强、derive、rustls 或具体 Provider feature（core 自身仍含最小 HTTP/stream 基础依赖），不让 Rig 类型进入 JFTrade 持久化模型或 ports |
-| desktop | [Tauri 2.11.5](https://github.com/tauri-apps/tauri) | 已锁定、后续引入 | Rust 桌面主流方案；先复制 Wails facade 和四平台发布语义，再删除 Wails |
+| desktop | [Tauri 2.11.5](https://github.com/tauri-apps/tauri) / [`@tauri-apps/api` 2.11.1](https://github.com/tauri-apps/tauri) | 阶段 8 已引入 | 官方 Rust/JS 包；Rust crate 关闭全部默认 feature，仅使用 Builder/command/state 边界，Vue 通过官方 `invoke`/`listen` 接入；本地 shadow 不启用 Wry/WebView、tray、updater 或 native TLS，待原生切片实际使用时再逐项开启 |
 
 阶段 5 未增加第三方依赖；`jftrade-trading` 和 `jftrade-strategy` 只复用已审计的 `jftrade-kernel`、`jftrade-broker`、Serde 与 thiserror，OpenD 交易 shadow 复用阶段 4 的 adapter crate，避免在无真实 wire owner 前引入第二套 broker SDK 或持久化框架。
 
@@ -240,9 +240,11 @@ jftrade-kernel / jftrade-broker
 
 阶段 7 新增 Axum 0.8.9、Tower 0.5.3 与 tower-http 0.7.0，均来自 Tokio/Tower 官方维护生态，并继续精确锁定版本、关闭默认 feature、只开启实际生产代码使用的最小功能；`http-body-util` 仅用于 transport 行为测试。研究、自选、设置、日历和数据维护 crate 没有引入第二套 async runtime、数据库驱动、Provider SDK 或通用 service 框架。
 
+阶段 8 新增的直接依赖只有 Tauri 官方 `tauri = 2.11.5` 与 `@tauri-apps/api = 2.11.1`。Rust 端默认 feature 全关，不把尚未运行的 Wry、tray、updater、system shell 或 TLS 提前带入产品；JS 端只在检测到 Tauri runtime 时动态加载 `core.invoke` 和 `event.listen`，当前 Wails binding 仍是生产 adapter。`cargo-deny` 审计确认 Tauri 的四目标解析仍带入 Linux GTK3 与 `urlpattern` 的 13 个“unmaintained”信息公告（没有 vulnerability/unsound 公告）；`deny.toml` 只按 advisory ID 登记官方传递图例外，并只对 7 个精确 crate/version 放行 MPL-2.0、Zlib 或 Apache-2.0 WITH LLVM-exception，禁止把许可证全局放宽。Tauri/传递版本变化时未命中的例外会告警并必须重新审查；原生 feature 仍须跟随对应平台实现和测试一起引入。
+
 明确暂不选择：
 
-- 不在对应阶段前引入 SQLx、Tauri、Rayon 或 Decimal，只为未来“占位”；Rig 与 Axum/Tower 已分别在阶段 6/7 按实际 adapter 和行为测试引入。
+- 不提前引入 SQLx、Rayon 或 Decimal，只为未来“占位”；Rig、Axum/Tower 与 Tauri 已分别在阶段 6/7/8 按实际 adapter 和行为测试引入。
 - 不选择 Rustls `0.24.0-dev.*` 进入产品基线。
 - 不引入第二个 async runtime、第二个 HTTP server 或通用 service locator。
 - 不用 `libloading`/原生 ABI 直接嵌 Go；跨语言共存统一走私有进程 RPC，降低崩溃域和构建耦合。
@@ -419,12 +421,30 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go �
 
 放行：全量契约/differential/Web 测试通过；生产 bundle 和真实 sidecar smoke 通过；启动、关闭、端口和安全边界一致。
 
-### 阶段 8：Wails → Tauri 桌面迁移
+### 阶段 8：Wails → Tauri 桌面迁移（本地 facade shadow 完成）
 
-1. 在 Vue 侧建立稳定 desktop facade，逐项映射启动状态、链接、日志、更新、窗口、菜单和单实例。
-2. Tauri 管理 Rust API、PineTS 和 Python helper 的发布资产与生命周期。
-3. 复制开发/正式数据隔离、端口、版本注入、签名/安装器和四平台资源。
-4. 同一前端 bundle 分别在 Wails/Tauri 做行为对照，切换后删除 Wails bindings 生成链。
+- [x] 创建 `apps/desktop/src-tauri`，以 `jftrade-desktop` 作为只依赖 `jftrade-engine` 的外层 shell crate；登记 Tauri config、10 个 command、4 个 event，以及启动、链接、日志、更新、主窗口/日志窗口边界。
+- [x] 在 Vue 建立单一 `desktopFacade`，运行时只选 Tauri 或 Wails 一个 adapter；Tauri 使用官方 `invoke`/`listen`，Wails 继续动态加载现有生成 bindings，浏览器调用桌面命令 fail closed。
+- [x] 复制 Wails 的 dev/release identity、单实例 ID、`127.0.0.1:3008`/`127.0.0.1:6699`、系统用户数据目录、settings/backtest/window-state 路径和 update policy；三平台 profile corpus 固定成功与拒绝行为。
+- [x] 建立 engine → Pine worker → market-data sidecar 的资产校验和启动顺序，以及反向关闭、5 秒关闭预算、readiness 失败回收；本地实现只通过注入的 supervisor 形成可执行计划，不启动第二套产品子进程。
+- [x] 固定 Go/Wails 对 Rust/Tauri 的 desktop differential、Vue 双 adapter 行为测试、SHA-256 manifest 与 Darwin ARM64 release replay 资源基线。
+- [ ] 仍需启用实际 Wry/native runner，接管 Rust API/PineTS/Python 发布资产，复刻 tray/menu/notification/window state/update installer，并在同一生产 Vue bundle 上完成 Wails/Tauri 黑屏、退出孤儿、数据升级与回退对照。
+- [ ] macOS ARM64、Linux x64、Windows x64/ARM64 的签名、安装、升级和卸载 smoke 尚未执行；完成前不得切换桌面入口或删除 Wails bindings/生成链。
+
+#### 阶段 8 执行账本
+
+| 工作包 | 当前 Wails owner | 阶段 8 Rust/Tauri owner | 唯一切换点与回退 | Wails 删除条件 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| Vue desktop facade、command 与 event 契约 | `cmd/jftrade-desktop` 生成 bindings、`@wailsio/runtime` | `apps/web/src/composables/shared/desktopFacade.ts`、`jftrade-desktop::tauri_adapter` | Vue 每次只解析一个 runtime adapter；release launcher 选择 native shell，回退整体选择 Wails | 同一生产 bundle 在两个壳的启动、链接、日志、更新、窗口、菜单、单实例行为完全一致，Tauri 观察窗口关闭 | 双 adapter 与拒绝/卸载 listener 测试完成；产品仍解析 Wails |
+| identity、端口与用户数据目录 | `desktop_profile.go`、`internal/desktop/runtime_path.go` | `jftrade-desktop::profile` | native shell profile 是唯一配置源；不迁移、不扫描开发数据，回退沿用同一 release 路径 | 四平台安装/升级/备份恢复验证 settings、数据库和 window state 原地兼容 | 3 平台确定性投影与 Go reference 完成；真实升级未执行 |
+| Rust API、PineTS、Python helper 资产和生命周期 | `cmd/jftrade-desktop`、Go apiserver/worker managers、Wails release assets | `jftrade-desktop::lifecycle` 通过 `jftrade-engine` facade | Tauri composition 一次性取得全部 child owner；失败按 sidecar → Pine → engine 反向回收，回退不能并行启动 Wails child owner | 签名资产 hash、ready、故障、取消、5 秒关闭、crash recovery 和无孤儿进程在四平台通过 | 资产/顺序/失败回收纯逻辑完成；未启动真实 child、未接管发布资产 |
+| 原生 WebView、tray/menu/notification、窗口状态、installer/updater | Wails v3 与现有四平台 release scripts | 后续启用的 Tauri native runtime/plugins | 只在四平台 RC 全绿后切换 release entrypoint；整体安装包回退 | 无黑屏、菜单/通知/链接/窗口一致，签名安装/升级/卸载通过，Wails 入口和 bindings 无消费者 | 未启动；本地 shadow 明确不启用 Wry/tray/updater |
+
+阶段 8 corpus 位于 `tests/fixtures/rust-migration/stage8`，覆盖 3 个平台 profile、6 个链接、3 个受管资产、成功启动/反向关闭、readiness 失败回收、10 个 facade command 和 4 个 event；`manifest.json` 固定 input、expected 与 Darwin ARM64 资源基线 SHA-256。differential 为 `pnpm run test:rust:stage8:differential`，本机 release 资源复测为 `pnpm run benchmark:rust:stage8`。
+
+Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go 生产 Wails 桌面行为 harness 的 p95 为 18.247 ms、峰值 RSS 42,631,168 bytes；Rust/Tauri facade replay 的 p95 为 6.658 ms、峰值 RSS 8,765,440 bytes，Rust/Go 比值为 0.365/0.206，5% p95 与 10% RSS 回退门禁通过。Rust 样本没有创建 native WebView 或真实子进程，绝对启动、RSS 与二进制大小不能用作 Tauri 产品资源结论。
+
+本阶段“本地完成”只证明 facade owner、配置/路径语义、生命周期计划、Vue 双 adapter、确定性 replay 和资源门禁闭环。它没有运行 Tauri native shell、接管生产 API/worker、构建或签名安装包，也没有验证无黑屏、无孤儿和升级数据；四平台 release candidate 与观察窗口完成前，阶段 8 不构成产品放行，Wails 生产 owner 不变。
 
 放行：macOS ARM64、Linux x64、Windows x64/ARM64 打包与安装 smoke；无黑屏；退出无孤儿进程；升级不丢数据。
 
@@ -516,5 +536,6 @@ JFTRADE_RUST_ENGINE_TOKEN="$(openssl rand -hex 32)" \
 | 2026-08-19 | 阶段 5 本地交易/策略/OpenD shadow 工作包完成；所有交易计划与通知强制零 dispatch，Go 继续拥有 broker、SQLite 和用户可见通知 | 10 status/7 transition/6 command/7 update/5 position refresh/3 strategy differential；Darwin ARM64 p95/RSS 门禁通过；只读 OpenD、小额 live 与 durable recovery 保持未闭环 |
 | 2026-08-19 | 阶段 6 本地 Assistant/Rig shadow 工作包完成；Rig 隔离在窄 adapter，Go/Google ADK 继续拥有生产 Provider、SQLite、artifact 与 continuation | 9 status/12 transition、审批/输入幂等、lease/claim fencing、DAG、artifact 与 fake transcript differential；Darwin ARM64 p95/RSS 门禁通过；真实 Provider live、Rust durable store 与 crash recovery 保持未闭环 |
 | 2026-08-19 | 阶段 7 本地 API/control-plane shadow 工作包完成；Axum/Tower 与五个控制面领域 crate 已受目录门禁约束，Go/Gin 继续拥有公开 API、SQLite 与产品 lifecycle | 278 operation/18 route group/19 concrete probe differential；安全、envelope、SSE/WS/static 行为测试与 Darwin ARM64 p95/RSS 门禁通过；真实 handler、route cutover、长连接、bundle/sidecar 和原生平台保持未闭环 |
+| 2026-08-19 | 阶段 8 本地 Tauri desktop facade shadow 工作包完成；Vue 已有 Wails/Tauri 单选 adapter，Wails 继续拥有生产 native shell、子进程与发布资产 | 3 platform/6 link/3 asset/10 command/4 event differential；readiness 失败反向回收、Vue adapter 测试与 Darwin ARM64 p95/RSS 门禁通过；native WebView、真实 child、四平台签名安装/升级/孤儿观察保持未闭环 |
 
 完成每个阶段时在本表追加最终决策；大量一次性测试日志留在 CI artifact/提交，不复制进长期文档。

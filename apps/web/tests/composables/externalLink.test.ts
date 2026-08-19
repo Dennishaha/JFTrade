@@ -4,10 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const openLinkBinding = vi.hoisted(() => vi.fn(async () => undefined));
 
-vi.mock(
-  "../../src/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplinkservice",
-  () => ({ OpenLink: openLinkBinding }),
-);
+vi.mock("@/composables/shared/desktopFacade", () => ({
+  desktopFacade: { links: { open: openLinkBinding } },
+}));
 
 import {
   handleExternalLinkClick,

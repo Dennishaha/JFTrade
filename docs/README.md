@@ -24,7 +24,7 @@ JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工�
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
 - PineTS worker：Node ESM `worker.mjs`，Go 通过 localhost gRPC 管理 worker pool。
 - 回测和实盘权威边界：PineTS 产出信号、图形输出和 order intents；Go 负责撮合、成交、资金曲线、风控、账户刷新和券商下单。
-- Rust 迁移：阶段 1 共存 bridge，以及阶段 2 codec/SQLite、阶段 3 回测、阶段 4 行情/worker 生命周期、阶段 5 交易/策略、阶段 6 Assistant/Rig、阶段 7 API/control-plane 的本地 shadow 证据已建立；阶段 7 固定了 278 个 OpenAPI operation，但尚未实现或切换全部生产 handler。Go/Wails 仍拥有公开 API、生产数据库、真实 worker/Futu/Assistant 和桌面发布；真实 live、持久化恢复、route-group 切流与原生发布平台资格继续阻断产品迁移。完整阶段、目录约束和切换条件见 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)。
+- Rust 迁移：阶段 1 共存 bridge，以及阶段 2 codec/SQLite、阶段 3 回测、阶段 4 行情/worker 生命周期、阶段 5 交易/策略、阶段 6 Assistant/Rig、阶段 7 API/control-plane、阶段 8 Tauri desktop facade 的本地 shadow 证据已建立；Vue 已通过单一 facade 支持 Wails/Tauri adapter，但产品仍只运行 Wails。Go/Wails 继续拥有公开 API、生产数据库、真实 worker/Futu/Assistant、native WebView 和桌面发布；真实 live、持久化恢复、route-group 切流、四平台签名安装/升级与观察窗口继续阻断产品迁移。完整阶段、目录约束和切换条件见 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)。
 - 许可证注意：`workers/pineworker` 精确依赖 `pinets@0.9.31`，当前 npm license 为 `AGPL-3.0-only`。
 
 当前发布和验收入口：

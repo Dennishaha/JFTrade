@@ -9,7 +9,25 @@ targets = [
 
 [advisories]
 yanked = "deny"
-ignore = []
+ignore = [
+  # Tauri 2.11.5 resolves these informational "unmaintained" notices through
+  # its official Linux GTK3 and urlpattern graph even with default features
+  # disabled. None is a vulnerability/unsound advisory. Keep IDs explicit and
+  # remove them when the official Tauri graph no longer resolves the crates.
+  { id = "RUSTSEC-2024-0370", reason = "transitive through official Tauri Linux GTK3 support" },
+  { id = "RUSTSEC-2024-0412", reason = "transitive through official Tauri Linux GTK3 support" },
+  { id = "RUSTSEC-2024-0413", reason = "transitive through official Tauri Linux GTK3 support" },
+  { id = "RUSTSEC-2024-0415", reason = "transitive through official Tauri Linux GTK3 support" },
+  { id = "RUSTSEC-2024-0416", reason = "transitive through official Tauri Linux GTK3 support" },
+  { id = "RUSTSEC-2024-0418", reason = "transitive through official Tauri Linux GTK3 support" },
+  { id = "RUSTSEC-2024-0419", reason = "transitive through official Tauri Linux GTK3 support" },
+  { id = "RUSTSEC-2024-0420", reason = "transitive through official Tauri Linux GTK3 support" },
+  { id = "RUSTSEC-2025-0075", reason = "transitive through official Tauri urlpattern support" },
+  { id = "RUSTSEC-2025-0080", reason = "transitive through official Tauri urlpattern support" },
+  { id = "RUSTSEC-2025-0081", reason = "transitive through official Tauri urlpattern support" },
+  { id = "RUSTSEC-2025-0098", reason = "transitive through official Tauri urlpattern support" },
+  { id = "RUSTSEC-2025-0100", reason = "transitive through official Tauri urlpattern support" },
+]
 
 [licenses]
 confidence-threshold = 0.93
@@ -19,6 +37,15 @@ allow = [
   "BSD-3-Clause",
   "MIT",
   "Unicode-3.0",
+]
+exceptions = [
+  { crate = "cssparser@0.36.0", allow = ["MPL-2.0"] },
+  { crate = "cssparser-macros@0.6.1", allow = ["MPL-2.0"] },
+  { crate = "dtoa-short@0.3.5", allow = ["MPL-2.0"] },
+  { crate = "option-ext@0.2.0", allow = ["MPL-2.0"] },
+  { crate = "selectors@0.36.1", allow = ["MPL-2.0"] },
+  { crate = "foldhash@0.2.0", allow = ["Zlib"] },
+  { crate = "target-lexicon@0.12.16", allow = ["Apache-2.0 WITH LLVM-exception"] },
 ]
 
 [bans]

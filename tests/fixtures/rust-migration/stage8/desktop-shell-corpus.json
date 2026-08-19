@@ -1,0 +1,50 @@
+{
+  "version": "stage8.v1",
+  "platforms": [
+    {
+      "platform": "darwin",
+      "homeDir": "/Users/alice",
+      "configDir": "/Users/alice/Library/Application Support"
+    },
+    {
+      "platform": "linux",
+      "homeDir": "/home/alice",
+      "xdgDataHome": "/home/alice/.local/share"
+    },
+    {
+      "platform": "windows",
+      "homeDir": "C:/Users/alice",
+      "configDir": "C:/Users/alice/AppData/Roaming",
+      "localAppData": "C:/Users/alice/AppData/Local"
+    }
+  ],
+  "links": [
+    "/docs",
+    "docs/reference/index.html#orders",
+    "https://github.com/Dennishaha/jftrade/releases",
+    "javascript:alert(1)",
+    "/docs/%2e%2e/settings",
+    "/settings"
+  ],
+  "assets": [
+    {
+      "role": "engine",
+      "relativePath": "bin/jftrade-engine",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "executable": true
+    },
+    {
+      "role": "pine-worker",
+      "relativePath": "bin/pineworker/worker.mjs",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "executable": true
+    },
+    {
+      "role": "marketdata-sidecar",
+      "relativePath": "bin/marketdata-sidecar/marketdata-sidecar",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "executable": true
+    }
+  ],
+  "failureRole": "marketdata-sidecar"
+}

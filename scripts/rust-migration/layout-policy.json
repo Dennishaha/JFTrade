@@ -12,6 +12,18 @@
   ],
   "packages": [
     {
+      "name": "jftrade-desktop",
+      "path": "apps/desktop/src-tauri",
+      "stage": 8,
+      "status": "active",
+      "layer": "shell",
+      "goOwner": "cmd/jftrade-desktop and internal/desktop Wails startup, links, logs, updates, windows, menu, single-instance, assets and child lifecycle",
+      "rustOwner": "apps/desktop/src-tauri",
+      "cutover": "the release launcher selects exactly one native shell after the same Vue bundle and managed child set pass platform qualification",
+      "goDeleteWhen": "macOS ARM64, Linux x64, Windows x64 and Windows ARM64 package, signing, upgrade, WebView, orphan-process and rollback windows pass with Tauri as sole desktop owner",
+      "allowedWorkspaceDependencies": ["jftrade-engine"]
+    },
+    {
       "name": "jftrade-api",
       "path": "crates/jftrade-api",
       "stage": 7,

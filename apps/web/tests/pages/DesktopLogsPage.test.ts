@@ -5,26 +5,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 
 const testState = vi.hoisted(() => ({
-  appendHandler: null as null | ((event: { data: unknown }) => void),
+  appendHandler: null as null | ((event: { day: string; line: unknown }) => void),
   cancelAppend: vi.fn(),
-  eventsOn: vi.fn(),
+  onAppend: vi.fn(),
   listDays: vi.fn(),
   openFolder: vi.fn(),
   readPage: vi.fn(),
 }));
 
-vi.mock("@wailsio/runtime", () => ({
-  Events: {
-    On: (...args: unknown[]) => testState.eventsOn(...args),
-  },
-}));
-
 vi.mock(
-  "../../src/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplogservice",
+  "@/composables/shared/desktopFacade",
   () => ({
-    ListDays: (...args: unknown[]) => testState.listDays(...args),
-    OpenFolder: (...args: unknown[]) => testState.openFolder(...args),
-    ReadPage: (...args: unknown[]) => testState.readPage(...args),
+    desktopFacade: {
+      logs: {
+        listDays: (...args: unknown[]) => testState.listDays(...args),
+        openFolder: (...args: unknown[]) => testState.openFolder(...args),
+        readPage: (...args: unknown[]) => testState.readPage(...args),
+        onAppend: (...args: unknown[]) => testState.onAppend(...args),
+      },
+    },
   }),
 );
 
@@ -67,7 +66,7 @@ async function mountPage(initialPage: ReturnType<typeof pageResult>) {
 
 async function emitAppend(logLine: LogLine, day = selectedDay): Promise<void> {
   expect(testState.appendHandler).not.toBeNull();
-  testState.appendHandler?.({ data: { day, line: logLine } });
+  testState.appendHandler?.({ day, line: logLine });
   await nextTick();
   await flushPromises();
 }
@@ -75,12 +74,12 @@ async function emitAppend(logLine: LogLine, day = selectedDay): Promise<void> {
 beforeEach(() => {
   testState.appendHandler = null;
   testState.cancelAppend.mockReset();
-  testState.eventsOn
+  testState.onAppend
     .mockReset()
     .mockImplementation(
-      (_name: string, handler: (event: { data: unknown }) => void) => {
+      (handler: (event: { day: string; line: unknown }) => void) => {
         testState.appendHandler = handler;
-        return testState.cancelAppend;
+        return Promise.resolve(testState.cancelAppend);
       },
     );
   testState.listDays.mockReset().mockResolvedValue([{ day: selectedDay }]);
@@ -117,10 +116,7 @@ describe("DesktopLogsPage", () => {
       "第 3 / 3 页 · 共 405 行",
     );
     expect(wrapper.text()).toContain("INFO latest-5");
-    expect(testState.eventsOn).toHaveBeenCalledWith(
-      "jftrade:desktop-log:append",
-      expect.any(Function),
-    );
+    expect(testState.onAppend).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it("appends a matching live line without reloading or flashing", async () => {
@@ -279,10 +275,56 @@ describe("DesktopLogsPage", () => {
     expect(testState.readPage).not.toHaveBeenCalled();
     expect(emptyWrapper.text()).toContain("没有匹配的日志");
 
+    testState.listDays.mockResolvedValueOnce(null);
+    const legacyEmptyWrapper = mount(DesktopLogsPage);
+    wrappers.push(legacyEmptyWrapper);
+    await flushPromises();
+    expect(testState.readPage).not.toHaveBeenCalled();
+    expect(legacyEmptyWrapper.text()).toContain("没有匹配的日志");
+
     testState.listDays.mockRejectedValueOnce(new Error("桌面日志服务断开"));
     const failedWrapper = mount(DesktopLogsPage);
     wrappers.push(failedWrapper);
     await flushPromises();
     expect(failedWrapper.text()).toContain("桌面日志服务断开");
+
+    testState.listDays.mockRejectedValueOnce("untyped desktop failure");
+    const untypedFailureWrapper = mount(DesktopLogsPage);
+    wrappers.push(untypedFailureWrapper);
+    await flushPromises();
+    expect(untypedFailureWrapper.text()).toContain("桌面日志服务不可用");
+  });
+
+  it("removes an append listener that resolves after the page is unmounted", async () => {
+    let resolveListener: ((listener: () => void) => void) | undefined;
+    testState.onAppend.mockReturnValueOnce(
+      new Promise<() => void>((resolve) => {
+        resolveListener = resolve;
+      }),
+    );
+    testState.readPage.mockResolvedValue(
+      pageResult({ items: [], offset: 0, total: 0 }),
+    );
+
+    const wrapper = mount(DesktopLogsPage);
+    wrappers.push(wrapper);
+    await vi.waitFor(() => expect(testState.onAppend).toHaveBeenCalledOnce());
+    wrapper.unmount();
+    resolveListener?.(testState.cancelAppend);
+    await flushPromises();
+
+    expect(testState.cancelAppend).toHaveBeenCalledOnce();
+  });
+
+  it("removes an append listener that resolves while the page is mounted", async () => {
+    const wrapper = await mountPage(
+      pageResult({ items: [], offset: 0, total: 0 }),
+    );
+    await vi.waitFor(() => expect(testState.onAppend).toHaveBeenCalledOnce());
+    await flushPromises();
+
+    wrapper.unmount();
+
+    expect(testState.cancelAppend).toHaveBeenCalledOnce();
   });
 });

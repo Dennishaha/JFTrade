@@ -1,4 +1,5 @@
 import { resolveDesktopMode } from "@/runtimeConfig";
+import { desktopFacade } from "@/composables/shared/desktopFacade";
 
 function isDesktopWailsOrigin(): boolean {
   if (typeof window === "undefined") return false;
@@ -13,10 +14,7 @@ function isDesktopWailsOrigin(): boolean {
 async function openWithDesktopBinding(url: string): Promise<boolean> {
   if (!isDesktopWailsOrigin()) return false;
   try {
-    const { OpenLink } = await import(
-      "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplinkservice"
-    );
-    await OpenLink(url);
+    await desktopFacade.links.open(url);
     return true;
   } catch {
     return false;

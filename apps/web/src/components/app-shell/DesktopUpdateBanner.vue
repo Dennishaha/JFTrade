@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
 
+import {
+  desktopFacade,
+  type DesktopUpdateResult,
+} from "@/composables/shared/desktopFacade";
 import { openExternalUrl } from "@/composables/shared/externalLink";
 import { resolveDesktopMode } from "@/runtimeConfig";
-import type { DesktopUpdateResult } from "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/models";
 
 const update = ref<DesktopUpdateResult | null>(null);
 let cancelListener: (() => void) | null = null;
@@ -16,17 +19,21 @@ function openRelease(): void {
 onMounted(async () => {
   if (!resolveDesktopMode()) return;
   try {
-    const { Events } = await import("@wailsio/runtime");
-    cancelListener = Events.On("jftrade:desktop-update:available", (event) => {
-      const result = event.data as DesktopUpdateResult;
+    const cancel = await desktopFacade.updates.onAvailable((result) => {
       if (result?.available) update.value = result;
     });
+    if (cancelListener === stoppedListener) cancel();
+    else cancelListener = cancel;
   } catch {
     cancelListener = null;
   }
 });
 
-onUnmounted(() => cancelListener?.());
+const stoppedListener = () => undefined;
+onUnmounted(() => {
+  cancelListener?.();
+  cancelListener = stoppedListener;
+});
 </script>
 
 <template>

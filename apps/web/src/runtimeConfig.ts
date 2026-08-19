@@ -66,11 +66,13 @@ export function resolveDesktopBridgeAvailable(): boolean {
   }
   const runtimeWindow = window as typeof window & {
     chrome?: { webview?: { postMessage?: unknown } };
+    __TAURI_INTERNALS__?: { invoke?: unknown };
     webkit?: { messageHandlers?: { external?: { postMessage?: unknown } } };
     wails?: { invoke?: unknown };
   };
   return (
     typeof runtimeWindow.chrome?.webview?.postMessage === "function" ||
+    typeof runtimeWindow.__TAURI_INTERNALS__?.invoke === "function" ||
     typeof runtimeWindow.webkit?.messageHandlers?.external?.postMessage ===
       "function" ||
     typeof runtimeWindow.wails?.invoke === "function"

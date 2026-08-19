@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
-import {
-  DesktopLogService,
-  DesktopStartupService,
-} from "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop";
+import { desktopFacade } from "@/composables/shared/desktopFacade";
 
 const emit = defineEmits<{ ready: [] }>();
 
@@ -18,7 +15,7 @@ let stopped = false;
 async function refresh(): Promise<void> {
   if (stopped) return;
   try {
-    const snapshot = await DesktopStartupService.Snapshot();
+    const snapshot = await desktopFacade.startup.snapshot();
     if (stopped) return;
     message.value = snapshot.message || "正在启动本地服务…";
     if (snapshot.state === "ready") {
@@ -39,14 +36,14 @@ async function refresh(): Promise<void> {
 async function openLogs(): Promise<void> {
   actionError.value = "";
   try {
-    await DesktopLogService.OpenFolder();
+    await desktopFacade.logs.openFolder();
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : String(error);
   }
 }
 
 function quit(): void {
-  void DesktopStartupService.Quit();
+  void desktopFacade.startup.quit();
 }
 
 onMounted(() => void refresh());

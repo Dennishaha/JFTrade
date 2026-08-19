@@ -136,6 +136,8 @@ test("runs Rust tests and quality gates for migration engine changes", () => {
     "node --test scripts/rust-migration/benchmark-stage6.test.mjs",
     "pnpm run test:rust:stage7:differential",
     "node --test scripts/rust-migration/benchmark-stage7.test.mjs",
+    "pnpm run test:rust:stage8:differential",
+    "node --test scripts/rust-migration/benchmark-stage8.test.mjs",
     "go test ./scripts/rust-migration -count=1",
     "pnpm run format:rust:check",
     "pnpm run lint:rust",
