@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-19T08:16:25.616Z",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple A18 Pro",
+    "logicalCpus": 6,
+    "totalMemoryBytes": 8589934592
+  },
+  "buildProfile": {
+    "go": "go test -c -trimpath (production matcher reference harness)",
+    "rust": "cargo build --release"
+  },
+  "workload": {
+    "fixture": "backtest-corpus.json",
+    "fixtureSha256": "a8ba9393f6324cc9f3c9b3d90ffacdfab33147e1ff447cd420bf89bbb36e95c9",
+    "casesPerCorpus": 5,
+    "repeats": 1000,
+    "casesPerProcess": 5000
+  },
+  "go": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": {
+      "p50": 157.97,
+      "p95": 161.608,
+      "p99": 162.42
+    },
+    "cpuMillisP50": 210,
+    "peakRssBytes": 39895040,
+    "resultHash": "fnv1a64:050a2c89f71d3a2b",
+    "casesPerSecondP50": 31651.579,
+    "binaryBytes": 47260226
+  },
+  "rust": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": {
+      "p50": 61.979,
+      "p95": 65.24,
+      "p99": 65.571
+    },
+    "cpuMillisP50": 50,
+    "peakRssBytes": 2768896,
+    "resultHash": "fnv1a64:050a2c89f71d3a2b",
+    "casesPerSecondP50": 80672.486,
+    "binaryBytes": 644688
+  },
+  "gates": {
+    "rustToGoP95": 0.404,
+    "rustToGoPeakRss": 0.069,
+    "p95RegressionGatePassed": true,
+    "rssRegressionGatePassed": true,
+    "computeTargetPassed": true
+  },
+  "limitations": [
+    "Go uses a compiled test harness because conservative-bar-v1 is intentionally package-private.",
+    "Peak RSS and binary size include the Go test harness; use throughput and semantic hashes for the primary compute comparison.",
+    "This local result does not replace native Linux, Windows, and macOS CI qualification."
+  ]
+}

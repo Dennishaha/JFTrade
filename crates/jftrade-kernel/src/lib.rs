@@ -27,6 +27,18 @@ pub enum CodecError {
     /// The value cannot be represented by the signed eight-decimal fixed type.
     #[error("fixed8 value is out of range")]
     Fixed8OutOfRange,
+    /// A finite fixed-point calculation overflowed the signed representation.
+    #[error("fixed8 arithmetic overflow")]
+    Fixed8ArithmeticOverflow,
+    /// Division by zero is never a valid fixed-point operation.
+    #[error("fixed8 division by zero")]
+    Fixed8DivisionByZero,
+    /// Infinite sentinel values are wire-compatible but cannot enter accounting.
+    #[error("non-finite fixed8 value cannot be used in arithmetic")]
+    Fixed8NonFiniteArithmetic,
+    /// Quantity and price normalization require a positive increment.
+    #[error("fixed8 increment must be positive")]
+    InvalidFixed8Increment,
     /// The timestamp is not valid RFC3339.
     #[error("invalid RFC3339 timestamp: {0}")]
     InvalidTimestamp(String),

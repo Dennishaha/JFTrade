@@ -9,8 +9,8 @@
 完整范围、迁移守则、依赖选择、九阶段步骤和性能/资源门禁见 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)。活动路线只保留阶段状态：
 
 - [ ] 阶段 1：Rust 工程、authenticated loopback Tonic health bridge、依赖治理、affected/完整门禁和四目标 CI 基础已落地且本地 cross-check 通过；等待首次上游原生四平台矩阵后关闭。
-- [ ] 阶段 2：共享领域模型、codec 与 SQLite 只读 differential。
-- [ ] 阶段 3：回测与批量计算核心。
+- [x] 阶段 2：共享领域模型、codec 与 SQLite 只读 differential 本地工作包完成；Go 保持唯一生产 owner。
+- [x] 阶段 3：`conservative-bar-v1` 回测纯计算核心、三方 differential、取消/超时恢复、owner 回退演练和本机 release 资源门禁完成；生产 Pine replay 仍由 Go 拥有。
 - [ ] 阶段 4：行情 Provider、PineTS/Python helper 生命周期与 Futu/OpenD adapter。
 - [ ] 阶段 5：交易、策略运行与通知。
 - [ ] 阶段 6：Assistant 使用 Rig 迁移。
@@ -18,7 +18,7 @@
 - [ ] 阶段 8：Wails → Tauri 桌面迁移。
 - [ ] 阶段 9：删除 Go/Wails 并发布 Rust 大版本。
 
-阶段 1 不改变现有公开 HTTP/OpenAPI、SSE/WS、Wails bindings、SQLite 或产品运行入口；Go/Wails 仍是唯一生产 owner。
+已完成的阶段 2/3 本地工作包同样不改变公开 HTTP/OpenAPI、SSE/WS、Wails bindings、SQLite schema 或产品运行入口；Go/Wails 仍是唯一生产 owner。阶段完成事实和后续生产切换条件以迁移专题账本为准。
 
 ## AI 开发效率治理
 

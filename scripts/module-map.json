@@ -32,12 +32,15 @@
         "tests/fixtures/rust-migration"
       ],
       "entrypoints": [
-        "crates/jftrade-engine"
+        "crates/jftrade-engine",
+        "crates/jftrade-backtest/src/bin/jftrade-backtest-shadow.rs",
+        "scripts/rust-migration/run-backtest-owner.mjs"
       ],
       "affectedTests": [
         "pnpm run check:rust:layout",
         "pnpm run test:rust",
         "pnpm run test:rust:differential",
+        "pnpm run test:rust:backtest:differential",
         "go test ./scripts/rust-migration -count=1"
       ],
       "vetPackages": []

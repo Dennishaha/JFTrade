@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "partial-fees-drawdown",
+      "symbol": "US.AAPL",
+      "baseCurrency": "AAPL",
+      "quoteCurrency": "USD",
+      "initialBalance": "10000",
+      "processOrdersOnClose": false,
+      "slippageTicks": 0,
+      "market": {
+        "tickSize": "0.01",
+        "quantityStep": "0.1",
+        "minQuantity": "0.1"
+      },
+      "feeRules": [
+        {
+          "id": "commission",
+          "label": "Broker commission",
+          "group": "broker",
+          "side": "both",
+          "basis": "notional",
+          "rate": "0.0005",
+          "minAmount": "1"
+        },
+        {
+          "id": "sell-regulatory",
+          "label": "Sell regulatory fee",
+          "group": "market",
+          "side": "sell",
+          "basis": "notional",
+          "rate": "0.0001",
+          "rounding": "ceil_cent"
+        }
+      ],
+      "indicatorPeriods": [2, 3],
+      "candles": [
+        {"start":"2026-07-01T13:30:00Z","end":"2026-07-01T13:30:59.999Z","open":"100","high":"101","low":"99","close":"100","volume":"1000"},
+        {"start":"2026-07-01T13:31:00Z","end":"2026-07-01T13:31:59.999Z","open":"101","high":"103","low":"100","close":"102","volume":"100"},
+        {"start":"2026-07-01T13:32:00Z","end":"2026-07-01T13:32:59.999Z","open":"102","high":"104","low":"94","close":"95","volume":"1000"},
+        {"start":"2026-07-01T13:33:00Z","end":"2026-07-01T13:33:59.999Z","open":"105","high":"106","low":"101","close":"102","volume":"1000"},
+        {"start":"2026-07-01T13:34:00Z","end":"2026-07-01T13:34:59.999Z","open":"102","high":"103","low":"100","close":"101","volume":"1000"}
+      ],
+      "intents": [
+        {"barIndex":0,"action":"submit","id":"long","side":"buy","orderType":"market","quantity":"50"},
+        {"barIndex":2,"action":"submit","id":"exit","side":"sell","orderType":"limit","quantity":"50","limitPrice":"104","reduceOnly":true}
+      ]
+    },
+    {
+      "id": "atomic-stop-first",
+      "symbol": "US.AAPL",
+      "baseCurrency": "AAPL",
+      "quoteCurrency": "USD",
+      "initialBalance": "1000",
+      "processOrdersOnClose": true,
+      "slippageTicks": 0,
+      "market": {"tickSize":"0.01","quantityStep":"1","minQuantity":"1"},
+      "feeRules": [],
+      "indicatorPeriods": [2],
+      "candles": [
+        {"start":"2026-07-02T13:30:00Z","end":"2026-07-02T13:30:59.999Z","open":"100","high":"101","low":"99","close":"100","volume":"1000"},
+        {"start":"2026-07-02T13:31:00Z","end":"2026-07-02T13:31:59.999Z","open":"100","high":"101","low":"99","close":"100","volume":"1000"},
+        {"start":"2026-07-02T13:32:00Z","end":"2026-07-02T13:32:59.999Z","open":"100","high":"100.5","low":"99.5","close":"100","volume":"1000"}
+      ],
+      "intents": [
+        {"barIndex":0,"action":"submit","id":"entry","side":"buy","orderType":"market","quantity":"1","atomicGroupId":"bracket"},
+        {"barIndex":0,"action":"submit","id":"take-profit","side":"sell","orderType":"limit","quantity":"1","limitPrice":"100.3","reduceOnly":true,"parentId":"entry","ocoGroupId":"protect","atomicGroupId":"bracket"},
+        {"barIndex":0,"action":"submit","id":"stop-loss","side":"sell","orderType":"stop_market","quantity":"1","stopPrice":"99.9","reduceOnly":true,"parentId":"entry","ocoGroupId":"protect","atomicGroupId":"bracket"}
+      ]
+    },
+    {
+      "id": "stop-limit-slippage-short",
+      "symbol": "US.AAPL",
+      "baseCurrency": "AAPL",
+      "quoteCurrency": "USD",
+      "initialBalance": "5000",
+      "processOrdersOnClose": false,
+      "slippageTicks": 2,
+      "market": {"tickSize":"0.05","quantityStep":"0.1","minQuantity":"0.1"},
+      "feeRules": [],
+      "indicatorPeriods": [3],
+      "candles": [
+        {"start":"2026-07-03T13:30:00Z","end":"2026-07-03T13:30:59.999Z","open":"100","high":"101","low":"99","close":"100","volume":"1000"},
+        {"start":"2026-07-03T13:31:00Z","end":"2026-07-03T13:31:59.999Z","open":"106","high":"107","low":"94","close":"100","volume":"1000"},
+        {"start":"2026-07-03T13:32:00Z","end":"2026-07-03T13:32:59.999Z","open":"102","high":"103","low":"101","close":"102","volume":"1000"},
+        {"start":"2026-07-03T13:33:00Z","end":"2026-07-03T13:33:59.999Z","open":"103","high":"104","low":"102","close":"103","volume":"1000"}
+      ],
+      "intents": [
+        {"barIndex":0,"action":"submit","id":"buy-stop","side":"buy","orderType":"stop_market","quantity":"2","stopPrice":"105"},
+        {"barIndex":0,"action":"submit","id":"sell-stop","side":"sell","orderType":"stop_market","quantity":"1","stopPrice":"95"},
+        {"barIndex":0,"action":"submit","id":"stop-limit","side":"buy","orderType":"stop_limit","quantity":"1","limitPrice":"103","stopPrice":"104"}
+      ]
+    },
+    {
+      "id": "explicit-cancel-and-reduce-only",
+      "symbol": "US.AAPL",
+      "baseCurrency": "AAPL",
+      "quoteCurrency": "USD",
+      "initialBalance": "1000",
+      "processOrdersOnClose": false,
+      "slippageTicks": 0,
+      "market": {"tickSize":"0.01","quantityStep":"1","minQuantity":"1"},
+      "feeRules": [],
+      "indicatorPeriods": [],
+      "candles": [
+        {"start":"2026-07-04T13:30:00Z","end":"2026-07-04T13:30:59.999Z","open":"100","high":"101","low":"99","close":"100","volume":"1000"},
+        {"start":"2026-07-04T13:31:00Z","end":"2026-07-04T13:31:59.999Z","open":"100","high":"101","low":"99","close":"100","volume":"1000"},
+        {"start":"2026-07-04T13:32:00Z","end":"2026-07-04T13:32:59.999Z","open":"100","high":"101","low":"99","close":"100","volume":"1000"}
+      ],
+      "intents": [
+        {"barIndex":0,"action":"submit","id":"reduce-empty","side":"sell","orderType":"market","quantity":"1","reduceOnly":true},
+        {"barIndex":0,"action":"submit","id":"far-limit","side":"buy","orderType":"limit","quantity":"1","limitPrice":"80"},
+        {"barIndex":1,"action":"cancel","id":"cancel-far-limit","targetId":"far-limit"}
+      ]
+    },
+    {
+      "id": "cancelled-before-next-bar",
+      "symbol": "US.AAPL",
+      "baseCurrency": "AAPL",
+      "quoteCurrency": "USD",
+      "initialBalance": "1000",
+      "processOrdersOnClose": false,
+      "slippageTicks": 0,
+      "market": {"tickSize":"0.01","quantityStep":"1","minQuantity":"1"},
+      "feeRules": [],
+      "indicatorPeriods": [2],
+      "cancelBeforeBar": 1,
+      "candles": [
+        {"start":"2026-07-05T13:30:00Z","end":"2026-07-05T13:30:59.999Z","open":"100","high":"101","low":"99","close":"100","volume":"1000"},
+        {"start":"2026-07-05T13:31:00Z","end":"2026-07-05T13:31:59.999Z","open":"101","high":"102","low":"100","close":"101","volume":"1000"},
+        {"start":"2026-07-05T13:32:00Z","end":"2026-07-05T13:32:59.999Z","open":"102","high":"103","low":"101","close":"102","volume":"1000"}
+      ],
+      "intents": [
+        {"barIndex":0,"action":"submit","id":"pending","side":"buy","orderType":"market","quantity":"1"}
+      ]
+    }
+  ]
+}

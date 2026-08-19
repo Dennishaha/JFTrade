@@ -24,6 +24,119 @@ impl Fixed8 {
         self.0
     }
 
+    pub const fn is_zero(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn signum(self) -> i8 {
+        if self.0 > 0 {
+            1
+        } else if self.0 < 0 {
+            -1
+        } else {
+            0
+        }
+    }
+
+    pub fn to_f64(self) -> Result<f64, CodecError> {
+        self.ensure_finite()?;
+        Ok(self.0 as f64 / SCALE as f64)
+    }
+
+    pub fn checked_add(self, other: Self) -> Result<Self, CodecError> {
+        self.ensure_finite()?;
+        other.ensure_finite()?;
+        self.0
+            .checked_add(other.0)
+            .map(Self)
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)
+    }
+
+    pub fn checked_sub(self, other: Self) -> Result<Self, CodecError> {
+        self.ensure_finite()?;
+        other.ensure_finite()?;
+        self.0
+            .checked_sub(other.0)
+            .map(Self)
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)
+    }
+
+    pub fn checked_neg(self) -> Result<Self, CodecError> {
+        self.ensure_finite()?;
+        self.0
+            .checked_neg()
+            .map(Self)
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)
+    }
+
+    pub fn checked_abs(self) -> Result<Self, CodecError> {
+        self.ensure_finite()?;
+        self.0
+            .checked_abs()
+            .map(Self)
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)
+    }
+
+    pub fn checked_mul(self, other: Self) -> Result<Self, CodecError> {
+        self.ensure_finite()?;
+        other.ensure_finite()?;
+        Self::from_go_float(self.to_f64()? * other.to_f64()?)
+    }
+
+    pub fn checked_div(self, other: Self) -> Result<Self, CodecError> {
+        self.ensure_finite()?;
+        other.ensure_finite()?;
+        if other.is_zero() {
+            return Err(CodecError::Fixed8DivisionByZero);
+        }
+        Self::from_go_float(self.to_f64()? / other.to_f64()?)
+    }
+
+    pub fn truncate_to_increment(self, increment: Self) -> Result<Self, CodecError> {
+        self.ensure_finite()?;
+        increment.ensure_finite()?;
+        if increment.0 <= 0 {
+            return Err(CodecError::InvalidFixed8Increment);
+        }
+        Ok(Self(self.0 / increment.0 * increment.0))
+    }
+
+    pub fn ceil_to_increment(self, increment: Self) -> Result<Self, CodecError> {
+        self.ensure_finite()?;
+        increment.ensure_finite()?;
+        if increment.0 <= 0 {
+            return Err(CodecError::InvalidFixed8Increment);
+        }
+        let quotient = self.0.div_euclid(increment.0);
+        let rounded = if self.0.rem_euclid(increment.0) == 0 {
+            quotient
+        } else {
+            quotient
+                .checked_add(1)
+                .ok_or(CodecError::Fixed8ArithmeticOverflow)?
+        };
+        rounded
+            .checked_mul(increment.0)
+            .map(Self)
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)
+    }
+
+    fn ensure_finite(self) -> Result<(), CodecError> {
+        if self == Self::POS_INFINITY || self == Self::NEG_INFINITY {
+            Err(CodecError::Fixed8NonFiniteArithmetic)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn from_go_float(value: f64) -> Result<Self, CodecError> {
+        let scaled = value * SCALE as f64;
+        if !scaled.is_finite() || scaled < i64::MIN as f64 || scaled > i64::MAX as f64 {
+            return Err(CodecError::Fixed8ArithmeticOverflow);
+        }
+        Ok(Self(scaled.trunc() as i64))
+    }
+
     pub fn storage_text(self) -> String {
         if self == Self::POS_INFINITY {
             return "inf".to_owned();
@@ -154,5 +267,32 @@ mod tests {
     fn rejects_values_outside_the_fixed_width() {
         assert!("92233720369".parse::<Fixed8>().is_err());
         assert!("-92233720369".parse::<Fixed8>().is_err());
+    }
+
+    #[test]
+    fn checked_arithmetic_preserves_eight_decimal_truncation() {
+        let three = "3".parse::<Fixed8>().expect("three");
+        let ten = "10".parse::<Fixed8>().expect("ten");
+        let third = three.checked_div(ten).expect("division");
+        assert_eq!(third.storage_text(), "0.3");
+        assert_eq!(third.checked_mul(ten).expect("multiplication"), three);
+        assert_eq!(
+            "1.239"
+                .parse::<Fixed8>()
+                .expect("quantity")
+                .truncate_to_increment("0.01".parse().expect("increment"))
+                .expect("truncate")
+                .storage_text(),
+            "1.23"
+        );
+        assert_eq!(
+            "1.001"
+                .parse::<Fixed8>()
+                .expect("fee")
+                .ceil_to_increment("0.01".parse().expect("cent"))
+                .expect("ceil")
+                .storage_text(),
+            "1.01"
+        );
     }
 }
