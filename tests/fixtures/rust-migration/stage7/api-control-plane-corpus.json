@@ -1,0 +1,1279 @@
+{
+  "version": "stage7.v1",
+  "routes": [
+    {
+      "method": "DELETE",
+      "path": "/api/v1/adk/agents/{agentId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/adk/memory/{memoryId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/adk/providers/{providerId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/adk/sessions/{sessionId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/adk/skills/{skillId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/adk/tasks/{taskId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/adk/workflows/{workflowId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/backtests/sync/{taskId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/backtests/{runId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/brokers/{brokerId}/orders"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/market-data/prediction/contracts/{code}/subscriptions/{leaseId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/market-data/subscriptions"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/research/screens/presets/{presetId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/settings/broker-accounts/{accountRecordId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/strategies/{instanceId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/strategy-definitions/{definitionId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/system/real-trade-risk-limits"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/watchlist/bindings"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/watchlist/groups/{groupId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/agent-templates"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/agents"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/approvals"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/audit"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/memory"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/metrics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/optimization-tasks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/optimization-tasks/{taskId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/providers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/runs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/runs/{runId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/runs/{runId}/stream"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/sessions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/sessions/{sessionId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/sessions/{sessionId}/context"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/skills"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/streams/{streamId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/tasks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/tasks/{taskId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/tools"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/workflow-trigger-logs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/workflows"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/workflows/{workflowId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/adk/workflows/{workflowId}/triggers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/alerts/option-events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/alerts/price"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/backtests"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/backtests/sync/{taskId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/backtests/{runId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/backtests/{runId}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/cash-flows"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/fills"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/funds"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/klines"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/margin-ratios"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/max-trade-qtys"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/order-fees"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/orders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/positions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/quote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/runtime"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/brokers/{brokerId}/securities"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/execution/orders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/execution/orders/{internalOrderId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/execution/orders/{internalOrderId}/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/broker-queue/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/candles/{market}/{symbol}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/capital-flow/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/corporate-actions/{market}/{symbol}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/depth/{market}/{symbol}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/futures"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/instruments"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/instruments/{instrumentId}/profile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/intraday/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/markets"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/news"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/news/{market}/{symbol}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/options/analysis/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/options/chains/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/options/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/options/expirations/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/options/screens"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/categories"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/combos/eligible-events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/competitions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/contracts/{code}/candles"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/contracts/{code}/candles/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/contracts/{code}/milestones"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/contracts/{code}/order-book"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/contracts/{code}/snapshot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/contracts/{code}/ticks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/events/{eventId}/contracts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/prediction/series"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/provider"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/securities/{market}/{symbol}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/snapshots/{market}/{symbol}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/subscriptions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/ticks/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/market-data/warrants"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/plugins"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/plugins/operations/{operationId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/plugins/{pluginId}/uninstall-guidance"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/portfolio/{brokerId}/cash-balances"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/portfolio/{brokerId}/positions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/analyst/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/calendars"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/corporate-actions/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/financials/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/industries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/institutions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/instruments/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/macro"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/ownership/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/rankings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/screens"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/screens/catalog"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/screens/presets"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/screens/presets/{presetId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/short-interest/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/technical-indicators/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/research/valuation/{instrumentId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/adk"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/adk/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/backtest-market-data-provider"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/brokers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/data-management/databases"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/exchange-calendars"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/execution"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/market-data-provider"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/onboarding"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/pine-worker"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/security"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/system-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/ui"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/strategies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/strategies/{instanceId}/audit"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/strategies/{instanceId}/logs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/{definitionId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/{definitionId}/versions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/{definitionId}/versions/{version}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/exchange-calendars/sources"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/exchange-calendars/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/futu-opend"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/futu-opend/install-guide"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/real-trade-approvals"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/real-trade-hard-stop-events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/real-trade-hard-stops"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/real-trade-kill-switch"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/real-trade-kill-switch-events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/real-trade-risk-events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/real-trade-risk-limits"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/runtime-dependencies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/storage/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/worker/broker-order-updates"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/watchlist/bindings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/watchlist/groups"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/watchlist/import-runs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/watchlist/instruments/{market}/{symbol}/memberships"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/watchlist/items"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/watchlist/sources"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/watchlist/sources/{sourceId}/groups"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/watchlists/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ws/live"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/adk/runs/{runId}/objective"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/adk/sessions/{sessionId}/composer-state"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/research/screens/presets/{presetId}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/watchlist/groups/{groupId}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/agents"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/approvals/{approvalId}/approve"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/approvals/{approvalId}/deny"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/chat"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/chat/stream"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/memory"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/optimization-tasks/{taskId}/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/providers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/providers/{providerId}/default"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/providers/{providerId}/test"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/runs/{runId}/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/runs/{runId}/input-response"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/runs/{runId}/pause"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/runs/{runId}/resume"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/sessions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/sessions/{sessionId}/context/compact"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/skills"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/tasks"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/workflow-triggers/{triggerId}/run"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/workflow-webhooks/{triggerId}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/workflows"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/workflows/{workflowId}/run"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/adk/workflows/{workflowId}/triggers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/alerts/option-events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/alerts/price"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/logout"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/backtests"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/backtests/sync"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/brokers/{brokerId}/orders"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/brokers/{brokerId}/unlock"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/execution/buying-power"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/execution/combos"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/execution/combos/previews"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/execution/combos/{internalOrderId}/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/execution/orders"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/execution/orders/{internalOrderId}/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/execution/previews"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/market-data/instruments/normalize"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/market-data/options/analysis/{instrumentId}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/market-data/options/events/zero-dte-contracts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/market-data/prediction/combos/quotes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/market-data/prediction/contracts/{code}/subscriptions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/market-data/snapshots"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/market-data/subscriptions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/market-data/subscriptions/heartbeat"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/market-data/subscriptions/release"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plugins/{pluginId}/install"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plugins/{pluginId}/uninstall"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/research/screens"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/research/screens/presets"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/settings/adk/mcp/token/reset"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/settings/broker-accounts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/settings/data-management/cleanup/execute"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/settings/data-management/cleanup/preview"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/settings/data-management/databases/rebuild"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/settings/data-management/databases/{databaseId}/backup"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/settings/data-management/databases/{databaseId}/compact"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/settings/system-notifications/test"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/strategies/{instanceId}/pause"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/strategies/{instanceId}/refresh-definition"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/strategies/{instanceId}/start"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/strategies/{instanceId}/stop"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/strategy-definitions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/strategy-definitions/{definitionId}/apply-linked-instances"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/strategy-definitions/{definitionId}/instantiate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/strategy-pine/analyze"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/system/exchange-calendars/probe"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/system/exchange-calendars/probe/{market}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/system/exchange-calendars/refresh"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/system/exchange-calendars/refresh/{market}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/system/futu-opend/manual-retry"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/system/real-trade-hard-stops"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/system/real-trade-hard-stops/{hardStopId}/release"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/system/real-trade-kill-switch/activate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/system/real-trade-kill-switch/release"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/watchlist/groups"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/watchlist/imports/preview"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/watchlist/imports/{previewId}/commit"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/watchlist/quotes/batch"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/watchlists/remote"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/adk/agents/{agentId}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/adk/providers/{providerId}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/adk/sessions/{sessionId}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/adk/tasks/{taskId}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/adk/workflows/{workflowId}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/adk"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/adk/mcp"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/backtest-market-data-provider"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/broker-accounts/{accountRecordId}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/brokers/{brokerId}/integration"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/exchange-calendars"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/execution"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/market-data-provider"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/onboarding"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/pine-worker"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/security"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/system-notifications"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/ui"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/strategies/{instanceId}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/strategies/{instanceId}/runtime-risk"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/strategy-definitions/{definitionId}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/system/real-trade-risk-limits"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/watchlist/instruments/{market}/{symbol}/memberships"
+    }
+  ],
+  "routeProbes": [
+    {
+      "method": "DELETE",
+      "path": "/api/v1/adk/agents/fixture"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/backtests/sync/fixture"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/brokers/fixture/orders"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/market-data/prediction/contracts/fixture/subscriptions/fixture"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/research/screens/presets/fixture"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/settings/broker-accounts/fixture"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/strategies/fixture"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/strategy-definitions/fixture"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/system/real-trade-risk-limits"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/watchlist/bindings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/alerts/option-events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/execution/orders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/plugins"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/portfolio/fixture/cash-balances"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/watchlists/remote"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ws/live"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/strategy-pine/analyze"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/unknown-stage7-route"
+    }
+  ],
+  "research": {
+    "presetId": " preset-stage7 ",
+    "name": " Momentum 研究 ",
+    "definition": {
+      "conditions": [
+        {
+          "field": "close",
+          "operator": "gt",
+          "value": 100
+        }
+      ]
+    },
+    "update": {
+      "name": "Momentum v2",
+      "definition": null,
+      "expectedRevision": 1
+    }
+  },
+  "watchlist": {
+    "instrumentId": " hk.00700 ",
+    "groupIds": [
+      "g2",
+      " g1 ",
+      "g1"
+    ],
+    "newGroupNames": [
+      " Tech ",
+      "tech",
+      " 长线 "
+    ],
+    "expectedRevision": 7,
+    "requestedLimit": 999
+  },
+  "settings": {
+    "security": {
+      "webAccessEnabled": true,
+      "publicAccessEnabled": true,
+      "webPort": 3000,
+      "password": "correct horse battery staple",
+      "passwordConfigured": false
+    },
+    "providerId": " AKShare "
+  },
+  "calendar": {
+    "market": " hk ",
+    "sources": [
+      " Manual ",
+      "futu",
+      "manual"
+    ],
+    "sessions": [
+      {
+        "openMinute": 780,
+        "closeMinute": 960
+      },
+      {
+        "openMinute": 570,
+        "closeMinute": 720
+      }
+    ]
+  },
+  "cleanup": {
+    "databaseId": "assistant",
+    "previewCandidates": [
+      {
+        "id": "run-b",
+        "category": "run"
+      },
+      {
+        "id": "run-a",
+        "category": "run"
+      }
+    ],
+    "executeCandidates": [
+      {
+        "id": "run-a",
+        "category": "run"
+      },
+      {
+        "id": "run-b",
+        "category": "run"
+      }
+    ]
+  }
+}

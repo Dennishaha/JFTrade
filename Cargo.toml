@@ -1,17 +1,23 @@
 [workspace]
 members = [
+  "crates/jftrade-api",
   "crates/jftrade-assistant",
   "crates/jftrade-backtest",
   "crates/jftrade-broker",
+  "crates/jftrade-calendar",
+  "crates/jftrade-datamanagement",
   "crates/jftrade-engine",
   "crates/jftrade-integration-futu",
   "crates/jftrade-integration-marketdata-helper",
   "crates/jftrade-integration-pine",
   "crates/jftrade-kernel",
   "crates/jftrade-marketdata",
+  "crates/jftrade-research",
+  "crates/jftrade-settings",
   "crates/jftrade-store-sqlite",
   "crates/jftrade-strategy",
   "crates/jftrade-trading",
+  "crates/jftrade-watchlist",
 ]
 resolver = "3"
 
@@ -22,15 +28,23 @@ repository = "https://github.com/jftrade/jftrade-main"
 rust-version = "1.97.1"
 
 [workspace.dependencies]
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "matched-path", "original-uri", "query", "tokio", "ws"] }
+http-body-util = "=0.1.5"
+jftrade-api = { path = "crates/jftrade-api", version = "=0.1.0" }
 jftrade-assistant = { path = "crates/jftrade-assistant", version = "=0.1.0" }
 jftrade-backtest = { path = "crates/jftrade-backtest", version = "=0.1.0" }
+jftrade-calendar = { path = "crates/jftrade-calendar", version = "=0.1.0" }
+jftrade-datamanagement = { path = "crates/jftrade-datamanagement", version = "=0.1.0" }
 jftrade-integration-futu = { path = "crates/jftrade-integration-futu", version = "=0.1.0" }
 jftrade-integration-marketdata-helper = { path = "crates/jftrade-integration-marketdata-helper", version = "=0.1.0" }
 jftrade-integration-pine = { path = "crates/jftrade-integration-pine", version = "=0.1.0" }
 jftrade-kernel = { path = "crates/jftrade-kernel", version = "=0.1.0" }
 jftrade-marketdata = { path = "crates/jftrade-marketdata", version = "=0.1.0" }
+jftrade-research = { path = "crates/jftrade-research", version = "=0.1.0" }
+jftrade-settings = { path = "crates/jftrade-settings", version = "=0.1.0" }
 jftrade-strategy = { path = "crates/jftrade-strategy", version = "=0.1.0" }
 jftrade-trading = { path = "crates/jftrade-trading", version = "=0.1.0" }
+jftrade-watchlist = { path = "crates/jftrade-watchlist", version = "=0.1.0" }
 reqwest = { version = "=0.13.4", default-features = false, features = ["json"] }
 rig-core = { version = "=0.42.0", default-features = false }
 serde = { version = "=1.0.229", features = ["derive"] }
@@ -44,6 +58,8 @@ tokio = { version = "=1.53.1", features = ["io-util", "macros", "net", "process"
 tokio-stream = { version = "=0.1.19", features = ["net"] }
 tonic = "=0.14.6"
 tonic-health = "=0.14.6"
+tower = { version = "=0.5.3", default-features = false, features = ["util"] }
+tower-http = { version = "=0.7.0", default-features = false, features = ["trace"] }
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", features = ["env-filter", "fmt"] }
 

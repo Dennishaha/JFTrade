@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-19T11:19:34.996Z",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple A18 Pro",
+    "logicalCpus": 6,
+    "totalMemoryBytes": 8589934592
+  },
+  "buildProfile": {
+    "go": "go test -c -trimpath (production Gin route/OpenAPI registration harness)",
+    "rust": "cargo build --release"
+  },
+  "workload": {
+    "fixture": "api-control-plane-corpus.json",
+    "fixtureSha256": "d3dc24420ecd5c67f6c6354310747fb797f0b110c816059bb836890ddb79fd58",
+    "expectedSha256": "0c636a82334f977d532f653fa3f59cd12029d1d7f0af1388e93941605daa513a",
+    "operations": 278,
+    "routeGroups": 18,
+    "routeProbes": 19
+  },
+  "go": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": {
+      "p50": 126.595,
+      "p95": 128.371,
+      "p99": 129.593
+    },
+    "cpuMillisP50": 110,
+    "peakRssBytes": 75481088,
+    "binaryBytes": 123564322,
+    "resultHash": "sha256:0c636a82334f977d532f653fa3f59cd12029d1d7f0af1388e93941605daa513a"
+  },
+  "rust": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": {
+      "p50": 3.428,
+      "p95": 5.74,
+      "p99": 6.38
+    },
+    "cpuMillisP50": 0,
+    "peakRssBytes": 2605056,
+    "binaryBytes": 644064,
+    "resultHash": "sha256:0c636a82334f977d532f653fa3f59cd12029d1d7f0af1388e93941605daa513a"
+  },
+  "gates": {
+    "rustToGoP95": 0.045,
+    "rustToGoPeakRss": 0.035,
+    "p95RegressionGatePassed": true,
+    "rssRegressionGatePassed": true
+  },
+  "limitations": [
+    "The Go sample boots the production Gin composition and validates OpenAPI registration; the Rust sample replays the Axum/control-plane projection without opening a listener.",
+    "This benchmark does not qualify production WebSocket fan-out, long-lived SSE, real static assets, database writes, sidecar lifecycle, or route-group traffic cutover.",
+    "The local Darwin result does not replace native Linux, Windows, macOS packaging and lifecycle qualification."
+  ]
+}

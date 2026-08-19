@@ -38,6 +38,8 @@ export const scriptTestSuites = Object.freeze({
     "scripts/rust-migration/benchmark-stage5.test.mjs",
     "scripts/rust-migration/check-stage6-differential.test.mjs",
     "scripts/rust-migration/benchmark-stage6.test.mjs",
+    "scripts/rust-migration/check-stage7-differential.test.mjs",
+    "scripts/rust-migration/benchmark-stage7.test.mjs",
     "scripts/run-errorlint.test.mjs",
     "scripts/run-go-argument-forwarding.test.mjs",
     "scripts/run-test-layer.test.mjs",

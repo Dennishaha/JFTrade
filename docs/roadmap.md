@@ -13,12 +13,12 @@
 - [x] 阶段 3：`conservative-bar-v1` 回测纯计算核心、三方 differential、取消/超时恢复、owner 回退演练和本机 release 资源门禁完成；生产 Pine replay 仍由 Go 拥有。
 - [x] 阶段 4：行情 Provider、PineTS/Python helper 生命周期与 Futu/OpenD adapter 本地工作包、三方 differential 和 release replay 资源基线完成；真实 live、发布资产/原生平台资格仍阻断产品切流，Go 保持唯一生产 owner。
 - [x] 阶段 5：交易/策略/通知 shadow、订单/成交/持仓状态、三方 differential、零 dispatch 与 release replay 资源基线完成；只读 OpenD、显式小范围 live 和持久化恢复仍阻断产品切流，Go 保持唯一写 owner。
-- [ ] 阶段 6：Assistant 使用 Rig 迁移。
-- [ ] 阶段 7：Rust API/control plane 接管产品流量。
+- [x] 阶段 6：Assistant/Rig 本地 shadow、状态/恢复 differential 和 release replay 资源基线完成；真实 Provider、durable store 与 crash recovery 仍阻断产品切流，Go/Google ADK 保持生产 owner。
+- [x] 阶段 7：Axum API/control-plane 本地 shadow、278-operation inventory、首批控制面规则和 release replay 资源基线完成；真实 handler、长连接、route-group 切流、bundle/sidecar 与原生平台资格仍阻断产品切流，Go/Gin 保持生产 owner。
 - [ ] 阶段 8：Wails → Tauri 桌面迁移。
 - [ ] 阶段 9：删除 Go/Wails 并发布 Rust 大版本。
 
-已完成的阶段 2/3/4/5 本地工作包同样不改变公开 HTTP/OpenAPI、SSE/WS、Wails bindings、SQLite schema 或产品运行入口；阶段 4 对 retained worker 的鉴权扩展默认关闭且保持 Go 启动兼容，阶段 5 Rust 输出固定无副作用。Go/Wails 仍是唯一生产 owner；阶段完成事实和后续生产切换条件以迁移专题账本为准。
+已完成的阶段 2–7 本地工作包不改变公开 HTTP/OpenAPI、SSE/WS、Wails bindings、SQLite schema 或产品运行入口；阶段 4 对 retained worker 的鉴权扩展默认关闭，阶段 5 Rust 输出固定无副作用，阶段 6 不连接真实 Provider，阶段 7 不监听产品端口或 dispatch 真实 handler。Go/Wails 仍是唯一生产 owner；阶段完成事实和后续产品切换条件以迁移专题账本为准。
 
 ## AI 开发效率治理
 

@@ -8,14 +8,20 @@ rust-version.workspace = true
 publish = false
 
 [dependencies]
+jftrade-api.workspace = true
 jftrade-assistant.workspace = true
+jftrade-calendar.workspace = true
+jftrade-datamanagement.workspace = true
 jftrade-integration-futu.workspace = true
 jftrade-integration-marketdata-helper.workspace = true
 jftrade-integration-pine.workspace = true
 jftrade-kernel.workspace = true
 jftrade-marketdata.workspace = true
+jftrade-research.workspace = true
+jftrade-settings.workspace = true
 jftrade-strategy.workspace = true
 jftrade-trading.workspace = true
+jftrade-watchlist.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

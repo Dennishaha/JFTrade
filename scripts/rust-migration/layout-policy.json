@@ -12,6 +12,78 @@
   ],
   "packages": [
     {
+      "name": "jftrade-api",
+      "path": "crates/jftrade-api",
+      "stage": 7,
+      "status": "active",
+      "layer": "adapter",
+      "goOwner": "internal/api transport, internal/app/apiserver/servercore router, security, SSE, WebSocket, static assets and observability",
+      "rustOwner": "jftrade-api",
+      "cutover": "jftrade-engine owns the only route catalog and injects consumer ports into Axum after route-group replay qualification",
+      "goDeleteWhen": "all 278 operations, Web clients, long-lived streams, production assets, security, lifecycle and rollback windows pass with Rust as the sole API owner",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-calendar",
+      "path": "crates/jftrade-calendar",
+      "stage": 7,
+      "status": "active",
+      "layer": "capability",
+      "goOwner": "internal/calendar and settings-owned trading calendar policy",
+      "rustOwner": "jftrade-calendar",
+      "cutover": "jftrade-engine injects calendar persistence and provider ports while retaining source priority",
+      "goDeleteWhen": "calendar CRUD, import, provider fallback and timezone/session parity pass with one Rust owner",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-datamanagement",
+      "path": "crates/jftrade-datamanagement",
+      "stage": 7,
+      "status": "active",
+      "layer": "capability",
+      "goOwner": "internal/datamanagement preview, cleanup and database guard orchestration",
+      "rustOwner": "jftrade-datamanagement",
+      "cutover": "jftrade-engine supplies per-store maintenance ports and preserves preview/execute fencing",
+      "goDeleteWhen": "all cleanup classes, active-owner guards, backup/recovery and destructive-operation audits pass with Rust as sole owner",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-research",
+      "path": "crates/jftrade-research",
+      "stage": 7,
+      "status": "active",
+      "layer": "capability",
+      "goOwner": "internal/research screening presets, revisions and query schema",
+      "rustOwner": "jftrade-research",
+      "cutover": "jftrade-engine injects research store and market-data ports without sharing service models",
+      "goDeleteWhen": "screening, preset revisions, saved-query compatibility and database recovery pass with Rust as sole owner",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-settings",
+      "path": "crates/jftrade-settings",
+      "stage": 7,
+      "status": "active",
+      "layer": "capability",
+      "goOwner": "internal/settings and internal/jftsettings security, provider and listener policy",
+      "rustOwner": "jftrade-settings",
+      "cutover": "jftrade-engine persists validated settings before applying listener or provider lifecycle changes",
+      "goDeleteWhen": "settings round-trip, credential migration, listener rollback and provider activation parity pass with Rust as sole owner",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-watchlist",
+      "path": "crates/jftrade-watchlist",
+      "stage": 7,
+      "status": "active",
+      "layer": "capability",
+      "goOwner": "internal/watchlist groups, memberships, snapshots and revision rules",
+      "rustOwner": "jftrade-watchlist",
+      "cutover": "jftrade-engine injects watchlist persistence and quote ports through consumer-owned boundaries",
+      "goDeleteWhen": "group, membership, import, pagination, revision and quote enrichment parity pass with Rust as sole owner",
+      "allowedWorkspaceDependencies": []
+    },
+    {
       "name": "jftrade-assistant",
       "path": "crates/jftrade-assistant",
       "stage": 6,
@@ -119,13 +191,19 @@
       "goDeleteWhen": "all capability owners have moved and the Go entrypoints have completed rollback qualification",
       "allowedWorkspaceDependencies": [
         "jftrade-kernel",
+        "jftrade-api",
         "jftrade-assistant",
+        "jftrade-calendar",
+        "jftrade-datamanagement",
         "jftrade-integration-futu",
         "jftrade-integration-marketdata-helper",
         "jftrade-integration-pine",
         "jftrade-marketdata",
+        "jftrade-research",
+        "jftrade-settings",
         "jftrade-strategy",
-        "jftrade-trading"
+        "jftrade-trading",
+        "jftrade-watchlist"
       ]
     },
     {

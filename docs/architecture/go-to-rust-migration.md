@@ -1,6 +1,6 @@
 # JFTrade Go → Rust 完整迁移方案与守则
 
-状态：执行中。更新时间：2026-08-19。当前阶段：**阶段 6 Assistant/Rig 本地 shadow 工作包已完成；生产 Assistant、Google ADK、SQLite/artifact 写 owner 仍为 Go，真实 Provider live streaming、Rust durable store 与重启观察窗口仍待闭环；阶段 7 尚未启动**。
+状态：执行中。更新时间：2026-08-19。当前阶段：**阶段 7 API/control-plane 本地 shadow 工作包已完成；Go/Gin 仍是公开 API、生产 lifecycle、SQLite 和各能力写入的唯一 owner，真实 route-group 切流、长连接、发布资产与原生平台观察窗口仍待闭环；阶段 8 尚未启动**。
 
 本文是 JFTrade 将 Go 后端与 Wails 桌面壳完整迁移到 Rust 的计划、边界和放行事实源。活动状态在 [roadmap.md](../roadmap.md) 汇总；当前生产架构仍以 [architecture.md](../architecture.md) 为准。任何阶段都不得用“已经写出 Rust 版本”代替兼容性、可靠性和资源验收。
 
@@ -70,7 +70,7 @@ Node PineTS worker        Python market-data helper
 
 ### 3.1 Rust 目标目录指引（强制）
 
-本节是迁移期间新增目录、crate 和跨目录依赖的强制放置规则。目录出现在蓝图中只表示名称、owner 和最早启用阶段已经预留，**不表示应立即创建**。阶段未启动、没有实际生产代码或没有行为测试时，不得创建空 crate、占位模块或未来依赖。当前 Rust 侧已经启用 `jftrade-engine`、`jftrade-kernel`、`jftrade-broker`、`jftrade-store-sqlite`、`jftrade-backtest`、`jftrade-marketdata`、`jftrade-strategy`、`jftrade-trading`、`jftrade-assistant`、`jftrade-integration-pine`、`jftrade-integration-marketdata-helper` 和 `jftrade-integration-futu`；其余 Rust/Tauri 目标目录仍是计划目录。
+本节是迁移期间新增目录、crate 和跨目录依赖的强制放置规则。目录出现在蓝图中只表示名称、owner 和最早启用阶段已经预留，**不表示应立即创建**。阶段未启动、没有实际生产代码或没有行为测试时，不得创建空 crate、占位模块或未来依赖。当前 Rust 侧已经启用 `jftrade-engine`、`jftrade-kernel`、`jftrade-broker`、`jftrade-store-sqlite`、`jftrade-backtest`、`jftrade-marketdata`、`jftrade-strategy`、`jftrade-trading`、`jftrade-assistant`、`jftrade-research`、`jftrade-watchlist`、`jftrade-settings`、`jftrade-calendar`、`jftrade-datamanagement`、`jftrade-api`、`jftrade-integration-pine`、`jftrade-integration-marketdata-helper` 和 `jftrade-integration-futu`；其余 Rust/Tauri 目标目录仍是计划目录。
 
 ```text
 crates/
@@ -82,16 +82,16 @@ crates/
   jftrade-strategy/                       # 已启用，阶段 5：策略运行控制和消费方交易 port
   jftrade-trading/                        # 已启用，阶段 5：交易、风控和订单状态
   jftrade-assistant/                      # 已启用，阶段 6：Assistant 领域与 Rig adapter 边界
-  jftrade-research/                       # 计划，阶段 7：研究能力
-  jftrade-watchlist/                      # 计划，阶段 7：自选领域
-  jftrade-settings/                       # 计划，阶段 7：设置领域
-  jftrade-calendar/                       # 计划，阶段 7：交易日历领域
-  jftrade-datamanagement/                 # 计划，阶段 7：数据维护能力
+  jftrade-research/                       # 已启用，阶段 7：研究能力
+  jftrade-watchlist/                      # 已启用，阶段 7：自选领域
+  jftrade-settings/                       # 已启用，阶段 7：设置领域
+  jftrade-calendar/                       # 已启用，阶段 7：交易日历领域
+  jftrade-datamanagement/                 # 已启用，阶段 7：数据维护能力
   jftrade-store-sqlite/                   # 已存在，阶段 2：SQLite 只读 adapter
   jftrade-integration-pine/               # 已存在，阶段 4：Node worker adapter/lifecycle
   jftrade-integration-marketdata-helper/  # 已存在，阶段 4：Python helper adapter/lifecycle
   jftrade-integration-futu/               # 已存在，阶段 4/5：OpenD 协议 adapter
-  jftrade-api/                            # 计划，阶段 7：Axum HTTP/SSE/WebSocket
+  jftrade-api/                            # 已启用，阶段 7：Axum HTTP/SSE/WebSocket
   jftrade-engine/                         # 已存在：进程入口和唯一 composition root
 
 apps/
@@ -224,7 +224,7 @@ jftrade-kernel / jftrade-broker
 | error | [thiserror 2.0.20](https://github.com/dtolnay/thiserror) | 阶段 1 已引入 | 库层强类型错误；应用汇总是否引入 `anyhow` 后续按需决定 |
 | observability | [tracing 0.1.44](https://github.com/tokio-rs/tracing) / subscriber 0.3.23 | 阶段 1 已引入 | Tokio 官方结构化诊断生态；stdout 保留给握手，日志走 stderr |
 | dependency policy | [cargo-deny 0.20.2](https://github.com/EmbarkStudios/cargo-deny) | 阶段 1 CI 工具 | 审计 advisory、license、source 和 ban；不进入产品依赖 |
-| HTTP/SSE/WS | [Axum 0.8.9](https://github.com/tokio-rs/axum) | 后续候选 | Tokio 官方生态、与 Tower/Tonic 组合自然；API 阶段才引入 |
+| HTTP/SSE/WS | [Axum 0.8.9](https://github.com/tokio-rs/axum) / [Tower 0.5.3](https://github.com/tower-rs/tower) / [tower-http 0.7.0](https://github.com/tower-rs/tower-http) | 阶段 7 已引入 | Tokio/Tower 官方生态且广泛采用；Axum 只启用 HTTP/1、JSON、route/query、Tokio 与 WebSocket，tower-http 只启用 trace，关闭默认 feature；transport 通过 JFTrade `ApiPort` 接入，不让框架类型进入领域 crate |
 | SQLite | [rusqlite 0.40.2](https://github.com/rusqlite/rusqlite) | 阶段 2 已引入 | 阶段 2 只读验证需要精确控制 open flags、PRAGMA 和 schema introspection；关闭默认 feature，仅启用 `bundled`，避免目标机系统 SQLite 漂移。异步事务 owner 阶段再重新比较 SQLx |
 | loopback HTTP client | [Reqwest 0.13.4](https://github.com/seanmonstar/reqwest) | 阶段 4 已引入 | 项目官方且广泛采用；仅为本机 Python helper 启用 `json`，关闭默认 feature、TLS、proxy、cookie 和 HTTP/2；显式端口、禁重定向、限时限长并可选 per-process Bearer |
 | protocol/asset digest | [RustCrypto SHA-1/SHA-2 0.11.0](https://github.com/RustCrypto/hashes) | 阶段 4 已引入 | OpenD wire 固有 SHA-1 与发布资产 SHA-256；官方 RustCrypto 实现、关闭默认 feature，不用于密码存储或自造认证协议 |
@@ -238,9 +238,11 @@ jftrade-kernel / jftrade-broker
 
 阶段 6 新增的唯一直接第三方依赖是 `rig-core = 0.42.0`。选择官方 Rig core crate 而非完整 facade/具体 Provider SDK，保留 JFTrade 自有 `CompletionPort`、tool schema、session/run/approval/input/workflow 契约；通过 `cargo-deny` 检查 advisory、license、source 和重复版本。真实 Provider 适配需要在显式 live 工作包中重新审查 TLS、credential、timeout、rate limit、stream cancellation 与 telemetry content 策略。
 
+阶段 7 新增 Axum 0.8.9、Tower 0.5.3 与 tower-http 0.7.0，均来自 Tokio/Tower 官方维护生态，并继续精确锁定版本、关闭默认 feature、只开启实际生产代码使用的最小功能；`http-body-util` 仅用于 transport 行为测试。研究、自选、设置、日历和数据维护 crate 没有引入第二套 async runtime、数据库驱动、Provider SDK 或通用 service 框架。
+
 明确暂不选择：
 
-- 不在对应阶段前引入 Axum、SQLx、Tauri、Rayon 或 Decimal，只为未来“占位”；Rig 已在阶段 6 按实际 adapter 和行为测试引入。
+- 不在对应阶段前引入 SQLx、Tauri、Rayon 或 Decimal，只为未来“占位”；Rig 与 Axum/Tower 已分别在阶段 6/7 按实际 adapter 和行为测试引入。
 - 不选择 Rustls `0.24.0-dev.*` 进入产品基线。
 - 不引入第二个 async runtime、第二个 HTTP server 或通用 service locator。
 - 不用 `libloading`/原生 ABI 直接嵌 Go；跨语言共存统一走私有进程 RPC，降低崩溃域和构建耦合。
@@ -391,12 +393,29 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go �
 
 放行：终态和持久化完全一致；审批/输入不能丢失或重复；模型网络异常可恢复；Rig 可替换性由 adapter 测试保证。
 
-### 阶段 7：Rust API/control plane 成为产品 owner
+### 阶段 7：Rust API/control plane 成为产品 owner（本地 shadow 完成）
 
-1. 引入 Axum/Tower，复制 `/api/v1/*`、SSE、WebSocket、安全中间件、static assets 和 observability。
-2. 使用现有 OpenAPI baseline 反向约束实现，不因 Rust 类型便利改变 wire schema。
-3. 双进程 replay 后按 route group 切流量，最终 Rust 接管 API sidecar 和应用 lifecycle。
-4. Go 暂时只保留桌面壳和必要回退，不再运行已切换领域逻辑。
+- [x] 建立 `jftrade-api`：Axum/Tower router、版本化 route catalog、成功/错误 envelope、request ID、CORS、桌面 Bearer/WebSocket subprotocol、浏览器 cookie/CSRF/origin、SSE frame、WebSocket 限流、static asset/SPA fallback 和 transport metrics。
+- [x] 从现有 OpenAPI baseline 机械生成并固定全部 278 个 operation、18 个 route group 和 19 个具体路径探针；Go 生产 Gin 注册表测试继续证明 baseline 没有漏注册或多注册。
+- [x] 建立 `jftrade-research`、`jftrade-watchlist`、`jftrade-settings`、`jftrade-calendar` 和 `jftrade-datamanagement` 的首批纯规则及拒绝测试；领域 crate 不依赖 Axum、SQLite、Provider SDK 或其他领域 service。
+- [x] 由 `jftrade-engine::stage7` 唯一装配 route catalog、领域投影和 `ApiPort`；未登记 operation fail closed，shadow 只返回确定性投影，不写数据库、不启动监听器。
+- [x] 固定 Go/Rust differential、损坏/未知/缺字段输入拒绝、SHA-256 manifest 和 Darwin ARM64 release 资源基线；未修改 OpenAPI、Wails bindings、SQLite schema 或 Vue API 调用。
+- [ ] 278 个 operation 的真实 handler/DTO/store port、完整 status/header/null/omitted 逐响应 replay、长时间 SSE/WebSocket 断线恢复、生产 static bundle、真实 sidecar lifecycle、route-group 灰度/回退和 Web/桌面 E2E 尚未执行；这些继续阻断产品切流和 Go 删除。
+
+#### 阶段 7 执行账本
+
+| 工作包 | 当前 Go owner | 阶段 7 Rust owner | 唯一切换点与回退 | Go 删除条件 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| HTTP/OpenAPI、安全、SSE、WebSocket、static assets 与 observability | `internal/api/*`、`internal/app/apiserver/servercore`、`cmd/jftrade-api` | `jftrade-api` + `jftrade-engine::stage7` | `jftrade-engine` 按 route group 选择唯一 transport/handler owner；回退整体把该组交还 Go，禁止同一写请求双 dispatch | 278 个真实 handler、全量 response differential、长连接恢复、Web/生产 bundle、启动关闭端口和安全观察窗口通过，Go router 无消费者 | 本地 Axum transport 与全量 route inventory shadow 完成；不监听产品端口、不承接真实请求 |
+| 研究与自选控制面规则 | `internal/research`、`internal/watchlist` 及对应 store | `jftrade-research`、`jftrade-watchlist` | `jftrade-engine` 注入各自窄 persistence/market-data port；route 切换与写 owner 同步原子完成 | 全量 preset/screening/group/membership/import/pagination/revision 和 DB recovery 通过，Rust 成为唯一写 owner | 首批 revision、schema、identity、去重和分页规则完成；无 SQLite/API handler |
+| 设置与日历控制面规则 | `internal/settings`、`internal/jftsettings`、交易日历 owner | `jftrade-settings`、`jftrade-calendar` | composition root 先持久化再应用 listener/provider；日历 provider 由窄 port 注入 | credential/setting round-trip、listener rollback、provider fallback、timezone/session/import 通过且 Go 无消费者 | 首批密码/端口/provider 顺序与 session/source 规则完成；无 listener、credential store 或 provider 调用 |
+| 数据维护与破坏性操作 fencing | `internal/datamanagement`、`databaseguard` 和各 Go store | `jftrade-datamanagement` | preview/execute 使用同一候选集指纹并由 `jftrade-engine` 注入唯一 store owner；回退不复用过期 preview | 所有数据库类别、busy/active owner、备份恢复、审计和故障注入通过，Go cleanup owner 删除 | 确定性 preview/execute 指纹与 busy fail-closed 完成；不删除、不写任何业务数据 |
+
+阶段 7 corpus 位于 `tests/fixtures/rust-migration/stage7`，`api-control-plane-corpus.json` 由 OpenAPI baseline 机械生成 278 个 operation，并加入 19 个具体 route probe 和五个控制面领域投影；`manifest.json` 固定 input、expected 与 Darwin ARM64 资源基线 SHA-256。differential 为 `pnpm run test:rust:stage7:differential`，本机 release 资源复测为 `pnpm run benchmark:rust:stage7`。
+
+Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go 生产 Gin 路由/OpenAPI 注册 harness 的 p95 为 128.371 ms、峰值 RSS 75,481,088 bytes；Rust composition replay 的 p95 为 5.740 ms、峰值 RSS 2,605,056 bytes，Rust/Go 比值为 0.045/0.035，5% p95 与 10% RSS 回退门禁通过。Go 每次装配生产 router，Rust 只做无 listener 的本地投影；绝对启动、binary size 和真实 HTTP 吞吐不作产品结论。
+
+本阶段“本地完成”只证明 transport 边界、全量 operation inventory、首批控制面纯规则、确定性 replay 和资源门禁闭环。它没有实现或切换 278 个生产 handler，没有写 SQLite、启动公开 listener、承接长连接或接管 Node/Python/OpenD lifecycle；全量 route-group replay、Web/生产 bundle、真实 sidecar、原生平台和观察窗口完成前，阶段 7 不构成产品放行，Go/Gin 生产 owner 不变。
 
 放行：全量契约/differential/Web 测试通过；生产 bundle 和真实 sidecar smoke 通过；启动、关闭、端口和安全边界一致。
 
@@ -496,5 +515,6 @@ JFTRADE_RUST_ENGINE_TOKEN="$(openssl rand -hex 32)" \
 | 2026-08-19 | 阶段 4 本地行情/worker 生命周期工作包完成；retained Node/Python 只增加可选私有 Bearer，Go 继续拥有公开 API、真实 Provider/OpenD 与进程 lifecycle | 14 market-data/9 Pine/3 OpenD subscription/3 probe 三方 evidence；未知健康和切换 fail closed；Darwin ARM64 p95/RSS 门禁通过；真实 live/发布平台资格保持未闭环 |
 | 2026-08-19 | 阶段 5 本地交易/策略/OpenD shadow 工作包完成；所有交易计划与通知强制零 dispatch，Go 继续拥有 broker、SQLite 和用户可见通知 | 10 status/7 transition/6 command/7 update/5 position refresh/3 strategy differential；Darwin ARM64 p95/RSS 门禁通过；只读 OpenD、小额 live 与 durable recovery 保持未闭环 |
 | 2026-08-19 | 阶段 6 本地 Assistant/Rig shadow 工作包完成；Rig 隔离在窄 adapter，Go/Google ADK 继续拥有生产 Provider、SQLite、artifact 与 continuation | 9 status/12 transition、审批/输入幂等、lease/claim fencing、DAG、artifact 与 fake transcript differential；Darwin ARM64 p95/RSS 门禁通过；真实 Provider live、Rust durable store 与 crash recovery 保持未闭环 |
+| 2026-08-19 | 阶段 7 本地 API/control-plane shadow 工作包完成；Axum/Tower 与五个控制面领域 crate 已受目录门禁约束，Go/Gin 继续拥有公开 API、SQLite 与产品 lifecycle | 278 operation/18 route group/19 concrete probe differential；安全、envelope、SSE/WS/static 行为测试与 Darwin ARM64 p95/RSS 门禁通过；真实 handler、route cutover、长连接、bundle/sidecar 和原生平台保持未闭环 |
 
 完成每个阶段时在本表追加最终决策；大量一次性测试日志留在 CI artifact/提交，不复制进长期文档。
