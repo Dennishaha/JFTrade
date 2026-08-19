@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "owner": "rust-stage4-marketdata-and-worker-lifecycle",
+  "immutableAfterStageClose": true,
+  "files": [
+    {
+      "path": "provider-lifecycle-corpus.json",
+      "sha256": "6a0dc844bcf4d6e5bafeb53369a16e60e55f89d21f0de75a92f387f8046a5ae8"
+    },
+    {
+      "path": "provider-lifecycle-corpus.expected.json",
+      "sha256": "1018c1fd31069c3db2f0fd9ea6192cd9d52e108cd5c0131e51c956a0b46fe519"
+    },
+    {
+      "path": "resource-baseline.darwin-arm64.json",
+      "sha256": "2ff1541ab03514a3676e2a47127939fd0a3330afb5f1f0bacdfc62ca86902c2d"
+    }
+  ],
+  "workloads": [
+    {
+      "id": "provider-and-worker-lifecycle-v1",
+      "goOwners": [
+        "internal/marketdata",
+        "internal/integration/futu and pkg/futu/codec",
+        "pkg/strategy/pineworker"
+      ],
+      "rustOwners": [
+        "jftrade-marketdata",
+        "jftrade-integration-marketdata-helper",
+        "jftrade-integration-pine",
+        "jftrade-integration-futu"
+      ],
+      "comparison": "canonical JSON, Go production-owner behavior harnesses, Rust composition replay and process resource measurements"
+    }
+  ]
+}

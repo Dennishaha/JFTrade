@@ -1,6 +1,6 @@
 # JFTrade Go → Rust 完整迁移方案与守则
 
-状态：执行中。更新时间：2026-08-19。当前阶段：**阶段 3 本地计算核心已完成；生产 owner 仍为 Go，阶段 4 尚未启动；阶段 1 的首次上游原生矩阵仍待闭环**。
+状态：执行中。更新时间：2026-08-19。当前阶段：**阶段 4 本地行情/worker 生命周期工作包已完成；生产 owner 仍为 Go，真实 Provider/OpenD live 与原生发布平台资格仍待闭环；阶段 5 尚未启动**。
 
 本文是 JFTrade 将 Go 后端与 Wails 桌面壳完整迁移到 Rust 的计划、边界和放行事实源。活动状态在 [roadmap.md](../roadmap.md) 汇总；当前生产架构仍以 [architecture.md](../architecture.md) 为准。任何阶段都不得用“已经写出 Rust 版本”代替兼容性、可靠性和资源验收。
 
@@ -70,7 +70,7 @@ Node PineTS worker        Python market-data helper
 
 ### 3.1 Rust 目标目录指引（强制）
 
-本节是迁移期间新增目录、crate 和跨目录依赖的强制放置规则。目录出现在蓝图中只表示名称、owner 和最早启用阶段已经预留，**不表示应立即创建**。阶段未启动、没有实际生产代码或没有行为测试时，不得创建空 crate、占位模块或未来依赖。当前 Rust 侧已经启用 `jftrade-engine`、`jftrade-kernel`、`jftrade-broker`、`jftrade-store-sqlite` 和 `jftrade-backtest`；其余 Rust/Tauri 目标目录仍是计划目录。
+本节是迁移期间新增目录、crate 和跨目录依赖的强制放置规则。目录出现在蓝图中只表示名称、owner 和最早启用阶段已经预留，**不表示应立即创建**。阶段未启动、没有实际生产代码或没有行为测试时，不得创建空 crate、占位模块或未来依赖。当前 Rust 侧已经启用 `jftrade-engine`、`jftrade-kernel`、`jftrade-broker`、`jftrade-store-sqlite`、`jftrade-backtest`、`jftrade-marketdata`、`jftrade-integration-pine`、`jftrade-integration-marketdata-helper` 和 `jftrade-integration-futu`；其余 Rust/Tauri 目标目录仍是计划目录。
 
 ```text
 crates/
@@ -78,7 +78,7 @@ crates/
   jftrade-contracts/                      # 计划，阶段 2：版本化私有 RPC/wire DTO
   jftrade-broker/                         # 已存在，阶段 2：broker-neutral 类型与 ports
   jftrade-backtest/                       # 已存在，阶段 3：回测领域和计算核心
-  jftrade-marketdata/                     # 计划，阶段 4：行情领域
+  jftrade-marketdata/                     # 已存在，阶段 4：行情领域
   jftrade-strategy/                       # 计划，阶段 3/5：策略领域
   jftrade-trading/                        # 计划，阶段 5：交易、风控和订单状态
   jftrade-assistant/                      # 计划，阶段 6：Assistant 领域与 Rig adapter 边界
@@ -88,9 +88,9 @@ crates/
   jftrade-calendar/                       # 计划，阶段 7：交易日历领域
   jftrade-datamanagement/                 # 计划，阶段 7：数据维护能力
   jftrade-store-sqlite/                   # 已存在，阶段 2：SQLite 只读 adapter
-  jftrade-integration-pine/               # 计划，阶段 3/4：Node worker adapter/lifecycle
-  jftrade-integration-marketdata-helper/  # 计划，阶段 4：Python helper adapter/lifecycle
-  jftrade-integration-futu/               # 计划，阶段 4/5：OpenD 协议 adapter
+  jftrade-integration-pine/               # 已存在，阶段 4：Node worker adapter/lifecycle
+  jftrade-integration-marketdata-helper/  # 已存在，阶段 4：Python helper adapter/lifecycle
+  jftrade-integration-futu/               # 已存在，阶段 4/5：OpenD 协议 adapter
   jftrade-api/                            # 计划，阶段 7：Axum HTTP/SSE/WebSocket
   jftrade-engine/                         # 已存在：进程入口和唯一 composition root
 
@@ -218,7 +218,7 @@ jftrade-kernel / jftrade-broker
 
 | 能力 | 选择 | 状态 | 理由与约束 |
 | --- | --- | --- | --- |
-| async runtime | [Tokio 1.53.1](https://github.com/tokio-rs/tokio) | 阶段 1 已引入 | Tonic 官方运行时基础；只启用 macros/net/rt/signal/sync |
+| async runtime | [Tokio 1.53.1](https://github.com/tokio-rs/tokio) | 阶段 1 已引入、阶段 4 扩展 | Tonic/Reqwest 运行时基础；阶段 4 为受管 worker 增加 io-util/process/time，仍不启用无关组件 |
 | private RPC/health | [Tonic / tonic-health 0.14.6](https://github.com/hyperium/tonic) | 阶段 1 已引入 | Tokio 生态官方 gRPC 实现；标准 health 协议避免自造 contract |
 | serialization | [Serde 1.0.229](https://github.com/serde-rs/serde) / `serde_json` 1.0.151 | 阶段 1 已引入 | Rust 事实标准；当前仅用于 supervisor readiness JSON |
 | error | [thiserror 2.0.20](https://github.com/dtolnay/thiserror) | 阶段 1 已引入 | 库层强类型错误；应用汇总是否引入 `anyhow` 后续按需决定 |
@@ -226,7 +226,8 @@ jftrade-kernel / jftrade-broker
 | dependency policy | [cargo-deny 0.20.2](https://github.com/EmbarkStudios/cargo-deny) | 阶段 1 CI 工具 | 审计 advisory、license、source 和 ban；不进入产品依赖 |
 | HTTP/SSE/WS | [Axum 0.8.9](https://github.com/tokio-rs/axum) | 后续候选 | Tokio 官方生态、与 Tower/Tonic 组合自然；API 阶段才引入 |
 | SQLite | [rusqlite 0.40.2](https://github.com/rusqlite/rusqlite) | 阶段 2 已引入 | 阶段 2 只读验证需要精确控制 open flags、PRAGMA 和 schema introspection；关闭默认 feature，仅启用 `bundled`，避免目标机系统 SQLite 漂移。异步事务 owner 阶段再重新比较 SQLx |
-| HTTP client/TLS | [Reqwest](https://github.com/seanmonstar/reqwest) + [Rustls 0.23 stable](https://github.com/rustls/rustls) | 后续候选 | 默认纯 Rust TLS；不采用当前 0.24 dev release，避免把预发布版本带入产品 |
+| loopback HTTP client | [Reqwest 0.13.4](https://github.com/seanmonstar/reqwest) | 阶段 4 已引入 | 项目官方且广泛采用；仅为本机 Python helper 启用 `json`，关闭默认 feature、TLS、proxy、cookie 和 HTTP/2；显式端口、禁重定向、限时限长并可选 per-process Bearer |
+| protocol/asset digest | [RustCrypto SHA-1/SHA-2 0.11.0](https://github.com/RustCrypto/hashes) | 阶段 4 已引入 | OpenD wire 固有 SHA-1 与发布资产 SHA-256；官方 RustCrypto 实现、关闭默认 feature，不用于密码存储或自造认证协议 |
 | Decimal | 自有兼容 codec；[rust_decimal 1.42.1](https://github.com/paupino/rust-decimal) 仅保留为有界算术候选 | 阶段 2 已决策 | shopspring Decimal 是任意精度字符串语义，不能无损收窄到 `rust_decimal`；bbgo fixedpoint 另按 `i64 × 10^-8` 实现。只有领域边界已证明在 96-bit 范围内时才允许引入 `rust_decimal` |
 | time/identity | [time 0.3.55](https://github.com/time-rs/time) / [uuid 1.24.1](https://github.com/uuid-rs/uuid) | `time` 阶段 2 已引入；UUID 后续候选 | `time` 仅启用 std/formatting/parsing/serde，保留 RFC3339Nano 与 Unix 毫秒语义；UUID 未被阶段 2 代码使用，不提前引入 |
 | CPU parallelism | [Rayon 1.12.0](https://github.com/rayon-rs/rayon) | 后续候选 | 只用于有基准证据的批量纯计算；不得与 Tokio task 无界叠加 |
@@ -255,7 +256,7 @@ jftrade-kernel / jftrade-broker
 - [x] 接入 `test:affected`、`check:quick`、`check:all` 与模块所有权。
 - [x] CI 增加 Rust quality 和 Linux x64/macOS ARM64/Windows x64/Windows ARM64 编译矩阵；四个 target 已在当前 macOS 主机完成 cross-check。
 - [ ] 合并前由上游原生 runner 完成首次四平台矩阵；本地 cross-check 不能替代原生平台资格。
-- [x] 阶段 2/3 代表性数据集均已建立不可变 SHA-256 manifest；行为演进必须新增 corpus 版本。
+- [x] 阶段 2/3/4 代表性数据集均已建立不可变 SHA-256 manifest；行为演进必须新增 corpus 版本。
 
 阶段 1 放行条件：现有公开契约与生成资产零 diff；Rust fmt/clippy/test/policy 全绿；四目标 `cargo check` 全绿；上游原生 runner 矩阵全绿；Go/Wails 仍是唯一生产入口。在首次上游矩阵完成前，阶段 1 不标记关闭。
 
@@ -305,14 +306,32 @@ jftrade-kernel / jftrade-broker
 
 本阶段“完成”只表示可复现的纯计算实现、兼容证据与切换演练已经闭环，不表示公开产品已切流。现有生产 Pine replay 是逐事件、长生命周期链路，阶段 3 不以测试 CLI 冒充产品 adapter；在阶段 4/7 建成真实生命周期和 composition 接缝前，Go 继续拥有撮合、费用和结果写入权，Rust 不连接公开 HTTP、生产 SQLite 或 worker。
 
-### 阶段 4：行情 Provider、Pine/Python worker 生命周期
+### 阶段 4：行情 Provider、Pine/Python worker 生命周期（本地完成）
 
-1. 迁移 broker-neutral market-data domain、demand/freshness/cache 和 provider router。
-2. 迁移 Node PineTS 与 Python helper 的启动、令牌、端口、ready、重试、退避、停止和资产校验。
-3. 迁移 yfinance/AKShare loopback HTTP adapter，但不重写 Python provider 语义。
-4. 最后迁移 Futu/OpenD 协议 adapter、订阅恢复和 quote-login 状态。
+- [x] 建立 `jftrade-marketdata`，实现 broker-neutral Provider capability/constraint/health、instrument normalization、consumer demand/heartbeat/expiry、managed lease、generation cache/freshness 和 fail-closed provider router。
+- [x] provider 显式切换要求 connected + ready；启动恢复可保留 warming，但 unknown 健康、poll-only 承担 managed streaming demand、managed demand 下切换均拒绝；成功切换递增 generation 并清空旧 cache。
+- [x] 建立 `jftrade-integration-marketdata-helper`：SHA-256 资产校验、loopback/显式端口、可选强 Bearer、受限 Reqwest、Retry-After/有界退避、进程启动到 ready、提前退出检测和限时停止；Python 仍拥有 yfinance/AKShare 语义。
+- [x] 建立 `jftrade-integration-pine`：SHA-256 bundle 校验、loopback/端口/token 边界、受管 Node 进程、ready probe/兼容退避策略、健康池、round-robin、live session pin、失败回滚和 restart 后 session 失效；Node worker 仍拥有 PineTS 执行。
+- [x] 建立 `jftrade-integration-futu`：OpenD FT frame/SHA-1/长度防护、protocol/serial matching、market-data protocol ID、logical→physical 订阅计划、60 秒最小退订、5/10/20/30 秒失败退避、connection generation 重订阅和 quote-login fail-closed probe。
+- [x] retained Python/Node worker 增加向后兼容的可选 Bearer；当前 Go 启动不设置令牌时行为不变，未来 Rust composition 启动时必须设置每进程强令牌；二者继续拒绝公共监听。
+- [x] 固定 14 个行情操作、9 个 Pine 生命周期操作、3 个 OpenD 订阅和 3 个健康探针；Rust canonical output、三个直接调用现有 Go owner 的行为 harness 与 pinned expected 三方一致。
+- [x] differential、manifest、超时恢复、worker 单测/typecheck、Python 全量测试、release replay 资源基线和 workspace 依赖/目录门禁已接入本地 gate。
+- [ ] 显式 Yahoo/AKShare/OpenD live workflow、真实 Pine/Python 发布资产启动到 ready/关闭和 Linux/Windows/macOS 原生 runner 尚未执行；这些外部门禁继续阻断产品切换，但不让 Rust 取得第二 owner。
 
-放行：provider capability 矩阵一致；未知健康 fail closed；切换无陈旧订阅/缓存；真实 live workflow 单独通过。
+#### 阶段 4 执行账本
+
+| 工作包 | 当前 Go/worker owner | 阶段 4 Rust owner | 唯一切换点与回退 | Go 删除条件 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| Provider capability、demand、freshness、cache、router | `internal/marketdata` | `jftrade-marketdata` | 以后只由 `jftrade-engine` 选择 provider router；阶段 4 CLI 仅离线 replay，回退仍走 Go | 真实 stream/poll trace、切换观察期和全部原生资源门禁通过，Rust 成为唯一产品 owner | 本地领域与拒绝/恢复证据完成；未切流 |
+| Python helper 资产、HTTP 和进程生命周期 | Go `internal/marketdataassets`、`internal/app/apiserver/marketdataapp`、`internal/integration/yfinance`；Python `workers/marketdata-sidecar` 保留 Provider 语义 | `jftrade-integration-marketdata-helper` | `jftrade-engine` 以后只启动一个 authenticated loopback helper；移除 Rust composition 即回退 | packaged helper 在全部原生目标通过启动、ready、请求、故障、取消、关闭且 Go 不再启动 helper | 本地 adapter/lifecycle 与 mock HTTP 证据完成；发布资产 smoke 待外部平台 |
+| Pine worker 资产、pool 和进程生命周期 | Go `pkg/strategy/pineworker`；Node `workers/pineworker` 保留 PineTS | `jftrade-integration-pine` | `jftrade-engine` 以后拥有唯一 worker pool；回退整体选择 Go manager，不迁移 live session | gRPC 全契约、发布资产、session/restart/关闭和原生资源门禁通过，Go manager 无消费者 | 本地 lifecycle/pool 与 Go 行为对照完成；真实 Rust gRPC 产品装配留在切流阶段 |
+| OpenD market-data frame、健康和订阅恢复 | `internal/integration/futu`、`pkg/futu` | `jftrade-integration-futu` | `jftrade-engine` 注入 market-data port；阶段 5 的交易命令另行切换，回退保持 Go Futu runtime | 固定生成的 protobuf mapper、真实 socket/push/reconnect/live quote 与 OpenD 版本矩阵通过，Go market-data adapter 删除 | frame/serial/subscription/probe shadow 完成；raw protobuf body 尚不代表 live OpenD 资格 |
+
+阶段 4 corpus 位于 `tests/fixtures/rust-migration/stage4`，`manifest.json` 固定 input、expected 和 Darwin ARM64 资源基线 SHA-256；关闭后的既有文件不得静默改写。三方 differential 为 `pnpm run test:rust:stage4:differential`，本机 release 资源复测为 `pnpm run benchmark:rust:stage4`。
+
+Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：三个 Go 生产 owner 测试 harness 的 p95 为 21.155 ms、峰值 RSS 22,888,448 bytes；Rust composition replay 的 p95 为 3.268 ms、峰值 RSS 2,752,512 bytes，Rust/Go 比值为 0.154/0.120，5% p95 与 10% RSS 回退门禁通过。Go 是三个独立测试进程、Rust 是一个 replay 进程，绝对启动和 binary size 不作产品结论；该基线不启动真实外部 Provider/OpenD，也不替代发布包或原生平台资格。
+
+本阶段“本地完成”只表示 Rust 领域/adapter/lifecycle 边界、兼容 fixture、资源基线和可回退 composition shadow 已闭环。公开 API、SQLite、真实订阅、Node/Python/Futu 产品生命周期仍由 Go 唯一拥有；真实 live、固定生成 protobuf 与发布平台 gate 完成前不得切流或删除 Go。
 
 ### 阶段 5：交易、策略运行与通知
 
@@ -378,7 +397,7 @@ jftrade-kernel / jftrade-broker
 
 迁移计划中的每个阶段是一个提交单位。阶段内仍按“契约/fixture → 纯领域 → adapter/differential → gate → 账本”顺序实施和验证，但中间工作包不得形成正式提交；只有该阶段全部工作和放行门禁完成后，才创建一个本地阶段提交。未完成阶段保留为工作树改动并在账本明确未关闭，不得用 `WIP` 或部分阶段提交伪装完成。
 
-阶段提交必须同时包含该阶段的契约账本、生产实现、行为测试、fixture/golden、依赖与 affected gate、可复现验证证据及关闭状态，不得混入下一阶段内容。提交前必须通过 `check:quick`、阶段专项门禁和 `check:all`；仍等待上游、live 或原生平台资格时不得创建“阶段完成”提交。
+阶段提交必须同时包含该阶段的契约账本、生产实现、行为测试、fixture/golden、依赖与 affected gate、可复现验证证据及关闭状态，不得混入下一阶段内容。提交前必须通过 `check:quick`、阶段专项门禁和 `check:all`。当前机器可执行的门禁失败时不得创建阶段提交；只有必须由上游、显式 live 或其他原生发布平台执行的资格可以登记为外部未闭环项并创建“本地工作包完成”阶段提交，但该提交不得表述为产品切流或阶段正式关闭，且生产 owner 必须保持不变。
 
 提交信息统一使用 `feat(rust-stageN): complete <阶段目标>`；纯文档阶段可使用 `docs(rust-stageN): complete <阶段目标>`。创建阶段提交后才能启动下一阶段，回退以整体 revert 该阶段提交为准。迁移提交只在本地创建，除非用户明确要求，不推送、不重写已共享历史；本地尚未共享的错误中间提交必须在阶段收口前合并回对应阶段提交。
 
@@ -434,5 +453,6 @@ JFTRADE_RUST_ENGINE_TOKEN="$(openssl rand -hex 32)" \
 | 2026-08-19 | 阶段 2 启动；shopspring Decimal 与 fixedpoint 拆分兼容，SQLite 首个只读样本选择 backtest K 线 | `tests/fixtures/rust-migration/stage2` 与阶段 2 执行账本 |
 | 2026-08-19 | 阶段 2 本地实现完成；Go 保持唯一生产 owner，Rust SQLite 仍为离线只读验证工具 | golden/differential 零差异、DB bytes 不变、Darwin ARM64 release 资源基线通过 |
 | 2026-08-19 | 阶段 3 本地计算核心完成；PineTS 保留，Go 保持唯一生产 owner，离线三态 selector 只做 shadow/切换/回退演练 | 5 case/8 fill 三方 differential 零差异；取消/超时恢复通过；Darwin ARM64 p95/RSS 门禁通过；阶段 3 manifest 已固定 |
+| 2026-08-19 | 阶段 4 本地行情/worker 生命周期工作包完成；retained Node/Python 只增加可选私有 Bearer，Go 继续拥有公开 API、真实 Provider/OpenD 与进程 lifecycle | 14 market-data/9 Pine/3 OpenD subscription/3 probe 三方 evidence；未知健康和切换 fail closed；Darwin ARM64 p95/RSS 门禁通过；真实 live/发布平台资格保持未闭环 |
 
 完成每个阶段时在本表追加最终决策；大量一次性测试日志留在 CI artifact/提交，不复制进长期文档。

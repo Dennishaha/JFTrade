@@ -34,6 +34,7 @@
       "entrypoints": [
         "crates/jftrade-engine",
         "crates/jftrade-backtest/src/bin/jftrade-backtest-shadow.rs",
+        "crates/jftrade-engine/src/bin/jftrade-stage4-shadow.rs",
         "scripts/rust-migration/run-backtest-owner.mjs"
       ],
       "affectedTests": [
@@ -41,6 +42,8 @@
         "pnpm run test:rust",
         "pnpm run test:rust:differential",
         "pnpm run test:rust:backtest:differential",
+        "pnpm run test:rust:stage4:differential",
+        "node --test scripts/rust-migration/benchmark-stage4.test.mjs",
         "go test ./scripts/rust-migration -count=1"
       ],
       "vetPackages": []
@@ -266,7 +269,8 @@
         "workers/pineworker/src/main.ts"
       ],
       "affectedTests": [
-        "pnpm --filter @jftrade/pineworker run test"
+        "pnpm --filter @jftrade/pineworker run test",
+        "pnpm --filter @jftrade/pineworker run typecheck"
       ],
       "vetPackages": [
         "./pkg/strategy/pineworker"

@@ -1,0 +1,218 @@
+{
+  "version": "stage4.v1",
+  "helper": {
+    "authenticated": true,
+    "endpoint": "http://127.0.0.1:47888/"
+  },
+  "marketdata": [
+    {
+      "ok": true,
+      "op": "activate",
+      "value": {
+        "activeDemand": 0,
+        "activeProvider": "futu",
+        "connected": true,
+        "generation": 1,
+        "readiness": "ready"
+      }
+    },
+    {
+      "ok": true,
+      "op": "acquire",
+      "value": {
+        "active": [
+          {"channel": "SNAPSHOT", "market": "US", "symbol": "AAPL"}
+        ],
+        "consumerCount": 1,
+        "logicalCount": 1,
+        "managedConsumerCount": 0
+      }
+    },
+    {"ok": true, "op": "cache_insert", "value": {"instrumentCount": 1}},
+    {
+      "ok": true,
+      "op": "cache_lookup",
+      "value": {
+        "state": "fresh",
+        "tick": {
+          "instrumentId": "US.AAPL",
+          "observedAtMs": 100,
+          "price": 188.50000000,
+          "providerGeneration": 1,
+          "volume": 10
+        }
+      }
+    },
+    {
+      "ok": true,
+      "op": "acquire",
+      "value": {
+        "active": [
+          {"channel": "KLINE", "interval": "1m", "market": "US", "symbol": "AAPL"},
+          {"channel": "SNAPSHOT", "market": "US", "symbol": "AAPL"}
+        ],
+        "consumerCount": 2,
+        "logicalCount": 2,
+        "managedConsumerCount": 1
+      }
+    },
+    {"error": "managed market-data subscriptions are active", "ok": false, "op": "activate"},
+    {"ok": true, "op": "release", "value": {"released": true}},
+    {
+      "ok": true,
+      "op": "activate",
+      "value": {
+        "activeDemand": 1,
+        "activeProvider": "akshare",
+        "connected": false,
+        "generation": 2,
+        "readiness": "warming"
+      }
+    },
+    {"ok": true, "op": "cache_lookup", "value": {"state": "missing", "tick": null}},
+    {
+      "error": "provider akshare does not support streaming subscriptions",
+      "ok": false,
+      "op": "acquire"
+    },
+    {
+      "error": "provider yfinance is not ready: readiness is Unknown",
+      "ok": false,
+      "op": "activate"
+    },
+    {"ok": true, "op": "update_health", "value": {"providerId": "yfinance"}},
+    {
+      "ok": true,
+      "op": "activate",
+      "value": {
+        "activeDemand": 1,
+        "activeProvider": "yfinance",
+        "connected": true,
+        "generation": 3,
+        "readiness": "ready"
+      }
+    },
+    {"ok": true, "op": "expire", "value": {"expired": ["chart"]}}
+  ],
+  "pine": [
+    {"ok": true, "op": "health", "workerId": "pineworker-1"},
+    {"ok": true, "op": "health", "workerId": "pineworker-2"},
+    {"ok": true, "op": "reserve", "succeeded": true, "workerId": "pineworker-1"},
+    {"ok": true, "op": "reserve", "succeeded": true, "workerId": "pineworker-2"},
+    {"ok": true, "op": "reserve", "succeeded": true, "workerId": "pineworker-1"},
+    {"ok": true, "op": "restart", "workerId": "pineworker-1"},
+    {
+      "error": "pine worker live session session-a is not pinned to an active worker",
+      "ok": false,
+      "op": "reserve"
+    },
+    {"ok": true, "op": "reserve", "succeeded": false, "workerId": "pineworker-2"},
+    {
+      "error": "pine worker live session session-b is not pinned to an active worker",
+      "ok": false,
+      "op": "reserve"
+    }
+  ],
+  "pineSnapshot": [
+    {
+      "address": "127.0.0.1:45051",
+      "busy": false,
+      "capabilities": ["health", "run", "live-session-v1"],
+      "healthy": false,
+      "lastError": null,
+      "pineTsVersion": "fixture",
+      "restarts": 1,
+      "version": "0.1.0",
+      "workerId": "pineworker-1"
+    },
+    {
+      "address": "127.0.0.1:45052",
+      "busy": false,
+      "capabilities": ["health", "run", "live-session-v1"],
+      "healthy": true,
+      "lastError": null,
+      "pineTsVersion": "fixture",
+      "restarts": 0,
+      "version": "0.1.0",
+      "workerId": "pineworker-2"
+    }
+  ],
+  "futu": {
+    "beforeRelease": [],
+    "frame": {"body": [1, 2, 3, 4, 5], "length": 49, "protoId": 3004, "serialNo": 42},
+    "plan": {
+      "logicalCount": 3,
+      "physical": [
+        {"instrumentId": "US.AAPL", "key": "BASIC:US.AAPL", "kind": "basic"},
+        {
+          "instrumentId": "US.AAPL",
+          "interval": "1m",
+          "key": "KLINE:US.AAPL:1m",
+          "kind": "kline"
+        },
+        {"instrumentId": "HK.00700", "key": "ORDER_BOOK:HK.00700", "kind": "order_book"}
+      ]
+    },
+    "probes": [
+      {
+        "name": "healthy",
+        "marketDataReady": true,
+        "probe": {
+          "connectivity": "connected",
+          "markets": [{"market": "HK", "state": 5}, {"market": "US", "state": 5}],
+          "programStatus": "Ready",
+          "programTimestamp": "2026-08-19T00:00:00Z",
+          "quoteLoggedIn": true,
+          "serverVersion": "10.9.100",
+          "status": "healthy",
+          "tradeLoggedIn": true
+        }
+      },
+      {
+        "name": "quote_logged_out",
+        "marketDataReady": false,
+        "probe": {
+          "connectivity": "connected",
+          "markets": [],
+          "programStatus": "Ready",
+          "programTimestamp": null,
+          "quoteLoggedIn": false,
+          "serverVersion": "10.9.100",
+          "status": "healthy",
+          "tradeLoggedIn": true
+        }
+      },
+      {
+        "name": "unsupported_version",
+        "marketDataReady": false,
+        "probe": {
+          "connectivity": "degraded",
+          "issueCode": "OPEND_VERSION_UNSUPPORTED",
+          "lastError": "OpenD version does not meet the minimum requirement",
+          "markets": [],
+          "programStatus": null,
+          "programTimestamp": null,
+          "quoteLoggedIn": null,
+          "serverVersion": "9.0.0",
+          "status": "degraded",
+          "tradeLoggedIn": null
+        }
+      }
+    ],
+    "reconnect": [
+      "subscribe:BASIC:US.AAPL",
+      "subscribe:KLINE:US.AAPL:1m",
+      "subscribe:ORDER_BOOK:HK.00700"
+    ],
+    "release": [
+      "unsubscribe:BASIC:US.AAPL",
+      "unsubscribe:KLINE:US.AAPL:1m",
+      "unsubscribe:ORDER_BOOK:HK.00700"
+    ],
+    "subscribe": [
+      "subscribe:BASIC:US.AAPL",
+      "subscribe:KLINE:US.AAPL:1m",
+      "subscribe:ORDER_BOOK:HK.00700"
+    ]
+  }
+}

@@ -32,6 +32,8 @@ export const scriptTestSuites = Object.freeze({
     "scripts/rust-migration/check-backtest-differential.test.mjs",
     "scripts/rust-migration/benchmark-backtest.test.mjs",
     "scripts/rust-migration/run-backtest-owner.test.mjs",
+    "scripts/rust-migration/check-stage4-differential.test.mjs",
+    "scripts/rust-migration/benchmark-stage4.test.mjs",
     "scripts/run-errorlint.test.mjs",
     "scripts/run-go-argument-forwarding.test.mjs",
     "scripts/run-test-layer.test.mjs",

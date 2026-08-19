@@ -21,6 +21,11 @@ def test_parse_args_rejects_invalid_ports(value: str) -> None:
         sidecar_main.parse_args(["--port", value])
 
 
+def test_parse_args_rejects_non_loopback_host() -> None:
+    with pytest.raises(SystemExit):
+        sidecar_main.parse_args(["--host", "0.0.0.0"])
+
+
 def test_parse_args_reports_version(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exit_info:
         sidecar_main.parse_args(["--version"])

@@ -3,7 +3,11 @@ members = [
   "crates/jftrade-backtest",
   "crates/jftrade-broker",
   "crates/jftrade-engine",
+  "crates/jftrade-integration-futu",
+  "crates/jftrade-integration-marketdata-helper",
+  "crates/jftrade-integration-pine",
   "crates/jftrade-kernel",
+  "crates/jftrade-marketdata",
   "crates/jftrade-store-sqlite",
 ]
 resolver = "3"
@@ -16,13 +20,20 @@ rust-version = "1.97.1"
 
 [workspace.dependencies]
 jftrade-backtest = { path = "crates/jftrade-backtest", version = "=0.1.0" }
+jftrade-integration-futu = { path = "crates/jftrade-integration-futu", version = "=0.1.0" }
+jftrade-integration-marketdata-helper = { path = "crates/jftrade-integration-marketdata-helper", version = "=0.1.0" }
+jftrade-integration-pine = { path = "crates/jftrade-integration-pine", version = "=0.1.0" }
 jftrade-kernel = { path = "crates/jftrade-kernel", version = "=0.1.0" }
+jftrade-marketdata = { path = "crates/jftrade-marketdata", version = "=0.1.0" }
+reqwest = { version = "=0.13.4", default-features = false, features = ["json"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled"] }
+sha1 = { version = "=0.11.0", default-features = false }
+sha2 = { version = "=0.11.0", default-features = false }
 thiserror = "=2.0.20"
 time = { version = "=0.3.55", default-features = false, features = ["formatting", "parsing", "serde", "std"] }
-tokio = { version = "=1.53.1", features = ["macros", "net", "rt-multi-thread", "signal", "sync"] }
+tokio = { version = "=1.53.1", features = ["io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-stream = { version = "=0.1.19", features = ["net"] }
 tonic = "=0.14.6"
 tonic-health = "=0.14.6"

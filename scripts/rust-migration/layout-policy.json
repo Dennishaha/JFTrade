@@ -24,6 +24,54 @@
       "allowedWorkspaceDependencies": ["jftrade-kernel"]
     },
     {
+      "name": "jftrade-marketdata",
+      "path": "crates/jftrade-marketdata",
+      "stage": 4,
+      "status": "active",
+      "layer": "capability",
+      "goOwner": "internal/marketdata demand, freshness, cache and provider-neutral routing",
+      "rustOwner": "jftrade-marketdata",
+      "cutover": "a single jftrade-engine provider-router composition choice after Stage 4 shadow qualification",
+      "goDeleteWhen": "provider capability, demand, cache freshness and switching differentials pass the observation window and Rust is the sole product owner",
+      "allowedWorkspaceDependencies": ["jftrade-kernel"]
+    },
+    {
+      "name": "jftrade-integration-marketdata-helper",
+      "path": "crates/jftrade-integration-marketdata-helper",
+      "stage": 4,
+      "status": "active",
+      "layer": "adapter",
+      "goOwner": "internal/marketdataassets plus internal/app/apiserver/marketdataapp Python helper lifecycle and internal/integration/yfinance HTTP adapter",
+      "rustOwner": "jftrade-integration-marketdata-helper",
+      "cutover": "jftrade-engine starts exactly one authenticated loopback helper and injects its adapter into jftrade-marketdata",
+      "goDeleteWhen": "asset materialization, readiness, retry, cancellation, shutdown and packaged helper smoke pass all native targets with no Go helper owner",
+      "allowedWorkspaceDependencies": ["jftrade-marketdata"]
+    },
+    {
+      "name": "jftrade-integration-pine",
+      "path": "crates/jftrade-integration-pine",
+      "stage": 4,
+      "status": "active",
+      "layer": "adapter",
+      "goOwner": "pkg/strategy/pineworker host lifecycle and worker pool",
+      "rustOwner": "jftrade-integration-pine",
+      "cutover": "jftrade-engine owns the authenticated loopback worker pool while workers/pineworker retains PineTS execution",
+      "goDeleteWhen": "gRPC behavior, session pinning, restart recovery, asset verification and packaged worker lifecycle pass all native targets",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-integration-futu",
+      "path": "crates/jftrade-integration-futu",
+      "stage": 4,
+      "status": "active",
+      "layer": "adapter",
+      "goOwner": "internal/integration/futu and pkg/futu OpenD market-data protocol lifecycle",
+      "rustOwner": "jftrade-integration-futu",
+      "cutover": "jftrade-engine injects the OpenD adapter into jftrade-marketdata; Stage 5 separately owns trading commands",
+      "goDeleteWhen": "OpenD frame/protobuf mapping, quote-login health, subscription recovery and explicit live workflow pass before the Go market-data adapter is removed",
+      "allowedWorkspaceDependencies": ["jftrade-marketdata"]
+    },
+    {
       "name": "jftrade-engine",
       "path": "crates/jftrade-engine",
       "stage": 1,
@@ -33,7 +81,12 @@
       "rustOwner": "jftrade-engine",
       "cutover": "the single process-level composition choice",
       "goDeleteWhen": "all capability owners have moved and the Go entrypoints have completed rollback qualification",
-      "allowedWorkspaceDependencies": []
+      "allowedWorkspaceDependencies": [
+        "jftrade-integration-futu",
+        "jftrade-integration-marketdata-helper",
+        "jftrade-integration-pine",
+        "jftrade-marketdata"
+      ]
     },
     {
       "name": "jftrade-kernel",

@@ -114,6 +114,7 @@ test("builds a deterministic affected test plan", () => {
   assert.equal(plan.modules[0].id, "pineworker");
   assert.deepEqual(plan.commands, [
     "pnpm --filter @jftrade/pineworker run test",
+    "pnpm --filter @jftrade/pineworker run typecheck",
   ]);
 });
 
@@ -127,6 +128,8 @@ test("runs Rust tests and quality gates for migration engine changes", () => {
     "pnpm run test:rust",
     "pnpm run test:rust:differential",
     "pnpm run test:rust:backtest:differential",
+    "pnpm run test:rust:stage4:differential",
+    "node --test scripts/rust-migration/benchmark-stage4.test.mjs",
     "go test ./scripts/rust-migration -count=1",
     "pnpm run format:rust:check",
     "pnpm run lint:rust",

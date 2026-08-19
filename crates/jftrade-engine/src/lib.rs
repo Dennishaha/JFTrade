@@ -14,6 +14,8 @@ use tonic::{Request, Status};
 use tonic_health::ServingStatus;
 use tonic_health::server::health_reporter;
 
+pub mod stage4;
+
 /// Environment variable containing the per-process bridge bearer token.
 pub const AUTH_TOKEN_ENV: &str = "JFTRADE_RUST_ENGINE_TOKEN";
 /// Environment variable overriding the loopback bind address.

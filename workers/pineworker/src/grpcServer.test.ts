@@ -51,6 +51,22 @@ describe("createServiceHandlers", () => {
     expect(analysis.ok).toBe(true);
     expect(analysis.error).toBe("");
   });
+
+  test("configured bearer token protects health and execution RPCs", async () => {
+    const handlers = createServiceHandlers({
+      workerId: "worker-1",
+      executor: new DeterministicPineTSExecutor(),
+      peakRSSBytes: () => 123,
+      authToken: "stage4_pine_token_0123456789abcdef",
+    });
+    await expect(unary(handlers.HealthCheck, {}, [])).rejects.toMatchObject({ code: 16 });
+    const health = await unary(
+      handlers.HealthCheck,
+      {},
+      ["Bearer stage4_pine_token_0123456789abcdef"],
+    );
+    expect(health.ok).toBe(true);
+  });
 });
 
 describe("startWorkerGrpcServer", () => {
@@ -107,12 +123,35 @@ describe("startWorkerGrpcServer", () => {
       "C:/repo/pkg/strategy/pineworker",
     ]);
   });
+
+  test("rejects public listeners and weak configured tokens before loading proto", async () => {
+    const base = {
+      workerId: "worker-1",
+      executor: new DeterministicPineTSExecutor(),
+      protoPath: "/repo/pineworker.proto",
+      grpc: {} as GrpcModule,
+      protoLoader: { loadSync: () => ({}) },
+      maxMessageBytes: 1024,
+      peakRSSBytes: () => 123,
+    };
+    await expect(startWorkerGrpcServer({ ...base, address: "0.0.0.0:50051" }))
+      .rejects.toThrow("loopback");
+    await expect(startWorkerGrpcServer({
+      ...base,
+      address: "127.0.0.1:50051",
+      authToken: "short",
+    })).rejects.toThrow("at least 32");
+  });
 });
 
-function unary(handler: unknown, request: unknown): Promise<Record<string, unknown>> {
+function unary(
+  handler: unknown,
+  request: unknown,
+  authorization: unknown[] = [],
+): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     (handler as (call: unknown, callback: (error: Error | null, response?: unknown) => void) => void)(
-      { request },
+      { request, metadata: { get: () => authorization } },
       (error, response) => error ? reject(error) : resolve(response as Record<string, unknown>),
     );
   });
