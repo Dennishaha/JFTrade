@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-19T10:40:47.152Z",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple A18 Pro",
+    "logicalCpus": 6,
+    "totalMemoryBytes": 8589934592
+  },
+  "buildProfile": {
+    "go": "go test -c -trimpath (production Assistant store and domain contract harness)",
+    "rust": "cargo build --release"
+  },
+  "workload": {
+    "fixture": "assistant-rig-corpus.json",
+    "fixtureSha256": "e045a2ec332640873faaae6f267455a0a35959c16ada86566fb4313359980eb5",
+    "expectedSha256": "e17451f81d6702e1360a5489398baa9620ff0d7ea50ccb105d6b6a2b679a6523",
+    "statuses": 9,
+    "transitions": 12,
+    "rejectedInputPrompts": 3,
+    "durableClaims": 2,
+    "workflowTasks": 3,
+    "artifactVersions": 2,
+    "streamDeltas": 3
+  },
+  "go": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": { "p50": 66.074, "p95": 67.461, "p99": 68.624 },
+    "cpuMillisP50": 60,
+    "peakRssBytes": 49037312,
+    "corporaPerSecondP50": 15.135,
+    "binaryBytes": 69413314,
+    "resultHash": "sha256:e17451f81d6702e1360a5489398baa9620ff0d7ea50ccb105d6b6a2b679a6523"
+  },
+  "rust": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": { "p50": 3.437, "p95": 5.731, "p99": 6.136 },
+    "cpuMillisP50": 0,
+    "peakRssBytes": 3391488,
+    "corporaPerSecondP50": 290.951,
+    "binaryBytes": 1401264,
+    "resultHash": "sha256:e17451f81d6702e1360a5489398baa9620ff0d7ea50ccb105d6b6a2b679a6523"
+  },
+  "gates": {
+    "rustToGoP95": 0.085,
+    "rustToGoPeakRss": 0.069,
+    "p95RegressionGatePassed": true,
+    "rssRegressionGatePassed": true
+  },
+  "limitations": [
+    "The Go harness opens temporary production SQLite stores while the Rust shadow replays an in-memory checkpoint; absolute startup and binary-size values are not product-process evidence.",
+    "The fake provider transcript makes no network request and does not qualify any live OpenAI-compatible provider, credential, rate-limit, or streaming transport behavior.",
+    "Rig is exercised only through provider-neutral request/response adapter tests; the fixed transcript does not call a concrete Rig provider, and JFTrade remains on the Go Assistant production owner and Google ADK runtime.",
+    "This local result does not replace native Linux, Windows, and macOS CI qualification."
+  ]
+}

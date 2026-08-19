@@ -12,6 +12,18 @@
   ],
   "packages": [
     {
+      "name": "jftrade-assistant",
+      "path": "crates/jftrade-assistant",
+      "stage": 6,
+      "status": "active",
+      "layer": "capability",
+      "goOwner": "internal/assistant model, runtime state, approval/input continuation, workflow, claims, artifacts and provider orchestration",
+      "rustOwner": "jftrade-assistant",
+      "cutover": "jftrade-engine injects JFTrade-owned completion and tool ports; the Stage 6 implementation remains a local fake-provider shadow",
+      "goDeleteWhen": "provider live streaming, durable Rust persistence, restart recovery, approval and input observation windows, and all API consumers pass with Rust as the sole Assistant owner",
+      "allowedWorkspaceDependencies": ["jftrade-kernel"]
+    },
+    {
       "name": "jftrade-backtest",
       "path": "crates/jftrade-backtest",
       "stage": 3,
@@ -107,6 +119,7 @@
       "goDeleteWhen": "all capability owners have moved and the Go entrypoints have completed rollback qualification",
       "allowedWorkspaceDependencies": [
         "jftrade-kernel",
+        "jftrade-assistant",
         "jftrade-integration-futu",
         "jftrade-integration-marketdata-helper",
         "jftrade-integration-pine",

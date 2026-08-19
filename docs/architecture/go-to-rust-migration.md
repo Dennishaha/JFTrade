@@ -1,6 +1,6 @@
 # JFTrade Go → Rust 完整迁移方案与守则
 
-状态：执行中。更新时间：2026-08-19。当前阶段：**阶段 5 交易、策略运行与通知本地 shadow 工作包已完成；生产交易写 owner 仍为 Go，只读 OpenD、显式小范围 live 与持久化恢复仍待闭环；阶段 6 尚未启动**。
+状态：执行中。更新时间：2026-08-19。当前阶段：**阶段 6 Assistant/Rig 本地 shadow 工作包已完成；生产 Assistant、Google ADK、SQLite/artifact 写 owner 仍为 Go，真实 Provider live streaming、Rust durable store 与重启观察窗口仍待闭环；阶段 7 尚未启动**。
 
 本文是 JFTrade 将 Go 后端与 Wails 桌面壳完整迁移到 Rust 的计划、边界和放行事实源。活动状态在 [roadmap.md](../roadmap.md) 汇总；当前生产架构仍以 [architecture.md](../architecture.md) 为准。任何阶段都不得用“已经写出 Rust 版本”代替兼容性、可靠性和资源验收。
 
@@ -12,7 +12,7 @@
 - Vue 3 控制台保留，现有 `/api/v1/*` 调用方式和用户行为保持兼容。
 - Node PineTS worker 保留，仍只负责 Pine 执行、信号、图形和 order intents。
 - Python market-data helper 保留，仍封装 yfinance 与 AKShare；Rust 只替换它的宿主、鉴权、生命周期和 Provider adapter。
-- Assistant 的 Rust 实现使用 [Rig](https://github.com/0xPlaygrounds/rig)，但只有在 Assistant 阶段通过完整行为矩阵后才引入依赖和切换流量。
+- Assistant 的 Rust 实现使用 [Rig](https://github.com/0xPlaygrounds/rig)；阶段 6 已在窄 adapter 中引入其 provider-neutral core 类型，但未引入具体 Provider client、未切换生产模型流量。
 - 桌面最终从 Wails v3 迁至 [Tauri 2](https://github.com/tauri-apps/tauri)；阶段 1 不改变 Wails 生产入口、bindings 或发布资产。
 
 迁移追求的是长期统一的 Rust 运行时、可维护性、可靠性和可控资源，不以减少代码行数为目标。迁移期间允许 Go 与 Rust 共存，但任一业务状态在任一时刻只能有一个权威 owner。
@@ -70,7 +70,7 @@ Node PineTS worker        Python market-data helper
 
 ### 3.1 Rust 目标目录指引（强制）
 
-本节是迁移期间新增目录、crate 和跨目录依赖的强制放置规则。目录出现在蓝图中只表示名称、owner 和最早启用阶段已经预留，**不表示应立即创建**。阶段未启动、没有实际生产代码或没有行为测试时，不得创建空 crate、占位模块或未来依赖。当前 Rust 侧已经启用 `jftrade-engine`、`jftrade-kernel`、`jftrade-broker`、`jftrade-store-sqlite`、`jftrade-backtest`、`jftrade-marketdata`、`jftrade-strategy`、`jftrade-trading`、`jftrade-integration-pine`、`jftrade-integration-marketdata-helper` 和 `jftrade-integration-futu`；其余 Rust/Tauri 目标目录仍是计划目录。
+本节是迁移期间新增目录、crate 和跨目录依赖的强制放置规则。目录出现在蓝图中只表示名称、owner 和最早启用阶段已经预留，**不表示应立即创建**。阶段未启动、没有实际生产代码或没有行为测试时，不得创建空 crate、占位模块或未来依赖。当前 Rust 侧已经启用 `jftrade-engine`、`jftrade-kernel`、`jftrade-broker`、`jftrade-store-sqlite`、`jftrade-backtest`、`jftrade-marketdata`、`jftrade-strategy`、`jftrade-trading`、`jftrade-assistant`、`jftrade-integration-pine`、`jftrade-integration-marketdata-helper` 和 `jftrade-integration-futu`；其余 Rust/Tauri 目标目录仍是计划目录。
 
 ```text
 crates/
@@ -81,7 +81,7 @@ crates/
   jftrade-marketdata/                     # 已存在，阶段 4：行情领域
   jftrade-strategy/                       # 已启用，阶段 5：策略运行控制和消费方交易 port
   jftrade-trading/                        # 已启用，阶段 5：交易、风控和订单状态
-  jftrade-assistant/                      # 计划，阶段 6：Assistant 领域与 Rig adapter 边界
+  jftrade-assistant/                      # 已启用，阶段 6：Assistant 领域与 Rig adapter 边界
   jftrade-research/                       # 计划，阶段 7：研究能力
   jftrade-watchlist/                      # 计划，阶段 7：自选领域
   jftrade-settings/                       # 计划，阶段 7：设置领域
@@ -231,14 +231,16 @@ jftrade-kernel / jftrade-broker
 | Decimal | 自有兼容 codec；[rust_decimal 1.42.1](https://github.com/paupino/rust-decimal) 仅保留为有界算术候选 | 阶段 2 已决策 | shopspring Decimal 是任意精度字符串语义，不能无损收窄到 `rust_decimal`；bbgo fixedpoint 另按 `i64 × 10^-8` 实现。只有领域边界已证明在 96-bit 范围内时才允许引入 `rust_decimal` |
 | time/identity | [time 0.3.55](https://github.com/time-rs/time) / [uuid 1.24.1](https://github.com/uuid-rs/uuid) | `time` 阶段 2 已引入；UUID 后续候选 | `time` 仅启用 std/formatting/parsing/serde，保留 RFC3339Nano 与 Unix 毫秒语义；UUID 未被阶段 2 代码使用，不提前引入 |
 | CPU parallelism | [Rayon 1.12.0](https://github.com/rayon-rs/rayon) | 后续候选 | 只用于有基准证据的批量纯计算；不得与 Tokio task 无界叠加 |
-| Assistant | [Rig 0.42.0](https://github.com/0xPlaygrounds/rig) | 已锁定、后续引入 | 用户指定；先建 provider/tool/session/approval 行为矩阵，再接生产模型 |
+| Assistant | [Rig Core 0.42.0](https://github.com/0xPlaygrounds/rig) | 阶段 6 已引入 | 官方仓库、MIT；精确锁定且关闭默认 feature，只在 `rig_adapter` 内使用 provider-neutral request/message/tool 类型；不启用 Rig 的 `reqwest` 增强、derive、rustls 或具体 Provider feature（core 自身仍含最小 HTTP/stream 基础依赖），不让 Rig 类型进入 JFTrade 持久化模型或 ports |
 | desktop | [Tauri 2.11.5](https://github.com/tauri-apps/tauri) | 已锁定、后续引入 | Rust 桌面主流方案；先复制 Wails facade 和四平台发布语义，再删除 Wails |
 
 阶段 5 未增加第三方依赖；`jftrade-trading` 和 `jftrade-strategy` 只复用已审计的 `jftrade-kernel`、`jftrade-broker`、Serde 与 thiserror，OpenD 交易 shadow 复用阶段 4 的 adapter crate，避免在无真实 wire owner 前引入第二套 broker SDK 或持久化框架。
 
+阶段 6 新增的唯一直接第三方依赖是 `rig-core = 0.42.0`。选择官方 Rig core crate 而非完整 facade/具体 Provider SDK，保留 JFTrade 自有 `CompletionPort`、tool schema、session/run/approval/input/workflow 契约；通过 `cargo-deny` 检查 advisory、license、source 和重复版本。真实 Provider 适配需要在显式 live 工作包中重新审查 TLS、credential、timeout、rate limit、stream cancellation 与 telemetry content 策略。
+
 明确暂不选择：
 
-- 不在阶段 1 引入 Axum、SQLx、Rig、Tauri、Rayon 或 Decimal，只为未来“占位”。
+- 不在对应阶段前引入 Axum、SQLx、Tauri、Rayon 或 Decimal，只为未来“占位”；Rig 已在阶段 6 按实际 adapter 和行为测试引入。
 - 不选择 Rustls `0.24.0-dev.*` 进入产品基线。
 - 不引入第二个 async runtime、第二个 HTTP server 或通用 service locator。
 - 不用 `libloading`/原生 ABI 直接嵌 Go；跨语言共存统一走私有进程 RPC，降低崩溃域和构建耦合。
@@ -365,10 +367,27 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：三�
 
 ### 阶段 6：Assistant 使用 Rig 迁移
 
-1. 先 port model、session/run、approval/input、lease/claim、artifact 和 audit 的纯状态与持久化。
-2. 为 Rig 建立窄 adapter，保留 JFTrade 自己的 provider/tool/workflow 契约，避免业务模型泄露 Rig 类型。
-3. 逐项覆盖 tool schema、审批暂停/恢复、pending input、任务图、流式 delta、usage、错误与重启恢复。
-4. 使用 fake provider 和固定 transcript 做 differential，再进行显式 provider live smoke。
+- [x] 建立 `jftrade-assistant`，port session/run、9 个 run 状态、审批、输入、usage、stream delta、单调 audit 和可序列化 checkpoint。
+- [x] port run lease 与 tool claim fencing，覆盖 held/lost/in-flight、replay-safe takeover/replay 和 fail-closed outcome unknown。
+- [x] port版本化 artifact 投影和确定性任务 DAG，覆盖单一 ready task、claim/complete、self/missing dependency 与 cycle 拒绝。
+- [x] 以 JFTrade 自有 `CompletionPort`/message/tool 契约隔离 Rig；Rig 类型只出现在 `rig_adapter`，tool JSON Schema 逐字段对齐 Go。
+- [x] 使用 fake provider 和固定 transcript 覆盖流式 reply/reasoning/tool progress、usage、tool request，以及 transient network error 后一次重试恢复。
+- [x] 固定 Go/Rust differential、checkpoint/fixture SHA-256 manifest 和 Darwin ARM64 release 资源基线。
+- [ ] 具体 Provider adapter、真实 SSE/stream cancellation、credential/rate-limit/timeout、Google ADK session/event/artifact durable SQLite 全量兼容、进程崩溃重启和显式 provider live smoke 尚未执行；这些继续阻断产品切流和 Go 删除。
+
+#### 阶段 6 执行账本
+
+| 工作包 | 当前 Go owner | 阶段 6 Rust owner | 唯一切换点与回退 | Go 删除条件 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| session/run、审批、输入、stream、usage 与 audit 状态 | `internal/assistant/model`、`internal/assistant/engine`、`internal/assistant/engine/persistence` | `jftrade-assistant` | `jftrade-engine` 注入唯一 Assistant runtime；回退整体选择 Go runtime，禁止审批、输入和 audit 双写 | 全量 terminal/event projection、durable SQLite、并发 continuation、崩溃重启和观察窗口通过，Go runtime 无消费者 | 本地纯状态/checkpoint shadow 完成；Go 仍是产品和 SQLite 唯一 owner |
+| run lease、tool claim、artifact 与任务 DAG | `internal/assistant/engine/persistence`、Google ADK artifact/session adapter、`engine/workflowexec` | `jftrade-assistant::{claims,artifact,workflow}` | composition root 注入 persistence/artifact ports；正式切换必须选择唯一 lease/claim/artifact 写 owner | SQLite fencing/事务/损坏恢复、ADK artifact 版本与任务并发 differential 全部通过 | 内存 checkpoint 与 Go 临时生产 SQLite harness differential 完成；Rust durable adapter 未实现 |
+| Provider/tool 边界与 Rig 映射 | `internal/assistant/assembly`、`engine/providers`、Google ADK runtime | JFTrade `CompletionPort` + `jftrade-assistant::rig_adapter` | `jftrade-engine` 选择一个 Provider adapter；Rig/Provider 类型不得穿透能力边界 | 真实 Provider tool/stream/error/cancel/usage 行为和 live smoke 通过，Google ADK Provider runtime 无消费者 | `rig-core` 最小 feature、fake transcript 和 schema 映射完成；无网络、无 credential、无生产流量 |
+
+阶段 6 corpus 位于 `tests/fixtures/rust-migration/stage6`，覆盖 9 个 run 状态、12 个状态迁移、1 个完整 request-user schema、审批与输入各一组持久化/幂等恢复、3 个非法输入、2 个 tool claim、3 个任务节点、3 个非法 DAG、2 个 artifact 版本和 3 个 stream delta；`manifest.json` 固定 input、expected 与 Darwin ARM64 资源基线 SHA-256。differential 为 `pnpm run test:rust:stage6:differential`，本机 release 资源复测为 `pnpm run benchmark:rust:stage6`。
+
+Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go 生产 Assistant store/领域测试 harness 的 p95 为 67.461 ms、峰值 RSS 49,037,312 bytes；Rust composition replay 的 p95 为 5.731 ms、峰值 RSS 3,391,488 bytes，Rust/Go 比值为 0.085/0.069，5% p95 与 10% RSS 回退门禁通过。Go harness 每次创建临时生产 SQLite/ADK store，Rust 使用内存 checkpoint；绝对启动时间、binary size 和数据库性能不作产品结论。
+
+本阶段“本地完成”只证明纯状态、checkpoint round-trip、SQLite-backed Go reference、Rig 请求投影、fake Provider 恢复和资源门禁闭环。它没有连接真实模型 Provider、写 Rust SQLite/ADK artifact store、替换 Google ADK、改变公开 API 或获取第二个审批/输入 owner；完成 provider live、durable crash recovery、全量 session/event parity 和原生平台资格前，阶段 6 不构成产品放行，Go 生产 owner 不变。
 
 放行：终态和持久化完全一致；审批/输入不能丢失或重复；模型网络异常可恢复；Rig 可替换性由 adapter 测试保证。
 
@@ -475,5 +494,7 @@ JFTRADE_RUST_ENGINE_TOKEN="$(openssl rand -hex 32)" \
 | 2026-08-19 | 阶段 2 本地实现完成；Go 保持唯一生产 owner，Rust SQLite 仍为离线只读验证工具 | golden/differential 零差异、DB bytes 不变、Darwin ARM64 release 资源基线通过 |
 | 2026-08-19 | 阶段 3 本地计算核心完成；PineTS 保留，Go 保持唯一生产 owner，离线三态 selector 只做 shadow/切换/回退演练 | 5 case/8 fill 三方 differential 零差异；取消/超时恢复通过；Darwin ARM64 p95/RSS 门禁通过；阶段 3 manifest 已固定 |
 | 2026-08-19 | 阶段 4 本地行情/worker 生命周期工作包完成；retained Node/Python 只增加可选私有 Bearer，Go 继续拥有公开 API、真实 Provider/OpenD 与进程 lifecycle | 14 market-data/9 Pine/3 OpenD subscription/3 probe 三方 evidence；未知健康和切换 fail closed；Darwin ARM64 p95/RSS 门禁通过；真实 live/发布平台资格保持未闭环 |
+| 2026-08-19 | 阶段 5 本地交易/策略/OpenD shadow 工作包完成；所有交易计划与通知强制零 dispatch，Go 继续拥有 broker、SQLite 和用户可见通知 | 10 status/7 transition/6 command/7 update/5 position refresh/3 strategy differential；Darwin ARM64 p95/RSS 门禁通过；只读 OpenD、小额 live 与 durable recovery 保持未闭环 |
+| 2026-08-19 | 阶段 6 本地 Assistant/Rig shadow 工作包完成；Rig 隔离在窄 adapter，Go/Google ADK 继续拥有生产 Provider、SQLite、artifact 与 continuation | 9 status/12 transition、审批/输入幂等、lease/claim fencing、DAG、artifact 与 fake transcript differential；Darwin ARM64 p95/RSS 门禁通过；真实 Provider live、Rust durable store 与 crash recovery 保持未闭环 |
 
 完成每个阶段时在本表追加最终决策；大量一次性测试日志留在 CI artifact/提交，不复制进长期文档。

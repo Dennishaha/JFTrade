@@ -16,6 +16,7 @@ use tonic_health::server::health_reporter;
 
 pub mod stage4;
 pub mod stage5;
+pub mod stage6;
 
 /// Environment variable containing the per-process bridge bearer token.
 pub const AUTH_TOKEN_ENV: &str = "JFTRADE_RUST_ENGINE_TOKEN";
