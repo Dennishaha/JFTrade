@@ -5,6 +5,7 @@
 mod frame;
 mod probe;
 mod subscriptions;
+mod trading;
 mod transport;
 
 pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
@@ -12,6 +13,10 @@ pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use subscriptions::{
     PhysicalSubscription, ReconcileAction, SubscriptionKind, SubscriptionPlan,
     SubscriptionReconciler, desired_subscriptions, retry_delay_ms,
+};
+pub use trading::{
+    RawOrderUpdate, TradeProtocol, TradeProtocolError, TradeProtocolPlan, map_order_update,
+    plan_shadow_protocol,
 };
 pub use transport::{OpenDClient, OpenDTransport, TransportError};
 

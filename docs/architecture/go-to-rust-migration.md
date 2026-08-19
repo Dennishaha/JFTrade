@@ -1,6 +1,6 @@
 # JFTrade Go → Rust 完整迁移方案与守则
 
-状态：执行中。更新时间：2026-08-19。当前阶段：**阶段 4 本地行情/worker 生命周期工作包已完成；生产 owner 仍为 Go，真实 Provider/OpenD live 与原生发布平台资格仍待闭环；阶段 5 尚未启动**。
+状态：执行中。更新时间：2026-08-19。当前阶段：**阶段 5 交易、策略运行与通知本地 shadow 工作包已完成；生产交易写 owner 仍为 Go，只读 OpenD、显式小范围 live 与持久化恢复仍待闭环；阶段 6 尚未启动**。
 
 本文是 JFTrade 将 Go 后端与 Wails 桌面壳完整迁移到 Rust 的计划、边界和放行事实源。活动状态在 [roadmap.md](../roadmap.md) 汇总；当前生产架构仍以 [architecture.md](../architecture.md) 为准。任何阶段都不得用“已经写出 Rust 版本”代替兼容性、可靠性和资源验收。
 
@@ -70,7 +70,7 @@ Node PineTS worker        Python market-data helper
 
 ### 3.1 Rust 目标目录指引（强制）
 
-本节是迁移期间新增目录、crate 和跨目录依赖的强制放置规则。目录出现在蓝图中只表示名称、owner 和最早启用阶段已经预留，**不表示应立即创建**。阶段未启动、没有实际生产代码或没有行为测试时，不得创建空 crate、占位模块或未来依赖。当前 Rust 侧已经启用 `jftrade-engine`、`jftrade-kernel`、`jftrade-broker`、`jftrade-store-sqlite`、`jftrade-backtest`、`jftrade-marketdata`、`jftrade-integration-pine`、`jftrade-integration-marketdata-helper` 和 `jftrade-integration-futu`；其余 Rust/Tauri 目标目录仍是计划目录。
+本节是迁移期间新增目录、crate 和跨目录依赖的强制放置规则。目录出现在蓝图中只表示名称、owner 和最早启用阶段已经预留，**不表示应立即创建**。阶段未启动、没有实际生产代码或没有行为测试时，不得创建空 crate、占位模块或未来依赖。当前 Rust 侧已经启用 `jftrade-engine`、`jftrade-kernel`、`jftrade-broker`、`jftrade-store-sqlite`、`jftrade-backtest`、`jftrade-marketdata`、`jftrade-strategy`、`jftrade-trading`、`jftrade-integration-pine`、`jftrade-integration-marketdata-helper` 和 `jftrade-integration-futu`；其余 Rust/Tauri 目标目录仍是计划目录。
 
 ```text
 crates/
@@ -79,8 +79,8 @@ crates/
   jftrade-broker/                         # 已存在，阶段 2：broker-neutral 类型与 ports
   jftrade-backtest/                       # 已存在，阶段 3：回测领域和计算核心
   jftrade-marketdata/                     # 已存在，阶段 4：行情领域
-  jftrade-strategy/                       # 计划，阶段 3/5：策略领域
-  jftrade-trading/                        # 计划，阶段 5：交易、风控和订单状态
+  jftrade-strategy/                       # 已启用，阶段 5：策略运行控制和消费方交易 port
+  jftrade-trading/                        # 已启用，阶段 5：交易、风控和订单状态
   jftrade-assistant/                      # 计划，阶段 6：Assistant 领域与 Rig adapter 边界
   jftrade-research/                       # 计划，阶段 7：研究能力
   jftrade-watchlist/                      # 计划，阶段 7：自选领域
@@ -214,7 +214,7 @@ jftrade-kernel / jftrade-broker
 
 ## 5. 依赖甄选基线
 
-依赖版本以 2026-08-19 的 crates.io/上游发布为筛选快照。只有“阶段 1 已引入”进入当前 `Cargo.lock`；其余是后续阶段首选候选，引入时必须重新核验。
+依赖版本以 2026-08-19 的 crates.io/上游发布为筛选快照。状态列标明实际引入阶段；其余是后续阶段首选候选，引入时必须重新核验。
 
 | 能力 | 选择 | 状态 | 理由与约束 |
 | --- | --- | --- | --- |
@@ -233,6 +233,8 @@ jftrade-kernel / jftrade-broker
 | CPU parallelism | [Rayon 1.12.0](https://github.com/rayon-rs/rayon) | 后续候选 | 只用于有基准证据的批量纯计算；不得与 Tokio task 无界叠加 |
 | Assistant | [Rig 0.42.0](https://github.com/0xPlaygrounds/rig) | 已锁定、后续引入 | 用户指定；先建 provider/tool/session/approval 行为矩阵，再接生产模型 |
 | desktop | [Tauri 2.11.5](https://github.com/tauri-apps/tauri) | 已锁定、后续引入 | Rust 桌面主流方案；先复制 Wails facade 和四平台发布语义，再删除 Wails |
+
+阶段 5 未增加第三方依赖；`jftrade-trading` 和 `jftrade-strategy` 只复用已审计的 `jftrade-kernel`、`jftrade-broker`、Serde 与 thiserror，OpenD 交易 shadow 复用阶段 4 的 adapter crate，避免在无真实 wire owner 前引入第二套 broker SDK 或持久化框架。
 
 明确暂不选择：
 
@@ -256,7 +258,7 @@ jftrade-kernel / jftrade-broker
 - [x] 接入 `test:affected`、`check:quick`、`check:all` 与模块所有权。
 - [x] CI 增加 Rust quality 和 Linux x64/macOS ARM64/Windows x64/Windows ARM64 编译矩阵；四个 target 已在当前 macOS 主机完成 cross-check。
 - [ ] 合并前由上游原生 runner 完成首次四平台矩阵；本地 cross-check 不能替代原生平台资格。
-- [x] 阶段 2/3/4 代表性数据集均已建立不可变 SHA-256 manifest；行为演进必须新增 corpus 版本。
+- [x] 阶段 2/3/4/5 代表性数据集均已建立不可变 SHA-256 manifest；行为演进必须新增 corpus 版本。
 
 阶段 1 放行条件：现有公开契约与生成资产零 diff；Rust fmt/clippy/test/policy 全绿；四目标 `cargo check` 全绿；上游原生 runner 矩阵全绿；Go/Wails 仍是唯一生产入口。在首次上游矩阵完成前，阶段 1 不标记关闭。
 
@@ -333,12 +335,31 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：三�
 
 本阶段“本地完成”只表示 Rust 领域/adapter/lifecycle 边界、兼容 fixture、资源基线和可回退 composition shadow 已闭环。公开 API、SQLite、真实订阅、Node/Python/Futu 产品生命周期仍由 Go 唯一拥有；真实 live、固定生成 protobuf 与发布平台 gate 完成前不得切流或删除 Go。
 
-### 阶段 5：交易、策略运行与通知
+### 阶段 5：交易、策略运行与通知（本地完成）
 
-1. 迁移 broker/session、订单命令、更新流、风控、账户刷新和通知。
-2. 先 paper/fixture，再只读 OpenD，再显式小范围 live；所有命令带幂等键和审计 trace。
-3. 故障注入断网、重连、重复事件、乱序、部分成功和关闭竞争。
-4. 交易写路径只允许单 owner，shadow 只比较计划，不发送第二份订单。
+目标：以只读、无副作用 shadow 方式建立交易与策略运行控制的 Rust 领域边界；Go 继续独占真实 broker 命令、SQLite 写入和用户可见通知。
+
+- [x] 建立 `jftrade-trading`：Fixed8 命令校验、REAL/SIMULATE 风控、hard stop、幂等计划、单调审计、订单/成交去重与防倒退、原子持仓刷新、checkpoint 恢复、broker session/account generation 和无副作用通知 envelope。
+- [x] 建立 `jftrade-strategy`：notify-only/paper/live 执行模式、signal 去重、暂停/恢复/断线 generation、关闭状态机，以及由消费方定义的窄 trading port；领域 crate 不直接依赖 `jftrade-trading`。
+- [x] 在 `jftrade-engine` 装配 strategy→trading port；所有 `ShadowCommandPlan`、`TradePlanReceipt` 与通知均固定 `dispatch=false`，递归 differential 会拒绝任何 `dispatch=true`。
+- [x] 扩展 `jftrade-integration-futu` 的 OpenD 交易 protocol ID 与 order-update mapper；read/push 只生成只读计划，unlock/place/modify/combo 等写协议在 shadow 中 fail closed。
+- [x] 覆盖断线/重连、重复命令、拒绝结果重放、重复/乱序事件、cancel-fill 竞争、partial fill、失效账户 refresh、原子持仓刷新失败、checkpoint 恢复、port 故障和幂等关闭。
+- [x] 固定 Go/Rust differential、零 dispatch 检查、资源基线和 SHA-256 manifest；Go 仍是唯一 broker、SQLite 与通知写 owner。
+- [ ] 只读 OpenD、固定生成的交易 protobuf/socket/push/reconnect、显式小范围 live、持久化崩溃恢复及人工无双单 checklist 尚未执行；这些继续阻断产品切流和 Go 删除。
+
+#### 阶段 5 执行账本
+
+| 工作包 | 当前 Go owner | 阶段 5 Rust owner | 唯一切换点与回退 | Go 删除条件 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| 订单命令、幂等、风控、订单/成交/持仓状态和审计 | `internal/trading`、`internal/store/trading` | `jftrade-trading` | `jftrade-engine` 只比较 Rust `ShadowCommandPlan`；正式切换时在 composition root 选择唯一 command/ledger owner，回退整体选回 Go | paper/fixture、只读 OpenD、小范围 live、持久化崩溃恢复和审计一致性全部通过，Rust 成为唯一写 owner且观察窗口关闭 | 本地 shadow/differential 完成；只产生命令计划和内存投影，禁止 broker/SQLite 写入 |
+| 策略运行控制、通知计划和交易消费方 port | `internal/strategy` | `jftrade-strategy` | `jftrade-engine` 将策略 signal 映射到 trading 窄 port；回退保持 Go `liveruntime` | notify-only/paper/live 行为、暂停恢复、重复 signal、关闭竞争和 Pine session 恢复通过，Go manager 无消费者 | 本地 fixture/paper/live-plan 完成；通知只形成 shadow envelope，不发布用户可见事件 |
+| OpenD 交易协议和 session 映射 | `pkg/futu`、`pkg/futu/opend` | `jftrade-integration-futu` | 由 `jftrade-engine` 注入 `jftrade-trading` 定义的 broker port；回退保持 Go Futu adapter | 固定生成 protobuf、真实 socket/push/reconnect、只读账户与显式小额 live 清单通过，无 Go trade adapter 消费者 | protocol ID、mapper 和写协议拒绝完成；未建立 socket 或发送交易命令 |
+
+阶段 5 corpus 位于 `tests/fixtures/rust-migration/stage5`，覆盖 10 个 broker 状态、7 个状态迁移、6 个幂等/风控命令计划、7 个订单/成交事件、5 个原子持仓 refresh、11 个 session 操作、8 个 OpenD 交易协议和 3 个策略场景；`manifest.json` 固定 input、expected 与 Darwin ARM64 资源基线 SHA-256。三方 differential 为 `pnpm run test:rust:stage5:differential`，本机 release 资源复测为 `pnpm run benchmark:rust:stage5`。
+
+Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：三个 Go 生产 owner 测试 harness 的 p95 为 21.641 ms、峰值 RSS 22,626,304 bytes；Rust composition replay 的 p95 为 3.822 ms、峰值 RSS 2,457,600 bytes，Rust/Go 比值为 0.177/0.109，5% p95 与 10% RSS 回退门禁通过。Go 是三个独立测试进程、Rust 是一个 replay 进程，绝对启动和 binary size 不作产品结论。
+
+本阶段“本地完成”只证明领域状态、adapter gate、故障恢复、零 dispatch 和 fixture 资源门禁闭环。它没有打开 OpenD socket、发送 broker 命令、写 SQLite 或发布用户可见通知；只读 OpenD、显式小范围 live、持久化 crash recovery、人工无双单签字与原生平台资格完成前，阶段 5 不构成产品放行，Go 生产 owner 不变。
 
 放行：订单/成交/持仓状态机 differential 通过；无双单；崩溃恢复和审计一致；人工 live checklist 签字。
 

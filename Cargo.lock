@@ -566,7 +566,10 @@ dependencies = [
  "jftrade-integration-futu",
  "jftrade-integration-marketdata-helper",
  "jftrade-integration-pine",
+ "jftrade-kernel",
  "jftrade-marketdata",
+ "jftrade-strategy",
+ "jftrade-trading",
  "serde",
  "serde_json",
  "thiserror",
@@ -582,7 +585,9 @@ dependencies = [
 name = "jftrade-integration-futu"
 version = "0.1.0"
 dependencies = [
+ "jftrade-kernel",
  "jftrade-marketdata",
+ "jftrade-trading",
  "serde",
  "serde_json",
  "sha1",
@@ -638,6 +643,25 @@ version = "0.1.0"
 dependencies = [
  "jftrade-kernel",
  "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "jftrade-strategy"
+version = "0.1.0"
+dependencies = [
+ "jftrade-kernel",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "jftrade-trading"
+version = "0.1.0"
+dependencies = [
+ "jftrade-kernel",
  "serde",
  "serde_json",
  "thiserror",

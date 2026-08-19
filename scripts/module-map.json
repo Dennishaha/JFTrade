@@ -35,6 +35,7 @@
         "crates/jftrade-engine",
         "crates/jftrade-backtest/src/bin/jftrade-backtest-shadow.rs",
         "crates/jftrade-engine/src/bin/jftrade-stage4-shadow.rs",
+        "crates/jftrade-engine/src/bin/jftrade-stage5-shadow.rs",
         "scripts/rust-migration/run-backtest-owner.mjs"
       ],
       "affectedTests": [
@@ -44,6 +45,8 @@
         "pnpm run test:rust:backtest:differential",
         "pnpm run test:rust:stage4:differential",
         "node --test scripts/rust-migration/benchmark-stage4.test.mjs",
+        "pnpm run test:rust:stage5:differential",
+        "node --test scripts/rust-migration/benchmark-stage5.test.mjs",
         "go test ./scripts/rust-migration -count=1"
       ],
       "vetPackages": []

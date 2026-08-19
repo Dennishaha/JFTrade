@@ -8,7 +8,7 @@
 
 协议细节、K 线边界和排障案例分别下沉到专题文档。
 
-> 迁移状态：仓库已完成 Rust 阶段 1 共存基础、阶段 2 codec/SQLite 只读验证、阶段 3 `conservative-bar-v1` 纯计算核心和阶段 4 行情/worker 生命周期 shadow；这些实现仍不参与公开 API、生产数据写入、真实 Provider/worker/Futu 生命周期或桌面发布，Go/Wails 仍是唯一生产 owner。下文继续描述当前生产架构；目标、守则和放行门禁见 [Go → Rust 完整迁移方案](architecture/go-to-rust-migration.md)。
+> 迁移状态：仓库已完成 Rust 阶段 1 共存基础、阶段 2 codec/SQLite 只读验证、阶段 3 `conservative-bar-v1` 纯计算核心、阶段 4 行情/worker 生命周期和阶段 5 交易/策略/通知 shadow；这些实现仍不参与公开 API、生产数据写入、真实 Provider/worker/Futu 交易生命周期或桌面发布，Go/Wails 仍是唯一生产 owner。下文继续描述当前生产架构；目标、守则和放行门禁见 [Go → Rust 完整迁移方案](architecture/go-to-rust-migration.md)。
 
 ## 一句话概括
 

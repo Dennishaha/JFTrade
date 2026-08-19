@@ -24,6 +24,30 @@
       "allowedWorkspaceDependencies": ["jftrade-kernel"]
     },
     {
+      "name": "jftrade-strategy",
+      "path": "crates/jftrade-strategy",
+      "stage": 5,
+      "status": "active",
+      "layer": "capability",
+      "goOwner": "internal/strategy runtime control, execution modes and notification planning",
+      "rustOwner": "jftrade-strategy",
+      "cutover": "jftrade-engine injects the strategy-defined narrow trading port and selects one runtime owner",
+      "goDeleteWhen": "notify-only, paper and live behavior plus pause, recovery and shutdown pass the observation window with Rust as sole runtime owner",
+      "allowedWorkspaceDependencies": ["jftrade-kernel"]
+    },
+    {
+      "name": "jftrade-trading",
+      "path": "crates/jftrade-trading",
+      "stage": 5,
+      "status": "active",
+      "layer": "capability",
+      "goOwner": "internal/trading commands, risk, order updates and audit projection",
+      "rustOwner": "jftrade-trading",
+      "cutover": "jftrade-engine selects the sole command and ledger owner; stage 5 shadow only returns plans",
+      "goDeleteWhen": "paper, read-only OpenD, explicit small live, recovery and audit gates pass with no Go trading consumer",
+      "allowedWorkspaceDependencies": ["jftrade-broker", "jftrade-kernel"]
+    },
+    {
       "name": "jftrade-marketdata",
       "path": "crates/jftrade-marketdata",
       "stage": 4,
@@ -65,11 +89,11 @@
       "stage": 4,
       "status": "active",
       "layer": "adapter",
-      "goOwner": "internal/integration/futu and pkg/futu OpenD market-data protocol lifecycle",
+      "goOwner": "internal/integration/futu and pkg/futu OpenD market-data and trading protocol lifecycle",
       "rustOwner": "jftrade-integration-futu",
-      "cutover": "jftrade-engine injects the OpenD adapter into jftrade-marketdata; Stage 5 separately owns trading commands",
-      "goDeleteWhen": "OpenD frame/protobuf mapping, quote-login health, subscription recovery and explicit live workflow pass before the Go market-data adapter is removed",
-      "allowedWorkspaceDependencies": ["jftrade-marketdata"]
+      "cutover": "jftrade-engine injects the OpenD adapter into jftrade-marketdata and jftrade-trading while preserving one command owner",
+      "goDeleteWhen": "OpenD frame/protobuf mapping, quote and trade login, push recovery and explicit live workflows pass before the Go adapter is removed",
+      "allowedWorkspaceDependencies": ["jftrade-kernel", "jftrade-marketdata", "jftrade-trading"]
     },
     {
       "name": "jftrade-engine",
@@ -82,10 +106,13 @@
       "cutover": "the single process-level composition choice",
       "goDeleteWhen": "all capability owners have moved and the Go entrypoints have completed rollback qualification",
       "allowedWorkspaceDependencies": [
+        "jftrade-kernel",
         "jftrade-integration-futu",
         "jftrade-integration-marketdata-helper",
         "jftrade-integration-pine",
-        "jftrade-marketdata"
+        "jftrade-marketdata",
+        "jftrade-strategy",
+        "jftrade-trading"
       ]
     },
     {

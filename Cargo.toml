@@ -9,6 +9,8 @@ members = [
   "crates/jftrade-kernel",
   "crates/jftrade-marketdata",
   "crates/jftrade-store-sqlite",
+  "crates/jftrade-strategy",
+  "crates/jftrade-trading",
 ]
 resolver = "3"
 
@@ -25,6 +27,8 @@ jftrade-integration-marketdata-helper = { path = "crates/jftrade-integration-mar
 jftrade-integration-pine = { path = "crates/jftrade-integration-pine", version = "=0.1.0" }
 jftrade-kernel = { path = "crates/jftrade-kernel", version = "=0.1.0" }
 jftrade-marketdata = { path = "crates/jftrade-marketdata", version = "=0.1.0" }
+jftrade-strategy = { path = "crates/jftrade-strategy", version = "=0.1.0" }
+jftrade-trading = { path = "crates/jftrade-trading", version = "=0.1.0" }
 reqwest = { version = "=0.13.4", default-features = false, features = ["json"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }

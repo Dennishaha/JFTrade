@@ -24,7 +24,7 @@ JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工�
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
 - PineTS worker：Node ESM `worker.mjs`，Go 通过 localhost gRPC 管理 worker pool。
 - 回测和实盘权威边界：PineTS 产出信号、图形输出和 order intents；Go 负责撮合、成交、资金曲线、风控、账户刷新和券商下单。
-- Rust 迁移：阶段 1 共存 bridge、阶段 2 codec/SQLite 只读 differential、阶段 3 `conservative-bar-v1` 纯计算核心和阶段 4 行情/worker 生命周期 shadow 已完成本地证据；它们不接管公开 API、生产数据库、真实 worker/Futu 或桌面发布，Go/Wails 仍是生产事实。真实 live 与原生发布平台资格仍单独阻断切流；完整阶段、目录约束和切换条件见 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)。
+- Rust 迁移：阶段 1 共存 bridge、阶段 2 codec/SQLite 只读 differential、阶段 3 `conservative-bar-v1` 纯计算核心、阶段 4 行情/worker 生命周期和阶段 5 交易/策略/通知 shadow 已完成本地证据；它们不接管公开 API、生产数据库、真实 worker/Futu 交易或桌面发布，Go/Wails 仍是生产事实。真实 live、持久化恢复与原生发布平台资格仍单独阻断切流；完整阶段、目录约束和切换条件见 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)。
 - 许可证注意：`workers/pineworker` 精确依赖 `pinets@0.9.31`，当前 npm license 为 `AGPL-3.0-only`。
 
 当前发布和验收入口：
