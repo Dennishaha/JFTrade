@@ -59,11 +59,12 @@ test("classifies language and generated fallback checks", () => {
   assert.deepEqual(
     [...resolveFallbackChecks([
       "go.mod",
+      "crates/jftrade-engine/src/lib.rs",
       "apps/web/src/generated/openapi.ts",
       "scripts/test-affected.mjs",
       ".github/workflows/ci.yml",
     ])].sort(),
-    ["generated", "go", "scripts", "web", "workflows"],
+    ["generated", "go", "rust", "scripts", "web", "workflows"],
   );
 });
 
@@ -113,6 +114,18 @@ test("builds a deterministic affected test plan", () => {
   assert.equal(plan.modules[0].id, "pineworker");
   assert.deepEqual(plan.commands, [
     "pnpm --filter @jftrade/pineworker run test",
+  ]);
+});
+
+test("runs Rust tests and quality gates for migration engine changes", () => {
+  const plan = planAffected(["crates/jftrade-engine/src/lib.rs"], { withChecks: true });
+  assert.deepEqual(plan.modules.map((module) => module.id), ["rust-foundation"]);
+  assert.deepEqual(plan.commands, [
+    "pnpm run check:diff",
+    "pnpm run check:ai-context",
+    "pnpm run test:rust",
+    "pnpm run format:rust:check",
+    "pnpm run lint:rust",
   ]);
 });
 

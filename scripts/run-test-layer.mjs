@@ -23,6 +23,7 @@ export const preflightChecks = [
   ["pnpm", ["run", "lint:go"]],
   ["pnpm", ["run", "lint:go:errorlint"]],
   ["pnpm", ["run", "vet:go"]],
+  ["pnpm", ["run", "check:rust"]],
   ["pnpm", ["run", "test:coverage"]],
   ["pnpm", ["run", "typecheck"]],
   ["pnpm", ["run", "check:arch-deps"]],

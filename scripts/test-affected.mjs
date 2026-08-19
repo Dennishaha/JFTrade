@@ -18,6 +18,9 @@ export function resolveFallbackChecks(files) {
   if (files.some((file) => /(^|\/)(go\.mod|go\.sum)$|\.go$/.test(file))) {
     checks.add("go");
   }
+  if (files.some((file) => /(^|\/)(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|deny\.toml)$|\.rs$/.test(file))) {
+    checks.add("rust");
+  }
   if (files.some((file) => /(^|\/)(package\.json|pnpm-lock\.yaml|tsconfig[^/]*\.json)$|\.(ts|tsx|vue|css)$/.test(file))) {
     checks.add("web");
   }
@@ -207,6 +210,9 @@ function buildCommands(files, modules, withChecks, goOptions) {
   commands.push(...webAffectedTestCommands(files));
   const fallback = resolveFallbackChecks(files);
   if (fallback.has("go")) commands.push(...goAffectedTestCommands(files, goOptions));
+  if (fallback.has("rust") && !moduleCommands.includes("pnpm run test:rust")) {
+    commands.push("pnpm run test:rust");
+  }
   if (withChecks) {
     commands.unshift("pnpm run check:ai-context");
     commands.unshift("pnpm run check:diff");
@@ -215,6 +221,10 @@ function buildCommands(files, modules, withChecks, goOptions) {
       const vetTargets = [...new Set(modules.flatMap((module) => module.vetPackages ?? []))];
       commands.push(vetTargets.length > 0 ? `go vet ${vetTargets.join(" ")}` : "go vet ./...");
       commands.push("pnpm run check:arch-deps");
+    }
+    if (fallback.has("rust")) {
+      commands.push("pnpm run format:rust:check");
+      commands.push("pnpm run lint:rust");
     }
     if (fallback.has("web") || modules.some((module) => module.id === "web" || module.id === "strategy-backtest")) {
       commands.push("pnpm run check:web-file-length");

@@ -1,8 +1,24 @@
 # JFTrade 活动路线图
 
-更新时间：2026-08-08。
+更新时间：2026-08-19。
 
 本文是仓库内唯一的活动计划入口，只记录尚未完成且仍值得推进的工作。已经落地的设计应写入对应专题文档；一次性迁移过程、发布冻结说明和验收日志由 Git 提交与发布 tag 保留，不继续作为维护文档存在。
+
+## Go/Wails → Rust/Tauri 完整迁移
+
+完整范围、迁移守则、依赖选择、九阶段步骤和性能/资源门禁见 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)。活动路线只保留阶段状态：
+
+- [ ] 阶段 1：Rust 工程、authenticated loopback Tonic health bridge、依赖治理、affected/完整门禁和四目标 CI 基础已落地且本地 cross-check 通过；等待首次上游原生四平台矩阵后关闭。
+- [ ] 阶段 2：共享领域模型、codec 与 SQLite 只读 differential。
+- [ ] 阶段 3：回测与批量计算核心。
+- [ ] 阶段 4：行情 Provider、PineTS/Python helper 生命周期与 Futu/OpenD adapter。
+- [ ] 阶段 5：交易、策略运行与通知。
+- [ ] 阶段 6：Assistant 使用 Rig 迁移。
+- [ ] 阶段 7：Rust API/control plane 接管产品流量。
+- [ ] 阶段 8：Wails → Tauri 桌面迁移。
+- [ ] 阶段 9：删除 Go/Wails 并发布 Rust 大版本。
+
+阶段 1 不改变现有公开 HTTP/OpenAPI、SSE/WS、Wails bindings、SQLite 或产品运行入口；Go/Wails 仍是唯一生产 owner。
 
 ## AI 开发效率治理
 

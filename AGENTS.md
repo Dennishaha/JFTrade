@@ -4,9 +4,9 @@
 
 ## 项目边界
 
-JFTrade 是 Go 后端、Vue 3 控制台、Wails v3 桌面壳、Node PineTS worker 和 Python market-data helper 组成的本地量化工作台。入口和影响范围见 [`scripts/module-map.json`](scripts/module-map.json)。
+JFTrade 当前产品是 Go 后端、Vue 3 控制台、Wails v3 桌面壳、Node PineTS worker 和 Python market-data helper 组成的本地量化工作台。仓库已进入 Go/Wails → Rust/Tauri 分阶段迁移，`crates/jftrade-engine` 目前只提供私有共存基础，不是生产入口。迁移事实源见 [`docs/architecture/go-to-rust-migration.md`](docs/architecture/go-to-rust-migration.md)，入口和影响范围见 [`scripts/module-map.json`](scripts/module-map.json)。
 
-配置要求：Node `>=22.13`、pnpm `11.21.0`、Go `1.26.6`、protoc `34.1`。安装依赖统一使用 `pnpm install --frozen-lockfile`。
+配置要求：Node `>=22.13`、pnpm `11.21.0`、Go `1.26.6`、Rust `1.97.1`、protoc `34.1`。安装依赖统一使用 `pnpm install --frozen-lockfile`；Rust 使用根 `rust-toolchain.toml` 和已提交的 `Cargo.lock`。
 
 ## 日常入口
 
@@ -20,6 +20,7 @@ pnpm run dev:web           # 浏览器前端，默认 127.0.0.1:3003
 pnpm run check:quick       # 变更范围快速检查，不能修改工作树
 pnpm run test:affected     # 只跑受影响测试
 pnpm run check:generated   # 临时目录生成并比较契约，不能修改工作树
+pnpm run check:rust        # Rust fmt、Clippy 与 workspace 测试
 pnpm run check:all         # 完整本地门禁
 ```
 
@@ -35,6 +36,7 @@ pnpm run check:all         # 完整本地门禁
 - `pkg/futu` 只做 OpenD/bbgo 协议适配；订阅 demand、freshness、运行时生命周期和控制平面编排属于 `internal/marketdata`、`internal/app/apiserver` 或对应 service。
 - PineTS 只产出信号、图形和 order intents；Go `pkg/backtest` 负责撮合、成交、资金曲线、风控和下单。
 - 前端只承诺 `/api/v1/*`；bbgo 原生 `/api/*` 不是控制台运行模式。
+- `crates/jftrade-engine` 在迁移阶段只允许 authenticated loopback RPC；Go/Wails 在对应能力正式切换前仍是唯一生产 owner，Rust 不得双写业务状态。
 
 ## 硬性约束
 
@@ -45,11 +47,13 @@ pnpm run check:all         # 完整本地门禁
 - 真实 Futu/OpenD 只在显式 live workflow 使用；普通测试使用 fixture、mock server 或 testkit。
 - 新增 `pkg/*` 必须有仓库外消费者或已发布公开签名依据；否则放 `internal/*`。
 - 使用 `rg` 优先搜索，编辑使用 `apply_patch`，不回退用户已有改动。
+- Rust 默认 `#![forbid(unsafe_code)]`；直接依赖集中精确锁定，新增依赖遵守“官方优先、其次高采用项目”和 `deny.toml`，不得提前引入未使用的迁移候选。
+- Go/Rust shadow 只能只读；SQLite、交易、订阅、通知、Assistant 审批/任务和 artifact 禁止双写。切换与回退只能在 composition root 改变唯一 owner。
 
 ## AI 工作流
 
 1. 先读本文件和最近的局部 `AGENTS.md`，再按模块表进入专题文档和入口文件。
 2. 先定位调用方、所有权和测试，再编辑；不要因文件名相似跨域复制实现。
-3. 变更后先跑最窄的 affected test，再跑 `check:quick`；契约变化额外跑 `check:generated`。
+3. 变更后先跑最窄的 affected test，再跑 `check:quick`；Rust 变更至少跑 `pnpm run check:rust`，契约变化额外跑 `check:generated`。
 4. 若边界发生变化，同步 `docs/architecture*`、`docs/README.md` 和模块表。
 5. 不把一次性迁移记录、覆盖率目标或旧包路径写回架构事实文档。

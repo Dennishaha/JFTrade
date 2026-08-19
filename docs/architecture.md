@@ -8,6 +8,8 @@
 
 协议细节、K 线边界和排障案例分别下沉到专题文档。
 
+> 迁移状态：仓库已建立 `crates/jftrade-engine` 作为 Go/Wails → Rust/Tauri 的阶段 1 共存基础，但它当前只提供 authenticated loopback health bridge，不参与公开 API、数据写入或桌面发布。下文仍描述当前生产架构；目标、守则和放行门禁见 [Go → Rust 完整迁移方案](architecture/go-to-rust-migration.md)。
+
 ## 一句话概括
 
 JFTrade 当前以一个本地后端服务为核心。它既可以由 `cmd/jftrade-api` 独立启动，也可以由 Wails `cmd/jftrade-desktop` 作为桌面 sidecar 管理。下文仍用 sidecar 指这个后端服务。

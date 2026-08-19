@@ -6,7 +6,7 @@
 
 ## 当前版本快照
 
-更新时间：2026-08-06。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
+更新时间：2026-08-19。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
 
 JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。交易链路仍由 Futu/OpenD 管理；新安装的行情默认使用内置 AKShare 延迟数据源，支持美股、港股和沪深，也可以选择 Futu OpenD。系统以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
 
@@ -24,6 +24,7 @@ JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工�
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
 - PineTS worker：Node ESM `worker.mjs`，Go 通过 localhost gRPC 管理 worker pool。
 - 回测和实盘权威边界：PineTS 产出信号、图形输出和 order intents；Go 负责撮合、成交、资金曲线、风控、账户刷新和券商下单。
+- Rust 迁移基础：`crates/jftrade-engine` 当前仅提供 authenticated loopback gRPC health bridge 和工程门禁；它不接管公开 API、数据库、worker、Futu 或桌面发布，Go/Wails 仍是生产事实。完整阶段与约束见 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)。
 - 许可证注意：`workers/pineworker` 精确依赖 `pinets@0.9.31`，当前 npm license 为 `AGPL-3.0-only`。
 
 当前发布和验收入口：
@@ -34,6 +35,7 @@ pnpm run test:web
 pnpm run typecheck:web
 pnpm run test:pineworker
 pnpm run typecheck:pineworker
+pnpm run check:rust
 workers/marketdata-sidecar/.venv/bin/python -m pytest workers/marketdata-sidecar/tests
 pnpm run check:pinets-release
 pnpm run check:wails-bindings
@@ -52,6 +54,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - [architecture/goroutine-lifecycle-audit.md](architecture/goroutine-lifecycle-audit.md)：61 个异步启动面的 owner、取消、join、风险与修复账本。
 - [architecture/sqlite-query-plan-audit.md](architecture/sqlite-query-plan-audit.md)：9 个 SQLite 数据库的生产查询计划、索引决策与迁移阻断项。
 - [architecture/public-package-policy.md](architecture/public-package-policy.md)：`pkg/*` 的公开契约、保留/内移标准和当前决策。
+- [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)：Go/Wails → Rust/Tauri 完整迁移方案、守则、依赖和阶段门禁。
 - [testing-strategy.md](testing-strategy.md)：覆盖率分层、PR/main 门禁和真实外部依赖的运行边界。
 - [roadmap.md](roadmap.md)：唯一活动计划入口，只记录尚未完成的高价值事项与验收标准。
 
@@ -96,6 +99,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - 改自选分组、星标、券商导入或自选快照：先看 [watchlist.md](watchlist.md)
 - 改 PineTS worker、worker pool、embedded asset、发布验收：先看 [pinets-contract-audit.md](pinets-contract-audit.md) 和 [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)
 - 改回测撮合、订单成交语义或 executionModel：先看 [backtest-execution-model.md](backtest-execution-model.md)
+- 改 Rust workspace、Go/Rust bridge、迁移 owner 或候选依赖：先看 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)
 - 改 broker capability、默认选择或新增 adapter：先看 [new-broker-integration-guide.md](new-broker-integration-guide.md) 和 [roadmap.md](roadmap.md)
 - 改 Futu / OpenD 协议和映射：先看 [reference/README.md](reference/README.md)
 - 查 HTTP、OpenD、ADK、回测或 PineTS 跨链路问题：先看 [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)

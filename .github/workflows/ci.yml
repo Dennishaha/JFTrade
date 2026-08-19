@@ -75,6 +75,64 @@ jobs:
           overwrite: true
           retention-days: 1
 
+  rust-quality:
+    name: Rust Quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
+      - name: Verify locked Rust workspace
+        run: cargo metadata --locked --format-version 1 --no-deps >/dev/null
+
+      - name: Format, lint, and test Rust
+        run: pnpm run check:rust
+
+      - name: Install pinned cargo-deny
+        run: cargo install cargo-deny --version 0.20.2 --locked
+
+      - name: Enforce Rust dependency policy
+        run: pnpm run check:rust:policy
+
+  rust-platform:
+    name: Rust Compile (${{ matrix.label }})
+    if: ${{ github.event_name == 'push' }}
+    needs: rust-quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Linux x64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - label: macOS ARM64
+            runner: macos-15
+            target: aarch64-apple-darwin
+          - label: Windows x64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+          - label: Windows ARM64
+            runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
+      - name: Check native target
+        run: cargo check --workspace --all-targets --locked --target ${{ matrix.target }}
+
   go-quality:
     name: Go Quality
     needs: contracts
@@ -798,7 +856,7 @@ jobs:
   build-and-test:
     name: Build & Test
     if: ${{ always() }}
-    needs: [contracts, go-quality, proto-generation, go-coverage, go-regression, web-quality, web-assets, marketdata-sidecar, pine, desktop-linux-smoke, desktop-build]
+    needs: [contracts, rust-quality, rust-platform, go-quality, proto-generation, go-coverage, go-regression, web-quality, web-assets, marketdata-sidecar, pine, desktop-linux-smoke, desktop-build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -806,6 +864,8 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           CONTRACTS_RESULT: ${{ needs.contracts.result }}
+          RUST_QUALITY_RESULT: ${{ needs.rust-quality.result }}
+          RUST_PLATFORM_RESULT: ${{ needs.rust-platform.result }}
           GO_QUALITY_RESULT: ${{ needs.go-quality.result }}
           PROTO_GENERATION_RESULT: ${{ needs.proto-generation.result }}
           GO_COVERAGE_RESULT: ${{ needs.go-coverage.result }}
@@ -821,6 +881,7 @@ jobs:
           failed=0
           for result in \
             "$CONTRACTS_RESULT" \
+            "$RUST_QUALITY_RESULT" \
             "$GO_QUALITY_RESULT" \
             "$PROTO_GENERATION_RESULT" \
             "$GO_COVERAGE_RESULT" \
@@ -834,10 +895,12 @@ jobs:
           done
 
           if [[ "$EVENT_NAME" == "push" ]]; then
+            [[ "$RUST_PLATFORM_RESULT" == "success" ]] || failed=1
             [[ "$GO_REGRESSION_RESULT" == "success" ]] || failed=1
             [[ "$DESKTOP_BUILD_RESULT" == "success" ]] || failed=1
             [[ "$DESKTOP_LINUX_SMOKE_RESULT" == "skipped" ]] || failed=1
           else
+            [[ "$RUST_PLATFORM_RESULT" == "skipped" ]] || failed=1
             [[ "$GO_REGRESSION_RESULT" == "skipped" ]] || failed=1
             [[ "$DESKTOP_BUILD_RESULT" == "skipped" ]] || failed=1
             [[ "$DESKTOP_LINUX_SMOKE_RESULT" == "success" ]] || failed=1
@@ -845,6 +908,8 @@ jobs:
 
           if [[ "$failed" -ne 0 ]]; then
             echo "Contracts & Docs: $CONTRACTS_RESULT"
+            echo "Rust Quality: $RUST_QUALITY_RESULT"
+            echo "Rust Compile Matrix: $RUST_PLATFORM_RESULT"
             echo "Go Quality: $GO_QUALITY_RESULT"
             echo "Proto Generation: $PROTO_GENERATION_RESULT"
             echo "Go Coverage: $GO_COVERAGE_RESULT"

@@ -155,6 +155,29 @@ func TestWorkerManagerReservesLiveSessionBeforeOpenCompletes(t *testing.T) {
 	}
 }
 
+func TestWorkerManagerFailedLiveSessionOpenReleasesReservation(t *testing.T) {
+	launcher := &fakeWorkerLauncher{}
+	dialer := newFakeManagerDialer()
+	manager := newTestManager(t, ManagerConfig{Workers: 1}, launcher, dialer)
+	if err := manager.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	transport := dialer.transports["127.0.0.1:50051"]
+	transport.runErr = errors.New("worker execution failed")
+	request := validClientRequest()
+	request.Mode = ModeLive
+	request.SessionID = "live-failed-open"
+	request.SessionOperation = SessionOperationOpen
+
+	if _, err := manager.RunScript(t.Context(), request); err == nil || !strings.Contains(err.Error(), "worker execution failed") {
+		t.Fatalf("failed live session open error = %v", err)
+	}
+	transport.runErr = nil
+	if _, err := manager.RunScript(t.Context(), request); err != nil {
+		t.Fatalf("retry live session open after failure: %v", err)
+	}
+}
+
 func TestWorkerManagerRunScriptQueuesWhenAllWorkersBusy(t *testing.T) {
 	launcher := &fakeWorkerLauncher{}
 	dialer := newFakeManagerDialer()
@@ -468,6 +491,7 @@ type fakeManagedTransport struct {
 	closeErr     error
 	healthChecks int
 	runs         int
+	runErr       error
 	closes       int
 	mu           sync.Mutex
 	runStarted   chan struct{}
@@ -481,6 +505,7 @@ func (transport *fakeManagedTransport) RunScript(ctx context.Context, request Ru
 	transport.lastFields = observability.FieldsFromContext(ctx)
 	runStarted := transport.runStarted
 	releaseRun := transport.releaseRun
+	runErr := transport.runErr
 	transport.mu.Unlock()
 	if runStarted != nil {
 		select {
@@ -494,6 +519,9 @@ func (transport *fakeManagedTransport) RunScript(ctx context.Context, request Ru
 		case <-ctx.Done():
 			return RunScriptResponse{}, ctx.Err()
 		}
+	}
+	if runErr != nil {
+		return RunScriptResponse{}, runErr
 	}
 	response := RunScriptResponse{
 		JobID: request.JobID,

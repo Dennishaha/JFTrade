@@ -1,0 +1,32 @@
+name: Setup Rust
+description: Install the pinned Rust toolchain and cache workspace dependencies
+
+inputs:
+  cache:
+    description: Whether to cache Cargo registry and build outputs
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Install pinned Rust toolchain
+      shell: bash
+      run: |
+        set -euo pipefail
+        rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt
+        rustup default 1.97.1
+        rustc --version --verbose
+        cargo --version
+
+    - name: Cache Cargo dependencies
+      if: ${{ inputs.cache == 'true' }}
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+        restore-keys: |
+          rust-${{ runner.os }}-${{ runner.arch }}-

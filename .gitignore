@@ -5,6 +5,9 @@
 *.out
 coverage.txt
 
+# Rust
+/target/
+
 # Node
 node_modules/
 .pnpm-store/

@@ -5,19 +5,38 @@
     "internal",
     "pkg",
     "apps",
-    "workers"
+    "workers",
+    "crates"
   ],
   "sourceExtensions": [
     ".go",
     ".js",
     ".mjs",
     ".py",
+    ".rs",
     ".ts",
     ".tsx",
     ".vue"
   ],
   "ignoredSourcePaths": [],
   "modules": [
+    {
+      "id": "rust-foundation",
+      "paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "deny.toml",
+        "rust-toolchain.toml",
+        "crates"
+      ],
+      "entrypoints": [
+        "crates/jftrade-engine"
+      ],
+      "affectedTests": [
+        "pnpm run test:rust"
+      ],
+      "vetPackages": []
+    },
     {
       "id": "apiserver",
       "paths": [
