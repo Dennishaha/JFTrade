@@ -225,10 +225,10 @@ jftrade-kernel / jftrade-broker
 | observability | [tracing 0.1.44](https://github.com/tokio-rs/tracing) / subscriber 0.3.23 | 阶段 1 已引入 | Tokio 官方结构化诊断生态；stdout 保留给握手，日志走 stderr |
 | dependency policy | [cargo-deny 0.20.2](https://github.com/EmbarkStudios/cargo-deny) | 阶段 1 CI 工具 | 审计 advisory、license、source 和 ban；不进入产品依赖 |
 | HTTP/SSE/WS | [Axum 0.8.9](https://github.com/tokio-rs/axum) | 后续候选 | Tokio 官方生态、与 Tower/Tonic 组合自然；API 阶段才引入 |
-| SQLite | [SQLx](https://github.com/launchbadge/sqlx) | 后续候选 | 优先验证 0.9 的 SQLite 行为和编译成本；若无法精确保留 SQLite 语义，比较 `rusqlite` 后再定 |
+| SQLite | [rusqlite 0.40.2](https://github.com/rusqlite/rusqlite) | 阶段 2 已引入 | 阶段 2 只读验证需要精确控制 open flags、PRAGMA 和 schema introspection；关闭默认 feature，仅启用 `bundled`，避免目标机系统 SQLite 漂移。异步事务 owner 阶段再重新比较 SQLx |
 | HTTP client/TLS | [Reqwest](https://github.com/seanmonstar/reqwest) + [Rustls 0.23 stable](https://github.com/rustls/rustls) | 后续候选 | 默认纯 Rust TLS；不采用当前 0.24 dev release，避免把预发布版本带入产品 |
-| Decimal | [rust_decimal 1.42.1](https://github.com/paupino/rust-decimal) | 后续候选 | 金融定点数候选；必须先通过 Go Decimal/SQLite/JSON golden corpus |
-| time/identity | [time 0.3.55](https://github.com/time-rs/time) / [uuid 1.24.1](https://github.com/uuid-rs/uuid) | 后续候选 | 仅按现有精度和 UUID 编码启用 feature，不提前引入 chrono 双栈 |
+| Decimal | 自有兼容 codec；[rust_decimal 1.42.1](https://github.com/paupino/rust-decimal) 仅保留为有界算术候选 | 阶段 2 已决策 | shopspring Decimal 是任意精度字符串语义，不能无损收窄到 `rust_decimal`；bbgo fixedpoint 另按 `i64 × 10^-8` 实现。只有领域边界已证明在 96-bit 范围内时才允许引入 `rust_decimal` |
+| time/identity | [time 0.3.55](https://github.com/time-rs/time) / [uuid 1.24.1](https://github.com/uuid-rs/uuid) | `time` 阶段 2 已引入；UUID 后续候选 | `time` 仅启用 std/formatting/parsing/serde，保留 RFC3339Nano 与 Unix 毫秒语义；UUID 未被阶段 2 代码使用，不提前引入 |
 | CPU parallelism | [Rayon 1.12.0](https://github.com/rayon-rs/rayon) | 后续候选 | 只用于有基准证据的批量纯计算；不得与 Tokio task 无界叠加 |
 | Assistant | [Rig 0.42.0](https://github.com/0xPlaygrounds/rig) | 已锁定、后续引入 | 用户指定；先建 provider/tool/session/approval 行为矩阵，再接生产模型 |
 | desktop | [Tauri 2.11.5](https://github.com/tauri-apps/tauri) | 已锁定、后续引入 | Rust 桌面主流方案；先复制 Wails facade 和四平台发布语义，再删除 Wails |
@@ -259,15 +259,27 @@ jftrade-kernel / jftrade-broker
 
 阶段 1 放行条件：现有公开契约与生成资产零 diff；Rust fmt/clippy/test/policy 全绿；四目标 `cargo check` 全绿；上游原生 runner 矩阵全绿；Go/Wails 仍是唯一生产入口。在首次上游矩阵完成前，阶段 1 不标记关闭。
 
-### 阶段 2：共享领域模型、codec 与 SQLite 只读验证
+### 阶段 2：共享领域模型、codec 与 SQLite 只读验证（本地完成）
 
-1. 从现有 DTO、Decimal、time、enum、error 和 SQLite codec 生成兼容账本及 golden corpus。
-2. 建立无 transport/driver 依赖的 Rust domain crates；先 port 纯转换和校验。
-3. 建立 SQLite read-only adapter，复放真实匿名化快照；比较 schema、PRAGMA、查询结果和排序。
-4. 建立 differential runner，输入同一 fixture，输出 canonical JSON/事件 trace。
-5. 不写生产数据库，不切换 API。
+- [x] 从现有 DTO、Decimal、time、enum、error 和 SQLite codec 生成兼容账本及 golden corpus。
+- [x] 建立无 transport/driver 依赖的 `jftrade-kernel` 与 `jftrade-broker`；只 port 纯转换和校验。
+- [x] 建立 `jftrade-store-sqlite` read-only adapter，复放匿名化 backtest K 线快照；比较 schema、PRAGMA、查询结果和排序。
+- [x] 建立 Go/Rust differential runner，输入同一 fixture，输出 canonical JSON，并与固定 expected JSON 三方比较。
+- [x] 只读前后逐字节比较 SQLite 文件；未接入生产数据库、API 或 composition root。
 
 放行：golden/differential 零未解释差异；只读打开不会修改数据库；错误和 Decimal/时间语义完整；资源基线完成。
+
+#### 阶段 2 执行账本
+
+| 工作包 | 当前 Go owner | 阶段 2 Rust owner | 唯一切换点与回退 | Go 删除条件 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| Decimal、fixedpoint、time codec | `shopspring/decimal` 使用方、`pkg/bbgo/fixedpoint`、`pkg/bbgo/types` | `jftrade-kernel` | 以后由 `jftrade-engine` 的版本化 DTO mapper 选择；阶段 2 不切流，回退仍走 Go | 全部消费能力通过同一 golden 且不再 import 被替代 codec | Rust codec 已实现并重放 v1 corpus；未切生产 owner |
+| broker-neutral taxonomy/error | `pkg/broker` | `jftrade-broker` | 消费方窄 port 在 `jftrade-engine` 装配；Go 仍是生产 owner | 行情/交易消费方迁完，Provider adapter 不再暴露 Go broker contract | Rust taxonomy/error 已实现并重放 v1 corpus；未切生产 owner |
+| backtest SQLite K 线只读 | `internal/store/backtest`、`internal/store/sqliteconn` | `jftrade-store-sqlite` | 阶段 2 仅 differential CLI，禁止接生产路径；删 Rust adapter 即回退 | 各能力已有唯一 Rust 写 owner、migration/rollback 证据且无 Go query/migration consumer | strict read-only、拒绝路径和三方 differential 已通过；未切生产 owner |
+
+阶段 2 corpus 位于 `tests/fixtures/rust-migration/stage2`，manifest 中的 SHA-256 在该阶段关闭后不可静默修改；行为需要演进时新增 corpus 版本并记录差异。目录门禁位于 `scripts/rust-migration/check-layout.mjs`，从本阶段第二个 Rust crate 起强制校验 active/planned 状态、owner/切换/删除条件、允许路径、禁止名称、workspace 依赖和非空生产代码/行为测试。
+
+阶段 2 本地资源基线使用同一匿名化 SQLite 文件、3 次预热、20 次 release 进程级读取；证据固定在 `resource-baseline.darwin-arm64.json`。Apple A18 Pro/macOS ARM64 上 Go p95 为 8.167 ms、峰值 RSS 13,762,560 bytes，Rust p95 为 5.885 ms、峰值 RSS 3,178,496 bytes，Rust/Go 比值分别为 0.721 和 0.231；两端 CPU 时间都低于 Darwin `/usr/bin/time` 的 10 ms 分辨率，因此不据此宣称 CPU 优势。该数据只证明本机基线，不替代 Linux/Windows/macOS 原生 CI 资格。
 
 ### 阶段 3：回测与批量计算核心
 
@@ -348,17 +360,13 @@ jftrade-kernel / jftrade-broker
 9. 删除 Go 重复实现、flag 和临时 bridge；收紧预算和依赖。
 10. 更新架构事实、模块表、运行手册和阶段账本。
 
-### 7.1 分步提交与阶段收口（强制）
+### 7.1 按阶段提交与阶段收口（强制）
 
-每个阶段必须在阶段内按可独立审查、可独立回退的步骤提交；阶段完成时不得只留下一个混合所有工作的巨型提交，也不得残留未提交的阶段文件。默认提交序列为：
+迁移计划中的每个阶段是一个提交单位。阶段内仍按“契约/fixture → 纯领域 → adapter/differential → gate → 账本”顺序实施和验证，但中间工作包不得形成正式提交；只有该阶段全部工作和放行门禁完成后，才创建一个本地阶段提交。未完成阶段保留为工作树改动并在账本明确未关闭，不得用 `WIP` 或部分阶段提交伪装完成。
 
-1. `docs/test`：先提交契约账本、fixture/golden、基准 manifest 和拒绝/恢复测试，固定要保留的行为。
-2. `feat`：提交纯领域模型与实现，不混入 transport、store、integration 或下一阶段代码。
-3. `feat`：按边界分别提交 store/integration/transport adapter、differential/shadow 和 composition 切换点；不同写 owner 不得放进同一提交。
-4. `chore/test`：提交 affected gate、依赖治理、CI、打包和平台验证；生成文件必须跟随其契约源提交，不能单独补交。
-5. `docs`：只有全部阶段门禁通过后，才提交阶段账本、证据摘要和关闭状态；仍等待上游、live 或平台资格时必须明确标记未关闭。
+阶段提交必须同时包含该阶段的契约账本、生产实现、行为测试、fixture/golden、依赖与 affected gate、可复现验证证据及关闭状态，不得混入下一阶段内容。提交前必须通过 `check:quick`、阶段专项门禁和 `check:all`；仍等待上游、live 或原生平台资格时不得创建“阶段完成”提交。
 
-每个提交都必须只包含当前步骤和不可分割的测试，提交前至少通过该步骤最窄门禁；最后一个阶段提交前必须通过 `check:quick`、该阶段专项门禁和 `check:all`。提交信息使用 `docs|test|feat|fix|chore(rust-stageN): <具体行为>`，不得使用 `wip`、`misc`、`update` 等无法表达 owner 或行为的标题。迁移提交只在本地创建，除非用户明确要求，不推送、不重写已共享历史；回退优先逐提交 revert，不靠双写或长期兼容分叉。
+提交信息统一使用 `feat(rust-stageN): complete <阶段目标>`；纯文档阶段可使用 `docs(rust-stageN): complete <阶段目标>`。创建阶段提交后才能启动下一阶段，回退以整体 revert 该阶段提交为准。迁移提交只在本地创建，除非用户明确要求，不推送、不重写已共享历史；本地尚未共享的错误中间提交必须在阶段收口前合并回对应阶段提交。
 
 ## 8. 性能与资源门禁
 
@@ -408,5 +416,8 @@ JFTRADE_RUST_ENGINE_TOKEN="$(openssl rand -hex 32)" \
 | 2026-08-19 | 阶段 1 仅建 Rust/coexistence 基础，Go/Wails 保持生产 owner | `crates/jftrade-engine` 与本文 |
 | 2026-08-19 | health bridge 使用 Tonic 官方标准协议，不新增自定义 proto | 最小依赖、无生成器、跨平台可编译 |
 | 2026-08-19 | Rust 私有 listener 强制 loopback + 每进程 Bearer，未认证 fail closed | 单元与集成测试 |
+| 2026-08-19 | 每个迁移阶段完成全部实现与门禁后只形成一个本地阶段提交；阶段内工作包不单独提交 | 第 7.1 节；未获明确授权不推送 |
+| 2026-08-19 | 阶段 2 启动；shopspring Decimal 与 fixedpoint 拆分兼容，SQLite 首个只读样本选择 backtest K 线 | `tests/fixtures/rust-migration/stage2` 与阶段 2 执行账本 |
+| 2026-08-19 | 阶段 2 本地实现完成；Go 保持唯一生产 owner，Rust SQLite 仍为离线只读验证工具 | golden/differential 零差异、DB bytes 不变、Darwin ARM64 release 资源基线通过 |
 
 完成每个阶段时在本表追加最终决策；大量一次性测试日志留在 CI artifact/提交，不复制进长期文档。

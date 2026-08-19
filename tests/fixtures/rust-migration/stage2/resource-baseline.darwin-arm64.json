@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-19T07:21:44.704Z",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple A18 Pro",
+    "logicalCpus": 6,
+    "totalMemoryBytes": 8589934592
+  },
+  "buildProfile": {
+    "go": "go build -trimpath",
+    "rust": "cargo build --release"
+  },
+  "workload": {
+    "fixture": "backtest-readonly.sql",
+    "fixtureSha256": "aecfa6125af9a0c1c8c761ec9afcaa8fba9cd9dc405c62deb12080406af4b6e6",
+    "tables": 2,
+    "rows": 3
+  },
+  "go": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": {
+      "p50": 6.672,
+      "p95": 8.167
+    },
+    "cpuMillisP50": 0,
+    "peakRssBytes": 13762560,
+    "binaryBytes": 10286258
+  },
+  "rust": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": {
+      "p50": 3.81,
+      "p95": 5.885
+    },
+    "cpuMillisP50": 0,
+    "peakRssBytes": 3178496,
+    "binaryBytes": 2138368
+  },
+  "ratios": {
+    "rustToGoP95": 0.721,
+    "rustToGoPeakRss": 0.231
+  },
+  "notes": [
+    "Process-level cold invocation includes CLI startup and one strict snapshot inspection.",
+    "CPU time was below the 10 ms resolution of Darwin /usr/bin/time for both binaries.",
+    "This local macOS ARM64 baseline does not qualify other native platforms."
+  ]
+}

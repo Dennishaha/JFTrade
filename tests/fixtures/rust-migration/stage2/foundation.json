@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "decimal": [
+    { "input": "0", "canonical": "0", "json": "\"0\"" },
+    { "input": "-0.000", "canonical": "0", "json": "\"0\"" },
+    { "input": "100.2500", "canonical": "100.25", "json": "\"100.25\"" },
+    { "input": "1e-8", "canonical": "0.00000001", "json": "\"0.00000001\"" },
+    {
+      "input": "123456789012345678901234567890.123456789000",
+      "canonical": "123456789012345678901234567890.123456789",
+      "json": "\"123456789012345678901234567890.123456789\""
+    }
+  ],
+  "fixed8": [
+    { "input": "", "scaled": 0, "storage": "0", "json": "0.00000000" },
+    { "input": "100.25000000", "scaled": 10025000000, "storage": "100.25", "json": "100.25000000" },
+    { "input": "0.000000019", "scaled": 1, "storage": "0.00000001", "json": "0.00000001" },
+    { "input": "-1.234567899", "scaled": -123456789, "storage": "-1.23456789", "json": "-1.23456789" },
+    { "input": "12.5%", "scaled": 12500000, "storage": "0.125", "json": "0.12500000" },
+    { "input": "1e-8", "scaled": 1, "storage": "0.00000001", "json": "0.00000001" }
+  ],
+  "timestamps": [
+    {
+      "input": "2026-01-02T03:04:05Z",
+      "json": "\"2026-01-02T03:04:05Z\"",
+      "unixMillis": 1767323045000
+    },
+    {
+      "input": "2026-01-02T03:04:05.123456789+08:00",
+      "json": "\"2026-01-02T03:04:05.123456789+08:00\"",
+      "unixMillis": 1767294245123
+    }
+  ],
+  "taxonomies": [
+    { "type": "productClass", "input": "equity", "known": true },
+    { "type": "productClass", "input": "future_new", "known": false },
+    { "type": "marketSegment", "input": "prediction", "known": true },
+    { "type": "marketSegment", "input": "overnight", "known": false },
+    { "type": "quantityMode", "input": "contracts", "known": true },
+    { "type": "quantityMode", "input": "lots", "known": false },
+    { "type": "orderKind", "input": "option_combo", "known": true },
+    { "type": "orderKind", "input": "basket", "known": false }
+  ],
+  "brokerErrors": [
+    {
+      "brokerId": "futu",
+      "code": "NOT_CONNECTED",
+      "message": "OpenD is unavailable",
+      "display": "broker futu: [NOT_CONNECTED] OpenD is unavailable"
+    }
+  ],
+  "snapshotAvailability": [
+    { "kind": "entitlement", "fallbackEligible": true },
+    { "kind": "unsupported", "fallbackEligible": true },
+    { "kind": "subscription_quota", "fallbackEligible": true },
+    { "kind": "provider_busy", "fallbackEligible": false }
+  ]
+}

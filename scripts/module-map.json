@@ -27,13 +27,18 @@
         "Cargo.lock",
         "deny.toml",
         "rust-toolchain.toml",
-        "crates"
+        "crates",
+        "scripts/rust-migration",
+        "tests/fixtures/rust-migration"
       ],
       "entrypoints": [
         "crates/jftrade-engine"
       ],
       "affectedTests": [
-        "pnpm run test:rust"
+        "pnpm run check:rust:layout",
+        "pnpm run test:rust",
+        "pnpm run test:rust:differential",
+        "go test ./scripts/rust-migration -count=1"
       ],
       "vetPackages": []
     },

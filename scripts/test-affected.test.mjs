@@ -123,7 +123,10 @@ test("runs Rust tests and quality gates for migration engine changes", () => {
   assert.deepEqual(plan.commands, [
     "pnpm run check:diff",
     "pnpm run check:ai-context",
+    "pnpm run check:rust:layout",
     "pnpm run test:rust",
+    "pnpm run test:rust:differential",
+    "go test ./scripts/rust-migration -count=1",
     "pnpm run format:rust:check",
     "pnpm run lint:rust",
   ]);

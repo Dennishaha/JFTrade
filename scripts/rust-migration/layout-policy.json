@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "bannedCrateSegments": [
+    "common",
+    "shared",
+    "utils",
+    "helpers",
+    "misc",
+    "legacy",
+    "new",
+    "v2"
+  ],
+  "packages": [
+    {
+      "name": "jftrade-engine",
+      "path": "crates/jftrade-engine",
+      "stage": 1,
+      "status": "active",
+      "layer": "composition",
+      "goOwner": "internal/app/apiserver and cmd/jftrade-api",
+      "rustOwner": "jftrade-engine",
+      "cutover": "the single process-level composition choice",
+      "goDeleteWhen": "all capability owners have moved and the Go entrypoints have completed rollback qualification",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-kernel",
+      "path": "crates/jftrade-kernel",
+      "stage": 2,
+      "status": "active",
+      "layer": "foundation",
+      "goOwner": "pkg/bbgo/fixedpoint, pkg/bbgo/types and cross-domain value codecs",
+      "rustOwner": "jftrade-kernel",
+      "cutover": "versioned private DTO mappers assembled by jftrade-engine",
+      "goDeleteWhen": "all consuming capabilities pass the shared golden corpus and no Go owner imports the replaced codecs",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-broker",
+      "path": "crates/jftrade-broker",
+      "stage": 2,
+      "status": "active",
+      "layer": "foundation",
+      "goOwner": "pkg/broker",
+      "rustOwner": "jftrade-broker",
+      "cutover": "consumer-defined broker ports assembled by jftrade-engine",
+      "goDeleteWhen": "market-data and trading consumers have moved and provider adapters no longer expose Go broker contracts",
+      "allowedWorkspaceDependencies": ["jftrade-kernel"]
+    },
+    {
+      "name": "jftrade-store-sqlite",
+      "path": "crates/jftrade-store-sqlite",
+      "stage": 2,
+      "status": "active",
+      "layer": "adapter",
+      "goOwner": "internal/store and internal/store/sqliteconn",
+      "rustOwner": "jftrade-store-sqlite",
+      "cutover": "per-capability persistence ports assembled by jftrade-engine; stage 2 remains read-only",
+      "goDeleteWhen": "each capability has a single Rust write owner, migration/rollback evidence, and no Go query or migration consumer",
+      "allowedWorkspaceDependencies": ["jftrade-kernel"]
+    }
+  ]
+}
