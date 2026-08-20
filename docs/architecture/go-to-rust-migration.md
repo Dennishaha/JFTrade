@@ -472,13 +472,13 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go �
 9. 删除 Go 重复实现、flag 和临时 bridge；收紧预算和依赖。
 10. 更新架构事实、模块表、运行手册和阶段账本。
 
-### 7.1 按阶段提交与阶段收口（强制）
+### 7.1 按能力细粒度提交与收口（强制）
 
-迁移计划中的每个阶段是一个提交单位。阶段内仍按“契约/fixture → 纯领域 → adapter/differential → gate → 账本”顺序实施和验证，但中间工作包不得形成正式提交；只有该阶段全部工作和放行门禁完成后，才创建一个本地阶段提交。未完成阶段保留为工作树改动并在账本明确未关闭，不得用 `WIP` 或部分阶段提交伪装完成。
+迁移计划中的提交单位是一个可独立构建、验证、审查和回退的业务能力或安全不变式，不是整个迁移阶段。契约、fixture/golden、实现、differential、owner 账本和必要文档应与该能力在同一提交中闭环；只有拆分后的两部分都能独立产生价值并保持 green 时才继续拆分。
 
-阶段提交必须同时包含该阶段的契约账本、生产实现、行为测试、fixture/golden、依赖与 affected gate、可复现验证证据及关闭状态，不得混入下一阶段内容。提交前必须通过 `check:quick`、阶段专项门禁和 `check:all`。当前机器可执行的门禁失败时不得创建阶段提交；只有必须由上游、显式 live 或其他原生发布平台执行的资格可以登记为外部未闭环项并创建“本地工作包完成”阶段提交，但该提交不得表述为产品切流或阶段正式关闭，且生产 owner 必须保持不变。
+不强制把 contract/fixture、shadow/differential、production cutover 和 Go owner 退役拆成固定四个提交，也不使用多层工作包编号、文件数/行数配额或 integration wave 人为制造边界。如果分开 producer、consumer、cutover 或退役会造成死代码、错误 owner 事实、双写或无 owner 窗口，它们必须作为一个原子提交交付。
 
-提交信息统一使用 `feat(rust-stageN): complete <阶段目标>`；纯文档阶段可使用 `docs(rust-stageN): complete <阶段目标>`。创建阶段提交后才能启动下一阶段，回退以整体 revert 该阶段提交为准。迁移提交只在本地创建，除非用户明确要求，不推送、不重写已共享历史；本地尚未共享的错误中间提交必须在阶段收口前合并回对应阶段提交。
+每个提交先跑最窄 affected test，再按风险扩展到 `check:quick`、迁移专项门禁和 `check:all`。必须由上游、显式 live 或其他原生发布平台执行的资格按未闭环证据登记，不得表述为产品切流或正式关闭。recovery checkpoint 只能保留在明确的备份分支，不得进入正式交付历史。除非用户明确要求，迁移提交只在本地创建，不推送、不重写已共享历史。
 
 ## 8. 性能与资源门禁
 
@@ -529,6 +529,7 @@ JFTRADE_RUST_ENGINE_TOKEN="$(openssl rand -hex 32)" \
 | 2026-08-19 | health bridge 使用 Tonic 官方标准协议，不新增自定义 proto | 最小依赖、无生成器、跨平台可编译 |
 | 2026-08-19 | Rust 私有 listener 强制 loopback + 每进程 Bearer，未认证 fail closed | 单元与集成测试 |
 | 2026-08-19 | 每个迁移阶段完成全部实现与门禁后只形成一个本地阶段提交；阶段内工作包不单独提交 | 第 7.1 节；未获明确授权不推送 |
+| 2026-08-21 | 废止阶段单提交和多层工作包编号，改为可独立构建、验证、审查与回退的能力细粒度提交 | 第 7.1 节；2026-08-19 的阶段单提交决策自本行起废止 |
 | 2026-08-19 | 阶段 2 启动；shopspring Decimal 与 fixedpoint 拆分兼容，SQLite 首个只读样本选择 backtest K 线 | `tests/fixtures/rust-migration/stage2` 与阶段 2 执行账本 |
 | 2026-08-19 | 阶段 2 本地实现完成；Go 保持唯一生产 owner，Rust SQLite 仍为离线只读验证工具 | golden/differential 零差异、DB bytes 不变、Darwin ARM64 release 资源基线通过 |
 | 2026-08-19 | 阶段 3 本地计算核心完成；PineTS 保留，Go 保持唯一生产 owner，离线三态 selector 只做 shadow/切换/回退演练 | 5 case/8 fill 三方 differential 零差异；取消/超时恢复通过；Darwin ARM64 p95/RSS 门禁通过；阶段 3 manifest 已固定 |
