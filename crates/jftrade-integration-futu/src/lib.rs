@@ -4,12 +4,14 @@
 
 mod frame;
 mod probe;
+mod provider;
 mod subscriptions;
 mod trading;
 mod transport;
 
 pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
+pub use provider::{broker_descriptor, provider_descriptor};
 pub use subscriptions::{
     PhysicalSubscription, ReconcileAction, SubscriptionKind, SubscriptionPlan,
     SubscriptionReconciler, desired_subscriptions, retry_delay_ms,
@@ -31,3 +33,4 @@ pub const PROTO_UPDATE_KL: u32 = 3007;
 pub const PROTO_GET_ORDER_BOOK: u32 = 3012;
 pub const PROTO_UPDATE_ORDER_BOOK: u32 = 3013;
 pub const PROTO_REQUEST_HISTORY_KL: u32 = 3103;
+pub const MINIMUM_OPEND_VERSION: &str = "10.9.6908";

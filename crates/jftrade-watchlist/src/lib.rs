@@ -11,6 +11,21 @@ pub const MAX_PAGE_LIMIT: usize = 500;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GroupRef {
+    pub group_id: String,
+    pub name: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Memberships {
+    pub instrument_id: String,
+    pub revision: i64,
+    pub groups: Vec<GroupRef>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MembershipPlan {
     pub instrument_id: String,
     pub group_ids: Vec<String>,
@@ -37,17 +52,22 @@ pub fn normalize_instrument_id(value: &str) -> Result<String, WatchlistError> {
     let Some((market, symbol)) = normalized.split_once('.') else {
         return Err(WatchlistError::InvalidInstrument);
     };
+    let canonical_market = match market {
+        "US" | "HK" | "SH" | "SZ" => market,
+        "CNSH" => "SH",
+        "CNSZ" => "SZ",
+        _ => return Err(WatchlistError::InvalidInstrument),
+    };
     if market.is_empty()
         || symbol.is_empty()
         || symbol.contains('.')
-        || !market.bytes().all(|byte| byte.is_ascii_alphanumeric())
         || !symbol
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
     {
         return Err(WatchlistError::InvalidInstrument);
     }
-    Ok(format!("{market}.{symbol}"))
+    Ok(format!("{canonical_market}.{symbol}"))
 }
 
 pub fn plan_membership_replace(
@@ -127,5 +147,15 @@ mod tests {
         );
         assert_eq!(normalize_limit(0), DEFAULT_PAGE_LIMIT);
         assert_eq!(normalize_limit(999), MAX_PAGE_LIMIT);
+    }
+
+    #[test]
+    fn instrument_normalization_matches_supported_go_market_aliases() {
+        assert_eq!(normalize_instrument_id(" us.aapl ").unwrap(), "US.AAPL");
+        assert_eq!(normalize_instrument_id("CNSH.600519").unwrap(), "SH.600519");
+        assert_eq!(
+            normalize_instrument_id("BAD.AAPL"),
+            Err(WatchlistError::InvalidInstrument)
+        );
     }
 }

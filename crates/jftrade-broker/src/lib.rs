@@ -2,6 +2,7 @@
 
 //! Broker-neutral taxonomies and errors used at capability-defined port boundaries.
 
+use std::collections::BTreeMap;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -96,6 +97,59 @@ impl SnapshotAvailabilityKind {
 pub struct SnapshotAvailabilityError {
     pub kind: SnapshotAvailabilityKind,
     pub message: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrokerReadFeatureCapability {
+    pub supported_environments: Vec<String>,
+    #[serde(skip_serializing_if = "is_false")]
+    pub supports_history: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    pub requires_symbols: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    pub requires_clearing_date: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    pub requires_price: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    pub requires_order_id_ex: bool,
+    #[serde(skip_serializing_if = "is_zero_u16")]
+    pub default_num: u16,
+    #[serde(skip_serializing_if = "is_zero_u16")]
+    pub min_num: u16,
+    #[serde(skip_serializing_if = "is_zero_u16")]
+    pub max_num: u16,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub num_presets: Vec<u16>,
+    #[serde(skip_serializing_if = "is_false")]
+    pub supports_real_time_push: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrokerMarketCapability {
+    pub market: String,
+    pub supports_quote: bool,
+    pub supports_trade: bool,
+    pub read_features: BTreeMap<String, BrokerReadFeatureCapability>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrokerRuntimeDescriptor {
+    pub id: String,
+    pub display_name: String,
+    pub environments: Vec<String>,
+    pub capabilities: Vec<BrokerMarketCapability>,
+    pub notes: Vec<String>,
+}
+
+const fn is_zero_u16(value: &u16) -> bool {
+    *value == 0
+}
+
+const fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl SnapshotAvailabilityError {

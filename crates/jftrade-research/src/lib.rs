@@ -1,5 +1,9 @@
 #![forbid(unsafe_code)]
 
+mod catalog;
+
+pub use catalog::{ScreenCatalogError, screen_catalog};
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;

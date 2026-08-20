@@ -1759,6 +1759,7 @@ dependencies = [
 name = "jftrade-integration-futu"
 version = "0.1.0"
 dependencies = [
+ "jftrade-broker",
  "jftrade-kernel",
  "jftrade-marketdata",
  "jftrade-trading",

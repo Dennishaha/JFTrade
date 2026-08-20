@@ -5,6 +5,7 @@
 mod asset;
 mod client;
 mod process;
+mod provider;
 
 pub use asset::{AssetBundle, AssetError};
 pub use client::{
@@ -14,3 +15,4 @@ pub use process::{
     HelperProcess, HelperProcessConfig, ProcessError, ProcessSnapshot, ProcessState,
     allocate_loopback_port,
 };
+pub use provider::{akshare_descriptor, provider_descriptors, yfinance_descriptor};

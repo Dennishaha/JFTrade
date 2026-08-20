@@ -38,6 +38,7 @@ http-body-util = "=0.1.5"
 jftrade-api = { path = "crates/jftrade-api", version = "=0.1.0" }
 jftrade-assistant = { path = "crates/jftrade-assistant", version = "=0.1.0" }
 jftrade-backtest = { path = "crates/jftrade-backtest", version = "=0.1.0" }
+jftrade-broker = { path = "crates/jftrade-broker", version = "=0.1.0" }
 jftrade-calendar = { path = "crates/jftrade-calendar", version = "=0.1.0" }
 jftrade-datamanagement = { path = "crates/jftrade-datamanagement", version = "=0.1.0" }
 jftrade-engine = { path = "crates/jftrade-engine", version = "=0.1.0" }

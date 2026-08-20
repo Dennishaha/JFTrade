@@ -6,7 +6,7 @@ mod model;
 mod service;
 
 pub use model::{
-    ExecutionMode, RuntimeState, Signal, SignalOutcome, StrategyError, StrategyNotification,
-    TradeIntent, TradePlanReceipt,
+    ExecutionMode, PluginUninstallCommands, PluginUninstallGuidance, RuntimeState, Signal,
+    SignalOutcome, StrategyError, StrategyNotification, TradeIntent, TradePlanReceipt,
 };
 pub use service::{StrategyCoordinator, TradePlannerPort};

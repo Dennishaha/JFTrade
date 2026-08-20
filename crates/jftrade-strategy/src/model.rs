@@ -92,6 +92,28 @@ pub struct StrategyNotification {
     pub dispatch: bool,
 }
 
+/// Read-only uninstall guidance projected from the Go plugin catalog.
+///
+/// The product layer deliberately receives the complete wire projection from
+/// its consumer-owned port instead of deriving paths or shell commands. This
+/// keeps platform-specific quoting and catalog normalization in the current
+/// Go owner until the plugin lifecycle has a Rust adapter.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PluginUninstallCommands {
+    pub posix: String,
+    pub powershell: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PluginUninstallGuidance {
+    pub plugin_id: String,
+    pub path: String,
+    pub exists: bool,
+    pub commands: PluginUninstallCommands,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SignalOutcome {
