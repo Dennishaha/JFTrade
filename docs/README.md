@@ -6,7 +6,7 @@
 
 ## 当前版本快照
 
-更新时间：2026-08-19。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
+更新时间：2026-08-21。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
 
 JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。交易链路仍由 Futu/OpenD 管理；新安装的行情默认使用内置 AKShare 延迟数据源，支持美股、港股和沪深，也可以选择 Futu OpenD。系统以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
 
@@ -24,7 +24,7 @@ JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工�
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
 - PineTS worker：Node ESM `worker.mjs`，Go 通过 localhost gRPC 管理 worker pool。
 - 回测和实盘权威边界：PineTS 产出信号、图形输出和 order intents；Go 负责撮合、成交、资金曲线、风控、账户刷新和券商下单。
-- Rust 迁移：阶段 1 共存 bridge，以及阶段 2 codec/SQLite、阶段 3 回测、阶段 4 行情/worker 生命周期、阶段 5 交易/策略、阶段 6 Assistant/Rig、阶段 7 API/control-plane、阶段 8 Tauri desktop facade 的本地 shadow 证据已建立；Vue 已通过单一 facade 支持 Wails/Tauri adapter，但产品仍只运行 Wails。Go/Wails 继续拥有公开 API、生产数据库、真实 worker/Futu/Assistant、native WebView 和桌面发布；真实 live、持久化恢复、route-group 切流、四平台签名安装/升级与观察窗口继续阻断产品迁移。完整阶段、目录约束和切换条件见 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)。
+- Rust 迁移：阶段 1 共存 bridge，以及阶段 2 codec/SQLite、阶段 3 回测、阶段 4 行情/worker 生命周期、阶段 5 交易/策略、阶段 6 Assistant/Rig、阶段 7 API/control-plane、阶段 8 Tauri desktop facade 的本地 shadow 证据已建立；阶段 9 已验证受鉴权的 Rust read-only API shadow、calendar source/status、watchlist membership 与 plugin uninstall-guidance provider-neutral 纯模型及 Go fixture differential 以及 Tauri macOS RC，当前登记 26 个 GET shadow、22 个 test-cutover-only operation（含 2 个分别注入 calendar snapshot port 的 route、1 个 watchlist membership route 与 1 个 plugin uninstall-guidance route），仍有 230 个 operation 未接管。Vue 已通过单一 facade 支持 Wails/Tauri adapter，但正式产品仍只运行 Wails，Go/Wails 继续拥有公开 API、全部业务写入、生产数据库、Futu/Assistant 与桌面发布。Rust RC 启动的 Node/Python 仅用于隔离发布 smoke；全量 route group、真实 live、持久化恢复、updater artifact、四平台签名安装/升级与观察窗口仍阻断产品切换。正式关闭证据可先用 `pnpm run report:rust:stage9:closeout` 只读查看，`pnpm run check:rust:stage9:closeout` 在所有条件满足前 fail-closed。完整阶段、目录约束和切换条件见 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)。
 - 许可证注意：`workers/pineworker` 精确依赖 `pinets@0.9.31`，当前 npm license 为 `AGPL-3.0-only`。
 
 当前发布和验收入口：
