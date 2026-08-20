@@ -1,0 +1,168 @@
+{
+  "$schema": "./closeout-evidence.schema.json",
+  "schemaVersion": "jftrade.stage9.closeout-evidence.v1",
+  "stage": 9,
+  "status": "in_progress",
+  "routeOwnership": {
+    "baselineOperations": 278,
+    "shadowRoutes": 26,
+    "cutoverTestOnlyRoutes": 22,
+    "remainingRoutes": 230
+  },
+  "localEvidence": [
+    {
+      "id": "tauri-macos-arm64-release-smoke",
+      "status": "passed",
+      "scope": "local-only macOS ARM64",
+      "command": "pnpm run smoke:tauri-release",
+      "evidence": "Passed on 2026-08-20: packaged readiness, authenticated 401, shutdown, window state and no packaged child orphans. This is not a signed release or four-platform qualification."
+    },
+    {
+      "id": "workflow-syntax",
+      "status": "passed",
+      "scope": "local-only repository checks",
+      "command": "pnpm run check:actionlint",
+      "evidence": "Passed on 2026-08-20; validates workflow syntax only and does not execute release jobs."
+    },
+    {
+      "id": "desktop-script-contracts",
+      "status": "passed",
+      "scope": "local-only repository checks",
+      "command": "pnpm run test:scripts -- desktop",
+      "evidence": "32 script tests passed on 2026-08-20; these are structural/unit checks and do not qualify signed artifacts or native installers."
+    }
+  ],
+  "gates": {
+    "allRouteGroups": {
+      "status": "open",
+      "owner": "Go/Gin",
+      "next": "Implement and qualify all remaining OpenAPI operations, including long-lived streams and production assets.",
+      "evidence": [
+        "The route ownership fixture currently leaves 230 operations remaining; no production route-group cutover is approved."
+      ]
+    },
+    "uniqueWriteOwner": {
+      "status": "open",
+      "owner": "Go/Wails",
+      "next": "Switch each capability at jftrade-engine composition root and prove no Go consumer or Rust/Go double write remains.",
+      "evidence": [
+        "Rust settings, SQLite, Provider, broker, Assistant, Web/MCP listener and product entrypoint writes remain unassembled; Go remains the production owner."
+      ]
+    },
+    "platformRelease": {
+      "status": "open",
+      "evidence": [
+        "The release workflow currently builds Wails artifacts; Tauri four-platform release qualification is not recorded here."
+      ],
+      "platforms": {
+        "macos-arm64": {
+          "package": "open",
+          "signed": "open",
+          "install": "open",
+          "upgrade": "open",
+          "uninstall": "open",
+          "rollback": "open",
+          "runtimeSmoke": "open",
+          "evidence": [
+            "Local Tauri smoke is recorded above, but the machine has no full Xcode and no signing identity; no signed installer/upgrade/rollback evidence is available."
+          ]
+        },
+        "linux-x64": {
+          "package": "open",
+          "signed": "open",
+          "install": "open",
+          "upgrade": "open",
+          "uninstall": "open",
+          "rollback": "open",
+          "runtimeSmoke": "open",
+          "evidence": [
+            "No Tauri Linux release package and native install/upgrade/rollback observation are recorded."
+          ]
+        },
+        "windows-x64": {
+          "package": "open",
+          "signed": "open",
+          "install": "open",
+          "upgrade": "open",
+          "uninstall": "open",
+          "rollback": "open",
+          "runtimeSmoke": "open",
+          "evidence": [
+            "No Windows x64 Tauri signed installer and native lifecycle evidence are recorded."
+          ]
+        },
+        "windows-arm64": {
+          "package": "open",
+          "signed": "open",
+          "install": "open",
+          "upgrade": "open",
+          "uninstall": "open",
+          "rollback": "open",
+          "runtimeSmoke": "open",
+          "evidence": [
+            "No Windows ARM64 Tauri signed installer and native lifecycle evidence are recorded."
+          ]
+        }
+      }
+    },
+    "signedUpdaterArtifact": {
+      "status": "open",
+      "next": "Generate and verify a real signed Tauri updater artifact and feed on the release signing workflow.",
+      "evidence": [
+        "No signed Tauri updater artifact, endpoint, public key and rollback rehearsal are recorded."
+      ]
+    },
+    "securityReview": {
+      "status": "open",
+      "next": "Complete independent security review of ownership, updater, credentials, listeners, recovery and release permissions.",
+      "evidence": [
+        "Local cargo-deny and unit gates do not constitute an independent Stage 9 security review."
+      ]
+    },
+    "sbom": {
+      "status": "open",
+      "next": "Attach SBOM and provenance for the exact Tauri artifacts that pass the release matrix.",
+      "evidence": [
+        "Existing Wails release SBOM paths do not prove a Tauri artifact SBOM or its dependency closure."
+      ]
+    },
+    "recoveryDrill": {
+      "status": "open",
+      "next": "Exercise backup, upgrade, corruption recovery, rollback and retained worker crash recovery on every target.",
+      "evidence": [
+        "No four-platform data upgrade, backup/restore, rollback or crash-recovery evidence is recorded."
+      ]
+    },
+    "observationWindow": {
+      "status": "open",
+      "next": "Complete the agreed production observation window with owner, error, latency, resource and rollback telemetry.",
+      "evidence": [
+        "No production owner cutover or observation window has started; Rust remains an authenticated shadow."
+      ]
+    }
+  },
+  "ownerDeletion": {
+    "go": {
+      "status": "blocked",
+      "conditions": [
+        "All route groups and production handlers have not moved.",
+        "Go remains the unique production write owner for product state, SQLite, Provider, trading, Assistant and listeners.",
+        "Rollback and observation evidence is incomplete."
+      ],
+      "evidence": [
+        "Stage 9 formal deletion is not approved while any required gate is open."
+      ]
+    },
+    "wails": {
+      "status": "blocked",
+      "conditions": [
+        "The formal release workflow still builds Wails artifacts and no Tauri four-platform release lane is qualified.",
+        "Signed installer, upgrade, uninstall, rollback and WebView evidence is incomplete.",
+        "The Tauri observation window and production launcher cutover are incomplete."
+      ],
+      "evidence": [
+        "Wails bindings, entrypoints and release assets must remain until the desktop deletion conditions close."
+      ]
+    }
+  }
+}

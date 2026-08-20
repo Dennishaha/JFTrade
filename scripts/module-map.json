@@ -39,6 +39,7 @@
         "crates/jftrade-engine/src/bin/jftrade-stage5-shadow.rs",
         "crates/jftrade-engine/src/bin/jftrade-stage6-shadow.rs",
         "crates/jftrade-engine/src/bin/jftrade-stage7-shadow.rs",
+        "crates/jftrade-engine/src/bin/jftrade-api-rust.rs",
         "apps/desktop/src-tauri/src/bin/jftrade-stage8-shadow.rs",
         "scripts/rust-migration/run-backtest-owner.mjs"
       ],
@@ -57,6 +58,9 @@
         "node --test scripts/rust-migration/benchmark-stage7.test.mjs",
         "pnpm run test:rust:stage8:differential",
         "node --test scripts/rust-migration/benchmark-stage8.test.mjs",
+        "node --test scripts/rust-migration/check-stage9-closeout.test.mjs",
+        "pnpm run test:rust:stage9:route-coverage",
+        "pnpm run test:rust:stage9:product-differential",
         "go test ./scripts/rust-migration -count=1"
       ],
       "vetPackages": []

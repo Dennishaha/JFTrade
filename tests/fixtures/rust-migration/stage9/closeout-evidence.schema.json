@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jftrade.local/schemas/stage9-closeout-evidence.v1.json",
+  "title": "JFTrade Rust migration Stage 9 closeout evidence",
+  "description": "Evidence ledger for the Stage 9 formal cutover and Go/Wails deletion gates.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "stage",
+    "status",
+    "routeOwnership",
+    "localEvidence",
+    "gates",
+    "ownerDeletion"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schemaVersion": {
+      "const": "jftrade.stage9.closeout-evidence.v1"
+    },
+    "stage": {
+      "const": 9
+    },
+    "status": {
+      "enum": [
+        "in_progress",
+        "closed"
+      ]
+    },
+    "routeOwnership": {
+      "$ref": "#/$defs/routeOwnership"
+    },
+    "localEvidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allRouteGroups",
+        "uniqueWriteOwner",
+        "platformRelease",
+        "signedUpdaterArtifact",
+        "securityReview",
+        "sbom",
+        "recoveryDrill",
+        "observationWindow"
+      ],
+      "properties": {
+        "allRouteGroups": {
+          "$ref": "#/$defs/gate"
+        },
+        "uniqueWriteOwner": {
+          "$ref": "#/$defs/gate"
+        },
+        "platformRelease": {
+          "$ref": "#/$defs/platformGate"
+        },
+        "signedUpdaterArtifact": {
+          "$ref": "#/$defs/gate"
+        },
+        "securityReview": {
+          "$ref": "#/$defs/gate"
+        },
+        "sbom": {
+          "$ref": "#/$defs/gate"
+        },
+        "recoveryDrill": {
+          "$ref": "#/$defs/gate"
+        },
+        "observationWindow": {
+          "$ref": "#/$defs/gate"
+        }
+      }
+    },
+    "ownerDeletion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "go",
+        "wails"
+      ],
+      "properties": {
+        "go": {
+          "$ref": "#/$defs/ownerDeletion"
+        },
+        "wails": {
+          "$ref": "#/$defs/ownerDeletion"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": [
+        "passed",
+        "open",
+        "blocked"
+      ]
+    },
+    "routeOwnership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baselineOperations",
+        "shadowRoutes",
+        "cutoverTestOnlyRoutes",
+        "remainingRoutes"
+      ],
+      "properties": {
+        "baselineOperations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "shadowRoutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cutoverTestOnlyRoutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "remainingRoutes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "scope",
+        "command",
+        "evidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "evidence"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "next": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package",
+        "signed",
+        "install",
+        "upgrade",
+        "uninstall",
+        "rollback",
+        "runtimeSmoke",
+        "evidence"
+      ],
+      "properties": {
+        "package": {
+          "$ref": "#/$defs/status"
+        },
+        "signed": {
+          "$ref": "#/$defs/status"
+        },
+        "install": {
+          "$ref": "#/$defs/status"
+        },
+        "upgrade": {
+          "$ref": "#/$defs/status"
+        },
+        "uninstall": {
+          "$ref": "#/$defs/status"
+        },
+        "rollback": {
+          "$ref": "#/$defs/status"
+        },
+        "runtimeSmoke": {
+          "$ref": "#/$defs/status"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "platformGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "evidence",
+        "platforms"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "platforms": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/platform"
+          }
+        }
+      }
+    },
+    "ownerDeletion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "evidence",
+        "conditions"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
