@@ -7,9 +7,13 @@ repository.workspace = true
 rust-version.workspace = true
 publish = false
 
+[features]
+rustls-ring-provider = ["dep:rustls"]
+
 [dependencies]
 jftrade-marketdata.workspace = true
 reqwest.workspace = true
+rustls = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

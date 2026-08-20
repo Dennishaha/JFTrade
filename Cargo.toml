@@ -55,9 +55,11 @@ jftrade-trading = { path = "crates/jftrade-trading", version = "=0.1.0" }
 jftrade-watchlist = { path = "crates/jftrade-watchlist", version = "=0.1.0" }
 reqwest = { version = "=0.13.4", default-features = false, features = ["json"] }
 rig-core = { version = "=0.42.0", default-features = false }
+prost = "=0.14.4"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled"] }
+rustls = { version = "=0.23.43", default-features = false, features = ["ring", "std"] }
 sha1 = { version = "=0.11.0", default-features = false }
 sha2 = { version = "=0.11.0", default-features = false }
 thiserror = "=2.0.20"
@@ -66,6 +68,8 @@ tokio = { version = "=1.53.1", features = ["io-util", "macros", "net", "process"
 tokio-stream = { version = "=0.1.19", features = ["net"] }
 tonic = "=0.14.6"
 tonic-health = "=0.14.6"
+tonic-prost = "=0.14.6"
+tonic-prost-build = "=0.14.6"
 tower = { version = "=0.5.3", default-features = false, features = ["util"] }
 tower-http = { version = "=0.7.0", default-features = false, features = ["trace"] }
 tauri = { version = "=2.11.5", default-features = false }

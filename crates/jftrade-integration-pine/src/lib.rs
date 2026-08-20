@@ -11,6 +11,6 @@ pub use pool::{
     PoolError, SessionOperation, WorkerHealth, WorkerPool, WorkerReservation, WorkerSnapshot,
 };
 pub use process::{
-    PineProcess, PineProcessConfig, PineProcessError, PineReadinessPolicy, PineReadinessProbe,
-    WorkerProcessSpec,
+    GrpcPineReadinessProbe, PineProcess, PineProcessConfig, PineProcessError, PineReadinessPolicy,
+    PineReadinessProbe, WorkerProcessSpec,
 };

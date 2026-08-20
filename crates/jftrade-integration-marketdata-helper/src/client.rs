@@ -91,6 +91,7 @@ impl HelperClient {
         if bearer_token.as_ref().is_some_and(|token| token.len() < 32) {
             return Err(HttpAdapterError::WeakToken);
         }
+        install_rustls_provider();
         let client = Client::builder()
             .connect_timeout(config.request_timeout)
             .timeout(config.request_timeout)
@@ -218,6 +219,13 @@ impl HelperClient {
         Err(HttpAdapterError::Unavailable(
             "retry budget exhausted".to_owned(),
         ))
+    }
+}
+
+fn install_rustls_provider() {
+    #[cfg(feature = "rustls-ring-provider")]
+    {
+        let _ = rustls::crypto::ring::default_provider().install_default();
     }
 }
 

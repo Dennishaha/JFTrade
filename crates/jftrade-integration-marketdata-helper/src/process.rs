@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fs::{self, OpenOptions};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -16,8 +17,10 @@ pub struct HelperProcessConfig {
     pub host: IpAddr,
     pub port: u16,
     pub bearer_token: Option<String>,
+    pub prefix_args: Vec<String>,
     pub extra_args: Vec<String>,
     pub environment: BTreeMap<String, String>,
+    pub log_path: Option<PathBuf>,
     pub stop_timeout: Duration,
 }
 
@@ -87,8 +90,10 @@ impl HelperProcess {
             return Err(ProcessError::AlreadyRunning);
         }
         self.state = ProcessState::Starting;
+        let (stdout, stderr) = child_stdio(self.config.log_path.as_deref())?;
         let mut command = Command::new(&self.config.executable);
         command
+            .args(&self.config.prefix_args)
             .arg("--host")
             .arg(self.config.host.to_string())
             .arg("--port")
@@ -96,8 +101,8 @@ impl HelperProcess {
             .args(&self.config.extra_args)
             .envs(&self.config.environment)
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::piped())
+            .stdout(stdout)
+            .stderr(stderr)
             .kill_on_drop(true);
         if let Some(token) = &self.config.bearer_token {
             command.env("JFTRADE_MARKETDATA_HELPER_TOKEN", token);
@@ -166,6 +171,11 @@ impl HelperProcess {
             return Ok(self.snapshot());
         };
         self.state = ProcessState::Stopping;
+        if child.try_wait()?.is_some() {
+            self.state = ProcessState::Stopped;
+            self.last_error = None;
+            return Ok(self.snapshot());
+        }
         child.start_kill()?;
         match tokio::time::timeout(self.config.stop_timeout, child.wait()).await {
             Ok(result) => {
@@ -191,6 +201,15 @@ impl HelperProcess {
         }
     }
 
+    pub fn terminate(&mut self) {
+        if let Some(child) = self.child.as_mut()
+            && child.try_wait().ok().flatten().is_none()
+        {
+            let _ = child.start_kill();
+            self.state = ProcessState::Stopping;
+        }
+    }
+
     fn child_status(&mut self) -> Result<Option<std::process::ExitStatus>, ProcessError> {
         self.child
             .as_mut()
@@ -199,6 +218,24 @@ impl HelperProcess {
             .map_err(ProcessError::Io)
             .map(Option::flatten)
     }
+}
+
+fn child_stdio(log_path: Option<&std::path::Path>) -> Result<(Stdio, Stdio), std::io::Error> {
+    let Some(log_path) = log_path else {
+        return Ok((Stdio::null(), Stdio::null()));
+    };
+    if let Some(directory) = log_path
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+    {
+        fs::create_dir_all(directory)?;
+    }
+    let stderr = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)?;
+    let stdout = stderr.try_clone()?;
+    Ok((Stdio::from(stdout), Stdio::from(stderr)))
 }
 
 fn retry_delay(initial: Duration, maximum: Duration, attempt: u32) -> Duration {
@@ -244,8 +281,10 @@ mod tests {
             host: Ipv4Addr::UNSPECIFIED.into(),
             port: 1,
             bearer_token: None,
+            prefix_args: Vec::new(),
             extra_args: Vec::new(),
             environment: BTreeMap::new(),
+            log_path: None,
             stop_timeout: Duration::from_secs(1),
         };
         assert!(matches!(

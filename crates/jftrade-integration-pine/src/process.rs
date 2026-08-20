@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fs::{self, OpenOptions};
 use std::future::Future;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -8,8 +9,18 @@ use std::time::Duration;
 
 use thiserror::Error;
 use tokio::process::{Child, Command};
+use tonic::Request;
+use tonic::metadata::MetadataValue;
+use tonic::transport::Endpoint;
 
 use crate::pool::WorkerHealth;
+
+mod wire {
+    tonic::include_proto!("jftrade.strategy.pineworker.v1");
+}
+
+use wire::HealthCheckRequest;
+use wire::pine_worker_client::PineWorkerClient;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WorkerProcessSpec {
@@ -33,6 +44,7 @@ pub struct PineProcessConfig {
     pub pine_ts_version: Option<String>,
     pub bearer_token: Option<String>,
     pub environment: BTreeMap<String, String>,
+    pub log_path: Option<PathBuf>,
     pub stop_timeout: Duration,
 }
 
@@ -65,6 +77,77 @@ pub trait PineReadinessProbe {
         &'a self,
         spec: &'a WorkerProcessSpec,
     ) -> Pin<Box<dyn Future<Output = Result<WorkerHealth, String>> + Send + 'a>>;
+}
+
+#[derive(Clone, Debug)]
+pub struct GrpcPineReadinessProbe {
+    bearer_token: Option<String>,
+    connect_timeout: Duration,
+    request_timeout: Duration,
+}
+
+impl GrpcPineReadinessProbe {
+    pub fn new(
+        bearer_token: Option<String>,
+        connect_timeout: Duration,
+        request_timeout: Duration,
+    ) -> Result<Self, PineProcessError> {
+        if bearer_token
+            .as_ref()
+            .is_some_and(|token| token.trim().len() < 32)
+        {
+            return Err(PineProcessError::WeakToken);
+        }
+        Ok(Self {
+            bearer_token: bearer_token.map(|token| token.trim().to_owned()),
+            connect_timeout,
+            request_timeout,
+        })
+    }
+}
+
+impl PineReadinessProbe for GrpcPineReadinessProbe {
+    fn health<'a>(
+        &'a self,
+        spec: &'a WorkerProcessSpec,
+    ) -> Pin<Box<dyn Future<Output = Result<WorkerHealth, String>> + Send + 'a>> {
+        Box::pin(async move {
+            let endpoint = Endpoint::from_shared(format!("http://{}", spec.address()))
+                .map_err(|error| error.to_string())?
+                .connect_timeout(self.connect_timeout)
+                .timeout(self.request_timeout);
+            let channel = endpoint
+                .connect()
+                .await
+                .map_err(|error| error.to_string())?;
+            let mut client = PineWorkerClient::new(channel);
+            let mut request = Request::new(HealthCheckRequest {});
+            if let Some(token) = &self.bearer_token {
+                let authorization = MetadataValue::try_from(format!("Bearer {token}"))
+                    .map_err(|error| error.to_string())?;
+                request
+                    .metadata_mut()
+                    .insert("authorization", authorization);
+            }
+            let response = client
+                .health_check(request)
+                .await
+                .map_err(|error| error.to_string())?
+                .into_inner();
+            if response.worker_id != spec.worker_id {
+                return Err(format!(
+                    "pine worker endpoint identity mismatch: expected {}, received {}",
+                    spec.worker_id, response.worker_id
+                ));
+            }
+            Ok(WorkerHealth {
+                ok: response.ok,
+                version: response.version,
+                pine_ts_version: response.pinets_version,
+                capabilities: response.capabilities,
+            })
+        })
+    }
 }
 
 #[derive(Debug, Error)]
@@ -101,6 +184,7 @@ impl PineProcess {
         config: PineProcessConfig,
     ) -> Result<Self, PineProcessError> {
         validate(&spec, &config)?;
+        let (stdout, stderr) = child_stdio(config.log_path.as_deref())?;
         let mut command = Command::new(&config.runtime);
         command
             .arg(&config.bundle_path)
@@ -110,8 +194,8 @@ impl PineProcess {
             .arg(&spec.worker_id)
             .envs(&config.environment)
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::piped())
+            .stdout(stdout)
+            .stderr(stderr)
             .kill_on_drop(true);
         if let Some(proto_path) = &config.proto_path {
             command.arg("--proto").arg(proto_path);
@@ -173,6 +257,9 @@ impl PineProcess {
     }
 
     pub async fn stop(mut self) -> Result<(), PineProcessError> {
+        if self.child.try_wait()?.is_some() {
+            return Ok(());
+        }
         self.child.start_kill()?;
         match tokio::time::timeout(self.config.stop_timeout, self.child.wait()).await {
             Ok(result) => {
@@ -182,6 +269,30 @@ impl PineProcess {
             Err(_) => Err(PineProcessError::StopTimeout),
         }
     }
+
+    pub fn terminate(&mut self) {
+        if self.child.try_wait().ok().flatten().is_none() {
+            let _ = self.child.start_kill();
+        }
+    }
+}
+
+fn child_stdio(log_path: Option<&std::path::Path>) -> Result<(Stdio, Stdio), std::io::Error> {
+    let Some(log_path) = log_path else {
+        return Ok((Stdio::null(), Stdio::null()));
+    };
+    if let Some(directory) = log_path
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+    {
+        fs::create_dir_all(directory)?;
+    }
+    let stderr = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)?;
+    let stdout = stderr.try_clone()?;
+    Ok((Stdio::from(stdout), Stdio::from(stderr)))
 }
 
 fn validate(spec: &WorkerProcessSpec, config: &PineProcessConfig) -> Result<(), PineProcessError> {
@@ -211,7 +322,59 @@ fn validate(spec: &WorkerProcessSpec, config: &PineProcessConfig) -> Result<(), 
 mod tests {
     use std::net::Ipv4Addr;
 
+    use tokio::net::TcpListener;
+    use tokio::sync::oneshot;
+    use tokio_stream::wrappers::TcpListenerStream;
+    use tonic::{Response, Status};
+
     use super::*;
+    use wire::pine_worker_server::{PineWorker, PineWorkerServer};
+    use wire::{
+        AnalyzeScriptRequest, AnalyzeScriptResponse, HealthCheckResponse, RunScriptRequest,
+        RunScriptResponse,
+    };
+
+    struct TestPineWorker {
+        worker_id: &'static str,
+        token: &'static str,
+    }
+
+    #[tonic::async_trait]
+    impl PineWorker for TestPineWorker {
+        async fn health_check(
+            &self,
+            request: Request<HealthCheckRequest>,
+        ) -> Result<Response<HealthCheckResponse>, Status> {
+            let authorization = request
+                .metadata()
+                .get("authorization")
+                .and_then(|value| value.to_str().ok());
+            if authorization != Some(self.token) {
+                return Err(Status::unauthenticated("invalid token"));
+            }
+            Ok(Response::new(HealthCheckResponse {
+                ok: true,
+                worker_id: self.worker_id.to_owned(),
+                version: "1.0.0".to_owned(),
+                pinets_version: "0.82.4".to_owned(),
+                capabilities: vec!["run".to_owned()],
+            }))
+        }
+
+        async fn analyze_script(
+            &self,
+            _request: Request<AnalyzeScriptRequest>,
+        ) -> Result<Response<AnalyzeScriptResponse>, Status> {
+            Err(Status::unimplemented("test"))
+        }
+
+        async fn run_script(
+            &self,
+            _request: Request<RunScriptRequest>,
+        ) -> Result<Response<RunScriptResponse>, Status> {
+            Err(Status::unimplemented("test"))
+        }
+    }
 
     #[test]
     fn validates_loopback_worker_boundary_before_spawn() {
@@ -228,6 +391,7 @@ mod tests {
             pine_ts_version: None,
             bearer_token: None,
             environment: BTreeMap::new(),
+            log_path: None,
             stop_timeout: Duration::from_secs(1),
         };
         assert!(matches!(
@@ -251,5 +415,46 @@ mod tests {
         assert_eq!(backoff.retry_delay(1), Duration::from_millis(50));
         assert_eq!(backoff.retry_delay(2), Duration::from_millis(100));
         assert_eq!(backoff.retry_delay(20), Duration::from_millis(100));
+    }
+
+    #[tokio::test]
+    async fn grpc_probe_authenticates_and_rejects_endpoint_identity_mismatch() {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+            .await
+            .expect("listener");
+        let address = listener.local_addr().expect("address");
+        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            tonic::transport::Server::builder()
+                .add_service(PineWorkerServer::new(TestPineWorker {
+                    worker_id: "pineworker-1",
+                    token: "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                }))
+                .serve_with_incoming_shutdown(TcpListenerStream::new(listener), async {
+                    let _ = shutdown_rx.await;
+                })
+                .await
+        });
+        let probe = GrpcPineReadinessProbe::new(
+            Some("a".repeat(32)),
+            Duration::from_secs(1),
+            Duration::from_secs(1),
+        )
+        .expect("probe");
+        let mut spec = WorkerProcessSpec {
+            worker_id: "pineworker-1".to_owned(),
+            host: address.ip(),
+            port: address.port(),
+        };
+        let health = probe.health(&spec).await.expect("health");
+        assert!(health.ok);
+        assert_eq!(health.version, "1.0.0");
+        assert_eq!(health.pine_ts_version, "0.82.4");
+
+        spec.worker_id = "wrong-worker".to_owned();
+        let error = probe.health(&spec).await.expect_err("identity mismatch");
+        assert!(error.contains("endpoint identity mismatch"));
+        let _ = shutdown_tx.send(());
+        server.await.expect("join server").expect("serve");
     }
 }
