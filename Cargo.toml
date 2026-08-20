@@ -15,6 +15,7 @@ members = [
   "crates/jftrade-marketdata",
   "crates/jftrade-research",
   "crates/jftrade-settings",
+  "crates/jftrade-store-settings-file",
   "crates/jftrade-store-sqlite",
   "crates/jftrade-strategy",
   "crates/jftrade-trading",
@@ -29,7 +30,10 @@ repository = "https://github.com/jftrade/jftrade-main"
 rust-version = "1.97.1"
 
 [workspace.dependencies]
+argon2 = { version = "=0.5.3", default-features = false, features = ["alloc", "password-hash"] }
 axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "matched-path", "original-uri", "query", "tokio", "ws"] }
+base64 = { version = "=0.23.1", default-features = false, features = ["alloc"] }
+getrandom = "=0.4.3"
 http-body-util = "=0.1.5"
 jftrade-api = { path = "crates/jftrade-api", version = "=0.1.0" }
 jftrade-assistant = { path = "crates/jftrade-assistant", version = "=0.1.0" }
@@ -44,6 +48,7 @@ jftrade-kernel = { path = "crates/jftrade-kernel", version = "=0.1.0" }
 jftrade-marketdata = { path = "crates/jftrade-marketdata", version = "=0.1.0" }
 jftrade-research = { path = "crates/jftrade-research", version = "=0.1.0" }
 jftrade-settings = { path = "crates/jftrade-settings", version = "=0.1.0" }
+jftrade-store-settings-file = { path = "crates/jftrade-store-settings-file", version = "=0.1.0" }
 jftrade-strategy = { path = "crates/jftrade-strategy", version = "=0.1.0" }
 jftrade-trading = { path = "crates/jftrade-trading", version = "=0.1.0" }
 jftrade-watchlist = { path = "crates/jftrade-watchlist", version = "=0.1.0" }
@@ -63,6 +68,7 @@ tonic-health = "=0.14.6"
 tower = { version = "=0.5.3", default-features = false, features = ["util"] }
 tower-http = { version = "=0.7.0", default-features = false, features = ["trace"] }
 tauri = { version = "=2.11.5", default-features = false }
+tempfile = "=3.27.0"
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", features = ["env-filter", "fmt"] }
 

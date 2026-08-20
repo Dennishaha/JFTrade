@@ -1,7 +1,79 @@
 #![forbid(unsafe_code)]
 
+mod appearance;
+mod assistant_runtime;
+mod broker;
+mod exchange_calendar;
+mod execution;
+mod futu_install;
+mod market_data_provider;
+mod mcp_server;
+mod notifications;
+mod onboarding;
+mod password_hash;
+mod pine_worker;
+mod security;
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+pub use appearance::{
+    AppearanceService, SettingsStoreError, SettingsStorePort, UiAppearanceSettings,
+    normalize_appearance,
+};
+pub use assistant_runtime::{
+    AssistantRuntimeService, AssistantRuntimeSettings, AssistantRuntimeSettingsStorePort,
+    normalize_assistant_runtime_settings,
+};
+pub use broker::{
+    BrokerIntegration, BrokerSettingsError, BrokerSettingsInputs, BrokerSettingsService,
+    BrokerSettingsStorePort, FutuIntegrationConfig, ManagedBrokerAccount, build_managed_account_id,
+    normalize_futu_integration_config, normalize_managed_broker_account,
+    same_managed_account_scope,
+};
+pub use exchange_calendar::{
+    ExchangeCalendarManualOverride, ExchangeCalendarSessionWindow, ExchangeCalendarSettings,
+    ExchangeCalendarSettingsService, ExchangeCalendarSettingsStorePort,
+    ExchangeCalendarSourcePolicy, normalize_exchange_calendar_settings,
+};
+pub use execution::{
+    ExecutionService, ExecutionSettings, ExecutionSettingsStorePort, normalize_execution_settings,
+};
+pub use futu_install::{
+    FutuOpenDInstallSettings, FutuOpenDInstallSettingsService, FutuOpenDInstallSettingsStorePort,
+};
+pub use market_data_provider::{
+    BacktestMarketDataProviderSettingsService, BacktestMarketDataProviderSettingsStorePort,
+    MarketDataProvider, MarketDataProviderRuntimePort, MarketDataProviderSettingsError,
+    MarketDataProviderSettingsService, MarketDataProviderSettingsStorePort,
+    normalize_market_data_provider, parse_market_data_provider, provider_id,
+};
+pub use mcp_server::{
+    DEFAULT_MCP_SERVER_PORT, McpServerRuntimePort, McpServerSecretPort, McpServerSettings,
+    McpServerSettingsError, McpServerSettingsRecord, McpServerSettingsService,
+    McpServerSettingsSnapshot, McpServerSettingsStorePort, McpServerSettingsUpdate,
+    McpServerStatus, McpServerTokenResetResult, SystemMcpServerSecrets,
+    normalize_mcp_server_settings, verify_mcp_server_token,
+};
+pub use notifications::{
+    SystemNotificationService, SystemNotificationSettings, SystemNotificationSettingsStorePort,
+    normalize_system_notification_settings, should_forward_system_notification,
+};
+pub use onboarding::{
+    OnboardingInputs, OnboardingReadiness, OnboardingReason, OnboardingSettings,
+    OnboardingSettingsService, OnboardingSettingsStorePort, OnboardingWriteRequest,
+    normalize_onboarding_settings,
+};
+pub use pine_worker::{
+    PineWorkerSettings, PineWorkerSettingsService, PineWorkerSettingsStorePort,
+    normalize_executable_path, normalize_pine_worker_settings,
+};
+pub use security::{
+    DEFAULT_WEB_ACCESS_PORT, SecurityPasswordPort, SecurityRuntimePort, SecuritySettings,
+    SecuritySettingsError, SecuritySettingsRecord, SecuritySettingsService,
+    SecuritySettingsStorePort, SecuritySettingsUpdate, SystemSecurityPasswords,
+    normalize_security_settings, verify_web_access_password,
+};
 
 pub const MIN_WEB_ACCESS_PASSWORD_CHARS: usize = 15;
 pub const MAX_WEB_ACCESS_PASSWORD_BYTES: usize = 1024;
