@@ -1,0 +1,88 @@
+{
+  "version": "stage9.broker-settings-read.v1",
+  "cases": [
+    {
+      "name": "missing-integration-and-accounts",
+      "document": {}
+    },
+    {
+      "name": "saved-integration-preserves-authenticated-wire",
+      "document": {
+        "integration": {
+          "brokerId": "futu",
+          "enabled": true,
+          "config": {
+            "type": "futu",
+            "host": "10.0.0.8",
+            "apiPort": 21110,
+            "websocketPort": 21111,
+            "maxWebSocketConnections": 7,
+            "useEncryption": false,
+            "websocketKey": "fixture-secret",
+            "tradeMarket": "US",
+            "securityFirm": "FUTUSECURITIES"
+          },
+          "updatedAt": "2026-08-20T03:00:00Z",
+          "createdAt": "2026-08-20T02:00:00Z"
+        },
+        "accounts": [
+          {
+            "id": "managed-1",
+            "brokerId": "futu",
+            "accountId": "ACC-1",
+            "displayName": "Primary",
+            "tradingEnvironment": "REAL",
+            "market": "US",
+            "securityFirm": "FUTUSECURITIES",
+            "enabled": true,
+            "updatedAt": "2026-08-20T03:00:00Z",
+            "createdAt": "2026-08-20T02:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "legacy-partial-records-remain-visible",
+      "document": {
+        "integration": {"enabled": true},
+        "accounts": [{"enabled": true}]
+      }
+    },
+    {
+      "name": "disabled-zero-config-and-null-security-firm",
+      "document": {
+        "integration": {
+          "brokerId": "legacy-futu",
+          "enabled": false,
+          "config": {
+            "type": "",
+            "host": "",
+            "apiPort": 0,
+            "websocketPort": 0,
+            "maxWebSocketConnections": 0,
+            "useEncryption": true,
+            "websocketKey": "  ",
+            "tradeMarket": "",
+            "securityFirm": ""
+          },
+          "updatedAt": "",
+          "createdAt": ""
+        },
+        "accounts": [
+          {
+            "id": "managed-2",
+            "brokerId": "futu",
+            "accountId": "ACC-2",
+            "displayName": "",
+            "tradingEnvironment": "SIMULATE",
+            "market": "HK",
+            "securityFirm": null,
+            "enabled": false,
+            "updatedAt": "",
+            "createdAt": ""
+          }
+        ]
+      }
+    }
+  ]
+}

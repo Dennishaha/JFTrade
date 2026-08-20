@@ -14,6 +14,11 @@ use tonic::{Request, Status};
 use tonic_health::ServingStatus;
 use tonic_health::server::health_reporter;
 
+pub mod product;
+mod product_data_management;
+pub mod product_runtime;
+mod real_trade_control;
+mod runtime_dependencies;
 pub mod stage4;
 pub mod stage5;
 pub mod stage6;

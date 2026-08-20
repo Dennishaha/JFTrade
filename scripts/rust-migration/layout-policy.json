@@ -57,7 +57,7 @@
       "rustOwner": "jftrade-datamanagement",
       "cutover": "jftrade-engine supplies per-store maintenance ports and preserves preview/execute fencing",
       "goDeleteWhen": "all cleanup classes, active-owner guards, backup/recovery and destructive-operation audits pass with Rust as sole owner",
-      "allowedWorkspaceDependencies": []
+      "allowedWorkspaceDependencies": ["jftrade-kernel"]
     },
     {
       "name": "jftrade-research",
@@ -189,7 +189,7 @@
       "rustOwner": "jftrade-integration-futu",
       "cutover": "jftrade-engine injects the OpenD adapter into jftrade-marketdata and jftrade-trading while preserving one command owner",
       "goDeleteWhen": "OpenD frame/protobuf mapping, quote and trade login, push recovery and explicit live workflows pass before the Go adapter is removed",
-      "allowedWorkspaceDependencies": ["jftrade-kernel", "jftrade-marketdata", "jftrade-trading"]
+      "allowedWorkspaceDependencies": ["jftrade-broker", "jftrade-kernel", "jftrade-marketdata", "jftrade-trading"]
     },
     {
       "name": "jftrade-engine",
@@ -213,6 +213,8 @@
         "jftrade-marketdata",
         "jftrade-research",
         "jftrade-settings",
+        "jftrade-store-settings-file",
+        "jftrade-store-sqlite",
         "jftrade-strategy",
         "jftrade-trading",
         "jftrade-watchlist"
@@ -243,16 +245,28 @@
       "allowedWorkspaceDependencies": ["jftrade-kernel"]
     },
     {
+      "name": "jftrade-store-settings-file",
+      "path": "crates/jftrade-store-settings-file",
+      "stage": 9,
+      "status": "active",
+      "layer": "adapter",
+      "goOwner": "internal/store/settingsfile JSON settings persistence and atomic platform replacement",
+      "rustOwner": "jftrade-store-settings-file",
+      "cutover": "jftrade-engine injects this adapter into jftrade-settings and keeps the existing settings.json path and shape",
+      "goDeleteWhen": "all settings fields preserve unknown data, permissions, atomic replacement, rollback and cross-platform round-trip behavior with Rust as sole settings writer",
+      "allowedWorkspaceDependencies": ["jftrade-settings"]
+    },
+    {
       "name": "jftrade-store-sqlite",
       "path": "crates/jftrade-store-sqlite",
       "stage": 2,
       "status": "active",
       "layer": "adapter",
-      "goOwner": "internal/store and internal/store/sqliteconn",
+      "goOwner": "internal/store, internal/store/sqliteconn, internal/store/sqliteschema and the datamigration read overview",
       "rustOwner": "jftrade-store-sqlite",
-      "cutover": "per-capability persistence ports assembled by jftrade-engine; stage 2 remains read-only",
+      "cutover": "per-capability persistence ports assembled by jftrade-engine; stage 9 data-management overview remains strict read-only while all SQLite writes stay in Go",
       "goDeleteWhen": "each capability has a single Rust write owner, migration/rollback evidence, and no Go query or migration consumer",
-      "allowedWorkspaceDependencies": ["jftrade-kernel"]
+      "allowedWorkspaceDependencies": ["jftrade-datamanagement", "jftrade-kernel"]
     }
   ]
 }

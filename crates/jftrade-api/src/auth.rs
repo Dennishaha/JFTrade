@@ -75,7 +75,7 @@ pub fn canonical_origin(value: &str) -> Option<String> {
     let (scheme, rest) = value.split_once("://")?;
     if !matches!(
         scheme.to_ascii_lowercase().as_str(),
-        "http" | "https" | "wails"
+        "http" | "https" | "tauri" | "wails"
     ) {
         return None;
     }
@@ -162,6 +162,10 @@ mod tests {
             Some("https://example.com".into())
         );
         assert_eq!(canonical_origin("file://host/path"), None);
+        assert_eq!(
+            canonical_origin("tauri://localhost/index.html"),
+            Some("tauri://localhost".into())
+        );
         assert_eq!(canonical_origin("not-an-origin"), None);
     }
 }

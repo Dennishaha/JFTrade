@@ -15,6 +15,8 @@ pub struct ApiRequest {
     pub query: String,
     pub body: Vec<u8>,
     pub request_id: String,
+    #[serde(default)]
+    pub desktop_trusted: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]

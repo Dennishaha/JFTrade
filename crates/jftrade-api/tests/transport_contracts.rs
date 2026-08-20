@@ -96,11 +96,12 @@ async fn desktop_token_reaches_port_with_stable_envelope_and_request_id() {
         port.requests.lock().expect("requests")[0].request_id,
         "request-7"
     );
+    assert!(port.requests.lock().expect("requests")[0].desktop_trusted);
 }
 
 #[tokio::test]
 async fn browser_write_requires_allowed_origin_and_csrf() {
-    let (router, _) = fixture();
+    let (router, port) = fixture();
     let request = |csrf: Option<&str>| {
         let mut builder = Request::builder()
             .method(Method::PUT)
@@ -122,6 +123,15 @@ async fn browser_write_requires_allowed_origin_and_csrf() {
     assert_eq!(
         accepted.headers()["access-control-allow-origin"],
         "https://jftrade.local"
+    );
+    assert!(
+        !port
+            .requests
+            .lock()
+            .expect("requests")
+            .last()
+            .expect("accepted request")
+            .desktop_trusted
     );
 }
 

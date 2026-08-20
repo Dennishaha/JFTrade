@@ -1750,6 +1750,8 @@ dependencies = [
 name = "jftrade-engine"
 version = "0.1.0"
 dependencies = [
+ "axum",
+ "getrandom 0.4.3",
  "jftrade-api",
  "jftrade-assistant",
  "jftrade-calendar",
@@ -1761,12 +1763,17 @@ dependencies = [
  "jftrade-marketdata",
  "jftrade-research",
  "jftrade-settings",
+ "jftrade-store-settings-file",
+ "jftrade-store-sqlite",
  "jftrade-strategy",
  "jftrade-trading",
  "jftrade-watchlist",
+ "percent-encoding",
+ "rusqlite",
  "serde",
  "serde_json",
  "sha2 0.11.0",
+ "tempfile",
  "thiserror 2.0.20",
  "tokio",
  "tokio-stream",

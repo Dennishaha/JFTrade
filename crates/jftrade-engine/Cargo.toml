@@ -7,7 +7,12 @@ repository.workspace = true
 rust-version.workspace = true
 publish = false
 
+[features]
+desktop-updater-rustls = ["jftrade-integration-marketdata-helper/rustls-ring-provider"]
+
 [dependencies]
+axum.workspace = true
+getrandom.workspace = true
 jftrade-api.workspace = true
 jftrade-assistant.workspace = true
 jftrade-calendar.workspace = true
@@ -19,9 +24,12 @@ jftrade-kernel.workspace = true
 jftrade-marketdata.workspace = true
 jftrade-research.workspace = true
 jftrade-settings.workspace = true
+jftrade-store-settings-file.workspace = true
+jftrade-store-sqlite.workspace = true
 jftrade-strategy.workspace = true
 jftrade-trading.workspace = true
 jftrade-watchlist.workspace = true
+percent-encoding.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
@@ -32,6 +40,10 @@ tonic.workspace = true
 tonic-health.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+
+[dev-dependencies]
+rusqlite.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

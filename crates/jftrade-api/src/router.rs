@@ -214,6 +214,7 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
         .get::<String>()
         .cloned()
         .unwrap_or_default();
+    let desktop_trusted = state.access.desktop_trusted(request.headers());
     let body = match to_bytes(request.into_body(), MAX_BODY_BYTES).await {
         Ok(body) => body.to_vec(),
         Err(_) => {
@@ -229,6 +230,7 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
         query: uri.query().unwrap_or_default().to_owned(),
         body,
         request_id,
+        desktop_trusted,
     };
     match state.port.dispatch(input).await {
         Ok(ApiOutput::Json(value)) => success_response(&state.clock, value),
