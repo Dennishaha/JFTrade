@@ -1,5 +1,19 @@
 #![forbid(unsafe_code)]
 
+mod sources;
+mod status;
+
+pub use sources::{
+    BUILTIN_SOURCE_ID, CalendarSourceDescriptor, CalendarSourceProjection, CalendarSourceStatus,
+    CalendarSourcesSnapshot, MANUAL_OVERRIDE_SOURCE_ID, default_source_descriptors,
+    normalize_source_ids, project_default_sources, project_sources, source_availability_note,
+    source_enabled,
+};
+pub use status::{
+    CalendarMarketStatus, CalendarSampleSchedule, CalendarSampleSession, CalendarSnapshotSummary,
+    CalendarStatusSnapshot,
+};
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
