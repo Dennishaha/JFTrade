@@ -6,8 +6,11 @@ use thiserror::Error;
 pub mod contract;
 pub mod lifecycle;
 pub mod links;
+pub mod native;
 pub mod profile;
+mod resource_integrity;
 pub mod tauri_adapter;
+mod window_state;
 
 use contract::{
     DESKTOP_COMMANDS, DESKTOP_LOG_APPEND_EVENT, DESKTOP_MENU_SETTINGS_EVENT,
@@ -21,6 +24,7 @@ use profile::{DesktopChannel, DesktopProfile, PlatformPaths, ProfileError};
 
 pub const STAGE8_CONTRACT_VERSION: &str = "stage8.v1";
 pub const TAURI_CRATE_VERSION: &str = "2.11.5";
+pub const TAURI_UPDATER_CRATE_VERSION: &str = "2.10.1";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

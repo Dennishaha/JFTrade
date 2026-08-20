@@ -1,5 +1,6 @@
 use jftrade_desktop::contract::{
     DESKTOP_COMMANDS, DESKTOP_LOG_APPEND_EVENT, DESKTOP_UPDATE_AVAILABLE_EVENT,
+    STAGE9_DESKTOP_COMMANDS,
 };
 use jftrade_desktop::lifecycle::{
     LifecycleAction, LifecycleError, ProcessRole, ProcessSupervisor, ReleaseAsset, RuntimePlan,
@@ -156,6 +157,7 @@ fn frontend_facade_contract_names_are_versioned_in_one_place() {
     assert_eq!(DESKTOP_COMMANDS.len(), 10);
     assert!(DESKTOP_COMMANDS.contains(&"desktop_startup_snapshot"));
     assert!(DESKTOP_COMMANDS.contains(&"desktop_window_open_logs"));
+    assert_eq!(STAGE9_DESKTOP_COMMANDS, ["desktop_update_install"]);
     assert_eq!(DESKTOP_LOG_APPEND_EVENT, "jftrade:desktop-log:append");
     assert_eq!(
         DESKTOP_UPDATE_AVAILABLE_EVENT,

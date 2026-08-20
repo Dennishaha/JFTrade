@@ -39,8 +39,19 @@ test("Stage 8 configuration requires a CSP and every facade contract", () => {
   const config = {
     identifier: "com.jftrade.desktop",
     build: { frontendDist: "../../web/dist" },
-    bundle: { active: false },
-    app: { security: { csp: { "connect-src": "ipc: http://ipc.localhost" } } },
+    bundle: {
+      active: true,
+      resources: {
+        "../../../var/tauri-runtime/": "runtime/node",
+        "../../../internal/pineworkerassets/assets/bin/worker.mjs": "runtime/pineworker/worker.mjs",
+        "../../../pkg/strategy/pineworker/proto/": "runtime/pineworker/proto",
+        "../../../internal/marketdataassets/assets/bin/": "runtime/marketdata",
+      },
+    },
+    app: {
+      windows: [{ visible: false }],
+      security: { csp: { "connect-src": "ipc: http://ipc.localhost" } },
+    },
   };
   const contracts = [...minimal.commands, ...minimal.events].join("\n");
   assert.doesNotThrow(() => assertStage8Configuration(config, contracts, minimal));

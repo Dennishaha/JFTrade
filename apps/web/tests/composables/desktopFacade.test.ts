@@ -95,6 +95,7 @@ describe("desktopFacade", () => {
     await desktopFacade.logs.readPage("2026-08-19", "WARN", "timeout", 20, 50);
     await desktopFacade.logs.openFolder();
     await desktopFacade.updates.check();
+    await desktopFacade.updates.install();
     await desktopFacade.windows.showMain();
     await desktopFacade.windows.hideMain();
     await desktopFacade.windows.openLogs();
@@ -116,6 +117,7 @@ describe("desktopFacade", () => {
       ],
       ["desktop_log_open_folder", undefined],
       ["desktop_update_check", undefined],
+      ["desktop_update_install", undefined],
       ["desktop_window_show_main", undefined],
       ["desktop_window_hide_main", undefined],
       ["desktop_window_open_logs", undefined],
@@ -169,6 +171,9 @@ describe("desktopFacade", () => {
     await desktopFacade.logs.readPage("2026-08-19", "ALL", "", 0, 200);
     await desktopFacade.logs.openFolder();
     await desktopFacade.updates.check();
+    await expect(desktopFacade.updates.install()).rejects.toThrow(
+      "desktop facade is unavailable for install updates",
+    );
     expect(mocks.wailsSnapshot).toHaveBeenCalledOnce();
     expect(mocks.wailsQuit).toHaveBeenCalledOnce();
     expect(mocks.wailsOpen).toHaveBeenCalledWith("https://example.com");
@@ -217,6 +222,7 @@ describe("desktopFacade", () => {
       desktopFacade.logs.readPage("2026-08-19", "ALL", "", 0, 200),
       desktopFacade.logs.openFolder(),
       desktopFacade.updates.check(),
+      desktopFacade.updates.install(),
       desktopFacade.windows.showMain(),
       desktopFacade.windows.hideMain(),
       desktopFacade.windows.openLogs(),

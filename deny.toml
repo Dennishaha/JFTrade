@@ -15,6 +15,7 @@ ignore = [
   # disabled. None is a vulnerability/unsound advisory. Keep IDs explicit and
   # remove them when the official Tauri graph no longer resolves the crates.
   { id = "RUSTSEC-2024-0370", reason = "transitive through official Tauri Linux GTK3 support" },
+  { id = "RUSTSEC-2024-0411", reason = "transitive through official Tauri Linux tray support" },
   { id = "RUSTSEC-2024-0412", reason = "transitive through official Tauri Linux GTK3 support" },
   { id = "RUSTSEC-2024-0413", reason = "transitive through official Tauri Linux GTK3 support" },
   { id = "RUSTSEC-2024-0415", reason = "transitive through official Tauri Linux GTK3 support" },
@@ -44,8 +45,14 @@ exceptions = [
   { crate = "dtoa-short@0.3.5", allow = ["MPL-2.0"] },
   { crate = "option-ext@0.2.0", allow = ["MPL-2.0"] },
   { crate = "selectors@0.36.1", allow = ["MPL-2.0"] },
+  { crate = "foldhash@0.1.5", allow = ["Zlib"] },
   { crate = "foldhash@0.2.0", allow = ["Zlib"] },
+  { crate = "libloading@0.7.4", allow = ["ISC"] },
+  # Exact rustls signing/TLS graph used by the official Tauri updater.
+  { crate = "ring@0.17.14", allow = ["ISC"] },
+  { crate = "rustls-webpki@0.103.14", allow = ["ISC"] },
   { crate = "target-lexicon@0.12.16", allow = ["Apache-2.0 WITH LLVM-exception"] },
+  { crate = "untrusted@0.9.0", allow = ["ISC"] },
 ]
 
 [bans]

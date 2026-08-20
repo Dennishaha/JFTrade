@@ -217,6 +217,8 @@ export default defineConfig({
     // Vuetify auto-import entries in the initial bundle to avoid cold-start
     // requests racing Vite's dependency optimizer.
     include: [
+      "@tauri-apps/api/core",
+      "@tauri-apps/api/event",
       "@tanstack/vue-query",
       "@vue-flow/background",
       "@vue-flow/controls",
@@ -233,10 +235,12 @@ export default defineConfig({
       "vuetify/components/VIcon",
       "vuetify/components/VList",
       "vuetify/components/VMenu",
+      "vuetify/components/VPagination",
       "vuetify/components/VProgressCircular",
       "vuetify/components/VProgressLinear",
       "vuetify/components/VSelect",
       "vuetify/components/VSwitch",
+      "vuetify/components/VTable",
       "vuetify/components/VTextField",
       "vuetify/components/VTextarea",
       "vuetify/iconsets/fa",

@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.jftrade.desktop",
   "build": {
-    "beforeDevCommand": "pnpm --dir ../../.. run prepare:desktop-dev",
+    "beforeDevCommand": "node ../../scripts/dev-tauri-frontend.mjs",
     "devUrl": "http://127.0.0.1:3003",
-    "beforeBuildCommand": "pnpm --dir ../../.. run prepare:desktop-release",
+    "beforeBuildCommand": "pnpm --dir ../.. run check:tauri-release-runtime",
     "frontendDist": "../../web/dist"
   },
   "app": {
@@ -18,7 +18,8 @@
         "height": 820,
         "minWidth": 960,
         "minHeight": 640,
-        "visible": true
+        "useHttpsScheme": false,
+        "visible": false
       }
     ],
     "security": {
@@ -31,7 +32,23 @@
       }
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": ""
+    }
+  },
   "bundle": {
-    "active": false
+    "active": true,
+    "resources": {
+      "../../../var/tauri-runtime/": "runtime/node",
+      "../../../internal/pineworkerassets/assets/bin/worker.mjs": "runtime/pineworker/worker.mjs",
+      "../../../pkg/strategy/pineworker/proto/": "runtime/pineworker/proto",
+      "../../../internal/marketdataassets/assets/bin/": "runtime/marketdata"
+    },
+    "icon": [
+      "../../../build/desktop/appicon.png",
+      "../../../build/desktop/darwin/icons.icns",
+      "../../../build/desktop/windows/icon.ico"
+    ]
   }
 }

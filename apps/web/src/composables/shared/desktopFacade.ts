@@ -199,6 +199,12 @@ export const desktopFacade = {
       }
       throw unavailable("check updates");
     },
+    async install(): Promise<void> {
+      if (resolveDesktopBackend() === "tauri") {
+        return tauriInvoke("desktop_update_install");
+      }
+      throw unavailable("install updates");
+    },
     onAvailable(
       listener: (payload: DesktopUpdateResult) => void,
     ): Promise<DesktopUnlisten> {

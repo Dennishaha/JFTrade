@@ -1,9 +1,36 @@
-type JFTradeRuntimeConfig = {
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+
+export type JFTradeRuntimeConfig = {
   apiBaseUrl?: string;
   authRequired?: boolean;
   desktopMode?: boolean;
   desktopApiToken?: string;
 };
+
+export async function initializeTauriRuntimeConfig(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const runtimeWindow = window as typeof window & {
+    __TAURI_INTERNALS__?: unknown;
+  };
+  if (
+    runtimeWindow.__TAURI_INTERNALS__ == null ||
+    window.__JFTRADE_RUNTIME_CONFIG__?.desktopMode === true
+  ) {
+    return;
+  }
+  const config = await tauriInvoke<JFTradeRuntimeConfig>("desktop_runtime_config");
+  const apiBaseUrl = normalizeApiBaseUrl(config.apiBaseUrl);
+  const token = config.desktopApiToken?.trim();
+  if (!isLoopbackHttpUrl(apiBaseUrl) || !token || token.length < 32) {
+    throw new Error("Tauri runtime returned an unsafe desktop API configuration");
+  }
+  window.__JFTRADE_RUNTIME_CONFIG__ = {
+    apiBaseUrl,
+    authRequired: true,
+    desktopMode: true,
+    desktopApiToken: token,
+  };
+}
 
 declare global {
   interface Window {
@@ -18,6 +45,24 @@ const buildTimeApiBaseUrl = (
 function normalizeApiBaseUrl(value: string | null | undefined): string | null {
   const trimmedValue = value?.trim().replace(/\/$/, "");
   return trimmedValue ? trimmedValue : null;
+}
+
+function isLoopbackHttpUrl(value: string | null): value is string {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "http:" &&
+      (url.hostname === "127.0.0.1" || url.hostname === "[::1]") &&
+      url.username === "" &&
+      url.password === "" &&
+      url.pathname === "/" &&
+      url.search === "" &&
+      url.hash === ""
+    );
+  } catch {
+    return false;
+  }
 }
 
 function resolveRuntimeApiBaseUrl(): string | null {

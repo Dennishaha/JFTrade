@@ -47,7 +47,16 @@ export function assertStage8Equivalent(actual, expected) {
 export function assertStage8Configuration(config, facadeSource, expected) {
   assert.equal(config.identifier, "com.jftrade.desktop");
   assert.equal(config.build.frontendDist, "../../web/dist");
-  assert.equal(config.bundle.active, false, "native packaging must remain disabled during shadow");
+  assert.equal(config.bundle.active, true, "Stage 9 release candidate must keep native packaging enabled");
+  assert.equal(config.app.windows[0].visible, false, "native window must remain hidden until the runtime is ready");
+  for (const resource of [
+    "../../../var/tauri-runtime/",
+    "../../../internal/pineworkerassets/assets/bin/worker.mjs",
+    "../../../pkg/strategy/pineworker/proto/",
+    "../../../internal/marketdataassets/assets/bin/",
+  ]) {
+    assert.ok(config.bundle.resources[resource], `Stage 9 release resource is missing: ${resource}`);
+  }
   assert.notEqual(config.app.security.csp, null, "Tauri CSP must fail closed");
   assert.match(config.app.security.csp["connect-src"], /ipc:/);
   for (const contractName of [...expected.commands, ...expected.events]) {

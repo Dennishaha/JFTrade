@@ -1,17 +1,35 @@
 [package]
 name = "jftrade-desktop"
 version = "0.1.0"
+default-run = "jftrade-desktop"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-jftrade-engine.workspace = true
+getrandom.workspace = true
+jiff.workspace = true
+jftrade-engine = { workspace = true, features = ["desktop-updater-rustls"] }
 serde.workspace = true
 serde_json.workspace = true
-tauri.workspace = true
+sha2.workspace = true
+tauri = { workspace = true, features = ["tray-icon", "wry"] }
+tauri-plugin-opener.workspace = true
+tauri-plugin-notification.workspace = true
+tauri-plugin-single-instance.workspace = true
+tauri-plugin-updater.workspace = true
 thiserror.workspace = true
+time.workspace = true
+tokio.workspace = true
+tempfile.workspace = true
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[[bin]]
+name = "jftrade-desktop"
+path = "src/main.rs"
 
 [[bin]]
 name = "jftrade-stage8-shadow"

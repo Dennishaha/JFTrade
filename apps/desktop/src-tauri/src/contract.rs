@@ -1,4 +1,6 @@
 use std::fmt;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -20,6 +22,17 @@ pub const DESKTOP_COMMANDS: [&str; 10] = [
     "desktop_window_hide_main",
     "desktop_window_open_logs",
 ];
+
+pub const STAGE9_DESKTOP_COMMANDS: [&str; 1] = ["desktop_update_install"];
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DesktopRuntimeConfig {
+    pub api_base_url: String,
+    pub auth_required: bool,
+    pub desktop_mode: bool,
+    pub desktop_api_token: String,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -94,6 +107,7 @@ impl fmt::Display for DesktopFailure {
 impl std::error::Error for DesktopFailure {}
 
 pub trait DesktopPort: Send + Sync {
+    fn runtime_config(&self) -> Result<DesktopRuntimeConfig, DesktopFailure>;
     fn startup_snapshot(&self) -> Result<DesktopStartupSnapshot, DesktopFailure>;
     fn startup_quit(&self) -> Result<(), DesktopFailure>;
     fn open_link(&self, link: &str) -> Result<(), DesktopFailure>;
@@ -107,11 +121,15 @@ pub trait DesktopPort: Send + Sync {
         limit: usize,
     ) -> Result<DesktopLogPage, DesktopFailure>;
     fn log_open_folder(&self) -> Result<(), DesktopFailure>;
-    fn update_check(&self) -> Result<DesktopUpdateResult, DesktopFailure>;
+    fn update_check(&self) -> DesktopFuture<DesktopUpdateResult>;
+    fn update_install(&self) -> DesktopFuture<()>;
     fn window_show_main(&self) -> Result<(), DesktopFailure>;
     fn window_hide_main(&self) -> Result<(), DesktopFailure>;
     fn window_open_logs(&self) -> Result<(), DesktopFailure>;
 }
+
+pub type DesktopFuture<T> =
+    Pin<Box<dyn Future<Output = Result<T, DesktopFailure>> + Send + 'static>>;
 
 #[derive(Clone)]
 pub struct DesktopFacade {
