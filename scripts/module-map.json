@@ -29,7 +29,12 @@
         "rust-toolchain.toml",
         "apps/desktop/src-tauri",
         "crates",
+        "scripts/dev-tauri-frontend.mjs",
+        "scripts/lib/tauri-runtime.mjs",
+        "scripts/prepare-tauri-release-runtime.mjs",
+        "scripts/run-tauri.mjs",
         "scripts/rust-migration",
+        "scripts/smoke-tauri-release.mjs",
         "tests/fixtures/rust-migration"
       ],
       "entrypoints": [
@@ -61,6 +66,7 @@
         "node --test scripts/rust-migration/check-stage9-closeout.test.mjs",
         "pnpm run test:rust:stage9:route-coverage",
         "pnpm run test:rust:stage9:product-differential",
+        "pnpm run test:tauri-release-runtime",
         "go test ./scripts/rust-migration -count=1"
       ],
       "vetPackages": []

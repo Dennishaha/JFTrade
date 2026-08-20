@@ -10,6 +10,8 @@
   "scripts": {
     "audit:dependencies": "pnpm audit --audit-level=moderate",
     "dev:web": "pnpm --filter @jftrade/web run dev",
+    "dev:desktop:tauri": "node scripts/run-tauri.mjs dev",
+    "build:desktop:tauri": "node scripts/run-tauri.mjs build",
     "dev:docs": "pnpm --filter @jftrade/web run docs:dev",
     "dev:all": "node scripts/dev-all.mjs",
     "desktop:dev": "go tool wails3 dev -config ./build/config.yml -port 3003",
@@ -35,6 +37,8 @@
     "run:rust:stage3:owner": "node scripts/rust-migration/run-backtest-owner.mjs",
     "run:rust:product": "cargo run -p jftrade-engine --bin jftrade-api-rust",
     "prepare:desktop-release": "node scripts/prepare-desktop-release.mjs",
+    "prepare:tauri-release": "pnpm run prepare:desktop-release && node scripts/prepare-tauri-release-runtime.mjs",
+    "check:tauri-release-runtime": "node scripts/prepare-tauri-release-runtime.mjs --check",
     "build:frontend-assets": "pnpm run generate:docs && pnpm run build:frontend-assets:generated",
     "build:frontend-assets:generated": "node scripts/build-frontend-assets.mjs",
     "build:pineworker": "node scripts/build-pineworker-assets.mjs",
@@ -42,6 +46,7 @@
     "build:marketdata-sidecar": "node scripts/build-marketdata-sidecar.mjs",
     "build:yfinance-sidecar": "pnpm run build:marketdata-sidecar",
     "smoke:marketdata-sidecar": "node scripts/smoke-marketdata-sidecar.mjs",
+    "smoke:tauri-release": "node scripts/smoke-tauri-release.mjs",
     "smoke:yfinance-sidecar": "pnpm run smoke:marketdata-sidecar",
     "dev:api:pineworker": "node scripts/dev-api-pineworker.mjs",
     "check:pinets-release": "node scripts/check-pinets-release.mjs",
@@ -59,6 +64,7 @@
     "test:pinets-release-check": "node scripts/check-pinets-release.test.mjs",
     "test:pineworker-asset-build": "node scripts/build-pineworker-assets.test.mjs",
     "test:pineworker-dev-build": "node scripts/build-pineworker-dev.test.mjs",
+    "test:tauri-release-runtime": "node --test scripts/prepare-tauri-release-runtime.test.mjs scripts/smoke-tauri-release.test.mjs scripts/lib/tauri-runtime.test.mjs",
     "test:marketdata-sidecar-asset-build": "node scripts/build-marketdata-sidecar.test.mjs",
     "test:yfinance-sidecar-asset-build": "pnpm run test:marketdata-sidecar-asset-build",
     "test:marketdata-sidecar-smoke": "node --test scripts/smoke-marketdata-sidecar.test.mjs",
@@ -132,6 +138,7 @@
     "typecheck": "pnpm run typecheck:web && pnpm run typecheck:web-contracts && pnpm run typecheck:pineworker"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
     "mermaid": "^11.16.1",
     "typescript": "^7.0.2",
     "vitepress": "2.0.0-alpha.18",
