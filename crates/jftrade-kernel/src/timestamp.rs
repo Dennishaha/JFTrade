@@ -11,6 +11,10 @@ use crate::CodecError;
 pub struct WireTimestamp(OffsetDateTime);
 
 impl WireTimestamp {
+    pub const fn from_offset_datetime(value: OffsetDateTime) -> Self {
+        Self(value)
+    }
+
     pub const fn into_inner(self) -> OffsetDateTime {
         self.0
     }

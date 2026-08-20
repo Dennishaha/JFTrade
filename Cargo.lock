@@ -1699,6 +1699,7 @@ name = "jftrade-calendar"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
  "thiserror 2.0.20",
 ]
 
@@ -1706,9 +1707,11 @@ dependencies = [
 name = "jftrade-datamanagement"
 version = "0.1.0"
 dependencies = [
+ "jftrade-kernel",
  "serde",
  "sha2 0.11.0",
  "thiserror 2.0.20",
+ "time",
 ]
 
 [[package]]
@@ -1843,10 +1846,12 @@ dependencies = [
 name = "jftrade-store-sqlite"
 version = "0.1.0"
 dependencies = [
+ "jftrade-datamanagement",
  "jftrade-kernel",
  "rusqlite",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.20",
 ]
 

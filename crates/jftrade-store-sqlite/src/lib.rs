@@ -2,6 +2,11 @@
 
 //! Strict read-only SQLite inspection for staged migration snapshots.
 
+mod data_management;
+mod schema_manifest;
+
+pub use data_management::{ManagedDatabaseCleanupCandidateStore, ManagedDatabaseOverviewStore};
+
 use std::path::Path;
 use std::time::Duration;
 
