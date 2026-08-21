@@ -21,6 +21,7 @@ struct ProductApi {
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
+    strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
     notification_sequence: AtomicU64,
     capabilities: ProductCapabilities,
 }
@@ -40,6 +41,7 @@ struct ProductOptionalPorts {
     strategy_definition_snapshot: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     backtest_read_snapshot: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
+    strategy_read_snapshot: Option<Arc<dyn StrategyReadSnapshotPort>>,
 }
 struct ProductSettingsServices {
     appearance: AppearanceService,
@@ -93,6 +95,7 @@ impl ProductApi {
             strategy_definition_snapshot_port: optional_ports.strategy_definition_snapshot,
             backtest_read_snapshot_port: optional_ports.backtest_read_snapshot,
             backtest_sync_read_snapshot_port: optional_ports.backtest_sync_read_snapshot,
+            strategy_read_snapshot_port: optional_ports.strategy_read_snapshot,
             notification_sequence: AtomicU64::new(0),
             capabilities,
         }
@@ -365,7 +368,6 @@ impl ProductApi {
         })?;
         Ok(ApiOutput::Json(json!({ "sources": snapshot.sources })))
     }
-
     fn calendar_status_snapshot(&self) -> Result<ApiOutput, ApiFailure> {
         let manager = self.calendar_manager.as_ref().ok_or_else(|| {
             ApiFailure::new(
@@ -383,7 +385,6 @@ impl ProductApi {
         })?;
         Ok(ApiOutput::Json(json!(snapshot)))
     }
-
     fn calendar_refresh(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
         let manager = self.calendar_manager.as_ref().ok_or_else(|| {
             ApiFailure::new(
@@ -403,7 +404,6 @@ impl ProductApi {
             })?;
         Ok(ApiOutput::Json(json!(result)))
     }
-
     fn calendar_probe(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
         let manager = self.calendar_manager.as_ref().ok_or_else(|| {
             ApiFailure::new(

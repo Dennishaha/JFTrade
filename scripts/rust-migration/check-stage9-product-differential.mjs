@@ -177,6 +177,13 @@ run("go", [
   "^TestStage9BacktestsSyncReadFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
+  "^TestStage9StrategyInstanceReadFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
 const realTradeDirectory = mkdtempSync(join(tmpdir(), "jftrade-stage9-real-trade-"));
 const realTradeReference = join(realTradeDirectory, "go-reference.json");
 const brokerSettingsReference = join(realTradeDirectory, "go-broker-settings-reference.json");
@@ -482,6 +489,30 @@ run("cargo", [
   "-p",
   "jftrade-engine",
   "product::tests::static_provider_catalog_matches_current_go_wire_fixture",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::strategy_read_tests::strategy_instance_read_routes_match_group_fixture_in_cutover_only",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::strategy_read_tests::strategy_instance_read_routes_fail_closed_when_snapshot_port_is_unavailable",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::strategy_read_tests::strategy_instance_read_routes_are_not_registered_without_snapshot_port",
   "--",
   "--exact",
 ]);
@@ -815,4 +846,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: settings/system/alerts/plugins/strategy-definitions/watchlist/portfolio/research/broker/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");
+console.log("Go/Rust Stage 9 product-slice differential passed: settings/system/alerts/plugins/strategy-definitions/strategy-instance/watchlist/portfolio/research/broker/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");

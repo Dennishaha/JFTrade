@@ -209,6 +209,12 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_backtest_sync_path(path) => self.backtest_sync_progress(path),
                 ("GET", path) if is_backtest_status_path(path) => self.backtest_status(path),
                 ("GET", path) if is_backtest_result_path(path) => self.backtest_result(path),
+                ("GET", "/api/v1/strategies") => {
+                    self.strategy_read("/api/v1/strategies", &request.query)
+                }
+                ("GET", path) if is_strategy_read_path(path) => {
+                    self.strategy_read(path, &request.query)
+                }
                 ("GET", "/api/v1/research/screens/catalog") => {
                     self.research_screen_catalog(&request.query)
                 }

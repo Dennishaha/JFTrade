@@ -559,6 +559,9 @@ mod backtests_read_tests;
 #[path = "product_backtests_sync_tests.rs"]
 mod backtests_sync_read_tests;
 
+#[path = "product_strategies_tests.rs"]
+mod strategy_read_tests;
+
 #[derive(Debug)]
 struct FixtureAlertSnapshotPort {
     price: Value,
@@ -2022,10 +2025,11 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             strategy_definitions: true,
             backtest_read: true,
             backtest_sync_read: true,
+            strategy_read: true,
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 106);
+    assert_eq!(cutover.routes().len(), 109);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(

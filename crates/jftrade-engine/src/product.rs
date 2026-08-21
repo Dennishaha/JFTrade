@@ -255,6 +255,7 @@ pub struct ProductConfig {
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
+    strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
     capabilities: ProductCapabilities,
 }
 
@@ -312,6 +313,7 @@ impl ProductConfig {
             strategy_definition_snapshot_port: None,
             backtest_read_snapshot_port: None,
             backtest_sync_read_snapshot_port: None,
+            strategy_read_snapshot_port: None,
             capabilities: ProductCapabilities::default(),
         })
     }
@@ -648,6 +650,7 @@ pub(crate) async fn start_product_with_runtime_state(
             strategy_definition_snapshot: config.strategy_definition_snapshot_port.clone(),
             backtest_read_snapshot: config.backtest_read_snapshot_port.clone(),
             backtest_sync_read_snapshot: config.backtest_sync_read_snapshot_port.clone(),
+            strategy_read_snapshot: config.strategy_read_snapshot_port.clone(),
         },
         config.capabilities.clone(),
     ));
@@ -728,6 +731,7 @@ include!("product_route_assembly.rs");
 include!("product_api.rs");
 include!("product_api_system_read.rs");
 include!("product_api_backtests.rs");
+include!("product_api_strategies.rs");
 
 include!("product_api_watchlist.rs");
 

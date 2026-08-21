@@ -1,0 +1,212 @@
+{
+  "version": "stage9.strategy-instance-read.v1",
+  "cases": [
+    {
+      "name": "list",
+      "method": "GET",
+      "requestPath": "/api/v1/strategies",
+      "expectedStatus": 200,
+      "data": [
+        {
+          "binding": {
+            "chartType": "standard",
+            "executionMode": "paper",
+            "interval": "5m",
+            "runtimeRisk": {
+              "closeOnly": false,
+              "mode": "observe",
+              "pauseOnReject": false
+            },
+            "symbols": [
+              "HK.00700"
+            ]
+          },
+          "createdAt": "2026-08-15T19:00:00Z",
+          "definition": {
+            "name": "Fixture Strategy",
+            "strategyId": "fixture-strategy",
+            "version": "1.1.0"
+          },
+          "definitionSync": {
+            "appliedVersion": "1.1.0",
+            "canApplyLatest": false,
+            "definitionId": "fixture-strategy",
+            "isLatest": true,
+            "latestVersion": "1.1.0"
+          },
+          "id": "fixture-old",
+          "logs": [],
+          "params": {
+            "symbol": "HK.00700"
+          },
+          "runtime": "pinets",
+          "sourceFormat": "pine-v6",
+          "startable": false,
+          "status": "STOPPED"
+        },
+        {
+          "binding": {
+            "chartType": "standard",
+            "executionMode": "paper",
+            "interval": "1d",
+            "runtimeRisk": {
+              "closeOnly": false,
+              "mode": "observe",
+              "pauseOnReject": true
+            },
+            "symbols": [
+              "US.AAPL"
+            ]
+          },
+          "createdAt": "2026-08-15T20:00:00Z",
+          "definition": {
+            "name": "Fixture Strategy",
+            "strategyId": "fixture-strategy",
+            "version": "1.2.0"
+          },
+          "definitionSync": {
+            "appliedVersion": "1.2.0",
+            "blockedReason": "当前实例不是 STOPPED，先停止后才能刷新到最新策略。",
+            "canApplyLatest": false,
+            "definitionId": "fixture-strategy",
+            "isLatest": false,
+            "latestVersion": "1.3.0"
+          },
+          "id": "fixture-running",
+          "logs": [
+            "runtime started"
+          ],
+          "params": {
+            "symbol": "US.AAPL",
+            "warmupBars": 50
+          },
+          "pluginId": "fixture-plugin",
+          "runtime": "pinets",
+          "runtimeObservation": {
+            "activeSymbols": [
+              "US.AAPL"
+            ],
+            "actualStatus": "RUNNING",
+            "lastSignalAt": "2026-08-15T20:01:00Z",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          },
+          "sourceFormat": "pine-v6",
+          "startable": true,
+          "status": "RUNNING"
+        }
+      ]
+    },
+    {
+      "name": "logs-default",
+      "method": "GET",
+      "requestPath": "/api/v1/strategies/fixture-running/logs",
+      "expectedStatus": 200,
+      "data": {
+        "instanceId": "fixture-running",
+        "logs": [
+          "2026-08-15T20:01:00Z [WARN] delayed tick",
+          "2026-08-15T20:00:00Z [INFO] started"
+        ],
+        "page": {
+          "hasMore": false,
+          "limit": 500,
+          "offset": 0,
+          "returned": 2,
+          "total": 2
+        }
+      }
+    },
+    {
+      "name": "logs-filtered",
+      "method": "GET",
+      "requestPath": "/api/v1/strategies/fixture-running/logs?limit=1\u0026offset=1\u0026level=%20WARN%20\u0026fromTime=2026-08-15T20:00:00Z\u0026toTime=2026-08-15T20:02:00Z",
+      "expectedStatus": 200,
+      "data": {
+        "instanceId": "fixture-running",
+        "logs": [
+          "2026-08-15T20:01:00Z [WARN] delayed tick"
+        ],
+        "page": {
+          "hasMore": true,
+          "limit": 1,
+          "offset": 1,
+          "returned": 1,
+          "total": 3
+        }
+      }
+    },
+    {
+      "name": "logs-degraded",
+      "method": "GET",
+      "requestPath": "/api/v1/strategies/fixture-degraded/logs",
+      "expectedStatus": 200,
+      "data": {
+        "instanceId": "fixture-degraded",
+        "logs": [],
+        "page": {
+          "hasMore": false,
+          "limit": 500,
+          "offset": 0,
+          "returned": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "audit-filtered",
+      "method": "GET",
+      "requestPath": "/api/v1/strategies/fixture-running/audit?limit=2\u0026offset=0\u0026kind=%20execution%20",
+      "expectedStatus": 200,
+      "data": {
+        "entries": [
+          {
+            "at": "2026-08-15T20:01:00Z",
+            "detail": "submitted order",
+            "instanceId": "fixture-running",
+            "kind": "execution"
+          }
+        ],
+        "instanceId": "fixture-running",
+        "page": {
+          "hasMore": false,
+          "limit": 2,
+          "offset": 0,
+          "returned": 1,
+          "total": 1
+        }
+      }
+    },
+    {
+      "name": "logs-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/strategies/missing/logs",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "resource not found"
+    },
+    {
+      "name": "audit-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/strategies/missing/audit",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "resource not found"
+    },
+    {
+      "name": "logs-invalid",
+      "method": "GET",
+      "requestPath": "/api/v1/strategies/fixture-running/logs?limit=bad",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid logs query"
+    },
+    {
+      "name": "audit-invalid",
+      "method": "GET",
+      "requestPath": "/api/v1/strategies/fixture-running/audit?toTime=not-a-time",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid audit query"
+    }
+  ]
+}
