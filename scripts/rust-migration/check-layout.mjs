@@ -44,6 +44,26 @@ function validatePackageContents(root, declaration, errors) {
   }
 }
 
+export function validateRustFileLengths(files, maximumLines = 800) {
+  const errors = [];
+  for (const [file, contents] of files) {
+    const lineCount = contents === "" ? 0 : contents.split(/\r?\n/).length - Number(contents.endsWith("\n"));
+    if (lineCount > maximumLines) {
+      errors.push(`${file} has ${lineCount} lines; production Rust limit is ${maximumLines}`);
+    }
+  }
+  return errors;
+}
+
+function validateProductFileLengths(root) {
+  const sourceRoot = path.join(root, "crates/jftrade-engine/src");
+  const files = walkFiles(sourceRoot)
+    .filter((file) => path.basename(file).startsWith("product"))
+    .filter((file) => file.endsWith(".rs") && !file.endsWith("_tests.rs"))
+    .map((file) => [relativePath(root, file), fs.readFileSync(file, "utf8")]);
+  return validateRustFileLengths(files);
+}
+
 export function validateLayoutPolicy(policy, metadata, options = {}) {
   const root = options.repositoryRoot ?? repositoryRoot;
   const pathExists = options.pathExists ?? fs.existsSync;
@@ -110,7 +130,10 @@ export function loadCargoMetadata(root = repositoryRoot) {
 
 export function checkLayout(root = repositoryRoot, policyPath = defaultPolicyPath) {
   const policy = JSON.parse(fs.readFileSync(policyPath, "utf8"));
-  return validateLayoutPolicy(policy, loadCargoMetadata(root), { repositoryRoot: root });
+  return [
+    ...validateLayoutPolicy(policy, loadCargoMetadata(root), { repositoryRoot: root }),
+    ...validateProductFileLengths(root),
+  ];
 }
 
 if (pathToFileURL(path.resolve(process.argv[1] ?? "")).href === import.meta.url) {

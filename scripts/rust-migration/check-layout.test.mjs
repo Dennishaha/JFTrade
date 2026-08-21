@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateLayoutPolicy } from "./check-layout.mjs";
+import { validateLayoutPolicy, validateRustFileLengths } from "./check-layout.mjs";
 
 function metadata(packages) {
   return {
@@ -77,4 +77,15 @@ test("rejects ownerless crate names and planned directories created early", () =
   );
   assert.ok(errors.includes("jftrade-common uses banned ownerless segment common"));
   assert.ok(errors.includes("planned package path exists before activation: crates/jftrade-common"));
+});
+
+test("rejects product production files that regrow beyond 800 lines", () => {
+  assert.deepEqual(validateRustFileLengths([
+    ["crates/jftrade-engine/src/product.rs", "line\n".repeat(800)],
+  ]), []);
+  assert.deepEqual(validateRustFileLengths([
+    ["crates/jftrade-engine/src/product_settings.rs", "line\n".repeat(801)],
+  ]), [
+    "crates/jftrade-engine/src/product_settings.rs has 801 lines; production Rust limit is 800",
+  ]);
 });

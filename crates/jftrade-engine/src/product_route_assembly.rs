@@ -1,0 +1,106 @@
+use std::collections::BTreeSet;
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum ProductCapability {
+    AppearanceWrite,
+    OnboardingWrite,
+    CalendarSettingsWrite,
+    MarketDataProviderWrite,
+    BacktestMarketDataProviderWrite,
+    ExecutionWrite,
+    AssistantRuntimeWrite,
+    McpServerWrite,
+    SystemNotificationsWrite,
+    PineWorkerWrite,
+    SecurityWrite,
+    BrokerSettingsWrite,
+    DataManagementPreview,
+    CalendarSources,
+    CalendarStatus,
+    WatchlistMemberships,
+    PluginUninstallGuidance,
+}
+
+#[derive(Clone, Debug, Default)]
+struct ProductCapabilities(BTreeSet<ProductCapability>);
+
+impl ProductCapabilities {
+    #[cfg(test)]
+    fn test_cutover() -> Self {
+        Self(BTreeSet::from([
+            ProductCapability::AppearanceWrite,
+            ProductCapability::OnboardingWrite,
+            ProductCapability::CalendarSettingsWrite,
+            ProductCapability::MarketDataProviderWrite,
+            ProductCapability::BacktestMarketDataProviderWrite,
+            ProductCapability::ExecutionWrite,
+            ProductCapability::AssistantRuntimeWrite,
+            ProductCapability::McpServerWrite,
+            ProductCapability::SystemNotificationsWrite,
+            ProductCapability::PineWorkerWrite,
+            ProductCapability::SecurityWrite,
+            ProductCapability::BrokerSettingsWrite,
+            ProductCapability::DataManagementPreview,
+            ProductCapability::CalendarSources,
+            ProductCapability::CalendarStatus,
+            ProductCapability::WatchlistMemberships,
+            ProductCapability::PluginUninstallGuidance,
+        ]))
+    }
+
+    fn contains(&self, capability: ProductCapability) -> bool {
+        self.0.contains(&capability)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn requires_writable_settings(&self) -> bool {
+        self.0.iter().any(|capability| {
+            !matches!(
+                capability,
+                ProductCapability::DataManagementPreview
+                    | ProductCapability::CalendarSources
+                    | ProductCapability::CalendarStatus
+                    | ProductCapability::WatchlistMemberships
+                    | ProductCapability::PluginUninstallGuidance
+            )
+        })
+    }
+
+    #[cfg(test)]
+    fn only(capability: ProductCapability) -> Self {
+        Self(BTreeSet::from([capability]))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct ProductRoutePorts {
+    calendar_sources: bool,
+    calendar_status: bool,
+    watchlist_memberships: bool,
+    plugin_uninstall_guidance: bool,
+}
+
+fn product_routes(
+    capabilities: &ProductCapabilities,
+    ports: ProductRoutePorts,
+) -> Result<RouteCatalog, RouteCatalogError> {
+    let mut routes = Vec::new();
+    routes.extend(product_system_routes(capabilities));
+    routes.extend(product_settings_routes(capabilities));
+    routes.extend(product_calendar_routes(capabilities, ports));
+    routes.extend(product_data_management_routes(capabilities));
+    routes.extend(product_watchlist_research_trading_routes(
+        capabilities,
+        ports,
+    ));
+    RouteCatalog::new(routes)
+}
+
+include!("product_routes_system.rs");
+include!("product_routes_settings.rs");
+include!("product_routes_calendar.rs");
+include!("product_routes_data_management.rs");
+include!("product_routes_watchlist_research_trading.rs");
