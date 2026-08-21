@@ -95,6 +95,7 @@ fn product_routes(
     let mut routes = Vec::new();
     routes.extend(product_system_routes(capabilities));
     routes.extend(product_settings_routes(capabilities));
+    routes.extend(product_alert_routes());
     routes.extend(product_calendar_routes(capabilities, ports));
     routes.extend(product_data_management_routes(capabilities));
     routes.extend(product_watchlist_research_trading_routes(
@@ -106,6 +107,7 @@ fn product_routes(
 
 include!("product_routes_system.rs");
 include!("product_routes_settings.rs");
+include!("product_routes_alerts.rs");
 include!("product_routes_calendar.rs");
 include!("product_routes_data_management.rs");
 include!("product_routes_watchlist_research_trading.rs");

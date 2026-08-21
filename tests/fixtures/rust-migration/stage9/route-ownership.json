@@ -595,27 +595,31 @@
       "method": "GET",
       "path": "/api/v1/alerts/option-events",
       "capability": "alerts",
-      "implementationStatus": "remaining",
+      "implementationStatus": "shadow",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "authenticated-loopback-shadow"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:alerts-read:differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/alerts/price",
       "capability": "alerts",
-      "implementationStatus": "remaining",
+      "implementationStatus": "shadow",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "authenticated-loopback-shadow"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:alerts-read:differential"
+      ]
     },
     {
       "method": "GET",

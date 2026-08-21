@@ -10,6 +10,7 @@ struct ProductApi {
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
+    alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     notification_sequence: AtomicU64,
     capabilities: ProductCapabilities,
 }
@@ -19,6 +20,7 @@ struct ProductOptionalPorts {
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
+    alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
 }
 
 struct ProductSettingsServices {
@@ -63,6 +65,7 @@ impl ProductApi {
             watchlist_membership_snapshot_port: optional_ports.watchlist_membership_snapshot,
             plugin_uninstall_guidance_snapshot_port: optional_ports
                 .plugin_uninstall_guidance_snapshot,
+            alert_snapshot_port: optional_ports.alert_snapshot,
             notification_sequence: AtomicU64::new(0),
             capabilities,
         }
@@ -435,6 +438,19 @@ impl ProductApi {
             })?
             .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "plugin not found"))?;
         Ok(ApiOutput::Json(json!(guidance)))
+    }
+
+    fn alerts(&self, kind: AlertKind, query: &str) -> Result<ApiOutput, ApiFailure> {
+        let port = self.alert_snapshot_port.as_ref().ok_or_else(|| {
+            ApiFailure::new(
+                503,
+                "ALERTS_UNAVAILABLE",
+                "alert snapshot port is not configured",
+            )
+        })?;
+        port.snapshot(kind, query)
+            .map(ApiOutput::Json)
+            .map_err(alert_snapshot_failure)
     }
 
     fn cleanup_preview(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {

@@ -1,0 +1,110 @@
+{
+  "version": "stage9.alerts-read.v1",
+  "cases": [
+    {
+      "name": "price-list",
+      "method": "GET",
+      "requestPath": "/api/v1/alerts/price?brokerId=futu\u0026market=us\u0026pageSize=2\u0026enabled=true\u0026threshold=100\u0026tag=one\u0026tag=two",
+      "featureId": "alerts.price.list",
+      "query": {
+        "brokerId": "futu",
+        "featureId": "alerts.price.list",
+        "market": "US",
+        "pageSize": 2,
+        "params": {
+          "enabled": true,
+          "tag": [
+            "one",
+            "two"
+          ],
+          "threshold": 100
+        }
+      },
+      "response": {
+        "asOf": "2026-08-21T04:00:00Z",
+        "entries": [
+          {
+            "enabled": true,
+            "frequency": "once_a_day",
+            "instrumentId": "US.AAPL",
+            "key": 101,
+            "sessions": [
+              "regular"
+            ],
+            "target": 190.5,
+            "type": "price_up"
+          }
+        ],
+        "hasMore": false,
+        "metadata": {
+          "source": "fixture"
+        },
+        "provider": {
+          "asOf": "2026-08-21T04:00:00Z",
+          "brokerId": "futu",
+          "capability": "available",
+          "featureId": "alerts.price.list",
+          "resolvedAt": "2026-08-21T04:00:00Z",
+          "securityFirm": "Futu/Moomoo via OpenD",
+          "selectionReason": "explicit_broker"
+        },
+        "total": 1
+      }
+    },
+    {
+      "name": "option-events-list",
+      "method": "GET",
+      "requestPath": "/api/v1/alerts/option-events?brokerId=futu\u0026market=us\u0026cursor=next\u0026pageSize=3\u0026operation=list\u0026enabled=false",
+      "featureId": "alerts.option_event.list",
+      "query": {
+        "brokerId": "futu",
+        "cursor": "next",
+        "featureId": "alerts.option_event.list",
+        "market": "US",
+        "pageSize": 3,
+        "params": {
+          "enabled": false,
+          "operation": "list"
+        }
+      },
+      "response": {
+        "asOf": "2026-08-21T04:00:00Z",
+        "entries": [
+          {
+            "earningsDateBegin": "2026-09-01",
+            "enabled": false,
+            "key": 202,
+            "note": "fixture alert",
+            "optionMarket": "US",
+            "optionType": "call",
+            "orderTypeList": [
+              "limit"
+            ],
+            "sideTypeList": [
+              "buy"
+            ],
+            "underlying": {
+              "code": "AAPL",
+              "instrumentId": "US.AAPL",
+              "market": "US"
+            }
+          }
+        ],
+        "hasMore": false,
+        "metadata": {
+          "source": "fixture"
+        },
+        "provider": {
+          "asOf": "2026-08-21T04:00:00Z",
+          "brokerId": "futu",
+          "capability": "available",
+          "featureId": "alerts.option_event.list",
+          "resolvedAt": "2026-08-21T04:00:00Z",
+          "securityFirm": "Futu/Moomoo via OpenD",
+          "selectionReason": "explicit_broker"
+        },
+        "total": 1
+      }
+    }
+  ]
+}

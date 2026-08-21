@@ -78,6 +78,29 @@ pub trait PluginUninstallGuidanceSnapshotPort: Send + Sync + std::fmt::Debug {
     ) -> Result<Option<PluginUninstallGuidance>, PluginUninstallGuidanceSnapshotError>;
 }
 
+/// Consumer-owned read port for Go's customization alert projections. The
+/// port carries the complete wire value so the Rust shadow does not connect to
+/// OpenD or duplicate the Futu alert adapter before ownership is cut over.
+pub trait AlertSnapshotPort: Send + Sync + std::fmt::Debug {
+    fn snapshot(
+        &self,
+        kind: AlertKind,
+        raw_query: &str,
+    ) -> Result<serde_json::Value, AlertSnapshotError>;
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AlertKind {
+    Price,
+    OptionEvents,
+}
+
+#[derive(Clone, Debug, Error)]
+pub enum AlertSnapshotError {
+    #[error("alert snapshot is unavailable: {0}")]
+    Unavailable(String),
+}
+
 #[derive(Clone, Debug, Error)]
 pub enum WatchlistMembershipSnapshotError {
     #[error("watchlist membership snapshot is unavailable: {0}")]
@@ -100,6 +123,7 @@ pub struct ProductConfig {
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
+    alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     capabilities: ProductCapabilities,
 }
 
@@ -146,6 +170,7 @@ impl ProductConfig {
             calendar_manager: None,
             watchlist_membership_snapshot_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
+            alert_snapshot_port: None,
             capabilities: ProductCapabilities::default(),
         })
     }
@@ -254,6 +279,12 @@ impl ProductConfig {
         port: Arc<dyn PluginUninstallGuidanceSnapshotPort>,
     ) -> Self {
         self.plugin_uninstall_guidance_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_alert_snapshot_port(mut self, port: Arc<dyn AlertSnapshotPort>) -> Self {
+        self.alert_snapshot_port = Some(port);
         self
     }
 }
@@ -418,6 +449,7 @@ pub(crate) async fn start_product_with_runtime_state(
             plugin_uninstall_guidance_snapshot: config
                 .plugin_uninstall_guidance_snapshot_port
                 .clone(),
+            alert_snapshot: config.alert_snapshot_port.clone(),
         },
         config.capabilities.clone(),
     ));

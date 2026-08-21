@@ -153,6 +153,12 @@ impl ApiPort for ProductApi {
                 ("GET", "/api/v1/adk/agent-templates") => {
                     Ok(ApiOutput::Json(agent_templates_wire()))
                 }
+                ("GET", "/api/v1/alerts/option-events") => {
+                    self.alerts(AlertKind::OptionEvents, &request.query)
+                }
+                ("GET", "/api/v1/alerts/price") => {
+                    self.alerts(AlertKind::Price, &request.query)
+                }
                 ("GET", "/api/v1/settings/ui") => self.appearance(),
                 ("GET", "/api/v1/settings/brokers") => self.broker_settings(),
                 ("GET", "/api/v1/settings/onboarding") => self.onboarding().await,
@@ -472,6 +478,10 @@ fn research_screen_catalog_failure(error: ScreenCatalogError) -> ApiFailure {
             ApiFailure::new(500, "RESEARCH_SCREEN_CATALOG_FAILED", error.to_string())
         }
     }
+}
+
+fn alert_snapshot_failure(error: AlertSnapshotError) -> ApiFailure {
+    ApiFailure::new(503, "ALERTS_UNAVAILABLE", error.to_string())
 }
 
 fn parse_database_overview_query(query: &str) -> OverviewRequest {

@@ -529,6 +529,21 @@ impl PluginUninstallGuidanceSnapshotPort for FailingPluginUninstallGuidanceSnaps
     }
 }
 
+#[derive(Debug)]
+struct FixtureAlertSnapshotPort {
+    price: Value,
+    option_events: Value,
+}
+
+impl AlertSnapshotPort for FixtureAlertSnapshotPort {
+    fn snapshot(&self, kind: AlertKind, _raw_query: &str) -> Result<Value, AlertSnapshotError> {
+        Ok(match kind {
+            AlertKind::Price => self.price.clone(),
+            AlertKind::OptionEvents => self.option_events.clone(),
+        })
+    }
+}
+
 #[tokio::test]
 async fn product_server_persists_ui_settings_and_reports_actual_port() {
     let directory = tempdir().expect("temporary directory");
@@ -1714,6 +1729,66 @@ async fn plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unav
 }
 
 #[tokio::test]
+async fn alerts_read_routes_match_go_fixture_as_shadow_batch() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/rust-migration/stage9/alerts-read.json"
+    ))
+    .expect("alerts read fixture");
+    let cases = fixture["cases"].as_array().expect("alerts cases");
+    let price = cases
+        .iter()
+        .find(|case| case["featureId"] == "alerts.price.list")
+        .and_then(|case| case.get("response"))
+        .cloned()
+        .expect("price alert response");
+    let option_events = cases
+        .iter()
+        .find(|case| case["featureId"] == "alerts.option_event.list")
+        .and_then(|case| case.get("response"))
+        .cloned()
+        .expect("option event alert response");
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_alert_snapshot_port(Arc::new(FixtureAlertSnapshotPort {
+                price,
+                option_events,
+            }));
+    let handle = start_product(config).await.expect("start product");
+    assert_eq!(handle.startup_record().owned_routes, 50);
+    let address = handle.startup_record().address;
+    for case in cases {
+        let request_path = case["requestPath"].as_str().expect("request path");
+        let response = request_json(address, "GET", request_path, None).await;
+        assert_eq!(response["ok"], true, "case {}", case["name"]);
+        assert_eq!(response["data"], case["response"], "case {}", case["name"]);
+    }
+    handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
+async fn alerts_read_routes_fail_closed_without_snapshot_port() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let handle = start_product(config).await.expect("start product");
+    let response = request_json(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/alerts/price?brokerId=futu&market=US",
+        None,
+    )
+    .await;
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "ALERTS_UNAVAILABLE");
+    handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
 async fn browser_authenticated_request_cannot_change_desktop_only_security_settings() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
@@ -1813,7 +1888,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         ProductRoutePorts::default(),
     )
     .expect("shadow routes");
-    assert_eq!(shadow.routes().len(), 26);
+    assert_eq!(shadow.routes().len(), 28);
     assert!(shadow.routes().iter().all(|route| route.method == "GET"));
     let shadow_capabilities = shadow
         .routes()
@@ -1822,7 +1897,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         .collect::<Vec<_>>();
     assert_eq!(
         route_profile_digest(&shadow_capabilities),
-        "5f5654f93253a014d0ea113168bd49c88454f5c4c214ae9a72102a539ccf74cd"
+        "bac30795242a20f0ace92b43a3f4559e48a66bfd022015a88bcb582a36cb985b"
     );
     assert_eq!(
         pairs(shadow.routes()),
@@ -1833,7 +1908,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         ProductRoutePorts::default(),
     )
     .expect("appearance-only routes");
-    assert_eq!(appearance_only.routes().len(), 27);
+    assert_eq!(appearance_only.routes().len(), 29);
     assert!(
         appearance_only
             .routes()
@@ -1855,7 +1930,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("shadow routes with unavailable cutover ports");
-    assert_eq!(shadow_with_calendar_port.routes().len(), 26);
+    assert_eq!(shadow_with_calendar_port.routes().len(), 28);
     assert!(!shadow_with_calendar_port.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1874,7 +1949,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         ProductRoutePorts::default(),
     )
     .expect("cutover routes without calendar ports");
-    assert_eq!(cutover_without_calendar_port.routes().len(), 48);
+    assert_eq!(cutover_without_calendar_port.routes().len(), 50);
     assert!(!cutover_without_calendar_port.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1889,7 +1964,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with calendar manager");
-    assert_eq!(cutover_with_calendar_manager.routes().len(), 54);
+    assert_eq!(cutover_with_calendar_manager.routes().len(), 56);
     assert!(cutover_with_calendar_manager.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1908,7 +1983,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 56);
+    assert_eq!(cutover.routes().len(), 58);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
