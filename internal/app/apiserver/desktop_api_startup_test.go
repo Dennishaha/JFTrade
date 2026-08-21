@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -18,6 +19,17 @@ import (
 )
 
 type incompatibleLifecycleSettingsStore struct{}
+
+type rehearsalRuntimeFixture struct {
+	profile      string
+	capabilities []string
+}
+
+func (f rehearsalRuntimeFixture) Endpoint() string       { return "http://127.0.0.1:1" }
+func (f rehearsalRuntimeFixture) BearerToken() string    { return strings.Repeat("a", 64) }
+func (f rehearsalRuntimeFixture) Profile() string        { return f.profile }
+func (f rehearsalRuntimeFixture) Capabilities() []string { return f.capabilities }
+func (f rehearsalRuntimeFixture) Close() error           { return nil }
 
 func (incompatibleLifecycleSettingsStore) EnsureBootstrapFile(jfsettings.LaunchDefaults) error {
 	return nil
@@ -81,6 +93,40 @@ func TestAPIServerHelperBoundaries(t *testing.T) {
 			_ = shutdown(context.Background())
 		}
 		t.Fatalf("StartDesktop with ephemeral bind = shutdown %v err %v", shutdown != nil, err)
+	}
+}
+
+func TestImmutableCatalogRehearsalSelectionIsExactAndFailClosed(t *testing.T) {
+	if operations, err := immutableCatalogRehearsalOperations(nil); err != nil || operations != nil {
+		t.Fatalf("disabled rehearsal = %#v, %v", operations, err)
+	}
+	fixture := rehearsalRuntimeFixture{
+		profile: "read-only-shadow.v1",
+		capabilities: []string{
+			"GET /api/v1/adk/agent-templates",
+			"GET /api/v1/research/screens/catalog",
+			"GET /api/v1/system/status",
+		},
+	}
+	operations, err := immutableCatalogRehearsalOperations(fixture)
+	if err != nil {
+		t.Fatalf("select immutable catalog operations: %v", err)
+	}
+	want := []string{
+		"GET /api/v1/adk/agent-templates",
+		"GET /api/v1/research/screens/catalog",
+	}
+	if !slices.Equal(operations, want) {
+		t.Fatalf("operations = %#v, want %#v", operations, want)
+	}
+	fixture.profile = "unexpected"
+	if _, err := immutableCatalogRehearsalOperations(fixture); err == nil {
+		t.Fatal("unexpected routing profile was accepted")
+	}
+	fixture.profile = "read-only-shadow.v1"
+	fixture.capabilities = fixture.capabilities[:1]
+	if _, err := immutableCatalogRehearsalOperations(fixture); err == nil {
+		t.Fatal("incomplete capability list was accepted")
 	}
 }
 
