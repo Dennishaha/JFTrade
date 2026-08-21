@@ -73,7 +73,11 @@ pub trait WatchlistMembershipSnapshotPort: Send + Sync + std::fmt::Debug {
 /// and source lifecycle; Rust only exposes the captured wire projection in
 /// explicit test-cutover wiring.
 pub trait WatchlistReadSnapshotPort: Send + Sync + std::fmt::Debug {
-    fn read(&self, path: &str, query: &str) -> Result<serde_json::Value, WatchlistReadSnapshotError>;
+    fn read(
+        &self,
+        path: &str,
+        query: &str,
+    ) -> Result<serde_json::Value, WatchlistReadSnapshotError>;
 }
 
 /// Consumer-owned read port for the current Go plugin catalog's uninstall
@@ -642,11 +646,15 @@ include!("product_route_assembly.rs");
 
 include!("product_api.rs");
 
+include!("product_api_watchlist.rs");
+
 include!("product_api_plugins.rs");
 
 include!("product_api_strategy_definitions.rs");
 
 include!("product_wire.rs");
+
+include!("product_wire_watchlist.rs");
 
 #[derive(Debug, Error)]
 pub enum ProductError {

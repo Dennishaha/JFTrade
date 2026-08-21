@@ -200,9 +200,6 @@ async fn strategy_definition_routes_fail_closed_without_snapshot_port() {
     .await;
     assert_eq!(status, 404);
     assert_eq!(response["ok"], false);
-    assert_eq!(
-        response["error"]["code"],
-        "NOT_FOUND"
-    );
+    assert_eq!(response["error"]["code"], "NOT_FOUND");
     handle.shutdown().await.expect("shutdown product");
 }
