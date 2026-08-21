@@ -68,6 +68,14 @@ pub trait WatchlistMembershipSnapshotPort: Send + Sync + std::fmt::Debug {
     ) -> Result<Memberships, WatchlistMembershipSnapshotError>;
 }
 
+/// Consumer-owned read-only projections for the watchlist catalog. The Go
+/// service remains responsible for SQLite access, normalization, pagination,
+/// and source lifecycle; Rust only exposes the captured wire projection in
+/// explicit test-cutover wiring.
+pub trait WatchlistReadSnapshotPort: Send + Sync + std::fmt::Debug {
+    fn read(&self, path: &str, query: &str) -> Result<serde_json::Value, WatchlistReadSnapshotError>;
+}
+
 /// Consumer-owned read port for the current Go plugin catalog's uninstall
 /// guidance. The port carries the complete wire projection so Rust does not
 /// duplicate platform-specific path normalization or shell quoting.
@@ -160,6 +168,16 @@ pub enum WatchlistMembershipSnapshotError {
 }
 
 #[derive(Clone, Debug, Error)]
+pub enum WatchlistReadSnapshotError {
+    #[error("watchlist read snapshot is unavailable: {0}")]
+    Unavailable(String),
+    #[error("watchlist read snapshot rejected request: {0}")]
+    Invalid(String),
+    #[error("watchlist read snapshot resource was not found")]
+    NotFound,
+}
+
+#[derive(Clone, Debug, Error)]
 pub enum PluginUninstallGuidanceSnapshotError {
     #[error("plugin uninstall guidance snapshot is unavailable: {0}")]
     Unavailable(String),
@@ -180,6 +198,7 @@ pub struct ProductConfig {
     notification_port: Option<Arc<dyn ProductNotificationPort>>,
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
+    watchlist_read_snapshot_port: Option<Arc<dyn WatchlistReadSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
@@ -229,6 +248,7 @@ impl ProductConfig {
             notification_port: None,
             calendar_manager: None,
             watchlist_membership_snapshot_port: None,
+            watchlist_read_snapshot_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
             plugin_snapshot_port: None,
             alert_snapshot_port: None,
@@ -332,6 +352,15 @@ impl ProductConfig {
         port: Arc<dyn WatchlistMembershipSnapshotPort>,
     ) -> Self {
         self.watchlist_membership_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_watchlist_read_snapshot_port(
+        mut self,
+        port: Arc<dyn WatchlistReadSnapshotPort>,
+    ) -> Self {
+        self.watchlist_read_snapshot_port = Some(port);
         self
     }
 
@@ -455,6 +484,7 @@ pub(crate) async fn start_product_with_runtime_state(
         alerts: config.alert_snapshot_port.is_some(),
         calendar_manager: config.calendar_manager.is_some(),
         watchlist_memberships: config.watchlist_membership_snapshot_port.is_some(),
+        watchlist_read: config.watchlist_read_snapshot_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
         strategy_definitions: config.strategy_definition_snapshot_port.is_some(),
@@ -526,6 +556,7 @@ pub(crate) async fn start_product_with_runtime_state(
             notification: config.notification_port.clone(),
             calendar_manager: config.calendar_manager.clone(),
             watchlist_membership_snapshot: config.watchlist_membership_snapshot_port.clone(),
+            watchlist_read_snapshot: config.watchlist_read_snapshot_port.clone(),
             plugin_uninstall_guidance_snapshot: config
                 .plugin_uninstall_guidance_snapshot_port
                 .clone(),

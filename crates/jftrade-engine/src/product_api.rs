@@ -9,6 +9,7 @@ struct ProductApi {
     notification_port: Option<Arc<dyn ProductNotificationPort>>,
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
+    watchlist_read_snapshot_port: Option<Arc<dyn WatchlistReadSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
@@ -21,6 +22,7 @@ struct ProductOptionalPorts {
     notification: Option<Arc<dyn ProductNotificationPort>>,
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
+    watchlist_read_snapshot: Option<Arc<dyn WatchlistReadSnapshotPort>>,
     plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
@@ -67,6 +69,7 @@ impl ProductApi {
             notification_port: optional_ports.notification,
             calendar_manager: optional_ports.calendar_manager,
             watchlist_membership_snapshot_port: optional_ports.watchlist_membership_snapshot,
+            watchlist_read_snapshot_port: optional_ports.watchlist_read_snapshot,
             plugin_uninstall_guidance_snapshot_port: optional_ports
                 .plugin_uninstall_guidance_snapshot,
             plugin_snapshot_port: optional_ports.plugin_snapshot,
@@ -419,6 +422,19 @@ impl ProductApi {
             .memberships(&instrument_id)
             .map_err(|error| ApiFailure::new(503, "WATCHLIST_UNAVAILABLE", error.to_string()))?;
         Ok(ApiOutput::Json(json!(memberships)))
+    }
+
+    fn watchlist_read(&self, path: &str, query: &str) -> Result<ApiOutput, ApiFailure> {
+        let port = self.watchlist_read_snapshot_port.as_ref().ok_or_else(|| {
+            ApiFailure::new(
+                503,
+                "WATCHLIST_UNAVAILABLE",
+                "watchlist read snapshot is not configured",
+            )
+        })?;
+        port.read(path, query)
+            .map(ApiOutput::Json)
+            .map_err(watchlist_read_snapshot_failure)
     }
 
     fn alerts(&self, kind: AlertKind, query: &str) -> Result<ApiOutput, ApiFailure> {

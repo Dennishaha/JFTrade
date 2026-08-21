@@ -227,6 +227,9 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_watchlist_membership_path(path) => {
                     self.watchlist_memberships(path)
                 }
+                ("GET", path) if is_watchlist_read_path(path) => {
+                    self.watchlist_read(path, &request.query)
+                }
                 ("GET", "/api/v1/plugins") => self.plugin_catalog(),
                 ("GET", path) if is_plugin_operation_path(path) => self.plugin_operation(path),
                 ("GET", path) if is_plugin_uninstall_guidance_path(path) => {
@@ -567,6 +570,23 @@ fn is_plugin_uninstall_guidance_path(path: &str) -> bool {
         .is_some_and(|plugin_id| !plugin_id.contains('/'))
 }
 
+fn is_watchlist_read_path(path: &str) -> bool {
+    matches!(
+        path,
+        "/api/v1/watchlist/groups"
+            | "/api/v1/watchlist/items"
+            | "/api/v1/watchlist/sources"
+            | "/api/v1/watchlist/bindings"
+            | "/api/v1/watchlist/import-runs"
+    ) || path
+        .strip_prefix("/api/v1/watchlist/sources/")
+        .is_some_and(|source_id| {
+            source_id.ends_with("/groups")
+                && !source_id.trim_end_matches("/groups").is_empty()
+                && !source_id.trim_end_matches("/groups").contains('/')
+        })
+}
+
 fn is_plugin_operation_path(path: &str) -> bool {
     path.strip_prefix("/api/v1/plugins/operations/")
         .is_some_and(|operation_id| !operation_id.contains('/'))
@@ -737,6 +757,20 @@ fn strategy_definition_snapshot_failure(error: StrategyDefinitionSnapshotError) 
 
 fn plugin_snapshot_failure(error: PluginSnapshotError) -> ApiFailure {
     ApiFailure::new(503, "PLUGINS_UNAVAILABLE", error.to_string())
+}
+
+fn watchlist_read_snapshot_failure(error: WatchlistReadSnapshotError) -> ApiFailure {
+    match error {
+        WatchlistReadSnapshotError::Invalid(message) => {
+            ApiFailure::new(400, "BAD_REQUEST", message)
+        }
+        WatchlistReadSnapshotError::NotFound => {
+            ApiFailure::new(404, "WATCHLIST_NOT_FOUND", "watchlist resource not found")
+        }
+        WatchlistReadSnapshotError::Unavailable(message) => {
+            ApiFailure::new(503, "WATCHLIST_UNAVAILABLE", message)
+        }
+    }
 }
 
 fn decode_query_component(value: &str) -> String {

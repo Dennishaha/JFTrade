@@ -1,0 +1,131 @@
+{
+  "version": "stage9.watchlist-read.v1",
+  "cases": [
+    {
+      "name": "groups",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/groups",
+      "expectedStatus": 200,
+      "data": {
+        "groups": [
+          {
+            "groupId": "default",
+            "name": "自选股",
+            "isDefault": true,
+            "protected": true,
+            "revision": 1,
+            "itemCount": 1,
+            "createdAt": "2026-08-21T04:00:00Z",
+            "updatedAt": "2026-08-21T04:00:00Z"
+          },
+          {
+            "groupId": "tech",
+            "name": "Tech",
+            "isDefault": false,
+            "protected": false,
+            "revision": 2,
+            "itemCount": 1,
+            "createdAt": "2026-08-21T04:00:00Z",
+            "updatedAt": "2026-08-21T04:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "items",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/items",
+      "expectedStatus": 200,
+      "data": {
+        "items": [
+          {
+            "instrumentId": "US.AAPL",
+            "market": "US",
+            "symbol": "AAPL",
+            "name": "Apple",
+            "type": "stock",
+            "revision": 2,
+            "groupIds": [
+              "default",
+              "tech"
+            ],
+            "groups": [
+              {
+                "groupId": "default",
+                "name": "自选股"
+              },
+              {
+                "groupId": "tech",
+                "name": "Tech"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "sources",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/sources",
+      "expectedStatus": 200,
+      "data": {
+        "sources": [
+          {
+            "sourceId": "futu:default",
+            "broker": "futu",
+            "displayName": "Futu",
+            "status": "ready",
+            "updatedAt": "2026-08-21T04:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "source-groups",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/sources/futu:default/groups",
+      "expectedStatus": 200,
+      "data": {
+        "groups": [
+          {
+            "sourceId": "futu:default",
+            "remoteGroupId": "remote-tech",
+            "name": "Tech",
+            "type": "stock",
+            "ambiguous": false,
+            "memberCount": 1,
+            "observedAt": "2026-08-21T04:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "bindings",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/bindings",
+      "expectedStatus": 200,
+      "data": {
+        "bindings": [
+          {
+            "bindingId": "binding-1",
+            "sourceId": "futu:default",
+            "remoteGroupId": "remote-tech",
+            "remoteName": "Tech",
+            "localGroupId": "tech",
+            "createdAt": "2026-08-21T04:00:00Z",
+            "updatedAt": "2026-08-21T04:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "import-runs",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/import-runs",
+      "expectedStatus": 200,
+      "data": {
+        "items": []
+      }
+    }
+  ]
+}

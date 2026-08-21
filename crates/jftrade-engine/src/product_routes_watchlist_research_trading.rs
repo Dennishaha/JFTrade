@@ -28,6 +28,16 @@ fn product_watchlist_research_trading_routes(
             "/api/v1/watchlist/instruments/{market}/{symbol}/memberships",
         ));
     }
+    if ports.watchlist_read && capabilities.contains(ProductCapability::WatchlistRead) {
+        routes.extend([
+            route("GET", "/api/v1/watchlist/groups"),
+            route("GET", "/api/v1/watchlist/items"),
+            route("GET", "/api/v1/watchlist/sources"),
+            route("GET", "/api/v1/watchlist/sources/{sourceId}/groups"),
+            route("GET", "/api/v1/watchlist/bindings"),
+            route("GET", "/api/v1/watchlist/import-runs"),
+        ]);
+    }
     if ports.plugins && capabilities.contains(ProductCapability::Plugins) {
         routes.extend([
             route("GET", "/api/v1/plugins"),

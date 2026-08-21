@@ -20,6 +20,7 @@ enum ProductCapability {
     CalendarStatus,
     CalendarControl,
     WatchlistMemberships,
+    WatchlistRead,
     Plugins,
     PluginUninstallGuidance,
     Alerts,
@@ -51,6 +52,7 @@ impl ProductCapabilities {
             ProductCapability::CalendarStatus,
             ProductCapability::CalendarControl,
             ProductCapability::WatchlistMemberships,
+            ProductCapability::WatchlistRead,
             ProductCapability::Plugins,
             ProductCapability::PluginUninstallGuidance,
             ProductCapability::Alerts,
@@ -76,6 +78,7 @@ impl ProductCapabilities {
                     | ProductCapability::CalendarStatus
                     | ProductCapability::CalendarControl
                     | ProductCapability::WatchlistMemberships
+                    | ProductCapability::WatchlistRead
                     | ProductCapability::Plugins
                     | ProductCapability::PluginUninstallGuidance
                     | ProductCapability::Alerts
@@ -95,6 +98,7 @@ struct ProductRoutePorts {
     alerts: bool,
     calendar_manager: bool,
     watchlist_memberships: bool,
+    watchlist_read: bool,
     plugins: bool,
     plugin_uninstall_guidance: bool,
     strategy_definitions: bool,
