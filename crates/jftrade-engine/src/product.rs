@@ -58,6 +58,9 @@ pub const PRODUCT_TEST_CUTOVER_ROUTE_PROFILE: &str = "cutover-test-only.v1";
 const DEFAULT_PRODUCT_BIND: &str = "127.0.0.1:3000";
 const DEFAULT_SETTINGS_PATH: &str = "var/jftrade-api/settings.json";
 
+include!("product_research_preset_port.rs");
+include!("product_snapshot_errors.rs");
+
 /// Consumer-owned read port for local watchlist membership projections.  The
 /// port is accepted only in test-cutover wiring until the Rust store adapter
 /// owns the same SQLite lifecycle as the Go watchlist service.
@@ -172,68 +175,6 @@ pub enum AlertKind {
     OptionEvents,
 }
 
-#[derive(Clone, Debug, Error)]
-pub enum AlertSnapshotError {
-    #[error("alert snapshot is unavailable: {0}")]
-    Unavailable(String),
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum StrategyDefinitionSnapshotError {
-    #[error("strategy definition snapshot is unavailable: {0}")]
-    Unavailable(String),
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum WatchlistMembershipSnapshotError {
-    #[error("watchlist membership snapshot is unavailable: {0}")]
-    Unavailable(String),
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum WatchlistReadSnapshotError {
-    #[error("watchlist read snapshot is unavailable: {0}")]
-    Unavailable(String),
-    #[error("watchlist read snapshot rejected request: {0}")]
-    Invalid(String),
-    #[error("watchlist read snapshot resource was not found")]
-    NotFound,
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum PortfolioSnapshotError {
-    #[error("portfolio snapshot is unavailable: {0}")]
-    Unavailable(String),
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum ResearchReadSnapshotError {
-    #[error("research read snapshot is unavailable: {0}")]
-    Unavailable(String),
-    #[error("research read snapshot request is invalid: {0}")]
-    Invalid(String),
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum BrokerReadSnapshotError {
-    #[error("broker read snapshot is unavailable: {0}")]
-    Unavailable(String),
-    #[error("broker read snapshot request is invalid: {0}")]
-    Invalid(String),
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum PluginUninstallGuidanceSnapshotError {
-    #[error("plugin uninstall guidance snapshot is unavailable: {0}")]
-    Unavailable(String),
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum PluginSnapshotError {
-    #[error("plugin snapshot is unavailable: {0}")]
-    Unavailable(String),
-}
-
 #[derive(Clone)]
 pub struct ProductConfig {
     bind_address: SocketAddr,
@@ -246,6 +187,7 @@ pub struct ProductConfig {
     watchlist_read_snapshot_port: Option<Arc<dyn WatchlistReadSnapshotPort>>,
     portfolio_snapshot_port: Option<Arc<dyn PortfolioSnapshotPort>>,
     research_read_snapshot_port: Option<Arc<dyn ResearchReadSnapshotPort>>,
+    research_preset_read_snapshot_port: Option<Arc<dyn ResearchPresetReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -304,6 +246,7 @@ impl ProductConfig {
             watchlist_read_snapshot_port: None,
             portfolio_snapshot_port: None,
             research_read_snapshot_port: None,
+            research_preset_read_snapshot_port: None,
             broker_read_snapshot_port: None,
             system_read_snapshot_port: None,
             remote_watchlist_snapshot_port: None,
@@ -434,6 +377,15 @@ impl ProductConfig {
     #[cfg(test)]
     fn with_research_read_snapshot_port(mut self, port: Arc<dyn ResearchReadSnapshotPort>) -> Self {
         self.research_read_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_research_preset_read_snapshot_port(
+        mut self,
+        port: Arc<dyn ResearchPresetReadSnapshotPort>,
+    ) -> Self {
+        self.research_preset_read_snapshot_port = Some(port);
         self
     }
 
@@ -639,6 +591,7 @@ pub(crate) async fn start_product_with_runtime_state(
             watchlist_read_snapshot: config.watchlist_read_snapshot_port.clone(),
             portfolio_snapshot: config.portfolio_snapshot_port.clone(),
             research_read_snapshot: config.research_read_snapshot_port.clone(),
+            research_preset_read_snapshot: config.research_preset_read_snapshot_port.clone(),
             broker_read_snapshot: config.broker_read_snapshot_port.clone(),
             system_read_snapshot: config.system_read_snapshot_port.clone(),
             remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),

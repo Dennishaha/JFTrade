@@ -118,6 +118,13 @@ run("go", [
   "test",
   "./scripts/rust-migration",
   "-run",
+  "^TestStage9ResearchPresetReadFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
   "^TestStage9BrokerReadFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
@@ -640,6 +647,30 @@ run("cargo", [
   "test",
   "-p",
   "jftrade-engine",
+  "product::tests::research_preset_read_tests::research_preset_read_routes_match_group_fixture_in_cutover_only",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::research_preset_read_tests::research_preset_read_routes_fail_closed_and_keep_mutations_unregistered",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::research_preset_read_tests::research_preset_read_routes_are_not_registered_without_snapshot_port",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
   "product::tests::broker_read_tests::broker_read_routes_match_group_fixture_in_cutover_only",
   "--",
   "--exact",
@@ -846,4 +877,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: settings/system/alerts/plugins/strategy-definitions/strategy-instance/watchlist/portfolio/research/broker/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");
+console.log("Go/Rust Stage 9 product-slice differential passed: settings/system/alerts/plugins/strategy-definitions/strategy-instance/watchlist/portfolio/research/research-preset/broker/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");

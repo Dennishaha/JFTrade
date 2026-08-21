@@ -12,6 +12,7 @@ struct ProductApi {
     watchlist_read_snapshot_port: Option<Arc<dyn WatchlistReadSnapshotPort>>,
     portfolio_snapshot_port: Option<Arc<dyn PortfolioSnapshotPort>>,
     research_read_snapshot_port: Option<Arc<dyn ResearchReadSnapshotPort>>,
+    research_preset_read_snapshot_port: Option<Arc<dyn ResearchPresetReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -32,6 +33,7 @@ struct ProductOptionalPorts {
     watchlist_read_snapshot: Option<Arc<dyn WatchlistReadSnapshotPort>>,
     portfolio_snapshot: Option<Arc<dyn PortfolioSnapshotPort>>,
     research_read_snapshot: Option<Arc<dyn ResearchReadSnapshotPort>>,
+    research_preset_read_snapshot: Option<Arc<dyn ResearchPresetReadSnapshotPort>>,
     broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -85,6 +87,7 @@ impl ProductApi {
             watchlist_read_snapshot_port: optional_ports.watchlist_read_snapshot,
             portfolio_snapshot_port: optional_ports.portfolio_snapshot,
             research_read_snapshot_port: optional_ports.research_read_snapshot,
+            research_preset_read_snapshot_port: optional_ports.research_preset_read_snapshot,
             broker_read_snapshot_port: optional_ports.broker_read_snapshot,
             system_read_snapshot_port: optional_ports.system_read_snapshot,
             remote_watchlist_snapshot_port: optional_ports.remote_watchlist_snapshot,
@@ -183,7 +186,6 @@ impl ProductApi {
             "migrationOwner": if self.capabilities.is_empty() { "read-only-shadow" } else { "cutover" }
         }))
     }
-
     fn appearance(&self) -> Result<ApiOutput, ApiFailure> {
         self.settings
             .appearance
@@ -191,7 +193,6 @@ impl ProductApi {
             .map(|appearance| ApiOutput::Json(json!({ "appearance": appearance })))
             .map_err(settings_failure)
     }
-
     fn broker_settings(&self) -> Result<ApiOutput, ApiFailure> {
         let inputs = self
             .settings
@@ -200,7 +201,6 @@ impl ProductApi {
             .map_err(settings_read_failure)?;
         Ok(ApiOutput::Json(broker_settings_wire(inputs)))
     }
-
     fn save_broker_integration(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
         let input: BrokerIntegration = serde_json::from_slice(body)
             .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid integration payload"))?;

@@ -23,6 +23,7 @@ enum ProductCapability {
     WatchlistRead,
     Portfolio,
     ResearchRead,
+    ResearchPresetRead,
     BrokerRead,
     RemoteWatchlistRead,
     SystemRead,
@@ -63,6 +64,7 @@ impl ProductCapabilities {
             ProductCapability::WatchlistRead,
             ProductCapability::Portfolio,
             ProductCapability::ResearchRead,
+            ProductCapability::ResearchPresetRead,
             ProductCapability::BrokerRead,
             ProductCapability::RemoteWatchlistRead,
             ProductCapability::SystemRead,
@@ -97,6 +99,7 @@ impl ProductCapabilities {
                     | ProductCapability::WatchlistRead
                     | ProductCapability::Portfolio
                     | ProductCapability::ResearchRead
+                    | ProductCapability::ResearchPresetRead
                     | ProductCapability::BrokerRead
                     | ProductCapability::RemoteWatchlistRead
                     | ProductCapability::SystemRead
@@ -125,6 +128,7 @@ struct ProductRoutePorts {
     watchlist_read: bool,
     portfolio: bool,
     research_read: bool,
+    research_preset_read: bool,
     broker_read: bool,
     remote_watchlist: bool,
     system_read: bool,
@@ -144,6 +148,7 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         watchlist_read: config.watchlist_read_snapshot_port.is_some(),
         portfolio: config.portfolio_snapshot_port.is_some(),
         research_read: config.research_read_snapshot_port.is_some(),
+        research_preset_read: config.research_preset_read_snapshot_port.is_some(),
         broker_read: config.broker_read_snapshot_port.is_some(),
         system_read: config.system_read_snapshot_port.is_some(),
         backtest_read: config.backtest_read_snapshot_port.is_some(),

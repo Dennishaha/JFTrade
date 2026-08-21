@@ -11,6 +11,29 @@ impl ProductApi {
             .map(ApiOutput::Json)
             .map_err(research_read_snapshot_failure)
     }
+
+    fn research_preset_read(&self, path: &str, query: &str) -> Result<ApiOutput, ApiFailure> {
+        let port = self
+            .research_preset_read_snapshot_port
+            .as_ref()
+            .ok_or_else(|| {
+                ApiFailure::new(
+                    503,
+                    "RESEARCH_PRESET_UNAVAILABLE",
+                    "research preset read snapshot is not configured",
+                )
+            })?;
+        port.read(path, query)
+            .map(ApiOutput::Json)
+            .map_err(research_preset_read_snapshot_failure)
+    }
+}
+
+fn is_research_preset_read_path(path: &str) -> bool {
+    path == "/api/v1/research/screens/presets"
+        || path
+            .strip_prefix("/api/v1/research/screens/presets/")
+            .is_some_and(|preset_id| !preset_id.is_empty() && !preset_id.contains('/'))
 }
 
 fn is_research_read_path(path: &str) -> bool {

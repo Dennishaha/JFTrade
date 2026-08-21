@@ -62,6 +62,14 @@ fn product_watchlist_research_trading_routes(
             route("GET", "/api/v1/research/industries"),
         ]);
     }
+    if ports.research_preset_read
+        && capabilities.contains(ProductCapability::ResearchPresetRead)
+    {
+        routes.extend([
+            route("GET", "/api/v1/research/screens/presets"),
+            route("GET", "/api/v1/research/screens/presets/{presetId}"),
+        ]);
+    }
     if ports.broker_read && capabilities.contains(ProductCapability::BrokerRead) {
         routes.extend([
             route("GET", "/api/v1/brokers/capabilities"),
