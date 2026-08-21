@@ -93,6 +93,12 @@ pub trait ResearchReadSnapshotPort: Send + Sync + std::fmt::Debug {
     -> Result<serde_json::Value, ResearchReadSnapshotError>;
 }
 
+/// Consumer-owned broker read projections. The Go broker runtime remains the
+/// only production owner; this port is test-cutover-only.
+pub trait BrokerReadSnapshotPort: Send + Sync + std::fmt::Debug {
+    fn read(&self, path: &str, query: &str) -> Result<serde_json::Value, BrokerReadSnapshotError>;
+}
+
 /// Consumer-owned read port for the current Go plugin catalog's uninstall
 /// guidance. The port carries the complete wire projection so Rust does not
 /// duplicate platform-specific path normalization or shell quoting.
@@ -209,6 +215,14 @@ pub enum ResearchReadSnapshotError {
 }
 
 #[derive(Clone, Debug, Error)]
+pub enum BrokerReadSnapshotError {
+    #[error("broker read snapshot is unavailable: {0}")]
+    Unavailable(String),
+    #[error("broker read snapshot request is invalid: {0}")]
+    Invalid(String),
+}
+
+#[derive(Clone, Debug, Error)]
 pub enum PluginUninstallGuidanceSnapshotError {
     #[error("plugin uninstall guidance snapshot is unavailable: {0}")]
     Unavailable(String),
@@ -232,6 +246,7 @@ pub struct ProductConfig {
     watchlist_read_snapshot_port: Option<Arc<dyn WatchlistReadSnapshotPort>>,
     portfolio_snapshot_port: Option<Arc<dyn PortfolioSnapshotPort>>,
     research_read_snapshot_port: Option<Arc<dyn ResearchReadSnapshotPort>>,
+    broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
@@ -284,6 +299,7 @@ impl ProductConfig {
             watchlist_read_snapshot_port: None,
             portfolio_snapshot_port: None,
             research_read_snapshot_port: None,
+            broker_read_snapshot_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
             plugin_snapshot_port: None,
             alert_snapshot_port: None,
@@ -412,6 +428,12 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_broker_read_snapshot_port(mut self, port: Arc<dyn BrokerReadSnapshotPort>) -> Self {
+        self.broker_read_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_plugin_uninstall_guidance_snapshot_port(
         mut self,
         port: Arc<dyn PluginUninstallGuidanceSnapshotPort>,
@@ -534,6 +556,7 @@ pub(crate) async fn start_product_with_runtime_state(
         watchlist_read: config.watchlist_read_snapshot_port.is_some(),
         portfolio: config.portfolio_snapshot_port.is_some(),
         research_read: config.research_read_snapshot_port.is_some(),
+        broker_read: config.broker_read_snapshot_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
         strategy_definitions: config.strategy_definition_snapshot_port.is_some(),
@@ -608,6 +631,7 @@ pub(crate) async fn start_product_with_runtime_state(
             watchlist_read_snapshot: config.watchlist_read_snapshot_port.clone(),
             portfolio_snapshot: config.portfolio_snapshot_port.clone(),
             research_read_snapshot: config.research_read_snapshot_port.clone(),
+            broker_read_snapshot: config.broker_read_snapshot_port.clone(),
             plugin_uninstall_guidance_snapshot: config
                 .plugin_uninstall_guidance_snapshot_port
                 .clone(),
@@ -699,6 +723,8 @@ include!("product_api_portfolio.rs");
 
 include!("product_api_research.rs");
 
+include!("product_api_brokers.rs");
+
 include!("product_api_plugins.rs");
 
 include!("product_api_strategy_definitions.rs");
@@ -710,6 +736,8 @@ include!("product_wire_watchlist.rs");
 include!("product_wire_portfolio.rs");
 
 include!("product_wire_research.rs");
+
+include!("product_wire_brokers.rs");
 
 #[derive(Debug, Error)]
 pub enum ProductError {

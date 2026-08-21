@@ -1,0 +1,3259 @@
+{
+  "version": "stage9.broker-read.v1",
+  "cases": [
+    {
+      "name": "capabilities",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/capabilities",
+      "expectedStatus": 200,
+      "data": {
+        "brokers": [],
+        "catalog": {
+          "features": [
+            {
+              "access": "read",
+              "adapterInterface": "InstrumentProfileReader",
+              "approval": "none",
+              "id": "market.search",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/instruments",
+                  "httpMethod": "GET",
+                  "id": "search",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3262,
+                      "key": "Qot_GetSearchQuote",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.search/search",
+                  "tool": "market.search",
+                  "uiSurfaceId": "workspace.root"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/instruments",
+                "readOnlyMcp": true,
+                "tool": "market.search",
+                "ui": "/workspace"
+              },
+              "testMapping": "TestCapabilityOperationContracts/market.search"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "InstrumentProfileReader",
+              "approval": "none",
+              "id": "market.instrument_profile",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/instruments/{instrumentId}/profile",
+                  "httpMethod": "GET",
+                  "id": "profile",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3202,
+                      "key": "Qot_GetStaticInfo",
+                      "kind": "request"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 3203,
+                      "key": "Qot_GetSecuritySnapshot",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.instrument_profile/profile",
+                  "tool": "market.instrument_profile",
+                  "uiSurfaceId": "workspace.company"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/instruments/{instrumentId}/profile",
+                "readOnlyMcp": true,
+                "tool": "market.instrument_profile",
+                "ui": "/workspace?tab=company"
+              },
+              "testMapping": "TestCapabilityOperationContracts/market.instrument_profile"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "BatchSnapshotSource",
+              "approval": "none",
+              "id": "market.snapshot",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/snapshots/{market}/{symbol}",
+                  "httpMethod": "GET",
+                  "id": "snapshot",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3203,
+                      "key": "Qot_GetSecuritySnapshot",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.snapshot/snapshot",
+                  "tool": "market.snapshot",
+                  "uiSurfaceId": "workspace.chart"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/snapshots/{market}/{symbol}",
+                "readOnlyMcp": true,
+                "tool": "market.snapshot",
+                "ui": "/workspace?tab=chart"
+              },
+              "testMapping": "TestCapabilityOperationContracts/market.snapshot"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "BatchSnapshotSource",
+              "approval": "none",
+              "id": "market.snapshots",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/snapshots",
+                  "httpMethod": "POST",
+                  "id": "snapshots",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3203,
+                      "key": "Qot_GetSecuritySnapshot",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.snapshots/snapshots",
+                  "tool": "market.snapshots",
+                  "uiSurfaceId": "workspace.root"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/snapshots",
+                "readOnlyMcp": true,
+                "tool": "market.snapshots",
+                "ui": "/workspace"
+              },
+              "testMapping": "TestCapabilityOperationContracts/market.snapshots"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketDataReader",
+              "approval": "none",
+              "id": "market.candles",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/candles/{market}/{symbol}",
+                  "httpMethod": "GET",
+                  "id": "current",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3006,
+                      "key": "Qot_GetKL",
+                      "kind": "request"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 3007,
+                      "key": "Qot_UpdateKL",
+                      "kind": "push"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.candles/current",
+                  "tool": "market.candles",
+                  "uiSurfaceId": "workspace.chart"
+                },
+                {
+                  "api": "/api/v1/market-data/candles/{market}/{symbol}",
+                  "httpMethod": "GET",
+                  "id": "historical",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3103,
+                      "key": "Qot_RequestHistoryKL",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.candles/historical",
+                  "tool": "market.candles",
+                  "uiSurfaceId": "workspace.chart"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/candles/{market}/{symbol}",
+                "readOnlyMcp": true,
+                "tool": "market.candles",
+                "ui": "/workspace?tab=chart"
+              },
+              "testMapping": "TestCapabilityOperationContracts/market.candles"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketMicrostructureReader",
+              "approval": "none",
+              "id": "market.intraday",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/intraday/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "intraday",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3008,
+                      "key": "Qot_GetRT",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.intraday/intraday",
+                  "tool": "market.intraday",
+                  "uiSurfaceId": "workspace.chart"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/intraday/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "market.intraday",
+                "ui": "/workspace?tab=chart"
+              },
+              "testMapping": "TestCapabilityOperationContracts/market.intraday"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketMicrostructureReader",
+              "approval": "none",
+              "id": "market.ticks",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/ticks/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "ticks",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3010,
+                      "key": "Qot_GetTicker",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.ticks/ticks",
+                  "tool": "market.ticks",
+                  "uiSurfaceId": "workspace.chart"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/ticks/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "market.ticks",
+                "ui": "/workspace?tab=chart"
+              },
+              "testMapping": "TestCapabilityOperationContracts/market.ticks"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketMicrostructureReader",
+              "approval": "none",
+              "id": "market.depth",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/depth/{market}/{symbol}",
+                  "httpMethod": "GET",
+                  "id": "depth",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3012,
+                      "key": "Qot_GetOrderBook",
+                      "kind": "request"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 3013,
+                      "key": "Qot_UpdateOrderBook",
+                      "kind": "push"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.depth/depth",
+                  "tool": "market.depth",
+                  "uiSurfaceId": "workspace.chart"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/depth/{market}/{symbol}",
+                "readOnlyMcp": true,
+                "tool": "market.depth",
+                "ui": "/workspace?tab=chart"
+              },
+              "testMapping": "TestCapabilityOperationContracts/market.depth"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketMicrostructureReader",
+              "approval": "none",
+              "id": "market.broker_queue",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/broker-queue/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "broker_queue",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3014,
+                      "key": "Qot_GetBroker",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.broker_queue/broker_queue",
+                  "tool": "market.broker_queue",
+                  "uiSurfaceId": "workspace.chart"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/broker-queue/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "market.broker_queue",
+                "ui": "/workspace?tab=chart"
+              },
+              "testMapping": "TestCapabilityOperationContracts/market.broker_queue"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketMicrostructureReader",
+              "approval": "none",
+              "id": "market.capital_flow",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/capital-flow/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "distribution",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3212,
+                      "key": "Qot_GetCapitalDistribution",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.capital_flow/distribution",
+                  "tool": "market.capital_flow",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/market-data/capital-flow/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "flow",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3211,
+                      "key": "Qot_GetCapitalFlow",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/market.capital_flow/flow",
+                  "tool": "market.capital_flow",
+                  "uiSurfaceId": "workspace.company"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/capital-flow/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "market.capital_flow",
+                "ui": "/workspace?tab=company"
+              },
+              "testMapping": "TestCapabilityOperationContracts/market.capital_flow"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "DerivativeCatalogReader",
+              "approval": "none",
+              "id": "derivatives.option_chain",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/options/chains/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "chain",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3209,
+                      "key": "Qot_GetOptionChain",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_chain/chain",
+                  "tool": "derivatives.option_chain",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/expirations/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "expirations",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3224,
+                      "key": "Qot_GetOptionExpirationDate",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_chain/expirations",
+                  "tool": "derivatives.option_chain",
+                  "uiSurfaceId": "workspace.options"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/options/chains/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "derivatives.option_chain",
+                "ui": "/workspace?tab=options"
+              },
+              "testMapping": "TestCapabilityOperationContracts/derivatives.option_chain"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "DerivativeCatalogReader",
+              "approval": "none",
+              "id": "derivatives.option_screen",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/options/screens",
+                  "httpMethod": "GET",
+                  "id": "screen",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3253,
+                      "key": "Qot_OptionScreen",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_screen/screen",
+                  "tool": "derivatives.option_screen",
+                  "uiSurfaceId": "research.options"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/options/screens",
+                "readOnlyMcp": true,
+                "tool": "derivatives.option_screen",
+                "ui": "/research?section=options"
+              },
+              "testMapping": "TestCapabilityOperationContracts/derivatives.option_screen"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "OptionAnalyticsReader",
+              "approval": "none",
+              "id": "derivatives.option_analysis",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "contract_rank",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3306,
+                      "key": "Qot_GetOptionRank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/contract_rank",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "exercise_probability",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3251,
+                      "key": "Qot_GetOptionExerciseProbability",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/exercise_probability",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "historical_statistics",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3302,
+                      "key": "Qot_GetOptionUnderlyingHisStatistic",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/historical_statistics",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "historical_volatility",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3304,
+                      "key": "Qot_GetOptionUnderlyingHisVolatility",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/historical_volatility",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "market_statistics",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3301,
+                      "key": "Qot_GetOptionMarketStatistic",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/market_statistics",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "quote",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3255,
+                      "key": "Qot_GetOptionQuote",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/quote",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "POST",
+                  "id": "strategy",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3256,
+                      "key": "Qot_GetOptionStrategy",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/strategy",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "POST",
+                  "id": "strategy_analysis",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3257,
+                      "key": "Qot_GetOptionStrategyAnalysis",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/strategy_analysis",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "POST",
+                  "id": "strategy_spread",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3258,
+                      "key": "Qot_GetOptionStrategySpread",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/strategy_spread",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "underlying_overview",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3303,
+                      "key": "Qot_GetOptionUnderlyingOverview",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/underlying_overview",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "underlying_rank",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3305,
+                      "key": "Qot_GetOptionUnderlyingRank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/underlying_rank",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "volatility",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3250,
+                      "key": "Qot_GetOptionVolatility",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_analysis/volatility",
+                  "tool": "derivatives.option_analysis",
+                  "uiSurfaceId": "workspace.options"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/options/analysis/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "derivatives.option_analysis",
+                "ui": "/workspace?tab=options"
+              },
+              "testMapping": "TestCapabilityOperationContracts/derivatives.option_analysis"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "OptionAnalyticsReader",
+              "approval": "none",
+              "id": "derivatives.option_events",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/options/events",
+                  "httpMethod": "GET",
+                  "id": "earnings",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3313,
+                      "key": "Qot_GetOptionEarningsScreener",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_events/earnings",
+                  "tool": "derivatives.option_events",
+                  "uiSurfaceId": "research.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/events",
+                  "httpMethod": "GET",
+                  "id": "seller",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3314,
+                      "key": "Qot_GetOptionSellerScreener",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_events/seller",
+                  "tool": "derivatives.option_events",
+                  "uiSurfaceId": "research.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/events",
+                  "httpMethod": "GET",
+                  "id": "unusual",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3307,
+                      "key": "Qot_GetOptionEvent",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_events/unusual",
+                  "tool": "derivatives.option_events",
+                  "uiSurfaceId": "research.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/events",
+                  "httpMethod": "GET",
+                  "id": "zero_dte",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3311,
+                      "key": "Qot_GetOptionZeroDteScreener",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_events/zero_dte",
+                  "tool": "derivatives.option_events",
+                  "uiSurfaceId": "research.options"
+                },
+                {
+                  "api": "/api/v1/market-data/options/events/zero-dte-contracts",
+                  "httpMethod": "POST",
+                  "id": "zero_dte_contract",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3312,
+                      "key": "Qot_GetOptionZeroDteContract",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.option_events/zero_dte_contract",
+                  "tool": "derivatives.option_events",
+                  "uiSurfaceId": "research.options"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/options/events",
+                "readOnlyMcp": true,
+                "tool": "derivatives.option_events",
+                "ui": "/research?section=options"
+              },
+              "testMapping": "TestCapabilityOperationContracts/derivatives.option_events"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "DerivativeCatalogReader",
+              "approval": "none",
+              "id": "derivatives.warrants",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/warrants",
+                  "httpMethod": "GET",
+                  "id": "list",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3210,
+                      "key": "Qot_GetWarrant",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.warrants/list",
+                  "tool": "derivatives.warrants",
+                  "uiSurfaceId": "workspace.warrants"
+                },
+                {
+                  "api": "/api/v1/market-data/warrants",
+                  "httpMethod": "GET",
+                  "id": "related",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3206,
+                      "key": "Qot_GetReference",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.warrants/related",
+                  "tool": "derivatives.warrants",
+                  "uiSurfaceId": "workspace.warrants"
+                },
+                {
+                  "api": "/api/v1/market-data/warrants",
+                  "httpMethod": "GET",
+                  "id": "screen",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3254,
+                      "key": "Qot_WarrantScreen",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.warrants/screen",
+                  "tool": "derivatives.warrants",
+                  "uiSurfaceId": "workspace.warrants"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/warrants",
+                "readOnlyMcp": true,
+                "tool": "derivatives.warrants",
+                "ui": "/workspace?tab=warrants"
+              },
+              "testMapping": "TestCapabilityOperationContracts/derivatives.warrants"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "DerivativeCatalogReader",
+              "approval": "none",
+              "id": "derivatives.futures",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/futures",
+                  "httpMethod": "GET",
+                  "id": "contracts",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3218,
+                      "key": "Qot_GetFutureInfo",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/derivatives.futures/contracts",
+                  "tool": "derivatives.futures",
+                  "uiSurfaceId": "workspace.root"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/futures",
+                "readOnlyMcp": true,
+                "tool": "derivatives.futures",
+                "ui": "/workspace"
+              },
+              "testMapping": "TestCapabilityOperationContracts/derivatives.futures"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "InstrumentResearchReader",
+              "approval": "none",
+              "id": "research.instrument",
+              "operations": [
+                {
+                  "api": "/api/v1/research/instruments/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "executive_background",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3245,
+                      "key": "Qot_GetCompanyExecutiveBackground",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.instrument/executive_background",
+                  "tool": "research.instrument",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/instruments/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "executives",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3244,
+                      "key": "Qot_GetCompanyExecutives",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.instrument/executives",
+                  "tool": "research.instrument",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/instruments/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "operational_efficiency",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3246,
+                      "key": "Qot_GetCompanyOperationalEfficiency",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.instrument/operational_efficiency",
+                  "tool": "research.instrument",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/instruments/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "profile",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3243,
+                      "key": "Qot_GetCompanyProfile",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.instrument/profile",
+                  "tool": "research.instrument",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/instruments/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "top_brokers",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3247,
+                      "key": "Qot_GetTopTenBuySellBrokers",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.instrument/top_brokers",
+                  "tool": "research.instrument",
+                  "uiSurfaceId": "workspace.company"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/instruments/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "research.instrument",
+                "ui": "/workspace?tab=company"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.instrument"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "InstrumentResearchReader",
+              "approval": "none",
+              "id": "research.financials",
+              "operations": [
+                {
+                  "api": "/api/v1/research/financials/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "earnings_price_history",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3226,
+                      "key": "Qot_GetFinancialsEarningsPriceHistory",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.financials/earnings_price_history",
+                  "tool": "research.financials",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/financials/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "earnings_price_move",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3225,
+                      "key": "Qot_GetFinancialsEarningsPriceMove",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.financials/earnings_price_move",
+                  "tool": "research.financials",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/financials/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "revenue_breakdown",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3228,
+                      "key": "Qot_GetFinancialsRevenueBreakdown",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.financials/revenue_breakdown",
+                  "tool": "research.financials",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/financials/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "statements",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3227,
+                      "key": "Qot_GetFinancialsStatements",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.financials/statements",
+                  "tool": "research.financials",
+                  "uiSurfaceId": "workspace.company"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/financials/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "research.financials",
+                "ui": "/workspace?tab=company"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.financials"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "InstrumentResearchReader",
+              "approval": "none",
+              "id": "research.valuation",
+              "operations": [
+                {
+                  "api": "/api/v1/research/valuation/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "constituents",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3233,
+                      "key": "Qot_GetValuationPlateStockList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.valuation/constituents",
+                  "tool": "research.valuation",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/valuation/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "detail",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3232,
+                      "key": "Qot_GetValuationDetail",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.valuation/detail",
+                  "tool": "research.valuation",
+                  "uiSurfaceId": "workspace.company"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/valuation/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "research.valuation",
+                "ui": "/workspace?tab=company"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.valuation"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "InstrumentResearchReader",
+              "approval": "none",
+              "id": "research.analyst",
+              "operations": [
+                {
+                  "api": "/api/v1/research/analyst/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "changes",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3426,
+                      "key": "Qot_GetRatingChange",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.analyst/changes",
+                  "tool": "research.analyst",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/analyst/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "consensus",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3229,
+                      "key": "Qot_GetResearchAnalystConsensus",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.analyst/consensus",
+                  "tool": "research.analyst",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/analyst/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "morningstar",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3231,
+                      "key": "Qot_GetResearchMorningstarReport",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.analyst/morningstar",
+                  "tool": "research.analyst",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/analyst/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "ratings",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3230,
+                      "key": "Qot_GetResearchRatingSummary",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.analyst/ratings",
+                  "tool": "research.analyst",
+                  "uiSurfaceId": "workspace.company"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/analyst/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "research.analyst",
+                "ui": "/workspace?tab=company"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.analyst"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "InstrumentResearchReader",
+              "approval": "none",
+              "id": "research.ownership",
+              "operations": [
+                {
+                  "api": "/api/v1/research/ownership/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "changes",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3238,
+                      "key": "Qot_GetShareholdersHoldingChanges",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.ownership/changes",
+                  "tool": "research.ownership",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/ownership/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "holders",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3239,
+                      "key": "Qot_GetShareholdersHolderDetail",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.ownership/holders",
+                  "tool": "research.ownership",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/ownership/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "insider_holders",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3241,
+                      "key": "Qot_GetInsiderHolderList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.ownership/insider_holders",
+                  "tool": "research.ownership",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/ownership/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "insider_transactions",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3242,
+                      "key": "Qot_GetInsiderTradeList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.ownership/insider_transactions",
+                  "tool": "research.ownership",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/ownership/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "institutional",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3240,
+                      "key": "Qot_GetShareholdersInstitutional",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.ownership/institutional",
+                  "tool": "research.ownership",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/ownership/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "management_changes",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3208,
+                      "key": "Qot_GetHoldingChangeList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.ownership/management_changes",
+                  "tool": "research.ownership",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/ownership/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "overview",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3237,
+                      "key": "Qot_GetShareholdersOverview",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.ownership/overview",
+                  "tool": "research.ownership",
+                  "uiSurfaceId": "workspace.company"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/ownership/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "research.ownership",
+                "ui": "/workspace?tab=company"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.ownership"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "InstrumentResearchReader",
+              "approval": "none",
+              "id": "research.corporate_actions",
+              "operations": [
+                {
+                  "api": "/api/v1/research/corporate-actions/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "buybacks",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3235,
+                      "key": "Qot_GetCorporateActionsBuybacks",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.corporate_actions/buybacks",
+                  "tool": "research.corporate_actions",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/corporate-actions/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "code_changes",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3216,
+                      "key": "Qot_GetCodeChange",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.corporate_actions/code_changes",
+                  "tool": "research.corporate_actions",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/corporate-actions/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "dividends",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3234,
+                      "key": "Qot_GetCorporateActionsDividends",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.corporate_actions/dividends",
+                  "tool": "research.corporate_actions",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/corporate-actions/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "splits",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3236,
+                      "key": "Qot_GetCorporateActionsStockSplits",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.corporate_actions/splits",
+                  "tool": "research.corporate_actions",
+                  "uiSurfaceId": "workspace.company"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/corporate-actions/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "research.corporate_actions",
+                "ui": "/workspace?tab=company"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.corporate_actions"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "InstrumentResearchReader",
+              "approval": "none",
+              "id": "research.short_interest",
+              "operations": [
+                {
+                  "api": "/api/v1/research/short-interest/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "daily_volume",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3248,
+                      "key": "Qot_GetDailyShortVolume",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.short_interest/daily_volume",
+                  "tool": "research.short_interest",
+                  "uiSurfaceId": "workspace.company"
+                },
+                {
+                  "api": "/api/v1/research/short-interest/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "short_interest",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3249,
+                      "key": "Qot_GetShortInterest",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.short_interest/short_interest",
+                  "tool": "research.short_interest",
+                  "uiSurfaceId": "workspace.company"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/short-interest/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "research.short_interest",
+                "ui": "/workspace?tab=company"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.short_interest"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "InstrumentResearchReader",
+              "approval": "none",
+              "id": "research.news",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/news",
+                  "httpMethod": "GET",
+                  "id": "search",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3263,
+                      "key": "Qot_GetSearchNews",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.news/search",
+                  "tool": "research.news",
+                  "uiSurfaceId": "workspace.news"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/news",
+                "readOnlyMcp": true,
+                "tool": "research.news",
+                "ui": "/workspace?tab=news"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.news"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketResearchReader",
+              "approval": "none",
+              "id": "research.screen",
+              "operations": [
+                {
+                  "api": "/api/v1/research/screens",
+                  "httpMethod": "GET",
+                  "id": "stock_v1",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3215,
+                      "key": "Qot_StockFilter",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.screen/stock_v1",
+                  "uiSurfaceId": "research.screens"
+                },
+                {
+                  "api": "/api/v1/research/screens",
+                  "httpMethod": "GET",
+                  "id": "stock_v2",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3252,
+                      "key": "Qot_StockScreen",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.screen/stock_v2",
+                  "tool": "research.screen",
+                  "uiSurfaceId": "research.screens"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/screens",
+                "readOnlyMcp": true,
+                "tool": "research.screen",
+                "ui": "/research?section=screens"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.screen"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketResearchReader",
+              "approval": "none",
+              "id": "research.calendar",
+              "operations": [
+                {
+                  "api": "/api/v1/research/calendars",
+                  "httpMethod": "GET",
+                  "id": "dividends",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3408,
+                      "key": "Qot_GetDividendCalendar",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.calendar/dividends",
+                  "tool": "research.calendar",
+                  "uiSurfaceId": "research.calendar"
+                },
+                {
+                  "api": "/api/v1/research/calendars",
+                  "httpMethod": "GET",
+                  "id": "earnings",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3401,
+                      "key": "Qot_GetEarningsCalendar",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.calendar/earnings",
+                  "tool": "research.calendar",
+                  "uiSurfaceId": "research.calendar"
+                },
+                {
+                  "api": "/api/v1/research/calendars",
+                  "httpMethod": "GET",
+                  "id": "economic",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3409,
+                      "key": "Qot_GetEconomicCalendar",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.calendar/economic",
+                  "tool": "research.calendar",
+                  "uiSurfaceId": "research.calendar"
+                },
+                {
+                  "api": "/api/v1/research/calendars",
+                  "httpMethod": "GET",
+                  "id": "ipos",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3217,
+                      "key": "Qot_GetIpoList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.calendar/ipos",
+                  "tool": "research.calendar",
+                  "uiSurfaceId": "research.calendar"
+                },
+                {
+                  "api": "/api/v1/research/calendars",
+                  "httpMethod": "GET",
+                  "id": "trade_dates",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3219,
+                      "key": "Qot_RequestTradeDate",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.calendar/trade_dates",
+                  "tool": "research.calendar",
+                  "uiSurfaceId": "research.calendar"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/calendars",
+                "readOnlyMcp": true,
+                "tool": "research.calendar",
+                "ui": "/research?section=calendar"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.calendar"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketResearchReader",
+              "approval": "none",
+              "id": "research.macro",
+              "operations": [
+                {
+                  "api": "/api/v1/research/macro",
+                  "httpMethod": "GET",
+                  "id": "fed_dot_plot",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3405,
+                      "key": "Qot_GetFedWatchDotPlot",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.macro/fed_dot_plot",
+                  "tool": "research.macro",
+                  "uiSurfaceId": "research.macro"
+                },
+                {
+                  "api": "/api/v1/research/macro",
+                  "httpMethod": "GET",
+                  "id": "fed_target_rate",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3404,
+                      "key": "Qot_GetFedWatchTargetRate",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.macro/fed_target_rate",
+                  "tool": "research.macro",
+                  "uiSurfaceId": "research.macro"
+                },
+                {
+                  "api": "/api/v1/research/macro",
+                  "httpMethod": "GET",
+                  "id": "indicator_history",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3403,
+                      "key": "Qot_GetMacroIndicatorHistory",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.macro/indicator_history",
+                  "tool": "research.macro",
+                  "uiSurfaceId": "research.macro"
+                },
+                {
+                  "api": "/api/v1/research/macro",
+                  "httpMethod": "GET",
+                  "id": "indicators",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3402,
+                      "key": "Qot_GetMacroIndicatorList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.macro/indicators",
+                  "tool": "research.macro",
+                  "uiSurfaceId": "research.macro"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/macro",
+                "readOnlyMcp": true,
+                "tool": "research.macro",
+                "ui": "/research?section=macro"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.macro"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketResearchReader",
+              "approval": "none",
+              "id": "research.rankings",
+              "operations": [
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "after_hours",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3411,
+                      "key": "Qot_GetUSAfterHoursRank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/after_hours",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "dividend",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3407,
+                      "key": "Qot_GetDividendRank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/dividend",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "earnings_beat",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3406,
+                      "key": "Qot_GetEarningsBeatRank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/earnings_beat",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "fund_catalog",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3202,
+                      "key": "Qot_GetStaticInfo",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/fund_catalog",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "heatmap",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3432,
+                      "key": "Qot_GetHeatMapData",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/heatmap",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "high_dividend_state",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3417,
+                      "key": "Qot_GetHighDividendSOERank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/high_dividend_state",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "hot",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3414,
+                      "key": "Qot_GetHotList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/hot",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "market_state",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3223,
+                      "key": "Qot_GetMarketState",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/market_state",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "overnight",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3412,
+                      "key": "Qot_GetUSOvernightRank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/overnight",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "period_change",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3416,
+                      "key": "Qot_GetPeriodChangeRank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/period_change",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "pre_market",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3410,
+                      "key": "Qot_GetUSPreMarketRank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/pre_market",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "rise_fall_distribution",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3433,
+                      "key": "Qot_GetRiseFallDistribution",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/rise_fall_distribution",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "short_selling",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3415,
+                      "key": "Qot_GetShortSellingRank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/short_selling",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/rankings",
+                  "httpMethod": "GET",
+                  "id": "top_movers",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3413,
+                      "key": "Qot_GetTopMoversRank",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.rankings/top_movers",
+                  "tool": "research.rankings",
+                  "uiSurfaceId": "research.market"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/rankings",
+                "readOnlyMcp": true,
+                "tool": "research.rankings",
+                "ui": "/research?section=market"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.rankings"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketResearchReader",
+              "approval": "none",
+              "id": "research.institutions",
+              "operations": [
+                {
+                  "api": "/api/v1/research/institutions",
+                  "httpMethod": "GET",
+                  "id": "ark_fund_holdings",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3423,
+                      "key": "Qot_GetArkFundHolding",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.institutions/ark_fund_holdings",
+                  "tool": "research.institutions",
+                  "uiSurfaceId": "research.institutions"
+                },
+                {
+                  "api": "/api/v1/research/institutions",
+                  "httpMethod": "GET",
+                  "id": "ark_stock_activity",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3424,
+                      "key": "Qot_GetArkStockDynamic",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.institutions/ark_stock_activity",
+                  "tool": "research.institutions",
+                  "uiSurfaceId": "research.institutions"
+                },
+                {
+                  "api": "/api/v1/research/institutions",
+                  "httpMethod": "GET",
+                  "id": "ark_transactions",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3425,
+                      "key": "Qot_GetArkActiveTransaction",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.institutions/ark_transactions",
+                  "tool": "research.institutions",
+                  "uiSurfaceId": "research.institutions"
+                },
+                {
+                  "api": "/api/v1/research/institutions",
+                  "httpMethod": "GET",
+                  "id": "distribution",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3420,
+                      "key": "Qot_GetInstitutionDistribution",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.institutions/distribution",
+                  "tool": "research.institutions",
+                  "uiSurfaceId": "research.institutions"
+                },
+                {
+                  "api": "/api/v1/research/institutions",
+                  "httpMethod": "GET",
+                  "id": "holding_changes",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3421,
+                      "key": "Qot_GetInstitutionHoldingChange",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.institutions/holding_changes",
+                  "tool": "research.institutions",
+                  "uiSurfaceId": "research.institutions"
+                },
+                {
+                  "api": "/api/v1/research/institutions",
+                  "httpMethod": "GET",
+                  "id": "holdings",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3422,
+                      "key": "Qot_GetInstitutionHoldingList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.institutions/holdings",
+                  "tool": "research.institutions",
+                  "uiSurfaceId": "research.institutions"
+                },
+                {
+                  "api": "/api/v1/research/institutions",
+                  "httpMethod": "GET",
+                  "id": "list",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3418,
+                      "key": "Qot_GetInstitutionList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.institutions/list",
+                  "tool": "research.institutions",
+                  "uiSurfaceId": "research.institutions"
+                },
+                {
+                  "api": "/api/v1/research/institutions",
+                  "httpMethod": "GET",
+                  "id": "profile",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3419,
+                      "key": "Qot_GetInstitutionProfile",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.institutions/profile",
+                  "tool": "research.institutions",
+                  "uiSurfaceId": "research.institutions"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/institutions",
+                "readOnlyMcp": true,
+                "tool": "research.institutions",
+                "ui": "/research?section=institutions"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.institutions"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "MarketResearchReader",
+              "approval": "none",
+              "id": "research.industry",
+              "operations": [
+                {
+                  "api": "/api/v1/research/industries",
+                  "httpMethod": "GET",
+                  "id": "chain_detail",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3428,
+                      "key": "Qot_GetIndustrialChainDetail",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.industry/chain_detail",
+                  "tool": "research.industry",
+                  "uiSurfaceId": "research.industries"
+                },
+                {
+                  "api": "/api/v1/research/industries",
+                  "httpMethod": "GET",
+                  "id": "chains",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3427,
+                      "key": "Qot_GetIndustrialChainList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.industry/chains",
+                  "tool": "research.industry",
+                  "uiSurfaceId": "research.industries"
+                },
+                {
+                  "api": "/api/v1/research/industries",
+                  "httpMethod": "GET",
+                  "id": "chains_by_plate",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3429,
+                      "key": "Qot_GetIndustrialChainByPlate",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.industry/chains_by_plate",
+                  "tool": "research.industry",
+                  "uiSurfaceId": "research.industries"
+                },
+                {
+                  "api": "/api/v1/research/industries",
+                  "httpMethod": "GET",
+                  "id": "owner_plates",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3207,
+                      "key": "Qot_GetOwnerPlate",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.industry/owner_plates",
+                  "tool": "research.industry",
+                  "uiSurfaceId": "research.industries"
+                },
+                {
+                  "api": "/api/v1/research/industries",
+                  "httpMethod": "GET",
+                  "id": "plate",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3430,
+                      "key": "Qot_GetIndustrialPlateInfo",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.industry/plate",
+                  "tool": "research.industry",
+                  "uiSurfaceId": "research.industries"
+                },
+                {
+                  "api": "/api/v1/research/industries",
+                  "httpMethod": "GET",
+                  "id": "plate_list",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3204,
+                      "key": "Qot_GetPlateSet",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.industry/plate_list",
+                  "tool": "research.industry",
+                  "uiSurfaceId": "research.industries"
+                },
+                {
+                  "api": "/api/v1/research/industries",
+                  "httpMethod": "GET",
+                  "id": "plate_members",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3205,
+                      "key": "Qot_GetPlateSecurity",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.industry/plate_members",
+                  "tool": "research.industry",
+                  "uiSurfaceId": "research.industries"
+                },
+                {
+                  "api": "/api/v1/research/industries",
+                  "httpMethod": "GET",
+                  "id": "plate_stocks",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3431,
+                      "key": "Qot_GetIndustrialPlateStock",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.industry/plate_stocks",
+                  "tool": "research.industry",
+                  "uiSurfaceId": "research.industries"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/industries",
+                "readOnlyMcp": true,
+                "tool": "research.industry",
+                "ui": "/research?section=industries"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.industry"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "TechnicalIndicatorReader",
+              "approval": "none",
+              "id": "research.technical_indicators",
+              "operations": [
+                {
+                  "api": "/api/v1/research/technical-indicators/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "calculate",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3260,
+                      "key": "Qot_RequestIndicatorCalc",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.technical_indicators/calculate",
+                  "tool": "research.technical_indicators",
+                  "uiSurfaceId": "research.market"
+                },
+                {
+                  "api": "/api/v1/research/technical-indicators/{instrumentId}",
+                  "httpMethod": "GET",
+                  "id": "list",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3259,
+                      "key": "Qot_GetIndicatorList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/research.technical_indicators/list",
+                  "tool": "research.technical_indicators",
+                  "uiSurfaceId": "research.market"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/research/technical-indicators/{instrumentId}",
+                "readOnlyMcp": true,
+                "tool": "research.technical_indicators",
+                "ui": "/research?section=market"
+              },
+              "testMapping": "TestCapabilityOperationContracts/research.technical_indicators"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "PredictionMarketReader",
+              "approval": "none",
+              "id": "prediction.discover",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/prediction/categories",
+                  "httpMethod": "GET",
+                  "id": "categories",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3434,
+                      "key": "Qot_GetEventContractCategory",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.discover/categories",
+                  "tool": "prediction.discover",
+                  "uiSurfaceId": "research.prediction"
+                },
+                {
+                  "api": "/api/v1/market-data/prediction/competitions",
+                  "httpMethod": "GET",
+                  "id": "competitions",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3435,
+                      "key": "Qot_FilterCompetition",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.discover/competitions",
+                  "tool": "prediction.discover",
+                  "uiSurfaceId": "research.prediction"
+                },
+                {
+                  "api": "/api/v1/market-data/prediction/events/{eventId}/contracts",
+                  "httpMethod": "GET",
+                  "id": "contracts",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3438,
+                      "key": "Qot_GetEventContract",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.discover/contracts",
+                  "tool": "prediction.discover",
+                  "uiSurfaceId": "research.prediction"
+                },
+                {
+                  "api": "/api/v1/market-data/prediction/events",
+                  "httpMethod": "GET",
+                  "id": "events",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3437,
+                      "key": "Qot_GetEventContractEventList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.discover/events",
+                  "tool": "prediction.discover",
+                  "uiSurfaceId": "research.prediction"
+                },
+                {
+                  "api": "/api/v1/market-data/prediction/contracts/{code}/milestones",
+                  "httpMethod": "GET",
+                  "id": "milestones",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3439,
+                      "key": "Qot_GetEventContractMilestoneList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.discover/milestones",
+                  "tool": "prediction.discover",
+                  "uiSurfaceId": "workspace.rules"
+                },
+                {
+                  "api": "/api/v1/market-data/prediction/series",
+                  "httpMethod": "GET",
+                  "id": "series",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3436,
+                      "key": "Qot_GetEventContractSeriesList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.discover/series",
+                  "tool": "prediction.discover",
+                  "uiSurfaceId": "research.prediction"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/prediction/categories",
+                "readOnlyMcp": true,
+                "tool": "prediction.discover",
+                "ui": "/research?section=prediction"
+              },
+              "testMapping": "TestCapabilityOperationContracts/prediction.discover"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "PredictionMarketReader",
+              "approval": "none",
+              "id": "prediction.snapshot",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/prediction/contracts/{code}/snapshot",
+                  "httpMethod": "GET",
+                  "id": "snapshot",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3445,
+                      "key": "Qot_GetEventContractSnapshot",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.snapshot/snapshot",
+                  "tool": "prediction.snapshot",
+                  "uiSurfaceId": "workspace.contract"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/prediction/contracts/{code}/snapshot",
+                "readOnlyMcp": true,
+                "tool": "prediction.snapshot",
+                "ui": "/workspace?tab=contract\u0026marketSegment=prediction"
+              },
+              "testMapping": "TestCapabilityOperationContracts/prediction.snapshot"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "PredictionMarketReader",
+              "approval": "none",
+              "id": "prediction.depth",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/prediction/contracts/{code}/order-book",
+                  "httpMethod": "GET",
+                  "id": "order_book",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3446,
+                      "key": "Qot_GetEventContractOrderBook",
+                      "kind": "request"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 3450,
+                      "key": "Qot_UpdateEventContractOrderBook",
+                      "kind": "push"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.depth/order_book",
+                  "tool": "prediction.depth",
+                  "uiSurfaceId": "workspace.depth"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/prediction/contracts/{code}/order-book",
+                "readOnlyMcp": true,
+                "tool": "prediction.depth",
+                "ui": "/workspace?tab=depth\u0026marketSegment=prediction"
+              },
+              "testMapping": "TestCapabilityOperationContracts/prediction.depth"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "PredictionMarketReader",
+              "approval": "none",
+              "id": "prediction.history",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/prediction/contracts/{code}/candles",
+                  "httpMethod": "GET",
+                  "id": "candles",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3447,
+                      "key": "Qot_GetEventContractKline",
+                      "kind": "request"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 3451,
+                      "key": "Qot_UpdateEventContractKline",
+                      "kind": "push"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.history/candles",
+                  "tool": "prediction.history",
+                  "uiSurfaceId": "workspace.chart"
+                },
+                {
+                  "api": "/api/v1/market-data/prediction/contracts/{code}/candles/history",
+                  "httpMethod": "GET",
+                  "id": "historical",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3456,
+                      "key": "Qot_RequestHistoryEventContractKL",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.history/historical",
+                  "tool": "prediction.history",
+                  "uiSurfaceId": "workspace.chart"
+                },
+                {
+                  "api": "/api/v1/market-data/prediction/contracts/{code}/subscriptions",
+                  "httpMethod": "POST",
+                  "id": "subscribe",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3455,
+                      "key": "Qot_SubEventContract",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.history/subscribe",
+                  "uiSurfaceId": "workspace.chart"
+                },
+                {
+                  "api": "/api/v1/market-data/prediction/contracts/{code}/ticks",
+                  "httpMethod": "GET",
+                  "id": "ticks",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3448,
+                      "key": "Qot_GetEventContractTicker",
+                      "kind": "request"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 3452,
+                      "key": "Qot_UpdateEventContractTicker",
+                      "kind": "push"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.history/ticks",
+                  "tool": "prediction.history",
+                  "uiSurfaceId": "workspace.ticks"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/prediction/contracts/{code}/candles",
+                "readOnlyMcp": true,
+                "tool": "prediction.history",
+                "ui": "/workspace?tab=chart\u0026marketSegment=prediction"
+              },
+              "testMapping": "TestCapabilityOperationContracts/prediction.history"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "PredictionMarketReader",
+              "approval": "none",
+              "id": "prediction.combo_eligible",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/prediction/combos/eligible-events",
+                  "httpMethod": "GET",
+                  "id": "eligible_events",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3453,
+                      "key": "Qot_GetEventContractComboList",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.combo_eligible/eligible_events",
+                  "tool": "prediction.combo_eligible",
+                  "uiSurfaceId": "research.prediction"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/prediction/combos/eligible-events",
+                "readOnlyMcp": true,
+                "tool": "prediction.combo_eligible",
+                "ui": "/research?section=prediction"
+              },
+              "testMapping": "TestCapabilityOperationContracts/prediction.combo_eligible"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "PredictionMarketReader",
+              "approval": "none",
+              "id": "prediction.combo_quote",
+              "operations": [
+                {
+                  "api": "/api/v1/market-data/prediction/combos/quotes",
+                  "httpMethod": "POST",
+                  "id": "quote",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3454,
+                      "key": "Qot_GetEventContractComboRfq",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/prediction.combo_quote/quote",
+                  "tool": "prediction.combo_quote",
+                  "uiSurfaceId": "research.prediction"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/market-data/prediction/combos/quotes",
+                "readOnlyMcp": true,
+                "tool": "prediction.combo_quote",
+                "ui": "/research?section=prediction"
+              },
+              "testMapping": "TestCapabilityOperationContracts/prediction.combo_quote"
+            },
+            {
+              "access": "trade",
+              "adapterInterface": "ProductRuleProvider",
+              "approval": "critical",
+              "id": "execution.order_preview",
+              "operations": [
+                {
+                  "api": "/api/v1/execution/previews",
+                  "httpMethod": "POST",
+                  "id": "rules",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 2111,
+                      "key": "Trd_GetMaxTrdQtys",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/execution.order_preview/rules",
+                  "tool": "execution.order_preview",
+                  "uiSurfaceId": "workspace.order"
+                }
+              ],
+              "permission": "live_trading",
+              "surface": {
+                "api": "/api/v1/execution/previews",
+                "tool": "execution.order_preview",
+                "ui": "/workspace?surface=order"
+              },
+              "testMapping": "TestCapabilityOperationContracts/execution.order_preview"
+            },
+            {
+              "access": "trade",
+              "adapterInterface": "TradingService",
+              "approval": "critical",
+              "id": "execution.order_place",
+              "operations": [
+                {
+                  "api": "/api/v1/execution/orders",
+                  "httpMethod": "POST",
+                  "id": "place",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 2202,
+                      "key": "Trd_PlaceOrder",
+                      "kind": "request"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 2208,
+                      "key": "Trd_UpdateOrder",
+                      "kind": "push"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 2218,
+                      "key": "Trd_UpdateOrderFill",
+                      "kind": "push"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/execution.order_place/place",
+                  "tool": "execution.order_place",
+                  "uiSurfaceId": "workspace.order"
+                }
+              ],
+              "permission": "live_trading",
+              "surface": {
+                "api": "/api/v1/execution/orders",
+                "tool": "execution.order_place",
+                "ui": "/workspace?surface=order"
+              },
+              "testMapping": "TestCapabilityOperationContracts/execution.order_place"
+            },
+            {
+              "access": "trade",
+              "adapterInterface": "TradingService",
+              "approval": "critical",
+              "id": "execution.order_cancel",
+              "operations": [
+                {
+                  "api": "/api/v1/execution/orders/{internalOrderId}/cancel",
+                  "httpMethod": "POST",
+                  "id": "cancel",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 2205,
+                      "key": "Trd_ModifyOrder",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/execution.order_cancel/cancel",
+                  "tool": "execution.order_cancel",
+                  "uiSurfaceId": "workspace.order"
+                }
+              ],
+              "permission": "live_trading",
+              "surface": {
+                "api": "/api/v1/execution/orders/{internalOrderId}/cancel",
+                "tool": "execution.order_cancel",
+                "ui": "/workspace?surface=order"
+              },
+              "testMapping": "TestCapabilityOperationContracts/execution.order_cancel"
+            },
+            {
+              "access": "trade",
+              "adapterInterface": "ComboTradingService",
+              "approval": "critical",
+              "id": "execution.combo_preview",
+              "operations": [
+                {
+                  "api": "/api/v1/execution/combos/previews",
+                  "httpMethod": "POST",
+                  "id": "buying_power",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 2112,
+                      "key": "Trd_GetComboMaxTrdQtys",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/execution.combo_preview/buying_power",
+                  "tool": "execution.combo_preview",
+                  "uiSurfaceId": "workspace.options"
+                },
+                {
+                  "api": "/api/v1/execution/combos/previews",
+                  "httpMethod": "POST",
+                  "id": "legality",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3256,
+                      "key": "Qot_GetOptionStrategy",
+                      "kind": "request"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 3257,
+                      "key": "Qot_GetOptionStrategyAnalysis",
+                      "kind": "request"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 3258,
+                      "key": "Qot_GetOptionStrategySpread",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/execution.combo_preview/legality",
+                  "tool": "execution.combo_preview",
+                  "uiSurfaceId": "workspace.options"
+                }
+              ],
+              "permission": "live_trading",
+              "surface": {
+                "api": "/api/v1/execution/combos/previews",
+                "tool": "execution.combo_preview",
+                "ui": "/workspace?tab=options"
+              },
+              "testMapping": "TestCapabilityOperationContracts/execution.combo_preview"
+            },
+            {
+              "access": "trade",
+              "adapterInterface": "ComboTradingService",
+              "approval": "critical",
+              "id": "execution.combo_place",
+              "operations": [
+                {
+                  "api": "/api/v1/execution/combos",
+                  "httpMethod": "POST",
+                  "id": "place",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 2227,
+                      "key": "Trd_PlaceComboOrder",
+                      "kind": "request"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 2208,
+                      "key": "Trd_UpdateOrder",
+                      "kind": "push"
+                    },
+                    {
+                      "brokerId": "futu",
+                      "id": 2218,
+                      "key": "Trd_UpdateOrderFill",
+                      "kind": "push"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/execution.combo_place/place",
+                  "tool": "execution.combo_place",
+                  "uiSurfaceId": "workspace.options"
+                }
+              ],
+              "permission": "live_trading",
+              "surface": {
+                "api": "/api/v1/execution/combos",
+                "tool": "execution.combo_place",
+                "ui": "/workspace?tab=options"
+              },
+              "testMapping": "TestCapabilityOperationContracts/execution.combo_place"
+            },
+            {
+              "access": "trade",
+              "adapterInterface": "ComboTradingService",
+              "approval": "critical",
+              "id": "execution.combo_cancel",
+              "operations": [
+                {
+                  "api": "/api/v1/execution/combos/{internalOrderId}/cancel",
+                  "httpMethod": "POST",
+                  "id": "cancel",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 2205,
+                      "key": "Trd_ModifyOrder",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/execution.combo_cancel/cancel",
+                  "tool": "execution.combo_cancel",
+                  "uiSurfaceId": "workspace.options"
+                }
+              ],
+              "permission": "live_trading",
+              "surface": {
+                "api": "/api/v1/execution/combos/{internalOrderId}/cancel",
+                "tool": "execution.combo_cancel",
+                "ui": "/workspace?tab=options"
+              },
+              "testMapping": "TestCapabilityOperationContracts/execution.combo_cancel"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "ProductRuleProvider",
+              "approval": "none",
+              "id": "execution.buying_power",
+              "operations": [
+                {
+                  "api": "/api/v1/execution/buying-power",
+                  "httpMethod": "POST",
+                  "id": "combo",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 2112,
+                      "key": "Trd_GetComboMaxTrdQtys",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/execution.buying_power/combo",
+                  "tool": "execution.buying_power",
+                  "uiSurfaceId": "workspace.order"
+                },
+                {
+                  "api": "/api/v1/execution/buying-power",
+                  "httpMethod": "POST",
+                  "id": "single",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 2111,
+                      "key": "Trd_GetMaxTrdQtys",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/execution.buying_power/single",
+                  "tool": "execution.buying_power",
+                  "uiSurfaceId": "workspace.order"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/execution/buying-power",
+                "readOnlyMcp": true,
+                "tool": "execution.buying_power",
+                "ui": "/workspace?surface=order"
+              },
+              "testMapping": "TestCapabilityOperationContracts/execution.buying_power"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "CustomizationService",
+              "approval": "none",
+              "id": "alerts.price.list",
+              "operations": [
+                {
+                  "api": "/api/v1/alerts/price",
+                  "httpMethod": "GET",
+                  "id": "list",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3221,
+                      "key": "Qot_GetPriceReminder",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/alerts.price.list/list",
+                  "tool": "alerts.price.list",
+                  "uiSurfaceId": ""
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/alerts/price",
+                "readOnlyMcp": true,
+                "tool": "alerts.price.list"
+              },
+              "testMapping": "TestCapabilityOperationContracts/alerts.price.list"
+            },
+            {
+              "access": "write",
+              "adapterInterface": "CustomizationService",
+              "approval": "high",
+              "id": "alerts.price.set",
+              "operations": [
+                {
+                  "api": "/api/v1/alerts/price",
+                  "httpMethod": "POST",
+                  "id": "set",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3220,
+                      "key": "Qot_SetPriceReminder",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/alerts.price.set/set",
+                  "tool": "alerts.price.set",
+                  "uiSurfaceId": ""
+                }
+              ],
+              "permission": "write_external",
+              "surface": {
+                "api": "/api/v1/alerts/price",
+                "tool": "alerts.price.set"
+              },
+              "testMapping": "TestCapabilityOperationContracts/alerts.price.set"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "CustomizationService",
+              "approval": "none",
+              "id": "alerts.option_event.list",
+              "operations": [
+                {
+                  "api": "/api/v1/alerts/option-events",
+                  "httpMethod": "GET",
+                  "id": "list",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3308,
+                      "key": "Qot_GetOptionEventAlert",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/alerts.option_event.list/list",
+                  "tool": "alerts.option_event.list",
+                  "uiSurfaceId": "workspace.options"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/alerts/option-events",
+                "readOnlyMcp": true,
+                "tool": "alerts.option_event.list",
+                "ui": "/workspace?tab=options"
+              },
+              "testMapping": "TestCapabilityOperationContracts/alerts.option_event.list"
+            },
+            {
+              "access": "write",
+              "adapterInterface": "CustomizationService",
+              "approval": "high",
+              "id": "alerts.option_event.set",
+              "operations": [
+                {
+                  "api": "/api/v1/alerts/option-events",
+                  "httpMethod": "POST",
+                  "id": "set",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3309,
+                      "key": "Qot_SetOptionEventAlert",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/alerts.option_event.set/set",
+                  "tool": "alerts.option_event.set",
+                  "uiSurfaceId": "workspace.options"
+                }
+              ],
+              "permission": "write_external",
+              "surface": {
+                "api": "/api/v1/alerts/option-events",
+                "tool": "alerts.option_event.set",
+                "ui": "/workspace?tab=options"
+              },
+              "testMapping": "TestCapabilityOperationContracts/alerts.option_event.set"
+            },
+            {
+              "access": "read",
+              "adapterInterface": "CustomizationService",
+              "approval": "none",
+              "id": "watchlist.remote.list",
+              "operations": [
+                {
+                  "api": "/api/v1/watchlists/remote",
+                  "httpMethod": "GET",
+                  "id": "groups",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3222,
+                      "key": "Qot_GetUserSecurityGroup",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/watchlist.remote.list/groups",
+                  "tool": "watchlist.remote.list",
+                  "uiSurfaceId": "watchlist.root"
+                },
+                {
+                  "api": "/api/v1/watchlists/remote",
+                  "httpMethod": "GET",
+                  "id": "members",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3213,
+                      "key": "Qot_GetUserSecurity",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/watchlist.remote.list/members",
+                  "tool": "watchlist.remote.list",
+                  "uiSurfaceId": "watchlist.root"
+                }
+              ],
+              "permission": "read_only",
+              "surface": {
+                "api": "/api/v1/watchlists/remote",
+                "readOnlyMcp": true,
+                "tool": "watchlist.remote.list",
+                "ui": "/watchlist"
+              },
+              "testMapping": "TestCapabilityOperationContracts/watchlist.remote.list"
+            },
+            {
+              "access": "write",
+              "adapterInterface": "CustomizationService",
+              "approval": "high",
+              "id": "watchlist.remote.modify",
+              "operations": [
+                {
+                  "api": "/api/v1/watchlists/remote",
+                  "httpMethod": "POST",
+                  "id": "modify",
+                  "protocols": [
+                    {
+                      "brokerId": "futu",
+                      "id": 3214,
+                      "key": "Qot_ModifyUserSecurity",
+                      "kind": "request"
+                    }
+                  ],
+                  "testId": "TestCapabilityOperationContracts/watchlist.remote.modify/modify",
+                  "tool": "watchlist.remote.modify",
+                  "uiSurfaceId": "watchlist.root"
+                }
+              ],
+              "permission": "write_external",
+              "surface": {
+                "api": "/api/v1/watchlists/remote",
+                "tool": "watchlist.remote.modify",
+                "ui": "/watchlist"
+              },
+              "testMapping": "TestCapabilityOperationContracts/watchlist.remote.modify"
+            }
+          ],
+          "version": "2026-07-17.opend-10.9.6908"
+        },
+        "runtime": []
+      }
+    },
+    {
+      "name": "runtime",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/runtime",
+      "expectedStatus": 200,
+      "data": {
+        "accounts": [],
+        "descriptor": {
+          "capabilities": [],
+          "displayName": "",
+          "environments": [],
+          "id": "",
+          "notes": []
+        },
+        "session": {
+          "accountsDiscovered": 0,
+          "brokerId": "",
+          "checkedAt": "fixture-time",
+          "connection": {
+            "apiPort": 0,
+            "host": "",
+            "marketDataTransport": "",
+            "port": 0,
+            "useEncryption": false,
+            "websocketPort": 0
+          },
+          "connectivity": "",
+          "displayName": "",
+          "globalState": null,
+          "lastError": null,
+          "liveWebSocketClients": {
+            "atLimit": false,
+            "connected": 0,
+            "limit": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "funds",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/funds?market=US",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "currencyBalances": [],
+        "lastError": "broker market data not available",
+        "marketAssets": [],
+        "summary": null
+      }
+    },
+    {
+      "name": "positions",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/positions?market=US",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "lastError": "broker market data not available",
+        "positions": []
+      }
+    },
+    {
+      "name": "orders",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/orders?scope=current\u0026symbol=US.AAPL",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "lastError": "broker market data not available",
+        "orders": []
+      }
+    },
+    {
+      "name": "fills",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/fills?scope=current\u0026symbol=US.AAPL",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "fills": [],
+        "lastError": "broker market data not available"
+      }
+    },
+    {
+      "name": "cash-flows",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/cash-flows?clearingDate=2026-08-21",
+      "expectedStatus": 200,
+      "data": {
+        "cashFlows": [],
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "lastError": "broker market data not available"
+      }
+    },
+    {
+      "name": "order-fees",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/order-fees?orderIdEx=OID-1",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "fees": [],
+        "lastError": "broker market data not available"
+      }
+    },
+    {
+      "name": "margin-ratios",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/margin-ratios?market=US\u0026symbol=US.AAPL",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "lastError": "broker market data not available",
+        "marginRatios": []
+      }
+    },
+    {
+      "name": "max-trade-qtys",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/max-trade-qtys?market=US\u0026symbol=US.AAPL\u0026orderType=LIMIT\u0026price=100",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "lastError": "broker market data not available",
+        "maxTradeQuantity": null
+      }
+    },
+    {
+      "name": "quote",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/quote?symbol=US.AAPL",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "lastError": "broker market data not available",
+        "quotes": []
+      }
+    },
+    {
+      "name": "klines",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/klines?symbol=US.AAPL\u0026period=1d\u0026limit=10",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "klines": [],
+        "lastError": "broker market data not available"
+      }
+    },
+    {
+      "name": "securities",
+      "method": "GET",
+      "requestPath": "/api/v1/brokers/fixture/securities?symbol=US.AAPL",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "lastError": "broker market data not available",
+        "securities": []
+      }
+    }
+  ]
+}
