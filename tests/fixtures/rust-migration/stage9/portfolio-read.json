@@ -1,0 +1,29 @@
+{
+  "version": "stage9.portfolio-read.v1",
+  "cases": [
+    {
+      "name": "cash-balances",
+      "method": "GET",
+      "requestPath": "/api/v1/portfolio/fixture/cash-balances",
+      "expectedStatus": 200,
+      "data": {
+        "balances": [],
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "lastError": "broker market data not available"
+      }
+    },
+    {
+      "name": "positions",
+      "method": "GET",
+      "requestPath": "/api/v1/portfolio/fixture/positions",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "connectivity": "degraded",
+        "lastError": "broker market data not available",
+        "positions": []
+      }
+    }
+  ]
+}

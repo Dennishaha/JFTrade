@@ -38,6 +38,12 @@ fn product_watchlist_research_trading_routes(
             route("GET", "/api/v1/watchlist/import-runs"),
         ]);
     }
+    if ports.portfolio && capabilities.contains(ProductCapability::Portfolio) {
+        routes.extend([
+            route("GET", "/api/v1/portfolio/{brokerId}/cash-balances"),
+            route("GET", "/api/v1/portfolio/{brokerId}/positions"),
+        ]);
+    }
     if ports.plugins && capabilities.contains(ProductCapability::Plugins) {
         routes.extend([
             route("GET", "/api/v1/plugins"),

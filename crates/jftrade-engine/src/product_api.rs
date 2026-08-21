@@ -10,6 +10,7 @@ struct ProductApi {
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     watchlist_read_snapshot_port: Option<Arc<dyn WatchlistReadSnapshotPort>>,
+    portfolio_snapshot_port: Option<Arc<dyn PortfolioSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
@@ -23,6 +24,7 @@ struct ProductOptionalPorts {
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     watchlist_read_snapshot: Option<Arc<dyn WatchlistReadSnapshotPort>>,
+    portfolio_snapshot: Option<Arc<dyn PortfolioSnapshotPort>>,
     plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
@@ -70,6 +72,7 @@ impl ProductApi {
             calendar_manager: optional_ports.calendar_manager,
             watchlist_membership_snapshot_port: optional_ports.watchlist_membership_snapshot,
             watchlist_read_snapshot_port: optional_ports.watchlist_read_snapshot,
+            portfolio_snapshot_port: optional_ports.portfolio_snapshot,
             plugin_uninstall_guidance_snapshot_port: optional_ports
                 .plugin_uninstall_guidance_snapshot,
             plugin_snapshot_port: optional_ports.plugin_snapshot,

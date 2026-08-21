@@ -80,6 +80,12 @@ pub trait WatchlistReadSnapshotPort: Send + Sync + std::fmt::Debug {
     ) -> Result<serde_json::Value, WatchlistReadSnapshotError>;
 }
 
+/// Consumer-owned broker portfolio projections. The Go broker runtime remains
+/// the only provider/OpenD owner; this port is test-cutover-only.
+pub trait PortfolioSnapshotPort: Send + Sync + std::fmt::Debug {
+    fn read(&self, path: &str, query: &str) -> Result<serde_json::Value, PortfolioSnapshotError>;
+}
+
 /// Consumer-owned read port for the current Go plugin catalog's uninstall
 /// guidance. The port carries the complete wire projection so Rust does not
 /// duplicate platform-specific path normalization or shell quoting.
@@ -182,6 +188,12 @@ pub enum WatchlistReadSnapshotError {
 }
 
 #[derive(Clone, Debug, Error)]
+pub enum PortfolioSnapshotError {
+    #[error("portfolio snapshot is unavailable: {0}")]
+    Unavailable(String),
+}
+
+#[derive(Clone, Debug, Error)]
 pub enum PluginUninstallGuidanceSnapshotError {
     #[error("plugin uninstall guidance snapshot is unavailable: {0}")]
     Unavailable(String),
@@ -203,6 +215,7 @@ pub struct ProductConfig {
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     watchlist_read_snapshot_port: Option<Arc<dyn WatchlistReadSnapshotPort>>,
+    portfolio_snapshot_port: Option<Arc<dyn PortfolioSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
@@ -253,6 +266,7 @@ impl ProductConfig {
             calendar_manager: None,
             watchlist_membership_snapshot_port: None,
             watchlist_read_snapshot_port: None,
+            portfolio_snapshot_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
             plugin_snapshot_port: None,
             alert_snapshot_port: None,
@@ -365,6 +379,12 @@ impl ProductConfig {
         port: Arc<dyn WatchlistReadSnapshotPort>,
     ) -> Self {
         self.watchlist_read_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_portfolio_snapshot_port(mut self, port: Arc<dyn PortfolioSnapshotPort>) -> Self {
+        self.portfolio_snapshot_port = Some(port);
         self
     }
 
@@ -489,6 +509,7 @@ pub(crate) async fn start_product_with_runtime_state(
         calendar_manager: config.calendar_manager.is_some(),
         watchlist_memberships: config.watchlist_membership_snapshot_port.is_some(),
         watchlist_read: config.watchlist_read_snapshot_port.is_some(),
+        portfolio: config.portfolio_snapshot_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
         strategy_definitions: config.strategy_definition_snapshot_port.is_some(),
@@ -561,6 +582,7 @@ pub(crate) async fn start_product_with_runtime_state(
             calendar_manager: config.calendar_manager.clone(),
             watchlist_membership_snapshot: config.watchlist_membership_snapshot_port.clone(),
             watchlist_read_snapshot: config.watchlist_read_snapshot_port.clone(),
+            portfolio_snapshot: config.portfolio_snapshot_port.clone(),
             plugin_uninstall_guidance_snapshot: config
                 .plugin_uninstall_guidance_snapshot_port
                 .clone(),
@@ -648,6 +670,8 @@ include!("product_api.rs");
 
 include!("product_api_watchlist.rs");
 
+include!("product_api_portfolio.rs");
+
 include!("product_api_plugins.rs");
 
 include!("product_api_strategy_definitions.rs");
@@ -655,6 +679,8 @@ include!("product_api_strategy_definitions.rs");
 include!("product_wire.rs");
 
 include!("product_wire_watchlist.rs");
+
+include!("product_wire_portfolio.rs");
 
 #[derive(Debug, Error)]
 pub enum ProductError {
