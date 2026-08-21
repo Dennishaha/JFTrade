@@ -3455,14 +3455,15 @@ mod tests {
         #[derive(Deserialize)]
         #[serde(rename_all = "camelCase")]
         struct RouteOwnership {
-            shadow_routes: Vec<OwnedRoute>,
-            cutover_test_routes: Vec<OwnedRoute>,
+            operations: Vec<OwnedRoute>,
         }
 
         #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
         struct OwnedRoute {
             method: String,
             path: String,
+            implementation_status: String,
         }
 
         fn pairs(routes: &[RouteSpec]) -> Vec<(String, String)> {
@@ -3472,9 +3473,10 @@ mod tests {
                 .collect()
         }
 
-        fn owned_pairs(routes: &[OwnedRoute]) -> Vec<(String, String)> {
+        fn owned_pairs(routes: &[OwnedRoute], statuses: &[&str]) -> Vec<(String, String)> {
             let mut pairs = routes
                 .iter()
+                .filter(|route| statuses.contains(&route.implementation_status.as_str()))
                 .map(|route| (route.method.clone(), route.path.clone()))
                 .collect::<Vec<_>>();
             pairs.sort();
@@ -3490,7 +3492,7 @@ mod tests {
         assert!(shadow.routes().iter().all(|route| route.method == "GET"));
         assert_eq!(
             pairs(shadow.routes()),
-            owned_pairs(&ownership.shadow_routes)
+            owned_pairs(&ownership.operations, &["shadow"])
         );
         let shadow_with_calendar_port = product_routes(false, true, true, true, true)
             .expect("shadow routes with unavailable cutover ports");
@@ -3538,13 +3540,7 @@ mod tests {
         let cutover =
             product_routes(true, true, true, true, true).expect("cutover routes with all ports");
         assert_eq!(cutover.routes().len(), 48);
-        let mut expected_cutover = ownership
-            .shadow_routes
-            .iter()
-            .chain(&ownership.cutover_test_routes)
-            .map(|route| (route.method.clone(), route.path.clone()))
-            .collect::<Vec<_>>();
-        expected_cutover.sort();
+        let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
         assert_eq!(pairs(cutover.routes()), expected_cutover);
         assert!(
             cutover

@@ -104,7 +104,7 @@
       "goOwner": "internal/assistant model, runtime state, approval/input continuation, workflow, claims, artifacts and provider orchestration",
       "rustOwner": "jftrade-assistant",
       "cutover": "jftrade-engine injects JFTrade-owned completion and tool ports; the Stage 6 implementation remains a local fake-provider shadow",
-      "goDeleteWhen": "provider live streaming, durable Rust persistence, restart recovery, approval and input observation windows, and all API consumers pass with Rust as the sole Assistant owner",
+      "goDeleteWhen": "provider live streaming, durable Rust persistence, restart recovery, approvals, input, rollback and backup/restore rehearsals pass with Rust as the sole Assistant owner",
       "allowedWorkspaceDependencies": ["jftrade-kernel"]
     },
     {
@@ -116,7 +116,7 @@
       "goOwner": "pkg/backtest conservative-bar-v1 matching, fees, position accounting and result metrics",
       "rustOwner": "jftrade-backtest",
       "cutover": "the stage 3 offline go/shadow/rust selector rehearses rollback; the product switch remains a single jftrade-engine composition choice",
-      "goDeleteWhen": "the production Pine replay adapter maps the real event stream without loss, product behavior and recovery pass the observation window, native resource gates pass, and the rollback window closes",
+      "goDeleteWhen": "the production Pine replay adapter maps the real event stream without loss, product behavior, recovery and hard-cut RC gates pass, and a signed rollback artifact is verified",
       "allowedWorkspaceDependencies": ["jftrade-kernel"]
     },
     {
@@ -128,7 +128,7 @@
       "goOwner": "internal/strategy runtime control, execution modes and notification planning",
       "rustOwner": "jftrade-strategy",
       "cutover": "jftrade-engine injects the strategy-defined narrow trading port and selects one runtime owner",
-      "goDeleteWhen": "notify-only, paper and live behavior plus pause, recovery and shutdown pass the observation window with Rust as sole runtime owner",
+      "goDeleteWhen": "notify-only, paper and live behavior plus pause, recovery, shutdown and backup/restore drills pass with Rust as sole runtime owner",
       "allowedWorkspaceDependencies": ["jftrade-kernel"]
     },
     {
@@ -152,7 +152,7 @@
       "goOwner": "internal/marketdata demand, freshness, cache and provider-neutral routing",
       "rustOwner": "jftrade-marketdata",
       "cutover": "a single jftrade-engine provider-router composition choice after Stage 4 shadow qualification",
-      "goDeleteWhen": "provider capability, demand, cache freshness and switching differentials pass the observation window and Rust is the sole product owner",
+      "goDeleteWhen": "provider capability, demand, cache freshness, switching, crash and rollback differentials pass and Rust is the sole product owner",
       "allowedWorkspaceDependencies": ["jftrade-kernel"]
     },
     {

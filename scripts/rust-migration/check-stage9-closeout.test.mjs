@@ -27,12 +27,16 @@ function completeManifest() {
   const manifest = readManifest();
   const expectedRouteOwnership = {
     baselineOperations: 278,
-    shadowRoutes: 278,
+    shadowRoutes: 0,
     cutoverTestOnlyRoutes: 0,
+    cutoverQualifiedRoutes: 278,
     remainingRoutes: 0,
+    goProductionOwnerRoutes: 0,
+    rustProductionOwnerRoutes: 278,
+    removedGoRoutes: 278,
+    remainingByCapability: {},
   };
   manifest.status = "closed";
-  manifest.routeOwnership = expectedRouteOwnership;
   for (const gate of Object.values(manifest.gates)) {
     gate.status = "passed";
   }
@@ -91,15 +95,16 @@ test("Stage 9 closeout checker rejects missing and unknown evidence fields", () 
   assert.ok(errors.some((error) => error.includes("ownerDeletion.extra is not allowed")));
 });
 
-test("Stage 9 closeout checker rejects a route ledger drift", () => {
+test("Stage 9 closeout manifest rejects hand-maintained route counts", () => {
   const manifest = readManifest();
-  manifest.routeOwnership.remainingRoutes += 1;
-  const result = evaluateCloseout(manifest, {
-    expectedRouteOwnership: routeOwnershipSnapshot(repositoryRoot),
-  });
-  assert.equal(result.valid, false);
-  assert.equal(result.complete, false);
-  assert.ok(result.errors.some((error) => error.includes("route ownership ledger")));
+  manifest.routeOwnership = {
+    baselineOperations: 278,
+    shadowRoutes: 26,
+    cutoverTestOnlyRoutes: 22,
+    remainingRoutes: 230,
+  };
+  const errors = validateManifest(manifest);
+  assert.ok(errors.some((error) => error.includes("routeOwnership is not allowed")));
 });
 
 test("Stage 9 closeout checker CLI is executable in a child process", () => {

@@ -138,7 +138,7 @@ test("runs Rust tests and quality gates for migration engine changes", () => {
     "node --test scripts/rust-migration/benchmark-stage7.test.mjs",
     "pnpm run test:rust:stage8:differential",
     "node --test scripts/rust-migration/benchmark-stage8.test.mjs",
-    "node --test scripts/rust-migration/check-stage9-closeout.test.mjs",
+    "node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs",
     "pnpm run test:rust:stage9:route-coverage",
     "pnpm run test:rust:stage9:product-differential",
     "pnpm run test:tauri-release-runtime",

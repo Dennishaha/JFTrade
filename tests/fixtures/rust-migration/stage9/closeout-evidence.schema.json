@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jftrade.local/schemas/stage9-closeout-evidence.v1.json",
+  "$id": "https://jftrade.local/schemas/stage9-closeout-evidence.v2.json",
   "title": "JFTrade Rust migration Stage 9 closeout evidence",
   "description": "Evidence ledger for the Stage 9 formal cutover and Go/Wails deletion gates.",
   "type": "object",
@@ -10,7 +10,6 @@
     "schemaVersion",
     "stage",
     "status",
-    "routeOwnership",
     "localEvidence",
     "gates",
     "ownerDeletion"
@@ -21,7 +20,7 @@
       "minLength": 1
     },
     "schemaVersion": {
-      "const": "jftrade.stage9.closeout-evidence.v1"
+      "const": "jftrade.stage9.closeout-evidence.v2"
     },
     "stage": {
       "const": 9
@@ -31,9 +30,6 @@
         "in_progress",
         "closed"
       ]
-    },
-    "routeOwnership": {
-      "$ref": "#/$defs/routeOwnership"
     },
     "localEvidence": {
       "type": "array",
@@ -52,8 +48,10 @@
         "signedUpdaterArtifact",
         "securityReview",
         "sbom",
-        "recoveryDrill",
-        "observationWindow"
+        "hardCutReadiness",
+        "rollbackArtifact",
+        "backupRestoreDrill",
+        "postReleaseSmoke"
       ],
       "properties": {
         "allRouteGroups": {
@@ -74,10 +72,16 @@
         "sbom": {
           "$ref": "#/$defs/gate"
         },
-        "recoveryDrill": {
+        "hardCutReadiness": {
           "$ref": "#/$defs/gate"
         },
-        "observationWindow": {
+        "rollbackArtifact": {
+          "$ref": "#/$defs/gate"
+        },
+        "backupRestoreDrill": {
+          "$ref": "#/$defs/gate"
+        },
+        "postReleaseSmoke": {
           "$ref": "#/$defs/gate"
         }
       }
@@ -106,34 +110,6 @@
         "open",
         "blocked"
       ]
-    },
-    "routeOwnership": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "baselineOperations",
-        "shadowRoutes",
-        "cutoverTestOnlyRoutes",
-        "remainingRoutes"
-      ],
-      "properties": {
-        "baselineOperations": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "shadowRoutes": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "cutoverTestOnlyRoutes": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "remainingRoutes": {
-          "type": "integer",
-          "minimum": 0
-        }
-      }
     },
     "evidence": {
       "type": "object",

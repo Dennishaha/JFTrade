@@ -1,14 +1,8 @@
 {
   "$schema": "./closeout-evidence.schema.json",
-  "schemaVersion": "jftrade.stage9.closeout-evidence.v1",
+  "schemaVersion": "jftrade.stage9.closeout-evidence.v2",
   "stage": 9,
   "status": "in_progress",
-  "routeOwnership": {
-    "baselineOperations": 278,
-    "shadowRoutes": 26,
-    "cutoverTestOnlyRoutes": 22,
-    "remainingRoutes": 230
-  },
   "localEvidence": [
     {
       "id": "tauri-macos-arm64-release-smoke",
@@ -126,18 +120,32 @@
         "Existing Wails release SBOM paths do not prove a Tauri artifact SBOM or its dependency closure."
       ]
     },
-    "recoveryDrill": {
+    "hardCutReadiness": {
       "status": "open",
-      "next": "Exercise backup, upgrade, corruption recovery, rollback and retained worker crash recovery on every target.",
+      "next": "Prove all 278 operations cutover-qualified, every capability has one writer, all rehearsal profiles are disabled in the release artifact, and the hard-cut commit is reproducible.",
       "evidence": [
-        "No four-platform data upgrade, backup/restore, rollback or crash-recovery evidence is recorded."
+        "All 278 operations still have Go as production owner; no hard-cut commit is approved."
       ]
     },
-    "observationWindow": {
+    "rollbackArtifact": {
       "status": "open",
-      "next": "Complete the agreed production observation window with owner, error, latency, resource and rollback telemetry.",
+      "next": "Verify the immediately preceding signed installer, updater metadata and rollback instructions on all four platforms before hard cut.",
       "evidence": [
-        "No production owner cutover or observation window has started; Rust remains an authenticated shadow."
+        "No four-platform signed rollback artifact rehearsal is recorded."
+      ]
+    },
+    "backupRestoreDrill": {
+      "status": "open",
+      "next": "Exercise backup, upgrade, corruption recovery, rollback and retained worker crash recovery on every target using copies of real prior-version data.",
+      "evidence": [
+        "No four-platform data backup, restore, upgrade, corruption or crash-recovery drill is recorded."
+      ]
+    },
+    "postReleaseSmoke": {
+      "status": "open",
+      "next": "Run the fixed post-release smoke immediately after publishing the hard-cut artifacts and attach results for every platform.",
+      "evidence": [
+        "No Rust/Tauri hard-cut release exists, so post-release smoke evidence cannot yet exist."
       ]
     }
   },
@@ -147,7 +155,7 @@
       "conditions": [
         "All route groups and production handlers have not moved.",
         "Go remains the unique production write owner for product state, SQLite, Provider, trading, Assistant and listeners.",
-        "Rollback and observation evidence is incomplete."
+        "Hard-cut, rollback artifact and backup/restore evidence is incomplete."
       ],
       "evidence": [
         "Stage 9 formal deletion is not approved while any required gate is open."
@@ -158,7 +166,7 @@
       "conditions": [
         "The formal release workflow still builds Wails artifacts and no Tauri four-platform release lane is qualified.",
         "Signed installer, upgrade, uninstall, rollback and WebView evidence is incomplete.",
-        "The Tauri observation window and production launcher cutover are incomplete."
+        "The Tauri production launcher hard cut and post-release smoke are incomplete."
       ],
       "evidence": [
         "Wails bindings, entrypoints and release assets must remain until the desktop deletion conditions close."

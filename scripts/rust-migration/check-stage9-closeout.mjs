@@ -5,7 +5,11 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-export const STAGE9_CLOSEOUT_SCHEMA_VERSION = "jftrade.stage9.closeout-evidence.v1";
+import { routeOwnershipSnapshot } from "./stage9-route-ownership.mjs";
+
+export { routeOwnershipSnapshot } from "./stage9-route-ownership.mjs";
+
+export const STAGE9_CLOSEOUT_SCHEMA_VERSION = "jftrade.stage9.closeout-evidence.v2";
 export const REQUIRED_PLATFORMS = Object.freeze([
   "macos-arm64",
   "linux-x64",
@@ -22,8 +26,10 @@ const requiredGates = Object.freeze([
   "signedUpdaterArtifact",
   "securityReview",
   "sbom",
-  "recoveryDrill",
-  "observationWindow",
+  "hardCutReadiness",
+  "rollbackArtifact",
+  "backupRestoreDrill",
+  "postReleaseSmoke",
 ]);
 const platformChecks = Object.freeze([
   "package",
@@ -84,12 +90,6 @@ function requireStringArray(value, label, errors) {
     return;
   }
   value.forEach((item, index) => requireString(item, `${label}[${index}]`, errors));
-}
-
-function requireInteger(value, label, errors) {
-  if (!Number.isInteger(value) || value < 0) {
-    addError(errors, `${label} must be a non-negative integer`);
-  }
 }
 
 function checkKeys(value, label, required, allowed, errors) {
@@ -201,7 +201,6 @@ export function validateManifest(manifest) {
       "schemaVersion",
       "stage",
       "status",
-      "routeOwnership",
       "localEvidence",
       "gates",
       "ownerDeletion",
@@ -211,7 +210,6 @@ export function validateManifest(manifest) {
       "schemaVersion",
       "stage",
       "status",
-      "routeOwnership",
       "localEvidence",
       "gates",
       "ownerDeletion",
@@ -226,24 +224,6 @@ export function validateManifest(manifest) {
   if (root.stage !== 9) addError(errors, "manifest.stage must be 9");
   if (root.status !== "in_progress" && root.status !== "closed") {
     addError(errors, "manifest.status must be in_progress or closed");
-  }
-
-  const routeOwnership = checkKeys(
-    root.routeOwnership,
-    "manifest.routeOwnership",
-    ["baselineOperations", "shadowRoutes", "cutoverTestOnlyRoutes", "remainingRoutes"],
-    ["baselineOperations", "shadowRoutes", "cutoverTestOnlyRoutes", "remainingRoutes"],
-    errors,
-  );
-  if (routeOwnership) {
-    for (const key of [
-      "baselineOperations",
-      "shadowRoutes",
-      "cutoverTestOnlyRoutes",
-      "remainingRoutes",
-    ]) {
-      requireInteger(routeOwnership[key], `manifest.routeOwnership.${key}`, errors);
-    }
   }
 
   if (!Array.isArray(root.localEvidence) || root.localEvidence.length === 0) {
@@ -285,55 +265,6 @@ export function validateManifest(manifest) {
   return errors;
 }
 
-export function routeOwnershipSnapshot(root = repositoryRoot) {
-  const baseline = readJson(
-    path.join(root, "tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json"),
-    "OpenAPI route baseline",
-  );
-  const ownership = readJson(
-    path.join(root, "tests/fixtures/rust-migration/stage9/route-ownership.json"),
-    "route ownership fixture",
-  );
-  if (!Array.isArray(baseline.routes)) {
-    throw new Error("OpenAPI route baseline must contain routes");
-  }
-  if (!Array.isArray(ownership.shadowRoutes) || !Array.isArray(ownership.cutoverTestRoutes)) {
-    throw new Error("route ownership fixture must contain shadowRoutes and cutoverTestRoutes");
-  }
-  const routeKey = (route) => `${route.method} ${route.path}`;
-  const baselineKeys = new Set(baseline.routes.map(routeKey));
-  const claimed = new Set();
-  for (const [bucket, routes] of [
-    ["shadowRoutes", ownership.shadowRoutes],
-    ["cutoverTestRoutes", ownership.cutoverTestRoutes],
-  ]) {
-    for (const route of routes) {
-      const key = routeKey(route);
-      if (!baselineKeys.has(key)) {
-        throw new Error(`${bucket} contains non-baseline route ${key}`);
-      }
-      if (claimed.has(key)) throw new Error(`route is claimed more than once: ${key}`);
-      claimed.add(key);
-    }
-  }
-  const remaining = baseline.routes.length - claimed.size;
-  return {
-    baselineOperations: baseline.routes.length,
-    shadowRoutes: ownership.shadowRoutes.length,
-    cutoverTestOnlyRoutes: ownership.cutoverTestRoutes.length,
-    remainingRoutes: remaining,
-  };
-}
-
-function sameRouteOwnership(left, right) {
-  return [
-    "baselineOperations",
-    "shadowRoutes",
-    "cutoverTestOnlyRoutes",
-    "remainingRoutes",
-  ].every((key) => left[key] === right[key]);
-}
-
 export function evaluateCloseout(manifest, options = {}) {
   const errors = validateManifest(manifest);
   if (errors.length > 0) {
@@ -350,20 +281,23 @@ export function evaluateCloseout(manifest, options = {}) {
     options.repositoryRoot ?? repositoryRoot,
   );
   const blockers = [];
-  if (!sameRouteOwnership(manifest.routeOwnership, expectedRouteOwnership)) {
-    return {
-      valid: false,
-      complete: false,
-      errors: [
-        `route ownership ledger does not match fixtures (expected ${expectedRouteOwnership.shadowRoutes} shadow / `
-          + `${expectedRouteOwnership.cutoverTestOnlyRoutes} cutover-test-only / ${expectedRouteOwnership.remainingRoutes} remaining)`,
-      ],
-      blockers: [],
-      expectedRouteOwnership,
-    };
+  if (expectedRouteOwnership.remainingRoutes !== 0) {
+    blockers.push(`route ownership still has ${expectedRouteOwnership.remainingRoutes} remaining operation(s)`);
   }
-  if (manifest.routeOwnership.remainingRoutes !== 0) {
-    blockers.push(`route ownership still has ${manifest.routeOwnership.remainingRoutes} remaining operation(s)`);
+  if (expectedRouteOwnership.cutoverQualifiedRoutes !== expectedRouteOwnership.baselineOperations) {
+    blockers.push(
+      `route ownership has ${expectedRouteOwnership.baselineOperations - expectedRouteOwnership.cutoverQualifiedRoutes} operation(s) not cutover-qualified`,
+    );
+  }
+  if (expectedRouteOwnership.rustProductionOwnerRoutes !== expectedRouteOwnership.baselineOperations) {
+    blockers.push(
+      `production ownership remains Go for ${expectedRouteOwnership.goProductionOwnerRoutes} operation(s)`,
+    );
+  }
+  if (expectedRouteOwnership.removedGoRoutes !== expectedRouteOwnership.baselineOperations) {
+    blockers.push(
+      `Go implementation removal remains incomplete for ${expectedRouteOwnership.baselineOperations - expectedRouteOwnership.removedGoRoutes} operation(s)`,
+    );
   }
 
   for (const gate of requiredGates) {
@@ -430,10 +364,13 @@ export function main(args = process.argv.slice(2)) {
     }
     const state = result.complete ? "ready for formal close" : "in progress; formal close blocked";
     console.log(`Stage 9 closeout evidence: ${state}.`);
+    const ownership = result.expectedRouteOwnership;
     console.log(
-      `Route ownership: ${manifest.routeOwnership.shadowRoutes} shadow / `
-        + `${manifest.routeOwnership.cutoverTestOnlyRoutes} cutover-test-only / `
-        + `${manifest.routeOwnership.remainingRoutes} remaining.`,
+      `Route ownership: ${ownership.shadowRoutes} shadow / `
+        + `${ownership.cutoverTestOnlyRoutes} cutover-test-only / `
+        + `${ownership.cutoverQualifiedRoutes} cutover-qualified / `
+        + `${ownership.remainingRoutes} remaining / `
+        + `${ownership.rustProductionOwnerRoutes} Rust production owner.`,
     );
     if (!result.complete) {
       for (const blocker of result.blockers) console.log(`- ${blocker}`);
