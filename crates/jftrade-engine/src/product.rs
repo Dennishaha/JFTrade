@@ -78,6 +78,18 @@ pub trait PluginUninstallGuidanceSnapshotPort: Send + Sync + std::fmt::Debug {
     ) -> Result<Option<PluginUninstallGuidance>, PluginUninstallGuidanceSnapshotError>;
 }
 
+/// Consumer-owned read-only projection for the Go plugin catalog and its
+/// persisted operation status. The port carries complete wire values so Rust
+/// does not reproduce catalog normalization or activate the plugin runtime.
+pub trait PluginSnapshotPort: Send + Sync + std::fmt::Debug {
+    fn catalog(&self) -> Result<serde_json::Value, PluginSnapshotError>;
+
+    fn operation(
+        &self,
+        operation_id: &str,
+    ) -> Result<Option<serde_json::Value>, PluginSnapshotError>;
+}
+
 /// Consumer-owned read port for Go's customization alert projections. The
 /// port carries the complete wire value so the Rust shadow does not connect to
 /// OpenD or duplicate the Futu alert adapter before ownership is cut over.
@@ -153,6 +165,12 @@ pub enum PluginUninstallGuidanceSnapshotError {
     Unavailable(String),
 }
 
+#[derive(Clone, Debug, Error)]
+pub enum PluginSnapshotError {
+    #[error("plugin snapshot is unavailable: {0}")]
+    Unavailable(String),
+}
+
 #[derive(Clone)]
 pub struct ProductConfig {
     bind_address: SocketAddr,
@@ -163,6 +181,7 @@ pub struct ProductConfig {
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
+    plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     capabilities: ProductCapabilities,
@@ -211,6 +230,7 @@ impl ProductConfig {
             calendar_manager: None,
             watchlist_membership_snapshot_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
+            plugin_snapshot_port: None,
             alert_snapshot_port: None,
             strategy_definition_snapshot_port: None,
             capabilities: ProductCapabilities::default(),
@@ -325,6 +345,12 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_plugin_snapshot_port(mut self, port: Arc<dyn PluginSnapshotPort>) -> Self {
+        self.plugin_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_alert_snapshot_port(mut self, port: Arc<dyn AlertSnapshotPort>) -> Self {
         self.alert_snapshot_port = Some(port);
         self
@@ -430,6 +456,7 @@ pub(crate) async fn start_product_with_runtime_state(
         calendar_manager: config.calendar_manager.is_some(),
         watchlist_memberships: config.watchlist_membership_snapshot_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
+        plugins: config.plugin_snapshot_port.is_some(),
         strategy_definitions: config.strategy_definition_snapshot_port.is_some(),
     };
     let routes = product_routes(&config.capabilities, route_ports)?;
@@ -502,6 +529,7 @@ pub(crate) async fn start_product_with_runtime_state(
             plugin_uninstall_guidance_snapshot: config
                 .plugin_uninstall_guidance_snapshot_port
                 .clone(),
+            plugin_snapshot: config.plugin_snapshot_port.clone(),
             alert_snapshot: config.alert_snapshot_port.clone(),
             strategy_definition_snapshot: config.strategy_definition_snapshot_port.clone(),
         },
@@ -582,6 +610,10 @@ fn encode_sha256(digest: impl IntoIterator<Item = u8>) -> String {
 include!("product_route_assembly.rs");
 
 include!("product_api.rs");
+
+include!("product_api_plugins.rs");
+
+include!("product_api_strategy_definitions.rs");
 
 include!("product_wire.rs");
 

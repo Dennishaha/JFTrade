@@ -227,6 +227,8 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_watchlist_membership_path(path) => {
                     self.watchlist_memberships(path)
                 }
+                ("GET", "/api/v1/plugins") => self.plugin_catalog(),
+                ("GET", path) if is_plugin_operation_path(path) => self.plugin_operation(path),
                 ("GET", path) if is_plugin_uninstall_guidance_path(path) => {
                     self.plugin_uninstall_guidance(path)
                 }
@@ -565,6 +567,30 @@ fn is_plugin_uninstall_guidance_path(path: &str) -> bool {
         .is_some_and(|plugin_id| !plugin_id.contains('/'))
 }
 
+fn is_plugin_operation_path(path: &str) -> bool {
+    path.strip_prefix("/api/v1/plugins/operations/")
+        .is_some_and(|operation_id| !operation_id.contains('/'))
+}
+
+fn plugin_operation_id(path: &str) -> Result<String, ApiFailure> {
+    let encoded = path
+        .strip_prefix("/api/v1/plugins/operations/")
+        .filter(|operation_id| !operation_id.is_empty() && !operation_id.contains('/'))
+        .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "operationId is required"))?;
+    let decoded = percent_decode_str(encoded)
+        .decode_utf8()
+        .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "operationId is required"))?;
+    let operation_id = decoded.trim();
+    if operation_id.is_empty() {
+        return Err(ApiFailure::new(
+            400,
+            "BAD_REQUEST",
+            "operationId is required",
+        ));
+    }
+    Ok(operation_id.to_owned())
+}
+
 fn is_strategy_definition_detail_path(path: &str) -> bool {
     path.strip_prefix("/api/v1/strategy-definitions/")
         .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'))
@@ -707,6 +733,10 @@ fn plugin_uninstall_guidance_plugin_id(path: &str) -> Result<String, ApiFailure>
 
 fn strategy_definition_snapshot_failure(error: StrategyDefinitionSnapshotError) -> ApiFailure {
     ApiFailure::new(500, "STRATEGY_FAILED", error.to_string())
+}
+
+fn plugin_snapshot_failure(error: PluginSnapshotError) -> ApiFailure {
+    ApiFailure::new(503, "PLUGINS_UNAVAILABLE", error.to_string())
 }
 
 fn decode_query_component(value: &str) -> String {

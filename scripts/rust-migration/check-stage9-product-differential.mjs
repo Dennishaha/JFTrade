@@ -104,6 +104,13 @@ run("go", [
   "test",
   "./scripts/rust-migration",
   "-run",
+  "^TestStage9PluginsReadFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
   "^TestStage9AlertsReadFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
@@ -490,6 +497,30 @@ run("cargo", [
   "test",
   "-p",
   "jftrade-engine",
+  "product::tests::plugin_tests::plugins_read_routes_match_group_fixture_in_cutover_only",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::plugin_tests::plugins_read_routes_fail_closed_when_snapshot_port_is_unavailable",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::plugin_tests::plugins_read_routes_are_not_registered_without_snapshot_port",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
   "product::tests::alerts_read_routes_match_go_fixture_as_cutover_only_batch",
   "--",
   "--exact",
@@ -536,4 +567,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: settings/system/alerts/strategy-definitions read projections, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");
+console.log("Go/Rust Stage 9 product-slice differential passed: settings/system/alerts/plugins/strategy-definitions read projections, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");

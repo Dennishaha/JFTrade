@@ -10,6 +10,7 @@ struct ProductApi {
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
+    plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     notification_sequence: AtomicU64,
@@ -21,6 +22,7 @@ struct ProductOptionalPorts {
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
+    plugin_snapshot: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
 }
@@ -67,6 +69,7 @@ impl ProductApi {
             watchlist_membership_snapshot_port: optional_ports.watchlist_membership_snapshot,
             plugin_uninstall_guidance_snapshot_port: optional_ports
                 .plugin_uninstall_guidance_snapshot,
+            plugin_snapshot_port: optional_ports.plugin_snapshot,
             alert_snapshot_port: optional_ports.alert_snapshot,
             strategy_definition_snapshot_port: optional_ports.strategy_definition_snapshot,
             notification_sequence: AtomicU64::new(0),
@@ -418,31 +421,6 @@ impl ProductApi {
         Ok(ApiOutput::Json(json!(memberships)))
     }
 
-    fn plugin_uninstall_guidance(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
-        let plugin_id = plugin_uninstall_guidance_plugin_id(path)?;
-        let port = self
-            .plugin_uninstall_guidance_snapshot_port
-            .as_ref()
-            .ok_or_else(|| {
-                ApiFailure::new(
-                    503,
-                    "PLUGIN_UNINSTALL_GUIDANCE_UNAVAILABLE",
-                    "plugin uninstall guidance snapshot is not configured",
-                )
-            })?;
-        let guidance = port
-            .guidance(&plugin_id)
-            .map_err(|error| {
-                ApiFailure::new(
-                    503,
-                    "PLUGIN_UNINSTALL_GUIDANCE_UNAVAILABLE",
-                    error.to_string(),
-                )
-            })?
-            .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "plugin not found"))?;
-        Ok(ApiOutput::Json(json!(guidance)))
-    }
-
     fn alerts(&self, kind: AlertKind, query: &str) -> Result<ApiOutput, ApiFailure> {
         let port = self.alert_snapshot_port.as_ref().ok_or_else(|| {
             ApiFailure::new(
@@ -454,13 +432,6 @@ impl ProductApi {
         port.snapshot(kind, query)
             .map(ApiOutput::Json)
             .map_err(alert_snapshot_failure)
-    }
-
-    fn strategy_definition_list(&self) -> Result<ApiOutput, ApiFailure> {
-        let port = self.strategy_definition_port()?;
-        port.list()
-            .map(|items| ApiOutput::Json(json!(items)))
-            .map_err(strategy_definition_snapshot_failure)
     }
 
     fn strategy_definition_detail(
@@ -496,18 +467,6 @@ impl ProductApi {
             .map_err(strategy_definition_snapshot_failure)?
             .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "resource not found"))?;
         Ok(ApiOutput::Json(snapshot))
-    }
-
-    fn strategy_definition_port(
-        &self,
-    ) -> Result<&Arc<dyn StrategyDefinitionSnapshotPort>, ApiFailure> {
-        self.strategy_definition_snapshot_port.as_ref().ok_or_else(|| {
-            ApiFailure::new(
-                503,
-                "STRATEGY_DEFINITIONS_UNAVAILABLE",
-                "strategy definition snapshot is not configured",
-            )
-        })
     }
 
     fn cleanup_preview(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {

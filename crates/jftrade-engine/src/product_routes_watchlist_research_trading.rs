@@ -28,6 +28,12 @@ fn product_watchlist_research_trading_routes(
             "/api/v1/watchlist/instruments/{market}/{symbol}/memberships",
         ));
     }
+    if ports.plugins && capabilities.contains(ProductCapability::Plugins) {
+        routes.extend([
+            route("GET", "/api/v1/plugins"),
+            route("GET", "/api/v1/plugins/operations/{operationId}"),
+        ]);
+    }
     if ports.plugin_uninstall_guidance
         && capabilities.contains(ProductCapability::PluginUninstallGuidance)
     {

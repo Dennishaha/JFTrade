@@ -532,6 +532,9 @@ impl PluginUninstallGuidanceSnapshotPort for FailingPluginUninstallGuidanceSnaps
 #[path = "product_strategy_definitions_tests.rs"]
 mod strategy_definition_tests;
 
+#[path = "product_plugins_tests.rs"]
+mod plugin_tests;
+
 #[derive(Debug)]
 struct FixtureAlertSnapshotPort {
     price: Value,
@@ -1984,12 +1987,13 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             alerts: true,
             calendar_manager: true,
             watchlist_memberships: true,
+            plugins: true,
             plugin_uninstall_guidance: true,
             strategy_definitions: true,
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 62);
+    assert_eq!(cutover.routes().len(), 64);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
@@ -2035,6 +2039,15 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     }));
     assert!(cutover.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/plugins/{pluginId}/uninstall-guidance"
+    }));
+    assert!(
+        cutover
+            .routes()
+            .iter()
+            .any(|route| { route.method == "GET" && route.path == "/api/v1/plugins" })
+    );
+    assert!(cutover.routes().iter().any(|route| {
+        route.method == "GET" && route.path == "/api/v1/plugins/operations/{operationId}"
     }));
 }
 
