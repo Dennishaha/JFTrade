@@ -36,7 +36,7 @@ func (s *Server) buildRouter() *gin.Engine {
 	router.Use(s.desktopTokenMiddleware())
 	router.Use(s.webAccessMiddleware())
 	router.Use(middleware.Auth(s.auth, s.auth, s, s.auth))
-	router.Use(s.rehearsalProxyMiddleware())
+	router.Use(func(c *gin.Context) { s.rehearsalProxy(c) })
 
 	router.GET("/swagger", handleSwaggerRoot)
 	router.GET("/swagger/*any", handleSwaggerUI)

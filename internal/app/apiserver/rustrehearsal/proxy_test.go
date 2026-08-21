@@ -1,4 +1,4 @@
-package servercore
+package rustrehearsal
 
 import (
 	"context"
@@ -13,8 +13,9 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
-	"github.com/jftrade/jftrade-main/internal/app/apiserver/rustrehearsal"
 )
+
+const requestIDHeader = "X-Request-ID"
 
 type rehearsalProxyTargetFixture struct {
 	endpoint     string
@@ -38,10 +39,10 @@ func TestRehearsalProxyForwardsExactOperationAfterVerifiedSurface(t *testing.T) 
 		if got := r.Header.Get("Authorization"); got != "Bearer private-rust-bearer" {
 			t.Errorf("private authorization = %q", got)
 		}
-		if got := r.Header.Get(rustrehearsal.InternalProxyHeader); got != rustrehearsal.InternalProxyProtocol {
+		if got := r.Header.Get(InternalProxyHeader); got != InternalProxyProtocol {
 			t.Errorf("internal proxy protocol = %q", got)
 		}
-		if got := r.Header.Get(rustrehearsal.AccessSurfaceHeader); got != "desktop" {
+		if got := r.Header.Get(AccessSurfaceHeader); got != "desktop" {
 			t.Errorf("access surface = %q", got)
 		}
 		if got := r.Header.Get(requestIDHeader); got != "stable-request-7" {
@@ -149,16 +150,19 @@ func TestRehearsalProxyNeverReplaysRustFailureToGo(t *testing.T) {
 	}
 }
 
-func rehearsalProxyTestRouter(target RehearsalProxyTarget, selected []string, timeout time.Duration, goCalls *atomic.Int32) *gin.Engine {
+func rehearsalProxyTestRouter(target ProxyTarget, selected []string, timeout time.Duration, goCalls *atomic.Int32) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	server := &Server{rehearsalProxy: newRehearsalProxy(target, selected, timeout)}
 	router := gin.New()
-	router.Use(requestObservabilityMiddleware(nil))
+	router.Use(func(c *gin.Context) {
+		c.Set("requestID", c.GetHeader(requestIDHeader))
+		c.Writer.Header().Set(requestIDHeader, c.GetString("requestID"))
+		c.Next()
+	})
 	router.Use(func(c *gin.Context) {
 		c.Request = middleware.MarkRequestTrustedHost(c.Request)
 		c.Next()
 	})
-	router.Use(server.rehearsalProxyMiddleware())
+	router.Use(NewProxy(ProxyOptions{Target: target, Operations: selected, Timeout: timeout}))
 	handler := func(c *gin.Context) {
 		goCalls.Add(1)
 		c.Status(http.StatusAccepted)

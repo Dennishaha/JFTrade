@@ -1,4 +1,4 @@
-package servercore
+package rustrehearsal
 
 import (
 	"context"
@@ -14,8 +14,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
-	"github.com/jftrade/jftrade-main/internal/app/apiserver/rustrehearsal"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
 )
 
 const (
@@ -40,7 +41,36 @@ type rehearsalProxy struct {
 	client     *http.Client
 }
 
-func newRehearsalProxy(target RehearsalProxyTarget, selected []string, timeout time.Duration) *rehearsalProxy {
+// ProxyTarget is the verified private Rust process surface consumed by the Go
+// transport. It deliberately excludes lifecycle ownership.
+type ProxyTarget interface {
+	Endpoint() string
+	BearerToken() string
+	Profile() string
+	Capabilities() []string
+}
+
+// ProxyOptions selects exact operations from one verified rehearsal process.
+type ProxyOptions struct {
+	Target     ProxyTarget
+	Operations []string
+	Timeout    time.Duration
+}
+
+// NewProxy returns a no-op middleware unless exact rehearsal operations were
+// explicitly selected. Invalid private endpoints or capabilities fail closed.
+func NewProxy(options ProxyOptions) gin.HandlerFunc {
+	proxy := newRehearsalProxy(options.Target, options.Operations, options.Timeout)
+	return func(c *gin.Context) {
+		if proxy == nil || !proxy.selects(c.Request) {
+			c.Next()
+			return
+		}
+		proxy.forward(c)
+	}
+}
+
+func newRehearsalProxy(target ProxyTarget, selected []string, timeout time.Duration) *rehearsalProxy {
 	if target == nil || len(selected) == 0 {
 		return nil
 	}
@@ -78,17 +108,6 @@ func parseRehearsalOperation(value string) (rehearsalOperation, bool) {
 	method, template = strings.TrimSpace(method), strings.TrimSpace(template)
 	return rehearsalOperation{method: method, template: template},
 		ok && method != "" && strings.HasPrefix(template, "/api/v1/")
-}
-
-func (s *Server) rehearsalProxyMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		proxy := s.rehearsalProxy
-		if proxy == nil || !proxy.selects(c.Request) {
-			c.Next()
-			return
-		}
-		proxy.forward(s, c)
-	}
 }
 
 func (p *rehearsalProxy) selects(request *http.Request) bool {
@@ -130,11 +149,11 @@ func matchesPathTemplate(path string, template string) bool {
 	return true
 }
 
-func (p *rehearsalProxy) forward(server *Server, c *gin.Context) {
+func (p *rehearsalProxy) forward(c *gin.Context) {
 	request := c.Request
 	surface := verifiedAccessSurface(request)
 	if surface == "" {
-		writeError(server, c, http.StatusForbidden, "RUST_REHEARSAL_ACCESS_SURFACE_REQUIRED", "verified access surface is required")
+		httpserver.WriteError(c, http.StatusForbidden, "RUST_REHEARSAL_ACCESS_SURFACE_REQUIRED", "verified access surface is required")
 		return
 	}
 	target := *p.endpoint
@@ -143,16 +162,16 @@ func (p *rehearsalProxy) forward(server *Server, c *gin.Context) {
 	target.RawQuery = request.URL.RawQuery
 	forwarded, err := http.NewRequestWithContext(request.Context(), request.Method, target.String(), request.Body)
 	if err != nil {
-		writeError(server, c, http.StatusBadGateway, "RUST_REHEARSAL_PROXY_FAILED", "Rust rehearsal request could not be created")
+		httpserver.WriteError(c, http.StatusBadGateway, "RUST_REHEARSAL_PROXY_FAILED", "Rust rehearsal request could not be created")
 		return
 	}
 	forwarded.ContentLength = request.ContentLength
 	copyRequestHeader(forwarded.Header, request.Header, "Accept")
 	copyRequestHeader(forwarded.Header, request.Header, "Content-Type")
 	forwarded.Header.Set("Authorization", "Bearer "+p.bearer)
-	forwarded.Header.Set(rustrehearsal.InternalProxyHeader, rustrehearsal.InternalProxyProtocol)
-	forwarded.Header.Set(rustrehearsal.AccessSurfaceHeader, surface)
-	forwarded.Header.Set(requestIDHeader, c.GetString("requestID"))
+	forwarded.Header.Set(InternalProxyHeader, InternalProxyProtocol)
+	forwarded.Header.Set(AccessSurfaceHeader, surface)
+	forwarded.Header.Set("X-Request-ID", c.GetString("requestID"))
 
 	response, err := p.client.Do(forwarded)
 	if err != nil {
@@ -161,19 +180,19 @@ func (p *rehearsalProxy) forward(server *Server, c *gin.Context) {
 		if errors.Is(err, contextDeadlineExceeded(request)) {
 			status, code = http.StatusGatewayTimeout, "RUST_REHEARSAL_TIMEOUT"
 		}
-		writeError(server, c, status, code, "Rust rehearsal request failed; Go replay is disabled")
+		httpserver.WriteError(c, status, code, "Rust rehearsal request failed; Go replay is disabled")
 		return
 	}
 	defer func() { _ = response.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxRehearsalResponseBytes+1))
 	if err != nil || len(body) > maxRehearsalResponseBytes {
-		writeError(server, c, http.StatusBadGateway, "RUST_REHEARSAL_INVALID_RESPONSE", "Rust rehearsal response could not be accepted")
+		httpserver.WriteError(c, http.StatusBadGateway, "RUST_REHEARSAL_INVALID_RESPONSE", "Rust rehearsal response could not be accepted")
 		return
 	}
 	for _, name := range rehearsalResponseHeaders {
 		copyResponseHeader(c.Writer.Header(), response.Header, name)
 	}
-	c.Writer.Header().Set(requestIDHeader, c.GetString("requestID"))
+	c.Writer.Header().Set("X-Request-ID", c.GetString("requestID"))
 	c.Status(response.StatusCode)
 	if request.Method != http.MethodHead {
 		_, _ = c.Writer.Write(body)
@@ -185,7 +204,7 @@ func verifiedAccessSurface(request *http.Request) string {
 	if middleware.IsRequestTrustedHost(request) {
 		return "desktop"
 	}
-	if isWebAccessSurfaceRequest(request) {
+	if webaccess.IsAccessSurfaceRequest(request) {
 		return "web"
 	}
 	return ""

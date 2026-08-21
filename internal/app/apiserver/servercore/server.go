@@ -21,6 +21,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/liveapp"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/marketdataapp"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/rustrehearsal"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
@@ -70,16 +71,7 @@ type Server struct {
 	desktopMode          bool
 	desktopAPIToken      string
 	webAccessReconfigure func(jfsettings.SecuritySettings) error
-	rehearsalProxy       *rehearsalProxy
-}
-
-// RehearsalProxyTarget is the verified private Rust process surface consumed
-// by the Go transport. It deliberately excludes lifecycle ownership.
-type RehearsalProxyTarget interface {
-	Endpoint() string
-	BearerToken() string
-	Profile() string
-	Capabilities() []string
+	rehearsalProxy       gin.HandlerFunc
 }
 
 // SidecarHandler is the minimal server surface required by API sidecar assembly.
@@ -103,7 +95,7 @@ type SidecarOptions struct {
 	NotificationSink      func(live.Event) live.NotificationDelivery
 	DesktopMode           bool
 	DesktopAPIToken       string
-	RehearsalTarget       RehearsalProxyTarget
+	RehearsalTarget       rustrehearsal.ProxyTarget
 	RehearsalOperations   []string
 	RehearsalProxyTimeout time.Duration
 }
@@ -144,11 +136,9 @@ func NewSidecarHandlerWithOptions(store SidecarSettingsStore, options SidecarOpt
 	server.runtimes.SetLiveNotificationSink(options.NotificationSink)
 	server.desktopMode = options.DesktopMode
 	server.desktopAPIToken = strings.TrimSpace(options.DesktopAPIToken)
-	server.rehearsalProxy = newRehearsalProxy(
-		options.RehearsalTarget,
-		options.RehearsalOperations,
-		options.RehearsalProxyTimeout,
-	)
+	server.rehearsalProxy = rustrehearsal.NewProxy(rustrehearsal.ProxyOptions{
+		Target: options.RehearsalTarget, Operations: options.RehearsalOperations, Timeout: options.RehearsalProxyTimeout,
+	})
 	if server.auth != nil {
 		server.auth.SetEnforceAccess(!options.DesktopMode || server.desktopAPIToken != "")
 	}
@@ -288,9 +278,10 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 				true,
 			),
 		},
-		apiPort:  portFromBind(defaultDevelopmentAPIBind, 3000),
-		frontend: frontend,
-		auth:     state.auth,
+		apiPort:        portFromBind(defaultDevelopmentAPIBind, 3000),
+		frontend:       frontend,
+		auth:           state.auth,
+		rehearsalProxy: rustrehearsal.NewProxy(rustrehearsal.ProxyOptions{}),
 	}
 	server.runtimes.SetLiveNotifications(live.NewReplayPublisher(), nil)
 	server.runtimes.SetBrokerRegistry(broker.NewRegistry())

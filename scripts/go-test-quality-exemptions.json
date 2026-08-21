@@ -14,6 +14,11 @@
       "path": "internal/app/apiserver/tradingapp/order_updates_test.go",
       "test": "TestExecutionOrderUpdatesIgnoreMissingLedger",
       "reason": "The boundary contract is that nil or missing execution ledgers are ignored without panicking or writing."
+    },
+    {
+      "path": "internal/store/ownerlock/ownerlock_test.go",
+      "test": "TestWriterLeaseHelperProcess",
+      "reason": "This subprocess fixture holds the OS lock until its parent asserts conflict and crash recovery behavior."
     }
   ]
 }
