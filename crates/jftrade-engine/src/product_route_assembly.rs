@@ -22,6 +22,7 @@ enum ProductCapability {
     WatchlistMemberships,
     WatchlistRead,
     Portfolio,
+    ResearchRead,
     Plugins,
     PluginUninstallGuidance,
     Alerts,
@@ -55,6 +56,7 @@ impl ProductCapabilities {
             ProductCapability::WatchlistMemberships,
             ProductCapability::WatchlistRead,
             ProductCapability::Portfolio,
+            ProductCapability::ResearchRead,
             ProductCapability::Plugins,
             ProductCapability::PluginUninstallGuidance,
             ProductCapability::Alerts,
@@ -82,6 +84,7 @@ impl ProductCapabilities {
                     | ProductCapability::WatchlistMemberships
                     | ProductCapability::WatchlistRead
                     | ProductCapability::Portfolio
+                    | ProductCapability::ResearchRead
                     | ProductCapability::Plugins
                     | ProductCapability::PluginUninstallGuidance
                     | ProductCapability::Alerts
@@ -103,6 +106,7 @@ struct ProductRoutePorts {
     watchlist_memberships: bool,
     watchlist_read: bool,
     portfolio: bool,
+    research_read: bool,
     plugins: bool,
     plugin_uninstall_guidance: bool,
     strategy_definitions: bool,

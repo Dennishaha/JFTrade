@@ -1,0 +1,327 @@
+{
+  "version": "stage9.research-read.v1",
+  "cases": [
+    {
+      "name": "instrument",
+      "method": "GET",
+      "requestPath": "/api/v1/research/instruments/US.AAPL?brokerId=api-test\u0026operation=profile",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.instrument"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.instrument",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "financials",
+      "method": "GET",
+      "requestPath": "/api/v1/research/financials/SH.600519?brokerId=api-test\u0026operation=statements\u0026statement=cashflow",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.financials"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.financials",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "valuation",
+      "method": "GET",
+      "requestPath": "/api/v1/research/valuation/US.AAPL?brokerId=api-test\u0026operation=valuation",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.valuation"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.valuation",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "analyst",
+      "method": "GET",
+      "requestPath": "/api/v1/research/analyst/US.AAPL?brokerId=api-test\u0026operation=consensus",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.analyst"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.analyst",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "ownership",
+      "method": "GET",
+      "requestPath": "/api/v1/research/ownership/SH.600519?brokerId=api-test\u0026operation=overview",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.ownership"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.ownership",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "corporate-actions",
+      "method": "GET",
+      "requestPath": "/api/v1/research/corporate-actions/US.AAPL?brokerId=api-test",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.corporate_actions"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.corporate_actions",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "short-interest",
+      "method": "GET",
+      "requestPath": "/api/v1/research/short-interest/US.AAPL?brokerId=api-test",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.short_interest"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.short_interest",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "technical-indicators",
+      "method": "GET",
+      "requestPath": "/api/v1/research/technical-indicators/US.AAPL?brokerId=api-test\u0026operation=momentum",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.technical_indicators"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.technical_indicators",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "screens",
+      "method": "GET",
+      "requestPath": "/api/v1/research/screens?brokerId=api-test\u0026market=US\u0026operation=screen",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.screen"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.screen",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "calendars",
+      "method": "GET",
+      "requestPath": "/api/v1/research/calendars?brokerId=api-test\u0026market=US\u0026operation=earnings\u0026beginDate=2026-08-01\u0026endDate=2026-08-31",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.calendar"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.calendar",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "macro",
+      "method": "GET",
+      "requestPath": "/api/v1/research/macro?brokerId=api-test\u0026market=US\u0026operation=indicators",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.macro"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.macro",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "rankings",
+      "method": "GET",
+      "requestPath": "/api/v1/research/rankings?brokerId=api-test\u0026market=US\u0026operation=top_movers\u0026direction=up\u0026pageSize=10",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.rankings"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.rankings",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "institutions",
+      "method": "GET",
+      "requestPath": "/api/v1/research/institutions?brokerId=api-test\u0026market=US\u0026operation=holding_changes\u0026institutionId=202",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.institutions"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.institutions",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "industries",
+      "method": "GET",
+      "requestPath": "/api/v1/research/industries?brokerId=api-test\u0026market=US\u0026operation=plate_list\u0026plateType=concept",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "research.industry"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.industry",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    }
+  ]
+}

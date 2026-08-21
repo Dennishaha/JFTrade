@@ -44,6 +44,24 @@ fn product_watchlist_research_trading_routes(
             route("GET", "/api/v1/portfolio/{brokerId}/positions"),
         ]);
     }
+    if ports.research_read && capabilities.contains(ProductCapability::ResearchRead) {
+        routes.extend([
+            route("GET", "/api/v1/research/instruments/{instrumentId}"),
+            route("GET", "/api/v1/research/financials/{instrumentId}"),
+            route("GET", "/api/v1/research/valuation/{instrumentId}"),
+            route("GET", "/api/v1/research/analyst/{instrumentId}"),
+            route("GET", "/api/v1/research/ownership/{instrumentId}"),
+            route("GET", "/api/v1/research/corporate-actions/{instrumentId}"),
+            route("GET", "/api/v1/research/short-interest/{instrumentId}"),
+            route("GET", "/api/v1/research/technical-indicators/{instrumentId}"),
+            route("GET", "/api/v1/research/screens"),
+            route("GET", "/api/v1/research/calendars"),
+            route("GET", "/api/v1/research/macro"),
+            route("GET", "/api/v1/research/rankings"),
+            route("GET", "/api/v1/research/institutions"),
+            route("GET", "/api/v1/research/industries"),
+        ]);
+    }
     if ports.plugins && capabilities.contains(ProductCapability::Plugins) {
         routes.extend([
             route("GET", "/api/v1/plugins"),
