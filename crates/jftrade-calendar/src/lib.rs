@@ -1,13 +1,25 @@
 #![forbid(unsafe_code)]
 
+mod manager;
+mod manager_policy;
+mod manager_registry;
+mod manager_types;
 mod snapshot;
 mod sources;
 mod status;
 
+pub use manager::{CalendarManager, CalendarManagerError};
+pub use manager_registry::CalendarSourceRegistry;
+pub use manager_types::{
+    CalendarCancellationToken, CalendarManagerSettings, CalendarManualOverride,
+    CalendarPersistencePort, CalendarRefreshResult, CalendarSessionOverride, CalendarSourceError,
+    CalendarSourcePolicy, CalendarSourcePort, CalendarSourceRuntimeStatus, ManagerLifecycleState,
+};
+
 pub use snapshot::{
     CalendarSessionWindow, CalendarSnapshot, CalendarSnapshotLoadError,
     CalendarSnapshotLoadErrorKind, CalendarSnapshotLoadResult, CalendarSnapshotStore,
-    TradingDaySchedule,
+    CalendarSnapshotStoreError, TradingDaySchedule,
 };
 pub use sources::{
     BUILTIN_SOURCE_ID, CalendarSourceDescriptor, CalendarSourceProjection, CalendarSourceStatus,
