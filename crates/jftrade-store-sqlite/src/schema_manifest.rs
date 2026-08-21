@@ -587,6 +587,10 @@ fn incompatible<T>(component: &str, path: &str, reason: String) -> Result<T, Sch
 }
 
 #[cfg(test)]
+#[path = "schema_manifest_invariants_tests.rs"]
+mod invariants_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::tempdir;
