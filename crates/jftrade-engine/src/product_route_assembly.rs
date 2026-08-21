@@ -24,6 +24,7 @@ enum ProductCapability {
     Portfolio,
     ResearchRead,
     ResearchPresetRead,
+    ExecutionRead,
     BrokerRead,
     RemoteWatchlistRead,
     SystemRead,
@@ -65,6 +66,7 @@ impl ProductCapabilities {
             ProductCapability::Portfolio,
             ProductCapability::ResearchRead,
             ProductCapability::ResearchPresetRead,
+            ProductCapability::ExecutionRead,
             ProductCapability::BrokerRead,
             ProductCapability::RemoteWatchlistRead,
             ProductCapability::SystemRead,
@@ -100,6 +102,7 @@ impl ProductCapabilities {
                     | ProductCapability::Portfolio
                     | ProductCapability::ResearchRead
                     | ProductCapability::ResearchPresetRead
+                    | ProductCapability::ExecutionRead
                     | ProductCapability::BrokerRead
                     | ProductCapability::RemoteWatchlistRead
                     | ProductCapability::SystemRead
@@ -129,6 +132,7 @@ struct ProductRoutePorts {
     portfolio: bool,
     research_read: bool,
     research_preset_read: bool,
+    execution_read: bool,
     broker_read: bool,
     remote_watchlist: bool,
     system_read: bool,
@@ -149,6 +153,7 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         portfolio: config.portfolio_snapshot_port.is_some(),
         research_read: config.research_read_snapshot_port.is_some(),
         research_preset_read: config.research_preset_read_snapshot_port.is_some(),
+        execution_read: config.execution_read_snapshot_port.is_some(),
         broker_read: config.broker_read_snapshot_port.is_some(),
         system_read: config.system_read_snapshot_port.is_some(),
         backtest_read: config.backtest_read_snapshot_port.is_some(),
@@ -175,6 +180,7 @@ fn product_routes(
     routes.extend(product_data_management_routes(capabilities));
     routes.extend(product_backtest_routes(capabilities, ports));
     routes.extend(product_backtest_sync_routes(capabilities, ports));
+    routes.extend(product_execution_read_routes(capabilities, ports));
     routes.extend(product_strategy_read_routes(capabilities, ports));
     routes.extend(product_watchlist_research_trading_routes(
         capabilities,
@@ -189,5 +195,6 @@ include!("product_routes_alerts.rs");
 include!("product_routes_calendar.rs");
 include!("product_routes_data_management.rs");
 include!("product_routes_backtests.rs");
+include!("product_routes_execution.rs");
 include!("product_routes_strategies.rs");
 include!("product_routes_watchlist_research_trading.rs");

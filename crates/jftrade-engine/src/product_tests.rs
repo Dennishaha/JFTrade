@@ -547,6 +547,9 @@ mod research_read_tests;
 #[path = "product_research_preset_tests.rs"]
 mod research_preset_read_tests;
 
+#[path = "product_execution_read_tests.rs"]
+mod execution_read_tests;
+
 #[path = "product_brokers_tests.rs"]
 mod broker_read_tests;
 
@@ -2021,6 +2024,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             portfolio: true,
             research_read: true,
             research_preset_read: true,
+            execution_read: true,
             broker_read: true,
             remote_watchlist: true,
             system_read: true,
@@ -2033,7 +2037,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 111);
+    assert_eq!(cutover.routes().len(), 114);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
