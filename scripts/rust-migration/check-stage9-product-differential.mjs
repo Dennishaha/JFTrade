@@ -100,6 +100,20 @@ run("go", [
   "^TestStage9PluginUninstallGuidanceFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
+  "^TestStage9AlertsReadFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
+  "^TestStage9StrategyDefinitionsFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
 const realTradeDirectory = mkdtempSync(join(tmpdir(), "jftrade-stage9-real-trade-"));
 const realTradeReference = join(realTradeDirectory, "go-reference.json");
 const brokerSettingsReference = join(realTradeDirectory, "go-broker-settings-reference.json");
@@ -475,6 +489,38 @@ run("cargo", [
 run("cargo", [
   "test",
   "-p",
+  "jftrade-engine",
+  "product::tests::alerts_read_routes_match_go_fixture_as_cutover_only_batch",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::alerts_read_routes_fail_closed_without_snapshot_port",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::strategy_definition_tests::strategy_definition_routes_match_group_fixture_in_cutover_only",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::strategy_definition_tests::strategy_definition_routes_fail_closed_without_snapshot_port",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
   "jftrade-integration-futu",
   "provider::tests::broker_descriptor_matches_current_go_wire_fixture",
   "--",
@@ -490,4 +536,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: appearance/onboarding read-write/Futu install/execution/security read-write/password/broker read-write/market-data and backtest provider read-write/catalog/calendar/research-screen catalog/calendar manager source/status/probe/refresh control-plane/watchlist membership/plugin uninstall-guidance test-cutover snapshots and fail-closed/ADK/MCP read-write/token/notification/Pine settings, real-trade read controls, exact nine-database schema/overview, fenced cleanup execute/backup/compact/rebuild rehearsal, static storage, and Node runtime diagnostics.");
+console.log("Go/Rust Stage 9 product-slice differential passed: settings/system/alerts/strategy-definitions read projections, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");

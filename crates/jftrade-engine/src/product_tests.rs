@@ -604,7 +604,7 @@ async fn product_server_persists_ui_settings_and_reports_actual_port() {
     .expect("start product");
     let address = handle.startup_record().address;
     let startup = handle.startup_record();
-    assert_eq!(startup.owned_routes, 52);
+    assert_eq!(startup.owned_routes, 48);
     assert_eq!(startup.protocol_version, PRODUCT_REHEARSAL_PROTOCOL_VERSION);
     assert_eq!(startup.route_profile, PRODUCT_TEST_CUTOVER_ROUTE_PROFILE);
     assert_eq!(startup.capabilities.len(), startup.owned_routes);
@@ -1493,7 +1493,7 @@ async fn calendar_control_plane_routes_share_the_real_manager_in_cutover_only() 
             .expect("config")
             .with_calendar_manager(manager);
     let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 58);
+    assert_eq!(handle.startup_record().owned_routes, 54);
     let sources = request_json(
         handle.startup_record().address,
         "GET",
@@ -1551,7 +1551,7 @@ async fn calendar_control_plane_routes_fail_closed_without_a_manager() {
         ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
             .expect("config");
     let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 52);
+    assert_eq!(handle.startup_record().owned_routes, 48);
     for (method, path) in [
         ("GET", "/api/v1/system/exchange-calendars/sources"),
         ("GET", "/api/v1/system/exchange-calendars/status"),
@@ -1612,7 +1612,7 @@ async fn watchlist_memberships_route_matches_go_fixture_in_cutover_only() {
                 FixtureWatchlistMembershipSnapshotPort { memberships },
             ));
     let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 53);
+    assert_eq!(handle.startup_record().owned_routes, 49);
     let address = handle.startup_record().address;
     for case in fixture["cases"].as_array().expect("membership cases") {
         let market = case["market"].as_str().expect("case market");
@@ -1685,7 +1685,7 @@ async fn plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only() {
                 FixturePluginUninstallGuidanceSnapshotPort { guidance },
             ));
     let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 53);
+    assert_eq!(handle.startup_record().owned_routes, 49);
     let address = handle.startup_record().address;
     for case in fixture["cases"].as_array().expect("plugin guidance cases") {
         let request_path = case["requestPath"].as_str().expect("request path");
@@ -1732,7 +1732,7 @@ async fn plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unav
 }
 
 #[tokio::test]
-async fn alerts_read_routes_match_go_fixture_as_shadow_batch() {
+async fn alerts_read_routes_match_go_fixture_as_cutover_only_batch() {
     let fixture: Value = serde_json::from_str(include_str!(
         "../../../tests/fixtures/rust-migration/stage9/alerts-read.json"
     ))
@@ -1900,7 +1900,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         .collect::<Vec<_>>();
     assert_eq!(
         route_profile_digest(&shadow_capabilities),
-        "64376b86beece306395642822c0ea991e417d6d7b12c1146545e94b4092e1cbd"
+        "5f5654f93253a014d0ea113168bd49c88454f5c4c214ae9a72102a539ccf74cd"
     );
     assert_eq!(
         pairs(shadow.routes()),
@@ -1911,7 +1911,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         ProductRoutePorts::default(),
     )
     .expect("appearance-only routes");
-    assert_eq!(appearance_only.routes().len(), 31);
+    assert_eq!(appearance_only.routes().len(), 27);
     assert!(
         appearance_only
             .routes()
@@ -1934,7 +1934,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("shadow routes with unavailable cutover ports");
-    assert_eq!(shadow_with_calendar_port.routes().len(), 30);
+    assert_eq!(shadow_with_calendar_port.routes().len(), 26);
     assert!(!shadow_with_calendar_port.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1953,7 +1953,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         ProductRoutePorts::default(),
     )
     .expect("cutover routes without calendar ports");
-    assert_eq!(cutover_without_calendar_port.routes().len(), 52);
+    assert_eq!(cutover_without_calendar_port.routes().len(), 48);
     assert!(!cutover_without_calendar_port.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1968,7 +1968,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with calendar manager");
-    assert_eq!(cutover_with_calendar_manager.routes().len(), 58);
+    assert_eq!(cutover_with_calendar_manager.routes().len(), 54);
     assert!(cutover_with_calendar_manager.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
