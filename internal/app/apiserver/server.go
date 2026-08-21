@@ -15,6 +15,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/lifecycle"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/rustrehearsal"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/servercore"
 	"github.com/jftrade/jftrade-main/internal/frontendassets"
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
@@ -127,7 +128,7 @@ func StartDesktopWithConfig(ctx context.Context, runtimeConfig DesktopRuntimeCon
 			return defaultEnvOrDefault(key, fallback)
 		}
 	}
-	deps.NewHandler = func(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration) (lifecycle.Handler, error) {
+	deps.NewHandler = func(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration, rehearsal lifecycle.RehearsalRuntime) (lifecycle.Handler, error) {
 		settingsStore, ok := store.(servercore.SidecarSettingsStore)
 		if !ok {
 			return nil, fmt.Errorf("unexpected settings store type %T", store)
@@ -281,9 +282,16 @@ func dependencies() lifecycle.Dependencies {
 		},
 		NewSettingsStore:          newSettingsStore,
 		ResolveIntegrationRuntime: apiruntime.IntegrationWithEnvDefaults,
-		NewHandler:                newHandler,
-		APIBaseURLForBind:         apiruntime.APIBaseURLForBind,
-		PortFromBind:              apiruntime.PortFromBind,
+		OpenRehearsal: func(ctx context.Context, settingsPath string) (lifecycle.RehearsalRuntime, error) {
+			handle, err := rustrehearsal.StartFromEnvironment(ctx, settingsPath)
+			if handle == nil {
+				return nil, err
+			}
+			return handle, err
+		},
+		NewHandler:        newHandler,
+		APIBaseURLForBind: apiruntime.APIBaseURLForBind,
+		PortFromBind:      apiruntime.PortFromBind,
 	}
 }
 
@@ -291,7 +299,7 @@ func newSettingsStore(path string) (lifecycle.SettingsStore, error) {
 	return settingsfile.New(path)
 }
 
-func newHandler(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration) (lifecycle.Handler, error) {
+func newHandler(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration, _ lifecycle.RehearsalRuntime) (lifecycle.Handler, error) {
 	settingsStore, ok := store.(servercore.SidecarSettingsStore)
 	if !ok {
 		return nil, fmt.Errorf("unexpected settings store type %T", store)

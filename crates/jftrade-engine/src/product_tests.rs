@@ -532,7 +532,22 @@ async fn product_server_persists_ui_settings_and_reports_actual_port() {
     .await
     .expect("start product");
     let address = handle.startup_record().address;
-    assert_eq!(handle.startup_record().owned_routes, 44);
+    let startup = handle.startup_record();
+    assert_eq!(startup.owned_routes, 44);
+    assert_eq!(startup.protocol_version, PRODUCT_REHEARSAL_PROTOCOL_VERSION);
+    assert_eq!(startup.route_profile, PRODUCT_TEST_CUTOVER_ROUTE_PROFILE);
+    assert_eq!(startup.capabilities.len(), startup.owned_routes);
+    assert_eq!(
+        startup.route_profile_digest,
+        route_profile_digest(&startup.capabilities)
+    );
+    assert_eq!(startup.resource_sha256.len(), 64);
+    assert!(
+        startup
+            .resource_sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit())
+    );
 
     let status = request_json(address, "GET", "/api/v1/system/status", None).await;
     assert_eq!(status["ok"], true);
@@ -1596,6 +1611,15 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     .expect("shadow routes");
     assert_eq!(shadow.routes().len(), 26);
     assert!(shadow.routes().iter().all(|route| route.method == "GET"));
+    let shadow_capabilities = shadow
+        .routes()
+        .iter()
+        .map(|route| format!("{} {}", route.method, route.path))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        route_profile_digest(&shadow_capabilities),
+        "5f5654f93253a014d0ea113168bd49c88454f5c4c214ae9a72102a539ccf74cd"
+    );
     assert_eq!(
         pairs(shadow.routes()),
         owned_pairs(&ownership.operations, &["shadow"])

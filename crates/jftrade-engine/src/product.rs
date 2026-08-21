@@ -1,4 +1,6 @@
 use std::env;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -32,6 +34,7 @@ use jftrade_watchlist::{Memberships, WatchlistError, normalize_instrument_id};
 use percent_encoding::percent_decode_str;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
@@ -47,6 +50,9 @@ use crate::runtime_dependencies;
 pub const PRODUCT_BIND_ENV: &str = "JFTRADE_RUST_API_BIND";
 pub const PRODUCT_SETTINGS_PATH_ENV: &str = "JFTRADE_SETTINGS_PATH";
 pub const PRODUCT_DESKTOP_TOKEN_ENV: &str = "JFTRADE_DESKTOP_TOKEN";
+pub const PRODUCT_REHEARSAL_PROTOCOL_VERSION: &str = "jftrade-product-rehearsal.v1";
+pub const PRODUCT_READ_ONLY_ROUTE_PROFILE: &str = "read-only-shadow.v1";
+pub const PRODUCT_TEST_CUTOVER_ROUTE_PROFILE: &str = "cutover-test-only.v1";
 
 const DEFAULT_PRODUCT_BIND: &str = "127.0.0.1:3000";
 const DEFAULT_SETTINGS_PATH: &str = "var/jftrade-api/settings.json";
@@ -282,6 +288,11 @@ pub struct ProductStartupRecord {
     pub address: SocketAddr,
     pub owner: &'static str,
     pub owned_routes: usize,
+    pub protocol_version: &'static str,
+    pub route_profile: &'static str,
+    pub route_profile_digest: String,
+    pub capabilities: Vec<String>,
+    pub resource_sha256: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -356,10 +367,22 @@ pub(crate) async fn start_product_with_runtime_state(
     };
     let routes = product_routes(&config.capabilities, route_ports)?;
     let route_count = routes.routes().len();
+    let route_capabilities = routes
+        .routes()
+        .iter()
+        .map(|route| format!("{} {}", route.method, route.path))
+        .collect::<Vec<_>>();
+    let route_profile_digest = route_profile_digest(&route_capabilities);
+    let resource_sha256 = current_executable_sha256()?;
     let owner = if config.capabilities.is_empty() {
         "rust-read-only-shadow"
     } else {
         "rust-cutover"
+    };
+    let route_profile = if config.capabilities.is_empty() {
+        PRODUCT_READ_ONLY_ROUTE_PROFILE
+    } else {
+        PRODUCT_TEST_CUTOVER_ROUTE_PROFILE
     };
     let data_management = product_data_management::overview_service(config.settings_path());
     let cleanup_preview = product_data_management::cleanup_preview_service(config.settings_path());
@@ -425,10 +448,58 @@ pub(crate) async fn start_product_with_runtime_state(
             address,
             owner,
             owned_routes: route_count,
+            protocol_version: PRODUCT_REHEARSAL_PROTOCOL_VERSION,
+            route_profile,
+            route_profile_digest,
+            capabilities: route_capabilities,
+            resource_sha256,
         },
         shutdown_tx: Some(shutdown_tx),
         task: Some(task),
     })
+}
+
+fn route_profile_digest(capabilities: &[String]) -> String {
+    let mut digest = Sha256::new();
+    for capability in capabilities {
+        digest.update(capability.as_bytes());
+        digest.update(b"\n");
+    }
+    encode_sha256(digest.finalize())
+}
+
+fn current_executable_sha256() -> Result<String, ProductError> {
+    let path = env::current_exe().map_err(ProductError::CurrentExecutable)?;
+    let file = File::open(&path).map_err(|source| ProductError::ReadExecutable {
+        path: path.clone(),
+        source,
+    })?;
+    let mut reader = BufReader::new(file);
+    let mut buffer = [0_u8; 64 * 1024];
+    let mut digest = Sha256::new();
+    loop {
+        let count = reader
+            .read(&mut buffer)
+            .map_err(|source| ProductError::ReadExecutable {
+                path: path.clone(),
+                source,
+            })?;
+        if count == 0 {
+            break;
+        }
+        digest.update(&buffer[..count]);
+    }
+    Ok(encode_sha256(digest.finalize()))
+}
+
+fn encode_sha256(digest: impl IntoIterator<Item = u8>) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(64);
+    for byte in digest {
+        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+    }
+    encoded
 }
 
 include!("product_route_assembly.rs");
@@ -449,6 +520,14 @@ pub enum ProductError {
     MissingDesktopToken,
     #[error("Rust desktop API token must contain at least 32 non-whitespace characters")]
     WeakDesktopToken,
+    #[error("resolve the Rust product executable for resource integrity")]
+    CurrentExecutable(#[source] std::io::Error),
+    #[error("read Rust product executable {path} for resource integrity")]
+    ReadExecutable {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("failed to bind Rust product API")]
     Bind(#[source] std::io::Error),
     #[error("failed to inspect Rust product API listener")]

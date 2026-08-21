@@ -551,6 +551,17 @@ JFTRADE_RUST_ENGINE_TOKEN="$(openssl rand -hex 32)" \
 
 阶段 1 禁止：让前端连接该端口、使用固定弱令牌、监听非 loopback、写业务数据库、控制 Pine/Python/Futu、替换 Go API 或打入正式桌面发布资产。
 
+Stage 9 的 Go-supervised rehearsal 必须显式启用，默认 profile 不启动第二个产品进程：
+
+```bash
+cargo build -p jftrade-engine --bin jftrade-api-rust
+JFTRADE_RUST_REHEARSAL_PROFILE=read-only-shadow.v1 \
+  JFTRADE_RUST_API_EXECUTABLE="$PWD/target/debug/jftrade-api-rust" \
+  go run ./cmd/jftrade-api
+```
+
+Go composition root 为每个子进程生成随机 Bearer，让 Rust 绑定动态 loopback 端口，并在发布 Go router 前逐项验证 `jftrade-product-rehearsal.v1`、route profile、26 条精确 operation、profile digest、二进制 SHA-256 与 authenticated status probe。任一 ready/鉴权/资源检查失败都会回收子进程并使整个 rehearsal 启动失败；当前尚未把任何公开请求代理给 Rust。
+
 ## 10. 决策与阶段账本
 
 | 日期 | 决策 | 证据/状态 |
@@ -574,6 +585,7 @@ JFTRADE_RUST_ENGINE_TOKEN="$(openssl rand -hex 32)" \
 | 2026-08-21 | 收敛旧 schema-pack consumer worktree 的有效 SQLite 拒绝行为，不恢复旧 pack 架构 | 当前九库机械冻结 schema fixture 直接覆盖只读字节不变、metadata 错误优先级、静态与动态表名/结构、显式与 partial index、foreign key、trigger/view、STRICT/WITHOUT ROWID 和截断数据库拒绝；验证后退役两个未合并 schema-pack worktree，生产 SQLite 仍由 Go 唯一写入 |
 | 2026-08-21 | 拆分 Stage 9 product composition 与 route contributors，并以 capability set 取代全局 write-owner 开关 | system、settings、calendar、data-management、watchlist/research/trading route 分域贡献；17 个 test-cutover capability 可独立登记 route，端口型 capability 仍同时要求窄 port。新增 800 行 product 生产文件门禁，默认 capability set 为空且 route/wire/Go production owner 不变 |
 | 2026-08-21 | 拆分 Tauri native runtime adapters，保持既有 facade 与发布资源契约 | lifecycle、resource integrity/runtime、window/tray、notification/updater、logs 分域落盘，主 native module 仅保留装配；800 行 Rust 生产文件门禁同时覆盖 native 文件族，commands、events、窗口行为、资源路径和 Go/Wails production owner 不变 |
+| 2026-08-21 | Go composition root 在显式 read-only rehearsal profile 下管理 Rust product sidecar | 默认不启动；显式 profile 使用动态 loopback、每进程随机 Bearer、固定 ready 协议、26-operation profile digest、capability 列表、可执行文件 SHA-256 与 authenticated probe，验证完成前不发布 Go router；失败逆序回收且不静默回退。当前尚未代理公开请求，278 个 production owner 仍全部为 Go |
 | 2026-08-20 | 拒绝将 `GET /api/v1/brokers/capabilities` 与 `GET /api/v1/market-data/markets` 登记为 Rust shadow route | 两条 route 依赖 Go 运行时 evaluator、OpenD/account/quote 权限及 active provider/sidecar 的动态能力语义，静态 fixture 无法安全伪造；待 broker/runtime capability port 与 market-data provider lifecycle 建成，并完成真实状态、权限、失败恢复 differential 后再重新评审；该决定不新增 route，当前总账为 26 shadow/22 cutover-test-only/230 remaining |
 | 2026-08-20 | 拒绝将 `GET /api/v1/research/screens/presets` 与 `GET /api/v1/research/screens/presets/{presetId}` 登记为 Rust shadow route | Go `NormalizeDefinitionV2` 的完整规范化/校验语义与 research SQLite read-only adapter 尚未具备，不能用简单 JSON object 校验或创建数据库伪造 preset wire；待规范化规则、只读 store port、schema/恢复 differential 和拒绝路径完成后再评审；该决定不新增 route，当前总账为 26 shadow/22 cutover-test-only/230 remaining |
 | 2026-08-20 | 拒绝将 `GET /api/v1/system/exchange-calendars/sources` 登记为 Rust production/shadow route | 该 route 依赖 Go ExchangeCalendar Manager 的动态 registry、status、cache 与 health 语义；Rust 当前仍不能用静态数据或空返回伪造正式 owner。允许独立的 consumer-owned snapshot port 仅在 test-cutover 注入时登记该 route，正式 launcher 与 Go 生产 owner 不变；sources 本身不新增 production/shadow owner，当前总账为 26 shadow/22 cutover-test-only/230 remaining |

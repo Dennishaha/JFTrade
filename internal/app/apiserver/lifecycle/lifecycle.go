@@ -38,6 +38,16 @@ type Handler interface {
 	SetWebAccessReconfigure(func(jfsettings.SecuritySettings) error)
 }
 
+// RehearsalRuntime is the verified private Rust process surface made available
+// to the Go composition root. It does not imply production route ownership.
+type RehearsalRuntime interface {
+	Endpoint() string
+	BearerToken() string
+	Profile() string
+	Capabilities() []string
+	Close() error
+}
+
 // Dependencies contains the package-specific pieces used by startup lifecycle.
 type Dependencies struct {
 	SeparateWebListener       bool
@@ -50,7 +60,8 @@ type Dependencies struct {
 	CompleteDatabaseRebuild   func(settingsPath string, backtestDBPath string) error
 	NewSettingsStore          func(path string) (SettingsStore, error)
 	ResolveIntegrationRuntime func(jfsettings.BrokerIntegration) jfsettings.BrokerIntegration
-	NewHandler                func(store SettingsStore, integration jfsettings.BrokerIntegration) (Handler, error)
+	OpenRehearsal             func(context.Context, string) (RehearsalRuntime, error)
+	NewHandler                func(store SettingsStore, integration jfsettings.BrokerIntegration, rehearsal RehearsalRuntime) (Handler, error)
 	APIBaseURLForBind         func(bind string) string
 	PortFromBind              func(bind string, fallback int) int
 }
@@ -115,7 +126,12 @@ func StartForRunArgs(ctx context.Context, args []string, deps Dependencies) (fun
 	if err != nil {
 		return nil, err
 	}
+	owned := &lifecycleResources{}
 	runtimeIntegration := resolveLifecycleIntegrationRuntime(deps, store)
+	rehearsal, err := openLifecycleRehearsal(ctx, owned, deps, startup.settingsPath)
+	if err != nil {
+		return nil, err
+	}
 	interfaceSettings := store.InterfaceSettings(startup.defaults)
 	securitySettings := store.SecuritySettings()
 	configuredAPIBind := deps.EnvOrDefault("JFTRADE_API_BIND", interfaceSettings.APIBind)
@@ -123,8 +139,7 @@ func StartForRunArgs(ctx context.Context, args []string, deps Dependencies) (fun
 	if deps.SeparateWebListener {
 		apiBind = loopbackBind(configuredAPIBind)
 	}
-	owned := &lifecycleResources{}
-	apiHandler, err := openLifecycleHandler(owned, deps, store, runtimeIntegration)
+	apiHandler, err := openLifecycleHandler(owned, deps, store, runtimeIntegration, rehearsal)
 	if err != nil {
 		return nil, err
 	}
@@ -146,6 +161,28 @@ func StartForRunArgs(ctx context.Context, args []string, deps Dependencies) (fun
 	}()
 
 	return shutdownAll, nil
+}
+
+func openLifecycleRehearsal(
+	ctx context.Context,
+	owned *lifecycleResources,
+	deps Dependencies,
+	settingsPath string,
+) (RehearsalRuntime, error) {
+	if deps.OpenRehearsal == nil {
+		return nil, nil
+	}
+	rehearsal, err := deps.OpenRehearsal(ctx, settingsPath)
+	if err != nil {
+		return nil, owned.rollback(fmt.Errorf("open Rust rehearsal sidecar: %w", err))
+	}
+	if rehearsal == nil {
+		return nil, nil
+	}
+	if err := owned.resources.Register("Rust rehearsal sidecar", rehearsal.Close); err != nil {
+		return nil, err
+	}
+	return rehearsal, nil
 }
 
 func prepareLifecycleStartup(deps Dependencies) (lifecycleStartup, error) {
@@ -189,11 +226,12 @@ func openLifecycleHandler(
 	deps Dependencies,
 	store SettingsStore,
 	integration jfsettings.BrokerIntegration,
+	rehearsal RehearsalRuntime,
 ) (Handler, error) {
 	return appcomposition.Open(
 		&owned.resources,
 		"API handler",
-		func() (Handler, error) { return deps.NewHandler(store, integration) },
+		func() (Handler, error) { return deps.NewHandler(store, integration, rehearsal) },
 		func(handler Handler) error { return handler.Close() },
 	)
 }

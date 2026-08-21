@@ -43,7 +43,7 @@ func newLifecycleSettingsStore(path string) (lifecycle.SettingsStore, error) {
 	return NewSettingsStore(path)
 }
 
-func newLifecycleHandler(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration) (lifecycle.Handler, error) {
+func newLifecycleHandler(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration, _ lifecycle.RehearsalRuntime) (lifecycle.Handler, error) {
 	settingsStore, ok := store.(*SettingsStore)
 	if !ok {
 		return nil, fmt.Errorf("unexpected settings store type %T", store)

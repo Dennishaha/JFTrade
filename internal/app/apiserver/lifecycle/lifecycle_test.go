@@ -50,6 +50,7 @@ type lifecycleTestHandler struct {
 	webReconfigure  func(jfsettings.SecuritySettings) error
 	closeCalls      int
 	closeErr        error
+	onClose         func()
 }
 
 func (h *lifecycleTestHandler) ServeHTTP(http.ResponseWriter, *http.Request) {}
@@ -58,6 +59,9 @@ func (h *lifecycleTestHandler) Close() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.closeCalls++
+	if h.onClose != nil {
+		h.onClose()
+	}
 	return h.closeErr
 }
 func (h *lifecycleTestHandler) SetAPIPort(port int) {
@@ -107,6 +111,79 @@ func TestStartForRunArgsReturnsNoopWhenDisabled(t *testing.T) {
 	}
 }
 
+type lifecycleTestRehearsal struct {
+	onClose func()
+}
+
+func (*lifecycleTestRehearsal) Endpoint() string       { return "http://127.0.0.1:43117" }
+func (*lifecycleTestRehearsal) BearerToken() string    { return strings.Repeat("a", 64) }
+func (*lifecycleTestRehearsal) Profile() string        { return "read-only-shadow.v1" }
+func (*lifecycleTestRehearsal) Capabilities() []string { return []string{"GET /api/v1/system/status"} }
+func (r *lifecycleTestRehearsal) Close() error {
+	if r.onClose != nil {
+		r.onClose()
+	}
+	return nil
+}
+
+func TestStartForRunArgsPublishesOnlyVerifiedRehearsalAndClosesItAfterHandler(t *testing.T) {
+	store := &lifecycleTestStore{interfaceSettings: jfsettings.InterfaceSettings{APIBind: "127.0.0.1:0"}}
+	var mu sync.Mutex
+	order := make([]string, 0, 2)
+	appendOrder := func(value string) {
+		mu.Lock()
+		defer mu.Unlock()
+		order = append(order, value)
+	}
+	rehearsal := &lifecycleTestRehearsal{onClose: func() { appendOrder("rehearsal") }}
+	handler := &lifecycleTestHandler{onClose: func() { appendOrder("handler") }}
+	deps := lifecycleDependencies(store, handler, nil)
+	deps.OpenRehearsal = func(_ context.Context, settingsPath string) (RehearsalRuntime, error) {
+		if settingsPath != "settings.json" {
+			t.Fatalf("settings path = %q", settingsPath)
+		}
+		return rehearsal, nil
+	}
+	deps.NewHandler = func(_ SettingsStore, _ jfsettings.BrokerIntegration, got RehearsalRuntime) (Handler, error) {
+		if got != rehearsal {
+			t.Fatalf("handler received rehearsal %#v", got)
+		}
+		return handler, nil
+	}
+	shutdown, err := StartForRunArgs(t.Context(), []string{"api"}, deps)
+	if err != nil {
+		t.Fatalf("StartForRunArgs: %v", err)
+	}
+	if err := shutdown(t.Context()); err != nil {
+		t.Fatalf("shutdown: %v", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if fmt.Sprint(order) != "[handler rehearsal]" {
+		t.Fatalf("shutdown order = %v", order)
+	}
+}
+
+func TestStartForRunArgsFailsClosedBeforeHandlerWhenRehearsalFails(t *testing.T) {
+	wantErr := errors.New("ready mismatch")
+	store := &lifecycleTestStore{interfaceSettings: jfsettings.InterfaceSettings{APIBind: "127.0.0.1:0"}}
+	handlerCreated := false
+	deps := lifecycleDependencies(store, &lifecycleTestHandler{}, nil)
+	deps.OpenRehearsal = func(context.Context, string) (RehearsalRuntime, error) {
+		return nil, wantErr
+	}
+	deps.NewHandler = func(SettingsStore, jfsettings.BrokerIntegration, RehearsalRuntime) (Handler, error) {
+		handlerCreated = true
+		return &lifecycleTestHandler{}, nil
+	}
+	if _, err := StartForRunArgs(t.Context(), []string{"api"}, deps); !errors.Is(err, wantErr) {
+		t.Fatalf("StartForRunArgs error = %v", err)
+	}
+	if handlerCreated {
+		t.Fatal("Go router was published after rehearsal validation failed")
+	}
+}
+
 func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -139,7 +216,7 @@ func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 			input.Config.Host = "runtime-host"
 			return input
 		},
-		NewHandler: func(_ SettingsStore, integration jfsettings.BrokerIntegration) (Handler, error) {
+		NewHandler: func(_ SettingsStore, integration jfsettings.BrokerIntegration, _ RehearsalRuntime) (Handler, error) {
 			runtimeIntegration = integration
 			return handler, nil
 		},
@@ -470,10 +547,12 @@ func TestStartForRunArgsClosesHandlerWhenDatabaseRebuildFinalizeFails(t *testing
 		ResolveLaunchDefaults: func(bool) jfsettings.LaunchDefaults {
 			return jfsettings.LaunchDefaults{APIBind: "127.0.0.1:3000", SettingsPath: "settings.json", BacktestDBPath: "backtest.db"}
 		},
-		EnvOrDefault:            func(_ string, value string) string { return value },
-		EnsureRuntimeLayout:     func(string, string) error { return nil },
-		NewSettingsStore:        func(string) (SettingsStore, error) { return store, nil },
-		NewHandler:              func(SettingsStore, jfsettings.BrokerIntegration) (Handler, error) { return handler, nil },
+		EnvOrDefault:        func(_ string, value string) string { return value },
+		EnsureRuntimeLayout: func(string, string) error { return nil },
+		NewSettingsStore:    func(string) (SettingsStore, error) { return store, nil },
+		NewHandler: func(SettingsStore, jfsettings.BrokerIntegration, RehearsalRuntime) (Handler, error) {
+			return handler, nil
+		},
 		CompleteDatabaseRebuild: func(string, string) error { return wantErr },
 		APIBaseURLForBind:       func(bind string) string { return "http://" + bind },
 		PortFromBind:            func(string, int) int { return 3000 },
@@ -665,7 +744,9 @@ func TestStartForRunArgsStopsAtFailingStartupStage(t *testing.T) {
 				return Dependencies{
 					EnsureRuntimeLayout: func(string, string) error { return nil },
 					NewSettingsStore:    func(string) (SettingsStore, error) { return store, nil },
-					NewHandler:          func(SettingsStore, jfsettings.BrokerIntegration) (Handler, error) { return nil, wantErr },
+					NewHandler: func(SettingsStore, jfsettings.BrokerIntegration, RehearsalRuntime) (Handler, error) {
+						return nil, wantErr
+					},
 				}
 			},
 		},
@@ -737,9 +818,11 @@ func lifecycleDependencies(store SettingsStore, handler Handler, frontendFS fs.F
 		EnvOrDefault:        func(_ string, value string) string { return value },
 		EnsureRuntimeLayout: func(string, string) error { return nil },
 		NewSettingsStore:    func(string) (SettingsStore, error) { return store, nil },
-		NewHandler:          func(SettingsStore, jfsettings.BrokerIntegration) (Handler, error) { return handler, nil },
-		APIBaseURLForBind:   func(bind string) string { return "http://" + bind },
-		PortFromBind:        func(string, int) int { return 3000 },
+		NewHandler: func(SettingsStore, jfsettings.BrokerIntegration, RehearsalRuntime) (Handler, error) {
+			return handler, nil
+		},
+		APIBaseURLForBind: func(bind string) string { return "http://" + bind },
+		PortFromBind:      func(string, int) int { return 3000 },
 	}
 }
 
