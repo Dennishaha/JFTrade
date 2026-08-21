@@ -14,3 +14,5 @@
 Known quirks: repeated query keys and numeric/boolean parameter coercion are reproduced from the Go feature service. The fixture's provider timestamps are normalized to the fixed corpus time; no behavior is corrected in this slice.
 
 Route ownership for both operations is `cutover-test-only`, `productionOwner=go`, `goRemovalStatus=retained`. The default shadow catalog does not register these routes.
+
+Quirk: the original ownership evidence referenced a non-existent alert-specific differential command. This harness/ledger drift was confirmed against `package.json` and the shared Stage 9 runner; it is corrected to `pnpm run test:rust:stage9:product-differential` without changing observable behavior.

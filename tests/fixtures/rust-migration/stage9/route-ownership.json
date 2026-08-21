@@ -603,7 +603,7 @@
         "explicit-test-cutover-profile"
       ],
       "evidence": [
-        "pnpm run test:rust:stage9:alerts-read:differential"
+        "pnpm run test:rust:stage9:product-differential"
       ]
     },
     {
@@ -618,7 +618,7 @@
         "explicit-test-cutover-profile"
       ],
       "evidence": [
-        "pnpm run test:rust:stage9:alerts-read:differential"
+        "pnpm run test:rust:stage9:product-differential"
       ]
     },
     {
