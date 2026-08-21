@@ -79,13 +79,15 @@ test("rejects ownerless crate names and planned directories created early", () =
   assert.ok(errors.includes("planned package path exists before activation: crates/jftrade-common"));
 });
 
-test("rejects product production files that regrow beyond 800 lines", () => {
+test("rejects product and native production files that regrow beyond 800 lines", () => {
   assert.deepEqual(validateRustFileLengths([
     ["crates/jftrade-engine/src/product.rs", "line\n".repeat(800)],
   ]), []);
   assert.deepEqual(validateRustFileLengths([
     ["crates/jftrade-engine/src/product_settings.rs", "line\n".repeat(801)],
+    ["apps/desktop/src-tauri/src/native_lifecycle.rs", "line\n".repeat(802)],
   ]), [
     "crates/jftrade-engine/src/product_settings.rs has 801 lines; production Rust limit is 800",
+    "apps/desktop/src-tauri/src/native_lifecycle.rs has 802 lines; production Rust limit is 800",
   ]);
 });

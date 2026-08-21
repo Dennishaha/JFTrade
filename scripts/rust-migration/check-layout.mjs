@@ -55,12 +55,15 @@ export function validateRustFileLengths(files, maximumLines = 800) {
   return errors;
 }
 
-function validateProductFileLengths(root) {
-  const sourceRoot = path.join(root, "crates/jftrade-engine/src");
-  const files = walkFiles(sourceRoot)
-    .filter((file) => path.basename(file).startsWith("product"))
+function validateBoundedProductionFileLengths(root) {
+  const boundedFamilies = [
+    ["crates/jftrade-engine/src", "product"],
+    ["apps/desktop/src-tauri/src", "native"],
+  ];
+  const files = boundedFamilies.flatMap(([sourcePath, prefix]) => walkFiles(path.join(root, sourcePath))
+    .filter((file) => path.basename(file).startsWith(prefix))
     .filter((file) => file.endsWith(".rs") && !file.endsWith("_tests.rs"))
-    .map((file) => [relativePath(root, file), fs.readFileSync(file, "utf8")]);
+    .map((file) => [relativePath(root, file), fs.readFileSync(file, "utf8")]));
   return validateRustFileLengths(files);
 }
 
@@ -132,7 +135,7 @@ export function checkLayout(root = repositoryRoot, policyPath = defaultPolicyPat
   const policy = JSON.parse(fs.readFileSync(policyPath, "utf8"));
   return [
     ...validateLayoutPolicy(policy, loadCargoMetadata(root), { repositoryRoot: root }),
-    ...validateProductFileLengths(root),
+    ...validateBoundedProductionFileLengths(root),
   ];
 }
 
