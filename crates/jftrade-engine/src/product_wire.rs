@@ -263,6 +263,9 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_market_data_catalog_read_path(path) => {
                     self.market_data_catalog_read(path, &request.query)
                 }
+                ("GET", path) if is_market_data_derivative_read_path(path) => {
+                    self.market_data_derivative_read(path, &request.query)
+                }
                 ("GET", path) if is_broker_read_path(path) => {
                     self.broker_read(path, &request.query)
                 }
@@ -324,21 +327,18 @@ impl ApiPort for ProductApi {
         })
     }
 }
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AppearanceWriteRequest {
     #[serde(default)]
     appearance: UiAppearanceSettings,
 }
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ExchangeCalendarWriteRequest {
     #[serde(default)]
     exchange_calendars: ExchangeCalendarWriteInput,
 }
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 struct MarketDataProviderWriteRequest {

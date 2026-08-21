@@ -27,6 +27,7 @@ enum ProductCapability {
     ExecutionRead,
     MarketDataProviderRead,
     MarketDataCatalogRead,
+    MarketDataDerivativeRead,
     BrokerRead,
     RemoteWatchlistRead,
     SystemRead,
@@ -71,6 +72,7 @@ impl ProductCapabilities {
             ProductCapability::ExecutionRead,
             ProductCapability::MarketDataProviderRead,
             ProductCapability::MarketDataCatalogRead,
+            ProductCapability::MarketDataDerivativeRead,
             ProductCapability::BrokerRead,
             ProductCapability::RemoteWatchlistRead,
             ProductCapability::SystemRead,
@@ -109,6 +111,7 @@ impl ProductCapabilities {
                     | ProductCapability::ExecutionRead
                     | ProductCapability::MarketDataProviderRead
                     | ProductCapability::MarketDataCatalogRead
+                    | ProductCapability::MarketDataDerivativeRead
                     | ProductCapability::BrokerRead
                     | ProductCapability::RemoteWatchlistRead
                     | ProductCapability::SystemRead
@@ -141,6 +144,7 @@ struct ProductRoutePorts {
     execution_read: bool,
     market_data_provider_read: bool,
     market_data_catalog_read: bool,
+    market_data_derivative_read: bool,
     broker_read: bool,
     remote_watchlist: bool,
     system_read: bool,
@@ -167,6 +171,9 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
             .is_some(),
         market_data_catalog_read: config
             .market_data_catalog_read_snapshot_port
+            .is_some(),
+        market_data_derivative_read: config
+            .market_data_derivative_read_snapshot_port
             .is_some(),
         broker_read: config.broker_read_snapshot_port.is_some(),
         system_read: config.system_read_snapshot_port.is_some(),
@@ -197,6 +204,7 @@ fn product_routes(
     routes.extend(product_execution_read_routes(capabilities, ports));
     routes.extend(product_market_data_provider_read_routes(capabilities, ports));
     routes.extend(product_market_data_catalog_read_routes(capabilities, ports));
+    routes.extend(product_market_data_derivative_read_routes(capabilities, ports));
     routes.extend(product_strategy_read_routes(capabilities, ports));
     routes.extend(product_watchlist_research_trading_routes(
         capabilities,
@@ -214,5 +222,6 @@ include!("product_routes_backtests.rs");
 include!("product_routes_execution.rs");
 include!("product_routes_market_data_provider_read.rs");
 include!("product_routes_market_data_catalog_read.rs");
+include!("product_routes_market_data_derivative_read.rs");
 include!("product_routes_strategies.rs");
 include!("product_routes_watchlist_research_trading.rs");

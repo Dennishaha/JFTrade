@@ -1,0 +1,105 @@
+{
+  "version": "stage9.market-data-derivatives-read.v1",
+  "cases": [
+    {
+      "name": "warrants-list",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/warrants?brokerId=api-test\u0026market=US\u0026operation=list\u0026pageSize=20",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.warrants"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.warrants",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "warrants-related",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/warrants?brokerId=api-test\u0026market=US\u0026operation=related\u0026cursor=next",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.warrants"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.warrants",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "warrants-screen",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/warrants?brokerId=api-test\u0026market=US\u0026operation=screen\u0026pageSize=50",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.warrants"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.warrants",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "futures-contracts",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/futures?brokerId=api-test\u0026market=US\u0026pageSize=25",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.futures"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.futures",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "broker-capability-unavailable",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/futures?brokerId=missing\u0026market=US",
+      "expectedStatus": 409,
+      "errorCode": "BROKER_CAPABILITY_UNAVAILABLE",
+      "errorMessage": "broker feature capability is unavailable: broker \"missing\" is not registered"
+    }
+  ]
+}

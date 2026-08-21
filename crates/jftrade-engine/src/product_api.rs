@@ -16,6 +16,8 @@ struct ProductApi {
     execution_read_snapshot_port: Option<Arc<dyn ExecutionReadSnapshotPort>>,
     market_data_provider_read_snapshot_port: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
     market_data_catalog_read_snapshot_port: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
+    market_data_derivative_read_snapshot_port:
+        Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -40,6 +42,7 @@ struct ProductOptionalPorts {
     execution_read_snapshot: Option<Arc<dyn ExecutionReadSnapshotPort>>,
     market_data_provider_read_snapshot: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
     market_data_catalog_read_snapshot: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
+    market_data_derivative_read_snapshot: Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
     broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -97,6 +100,7 @@ impl ProductApi {
             execution_read_snapshot_port: optional_ports.execution_read_snapshot,
             market_data_provider_read_snapshot_port: optional_ports.market_data_provider_read_snapshot,
             market_data_catalog_read_snapshot_port: optional_ports.market_data_catalog_read_snapshot,
+            market_data_derivative_read_snapshot_port: optional_ports.market_data_derivative_read_snapshot,
             broker_read_snapshot_port: optional_ports.broker_read_snapshot,
             system_read_snapshot_port: optional_ports.system_read_snapshot,
             remote_watchlist_snapshot_port: optional_ports.remote_watchlist_snapshot,
@@ -240,7 +244,6 @@ impl ProductApi {
             .map(|account| ApiOutput::Json(json!(account)))
             .map_err(broker_settings_failure)
     }
-
     fn delete_managed_broker_account(&self, id: &str) -> Result<ApiOutput, ApiFailure> {
         self.settings
             .brokers
@@ -248,7 +251,6 @@ impl ProductApi {
             .map(|()| ApiOutput::Json(json!({"deleted": true, "id": id})))
             .map_err(broker_settings_failure)
     }
-
     async fn onboarding(&self) -> Result<ApiOutput, ApiFailure> {
         let dependencies =
             runtime_dependencies::inspect(SystemClock.now_rfc3339(), self.runtime.node_runtime())
@@ -271,7 +273,6 @@ impl ProductApi {
             }]
         })))
     }
-
     async fn save_onboarding(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
         let request: OnboardingWriteRequest = serde_json::from_slice(body)
             .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid onboarding payload"))?;
@@ -281,7 +282,6 @@ impl ProductApi {
             .map_err(settings_failure)?;
         self.onboarding().await
     }
-
     fn save_appearance(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
         let payload: AppearanceWriteRequest = serde_json::from_slice(body)
             .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid appearance payload"))?;

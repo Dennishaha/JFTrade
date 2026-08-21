@@ -47,7 +47,6 @@ use crate::real_trade_control::{
     REAL_TRADE_CONTROL_PATH_ENV, RealTradeControlReader, derive_real_trade_control_path,
 };
 use crate::runtime_dependencies;
-
 pub const PRODUCT_BIND_ENV: &str = "JFTRADE_RUST_API_BIND";
 pub const PRODUCT_SETTINGS_PATH_ENV: &str = "JFTRADE_SETTINGS_PATH";
 pub const PRODUCT_DESKTOP_TOKEN_ENV: &str = "JFTRADE_DESKTOP_TOKEN";
@@ -57,11 +56,11 @@ pub const PRODUCT_TEST_CUTOVER_ROUTE_PROFILE: &str = "cutover-test-only.v1";
 
 const DEFAULT_PRODUCT_BIND: &str = "127.0.0.1:3000";
 const DEFAULT_SETTINGS_PATH: &str = "var/jftrade-api/settings.json";
-
 include!("product_research_preset_port.rs");
 include!("product_execution_read_port.rs");
 include!("product_market_data_provider_read_port.rs");
 include!("product_market_data_catalog_read_port.rs");
+include!("product_market_data_derivative_read_port.rs");
 include!("product_snapshot_errors.rs");
 
 /// Consumer-owned read port for local watchlist membership projections.  The
@@ -194,6 +193,8 @@ pub struct ProductConfig {
     execution_read_snapshot_port: Option<Arc<dyn ExecutionReadSnapshotPort>>,
     market_data_provider_read_snapshot_port: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
     market_data_catalog_read_snapshot_port: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
+    market_data_derivative_read_snapshot_port:
+        Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -256,6 +257,7 @@ impl ProductConfig {
             execution_read_snapshot_port: None,
             market_data_provider_read_snapshot_port: None,
             market_data_catalog_read_snapshot_port: None,
+            market_data_derivative_read_snapshot_port: None,
             broker_read_snapshot_port: None,
             system_read_snapshot_port: None,
             remote_watchlist_snapshot_port: None,
@@ -422,6 +424,15 @@ impl ProductConfig {
         port: Arc<dyn MarketDataCatalogReadSnapshotPort>,
     ) -> Self {
         self.market_data_catalog_read_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_market_data_derivative_read_snapshot_port(
+        mut self,
+        port: Arc<dyn MarketDataDerivativeReadSnapshotPort>,
+    ) -> Self {
+        self.market_data_derivative_read_snapshot_port = Some(port);
         self
     }
 
@@ -635,6 +646,9 @@ pub(crate) async fn start_product_with_runtime_state(
             market_data_catalog_read_snapshot: config
                 .market_data_catalog_read_snapshot_port
                 .clone(),
+            market_data_derivative_read_snapshot: config
+                .market_data_derivative_read_snapshot_port
+                .clone(),
             broker_read_snapshot: config.broker_read_snapshot_port.clone(),
             system_read_snapshot: config.system_read_snapshot_port.clone(),
             remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),
@@ -723,37 +737,25 @@ fn encode_sha256(digest: impl IntoIterator<Item = u8>) -> String {
 }
 
 include!("product_route_assembly.rs");
-
 include!("product_api.rs");
 include!("product_api_system_read.rs");
 include!("product_api_backtests.rs");
 include!("product_api_strategies.rs");
-
 include!("product_api_watchlist.rs");
-
 include!("product_api_portfolio.rs");
-
 include!("product_api_research.rs");
 include!("product_api_execution.rs");
 include!("product_api_market_data_provider_read.rs");
 include!("product_api_market_data_catalog_read.rs");
-
+include!("product_api_market_data_derivative_read.rs");
 include!("product_api_brokers.rs");
-
 include!("product_api_watchlists.rs");
-
 include!("product_api_plugins.rs");
-
 include!("product_api_strategy_definitions.rs");
-
 include!("product_wire.rs");
-
 include!("product_wire_watchlist.rs");
-
 include!("product_wire_portfolio.rs");
-
 include!("product_wire_research.rs");
-
 include!("product_wire_brokers.rs");
 
 #[derive(Debug, Error)]
