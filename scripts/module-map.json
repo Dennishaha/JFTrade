@@ -39,6 +39,7 @@
       ],
       "entrypoints": [
         "crates/jftrade-engine",
+        "crates/jftrade-owner-lock",
         "crates/jftrade-backtest/src/bin/jftrade-backtest-shadow.rs",
         "crates/jftrade-engine/src/bin/jftrade-stage4-shadow.rs",
         "crates/jftrade-engine/src/bin/jftrade-stage5-shadow.rs",

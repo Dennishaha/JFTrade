@@ -1,6 +1,6 @@
 # JFTrade Go → Rust 完整迁移方案与守则
 
-状态：执行中。更新时间：2026-08-21。当前阶段：**阶段 9 生产 owner 接管与删除准入正在执行；Rust/Tauri release candidate 已能以受鉴权 loopback 只读 shadow 启动 26 个真实 GET handler、受管 PineTS/Python 子进程和 macOS 原生壳。另有 17 个 settings 写入/preview route、1 个 notification test POST、仅在 test-cutover 注入 consumer-owned calendar snapshot ports 后登记的 2 个 GET（sources/status）、1 个 watchlist membership GET，以及 1 个 plugin uninstall-guidance GET（合计 22 个 cutover-test-only route）仅在临时目录 cutover 测试启用，其中 data-management cleanup preview 仍不是生产 owner，SQLite 只读且不执行 cleanup/execute；自动 route ownership 门禁仍明确列出 230 个未接管 operation。Go/Wails 仍是全部产品写入与正式发布入口的唯一 owner。在全部 route group、唯一写 owner、四平台 RC 与观察窗口关闭前不得删除 Go/Wails，也不得形成阶段 9 提交**。
+状态：执行中。更新时间：2026-08-21。当前阶段：**阶段 9 生产 owner 接管与删除准入正在执行；Rust/Tauri release candidate 已能以受鉴权 loopback 只读 shadow 启动 26 个真实 GET handler、受管 PineTS/Python 子进程和 macOS 原生壳。另有 17 个 settings 写入/preview route、1 个 notification test POST、仅在 test-cutover 注入 consumer-owned calendar snapshot ports 后登记的 2 个 GET（sources/status）、1 个 watchlist membership GET，以及 1 个 plugin uninstall-guidance GET（合计 22 个 cutover-test-only route）仅在临时目录 cutover 测试启用，其中 data-management cleanup preview 仍不是生产 owner，SQLite 只读且不执行 cleanup/execute；自动 route ownership 门禁仍明确列出 230 个未接管 operation。Go/Wails 仍是全部产品写入与正式发布入口的唯一 owner。在全部 route group、唯一写 owner、四平台 RC、签名 updater、SBOM、安全审查和恢复演练通过前不得删除 Go/Wails**。
 
 本文是 JFTrade 将 Go 后端与 Wails 桌面壳完整迁移到 Rust 的计划、边界和放行事实源。活动状态在 [roadmap.md](../roadmap.md) 汇总；当前生产架构仍以 [architecture.md](../architecture.md) 为准。任何阶段都不得用“已经写出 Rust 版本”代替兼容性、可靠性和资源验收。
 
@@ -566,6 +566,8 @@ Go transport 按 method + OpenAPI path template 精确选择普通 JSON operatio
 
 显式 `read-only-shadow.v1` profile 当前只选择 `GET /api/v1/adk/agent-templates` 和 `GET /api/v1/research/screens/catalog`。两条 immutable catalog route 的 Go/Rust status、contract headers、envelope、request ID、query variant 和 body 已完成 differential；Rust 5xx、超时和 crash 均 fail closed。切回 Go 必须关闭 profile 并重启以创建新的 Go-only router，不允许在失败请求内回放。两条 operation 在账本中仍为 shadow，默认 profile 和 278 个 production owner 不变。
 
+settings 文件和每个非内存 SQLite 数据库现在使用独立的 `<resource>.jftrade-owner.lock` 作为跨进程写入 fencing。Go 通过现有 `golang.org/x/sys` 的 Unix/Windows 文件锁实现，Rust 通过固定 1.97.1 工具链的 `std::fs::File` lock API 实现；两端写入相同的非敏感 `owner/pid/start/profile` 诊断。锁冲突立即 fail closed，read-only shadow 不取写锁；事务、原子 settings 替换和启动期 rebuild 删除在完整变更期间持锁。释放时只解锁并关闭句柄，不删除锁文件，避免 inode 竞态；进程崩溃后的锁由 OS 释放。该 fencing 只允许显式 rehearsal 的临时写入演练，不改变 Go 的 production owner。
+
 ## 10. 决策与阶段账本
 
 | 日期 | 决策 | 证据/状态 |
@@ -592,6 +594,7 @@ Go transport 按 method + OpenAPI path template 精确选择普通 JSON operatio
 | 2026-08-21 | Go composition root 在显式 read-only rehearsal profile 下管理 Rust product sidecar | 默认不启动；显式 profile 使用动态 loopback、每进程随机 Bearer、固定 ready 协议、26-operation profile digest、capability 列表、可执行文件 SHA-256 与 authenticated probe，验证完成前不发布 Go router；失败逆序回收且不静默回退。当前尚未代理公开请求，278 个 production owner 仍全部为 Go |
 | 2026-08-21 | 建立 exact-operation Go-to-Rust rehearsal proxy，暂不启用 operation | 只选择 method + OpenAPI template 精确命中的普通 JSON；鉴权与 access surface 在 Go 完成，Rust 再验证私有 Bearer 和内部协议；request ID/query/body/cancel 透传，失败或超时不得回放 Go，SSE/WS/文件保持 Go owner；当前选择集为空，账本和 production owner 不变 |
 | 2026-08-21 | 在显式 rehearsal profile 中演练两条 immutable catalog shadow route | 仅选择 agent templates 与 research screen catalog；status、contract headers、envelope、request ID、query/body 完成 wire differential，5xx/timeout/crash 均不回放 Go，关闭 profile 后重启才恢复 Go-only router。账本仍为 26 shadow/22 cutover-test-only/230 remaining/0 Rust production owner |
+| 2026-08-21 | 为 settings 与每个 SQLite 资源增加 Go/Rust 跨进程 writer lease | 使用持久 `*.jftrade-owner.lock`、统一非敏感诊断和 OS crash-release 语义；Go settings、统一 SQLite 写事务与启动期 rebuild 删除均 fail closed，Rust settings 写入使用同一协议，read-only shadow 不取锁。Windows/Linux Go 交叉编译、冲突/事务/崩溃释放测试与 Rust workspace 门禁通过；production owner 与 route 计数不变 |
 | 2026-08-20 | 拒绝将 `GET /api/v1/brokers/capabilities` 与 `GET /api/v1/market-data/markets` 登记为 Rust shadow route | 两条 route 依赖 Go 运行时 evaluator、OpenD/account/quote 权限及 active provider/sidecar 的动态能力语义，静态 fixture 无法安全伪造；待 broker/runtime capability port 与 market-data provider lifecycle 建成，并完成真实状态、权限、失败恢复 differential 后再重新评审；该决定不新增 route，当前总账为 26 shadow/22 cutover-test-only/230 remaining |
 | 2026-08-20 | 拒绝将 `GET /api/v1/research/screens/presets` 与 `GET /api/v1/research/screens/presets/{presetId}` 登记为 Rust shadow route | Go `NormalizeDefinitionV2` 的完整规范化/校验语义与 research SQLite read-only adapter 尚未具备，不能用简单 JSON object 校验或创建数据库伪造 preset wire；待规范化规则、只读 store port、schema/恢复 differential 和拒绝路径完成后再评审；该决定不新增 route，当前总账为 26 shadow/22 cutover-test-only/230 remaining |
 | 2026-08-20 | 拒绝将 `GET /api/v1/system/exchange-calendars/sources` 登记为 Rust production/shadow route | 该 route 依赖 Go ExchangeCalendar Manager 的动态 registry、status、cache 与 health 语义；Rust 当前仍不能用静态数据或空返回伪造正式 owner。允许独立的 consumer-owned snapshot port 仅在 test-cutover 注入时登记该 route，正式 launcher 与 Go 生产 owner 不变；sources 本身不新增 production/shadow owner，当前总账为 26 shadow/22 cutover-test-only/230 remaining |

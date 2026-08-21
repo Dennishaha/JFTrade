@@ -13,6 +13,7 @@ members = [
   "crates/jftrade-integration-pine",
   "crates/jftrade-kernel",
   "crates/jftrade-marketdata",
+  "crates/jftrade-owner-lock",
   "crates/jftrade-research",
   "crates/jftrade-settings",
   "crates/jftrade-store-settings-file",
@@ -47,6 +48,7 @@ jftrade-integration-marketdata-helper = { path = "crates/jftrade-integration-mar
 jftrade-integration-pine = { path = "crates/jftrade-integration-pine", version = "=0.1.0" }
 jftrade-kernel = { path = "crates/jftrade-kernel", version = "=0.1.0" }
 jftrade-marketdata = { path = "crates/jftrade-marketdata", version = "=0.1.0" }
+jftrade-owner-lock = { path = "crates/jftrade-owner-lock", version = "=0.1.0" }
 jftrade-research = { path = "crates/jftrade-research", version = "=0.1.0" }
 jftrade-settings = { path = "crates/jftrade-settings", version = "=0.1.0" }
 jftrade-store-settings-file = { path = "crates/jftrade-store-settings-file", version = "=0.1.0" }

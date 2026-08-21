@@ -2245,6 +2245,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "jftrade-owner-lock"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
+]
+
+[[package]]
 name = "jftrade-research"
 version = "0.1.0"
 dependencies = [
@@ -2269,6 +2279,7 @@ dependencies = [
 name = "jftrade-store-settings-file"
 version = "0.1.0"
 dependencies = [
+ "jftrade-owner-lock",
  "jftrade-settings",
  "serde",
  "serde_json",

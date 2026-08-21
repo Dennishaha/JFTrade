@@ -9,6 +9,8 @@ import (
 	"sync"
 
 	"github.com/jmoiron/sqlx"
+
+	"github.com/jftrade/jftrade-main/internal/store/ownerlock"
 )
 
 var ErrWriteQueryRequiresTransaction = errors.New("sqlite write queries that return rows require a managed write transaction")
@@ -21,6 +23,7 @@ type DB struct {
 	writer          *sqlx.DB
 	coordinator     *writeCoordinator
 	coordinatorPath string
+	writerLeasePath string
 	closeOnce       sync.Once
 	closeErr        error
 }
@@ -30,6 +33,7 @@ type DB struct {
 type Tx struct {
 	*sqlx.Tx
 	ticket *writeTicket
+	lease  *ownerlock.Lease
 	once   sync.Once
 }
 
@@ -202,12 +206,17 @@ func (db *DB) BeginWrite(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	if err := ticket.wait(ctx); err != nil {
 		return nil, err
 	}
-	tx, err := db.writer.BeginTxx(ctx, opts)
+	lease, err := db.acquireWriterLease()
 	if err != nil {
 		ticket.finish()
 		return nil, err
 	}
-	return &Tx{Tx: tx, ticket: ticket}, nil
+	tx, err := db.writer.BeginTxx(ctx, opts)
+	if err != nil {
+		ticket.finish()
+		return nil, errors.Join(err, lease.Close())
+	}
+	return &Tx{Tx: tx, ticket: ticket, lease: lease}, nil
 }
 
 func (db *DB) WriteTx(ctx context.Context, opts *sql.TxOptions, fn func(*Tx) error) error {
@@ -229,8 +238,7 @@ func (tx *Tx) Commit() error {
 		return sql.ErrTxDone
 	}
 	err := tx.Tx.Commit()
-	tx.release()
-	return err
+	return errors.Join(err, tx.release())
 }
 
 func (tx *Tx) Rollback() error {
@@ -238,12 +246,16 @@ func (tx *Tx) Rollback() error {
 		return sql.ErrTxDone
 	}
 	err := tx.Tx.Rollback()
-	tx.release()
-	return err
+	return errors.Join(err, tx.release())
 }
 
-func (tx *Tx) release() {
-	tx.once.Do(tx.ticket.finish)
+func (tx *Tx) release() error {
+	var releaseErr error
+	tx.once.Do(func() {
+		tx.ticket.finish()
+		releaseErr = tx.lease.Close()
+	})
+	return releaseErr
 }
 
 func (db *DB) runWrite(ctx context.Context, fn func(*sqlx.DB) error) error {
@@ -252,7 +264,25 @@ func (db *DB) runWrite(ctx context.Context, fn func(*sqlx.DB) error) error {
 		return err
 	}
 	defer ticket.finish()
-	return fn(db.writer)
+	lease, err := db.acquireWriterLease()
+	if err != nil {
+		return err
+	}
+	return errors.Join(fn(db.writer), lease.Close())
+}
+
+func (db *DB) acquireWriterLease() (*ownerlock.Lease, error) {
+	if db.writerLeasePath == "" {
+		return &ownerlock.Lease{}, nil
+	}
+	lease, err := ownerlock.Acquire(
+		db.writerLeasePath,
+		ownerlock.CurrentDiagnostic("go-sqlite", ""),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("acquire SQLite writer lease: %w", err)
+	}
+	return lease, nil
 }
 
 func (db *DB) waitForReads(ctx context.Context) error {

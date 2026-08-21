@@ -245,6 +245,18 @@
       "allowedWorkspaceDependencies": ["jftrade-kernel"]
     },
     {
+      "name": "jftrade-owner-lock",
+      "path": "crates/jftrade-owner-lock",
+      "stage": 9,
+      "status": "active",
+      "layer": "adapter",
+      "goOwner": "internal/store/ownerlock platform file locking",
+      "rustOwner": "jftrade-owner-lock",
+      "cutover": "settings and SQLite writers acquire the same per-resource owner lock before mutation",
+      "goDeleteWhen": "Rust is the sole persistent writer and cross-process crash-release recovery is qualified on all release platforms",
+      "allowedWorkspaceDependencies": []
+    },
+    {
       "name": "jftrade-store-settings-file",
       "path": "crates/jftrade-store-settings-file",
       "stage": 9,
@@ -254,7 +266,7 @@
       "rustOwner": "jftrade-store-settings-file",
       "cutover": "jftrade-engine injects this adapter into jftrade-settings and keeps the existing settings.json path and shape",
       "goDeleteWhen": "all settings fields preserve unknown data, permissions, atomic replacement, rollback and cross-platform round-trip behavior with Rust as sole settings writer",
-      "allowedWorkspaceDependencies": ["jftrade-settings"]
+      "allowedWorkspaceDependencies": ["jftrade-owner-lock", "jftrade-settings"]
     },
     {
       "name": "jftrade-store-sqlite",

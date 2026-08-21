@@ -3,6 +3,7 @@ package settingsfile
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"sync"
 
 	jfsettings "github.com/jftrade/jftrade-main/internal/jftsettings"
+	"github.com/jftrade/jftrade-main/internal/store/ownerlock"
 )
 
 type fileData struct {
@@ -154,7 +156,7 @@ func (s *Store) mutateAndPersistLocked(mutate func()) error {
 	return nil
 }
 
-func (s *Store) persistLocked() error {
+func (s *Store) persistLocked() (resultErr error) {
 	data, err := json.MarshalIndent(s.data, "", "  ")
 	if err != nil {
 		return err
@@ -168,6 +170,11 @@ func (s *Store) persistLocked() error {
 			return err
 		}
 	}
+	lease, err := ownerlock.Acquire(s.path, ownerlock.CurrentDiagnostic("go-settings", ""))
+	if err != nil {
+		return fmt.Errorf("acquire settings writer lease: %w", err)
+	}
+	defer func() { resultErr = errors.Join(resultErr, lease.Close()) }()
 	createTemp := s.createTemp
 	if createTemp == nil {
 		createTemp = func(directory string, pattern string) (settingsTemporaryFile, error) {

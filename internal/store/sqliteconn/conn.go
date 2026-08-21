@@ -81,7 +81,21 @@ func openDatabase(path string, readOnly bool, opts ...Option) (*DB, error) {
 		writer:          writer,
 		coordinator:     coordinator,
 		coordinatorPath: trimmedPath,
+		writerLeasePath: writerLeaseTarget(trimmedPath),
 	}, nil
+}
+
+func writerLeaseTarget(path string) string {
+	trimmed := strings.TrimSpace(path)
+	lower := strings.ToLower(trimmed)
+	if trimmed == ":memory:" || strings.Contains(lower, "mode=memory") {
+		return ""
+	}
+	if strings.HasPrefix(lower, "file:") {
+		trimmed = trimmed[len("file:"):]
+		trimmed, _, _ = strings.Cut(trimmed, "?")
+	}
+	return trimmed
 }
 
 func DSN(path string) string {

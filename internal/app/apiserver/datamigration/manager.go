@@ -13,6 +13,7 @@ import (
 
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/datamanagement"
+	"github.com/jftrade/jftrade-main/internal/store/ownerlock"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 )
@@ -292,7 +293,7 @@ func (m *Manager) scheduleRebuildLocked(
 	return RebuildResult{DatabaseIDs: ids, RestartRequired: true, Scheduled: true}, nil
 }
 
-func (m *Manager) ApplyPending() error {
+func (m *Manager) ApplyPending() (resultErr error) {
 	pending, err := m.readMarker()
 	if err != nil || len(pending.DatabaseIDs) == 0 {
 		return err
@@ -327,6 +328,28 @@ func (m *Manager) ApplyPending() error {
 			return fmt.Errorf("verify rebuild backup for %s: %w", id, err)
 		}
 	}
+	leaseDescriptors := make([]Descriptor, 0, len(pending.DatabaseIDs))
+	for _, id := range pending.DatabaseIDs {
+		leaseDescriptors = append(leaseDescriptors, byID[id])
+	}
+	sort.Slice(leaseDescriptors, func(i, j int) bool {
+		return leaseDescriptors[i].Path < leaseDescriptors[j].Path
+	})
+	leases := make([]*ownerlock.Lease, 0, len(leaseDescriptors))
+	for _, descriptor := range leaseDescriptors {
+		lease, lockErr := ownerlock.Acquire(
+			descriptor.Path,
+			ownerlock.CurrentDiagnostic("go-datamigration", ""),
+		)
+		if lockErr != nil {
+			return errors.Join(
+				fmt.Errorf("acquire rebuild writer lease for %s: %w", descriptor.ID, lockErr),
+				closeOwnerLeases(leases),
+			)
+		}
+		leases = append(leases, lease)
+	}
+	defer func() { resultErr = errors.Join(resultErr, closeOwnerLeases(leases)) }()
 	for _, id := range pending.DatabaseIDs {
 		descriptor := byID[id]
 		for _, suffix := range []string{"", "-wal", "-shm"} {
@@ -336,6 +359,14 @@ func (m *Manager) ApplyPending() error {
 		}
 	}
 	return nil
+}
+
+func closeOwnerLeases(leases []*ownerlock.Lease) error {
+	var closeErr error
+	for index := len(leases) - 1; index >= 0; index-- {
+		closeErr = errors.Join(closeErr, leases[index].Close())
+	}
+	return closeErr
 }
 
 func removeMarkerBackups(backups []markerBackup) {

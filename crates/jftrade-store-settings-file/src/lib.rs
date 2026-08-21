@@ -5,6 +5,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
+use jftrade_owner_lock::{OwnerDiagnostic, WriterLease};
 use jftrade_settings::{
     AssistantRuntimeSettings, AssistantRuntimeSettingsStorePort,
     BacktestMarketDataProviderSettingsStorePort, BrokerIntegration, BrokerSettingsInputs,
@@ -629,6 +630,13 @@ fn persist_document(path: &Path, document: &Map<String, Value>) -> Result<(), Se
         ))
     })?;
     harden_directory(directory)?;
+    let profile = std::env::var("JFTRADE_RUST_REHEARSAL_PROFILE")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "rust-standalone".to_owned());
+    let _lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile)).map_err(
+        |error| SettingsStoreError::new(format!("acquire settings writer lease: {error}")),
+    )?;
     let encoded = serde_json::to_vec_pretty(document)
         .map_err(|error| SettingsStoreError::new(format!("encode settings: {error}")))?;
     let mut temporary = Builder::new()

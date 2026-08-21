@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/internal/store/ownerlock"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
 )
@@ -139,6 +140,28 @@ func TestManagerApplyPendingDeletesOnlySelectedDatabaseFiles(t *testing.T) {
 	}
 	if _, err := os.Stat(manager.markerPath()); !os.IsNotExist(err) {
 		t.Fatalf("marker still exists after completion: %v", err)
+	}
+}
+
+func TestManagerApplyPendingFailsClosedWhenDatabaseWriterLeaseIsHeld(t *testing.T) {
+	manager := newTestManager(t)
+	initializeDescriptors(t, manager, nil)
+	selected := manager.descriptorMap()[DatabaseADK]
+	if _, err := manager.ScheduleRebuild(t.Context(), RebuildRequest{
+		Mode: "single", DatabaseIDs: []string{DatabaseADK}, Confirmation: "REBUILD " + DatabaseADK,
+	}); err != nil {
+		t.Fatalf("schedule rebuild: %v", err)
+	}
+	lease, err := ownerlock.Acquire(selected.Path, ownerlock.CurrentDiagnostic("rust-test", "conflict"))
+	if err != nil {
+		t.Fatalf("hold external writer lease: %v", err)
+	}
+	defer func() { _ = lease.Close() }()
+	if err := manager.ApplyPending(); !errors.Is(err, ownerlock.ErrHeld) {
+		t.Fatalf("ApplyPending conflict error = %v", err)
+	}
+	if _, err := os.Stat(selected.Path); err != nil {
+		t.Fatalf("conflicting rebuild removed source database: %v", err)
 	}
 }
 

@@ -2,6 +2,7 @@ use std::fs;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use jftrade_owner_lock::{OwnerDiagnostic, WriterLease, lock_path};
 use jftrade_settings::{
     AppearanceService, AssistantRuntimeService, AssistantRuntimeSettings,
     ExchangeCalendarSettingsService, ExecutionService, ExecutionSettings, MarketDataProvider,
@@ -144,6 +145,34 @@ struct PineWorkerCase {
     name: String,
     input: PineWorkerSettings,
     expected: PineWorkerSettings,
+}
+
+#[test]
+fn settings_writer_lease_conflicts_but_read_only_shadow_stays_available() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    fs::write(
+        &path,
+        br##"{"appearance":{"theme":"system","density":"comfortable","accentColor":"#0f766e"}}"##,
+    )
+    .expect("seed settings");
+    let held = WriterLease::acquire(&path, &OwnerDiagnostic::current("go-test", "lock-conflict"))
+        .expect("hold external writer lease");
+    let read_only = SettingsFileStore::open_read_only(&path).expect("open read-only shadow");
+    let appearance = read_only
+        .load_appearance()
+        .expect("load appearance")
+        .expect("appearance");
+    let writable = SettingsFileStore::open(&path).expect("open writable store without mutation");
+    let error = writable
+        .save_appearance(&appearance)
+        .expect_err("conflicting write must fail closed");
+    assert!(error.to_string().contains("writer lease is already held"));
+    drop(held);
+    writable
+        .save_appearance(&appearance)
+        .expect("write after lease release");
+    assert!(lock_path(&path).exists(), "lock file must survive release");
 }
 
 #[test]
@@ -628,11 +657,14 @@ fn overwrite_replaces_existing_file_without_leaving_a_temporary_peer() {
         serde_json::from_value(document["appearance"].clone()).expect("appearance");
     assert_eq!(appearance.up_color, "#010203");
     assert_eq!(appearance.down_color, "#a0b0c0");
+    let mut entries = fs::read_dir(directory.path())
+        .expect("list settings directory")
+        .map(|entry| entry.expect("directory entry").file_name())
+        .collect::<Vec<_>>();
+    entries.sort();
     assert_eq!(
-        fs::read_dir(directory.path())
-            .expect("list settings directory")
-            .count(),
-        1
+        entries,
+        ["settings.json", "settings.json.jftrade-owner.lock"].map(std::ffi::OsString::from)
     );
 }
 
