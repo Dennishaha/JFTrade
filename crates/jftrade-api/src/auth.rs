@@ -3,6 +3,8 @@ use std::collections::BTreeSet;
 use axum::http::HeaderMap;
 
 pub const DESKTOP_WEBSOCKET_PROTOCOL: &str = "jftrade.desktop.v1";
+pub const INTERNAL_PROXY_PROTOCOL_HEADER: &str = "x-jftrade-internal-proxy";
+pub const ACCESS_SURFACE_HEADER: &str = "x-jftrade-access-surface";
 const SESSION_COOKIE: &str = "jftrade_web_session";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -13,6 +15,7 @@ pub struct AccessPolicy {
     pub allowed_origins: BTreeSet<String>,
     pub enforce_access: bool,
     pub desktop_mode: bool,
+    pub internal_proxy_protocol: Option<String>,
 }
 
 impl Default for AccessPolicy {
@@ -24,6 +27,7 @@ impl Default for AccessPolicy {
             allowed_origins: BTreeSet::new(),
             enforce_access: true,
             desktop_mode: false,
+            internal_proxy_protocol: None,
         }
     }
 }
@@ -42,6 +46,25 @@ impl AccessPolicy {
             return self.desktop_mode && !self.enforce_access;
         };
         request_desktop_token(headers).is_some_and(|actual| constant_time_equal(actual, expected))
+    }
+
+    pub(crate) fn internal_proxy_trusted(&self, headers: &HeaderMap) -> bool {
+        let Some(expected) = self.internal_proxy_protocol.as_deref() else {
+            return false;
+        };
+        let protocol_matches = headers
+            .get(INTERNAL_PROXY_PROTOCOL_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|actual| constant_time_equal(actual.trim(), expected));
+        let surface_valid = headers
+            .get(ACCESS_SURFACE_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| matches!(value.trim(), "desktop" | "web"));
+        let bearer_matches = self.desktop_token.as_deref().is_some_and(|expected| {
+            request_bearer_token(headers)
+                .is_some_and(|actual| constant_time_equal(actual, expected))
+        });
+        protocol_matches && surface_valid && bearer_matches
     }
 
     pub(crate) fn browser_authenticated(&self, headers: &HeaderMap) -> bool {
@@ -107,13 +130,8 @@ pub(crate) fn origin_provided(headers: &HeaderMap) -> bool {
 }
 
 fn request_desktop_token(headers: &HeaderMap) -> Option<&str> {
-    if let Some(value) = headers
-        .get("authorization")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.trim().strip_prefix("Bearer "))
-        .filter(|value| !value.trim().is_empty())
-    {
-        return Some(value.trim());
+    if let Some(value) = request_bearer_token(headers) {
+        return Some(value);
     }
     headers
         .get("sec-websocket-protocol")
@@ -124,6 +142,15 @@ fn request_desktop_token(headers: &HeaderMap) -> Option<&str> {
                 .map(str::trim)
                 .find(|protocol| !protocol.is_empty() && *protocol != DESKTOP_WEBSOCKET_PROTOCOL)
         })
+}
+
+fn request_bearer_token(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get("authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.trim().strip_prefix("Bearer "))
+        .filter(|value| !value.trim().is_empty())
+        .map(str::trim)
 }
 
 fn cookie_value<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {

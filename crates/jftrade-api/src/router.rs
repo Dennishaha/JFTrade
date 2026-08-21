@@ -121,6 +121,16 @@ async fn transport_middleware(
 
 fn authorize(state: &ApiState, request: &Request) -> Result<(), ApiFailure> {
     let headers = request.headers();
+    if state.access.internal_proxy_protocol.is_some() {
+        if state.access.internal_proxy_trusted(headers) {
+            return Ok(());
+        }
+        return Err(ApiFailure::new(
+            401,
+            "INTERNAL_PROXY_AUTH_REQUIRED",
+            "authenticated internal proxy access is required",
+        ));
+    }
     if origin_provided(headers) && !state.access.origin_allowed(headers) {
         return Err(ApiFailure::new(
             403,

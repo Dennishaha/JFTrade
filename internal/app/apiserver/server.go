@@ -299,12 +299,15 @@ func newSettingsStore(path string) (lifecycle.SettingsStore, error) {
 	return settingsfile.New(path)
 }
 
-func newHandler(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration, _ lifecycle.RehearsalRuntime) (lifecycle.Handler, error) {
+func newHandler(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration, rehearsal lifecycle.RehearsalRuntime) (lifecycle.Handler, error) {
 	settingsStore, ok := store.(servercore.SidecarSettingsStore)
 	if !ok {
 		return nil, fmt.Errorf("unexpected settings store type %T", store)
 	}
-	return servercore.NewSidecarHandlerWithOptions(settingsStore, servercore.SidecarOptions{StartupIntegration: &integration}), nil
+	return servercore.NewSidecarHandlerWithOptions(settingsStore, servercore.SidecarOptions{
+		StartupIntegration: &integration,
+		RehearsalTarget:    rehearsal,
+	}), nil
 }
 
 func loadFrontendFS() fs.FS {

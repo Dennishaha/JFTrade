@@ -132,6 +132,8 @@ pub struct ProductConfig {
     capabilities: ProductCapabilities,
 }
 
+const PRODUCT_INTERNAL_PROXY_PROTOCOL_ENV: &str = "JFTRADE_RUST_INTERNAL_PROXY_PROTOCOL";
+
 impl ProductConfig {
     pub(crate) fn new(
         bind_address: SocketAddr,
@@ -226,6 +228,9 @@ impl ProductConfig {
             enforce_access: true,
             desktop_mode: true,
             desktop_token: Some(desktop_token),
+            internal_proxy_protocol: env::var(PRODUCT_INTERNAL_PROXY_PROTOCOL_ENV)
+                .ok()
+                .filter(|value| !value.trim().is_empty()),
             ..AccessPolicy::default()
         };
         Self::new(bind_address, settings_path, access)

@@ -4,8 +4,9 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use http_body_util::BodyExt;
 use jftrade_api::{
-    AccessPolicy, ApiOutput, ApiPort, ApiRequest, ApiState, Asset, AssetBundle, FixedClock,
-    PortFuture, RouteCatalog, RouteSpec, build_router,
+    ACCESS_SURFACE_HEADER, AccessPolicy, ApiOutput, ApiPort, ApiRequest, ApiState, Asset,
+    AssetBundle, FixedClock, INTERNAL_PROXY_PROTOCOL_HEADER, PortFuture, RouteCatalog, RouteSpec,
+    build_router,
 };
 use serde_json::{Value, json};
 use tower::ServiceExt;
@@ -13,6 +14,63 @@ use tower::ServiceExt;
 #[derive(Default)]
 struct RecordingPort {
     requests: Mutex<Vec<ApiRequest>>,
+}
+
+#[tokio::test]
+async fn managed_sidecar_requires_bearer_protocol_and_verified_surface() {
+    let port = Arc::new(RecordingPort::default());
+    let routes = RouteCatalog::new([RouteSpec {
+        method: "GET".into(),
+        path: "/api/v1/settings/ui".into(),
+    }])
+    .expect("routes");
+    let access = AccessPolicy {
+        desktop_token: Some("private-rust-bearer".into()),
+        internal_proxy_protocol: Some("jftrade-go-rehearsal.v1".into()),
+        ..AccessPolicy::default()
+    };
+    let router = build_router(ApiState::new(routes, access, port.clone()));
+    let request = |protocol: Option<&str>, surface: Option<&str>| {
+        let mut builder = Request::builder()
+            .uri("/api/v1/settings/ui")
+            .header("authorization", "Bearer private-rust-bearer");
+        if let Some(protocol) = protocol {
+            builder = builder.header(INTERNAL_PROXY_PROTOCOL_HEADER, protocol);
+        }
+        if let Some(surface) = surface {
+            builder = builder.header(ACCESS_SURFACE_HEADER, surface);
+        }
+        builder.body(Body::empty()).expect("request")
+    };
+
+    for denied in [
+        request(None, Some("desktop")),
+        request(Some("wrong"), Some("desktop")),
+        request(Some("jftrade-go-rehearsal.v1"), None),
+        request(Some("jftrade-go-rehearsal.v1"), Some("unverified")),
+    ] {
+        let response = router.clone().oneshot(denied).await.expect("denied");
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+    let websocket_token_substitution = Request::builder()
+        .uri("/api/v1/settings/ui")
+        .header("sec-websocket-protocol", "private-rust-bearer")
+        .header(INTERNAL_PROXY_PROTOCOL_HEADER, "jftrade-go-rehearsal.v1")
+        .header(ACCESS_SURFACE_HEADER, "desktop")
+        .body(Body::empty())
+        .expect("request");
+    let denied = router
+        .clone()
+        .oneshot(websocket_token_substitution)
+        .await
+        .expect("denied");
+    assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+    let accepted = router
+        .oneshot(request(Some("jftrade-go-rehearsal.v1"), Some("desktop")))
+        .await
+        .expect("accepted");
+    assert_eq!(accepted.status(), StatusCode::OK);
+    assert_eq!(port.requests.lock().expect("requests").len(), 1);
 }
 
 impl ApiPort for RecordingPort {

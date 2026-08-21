@@ -560,7 +560,9 @@ JFTRADE_RUST_REHEARSAL_PROFILE=read-only-shadow.v1 \
   go run ./cmd/jftrade-api
 ```
 
-Go composition root 为每个子进程生成随机 Bearer，让 Rust 绑定动态 loopback 端口，并在发布 Go router 前逐项验证 `jftrade-product-rehearsal.v1`、route profile、26 条精确 operation、profile digest、二进制 SHA-256 与 authenticated status probe。任一 ready/鉴权/资源检查失败都会回收子进程并使整个 rehearsal 启动失败；当前尚未把任何公开请求代理给 Rust。
+Go composition root 为每个子进程生成随机 Bearer，让 Rust 绑定动态 loopback 端口，并在发布 Go router 前逐项验证 `jftrade-product-rehearsal.v1`、route profile、26 条精确 operation、profile digest、二进制 SHA-256 与 authenticated status probe。任一 ready/鉴权/资源检查失败都会回收子进程并使整个 rehearsal 启动失败。
+
+Go transport 已具备按 method + OpenAPI path template 精确选择普通 JSON operation 的 rehearsal proxy，但当前 composition 没有启用任何 operation。该中间件位于 desktop token、Web access、Auth、origin 与 CSRF 检查之后，只向 Rust 传递私有 Bearer、内部协议标记、已验证 access surface、request ID、query、body 和取消信号；公开 Cookie、Authorization 与 CSRF 不跨越进程边界。Rust sidecar 只在 loopback listener、Bearer、内部协议和 access surface 同时验证成功时接受请求。请求一旦交给 Rust，错误、超时或取消都不会重放 Go handler；SSE、WebSocket、文件及非 JSON 请求继续由 Go 处理。两条 immutable catalog operation 要到下一原子提交才会显式启用，因此当前 278 个 production owner 仍全部为 Go。
 
 ## 10. 决策与阶段账本
 
@@ -586,6 +588,7 @@ Go composition root 为每个子进程生成随机 Bearer，让 Rust 绑定动�
 | 2026-08-21 | 拆分 Stage 9 product composition 与 route contributors，并以 capability set 取代全局 write-owner 开关 | system、settings、calendar、data-management、watchlist/research/trading route 分域贡献；17 个 test-cutover capability 可独立登记 route，端口型 capability 仍同时要求窄 port。新增 800 行 product 生产文件门禁，默认 capability set 为空且 route/wire/Go production owner 不变 |
 | 2026-08-21 | 拆分 Tauri native runtime adapters，保持既有 facade 与发布资源契约 | lifecycle、resource integrity/runtime、window/tray、notification/updater、logs 分域落盘，主 native module 仅保留装配；800 行 Rust 生产文件门禁同时覆盖 native 文件族，commands、events、窗口行为、资源路径和 Go/Wails production owner 不变 |
 | 2026-08-21 | Go composition root 在显式 read-only rehearsal profile 下管理 Rust product sidecar | 默认不启动；显式 profile 使用动态 loopback、每进程随机 Bearer、固定 ready 协议、26-operation profile digest、capability 列表、可执行文件 SHA-256 与 authenticated probe，验证完成前不发布 Go router；失败逆序回收且不静默回退。当前尚未代理公开请求，278 个 production owner 仍全部为 Go |
+| 2026-08-21 | 建立 exact-operation Go-to-Rust rehearsal proxy，暂不启用 operation | 只选择 method + OpenAPI template 精确命中的普通 JSON；鉴权与 access surface 在 Go 完成，Rust 再验证私有 Bearer 和内部协议；request ID/query/body/cancel 透传，失败或超时不得回放 Go，SSE/WS/文件保持 Go owner；当前选择集为空，账本和 production owner 不变 |
 | 2026-08-20 | 拒绝将 `GET /api/v1/brokers/capabilities` 与 `GET /api/v1/market-data/markets` 登记为 Rust shadow route | 两条 route 依赖 Go 运行时 evaluator、OpenD/account/quote 权限及 active provider/sidecar 的动态能力语义，静态 fixture 无法安全伪造；待 broker/runtime capability port 与 market-data provider lifecycle 建成，并完成真实状态、权限、失败恢复 differential 后再重新评审；该决定不新增 route，当前总账为 26 shadow/22 cutover-test-only/230 remaining |
 | 2026-08-20 | 拒绝将 `GET /api/v1/research/screens/presets` 与 `GET /api/v1/research/screens/presets/{presetId}` 登记为 Rust shadow route | Go `NormalizeDefinitionV2` 的完整规范化/校验语义与 research SQLite read-only adapter 尚未具备，不能用简单 JSON object 校验或创建数据库伪造 preset wire；待规范化规则、只读 store port、schema/恢复 differential 和拒绝路径完成后再评审；该决定不新增 route，当前总账为 26 shadow/22 cutover-test-only/230 remaining |
 | 2026-08-20 | 拒绝将 `GET /api/v1/system/exchange-calendars/sources` 登记为 Rust production/shadow route | 该 route 依赖 Go ExchangeCalendar Manager 的动态 registry、status、cache 与 health 语义；Rust 当前仍不能用静态数据或空返回伪造正式 owner。允许独立的 consumer-owned snapshot port 仅在 test-cutover 注入时登记该 route，正式 launcher 与 Go 生产 owner 不变；sources 本身不新增 production/shadow owner，当前总账为 26 shadow/22 cutover-test-only/230 remaining |

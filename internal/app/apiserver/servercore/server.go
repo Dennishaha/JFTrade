@@ -70,6 +70,16 @@ type Server struct {
 	desktopMode          bool
 	desktopAPIToken      string
 	webAccessReconfigure func(jfsettings.SecuritySettings) error
+	rehearsalProxy       *rehearsalProxy
+}
+
+// RehearsalProxyTarget is the verified private Rust process surface consumed
+// by the Go transport. It deliberately excludes lifecycle ownership.
+type RehearsalProxyTarget interface {
+	Endpoint() string
+	BearerToken() string
+	Profile() string
+	Capabilities() []string
 }
 
 // SidecarHandler is the minimal server surface required by API sidecar assembly.
@@ -86,13 +96,16 @@ type SidecarHandler interface {
 
 // SidecarOptions customizes API sidecar assembly for embedded hosts.
 type SidecarOptions struct {
-	FrontendFS         fs.FS
-	FrontendDevURL     string
-	RuntimeAPIBaseURL  string
-	StartupIntegration *jfsettings.BrokerIntegration
-	NotificationSink   func(live.Event) live.NotificationDelivery
-	DesktopMode        bool
-	DesktopAPIToken    string
+	FrontendFS            fs.FS
+	FrontendDevURL        string
+	RuntimeAPIBaseURL     string
+	StartupIntegration    *jfsettings.BrokerIntegration
+	NotificationSink      func(live.Event) live.NotificationDelivery
+	DesktopMode           bool
+	DesktopAPIToken       string
+	RehearsalTarget       RehearsalProxyTarget
+	RehearsalOperations   []string
+	RehearsalProxyTimeout time.Duration
 }
 
 type SidecarSettingsStore = settings.Store
@@ -131,6 +144,11 @@ func NewSidecarHandlerWithOptions(store SidecarSettingsStore, options SidecarOpt
 	server.runtimes.SetLiveNotificationSink(options.NotificationSink)
 	server.desktopMode = options.DesktopMode
 	server.desktopAPIToken = strings.TrimSpace(options.DesktopAPIToken)
+	server.rehearsalProxy = newRehearsalProxy(
+		options.RehearsalTarget,
+		options.RehearsalOperations,
+		options.RehearsalProxyTimeout,
+	)
 	if server.auth != nil {
 		server.auth.SetEnforceAccess(!options.DesktopMode || server.desktopAPIToken != "")
 	}

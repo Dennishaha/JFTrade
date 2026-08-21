@@ -25,15 +25,18 @@ import (
 )
 
 const (
-	EnvProfile        = "JFTRADE_RUST_REHEARSAL_PROFILE"
-	EnvExecutable     = "JFTRADE_RUST_API_EXECUTABLE"
-	ReadOnlyProfile   = "read-only-shadow.v1"
-	ProtocolVersion   = "jftrade-product-rehearsal.v1"
-	defaultBind       = "127.0.0.1:0"
-	defaultReadyLimit = 5 * time.Second
-	defaultStopLimit  = 5 * time.Second
-	defaultKillLimit  = 2 * time.Second
-	maxReadyBytes     = 64 * 1024
+	EnvProfile            = "JFTRADE_RUST_REHEARSAL_PROFILE"
+	EnvExecutable         = "JFTRADE_RUST_API_EXECUTABLE"
+	ReadOnlyProfile       = "read-only-shadow.v1"
+	ProtocolVersion       = "jftrade-product-rehearsal.v1"
+	InternalProxyProtocol = "jftrade-go-rehearsal.v1"
+	InternalProxyHeader   = "X-JFTrade-Internal-Proxy"
+	AccessSurfaceHeader   = "X-JFTrade-Access-Surface"
+	defaultBind           = "127.0.0.1:0"
+	defaultReadyLimit     = 5 * time.Second
+	defaultStopLimit      = 5 * time.Second
+	defaultKillLimit      = 2 * time.Second
+	maxReadyBytes         = 64 * 1024
 )
 
 var readOnlyCapabilities = []string{
@@ -149,6 +152,7 @@ func Start(ctx context.Context, config Config) (*Handle, error) {
 		"JFTRADE_RUST_API_BIND="+config.Bind,
 		"JFTRADE_SETTINGS_PATH="+config.SettingsPath,
 		"JFTRADE_DESKTOP_TOKEN="+token,
+		"JFTRADE_RUST_INTERNAL_PROXY_PROTOCOL="+InternalProxyProtocol,
 	)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -301,6 +305,8 @@ func probeAuthenticated(ctx context.Context, endpoint string, token string, time
 		return fmt.Errorf("create Rust rehearsal authenticated probe: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set(InternalProxyHeader, InternalProxyProtocol)
+	req.Header.Set(AccessSurfaceHeader, "desktop")
 	response, err := (&http.Client{Timeout: timeout}).Do(req)
 	if err != nil {
 		return fmt.Errorf("probe Rust rehearsal readiness: %w", err)

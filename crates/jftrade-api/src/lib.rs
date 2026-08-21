@@ -9,7 +9,10 @@ mod router;
 mod sse;
 mod websocket;
 
-pub use auth::{AccessPolicy, canonical_origin};
+pub use auth::{
+    ACCESS_SURFACE_HEADER, AccessPolicy, DESKTOP_WEBSOCKET_PROTOCOL,
+    INTERNAL_PROXY_PROTOCOL_HEADER, canonical_origin,
+};
 pub use envelope::{ApiFailure, Clock, FixedClock, SystemClock};
 pub use observability::{TransportMetrics, TransportSnapshot};
 pub use ports::{ApiOutput, ApiPort, ApiRequest, Asset, AssetBundle, PortFuture};
