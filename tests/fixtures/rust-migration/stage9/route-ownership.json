@@ -654,14 +654,17 @@
       "method": "GET",
       "path": "/api/v1/backtests/sync/{taskId}",
       "capability": "backtests",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "rust-implementation",
         "compatibility-evidence"
       ],
-      "evidence": []
+      "evidence": [
+        "tests/fixtures/rust-migration/stage9/backtests-sync-read.json",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",

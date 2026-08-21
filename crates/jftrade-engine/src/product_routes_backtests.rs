@@ -11,3 +11,13 @@ fn product_backtest_routes(
         route("GET", "/api/v1/backtests/{runId}"),
     ]
 }
+
+fn product_backtest_sync_routes(
+    capabilities: &ProductCapabilities,
+    ports: ProductRoutePorts,
+) -> Vec<RouteSpec> {
+    if !ports.backtest_sync_read || !capabilities.contains(ProductCapability::BacktestSyncRead) {
+        return Vec::new();
+    }
+    vec![route("GET", "/api/v1/backtests/sync/{taskId}")]
+}

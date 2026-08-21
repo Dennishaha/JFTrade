@@ -206,6 +206,7 @@ impl ApiPort for ProductApi {
                     self.database_overview(&request.query)
                 }
                 ("GET", "/api/v1/backtests") => self.backtest_list(),
+                ("GET", path) if is_backtest_sync_path(path) => self.backtest_sync_progress(path),
                 ("GET", path) if is_backtest_status_path(path) => self.backtest_status(path),
                 ("GET", path) if is_backtest_result_path(path) => self.backtest_result(path),
                 ("GET", "/api/v1/research/screens/catalog") => {
@@ -565,6 +566,11 @@ fn is_backtest_status_path(path: &str) -> bool {
     parts.next().is_some_and(|run_id| !run_id.is_empty())
         && parts.next() == Some("status")
         && parts.next().is_none()
+}
+
+fn is_backtest_sync_path(path: &str) -> bool {
+    path.strip_prefix("/api/v1/backtests/sync/")
+        .is_some_and(|task_id| !task_id.is_empty() && !task_id.contains('/'))
 }
 
 fn is_backtest_result_path(path: &str) -> bool {

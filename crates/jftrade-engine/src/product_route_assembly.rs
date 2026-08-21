@@ -31,6 +31,7 @@ enum ProductCapability {
     Alerts,
     StrategyDefinitions,
     BacktestRead,
+    BacktestSyncRead,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -69,6 +70,7 @@ impl ProductCapabilities {
             ProductCapability::Alerts,
             ProductCapability::StrategyDefinitions,
             ProductCapability::BacktestRead,
+            ProductCapability::BacktestSyncRead,
         ]))
     }
 
@@ -101,6 +103,7 @@ impl ProductCapabilities {
                     | ProductCapability::Alerts
                     | ProductCapability::StrategyDefinitions
                     | ProductCapability::BacktestRead
+                    | ProductCapability::BacktestSyncRead
             )
         })
     }
@@ -126,6 +129,7 @@ struct ProductRoutePorts {
     plugin_uninstall_guidance: bool,
     strategy_definitions: bool,
     backtest_read: bool,
+    backtest_sync_read: bool,
 }
 
 fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
@@ -139,6 +143,7 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         broker_read: config.broker_read_snapshot_port.is_some(),
         system_read: config.system_read_snapshot_port.is_some(),
         backtest_read: config.backtest_read_snapshot_port.is_some(),
+        backtest_sync_read: config.backtest_sync_read_snapshot_port.is_some(),
         remote_watchlist: config.remote_watchlist_snapshot_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
@@ -159,6 +164,7 @@ fn product_routes(
     routes.extend(product_calendar_routes(capabilities, ports));
     routes.extend(product_data_management_routes(capabilities));
     routes.extend(product_backtest_routes(capabilities, ports));
+    routes.extend(product_backtest_sync_routes(capabilities, ports));
     routes.extend(product_watchlist_research_trading_routes(
         capabilities,
         ports,

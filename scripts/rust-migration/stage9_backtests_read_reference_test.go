@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	apibacktest "github.com/jftrade/jftrade-main/internal/api/backtest"
@@ -126,6 +127,127 @@ func compactBacktestsReadJSON(data json.RawMessage) json.RawMessage {
 		return data
 	}
 	return contents
+}
+
+type stage9BacktestsSyncReadFixture struct {
+	Version string                    `json:"version"`
+	Cases   []stage9BacktestsReadCase `json:"cases"`
+}
+
+// TestStage9BacktestsSyncReadFixtureMatchesCurrentGoOwner freezes the one
+// mutable sync-progress projection without starting a real provider worker.
+func TestStage9BacktestsSyncReadFixtureMatchesCurrentGoOwner(t *testing.T) {
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve stage 9 backtests sync fixture source")
+	}
+	fixturePath := filepath.Join(filepath.Dir(source), "../../tests/fixtures/rust-migration/stage9/backtests-sync-read.json")
+	cases := []struct {
+		name  string
+		path  string
+		store *stage9BacktestSyncTaskStore
+	}{
+		{name: "queued", path: "/api/v1/backtests/sync/fixture-queued", store: stage9BacktestSyncStore("fixture-queued", "queued")},
+		{name: "running", path: "/api/v1/backtests/sync/fixture-running", store: stage9BacktestSyncStore("fixture-running", "running")},
+		{name: "failed", path: "/api/v1/backtests/sync/fixture-failed", store: stage9BacktestSyncStore("fixture-failed", "failed")},
+		{name: "missing", path: "/api/v1/backtests/sync/missing-task", store: stage9BacktestSyncStore("fixture-queued", "queued")},
+		{name: "blank", path: "/api/v1/backtests/sync/%20", store: stage9BacktestSyncStore("fixture-queued", "queued")},
+	}
+	want := stage9BacktestsSyncReadFixture{Version: "stage9.backtests-sync-read.v1", Cases: make([]stage9BacktestsReadCase, 0, len(cases))}
+	for _, testCase := range cases {
+		gin.SetMode(gin.TestMode)
+		service := srv.NewService(srv.WithSyncTaskStore(testCase.store))
+		router := gin.New()
+		apibacktest.RegisterRoutes(router.Group("/api/v1"), service)
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, testCase.path, nil)
+		router.ServeHTTP(recorder, request)
+		entry := stage9BacktestsReadCase{
+			Name: testCase.name, Method: http.MethodGet, RequestPath: testCase.path, ExpectedStatus: recorder.Code,
+		}
+		var envelope struct {
+			Data  json.RawMessage `json:"data"`
+			Error *struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &envelope); err != nil {
+			t.Fatalf("decode %s response: %v", testCase.name, err)
+		}
+		if envelope.Error != nil {
+			entry.ErrorCode, entry.ErrorMessage = envelope.Error.Code, envelope.Error.Message
+		} else {
+			entry.Data = compactBacktestsReadJSON(envelope.Data)
+		}
+		want.Cases = append(want.Cases, entry)
+	}
+	if os.Getenv("JFTRADE_UPDATE_RUST_MIGRATION_FIXTURES") == "1" {
+		contents, err := json.MarshalIndent(want, "", "  ")
+		if err != nil {
+			t.Fatalf("encode backtests sync fixture: %v", err)
+		}
+		if err := os.WriteFile(fixturePath, append(contents, '\n'), 0o644); err != nil {
+			t.Fatalf("write backtests sync fixture: %v", err)
+		}
+	}
+	contents, err := os.ReadFile(fixturePath)
+	if err != nil {
+		t.Fatalf("read backtests sync fixture: %v", err)
+	}
+	var got stage9BacktestsSyncReadFixture
+	if err := json.Unmarshal(contents, &got); err != nil {
+		t.Fatalf("decode backtests sync fixture: %v", err)
+	}
+	for index := range got.Cases {
+		got.Cases[index].Data = compactBacktestsReadJSON(got.Cases[index].Data)
+		want.Cases[index].Data = compactBacktestsReadJSON(want.Cases[index].Data)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("stage 9 backtests sync read fixture drifted from the Go owner: got=%#v want=%#v", got, want)
+	}
+}
+
+type stage9BacktestSyncTaskStore struct {
+	progress *bt.SyncProgress
+}
+
+func stage9BacktestSyncStore(taskID, status string) *stage9BacktestSyncTaskStore {
+	progress := bt.NewSyncProgress(taskID, "US.AAPL", time.Date(2026, 8, 15, 20, 0, 0, 0, time.UTC))
+	progress.Status = status
+	progress.MarketDataProvider = "futu"
+	progress.CurrentInterval = "1d"
+	progress.TotalIntervals = 2
+	progress.CompletedIntervals = 1
+	progress.TotalBatches = 4
+	progress.CompletedBatches = 2
+	progress.Retries = 1
+	progress.UpdatedAt = "2026-08-15T20:01:00Z"
+	if status == "queued" {
+		progress.CurrentInterval = ""
+		progress.TotalIntervals = 0
+		progress.CompletedIntervals = 0
+		progress.TotalBatches = 0
+		progress.CompletedBatches = 0
+		progress.Retries = 0
+		progress.UpdatedAt = ""
+	}
+	if status == "failed" {
+		progress.Error = "OpenD unavailable"
+	}
+	return &stage9BacktestSyncTaskStore{progress: progress}
+}
+
+func (s *stage9BacktestSyncTaskStore) Add(string, *bt.SyncProgress, context.CancelFunc) {}
+func (s *stage9BacktestSyncTaskStore) Get(taskID string) (*bt.SyncProgress, bool) {
+	if s.progress == nil || s.progress.TaskID != taskID {
+		return nil, false
+	}
+	return s.progress.Snapshot(), true
+}
+func (s *stage9BacktestSyncTaskStore) Finish(string) {}
+func (s *stage9BacktestSyncTaskStore) Cancel(string, time.Time) (*bt.SyncProgress, bool) {
+	return nil, false
 }
 
 type stage9BacktestRunStore struct {

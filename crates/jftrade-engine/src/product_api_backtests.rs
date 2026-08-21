@@ -7,9 +7,25 @@ pub trait BacktestReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn result(&self, run_id: &str) -> Result<Option<serde_json::Value>, BacktestReadSnapshotError>;
 }
 
+/// Consumer-owned snapshots for the mutable backtest sync-task projection.
+/// The Go task store and worker lifecycle remain authoritative; Rust only
+/// receives a captured progress value in explicit test-cutover wiring.
+pub trait BacktestSyncReadSnapshotPort: Send + Sync + std::fmt::Debug {
+    fn progress(
+        &self,
+        task_id: &str,
+    ) -> Result<Option<serde_json::Value>, BacktestSyncReadSnapshotError>;
+}
+
 #[derive(Clone, Debug, Error)]
 pub enum BacktestReadSnapshotError {
     #[error("backtest run snapshot is unavailable: {0}")]
+    Unavailable(String),
+}
+
+#[derive(Clone, Debug, Error)]
+pub enum BacktestSyncReadSnapshotError {
+    #[error("backtest sync task snapshot is unavailable: {0}")]
     Unavailable(String),
 }
 
@@ -20,6 +36,15 @@ impl ProductConfig {
         port: Arc<dyn BacktestReadSnapshotPort>,
     ) -> Self {
         self.backtest_read_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_backtest_sync_read_snapshot_port(
+        mut self,
+        port: Arc<dyn BacktestSyncReadSnapshotPort>,
+    ) -> Self {
+        self.backtest_sync_read_snapshot_port = Some(port);
         self
     }
 }
@@ -50,6 +75,15 @@ impl ProductApi {
             .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "backtest run not found"))
     }
 
+    fn backtest_sync_progress(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
+        let task_id = backtest_sync_task_id(path)?;
+        self.backtest_sync_read_port()?
+            .progress(&task_id)
+            .map_err(backtest_sync_read_snapshot_failure)?
+            .map(ApiOutput::Json)
+            .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "sync task not found"))
+    }
+
     fn backtest_read_port(
         &self,
     ) -> Result<&Arc<dyn BacktestReadSnapshotPort>, ApiFailure> {
@@ -61,11 +95,28 @@ impl ProductApi {
             )
         })
     }
+
+    fn backtest_sync_read_port(
+        &self,
+    ) -> Result<&Arc<dyn BacktestSyncReadSnapshotPort>, ApiFailure> {
+        self.backtest_sync_read_snapshot_port.as_ref().ok_or_else(|| {
+            ApiFailure::new(
+                500,
+                "BACKTEST_SYNC_TASK_STORE_FAILED",
+                "sync task store not configured",
+            )
+        })
+    }
 }
 
 fn backtest_read_snapshot_failure(error: BacktestReadSnapshotError) -> ApiFailure {
     let BacktestReadSnapshotError::Unavailable(message) = error;
     ApiFailure::new(500, "BACKTEST_RUN_STORE_FAILED", message)
+}
+
+fn backtest_sync_read_snapshot_failure(error: BacktestSyncReadSnapshotError) -> ApiFailure {
+    let BacktestSyncReadSnapshotError::Unavailable(message) = error;
+    ApiFailure::new(500, "BACKTEST_SYNC_TASK_STORE_FAILED", message)
 }
 
 fn backtest_run_id(path: &str) -> Result<String, ApiFailure> {
@@ -88,4 +139,19 @@ fn backtest_run_id(path: &str) -> Result<String, ApiFailure> {
         ));
     }
     Ok(run_id.to_owned())
+}
+
+fn backtest_sync_task_id(path: &str) -> Result<String, ApiFailure> {
+    let encoded = path
+        .strip_prefix("/api/v1/backtests/sync/")
+        .filter(|value| !value.is_empty() && !value.contains('/'))
+        .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "taskId is invalid"))?;
+    let decoded = percent_decode_str(encoded)
+        .decode_utf8()
+        .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "taskId is invalid"))?;
+    let task_id = decoded.trim();
+    if task_id.is_empty() {
+        return Err(ApiFailure::new(400, "BAD_REQUEST", "taskId is required"));
+    }
+    Ok(task_id.to_owned())
 }

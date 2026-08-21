@@ -20,10 +20,10 @@ struct ProductApi {
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
+    backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     notification_sequence: AtomicU64,
     capabilities: ProductCapabilities,
 }
-
 struct ProductOptionalPorts {
     notification: Option<Arc<dyn ProductNotificationPort>>,
     calendar_manager: Option<Arc<CalendarManager>>,
@@ -39,8 +39,8 @@ struct ProductOptionalPorts {
     alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     backtest_read_snapshot: Option<Arc<dyn BacktestReadSnapshotPort>>,
+    backtest_sync_read_snapshot: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
 }
-
 struct ProductSettingsServices {
     appearance: AppearanceService,
     brokers: BrokerSettingsService,
@@ -59,7 +59,6 @@ struct ProductSettingsServices {
     cleanup_preview: Arc<CleanupPreviewService>,
     maintenance: MaintenanceService,
 }
-
 impl ProductApi {
     fn new(
         api_port: u16,
@@ -93,6 +92,7 @@ impl ProductApi {
             alert_snapshot_port: optional_ports.alert_snapshot,
             strategy_definition_snapshot_port: optional_ports.strategy_definition_snapshot,
             backtest_read_snapshot_port: optional_ports.backtest_read_snapshot,
+            backtest_sync_read_snapshot_port: optional_ports.backtest_sync_read_snapshot,
             notification_sequence: AtomicU64::new(0),
             capabilities,
         }
