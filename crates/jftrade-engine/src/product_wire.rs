@@ -202,6 +202,16 @@ impl ApiPort for ProductApi {
                 ("GET", "/api/v1/research/screens/catalog") => {
                     self.research_screen_catalog(&request.query)
                 }
+                ("GET", "/api/v1/strategy-definitions") => self.strategy_definition_list(),
+                ("GET", path) if is_strategy_definition_version_path(path) => {
+                    self.strategy_definition_version(path)
+                }
+                ("GET", path) if is_strategy_definition_versions_path(path) => {
+                    self.strategy_definition_versions(path)
+                }
+                ("GET", path) if is_strategy_definition_detail_path(path) => {
+                    self.strategy_definition_detail(path, &request.query)
+                }
                 ("GET", "/api/v1/system/exchange-calendars/sources") => {
                     self.calendar_source_snapshot()
                 }
@@ -555,6 +565,130 @@ fn is_plugin_uninstall_guidance_path(path: &str) -> bool {
         .is_some_and(|plugin_id| !plugin_id.contains('/'))
 }
 
+fn is_strategy_definition_detail_path(path: &str) -> bool {
+    path.strip_prefix("/api/v1/strategy-definitions/")
+        .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'))
+}
+
+fn is_strategy_definition_versions_path(path: &str) -> bool {
+    let Some(suffix) = path.strip_prefix("/api/v1/strategy-definitions/") else {
+        return false;
+    };
+    let mut parts = suffix.split('/');
+    parts.next().is_some_and(|id| !id.is_empty())
+        && parts.next() == Some("versions")
+        && parts.next().is_none()
+}
+
+fn is_strategy_definition_version_path(path: &str) -> bool {
+    let Some(suffix) = path.strip_prefix("/api/v1/strategy-definitions/") else {
+        return false;
+    };
+    let mut parts = suffix.split('/');
+    parts.next().is_some_and(|id| !id.is_empty())
+        && parts.next() == Some("versions")
+        && parts.next().is_some_and(|version| !version.is_empty())
+        && parts.next().is_none()
+}
+
+fn strategy_definition_id(path: &str) -> Result<String, ApiFailure> {
+    let encoded = path
+        .strip_prefix("/api/v1/strategy-definitions/")
+        .filter(|id| !id.is_empty() && !id.contains('/'))
+        .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"))?;
+    let decoded = percent_decode_str(encoded)
+        .decode_utf8()
+        .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"))?;
+    let id = decoded.trim();
+    if id.is_empty() {
+        return Err(ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"));
+    }
+    Ok(id.to_owned())
+}
+
+fn strategy_definition_versions_id(path: &str) -> Result<String, ApiFailure> {
+    let suffix = path
+        .strip_prefix("/api/v1/strategy-definitions/")
+        .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"))?;
+    let mut parts = suffix.split('/');
+    let encoded_id = parts
+        .next()
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"))?;
+    if parts.next() != Some("versions") || parts.next().is_some() {
+        return Err(ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"));
+    }
+    let id = percent_decode_str(encoded_id)
+        .decode_utf8()
+        .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"))?;
+    let id = id.trim();
+    if id.is_empty() {
+        return Err(ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"));
+    }
+    Ok(id.to_owned())
+}
+
+fn strategy_definition_version_path(path: &str) -> Result<(String, String), ApiFailure> {
+    let suffix = path
+        .strip_prefix("/api/v1/strategy-definitions/")
+        .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "invalid definition version"))?;
+    let mut parts = suffix.split('/');
+    let encoded_id = parts
+        .next()
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "invalid definition version"))?;
+    if parts.next() != Some("versions") {
+        return Err(ApiFailure::new(400, "BAD_REQUEST", "invalid definition version"));
+    }
+    let encoded_version = parts
+        .next()
+        .filter(|version| !version.is_empty())
+        .filter(|_| parts.next().is_none())
+        .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "invalid definition version"))?;
+    let decode = |encoded: &str| {
+        percent_decode_str(encoded)
+            .decode_utf8()
+            .map(|value| value.trim().to_owned())
+            .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid definition version"))
+    };
+    let id = decode(encoded_id)?;
+    let version = decode(encoded_version)?;
+    if id.is_empty() || version.is_empty() {
+        return Err(ApiFailure::new(400, "BAD_REQUEST", "invalid definition version"));
+    }
+    Ok((id, version))
+}
+
+fn parse_strategy_definition_preview(
+    query: &str,
+) -> Result<StrategyDefinitionPreview, ApiFailure> {
+    let mut preview = StrategyDefinitionPreview::default();
+    for pair in query.split('&').filter(|value| !value.is_empty()) {
+        let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
+        let name = decode_query_component(name);
+        let value = decode_query_component(value);
+        match name.as_str() {
+            "interval" => preview.interval = Some(value),
+            "symbol" => preview.symbol = Some(value),
+            "useExtendedHours" => {
+                preview.use_extended_hours = match value.to_ascii_lowercase().as_str() {
+                    "true" | "1" => true,
+                    "false" | "0" | "" => false,
+                    _ => {
+                        return Err(ApiFailure::new(
+                            400,
+                            "BAD_REQUEST",
+                            "invalid strategy definition query",
+                        ));
+                    }
+                };
+            }
+            _ => {}
+        }
+    }
+    Ok(preview)
+}
+
 fn plugin_uninstall_guidance_plugin_id(path: &str) -> Result<String, ApiFailure> {
     let encoded = path
         .strip_prefix("/api/v1/plugins/")
@@ -569,6 +703,10 @@ fn plugin_uninstall_guidance_plugin_id(path: &str) -> Result<String, ApiFailure>
         return Err(ApiFailure::new(400, "BAD_REQUEST", "pluginId is invalid"));
     }
     Ok(plugin_id.to_owned())
+}
+
+fn strategy_definition_snapshot_failure(error: StrategyDefinitionSnapshotError) -> ApiFailure {
+    ApiFailure::new(500, "STRATEGY_FAILED", error.to_string())
 }
 
 fn decode_query_component(value: &str) -> String {

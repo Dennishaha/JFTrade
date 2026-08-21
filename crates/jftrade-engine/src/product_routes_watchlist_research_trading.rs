@@ -6,6 +6,20 @@ fn product_watchlist_research_trading_routes(
         route("GET", "/api/v1/adk/agent-templates"),
         route("GET", "/api/v1/research/screens/catalog"),
     ];
+    if ports.strategy_definitions && capabilities.contains(ProductCapability::StrategyDefinitions) {
+        routes.extend([
+            route("GET", "/api/v1/strategy-definitions"),
+            route("GET", "/api/v1/strategy-definitions/{definitionId}"),
+            route(
+                "GET",
+                "/api/v1/strategy-definitions/{definitionId}/versions",
+            ),
+            route(
+                "GET",
+                "/api/v1/strategy-definitions/{definitionId}/versions/{version}",
+            ),
+        ]);
+    }
     if ports.watchlist_memberships
         && capabilities.contains(ProductCapability::WatchlistMemberships)
     {

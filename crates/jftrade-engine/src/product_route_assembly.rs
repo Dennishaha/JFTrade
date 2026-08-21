@@ -21,6 +21,8 @@ enum ProductCapability {
     CalendarControl,
     WatchlistMemberships,
     PluginUninstallGuidance,
+    Alerts,
+    StrategyDefinitions,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -49,6 +51,8 @@ impl ProductCapabilities {
             ProductCapability::CalendarControl,
             ProductCapability::WatchlistMemberships,
             ProductCapability::PluginUninstallGuidance,
+            ProductCapability::Alerts,
+            ProductCapability::StrategyDefinitions,
         ]))
     }
 
@@ -71,6 +75,8 @@ impl ProductCapabilities {
                     | ProductCapability::CalendarControl
                     | ProductCapability::WatchlistMemberships
                     | ProductCapability::PluginUninstallGuidance
+                    | ProductCapability::Alerts
+                    | ProductCapability::StrategyDefinitions
             )
         })
     }
@@ -83,9 +89,11 @@ impl ProductCapabilities {
 
 #[derive(Clone, Copy, Debug, Default)]
 struct ProductRoutePorts {
+    alerts: bool,
     calendar_manager: bool,
     watchlist_memberships: bool,
     plugin_uninstall_guidance: bool,
+    strategy_definitions: bool,
 }
 
 fn product_routes(
@@ -95,7 +103,9 @@ fn product_routes(
     let mut routes = Vec::new();
     routes.extend(product_system_routes(capabilities));
     routes.extend(product_settings_routes(capabilities));
-    routes.extend(product_alert_routes());
+    if ports.alerts && capabilities.contains(ProductCapability::Alerts) {
+        routes.extend(product_alert_routes());
+    }
     routes.extend(product_calendar_routes(capabilities, ports));
     routes.extend(product_data_management_routes(capabilities));
     routes.extend(product_watchlist_research_trading_routes(

@@ -34,7 +34,7 @@ use jftrade_strategy::PluginUninstallGuidance;
 use jftrade_watchlist::{Memberships, WatchlistError, normalize_instrument_id};
 use percent_encoding::percent_decode_str;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tokio::net::TcpListener;
@@ -89,6 +89,40 @@ pub trait AlertSnapshotPort: Send + Sync + std::fmt::Debug {
     ) -> Result<serde_json::Value, AlertSnapshotError>;
 }
 
+/// Consumer-owned read-only projection for strategy definition routes.
+///
+/// The port carries the complete JSON projection because the Go owner still
+/// owns definition normalization, immutable history, and preview warmup
+/// derivation. Rust only dispatches the existing wire contract and never
+/// opens or mutates the strategy SQLite database.
+pub trait StrategyDefinitionSnapshotPort: Send + Sync + std::fmt::Debug {
+    fn list(&self) -> Result<Vec<Value>, StrategyDefinitionSnapshotError>;
+
+    fn get(
+        &self,
+        definition_id: &str,
+        preview: &StrategyDefinitionPreview,
+    ) -> Result<Option<Value>, StrategyDefinitionSnapshotError>;
+
+    fn versions(
+        &self,
+        definition_id: &str,
+    ) -> Result<Option<Vec<Value>>, StrategyDefinitionSnapshotError>;
+
+    fn version(
+        &self,
+        definition_id: &str,
+        version: &str,
+    ) -> Result<Option<Value>, StrategyDefinitionSnapshotError>;
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct StrategyDefinitionPreview {
+    pub interval: Option<String>,
+    pub symbol: Option<String>,
+    pub use_extended_hours: bool,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AlertKind {
     Price,
@@ -98,6 +132,12 @@ pub enum AlertKind {
 #[derive(Clone, Debug, Error)]
 pub enum AlertSnapshotError {
     #[error("alert snapshot is unavailable: {0}")]
+    Unavailable(String),
+}
+
+#[derive(Clone, Debug, Error)]
+pub enum StrategyDefinitionSnapshotError {
+    #[error("strategy definition snapshot is unavailable: {0}")]
     Unavailable(String),
 }
 
@@ -124,6 +164,7 @@ pub struct ProductConfig {
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
+    strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     capabilities: ProductCapabilities,
 }
 
@@ -171,6 +212,7 @@ impl ProductConfig {
             watchlist_membership_snapshot_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
             alert_snapshot_port: None,
+            strategy_definition_snapshot_port: None,
             capabilities: ProductCapabilities::default(),
         })
     }
@@ -287,6 +329,15 @@ impl ProductConfig {
         self.alert_snapshot_port = Some(port);
         self
     }
+
+    #[cfg(test)]
+    fn with_strategy_definition_snapshot_port(
+        mut self,
+        port: Arc<dyn StrategyDefinitionSnapshotPort>,
+    ) -> Self {
+        self.strategy_definition_snapshot_port = Some(port);
+        self
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -375,9 +426,11 @@ pub(crate) async fn start_product_with_runtime_state(
         .map_err(ProductError::Bind)?;
     let address = listener.local_addr().map_err(ProductError::LocalAddress)?;
     let route_ports = ProductRoutePorts {
+        alerts: config.alert_snapshot_port.is_some(),
         calendar_manager: config.calendar_manager.is_some(),
         watchlist_memberships: config.watchlist_membership_snapshot_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
+        strategy_definitions: config.strategy_definition_snapshot_port.is_some(),
     };
     let routes = product_routes(&config.capabilities, route_ports)?;
     let route_count = routes.routes().len();
@@ -450,6 +503,7 @@ pub(crate) async fn start_product_with_runtime_state(
                 .plugin_uninstall_guidance_snapshot_port
                 .clone(),
             alert_snapshot: config.alert_snapshot_port.clone(),
+            strategy_definition_snapshot: config.strategy_definition_snapshot_port.clone(),
         },
         config.capabilities.clone(),
     ));

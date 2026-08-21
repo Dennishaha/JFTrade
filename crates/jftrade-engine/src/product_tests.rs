@@ -529,6 +529,9 @@ impl PluginUninstallGuidanceSnapshotPort for FailingPluginUninstallGuidanceSnaps
     }
 }
 
+#[path = "product_strategy_definitions_tests.rs"]
+mod strategy_definition_tests;
+
 #[derive(Debug)]
 struct FixtureAlertSnapshotPort {
     price: Value,
@@ -1784,7 +1787,7 @@ async fn alerts_read_routes_fail_closed_without_snapshot_port() {
     )
     .await;
     assert_eq!(response["ok"], false);
-    assert_eq!(response["error"]["code"], "ALERTS_UNAVAILABLE");
+    assert_eq!(response["error"]["code"], "NOT_FOUND");
     handle.shutdown().await.expect("shutdown product");
 }
 
@@ -1888,7 +1891,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         ProductRoutePorts::default(),
     )
     .expect("shadow routes");
-    assert_eq!(shadow.routes().len(), 28);
+    assert_eq!(shadow.routes().len(), 26);
     assert!(shadow.routes().iter().all(|route| route.method == "GET"));
     let shadow_capabilities = shadow
         .routes()
@@ -1897,7 +1900,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         .collect::<Vec<_>>();
     assert_eq!(
         route_profile_digest(&shadow_capabilities),
-        "bac30795242a20f0ace92b43a3f4559e48a66bfd022015a88bcb582a36cb985b"
+        "5f5654f93253a014d0ea113168bd49c88454f5c4c214ae9a72102a539ccf74cd"
     );
     assert_eq!(
         pairs(shadow.routes()),
@@ -1908,7 +1911,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         ProductRoutePorts::default(),
     )
     .expect("appearance-only routes");
-    assert_eq!(appearance_only.routes().len(), 29);
+    assert_eq!(appearance_only.routes().len(), 27);
     assert!(
         appearance_only
             .routes()
@@ -1927,10 +1930,11 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             calendar_manager: true,
             watchlist_memberships: true,
             plugin_uninstall_guidance: true,
+            ..ProductRoutePorts::default()
         },
     )
     .expect("shadow routes with unavailable cutover ports");
-    assert_eq!(shadow_with_calendar_port.routes().len(), 28);
+    assert_eq!(shadow_with_calendar_port.routes().len(), 26);
     assert!(!shadow_with_calendar_port.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1949,7 +1953,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         ProductRoutePorts::default(),
     )
     .expect("cutover routes without calendar ports");
-    assert_eq!(cutover_without_calendar_port.routes().len(), 50);
+    assert_eq!(cutover_without_calendar_port.routes().len(), 48);
     assert!(!cutover_without_calendar_port.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1964,7 +1968,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with calendar manager");
-    assert_eq!(cutover_with_calendar_manager.routes().len(), 56);
+    assert_eq!(cutover_with_calendar_manager.routes().len(), 54);
     assert!(cutover_with_calendar_manager.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1977,13 +1981,15 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     let cutover = product_routes(
         &ProductCapabilities::test_cutover(),
         ProductRoutePorts {
+            alerts: true,
             calendar_manager: true,
             watchlist_memberships: true,
             plugin_uninstall_guidance: true,
+            strategy_definitions: true,
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 58);
+    assert_eq!(cutover.routes().len(), 62);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
@@ -2036,13 +2042,13 @@ async fn request_json(address: SocketAddr, method: &str, path: &str, body: Optio
     request_json_with_headers(address, method, path, body, &[]).await
 }
 
-async fn request_json_with_headers(
+async fn request_json_with_status(
     address: SocketAddr,
     method: &str,
     path: &str,
     body: Option<&str>,
     headers: &[(&str, &str)],
-) -> Value {
+) -> (u16, Value) {
     let body = body.unwrap_or_default();
     let mut stream = TcpStream::connect(address)
         .await
@@ -2065,6 +2071,24 @@ async fn request_json_with_headers(
         .await
         .expect("read response");
     let response = String::from_utf8(response).expect("UTF-8 response");
-    let (_, body) = response.split_once("\r\n\r\n").expect("HTTP body");
-    serde_json::from_str(body).expect("JSON response")
+    let (headers, body) = response.split_once("\r\n\r\n").expect("HTTP body");
+    let status = headers
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|value| value.parse().ok())
+        .expect("HTTP status");
+    (status, serde_json::from_str(body).expect("JSON response"))
+}
+
+async fn request_json_with_headers(
+    address: SocketAddr,
+    method: &str,
+    path: &str,
+    body: Option<&str>,
+    headers: &[(&str, &str)],
+) -> Value {
+    request_json_with_status(address, method, path, body, headers)
+        .await
+        .1
 }

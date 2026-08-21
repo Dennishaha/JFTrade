@@ -11,6 +11,7 @@ struct ProductApi {
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
+    strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     notification_sequence: AtomicU64,
     capabilities: ProductCapabilities,
 }
@@ -21,6 +22,7 @@ struct ProductOptionalPorts {
     watchlist_membership_snapshot: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
+    strategy_definition_snapshot: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
 }
 
 struct ProductSettingsServices {
@@ -66,6 +68,7 @@ impl ProductApi {
             plugin_uninstall_guidance_snapshot_port: optional_ports
                 .plugin_uninstall_guidance_snapshot,
             alert_snapshot_port: optional_ports.alert_snapshot,
+            strategy_definition_snapshot_port: optional_ports.strategy_definition_snapshot,
             notification_sequence: AtomicU64::new(0),
             capabilities,
         }
@@ -451,6 +454,60 @@ impl ProductApi {
         port.snapshot(kind, query)
             .map(ApiOutput::Json)
             .map_err(alert_snapshot_failure)
+    }
+
+    fn strategy_definition_list(&self) -> Result<ApiOutput, ApiFailure> {
+        let port = self.strategy_definition_port()?;
+        port.list()
+            .map(|items| ApiOutput::Json(json!(items)))
+            .map_err(strategy_definition_snapshot_failure)
+    }
+
+    fn strategy_definition_detail(
+        &self,
+        path: &str,
+        query: &str,
+    ) -> Result<ApiOutput, ApiFailure> {
+        let definition_id = strategy_definition_id(path)?;
+        let preview = parse_strategy_definition_preview(query)?;
+        let port = self.strategy_definition_port()?;
+        let definition = port
+            .get(&definition_id, &preview)
+            .map_err(strategy_definition_snapshot_failure)?
+            .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "resource not found"))?;
+        Ok(ApiOutput::Json(definition))
+    }
+
+    fn strategy_definition_versions(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
+        let definition_id = strategy_definition_versions_id(path)?;
+        let port = self.strategy_definition_port()?;
+        let versions = port
+            .versions(&definition_id)
+            .map_err(strategy_definition_snapshot_failure)?
+            .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "resource not found"))?;
+        Ok(ApiOutput::Json(json!(versions)))
+    }
+
+    fn strategy_definition_version(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
+        let (definition_id, version) = strategy_definition_version_path(path)?;
+        let port = self.strategy_definition_port()?;
+        let snapshot = port
+            .version(&definition_id, &version)
+            .map_err(strategy_definition_snapshot_failure)?
+            .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "resource not found"))?;
+        Ok(ApiOutput::Json(snapshot))
+    }
+
+    fn strategy_definition_port(
+        &self,
+    ) -> Result<&Arc<dyn StrategyDefinitionSnapshotPort>, ApiFailure> {
+        self.strategy_definition_snapshot_port.as_ref().ok_or_else(|| {
+            ApiFailure::new(
+                503,
+                "STRATEGY_DEFINITIONS_UNAVAILABLE",
+                "strategy definition snapshot is not configured",
+            )
+        })
     }
 
     fn cleanup_preview(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {

@@ -595,12 +595,12 @@
       "method": "GET",
       "path": "/api/v1/alerts/option-events",
       "capability": "alerts",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "explicit-test-cutover-profile"
       ],
       "evidence": [
         "pnpm run test:rust:stage9:alerts-read:differential"
@@ -610,12 +610,12 @@
       "method": "GET",
       "path": "/api/v1/alerts/price",
       "capability": "alerts",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "explicit-test-cutover-profile"
       ],
       "evidence": [
         "pnpm run test:rust:stage9:alerts-read:differential"
@@ -1877,53 +1877,61 @@
       "method": "GET",
       "path": "/api/v1/strategy-definitions",
       "capability": "strategy-definitions",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:strategy-definitions-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/strategy-definitions/{definitionId}",
       "capability": "strategy-definitions",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:strategy-definitions-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/strategy-definitions/{definitionId}/versions",
       "capability": "strategy-definitions",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:strategy-definitions-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/strategy-definitions/{definitionId}/versions/{version}",
       "capability": "strategy-definitions",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:strategy-definitions-differential"
+      ]
     },
     {
       "method": "GET",
