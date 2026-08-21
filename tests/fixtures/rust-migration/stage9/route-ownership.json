@@ -2029,14 +2029,16 @@
       "method": "GET",
       "path": "/api/v1/system/futu-opend",
       "capability": "system",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
@@ -2207,14 +2209,16 @@
       "method": "GET",
       "path": "/api/v1/system/worker/broker-order-updates",
       "capability": "system",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",

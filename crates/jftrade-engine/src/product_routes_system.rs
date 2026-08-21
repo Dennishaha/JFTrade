@@ -5,8 +5,8 @@ fn route(method: &str, path: &str) -> RouteSpec {
     }
 }
 
-fn product_system_routes(_capabilities: &ProductCapabilities) -> Vec<RouteSpec> {
-    [
+fn product_system_routes(capabilities: &ProductCapabilities, ports: ProductRoutePorts) -> Vec<RouteSpec> {
+    let mut routes = [
         "/api/v1/system/status",
         "/api/v1/system/runtime-dependencies",
         "/api/v1/system/futu-opend/install-guide",
@@ -21,5 +21,12 @@ fn product_system_routes(_capabilities: &ProductCapabilities) -> Vec<RouteSpec> 
     ]
     .into_iter()
     .map(|path| route("GET", path))
-    .collect()
+    .collect::<Vec<_>>();
+    if ports.system_read && capabilities.contains(ProductCapability::SystemRead) {
+        routes.extend([
+            route("GET", "/api/v1/system/futu-opend"),
+            route("GET", "/api/v1/system/worker/broker-order-updates"),
+        ]);
+    }
+    routes
 }

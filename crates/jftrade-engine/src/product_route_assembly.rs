@@ -25,6 +25,7 @@ enum ProductCapability {
     ResearchRead,
     BrokerRead,
     RemoteWatchlistRead,
+    SystemRead,
     Plugins,
     PluginUninstallGuidance,
     Alerts,
@@ -61,6 +62,7 @@ impl ProductCapabilities {
             ProductCapability::ResearchRead,
             ProductCapability::BrokerRead,
             ProductCapability::RemoteWatchlistRead,
+            ProductCapability::SystemRead,
             ProductCapability::Plugins,
             ProductCapability::PluginUninstallGuidance,
             ProductCapability::Alerts,
@@ -91,6 +93,7 @@ impl ProductCapabilities {
                     | ProductCapability::ResearchRead
                     | ProductCapability::BrokerRead
                     | ProductCapability::RemoteWatchlistRead
+                    | ProductCapability::SystemRead
                     | ProductCapability::Plugins
                     | ProductCapability::PluginUninstallGuidance
                     | ProductCapability::Alerts
@@ -115,6 +118,7 @@ struct ProductRoutePorts {
     research_read: bool,
     broker_read: bool,
     remote_watchlist: bool,
+    system_read: bool,
     plugins: bool,
     plugin_uninstall_guidance: bool,
     strategy_definitions: bool,
@@ -125,7 +129,7 @@ fn product_routes(
     ports: ProductRoutePorts,
 ) -> Result<RouteCatalog, RouteCatalogError> {
     let mut routes = Vec::new();
-    routes.extend(product_system_routes(capabilities));
+    routes.extend(product_system_routes(capabilities, ports));
     routes.extend(product_settings_routes(capabilities));
     if ports.alerts && capabilities.contains(ProductCapability::Alerts) {
         routes.extend(product_alert_routes());

@@ -156,6 +156,13 @@ run("go", [
   "^TestStage9WatchlistsReadFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
+  "^TestStage9SystemReadFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
 const realTradeDirectory = mkdtempSync(join(tmpdir(), "jftrade-stage9-real-trade-"));
 const realTradeReference = join(realTradeDirectory, "go-reference.json");
 const brokerSettingsReference = join(realTradeDirectory, "go-broker-settings-reference.json");
@@ -701,6 +708,30 @@ run("cargo", [
   "-p",
   "jftrade-engine",
   "product::tests::remote_watchlist_tests::remote_watchlist_read_route_is_not_registered_without_snapshot_port",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::system_read_tests::system_read_routes_match_group_fixture_in_cutover_only",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::system_read_tests::system_read_routes_fail_closed_when_snapshot_port_is_unavailable",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::system_read_tests::system_read_routes_are_not_registered_without_snapshot_port",
   "--",
   "--exact",
 ]);

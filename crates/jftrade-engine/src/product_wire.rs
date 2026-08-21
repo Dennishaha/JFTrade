@@ -129,6 +129,9 @@ impl ApiPort for ProductApi {
                 ("GET", "/api/v1/system/runtime-dependencies") => {
                     Ok(self.runtime_dependencies().await)
                 }
+                ("GET", "/api/v1/system/futu-opend") => {
+                    self.system_read("/api/v1/system/futu-opend")
+                }
                 ("GET", "/api/v1/system/futu-opend/install-guide") => {
                     self.futu_open_d_install_guide()
                 }
@@ -149,6 +152,9 @@ impl ApiPort for ProductApi {
                 }
                 ("GET", "/api/v1/system/real-trade-risk-events") => {
                     Ok(self.real_trade_risk_events())
+                }
+                ("GET", "/api/v1/system/worker/broker-order-updates") => {
+                    self.system_read("/api/v1/system/worker/broker-order-updates")
                 }
                 ("GET", "/api/v1/adk/agent-templates") => {
                     Ok(ApiOutput::Json(agent_templates_wire()))

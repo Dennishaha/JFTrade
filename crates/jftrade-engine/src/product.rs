@@ -247,6 +247,7 @@ pub struct ProductConfig {
     portfolio_snapshot_port: Option<Arc<dyn PortfolioSnapshotPort>>,
     research_read_snapshot_port: Option<Arc<dyn ResearchReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
+    system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
@@ -301,6 +302,7 @@ impl ProductConfig {
             portfolio_snapshot_port: None,
             research_read_snapshot_port: None,
             broker_read_snapshot_port: None,
+            system_read_snapshot_port: None,
             remote_watchlist_snapshot_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
             plugin_snapshot_port: None,
@@ -568,6 +570,7 @@ pub(crate) async fn start_product_with_runtime_state(
         portfolio: config.portfolio_snapshot_port.is_some(),
         research_read: config.research_read_snapshot_port.is_some(),
         broker_read: config.broker_read_snapshot_port.is_some(),
+        system_read: config.system_read_snapshot_port.is_some(),
         remote_watchlist: config.remote_watchlist_snapshot_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
@@ -644,6 +647,7 @@ pub(crate) async fn start_product_with_runtime_state(
             portfolio_snapshot: config.portfolio_snapshot_port.clone(),
             research_read_snapshot: config.research_read_snapshot_port.clone(),
             broker_read_snapshot: config.broker_read_snapshot_port.clone(),
+            system_read_snapshot: config.system_read_snapshot_port.clone(),
             remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),
             plugin_uninstall_guidance_snapshot: config
                 .plugin_uninstall_guidance_snapshot_port
@@ -729,6 +733,7 @@ fn encode_sha256(digest: impl IntoIterator<Item = u8>) -> String {
 include!("product_route_assembly.rs");
 
 include!("product_api.rs");
+include!("product_api_system_read.rs");
 
 include!("product_api_watchlist.rs");
 

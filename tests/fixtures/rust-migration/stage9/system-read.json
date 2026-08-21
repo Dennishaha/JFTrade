@@ -1,0 +1,83 @@
+{
+  "version": "stage9.system-read.v1",
+  "cases": [
+    {
+      "name": "futu-opend",
+      "method": "GET",
+      "requestPath": "/api/v1/system/futu-opend",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "",
+        "diagnosis": {
+          "code": "NONE",
+          "manualRetryRequired": false,
+          "restartOpenDRecommended": false,
+          "summary": null
+        },
+        "latestVersion": {
+          "checkedAt": null,
+          "error": null,
+          "sourceUrl": null,
+          "status": "unknown",
+          "value": null
+        },
+        "localInstallation": {
+          "guiDetected": false,
+          "installPath": null,
+          "installed": false,
+          "platform": "fixture-platform",
+          "process": {
+            "executablePath": null,
+            "pid": null,
+            "running": false
+          },
+          "version": null
+        },
+        "localSocketDiagnostics": {
+          "configuredOpenDWebSocketLimit": 20,
+          "configuredOpenDWebSocketLimitActive": false,
+          "configuredOpenDWebSocketLimitScope": "stored for FTWebSocket compatibility; current market-data path uses the OpenD native API via bbgo",
+          "jftradeLiveWebSocketAtLimit": false,
+          "jftradeLiveWebSocketLimit": 20,
+          "likelyConnectionSaturation": false,
+          "liveQuoteBackoffActive": false,
+          "liveQuoteFailureCount": 0,
+          "liveQuoteLastError": "",
+          "liveQuoteRetryAfter": null,
+          "liveStreamBackoffActive": false,
+          "liveStreamFailureCount": 0,
+          "liveStreamLastError": "",
+          "liveStreamRetryAfter": null,
+          "openDWebSocketPoolLikelySaturation": false,
+          "topClientProcesses": [],
+          "transportMode": "bbgo-opend-tcp-api",
+          "websocketEstablishedConnections": 0
+        },
+        "recommendations": [],
+        "runtime": {
+          "apiPort": 11110,
+          "connectivity": "disconnected",
+          "host": "127.0.0.1",
+          "lastError": null,
+          "marketDataTransport": "bbgo-opend-tcp-api",
+          "minimumVersion": "10.9.6908",
+          "programStatus": null,
+          "quoteLoggedIn": null,
+          "serverVersion": null,
+          "tradeLoggedIn": null,
+          "useEncryption": false,
+          "websocketKeyConfigured": false,
+          "websocketPort": 11111
+        },
+        "status": "offline"
+      }
+    },
+    {
+      "name": "broker-order-updates",
+      "method": "GET",
+      "requestPath": "/api/v1/system/worker/broker-order-updates",
+      "expectedStatus": 200,
+      "data": {}
+    }
+  ]
+}
