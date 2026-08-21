@@ -68,38 +68,46 @@ impl CleanupCandidatePort for ManagedDatabaseCleanupCandidateStore {
     ) -> Result<Vec<CleanupCandidateRecord>, String> {
         let connection = open_read_only(Path::new(&descriptor.path))
             .map_err(|error| format!("open cleanup candidate database: {error}"))?;
-        match query.kind.as_str() {
-            CLEANUP_BACKTEST_HISTORY => backtest_candidates(&connection, query),
-            CLEANUP_SOFT_DELETED if descriptor.id == "strategy" => query_candidates(
-                &connection,
-                "SELECT id, LENGTH(script) + LENGTH(visual_model_json) FROM strategy_design_definitions WHERE deleted_at IS NOT NULL AND TRIM(deleted_at) <> '' ORDER BY id",
-                "策略定义",
-            ),
-            CLEANUP_SOFT_DELETED if descriptor.id == "adk" => {
-                let mut candidates = Vec::new();
-                for (sql, category) in [
-                    (
-                        "SELECT id, LENGTH(payload_json) FROM adk_agents WHERE COALESCE(json_extract(payload_json, '$.deletedAt'), '') <> '' ORDER BY id",
-                        "智能体",
-                    ),
-                    (
-                        "SELECT id, LENGTH(payload_json) FROM adk_workflows WHERE COALESCE(json_extract(payload_json, '$.deletedAt'), '') <> '' ORDER BY id",
-                        "工作流",
-                    ),
-                    (
-                        "SELECT id, LENGTH(payload_json) FROM adk_workflow_triggers WHERE COALESCE(json_extract(payload_json, '$.deletedAt'), '') <> '' OR workflow_id IN (SELECT id FROM adk_workflows WHERE COALESCE(json_extract(payload_json, '$.deletedAt'), '') <> '') ORDER BY id",
-                        "触发器",
-                    ),
-                ] {
-                    candidates.extend(query_candidates(&connection, sql, category)?);
-                }
-                Ok(candidates)
+        maintenance_candidates(&connection, descriptor, query)
+    }
+}
+
+pub(crate) fn maintenance_candidates(
+    connection: &Connection,
+    descriptor: &DatabaseDescriptor,
+    query: &CleanupCandidateQuery,
+) -> Result<Vec<CleanupCandidateRecord>, String> {
+    match query.kind.as_str() {
+        CLEANUP_BACKTEST_HISTORY => backtest_candidates(connection, query),
+        CLEANUP_SOFT_DELETED if descriptor.id == "strategy" => query_candidates(
+            connection,
+            "SELECT id, LENGTH(script) + LENGTH(visual_model_json) FROM strategy_design_definitions WHERE deleted_at IS NOT NULL AND TRIM(deleted_at) <> '' ORDER BY id",
+            "策略定义",
+        ),
+        CLEANUP_SOFT_DELETED if descriptor.id == "adk" => {
+            let mut candidates = Vec::new();
+            for (sql, category) in [
+                (
+                    "SELECT id, LENGTH(payload_json) FROM adk_agents WHERE COALESCE(json_extract(payload_json, '$.deletedAt'), '') <> '' ORDER BY id",
+                    "智能体",
+                ),
+                (
+                    "SELECT id, LENGTH(payload_json) FROM adk_workflows WHERE COALESCE(json_extract(payload_json, '$.deletedAt'), '') <> '' ORDER BY id",
+                    "工作流",
+                ),
+                (
+                    "SELECT id, LENGTH(payload_json) FROM adk_workflow_triggers WHERE COALESCE(json_extract(payload_json, '$.deletedAt'), '') <> '' OR workflow_id IN (SELECT id FROM adk_workflows WHERE COALESCE(json_extract(payload_json, '$.deletedAt'), '') <> '') ORDER BY id",
+                    "触发器",
+                ),
+            ] {
+                candidates.extend(query_candidates(connection, sql, category)?);
             }
-            _ => Err(format!(
-                "cleanup kind {:?} is unsupported for database {:?}",
-                query.kind, descriptor.id
-            )),
+            Ok(candidates)
         }
+        _ => Err(format!(
+            "cleanup kind {:?} is unsupported for database {:?}",
+            query.kind, descriptor.id
+        )),
     }
 }
 

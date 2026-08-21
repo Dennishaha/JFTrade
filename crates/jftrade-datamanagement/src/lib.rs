@@ -1,12 +1,18 @@
 #![forbid(unsafe_code)]
 
 mod cleanup;
+mod maintenance;
 mod overview;
 
 pub use cleanup::{
     ApprovedCleanupPreview, CLEANUP_BACKTEST_HISTORY, CLEANUP_SOFT_DELETED, CleanupCandidatePort,
     CleanupCandidateQuery, CleanupCandidateRecord, CleanupPreviewError, CleanupPreviewIdPort,
     CleanupPreviewItem, CleanupPreviewRequest, CleanupPreviewResponse, CleanupPreviewService,
+};
+pub use maintenance::{
+    BackupRequest, BackupResult, CleanupExecuteRequest, CleanupResult, CompactRequest,
+    CompactResult, DatabaseMaintenancePort, MaintenanceOperationError, MaintenanceService,
+    RebuildRequest, RebuildResult,
 };
 pub use overview::{
     CleanableItem, DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST,

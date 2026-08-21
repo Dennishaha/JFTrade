@@ -328,6 +328,17 @@ try {
       "test",
       "-p",
       "jftrade-engine",
+      "product::tests::cleanup_preview_route_returns_candidates_and_rejects_bad_payloads",
+      "--",
+      "--exact",
+    ],
+  );
+  run(
+    "cargo",
+    [
+      "test",
+      "-p",
+      "jftrade-engine",
       "product_data_management::tests::stage9_data_management_cleanup_preview_matches_current_go_owner",
       "--",
       "--exact",
@@ -473,4 +484,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: appearance/onboarding read-write/Futu install/execution/security read-write/password/broker read-write/market-data and backtest provider read-write/catalog/calendar/research-screen catalog/calendar source and status/watchlist membership/plugin uninstall-guidance test-cutover snapshots and fail-closed/ADK/MCP read-write/token/notification/Pine settings, real-trade read controls, exact nine-database schema/overview, cleanup preview read-only retention/candidate semantics, static storage, and Node runtime diagnostics.");
+console.log("Go/Rust Stage 9 product-slice differential passed: appearance/onboarding read-write/Futu install/execution/security read-write/password/broker read-write/market-data and backtest provider read-write/catalog/calendar/research-screen catalog/calendar source and status/watchlist membership/plugin uninstall-guidance test-cutover snapshots and fail-closed/ADK/MCP read-write/token/notification/Pine settings, real-trade read controls, exact nine-database schema/overview, fenced cleanup execute/backup/compact/rebuild rehearsal, static storage, and Node runtime diagnostics.");

@@ -38,7 +38,8 @@ struct ProductSettingsServices {
     mcp_server: McpServerSettingsService,
     exchange_calendars: ExchangeCalendarSettingsService,
     data_management: OverviewService,
-    cleanup_preview: CleanupPreviewService,
+    cleanup_preview: Arc<CleanupPreviewService>,
+    maintenance: MaintenanceService,
 }
 
 impl ProductApi {
@@ -407,6 +408,48 @@ impl ProductApi {
             .preview(request)
             .map(|response| ApiOutput::Json(json!(response)))
             .map_err(cleanup_preview_failure)
+    }
+
+    fn cleanup_execute(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
+        let request: CleanupExecuteRequest = serde_json::from_slice(body)
+            .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid cleanup payload"))?;
+        self.settings
+            .maintenance
+            .execute_cleanup(request)
+            .map(|response| ApiOutput::Json(json!(response)))
+            .map_err(|error| maintenance_failure(error, "DATABASE_CLEANUP_FAILED"))
+    }
+
+    fn database_compact(&self, path: &str, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
+        let database_id = data_management_database_id(path, "/compact")?;
+        let request: CompactRequest = serde_json::from_slice(body)
+            .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid compaction payload"))?;
+        self.settings
+            .maintenance
+            .compact(&database_id, request, &SystemClock.now_rfc3339())
+            .map(|response| ApiOutput::Json(json!(response)))
+            .map_err(|error| maintenance_failure(error, "DATABASE_COMPACT_FAILED"))
+    }
+
+    fn database_backup(&self, path: &str, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
+        let database_id = data_management_database_id(path, "/backup")?;
+        let request: BackupRequest = serde_json::from_slice(body)
+            .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid backup payload"))?;
+        self.settings
+            .maintenance
+            .backup(&database_id, request, &SystemClock.now_rfc3339())
+            .map(|response| ApiOutput::Json(json!(response)))
+            .map_err(|error| maintenance_failure(error, "DATABASE_BACKUP_FAILED"))
+    }
+
+    fn database_rebuild(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
+        let request: RebuildRequest = serde_json::from_slice(body)
+            .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid database rebuild payload"))?;
+        self.settings
+            .maintenance
+            .rebuild(request, &SystemClock.now_rfc3339())
+            .map(|response| ApiOutput::Json(json!(response)))
+            .map_err(|error| maintenance_failure(error, "DATABASE_REBUILD_REJECTED"))
     }
 
     fn real_trade_approvals(&self) -> ApiOutput {

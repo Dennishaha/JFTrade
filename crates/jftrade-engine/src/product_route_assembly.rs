@@ -15,6 +15,7 @@ enum ProductCapability {
     SecurityWrite,
     BrokerSettingsWrite,
     DataManagementPreview,
+    DataManagementMaintenance,
     CalendarSources,
     CalendarStatus,
     WatchlistMemberships,
@@ -41,6 +42,7 @@ impl ProductCapabilities {
             ProductCapability::SecurityWrite,
             ProductCapability::BrokerSettingsWrite,
             ProductCapability::DataManagementPreview,
+            ProductCapability::DataManagementMaintenance,
             ProductCapability::CalendarSources,
             ProductCapability::CalendarStatus,
             ProductCapability::WatchlistMemberships,
@@ -61,6 +63,7 @@ impl ProductCapabilities {
             !matches!(
                 capability,
                 ProductCapability::DataManagementPreview
+                    | ProductCapability::DataManagementMaintenance
                     | ProductCapability::CalendarSources
                     | ProductCapability::CalendarStatus
                     | ProductCapability::WatchlistMemberships

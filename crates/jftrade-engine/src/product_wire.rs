@@ -211,6 +211,18 @@ impl ApiPort for ProductApi {
                 ("POST", "/api/v1/settings/data-management/cleanup/preview") => {
                     self.cleanup_preview(&request.body)
                 }
+                ("POST", "/api/v1/settings/data-management/cleanup/execute") => {
+                    self.cleanup_execute(&request.body)
+                }
+                ("POST", "/api/v1/settings/data-management/databases/rebuild") => {
+                    self.database_rebuild(&request.body)
+                }
+                ("POST", path) if is_data_management_database_path(path, "/backup") => {
+                    self.database_backup(path, &request.body)
+                }
+                ("POST", path) if is_data_management_database_path(path, "/compact") => {
+                    self.database_compact(path, &request.body)
+                }
                 ("PUT", "/api/v1/settings/exchange-calendars") => {
                     self.save_exchange_calendar_settings(&request.body)
                 }
@@ -385,6 +397,46 @@ fn database_overview_failure(error: OverviewError) -> ApiFailure {
 
 fn cleanup_preview_failure(error: CleanupPreviewError) -> ApiFailure {
     ApiFailure::new(400, "DATABASE_CLEANUP_PREVIEW_REJECTED", error.to_string())
+}
+
+fn maintenance_failure(error: MaintenanceOperationError, fallback_code: &'static str) -> ApiFailure {
+    let message = error.to_string();
+    match error {
+        MaintenanceOperationError::PreviewNotFound => {
+            ApiFailure::new(404, "CLEANUP_PREVIEW_NOT_FOUND", message)
+        }
+        MaintenanceOperationError::Conflict(_) => {
+            ApiFailure::new(409, "DATABASE_MAINTENANCE_CONFLICT", message)
+        }
+        MaintenanceOperationError::Stale => {
+            ApiFailure::new(409, "CLEANUP_PREVIEW_STALE", message)
+        }
+        MaintenanceOperationError::Rejected(_) | MaintenanceOperationError::Failed(_) => {
+            ApiFailure::new(400, fallback_code, message)
+        }
+    }
+}
+
+fn is_data_management_database_path(path: &str, suffix: &str) -> bool {
+    data_management_database_id(path, suffix).is_ok()
+}
+
+fn data_management_database_id(path: &str, suffix: &str) -> Result<String, ApiFailure> {
+    let prefix = "/api/v1/settings/data-management/databases/";
+    let Some(value) = path
+        .strip_prefix(prefix)
+        .and_then(|value| value.strip_suffix(suffix))
+    else {
+        return Err(ApiFailure::new(400, "BAD_REQUEST", "invalid database path"));
+    };
+    let value = value.trim_matches('/');
+    if value.is_empty() || value.contains('/') {
+        return Err(ApiFailure::new(400, "BAD_REQUEST", "invalid database id"));
+    }
+    Ok(percent_decode_str(value)
+        .decode_utf8()
+        .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid database id"))?
+        .into_owned())
 }
 
 fn research_screen_catalog_failure(error: ScreenCatalogError) -> ApiFailure {

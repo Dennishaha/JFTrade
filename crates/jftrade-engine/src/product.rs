@@ -13,8 +13,9 @@ use jftrade_api::{
 };
 use jftrade_calendar::{CalendarSourcesSnapshot, CalendarStatusSnapshot};
 use jftrade_datamanagement::{
-    CleanupPreviewError, CleanupPreviewRequest, CleanupPreviewService, OverviewError,
-    OverviewRequest, OverviewService,
+    BackupRequest, CleanupExecuteRequest, CleanupPreviewError, CleanupPreviewRequest,
+    CleanupPreviewService, CompactRequest, MaintenanceOperationError, MaintenanceService,
+    OverviewError, OverviewRequest, OverviewService, RebuildRequest,
 };
 use jftrade_research::ScreenCatalogError;
 use jftrade_settings::{
@@ -391,6 +392,10 @@ pub(crate) async fn start_product_with_runtime_state(
     };
     let data_management = product_data_management::overview_service(config.settings_path());
     let cleanup_preview = product_data_management::cleanup_preview_service(config.settings_path());
+    let maintenance = product_data_management::maintenance_service(
+        config.settings_path(),
+        Arc::clone(&cleanup_preview),
+    );
     let settings_store = Arc::new(
         if config.capabilities.requires_writable_settings() {
             SettingsFileStore::open(config.settings_path)
@@ -421,6 +426,7 @@ pub(crate) async fn start_product_with_runtime_state(
             exchange_calendars: ExchangeCalendarSettingsService::new(settings_store),
             data_management,
             cleanup_preview,
+            maintenance,
         },
         Arc::clone(&metrics),
         runtime,

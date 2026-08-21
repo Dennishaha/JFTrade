@@ -66,6 +66,7 @@ pub struct CleanupPreviewResponse {
 pub struct ApprovedCleanupPreview {
     pub response: CleanupPreviewResponse,
     pub candidates: Vec<CleanupCandidateRecord>,
+    pub query: CleanupCandidateQuery,
     pub fingerprint: String,
 }
 
@@ -193,6 +194,7 @@ impl CleanupPreviewService {
         let approved = ApprovedCleanupPreview {
             response: response.clone(),
             candidates,
+            query,
             fingerprint,
         };
         let mut previews = self
@@ -223,6 +225,21 @@ impl CleanupPreviewService {
         Ok(previews
             .get(preview_id.trim())
             .map(|preview| preview.approved.clone()))
+    }
+
+    pub fn take_approved_preview(
+        &self,
+        preview_id: &str,
+        now: OffsetDateTime,
+    ) -> Result<Option<ApprovedCleanupPreview>, CleanupPreviewError> {
+        let mut previews = self
+            .previews
+            .lock()
+            .map_err(|_| CleanupPreviewError::StateUnavailable)?;
+        previews.retain(|_, preview| preview.expires_at > now);
+        Ok(previews
+            .remove(preview_id.trim())
+            .map(|preview| preview.approved))
     }
 }
 

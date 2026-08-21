@@ -533,7 +533,7 @@ async fn product_server_persists_ui_settings_and_reports_actual_port() {
     .expect("start product");
     let address = handle.startup_record().address;
     let startup = handle.startup_record();
-    assert_eq!(startup.owned_routes, 44);
+    assert_eq!(startup.owned_routes, 48);
     assert_eq!(startup.protocol_version, PRODUCT_REHEARSAL_PROTOCOL_VERSION);
     assert_eq!(startup.route_profile, PRODUCT_TEST_CUTOVER_ROUTE_PROFILE);
     assert_eq!(startup.capabilities.len(), startup.owned_routes);
@@ -1098,6 +1098,156 @@ async fn cleanup_preview_route_returns_candidates_and_rejects_bad_payloads() {
     );
     assert_eq!(preview["data"]["willCompact"], true);
 
+    let changed = Connection::open(&database_path).expect("reopen changed candidates");
+    changed
+        .execute(
+            "INSERT INTO backtest_runs (id, status, request_json, result_json, created_at, updated_at) VALUES ('new-expired', 'failed', '{}', '{}', '2000-01-01T00:00:00Z', '2000-01-01T00:00:00Z')",
+            [],
+        )
+        .expect("add candidate after preview");
+    drop(changed);
+    let stale = request_json(
+        address,
+        "POST",
+        "/api/v1/settings/data-management/cleanup/execute",
+        Some(&format!(
+            r#"{{"previewId":"{}","confirmation":"CLEANUP backtest-runs 1"}}"#,
+            preview["data"]["previewId"].as_str().expect("preview id")
+        )),
+    )
+    .await;
+    assert_eq!(stale["error"]["code"], "CLEANUP_PREVIEW_STALE");
+    let changed = Connection::open(&database_path).expect("reopen stale database");
+    let row_count: i64 = changed
+        .query_row("SELECT COUNT(*) FROM backtest_runs", [], |row| row.get(0))
+        .expect("count rows after stale cleanup");
+    assert_eq!(row_count, 3, "stale cleanup must not mutate the database");
+    changed
+        .execute("DELETE FROM backtest_runs WHERE id = 'new-expired'", [])
+        .expect("restore exact candidates");
+    drop(changed);
+
+    let approved = request_json(
+        address,
+        "POST",
+        "/api/v1/settings/data-management/cleanup/preview",
+        Some(
+            r#"{"kind":"backtest-history","databaseId":"backtest-runs","olderThanDays":1,"keepLatest":1}"#,
+        ),
+    )
+    .await;
+    let execute_body = format!(
+        r#"{{"previewId":"{}","confirmation":"{}"}}"#,
+        approved["data"]["previewId"].as_str().expect("preview id"),
+        approved["data"]["confirmationText"]
+            .as_str()
+            .expect("confirmation")
+    );
+    let wrong_confirmation = request_json(
+        address,
+        "POST",
+        "/api/v1/settings/data-management/cleanup/execute",
+        Some(&format!(
+            r#"{{"previewId":"{}","confirmation":"WRONG"}}"#,
+            approved["data"]["previewId"].as_str().expect("preview id")
+        )),
+    )
+    .await;
+    assert_eq!(
+        wrong_confirmation["error"]["code"],
+        "DATABASE_CLEANUP_FAILED"
+    );
+    let executed = request_json(
+        address,
+        "POST",
+        "/api/v1/settings/data-management/cleanup/execute",
+        Some(&execute_body),
+    )
+    .await;
+    assert_eq!(executed["data"]["deletedCount"], 1);
+    assert_eq!(executed["data"]["compacted"], true);
+    let repeated = request_json(
+        address,
+        "POST",
+        "/api/v1/settings/data-management/cleanup/execute",
+        Some(&execute_body),
+    )
+    .await;
+    assert_eq!(repeated["error"]["code"], "CLEANUP_PREVIEW_NOT_FOUND");
+
+    let backup = request_json(
+        address,
+        "POST",
+        "/api/v1/settings/data-management/databases/backtest-runs/backup",
+        Some(r#"{"confirmation":"BACKUP backtest-runs"}"#),
+    )
+    .await;
+    assert_eq!(backup["data"]["databaseId"], "backtest-runs");
+    assert!(
+        std::path::Path::new(backup["data"]["backupPath"].as_str().expect("backup path")).is_file()
+    );
+    let compact = request_json(
+        address,
+        "POST",
+        "/api/v1/settings/data-management/databases/backtest-runs/compact",
+        Some(r#"{"confirmation":"COMPACT backtest-runs"}"#),
+    )
+    .await;
+    assert_eq!(compact["data"]["compacted"], true);
+    let rebuild = request_json(
+        address,
+        "POST",
+        "/api/v1/settings/data-management/databases/rebuild",
+        Some(
+            r#"{"databaseIds":["backtest-runs"],"mode":"single","confirmation":"REBUILD backtest-runs"}"#,
+        ),
+    )
+    .await;
+    assert_eq!(rebuild["data"]["scheduled"], true);
+    let marker_path = directory.path().join("database-rebuild.json");
+    assert!(marker_path.is_file());
+
+    let source = Connection::open(&database_path).expect("reopen source after maintenance");
+    let quick_check: String = source
+        .query_row("PRAGMA quick_check", [], |row| row.get(0))
+        .expect("check maintained source database");
+    assert_eq!(quick_check, "ok");
+    let remaining: Vec<String> = source
+        .prepare("SELECT id FROM backtest_runs ORDER BY id")
+        .expect("prepare source row query")
+        .query_map([], |row| row.get(0))
+        .expect("query source rows")
+        .collect::<Result<_, _>>()
+        .expect("collect source rows");
+    assert_eq!(remaining, vec!["latest"]);
+    drop(source);
+
+    let marker: Value =
+        serde_json::from_slice(&std::fs::read(&marker_path).expect("read rebuild marker"))
+            .expect("decode rebuild marker");
+    let rebuild_backup = marker["backups"][0]["path"]
+        .as_str()
+        .expect("rebuild backup path");
+    std::fs::write(rebuild_backup, b"interrupted backup").expect("corrupt rebuild backup");
+    let rejected_rebuild = request_json(
+        address,
+        "POST",
+        "/api/v1/settings/data-management/databases/rebuild",
+        Some(
+            r#"{"databaseIds":["backtest-runs"],"mode":"single","confirmation":"REBUILD backtest-runs"}"#,
+        ),
+    )
+    .await;
+    assert_eq!(
+        rejected_rebuild["error"]["code"],
+        "DATABASE_REBUILD_REJECTED"
+    );
+    let source = Connection::open(&database_path).expect("reopen source after rejected rebuild");
+    let quick_check: String = source
+        .query_row("PRAGMA quick_check", [], |row| row.get(0))
+        .expect("check source after rejected rebuild");
+    assert_eq!(quick_check, "ok");
+
     let malformed = request_json(
         address,
         "POST",
@@ -1276,7 +1426,7 @@ async fn calendar_sources_route_matches_go_manager_fixture_in_cutover_only() {
                 snapshot: jftrade_calendar::CalendarSourcesSnapshot { sources },
             }));
     let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 45);
+    assert_eq!(handle.startup_record().owned_routes, 49);
     let actual = request_json(
         handle.startup_record().address,
         "GET",
@@ -1330,7 +1480,7 @@ async fn calendar_status_route_matches_go_manager_fixture_in_cutover_only() {
                 snapshot: status,
             }));
     let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 45);
+    assert_eq!(handle.startup_record().owned_routes, 49);
     let actual = request_json(
         handle.startup_record().address,
         "GET",
@@ -1390,7 +1540,7 @@ async fn watchlist_memberships_route_matches_go_fixture_in_cutover_only() {
                 FixtureWatchlistMembershipSnapshotPort { memberships },
             ));
     let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 45);
+    assert_eq!(handle.startup_record().owned_routes, 49);
     let address = handle.startup_record().address;
     for case in fixture["cases"].as_array().expect("membership cases") {
         let market = case["market"].as_str().expect("case market");
@@ -1463,7 +1613,7 @@ async fn plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only() {
                 FixturePluginUninstallGuidanceSnapshotPort { guidance },
             ));
     let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 45);
+    assert_eq!(handle.startup_record().owned_routes, 49);
     let address = handle.startup_record().address;
     for case in fixture["cases"].as_array().expect("plugin guidance cases") {
         let request_path = case["requestPath"].as_str().expect("request path");
@@ -1671,7 +1821,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         ProductRoutePorts::default(),
     )
     .expect("cutover routes without calendar ports");
-    assert_eq!(cutover_without_calendar_port.routes().len(), 44);
+    assert_eq!(cutover_without_calendar_port.routes().len(), 48);
     assert!(!cutover_without_calendar_port.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1686,7 +1836,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with source port");
-    assert_eq!(cutover_with_source_port.routes().len(), 45);
+    assert_eq!(cutover_with_source_port.routes().len(), 49);
     assert!(cutover_with_source_port.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1701,7 +1851,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with status port");
-    assert_eq!(cutover_with_status_port.routes().len(), 45);
+    assert_eq!(cutover_with_status_port.routes().len(), 49);
     assert!(!cutover_with_status_port.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
@@ -1718,7 +1868,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 48);
+    assert_eq!(cutover.routes().len(), 52);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(

@@ -5,10 +5,13 @@ use std::sync::Arc;
 use jftrade_datamanagement::{
     CleanupPreviewIdPort, CleanupPreviewService, DATABASE_ADK, DATABASE_ADK_ARTIFACT,
     DATABASE_ADK_SESSION, DATABASE_BACKTEST, DATABASE_BACKTEST_RUNS, DATABASE_EXECUTION,
-    DATABASE_RESEARCH, DATABASE_STRATEGY, DATABASE_WATCHLIST, ManagedDatabasePaths,
-    OverviewService, managed_database_descriptors,
+    DATABASE_RESEARCH, DATABASE_STRATEGY, DATABASE_WATCHLIST, MaintenanceService,
+    ManagedDatabasePaths, OverviewService, managed_database_descriptors,
 };
-use jftrade_store_sqlite::{ManagedDatabaseCleanupCandidateStore, ManagedDatabaseOverviewStore};
+use jftrade_store_sqlite::{
+    ManagedDatabaseCleanupCandidateStore, ManagedDatabaseMaintenanceStore,
+    ManagedDatabaseOverviewStore,
+};
 
 const REBUILD_MARKER_FILENAME: &str = "database-rebuild.json";
 
@@ -16,8 +19,26 @@ pub fn overview_service(settings_path: &Path) -> OverviewService {
     overview_service_with_lookup(settings_path, |name| env::var(name).ok())
 }
 
-pub fn cleanup_preview_service(settings_path: &Path) -> CleanupPreviewService {
-    cleanup_preview_service_with_lookup(settings_path, |name| env::var(name).ok())
+pub fn cleanup_preview_service(settings_path: &Path) -> Arc<CleanupPreviewService> {
+    Arc::new(cleanup_preview_service_with_lookup(settings_path, |name| {
+        env::var(name).ok()
+    }))
+}
+
+pub fn maintenance_service(
+    settings_path: &Path,
+    previews: Arc<CleanupPreviewService>,
+) -> MaintenanceService {
+    let (descriptors, marker_path) =
+        database_descriptors(settings_path, |name| env::var(name).ok());
+    MaintenanceService::new(
+        previews,
+        Arc::new(ManagedDatabaseMaintenanceStore::new(
+            descriptors,
+            marker_path,
+            crate::product::PRODUCT_TEST_CUTOVER_ROUTE_PROFILE,
+        )),
+    )
 }
 
 fn overview_service_with_lookup(

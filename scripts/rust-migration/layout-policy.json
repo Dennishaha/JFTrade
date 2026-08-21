@@ -278,7 +278,7 @@
       "rustOwner": "jftrade-store-sqlite",
       "cutover": "per-capability persistence ports assembled by jftrade-engine; stage 9 data-management overview remains strict read-only while all SQLite writes stay in Go",
       "goDeleteWhen": "each capability has a single Rust write owner, migration/rollback evidence, and no Go query or migration consumer",
-      "allowedWorkspaceDependencies": ["jftrade-datamanagement", "jftrade-kernel"]
+      "allowedWorkspaceDependencies": ["jftrade-datamanagement", "jftrade-kernel", "jftrade-owner-lock"]
     }
   ]
 }
