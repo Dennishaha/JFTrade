@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{self, JoinHandle};
@@ -38,18 +38,18 @@ pub enum CalendarManagerError {
 }
 
 pub struct CalendarManager {
-    inner: Arc<ManagerInner>,
+    pub(crate) inner: Arc<ManagerInner>,
     lifecycle: Mutex<Lifecycle>,
 }
 
-struct ManagerInner {
-    registry: Arc<CalendarSourceRegistry>,
-    persistence: Option<Arc<dyn CalendarPersistencePort>>,
-    settings: RwLock<CalendarManagerSettings>,
-    snapshots: RwLock<BTreeMap<String, CalendarSnapshot>>,
-    statuses: RwLock<BTreeMap<String, CalendarSourceRuntimeStatus>>,
-    clock: Arc<dyn Fn() -> OffsetDateTime + Send + Sync>,
-    cancellation: CalendarCancellationToken,
+pub(crate) struct ManagerInner {
+    pub(crate) registry: Arc<CalendarSourceRegistry>,
+    pub(crate) persistence: Option<Arc<dyn CalendarPersistencePort>>,
+    pub(crate) settings: RwLock<CalendarManagerSettings>,
+    pub(crate) snapshots: RwLock<BTreeMap<String, CalendarSnapshot>>,
+    pub(crate) statuses: RwLock<BTreeMap<String, CalendarSourceRuntimeStatus>>,
+    pub(crate) clock: Arc<dyn Fn() -> OffsetDateTime + Send + Sync>,
+    pub(crate) cancellation: CalendarCancellationToken,
 }
 
 struct Lifecycle {
@@ -274,7 +274,7 @@ impl CalendarManager {
         Ok(unique.into_values().collect())
     }
 
-    fn require_running(&self) -> Result<(), CalendarManagerError> {
+    pub(crate) fn require_running(&self) -> Result<(), CalendarManagerError> {
         match self.lifecycle_state()? {
             ManagerLifecycleState::Running => Ok(()),
             ManagerLifecycleState::Closed => Err(CalendarManagerError::Closed),
@@ -290,14 +290,14 @@ impl Drop for CalendarManager {
 }
 
 impl ManagerInner {
-    fn settings(&self) -> Result<CalendarManagerSettings, CalendarManagerError> {
+    pub(crate) fn settings(&self) -> Result<CalendarManagerSettings, CalendarManagerError> {
         self.settings
             .read()
             .map(|settings| settings.clone())
             .map_err(|_| CalendarManagerError::StateUnavailable)
     }
 
-    fn now(&self) -> OffsetDateTime {
+    pub(crate) fn now(&self) -> OffsetDateTime {
         (self.clock)()
     }
 
@@ -332,6 +332,7 @@ impl ManagerInner {
             settings.warmup_markets.clone()
         });
         let mut aggregate = CalendarRefreshResult {
+            accepted: true,
             requested_at: wire_text(self.now()),
             warmup_markets: markets.clone(),
             ..CalendarRefreshResult::default()
@@ -349,19 +350,20 @@ impl ManagerInner {
 
     fn refresh_market(&self, market: &str) -> Result<CalendarRefreshResult, CalendarManagerError> {
         let market = normalize_market(market);
-        if !supported_market(&market) {
-            return Err(CalendarManagerError::UnsupportedMarket(market));
-        }
-        let settings = self.settings()?;
-        let policy = policy_for_market(&settings, &market);
         let now = self.now();
-        let (from, to) = fetch_window(now)?;
         let mut result = CalendarRefreshResult {
+            accepted: true,
             market: market.clone(),
             requested_at: wire_text(now),
             warmup_markets: vec![market.clone()],
             ..CalendarRefreshResult::default()
         };
+        if !supported_market(&market) {
+            return Ok(result);
+        }
+        let settings = self.settings()?;
+        let policy = policy_for_market(&settings, &market);
+        let (from, to) = fetch_window(now)?;
         for source in self.registry.ordered_sources(&market, &policy) {
             let source_id = source.descriptor().id.trim().to_owned();
             if self.in_backoff(&source_id, now)? {
@@ -435,6 +437,7 @@ impl ManagerInner {
         status.next_refresh_at = None;
         status.last_snapshot_fetched_at = Some(snapshot.fetched_at.to_string());
         status.health_state = "healthy".to_owned();
+        status.health_fingerprint.clear();
         Ok(())
     }
 
@@ -569,25 +572,26 @@ fn validate_settings(settings: &CalendarManagerSettings) -> Result<(), CalendarM
     Ok(())
 }
 
-fn normalize_market(market: &str) -> String {
+pub(crate) fn normalize_market(market: &str) -> String {
     market.trim().to_uppercase()
 }
 
-fn normalized_markets(markets: Vec<String>) -> Vec<String> {
-    markets
-        .into_iter()
-        .map(|market| normalize_market(&market))
-        .filter(|market| !market.is_empty())
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect()
+pub(crate) fn normalized_markets(markets: Vec<String>) -> Vec<String> {
+    let mut normalized = Vec::new();
+    for market in markets {
+        let market = normalize_market(&market);
+        if !market.is_empty() && !normalized.contains(&market) {
+            normalized.push(market);
+        }
+    }
+    normalized
 }
 
-fn supported_market(market: &str) -> bool {
+pub(crate) fn supported_market(market: &str) -> bool {
     matches!(market, "US" | "HK" | "CN" | "SH" | "SZ")
 }
 
-fn source_enabled(settings: &CalendarManagerSettings, source_id: &str) -> bool {
+pub(crate) fn source_enabled(settings: &CalendarManagerSettings, source_id: &str) -> bool {
     settings.source_policies.iter().any(|policy| {
         policy
             .enabled_source_ids
@@ -596,7 +600,10 @@ fn source_enabled(settings: &CalendarManagerSettings, source_id: &str) -> bool {
     })
 }
 
-fn policy_for_market(settings: &CalendarManagerSettings, market: &str) -> CalendarSourcePolicy {
+pub(crate) fn policy_for_market(
+    settings: &CalendarManagerSettings,
+    market: &str,
+) -> CalendarSourcePolicy {
     settings
         .source_policies
         .iter()
@@ -619,7 +626,7 @@ fn policy_for_market(settings: &CalendarManagerSettings, market: &str) -> Calend
         })
 }
 
-fn fetch_window(
+pub(crate) fn fetch_window(
     now: OffsetDateTime,
 ) -> Result<(WireTimestamp, WireTimestamp), CalendarManagerError> {
     let offset = now.offset();
@@ -639,7 +646,7 @@ fn fetch_window(
     ))
 }
 
-fn validate_snapshot(snapshot: &CalendarSnapshot) -> Result<(), String> {
+pub(crate) fn validate_snapshot(snapshot: &CalendarSnapshot) -> Result<(), String> {
     if snapshot.source_id.trim().is_empty() || snapshot.market_code.trim().is_empty() {
         return Err("snapshot marketCode and sourceId are required".to_owned());
     }
@@ -721,6 +728,6 @@ fn snapshot_fresh(
     true
 }
 
-fn wire_text(at: OffsetDateTime) -> String {
+pub(crate) fn wire_text(at: OffsetDateTime) -> String {
     WireTimestamp::from_offset_datetime(at).to_string()
 }

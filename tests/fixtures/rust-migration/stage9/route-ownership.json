@@ -3204,53 +3204,65 @@
       "method": "POST",
       "path": "/api/v1/system/exchange-calendars/probe",
       "capability": "system",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "fixture-source-port",
+        "calendar-manager-lifecycle",
+        "go-wire-differential"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/system/exchange-calendars/probe/{market}",
       "capability": "system",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "fixture-source-port",
+        "calendar-manager-lifecycle",
+        "go-wire-differential"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/system/exchange-calendars/refresh",
       "capability": "system",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "fixture-source-port",
+        "calendar-manager-lifecycle",
+        "go-wire-differential"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/system/exchange-calendars/refresh/{market}",
       "capability": "system",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "fixture-source-port",
+        "calendar-manager-lifecycle",
+        "go-wire-differential"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",

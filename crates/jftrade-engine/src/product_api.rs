@@ -7,8 +7,7 @@ struct ProductApi {
     runtime: Arc<ProductRuntimeState>,
     real_trade_control: RealTradeControlReader,
     notification_port: Option<Arc<dyn ProductNotificationPort>>,
-    calendar_source_snapshot_port: Option<Arc<dyn CalendarSourceSnapshotPort>>,
-    calendar_status_snapshot_port: Option<Arc<dyn CalendarStatusSnapshotPort>>,
+    calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     notification_sequence: AtomicU64,
@@ -17,8 +16,7 @@ struct ProductApi {
 
 struct ProductOptionalPorts {
     notification: Option<Arc<dyn ProductNotificationPort>>,
-    calendar_source_snapshot: Option<Arc<dyn CalendarSourceSnapshotPort>>,
-    calendar_status_snapshot: Option<Arc<dyn CalendarStatusSnapshotPort>>,
+    calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
 }
@@ -61,8 +59,7 @@ impl ProductApi {
             runtime,
             real_trade_control,
             notification_port: optional_ports.notification,
-            calendar_source_snapshot_port: optional_ports.calendar_source_snapshot,
-            calendar_status_snapshot_port: optional_ports.calendar_status_snapshot,
+            calendar_manager: optional_ports.calendar_manager,
             watchlist_membership_snapshot_port: optional_ports.watchlist_membership_snapshot,
             plugin_uninstall_guidance_snapshot_port: optional_ports
                 .plugin_uninstall_guidance_snapshot,
@@ -322,14 +319,14 @@ impl ProductApi {
     }
 
     fn calendar_source_snapshot(&self) -> Result<ApiOutput, ApiFailure> {
-        let port = self.calendar_source_snapshot_port.as_ref().ok_or_else(|| {
+        let manager = self.calendar_manager.as_ref().ok_or_else(|| {
             ApiFailure::new(
                 503,
                 "EXCHANGE_CALENDAR_SOURCES_UNAVAILABLE",
-                "exchange calendar source snapshot is not configured",
+                "exchange calendar manager is not configured",
             )
         })?;
-        let snapshot = port.snapshot().map_err(|error| {
+        let snapshot = manager.sources_snapshot().map_err(|error| {
             ApiFailure::new(
                 503,
                 "EXCHANGE_CALENDAR_SOURCES_UNAVAILABLE",
@@ -340,14 +337,14 @@ impl ProductApi {
     }
 
     fn calendar_status_snapshot(&self) -> Result<ApiOutput, ApiFailure> {
-        let port = self.calendar_status_snapshot_port.as_ref().ok_or_else(|| {
+        let manager = self.calendar_manager.as_ref().ok_or_else(|| {
             ApiFailure::new(
                 503,
                 "EXCHANGE_CALENDAR_STATUS_UNAVAILABLE",
-                "exchange calendar status snapshot is not configured",
+                "exchange calendar manager is not configured",
             )
         })?;
-        let snapshot = port.snapshot().map_err(|error| {
+        let snapshot = manager.status_snapshot().map_err(|error| {
             ApiFailure::new(
                 503,
                 "EXCHANGE_CALENDAR_STATUS_UNAVAILABLE",
@@ -355,6 +352,46 @@ impl ProductApi {
             )
         })?;
         Ok(ApiOutput::Json(json!(snapshot)))
+    }
+
+    fn calendar_refresh(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
+        let manager = self.calendar_manager.as_ref().ok_or_else(|| {
+            ApiFailure::new(
+                503,
+                "EXCHANGE_CALENDAR_REFRESH_UNAVAILABLE",
+                "exchange calendar manager is not configured",
+            )
+        })?;
+        let result = calendar_market_from_path(path, "/refresh/")
+            .map_or_else(|| manager.refresh_all(), |market| manager.refresh_market(market))
+            .map_err(|error| {
+                ApiFailure::new(
+                    503,
+                    "EXCHANGE_CALENDAR_REFRESH_UNAVAILABLE",
+                    error.to_string(),
+                )
+            })?;
+        Ok(ApiOutput::Json(json!(result)))
+    }
+
+    fn calendar_probe(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
+        let manager = self.calendar_manager.as_ref().ok_or_else(|| {
+            ApiFailure::new(
+                503,
+                "EXCHANGE_CALENDAR_PROBE_UNAVAILABLE",
+                "exchange calendar manager is not configured",
+            )
+        })?;
+        let result = calendar_market_from_path(path, "/probe/")
+            .map_or_else(|| manager.probe_all(), |market| manager.probe_market(market))
+            .map_err(|error| {
+                ApiFailure::new(
+                    503,
+                    "EXCHANGE_CALENDAR_PROBE_UNAVAILABLE",
+                    error.to_string(),
+                )
+            })?;
+        Ok(ApiOutput::Json(json!(result)))
     }
 
     fn watchlist_memberships(&self, path: &str) -> Result<ApiOutput, ApiFailure> {

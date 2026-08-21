@@ -100,8 +100,8 @@ test("Stage 9 closeout manifest rejects hand-maintained route counts", () => {
   manifest.routeOwnership = {
     baselineOperations: 278,
     shadowRoutes: 26,
-    cutoverTestOnlyRoutes: 26,
-    remainingRoutes: 226,
+    cutoverTestOnlyRoutes: 30,
+    remainingRoutes: 222,
   };
   const errors = validateManifest(manifest);
   assert.ok(errors.some((error) => error.includes("routeOwnership is not allowed")));

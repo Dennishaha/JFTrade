@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration as StdDuration, Instant};
 
 use jftrade_kernel::WireTimestamp;
 use serde::{Deserialize, Serialize};
@@ -51,16 +52,50 @@ pub struct CalendarSessionOverride {
     pub end_minute: i32,
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct CalendarCancellationToken(Arc<AtomicBool>);
+#[derive(Debug)]
+struct CalendarCancellationState {
+    cancelled: AtomicBool,
+    parent: Option<Arc<CalendarCancellationState>>,
+    deadline: Option<Instant>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CalendarCancellationToken(Arc<CalendarCancellationState>);
+
+impl Default for CalendarCancellationToken {
+    fn default() -> Self {
+        Self(Arc::new(CalendarCancellationState {
+            cancelled: AtomicBool::new(false),
+            parent: None,
+            deadline: None,
+        }))
+    }
+}
 
 impl CalendarCancellationToken {
     pub fn cancel(&self) {
-        self.0.store(true, Ordering::Release);
+        self.0.cancelled.store(true, Ordering::Release);
     }
 
     pub fn is_cancelled(&self) -> bool {
-        self.0.load(Ordering::Acquire)
+        self.0.cancelled.load(Ordering::Acquire)
+            || self
+                .0
+                .parent
+                .as_ref()
+                .is_some_and(|parent| CalendarCancellationToken(Arc::clone(parent)).is_cancelled())
+            || self
+                .0
+                .deadline
+                .is_some_and(|deadline| Instant::now() >= deadline)
+    }
+
+    pub(crate) fn child_with_timeout(&self, timeout: StdDuration) -> Self {
+        Self(Arc::new(CalendarCancellationState {
+            cancelled: AtomicBool::new(false),
+            parent: Some(Arc::clone(&self.0)),
+            deadline: Instant::now().checked_add(timeout),
+        }))
     }
 }
 
@@ -117,11 +152,14 @@ pub enum ManagerLifecycleState {
     Closed,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CalendarRefreshResult {
+    pub accepted: bool,
     pub market: String,
     pub updated: i32,
     pub failures: i32,
+    #[serde(skip_serializing)]
     pub skipped_backoff: i32,
     pub requested_at: String,
     pub warmup_markets: Vec<String>,
@@ -137,5 +175,50 @@ pub struct CalendarSourceRuntimeStatus {
     pub consecutive_failures: i32,
     pub next_refresh_at: Option<String>,
     pub last_snapshot_fetched_at: Option<String>,
+    pub last_probe_at: Option<String>,
+    pub last_probe_success_at: Option<String>,
+    pub last_probe_failure_at: Option<String>,
+    pub last_probe_status: String,
+    pub last_probe_error: String,
+    pub last_probe_market: String,
+    pub last_probe_schedules: i32,
     pub health_state: String,
+    pub health_fingerprint: String,
+    pub last_alert_at: Option<String>,
+    pub last_alert_status: String,
+    pub last_alert_fingerprint: String,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarProbeResult {
+    pub accepted: bool,
+    pub market: String,
+    pub checked_at: String,
+    pub healthy: i32,
+    pub failures: i32,
+    pub results: Vec<CalendarProbeItem>,
+    pub probe_scope: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarProbeItem {
+    pub source_id: String,
+    pub market: String,
+    pub status: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub error: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetched_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valid_until: Option<String>,
+    #[serde(skip_serializing_if = "is_zero_i32")]
+    pub schedules_parsed: i32,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub checksum: String,
+}
+
+const fn is_zero_i32(value: &i32) -> bool {
+    *value == 0
 }

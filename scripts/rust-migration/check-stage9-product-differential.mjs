@@ -83,6 +83,13 @@ run("go", [
   "test",
   "./scripts/rust-migration",
   "-run",
+  "^TestStage9CalendarControlFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
   "^TestStage9WatchlistMembershipsFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
@@ -413,7 +420,7 @@ run("cargo", [
   "test",
   "-p",
   "jftrade-engine",
-  "product::tests::calendar_sources_route_matches_go_manager_fixture_in_cutover_only",
+  "product::tests::calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
   "--",
   "--exact",
 ]);
@@ -421,7 +428,7 @@ run("cargo", [
   "test",
   "-p",
   "jftrade-engine",
-  "product::tests::calendar_sources_route_fails_closed_when_snapshot_port_is_unavailable",
+  "product::tests::calendar_control_plane_routes_fail_closed_without_a_manager",
   "--",
   "--exact",
 ]);
@@ -429,15 +436,7 @@ run("cargo", [
   "test",
   "-p",
   "jftrade-engine",
-  "product::tests::calendar_status_route_matches_go_manager_fixture_in_cutover_only",
-  "--",
-  "--exact",
-]);
-run("cargo", [
-  "test",
-  "-p",
-  "jftrade-engine",
-  "product::tests::calendar_status_route_fails_closed_when_snapshot_port_is_unavailable",
+  "product::tests::calendar_unknown_market_control_requests_keep_the_go_noop_wire",
   "--",
   "--exact",
 ]);
@@ -491,4 +490,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: appearance/onboarding read-write/Futu install/execution/security read-write/password/broker read-write/market-data and backtest provider read-write/catalog/calendar/research-screen catalog/calendar source and status/watchlist membership/plugin uninstall-guidance test-cutover snapshots and fail-closed/ADK/MCP read-write/token/notification/Pine settings, real-trade read controls, exact nine-database schema/overview, fenced cleanup execute/backup/compact/rebuild rehearsal, static storage, and Node runtime diagnostics.");
+console.log("Go/Rust Stage 9 product-slice differential passed: appearance/onboarding read-write/Futu install/execution/security read-write/password/broker read-write/market-data and backtest provider read-write/catalog/calendar/research-screen catalog/calendar manager source/status/probe/refresh control-plane/watchlist membership/plugin uninstall-guidance test-cutover snapshots and fail-closed/ADK/MCP read-write/token/notification/Pine settings, real-trade read controls, exact nine-database schema/overview, fenced cleanup execute/backup/compact/rebuild rehearsal, static storage, and Node runtime diagnostics.");

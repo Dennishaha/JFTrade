@@ -32,7 +32,7 @@ impl FixtureSource {
             descriptor: CalendarSourceDescriptor {
                 id: id.to_owned(),
                 kind: "fixture".to_owned(),
-                authority: "tests".to_owned(),
+                authority: "fixture".to_owned(),
                 markets: vec!["US".to_owned()],
             },
             events,
@@ -212,6 +212,16 @@ fn registry_snapshot_manual_and_builtin_policy_order_is_stable() {
     let manager = manager(source, None, settings("official"), now);
     manager.start().expect("start manager");
     assert_eq!(manager.refresh_market("US").expect("refresh").updated, 1);
+    let sources = manager.sources_snapshot().expect("source projection");
+    let official = sources
+        .sources
+        .iter()
+        .find(|source| source.id == "official")
+        .expect("registered source projection");
+    assert_eq!(official.health_state, "healthy");
+    let status = manager.status_snapshot().expect("status projection");
+    assert_eq!(status.snapshots[0].checksum, "external");
+    assert_eq!(status.sources.len(), 3);
     let day = timestamp("2026-06-19T00:00:00Z");
     assert_eq!(
         manager
@@ -402,6 +412,195 @@ fn settings_reload_starts_auto_refresh_and_close_cancels_it_idempotently() {
             .count(),
         1
     );
+}
+
+#[test]
+fn probe_reports_partial_success_then_all_source_failure_without_caching() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let first = Arc::new(FixtureSource::new("first", Arc::clone(&events)));
+    first.push(Ok(snapshot("first", "healthy")));
+    first.push(Err(CalendarSourceError::Failed("first offline".to_owned())));
+    let second = Arc::new(FixtureSource::new("second", events));
+    second.push(Err(CalendarSourceError::Failed(
+        "second offline".to_owned(),
+    )));
+    second.push(Err(CalendarSourceError::Failed(
+        "second still offline".to_owned(),
+    )));
+    let mut registry = CalendarSourceRegistry::default();
+    registry.register(first).expect("register first source");
+    registry.register(second).expect("register second source");
+    let mut probe_settings = settings("first");
+    probe_settings.source_policies[0]
+        .enabled_source_ids
+        .push("second".to_owned());
+    let manager = CalendarManager::new(registry, None, probe_settings).expect("create manager");
+    manager.start().expect("start manager");
+
+    let partial = manager.probe_market("US").expect("partial probe");
+    assert_eq!((partial.healthy, partial.failures), (1, 1));
+    assert!(manager.snapshots().expect("probe cache").is_empty());
+    let failed = manager.probe_market("US").expect("failed probe");
+    assert_eq!((failed.healthy, failed.failures), (0, 2));
+    assert!(
+        failed
+            .results
+            .iter()
+            .all(|result| result.status == "unhealthy")
+    );
+    manager.close().expect("close manager");
+}
+
+#[test]
+fn probe_timeout_is_reported_and_close_cancels_an_inflight_probe() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut blocking = FixtureSource::new("official", events);
+    blocking.block_until_cancelled = true;
+    let source = Arc::new(blocking);
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-01T00:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = Arc::new(manager(
+        Arc::clone(&source),
+        None,
+        settings("official"),
+        now,
+    ));
+    manager.start().expect("start manager");
+    let timed_out = manager
+        .probe_market_with_timeout("US", StdDuration::from_millis(20))
+        .expect("timed out probe result");
+    assert_eq!(timed_out.failures, 1);
+    assert!(timed_out.results[0].error.contains("timed out"));
+
+    *source
+        .fetch_signal
+        .0
+        .lock()
+        .expect("reset fixture fetch signal") = false;
+    let manager_for_probe = Arc::clone(&manager);
+    let probe = thread::spawn(move || manager_for_probe.probe_market("US"));
+    source.wait_for_fetch();
+    manager.close().expect("close manager during probe");
+    let cancelled = probe.join().expect("join probe").expect("cancelled result");
+    assert_eq!(cancelled.failures, 1);
+    assert!(cancelled.results[0].error.contains("cancelled"));
+}
+
+#[test]
+fn unknown_market_probe_and_refresh_are_accepted_noops() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("official", events));
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-01T00:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = manager(source, None, settings("official"), now);
+    manager.start().expect("start manager");
+    let refresh = manager.refresh_market("MARS").expect("unknown refresh");
+    let probe = manager.probe_market("MARS").expect("unknown probe");
+    assert!(refresh.accepted && probe.accepted);
+    assert_eq!(refresh.market, "MARS");
+    assert_eq!(probe.market, "MARS");
+    assert_eq!((refresh.updated, refresh.failures), (0, 0));
+    assert_eq!((probe.healthy, probe.failures), (0, 0));
+    manager.close().expect("close manager");
+}
+
+#[test]
+fn calendar_control_wire_matches_the_current_go_owner_fixture() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/rust-migration/stage9/calendar-control.json"
+    ))
+    .expect("calendar control fixture");
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("fixture_source", events));
+    let mut control_snapshot = snapshot("fixture_source", "unused");
+    control_snapshot.fetched_at = timestamp("2026-01-02T03:00:00Z");
+    control_snapshot.valid_until = timestamp("2026-01-09T03:00:00Z");
+    control_snapshot.checksum = "fixture-checksum-1".to_owned();
+    control_snapshot.schedules = vec![
+        TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp("2026-01-02T00:00:00Z"),
+            status: "open".to_owned(),
+            sessions: Vec::new(),
+            reason: String::new(),
+            source_id: "fixture_source".to_owned(),
+            observed: false,
+            updated_at: None,
+        },
+        TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp("2026-01-19T00:00:00Z"),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: "fixture_holiday".to_owned(),
+            source_id: "fixture_source".to_owned(),
+            observed: true,
+            updated_at: None,
+        },
+        TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp("2026-11-27T00:00:00Z"),
+            status: "early_close".to_owned(),
+            sessions: vec![jftrade_calendar::CalendarSessionWindow {
+                kind: "regular".to_owned(),
+                start_minute: 570,
+                end_minute: 780,
+            }],
+            reason: "fixture_early_close".to_owned(),
+            source_id: "fixture_source".to_owned(),
+            observed: false,
+            updated_at: None,
+        },
+    ];
+    source.push(Ok(control_snapshot.clone()));
+    source.push(Ok(control_snapshot));
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-19T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = manager(source, None, settings("fixture_source"), now);
+    manager.start().expect("start manager");
+    assert_eq!(
+        serde_json::to_value(manager.refresh_all().expect("refresh all")).expect("refresh wire"),
+        fixture["refreshAll"]
+    );
+    let status_fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/rust-migration/stage9/calendar-status.json"
+    ))
+    .expect("calendar status fixture");
+    assert_eq!(
+        serde_json::to_value(manager.status_snapshot().expect("status snapshot"))
+            .expect("status wire"),
+        status_fixture["status"]
+    );
+    assert_eq!(
+        serde_json::to_value(manager.refresh_market("MARS").expect("unknown refresh"))
+            .expect("unknown refresh wire"),
+        fixture["refreshUnknown"]
+    );
+    assert_eq!(
+        serde_json::to_value(manager.probe_market("US").expect("probe US")).expect("probe wire"),
+        fixture["probeUS"]
+    );
+    assert_eq!(
+        serde_json::to_value(manager.probe_market("MARS").expect("unknown probe"))
+            .expect("unknown probe wire"),
+        fixture["probeUnknown"]
+    );
+    manager.close().expect("close manager");
 }
 
 fn _assert_refresh_result_is_send_sync(_: CalendarRefreshResult) {}

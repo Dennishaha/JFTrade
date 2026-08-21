@@ -11,7 +11,7 @@ use jftrade_api::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState, Clock, PortFuture,
     RouteCatalog, RouteCatalogError, RouteSpec, SystemClock, TransportMetrics, build_router,
 };
-use jftrade_calendar::{CalendarSourcesSnapshot, CalendarStatusSnapshot};
+use jftrade_calendar::CalendarManager;
 use jftrade_datamanagement::{
     BackupRequest, CleanupExecuteRequest, CleanupPreviewError, CleanupPreviewRequest,
     CleanupPreviewService, CompactRequest, MaintenanceOperationError, MaintenanceService,
@@ -58,23 +58,6 @@ pub const PRODUCT_TEST_CUTOVER_ROUTE_PROFILE: &str = "cutover-test-only.v1";
 const DEFAULT_PRODUCT_BIND: &str = "127.0.0.1:3000";
 const DEFAULT_SETTINGS_PATH: &str = "var/jftrade-api/settings.json";
 
-/// Consumer-owned read port for the live Go exchange-calendar manager
-/// projection.  The Rust product only accepts this port in test cutover
-/// wiring until a runtime adapter can supply the same dynamic registry,
-/// status, cache, and health semantics.
-pub trait CalendarSourceSnapshotPort: Send + Sync + std::fmt::Debug {
-    fn snapshot(&self) -> Result<CalendarSourcesSnapshot, CalendarSourceSnapshotError>;
-}
-
-/// Consumer-owned read port for the complete live Go exchange-calendar
-/// manager status projection.  It is intentionally separate from the source
-/// list port because status also contains effective market selection and
-/// cached snapshot summaries.  Until a runtime adapter supplies those
-/// semantics, the product only accepts this port in test-cutover wiring.
-pub trait CalendarStatusSnapshotPort: Send + Sync + std::fmt::Debug {
-    fn snapshot(&self) -> Result<CalendarStatusSnapshot, CalendarStatusSnapshotError>;
-}
-
 /// Consumer-owned read port for local watchlist membership projections.  The
 /// port is accepted only in test-cutover wiring until the Rust store adapter
 /// owns the same SQLite lifecycle as the Go watchlist service.
@@ -96,18 +79,6 @@ pub trait PluginUninstallGuidanceSnapshotPort: Send + Sync + std::fmt::Debug {
 }
 
 #[derive(Clone, Debug, Error)]
-pub enum CalendarSourceSnapshotError {
-    #[error("calendar source snapshot is unavailable: {0}")]
-    Unavailable(String),
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum CalendarStatusSnapshotError {
-    #[error("calendar status snapshot is unavailable: {0}")]
-    Unavailable(String),
-}
-
-#[derive(Clone, Debug, Error)]
 pub enum WatchlistMembershipSnapshotError {
     #[error("watchlist membership snapshot is unavailable: {0}")]
     Unavailable(String),
@@ -119,18 +90,31 @@ pub enum PluginUninstallGuidanceSnapshotError {
     Unavailable(String),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ProductConfig {
     bind_address: SocketAddr,
     settings_path: PathBuf,
     real_trade_control_path: PathBuf,
     access: AccessPolicy,
     notification_port: Option<Arc<dyn ProductNotificationPort>>,
-    calendar_source_snapshot_port: Option<Arc<dyn CalendarSourceSnapshotPort>>,
-    calendar_status_snapshot_port: Option<Arc<dyn CalendarStatusSnapshotPort>>,
+    calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot_port: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     capabilities: ProductCapabilities,
+}
+
+impl std::fmt::Debug for ProductConfig {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProductConfig")
+            .field("bind_address", &self.bind_address)
+            .field("settings_path", &self.settings_path)
+            .field("real_trade_control_path", &self.real_trade_control_path)
+            .field("access", &"<redacted>")
+            .field("calendar_manager", &self.calendar_manager.is_some())
+            .field("capabilities", &self.capabilities)
+            .finish_non_exhaustive()
+    }
 }
 
 const PRODUCT_INTERNAL_PROXY_PROTOCOL_ENV: &str = "JFTRADE_RUST_INTERNAL_PROXY_PROTOCOL";
@@ -159,8 +143,7 @@ impl ProductConfig {
             real_trade_control_path,
             access,
             notification_port: None,
-            calendar_source_snapshot_port: None,
-            calendar_status_snapshot_port: None,
+            calendar_manager: None,
             watchlist_membership_snapshot_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
             capabilities: ProductCapabilities::default(),
@@ -251,20 +234,8 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
-    fn with_calendar_source_snapshot_port(
-        mut self,
-        port: Arc<dyn CalendarSourceSnapshotPort>,
-    ) -> Self {
-        self.calendar_source_snapshot_port = Some(port);
-        self
-    }
-
-    #[cfg(test)]
-    fn with_calendar_status_snapshot_port(
-        mut self,
-        port: Arc<dyn CalendarStatusSnapshotPort>,
-    ) -> Self {
-        self.calendar_status_snapshot_port = Some(port);
+    fn with_calendar_manager(mut self, manager: Arc<CalendarManager>) -> Self {
+        self.calendar_manager = Some(manager);
         self
     }
 
@@ -325,6 +296,7 @@ pub struct ProductHandle {
     startup_record: ProductStartupRecord,
     shutdown_tx: Option<oneshot::Sender<()>>,
     task: Option<JoinHandle<Result<(), std::io::Error>>>,
+    calendar_manager: Option<Arc<CalendarManager>>,
 }
 
 impl ProductHandle {
@@ -339,6 +311,9 @@ impl ProductHandle {
         if let Some(task) = self.task.take() {
             task.await.map_err(ProductError::Join)??;
         }
+        if let Some(manager) = self.calendar_manager.take() {
+            manager.close().map_err(ProductError::Calendar)?;
+        }
         Ok(())
     }
 }
@@ -347,6 +322,9 @@ impl Drop for ProductHandle {
     fn drop(&mut self) {
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
             let _ = shutdown_tx.send(());
+        }
+        if let Some(manager) = self.calendar_manager.take() {
+            let _ = manager.close();
         }
     }
 }
@@ -366,8 +344,7 @@ pub(crate) async fn start_product_with_runtime_state(
         .map_err(ProductError::Bind)?;
     let address = listener.local_addr().map_err(ProductError::LocalAddress)?;
     let route_ports = ProductRoutePorts {
-        calendar_sources: config.calendar_source_snapshot_port.is_some(),
-        calendar_status: config.calendar_status_snapshot_port.is_some(),
+        calendar_manager: config.calendar_manager.is_some(),
         watchlist_memberships: config.watchlist_membership_snapshot_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
     };
@@ -406,6 +383,9 @@ pub(crate) async fn start_product_with_runtime_state(
     );
     let metrics = Arc::new(TransportMetrics::default());
     let real_trade_control = RealTradeControlReader::new(config.real_trade_control_path.clone());
+    if let Some(manager) = &config.calendar_manager {
+        manager.start().map_err(ProductError::Calendar)?;
+    }
     let port = Arc::new(ProductApi::new(
         address.port(),
         ProductSettingsServices {
@@ -433,8 +413,7 @@ pub(crate) async fn start_product_with_runtime_state(
         real_trade_control,
         ProductOptionalPorts {
             notification: config.notification_port.clone(),
-            calendar_source_snapshot: config.calendar_source_snapshot_port.clone(),
-            calendar_status_snapshot: config.calendar_status_snapshot_port.clone(),
+            calendar_manager: config.calendar_manager.clone(),
             watchlist_membership_snapshot: config.watchlist_membership_snapshot_port.clone(),
             plugin_uninstall_guidance_snapshot: config
                 .plugin_uninstall_guidance_snapshot_port
@@ -467,6 +446,7 @@ pub(crate) async fn start_product_with_runtime_state(
         },
         shutdown_tx: Some(shutdown_tx),
         task: Some(task),
+        calendar_manager: config.calendar_manager,
     })
 }
 
@@ -547,6 +527,8 @@ pub enum ProductError {
     Routes(#[from] RouteCatalogError),
     #[error("failed to open Rust product settings")]
     Settings(#[source] jftrade_settings::SettingsStoreError),
+    #[error("Rust exchange-calendar manager failed")]
+    Calendar(#[source] jftrade_calendar::CalendarManagerError),
     #[error("Rust product API task failed")]
     Join(#[source] tokio::task::JoinError),
     #[error("Rust product API transport failed")]

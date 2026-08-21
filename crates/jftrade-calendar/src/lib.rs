@@ -2,6 +2,8 @@
 
 mod manager;
 mod manager_policy;
+mod manager_probe;
+mod manager_projection;
 mod manager_registry;
 mod manager_types;
 mod snapshot;
@@ -12,8 +14,9 @@ pub use manager::{CalendarManager, CalendarManagerError};
 pub use manager_registry::CalendarSourceRegistry;
 pub use manager_types::{
     CalendarCancellationToken, CalendarManagerSettings, CalendarManualOverride,
-    CalendarPersistencePort, CalendarRefreshResult, CalendarSessionOverride, CalendarSourceError,
-    CalendarSourcePolicy, CalendarSourcePort, CalendarSourceRuntimeStatus, ManagerLifecycleState,
+    CalendarPersistencePort, CalendarProbeItem, CalendarProbeResult, CalendarRefreshResult,
+    CalendarSessionOverride, CalendarSourceError, CalendarSourcePolicy, CalendarSourcePort,
+    CalendarSourceRuntimeStatus, ManagerLifecycleState,
 };
 
 pub use snapshot::{

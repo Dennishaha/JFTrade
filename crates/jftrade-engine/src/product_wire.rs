@@ -202,6 +202,12 @@ impl ApiPort for ProductApi {
                 ("GET", "/api/v1/system/exchange-calendars/status") => {
                     self.calendar_status_snapshot()
                 }
+                ("POST", path) if is_calendar_control_path(path, "/refresh") => {
+                    self.calendar_refresh(path)
+                }
+                ("POST", path) if is_calendar_control_path(path, "/probe") => {
+                    self.calendar_probe(path)
+                }
                 ("GET", path) if is_watchlist_membership_path(path) => {
                     self.watchlist_memberships(path)
                 }
@@ -419,6 +425,20 @@ fn maintenance_failure(error: MaintenanceOperationError, fallback_code: &'static
 
 fn is_data_management_database_path(path: &str, suffix: &str) -> bool {
     data_management_database_id(path, suffix).is_ok()
+}
+
+fn is_calendar_control_path(path: &str, operation: &str) -> bool {
+    let base = format!("/api/v1/system/exchange-calendars{operation}");
+    path == base
+        || path
+            .strip_prefix(&(base + "/"))
+            .is_some_and(|market| !market.is_empty() && !market.contains('/'))
+}
+
+fn calendar_market_from_path<'a>(path: &'a str, marker: &str) -> Option<&'a str> {
+    path.strip_prefix("/api/v1/system/exchange-calendars")?
+        .strip_prefix(marker)
+        .filter(|market| !market.is_empty() && !market.contains('/'))
 }
 
 fn data_management_database_id(path: &str, suffix: &str) -> Result<String, ApiFailure> {

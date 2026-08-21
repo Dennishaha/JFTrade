@@ -18,6 +18,7 @@ enum ProductCapability {
     DataManagementMaintenance,
     CalendarSources,
     CalendarStatus,
+    CalendarControl,
     WatchlistMemberships,
     PluginUninstallGuidance,
 }
@@ -45,6 +46,7 @@ impl ProductCapabilities {
             ProductCapability::DataManagementMaintenance,
             ProductCapability::CalendarSources,
             ProductCapability::CalendarStatus,
+            ProductCapability::CalendarControl,
             ProductCapability::WatchlistMemberships,
             ProductCapability::PluginUninstallGuidance,
         ]))
@@ -66,6 +68,7 @@ impl ProductCapabilities {
                     | ProductCapability::DataManagementMaintenance
                     | ProductCapability::CalendarSources
                     | ProductCapability::CalendarStatus
+                    | ProductCapability::CalendarControl
                     | ProductCapability::WatchlistMemberships
                     | ProductCapability::PluginUninstallGuidance
             )
@@ -80,8 +83,7 @@ impl ProductCapabilities {
 
 #[derive(Clone, Copy, Debug, Default)]
 struct ProductRoutePorts {
-    calendar_sources: bool,
-    calendar_status: bool,
+    calendar_manager: bool,
     watchlist_memberships: bool,
     plugin_uninstall_guidance: bool,
 }

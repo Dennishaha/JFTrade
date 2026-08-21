@@ -360,56 +360,109 @@ impl ProductNotificationPort for DeliveredNotification {
     }
 }
 
-#[derive(Debug)]
-struct FixtureCalendarSourceSnapshotPort {
-    snapshot: jftrade_calendar::CalendarSourcesSnapshot,
+struct FixtureCalendarSource {
+    responses: std::sync::Mutex<
+        std::collections::VecDeque<
+            Result<jftrade_calendar::CalendarSnapshot, jftrade_calendar::CalendarSourceError>,
+        >,
+    >,
 }
 
-impl CalendarSourceSnapshotPort for FixtureCalendarSourceSnapshotPort {
-    fn snapshot(
-        &self,
-    ) -> Result<jftrade_calendar::CalendarSourcesSnapshot, CalendarSourceSnapshotError> {
-        Ok(self.snapshot.clone())
+impl FixtureCalendarSource {
+    fn new(
+        responses: impl IntoIterator<
+            Item = Result<
+                jftrade_calendar::CalendarSnapshot,
+                jftrade_calendar::CalendarSourceError,
+            >,
+        >,
+    ) -> Self {
+        Self {
+            responses: std::sync::Mutex::new(responses.into_iter().collect()),
+        }
     }
 }
 
-#[derive(Debug)]
-struct FailingCalendarSourceSnapshotPort;
+impl jftrade_calendar::CalendarSourcePort for FixtureCalendarSource {
+    fn descriptor(&self) -> jftrade_calendar::CalendarSourceDescriptor {
+        jftrade_calendar::CalendarSourceDescriptor {
+            id: "fixture_source".to_owned(),
+            kind: "fixture".to_owned(),
+            authority: "tests".to_owned(),
+            markets: vec!["US".to_owned()],
+        }
+    }
 
-impl CalendarSourceSnapshotPort for FailingCalendarSourceSnapshotPort {
-    fn snapshot(
+    fn fetch(
         &self,
-    ) -> Result<jftrade_calendar::CalendarSourcesSnapshot, CalendarSourceSnapshotError> {
-        Err(CalendarSourceSnapshotError::Unavailable(
-            "Go exchange-calendar manager fixture unavailable".to_owned(),
-        ))
+        _market: &str,
+        _from: jftrade_kernel::WireTimestamp,
+        _to: jftrade_kernel::WireTimestamp,
+        _cancellation: &jftrade_calendar::CalendarCancellationToken,
+    ) -> Result<jftrade_calendar::CalendarSnapshot, jftrade_calendar::CalendarSourceError> {
+        self.responses
+            .lock()
+            .expect("fixture calendar responses")
+            .pop_front()
+            .unwrap_or_else(|| {
+                Err(jftrade_calendar::CalendarSourceError::Failed(
+                    "fixture exhausted".to_owned(),
+                ))
+            })
     }
 }
 
-#[derive(Debug)]
-struct FixtureCalendarStatusSnapshotPort {
-    snapshot: jftrade_calendar::CalendarStatusSnapshot,
-}
-
-impl CalendarStatusSnapshotPort for FixtureCalendarStatusSnapshotPort {
-    fn snapshot(
-        &self,
-    ) -> Result<jftrade_calendar::CalendarStatusSnapshot, CalendarStatusSnapshotError> {
-        Ok(self.snapshot.clone())
+fn fixture_calendar_snapshot(checksum: &str) -> jftrade_calendar::CalendarSnapshot {
+    let timestamp = |value: &str| value.parse().expect("fixture calendar timestamp");
+    jftrade_calendar::CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "fixture_source".to_owned(),
+        from: timestamp("2026-01-01T00:00:00Z"),
+        to: timestamp("2027-12-31T23:59:59Z"),
+        schedules: vec![jftrade_calendar::TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp("2026-08-21T00:00:00Z"),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: "fixture_holiday".to_owned(),
+            source_id: "fixture_source".to_owned(),
+            observed: true,
+            updated_at: None,
+        }],
+        fetched_at: timestamp("2026-08-20T00:00:00Z"),
+        valid_until: timestamp("2027-12-31T23:59:59Z"),
+        checksum: checksum.to_owned(),
     }
 }
 
-#[derive(Debug)]
-struct FailingCalendarStatusSnapshotPort;
-
-impl CalendarStatusSnapshotPort for FailingCalendarStatusSnapshotPort {
-    fn snapshot(
-        &self,
-    ) -> Result<jftrade_calendar::CalendarStatusSnapshot, CalendarStatusSnapshotError> {
-        Err(CalendarStatusSnapshotError::Unavailable(
-            "Go exchange-calendar manager status fixture unavailable".to_owned(),
-        ))
-    }
+fn fixture_calendar_manager(
+    responses: impl IntoIterator<
+        Item = Result<jftrade_calendar::CalendarSnapshot, jftrade_calendar::CalendarSourceError>,
+    >,
+) -> Arc<jftrade_calendar::CalendarManager> {
+    let mut registry = jftrade_calendar::CalendarSourceRegistry::default();
+    registry
+        .register(Arc::new(FixtureCalendarSource::new(responses)))
+        .expect("register fixture calendar source");
+    Arc::new(
+        jftrade_calendar::CalendarManager::new(
+            registry,
+            None,
+            jftrade_calendar::CalendarManagerSettings {
+                refresh_interval_hours: 24,
+                warmup_markets: vec!["US".to_owned()],
+                source_policies: vec![jftrade_calendar::CalendarSourcePolicy {
+                    market: "US".to_owned(),
+                    preferred_source_ids: vec!["fixture_source".to_owned()],
+                    enabled_source_ids: vec!["fixture_source".to_owned()],
+                    fallback_to_builtin: true,
+                    ..jftrade_calendar::CalendarSourcePolicy::default()
+                }],
+                ..jftrade_calendar::CalendarManagerSettings::default()
+            },
+        )
+        .expect("create fixture calendar manager"),
+    )
 }
 
 #[derive(Debug)]
@@ -1410,110 +1463,111 @@ async fn research_screen_catalog_route_matches_go_fixture_for_all_variants() {
 }
 
 #[tokio::test]
-async fn calendar_sources_route_matches_go_manager_fixture_in_cutover_only() {
-    let fixture: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/calendar-sources.json"
-    ))
-    .expect("calendar source fixture");
-    let sources = serde_json::from_value(fixture["defaultSources"].clone())
-        .expect("decode calendar source fixture rows");
+async fn calendar_control_plane_routes_share_the_real_manager_in_cutover_only() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
+    let manager = fixture_calendar_manager([
+        Ok(fixture_calendar_snapshot("refresh-checksum")),
+        Ok(fixture_calendar_snapshot("probe-checksum")),
+    ]);
     let config =
         ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
             .expect("config")
-            .with_calendar_source_snapshot_port(Arc::new(FixtureCalendarSourceSnapshotPort {
-                snapshot: jftrade_calendar::CalendarSourcesSnapshot { sources },
-            }));
+            .with_calendar_manager(manager);
     let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 49);
-    let actual = request_json(
+    assert_eq!(handle.startup_record().owned_routes, 54);
+    let sources = request_json(
         handle.startup_record().address,
         "GET",
         "/api/v1/system/exchange-calendars/sources",
         None,
     )
     .await;
-    assert_eq!(actual["ok"], true);
-    assert_eq!(actual["data"]["sources"], fixture["defaultSources"]);
-    handle.shutdown().await.expect("shutdown product");
-}
-
-#[tokio::test]
-async fn calendar_sources_route_fails_closed_when_snapshot_port_is_unavailable() {
-    let directory = tempdir().expect("temporary directory");
-    let settings_path = directory.path().join("settings.json");
-    let config =
-        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
-            .expect("config")
-            .with_calendar_source_snapshot_port(Arc::new(FailingCalendarSourceSnapshotPort));
-    let handle = start_product(config).await.expect("start product");
-    let actual = request_json(
+    assert_eq!(sources["ok"], true);
+    assert!(
+        sources["data"]["sources"]
+            .as_array()
+            .expect("calendar sources")
+            .iter()
+            .any(|source| source["id"] == "fixture_source")
+    );
+    let refresh = request_json(
         handle.startup_record().address,
-        "GET",
-        "/api/v1/system/exchange-calendars/sources",
+        "POST",
+        "/api/v1/system/exchange-calendars/refresh/US",
         None,
     )
     .await;
-    assert_eq!(actual["ok"], false);
-    assert_eq!(
-        actual["error"]["code"],
-        "EXCHANGE_CALENDAR_SOURCES_UNAVAILABLE"
-    );
-    handle.shutdown().await.expect("shutdown product");
-}
-
-#[tokio::test]
-async fn calendar_status_route_matches_go_manager_fixture_in_cutover_only() {
-    let fixture: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/calendar-status.json"
-    ))
-    .expect("calendar status fixture");
-    let status =
-        serde_json::from_value(fixture["status"].clone()).expect("decode calendar status fixture");
-    let directory = tempdir().expect("temporary directory");
-    let settings_path = directory.path().join("settings.json");
-    let config =
-        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
-            .expect("config")
-            .with_calendar_status_snapshot_port(Arc::new(FixtureCalendarStatusSnapshotPort {
-                snapshot: status,
-            }));
-    let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 49);
-    let actual = request_json(
+    assert_eq!(refresh["data"]["accepted"], true);
+    assert_eq!(refresh["data"]["updated"], 1);
+    let status = request_json(
         handle.startup_record().address,
         "GET",
         "/api/v1/system/exchange-calendars/status",
         None,
     )
     .await;
-    assert_eq!(actual["ok"], true);
-    assert_eq!(actual["data"], fixture["status"]);
+    assert_eq!(status["ok"], true);
+    assert_eq!(
+        status["data"]["snapshots"][0]["checksum"],
+        "refresh-checksum"
+    );
+    let probe = request_json(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/system/exchange-calendars/probe/US",
+        None,
+    )
+    .await;
+    assert_eq!(probe["data"]["accepted"], true);
+    assert_eq!(probe["data"]["healthy"], 1);
+    assert_eq!(probe["data"]["results"][0]["checksum"], "probe-checksum");
     handle.shutdown().await.expect("shutdown product");
 }
 
 #[tokio::test]
-async fn calendar_status_route_fails_closed_when_snapshot_port_is_unavailable() {
+async fn calendar_control_plane_routes_fail_closed_without_a_manager() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
     let config =
         ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
-            .expect("config")
-            .with_calendar_status_snapshot_port(Arc::new(FailingCalendarStatusSnapshotPort));
+            .expect("config");
     let handle = start_product(config).await.expect("start product");
-    let actual = request_json(
-        handle.startup_record().address,
-        "GET",
-        "/api/v1/system/exchange-calendars/status",
-        None,
-    )
-    .await;
-    assert_eq!(actual["ok"], false);
-    assert_eq!(
-        actual["error"]["code"],
-        "EXCHANGE_CALENDAR_STATUS_UNAVAILABLE"
-    );
+    assert_eq!(handle.startup_record().owned_routes, 48);
+    for (method, path) in [
+        ("GET", "/api/v1/system/exchange-calendars/sources"),
+        ("GET", "/api/v1/system/exchange-calendars/status"),
+        ("POST", "/api/v1/system/exchange-calendars/probe"),
+        ("POST", "/api/v1/system/exchange-calendars/refresh/US"),
+    ] {
+        let actual = request_json(handle.startup_record().address, method, path, None).await;
+        assert_eq!(actual["ok"], false, "{method} {path}");
+    }
+    handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
+async fn calendar_unknown_market_control_requests_keep_the_go_noop_wire() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let manager = fixture_calendar_manager([]);
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_calendar_manager(manager);
+    let handle = start_product(config).await.expect("start product");
+    for operation in ["refresh", "probe"] {
+        let actual = request_json(
+            handle.startup_record().address,
+            "POST",
+            &format!("/api/v1/system/exchange-calendars/{operation}/MARS"),
+            None,
+        )
+        .await;
+        assert_eq!(actual["ok"], true, "{operation}");
+        assert_eq!(actual["data"]["accepted"], true, "{operation}");
+        assert_eq!(actual["data"]["market"], "MARS", "{operation}");
+    }
     handle.shutdown().await.expect("shutdown product");
 }
 
@@ -1795,8 +1849,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     let shadow_with_calendar_port = product_routes(
         &ProductCapabilities::default(),
         ProductRoutePorts {
-            calendar_sources: true,
-            calendar_status: true,
+            calendar_manager: true,
             watchlist_memberships: true,
             plugin_uninstall_guidance: true,
         },
@@ -1828,47 +1881,34 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     assert!(!cutover_without_calendar_port.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/status"
     }));
-    let cutover_with_source_port = product_routes(
+    let cutover_with_calendar_manager = product_routes(
         &ProductCapabilities::test_cutover(),
         ProductRoutePorts {
-            calendar_sources: true,
+            calendar_manager: true,
             ..ProductRoutePorts::default()
         },
     )
-    .expect("cutover routes with source port");
-    assert_eq!(cutover_with_source_port.routes().len(), 49);
-    assert!(cutover_with_source_port.routes().iter().any(|route| {
+    .expect("cutover routes with calendar manager");
+    assert_eq!(cutover_with_calendar_manager.routes().len(), 54);
+    assert!(cutover_with_calendar_manager.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
     }));
-    assert!(!cutover_with_source_port.routes().iter().any(|route| {
+    assert!(cutover_with_calendar_manager.routes().iter().any(|route| {
         route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/status"
     }));
-    let cutover_with_status_port = product_routes(
-        &ProductCapabilities::test_cutover(),
-        ProductRoutePorts {
-            calendar_status: true,
-            ..ProductRoutePorts::default()
-        },
-    )
-    .expect("cutover routes with status port");
-    assert_eq!(cutover_with_status_port.routes().len(), 49);
-    assert!(!cutover_with_status_port.routes().iter().any(|route| {
-        route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/sources"
-    }));
-    assert!(cutover_with_status_port.routes().iter().any(|route| {
-        route.method == "GET" && route.path == "/api/v1/system/exchange-calendars/status"
+    assert!(cutover_with_calendar_manager.routes().iter().any(|route| {
+        route.method == "POST" && route.path == "/api/v1/system/exchange-calendars/probe/{market}"
     }));
     let cutover = product_routes(
         &ProductCapabilities::test_cutover(),
         ProductRoutePorts {
-            calendar_sources: true,
-            calendar_status: true,
+            calendar_manager: true,
             watchlist_memberships: true,
             plugin_uninstall_guidance: true,
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 52);
+    assert_eq!(cutover.routes().len(), 56);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
