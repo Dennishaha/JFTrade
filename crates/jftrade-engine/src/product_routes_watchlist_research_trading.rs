@@ -79,6 +79,9 @@ fn product_watchlist_research_trading_routes(
             route("GET", "/api/v1/brokers/{brokerId}/securities"),
         ]);
     }
+    if ports.remote_watchlist && capabilities.contains(ProductCapability::RemoteWatchlistRead) {
+        routes.push(route("GET", "/api/v1/watchlists/remote"));
+    }
     if ports.plugins && capabilities.contains(ProductCapability::Plugins) {
         routes.extend([
             route("GET", "/api/v1/plugins"),

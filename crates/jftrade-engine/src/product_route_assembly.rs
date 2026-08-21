@@ -24,6 +24,7 @@ enum ProductCapability {
     Portfolio,
     ResearchRead,
     BrokerRead,
+    RemoteWatchlistRead,
     Plugins,
     PluginUninstallGuidance,
     Alerts,
@@ -59,6 +60,7 @@ impl ProductCapabilities {
             ProductCapability::Portfolio,
             ProductCapability::ResearchRead,
             ProductCapability::BrokerRead,
+            ProductCapability::RemoteWatchlistRead,
             ProductCapability::Plugins,
             ProductCapability::PluginUninstallGuidance,
             ProductCapability::Alerts,
@@ -88,6 +90,7 @@ impl ProductCapabilities {
                     | ProductCapability::Portfolio
                     | ProductCapability::ResearchRead
                     | ProductCapability::BrokerRead
+                    | ProductCapability::RemoteWatchlistRead
                     | ProductCapability::Plugins
                     | ProductCapability::PluginUninstallGuidance
                     | ProductCapability::Alerts
@@ -111,6 +114,7 @@ struct ProductRoutePorts {
     portfolio: bool,
     research_read: bool,
     broker_read: bool,
+    remote_watchlist: bool,
     plugins: bool,
     plugin_uninstall_guidance: bool,
     strategy_definitions: bool,

@@ -247,6 +247,7 @@ pub struct ProductConfig {
     portfolio_snapshot_port: Option<Arc<dyn PortfolioSnapshotPort>>,
     research_read_snapshot_port: Option<Arc<dyn ResearchReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
+    remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
@@ -300,6 +301,7 @@ impl ProductConfig {
             portfolio_snapshot_port: None,
             research_read_snapshot_port: None,
             broker_read_snapshot_port: None,
+            remote_watchlist_snapshot_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
             plugin_snapshot_port: None,
             alert_snapshot_port: None,
@@ -434,6 +436,15 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_remote_watchlist_snapshot_port(
+        mut self,
+        port: Arc<dyn RemoteWatchlistSnapshotPort>,
+    ) -> Self {
+        self.remote_watchlist_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_plugin_uninstall_guidance_snapshot_port(
         mut self,
         port: Arc<dyn PluginUninstallGuidanceSnapshotPort>,
@@ -557,6 +568,7 @@ pub(crate) async fn start_product_with_runtime_state(
         portfolio: config.portfolio_snapshot_port.is_some(),
         research_read: config.research_read_snapshot_port.is_some(),
         broker_read: config.broker_read_snapshot_port.is_some(),
+        remote_watchlist: config.remote_watchlist_snapshot_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
         strategy_definitions: config.strategy_definition_snapshot_port.is_some(),
@@ -632,6 +644,7 @@ pub(crate) async fn start_product_with_runtime_state(
             portfolio_snapshot: config.portfolio_snapshot_port.clone(),
             research_read_snapshot: config.research_read_snapshot_port.clone(),
             broker_read_snapshot: config.broker_read_snapshot_port.clone(),
+            remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),
             plugin_uninstall_guidance_snapshot: config
                 .plugin_uninstall_guidance_snapshot_port
                 .clone(),
@@ -724,6 +737,8 @@ include!("product_api_portfolio.rs");
 include!("product_api_research.rs");
 
 include!("product_api_brokers.rs");
+
+include!("product_api_watchlists.rs");
 
 include!("product_api_plugins.rs");
 

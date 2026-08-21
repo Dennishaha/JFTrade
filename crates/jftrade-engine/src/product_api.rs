@@ -13,6 +13,7 @@ struct ProductApi {
     portfolio_snapshot_port: Option<Arc<dyn PortfolioSnapshotPort>>,
     research_read_snapshot_port: Option<Arc<dyn ResearchReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
+    remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
@@ -29,6 +30,7 @@ struct ProductOptionalPorts {
     portfolio_snapshot: Option<Arc<dyn PortfolioSnapshotPort>>,
     research_read_snapshot: Option<Arc<dyn ResearchReadSnapshotPort>>,
     broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
+    remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
     plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
@@ -79,6 +81,7 @@ impl ProductApi {
             portfolio_snapshot_port: optional_ports.portfolio_snapshot,
             research_read_snapshot_port: optional_ports.research_read_snapshot,
             broker_read_snapshot_port: optional_ports.broker_read_snapshot,
+            remote_watchlist_snapshot_port: optional_ports.remote_watchlist_snapshot,
             plugin_uninstall_guidance_snapshot_port: optional_ports
                 .plugin_uninstall_guidance_snapshot,
             plugin_snapshot_port: optional_ports.plugin_snapshot,
