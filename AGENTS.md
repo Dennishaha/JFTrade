@@ -52,7 +52,7 @@ pnpm run check:all         # 完整本地门禁
 
 ## AI 工作流
 
-1. 先读本文件和最近的局部 `AGENTS.md`，再按模块表进入专题文档和入口文件。
+1. 先读本文件和最近的局部 `AGENTS.md`，再按模块表进入专题文档和入口文件；Go/Wails → Rust/Tauri 迁移任务必须先读 `docs/architecture/rust-migration-execution-playbook.md`，再读迁移事实源并输出本轮目标。
 2. 先定位调用方、所有权和测试，再编辑；不要因文件名相似跨域复制实现。
 3. 变更后先跑最窄的 affected test，再跑 `check:quick`；Rust 变更至少跑 `pnpm run check:rust`，契约变化额外跑 `check:generated`。
 4. 若边界发生变化，同步 `docs/architecture*`、`docs/README.md` 和模块表。

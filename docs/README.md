@@ -58,6 +58,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - [architecture/sqlite-query-plan-audit.md](architecture/sqlite-query-plan-audit.md)：9 个 SQLite 数据库的生产查询计划、索引决策与迁移阻断项。
 - [architecture/public-package-policy.md](architecture/public-package-policy.md)：`pkg/*` 的公开契约、保留/内移标准和当前决策。
 - [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)：Go/Wails → Rust/Tauri 完整迁移方案、守则、依赖和阶段门禁。
+- [architecture/rust-migration-execution-playbook.md](architecture/rust-migration-execution-playbook.md)：迁移 harness 的先读协议、广度优先并行调度、route group 工作包、bug/quirks 收集、验证和 Go 删除准入。
 - [testing-strategy.md](testing-strategy.md)：覆盖率分层、PR/main 门禁和真实外部依赖的运行边界。
 - [roadmap.md](roadmap.md)：唯一活动计划入口，只记录尚未完成的高价值事项与验收标准。
 
@@ -103,6 +104,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - 改 PineTS worker、worker pool、embedded asset、发布验收：先看 [pinets-contract-audit.md](pinets-contract-audit.md) 和 [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)
 - 改回测撮合、订单成交语义或 executionModel：先看 [backtest-execution-model.md](backtest-execution-model.md)
 - 改 Rust workspace、Go/Rust bridge、迁移 owner 或候选依赖：先看 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)
+- 让 AI/harness 规划或执行 Go → Rust 迁移：先看 [architecture/rust-migration-execution-playbook.md](architecture/rust-migration-execution-playbook.md)，再看 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md) 和对应局部 AGENTS.md
 - 改 broker capability、默认选择或新增 adapter：先看 [new-broker-integration-guide.md](new-broker-integration-guide.md) 和 [roadmap.md](roadmap.md)
 - 改 Futu / OpenD 协议和映射：先看 [reference/README.md](reference/README.md)
 - 查 HTTP、OpenD、ADK、回测或 PineTS 跨链路问题：先看 [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)
