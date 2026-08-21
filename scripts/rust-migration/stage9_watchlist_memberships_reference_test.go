@@ -45,7 +45,11 @@ func TestStage9WatchlistMembershipsFixtureMatchesCurrentGoOwner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open watchlist store: %v", err)
 	}
-	defer repository.Close()
+	defer func() {
+		if err := repository.Close(); err != nil {
+			t.Errorf("close watchlist store: %v", err)
+		}
+	}()
 	seedStage9WatchlistMemberships(t, repository)
 	service := domain.NewService(repository)
 

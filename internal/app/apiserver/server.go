@@ -330,7 +330,7 @@ func immutableCatalogRehearsalOperations(rehearsal lifecycle.RehearsalRuntime) (
 	capabilities := rehearsal.Capabilities()
 	for _, operation := range immutableCatalogOperations {
 		if !slices.Contains(capabilities, operation) {
-			return nil, fmt.Errorf("Rust rehearsal missing immutable catalog capability %q", operation)
+			return nil, fmt.Errorf("rust rehearsal missing immutable catalog capability %q", operation)
 		}
 	}
 	return append([]string(nil), immutableCatalogOperations...), nil

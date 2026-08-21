@@ -207,17 +207,17 @@ func validateConfig(config Config) error {
 		return fmt.Errorf("unsupported Rust rehearsal profile %q", config.Profile)
 	}
 	if config.Executable == "" || !filepath.IsAbs(config.Executable) {
-		return fmt.Errorf("Rust rehearsal executable must be an absolute path")
+		return fmt.Errorf("rust rehearsal executable must be an absolute path")
 	}
 	info, err := os.Stat(config.Executable)
 	if err != nil {
 		return fmt.Errorf("inspect Rust rehearsal executable: %w", err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("Rust rehearsal executable must be a regular file")
+		return fmt.Errorf("rust rehearsal executable must be a regular file")
 	}
 	if config.SettingsPath == "" {
-		return fmt.Errorf("Rust rehearsal settings path is required")
+		return fmt.Errorf("rust rehearsal settings path is required")
 	}
 	host, _, err := net.SplitHostPort(config.Bind)
 	if err != nil {
@@ -225,7 +225,7 @@ func validateConfig(config Config) error {
 	}
 	ip := net.ParseIP(strings.Trim(host, "[]"))
 	if ip == nil || !ip.IsLoopback() {
-		return fmt.Errorf("Rust rehearsal bind must use a loopback IP")
+		return fmt.Errorf("rust rehearsal bind must use a loopback IP")
 	}
 	return nil
 }
@@ -262,37 +262,37 @@ func awaitReady(ctx context.Context, handle *Handle, stdout io.Reader, timeout t
 	case result := <-ready:
 		return result.record, result.err
 	case <-handle.done:
-		return readyRecord{}, fmt.Errorf("Rust rehearsal exited before readiness: %w", handle.processError())
+		return readyRecord{}, fmt.Errorf("rust rehearsal exited before readiness: %w", handle.processError())
 	case <-ctx.Done():
-		return readyRecord{}, fmt.Errorf("Rust rehearsal startup canceled: %w", ctx.Err())
+		return readyRecord{}, fmt.Errorf("rust rehearsal startup canceled: %w", ctx.Err())
 	case <-timer.C:
-		return readyRecord{}, fmt.Errorf("Rust rehearsal readiness timed out after %s", timeout)
+		return readyRecord{}, fmt.Errorf("rust rehearsal readiness timed out after %s", timeout)
 	}
 }
 
 func validateReady(record readyRecord, profile string, resourceHash string) error {
 	if record.Event != "ready" || record.Owner != "rust-read-only-shadow" {
-		return fmt.Errorf("Rust rehearsal reported invalid event or owner")
+		return fmt.Errorf("rust rehearsal reported invalid event or owner")
 	}
 	if record.ProtocolVersion != ProtocolVersion || record.RouteProfile != profile {
-		return fmt.Errorf("Rust rehearsal protocol or route profile mismatch")
+		return fmt.Errorf("rust rehearsal protocol or route profile mismatch")
 	}
 	if record.OwnedRoutes != len(readOnlyCapabilities) || !slices.Equal(record.Capabilities, readOnlyCapabilities) {
-		return fmt.Errorf("Rust rehearsal capability list mismatch")
+		return fmt.Errorf("rust rehearsal capability list mismatch")
 	}
 	if record.RouteProfileDigest != capabilityDigest(readOnlyCapabilities) {
-		return fmt.Errorf("Rust rehearsal route profile digest mismatch")
+		return fmt.Errorf("rust rehearsal route profile digest mismatch")
 	}
 	if record.ResourceSHA256 != resourceHash {
-		return fmt.Errorf("Rust rehearsal resource hash mismatch")
+		return fmt.Errorf("rust rehearsal resource hash mismatch")
 	}
 	host, port, err := net.SplitHostPort(record.Address)
 	if err != nil || port == "0" || port == "" {
-		return fmt.Errorf("Rust rehearsal reported invalid address %q", record.Address)
+		return fmt.Errorf("rust rehearsal reported invalid address %q", record.Address)
 	}
 	ip := net.ParseIP(strings.Trim(host, "[]"))
 	if ip == nil || !ip.IsLoopback() {
-		return fmt.Errorf("Rust rehearsal reported non-loopback address %q", record.Address)
+		return fmt.Errorf("rust rehearsal reported non-loopback address %q", record.Address)
 	}
 	return nil
 }
@@ -314,7 +314,7 @@ func probeAuthenticated(ctx context.Context, endpoint string, token string, time
 	defer func() { _ = response.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64*1024))
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("Rust rehearsal authenticated probe returned status %d", response.StatusCode)
+		return fmt.Errorf("rust rehearsal authenticated probe returned status %d", response.StatusCode)
 	}
 	return nil
 }
