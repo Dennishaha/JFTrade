@@ -258,6 +258,9 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_execution_read_path(path) => {
                     self.execution_read(path, &request.query)
                 }
+                ("GET", path) if is_market_data_provider_read_path(path) => {
+                    self.market_data_provider_read(path, &request.query)
+                }
                 ("GET", path) if is_broker_read_path(path) => {
                     self.broker_read(path, &request.query)
                 }

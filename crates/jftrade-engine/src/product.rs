@@ -60,6 +60,7 @@ const DEFAULT_SETTINGS_PATH: &str = "var/jftrade-api/settings.json";
 
 include!("product_research_preset_port.rs");
 include!("product_execution_read_port.rs");
+include!("product_market_data_provider_read_port.rs");
 include!("product_snapshot_errors.rs");
 
 /// Consumer-owned read port for local watchlist membership projections.  The
@@ -190,6 +191,7 @@ pub struct ProductConfig {
     research_read_snapshot_port: Option<Arc<dyn ResearchReadSnapshotPort>>,
     research_preset_read_snapshot_port: Option<Arc<dyn ResearchPresetReadSnapshotPort>>,
     execution_read_snapshot_port: Option<Arc<dyn ExecutionReadSnapshotPort>>,
+    market_data_provider_read_snapshot_port: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -250,6 +252,7 @@ impl ProductConfig {
             research_read_snapshot_port: None,
             research_preset_read_snapshot_port: None,
             execution_read_snapshot_port: None,
+            market_data_provider_read_snapshot_port: None,
             broker_read_snapshot_port: None,
             system_read_snapshot_port: None,
             remote_watchlist_snapshot_port: None,
@@ -398,6 +401,15 @@ impl ProductConfig {
         port: Arc<dyn ExecutionReadSnapshotPort>,
     ) -> Self {
         self.execution_read_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_market_data_provider_read_snapshot_port(
+        mut self,
+        port: Arc<dyn MarketDataProviderReadSnapshotPort>,
+    ) -> Self {
+        self.market_data_provider_read_snapshot_port = Some(port);
         self
     }
 
@@ -605,6 +617,9 @@ pub(crate) async fn start_product_with_runtime_state(
             research_read_snapshot: config.research_read_snapshot_port.clone(),
             research_preset_read_snapshot: config.research_preset_read_snapshot_port.clone(),
             execution_read_snapshot: config.execution_read_snapshot_port.clone(),
+            market_data_provider_read_snapshot: config
+                .market_data_provider_read_snapshot_port
+                .clone(),
             broker_read_snapshot: config.broker_read_snapshot_port.clone(),
             system_read_snapshot: config.system_read_snapshot_port.clone(),
             remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),
@@ -705,6 +720,7 @@ include!("product_api_portfolio.rs");
 
 include!("product_api_research.rs");
 include!("product_api_execution.rs");
+include!("product_api_market_data_provider_read.rs");
 
 include!("product_api_brokers.rs");
 

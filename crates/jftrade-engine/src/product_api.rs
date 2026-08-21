@@ -14,6 +14,7 @@ struct ProductApi {
     research_read_snapshot_port: Option<Arc<dyn ResearchReadSnapshotPort>>,
     research_preset_read_snapshot_port: Option<Arc<dyn ResearchPresetReadSnapshotPort>>,
     execution_read_snapshot_port: Option<Arc<dyn ExecutionReadSnapshotPort>>,
+    market_data_provider_read_snapshot_port: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -36,6 +37,7 @@ struct ProductOptionalPorts {
     research_read_snapshot: Option<Arc<dyn ResearchReadSnapshotPort>>,
     research_preset_read_snapshot: Option<Arc<dyn ResearchPresetReadSnapshotPort>>,
     execution_read_snapshot: Option<Arc<dyn ExecutionReadSnapshotPort>>,
+    market_data_provider_read_snapshot: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
     broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -91,6 +93,7 @@ impl ProductApi {
             research_read_snapshot_port: optional_ports.research_read_snapshot,
             research_preset_read_snapshot_port: optional_ports.research_preset_read_snapshot,
             execution_read_snapshot_port: optional_ports.execution_read_snapshot,
+            market_data_provider_read_snapshot_port: optional_ports.market_data_provider_read_snapshot,
             broker_read_snapshot_port: optional_ports.broker_read_snapshot,
             system_read_snapshot_port: optional_ports.system_read_snapshot,
             remote_watchlist_snapshot_port: optional_ports.remote_watchlist_snapshot,
@@ -328,7 +331,6 @@ impl ProductApi {
             }
         })))
     }
-
     fn storage_overview(&self) -> ApiOutput {
         ApiOutput::Json(json!({
             "pendingOutbox": [],
@@ -337,7 +339,6 @@ impl ProductApi {
             "recentExecutionCommands": [],
         }))
     }
-
     fn database_overview(&self, query: &str) -> Result<ApiOutput, ApiFailure> {
         let request = parse_database_overview_query(query);
         self.settings
@@ -346,14 +347,12 @@ impl ProductApi {
             .map(|response| ApiOutput::Json(json!(response)))
             .map_err(database_overview_failure)
     }
-
     fn research_screen_catalog(&self, query: &str) -> Result<ApiOutput, ApiFailure> {
         let (broker_id, market) = parse_research_screen_catalog_query(query);
         jftrade_research::screen_catalog(&broker_id, &market)
             .map(ApiOutput::Json)
             .map_err(research_screen_catalog_failure)
     }
-
     fn calendar_source_snapshot(&self) -> Result<ApiOutput, ApiFailure> {
         let manager = self.calendar_manager.as_ref().ok_or_else(|| {
             ApiFailure::new(
@@ -426,7 +425,6 @@ impl ProductApi {
             })?;
         Ok(ApiOutput::Json(json!(result)))
     }
-
     fn alerts(&self, kind: AlertKind, query: &str) -> Result<ApiOutput, ApiFailure> {
         let port = self.alert_snapshot_port.as_ref().ok_or_else(|| {
             ApiFailure::new(
@@ -439,7 +437,6 @@ impl ProductApi {
             .map(ApiOutput::Json)
             .map_err(alert_snapshot_failure)
     }
-
     fn strategy_definition_detail(
         &self,
         path: &str,
