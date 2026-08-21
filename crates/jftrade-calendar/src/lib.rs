@@ -1,8 +1,14 @@
 #![forbid(unsafe_code)]
 
+mod snapshot;
 mod sources;
 mod status;
 
+pub use snapshot::{
+    CalendarSessionWindow, CalendarSnapshot, CalendarSnapshotLoadError,
+    CalendarSnapshotLoadErrorKind, CalendarSnapshotLoadResult, CalendarSnapshotStore,
+    TradingDaySchedule,
+};
 pub use sources::{
     BUILTIN_SOURCE_ID, CalendarSourceDescriptor, CalendarSourceProjection, CalendarSourceStatus,
     CalendarSourcesSnapshot, MANUAL_OVERRIDE_SOURCE_ID, default_source_descriptors,

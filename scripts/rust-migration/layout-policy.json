@@ -45,7 +45,7 @@
       "rustOwner": "jftrade-calendar",
       "cutover": "jftrade-engine injects calendar persistence and provider ports while retaining source priority",
       "goDeleteWhen": "calendar CRUD, import, provider fallback and timezone/session parity pass with one Rust owner",
-      "allowedWorkspaceDependencies": []
+      "allowedWorkspaceDependencies": ["jftrade-kernel"]
     },
     {
       "name": "jftrade-datamanagement",

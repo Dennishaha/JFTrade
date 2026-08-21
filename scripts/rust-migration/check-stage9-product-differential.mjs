@@ -76,6 +76,13 @@ run("go", [
   "test",
   "./scripts/rust-migration",
   "-run",
+  "^TestStage9CalendarSnapshotFormatMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
   "^TestStage9WatchlistMembershipsFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);

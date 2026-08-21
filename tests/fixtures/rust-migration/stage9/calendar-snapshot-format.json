@@ -1,0 +1,38 @@
+{
+  "version": "stage9.calendar-snapshot-format.v1",
+  "platforms": [
+    "unix",
+    "windows"
+  ],
+  "relativePath": "HK/2026/hk_gov_1823_ical.json",
+  "directoryMode": "0755",
+  "fileMode": "0644",
+  "fileContents": "{\n  \"marketCode\": \"HK\",\n  \"sourceId\": \"hk_gov_1823_ical\",\n  \"from\": \"2026-01-01T00:00:00+08:00\",\n  \"to\": \"2026-12-31T23:59:59.123456+08:00\",\n  \"schedules\": [\n    {\n      \"marketCode\": \"HK\",\n      \"date\": \"2026-06-19T00:00:00+08:00\",\n      \"status\": \"early_close\",\n      \"sessions\": [\n        {\n          \"kind\": \"regular\",\n          \"startMinute\": 570,\n          \"endMinute\": 720\n        }\n      ],\n      \"reason\": \"tuen_ng_festival\",\n      \"sourceId\": \"hk_gov_1823_ical\",\n      \"observed\": true,\n      \"updatedAt\": \"2026-01-02T09:30:00+08:00\"\n    }\n  ],\n  \"fetchedAt\": \"2026-01-02T09:30:00+08:00\",\n  \"validUntil\": \"2027-01-03T09:30:00+08:00\",\n  \"checksum\": \"sha256:calendar-fixture\"\n}\n",
+  "snapshot": {
+    "checksum": "sha256:calendar-fixture",
+    "fetchedAt": "2026-01-02T09:30:00+08:00",
+    "from": "2026-01-01T00:00:00+08:00",
+    "marketCode": "HK",
+    "schedules": [
+      {
+        "date": "2026-06-19T00:00:00+08:00",
+        "marketCode": "HK",
+        "observed": true,
+        "reason": "tuen_ng_festival",
+        "sessions": [
+          {
+            "endMinute": 720,
+            "kind": "regular",
+            "startMinute": 570
+          }
+        ],
+        "sourceId": "hk_gov_1823_ical",
+        "status": "early_close",
+        "updatedAt": "2026-01-02T09:30:00+08:00"
+      }
+    ],
+    "sourceId": "hk_gov_1823_ical",
+    "to": "2026-12-31T23:59:59.123456+08:00",
+    "validUntil": "2027-01-03T09:30:00+08:00"
+  }
+}
