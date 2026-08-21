@@ -163,6 +163,13 @@ run("go", [
   "^TestStage9SystemReadFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
+  "^TestStage9BacktestsReadFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
 const realTradeDirectory = mkdtempSync(join(tmpdir(), "jftrade-stage9-real-trade-"));
 const realTradeReference = join(realTradeDirectory, "go-reference.json");
 const brokerSettingsReference = join(realTradeDirectory, "go-broker-settings-reference.json");
@@ -738,6 +745,30 @@ run("cargo", [
 run("cargo", [
   "test",
   "-p",
+  "jftrade-engine",
+  "product::tests::backtests_read_tests::backtests_read_routes_match_group_fixture_in_cutover_only",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::backtests_read_tests::backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::backtests_read_tests::backtests_read_routes_are_not_registered_without_snapshot_port",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
   "jftrade-integration-futu",
   "provider::tests::broker_descriptor_matches_current_go_wire_fixture",
   "--",
@@ -753,4 +784,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: settings/system/alerts/plugins/strategy-definitions/watchlist/portfolio/research/broker read projections, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");
+console.log("Go/Rust Stage 9 product-slice differential passed: settings/system/alerts/plugins/strategy-definitions/watchlist/portfolio/research/broker/backtests read projections, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");

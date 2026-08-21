@@ -19,6 +19,7 @@ struct ProductApi {
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
+    backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     notification_sequence: AtomicU64,
     capabilities: ProductCapabilities,
 }
@@ -37,6 +38,7 @@ struct ProductOptionalPorts {
     plugin_snapshot: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
+    backtest_read_snapshot: Option<Arc<dyn BacktestReadSnapshotPort>>,
 }
 
 struct ProductSettingsServices {
@@ -90,6 +92,7 @@ impl ProductApi {
             plugin_snapshot_port: optional_ports.plugin_snapshot,
             alert_snapshot_port: optional_ports.alert_snapshot,
             strategy_definition_snapshot_port: optional_ports.strategy_definition_snapshot,
+            backtest_read_snapshot_port: optional_ports.backtest_read_snapshot,
             notification_sequence: AtomicU64::new(0),
             capabilities,
         }

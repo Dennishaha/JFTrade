@@ -205,6 +205,9 @@ impl ApiPort for ProductApi {
                 ("GET", "/api/v1/settings/data-management/databases") => {
                     self.database_overview(&request.query)
                 }
+                ("GET", "/api/v1/backtests") => self.backtest_list(),
+                ("GET", path) if is_backtest_status_path(path) => self.backtest_status(path),
+                ("GET", path) if is_backtest_result_path(path) => self.backtest_result(path),
                 ("GET", "/api/v1/research/screens/catalog") => {
                     self.research_screen_catalog(&request.query)
                 }
@@ -552,6 +555,21 @@ fn is_plugin_uninstall_guidance_path(path: &str) -> bool {
     path.strip_prefix("/api/v1/plugins/")
         .and_then(|suffix| suffix.strip_suffix("/uninstall-guidance"))
         .is_some_and(|plugin_id| !plugin_id.contains('/'))
+}
+
+fn is_backtest_status_path(path: &str) -> bool {
+    let Some(suffix) = path.strip_prefix("/api/v1/backtests/") else {
+        return false;
+    };
+    let mut parts = suffix.split('/');
+    parts.next().is_some_and(|run_id| !run_id.is_empty())
+        && parts.next() == Some("status")
+        && parts.next().is_none()
+}
+
+fn is_backtest_result_path(path: &str) -> bool {
+    path.strip_prefix("/api/v1/backtests/")
+        .is_some_and(|run_id| !run_id.is_empty() && !run_id.contains('/'))
 }
 
 fn is_plugin_operation_path(path: &str) -> bool {

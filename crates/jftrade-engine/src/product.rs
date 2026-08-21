@@ -253,6 +253,7 @@ pub struct ProductConfig {
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
+    backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     capabilities: ProductCapabilities,
 }
 
@@ -308,6 +309,7 @@ impl ProductConfig {
             plugin_snapshot_port: None,
             alert_snapshot_port: None,
             strategy_definition_snapshot_port: None,
+            backtest_read_snapshot_port: None,
             capabilities: ProductCapabilities::default(),
         })
     }
@@ -562,20 +564,7 @@ pub(crate) async fn start_product_with_runtime_state(
         .await
         .map_err(ProductError::Bind)?;
     let address = listener.local_addr().map_err(ProductError::LocalAddress)?;
-    let route_ports = ProductRoutePorts {
-        alerts: config.alert_snapshot_port.is_some(),
-        calendar_manager: config.calendar_manager.is_some(),
-        watchlist_memberships: config.watchlist_membership_snapshot_port.is_some(),
-        watchlist_read: config.watchlist_read_snapshot_port.is_some(),
-        portfolio: config.portfolio_snapshot_port.is_some(),
-        research_read: config.research_read_snapshot_port.is_some(),
-        broker_read: config.broker_read_snapshot_port.is_some(),
-        system_read: config.system_read_snapshot_port.is_some(),
-        remote_watchlist: config.remote_watchlist_snapshot_port.is_some(),
-        plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
-        plugins: config.plugin_snapshot_port.is_some(),
-        strategy_definitions: config.strategy_definition_snapshot_port.is_some(),
-    };
+    let route_ports = product_route_ports(&config);
     let routes = product_routes(&config.capabilities, route_ports)?;
     let route_count = routes.routes().len();
     let route_capabilities = routes
@@ -655,6 +644,7 @@ pub(crate) async fn start_product_with_runtime_state(
             plugin_snapshot: config.plugin_snapshot_port.clone(),
             alert_snapshot: config.alert_snapshot_port.clone(),
             strategy_definition_snapshot: config.strategy_definition_snapshot_port.clone(),
+            backtest_read_snapshot: config.backtest_read_snapshot_port.clone(),
         },
         config.capabilities.clone(),
     ));
@@ -734,6 +724,7 @@ include!("product_route_assembly.rs");
 
 include!("product_api.rs");
 include!("product_api_system_read.rs");
+include!("product_api_backtests.rs");
 
 include!("product_api_watchlist.rs");
 

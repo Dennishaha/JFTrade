@@ -30,6 +30,7 @@ enum ProductCapability {
     PluginUninstallGuidance,
     Alerts,
     StrategyDefinitions,
+    BacktestRead,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -67,6 +68,7 @@ impl ProductCapabilities {
             ProductCapability::PluginUninstallGuidance,
             ProductCapability::Alerts,
             ProductCapability::StrategyDefinitions,
+            ProductCapability::BacktestRead,
         ]))
     }
 
@@ -98,6 +100,7 @@ impl ProductCapabilities {
                     | ProductCapability::PluginUninstallGuidance
                     | ProductCapability::Alerts
                     | ProductCapability::StrategyDefinitions
+                    | ProductCapability::BacktestRead
             )
         })
     }
@@ -122,6 +125,25 @@ struct ProductRoutePorts {
     plugins: bool,
     plugin_uninstall_guidance: bool,
     strategy_definitions: bool,
+    backtest_read: bool,
+}
+
+fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
+    ProductRoutePorts {
+        alerts: config.alert_snapshot_port.is_some(),
+        calendar_manager: config.calendar_manager.is_some(),
+        watchlist_memberships: config.watchlist_membership_snapshot_port.is_some(),
+        watchlist_read: config.watchlist_read_snapshot_port.is_some(),
+        portfolio: config.portfolio_snapshot_port.is_some(),
+        research_read: config.research_read_snapshot_port.is_some(),
+        broker_read: config.broker_read_snapshot_port.is_some(),
+        system_read: config.system_read_snapshot_port.is_some(),
+        backtest_read: config.backtest_read_snapshot_port.is_some(),
+        remote_watchlist: config.remote_watchlist_snapshot_port.is_some(),
+        plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
+        plugins: config.plugin_snapshot_port.is_some(),
+        strategy_definitions: config.strategy_definition_snapshot_port.is_some(),
+    }
 }
 
 fn product_routes(
@@ -136,6 +158,7 @@ fn product_routes(
     }
     routes.extend(product_calendar_routes(capabilities, ports));
     routes.extend(product_data_management_routes(capabilities));
+    routes.extend(product_backtest_routes(capabilities, ports));
     routes.extend(product_watchlist_research_trading_routes(
         capabilities,
         ports,
@@ -148,4 +171,5 @@ include!("product_routes_settings.rs");
 include!("product_routes_alerts.rs");
 include!("product_routes_calendar.rs");
 include!("product_routes_data_management.rs");
+include!("product_routes_backtests.rs");
 include!("product_routes_watchlist_research_trading.rs");

@@ -638,14 +638,17 @@
       "method": "GET",
       "path": "/api/v1/backtests",
       "capability": "backtests",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "rust-implementation",
         "compatibility-evidence"
       ],
-      "evidence": []
+      "evidence": [
+        "tests/fixtures/rust-migration/stage9/backtests-read.json",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
@@ -664,27 +667,33 @@
       "method": "GET",
       "path": "/api/v1/backtests/{runId}",
       "capability": "backtests",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "rust-implementation",
         "compatibility-evidence"
       ],
-      "evidence": []
+      "evidence": [
+        "tests/fixtures/rust-migration/stage9/backtests-read.json",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/backtests/{runId}/status",
       "capability": "backtests",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "rust-implementation",
         "compatibility-evidence"
       ],
-      "evidence": []
+      "evidence": [
+        "tests/fixtures/rust-migration/stage9/backtests-read.json",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
