@@ -25,7 +25,6 @@ fn provider_descriptor_wire(
     }
     value
 }
-
 fn broker_settings_wire(inputs: jftrade_settings::BrokerSettingsInputs) -> serde_json::Value {
     json!({
         "brokers": [{
@@ -260,6 +259,9 @@ impl ApiPort for ProductApi {
                 }
                 ("GET", path) if is_market_data_provider_read_path(path) => {
                     self.market_data_provider_read(path, &request.query)
+                }
+                ("GET", path) if is_market_data_catalog_read_path(path) => {
+                    self.market_data_catalog_read(path, &request.query)
                 }
                 ("GET", path) if is_broker_read_path(path) => {
                     self.broker_read(path, &request.query)

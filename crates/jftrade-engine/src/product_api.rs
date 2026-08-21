@@ -15,6 +15,7 @@ struct ProductApi {
     research_preset_read_snapshot_port: Option<Arc<dyn ResearchPresetReadSnapshotPort>>,
     execution_read_snapshot_port: Option<Arc<dyn ExecutionReadSnapshotPort>>,
     market_data_provider_read_snapshot_port: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
+    market_data_catalog_read_snapshot_port: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -38,6 +39,7 @@ struct ProductOptionalPorts {
     research_preset_read_snapshot: Option<Arc<dyn ResearchPresetReadSnapshotPort>>,
     execution_read_snapshot: Option<Arc<dyn ExecutionReadSnapshotPort>>,
     market_data_provider_read_snapshot: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
+    market_data_catalog_read_snapshot: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
     broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -94,6 +96,7 @@ impl ProductApi {
             research_preset_read_snapshot_port: optional_ports.research_preset_read_snapshot,
             execution_read_snapshot_port: optional_ports.execution_read_snapshot,
             market_data_provider_read_snapshot_port: optional_ports.market_data_provider_read_snapshot,
+            market_data_catalog_read_snapshot_port: optional_ports.market_data_catalog_read_snapshot,
             broker_read_snapshot_port: optional_ports.broker_read_snapshot,
             system_read_snapshot_port: optional_ports.system_read_snapshot,
             remote_watchlist_snapshot_port: optional_ports.remote_watchlist_snapshot,
@@ -109,7 +112,6 @@ impl ProductApi {
             capabilities,
         }
     }
-
     fn system_status(&self) -> ApiOutput {
         let requests = self.metrics.snapshot();
         let uptime = duration_millis(self.started.elapsed());
@@ -216,7 +218,6 @@ impl ProductApi {
             .map(|integration| ApiOutput::Json(json!(integration)))
             .map_err(broker_settings_failure)
     }
-
     fn create_managed_broker_account(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
         let input: ManagedBrokerAccount = serde_json::from_slice(body)
             .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid account payload"))?;
@@ -226,7 +227,6 @@ impl ProductApi {
             .map(|account| ApiOutput::Json(json!(account)))
             .map_err(broker_settings_failure)
     }
-
     fn update_managed_broker_account(
         &self,
         id: &str,
