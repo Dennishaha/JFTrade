@@ -58,6 +58,56 @@ describe("desktop update banner", () => {
     expect(openExternalUrl).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [new Error("signature verification failed"), "signature verification failed"],
+    ["rejected", "更新安装失败"],
+  ])("reports native installer rejection without staying disabled", async (failure, message) => {
+    desktopState.enabled = true;
+    desktopBackend.value = "tauri";
+    installUpdate.mockRejectedValue(failure);
+    onAvailable.mockImplementation((listener: (event: unknown) => void) => {
+      listener({ available: true, latestVersion: "2.4.0" });
+      return Promise.resolve(() => undefined);
+    });
+
+    const wrapper = mount(DesktopUpdateBanner);
+    await vi.waitFor(() => expect(wrapper.text()).toContain("下载并安装"));
+    await wrapper.get("button").trigger("click");
+    await vi.waitFor(() => expect(wrapper.get("[role='alert']").text()).toBe(message));
+
+    expect(wrapper.get("button").attributes("disabled")).toBeUndefined();
+  });
+
+  it("fails closed when the desktop update listener cannot start", async () => {
+    desktopState.enabled = true;
+    onAvailable.mockRejectedValue(new Error("listener unavailable"));
+
+    const wrapper = mount(DesktopUpdateBanner);
+    await vi.waitFor(() => expect(onAvailable).toHaveBeenCalledOnce());
+    await flushPromises();
+
+    expect(wrapper.find(".desktop-update-banner").exists()).toBe(false);
+  });
+
+  it("ignores unavailable update events and blank release URLs", async () => {
+    desktopState.enabled = true;
+    let listener: ((event: unknown) => void) | undefined;
+    onAvailable.mockImplementation((candidate: (event: unknown) => void) => {
+      listener = candidate;
+      return Promise.resolve(() => undefined);
+    });
+
+    const wrapper = mount(DesktopUpdateBanner);
+    await vi.waitFor(() => expect(onAvailable).toHaveBeenCalledOnce());
+    listener?.({ available: false, latestVersion: "2.4.0" });
+    expect(wrapper.find(".desktop-update-banner").exists()).toBe(false);
+
+    listener?.({ available: true, latestVersion: "2.4.0", releaseUrl: "  " });
+    await wrapper.vm.$nextTick();
+    await wrapper.get("button").trigger("click");
+    expect(openExternalUrl).not.toHaveBeenCalled();
+  });
+
   it("shows update events, opens the release URL, and removes its listener", async () => {
     desktopState.enabled = true;
     const cancel = vi.fn();

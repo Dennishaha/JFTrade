@@ -149,6 +149,8 @@ func TestExclusionRulesAreExplicitAndDoNotHideBackendEntrypoints(t *testing.T) {
 		{name: "declarative OpenAPI routes", fileName: "github.com/jftrade/jftrade-main/internal/api/watchlist/openapi.go", category: exclusionContract, excluded: true},
 		{name: "declarative research OpenAPI routes", fileName: "github.com/jftrade/jftrade-main/internal/api/research/openapi.go", category: exclusionContract, excluded: true},
 		{name: "release asset embed wrapper", fileName: "github.com/jftrade/jftrade-main/internal/marketdataassets/assets_release.go", category: exclusionBuildVariant, excluded: true},
+		{name: "Windows process stop adapter", fileName: "github.com/jftrade/jftrade-main/internal/app/apiserver/rustrehearsal/process_stop_windows.go", category: exclusionBuildVariant, excluded: true},
+		{name: "Windows owner lock adapter", fileName: "github.com/jftrade/jftrade-main/internal/store/ownerlock/lock_windows.go", category: exclusionBuildVariant, excluded: true},
 		{name: "Futu test support", fileName: "github.com/jftrade/jftrade-main/internal/integration/futu/testkit/server.go", category: exclusionTestSupport, excluded: true},
 		{name: "Yahoo Finance test support", fileName: "github.com/jftrade/jftrade-main/internal/integration/yfinance/testkit/server.go", category: exclusionTestSupport, excluded: true},
 		{name: "similar Futu package", fileName: "github.com/jftrade/jftrade-main/internal/integration/futu/testkitx/server.go"},

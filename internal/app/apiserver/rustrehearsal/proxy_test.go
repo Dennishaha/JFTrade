@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/webaccess"
 )
 
 const requestIDHeader = "X-Request-ID"
@@ -26,6 +27,13 @@ func (f rehearsalProxyTargetFixture) Endpoint() string       { return f.endpoint
 func (f rehearsalProxyTargetFixture) BearerToken() string    { return "private-rust-bearer" }
 func (f rehearsalProxyTargetFixture) Profile() string        { return "read-only-shadow.v1" }
 func (f rehearsalProxyTargetFixture) Capabilities() []string { return f.capabilities }
+
+func TestRehearsalProxyStaysDisabledWithoutVerifiedTarget(t *testing.T) {
+	t.Parallel()
+	if proxy := newRehearsalProxy(nil, []string{"GET /api/v1/catalog"}, time.Second); proxy != nil {
+		t.Fatal("proxy enabled without a verified Rust target")
+	}
+}
 
 func TestRehearsalProxyForwardsExactOperationAfterVerifiedSurface(t *testing.T) {
 	t.Parallel()
@@ -86,6 +94,12 @@ func TestRehearsalProxyForwardsExactOperationAfterVerifiedSurface(t *testing.T) 
 
 func TestRehearsalProxyDoesNotSelectMethodPathOrStreamingNearMisses(t *testing.T) {
 	t.Parallel()
+	if matchesPathTemplate("/api/v1//details", "/api/v1/{id}/details") {
+		t.Fatal("empty path parameter matched")
+	}
+	if matchesPathTemplate("/api/v2/catalog", "/api/v1/catalog") {
+		t.Fatal("literal path mismatch matched")
+	}
 	const operation = "POST /api/v1/widgets/{id}"
 	var rustCalls atomic.Int32
 	rust := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { rustCalls.Add(1) }))
@@ -115,6 +129,50 @@ func TestRehearsalProxyDoesNotSelectMethodPathOrStreamingNearMisses(t *testing.T
 	}
 }
 
+func TestRehearsalProxyConfigurationAndAccessSurfaceFailClosed(t *testing.T) {
+	t.Parallel()
+	const operation = "GET /api/v1/catalog"
+	expectPanic := func(name string, options ProxyOptions) {
+		t.Helper()
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("invalid proxy configuration did not panic")
+				}
+			}()
+			_ = NewProxy(options)
+		})
+	}
+	expectPanic("non-loopback endpoint", ProxyOptions{
+		Target: rehearsalProxyTargetFixture{"http://0.0.0.0:3000", []string{operation}}, Operations: []string{operation},
+	})
+	expectPanic("unverified capability", ProxyOptions{
+		Target: rehearsalProxyTargetFixture{"http://127.0.0.1:3000", nil}, Operations: []string{operation},
+	})
+	expectPanic("invalid operation", ProxyOptions{
+		Target: rehearsalProxyTargetFixture{"http://127.0.0.1:3000", []string{"invalid"}}, Operations: []string{"invalid"},
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/catalog", nil)
+	if got := verifiedAccessSurface(webaccess.WithAccessSurface(request)); got != "web" {
+		t.Fatalf("Web access surface = %q", got)
+	}
+	var goCalls atomic.Int32
+	router := gin.New()
+	router.Use(NewProxy(ProxyOptions{
+		Target: rehearsalProxyTargetFixture{"http://127.0.0.1:3000", []string{operation}}, Operations: []string{operation},
+	}))
+	router.GET("/api/v1/catalog", func(c *gin.Context) {
+		goCalls.Add(1)
+		c.Status(http.StatusAccepted)
+	})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/catalog", nil))
+	if response.Code != http.StatusForbidden || goCalls.Load() != 0 {
+		t.Fatalf("unverified surface response = %d, Go calls = %d", response.Code, goCalls.Load())
+	}
+}
+
 func TestRehearsalProxyNeverReplaysRustFailureToGo(t *testing.T) {
 	t.Parallel()
 	const operation = "GET /api/v1/catalog"
@@ -131,6 +189,9 @@ func TestRehearsalProxyNeverReplaysRustFailureToGo(t *testing.T) {
 		{name: "timeout", handler: func(w http.ResponseWriter, r *http.Request) {
 			<-r.Context().Done()
 		}, timeout: 20 * time.Millisecond, wantStatus: http.StatusGatewayTimeout},
+		{name: "oversized response", handler: func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write(make([]byte, maxRehearsalResponseBytes+1))
+		}, timeout: time.Second, wantStatus: http.StatusBadGateway},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

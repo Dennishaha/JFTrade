@@ -102,11 +102,8 @@ func writeDiagnostic(file *os.File, diagnostic Diagnostic) error {
 	if err := file.Truncate(0); err != nil {
 		return err
 	}
-	if _, err := file.Seek(0, 0); err != nil {
-		return err
-	}
 	encoded = append(encoded, '\n')
-	if _, err := file.Write(encoded); err != nil {
+	if _, err := file.WriteAt(encoded, 0); err != nil {
 		return err
 	}
 	return file.Sync()

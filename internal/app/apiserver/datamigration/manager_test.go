@@ -45,6 +45,14 @@ func TestManagerSchedulesSingleAndBatchRebuilds(t *testing.T) {
 	if len(want) != 0 {
 		t.Fatalf("scheduled ids = %v, missing %v", result.DatabaseIDs, want)
 	}
+	if err := manager.ApplyPending(); err != nil {
+		t.Fatalf("apply batch rebuild: %v", err)
+	}
+	for _, id := range result.DatabaseIDs {
+		if _, err := os.Stat(manager.descriptorMap()[id].Path); !os.IsNotExist(err) {
+			t.Fatalf("batch database %s still exists: %v", id, err)
+		}
+	}
 }
 
 func TestManagerScheduleRebuildSharesMaintenanceLocks(t *testing.T) {

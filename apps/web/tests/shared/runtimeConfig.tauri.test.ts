@@ -44,6 +44,7 @@ describe("Tauri runtime configuration", () => {
     "http://localhost:3008",
     "http://example.com:3008",
     "http://127.0.0.1:3008/path",
+    "http://[",
   ])("rejects unsafe API base URL %s", async (apiBaseUrl) => {
     (window as typeof window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
     invoke.mockResolvedValue({

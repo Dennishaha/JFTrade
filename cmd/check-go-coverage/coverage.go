@@ -137,6 +137,14 @@ var exclusionRules = []exclusionRule{
 		scope: "internal/integration/futu/testkit", category: exclusionTestSupport,
 		reason: "cross-package OpenD test fixtures",
 	},
+	{
+		scope: "internal/app/apiserver/rustrehearsal/process_stop_windows.go", category: exclusionBuildVariant,
+		reason: "Windows-only process stop adapter, cross-compiled separately",
+	},
+	{
+		scope: "internal/store/ownerlock/lock_windows.go", category: exclusionBuildVariant,
+		reason: "Windows-only writer lock adapter, cross-compiled separately",
+	},
 }
 
 type coverageStats struct {

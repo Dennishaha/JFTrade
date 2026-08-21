@@ -3,10 +3,12 @@ package rustrehearsal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -73,6 +75,104 @@ func TestStartFromEnvironmentIsDisabledByDefaultAndRejectsUnknownProfiles(t *tes
 	t.Setenv(EnvExecutable, helperExecutable(t))
 	if _, err := StartFromEnvironment(t.Context(), filepath.Join(t.TempDir(), "settings.json")); err == nil {
 		t.Fatal("unknown profile unexpectedly started")
+	}
+}
+
+func TestSidecarConfigAndReadyValidationFailClosed(t *testing.T) {
+	executable := helperExecutable(t)
+	valid := Config{
+		Profile: ReadOnlyProfile, Executable: executable,
+		SettingsPath: filepath.Join(t.TempDir(), "settings.json"), Bind: "127.0.0.1:0",
+	}
+	invalidConfigs := []Config{
+		{Profile: "unknown", Executable: executable, SettingsPath: valid.SettingsPath, Bind: valid.Bind},
+		{Profile: ReadOnlyProfile, Executable: "relative", SettingsPath: valid.SettingsPath, Bind: valid.Bind},
+		{Profile: ReadOnlyProfile, Executable: filepath.Join(t.TempDir(), "missing"), SettingsPath: valid.SettingsPath, Bind: valid.Bind},
+		{Profile: ReadOnlyProfile, Executable: t.TempDir(), SettingsPath: valid.SettingsPath, Bind: valid.Bind},
+		{Profile: ReadOnlyProfile, Executable: executable, Bind: valid.Bind},
+		{Profile: ReadOnlyProfile, Executable: executable, SettingsPath: valid.SettingsPath, Bind: "invalid"},
+		{Profile: ReadOnlyProfile, Executable: executable, SettingsPath: valid.SettingsPath, Bind: "0.0.0.0:1"},
+	}
+	for index, config := range invalidConfigs {
+		if err := validateConfig(config); err == nil {
+			t.Fatalf("invalid config %d was accepted", index)
+		}
+	}
+	if err := validateConfig(valid); err != nil {
+		t.Fatalf("valid config rejected: %v", err)
+	}
+
+	resourceHash, err := sha256File(executable)
+	if err != nil {
+		t.Fatalf("hash helper: %v", err)
+	}
+	base := readyRecord{
+		Event: "ready", Address: "127.0.0.1:1234", Owner: "rust-read-only-shadow",
+		OwnedRoutes: len(readOnlyCapabilities), ProtocolVersion: ProtocolVersion, RouteProfile: ReadOnlyProfile,
+		RouteProfileDigest: capabilityDigest(readOnlyCapabilities),
+		Capabilities:       append([]string(nil), readOnlyCapabilities...), ResourceSHA256: resourceHash,
+	}
+	mutations := []func(*readyRecord){
+		func(record *readyRecord) { record.Event = "wrong" },
+		func(record *readyRecord) { record.ProtocolVersion = "wrong" },
+		func(record *readyRecord) { record.OwnedRoutes-- },
+		func(record *readyRecord) { record.RouteProfileDigest = "wrong" },
+		func(record *readyRecord) { record.ResourceSHA256 = "wrong" },
+		func(record *readyRecord) { record.Address = "invalid" },
+		func(record *readyRecord) { record.Address = "0.0.0.0:1234" },
+	}
+	for index, mutate := range mutations {
+		record := base
+		record.Capabilities = append([]string(nil), base.Capabilities...)
+		mutate(&record)
+		if err := validateReady(record, ReadOnlyProfile, resourceHash); err == nil {
+			t.Fatalf("invalid ready record %d was accepted", index)
+		}
+	}
+	if err := validateReady(base, ReadOnlyProfile, resourceHash); err != nil {
+		t.Fatalf("valid ready record rejected: %v", err)
+	}
+}
+
+func TestSidecarHelpersCoverNilTimeoutAndPathBoundaries(t *testing.T) {
+	var handle *Handle
+	if handle.Endpoint() != "" || handle.BearerToken() != "" || handle.Profile() != "" || handle.Capabilities() != nil {
+		t.Fatal("nil handle exposed runtime state")
+	}
+	if err := handle.Close(); err != nil {
+		t.Fatalf("nil handle close: %v", err)
+	}
+	closed := make(chan struct{})
+	close(closed)
+	if !waitDone(closed, time.Second) || waitDone(make(chan struct{}), time.Millisecond) {
+		t.Fatal("waitDone did not distinguish completion from timeout")
+	}
+	if normalizeWaitError(nil) != nil || normalizeWaitError(&exec.ExitError{}) != nil {
+		t.Fatal("expected process exits must normalize to nil")
+	}
+	sentinel := fmt.Errorf("sentinel")
+	if !errors.Is(normalizeWaitError(sentinel), sentinel) ||
+		!errors.Is(normalizeProcessStopError(sentinel), sentinel) ||
+		normalizeProcessStopError(os.ErrProcessDone) != nil {
+		t.Fatal("unexpected process error normalization")
+	}
+	if _, err := resolveExecutable("relative"); err == nil {
+		t.Fatal("relative executable override was accepted")
+	}
+	abs := filepath.Join(t.TempDir(), "..", "binary")
+	resolved, err := resolveExecutable(abs)
+	if err != nil || resolved != filepath.Clean(abs) {
+		t.Fatalf("absolute override = %q, %v", resolved, err)
+	}
+	if _, err := sha256File(filepath.Join(t.TempDir(), "missing")); err == nil {
+		t.Fatal("missing executable hash succeeded")
+	}
+	if _, err := sha256File(t.TempDir()); err == nil {
+		t.Fatal("directory executable hash succeeded")
+	}
+	request, _ := http.NewRequest(http.MethodGet, "http://127.0.0.1/", nil)
+	if verifiedAccessSurface(request) != "" {
+		t.Fatal("unverified request surface was trusted")
 	}
 }
 

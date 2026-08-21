@@ -61,6 +61,66 @@ func TestWriterLeaseConflictCrashReleaseAndPersistentDiagnostic(t *testing.T) {
 	}
 }
 
+func TestWriterLeaseValidationDefaultsAndIdempotentClose(t *testing.T) {
+	t.Setenv("JFTRADE_RUST_REHEARSAL_PROFILE", "")
+	diagnostic := CurrentDiagnostic("", "")
+	if diagnostic.Owner != "go" || diagnostic.Profile != "go-production" || diagnostic.PID != os.Getpid() {
+		t.Fatalf("default diagnostic = %#v", diagnostic)
+	}
+	t.Setenv("JFTRADE_RUST_REHEARSAL_PROFILE", "rehearsal-test")
+	diagnostic = CurrentDiagnostic("  rust-test  ", "")
+	if diagnostic.Owner != "rust-test" || diagnostic.Profile != "rehearsal-test" {
+		t.Fatalf("environment diagnostic = %#v", diagnostic)
+	}
+	if lease, err := Acquire("  ", diagnostic); lease != nil || err == nil {
+		t.Fatalf("empty target acquire = (%v, %v)", lease, err)
+	}
+	missingParent := filepath.Join(t.TempDir(), "missing", "settings.json")
+	if lease, err := Acquire(missingParent, diagnostic); lease != nil || err == nil {
+		t.Fatalf("missing parent acquire = (%v, %v)", lease, err)
+	}
+	target := filepath.Join(t.TempDir(), "settings.json")
+	lease, err := Acquire(target, Diagnostic{})
+	if err != nil {
+		t.Fatalf("acquire default diagnostic: %v", err)
+	}
+	if err := lease.Close(); err != nil {
+		t.Fatalf("first close: %v", err)
+	}
+	if err := lease.Close(); err != nil {
+		t.Fatalf("idempotent close: %v", err)
+	}
+	var nilLease *Lease
+	if err := nilLease.Close(); err != nil {
+		t.Fatalf("nil close: %v", err)
+	}
+	if err := unlockFile(nil); err != nil {
+		t.Fatalf("nil unlock: %v", err)
+	}
+}
+
+func TestWriterLeaseDiagnosticRejectsClosedFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "diagnostic.lock")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create diagnostic target: %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("close diagnostic target: %v", err)
+	}
+	if err := writeDiagnostic(file, Diagnostic{Owner: "go-test"}); err == nil {
+		t.Fatal("writeDiagnostic on closed file succeeded")
+	}
+	appendOnly, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		t.Fatalf("open append-only diagnostic target: %v", err)
+	}
+	defer func() { _ = appendOnly.Close() }()
+	if err := writeDiagnostic(appendOnly, Diagnostic{Owner: "go-test"}); err == nil {
+		t.Fatal("writeDiagnostic with append-only file succeeded")
+	}
+}
+
 func TestWriterLeaseHelperProcess(t *testing.T) {
 	if os.Getenv("JFTRADE_OWNER_LOCK_HELPER") != "hold" {
 		return
