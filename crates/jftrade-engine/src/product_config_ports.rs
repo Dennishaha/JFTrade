@@ -112,6 +112,21 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_market_data_news_search_read_snapshot_port(
+        mut self,
+        port: Arc<dyn MarketDataNewsSearchReadSnapshotPort>,
+    ) -> Self {
+        self.market_data_news_search_read_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_adk_read_snapshot_port(mut self, port: Arc<dyn AdkReadSnapshotPort>) -> Self {
+        self.adk_read_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_market_data_quote_read_snapshot_port(
         mut self,
         port: Arc<dyn MarketDataQuoteReadSnapshotPort>,

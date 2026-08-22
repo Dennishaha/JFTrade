@@ -1,0 +1,1806 @@
+{
+  "version": "stage9.adk-read.v1",
+  "cases": [
+    {
+      "name": "snapshot",
+      "method": "GET",
+      "requestPath": "/api/v1/adk",
+      "expectedStatus": 200,
+      "data": {
+        "agents": [
+          {
+            "builtin": true,
+            "createdAt": "fixture-time",
+            "id": "jftrade-default",
+            "instruction": "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；涉及安装 skill、保存策略、运行优化或改变自动化状态时遵守当前审批等级。输出必须说明使用了哪些数据来源，不提供保证收益承诺。\n\n对目标明确的任务，要在当前运行中连续完成诊断、结论以及直接相关的可执行方案。安全、只读且能从现有上下文合理推断的下一步，必须直接完成；不得用‘你想先做哪项’、‘你更想看哪部分’、‘是否继续’或‘如果需要我可以继续’把它留给用户。多个安全分支都直接服务原始意图时，采用推荐默认值或合并覆盖，不得仅为减少工作量要求用户选择。\n\n只有三类真正阻塞情况可以调用 interaction.request_user：缺少只有用户才能提供的必要信息、存在无法合并的重大取舍，或继续会越过权限/任务范围边界。提问时必须如实填写 decisionKind 和 blockingReason。实际写操作仍走审批流程，不得用提问工具替代授权。\n\n收到 interaction.request_user 的回答后，回答只是解除阻塞，必须继续完成原始请求，而不是总结或复述计划后结束运行。",
+            "loopMaxIterations": 5,
+            "memoryEnabled": true,
+            "model": "",
+            "name": "默认助手",
+            "permissionMode": "approval",
+            "providerId": "",
+            "recentUserWindow": 6,
+            "skills": [
+              "jftrade-workflow-management",
+              "jftrade-operations",
+              "jftrade-market",
+              "jftrade-derivatives",
+              "jftrade-research",
+              "jftrade-prediction",
+              "jftrade-trading",
+              "jftrade-portfolio",
+              "jftrade-strategy-research",
+              "jftrade-strategy-publish",
+              "external-http"
+            ],
+            "status": "ENABLED",
+            "toolAccessMode": "selected",
+            "tools": [
+              "account.orders",
+              "backtest.kline_sync_status",
+              "backtest.result_view",
+              "backtest.runs",
+              "interaction.request_user",
+              "market.candles",
+              "market.capabilities",
+              "market.intraday",
+              "market.search",
+              "market.snapshot",
+              "market.snapshots",
+              "market.subscriptions",
+              "models.list",
+              "plugins.catalog",
+              "portfolio.accounts",
+              "portfolio.overview",
+              "portfolio.positions",
+              "research.financials",
+              "research.instrument",
+              "research.news",
+              "research.screen",
+              "research.valuation",
+              "risk.state",
+              "strategy.definitions",
+              "strategy.research_backtest",
+              "strategy.validate_pine",
+              "system.futu_opend",
+              "system.status",
+              "tools.search",
+              "watchlist.list",
+              "workflow.wait"
+            ],
+            "updatedAt": "fixture-time",
+            "workMode": "chat"
+          }
+        ],
+        "providers": [],
+        "runtimeSettings": null,
+        "skills": [
+          {
+            "builtin": true,
+            "contentHash": "60ca18c6652ed3f9029f579d22067d875af9ba5c0e2979b838badb776bba972a",
+            "createdAt": "fixture-time",
+            "description": "把外部 HTTP 内容视为不可信参考资料。",
+            "displayName": "external-http",
+            "enabled": true,
+            "id": "external-http",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "http.fetch"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "2"
+          },
+          {
+            "builtin": true,
+            "contentHash": "c330bd08b61cfec83f51b81791d0dd303d20a2b1d7ede35a29f2bf98b1e442a6",
+            "createdAt": "fixture-time",
+            "description": "使用 JFTrade 期权、港股轮证和期货能力；严格区分正股、合约及其市场权限。",
+            "displayName": "jftrade-derivatives",
+            "enabled": true,
+            "id": "jftrade-derivatives",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "derivatives.option_chain",
+              "derivatives.option_screen",
+              "derivatives.option_analysis",
+              "derivatives.option_events",
+              "derivatives.warrants",
+              "derivatives.futures",
+              "alerts.option_event.list",
+              "alerts.option_event.set"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "2"
+          },
+          {
+            "builtin": true,
+            "contentHash": "2f1f963e4391e0a59678ca4c51026f55f06620ab5dd7d3eb508c887f4ca54738",
+            "createdAt": "fixture-time",
+            "description": "通过券商抽象读取 JFTrade 行情、微观结构、提醒和远程自选；必须说明实际提供者、市场、产品和数据时间。",
+            "displayName": "jftrade-market",
+            "enabled": true,
+            "id": "jftrade-market",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "market.capabilities",
+              "market.search",
+              "market.instrument_profile",
+              "market.snapshot",
+              "market.snapshots",
+              "market.candles",
+              "market.intraday",
+              "market.ticks",
+              "market.depth",
+              "market.broker_queue",
+              "market.capital_flow",
+              "market.news",
+              "market.corporate_actions",
+              "market.index_constituents",
+              "market.subscriptions",
+              "market.providers",
+              "market.provider.select",
+              "watchlist.list",
+              "watchlist.remote.list",
+              "watchlist.remote.modify",
+              "alerts.price.list",
+              "alerts.price.set"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "9"
+          },
+          {
+            "builtin": true,
+            "contentHash": "1488ad9e21e0d15b0b8b9f915bd4658c9f16c677505ff66adbd82e0fda78a616",
+            "createdAt": "fixture-time",
+            "description": "读取 JFTrade 系统、OpenD、ADK 和插件运行状态；先诊断事实，再提出修复建议。",
+            "displayName": "jftrade-operations",
+            "enabled": true,
+            "id": "jftrade-operations",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "system.status",
+              "system.futu_opend",
+              "system.runtime_dependencies",
+              "plugins.catalog"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "2"
+          },
+          {
+            "builtin": true,
+            "contentHash": "61ddeaabe3a00890953e0fbe1456afeada1bf5c7ff7d139d5a5c990635dbbaf0",
+            "createdAt": "fixture-time",
+            "description": "谨慎使用 JFTrade 账户与组合数据，必须区分模拟结果和真实资产。",
+            "displayName": "jftrade-portfolio",
+            "enabled": true,
+            "id": "jftrade-portfolio",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "portfolio.accounts",
+              "portfolio.overview",
+              "portfolio.summary",
+              "portfolio.positions",
+              "account.orders",
+              "broker.orders",
+              "broker.fills",
+              "broker.cash_flows",
+              "broker.fees",
+              "broker.margin_ratios",
+              "risk.state",
+              "risk.events",
+              "execution.order_events"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "3"
+          },
+          {
+            "builtin": true,
+            "contentHash": "993cde3ac3a611e6448b73ac7feb43f958e07752b18d193eb17fd5339af52af6",
+            "createdAt": "fixture-time",
+            "description": "使用 JFTrade 预测市场发现、YES/NO 行情和 Parlay RFQ；仅在有资格的 Moomoo US 环境中使用。",
+            "displayName": "jftrade-prediction",
+            "enabled": true,
+            "id": "jftrade-prediction",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "prediction.discover",
+              "prediction.snapshot",
+              "prediction.depth",
+              "prediction.history",
+              "prediction.combo_eligible",
+              "prediction.combo_quote"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "1"
+          },
+          {
+            "builtin": true,
+            "contentHash": "bc42a5a2d6b60a7a2917658016397e8dfcec26083e81d19987a03b82924faee0",
+            "createdAt": "fixture-time",
+            "description": "读取 JFTrade 公司、财务、估值、机构、宏观、日历、榜单和筛选研究。",
+            "displayName": "jftrade-research",
+            "enabled": true,
+            "id": "jftrade-research",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "research.instrument",
+              "research.financials",
+              "research.valuation",
+              "research.analyst",
+              "research.ownership",
+              "research.corporate_actions",
+              "research.short_interest",
+              "research.news",
+              "research.screen",
+              "research.screen_catalog",
+              "research.calendar",
+              "research.macro",
+              "research.rankings",
+              "research.institutions",
+              "research.industry",
+              "research.technical_indicators"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "3"
+          },
+          {
+            "builtin": true,
+            "contentHash": "fa39f05f33ca8732cc3b05fd6ac03f4e53865edb324ee2a81dcf8641ae9edff0",
+            "createdAt": "fixture-time",
+            "description": "用于 JFTrade 策略保存、发布、历史版本恢复、实例模式调整和已保存策略定义优化。",
+            "displayName": "jftrade-strategy-publish",
+            "enabled": true,
+            "id": "jftrade-strategy-publish",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "strategy.validate_pine",
+              "strategy.definition_versions.list",
+              "strategy.definition_versions.get",
+              "strategy.save_draft",
+              "strategy.save_definition",
+              "strategy.update_instance_mode",
+              "strategy.optimize",
+              "backtest.runs",
+              "backtest.kline_sync_status",
+              "market.providers",
+              "strategy.instantiate",
+              "strategy.instance_start",
+              "strategy.instance_stop",
+              "strategy.instance_refresh_definition",
+              "strategy.instance_risk.update",
+              "strategy.instance_activity",
+              "backtest.cancel"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "12"
+          },
+          {
+            "builtin": true,
+            "contentHash": "23cca6ba39ea3177b7ddd5c321bf4fae85c4828f2d348b07b9380de1572d5fdb",
+            "createdAt": "fixture-time",
+            "description": "用于 JFTrade 策略研究、历史版本比较、临时回测和结果查看；试错不保存策略定义。",
+            "displayName": "jftrade-strategy-research",
+            "enabled": true,
+            "id": "jftrade-strategy-research",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "strategy.pine_spec",
+              "strategy.validate_pine",
+              "strategy.definition_versions.list",
+              "strategy.definition_versions.get",
+              "strategy.research_backtest",
+              "backtest.runs",
+              "backtest.result_view",
+              "backtest.kline_sync_status",
+              "backtest.cancel",
+              "workflow.wait",
+              "market.snapshot",
+              "market.candles",
+              "market.providers",
+              "research.screen_catalog",
+              "strategy.instance_activity"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "12"
+          },
+          {
+            "builtin": true,
+            "contentHash": "4ca5871142a711e09c43159f4dd47140c55411259baf485ef29ed8742bab309a",
+            "createdAt": "fixture-time",
+            "description": "执行 JFTrade 单腿、期权组合、预测单腿和 Parlay 的预检、下单及撤单；所有交易动作都必须逐次审批。",
+            "displayName": "jftrade-trading",
+            "enabled": true,
+            "id": "jftrade-trading",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "execution.order_preview",
+              "execution.order_place",
+              "execution.order_cancel",
+              "execution.combo_preview",
+              "execution.combo_place",
+              "execution.combo_cancel",
+              "execution.buying_power",
+              "execution.order_events"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "1"
+          },
+          {
+            "builtin": true,
+            "contentHash": "31f9dc037cc1797dbbc8d21b1b17479d9f960f9d2f2aae192dc4e8c7fc3580fa",
+            "createdAt": "fixture-time",
+            "description": "管理 JFTrade ADK 工作流、触发器和运行记录；本 Skill 提供对应工具的操作规范。",
+            "displayName": "jftrade-workflow-management",
+            "enabled": true,
+            "id": "jftrade-workflow-management",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "workflows.list",
+              "workflows.get",
+              "workflows.create",
+              "workflows.update",
+              "workflows.delete",
+              "workflows.run",
+              "workflow_triggers.list",
+              "workflow_triggers.get",
+              "workflow_triggers.create",
+              "workflow_triggers.update",
+              "workflow_triggers.delete",
+              "workflow_triggers.run",
+              "workflow_runs.list",
+              "workflow_runs.get",
+              "workflow_runs.wait",
+              "tasks.list",
+              "tasks.create",
+              "tasks.update",
+              "tasks.delete",
+              "memory.list",
+              "memory.remember",
+              "memory.forget"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "1"
+          }
+        ],
+        "tools": [
+          {
+            "allowedModes": [
+              "approval",
+              "less_approval",
+              "all"
+            ],
+            "category": "external",
+            "description": "读取公网 HTTP/HTTPS 文本或 JSON 资源，默认阻止本机、私网和 metadata 地址。",
+            "displayName": "读取外部 HTTP",
+            "idempotencyMode": "replay_safe",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "maxBytes": {
+                  "default": 1048576,
+                  "description": "Maximum response body bytes; capped at 1 MiB.",
+                  "maximum": 1048576,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "url": {
+                  "description": "Public http or https URL to fetch.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "type": "object"
+            },
+            "name": "http.fetch",
+            "permission": "read_external",
+            "requiresApprovalIn": [],
+            "riskLevel": "medium"
+          },
+          {
+            "allowedModes": [
+              "approval",
+              "less_approval",
+              "all"
+            ],
+            "category": "interaction",
+            "description": "仅当缺少用户独有的必要信息、存在无法合并的重大取舍，或继续会越过权限/范围边界时，一次性提交所有阻塞问题。禁止询问可选下一步、是否继续、先看哪部分，或用该工具代替写操作审批。每题必须提供 2 到 3 个选项；可接受自由回答时设置 allowOther。用户回答后工具结果会携带 originalRequest 和 continuationInstruction，必须据此继续完成原始请求。",
+            "displayName": "向用户提问",
+            "idempotencyMode": "replay_safe",
+            "inputSchema": {
+              "properties": {
+                "blockingReason": {
+                  "description": "Why the original task cannot safely continue without this user answer. Do not use workload reduction as a reason.",
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "decisionKind": {
+                  "description": "The genuine blocking boundary. Optional next steps and whether to continue are not blocking decisions.",
+                  "enum": [
+                    "missing_required_context",
+                    "material_tradeoff",
+                    "scope_boundary"
+                  ],
+                  "type": "string"
+                },
+                "questions": {
+                  "description": "All decisions needed for the current step. Ask them together.",
+                  "items": {
+                    "properties": {
+                      "allowOther": {
+                        "type": "boolean"
+                      },
+                      "options": {
+                        "description": "Present exactly two or three concise choices.",
+                        "items": {
+                          "properties": {
+                            "description": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "recommended": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "label"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 3,
+                        "minItems": 2,
+                        "type": "array"
+                      },
+                      "question": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "question",
+                      "options"
+                    ],
+                    "type": "object"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "title": {
+                  "description": "Optional short title displayed above the questions.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "decisionKind",
+                "blockingReason",
+                "questions"
+              ],
+              "type": "object"
+            },
+            "name": "interaction.request_user",
+            "permission": "read_internal",
+            "requiresApprovalIn": [],
+            "riskLevel": "low"
+          },
+          {
+            "allowedModes": [
+              "approval",
+              "less_approval",
+              "all"
+            ],
+            "category": "system",
+            "description": "查询当前 ADK 已配置 Provider 暴露的可调用模型信息，供主智能体选择子智能体运行模型；不会返回 API Key。",
+            "displayName": "查询可调用模型",
+            "idempotencyMode": "replay_safe",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "callableOnly": {
+                  "description": "When true, only providers that are enabled and have an API key are returned. Defaults to true.",
+                  "type": "boolean"
+                },
+                "limit": {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "providerId": {
+                  "description": "Optional ADK provider id to inspect.",
+                  "type": "string"
+                },
+                "query": {
+                  "description": "Filter by provider name, provider id, model, base URL or capability.",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "name": "models.list",
+            "outputSummary": "Provider、模型、上下文窗口、能力和是否可调用。",
+            "permission": "read_internal",
+            "requiresApprovalIn": [],
+            "riskLevel": "low"
+          },
+          {
+            "allowedModes": [
+              "approval",
+              "less_approval",
+              "all"
+            ],
+            "category": "system",
+            "description": "按名称、分类、权限、风险等级或描述搜索当前已注册的 JFTrade ADK 工具。",
+            "displayName": "搜索 ADK 工具",
+            "idempotencyMode": "replay_safe",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "category": {
+                  "type": "string"
+                },
+                "limit": {
+                  "maximum": 50,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "query": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "name": "tools.search",
+            "outputSummary": "匹配到的工具 descriptor、风险等级与输入 schema。",
+            "permission": "read_internal",
+            "requiresApprovalIn": [],
+            "riskLevel": "low"
+          },
+          {
+            "allowedModes": [
+              "approval",
+              "less_approval",
+              "all"
+            ],
+            "category": "workflow",
+            "description": "短暂等待指定时间后返回，用于轮询异步任务进度；最大等待 25 秒，不创建持久化调度任务。",
+            "displayName": "等待",
+            "idempotencyMode": "replay_safe",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "durationMs": {
+                  "description": "等待毫秒数，最大 25000。",
+                  "maximum": 25000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "reason": {
+                  "description": "等待原因，用于工具输出摘要。",
+                  "type": "string"
+                },
+                "seconds": {
+                  "description": "等待秒数，最大 25 秒。",
+                  "maximum": 25,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "type": "object"
+            },
+            "name": "workflow.wait",
+            "outputSummary": "实际等待时长、开始和完成时间。",
+            "permission": "read_internal",
+            "requiresApprovalIn": [],
+            "riskLevel": "low"
+          }
+        ]
+      }
+    },
+    {
+      "name": "agents",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/agents",
+      "expectedStatus": 200,
+      "data": {
+        "agents": [
+          {
+            "builtin": true,
+            "createdAt": "fixture-time",
+            "id": "jftrade-default",
+            "instruction": "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；涉及安装 skill、保存策略、运行优化或改变自动化状态时遵守当前审批等级。输出必须说明使用了哪些数据来源，不提供保证收益承诺。\n\n对目标明确的任务，要在当前运行中连续完成诊断、结论以及直接相关的可执行方案。安全、只读且能从现有上下文合理推断的下一步，必须直接完成；不得用‘你想先做哪项’、‘你更想看哪部分’、‘是否继续’或‘如果需要我可以继续’把它留给用户。多个安全分支都直接服务原始意图时，采用推荐默认值或合并覆盖，不得仅为减少工作量要求用户选择。\n\n只有三类真正阻塞情况可以调用 interaction.request_user：缺少只有用户才能提供的必要信息、存在无法合并的重大取舍，或继续会越过权限/任务范围边界。提问时必须如实填写 decisionKind 和 blockingReason。实际写操作仍走审批流程，不得用提问工具替代授权。\n\n收到 interaction.request_user 的回答后，回答只是解除阻塞，必须继续完成原始请求，而不是总结或复述计划后结束运行。",
+            "loopMaxIterations": 5,
+            "memoryEnabled": true,
+            "model": "",
+            "name": "默认助手",
+            "permissionMode": "approval",
+            "providerId": "",
+            "recentUserWindow": 6,
+            "skills": [
+              "jftrade-workflow-management",
+              "jftrade-operations",
+              "jftrade-market",
+              "jftrade-derivatives",
+              "jftrade-research",
+              "jftrade-prediction",
+              "jftrade-trading",
+              "jftrade-portfolio",
+              "jftrade-strategy-research",
+              "jftrade-strategy-publish",
+              "external-http"
+            ],
+            "status": "ENABLED",
+            "toolAccessMode": "selected",
+            "tools": [
+              "account.orders",
+              "backtest.kline_sync_status",
+              "backtest.result_view",
+              "backtest.runs",
+              "interaction.request_user",
+              "market.candles",
+              "market.capabilities",
+              "market.intraday",
+              "market.search",
+              "market.snapshot",
+              "market.snapshots",
+              "market.subscriptions",
+              "models.list",
+              "plugins.catalog",
+              "portfolio.accounts",
+              "portfolio.overview",
+              "portfolio.positions",
+              "research.financials",
+              "research.instrument",
+              "research.news",
+              "research.screen",
+              "research.valuation",
+              "risk.state",
+              "strategy.definitions",
+              "strategy.research_backtest",
+              "strategy.validate_pine",
+              "system.futu_opend",
+              "system.status",
+              "tools.search",
+              "watchlist.list",
+              "workflow.wait"
+            ],
+            "updatedAt": "fixture-time",
+            "workMode": "chat"
+          }
+        ],
+        "page": {
+          "hasMore": false,
+          "limit": 100,
+          "offset": 0,
+          "returned": 1,
+          "total": 1
+        }
+      }
+    },
+    {
+      "name": "agents-page",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/agents?limit=1\u0026offset=0",
+      "expectedStatus": 200,
+      "data": {
+        "agents": [
+          {
+            "builtin": true,
+            "createdAt": "fixture-time",
+            "id": "jftrade-default",
+            "instruction": "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；涉及安装 skill、保存策略、运行优化或改变自动化状态时遵守当前审批等级。输出必须说明使用了哪些数据来源，不提供保证收益承诺。\n\n对目标明确的任务，要在当前运行中连续完成诊断、结论以及直接相关的可执行方案。安全、只读且能从现有上下文合理推断的下一步，必须直接完成；不得用‘你想先做哪项’、‘你更想看哪部分’、‘是否继续’或‘如果需要我可以继续’把它留给用户。多个安全分支都直接服务原始意图时，采用推荐默认值或合并覆盖，不得仅为减少工作量要求用户选择。\n\n只有三类真正阻塞情况可以调用 interaction.request_user：缺少只有用户才能提供的必要信息、存在无法合并的重大取舍，或继续会越过权限/任务范围边界。提问时必须如实填写 decisionKind 和 blockingReason。实际写操作仍走审批流程，不得用提问工具替代授权。\n\n收到 interaction.request_user 的回答后，回答只是解除阻塞，必须继续完成原始请求，而不是总结或复述计划后结束运行。",
+            "loopMaxIterations": 5,
+            "memoryEnabled": true,
+            "model": "",
+            "name": "默认助手",
+            "permissionMode": "approval",
+            "providerId": "",
+            "recentUserWindow": 6,
+            "skills": [
+              "jftrade-workflow-management",
+              "jftrade-operations",
+              "jftrade-market",
+              "jftrade-derivatives",
+              "jftrade-research",
+              "jftrade-prediction",
+              "jftrade-trading",
+              "jftrade-portfolio",
+              "jftrade-strategy-research",
+              "jftrade-strategy-publish",
+              "external-http"
+            ],
+            "status": "ENABLED",
+            "toolAccessMode": "selected",
+            "tools": [
+              "account.orders",
+              "backtest.kline_sync_status",
+              "backtest.result_view",
+              "backtest.runs",
+              "interaction.request_user",
+              "market.candles",
+              "market.capabilities",
+              "market.intraday",
+              "market.search",
+              "market.snapshot",
+              "market.snapshots",
+              "market.subscriptions",
+              "models.list",
+              "plugins.catalog",
+              "portfolio.accounts",
+              "portfolio.overview",
+              "portfolio.positions",
+              "research.financials",
+              "research.instrument",
+              "research.news",
+              "research.screen",
+              "research.valuation",
+              "risk.state",
+              "strategy.definitions",
+              "strategy.research_backtest",
+              "strategy.validate_pine",
+              "system.futu_opend",
+              "system.status",
+              "tools.search",
+              "watchlist.list",
+              "workflow.wait"
+            ],
+            "updatedAt": "fixture-time",
+            "workMode": "chat"
+          }
+        ],
+        "page": {
+          "hasMore": false,
+          "limit": 1,
+          "offset": 0,
+          "returned": 1,
+          "total": 1
+        }
+      }
+    },
+    {
+      "name": "approvals",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/approvals",
+      "expectedStatus": 200,
+      "data": {
+        "approvals": [],
+        "page": {
+          "hasMore": false,
+          "limit": 100,
+          "offset": 0,
+          "returned": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "audit",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/audit",
+      "expectedStatus": 200,
+      "data": {
+        "events": [],
+        "page": {
+          "hasMore": false,
+          "limit": 100,
+          "offset": 0,
+          "returned": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "memory",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/memory",
+      "expectedStatus": 200,
+      "data": {
+        "entries": []
+      }
+    },
+    {
+      "name": "metrics",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/metrics",
+      "expectedStatus": 200,
+      "data": {
+        "approvals": {
+          "approved": 0,
+          "denied": 0,
+          "last7Days": 0,
+          "pending": 0,
+          "pendingWaitMs": {
+            "average": 0,
+            "max": 0
+          },
+          "recoverablePending": 0,
+          "resolutionWaitMs": {
+            "average": 0,
+            "count": 0,
+            "max": 0
+          },
+          "total": 0
+        },
+        "checkedAt": "fixture-time",
+        "measurementWindow": {
+          "days": 7,
+          "since": "fixture-time"
+        },
+        "runs": {
+          "byAgent": {},
+          "byProvider": {},
+          "byStatus": {},
+          "last7Days": 0,
+          "lifecycle": {
+            "cancelled": 0,
+            "failed": 0,
+            "orphaned": 0,
+            "resumed": 0,
+            "timedOut": 0
+          },
+          "total": 0
+        },
+        "sessions": {
+          "last7Days": 0,
+          "total": 0
+        },
+        "tools": {
+          "averageDurationMs": 0,
+          "byErrorCode": {},
+          "byName": {},
+          "byStatus": {},
+          "errorCount": 0,
+          "outputBytesMax": 0,
+          "outputBytesTotal": 0,
+          "retryableErrors": 0,
+          "successful": 0,
+          "total": 0,
+          "truncated": 0
+        },
+        "usage": {
+          "samples": 0,
+          "tokensInAverage": null,
+          "tokensInTotal": null,
+          "tokensOutAverage": null,
+          "tokensOutTotal": null
+        },
+        "workflows": {
+          "byStatus": {},
+          "byTriggerType": {},
+          "definitions": 0,
+          "enabledDefinitions": 0,
+          "enabledTriggers": 0,
+          "invocations": 0,
+          "invocationsLast7Days": 0,
+          "triggers": 0
+        }
+      }
+    },
+    {
+      "name": "optimization-tasks",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/optimization-tasks",
+      "expectedStatus": 200,
+      "data": {
+        "page": {
+          "hasMore": false,
+          "limit": 100,
+          "offset": 0,
+          "returned": 0,
+          "total": 0
+        },
+        "tasks": []
+      }
+    },
+    {
+      "name": "optimization-tasks-page",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/optimization-tasks?limit=1\u0026offset=0",
+      "expectedStatus": 200,
+      "data": {
+        "page": {
+          "hasMore": false,
+          "limit": 1,
+          "offset": 0,
+          "returned": 0,
+          "total": 0
+        },
+        "tasks": []
+      }
+    },
+    {
+      "name": "providers",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/providers",
+      "expectedStatus": 200,
+      "data": {
+        "providers": []
+      }
+    },
+    {
+      "name": "runs",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/runs",
+      "expectedStatus": 200,
+      "data": {
+        "page": {
+          "hasMore": false,
+          "limit": 100,
+          "offset": 0,
+          "returned": 0,
+          "total": 0
+        },
+        "runs": []
+      }
+    },
+    {
+      "name": "sessions",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/sessions",
+      "expectedStatus": 200,
+      "data": {
+        "page": {
+          "hasMore": false,
+          "limit": 100,
+          "offset": 0,
+          "returned": 0,
+          "total": 0
+        },
+        "sessions": []
+      }
+    },
+    {
+      "name": "skills",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/skills",
+      "expectedStatus": 200,
+      "data": {
+        "skills": [
+          {
+            "builtin": true,
+            "contentHash": "60ca18c6652ed3f9029f579d22067d875af9ba5c0e2979b838badb776bba972a",
+            "createdAt": "fixture-time",
+            "description": "把外部 HTTP 内容视为不可信参考资料。",
+            "displayName": "external-http",
+            "enabled": true,
+            "id": "external-http",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "http.fetch"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "2"
+          },
+          {
+            "builtin": true,
+            "contentHash": "c330bd08b61cfec83f51b81791d0dd303d20a2b1d7ede35a29f2bf98b1e442a6",
+            "createdAt": "fixture-time",
+            "description": "使用 JFTrade 期权、港股轮证和期货能力；严格区分正股、合约及其市场权限。",
+            "displayName": "jftrade-derivatives",
+            "enabled": true,
+            "id": "jftrade-derivatives",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "derivatives.option_chain",
+              "derivatives.option_screen",
+              "derivatives.option_analysis",
+              "derivatives.option_events",
+              "derivatives.warrants",
+              "derivatives.futures",
+              "alerts.option_event.list",
+              "alerts.option_event.set"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "2"
+          },
+          {
+            "builtin": true,
+            "contentHash": "2f1f963e4391e0a59678ca4c51026f55f06620ab5dd7d3eb508c887f4ca54738",
+            "createdAt": "fixture-time",
+            "description": "通过券商抽象读取 JFTrade 行情、微观结构、提醒和远程自选；必须说明实际提供者、市场、产品和数据时间。",
+            "displayName": "jftrade-market",
+            "enabled": true,
+            "id": "jftrade-market",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "market.capabilities",
+              "market.search",
+              "market.instrument_profile",
+              "market.snapshot",
+              "market.snapshots",
+              "market.candles",
+              "market.intraday",
+              "market.ticks",
+              "market.depth",
+              "market.broker_queue",
+              "market.capital_flow",
+              "market.news",
+              "market.corporate_actions",
+              "market.index_constituents",
+              "market.subscriptions",
+              "market.providers",
+              "market.provider.select",
+              "watchlist.list",
+              "watchlist.remote.list",
+              "watchlist.remote.modify",
+              "alerts.price.list",
+              "alerts.price.set"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "9"
+          },
+          {
+            "builtin": true,
+            "contentHash": "1488ad9e21e0d15b0b8b9f915bd4658c9f16c677505ff66adbd82e0fda78a616",
+            "createdAt": "fixture-time",
+            "description": "读取 JFTrade 系统、OpenD、ADK 和插件运行状态；先诊断事实，再提出修复建议。",
+            "displayName": "jftrade-operations",
+            "enabled": true,
+            "id": "jftrade-operations",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "system.status",
+              "system.futu_opend",
+              "system.runtime_dependencies",
+              "plugins.catalog"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "2"
+          },
+          {
+            "builtin": true,
+            "contentHash": "61ddeaabe3a00890953e0fbe1456afeada1bf5c7ff7d139d5a5c990635dbbaf0",
+            "createdAt": "fixture-time",
+            "description": "谨慎使用 JFTrade 账户与组合数据，必须区分模拟结果和真实资产。",
+            "displayName": "jftrade-portfolio",
+            "enabled": true,
+            "id": "jftrade-portfolio",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "portfolio.accounts",
+              "portfolio.overview",
+              "portfolio.summary",
+              "portfolio.positions",
+              "account.orders",
+              "broker.orders",
+              "broker.fills",
+              "broker.cash_flows",
+              "broker.fees",
+              "broker.margin_ratios",
+              "risk.state",
+              "risk.events",
+              "execution.order_events"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "3"
+          },
+          {
+            "builtin": true,
+            "contentHash": "993cde3ac3a611e6448b73ac7feb43f958e07752b18d193eb17fd5339af52af6",
+            "createdAt": "fixture-time",
+            "description": "使用 JFTrade 预测市场发现、YES/NO 行情和 Parlay RFQ；仅在有资格的 Moomoo US 环境中使用。",
+            "displayName": "jftrade-prediction",
+            "enabled": true,
+            "id": "jftrade-prediction",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "prediction.discover",
+              "prediction.snapshot",
+              "prediction.depth",
+              "prediction.history",
+              "prediction.combo_eligible",
+              "prediction.combo_quote"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "1"
+          },
+          {
+            "builtin": true,
+            "contentHash": "bc42a5a2d6b60a7a2917658016397e8dfcec26083e81d19987a03b82924faee0",
+            "createdAt": "fixture-time",
+            "description": "读取 JFTrade 公司、财务、估值、机构、宏观、日历、榜单和筛选研究。",
+            "displayName": "jftrade-research",
+            "enabled": true,
+            "id": "jftrade-research",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "research.instrument",
+              "research.financials",
+              "research.valuation",
+              "research.analyst",
+              "research.ownership",
+              "research.corporate_actions",
+              "research.short_interest",
+              "research.news",
+              "research.screen",
+              "research.screen_catalog",
+              "research.calendar",
+              "research.macro",
+              "research.rankings",
+              "research.institutions",
+              "research.industry",
+              "research.technical_indicators"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "3"
+          },
+          {
+            "builtin": true,
+            "contentHash": "fa39f05f33ca8732cc3b05fd6ac03f4e53865edb324ee2a81dcf8641ae9edff0",
+            "createdAt": "fixture-time",
+            "description": "用于 JFTrade 策略保存、发布、历史版本恢复、实例模式调整和已保存策略定义优化。",
+            "displayName": "jftrade-strategy-publish",
+            "enabled": true,
+            "id": "jftrade-strategy-publish",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "strategy.validate_pine",
+              "strategy.definition_versions.list",
+              "strategy.definition_versions.get",
+              "strategy.save_draft",
+              "strategy.save_definition",
+              "strategy.update_instance_mode",
+              "strategy.optimize",
+              "backtest.runs",
+              "backtest.kline_sync_status",
+              "market.providers",
+              "strategy.instantiate",
+              "strategy.instance_start",
+              "strategy.instance_stop",
+              "strategy.instance_refresh_definition",
+              "strategy.instance_risk.update",
+              "strategy.instance_activity",
+              "backtest.cancel"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "12"
+          },
+          {
+            "builtin": true,
+            "contentHash": "23cca6ba39ea3177b7ddd5c321bf4fae85c4828f2d348b07b9380de1572d5fdb",
+            "createdAt": "fixture-time",
+            "description": "用于 JFTrade 策略研究、历史版本比较、临时回测和结果查看；试错不保存策略定义。",
+            "displayName": "jftrade-strategy-research",
+            "enabled": true,
+            "id": "jftrade-strategy-research",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "strategy.pine_spec",
+              "strategy.validate_pine",
+              "strategy.definition_versions.list",
+              "strategy.definition_versions.get",
+              "strategy.research_backtest",
+              "backtest.runs",
+              "backtest.result_view",
+              "backtest.kline_sync_status",
+              "backtest.cancel",
+              "workflow.wait",
+              "market.snapshot",
+              "market.candles",
+              "market.providers",
+              "research.screen_catalog",
+              "strategy.instance_activity"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "12"
+          },
+          {
+            "builtin": true,
+            "contentHash": "4ca5871142a711e09c43159f4dd47140c55411259baf485ef29ed8742bab309a",
+            "createdAt": "fixture-time",
+            "description": "执行 JFTrade 单腿、期权组合、预测单腿和 Parlay 的预检、下单及撤单；所有交易动作都必须逐次审批。",
+            "displayName": "jftrade-trading",
+            "enabled": true,
+            "id": "jftrade-trading",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "execution.order_preview",
+              "execution.order_place",
+              "execution.order_cancel",
+              "execution.combo_preview",
+              "execution.combo_place",
+              "execution.combo_cancel",
+              "execution.buying_power",
+              "execution.order_events"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "1"
+          },
+          {
+            "builtin": true,
+            "contentHash": "31f9dc037cc1797dbbc8d21b1b17479d9f960f9d2f2aae192dc4e8c7fc3580fa",
+            "createdAt": "fixture-time",
+            "description": "管理 JFTrade ADK 工作流、触发器和运行记录；本 Skill 提供对应工具的操作规范。",
+            "displayName": "jftrade-workflow-management",
+            "enabled": true,
+            "id": "jftrade-workflow-management",
+            "installPath": "fixture-skill-path",
+            "source": "builtin",
+            "tools": [
+              "workflows.list",
+              "workflows.get",
+              "workflows.create",
+              "workflows.update",
+              "workflows.delete",
+              "workflows.run",
+              "workflow_triggers.list",
+              "workflow_triggers.get",
+              "workflow_triggers.create",
+              "workflow_triggers.update",
+              "workflow_triggers.delete",
+              "workflow_triggers.run",
+              "workflow_runs.list",
+              "workflow_runs.get",
+              "workflow_runs.wait",
+              "tasks.list",
+              "tasks.create",
+              "tasks.update",
+              "tasks.delete",
+              "memory.list",
+              "memory.remember",
+              "memory.forget"
+            ],
+            "updatedAt": "fixture-time",
+            "validationStatus": "VALID",
+            "version": "1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "tasks",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/tasks",
+      "expectedStatus": 200,
+      "data": {
+        "page": {
+          "hasMore": false,
+          "limit": 20,
+          "offset": 0,
+          "returned": 0,
+          "total": 0
+        },
+        "tasks": []
+      }
+    },
+    {
+      "name": "tools",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/tools",
+      "expectedStatus": 200,
+      "data": {
+        "tools": [
+          {
+            "allowedModes": [
+              "approval",
+              "less_approval",
+              "all"
+            ],
+            "category": "external",
+            "description": "读取公网 HTTP/HTTPS 文本或 JSON 资源，默认阻止本机、私网和 metadata 地址。",
+            "displayName": "读取外部 HTTP",
+            "idempotencyMode": "replay_safe",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "maxBytes": {
+                  "default": 1048576,
+                  "description": "Maximum response body bytes; capped at 1 MiB.",
+                  "maximum": 1048576,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "url": {
+                  "description": "Public http or https URL to fetch.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "type": "object"
+            },
+            "name": "http.fetch",
+            "permission": "read_external",
+            "requiresApprovalIn": [],
+            "riskLevel": "medium"
+          },
+          {
+            "allowedModes": [
+              "approval",
+              "less_approval",
+              "all"
+            ],
+            "category": "interaction",
+            "description": "仅当缺少用户独有的必要信息、存在无法合并的重大取舍，或继续会越过权限/范围边界时，一次性提交所有阻塞问题。禁止询问可选下一步、是否继续、先看哪部分，或用该工具代替写操作审批。每题必须提供 2 到 3 个选项；可接受自由回答时设置 allowOther。用户回答后工具结果会携带 originalRequest 和 continuationInstruction，必须据此继续完成原始请求。",
+            "displayName": "向用户提问",
+            "idempotencyMode": "replay_safe",
+            "inputSchema": {
+              "properties": {
+                "blockingReason": {
+                  "description": "Why the original task cannot safely continue without this user answer. Do not use workload reduction as a reason.",
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "decisionKind": {
+                  "description": "The genuine blocking boundary. Optional next steps and whether to continue are not blocking decisions.",
+                  "enum": [
+                    "missing_required_context",
+                    "material_tradeoff",
+                    "scope_boundary"
+                  ],
+                  "type": "string"
+                },
+                "questions": {
+                  "description": "All decisions needed for the current step. Ask them together.",
+                  "items": {
+                    "properties": {
+                      "allowOther": {
+                        "type": "boolean"
+                      },
+                      "options": {
+                        "description": "Present exactly two or three concise choices.",
+                        "items": {
+                          "properties": {
+                            "description": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "recommended": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "label"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 3,
+                        "minItems": 2,
+                        "type": "array"
+                      },
+                      "question": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "question",
+                      "options"
+                    ],
+                    "type": "object"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "title": {
+                  "description": "Optional short title displayed above the questions.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "decisionKind",
+                "blockingReason",
+                "questions"
+              ],
+              "type": "object"
+            },
+            "name": "interaction.request_user",
+            "permission": "read_internal",
+            "requiresApprovalIn": [],
+            "riskLevel": "low"
+          },
+          {
+            "allowedModes": [
+              "approval",
+              "less_approval",
+              "all"
+            ],
+            "category": "system",
+            "description": "查询当前 ADK 已配置 Provider 暴露的可调用模型信息，供主智能体选择子智能体运行模型；不会返回 API Key。",
+            "displayName": "查询可调用模型",
+            "idempotencyMode": "replay_safe",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "callableOnly": {
+                  "description": "When true, only providers that are enabled and have an API key are returned. Defaults to true.",
+                  "type": "boolean"
+                },
+                "limit": {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "providerId": {
+                  "description": "Optional ADK provider id to inspect.",
+                  "type": "string"
+                },
+                "query": {
+                  "description": "Filter by provider name, provider id, model, base URL or capability.",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "name": "models.list",
+            "outputSummary": "Provider、模型、上下文窗口、能力和是否可调用。",
+            "permission": "read_internal",
+            "requiresApprovalIn": [],
+            "riskLevel": "low"
+          },
+          {
+            "allowedModes": [
+              "approval",
+              "less_approval",
+              "all"
+            ],
+            "category": "system",
+            "description": "按名称、分类、权限、风险等级或描述搜索当前已注册的 JFTrade ADK 工具。",
+            "displayName": "搜索 ADK 工具",
+            "idempotencyMode": "replay_safe",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "category": {
+                  "type": "string"
+                },
+                "limit": {
+                  "maximum": 50,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "query": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "name": "tools.search",
+            "outputSummary": "匹配到的工具 descriptor、风险等级与输入 schema。",
+            "permission": "read_internal",
+            "requiresApprovalIn": [],
+            "riskLevel": "low"
+          },
+          {
+            "allowedModes": [
+              "approval",
+              "less_approval",
+              "all"
+            ],
+            "category": "workflow",
+            "description": "短暂等待指定时间后返回，用于轮询异步任务进度；最大等待 25 秒，不创建持久化调度任务。",
+            "displayName": "等待",
+            "idempotencyMode": "replay_safe",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "durationMs": {
+                  "description": "等待毫秒数，最大 25000。",
+                  "maximum": 25000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "reason": {
+                  "description": "等待原因，用于工具输出摘要。",
+                  "type": "string"
+                },
+                "seconds": {
+                  "description": "等待秒数，最大 25 秒。",
+                  "maximum": 25,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "type": "object"
+            },
+            "name": "workflow.wait",
+            "outputSummary": "实际等待时长、开始和完成时间。",
+            "permission": "read_internal",
+            "requiresApprovalIn": [],
+            "riskLevel": "low"
+          }
+        ]
+      }
+    },
+    {
+      "name": "workflow-trigger-logs",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/workflow-trigger-logs",
+      "expectedStatus": 200,
+      "data": {
+        "logs": [],
+        "page": {
+          "hasMore": false,
+          "limit": 100,
+          "offset": 0,
+          "returned": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "workflows",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/workflows",
+      "expectedStatus": 200,
+      "data": {
+        "page": {
+          "hasMore": false,
+          "limit": 100,
+          "offset": 0,
+          "returned": 0,
+          "total": 0
+        },
+        "workflows": []
+      }
+    },
+    {
+      "name": "task-query-error",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/tasks?%zz",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid tasks query"
+    },
+    {
+      "name": "memory-query-error",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/memory?%zz",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid memory query"
+    },
+    {
+      "name": "agents-query-error",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/agents?%zz",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid agents query"
+    },
+    {
+      "name": "workflow-query-error",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/workflows?%zz",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid workflows query"
+    },
+    {
+      "name": "workflow-log-query-error",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/workflow-trigger-logs?%zz",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid workflow trigger logs query"
+    },
+    {
+      "name": "audit-query-error",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/audit?%zz",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid audit query"
+    },
+    {
+      "name": "optimization-query-error",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/optimization-tasks?%zz",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid optimization tasks query"
+    },
+    {
+      "name": "sessions-query-error",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/sessions?%zz",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid sessions query"
+    },
+    {
+      "name": "runs-query-error",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/runs?%zz",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid runs query"
+    },
+    {
+      "name": "approvals-query-error",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/approvals?%zz",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid approvals query"
+    },
+    {
+      "name": "optimization-task-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/optimization-tasks/missing",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "optimization task not found"
+    },
+    {
+      "name": "optimization-task-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/optimization-tasks/%20",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "taskId is invalid"
+    },
+    {
+      "name": "run-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/runs/missing",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "run not found"
+    },
+    {
+      "name": "run-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/runs/%20",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "runId is invalid"
+    },
+    {
+      "name": "run-stream-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/runs/missing/stream",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "stream not found"
+    },
+    {
+      "name": "run-stream-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/runs/%20/stream",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "runId is invalid"
+    },
+    {
+      "name": "session-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/sessions/missing",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "session not found"
+    },
+    {
+      "name": "session-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/sessions/%20",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "sessionId is invalid"
+    },
+    {
+      "name": "session-context-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/sessions/missing/context",
+      "expectedStatus": 404,
+      "errorCode": "ADK_SESSION_CONTEXT_FAILED",
+      "errorMessage": "session not found"
+    },
+    {
+      "name": "session-context-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/sessions/%20/context",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "sessionId is invalid"
+    },
+    {
+      "name": "stream-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/streams/missing",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "stream not found"
+    },
+    {
+      "name": "stream-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/streams/%20",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "streamId is invalid"
+    },
+    {
+      "name": "task-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/tasks/missing",
+      "expectedStatus": 404,
+      "errorCode": "ADK_TASK_NOT_FOUND",
+      "errorMessage": "task not found"
+    },
+    {
+      "name": "task-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/tasks/%20",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "taskId is invalid"
+    },
+    {
+      "name": "workflow-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/workflows/missing",
+      "expectedStatus": 404,
+      "errorCode": "ADK_WORKFLOW_GET_FAILED",
+      "errorMessage": "workflow not found"
+    },
+    {
+      "name": "workflow-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/workflows/%20",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "workflowId is invalid"
+    },
+    {
+      "name": "workflow-triggers-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/workflows/missing/triggers",
+      "expectedStatus": 404,
+      "errorCode": "ADK_WORKFLOW_TRIGGER_LIST_FAILED",
+      "errorMessage": "workflow not found"
+    },
+    {
+      "name": "workflow-triggers-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/workflows/%20/triggers",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "workflowId is invalid"
+    }
+  ]
+}

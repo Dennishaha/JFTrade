@@ -23,6 +23,9 @@ struct ProductApi {
     market_data_options_read_snapshot_port: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
     market_data_news_actions_read_snapshot_port:
         Option<Arc<dyn MarketDataNewsActionsReadSnapshotPort>>,
+    market_data_news_search_read_snapshot_port:
+        Option<Arc<dyn MarketDataNewsSearchReadSnapshotPort>>,
+    adk_read_snapshot_port: Option<Arc<dyn AdkReadSnapshotPort>>,
     market_data_quote_read_snapshot_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     market_data_prediction_read_api: MarketDataPredictionReadApi,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
@@ -71,6 +74,9 @@ impl ProductApi {
             market_data_options_read_snapshot_port: optional_ports.market_data_options_read_snapshot,
             market_data_news_actions_read_snapshot_port: optional_ports
                 .market_data_news_actions_read_snapshot,
+            market_data_news_search_read_snapshot_port: optional_ports
+                .market_data_news_search_read_snapshot,
+            adk_read_snapshot_port: optional_ports.adk_read_snapshot,
             market_data_quote_read_snapshot_port: optional_ports.market_data_quote_read_snapshot,
             market_data_prediction_read_api: MarketDataPredictionReadApi::new(
                 optional_ports.market_data_prediction_read_snapshot,

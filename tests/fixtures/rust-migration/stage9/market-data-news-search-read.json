@@ -1,0 +1,530 @@
+{
+  "version": "stage9.market-data-news-search-read.v1",
+  "cases": [
+    {
+      "name": "embedded-ready-page-size-precedes-limit",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=YFINANCE\u0026accountId=%20acct%20\u0026tradingEnvironment=simulate\u0026instrumentId=us.aapl\u0026market=us\u0026pageSize=5\u0026limit=2\u0026refresh=true\u0026cursor=page-1\u0026query=earnings\u0026query=dividend",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "link": "https://example.test/news",
+            "publishedAt": "2026-08-10T13:30:00Z",
+            "title": "Fixture headline"
+          }
+        ],
+        "hasMore": false,
+        "metadata": {
+          "source": "fixture-news"
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "yfinance",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "selectionReason": "embedded-market-data-provider"
+        },
+        "resolvedInstrument": {
+          "code": "AAPL",
+          "instrumentId": "US.AAPL",
+          "marketSegment": "securities",
+          "productClass": "unknown",
+          "quantityMode": "units",
+          "quoteMarket": "US",
+          "tradeMarket": "US"
+        },
+        "total": 1
+      },
+      "providerCall": {
+        "source": "embedded",
+        "market": "US",
+        "symbol": "AAPL",
+        "limit": 5
+      }
+    },
+    {
+      "name": "embedded-default-limit-and-instrument-market",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yahoo-finance\u0026instrumentId=sh.600519",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "link": "https://example.test/news",
+            "publishedAt": "2026-08-10T13:30:00Z",
+            "title": "Fixture headline"
+          }
+        ],
+        "hasMore": false,
+        "metadata": {
+          "source": "fixture-news"
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "yfinance",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "selectionReason": "embedded-market-data-provider"
+        },
+        "resolvedInstrument": {
+          "code": "600519",
+          "instrumentId": "SH.600519",
+          "marketSegment": "securities",
+          "productClass": "unknown",
+          "quantityMode": "units",
+          "quoteMarket": "SH",
+          "tradeMarket": "SH"
+        },
+        "total": 1
+      },
+      "providerCall": {
+        "source": "embedded",
+        "market": "SH",
+        "symbol": "600519",
+        "limit": 10
+      }
+    },
+    {
+      "name": "embedded-explicit-market-overrides-prefix-and-clamps",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=US.AAPL\u0026market=hk\u0026pageSize=500\u0026limit=1",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "link": "https://example.test/news",
+            "publishedAt": "2026-08-10T13:30:00Z",
+            "title": "Fixture headline"
+          }
+        ],
+        "hasMore": false,
+        "metadata": {
+          "source": "fixture-news"
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "yfinance",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "selectionReason": "embedded-market-data-provider"
+        },
+        "resolvedInstrument": {
+          "code": "AAPL",
+          "instrumentId": "HK.AAPL",
+          "marketSegment": "securities",
+          "productClass": "unknown",
+          "quantityMode": "units",
+          "quoteMarket": "HK",
+          "tradeMarket": "HK"
+        },
+        "total": 1
+      },
+      "providerCall": {
+        "source": "embedded",
+        "market": "HK",
+        "symbol": "AAPL",
+        "limit": 50
+      }
+    },
+    {
+      "name": "embedded-limit-used-without-page-size",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=US.AAPL\u0026limit=7",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "link": "https://example.test/news",
+            "publishedAt": "2026-08-10T13:30:00Z",
+            "title": "Fixture headline"
+          }
+        ],
+        "hasMore": false,
+        "metadata": {
+          "source": "fixture-news"
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "yfinance",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "selectionReason": "embedded-market-data-provider"
+        },
+        "resolvedInstrument": {
+          "code": "AAPL",
+          "instrumentId": "US.AAPL",
+          "marketSegment": "securities",
+          "productClass": "unknown",
+          "quantityMode": "units",
+          "quoteMarket": "US",
+          "tradeMarket": "US"
+        },
+        "total": 1
+      },
+      "providerCall": {
+        "source": "embedded",
+        "market": "US",
+        "symbol": "AAPL",
+        "limit": 7
+      }
+    },
+    {
+      "name": "embedded-empty-entries",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=HK.00700\u0026pageSize=2\u0026fixture=empty",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [],
+        "hasMore": false,
+        "metadata": {
+          "source": "fixture-news-empty"
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "yfinance",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "selectionReason": "embedded-market-data-provider"
+        },
+        "resolvedInstrument": {
+          "code": "00700",
+          "instrumentId": "HK.00700",
+          "marketSegment": "securities",
+          "productClass": "unknown",
+          "quantityMode": "units",
+          "quoteMarket": "HK",
+          "tradeMarket": "HK"
+        },
+        "total": 0
+      },
+      "providerCall": {
+        "source": "embedded",
+        "market": "HK",
+        "symbol": "00700",
+        "limit": 2
+      }
+    },
+    {
+      "name": "embedded-null-entries-project-to-empty-array",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=US.NIL\u0026pageSize=3\u0026fixture=null",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [],
+        "hasMore": false,
+        "metadata": {
+          "source": "fixture-news-null"
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "yfinance",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "selectionReason": "embedded-market-data-provider"
+        },
+        "resolvedInstrument": {
+          "code": "NIL",
+          "instrumentId": "US.NIL",
+          "marketSegment": "securities",
+          "productClass": "unknown",
+          "quantityMode": "units",
+          "quoteMarket": "US",
+          "tradeMarket": "US"
+        },
+        "total": 0
+      },
+      "providerCall": {
+        "source": "embedded",
+        "market": "US",
+        "symbol": "NIL",
+        "limit": 3
+      }
+    },
+    {
+      "name": "embedded-capability-unsupported",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=US.AAPL\u0026fixture=capability",
+      "expectedStatus": 409,
+      "errorCode": "BROKER_CAPABILITY_UNAVAILABLE",
+      "errorMessage": "broker feature capability is unavailable: market-data capability is unsupported: active provider \"fixture-no-news\" does not support instrument news (market US)",
+      "providerCall": {
+        "source": "embedded",
+        "market": "US",
+        "symbol": "AAPL",
+        "limit": 10
+      }
+    },
+    {
+      "name": "embedded-provider-fallback-failure",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=US.MSFT\u0026limit=4\u0026fixture=fallback",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "fixture news fallback unavailable",
+      "providerCall": {
+        "source": "embedded",
+        "market": "US",
+        "symbol": "MSFT",
+        "limit": 4
+      }
+    },
+    {
+      "name": "embedded-provider-warming",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=US.AAPL\u0026limit=5\u0026fixture=warming",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "1"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_WARMING",
+      "errorMessage": "行情服务正在预热，请稍后重试",
+      "providerCall": {
+        "source": "embedded",
+        "market": "US",
+        "symbol": "AAPL",
+        "limit": 5
+      }
+    },
+    {
+      "name": "embedded-provider-busy",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=US.AAPL\u0026limit=6\u0026fixture=busy",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "2"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_BUSY",
+      "errorMessage": "行情服务当前繁忙，请稍后重试",
+      "providerCall": {
+        "source": "embedded",
+        "market": "US",
+        "symbol": "AAPL",
+        "limit": 6
+      }
+    },
+    {
+      "name": "embedded-provider-changed",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=US.AAPL\u0026limit=4\u0026fixture=provider-changed",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "market-data provider changed",
+      "providerCall": {
+        "source": "embedded",
+        "market": "US",
+        "symbol": "AAPL",
+        "limit": 4
+      }
+    },
+    {
+      "name": "explicit-futu-falls-back-to-broker",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=futu\u0026instrumentId=US.AAPL\u0026market=us\u0026pageSize=4\u0026limit=2\u0026refresh=true",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "instrumentId": "US.AAPL",
+            "market": "US",
+            "pageSize": 4,
+            "source": "fixture-broker"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "futu",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "source": "broker",
+        "brokerId": "futu",
+        "marketQuery": "US",
+        "instrumentId": "US.AAPL",
+        "pageSize": 4,
+        "params": {
+          "limit": 2,
+          "operation": "search"
+        }
+      }
+    },
+    {
+      "name": "descriptor-error-falls-back-to-broker",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?instrumentId=US.AAPL\u0026market=US",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "instrumentId": "US.AAPL",
+            "market": "US",
+            "pageSize": 100,
+            "source": "fixture-broker"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "default_broker"
+        }
+      },
+      "providerCall": {
+        "source": "broker",
+        "brokerId": "api-test",
+        "marketQuery": "US",
+        "instrumentId": "US.AAPL",
+        "pageSize": 100,
+        "params": {
+          "operation": "search"
+        }
+      }
+    },
+    {
+      "name": "missing-instrument-falls-to-broker",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=api-test\u0026market=US\u0026limit=4",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "instrumentId": "",
+            "market": "US",
+            "pageSize": 100,
+            "source": "fixture-broker"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "source": "broker",
+        "brokerId": "api-test",
+        "marketQuery": "US",
+        "pageSize": 100,
+        "params": {
+          "limit": 4,
+          "operation": "search"
+        }
+      }
+    },
+    {
+      "name": "malformed-page-size-is-accepted-as-default",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=US.AAPL\u0026pageSize=abc\u0026limit=9",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "link": "https://example.test/news",
+            "publishedAt": "2026-08-10T13:30:00Z",
+            "title": "Fixture headline"
+          }
+        ],
+        "hasMore": false,
+        "metadata": {
+          "source": "fixture-news"
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "yfinance",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "selectionReason": "embedded-market-data-provider"
+        },
+        "resolvedInstrument": {
+          "code": "AAPL",
+          "instrumentId": "US.AAPL",
+          "marketSegment": "securities",
+          "productClass": "unknown",
+          "quantityMode": "units",
+          "quoteMarket": "US",
+          "tradeMarket": "US"
+        },
+        "total": 1
+      },
+      "providerCall": {
+        "source": "embedded",
+        "market": "US",
+        "symbol": "AAPL",
+        "limit": 9
+      }
+    },
+    {
+      "name": "operation-query-overrides-route-default",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news?brokerId=yfinance\u0026instrumentId=US.AAPL\u0026operation=custom-search\u0026refresh=false",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "link": "https://example.test/news",
+            "publishedAt": "2026-08-10T13:30:00Z",
+            "title": "Fixture headline"
+          }
+        ],
+        "hasMore": false,
+        "metadata": {
+          "source": "fixture-news"
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "yfinance",
+          "capability": "available",
+          "featureId": "research.news",
+          "resolvedAt": "fixture-time",
+          "selectionReason": "embedded-market-data-provider"
+        },
+        "resolvedInstrument": {
+          "code": "AAPL",
+          "instrumentId": "US.AAPL",
+          "marketSegment": "securities",
+          "productClass": "unknown",
+          "quantityMode": "units",
+          "quoteMarket": "US",
+          "tradeMarket": "US"
+        },
+        "total": 1
+      },
+      "providerCall": {
+        "source": "embedded",
+        "market": "US",
+        "symbol": "AAPL",
+        "limit": 10
+      }
+    }
+  ]
+}

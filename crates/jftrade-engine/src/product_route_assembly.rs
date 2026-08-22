@@ -31,6 +31,8 @@ enum ProductCapability {
     MarketDataDerivativeRead,
     MarketDataOptionsRead,
     MarketDataNewsActionsRead,
+    MarketDataNewsSearchRead,
+    AdkRead,
     MarketDataQuoteRead,
     MarketDataPredictionRead,
     BrokerRead,
@@ -81,6 +83,8 @@ impl ProductCapabilities {
             ProductCapability::MarketDataDerivativeRead,
             ProductCapability::MarketDataOptionsRead,
             ProductCapability::MarketDataNewsActionsRead,
+            ProductCapability::MarketDataNewsSearchRead,
+            ProductCapability::AdkRead,
             ProductCapability::MarketDataQuoteRead,
             ProductCapability::MarketDataPredictionRead,
             ProductCapability::BrokerRead,
@@ -125,6 +129,8 @@ impl ProductCapabilities {
                     | ProductCapability::MarketDataDerivativeRead
                     | ProductCapability::MarketDataOptionsRead
                     | ProductCapability::MarketDataNewsActionsRead
+                    | ProductCapability::MarketDataNewsSearchRead
+                    | ProductCapability::AdkRead
                     | ProductCapability::MarketDataQuoteRead
                     | ProductCapability::MarketDataPredictionRead
                     | ProductCapability::BrokerRead
@@ -163,6 +169,8 @@ struct ProductRoutePorts {
     market_data_derivative_read: bool,
     market_data_options_read: bool,
     market_data_news_actions_read: bool,
+    market_data_news_search_read: bool,
+    adk_read: bool,
     market_data_quote_read: bool,
     market_data_prediction_read: bool,
     broker_read: bool,
@@ -202,6 +210,10 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         market_data_news_actions_read: config
             .market_data_news_actions_read_snapshot_port
             .is_some(),
+        market_data_news_search_read: config
+            .market_data_news_search_read_snapshot_port
+            .is_some(),
+        adk_read: config.adk_read_snapshot_port.is_some(),
         market_data_quote_read: config.market_data_quote_read_snapshot_port.is_some(),
         market_data_prediction_read: config
             .market_data_prediction_read_snapshot_port
@@ -239,6 +251,8 @@ fn product_routes(
     routes.extend(product_market_data_derivative_read_routes(capabilities, ports));
     routes.extend(product_market_data_options_read_routes(capabilities, ports));
     routes.extend(product_market_data_news_actions_read_routes(capabilities, ports));
+    routes.extend(product_market_data_news_search_read_routes(capabilities, ports));
+    routes.extend(product_adk_read_routes(capabilities, ports));
     routes.extend(product_market_data_quote_read_routes(capabilities, ports));
     routes.extend(product_market_data_prediction_read_routes(capabilities, ports));
     routes.extend(product_strategy_read_routes(capabilities, ports));
@@ -262,6 +276,8 @@ include!("product_routes_market_data_catalog_read.rs");
 include!("product_routes_market_data_derivative_read.rs");
 include!("product_routes_market_data_options_read.rs");
 include!("product_market_data_news_actions_read_routes.rs");
+include!("product_market_data_news_search_read_routes.rs");
+include!("product_adk_read_routes.rs");
 include!("product_market_data_quote_read_routes.rs");
 include!("product_routes_market_data_prediction_read.rs");
 include!("product_routes_strategies.rs");

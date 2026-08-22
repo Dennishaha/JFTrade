@@ -15,7 +15,8 @@ use crate::real_trade_control::{
 use crate::runtime_dependencies;
 use jftrade_api::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState, Clock, PortFuture,
-    RouteCatalog, RouteCatalogError, RouteSpec, SystemClock, TransportMetrics, build_router,
+    RouteCatalog, RouteCatalogError, RouteSpec, SseEvent, SystemClock, TransportMetrics,
+    build_router,
 };
 use jftrade_calendar::CalendarManager;
 use jftrade_datamanagement::{
@@ -61,8 +62,10 @@ include!("product_market_data_catalog_read_port.rs");
 include!("product_market_data_derivative_read_port.rs");
 include!("product_market_data_options_read_port.rs");
 include!("product_market_data_news_actions_read_port.rs");
+include!("product_market_data_news_search_read_port.rs");
 include!("product_market_data_quote_read_port.rs");
 include!("product_market_data_prediction_read_port.rs");
+include!("product_adk_read_port.rs");
 include!("product_market_data_prediction_read_routes.rs");
 include!("product_auth_session_port.rs");
 include!("product_snapshot_errors.rs");
@@ -189,6 +192,9 @@ pub struct ProductConfig {
     market_data_options_read_snapshot_port: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
     market_data_news_actions_read_snapshot_port:
         Option<Arc<dyn MarketDataNewsActionsReadSnapshotPort>>,
+    market_data_news_search_read_snapshot_port:
+        Option<Arc<dyn MarketDataNewsSearchReadSnapshotPort>>,
+    adk_read_snapshot_port: Option<Arc<dyn AdkReadSnapshotPort>>,
     market_data_quote_read_snapshot_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     market_data_prediction_read_snapshot_port:
         Option<Arc<dyn MarketDataPredictionReadSnapshotPort>>,
@@ -258,6 +264,8 @@ impl ProductConfig {
             market_data_derivative_read_snapshot_port: None,
             market_data_options_read_snapshot_port: None,
             market_data_news_actions_read_snapshot_port: None,
+            market_data_news_search_read_snapshot_port: None,
+            adk_read_snapshot_port: None,
             market_data_quote_read_snapshot_port: None,
             market_data_prediction_read_snapshot_port: None,
             broker_read_snapshot_port: None,
@@ -521,6 +529,10 @@ pub(crate) async fn start_product_with_runtime_state(
             market_data_news_actions_read_snapshot: config
                 .market_data_news_actions_read_snapshot_port
                 .clone(),
+            market_data_news_search_read_snapshot: config
+                .market_data_news_search_read_snapshot_port
+                .clone(),
+            adk_read_snapshot: config.adk_read_snapshot_port.clone(),
             market_data_quote_read_snapshot: config.market_data_quote_read_snapshot_port.clone(),
             market_data_prediction_read_snapshot: config
                 .market_data_prediction_read_snapshot_port
@@ -595,8 +607,10 @@ include!("product_api_market_data_catalog_read.rs");
 include!("product_api_market_data_derivative_read.rs");
 include!("product_api_market_data_options_read.rs");
 include!("product_market_data_news_actions_read_api.rs");
+include!("product_market_data_news_search_read_api.rs");
 include!("product_market_data_quote_read_api.rs");
 include!("product_market_data_prediction_read_api.rs");
+include!("product_adk_read_api.rs");
 include!("product_api_brokers.rs");
 include!("product_api_watchlists.rs");
 include!("product_api_plugins.rs");

@@ -241,6 +241,8 @@ run("go", [
   "-count=1",
 ]);
 for (const testName of [
+  "^TestStage9ADKReadFixtureMatchesCurrentGoOwner$",
+  "^TestStage9MarketDataNewsSearchReadFixtureMatchesCurrentGoOwner$",
   "^TestStage9MarketDataQuoteReadFixtureMatchesCurrentGoOwner$",
   "^TestStage9MarketDataPredictionReadFixtureMatchesCurrentGoOwner$",
 ]) {
@@ -577,6 +579,24 @@ run("cargo", [
   "--",
   "--exact",
 ]);
+for (const testName of [
+  "product::tests::market_data_news_search_read_tests::market_data_news_search_read_route_matches_group_fixture_in_cutover_only",
+  "product::tests::market_data_news_search_read_tests::market_data_news_search_read_route_fails_closed_when_snapshot_is_unavailable",
+  "product::tests::market_data_news_search_read_tests::market_data_news_search_read_route_is_not_registered_without_snapshot_port",
+  "product::tests::adk_read_tests::adk_read_routes_match_group_fixture_in_cutover_only",
+  "product::tests::adk_read_tests::adk_read_routes_fail_closed_without_snapshot_port",
+  "product::tests::adk_read_tests::adk_read_dynamic_routes_validate_suffixes_and_identifiers",
+  "product::tests::adk_read_tests::adk_read_streams_preserve_event_ids_and_payloads",
+]) {
+  run("cargo", [
+    "test",
+    "-p",
+    "jftrade-engine",
+    testName,
+    "--",
+    "--exact",
+  ]);
+}
 run("cargo", [
   "test",
   "-p",
@@ -1123,4 +1143,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: auth-session, settings/system/alerts/plugins/strategy-definitions/strategy-instance/watchlist/portfolio/research/research-preset/execution/market-data-provider/market-data-catalog/market-data-derivatives/market-data-options/market-data-news-actions/market-data-quote-read/market-data-prediction-read/broker/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");
+console.log("Go/Rust Stage 9 product-slice differential passed: auth-session, settings/system/alerts/plugins/strategy-definitions/strategy-instance/watchlist/portfolio/research/research-preset/execution/market-data-provider/market-data-catalog/market-data-derivatives/market-data-options/market-data-news-actions/market-data-news-search/adk/market-data-quote-read/market-data-prediction-read/broker/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");

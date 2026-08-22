@@ -131,6 +131,7 @@ impl ApiPort for ProductApi {
                 ("GET", "/api/v1/adk/agent-templates") => {
                     Ok(ApiOutput::Json(agent_templates_wire()))
                 }
+                ("GET", path) if route_for(path).is_some() => self.adk_read(&request),
                 ("GET", "/api/v1/alerts/option-events") => {
                     self.alerts(AlertKind::OptionEvents, &request.query)
                 }
@@ -241,6 +242,9 @@ impl ApiPort for ProductApi {
                 }
                 ("GET", path) if is_market_data_options_read_path(path) => {
                     self.market_data_options_read(path, &request.query)
+                }
+                ("GET", path) if is_market_data_news_search_read_path(path) => {
+                    self.market_data_news_search_read(path, &request.query)
                 }
                 ("GET", path) if is_market_data_news_actions_read_path(path) => {
                     self.market_data_news_actions_read(path, &request.query)
