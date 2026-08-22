@@ -1,0 +1,1276 @@
+{
+  "version": "stage9.market-data-subscription-mutation.v1",
+  "cases": [
+    {
+      "name": "acquire-success-normalizes-instruments",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"consumerId\":\"chart-main\",\"instruments\":[{\"market\":\"hk\",\"symbol\":\"00700\"},{\"channel\":\"KLINE\",\"market\":\"us\",\"symbol\":\"aapl\",\"interval\":\"1m\"}]}",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 2,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 2,
+        "entries": [
+          {
+            "brokerState": "unmanaged",
+            "channel": "KLINE",
+            "consumers": [
+              "chart-main"
+            ],
+            "createdAt": "fixture-time",
+            "depthLevel": null,
+            "instrumentId": "US.AAPL",
+            "interval": "1m",
+            "key": "KLINE:US:AAPL:1m",
+            "lastError": null,
+            "market": "US",
+            "refCount": 1,
+            "subscribedAt": null,
+            "symbol": "AAPL",
+            "unsubscribeEligibleAt": null,
+            "updatedAt": "fixture-time"
+          },
+          {
+            "brokerState": "unmanaged",
+            "channel": "SNAPSHOT",
+            "consumers": [
+              "chart-main"
+            ],
+            "createdAt": "fixture-time",
+            "depthLevel": null,
+            "instrumentId": "HK.00700",
+            "interval": null,
+            "key": "SNAPSHOT:HK:00700",
+            "lastError": null,
+            "market": "HK",
+            "refCount": 1,
+            "subscribedAt": null,
+            "symbol": "00700",
+            "unsubscribeEligibleAt": null,
+            "updatedAt": "fixture-time"
+          }
+        ],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [
+            {
+              "limit": null,
+              "market": "HK",
+              "remaining": null,
+              "used": 1
+            },
+            {
+              "limit": null,
+              "market": "US",
+              "remaining": null,
+              "used": 1
+            }
+          ],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 2
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 2,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "acquire-success-duplicate-target",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"consumerId\":\"chart-main\",\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\"},{\"market\":\"US\",\"symbol\":\"AAPL\"}]}",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 1,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 1,
+        "entries": [
+          {
+            "brokerState": "unmanaged",
+            "channel": "SNAPSHOT",
+            "consumers": [
+              "chart-main"
+            ],
+            "createdAt": "fixture-time",
+            "depthLevel": null,
+            "instrumentId": "US.AAPL",
+            "interval": null,
+            "key": "SNAPSHOT:US:AAPL",
+            "lastError": null,
+            "market": "US",
+            "refCount": 1,
+            "subscribedAt": null,
+            "symbol": "AAPL",
+            "unsubscribeEligibleAt": null,
+            "updatedAt": "fixture-time"
+          }
+        ],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [
+            {
+              "limit": null,
+              "market": "US",
+              "remaining": null,
+              "used": 1
+            }
+          ],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 1
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 1,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "acquire-polling-fallback",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"consumerId\":\"chart-alpha\",\"providerBrokerId\":\" Alpha \",\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\",\"channel\":\"KLINE\",\"interval\":\"1m\"}]}",
+      "expectedStatus": 200,
+      "data": {
+        "action": "acquired",
+        "consumerId": "chart-alpha",
+        "desiredCount": 0,
+        "entries": [],
+        "instruments": [
+          {
+            "channel": "KLINE",
+            "interval": "1m",
+            "market": "US",
+            "symbol": "AAPL"
+          }
+        ],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "providerBrokerId": "alpha",
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "totalActiveSubscriptions": 0,
+        "transport": {
+          "mode": "snapshot-poll-fallback"
+        }
+      }
+    },
+    {
+      "name": "acquire-unknown-fields",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"consumerId\":\"chart\",\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\"}],\"ignored\":true}",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 1,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 1,
+        "entries": [
+          {
+            "brokerState": "unmanaged",
+            "channel": "SNAPSHOT",
+            "consumers": [
+              "chart"
+            ],
+            "createdAt": "fixture-time",
+            "depthLevel": null,
+            "instrumentId": "US.AAPL",
+            "interval": null,
+            "key": "SNAPSHOT:US:AAPL",
+            "lastError": null,
+            "market": "US",
+            "refCount": 1,
+            "subscribedAt": null,
+            "symbol": "AAPL",
+            "unsubscribeEligibleAt": null,
+            "updatedAt": "fixture-time"
+          }
+        ],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [
+            {
+              "limit": null,
+              "market": "US",
+              "remaining": null,
+              "used": 1
+            }
+          ],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 1
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 1,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "acquire-null-body",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "null",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "consumerId and instruments are required"
+    },
+    {
+      "name": "acquire-malformed-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid subscription request"
+    },
+    {
+      "name": "acquire-trailing-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"consumerId\":\"chart\",\"instruments\":[]} {}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "consumerId and instruments are required"
+    },
+    {
+      "name": "acquire-missing-consumer",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\"}]}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "consumerId and instruments are required"
+    },
+    {
+      "name": "acquire-missing-instruments",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"consumerId\":\"chart\"}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "consumerId and instruments are required"
+    },
+    {
+      "name": "acquire-all-instruments-invalid",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"consumerId\":\"chart\",\"instruments\":[{\"market\":\"US\"},{\"symbol\":\"AAPL\"}]}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "consumerId and instruments are required"
+    },
+    {
+      "name": "acquire-invalid-channel",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"consumerId\":\"chart\",\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\",\"channel\":\"NEWS\"}]}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "unsupported subscription channel \"NEWS\""
+    },
+    {
+      "name": "acquire-invalid-interval",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"consumerId\":\"chart\",\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\",\"channel\":\"KLINE\",\"interval\":\"2m\"}]}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "unsupported KLINE subscription interval \"2m\""
+    },
+    {
+      "name": "acquire-canceled",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "body": "{\"consumerId\":\"chart\",\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\"}]}",
+      "contextError": "canceled",
+      "expectedStatus": 500,
+      "errorCode": "SUBSCRIPTION_FAILED",
+      "errorMessage": "context canceled"
+    },
+    {
+      "name": "release-target-success",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "{\"consumerId\":\"chart\",\"instruments\":[{\"market\":\"HK\",\"symbol\":\"00700\",\"channel\":\"KLINE\",\"interval\":\"1m\"}]}",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 1,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 1,
+        "entries": [
+          {
+            "brokerState": "unmanaged",
+            "channel": "SNAPSHOT",
+            "consumers": [
+              "chart"
+            ],
+            "createdAt": "fixture-time",
+            "depthLevel": null,
+            "instrumentId": "US.AAPL",
+            "interval": null,
+            "key": "SNAPSHOT:US:AAPL",
+            "lastError": null,
+            "market": "US",
+            "refCount": 1,
+            "subscribedAt": null,
+            "symbol": "AAPL",
+            "unsubscribeEligibleAt": null,
+            "updatedAt": "fixture-time"
+          }
+        ],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [
+            {
+              "limit": null,
+              "market": "US",
+              "remaining": null,
+              "used": 1
+            }
+          ],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 1
+        },
+        "released": true,
+        "remainQuota": null,
+        "totalActiveSubscriptions": 1,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "release-consumer-success",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "{\"consumerId\":\"chart\"}",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 0,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 0,
+        "entries": [],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "released": true,
+        "remainQuota": null,
+        "totalActiveSubscriptions": 0,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "release-only-first-target",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "{\"consumerId\":\"chart\",\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\"},{\"market\":\"HK\",\"symbol\":\"00700\"}]}",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 1,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 1,
+        "entries": [
+          {
+            "brokerState": "unmanaged",
+            "channel": "SNAPSHOT",
+            "consumers": [
+              "chart"
+            ],
+            "createdAt": "fixture-time",
+            "depthLevel": null,
+            "instrumentId": "HK.00700",
+            "interval": null,
+            "key": "SNAPSHOT:HK:00700",
+            "lastError": null,
+            "market": "HK",
+            "refCount": 1,
+            "subscribedAt": null,
+            "symbol": "00700",
+            "unsubscribeEligibleAt": null,
+            "updatedAt": "fixture-time"
+          }
+        ],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [
+            {
+              "limit": null,
+              "market": "HK",
+              "remaining": null,
+              "used": 1
+            }
+          ],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 1
+        },
+        "released": true,
+        "remainQuota": null,
+        "totalActiveSubscriptions": 1,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "release-polling-fallback",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "{\"consumerId\":\"chart\",\"providerBrokerId\":\" Alpha \",\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\"}]}",
+      "expectedStatus": 200,
+      "data": {
+        "action": "released",
+        "consumerId": "chart",
+        "desiredCount": 0,
+        "entries": [],
+        "instruments": [
+          {
+            "market": "US",
+            "symbol": "AAPL"
+          }
+        ],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "providerBrokerId": "alpha",
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "totalActiveSubscriptions": 0,
+        "transport": {
+          "mode": "snapshot-poll-fallback"
+        }
+      }
+    },
+    {
+      "name": "release-null-body",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "null",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "consumerId is required"
+    },
+    {
+      "name": "release-malformed-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "{",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid release request"
+    },
+    {
+      "name": "release-trailing-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "{\"consumerId\":\"chart\"} {}",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 0,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 0,
+        "entries": [],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "released": true,
+        "remainQuota": null,
+        "totalActiveSubscriptions": 0,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "release-missing-consumer",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "{}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "consumerId is required"
+    },
+    {
+      "name": "release-incomplete-target",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "{\"consumerId\":\"chart\",\"instruments\":[{\"market\":\"US\"}]}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "release target market and symbol are required"
+    },
+    {
+      "name": "release-invalid-interval",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "{\"consumerId\":\"chart\",\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\",\"channel\":\"KLINE\",\"interval\":\"2m\"}]}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "unsupported KLINE subscription interval \"2m\""
+    },
+    {
+      "name": "release-canceled",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/release",
+      "body": "{\"consumerId\":\"chart\"}",
+      "contextError": "canceled",
+      "expectedStatus": 500,
+      "errorCode": "SUBSCRIPTION_FAILED",
+      "errorMessage": "context canceled"
+    },
+    {
+      "name": "heartbeat-success",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/heartbeat",
+      "body": "{\"consumerId\":\"chart\"}",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 1,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 1,
+        "entries": [
+          {
+            "brokerState": "unmanaged",
+            "channel": "SNAPSHOT",
+            "consumers": [
+              "chart"
+            ],
+            "createdAt": "fixture-time",
+            "depthLevel": null,
+            "instrumentId": "US.AAPL",
+            "interval": null,
+            "key": "SNAPSHOT:US:AAPL",
+            "lastError": null,
+            "market": "US",
+            "refCount": 1,
+            "subscribedAt": null,
+            "symbol": "AAPL",
+            "unsubscribeEligibleAt": null,
+            "updatedAt": "fixture-time"
+          }
+        ],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [
+            {
+              "limit": null,
+              "market": "US",
+              "remaining": null,
+              "used": 1
+            }
+          ],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 1
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 1,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "heartbeat-empty",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/heartbeat",
+      "body": "{\"consumerId\":\"chart\"}",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 0,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 0,
+        "entries": [],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 0,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "heartbeat-polling-fallback",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/heartbeat",
+      "body": "{\"consumerId\":\"chart\",\"providerBrokerId\":\" Alpha \"}",
+      "expectedStatus": 200,
+      "data": {
+        "action": "heartbeat",
+        "consumerId": "chart",
+        "desiredCount": 0,
+        "entries": [],
+        "instruments": null,
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "providerBrokerId": "alpha",
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "totalActiveSubscriptions": 0,
+        "transport": {
+          "mode": "snapshot-poll-fallback"
+        }
+      }
+    },
+    {
+      "name": "heartbeat-null-body",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/heartbeat",
+      "body": "null",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "consumerId is required"
+    },
+    {
+      "name": "heartbeat-malformed-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/heartbeat",
+      "body": "{",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid heartbeat request"
+    },
+    {
+      "name": "heartbeat-trailing-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/heartbeat",
+      "body": "{\"consumerId\":\"chart\"} {}",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 0,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 0,
+        "entries": [],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 0,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "heartbeat-blank-consumer",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/heartbeat",
+      "body": "{\"consumerId\":\" \"}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "consumerId is required"
+    },
+    {
+      "name": "heartbeat-canceled",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/subscriptions/heartbeat",
+      "body": "{\"consumerId\":\"chart\"}",
+      "contextError": "canceled",
+      "expectedStatus": 500,
+      "errorCode": "SUBSCRIPTION_FAILED",
+      "errorMessage": "context canceled"
+    },
+    {
+      "name": "clear-consumer-success",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/subscriptions?consumerId=chart",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 1,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "cleared": true,
+        "desiredCount": 1,
+        "entries": [
+          {
+            "brokerState": "unmanaged",
+            "channel": "SNAPSHOT",
+            "consumers": [
+              "other"
+            ],
+            "createdAt": "fixture-time",
+            "depthLevel": null,
+            "instrumentId": "HK.00700",
+            "interval": null,
+            "key": "SNAPSHOT:HK:00700",
+            "lastError": null,
+            "market": "HK",
+            "refCount": 1,
+            "subscribedAt": null,
+            "symbol": "00700",
+            "unsubscribeEligibleAt": null,
+            "updatedAt": "fixture-time"
+          }
+        ],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [
+            {
+              "limit": null,
+              "market": "HK",
+              "remaining": null,
+              "used": 1
+            }
+          ],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 1
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 1,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "clear-all-success",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 0,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "cleared": true,
+        "desiredCount": 0,
+        "entries": [],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 0,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "clear-blank-consumer-means-all",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/subscriptions?consumerId=%20",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 0,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "cleared": true,
+        "desiredCount": 0,
+        "entries": [],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 0,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "clear-empty-success",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 0,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "cleared": true,
+        "desiredCount": 0,
+        "entries": [],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 0,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "clear-canceled",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/subscriptions?consumerId=chart",
+      "contextError": "canceled",
+      "expectedStatus": 500,
+      "errorCode": "SUBSCRIPTION_FAILED",
+      "errorMessage": "context canceled"
+    },
+    {
+      "name": "prediction-acquire-normalizes-types",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/ec-42/subscriptions?brokerId=api-test\u0026accountId=eligible",
+      "body": "{\"dataTypes\":[\" ticker \",\"KLINE\",\"ticker\"]}",
+      "expectedStatus": 200,
+      "data": {
+        "dataTypes": [
+          "KLINE",
+          "TICKER"
+        ],
+        "instrumentId": "US.EC-42",
+        "leaseId": "fixture-lease",
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.history",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "subscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "KLINE",
+              "TICKER"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ]
+      }
+    },
+    {
+      "name": "prediction-acquire-order-book",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/US.EC-42/subscriptions?brokerId=api-test\u0026accountId=eligible",
+      "body": "{\"dataTypes\":[\"order_book\"]}",
+      "expectedStatus": 200,
+      "data": {
+        "dataTypes": [
+          "ORDER_BOOK"
+        ],
+        "instrumentId": "US.EC-42",
+        "leaseId": "fixture-lease",
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.depth",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "subscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "ORDER_BOOK"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ]
+      }
+    },
+    {
+      "name": "prediction-acquire-unknown-fields",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions?brokerId=api-test\u0026accountId=eligible",
+      "body": "{\"dataTypes\":[\"KLINE\"],\"ignored\":true}",
+      "expectedStatus": 200,
+      "data": {
+        "dataTypes": [
+          "KLINE"
+        ],
+        "instrumentId": "US.EC-42",
+        "leaseId": "fixture-lease",
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.history",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "subscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "KLINE"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ]
+      }
+    },
+    {
+      "name": "prediction-acquire-null-body",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions?brokerId=api-test\u0026accountId=eligible",
+      "body": "null",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid product feature query: invalid prediction subscription"
+    },
+    {
+      "name": "prediction-acquire-malformed-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions?brokerId=api-test\u0026accountId=eligible",
+      "body": "{",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid prediction subscription payload"
+    },
+    {
+      "name": "prediction-acquire-trailing-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions?brokerId=api-test\u0026accountId=eligible",
+      "body": "{\"dataTypes\":[\"KLINE\"]} {}",
+      "expectedStatus": 200,
+      "data": {
+        "dataTypes": [
+          "KLINE"
+        ],
+        "instrumentId": "US.EC-42",
+        "leaseId": "fixture-lease",
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.history",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "subscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "KLINE"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ]
+      }
+    },
+    {
+      "name": "prediction-acquire-missing-types",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions?brokerId=api-test\u0026accountId=eligible",
+      "body": "{}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid product feature query: invalid prediction subscription"
+    },
+    {
+      "name": "prediction-acquire-invalid-type",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions?brokerId=api-test\u0026accountId=eligible",
+      "body": "{\"dataTypes\":[\"NEWS\"]}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid product feature query: invalid prediction subscription"
+    },
+    {
+      "name": "prediction-acquire-missing-broker",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions?brokerId=missing\u0026accountId=eligible",
+      "body": "{\"dataTypes\":[\"KLINE\"]}",
+      "expectedStatus": 409,
+      "errorCode": "BROKER_CAPABILITY_UNAVAILABLE",
+      "errorMessage": "broker feature capability is unavailable: broker \"missing\" is not registered"
+    },
+    {
+      "name": "prediction-acquire-ineligible-account",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions?brokerId=api-test\u0026accountId=blocked",
+      "body": "{\"dataTypes\":[\"KLINE\"]}",
+      "expectedStatus": 403,
+      "errorCode": "PREDICTION_MARKET_INELIGIBLE",
+      "errorMessage": "prediction market requires an eligible Moomoo US account"
+    },
+    {
+      "name": "prediction-acquire-provider-failure",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions?brokerId=api-test\u0026accountId=eligible",
+      "body": "{\"dataTypes\":[\"KLINE\"]}",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "fixture prediction subscribe failed",
+      "providerCall": {
+        "subscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "KLINE"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ]
+      }
+    },
+    {
+      "name": "prediction-acquire-canceled",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions?brokerId=api-test\u0026accountId=eligible",
+      "body": "{\"dataTypes\":[\"KLINE\"]}",
+      "contextError": "canceled",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "context canceled"
+    },
+    {
+      "name": "prediction-release-success",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions/fixture-lease",
+      "expectedStatus": 200,
+      "data": {
+        "released": true
+      },
+      "providerCall": {
+        "subscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "KLINE"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ],
+        "unsubscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "KLINE"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ]
+      }
+    },
+    {
+      "name": "prediction-release-unknown-is-idempotent",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions/missing-lease",
+      "expectedStatus": 200,
+      "data": {
+        "released": true
+      }
+    },
+    {
+      "name": "prediction-release-blank-lease",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions/%20",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid product feature query: prediction subscription leaseId is required"
+    },
+    {
+      "name": "prediction-release-code-does-not-rebind-lease",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/prediction/contracts/OTHER/subscriptions/fixture-lease",
+      "expectedStatus": 200,
+      "data": {
+        "released": true
+      },
+      "providerCall": {
+        "subscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "ORDER_BOOK"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ],
+        "unsubscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "ORDER_BOOK"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ]
+      }
+    },
+    {
+      "name": "prediction-release-provider-failure",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions/fixture-lease",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "fixture prediction unsubscribe failed",
+      "providerCall": {
+        "subscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "KLINE"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ],
+        "unsubscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "KLINE"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ]
+      }
+    },
+    {
+      "name": "prediction-release-canceled",
+      "method": "DELETE",
+      "requestPath": "/api/v1/market-data/prediction/contracts/EC-42/subscriptions/fixture-lease",
+      "contextError": "canceled",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "context canceled",
+      "providerCall": {
+        "subscribeCalls": [
+          {
+            "accountId": "eligible",
+            "brokerId": "api-test",
+            "dataTypes": [
+              "KLINE"
+            ],
+            "instrumentId": "US.EC-42"
+          }
+        ]
+      }
+    }
+  ]
+}
