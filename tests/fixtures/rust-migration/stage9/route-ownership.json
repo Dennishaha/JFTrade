@@ -1197,157 +1197,181 @@
       "method": "GET",
       "path": "/api/v1/market-data/prediction/categories",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/combos/eligible-events",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/competitions",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/contracts/{code}/candles",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/contracts/{code}/candles/history",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/contracts/{code}/milestones",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/contracts/{code}/order-book",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/contracts/{code}/snapshot",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/contracts/{code}/ticks",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/events",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/events/{eventId}/contracts",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/v1/market-data/prediction/series",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",

@@ -1,0 +1,568 @@
+{
+  "version": "stage9.market-data-prediction-read.v1",
+  "cases": [
+    {
+      "name": "categories-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/categories?brokerId=api-test\u0026market=US\u0026operation=categories\u0026pageSize=25\u0026active=true",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.discover",
+            "instrumentId": "",
+            "market": "US",
+            "operation": "categories"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.discover",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.discover",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "",
+        "pageSize": 25,
+        "params": {
+          "active": true,
+          "operation": "categories"
+        }
+      }
+    },
+    {
+      "name": "combo-eligible-events-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/combos/eligible-events?brokerId=api-test\u0026market=US\u0026operation=eligible_events\u0026seriesId=SERIES-1",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.combo_eligible",
+            "instrumentId": "SERIES-1",
+            "market": "US",
+            "operation": "eligible_events"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.combo_eligible",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.combo_eligible",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "SERIES-1",
+        "pageSize": 100,
+        "params": {
+          "operation": "eligible_events"
+        }
+      }
+    },
+    {
+      "name": "competitions-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/competitions?brokerId=api-test\u0026market=US\u0026operation=competitions\u0026status=open",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.discover",
+            "instrumentId": "",
+            "market": "US",
+            "operation": "competitions"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.discover",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.discover",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "",
+        "pageSize": 100,
+        "params": {
+          "operation": "competitions",
+          "status": "open"
+        }
+      }
+    },
+    {
+      "name": "candles-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/contracts/US.EC-42/candles?brokerId=api-test\u0026market=US\u0026operation=candles\u0026period=1m\u0026pageSize=5",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.history",
+            "instrumentId": "US.EC-42",
+            "market": "US",
+            "operation": "candles"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.history",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.history",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "US.EC-42",
+        "pageSize": 5,
+        "params": {
+          "operation": "candles",
+          "period": "1m"
+        }
+      }
+    },
+    {
+      "name": "historical-candles-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/contracts/US.EC-42/candles/history?brokerId=api-test\u0026market=US\u0026operation=historical\u0026from=2026-08-01T00%3A00%3A00Z\u0026to=2026-08-02T00%3A00%3A00Z",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.history",
+            "instrumentId": "US.EC-42",
+            "market": "US",
+            "operation": "historical"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.history",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.history",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "US.EC-42",
+        "pageSize": 100,
+        "params": {
+          "from": "2026-08-01T00:00:00Z",
+          "operation": "historical",
+          "to": "2026-08-02T00:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "milestones-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/contracts/US.EC-42/milestones?brokerId=api-test\u0026market=US\u0026operation=milestones\u0026includeResolved=false",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.discover",
+            "instrumentId": "US.EC-42",
+            "market": "US",
+            "operation": "milestones"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.discover",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.discover",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "US.EC-42",
+        "pageSize": 100,
+        "params": {
+          "includeResolved": false,
+          "operation": "milestones"
+        }
+      }
+    },
+    {
+      "name": "order-book-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/contracts/US.EC-42/order-book?brokerId=api-test\u0026market=US\u0026operation=order_book\u0026depth=10",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.depth",
+            "instrumentId": "US.EC-42",
+            "market": "US",
+            "operation": "order_book"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.depth",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.depth",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "US.EC-42",
+        "pageSize": 100,
+        "params": {
+          "depth": 10,
+          "operation": "order_book"
+        }
+      }
+    },
+    {
+      "name": "snapshot-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/contracts/US.EC-42/snapshot?brokerId=api-test\u0026market=US\u0026operation=snapshot\u0026refresh=true",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.snapshot",
+            "instrumentId": "US.EC-42",
+            "market": "US",
+            "operation": "snapshot"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.snapshot",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.snapshot",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "US.EC-42",
+        "pageSize": 100,
+        "params": {
+          "operation": "snapshot"
+        }
+      }
+    },
+    {
+      "name": "ticks-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/contracts/US.EC-42/ticks?brokerId=api-test\u0026market=US\u0026operation=ticks\u0026pageSize=20",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.history",
+            "instrumentId": "US.EC-42",
+            "market": "US",
+            "operation": "ticks"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.history",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.history",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "US.EC-42",
+        "pageSize": 20,
+        "params": {
+          "operation": "ticks"
+        }
+      }
+    },
+    {
+      "name": "events-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/events?brokerId=api-test\u0026market=US\u0026operation=events\u0026status=open",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.discover",
+            "instrumentId": "",
+            "market": "US",
+            "operation": "events"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.discover",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.discover",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "",
+        "pageSize": 100,
+        "params": {
+          "operation": "events",
+          "status": "open"
+        }
+      }
+    },
+    {
+      "name": "event-contracts-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/events/EVENT-42/contracts?brokerId=api-test\u0026market=US\u0026operation=contracts",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.discover",
+            "instrumentId": "EVENT-42",
+            "market": "US",
+            "operation": "contracts"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.discover",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.discover",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "EVENT-42",
+        "pageSize": 100,
+        "params": {
+          "operation": "contracts"
+        }
+      }
+    },
+    {
+      "name": "series-success",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/series?brokerId=api-test\u0026market=US\u0026operation=series\u0026category=macro",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.discover",
+            "instrumentId": "",
+            "market": "US",
+            "operation": "series"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.discover",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.discover",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "",
+        "pageSize": 100,
+        "params": {
+          "category": "macro",
+          "operation": "series"
+        }
+      }
+    },
+    {
+      "name": "events-empty-result",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/events?brokerId=api-test\u0026market=US\u0026operation=events\u0026empty=true",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.discover",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "featureId": "prediction.discover",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "",
+        "pageSize": 100,
+        "params": {
+          "empty": true,
+          "operation": "events"
+        }
+      }
+    },
+    {
+      "name": "categories-ineligible-account",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/categories?brokerId=api-test\u0026market=US",
+      "expectedStatus": 403,
+      "errorCode": "PREDICTION_MARKET_INELIGIBLE",
+      "errorMessage": "prediction market requires an eligible Moomoo US account"
+    },
+    {
+      "name": "categories-capability-unavailable",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/categories?brokerId=missing\u0026market=US",
+      "expectedStatus": 409,
+      "errorCode": "BROKER_CAPABILITY_UNAVAILABLE",
+      "errorMessage": "broker feature capability is unavailable: broker \"missing\" is not registered"
+    },
+    {
+      "name": "snapshot-provider-failure",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/contracts/US.EC-42/snapshot?brokerId=api-test\u0026market=US",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "fixture prediction provider failed",
+      "providerCall": {
+        "featureId": "prediction.snapshot",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "US.EC-42",
+        "pageSize": 100,
+        "params": {
+          "operation": "snapshot"
+        }
+      }
+    },
+    {
+      "name": "events-provider-warming",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/events?brokerId=api-test\u0026market=US",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "1"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_WARMING",
+      "errorMessage": "行情服务正在预热，请稍后重试",
+      "providerCall": {
+        "featureId": "prediction.discover",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "",
+        "pageSize": 100,
+        "params": {
+          "operation": "events"
+        }
+      }
+    },
+    {
+      "name": "series-provider-busy",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/prediction/series?brokerId=api-test\u0026market=US",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "2"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_BUSY",
+      "errorMessage": "行情服务当前繁忙，请稍后重试",
+      "providerCall": {
+        "featureId": "prediction.discover",
+        "market": "US",
+        "marketSegment": "prediction",
+        "productClass": "event_contract",
+        "instrumentId": "",
+        "pageSize": 100,
+        "params": {
+          "operation": "series"
+        }
+      }
+    }
+  ]
+}

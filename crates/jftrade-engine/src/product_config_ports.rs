@@ -120,6 +120,14 @@ impl ProductConfig {
         self
     }
 
+    #[cfg(test)]
+    fn with_market_data_prediction_read_snapshot_port(
+        mut self,
+        port: Arc<dyn MarketDataPredictionReadSnapshotPort>,
+    ) -> Self {
+        self.market_data_prediction_read_snapshot_port = Some(port);
+        self
+    }
 
     #[cfg(test)]
     fn with_broker_read_snapshot_port(mut self, port: Arc<dyn BrokerReadSnapshotPort>) -> Self {

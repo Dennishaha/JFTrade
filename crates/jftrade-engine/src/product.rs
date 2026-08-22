@@ -62,6 +62,8 @@ include!("product_market_data_derivative_read_port.rs");
 include!("product_market_data_options_read_port.rs");
 include!("product_market_data_news_actions_read_port.rs");
 include!("product_market_data_quote_read_port.rs");
+include!("product_market_data_prediction_read_port.rs");
+include!("product_market_data_prediction_read_routes.rs");
 include!("product_auth_session_port.rs");
 include!("product_snapshot_errors.rs");
 /// Consumer-owned read port for local watchlist membership projections.  The
@@ -188,6 +190,8 @@ pub struct ProductConfig {
     market_data_news_actions_read_snapshot_port:
         Option<Arc<dyn MarketDataNewsActionsReadSnapshotPort>>,
     market_data_quote_read_snapshot_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
+    market_data_prediction_read_snapshot_port:
+        Option<Arc<dyn MarketDataPredictionReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -255,6 +259,7 @@ impl ProductConfig {
             market_data_options_read_snapshot_port: None,
             market_data_news_actions_read_snapshot_port: None,
             market_data_quote_read_snapshot_port: None,
+            market_data_prediction_read_snapshot_port: None,
             broker_read_snapshot_port: None,
             system_read_snapshot_port: None,
             remote_watchlist_snapshot_port: None,
@@ -517,6 +522,9 @@ pub(crate) async fn start_product_with_runtime_state(
                 .market_data_news_actions_read_snapshot_port
                 .clone(),
             market_data_quote_read_snapshot: config.market_data_quote_read_snapshot_port.clone(),
+            market_data_prediction_read_snapshot: config
+                .market_data_prediction_read_snapshot_port
+                .clone(),
             broker_read_snapshot: config.broker_read_snapshot_port.clone(),
             system_read_snapshot: config.system_read_snapshot_port.clone(),
             remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),
@@ -588,6 +596,7 @@ include!("product_api_market_data_derivative_read.rs");
 include!("product_api_market_data_options_read.rs");
 include!("product_market_data_news_actions_read_api.rs");
 include!("product_market_data_quote_read_api.rs");
+include!("product_market_data_prediction_read_api.rs");
 include!("product_api_brokers.rs");
 include!("product_api_watchlists.rs");
 include!("product_api_plugins.rs");

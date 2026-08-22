@@ -13,6 +13,7 @@ struct ProductOptionalPorts {
     market_data_options_read_snapshot: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
     market_data_news_actions_read_snapshot: Option<Arc<dyn MarketDataNewsActionsReadSnapshotPort>>,
     market_data_quote_read_snapshot: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
+    market_data_prediction_read_snapshot: Option<Arc<dyn MarketDataPredictionReadSnapshotPort>>,
     broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
