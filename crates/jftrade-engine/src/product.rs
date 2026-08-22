@@ -127,6 +127,18 @@ use product_market_data_provider_actions_port::{
 #[path = "product_adk_chat_stream_port.rs"]
 mod product_adk_chat_stream_port;
 use product_adk_chat_stream_port::{ADK_CHAT_PATH, ADK_CHAT_STREAM_PATH, AdkChatStreamPort};
+#[path = "product_adk_mutation_port.rs"]
+mod product_adk_mutation_port;
+use product_adk_mutation_port::{
+    AdkMutationPort, AdkMutationRequest, AdkMutationResponse, adk_mutation_routes,
+    dispatch_adk_mutation,
+};
+#[path = "product_strategy_runtime_write_port.rs"]
+mod product_strategy_runtime_write_port;
+use product_strategy_runtime_write_port::{
+    StrategyRuntimeWritePort, StrategyRuntimeWriteResponse, dispatch_strategy_runtime_write,
+    strategy_runtime_write_routes,
+};
 
 #[path = "strategy_pine.rs"]
 mod strategy_pine;
@@ -283,6 +295,7 @@ pub struct ProductConfig {
     strategy_definition_write_port: Option<Arc<dyn StrategyDefinitionWritePort>>,
     market_data_provider_actions_port: Option<Arc<dyn MarketDataProviderActionsPort>>,
     adk_chat_stream_port: Option<Arc<dyn AdkChatStreamPort>>,
+    adk_mutation_port: Option<Arc<dyn AdkMutationPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     alert_write_port: Option<Arc<dyn AlertWritePort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
@@ -292,6 +305,7 @@ pub struct ProductConfig {
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     backtests_write_port: Option<Arc<dyn BacktestsWritePort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
+    strategy_runtime_write_port: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
     capabilities: ProductCapabilities,
@@ -365,6 +379,7 @@ impl ProductConfig {
             strategy_definition_write_port: None,
             market_data_provider_actions_port: None,
             adk_chat_stream_port: None,
+            adk_mutation_port: None,
             alert_snapshot_port: None,
             alert_write_port: None,
             strategy_definition_snapshot_port: None,
@@ -374,6 +389,7 @@ impl ProductConfig {
             backtest_sync_read_snapshot_port: None,
             backtests_write_port: None,
             strategy_read_snapshot_port: None,
+            strategy_runtime_write_port: None,
             auth_session_snapshot_port: None,
             auth_session_write_port: None,
             capabilities: ProductCapabilities::default(),
@@ -648,6 +664,7 @@ pub(crate) async fn start_product_with_runtime_state(
             strategy_definition_write: config.strategy_definition_write_port.clone(),
             market_data_provider_actions: config.market_data_provider_actions_port.clone(),
             adk_chat_stream: config.adk_chat_stream_port.clone(),
+            adk_mutation: config.adk_mutation_port.clone(),
             alert_snapshot: config.alert_snapshot_port.clone(),
             alert_write: config.alert_write_port.clone(),
             strategy_definition_snapshot: config.strategy_definition_snapshot_port.clone(),
@@ -656,6 +673,7 @@ pub(crate) async fn start_product_with_runtime_state(
             backtest_sync_read_snapshot: config.backtest_sync_read_snapshot_port.clone(),
             backtests_write: config.backtests_write_port.clone(),
             strategy_read_snapshot: config.strategy_read_snapshot_port.clone(),
+            strategy_runtime_write: config.strategy_runtime_write_port.clone(),
             auth_session_snapshot: config.auth_session_snapshot_port.clone(),
             auth_session_write: config.auth_session_write_port.clone(),
         },
@@ -721,6 +739,8 @@ include!("product_market_data_quote_read_api.rs");
 include!("product_market_data_prediction_read_api.rs");
 include!("product_adk_read_api.rs");
 include!("product_api_adk_chat_stream.rs");
+include!("product_api_adk_mutations.rs");
+include!("product_api_strategy_runtime_write.rs");
 include!("product_api_brokers.rs");
 include!("product_api_watchlists.rs");
 include!("product_api_watchlists_write.rs");

@@ -229,6 +229,12 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_adk_mutation_port(mut self, port: Arc<dyn AdkMutationPort>) -> Self {
+        self.adk_mutation_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_alert_snapshot_port(mut self, port: Arc<dyn AlertSnapshotPort>) -> Self {
         self.alert_snapshot_port = Some(port);
         self

@@ -2,109 +2,133 @@
   "version": "stage9.route-ownership.v2",
   "baselineVersion": "stage7.v1",
   "operations": [
-    {
-      "method": "DELETE",
-      "path": "/api/v1/adk/agents/{agentId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "DELETE",
+    "path": "/api/v1/adk/agents/{agentId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "DELETE",
-      "path": "/api/v1/adk/memory/{memoryId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "DELETE",
+    "path": "/api/v1/adk/memory/{memoryId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "DELETE",
-      "path": "/api/v1/adk/providers/{providerId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "DELETE",
+    "path": "/api/v1/adk/providers/{providerId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "DELETE",
-      "path": "/api/v1/adk/sessions/{sessionId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "DELETE",
+    "path": "/api/v1/adk/sessions/{sessionId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "DELETE",
-      "path": "/api/v1/adk/skills/{skillId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "DELETE",
+    "path": "/api/v1/adk/skills/{skillId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "DELETE",
-      "path": "/api/v1/adk/tasks/{taskId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "DELETE",
+    "path": "/api/v1/adk/tasks/{taskId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "DELETE",
-      "path": "/api/v1/adk/workflows/{workflowId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "DELETE",
+    "path": "/api/v1/adk/workflows/{workflowId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "DELETE",
-      "path": "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "DELETE",
+    "path": "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "DELETE",
@@ -208,18 +232,21 @@
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
-    {
-      "method": "DELETE",
-      "path": "/api/v1/strategies/{instanceId}",
-      "capability": "strategies",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "DELETE",
+    "path": "/api/v1/strategies/{instanceId}",
+    "capability": "strategies",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "DELETE",
@@ -2521,31 +2548,37 @@
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
-    {
-      "method": "PATCH",
-      "path": "/api/v1/adk/runs/{runId}/objective",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "PATCH",
+    "path": "/api/v1/adk/runs/{runId}/objective",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "PATCH",
-      "path": "/api/v1/adk/sessions/{sessionId}/composer-state",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "PATCH",
+    "path": "/api/v1/adk/sessions/{sessionId}/composer-state",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "PATCH",
@@ -2579,44 +2612,53 @@
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/agents",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/agents",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/approvals/{approvalId}/approve",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/approvals/{approvalId}/approve",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/approvals/{approvalId}/deny",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/approvals/{approvalId}/deny",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -2648,239 +2690,293 @@
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/memory",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/memory",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/optimization-tasks/{taskId}/cancel",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/optimization-tasks/{taskId}/cancel",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/providers",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/providers",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/providers/{providerId}/default",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/providers/{providerId}/default",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/providers/{providerId}/test",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/providers/{providerId}/test",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/runs/{runId}/cancel",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/runs/{runId}/cancel",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/runs/{runId}/input-response",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/runs/{runId}/input-response",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/runs/{runId}/pause",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/runs/{runId}/pause",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/runs/{runId}/resume",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/runs/{runId}/resume",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/sessions",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/sessions",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/sessions/{sessionId}/context/compact",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/sessions/{sessionId}/context/compact",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/skills",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/skills",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/tasks",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/tasks",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/workflow-triggers/{triggerId}/run",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/workflow-triggers/{triggerId}/run",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/workflow-webhooks/{triggerId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/workflow-webhooks/{triggerId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/workflows",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/workflows",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/workflows/{workflowId}/run",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/workflows/{workflowId}/run",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/adk/workflows/{workflowId}/triggers",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/adk/workflows/{workflowId}/triggers",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -3397,57 +3493,69 @@
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/strategies/{instanceId}/pause",
-      "capability": "strategies",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/strategies/{instanceId}/pause",
+    "capability": "strategies",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/strategies/{instanceId}/refresh-definition",
-      "capability": "strategies",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/strategies/{instanceId}/refresh-definition",
+    "capability": "strategies",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/strategies/{instanceId}/start",
-      "capability": "strategies",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/strategies/{instanceId}/start",
+    "capability": "strategies",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/strategies/{instanceId}/stop",
-      "capability": "strategies",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "POST",
+    "path": "/api/v1/strategies/{instanceId}/stop",
+    "capability": "strategies",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -3720,83 +3828,101 @@
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
-    {
-      "method": "PUT",
-      "path": "/api/v1/adk/agents/{agentId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "PUT",
+    "path": "/api/v1/adk/agents/{agentId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "PUT",
-      "path": "/api/v1/adk/providers/{providerId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "PUT",
+    "path": "/api/v1/adk/providers/{providerId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "PUT",
-      "path": "/api/v1/adk/sessions/{sessionId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "PUT",
+    "path": "/api/v1/adk/sessions/{sessionId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "PUT",
-      "path": "/api/v1/adk/tasks/{taskId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "PUT",
+    "path": "/api/v1/adk/tasks/{taskId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "PUT",
-      "path": "/api/v1/adk/workflows/{workflowId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "PUT",
+    "path": "/api/v1/adk/workflows/{workflowId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "PUT",
-      "path": "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}",
-      "capability": "adk",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "PUT",
+    "path": "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}",
+    "capability": "adk",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "PUT",
@@ -3993,31 +4119,37 @@
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
-    {
-      "method": "PUT",
-      "path": "/api/v1/strategies/{instanceId}",
-      "capability": "strategies",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "PUT",
+    "path": "/api/v1/strategies/{instanceId}",
+    "capability": "strategies",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
-    {
-      "method": "PUT",
-      "path": "/api/v1/strategies/{instanceId}/runtime-risk",
-      "capability": "strategies",
-      "implementationStatus": "remaining",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
-      ],
-      "evidence": []
+  {
+    "method": "PUT",
+    "path": "/api/v1/strategies/{instanceId}/runtime-risk",
+    "capability": "strategies",
+     "implementationStatus": "cutover-test-only",
+     "productionOwner": "go",
+     "goRemovalStatus": "retained",
+     "dependencies": [
+        "go-production-owner",
+        "explicit-test-cutover-profile"
+     ],
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "PUT",

@@ -42,6 +42,7 @@ pub enum StrategyRuntimeWriteOperation {
     RefreshDefinition,
 }
 
+#[allow(dead_code)]
 impl StrategyRuntimeWriteOperation {
     pub const fn name(self) -> &'static str {
         match self {

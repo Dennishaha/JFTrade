@@ -28,7 +28,7 @@ The fixture contains 38 cases and 40 requests. It records response status, conte
 
 ## A-tier owner and fencing evidence
 
-- The four routes register only when the explicit `BacktestsWritePort` is supplied in Rust product assembly; they are `cutover-test-only` in the ownership ledger. Go remains the only production write owner, and current route coverage is `26 shadow / 184 cutover-test-only / 0 qualified / 68 remaining / 0 Rust production owner`.
+- The four routes register only when the explicit `BacktestsWritePort` is supplied in Rust product assembly; they are `cutover-test-only` in the ownership ledger. Go remains the only production write owner, and current route coverage is `26 shadow / 228 cutover-test-only / 0 qualified / 24 remaining / 0 Rust production owner`.
 - The Rust leaf fails closed with `503 BACKTESTS_WRITE_UNAVAILABLE` when no explicit mutation port is supplied; structural body/URI errors still win before the missing-port response.
 - Start and sync mutations are delegated once per structurally valid request. Repeated POSTs are recorded as independent calls; no idempotency key is invented.
 - Delete performs no store work for blank/invalid IDs, performs the status guard before delete, and preserves the Go delete-failure-then-retry behavior in the restart fixture. No notification or second persistent owner is introduced.
@@ -116,7 +116,7 @@ owner: Go / integration branch
 - Rust formatting and differential script syntax: passed (`rustfmt --edition 2024 --check ...`; `node --check scripts/rust-migration/check-stage9-backtests-write.mjs`).
 - Dedicated differential: passed (`CARGO_TARGET_DIR=/tmp/jftrade-stage9-backtests-write-target node scripts/rust-migration/check-stage9-backtests-write.mjs`).
 - Affected Go owner regression: passed (`go test ./internal/api/backtest ./internal/backtest ./internal/store/backtest -count=1`).
-- Route coverage after integration: passed at `26 shadow / 184 cutover-test-only / 0 qualified / 68 remaining / 0 Rust production owner`.
+- Route coverage after integration: passed at `26 shadow / 228 cutover-test-only / 0 qualified / 24 remaining / 0 Rust production owner`.
 - Shared `product*.rs`, `route-ownership.json`, unified product differential, `package.json`, architecture docs, default profile, real SQLite/run store, PineTS, market-data worker and provider lifecycle are intentionally untouched.
 
 ## Handoff state

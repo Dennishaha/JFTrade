@@ -26,6 +26,15 @@ impl ProductConfig {
         self.strategy_read_snapshot_port = Some(port);
         self
     }
+
+    #[cfg(test)]
+    fn with_strategy_runtime_write_port(
+        mut self,
+        port: Arc<dyn StrategyRuntimeWritePort>,
+    ) -> Self {
+        self.strategy_runtime_write_port = Some(port);
+        self
+    }
 }
 
 impl ProductApi {

@@ -3,7 +3,10 @@
 - Group: `strategies-write`
 - Tier: A: seven strategy-instance mutation/control operations change catalog or live runtime state.
 - Operations: 7: `PUT /api/v1/strategies/{instanceId}`, `PUT /api/v1/strategies/{instanceId}/runtime-risk`, `POST /api/v1/strategies/{instanceId}/pause`, `POST /api/v1/strategies/{instanceId}/stop`, `POST /api/v1/strategies/{instanceId}/start`, `POST /api/v1/strategies/{instanceId}/refresh-definition`, and `DELETE /api/v1/strategies/{instanceId}`.
-- Current route-ownership status: all seven remain `remaining` until the integration branch updates the shared route fixture. This worker does not edit `route-ownership.json` or shared product wiring.
+- Current route-ownership status after integration: all seven are
+  `cutover-test-only` only when the explicit `StrategyRuntimeWritePort` is
+  injected; Go remains the production owner. Coverage is `26 shadow / 228
+  cutover-test-only / 0 qualified / 24 remaining / 0 Rust production owner`.
 - Production owner: Go remains the only owner of the strategy catalog, runtime manager, PineTS lifecycle, subscriptions, activity/notification side effects, and SQLite writes. Rust is a leaf replay boundary only.
 - Rust boundary: `product_strategy_runtime_write_port.rs` accepts a complete consumer-owned mutation port. It has no SQLite, broker/OpenD, PineTS, notification, strategy runtime, default-profile, listener, or production-owner behavior.
 - Fixture: `tests/fixtures/rust-migration/stage9/strategies-write.json` (35 cases / 36 requests; success, malformed/null/trailing JSON, 400/404/500/502, repeated pause, cancellation, timeout, compensation, and all seven routes).
@@ -71,4 +74,7 @@ owner: Go/integration branch
 - Rust leaf: 7 tests passed, including all 35 fixture cases, exact seven-route inventory, malformed-input precedence, JSON binder compatibility, read isolation, and unavailable-port fencing.
 - Dedicated differential: passed with `node scripts/rust-migration/check-stage9-strategies-write.mjs`.
 - Shared route fixture, product assembly, unified product differential, module map, root docs, and shared ownership tests were intentionally not modified.
+- Integration product wiring, route ledger, and unified differential now cover
+  the seven routes in the explicit test-cutover profile; no default profile or
+  production owner changed.
 - This group is not `cutover-qualified`: durable catalog/runtime owner fencing, repeated-request semantics, cancellation/timeout joins, restart recovery, real PineTS/subscription isolation, security/release gates, and parent integration wiring remain outstanding.

@@ -29,6 +29,7 @@ struct ProductOptionalPorts {
     strategy_definition_write: Option<Arc<dyn StrategyDefinitionWritePort>>,
     market_data_provider_actions: Option<Arc<dyn MarketDataProviderActionsPort>>,
     adk_chat_stream: Option<Arc<dyn AdkChatStreamPort>>,
+    adk_mutation: Option<Arc<dyn AdkMutationPort>>,
     alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
     alert_write: Option<Arc<dyn AlertWritePort>>,
     strategy_definition_snapshot: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
@@ -37,6 +38,7 @@ struct ProductOptionalPorts {
     backtest_sync_read_snapshot: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     backtests_write: Option<Arc<dyn BacktestsWritePort>>,
     strategy_read_snapshot: Option<Arc<dyn StrategyReadSnapshotPort>>,
+    strategy_runtime_write: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write: Option<Arc<dyn AuthSessionWritePort>>,
 }

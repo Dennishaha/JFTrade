@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 impl AdkMutationOperation {
     pub const fn name(self) -> &'static str {
         match self {

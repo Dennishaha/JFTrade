@@ -34,6 +34,7 @@ enum ProductCapability {
     MarketDataNewsActionsRead,
     MarketDataNewsSearchRead,
     AdkRead,
+    AdkMutations,
     MarketDataQuoteRead,
     MarketDataPredictionRead,
     BrokerRead,
@@ -55,6 +56,7 @@ enum ProductCapability {
     BacktestSyncRead,
     BacktestsWrite,
     StrategyRead,
+    StrategyRuntimeWrite,
     StrategyPineAnalyze,
     WsLive,
 }
@@ -98,6 +100,7 @@ impl ProductCapabilities {
             ProductCapability::MarketDataNewsActionsRead,
             ProductCapability::MarketDataNewsSearchRead,
             ProductCapability::AdkRead,
+            ProductCapability::AdkMutations,
             ProductCapability::MarketDataQuoteRead,
             ProductCapability::MarketDataPredictionRead,
             ProductCapability::BrokerRead,
@@ -119,6 +122,7 @@ impl ProductCapabilities {
             ProductCapability::BacktestSyncRead,
             ProductCapability::BacktestsWrite,
             ProductCapability::StrategyRead,
+            ProductCapability::StrategyRuntimeWrite,
             ProductCapability::StrategyPineAnalyze,
             ProductCapability::WsLive,
         ]))
@@ -156,6 +160,7 @@ impl ProductCapabilities {
                     | ProductCapability::MarketDataNewsActionsRead
                     | ProductCapability::MarketDataNewsSearchRead
                     | ProductCapability::AdkRead
+                    | ProductCapability::AdkMutations
                     | ProductCapability::MarketDataQuoteRead
                     | ProductCapability::MarketDataPredictionRead
                     | ProductCapability::BrokerRead
@@ -177,6 +182,7 @@ impl ProductCapabilities {
                     | ProductCapability::BacktestSyncRead
                     | ProductCapability::BacktestsWrite
                     | ProductCapability::StrategyRead
+                    | ProductCapability::StrategyRuntimeWrite
                     | ProductCapability::StrategyPineAnalyze
                     | ProductCapability::WsLive
             )
@@ -208,6 +214,7 @@ struct ProductRoutePorts {
     market_data_news_actions_read: bool,
     market_data_news_search_read: bool,
     adk_read: bool,
+    adk_mutation: bool,
     market_data_quote_read: bool,
     market_data_prediction_read: bool,
     broker_read: bool,
@@ -228,6 +235,7 @@ struct ProductRoutePorts {
     backtest_sync_read: bool,
     backtests_write: bool,
     strategy_read: bool,
+    strategy_runtime_write: bool,
     strategy_pine_analyze: bool,
     ws_live: bool,
 }
@@ -264,6 +272,7 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
             .market_data_news_search_read_snapshot_port
             .is_some(),
         adk_read: config.adk_read_snapshot_port.is_some(),
+        adk_mutation: config.adk_mutation_port.is_some(),
         market_data_quote_read: config.market_data_quote_read_snapshot_port.is_some(),
         market_data_prediction_read: config
             .market_data_prediction_read_snapshot_port
@@ -274,6 +283,7 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         backtest_sync_read: config.backtest_sync_read_snapshot_port.is_some(),
         backtests_write: config.backtests_write_port.is_some(),
         strategy_read: config.strategy_read_snapshot_port.is_some(),
+        strategy_runtime_write: config.strategy_runtime_write_port.is_some(),
         strategy_pine_analyze: config
             .strategy_pine_analyze_snapshot_port
             .is_some(),
@@ -327,6 +337,7 @@ fn product_routes(
     routes.extend(product_market_data_news_actions_read_routes(capabilities, ports));
     routes.extend(product_market_data_news_search_read_routes(capabilities, ports));
     routes.extend(product_adk_read_routes(capabilities, ports));
+    routes.extend(product_adk_mutation_routes(capabilities, ports));
     routes.extend(product_market_data_quote_read_routes(capabilities, ports));
     routes.extend(product_market_data_prediction_read_routes(capabilities, ports));
     if ports.market_data_provider_actions
@@ -343,6 +354,7 @@ fn product_routes(
         routes.push(route("POST", ADK_CHAT_STREAM_PATH));
     }
     routes.extend(product_strategy_read_routes(capabilities, ports));
+    routes.extend(product_strategy_runtime_write_routes(capabilities, ports));
     if ports.strategy_pine_analyze
         && capabilities.contains(ProductCapability::StrategyPineAnalyze)
     {
@@ -374,8 +386,10 @@ include!("product_routes_market_data_options_read.rs");
 include!("product_market_data_news_actions_read_routes.rs");
 include!("product_market_data_news_search_read_routes.rs");
 include!("product_adk_read_routes.rs");
+include!("product_routes_adk_mutations.rs");
 include!("product_market_data_quote_read_routes.rs");
 include!("product_routes_market_data_prediction_read.rs");
 include!("product_routes_strategies.rs");
+include!("product_routes_strategy_runtime_write.rs");
 include!("product_routes_watchlist_research_trading.rs");
 include!("product_routes_strategy_research_writes.rs");

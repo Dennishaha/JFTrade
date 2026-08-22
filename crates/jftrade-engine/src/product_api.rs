@@ -39,6 +39,7 @@ struct ProductApi {
     strategy_definition_write_port: Option<Arc<dyn StrategyDefinitionWritePort>>,
     market_data_provider_actions: MarketDataProviderActionsApi,
     adk_chat_stream_port: Option<Arc<dyn AdkChatStreamPort>>,
+    adk_mutation_port: Option<Arc<dyn AdkMutationPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     alert_write_port: Option<Arc<dyn AlertWritePort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
@@ -47,6 +48,7 @@ struct ProductApi {
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     backtests_write_port: Option<Arc<dyn BacktestsWritePort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
+    strategy_runtime_write_port: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
     notification_sequence: AtomicU64,
@@ -106,6 +108,7 @@ impl ProductApi {
                 optional_ports.market_data_provider_actions,
             ),
             adk_chat_stream_port: optional_ports.adk_chat_stream,
+            adk_mutation_port: optional_ports.adk_mutation,
             alert_snapshot_port: optional_ports.alert_snapshot,
             alert_write_port: optional_ports.alert_write,
             strategy_definition_snapshot_port: optional_ports.strategy_definition_snapshot,
@@ -114,6 +117,7 @@ impl ProductApi {
             backtest_sync_read_snapshot_port: optional_ports.backtest_sync_read_snapshot,
             backtests_write_port: optional_ports.backtests_write,
             strategy_read_snapshot_port: optional_ports.strategy_read_snapshot,
+            strategy_runtime_write_port: optional_ports.strategy_runtime_write,
             auth_session_snapshot_port: optional_ports.auth_session_snapshot,
             auth_session_write_port: optional_ports.auth_session_write,
             notification_sequence: AtomicU64::new(0),
@@ -471,7 +475,6 @@ impl ProductApi {
             .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "resource not found"))?;
         Ok(ApiOutput::Json(snapshot))
     }
-
     fn cleanup_preview(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
         let request: CleanupPreviewRequest = serde_json::from_slice(body)
             .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid cleanup preview payload"))?;
@@ -481,7 +484,6 @@ impl ProductApi {
             .map(|response| ApiOutput::Json(json!(response)))
             .map_err(cleanup_preview_failure)
     }
-
     fn cleanup_execute(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
         let request: CleanupExecuteRequest = serde_json::from_slice(body)
             .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid cleanup payload"))?;
@@ -491,7 +493,6 @@ impl ProductApi {
             .map(|response| ApiOutput::Json(json!(response)))
             .map_err(|error| maintenance_failure(error, "DATABASE_CLEANUP_FAILED"))
     }
-
     fn database_compact(&self, path: &str, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
         let database_id = data_management_database_id(path, "/compact")?;
         let request: CompactRequest = serde_json::from_slice(body)
@@ -502,7 +503,6 @@ impl ProductApi {
             .map(|response| ApiOutput::Json(json!(response)))
             .map_err(|error| maintenance_failure(error, "DATABASE_COMPACT_FAILED"))
     }
-
     fn database_backup(&self, path: &str, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
         let database_id = data_management_database_id(path, "/backup")?;
         let request: BackupRequest = serde_json::from_slice(body)

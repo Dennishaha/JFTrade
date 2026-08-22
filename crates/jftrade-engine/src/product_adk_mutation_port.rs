@@ -58,6 +58,7 @@ pub const ADK_MUTATION_ROUTES: [(&str, &str); 37] = [
     ),
 ];
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AdkMutationOperation {
     DeleteAgent,
@@ -117,6 +118,7 @@ pub struct AdkMutationInput {
     pub webhook_secret: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq, Error)]
 pub enum AdkMutationPortError {
     #[error("ADK mutation port is unavailable: {0}")]

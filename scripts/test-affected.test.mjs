@@ -143,6 +143,8 @@ test("runs Rust tests and quality gates for migration engine changes", () => {
     "pnpm run test:rust:stage9:product-differential",
     "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
     "node scripts/rust-migration/check-stage9-backtests-write.mjs",
+    "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+    "node scripts/rust-migration/check-stage9-strategies-write.mjs",
     "pnpm run test:tauri-release-runtime",
     "go test ./scripts/rust-migration -count=1",
     "pnpm run format:rust:check",

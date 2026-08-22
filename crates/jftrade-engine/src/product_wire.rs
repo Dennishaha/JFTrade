@@ -89,7 +89,6 @@ fn runtime_message(runtime: &ProductRuntimeSnapshot) -> String {
         runtime.pine_ready, runtime.pine_total
     )
 }
-
 impl ApiPort for ProductApi {
     fn dispatch(&self, request: ApiRequest) -> PortFuture<'_> {
         Box::pin(async move {
@@ -131,6 +130,7 @@ impl ApiPort for ProductApi {
                     Ok(ApiOutput::Json(agent_templates_wire()))
                 }
                 ("GET", path) if route_for(path).is_some() => self.adk_read(&request),
+                (method, path) if is_adk_mutation_path(method, path) && self.adk_mutation_port.is_some() => self.adk_mutation(&request),
                 ("GET", "/api/v1/alerts/option-events") => {
                     self.alerts(AlertKind::OptionEvents, &request.query)
                 }
@@ -193,6 +193,7 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_strategy_read_path(path) => {
                     self.strategy_read(path, &request.query)
                 }
+                (method, path) if is_strategy_runtime_write_path(method, path) && self.strategy_runtime_write_port.is_some() => self.strategy_runtime_write(&request),
                 ("POST", STRATEGY_PINE_ANALYZE_PATH) => {
                     self.strategy_pine_analyze(&request.body)
                 }
@@ -378,7 +379,6 @@ impl From<ExchangeCalendarWriteInput> for ExchangeCalendarSettings {
         }
     }
 }
-
 fn settings_failure(error: jftrade_settings::SettingsStoreError) -> ApiFailure {
     ApiFailure::new(500, "SETTINGS_SAVE_FAILED", error.to_string())
 }

@@ -10,8 +10,10 @@
 - Production owner: Go remains the sole owner of Assistant runtime, provider
   lifecycle, SQLite, sessions, tasks, approvals, workflows, skills,
   notifications, and all production writes. Rust has no production owner.
-- Route ownership: unchanged by this worker. The integration branch owns any
-  future `cutover-test-only` registration and the shared route ledger.
+- Route ownership after integration: all 37 operations are `cutover-test-only`
+  only when the explicit `AdkMutationPort` is supplied; Go remains the
+  production owner. Current coverage is `26 shadow / 228 cutover-test-only /
+  0 qualified / 24 remaining / 0 Rust production owner`.
 - Fixture: `tests/fixtures/rust-migration/stage9/adk-mutations.json`
   (`stage9.adk-mutations.v1`, 40 cases: 37 valid route cases and 3 shape/
   identifier error cases).
@@ -54,8 +56,7 @@ provider, install a skill, publish a notification, or execute a workflow.
   considered. A valid route without a supplied port fails closed with
   `503 ADK_MUTATIONS_UNAVAILABLE`.
 - No default profile registration, authenticated production switch,
-  Go/Wails removal, shared product wiring, unified differential, module-map,
-  or `route-ownership.json` change is part of this worker.
+  Go/Wails removal, or production owner change is part of this rehearsal.
 
 ## Quirks and three-way review
 
@@ -199,6 +200,10 @@ provider/runtime cancellation and restart recovery, four-platform release and
 signing, security/SBOM review, backup/restore/crash recovery, and the final
 hard-cut gates. Go remains the only production owner until every gate passes;
 this worker does not permit Go/Wails deletion.
+
+Integration evidence: the explicit product test-cutover wiring, shared route
+ledger, unified product differential, and route-isolation test all pass with
+the 37 operations registered only when the mutation port is injected.
 
 ## Verification
 

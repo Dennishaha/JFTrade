@@ -99,7 +99,7 @@ owner: Go watchlist service
 
 ## Ownership and gate status
 
-- The integration branch registers all eight operations as `cutover-test-only` only when the explicit `WatchlistWritePort` is supplied; `productionOwner=go` and `goRemovalStatus=retained` remain unchanged. Current route coverage is `26 shadow / 184 cutover-test-only / 0 qualified / 68 remaining / 0 Rust production owner`.
+- The integration branch registers all eight operations as `cutover-test-only` only when the explicit `WatchlistWritePort` is supplied; `productionOwner=go` and `goRemovalStatus=retained` remain unchanged. Current route coverage is `26 shadow / 228 cutover-test-only / 0 qualified / 24 remaining / 0 Rust production owner`.
 - No default profile, shared product wiring, unified differential, OpenAPI, SQLite schema, Wails binding, provider/OpenD lifecycle, or production owner changed.
 - A-tier gates still not proven by this rehearsal: production unique-owner switch, authenticated test-cutover fencing in composition root, real transaction/SQLite rollback and restart recovery, notification/task side-effect isolation, four-platform signed release, security/SBOM review, backup/restore/crash recovery, and final hard-cut checklist.
 
