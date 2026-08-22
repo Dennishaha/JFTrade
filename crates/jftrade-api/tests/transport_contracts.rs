@@ -4,9 +4,9 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use http_body_util::BodyExt;
 use jftrade_api::{
-    ACCESS_SURFACE_HEADER, AccessPolicy, ApiOutput, ApiPort, ApiRequest, ApiState, Asset,
-    AssetBundle, FixedClock, INTERNAL_PROXY_PROTOCOL_HEADER, PortFuture, RouteCatalog, RouteSpec,
-    build_router,
+    ACCESS_SURFACE_HEADER, AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState,
+    Asset, AssetBundle, FixedClock, INTERNAL_PROXY_PROTOCOL_HEADER, PortFuture, RouteCatalog,
+    RouteSpec, build_router,
 };
 use serde_json::{Value, json};
 use tower::ServiceExt;
@@ -80,6 +80,69 @@ impl ApiPort for RecordingPort {
             Ok(ApiOutput::Json(json!({"theme": "system"})))
         })
     }
+}
+
+struct RetryAfterPort;
+
+impl ApiPort for RetryAfterPort {
+    fn dispatch(&self, _request: ApiRequest) -> PortFuture<'_> {
+        Box::pin(async {
+            Err(ApiFailure::new(
+                StatusCode::SERVICE_UNAVAILABLE.as_u16(),
+                "PROVIDER_BUSY",
+                "provider is busy",
+            )
+            .with_retry_after(2))
+        })
+    }
+}
+
+#[tokio::test]
+async fn error_envelope_preserves_optional_retry_after_header() {
+    let routes = RouteCatalog::new([RouteSpec {
+        method: "GET".into(),
+        path: "/api/v1/settings/ui".into(),
+    }])
+    .expect("routes");
+    let state = ApiState::new(
+        routes,
+        AccessPolicy {
+            desktop_token: Some("desktop-token".into()),
+            ..AccessPolicy::default()
+        },
+        std::sync::Arc::new(RetryAfterPort),
+    )
+    .with_clock(std::sync::Arc::new(FixedClock(
+        "2026-08-22T00:00:00Z".into(),
+    )));
+    let router = build_router(state);
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/settings/ui")
+                .header("authorization", "Bearer desktop-token")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(response.headers()["retry-after"], "2");
+
+    let unknown = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/unknown")
+                .header("authorization", "Bearer desktop-token")
+                .body(Body::empty())
+                .expect("unknown request"),
+        )
+        .await
+        .expect("unknown response");
+    assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
+    assert!(unknown.headers().get("retry-after").is_none());
 }
 
 fn fixture() -> (axum::Router, Arc<RecordingPort>) {

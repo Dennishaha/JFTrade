@@ -19,6 +19,8 @@ struct ProductApi {
     market_data_derivative_read_snapshot_port:
         Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
     market_data_options_read_snapshot_port: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
+    market_data_news_actions_read_snapshot_port:
+        Option<Arc<dyn MarketDataNewsActionsReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -29,6 +31,7 @@ struct ProductApi {
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
+    auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     notification_sequence: AtomicU64,
     capabilities: ProductCapabilities,
 }
@@ -45,6 +48,7 @@ struct ProductOptionalPorts {
     market_data_catalog_read_snapshot: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
     market_data_derivative_read_snapshot: Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
     market_data_options_read_snapshot: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
+    market_data_news_actions_read_snapshot: Option<Arc<dyn MarketDataNewsActionsReadSnapshotPort>>,
     broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -55,6 +59,7 @@ struct ProductOptionalPorts {
     backtest_read_snapshot: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     strategy_read_snapshot: Option<Arc<dyn StrategyReadSnapshotPort>>,
+    auth_session_snapshot: Option<Arc<dyn AuthSessionSnapshotPort>>,
 }
 struct ProductSettingsServices {
     appearance: AppearanceService,
@@ -104,6 +109,8 @@ impl ProductApi {
             market_data_catalog_read_snapshot_port: optional_ports.market_data_catalog_read_snapshot,
             market_data_derivative_read_snapshot_port: optional_ports.market_data_derivative_read_snapshot,
             market_data_options_read_snapshot_port: optional_ports.market_data_options_read_snapshot,
+            market_data_news_actions_read_snapshot_port: optional_ports
+                .market_data_news_actions_read_snapshot,
             broker_read_snapshot_port: optional_ports.broker_read_snapshot,
             system_read_snapshot_port: optional_ports.system_read_snapshot,
             remote_watchlist_snapshot_port: optional_ports.remote_watchlist_snapshot,
@@ -115,6 +122,7 @@ impl ProductApi {
             backtest_read_snapshot_port: optional_ports.backtest_read_snapshot,
             backtest_sync_read_snapshot_port: optional_ports.backtest_sync_read_snapshot,
             strategy_read_snapshot_port: optional_ports.strategy_read_snapshot,
+            auth_session_snapshot_port: optional_ports.auth_session_snapshot,
             notification_sequence: AtomicU64::new(0),
             capabilities,
         }
@@ -788,13 +796,4 @@ impl ProductApi {
             .map_err(settings_failure)
     }
 
-    fn save_pine_worker_settings(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
-        let input: PineWorkerSettings = serde_json::from_slice(body)
-            .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid Pine worker payload"))?;
-        self.settings
-            .pine_worker
-            .save(&input)
-            .map(|settings| ApiOutput::Json(json!(settings)))
-            .map_err(settings_failure)
-    }
 }

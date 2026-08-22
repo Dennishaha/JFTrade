@@ -225,6 +225,9 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
         .cloned()
         .unwrap_or_default();
     let desktop_trusted = state.access.desktop_trusted(request.headers());
+    let origin_provided = origin_provided(request.headers());
+    let origin_allowed = !origin_provided || state.access.origin_allowed(request.headers());
+    let browser_authenticated = state.access.browser_authenticated(request.headers());
     let body = match to_bytes(request.into_body(), MAX_BODY_BYTES).await {
         Ok(body) => body.to_vec(),
         Err(_) => {
@@ -241,8 +244,12 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
         body,
         request_id,
         desktop_trusted,
+        origin_provided,
+        origin_allowed,
+        browser_authenticated,
     };
-    match state.port.dispatch(input).await {
+    let is_auth_session = input.path == "/api/v1/auth/session";
+    let mut response = match state.port.dispatch(input).await {
         Ok(ApiOutput::Json(value)) => success_response(&state.clock, value),
         Ok(ApiOutput::Sse(events)) => sse_response(events),
         Ok(ApiOutput::NoContent) => empty_response(StatusCode::NO_CONTENT),
@@ -256,7 +263,13 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
             body,
         ),
         Err(failure) => error_response(&state.clock, failure),
+    };
+    if is_auth_session {
+        response
+            .headers_mut()
+            .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
     }
+    response
 }
 
 fn static_response(assets: &AssetBundle, method: &Method, uri: &Uri) -> Response<Body> {

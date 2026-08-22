@@ -1,30 +1,3 @@
-fn provider_descriptor_wire(
-    descriptor: jftrade_marketdata::ProviderDescriptor,
-) -> serde_json::Value {
-    let mut value = serde_json::to_value(descriptor)
-        .expect("validated provider descriptor must be serializable");
-    let Some(capabilities) = value
-        .get_mut("capabilities")
-        .and_then(serde_json::Value::as_object_mut)
-    else {
-        return value;
-    };
-    if capabilities
-        .get("orderBookLevels")
-        .and_then(serde_json::Value::as_array)
-        .is_some_and(Vec::is_empty)
-    {
-        capabilities.insert("orderBookLevels".to_owned(), serde_json::Value::Null);
-    }
-    if capabilities
-        .get("historicalLookbackDays")
-        .and_then(serde_json::Value::as_object)
-        .is_some_and(serde_json::Map::is_empty)
-    {
-        capabilities.remove("historicalLookbackDays");
-    }
-    value
-}
 fn broker_settings_wire(inputs: jftrade_settings::BrokerSettingsInputs) -> serde_json::Value {
     json!({
         "brokers": [{
@@ -123,6 +96,7 @@ impl ApiPort for ProductApi {
     fn dispatch(&self, request: ApiRequest) -> PortFuture<'_> {
         Box::pin(async move {
             match (request.method.as_str(), request.path.as_str()) {
+                ("GET", "/api/v1/auth/session") => self.auth_session(&request),
                 ("GET", "/api/v1/system/status") => Ok(self.system_status()),
                 ("GET", "/api/v1/system/runtime-dependencies") => {
                     Ok(self.runtime_dependencies().await)
@@ -267,6 +241,9 @@ impl ApiPort for ProductApi {
                 }
                 ("GET", path) if is_market_data_options_read_path(path) => {
                     self.market_data_options_read(path, &request.query)
+                }
+                ("GET", path) if is_market_data_news_actions_read_path(path) => {
+                    self.market_data_news_actions_read(path, &request.query)
                 }
                 ("GET", path) if is_broker_read_path(path) => {
                     self.broker_read(path, &request.query)

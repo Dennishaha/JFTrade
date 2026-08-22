@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::body::Body;
-use axum::http::header::CONTENT_TYPE;
+use axum::http::header::{CONTENT_TYPE, RETRY_AFTER};
 use axum::http::{HeaderValue, Response, StatusCode};
 use serde_json::{Value, json};
 use time::OffsetDateTime;
@@ -36,6 +36,7 @@ pub struct ApiFailure {
     pub status: u16,
     pub code: String,
     pub message: String,
+    pub retry_after_seconds: Option<u64>,
 }
 
 impl ApiFailure {
@@ -44,7 +45,13 @@ impl ApiFailure {
             status,
             code: code.into(),
             message: message.into(),
+            retry_after_seconds: None,
         }
+    }
+
+    pub fn with_retry_after(mut self, seconds: u64) -> Self {
+        self.retry_after_seconds = Some(seconds);
+        self
     }
 }
 
@@ -61,7 +68,10 @@ pub(crate) fn success_response(clock: &Arc<dyn Clock>, data: Value) -> Response<
 
 pub(crate) fn error_response(clock: &Arc<dyn Clock>, failure: ApiFailure) -> Response<Body> {
     let status = StatusCode::from_u16(failure.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    json_response(
+    let retry_after = failure
+        .retry_after_seconds
+        .map(|seconds| seconds.to_string());
+    let mut response = json_response(
         status,
         json!({
             "ok": false,
@@ -71,7 +81,13 @@ pub(crate) fn error_response(clock: &Arc<dyn Clock>, failure: ApiFailure) -> Res
             },
             "timestamp": clock.now_rfc3339(),
         }),
-    )
+    );
+    if let Some(retry_after) = retry_after
+        && let Ok(value) = HeaderValue::from_str(&retry_after)
+    {
+        response.headers_mut().insert(RETRY_AFTER, value);
+    }
+    response
 }
 
 pub(crate) fn empty_response(status: StatusCode) -> Response<Body> {

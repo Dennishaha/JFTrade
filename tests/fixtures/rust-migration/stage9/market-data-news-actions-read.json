@@ -1,0 +1,395 @@
+{
+  "version": "stage9.market-data-news-actions-read.v1",
+  "cases": [
+    {
+      "name": "news-omitted-limit-nullable-entries",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/US/AAPL",
+      "expectedStatus": 200,
+      "data": {
+        "market": "US",
+        "symbol": "AAPL",
+        "instrumentId": "US.AAPL",
+        "entries": [
+          {
+            "title": "Fixture headline",
+            "link": "https://example.test/news",
+            "publisher": null,
+            "publishedAt": "2026-08-10T13:30:00Z",
+            "summary": null
+          },
+          {
+            "title": null,
+            "link": null,
+            "publisher": null,
+            "publishedAt": null,
+            "summary": null
+          }
+        ],
+        "source": "fixture-news"
+      },
+      "providerCall": {
+        "operation": "news",
+        "market": "US",
+        "symbol": "AAPL",
+        "limit": 10
+      }
+    },
+    {
+      "name": "news-explicit-zero-rejected",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/US/AAPL?limit=0",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "limit must be between 1 and 50"
+    },
+    {
+      "name": "news-malformed-limit-rejected",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/US/AAPL?limit=abc",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "limit must be an integer"
+    },
+    {
+      "name": "news-over-limit-rejected",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/US/AAPL?limit=51",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "limit must be between 1 and 50"
+    },
+    {
+      "name": "news-empty-entries",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/HK/00700?fixture=empty\u0026limit=2",
+      "expectedStatus": 200,
+      "data": {
+        "market": "HK",
+        "symbol": "00700",
+        "instrumentId": "HK.00700",
+        "entries": [],
+        "source": "fixture-news-empty"
+      },
+      "providerCall": {
+        "operation": "news",
+        "market": "HK",
+        "symbol": "00700",
+        "limit": 2
+      }
+    },
+    {
+      "name": "news-null-entries",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/US/NIL?fixture=null\u0026limit=3",
+      "expectedStatus": 200,
+      "data": {
+        "market": "US",
+        "symbol": "NIL",
+        "instrumentId": "US.NIL",
+        "entries": null,
+        "source": "fixture-news-null"
+      },
+      "providerCall": {
+        "operation": "news",
+        "market": "US",
+        "symbol": "NIL",
+        "limit": 3
+      }
+    },
+    {
+      "name": "news-cn-aggregate-normalizes-to-sh",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/CN/SH.600519?fixture=cn\u0026limit=3",
+      "expectedStatus": 200,
+      "data": {
+        "market": "SH",
+        "symbol": "600519",
+        "instrumentId": "SH.600519",
+        "entries": [
+          {
+            "title": "Fixture headline",
+            "link": "https://example.test/news",
+            "publisher": null,
+            "publishedAt": "2026-08-10T13:30:00Z",
+            "summary": null
+          },
+          {
+            "title": null,
+            "link": null,
+            "publisher": null,
+            "publishedAt": null,
+            "summary": null
+          }
+        ],
+        "source": "fixture-news"
+      },
+      "providerCall": {
+        "operation": "news",
+        "market": "SH",
+        "symbol": "600519",
+        "limit": 3
+      }
+    },
+    {
+      "name": "news-capability-unsupported",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/US/AAPL?fixture=capability",
+      "expectedStatus": 409,
+      "errorCode": "MARKET_DATA_CAPABILITY_UNSUPPORTED",
+      "errorMessage": "market-data capability is unsupported: active provider \"fixture-no-capability\" does not support instrument news"
+    },
+    {
+      "name": "news-provider-fallback",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/US/MSFT?fixture=fallback\u0026limit=4",
+      "expectedStatus": 502,
+      "errorCode": "MARKET_NEWS_FAILED",
+      "errorMessage": "fixture news fallback unavailable",
+      "providerCall": {
+        "operation": "news",
+        "market": "US",
+        "symbol": "MSFT",
+        "limit": 4
+      }
+    },
+    {
+      "name": "news-provider-warming-retry",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/SH/600519?fixture=warming\u0026limit=5",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "1"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_WARMING",
+      "errorMessage": "行情服务正在预热，请稍后重试",
+      "providerCall": {
+        "operation": "news",
+        "market": "SH",
+        "symbol": "600519",
+        "limit": 5
+      }
+    },
+    {
+      "name": "news-provider-busy-retry",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/SZ/000001?fixture=busy\u0026limit=6",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "2"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_BUSY",
+      "errorMessage": "行情服务当前繁忙，请稍后重试",
+      "providerCall": {
+        "operation": "news",
+        "market": "SZ",
+        "symbol": "000001",
+        "limit": 6
+      }
+    },
+    {
+      "name": "news-provider-changed",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/news/US/AAPL?fixture=provider-changed\u0026limit=4",
+      "expectedStatus": 409,
+      "errorCode": "MARKET_DATA_PROVIDER_CHANGED",
+      "errorMessage": "market-data provider changed",
+      "providerCall": {
+        "operation": "news",
+        "market": "US",
+        "symbol": "AAPL",
+        "limit": 4
+      }
+    },
+    {
+      "name": "corporate-actions-range-nullable-numbers",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/US/AAPL?from=2025-01-01T08:00:00%2B08:00\u0026to=2026-01-01T00:00:00Z",
+      "expectedStatus": 200,
+      "data": {
+        "market": "US",
+        "symbol": "AAPL",
+        "instrumentId": "US.AAPL",
+        "events": [
+          {
+            "kind": "dividend",
+            "exDate": "2026-05-11",
+            "amount": 0.25,
+            "ratio": null
+          },
+          {
+            "kind": "split",
+            "exDate": "2026-06-09",
+            "amount": null,
+            "ratio": 4
+          }
+        ],
+        "source": "fixture-actions"
+      },
+      "providerCall": {
+        "operation": "corporate-actions",
+        "market": "US",
+        "symbol": "AAPL",
+        "from": "2025-01-01T00:00:00Z",
+        "to": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "corporate-actions-invalid-from-rejected",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/US/AAPL?from=not-a-time",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "from must be a valid timestamp"
+    },
+    {
+      "name": "corporate-actions-invalid-to-rejected",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/US/AAPL?to=not-a-time",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "to must be a valid timestamp"
+    },
+    {
+      "name": "corporate-actions-empty-events",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/HK/00700?fixture=empty",
+      "expectedStatus": 200,
+      "data": {
+        "market": "HK",
+        "symbol": "00700",
+        "instrumentId": "HK.00700",
+        "events": [],
+        "source": "fixture-actions-empty"
+      },
+      "providerCall": {
+        "operation": "corporate-actions",
+        "market": "HK",
+        "symbol": "00700"
+      }
+    },
+    {
+      "name": "corporate-actions-null-events",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/US/NIL?fixture=null",
+      "expectedStatus": 200,
+      "data": {
+        "market": "US",
+        "symbol": "NIL",
+        "instrumentId": "US.NIL",
+        "events": null,
+        "source": "fixture-actions-null"
+      },
+      "providerCall": {
+        "operation": "corporate-actions",
+        "market": "US",
+        "symbol": "NIL"
+      }
+    },
+    {
+      "name": "corporate-actions-cn-aggregate-normalizes-to-sz",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/CN/SZ.000001?fixture=cn",
+      "expectedStatus": 200,
+      "data": {
+        "market": "SZ",
+        "symbol": "000001",
+        "instrumentId": "SZ.000001",
+        "events": [
+          {
+            "kind": "dividend",
+            "exDate": "2026-05-11",
+            "amount": 0.25,
+            "ratio": null
+          },
+          {
+            "kind": "split",
+            "exDate": "2026-06-09",
+            "amount": null,
+            "ratio": 4
+          }
+        ],
+        "source": "fixture-actions"
+      },
+      "providerCall": {
+        "operation": "corporate-actions",
+        "market": "SZ",
+        "symbol": "000001"
+      }
+    },
+    {
+      "name": "corporate-actions-invalid-range-rejected",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/US/AAPL?fixture=invalid-range\u0026from=2026-01-01T00:00:00Z\u0026to=2025-01-01T00:00:00Z",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "from must not be after to"
+    },
+    {
+      "name": "corporate-actions-capability-unsupported",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/US/AAPL?fixture=capability",
+      "expectedStatus": 409,
+      "errorCode": "MARKET_DATA_CAPABILITY_UNSUPPORTED",
+      "errorMessage": "market-data capability is unsupported: active provider \"fixture-no-capability\" does not support corporate actions"
+    },
+    {
+      "name": "corporate-actions-provider-fallback",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/US/MSFT?fixture=fallback",
+      "expectedStatus": 502,
+      "errorCode": "MARKET_CORPORATE_ACTIONS_FAILED",
+      "errorMessage": "fixture corporate-actions fallback unavailable",
+      "providerCall": {
+        "operation": "corporate-actions",
+        "market": "US",
+        "symbol": "MSFT"
+      }
+    },
+    {
+      "name": "corporate-actions-provider-warming-retry",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/SH/600519?fixture=warming",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "1"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_WARMING",
+      "errorMessage": "行情服务正在预热，请稍后重试",
+      "providerCall": {
+        "operation": "corporate-actions",
+        "market": "SH",
+        "symbol": "600519"
+      }
+    },
+    {
+      "name": "corporate-actions-provider-busy-retry",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/SZ/000001?fixture=busy",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "2"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_BUSY",
+      "errorMessage": "行情服务当前繁忙，请稍后重试",
+      "providerCall": {
+        "operation": "corporate-actions",
+        "market": "SZ",
+        "symbol": "000001"
+      }
+    },
+    {
+      "name": "corporate-actions-provider-changed",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/corporate-actions/US/AAPL?fixture=provider-changed",
+      "expectedStatus": 409,
+      "errorCode": "MARKET_DATA_PROVIDER_CHANGED",
+      "errorMessage": "market-data provider changed",
+      "providerCall": {
+        "operation": "corporate-actions",
+        "market": "US",
+        "symbol": "AAPL"
+      }
+    }
+  ]
+}

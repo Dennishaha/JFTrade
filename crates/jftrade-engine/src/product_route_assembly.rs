@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum ProductCapability {
+    AuthSession,
     AppearanceWrite,
     OnboardingWrite,
     CalendarSettingsWrite,
@@ -29,6 +30,7 @@ enum ProductCapability {
     MarketDataCatalogRead,
     MarketDataDerivativeRead,
     MarketDataOptionsRead,
+    MarketDataNewsActionsRead,
     BrokerRead,
     RemoteWatchlistRead,
     SystemRead,
@@ -48,6 +50,7 @@ impl ProductCapabilities {
     #[cfg(test)]
     fn test_cutover() -> Self {
         Self(BTreeSet::from([
+            ProductCapability::AuthSession,
             ProductCapability::AppearanceWrite,
             ProductCapability::OnboardingWrite,
             ProductCapability::CalendarSettingsWrite,
@@ -75,6 +78,7 @@ impl ProductCapabilities {
             ProductCapability::MarketDataCatalogRead,
             ProductCapability::MarketDataDerivativeRead,
             ProductCapability::MarketDataOptionsRead,
+            ProductCapability::MarketDataNewsActionsRead,
             ProductCapability::BrokerRead,
             ProductCapability::RemoteWatchlistRead,
             ProductCapability::SystemRead,
@@ -101,6 +105,7 @@ impl ProductCapabilities {
             !matches!(
                 capability,
                 ProductCapability::DataManagementPreview
+                    | ProductCapability::AuthSession
                     | ProductCapability::DataManagementMaintenance
                     | ProductCapability::CalendarSources
                     | ProductCapability::CalendarStatus
@@ -115,6 +120,7 @@ impl ProductCapabilities {
                     | ProductCapability::MarketDataCatalogRead
                     | ProductCapability::MarketDataDerivativeRead
                     | ProductCapability::MarketDataOptionsRead
+                    | ProductCapability::MarketDataNewsActionsRead
                     | ProductCapability::BrokerRead
                     | ProductCapability::RemoteWatchlistRead
                     | ProductCapability::SystemRead
@@ -137,6 +143,7 @@ impl ProductCapabilities {
 
 #[derive(Clone, Copy, Debug, Default)]
 struct ProductRoutePorts {
+    auth_session: bool,
     alerts: bool,
     calendar_manager: bool,
     watchlist_memberships: bool,
@@ -149,6 +156,7 @@ struct ProductRoutePorts {
     market_data_catalog_read: bool,
     market_data_derivative_read: bool,
     market_data_options_read: bool,
+    market_data_news_actions_read: bool,
     broker_read: bool,
     remote_watchlist: bool,
     system_read: bool,
@@ -162,6 +170,7 @@ struct ProductRoutePorts {
 
 fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
     ProductRoutePorts {
+        auth_session: config.auth_session_snapshot_port.is_some(),
         alerts: config.alert_snapshot_port.is_some(),
         calendar_manager: config.calendar_manager.is_some(),
         watchlist_memberships: config.watchlist_membership_snapshot_port.is_some(),
@@ -182,6 +191,9 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         market_data_options_read: config
             .market_data_options_read_snapshot_port
             .is_some(),
+        market_data_news_actions_read: config
+            .market_data_news_actions_read_snapshot_port
+            .is_some(),
         broker_read: config.broker_read_snapshot_port.is_some(),
         system_read: config.system_read_snapshot_port.is_some(),
         backtest_read: config.backtest_read_snapshot_port.is_some(),
@@ -199,6 +211,7 @@ fn product_routes(
     ports: ProductRoutePorts,
 ) -> Result<RouteCatalog, RouteCatalogError> {
     let mut routes = Vec::new();
+    routes.extend(product_auth_routes(capabilities, ports));
     routes.extend(product_system_routes(capabilities, ports));
     routes.extend(product_settings_routes(capabilities));
     if ports.alerts && capabilities.contains(ProductCapability::Alerts) {
@@ -213,6 +226,7 @@ fn product_routes(
     routes.extend(product_market_data_catalog_read_routes(capabilities, ports));
     routes.extend(product_market_data_derivative_read_routes(capabilities, ports));
     routes.extend(product_market_data_options_read_routes(capabilities, ports));
+    routes.extend(product_market_data_news_actions_read_routes(capabilities, ports));
     routes.extend(product_strategy_read_routes(capabilities, ports));
     routes.extend(product_watchlist_research_trading_routes(
         capabilities,
@@ -222,6 +236,7 @@ fn product_routes(
 }
 
 include!("product_routes_system.rs");
+include!("product_routes_auth.rs");
 include!("product_routes_settings.rs");
 include!("product_routes_alerts.rs");
 include!("product_routes_calendar.rs");
@@ -232,5 +247,6 @@ include!("product_routes_market_data_provider_read.rs");
 include!("product_routes_market_data_catalog_read.rs");
 include!("product_routes_market_data_derivative_read.rs");
 include!("product_routes_market_data_options_read.rs");
+include!("product_market_data_news_actions_read_routes.rs");
 include!("product_routes_strategies.rs");
 include!("product_routes_watchlist_research_trading.rs");

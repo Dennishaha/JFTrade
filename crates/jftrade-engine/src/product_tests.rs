@@ -562,6 +562,9 @@ mod market_data_derivative_read_tests;
 #[path = "product_market_data_options_read_tests.rs"]
 mod market_data_options_read_tests;
 
+#[path = "product_market_data_news_actions_read_tests.rs"]
+mod market_data_news_actions_read_tests;
+
 #[path = "product_brokers_tests.rs"]
 mod broker_read_tests;
 
@@ -579,6 +582,9 @@ mod backtests_sync_read_tests;
 
 #[path = "product_strategies_tests.rs"]
 mod strategy_read_tests;
+
+#[path = "product_auth_session_tests.rs"]
+mod auth_session_tests;
 
 #[derive(Debug)]
 struct FixtureAlertSnapshotPort {
@@ -2029,6 +2035,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     let cutover = product_routes(
         &ProductCapabilities::test_cutover(),
         ProductRoutePorts {
+            auth_session: true,
             alerts: true,
             calendar_manager: true,
             watchlist_memberships: true,
@@ -2041,6 +2048,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             market_data_catalog_read: true,
             market_data_derivative_read: true,
             market_data_options_read: true,
+            market_data_news_actions_read: true,
             broker_read: true,
             remote_watchlist: true,
             system_read: true,
@@ -2053,7 +2061,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 124);
+    assert_eq!(cutover.routes().len(), 127);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(

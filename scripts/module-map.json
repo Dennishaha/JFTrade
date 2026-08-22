@@ -317,6 +317,7 @@
   "requiredInstructionFiles": [
     "AGENTS.md",
     "CLAUDE.md",
+    "docs/architecture/rust-migration-execution-playbook.md",
     "apps/web/AGENTS.md",
     "internal/app/apiserver/AGENTS.md",
     "internal/assistant/AGENTS.md",

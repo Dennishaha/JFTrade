@@ -60,6 +60,8 @@ include!("product_market_data_provider_read_port.rs");
 include!("product_market_data_catalog_read_port.rs");
 include!("product_market_data_derivative_read_port.rs");
 include!("product_market_data_options_read_port.rs");
+include!("product_market_data_news_actions_read_port.rs");
+include!("product_auth_session_port.rs");
 include!("product_snapshot_errors.rs");
 /// Consumer-owned read port for local watchlist membership projections.  The
 /// port is accepted only in test-cutover wiring until the Rust store adapter
@@ -182,6 +184,8 @@ pub struct ProductConfig {
     market_data_derivative_read_snapshot_port:
         Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
     market_data_options_read_snapshot_port: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
+    market_data_news_actions_read_snapshot_port:
+        Option<Arc<dyn MarketDataNewsActionsReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -192,6 +196,7 @@ pub struct ProductConfig {
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
+    auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     capabilities: ProductCapabilities,
 }
 
@@ -246,6 +251,7 @@ impl ProductConfig {
             market_data_catalog_read_snapshot_port: None,
             market_data_derivative_read_snapshot_port: None,
             market_data_options_read_snapshot_port: None,
+            market_data_news_actions_read_snapshot_port: None,
             broker_read_snapshot_port: None,
             system_read_snapshot_port: None,
             remote_watchlist_snapshot_port: None,
@@ -256,6 +262,7 @@ impl ProductConfig {
             backtest_read_snapshot_port: None,
             backtest_sync_read_snapshot_port: None,
             strategy_read_snapshot_port: None,
+            auth_session_snapshot_port: None,
             capabilities: ProductCapabilities::default(),
         })
     }
@@ -434,6 +441,15 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_market_data_news_actions_read_snapshot_port(
+        mut self,
+        port: Arc<dyn MarketDataNewsActionsReadSnapshotPort>,
+    ) -> Self {
+        self.market_data_news_actions_read_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_broker_read_snapshot_port(mut self, port: Arc<dyn BrokerReadSnapshotPort>) -> Self {
         self.broker_read_snapshot_port = Some(port);
         self
@@ -475,6 +491,12 @@ impl ProductConfig {
         port: Arc<dyn StrategyDefinitionSnapshotPort>,
     ) -> Self {
         self.strategy_definition_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_auth_session_snapshot_port(mut self, port: Arc<dyn AuthSessionSnapshotPort>) -> Self {
+        self.auth_session_snapshot_port = Some(port);
         self
     }
 }
@@ -649,6 +671,9 @@ pub(crate) async fn start_product_with_runtime_state(
             market_data_options_read_snapshot: config
                 .market_data_options_read_snapshot_port
                 .clone(),
+            market_data_news_actions_read_snapshot: config
+                .market_data_news_actions_read_snapshot_port
+                .clone(),
             broker_read_snapshot: config.broker_read_snapshot_port.clone(),
             system_read_snapshot: config.system_read_snapshot_port.clone(),
             remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),
@@ -661,6 +686,7 @@ pub(crate) async fn start_product_with_runtime_state(
             backtest_read_snapshot: config.backtest_read_snapshot_port.clone(),
             backtest_sync_read_snapshot: config.backtest_sync_read_snapshot_port.clone(),
             strategy_read_snapshot: config.strategy_read_snapshot_port.clone(),
+            auth_session_snapshot: config.auth_session_snapshot_port.clone(),
         },
         config.capabilities.clone(),
     ));
@@ -702,42 +728,10 @@ fn route_profile_digest(capabilities: &[String]) -> String {
     encode_sha256(digest.finalize())
 }
 
-fn current_executable_sha256() -> Result<String, ProductError> {
-    let path = env::current_exe().map_err(ProductError::CurrentExecutable)?;
-    let file = File::open(&path).map_err(|source| ProductError::ReadExecutable {
-        path: path.clone(),
-        source,
-    })?;
-    let mut reader = BufReader::new(file);
-    let mut buffer = [0_u8; 64 * 1024];
-    let mut digest = Sha256::new();
-    loop {
-        let count = reader
-            .read(&mut buffer)
-            .map_err(|source| ProductError::ReadExecutable {
-                path: path.clone(),
-                source,
-            })?;
-        if count == 0 {
-            break;
-        }
-        digest.update(&buffer[..count]);
-    }
-    Ok(encode_sha256(digest.finalize()))
-}
-
-fn encode_sha256(digest: impl IntoIterator<Item = u8>) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(64);
-    for byte in digest {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
-}
-
+include!("product_resource_integrity.rs");
 include!("product_route_assembly.rs");
 include!("product_api.rs");
+include!("product_api_pine_worker.rs");
 include!("product_api_system_read.rs");
 include!("product_api_backtests.rs");
 include!("product_api_strategies.rs");
@@ -749,11 +743,14 @@ include!("product_api_market_data_provider_read.rs");
 include!("product_api_market_data_catalog_read.rs");
 include!("product_api_market_data_derivative_read.rs");
 include!("product_api_market_data_options_read.rs");
+include!("product_market_data_news_actions_read_api.rs");
 include!("product_api_brokers.rs");
 include!("product_api_watchlists.rs");
 include!("product_api_plugins.rs");
 include!("product_api_strategy_definitions.rs");
+include!("product_api_auth_session.rs");
 include!("product_wire.rs");
+include!("product_provider_wire.rs");
 include!("product_wire_watchlist.rs");
 include!("product_wire_portfolio.rs");
 include!("product_wire_research.rs");

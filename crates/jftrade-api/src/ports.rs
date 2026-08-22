@@ -17,6 +17,12 @@ pub struct ApiRequest {
     pub request_id: String,
     #[serde(default)]
     pub desktop_trusted: bool,
+    #[serde(default)]
+    pub origin_provided: bool,
+    #[serde(default)]
+    pub origin_allowed: bool,
+    #[serde(default)]
+    pub browser_authenticated: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
