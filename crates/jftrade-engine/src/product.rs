@@ -68,6 +68,12 @@ include!("product_market_data_prediction_read_port.rs");
 include!("product_adk_read_port.rs");
 include!("product_market_data_prediction_read_routes.rs");
 include!("product_auth_session_port.rs");
+#[path = "product_auth_session_write_port.rs"]
+mod product_auth_session_write_port;
+use product_auth_session_write_port::{
+    AuthSessionWritePort, AuthSessionWriteRequest, AuthSessionWriteResponse,
+    auth_session_write_routes, dispatch_auth_session_write,
+};
 include!("product_snapshot_errors.rs");
 #[path = "product_alerts_write_port.rs"]
 mod product_alerts_write_port;
@@ -78,6 +84,12 @@ use product_alerts_write_port::{
 mod product_plugins_write_port;
 use product_plugins_write_port::{
     PluginWritePort, PluginWriteRequest, PluginWriteResponse, dispatch_plugin_write,
+};
+#[path = "product_watchlist_remote_write_port.rs"]
+mod product_watchlist_remote_write_port;
+use product_watchlist_remote_write_port::{
+    RemoteWatchlistWritePort, RemoteWatchlistWriteRequest, RemoteWatchlistWriteResponse,
+    dispatch_remote_watchlist_write, remote_watchlist_write_routes,
 };
 #[path = "product_research_preset_write_port.rs"]
 mod product_research_preset_write_port;
@@ -250,6 +262,7 @@ pub struct ProductConfig {
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
+    remote_watchlist_write_port: Option<Arc<dyn RemoteWatchlistWritePort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     plugin_write_port: Option<Arc<dyn PluginWritePort>>,
@@ -266,6 +279,7 @@ pub struct ProductConfig {
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
+    auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
     capabilities: ProductCapabilities,
 }
 
@@ -328,6 +342,7 @@ impl ProductConfig {
             broker_read_snapshot_port: None,
             system_read_snapshot_port: None,
             remote_watchlist_snapshot_port: None,
+            remote_watchlist_write_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
             plugin_snapshot_port: None,
             plugin_write_port: None,
@@ -344,6 +359,7 @@ impl ProductConfig {
             backtest_sync_read_snapshot_port: None,
             strategy_read_snapshot_port: None,
             auth_session_snapshot_port: None,
+            auth_session_write_port: None,
             capabilities: ProductCapabilities::default(),
         })
     }
@@ -605,6 +621,7 @@ pub(crate) async fn start_product_with_runtime_state(
             broker_read_snapshot: config.broker_read_snapshot_port.clone(),
             system_read_snapshot: config.system_read_snapshot_port.clone(),
             remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),
+            remote_watchlist_write: config.remote_watchlist_write_port.clone(),
             plugin_uninstall_guidance_snapshot: config
                 .plugin_uninstall_guidance_snapshot_port
                 .clone(),
@@ -622,6 +639,7 @@ pub(crate) async fn start_product_with_runtime_state(
             backtest_sync_read_snapshot: config.backtest_sync_read_snapshot_port.clone(),
             strategy_read_snapshot: config.strategy_read_snapshot_port.clone(),
             auth_session_snapshot: config.auth_session_snapshot_port.clone(),
+            auth_session_write: config.auth_session_write_port.clone(),
         },
         config.capabilities.clone(),
     ));
@@ -686,10 +704,12 @@ include!("product_adk_read_api.rs");
 include!("product_api_adk_chat_stream.rs");
 include!("product_api_brokers.rs");
 include!("product_api_watchlists.rs");
+include!("product_api_watchlists_write.rs");
 include!("product_api_plugins.rs");
 include!("product_api_strategy_definitions.rs");
 include!("product_api_strategy_pine.rs");
 include!("product_api_auth_session.rs");
+include!("product_api_auth_session_write.rs");
 include!("product_api_alerts_write.rs");
 include!("product_api_plugins_write.rs");
 include!("product_api_strategy_research_writes.rs");

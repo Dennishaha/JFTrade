@@ -160,6 +160,12 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_remote_watchlist_write_port(mut self, port: Arc<dyn RemoteWatchlistWritePort>) -> Self {
+        self.remote_watchlist_write_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_plugin_uninstall_guidance_snapshot_port(
         mut self,
         port: Arc<dyn PluginUninstallGuidanceSnapshotPort>,
@@ -249,6 +255,12 @@ impl ProductConfig {
     #[cfg(test)]
     fn with_auth_session_snapshot_port(mut self, port: Arc<dyn AuthSessionSnapshotPort>) -> Self {
         self.auth_session_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_auth_session_write_port(mut self, port: Arc<dyn AuthSessionWritePort>) -> Self {
+        self.auth_session_write_port = Some(port);
         self
     }
 }

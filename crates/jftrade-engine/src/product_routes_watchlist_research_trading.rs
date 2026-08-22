@@ -90,6 +90,15 @@ fn product_watchlist_research_trading_routes(
     if ports.remote_watchlist && capabilities.contains(ProductCapability::RemoteWatchlistRead) {
         routes.push(route("GET", "/api/v1/watchlists/remote"));
     }
+    if ports.remote_watchlist_write
+        && capabilities.contains(ProductCapability::RemoteWatchlistWrite)
+    {
+        routes.extend(
+            remote_watchlist_write_routes()
+                .iter()
+                .map(|(method, path)| route(method, path)),
+        );
+    }
     if ports.plugins && capabilities.contains(ProductCapability::Plugins) {
         routes.extend([
             route("GET", "/api/v1/plugins"),

@@ -97,6 +97,7 @@ impl ApiPort for ProductApi {
         Box::pin(async move {
             match (request.method.as_str(), request.path.as_str()) {
                 ("GET", "/api/v1/auth/session") => self.auth_session(&request),
+                (method, path) if is_auth_session_write_path(method, path) && self.auth_session_write_port.is_some() => self.auth_session_write(&request),
                 ("GET", "/api/v1/system/status") => Ok(self.system_status()),
                 ("GET", "/api/v1/system/runtime-dependencies") => {
                     Ok(self.runtime_dependencies().await)
@@ -272,6 +273,7 @@ impl ApiPort for ProductApi {
                 ("GET", "/api/v1/watchlists/remote") => {
                     self.remote_watchlist_read(&request.query)
                 }
+                (method, path) if is_remote_watchlist_write_path(method, path) && self.remote_watchlist_write_port.is_some() => self.remote_watchlist_write(&request),
                 ("GET", "/api/v1/plugins") => self.plugin_catalog(),
                 ("GET", path) if is_plugin_operation_path(path) => self.plugin_operation(path),
                 ("GET", path) if is_plugin_uninstall_guidance_path(path) => {

@@ -546,6 +546,12 @@ mod plugins_write_product_tests;
 #[path = "product_strategy_research_write_product_tests.rs"]
 mod strategy_research_write_product_tests;
 
+#[path = "product_auth_session_write_product_tests.rs"]
+mod auth_session_write_product_tests;
+
+#[path = "product_watchlist_remote_write_product_tests.rs"]
+mod watchlist_remote_write_product_tests;
+
 #[path = "product_watchlist_tests.rs"]
 mod watchlist_read_tests;
 
@@ -2065,6 +2071,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         &ProductCapabilities::test_cutover(),
         ProductRoutePorts {
             auth_session: true,
+            auth_session_write: true,
             alerts: true,
             alerts_write: true,
             calendar_manager: true,
@@ -2085,6 +2092,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             market_data_prediction_read: true,
             broker_read: true,
             remote_watchlist: true,
+            remote_watchlist_write: true,
             system_read: true,
             plugins: true,
             plugins_write: true,
@@ -2102,7 +2110,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 195);
+    assert_eq!(cutover.routes().len(), 198);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(

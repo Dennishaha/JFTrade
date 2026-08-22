@@ -31,6 +31,7 @@ struct ProductApi {
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
+    remote_watchlist_write_port: Option<Arc<dyn RemoteWatchlistWritePort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     plugin_write_port: Option<Arc<dyn PluginWritePort>>,
@@ -46,6 +47,7 @@ struct ProductApi {
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
+    auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
     notification_sequence: AtomicU64,
     capabilities: ProductCapabilities,
 }
@@ -91,6 +93,7 @@ impl ProductApi {
             broker_read_snapshot_port: optional_ports.broker_read_snapshot,
             system_read_snapshot_port: optional_ports.system_read_snapshot,
             remote_watchlist_snapshot_port: optional_ports.remote_watchlist_snapshot,
+            remote_watchlist_write_port: optional_ports.remote_watchlist_write,
             plugin_uninstall_guidance_snapshot_port: optional_ports
                 .plugin_uninstall_guidance_snapshot,
             plugin_snapshot_port: optional_ports.plugin_snapshot,
@@ -109,6 +112,7 @@ impl ProductApi {
             backtest_sync_read_snapshot_port: optional_ports.backtest_sync_read_snapshot,
             strategy_read_snapshot_port: optional_ports.strategy_read_snapshot,
             auth_session_snapshot_port: optional_ports.auth_session_snapshot,
+            auth_session_write_port: optional_ports.auth_session_write,
             notification_sequence: AtomicU64::new(0),
             capabilities,
         }

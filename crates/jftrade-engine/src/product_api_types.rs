@@ -20,6 +20,7 @@ struct ProductOptionalPorts {
     broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
+    remote_watchlist_write: Option<Arc<dyn RemoteWatchlistWritePort>>,
     plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot: Option<Arc<dyn PluginSnapshotPort>>,
     plugin_write: Option<Arc<dyn PluginWritePort>>,
@@ -35,6 +36,7 @@ struct ProductOptionalPorts {
     backtest_sync_read_snapshot: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     strategy_read_snapshot: Option<Arc<dyn StrategyReadSnapshotPort>>,
     auth_session_snapshot: Option<Arc<dyn AuthSessionSnapshotPort>>,
+    auth_session_write: Option<Arc<dyn AuthSessionWritePort>>,
 }
 
 struct ProductSettingsServices {

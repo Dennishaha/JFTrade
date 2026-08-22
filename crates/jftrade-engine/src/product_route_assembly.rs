@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum ProductCapability {
     AuthSession,
+    AuthSessionWrite,
     AppearanceWrite,
     OnboardingWrite,
     CalendarSettingsWrite,
@@ -37,6 +38,7 @@ enum ProductCapability {
     MarketDataPredictionRead,
     BrokerRead,
     RemoteWatchlistRead,
+    RemoteWatchlistWrite,
     SystemRead,
     Plugins,
     PluginsWrite,
@@ -63,6 +65,7 @@ impl ProductCapabilities {
     fn test_cutover() -> Self {
         Self(BTreeSet::from([
             ProductCapability::AuthSession,
+            ProductCapability::AuthSessionWrite,
             ProductCapability::AppearanceWrite,
             ProductCapability::OnboardingWrite,
             ProductCapability::CalendarSettingsWrite,
@@ -97,6 +100,7 @@ impl ProductCapabilities {
             ProductCapability::MarketDataPredictionRead,
             ProductCapability::BrokerRead,
             ProductCapability::RemoteWatchlistRead,
+            ProductCapability::RemoteWatchlistWrite,
             ProductCapability::SystemRead,
             ProductCapability::Plugins,
             ProductCapability::PluginsWrite,
@@ -130,6 +134,7 @@ impl ProductCapabilities {
                 capability,
                 ProductCapability::DataManagementPreview
                     | ProductCapability::AuthSession
+                    | ProductCapability::AuthSessionWrite
                     | ProductCapability::DataManagementMaintenance
                     | ProductCapability::CalendarSources
                     | ProductCapability::CalendarStatus
@@ -151,6 +156,7 @@ impl ProductCapabilities {
                     | ProductCapability::MarketDataPredictionRead
                     | ProductCapability::BrokerRead
                     | ProductCapability::RemoteWatchlistRead
+                    | ProductCapability::RemoteWatchlistWrite
                     | ProductCapability::SystemRead
                     | ProductCapability::Plugins
                     | ProductCapability::PluginsWrite
@@ -180,6 +186,7 @@ impl ProductCapabilities {
 #[derive(Clone, Copy, Debug, Default)]
 struct ProductRoutePorts {
     auth_session: bool,
+    auth_session_write: bool,
     alerts: bool,
     calendar_manager: bool,
     watchlist_memberships: bool,
@@ -199,6 +206,7 @@ struct ProductRoutePorts {
     market_data_prediction_read: bool,
     broker_read: bool,
     remote_watchlist: bool,
+    remote_watchlist_write: bool,
     system_read: bool,
     plugins: bool,
     plugins_write: bool,
@@ -219,6 +227,7 @@ struct ProductRoutePorts {
 fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
     ProductRoutePorts {
         auth_session: config.auth_session_snapshot_port.is_some(),
+        auth_session_write: config.auth_session_write_port.is_some(),
         alerts: config.alert_snapshot_port.is_some(),
         alerts_write: config.alert_write_port.is_some(),
         calendar_manager: config.calendar_manager.is_some(),
@@ -264,6 +273,7 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
             .as_ref()
             .is_some_and(|port| port.enabled()),
         remote_watchlist: config.remote_watchlist_snapshot_port.is_some(),
+        remote_watchlist_write: config.remote_watchlist_write_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
         plugins_write: config.plugin_write_port.is_some(),

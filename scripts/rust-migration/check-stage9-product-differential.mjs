@@ -211,6 +211,20 @@ run("go", [
 ]);
 run("go", [
   "test",
+  "./internal/app/apiserver/webaccess",
+  "-run",
+  "^TestStage9AuthSessionWriteFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
+  "^TestStage9WatchlistsRemoteWriteFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
   "./scripts/rust-migration",
   "-run",
   "^TestStage9StrategyDefinitionsFixtureMatchesCurrentGoOwner$",
@@ -610,6 +624,24 @@ run("cargo", [
   "jftrade-engine",
   "--test",
   "stage9_strategy_definitions_write",
+  "--",
+  "--nocapture",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "--test",
+  "stage9_auth_session_write",
+  "--",
+  "--nocapture",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "--test",
+  "stage9_watchlists_remote_write",
   "--",
   "--nocapture",
 ]);
@@ -1137,6 +1169,22 @@ run("cargo", [
   "-p",
   "jftrade-engine",
   "product::tests::plugins_write_product_tests::plugins_write_routes_preserve_go_error_and_default_route_isolation",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::auth_session_write_product_tests::auth_session_write_routes_register_only_with_explicit_test_port",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::watchlist_remote_write_product_tests::remote_watchlist_write_route_registers_only_with_explicit_test_port",
   "--",
   "--exact",
 ]);
