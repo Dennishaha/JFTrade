@@ -40,6 +40,8 @@ enum ProductCapability {
     SystemRead,
     Plugins,
     PluginsWrite,
+    MarketDataProviderActions,
+    AdkChatStream,
     PluginUninstallGuidance,
     Alerts,
     AlertsWrite,
@@ -96,6 +98,8 @@ impl ProductCapabilities {
             ProductCapability::SystemRead,
             ProductCapability::Plugins,
             ProductCapability::PluginsWrite,
+            ProductCapability::MarketDataProviderActions,
+            ProductCapability::AdkChatStream,
             ProductCapability::PluginUninstallGuidance,
             ProductCapability::Alerts,
             ProductCapability::AlertsWrite,
@@ -146,6 +150,8 @@ impl ProductCapabilities {
                     | ProductCapability::SystemRead
                     | ProductCapability::Plugins
                     | ProductCapability::PluginsWrite
+                    | ProductCapability::MarketDataProviderActions
+                    | ProductCapability::AdkChatStream
                     | ProductCapability::PluginUninstallGuidance
                     | ProductCapability::Alerts
                     | ProductCapability::AlertsWrite
@@ -190,6 +196,8 @@ struct ProductRoutePorts {
     system_read: bool,
     plugins: bool,
     plugins_write: bool,
+    market_data_provider_actions: bool,
+    adk_chat_stream: bool,
     plugin_uninstall_guidance: bool,
     alerts_write: bool,
     strategy_definitions: bool,
@@ -251,6 +259,10 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
         plugins_write: config.plugin_write_port.is_some(),
+        market_data_provider_actions: config
+            .market_data_provider_actions_port
+            .is_some(),
+        adk_chat_stream: config.adk_chat_stream_port.is_some(),
         strategy_definitions: config.strategy_definition_snapshot_port.is_some(),
     }
 }
@@ -286,6 +298,19 @@ fn product_routes(
     routes.extend(product_adk_read_routes(capabilities, ports));
     routes.extend(product_market_data_quote_read_routes(capabilities, ports));
     routes.extend(product_market_data_prediction_read_routes(capabilities, ports));
+    if ports.market_data_provider_actions
+        && capabilities.contains(ProductCapability::MarketDataProviderActions)
+    {
+        routes.extend(
+            MARKET_DATA_PROVIDER_ACTIONS_ROUTES
+                .iter()
+                .map(|(method, path)| route(method, path)),
+        );
+    }
+    if ports.adk_chat_stream && capabilities.contains(ProductCapability::AdkChatStream) {
+        routes.push(route("POST", ADK_CHAT_PATH));
+        routes.push(route("POST", ADK_CHAT_STREAM_PATH));
+    }
     routes.extend(product_strategy_read_routes(capabilities, ports));
     if ports.strategy_pine_analyze
         && capabilities.contains(ProductCapability::StrategyPineAnalyze)

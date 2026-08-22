@@ -267,6 +267,8 @@ run("go", [
 ]);
 for (const testName of [
   "^TestStage9ADKReadFixtureMatchesCurrentGoOwner$",
+  "^TestStage9ADKChatStreamFixtureMatchesCurrentGoOwner$",
+  "^TestStage9MarketDataProviderActionsFixtureMatchesCurrentGoOwner$",
   "^TestStage9MarketDataNewsSearchReadFixtureMatchesCurrentGoOwner$",
   "^TestStage9MarketDataQuoteReadFixtureMatchesCurrentGoOwner$",
   "^TestStage9MarketDataPredictionReadFixtureMatchesCurrentGoOwner$",
@@ -614,6 +616,10 @@ for (const testName of [
   "product::tests::adk_read_tests::adk_read_routes_fail_closed_without_snapshot_port",
   "product::tests::adk_read_tests::adk_read_dynamic_routes_validate_suffixes_and_identifiers",
   "product::tests::adk_read_tests::adk_read_streams_preserve_event_ids_and_payloads",
+  "product::tests::adk_chat_stream_product_tests::adk_chat_stream_routes_register_only_with_explicit_test_port",
+  "product::tests::adk_chat_stream_product_tests::adk_chat_stream_routes_are_isolated_without_port",
+  "product::tests::market_data_provider_actions_register_only_with_explicit_test_port",
+  "product::tests::market_data_provider_actions_product_registers_with_explicit_test_port",
 ]) {
   run("cargo", [
     "test",
@@ -1234,4 +1240,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: auth-session, settings/system/alerts/alerts-write/plugins/plugins-write/strategy-definitions/strategy-instance/strategy-pine/watchlist/portfolio/research/research-preset/execution/market-data-provider/market-data-catalog/market-data-derivatives/market-data-options/market-data-news-actions/market-data-news-search/adk/market-data-quote-read/market-data-prediction-read/broker/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");
+console.log("Go/Rust Stage 9 product-slice differential passed: auth-session, settings/system/alerts/alerts-write/plugins/plugins-write/strategy-definitions/strategy-instance/strategy-pine/watchlist/portfolio/research/research-preset/execution/market-data-provider/market-data-provider-actions/market-data-catalog/market-data-derivatives/market-data-options/market-data-news-actions/market-data-news-search/adk/adk-chat-stream/market-data-quote-read/market-data-prediction-read/broker/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");

@@ -34,6 +34,8 @@ struct ProductApi {
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     plugin_write_port: Option<Arc<dyn PluginWritePort>>,
+    market_data_provider_actions: MarketDataProviderActionsApi,
+    adk_chat_stream_port: Option<Arc<dyn AdkChatStreamPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     alert_write_port: Option<Arc<dyn AlertWritePort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
@@ -91,6 +93,10 @@ impl ProductApi {
                 .plugin_uninstall_guidance_snapshot,
             plugin_snapshot_port: optional_ports.plugin_snapshot,
             plugin_write_port: optional_ports.plugin_write,
+            market_data_provider_actions: MarketDataProviderActionsApi::new(
+                optional_ports.market_data_provider_actions,
+            ),
+            adk_chat_stream_port: optional_ports.adk_chat_stream,
             alert_snapshot_port: optional_ports.alert_snapshot,
             alert_write_port: optional_ports.alert_write,
             strategy_definition_snapshot_port: optional_ports.strategy_definition_snapshot,
@@ -771,5 +777,14 @@ impl ProductApi {
             .map(|settings| ApiOutput::Json(json!({"exchangeCalendars": settings})))
             .map_err(settings_failure)
     }
+}
 
+fn is_broker_integration_path(path: &str) -> bool {
+    path.strip_prefix("/api/v1/settings/brokers/")
+        .and_then(|value| value.strip_suffix("/integration"))
+        .is_some_and(|id| !id.is_empty() && !id.contains('/'))
+}
+
+fn duration_millis(duration: Duration) -> u64 {
+    u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
 }

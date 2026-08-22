@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
@@ -9,7 +10,7 @@ use axum::http::header::{
     ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
     ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS, CACHE_CONTROL, CONNECTION, VARY,
 };
-use axum::http::{HeaderMap, HeaderValue, Method, Response, StatusCode, Uri};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Response, StatusCode, Uri};
 use axum::middleware::{self, Next};
 use axum::routing::get;
 use serde_json::json;
@@ -257,11 +258,13 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
             status,
             content_type,
             body,
+            headers,
         }) => body_response(
             StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
             &content_type,
             body,
-        ),
+        )
+        .tap_headers(&headers),
         Err(failure) => error_response(&state.clock, failure),
     };
     if is_auth_session {
@@ -270,6 +273,25 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
             .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
     }
     response
+}
+
+trait ResponseHeaders {
+    fn tap_headers(self, headers: &BTreeMap<String, String>) -> Self;
+}
+
+impl ResponseHeaders for Response<Body> {
+    fn tap_headers(mut self, headers: &BTreeMap<String, String>) -> Self {
+        for (name, value) in headers {
+            let Ok(name) = HeaderName::from_bytes(name.as_bytes()) else {
+                continue;
+            };
+            let Ok(value) = HeaderValue::from_str(value) else {
+                continue;
+            };
+            self.headers_mut().insert(name, value);
+        }
+        self
+    }
 }
 
 fn static_response(assets: &AssetBundle, method: &Method, uri: &Uri) -> Response<Body> {

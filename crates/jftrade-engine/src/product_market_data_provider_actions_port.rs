@@ -31,6 +31,7 @@ pub struct MarketDataProviderActionsRequest {
     pub body: Vec<u8>,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum MarketDataProviderActionsPortError {
     #[error("market-data provider actions snapshot is unavailable: {0}")]
@@ -55,6 +56,7 @@ pub trait MarketDataProviderActionsPort: Send + Sync + std::fmt::Debug {
     ) -> Result<Value, MarketDataProviderActionsPortError>;
 }
 
+#[allow(dead_code)]
 pub fn market_data_provider_actions_routes() -> &'static [(&'static str, &'static str); 5] {
     &MARKET_DATA_PROVIDER_ACTIONS_ROUTES
 }
@@ -72,4 +74,27 @@ pub fn is_market_data_provider_action_path(path: &str) -> bool {
 fn has_instrument_suffix(path: &str, prefix: &str) -> bool {
     path.strip_prefix(prefix)
         .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn provider_actions_route_contract_has_five_unique_post_operations() {
+        assert_eq!(market_data_provider_actions_routes().len(), 5);
+        assert_eq!(
+            MARKET_DATA_PROVIDER_ACTIONS_ROUTES
+                .iter()
+                .filter(|(method, _)| *method == "POST")
+                .count(),
+            5
+        );
+        assert!(is_market_data_provider_action_path(
+            "/api/v1/market-data/options/analysis/US.AAPL"
+        ));
+        assert!(!is_market_data_provider_action_path(
+            "/api/v1/market-data/options/analysis/US.AAPL/extra"
+        ));
+    }
 }

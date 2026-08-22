@@ -79,6 +79,18 @@ mod product_plugins_write_port;
 use product_plugins_write_port::{
     PluginWritePort, PluginWriteRequest, PluginWriteResponse, dispatch_plugin_write,
 };
+#[path = "product_market_data_provider_actions_api.rs"]
+mod product_market_data_provider_actions_api;
+#[path = "product_market_data_provider_actions_port.rs"]
+mod product_market_data_provider_actions_port;
+use product_market_data_provider_actions_api::MarketDataProviderActionsApi;
+use product_market_data_provider_actions_port::{
+    MARKET_DATA_PROVIDER_ACTIONS_ROUTES, MarketDataProviderActionsPort,
+    is_market_data_provider_action_path,
+};
+#[path = "product_adk_chat_stream_port.rs"]
+mod product_adk_chat_stream_port;
+use product_adk_chat_stream_port::{ADK_CHAT_PATH, ADK_CHAT_STREAM_PATH, AdkChatStreamPort};
 
 #[path = "strategy_pine.rs"]
 mod strategy_pine;
@@ -229,6 +241,8 @@ pub struct ProductConfig {
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     plugin_write_port: Option<Arc<dyn PluginWritePort>>,
+    market_data_provider_actions_port: Option<Arc<dyn MarketDataProviderActionsPort>>,
+    adk_chat_stream_port: Option<Arc<dyn AdkChatStreamPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     alert_write_port: Option<Arc<dyn AlertWritePort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
@@ -303,6 +317,8 @@ impl ProductConfig {
             plugin_uninstall_guidance_snapshot_port: None,
             plugin_snapshot_port: None,
             plugin_write_port: None,
+            market_data_provider_actions_port: None,
+            adk_chat_stream_port: None,
             alert_snapshot_port: None,
             alert_write_port: None,
             strategy_definition_snapshot_port: None,
@@ -578,6 +594,8 @@ pub(crate) async fn start_product_with_runtime_state(
                 .clone(),
             plugin_snapshot: config.plugin_snapshot_port.clone(),
             plugin_write: config.plugin_write_port.clone(),
+            market_data_provider_actions: config.market_data_provider_actions_port.clone(),
+            adk_chat_stream: config.adk_chat_stream_port.clone(),
             alert_snapshot: config.alert_snapshot_port.clone(),
             alert_write: config.alert_write_port.clone(),
             strategy_definition_snapshot: config.strategy_definition_snapshot_port.clone(),
@@ -647,6 +665,7 @@ include!("product_market_data_news_search_read_api.rs");
 include!("product_market_data_quote_read_api.rs");
 include!("product_market_data_prediction_read_api.rs");
 include!("product_adk_read_api.rs");
+include!("product_api_adk_chat_stream.rs");
 include!("product_api_brokers.rs");
 include!("product_api_watchlists.rs");
 include!("product_api_plugins.rs");

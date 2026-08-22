@@ -4,7 +4,7 @@ use jftrade_api::{ApiFailure, ApiOutput, ApiRequest};
 use serde_json::Value;
 
 use super::product_market_data_provider_actions_port::{
-    BATCH_SNAPSHOTS_PATH, MarketDataProviderActionsPort, MarketDataProviderActionsPortError,
+    MarketDataProviderActionsPort, MarketDataProviderActionsPortError,
     MarketDataProviderActionsRequest, NORMALIZE_INSTRUMENT_PATH, PREDICTION_COMBO_QUOTES_PATH,
     ZERO_DTE_CONTRACTS_PATH, is_market_data_provider_action_path,
 };
@@ -80,8 +80,6 @@ fn validate_json_body(path: &str, body: &[u8]) -> Result<(), ApiFailure> {
         )
     } else if path == PREDICTION_COMBO_QUOTES_PATH {
         ("BAD_REQUEST", "invalid prediction combo quote payload")
-    } else if path == BATCH_SNAPSHOTS_PATH {
-        ("BAD_REQUEST", "invalid request body")
     } else {
         ("BAD_REQUEST", "invalid request body")
     };
@@ -110,5 +108,65 @@ fn market_data_provider_actions_failure(error: MarketDataProviderActionsPortErro
                 None => failure,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[derive(Debug)]
+    struct ErrorPort(MarketDataProviderActionsPortError);
+
+    impl MarketDataProviderActionsPort for ErrorPort {
+        fn dispatch(
+            &self,
+            _request: &MarketDataProviderActionsRequest,
+        ) -> Result<Value, MarketDataProviderActionsPortError> {
+            Err(self.0.clone())
+        }
+    }
+
+    fn request() -> ApiRequest {
+        ApiRequest {
+            method: "POST".to_owned(),
+            path: NORMALIZE_INSTRUMENT_PATH.to_owned(),
+            query: String::new(),
+            body: serde_json::to_vec(&json!({"symbol": "AAPL"})).expect("request body"),
+            request_id: "fixture-request".to_owned(),
+            desktop_trusted: false,
+            origin_provided: false,
+            origin_allowed: false,
+            browser_authenticated: false,
+        }
+    }
+
+    #[test]
+    fn provider_actions_failure_mapping_preserves_unavailable_and_retry_wire() {
+        let unavailable = MarketDataProviderActionsApi::new(Some(Arc::new(ErrorPort(
+            MarketDataProviderActionsPortError::Unavailable("warming".to_owned()),
+        ))))
+        .dispatch(&request())
+        .expect_err("unavailable provider port");
+        assert_eq!(unavailable.status, 503);
+        assert_eq!(
+            unavailable.code,
+            MARKET_DATA_PROVIDER_ACTIONS_UNAVAILABLE_CODE
+        );
+
+        let failed = MarketDataProviderActionsApi::new(Some(Arc::new(ErrorPort(
+            MarketDataProviderActionsPortError::Failed {
+                status: 429,
+                code: "PROVIDER_RATE_LIMITED".to_owned(),
+                message: "retry later".to_owned(),
+                retry_after_seconds: Some(7),
+            },
+        ))))
+        .dispatch(&request())
+        .expect_err("rate-limited provider port");
+        assert_eq!(failed.status, 429);
+        assert_eq!(failed.code, "PROVIDER_RATE_LIMITED");
+        assert_eq!(failed.retry_after_seconds, Some(7));
     }
 }

@@ -52,12 +52,14 @@ pub struct AdkChatStreamSnapshot {
     pub terminal: bool,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AdkChatPortOutput {
     Json(Value),
     Stream(AdkChatStreamSnapshot),
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AdkChatPortError {
     Unavailable(String),
@@ -392,4 +394,97 @@ fn encode_sse_frames(frames: &[AdkChatStreamFrame]) -> String {
         }
     }
     body
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug)]
+    struct FixedPort(Result<AdkChatPortOutput, AdkChatPortError>);
+
+    impl AdkChatStreamPort for FixedPort {
+        fn dispatch(
+            &self,
+            _route: AdkChatRoute,
+            _input: &AdkChatInput,
+        ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+            self.0.clone()
+        }
+    }
+
+    fn request(path: &str) -> AdkChatRequest {
+        AdkChatRequest {
+            method: "POST".to_owned(),
+            path: path.to_owned(),
+            body: br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111"}"#.to_vec(),
+        }
+    }
+
+    #[test]
+    fn adk_port_outputs_and_errors_keep_route_wire_mapping() {
+        let chat_port = FixedPort(Ok(AdkChatPortOutput::Json(json!({
+            "reply": "ok"
+        }))));
+        let chat = dispatch_adk_chat(
+            &request(ADK_CHAT_PATH),
+            Some(&chat_port),
+            "fixture-time",
+            420_000,
+        );
+        assert_eq!(chat.status(), 200);
+        assert!(chat.body().contains("\"reply\":\"ok\""));
+
+        let stream_port = FixedPort(Ok(AdkChatPortOutput::Stream(AdkChatStreamSnapshot {
+            headers: BTreeMap::new(),
+            frames: vec![AdkChatStreamFrame::Event {
+                id: Some("1".to_owned()),
+                data: json!({"type": "final"}),
+            }],
+            terminal: true,
+        })));
+        let stream = dispatch_adk_chat(
+            &request(ADK_CHAT_STREAM_PATH),
+            Some(&stream_port),
+            "fixture-time",
+            420_000,
+        );
+        assert_eq!(stream.status(), 200);
+        assert!(stream.body().contains("id: 1\n"));
+
+        let unavailable_port = FixedPort(Err(AdkChatPortError::Unavailable(
+            "runtime unavailable".to_owned(),
+        )));
+        let unavailable = dispatch_adk_chat(
+            &request(ADK_CHAT_PATH),
+            Some(&unavailable_port),
+            "fixture-time",
+            420_000,
+        );
+        assert_eq!(unavailable.status(), 503);
+
+        let conflict_port = FixedPort(Err(AdkChatPortError::Conflict(
+            "duplicate request".to_owned(),
+        )));
+        let conflict = dispatch_adk_chat(
+            &request(ADK_CHAT_PATH),
+            Some(&conflict_port),
+            "fixture-time",
+            420_000,
+        );
+        assert_eq!(conflict.status(), 409);
+
+        let failed_port = FixedPort(Err(AdkChatPortError::Failed {
+            status: 502,
+            code: "MODEL_CALL_FAILED".to_owned(),
+            message: "provider failed".to_owned(),
+        }));
+        let failed = dispatch_adk_chat(
+            &request(ADK_CHAT_PATH),
+            Some(&failed_port),
+            "fixture-time",
+            420_000,
+        );
+        assert_eq!(failed.status(), 502);
+    }
 }

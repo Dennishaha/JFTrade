@@ -76,6 +76,16 @@ quirk: Full workspace `check:rust` and `check:quick` cannot reach their final ga
 owner: integration branch / desktop preparation harness
 后续: Prepare the standard desktop development/release assets on the integration branch and rerun `pnpm run check:rust` and `pnpm run check:quick`; no strategy-pine source change is required.
 
+quirk: One full `go test ./scripts/rust-migration -count=1` run inside `check:quick` reported strategy-pine fixture drift, although the fixture and strategy-pine sources were unchanged; the isolated reference test and a subsequent full package rerun both passed without regeneration.
+范围: `strategy-pine` / Go reference package harness isolation
+证据: the failed `check:quick` run at `TestStage9StrategyPineFixtureMatchesCurrentGoOwner`; immediate isolated `go test ./scripts/rust-migration -run '^TestStage9StrategyPineFixtureMatchesCurrentGoOwner$' -count=1 -v`; subsequent full `go test ./scripts/rust-migration -count=1` passed; no strategy-pine file is modified in this integration diff.
+分类: harness
+判定: unresolved
+处置: 保留现有 fixture，不在迁移切片内重生成或修改 Go 行为；按环境复现并隔离共享 worker/env 状态。
+风险: medium
+owner: integration branch / Go reference harness
+后续: Repeat the full package run in CI and inspect cross-test environment/process cleanup before the strategy-pine group can be cutover-qualified.
+
 ## Integration Review
 
 - Product wiring adds a private `strategy_pine` module, a consumer-owned `StrategyPineAnalyzeSnapshotPort`, and an exact `POST /api/v1/strategy-pine/analyze` dispatch arm. The default product profile does not register the route; the explicit test-cutover profile reports 48 routes without the port and 49 with it.

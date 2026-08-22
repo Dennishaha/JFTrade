@@ -538,6 +538,8 @@ mod plugin_tests;
 #[path = "product_alerts_write_product_tests.rs"]
 mod alerts_write_product_tests;
 
+#[path = "product_adk_chat_stream_product_tests.rs"]
+mod adk_chat_stream_product_tests;
 #[path = "product_plugins_write_product_tests.rs"]
 mod plugins_write_product_tests;
 
@@ -2083,6 +2085,8 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             system_read: true,
             plugins: true,
             plugins_write: true,
+            market_data_provider_actions: true,
+            adk_chat_stream: true,
             plugin_uninstall_guidance: true,
             strategy_definitions: true,
             backtest_read: true,
@@ -2093,7 +2097,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 180);
+    assert_eq!(cutover.routes().len(), 187);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
@@ -2173,6 +2177,75 @@ fn alerts_write_capability_registers_without_alert_read_capability() {
         .collect();
     assert_eq!(alert_routes.len(), 2);
     assert!(alert_routes.iter().all(|route| route.method == "POST"));
+}
+
+#[test]
+fn market_data_provider_actions_register_only_with_explicit_test_port() {
+    let without_port = product_routes(
+        &ProductCapabilities::only(ProductCapability::MarketDataProviderActions),
+        ProductRoutePorts::default(),
+    )
+    .expect("routes without provider-actions port");
+    assert!(without_port.routes().iter().all(|route| {
+        !MARKET_DATA_PROVIDER_ACTIONS_ROUTES
+            .iter()
+            .any(|(method, path)| route.method == *method && route.path == *path)
+    }));
+
+    let with_port = product_routes(
+        &ProductCapabilities::only(ProductCapability::MarketDataProviderActions),
+        ProductRoutePorts {
+            market_data_provider_actions: true,
+            ..ProductRoutePorts::default()
+        },
+    )
+    .expect("provider-actions routes");
+    let provider_routes: Vec<_> = with_port
+        .routes()
+        .iter()
+        .filter(|route| {
+            MARKET_DATA_PROVIDER_ACTIONS_ROUTES
+                .iter()
+                .any(|(method, path)| route.method == *method && route.path == *path)
+        })
+        .collect();
+    assert_eq!(
+        provider_routes.len(),
+        MARKET_DATA_PROVIDER_ACTIONS_ROUTES.len()
+    );
+}
+
+#[derive(Debug)]
+struct FixtureMarketDataProviderActionsPort;
+
+impl MarketDataProviderActionsPort for FixtureMarketDataProviderActionsPort {
+    fn dispatch(
+        &self,
+        _request: &product_market_data_provider_actions_port::MarketDataProviderActionsRequest,
+    ) -> Result<Value, product_market_data_provider_actions_port::MarketDataProviderActionsPortError>
+    {
+        Ok(Value::Null)
+    }
+}
+
+#[tokio::test]
+async fn market_data_provider_actions_product_registers_with_explicit_test_port() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_market_data_provider_actions_port(Arc::new(FixtureMarketDataProviderActionsPort));
+    let handle = start_product(config).await.expect("start product");
+    assert_eq!(handle.startup_record().owned_routes, 53);
+    assert!(
+        handle
+            .startup_record()
+            .capabilities
+            .iter()
+            .any(|route| { route == "POST /api/v1/market-data/instruments/normalize" })
+    );
+    handle.shutdown().await.expect("shutdown product");
 }
 
 async fn request_json(address: SocketAddr, method: &str, path: &str, body: Option<&str>) -> Value {

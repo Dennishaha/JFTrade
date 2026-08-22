@@ -279,6 +279,11 @@ impl ApiPort for ProductApi {
                 {
                     self.plugin_write(&request)
                 }
+                ("POST", path) if is_market_data_provider_action_path(path) => self
+                    .market_data_provider_actions
+                    .dispatch(&request),
+                ("POST", ADK_CHAT_PATH | ADK_CHAT_STREAM_PATH)
+                    if self.adk_chat_stream_port.is_some() => self.adk_chat_stream(&request),
                 ("POST", "/api/v1/settings/data-management/cleanup/preview") => {
                     self.cleanup_preview(&request.body)
                 }
@@ -773,12 +778,6 @@ fn decode_query_component(value: &str) -> String {
         .into_owned()
 }
 
-fn is_broker_integration_path(path: &str) -> bool {
-    path.strip_prefix("/api/v1/settings/brokers/")
-        .and_then(|value| value.strip_suffix("/integration"))
-        .is_some_and(|id| !id.is_empty() && !id.contains('/'))
-}
-
 fn is_managed_account_path(path: &str) -> bool {
     path.strip_prefix("/api/v1/settings/broker-accounts/")
         .is_some_and(|id| !id.is_empty() && !id.contains('/'))
@@ -793,8 +792,4 @@ fn managed_account_id(path: &str) -> Result<String, ApiFailure> {
         .decode_utf8()
         .map(|id| id.into_owned())
         .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid account id"))
-}
-
-fn duration_millis(duration: Duration) -> u64 {
-    u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
 }

@@ -34,6 +34,7 @@ pub enum ApiOutput {
         status: u16,
         content_type: String,
         body: Vec<u8>,
+        headers: BTreeMap<String, String>,
     },
 }
 

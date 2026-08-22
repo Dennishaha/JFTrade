@@ -181,6 +181,21 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_market_data_provider_actions_port(
+        mut self,
+        port: Arc<dyn MarketDataProviderActionsPort>,
+    ) -> Self {
+        self.market_data_provider_actions_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_adk_chat_stream_port(mut self, port: Arc<dyn AdkChatStreamPort>) -> Self {
+        self.adk_chat_stream_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_alert_snapshot_port(mut self, port: Arc<dyn AlertSnapshotPort>) -> Self {
         self.alert_snapshot_port = Some(port);
         self
