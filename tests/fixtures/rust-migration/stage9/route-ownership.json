@@ -2858,27 +2858,31 @@
       "method": "POST",
       "path": "/api/v1/alerts/option-events",
       "capability": "alerts",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/alerts/price",
       "capability": "alerts",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -3170,27 +3174,31 @@
       "method": "POST",
       "path": "/api/v1/plugins/{pluginId}/install",
       "capability": "plugins",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/plugins/{pluginId}/uninstall",
       "capability": "plugins",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",

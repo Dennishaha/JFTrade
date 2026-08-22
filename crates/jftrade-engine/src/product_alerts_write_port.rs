@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use percent_encoding::percent_decode_str;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub const PRICE_ALERT_WRITE_PATH: &str = "/api/v1/alerts/price";
 pub const OPTION_EVENT_ALERT_WRITE_PATH: &str = "/api/v1/alerts/option-events";
@@ -62,6 +62,7 @@ pub struct AlertWriteResolution {
     pub selection_reason: String,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AlertWritePortError {
     Unavailable(String),
@@ -77,7 +78,7 @@ pub enum AlertWritePortError {
     },
 }
 
-pub trait AlertWritePort {
+pub trait AlertWritePort: Send + Sync {
     fn resolve(
         &self,
         route: AlertWriteRoute,

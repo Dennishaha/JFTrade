@@ -1,13 +1,13 @@
 #[path = "../src/product_alerts_write_port.rs"]
 mod product_alerts_write_port;
 
-use std::cell::{Cell, RefCell};
+use std::sync::Mutex;
 
 use product_alerts_write_port::{
-    dispatch_alert_write, AlertWriteAction, AlertWritePort, AlertWritePortError, AlertWriteRequest,
-    AlertWriteResolution, AlertWriteRoute,
+    AlertWriteAction, AlertWritePort, AlertWritePortError, AlertWriteRequest, AlertWriteResolution,
+    AlertWriteRoute, dispatch_alert_write,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const FIXTURE_TIMESTAMP: &str = "2026-08-22T04:00:00Z";
 
@@ -47,8 +47,10 @@ fn alerts_write_routes_match_go_fixture_in_cutover_only() {
             "case {case:?}"
         );
 
-        let mut calls = json!({"apply": port.apply_calls.get()});
-        if let Some(action) = port.last_action.borrow().as_ref() {
+        let apply_calls = *port.apply_calls.lock().expect("apply call lock");
+        let last_action = port.last_action.lock().expect("last action lock");
+        let mut calls = json!({"apply": apply_calls});
+        if let Some(action) = last_action.as_ref() {
             calls["action"] = action_json(action);
             calls["payloadState"] = json!(payload_state_name(action));
         }
@@ -79,7 +81,7 @@ fn alerts_write_routes_preserve_injected_port_unavailability() {
     let response = dispatch_alert_write(&request, Some(&port), FIXTURE_TIMESTAMP);
     assert_eq!(response.status, 503);
     assert_eq!(response.body["error"]["code"], "ALERTS_UNAVAILABLE");
-    assert_eq!(port.apply_calls.get(), 0);
+    assert_eq!(*port.apply_calls.lock().expect("apply call lock"), 0);
 }
 
 #[test]
@@ -103,22 +105,22 @@ fn alerts_write_leaf_only_accepts_exact_post_paths() {
         dispatch_alert_write(&unknown_request, Some(&port), FIXTURE_TIMESTAMP).status,
         404
     );
-    assert_eq!(port.apply_calls.get(), 0);
+    assert_eq!(*port.apply_calls.lock().expect("apply call lock"), 0);
 }
 
 #[derive(Debug)]
 struct FixturePort {
     mode: String,
-    apply_calls: Cell<usize>,
-    last_action: RefCell<Option<AlertWriteAction>>,
+    apply_calls: Mutex<usize>,
+    last_action: Mutex<Option<AlertWriteAction>>,
 }
 
 impl FixturePort {
     fn new(mode: &str) -> Self {
         Self {
             mode: mode.to_owned(),
-            apply_calls: Cell::new(0),
-            last_action: RefCell::new(None),
+            apply_calls: Mutex::new(0),
+            last_action: Mutex::new(None),
         }
     }
 }
@@ -139,16 +141,12 @@ impl AlertWritePort for FixturePort {
                 "broker feature capability is unavailable: broker \"missing\" is not registered"
                     .to_owned(),
             )),
-            "capability-unavailable" => Err(AlertWritePortError::CapabilityUnavailable(
-                format!(
-                    "broker feature capability is unavailable: broker \"futu\" feature \"{feature_id}\" is unavailable: "
-                ),
-            )),
-            "adapter-unavailable" => Err(AlertWritePortError::CapabilityUnavailable(
-                format!(
-                    "broker feature capability is unavailable: broker \"futu\" feature \"{feature_id}\" is unavailable: adapter interface CustomizationService is not implemented"
-                ),
-            )),
+            "capability-unavailable" => Err(AlertWritePortError::CapabilityUnavailable(format!(
+                "broker feature capability is unavailable: broker \"futu\" feature \"{feature_id}\" is unavailable: "
+            ))),
+            "adapter-unavailable" => Err(AlertWritePortError::CapabilityUnavailable(format!(
+                "broker feature capability is unavailable: broker \"futu\" feature \"{feature_id}\" is unavailable: adapter interface CustomizationService is not implemented"
+            ))),
             _ => Ok(AlertWriteResolution {
                 broker_id: "futu".to_owned(),
                 security_firm: "Futu/Moomoo via OpenD".to_owned(),
@@ -167,8 +165,8 @@ impl AlertWritePort for FixturePort {
         _resolution: &AlertWriteResolution,
         action: &AlertWriteAction,
     ) -> Result<Option<Value>, AlertWritePortError> {
-        self.apply_calls.set(self.apply_calls.get() + 1);
-        *self.last_action.borrow_mut() = Some(action.clone());
+        *self.apply_calls.lock().expect("apply call lock") += 1;
+        *self.last_action.lock().expect("last action lock") = Some(action.clone());
         match self.mode.as_str() {
             "provider-http-403" => Err(AlertWritePortError::Provider {
                 status: Some(403),

@@ -535,6 +535,12 @@ mod strategy_definition_tests;
 #[path = "product_plugins_tests.rs"]
 mod plugin_tests;
 
+#[path = "product_alerts_write_product_tests.rs"]
+mod alerts_write_product_tests;
+
+#[path = "product_plugins_write_product_tests.rs"]
+mod plugins_write_product_tests;
+
 #[path = "product_watchlist_tests.rs"]
 mod watchlist_read_tests;
 
@@ -2055,6 +2061,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         ProductRoutePorts {
             auth_session: true,
             alerts: true,
+            alerts_write: true,
             calendar_manager: true,
             watchlist_memberships: true,
             watchlist_read: true,
@@ -2075,6 +2082,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             remote_watchlist: true,
             system_read: true,
             plugins: true,
+            plugins_write: true,
             plugin_uninstall_guidance: true,
             strategy_definitions: true,
             backtest_read: true,
@@ -2085,7 +2093,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 176);
+    assert_eq!(cutover.routes().len(), 180);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
@@ -2146,6 +2154,25 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             route.method == "POST" && route.path == "/api/v1/strategy-pine/analyze"
         })
     );
+}
+
+#[test]
+fn alerts_write_capability_registers_without_alert_read_capability() {
+    let routes = product_routes(
+        &ProductCapabilities::only(ProductCapability::AlertsWrite),
+        ProductRoutePorts {
+            alerts_write: true,
+            ..ProductRoutePorts::default()
+        },
+    )
+    .expect("alerts write routes");
+    let alert_routes: Vec<_> = routes
+        .routes()
+        .iter()
+        .filter(|route| route.path.starts_with("/api/v1/alerts/"))
+        .collect();
+    assert_eq!(alert_routes.len(), 2);
+    assert!(alert_routes.iter().all(|route| route.method == "POST"));
 }
 
 async fn request_json(address: SocketAddr, method: &str, path: &str, body: Option<&str>) -> Value {

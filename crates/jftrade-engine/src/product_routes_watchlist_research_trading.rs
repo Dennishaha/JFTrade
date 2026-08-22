@@ -96,6 +96,12 @@ fn product_watchlist_research_trading_routes(
             route("GET", "/api/v1/plugins/operations/{operationId}"),
         ]);
     }
+    if ports.plugins_write && capabilities.contains(ProductCapability::PluginsWrite) {
+        routes.extend([
+            route("POST", "/api/v1/plugins/{pluginId}/install"),
+            route("POST", "/api/v1/plugins/{pluginId}/uninstall"),
+        ]);
+    }
     if ports.plugin_uninstall_guidance
         && capabilities.contains(ProductCapability::PluginUninstallGuidance)
     {

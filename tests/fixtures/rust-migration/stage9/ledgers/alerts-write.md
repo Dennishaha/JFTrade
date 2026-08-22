@@ -4,7 +4,7 @@
 - Tier: A, mutation operations
 - Operations: `POST /api/v1/alerts/price`; `POST /api/v1/alerts/option-events`
 - Current production owner: Go product feature API/service and broker `CustomizationService`; Rust has no production owner.
-- Current route ownership: unchanged by this worker. The integration branch must register both operations as `cutover-test-only` only after applying the shared product wiring patch.
+- Current route ownership: `cutover-test-only`; both operations register only when the explicit product test-cutover profile supplies `AlertWritePort`. Go remains the production owner and `goRemovalStatus=retained`.
 - Fixture: `tests/fixtures/rust-migration/stage9/alerts-write.json`
 - Go reference: `scripts/rust-migration/stage9_alerts_write_reference_test.go`
 - Rust leaf/test: `crates/jftrade-engine/src/product_alerts_write_port.rs`; `crates/jftrade-engine/tests/product_alerts_write_tests.rs`
@@ -71,15 +71,12 @@ owner: worker
 
 ## Test-cutover status
 
-The leaf and fixture slice is ready for an explicit test-only adapter, but it is not `cutover-qualified`. This worker did not change `route-ownership.json`, `product.rs`, `product_api*.rs`, `product_route_assembly.rs`, `product_wire.rs`, package scripts, architecture documents, or any production owner. The integration branch must supply the smallest shared test-cutover wiring and route evidence.
+The leaf, fixture, and explicit product test-cutover adapter are green, but the group is not `cutover-qualified`. The two POST routes are absent from the default profile and are registered only with an injected `AlertWritePort`; Go remains the only production owner. The adapter does not connect OpenD/Futu, a provider, SQLite, or production state.
 
 Outstanding Tier A evidence includes repeated-request/idempotency policy, cancellation and timeout fencing, transaction or rollback boundaries, restart recovery, notification/task isolation, four-platform release and signing gates, security review, backup/restore, and final unique-owner/hard-cut approval. No real provider, OpenD, broker lifecycle, or production state mutation is permitted in this leaf.
 
-## Shared integration patch request
+## Integration Review
 
-The integration branch must apply a minimal shared patch:
-
-1. Add an explicit test-only `AlertWritePort` field and builder path to the product composition types.
-2. Register the two exact POST paths only when that injected port is present; keep default profiles unregistered and Go as the production owner.
-3. Dispatch both paths through the leaf and map its response into the existing product wire envelope without changing public OpenAPI or shared ownership metadata outside the integration branch.
-4. Add both operations to `route-ownership.json` as `cutover-test-only`, with `productionOwner=go`, `goRemovalStatus=retained`, and this checker as evidence.
+- Product wiring adds a private `AlertWritePort`, `AlertsWrite` capability, and exact POST dispatch through the existing product envelope. The default profile reports 48 routes; the explicit alert test port reports 50.
+- The unified product differential runs the Go reference and both product integration cases, while the group checker replays the leaf fixture. `route-ownership.json` records both operations as `cutover-test-only` with `productionOwner=go` and `goRemovalStatus=retained`.
+- Tier A evidence remains outstanding for idempotency, cancellation/timeout fencing, restart recovery, transaction boundaries, notifications/tasks, four-platform release/signing, security, backup/restore, and final unique-owner/hard-cut approval.

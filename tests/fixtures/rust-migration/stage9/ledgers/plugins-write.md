@@ -4,12 +4,12 @@
 - Tier: A, mutation operations
 - Operations: `POST /api/v1/plugins/{pluginId}/install`; `POST /api/v1/plugins/{pluginId}/uninstall`
 - Current production owner: Go plugin catalog/service/repository; Rust has no production owner.
-- Current route ownership: unchanged by this worker. The integration branch must register both operations as `cutover-test-only` only after applying the shared product wiring patch.
+- Current route ownership: `cutover-test-only`; both operations register only when the explicit product test-cutover profile supplies `PluginWritePort`. Go remains the production owner and `goRemovalStatus=retained`.
 - Fixture: `tests/fixtures/rust-migration/stage9/plugins-write.json`
 - Go reference: `scripts/rust-migration/stage9_plugins_write_reference_test.go`
 - Rust leaf/test: `crates/jftrade-engine/src/product_plugins_write_port.rs`; `crates/jftrade-engine/tests/product_plugins_write_tests.rs`
 - Differential: `node scripts/rust-migration/check-stage9-plugins-write.mjs`
-- Worker status: `cutover-test-only` candidate; no production owner, route registration, shared assembly, or ownership ledger change was made by this worker.
+- Integration status: `cutover-test-only`; no Rust production owner, plugin lifecycle, SQLite write, or resource event ownership was added.
 - Rust boundary: the leaf accepts only a consumer-owned injected `PluginWritePort`; tests use an in-memory mock and never open SQLite, install a real plugin, start a process/helper, or publish an event.
 
 | Method | Path | Request and success projection | Error branches covered |
@@ -79,15 +79,10 @@ Passed on the worker branch:
 - `node scripts/rust-migration/check-stage9-plugins-write.mjs`
 - direct `rustfmt --edition 2024` on the two plugins-write Rust files
 
-Not run by this worker because they are shared/integration gates: route coverage after ownership registration, `pnpm run check:quick`, full `pnpm run check:rust`, generated-contract checks, product assembly wiring, test-cutover registration, unique-owner proof, four-platform release/signing/security/recovery gates, and hard-cut Go/Wails removal. Go remains the only production owner.
+The shared integration gates now include route coverage, product assembly wiring, test-cutover registration, and the unified product differential. `pnpm run check:quick`, full `pnpm run check:rust`, generated-contract checks, unique-owner proof, four-platform release/signing/security/recovery gates, and hard-cut Go/Wails removal remain outstanding. Go remains the only production owner.
 
-## Shared integration patch request
+## Integration Review
 
-The integration branch must apply the smallest shared wiring patch:
-
-1. Add a private `PluginWritePort` field to `ProductConfig`, `ProductOptionalPorts`, and `ProductApi`, plus a `#[cfg(test)]` builder.
-2. Add a `ProductCapability::PluginsWrite` and `ProductRoutePorts::plugins_write` gate; include the two exact POST route specs only when the explicit test port is present.
-3. Dispatch the two concrete paths in `product_wire.rs` to a small shared adapter that parses the path and maps the port result to the existing envelope. Keep default profiles and Go production owner unchanged.
-4. Add the two operations to `route-ownership.json` as `cutover-test-only` with `productionOwner=go`, `goRemovalStatus=retained`, and the group differential as evidence.
-
-This worker intentionally did not edit those shared files.
+- Product wiring adds a private `PluginWritePort: Send + Sync`, `PluginsWrite` capability, and exact POST dispatch through the existing product envelope. The default profile reports 48 routes; the explicit plugin-write test port reports 50.
+- The unified product differential runs the Go reference and both product integration cases, while the group checker replays leaf fixture success, body-ignore, missing-catalog, persistence-failure, repeat, and concurrency evidence. `route-ownership.json` records both operations as `cutover-test-only` with `productionOwner=go` and `goRemovalStatus=retained`.
+- The plugin port deliberately has no filesystem, dynamic-library, process, event, or persistence method. Tier A evidence remains outstanding for idempotency policy, cancellation/timeout fencing, restart recovery, transaction boundaries, four-platform release/signing, security, backup/restore, and final unique-owner/hard-cut approval.

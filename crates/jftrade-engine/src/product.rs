@@ -69,6 +69,16 @@ include!("product_adk_read_port.rs");
 include!("product_market_data_prediction_read_routes.rs");
 include!("product_auth_session_port.rs");
 include!("product_snapshot_errors.rs");
+#[path = "product_alerts_write_port.rs"]
+mod product_alerts_write_port;
+use product_alerts_write_port::{
+    AlertWritePort, AlertWriteRequest, AlertWriteResponse, dispatch_alert_write,
+};
+#[path = "product_plugins_write_port.rs"]
+mod product_plugins_write_port;
+use product_plugins_write_port::{
+    PluginWritePort, PluginWriteRequest, PluginWriteResponse, dispatch_plugin_write,
+};
 
 #[path = "strategy_pine.rs"]
 mod strategy_pine;
@@ -218,7 +228,9 @@ pub struct ProductConfig {
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
+    plugin_write_port: Option<Arc<dyn PluginWritePort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
+    alert_write_port: Option<Arc<dyn AlertWritePort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     strategy_pine_analyze_snapshot_port: Option<Arc<dyn StrategyPineAnalyzeSnapshotPort>>,
     ws_live_snapshot_port: Option<Arc<dyn WsLiveSnapshotPort>>,
@@ -290,7 +302,9 @@ impl ProductConfig {
             remote_watchlist_snapshot_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
             plugin_snapshot_port: None,
+            plugin_write_port: None,
             alert_snapshot_port: None,
+            alert_write_port: None,
             strategy_definition_snapshot_port: None,
             strategy_pine_analyze_snapshot_port: None,
             ws_live_snapshot_port: None,
@@ -563,7 +577,9 @@ pub(crate) async fn start_product_with_runtime_state(
                 .plugin_uninstall_guidance_snapshot_port
                 .clone(),
             plugin_snapshot: config.plugin_snapshot_port.clone(),
+            plugin_write: config.plugin_write_port.clone(),
             alert_snapshot: config.alert_snapshot_port.clone(),
+            alert_write: config.alert_write_port.clone(),
             strategy_definition_snapshot: config.strategy_definition_snapshot_port.clone(),
             strategy_pine_analyze_snapshot: config.strategy_pine_analyze_snapshot_port.clone(),
             backtest_read_snapshot: config.backtest_read_snapshot_port.clone(),
@@ -637,6 +653,8 @@ include!("product_api_plugins.rs");
 include!("product_api_strategy_definitions.rs");
 include!("product_api_strategy_pine.rs");
 include!("product_api_auth_session.rs");
+include!("product_api_alerts_write.rs");
+include!("product_api_plugins_write.rs");
 include!("product_wire.rs");
 include!("product_provider_wire.rs");
 include!("product_wire_watchlist.rs");

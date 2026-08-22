@@ -138,6 +138,11 @@ impl ApiPort for ProductApi {
                 ("GET", "/api/v1/alerts/price") => {
                     self.alerts(AlertKind::Price, &request.query)
                 }
+                ("POST", "/api/v1/alerts/option-events")
+                    if self.alert_write_port.is_some() => self.alert_write(&request),
+                ("POST", "/api/v1/alerts/price") if self.alert_write_port.is_some() => {
+                    self.alert_write(&request)
+                }
                 ("GET", "/api/v1/settings/ui") => self.appearance(),
                 ("GET", "/api/v1/settings/brokers") => self.broker_settings(),
                 ("GET", "/api/v1/settings/onboarding") => self.onboarding().await,
@@ -268,6 +273,11 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_plugin_operation_path(path) => self.plugin_operation(path),
                 ("GET", path) if is_plugin_uninstall_guidance_path(path) => {
                     self.plugin_uninstall_guidance(path)
+                }
+                ("POST", path)
+                    if is_plugin_write_path(path) && self.plugin_write_port.is_some() =>
+                {
+                    self.plugin_write(&request)
                 }
                 ("POST", "/api/v1/settings/data-management/cleanup/preview") => {
                     self.cleanup_preview(&request.body)

@@ -35,6 +35,7 @@ pub struct PluginWriteRequest {
     pub body: Option<Vec<u8>>,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PluginWritePortError {
     NotFound(String),
@@ -47,7 +48,7 @@ pub enum PluginWritePortError {
 /// The port returns the complete Go operation projection. It deliberately has
 /// no filesystem, dynamic-library, process, event, or persistence methods;
 /// those remain behind the Go owner until a separately qualified cutover.
-pub trait PluginWritePort {
+pub trait PluginWritePort: Send + Sync {
     fn mutate(
         &self,
         operation: PluginWriteOperation,

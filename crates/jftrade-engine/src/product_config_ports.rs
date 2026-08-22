@@ -175,8 +175,20 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_plugin_write_port(mut self, port: Arc<dyn PluginWritePort>) -> Self {
+        self.plugin_write_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_alert_snapshot_port(mut self, port: Arc<dyn AlertSnapshotPort>) -> Self {
         self.alert_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_alert_write_port(mut self, port: Arc<dyn AlertWritePort>) -> Self {
+        self.alert_write_port = Some(port);
         self
     }
 
