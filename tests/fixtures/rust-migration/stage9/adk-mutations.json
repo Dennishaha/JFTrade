@@ -1,0 +1,1265 @@
+{
+  "version": "stage9.adk-mutations.v1",
+  "timestamp": "2026-08-23T08:00:00Z",
+  "cases": [
+    {
+      "name": "agent-delete",
+      "method": "DELETE",
+      "requestPath": "/api/v1/adk/agents/delete-agent",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "deleted": true,
+            "id": "delete-agent"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "memory-delete",
+      "method": "DELETE",
+      "requestPath": "/api/v1/adk/memory/fixture-memory",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "deleted": true,
+            "id": "fixture-memory"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "provider-delete",
+      "method": "DELETE",
+      "requestPath": "/api/v1/adk/providers/delete-provider",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "deleted": true,
+            "id": "delete-provider"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "session-delete",
+      "method": "DELETE",
+      "requestPath": "/api/v1/adk/sessions/fixture-session",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "deleted": true,
+            "id": "fixture-session"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "skill-delete-missing",
+      "method": "DELETE",
+      "requestPath": "/api/v1/adk/skills/missing-skill",
+      "expected": {
+        "status": 500,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "error": {
+            "code": "ADK_SKILL_UNINSTALL_FAILED",
+            "message": "file does not exist"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "task-delete",
+      "method": "DELETE",
+      "requestPath": "/api/v1/adk/tasks/delete-task",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "deleted": true,
+            "id": "delete-task"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "workflow-delete",
+      "method": "DELETE",
+      "requestPath": "/api/v1/adk/workflows/delete-workflow",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "deleted": true,
+            "workflow": {
+              "agentId": "fixture-agent",
+              "createdAt": "2026-08-23T08:00:00Z",
+              "defaultInputs": {
+                "symbol": "US.AAPL"
+              },
+              "deletedAt": "2026-08-23T08:00:00Z",
+              "id": "delete-workflow",
+              "name": "Fixture workflow delete-workflow",
+              "promptTemplate": "Review {{ .symbol }}",
+              "status": "DISABLED",
+              "updatedAt": "2026-08-23T08:00:00Z",
+              "workMode": "chat"
+            }
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "workflow-trigger-delete",
+      "method": "DELETE",
+      "requestPath": "/api/v1/adk/workflows/trigger-delete-workflow/triggers/trigger-delete",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "deleted": true,
+            "trigger": {
+              "createdAt": "2026-08-23T08:00:00Z",
+              "deletedAt": "2026-08-23T08:00:00Z",
+              "id": "trigger-delete",
+              "status": "DISABLED",
+              "title": "Delete trigger",
+              "type": "manual",
+              "updatedAt": "2026-08-23T08:00:00Z",
+              "workflowId": "trigger-delete-workflow"
+            }
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "run-objective-update",
+      "method": "PATCH",
+      "requestPath": "/api/v1/adk/runs/objective-run/objective",
+      "body": "{\"objective\":\"updated fixture objective\"}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "agentId": "fixture-agent",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "objective-run",
+            "maxDurationMs": 0,
+            "message": "running",
+            "objective": "updated fixture objective",
+            "pendingApprovals": [],
+            "sessionId": "fixture-session",
+            "status": "RUNNING",
+            "toolCalls": [],
+            "updatedAt": "2026-08-23T08:00:00Z",
+            "workMode": "loop",
+            "workflowStatus": "RUNNING"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "session-composer-update",
+      "method": "PATCH",
+      "requestPath": "/api/v1/adk/sessions/fixture-session/composer-state",
+      "body": "{\"chatDraft\":\"fixture draft\",\"workModeOverride\":\"loop\",\"permissionModeOverride\":\"less_approval\",\"goalObjectiveDraft\":\"fixture goal\",\"goalObjectiveTouched\":true}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "chatDraft": "fixture draft",
+            "goalObjectiveDraft": "fixture goal",
+            "goalObjectiveTouched": true,
+            "modelOverride": "",
+            "permissionModeOverride": "less_approval",
+            "providerIdOverride": "",
+            "reasoningEffortOverride": "",
+            "sessionId": "fixture-session",
+            "updatedAt": "2026-08-23T08:00:00Z",
+            "workModeOverride": "loop"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "agent-create",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/agents",
+      "body": "{\"id\":\"created-agent\",\"name\":\"Created Agent\",\"instruction\":\"Be useful\",\"providerId\":\"fixture-provider\",\"permissionMode\":\"less_approval\",\"status\":\"ENABLED\"}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "created-agent",
+            "instruction": "Be useful",
+            "loopMaxIterations": 5,
+            "memoryEnabled": false,
+            "model": "",
+            "name": "Created Agent",
+            "permissionMode": "less_approval",
+            "providerId": "fixture-provider",
+            "recentUserWindow": 6,
+            "skills": [],
+            "status": "ENABLED",
+            "toolAccessMode": "all",
+            "tools": [],
+            "updatedAt": "2026-08-23T08:00:00Z",
+            "workMode": "chat"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "approval-approve",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/approvals/approval-approve/approve",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "approval": {
+              "agentId": "fixture-agent",
+              "confirmationCallId": "confirmation-approval-approve",
+              "createdAt": "2026-08-23T08:00:00Z",
+              "functionCallId": "function-approval-approve",
+              "id": "approval-approve",
+              "reason": "fixture approval",
+              "runId": "approval-approve",
+              "status": "APPROVED",
+              "toolName": "fixture.tool",
+              "updatedAt": "2026-08-23T08:00:00Z"
+            },
+            "run": {
+              "agentId": "fixture-agent",
+              "createdAt": "2026-08-23T08:00:00Z",
+              "id": "approval-approve",
+              "maxDurationMs": 0,
+              "message": "审批已通过，正在后台继续执行。",
+              "pendingApprovals": [
+                {
+                  "agentId": "fixture-agent",
+                  "confirmationCallId": "confirmation-approval-approve",
+                  "createdAt": "2026-08-23T08:00:00Z",
+                  "functionCallId": "function-approval-approve",
+                  "id": "approval-approve",
+                  "reason": "fixture approval",
+                  "runId": "approval-approve",
+                  "status": "APPROVED",
+                  "toolName": "fixture.tool",
+                  "updatedAt": "2026-08-23T08:00:00Z"
+                }
+              ],
+              "resumeState": "approval_resuming",
+              "sessionId": "fixture-session",
+              "startedAt": "2026-08-23T08:00:00Z",
+              "status": "RUNNING",
+              "toolCalls": [],
+              "updatedAt": "2026-08-23T08:00:00Z",
+              "workMode": "chat"
+            }
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "approval-deny",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/approvals/approval-deny/deny",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "approval": {
+              "agentId": "fixture-agent",
+              "confirmationCallId": "confirmation-approval-deny",
+              "createdAt": "2026-08-23T08:00:00Z",
+              "functionCallId": "function-approval-deny",
+              "id": "approval-deny",
+              "reason": "fixture approval",
+              "runId": "approval-deny",
+              "status": "DENIED",
+              "toolName": "fixture.tool",
+              "updatedAt": "2026-08-23T08:00:00Z"
+            },
+            "run": {
+              "agentId": "fixture-agent",
+              "createdAt": "2026-08-23T08:00:00Z",
+              "id": "approval-deny",
+              "maxDurationMs": 0,
+              "message": "审批已拒绝，正在后台结束运行。",
+              "pendingApprovals": [
+                {
+                  "agentId": "fixture-agent",
+                  "confirmationCallId": "confirmation-approval-deny",
+                  "createdAt": "2026-08-23T08:00:00Z",
+                  "functionCallId": "function-approval-deny",
+                  "id": "approval-deny",
+                  "reason": "fixture approval",
+                  "runId": "approval-deny",
+                  "status": "DENIED",
+                  "toolName": "fixture.tool",
+                  "updatedAt": "2026-08-23T08:00:00Z"
+                }
+              ],
+              "resumeState": "approval_resuming",
+              "sessionId": "fixture-session",
+              "startedAt": "2026-08-23T08:00:00Z",
+              "status": "RUNNING",
+              "toolCalls": [],
+              "updatedAt": "2026-08-23T08:00:00Z",
+              "workMode": "chat"
+            }
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "memory-create",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/memory",
+      "body": "{\"scope\":\"agent\",\"agentId\":\"fixture-agent\",\"key\":\"risk\",\"value\":\"risk first\"}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "agentId": "fixture-agent",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "agent-fixture-agent-risk",
+            "key": "risk",
+            "scope": "agent",
+            "updatedAt": "2026-08-23T08:00:00Z",
+            "value": "risk first"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "optimization-cancel",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/optimization-tasks/optimization-task/cancel",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "optimization-task",
+            "objective": "fixture objective",
+            "progress": {
+              "cancelled": 0,
+              "completed": 0,
+              "failed": 1,
+              "running": 0,
+              "total": 1
+            },
+            "runs": [
+              {
+                "definitionId": "definition-1",
+                "result": null,
+                "runId": "missing-run",
+                "status": "missing"
+              }
+            ],
+            "status": "cancelled",
+            "updatedAt": "2026-08-23T08:00:00Z"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "provider-create",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/providers",
+      "body": "{\"id\":\"created-provider\",\"displayName\":\"Created Provider\",\"baseUrl\":\"http://127.0.0.1:1/v1\",\"model\":\"fixture-model\",\"apiKey\":\"fixture-key\",\"enabled\":true}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "baseUrl": "http://127.0.0.1:1/v1",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "default": false,
+            "displayName": "Created Provider",
+            "enabled": true,
+            "hasApiKey": true,
+            "id": "created-provider",
+            "model": "fixture-model",
+            "reasoningConfig": {
+              "mappings": [],
+              "requestField": "reasoning.effort"
+            },
+            "requestTimeoutMs": 180000,
+            "updatedAt": "2026-08-23T08:00:00Z"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "provider-set-default",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/providers/default-provider/default",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "baseUrl": "http://127.0.0.1:1/v1",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "default": true,
+            "displayName": "Default Provider",
+            "enabled": true,
+            "hasApiKey": false,
+            "id": "default-provider",
+            "model": "fixture-model",
+            "reasoningConfig": {
+              "mappings": [],
+              "requestField": "reasoning.effort"
+            },
+            "requestTimeoutMs": 180000,
+            "updatedAt": "2026-08-23T08:00:00Z"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "provider-test-missing",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/providers/missing-provider/test",
+      "body": "{\"mode\":\"quick\"}",
+      "expected": {
+        "status": 502,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "error": {
+            "code": "ADK_PROVIDER_TEST_FAILED",
+            "message": "provider not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "run-cancel",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/runs/cancel-run/cancel",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "agentId": "fixture-agent",
+            "cancelledAt": "2026-08-23T08:00:00Z",
+            "completedAt": "2026-08-23T08:00:00Z",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "errorCode": "RUN_CANCELLED",
+            "failureReason": "run was cancelled by user",
+            "id": "cancel-run",
+            "maxDurationMs": 0,
+            "message": "cancelled",
+            "pendingApprovals": [],
+            "sessionId": "fixture-session",
+            "status": "CANCELLED",
+            "toolCalls": [],
+            "updatedAt": "2026-08-23T08:00:00Z",
+            "workMode": "chat"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "run-input-response",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/runs/input-run/input-response",
+      "body": "{\"requestId\":\"input-request\",\"answers\":[{\"questionId\":\"question-1\",\"optionId\":\"option-yes\"}]}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "request": {
+              "agentId": "fixture-agent",
+              "answeredAt": "2026-08-23T08:00:00Z",
+              "answers": [
+                {
+                  "optionId": "option-yes",
+                  "questionId": "question-1"
+                }
+              ],
+              "createdAt": "2026-08-23T08:00:00Z",
+              "functionCallId": "input-function",
+              "id": "input-request",
+              "questions": [
+                {
+                  "allowOther": false,
+                  "id": "question-1",
+                  "options": [
+                    {
+                      "id": "option-yes",
+                      "label": "Yes"
+                    }
+                  ],
+                  "question": "Continue?"
+                }
+              ],
+              "runId": "input-run",
+              "status": "ANSWERED",
+              "title": "Fixture question",
+              "updatedAt": "2026-08-23T08:00:00Z"
+            },
+            "run": {
+              "agentId": "fixture-agent",
+              "createdAt": "2026-08-23T08:00:00Z",
+              "id": "input-run",
+              "inputRequest": {
+                "agentId": "fixture-agent",
+                "answeredAt": "2026-08-23T08:00:00Z",
+                "answers": [
+                  {
+                    "optionId": "option-yes",
+                    "questionId": "question-1"
+                  }
+                ],
+                "createdAt": "2026-08-23T08:00:00Z",
+                "functionCallId": "input-function",
+                "id": "input-request",
+                "questions": [
+                  {
+                    "allowOther": false,
+                    "id": "question-1",
+                    "options": [
+                      {
+                        "id": "option-yes",
+                        "label": "Yes"
+                      }
+                    ],
+                    "question": "Continue?"
+                  }
+                ],
+                "runId": "input-run",
+                "status": "ANSWERED",
+                "title": "Fixture question",
+                "updatedAt": "2026-08-23T08:00:00Z"
+              },
+              "inputRequests": [
+                {
+                  "agentId": "fixture-agent",
+                  "answeredAt": "2026-08-23T08:00:00Z",
+                  "answers": [
+                    {
+                      "optionId": "option-yes",
+                      "questionId": "question-1"
+                    }
+                  ],
+                  "createdAt": "2026-08-23T08:00:00Z",
+                  "functionCallId": "input-function",
+                  "id": "input-request",
+                  "questions": [
+                    {
+                      "allowOther": false,
+                      "id": "question-1",
+                      "options": [
+                        {
+                          "id": "option-yes",
+                          "label": "Yes"
+                        }
+                      ],
+                      "question": "Continue?"
+                    }
+                  ],
+                  "runId": "input-run",
+                  "status": "ANSWERED",
+                  "title": "Fixture question",
+                  "updatedAt": "2026-08-23T08:00:00Z"
+                }
+              ],
+              "maxDurationMs": 0,
+              "message": "正在根据用户回答继续执行。",
+              "pendingApprovals": [],
+              "resumeState": "input_resuming",
+              "sessionId": "fixture-session",
+              "status": "RUNNING",
+              "toolCalls": [],
+              "updatedAt": "2026-08-23T08:00:00Z",
+              "workMode": "chat"
+            }
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "run-pause",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/runs/pause-run/pause",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "agentId": "fixture-agent",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "pause-run",
+            "maxDurationMs": 0,
+            "message": "目标将在当前轮结束后暂停。",
+            "pauseRequestedAt": "2026-08-23T08:00:00Z",
+            "pendingApprovals": [],
+            "resumeState": "user_pause_requested",
+            "sessionId": "fixture-session",
+            "status": "RUNNING",
+            "toolCalls": [],
+            "updatedAt": "2026-08-23T08:00:00Z",
+            "workMode": "loop",
+            "workflowStatus": "RUNNING"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "run-resume",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/runs/resume-run/resume",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "agentId": "fixture-agent",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "resume-run",
+            "maxDurationMs": 0,
+            "message": "goal resumed",
+            "pendingApprovals": [],
+            "resumeState": "user_resuming",
+            "sessionId": "fixture-session",
+            "status": "RUNNING",
+            "toolCalls": [],
+            "updatedAt": "2026-08-23T08:00:00Z",
+            "workMode": "loop",
+            "workflowStatus": "RUNNING"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "session-create",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/sessions",
+      "body": "{\"agentId\":\"fixture-agent\",\"title\":\"Created fixture session\"}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "agentId": "fixture-agent",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "fixture-session-created",
+            "title": "Created fixture session",
+            "updatedAt": "2026-08-23T08:00:00Z"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "session-context-compact",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/sessions/fixture-session/context/compact",
+      "body": "{\"mode\":\"summary\",\"reason\":\"fixture compaction\"}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "activeHandoffCount": 0,
+            "autoCompacted": false,
+            "breakdown": {
+              "handoffTokens": 0,
+              "instructionTokens": 3,
+              "otherVisibleTokens": 0,
+              "pendingUserTokens": 0,
+              "protectedTailTokens": 0,
+              "recentUserTokens": 0,
+              "toolDeclarationTokens": 894
+            },
+            "contextRevisionCreatedAt": "2026-08-23T08:00:00Z",
+            "contextRevisionId": "fixture-context-revision",
+            "contextWindowTokens": 0,
+            "currentInputTokens": 897,
+            "degradedSummary": false,
+            "estimatedInputTokens": 897,
+            "lastCompactedAt": "2026-08-23T08:00:00Z",
+            "lastCompactionMode": "manual",
+            "lastCompactionReason": "fixture compaction",
+            "projectedNextTurnTokens": 897,
+            "rawBreakdown": {
+              "handoffTokens": 0,
+              "instructionTokens": 3,
+              "otherVisibleTokens": 0,
+              "pendingUserTokens": 0,
+              "protectedTailTokens": 0,
+              "recentUserTokens": 0,
+              "toolDeclarationTokens": 894
+            },
+            "rawCurrentInputTokens": 897,
+            "rawProjectedNextTurnTokens": 897,
+            "recentUserWindow": 6,
+            "retainedRecentUserCount": 0,
+            "sessionId": "fixture-session",
+            "status": "unknown",
+            "usageRatio": 0
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "skill-install-invalid-source",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/skills",
+      "body": "{\"url\":\"not-a-url\"}",
+      "expected": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "error": {
+            "code": "ADK_SKILL_INSTALL_FAILED",
+            "message": "valid http/https skill URL is required"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "task-create",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/tasks",
+      "body": "{\"id\":\"created-task\",\"title\":\"Created task\",\"status\":\"TODO\",\"agentId\":\"fixture-agent\",\"order\":1}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "agentId": "fixture-agent",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "created-task",
+            "order": 1,
+            "status": "TODO",
+            "title": "Created task",
+            "updatedAt": "2026-08-23T08:00:00Z"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "workflow-trigger-run-missing",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/workflow-triggers/missing-trigger/run",
+      "body": "{\"inputs\":{\"source\":\"fixture\"}}",
+      "expected": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "error": {
+            "code": "ADK_WORKFLOW_TRIGGER_RUN_FAILED",
+            "message": "workflow trigger not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "workflow-webhook-disabled",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/workflow-webhooks/disabled-webhook",
+      "body": "{\"inputs\":{\"source\":\"fixture\"}}",
+      "expected": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "error": {
+            "code": "ADK_WORKFLOW_WEBHOOK_FAILED",
+            "message": "workflow webhook is disabled"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "workflow-create",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/workflows",
+      "body": "{\"id\":\"created-workflow\",\"name\":\"Created workflow\",\"status\":\"DISABLED\",\"agentId\":\"fixture-agent\",\"workMode\":\"chat\",\"promptTemplate\":\"Review {{ .symbol }}\",\"defaultInputs\":{\"symbol\":\"US.AAPL\"}}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "agentId": "fixture-agent",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "defaultInputs": {
+              "symbol": "US.AAPL"
+            },
+            "id": "created-workflow",
+            "name": "Created workflow",
+            "promptTemplate": "Review {{ .symbol }}",
+            "status": "DISABLED",
+            "updatedAt": "2026-08-23T08:00:00Z",
+            "workMode": "chat"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "workflow-run-disabled",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/workflows/disabled-workflow/run",
+      "body": "{\"inputs\":{\"source\":\"fixture\"}}",
+      "expected": {
+        "status": 409,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "error": {
+            "code": "ADK_WORKFLOW_RUN_FAILED",
+            "message": "workflow is disabled"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "workflow-trigger-create",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/workflows/trigger-create-workflow/triggers",
+      "body": "{\"id\":\"created-trigger\",\"type\":\"manual\",\"title\":\"Created trigger\",\"status\":\"DISABLED\",\"config\":{\"source\":\"fixture\"}}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "trigger": {
+              "config": {
+                "source": "fixture"
+              },
+              "createdAt": "2026-08-23T08:00:00Z",
+              "id": "created-trigger",
+              "status": "DISABLED",
+              "title": "Created trigger",
+              "type": "manual",
+              "updatedAt": "2026-08-23T08:00:00Z",
+              "workflowId": "trigger-create-workflow"
+            }
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "agent-update",
+      "method": "PUT",
+      "requestPath": "/api/v1/adk/agents/fixture-agent",
+      "body": "{\"name\":\"Updated Fixture Agent\",\"instruction\":\"Updated instruction\",\"providerId\":\"fixture-provider\",\"permissionMode\":\"less_approval\",\"status\":\"ENABLED\"}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "fixture-agent",
+            "instruction": "Updated instruction",
+            "loopMaxIterations": 5,
+            "memoryEnabled": false,
+            "model": "",
+            "name": "Updated Fixture Agent",
+            "permissionMode": "less_approval",
+            "providerId": "fixture-provider",
+            "recentUserWindow": 6,
+            "skills": [],
+            "status": "ENABLED",
+            "toolAccessMode": "all",
+            "tools": [],
+            "updatedAt": "2026-08-23T08:00:00Z",
+            "workMode": "chat"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "provider-update",
+      "method": "PUT",
+      "requestPath": "/api/v1/adk/providers/fixture-provider",
+      "body": "{\"displayName\":\"Updated Fixture Provider\",\"baseUrl\":\"http://127.0.0.1:1/v1\",\"model\":\"updated-model\",\"enabled\":true}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "baseUrl": "http://127.0.0.1:1/v1",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "default": true,
+            "displayName": "Updated Fixture Provider",
+            "enabled": true,
+            "hasApiKey": true,
+            "id": "fixture-provider",
+            "model": "updated-model",
+            "reasoningConfig": {
+              "mappings": [],
+              "requestField": "reasoning.effort"
+            },
+            "requestTimeoutMs": 180000,
+            "updatedAt": "2026-08-23T08:00:00Z"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "session-rename",
+      "method": "PUT",
+      "requestPath": "/api/v1/adk/sessions/fixture-session",
+      "body": "{\"title\":\"Renamed fixture session\"}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "agentId": "fixture-agent",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "fixture-session",
+            "title": "Renamed fixture session",
+            "updatedAt": "2026-08-23T08:00:00Z"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "task-update",
+      "method": "PUT",
+      "requestPath": "/api/v1/adk/tasks/update-task",
+      "body": "{\"status\":\"DONE\",\"order\":2,\"plannerWarnings\":[\"fixture warning\"]}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "createdAt": "2026-08-23T08:00:00Z",
+            "id": "update-task",
+            "order": 2,
+            "plannerWarnings": [
+              "fixture warning"
+            ],
+            "status": "DONE",
+            "title": "Original task",
+            "updatedAt": "2026-08-23T08:00:00Z"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "workflow-update",
+      "method": "PUT",
+      "requestPath": "/api/v1/adk/workflows/update-workflow",
+      "body": "{\"id\":\"update-workflow\",\"name\":\"Updated workflow\",\"status\":\"DISABLED\",\"agentId\":\"fixture-agent\",\"workMode\":\"chat\",\"promptTemplate\":\"Review {{ .symbol }}\",\"defaultInputs\":{\"symbol\":\"US.AAPL\"}}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "agentId": "fixture-agent",
+            "createdAt": "2026-08-23T08:00:00Z",
+            "defaultInputs": {
+              "symbol": "US.AAPL"
+            },
+            "id": "update-workflow",
+            "name": "Updated workflow",
+            "promptTemplate": "Review {{ .symbol }}",
+            "status": "DISABLED",
+            "updatedAt": "2026-08-23T08:00:00Z",
+            "workMode": "chat"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "workflow-trigger-update",
+      "method": "PUT",
+      "requestPath": "/api/v1/adk/workflows/update-trigger-workflow/triggers/update-trigger",
+      "body": "{\"type\":\"manual\",\"title\":\"Updated trigger\",\"status\":\"DISABLED\",\"config\":{\"source\":\"updated\"}}",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": true,
+        "envelope": {
+          "data": {
+            "trigger": {
+              "config": {
+                "source": "updated"
+              },
+              "createdAt": "2026-08-23T08:00:00Z",
+              "id": "update-trigger",
+              "status": "DISABLED",
+              "title": "Updated trigger",
+              "type": "manual",
+              "updatedAt": "2026-08-23T08:00:00Z",
+              "workflowId": "update-trigger-workflow"
+            }
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "agent-malformed-body",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/agents",
+      "body": "{",
+      "expected": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": false,
+        "envelope": {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid agent payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "session-create-empty-body",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/sessions",
+      "expected": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": false,
+        "envelope": {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid session payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "run-objective-blank-id",
+      "method": "PATCH",
+      "requestPath": "/api/v1/adk/runs/%20/objective",
+      "body": "{\"objective\":\"fixture\"}",
+      "expected": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "portCall": false,
+        "envelope": {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "runId is invalid"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T08:00:00Z"
+        }
+      }
+    }
+  ]
+}
