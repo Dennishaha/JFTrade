@@ -66,7 +66,7 @@ quirk: `ShouldBindJSON` accepts the first JSON value and ignores trailing JSON, 
 owner: Go / integration branch
 后续: retain exact one-value decoder behavior until a separate public-contract change is approved.
 
-quirk: Repeated start, sync, cancel, and delete requests are not uniformly idempotent: repeated starts create two queued run mutations, repeated sync cancellation returns success then 404, and repeated run deletion returns success then 404.
+quirk: Repeated start, sync-cancellation, and run-delete requests are not uniformly idempotent: repeated starts create two queued run mutations, repeated sync cancellation returns success then 404, and repeated run deletion returns success then 404. A repeated sync-start request is not included in this fixture and remains an A-tier qualification gap.
 范围: all four routes where applicable
 证据: Go fixture repeated-write cases, fake store/task effect traces, and parameterized Rust delegation replay.
 分类: go-behavior
