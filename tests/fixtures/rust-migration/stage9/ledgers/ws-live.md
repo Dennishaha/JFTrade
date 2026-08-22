@@ -3,7 +3,7 @@
 - Group: `ws-live`
 - Tier: B; this is the live WebSocket route and therefore includes handshake, long-lived event ordering, provider/runtime failure, cancellation, reconnect and close behavior.
 - Operations: 1 GET route: `/api/v1/ws/live`.
-- Current ownership: the shared route ownership ledger remains `remaining` on this worker branch. The integration branch must apply the target `cutover-test-only` entry after reviewing this worker commit.
+- Current ownership: `cutover-test-only`; the route is registered only when the explicit product test-cutover profile supplies `WsLiveSnapshotPort`. Go remains the production owner.
 - Production owner: Go remains the only production owner of WebSocket transport, live client registry, provider/OpenD lifecycle, subscriptions, notification replay, market ticks and depth update bridges. Rust replay is fixture-only and never connects an external service or writes state.
 - Fixture: `tests/fixtures/rust-migration/stage9/ws-live.json`.
 - Go reference: `scripts/rust-migration/stage9_ws_live_reference_test.go`.
@@ -70,6 +70,26 @@ quirk: the first `writeLiveData` pass runs before a provider subscription is ins
 owner: Go / 集成分支
 后续: preserve sequence-zero replay order until a separately approved product behavior change.
 
+quirk: invoking `cargo test -p jftrade-engine` with a lib test filter also schedules unrelated stage shadow binaries; in this checkout one such binary can remain running after the filtered product test has passed.
+范围: `ws-live` / shared product differential harness
+证据: the filtered product test passed, while the package-level cargo process remained alive in `jftrade-stage5-shadow`; `cargo test -p jftrade-engine --lib <filter> -- --exact` exits normally.
+分类: harness
+判定: unresolved
+处置: 修复 fixture/harness
+风险: medium
+owner: 集成分支
+后续: keep the shared differential runner restricted to the engine lib target until package target test behavior is independently fixed; this does not change production code or wire behavior.
+
+quirk: the worker differential script had a blank line at EOF, which made the repository diff gate reject the new harness file.
+范围: `ws-live` / `scripts/rust-migration/check-stage9-ws-live.mjs`
+证据: `pnpm run check:quick` failed in `check-diff` at line 32 before running affected tests; Go/Rust replay output was already green.
+分类: harness
+判定: deviated
+处置: 修复 fixture/harness
+风险: low
+owner: 集成分支
+后续: fixed by removing the trailing blank line; rerun `check:quick` before commit.
+
 ## Integration Wiring Patch Plan
 
 The worker intentionally does not touch shared wiring. The integration branch should apply the smallest patch after cherry-picking this commit:
@@ -80,3 +100,9 @@ The worker intentionally does not touch shared wiring. The integration branch sh
 4. Extend the shared product differential and route-isolation tests only on the integration branch; preserve Go fallback/owner and add an explicit test proving the route is absent without the injected port.
 
 Do not mark this group `cutover-qualified`: the current Rust shared transport does not yet expose the Go live backend, and the high-risk close/origin quirks remain unresolved.
+
+## Integration Review
+
+- Product wiring now gates the existing authenticated loopback WebSocket handler on an explicit `WsLiveSnapshotPort`; the default profile remains at 48 routes and does not register `/api/v1/ws/live`.
+- The shared differential runs `TestStage9WSLiveFixtureMatchesCurrentGoOwner` and the product route-isolation test. The standalone Go/Rust replay remains the wire evidence; no provider, OpenD, subscription, notification, or SQLite lifecycle crosses into Rust.
+- Three-way review (Go handler/reference, Rust replay, harness): replay matches the captured Go corpus. The plain-text Origin rejection, abnormal close behavior, replay ordering, and missing generated `docs/swagger` webaccess setup remain recorded quirks and block qualification.

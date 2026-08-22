@@ -190,6 +190,12 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_ws_live_snapshot_port(mut self, port: Arc<dyn WsLiveSnapshotPort>) -> Self {
+        self.ws_live_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_auth_session_snapshot_port(mut self, port: Arc<dyn AuthSessionSnapshotPort>) -> Self {
         self.auth_session_snapshot_port = Some(port);
         self

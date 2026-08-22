@@ -8,7 +8,16 @@ import { fileURLToPath } from "node:url";
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 function run(command, args, timeoutMs = 300_000, extraEnv = {}) {
-  const result = spawnSync(command, args, {
+  const packageIndex = args.indexOf("-p");
+  const normalizedArgs =
+    command === "cargo" &&
+    args[0] === "test" &&
+    args[packageIndex + 1] === "jftrade-engine" &&
+    !args.includes("--lib") &&
+    !args.includes("--test")
+      ? [...args.slice(0, packageIndex + 2), "--lib", ...args.slice(packageIndex + 2)]
+      : args;
+  const result = spawnSync(command, normalizedArgs, {
     cwd: repositoryRoot,
     encoding: "utf8",
     env: { ...process.env, ...extraEnv },
@@ -19,7 +28,9 @@ function run(command, args, timeoutMs = 300_000, extraEnv = {}) {
   if (result.error?.code === "ETIMEDOUT") throw new Error(`${command} timed out after ${timeoutMs}ms`);
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(" ")} failed:\n${result.stderr || result.stdout}`);
+    throw new Error(
+      `${command} ${normalizedArgs.join(" ")} failed:\n${result.stderr || result.stdout}`,
+    );
   }
 }
 
@@ -245,6 +256,7 @@ for (const testName of [
   "^TestStage9MarketDataNewsSearchReadFixtureMatchesCurrentGoOwner$",
   "^TestStage9MarketDataQuoteReadFixtureMatchesCurrentGoOwner$",
   "^TestStage9MarketDataPredictionReadFixtureMatchesCurrentGoOwner$",
+  "^TestStage9WSLiveFixtureMatchesCurrentGoOwner$",
 ]) {
   run("go", [
     "test",
@@ -597,6 +609,14 @@ for (const testName of [
     "--exact",
   ]);
 }
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::ws_live_tests::ws_live_route_is_registered_only_with_explicit_snapshot_port",
+  "--",
+  "--exact",
+]);
 run("cargo", [
   "test",
   "-p",

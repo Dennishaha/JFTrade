@@ -69,6 +69,13 @@ include!("product_adk_read_port.rs");
 include!("product_market_data_prediction_read_routes.rs");
 include!("product_auth_session_port.rs");
 include!("product_snapshot_errors.rs");
+const WS_LIVE_ROUTE: (&str, &str) = ("GET", "/api/v1/ws/live");
+
+/// Test-cutover gate for the existing authenticated loopback WebSocket
+/// transport. Go remains the owner of live backend and subscription state.
+pub trait WsLiveSnapshotPort: Send + Sync + std::fmt::Debug {
+    fn enabled(&self) -> bool;
+}
 /// Consumer-owned read port for local watchlist membership projections.  The
 /// port is accepted only in test-cutover wiring until the Rust store adapter
 /// owns the same SQLite lifecycle as the Go watchlist service.
@@ -205,6 +212,7 @@ pub struct ProductConfig {
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
+    ws_live_snapshot_port: Option<Arc<dyn WsLiveSnapshotPort>>,
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
@@ -275,6 +283,7 @@ impl ProductConfig {
             plugin_snapshot_port: None,
             alert_snapshot_port: None,
             strategy_definition_snapshot_port: None,
+            ws_live_snapshot_port: None,
             backtest_read_snapshot_port: None,
             backtest_sync_read_snapshot_port: None,
             strategy_read_snapshot_port: None,
