@@ -1,0 +1,569 @@
+{
+  "version": "stage9.ws-live.v1",
+  "route": {
+    "method": "GET",
+    "path": "/api/v1/ws/live"
+  },
+  "cases": [
+    {
+      "name": "heartbeat-no-origin-with-desktop-protocol",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "heartbeat",
+      "input": {
+        "backendAvailable": true,
+        "connectionLimit": 2,
+        "originPolicy": "",
+        "offerProtocol": true,
+        "heartbeatAt": "2026-08-22T00:00:00Z",
+        "heartbeatIntervalMs": 15000,
+        "dataIntervalMs": 3600000,
+        "consoleRefreshIntervalMs": 3600000,
+        "securityDetailsIntervalMs": 3600000,
+        "depthRefreshIntervalMs": 3600000,
+        "securityResolvedAt": "",
+        "depthResolvedAt": "",
+        "depthUpdatedAt": ""
+      },
+      "expected": {
+        "sessions": [
+          {
+            "handshake": {
+              "status": 101,
+              "selectedProtocol": "jftrade.desktop.v1"
+            },
+            "frames": [
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":15000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"\",\"type\":\"heartbeat\"}}\n"
+            ]
+          }
+        ],
+        "calls": {
+          "ensureNotificationBridge": 1,
+          "depthSubscribe": 1,
+          "depthUnsubscribe": 1,
+          "marketTicksCalled": false,
+          "securityCalls": 0,
+          "depthCalls": 0
+        }
+      }
+    },
+    {
+      "name": "subscription-event-order-and-normalization",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "subscription-order",
+      "input": {
+        "backendAvailable": true,
+        "connectionLimit": 2,
+        "originPolicy": "",
+        "offerProtocol": false,
+        "heartbeatAt": "2026-08-22T00:00:00Z",
+        "heartbeatIntervalMs": 3600000,
+        "dataIntervalMs": 3600000,
+        "consoleRefreshIntervalMs": 3600000,
+        "securityDetailsIntervalMs": 3600000,
+        "depthRefreshIntervalMs": 3600000,
+        "securityResolvedAt": "2026-08-22T00:00:01Z",
+        "depthResolvedAt": "2026-08-22T00:00:02Z",
+        "depthUpdatedAt": "",
+        "subscribe": {
+          "providerBrokerId": " futu ",
+          "activeInstruments": [
+            " us.aapl ",
+            "US.AAPL"
+          ],
+          "securityDetails": [
+            {
+              "market": " hk ",
+              "symbol": " 00700 ",
+              "instrumentId": " hk.00700 "
+            }
+          ],
+          "depth": [
+            {
+              "market": " us ",
+              "symbol": " tme ",
+              "instrumentId": " us.tme ",
+              "num": 99
+            }
+          ],
+          "consoleRefresh": true
+        }
+      },
+      "expected": {
+        "sessions": [
+          {
+            "handshake": {
+              "status": 101,
+              "selectedProtocol": ""
+            },
+            "frames": [
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"\",\"type\":\"heartbeat\"}}\n",
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"futu\",\"type\":\"heartbeat\"}}\n",
+              "{\"eventId\":\"console.refresh|console|fixture-time\",\"type\":\"console.refresh\",\"source\":\"system\",\"entityId\":\"console\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"checkedAt\":\"fixture-time\",\"type\":\"console.refresh\"}}\n",
+              "{\"eventId\":\"market.security-details|HK.00700|fixture-time\",\"type\":\"market.security-details\",\"source\":\"market-data\",\"entityId\":\"HK.00700\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"brokerId\":\"futu\",\"meta\":{\"resolvedAt\":\"fixture-time\"},\"request\":{\"instrumentId\":\"HK.00700\",\"market\":\"HK\",\"symbol\":\"00700\"},\"security\":{\"name\":\"Tencent Holdings\"},\"type\":\"market.security-details\"}}\n",
+              "{\"eventId\":\"market.depth|US.TME|50|fixture-time\",\"type\":\"market.depth\",\"source\":\"market-data\",\"entityId\":\"US.TME|50\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"brokerId\":\"futu\",\"depth\":{\"bids\":[{\"price\":\"100\"}]},\"meta\":{\"resolvedAt\":\"fixture-time\"},\"request\":{\"instrumentId\":\"US.TME\",\"market\":\"US\",\"num\":50,\"symbol\":\"TME\"},\"type\":\"market.depth\"}}\n"
+            ]
+          }
+        ],
+        "calls": {
+          "ensureNotificationBridge": 1,
+          "depthSubscribe": 1,
+          "depthUnsubscribe": 1,
+          "marketTicksCalled": false,
+          "securityCalls": 1,
+          "depthCalls": 1
+        }
+      }
+    },
+    {
+      "name": "notification-replay-tick-and-deduplication",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "tick-notification",
+      "input": {
+        "backendAvailable": true,
+        "connectionLimit": 2,
+        "originPolicy": "",
+        "offerProtocol": false,
+        "heartbeatAt": "2026-08-22T00:00:00Z",
+        "heartbeatIntervalMs": 3600000,
+        "dataIntervalMs": 5,
+        "consoleRefreshIntervalMs": 3600000,
+        "securityDetailsIntervalMs": 3600000,
+        "depthRefreshIntervalMs": 3600000,
+        "securityResolvedAt": "",
+        "depthResolvedAt": "",
+        "depthUpdatedAt": "",
+        "subscribe": {
+          "providerBrokerId": "futu",
+          "activeInstruments": [
+            "US.AAPL"
+          ]
+        },
+        "ticks": [
+          {
+            "instrumentId": "US.AAPL",
+            "observedAt": "2026-08-22T00:00:03Z",
+            "payload": {
+              "at": "2026-08-22T00:00:03Z",
+              "price": "100.5",
+              "source": "bbgo:futu",
+              "type": "market-data.tick"
+            }
+          }
+        ],
+        "notifications": [
+          {
+            "sequence": 1,
+            "at": "2026-08-22T00:00:04Z",
+            "level": "warn",
+            "title": "Provider warming",
+            "message": "retrying",
+            "source": "fixture",
+            "brokerId": "futu",
+            "category": "provider"
+          }
+        ]
+      },
+      "expected": {
+        "sessions": [
+          {
+            "handshake": {
+              "status": 101,
+              "selectedProtocol": ""
+            },
+            "frames": [
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"\",\"type\":\"heartbeat\"}}\n",
+              "{\"eventId\":\"system-notification-1\",\"type\":\"system.notification\",\"source\":\"notification\",\"entityId\":\"system-notification-1\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"brokerId\":\"futu\",\"category\":\"provider\",\"id\":\"system-notification-1\",\"level\":\"warn\",\"message\":\"retrying\",\"source\":\"fixture\",\"title\":\"Provider warming\",\"type\":\"system.notification\"}}\n",
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"futu\",\"type\":\"heartbeat\"}}\n",
+              "{\"eventId\":\"market-data.tick|US.AAPL|fixture-time\",\"type\":\"market-data.tick\",\"source\":\"market-data\",\"entityId\":\"US.AAPL\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"brokerId\":\"futu\",\"price\":\"100.5\",\"source\":\"bbgo:futu\",\"type\":\"market-data.tick\"}}\n"
+            ]
+          }
+        ],
+        "calls": {
+          "ensureNotificationBridge": 1,
+          "depthSubscribe": 1,
+          "depthUnsubscribe": 1,
+          "marketTicksCalled": true,
+          "securityCalls": 0,
+          "depthCalls": 0
+        }
+      }
+    },
+    {
+      "name": "depth-push-refresh-and-release",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "depth-update",
+      "input": {
+        "backendAvailable": true,
+        "connectionLimit": 2,
+        "originPolicy": "",
+        "offerProtocol": false,
+        "heartbeatAt": "2026-08-22T00:00:00Z",
+        "heartbeatIntervalMs": 3600000,
+        "dataIntervalMs": 3600000,
+        "consoleRefreshIntervalMs": 3600000,
+        "securityDetailsIntervalMs": 3600000,
+        "depthRefreshIntervalMs": 3600000,
+        "securityResolvedAt": "",
+        "depthResolvedAt": "2026-08-22T00:00:02Z",
+        "depthUpdatedAt": "2026-08-22T00:00:05Z",
+        "subscribe": {
+          "providerBrokerId": "futu",
+          "depth": [
+            {
+              "market": "us",
+              "symbol": "tme",
+              "instrumentId": "US.TME",
+              "num": 50
+            }
+          ]
+        }
+      },
+      "expected": {
+        "sessions": [
+          {
+            "handshake": {
+              "status": 101,
+              "selectedProtocol": ""
+            },
+            "frames": [
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"\",\"type\":\"heartbeat\"}}\n",
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"futu\",\"type\":\"heartbeat\"}}\n",
+              "{\"eventId\":\"market.depth|US.TME|50|fixture-time\",\"type\":\"market.depth\",\"source\":\"market-data\",\"entityId\":\"US.TME|50\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"brokerId\":\"futu\",\"depth\":{\"bids\":[{\"price\":\"100\"}]},\"meta\":{\"resolvedAt\":\"fixture-time\"},\"request\":{\"instrumentId\":\"US.TME\",\"market\":\"US\",\"num\":50,\"symbol\":\"TME\"},\"type\":\"market.depth\"}}\n",
+              "{\"eventId\":\"market.depth|US.TME|50|fixture-time\",\"type\":\"market.depth\",\"source\":\"market-data\",\"entityId\":\"US.TME|50\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"brokerId\":\"futu\",\"depth\":{\"bids\":[{\"price\":\"100\"}]},\"meta\":{\"resolvedAt\":\"fixture-time\"},\"request\":{\"instrumentId\":\"US.TME\",\"market\":\"US\",\"num\":50,\"symbol\":\"TME\"},\"type\":\"market.depth\"}}\n"
+            ]
+          }
+        ],
+        "calls": {
+          "ensureNotificationBridge": 1,
+          "depthSubscribe": 1,
+          "depthUnsubscribe": 1,
+          "marketTicksCalled": false,
+          "securityCalls": 0,
+          "depthCalls": 2
+        }
+      }
+    },
+    {
+      "name": "invalid-subscription-closes-without-code-frame",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "invalid-subscription",
+      "input": {
+        "backendAvailable": true,
+        "connectionLimit": 2,
+        "originPolicy": "",
+        "offerProtocol": false,
+        "heartbeatAt": "2026-08-22T00:00:00Z",
+        "heartbeatIntervalMs": 3600000,
+        "dataIntervalMs": 3600000,
+        "consoleRefreshIntervalMs": 3600000,
+        "securityDetailsIntervalMs": 3600000,
+        "depthRefreshIntervalMs": 3600000,
+        "securityResolvedAt": "",
+        "depthResolvedAt": "",
+        "depthUpdatedAt": ""
+      },
+      "expected": {
+        "sessions": [
+          {
+            "handshake": {
+              "status": 101,
+              "selectedProtocol": ""
+            },
+            "frames": [
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"\",\"type\":\"heartbeat\"}}\n"
+            ],
+            "close": {
+              "kind": "close-code",
+              "code": 1006
+            }
+          }
+        ],
+        "calls": {
+          "ensureNotificationBridge": 1,
+          "depthSubscribe": 1,
+          "depthUnsubscribe": 1,
+          "marketTicksCalled": false,
+          "securityCalls": 0,
+          "depthCalls": 0
+        }
+      }
+    },
+    {
+      "name": "provider-error-cancels-stream",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "provider-error",
+      "input": {
+        "backendAvailable": true,
+        "connectionLimit": 2,
+        "originPolicy": "",
+        "offerProtocol": false,
+        "heartbeatAt": "2026-08-22T00:00:00Z",
+        "heartbeatIntervalMs": 3600000,
+        "dataIntervalMs": 5,
+        "consoleRefreshIntervalMs": 3600000,
+        "securityDetailsIntervalMs": 3600000,
+        "depthRefreshIntervalMs": 3600000,
+        "securityResolvedAt": "",
+        "depthResolvedAt": "",
+        "depthUpdatedAt": "",
+        "subscribe": {
+          "providerBrokerId": "futu",
+          "activeInstruments": [
+            "US.AAPL"
+          ]
+        },
+        "ticksError": true
+      },
+      "expected": {
+        "sessions": [
+          {
+            "handshake": {
+              "status": 101,
+              "selectedProtocol": ""
+            },
+            "frames": [
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"\",\"type\":\"heartbeat\"}}\n",
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"futu\",\"type\":\"heartbeat\"}}\n"
+            ],
+            "close": {
+              "kind": "close-code",
+              "code": 1006
+            }
+          }
+        ],
+        "calls": {
+          "ensureNotificationBridge": 1,
+          "depthSubscribe": 1,
+          "depthUnsubscribe": 1,
+          "marketTicksCalled": true,
+          "securityCalls": 0,
+          "depthCalls": 0
+        }
+      }
+    },
+    {
+      "name": "server-close-cancels-active-client",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "server-close",
+      "input": {
+        "backendAvailable": true,
+        "connectionLimit": 2,
+        "originPolicy": "",
+        "offerProtocol": false,
+        "heartbeatAt": "2026-08-22T00:00:00Z",
+        "heartbeatIntervalMs": 3600000,
+        "dataIntervalMs": 3600000,
+        "consoleRefreshIntervalMs": 3600000,
+        "securityDetailsIntervalMs": 3600000,
+        "depthRefreshIntervalMs": 3600000,
+        "securityResolvedAt": "",
+        "depthResolvedAt": "",
+        "depthUpdatedAt": ""
+      },
+      "expected": {
+        "sessions": [
+          {
+            "handshake": {
+              "status": 101,
+              "selectedProtocol": ""
+            },
+            "frames": [
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"\",\"type\":\"heartbeat\"}}\n"
+            ],
+            "close": {
+              "kind": "close-code",
+              "code": 1006
+            }
+          }
+        ],
+        "calls": {
+          "ensureNotificationBridge": 1,
+          "depthSubscribe": 1,
+          "depthUnsubscribe": 1,
+          "marketTicksCalled": false,
+          "securityCalls": 0,
+          "depthCalls": 0
+        }
+      }
+    },
+    {
+      "name": "client-reconnects-after-disconnect",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "client-reconnect",
+      "input": {
+        "backendAvailable": true,
+        "connectionLimit": 2,
+        "originPolicy": "",
+        "offerProtocol": false,
+        "heartbeatAt": "2026-08-22T00:00:00Z",
+        "heartbeatIntervalMs": 3600000,
+        "dataIntervalMs": 3600000,
+        "consoleRefreshIntervalMs": 3600000,
+        "securityDetailsIntervalMs": 3600000,
+        "depthRefreshIntervalMs": 3600000,
+        "securityResolvedAt": "",
+        "depthResolvedAt": "",
+        "depthUpdatedAt": ""
+      },
+      "expected": {
+        "sessions": [
+          {
+            "handshake": {
+              "status": 101,
+              "selectedProtocol": ""
+            },
+            "frames": [
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"\",\"type\":\"heartbeat\"}}\n"
+            ]
+          },
+          {
+            "handshake": {
+              "status": 101,
+              "selectedProtocol": ""
+            },
+            "frames": [
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":false,\"connected\":1,\"limit\":2},\"providerBrokerId\":\"\",\"type\":\"heartbeat\"}}\n"
+            ]
+          }
+        ],
+        "calls": {
+          "ensureNotificationBridge": 2,
+          "depthSubscribe": 2,
+          "depthUnsubscribe": 2,
+          "marketTicksCalled": false,
+          "securityCalls": 0,
+          "depthCalls": 0
+        }
+      }
+    },
+    {
+      "name": "origin-forbidden-during-handshake",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "origin-forbidden",
+      "input": {
+        "backendAvailable": true,
+        "connectionLimit": 2,
+        "originPolicy": "forbidden",
+        "offerProtocol": false,
+        "heartbeatAt": "2026-08-22T00:00:00Z",
+        "heartbeatIntervalMs": 3600000,
+        "dataIntervalMs": 0,
+        "consoleRefreshIntervalMs": 0,
+        "securityDetailsIntervalMs": 0,
+        "depthRefreshIntervalMs": 0,
+        "securityResolvedAt": "",
+        "depthResolvedAt": "",
+        "depthUpdatedAt": ""
+      },
+      "expected": {
+        "sessions": [],
+        "rejected": {
+          "status": 403,
+          "contentType": "text/plain; charset=utf-8",
+          "body": "Forbidden\n"
+        },
+        "calls": {
+          "ensureNotificationBridge": 0,
+          "depthSubscribe": 0,
+          "depthUnsubscribe": 0,
+          "marketTicksCalled": false,
+          "securityCalls": 0,
+          "depthCalls": 0
+        }
+      }
+    },
+    {
+      "name": "connection-limit-rejection",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "connection-limit",
+      "input": {
+        "backendAvailable": true,
+        "connectionLimit": 1,
+        "originPolicy": "",
+        "offerProtocol": false,
+        "heartbeatAt": "2026-08-22T00:00:00Z",
+        "heartbeatIntervalMs": 3600000,
+        "dataIntervalMs": 3600000,
+        "consoleRefreshIntervalMs": 3600000,
+        "securityDetailsIntervalMs": 3600000,
+        "depthRefreshIntervalMs": 3600000,
+        "securityResolvedAt": "",
+        "depthResolvedAt": "",
+        "depthUpdatedAt": ""
+      },
+      "expected": {
+        "sessions": [
+          {
+            "handshake": {
+              "status": 101,
+              "selectedProtocol": ""
+            },
+            "frames": [
+              "{\"eventId\":\"heartbeat|live-websocket|fixture-time\",\"type\":\"heartbeat\",\"source\":\"system\",\"entityId\":\"live-websocket\",\"serverTime\":\"fixture-time\",\"payload\":{\"at\":\"fixture-time\",\"intervalMs\":3600000,\"liveClients\":{\"atLimit\":true,\"connected\":1,\"limit\":1},\"providerBrokerId\":\"\",\"type\":\"heartbeat\"}}\n"
+            ]
+          }
+        ],
+        "rejected": {
+          "status": 503,
+          "contentType": "application/json; charset=utf-8",
+          "body": "{\"error\":{\"code\":\"LIVE_WS_LIMIT_REACHED\",\"message\":\"live websocket connection limit reached (1)\"},\"ok\":false,\"timestamp\":\"fixture-time\"}\n"
+        },
+        "calls": {
+          "ensureNotificationBridge": 1,
+          "depthSubscribe": 1,
+          "depthUnsubscribe": 1,
+          "marketTicksCalled": false,
+          "securityCalls": 0,
+          "depthCalls": 0
+        }
+      }
+    },
+    {
+      "name": "backend-unavailable-is-not-found",
+      "method": "GET",
+      "requestPath": "/api/v1/ws/live",
+      "scenario": "backend-unavailable",
+      "input": {
+        "backendAvailable": false,
+        "connectionLimit": 2,
+        "originPolicy": "",
+        "offerProtocol": false,
+        "heartbeatAt": "",
+        "heartbeatIntervalMs": 0,
+        "dataIntervalMs": 0,
+        "consoleRefreshIntervalMs": 0,
+        "securityDetailsIntervalMs": 0,
+        "depthRefreshIntervalMs": 0,
+        "securityResolvedAt": "",
+        "depthResolvedAt": "",
+        "depthUpdatedAt": ""
+      },
+      "expected": {
+        "sessions": [],
+        "rejected": {
+          "status": 404,
+          "contentType": "text/plain; charset=utf-8",
+          "body": "404 page not found\n"
+        },
+        "calls": {
+          "ensureNotificationBridge": 0,
+          "depthSubscribe": 0,
+          "depthUnsubscribe": 0,
+          "marketTicksCalled": false,
+          "securityCalls": 0,
+          "depthCalls": 0
+        }
+      }
+    }
+  ]
+}
