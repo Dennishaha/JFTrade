@@ -1,0 +1,1309 @@
+{
+  "version": "stage9.adk-chat-stream.v1",
+  "cases": [
+    {
+      "name": "chat-success",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"hello\"}",
+      "portMode": "success",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "data": {
+            "context": {
+              "activeHandoffCount": 0,
+              "autoCompacted": false,
+              "breakdown": {
+                "handoffTokens": 0,
+                "instructionTokens": 313,
+                "otherVisibleTokens": 3,
+                "pendingUserTokens": 0,
+                "protectedTailTokens": 0,
+                "recentUserTokens": 0,
+                "toolDeclarationTokens": 894
+              },
+              "contextRevisionCreatedAt": "fixture-time",
+              "contextRevisionId": "context-revision-fixture",
+              "contextWindowTokens": 0,
+              "currentInputTokens": 1210,
+              "degradedSummary": false,
+              "estimatedInputTokens": 1210,
+              "projectedNextTurnTokens": 1210,
+              "protectedRecentCount": 1,
+              "rawBreakdown": {
+                "handoffTokens": 0,
+                "instructionTokens": 313,
+                "otherVisibleTokens": 3,
+                "pendingUserTokens": 0,
+                "protectedTailTokens": 0,
+                "recentUserTokens": 0,
+                "toolDeclarationTokens": 894
+              },
+              "rawCurrentInputTokens": 1210,
+              "rawEventCount": 3,
+              "rawProjectedNextTurnTokens": 1210,
+              "recentUserWindow": 6,
+              "retainedRecentUserCount": 1,
+              "sessionId": "session-fixture",
+              "status": "unknown",
+              "usageRatio": 0
+            },
+            "pendingApprovals": [],
+            "reply": "ok",
+            "run": {
+              "agentId": "fixture-agent",
+              "completedAt": "fixture-time",
+              "createdAt": "fixture-time",
+              "finalMessageId": "message-fixture",
+              "id": "run-fixture",
+              "maxDurationMs": 1800000,
+              "message": "completed",
+              "model": "fixture-model",
+              "pendingApprovals": [],
+              "permissionMode": "less_approval",
+              "providerId": "fixture-provider",
+              "providerName": "Fixture Provider",
+              "sessionId": "session-fixture",
+              "startedAt": "fixture-time",
+              "status": "COMPLETED",
+              "toolCalls": [],
+              "updatedAt": "fixture-time",
+              "usage": {
+                "durationMs": 0,
+                "modelCalls": 0,
+                "toolCallsTotal": 0
+              },
+              "userMessage": "hello",
+              "workMode": "chat"
+            },
+            "session": {
+              "agentId": "fixture-agent",
+              "createdAt": "fixture-time",
+              "id": "session-fixture",
+              "title": "hello",
+              "updatedAt": "fixture-time"
+            },
+            "timeline": [
+              {
+                "createdAt": "fixture-time",
+                "id": "timeline-fixture",
+                "kind": "user_message",
+                "runId": "run-fixture",
+                "sequence": 1,
+                "sessionId": "session-fixture",
+                "status": "final",
+                "text": "hello"
+              },
+              {
+                "createdAt": "fixture-time",
+                "id": "timeline-fixture",
+                "kind": "assistant_message",
+                "runId": "run-fixture",
+                "sequence": 2,
+                "sessionId": "session-fixture",
+                "status": "final",
+                "text": "ok"
+              }
+            ]
+          },
+          "ok": true,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "chat-empty-message",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"   \"}",
+      "portMode": "success",
+      "expected": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": "ADK_CHAT_FAILED",
+            "message": "message is required"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "chat-invalid-json",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat",
+      "body": "{",
+      "portMode": "success",
+      "expected": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid chat payload"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "chat-invalid-client-request-id",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat",
+      "body": "{\"agentId\":\"fixture-agent\",\"message\":\"hello\"}",
+      "portMode": "success",
+      "expected": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "clientRequestId must be a valid UUID"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "chat-runtime-unavailable",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"hello\"}",
+      "portMode": "runtime-unavailable",
+      "expected": {
+        "status": 503,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": "ADK_UNAVAILABLE",
+            "message": "ADK runtime is unavailable"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "chat-provider-failure",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"provider failure\"}",
+      "portMode": "provider-failure",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "data": {
+            "context": {
+              "activeHandoffCount": 0,
+              "autoCompacted": false,
+              "breakdown": {
+                "handoffTokens": 0,
+                "instructionTokens": 313,
+                "otherVisibleTokens": 30,
+                "pendingUserTokens": 0,
+                "protectedTailTokens": 0,
+                "recentUserTokens": 0,
+                "toolDeclarationTokens": 894
+              },
+              "contextRevisionCreatedAt": "fixture-time",
+              "contextRevisionId": "context-revision-fixture",
+              "contextWindowTokens": 0,
+              "currentInputTokens": 1237,
+              "degradedSummary": false,
+              "estimatedInputTokens": 1237,
+              "projectedNextTurnTokens": 1237,
+              "protectedRecentCount": 1,
+              "rawBreakdown": {
+                "handoffTokens": 0,
+                "instructionTokens": 313,
+                "otherVisibleTokens": 30,
+                "pendingUserTokens": 0,
+                "protectedTailTokens": 0,
+                "recentUserTokens": 0,
+                "toolDeclarationTokens": 894
+              },
+              "rawCurrentInputTokens": 1237,
+              "rawEventCount": 3,
+              "rawProjectedNextTurnTokens": 1237,
+              "recentUserWindow": 6,
+              "retainedRecentUserCount": 1,
+              "sessionId": "session-fixture",
+              "status": "unknown",
+              "usageRatio": 0
+            },
+            "pendingApprovals": [],
+            "reply": "POST \"http://fixture-provider/responses\": 500 Internal Server Error {\"message\":\"fixture provider failed\"}",
+            "run": {
+              "agentId": "fixture-agent",
+              "completedAt": "fixture-time",
+              "createdAt": "fixture-time",
+              "degraded": true,
+              "errorCode": "MODEL_CALL_FAILED",
+              "failureReason": "POST \"http://fixture-provider/responses\": 500 Internal Server Error {\"message\":\"fixture provider failed\"}",
+              "finalMessageId": "message-fixture",
+              "id": "run-fixture",
+              "maxDurationMs": 1800000,
+              "message": "POST \"http://fixture-provider/responses\": 500 Internal Server Error {\"message\":\"fixture provider failed\"}",
+              "model": "fixture-model",
+              "pendingApprovals": [],
+              "permissionMode": "less_approval",
+              "providerId": "fixture-provider",
+              "providerName": "Fixture Provider",
+              "sessionId": "session-fixture",
+              "startedAt": "fixture-time",
+              "status": "FAILED",
+              "toolCalls": [],
+              "updatedAt": "fixture-time",
+              "usage": {
+                "durationMs": 0,
+                "modelCalls": 0,
+                "toolCallsTotal": 0
+              },
+              "userMessage": "provider failure",
+              "workMode": "chat"
+            },
+            "session": {
+              "agentId": "fixture-agent",
+              "createdAt": "fixture-time",
+              "id": "session-fixture",
+              "title": "provider failure",
+              "updatedAt": "fixture-time"
+            },
+            "timeline": [
+              {
+                "createdAt": "fixture-time",
+                "id": "timeline-fixture",
+                "kind": "user_message",
+                "runId": "run-fixture",
+                "sequence": 1,
+                "sessionId": "session-fixture",
+                "status": "final",
+                "text": "provider failure"
+              },
+              {
+                "createdAt": "fixture-time",
+                "id": "timeline-fixture",
+                "kind": "assistant_message",
+                "runId": "run-fixture",
+                "sequence": 2,
+                "sessionId": "session-fixture",
+                "status": "final",
+                "text": "POST \"http://fixture-provider/responses\": 500 Internal Server Error {\"message\":\"fixture provider failed\"}"
+              }
+            ]
+          },
+          "ok": true,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "chat-idempotency-conflict",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"changed\"}",
+      "portMode": "idempotency-conflict",
+      "expected": {
+        "status": 409,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": "ADK_CHAT_IDEMPOTENCY_CONFLICT",
+            "message": "clientRequestId 11111111-1111-4111-8111-111111111111 was already used with a different chat request"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "chat-auth-required",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"hello\"}",
+      "portMode": "auth-required",
+      "expected": {
+        "status": 401,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": "WEB_AUTH_REQUIRED",
+            "message": "Web password authentication is required"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "chat-csrf-forbidden",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"hello\"}",
+      "requestHeaders": {
+        "Origin": "http://localhost:3003"
+      },
+      "portMode": "csrf-forbidden",
+      "expected": {
+        "status": 403,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": "CSRF_FAILED",
+            "message": "valid CSRF token is required"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "chat-method-not-found",
+      "method": "GET",
+      "requestPath": "/api/v1/adk/chat",
+      "portMode": "not-found",
+      "expected": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": "NOT_FOUND",
+            "message": "unknown endpoint /api/v1/adk/chat"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "stream-success",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat/stream",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"hello\"}",
+      "portMode": "success",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          "Content-Type": "text/event-stream",
+          "X-ADK-Stream-ID": "stream-fixture",
+          "X-ADK-Stream-Idle-Timeout-Ms": "420000"
+        },
+        "body": "retry: 3000\n\nid: stream-fixture:1\ndata: {\"run\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"run-fixture\",\"maxDurationMs\":1800000,\"message\":\"running\",\"model\":\"fixture-model\",\"pendingApprovals\":[],\"permissionMode\":\"less_approval\",\"providerId\":\"fixture-provider\",\"providerName\":\"Fixture Provider\",\"sessionId\":\"session-fixture\",\"startedAt\":\"fixture-time\",\"status\":\"RUNNING\",\"toolCalls\":[],\"updatedAt\":\"fixture-time\",\"usage\":{\"modelCalls\":0,\"toolCallsTotal\":0},\"userMessage\":\"hello\",\"workMode\":\"chat\"},\"runId\":\"run-fixture\",\"sequence\":1,\"streamId\":\"stream-fixture\",\"type\":\"run\"}\n\nid: stream-fixture:2\ndata: {\"runId\":\"run-fixture\",\"sequence\":2,\"streamId\":\"stream-fixture\",\"timeline\":{\"createdAt\":\"fixture-time\",\"id\":\"timeline-fixture\",\"kind\":\"assistant_message\",\"runId\":\"run-fixture\",\"sequence\":1,\"sessionId\":\"session-fixture\",\"status\":\"streaming\",\"text\":\"ok\"},\"type\":\"timeline\"}\n\nid: stream-fixture:3\ndata: {\"run\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"run-fixture\",\"maxDurationMs\":1800000,\"message\":\"running\",\"model\":\"fixture-model\",\"pendingApprovals\":[],\"permissionMode\":\"less_approval\",\"providerId\":\"fixture-provider\",\"providerName\":\"Fixture Provider\",\"sessionId\":\"session-fixture\",\"startedAt\":\"fixture-time\",\"status\":\"RUNNING\",\"toolCalls\":[],\"updatedAt\":\"fixture-time\",\"usage\":{\"modelCalls\":1,\"tokensIn\":1,\"tokensOut\":1,\"toolCallsTotal\":0},\"userMessage\":\"hello\",\"workMode\":\"chat\"},\"runId\":\"run-fixture\",\"sequence\":3,\"streamId\":\"stream-fixture\",\"type\":\"run\"}\n\nid: stream-fixture:4\ndata: {\"sequence\":4,\"session\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"session-fixture\",\"title\":\"hello\",\"updatedAt\":\"fixture-time\"},\"streamId\":\"stream-fixture\",\"type\":\"session\"}\n\nid: stream-fixture:5\ndata: {\"context\":{\"activeHandoffCount\":0,\"autoCompacted\":false,\"breakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":3,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"contextRevisionCreatedAt\":\"fixture-time\",\"contextRevisionId\":\"context-revision-fixture\",\"contextWindowTokens\":0,\"currentInputTokens\":1210,\"degradedSummary\":false,\"estimatedInputTokens\":1210,\"projectedNextTurnTokens\":1210,\"protectedRecentCount\":1,\"rawBreakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":3,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"rawCurrentInputTokens\":1210,\"rawEventCount\":3,\"rawProjectedNextTurnTokens\":1210,\"recentUserWindow\":6,\"retainedRecentUserCount\":1,\"sessionId\":\"session-fixture\",\"status\":\"unknown\",\"usageRatio\":0},\"sequence\":5,\"streamId\":\"stream-fixture\",\"type\":\"context\"}\n\nid: stream-fixture:6\ndata: {\"response\":{\"context\":{\"activeHandoffCount\":0,\"autoCompacted\":false,\"breakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":3,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"contextRevisionCreatedAt\":\"fixture-time\",\"contextRevisionId\":\"context-revision-fixture\",\"contextWindowTokens\":0,\"currentInputTokens\":1210,\"degradedSummary\":false,\"estimatedInputTokens\":1210,\"projectedNextTurnTokens\":1210,\"protectedRecentCount\":1,\"rawBreakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":3,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"rawCurrentInputTokens\":1210,\"rawEventCount\":3,\"rawProjectedNextTurnTokens\":1210,\"recentUserWindow\":6,\"retainedRecentUserCount\":1,\"sessionId\":\"session-fixture\",\"status\":\"unknown\",\"usageRatio\":0},\"pendingApprovals\":[],\"reply\":\"ok\",\"run\":{\"agentId\":\"fixture-agent\",\"completedAt\":\"fixture-time\",\"createdAt\":\"fixture-time\",\"finalMessageId\":\"message-fixture\",\"id\":\"run-fixture\",\"maxDurationMs\":1800000,\"message\":\"completed\",\"model\":\"fixture-model\",\"pendingApprovals\":[],\"permissionMode\":\"less_approval\",\"providerId\":\"fixture-provider\",\"providerName\":\"Fixture Provider\",\"sessionId\":\"session-fixture\",\"startedAt\":\"fixture-time\",\"status\":\"COMPLETED\",\"toolCalls\":[],\"updatedAt\":\"fixture-time\",\"usage\":{\"durationMs\":0,\"modelCalls\":0,\"toolCallsTotal\":0},\"userMessage\":\"hello\",\"workMode\":\"chat\"},\"session\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"session-fixture\",\"title\":\"hello\",\"updatedAt\":\"fixture-time\"},\"timeline\":[{\"createdAt\":\"fixture-time\",\"id\":\"timeline-fixture\",\"kind\":\"user_message\",\"runId\":\"run-fixture\",\"sequence\":1,\"sessionId\":\"session-fixture\",\"status\":\"final\",\"text\":\"hello\"},{\"createdAt\":\"fixture-time\",\"id\":\"timeline-fixture\",\"kind\":\"assistant_message\",\"runId\":\"run-fixture\",\"sequence\":2,\"sessionId\":\"session-fixture\",\"status\":\"final\",\"text\":\"ok\"}]},\"runId\":\"run-fixture\",\"sequence\":6,\"streamId\":\"stream-fixture\",\"type\":\"final\"}\n\n",
+        "frames": [
+          {
+            "kind": "retry",
+            "milliseconds": 3000
+          },
+          {
+            "kind": "event",
+            "id": "stream-fixture:1",
+            "data": {
+              "run": {
+                "agentId": "fixture-agent",
+                "createdAt": "fixture-time",
+                "id": "run-fixture",
+                "maxDurationMs": 1800000,
+                "message": "running",
+                "model": "fixture-model",
+                "pendingApprovals": [],
+                "permissionMode": "less_approval",
+                "providerId": "fixture-provider",
+                "providerName": "Fixture Provider",
+                "sessionId": "session-fixture",
+                "startedAt": "fixture-time",
+                "status": "RUNNING",
+                "toolCalls": [],
+                "updatedAt": "fixture-time",
+                "usage": {
+                  "modelCalls": 0,
+                  "toolCallsTotal": 0
+                },
+                "userMessage": "hello",
+                "workMode": "chat"
+              },
+              "runId": "run-fixture",
+              "sequence": 1,
+              "streamId": "stream-fixture",
+              "type": "run"
+            }
+          },
+          {
+            "kind": "event",
+            "id": "stream-fixture:2",
+            "data": {
+              "runId": "run-fixture",
+              "sequence": 2,
+              "streamId": "stream-fixture",
+              "timeline": {
+                "createdAt": "fixture-time",
+                "id": "timeline-fixture",
+                "kind": "assistant_message",
+                "runId": "run-fixture",
+                "sequence": 1,
+                "sessionId": "session-fixture",
+                "status": "streaming",
+                "text": "ok"
+              },
+              "type": "timeline"
+            }
+          },
+          {
+            "kind": "event",
+            "id": "stream-fixture:3",
+            "data": {
+              "run": {
+                "agentId": "fixture-agent",
+                "createdAt": "fixture-time",
+                "id": "run-fixture",
+                "maxDurationMs": 1800000,
+                "message": "running",
+                "model": "fixture-model",
+                "pendingApprovals": [],
+                "permissionMode": "less_approval",
+                "providerId": "fixture-provider",
+                "providerName": "Fixture Provider",
+                "sessionId": "session-fixture",
+                "startedAt": "fixture-time",
+                "status": "RUNNING",
+                "toolCalls": [],
+                "updatedAt": "fixture-time",
+                "usage": {
+                  "modelCalls": 1,
+                  "tokensIn": 1,
+                  "tokensOut": 1,
+                  "toolCallsTotal": 0
+                },
+                "userMessage": "hello",
+                "workMode": "chat"
+              },
+              "runId": "run-fixture",
+              "sequence": 3,
+              "streamId": "stream-fixture",
+              "type": "run"
+            }
+          },
+          {
+            "kind": "event",
+            "id": "stream-fixture:4",
+            "data": {
+              "sequence": 4,
+              "session": {
+                "agentId": "fixture-agent",
+                "createdAt": "fixture-time",
+                "id": "session-fixture",
+                "title": "hello",
+                "updatedAt": "fixture-time"
+              },
+              "streamId": "stream-fixture",
+              "type": "session"
+            }
+          },
+          {
+            "kind": "event",
+            "id": "stream-fixture:5",
+            "data": {
+              "context": {
+                "activeHandoffCount": 0,
+                "autoCompacted": false,
+                "breakdown": {
+                  "handoffTokens": 0,
+                  "instructionTokens": 313,
+                  "otherVisibleTokens": 3,
+                  "pendingUserTokens": 0,
+                  "protectedTailTokens": 0,
+                  "recentUserTokens": 0,
+                  "toolDeclarationTokens": 894
+                },
+                "contextRevisionCreatedAt": "fixture-time",
+                "contextRevisionId": "context-revision-fixture",
+                "contextWindowTokens": 0,
+                "currentInputTokens": 1210,
+                "degradedSummary": false,
+                "estimatedInputTokens": 1210,
+                "projectedNextTurnTokens": 1210,
+                "protectedRecentCount": 1,
+                "rawBreakdown": {
+                  "handoffTokens": 0,
+                  "instructionTokens": 313,
+                  "otherVisibleTokens": 3,
+                  "pendingUserTokens": 0,
+                  "protectedTailTokens": 0,
+                  "recentUserTokens": 0,
+                  "toolDeclarationTokens": 894
+                },
+                "rawCurrentInputTokens": 1210,
+                "rawEventCount": 3,
+                "rawProjectedNextTurnTokens": 1210,
+                "recentUserWindow": 6,
+                "retainedRecentUserCount": 1,
+                "sessionId": "session-fixture",
+                "status": "unknown",
+                "usageRatio": 0
+              },
+              "sequence": 5,
+              "streamId": "stream-fixture",
+              "type": "context"
+            }
+          },
+          {
+            "kind": "event",
+            "id": "stream-fixture:6",
+            "data": {
+              "response": {
+                "context": {
+                  "activeHandoffCount": 0,
+                  "autoCompacted": false,
+                  "breakdown": {
+                    "handoffTokens": 0,
+                    "instructionTokens": 313,
+                    "otherVisibleTokens": 3,
+                    "pendingUserTokens": 0,
+                    "protectedTailTokens": 0,
+                    "recentUserTokens": 0,
+                    "toolDeclarationTokens": 894
+                  },
+                  "contextRevisionCreatedAt": "fixture-time",
+                  "contextRevisionId": "context-revision-fixture",
+                  "contextWindowTokens": 0,
+                  "currentInputTokens": 1210,
+                  "degradedSummary": false,
+                  "estimatedInputTokens": 1210,
+                  "projectedNextTurnTokens": 1210,
+                  "protectedRecentCount": 1,
+                  "rawBreakdown": {
+                    "handoffTokens": 0,
+                    "instructionTokens": 313,
+                    "otherVisibleTokens": 3,
+                    "pendingUserTokens": 0,
+                    "protectedTailTokens": 0,
+                    "recentUserTokens": 0,
+                    "toolDeclarationTokens": 894
+                  },
+                  "rawCurrentInputTokens": 1210,
+                  "rawEventCount": 3,
+                  "rawProjectedNextTurnTokens": 1210,
+                  "recentUserWindow": 6,
+                  "retainedRecentUserCount": 1,
+                  "sessionId": "session-fixture",
+                  "status": "unknown",
+                  "usageRatio": 0
+                },
+                "pendingApprovals": [],
+                "reply": "ok",
+                "run": {
+                  "agentId": "fixture-agent",
+                  "completedAt": "fixture-time",
+                  "createdAt": "fixture-time",
+                  "finalMessageId": "message-fixture",
+                  "id": "run-fixture",
+                  "maxDurationMs": 1800000,
+                  "message": "completed",
+                  "model": "fixture-model",
+                  "pendingApprovals": [],
+                  "permissionMode": "less_approval",
+                  "providerId": "fixture-provider",
+                  "providerName": "Fixture Provider",
+                  "sessionId": "session-fixture",
+                  "startedAt": "fixture-time",
+                  "status": "COMPLETED",
+                  "toolCalls": [],
+                  "updatedAt": "fixture-time",
+                  "usage": {
+                    "durationMs": 0,
+                    "modelCalls": 0,
+                    "toolCallsTotal": 0
+                  },
+                  "userMessage": "hello",
+                  "workMode": "chat"
+                },
+                "session": {
+                  "agentId": "fixture-agent",
+                  "createdAt": "fixture-time",
+                  "id": "session-fixture",
+                  "title": "hello",
+                  "updatedAt": "fixture-time"
+                },
+                "timeline": [
+                  {
+                    "createdAt": "fixture-time",
+                    "id": "timeline-fixture",
+                    "kind": "user_message",
+                    "runId": "run-fixture",
+                    "sequence": 1,
+                    "sessionId": "session-fixture",
+                    "status": "final",
+                    "text": "hello"
+                  },
+                  {
+                    "createdAt": "fixture-time",
+                    "id": "timeline-fixture",
+                    "kind": "assistant_message",
+                    "runId": "run-fixture",
+                    "sequence": 2,
+                    "sessionId": "session-fixture",
+                    "status": "final",
+                    "text": "ok"
+                  }
+                ]
+              },
+              "runId": "run-fixture",
+              "sequence": 6,
+              "streamId": "stream-fixture",
+              "type": "final"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "stream-invalid-json",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat/stream",
+      "body": "{",
+      "portMode": "success",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          "Content-Type": "text/event-stream",
+          "X-ADK-Stream-Idle-Timeout-Ms": "420000"
+        },
+        "body": "retry: 3000\n\ndata: {\"message\":\"invalid chat payload: unexpected EOF\",\"type\":\"error\"}\n\n",
+        "frames": [
+          {
+            "kind": "retry",
+            "milliseconds": 3000
+          },
+          {
+            "kind": "event",
+            "data": {
+              "message": "invalid chat payload: unexpected EOF",
+              "type": "error"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "stream-invalid-client-request-id",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat/stream",
+      "body": "{\"agentId\":\"fixture-agent\",\"message\":\"hello\"}",
+      "portMode": "success",
+      "expected": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8",
+          "X-ADK-Stream-Idle-Timeout-Ms": "420000"
+        },
+        "body": {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "clientRequestId must be a valid UUID"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "stream-runtime-unavailable",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat/stream",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"hello\"}",
+      "portMode": "runtime-unavailable",
+      "expected": {
+        "status": 503,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": "ADK_UNAVAILABLE",
+            "message": "ADK runtime is unavailable"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "stream-provider-failure",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat/stream",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"provider failure\"}",
+      "portMode": "provider-failure",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          "Content-Type": "text/event-stream",
+          "X-ADK-Stream-ID": "stream-fixture",
+          "X-ADK-Stream-Idle-Timeout-Ms": "420000"
+        },
+        "body": "retry: 3000\n\nid: stream-fixture:1\ndata: {\"run\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"run-fixture\",\"maxDurationMs\":1800000,\"message\":\"running\",\"model\":\"fixture-model\",\"pendingApprovals\":[],\"permissionMode\":\"less_approval\",\"providerId\":\"fixture-provider\",\"providerName\":\"Fixture Provider\",\"sessionId\":\"session-fixture\",\"startedAt\":\"fixture-time\",\"status\":\"RUNNING\",\"toolCalls\":[],\"updatedAt\":\"fixture-time\",\"usage\":{\"modelCalls\":0,\"toolCallsTotal\":0},\"userMessage\":\"provider failure\",\"workMode\":\"chat\"},\"runId\":\"run-fixture\",\"sequence\":1,\"streamId\":\"stream-fixture\",\"type\":\"run\"}\n\nid: stream-fixture:2\ndata: {\"sequence\":2,\"session\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"session-fixture\",\"title\":\"provider failure\",\"updatedAt\":\"fixture-time\"},\"streamId\":\"stream-fixture\",\"type\":\"session\"}\n\nid: stream-fixture:3\ndata: {\"context\":{\"activeHandoffCount\":0,\"autoCompacted\":false,\"breakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":30,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"contextRevisionCreatedAt\":\"fixture-time\",\"contextRevisionId\":\"context-revision-fixture\",\"contextWindowTokens\":0,\"currentInputTokens\":1237,\"degradedSummary\":false,\"estimatedInputTokens\":1237,\"projectedNextTurnTokens\":1237,\"protectedRecentCount\":1,\"rawBreakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":30,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"rawCurrentInputTokens\":1237,\"rawEventCount\":3,\"rawProjectedNextTurnTokens\":1237,\"recentUserWindow\":6,\"retainedRecentUserCount\":1,\"sessionId\":\"session-fixture\",\"status\":\"unknown\",\"usageRatio\":0},\"sequence\":3,\"streamId\":\"stream-fixture\",\"type\":\"context\"}\n\nid: stream-fixture:4\ndata: {\"response\":{\"context\":{\"activeHandoffCount\":0,\"autoCompacted\":false,\"breakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":30,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"contextRevisionCreatedAt\":\"fixture-time\",\"contextRevisionId\":\"context-revision-fixture\",\"contextWindowTokens\":0,\"currentInputTokens\":1237,\"degradedSummary\":false,\"estimatedInputTokens\":1237,\"projectedNextTurnTokens\":1237,\"protectedRecentCount\":1,\"rawBreakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":30,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"rawCurrentInputTokens\":1237,\"rawEventCount\":3,\"rawProjectedNextTurnTokens\":1237,\"recentUserWindow\":6,\"retainedRecentUserCount\":1,\"sessionId\":\"session-fixture\",\"status\":\"unknown\",\"usageRatio\":0},\"pendingApprovals\":[],\"reply\":\"POST \\\"http://fixture-provider/responses\\\": 500 Internal Server Error {\\\"message\\\":\\\"fixture provider failed\\\"}\",\"run\":{\"agentId\":\"fixture-agent\",\"completedAt\":\"fixture-time\",\"createdAt\":\"fixture-time\",\"degraded\":true,\"errorCode\":\"MODEL_CALL_FAILED\",\"failureReason\":\"POST \\\"http://fixture-provider/responses\\\": 500 Internal Server Error {\\\"message\\\":\\\"fixture provider failed\\\"}\",\"finalMessageId\":\"message-fixture\",\"id\":\"run-fixture\",\"maxDurationMs\":1800000,\"message\":\"POST \\\"http://fixture-provider/responses\\\": 500 Internal Server Error {\\\"message\\\":\\\"fixture provider failed\\\"}\",\"model\":\"fixture-model\",\"pendingApprovals\":[],\"permissionMode\":\"less_approval\",\"providerId\":\"fixture-provider\",\"providerName\":\"Fixture Provider\",\"sessionId\":\"session-fixture\",\"startedAt\":\"fixture-time\",\"status\":\"FAILED\",\"toolCalls\":[],\"updatedAt\":\"fixture-time\",\"usage\":{\"durationMs\":0,\"modelCalls\":0,\"toolCallsTotal\":0},\"userMessage\":\"provider failure\",\"workMode\":\"chat\"},\"session\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"session-fixture\",\"title\":\"provider failure\",\"updatedAt\":\"fixture-time\"},\"timeline\":[{\"createdAt\":\"fixture-time\",\"id\":\"timeline-fixture\",\"kind\":\"user_message\",\"runId\":\"run-fixture\",\"sequence\":1,\"sessionId\":\"session-fixture\",\"status\":\"final\",\"text\":\"provider failure\"},{\"createdAt\":\"fixture-time\",\"id\":\"timeline-fixture\",\"kind\":\"assistant_message\",\"runId\":\"run-fixture\",\"sequence\":2,\"sessionId\":\"session-fixture\",\"status\":\"final\",\"text\":\"POST \\\"http://fixture-provider/responses\\\": 500 Internal Server Error {\\\"message\\\":\\\"fixture provider failed\\\"}\"}]},\"runId\":\"run-fixture\",\"sequence\":4,\"streamId\":\"stream-fixture\",\"type\":\"final\"}\n\n",
+        "frames": [
+          {
+            "kind": "retry",
+            "milliseconds": 3000
+          },
+          {
+            "kind": "event",
+            "id": "stream-fixture:1",
+            "data": {
+              "run": {
+                "agentId": "fixture-agent",
+                "createdAt": "fixture-time",
+                "id": "run-fixture",
+                "maxDurationMs": 1800000,
+                "message": "running",
+                "model": "fixture-model",
+                "pendingApprovals": [],
+                "permissionMode": "less_approval",
+                "providerId": "fixture-provider",
+                "providerName": "Fixture Provider",
+                "sessionId": "session-fixture",
+                "startedAt": "fixture-time",
+                "status": "RUNNING",
+                "toolCalls": [],
+                "updatedAt": "fixture-time",
+                "usage": {
+                  "modelCalls": 0,
+                  "toolCallsTotal": 0
+                },
+                "userMessage": "provider failure",
+                "workMode": "chat"
+              },
+              "runId": "run-fixture",
+              "sequence": 1,
+              "streamId": "stream-fixture",
+              "type": "run"
+            }
+          },
+          {
+            "kind": "event",
+            "id": "stream-fixture:2",
+            "data": {
+              "sequence": 2,
+              "session": {
+                "agentId": "fixture-agent",
+                "createdAt": "fixture-time",
+                "id": "session-fixture",
+                "title": "provider failure",
+                "updatedAt": "fixture-time"
+              },
+              "streamId": "stream-fixture",
+              "type": "session"
+            }
+          },
+          {
+            "kind": "event",
+            "id": "stream-fixture:3",
+            "data": {
+              "context": {
+                "activeHandoffCount": 0,
+                "autoCompacted": false,
+                "breakdown": {
+                  "handoffTokens": 0,
+                  "instructionTokens": 313,
+                  "otherVisibleTokens": 30,
+                  "pendingUserTokens": 0,
+                  "protectedTailTokens": 0,
+                  "recentUserTokens": 0,
+                  "toolDeclarationTokens": 894
+                },
+                "contextRevisionCreatedAt": "fixture-time",
+                "contextRevisionId": "context-revision-fixture",
+                "contextWindowTokens": 0,
+                "currentInputTokens": 1237,
+                "degradedSummary": false,
+                "estimatedInputTokens": 1237,
+                "projectedNextTurnTokens": 1237,
+                "protectedRecentCount": 1,
+                "rawBreakdown": {
+                  "handoffTokens": 0,
+                  "instructionTokens": 313,
+                  "otherVisibleTokens": 30,
+                  "pendingUserTokens": 0,
+                  "protectedTailTokens": 0,
+                  "recentUserTokens": 0,
+                  "toolDeclarationTokens": 894
+                },
+                "rawCurrentInputTokens": 1237,
+                "rawEventCount": 3,
+                "rawProjectedNextTurnTokens": 1237,
+                "recentUserWindow": 6,
+                "retainedRecentUserCount": 1,
+                "sessionId": "session-fixture",
+                "status": "unknown",
+                "usageRatio": 0
+              },
+              "sequence": 3,
+              "streamId": "stream-fixture",
+              "type": "context"
+            }
+          },
+          {
+            "kind": "event",
+            "id": "stream-fixture:4",
+            "data": {
+              "response": {
+                "context": {
+                  "activeHandoffCount": 0,
+                  "autoCompacted": false,
+                  "breakdown": {
+                    "handoffTokens": 0,
+                    "instructionTokens": 313,
+                    "otherVisibleTokens": 30,
+                    "pendingUserTokens": 0,
+                    "protectedTailTokens": 0,
+                    "recentUserTokens": 0,
+                    "toolDeclarationTokens": 894
+                  },
+                  "contextRevisionCreatedAt": "fixture-time",
+                  "contextRevisionId": "context-revision-fixture",
+                  "contextWindowTokens": 0,
+                  "currentInputTokens": 1237,
+                  "degradedSummary": false,
+                  "estimatedInputTokens": 1237,
+                  "projectedNextTurnTokens": 1237,
+                  "protectedRecentCount": 1,
+                  "rawBreakdown": {
+                    "handoffTokens": 0,
+                    "instructionTokens": 313,
+                    "otherVisibleTokens": 30,
+                    "pendingUserTokens": 0,
+                    "protectedTailTokens": 0,
+                    "recentUserTokens": 0,
+                    "toolDeclarationTokens": 894
+                  },
+                  "rawCurrentInputTokens": 1237,
+                  "rawEventCount": 3,
+                  "rawProjectedNextTurnTokens": 1237,
+                  "recentUserWindow": 6,
+                  "retainedRecentUserCount": 1,
+                  "sessionId": "session-fixture",
+                  "status": "unknown",
+                  "usageRatio": 0
+                },
+                "pendingApprovals": [],
+                "reply": "POST \"http://fixture-provider/responses\": 500 Internal Server Error {\"message\":\"fixture provider failed\"}",
+                "run": {
+                  "agentId": "fixture-agent",
+                  "completedAt": "fixture-time",
+                  "createdAt": "fixture-time",
+                  "degraded": true,
+                  "errorCode": "MODEL_CALL_FAILED",
+                  "failureReason": "POST \"http://fixture-provider/responses\": 500 Internal Server Error {\"message\":\"fixture provider failed\"}",
+                  "finalMessageId": "message-fixture",
+                  "id": "run-fixture",
+                  "maxDurationMs": 1800000,
+                  "message": "POST \"http://fixture-provider/responses\": 500 Internal Server Error {\"message\":\"fixture provider failed\"}",
+                  "model": "fixture-model",
+                  "pendingApprovals": [],
+                  "permissionMode": "less_approval",
+                  "providerId": "fixture-provider",
+                  "providerName": "Fixture Provider",
+                  "sessionId": "session-fixture",
+                  "startedAt": "fixture-time",
+                  "status": "FAILED",
+                  "toolCalls": [],
+                  "updatedAt": "fixture-time",
+                  "usage": {
+                    "durationMs": 0,
+                    "modelCalls": 0,
+                    "toolCallsTotal": 0
+                  },
+                  "userMessage": "provider failure",
+                  "workMode": "chat"
+                },
+                "session": {
+                  "agentId": "fixture-agent",
+                  "createdAt": "fixture-time",
+                  "id": "session-fixture",
+                  "title": "provider failure",
+                  "updatedAt": "fixture-time"
+                },
+                "timeline": [
+                  {
+                    "createdAt": "fixture-time",
+                    "id": "timeline-fixture",
+                    "kind": "user_message",
+                    "runId": "run-fixture",
+                    "sequence": 1,
+                    "sessionId": "session-fixture",
+                    "status": "final",
+                    "text": "provider failure"
+                  },
+                  {
+                    "createdAt": "fixture-time",
+                    "id": "timeline-fixture",
+                    "kind": "assistant_message",
+                    "runId": "run-fixture",
+                    "sequence": 2,
+                    "sessionId": "session-fixture",
+                    "status": "final",
+                    "text": "POST \"http://fixture-provider/responses\": 500 Internal Server Error {\"message\":\"fixture provider failed\"}"
+                  }
+                ]
+              },
+              "runId": "run-fixture",
+              "sequence": 4,
+              "streamId": "stream-fixture",
+              "type": "final"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "stream-idempotency-conflict",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat/stream",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"changed\"}",
+      "portMode": "idempotency-conflict",
+      "expected": {
+        "status": 409,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8",
+          "X-ADK-Stream-Idle-Timeout-Ms": "420000"
+        },
+        "body": {
+          "error": {
+            "code": "ADK_CHAT_IDEMPOTENCY_CONFLICT",
+            "message": "clientRequestId 11111111-1111-4111-8111-111111111111 was already used with a different chat request"
+          },
+          "ok": false,
+          "timestamp": "fixture-time"
+        }
+      }
+    },
+    {
+      "name": "stream-client-disconnect",
+      "method": "POST",
+      "requestPath": "/api/v1/adk/chat/stream",
+      "body": "{\"clientRequestId\":\"11111111-1111-4111-8111-111111111111\",\"agentId\":\"fixture-agent\",\"message\":\"disconnect\"}",
+      "portMode": "client-disconnect",
+      "expected": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          "Content-Type": "text/event-stream",
+          "X-ADK-Stream-ID": "stream-fixture",
+          "X-ADK-Stream-Idle-Timeout-Ms": "420000"
+        },
+        "body": ""
+      },
+      "observation": {
+        "closedAfterTerminal": true,
+        "replay": {
+          "status": 200,
+          "headers": {
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+            "X-ADK-Stream-ID": "stream-fixture"
+          },
+          "body": "retry: 3000\n\nid: stream-fixture:1\ndata: {\"run\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"run-fixture\",\"maxDurationMs\":1800000,\"message\":\"running\",\"model\":\"fixture-model\",\"pendingApprovals\":[],\"permissionMode\":\"less_approval\",\"providerId\":\"fixture-provider\",\"providerName\":\"Fixture Provider\",\"sessionId\":\"session-fixture\",\"startedAt\":\"fixture-time\",\"status\":\"RUNNING\",\"toolCalls\":[],\"updatedAt\":\"fixture-time\",\"usage\":{\"modelCalls\":0,\"toolCallsTotal\":0},\"userMessage\":\"disconnect\",\"workMode\":\"chat\"},\"runId\":\"run-fixture\",\"sequence\":1,\"streamId\":\"stream-fixture\",\"type\":\"run\"}\n\nid: stream-fixture:2\ndata: {\"runId\":\"run-fixture\",\"sequence\":2,\"streamId\":\"stream-fixture\",\"timeline\":{\"createdAt\":\"fixture-time\",\"id\":\"timeline-fixture\",\"kind\":\"assistant_message\",\"runId\":\"run-fixture\",\"sequence\":1,\"sessionId\":\"session-fixture\",\"status\":\"streaming\",\"text\":\"ok\"},\"type\":\"timeline\"}\n\nid: stream-fixture:3\ndata: {\"run\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"run-fixture\",\"maxDurationMs\":1800000,\"message\":\"running\",\"model\":\"fixture-model\",\"pendingApprovals\":[],\"permissionMode\":\"less_approval\",\"providerId\":\"fixture-provider\",\"providerName\":\"Fixture Provider\",\"sessionId\":\"session-fixture\",\"startedAt\":\"fixture-time\",\"status\":\"RUNNING\",\"toolCalls\":[],\"updatedAt\":\"fixture-time\",\"usage\":{\"modelCalls\":1,\"tokensIn\":1,\"tokensOut\":1,\"toolCallsTotal\":0},\"userMessage\":\"disconnect\",\"workMode\":\"chat\"},\"runId\":\"run-fixture\",\"sequence\":3,\"streamId\":\"stream-fixture\",\"type\":\"run\"}\n\nid: stream-fixture:4\ndata: {\"sequence\":4,\"session\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"session-fixture\",\"title\":\"disconnect\",\"updatedAt\":\"fixture-time\"},\"streamId\":\"stream-fixture\",\"type\":\"session\"}\n\nid: stream-fixture:5\ndata: {\"context\":{\"activeHandoffCount\":0,\"autoCompacted\":false,\"breakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":4,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"contextRevisionCreatedAt\":\"fixture-time\",\"contextRevisionId\":\"context-revision-fixture\",\"contextWindowTokens\":0,\"currentInputTokens\":1211,\"degradedSummary\":false,\"estimatedInputTokens\":1211,\"projectedNextTurnTokens\":1211,\"protectedRecentCount\":1,\"rawBreakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":4,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"rawCurrentInputTokens\":1211,\"rawEventCount\":3,\"rawProjectedNextTurnTokens\":1211,\"recentUserWindow\":6,\"retainedRecentUserCount\":1,\"sessionId\":\"session-fixture\",\"status\":\"unknown\",\"usageRatio\":0},\"sequence\":5,\"streamId\":\"stream-fixture\",\"type\":\"context\"}\n\nid: stream-fixture:6\ndata: {\"response\":{\"context\":{\"activeHandoffCount\":0,\"autoCompacted\":false,\"breakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":4,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"contextRevisionCreatedAt\":\"fixture-time\",\"contextRevisionId\":\"context-revision-fixture\",\"contextWindowTokens\":0,\"currentInputTokens\":1211,\"degradedSummary\":false,\"estimatedInputTokens\":1211,\"projectedNextTurnTokens\":1211,\"protectedRecentCount\":1,\"rawBreakdown\":{\"handoffTokens\":0,\"instructionTokens\":313,\"otherVisibleTokens\":4,\"pendingUserTokens\":0,\"protectedTailTokens\":0,\"recentUserTokens\":0,\"toolDeclarationTokens\":894},\"rawCurrentInputTokens\":1211,\"rawEventCount\":3,\"rawProjectedNextTurnTokens\":1211,\"recentUserWindow\":6,\"retainedRecentUserCount\":1,\"sessionId\":\"session-fixture\",\"status\":\"unknown\",\"usageRatio\":0},\"pendingApprovals\":[],\"reply\":\"ok\",\"run\":{\"agentId\":\"fixture-agent\",\"completedAt\":\"fixture-time\",\"createdAt\":\"fixture-time\",\"finalMessageId\":\"message-fixture\",\"id\":\"run-fixture\",\"maxDurationMs\":1800000,\"message\":\"completed\",\"model\":\"fixture-model\",\"pendingApprovals\":[],\"permissionMode\":\"less_approval\",\"providerId\":\"fixture-provider\",\"providerName\":\"Fixture Provider\",\"sessionId\":\"session-fixture\",\"startedAt\":\"fixture-time\",\"status\":\"COMPLETED\",\"toolCalls\":[],\"updatedAt\":\"fixture-time\",\"usage\":{\"durationMs\":0,\"modelCalls\":0,\"toolCallsTotal\":0},\"userMessage\":\"disconnect\",\"workMode\":\"chat\"},\"session\":{\"agentId\":\"fixture-agent\",\"createdAt\":\"fixture-time\",\"id\":\"session-fixture\",\"title\":\"disconnect\",\"updatedAt\":\"fixture-time\"},\"timeline\":[{\"createdAt\":\"fixture-time\",\"id\":\"timeline-fixture\",\"kind\":\"user_message\",\"runId\":\"run-fixture\",\"sequence\":1,\"sessionId\":\"session-fixture\",\"status\":\"final\",\"text\":\"disconnect\"},{\"createdAt\":\"fixture-time\",\"id\":\"timeline-fixture\",\"kind\":\"assistant_message\",\"runId\":\"run-fixture\",\"sequence\":2,\"sessionId\":\"session-fixture\",\"status\":\"final\",\"text\":\"ok\"}]},\"runId\":\"run-fixture\",\"sequence\":6,\"streamId\":\"stream-fixture\",\"type\":\"final\"}\n\n",
+          "frames": [
+            {
+              "kind": "retry",
+              "milliseconds": 3000
+            },
+            {
+              "kind": "event",
+              "id": "stream-fixture:1",
+              "data": {
+                "run": {
+                  "agentId": "fixture-agent",
+                  "createdAt": "fixture-time",
+                  "id": "run-fixture",
+                  "maxDurationMs": 1800000,
+                  "message": "running",
+                  "model": "fixture-model",
+                  "pendingApprovals": [],
+                  "permissionMode": "less_approval",
+                  "providerId": "fixture-provider",
+                  "providerName": "Fixture Provider",
+                  "sessionId": "session-fixture",
+                  "startedAt": "fixture-time",
+                  "status": "RUNNING",
+                  "toolCalls": [],
+                  "updatedAt": "fixture-time",
+                  "usage": {
+                    "modelCalls": 0,
+                    "toolCallsTotal": 0
+                  },
+                  "userMessage": "disconnect",
+                  "workMode": "chat"
+                },
+                "runId": "run-fixture",
+                "sequence": 1,
+                "streamId": "stream-fixture",
+                "type": "run"
+              }
+            },
+            {
+              "kind": "event",
+              "id": "stream-fixture:2",
+              "data": {
+                "runId": "run-fixture",
+                "sequence": 2,
+                "streamId": "stream-fixture",
+                "timeline": {
+                  "createdAt": "fixture-time",
+                  "id": "timeline-fixture",
+                  "kind": "assistant_message",
+                  "runId": "run-fixture",
+                  "sequence": 1,
+                  "sessionId": "session-fixture",
+                  "status": "streaming",
+                  "text": "ok"
+                },
+                "type": "timeline"
+              }
+            },
+            {
+              "kind": "event",
+              "id": "stream-fixture:3",
+              "data": {
+                "run": {
+                  "agentId": "fixture-agent",
+                  "createdAt": "fixture-time",
+                  "id": "run-fixture",
+                  "maxDurationMs": 1800000,
+                  "message": "running",
+                  "model": "fixture-model",
+                  "pendingApprovals": [],
+                  "permissionMode": "less_approval",
+                  "providerId": "fixture-provider",
+                  "providerName": "Fixture Provider",
+                  "sessionId": "session-fixture",
+                  "startedAt": "fixture-time",
+                  "status": "RUNNING",
+                  "toolCalls": [],
+                  "updatedAt": "fixture-time",
+                  "usage": {
+                    "modelCalls": 1,
+                    "tokensIn": 1,
+                    "tokensOut": 1,
+                    "toolCallsTotal": 0
+                  },
+                  "userMessage": "disconnect",
+                  "workMode": "chat"
+                },
+                "runId": "run-fixture",
+                "sequence": 3,
+                "streamId": "stream-fixture",
+                "type": "run"
+              }
+            },
+            {
+              "kind": "event",
+              "id": "stream-fixture:4",
+              "data": {
+                "sequence": 4,
+                "session": {
+                  "agentId": "fixture-agent",
+                  "createdAt": "fixture-time",
+                  "id": "session-fixture",
+                  "title": "disconnect",
+                  "updatedAt": "fixture-time"
+                },
+                "streamId": "stream-fixture",
+                "type": "session"
+              }
+            },
+            {
+              "kind": "event",
+              "id": "stream-fixture:5",
+              "data": {
+                "context": {
+                  "activeHandoffCount": 0,
+                  "autoCompacted": false,
+                  "breakdown": {
+                    "handoffTokens": 0,
+                    "instructionTokens": 313,
+                    "otherVisibleTokens": 4,
+                    "pendingUserTokens": 0,
+                    "protectedTailTokens": 0,
+                    "recentUserTokens": 0,
+                    "toolDeclarationTokens": 894
+                  },
+                  "contextRevisionCreatedAt": "fixture-time",
+                  "contextRevisionId": "context-revision-fixture",
+                  "contextWindowTokens": 0,
+                  "currentInputTokens": 1211,
+                  "degradedSummary": false,
+                  "estimatedInputTokens": 1211,
+                  "projectedNextTurnTokens": 1211,
+                  "protectedRecentCount": 1,
+                  "rawBreakdown": {
+                    "handoffTokens": 0,
+                    "instructionTokens": 313,
+                    "otherVisibleTokens": 4,
+                    "pendingUserTokens": 0,
+                    "protectedTailTokens": 0,
+                    "recentUserTokens": 0,
+                    "toolDeclarationTokens": 894
+                  },
+                  "rawCurrentInputTokens": 1211,
+                  "rawEventCount": 3,
+                  "rawProjectedNextTurnTokens": 1211,
+                  "recentUserWindow": 6,
+                  "retainedRecentUserCount": 1,
+                  "sessionId": "session-fixture",
+                  "status": "unknown",
+                  "usageRatio": 0
+                },
+                "sequence": 5,
+                "streamId": "stream-fixture",
+                "type": "context"
+              }
+            },
+            {
+              "kind": "event",
+              "id": "stream-fixture:6",
+              "data": {
+                "response": {
+                  "context": {
+                    "activeHandoffCount": 0,
+                    "autoCompacted": false,
+                    "breakdown": {
+                      "handoffTokens": 0,
+                      "instructionTokens": 313,
+                      "otherVisibleTokens": 4,
+                      "pendingUserTokens": 0,
+                      "protectedTailTokens": 0,
+                      "recentUserTokens": 0,
+                      "toolDeclarationTokens": 894
+                    },
+                    "contextRevisionCreatedAt": "fixture-time",
+                    "contextRevisionId": "context-revision-fixture",
+                    "contextWindowTokens": 0,
+                    "currentInputTokens": 1211,
+                    "degradedSummary": false,
+                    "estimatedInputTokens": 1211,
+                    "projectedNextTurnTokens": 1211,
+                    "protectedRecentCount": 1,
+                    "rawBreakdown": {
+                      "handoffTokens": 0,
+                      "instructionTokens": 313,
+                      "otherVisibleTokens": 4,
+                      "pendingUserTokens": 0,
+                      "protectedTailTokens": 0,
+                      "recentUserTokens": 0,
+                      "toolDeclarationTokens": 894
+                    },
+                    "rawCurrentInputTokens": 1211,
+                    "rawEventCount": 3,
+                    "rawProjectedNextTurnTokens": 1211,
+                    "recentUserWindow": 6,
+                    "retainedRecentUserCount": 1,
+                    "sessionId": "session-fixture",
+                    "status": "unknown",
+                    "usageRatio": 0
+                  },
+                  "pendingApprovals": [],
+                  "reply": "ok",
+                  "run": {
+                    "agentId": "fixture-agent",
+                    "completedAt": "fixture-time",
+                    "createdAt": "fixture-time",
+                    "finalMessageId": "message-fixture",
+                    "id": "run-fixture",
+                    "maxDurationMs": 1800000,
+                    "message": "completed",
+                    "model": "fixture-model",
+                    "pendingApprovals": [],
+                    "permissionMode": "less_approval",
+                    "providerId": "fixture-provider",
+                    "providerName": "Fixture Provider",
+                    "sessionId": "session-fixture",
+                    "startedAt": "fixture-time",
+                    "status": "COMPLETED",
+                    "toolCalls": [],
+                    "updatedAt": "fixture-time",
+                    "usage": {
+                      "durationMs": 0,
+                      "modelCalls": 0,
+                      "toolCallsTotal": 0
+                    },
+                    "userMessage": "disconnect",
+                    "workMode": "chat"
+                  },
+                  "session": {
+                    "agentId": "fixture-agent",
+                    "createdAt": "fixture-time",
+                    "id": "session-fixture",
+                    "title": "disconnect",
+                    "updatedAt": "fixture-time"
+                  },
+                  "timeline": [
+                    {
+                      "createdAt": "fixture-time",
+                      "id": "timeline-fixture",
+                      "kind": "user_message",
+                      "runId": "run-fixture",
+                      "sequence": 1,
+                      "sessionId": "session-fixture",
+                      "status": "final",
+                      "text": "disconnect"
+                    },
+                    {
+                      "createdAt": "fixture-time",
+                      "id": "timeline-fixture",
+                      "kind": "assistant_message",
+                      "runId": "run-fixture",
+                      "sequence": 2,
+                      "sessionId": "session-fixture",
+                      "status": "final",
+                      "text": "ok"
+                    }
+                  ]
+                },
+                "runId": "run-fixture",
+                "sequence": 6,
+                "streamId": "stream-fixture",
+                "type": "final"
+              }
+            }
+          ]
+        },
+        "writesBeforeDisconnect": 1
+      }
+    }
+  ]
+}

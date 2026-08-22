@@ -1,0 +1,395 @@
+use std::collections::BTreeMap;
+
+use serde::Deserialize;
+use serde_json::{Value, json};
+
+pub const ADK_CHAT_PATH: &str = "/api/v1/adk/chat";
+pub const ADK_CHAT_STREAM_PATH: &str = "/api/v1/adk/chat/stream";
+pub const ADK_STREAM_RETRY_MILLIS: u64 = 3000;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AdkChatRoute {
+    Chat,
+    Stream,
+}
+
+impl AdkChatRoute {
+    fn from_request(method: &str, path: &str) -> Option<Self> {
+        if method != "POST" {
+            return None;
+        }
+        match path {
+            ADK_CHAT_PATH => Some(Self::Chat),
+            ADK_CHAT_STREAM_PATH => Some(Self::Stream),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdkChatRequest {
+    pub method: String,
+    pub path: String,
+    pub body: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdkChatInput {
+    pub body: Vec<u8>,
+    pub client_request_id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AdkChatStreamFrame {
+    Event { id: Option<String>, data: Value },
+    Comment(String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdkChatStreamSnapshot {
+    pub headers: BTreeMap<String, String>,
+    pub frames: Vec<AdkChatStreamFrame>,
+    pub terminal: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AdkChatPortOutput {
+    Json(Value),
+    Stream(AdkChatStreamSnapshot),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AdkChatPortError {
+    Unavailable(String),
+    Conflict(String),
+    Failed {
+        status: u16,
+        code: String,
+        message: String,
+    },
+}
+
+pub trait AdkChatStreamPort: Send + Sync + std::fmt::Debug {
+    fn dispatch(
+        &self,
+        route: AdkChatRoute,
+        input: &AdkChatInput,
+    ) -> Result<AdkChatPortOutput, AdkChatPortError>;
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AdkChatWireResponse {
+    Json {
+        status: u16,
+        headers: BTreeMap<String, String>,
+        body: Value,
+    },
+    Sse {
+        status: u16,
+        headers: BTreeMap<String, String>,
+        frames: Vec<AdkChatStreamFrame>,
+        terminal: bool,
+    },
+}
+
+impl AdkChatWireResponse {
+    pub fn status(&self) -> u16 {
+        match self {
+            Self::Json { status, .. } | Self::Sse { status, .. } => *status,
+        }
+    }
+
+    pub fn headers(&self) -> &BTreeMap<String, String> {
+        match self {
+            Self::Json { headers, .. } | Self::Sse { headers, .. } => headers,
+        }
+    }
+
+    pub fn body(&self) -> String {
+        match self {
+            Self::Json { body, .. } => {
+                serde_json::to_string(body).expect("chat JSON envelope is serializable")
+            }
+            Self::Sse { frames, .. } => encode_sse_frames(frames),
+        }
+    }
+}
+
+pub fn dispatch_adk_chat(
+    request: &AdkChatRequest,
+    port: Option<&dyn AdkChatStreamPort>,
+    timestamp: &str,
+    stream_idle_timeout_ms: u64,
+) -> AdkChatWireResponse {
+    let Some(route) = AdkChatRoute::from_request(&request.method, &request.path) else {
+        return json_error(
+            404,
+            "NOT_FOUND",
+            &format!("unknown endpoint {}", request.path),
+            timestamp,
+        );
+    };
+    let input = match decode_input(&request.body) {
+        Ok(input) => input,
+        Err(InputDecodeError::Payload(message)) => {
+            if route == AdkChatRoute::Stream {
+                return invalid_stream_response(message, stream_idle_timeout_ms);
+            }
+            return json_error(400, "BAD_REQUEST", "invalid chat payload", timestamp);
+        }
+        Err(InputDecodeError::Identity(message)) => {
+            let response = json_error(400, "BAD_REQUEST", &message, timestamp);
+            return add_stream_idle_header(route, response, stream_idle_timeout_ms);
+        }
+    };
+    let Some(port) = port else {
+        return json_error(
+            503,
+            "ADK_UNAVAILABLE",
+            "ADK runtime is unavailable",
+            timestamp,
+        );
+    };
+    let output = match port.dispatch(route, &input) {
+        Ok(output) => output,
+        Err(error) => {
+            let response = port_error_response(error, timestamp);
+            return add_stream_idle_header(route, response, stream_idle_timeout_ms);
+        }
+    };
+    match (route, output) {
+        (AdkChatRoute::Chat, AdkChatPortOutput::Json(data)) => json_success(data, timestamp),
+        (AdkChatRoute::Stream, AdkChatPortOutput::Stream(snapshot)) => {
+            stream_success(snapshot, stream_idle_timeout_ms)
+        }
+        (_, _) => json_error(
+            500,
+            "ADK_CHAT_FAILED",
+            "ADK chat port returned an invalid response",
+            timestamp,
+        ),
+    }
+}
+
+enum InputDecodeError {
+    Payload(String),
+    Identity(String),
+}
+
+fn decode_input(body: &[u8]) -> Result<AdkChatInput, InputDecodeError> {
+    let mut deserializer = serde_json::Deserializer::from_slice(body);
+    let value = Value::deserialize(&mut deserializer).map_err(|error| {
+        if body.is_empty() {
+            InputDecodeError::Payload("EOF".to_owned())
+        } else if body == b"{" {
+            InputDecodeError::Payload("unexpected EOF".to_owned())
+        } else if body.first() == Some(&b'[') {
+            InputDecodeError::Payload(
+                "json: cannot unmarshal array into Go value of type assistant.ADKChatRequest"
+                    .to_owned(),
+            )
+        } else {
+            InputDecodeError::Payload(error.to_string())
+        }
+    })?;
+    let object = match value {
+        Value::Null => serde_json::Map::new(),
+        Value::Object(object) => object,
+        _ => {
+            return Err(InputDecodeError::Payload(
+                "json: cannot unmarshal value into Go value of type assistant.ADKChatRequest"
+                    .to_owned(),
+            ));
+        }
+    };
+    if object
+        .get("clientRequestId")
+        .is_some_and(|value| !value.is_null() && !value.is_string())
+    {
+        return Err(InputDecodeError::Payload(
+            "json: cannot unmarshal value into Go struct field ADKChatRequest.clientRequestId of type string"
+                .to_owned(),
+        ));
+    }
+    let client_request_id = object
+        .get("clientRequestId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            InputDecodeError::Identity("clientRequestId must be a valid UUID".to_owned())
+        })?;
+    let client_request_id = canonical_uuid(client_request_id).ok_or_else(|| {
+        InputDecodeError::Identity("clientRequestId must be a valid UUID".to_owned())
+    })?;
+    Ok(AdkChatInput {
+        body: body.to_vec(),
+        client_request_id,
+    })
+}
+
+fn canonical_uuid(value: &str) -> Option<String> {
+    let value = value
+        .strip_prefix("urn:uuid:")
+        .or_else(|| value.strip_prefix("URN:UUID:"))
+        .unwrap_or(value)
+        .trim_matches(['{', '}']);
+    let compact = value.replace('-', "");
+    if compact.len() != 32 || !compact.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
+    let lower = compact.to_ascii_lowercase();
+    Some(format!(
+        "{}-{}-{}-{}-{}",
+        &lower[0..8],
+        &lower[8..12],
+        &lower[12..16],
+        &lower[16..20],
+        &lower[20..32]
+    ))
+}
+
+fn json_success(data: Value, timestamp: &str) -> AdkChatWireResponse {
+    AdkChatWireResponse::Json {
+        status: 200,
+        headers: json_headers(),
+        body: json!({"ok": true, "data": data, "timestamp": timestamp}),
+    }
+}
+
+fn json_error(status: u16, code: &str, message: &str, timestamp: &str) -> AdkChatWireResponse {
+    AdkChatWireResponse::Json {
+        status,
+        headers: json_headers(),
+        body: json!({
+            "ok": false,
+            "error": {"code": code, "message": message},
+            "timestamp": timestamp,
+        }),
+    }
+}
+
+fn port_error_response(error: AdkChatPortError, timestamp: &str) -> AdkChatWireResponse {
+    match error {
+        AdkChatPortError::Unavailable(message) => {
+            json_error(503, "ADK_UNAVAILABLE", &message, timestamp)
+        }
+        AdkChatPortError::Conflict(message) => {
+            json_error(409, "ADK_CHAT_IDEMPOTENCY_CONFLICT", &message, timestamp)
+        }
+        AdkChatPortError::Failed {
+            status,
+            code,
+            message,
+        } => json_error(status, &code, &message, timestamp),
+    }
+}
+
+fn add_stream_idle_header(
+    route: AdkChatRoute,
+    mut response: AdkChatWireResponse,
+    stream_idle_timeout_ms: u64,
+) -> AdkChatWireResponse {
+    if route == AdkChatRoute::Stream {
+        match &mut response {
+            AdkChatWireResponse::Json { headers, .. }
+            | AdkChatWireResponse::Sse { headers, .. } => {
+                headers.insert(
+                    "X-ADK-Stream-Idle-Timeout-Ms".to_owned(),
+                    stream_idle_timeout_ms.to_string(),
+                );
+            }
+        }
+    }
+    response
+}
+
+fn invalid_stream_response(message: String, stream_idle_timeout_ms: u64) -> AdkChatWireResponse {
+    let mut headers = sse_headers(stream_idle_timeout_ms);
+    headers.remove("X-ADK-Stream-ID");
+    AdkChatWireResponse::Sse {
+        status: 200,
+        headers,
+        frames: vec![
+            AdkChatStreamFrame::Comment(format!("retry: {}", ADK_STREAM_RETRY_MILLIS)),
+            AdkChatStreamFrame::Event {
+                id: None,
+                data: json!({
+                    "type": "error",
+                    "message": format!("invalid chat payload: {message}"),
+                }),
+            },
+        ],
+        terminal: true,
+    }
+}
+
+fn stream_success(
+    snapshot: AdkChatStreamSnapshot,
+    stream_idle_timeout_ms: u64,
+) -> AdkChatWireResponse {
+    let mut headers = sse_headers(stream_idle_timeout_ms);
+    headers.extend(snapshot.headers);
+    let mut frames = vec![AdkChatStreamFrame::Comment(format!(
+        "retry: {}",
+        ADK_STREAM_RETRY_MILLIS
+    ))];
+    frames.extend(snapshot.frames);
+    AdkChatWireResponse::Sse {
+        status: 200,
+        headers,
+        frames,
+        terminal: snapshot.terminal,
+    }
+}
+
+fn json_headers() -> BTreeMap<String, String> {
+    BTreeMap::from([(
+        "Content-Type".to_owned(),
+        "application/json; charset=utf-8".to_owned(),
+    )])
+}
+
+fn sse_headers(stream_idle_timeout_ms: u64) -> BTreeMap<String, String> {
+    BTreeMap::from([
+        ("Cache-Control".to_owned(), "no-cache".to_owned()),
+        ("Connection".to_owned(), "keep-alive".to_owned()),
+        ("Content-Type".to_owned(), "text/event-stream".to_owned()),
+        (
+            "X-ADK-Stream-Idle-Timeout-Ms".to_owned(),
+            stream_idle_timeout_ms.to_string(),
+        ),
+    ])
+}
+
+fn encode_sse_frames(frames: &[AdkChatStreamFrame]) -> String {
+    let mut body = String::new();
+    for frame in frames {
+        match frame {
+            AdkChatStreamFrame::Event { id, data } => {
+                if let Some(id) = id {
+                    body.push_str("id: ");
+                    body.push_str(id);
+                    body.push('\n');
+                }
+                body.push_str("data: ");
+                body.push_str(
+                    &serde_json::to_string(data).expect("chat SSE event is serializable"),
+                );
+                body.push_str("\n\n");
+            }
+            AdkChatStreamFrame::Comment(comment) => {
+                if let Some(retry) = comment.strip_prefix("retry: ") {
+                    body.push_str("retry: ");
+                    body.push_str(retry);
+                    body.push_str("\n\n");
+                } else {
+                    body.push_str(": ");
+                    body.push_str(comment);
+                    body.push_str("\n\n");
+                }
+            }
+        }
+    }
+    body
+}
