@@ -38,7 +38,6 @@ pub struct WsLiveInput {
     #[serde(default)]
     pub offer_protocol: bool,
     #[serde(default)]
-    #[serde(default)]
     pub heartbeat_interval_ms: i64,
     #[serde(default)]
     pub subscribe: Option<WsLiveSubscriptions>,
@@ -53,8 +52,9 @@ pub struct WsLiveInput {
     #[serde(default)]
     pub depth_error: bool,
     #[serde(default)]
-    #[serde(default)]
     pub depth_resolved_at: String,
+    #[serde(default)]
+    pub depth_updated_at: String,
     #[serde(default)]
     pub depth_payload: Option<Value>,
 }
@@ -142,11 +142,7 @@ pub fn replay_fixture_case(case: &WsLiveCase) -> Result<Value, String> {
         ));
     }
     if case.input.origin_policy == "forbidden" {
-        return Ok(rejection(
-            403,
-            "text/plain; charset=utf-8",
-            "websocket: request origin not allowed\n",
-        ));
+        return Ok(rejection(403, "text/plain; charset=utf-8", "Forbidden\n"));
     }
     match case.scenario.as_str() {
         "heartbeat" => success(
@@ -187,8 +183,16 @@ pub fn replay_fixture_case(case: &WsLiveCase) -> Result<Value, String> {
                 heartbeat(&case.input, ""),
                 heartbeat(&case.input, &subscription.provider_broker_id),
             ];
-            frames.extend(depth_frames(&case.input, &subscription));
-            frames.extend(depth_frames(&case.input, &subscription));
+            frames.extend(depth_frames(
+                &case.input,
+                &subscription,
+                &case.input.depth_resolved_at,
+            ));
+            frames.extend(depth_frames(
+                &case.input,
+                &subscription,
+                &case.input.depth_updated_at,
+            ));
             success(case, vec![session(case, frames, None)], 1, false, 0, 2)
         }
         "invalid-subscription" => success(
@@ -405,7 +409,7 @@ fn console_refresh() -> String {
 }
 
 fn security_frame(
-    input: &WsLiveInput,
+    _input: &WsLiveInput,
     subscription: &WsLiveSubscriptions,
     item: &WsLiveSecuritySubscription,
 ) -> String {
@@ -441,7 +445,7 @@ fn security_frame(
 fn depth_frames(
     input: &WsLiveInput,
     subscription: &WsLiveSubscriptions,
-    resolved_at: &str,
+    _resolved_at: &str,
 ) -> Vec<String> {
     subscription.depth.iter().filter_map(|item| {
         if input.depth_error { return None; }
@@ -516,6 +520,7 @@ fn tick_frames(input: &WsLiveInput, subscription: &WsLiveSubscriptions) -> Vec<S
 }
 
 fn notification(notification: &WsLiveNotification) -> String {
+    let _ = &notification.at;
     let mut payload = Map::new();
     payload.insert(
         "type".to_owned(),
@@ -643,5 +648,8 @@ fn looks_like_timestamp(text: &str) -> bool {
 }
 
 fn wire(envelope: EventEnvelope) -> String {
-    serde_json::to_string(&envelope).expect("ws-live envelope serializes")
+    format!(
+        "{}\n",
+        serde_json::to_string(&envelope).expect("ws-live envelope serializes")
+    )
 }
