@@ -58,6 +58,7 @@ pub struct BacktestsWriteRequest {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(dead_code)]
 pub enum BacktestsWriteDeleteResult {
     Deleted,
     Missing,
@@ -65,6 +66,7 @@ pub enum BacktestsWriteDeleteResult {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(dead_code)]
 pub enum BacktestsWritePortResult {
     Data(Value),
     SyncCancelled(bool),
@@ -72,6 +74,7 @@ pub enum BacktestsWritePortResult {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(dead_code)]
 pub enum BacktestsWritePortError {
     Unavailable(String),
     BadRequest(String),

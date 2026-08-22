@@ -166,6 +166,18 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_watchlist_write_port(mut self, port: Arc<dyn WatchlistWritePort>) -> Self {
+        self.watchlist_write_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_backtests_write_port(mut self, port: Arc<dyn BacktestsWritePort>) -> Self {
+        self.backtests_write_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_plugin_uninstall_guidance_snapshot_port(
         mut self,
         port: Arc<dyn PluginUninstallGuidanceSnapshotPort>,

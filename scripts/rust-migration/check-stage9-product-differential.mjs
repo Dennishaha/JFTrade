@@ -227,6 +227,20 @@ run("go", [
   "test",
   "./scripts/rust-migration",
   "-run",
+  "^TestStage9WatchlistWriteFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
+  "^TestStage9BacktestsWriteFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
   "^TestStage9StrategyDefinitionsFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
@@ -645,6 +659,8 @@ run("cargo", [
   "--",
   "--nocapture",
 ]);
+run("node", ["scripts/rust-migration/check-stage9-watchlist-write.mjs"]);
+run("node", ["scripts/rust-migration/check-stage9-backtests-write.mjs"]);
 for (const testName of [
   "product::tests::market_data_quote_read_tests::market_data_quote_read_routes_match_group_fixture_in_cutover_only",
   "product::tests::market_data_quote_read_tests::market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable",
@@ -1185,6 +1201,22 @@ run("cargo", [
   "-p",
   "jftrade-engine",
   "product::tests::watchlist_remote_write_product_tests::remote_watchlist_write_route_registers_only_with_explicit_test_port",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::watchlist_write_product_tests::watchlist_write_routes_register_only_with_explicit_test_port",
+  "--",
+  "--exact",
+]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "product::tests::backtests_write_product_tests::backtests_write_routes_register_only_with_explicit_test_port",
   "--",
   "--exact",
 ]);

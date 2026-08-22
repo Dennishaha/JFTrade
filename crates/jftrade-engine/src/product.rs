@@ -91,6 +91,18 @@ use product_watchlist_remote_write_port::{
     RemoteWatchlistWritePort, RemoteWatchlistWriteRequest, RemoteWatchlistWriteResponse,
     dispatch_remote_watchlist_write, remote_watchlist_write_routes,
 };
+#[path = "product_watchlist_write_port.rs"]
+mod product_watchlist_write_port;
+use product_watchlist_write_port::{
+    WatchlistWritePort, WatchlistWriteRequest, WatchlistWriteResponse, dispatch_watchlist_write,
+    watchlist_write_routes,
+};
+#[path = "product_backtests_write_port.rs"]
+mod product_backtests_write_port;
+use product_backtests_write_port::{
+    BacktestsWritePort, BacktestsWriteRequest, BacktestsWriteResponse, backtests_write_routes,
+    dispatch_backtests_write,
+};
 #[path = "product_research_preset_write_port.rs"]
 mod product_research_preset_write_port;
 use product_research_preset_write_port::{
@@ -263,6 +275,7 @@ pub struct ProductConfig {
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
     remote_watchlist_write_port: Option<Arc<dyn RemoteWatchlistWritePort>>,
+    watchlist_write_port: Option<Arc<dyn WatchlistWritePort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     plugin_write_port: Option<Arc<dyn PluginWritePort>>,
@@ -277,6 +290,7 @@ pub struct ProductConfig {
     ws_live_snapshot_port: Option<Arc<dyn WsLiveSnapshotPort>>,
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
+    backtests_write_port: Option<Arc<dyn BacktestsWritePort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
@@ -343,6 +357,7 @@ impl ProductConfig {
             system_read_snapshot_port: None,
             remote_watchlist_snapshot_port: None,
             remote_watchlist_write_port: None,
+            watchlist_write_port: None,
             plugin_uninstall_guidance_snapshot_port: None,
             plugin_snapshot_port: None,
             plugin_write_port: None,
@@ -357,6 +372,7 @@ impl ProductConfig {
             ws_live_snapshot_port: None,
             backtest_read_snapshot_port: None,
             backtest_sync_read_snapshot_port: None,
+            backtests_write_port: None,
             strategy_read_snapshot_port: None,
             auth_session_snapshot_port: None,
             auth_session_write_port: None,
@@ -622,6 +638,7 @@ pub(crate) async fn start_product_with_runtime_state(
             system_read_snapshot: config.system_read_snapshot_port.clone(),
             remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),
             remote_watchlist_write: config.remote_watchlist_write_port.clone(),
+            watchlist_write: config.watchlist_write_port.clone(),
             plugin_uninstall_guidance_snapshot: config
                 .plugin_uninstall_guidance_snapshot_port
                 .clone(),
@@ -637,6 +654,7 @@ pub(crate) async fn start_product_with_runtime_state(
             strategy_pine_analyze_snapshot: config.strategy_pine_analyze_snapshot_port.clone(),
             backtest_read_snapshot: config.backtest_read_snapshot_port.clone(),
             backtest_sync_read_snapshot: config.backtest_sync_read_snapshot_port.clone(),
+            backtests_write: config.backtests_write_port.clone(),
             strategy_read_snapshot: config.strategy_read_snapshot_port.clone(),
             auth_session_snapshot: config.auth_session_snapshot_port.clone(),
             auth_session_write: config.auth_session_write_port.clone(),
@@ -687,6 +705,7 @@ include!("product_api.rs");
 include!("product_api_pine_worker.rs");
 include!("product_api_system_read.rs");
 include!("product_api_backtests.rs");
+include!("product_api_backtests_write.rs");
 include!("product_api_strategies.rs");
 include!("product_api_watchlist.rs");
 include!("product_api_portfolio.rs");

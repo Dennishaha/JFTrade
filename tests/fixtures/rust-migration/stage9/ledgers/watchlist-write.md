@@ -99,7 +99,7 @@ owner: Go watchlist service
 
 ## Ownership and gate status
 
-- `route-ownership.json` was intentionally not modified per the task boundary; all eight operations remain `remaining`, `productionOwner=go`, `goRemovalStatus=retained`.
+- The integration branch registers all eight operations as `cutover-test-only` only when the explicit `WatchlistWritePort` is supplied; `productionOwner=go` and `goRemovalStatus=retained` remain unchanged. Current route coverage is `26 shadow / 184 cutover-test-only / 0 qualified / 68 remaining / 0 Rust production owner`.
 - No default profile, shared product wiring, unified differential, OpenAPI, SQLite schema, Wails binding, provider/OpenD lifecycle, or production owner changed.
 - A-tier gates still not proven by this rehearsal: production unique-owner switch, authenticated test-cutover fencing in composition root, real transaction/SQLite rollback and restart recovery, notification/task side-effect isolation, four-platform signed release, security/SBOM review, backup/restore/crash recovery, and final hard-cut checklist.
 
@@ -108,3 +108,4 @@ owner: Go watchlist service
 - Passed: Go fixture reference test, `node scripts/rust-migration/check-stage9-watchlist-write.mjs`, Rust Stage 9 replay (6 tests), Rust Clippy with `-D warnings`, rustfmt check for the group, `node --check`, `git diff --check`, and `node scripts/rust-migration/check-stage9-route-coverage.mjs`.
 - `pnpm run check:quick` started and passed its diff, AI-context, Rust-layout, and substantial workspace test targets, including the watchlist-write replay. It was manually interrupted after roughly ten minutes while the workspace all-target test sequence was still progressing through later targets; it is recorded as incomplete and is not claimed as a full pass.
 - The current checkout includes the separately committed backtests-write worker commits; this group did not modify or stage those files.
+- Integration product wiring and unified differential evidence: passed after the group was registered in the explicit test-cutover profile; no default route or production owner changed.

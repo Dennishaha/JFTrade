@@ -110,27 +110,33 @@
       "method": "DELETE",
       "path": "/api/v1/backtests/sync/{taskId}",
       "capability": "backtests",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-backtests-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "DELETE",
       "path": "/api/v1/backtests/{runId}",
       "capability": "backtests",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-backtests-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "DELETE",
@@ -248,27 +254,33 @@
       "method": "DELETE",
       "path": "/api/v1/watchlist/bindings",
       "capability": "watchlist",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "DELETE",
       "path": "/api/v1/watchlist/groups/{groupId}",
       "capability": "watchlist",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "GET",
@@ -2555,14 +2567,17 @@
       "method": "PATCH",
       "path": "/api/v1/watchlist/groups/{groupId}",
       "capability": "watchlist",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -2931,27 +2946,33 @@
       "method": "POST",
       "path": "/api/v1/backtests",
       "capability": "backtests",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-backtests-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/backtests/sync",
       "capability": "backtests",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-backtests-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -3624,53 +3645,65 @@
       "method": "POST",
       "path": "/api/v1/watchlist/groups",
       "capability": "watchlist",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/watchlist/imports/preview",
       "capability": "watchlist",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/watchlist/imports/{previewId}/commit",
       "capability": "watchlist",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/watchlist/quotes/batch",
       "capability": "watchlist",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -4019,14 +4052,17 @@
       "method": "PUT",
       "path": "/api/v1/watchlist/instruments/{market}/{symbol}/memberships",
       "capability": "watchlist",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     }
   ]
 }

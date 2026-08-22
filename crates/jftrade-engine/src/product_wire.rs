@@ -44,7 +44,6 @@ const BUILTIN_AGENT_TOOLS: &[&str] = &[
     "backtest.result_view",
     "backtest.kline_sync_status",
 ];
-
 const BUILTIN_AGENT_SKILLS: &[&str] = &[
     "jftrade-workflow-management",
     "jftrade-operations",
@@ -58,7 +57,6 @@ const BUILTIN_AGENT_SKILLS: &[&str] = &[
     "jftrade-strategy-publish",
     "external-http",
 ];
-
 fn agent_templates_wire() -> serde_json::Value {
     json!({
         "templates": [{
@@ -188,6 +186,7 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_backtest_sync_path(path) => self.backtest_sync_progress(path),
                 ("GET", path) if is_backtest_status_path(path) => self.backtest_status(path),
                 ("GET", path) if is_backtest_result_path(path) => self.backtest_result(path),
+                (method, path) if is_backtests_write_path(method, path) && self.backtests_write_port.is_some() => self.backtests_write(&request),
                 ("GET", "/api/v1/strategies") => {
                     self.strategy_read("/api/v1/strategies", &request.query)
                 }
@@ -274,6 +273,7 @@ impl ApiPort for ProductApi {
                     self.remote_watchlist_read(&request.query)
                 }
                 (method, path) if is_remote_watchlist_write_path(method, path) && self.remote_watchlist_write_port.is_some() => self.remote_watchlist_write(&request),
+                (method, path) if is_watchlist_write_path(method, path) && self.watchlist_write_port.is_some() => self.watchlist_write(&request),
                 ("GET", "/api/v1/plugins") => self.plugin_catalog(),
                 ("GET", path) if is_plugin_operation_path(path) => self.plugin_operation(path),
                 ("GET", path) if is_plugin_uninstall_guidance_path(path) => {

@@ -1,5 +1,4 @@
 include!("product_api_types.rs");
-
 struct ProductApi {
     api_port: u16,
     settings: ProductSettingsServices,
@@ -32,6 +31,7 @@ struct ProductApi {
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
     remote_watchlist_write_port: Option<Arc<dyn RemoteWatchlistWritePort>>,
+    watchlist_write_port: Option<Arc<dyn WatchlistWritePort>>,
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     plugin_write_port: Option<Arc<dyn PluginWritePort>>,
@@ -45,6 +45,7 @@ struct ProductApi {
     strategy_pine_analyze_snapshot_port: Option<Arc<dyn StrategyPineAnalyzeSnapshotPort>>,
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
+    backtests_write_port: Option<Arc<dyn BacktestsWritePort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
@@ -94,6 +95,7 @@ impl ProductApi {
             system_read_snapshot_port: optional_ports.system_read_snapshot,
             remote_watchlist_snapshot_port: optional_ports.remote_watchlist_snapshot,
             remote_watchlist_write_port: optional_ports.remote_watchlist_write,
+            watchlist_write_port: optional_ports.watchlist_write,
             plugin_uninstall_guidance_snapshot_port: optional_ports
                 .plugin_uninstall_guidance_snapshot,
             plugin_snapshot_port: optional_ports.plugin_snapshot,
@@ -110,6 +112,7 @@ impl ProductApi {
             strategy_pine_analyze_snapshot_port: optional_ports.strategy_pine_analyze_snapshot,
             backtest_read_snapshot_port: optional_ports.backtest_read_snapshot,
             backtest_sync_read_snapshot_port: optional_ports.backtest_sync_read_snapshot,
+            backtests_write_port: optional_ports.backtests_write,
             strategy_read_snapshot_port: optional_ports.strategy_read_snapshot,
             auth_session_snapshot_port: optional_ports.auth_session_snapshot,
             auth_session_write_port: optional_ports.auth_session_write,
@@ -459,7 +462,6 @@ impl ProductApi {
             .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "resource not found"))?;
         Ok(ApiOutput::Json(json!(versions)))
     }
-
     fn strategy_definition_version(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
         let (definition_id, version) = strategy_definition_version_path(path)?;
         let port = self.strategy_definition_port()?;

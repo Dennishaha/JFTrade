@@ -21,3 +21,16 @@ fn product_backtest_sync_routes(
     }
     vec![route("GET", "/api/v1/backtests/sync/{taskId}")]
 }
+
+fn product_backtests_write_routes(
+    capabilities: &ProductCapabilities,
+    ports: ProductRoutePorts,
+) -> Vec<RouteSpec> {
+    if !ports.backtests_write || !capabilities.contains(ProductCapability::BacktestsWrite) {
+        return Vec::new();
+    }
+    backtests_write_routes()
+        .iter()
+        .map(|(method, path)| route(method, path))
+        .collect()
+}

@@ -99,6 +99,13 @@ fn product_watchlist_research_trading_routes(
                 .map(|(method, path)| route(method, path)),
         );
     }
+    if ports.watchlist_write && capabilities.contains(ProductCapability::WatchlistWrite) {
+        routes.extend(
+            watchlist_write_routes()
+                .iter()
+                .map(|(method, path)| route(method, path)),
+        );
+    }
     if ports.plugins && capabilities.contains(ProductCapability::Plugins) {
         routes.extend([
             route("GET", "/api/v1/plugins"),

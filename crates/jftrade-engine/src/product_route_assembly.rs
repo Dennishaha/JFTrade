@@ -39,6 +39,7 @@ enum ProductCapability {
     BrokerRead,
     RemoteWatchlistRead,
     RemoteWatchlistWrite,
+    WatchlistWrite,
     SystemRead,
     Plugins,
     PluginsWrite,
@@ -52,6 +53,7 @@ enum ProductCapability {
     StrategyDefinitions,
     BacktestRead,
     BacktestSyncRead,
+    BacktestsWrite,
     StrategyRead,
     StrategyPineAnalyze,
     WsLive,
@@ -101,6 +103,7 @@ impl ProductCapabilities {
             ProductCapability::BrokerRead,
             ProductCapability::RemoteWatchlistRead,
             ProductCapability::RemoteWatchlistWrite,
+            ProductCapability::WatchlistWrite,
             ProductCapability::SystemRead,
             ProductCapability::Plugins,
             ProductCapability::PluginsWrite,
@@ -114,6 +117,7 @@ impl ProductCapabilities {
             ProductCapability::StrategyDefinitions,
             ProductCapability::BacktestRead,
             ProductCapability::BacktestSyncRead,
+            ProductCapability::BacktestsWrite,
             ProductCapability::StrategyRead,
             ProductCapability::StrategyPineAnalyze,
             ProductCapability::WsLive,
@@ -157,6 +161,7 @@ impl ProductCapabilities {
                     | ProductCapability::BrokerRead
                     | ProductCapability::RemoteWatchlistRead
                     | ProductCapability::RemoteWatchlistWrite
+                    | ProductCapability::WatchlistWrite
                     | ProductCapability::SystemRead
                     | ProductCapability::Plugins
                     | ProductCapability::PluginsWrite
@@ -170,6 +175,7 @@ impl ProductCapabilities {
                     | ProductCapability::StrategyDefinitions
                     | ProductCapability::BacktestRead
                     | ProductCapability::BacktestSyncRead
+                    | ProductCapability::BacktestsWrite
                     | ProductCapability::StrategyRead
                     | ProductCapability::StrategyPineAnalyze
                     | ProductCapability::WsLive
@@ -207,6 +213,7 @@ struct ProductRoutePorts {
     broker_read: bool,
     remote_watchlist: bool,
     remote_watchlist_write: bool,
+    watchlist_write: bool,
     system_read: bool,
     plugins: bool,
     plugins_write: bool,
@@ -219,6 +226,7 @@ struct ProductRoutePorts {
     strategy_definitions: bool,
     backtest_read: bool,
     backtest_sync_read: bool,
+    backtests_write: bool,
     strategy_read: bool,
     strategy_pine_analyze: bool,
     ws_live: bool,
@@ -264,6 +272,7 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         system_read: config.system_read_snapshot_port.is_some(),
         backtest_read: config.backtest_read_snapshot_port.is_some(),
         backtest_sync_read: config.backtest_sync_read_snapshot_port.is_some(),
+        backtests_write: config.backtests_write_port.is_some(),
         strategy_read: config.strategy_read_snapshot_port.is_some(),
         strategy_pine_analyze: config
             .strategy_pine_analyze_snapshot_port
@@ -274,6 +283,7 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
             .is_some_and(|port| port.enabled()),
         remote_watchlist: config.remote_watchlist_snapshot_port.is_some(),
         remote_watchlist_write: config.remote_watchlist_write_port.is_some(),
+        watchlist_write: config.watchlist_write_port.is_some(),
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
         plugins_write: config.plugin_write_port.is_some(),
@@ -308,6 +318,7 @@ fn product_routes(
     routes.extend(product_data_management_routes(capabilities));
     routes.extend(product_backtest_routes(capabilities, ports));
     routes.extend(product_backtest_sync_routes(capabilities, ports));
+    routes.extend(product_backtests_write_routes(capabilities, ports));
     routes.extend(product_execution_read_routes(capabilities, ports));
     routes.extend(product_market_data_provider_read_routes(capabilities, ports));
     routes.extend(product_market_data_catalog_read_routes(capabilities, ports));

@@ -552,6 +552,12 @@ mod auth_session_write_product_tests;
 #[path = "product_watchlist_remote_write_product_tests.rs"]
 mod watchlist_remote_write_product_tests;
 
+#[path = "product_watchlist_write_product_tests.rs"]
+mod watchlist_write_product_tests;
+
+#[path = "product_backtests_write_product_tests.rs"]
+mod backtests_write_product_tests;
+
 #[path = "product_watchlist_tests.rs"]
 mod watchlist_read_tests;
 
@@ -2093,6 +2099,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             broker_read: true,
             remote_watchlist: true,
             remote_watchlist_write: true,
+            watchlist_write: true,
             system_read: true,
             plugins: true,
             plugins_write: true,
@@ -2104,13 +2111,14 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             strategy_definitions: true,
             backtest_read: true,
             backtest_sync_read: true,
+            backtests_write: true,
             strategy_read: true,
             strategy_pine_analyze: true,
             ws_live: true,
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 198);
+    assert_eq!(cutover.routes().len(), 210);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
